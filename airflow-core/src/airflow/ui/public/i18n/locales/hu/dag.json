@@ -1,0 +1,154 @@
+{
+  "allRuns": "Összes futás",
+  "blockingDeps": {
+    "dependency": "Függőség",
+    "reason": "Ok",
+    "title": "Függőségek, amelyek blokkolják a feladat ütemezését"
+  },
+  "calendar": {
+    "daily": "Napi",
+    "hourly": "Óránkénti",
+    "legend": {
+      "less": "Kevesebb",
+      "mixed": "Vegyes",
+      "more": "Több"
+    },
+    "navigation": {
+      "nextMonth": "Következő hónap",
+      "nextYear": "Következő év",
+      "previousMonth": "Előző hónap",
+      "previousYear": "Előző év"
+    },
+    "noData": "Nincs elérhető adat",
+    "noFailedRuns": "Nincs sikertelen futás",
+    "noRuns": "Nincs futás",
+    "totalRuns": "Összes futás",
+    "week": "Hét {{weekNumber}}",
+    "weekdays": {
+      "friday": "Péntek",
+      "monday": "Hétfő",
+      "saturday": "Szombat",
+      "sunday": "Vasárnap",
+      "thursday": "Csütörtök",
+      "tuesday": "Kedd",
+      "wednesday": "Szerda"
+    }
+  },
+  "code": {
+    "bundleUrl": "Csomag URL",
+    "noCode": "Nem található kód",
+    "parseDuration": "Feldolgozás időtartama:",
+    "parsedAt": "Feldolgozás ideje:"
+  },
+  "extraLinks": "Extra hivatkozások",
+  "grid": {
+    "buttons": {
+      "resetToLatest": "Visszaállítás a legutóbbira",
+      "toggleGroup": "Csoport váltása"
+    }
+  },
+  "header": {
+    "buttons": {
+      "advanced": "Haladó",
+      "dagDocs": "Dag dokumentáció"
+    }
+  },
+  "logs": {
+    "allLevels": "Összes napló szint",
+    "allSources": "Összes forrás",
+    "critical": "KRITIKUS",
+    "debug": "DEBUG",
+    "error": "HIBA",
+    "fullscreen": {
+      "button": "Teljes képernyő",
+      "tooltip": "Nyomja meg a(z) {{hotkey}} billentyűt a teljes képernyőhöz"
+    },
+    "info": "INFO",
+    "noTryNumber": "Nincs próbálkozási szám",
+    "settings": "Naplóbeállítások",
+    "viewInExternal": "Naplók megtekintése itt: {{name}} (próbálkozás: {{attempt}})",
+    "warning": "FIGYELMEZTETÉS"
+  },
+  "navigation": {
+    "navigation": "Navigáció: {{arrow}}",
+    "toggleGroup": "Csoport váltása: Szóköz"
+  },
+  "overview": {
+    "buttons": {
+      "failedRun_one": "Sikertelen futás",
+      "failedRun_other": "Sikertelen futások",
+      "failedTask_one": "Sikertelen feladat",
+      "failedTask_other": "Sikertelen feladatok",
+      "failedTaskInstance_one": "Sikertelen feladatpéldány",
+      "failedTaskInstance_other": "Sikertelen feladatpéldányok"
+    },
+    "charts": {
+      "assetEvent_one": "Létrehozott adatkészlet esemény",
+      "assetEvent_other": "Létrehozott adatkészlet események"
+    },
+    "failedLogs": {
+      "hideLogs": "Napló elrejtése",
+      "showLogs": "Napló mutatása",
+      "title": "Legutóbbi sikertelen feladatnaplók",
+      "viewFullLogs": "Teljes naplók megtekintése"
+    }
+  },
+  "panel": {
+    "buttons": {
+      "options": "Beállítások",
+      "showGantt": "Gantt-diagram megjelenítése",
+      "showGraphShortcut": "Gráf megjelenítése (Press g)",
+      "showGridShortcut": "Rács megjelenítése (Press g)"
+    },
+    "dagRuns": {
+      "label": "Dag futások száma"
+    },
+    "dependencies": {
+      "label": "Függőségek",
+      "options": {
+        "allDagDependencies": "Összes Dag függőség",
+        "externalConditions": "Külső feltételek",
+        "onlyTasks": "Csak feladatok"
+      },
+      "placeholder": "Függőségek"
+    },
+    "graphDirection": {
+      "label": "Gráf iránya"
+    }
+  },
+  "paramsFailed": "A paraméterek betöltése sikertelen",
+  "parse": {
+    "toaster": {
+      "error": {
+        "description": "A Dag feldolgozási kérelem meghiúsult. Lehetnek még feldolgozásra váró kérelmek.",
+        "title": "Dag újrafeldolgozása sikertelen"
+      },
+      "success": {
+        "description": "A Dag újrafeldolgozása hamarosan.",
+        "title": "Újrafeldolgozási kérelem sikeresen elküldve"
+      }
+    }
+  },
+  "tabs": {
+    "assetEvents": "Adatkészlet események",
+    "auditLog": "Audit napló",
+    "backfills": "Backfill-ek",
+    "calendar": "Naptár",
+    "code": "Kód",
+    "details": "Részletek",
+    "logs": "Naplók",
+    "mappedTaskInstances_one": "Feladatpéldány [{{count}}]",
+    "mappedTaskInstances_other": "Feladatpéldányok [{{count}}]",
+    "overview": "Áttekintés",
+    "renderedTemplates": "Renderelt sablonok",
+    "requiredActions": "Szükséges műveletek",
+    "runs": "Futások",
+    "taskInstances": "Feladatpéldányok",
+    "tasks": "Feladatok",
+    "xcom": "XCom"
+  },
+  "taskGroups": {
+    "collapseAll": "Összes feladatcsoport összecsukása",
+    "expandAll": "Összes feladatcsoport kinyitása"
+  }
+}

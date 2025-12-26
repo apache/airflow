@@ -23,16 +23,24 @@ from collections.abc import Callable, Iterable, Mapping, Sequence
 from functools import cached_property
 from typing import TYPE_CHECKING, Any, ClassVar, NoReturn, SupportsAbs
 
-from airflow.exceptions import AirflowException, AirflowFailException
+from airflow import XComArg
 from airflow.models import SkipMixin
+from airflow.providers.common.compat.sdk import (
+    AirflowException,
+    AirflowFailException,
+    AirflowSkipException,
+    BaseHook,
+    BaseOperator,
+)
 from airflow.providers.common.sql.hooks.handlers import fetch_all_handler, return_single_query_results
 from airflow.providers.common.sql.hooks.sql import DbApiHook
-from airflow.providers.common.sql.version_compat import BaseHook, BaseOperator
 from airflow.utils.helpers import merge_dicts
 
 if TYPE_CHECKING:
+    import jinja2
+
+    from airflow.providers.common.compat.sdk import Context
     from airflow.providers.openlineage.extractors import OperatorLineage
-    from airflow.utils.context import Context
 
 
 def _convert_to_float_if_possible(s: str) -> float | str:
@@ -205,6 +213,86 @@ class BaseSQLOperator(BaseOperator):
             raise AirflowException(exception_string)
         raise AirflowFailException(exception_string)
 
+    def get_openlineage_facets_on_start(self) -> OperatorLineage | None:
+        """Generate OpenLineage facets on start for SQL operators."""
+        try:
+            from airflow.providers.openlineage.extractors import OperatorLineage
+            from airflow.providers.openlineage.sqlparser import SQLParser
+        except ImportError:
+            self.log.debug("OpenLineage could not import required classes. Skipping.")
+            return None
+
+        sql = getattr(self, "sql", None)
+        if not sql:
+            self.log.debug("OpenLineage could not find 'sql' attribute on `%s`.", type(self).__name__)
+            return OperatorLineage()
+
+        hook = self.get_db_hook()
+        try:
+            from airflow.providers.openlineage.utils.utils import should_use_external_connection
+
+            use_external_connection = should_use_external_connection(hook)
+        except ImportError:
+            # OpenLineage provider release < 1.8.0 - we always use connection
+            use_external_connection = True
+
+        connection = hook.get_connection(getattr(hook, hook.conn_name_attr))
+        try:
+            database_info = hook.get_openlineage_database_info(connection)
+        except AttributeError:
+            self.log.debug("%s has no database info provided", hook)
+            database_info = None
+
+        if database_info is None:
+            self.log.debug("OpenLineage could not retrieve database information. Skipping.")
+            return OperatorLineage()
+
+        try:
+            sql_parser = SQLParser(
+                dialect=hook.get_openlineage_database_dialect(connection),
+                default_schema=hook.get_openlineage_default_schema(),
+            )
+        except AttributeError:
+            self.log.debug("%s failed to get database dialect", hook)
+            return None
+
+        operator_lineage = sql_parser.generate_openlineage_metadata_from_sql(
+            sql=sql,
+            hook=hook,
+            database_info=database_info,
+            database=self.database,
+            sqlalchemy_engine=hook.get_sqlalchemy_engine(),
+            use_connection=use_external_connection,
+        )
+
+        return operator_lineage
+
+    def get_openlineage_facets_on_complete(self, task_instance) -> OperatorLineage | None:
+        """Generate OpenLineage facets when task completes."""
+        try:
+            from airflow.providers.openlineage.extractors import OperatorLineage
+        except ImportError:
+            self.log.debug("OpenLineage could not import required classes. Skipping.")
+            return None
+
+        operator_lineage = self.get_openlineage_facets_on_start() or OperatorLineage()
+        hook = self.get_db_hook()
+        try:
+            database_specific_lineage = hook.get_openlineage_database_specific_lineage(task_instance)
+        except AttributeError:
+            self.log.debug("%s has no database specific lineage provided", hook)
+            database_specific_lineage = None
+
+        if database_specific_lineage is None:
+            return operator_lineage
+
+        return OperatorLineage(
+            inputs=operator_lineage.inputs + database_specific_lineage.inputs,
+            outputs=operator_lineage.outputs + database_specific_lineage.outputs,
+            run_facets=merge_dicts(operator_lineage.run_facets, database_specific_lineage.run_facets),
+            job_facets=merge_dicts(operator_lineage.job_facets, database_specific_lineage.job_facets),
+        )
+
 
 class SQLExecuteQueryOperator(BaseSQLOperator):
     """
@@ -334,76 +422,6 @@ class SQLExecuteQueryOperator(BaseSQLOperator):
         """Parse template file for attribute parameters."""
         if isinstance(self.parameters, str):
             self.parameters = ast.literal_eval(self.parameters)
-
-    def get_openlineage_facets_on_start(self) -> OperatorLineage | None:
-        try:
-            from airflow.providers.openlineage.sqlparser import SQLParser
-        except ImportError:
-            return None
-
-        hook = self.get_db_hook()
-
-        try:
-            from airflow.providers.openlineage.utils.utils import should_use_external_connection
-
-            use_external_connection = should_use_external_connection(hook)
-        except ImportError:
-            # OpenLineage provider release < 1.8.0 - we always use connection
-            use_external_connection = True
-
-        connection = hook.get_connection(getattr(hook, hook.conn_name_attr))
-        try:
-            database_info = hook.get_openlineage_database_info(connection)
-        except AttributeError:
-            self.log.debug("%s has no database info provided", hook)
-            database_info = None
-
-        if database_info is None:
-            return None
-
-        try:
-            sql_parser = SQLParser(
-                dialect=hook.get_openlineage_database_dialect(connection),
-                default_schema=hook.get_openlineage_default_schema(),
-            )
-        except AttributeError:
-            self.log.debug("%s failed to get database dialect", hook)
-            return None
-
-        operator_lineage = sql_parser.generate_openlineage_metadata_from_sql(
-            sql=self.sql,
-            hook=hook,
-            database_info=database_info,
-            database=self.database,
-            sqlalchemy_engine=hook.get_sqlalchemy_engine(),
-            use_connection=use_external_connection,
-        )
-
-        return operator_lineage
-
-    def get_openlineage_facets_on_complete(self, task_instance) -> OperatorLineage | None:
-        try:
-            from airflow.providers.openlineage.extractors import OperatorLineage
-        except ImportError:
-            return None
-
-        operator_lineage = self.get_openlineage_facets_on_start() or OperatorLineage()
-
-        hook = self.get_db_hook()
-        try:
-            database_specific_lineage = hook.get_openlineage_database_specific_lineage(task_instance)
-        except AttributeError:
-            database_specific_lineage = None
-
-        if database_specific_lineage is None:
-            return operator_lineage
-
-        return OperatorLineage(
-            inputs=operator_lineage.inputs + database_specific_lineage.inputs,
-            outputs=operator_lineage.outputs + database_specific_lineage.outputs,
-            run_facets=merge_dicts(operator_lineage.run_facets, database_specific_lineage.run_facets),
-            job_facets=merge_dicts(operator_lineage.job_facets, database_specific_lineage.job_facets),
-        )
 
 
 class SQLColumnCheckOperator(BaseSQLOperator):
@@ -844,6 +862,9 @@ class SQLValueCheckOperator(BaseSQLOperator):
     :param sql: the sql to be executed. (templated)
     :param conn_id: the connection ID used to connect to the database.
     :param database: name of database which overwrite the defined one in connection
+    :param pass_value: the value to check against
+    :param tolerance: (optional) the tolerance allowed to pass records within for
+        numeric queries
     """
 
     __mapper_args__ = {"polymorphic_identity": "SQLValueCheckOperator"}
@@ -991,8 +1012,13 @@ class SQLIntervalCheckOperator(BaseSQLOperator):
 
         self.sql1 = f"{sqlt}'{{{{ ds }}}}'"
         self.sql2 = f"{sqlt}'{{{{ macros.ds_add(ds, {self.days_back}) }}}}'"
+        # Save all queries as `sql` attr - similar to other sql operators (to be used by listeners).
+        self.sql: list[str] = [self.sql1, self.sql2]
 
     def execute(self, context: Context):
+        # Re-set with templated queries
+        self.sql = [self.sql1, self.sql2]
+
         hook = self.get_db_hook()
         self.log.info("Using ratio formula: %s", self.ratio_formula)
         self.log.info("Executing SQL check: %s", self.sql2)
@@ -1009,25 +1035,36 @@ class SQLIntervalCheckOperator(BaseSQLOperator):
         reference = dict(zip(self.metrics_sorted, row2))
 
         ratios: dict[str, int | None] = {}
-        test_results = {}
+        # Save all details about all tests to be used in error message if needed
+        all_tests_results: dict[str, dict[str, Any]] = {}
 
         for metric in self.metrics_sorted:
             cur = current[metric]
             ref = reference[metric]
             threshold = self.metrics_thresholds[metric]
+            single_metric_results = {
+                "metric": metric,
+                "current_metric": cur,
+                "past_metric": ref,
+                "threshold": threshold,
+                "ignore_zero": self.ignore_zero,
+            }
             if cur == 0 or ref == 0:
                 ratios[metric] = None
-                test_results[metric] = self.ignore_zero
+                single_metric_results["ratio"] = None
+                single_metric_results["success"] = self.ignore_zero
             else:
                 ratio_metric = self.ratio_formulas[self.ratio_formula](current[metric], reference[metric])
                 ratios[metric] = ratio_metric
+                single_metric_results["ratio"] = ratio_metric
                 if ratio_metric is not None:
-                    test_results[metric] = ratio_metric < threshold
+                    single_metric_results["success"] = ratio_metric < threshold
                 else:
-                    test_results[metric] = self.ignore_zero
+                    single_metric_results["success"] = self.ignore_zero
 
+            all_tests_results[metric] = single_metric_results
             self.log.info(
-                ("Current metric for %s: %s\nPast metric for %s: %s\nRatio for %s: %s\nThreshold: %s\n"),
+                "Current metric for %s: %s\nPast metric for %s: %s\nRatio for %s: %s\nThreshold: %s\n",
                 metric,
                 cur,
                 metric,
@@ -1037,21 +1074,24 @@ class SQLIntervalCheckOperator(BaseSQLOperator):
                 threshold,
             )
 
-        if not all(test_results.values()):
-            failed_tests = [it[0] for it in test_results.items() if not it[1]]
+        failed_tests = [single for single in all_tests_results.values() if not single["success"]]
+        if failed_tests:
             self.log.warning(
                 "The following %s tests out of %s failed:",
                 len(failed_tests),
                 len(self.metrics_sorted),
             )
-            for k in failed_tests:
+            for single_filed_test in failed_tests:
                 self.log.warning(
                     "'%s' check failed. %s is above %s",
-                    k,
-                    ratios[k],
-                    self.metrics_thresholds[k],
+                    single_filed_test["metric"],
+                    single_filed_test["ratio"],
+                    single_filed_test["threshold"],
                 )
-            self._raise_exception(f"The following tests have failed:\n {', '.join(sorted(failed_tests))}")
+            failed_test_details = "; ".join(
+                f"{t['metric']}: {t}" for t in sorted(failed_tests, key=lambda x: x["metric"])
+            )
+            self._raise_exception(f"The following tests have failed:\n {failed_test_details}")
 
         self.log.info("All tests have passed")
 
@@ -1198,6 +1238,8 @@ class BranchSQLOperator(BaseSQLOperator, SkipMixin):
         self.parameters = parameters
         self.follow_task_ids_if_true = follow_task_ids_if_true
         self.follow_task_ids_if_false = follow_task_ids_if_false
+        # Chosen branch, after evaluating condition, set during execution, to be used by listeners
+        self.follow_branch: list[str] | None = None
 
     def execute(self, context: Context):
         self.log.info(
@@ -1224,32 +1266,159 @@ class BranchSQLOperator(BaseSQLOperator, SkipMixin):
 
         self.log.info("Query returns %s, type '%s'", query_result, type(query_result))
 
-        follow_branch = None
         try:
             if isinstance(query_result, bool):
                 if query_result:
-                    follow_branch = self.follow_task_ids_if_true
+                    self.follow_branch = self.follow_task_ids_if_true
             elif isinstance(query_result, str):
                 # return result is not Boolean, try to convert from String to Boolean
                 if _parse_boolean(query_result):
-                    follow_branch = self.follow_task_ids_if_true
+                    self.follow_branch = self.follow_task_ids_if_true
             elif isinstance(query_result, int):
                 if bool(query_result):
-                    follow_branch = self.follow_task_ids_if_true
+                    self.follow_branch = self.follow_task_ids_if_true
             else:
                 raise AirflowException(
                     f"Unexpected query return result '{query_result}' type '{type(query_result)}'"
                 )
 
-            if follow_branch is None:
-                follow_branch = self.follow_task_ids_if_false
+            if self.follow_branch is None:
+                self.follow_branch = self.follow_task_ids_if_false
         except ValueError:
             raise AirflowException(
                 f"Unexpected query return result '{query_result}' type '{type(query_result)}'"
             )
 
-        # TODO(potiuk) remove the type ignore once we solve provider <-> Task SDK relationship
-        self.skip_all_except(context["ti"], follow_branch)
+        self.skip_all_except(context["ti"], self.follow_branch)
+
+
+class SQLInsertRowsOperator(BaseSQLOperator):
+    """
+    Insert rows (e.g. a collection of tuples) into a database table directly from an XCom or Python data structure.
+
+    :param table: the name of the table in which the rows will be inserted (templated).
+    :param conn_id: the connection ID used to connect to the database
+    :param schema: (optional) the name of schema in which the table is defined
+    :param database: name of database (e.g. schema) which overwrite the defined one in connection
+    :param columns: (optional) specify a list of columns being used for the insert when passing a list of
+        dictionaries.
+    :param ignore_columns: (optional) specify a list of columns being ignored for the insert.  If no columns
+        where specified, the columns will be resolved dynamically from the metadata.
+    :param rows: the rows to insert into the table. Rows can be a list of tuples or a list of dictionaries.
+        When a list of dictionaries is provided, the column names are inferred from the dictionary keys and
+        will be matched with the column names, ignored columns will be filtered out.
+    :rows_processor: (optional) a function that will be applied to the rows before inserting them into the table.
+    :param preoperator: sql statement or list of statements to be executed prior to loading the data. (templated)
+    :param postoperator: sql statement or list of statements to be executed after loading the data. (templated)
+    :param insert_args: (optional) dictionary of additional arguments passed to the underlying hook's
+        `insert_rows` method. This allows you to configure options such as `replace`, `executemany`,
+        `fast_executemany`, and `autocommit`.
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:SQLInsertRowsOperator`
+    """
+
+    template_fields: Sequence[str] = (
+        "table_name",
+        "conn_id",
+        "schema",
+        "database",
+        "_columns",
+        "ignored_columns",
+        "preoperator",
+        "postoperator",
+        "insert_args",
+    )
+    template_ext: Sequence[str] = (".sql",)
+    template_fields_renderers = {"preoperator": "sql"}
+
+    def __init__(
+        self,
+        *,
+        table_name: str,
+        conn_id: str | None = None,
+        schema: str | None = None,
+        database: str | None = None,
+        columns: Iterable[str] | None = None,
+        ignored_columns: Iterable[str] | None = None,
+        rows: list[Any] | XComArg | None = None,
+        rows_processor: Callable[[Any, Context], Any] = lambda rows, **context: rows,
+        preoperator: str | list[str] | None = None,
+        postoperator: str | list[str] | None = None,
+        hook_params: dict | None = None,
+        insert_args: dict | None = None,
+        **kwargs,
+    ):
+        super().__init__(
+            conn_id=conn_id,
+            database=database,
+            hook_params=hook_params,
+            **kwargs,
+        )
+        self.table_name = table_name
+        self.schema = schema
+        self._columns: list | None = list(columns) if columns else None
+        self.ignored_columns = set(ignored_columns or {})
+        self.rows = rows or []
+        self._rows_processor = rows_processor
+        self.preoperator = preoperator
+        self.postoperator = postoperator
+        self.insert_args = insert_args or {}
+        self.do_xcom_push = False
+
+    def render_template_fields(
+        self,
+        context: Context,
+        jinja_env: jinja2.Environment | None = None,
+    ) -> None:
+        super().render_template_fields(context=context, jinja_env=jinja_env)
+
+        if isinstance(self.rows, XComArg):
+            self.rows = self.rows.resolve(context=context)
+
+    @property
+    def table_name_with_schema(self) -> str:
+        if self.schema is not None:
+            return f"{self.schema}.{self.table_name}"
+        return self.table_name
+
+    @cached_property
+    def columns(self):
+        if self._columns is None:
+            self._columns = self.get_db_hook().dialect.get_column_names(self.table_name_with_schema)
+        return self._columns
+
+    @property
+    def column_names(self) -> list[str]:
+        if self.ignored_columns:
+            return [column for column in self.columns if column not in self.ignored_columns]
+        return self.columns
+
+    def _process_rows(self, context: Context):
+        return self._rows_processor(self.rows, **context)  # type: ignore
+
+    def execute(self, context: Context) -> Any:
+        if not self.rows:
+            raise AirflowSkipException(f"Skipping task {self.task_id} because no rows.")
+
+        self.log.debug("Table: %s", self.table_name_with_schema)
+        self.log.debug("Column names: %s", self.column_names)
+        if self.preoperator:
+            self.log.debug("Running preoperator")
+            self.log.debug(self.preoperator)
+            self.get_db_hook().run(self.preoperator)
+        rows = self._process_rows(context=context)
+        self.get_db_hook().insert_rows(
+            table=self.table_name_with_schema,
+            rows=rows,
+            target_fields=self.column_names,
+            **self.insert_args,
+        )
+        if self.postoperator:
+            self.log.debug("Running postoperator")
+            self.log.debug(self.postoperator)
+            self.get_db_hook().run(self.postoperator)
 
 
 def _initialize_partition_clause(clause: str | None) -> str | None:

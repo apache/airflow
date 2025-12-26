@@ -23,12 +23,19 @@ description: |
   `Simple Mail Transfer Protocol (SMTP) <https://tools.ietf.org/html/rfc5321>`__
 
 state: ready
-source-date-epoch: 1753691926
+source-date-epoch: 1765299419
 # Note that those versions are maintained by release manager - do not update them manually
 # with the exception of case where other provider in sources has >= new provider version.
 # In such case adding >= NEW_VERSION and bumping to NEW_VERSION in a provider have
 # to be done in the same PR
 versions:
+  - 2.4.1
+  - 2.4.0
+  - 2.3.2
+  - 2.3.1
+  - 2.3.0
+  - 2.2.1
+  - 2.2.0
   - 2.1.2
   - 2.1.1
   - 2.1.0

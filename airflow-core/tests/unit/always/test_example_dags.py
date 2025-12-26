@@ -27,7 +27,9 @@ import pytest
 from packaging.specifiers import SpecifierSet
 from packaging.version import Version
 
-from airflow.models import Connection, DagBag
+from airflow.configuration import conf
+from airflow.dag_processing.dagbag import DagBag
+from airflow.models import Connection
 from airflow.sdk import BaseHook
 from airflow.utils import yaml
 
@@ -59,6 +61,10 @@ IGNORE_AIRFLOW_PROVIDER_DEPRECATION_WARNING: tuple[str, ...] = (
     "providers/google/tests/system/google/cloud/kubernetes_engine/example_kubernetes_engine_resource.py",
     # Deprecated Operators/Hooks, which replaced by common.sql Operators/Hooks
 )
+
+LONGER_IMPORT_TIMEOUTS: dict[str, float] = {
+    "providers/google/tests/system/google/cloud/gen_ai/example_gen_ai_generative_model.py": 60
+}
 
 
 def match_optional_dependencies(distribution_name: str, specifier: str | None) -> tuple[bool, str]:
@@ -159,10 +165,35 @@ def relative_path(path):
     return os.path.relpath(path, AIRFLOW_ROOT_PATH.as_posix())
 
 
+def _get_dagbag_import_timeout_for_example(example_path: str) -> float:
+    """
+    Return the dagbag import timeout for the given example path.
+    If the example path ends with one of the keys in LONGER_IMPORT_TIMEOUTS, use that value.
+    Otherwise fall back to the configured default from [core] dagbag_import_timeout.
+    """
+    for key, val in LONGER_IMPORT_TIMEOUTS.items():
+        if example_path.endswith(key):
+            return val
+    return conf.getfloat("core", "dagbag_import_timeout")
+
+
+@pytest.fixture
+def patch_get_dagbag_import_timeout():
+    """Patch settings.get_dagbag_import_timeout to consult LONGER_IMPORT_TIMEOUTS or config.
+
+    The patched function accepts the dag file path argument and returns the timeout.
+    """
+    with patch(
+        "airflow.dag_processing.dagbag.settings.get_dagbag_import_timeout",
+        side_effect=_get_dagbag_import_timeout_for_example,
+    ):
+        yield
+
+
 @skip_if_force_lowest_dependencies_marker
 @pytest.mark.db_test
 @pytest.mark.parametrize("example", example_not_excluded_dags())
-def test_should_be_importable(example: str):
+def test_should_be_importable(example: str, patch_get_dagbag_import_timeout):
     dagbag = DagBag(
         dag_folder=example,
         include_examples=False,
@@ -180,7 +211,7 @@ def test_should_be_importable(example: str):
 @skip_if_force_lowest_dependencies_marker
 @pytest.mark.db_test
 @pytest.mark.parametrize("example", example_not_excluded_dags(xfail_db_exception=True))
-def test_should_not_do_database_queries(example: str):
+def test_should_not_do_database_queries(example: str, patch_get_dagbag_import_timeout):
     with assert_queries_count(1, stacklevel_from_module=example.rsplit(os.sep, 1)[-1]):
         DagBag(
             dag_folder=example,
@@ -190,7 +221,7 @@ def test_should_not_do_database_queries(example: str):
 
 @pytest.mark.db_test
 @pytest.mark.parametrize("example", example_not_excluded_dags(xfail_db_exception=True))
-def test_should_not_run_hook_connections(example: str):
+def test_should_not_run_hook_connections(example: str, patch_get_dagbag_import_timeout):
     # Example dags should never run BaseHook.get_connection() class method when parsed
     with patch.object(BaseHook, "get_connection") as mock_get_connection:
         mock_get_connection.return_value = Connection()

@@ -23,8 +23,8 @@ import pendulum
 import pytest
 import time_machine
 
-from airflow.exceptions import TaskDeferred
 from airflow.models.dag import DAG
+from airflow.providers.common.compat.sdk import TaskDeferred
 from airflow.providers.standard.sensors.time import TimeSensor
 from airflow.providers.standard.triggers.temporal import DateTimeTrigger
 
@@ -40,7 +40,7 @@ DEFAULT_DATE_WITH_TZ = datetime(2015, 1, 1, tzinfo=DEFAULT_TIMEZONE)
 
 class TestTimeSensor:
     @pytest.mark.parametrize(
-        "tzinfo, start_date, target_time ,expected",
+        ("tzinfo", "start_date", "target_time", "expected"),
         [
             (timezone.utc, DEFAULT_DATE_WO_TZ, time(10, 0), True),
             (timezone.utc, DEFAULT_DATE_WITH_TZ, time(16, 0), True),
@@ -63,7 +63,7 @@ class TestTimeSensor:
             assert op.target_datetime.tzinfo == timezone.utc
 
     @pytest.mark.parametrize(
-        "current_datetime, server_timezone",
+        ("current_datetime", "server_timezone"),
         [
             ("2025-01-26 22:00:00", "UTC"),
             ("2025-01-27 07:00:00", "Asia/Seoul"),  # UTC+09:00
@@ -124,3 +124,17 @@ class TestTimeSensor:
         assert exc_info.value.trigger.moment == pendulum.datetime(2020, 7, 7, 10)
         assert exc_info.value.kwargs is None
         assert exc_info.value.method_name == "execute_complete"
+
+    def test_execute_complete_accepts_event(self):
+        """Ensure execute_complete supports the 'event' kwarg when deferrable=True."""
+        with DAG(
+            dag_id="test_execute_complete_accepts_event",
+            schedule=None,
+            start_date=datetime(2020, 1, 1),  # Matches above
+        ):
+            op = TimeSensor(task_id="test", target_time=time(10, 0), deferrable=True)
+
+        try:
+            op.execute_complete(context={}, event={"status": "success"})
+        except TypeError as e:
+            pytest.fail(f"TypeError raised: {e}")

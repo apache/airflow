@@ -25,14 +25,13 @@ from unittest import mock
 import pendulum
 import pytest
 
-from airflow.sdk.api.datamodels._generated import TaskInstanceState
+from airflow.sdk import TaskInstanceState, TriggerRule
 from airflow.sdk.bases.operator import BaseOperator
 from airflow.sdk.bases.xcom import BaseXCom
 from airflow.sdk.definitions.dag import DAG
 from airflow.sdk.definitions.mappedoperator import MappedOperator
 from airflow.sdk.definitions.xcom_arg import XComArg
 from airflow.sdk.execution_time.comms import GetXCom, SetXCom, XComResult
-from airflow.utils.trigger_rule import TriggerRule
 
 from tests_common.test_utils.mapping import expand_mapped_task  # noqa: F401
 from tests_common.test_utils.mock_operators import (
@@ -537,7 +536,7 @@ def test_find_mapped_dependants_in_another_group():
 
 
 @pytest.mark.parametrize(
-    "partial_params, mapped_params, expected",
+    ("partial_params", "mapped_params", "expected"),
     [
         pytest.param(None, [{"a": 1}], [{"a": 1}], id="simple"),
         pytest.param({"b": 2}, [{"a": 1}], [{"a": 1, "b": 2}], id="merge"),
@@ -714,7 +713,7 @@ def test_mapped_xcom_push_skipped_tasks(create_runtime_ti, mock_supervisor_comms
         ("execution_timeout", timedelta(minutes=5), timedelta(minutes=10)),
         ("max_retry_delay", timedelta(minutes=5), timedelta(minutes=10)),
         ("retry_delay", timedelta(minutes=5), timedelta(minutes=10)),
-        ("retry_exponential_backoff", True, False),
+        ("retry_exponential_backoff", 2.0, 5.0),
         ("priority_weight", 1, 10),
         ("max_active_tis_per_dag", 1, 10),
         ("on_execute_callback", [], [id]),

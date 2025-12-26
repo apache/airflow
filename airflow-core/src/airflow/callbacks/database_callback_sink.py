@@ -35,5 +35,5 @@ class DatabaseCallbackSink(BaseCallbackSink):
     @provide_session
     def send(self, callback: CallbackRequest, session: Session = NEW_SESSION) -> None:
         """Send callback for execution."""
-        db_callback = DbCallbackRequest(callback=callback, priority_weight=10)
+        db_callback = DbCallbackRequest(callback=callback, priority_weight=1)
         session.add(db_callback)

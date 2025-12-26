@@ -16,22 +16,36 @@
 # under the License.
 from __future__ import annotations
 
-from unittest.mock import patch
+import re
+from typing import TYPE_CHECKING
+from unittest.mock import Mock, patch
 
 import pytest
 from fastapi import HTTPException, status
+from sqlalchemy import select, update
 from sqlalchemy.exc import IntegrityError
+from sqlalchemy.orm import Session
 
-from airflow.api_fastapi.common.exceptions import _DatabaseDialect, _UniqueConstraintErrorHandler
+from airflow.api_fastapi.common.exceptions import (
+    DagErrorHandler,
+    _DatabaseDialect,
+    _UniqueConstraintErrorHandler,
+)
 from airflow.configuration import conf
+from airflow.exceptions import DeserializationError
 from airflow.models import DagRun, Pool, Variable
+from airflow.models.dagbag import DBDagBag
+from airflow.models.serialized_dag import SerializedDagModel
 from airflow.utils.session import provide_session
 from airflow.utils.state import DagRunState
 
+from tests_common.test_utils.compat import EmptyOperator
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.db import clear_db_connections, clear_db_dags, clear_db_pools, clear_db_runs
 from tests_common.test_utils.version_compat import SQLALCHEMY_V_1_4
 
+if TYPE_CHECKING:
+    from tests_common.pytest_plugin import DagMaker
 pytestmark = pytest.mark.db_test
 
 CURRENT_DATABASE_DIALECT = conf.get_mandatory_value("database", "sql_alchemy_conn").lower()
@@ -107,7 +121,7 @@ class TestUniqueConstraintErrorHandler:
         clear_db_dags()
 
     @pytest.mark.parametrize(
-        "table, expected_exception",
+        ("table", "expected_exception"),
         generate_test_cases_parametrize(
             ["Pool", "Variable"],
             [
@@ -116,7 +130,7 @@ class TestUniqueConstraintErrorHandler:
                         status_code=status.HTTP_409_CONFLICT,
                         detail={
                             "reason": "Unique constraint violation",
-                            "statement": "INSERT INTO slot_pool (pool, slots, description, include_deferred) VALUES (?, ?, ?, ?)",
+                            "statement": "INSERT INTO slot_pool (pool, slots, description, include_deferred, team_name) VALUES (?, ?, ?, ?, ?)",
                             "orig_error": "UNIQUE constraint failed: slot_pool.pool",
                             "message": MESSAGE,
                         },
@@ -125,7 +139,7 @@ class TestUniqueConstraintErrorHandler:
                         status_code=status.HTTP_409_CONFLICT,
                         detail={
                             "reason": "Unique constraint violation",
-                            "statement": "INSERT INTO slot_pool (pool, slots, description, include_deferred) VALUES (%s, %s, %s, %s)",
+                            "statement": "INSERT INTO slot_pool (pool, slots, description, include_deferred, team_name) VALUES (%s, %s, %s, %s, %s)",
                             "orig_error": "(1062, \"Duplicate entry 'test_pool' for key 'slot_pool.slot_pool_pool_uq'\")",
                             "message": MESSAGE,
                         },
@@ -134,7 +148,7 @@ class TestUniqueConstraintErrorHandler:
                         status_code=status.HTTP_409_CONFLICT,
                         detail={
                             "reason": "Unique constraint violation",
-                            "statement": "INSERT INTO slot_pool (pool, slots, description, include_deferred) VALUES (%(pool)s, %(slots)s, %(description)s, %(include_deferred)s) RETURNING slot_pool.id",
+                            "statement": "INSERT INTO slot_pool (pool, slots, description, include_deferred, team_name) VALUES (%(pool)s, %(slots)s, %(description)s, %(include_deferred)s, %(team_name)s) RETURNING slot_pool.id",
                             "orig_error": 'duplicate key value violates unique constraint "slot_pool_pool_uq"\nDETAIL:  Key (pool)=(test_pool) already exists.\n',
                             "message": MESSAGE,
                         },
@@ -145,7 +159,7 @@ class TestUniqueConstraintErrorHandler:
                         status_code=status.HTTP_409_CONFLICT,
                         detail={
                             "reason": "Unique constraint violation",
-                            "statement": 'INSERT INTO variable ("key", val, description, is_encrypted) VALUES (?, ?, ?, ?)',
+                            "statement": 'INSERT INTO variable ("key", val, description, is_encrypted, team_name) VALUES (?, ?, ?, ?, ?)',
                             "orig_error": "UNIQUE constraint failed: variable.key",
                             "message": MESSAGE,
                         },
@@ -154,7 +168,7 @@ class TestUniqueConstraintErrorHandler:
                         status_code=status.HTTP_409_CONFLICT,
                         detail={
                             "reason": "Unique constraint violation",
-                            "statement": "INSERT INTO variable (`key`, val, description, is_encrypted) VALUES (%s, %s, %s, %s)",
+                            "statement": "INSERT INTO variable (`key`, val, description, is_encrypted, team_name) VALUES (%s, %s, %s, %s, %s)",
                             "orig_error": "(1062, \"Duplicate entry 'test_key' for key 'variable.variable_key_uq'\")",
                             "message": MESSAGE,
                         },
@@ -163,7 +177,7 @@ class TestUniqueConstraintErrorHandler:
                         status_code=status.HTTP_409_CONFLICT,
                         detail={
                             "reason": "Unique constraint violation",
-                            "statement": "INSERT INTO variable (key, val, description, is_encrypted) VALUES (%(key)s, %(val)s, %(description)s, %(is_encrypted)s) RETURNING variable.id",
+                            "statement": "INSERT INTO variable (key, val, description, is_encrypted, team_name) VALUES (%(key)s, %(val)s, %(description)s, %(is_encrypted)s, %(team_name)s) RETURNING variable.id",
                             "orig_error": 'duplicate key value violates unique constraint "variable_key_uq"\nDETAIL:  Key (key)=(test_key) already exists.\n',
                             "message": MESSAGE,
                         },
@@ -205,7 +219,7 @@ class TestUniqueConstraintErrorHandler:
         assert exeinfo_response_error.value.detail == expected_exception.detail
 
     @pytest.mark.parametrize(
-        "table, expected_exception",
+        ("table", "expected_exception"),
         generate_test_cases_parametrize(
             ["DagRun"],
             [
@@ -214,7 +228,7 @@ class TestUniqueConstraintErrorHandler:
                         status_code=status.HTTP_409_CONFLICT,
                         detail={
                             "reason": "Unique constraint violation",
-                            "statement": "INSERT INTO dag_run (dag_id, queued_at, logical_date, start_date, end_date, state, run_id, creating_job_id, run_type, triggered_by, triggering_user_name, conf, data_interval_start, data_interval_end, run_after, last_scheduling_decision, log_template_id, updated_at, clear_number, backfill_id, bundle_version, scheduled_by_job_id, context_carrier, created_dag_version_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, (SELECT max(log_template.id) AS max_1 \nFROM log_template), ?, ?, ?, ?, ?, ?, ?)",
+                            "statement": "INSERT INTO dag_run (dag_id, queued_at, logical_date, start_date, end_date, state, run_id, creating_job_id, run_type, triggered_by, triggering_user_name, conf, data_interval_start, data_interval_end, run_after, last_scheduling_decision, log_template_id, updated_at, clear_number, backfill_id, bundle_version, scheduled_by_job_id, context_carrier, created_dag_version_id, partition_key) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, (SELECT max(log_template.id) AS max_1 \nFROM log_template), ?, ?, ?, ?, ?, ?, ?, ?)",
                             "orig_error": "UNIQUE constraint failed: dag_run.dag_id, dag_run.run_id",
                             "message": MESSAGE,
                         },
@@ -223,7 +237,7 @@ class TestUniqueConstraintErrorHandler:
                         status_code=status.HTTP_409_CONFLICT,
                         detail={
                             "reason": "Unique constraint violation",
-                            "statement": "INSERT INTO dag_run (dag_id, queued_at, logical_date, start_date, end_date, state, run_id, creating_job_id, run_type, triggered_by, triggering_user_name, conf, data_interval_start, data_interval_end, run_after, last_scheduling_decision, log_template_id, updated_at, clear_number, backfill_id, bundle_version, scheduled_by_job_id, context_carrier, created_dag_version_id) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, (SELECT max(log_template.id) AS max_1 \nFROM log_template), %s, %s, %s, %s, %s, %s, %s)",
+                            "statement": "INSERT INTO dag_run (dag_id, queued_at, logical_date, start_date, end_date, state, run_id, creating_job_id, run_type, triggered_by, triggering_user_name, conf, data_interval_start, data_interval_end, run_after, last_scheduling_decision, log_template_id, updated_at, clear_number, backfill_id, bundle_version, scheduled_by_job_id, context_carrier, created_dag_version_id, partition_key) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, (SELECT max(log_template.id) AS max_1 \nFROM log_template), %s, %s, %s, %s, %s, %s, %s, %s)",
                             "orig_error": "(1062, \"Duplicate entry 'test_dag_id-test_run_id' for key 'dag_run.dag_run_dag_id_run_id_key'\")",
                             "message": MESSAGE,
                         },
@@ -232,7 +246,7 @@ class TestUniqueConstraintErrorHandler:
                         status_code=status.HTTP_409_CONFLICT,
                         detail={
                             "reason": "Unique constraint violation",
-                            "statement": "INSERT INTO dag_run (dag_id, queued_at, logical_date, start_date, end_date, state, run_id, creating_job_id, run_type, triggered_by, triggering_user_name, conf, data_interval_start, data_interval_end, run_after, last_scheduling_decision, log_template_id, updated_at, clear_number, backfill_id, bundle_version, scheduled_by_job_id, context_carrier, created_dag_version_id) VALUES (%(dag_id)s, %(queued_at)s, %(logical_date)s, %(start_date)s, %(end_date)s, %(state)s, %(run_id)s, %(creating_job_id)s, %(run_type)s, %(triggered_by)s, %(triggering_user_name)s, %(conf)s, %(data_interval_start)s, %(data_interval_end)s, %(run_after)s, %(last_scheduling_decision)s, (SELECT max(log_template.id) AS max_1 \nFROM log_template), %(updated_at)s, %(clear_number)s, %(backfill_id)s, %(bundle_version)s, %(scheduled_by_job_id)s, %(context_carrier)s, %(created_dag_version_id)s) RETURNING dag_run.id",
+                            "statement": "INSERT INTO dag_run (dag_id, queued_at, logical_date, start_date, end_date, state, run_id, creating_job_id, run_type, triggered_by, triggering_user_name, conf, data_interval_start, data_interval_end, run_after, last_scheduling_decision, log_template_id, updated_at, clear_number, backfill_id, bundle_version, scheduled_by_job_id, context_carrier, created_dag_version_id, partition_key) VALUES (%(dag_id)s, %(queued_at)s, %(logical_date)s, %(start_date)s, %(end_date)s, %(state)s, %(run_id)s, %(creating_job_id)s, %(run_type)s, %(triggered_by)s, %(triggering_user_name)s, %(conf)s, %(data_interval_start)s, %(data_interval_end)s, %(run_after)s, %(last_scheduling_decision)s, (SELECT max(log_template.id) AS max_1 \nFROM log_template), %(updated_at)s, %(clear_number)s, %(backfill_id)s, %(bundle_version)s, %(scheduled_by_job_id)s, %(context_carrier)s, %(created_dag_version_id)s, %(partition_key)s) RETURNING dag_run.id",
                             "orig_error": 'duplicate key value violates unique constraint "dag_run_dag_id_run_id_key"\nDETAIL:  Key (dag_id, run_id)=(test_dag_id, test_run_id) already exists.\n',
                             "message": MESSAGE,
                         },
@@ -282,3 +296,60 @@ class TestUniqueConstraintErrorHandler:
 
             assert response_detail == expected_detail
             assert "INSERT INTO dag_run" in actual_statement
+        assert exeinfo_response_error.value.detail == expected_exception.detail
+
+
+class TestDagErrorHandler:
+    @pytest.mark.parametrize(
+        "cause",
+        [
+            RuntimeError("Error during Dag serialization process"),
+            KeyError("required_field"),
+            ValueError("Missing Dag ID in serialized Dag"),
+        ],
+        ids=[
+            "RuntimeError",
+            "KeyError",
+            "ValueError",
+        ],
+    )
+    def test_handle_deserialization_error(self, cause: Exception) -> None:
+        deserialization_error = DeserializationError("test_dag_id")
+        deserialization_error.__cause__ = cause
+
+        expected_exception = HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"An error occurred while trying to deserialize Dag: {deserialization_error}",
+        )
+
+        with pytest.raises(HTTPException, match=re.escape(expected_exception.detail)):
+            DagErrorHandler().exception_handler(Mock(), deserialization_error)
+
+    @pytest.mark.usefixtures("testing_dag_bundle")
+    @pytest.mark.need_serialized_dag
+    def test_handle_real_dag_deserialization_error(self, session: Session, dag_maker: DagMaker) -> None:
+        """Test handling a real Dag deserialization error with actual serialized Dag."""
+        dag_id = "test_dag"
+        with dag_maker(dag_id, serialized=True):
+            EmptyOperator(task_id="task_1")
+
+        s_dag_model = session.scalar(select(SerializedDagModel).where(SerializedDagModel.dag_id == dag_id))
+        assert s_dag_model is not None
+        assert s_dag_model.data is not None
+
+        data = s_dag_model.data
+        del data["dag"]["dag_id"]
+        session.execute(
+            update(SerializedDagModel).where(SerializedDagModel.dag_id == dag_id).values(_data=data)
+        )
+        session.commit()
+
+        dag_bag = DBDagBag()
+        with pytest.raises(DeserializationError) as exc_info:
+            dag_bag.get_latest_version_of_dag(dag_id, session=session)
+
+        with pytest.raises(
+            HTTPException,
+            match=re.escape(f"An error occurred while trying to deserialize Dag: {exc_info.value}"),
+        ):
+            DagErrorHandler().exception_handler(Mock(), exc_info.value)

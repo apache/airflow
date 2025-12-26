@@ -7,30 +7,145 @@
     "Providers": "Providers",
     "Variables": "Variabelen"
   },
+  "allOperators": "Alle Operators",
+  "appearance": {
+    "appearance": "Uiterlijk",
+    "darkMode": "Donkere modus",
+    "lightMode": "Lichte modus",
+    "systemMode": "Volg systeeminstellingen"
+  },
+  "asset_one": "Asset",
+  "asset_other": "Assets",
   "assetEvent_one": "Asset Event",
   "assetEvent_other": "Asset Events",
+  "backfill_one": "Backfill",
+  "backfill_other": "Backfills",
   "browse": {
     "auditLog": "Audit Log",
+    "requiredActions": "Vereiste acties",
     "xcoms": "XComs"
+  },
+  "collapseAllExtra": "All extra JSON inklappen",
+  "collapseDetailsPanel": "Details inklappen",
+  "createdAssetEvent_one": "Asset Event aangemaakt",
+  "createdAssetEvent_other": "Asset Events aangemaakt",
+  "dag_one": "Dag",
+  "dag_other": "Dags",
+  "dagDetails": {
+    "catchup": "Catchup",
+    "dagRunTimeout": "Dag Run timeout",
+    "defaultArgs": "Standaard argumenten",
+    "description": "Omschrijving",
+    "documentation": "Dag documentatie",
+    "fileLocation": "Bestandslocatie",
+    "hasTaskConcurrencyLimits": "Heeft Task Concurrency limieten",
+    "lastExpired": "Laatst verlopen",
+    "lastParseDuration": "Laatste parse duur",
+    "lastParsed": "Laatst geparsed",
+    "latestDagVersion": "Laatste Dag versie",
+    "latestRun": "Laatste Run",
+    "maxActiveRuns": "Maximaal aantal actieve Runs",
+    "maxActiveTasks": "Maximaal aantal actieve Tasks",
+    "maxConsecutiveFailedDagRuns": "Maximaal aantal opeenvolgend mislukte Dag Runs",
+    "nextRun": "Volgende Run",
+    "owner": "Eigenaar",
+    "params": "Parameters",
+    "schedule": "Planning",
+    "tags": "Labels"
+  },
+  "dagId": "Dag ID",
+  "dagRun": {
+    "conf": "Conf",
+    "dagVersions": "Dag Versie(s)",
+    "dataIntervalEnd": "Data interval einde",
+    "dataIntervalStart": "Data interval begin",
+    "lastSchedulingDecision": "Laatste planningsbeslissing",
+    "partitionKey": "Partitie sleutel",
+    "queuedAt": "In de wachtrij gezet om",
+    "runAfter": "Run na",
+    "runType": "Run type",
+    "sourceAssetEvent": "Bron Asset Event",
+    "triggeredBy": "Geactiveerd door",
+    "triggeringUser": "Activerende gebruikersnaam"
   },
   "dagRun_one": "Dag Run",
   "dagRun_other": "Dag Runs",
+  "dagRunId": "Dag Run ID",
+  "dagWarnings": "Dag waarschuwingen/fouten",
   "defaultToGraphView": "Standaard grafiekweergave",
   "defaultToGridView": "Standaard rasterweergave",
+  "direction": "Richting",
   "docs": {
     "documentation": "Documentatie",
     "githubRepo": "GitHub Repo",
     "restApiReference": "REST API referentie"
   },
+  "download": {
+    "download": "Download",
+    "hotkey": "d",
+    "tooltip": "Druk op {{hotkey}} om logs te downloaden"
+  },
   "duration": "Duur",
+  "endDate": "Einddatum",
+  "error": {
+    "back": "Terug",
+    "defaultMessage": "Een onverwachte fout is opgetreden",
+    "home": "Home",
+    "notFound": "Pagina niet gevonden",
+    "title": "Fout"
+  },
+  "expand": {
+    "collapse": "Uitklappen",
+    "expand": "Inklappen",
+    "hotkey": "e",
+    "tooltip": "Druk op {{hotkey}} op in- of uit te klappen"
+  },
+  "expandAllExtra": "Alle extra JSON uitklappen",
+  "expression": {
+    "all": "Alles",
+    "and": "En",
+    "any": "Elk",
+    "or": "Of"
+  },
+  "filter": "Filter",
+  "filters": {
+    "durationFrom": "Duur van",
+    "durationTo": "Duur tot",
+    "logicalDateFrom": "Van logische datum",
+    "logicalDateTo": "Tot logische datum",
+    "runAfterFrom": "Van Run na",
+    "runAfterTo": "Tot Run na"
+  },
+  "logicalDate": "Logische datum",
   "logout": "Uitloggen",
+  "logoutConfirmation": "Je staat op het punt om uit te loggen uit de applicatie.",
+  "mapIndex": "Map Index",
+  "modal": {
+    "cancel": "Annuleer",
+    "confirm": "Bevestig",
+    "delete": {
+      "button": "Verwijder",
+      "confirmation": "Weet je zeker dat je {{resourceName}} wilt verwijderen? Deze actie kan niet ongedaan gemaakt worden."
+    }
+  },
   "nav": {
     "admin": "Beheer",
     "assets": "Assets",
     "browse": "Verken",
+    "dags": "Dags",
     "docs": "Documentatie",
     "home": "Home",
-    "plugins": "Plugins"
+    "legacyFabViews": "Legacy weergaven",
+    "plugins": "Plugins",
+    "security": "Beveiliging"
+  },
+  "noItemsFound": "Geen {{modelName}} gevonden",
+  "note": {
+    "add": "Notitie toevoegen",
+    "dagRun": "Dag Run notitie",
+    "label": "Notitie",
+    "placeholder": "Voeg een notitie toe...",
+    "taskInstance": "Task Instance notitie"
   },
   "pools": {
     "deferred": "Uitgesteld",
@@ -41,11 +156,45 @@
     "running": "Lopend",
     "scheduled": "Gepland"
   },
+  "reset": "Reset",
+  "runId": "Run ID",
+  "runTypes": {
+    "asset_triggered": "Asset Triggered",
+    "backfill": "Backfill",
+    "manual": "Handmatig",
+    "scheduled": "Scheduled"
+  },
+  "scroll": {
+    "direction": {
+      "bottom": "het einde",
+      "top": "het begin"
+    },
+    "tooltip": "Druk op {{hotkey}} om te scrollen naar {{direction}}"
+  },
+  "security": {
+    "actions": "Acties",
+    "permissions": "Permissies",
+    "resources": "Resources",
+    "roles": "Rollen",
+    "users": "Gebruikers"
+  },
   "selectLanguage": "Selecteer taal",
+  "showDetailsPanel": "Details weergeven",
+  "source": {
+    "hide": "Verberg bron",
+    "hotkey": "s",
+    "show": "Toon bron"
+  },
+  "sourceAssetEvent_one": "Bron Asset Event",
+  "sourceAssetEvent_other": "Bron Asset Events",
+  "startDate": "Start datum",
+  "state": "Status",
   "states": {
     "deferred": "Uitgesteld",
     "failed": "Mislukt",
-    "no_status": "Geen Status",
+    "no_status": "Geen status",
+    "none": "Geen status",
+    "planned": "Gepland",
     "queued": "Wachtend",
     "removed": "Verwijderd",
     "restarting": "Herstartend",
@@ -57,8 +206,56 @@
     "up_for_retry": "Wachtend op een nieuwe poging",
     "upstream_failed": "Upstream mislukt"
   },
-  "switchToDarkMode": "Schakel over naar donkere modus",
-  "switchToLightMode": "Schakel over naar lichte modus",
+  "table": {
+    "completedAt": "Completed at",
+    "createdAt": "Created at",
+    "filterByTag": "Filter Dags op label",
+    "filterColumns": "Filter tabel kolommen",
+    "filterReset_one": "Reset filter",
+    "filterReset_other": "Reset filters",
+    "from": "Van",
+    "maxActiveRuns": "Maximaal aantal active Runs",
+    "noTagsFound": "Geen labels gevonden",
+    "tagMode": {
+      "all": "All",
+      "any": "Any"
+    },
+    "tagPlaceholder": "Filter op label",
+    "to": "Naar"
+  },
+  "task": {
+    "documentation": "Task documentatie",
+    "lastInstance": "Laatste Task Instance",
+    "operator": "Operator",
+    "triggerRule": "Trigger regel"
+  },
+  "task_one": "Task",
+  "task_other": "Tasks",
+  "taskGroup": "Task groep",
+  "taskId": "Task ID",
+  "taskInstance": {
+    "dagVersion": "Dag versie",
+    "executor": "Executor",
+    "executorConfig": "Executor Configuratie",
+    "hostname": "Hostname",
+    "maxTries": "Maximaal aantal pogingen",
+    "pid": "PID",
+    "pool": "Pool",
+    "poolSlots": "Pool Slots",
+    "priorityWeight": "Prioriteitsgewicht",
+    "queue": "Wachtrij",
+    "queuedWhen": "In de wachtrij gezet om",
+    "scheduledWhen": "Gepland om",
+    "triggerer": {
+      "assigned": "Toegewegen Triggerer",
+      "class": "Trigger class",
+      "createdAt": "Trigger aangemaakt op",
+      "id": "Trigger ID",
+      "latestHeartbeat": "Laatste Triggerer hartslag",
+      "title": "Triggerer informatie"
+    },
+    "unixname": "Unix naam"
+  },
   "taskInstance_one": "Task Instance",
   "taskInstance_other": "Task Instances",
   "timeRange": {
@@ -67,7 +264,63 @@
     "lastHour": "Laatste uur",
     "pastWeek": "Laatste week"
   },
+  "timestamp": {
+    "hide": "Verberg tijd",
+    "hotkey": "t",
+    "show": "Toon tijd"
+  },
   "timezone": "Tijdzone",
+  "timezoneModal": {
+    "current-timezone": "Huidige tijd in",
+    "placeholder": "Selecteer een tijdzone",
+    "title": "Selecteer tijdzone",
+    "utc": "UTC (Gecoördineerde wereldtijd)"
+  },
+  "toaster": {
+    "bulkDelete": {
+      "error": "Massaverwijderingsverzoek voor {{resourceName}} verzoek mislukt",
+      "success": {
+        "description": "{{count}} {{resourceName}} zijn succesvol verwijderd. Sleutels: {{keys}}",
+        "title": "Massaverwijderingsverzoek voor {{resourceName}} verzoek verzonden"
+      }
+    },
+    "create": {
+      "error": "Aanmaakverzoek voor {{resourceName}} mislukt",
+      "success": {
+        "description": "{{resourceName}} is succesvol aangemaakt.",
+        "title": "Aanmaakverzoek voor {{resourceName}} verzonden"
+      }
+    },
+    "delete": {
+      "error": "Verwijderverzoek voor {{resourceName}} mislukt",
+      "success": {
+        "description": "{{resourceName}} is succesvol verwijderd.",
+        "title": "Verwijderverzoek voor {{resourceName}} verzonden"
+      }
+    },
+    "import": {
+      "error": "Importeerverzoek voor {{resourceName}} mislukt",
+      "success": {
+        "description": "{{count}} {{resourceName}} zijn succesvol geïmporteerd.",
+        "title": "Importeerverzoek voor {{resourceName}} verzonden"
+      }
+    },
+    "update": {
+      "error": "Updateverzoek voor {{resourceName}} mislukt",
+      "success": {
+        "description": "{{resourceName}} is succesvol geupdatet.",
+        "title": "Updateverzoek voor {{resourceName}} verzonden"
+      }
+    }
+  },
+  "total": "Totaal {{state}}",
   "triggered": "Triggered",
-  "user": "Gebruiker"
+  "tryNumber": "Poging nummer",
+  "user": "Gebruiker",
+  "wrap": {
+    "hotkey": "w",
+    "tooltip": "Druk op {{hotkey}} om wrap te schakelen",
+    "unwrap": "Unwrap",
+    "wrap": "Wrap"
+  }
 }

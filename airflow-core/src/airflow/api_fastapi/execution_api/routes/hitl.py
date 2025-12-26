@@ -16,13 +16,13 @@
 # under the License.
 from __future__ import annotations
 
-from datetime import datetime, timezone
 from uuid import UUID
 
 import structlog
 from fastapi import APIRouter, HTTPException, status
 from sqlalchemy import select
 
+from airflow._shared.timezones import timezone
 from airflow.api_fastapi.common.db.common import SessionDep
 from airflow.api_fastapi.execution_api.datamodels.hitl import (
     HITLDetailRequest,
@@ -71,13 +71,14 @@ def upsert_hitl_detail(
             defaults=payload.defaults,
             multiple=payload.multiple,
             params=payload.params,
+            assignees=[user.model_dump() for user in payload.assigned_users],
         )
         session.add(hitl_detail_model)
     elif hitl_detail_model.response_received:
         # Cleanup the response part of HITLDetail as we only store one response for one task instance.
         # It normally happens after retry, we keep only the latest response.
-        hitl_detail_model.user_id = None
-        hitl_detail_model.response_at = None
+        hitl_detail_model.responded_by = None
+        hitl_detail_model.responded_at = None
         hitl_detail_model.chosen_options = None
         hitl_detail_model.params_input = {}
         session.add(hitl_detail_model)
@@ -85,7 +86,7 @@ def upsert_hitl_detail(
     return HITLDetailRequest.model_validate(hitl_detail_model)
 
 
-def _check_hitl_detail_exists(hitl_detail_model: HITLDetail) -> None:
+def _check_hitl_detail_exists(hitl_detail_model: HITLDetail | None) -> HITLDetail:
     if not hitl_detail_model:
         raise HTTPException(
             status.HTTP_404_NOT_FOUND,
@@ -98,6 +99,8 @@ def _check_hitl_detail_exists(hitl_detail_model: HITLDetail) -> None:
             },
         )
 
+    return hitl_detail_model
+
 
 @router.patch("/{task_instance_id}")
 def update_hitl_detail(
@@ -107,16 +110,18 @@ def update_hitl_detail(
 ) -> HITLDetailResponse:
     """Update the response part of a Human-in-the-loop detail for a specific Task Instance."""
     ti_id_str = str(task_instance_id)
-    hitl_detail_model = session.execute(select(HITLDetail).where(HITLDetail.ti_id == ti_id_str)).scalar()
-    _check_hitl_detail_exists(hitl_detail_model)
+    hitl_detail_model_result = session.execute(
+        select(HITLDetail).where(HITLDetail.ti_id == ti_id_str)
+    ).scalar()
+    hitl_detail_model = _check_hitl_detail_exists(hitl_detail_model_result)
     if hitl_detail_model.response_received:
         raise HTTPException(
             status.HTTP_409_CONFLICT,
             f"Human-in-the-loop detail for Task Instance with id {ti_id_str} already exists.",
         )
 
-    hitl_detail_model.user_id = "Fallback to defaults"
-    hitl_detail_model.response_at = datetime.now(timezone.utc)
+    hitl_detail_model.responded_by = None
+    hitl_detail_model.responded_at = timezone.utcnow()
     hitl_detail_model.chosen_options = payload.chosen_options
     hitl_detail_model.params_input = payload.params_input
     session.add(hitl_detail_model)
@@ -134,8 +139,8 @@ def get_hitl_detail(
 ) -> HITLDetailResponse:
     """Get Human-in-the-loop detail for a specific Task Instance."""
     ti_id_str = str(task_instance_id)
-    hitl_detail_model = session.execute(
+    hitl_detail_model_result = session.execute(
         select(HITLDetail).where(HITLDetail.ti_id == ti_id_str),
     ).scalar()
-    _check_hitl_detail_exists(hitl_detail_model)
+    hitl_detail_model = _check_hitl_detail_exists(hitl_detail_model_result)
     return HITLDetailResponse.from_hitl_detail_orm(hitl_detail_model)

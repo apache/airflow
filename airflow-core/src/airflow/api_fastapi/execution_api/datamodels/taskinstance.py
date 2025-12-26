@@ -17,14 +17,15 @@
 from __future__ import annotations
 
 import uuid
+from collections.abc import Iterable
 from datetime import timedelta
 from enum import Enum
 from typing import Annotated, Any, Literal
 
 from pydantic import (
     AwareDatetime,
-    Discriminator,
     Field,
+    JsonValue,
     Tag,
     TypeAdapter,
     WithJsonSchema,
@@ -138,7 +139,7 @@ class TIDeferredStatePayload(StrictBaseModel):
     trigger_timeout: timedelta | None = None
     next_method: str
     """The name of the method on the operator to call in the worker after the trigger has fired."""
-    next_kwargs: Annotated[dict[str, Any] | str, Field(default_factory=dict)]
+    next_kwargs: Annotated[dict[str, Any], Field(default_factory=dict)]
     """
     Kwargs to pass to the above method, either a plain dict or an encrypted string.
 
@@ -225,7 +226,7 @@ TIStateUpdate = Annotated[
     | Annotated[TIDeferredStatePayload, Tag("deferred")]
     | Annotated[TIRescheduleStatePayload, Tag("up_for_reschedule")]
     | Annotated[TIRetryStatePayload, Tag("up_for_retry")],
-    Discriminator(ti_state_discriminator),
+    Field(discriminator=ti_state_discriminator),
 ]
 
 
@@ -258,7 +259,7 @@ class AssetReferenceAssetEventDagRun(StrictBaseModel):
 
     name: str
     uri: str
-    extra: dict
+    extra: dict[str, JsonValue]
 
 
 class AssetAliasReferenceAssetEventDagRun(StrictBaseModel):
@@ -271,7 +272,7 @@ class AssetEventDagRunReference(StrictBaseModel):
     """Schema for AssetEvent model used in DagRun."""
 
     asset: AssetReferenceAssetEventDagRun
-    extra: dict
+    extra: dict[str, JsonValue]
     source_task_id: str | None
     source_dag_id: str | None
     source_run_id: str | None
@@ -298,8 +299,10 @@ class DagRun(StrictBaseModel):
     clear_number: int = 0
     run_type: DagRunType
     state: DagRunState
-    conf: Annotated[dict[str, Any], Field(default_factory=dict)]
+    conf: dict[str, Any] | None = None
+    triggering_user_name: str | None = None
     consumed_asset_events: list[AssetEventDagRunReference]
+    partition_key: str | None
 
 
 class TIRunContext(BaseModel):
@@ -347,10 +350,31 @@ class PrevSuccessfulDagRunResponse(BaseModel):
     end_date: UtcDateTime | None = None
 
 
+class PreviousTIResponse(BaseModel):
+    """Schema for response with previous TaskInstance information."""
+
+    task_id: str
+    dag_id: str
+    run_id: str
+    logical_date: UtcDateTime | None = None
+    start_date: UtcDateTime | None = None
+    end_date: UtcDateTime | None = None
+    state: str | None = None
+    try_number: int
+    map_index: int | None = -1
+    duration: float | None = None
+
+
 class TaskStatesResponse(BaseModel):
     """Response for task states with run_id, task and state."""
 
     task_states: dict[str, Any]
+
+
+class TaskBreadcrumbsResponse(BaseModel):
+    """Response for task breadcrumbs."""
+
+    breadcrumbs: Iterable[dict[str, Any]]
 
 
 class InactiveAssetsResponse(BaseModel):

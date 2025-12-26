@@ -25,7 +25,7 @@ services:
       # Removes task-sdk sources from container
       - ../../../empty:/opt/airflow/task-sdk/src
       # Remove all provider sources from container
-      # START automatically generated volumes by generate-volumes-for-sources pre-commit
+      # START automatically generated volumes by generate-volumes-for-sources prek hook
       - ../../../empty:/opt/airflow/providers/airbyte/src
       - ../../../empty:/opt/airflow/providers/alibaba/src
       - ../../../empty:/opt/airflow/providers/amazon/src
@@ -123,8 +123,8 @@ services:
       - ../../../empty:/opt/airflow/providers/yandex/src
       - ../../../empty:/opt/airflow/providers/ydb/src
       - ../../../empty:/opt/airflow/providers/zendesk/src
-      # END automatically generated volumes by generate-volumes-for-sources pre-commit
-      # However we keep in_container scripts in order to be able to debug easily the scripts that
+      # END automatically generated volumes by generate-volumes-for-sources prek hook
+      # However we keep in_container scripts to be able to debug easily the scripts that
       # are run with --mount-sources removed flag - such as installing airflow and providers
       - type: bind
         source: ../../../scripts/in_container

@@ -21,11 +21,11 @@ import copy
 import json
 import logging
 from collections.abc import ItemsView, Iterable, Mapping, MutableMapping, ValuesView
-from typing import TYPE_CHECKING, Any, ClassVar
+from typing import TYPE_CHECKING, Any, ClassVar, Literal
 
-from airflow.exceptions import AirflowException, ParamValidationError
 from airflow.sdk.definitions._internal.mixins import ResolveMixin
-from airflow.utils.types import NOTSET, ArgNotSet
+from airflow.sdk.definitions._internal.types import NOTSET, is_arg_set
+from airflow.sdk.exceptions import ParamValidationError
 
 if TYPE_CHECKING:
     from airflow.sdk.definitions.context import Context
@@ -51,15 +51,27 @@ class Param:
 
     CLASS_IDENTIFIER = "__class"
 
-    def __init__(self, default: Any = NOTSET, description: str | None = None, **kwargs):
+    def __init__(
+        self,
+        default: Any = NOTSET,
+        description: str | None = None,
+        source: Literal["dag", "task"] | None = None,
+        **kwargs,
+    ):
         if default is not NOTSET:
             self._check_json(default)
         self.value = default
         self.description = description
         self.schema = kwargs.pop("schema") if "schema" in kwargs else kwargs
+        self.source = source
 
     def __copy__(self) -> Param:
-        return Param(self.value, self.description, schema=self.schema)
+        return Param(
+            self.value,
+            self.description,
+            schema=self.schema,
+            source=self.source,
+        )
 
     @staticmethod
     def _check_json(value):
@@ -90,7 +102,7 @@ class Param:
         if value is not NOTSET:
             self._check_json(value)
         final_val = self.value if value is NOTSET else value
-        if isinstance(final_val, ArgNotSet):
+        if not is_arg_set(final_val):
             if suppress_exception:
                 return None
             raise ParamValidationError("No value passed and Param has no default value")
@@ -119,14 +131,24 @@ class Param:
         return self.value is not NOTSET and self.value is not None
 
     def serialize(self) -> dict:
-        return {"value": self.value, "description": self.description, "schema": self.schema}
+        return {
+            "value": self.value,
+            "description": self.description,
+            "schema": self.schema,
+            "source": self.source,
+        }
 
     @staticmethod
     def deserialize(data: dict[str, Any], version: int) -> Param:
         if version > Param.__version__:
             raise TypeError("serialized version > class version")
 
-        return Param(default=data["value"], description=data["description"], schema=data["schema"])
+        return Param(
+            default=data["value"],
+            description=data["description"],
+            schema=data["schema"],
+            source=data.get("source", None),
+        )
 
 
 class ParamsDict(MutableMapping[str, Any]):
@@ -136,7 +158,6 @@ class ParamsDict(MutableMapping[str, Any]):
     All the keys are strictly string and values are converted into Param's object
     if they are not already. This class is to replace param's dictionary implicitly
     and ideally not needed to be used directly.
-
 
     :param dict_obj: A dict or dict like object to init ParamsDict
     :param suppress_exception: Flag to suppress value exceptions while initializing the ParamsDict
@@ -158,6 +179,9 @@ class ParamsDict(MutableMapping[str, Any]):
         if isinstance(other, dict):
             return self.dump() == other
         return NotImplemented
+
+    def __hash__(self):
+        return hash(self.dump())
 
     def __copy__(self) -> ParamsDict:
         return ParamsDict(self.__dict, self.suppress_exception)
@@ -251,17 +275,31 @@ class ParamsDict(MutableMapping[str, Any]):
 
         return ParamsDict(data)
 
+    def _fill_missing_param_source(
+        self,
+        source: Literal["dag", "task"] | None = None,
+    ) -> None:
+        for key in self.__dict:
+            if self.__dict[key].source is None:
+                self.__dict[key].source = source
+
+    @staticmethod
+    def filter_params_by_source(params: ParamsDict, source: Literal["dag", "task"]) -> ParamsDict:
+        return ParamsDict(
+            {key: param for key, param in params.__dict.items() if param.source == source},
+        )
+
 
 class DagParam(ResolveMixin):
     """
-    DAG run parameter reference.
+    Dag run parameter reference.
 
-    This binds a simple Param object to a name within a DAG instance, so that it
+    This binds a simple Param object to a name within a Dag instance, so that it
     can be resolved during the runtime via the ``{{ context }}`` dictionary. The
     ideal use case of this class is to implicitly convert args passed to a
     method decorated by ``@dag``.
 
-    It can be used to parameterize a DAG. You can overwrite its value by setting
+    It can be used to parameterize a Dag. You can overwrite its value by setting
     it on conf when you trigger your DagRun.
 
     This can also be used in templates by accessing ``{{ context.params }}``.
@@ -295,7 +333,7 @@ class DagParam(ResolveMixin):
             return self._default
         with contextlib.suppress(KeyError):
             return context["params"][self._name]
-        raise AirflowException(f"No value could be resolved for parameter {self._name}")
+        raise RuntimeError(f"No value could be resolved for parameter {self._name}")
 
     def serialize(self) -> dict:
         """Serialize the DagParam object into a dictionary."""
@@ -311,13 +349,13 @@ class DagParam(ResolveMixin):
         Deserializes the dictionary back into a DagParam object.
 
         :param data: The serialized representation of the DagParam.
-        :param dags: A dictionary of available DAGs to look up the DAG.
+        :param dags: A dictionary of available Dags to look up the Dag.
         """
         dag_id = data["dag_id"]
-        # Retrieve the current DAG from the provided DAGs dictionary
+        # Retrieve the current Dag from the provided Dags dictionary
         current_dag = dags.get(dag_id)
         if not current_dag:
-            raise ValueError(f"DAG with id {dag_id} not found.")
+            raise ValueError(f"Dag with id {dag_id} not found.")
 
         return cls(current_dag=current_dag, name=data["name"], default=data["default"])
 
@@ -330,7 +368,7 @@ def process_params(
     suppress_exception: bool,
 ) -> dict[str, Any]:
     """Merge, validate params, and convert them into a simple dict."""
-    from airflow.configuration import conf
+    from airflow.sdk.configuration import conf
 
     dagrun_conf = dagrun_conf or {}
 

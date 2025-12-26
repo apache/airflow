@@ -86,9 +86,9 @@ Fetching ``docker-compose.yaml``
 
 This file contains several service definitions:
 
-- ``airflow-scheduler`` - The :doc:`scheduler </administration-and-deployment/scheduler>` monitors all tasks and dags, then triggers the
+- ``airflow-scheduler`` - The :doc:`scheduler </administration-and-deployment/scheduler>` monitors all tasks and Dags, then triggers the
   task instances once their dependencies are complete.
-- ``airflow-dag-processor`` - The DAG processor parses DAG files.
+- ``airflow-dag-processor`` - The Dag processor parses Dag files.
 - ``airflow-api-server`` - The api server is available at ``http://localhost:8080``.
 - ``airflow-worker`` - The worker that executes the tasks given by the scheduler.
 - ``airflow-triggerer`` - The triggerer runs an event loop for deferrable tasks.
@@ -104,7 +104,7 @@ All these services allow you to run Airflow with :doc:`CeleryExecutor <apache-ai
 
 Some directories in the container are mounted, which means that their contents are synchronized between your computer and the container.
 
-- ``./dags`` - you can put your DAG files here.
+- ``./dags`` - you can put your Dag files here.
 - ``./logs`` - contains logs from task execution and scheduler.
 - ``./config`` - you can add custom log parser or add ``airflow_local_settings.py`` to configure cluster policy.
 - ``./plugins`` - you can put your :doc:`custom plugins </administration-and-deployment/plugins>` here.
@@ -154,6 +154,24 @@ If you want to initialize ``airflow.cfg`` with default values before launching t
 
 This will seed ``airflow.cfg`` with default values in ``config`` folder.
 
+On systems with SELinux/AppArmor, you may run into permission issues. If this happens, edit your ``docker-compose.yaml`` file by added the suffix ``:z`` to all volumes:
+
+.. code-block:: yaml
+
+  volumes:
+    - ${AIRFLOW_PROJ_DIR:-.}/dags:/opt/airflow/dags:z
+    - ${AIRFLOW_PROJ_DIR:-.}/logs:/opt/airflow/logs:z
+    - ${AIRFLOW_PROJ_DIR:-.}/config:/opt/airflow/config:z
+    - ${AIRFLOW_PROJ_DIR:-.}/plugins:/opt/airflow/plugins:z
+
+If, after this change, you are still experiencing permission issues when creating the ``airflow.cfg`` file, you can apply a very permissive setting to the ``config/`` folder:
+
+.. code-block:: bash
+
+  sudo chmod -R 777 ./config
+
+Note that the above is a *work around* that should never be used in production.
+
 Initialize the database
 -----------------------
 
@@ -163,14 +181,11 @@ On **all operating systems**, you need to run database migrations and create the
 
     docker compose up airflow-init
 
-After initialization is complete, you should see a message like this:
+After initialization is complete, you should see output related to files, folders, and plug-ins and finally a message like this:
 
 .. parsed-literal::
 
-    airflow-init_1       | Upgrades done
-    airflow-init_1       | Admin user airflow created
-    airflow-init_1       | |version|
-    start_airflow-init_1 exited with code 0
+    airflow-init-1 exited with code 0
 
 The account created has the login ``airflow`` and the password ``airflow``.
 
@@ -261,7 +276,7 @@ python container.
 Accessing the web interface
 ---------------------------
 
-Once the cluster has started up, you can log in to the web interface and begin experimenting with dags.
+Once the cluster has started up, you can log in to the web interface and begin experimenting with Dags.
 
 The webserver is available at: ``http://localhost:8080``.
 The default account has the login ``airflow`` and the password ``airflow``.
@@ -367,7 +382,7 @@ If you have a custom config file and wish to use it in your Airflow instance, yo
 Networking
 ==========
 
-In general, if you want to use Airflow locally, your dags may try to connect to servers which are running on the host. In order to achieve that, an extra configuration must be added in ``docker-compose.yaml``. For example, on Linux the configuration must be in the section ``services: airflow-worker`` adding ``extra_hosts: - "host.docker.internal:host-gateway"``; and use ``host.docker.internal`` instead of ``localhost``. This configuration vary in different platforms. Please check the Docker documentation for `Windows <https://docs.docker.com/desktop/windows/networking/#use-cases-and-workarounds>`_ and `Mac <https://docs.docker.com/desktop/mac/networking/#use-cases-and-workarounds>`_ for further information.
+In general, if you want to use Airflow locally, your Dags may try to connect to servers which are running on the host. In order to achieve that, an extra configuration must be added in ``docker-compose.yaml``. For example, on Linux the configuration must be in the section ``services: airflow-worker`` adding ``extra_hosts: - "host.docker.internal:host-gateway"``; and use ``host.docker.internal`` instead of ``localhost``. This configuration vary in different platforms. Please check the Docker documentation for `Windows <https://docs.docker.com/desktop/windows/networking/#use-cases-and-workarounds>`_ and `Mac <https://docs.docker.com/desktop/mac/networking/#use-cases-and-workarounds>`_ for further information.
 
 Debug Airflow inside docker container using PyCharm
 ===================================================

@@ -33,6 +33,11 @@ from airflow.providers.standard.operators.python import PythonOperator
 from system.openlineage.expected_events import get_expected_event_file_path
 from system.openlineage.operator import OpenLineageTestOperator
 
+try:
+    from airflow.sdk import chain
+except ImportError:
+    from airflow.models.baseoperator import chain  # type: ignore[no-redef]
+
 
 def do_nothing():
     pass
@@ -53,7 +58,7 @@ with DAG(
         task_id="check_events", file_path=get_expected_event_file_path(DAG_ID)
     )
 
-    do_nothing_task >> check_events
+    chain(do_nothing_task, check_events)
 
 
 from tests_common.test_utils.system_tests import get_test_run  # noqa: E402

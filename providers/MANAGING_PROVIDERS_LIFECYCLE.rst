@@ -30,7 +30,7 @@ Another recommendation that will help you is to look for a provider that works s
 help you to set up tests and other dependencies.
 
 First, you need to set up your local development environment. See
-`Contributors Quick Start <../contributing-docs/03_contributors_quick_start.rst>`_
+`Contributors Quick Start <../contributing-docs/03b_contributors_quick_start_seasoned_developers.rst>`_
 if you did not set up your local environment yet. We recommend using ``breeze`` to develop locally. This way you
 easily be able to have an environment more similar to the one executed by GitHub CI workflow.
 
@@ -122,7 +122,7 @@ breeze and I'll run unit tests for my Hook.
 
   .. code-block:: bash
 
-      root@fafd8d630e46:/opt/airflow# python -m pytest providers/<PROVIDER>/tests/<PROVIDER>/hook/test_*.py
+      [Breeze:3.10.19] root@fafd8d630e46:/opt/airflow# python -m pytest providers/<PROVIDER>/tests/<PROVIDER>/hook/test_*.py
 
 Integration tests
 -----------------
@@ -134,13 +134,13 @@ Documentation
 -------------
 
 An important part of building a new provider is the documentation.
-Some steps for documentation occurs automatically by ``pre-commit`` see
-`Installing pre-commit guide <../contributing-docs/03_contributors_quick_start.rst#pre-commit>`_
+Some steps for documentation occurs automatically by ``prek`` see
+`Installing prek guide <../contributing-docs/03b_contributors_quick_start_seasoned_developers.rst#prek>`_
 
 Those are important files in the Airflow source tree that affect providers. The ``pyproject.toml`` in root
 Airflow folder is automatically generated based on content of ``provider.yaml`` file in each provider
-when ``pre-commit`` is run. Files such as ``extra-packages-ref.rst`` should be manually updated because
-they are manually formatted for better layout and ``pre-commit`` will just verify if the information
+when ``prek hook`` is run. Files such as ``extra-packages-ref.rst`` should be manually updated because
+they are manually formatted for better layout and ``prek hook`` will just verify if the information
 about provider is updated there. Files like ``commit.rst`` and ``CHANGELOG`` are automatically updated
 by ``breeze release-management`` command by release manager when providers are released.
 
@@ -381,7 +381,7 @@ The main reasons we are doing it in this way:
   and it is not a big deal to maintain it.
 * There is a potential risk of one provider importing the same ``AIRFLOW_V_X_Y_PLUS`` from another provider
   (and introduce accidental dependency) or from test code (which should not happen), but we are preventing it
-  via pre-commit check ``check-imports-in-providers`` that will fail if the
+  via prek hook ``check-imports-in-providers`` that will fail if the
   ``version_compat`` module is imported from another provider or from test code.
 
 Releasing pre-installed providers for the first time
@@ -418,22 +418,21 @@ in `description of the process <https://github.com/apache/airflow/blob/main/PROV
 
 Technically, suspending a provider is done by setting ``state: suspended``, in the provider.yaml of the
 provider. This should be followed by committing the change and either automatically or manually running
-pre-commit checks that will either update derived configuration files or ask you to update them manually.
-Note that you might need to run pre-commit several times until all the static checks pass,
-because modification from one pre-commit might impact other pre-commits.
+prek hooks that will either update derived configuration files or ask you to update them manually.
+Note that you might need to run prek several times until all the static checks pass,
+because modification from one prek hook might impact other prek hooks.
 
-If you have pre-commit installed, pre-commit will be run automatically on commit. If you want to run it
-manually after commit, you can run it via ``breeze static-checks --last-commit`` some of the tests might fail
+If you have prek installed, it will be run automatically on commit. If you want to run it
+manually after commit, you can run it via ``prek --last-commit`` some of the tests might fail
 because suspension of the provider might cause changes in the dependencies, so if you see errors about
 missing dependencies imports, non-usable classes etc., you will need to build the CI image locally
-via ``breeze build-image --python 3.9 --upgrade-to-newer-dependencies`` after the first pre-commit run
+via ``breeze build-image --python 3.9 --upgrade-to-newer-dependencies`` after the first prek
 and then run the static checks again.
 
 If you want to be absolutely sure to run all static checks you can always do this via
-``pre-commit run --all-files`` or ``breeze static-checks --all-files``.
+``prek --all-files``.
 
-Some of the manual modifications you will have to do (in both cases ``pre-commit`` will guide you on what
-to do.
+Some of the manual modifications you will have to do (in both cases ``prek`` will guide you on what to do
 
 * You will have to run  ``breeze setup regenerate-command-images`` to regenerate breeze help files
 * you will need to update ``extra-packages-ref.rst`` and in some cases - when mentioned there explicitly -

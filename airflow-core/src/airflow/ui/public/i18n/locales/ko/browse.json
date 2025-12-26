@@ -1,14 +1,13 @@
 {
   "auditLog": {
-    "actions": {
-      "collapseAllExtra": "모든 추가 JSON 접기",
-      "expandAllExtra": "모든 추가 JSON 펼치기"
-    },
     "columns": {
       "event": "이벤트",
       "extra": "추가 정보",
       "user": "사용자",
       "when": "시점"
+    },
+    "filters": {
+      "eventType": "이벤트 유형"
     },
     "title": "감사 로그"
   },

@@ -29,7 +29,8 @@ from google.api_core.gapic_v1.method import DEFAULT
 from google.api_core.retry import Retry
 from google.cloud.aiplatform_v1.types.dataset import Dataset
 
-from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning, TaskDeferred
+from airflow.exceptions import AirflowProviderDeprecationWarning
+from airflow.providers.common.compat.sdk import AirflowException, TaskDeferred
 from airflow.providers.google.cloud.operators.vertex_ai.auto_ml import (
     CreateAutoMLForecastingTrainingJobOperator,
     CreateAutoMLImageTrainingJobOperator,
@@ -321,6 +322,7 @@ class TestVertexAICreateCustomContainerTrainingJobOperator:
             is_default_version=None,
             model_version_aliases=None,
             model_version_description=None,
+            psc_interface_config=None,
         )
 
     @mock.patch(VERTEX_AI_PATH.format("custom_job.Dataset"))
@@ -407,6 +409,7 @@ class TestVertexAICreateCustomContainerTrainingJobOperator:
             is_default_version=None,
             model_version_aliases=None,
             model_version_description=None,
+            psc_interface_config=None,
         )
 
     @mock.patch(VERTEX_AI_PATH.format("custom_job.CreateCustomContainerTrainingJobOperator.hook"))
@@ -648,6 +651,7 @@ class TestVertexAICreateCustomPythonPackageTrainingJobOperator:
             timestamp_split_column_name=None,
             tensorboard=None,
             sync=True,
+            psc_interface_config=None,
         )
 
     @mock.patch(VERTEX_AI_PATH.format("custom_job.Dataset"))
@@ -736,6 +740,7 @@ class TestVertexAICreateCustomPythonPackageTrainingJobOperator:
             timestamp_split_column_name=None,
             tensorboard=None,
             sync=True,
+            psc_interface_config=None,
         )
 
     @mock.patch(VERTEX_AI_PATH.format("custom_job.CreateCustomPythonPackageTrainingJobOperator.hook"))
@@ -976,6 +981,7 @@ class TestVertexAICreateCustomTrainingJobOperator:
             is_default_version=None,
             model_version_aliases=None,
             model_version_description=None,
+            psc_interface_config=None,
         )
 
     @mock.patch(VERTEX_AI_PATH.format("custom_job.Dataset"))
@@ -1057,6 +1063,7 @@ class TestVertexAICreateCustomTrainingJobOperator:
             is_default_version=None,
             model_version_aliases=None,
             model_version_description=None,
+            psc_interface_config=None,
         )
 
     @mock.patch(VERTEX_AI_PATH.format("custom_job.CreateCustomTrainingJobOperator.hook"))
@@ -1387,8 +1394,9 @@ class TestVertexAIImportDataOperator:
         FINAL_DS_SIZE = 101
         INITIAL_DS = {**SAMPLE_DATASET, "data_item_count": INITIAL_DS_SIZE}
         FINAL_DS = {**SAMPLE_DATASET, "data_item_count": FINAL_DS_SIZE}
+        get_ds_mock = mock_hook.return_value.get_dataset
 
-        mock_hook.return_value.get_dataset.side_effect = [Dataset(INITIAL_DS), Dataset(FINAL_DS)]
+        get_ds_mock.side_effect = [Dataset(INITIAL_DS), Dataset(FINAL_DS)]
 
         res = op.execute(context={})
 
@@ -1403,6 +1411,22 @@ class TestVertexAIImportDataOperator:
             metadata=METADATA,
         )
         assert res["total_data_items_imported"] == FINAL_DS_SIZE - INITIAL_DS_SIZE
+
+        assert get_ds_mock.call_count == 2
+        sample_get_ds_kwargs = dict(
+            region=GCP_LOCATION,
+            project_id=GCP_PROJECT,
+            dataset=TEST_DATASET_ID,
+            retry=RETRY,
+            timeout=TIMEOUT,
+            metadata=METADATA,
+        )
+        get_ds_mock.assert_has_calls(
+            [
+                call(**sample_get_ds_kwargs),
+                call(**sample_get_ds_kwargs),
+            ]
+        )
 
 
 class TestVertexAIListDatasetsOperator:
@@ -1846,19 +1870,20 @@ class TestVertexAICreateAutoMLVideoTrainingJobOperator:
     @mock.patch(VERTEX_AI_PATH.format("auto_ml.AutoMLHook"))
     def test_execute(self, mock_hook, mock_dataset):
         mock_hook.return_value.create_auto_ml_video_training_job.return_value = (None, "training_id")
-        op = CreateAutoMLVideoTrainingJobOperator(
-            task_id=TASK_ID,
-            gcp_conn_id=GCP_CONN_ID,
-            impersonation_chain=IMPERSONATION_CHAIN,
-            display_name=DISPLAY_NAME,
-            dataset_id=TEST_DATASET_ID,
-            prediction_type="classification",
-            model_type="CLOUD",
-            sync=True,
-            region=GCP_LOCATION,
-            project_id=GCP_PROJECT,
-            parent_model=TEST_PARENT_MODEL,
-        )
+        with pytest.warns(AirflowProviderDeprecationWarning):
+            op = CreateAutoMLVideoTrainingJobOperator(
+                task_id=TASK_ID,
+                gcp_conn_id=GCP_CONN_ID,
+                impersonation_chain=IMPERSONATION_CHAIN,
+                display_name=DISPLAY_NAME,
+                dataset_id=TEST_DATASET_ID,
+                prediction_type="classification",
+                model_type="CLOUD",
+                sync=True,
+                region=GCP_LOCATION,
+                project_id=GCP_PROJECT,
+                parent_model=TEST_PARENT_MODEL,
+            )
         op.execute(context={"ti": mock.MagicMock(), "task": mock.MagicMock()})
         mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID, impersonation_chain=IMPERSONATION_CHAIN)
         mock_dataset.assert_called_once_with(dataset_name=TEST_DATASET_ID)
@@ -1889,19 +1914,20 @@ class TestVertexAICreateAutoMLVideoTrainingJobOperator:
     @mock.patch(VERTEX_AI_PATH.format("auto_ml.AutoMLHook"))
     def test_execute__parent_model_version_index_is_removed(self, mock_hook, mock_dataset):
         mock_hook.return_value.create_auto_ml_video_training_job.return_value = (None, "training_id")
-        op = CreateAutoMLVideoTrainingJobOperator(
-            task_id=TASK_ID,
-            gcp_conn_id=GCP_CONN_ID,
-            impersonation_chain=IMPERSONATION_CHAIN,
-            display_name=DISPLAY_NAME,
-            dataset_id=TEST_DATASET_ID,
-            prediction_type="classification",
-            model_type="CLOUD",
-            sync=True,
-            region=GCP_LOCATION,
-            project_id=GCP_PROJECT,
-            parent_model=VERSIONED_TEST_PARENT_MODEL,
-        )
+        with pytest.warns(AirflowProviderDeprecationWarning):
+            op = CreateAutoMLVideoTrainingJobOperator(
+                task_id=TASK_ID,
+                gcp_conn_id=GCP_CONN_ID,
+                impersonation_chain=IMPERSONATION_CHAIN,
+                display_name=DISPLAY_NAME,
+                dataset_id=TEST_DATASET_ID,
+                prediction_type="classification",
+                model_type="CLOUD",
+                sync=True,
+                region=GCP_LOCATION,
+                project_id=GCP_PROJECT,
+                parent_model=VERSIONED_TEST_PARENT_MODEL,
+            )
         op.execute(context={"ti": mock.MagicMock(), "task": mock.MagicMock()})
         mock_hook.return_value.create_auto_ml_video_training_job.assert_called_once_with(
             project_id=GCP_PROJECT,

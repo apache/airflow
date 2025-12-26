@@ -15,11 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""
-Builds documentation and runs spell checking
-
-# isort:skip_file (needed to workaround isort bug)
-"""
+"""Builds documentation and runs spell checking."""
 
 from __future__ import annotations
 

@@ -1,0 +1,164 @@
+{
+  "columns": {
+    "description": "Açıklama",
+    "key": "Anahtar",
+    "name": "Ad",
+    "value": "Değer"
+  },
+  "config": {
+    "columns": {
+      "section": "Bölüm"
+    },
+    "title": "Airflow Yapılandırması"
+  },
+  "connections": {
+    "add": "Bağlantı Ekle",
+    "columns": {
+      "connectionId": "Bağlantı Kimliği",
+      "connectionType": "Bağlantı Tipi",
+      "host": "Host",
+      "port": "Port"
+    },
+    "connection_one": "Bağlantı",
+    "connection_other": "Bağlantılar",
+    "delete": {
+      "deleteConnection_one": "1 bağlantıyı sil",
+      "deleteConnection_other": "{{count}} bağlantıyı sil",
+      "firstConfirmMessage_one": "Aşağıdaki bağlantıyı silmek üzeresiniz:",
+      "firstConfirmMessage_other": "Aşağıdaki bağlantıları silmek üzeresiniz:",
+      "title": "Bağlantıyı Sil"
+    },
+    "edit": "Bağlantıyı Düzenle",
+    "form": {
+      "connectionIdRequired": "Bağlantı Kimliği gerekli",
+      "connectionIdRequirement": "Bağlantı Kimliği sadece boşluklardan oluşamaz",
+      "connectionTypeRequired": "Bağlantı Tipi gerekli",
+      "extraFields": "Ek Alanlar",
+      "extraFieldsJson": "Ek Alanlar JSON",
+      "helperText": "Bağlantı tipi eksik mi? İlgili Airflow Providers paketini yüklediğinizden emin olun.",
+      "helperTextForRedactedFields": "Gizlenmiş alanlar ('***') değiştirilmedikçe kaydedilmeyecektir.",
+      "selectConnectionType": "Bağlantı Tipi Seçin",
+      "standardFields": "Standart Alanlar"
+    },
+    "nothingFound": {
+      "description": "Sistem Ortam değişkenleri veya gizli sır yönetimi ile tanımlanan bağlantılar burada listelenmez.",
+      "documentationLink": "Airflow dokümantasyonuna daha fazla bilgi edinin.",
+      "learnMore": "Bunlar çalışma zamanında çözümlenir ve arayüzde görünmez.",
+      "title": "Bağlantı bulunamadı!"
+    },
+    "searchPlaceholder": "Bağlantıları Ara",
+    "test": "Bağlantıyı Test Et",
+    "testDisabled": "Bağlantı test özelliği devre dışı. Etkinleştirmek için lütfen bir yönetici ile iletişime geçin.",
+    "typeMeta": {
+      "error": "Bağlantı Tipi Meta verileri alınamadı",
+      "standardFields": {
+        "description": "Açıklama",
+        "host": "Host",
+        "login": "Giriş",
+        "password": "Şifre",
+        "port": "Port",
+        "url_schema": "Şema"
+      }
+    }
+  },
+  "deleteActions": {
+    "button": "Sil",
+    "modal": {
+      "confirmButton": "Evet, Sil",
+      "secondConfirmMessage": "Bu işlem kalıcıdır ve geri alınamaz.",
+      "thirdConfirmMessage": "Devam etmek istediğinizden emin misiniz?"
+    },
+    "selected": "Seçili",
+    "tooltip": "Seçilen bağlantıları sil"
+  },
+  "formActions": {
+    "save": "Kaydet"
+  },
+  "plugins": {
+    "columns": {
+      "source": "Kaynak"
+    },
+    "importError_one": "Eklenti İçe Aktarma Hatası",
+    "importError_other": "Eklenti İçe Aktarma Hataları",
+    "searchPlaceholder": "Dosyaya göre ara"
+  },
+  "pools": {
+    "add": "Havuz Ekle",
+    "deferredSlotsIncluded": "Ertelenmiş Slotlar Dahil",
+    "delete": {
+      "title": "Havuzu Sil",
+      "warning": "Bu, havuzla ilgili tüm meta verileri kaldıracak ve bu havuzu kullanan görevleri etkileyebilir."
+    },
+    "edit": "Havuzu Düzenle",
+    "form": {
+      "checkbox": "Açık havuz işlem yuvası hesaplanırken ertelenmiş görevleri dahil etmek için işaretleyin",
+      "description": "Açıklama",
+      "includeDeferred": "Ertelenmişleri Dahil Et",
+      "nameMaxLength": "Ad en fazla 256 karakter içerebilir",
+      "nameRequired": "Ad gerekli",
+      "slots": "İşlem yuvaları"
+    },
+    "noPoolsFound": "Havuz bulunamadı",
+    "pool_one": "Havuz",
+    "pool_other": "Havuzlar",
+    "searchPlaceholder": "Havuzları Ara",
+    "sort": {
+      "asc": "Ad (A-Z)",
+      "desc": "Ad (Z-A)",
+      "placeholder": "Sıralama kriteri"
+    }
+  },
+  "providers": {
+    "columns": {
+      "packageName": "Paket Adı",
+      "version": "Versiyon"
+    }
+  },
+  "variables": {
+    "add": "Değişken Ekle",
+    "columns": {
+      "isEncrypted": "Şifrelenmiş"
+    },
+    "delete": {
+      "deleteVariable_one": "1 Değişkeni Sil",
+      "deleteVariable_other": "{{count}} Değişkeni Sil",
+      "firstConfirmMessage_one": "Aşağıdaki değişkeni silmek üzeresiniz:",
+      "firstConfirmMessage_other": "Aşağıdaki değişkenleri silmek üzeresiniz:",
+      "title": "Değişkeni Sil",
+      "tooltip": "Seçili değişkenleri sil"
+    },
+    "edit": "Değişkeni Düzenle",
+    "form": {
+      "invalidJson": "Geçersiz JSON",
+      "keyMaxLength": "Anahtar en fazla 250 karakter içerebilir",
+      "keyRequired": "Anahtar gerekli",
+      "valueRequired": "Değer gerekli"
+    },
+    "import": {
+      "button": "İçe Aktar",
+      "conflictResolution": "Değişken Çakışma Çözümünü Seçin",
+      "errorParsingJsonFile": "JSON Dosyası Ayrıştırma Hatası: Değişkenler içeren bir JSON dosyası yükleyin (örn. {\"key\": \"value\", ...}).",
+      "options": {
+        "fail": {
+          "description": "Mevcut değişkenler tespit edilirse içe aktarma başarısız olur.",
+          "title": "Başarısız"
+        },
+        "overwrite": {
+          "description": "Çakışma durumunda değişkenin üzerine yazar.",
+          "title": "Üzerine Yaz"
+        },
+        "skip": {
+          "description": "Zaten var olan değişkenlerin içe aktarılmasını atlar.",
+          "title": "Atla"
+        }
+      },
+      "title": "Değişkenleri İçe Aktar",
+      "upload": "JSON Dosyası Yükle",
+      "uploadPlaceholder": "Değişkenler içeren bir JSON dosyası yükleyin (örn. {\"key\": \"value\", ...})"
+    },
+    "noRowsMessage": "Değişken bulunamadı",
+    "searchPlaceholder": "Anahtarları Ara",
+    "variable_one": "Değişken",
+    "variable_other": "Değişkenler"
+  }
+}

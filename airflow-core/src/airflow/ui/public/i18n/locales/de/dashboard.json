@@ -29,13 +29,15 @@
   "poolSlots": "Pool Belegung",
   "sortBy": {
     "newestFirst": "Neueste zuerst",
-    "oldestFirst": "Älteste zuerst"
+    "oldestFirst": "Älteste zuerst",
+    "placeholder": "Sortieren nach"
   },
   "source": "Quellcode",
   "stats": {
     "activeDags": "Aktive Dags",
     "failedDags": "Fehlgeschlagene Dags",
     "queuedDags": "Dags in Warteschlange",
+    "requiredActions": "Erforderliche Interaktionen",
     "runningDags": "Laufende Dags",
     "stats": "Statistiken"
   },

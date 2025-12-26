@@ -31,9 +31,12 @@ from airflow.models.asset import (
     expand_alias_to_assets,
     remove_references_to_deleted_dags,
 )
-from airflow.models.dag import DAG, DagModel
+from airflow.models.dag import DagModel
 from airflow.providers.standard.operators.empty import EmptyOperator
-from airflow.sdk.definitions.asset import Asset, AssetAlias
+from airflow.sdk import Asset, AssetAlias
+from airflow.serialization.definitions.assets import SerializedAssetAlias
+
+from tests_common.test_utils.dag import sync_dags_to_db
 
 pytestmark = pytest.mark.db_test
 
@@ -47,10 +50,11 @@ def clear_assets():
     clear_db_assets()
 
 
-def test_asset_alias_from_public():
-    asset_alias = AssetAlias(name="test_alias")
-    asset_alias_model = AssetAliasModel.from_public(asset_alias)
+def test_asset_alias_from_serialized():
+    asset_alias = SerializedAssetAlias(name="test_alias", group="test_group")
+    asset_alias_model = AssetAliasModel.from_serialized(asset_alias)
     assert asset_alias_model.name == "test_alias"
+    assert asset_alias_model.group == "test_group"
 
 
 class TestAssetAliasModel:
@@ -92,7 +96,7 @@ class TestAssetAliasModel:
 
 
 @pytest.mark.parametrize(
-    "select_stmt, expected_before_clear_1, expected_before_clear_2",
+    ("select_stmt", "expected_before_clear_1", "expected_before_clear_2"),
     [
         pytest.param(
             select(AssetModel.name, AssetModel.uri, DagScheduleAssetReference.dag_id),
@@ -126,6 +130,7 @@ class TestAssetAliasModel:
         ),
     ],
 )
+@pytest.mark.usefixtures("testing_dag_bundle")
 def test_remove_reference_for_inactive_dag(
     dag_maker,
     session,
@@ -144,14 +149,9 @@ def test_remove_reference_for_inactive_dag(
         EmptyOperator(task_id="t2", outlets=Asset(name="a", uri="b://b/"))
     with dag_maker(dag_id="test2", schedule=schedule, session=session) as dag2:
         EmptyOperator(task_id="t1", outlets=Asset(name="a", uri="b://b/"))
-
-    DAG.bulk_write_to_db(
-        bundle_name=None,
-        bundle_version=None,
-        dags=[dag1, dag2],
-        session=session,
-    )
     assert set(session.execute(select_stmt)) == expected_before_clear_1
+
+    sync_dags_to_db([dag1, dag2])
 
     def _simulate_soft_dag_deletion(dag_id):
         session.execute(update(DagModel).where(DagModel.dag_id == dag_id).values(is_stale=True))

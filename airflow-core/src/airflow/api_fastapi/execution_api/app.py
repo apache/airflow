@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 import json
+import time
 from contextlib import AsyncExitStack
 from functools import cached_property
 from typing import TYPE_CHECKING, Any
@@ -27,8 +28,9 @@ import svcs
 from cadwyn import (
     Cadwyn,
 )
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Request, Response
 from fastapi.responses import JSONResponse
+from starlette.middleware.base import BaseHTTPMiddleware
 
 from airflow.api_fastapi.auth.tokens import (
     JWTGenerator,
@@ -42,12 +44,14 @@ if TYPE_CHECKING:
     from fastapi.routing import APIRoute
 
 import structlog
+from structlog.contextvars import bind_contextvars
 
 logger = structlog.get_logger(logger_name=__name__)
 
 __all__ = [
     "create_task_execution_api_app",
     "lifespan",
+    "CorrelationIdMiddleware",
 ]
 
 
@@ -94,6 +98,66 @@ async def lifespan(app: FastAPI, registry: svcs.Registry):
     registry.register_value(JWTValidator, _jwt_validator(), ping=JWTValidator.status)
 
     yield
+
+
+class CorrelationIdMiddleware(BaseHTTPMiddleware):
+    """
+    Middleware to handle correlation-id for request tracing.
+
+    This middleware:
+    1. Extracts correlation-id from request headers
+    2. Binds it to structlog context for all logs within the request
+    3. Echoes correlation-id back in response headers for tracing
+
+    Note: Context variables are automatically isolated per async task in Python,
+    so manual cleanup is not necessary. Each request gets its own context copy.
+    """
+
+    async def dispatch(self, request: Request, call_next):
+        correlation_id = request.headers.get("correlation-id")
+
+        if correlation_id:
+            bind_contextvars(correlation_id=correlation_id)
+
+        response: Response = await call_next(request)
+
+        if correlation_id:
+            response.headers["correlation-id"] = correlation_id
+
+        return response
+
+
+class JWTReissueMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request: Request, call_next):
+        from airflow.configuration import conf
+
+        response: Response = await call_next(request)
+
+        refreshed_token: str | None = None
+        auth_header = request.headers.get("authorization")
+        if auth_header and auth_header.lower().startswith("bearer "):
+            token = auth_header.split(" ", 1)[1]
+            try:
+                async with svcs.Container(request.app.state.svcs_registry) as services:
+                    validator: JWTValidator = await services.aget(JWTValidator)
+                    claims = await validator.avalidated_claims(token, {})
+
+                    now = int(time.time())
+                    validity = conf.getint("execution_api", "jwt_expiration_time")
+                    refresh_when_less_than = max(int(validity * 0.20), 30)
+                    valid_left = int(claims.get("exp", 0)) - now
+                    if valid_left <= refresh_when_less_than:
+                        generator: JWTGenerator = await services.aget(JWTGenerator)
+                        refreshed_token = generator.generate(claims)
+            except Exception as err:
+                # Do not block the response if refreshing fails; log a warning for visibility
+                logger.warning(
+                    "JWT reissue middleware failed to refresh token", error=str(err), exc_info=True
+                )
+
+        if refreshed_token:
+            response.headers["Refreshed-API-Token"] = refreshed_token
+        return response
 
 
 class CadwynWithOpenAPICustomization(Cadwyn):
@@ -179,6 +243,10 @@ def create_task_execution_api_app() -> FastAPI:
         versions=bundle,
     )
 
+    # Add correlation-id middleware for request tracing
+    app.add_middleware(CorrelationIdMiddleware)
+    app.add_middleware(JWTReissueMiddleware)
+
     app.generate_and_include_versioned_routers(execution_api_router)
 
     # As we are mounted as a sub app, we don't get any logs for unhandled exceptions without this!
@@ -186,8 +254,8 @@ def create_task_execution_api_app() -> FastAPI:
     def handle_exceptions(request: Request, exc: Exception):
         logger.exception("Handle died with an error", exc_info=(type(exc), exc, exc.__traceback__))
         content = {"message": "Internal server error"}
-        if "correlation-id" in request.headers:
-            content["correlation-id"] = request.headers["correlation-id"]
+        if correlation_id := request.headers.get("correlation-id"):
+            content["correlation-id"] = correlation_id
         return JSONResponse(status_code=500, content=content)
 
     return app
@@ -197,6 +265,8 @@ def get_extra_schemas() -> dict[str, dict]:
     """Get all the extra schemas that are not part of the main FastAPI app."""
     from airflow.api_fastapi.execution_api.datamodels.taskinstance import TaskInstance
     from airflow.executors.workloads import BundleInfo
+    from airflow.task.trigger_rule import TriggerRule
+    from airflow.task.weight_rule import WeightRule
     from airflow.utils.state import TaskInstanceState, TerminalTIState
 
     return {
@@ -206,6 +276,8 @@ def get_extra_schemas() -> dict[str, dict]:
         # as that has different payload requirements
         "TerminalTIState": {"type": "string", "enum": list(TerminalTIState)},
         "TaskInstanceState": {"type": "string", "enum": list(TaskInstanceState)},
+        "WeightRule": {"type": "string", "enum": list(WeightRule)},
+        "TriggerRule": {"type": "string", "enum": list(TriggerRule)},
     }
 
 
@@ -224,11 +296,11 @@ class InProcessExecutionAPI:
     @cached_property
     def app(self):
         if not self._app:
+            from airflow.api_fastapi.common.dagbag import create_dag_bag
             from airflow.api_fastapi.execution_api.app import create_task_execution_api_app
             from airflow.api_fastapi.execution_api.deps import (
                 JWTBearerDep,
                 JWTBearerTIPathDep,
-                JWTRefresherDep,
             )
             from airflow.api_fastapi.execution_api.routes.connections import has_connection_access
             from airflow.api_fastapi.execution_api.routes.variables import has_variable_access
@@ -236,11 +308,13 @@ class InProcessExecutionAPI:
 
             self._app = create_task_execution_api_app()
 
+            # Set up dag_bag in app state for dependency injection
+            self._app.state.dag_bag = create_dag_bag()
+
             async def always_allow(): ...
 
             self._app.dependency_overrides[JWTBearerDep.dependency] = always_allow
             self._app.dependency_overrides[JWTBearerTIPathDep.dependency] = always_allow
-            self._app.dependency_overrides[JWTRefresherDep.dependency] = always_allow
             self._app.dependency_overrides[has_connection_access] = always_allow
             self._app.dependency_overrides[has_variable_access] = always_allow
             self._app.dependency_overrides[has_xcom_access] = always_allow

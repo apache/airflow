@@ -95,13 +95,16 @@ jobs:
       default-python-version: "3.10"
     if: contains(fromJSON('[
       "ashb",
+      "bugraoz93",
       "eladkal",
       "ephraimbuddy",
       "jedcunningham",
+      "jscheffl",
       "kaxil",
       "pierrejeambrun",
       "potiuk",
-      "utkarsharma2"
+      "utkarsharma2",
+      "vincbeck",
       ]'), github.event.sender.login)
     steps:
       - name: "Input parameters summary"
@@ -178,12 +181,9 @@ jobs:
         with:
           persist-credentials: false
           path: current-version
-      - name: "Prepare and cleanup runner"
-        run: ./scripts/ci/prepare_and_cleanup_runner.sh
-        working-directory: current-version
-        # We are checking repo for both - breeze and docs from the ref provided as input
-        # This will take longer as we need to rebuild CI image and it will not use cache
-        # but it will build the CI image from the version of Airflow that is used to check out things
+      # We are checking repo for both - breeze and docs from the ref provided as input
+      # This will take longer as we need to rebuild CI image and it will not use cache
+      # but it will build the CI image from the version of Airflow that is used to check out things
       - name: "Checkout ${{ inputs.ref }} "
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
         with:
@@ -191,6 +191,13 @@ jobs:
           ref: ${{ inputs.ref }}
           fetch-depth: 0
           fetch-tags: true
+      - name: "Free up disk space"
+        shell: bash
+        run: ./scripts/tools/free_up_disk_space.sh
+      - name: "Make /mnt writeable"
+        run: ./scripts/ci/make_mnt_writeable.sh
+      - name: "Move docker to /mnt"
+        run: ./scripts/ci/move_docker_to_mnt.sh
       - name: "Apply patch commits if provided"
         run: |
           if [[ "${APPLY_COMMITS}" != "" ]]; then
@@ -307,7 +314,7 @@ jobs:
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       GITHUB_USERNAME: ${{ github.actor }}
       INCLUDE_SUCCESS_OUTPUTS: false
-      PYTHON_MAJOR_MINOR_VERSION: 3.10
+      PYTHON_MAJOR_MINOR_VERSION: "3.10"
       VERBOSE: "true"
     steps:
       - name: "Cleanup repo"
@@ -320,8 +327,9 @@ jobs:
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
         with:
           persist-credentials: false
-      - name: "Prepare and cleanup runner"
-        run: ./scripts/ci/prepare_and_cleanup_runner.sh
+      - name: "Make /mnt writeable and cleanup"
+        shell: bash
+        run: ./scripts/ci/make_mnt_writeable.sh
       - name: "Install Breeze"
         uses: ./.github/actions/breeze
       - name: "Download docs prepared as artifacts"
@@ -366,4 +374,4 @@ jobs:
         run: |
           breeze release-management publish-docs-to-s3 --source-dir-path ${SOURCE_DIR_PATH} \
           --destination-location ${DESTINATION_LOCATION} --stable-versions \
-          --exclude-docs ${EXCLUDE_DOCS} --overwrite ${SKIP_WRITE_TO_STABLE_FOLDER}
+          --exclude-docs "${EXCLUDE_DOCS}" --overwrite ${SKIP_WRITE_TO_STABLE_FOLDER}

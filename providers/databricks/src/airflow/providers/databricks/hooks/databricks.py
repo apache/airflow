@@ -34,7 +34,7 @@ from typing import Any
 
 from requests import exceptions as requests_exceptions
 
-from airflow.exceptions import AirflowException
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.databricks.hooks.databricks_base import BaseDatabricksHook
 
 GET_CLUSTER_ENDPOINT = ("GET", "2.0/clusters/get")
@@ -134,6 +134,9 @@ class RunState:
             and self.state_message == other.state_message
         )
 
+    def __hash__(self):
+        return hash((self.life_cycle_state, self.result_state, self.state_message))
+
     def __repr__(self) -> str:
         return str(self.__dict__)
 
@@ -182,6 +185,9 @@ class ClusterState:
 
     def __eq__(self, other) -> bool:
         return self.state == other.state and self.state_message == other.state_message
+
+    def __hash__(self):
+        return hash((self.state, self.state_message))
 
     def __repr__(self) -> str:
         return str(self.__dict__)
@@ -244,6 +250,9 @@ class SQLStatementState:
             and self.error_message == other.error_message
         )
 
+    def __hash__(self):
+        return hash((self.state, self.error_code, self.error_message))
+
     def __repr__(self) -> str:
         return str(self.__dict__)
 
@@ -298,6 +307,16 @@ class DatabricksHook(BaseDatabricksHook):
 
         :param json: The data used in the new_settings of the request to the ``reset`` endpoint.
         """
+        access_control_list = json.get("access_control_list", None)
+        if access_control_list:
+            self.log.info(
+                "Updating job permission for Databricks workflow job id %s with access_control_list %s",
+                job_id,
+                access_control_list,
+            )
+            acl_json = {"access_control_list": access_control_list}
+            self.update_job_permission(job_id=int(job_id), json=acl_json)
+
         self._do_api_call(RESET_ENDPOINT, {"job_id": job_id, "new_settings": json})
 
     def update_job(self, job_id: str, json: dict) -> None:

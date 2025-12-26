@@ -6,8 +6,6 @@
     "allRuns": "All Runs",
     "backwards": "Run Backwards",
     "dateRange": "Date Range",
-    "dateRangeFrom": "From",
-    "dateRangeTo": "To",
     "errorStartDateBeforeEndDate": "Start Date must be before the End Date",
     "maxRuns": "Max Active Runs",
     "missingAndErroredRuns": "Missing and Errored Runs",
@@ -51,6 +49,13 @@
     "warning_one": "1 Warning",
     "warning_other": "{{count}} Warnings"
   },
+  "dateRangeFilter": {
+    "validation": {
+      "invalidDateFormat": "Invalid date format.",
+      "invalidTimeFormat": "Invalid time format.",
+      "startBeforeEnd": "Start date/time must be before end date/time"
+    }
+  },
   "durationChart": {
     "duration": "Duration (seconds)",
     "lastDagRun_one": "Last Dag Run",
@@ -88,6 +93,14 @@
     "taskGroup": "Task Group"
   },
   "limitedList": "+{{count}} more",
+  "limitedList.allItems": "All {{count}} items:",
+  "limitedList.allTags_one": "All Tags (1)",
+  "limitedList.allTags_other": "All Tags ({{count}})",
+  "limitedList.clickToInteract": "Click a tag to filter Dags",
+  "limitedList.clickToOpenFull": "Click \"+{{count}} more\" to open full view",
+  "limitedList.copyPasteText": "You can copy and paste the text above",
+  "limitedList.showingItems_one": "Showing 1 item",
+  "limitedList.showingItems_other": "Showing {{count}} items",
   "logs": {
     "file": "File",
     "location": "line {{line}} in {{name}}"
@@ -97,10 +110,16 @@
   "sortedDescending": "sorted descending",
   "sortedUnsorted": "unsorted",
   "taskTries": "Task Tries",
+  "taskTryPlaceholder": "Task Try",
   "toggleCardView": "Show card view",
   "toggleTableView": "Show table view",
   "triggerDag": {
     "button": "Trigger",
+    "dataInterval": "Data Interval",
+    "dataIntervalAuto": "Inferred from Logical Date and Timetable",
+    "dataIntervalManual": "Specify Manually",
+    "intervalEnd": "End",
+    "intervalStart": "Start",
     "loading": "Loading Dag information...",
     "loadingFailed": "Failed to load Dag information. Please try again.",
     "runIdHelp": "Optional - will be generated if not provided",
@@ -108,6 +127,9 @@
     "selectLabel": "Single Run",
     "title": "Trigger Dag",
     "toaster": {
+      "error": {
+        "title": "Failed to Trigger Dag"
+      },
       "success": {
         "description": "Dag run has been successfully triggered.",
         "title": "Dag Run Triggered"
@@ -128,6 +150,7 @@
     "versionId": "Version ID"
   },
   "versionSelect": {
+    "allVersions": "All Versions",
     "dagVersion": "Dag Version",
     "versionCode": "v{{versionCode}}"
   }

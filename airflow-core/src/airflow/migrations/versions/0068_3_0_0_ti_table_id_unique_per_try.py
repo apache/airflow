@@ -96,7 +96,7 @@ def downgrade():
     dialect_name = conn.dialect.name
     with op.batch_alter_table("task_reschedule", schema=None) as batch_op:
         batch_op.add_column(
-            sa.Column("try_number", sa.INTEGER(), autoincrement=False, nullable=False, default=1)
+            sa.Column("try_number", sa.INTEGER(), autoincrement=False, nullable=False, server_default="1")
         )
 
     with op.batch_alter_table("task_instance_note", schema=None) as batch_op:
@@ -117,5 +117,5 @@ def downgrade():
     # (and on non sqlite batching isn't "a thing", it issue alter tables fine)
     with op.batch_alter_table("task_instance_history", schema=None) as batch_op:
         batch_op.add_column(
-            sa.Column("task_instance_id", UUIDType(binary=False), autoincrement=False, nullable=False)
+            sa.Column("task_instance_id", UUIDType(binary=False), autoincrement=False, nullable=True)
         )

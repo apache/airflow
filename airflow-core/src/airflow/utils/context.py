@@ -19,31 +19,22 @@
 
 from __future__ import annotations
 
-from collections.abc import (
-    Container,
-)
-from typing import (
-    TYPE_CHECKING,
-    Any,
-    cast,
-)
+from typing import TYPE_CHECKING, Any, cast
 
 from sqlalchemy import select
 
-from airflow.models.asset import (
-    AssetModel,
-)
-from airflow.sdk.definitions.context import Context
+from airflow.models.asset import AssetModel
+from airflow.sdk import Asset, Context
 from airflow.sdk.execution_time.context import (
     ConnectionAccessor as ConnectionAccessorSDK,
     OutletEventAccessors as OutletEventAccessorsSDK,
     VariableAccessor as VariableAccessorSDK,
 )
+from airflow.serialization.definitions.notset import NOTSET, is_arg_set
 from airflow.utils.session import create_session
-from airflow.utils.types import NOTSET
 
 if TYPE_CHECKING:
-    from airflow.sdk.definitions.asset import Asset
+    from collections.abc import Container
 
 # NOTE: Please keep this in sync with the following:
 # * Context in task-sdk/src/airflow/sdk/definitions/context.py
@@ -100,9 +91,9 @@ class VariableAccessor(VariableAccessorSDK):
     def get(self, key, default: Any = NOTSET) -> Any:
         from airflow.models.variable import Variable
 
-        if default is NOTSET:
-            return Variable.get(key, deserialize_json=self._deserialize_json)
-        return Variable.get(key, default, deserialize_json=self._deserialize_json)
+        if is_arg_set(default):
+            return Variable.get(key, default, deserialize_json=self._deserialize_json)
+        return Variable.get(key, deserialize_json=self._deserialize_json)
 
 
 class ConnectionAccessor(ConnectionAccessorSDK):
@@ -145,7 +136,9 @@ class OutletEventAccessors(OutletEventAccessorsSDK):
         else:
             raise ValueError("Either name or uri must be provided")
 
-        return asset.to_public()
+        if asset is None:
+            raise ValueError("No active asset found with either name or uri.")
+        return Asset(name=asset.name, uri=asset.uri, group=asset.group, extra=asset.extra)
 
 
 def context_merge(context: Context, *args: Any, **kwargs: Any) -> None:

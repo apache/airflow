@@ -320,7 +320,7 @@ def test_transport_valid():
 @pytest.mark.parametrize("transport_value", ('["a", "b"]', "[]", '[{"a": "b"}]'))
 def test_transport_not_valid(transport_value):
     with conf_vars({(_CONFIG_SECTION, _CONFIG_OPTION_TRANSPORT): transport_value}):
-        with pytest.raises(ValueError):
+        with pytest.raises(ValueError, match="OpenLineage transport"):
             transport()
 
 

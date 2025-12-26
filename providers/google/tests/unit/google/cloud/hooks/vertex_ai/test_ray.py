@@ -21,7 +21,8 @@ from unittest import mock
 
 import pytest
 
-ScalarMapContainer = pytest.importorskip("google._upb._message.ScalarMapContainer")
+resources = pytest.importorskip("google.cloud.aiplatform.vertex_ray.util.resources")
+from google.cloud.aiplatform.vertex_ray.util.resources import Cluster, Resources
 
 from airflow.providers.google.cloud.hooks.vertex_ai.ray import RayHook
 
@@ -167,6 +168,55 @@ class TestRayWithDefaultProjectIdHook:
         )
         mock_aiplatform_init.assert_called_once()
         mock_list_ray_clusters.assert_called_once()
+
+    @mock.patch(RAY_STRING.format("aiplatform.init"))
+    def test_serialize_cluster_obj(self, mock_aiplatform_init) -> None:
+        RESOURCE_SAMPLE = {
+            "accelerator_count": 0,
+            "accelerator_type": None,
+            "autoscaling_spec": None,
+            "boot_disk_size_gb": 100,
+            "boot_disk_type": "pd-ssd",
+            "custom_image": None,
+            "machine_type": "n1-standard-16",
+            "node_count": 1,
+        }
+        SAMPLE_CLUSTER_SERIALIZED = {
+            "cluster_resource_name": TEST_CLUSTER_NAME,
+            "dashboard_address": "dashboard_addr",
+            "head_node_type": RESOURCE_SAMPLE,
+            "labels": {"label1": "val1"},
+            "network": "custom_network",
+            "psc_interface_config": None,
+            "python_version": TEST_PYTHON_VERSION,
+            "ray_logs_enabled": True,
+            "ray_metric_enabled": True,
+            "ray_version": TEST_RAY_VERSION,
+            "reserved_ip_ranges": [
+                "172.16.0.0/16",
+                "10.10.10.0/28",
+            ],
+            "service_account": None,
+            "state": "RUNNING",
+            "worker_node_types": [RESOURCE_SAMPLE, RESOURCE_SAMPLE],
+        }
+        cluster_obj = Cluster(
+            cluster_resource_name=TEST_CLUSTER_NAME,
+            state="RUNNING",  # type: ignore[arg-type]
+            network="custom_network",
+            reserved_ip_ranges=["172.16.0.0/16", "10.10.10.0/28"],
+            python_version=TEST_PYTHON_VERSION,
+            ray_version=TEST_RAY_VERSION,
+            head_node_type=Resources(**RESOURCE_SAMPLE),  # type: ignore[arg-type]
+            worker_node_types=[
+                Resources(**RESOURCE_SAMPLE),  # type: ignore[arg-type]
+                Resources(**RESOURCE_SAMPLE),  # type: ignore[arg-type]
+            ],
+            dashboard_address="dashboard_addr",
+            labels={"label1": "val1"},
+        )
+
+        assert self.hook.serialize_cluster_obj(cluster_obj) == SAMPLE_CLUSTER_SERIALIZED
 
 
 class TestRayWithoutDefaultProjectIdHook:

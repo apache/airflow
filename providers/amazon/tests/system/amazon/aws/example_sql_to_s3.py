@@ -40,7 +40,11 @@ else:
     from airflow.models.baseoperator import chain  # type: ignore[attr-defined,no-redef]
     from airflow.models.dag import DAG  # type: ignore[attr-defined,no-redef,assignment]
 
-from airflow.utils.trigger_rule import TriggerRule
+try:
+    from airflow.sdk import TriggerRule
+except ImportError:
+    # Compatibility for Airflow < 3.1
+    from airflow.utils.trigger_rule import TriggerRule  # type: ignore[no-redef,attr-defined]
 
 from system.amazon.aws.utils import ENV_ID_KEY, SystemTestContextBuilder
 from tests_common.test_utils.api_client_helpers import make_authenticated_rest_api_request
@@ -97,7 +101,6 @@ with DAG(
     start_date=datetime(2021, 1, 1),
     schedule="@once",
     catchup=False,
-    tags=["example"],
 ) as dag:
     test_context = sys_test_context_task()
     env_id = test_context[ENV_ID_KEY]
@@ -120,7 +123,7 @@ with DAG(
         vpc_security_group_ids=[security_group_id],
         cluster_subnet_group_name=cluster_subnet_group_name,
         cluster_type="single-node",
-        node_type="dc2.large",
+        node_type="ra3.large",
         master_username=DB_LOGIN,
         master_user_password=DB_PASS,
     )
@@ -129,7 +132,7 @@ with DAG(
         task_id="wait_cluster_available",
         cluster_identifier=redshift_cluster_identifier,
         target_status="available",
-        poke_interval=15,
+        poke_interval=100,
         timeout=60 * 30,
     )
 
@@ -151,6 +154,14 @@ with DAG(
         db_user=DB_LOGIN,
         sql=SQL_INSERT_DATA,
         wait_for_completion=True,
+    )
+
+    wait_cluster_available_before_transfer = RedshiftClusterSensor(
+        task_id="wait_cluster_available_before_transfer",
+        cluster_identifier=redshift_cluster_identifier,
+        target_status="available",
+        poke_interval=100,
+        timeout=60 * 30,
     )
 
     # [START howto_transfer_sql_to_s3]
@@ -199,6 +210,7 @@ with DAG(
         create_table_redshift_data,
         insert_data,
         # TEST BODY
+        wait_cluster_available_before_transfer,
         sql_to_s3_task,
         sql_to_s3_task_with_groupby,
         # TEST TEARDOWN

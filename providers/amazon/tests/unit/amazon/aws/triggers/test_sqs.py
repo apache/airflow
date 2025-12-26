@@ -20,7 +20,12 @@ from unittest.mock import AsyncMock
 
 import pytest
 
-from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS, get_base_airflow_version_tuple
+from tests_common.test_utils.common_msg_queue import (
+    collect_queue_param_deprecation_warning,
+    mark_common_msg_queue_test,
+)
+
+USED_FIXTURES = [collect_queue_param_deprecation_warning]
 
 TEST_SQS_QUEUE = "test-sqs-queue"
 TEST_AWS_CONN_ID = "test-aws-conn-id"
@@ -96,14 +101,22 @@ class TestSqsTriggers:
         assert len(messages) == 0
 
 
-@pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="Requires Airflow 3.0.+")
+@mark_common_msg_queue_test
 class TestMessageQueueTrigger:
-    def test_provider_integrations(self, cleanup_providers_manager):
-        if get_base_airflow_version_tuple() < (3, 0, 1):
-            pytest.skip("This test is only for Airflow 3.0.1+")
+    @pytest.mark.usefixtures("collect_queue_param_deprecation_warning")
+    def test_provider_integrations_with_queue_param(self, cleanup_providers_manager):
         queue = "https://sqs.us-east-1.amazonaws.com/0123456789/Test"
         from airflow.providers.amazon.aws.triggers.sqs import SqsSensorTrigger
         from airflow.providers.common.messaging.triggers.msg_queue import MessageQueueTrigger
 
         trigger = MessageQueueTrigger(queue=queue)
+        assert isinstance(trigger.trigger, SqsSensorTrigger)
+
+    def test_provider_integrations_with_scheme_param(self, cleanup_providers_manager):
+        from airflow.providers.amazon.aws.triggers.sqs import SqsSensorTrigger
+        from airflow.providers.common.messaging.triggers.msg_queue import MessageQueueTrigger
+
+        trigger = MessageQueueTrigger(
+            scheme="sqs", sqs_queue="https://sqs.us-east-1.amazonaws.com/0123456789/Test"
+        )
         assert isinstance(trigger.trigger, SqsSensorTrigger)

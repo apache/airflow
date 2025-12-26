@@ -23,10 +23,10 @@ import pendulum
 import pytest
 from sqlalchemy import select
 
+from airflow._shared.module_loading import import_string
 from airflow.models import DagRun
-from airflow.utils.module_loading import import_string
+from airflow.task.trigger_rule import TriggerRule
 from airflow.utils.state import DagRunState
-from airflow.utils.trigger_rule import TriggerRule
 
 from tests_common.test_utils.compat import PythonOperator
 from tests_common.test_utils.system_tests import get_test_run
@@ -88,7 +88,7 @@ class TestExampleDagsSystem(SystemTest):
         test_run()
 
     @pytest.mark.parametrize(
-        "factory, expected",
+        ("factory", "expected"),
         [
             (get_dag_fail, "failed"),
             (get_dag_fail_root, "failed"),

@@ -32,7 +32,7 @@ on:  # yamllint disable-line rule:truthy
         description: "Whether to run WWW tests (true/false)"
         required: true
         type: string
-      needs-api-codegen:
+      run-api-codegen:
         description: "Whether to run API codegen (true/false)"
         required: true
         type: string
@@ -40,12 +40,16 @@ on:  # yamllint disable-line rule:truthy
         description: "Whether to run only basic checks (true/false)"
         required: true
         type: string
-      skip-pre-commits:
-        description: "Whether to skip pre-commits (true/false)"
+      skip-prek-hooks:
+        description: "Whether to skip prek hooks (true/false)"
         required: true
         type: string
       default-python-version:
         description: "Which version of python should be used by default"
+        required: true
+        type: string
+      shared-distributions-as-json:
+        description: "Json array of shared distributions to run tests for"
         required: true
         type: string
       canary-run:
@@ -58,6 +62,14 @@ on:  # yamllint disable-line rule:truthy
         type: string
       use-uv:
         description: "Whether to use uv in the image"
+        required: true
+        type: string
+      uv-version:
+        description: 'uv version to use'
+        default: "0.9.18"  # Keep this comment to allow automatic replacement of uv version
+        type: string
+      platform:
+        description: 'Platform for the build - linux/amd64 or linux/arm64'
         required: true
         type: string
 permissions:
@@ -76,12 +88,31 @@ jobs:
           # Need to fetch all history for selective checks tests
           fetch-depth: 0
           persist-credentials: false
-      - name: "Prepare and cleanup runner"
-        run: ./scripts/ci/prepare_and_cleanup_runner.sh
       - name: "Install Breeze"
         uses: ./.github/actions/breeze
       - run: uv tool run --from apache-airflow-breeze pytest -n auto --color=yes
         working-directory: ./dev/breeze/
+  tests-shared-distributions:
+    timeout-minutes: 10
+    name: Shared ${{ matrix.shared-distribution }} tests
+    strategy:
+      fail-fast: false
+      matrix:
+        shared-distribution: ${{ fromJSON(inputs.shared-distributions-as-json) }}
+    runs-on: ${{ fromJSON(inputs.runners) }}
+    steps:
+      - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
+        with:
+          fetch-depth: 1
+          persist-credentials: false
+      - name: "Install uv"
+        run: curl -LsSf https://astral.sh/uv/${UV_VERSION}/install.sh | sh
+        env:
+          UV_VERSION: ${{ inputs.uv-version }}
+      - name: "Run shared ${{ matrix.shared-distribution }} tests"
+        run: uv run --group dev pytest --color=yes -n auto
+        working-directory: shared/${{ matrix.shared-distribution }}
   tests-ui:
     timeout-minutes: 15
     name: React UI tests
@@ -95,8 +126,6 @@ jobs:
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
         with:
           persist-credentials: false
-      - name: "Prepare and cleanup runner"
-        run: ./scripts/ci/prepare_and_cleanup_runner.sh
       - name: Setup pnpm
         uses: pnpm/action-setup@fe02b34f77f8bc703788d5817da081398fad5dd2  # v4.0.0
         with:
@@ -150,39 +179,27 @@ jobs:
           retention-days: '2'
         if: steps.restore-eslint-cache-simple-am-ui.outputs.stash-hit != 'true'
 
-  install-pre-commit:
-    timeout-minutes: 5
-    name: "Install pre-commit for cache"
+  check-translation-completness:
+    timeout-minutes: 15
+    name: "Check translation completeness"
     runs-on: ${{ fromJSON(inputs.runners) }}
-    env:
-      PYTHON_MAJOR_MINOR_VERSION: "${{ inputs.default-python-version }}"
-      SKIP: ${{ inputs.skip-pre-commits }}
     steps:
-      - name: "Cleanup repo"
-        shell: bash
-        run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
         with:
           persist-credentials: false
       - name: "Install Breeze"
         uses: ./.github/actions/breeze
-        id: breeze
-      - name: "Install pre-commit"
-        uses: ./.github/actions/install-pre-commit
-        id: pre-commit
-        with:
-          python-version: ${{steps.breeze.outputs.host-python-version}}
-          skip-pre-commits: ${{ inputs.skip-pre-commits }}
+      - name: "Check translation completeness"
+        run: breeze check-translations-completeness || true
 
   # Those checks are run if no image needs to be built for checks. This is for simple changes that
   # Do not touch any of the python code or any of the important files that might require building
-  # The CI Docker image and they can be run entirely using the pre-commit virtual environments on host
+  # The CI Docker image and they can be run entirely using the prek virtual environments on host
   static-checks-basic-checks-only:
     timeout-minutes: 30
     name: "Static checks: basic checks only"
     runs-on: ${{ fromJSON(inputs.runners) }}
-    needs: install-pre-commit
     if: inputs.basic-checks-only == 'true'
     steps:
       - name: "Cleanup repo"
@@ -192,17 +209,16 @@ jobs:
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
         with:
           persist-credentials: false
-      - name: "Prepare and cleanup runner"
-        run: ./scripts/ci/prepare_and_cleanup_runner.sh
       - name: "Install Breeze"
         uses: ./.github/actions/breeze
         id: breeze
-      - name: "Install pre-commit"
-        uses: ./.github/actions/install-pre-commit
-        id: pre-commit
+      - name: "Install prek"
+        uses: ./.github/actions/install-prek
+        id: prek
         with:
           python-version: ${{ steps.breeze.outputs.host-python-version }}
-          skip-pre-commits: ${{ inputs.skip-pre-commits }}
+          platform: ${{ inputs.platform }}
+          save-cache: true
       - name: Fetch incoming commit ${{ github.sha }} with its parent
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
         with:
@@ -211,18 +227,18 @@ jobs:
           persist-credentials: false
       - name: "Static checks: basic checks only"
         run: >
-          breeze static-checks --show-diff-on-failure --color always --initialize-environment
-          --skip-image-upgrade-check --commit-ref "${{ github.sha }}"
+          prek --show-diff-on-failure --color always
+          --from-ref "${{ github.sha }}" --to-ref "${{ github.sha }}"
         env:
           VERBOSE: "false"
-          SKIP_BREEZE_PRE_COMMITS: "true"
-          SKIP: ${{ inputs.skip-pre-commits }}
+          SKIP_BREEZE_PREK_HOOKS: "true"
+          SKIP: ${{ inputs.skip-prek-hooks }}
           COLUMNS: "202"
 
   test-git-clone-on-windows:
     timeout-minutes: 5
     name: "Test git clone on Windows"
-    runs-on: ["windows-latest"]
+    runs-on: ["windows-2025"]
     steps:
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
@@ -234,7 +250,6 @@ jobs:
     timeout-minutes: 45
     name: "Upgrade checks"
     runs-on: ${{ fromJSON(inputs.runners) }}
-    needs: install-pre-commit
     env:
       PYTHON_MAJOR_MINOR_VERSION: "${{ inputs.default-python-version }}"
     if: inputs.canary-run == 'true'
@@ -246,31 +261,32 @@ jobs:
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
         with:
           persist-credentials: false
-      - name: "Prepare and cleanup runner"
-        run: ./scripts/ci/prepare_and_cleanup_runner.sh
       - name: "Install Breeze"
         uses: ./.github/actions/breeze
         id: breeze
-      - name: "Install pre-commit"
-        uses: ./.github/actions/install-pre-commit
-        id: pre-commit
+      - name: "Install prek"
+        uses: ./.github/actions/install-prek
+        id: prek
         with:
-          python-version: ${{steps.breeze.outputs.host-python-version}}
-          skip-pre-commits: ${{ inputs.skip-pre-commits }}
-      - name: "Autoupdate all pre-commits"
-        run: pre-commit autoupdate
-      - name: "Autoupdate Lucas-C/pre-commit-hooks to bleeding edge"
-        run: pre-commit autoupdate --bleeding-edge --freeze --repo https://github.com/Lucas-C/pre-commit-hooks
-      - name: "Run automated upgrade for black"
-        run: >
-          pre-commit run
-          --all-files --show-diff-on-failure --color always --verbose
-          --hook-stage manual
-          update-black-version
-        if: always()
+          python-version: ${{ steps.breeze.outputs.host-python-version }}
+          platform: ${{ inputs.platform }}
+          save-cache: false
+      - name: "Autoupdate all prek hooks"
+        run: prek autoupdate --cooldown-days 4 --freeze
+      - name: "Autoupdate Lucas-C hooks to bleeding edge"
+        run: prek autoupdate --bleeding-edge --freeze --repo https://github.com/Lucas-C/pre-commit-hooks
+      - name: "Autoupdate Octopin to bleeding edge"
+        run: prek autoupdate --bleeding-edge --freeze --repo https://github.com/eclipse-csi/octopin
+      - name: "Check if there are any changes in prek hooks"
+        run: |
+          if ! git diff --exit-code; then
+            echo -e "\n\033[0;31mThere are changes in prek hooks after upgrade check.\033[0m"
+            echo -e "\n\033[0;33mHow to fix:\033[0m Run \`breeze ci upgrade\` locally to fix it!.\n"
+            exit 1
+          fi
       - name: "Run automated upgrade for chart dependencies"
         run: >
-          pre-commit run
+          prek
           --all-files --show-diff-on-failure --color always --verbose
           --hook-stage manual
           update-chart-dependencies
@@ -278,33 +294,53 @@ jobs:
       # For UV we are not failing the upgrade installers check if it is updated because
       # it is upgraded very frequently, so we want to manually upgrade it rather than
       # get notified about it - until it stabilizes in 1.* version
-      - name: "Run automated upgrade for uv (not failing - just informational)"
+      - name: "Run automated upgrade for uv,  prek (not failing - just informational)"
         run: >
-          pre-commit run
+          prek
           --all-files --show-diff-on-failure --color always --verbose
-          --hook-stage manual update-installers-and-pre-commit || true
+          --hook-stage manual upgrade-important-versions || true
         if: always()
         env:
           UPGRADE_UV: "true"
-          UPGRADE_PYTHON: "false"
-          UPGRADE_GOLANG: "true"
           UPGRADE_PIP: "false"
-          UPGRADE_PRE_COMMIT: "false"
+          UPGRADE_PYTHON: "false"
+          UPGRADE_GOLANG: "false"
+          UPGRADE_PREK: "true"
           UPGRADE_NODE_LTS: "false"
+          UPGRADE_HATCH: "false"
+          UPGRADE_PYYAML: "false"
+          UPGRADE_GITPYTHON: "false"
+          UPGRADE_RICH: "false"
+          UPGRADE_RUFF: "false"
+          UPGRADE_MPROCS: "true"
+          UPGRADE_MYPY: "false"
+          UPGRADE_PROTOC: "false"
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      - name: "Run automated upgrade for pip, pre-commit and node (failing if needed)"
-        run: >
-          pre-commit run
-          --all-files --show-diff-on-failure --color always --verbose
-          --hook-stage manual update-installers-and-pre-commit
+      - name: "Run automated upgrade for important versions minus uv (failing if needed)"
+        run: |
+          if ! prek \
+            --all-files --show-diff-on-failure --color always --verbose \
+            --hook-stage manual upgrade-important-versions; then
+              echo -e "\n\033[0;31mThere are changes in prek hooks after upgrade check.\033[0m"
+              echo -e "\n\033[0;33mHow to fix:\033[0m Run \`breeze ci upgrade\` locally to fix it!.\n"
+              exit 1
+          fi
         if: always()
         env:
           UPGRADE_UV: "false"
-          UPGRADE_PYTHON: "true"
-          UPGRADE_GOLANG: "false"
           UPGRADE_PIP: "true"
-          UPGRADE_PRE_COMMIT: "true"
+          UPGRADE_PYTHON: "true"
+          UPGRADE_GOLANG: "true"
+          UPGRADE_PREK: "false"
           UPGRADE_NODE_LTS: "true"
+          UPGRADE_HATCH: "true"
+          UPGRADE_PYYAML: "true"
+          UPGRADE_GITPYTHON: "true"
+          UPGRADE_RICH: "true"
+          UPGRADE_RUFF: "true"
+          UPGRADE_MYPY: "true"
+          UPGRADE_MPROCS: "false"
+          UPGRADE_PROTOC: "false"
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   test-airflow-release-commands:
@@ -326,8 +362,6 @@ jobs:
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
         with:
           persist-credentials: false
-      - name: "Prepare and cleanup runner"
-        run: ./scripts/ci/prepare_and_cleanup_runner.sh
       - name: "Install Breeze"
         uses: ./.github/actions/breeze
       - name: "Cleanup dist files"
@@ -339,17 +373,15 @@ jobs:
       - name: Install twine
         run: pip install twine
       - name: "Check Airflow create minor branch command"
-        run: >
-          breeze release-management create-minor-branch
-          --version-branch 3-1 --answer yes --dry-run
+        run: breeze release-management create-minor-branch --version-branch 3-1 --answer yes --dry-run
       - name: "Check Airflow RC process command"
         run: >
-          breeze release-management start-rc-process
-          --version 3.1.0rc1 --previous-version 3.0.0 --answer yes --dry-run
+          breeze release-management start-rc-process --version 3.1.0rc1 --previous-version 3.0.0
+          --task-sdk-version 1.0.0rc1 --sync-branch v3-1-test --answer yes --dry-run
       - name: "Check Airflow release process command"
         run: >
-          breeze release-management start-release --release-candidate 3.1.0rc1
-          --previous-release 3.0.0 --answer yes --dry-run
+          breeze release-management start-release --version 3.1.1
+          --answer yes --dry-run
       - name: "Test providers metadata generation"
         run: |
           git remote add apache https://github.com/apache/airflow.git
@@ -363,3 +395,56 @@ jobs:
         run: |
           breeze release-management generate-issue-content-core \
             --limit-pr-count 2 --previous-release 3.0.1 --current-release 3.0.2 --verbose
+
+
+  test-airflow-standalone:
+    timeout-minutes: 30
+    name: "Test Airflow standalone commands"
+    runs-on: ${{ fromJSON(inputs.runners) }}
+    env:
+      AIRFLOW_HOME: ~/airflow
+      FORCE_COLOR: 1
+    steps:
+      - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
+        with:
+          persist-credentials: false
+      - name: "Install uv"
+        run: curl -LsSf https://astral.sh/uv/${UV_VERSION}/install.sh | sh
+        env:
+          UV_VERSION: ${{ inputs.uv-version }}
+      - name: "Set up Airflow home directory"
+        run: |
+          echo "Setting AIRFLOW_HOME to $AIRFLOW_HOME"
+          mkdir -p $AIRFLOW_HOME
+      - name: "Install Airflow from current repo (simulating user installation)"
+        run: |
+          uv venv
+          set -x
+          uv pip install -e ./airflow-core
+      - name: "Test airflow standalone command"
+        run: |
+          uv run --no-sync airflow standalone 2>&1 | tee airflow_startup.log &
+          AIRFLOW_PID=$!
+
+          # Wait for ready message till timeout (10 minutes)
+          for i in {1..600}; do
+            if ! kill -0 $AIRFLOW_PID 2>/dev/null; then
+              wait $AIRFLOW_PID
+              EXIT_CODE=$?
+              echo "FAILED: Airflow standalone exited with code $EXIT_CODE"
+              exit $EXIT_CODE
+            fi
+
+            if grep -q "Airflow is ready" airflow_startup.log; then
+              echo "SUCCESS: Airflow standalone is ready!"
+              kill $AIRFLOW_PID
+              exit 0
+            fi
+
+            sleep 1
+          done
+
+          echo "FAILED: Airflow standalone did not become ready in time"
+          kill $AIRFLOW_PID 2>/dev/null || true
+          exit 1

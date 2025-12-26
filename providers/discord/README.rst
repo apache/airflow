@@ -23,9 +23,8 @@
 
 Package ``apache-airflow-providers-discord``
 
-Release: ``3.10.2``
+Release: ``3.11.1``
 
-Release Date: ``|PypiReleaseDate|``
 
 `Discord <https://discord.com/>`__
 
@@ -37,12 +36,12 @@ This is a provider package for ``discord`` provider. All classes for this provid
 are in ``airflow.providers.discord`` python package.
 
 You can find package information and changelog for the provider
-in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-discord/3.10.2/>`_.
+in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-discord/3.11.1/>`_.
 
 Installation
 ------------
 
-You can install this package on top of an existing Airflow 2 installation (see ``Requirements`` below
+You can install this package on top of an existing Airflow installation (see ``Requirements`` below
 for the minimum Airflow version supported) via
 ``pip install apache-airflow-providers-discord``
 
@@ -54,8 +53,8 @@ Requirements
 ==========================================  ==================
 PIP package                                 Version required
 ==========================================  ==================
-``apache-airflow``                          ``>=2.10.0``
-``apache-airflow-providers-common-compat``  ``>=1.6.1``
+``apache-airflow``                          ``>=2.11.0``
+``apache-airflow-providers-common-compat``  ``>=1.10.1``
 ``apache-airflow-providers-http``
 ==========================================  ==================
 
@@ -80,4 +79,4 @@ Dependent package                                                               
 ==================================================================================================================  =================
 
 The changelog for the provider package can be found in the
-`changelog <https://airflow.apache.org/docs/apache-airflow-providers-discord/3.10.2/changelog.html>`_.
+`changelog <https://airflow.apache.org/docs/apache-airflow-providers-discord/3.11.1/changelog.html>`_.

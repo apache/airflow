@@ -16,13 +16,12 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, Field, HStack, Input, Spacer, Textarea, Text } from "@chakra-ui/react";
+import { Box, Button, Field, HStack, Input, Spacer, Text, Textarea } from "@chakra-ui/react";
 import { Controller, useForm } from "react-hook-form";
 import { useTranslation } from "react-i18next";
 import { FiSave } from "react-icons/fi";
 
 import { ErrorAlert } from "src/components/ErrorAlert";
-import { Button } from "src/components/ui";
 
 export type VariableBody = {
   description: string | undefined;
@@ -49,7 +48,7 @@ type VariableFormProps = {
 };
 
 const VariableForm = ({ error, initialVariable, isPending, manageMutate, setError }: VariableFormProps) => {
-  const { t: translate } = useTranslation("admin");
+  const { t: translate } = useTranslation(["admin", "common"]);
   const {
     control,
     formState: { isDirty, isValid },
@@ -133,12 +132,12 @@ const VariableForm = ({ error, initialVariable, isPending, manageMutate, setErro
         <HStack w="full">
           {isDirty ? (
             <Button onClick={handleReset} variant="outline">
-              {translate("formActions.reset")}
+              {translate("common:reset")}
             </Button>
           ) : undefined}
           <Spacer />
           <Button
-            colorPalette="blue"
+            colorPalette="brand"
             disabled={!isValid || isPending}
             onClick={() => void handleSubmit(onSubmit)()}
           >

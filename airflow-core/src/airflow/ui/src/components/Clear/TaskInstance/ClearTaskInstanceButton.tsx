@@ -21,26 +21,44 @@ import { useHotkeys } from "react-hotkeys-hook";
 import { useTranslation } from "react-i18next";
 import { CgRedo } from "react-icons/cg";
 
-import type { TaskInstanceResponse } from "openapi/requests/types.gen";
+import type { LightGridTaskInstanceSummary, TaskInstanceResponse } from "openapi/requests/types.gen";
+import { ClearGroupTaskInstanceDialog } from "src/components/Clear/TaskInstance/ClearGroupTaskInstanceDialog";
 import { Tooltip } from "src/components/ui";
 import ActionButton from "src/components/ui/ActionButton";
 
 import ClearTaskInstanceDialog from "./ClearTaskInstanceDialog";
 
 type Props = {
+  readonly groupTaskInstance?: LightGridTaskInstanceSummary;
   readonly isHotkeyEnabled?: boolean;
-  readonly taskInstance: TaskInstanceResponse;
+  // Optional: allow parent to handle opening a stable, page-level dialog
+  readonly onOpen?: (ti: LightGridTaskInstanceSummary | TaskInstanceResponse) => void;
+  readonly taskInstance?: TaskInstanceResponse;
   readonly withText?: boolean;
 };
 
-const ClearTaskInstanceButton = ({ isHotkeyEnabled = false, taskInstance, withText = true }: Props) => {
-  const { onClose, onOpen, open } = useDisclosure();
+const ClearTaskInstanceButton = ({
+  groupTaskInstance,
+  isHotkeyEnabled = false,
+  onOpen,
+  taskInstance,
+  withText = true,
+}: Props) => {
+  const { onClose, onOpen: onOpenInternal, open } = useDisclosure();
   const { t: translate } = useTranslation();
+  const isGroup = groupTaskInstance && !taskInstance;
+  const useInternalDialog = !Boolean(onOpen);
+
+  const selectedInstance = taskInstance ?? groupTaskInstance;
 
   useHotkeys(
     "shift+c",
     () => {
-      onOpen();
+      if (onOpen && selectedInstance) {
+        onOpen(selectedInstance);
+      } else {
+        onOpenInternal();
+      }
     },
     { enabled: isHotkeyEnabled },
   );
@@ -58,12 +76,18 @@ const ClearTaskInstanceButton = ({ isHotkeyEnabled = false, taskInstance, withTe
             type: translate("taskInstance_one"),
           })}
           icon={<CgRedo />}
-          onClick={onOpen}
-          text={translate("dags:runAndTaskActions.clear.button", { type: translate("taskInstance_one") })}
+          onClick={() => (onOpen && selectedInstance ? onOpen(selectedInstance) : onOpenInternal())}
+          text={translate("dags:runAndTaskActions.clear.button", {
+            type: translate(isGroup ? "taskGroup" : "taskInstance_one"),
+          })}
           withText={withText}
         />
 
-        {open ? (
+        {useInternalDialog && open && isGroup ? (
+          <ClearGroupTaskInstanceDialog onClose={onClose} open={open} taskInstance={groupTaskInstance} />
+        ) : undefined}
+
+        {useInternalDialog && open && !isGroup && taskInstance ? (
           <ClearTaskInstanceDialog onClose={onClose} open={open} taskInstance={taskInstance} />
         ) : undefined}
       </Box>

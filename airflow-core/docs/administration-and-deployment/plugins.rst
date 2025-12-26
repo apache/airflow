@@ -24,6 +24,9 @@ Airflow has a simple plugin manager built-in that can integrate external
 features to its core by simply dropping files in your
 ``$AIRFLOW_HOME/plugins`` folder.
 
+Since Airflow 3.1, the plugin system supports new features such as React apps, FastAPI endpoints,
+and middleware, making it easier to extend Airflow and build rich custom integrations.
+
 The python modules in the ``plugins`` folder get imported, and **macros** and web **views**
 get integrated to Airflow's main collections and become available for use.
 
@@ -48,7 +51,7 @@ Examples:
 
 * A set of tools to parse Hive logs and expose Hive metadata (CPU /IO / phases/ skew /...)
 * An anomaly detection framework, allowing people to collect metrics, set thresholds and alerts
-* An auditing tool, helping understand who accesses what
+* An auditing tool, helping to understand who accesses what
 * A config-driven SLA monitoring tool, allowing you to set monitored tables and at what time
   they should land, alert people, and expose visualizations of outages
 
@@ -61,10 +64,23 @@ Airflow has many components that can be reused when building an application:
 * A metadata database to store your models
 * Access to your databases, and knowledge of how to connect to them
 * An array of workers that your application can push workload to
-* Airflow is deployed, you can just piggy back on its deployment logistics
+* Airflow is deployed, you can just piggyback on its deployment logistics
 * Basic charting capabilities, underlying libraries and abstractions
 
 .. _plugins:loading:
+
+Available Building Blocks
+-------------------------
+
+Airflow plugins can register the following components:
+
+* *External Views* – Add buttons/tabs linking to new pages in the UI.
+* *React Apps* – Embed custom React apps inside the Airflow UI (new in Airflow 3.1).
+* *FastAPI Apps* – Add custom API endpoints.
+* *FastAPI Middlewares* – Intercept and modify API requests/responses.
+* *Macros* – Define reusable Python functions available in DAG templates.
+* *Operator Extra Links* – Add custom buttons in the task details view.
+* *Timetables & Listeners* – Implement custom scheduling logic and event hooks.
 
 When are plugins (re)loaded?
 ----------------------------
@@ -73,7 +89,7 @@ Plugins are by default lazily loaded and once loaded, they are never reloaded (e
 automatically loaded in Webserver). To load them at the
 start of each Airflow process, set ``[core] lazy_load_plugins = False`` in ``airflow.cfg``.
 
-This means that if you make any changes to plugins and you want the webserver or scheduler to use that new
+This means that if you make any changes to plugins, and you want the webserver or scheduler to use that new
 code you will need to restart those processes. However, it will not be reflected in new running tasks until after the scheduler boots.
 
 By default, task execution uses forking. This avoids the slowdown associated with creating a new Python interpreter
@@ -83,7 +99,7 @@ need to restart the worker (if using CeleryExecutor) or scheduler (LocalExecutor
 option is you can accept the speed hit at start up set the ``core.execute_tasks_new_python_interpreter``
 config setting to True, resulting in launching a whole new python interpreter for tasks.
 
-(Modules only imported by DAG files on the other hand do not suffer this problem, as DAG files are not
+(Modules only imported by Dag files on the other hand do not suffer this problem, as Dag files are not
 loaded/parsed in any long-running Airflow process.)
 
 .. _plugins-interface:
@@ -111,6 +127,8 @@ looks like:
         # A list of dictionaries containing external views and some metadata. See the example below.
         external_views = []
         # A list of dictionaries containing react apps and some metadata. See the example below.
+        # Note: React apps are only supported in Airflow 3.1 and later.
+        # Note: The React app integration is experimental and interfaces might change in future versions. Particularly, dependency and state interactions between the UI and plugins may need to be refactored for more complex plugin apps.
         react_apps = []
 
         # A callback to perform actions when Airflow starts and the plugin is loaded.
@@ -135,7 +153,7 @@ looks like:
         # buttons.
         operator_extra_links = []
 
-        # A list of timetable classes to register so they can be used in dags.
+        # A list of timetable classes to register so they can be used in Dags.
         timetables = []
 
         # A list of Listeners that plugin provides. Listeners can register to
@@ -149,6 +167,19 @@ additional initialization. Please note ``name`` inside this class must be specif
 
 Make sure you restart the webserver and scheduler after making changes to plugins so that they take effect.
 
+Plugin Management Interface
+---------------------------
+
+Airflow 3.1 introduces a Plugin Management Interface, available under *Admin → Plugins* in the Airflow UI.
+This page allows you to view installed plugins.
+
+...
+
+External Views
+--------------
+
+External views can also be embedded directly into the Airflow UI using iframes by providing a ``url_route`` value.
+This allows you to render the view inline instead of opening it in a new browser tab.
 
 .. _plugin-example:
 
@@ -210,7 +241,7 @@ definitions in Airflow.
         "icon": "https://example.com/icon.svg",
         # Optional dark icon for the dark theme, url to an svg file. If not provided, "icon" will be used for both light and dark themes.
         "icon_dark_mode": "https://example.com/dark_icon.svg",
-        # Optional parameters, relative URL location for the External View rendering. If not provided, external view will be rendeded as an external link. If provided
+        # Optional parameters, relative URL location for the External View rendering. If not provided, external view will be rendered as an external link. If provided
         # will be rendered inside an Iframe in the UI. Should not contain a leading slash.
         "url_route": "my_external_view",
         # Optional category, only relevant for destination "nav". This is used to group the external links in the navigation bar.  We will match the existing
@@ -218,6 +249,7 @@ definitions in Airflow.
         "category": "browse",
     }
 
+    # Note: The React app integration is experimental and interfaces might change in future versions.
     react_app_with_metadata = {
         # Name of the React app, this will be displayed in the UI.
         "name": "Name of the React App",
@@ -227,7 +259,8 @@ definitions in Airflow.
         "bundle_url": "https://example.com/static/js/my_react_app.js",
         # Destination of the react app. This is used to determine where the app will be loaded in the UI.
         # Supported locations are Literal["nav", "dag", "dag_run", "task", "task_instance"], default to "nav".
-        # It can also be put inside of an existing page, the supported views are ["dashboard", "dag_overview", "task_overview"]
+        # It can also be put inside of an existing page, the supported views are ["dashboard", "dag_overview", "task_overview"]. You can position
+        # element in the existing page via the css `order` rule which will determine the flex order.
         "destination": "dag_run",
         # Optional icon, url to an svg file.
         "icon": "https://example.com/icon.svg",
@@ -300,8 +333,8 @@ Flask Appbuilder and Flask Blueprints in Airflow 3
 --------------------------------------------------
 
 Airflow 2 supported Flask Appbuilder views (``appbuilder_views``), Flask AppBuilder menu items (``appbuilder_menu_items``),
-and Flask Blueprints (``flask_blueprints``) in plugins. These have been superseded in Airflow 3 by External Views (``external_views``), Fast API apps (``fastapi_apps``)
-and FastAPI middlewares (``fastapi_root_middlewares``) that allow extended functionality and better integration with the Airflow UI.
+and Flask Blueprints (``flask_blueprints``) in plugins. These have been superseded in Airflow 3 by External Views (``external_views``), Fast API apps (``fastapi_apps``),
+FastAPI middlewares (``fastapi_root_middlewares``) and React apps (``react_apps``) that allow extended functionality and better integration with the Airflow UI.
 
 All new plugins should use the new interfaces.
 

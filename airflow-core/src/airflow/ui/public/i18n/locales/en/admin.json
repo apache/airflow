@@ -36,6 +36,7 @@
       "extraFields": "Extra Fields",
       "extraFieldsJson": "Extra Fields JSON",
       "helperText": "Connection type missing? Make sure you have installed the corresponding Airflow Providers Package.",
+      "helperTextForRedactedFields": "Redacted fields ('***') will remain unchanged if not modified.",
       "selectConnectionType": "Select Connection Type",
       "standardFields": "Standard Fields"
     },
@@ -48,6 +49,12 @@
     "searchPlaceholder": "Search Connections",
     "test": "Test Connection",
     "testDisabled": "Test connection feature is disabled. Please contact an administrator to enable it.",
+    "testError": {
+      "title": "Test Connection Failed"
+    },
+    "testSuccess": {
+      "title": "Test Connection Successful"
+    },
     "typeMeta": {
       "error": "Failed to retrieve Connection Type Meta",
       "standardFields": {
@@ -71,7 +78,6 @@
     "tooltip": "Delete selected connections"
   },
   "formActions": {
-    "reset": "Reset",
     "save": "Save"
   },
   "plugins": {
@@ -128,8 +134,6 @@
       "tooltip": "Delete selected variables"
     },
     "edit": "Edit Variable",
-    "export": "Export",
-    "exportTooltip": "Export selected variables",
     "form": {
       "invalidJson": "Invalid JSON",
       "keyMaxLength": "Key can contain a maximum of 250 characters",

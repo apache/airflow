@@ -7,24 +7,37 @@
     "Providers": "Proveedores",
     "Variables": "Variables"
   },
+  "allOperators": "Todos los operadores",
+  "appearance": {
+    "appearance": "Apariencia",
+    "darkMode": "Modo Oscuro",
+    "lightMode": "Modo Claro",
+    "systemMode": "Seguir Configuración del Sistema"
+  },
+  "asset_many": "Assets",
   "asset_one": "Asset",
   "asset_other": "Assets",
+  "assetEvent_many": "Eventos de Asset",
   "assetEvent_one": "Evento de Asset",
   "assetEvent_other": "Eventos de Asset",
+  "backfill_many": "Backfills",
   "backfill_one": "Backfill",
   "backfill_other": "Backfills",
   "browse": {
     "auditLog": "Auditar Log",
+    "requiredActions": "Acciones Requeridas",
     "xcoms": "XComs"
   },
+  "collapseAllExtra": "Colapsar todos los extra json",
   "collapseDetailsPanel": "Colapsar Detalles del Panel",
+  "createdAssetEvent_many": "Eventos de Asset Creados",
   "createdAssetEvent_one": "Evento de Asset Creado",
   "createdAssetEvent_other": "Eventos de Asset Creados",
+  "dag_many": "Dags",
   "dag_one": "Dag",
   "dag_other": "Dags",
   "dagDetails": {
     "catchup": "Catchup",
-    "concurrency": "Concurrencia",
     "dagRunTimeout": "Tiempo de Ejecución del Dag",
     "defaultArgs": "Argumentos por Defecto",
     "description": "Descripción",
@@ -32,6 +45,7 @@
     "fileLocation": "Ubicación del Archivo",
     "hasTaskConcurrencyLimits": "Tiene límites de concurrencia de áreas",
     "lastExpired": "Último Expirado",
+    "lastParseDuration": "Duración del último parseo",
     "lastParsed": "Último Parseado",
     "latestDagVersion": "Última Versión del Dag",
     "latestRun": "Última Ejecución",
@@ -55,10 +69,13 @@
     "runAfter": "Ejecutar Después",
     "runType": "Tipo de Ejecución",
     "sourceAssetEvent": "Evento de Asset Fuente",
-    "triggeredBy": "Activado por"
+    "triggeredBy": "Activado por",
+    "triggeringUser": "Nombre del Usuario que Activa"
   },
+  "dagRun_many": "Ejecuciones del Dag",
   "dagRun_one": "Ejecución del Dag",
   "dagRun_other": "Ejecuciones del Dag",
+  "dagRunId": "ID de la Ejecución del Dag",
   "dagWarnings": "Advertencias/Errores del Dag",
   "defaultToGraphView": "Por defecto a vista gráfica",
   "defaultToGridView": "Por defecto a vista en cuadrícula",
@@ -67,6 +84,11 @@
     "documentation": "Documentación",
     "githubRepo": "Repositorio de GitHub",
     "restApiReference": "Referencia de REST API"
+  },
+  "download": {
+    "download": "Descargar",
+    "hotkey": "d",
+    "tooltip": "Presiona {{hotkey}} para descargar los registros"
   },
   "duration": "Duración",
   "endDate": "Fecha Final",
@@ -77,11 +99,27 @@
     "notFound": "Página no encontrada",
     "title": "Error"
   },
+  "expand": {
+    "collapse": "Colapsar",
+    "expand": "Expandir",
+    "hotkey": "e",
+    "tooltip": "Presiona {{hotkey}} para alternar expandir"
+  },
+  "expandAllExtra": "Expandir todos los extra json",
   "expression": {
     "all": "Todos",
     "and": "Y",
     "any": "Cualquiera",
     "or": "O"
+  },
+  "filter": "Filtro",
+  "filters": {
+    "durationFrom": "Duración Desde",
+    "durationTo": "Duración Hasta",
+    "logicalDateFrom": "Fecha Lógica Desde",
+    "logicalDateTo": "Fecha Lógica Hasta",
+    "runAfterFrom": "Ejecutar Después Desde",
+    "runAfterTo": "Ejecutar Después Hasta"
   },
   "logicalDate": "Fecha Lógica",
   "logout": "Cerrar Sesión",
@@ -102,6 +140,7 @@
     "dags": "Dags",
     "docs": "Docs",
     "home": "Inicio",
+    "legacyFabViews": "Vistas obsoletas",
     "plugins": "Plugins",
     "security": "Seguridad"
   },
@@ -116,12 +155,14 @@
   "pools": {
     "deferred": "Diferido",
     "open": "Abierto",
+    "pools_many": "pools",
     "pools_one": "pool",
     "pools_other": "pools",
     "queued": "En Cola",
     "running": "En Ejecución",
     "scheduled": "Programado"
   },
+  "reset": "Restablecer",
   "runId": "ID de la corrida",
   "runTypes": {
     "asset_triggered": "Asset Activado",
@@ -136,7 +177,6 @@
     },
     "tooltip": "Presiona {{hotkey}} para desplazarte a {{direction}}"
   },
-  "seconds": "{{count}}s",
   "security": {
     "actions": "Acciones",
     "permissions": "Permisos",
@@ -146,6 +186,12 @@
   },
   "selectLanguage": "Seleccionar Idioma",
   "showDetailsPanel": "Mostrar Panel de Detalles",
+  "source": {
+    "hide": "Ocultar Fuente",
+    "hotkey": "s",
+    "show": "Mostrar Fuente"
+  },
+  "sourceAssetEvent_many": "Eventos de Asset Fuente",
   "sourceAssetEvent_one": "Evento de Asset Fuente",
   "sourceAssetEvent_other": "Eventos de Asset Fuente",
   "startDate": "Fecha Inicial",
@@ -155,6 +201,7 @@
     "failed": "Fallido",
     "no_status": "Sin Estado",
     "none": "Sin Estado",
+    "planned": "Planificado",
     "queued": "En Cola",
     "removed": "Removido",
     "restarting": "Reiniciando",
@@ -166,13 +213,12 @@
     "up_for_retry": "Por Reintentar",
     "upstream_failed": "Fallido en Upstream"
   },
-  "switchToDarkMode": "Cambiar a Modo Oscuro",
-  "switchToLightMode": "Cambiar a Modo Claro",
   "table": {
     "completedAt": "Completado en",
     "createdAt": "Creado en",
     "filterByTag": "Filtrar Dags por etiqueta",
     "filterColumns": "Filtrar columnas de la tabla",
+    "filterReset_many": "Restablecer filtros",
     "filterReset_one": "Restablecer filtro",
     "filterReset_other": "Restablecer filtros",
     "from": "Desde",
@@ -191,8 +237,10 @@
     "operator": "Operador",
     "triggerRule": "Regla de Activación"
   },
+  "task_many": "Tareas",
   "task_one": "Tarea",
   "task_other": "Tareas",
+  "taskGroup": "Grupo de Tareas",
   "taskId": "ID de la Tarea",
   "taskInstance": {
     "dagVersion": "Versión del Dag",
@@ -217,6 +265,7 @@
     },
     "unixname": "Nombre de Unix"
   },
+  "taskInstance_many": "Instancias de Tarea",
   "taskInstance_one": "Instancia de Tarea",
   "taskInstance_other": "Instancias de Tarea",
   "timeRange": {
@@ -224,6 +273,11 @@
     "last24Hours": "Últimas 24 Horas",
     "lastHour": "Última Hora",
     "pastWeek": "Semana Pasada"
+  },
+  "timestamp": {
+    "hide": "Ocultar marcas de tiempo",
+    "hotkey": "t",
+    "show": "Mostrar marcas de tiempo"
   },
   "timezone": "Zona Horaria",
   "timezoneModal": {
@@ -269,10 +323,12 @@
       }
     }
   },
+  "total": "Total {{state}}",
   "triggered": "Activado",
   "tryNumber": "Intento Número",
   "user": "Usuario",
   "wrap": {
+    "hotkey": "w",
     "tooltip": "Presiona {{hotkey}} para alternar el 'envolver'",
     "unwrap": "Desenvolver",
     "wrap": "Envolver"

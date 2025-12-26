@@ -5,10 +5,40 @@
     "reason": "סיבה",
     "title": "תלויות החוסמות את תזמון המשימה"
   },
+  "calendar": {
+    "daily": "יומי",
+    "hourly": "שעתי",
+    "legend": {
+      "less": "פחות",
+      "mixed": "מעורב",
+      "more": "יותר"
+    },
+    "navigation": {
+      "nextMonth": "החודש הבא",
+      "nextYear": "השנה הבאה",
+      "previousMonth": "החודש הקודם",
+      "previousYear": "השנה הקודמת"
+    },
+    "noData": "אין נתונים זמינים",
+    "noFailedRuns": "אין הרצות שנכשלו",
+    "noRuns": "אין הרצות",
+    "totalRuns": "סה״כ הרצות",
+    "week": "שבוע {{weekNumber}}",
+    "weekdays": {
+      "friday": "ו׳",
+      "monday": "ב׳",
+      "saturday": "ש׳",
+      "sunday": "א׳",
+      "thursday": "ה׳",
+      "tuesday": "ג׳",
+      "wednesday": "ד׳"
+    }
+  },
   "code": {
     "bundleUrl": "כתובת החבילה",
     "noCode": "לא נמצא קוד",
-    "parsedAt": "נקרא בשעה:"
+    "parseDuration": "משך זמן הניתוח:",
+    "parsedAt": "נותח בשעה:"
   },
   "extraLinks": "קישורים נוספים",
   "grid": {
@@ -39,20 +69,30 @@
     "viewInExternal": "צפה ברישומים ב-{{name}} (ניסיון {{attempt}})",
     "warning": "WARNING"
   },
+  "navigation": {
+    "navigation": "ניווט: {{arrow}}",
+    "toggleGroup": "החלפת קבוצה: רווח"
+  },
   "overview": {
     "buttons": {
-      "failedRun_one": "הרצה שנכשלה",
-      "failedRun_other": "הרצות שנכשלו",
+      "failedRun_one": "ריצה שנכשלה",
+      "failedRun_other": "ריצות שנכשלו",
+      "failedRun_two": "ריצות שנכשלו",
       "failedTask_one": "משימה שנכשלה",
       "failedTask_other": "משימות שנכשלו",
+      "failedTask_two": "משימות שנכשלו",
       "failedTaskInstance_one": "מופע משימה שנכשל",
-      "failedTaskInstance_other": "מופעי משימות שנכשלו"
+      "failedTaskInstance_other": "מופעי משימות שנכשלו",
+      "failedTaskInstance_two": "מופעי משימות שנכשלו"
     },
     "charts": {
       "assetEvent_one": "אירוע בנכס שנוצר",
-      "assetEvent_other": "אירועי בנכסים שנוצרו"
+      "assetEvent_other": "אירועי בנכסים שנוצרו",
+      "assetEvent_two": "אירועים בנכסים שנוצרו"
     },
     "failedLogs": {
+      "hideLogs": "הסתר רישומים",
+      "showLogs": "הצג רישומים",
       "title": "רישומים אחרונים של משימות שנכשלו",
       "viewFullLogs": "צפה ברישומים המלאים"
     }
@@ -60,8 +100,9 @@
   "panel": {
     "buttons": {
       "options": "אפשרויות",
-      "showGraph": "הצג תרשים",
-      "showGrid": "הצג רשת"
+      "showGantt": "הצג גאנט",
+      "showGraphShortcut": "הצג תרשים (לחץ g)",
+      "showGridShortcut": "הצג רשת (לחץ g)"
     },
     "dagRuns": {
       "label": "מספר הרצות Dag"
@@ -77,6 +118,18 @@
     },
     "graphDirection": {
       "label": "כיוון התרשים"
+    },
+    "taskStreamFilter": {
+      "activeFilter": "מסנן פעיל",
+      "clearFilter": "נקה מסנן",
+      "clickTask": "לחץ על משימה כדי לבחור אותה כבסיס המסנן",
+      "label": "מסנן",
+      "options": {
+        "both": "גם במעלה וגם במורד הזרם",
+        "downstream": "במורד הזרם",
+        "upstream": "במעלה הזרם"
+      },
+      "selectedTask": "משימה נבחרת"
     }
   },
   "paramsFailed": "טעינת הפרמטרים נכשלה",
@@ -96,13 +149,16 @@
     "assetEvents": "אירועי משאבים",
     "auditLog": "יומן ביקורת",
     "backfills": "השלמות רטרואקטיביות",
+    "calendar": "לוח שנה",
     "code": "קוד תכנות",
     "details": "פרטים",
     "logs": "רישומים",
     "mappedTaskInstances_one": "מופע משימה [{{count}}]",
-    "mappedTaskInstances_other": "מופעי משימות [{{count}}]",
+    "mappedTaskInstances_other": "מופעי משימה [{{count}}]",
+    "mappedTaskInstances_two": "מופעי משימה [{{count}}]",
     "overview": "סקירה כללית",
     "renderedTemplates": "תבניות מעובדות",
+    "requiredActions": "פעולות נדרשות",
     "runs": "הרצות",
     "taskInstances": "מופעי משימות",
     "tasks": "משימות",

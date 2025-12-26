@@ -28,9 +28,9 @@ from fsspec.implementations.local import LocalFileSystem
 from fsspec.implementations.memory import MemoryFileSystem
 
 from airflow.sdk import Asset, ObjectStoragePath
+from airflow.sdk._shared.module_loading import qualname
 from airflow.sdk.io import attach
 from airflow.sdk.io.store import _STORE_CACHE, ObjectStore
-from airflow.utils.module_loading import qualname
 
 
 def test_init():
@@ -74,6 +74,8 @@ def test_lazy_load():
 
     assert o.fs is not None
     assert o._fs_cached
+    # Clear the cache to avoid side effects in other tests below
+    _STORE_CACHE.clear()
 
 
 class _FakeRemoteFileSystem(MemoryFileSystem):
@@ -123,7 +125,7 @@ class TestAttach:
     def test_alias(self):
         store = attach("file", alias="local")
         assert isinstance(store.fs, LocalFileSystem)
-        assert {"local": store, "file": store} == _STORE_CACHE
+        assert {"local": store} == _STORE_CACHE
 
     def test_objectstoragepath_init_conn_id_in_uri(self):
         attach(protocol="fake", conn_id="fake", fs=_FakeRemoteFileSystem(conn_id="fake"))
@@ -133,7 +135,7 @@ class TestAttach:
         assert p.stat() == {**fsspec_info, "conn_id": "fake", "protocol": "fake"}
 
     @pytest.mark.parametrize(
-        "fn, args, fn2, path, expected_args, expected_kwargs",
+        ("fn", "args", "fn2", "path", "expected_args", "expected_kwargs"),
         [
             ("checksum", {}, "checksum", FOO, _FakeRemoteFileSystem._strip_protocol(BAR), {}),
             ("size", {}, "size", FOO, _FakeRemoteFileSystem._strip_protocol(BAR), {}),
@@ -213,6 +215,15 @@ class TestLocalPath:
         assert o.open("rb").read() == b"foo"
         o.unlink()
 
+    def test_read_line_by_line(self, target):
+        o = ObjectStoragePath(f"file://{target}")
+        with o.open("wb") as f:
+            f.write(b"foo\nbar\n")
+        with o.open("rb") as f:
+            lines = list(f)
+        assert lines == [b"foo\n", b"bar\n"]
+        o.unlink()
+
     def test_stat(self, target):
         o = ObjectStoragePath(f"file://{target}")
         assert o.stat().st_size == 0
@@ -252,7 +263,7 @@ class TestLocalPath:
         o2 = ObjectStoragePath(f"file://{tmp_path.as_posix()}")
         o3 = ObjectStoragePath(f"file:///{uuid.uuid4()}")
         assert o1.relative_to(o2) == o1
-        with pytest.raises(ValueError):
+        with pytest.raises(ValueError, match="is not in the subpath of"):
             o1.relative_to(o3)
 
     def test_asset(self):

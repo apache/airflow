@@ -25,7 +25,7 @@ requires = [
     "pluggy==1.6.0",
     "smmap==5.0.2",
     "tomli==2.2.1; python_version < '3.11'",
-    "trove-classifiers==2025.5.9.12",
+    "trove-classifiers==2025.9.11.17",
 ]
 build-backend = "hatchling.build"
 
@@ -34,13 +34,14 @@ build-backend = "hatchling.build"
 name = "apache-airflow-core"
 description = "Core packages for Apache Airflow, schedule and API server"
 readme = { file = "README.md", content-type = "text/markdown" }
-license-files.globs = ["LICENSE", "3rd-party-licenses/*.txt", "NOTICE"]
+license = "Apache-2.0"
+license-files = ["LICENSE", "NOTICE"]
 # We know that it will take a while before we can support Python 3.14 because of all our dependencies
 # It takes about 4-7 months after Python release before we can support it, so we limit it to <3.14
 # proactively. This way we also have a chance to test it with Python 3.14 and bump the upper binding
 # and manually mark providers that do not support it yet with !-3.14 - until they support it - which will
 # also exclude resolving uv workspace dependencies for those providers.
-requires-python = ">=3.10,<3.14"
+requires-python = ">=3.10,!=3.14"
 authors = [
     { name = "Apache Software Foundation", email = "dev@airflow.apache.org" },
 ]
@@ -55,19 +56,20 @@ classifiers = [
     "Framework :: Apache Airflow",
     "Intended Audience :: Developers",
     "Intended Audience :: System Administrators",
-    "License :: OSI Approved :: Apache Software License",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Topic :: System :: Monitoring",
 ]
 
-# Version is defined in src/airflow/__init__.py and it is automatically synchronized by pre-commit
-version = "3.1.0"
+# Version is defined in src/airflow/__init__.py and it is automatically synchronized by prek hook
+version = "3.2.0"
 
 dependencies = [
     "a2wsgi>=1.10.8",
-    "aiosqlite>=0.20.0",
+    # aiosqlite 0.22.0 has a problem with hanging pytest sessions and we excluded it
+    # See https://github.com/omnilib/aiosqlite/issues/369
+    "aiosqlite>=0.20.0,!=0.22.0",
     # Alembic is important to handle our migrations in predictable and performant way. It is developed
     # together with SQLAlchemy. Our experience with Alembic is that it very stable in minor version
     # The 1.13.0 of alembic marked some migration code as SQLAlchemy 2+ only so we limit it to 1.13.1
@@ -75,16 +77,16 @@ dependencies = [
     "argcomplete>=1.10",
     "asgiref>=2.3.0",
     "attrs>=22.1.0, !=25.2.0",
-    "cadwyn>=5.2.1",
+    "cadwyn>=5.6.2",
     "colorlog>=6.8.2",
     "cron-descriptor>=1.2.24",
     "croniter>=2.0.2",
-    "cryptography>=41.0.0",
+    # TODO(potiuk): We should bump cryptography to >=46.0.0 when sqlalchemy>=2.0 is required
+    "cryptography>=41.0.0,<46.0.0",
     "deprecated>=1.2.13",
     "dill>=0.2.2",
-    # 0.115.10 fastapi was a bad release that broke our API's and static checks.
-    # Related fastapi issue here: https://github.com/fastapi/fastapi/discussions/13431
-    "fastapi[standard]>=0.115.0,!=0.115.10",
+    "fastapi[standard-no-fastapi-cloud-cli]>=0.127.0",
+    "uvicorn>=0.37.0",
     "starlette>=0.45.0",
     "httpx>=0.25.0",
     'importlib_metadata>=6.5;python_version<"3.12"',
@@ -97,6 +99,7 @@ dependencies = [
     "linkify-it-py>=2.0.0",
     "lockfile>=0.12.2",
     "methodtools>=0.4.7",
+    "natsort>=8.4.0",
     "opentelemetry-api>=1.27.0",
     "opentelemetry-exporter-otlp>=1.27.0",
     # opentelemetry-proto is a transitive dependency of
@@ -127,11 +130,8 @@ dependencies = [
     "rich-argparse>=1.0.0",
     "rich>=13.6.0",
     "setproctitle>=1.3.3",
-    # We use some deprecated features of sqlalchemy 2.0 and we should replace them before we can upgrade
-    # See https://sqlalche.me/e/b8d9 for details of deprecated features
-    # you can set environment variable SQLALCHEMY_WARN_20=1 to show all deprecation warnings.
-    # The issue tracking it is https://github.com/apache/airflow/issues/28723
-    "sqlalchemy[asyncio]>=1.4.49,<2.0",
+    # The issue tracking deprecations for sqlalchemy 2 is https://github.com/apache/airflow/issues/28723
+    "sqlalchemy[asyncio]>=1.4.49",
     "sqlalchemy-jsonfield>=1.0",
     "sqlalchemy-utils>=0.41.2",
     "svcs>=25.1.0",
@@ -139,17 +139,24 @@ dependencies = [
     "tenacity>=8.3.0",
     "termcolor>=3.0.0",
     "typing-extensions>=4.14.1",
-    # Universal Pathlib 0.2.4 adds extra validation for Paths and our integration with local file paths
-    # Does not work with it Tracked in https://github.com/fsspec/universal_pathlib/issues/276
-    "universal-pathlib>=0.2.2,!=0.2.4",
+    # https://github.com/apache/airflow/issues/56369 , rework universal-pathlib usage
+    "universal-pathlib>=0.2.6,<0.3.0",
     "uuid6>=2024.7.10",
-    "apache-airflow-task-sdk<1.2.0,>=1.1.0",
+    "apache-airflow-task-sdk<1.3.0,>=1.2.0",
     # pre-installed providers
-    "apache-airflow-providers-common-compat>=1.6.0",
-    "apache-airflow-providers-common-io>=1.5.3",
-    "apache-airflow-providers-common-sql>=1.26.0",
-    "apache-airflow-providers-smtp>=2.0.2",
-    "apache-airflow-providers-standard>=0.4.0",
+    "apache-airflow-providers-common-compat>=1.7.4",
+    "apache-airflow-providers-common-io>=1.6.3",
+    "apache-airflow-providers-common-sql>=1.28.1",
+    "apache-airflow-providers-smtp>=2.3.1",
+    "apache-airflow-providers-standard>=1.9.0",
+    # Start of shared logging dependencies
+    "msgspec>=0.19.0",
+    "pygtrie>=2.5.0",
+    "structlog>=25.4.0",
+    # End of shared logging dependencies
+    # Start of shared configuration dependencies
+    "pyyaml>=6.0.3",
+    # End of shared configuration dependencies
 ]
 
 
@@ -158,6 +165,7 @@ dependencies = [
     "eventlet>=0.37.0",
     "gevent>=25.4.1",
     "greenlet>=3.1.0",
+    "greenback>=1.2.1",
 ]
 "graphviz" = [
     # The graphviz package creates friction when installing on MacOS as it needs graphviz system package to
@@ -170,19 +178,17 @@ dependencies = [
     "requests-kerberos>=0.14.0",
     "thrift-sasl>=0.4.2",
 ]
+"memray" = [
+    "memray>=1.19.0",
+]
 "otel" = [
     "opentelemetry-exporter-prometheus>=0.47b0",
-]
-"sentry" = [
-    "blinker>=1.1",
-    # Apparently sentry needs flask to be installed to work properly
-    "sentry-sdk[flask]>=2.30.0",
 ]
 "statsd" = [
     "statsd>=3.3.0",
 ]
 "all" = [
-    "apache-airflow-core[graphviz,kerberos,otel,sentry,statsd]"
+    "apache-airflow-core[graphviz,kerberos,otel,statsd]"
 ]
 
 [project.scripts]
@@ -207,6 +213,7 @@ path = "src/airflow/__init__.py"
 [tool.hatch.build.targets.sdist]
 include = [
     "src/airflow",
+    "LICENSE",
     "NOTICE"
 ]
 exclude = [
@@ -216,6 +223,13 @@ exclude = [
 ]
 
 [tool.hatch.build.targets.sdist.force-include]
+"../shared/configuration/src/airflow_shared/configuration" = "src/airflow/_shared/configuration"
+"../shared/dagnode/src/airflow_shared/dagnode" = "src/airflow/_shared/dagnode"
+"../shared/logging/src/airflow_shared/logging" = "src/airflow/_shared/logging"
+"../shared/module_loading/src/airflow_shared/module_loading" = "src/airflow/_shared/module_loading"
+"../shared/observability/src/airflow_shared/observability" = "src/airflow/_shared/observability"
+"../shared/secrets_backend/src/airflow_shared/secrets_backend" = "src/airflow/_shared/secrets_backend"
+"../shared/secrets_masker/src/airflow_shared/secrets_masker" = "src/airflow/_shared/secrets_masker"
 "../shared/timezones/src/airflow_shared/timezones" = "src/airflow/_shared/timezones"
 
 [tool.hatch.build.targets.custom]
@@ -281,3 +295,15 @@ required-version = ">=0.6.3"
 [tool.uv.sources]
 apache-airflow-core = {workspace = true}
 apache-airflow-devel-common = { workspace = true }
+
+[tool.airflow]
+shared_distributions = [
+    "apache-airflow-shared-configuration",
+    "apache-airflow-shared-dagnode",
+    "apache-airflow-shared-logging",
+    "apache-airflow-shared-module-loading",
+    "apache-airflow-shared-observability",
+    "apache-airflow-shared-secrets-backend",
+    "apache-airflow-shared-secrets-masker",
+    "apache-airflow-shared-timezones",
+]

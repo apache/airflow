@@ -65,7 +65,7 @@ configurations or overrides for the job run such as ``threads_override``, ``gene
 
 The below examples demonstrate how to instantiate DbtCloudRunJobOperator tasks with both synchronous and
 asynchronous waiting for run termination, respectively. To note, the ``account_id`` for the operators is
-referenced within the ``default_args`` of the example DAG.
+referenced within the ``default_args`` of the example Dag.
 
 .. exampleinclude:: /../tests/system/dbt/cloud/example_dbt_cloud.py
     :language: python
@@ -104,7 +104,7 @@ functionality available with the :class:`~airflow.sensors.base.BaseSensorOperato
 
 In the example below, the ``run_id`` value in the example below comes from the output of a previous
 DbtCloudRunJobOperator task by utilizing the ``.output`` property exposed for all operators. Also, to note,
-the ``account_id`` for the task is referenced within the ``default_args`` of the example DAG.
+the ``account_id`` for the task is referenced within the ``default_args`` of the example Dag.
 
 .. exampleinclude:: /../tests/system/dbt/cloud/example_dbt_cloud.py
     :language: python

@@ -24,7 +24,8 @@ from typing import TYPE_CHECKING, Any, Literal
 
 from google.api_core import exceptions
 
-from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
+from airflow.exceptions import AirflowProviderDeprecationWarning
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.google.cloud.hooks.vertex_ai.generative_model import (
     ExperimentRunHook,
     GenerativeModelHook,
@@ -33,9 +34,14 @@ from airflow.providers.google.cloud.operators.cloud_base import GoogleCloudBaseO
 from airflow.providers.google.common.deprecated import deprecated
 
 if TYPE_CHECKING:
-    from airflow.utils.context import Context
+    from airflow.providers.common.compat.sdk import Context
 
 
+@deprecated(
+    planned_removal_date="January 3, 2026",
+    use_instead="airflow.providers.google.cloud.operators.gen_ai.generative_model.GenAIGenerateEmbeddingsOperator",
+    category=AirflowProviderDeprecationWarning,
+)
 class TextEmbeddingModelGetEmbeddingsOperator(GoogleCloudBaseOperator):
     """
     Uses the Vertex AI Embeddings API to generate embeddings based on prompt.
@@ -58,7 +64,7 @@ class TextEmbeddingModelGetEmbeddingsOperator(GoogleCloudBaseOperator):
         account from the list granting this role to the originating account (templated).
     """
 
-    template_fields = ("location", "project_id", "impersonation_chain", "prompt")
+    template_fields = ("location", "project_id", "impersonation_chain", "prompt", "pretrained_model")
 
     def __init__(
         self,
@@ -99,6 +105,11 @@ class TextEmbeddingModelGetEmbeddingsOperator(GoogleCloudBaseOperator):
         return response
 
 
+@deprecated(
+    planned_removal_date="January 3, 2026",
+    use_instead="airflow.providers.google.cloud.operators.gen_ai.generative_model.GenAIGenerateContentOperator",
+    category=AirflowProviderDeprecationWarning,
+)
 class GenerativeModelGenerateContentOperator(GoogleCloudBaseOperator):
     """
     Use the Vertex AI Gemini Pro foundation model to generate content.
@@ -178,6 +189,11 @@ class GenerativeModelGenerateContentOperator(GoogleCloudBaseOperator):
         return response
 
 
+@deprecated(
+    planned_removal_date="January 3, 2026",
+    use_instead="airflow.providers.google.cloud.operators.gen_ai.generative_model.GenAISupervisedFineTuningTrainOperator",
+    category=AirflowProviderDeprecationWarning,
+)
 class SupervisedFineTuningTrainOperator(GoogleCloudBaseOperator):
     """
     Use the Supervised Fine Tuning API to create a tuning job.
@@ -211,7 +227,14 @@ class SupervisedFineTuningTrainOperator(GoogleCloudBaseOperator):
         account from the list granting this role to the originating account (templated).
     """
 
-    template_fields = ("location", "project_id", "impersonation_chain", "train_dataset", "validation_dataset")
+    template_fields = (
+        "location",
+        "project_id",
+        "impersonation_chain",
+        "train_dataset",
+        "validation_dataset",
+        "source_model",
+    )
 
     def __init__(
         self,
@@ -273,6 +296,11 @@ class SupervisedFineTuningTrainOperator(GoogleCloudBaseOperator):
         return result
 
 
+@deprecated(
+    planned_removal_date="January 3, 2026",
+    use_instead="airflow.providers.google.cloud.operators.gen_ai.generative_model.GenAICountTokensOperator",
+    category=AirflowProviderDeprecationWarning,
+)
 class CountTokensOperator(GoogleCloudBaseOperator):
     """
     Use the Vertex AI Count Tokens API to calculate the number of input tokens before sending a request to the Gemini API.
@@ -436,6 +464,11 @@ class RunEvaluationOperator(GoogleCloudBaseOperator):
         return response.summary_metrics
 
 
+@deprecated(
+    planned_removal_date="January 3, 2026",
+    use_instead="airflow.providers.google.cloud.operators.gen_ai.generative_model.GenAICreateCachedContentOperator",
+    category=AirflowProviderDeprecationWarning,
+)
 class CreateCachedContentOperator(GoogleCloudBaseOperator):
     """
     Create CachedContent to reduce the cost of requests that contain repeat content with high input token counts.
@@ -515,6 +548,11 @@ class CreateCachedContentOperator(GoogleCloudBaseOperator):
         return cached_content_name
 
 
+@deprecated(
+    planned_removal_date="January 3, 2026",
+    use_instead="airflow.providers.google.cloud.operators.gen_ai.generative_model.GenAIGenerateContentOperator",
+    category=AirflowProviderDeprecationWarning,
+)
 class GenerateFromCachedContentOperator(GoogleCloudBaseOperator):
     """
     Generate a response from CachedContent.

@@ -28,13 +28,10 @@ from python_on_whales import DockerClient, docker
 from python_on_whales.exceptions import DockerException
 from rich.console import Console
 
-# isort:off (needed to workaround isort bug)
 from docker_tests.command_utils import run_command
 from docker_tests.constants import AIRFLOW_ROOT_PATH
 
 from tests_common.test_utils.api_client_helpers import generate_access_token
-
-# isort:on (needed to workaround isort bug)
 
 console = Console(width=400, color_system="standard")
 
@@ -117,6 +114,10 @@ def test_trigger_dag_and_wait_for_result(default_docker_image, tmp_path_factory,
 
         # Before we proceed, let's make sure our DAG has been parsed
         compose.execute(service="airflow-dag-processor", command=["airflow", "dags", "reserialize"])
+
+        # Verify API server health endpoint is accessible and returns valid response
+        health_status = api_request("GET", path="monitor/health").get("metadatabase").get("status")
+        assert health_status == "healthy"
 
         api_request("PATCH", path=f"dags/{DAG_ID}", json={"is_paused": False})
         api_request(

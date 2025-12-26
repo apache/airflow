@@ -24,8 +24,8 @@ import pytest
 from google.api_core.exceptions import NotFound
 from google.cloud.secretmanager_v1.types import AccessSecretVersionResponse
 
-from airflow.exceptions import AirflowException
 from airflow.models import Connection
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.google.cloud.secrets.secret_manager import CloudSecretManagerBackend
 
 CREDENTIALS = "test-creds"
@@ -58,7 +58,7 @@ class TestCloudSecretManagerBackend:
         assert backend._is_valid_prefix_and_sep()
 
     @pytest.mark.parametrize(
-        "prefix, sep",
+        ("prefix", "sep"),
         [
             pytest.param("not:valid", ":", id="colon separator"),
             pytest.param("not/valid", "/", id="backslash separator"),
@@ -71,7 +71,7 @@ class TestCloudSecretManagerBackend:
             CloudSecretManagerBackend(connections_prefix=prefix, sep=sep)
 
     @pytest.mark.parametrize(
-        "prefix, sep, is_valid",
+        ("prefix", "sep", "is_valid"),
         [
             pytest.param("valid1", "-", True, id="valid: dash separator"),
             pytest.param("isValid", "_", True, id="valid: underscore separator"),

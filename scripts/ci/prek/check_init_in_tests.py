@@ -1,0 +1,57 @@
+#!/usr/bin/env python
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+# /// script
+# requires-python = ">=3.10,<3.11"
+# dependencies = [
+#   "rich>=13.6.0",
+# ]
+# ///
+from __future__ import annotations
+
+import os
+import sys
+from pathlib import Path
+
+from common_prek_utils import AIRFLOW_ROOT_PATH
+from rich.console import Console
+
+if __name__ not in ("__main__", "__mp_main__"):
+    raise SystemExit(
+        "This file is intended to be executed as an executable program. You cannot use it as a module."
+        f"To execute this script, run ./{__file__} [FILE] ..."
+    )
+
+console = Console(color_system="standard", width=200)
+
+errors: list[str] = []
+
+added = False
+
+if __name__ == "__main__":
+    for dirname, sub_dirs, _ in os.walk(AIRFLOW_ROOT_PATH / "tests"):
+        dir = Path(dirname)
+        sub_dirs[:] = [
+            subdir for subdir in sub_dirs if subdir not in {"__pycache__", "test_logs", "test_zip"}
+        ]
+        for sub_dir in sub_dirs:
+            init_py_path = dir / sub_dir / "__init__.py"
+            if not init_py_path.exists():
+                init_py_path.touch()
+                console.print(f"[yellow] Created {init_py_path}[/]")
+                added = True
+    sys.exit(1 if added else 0)

@@ -21,35 +21,75 @@ import os
 from collections.abc import Mapping
 from contextlib import closing
 from copy import deepcopy
-from typing import TYPE_CHECKING, Any, Literal, TypeAlias, cast, overload
+from typing import TYPE_CHECKING, Any, Literal, Protocol, TypeAlias, cast, overload
 
 import psycopg2
-import psycopg2.extensions
 import psycopg2.extras
-from psycopg2.extras import DictCursor, Json, NamedTupleCursor, RealDictCursor
+from more_itertools import chunked
+from psycopg2.extras import DictCursor, NamedTupleCursor, RealDictCursor, execute_batch
 from sqlalchemy.engine import URL
 
-from airflow.exceptions import (
-    AirflowException,
-    AirflowOptionalProviderFeatureException,
-)
+from airflow.configuration import conf
+from airflow.exceptions import AirflowOptionalProviderFeatureException
+from airflow.providers.common.compat.sdk import AirflowException, Connection
 from airflow.providers.common.sql.hooks.sql import DbApiHook
 from airflow.providers.postgres.dialects.postgres import PostgresDialect
+
+USE_PSYCOPG3: bool
+try:
+    import psycopg as psycopg  # needed for patching in unit tests
+    import sqlalchemy
+    from packaging.version import Version
+
+    sqlalchemy_version = Version(sqlalchemy.__version__)
+    is_sqla2 = (sqlalchemy_version.major, sqlalchemy_version.minor, sqlalchemy_version.micro) >= (2, 0, 0)
+
+    USE_PSYCOPG3 = is_sqla2  # implicitly includes `and bool(psycopg)` since the import above succeeded
+except (ImportError, ModuleNotFoundError):
+    USE_PSYCOPG3 = False
+
+if USE_PSYCOPG3:
+    from psycopg.rows import dict_row, namedtuple_row
+    from psycopg.types.json import register_default_adapters
 
 if TYPE_CHECKING:
     from pandas import DataFrame as PandasDataFrame
     from polars import DataFrame as PolarsDataFrame
-    from psycopg2.extensions import connection
 
     from airflow.providers.common.sql.dialects.dialect import Dialect
     from airflow.providers.openlineage.sqlparser import DatabaseInfo
 
-    try:
-        from airflow.sdk import Connection
-    except ImportError:
-        from airflow.models.connection import Connection  # type: ignore[assignment]
+    if USE_PSYCOPG3:
+        from psycopg.errors import Diagnostic
 
 CursorType: TypeAlias = DictCursor | RealDictCursor | NamedTupleCursor
+CursorRow: TypeAlias = dict[str, Any] | tuple[Any, ...]
+
+
+class CompatConnection(Protocol):
+    """Protocol for type hinting psycopg2 and psycopg3 connection objects."""
+
+    def cursor(self, *args, **kwargs) -> Any: ...
+    def commit(self) -> None: ...
+    def close(self) -> None: ...
+
+    # Context manager support
+    def __enter__(self) -> CompatConnection: ...
+    def __exit__(self, exc_type: Any, exc_val: Any, exc_tb: Any) -> None: ...
+
+    # Common properties
+    @property
+    def notices(self) -> list[Any]: ...
+
+    # psycopg3 specific (optional)
+    @property
+    def adapters(self) -> Any: ...
+
+    @property
+    def row_factory(self) -> Any: ...
+
+    # Optional method for psycopg3
+    def add_notice_handler(self, handler: Any) -> None: ...
 
 
 class PostgresHook(DbApiHook):
@@ -58,8 +98,8 @@ class PostgresHook(DbApiHook):
 
     You can specify ssl parameters in the extra field of your connection
     as ``{"sslmode": "require", "sslcert": "/path/to/cert.pem", etc}``.
-    Also you can choose cursor as ``{"cursor": "dictcursor"}``. Refer to the
-    psycopg2.extras for more details.
+    Also, you can choose cursor as ``{"cursor": "dictcursor"}``. Refer to the
+    psycopg2.extras or psycopg.rows for more details.
 
     Note: For Redshift, use keepalives_idle in the extra connection parameters
     and set it to less than 300 seconds.
@@ -93,6 +133,8 @@ class PostgresHook(DbApiHook):
 
     conn_name_attr = "postgres_conn_id"
     default_conn_name = "postgres_default"
+    default_client_log_level = "warning"
+    default_connector_version: int = 2
     conn_type = "postgres"
     hook_name = "Postgres"
     supports_autocommit = True
@@ -107,16 +149,22 @@ class PostgresHook(DbApiHook):
         "aws_conn_id",
         "sqlalchemy_scheme",
         "sqlalchemy_query",
+        "azure_conn_id",
     }
+    default_azure_oauth_scope = "https://ossrdbms-aad.database.windows.net/.default"
 
     def __init__(
         self, *args, options: str | None = None, enable_log_db_messages: bool = False, **kwargs
     ) -> None:
         super().__init__(*args, **kwargs)
-        self.conn: connection = None
+        self.conn: CompatConnection | None = None
         self.database: str | None = kwargs.pop("database", None)
         self.options = options
         self.enable_log_db_messages = enable_log_db_messages
+
+    @staticmethod
+    def __cast_nullable(value, dst_type: type) -> Any:
+        return dst_type(value) if value is not None else None
 
     @property
     def sqlalchemy_url(self) -> URL:
@@ -124,13 +172,15 @@ class PostgresHook(DbApiHook):
         query = conn.extra_dejson.get("sqlalchemy_query", {})
         if not isinstance(query, dict):
             raise AirflowException("The parameter 'sqlalchemy_query' must be of type dict!")
+        if conn.extra_dejson.get("iam", False):
+            conn.login, conn.password, conn.port = self.get_iam_token(conn)
         return URL.create(
-            drivername="postgresql",
-            username=conn.login,
-            password=conn.password,
-            host=conn.host,
-            port=conn.port,
-            database=self.database or conn.schema,
+            drivername="postgresql+psycopg" if USE_PSYCOPG3 else "postgresql",
+            username=self.__cast_nullable(conn.login, str),
+            password=self.__cast_nullable(conn.password, str),
+            host=self.__cast_nullable(conn.host, str),
+            port=self.__cast_nullable(conn.port, int),
+            database=self.__cast_nullable(self.database, str) or self.__cast_nullable(conn.schema, str),
             query=query,
         )
 
@@ -142,8 +192,24 @@ class PostgresHook(DbApiHook):
     def dialect(self) -> Dialect:
         return PostgresDialect(self)
 
+    def _notice_handler(self, notice: Diagnostic):
+        """Handle notices from the database and log them."""
+        self.log.info(str(notice.message_primary).strip())
+
     def _get_cursor(self, raw_cursor: str) -> CursorType:
         _cursor = raw_cursor.lower()
+        if USE_PSYCOPG3:
+            if _cursor == "dictcursor":
+                return dict_row
+            if _cursor == "namedtuplecursor":
+                return namedtuple_row
+            if _cursor == "realdictcursor":
+                raise AirflowException(
+                    "realdictcursor is not supported with psycopg3. Use dictcursor instead."
+                )
+            valid_cursors = "dictcursor, namedtuplecursor"
+            raise ValueError(f"Invalid cursor passed {_cursor}. Valid options are: {valid_cursors}")
+
         cursor_types = {
             "dictcursor": psycopg2.extras.DictCursor,
             "realdictcursor": psycopg2.extras.RealDictCursor,
@@ -154,33 +220,63 @@ class PostgresHook(DbApiHook):
         valid_cursors = ", ".join(cursor_types.keys())
         raise ValueError(f"Invalid cursor passed {_cursor}. Valid options are: {valid_cursors}")
 
-    def get_conn(self) -> connection:
+    def _generate_cursor_name(self):
+        """Generate a unique name for server-side cursor."""
+        import uuid
+
+        return f"airflow_cursor_{uuid.uuid4().hex}"
+
+    def get_conn(self) -> CompatConnection:
         """Establish a connection to a postgres database."""
         conn = deepcopy(self.connection)
 
-        # check for authentication via AWS IAM
         if conn.extra_dejson.get("iam", False):
-            conn.login, conn.password, conn.port = self.get_iam_token(conn)
+            login, password, port = self.get_iam_token(conn)
+            conn.login = cast("Any", login)
+            conn.password = cast("Any", password)
+            conn.port = cast("Any", port)
 
-        conn_args = {
+        conn_args: dict[str, Any] = {
             "host": conn.host,
             "user": conn.login,
             "password": conn.password,
             "dbname": self.database or conn.schema,
             "port": conn.port,
         }
-        raw_cursor = conn.extra_dejson.get("cursor", False)
-        if raw_cursor:
-            conn_args["cursor_factory"] = self._get_cursor(raw_cursor)
 
         if self.options:
             conn_args["options"] = self.options
 
+        # Add extra connection arguments
         for arg_name, arg_val in conn.extra_dejson.items():
             if arg_name not in self.ignored_extra_options:
                 conn_args[arg_name] = arg_val
 
-        self.conn = psycopg2.connect(**conn_args)
+        if USE_PSYCOPG3:
+            from psycopg.connection import Connection as pgConnection
+
+            raw_cursor = conn.extra_dejson.get("cursor")
+            if raw_cursor:
+                conn_args["row_factory"] = self._get_cursor(raw_cursor)
+
+            # Use Any type for the connection args to avoid type conflicts
+            connection = pgConnection.connect(**cast("Any", conn_args))
+            self.conn = cast("CompatConnection", connection)
+
+            # Register JSON handlers for both json and jsonb types
+            # This ensures JSON data is properly decoded from bytes to Python objects
+            register_default_adapters(connection)
+
+            # Add the notice handler AFTER the connection is established
+            if self.enable_log_db_messages and hasattr(self.conn, "add_notice_handler"):
+                self.conn.add_notice_handler(self._notice_handler)
+        else:  # psycopg2
+            raw_cursor = conn.extra_dejson.get("cursor", False)
+            if raw_cursor:
+                conn_args["cursor_factory"] = self._get_cursor(raw_cursor)
+
+            self.conn = cast("CompatConnection", psycopg2.connect(**conn_args))
+
         return self.conn
 
     @overload
@@ -231,7 +327,9 @@ class PostgresHook(DbApiHook):
 
             engine = self.get_sqlalchemy_engine()
             with engine.connect() as conn:
-                return psql.read_sql(sql, con=conn, params=parameters, **kwargs)
+                if isinstance(sql, list):
+                    sql = "; ".join(sql)  # Or handle multiple queries differently
+                return cast("PandasDataFrame", psql.read_sql(sql, con=conn, params=parameters, **kwargs))
 
         elif df_type == "polars":
             return self._get_polars_df(sql, parameters, **kwargs)
@@ -241,7 +339,7 @@ class PostgresHook(DbApiHook):
 
     def copy_expert(self, sql: str, filename: str) -> None:
         """
-        Execute SQL using psycopg2's ``copy_expert`` method.
+        Execute SQL using psycopg's ``copy_expert`` method.
 
         Necessary to execute COPY command without access to a superuser.
 
@@ -252,14 +350,38 @@ class PostgresHook(DbApiHook):
         they have to check its existence by themselves.
         """
         self.log.info("Running copy expert: %s, filename: %s", sql, filename)
-        if not os.path.isfile(filename):
-            with open(filename, "w"):
-                pass
+        if USE_PSYCOPG3:
+            if " from stdin" in sql.lower():
+                # Handle COPY FROM STDIN: read from the file and write to the database.
+                if not os.path.isfile(filename):
+                    with open(filename, "w"):
+                        pass  # Create an empty file to prevent errors.
 
-        with open(filename, "r+") as file, closing(self.get_conn()) as conn, closing(conn.cursor()) as cur:
-            cur.copy_expert(sql, file)
-            file.truncate(file.tell())
-            conn.commit()
+                with open(filename, "rb") as file, self.get_conn() as conn, conn.cursor() as cur:
+                    with cur.copy(sql) as copy:
+                        while data := file.read(8192):
+                            copy.write(data)
+                    conn.commit()
+            else:
+                # Handle COPY TO STDOUT: read from the database and write to the file.
+                with open(filename, "wb") as file, self.get_conn() as conn, conn.cursor() as cur:
+                    with cur.copy(sql) as copy:
+                        for data in copy:
+                            file.write(data)
+                    conn.commit()
+        else:
+            if not os.path.isfile(filename):
+                with open(filename, "w"):
+                    pass
+
+            with (
+                open(filename, "r+") as file,
+                closing(self.get_conn()) as conn,
+                closing(conn.cursor()) as cur,
+            ):
+                cur.copy_expert(sql, file)
+                file.truncate(file.tell())
+                conn.commit()
 
     def get_uri(self) -> str:
         """
@@ -278,29 +400,52 @@ class PostgresHook(DbApiHook):
         self.copy_expert(f"COPY {table} TO STDOUT", tmp_file)
 
     @staticmethod
-    def _serialize_cell(cell: object, conn: connection | None = None) -> Any:
+    def _serialize_cell_ppg2(cell: object, conn: CompatConnection | None = None) -> Any:
         """
-        Serialize a cell.
+        Serialize a cell using psycopg2.
 
-        In order to pass a Python object to the database as query argument you can use the
-         Json (class psycopg2.extras.Json) adapter.
+        Psycopg2 adapts all arguments to the ``execute()`` method internally,
+        hence we return the cell without any conversion.
 
-        Reading from the database, json and jsonb values will be automatically converted to Python objects.
+        See https://www.psycopg.org/docs/extensions.html#sql-adaptation-protocol-objects
+        for more information.
 
-        See https://www.psycopg.org/docs/extras.html#json-adaptation for
-        more information.
+        To perform custom type adaptation please use register_adapter function
+        https://www.psycopg.org/docs/extensions.html#psycopg2.extensions.register_adapter.
 
         :param cell: The cell to insert into the table
         :param conn: The database connection
         :return: The cell
         """
-        if isinstance(cell, (dict, list)):
-            cell = Json(cell)
         return cell
 
+    @staticmethod
+    def _serialize_cell_ppg3(cell: object, conn: CompatConnection | None = None) -> Any:
+        """Serialize a cell using psycopg3."""
+        if isinstance(cell, (dict, list)):
+            try:
+                from psycopg.types.json import Json
+
+                return Json(cell)
+            except ImportError:
+                return cell
+        return cell
+
+    @staticmethod
+    def _serialize_cell(cell: object, conn: Any | None = None) -> Any:
+        if USE_PSYCOPG3:
+            return PostgresHook._serialize_cell_ppg3(cell, conn)
+        return PostgresHook._serialize_cell_ppg2(cell, conn)
+
     def get_iam_token(self, conn: Connection) -> tuple[str, str, int]:
+        """Get the IAM token from different identity providers."""
+        if conn.extra_dejson.get("azure_conn_id"):
+            return self.get_azure_iam_token(conn)
+        return self.get_aws_iam_token(conn)
+
+    def get_aws_iam_token(self, conn: Connection) -> tuple[str, str, int]:
         """
-        Get the IAM token.
+        Get the AWS IAM token.
 
         This uses AWSHook to retrieve a temporary password to connect to
         Postgres or Redshift. Port is required. If none is provided, the default
@@ -357,6 +502,34 @@ class PostgresHook(DbApiHook):
             # https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/rds/client/generate_db_auth_token.html#RDS.Client.generate_db_auth_token
             token = rds_client.generate_db_auth_token(conn.host, port, conn.login)
         return cast("str", login), cast("str", token), port
+
+    def get_azure_iam_token(self, conn: Connection) -> tuple[str, str, int]:
+        """
+        Get the Azure IAM token.
+
+        This uses AzureBaseHook to retrieve an OAUTH token to connect to Postgres.
+        Scope for the OAuth token can be set in the config option ``azure_oauth_scope`` under the section ``[postgres]``.
+        """
+        if TYPE_CHECKING:
+            from airflow.providers.microsoft.azure.hooks.base_azure import AzureBaseHook
+
+        azure_conn_id = conn.extra_dejson.get("azure_conn_id", "azure_default")
+        try:
+            azure_conn = Connection.get(azure_conn_id)
+        except AttributeError:
+            azure_conn = Connection.get_connection_from_secrets(azure_conn_id)  # type: ignore[attr-defined]
+        try:
+            azure_base_hook: AzureBaseHook = azure_conn.get_hook()
+        except TypeError as e:
+            if "required positional argument: 'sdk_client'" in str(e):
+                raise AirflowOptionalProviderFeatureException(
+                    "Getting azure token is not supported by current version of 'AzureBaseHook'. "
+                    "Please upgrade apache-airflow-providers-microsoft-azure>=12.8.0"
+                ) from e
+            raise
+        scope = conf.get("postgres", "azure_oauth_scope", fallback=self.default_azure_oauth_scope)
+        token = azure_base_hook.get_token(scope).token
+        return cast("str", conn.login or azure_conn.login), token, conn.port or 5432
 
     def get_table_primary_key(self, table: str, schema: str | None = "public") -> list[str] | None:
         """
@@ -421,11 +594,91 @@ class PostgresHook(DbApiHook):
         }
 
     def get_db_log_messages(self, conn) -> None:
-        """
-        Log all database messages sent to the client during the session.
+        """Log database messages."""
+        if not self.enable_log_db_messages:
+            return
 
-        :param conn: Connection object
+        if USE_PSYCOPG3:
+            self.log.debug(
+                "With psycopg3, database notices are logged upon creation (via self._notice_handler)."
+            )
+            return
+
+        for output in conn.notices:
+            self.log.info(output)
+
+    def insert_rows(
+        self,
+        table,
+        rows,
+        target_fields=None,
+        commit_every=1000,
+        replace=False,
+        *,
+        executemany=False,
+        fast_executemany=False,
+        autocommit=False,
+        **kwargs,
+    ):
         """
-        if self.enable_log_db_messages:
-            for output in conn.notices:
-                self.log.info(output)
+        Insert a collection of tuples into a table.
+
+        Rows are inserted in chunks, each chunk (of size ``commit_every``) is
+        done in a new transaction.
+
+        :param table: Name of the target table
+        :param rows: The rows to insert into the table
+        :param target_fields: The names of the columns to fill in the table
+        :param commit_every: The maximum number of rows to insert in one
+            transaction. Set to 0 to insert all rows in one transaction.
+        :param replace: Whether to replace instead of insert
+        :param executemany: If True, all rows are inserted at once in
+            chunks defined by the commit_every parameter. This only works if all rows
+            have same number of column names, but leads to better performance.
+        :param fast_executemany: If True, rows will be inserted using an optimized
+            bulk execution strategy (``psycopg2.extras.execute_batch``). This can
+            significantly improve performance for large inserts. If set to False,
+            the method falls back to the default implementation from
+            ``DbApiHook.insert_rows``.
+        :param autocommit: What to set the connection's autocommit setting to
+            before executing the query.
+        """
+        # if fast_executemany is disabled, defer to default implementation of insert_rows in DbApiHook
+        if not fast_executemany:
+            return super().insert_rows(
+                table,
+                rows,
+                target_fields=target_fields,
+                commit_every=commit_every,
+                replace=replace,
+                executemany=executemany,
+                autocommit=autocommit,
+                **kwargs,
+            )
+
+        # if fast_executemany is enabled, use optimized execute_batch from psycopg
+        nb_rows = 0
+        with self._create_autocommit_connection(autocommit) as conn:
+            conn.commit()
+            with closing(conn.cursor()) as cur:
+                for chunked_rows in chunked(rows, commit_every):
+                    values = list(
+                        map(
+                            lambda row: self._serialize_cells(row, conn),
+                            chunked_rows,
+                        )
+                    )
+                    sql = self._generate_insert_sql(table, values[0], target_fields, replace, **kwargs)
+                    self.log.debug("Generated sql: %s", sql)
+
+                    try:
+                        execute_batch(cur, sql, values, page_size=commit_every)
+                    except Exception as e:
+                        self.log.error("Generated sql: %s", sql)
+                        self.log.error("Parameters: %s", values)
+                        raise e
+
+                    conn.commit()
+                    nb_rows += len(chunked_rows)
+                    self.log.info("Loaded %s rows into %s so far", nb_rows, table)
+        self.log.info("Done loading. Loaded a total of %s rows into %s", nb_rows, table)

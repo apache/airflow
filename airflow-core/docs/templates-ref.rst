@@ -23,7 +23,7 @@ Templates reference
 Variables, macros and filters can be used in templates (see the :ref:`concepts:jinja-templating` section)
 
 The following come for free out of the box with Airflow.
-Additional custom macros can be added globally through :doc:`administration-and-deployment/plugins`, or at a DAG level through the
+Additional custom macros can be added globally through :doc:`administration-and-deployment/plugins`, or at a Dag level through the
 ``DAG.user_defined_macros`` argument.
 
 .. _templates:variables:
@@ -38,7 +38,7 @@ Variable                                    Type                  Description
 =========================================== ===================== ===================================================================
 ``{{ data_interval_start }}``               `pendulum.DateTime`_  Start of the data interval. Added in version 2.2.
 ``{{ data_interval_end }}``                 `pendulum.DateTime`_  End of the data interval. Added in version 2.2.
-``{{ logical_date }}``                      `pendulum.DateTime`_  | A date-time that logically identifies the current DAG run. This value does not contain any semantics, but is simply a value for identification.
+``{{ logical_date }}``                      `pendulum.DateTime`_  | A date-time that logically identifies the current Dag run. This value does not contain any semantics, but is simply a value for identification.
                                                                   | Use ``data_interval_start`` and ``data_interval_end`` instead if you want a value that has real-world semantics,
                                                                   | such as to get a slice of rows from the database based on timestamps.
 ``{{ exception }}``                         None | str |          | Error occurred while running task instance.
@@ -58,7 +58,7 @@ Variable                                    Type                  Description
 ``{{ outlets }}``                           list                  List of outlets declared on the task.
 ``{{ outlet_events }}``                     dict[str, ...]        | Accessors to attach information to asset events that will be emitted by the current task.
                                                                   | See :doc:`Assets <authoring-and-scheduling/asset-scheduling>`. Added in version 2.10.
-``{{ dag }}``                               DAG                   The currently running :class:`~airflow.models.dag.DAG`. You can read more about dags in :doc:`Dags <core-concepts/dags>`.
+``{{ dag }}``                               DAG                   The currently running :class:`~airflow.models.dag.DAG`. You can read more about Dags in :doc:`Dags <core-concepts/dags>`.
 ``{{ task }}``                              BaseOperator          | The currently running :class:`~airflow.models.baseoperator.BaseOperator`. You can read more about Tasks in :doc:`core-concepts/operators`
 ``{{ task_reschedule_count }}``             int                   How many times current task has been rescheduled. Relevant to ``mode="reschedule"`` sensors.
 ``{{ macros }}``                                                  | A reference to the macros package. See Macros_ below.
@@ -79,7 +79,7 @@ Variable                                    Type                  Description
 ``{{ expanded_ti_count }}``                 int | ``None``        | Number of task instances that a mapped task was expanded into. If
                                                                   | the current task is not mapped, this should be ``None``.
                                                                   | Added in version 2.5.
-``{{ triggering_asset_events }}``           dict[str,             | If in an Asset Scheduled DAG, a map of Asset URI to a list of triggering :class:`~airflow.models.asset.AssetEvent`
+``{{ triggering_asset_events }}``           dict[str,             | If in an Asset Scheduled Dag, a map of Asset URI to a list of triggering :class:`~airflow.models.asset.AssetEvent`
                                             list[AssetEvent]]     | (there may be more than one, if there are multiple Assets with different frequencies).
                                                                   | Read more here :doc:`Assets <authoring-and-scheduling/asset-scheduling>`.
                                                                   | Added in version 2.4.
@@ -90,7 +90,7 @@ The following are only available when the DagRun has a ``logical_date``
 =========================================== ===================== ===================================================================
 Variable                                    Type                  Description
 =========================================== ===================== ===================================================================
-``{{ ds }}``                                str                   | The DAG run's logical date as ``YYYY-MM-DD``.
+``{{ ds }}``                                str                   | The Dag run's logical date as ``YYYY-MM-DD``.
                                                                   | Same as ``{{ logical_date | ds }}``.
 ``{{ ds_nodash }}``                         str                   Same as ``{{ logical_date | ds_nodash }}``.
 ``{{ ts }}``                                str                   | Same as ``{{ logical_date | ts }}``.
@@ -103,8 +103,8 @@ Variable                                    Type                  Description
 
 .. note::
 
-    The DAG run's logical date, and values derived from it, such as ``ds`` and
-    ``ts``, **should not** be considered unique in a DAG. Use ``run_id`` instead.
+    The Dag run's logical date, and values derived from it, such as ``ds`` and
+    ``ts``, **should not** be considered unique in a Dag. Use ``run_id`` instead.
 
 Accessing Airflow context variables from TaskFlow tasks
 -------------------------------------------------------
@@ -188,7 +188,7 @@ Variable                            Description
 
 Some Airflow specific macros are also defined:
 
-.. automodule:: airflow.macros
+.. automodule:: airflow.sdk.execution_time.macros
     :members:
 
 .. _pendulum.DateTime: https://pendulum.eustace.io/docs/#introduction

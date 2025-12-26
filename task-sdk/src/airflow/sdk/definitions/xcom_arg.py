@@ -24,14 +24,16 @@ from collections.abc import Callable, Iterable, Iterator, Mapping, Sequence, Siz
 from functools import singledispatch
 from typing import TYPE_CHECKING, Any, overload
 
-from airflow.exceptions import AirflowException, XComNotFound
+import attrs
+
+from airflow.sdk import TriggerRule
 from airflow.sdk.definitions._internal.abstractoperator import AbstractOperator
 from airflow.sdk.definitions._internal.mixins import DependencyMixin, ResolveMixin
 from airflow.sdk.definitions._internal.setup_teardown import SetupTeardownContext
-from airflow.sdk.definitions._internal.types import NOTSET, ArgNotSet
+from airflow.sdk.definitions._internal.types import NOTSET, is_arg_set
+from airflow.sdk.exceptions import AirflowException, XComNotFound
 from airflow.sdk.execution_time.lazy_sequence import LazyXComSequence
 from airflow.sdk.execution_time.xcom import BaseXCom
-from airflow.utils.trigger_rule import TriggerRule
 
 if TYPE_CHECKING:
     from airflow.sdk.bases.operator import BaseOperator
@@ -188,6 +190,7 @@ class XComArg(ResolveMixin, DependencyMixin):
         SetupTeardownContext.set_work_task_roots_and_leaves()
 
 
+@attrs.define
 class PlainXComArg(XComArg):
     """
     Reference to one single XCom without any additional semantics.
@@ -207,14 +210,8 @@ class PlainXComArg(XComArg):
     :meta private:
     """
 
-    def __init__(self, operator: Operator, key: str = BaseXCom.XCOM_RETURN_KEY):
-        self.operator = operator
-        self.key = key
-
-    def __eq__(self, other: Any) -> bool:
-        if not isinstance(other, PlainXComArg):
-            return NotImplemented
-        return self.operator == other.operator and self.key == other.key
+    operator: Operator
+    key: str = BaseXCom.XCOM_RETURN_KEY
 
     def __getitem__(self, item: str) -> XComArg:
         """Implement xcomresult['some_result_key']."""
@@ -229,11 +226,11 @@ class PlainXComArg(XComArg):
         The default ``__iter__`` implementation in Python calls ``__getitem__``
         with 0, 1, 2, etc. until it hits an ``IndexError``. This does not work
         well with our custom ``__getitem__`` implementation, and results in poor
-        DAG-writing experience since a misplaced ``*`` expansion would create an
-        infinite loop consuming the entire DAG parser.
+        Dag-writing experience since a misplaced ``*`` expansion would create an
+        infinite loop consuming the entire Dag parser.
 
         This override catches the error eagerly, so an incorrectly implemented
-        DAG fails fast and avoids wasting resources on nonsensical iterating.
+        Dag fails fast and avoids wasting resources on nonsensical iterating.
         """
         raise TypeError("'XComArg' object is not iterable")
 
@@ -350,7 +347,7 @@ class PlainXComArg(XComArg):
             default=NOTSET,
             map_indexes=map_indexes,
         )
-        if not isinstance(result, ArgNotSet):
+        if is_arg_set(result):
             return result
         if self.key == BaseXCom.XCOM_RETURN_KEY:
             return None
@@ -377,10 +374,10 @@ def _get_callable_name(f: Callable | str) -> str:
     return "<function>"
 
 
+@attrs.define
 class _MapResult(Sequence):
-    def __init__(self, value: Sequence | dict, callables: MapCallables) -> None:
-        self.value = value
-        self.callables = callables
+    value: Sequence | dict
+    callables: MapCallables
 
     def __getitem__(self, index: Any) -> Any:
         value = self.value[index]
@@ -393,6 +390,7 @@ class _MapResult(Sequence):
         return len(self.value)
 
 
+@attrs.define
 class MapXComArg(XComArg):
     """
     An XCom reference with ``map()`` call(s) applied.
@@ -403,12 +401,13 @@ class MapXComArg(XComArg):
     :meta private:
     """
 
-    def __init__(self, arg: XComArg, callables: MapCallables) -> None:
-        for c in callables:
+    arg: XComArg
+    callables: MapCallables
+
+    def __attrs_post_init__(self) -> None:
+        for c in self.callables:
             if getattr(c, "_airflow_is_task_decorator", False):
                 raise ValueError("map() argument must be a plain function, not a @task operator")
-        self.arg = arg
-        self.callables = callables
 
     def __repr__(self) -> str:
         map_calls = "".join(f".map({_get_callable_name(f)})" for f in self.callables)
@@ -434,10 +433,10 @@ class MapXComArg(XComArg):
         return _MapResult(value, self.callables)
 
 
+@attrs.define
 class _ZipResult(Sequence):
-    def __init__(self, values: Sequence[Sequence | dict], *, fillvalue: Any = NOTSET) -> None:
-        self.values = values
-        self.fillvalue = fillvalue
+    values: Sequence[Sequence | dict]
+    fillvalue: Any = attrs.field(default=NOTSET, kw_only=True)
 
     @staticmethod
     def _get_or_fill(container: Sequence | dict, index: Any, fillvalue: Any) -> Any:
@@ -453,11 +452,12 @@ class _ZipResult(Sequence):
 
     def __len__(self) -> int:
         lengths = (len(v) for v in self.values)
-        if isinstance(self.fillvalue, ArgNotSet):
-            return min(lengths)
-        return max(lengths)
+        if is_arg_set(self.fillvalue):
+            return max(lengths)
+        return min(lengths)
 
 
+@attrs.define
 class ZipXComArg(XComArg):
     """
     An XCom reference with ``zip()`` applied.
@@ -467,25 +467,22 @@ class ZipXComArg(XComArg):
     ``itertools.zip_longest()`` if ``fillvalue`` is provided).
     """
 
-    def __init__(self, args: Sequence[XComArg], *, fillvalue: Any = NOTSET) -> None:
-        if not args:
-            raise ValueError("At least one input is required")
-        self.args = args
-        self.fillvalue = fillvalue
+    args: Sequence[XComArg] = attrs.field(validator=attrs.validators.min_len(1))
+    fillvalue: Any = attrs.field(default=NOTSET, kw_only=True)
 
     def __repr__(self) -> str:
         args_iter = iter(self.args)
         first = repr(next(args_iter))
         rest = ", ".join(repr(arg) for arg in args_iter)
-        if isinstance(self.fillvalue, ArgNotSet):
-            return f"{first}.zip({rest})"
-        return f"{first}.zip({rest}, fillvalue={self.fillvalue!r})"
+        if is_arg_set(self.fillvalue):
+            return f"{first}.zip({rest}, fillvalue={self.fillvalue!r})"
+        return f"{first}.zip({rest})"
 
     def _serialize(self) -> dict[str, Any]:
         args = [serialize_xcom_arg(arg) for arg in self.args]
-        if isinstance(self.fillvalue, ArgNotSet):
-            return {"args": args}
-        return {"args": args, "fillvalue": self.fillvalue}
+        if is_arg_set(self.fillvalue):
+            return {"args": args, "fillvalue": self.fillvalue}
+        return {"args": args}
 
     def iter_references(self) -> Iterator[tuple[Operator, str]]:
         for arg in self.args:
@@ -499,9 +496,9 @@ class ZipXComArg(XComArg):
         return _ZipResult(values, fillvalue=self.fillvalue)
 
 
+@attrs.define
 class _ConcatResult(Sequence):
-    def __init__(self, values: Sequence[Sequence | dict]) -> None:
-        self.values = values
+    values: Sequence[Sequence | dict]
 
     def __getitem__(self, index: Any) -> Any:
         if index >= 0:
@@ -523,6 +520,7 @@ class _ConcatResult(Sequence):
         return sum(len(v) for v in self.values)
 
 
+@attrs.define
 class ConcatXComArg(XComArg):
     """
     Concatenating multiple XCom references into one.
@@ -532,10 +530,7 @@ class ConcatXComArg(XComArg):
     return value also supports index access.
     """
 
-    def __init__(self, args: Sequence[XComArg]) -> None:
-        if not args:
-            raise ValueError("At least one input is required")
-        self.args = args
+    args: Sequence[XComArg] = attrs.field(validator=attrs.validators.min_len(1))
 
     def __repr__(self) -> str:
         args_iter = iter(self.args)
@@ -571,7 +566,7 @@ _XCOM_ARG_TYPES: Mapping[str, type[XComArg]] = {
 
 
 def serialize_xcom_arg(value: XComArg) -> dict[str, Any]:
-    """DAG serialization interface."""
+    """Dag serialization interface."""
     key = next(k for k, v in _XCOM_ARG_TYPES.items() if isinstance(value, v))
     if key:
         return {"type": key, **value._serialize()}
@@ -607,9 +602,9 @@ def _(xcom_arg: ZipXComArg, resolved_val: Sized, upstream_map_indexes: dict[str,
     ready_lengths = [length for length in all_lengths if length is not None]
     if len(ready_lengths) != len(xcom_arg.args):
         return None  # If any of the referenced XComs is not ready, we are not ready either.
-    if isinstance(xcom_arg.fillvalue, ArgNotSet):
-        return min(ready_lengths)
-    return max(ready_lengths)
+    if is_arg_set(xcom_arg.fillvalue):
+        return max(ready_lengths)
+    return min(ready_lengths)
 
 
 @get_task_map_length.register

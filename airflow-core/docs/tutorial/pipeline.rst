@@ -21,7 +21,7 @@
 Building a Simple Data Pipeline
 ===============================
 
-Welcome to the third tutorial in our series! At this point, you've already written your first DAG and used some basic
+Welcome to the third tutorial in our series! At this point, you've already written your first Dag and used some basic
 operators. Now it's time to build a small but meaningful data pipeline -- one that retrieves data from an external
 source, loads it into a database, and cleans it up along the way.
 
@@ -34,7 +34,7 @@ By the end of this tutorial, you'll have a working pipeline that:
 - Loads the data into a staging table
 - Cleans the data and upserts it into a target table
 
-Along the way, you'll gain hands-on experience with Airflow's UI, connection system, SQL execution, and DAG authoring
+Along the way, you'll gain hands-on experience with Airflow's UI, connection system, SQL execution, and Dag authoring
 patterns.
 
 Want to go deeper as you go? Here are two helpful references:
@@ -76,7 +76,7 @@ Log in with:
 - **Username:** ``airflow``
 - **Password:** ``airflow``
 
-You'll land in the Airflow dashboard, where you can trigger DAGs, explore logs, and manage your environment.
+You'll land in the Airflow dashboard, where you can trigger Dags, explore logs, and manage your environment.
 
 Create a Postgres Connection
 ----------------------------
@@ -95,7 +95,7 @@ Fill in the following details:
 - Password: ``airflow``
 - Port: ``5432``
 
-.. image:: ../img/ui-dark/tutorial_pipeline_add_connection.png
+.. image:: ../img/ui-light/tutorial_pipeline_add_connection.png
   :alt: Add Connection form in Airflow's web UI with Postgres details filled in.
 
 |
@@ -146,7 +146,7 @@ We'll use the ``SQLExecuteQueryOperator`` to run the SQL statements needed to cr
   )
 
 You can optionally place these SQL statements in ``.sql`` files inside your ``dags/`` folder and pass the file path to
-the ``sql=`` argument. This can be a great way to keep your DAG code clean.
+the ``sql=`` argument. This can be a great way to keep your Dag code clean.
 
 Load data into the staging table
 --------------------------------
@@ -226,10 +226,10 @@ CONFLICT DO UPDATE`.
 
 
 
-Defining the DAG
+Defining the Dag
 ----------------
 
-Now that we've defined all our tasks, it's time to put them together into a DAG.
+Now that we've defined all our tasks, it's time to put them together into a Dag.
 
 .. code-block:: python
 
@@ -331,23 +331,28 @@ Now that we've defined all our tasks, it's time to put them together into a DAG.
 
   dag = ProcessEmployees()
 
-Save this DAG as ``dags/process_employees.py``. After a short delay, it will show up in the UI.
+Save this Dag as ``dags/process_employees.py``. After a short delay, it will show up in the UI.
 
-Trigger and explore your DAG
+Trigger and explore your Dag
 ----------------------------
 
-Open the Airflow UI and find the ``process_employees`` DAG in the list. Toggle it "on" using the slider, then trigger a
+Open the Airflow UI and find the ``process_employees`` Dag in the list. Toggle it "on" using the slider, then trigger a
 run using the play button.
 
 You can watch each task as it runs in the **Grid** view, and explore logs for each step.
 
-.. image:: ../img/ui-dark/tutorial_pipeline_dag_list.png
-  :alt: DAG List view showing the ``process_employees`` DAG
+.. image:: ../img/ui-light/tutorial_pipeline_dag_list_trigger.png
+  :alt: Dag List view showing the ``process_employees`` Dag
 
 |
 
-.. image:: ../img/ui-dark/tutorial_pipeline_dag_overview_processed.png
-  :alt: DAG Overview page for ``process_employees`` DAG showing the DAG run
+.. image:: ../img/ui-light/tutorial_pipeline_dag_overview_processed.png
+  :alt: Dag Overview page for ``process_employees`` Dag showing the Dag run
+
+|
+
+.. image:: ../img/ui-light/tutorial_pipeline_dag_task_instance_logs.png
+  :alt: Task instance page for a task in ``process_employees`` Dag showing the task instance logs
 
 |
 
@@ -361,7 +366,7 @@ Nice work! You've now built a real pipeline using Airflow's core patterns and to
 go next:
 
 - Try swapping in a different SQL provider, like MySQL or SQLite.
-- Split your DAG into TaskGroups or refactor into a more usable pattern.
+- Split your Dag into TaskGroups or refactor into a more usable pattern.
 - Add an alerting step or send a notification when data is processed.
 
 .. seealso::

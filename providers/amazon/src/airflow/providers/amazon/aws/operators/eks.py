@@ -28,7 +28,7 @@ from typing import TYPE_CHECKING, Any, cast
 from botocore.exceptions import ClientError, WaiterError
 
 from airflow.configuration import conf
-from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
+from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.amazon.aws.hooks.eks import EksHook
 from airflow.providers.amazon.aws.operators.base_aws import AwsBaseOperator
 from airflow.providers.amazon.aws.triggers.eks import (
@@ -43,6 +43,7 @@ from airflow.providers.amazon.aws.utils import validate_execute_complete_event
 from airflow.providers.amazon.aws.utils.mixins import aws_template_fields
 from airflow.providers.amazon.aws.utils.waiter_with_logging import wait
 from airflow.providers.cncf.kubernetes.utils.pod_manager import OnFinishAction
+from airflow.providers.common.compat.sdk import AirflowException
 
 try:
     from airflow.providers.cncf.kubernetes.operators.pod import KubernetesPodOperator
@@ -1069,10 +1070,17 @@ class EksPodOperator(KubernetesPodOperator):
             aws_conn_id=self.aws_conn_id,
             region_name=self.region,
         )
-        with eks_hook.generate_config_file(
-            eks_cluster_name=self.cluster_name, pod_namespace=self.namespace
-        ) as self.config_file:
-            return super().execute(context)
+        session = eks_hook.get_session()
+        credentials = session.get_credentials().get_frozen_credentials()
+        with eks_hook._secure_credential_context(
+            credentials.access_key, credentials.secret_key, credentials.token
+        ) as credentials_file:
+            with eks_hook.generate_config_file(
+                eks_cluster_name=self.cluster_name,
+                pod_namespace=self.namespace,
+                credentials_file=credentials_file,
+            ) as self.config_file:
+                return super().execute(context)
 
     def trigger_reentry(self, context: Context, event: dict[str, Any]) -> Any:
         eks_hook = EksHook(
@@ -1081,7 +1089,14 @@ class EksPodOperator(KubernetesPodOperator):
         )
         eks_cluster_name = event["eks_cluster_name"]
         pod_namespace = event["namespace"]
-        with eks_hook.generate_config_file(
-            eks_cluster_name=eks_cluster_name, pod_namespace=pod_namespace
-        ) as self.config_file:
-            return super().trigger_reentry(context, event)
+        session = eks_hook.get_session()
+        credentials = session.get_credentials().get_frozen_credentials()
+        with eks_hook._secure_credential_context(
+            credentials.access_key, credentials.secret_key, credentials.token
+        ) as credentials_file:
+            with eks_hook.generate_config_file(
+                eks_cluster_name=eks_cluster_name,
+                pod_namespace=pod_namespace,
+                credentials_file=credentials_file,
+            ) as self.config_file:
+                return super().trigger_reentry(context, event)

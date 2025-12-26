@@ -20,12 +20,13 @@ from functools import cached_property
 from typing import TYPE_CHECKING
 
 import redshift_connector
-from redshift_connector import Connection as RedshiftConnection
+import tenacity
+from redshift_connector import Connection as RedshiftConnection, InterfaceError, OperationalError
 from sqlalchemy import create_engine
 from sqlalchemy.engine.url import URL
 
-from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.common.sql.hooks.sql import DbApiHook
 
 if TYPE_CHECKING:
@@ -51,7 +52,7 @@ class RedshiftSQLHook(DbApiHook):
         :ref:`Amazon Redshift connection id<howto/connection:redshift>`
 
     .. note::
-        get_sqlalchemy_engine() and get_uri() depend on sqlalchemy-amazon-redshift
+        get_sqlalchemy_engine() and get_uri() depend on sqlalchemy-amazon-redshift.
     """
 
     conn_name_attr = "redshift_conn_id"
@@ -155,10 +156,21 @@ class RedshiftSQLHook(DbApiHook):
         if "user" in conn_params:
             conn_params["username"] = conn_params.pop("user")
 
-        # Compatibility: The 'create' factory method was added in SQLAlchemy 1.4
-        # to replace calling the default URL constructor directly.
-        create_url = getattr(URL, "create", URL)
-        return str(create_url(drivername="postgresql", **conn_params))
+        # Use URL.create for SQLAlchemy 2 compatibility
+        username = conn_params.get("username")
+        password = conn_params.get("password")
+        host = conn_params.get("host")
+        port = conn_params.get("port")
+        database = conn_params.get("database")
+
+        return URL.create(
+            drivername="postgresql",
+            username=str(username) if username is not None else None,
+            password=str(password) if password is not None else None,
+            host=str(host) if host is not None else None,
+            port=int(port) if port is not None else None,
+            database=str(database) if database is not None else None,
+        ).render_as_string(hide_password=False)
 
     def get_sqlalchemy_engine(self, engine_kwargs=None):
         """Overridden to pass Redshift-specific arguments."""
@@ -195,6 +207,14 @@ class RedshiftSQLHook(DbApiHook):
         pk_columns = [row[0] for row in self.get_records(sql, (schema, table))]
         return pk_columns or None
 
+    @tenacity.retry(
+        stop=tenacity.stop_after_attempt(5),
+        wait=tenacity.wait_exponential(max=20),
+        # OperationalError is thrown when the connection times out
+        # InterfaceError is thrown when the connection is refused
+        retry=tenacity.retry_if_exception_type((OperationalError, InterfaceError)),
+        reraise=True,
+    )
     def get_conn(self) -> RedshiftConnection:
         """Get a ``redshift_connector.Connection`` object."""
         conn_params = self._get_conn_params()
@@ -237,7 +257,10 @@ class RedshiftSQLHook(DbApiHook):
             region_name = AwsBaseHook(aws_conn_id=self.aws_conn_id).region_name
             identifier = f"{cluster_identifier}.{region_name}"
         if not cluster_identifier:
-            identifier = self._get_identifier_from_hostname(connection.host)
+            if connection.host:
+                identifier = self._get_identifier_from_hostname(connection.host)
+            else:
+                raise AirflowException("Host is required when cluster_identifier is not provided.")
         return f"{identifier}:{port}"
 
     def _get_identifier_from_hostname(self, hostname: str) -> str:

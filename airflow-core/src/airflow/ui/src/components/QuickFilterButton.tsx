@@ -24,8 +24,9 @@ type QuickFilterButtonProps = {
 
 export const QuickFilterButton = ({ children, isActive, ...rest }: QuickFilterButtonProps) => (
   <Button
-    _hover={{ bg: "colorPalette.subtle" }}
+    _hover={{ bg: "colorPalette.emphasized" }}
     bg={isActive ? "colorPalette.muted" : undefined}
+    borderColor="border.emphasized"
     borderRadius={20}
     borderWidth={1}
     color="colorPalette.fg"

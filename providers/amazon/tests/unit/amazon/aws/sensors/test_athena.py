@@ -20,10 +20,11 @@ from __future__ import annotations
 from unittest import mock
 
 import pytest
+from moto import mock_aws
 
-from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.athena import AthenaHook
 from airflow.providers.amazon.aws.sensors.athena import AthenaSensor
+from airflow.providers.common.compat.sdk import AirflowException
 
 
 @pytest.fixture
@@ -32,8 +33,9 @@ def mock_poll_query_status():
         yield m
 
 
+@mock_aws
 class TestAthenaSensor:
-    def setup_method(self):
+    def setup_method(self, _):
         self.default_op_kwargs = dict(
             task_id="test_athena_sensor",
             query_execution_id="abc",

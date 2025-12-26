@@ -17,13 +17,15 @@
 
 from __future__ import annotations
 
-from fastapi import Request, status
+from fastapi import Depends, Request, status
 from starlette.responses import RedirectResponse
 
 from airflow.api_fastapi.auth.managers.base_auth_manager import COOKIE_NAME_JWT_TOKEN
 from airflow.api_fastapi.auth.managers.simple.datamodels.login import LoginBody, LoginResponse
 from airflow.api_fastapi.auth.managers.simple.services.login import SimpleAuthManagerLogin
+from airflow.api_fastapi.auth.managers.simple.utils import parse_login_body
 from airflow.api_fastapi.common.router import AirflowRouter
+from airflow.api_fastapi.common.types import Mimetype
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
 from airflow.configuration import conf
 
@@ -33,10 +35,33 @@ login_router = AirflowRouter(tags=["SimpleAuthManagerLogin"])
 @login_router.post(
     "/token",
     status_code=status.HTTP_201_CREATED,
-    responses=create_openapi_http_exception_doc([status.HTTP_400_BAD_REQUEST, status.HTTP_401_UNAUTHORIZED]),
+    responses={
+        **create_openapi_http_exception_doc(
+            [
+                status.HTTP_400_BAD_REQUEST,
+                status.HTTP_401_UNAUTHORIZED,
+                status.HTTP_415_UNSUPPORTED_MEDIA_TYPE,
+            ]
+        ),
+        201: {
+            "description": "Successful Response",
+            "content": {
+                Mimetype.JSON: {"schema": {"$ref": "#/components/schemas/LoginResponse"}},
+            },
+        },
+    },
+    openapi_extra={
+        "requestBody": {
+            "required": True,
+            "content": {
+                "application/json": {"schema": {"$ref": "#/components/schemas/LoginBody"}},
+                "application/x-www-form-urlencoded": {"schema": {"$ref": "#/components/schemas/LoginBody"}},
+            },
+        }
+    },
 )
 def create_token(
-    body: LoginBody,
+    body: LoginBody = Depends(parse_login_body),
 ) -> LoginResponse:
     """Authenticate the user."""
     return LoginResponse(access_token=SimpleAuthManagerLogin.create_token(body=body))
@@ -69,6 +94,7 @@ def login_all_admins(request: Request) -> RedirectResponse:
         COOKIE_NAME_JWT_TOKEN,
         SimpleAuthManagerLogin.create_token_all_admins(),
         secure=secure,
+        httponly=True,
     )
     return response
 

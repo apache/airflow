@@ -23,7 +23,6 @@ import jinja2
 import pytest
 
 from airflow import settings
-from airflow.models import DagBag
 from airflow.providers.fab.www.app import create_app
 
 from tests_common.test_utils.config import conf_vars
@@ -41,8 +40,7 @@ def session():
 
 @pytest.fixture(autouse=True, scope="module")
 def examples_dag_bag(session):
-    parse_and_sync_to_db(os.devnull, include_examples=True)
-    dag_bag = DagBag(read_dags_from_db=True)
+    dag_bag = parse_and_sync_to_db(os.devnull, include_examples=True)
     session.commit()
     return dag_bag
 

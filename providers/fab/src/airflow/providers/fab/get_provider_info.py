@@ -30,6 +30,20 @@ def get_provider_info():
             "fab": {
                 "description": "This section contains configs specific to FAB provider.",
                 "options": {
+                    "cookie_secure": {
+                        "description": "Cookie with the secure attribute is only sent to the server with an HTTPS connection.\n",
+                        "version_added": "2.4.0",
+                        "type": "boolean",
+                        "example": None,
+                        "default": "False",
+                    },
+                    "cookie_samesite": {
+                        "description": "Whether the cookie is restricted to a first-party or same-site context.\n",
+                        "version_added": "2.4.0",
+                        "type": "string",
+                        "example": None,
+                        "default": "Lax",
+                    },
                     "navbar_color": {
                         "description": "Define the color of navigation bar\n",
                         "version_added": "2.2.0",

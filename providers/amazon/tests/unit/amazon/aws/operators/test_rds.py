@@ -25,7 +25,6 @@ from unittest.mock import patch
 import pytest
 from moto import mock_aws
 
-from airflow.exceptions import TaskDeferred
 from airflow.models import DAG
 from airflow.providers.amazon.aws.hooks.rds import RdsHook
 from airflow.providers.amazon.aws.operators.rds import (
@@ -43,7 +42,12 @@ from airflow.providers.amazon.aws.operators.rds import (
     RdsStopDbOperator,
 )
 from airflow.providers.amazon.aws.triggers.rds import RdsDbAvailableTrigger, RdsDbStoppedTrigger
-from airflow.utils import timezone
+from airflow.providers.common.compat.sdk import TaskDeferred
+
+try:
+    from airflow.sdk import timezone
+except ImportError:
+    from airflow.utils import timezone  # type: ignore[attr-defined,no-redef]
 
 from unit.amazon.aws.utils.test_template_fields import validate_template_fields
 

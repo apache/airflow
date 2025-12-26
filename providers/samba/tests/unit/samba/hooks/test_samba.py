@@ -22,8 +22,8 @@ from unittest import mock
 
 import pytest
 
-from airflow.exceptions import AirflowNotFoundException
 from airflow.models import Connection
+from airflow.providers.common.compat.sdk import AirflowNotFoundException
 from airflow.providers.samba.hooks.samba import SambaHook
 
 try:
@@ -40,7 +40,7 @@ PATH_PARAMETER_NAMES = {"path", "src", "dst"}
 
 class TestSambaHook:
     @pytest.mark.db_test
-    def test_get_conn_should_fail_if_conn_id_does_not_exist(self):
+    def test_get_conn_should_fail_if_conn_id_does_not_exist(self, sdk_connection_not_found):
         with pytest.raises(AirflowNotFoundException):
             SambaHook("non-existed-connection-id")
 
@@ -148,14 +148,38 @@ class TestSambaHook:
             assert dict(kwargs, **connection_settings) == p_kwargs
 
     @pytest.mark.parametrize(
-        "path, full_path",
+        ("path", "path_type", "full_path"),
         [
-            ("/start/path/with/slash", "//ip/share/start/path/with/slash"),
-            ("start/path/without/slash", "//ip/share/start/path/without/slash"),
+            # Linux path -> Linux path, no path_type (default)
+            ("/start/path/with/slash", None, "//ip/share/start/path/with/slash"),
+            ("start/path/without/slash", None, "//ip/share/start/path/without/slash"),
+            # Linux path -> Linux path, explicit path_type (posix)
+            ("/start/path/with/slash/posix", "posix", "//ip/share/start/path/with/slash/posix"),
+            ("start/path/without/slash/posix", "posix", "//ip/share/start/path/without/slash/posix"),
+            # Linux path -> Windows path, explicit path_type (windows)
+            ("/start/path/with/slash/windows", "windows", r"\\ip\share\start\path\with\slash\windows"),
+            ("start/path/without/slash/windows", "windows", r"\\ip\share\start\path\without\slash\windows"),
+            # Windows path -> Windows path, explicit path_type (windows)
+            (
+                r"\start\path\with\backslash\windows",
+                "windows",
+                r"\\ip\share\start\path\with\backslash\windows",
+            ),
+            (
+                r"start\path\without\backslash\windows",
+                "windows",
+                r"\\ip\share\start\path\without\backslash\windows",
+            ),
         ],
     )
     @mock.patch(f"{BASEHOOK_PATCH_PATH}.get_connection")
-    def test__join_path(self, get_conn_mock, path, full_path):
+    def test__join_path(
+        self,
+        get_conn_mock,
+        path,
+        path_type,
+        full_path,
+    ):
         CONNECTION = Connection(
             host="ip",
             schema="share",
@@ -164,5 +188,23 @@ class TestSambaHook:
         )
 
         get_conn_mock.return_value = CONNECTION
-        hook = SambaHook("samba_default")
+        hook = SambaHook("samba_default", share_type=path_type)
         assert hook._join_path(path) == full_path
+
+    @mock.patch("airflow.providers.samba.hooks.samba.smbclient.open_file", return_value=mock.Mock())
+    @mock.patch(f"{BASEHOOK_PATCH_PATH}.get_connection")
+    def test_open_file(self, get_conn_mock, open_file_mock):
+        CONNECTION = Connection(
+            host="ip",
+            schema="share",
+            login="username",
+            password="password",
+        )
+
+        get_conn_mock.return_value = CONNECTION
+        samba_hook = SambaHook("samba_default")
+        path = "test_file.txt"
+        mode = "wb"
+        result = samba_hook.open_file(path, mode=mode)
+        assert result is not None, "open_file method returned None"
+        assert hasattr(result, "write"), f"Error: {result} does not have a 'write' method"

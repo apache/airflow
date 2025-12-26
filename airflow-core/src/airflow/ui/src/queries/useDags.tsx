@@ -36,6 +36,7 @@ export const useDags = ({
   orderBy,
   owners,
   paused,
+  pendingHitl,
   tags,
   tagsMatchMode,
 }: {
@@ -50,6 +51,7 @@ export const useDags = ({
   orderBy?: Array<string>;
   owners?: Array<string>;
   paused?: boolean;
+  pendingHitl?: boolean;
   tags?: Array<string>;
   tagsMatchMode?: "all" | "any";
 }) => {
@@ -61,6 +63,7 @@ export const useDags = ({
       dagIdPattern,
       dagRunsLimit,
       excludeStale,
+      hasPendingActions: pendingHitl,
       isFavorite,
       lastDagRunState,
       limit,

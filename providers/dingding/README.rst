@@ -23,9 +23,8 @@
 
 Package ``apache-airflow-providers-dingding``
 
-Release: ``3.8.2``
+Release: ``3.9.1``
 
-Release Date: ``|PypiReleaseDate|``
 
 `DingTalk <https://www.dingtalk.com/>`__
 
@@ -37,12 +36,12 @@ This is a provider package for ``dingding`` provider. All classes for this provi
 are in ``airflow.providers.dingding`` python package.
 
 You can find package information and changelog for the provider
-in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-dingding/3.8.2/>`_.
+in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-dingding/3.9.1/>`_.
 
 Installation
 ------------
 
-You can install this package on top of an existing Airflow 2 installation (see ``Requirements`` below
+You can install this package on top of an existing Airflow installation (see ``Requirements`` below
 for the minimum Airflow version supported) via
 ``pip install apache-airflow-providers-dingding``
 
@@ -51,12 +50,13 @@ The package supports the following python versions: 3.10,3.11,3.12,3.13
 Requirements
 ------------
 
-=================================  ==================
-PIP package                        Version required
-=================================  ==================
-``apache-airflow``                 ``>=2.10.0``
+==========================================  ==================
+PIP package                                 Version required
+==========================================  ==================
+``apache-airflow``                          ``>=2.11.0``
+``apache-airflow-providers-common-compat``  ``>=1.10.1``
 ``apache-airflow-providers-http``
-=================================  ==================
+==========================================  ==================
 
 Cross provider package dependencies
 -----------------------------------
@@ -68,14 +68,15 @@ You can install such cross-provider dependencies when installing from PyPI. For 
 
 .. code-block:: bash
 
-    pip install apache-airflow-providers-dingding[http]
+    pip install apache-airflow-providers-dingding[common.compat]
 
 
-================================================================================================  ========
-Dependent package                                                                                 Extra
-================================================================================================  ========
-`apache-airflow-providers-http <https://airflow.apache.org/docs/apache-airflow-providers-http>`_  ``http``
-================================================================================================  ========
+==================================================================================================================  =================
+Dependent package                                                                                                   Extra
+==================================================================================================================  =================
+`apache-airflow-providers-common-compat <https://airflow.apache.org/docs/apache-airflow-providers-common-compat>`_  ``common.compat``
+`apache-airflow-providers-http <https://airflow.apache.org/docs/apache-airflow-providers-http>`_                    ``http``
+==================================================================================================================  =================
 
 The changelog for the provider package can be found in the
-`changelog <https://airflow.apache.org/docs/apache-airflow-providers-dingding/3.8.2/changelog.html>`_.
+`changelog <https://airflow.apache.org/docs/apache-airflow-providers-dingding/3.9.1/changelog.html>`_.

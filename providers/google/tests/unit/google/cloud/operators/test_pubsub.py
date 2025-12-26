@@ -24,7 +24,7 @@ import pytest
 from google.api_core.gapic_v1.method import DEFAULT
 from google.cloud.pubsub_v1.types import ReceivedMessage
 
-from airflow.exceptions import TaskDeferred
+from airflow.providers.common.compat.sdk import TaskDeferred
 from airflow.providers.google.cloud.operators.pubsub import (
     PubSubCreateSubscriptionOperator,
     PubSubCreateTopicOperator,
@@ -206,6 +206,103 @@ class TestPubSubSubscriptionCreateOperator:
         )
         assert response == TEST_SUBSCRIPTION
 
+    @pytest.mark.parametrize(
+        ("project_id", "subscription", "subscription_project_id", "expected_input", "expected_output"),
+        [
+            (
+                TEST_PROJECT,
+                TEST_SUBSCRIPTION,
+                None,
+                f"topic:{TEST_PROJECT}:{TEST_TOPIC}",
+                f"subscription:{TEST_PROJECT}:{TEST_SUBSCRIPTION}",
+            ),
+            (
+                TEST_PROJECT,
+                TEST_SUBSCRIPTION,
+                "another-project",
+                f"topic:{TEST_PROJECT}:{TEST_TOPIC}",
+                f"subscription:another-project:{TEST_SUBSCRIPTION}",
+            ),
+            (
+                TEST_PROJECT,
+                None,
+                None,
+                f"topic:{TEST_PROJECT}:{TEST_TOPIC}",
+                f"subscription:{TEST_PROJECT}:generated",
+            ),
+            (
+                TEST_PROJECT,
+                None,
+                "another-project",
+                f"topic:{TEST_PROJECT}:{TEST_TOPIC}",
+                "subscription:another-project:generated",
+            ),
+            (
+                None,
+                None,
+                None,
+                f"topic:connection-project:{TEST_TOPIC}",
+                "subscription:connection-project:generated",
+            ),
+        ],
+    )
+    @mock.patch("airflow.providers.google.cloud.operators.pubsub.PubSubHook")
+    def test_get_openlineage_facets(
+        self,
+        mock_hook,
+        project_id,
+        subscription,
+        subscription_project_id,
+        expected_input,
+        expected_output,
+    ):
+        operator = PubSubCreateSubscriptionOperator(
+            task_id=TASK_ID,
+            project_id=project_id,
+            topic=TEST_TOPIC,
+            subscription=subscription,
+            subscription_project_id=subscription_project_id,
+        )
+        mock_hook.return_value.create_subscription.return_value = subscription or "generated"
+        mock_hook.return_value.project_id = project_id or "connection-project"
+        context = mock.MagicMock()
+        response = operator.execute(context=context)
+        mock_hook.return_value.create_subscription.assert_called_once_with(
+            project_id=project_id,
+            topic=TEST_TOPIC,
+            subscription=subscription,
+            subscription_project_id=subscription_project_id,
+            ack_deadline_secs=10,
+            fail_if_exists=False,
+            push_config=None,
+            retain_acked_messages=None,
+            message_retention_duration=None,
+            labels=None,
+            enable_message_ordering=False,
+            expiration_policy=None,
+            filter_=None,
+            dead_letter_policy=None,
+            retry_policy=None,
+            retry=DEFAULT,
+            timeout=None,
+            metadata=(),
+        )
+
+        if subscription:
+            assert response == TEST_SUBSCRIPTION
+        else:
+            assert response == "generated"
+
+        result = operator.get_openlineage_facets_on_complete(operator)
+        assert not result.run_facets
+        assert not result.job_facets
+        assert len(result.inputs) == 1
+        assert result.inputs[0].namespace == "pubsub"
+        assert result.inputs[0].name == expected_input
+        assert len(result.outputs) == 1
+        assert result.outputs[0].namespace == "pubsub"
+        assert result.outputs[0].name == expected_output
+
 
 class TestPubSubSubscriptionDeleteOperator:
     @mock.patch("airflow.providers.google.cloud.operators.pubsub.PubSubHook")
@@ -254,6 +351,81 @@ class TestPubSubPublishOperator:
         mock_hook.return_value.publish.assert_called_once_with(
             project_id=TEST_PROJECT, topic=TEST_TOPIC, messages=TEST_MESSAGES_ORDERING_KEY
         )
+
+    @mock.patch("airflow.providers.google.cloud.operators.pubsub.PubSubHook")
+    def test_publish_with_open_telemetry_tracing(self, mock_hook):
+        operator = PubSubPublishMessageOperator(
+            task_id=TASK_ID,
+            project_id=TEST_PROJECT,
+            topic=TEST_TOPIC,
+            messages=TEST_MESSAGES,
+            enable_open_telemetry_tracing=True,
+        )
+
+        operator.execute(None)
+        mock_hook.assert_called_once_with(
+            gcp_conn_id="google_cloud_default",
+            impersonation_chain=None,
+            enable_message_ordering=False,
+            enable_open_telemetry_tracing=True,
+        )
+        mock_hook.return_value.publish.assert_called_once_with(
+            project_id=TEST_PROJECT, topic=TEST_TOPIC, messages=TEST_MESSAGES
+        )
+
+    @mock.patch("airflow.providers.google.cloud.operators.pubsub.PubSubHook")
+    def test_publish_with_ordering_and_tracing(self, mock_hook):
+        operator = PubSubPublishMessageOperator(
+            task_id=TASK_ID,
+            project_id=TEST_PROJECT,
+            topic=TEST_TOPIC,
+            messages=TEST_MESSAGES_ORDERING_KEY,
+            enable_message_ordering=True,
+            enable_open_telemetry_tracing=True,
+        )
+
+        operator.execute(None)
+        mock_hook.assert_called_once_with(
+            gcp_conn_id="google_cloud_default",
+            impersonation_chain=None,
+            enable_message_ordering=True,
+            enable_open_telemetry_tracing=True,
+        )
+        mock_hook.return_value.publish.assert_called_once_with(
+            project_id=TEST_PROJECT, topic=TEST_TOPIC, messages=TEST_MESSAGES_ORDERING_KEY
+        )
+
+    @pytest.mark.parametrize(
+        ("project_id", "expected_dataset"),
+        [
+            # 1. project_id provided
+            (TEST_PROJECT, f"topic:{TEST_PROJECT}:{TEST_TOPIC}"),
+            # 2. project_id not provided (use project_id from connection)
+            (None, f"topic:connection-project:{TEST_TOPIC}"),
+        ],
+    )
+    @mock.patch("airflow.providers.google.cloud.operators.pubsub.PubSubHook")
+    def test_get_openlineage_facets(self, mock_hook, project_id, expected_dataset):
+        operator = PubSubPublishMessageOperator(
+            task_id=TASK_ID,
+            project_id=project_id,
+            topic=TEST_TOPIC,
+            messages=TEST_MESSAGES,
+        )
+
+        operator.execute(None)
+        mock_hook.return_value.publish.assert_called_once_with(
+            project_id=project_id, topic=TEST_TOPIC, messages=TEST_MESSAGES
+        )
+        mock_hook.return_value.project_id = project_id or "connection-project"
+
+        result = operator.get_openlineage_facets_on_complete(operator)
+        assert not result.run_facets
+        assert not result.job_facets
+        assert len(result.inputs) == 0
+        assert len(result.outputs) == 1
+        assert result.outputs[0].namespace == "pubsub"
+        assert result.outputs[0].name == expected_dataset
 
 
 class TestPubSubPullOperator:
@@ -357,3 +529,28 @@ class TestPubSubPullOperator:
         )
         with pytest.raises(TaskDeferred) as _:
             ti.task.execute(mock.MagicMock())
+
+    @mock.patch("airflow.providers.google.cloud.operators.pubsub.PubSubHook")
+    def test_get_openlineage_facets(self, mock_hook):
+        operator = PubSubPullOperator(
+            task_id=TASK_ID,
+            project_id=TEST_PROJECT,
+            subscription=TEST_SUBSCRIPTION,
+        )
+
+        generated_messages = self._generate_messages(5)
+        generated_dicts = self._generate_dicts(5)
+        mock_hook.return_value.pull.return_value = generated_messages
+
+        assert generated_dicts == operator.execute({})
+        mock_hook.return_value.pull.assert_called_once_with(
+            project_id=TEST_PROJECT, subscription=TEST_SUBSCRIPTION, max_messages=5, return_immediately=True
+        )
+
+        result = operator.get_openlineage_facets_on_complete(operator)
+        assert not result.run_facets
+        assert not result.job_facets
+        assert len(result.inputs) == 0
+        assert len(result.outputs) == 1
+        assert result.outputs[0].namespace == "pubsub"
+        assert result.outputs[0].name == f"subscription:{TEST_PROJECT}:{TEST_SUBSCRIPTION}"

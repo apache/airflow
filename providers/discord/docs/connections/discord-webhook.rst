@@ -57,5 +57,5 @@ Schema (optional)
 Webhook Endpoint
     The endpoint that will be used to perform the HTTP request.
 
-Extras (optional)
+Extra (optional)
     Specify headers in json format.

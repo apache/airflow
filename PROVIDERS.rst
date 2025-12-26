@@ -157,8 +157,9 @@ Airflow version to the next MINOR release, when 12 months passed since the first
 MINOR version of Airflow.
 
 For example this means that by default we upgrade the minimum version of Airflow supported by providers
-to 3.0.0 in the first Provider's release after 22nd of April 2026. 22nd of April 2025 is the date when the
-first ``PATCHLEVEL``  version of 3.0 (3.0.0) was released.
+to 3.1.0 in the first Provider's release after 20th of May 2026. 20th of May 2025 was the date when the
+first ``PATCHLEVEL``  version of 2.11 (2.11.0) was released and since Airflow 3.0 was released in April 2025,
+we go straight to Airflow 3.1 as minimum supported version of Airflow for providers in May 2026.
 
 When we increase the minimum Airflow version, this is not a reason to bump ``MAJOR`` version of the providers
 (unless there are other breaking changes in the provider). The reason for that is that people who use
@@ -340,13 +341,39 @@ There are the following consequences (or lack of them) of removing the provider:
 * Removed provider might be re-instated as maintained provider, but it needs to go through the regular process
   of accepting new provider described above.
 
-Provider Dependencies
-=====================
+Provider distributions versioning
+---------------------------------
 
-The dependencies for Airflow providers are managed in the ``provider.yaml`` file.
+We are using the `SEMVER <https://semver.org/>`_ versioning scheme for the Provider distributions. This is in order
+to give the users confidence about maintaining backwards compatibility in the new releases of those
+packages.
 
-All provider dependencies, including versions and constraints, are listed in this file.
-When adding or updating a provider or its dependencies, changes should be made to this file accordingly.
+Details about maintaining the SEMVER version are going to be discussed and implemented in
+`the related issue <https://github.com/apache/airflow/issues/11425>`_
 
-To ensure consistency and manage dependencies, ``pre-commit`` is configured to automatically update all dependencies.
-Once you have ``pre-commit`` installed, it will automatically handle the dependency updates.
+Possible states of Provider distributions
+-----------------------------------------
+
+The Provider distributions can be in one of several states.
+
+* The ``not-ready`` state is used when the provider has some in-progress changes (usually API changes) that
+  we do not  want to release yet as part of the regular release cycle. Providers in this state are excluded
+  from being  released as part of the regular release cycle (including documentation building).
+  The ``not-ready`` providers are treated as regular providers when it comes to running tests and preparing
+  and releasing packages in ``CI`` - as we want to make sure they are properly releasable any time and we
+  want them to contribute to dependencies and we want to test them. Also in case of preinstalled providers,
+  the ``not-ready`` providers are contributing their dependencies rather than the provider package to
+  requirements of Airflow.
+* The ``ready`` state is the usual state of the provider that is released in the regular release cycle
+  (including the documentation, package building and publishing). This is the state most providers are in.
+* The ``suspended``` state is used when we have a good reason to suspend such provider, following the devlist
+  discussion and vote or "lazy consensus". The process of suspension is described above.
+  The ``suspended`` providers are excluded from being released as part of the regular release cycle (including
+  documentation building) but also they do not contribute dependencies to the CI image and their tests are
+  not run in CI process. The ``suspended`` providers are not released as part of the regular release cycle.
+* The ``removed`` state is a temporary state after the provider has been voted (or agreed in "lazy consensus")
+  to be removed and it is only used for exactly one release cycle - in order to produce the final version of
+  the package - identical to the previous version with the exception of the removal notice. The process
+  of removal is described in [Provider's docs](../PROVIDERS.rst).  The difference between ``suspended``
+  and ``removed`` providers is that additional information is added to their documentation about the provider
+  not being maintained any more by the community.

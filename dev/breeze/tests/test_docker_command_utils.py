@@ -53,7 +53,7 @@ def test_check_docker_version_unknown(
     mock_get_console.return_value.print.assert_called_with(
         """
 [warning]Your version of docker is unknown. If the scripts fail, please make sure to[/]
-[warning]install docker at least: 24.0.0 version.[/]
+[warning]install docker at least: 25.0.0 version.[/]
 """
     )
 
@@ -81,7 +81,7 @@ def test_check_docker_version_too_low(
     )
     mock_get_console.return_value.print.assert_called_with(
         """
-[error]Your version of docker is too old: 0.9.\n[/]\n[warning]Please upgrade to at least 24.0.0.\n[/]\n\
+[error]Your version of docker is too old: 0.9.\n[/]\n[warning]Please upgrade to at least 25.0.0.\n[/]\n\
 You can find installation instructions here: https://docs.docker.com/engine/install/
 """
     )
@@ -93,7 +93,7 @@ You can find installation instructions here: https://docs.docker.com/engine/inst
 def test_check_docker_version_ok(mock_get_console, mock_run_command, mock_check_docker_permission_denied):
     mock_check_docker_permission_denied.return_value = False
     mock_run_command.return_value.returncode = 0
-    mock_run_command.return_value.stdout = "24.0.0"
+    mock_run_command.return_value.stdout = "25.0.0"
     check_docker_version()
     mock_check_docker_permission_denied.assert_called()
     mock_run_command.assert_called_with(
@@ -104,7 +104,7 @@ def test_check_docker_version_ok(mock_get_console, mock_run_command, mock_check_
         check=False,
         dry_run_override=False,
     )
-    mock_get_console.return_value.print.assert_called_with("[success]Good version of Docker: 24.0.0.[/]")
+    mock_get_console.return_value.print.assert_called_with("[success]Good version of Docker: 25.0.0.[/]")
 
 
 @mock.patch("airflow_breeze.utils.docker_command_utils.check_docker_permission_denied")
@@ -113,7 +113,7 @@ def test_check_docker_version_ok(mock_get_console, mock_run_command, mock_check_
 def test_check_docker_version_higher(mock_get_console, mock_run_command, mock_check_docker_permission_denied):
     mock_check_docker_permission_denied.return_value = False
     mock_run_command.return_value.returncode = 0
-    mock_run_command.return_value.stdout = "24.0.0"
+    mock_run_command.return_value.stdout = "25.0.0"
     check_docker_version()
     mock_check_docker_permission_denied.assert_called()
     mock_run_command.assert_called_with(
@@ -124,7 +124,7 @@ def test_check_docker_version_higher(mock_get_console, mock_run_command, mock_ch
         check=False,
         dry_run_override=False,
     )
-    mock_get_console.return_value.print.assert_called_with("[success]Good version of Docker: 24.0.0.[/]")
+    mock_get_console.return_value.print.assert_called_with("[success]Good version of Docker: 25.0.0.[/]")
 
 
 @mock.patch("airflow_breeze.utils.docker_command_utils.check_docker_permission_denied")
@@ -135,7 +135,7 @@ def test_check_docker_version_higher_rancher_desktop(
 ):
     mock_check_docker_permission_denied.return_value = False
     mock_run_command.return_value.returncode = 0
-    mock_run_command.return_value.stdout = "24.0.0-rd"
+    mock_run_command.return_value.stdout = "25.0.0-rd"
     check_docker_version()
     mock_check_docker_permission_denied.assert_called()
     mock_run_command.assert_called_with(
@@ -146,7 +146,7 @@ def test_check_docker_version_higher_rancher_desktop(
         check=False,
         dry_run_override=False,
     )
-    mock_get_console.return_value.print.assert_called_with("[success]Good version of Docker: 24.0.0-r.[/]")
+    mock_get_console.return_value.print.assert_called_with("[success]Good version of Docker: 25.0.0-r.[/]")
 
 
 @mock.patch("airflow_breeze.utils.docker_command_utils.run_command")
@@ -222,7 +222,7 @@ def _fake_ctx_output(*names: str) -> str:
 
 
 @pytest.mark.parametrize(
-    "context_output, selected_context, console_output",
+    ("context_output", "selected_context", "console_output"),
     [
         (
             _fake_ctx_output("default"),

@@ -23,11 +23,11 @@ from unittest.mock import call
 import pendulum
 import pytest
 
-from airflow.exceptions import AirflowException, TaskDeferred
 from airflow.models import Connection
 from airflow.models.dag import DAG
 from airflow.models.dagrun import DagRun
 from airflow.models.taskinstance import TaskInstance
+from airflow.providers.common.compat.sdk import AirflowException, TaskDeferred
 from airflow.providers.common.sql.operators.sql import SQLExecuteQueryOperator
 from airflow.providers.snowflake.operators.snowflake import (
     SnowflakeCheckOperator,
@@ -36,10 +36,11 @@ from airflow.providers.snowflake.operators.snowflake import (
     SnowflakeValueCheckOperator,
 )
 from airflow.providers.snowflake.triggers.snowflake_trigger import SnowflakeSqlApiTrigger
-from airflow.utils import timezone  # type: ignore[attr-defined]
 from airflow.utils.types import DagRunType
 
-from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
+from tests_common.test_utils.dag import sync_dag_to_db
+from tests_common.test_utils.db import clear_db_dag_bundles, clear_db_dags, clear_db_runs
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS, timezone
 
 DEFAULT_DATE = timezone.datetime(2015, 1, 1)
 DEFAULT_DATE_ISO = DEFAULT_DATE.isoformat()
@@ -186,7 +187,7 @@ class TestSnowflakeIntervalCheckOperator:
 
 
 @pytest.mark.parametrize(
-    "operator_class, kwargs",
+    ("operator_class", "kwargs"),
     [
         (SnowflakeCheckOperator, dict(sql="Select * from test_table")),
         (SnowflakeValueCheckOperator, dict(sql="Select * from test_table", pass_value=95)),
@@ -235,10 +236,8 @@ def create_context(task, dag=None):
     logical_date = timezone.datetime(2022, 1, 1, 1, 0, 0, tzinfo=tzinfo)
     if AIRFLOW_V_3_0_PLUS:
         from airflow.models.dag_version import DagVersion
-        from airflow.models.serialized_dag import SerializedDagModel
 
-        dag.sync_to_db()
-        SerializedDagModel.write_dag(dag, bundle_name="testing")
+        sync_dag_to_db(dag)
         dag_version = DagVersion.get_latest_version(dag.dag_id)
         task_instance = TaskInstance(task=task, run_id="test_run_id", dag_version_id=dag_version.id)
         dag_run = DagRun(
@@ -274,6 +273,20 @@ def create_context(task, dag=None):
 
 @pytest.mark.db_test
 class TestSnowflakeSqlApiOperator:
+    @pytest.fixture(autouse=True)
+    def setup_tests(self):
+        clear_db_dags()
+        clear_db_runs()
+        if AIRFLOW_V_3_0_PLUS:
+            clear_db_dag_bundles()
+
+        yield
+
+        clear_db_dags()
+        clear_db_runs()
+        if AIRFLOW_V_3_0_PLUS:
+            clear_db_dag_bundles()
+
     @pytest.fixture
     def mock_execute_query(self):
         with mock.patch(
@@ -328,7 +341,10 @@ class TestSnowflakeSqlApiOperator:
         with pytest.raises(AirflowException):
             operator.execute(context=None)
 
-    @pytest.mark.parametrize("mock_sql, statement_count", [(SQL_MULTIPLE_STMTS, 4), (SINGLE_STMT, 1)])
+    @pytest.mark.parametrize(
+        ("mock_sql", "statement_count"),
+        [pytest.param(SQL_MULTIPLE_STMTS, 4, id="multi"), pytest.param(SINGLE_STMT, 1, id="single")],
+    )
     @mock.patch("airflow.providers.snowflake.hooks.snowflake_sql_api.SnowflakeSqlApiHook.execute_query")
     def test_snowflake_sql_api_execute_operator_async(
         self, mock_execute_query, mock_sql, statement_count, mock_get_sql_api_query_status
@@ -558,3 +574,33 @@ class TestSnowflakeSqlApiOperator:
         with pytest.raises(AirflowException):
             operator.execute(context=None)
         mock_check_query_output.assert_not_called()
+
+    @mock.patch("airflow.providers.snowflake.hooks.snowflake_sql_api.SnowflakeSqlApiHook.cancel_queries")
+    def test_snowflake_sql_api_on_kill_cancels_queries(self, mock_cancel_queries):
+        """Test that on_kill cancels running queries."""
+        operator = SnowflakeSqlApiOperator(
+            task_id=TASK_ID,
+            snowflake_conn_id=CONN_ID,
+            sql=SQL_MULTIPLE_STMTS,
+            statement_count=4,
+        )
+        operator.query_ids = ["uuid1", "uuid2"]
+
+        operator.on_kill()
+
+        mock_cancel_queries.assert_called_once_with(["uuid1", "uuid2"])
+
+    @mock.patch("airflow.providers.snowflake.hooks.snowflake_sql_api.SnowflakeSqlApiHook.cancel_queries")
+    def test_snowflake_sql_api_on_kill_no_queries(self, mock_cancel_queries):
+        """Test that on_kill does nothing when no query ids exist."""
+        operator = SnowflakeSqlApiOperator(
+            task_id=TASK_ID,
+            snowflake_conn_id=CONN_ID,
+            sql=SQL_MULTIPLE_STMTS,
+            statement_count=4,
+        )
+        operator.query_ids = []
+
+        operator.on_kill()
+
+        mock_cancel_queries.assert_not_called()

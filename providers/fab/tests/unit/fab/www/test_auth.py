@@ -45,7 +45,7 @@ def app():
 
 
 @pytest.mark.parametrize(
-    "decorator_name, is_authorized_method_name",
+    ("decorator_name", "is_authorized_method_name"),
     [
         ("has_access_configuration", "is_authorized_configuration"),
         ("has_access_asset", "is_authorized_asset"),
@@ -131,7 +131,7 @@ def get_variable():
 
 
 @pytest.mark.parametrize(
-    "decorator_name, is_authorized_method_name, items",
+    ("decorator_name", "is_authorized_method_name", "items"),
     [
         (
             "has_access_connection",

@@ -23,9 +23,8 @@
 
 Package ``apache-airflow-providers-microsoft-mssql``
 
-Release: ``4.3.2``
+Release: ``4.4.0``
 
-Release Date: ``|PypiReleaseDate|``
 
 `Microsoft SQL Server (MSSQL) <https://www.microsoft.com/sql-server/>`__
 
@@ -37,12 +36,12 @@ This is a provider package for ``microsoft.mssql`` provider. All classes for thi
 are in ``airflow.providers.microsoft.mssql`` python package.
 
 You can find package information and changelog for the provider
-in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-microsoft-mssql/4.3.2/>`_.
+in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-microsoft-mssql/4.4.0/>`_.
 
 Installation
 ------------
 
-You can install this package on top of an existing Airflow 2 installation (see ``Requirements`` below
+You can install this package on top of an existing Airflow installation (see ``Requirements`` below
 for the minimum Airflow version supported) via
 ``pip install apache-airflow-providers-microsoft-mssql``
 
@@ -54,7 +53,7 @@ Requirements
 =======================================  ==================
 PIP package                              Version required
 =======================================  ==================
-``apache-airflow``                       ``>=2.10.0``
+``apache-airflow``                       ``>=2.11.0``
 ``apache-airflow-providers-common-sql``  ``>=1.23.0``
 ``pymssql``                              ``>=2.3.5``
 ``methodtools``                          ``>=0.4.7``
@@ -80,5 +79,14 @@ Dependent package                                                               
 `apache-airflow-providers-openlineage <https://airflow.apache.org/docs/apache-airflow-providers-openlineage>`_  ``openlineage``
 ==============================================================================================================  ===============
 
+Optional dependencies
+----------------------
+
+===============  ========================================
+Extra            Dependencies
+===============  ========================================
+``openlineage``  ``apache-airflow-providers-openlineage``
+===============  ========================================
+
 The changelog for the provider package can be found in the
-`changelog <https://airflow.apache.org/docs/apache-airflow-providers-microsoft-mssql/4.3.2/changelog.html>`_.
+`changelog <https://airflow.apache.org/docs/apache-airflow-providers-microsoft-mssql/4.4.0/changelog.html>`_.

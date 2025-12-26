@@ -36,13 +36,13 @@ these guidelines:
     run the tests and `codecov <https://codecov.io/gh/apache/airflow>`__ to track
     coverage. You can set up both for free on your fork. It will help you make sure you do not
     break the build with your PR and that you help increase coverage.
-    Also we advise to install locally `pre-commit hooks <08_static_code_checks.rst#pre-commit-hooks>`__ to
+    Also we advise to install locally `prek hooks <08_static_code_checks.rst#prek-hooks>`__ to
     apply various checks, code generation and formatting at the time you make a local commit - which
     gives you near-immediate feedback on things you need to fix before you push your code to the PR, or in
     many case it will even fix it for you locally so that you can add and commit it straight away.
 
 -   Follow our project's `Coding style and best practices`_. Usually we attempt to enforce the practices by
-    having appropriate pre-commits. There are checks amongst them that aren't currently enforced
+    having appropriate prek hooks. There are checks amongst them that aren't currently enforced
     programmatically (either because they are too hard or just not yet done).
 
 -   Maintainers will not merge a PR that regresses linting or does not pass CI tests (unless you have good
@@ -62,16 +62,16 @@ these guidelines:
     maintenance burden during rebase.
 
 -   Add an `Apache License <http://www.apache.org/legal/src-headers.html>`__ header to all new files. If you
-    have ``pre-commit`` installed, pre-commit will do it automatically for you. If you hesitate to install
-    pre-commit for your local repository - for example because it takes a few seconds to commit your changes,
-    this one thing might be a good reason to convince anyone to install pre-commit.
+    have ``prek`` installed, prek will do it automatically for you. If you hesitate to install
+    prek for your local repository - for example because it takes a few seconds to commit your changes,
+    this one thing might be a good reason to convince anyone to install prek.
 
 -   If your PR adds functionality, make sure to update the docs as part of the same PR, not only
     code and tests. Docstring is often sufficient. Make sure to follow the Sphinx compatible standards.
 
 -   Make sure your code fulfills all the
     `static code checks <08_static_code_checks.rst#static-code-checks>`__ we have in our code. The easiest way
-    to make sure of that is - again - to install `pre-commit hooks <08_static_code_checks.rst#pre-commit-hooks>`__
+    to make sure of that is - again - to install `prek hooks <08_static_code_checks.rst#prek-hooks>`__
 
 -   Make sure your PR is small and focused on one change only - avoid adding unrelated changes, mixing
     adding features and refactoring. Keeping to that rule will make it easier to review your PR and will make
@@ -177,7 +177,7 @@ To make this easier, there is the ``create_session`` helper:
 .. warning::
   **DO NOT** add a default to the ``session`` argument **unless** ``@provide_session`` is used.
 
-If this function is designed to be called by "end-users" (i.e. DAG authors) then using the ``@provide_session`` wrapper is okay:
+If this function is designed to be called by "end-users" (i.e. Dag authors) then using the ``@provide_session`` wrapper is okay:
 
 .. code-block:: python
 
@@ -213,7 +213,7 @@ will be timed and submitted automatically:
 
 .. code-block:: python
 
-    from airflow.stats import Stats
+    from airflow.observability.stats import Stats
 
     ...
 
@@ -224,7 +224,7 @@ or to time but not send a metric:
 
 .. code-block:: python
 
-    from airflow.stats import Stats
+    from airflow.observability.stats import Stats
 
     ...
 
@@ -246,7 +246,7 @@ Airflow Operators might have some fields added to the list of ``template_fields`
 set in the constructor (``__init__`` method) of the operator and usually their values should
 come from the ``__init__`` method arguments. The reason for that is that the templated fields
 are evaluated at the time of the operator execution and when you pass arguments to the operator
-in the DAG, the fields that are set on the class just before the ``execute`` method is called
+in the Dag, the fields that are set on the class just before the ``execute`` method is called
 are processed through templating engine and the fields values are set to the result of applying the
 templating engine to the fields (in case the field is a structure such as dict or list, the templating
 engine is applied to all the values of the structure).
@@ -271,9 +271,35 @@ In such cases we can usually do something like this
         self.my_field = my_field
 
 The reason for doing it is that we are working on a cleaning up our code to have
-`pre-commit hook <../scripts/ci/pre_commit/validate_operators_init.py>`__
+`prek hook <../scripts/ci/prek/validate_operators_init.py>`__
 that will make sure all the cases where logic (such as validation and complex conversion)
 is not done in the constructor are detected in PRs.
+
+Don't raise AirflowException directly
+..............................................
+
+Our community has decided to stop adding new ``raise AirflowException`` and to adopt the following practices when an exception is necessary. For details check the relevant `mailing list thread <https://lists.apache.org/thread/t8bnhyqy77kq4fk7fj3fmjd5wo9kv6w0>`_.
+
+1. In most cases, we should prioritize using Python's standard exceptions (e.g., ``ValueError``, ``TypeError``, ``OSError``)
+   instead of wrapping everything in ``AirflowException``.
+2. Within ``airflow-core``, we should define and utilize more specific exception classes under ``airflow-core/src/airflow/exceptions.py``.
+3. For provider-specific implementations, exceptions should be defined within ``providers/<provider>/src/airflow/providers/<provider>/exceptions.py``.
+
+The use of points 2 and 3 should only be considered when point 1 is inappropriate, which should be a rare occurrence.
+
+In other words instead of doing:
+
+.. code-block:: python
+
+   if key not in conf:
+       raise AirflowException(f"Required key {key} is missing")
+
+you should do:
+
+.. code-block:: python
+
+   if key not in conf:
+       raise ValueError(f"Required key {key} is missing")
 
 -----------
 

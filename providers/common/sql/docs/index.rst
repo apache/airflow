@@ -58,7 +58,7 @@
     :maxdepth: 1
     :caption: Resources
 
-    Example DAGs <https://github.com/apache/airflow/tree/providers-common-sql/|version|/providers/common/sql/tests/system/common/sql>
+    Example Dags <https://github.com/apache/airflow/tree/providers-common-sql/|version|/providers/common/sql/tests/system/common/sql>
     PyPI Repository <https://pypi.org/project/apache-airflow-providers-common-sql/>
     Installing from sources <installing-providers-from-sources>
 
@@ -79,9 +79,7 @@ apache-airflow-providers-common-sql package
 `Common SQL Provider <https://en.wikipedia.org/wiki/SQL>`__
 
 
-Release: 1.27.4
-
-Release Date: ``|PypiReleaseDate|``
+Release: 1.30.1
 
 Provider package
 ----------------
@@ -92,23 +90,24 @@ All classes for this package are included in the ``airflow.providers.common.sql`
 Installation
 ------------
 
-You can install this package on top of an existing Airflow 2 installation via
+You can install this package on top of an existing Airflow installation via
 ``pip install apache-airflow-providers-common-sql``.
 For the minimum Airflow version supported, see ``Requirements`` below.
 
 Requirements
 ------------
 
-The minimum Apache Airflow version supported by this provider distribution is ``2.10.0``.
+The minimum Apache Airflow version supported by this provider distribution is ``2.11.0``.
 
-==================  ==================
-PIP package         Version required
-==================  ==================
-``apache-airflow``  ``>=2.10.0``
-``sqlparse``        ``>=0.5.1``
-``more-itertools``  ``>=9.0.0``
-``methodtools``     ``>=0.4.7``
-==================  ==================
+==========================================  ==================
+PIP package                                 Version required
+==========================================  ==================
+``apache-airflow``                          ``>=2.11.0``
+``apache-airflow-providers-common-compat``  ``>=1.10.1``
+``sqlparse``                                ``>=0.5.1``
+``more-itertools``                          ``>=9.0.0``
+``methodtools``                             ``>=0.4.7``
+==========================================  ==================
 
 Cross provider package dependencies
 -----------------------------------
@@ -120,14 +119,15 @@ You can install such cross-provider dependencies when installing from PyPI. For 
 
 .. code-block:: bash
 
-    pip install apache-airflow-providers-common-sql[openlineage]
+    pip install apache-airflow-providers-common-sql[common.compat]
 
 
-==============================================================================================================  ===============
-Dependent package                                                                                               Extra
-==============================================================================================================  ===============
-`apache-airflow-providers-openlineage <https://airflow.apache.org/docs/apache-airflow-providers-openlineage>`_  ``openlineage``
-==============================================================================================================  ===============
+==================================================================================================================  =================
+Dependent package                                                                                                   Extra
+==================================================================================================================  =================
+`apache-airflow-providers-common-compat <https://airflow.apache.org/docs/apache-airflow-providers-common-compat>`_  ``common.compat``
+`apache-airflow-providers-openlineage <https://airflow.apache.org/docs/apache-airflow-providers-openlineage>`_      ``openlineage``
+==================================================================================================================  =================
 
 Downloading official packages
 -----------------------------
@@ -135,5 +135,5 @@ Downloading official packages
 You can download officially released packages and verify their checksums and signatures from the
 `Official Apache Download site <https://downloads.apache.org/airflow/providers/>`_
 
-* `The apache-airflow-providers-common-sql 1.27.4 sdist package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_common_sql-1.27.4.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_common_sql-1.27.4.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_common_sql-1.27.4.tar.gz.sha512>`__)
-* `The apache-airflow-providers-common-sql 1.27.4 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_common_sql-1.27.4-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_common_sql-1.27.4-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_common_sql-1.27.4-py3-none-any.whl.sha512>`__)
+* `The apache-airflow-providers-common-sql 1.30.1 sdist package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_common_sql-1.30.1.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_common_sql-1.30.1.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_common_sql-1.30.1.tar.gz.sha512>`__)
+* `The apache-airflow-providers-common-sql 1.30.1 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_common_sql-1.30.1-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_common_sql-1.30.1-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_common_sql-1.30.1-py3-none-any.whl.sha512>`__)

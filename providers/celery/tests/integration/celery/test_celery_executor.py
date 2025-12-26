@@ -40,16 +40,16 @@ from kubernetes.client import models as k8s
 from uuid6 import uuid7
 
 from airflow.configuration import conf
-from airflow.exceptions import AirflowException, AirflowTaskTimeout
 from airflow.executors import workloads
 from airflow.models.dag import DAG
 from airflow.models.taskinstance import TaskInstance
 from airflow.models.taskinstancekey import TaskInstanceKey
+from airflow.providers.common.compat.sdk import AirflowException, AirflowTaskTimeout
 from airflow.providers.standard.operators.bash import BashOperator
 from airflow.utils.state import State
 
 from tests_common.test_utils import db
-from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V_3_1_PLUS
 
 logger = logging.getLogger(__name__)
 
@@ -79,7 +79,7 @@ def _prepare_app(broker_url=None, execute=None):
         execute_name = "execute_command"
         execute = execute or celery_executor_utils.execute_command.__wrapped__
 
-    test_config = dict(celery_executor_utils.celery_configuration)
+    test_config = dict(celery_executor_utils.get_celery_configuration())
     test_config.update({"broker_url": broker_url})
     test_app = Celery(broker_url, config_source=test_config)
     test_execute = test_app.task(execute)
@@ -168,7 +168,7 @@ class TestCeleryExecutor:
                     run_id="abc",
                     try_number=0,
                     priority_weight=1,
-                    queue=celery_executor_utils.celery_configuration["task_default_queue"],
+                    queue=celery_executor_utils.get_celery_configuration()["task_default_queue"],
                     executor_config=executor_config,
                 )
                 keys = [
@@ -215,13 +215,21 @@ class TestCeleryExecutor:
             # fake_execute_command takes no arguments while execute_workload takes 1,
             # which will cause TypeError when calling task.apply_async()
             executor = celery_executor.CeleryExecutor()
-            task = BashOperator(
-                task_id="test",
-                bash_command="true",
-                dag=DAG(dag_id="dag_id"),
-                start_date=datetime.now(),
-            )
-            if AIRFLOW_V_3_0_PLUS:
+            with DAG(dag_id="dag_id") as dag:
+                task = BashOperator(
+                    task_id="test",
+                    bash_command="true",
+                    start_date=datetime.now(),
+                )
+            if AIRFLOW_V_3_1_PLUS:
+                from tests_common.test_utils.dag import create_scheduler_dag
+
+                ti = TaskInstance(
+                    task=create_scheduler_dag(dag).get_task(task.task_id),
+                    run_id="abc",
+                    dag_version_id=uuid6.uuid7(),
+                )
+            elif AIRFLOW_V_3_0_PLUS:
                 ti = TaskInstance(task=task, run_id="abc", dag_version_id=uuid6.uuid7())
             else:
                 ti = TaskInstance(task=task, run_id="abc")
@@ -254,13 +262,21 @@ class TestCeleryExecutor:
             assert executor.task_publish_retries == {}
             assert executor.task_publish_max_retries == 3, "Assert Default Max Retries is 3"
 
-            task = BashOperator(
-                task_id="test",
-                bash_command="true",
-                dag=DAG(dag_id="id"),
-                start_date=datetime.now(),
-            )
-            if AIRFLOW_V_3_0_PLUS:
+            with DAG(dag_id="id") as dag:
+                task = BashOperator(
+                    task_id="test",
+                    bash_command="true",
+                    start_date=datetime.now(),
+                )
+            if AIRFLOW_V_3_1_PLUS:
+                from tests_common.test_utils.dag import create_scheduler_dag
+
+                ti = TaskInstance(
+                    task=create_scheduler_dag(dag).get_task(task.task_id),
+                    run_id="abc",
+                    dag_version_id=uuid6.uuid7(),
+                )
+            elif AIRFLOW_V_3_0_PLUS:
                 ti = TaskInstance(task=task, run_id="abc", dag_version_id=uuid6.uuid7())
             else:
                 ti = TaskInstance(task=task, run_id="abc")
@@ -312,6 +328,9 @@ class ClassWithCustomAttributes:
     def __eq__(self, other):
         return self.__dict__ == other.__dict__
 
+    def __hash__(self):
+        return hash(self.__dict__)
+
     def __ne__(self, other):
         return not self.__eq__(other)
 
@@ -335,7 +354,7 @@ class TestBulkStateFetcher:
                 "airflow.providers.celery.executors.celery_executor_utils.Celery.backend", mock_backend
             ):
                 caplog.clear()
-                fetcher = celery_executor_utils.BulkStateFetcher()
+                fetcher = celery_executor_utils.BulkStateFetcher(1)
                 result = fetcher.get_many(
                     [
                         mock.MagicMock(task_id="123"),
@@ -367,7 +386,7 @@ class TestBulkStateFetcher:
                     mock.MagicMock(**{"to_dict.return_value": {"status": "SUCCESS", "task_id": "123"}})
                 ]
 
-                fetcher = celery_executor_utils.BulkStateFetcher()
+                fetcher = celery_executor_utils.BulkStateFetcher(1)
                 result = fetcher.get_many(
                     [
                         mock.MagicMock(task_id="123"),
@@ -401,7 +420,7 @@ class TestBulkStateFetcher:
                     mock_retry_db_result.return_value,
                 ]
 
-                fetcher = celery_executor_utils.BulkStateFetcher()
+                fetcher = celery_executor_utils.BulkStateFetcher(1)
                 result = fetcher.get_many(
                     [
                         mock.MagicMock(task_id="123"),

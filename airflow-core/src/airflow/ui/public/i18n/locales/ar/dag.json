@@ -5,9 +5,39 @@
     "reason": "السبب",
     "title": "التبعيات التي تمنع جدولة المهمة"
   },
+  "calendar": {
+    "daily": "يومي",
+    "hourly": "ساعي",
+    "legend": {
+      "less": "أقل",
+      "mixed": "مختلط",
+      "more": "أكثر"
+    },
+    "navigation": {
+      "nextMonth": "الشهر التالي",
+      "nextYear": "السنة التالية",
+      "previousMonth": "الشهر السابق",
+      "previousYear": "السنة السابقة"
+    },
+    "noData": "لا توجد بيانات متاحة",
+    "noFailedRuns": "لا توجد تشغيلات فاشلة",
+    "noRuns": "لا توجد تشغيلات",
+    "totalRuns": "إجمالي التشغيلات",
+    "week": "الأسبوع {{weekNumber}}",
+    "weekdays": {
+      "friday": "الجمعة",
+      "monday": "الاثنين",
+      "saturday": "السبت",
+      "sunday": "الأحد",
+      "thursday": "الخميس",
+      "tuesday": "الثلاثاء",
+      "wednesday": "الأربعاء"
+    }
+  },
   "code": {
     "bundleUrl": "حزمة URL",
     "noCode": "'لا توجد 'كود",
+    "parseDuration": "مدة التحليل:",
     "parsedAt": "تم تحليلها في:"
   },
   "extraLinks": "روابط إضافية",
@@ -35,9 +65,13 @@
     },
     "info": "معلومات",
     "noTryNumber": "لا يوجد رقم محاولة",
-    "settings": "سجل الاعدادات",
+    "settings": "سجل الإعدادات",
     "viewInExternal": "عرض السجلات في {{name}} (المحاولة {{attempt}})",
     "warning": "تحذير"
+  },
+  "navigation": {
+    "navigation": "التنقل: {{arrow}}",
+    "toggleGroup": "تبديل المجموعة: المسافة"
   },
   "overview": {
     "buttons": {
@@ -69,6 +103,8 @@
       "assetEvent_zero": "لا توجد أي واقعة أصل"
     },
     "failedLogs": {
+      "hideLogs": "إخفاء السجلات",
+      "showLogs": "إظهار السجلات",
       "title": "سجلات المهام الفاشلة الأخيرة",
       "viewFullLogs": "عرض السجلات الكاملة"
     }
@@ -76,8 +112,9 @@
   "panel": {
     "buttons": {
       "options": "خيارات",
-      "showGraph": "عرض الرسم البياني",
-      "showGrid": "عرض الشبكة"
+      "showGantt": "عرض مخطط غانت",
+      "showGraphShortcut": "عرض الرسم البياني (اضغط g)",
+      "showGridShortcut": "عرض الشبكة (اضغط g)"
     },
     "dagRuns": {
       "label": "عدد تشغيلات Dag"
@@ -112,6 +149,7 @@
     "assetEvents": "أحداث الأصول",
     "auditLog": "سجل التدقيق",
     "backfills": "التعبئة الرجعية",
+    "calendar": "التقويم",
     "code": "الكود",
     "details": "التفاصيل",
     "logs": "السجلات",
@@ -119,10 +157,11 @@
     "mappedTaskInstances_many": "مثيل مهمة [{{count}}]",
     "mappedTaskInstances_one": "مثيل مهمة [{{count}}]",
     "mappedTaskInstances_other": "مثيل مهمة [{{count}}]",
-    "mappedTaskInstances_two": "مثيلان لمهمة [{{count}}]",
+    "mappedTaskInstances_two": "مثيلان لمهمة",
     "mappedTaskInstances_zero": "لا توجد أي مثيل مهمة",
     "overview": "نظرة عامة",
     "renderedTemplates": "القوالب المعروضة",
+    "requiredActions": "إجراءات مطلوبة",
     "runs": "تشغيلات",
     "taskInstances": "مثيلات المهام",
     "tasks": "المهام",

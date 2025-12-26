@@ -30,6 +30,7 @@ from airflow.providers.apache.spark.operators.spark_submit import SparkSubmitOpe
 from airflow.utils import timezone
 from airflow.utils.types import DagRunType
 
+from tests_common.test_utils.dag import sync_dag_to_db
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
 DEFAULT_DATE = timezone.datetime(2017, 1, 1)
@@ -194,16 +195,14 @@ class TestSparkSubmitOperator:
         assert operator2.queue == "default"  # airflow queue
 
     @pytest.mark.db_test
-    def test_render_template(self, session):
+    def test_render_template(self, session, testing_dag_bundle):
         # Given
         operator = SparkSubmitOperator(task_id="spark_submit_job", dag=self.dag, **self._config)
 
         if AIRFLOW_V_3_0_PLUS:
             from airflow.models.dag_version import DagVersion
-            from airflow.models.serialized_dag import SerializedDagModel
 
-            self.dag.sync_to_db()
-            SerializedDagModel.write_dag(dag=self.dag, bundle_name="testing")
+            sync_dag_to_db(self.dag)
             dag_version = DagVersion.get_latest_version(operator.dag_id)
             ti = TaskInstance(operator, run_id="spark_test", dag_version_id=dag_version.id)
             ti.dag_run = DagRun(
@@ -468,7 +467,10 @@ class TestSparkSubmitOperator:
             )
             operator.execute(MagicMock())
 
-            assert "OpenLineage transport type `console` does not support automatic injection of OpenLineage transport information into Spark properties."
+            assert (
+                "OpenLineage transport type `console` does not support automatic injection of OpenLineage transport information into Spark properties."
+                in caplog.text
+            )
         assert operator.conf == {
             "parquet.compression": "SNAPPY",
         }

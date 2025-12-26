@@ -28,6 +28,7 @@
 {{- $containerLifecycleHooks := or .Values.workers.containerLifecycleHooks .Values.containerLifecycleHooks }}
 {{- $safeToEvict := dict "cluster-autoscaler.kubernetes.io/safe-to-evict" (.Values.workers.safeToEvict | toString) }}
 {{- $podAnnotations := mergeOverwrite (deepCopy .Values.airflowPodAnnotations) $safeToEvict .Values.workers.podAnnotations }}
+{{- $schedulerName := or .Values.workers.schedulerName .Values.schedulerName }}
 apiVersion: v1
 kind: Pod
 metadata:
@@ -61,6 +62,9 @@ spec:
       volumeMounts:
         - name: logs
           mountPath: {{ template "airflow_logs" . }}
+          {{- if .Values.logs.persistence.subPath }}
+          subPath: {{ .Values.logs.persistence.subPath }}
+          {{- end }}
         {{- include "airflow_config_mount" . | nindent 8 }}
         - name: config
           mountPath: {{ .Values.kerberos.configPath | quote }}
@@ -79,8 +83,14 @@ spec:
         {{- if .Values.workers.extraVolumeMounts }}
           {{- tpl (toYaml .Values.workers.extraVolumeMounts) . | nindent 8 }}
         {{- end }}
-        {{- if or .Values.webserver.webserverConfig .Values.webserver.webserverConfigConfigMapName }}
-          {{- include "airflow_webserver_config_mount" . | nindent 8 }}
+        {{- if semverCompare ">=3.0.0" .Values.airflowVersion }}
+          {{- if or .Values.apiServer.apiServerConfig .Values.apiServer.apiServerConfigConfigMapName }}
+            {{- include "airflow_api_server_config_mount" . | nindent 8 }}
+          {{- end }}
+        {{- else }}
+          {{- if or .Values.webserver.webserverConfig .Values.webserver.webserverConfigConfigMapName }}
+            {{- include "airflow_webserver_config_mount" . | nindent 8 }}
+          {{- end }}
         {{- end }}
       envFrom: {{- include "custom_airflow_environment_from" . | default "\n  []" | indent 6 }}
       env:
@@ -119,6 +129,9 @@ spec:
       volumeMounts:
         - mountPath: {{ template "airflow_logs" . }}
           name: logs
+          {{- if .Values.logs.persistence.subPath }}
+          subPath: {{ .Values.logs.persistence.subPath }}
+          {{- end }}
         {{- include "airflow_config_mount" . | nindent 8 }}
         {{- if or .Values.dags.gitSync.enabled .Values.dags.persistence.enabled }}
           {{- include "airflow_dags_mount" . | nindent 8 }}
@@ -155,6 +168,9 @@ spec:
       volumeMounts:
         - name: logs
           mountPath: {{ template "airflow_logs" . }}
+          {{- if .Values.logs.persistence.subPath }}
+          subPath: {{ .Values.logs.persistence.subPath }}
+          {{- end }}
         {{- include "airflow_config_mount" . | nindent 8 }}
         - name: config
           mountPath: {{ .Values.kerberos.configPath | quote }}
@@ -173,8 +189,14 @@ spec:
         {{- if .Values.workers.extraVolumeMounts }}
           {{- tpl (toYaml .Values.workers.extraVolumeMounts) . | nindent 8 }}
         {{- end }}
-        {{- if or .Values.webserver.webserverConfig .Values.webserver.webserverConfigConfigMapName }}
-          {{- include "airflow_webserver_config_mount" . | nindent 8 }}
+        {{- if semverCompare ">=3.0.0" .Values.airflowVersion }}
+          {{- if or .Values.apiServer.apiServerConfig .Values.apiServer.apiServerConfigConfigMapName }}
+            {{- include "airflow_api_server_config_mount" . | nindent 8 }}
+          {{- end }}
+        {{- else }}
+          {{- if or .Values.webserver.webserverConfig .Values.webserver.webserverConfigConfigMapName }}
+            {{- include "airflow_webserver_config_mount" . | nindent 8 }}
+          {{- end }}
         {{- end }}
       envFrom: {{- include "custom_airflow_environment_from" . | default "\n  []" | indent 6 }}
       env:
@@ -194,10 +216,7 @@ spec:
   {{- if .Values.workers.runtimeClassName }}
   runtimeClassName: {{ .Values.workers.runtimeClassName }}
   {{- end }}
-  {{- if or .Values.registry.secretName .Values.registry.connection }}
-  imagePullSecrets:
-    - name: {{ template "registry_secret" . }}
-  {{- end }}
+  imagePullSecrets: {{- include "image_pull_secrets" . | nindent 4 }}
   {{- if .Values.workers.hostAliases }}
   hostAliases: {{- toYaml .Values.workers.hostAliases | nindent 4 }}
   {{- end }}
@@ -205,8 +224,8 @@ spec:
   securityContext: {{ $securityContext | nindent 4 }}
   nodeSelector: {{- toYaml $nodeSelector | nindent 4 }}
   affinity: {{- toYaml $affinity | nindent 4 }}
-  {{- if .Values.schedulerName }}
-  schedulerName: {{ .Values.schedulerName }}
+  {{- if $schedulerName }}
+  schedulerName: {{ $schedulerName }}
   {{- end }}
   terminationGracePeriodSeconds: {{ .Values.workers.terminationGracePeriodSeconds }}
   tolerations: {{- toYaml $tolerations | nindent 4 }}
@@ -233,16 +252,24 @@ spec:
   - emptyDir: {{- toYaml (default (dict) .Values.logs.emptyDirConfig) | nindent 6 }}
     name: logs
   {{- end }}
-  {{- if and  .Values.dags.gitSync.enabled  .Values.dags.gitSync.sshKeySecret }}
+  {{- if and  .Values.dags.gitSync.enabled (or .Values.dags.gitSync.sshKeySecret .Values.dags.gitSync.sshKey) }}
     {{- include "git_sync_ssh_key_volume" . | nindent 2 }}
   {{- end }}
   - configMap:
       name: {{ include "airflow_config" . }}
     name: config
-  {{- if and (or .Values.webserver.webserverConfig .Values.webserver.webserverConfigConfigMapName) (or .Values.workers.kerberosInitContainer.enabled .Values.workers.kerberosSidecar.enabled)}}
+  {{- if semverCompare ">=3.0.0" .Values.airflowVersion }}
+    {{- if and (or .Values.apiServer.apiServerConfig .Values.apiServer.apiServerConfigConfigMapName) (or .Values.workers.kerberosInitContainer.enabled .Values.workers.kerberosSidecar.enabled)}}
+  - name: api-server-config
+    configMap:
+      name: {{ template "airflow_api_server_config_configmap_name" . }}
+    {{- end }}
+  {{- else }}
+    {{- if and (or .Values.webserver.webserverConfig .Values.webserver.webserverConfigConfigMapName) (or .Values.workers.kerberosInitContainer.enabled .Values.workers.kerberosSidecar.enabled)}}
   - name: webserver-config
     configMap:
       name: {{ template "airflow_webserver_config_configmap_name" . }}
+    {{- end }}
   {{- end }}
   {{- if .Values.volumes }}
     {{- toYaml .Values.volumes | nindent 2 }}

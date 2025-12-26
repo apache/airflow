@@ -27,7 +27,7 @@ from google.api_core.exceptions import NotFound
 from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
 from google.cloud import alloydb_v1
 
-from airflow.exceptions import AirflowException
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.google.cloud.hooks.alloy_db import AlloyDbHook
 from airflow.providers.google.cloud.links.alloy_db import (
     AlloyDBBackupsLink,
@@ -42,7 +42,7 @@ if TYPE_CHECKING:
     from google.api_core.retry import Retry
     from google.protobuf.field_mask_pb2 import FieldMask
 
-    from airflow.utils.context import Context
+    from airflow.providers.common.compat.sdk import Context
 
 
 class AlloyDBBaseOperator(GoogleCloudBaseOperator):

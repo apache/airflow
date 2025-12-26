@@ -53,7 +53,7 @@ from moto.eks.models import (
     NODEGROUP_NOT_FOUND_MSG,
 )
 
-from airflow.providers.amazon.aws.hooks.eks import COMMAND, EksHook
+from airflow.providers.amazon.aws.hooks.eks import EksHook
 
 from unit.amazon.aws.utils.eks_test_constants import (
     DEFAULT_CONN_ID,
@@ -738,7 +738,7 @@ class TestEksHooks:
     ]
 
     @pytest.mark.parametrize(
-        "launch_template, instance_types, disk_size, remote_access, expected_result",
+        ("launch_template", "instance_types", "disk_size", "remote_access", "expected_result"),
         test_cases,
     )
     def test_create_nodegroup_handles_launch_template_combinations(
@@ -1168,7 +1168,7 @@ class TestEksHooks:
     ]
 
     @pytest.mark.parametrize(
-        "selectors, expected_message, expected_result",
+        ("selectors", "expected_message", "expected_result"),
         selector_formatting_test_cases,
     )
     @mock_aws
@@ -1212,47 +1212,14 @@ class TestEksHook:
 
     @mock.patch("airflow.providers.amazon.aws.hooks.base_aws.AwsBaseHook.conn")
     @pytest.mark.parametrize(
-        "aws_conn_id, region_name, expected_args",
+        ("aws_conn_id", "region_name", "expected_region_args"),
         [
-            [
-                "test-id",
-                "test-region",
-                [
-                    "-c",
-                    COMMAND.format(
-                        python_executable=python_executable,
-                        eks_cluster_name="test-cluster",
-                        args=" --region-name test-region --aws-conn-id test-id",
-                    ),
-                ],
-            ],
-            [
-                None,
-                "test-region",
-                [
-                    "-c",
-                    COMMAND.format(
-                        python_executable=python_executable,
-                        eks_cluster_name="test-cluster",
-                        args=" --region-name test-region",
-                    ),
-                ],
-            ],
-            [
-                None,
-                None,
-                [
-                    "-c",
-                    COMMAND.format(
-                        python_executable=python_executable,
-                        eks_cluster_name="test-cluster",
-                        args="",
-                    ),
-                ],
-            ],
+            ["test-id", "test-region", " --region-name test-region"],
+            [None, "test-region", " --region-name test-region"],
+            [None, None, ""],
         ],
     )
-    def test_generate_config_file(self, mock_conn, aws_conn_id, region_name, expected_args):
+    def test_generate_config_file(self, mock_conn, aws_conn_id, region_name, expected_region_args):
         mock_conn.describe_cluster.return_value = {
             "cluster": {"certificateAuthority": {"data": "test-cert"}, "endpoint": "test-endpoint"}
         }
@@ -1260,73 +1227,51 @@ class TestEksHook:
         # We're mocking all actual AWS calls and don't need a connection. This
         # avoids an Airflow warning about connection cannot be found.
         hook.get_connection = lambda _: None
+
+        # Mock credentials file path
+        credentials_file = "/tmp/test_credentials.aws_creds"
+
         with hook.generate_config_file(
-            eks_cluster_name="test-cluster", pod_namespace="k8s-namespace"
+            eks_cluster_name="test-cluster", pod_namespace="k8s-namespace", credentials_file=credentials_file
         ) as config_file:
             config = yaml.safe_load(Path(config_file).read_text())
-            assert config == {
-                "apiVersion": "v1",
-                "kind": "Config",
-                "clusters": [
-                    {
-                        "cluster": {"server": "test-endpoint", "certificate-authority-data": "test-cert"},
-                        "name": "test-cluster",
-                    }
-                ],
-                "contexts": [
-                    {
-                        "context": {"cluster": "test-cluster", "namespace": "k8s-namespace", "user": "aws"},
-                        "name": "aws",
-                    }
-                ],
-                "current-context": "aws",
-                "preferences": {},
-                "users": [
-                    {
-                        "name": "aws",
-                        "user": {
-                            "exec": {
-                                "apiVersion": "client.authentication.k8s.io/v1alpha1",
-                                "args": expected_args,
-                                "command": "sh",
-                                "interactiveMode": "Never",
-                            }
-                        },
-                    }
-                ],
-            }
 
-    @mock.patch("airflow.providers.amazon.aws.hooks.eks.RequestSigner")
-    @mock.patch("airflow.providers.amazon.aws.hooks.eks.StsHook")
-    @mock.patch("airflow.providers.amazon.aws.hooks.base_aws.AwsBaseHook.conn")
-    @mock.patch("airflow.providers.amazon.aws.hooks.base_aws.AwsBaseHook.get_session")
-    def test_fetch_access_token_for_cluster(self, mock_get_session, mock_conn, mock_sts_hook, mock_signer):
-        mock_signer.return_value.generate_presigned_url.return_value = "http://example.com"
-        mock_sts_hook.return_value.conn_client_meta.endpoint_url = "https://sts.us-east-1.amazonaws.com"
-        mock_get_session.return_value.region_name = "us-east-1"
-        hook = EksHook()
-        token = hook.fetch_access_token_for_cluster(eks_cluster_name="test-cluster")
-        mock_signer.assert_called_once_with(
-            service_id=mock_conn.meta.service_model.service_id,
-            region_name="us-east-1",
-            signing_name="sts",
-            signature_version="v4",
-            credentials=mock_get_session.return_value.get_credentials.return_value,
-            event_emitter=mock_get_session.return_value.events,
-        )
-        mock_signer.return_value.generate_presigned_url.assert_called_once_with(
-            request_dict={
-                "method": "GET",
-                "url": "https://sts.us-east-1.amazonaws.com/?Action=GetCallerIdentity&Version=2011-06-15",
-                "body": {},
-                "headers": {"x-k8s-aws-id": "test-cluster"},
-                "context": {},
-            },
-            region_name="us-east-1",
-            expires_in=60,
-            operation_name="",
-        )
-        assert token == "k8s-aws-v1.aHR0cDovL2V4YW1wbGUuY29t"
+            # Verify basic kubeconfig structure
+            assert config["apiVersion"] == "v1"
+            assert config["kind"] == "Config"
+            assert config["current-context"] == "aws"
+
+            # Verify cluster config
+            assert len(config["clusters"]) == 1
+            cluster = config["clusters"][0]
+            assert cluster["name"] == "test-cluster"
+            assert cluster["cluster"]["server"] == "test-endpoint"
+            assert cluster["cluster"]["certificate-authority-data"] == "test-cert"
+
+            # Verify context config
+            assert len(config["contexts"]) == 1
+            context = config["contexts"][0]
+            assert context["name"] == "aws"
+            assert context["context"]["cluster"] == "test-cluster"
+            assert context["context"]["namespace"] == "k8s-namespace"
+            assert context["context"]["user"] == "aws"
+
+            # Verify user config uses secure credential approach
+            assert len(config["users"]) == 1
+            user = config["users"][0]
+            assert user["name"] == "aws"
+            exec_config = user["user"]["exec"]
+            assert exec_config["apiVersion"] == "client.authentication.k8s.io/v1alpha1"
+            assert exec_config["command"] == "sh"
+            assert exec_config["interactiveMode"] == "Never"
+
+            # Verify the command references a credential file (not inline creds)
+            command_arg = exec_config["args"][1]  # The -c argument content
+            assert f"source {credentials_file}" in command_arg
+
+            # Verify region arguments are properly included
+            if expected_region_args:
+                assert expected_region_args in command_arg
 
 
 # Helper methods for repeated assert combinations.

@@ -22,12 +22,11 @@ from unittest import mock
 
 import pytest
 import structlog
-from pytest_unordered import unordered
 
-from airflow.exceptions import AirflowSkipException
-from airflow.sdk.api.datamodels._generated import TaskInstanceState
+from airflow.sdk import TaskInstanceState
 from airflow.sdk.bases.xcom import BaseXCom
 from airflow.sdk.definitions.dag import DAG
+from airflow.sdk.exceptions import AirflowSkipException
 from airflow.sdk.execution_time.comms import GetXCom, XComResult
 
 log = structlog.get_logger(__name__)
@@ -91,7 +90,7 @@ def test_xcom_map_transform_to_none(run_ti: RunTI, mock_supervisor_comms):
     assert results == {"a", "b", None}
 
 
-def test_xcom_convert_to_kwargs_fails_task(run_ti: RunTI, mock_supervisor_comms, captured_logs):
+def test_xcom_convert_to_kwargs_fails_task(run_ti: RunTI, mock_supervisor_comms, caplog):
     results = set()
 
     with DAG("test") as dag:
@@ -119,35 +118,30 @@ def test_xcom_convert_to_kwargs_fails_task(run_ti: RunTI, mock_supervisor_comms,
         assert run_ti(dag, "pull", map_index) == TaskInstanceState.SUCCESS
 
     # Clear captured logs from the above
-    captured_logs[:] = []
+    caplog.clear()
 
     # But the third one fails because the map() result cannot be used as kwargs.
     assert run_ti(dag, "pull", 2) == TaskInstanceState.FAILED
 
-    assert captured_logs == unordered(
-        [
+    assert {
+        "event": "Task failed with exception",
+        "log_level": "error",
+        "exception": [
             {
-                "event": "Task failed with exception",
-                "level": "error",
-                "timestamp": mock.ANY,
-                "exception": [
-                    {
-                        "exc_notes": [],
-                        "exc_type": "ValueError",
-                        "exc_value": "expand_kwargs() expects a list[dict], not list[None]",
-                        "frames": mock.ANY,
-                        "is_cause": False,
-                        "is_group": False,
-                        "exceptions": [],
-                        "syntax_error": None,
-                    }
-                ],
-            },
-        ]
-    )
+                "exc_notes": [],
+                "exc_type": "ValueError",
+                "exc_value": "expand_kwargs() expects a list[dict], not list[None]",
+                "frames": mock.ANY,
+                "is_cause": False,
+                "is_group": False,
+                "exceptions": [],
+                "syntax_error": None,
+            }
+        ],
+    } in caplog
 
 
-def test_xcom_map_error_fails_task(mock_supervisor_comms, run_ti, captured_logs):
+def test_xcom_map_error_fails_task(mock_supervisor_comms, run_ti, caplog):
     with DAG("test") as dag:
 
         @dag.task()
@@ -170,27 +164,23 @@ def test_xcom_map_error_fails_task(mock_supervisor_comms, run_ti, captured_logs)
     # The third one (for "c") will fail.
     assert run_ti(dag, "pull", 2) == TaskInstanceState.FAILED
 
-    assert captured_logs == unordered(
-        [
+    assert {
+        "event": "Task failed with exception",
+        "log_level": "error",
+        "timestamp": mock.ANY,
+        "exception": [
             {
-                "event": "Task failed with exception",
-                "level": "error",
-                "timestamp": mock.ANY,
-                "exception": [
-                    {
-                        "exc_notes": [],
-                        "exc_type": "RuntimeError",
-                        "exc_value": "nope",
-                        "frames": mock.ANY,
-                        "is_cause": False,
-                        "is_group": False,
-                        "exceptions": [],
-                        "syntax_error": None,
-                    }
-                ],
-            },
-        ]
-    )
+                "exc_notes": [],
+                "exc_type": "RuntimeError",
+                "exc_value": "nope",
+                "frames": mock.ANY,
+                "is_cause": False,
+                "is_group": False,
+                "exceptions": [],
+                "syntax_error": None,
+            }
+        ],
+    } in caplog
 
 
 def test_xcom_map_nest(mock_supervisor_comms, run_ti):

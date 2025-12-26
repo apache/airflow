@@ -43,7 +43,11 @@ from airflow.api_fastapi.core_api.datamodels.connections import (
     ConnectionTestResponse,
 )
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
-from airflow.api_fastapi.core_api.security import requires_access_connection
+from airflow.api_fastapi.core_api.security import (
+    ReadableConnectionsFilterDep,
+    requires_access_connection,
+    requires_access_connection_bulk,
+)
 from airflow.api_fastapi.core_api.services.public.connections import (
     BulkConnectionService,
     update_orm_from_pydantic,
@@ -117,13 +121,14 @@ def get_connections(
             ).dynamic_depends()
         ),
     ],
+    readable_connections_filter: ReadableConnectionsFilterDep,
     session: SessionDep,
     connection_id_pattern: QueryConnectionIdPatternSearch,
 ) -> ConnectionCollectionResponse:
     """Get all connection entries."""
     connection_select, total_entries = paginated_select(
         statement=select(Connection),
-        filters=[connection_id_pattern],
+        filters=[connection_id_pattern, readable_connections_filter],
         order_by=order_by,
         offset=offset,
         limit=limit,
@@ -157,7 +162,7 @@ def post_connection(
 
 
 @connections_router.patch(
-    "", dependencies=[Depends(requires_access_connection(method="PUT")), Depends(action_logging())]
+    "", dependencies=[Depends(requires_access_connection_bulk()), Depends(action_logging())]
 )
 def bulk_connections(
     request: BulkBody[ConnectionBody],
@@ -190,7 +195,7 @@ def patch_connection(
             "The connection_id in the request body does not match the URL parameter",
         )
 
-    connection: Connection = session.scalar(select(Connection).filter_by(conn_id=connection_id).limit(1))
+    connection = session.scalar(select(Connection).filter_by(conn_id=connection_id).limit(1))
 
     if connection is None:
         raise HTTPException(

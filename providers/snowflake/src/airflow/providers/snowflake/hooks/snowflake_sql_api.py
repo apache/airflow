@@ -39,7 +39,8 @@ from tenacity import (
     wait_exponential,
 )
 
-from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
+from airflow.exceptions import AirflowProviderDeprecationWarning
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.snowflake.hooks.snowflake import SnowflakeHook
 from airflow.providers.snowflake.utils.sql_api_generate_jwt import JWTGenerator
 
@@ -102,7 +103,7 @@ class SnowflakeSqlApiHook(SnowflakeHook):
             "retry": retry_if_exception(self._should_retry_on_error),
             "wait": wait_exponential(multiplier=1, min=1, max=60),
             "stop": stop_after_attempt(5),
-            "before_sleep": before_sleep_log(self.log, log_level=20),  # INFO level
+            "before_sleep": before_sleep_log(self.log, log_level=20),  # type: ignore[arg-type]
             "reraise": True,
         }
         if api_retry_args:
@@ -258,16 +259,21 @@ class SnowflakeSqlApiHook(SnowflakeHook):
             conn_config=conn_config, token_endpoint=token_endpoint, grant_type=grant_type
         )
 
-    def get_request_url_header_params(self, query_id: str) -> tuple[dict[str, Any], dict[str, Any], str]:
+    def get_request_url_header_params(
+        self, query_id: str, url_suffix: str | None = None
+    ) -> tuple[dict[str, Any], dict[str, Any], str]:
         """
         Build the request header Url with account name identifier and query id from the connection params.
 
         :param query_id: statement handles query ids for the individual statements.
+        :param url_suffix: Optional path suffix to append to the URL. Must start with '/', e.g. '/cancel' or '/result'.
         """
         req_id = uuid.uuid4()
         header = self.get_headers()
         params = {"requestId": str(req_id)}
         url = f"{self.account_identifier}.snowflakecomputing.com/api/v2/statements/{query_id}"
+        if url_suffix:
+            url += url_suffix
         return header, params, url
 
     def check_query_output(self, query_ids: list[str]) -> None:
@@ -288,7 +294,21 @@ class SnowflakeSqlApiHook(SnowflakeHook):
         if status_code == 202:
             return {"status": "running", "message": "Query statements are still running"}
         if status_code == 422:
-            return {"status": "error", "message": resp["message"]}
+            error_message = resp.get("message", "Unknown error occurred")
+            error_details = []
+            if code := resp.get("code"):
+                error_details.append(f"Code: {code}")
+            if sql_state := resp.get("sqlState"):
+                error_details.append(f"SQL State: {sql_state}")
+            if statement_handle := resp.get("statementHandle"):
+                error_details.append(f"Statement Handle: {statement_handle}")
+
+            if error_details:
+                enhanced_message = f"{error_message} ({', '.join(error_details)})"
+            else:
+                enhanced_message = error_message
+
+            return {"status": "error", "message": enhanced_message}
         if status_code == 200:
             if resp_statement_handles := resp.get("statementHandles"):
                 statement_handles = resp_statement_handles
@@ -398,6 +418,16 @@ class SnowflakeSqlApiHook(SnowflakeHook):
         header, params, url = self.get_request_url_header_params(query_id)
         status_code, resp = await self._make_api_call_with_retries_async("GET", url, header, params)
         return self._process_response(status_code, resp)
+
+    def _cancel_sql_api_query_execution(self, query_id: str) -> dict[str, str | list[str]]:
+        self.log.info("Cancelling query id %s", query_id)
+        header, params, url = self.get_request_url_header_params(query_id, "/cancel")
+        status_code, resp = self._make_api_call_with_retries("POST", url, header, params)
+        return self._process_response(status_code, resp)
+
+    def cancel_queries(self, query_ids: list[str]) -> None:
+        for query_id in query_ids:
+            self._cancel_sql_api_query_execution(query_id)
 
     @staticmethod
     def _should_retry_on_error(exception) -> bool:

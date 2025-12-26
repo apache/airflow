@@ -145,7 +145,7 @@ def run_command(
             kwargs["stdout"] = subprocess.DEVNULL
             kwargs["stderr"] = subprocess.DEVNULL
         return subprocess.run(cmd, input=input, check=check, env=cmd_env, cwd=workdir, **kwargs)
-    with ci_group(title=f"Running command: {title}", message_type=None):
+    with ci_group(f"Running command: {title}"):
         get_console(output=output).print(f"\n[info]Working directory {workdir}\n")
         if input:
             get_console(output=output).print("[info]Input:")
@@ -204,73 +204,95 @@ def get_environments_to_print(env: Mapping[str, str] | None):
     return env_to_print
 
 
-def assert_pre_commit_installed():
+def assert_prek_installed():
     """
-    Check if pre-commit is installed in the right version.
+    Check if prek is installed in the right version.
 
-    :return: True is the pre-commit is installed in the right version.
+    :return: True is the prek is installed in the right version.
     """
     # Local import to make autocomplete work
     import yaml
     from packaging.version import Version
 
-    pre_commit_config = yaml.safe_load((AIRFLOW_ROOT_PATH / ".pre-commit-config.yaml").read_text())
-    min_pre_commit_version = pre_commit_config["minimum_pre_commit_version"]
+    prek_config = yaml.safe_load((AIRFLOW_ROOT_PATH / ".pre-commit-config.yaml").read_text())
+    min_prek_version = prek_config["minimum_prek_version"]
 
     python_executable = sys.executable
-    get_console().print(f"[info]Checking pre-commit installed for {python_executable}[/]")
-    need_to_reinstall_precommit = False
+    get_console().print(f"[info]Checking prek installed for {python_executable}[/]")
+    need_to_reinstall_prek = False
     try:
         command_result = run_command(
-            ["pre-commit", "--version"],
+            ["prek", "--version"],
             capture_output=True,
             text=True,
             check=False,
         )
         if command_result.returncode == 0:
             if command_result.stdout:
-                pre_commit_version = command_result.stdout.split(" ")[1].strip()
-                if Version(pre_commit_version) >= Version(min_pre_commit_version):
+                prek_version = command_result.stdout.split(" ")[1].strip()
+                if Version(prek_version) >= Version(min_prek_version):
                     get_console().print(
-                        f"\n[success]Package pre_commit is installed. "
-                        f"Good version {pre_commit_version} (>= {min_pre_commit_version})[/]\n"
+                        f"\n[success]Package prek is installed. "
+                        f"Good version {prek_version} (>= {min_prek_version})[/]\n"
                     )
                 else:
                     get_console().print(
-                        f"\n[error]Package name pre_commit version is wrong. It should be "
-                        f"at least {min_pre_commit_version} and is {pre_commit_version}.[/]\n\n"
+                        f"\n[error]Package name prek version is wrong. It should be "
+                        f"at least {min_prek_version} and is {prek_version}.[/]\n\n"
                     )
                     sys.exit(1)
-                if "pre-commit-uv" not in command_result.stdout:
-                    get_console().print(
-                        "\n[warning]You can significantly improve speed of installing your pre-commit envs "
-                        "by installing `pre-commit-uv` with it.[/]\n"
-                    )
-                    get_console().print(
-                        "\n[warning]With uv you can install it with:[/]\n\n"
-                        "        uv tool install pre-commit --with pre-commit-uv --force-reinstall\n"
-                    )
-                    get_console().print(
-                        "\n[warning]With pipx you can install it with:[/]\n\n"
-                        "        pipx inject pre-commit pre-commit-uv # optionally if you want to use uv to "
-                        "install virtualenvs\n"
-                    )
             else:
                 get_console().print(
-                    "\n[warning]Could not determine version of pre-commit. You might need to update it![/]\n"
+                    "\n[warning]Could not determine version of prek. You might need to update it![/]\n"
                 )
         else:
-            need_to_reinstall_precommit = True
-            get_console().print("\n[error]Error checking for pre-commit-installation:[/]\n")
+            need_to_reinstall_prek = True
+            get_console().print("\n[error]Error checking for prek-installation:[/]\n")
             get_console().print(command_result.stderr)
     except FileNotFoundError as e:
-        need_to_reinstall_precommit = True
-        get_console().print(f"\n[error]Error checking for pre-commit-installation: [/]\n{e}\n")
-    if need_to_reinstall_precommit:
-        get_console().print("[info]Make sure to install pre-commit. For example by running:\n")
-        get_console().print("   uv tool install pre-commit --with pre-commit-uv\n")
+        need_to_reinstall_prek = True
+        get_console().print(f"\n[error]Error checking for prek installation: [/]\n{e}\n")
+    if need_to_reinstall_prek:
+        get_console().print("[info]Make sure to install prek. For example by running:\n")
+        get_console().print("   uv tool install prek\n")
         get_console().print("Or if you prefer pipx:\n")
-        get_console().print("   pipx install pre-commit")
+        get_console().print("   pipx install prek")
+        sys.exit(1)
+
+
+def check_pnpm_installed():
+    """
+    Check if pnpm is installed and install it if npm is available.
+    """
+    if shutil.which("pnpm"):
+        return
+
+    get_console().print("[warning]pnpm is not installed. Installing pnpm...[/]")
+
+    # Check if npm is available (required to install pnpm)
+    if not shutil.which("npm"):
+        get_console().print("[error]npm is not installed. Please install Node.js and npm first.[/]")
+        get_console().print("[warning]Visit: https://nodejs.org/[/]")
+        sys.exit(1)
+
+    try:
+        get_console().print("[info]Installing pnpm using npm...[/]")
+        result = run_command(
+            ["npm", "install", "-g", "pnpm"],
+            no_output_dump_on_exception=True,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        if result.returncode == 0:
+            get_console().print("[success]pnpm has been installed successfully![/]")
+        else:
+            get_console().print(f"[error]Failed to install pnpm: {result.stderr}[/]")
+            get_console().print("[warning]Please install pnpm manually: https://pnpm.io/installation[/]")
+            sys.exit(1)
+    except Exception as e:
+        get_console().print(f"[error]Failed to install pnpm: {e}[/]")
+        get_console().print("[warning]Please install pnpm manually: https://pnpm.io/installation[/]")
         sys.exit(1)
 
 
@@ -382,7 +404,20 @@ def check_if_buildx_plugin_installed() -> bool:
         text=True,
         check=False,
     )
-    if docker_buildx_version_result.returncode == 0:
+    if "buildah" in docker_buildx_version_result.stdout.lower():
+        get_console().print(
+            "[warning]Detected buildah installation.[/]\n"
+            "[warning]The Dockerfiles are only compatible with BuildKit.[/]\n"
+            "[warning]Please see the syntax declaration at the top of the Dockerfiles for BuildKit version\n"
+        )
+        return False
+    if (
+        docker_buildx_version_result.returncode == 0
+        and "buildx" in docker_buildx_version_result.stdout.lower()
+    ):
+        get_console().print(
+            "[success]Docker BuildKit is installed and will be used for the image build.[/]\n"
+        )
         return True
     return False
 
@@ -479,7 +514,7 @@ def run_compile_ui_assets(
             "[info]However, it requires you to have local pnpm installation.\n"
         )
     command_to_execute = [
-        "pre-commit",
+        "prek",
         "run",
         "--hook-stage",
         "manual",

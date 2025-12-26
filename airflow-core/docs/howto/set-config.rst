@@ -192,7 +192,7 @@ Example settings you can configure this way:
 * :ref:`Advanced logging configuration <write-logs-advanced>`
 * :ref:`Dag serialization <dag-serialization>`
 * :ref:`Pod mutation hook in Kubernetes Executor<kubernetes:pod_mutation_hook>`
-* :ref:`Control DAG parsing time <faq:how-to-control-dag-file-parsing-timeout>`
+* :ref:`Control Dag parsing time <faq:how-to-control-dag-file-parsing-timeout>`
 * :ref:`Customize your UI <customizing-the-ui>`
 * :ref:`Configure more variables to export <export_dynamic_environment_variables>`
 * :ref:`Customize your DB configuration <set-up-database-backend>`

@@ -32,9 +32,8 @@ from requests.exceptions import ConnectionError, HTTPError
 from requests.models import DEFAULT_REDIRECT_LIMIT
 from requests_toolbelt.adapters.socket_options import TCPKeepAliveAdapter
 
-from airflow.exceptions import AirflowException
+from airflow.providers.common.compat.sdk import AirflowException, BaseHook
 from airflow.providers.http.exceptions import HttpErrorException, HttpMethodException
-from airflow.providers.http.version_compat import BaseHook
 
 if TYPE_CHECKING:
     from aiohttp.client_reqrep import ClientResponse
@@ -135,6 +134,7 @@ class HttpHook(BaseHook):
         self.http_conn_id = http_conn_id
         self.method = method.upper()
         self.base_url: str = ""
+        self._base_url_initialized: bool = False
         self._retry_obj: Callable[..., Any]
         self._auth_type: Any = auth_type
 
@@ -203,6 +203,7 @@ class HttpHook(BaseHook):
         parsed = urlparse(self.base_url)
         if not parsed.scheme:
             raise ValueError(f"Invalid base URL: Missing scheme in {self.base_url}")
+        self._base_url_initialized = True
 
     def _configure_session_from_auth(self, session: Session, connection: Connection) -> Session:
         session.auth = self._extract_auth(connection)
@@ -383,6 +384,10 @@ class HttpHook(BaseHook):
 
     def url_from_endpoint(self, endpoint: str | None) -> str:
         """Combine base url with endpoint."""
+        # Ensure base_url is set by initializing it if it hasn't been initialized yet
+        if not self._base_url_initialized and not self.base_url:
+            connection = self.get_connection(self.http_conn_id)
+            self._set_base_url(connection)
         return _url_from_endpoint(base_url=self.base_url, endpoint=endpoint)
 
     def test_connection(self):

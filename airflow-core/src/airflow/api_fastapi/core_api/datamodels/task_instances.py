@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+from collections.abc import Iterable
 from datetime import datetime
 from typing import Annotated, Any
 
@@ -44,7 +45,6 @@ class TaskInstanceResponse(BaseModel):
     id: str
     task_id: str
     dag_id: str
-    dag_version: DagVersionResponse
     run_id: str = Field(alias="dag_run_id")
     map_index: int
     logical_date: datetime | None
@@ -64,6 +64,7 @@ class TaskInstanceResponse(BaseModel):
     queue: str | None
     priority_weight: int | None
     operator: str | None
+    operator_name: str | None
     queued_dttm: datetime | None = Field(alias="queued_when")
     scheduled_dttm: datetime | None = Field(alias="scheduled_when")
     pid: int | None
@@ -77,12 +78,13 @@ class TaskInstanceResponse(BaseModel):
     )
     trigger: TriggerResponse | None
     queued_by_job: JobResponse | None = Field(alias="triggerer_job")
+    dag_version: DagVersionResponse | None
 
 
 class TaskInstanceCollectionResponse(BaseModel):
     """Task Instance Collection serializer for responses."""
 
-    task_instances: list[TaskInstanceResponse]
+    task_instances: Iterable[TaskInstanceResponse]
     total_entries: int
 
 
@@ -106,62 +108,38 @@ class TaskInstancesBatchBody(StrictBaseModel):
     dag_run_ids: list[str] | None = None
     task_ids: list[str] | None = None
     state: list[TaskInstanceState | None] | None = None
+
     run_after_gte: AwareDatetime | None = None
+    run_after_gt: AwareDatetime | None = None
     run_after_lte: AwareDatetime | None = None
+    run_after_lt: AwareDatetime | None = None
+
     logical_date_gte: AwareDatetime | None = None
+    logical_date_gt: AwareDatetime | None = None
     logical_date_lte: AwareDatetime | None = None
+    logical_date_lt: AwareDatetime | None = None
+
     start_date_gte: AwareDatetime | None = None
+    start_date_gt: AwareDatetime | None = None
     start_date_lte: AwareDatetime | None = None
+    start_date_lt: AwareDatetime | None = None
+
     end_date_gte: AwareDatetime | None = None
+    end_date_gt: AwareDatetime | None = None
     end_date_lte: AwareDatetime | None = None
+    end_date_lt: AwareDatetime | None = None
+
     duration_gte: float | None = None
+    duration_gt: float | None = None
     duration_lte: float | None = None
+    duration_lt: float | None = None
+
     pool: list[str] | None = None
     queue: list[str] | None = None
     executor: list[str] | None = None
     page_offset: NonNegativeInt = 0
     page_limit: NonNegativeInt = 100
     order_by: str | None = None
-
-
-class TaskInstanceHistoryResponse(BaseModel):
-    """TaskInstanceHistory serializer for responses."""
-
-    task_id: str
-    dag_id: str
-
-    # todo: this should not be aliased; it's ambiguous with dag run's "id" - airflow 3.0
-    run_id: str = Field(alias="dag_run_id")
-
-    map_index: int
-    start_date: datetime | None
-    end_date: datetime | None
-    duration: float | None
-    state: TaskInstanceState | None
-    try_number: int
-    max_tries: int
-    task_display_name: str
-    dag_display_name: str = Field(validation_alias=AliasPath("dag_run", "dag_model", "dag_display_name"))
-    hostname: str | None
-    unixname: str | None
-    pool: str
-    pool_slots: int
-    queue: str | None
-    priority_weight: int | None
-    operator: str | None
-    queued_dttm: datetime | None = Field(alias="queued_when")
-    scheduled_dttm: datetime | None = Field(alias="scheduled_when")
-    pid: int | None
-    executor: str | None
-    executor_config: Annotated[str, BeforeValidator(str)]
-    dag_version: DagVersionResponse | None
-
-
-class TaskInstanceHistoryCollectionResponse(BaseModel):
-    """TaskInstanceHistory Collection serializer for responses."""
-
-    task_instances: list[TaskInstanceHistoryResponse]
-    total_entries: int
 
 
 class ClearTaskInstancesBody(StrictBaseModel):
@@ -173,7 +151,11 @@ class ClearTaskInstancesBody(StrictBaseModel):
     only_failed: bool = True
     only_running: bool = False
     reset_dag_runs: bool = True
-    task_ids: list[str | tuple[str, int]] | None = None
+    task_ids: list[str | tuple[str, int]] | None = Field(
+        default=None,
+        description="A list of `task_id` or [`task_id`, `map_index`]. "
+        "If only the `task_id` is provided for a mapped task, all of its map indices will be targeted.",
+    )
     dag_run_id: str | None = None
     include_upstream: bool = False
     include_downstream: bool = False
@@ -184,6 +166,7 @@ class ClearTaskInstancesBody(StrictBaseModel):
         description="(Experimental) Run on the latest bundle version of the dag after "
         "clearing the task instances.",
     )
+    prevent_running_task: bool = False
 
     @model_validator(mode="before")
     @classmethod
@@ -236,3 +219,5 @@ class BulkTaskInstanceBody(PatchTaskInstanceBody, StrictBaseModel):
 
     task_id: str
     map_index: int | None = None
+    dag_id: str | None = None
+    dag_run_id: str | None = None

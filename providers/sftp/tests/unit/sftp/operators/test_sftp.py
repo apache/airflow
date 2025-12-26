@@ -26,9 +26,9 @@ from unittest import mock
 import paramiko
 import pytest
 
-from airflow.exceptions import AirflowException
 from airflow.models import DAG, Connection
 from airflow.providers.common.compat.openlineage.facet import Dataset
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.sftp.hooks.sftp import SFTPHook
 from airflow.providers.sftp.operators.sftp import SFTPOperation, SFTPOperator
 from airflow.providers.ssh.hooks.ssh import SSHHook
@@ -95,6 +95,21 @@ class TestSFTPOperator:
             os.remove(self.test_remote_filepath_int_dir)
         if os.path.exists(self.test_remote_dir):
             os.rmdir(self.test_remote_dir)
+
+    def test_default_args(self):
+        operator = SFTPOperator(
+            task_id="test_default_args",
+            remote_filepath="/tmp/remote_file",
+        )
+        assert operator.operation == SFTPOperation.PUT
+        assert operator.confirm is True
+        assert operator.create_intermediate_dirs is False
+        assert operator.concurrency == 1
+        assert operator.prefetch is True
+        assert operator.local_filepath is None
+        assert operator.sftp_hook is None
+        assert operator.ssh_conn_id is None
+        assert operator.remote_host is None
 
     @pytest.mark.skipif(AIRFLOW_V_3_0_PLUS, reason="Pickle support is removed in Airflow 3")
     @conf_vars({("core", "enable_xcom_pickling"): "True"})
@@ -374,7 +389,7 @@ class TestSFTPOperator:
         assert task_3.sftp_hook.remote_host == "remotehost"
 
     def test_unequal_local_remote_file_paths(self):
-        with pytest.raises(ValueError):
+        with pytest.raises(ValueError, match="1 paths in local_filepath != 2 paths in remote_filepath"):
             SFTPOperator(
                 task_id="test_sftp_unequal_paths",
                 local_filepath="/tmp/test",
@@ -442,8 +457,7 @@ class TestSFTPOperator:
             concurrency=2,
         ).execute(None)
         assert mock_get.call_count == 1
-        args, _ = mock_get.call_args_list[0]
-        assert args == (remote_dirpath, local_dirpath)
+        assert mock_get.call_args == mock.call(remote_dirpath, local_dirpath, workers=2, prefetch=True)
 
     @mock.patch("airflow.providers.sftp.operators.sftp.SFTPHook.store_file")
     def test_str_filepaths_put(self, mock_get):
@@ -579,7 +593,7 @@ class TestSFTPOperator:
             ).execute(None)
 
     @pytest.mark.parametrize(
-        "operation, expected",
+        ("operation", "expected"),
         TEST_GET_PUT_PARAMS,
     )
     @mock.patch("airflow.providers.ssh.hooks.ssh.SSHHook.get_conn", spec=paramiko.SSHClient)
@@ -610,7 +624,7 @@ class TestSFTPOperator:
         assert lineage.outputs == expected[1]
 
     @pytest.mark.parametrize(
-        "operation, expected",
+        ("operation", "expected"),
         TEST_GET_PUT_PARAMS,
     )
     @mock.patch("airflow.providers.ssh.hooks.ssh.SSHHook.get_conn", spec=paramiko.SSHClient)

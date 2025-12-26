@@ -125,7 +125,7 @@ if TYPE_CHECKING:
 @click.group(
     cls=BreezeGroup, name="ci-image", help="Tools that developers can use to manually manage CI images"
 )
-def ci_image():
+def ci_image_group():
     pass
 
 
@@ -176,7 +176,7 @@ def run_build_in_parallel(
             ]
     check_async_run_results(
         results=results,
-        success="All images built correctly",
+        success_message="All images built correctly",
         outputs=outputs,
         include_success_outputs=include_success_outputs,
         skip_cleanup=skip_cleanup,
@@ -235,7 +235,7 @@ option_ci_image_file_to_load = click.option(
 )
 
 
-@ci_image.command(name="build")
+@ci_image_group.command(name="build")
 @option_additional_airflow_extras
 @option_additional_dev_apt_command
 @option_additional_dev_apt_deps
@@ -404,7 +404,7 @@ def build(
         run_build(ci_image_params=base_build_params)
 
 
-@ci_image.command(name="pull")
+@ci_image_group.command(name="pull")
 @option_python
 @option_run_in_parallel
 @option_parallelism
@@ -505,14 +505,14 @@ def run_verify_in_parallel(
             ]
     check_async_run_results(
         results=results,
-        success="All images verified",
+        success_message="All images verified",
         outputs=outputs,
         include_success_outputs=include_success_outputs,
         skip_cleanup=skip_cleanup,
     )
 
 
-@ci_image.command(name="save")
+@ci_image_group.command(name="save")
 @option_ci_image_file_to_save
 @option_github_repository
 @option_image_file_dir
@@ -551,7 +551,7 @@ def save(
         sys.exit(result.returncode)
 
 
-@ci_image.command(name="load")
+@ci_image_group.command(name="load")
 @option_ci_image_file_to_load
 @option_dry_run
 @option_from_run
@@ -630,7 +630,7 @@ def load(
     mark_image_as_rebuilt(ci_image_params=build_ci_params)
 
 
-@ci_image.command(
+@ci_image_group.command(
     name="verify",
     context_settings=dict(
         ignore_unknown_options=True,
@@ -825,9 +825,7 @@ def run_build_ci_image(
         process = subprocess.run(
             [
                 sys.executable,
-                os.fspath(
-                    AIRFLOW_ROOT_PATH / "scripts" / "ci" / "pre_commit" / "update_providers_dependencies.py"
-                ),
+                os.fspath(AIRFLOW_ROOT_PATH / "scripts" / "ci" / "prek" / "update_providers_dependencies.py"),
             ],
             check=False,
         )
@@ -917,7 +915,7 @@ def rebuild_or_pull_ci_image_if_needed(command_params: ShellParams | BuildCiPara
             sys.exit(return_code)
 
 
-@ci_image.command(name="export-mount-cache")
+@ci_image_group.command(name="export-mount-cache")
 @click.option(
     "--cache-file",
     required=True,
@@ -932,7 +930,7 @@ def export_mount_cache(
     cache_file: Path,
 ):
     """
-    Export content of the the mount cache to a directory.
+    Export content of the mount cache to a directory.
     """
     perform_environment_checks()
     make_sure_builder_configured(params=BuildCiParams(builder=builder))
@@ -982,7 +980,7 @@ def export_mount_cache(
     get_console().print(f"[success]Exported mount cache to {cache_file}[/]")
 
 
-@ci_image.command(name="import-mount-cache")
+@ci_image_group.command(name="import-mount-cache")
 @click.option(
     "--cache-file",
     required=True,
@@ -997,7 +995,7 @@ def import_mount_cache(
     cache_file: Path,
 ):
     """
-    Export content of the the mount cache to a directory.
+    Export content of the mount cache to a directory.
     """
     perform_environment_checks()
     make_sure_builder_configured(params=BuildCiParams(builder=builder))

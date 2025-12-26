@@ -25,15 +25,19 @@ from unittest.mock import MagicMock, call, patch
 import pytest
 from jinja2 import StrictUndefined
 
-from airflow.exceptions import AirflowException, TaskDeferred
 from airflow.models import DAG, DagRun, TaskInstance
-from airflow.models.serialized_dag import SerializedDagModel
 from airflow.providers.amazon.aws.operators.emr import EmrAddStepsOperator
 from airflow.providers.amazon.aws.triggers.emr import EmrAddStepsTrigger
-from airflow.utils import timezone
+from airflow.providers.common.compat.sdk import AirflowException, TaskDeferred
+
+try:
+    from airflow.sdk import timezone
+except ImportError:
+    from airflow.utils import timezone  # type: ignore[attr-defined,no-redef]
 from airflow.utils.state import DagRunState
 from airflow.utils.types import DagRunType
 
+from tests_common.test_utils.dag import sync_dag_to_db
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 from unit.amazon.aws.utils.test_template_fields import validate_template_fields
 
@@ -84,7 +88,7 @@ class TestEmrAddStepsOperator:
         assert op.aws_conn_id == "aws_default"
 
     @pytest.mark.parametrize(
-        "job_flow_id, job_flow_name",
+        ("job_flow_id", "job_flow_name"),
         [
             pytest.param("j-8989898989", "test_cluster", id="both-specified"),
             pytest.param(None, None, id="both-none"),
@@ -100,12 +104,11 @@ class TestEmrAddStepsOperator:
             )
 
     @pytest.mark.db_test
-    def test_render_template(self, session, clean_dags_and_dagruns):
+    def test_render_template(self, session, clean_dags_dagruns_and_dagbundles, testing_dag_bundle):
         if AIRFLOW_V_3_0_PLUS:
-            self.operator.dag.sync_to_db()
-            SerializedDagModel.write_dag(self.operator.dag, bundle_name="testing")
             from airflow.models.dag_version import DagVersion
 
+            sync_dag_to_db(self.operator.dag)
             dag_version = DagVersion.get_latest_version(self.operator.dag.dag_id)
             ti = TaskInstance(task=self.operator, dag_version_id=dag_version.id)
             dag_run = DagRun(
@@ -147,7 +150,9 @@ class TestEmrAddStepsOperator:
         assert self.operator.steps == expected_args
 
     @pytest.mark.db_test
-    def test_render_template_from_file(self, mocked_hook_client, session, clean_dags_and_dagruns):
+    def test_render_template_from_file(
+        self, mocked_hook_client, session, clean_dags_dagruns_and_dagbundles, testing_dag_bundle
+    ):
         dag = DAG(
             dag_id="test_file",
             schedule=None,
@@ -175,10 +180,9 @@ class TestEmrAddStepsOperator:
             do_xcom_push=False,
         )
         if AIRFLOW_V_3_0_PLUS:
-            dag.sync_to_db()
-            SerializedDagModel.write_dag(dag, bundle_name="testing")
             from airflow.models.dag_version import DagVersion
 
+            sync_dag_to_db(dag)
             dag_version = DagVersion.get_latest_version(dag.dag_id)
             ti = TaskInstance(task=test_task, dag_version_id=dag_version.id)
             dag_run = DagRun(

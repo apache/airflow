@@ -159,7 +159,23 @@ class TestAdminClientHook:
             mock_subscription_properties
         )
         hook = AdminClientHook(azure_service_bus_conn_id=self.conn_id)
-        hook.create_subscription(topic_name, subscription_name)
+        hook.create_subscription(topic_name, subscription_name, dead_lettering_on_message_expiration=False)
+
+        mock_sb_admin_client.return_value.__enter__.return_value.create_subscription.assert_called_once_with(
+            topic_name=topic_name,
+            subscription_name=subscription_name,
+            lock_duration=None,
+            requires_session=None,
+            default_message_time_to_live=None,
+            dead_lettering_on_message_expiration=False,
+            dead_lettering_on_filter_evaluation_exceptions=None,
+            max_delivery_count=10,
+            enable_batched_operations=True,
+            forward_to=None,
+            user_metadata=None,
+            forward_dead_lettered_messages_to=None,
+            auto_delete_on_idle=None,
+        )
         assert mock_subscription_properties.name == subscription_name
 
     # Test creating subscription with topic name, subscription name, correlation rule and rule naame
@@ -234,7 +250,7 @@ class TestAdminClientHook:
         mock_sb_admin_client.assert_has_calls(expected_calls)
 
     @pytest.mark.parametrize(
-        "mock_subscription_name, mock_topic_name",
+        ("mock_subscription_name", "mock_topic_name"),
         [("subscription_1", None), (None, "topic_1")],
     )
     @mock.patch(f"{MODULE}.AdminClientHook")
@@ -294,7 +310,7 @@ class TestMessageHook:
         )
 
     @pytest.mark.parametrize(
-        "mock_message, mock_batch_flag",
+        ("mock_message", "mock_batch_flag"),
         [
             (MESSAGE, True),
             (MESSAGE, False),
@@ -510,7 +526,7 @@ class TestMessageHook:
         assert len(received_messages) == 2
 
     @pytest.mark.parametrize(
-        "mock_subscription_name, mock_topic_name, mock_max_count, mock_wait_time",
+        ("mock_subscription_name", "mock_topic_name", "mock_max_count", "mock_wait_time"),
         [("subscription_1", None, None, None), (None, "topic_1", None, None)],
     )
     @mock.patch(f"{MODULE}.MessageHook.get_conn")

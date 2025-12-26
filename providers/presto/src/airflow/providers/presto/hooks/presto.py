@@ -1,4 +1,3 @@
-#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -26,13 +25,11 @@ import prestodb
 from deprecated import deprecated
 from prestodb.exceptions import DatabaseError
 from prestodb.transaction import IsolationLevel
+from sqlalchemy.engine import URL
 
 from airflow.configuration import conf
-from airflow.exceptions import (
-    AirflowException,
-    AirflowOptionalProviderFeatureException,
-    AirflowProviderDeprecationWarning,
-)
+from airflow.exceptions import AirflowOptionalProviderFeatureException, AirflowProviderDeprecationWarning
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.common.sql.hooks.sql import DbApiHook
 from airflow.providers.presto.version_compat import AIRFLOW_V_3_0_PLUS
 
@@ -149,6 +146,41 @@ class PrestoHook(DbApiHook):
             presto_conn._http_session.verify = _boolify(extra["verify"])
 
         return presto_conn
+
+    @property
+    def sqlalchemy_url(self) -> URL:
+        """Return a `sqlalchemy.engine.URL` object constructed from the connection."""
+        conn = self.get_connection(self.get_conn_id())
+        extra = conn.extra_dejson or {}
+
+        required_attrs = ["host", "login", "port"]
+        for attr in required_attrs:
+            if getattr(conn, attr) is None:
+                raise ValueError(f"Presto connections error: '{attr}' is missing in the connection")
+        # adding only when **kwargs are given by user
+        query = {
+            k: v
+            for k, v in {
+                "schema": conn.schema,
+                "protocol": extra.get("protocol"),
+                "source": extra.get("source"),
+                "catalog": extra.get("catalog"),
+            }.items()
+            if v is not None
+        }
+        return URL.create(
+            drivername="presto",
+            username=conn.login,
+            password=conn.password or "",
+            host=str(conn.host),
+            port=conn.port,
+            database=extra.get("catalog"),
+            query=query,
+        )
+
+    def get_uri(self) -> str:
+        """Return a SQLAlchemy engine URL as a string."""
+        return self.sqlalchemy_url.render_as_string(hide_password=False)
 
     def get_isolation_level(self) -> Any:
         """Return an isolation level."""

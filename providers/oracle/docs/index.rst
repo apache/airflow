@@ -56,7 +56,7 @@
     :maxdepth: 1
     :caption: Resources
 
-    Example DAGs <_api/airflow/providers/oracle/example_dags/index>
+    Example Dags <_api/airflow/providers/oracle/example_dags/index>
     PyPI Repository <https://pypi.org/project/apache-airflow-providers-oracle/>
     Installing from sources <installing-providers-from-sources>
 
@@ -74,12 +74,10 @@
 apache-airflow-providers-oracle package
 ------------------------------------------------------
 
-`Oracle <https://www.oracle.com/en/database/>`__
+`Oracle <https://www.oracle.com/database/technologies/>`__
 
 
-Release: 4.1.3
-
-Release Date: ``|PypiReleaseDate|``
+Release: 4.3.0
 
 Provider package
 ----------------
@@ -90,22 +88,23 @@ All classes for this package are included in the ``airflow.providers.oracle`` py
 Installation
 ------------
 
-You can install this package on top of an existing Airflow 2 installation via
+You can install this package on top of an existing Airflow installation via
 ``pip install apache-airflow-providers-oracle``.
 For the minimum Airflow version supported, see ``Requirements`` below.
 
 Requirements
 ------------
 
-The minimum Apache Airflow version supported by this provider distribution is ``2.10.0``.
+The minimum Apache Airflow version supported by this provider distribution is ``2.11.0``.
 
-=======================================  ==================
-PIP package                              Version required
-=======================================  ==================
-``apache-airflow``                       ``>=2.10.0``
-``apache-airflow-providers-common-sql``  ``>=1.20.0``
-``oracledb``                             ``>=2.0.0``
-=======================================  ==================
+==========================================  ==================
+PIP package                                 Version required
+==========================================  ==================
+``apache-airflow``                          ``>=2.11.0``
+``apache-airflow-providers-common-compat``  ``>=1.8.0``
+``apache-airflow-providers-common-sql``     ``>=1.20.0``
+``oracledb``                                ``>=2.0.0``
+==========================================  ==================
 
 Cross provider package dependencies
 -----------------------------------
@@ -117,14 +116,16 @@ You can install such cross-provider dependencies when installing from PyPI. For 
 
 .. code-block:: bash
 
-    pip install apache-airflow-providers-oracle[common.sql]
+    pip install apache-airflow-providers-oracle[common.compat]
 
 
-============================================================================================================  ==============
-Dependent package                                                                                             Extra
-============================================================================================================  ==============
-`apache-airflow-providers-common-sql <https://airflow.apache.org/docs/apache-airflow-providers-common-sql>`_  ``common.sql``
-============================================================================================================  ==============
+==================================================================================================================  =================
+Dependent package                                                                                                   Extra
+==================================================================================================================  =================
+`apache-airflow-providers-common-compat <https://airflow.apache.org/docs/apache-airflow-providers-common-compat>`_  ``common.compat``
+`apache-airflow-providers-common-sql <https://airflow.apache.org/docs/apache-airflow-providers-common-sql>`_        ``common.sql``
+`apache-airflow-providers-openlineage <https://airflow.apache.org/docs/apache-airflow-providers-openlineage>`_      ``openlineage``
+==================================================================================================================  =================
 
 Downloading official packages
 -----------------------------
@@ -132,5 +133,5 @@ Downloading official packages
 You can download officially released packages and verify their checksums and signatures from the
 `Official Apache Download site <https://downloads.apache.org/airflow/providers/>`_
 
-* `The apache-airflow-providers-oracle 4.1.3 sdist package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_oracle-4.1.3.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_oracle-4.1.3.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_oracle-4.1.3.tar.gz.sha512>`__)
-* `The apache-airflow-providers-oracle 4.1.3 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_oracle-4.1.3-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_oracle-4.1.3-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_oracle-4.1.3-py3-none-any.whl.sha512>`__)
+* `The apache-airflow-providers-oracle 4.3.0 sdist package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_oracle-4.3.0.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_oracle-4.3.0.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_oracle-4.3.0.tar.gz.sha512>`__)
+* `The apache-airflow-providers-oracle 4.3.0 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_oracle-4.3.0-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_oracle-4.3.0-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_oracle-4.3.0-py3-none-any.whl.sha512>`__)

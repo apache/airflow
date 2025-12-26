@@ -23,15 +23,26 @@ from airflow.api_fastapi.execution_api.versions.v2025_04_28 import AddRenderedMa
 from airflow.api_fastapi.execution_api.versions.v2025_05_20 import DowngradeUpstreamMapIndexes
 from airflow.api_fastapi.execution_api.versions.v2025_08_10 import (
     AddDagRunStateFieldAndPreviousEndpoint,
-    AddDagVersionIdField,
     AddIncludePriorDatesToGetXComSlice,
+)
+from airflow.api_fastapi.execution_api.versions.v2025_09_23 import AddDagVersionIdField
+from airflow.api_fastapi.execution_api.versions.v2025_10_27 import MakeDagRunConfNullable
+from airflow.api_fastapi.execution_api.versions.v2025_11_05 import AddTriggeringUserNameField
+from airflow.api_fastapi.execution_api.versions.v2025_11_07 import AddPartitionKeyField
+from airflow.api_fastapi.execution_api.versions.v2025_12_08 import (
+    AddDagRunDetailEndpoint,
+    MovePreviousRunEndpoint,
 )
 
 bundle = VersionBundle(
     HeadVersion(),
+    Version("2025-12-08", MovePreviousRunEndpoint, AddDagRunDetailEndpoint),
+    Version("2025-11-07", AddPartitionKeyField),
+    Version("2025-11-05", AddTriggeringUserNameField),
+    Version("2025-10-27", MakeDagRunConfNullable),
+    Version("2025-09-23", AddDagVersionIdField),
     Version(
         "2025-08-10",
-        AddDagVersionIdField,
         AddDagRunStateFieldAndPreviousEndpoint,
         AddIncludePriorDatesToGetXComSlice,
     ),

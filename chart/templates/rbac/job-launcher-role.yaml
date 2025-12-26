@@ -63,5 +63,5 @@ rules:
       - "jobs/status"
     verbs:
       - "get"
-      - watch"
+      - "watch"
 {{- end }}

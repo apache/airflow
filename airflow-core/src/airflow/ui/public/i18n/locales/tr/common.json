@@ -1,0 +1,330 @@
+{
+  "admin": {
+    "Config": "Yapılandırma",
+    "Connections": "Bağlantılar",
+    "Plugins": "Eklentiler",
+    "Pools": "Havuzlar",
+    "Providers": "Sağlayıcılar",
+    "Variables": "Değişkenler"
+  },
+  "allOperators": "Bütün Operatörler",
+  "appearance": {
+    "appearance": "Görünüm",
+    "darkMode": "Karanlık Mod",
+    "lightMode": "Aydınlık Mod",
+    "systemMode": "Sistem Ayarını Uygula"
+  },
+  "asset_one": "Varlık",
+  "asset_other": "Varlıklar",
+  "assetEvent_one": "Varlık Etkinliği",
+  "assetEvent_other": "Varlık Etkinlikleri",
+  "backfill_one": "Geriye Dönük Çalıştırma",
+  "backfill_other": "Geriye Dönük Çalıştırmalar",
+  "browse": {
+    "auditLog": "Denetim Günlüğü",
+    "requiredActions": "Gerekli Eylemler",
+    "xcoms": "XCom'lar"
+  },
+  "collapseAllExtra": "Tüm ek JSON'ları daralt",
+  "collapseDetailsPanel": "Detay Panelini Daralt",
+  "createdAssetEvent_one": "Oluşturulan Varlık Etkinliği",
+  "createdAssetEvent_other": "Oluşturulan Varlık Etkinlikleri",
+  "dag_one": "Dag",
+  "dag_other": "Dag'ler",
+  "dagDetails": {
+    "catchup": "Yakalama",
+    "dagRunTimeout": "Dag Çalıştırma Zaman Aşımı",
+    "defaultArgs": "Varsayılan Argümanlar",
+    "description": "Açıklama",
+    "documentation": "Dag Dokümantasyonu",
+    "fileLocation": "Dosya Konumu",
+    "hasTaskConcurrencyLimits": "Görev Eş Zamanlılık Limitleri Var",
+    "lastExpired": "Son Süresi Dolan",
+    "lastParseDuration": "Son Atrıştırma Süresi",
+    "lastParsed": "Son Ayrıştırılan",
+    "latestDagVersion": "En Son Dag Versiyonu",
+    "latestRun": "En Son Çalışma",
+    "maxActiveRuns": "Maksimum Aktif Çalışma",
+    "maxActiveTasks": "Maksimum Aktif Görev",
+    "maxConsecutiveFailedDagRuns": "Maksimum Ardışık Başarısız Dag Çalıştırmaları",
+    "nextRun": "Sonraki Çalışma",
+    "owner": "Sahip",
+    "params": "Parametreler",
+    "schedule": "Zamanlama",
+    "tags": "Etiketler"
+  },
+  "dagId": "Eşsiz Dag Kimliği",
+  "dagRun": {
+    "conf": "Yapılandırma",
+    "dagVersions": "Dag Versiyonu(ları)",
+    "dataIntervalEnd": "Veri Aralığı Sonu",
+    "dataIntervalStart": "Veri Aralığı Başlangıcı",
+    "lastSchedulingDecision": "Son Zamanlama Kararı",
+    "partitionKey": "Bölüm Anahtarı",
+    "queuedAt": "Kuyruğa Alınma Zamanı",
+    "runAfter": "Sonra Çalıştır",
+    "runType": "Çalıştırma Tipi",
+    "sourceAssetEvent": "Kaynak Varlık Etkinliği",
+    "triggeredBy": "Tetikleyen",
+    "triggeringUser": "Çalıştıran Kullanıcı"
+  },
+  "dagRun_one": "Dag Çalıştırması",
+  "dagRun_other": "Dag Çalıştırmaları",
+  "dagRunId": "Eşsiz Dag Çalıştırma Kimliği",
+  "dagWarnings": "Dag Uyarıları/Hataları",
+  "defaultToGraphView": "Varsayılan olarak grafik görünümü",
+  "defaultToGridView": "Varsayılan olarak ızgara görünümü",
+  "direction": "Yön",
+  "docs": {
+    "documentation": "Dokümantasyon",
+    "githubRepo": "GitHub Deposu",
+    "restApiReference": "REST API Referansı"
+  },
+  "download": {
+    "download": "İndir",
+    "hotkey": "d",
+    "tooltip": "{{hotkey}} tuşuna basarak indir"
+  },
+  "duration": "Süre",
+  "endDate": "Bitiş Tarihi",
+  "error": {
+    "back": "Geri",
+    "defaultMessage": "Beklenmeyen bir hata oluştu",
+    "home": "Ana Sayfa",
+    "invalidUrl": "Sayfa Bulunamadı. Lütfen URL'yi kontrol edin ve tekrar deneyin.",
+    "notFound": "Sayfa Bulunamadı",
+    "title": "Hata"
+  },
+  "expand": {
+    "collapse": "Daralt",
+    "expand": "Genişlet",
+    "hotkey": "e",
+    "tooltip": "{{hotkey}} tuşuna basarak genişletmeyi değiştir"
+  },
+  "expandAllExtra": "Tüm ek JSON'ları genişlet",
+  "expression": {
+    "all": "Tümü",
+    "and": "VE",
+    "any": "Herhangi",
+    "or": "VEYA"
+  },
+  "filter": "Filtre",
+  "filters": {
+    "durationFrom": "Süre Başlangıcı",
+    "durationTo": "Süre Bitişi",
+    "endTime": "Bitiş Zamanı",
+    "logicalDateFrom": "Mantıksal tarih başlangıcı",
+    "logicalDateTo": "Mantıksal tarih bitişi",
+    "runAfterFrom": "Şu tarihten sonra çalıştır (başlangıç)",
+    "runAfterTo": "Şu tarihten sonra çalıştır (bitiş)",
+    "selectDateRange": "Lütfen bir tarih aralığı seçin",
+    "startTime": "Başlangıç Zamanı"
+  },
+  "logicalDate": "Mantıksal Tarih",
+  "logout": "Çıkış",
+  "logoutConfirmation": "Uygulamadan çıkış yapmak üzeresiniz.",
+  "mapIndex": "Harita İndeksi",
+  "modal": {
+    "cancel": "İptal",
+    "confirm": "Onayla",
+    "delete": {
+      "button": "Sil",
+      "confirmation": "{{resourceName}} öğesini silmek istediğinizden emin misiniz? Bu işlem geri alınamaz."
+    }
+  },
+  "nav": {
+    "admin": "Yönetici",
+    "assets": "Varlıklar",
+    "browse": "Göz At",
+    "dags": "Dag'ler",
+    "docs": "Dokümantasyon",
+    "home": "Ana Sayfa",
+    "legacyFabViews": "Airflow 2 Fab Görünümleri",
+    "plugins": "Eklentiler",
+    "security": "Güvenlik"
+  },
+  "noItemsFound": "Hiç {{modelName}} bulunamadı",
+  "note": {
+    "add": "Not ekle",
+    "dagRun": "Dag Çalıştırma Notu",
+    "label": "Not",
+    "placeholder": "Not ekle...",
+    "taskInstance": "Görev Örneği Notu"
+  },
+  "pools": {
+    "deferred": "Ertelenmiş",
+    "open": "Açık",
+    "pools_one": "Havuz",
+    "pools_other": "Havuzlar",
+    "queued": "Kuyrukta",
+    "running": "Çalışıyor",
+    "scheduled": "Planlanmış"
+  },
+  "reset": "Sıfırla",
+  "runId": "Çalıştırma Kimliği",
+  "runTypes": {
+    "asset_triggered": "Varlık Tetiklemeli",
+    "backfill": "Geriye Dönük Çalıştırma",
+    "manual": "Manuel",
+    "scheduled": "Planlanmış"
+  },
+  "scroll": {
+    "direction": {
+      "bottom": "alt",
+      "top": "üst"
+    },
+    "tooltip": "{{direction}} kaydırmak için {{hotkey}} tuşuna basın"
+  },
+  "security": {
+    "actions": "Eylemler",
+    "permissions": "İzinler",
+    "resources": "Kaynaklar",
+    "roles": "Roller",
+    "users": "Kullanıcılar"
+  },
+  "selectLanguage": "Dil Seçin",
+  "showDetailsPanel": "Detay Panelini Göster",
+  "source": {
+    "hide": "Kaynağı Gizle",
+    "hotkey": "s",
+    "show": "Kaynağı Göster"
+  },
+  "sourceAssetEvent_one": "Kaynak Varlık Etkinliği",
+  "sourceAssetEvent_other": "Kaynak Varlık Etkinlikleri",
+  "startDate": "Başlangıç Tarihi",
+  "state": "Durum",
+  "states": {
+    "deferred": "Ertelenmiş",
+    "failed": "Başarısız",
+    "no_status": "Durum Yok",
+    "none": "Durum Yok",
+    "planned": "Planlanmış",
+    "queued": "Kuyrukta",
+    "removed": "Kaldırılmış",
+    "restarting": "Yeniden Başlatılıyor",
+    "running": "Çalışıyor",
+    "scheduled": "Planlanmış",
+    "skipped": "Atlanmış",
+    "success": "Başarılı",
+    "up_for_reschedule": "Yeniden Zamanlanacak",
+    "up_for_retry": "Yeniden Denenecek",
+    "upstream_failed": "Yukarı Akış Başarısız"
+  },
+  "table": {
+    "completedAt": "Tamamlanma Tarihi",
+    "createdAt": "Oluşturulma Tarihi",
+    "filterByTag": "Dag'ları etikete göre filtrele",
+    "filterColumns": "Tablo sütunlarını filtrele",
+    "filterReset_one": "Filtreyi sıfırla",
+    "filterReset_other": "Filtreleri sıfırla",
+    "from": "Başlangıç",
+    "maxActiveRuns": "Maksimum Aktif Dag Çalıştırmaları",
+    "noTagsFound": "Etiket bulunamadı",
+    "tagMode": {
+      "all": "Tümü",
+      "any": "Herhangi"
+    },
+    "tagPlaceholder": "Etikete göre filtrele",
+    "to": "Bitiş"
+  },
+  "task": {
+    "documentation": "Görev Dokümantasyonu",
+    "lastInstance": "Son Örnek",
+    "operator": "Operatör",
+    "triggerRule": "Tetikleme Kuralı"
+  },
+  "task_one": "Görev",
+  "task_other": "Görevler",
+  "taskGroup": "Görev Grubu",
+  "taskId": "Görev Kimliği",
+  "taskInstance": {
+    "dagVersion": "Dag Versiyonu",
+    "executor": "Yürütücü",
+    "executorConfig": "Yürütücü Yapılandırması",
+    "hostname": "Sunucu Adı",
+    "maxTries": "Maksimum Deneme",
+    "pid": "PID",
+    "pool": "İşlem Havuzu",
+    "poolSlots": "İşlem Havuz Kotaları",
+    "priorityWeight": "Öncelik Ağırlığı",
+    "queue": "Kuyruk",
+    "queuedWhen": "Kuyruğa Alınma",
+    "scheduledWhen": "Planlanma",
+    "triggerer": {
+      "assigned": "Atanmış tetikleyici",
+      "class": "Tetikleyici sınıfı",
+      "createdAt": "Tetikleyici oluşturma zamanı",
+      "id": "Tetikleyici Kimliği",
+      "latestHeartbeat": "En son tetikleyici kalp atışı",
+      "title": "Tetikleyici Bilgisi"
+    },
+    "unixname": "Unix Adı"
+  },
+  "taskInstance_one": "Görev Örneği",
+  "taskInstance_other": "Görev Örnekleri",
+  "timeRange": {
+    "last12Hours": "Son 12 Saat",
+    "last24Hours": "Son 24 Saat",
+    "lastHour": "Son Saat",
+    "pastWeek": "Geçen Hafta"
+  },
+  "timestamp": {
+    "hide": "Zaman damgalarını gizle",
+    "hotkey": "t",
+    "show": "Zaman damgalarını göster"
+  },
+  "timezone": "Saat Dilimi",
+  "timezoneModal": {
+    "current-timezone": "Şu andaki saat",
+    "placeholder": "Bir saat dilimi seçin",
+    "title": "Saat Dilimi Seçin",
+    "utc": "UTC (Koordineli Evrensel Saat)"
+  },
+  "toaster": {
+    "bulkDelete": {
+      "error": "Toplu {{resourceName}} Silme İsteği Başarısız",
+      "success": {
+        "description": "{{count}} {{resourceName}} başarıyla silindi. Anahtarlar: {{keys}}",
+        "title": "Toplu {{resourceName}} Silme İsteği Gönderildi"
+      }
+    },
+    "create": {
+      "error": "{{resourceName}} Oluşturma İsteği Başarısız",
+      "success": {
+        "description": "{{resourceName}} başarıyla oluşturuldu.",
+        "title": "{{resourceName}} Oluşturma İsteği Gönderildi"
+      }
+    },
+    "delete": {
+      "error": "{{resourceName}} Silme İsteği Başarısız",
+      "success": {
+        "description": "{{resourceName}} başarıyla silindi.",
+        "title": "{{resourceName}} Silme İsteği Gönderildi"
+      }
+    },
+    "import": {
+      "error": "{{resourceName}} İçe Aktarma İsteği Başarısız",
+      "success": {
+        "description": "{{count}} {{resourceName}} başarıyla içe aktarıldı.",
+        "title": "{{resourceName}} İçe Aktarma İsteği Gönderildi"
+      }
+    },
+    "update": {
+      "error": "{{resourceName}} Güncelleme İsteği Başarısız",
+      "success": {
+        "description": "{{resourceName}} başarıyla güncellendi.",
+        "title": "{{resourceName}} Güncelleme İsteği Gönderildi"
+      }
+    }
+  },
+  "total": "Tümü {{state}}",
+  "triggered": "Tetiklendi",
+  "tryNumber": "Deneme Sayısı",
+  "user": "Kullanıcı",
+  "wrap": {
+    "hotkey": "w",
+    "tooltip": "Kaydırmayı açıp kapatmak için {{hotkey}} tuşuna basın",
+    "unwrap": "Kaydırmayı Kapat",
+    "wrap": "Kaydır"
+  }
+}

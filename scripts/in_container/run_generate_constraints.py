@@ -370,6 +370,8 @@ def generate_constraints_pypi_providers(config_params: ConfigParams) -> None:
             "pip",
             "install",
             "--no-sources",
+            "--exact",
+            "--strict",
             "apache-airflow[all]",
             "apache-airflow-core[all]",
             "apache-airflow-task-sdk",

@@ -39,7 +39,7 @@ class TestEventBridgeHook:
 
     def test_put_rule_with_bad_json_fails(self):
         hook = EventBridgeHook(aws_conn_id="aws_default")
-        with pytest.raises(ValueError):
+        with pytest.raises(ValueError, match="`event_pattern` must be a valid JSON string."):
             hook.put_rule(
                 name="test",
                 event_pattern="invalid json",

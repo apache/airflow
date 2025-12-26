@@ -26,7 +26,7 @@ from uuid import uuid4
 
 import pendulum
 import pytest
-from sqlalchemy import inspect, text
+from sqlalchemy import func, inspect, select, text
 from sqlalchemy.exc import OperationalError, SQLAlchemyError
 from sqlalchemy.ext.declarative import DeclarativeMeta
 
@@ -35,8 +35,10 @@ from airflow._shared.timezones import timezone
 from airflow.exceptions import AirflowException
 from airflow.models import DagModel, DagRun, TaskInstance
 from airflow.models.dag_version import DagVersion
+from airflow.models.dagbundle import DagBundleModel
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.providers.standard.operators.python import PythonOperator
+from airflow.serialization.serialized_objects import LazyDeserializedDAG
 from airflow.utils.db_cleanup import (
     ARCHIVE_TABLE_PREFIX,
     CreateTableAs,
@@ -55,6 +57,7 @@ from airflow.utils.types import DagRunType
 
 from tests_common.test_utils.db import (
     clear_db_assets,
+    clear_db_dag_bundles,
     clear_db_dags,
     clear_db_runs,
     drop_tables_with_prefix,
@@ -69,10 +72,12 @@ def clean_database():
     clear_db_runs()
     clear_db_assets()
     clear_db_dags()
+    clear_db_dag_bundles()
     yield  # Test runs here
     clear_db_dags()
     clear_db_assets()
     clear_db_runs()
+    clear_db_dag_bundles()
 
 
 class TestDBCleanup:
@@ -81,7 +86,7 @@ class TestDBCleanup:
         drop_tables_with_prefix("_airflow_")
 
     @pytest.mark.parametrize(
-        "kwargs, called",
+        ("kwargs", "called"),
         [
             pytest.param(dict(confirm=True), True, id="true"),
             pytest.param(dict(), True, id="not supplied"),
@@ -105,7 +110,7 @@ class TestDBCleanup:
             confirm_delete_mock.assert_not_called()
 
     @pytest.mark.parametrize(
-        "kwargs, should_skip",
+        ("kwargs", "should_skip"),
         [
             pytest.param(dict(skip_archive=True), True, id="true"),
             pytest.param(dict(), False, id="not supplied"),
@@ -201,7 +206,7 @@ class TestDBCleanup:
             do_delete.assert_called()
 
     @pytest.mark.parametrize(
-        "table_name, date_add_kwargs, expected_to_delete, run_type",
+        ("table_name", "date_add_kwargs", "expected_to_delete", "run_type"),
         [
             pytest.param("task_instance", dict(days=0), 0, DagRunType.SCHEDULED, id="beginning"),
             pytest.param("task_instance", dict(days=4), 4, DagRunType.SCHEDULED, id="middle"),
@@ -249,7 +254,7 @@ class TestDBCleanup:
                 assert row[0] == expected_to_delete
 
     @pytest.mark.parametrize(
-        "table_name, date_add_kwargs, expected_to_delete, run_type",
+        ("table_name", "date_add_kwargs", "expected_to_delete", "run_type"),
         [
             pytest.param("task_instance", dict(days=0), 0, DagRunType.SCHEDULED, id="beginning"),
             pytest.param("task_instance", dict(days=4), 4, DagRunType.SCHEDULED, id="middle"),
@@ -297,16 +302,16 @@ class TestDBCleanup:
             )
             model = config_dict[table_name].orm_model
             expected_remaining = num_tis - expected_to_delete
-            assert len(session.query(model).all()) == expected_remaining
+            assert session.scalar(select(func.count()).select_from(model)) == expected_remaining
             if model.name == "task_instance":
-                assert len(session.query(DagRun).all()) == num_tis
+                assert session.scalar(select(func.count()).select_from(DagRun)) == num_tis
             elif model.name == "dag_run":
-                assert len(session.query(TaskInstance).all()) == expected_remaining
+                assert session.scalar(select(func.count()).select_from(TaskInstance)) == expected_remaining
             else:
                 raise Exception("unexpected")
 
     @pytest.mark.parametrize(
-        "table_name, expected_archived",
+        ("table_name", "expected_archived"),
         [
             (
                 "dag_run",
@@ -351,7 +356,7 @@ class TestDBCleanup:
             )
 
     @pytest.mark.parametrize(
-        "skip_archive, expected_archives",
+        ("skip_archive", "expected_archives"),
         [pytest.param(True, 0, id="skip_archive"), pytest.param(False, 1, id="do_archive")],
     )
     def test__skip_archive(self, skip_archive, expected_archives):
@@ -380,7 +385,7 @@ class TestDBCleanup:
                 skip_archive=skip_archive,
             )
             model = config_dict["dag_run"].orm_model
-            assert len(session.query(model).all()) == 5
+            assert session.scalar(select(func.count()).select_from(model)) == 5
             assert len(_get_archived_table_names(["dag_run"], session)) == expected_archives
 
     @patch("airflow.utils.db.reflect_tables")
@@ -672,11 +677,15 @@ class TestDBCleanup:
 
 def create_tis(base_date, num_tis, run_type=DagRunType.SCHEDULED):
     with create_session() as session:
+        bundle_name = "testing"
+        session.add(DagBundleModel(name=bundle_name))
+        session.flush()
+
         dag_id = f"test-dag_{uuid4()}"
         dag = DAG(dag_id=dag_id)
-        dm = DagModel(dag_id=dag_id)
+        dm = DagModel(dag_id=dag_id, bundle_name=bundle_name)
         session.add(dm)
-        SerializedDagModel.write_dag(dag, bundle_name="testing")
+        SerializedDagModel.write_dag(LazyDeserializedDAG.from_dag(dag), bundle_name=bundle_name)
         dag_version = DagVersion.get_latest_version(dag.dag_id)
         for num in range(num_tis):
             start_date = base_date.add(days=num)

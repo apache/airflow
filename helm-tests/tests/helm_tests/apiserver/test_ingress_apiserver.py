@@ -146,7 +146,7 @@ class TestIngressAPIServer:
         assert not jmespath.search("spec.rules[*].host", docs[0])
 
     @pytest.mark.parametrize(
-        "global_value, api_server_value, expected",
+        ("global_value", "api_server_value", "expected"),
         [
             (None, None, False),
             (None, False, False),

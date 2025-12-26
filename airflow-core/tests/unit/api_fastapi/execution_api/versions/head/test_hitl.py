@@ -16,18 +16,12 @@
 # under the License.
 from __future__ import annotations
 
-import pytest
-from httpx import Client
-
-from tests_common.test_utils.db import AIRFLOW_V_3_1_PLUS
-
-if not AIRFLOW_V_3_1_PLUS:
-    pytest.skip("Human in the loop public API compatible with Airflow >= 3.0.1", allow_module_level=True)
-
 from datetime import datetime
 from typing import TYPE_CHECKING, Any
 
+import pytest
 import time_machine
+from httpx import Client
 from uuid6 import uuid7
 
 from airflow._shared.timezones.timezone import convert_to_utc
@@ -51,11 +45,12 @@ default_hitl_detail_request_kwargs: dict[str, Any] = {
     "defaults": ["Approve"],
     "multiple": False,
     "params": {"input_1": 1},
+    "assignees": None,
 }
 expected_empty_hitl_detail_response_part: dict[str, Any] = {
-    "response_at": None,
-    "chosen_options": None,
-    "user_id": None,
+    "responded_at": None,
+    "chosen_options": [],
+    "responded_by_user": None,
     "params_input": {},
     "response_received": False,
 }
@@ -96,9 +91,9 @@ def expected_sample_hitl_detail_dict(sample_ti: TaskInstance) -> dict[str, Any]:
             **default_hitl_detail_request_kwargs,
             **{
                 "params_input": {"input_1": 2},
-                "response_at": convert_to_utc(datetime(2025, 7, 3, 0, 0, 0)),
+                "responded_at": convert_to_utc(datetime(2025, 7, 3, 0, 0, 0)),
                 "chosen_options": ["Reject"],
-                "user_id": "Fallback to defaults",
+                "responded_by": None,
             },
         },
     ],
@@ -128,11 +123,38 @@ def test_upsert_hitl_detail(
             **default_hitl_detail_request_kwargs,
         },
     )
-    assert response.status_code == 201
-    assert response.json() == {
+
+    expected_json = {
         "ti_id": ti.id,
         **default_hitl_detail_request_kwargs,
     }
+    expected_json["assigned_users"] = expected_json.pop("assignees") or []
+
+    assert response.status_code == 201
+    assert response.json() == expected_json
+
+
+def test_upsert_hitl_detail_with_empty_option(
+    client: TestClient,
+    create_task_instance: CreateTaskInstance,
+    session: Session,
+) -> None:
+    ti = create_task_instance()
+    session.commit()
+
+    response = client.post(
+        f"/execution/hitlDetails/{ti.id}",
+        json={
+            "ti_id": ti.id,
+            "subject": "This is subject",
+            "body": "this is body",
+            "options": [],
+            "defaults": ["Approve"],
+            "multiple": False,
+            "params": {"input_1": 1},
+        },
+    )
+    assert response.status_code == 422
 
 
 @time_machine.travel(datetime(2025, 7, 3, 0, 0, 0), tick=False)
@@ -149,17 +171,29 @@ def test_update_hitl_detail(client: Client, sample_ti: TaskInstance) -> None:
     assert response.status_code == 200
     assert response.json() == {
         "params_input": {"input_1": 2},
-        "response_at": "2025-07-03T00:00:00Z",
+        "responded_at": "2025-07-03T00:00:00Z",
         "chosen_options": ["Reject"],
         "response_received": True,
-        "user_id": "Fallback to defaults",
+        "responded_by_user": None,
     }
+
+
+def test_update_hitl_detail_without_option(client: Client, sample_ti: TaskInstance) -> None:
+    response = client.patch(
+        f"/execution/hitlDetails/{sample_ti.id}",
+        json={
+            "ti_id": sample_ti.id,
+            "chosen_options": [],
+            "params_input": {"input_1": 2},
+        },
+    )
+    assert response.status_code == 422
 
 
 def test_update_hitl_detail_without_ti(client: Client) -> None:
     ti_id = str(uuid7())
     response = client.patch(
-        f"/execution/hitl-details/{ti_id}",
+        f"/execution/hitlDetails/{ti_id}",
         json={
             "ti_id": ti_id,
             "chosen_options": ["Reject"],
@@ -183,7 +217,7 @@ def test_get_hitl_detail(client: Client, sample_ti: TaskInstance) -> None:
 
 
 def test_get_hitl_detail_without_ti(client: Client) -> None:
-    response = client.get(f"/execution/hitl-details/{uuid7()}")
+    response = client.get(f"/execution/hitlDetails/{uuid7()}")
     assert response.status_code == 404
     assert response.json() == {
         "detail": {

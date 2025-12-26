@@ -48,6 +48,7 @@
       "extraFields": "حقول إضافية",
       "extraFieldsJson": "JSON حقول إضافية بصيغة",
       "helperText": "نوع الموَّصل مفقود؟ تأكد من تثبيت حزمة Airflow المناسبة.",
+      "helperTextForRedactedFields": "لن تتغير الحقول المحجوبة ('***') إذا لم يتم تعديلها.",
       "selectConnectionType": "اختر نوع الموَّصل",
       "standardFields": "حقول قياسية"
     },
@@ -83,7 +84,6 @@
     "tooltip": "حذف الموَّصلات المحددة"
   },
   "formActions": {
-    "reset": "إعادة تعيين",
     "save": "حفظ"
   },
   "plugins": {
@@ -156,8 +156,6 @@
       "tooltip": "حذف المتغيرات المحددة"
     },
     "edit": "تعديل المتغير",
-    "export": "تصدير",
-    "exportTooltip": "تصدير المتغيرات المحددة",
     "form": {
       "invalidJson": "JSON غير صالح",
       "keyMaxLength": "المفتاح يمكن أن يحتوي على 250 حرف كحد أقصى",

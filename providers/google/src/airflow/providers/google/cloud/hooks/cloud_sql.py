@@ -49,8 +49,15 @@ from googleapiclient.errors import HttpError
 
 # Number of retries - used by googleapiclient method calls to perform retries
 # For requests that are "retriable"
-from airflow.exceptions import AirflowException
-from airflow.models import Connection
+from airflow.providers.common.compat.sdk import AirflowException
+from airflow.providers.google.version_compat import AIRFLOW_V_3_1_PLUS
+
+if AIRFLOW_V_3_1_PLUS:
+    from airflow.sdk import Connection
+else:
+    from airflow.models import Connection  # type: ignore[assignment,attr-defined,no-redef]
+
+from airflow.providers.common.compat.sdk import BaseHook
 from airflow.providers.google.cloud.hooks.secret_manager import (
     GoogleCloudSecretManagerHook,
 )
@@ -60,7 +67,6 @@ from airflow.providers.google.common.hooks.base_google import (
     GoogleBaseHook,
     get_field,
 )
-from airflow.providers.google.version_compat import BaseHook
 from airflow.utils.log.logging_mixin import LoggingMixin
 
 if TYPE_CHECKING:
@@ -502,7 +508,7 @@ class CloudSqlProxyRunner(LoggingMixin):
     :param project_id: Optional id of the Google Cloud project to connect to - it overwrites
         default project id taken from the Google Cloud connection.
     :param sql_proxy_version: Specific version of SQL proxy to download
-        (for example 'v1.13'). By default latest version is downloaded.
+        (for example 'v1.13'). By default, latest version is downloaded.
     :param sql_proxy_binary_path: If specified, then proxy will be
         used from the path specified rather than dynamically generated. This means
         that if the binary is not present in that path it will also be downloaded.
@@ -687,7 +693,7 @@ class CloudSqlProxyRunner(LoggingMixin):
             self.log.info("Skipped removing proxy - it was not downloaded: %s", self.sql_proxy_path)
         if os.path.isfile(self.credentials_path):
             self.log.info("Removing generated credentials file %s", self.credentials_path)
-            # Here file cannot be delete by concurrent task (each task has its own copy)
+            # Here file cannot be deleted by concurrent task (each task has its own copy)
             os.remove(self.credentials_path)
 
     def get_proxy_version(self) -> str | None:
@@ -1045,15 +1051,26 @@ class CloudSQLDatabaseHook(BaseHook):
     def _quote(value) -> str | None:
         return quote_plus(value) if value else None
 
-    def _generate_connection_uri(self) -> str:
+    def _reserve_port(self):
         if self.use_proxy:
             if self.sql_proxy_use_tcp:
                 if not self.sql_proxy_tcp_port:
                     self.reserve_free_tcp_port()
             if not self.sql_proxy_unique_path:
                 self.sql_proxy_unique_path = self._generate_unique_path()
+
+    def _generate_connection_uri(self) -> str:
+        self._reserve_port()
         if not self.database_type:
             raise ValueError("The database_type should be set")
+        if not self.user:
+            raise AirflowException("The login parameter needs to be set in connection")
+        if not self.public_ip:
+            raise AirflowException("The location parameter needs to be set in connection")
+        if not self.password:
+            raise AirflowException("The password parameter needs to be set in connection")
+        if not self.database:
+            raise AirflowException("The database parameter needs to be set in connection")
 
         database_uris = CONNECTION_URIS[self.database_type]
         ssl_spec = None
@@ -1072,14 +1089,6 @@ class CloudSQLDatabaseHook(BaseHook):
                 ssl_spec = {"cert": self.sslcert, "key": self.sslkey, "ca": self.sslrootcert}
             else:
                 format_string = public_uris["non-ssl"]
-        if not self.user:
-            raise AirflowException("The login parameter needs to be set in connection")
-        if not self.public_ip:
-            raise AirflowException("The location parameter needs to be set in connection")
-        if not self.password:
-            raise AirflowException("The password parameter needs to be set in connection")
-        if not self.database:
-            raise AirflowException("The database parameter needs to be set in connection")
 
         connection_uri = format_string.format(
             user=quote_plus(self.user) if self.user else "",
@@ -1113,6 +1122,69 @@ class CloudSQLDatabaseHook(BaseHook):
             instance_specification += f"=tcp:{self.sql_proxy_tcp_port}"
         return instance_specification
 
+    def _generate_connection_parameters(self) -> dict:
+        self._reserve_port()
+        if not self.database_type:
+            raise ValueError("The database_type should be set")
+        if not self.user:
+            raise AirflowException("The login parameter needs to be set in connection")
+        if not self.public_ip:
+            raise AirflowException("The location parameter needs to be set in connection")
+        if not self.password:
+            raise AirflowException("The password parameter needs to be set in connection")
+        if not self.database:
+            raise AirflowException("The database parameter needs to be set in connection")
+
+        connection_parameters = {}
+
+        connection_parameters["conn_type"] = self.database_type
+        connection_parameters["login"] = self.user
+        connection_parameters["password"] = self.password
+        connection_parameters["schema"] = self.database
+        connection_parameters["extra"] = {}
+
+        database_uris = CONNECTION_URIS[self.database_type]
+        if self.use_proxy:
+            proxy_uris = database_uris["proxy"]
+            if self.sql_proxy_use_tcp:
+                connection_parameters["host"] = "127.0.0.1"
+                connection_parameters["port"] = self.sql_proxy_tcp_port
+            else:
+                socket_path = f"{self.sql_proxy_unique_path}/{self._get_instance_socket_name()}"
+                if "localhost" in proxy_uris["socket"]:
+                    connection_parameters["host"] = "localhost"
+                    connection_parameters["extra"].update({"unix_socket": socket_path})
+                else:
+                    connection_parameters["host"] = socket_path
+        else:
+            public_uris = database_uris["public"]
+            if self.use_ssl:
+                connection_parameters["host"] = self.public_ip
+                connection_parameters["port"] = self.public_port
+                if "ssl_spec" in public_uris["ssl"]:
+                    connection_parameters["extra"].update(
+                        {
+                            "ssl": json.dumps(
+                                {"cert": self.sslcert, "key": self.sslkey, "ca": self.sslrootcert}
+                            )
+                        }
+                    )
+                else:
+                    connection_parameters["extra"].update(
+                        {
+                            "sslmode": "verify-ca",
+                            "sslcert": self.sslcert,
+                            "sslkey": self.sslkey,
+                            "sslrootcert": self.sslrootcert,
+                        }
+                    )
+            else:
+                connection_parameters["host"] = self.public_ip
+                connection_parameters["port"] = self.public_port
+        if connection_parameters.get("extra"):
+            connection_parameters["extra"] = json.dumps(connection_parameters["extra"])
+        return connection_parameters
+
     def create_connection(self) -> Connection:
         """
         Create a connection.
@@ -1120,8 +1192,11 @@ class CloudSQLDatabaseHook(BaseHook):
         Connection ID will be randomly generated according to whether it uses
         proxy, TCP, UNIX sockets, SSL.
         """
-        uri = self._generate_connection_uri()
-        connection = Connection(conn_id=self.db_conn_id, uri=uri)
+        if AIRFLOW_V_3_1_PLUS:
+            kwargs = self._generate_connection_parameters()
+        else:
+            kwargs = {"uri": self._generate_connection_uri()}
+        connection = Connection(conn_id=self.db_conn_id, **kwargs)
         self.log.info("Creating connection %s", self.db_conn_id)
         return connection
 
@@ -1175,9 +1250,9 @@ class CloudSQLDatabaseHook(BaseHook):
                 raise ValueError("The db_hook should be set")
             if not isinstance(self.db_hook, PostgresHook):
                 raise ValueError(f"The db_hook should be PostgresHook and is {type(self.db_hook)}")
-            conn = getattr(self.db_hook, "conn")
-            if conn and conn.notices:
-                for output in self.db_hook.conn.notices:
+            conn = getattr(self.db_hook, "conn", None)
+            if conn and hasattr(conn, "notices") and conn.notices:
+                for output in conn.notices:
                     self.log.info(output)
 
     def reserve_free_tcp_port(self) -> None:
@@ -1212,7 +1287,7 @@ class CloudSQLDatabaseHook(BaseHook):
         cloud_sql_hook = CloudSQLHook(api_version="v1", gcp_conn_id=self.gcp_conn_id)
 
         with cloud_sql_hook.provide_authorized_gcloud():
-            proc = subprocess.run(cmd, capture_output=True)
+            proc = subprocess.run(cmd, check=False, capture_output=True)
 
         if proc.returncode != 0:
             stderr_last_20_lines = "\n".join(proc.stderr.decode().strip().splitlines()[-20:])

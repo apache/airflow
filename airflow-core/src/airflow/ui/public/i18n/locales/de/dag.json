@@ -5,9 +5,39 @@
     "reason": "Grund",
     "title": "Abhängigkeiten die die Planung des Task blockieren"
   },
+  "calendar": {
+    "daily": "Täglich",
+    "hourly": "Stündlich",
+    "legend": {
+      "less": "Weniger",
+      "mixed": "Mittel",
+      "more": "Mehr"
+    },
+    "navigation": {
+      "nextMonth": "Nächster Monat",
+      "nextYear": "Nächstes Jahr",
+      "previousMonth": "Vorheriger Monat",
+      "previousYear": "Vorheriges Jahr"
+    },
+    "noData": "Keine Daten verfügbar",
+    "noFailedRuns": "Keine fehlgeschlagenen Läufe",
+    "noRuns": "Keine Läufe",
+    "totalRuns": "Gesamtzahl der Läufe",
+    "week": "Kalenderwoche {{weekNumber}}",
+    "weekdays": {
+      "friday": "Freitag",
+      "monday": "Montag",
+      "saturday": "Samstag",
+      "sunday": "Sonntag",
+      "thursday": "Donnerstag",
+      "tuesday": "Dienstag",
+      "wednesday": "Mittwoch"
+    }
+  },
   "code": {
     "bundleUrl": "Bündel Url",
     "noCode": "Kein Programmcode gefunden",
+    "parseDuration": "Einlesedauer:",
     "parsedAt": "Eingelesen um:"
   },
   "extraLinks": "Extra Links",
@@ -39,6 +69,10 @@
     "viewInExternal": "Protokoll in {{name}} (Versuch {{attempt}}) ansehen",
     "warning": "WARNING"
   },
+  "navigation": {
+    "navigation": "Navigation: Umschalttaste+{{arrow}}",
+    "toggleGroup": "Gruppen umschalten: Leertaste"
+  },
   "overview": {
     "buttons": {
       "failedRun_one": "Fehlgeschlagener Lauf",
@@ -53,6 +87,8 @@
       "assetEvent_other": "Erstellte Datenset-Ereignisse"
     },
     "failedLogs": {
+      "hideLogs": "Protokolle ausblenden",
+      "showLogs": "Protokolle anzeigen",
       "title": "Protokolle kürzlich fehlgeschlagener Tasks",
       "viewFullLogs": "Vollständige Protokolle ansehen"
     }
@@ -60,8 +96,9 @@
   "panel": {
     "buttons": {
       "options": "Optionen",
-      "showGraph": "Graph zeigen",
-      "showGrid": "Gitter zeigen"
+      "showGantt": "Gantt zeigen",
+      "showGraphShortcut": "Graph zeigen (Taste g)",
+      "showGridShortcut": "Gitter zeigen (Taste g)"
     },
     "dagRuns": {
       "label": "Anzahl von Dag Läufen"
@@ -77,6 +114,18 @@
     },
     "graphDirection": {
       "label": "Richtung des Graph"
+    },
+    "taskStreamFilter": {
+      "activeFilter": "Aktiver Filter",
+      "clearFilter": "Filter zurücksetzen",
+      "clickTask": "Klicken Sie auf einen Task, um ihn als Filterbasis auszuwählen",
+      "label": "Filter",
+      "options": {
+        "both": "Sowohl Vorgänger als auch Nachfolger",
+        "downstream": "Nachfolger",
+        "upstream": "Vorgänger"
+      },
+      "selectedTask": "Ausgewählter Task"
     }
   },
   "paramsFailed": "Laden der Parameter fehlgeschlagen",
@@ -96,6 +145,7 @@
     "assetEvents": "Ereignisse zu Datensets (Asset)",
     "auditLog": "Prüf-Log",
     "backfills": "Auffüllungen",
+    "calendar": "Kalender",
     "code": "Programmcode",
     "details": "Details",
     "logs": "Protokolle",
@@ -103,6 +153,7 @@
     "mappedTaskInstances_other": "Task Instanzen [{{count}}]",
     "overview": "Übersicht",
     "renderedTemplates": "Ausgefüllte Vorlagen",
+    "requiredActions": "Interaktionen",
     "runs": "Läufe",
     "taskInstances": "Task Instanzen",
     "tasks": "Tasks",

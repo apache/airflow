@@ -1,0 +1,22 @@
+{
+  "auditLog": {
+    "columns": {
+      "event": "Event",
+      "extra": "Extra",
+      "user": "Gebruiker",
+      "when": "Wanneer"
+    },
+    "filters": {
+      "eventType": "Gebeurtenis type"
+    },
+    "title": "Audit Log"
+  },
+  "xcom": {
+    "columns": {
+      "dag": "Dag",
+      "key": "Sleutel",
+      "value": "Waarde"
+    },
+    "title": "XCom"
+  }
+}

@@ -25,7 +25,7 @@ from typing import TYPE_CHECKING, Any
 
 from google.protobuf.json_format import MessageToDict
 
-from airflow.exceptions import AirflowException
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.google.cloud.triggers.dataplex import (
     DataplexDataProfileJobTrigger,
     DataplexDataQualityJobTrigger,
@@ -34,7 +34,7 @@ from airflow.providers.google.cloud.triggers.dataplex import (
 if TYPE_CHECKING:
     from google.protobuf.field_mask_pb2 import FieldMask
 
-    from airflow.utils.context import Context
+    from airflow.providers.common.compat.sdk import Context
 
 from google.api_core.exceptions import AlreadyExists, GoogleAPICallError, NotFound
 from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
@@ -1082,11 +1082,11 @@ class DataplexRunDataQualityScanOperator(GoogleCloudBaseOperator):
         """
         job_state = event["job_state"]
         job_id = event["job_id"]
-        if job_state == DataScanJob.State.FAILED:
+        if job_state == DataScanJob.State.FAILED.name:  # type: ignore
             raise AirflowException(f"Job failed:\n{job_id}")
-        if job_state == DataScanJob.State.CANCELLED:
+        if job_state == DataScanJob.State.CANCELLED.name:  # type: ignore
             raise AirflowException(f"Job was cancelled:\n{job_id}")
-        if job_state == DataScanJob.State.SUCCEEDED:
+        if job_state == DataScanJob.State.SUCCEEDED.name:  # type: ignore
             job = event["job"]
             if not job["data_quality_result"]["passed"]:
                 if self.fail_on_dq_failure:
@@ -1260,11 +1260,11 @@ class DataplexGetDataQualityScanResultOperator(GoogleCloudBaseOperator):
         job_state = event["job_state"]
         job_id = event["job_id"]
         job = event["job"]
-        if job_state == DataScanJob.State.FAILED:
+        if job_state == DataScanJob.State.FAILED.name:  # type: ignore
             raise AirflowException(f"Job failed:\n{job_id}")
-        if job_state == DataScanJob.State.CANCELLED:
+        if job_state == DataScanJob.State.CANCELLED.name:  # type: ignore
             raise AirflowException(f"Job was cancelled:\n{job_id}")
-        if job_state == DataScanJob.State.SUCCEEDED:
+        if job_state == DataScanJob.State.SUCCEEDED.name:  # type: ignore
             if not job["data_quality_result"]["passed"]:
                 if self.fail_on_dq_failure:
                     raise AirflowDataQualityScanException(
@@ -1639,12 +1639,12 @@ class DataplexRunDataProfileScanOperator(GoogleCloudBaseOperator):
                 result_timeout=self.result_timeout,
             )
 
-            if job.state == DataScanJob.State.FAILED:
+            if job.state == DataScanJob.State.FAILED.name:  # type: ignore
                 raise AirflowException(f"Data Profile job failed: {job_id}")
-            if job.state == DataScanJob.State.SUCCEEDED:
+            if job.state == DataScanJob.State.SUCCEEDED.name:  # type: ignore
                 self.log.info("Data Profile job executed successfully.")
             else:
-                self.log.info("Data Profile job execution returned status: %s", job.status)
+                self.log.info("Data Profile job execution returned status: %s", job.state)
 
         return job_id
 
@@ -1657,11 +1657,11 @@ class DataplexRunDataProfileScanOperator(GoogleCloudBaseOperator):
         """
         job_state = event["job_state"]
         job_id = event["job_id"]
-        if job_state == DataScanJob.State.FAILED:
+        if job_state == DataScanJob.State.FAILED.name:  # type: ignore
             raise AirflowException(f"Job failed:\n{job_id}")
-        if job_state == DataScanJob.State.CANCELLED:
+        if job_state == DataScanJob.State.CANCELLED.name:  # type: ignore
             raise AirflowException(f"Job was cancelled:\n{job_id}")
-        if job_state == DataScanJob.State.SUCCEEDED:
+        if job_state == DataScanJob.State.SUCCEEDED.name:  # type: ignore
             self.log.info("Data Profile job executed successfully.")
         return job_id
 

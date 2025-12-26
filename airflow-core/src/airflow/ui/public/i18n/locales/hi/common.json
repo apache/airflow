@@ -1,0 +1,309 @@
+{
+  "admin": {
+    "Config": "विन्यास",
+    "Connections": "कनेक्शन",
+    "Plugins": "प्लगइन",
+    "Pools": "पूल",
+    "Providers": "प्रोवाइडर",
+    "Variables": "वेरिएबल्स"
+  },
+  "asset_one": "एसेट",
+  "asset_other": "एसेट्स",
+  "assetEvent_one": "एसेट इवेंट",
+  "assetEvent_other": "एसेट इवेंट्स",
+  "backfill_one": "बैकफ़िल",
+  "backfill_other": "बैकफ़िल्स",
+  "browse": {
+    "auditLog": "ऑडिट लॉग",
+    "requiredActions": "आवश्यक क्रियाएं",
+    "xcoms": "XComs"
+  },
+  "collapseAllExtra": "सभी अतिरिक्त JSON को संकुचित करें",
+  "collapseDetailsPanel": "विवरण पैनल को छुपाएं",
+  "createdAssetEvent_one": "बनाया गया एसेट इवेंट",
+  "createdAssetEvent_other": "बनाए गए एसेट इवेंट्स",
+  "dag_one": "डैग",
+  "dag_other": "डैग्स",
+  "dagDetails": {
+    "catchup": "पकड़ना",
+    "dagRunTimeout": "डैग रन टाइमआउट",
+    "defaultArgs": "डिफ़ॉल्ट तर्क",
+    "description": "विवरण",
+    "documentation": "डैग प्रलेखन",
+    "fileLocation": "फ़ाइल स्थान",
+    "hasTaskConcurrencyLimits": "टास्क समानांतरता सीमा है",
+    "lastExpired": "अंतिम समाप्त",
+    "lastParsed": "अंतिम पार्स",
+    "latestDagVersion": "नवीनतम डैग संस्करण",
+    "latestRun": "नवीनतम रन",
+    "maxActiveRuns": "अधिकतम सक्रिय रन्स",
+    "maxActiveTasks": "अधिकतम सक्रिय टास्क्स",
+    "maxConsecutiveFailedDagRuns": "अधिकतम लगातार विफल डैग रन्स",
+    "nextRun": "अगला रन",
+    "owner": "स्वामी",
+    "params": "पैरामीटर",
+    "schedule": "अनुसूची",
+    "tags": "टैग्स"
+  },
+  "dagId": "डैग ID",
+  "dagRun": {
+    "conf": "विन्यास",
+    "dagVersions": "डैग संस्करण",
+    "dataIntervalEnd": "डेटा अंतराल अंत",
+    "dataIntervalStart": "डेटा अंतराल प्रारंभ",
+    "lastSchedulingDecision": "अंतिम शेड्यूलिंग निर्णय",
+    "queuedAt": "कतार में",
+    "runAfter": "के बाद चलाएं",
+    "runType": "रन प्रकार",
+    "sourceAssetEvent": "स्रोत एसेट इवेंट",
+    "triggeredBy": "द्वारा ट्रिगर",
+    "triggeringUser": "ट्रिगर करने वाला उपयोगकर्ता"
+  },
+  "dagRun_one": "डैग रन",
+  "dagRun_other": "डैग रन्स",
+  "dagRunId": "डैग रन ID",
+  "dagWarnings": "डैग चेतावनियां/त्रुटियां",
+  "defaultToGraphView": "ग्राफ़ व्यू को डिफ़ॉल्ट करें",
+  "defaultToGridView": "ग्रिड व्यू को डिफ़ॉल्ट करें",
+  "direction": "दिशा",
+  "docs": {
+    "documentation": "प्रलेखन",
+    "githubRepo": "GitHub रेपो",
+    "restApiReference": "REST API संदर्भ"
+  },
+  "duration": "अवधि",
+  "endDate": "समाप्ति तिथि",
+  "error": {
+    "back": "वापस",
+    "defaultMessage": "एक अप्रत्याशित त्रुटि हुई",
+    "home": "मुख्य पृष्ठ",
+    "notFound": "पेज नहीं मिला",
+    "title": "त्रुटि"
+  },
+  "expand": {
+    "collapse": "संकुचित करें",
+    "expand": "विस्तृत करें",
+    "hotkey": "e",
+    "tooltip": "विस्तार को टॉगल करने के लिए {{hotkey}} दबाएं"
+  },
+  "expandAllExtra": "सभी अतिरिक्त JSON को विस्तृत करें",
+  "expression": {
+    "all": "सभी",
+    "and": "और",
+    "any": "कोई भी",
+    "or": "या"
+  },
+  "filter": "फ़िल्टर",
+  "filters": {
+    "logicalDateFrom": "तार्किक तिथि से",
+    "logicalDateTo": "तार्किक तिथि तक",
+    "runAfterFrom": "रन आफ़्टर से",
+    "runAfterTo": "रन आफ़्टर तक"
+  },
+  "logicalDate": "तार्किक तिथि",
+  "logout": "लॉग आउट",
+  "logoutConfirmation": "आप एप्लिकेशन से लॉग आउट करने वाले हैं।",
+  "mapIndex": "मैप इंडेक्स",
+  "modal": {
+    "cancel": "रद्द करें",
+    "confirm": "पुष्टि करें",
+    "delete": {
+      "button": "हटाएं",
+      "confirmation": "क्या आप वास्तव में {{resourceName}} को हटाना चाहते हैं? यह क्रिया को पूर्ववत नहीं किया जा सकता।"
+    }
+  },
+  "nav": {
+    "admin": "व्यवस्थापक",
+    "assets": "एसेट्स",
+    "browse": "ब्राउज़ करें",
+    "dags": "डैग्स",
+    "docs": "प्रलेखन",
+    "home": "मुख्य पृष्ठ",
+    "legacyFabViews": "पुराने व्यू",
+    "plugins": "प्लगइन",
+    "security": "सुरक्षा"
+  },
+  "noItemsFound": "कोई {{modelName}} नहीं मिला",
+  "note": {
+    "add": "नोट जोड़ें",
+    "dagRun": "डैग रन नोट",
+    "label": "नोट",
+    "placeholder": "नोट जोड़ें...",
+    "taskInstance": "टास्क इंस्टेंस नोट"
+  },
+  "pools": {
+    "deferred": "स्थगित",
+    "open": "खुला",
+    "pools_one": "पूल",
+    "pools_other": "पूल्स",
+    "queued": "कतार में",
+    "running": "चल रहा",
+    "scheduled": "निर्धारित"
+  },
+  "reset": "रीसेट करें",
+  "runId": "रन ID",
+  "runTypes": {
+    "asset_triggered": "एसेट द्वारा ट्रिगर",
+    "backfill": "बैकफ़िल",
+    "manual": "मैन्युअल",
+    "scheduled": "निर्धारित"
+  },
+  "scroll": {
+    "direction": {
+      "bottom": "नीचे",
+      "top": "ऊपर"
+    },
+    "tooltip": "{{direction}} तक स्क्रॉल करने के लिए {{hotkey}} दबाएं"
+  },
+  "security": {
+    "actions": "क्रियाएं",
+    "permissions": "अनुमतियां",
+    "resources": "संसाधन",
+    "roles": "भूमिकाएं",
+    "users": "उपयोगकर्ता"
+  },
+  "selectLanguage": "भाषा चुनें",
+  "showDetailsPanel": "विवरण पैनल दिखाएं",
+  "source": {
+    "hide": "स्रोत छुपाएं",
+    "hotkey": "s",
+    "show": "स्रोत दिखाएं"
+  },
+  "sourceAssetEvent_one": "स्रोत एसेट इवेंट",
+  "sourceAssetEvent_other": "स्रोत एसेट इवेंट्स",
+  "startDate": "प्रारंभ तिथि",
+  "state": "स्थिति",
+  "states": {
+    "deferred": "स्थगित",
+    "failed": "विफल",
+    "no_status": "कोई स्थिति नहीं",
+    "none": "कुछ नहीं",
+    "queued": "कतार में",
+    "removed": "हटाया गया",
+    "restarting": "पुनः आरंभ",
+    "running": "चल रहा",
+    "scheduled": "निर्धारित",
+    "skipped": "छोड़ा गया",
+    "success": "सफल",
+    "up_for_reschedule": "पुनर्निर्धारण के लिए",
+    "up_for_retry": "पुनः प्रयास के लिए",
+    "upstream_failed": "अपस्ट्रीम विफल"
+  },
+  "table": {
+    "completedAt": "पर पूर्ण",
+    "createdAt": "पर बनाया",
+    "filterByTag": "टैग द्वारा डैग्स फ़िल्टर करें",
+    "filterColumns": "टेबल कॉलम फ़िल्टर करें",
+    "filterReset_one": "फ़िल्टर रीसेट करें",
+    "filterReset_other": "फ़िल्टर रीसेट करें",
+    "from": "से",
+    "maxActiveRuns": "अधिकतम सक्रिय रन्स",
+    "noTagsFound": "कोई टैग नहीं मिले",
+    "tagMode": {
+      "all": "सभी",
+      "any": "कोई भी"
+    },
+    "tagPlaceholder": "टैग द्वारा फ़िल्टर करें",
+    "to": "तक"
+  },
+  "task": {
+    "documentation": "टास्क प्रलेखन",
+    "lastInstance": "अंतिम इंस्टेंस",
+    "operator": "ऑपरेटर",
+    "triggerRule": "ट्रिगर नियम"
+  },
+  "task_one": "टास्क",
+  "task_other": "टास्क्स",
+  "taskGroup": "टास्क ग्रुप",
+  "taskId": "टास्क ID",
+  "taskInstance": {
+    "dagVersion": "डैग संस्करण",
+    "executor": "एक्जीक्यूटर",
+    "executorConfig": "एक्जीक्यूटर कॉन्फ़िग",
+    "hostname": "होस्टनेम",
+    "maxTries": "अधिकतम प्रयास",
+    "pid": "PID",
+    "pool": "पूल",
+    "poolSlots": "पूल स्लॉट्स",
+    "priorityWeight": "प्राथमिकता भार",
+    "queue": "कतार",
+    "queuedWhen": "कब कतार में",
+    "scheduledWhen": "कब निर्धारित",
+    "triggerer": {
+      "assigned": "निर्धारित ट्रिगरर",
+      "class": "ट्रिगर क्लास",
+      "createdAt": "ट्रिगर निर्माण समय",
+      "id": "ट्रिगर ID",
+      "latestHeartbeat": "नवीनतम हार्टबीट",
+      "title": "ट्रिगरर जानकारी"
+    },
+    "unixname": "यूनिक्स नाम"
+  },
+  "taskInstance_one": "टास्क इंस्टेंस",
+  "taskInstance_other": "टास्क इंस्टेंसेज",
+  "timeRange": {
+    "last12Hours": "पिछले 12 घंटे",
+    "last24Hours": "पिछले 24 घंटे",
+    "lastHour": "पिछला घंटा",
+    "pastWeek": "पिछला सप्ताह"
+  },
+  "timestamp": {
+    "hide": "टाइमस्टैम्प छुपाएं",
+    "hotkey": "t",
+    "show": "टाइमस्टैम्प दिखाएं"
+  },
+  "timezone": "समयक्षेत्र",
+  "timezoneModal": {
+    "current-timezone": "वर्तमान समय में",
+    "placeholder": "समयक्षेत्र चुनें",
+    "title": "समयक्षेत्र चुनें",
+    "utc": "UTC (समन्वयित सार्वभौमिक समय)"
+  },
+  "toaster": {
+    "bulkDelete": {
+      "error": "बल्क डिलीट {{resourceName}} अनुरोध विफल",
+      "success": {
+        "description": "{{count}} {{resourceName}} सफलतापूर्वक हटा दिए गए हैं। keys: {{keys}}",
+        "title": "बल्क डिलीट {{resourceName}} अनुरोध सबमिट किया गया"
+      }
+    },
+    "create": {
+      "error": "{{resourceName}} बनाने का अनुरोध विफल",
+      "success": {
+        "description": "{{resourceName}} सफलतापूर्वक बनाया गया है।",
+        "title": "{{resourceName}} बनाने का अनुरोध सबमिट किया गया"
+      }
+    },
+    "delete": {
+      "error": "{{resourceName}} हटाने का अनुरोध विफल",
+      "success": {
+        "description": "{{resourceName}} सफलतापूर्वक हटा दिया गया है।",
+        "title": "{{resourceName}} हटाने का अनुरोध सबमिट किया गया"
+      }
+    },
+    "import": {
+      "error": "{{resourceName}} आयात अनुरोध विफल",
+      "success": {
+        "description": "{{count}} {{resourceName}} सफलतापूर्वक आयात किए गए हैं।",
+        "title": "{{resourceName}} आयात अनुरोध सबमिट किया गया"
+      }
+    },
+    "update": {
+      "error": "{{resourceName}} अपडेट अनुरोध विफल",
+      "success": {
+        "description": "{{resourceName}} सफलतापूर्वक अपडेट किया गया है।",
+        "title": "{{resourceName}} अपडेट अनुरोध सबमिट किया गया"
+      }
+    }
+  },
+  "total": "कुल {{state}}",
+  "triggered": "ट्रिगर किया गया",
+  "tryNumber": "प्रयास संख्या",
+  "user": "उपयोगकर्ता",
+  "wrap": {
+    "hotkey": "w",
+    "tooltip": "रैप को टॉगल करने के लिए {{hotkey}} दबाएं",
+    "unwrap": "अनरैप",
+    "wrap": "रैप"
+  }
+}

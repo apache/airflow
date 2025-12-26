@@ -44,7 +44,7 @@ tagged with parameters the injected cell will be inserted at the top of the note
 Make sure that you save your notebook somewhere so that Airflow can access it. Papermill
 supports S3, GCS, Azure and Local. HDFS is **not supported**.
 
-Example DAG
+Example Dag
 '''''''''''
 
 Use the :class:`~airflow.providers.papermill.operators.papermill.PapermillOperator`
@@ -56,7 +56,7 @@ to execute a jupyter notebook:
     :start-after: [START howto_operator_papermill]
     :end-before: [END howto_operator_papermill]
 
-Example DAG to Verify the message in the notebook:
+Example Dag to Verify the message in the notebook:
 
 .. exampleinclude:: /../../papermill/tests/system/papermill/example_papermill_verify.py
     :language: python
@@ -64,7 +64,7 @@ Example DAG to Verify the message in the notebook:
     :end-before: [END howto_verify_operator_papermill]
 
 
-Example DAG to Verify the message in the notebook using a remote jupyter kernel:
+Example Dag to Verify the message in the notebook using a remote jupyter kernel:
 
 .. exampleinclude:: /../../papermill/tests/system/papermill/example_papermill_remote_verify.py
     :language: python

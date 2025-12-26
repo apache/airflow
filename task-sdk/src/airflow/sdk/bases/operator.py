@@ -35,8 +35,8 @@ from typing import TYPE_CHECKING, Any, ClassVar, Final, NoReturn, TypeVar, cast
 
 import attrs
 
-from airflow.exceptions import RemovedInAirflow4Warning
-from airflow.sdk import timezone
+from airflow.sdk import TriggerRule, timezone
+from airflow.sdk._shared.secrets_masker import redact
 from airflow.sdk.definitions._internal.abstractoperator import (
     DEFAULT_IGNORE_FIRST_DEPENDS_ON_PAST,
     DEFAULT_OWNER,
@@ -61,13 +61,20 @@ from airflow.sdk.definitions._internal.types import NOTSET, validate_instance_ar
 from airflow.sdk.definitions.edges import EdgeModifier
 from airflow.sdk.definitions.mappedoperator import OperatorPartial, validate_mapping_kwargs
 from airflow.sdk.definitions.param import ParamsDict
-from airflow.task.priority_strategy import (
-    PriorityWeightStrategy,
-    airflow_priority_weight_strategies,
-    validate_and_load_priority_weight_strategy,
-)
-from airflow.utils.trigger_rule import TriggerRule
-from airflow.utils.weight_rule import db_safe_priority
+from airflow.sdk.exceptions import RemovedInAirflow4Warning
+
+# Databases do not support arbitrary precision integers, so we need to limit the range of priority weights.
+# postgres: -2147483648 to +2147483647 (see https://www.postgresql.org/docs/current/datatype-numeric.html)
+# mysql: -2147483648 to +2147483647 (see https://dev.mysql.com/doc/refman/8.4/en/integer-types.html)
+# sqlite: -9223372036854775808 to +9223372036854775807 (see https://sqlite.org/datatype3.html)
+DB_SAFE_MINIMUM = -2147483648
+DB_SAFE_MAXIMUM = 2147483647
+
+
+def db_safe_priority(priority_weight: int) -> int:
+    """Convert priority weight to a safe value for the database."""
+    return max(DB_SAFE_MINIMUM, min(DB_SAFE_MAXIMUM, priority_weight))
+
 
 C = TypeVar("C", bound=Callable)
 T = TypeVar("T", bound=FunctionType)
@@ -76,17 +83,17 @@ if TYPE_CHECKING:
     from types import ClassMethodDescriptorType
 
     import jinja2
+    from typing_extensions import Self
 
     from airflow.sdk.bases.operatorlink import BaseOperatorLink
     from airflow.sdk.definitions.context import Context
     from airflow.sdk.definitions.dag import DAG
+    from airflow.sdk.definitions.operator_resources import Resources
     from airflow.sdk.definitions.taskgroup import TaskGroup
     from airflow.sdk.definitions.xcom_arg import XComArg
     from airflow.serialization.enums import DagAttributeTypes
     from airflow.task.priority_strategy import PriorityWeightStrategy
     from airflow.triggers.base import BaseTrigger, StartTriggerArgs
-    from airflow.typing_compat import Self
-    from airflow.utils.operator_resources import Resources
 
     TaskPreExecuteHook = Callable[[Context], None]
     TaskPostExecuteHook = Callable[[Context, Any], None]
@@ -97,9 +104,6 @@ __all__ = [
     "chain_linear",
     "cross_downstream",
 ]
-
-# TODO: Task-SDK
-AirflowException = RuntimeError
 
 
 class TriggerFailureReason(str, Enum):
@@ -129,6 +133,7 @@ def _get_parent_defaults(dag: DAG | None, task_group: TaskGroup | None) -> tuple
         return {}, ParamsDict()
     dag_args = copy.copy(dag.default_args)
     dag_params = copy.deepcopy(dag.params)
+    dag_params._fill_missing_param_source("dag")
     if task_group:
         if task_group.default_args and not isinstance(task_group.default_args, collections.abc.Mapping):
             raise TypeError("default_args must be a mapping")
@@ -146,13 +151,20 @@ def get_merged_defaults(
     if task_params:
         if not isinstance(task_params, collections.abc.Mapping):
             raise TypeError(f"params must be a mapping, got {type(task_params)}")
+
+        task_params = ParamsDict(task_params)
+        task_params._fill_missing_param_source("task")
         params.update(task_params)
+
     if task_default_args:
         if not isinstance(task_default_args, collections.abc.Mapping):
             raise TypeError(f"default_args must be a mapping, got {type(task_params)}")
         args.update(task_default_args)
         with contextlib.suppress(KeyError):
-            params.update(task_default_args["params"] or {})
+            if params_from_default_args := ParamsDict(task_default_args["params"] or {}):
+                params_from_default_args._fill_missing_param_source("task")
+                params.update(params_from_default_args)
+
     return args, params
 
 
@@ -164,7 +176,7 @@ def parse_retries(retries: Any) -> int | None:
     try:
         parsed_retries = int(retries)
     except (TypeError, ValueError):
-        raise AirflowException(f"'retries' type must be int, not {type(retries).__name__}")
+        raise RuntimeError(f"'retries' type must be int, not {type(retries).__name__}")
     return parsed_retries
 
 
@@ -177,7 +189,7 @@ def coerce_timedelta(value: float | timedelta, *, key: str | None = None) -> tim
 def coerce_resources(resources: dict[str, Any] | None) -> Resources | None:
     if resources is None:
         return None
-    from airflow.utils.operator_resources import Resources
+    from airflow.sdk.definitions.operator_resources import Resources
 
     return Resources(**resources)
 
@@ -202,6 +214,8 @@ class _PartialDescriptor:
 OPERATOR_DEFAULTS: dict[str, Any] = {
     "allow_nested_operators": True,
     "depends_on_past": False,
+    "email_on_failure": True,
+    "email_on_retry": True,
     "execution_timeout": DEFAULT_TASK_EXECUTION_TIMEOUT,
     # "executor": DEFAULT_EXECUTOR,
     "executor_config": {},
@@ -220,7 +234,7 @@ OPERATOR_DEFAULTS: dict[str, Any] = {
     "queue": DEFAULT_QUEUE,
     "retries": DEFAULT_RETRIES,
     "retry_delay": DEFAULT_RETRY_DELAY,
-    "retry_exponential_backoff": False,
+    "retry_exponential_backoff": 0,
     "trigger_rule": DEFAULT_TRIGGER_RULE,
     "wait_for_past_depends_before_skipping": DEFAULT_WAIT_FOR_PAST_DEPENDS_BEFORE_SKIPPING,
     "wait_for_downstream": False,
@@ -256,7 +270,7 @@ if TYPE_CHECKING:
         execution_timeout: timedelta | None = ...,
         max_retry_delay: None | timedelta | float = ...,
         retry_delay: timedelta | float = ...,
-        retry_exponential_backoff: bool = ...,
+        retry_exponential_backoff: float = ...,
         priority_weight: int = ...,
         weight_rule: str | PriorityWeightStrategy = ...,
         sla: timedelta | None = ...,
@@ -304,7 +318,7 @@ else:
         if task_group:
             task_id = task_group.child_id(task_id)
 
-        # Merge DAG and task group level defaults into user-supplied values.
+        # Merge Dag and task group level defaults into user-supplied values.
         dag_default_args, partial_params = get_merged_defaults(
             dag=dag,
             task_group=task_group,
@@ -320,7 +334,7 @@ else:
             **kwargs,
         }
 
-        # Inject DAG-level default args into args provided to this function.
+        # Inject Dag-level default args into args provided to this function.
         # Most of the default args will be retrieved during unmapping; here we
         # only ensure base properties are correctly set for the scheduler.
         partial_kwargs.update(
@@ -393,7 +407,7 @@ class ExecutorSafeguard:
                 if not cls.test_mode and sentinel is not self:
                     message = f"{self.__class__.__name__}.{func.__name__} cannot be called outside of the Task Runner!"
                     if not self.allow_nested_operators:
-                        raise AirflowException(message)
+                        raise RuntimeError(message)
                     self.log.warning(message)
 
                     # Now that we've logged, set sentinel so that `super()` calls don't log again
@@ -407,7 +421,7 @@ class ExecutorSafeguard:
 
 if "airflow.configuration" in sys.modules:
     # Don't try and import it if it's not already loaded
-    from airflow.configuration import conf
+    from airflow.sdk.configuration import conf
 
     ExecutorSafeguard.test_mode = conf.getboolean("core", "unit_test_mode")
 
@@ -556,7 +570,7 @@ BASEOPERATOR_ARGS_EXPECTED_TYPES = {
     "email_on_retry": bool,
     "email_on_failure": bool,
     "retries": int,
-    "retry_exponential_backoff": bool,
+    "retry_exponential_backoff": (int, float),
     "depends_on_past": bool,
     "ignore_first_depends_on_past": bool,
     "wait_for_past_depends_before_skipping": bool,
@@ -602,8 +616,8 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
     r"""
     Abstract base class for all operators.
 
-    Since operators create objects that become nodes in the DAG, BaseOperator
-    contains many recursive methods for DAG crawling behavior. To derive from
+    Since operators create objects that become nodes in the Dag, BaseOperator
+    contains many recursive methods for Dag crawling behavior. To derive from
     this class, you are expected to override the constructor and the 'execute'
     method.
 
@@ -617,7 +631,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
 
     This class is abstract and shouldn't be instantiated. Instantiating a
     class derived from this one results in the creation of a task object,
-    which ultimately becomes a node in DAG objects. Task dependencies should
+    which ultimately becomes a node in Dag objects. Task dependencies should
     be set by using the set_upstream and/or set_downstream methods.
 
     :param task_id: a unique, meaningful id for the task
@@ -635,15 +649,16 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
     :param retry_delay: delay between retries, can be set as ``timedelta`` or
         ``float`` seconds, which will be converted into ``timedelta``,
         the default is ``timedelta(seconds=300)``.
-    :param retry_exponential_backoff: allow progressively longer waits between
-        retries by using exponential backoff algorithm on retry delay (delay
-        will be converted into seconds)
+    :param retry_exponential_backoff: multiplier for exponential backoff between retries.
+        Set to 0 to disable (constant delay). Set to 2.0 for standard exponential backoff
+        (delay doubles with each retry). For example, with retry_delay=4min and
+        retry_exponential_backoff=5, retries occur after 4min, 20min, 100min, etc.
     :param max_retry_delay: maximum delay interval between retries, can be set as
         ``timedelta`` or ``float`` seconds, which will be converted into ``timedelta``.
     :param start_date: The ``start_date`` for the task, determines
         the ``logical_date`` for the first task instance. The best practice
         is to have the start_date rounded
-        to your DAG's ``schedule_interval``. Daily jobs have their start_date
+        to your Dag's ``schedule_interval``. Daily jobs have their start_date
         some day at 00:00:00, hourly jobs have their start_date at 00:00
         of a specific hour. Note that Airflow simply looks at the latest
         ``logical_date`` and adds the ``schedule_interval`` to determine
@@ -698,7 +713,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         you know exactly what priority weight each task should have.
         Additionally, when set to ``absolute``, there is bonus effect of
         significantly speeding up the task creation process as for very large
-        DAGs. Options can be set as string or using the constants defined in
+        Dags. Options can be set as string or using the constants defined in
         the static class ``airflow.utils.WeightRule``.
         Irrespective of the weight rule, resulting priority values are capped with 32-bit.
         |experimental|
@@ -733,18 +748,14 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
     :param on_skipped_callback: much like the ``on_failure_callback`` except
         that it is executed when skipped occur; this callback will be called only if AirflowSkipException get raised.
         Explicitly it is NOT called if a task is not started to be executed because of a preceding branching
-        decision in the DAG or a trigger rule which causes execution to skip so that the task execution
+        decision in the Dag or a trigger rule which causes execution to skip so that the task execution
         is never scheduled.
     :param pre_execute: a function to be called immediately before task
         execution, receiving a context dictionary; raising an exception will
         prevent the task from being executed.
-
-        |experimental|
     :param post_execute: a function to be called immediately after task
         execution, receiving a context dictionary and task result; raising an
         exception will prevent the task from succeeding.
-
-        |experimental|
     :param trigger_rule: defines the rule by which dependencies are applied
         for the task to get triggered. Options are:
         ``{ all_success | all_failed | all_done | all_skipped | one_success | one_done |
@@ -758,7 +769,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
     :param max_active_tis_per_dag: When set, a task will be able to limit the concurrent
         runs across logical_dates.
     :param max_active_tis_per_dagrun: When set, a task will be able to limit the concurrent
-        task instances per DAG run.
+        task instances per Dag run.
     :param executor: Which executor to target when running this task. NOT YET SUPPORTED
     :param executor_config: Additional task-level configuration parameters that are
         interpreted by a specific executor. Parameters are namespaced by the name of
@@ -814,7 +825,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
     email_on_failure: bool = True
     retries: int | None = DEFAULT_RETRIES
     retry_delay: timedelta = DEFAULT_RETRY_DELAY
-    retry_exponential_backoff: bool = False
+    retry_exponential_backoff: float = 0
     max_retry_delay: timedelta | float | None = None
     start_date: datetime | None = None
     end_date: datetime | None = None
@@ -827,9 +838,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
     params: ParamsDict | dict = field(default_factory=ParamsDict)
     default_args: dict | None = None
     priority_weight: int = DEFAULT_PRIORITY_WEIGHT
-    weight_rule: PriorityWeightStrategy = field(
-        default_factory=airflow_priority_weight_strategies[DEFAULT_WEIGHT_RULE]
-    )
+    weight_rule: PriorityWeightStrategy | str = field(default=DEFAULT_WEIGHT_RULE)
     queue: str = DEFAULT_QUEUE
     pool: str = DEFAULT_POOL_NAME
     pool_slots: int = DEFAULT_POOL_SLOTS
@@ -905,11 +914,11 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         "wait_for_downstream",
         "priority_weight",
         "execution_timeout",
-        "on_execute_callback",
-        "on_failure_callback",
-        "on_success_callback",
-        "on_retry_callback",
-        "on_skipped_callback",
+        "has_on_execute_callback",
+        "has_on_failure_callback",
+        "has_on_success_callback",
+        "has_on_retry_callback",
+        "has_on_skipped_callback",
         "do_xcom_push",
         "multiple_outputs",
         "allow_nested_operators",
@@ -972,7 +981,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         email_on_failure: bool = True,
         retries: int | None = DEFAULT_RETRIES,
         retry_delay: timedelta | float = DEFAULT_RETRY_DELAY,
-        retry_exponential_backoff: bool = False,
+        retry_exponential_backoff: float = 0,
         max_retry_delay: timedelta | float | None = None,
         start_date: datetime | None = None,
         end_date: datetime | None = None,
@@ -1020,7 +1029,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         allow_nested_operators: bool = True,
         **kwargs: Any,
     ):
-        # Note: Metaclass handles passing in the DAG/TaskGroup from active context manager, if any
+        # Note: Metaclass handles passing in the Dag/TaskGroup from active context manager, if any
 
         # Only apply task_group prefix if this operator was not created from a mapped operator
         # Mapped operators already have the prefix applied during their creation
@@ -1037,7 +1046,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         if kwargs:
             raise TypeError(
                 f"Invalid arguments were passed to {self.__class__.__name__} (task_id: {task_id}). "
-                f"Invalid arguments were:\n**kwargs: {kwargs}",
+                f"Invalid arguments were:\n**kwargs: {redact(kwargs)}",
             )
         validate_key(self.task_id)
 
@@ -1095,13 +1104,15 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
             raise ValueError(f"pool slots for {self.task_id}{dag_str} cannot be less than 1")
         if sla is not None:
             warnings.warn(
-                "The SLA feature is removed in Airflow 3.0, to be replaced with a new implementation in >=3.1",
+                "The SLA feature is removed in Airflow 3.0, replaced with Deadline Alerts in >=3.1",
                 stacklevel=2,
             )
 
-        if not TriggerRule.is_valid(trigger_rule):
+        try:
+            TriggerRule(trigger_rule)
+        except ValueError:
             raise ValueError(
-                f"The trigger_rule must be one of {TriggerRule.all_triggers()},"
+                f"The trigger_rule must be one of {[rule.value for rule in TriggerRule]},"
                 f"'{dag.dag_id if dag else ''}.{task_id}'; received '{trigger_rule}'."
             )
 
@@ -1125,7 +1136,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         self.params = ParamsDict(params)
 
         self.priority_weight = priority_weight
-        self.weight_rule = validate_and_load_priority_weight_strategy(weight_rule)
+        self.weight_rule = weight_rule
 
         self.max_active_tis_per_dag: int | None = max_active_tis_per_dag
         self.max_active_tis_per_dagrun: int | None = max_active_tis_per_dagrun
@@ -1173,7 +1184,6 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         validate_instance_args(self, BASEOPERATOR_ARGS_EXPECTED_TYPES)
 
         # Ensure priority_weight is within the valid range
-        # Note: Cross-import from airflow.utils to be cleaned up later
         self.priority_weight = db_safe_priority(self.priority_weight)
 
     def __eq__(self, other):
@@ -1242,11 +1252,11 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
 
         shallow_copy = tuple(cls.shallow_copy_attrs) + cls._base_operator_shallow_copy_attrs
 
-        for k, v in self.__dict__.items():
+        for k, v_org in self.__dict__.items():
             if k not in shallow_copy:
-                v = copy.deepcopy(v, memo)
+                v = copy.deepcopy(v_org, memo)
             else:
-                v = copy.copy(v)
+                v = copy.copy(v_org)
 
             # Bypass any setters, and set it on the object directly. This works since we are cloning ourself so
             # we know the type is already fine
@@ -1276,14 +1286,14 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
 
     @property
     def dag(self) -> DAG:
-        """Returns the Operator's DAG if set, otherwise raises an error."""
+        """Returns the Operator's Dag if set, otherwise raises an error."""
         if dag := self._dag:
             return dag
-        raise RuntimeError(f"Operator {self} has not been assigned to a DAG yet")
+        raise RuntimeError(f"Operator {self} has not been assigned to a Dag yet")
 
     @dag.setter
     def dag(self, dag: DAG | None) -> None:
-        """Operators can be assigned to one DAG, one time. Repeat assignments to that same DAG are ok."""
+        """Operators can be assigned to one Dag, one time. Repeat assignments to that same Dag are ok."""
         self._dag = dag
 
     def _convert__dag(self, dag: DAG | None) -> DAG | None:
@@ -1294,12 +1304,12 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
             return dag
 
         if not isinstance(dag, DAG):
-            raise TypeError(f"Expected DAG; received {dag.__class__.__name__}")
+            raise TypeError(f"Expected dag; received {dag.__class__.__name__}")
         if self._dag is not None and self._dag is not dag:
-            raise ValueError(f"The DAG assigned to {self} can not be changed.")
+            raise ValueError(f"The dag assigned to {self} can not be changed.")
 
         if self.__from_mapped:
-            pass  # Don't add to DAG -- the mapped task takes the place.
+            pass  # Don't add to dag -- the mapped task takes the place.
         elif dag.task_dict.get(self.task_id) is not self:
             dag.add_task(self)
         return dag
@@ -1330,7 +1340,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         if resources is None:
             return None
 
-        from airflow.utils.operator_resources import Resources
+        from airflow.sdk.definitions.operator_resources import Resources
 
         if isinstance(resources, Resources):
             return resources
@@ -1357,7 +1367,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         return self._task_display_name or self.task_id
 
     def has_dag(self):
-        """Return True if the Operator has been assigned to a DAG."""
+        """Return True if the Operator has been assigned to a Dag."""
         return self._dag is not None
 
     def _set_xcomargs_dependencies(self) -> None:
@@ -1443,7 +1453,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
 
     @classmethod
     def get_serialized_fields(cls):
-        """Stringified DAGs and operators contain exactly these fields."""
+        """Stringified Dags and operators contain exactly these fields."""
         if not cls.__serialized_fields:
             from airflow.sdk.definitions._internal.contextmanager import DagContext
 
@@ -1466,6 +1476,12 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
                     "on_failure_fail_dagrun",
                     "task_group",
                     "_task_type",
+                    "operator_extra_links",
+                    "on_execute_callback",
+                    "on_failure_callback",
+                    "on_success_callback",
+                    "on_retry_callback",
+                    "on_skipped_callback",
                 }
                 | {  # Class level defaults, or `@property` need to be added to this list
                     "start_date",
@@ -1485,6 +1501,11 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
                     "_needs_expansion",
                     "start_from_trigger",
                     "max_retry_delay",
+                    "has_on_execute_callback",
+                    "has_on_failure_callback",
+                    "has_on_success_callback",
+                    "has_on_retry_callback",
+                    "has_on_skipped_callback",
                 }
             )
             DagContext.pop()
@@ -1502,14 +1523,6 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         from airflow.serialization.enums import DagAttributeTypes
 
         return DagAttributeTypes.OP, self.task_id
-
-    @property
-    def inherits_from_empty_operator(self):
-        """Used to determine if an Operator is inherited from EmptyOperator."""
-        # This looks like `isinstance(self, EmptyOperator) would work, but this also
-        # needs to cope when `self` is a Serialized instance of a EmptyOperator or one
-        # of its subclasses (which don't inherit from anything but BaseOperator).
-        return getattr(self, "_is_empty", False)
 
     def unmap(self, resolve: None | Mapping[str, Any]) -> Self:
         """
@@ -1557,7 +1570,8 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         """
         Derive when creating an operator.
 
-        The main method to execute the task. Context is the same dictionary used as when rendering jinja templates.
+        The main method to execute the task. Context is the same dictionary used
+        as when rendering jinja templates.
 
         Refer to get_template_context for more context.
         """
@@ -1587,13 +1601,13 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         be None; otherwise, provide the name of the method that should be used when resuming execution in
         the task.
         """
-        from airflow.exceptions import TaskDeferred
+        from airflow.sdk.exceptions import TaskDeferred
 
         raise TaskDeferred(trigger=trigger, method_name=method_name, kwargs=kwargs, timeout=timeout)
 
     def resume_execution(self, next_method: str, next_kwargs: dict[str, Any] | None, context: Context):
         """Entrypoint method called by the Task Runner (instead of execute) when this task is resumed."""
-        from airflow.exceptions import TaskDeferralError, TaskDeferralTimeout
+        from airflow.sdk.exceptions import TaskDeferralError, TaskDeferralTimeout
 
         if next_kwargs is None:
             next_kwargs = {}
@@ -1627,6 +1641,31 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
             if content and isinstance(content, str):
                 self.log.info("Rendering template for %s", f)
                 self.log.info(content)
+
+    @property
+    def has_on_execute_callback(self) -> bool:
+        """Return True if the task has execute callbacks."""
+        return bool(self.on_execute_callback)
+
+    @property
+    def has_on_failure_callback(self) -> bool:
+        """Return True if the task has failure callbacks."""
+        return bool(self.on_failure_callback)
+
+    @property
+    def has_on_success_callback(self) -> bool:
+        """Return True if the task has success callbacks."""
+        return bool(self.on_success_callback)
+
+    @property
+    def has_on_retry_callback(self) -> bool:
+        """Return True if the task has retry callbacks."""
+        return bool(self.on_retry_callback)
+
+    @property
+    def has_on_skipped_callback(self) -> bool:
+        """Return True if the task has skipped callbacks."""
+        return bool(self.on_skipped_callback)
 
 
 def chain(*tasks: DependencyMixin | Sequence[DependencyMixin]) -> None:

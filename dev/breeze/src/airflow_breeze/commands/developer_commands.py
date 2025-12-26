@@ -17,12 +17,12 @@
 from __future__ import annotations
 
 import os
+import platform
 import re
 import shlex
 import shutil
 import sys
 import threading
-from collections.abc import Iterable
 from pathlib import Path
 from signal import SIGTERM
 from time import sleep
@@ -37,6 +37,7 @@ from airflow_breeze.commands.common_options import (
     option_all_integration,
     option_allow_pre_releases,
     option_answer,
+    option_auth_manager,
     option_backend,
     option_builder,
     option_clean_airflow_installation,
@@ -58,6 +59,7 @@ from airflow_breeze.commands.common_options import (
     option_keep_env_variables,
     option_max_time,
     option_mount_sources,
+    option_mount_ui_dist,
     option_mysql_version,
     option_no_db_cleanup,
     option_platform_single,
@@ -71,6 +73,7 @@ from airflow_breeze.commands.common_options import (
     option_upgrade_boto,
     option_upgrade_sqlalchemy,
     option_use_airflow_version,
+    option_use_mprocs,
     option_use_uv,
     option_uv_http_timeout,
     option_verbose,
@@ -89,13 +92,13 @@ from airflow_breeze.commands.common_package_installation_options import (
 from airflow_breeze.commands.main_command import cleanup, main
 from airflow_breeze.commands.testing_commands import option_test_type
 from airflow_breeze.global_constants import (
-    ALLOWED_AUTH_MANAGERS,
     ALLOWED_CELERY_BROKERS,
     ALLOWED_CELERY_EXECUTORS,
     ALLOWED_EXECUTORS,
     DEFAULT_ALLOWED_EXECUTOR,
     DEFAULT_CELERY_BROKER,
     DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
+    GITHUB_REPO_BRANCH_PATTERN,
     MOUNT_ALL,
     START_AIRFLOW_ALLOWED_EXECUTORS,
     START_AIRFLOW_DEFAULT_ALLOWED_EXECUTOR,
@@ -103,11 +106,8 @@ from airflow_breeze.global_constants import (
 from airflow_breeze.params.build_ci_params import BuildCiParams
 from airflow_breeze.params.doc_build_params import DocBuildParams
 from airflow_breeze.params.shell_params import ShellParams
-from airflow_breeze.pre_commit_ids import PRE_COMMIT_LIST
-from airflow_breeze.utils.coertions import one_or_none_set
 from airflow_breeze.utils.confirm import Answer, user_confirm
 from airflow_breeze.utils.console import get_console
-from airflow_breeze.utils.custom_param_types import BetterChoice
 from airflow_breeze.utils.docker_command_utils import (
     bring_compose_project_down,
     check_docker_resources,
@@ -123,13 +123,25 @@ from airflow_breeze.utils.path_utils import (
 )
 from airflow_breeze.utils.platforms import get_normalized_platform
 from airflow_breeze.utils.run_utils import (
-    assert_pre_commit_installed,
+    assert_prek_installed,
     run_command,
     run_compile_ui_assets,
 )
 from airflow_breeze.utils.shared_options import get_dry_run, get_verbose, set_forced_answer
 
 CELERY_INTEGRATION = "celery"
+
+
+def is_wsl() -> bool:
+    """Detect if we are running inside WSL."""
+    if platform.system().lower() != "linux":
+        return False
+    try:
+        with open("/proc/version") as f:
+            version_info = f.read().lower()
+            return "microsoft" in version_info or "wsl" in version_info
+    except FileNotFoundError:
+        return False
 
 
 def _determine_constraint_branch_used(airflow_constraints_reference: str, use_airflow_version: str | None):
@@ -143,15 +155,33 @@ def _determine_constraint_branch_used(airflow_constraints_reference: str, use_ai
     :param use_airflow_version: which airflow version we are installing
     :return: the actual constraints reference to use
     """
-    if (
-        use_airflow_version
-        and airflow_constraints_reference == DEFAULT_AIRFLOW_CONSTRAINTS_BRANCH
-        and re.match(r"[0-9]+\.[0-9]+\.[0-9]+[0-9a-z.]*|main|v[0-9]_.*", use_airflow_version)
-    ):
-        get_console().print(
-            f"[info]Using constraints for {use_airflow_version} - matching airflow version used."
-        )
-        return f"constraints-{use_airflow_version}"
+    if use_airflow_version and airflow_constraints_reference == DEFAULT_AIRFLOW_CONSTRAINTS_BRANCH:
+        match_exact_version = re.match(r"^[0-9]+\.[0-9]+\.[0-9]+[0-9a-z.]*$", use_airflow_version)
+        if match_exact_version:
+            # If we are using an exact version, we use the constraints for that version
+            get_console().print(
+                f"[info]Using constraints for {use_airflow_version} - exact version specified."
+            )
+            return f"constraints-{use_airflow_version}"
+        match_repo_branch = re.match(GITHUB_REPO_BRANCH_PATTERN, use_airflow_version)
+        if match_repo_branch:
+            branch = match_repo_branch.group(3)
+            match_v_x_y_branch = re.match(r"v([0-9]+-[0-9]+)-(test|stable)", branch)
+            if match_v_x_y_branch:
+                branch_version = match_v_x_y_branch.group(1)
+                get_console().print(f"[info]Using constraints for {branch_version} branch.")
+                return f"constraints-{branch_version}"
+            if branch == "main":
+                get_console().print(
+                    "[info]Using constraints for main branch - no specific version specified."
+                )
+                return DEFAULT_AIRFLOW_CONSTRAINTS_BRANCH
+            get_console().print(
+                f"[warning]Could not determine branch automatically from {use_airflow_version}. "
+                f"using {DEFAULT_AIRFLOW_CONSTRAINTS_BRANCH} but you can specify constraints by using "
+                "--airflow-constraints-reference flag in breeze command."
+            )
+            return DEFAULT_AIRFLOW_CONSTRAINTS_BRANCH
     return airflow_constraints_reference
 
 
@@ -272,6 +302,7 @@ option_load_default_connections = click.option(
 @option_airflow_constraints_reference
 @option_airflow_extras
 @option_answer
+@option_auth_manager
 @option_backend
 @option_builder
 @option_celery_broker
@@ -298,6 +329,7 @@ option_load_default_connections = click.option(
 @option_keep_env_variables
 @option_max_time
 @option_mount_sources
+@option_mount_ui_dist
 @option_mysql_version
 @option_no_db_cleanup
 @option_platform_single
@@ -329,6 +361,7 @@ def shell(
     airflow_constraints_mode: str,
     airflow_constraints_reference: str,
     airflow_extras: str,
+    auth_manager: str,
     backend: str,
     builder: str,
     celery_broker: str,
@@ -355,6 +388,7 @@ def shell(
     load_default_connections: bool,
     max_time: int | None,
     mount_sources: str,
+    mount_ui_dist: bool,
     mysql_version: str,
     no_db_cleanup: bool,
     distribution_format: str,
@@ -403,6 +437,7 @@ def shell(
         airflow_constraints_reference=airflow_constraints_reference,
         airflow_extras=airflow_extras,
         allow_pre_releases=allow_pre_releases,
+        auth_manager=auth_manager,
         backend=backend,
         builder=builder,
         celery_broker=celery_broker,
@@ -428,6 +463,7 @@ def shell(
         load_example_dags=load_example_dags,
         load_default_connections=load_default_connections,
         mount_sources=mount_sources,
+        mount_ui_dist=mount_ui_dist,
         mysql_version=mysql_version,
         no_db_cleanup=no_db_cleanup,
         distribution_format=distribution_format,
@@ -458,6 +494,7 @@ def shell(
         verbose_commands=verbose_commands,
         warn_image_upgrade_needed=warn_image_upgrade_needed,
     )
+    perform_environment_checks(quiet=shell_params.quiet)
     rebuild_or_pull_ci_image_if_needed(command_params=shell_params)
     result = enter_shell(shell_params=shell_params)
     fix_ownership_using_docker()
@@ -471,14 +508,6 @@ option_executor_start_airflow = click.option(
     "or CeleryExecutor depending on the integration used).",
 )
 
-option_auth_manager_start_airflow = click.option(
-    "--auth-manager",
-    type=click.Choice(ALLOWED_AUTH_MANAGERS, case_sensitive=False),
-    help="Specify the auth manager to use with start-airflow",
-    default=ALLOWED_AUTH_MANAGERS[0],
-    show_default=True,
-)
-
 
 @main.command(name="start-airflow")
 @click.option(
@@ -490,7 +519,13 @@ option_auth_manager_start_airflow = click.option(
 @click.option(
     "--dev-mode",
     help="Starts api-server in dev mode (assets are always recompiled in this case when starting) "
-    "(mutually exclusive with --skip-assets-compilation).",
+    "(mutually exclusive with --skip-assets-compilation and --use-airflow-version).",
+    is_flag=True,
+)
+@click.option(
+    "--create-all-roles",
+    help="Creates all user roles for testing with FabAuthManager (viewer, user, op, admin). "
+    "SimpleAuthManager always has all roles available.",
     is_flag=True,
 )
 @click.argument("extra-args", nargs=-1, type=click.UNPROCESSED)
@@ -498,7 +533,7 @@ option_auth_manager_start_airflow = click.option(
 @option_airflow_constraints_mode_ci
 @option_airflow_constraints_reference
 @option_airflow_extras
-@option_auth_manager_start_airflow
+@option_auth_manager
 @option_answer
 @option_backend
 @option_builder
@@ -521,6 +556,7 @@ option_auth_manager_start_airflow = click.option(
 @option_load_default_connections
 @option_load_example_dags
 @option_mount_sources
+@option_mount_ui_dist
 @option_mysql_version
 @option_platform_single
 @option_postgres_version
@@ -532,6 +568,7 @@ option_auth_manager_start_airflow = click.option(
 @option_python
 @option_restart
 @option_standalone_dag_processor
+@option_use_mprocs
 @option_use_uv
 @option_uv_http_timeout
 @option_use_airflow_version
@@ -555,6 +592,7 @@ def start_airflow(
     debug_components: tuple[str, ...],
     debugger: str,
     dev_mode: bool,
+    create_all_roles: bool,
     docker_host: str | None,
     executor: str | None,
     extra_args: tuple,
@@ -566,6 +604,7 @@ def start_airflow(
     load_default_connections: bool,
     load_example_dags: bool,
     mount_sources: str,
+    mount_ui_dist: bool,
     mysql_version: str,
     distribution_format: str,
     platform: str | None,
@@ -579,13 +618,14 @@ def start_airflow(
     restart: bool,
     skip_assets_compilation: bool,
     standalone_dag_processor: bool,
+    use_mprocs: bool,
     use_airflow_version: str | None,
     use_distributions_from_dist: bool,
     use_uv: bool,
     uv_http_timeout: int,
 ):
     """
-    Enter breeze environment and starts all Airflow components in the tmux session.
+    Enter breeze environment and starts all Airflow components in the tmux or mprocs session.
     Compile assets if contents of www directory changed.
     """
     if dev_mode and skip_assets_compilation:
@@ -593,7 +633,25 @@ def start_airflow(
             "[warning]You cannot skip asset compilation in dev mode! Assets will be compiled!"
         )
         skip_assets_compilation = True
+
+    if dev_mode and use_airflow_version:
+        get_console().print(
+            "[error]You cannot set Airflow version in dev mode! Consider switching to the respective "
+            "version branch if you need to use --dev-mode on a different Airflow version! \nExiting!!"
+        )
+
+        sys.exit(1)
+
+    # Automatically enable file polling for hot reloading under WSL
+    if dev_mode and is_wsl():
+        os.environ["CHOKIDAR_USEPOLLING"] = "true"
+        get_console().print(
+            "[info]Detected WSL environment. Automatically enabled CHOKIDAR_USEPOLLING for hot reloading."
+        )
+
+    perform_environment_checks(quiet=False)
     if use_airflow_version is None and not skip_assets_compilation:
+        assert_prek_installed()
         # Now with the /ui project, lets only do a static build of /www and focus on the /ui
         run_compile_ui_assets(dev=dev_mode, run_in_background=True, force_clean=False)
     airflow_constraints_reference = _determine_constraint_branch_used(
@@ -627,6 +685,7 @@ def start_airflow(
         debugger=debugger,
         db_reset=db_reset,
         dev_mode=dev_mode,
+        create_all_roles=create_all_roles,
         docker_host=docker_host,
         executor=executor,
         extra_args=extra_args,
@@ -639,6 +698,7 @@ def start_airflow(
         load_default_connections=load_default_connections,
         load_example_dags=load_example_dags,
         mount_sources=mount_sources,
+        mount_ui_dist=mount_ui_dist,
         mysql_version=mysql_version,
         distribution_format=distribution_format,
         platform=platform,
@@ -654,6 +714,7 @@ def start_airflow(
         start_airflow=True,
         use_airflow_version=use_airflow_version,
         use_distributions_from_dist=use_distributions_from_dist,
+        use_mprocs=use_mprocs,
         use_uv=use_uv,
         uv_http_timeout=uv_http_timeout,
     )
@@ -708,7 +769,7 @@ def start_airflow(
     "--distributions-list",
     envvar="DISTRIBUTIONS_LIST",
     type=str,
-    help="Optional, contains comma-separated list of package ids that are processed for documentation "
+    help="Optional, contains space separated list of package ids that are processed for documentation "
     "building, and document publishing. It is an easier alternative to adding individual packages as"
     " arguments to every command. This overrides the packages passed as arguments.",
 )
@@ -767,7 +828,7 @@ def build_docs(
             f"\n[info]Populating provider list from DISTRIBUTIONS_LIST env as {distributions_list}"
         )
         # Override doc_packages with values from DISTRIBUTIONS_LIST
-        docs_list_as_tuple = tuple(distributions_list.split(","))
+        docs_list_as_tuple = tuple(distributions_list.split(" "))
     if doc_packages and docs_list_as_tuple:
         get_console().print(
             f"[warning]Both package arguments and --distributions-list / DISTRIBUTIONS_LIST passed. "
@@ -802,222 +863,6 @@ def build_docs(
             "the built docs at http://localhost:8000"
         )
     sys.exit(result.returncode)
-
-
-@main.command(
-    name="static-checks",
-    help="Run static checks.",
-    context_settings=dict(
-        ignore_unknown_options=True,
-        allow_extra_args=True,
-    ),
-)
-@click.option(
-    "-t",
-    "--type",
-    "type_",
-    help="Type(s) of the static checks to run.",
-    type=BetterChoice(PRE_COMMIT_LIST),
-)
-@click.option("-a", "--all-files", help="Run checks on all files.", is_flag=True)
-@click.option("-f", "--file", help="List of files to run the checks on.", type=click.Path(), multiple=True)
-@click.option(
-    "-s", "--show-diff-on-failure", help="Show diff for files modified by the checks.", is_flag=True
-)
-@click.option(
-    "-c",
-    "--last-commit",
-    help="Run checks for all files in last commit. Mutually exclusive with --commit-ref.",
-    is_flag=True,
-)
-@click.option(
-    "-m",
-    "--only-my-changes",
-    help="Run checks for commits belonging to my PR only: for all commits between merge base to `main` "
-    "branch and HEAD of your branch.",
-    is_flag=True,
-)
-@click.option(
-    "-r",
-    "--commit-ref",
-    help="Run checks for this commit reference only "
-    "(can be any git commit-ish reference). "
-    "Mutually exclusive with --last-commit.",
-)
-@click.option(
-    "--initialize-environment",
-    help="Initialize environment before running checks.",
-    is_flag=True,
-)
-@click.option(
-    "--max-initialization-attempts",
-    help="Maximum number of attempts to initialize environment before giving up.",
-    show_default=True,
-    type=click.IntRange(1, 10),
-    default=3,
-)
-@option_builder
-@option_dry_run
-@option_force_build
-@option_github_repository
-@option_skip_image_upgrade_check
-@option_verbose
-@click.argument("precommit_args", nargs=-1, type=click.UNPROCESSED)
-def static_checks(
-    all_files: bool,
-    builder: str,
-    commit_ref: str,
-    file: Iterable[str],
-    force_build: bool,
-    github_repository: str,
-    initialize_environment: bool,
-    last_commit: bool,
-    max_initialization_attempts: int,
-    only_my_changes: bool,
-    precommit_args: tuple,
-    show_diff_on_failure: bool,
-    skip_image_upgrade_check: bool,
-    type_: str,
-):
-    assert_pre_commit_installed()
-    perform_environment_checks()
-    build_params = BuildCiParams(
-        builder=builder,
-        force_build=force_build,
-        github_repository=github_repository,
-        # for static checks we do not want to regenerate dependencies before pre-commits are run
-        # we want the pre-commit to do it for us (and detect the case the dependencies are updated)
-        skip_provider_dependencies_check=True,
-    )
-    if not skip_image_upgrade_check:
-        rebuild_or_pull_ci_image_if_needed(command_params=build_params)
-
-    if initialize_environment:
-        get_console().print("[info]Make sure that pre-commit is installed and environment initialized[/]")
-        get_console().print(
-            f"[info]Trying to install the environments up to {max_initialization_attempts} "
-            f"times in case of flakiness[/]"
-        )
-        return_code = 0
-        for attempt in range(1, 1 + max_initialization_attempts):
-            get_console().print(f"[info]Attempt number {attempt} to install pre-commit environments")
-            initialization_result = run_command(
-                ["pre-commit", "install", "--install-hooks"],
-                check=False,
-                no_output_dump_on_exception=True,
-                text=True,
-            )
-            if initialization_result.returncode == 0:
-                break
-            get_console().print(f"[warning]Attempt number {attempt} failed - retrying[/]")
-            return_code = initialization_result.returncode
-        else:
-            get_console().print("[error]Could not install pre-commit environments[/]")
-            sys.exit(return_code)
-
-    command_to_execute = ["pre-commit", "run"]
-    if not one_or_none_set([last_commit, commit_ref, only_my_changes, all_files]):
-        get_console().print(
-            "\n[error]You can only specify "
-            "one of --last-commit, --commit-ref, --only-my-changes, --all-files[/]\n"
-        )
-        sys.exit(1)
-    if type_:
-        command_to_execute.append(type_)
-    if only_my_changes:
-        merge_base = run_command(
-            ["git", "merge-base", "HEAD", "main"], capture_output=True, check=False, text=True
-        ).stdout.strip()
-        if not merge_base:
-            get_console().print(
-                "\n[warning]Could not find merge base between HEAD and main. Running check for all files\n"
-            )
-            all_files = True
-        else:
-            get_console().print(
-                f"\n[info]Running checks for files changed in the current branch: {merge_base}..HEAD\n"
-            )
-            command_to_execute.extend(["--from-ref", merge_base, "--to-ref", "HEAD"])
-    if all_files:
-        command_to_execute.append("--all-files")
-    if show_diff_on_failure:
-        command_to_execute.append("--show-diff-on-failure")
-    if last_commit:
-        get_console().print("\n[info]Running checks for last commit in the current branch: HEAD^..HEAD\n")
-        command_to_execute.extend(["--from-ref", "HEAD^", "--to-ref", "HEAD"])
-    if commit_ref:
-        get_console().print(f"\n[info]Running checks for selected commit: {commit_ref}\n")
-        command_to_execute.extend(["--from-ref", f"{commit_ref}^", "--to-ref", f"{commit_ref}"])
-    if get_verbose() or get_dry_run():
-        command_to_execute.append("--verbose")
-    if file:
-        command_to_execute.append("--files")
-        command_to_execute.extend(file)
-    if precommit_args:
-        command_to_execute.extend(precommit_args)
-    skip_checks = os.environ.get("SKIP")
-    if skip_checks and skip_checks != "identity":
-        get_console().print("\nThis static check run skips those checks:\n")
-        get_console().print(skip_checks.split(","))
-        get_console().print()
-    env = os.environ.copy()
-    env["GITHUB_REPOSITORY"] = github_repository
-    env["VERBOSE"] = str(get_verbose()).lower()
-    static_checks_result = run_command(
-        command_to_execute,
-        check=False,
-        no_output_dump_on_exception=True,
-        text=True,
-        env=env,
-    )
-    if not os.environ.get("SKIP_BREEZE_PRE_COMMITS"):
-        fix_ownership_using_docker()
-    if static_checks_result.returncode != 0:
-        if os.environ.get("CI"):
-            get_console().print("\n[error]This error means that you have to fix the issues listed above:[/]")
-            get_console().print("\n[info]Some of the problems might be fixed automatically via pre-commit[/]")
-            get_console().print(
-                "\n[info]You can run it locally with: `pre-commit run --all-files` "
-                "but it might take quite some time.[/]"
-            )
-            get_console().print(
-                "\n[info]If you use breeze you can also run it faster via: "
-                "`breeze static-checks --only-my-changes` but it might produce slightly "
-                "different results.[/]"
-            )
-            get_console().print(
-                "\n[info]To run `pre-commit` as part of git workflow, use "
-                "`pre-commit install`. This will make pre-commit run as you commit changes[/]\n"
-            )
-    sys.exit(static_checks_result.returncode)
-
-
-@main.command(
-    name="compile-ui-assets",
-    help="Compiles ui assets.",
-)
-@click.option(
-    "--dev",
-    help="Run development version of assets compilation - it will not quit and automatically "
-    "recompile assets on-the-fly when they are changed.",
-    is_flag=True,
-)
-@click.option(
-    "--force-clean",
-    help="Force cleanup of compile assets before building them.",
-    is_flag=True,
-)
-@option_verbose
-@option_dry_run
-def compile_ui_assets(dev: bool, force_clean: bool):
-    perform_environment_checks()
-    assert_pre_commit_installed()
-    compile_ui_assets_result = run_compile_ui_assets(
-        dev=dev, run_in_background=False, force_clean=force_clean
-    )
-    if compile_ui_assets_result.returncode != 0:
-        get_console().print("[warn]New assets were generated[/]")
-    sys.exit(0)
 
 
 @main.command(name="down", help="Stop running breeze environment.")
@@ -1213,6 +1058,7 @@ def doctor(ctx):
 )
 @click.argument("command", required=True)
 @click.argument("command_args", nargs=-1, type=click.UNPROCESSED)
+@option_answer
 @option_backend
 @option_builder
 @option_docker_host
@@ -1331,6 +1177,8 @@ def run(
             shell_params=shell_params,
             project_name=unique_project_name,
             command=full_command,
+            # Always preserve the backend specified by user (or resolved from default)
+            preserve_backend=True,
         )
 
     # Clean up ownership

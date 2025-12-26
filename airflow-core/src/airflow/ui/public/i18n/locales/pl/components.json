@@ -8,8 +8,6 @@
     "allRuns": "Wszystkie wykonania",
     "backwards": "Uruchom wstecz",
     "dateRange": "Zakres dat",
-    "dateRangeFrom": "Od",
-    "dateRangeTo": "Do",
     "errorStartDateBeforeEndDate": "Data początkowa musi być wcześniejsza niż data końcowa",
     "maxRuns": "Maksymalna liczba aktywnych wykonań",
     "missingAndErroredRuns": "Brakujące i błędne wykonania",
@@ -58,12 +56,19 @@
     "warning_one": "1 Ostrzeżenie",
     "warning_other": "{{count}} Ostrzeżenia"
   },
+  "dateRangeFilter": {
+    "validation": {
+      "invalidDateFormat": "Nieprawidłowy format daty.",
+      "invalidTimeFormat": "Nieprawidłowy format czasu.",
+      "startBeforeEnd": "Data/czas rozpoczęcia musi być wcześniejszy niż data/czas zakończenia"
+    }
+  },
   "durationChart": {
     "duration": "Czas trwania (sekundy)",
-    "lastDagRun_few": "Ostatnie {{count}} wykonania Daga",
-    "lastDagRun_many": "Ostatnich {{count}} wykonań Daga",
-    "lastDagRun_one": "Ostatnie wykonanie Daga",
-    "lastDagRun_other": "Ostatnie {{count}} wykonania Daga",
+    "lastDagRun_few": "Ostatnie {{count}} wykonania",
+    "lastDagRun_many": "Ostatnich {{count}} wykonań",
+    "lastDagRun_one": "Ostatnie wykonanie",
+    "lastDagRun_other": "Ostatnie {{count}} wykonania",
     "lastTaskInstance_few": "Ostatnie {{count}} instancje zadania",
     "lastTaskInstance_many": "Ostatnich {{count}} instancji zadania",
     "lastTaskInstance_one": "Ostatnia instancja zadania",
@@ -96,7 +101,7 @@
     "downloadImage": "Pobierz obraz grafu",
     "downloadImageError": "Nie udało się pobrać obrazu grafu.",
     "downloadImageErrorTitle": "Pobieranie nieudane",
-    "otherDagRuns": "+Inne wykonania Daga",
+    "otherDagRuns": "+Inne wykonania",
     "taskCount_few": "{{count}} Zadania",
     "taskCount_many": "{{count}} Zadań",
     "taskCount_one": "{{count}} Zadanie",
@@ -104,6 +109,18 @@
     "taskGroup": "Grupa zadań"
   },
   "limitedList": "+{{count}} więcej",
+  "limitedList.allItems": "Wszystkie {{count}} elementy:",
+  "limitedList.allTags_few": "Wszystkie tagi ({{count}})",
+  "limitedList.allTags_many": "Wszystkie tagi ({{count}})",
+  "limitedList.allTags_one": "Wszystkie tagi (1)",
+  "limitedList.allTags_other": "Wszystkie tagi ({{count}})",
+  "limitedList.clickToInteract": "Kliknij etykietę, aby przefiltrować Dagi",
+  "limitedList.clickToOpenFull": "Kliknij \"+{{count}} więcej\", aby zobaczyć pełną listę",
+  "limitedList.copyPasteText": "Możesz skopiować i wkleić powyższy tekst",
+  "limitedList.showingItems_few": "Wyświetlanie {{count}} elementów",
+  "limitedList.showingItems_many": "Wyświetlanie {{count}} elementów",
+  "limitedList.showingItems_one": "Wyświetlanie 1 elementu",
+  "limitedList.showingItems_other": "Wyświetlanie {{count}} elementów",
   "logs": {
     "file": "Plik",
     "location": "linia {{line}} w {{name}}"
@@ -113,17 +130,26 @@
   "sortedDescending": "posortowane malejąco",
   "sortedUnsorted": "nieposortowane",
   "taskTries": "Próby zadania",
+  "taskTryPlaceholder": "Próba zadania",
   "toggleCardView": "Pokaż widok kart",
   "toggleTableView": "Pokaż widok tabeli",
   "triggerDag": {
     "button": "Uruchom Daga",
+    "dataInterval": "Interwał danych",
+    "dataIntervalAuto": "Wywnioskowany z daty logicznej i harmonogramu",
+    "dataIntervalManual": "Określ ręcznie",
+    "intervalEnd": "Koniec",
+    "intervalStart": "Początek",
     "loading": "Ładowanie informacji o Dagach...",
     "loadingFailed": "Nie udało się załadować informacji o Dagach. Spróbuj ponownie.",
     "runIdHelp": "Opcjonalne - zostanie wygenerowane, jeśli nie podano",
-    "selectDescription": "Wyzwól pojedyncze wykonanie tego Daga",
+    "selectDescription": "Wyzwól pojedyncze wykonanie",
     "selectLabel": "Pojedyncze wykonanie",
     "title": "Uruchom Daga",
     "toaster": {
+      "error": {
+        "title": "Nie udało się uruchomić Daga"
+      },
       "success": {
         "description": "Dag został pomyślnie uruchomiony.",
         "title": "Uruchomienie Daga"
@@ -144,6 +170,7 @@
     "versionId": "Identyfikator wersji"
   },
   "versionSelect": {
+    "allVersions": "Wszystkie wersje",
     "dagVersion": "Wersja Daga",
     "versionCode": "v{{versionCode}}"
   }

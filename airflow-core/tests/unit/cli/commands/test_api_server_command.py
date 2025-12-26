@@ -35,33 +35,14 @@ class TestCliApiServer(_CommonCLIUvicornTestClass):
     main_process_regexp = r"airflow api-server"
 
     @pytest.mark.parametrize(
-        "args, expected_command",
+        "args",
         [
             pytest.param(
                 ["api-server", "--port", "9092", "--host", "somehost", "--dev"],
-                [
-                    "fastapi",
-                    "dev",
-                    "airflow-core/src/airflow/api_fastapi/main.py",
-                    "--port",
-                    "9092",
-                    "--host",
-                    "somehost",
-                ],
                 id="dev mode with port and host",
             ),
             pytest.param(
                 ["api-server", "--port", "9092", "--host", "somehost", "--dev", "--proxy-headers"],
-                [
-                    "fastapi",
-                    "dev",
-                    "airflow-core/src/airflow/api_fastapi/main.py",
-                    "--port",
-                    "9092",
-                    "--host",
-                    "somehost",
-                    "--proxy-headers",
-                ],
                 id="dev mode with port, host and proxy headers",
             ),
             pytest.param(
@@ -75,31 +56,24 @@ class TestCliApiServer(_CommonCLIUvicornTestClass):
                     "--log-config",
                     "my_log_config.yaml",
                 ],
-                [
-                    "fastapi",
-                    "dev",
-                    "airflow-core/src/airflow/api_fastapi/main.py",
-                    "--port",
-                    "9092",
-                    "--host",
-                    "somehost",
-                    "--log-config",
-                    "my_log_config.yaml",
-                ],
                 id="dev mode with port, host and log config",
             ),
         ],
     )
-    def test_dev_arg(self, args, expected_command):
+    def test_dev_arg(self, args):
         with (
-            mock.patch("subprocess.Popen") as Popen,
+            mock.patch("fastapi_cli.cli._run") as mock_run,
         ):
             args = self.parser.parse_args(args)
             api_server_command.api_server(args)
 
-            Popen.assert_called_with(
-                expected_command,
-                close_fds=True,
+            mock_run.assert_called_with(
+                entrypoint="airflow.api_fastapi.main:app",
+                port=args.port,
+                host=args.host,
+                reload=True,
+                proxy_headers=args.proxy_headers,
+                command="dev",
             )
 
     @pytest.mark.parametrize(
@@ -137,7 +111,7 @@ class TestCliApiServer(_CommonCLIUvicornTestClass):
         with (
             mock.patch("os.environ", autospec=True) as mock_environ,
             mock.patch("uvicorn.run"),
-            mock.patch("subprocess.Popen"),
+            mock.patch("fastapi_cli.cli._run"),
         ):
             # Mock the environment variable with initial value or None
             mock_environ.get.return_value = original_env
@@ -148,21 +122,19 @@ class TestCliApiServer(_CommonCLIUvicornTestClass):
 
             # Verify the AIRFLOW_API_APPS was set correctly
             if "--apps" in args:
-                expected_setitem_calls.append(
-                    mock.call(api_server_command.AIRFLOW_API_APPS, parsed_args.apps)
-                )
+                expected_setitem_calls.append(mock.call("AIRFLOW_API_APPS", parsed_args.apps))
 
             # Verify AIRFLOW_API_APPS was cleaned up
             if original_env is not None:
-                expected_setitem_calls.append(mock.call(api_server_command.AIRFLOW_API_APPS, original_env))
+                expected_setitem_calls.append(mock.call("AIRFLOW_API_APPS", original_env))
             else:
-                mock_environ.pop.assert_called_with(api_server_command.AIRFLOW_API_APPS, None)
+                mock_environ.pop.assert_called_with("AIRFLOW_API_APPS", None)
 
             # Verify that the environment variable was set and cleaned up correctly
             mock_environ.__setitem__.assert_has_calls(expected_setitem_calls)
 
     @pytest.mark.parametrize(
-        "cli_args, expected_additional_kwargs",
+        ("cli_args", "expected_additional_kwargs"),
         [
             pytest.param(
                 [
@@ -220,7 +192,9 @@ class TestCliApiServer(_CommonCLIUvicornTestClass):
                     "workers": args.workers,
                     "timeout_keep_alive": args.worker_timeout,
                     "timeout_graceful_shutdown": args.worker_timeout,
+                    "timeout_worker_healthcheck": args.worker_timeout,
                     "access_log": True,
+                    "log_level": "info",
                     "proxy_headers": args.proxy_headers,
                     **expected_additional_kwargs,
                 },
@@ -269,9 +243,11 @@ class TestCliApiServer(_CommonCLIUvicornTestClass):
             workers=2,
             timeout_keep_alive=60,
             timeout_graceful_shutdown=60,
+            timeout_worker_healthcheck=60,
             ssl_keyfile=None,
             ssl_certfile=None,
             access_log=True,
+            log_level="info",
             proxy_headers=False,
         )
 
@@ -329,7 +305,7 @@ class TestCliApiServer(_CommonCLIUvicornTestClass):
             mock_open.assert_not_called()
 
     @pytest.mark.parametrize(
-        "ssl_arguments, error_pattern",
+        ("ssl_arguments", "error_pattern"),
         [
             (["--ssl-cert", "_.crt", "--ssl-key", "_.key"], "does not exist _.crt"),
             (["--ssl-cert", "_.crt"], "Need both.*certificate.*key"),

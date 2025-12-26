@@ -23,9 +23,8 @@
 
 Package ``apache-airflow-providers-microsoft-psrp``
 
-Release: ``3.1.2``
+Release: ``3.2.1``
 
-Release Date: ``|PypiReleaseDate|``
 
 This package provides remote execution capabilities via the
 `PowerShell Remoting Protocol (PSRP)
@@ -39,12 +38,12 @@ This is a provider package for ``microsoft.psrp`` provider. All classes for this
 are in ``airflow.providers.microsoft.psrp`` python package.
 
 You can find package information and changelog for the provider
-in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-microsoft-psrp/3.1.2/>`_.
+in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-microsoft-psrp/3.2.1/>`_.
 
 Installation
 ------------
 
-You can install this package on top of an existing Airflow 2 installation (see ``Requirements`` below
+You can install this package on top of an existing Airflow installation (see ``Requirements`` below
 for the minimum Airflow version supported) via
 ``pip install apache-airflow-providers-microsoft-psrp``
 
@@ -53,12 +52,32 @@ The package supports the following python versions: 3.10,3.11,3.12,3.13
 Requirements
 ------------
 
-==================  ==================
-PIP package         Version required
-==================  ==================
-``apache-airflow``  ``>=2.10.0``
-``pypsrp``          ``>=0.8.0``
-==================  ==================
+==========================================  ==================
+PIP package                                 Version required
+==========================================  ==================
+``apache-airflow``                          ``>=2.11.0``
+``apache-airflow-providers-common-compat``  ``>=1.10.1``
+``pypsrp``                                  ``>=0.8.0``
+==========================================  ==================
+
+Cross provider package dependencies
+-----------------------------------
+
+Those are dependencies that might be needed in order to use all the features of the package.
+You need to install the specified providers in order to use them.
+
+You can install such cross-provider dependencies when installing from PyPI. For example:
+
+.. code-block:: bash
+
+    pip install apache-airflow-providers-microsoft-psrp[common.compat]
+
+
+==================================================================================================================  =================
+Dependent package                                                                                                   Extra
+==================================================================================================================  =================
+`apache-airflow-providers-common-compat <https://airflow.apache.org/docs/apache-airflow-providers-common-compat>`_  ``common.compat``
+==================================================================================================================  =================
 
 The changelog for the provider package can be found in the
-`changelog <https://airflow.apache.org/docs/apache-airflow-providers-microsoft-psrp/3.1.2/changelog.html>`_.
+`changelog <https://airflow.apache.org/docs/apache-airflow-providers-microsoft-psrp/3.2.1/changelog.html>`_.

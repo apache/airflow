@@ -61,7 +61,7 @@ from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
 
 @pytest.mark.parametrize(
-    "env_vars, expected_logging",
+    ("env_vars", "expected_logging"),
     [
         ({"AIRFLOW__LOGGING__LOGGING_LEVEL": "DEBUG"}, "DEBUG"),
         ({"AIRFLOW__LOGGING__LOGGING_LEVEL": "INFO"}, None),
@@ -870,23 +870,31 @@ def test_emit_dag_complete_event(
     dag_run._state = DagRunState.SUCCESS
     dag_run.end_date = event_time
     if AIRFLOW_V_3_0_PLUS:
-        mocked_fetch_tis.return_value = [
-            TaskInstance(
-                task=task_0, run_id=run_id, state=TaskInstanceState.SUCCESS, dag_version_id=mock.MagicMock()
-            ),
-            TaskInstance(
-                task=task_1, run_id=run_id, state=TaskInstanceState.SKIPPED, dag_version_id=mock.MagicMock()
-            ),
-            TaskInstance(
-                task=task_2, run_id=run_id, state=TaskInstanceState.FAILED, dag_version_id=mock.MagicMock()
-            ),
-        ]
+        ti0 = TaskInstance(
+            task=task_0, run_id=run_id, state=TaskInstanceState.SUCCESS, dag_version_id=mock.MagicMock()
+        )
+        ti1 = TaskInstance(
+            task=task_1, run_id=run_id, state=TaskInstanceState.SKIPPED, dag_version_id=mock.MagicMock()
+        )
+
+        ti2 = TaskInstance(
+            task=task_2, run_id=run_id, state=TaskInstanceState.FAILED, dag_version_id=mock.MagicMock()
+        )
     else:
-        mocked_fetch_tis.return_value = [
-            TaskInstance(task=task_0, run_id=run_id, state=TaskInstanceState.SUCCESS),
-            TaskInstance(task=task_1, run_id=run_id, state=TaskInstanceState.SKIPPED),
-            TaskInstance(task=task_2, run_id=run_id, state=TaskInstanceState.FAILED),
-        ]
+        ti0 = TaskInstance(task=task_0, run_id=run_id, state=TaskInstanceState.SUCCESS)
+        ti1 = TaskInstance(task=task_1, run_id=run_id, state=TaskInstanceState.SKIPPED)
+        ti2 = TaskInstance(task=task_2, run_id=run_id, state=TaskInstanceState.FAILED)
+
+    ti0.start_date = datetime.datetime(2022, 1, 1, 0, 0, 0)
+    ti0.end_date = datetime.datetime(2022, 1, 1, 0, 10, 0)
+
+    ti1.start_date = datetime.datetime(2022, 1, 1, 0, 10, 2)
+    ti1.end_date = datetime.datetime(2022, 1, 1, 0, 13, 7)
+
+    ti2.start_date = datetime.datetime(2022, 1, 1, 0, 13, 8)
+    ti2.end_date = datetime.datetime(2022, 1, 1, 0, 14, 0)
+
+    mocked_fetch_tis.return_value = [ti0, ti1, ti2]
     generate_static_uuid.return_value = random_uuid
 
     adapter.dag_success(
@@ -941,6 +949,11 @@ def test_emit_dag_complete_event(
                             task_0.task_id: TaskInstanceState.SUCCESS,
                             task_1.task_id: TaskInstanceState.SKIPPED,
                             task_2.task_id: TaskInstanceState.FAILED,
+                        },
+                        tasksDuration={
+                            task_0.task_id: 600.0,
+                            task_1.task_id: 185.0,
+                            task_2.task_id: 52.0,
                         },
                     ),
                     "processing_engine": processing_engine_run.ProcessingEngineRunFacet(
@@ -1020,24 +1033,34 @@ def test_emit_dag_failed_event(
         )
     dag_run._state = DagRunState.FAILED
     dag_run.end_date = event_time
+
     if AIRFLOW_V_3_0_PLUS:
-        mocked_fetch_tis.return_value = [
-            TaskInstance(
-                task=task_0, run_id=run_id, state=TaskInstanceState.SUCCESS, dag_version_id=mock.MagicMock()
-            ),
-            TaskInstance(
-                task=task_1, run_id=run_id, state=TaskInstanceState.SKIPPED, dag_version_id=mock.MagicMock()
-            ),
-            TaskInstance(
-                task=task_2, run_id=run_id, state=TaskInstanceState.FAILED, dag_version_id=mock.MagicMock()
-            ),
-        ]
+        ti0 = TaskInstance(
+            task=task_0, run_id=run_id, state=TaskInstanceState.SUCCESS, dag_version_id=mock.MagicMock()
+        )
+        ti1 = TaskInstance(
+            task=task_1, run_id=run_id, state=TaskInstanceState.SKIPPED, dag_version_id=mock.MagicMock()
+        )
+
+        ti2 = TaskInstance(
+            task=task_2, run_id=run_id, state=TaskInstanceState.FAILED, dag_version_id=mock.MagicMock()
+        )
     else:
-        mocked_fetch_tis.return_value = [
-            TaskInstance(task=task_0, run_id=run_id, state=TaskInstanceState.SUCCESS),
-            TaskInstance(task=task_1, run_id=run_id, state=TaskInstanceState.SKIPPED),
-            TaskInstance(task=task_2, run_id=run_id, state=TaskInstanceState.FAILED),
-        ]
+        ti0 = TaskInstance(task=task_0, run_id=run_id, state=TaskInstanceState.SUCCESS)
+        ti1 = TaskInstance(task=task_1, run_id=run_id, state=TaskInstanceState.SKIPPED)
+        ti2 = TaskInstance(task=task_2, run_id=run_id, state=TaskInstanceState.FAILED)
+
+    ti0.start_date = datetime.datetime(2022, 1, 1, 0, 0, 0)
+    ti0.end_date = datetime.datetime(2022, 1, 1, 0, 10, 0)
+
+    ti1.start_date = datetime.datetime(2022, 1, 1, 0, 10, 2)
+    ti1.end_date = datetime.datetime(2022, 1, 1, 0, 13, 7)
+
+    ti2.start_date = datetime.datetime(2022, 1, 1, 0, 13, 8)
+    ti2.end_date = datetime.datetime(2022, 1, 1, 0, 14, 0)
+
+    mocked_fetch_tis.return_value = [ti0, ti1, ti2]
+
     generate_static_uuid.return_value = random_uuid
 
     adapter.dag_failed(
@@ -1096,6 +1119,11 @@ def test_emit_dag_failed_event(
                             task_0.task_id: TaskInstanceState.SUCCESS,
                             task_1.task_id: TaskInstanceState.SKIPPED,
                             task_2.task_id: TaskInstanceState.FAILED,
+                        },
+                        tasksDuration={
+                            task_0.task_id: 600.0,
+                            task_1.task_id: 185.0,
+                            task_2.task_id: 52.0,
                         },
                     ),
                     "processing_engine": processing_engine_run.ProcessingEngineRunFacet(

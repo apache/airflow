@@ -21,8 +21,8 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from airflow.exceptions import AirflowException
 from airflow.models import Connection
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.microsoft.azure.hooks.synapse import (
     AzureSynapsePipelineHook,
     AzureSynapsePipelineRunException,
@@ -164,7 +164,7 @@ class TestAzureSynapseRunPipelineOperator:
 
     @patch.object(AzureSynapsePipelineHook, "run_pipeline", return_value=MagicMock(**PIPELINE_RUN_RESPONSE))
     @pytest.mark.parametrize(
-        "pipeline_run_status,expected_output",
+        ("pipeline_run_status", "expected_output"),
         [
             (AzureSynapsePipelineRunStatus.SUCCEEDED, None),
             (AzureSynapsePipelineRunStatus.FAILED, "exception"),

@@ -19,7 +19,6 @@
 
 from __future__ import annotations
 
-import importlib
 import importlib.machinery
 import importlib.util
 import inspect
@@ -32,6 +31,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 from airflow import settings
+from airflow._shared.module_loading import import_string, qualname
 from airflow.configuration import conf
 from airflow.task.priority_strategy import (
     PriorityWeightStrategy,
@@ -39,7 +39,6 @@ from airflow.task.priority_strategy import (
 )
 from airflow.utils.entry_points import entry_points_with_dist
 from airflow.utils.file import find_path_from_directory
-from airflow.utils.module_loading import import_string, qualname
 
 if TYPE_CHECKING:
     from airflow.lineage.hook import HookLineageReader
@@ -214,8 +213,6 @@ def is_valid_plugin(plugin_obj):
     :return: Whether or not the obj is a valid subclass of
         AirflowPlugin
     """
-    global plugins
-
     if (
         inspect.isclass(plugin_obj)
         and issubclass(plugin_obj, AirflowPlugin)
@@ -234,8 +231,6 @@ def register_plugin(plugin_instance):
 
     :param plugin_instance: subclass of AirflowPlugin
     """
-    global plugins
-
     if plugin_instance.name in loaded_plugins:
         return
 
@@ -250,8 +245,6 @@ def load_entrypoint_plugins():
 
     The entry_point group should be 'airflow.plugins'.
     """
-    global import_errors
-
     log.debug("Loading plugins from entrypoints")
 
     for entry_point, dist in entry_points_with_dist("airflow.plugins"):
@@ -271,7 +264,6 @@ def load_entrypoint_plugins():
 
 def load_plugins_from_plugin_directory():
     """Load and register Airflow Plugins from plugins directory."""
-    global import_errors
     log.debug("Loading plugins from directory: %s", settings.PLUGINS_FOLDER)
     files = find_path_from_directory(settings.PLUGINS_FOLDER, ".airflowignore")
     plugin_search_locations: list[tuple[str, Generator[str, None, None]]] = [("", files)]
@@ -345,7 +337,7 @@ def ensure_plugins_loaded():
 
     Plugins are only loaded if they have not been previously loaded.
     """
-    from airflow.stats import Stats
+    from airflow.observability.stats import Stats
 
     global plugins
 
@@ -373,7 +365,6 @@ def ensure_plugins_loaded():
 
 def initialize_ui_plugins():
     """Collect extension points for the UI."""
-    global plugins
     global external_views
     global react_apps
 
@@ -391,10 +382,27 @@ def initialize_ui_plugins():
     external_views = []
     react_apps = []
 
+    def _remove_list_item(lst, item):
+        # Mutate in place the plugin's external views and react apps list to remove the invalid items
+        # because some function still access these plugin's attribute and not the
+        # global variables `external_views` `react_apps`. (get_plugin_info, for example)
+        lst.remove(item)
+
     for plugin in plugins:
+        external_views_to_remove = []
+        react_apps_to_remove = []
         for external_view in plugin.external_views:
-            url_route = external_view["url_route"]
-            if url_route is not None and url_route in seen_url_route:
+            if not isinstance(external_view, dict):
+                log.warning(
+                    "Plugin '%s' has an external view that is not a dictionary. The view will not be loaded.",
+                    plugin.name,
+                )
+                external_views_to_remove.append(external_view)
+                continue
+            url_route = external_view.get("url_route")
+            if url_route is None:
+                continue
+            if url_route in seen_url_route:
                 log.warning(
                     "Plugin '%s' has an external view with an URL route '%s' "
                     "that conflicts with another plugin '%s'. The view will not be loaded.",
@@ -402,17 +410,23 @@ def initialize_ui_plugins():
                     url_route,
                     seen_url_route[url_route],
                 )
-                # Mutate in place the plugin's external views to remove the conflicting view
-                # because some function still access the plugin's external views and not the
-                # global `external_views` variable. (get_plugin_info, for example)
-                plugin.external_views.remove(external_view)
+                external_views_to_remove.append(external_view)
                 continue
             external_views.append(external_view)
             seen_url_route[url_route] = plugin.name
 
         for react_app in plugin.react_apps:
-            url_route = react_app["url_route"]
-            if url_route is not None and url_route in seen_url_route:
+            if not isinstance(react_app, dict):
+                log.warning(
+                    "Plugin '%s' has a React App that is not a dictionary. The React App will not be loaded.",
+                    plugin.name,
+                )
+                react_apps_to_remove.append(react_app)
+                continue
+            url_route = react_app.get("url_route")
+            if url_route is None:
+                continue
+            if url_route in seen_url_route:
                 log.warning(
                     "Plugin '%s' has a React App with an URL route '%s' "
                     "that conflicts with another plugin '%s'. The React App will not be loaded.",
@@ -420,18 +434,19 @@ def initialize_ui_plugins():
                     url_route,
                     seen_url_route[url_route],
                 )
-                # Mutate in place the plugin's React Apps to remove the conflicting app
-                # because some function still access the plugin's React Apps and not the
-                # global `react_apps` variable. (get_plugin_info, for example)
-                plugin.react_apps.remove(react_app)
+                react_apps_to_remove.append(react_app)
                 continue
             react_apps.append(react_app)
             seen_url_route[url_route] = plugin.name
 
+        for item in external_views_to_remove:
+            _remove_list_item(plugin.external_views, item)
+        for item in react_apps_to_remove:
+            _remove_list_item(plugin.react_apps, item)
+
 
 def initialize_flask_plugins():
     """Collect flask extension points for WEB UI (legacy)."""
-    global plugins
     global flask_blueprints
     global flask_appbuilder_views
     global flask_appbuilder_menu_links
@@ -471,7 +486,6 @@ def initialize_flask_plugins():
 
 def initialize_fastapi_plugins():
     """Collect extension points for the API."""
-    global plugins
     global fastapi_apps
     global fastapi_root_middlewares
 
@@ -568,7 +582,6 @@ def initialize_hook_lineage_readers_plugins():
 
 def integrate_macros_plugins() -> None:
     """Integrates macro plugins."""
-    global plugins
     global macros_modules
 
     from airflow.sdk.execution_time import macros
@@ -601,8 +614,6 @@ def integrate_macros_plugins() -> None:
 
 def integrate_listener_plugins(listener_manager: ListenerManager) -> None:
     """Add listeners from plugins."""
-    global plugins
-
     ensure_plugins_loaded()
 
     if plugins:

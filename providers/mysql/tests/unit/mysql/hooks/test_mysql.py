@@ -25,8 +25,8 @@ from unittest import mock
 import pytest
 import sqlalchemy
 
-from airflow.models import Connection
 from airflow.models.dag import DAG
+from airflow.providers.common.compat.sdk import Connection
 
 try:
     import MySQLdb.cursors
@@ -36,7 +36,11 @@ except ImportError:
     MYSQL_AVAILABLE = False
 
 from airflow.providers.mysql.hooks.mysql import MySqlHook
-from airflow.utils import timezone
+
+try:
+    from airflow.sdk import timezone
+except ImportError:
+    from airflow.utils import timezone  # type: ignore[attr-defined,no-redef]
 
 from tests_common.test_utils.asserts import assert_equal_ignore_multiple_spaces
 
@@ -48,6 +52,7 @@ INSERT_SQL_STATEMENT = "INSERT INTO connection (id, conn_id, conn_type, descript
 class TestMySqlHookConn:
     def setup_method(self):
         self.connection = Connection(
+            conn_id="test_conn_id",
             conn_type="mysql",
             login="login",
             password="password",
@@ -87,7 +92,7 @@ class TestMySqlHookConn:
 
     @mock.patch("MySQLdb.connect")
     @pytest.mark.parametrize(
-        "connection_params, expected_uri",
+        ("connection_params", "expected_uri"),
         [
             pytest.param(
                 {
@@ -124,6 +129,18 @@ class TestMySqlHookConn:
                 },
                 "mysql+mysqlconnector://user%40domain:password@host/schema",
                 id="mysql_connector_python",
+            ),
+            pytest.param(
+                {
+                    "login": "user@domain",
+                    "password": "password",
+                    "host": "host",
+                    "schema": "schema",
+                    "port": None,
+                    "extra": json.dumps({"client": "pymysql"}),
+                },
+                "mysql+pymysql://user%40domain:password@host/schema",
+                id="mysql_connector_pymysql",
             ),
             pytest.param(
                 {
@@ -178,7 +195,14 @@ class TestMySqlHookConn:
 
     @mock.patch("MySQLdb.connect")
     def test_get_conn_from_connection(self, mock_connect):
-        conn = Connection(login="login-conn", password="password-conn", host="host", schema="schema")
+        conn = Connection(
+            conn_id="test_conn_id",
+            conn_type="mysql",
+            login="login-conn",
+            password="password-conn",
+            host="host",
+            schema="schema",
+        )
         hook = MySqlHook(connection=conn)
         hook.get_conn()
         mock_connect.assert_called_once_with(
@@ -187,7 +211,14 @@ class TestMySqlHookConn:
 
     @mock.patch("MySQLdb.connect")
     def test_get_conn_from_connection_with_schema(self, mock_connect):
-        conn = Connection(login="login-conn", password="password-conn", host="host", schema="schema")
+        conn = Connection(
+            conn_id="test_conn_id",
+            conn_type="mysql",
+            login="login-conn",
+            password="password-conn",
+            host="host",
+            schema="schema",
+        )
         hook = MySqlHook(connection=conn, schema="schema-override")
         hook.get_conn()
         mock_connect.assert_called_once_with(

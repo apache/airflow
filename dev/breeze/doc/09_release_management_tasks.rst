@@ -54,34 +54,71 @@ default is to build ``both`` type of distributions ``sdist`` and ``wheel``.
 
      breeze release-management prepare-airflow-distributions --distribution-format=wheel
 
+If you pass ``--tag`` fag, the distribution will create a source tarball release along with sdist.
+``--tag`` flag corresponds to actual tag in git.
+
+
 .. image:: ./images/output_release-management_prepare-airflow-distributions.svg
   :target: https://raw.githubusercontent.com/apache/airflow/main/dev/breeze/doc/images/output_release-management_prepare-airflow-distributions.svg
   :width: 100%
   :alt: Breeze release-management prepare-airflow-distributions
 
 
-Preparing Airflow tarball
-"""""""""""""""""""""""""
+Preparing tarballs
+""""""""""""""""""
 
-You can prepare Airflow source tarball using Breeze:
+You can prepare source tarball using Breeze - they are used as official releases according to ASF release policies.
 
 .. code-block:: bash
 
-     breeze release-management prepare-airflow-tarball
+     breeze release-management prepare-tarball
 
 This prepares airflow -source.tar.gz package in the dist folder.
 
-You must specify ``--version`` flag which is a pre-release version of Airflow you are preparing the
-tarball for.
+.. code-block:: bash
+
+     breeze release-management prepare-tarball
+
+You can also specify distribution name which distribution of Airflow you are preparing the tarball for.
+By default it is "apache_airflow". The version will be automatically derived from the version specified
+in the --tag
 
 .. code-block:: bash
 
-     breeze release-management prepare-airflow-tarball --version 2.8.0rc1
+     breeze release-management prepare-tarball --tarball-type apache_airflow_ctl
 
-.. image:: ./images/output_release-management_prepare-airflow-tarball.svg
-  :target: https://raw.githubusercontent.com/apache/airflow/main/dev/breeze/doc/images/output_release-management_prepare-airflow-tarball.svg
+When testing from HEAD of the branch when the tag
+
+.. image:: ./images/output_release-management_prepare-tarball.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/dev/breeze/doc/images/output_release-management_prepare-tarball.svg
   :width: 100%
-  :alt: Breeze release-management prepare-airflow-tarball
+  :alt: Breeze release-management prepare-tarball
+
+Validating Release Candidate for PMC
+"""""""""""""""""""""""""""""""""""""
+
+PMC members can use Breeze to automate verification of release candidates instead of manually
+running multiple verification steps. This command validates SVN files, GPG signatures, SHA512
+checksums, Apache RAT licenses, and reproducible builds.
+
+.. code-block:: bash
+
+    breeze release-management validate-rc-by-pmc --distribution airflow --version 3.1.3rc1 --task-sdk-version 1.1.3rc1 --svn-path ~/asf-dist/dev/airflow
+
+You can run individual checks by specifying the ``--checks`` flag:
+
+.. code-block:: bash
+
+    breeze release-management validate-rc-by-pmc \
+      --distribution airflow \
+      --version 3.1.3rc1 \
+      --svn-path ~/asf-dist/dev/airflow \
+      --checks svn,signatures,checksums,licenses
+
+.. image:: ./images/output_release-management_validate-rc-by-pmc.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/dev/breeze/doc/images/output_release-management_validate-rc-by-pmc.svg
+  :width: 100%
+  :alt: Breeze release-management validate-rc-by-pmc
 
 Start minor branch of Airflow
 """""""""""""""""""""""""""""
@@ -270,10 +307,10 @@ This command can be utilized to manage git tags for providers within the Airflow
 Sometimes in cases when there is a connectivity issue to GitHub, it might be possible that local tags get created and lead to annoying errors.
 The default behaviour would be to clean such local tags up.
 
-The flag ``--clean-local-tags`` can be used to delete the local tags.
+The flag ``--clean-tags`` can be used to delete the local tags.
 
 However, If you want to disable this behaviour, set the envvar CLEAN_LOCAL_TAGS to false or use the
-``--no-clean-local-tags`` flag.
+``--no-clean-tags`` flag.
 
 .. code-block:: bash
 
@@ -370,6 +407,23 @@ You can also add ``--answer yes`` to perform non-interactive build.
   :width: 100%
   :alt: Breeze prepare-provider-documentation
 
+Updating provider next version
+""""""""""""""""""""""""""""""
+
+You can use Breeze to update references to other providers automatically to the
+next version of dependent providers, when they are commented with ``# use next version``.
+
+The below example perform the upgrade.
+
+.. code-block:: bash
+
+     breeze release-management update-providers-next-version
+
+
+.. image:: ./images/output_release-management_update-providers-next-version.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/dev/breeze/doc/images/output_release-management_update-providers-next-version.svg
+  :alt: Breeze update-providers-next-version
+
 Preparing providers
 """""""""""""""""""
 
@@ -379,6 +433,12 @@ The distributions are prepared in ``dist`` folder. Note, that this command clean
 before running, so you should run it before generating Airflow package below as it will be removed.
 
 The below example builds providers in the wheel format.
+
+.. code-block:: bash
+
+     breeze release-management prepare-provider-distributions --distribution-format wheel
+
+The below example builds providers in both wheel and tar.gz (sdist) formats.
 
 .. code-block:: bash
 
@@ -398,6 +458,10 @@ You can see all providers available by running this command:
 
      breeze release-management prepare-provider-distributions --help
 
+If you pass ``--tag`` fag, the distribution will create a source tarball release along with sdist.
+``--tag`` flag corresponds to actual tag in git.
+
+
 .. image:: ./images/output_release-management_prepare-provider-distributions.svg
   :target: https://raw.githubusercontent.com/apache/airflow/main/dev/breeze/doc/images/output_release-management_prepare-provider-distributions.svg
   :width: 100%
@@ -407,7 +471,7 @@ Installing providers
 """"""""""""""""""""
 
 In some cases we want to just see if the providers generated can be installed with Airflow without
-verifying them. This happens automatically on CI for sdist pcackages but you can also run it manually if you
+verifying them. This happens automatically on CI for ``sdist`` packages but you can also run it manually if you
 just prepared providers and they are present in ``dist`` folder.
 
 .. code-block:: bash
@@ -736,11 +800,6 @@ properties of the dependencies. This is done by the ``export-dependency-informat
   :width: 100%
   :alt: Breeze sbom export dependency information
 
------
-
-Next step: Follow the `Advanced Breeze topics <10_advanced_breeze_topics.rst>`_ to
-learn more about Breeze internals.
-
 Preparing Airflow Task SDK distributions
 """""""""""""""""""""""""""""""""""
 
@@ -759,13 +818,16 @@ default is to build ``both`` type of distributions ``sdist`` and ``wheel``.
 
      breeze release-management prepare-task-sdk-distributions --distribution-format=wheel
 
+If you pass ``--tag`` fag, the distribution will create a source tarball release along with sdist.
+``--tag`` flag corresponds to actual tag in git.
+
 .. image:: ./images/output_release-management_prepare-task-sdk-distributions.svg
   :target: https://raw.githubusercontent.com/apache/airflow/main/dev/breeze/doc/images/output_release-management_prepare-task-sdk-distributions.svg
   :width: 100%
   :alt: Breeze release-management prepare-task-sdk-distributions
 
 
-Preparing Airflow ctl distributions
+Preparing airflowctl distributions
 """""""""""""""""""""""""""""""""""
 
 You can prepare Airflow distributions using Breeze:
@@ -776,12 +838,15 @@ You can prepare Airflow distributions using Breeze:
 
 This prepares Airflow Task SDK .whl package in the dist folder.
 
-Again, you can specify optional ``--distribution-format`` flag to build selected formats of the Airflow ctl distributions,
+Again, you can specify optional ``--distribution-format`` flag to build selected formats of the airflowctl distributions,
 default is to build ``both`` type of distributions ``sdist`` and ``wheel``.
 
 .. code-block:: bash
 
      breeze release-management prepare-airflow-ctl-distributions --distribution-format=wheel
+
+If you pass ``--tag`` fag, the distribution will create a source tarball release along with sdist.
+``--tag`` flag corresponds to actual tag in git.
 
 .. image:: ./images/output_release-management_prepare-airflow-ctl-distributions.svg
   :target: https://raw.githubusercontent.com/apache/airflow/main/dev/breeze/doc/images/output_release-management_prepare-airflow-ctl-distributions.svg
@@ -877,6 +942,69 @@ These are all available flags of ``workflow-run publish-docs`` command:
   :width: 100%
   :alt: Breeze workflow-run publish-docs
 
+Checking release files
+""""""""""""""""""""""
+
+To verify that all expected packages and artifacts are present in the Apache Airflow SVN release directory,
+you can use the ``breeze release-management check-release-files`` command. This is useful for release
+managers and PMC members to validate that all required files (including .asc signatures and .sha512
+checksums) are present when voting for release.
+
+The command supports checking files for different release types:
+
+**Checking Airflow release files:**
+
+.. code-block:: bash
+
+     breeze release-management check-release-files airflow --path-to-airflow-svn ~/code/asf-dist/dev/airflow --version 2.8.1rc2
+
+**Checking Task SDK release files:**
+
+.. code-block:: bash
+
+     breeze release-management check-release-files task-sdk --path-to-airflow-svn ~/code/asf-dist/dev/airflow --version 1.0.0rc1
+
+**Checking Airflow CTL release files:**
+
+.. code-block:: bash
+
+     breeze release-management check-release-files airflow-ctl --path-to-airflow-svn ~/code/asf-dist/dev/airflow --version 0.1.0rc1
+
+**Checking Python client release files:**
+
+.. code-block:: bash
+
+     breeze release-management check-release-files python-client --path-to-airflow-svn ~/code/asf-dist/dev/airflow --version 2.10.0rc1
+
+**Checking Provider release files:**
+
+.. code-block:: bash
+
+     breeze release-management check-release-files providers --path-to-airflow-svn ~/code/asf-dist/dev/airflow --release-date 2024-01-01
+
+For providers, you can specify a custom packages file (default is ``packages.txt``):
+
+.. code-block:: bash
+
+     breeze release-management check-release-files providers --path-to-airflow-svn ~/code/asf-dist/dev/airflow --release-date 2024-01-01 --packages-file my-packages.txt
+
+The command checks for the presence of:
+
+* Source distributions (``.tar.gz``)
+* Wheel distributions (``.whl``)
+* ASF signatures (``.asc``)
+* SHA512 checksums (``.sha512``)
+
+If any expected files are missing, the command will report them and exit with a non-zero status code.
+If all files are present, it will also provide a Dockerfile snippet you can use to test the installation.
+
+These are all available flags of ``release-management check-release-files`` command:
+
+.. image:: ./images/output_release-management_check-release-files.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/dev/breeze/doc/images/output_release-management_check-release-files.svg
+  :width: 100%
+  :alt: Breeze check-release-files
+
 Constraints version check
 """""""""""""""""""""""""
 
@@ -895,3 +1023,8 @@ Example usage:
 .. code-block:: bash
 
      breeze release-management constraints-version-check --python 3.10 --airflow-constraints-mode constraints-source-providers --explain-why
+
+
+-----
+
+Next step: Follow the `UI Tasks <10_ui_tasks.rst>`_ to learn more about UI tasks.

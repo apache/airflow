@@ -7,6 +7,13 @@
     "Providers": "제공자들",
     "Variables": "변수들"
   },
+  "allOperators": "모든 오퍼레이터",
+  "appearance": {
+    "appearance": "외관",
+    "darkMode": "다크 모드",
+    "lightMode": "라이트 모드",
+    "systemMode": "시스템 설정 따르기"
+  },
   "asset_one": "에셋",
   "asset_other": "에셋들",
   "assetEvent_one": "에셋 이벤트",
@@ -15,8 +22,10 @@
   "backfill_other": "백필들",
   "browse": {
     "auditLog": "감사 로그",
+    "requiredActions": "필수 작업",
     "xcoms": "XComs"
   },
+  "collapseAllExtra": "모든 추가 JSON 접기",
   "collapseDetailsPanel": "세부 정보 패널 접기",
   "createdAssetEvent_one": "생성된 에셋 이벤트",
   "createdAssetEvent_other": "생성된 에셋 이벤트들",
@@ -24,7 +33,6 @@
   "dag_other": "Dags",
   "dagDetails": {
     "catchup": "캐치업",
-    "concurrency": "동시 샐행 수",
     "dagRunTimeout": "Dag 실행 제한 시간",
     "defaultArgs": "기본 인자",
     "description": "설명",
@@ -32,6 +40,7 @@
     "fileLocation": "파일 위치",
     "hasTaskConcurrencyLimits": "태스크 동시성 제한 존재 여부",
     "lastExpired": "마지막 만료 시점",
+    "lastParseDuration": "마지막 파싱 기간",
     "lastParsed": "마지막 파싱 시점",
     "latestDagVersion": "최신 Dag 버전",
     "latestRun": "최근 실행",
@@ -51,6 +60,7 @@
     "dataIntervalEnd": "데이터 구간 종료",
     "dataIntervalStart": "데이터 구간 시작",
     "lastSchedulingDecision": "마지막 스케줄링 결정",
+    "partitionKey": "파티션 키",
     "queuedAt": "대기열에 추가된 시간",
     "runAfter": "다음 실행",
     "runType": "실행 유형",
@@ -60,21 +70,34 @@
   },
   "dagRun_one": "Dag 실행",
   "dagRun_other": "Dag 실행들",
+  "dagRunId": "Dag 실행 ID",
   "dagWarnings": "Dag 경고/오류",
   "defaultToGraphView": "그래프 뷰 기본 보기",
   "defaultToGridView": "그리드 뷰 기본 보기",
+  "delete": "삭제",
+  "diff": "비교",
+  "diffCompareWith": "비교 대상",
+  "diffExit": "비교 종료",
+  "diffSelectVersionToCompare": "비교할 버전 선택",
   "direction": "방향",
   "docs": {
     "documentation": "문서",
     "githubRepo": "GitHub 저장소",
     "restApiReference": "REST API 참조"
   },
+  "download": {
+    "download": "다운로드",
+    "hotkey": "d",
+    "tooltip": "{{hotkey}} 키를 눌러 로그를 다운로드하세요."
+  },
   "duration": "기간",
+  "edit": "편집",
   "endDate": "종료일",
   "error": {
     "back": "뒤로",
     "defaultMessage": "예기치 않은 오류가 발생했습니다.",
     "home": "홈",
+    "invalidUrl": "페이지를 찾을 수 없습니다. URL을 확인하고 다시 시도해 주세요.",
     "notFound": "페이지를 찾을 수 없습니다.",
     "title": "오류"
   },
@@ -84,23 +107,38 @@
     "hotkey": "e",
     "tooltip": "{{hotkey}}를 눌러 펼치기/접기합니다."
   },
+  "expandAllExtra": "모든 추가 JSON 펼치기",
   "expression": {
     "all": "모두",
     "and": "그리고",
     "any": "모든",
     "or": "또는"
   },
+  "filter": "필터",
+  "filters": {
+    "durationFrom": "기간 (시작)",
+    "durationTo": "기간 (종료)",
+    "endTime": "종료 시간",
+    "logicalDateFrom": "논리적 날짜 (시작)",
+    "logicalDateTo": "논리적 날짜 (종료)",
+    "runAfterFrom": "실행 이후 (시작)",
+    "runAfterTo": "실행 이후 (종료)",
+    "selectDateRange": "날짜 범위 선택",
+    "startTime": "시작 시간"
+  },
   "logicalDate": "논리적 날짜",
   "logout": "로그아웃",
   "logoutConfirmation": "애플리케이션에서 로그아웃하시겠습니까?",
   "mapIndex": "맵 인덱스",
   "modal": {
+    "add": "추가",
     "cancel": "취소",
     "confirm": "확인",
     "delete": {
       "button": "삭제",
       "confirmation": "{{resourceName}}을(를) 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다."
-    }
+    },
+    "save": "저장"
   },
   "nav": {
     "admin": "관리자",
@@ -130,6 +168,7 @@
     "running": "실행 중",
     "scheduled": "예약됨"
   },
+  "reset": "초기화",
   "runId": "실행 ID",
   "runTypes": {
     "asset_triggered": "에셋 트리거",
@@ -144,7 +183,6 @@
     },
     "tooltip": "{{hotkey}}를 눌러 {{direction}}로 스크롤"
   },
-  "seconds": "{{count}}초",
   "security": {
     "actions": "작업",
     "permissions": "권한",
@@ -154,6 +192,7 @@
   },
   "selectLanguage": "언어 선택",
   "showDetailsPanel": "세부 정보 패널 펼치기",
+  "signedInAs": "로그인한 사용자",
   "source": {
     "hide": "소스 숨기기",
     "hotkey": "s",
@@ -168,6 +207,7 @@
     "failed": "실패",
     "no_status": "상태 없음",
     "none": "상태 없음",
+    "planned": "계획됨",
     "queued": "대기 중",
     "removed": "제거됨",
     "restarting": "다시 시작 중",
@@ -179,8 +219,6 @@
     "up_for_retry": "재시도 대기 중",
     "upstream_failed": "업스트림 실패"
   },
-  "switchToDarkMode": "다크 모드로 전환",
-  "switchToLightMode": "라이트 모드로 전환",
   "table": {
     "completedAt": "완료 시간",
     "createdAt": "생성 시간",
@@ -201,11 +239,12 @@
   "task": {
     "documentation": "작업 문서",
     "lastInstance": "마지막 인스턴스",
-    "operator": "연산자",
+    "operator": "오퍼레이터",
     "triggerRule": "트리거 규칙"
   },
   "task_one": "작업",
   "task_other": "작업들",
+  "taskGroup": "작업 그룹",
   "taskId": "작업 ID",
   "taskInstance": {
     "dagVersion": "Dag 버전",

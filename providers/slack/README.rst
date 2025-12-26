@@ -23,9 +23,8 @@
 
 Package ``apache-airflow-providers-slack``
 
-Release: ``9.1.3``
+Release: ``9.6.1``
 
-Release Date: ``|PypiReleaseDate|``
 
 `Slack <https://slack.com/>`__ services integration including:
 
@@ -40,12 +39,12 @@ This is a provider package for ``slack`` provider. All classes for this provider
 are in ``airflow.providers.slack`` python package.
 
 You can find package information and changelog for the provider
-in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-slack/9.1.3/>`_.
+in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-slack/9.6.1/>`_.
 
 Installation
 ------------
 
-You can install this package on top of an existing Airflow 2 installation (see ``Requirements`` below
+You can install this package on top of an existing Airflow installation (see ``Requirements`` below
 for the minimum Airflow version supported) via
 ``pip install apache-airflow-providers-slack``
 
@@ -57,10 +56,11 @@ Requirements
 ==========================================  ==================
 PIP package                                 Version required
 ==========================================  ==================
-``apache-airflow``                          ``>=2.10.0``
-``apache-airflow-providers-common-compat``  ``>=1.6.1``
+``apache-airflow``                          ``>=2.11.0``
+``apache-airflow-providers-common-compat``  ``>=1.10.1``
 ``apache-airflow-providers-common-sql``     ``>=1.27.0``
-``slack_sdk``                               ``>=3.19.0``
+``slack-sdk``                               ``>=3.36.0``
+``asgiref``                                 ``>=2.3.0``
 ==========================================  ==================
 
 Cross provider package dependencies
@@ -84,4 +84,4 @@ Dependent package                                                               
 ==================================================================================================================  =================
 
 The changelog for the provider package can be found in the
-`changelog <https://airflow.apache.org/docs/apache-airflow-providers-slack/9.1.3/changelog.html>`_.
+`changelog <https://airflow.apache.org/docs/apache-airflow-providers-slack/9.6.1/changelog.html>`_.

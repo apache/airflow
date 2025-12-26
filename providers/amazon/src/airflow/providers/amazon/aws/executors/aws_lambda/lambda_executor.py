@@ -26,7 +26,6 @@ from boto3.session import NoCredentialsError
 from botocore.utils import ClientError
 
 from airflow.configuration import conf
-from airflow.exceptions import AirflowException
 from airflow.executors.base_executor import BaseExecutor
 from airflow.models.taskinstancekey import TaskInstanceKey
 from airflow.providers.amazon.aws.executors.aws_lambda.utils import (
@@ -42,10 +41,14 @@ from airflow.providers.amazon.aws.executors.utils.exponential_backoff_retry impo
 )
 from airflow.providers.amazon.aws.hooks.lambda_function import LambdaHook
 from airflow.providers.amazon.aws.hooks.sqs import SqsHook
-from airflow.stats import Stats
-from airflow.utils import timezone
+from airflow.providers.common.compat.sdk import AirflowException, Stats
 
-from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
+try:
+    from airflow.sdk import timezone
+except ImportError:
+    from airflow.utils import timezone  # type: ignore[attr-defined,no-redef]
+
+from airflow.providers.amazon.version_compat import AIRFLOW_V_3_0_PLUS
 
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
@@ -270,6 +273,7 @@ class AwsLambdaExecutor(BaseExecutor):
             payload = {
                 "task_key": ser_task_key,
                 "command": cmd,
+                "executor_config": task_to_run.executor_config,
             }
             if timezone.utcnow() < task_to_run.next_attempt_time:
                 self.pending_tasks.append(task_to_run)
@@ -421,17 +425,26 @@ class AwsLambdaExecutor(BaseExecutor):
                         "Successful Lambda invocation for task %s received from SQS queue.", task_key
                     )
                 else:
-                    # In this case the Lambda likely started but failed at run time since we got a non-zero
-                    # return code. We could consider retrying these tasks within the executor, because this _likely_
-                    # means the Airflow task did not run to completion, however we can't be sure (maybe the
-                    # lambda runtime code has a bug and is returning a non-zero when it actually passed?). So
-                    # perhaps not retrying is the safest option.
                     self.fail(task_key)
-                    self.log.error(
-                        "Lambda invocation for task: %s has failed to run with return code %s",
-                        task_key,
-                        return_code,
-                    )
+                    if queue_url == self.dlq_url and return_code is None:
+                        # DLQ failure: AWS Lambda service could not complete the invocation after retries.
+                        # This indicates a Lambda-level failure (timeout, memory limit, crash, etc.)
+                        # where the function was unable to successfully execute to return a result.
+                        self.log.error(
+                            "DLQ message received: Lambda invocation for task: %s was unable to successfully execute. This likely indicates a Lambda-level failure (timeout, memory limit, crash, etc.).",
+                            task_key,
+                        )
+                    else:
+                        # In this case the Lambda likely started but failed at run time since we got a non-zero
+                        # return code. We could consider retrying these tasks within the executor, because this _likely_
+                        # means the Airflow task did not run to completion, however we can't be sure (maybe the
+                        # lambda runtime code has a bug and is returning a non-zero when it actually passed?). So
+                        # perhaps not retrying is the safest option.
+                        self.log.debug(
+                            "Lambda invocation for task: %s completed but the underlying Airflow task has returned a non-zero exit code %s",
+                            task_key,
+                            return_code,
+                        )
                 # Remove the task from the tracking mapping.
                 self.running_tasks.pop(ser_task_key)
 

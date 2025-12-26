@@ -20,15 +20,19 @@ import uuid
 from datetime import datetime
 
 import pytest
+from pydantic import TypeAdapter
 
 from airflow._shared.timezones import timezone
 from airflow.api_fastapi.execution_api.datamodels.taskinstance import (
     DagRun as DRDataModel,
     TaskInstance as TIDataModel,
+    TIRunContext,
 )
 from airflow.callbacks.callback_requests import (
+    CallbackRequest,
     DagCallbackRequest,
     DagRunContext,
+    EmailRequest,
     TaskCallbackRequest,
 )
 from airflow.models.dag import DAG
@@ -41,7 +45,7 @@ pytestmark = pytest.mark.db_test
 
 class TestCallbackRequest:
     @pytest.mark.parametrize(
-        "input,request_class",
+        ("input", "request_class"),
         [
             (
                 None,  # to be generated when test is run
@@ -94,7 +98,7 @@ class TestCallbackRequest:
         assert input == result
 
     @pytest.mark.parametrize(
-        "task_callback_type,expected_is_failure",
+        ("task_callback_type", "expected_is_failure"),
         [
             (None, True),
             (TaskInstanceState.FAILED, True),
@@ -137,6 +141,7 @@ class TestDagRunContext:
             run_type="manual",
             state="running",
             consumed_asset_events=[],
+            partition_key=None,
         )
 
         ti_data = TIDataModel(
@@ -175,6 +180,7 @@ class TestDagRunContext:
             run_type="manual",
             state="running",
             consumed_asset_events=[],
+            partition_key=None,
         )
 
         ti_data = TIDataModel(
@@ -215,6 +221,7 @@ class TestDagCallbackRequestWithContext:
             run_type="manual",
             state="running",
             consumed_asset_events=[],
+            partition_key=None,
         )
 
         ti_data = TIDataModel(
@@ -273,6 +280,7 @@ class TestDagCallbackRequestWithContext:
             run_type="manual",
             state="running",
             consumed_asset_events=[],
+            partition_key=None,
         )
 
         ti_data = TIDataModel(
@@ -308,3 +316,113 @@ class TestDagCallbackRequestWithContext:
         assert result.context_from_server is not None
         assert result.context_from_server.dag_run.dag_id == "test_dag"
         assert result.context_from_server.last_ti.task_id == "test_task"
+
+
+class TestEmailRequest:
+    def test_email_notification_request_serialization(self):
+        """Test EmailRequest can be serialized and used in CallbackRequest union."""
+        ti_data = TIDataModel(
+            id=str(uuid.uuid4()),
+            task_id="test_task",
+            dag_id="test_dag",
+            run_id="test_run",
+            logical_date="2023-01-01T00:00:00Z",
+            try_number=1,
+            attempt_number=1,
+            state="failed",
+            dag_version_id=str(uuid.uuid4()),
+        )
+
+        current_time = timezone.utcnow()
+
+        # Create EmailRequest
+        email_request = EmailRequest(
+            filepath="/path/to/dag.py",
+            bundle_name="test_bundle",
+            bundle_version="1.0.0",
+            ti=ti_data,
+            context_from_server=TIRunContext(
+                dag_run=DRDataModel(
+                    dag_id="test_dag",
+                    run_id="test_run",
+                    logical_date="2023-01-01T00:00:00Z",
+                    data_interval_start=current_time,
+                    data_interval_end=current_time,
+                    run_after=current_time,
+                    start_date=current_time,
+                    end_date=None,
+                    run_type="manual",
+                    state="running",
+                    consumed_asset_events=[],
+                    partition_key=None,
+                ),
+                max_tries=2,
+            ),
+            email_type="failure",
+            msg="Task failed",
+        )
+
+        # Test serialization
+        json_str = email_request.to_json()
+        assert "EmailRequest" in json_str
+        assert "failure" in json_str
+
+        # Test deserialization
+        result = EmailRequest.from_json(json_str)
+        assert result == email_request
+        assert result.email_type == "failure"
+        assert result.ti.task_id == "test_task"
+
+    def test_callback_request_union_with_email_notification(self):
+        """Test EmailRequest works in CallbackRequest union type."""
+        ti_data = TIDataModel(
+            id=str(uuid.uuid4()),
+            task_id="test_task",
+            dag_id="test_dag",
+            run_id="test_run",
+            logical_date="2023-01-01T00:00:00Z",
+            try_number=1,
+            attempt_number=1,
+            state="failed",
+            dag_version_id=str(uuid.uuid4()),
+        )
+
+        current_time = timezone.utcnow()
+
+        context_from_server = TIRunContext(
+            dag_run=DRDataModel(
+                dag_id="test_dag",
+                run_id="test_run",
+                logical_date="2023-01-01T00:00:00Z",
+                data_interval_start=current_time,
+                data_interval_end=current_time,
+                run_after=current_time,
+                start_date=current_time,
+                end_date=None,
+                run_type="manual",
+                state="running",
+                consumed_asset_events=[],
+                partition_key=None,
+            ),
+            max_tries=2,
+        )
+
+        email_data = {
+            "type": "EmailRequest",
+            "filepath": "/path/to/dag.py",
+            "bundle_name": "test_bundle",
+            "bundle_version": "1.0.0",
+            "ti": ti_data.model_dump(),
+            "context_from_server": context_from_server.model_dump(),
+            "email_type": "retry",
+            "msg": "Task retry",
+        }
+
+        # Validate as CallbackRequest union
+        adapter = TypeAdapter(CallbackRequest)
+        callback_request = adapter.validate_python(email_data)
+
+        # Verify it's correctly identified as EmailRequest
+        assert isinstance(callback_request, EmailRequest)
+        assert callback_request.email_type == "retry"
+        assert callback_request.ti.task_id == "test_task"

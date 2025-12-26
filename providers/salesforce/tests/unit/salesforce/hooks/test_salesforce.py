@@ -29,19 +29,11 @@ from simple_salesforce import Salesforce, api
 
 from airflow.models.connection import Connection
 from airflow.providers.salesforce.hooks.salesforce import SalesforceHook
-from airflow.utils.session import create_session
 
 
 class TestSalesforceHook:
     def setup_method(self):
         self.salesforce_hook = SalesforceHook(salesforce_conn_id="conn_id")
-
-    @staticmethod
-    def _insert_conn_db_entry(conn_id, conn_object):
-        with create_session() as session:
-            session.query(Connection).filter(Connection.conn_id == conn_id).delete()
-            session.add(conn_object)
-            session.commit()
 
     def test_get_conn_exists(self):
         self.salesforce_hook.conn = Mock(spec=Salesforce)
@@ -50,9 +42,8 @@ class TestSalesforceHook:
 
         assert self.salesforce_hook.conn.return_value is not None
 
-    @pytest.mark.db_test
     @patch("airflow.providers.salesforce.hooks.salesforce.Salesforce")
-    def test_get_conn_password_auth(self, mock_salesforce):
+    def test_get_conn_password_auth(self, mock_salesforce, create_connection_without_db):
         """
         Testing mock password authentication to Salesforce. Users should provide a username, password, and
         security token in the Connection. Providing a client ID, Salesforce API version, proxy mapping, and
@@ -74,7 +65,7 @@ class TestSalesforceHook:
             }
             """,
         )
-        TestSalesforceHook._insert_conn_db_entry(password_auth_conn.conn_id, password_auth_conn)
+        create_connection_without_db(password_auth_conn)
 
         self.salesforce_hook = SalesforceHook(salesforce_conn_id="password_auth_conn")
         self.salesforce_hook.get_conn()
@@ -99,9 +90,8 @@ class TestSalesforceHook:
             privatekey=None,
         )
 
-    @pytest.mark.db_test
     @patch("airflow.providers.salesforce.hooks.salesforce.Salesforce")
-    def test_get_conn_direct_session_access(self, mock_salesforce):
+    def test_get_conn_direct_session_access(self, mock_salesforce, create_connection_without_db):
         """
         Testing mock direct session access to Salesforce. Users should provide an instance
         (or instance URL) in the Connection and set a `session_id` value when calling `SalesforceHook`.
@@ -123,7 +113,7 @@ class TestSalesforceHook:
             }
             """,
         )
-        TestSalesforceHook._insert_conn_db_entry(direct_access_conn.conn_id, direct_access_conn)
+        create_connection_without_db(direct_access_conn)
 
         with request_session() as session:
             self.salesforce_hook = SalesforceHook(
@@ -152,9 +142,8 @@ class TestSalesforceHook:
             privatekey=None,
         )
 
-    @pytest.mark.db_test
     @patch("airflow.providers.salesforce.hooks.salesforce.Salesforce")
-    def test_get_conn_jwt_auth(self, mock_salesforce):
+    def test_get_conn_jwt_auth(self, mock_salesforce, create_connection_without_db):
         """
         Testing mock JWT bearer authentication to Salesforce. Users should provide consumer key and private
         key (or path to a private key) in the Connection. Providing a client ID, Salesforce API version, proxy
@@ -178,7 +167,7 @@ class TestSalesforceHook:
             }
             """,
         )
-        TestSalesforceHook._insert_conn_db_entry(jwt_auth_conn.conn_id, jwt_auth_conn)
+        create_connection_without_db(jwt_auth_conn)
 
         self.salesforce_hook = SalesforceHook(salesforce_conn_id="jwt_auth_conn")
         self.salesforce_hook.get_conn()
@@ -203,9 +192,8 @@ class TestSalesforceHook:
             privatekey=extras["private_key"],
         )
 
-    @pytest.mark.db_test
     @patch("airflow.providers.salesforce.hooks.salesforce.Salesforce")
-    def test_get_conn_ip_filtering_auth(self, mock_salesforce):
+    def test_get_conn_ip_filtering_auth(self, mock_salesforce, create_connection_without_db):
         """
         Testing mock IP filtering (aka allow-listing) authentication to Salesforce. Users should provide
         username, password, and organization ID in the Connection. Providing a client ID, Salesforce API
@@ -224,7 +212,7 @@ class TestSalesforceHook:
             }
             """,
         )
-        TestSalesforceHook._insert_conn_db_entry(ip_filtering_auth_conn.conn_id, ip_filtering_auth_conn)
+        create_connection_without_db(ip_filtering_auth_conn)
 
         self.salesforce_hook = SalesforceHook(salesforce_conn_id="ip_filtering_auth_conn")
         self.salesforce_hook.get_conn()
@@ -249,9 +237,10 @@ class TestSalesforceHook:
             privatekey=None,
         )
 
-    @pytest.mark.db_test
     @patch("airflow.providers.salesforce.hooks.salesforce.Salesforce")
-    def test_get_conn_default_to_none(self, mock_salesforce):
+    def test_get_conn_default_to_none(
+        self, mock_salesforce, create_connection_without_db, mock_supervisor_comms
+    ):
         """
         Testing mock authentication to Salesforce so that every extra connection param set as an empty
         string will be converted to `None`.
@@ -278,7 +267,7 @@ class TestSalesforceHook:
             }
             """,
         )
-        TestSalesforceHook._insert_conn_db_entry(default_to_none_conn.conn_id, default_to_none_conn)
+        create_connection_without_db(default_to_none_conn)
 
         self.salesforce_hook = SalesforceHook(salesforce_conn_id="default_to_none_conn")
         self.salesforce_hook.get_conn()
@@ -346,7 +335,7 @@ class TestSalesforceHook:
         assert salesforce_objects == mock_make_query.return_value
 
     def test_write_object_to_file_invalid_format(self):
-        with pytest.raises(ValueError):
+        with pytest.raises(ValueError, match="Format value is not recognized: test"):
             self.salesforce_hook.write_object_to_file(query_results=[], filename="test", fmt="test")
 
     @patch(
@@ -388,7 +377,9 @@ class TestSalesforceHook:
         )
 
         mock_describe_object.assert_called_once_with(obj_name)
-        mock_data_frame.return_value.to_json.assert_called_once_with(filename, "records", date_unit="s")
+        mock_data_frame.return_value.to_json.assert_called_once_with(
+            filename, orient="records", date_unit="s"
+        )
         pd.testing.assert_frame_equal(
             data_frame, pd.DataFrame({"test": [1, 2, 3], "field_1": [1.546301e09, 1.546387e09, 1.546474e09]})
         )
@@ -407,7 +398,7 @@ class TestSalesforceHook:
         )
 
         mock_data_frame.return_value.to_json.assert_called_once_with(
-            filename, "records", lines=True, date_unit="s"
+            filename, orient="records", lines=True, date_unit="s"
         )
         pd.testing.assert_frame_equal(
             data_frame,

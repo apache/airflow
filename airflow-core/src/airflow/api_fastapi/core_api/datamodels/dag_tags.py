@@ -17,6 +17,8 @@
 
 from __future__ import annotations
 
+from pydantic import AliasPath, Field
+
 from airflow.api_fastapi.core_api.base import BaseModel
 
 
@@ -25,6 +27,7 @@ class DagTagResponse(BaseModel):
 
     name: str
     dag_id: str
+    dag_display_name: str = Field(validation_alias=AliasPath("dag", "dag_display_name"))
 
 
 class DAGTagCollectionResponse(BaseModel):

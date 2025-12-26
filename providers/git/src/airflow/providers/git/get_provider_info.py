@@ -33,8 +33,10 @@ def get_provider_info():
                 "tags": ["software"],
             }
         ],
-        "hooks": [{"integration-name": "GIT", "python-modules": ["airflow.providers.git.hooks.git"]}],
-        "bundles": [{"integration-name": "GIT", "python-modules": ["airflow.providers.git.bundles.git"]}],
+        "hooks": [{"integration-name": "GIT (Git)", "python-modules": ["airflow.providers.git.hooks.git"]}],
+        "bundles": [
+            {"integration-name": "GIT (Git)", "python-modules": ["airflow.providers.git.bundles.git"]}
+        ],
         "connection-types": [
             {"hook-class-name": "airflow.providers.git.hooks.git.GitHook", "connection-type": "git"}
         ],

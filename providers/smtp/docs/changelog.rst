@@ -28,6 +28,110 @@ Changelog
 ---------
 
 
+2.4.1
+.....
+
+Misc
+~~~~
+
+* ``Add backcompat for exceptions in providers (#58727)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+2.4.0
+.....
+
+.. note::
+    This release of provider is only available for Airflow 2.11+ as explained in the
+    Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/PROVIDERS.rst#minimum-supported-version-of-airflow-for-community-managed-providers>_.
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Include all __init__ params in template_fields for consistency with other operators (#58278)``
+
+Misc
+~~~~
+
+* ``Bump minimum Airflow version in providers to Airflow 2.11.0 (#58612)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Updates to release process of providers (#58316)``
+
+2.3.2
+.....
+
+Misc
+~~~~
+
+* ``Convert all airflow distributions to be compliant with ASF requirements (#58138)``
+* ``Migrate smtp provider to 'common.compat' (#57105)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Delete all unnecessary LICENSE Files (#58191)``
+   * ``Enable PT006 rule to 9 files in providers (snowflake,smtp/tests) (#57845)``
+   * ``Prepare release for Oct 2025 wave of providers (#57029)``
+   * ``Correct 'Dag' to 'DAG' for code snippets in provider docs (#56727)``
+   * ``Remove placeholder Release Date in changelog and index files (#56056)``
+
+2.3.1
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix import for SMTP provider (#56053)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+2.3.0
+.....
+
+
+Features
+~~~~~~~~
+
+* ``Add Async support for SMTP Notifier (#55308)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+2.2.1
+.....
+
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix SMTP email template when mark_success_url is undefined for RuntimeTaskInstance objects (#54680)``
+
+Doc-only
+~~~~~~~~
+
+* ``Make term Dag consistent in providers docs (#55101)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Make smtp provider tests db independent (#54674)``
+   * ``Replace API server's direct Connection access workaround in BaseHook (#54083)``
+   * ``Switch pre-commit to prek (#54258)``
+   * ``Fix Airflow 2 reference in README/index of providers (#55240)``
+
+2.2.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add OAuth 2 / XOAUTH2 support via 'auth_type' & token/credential extras (#53554)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 2.1.2
 .....
 

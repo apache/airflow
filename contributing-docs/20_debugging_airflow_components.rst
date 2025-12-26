@@ -46,10 +46,10 @@ To start Airflow with debugging enabled, use the ``--debug`` flag to specify whi
 Available Components for Debugging
 ----------------------------------
 
-* **scheduler** - The Airflow scheduler that monitors DAGs and triggers task instances
+* **scheduler** - The Airflow scheduler that monitors Dags and triggers task instances
 * **triggerer** - The triggerer service that handles deferred tasks and triggers
 * **api-server** - The Airflow REST API server
-* **dag-processor** - The DAG processor service (when using standalone DAG processor)
+* **dag-processor** - The Dag processor service (when using standalone Dag processor)
 * **edge-worker** - The edge worker service (when using EdgeExecutor)
 * **celery-worker** - Celery worker processes (when using CeleryExecutor)
 
@@ -68,6 +68,28 @@ Breeze supports two debugger options:
 
     # Use PyCharm debugger
     breeze start-airflow --debug scheduler --debugger pydevd-pycharm
+
+Using mprocs Instead of tmux
+-----------------------------
+
+By default, ``breeze start-airflow`` uses tmux to manage multiple Airflow components. You can use
+mprocs as an alternative process manager with the ``--use-mprocs`` flag:
+
+.. code-block:: bash
+
+    # Use mprocs instead of tmux
+    breeze start-airflow --use-mprocs
+
+    # Use mprocs with debugging
+    breeze start-airflow --use-mprocs --debug scheduler --debug triggerer
+
+**Benefits of mprocs:**
+
+* Modern TUI with intuitive navigation
+* Better keyboard shortcuts and mouse support
+* Easier process management (start/stop/restart individual processes)
+* Cleaner visual layout with process status indicators
+* Cross-platform compatibility
 
 Setting up VSCode for Remote Debugging
 --------------------------------------
@@ -113,7 +135,7 @@ Setting up VSCode for Remote Debugging
    when you start Airflow with debugging enabled:
 
    * **Scheduler**: 50231
-   * **DAG Processor**: 50232
+   * **Dag Processor**: 50232
    * **Triggerer**: 50233
    * **API Server**: 50234
    * **Celery Worker**: 50235
@@ -147,10 +169,10 @@ Debugging Workflow
 
    Perform an action that will trigger the code path with your breakpoint:
 
-   - For scheduler: Trigger a DAG or wait for scheduled execution
+   - For scheduler: Trigger a Dag or wait for scheduled execution
    - For API server: Make an API call
    - For triggerer: Create a deferred task
-   - For DAG processor: Parse a DAG file
+   - For Dag processor: Parse a Dag file
 
 5. **Debug Session**
 

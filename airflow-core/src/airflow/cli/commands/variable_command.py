@@ -21,13 +21,18 @@ from __future__ import annotations
 
 import json
 import os
-from json import JSONDecodeError
 
 from sqlalchemy import select
 
 from airflow.cli.simple_table import AirflowConsole
 from airflow.cli.utils import print_export_output
+from airflow.exceptions import (
+    AirflowFileParseException,
+    AirflowUnsupportedFileTypeException,
+    VariableNotUnique,
+)
 from airflow.models import Variable
+from airflow.secrets.local_filesystem import load_variables
 from airflow.utils import cli as cli_utils
 from airflow.utils.cli import suppress_logs_and_warning
 from airflow.utils.providers_configuration_loader import providers_configuration_loaded
@@ -81,11 +86,16 @@ def variables_import(args, session):
     """Import variables from a given file."""
     if not os.path.exists(args.file):
         raise SystemExit("Missing variables file.")
-    with open(args.file) as varfile:
-        try:
-            var_json = json.load(varfile)
-        except JSONDecodeError:
-            raise SystemExit("Invalid variables file.")
+
+    try:
+        var_json = load_variables(args.file)
+    except (AirflowUnsupportedFileTypeException, AirflowFileParseException, VariableNotUnique) as e:
+        raise SystemExit(str(e))
+    except FileNotFoundError:
+        raise SystemExit("Missing variables file.")
+    except Exception as e:
+        raise SystemExit(f"Failed to load variables file: {e}")
+
     suc_count = fail_count = 0
     skipped = set()
     action_on_existing = args.action_on_existing_key

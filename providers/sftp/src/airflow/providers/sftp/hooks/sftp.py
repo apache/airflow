@@ -21,6 +21,7 @@ from __future__ import annotations
 
 import concurrent.futures
 import datetime
+import functools
 import os
 import stat
 import warnings
@@ -33,9 +34,11 @@ from typing import IO, TYPE_CHECKING, Any, cast
 
 import asyncssh
 from asgiref.sync import sync_to_async
+from paramiko.config import SSH_PORT
 
-from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
-from airflow.providers.sftp.version_compat import BaseHook
+from airflow.exceptions import AirflowProviderDeprecationWarning
+from airflow.providers.common.compat.sdk import AirflowException, BaseHook, Connection
+from airflow.providers.sftp.exceptions import ConnectionNotOpenedException
 from airflow.providers.ssh.hooks.ssh import SSHHook
 
 if TYPE_CHECKING:
@@ -43,7 +46,24 @@ if TYPE_CHECKING:
     from paramiko.sftp_attr import SFTPAttributes
     from paramiko.sftp_client import SFTPClient
 
-    from airflow.models.connection import Connection
+
+def handle_connection_management(func: Callable) -> Callable:
+    @functools.wraps(func)
+    def handle_connection_management_wrapper(self, *args: Any, **kwargs: dict[str, Any]) -> Any:
+        if not self.use_managed_conn:
+            if self.conn is None:
+                raise ConnectionNotOpenedException(
+                    "Connection not open, use with hook.get_managed_conn() Managed Connection in order to create and open the connection"
+                )
+
+            return func(self, *args, **kwargs)
+
+        with self.get_managed_conn() as conn:
+            self.conn = conn
+            result = func(self, *args, **kwargs)
+            return result
+
+    return handle_connection_management_wrapper
 
 
 class SFTPHook(SSHHook):
@@ -86,10 +106,12 @@ class SFTPHook(SSHHook):
         self,
         ssh_conn_id: str | None = "sftp_default",
         host_proxy_cmd: str | None = None,
+        use_managed_conn: bool = True,
         *args,
         **kwargs,
     ) -> None:
         self.conn: SFTPClient | None = None
+        self.use_managed_conn = use_managed_conn
 
         # TODO: remove support for ssh_hook when it is removed from SFTPOperator
         if kwargs.get("ssh_hook") is not None:
@@ -155,6 +177,7 @@ class SFTPHook(SSHHook):
         """Get the number of open connections."""
         return self._conn_count
 
+    @handle_connection_management
     def describe_directory(self, path: str) -> dict[str, dict[str, str | int | None]]:
         """
         Get file information in a directory on the remote system.
@@ -164,36 +187,34 @@ class SFTPHook(SSHHook):
 
         :param path: full path to the remote directory
         """
-        with self.get_managed_conn() as conn:  # type: SFTPClient
-            flist = sorted(conn.listdir_attr(path), key=lambda x: x.filename)
-            files = {}
-            for f in flist:
-                modify = datetime.datetime.fromtimestamp(f.st_mtime).strftime("%Y%m%d%H%M%S")  # type: ignore
-                files[f.filename] = {
-                    "size": f.st_size,
-                    "type": "dir" if stat.S_ISDIR(f.st_mode) else "file",  # type: ignore
-                    "modify": modify,
-                }
-            return files
+        return {
+            f.filename: {
+                "size": f.st_size,
+                "type": "dir" if stat.S_ISDIR(f.st_mode) else "file",  # type: ignore[union-attr]
+                "modify": datetime.datetime.fromtimestamp(f.st_mtime or 0).strftime("%Y%m%d%H%M%S"),
+            }
+            for f in sorted(self.conn.listdir_attr(path), key=lambda f: f.filename)  # type: ignore[union-attr]
+        }
 
+    @handle_connection_management
     def list_directory(self, path: str) -> list[str]:
         """
         List files in a directory on the remote system.
 
         :param path: full path to the remote directory to list
         """
-        with self.get_managed_conn() as conn:
-            return sorted(conn.listdir(path))
+        return sorted(self.conn.listdir(path))  # type: ignore[union-attr]
 
+    @handle_connection_management
     def list_directory_with_attr(self, path: str) -> list[SFTPAttributes]:
         """
         List files in a directory on the remote system including their SFTPAttributes.
 
         :param path: full path to the remote directory to list
         """
-        with self.get_managed_conn() as conn:
-            return [file for file in conn.listdir_attr(path)]
+        return [file for file in self.conn.listdir_attr(path)]  # type: ignore[union-attr]
 
+    @handle_connection_management
     def mkdir(self, path: str, mode: int = 0o777) -> None:
         """
         Create a directory on the remote system.
@@ -204,33 +225,33 @@ class SFTPHook(SSHHook):
         :param path: full path to the remote directory to create
         :param mode: int permissions of octal mode for directory
         """
-        with self.get_managed_conn() as conn:
-            conn.mkdir(path, mode=mode)
+        return self.conn.mkdir(path, mode)  # type: ignore[union-attr,return-value]
 
+    @handle_connection_management
     def isdir(self, path: str) -> bool:
         """
         Check if the path provided is a directory.
 
         :param path: full path to the remote directory to check
         """
-        with self.get_managed_conn() as conn:
-            try:
-                return stat.S_ISDIR(conn.stat(path).st_mode)  # type: ignore
-            except OSError:
-                return False
+        try:
+            return stat.S_ISDIR(self.conn.stat(path).st_mode)  # type: ignore[union-attr,arg-type]
+        except OSError:
+            return False
 
+    @handle_connection_management
     def isfile(self, path: str) -> bool:
         """
         Check if the path provided is a file.
 
         :param path: full path to the remote file to check
         """
-        with self.get_managed_conn() as conn:
-            try:
-                return stat.S_ISREG(conn.stat(path).st_mode)  # type: ignore
-            except OSError:
-                return False
+        try:
+            return stat.S_ISREG(self.conn.stat(path).st_mode)  # type: ignore[arg-type,union-attr]
+        except OSError:
+            return False
 
+    @handle_connection_management
     def create_directory(self, path: str, mode: int = 0o777) -> None:
         """
         Create a directory on the remote system.
@@ -253,9 +274,9 @@ class SFTPHook(SSHHook):
             self.create_directory(dirname, mode)
         if basename:
             self.log.info("Creating %s", path)
-            with self.get_managed_conn() as conn:
-                conn.mkdir(path, mode=mode)
+            self.conn.mkdir(path, mode=mode)  # type: ignore
 
+    @handle_connection_management
     def delete_directory(self, path: str, include_files: bool = False) -> None:
         """
         Delete a directory on the remote system.
@@ -269,13 +290,13 @@ class SFTPHook(SSHHook):
             files, dirs, _ = self.get_tree_map(path)
             dirs = dirs[::-1]  # reverse the order for deleting deepest directories first
 
-        with self.get_managed_conn() as conn:
-            for file_path in files:
-                conn.remove(file_path)
-            for dir_path in dirs:
-                conn.rmdir(dir_path)
-            conn.rmdir(path)
+        for file_path in files:
+            self.conn.remove(file_path)  # type: ignore
+        for dir_path in dirs:
+            self.conn.rmdir(dir_path)  # type: ignore
+        self.conn.rmdir(path)  # type: ignore
 
+    @handle_connection_management
     def retrieve_file(self, remote_full_path: str, local_full_path: str, prefetch: bool = True) -> None:
         """
         Transfer the remote file to a local location.
@@ -287,28 +308,28 @@ class SFTPHook(SSHHook):
         :param local_full_path: full path to the local file or a file-like buffer
         :param prefetch: controls whether prefetch is performed (default: True)
         """
-        with self.get_managed_conn() as conn:
-            if isinstance(local_full_path, BytesIO):
-                # It's a file-like object ( BytesIO), so use getfo().
-                self.log.info("Using streaming download for %s", remote_full_path)
-                conn.getfo(remote_full_path, local_full_path, prefetch=prefetch)
-            # We use hasattr checking for 'write' for cases like google.cloud.storage.fileio.BlobWriter
-            elif hasattr(local_full_path, "write"):
-                self.log.info("Using streaming download for %s", remote_full_path)
-                # We need to cast to pass pre-commit checks
-                stream_full_path = cast("IO[bytes]", local_full_path)
-                conn.getfo(remote_full_path, stream_full_path, prefetch=prefetch)
-            elif isinstance(local_full_path, (str, bytes, os.PathLike)):
-                # It's a string path, so use get().
-                self.log.info("Using standard file download for %s", remote_full_path)
-                conn.get(remote_full_path, local_full_path, prefetch=prefetch)
-            # If it's neither, it's an unsupported type.
-            else:
-                raise TypeError(
-                    f"Unsupported type for local_full_path: {type(local_full_path)}. "
-                    "Expected a stream-like object or a path-like object."
-                )
+        if isinstance(local_full_path, BytesIO):
+            # It's a file-like object ( BytesIO), so use getfo().
+            self.log.info("Using streaming download for %s", remote_full_path)
+            self.conn.getfo(remote_full_path, local_full_path, prefetch=prefetch)
+        # We use hasattr checking for 'write' for cases like google.cloud.storage.fileio.BlobWriter
+        elif hasattr(local_full_path, "write"):
+            self.log.info("Using streaming download for %s", remote_full_path)
+            # We need to cast to pass prek hook checks
+            stream_full_path = cast("IO[bytes]", local_full_path)
+            self.conn.getfo(remote_full_path, stream_full_path, prefetch=prefetch)  # type: ignore[union-attr]
+        elif isinstance(local_full_path, (str, bytes, os.PathLike)):
+            # It's a string path, so use get().
+            self.log.info("Using standard file download for %s", remote_full_path)
+            self.conn.get(remote_full_path, local_full_path, prefetch=prefetch)  # type: ignore[union-attr]
+        # If it's neither, it's an unsupported type.
+        else:
+            raise TypeError(
+                f"Unsupported type for local_full_path: {type(local_full_path)}. "
+                "Expected a stream-like object or a path-like object."
+            )
 
+    @handle_connection_management
     def store_file(self, remote_full_path: str, local_full_path: str, confirm: bool = True) -> None:
         """
         Transfer a local file to the remote location.
@@ -319,20 +340,19 @@ class SFTPHook(SSHHook):
         :param remote_full_path: full path to the remote file
         :param local_full_path: full path to the local file or a file-like buffer
         """
-        with self.get_managed_conn() as conn:
-            if isinstance(local_full_path, BytesIO):
-                conn.putfo(local_full_path, remote_full_path, confirm=confirm)
-            else:
-                conn.put(local_full_path, remote_full_path, confirm=confirm)
+        if isinstance(local_full_path, BytesIO):
+            self.conn.putfo(local_full_path, remote_full_path, confirm=confirm)  # type: ignore
+        else:
+            self.conn.put(local_full_path, remote_full_path, confirm=confirm)  # type: ignore
 
+    @handle_connection_management
     def delete_file(self, path: str) -> None:
         """
         Remove a file on the server.
 
         :param path: full path to the remote file
         """
-        with self.get_managed_conn() as conn:
-            conn.remove(path)
+        self.conn.remove(path)  # type: ignore[arg-type, union-attr]
 
     def retrieve_directory(self, remote_full_path: str, local_full_path: str, prefetch: bool = True) -> None:
         """
@@ -348,17 +368,20 @@ class SFTPHook(SSHHook):
         if Path(local_full_path).exists():
             raise AirflowException(f"{local_full_path} already exists")
         Path(local_full_path).mkdir(parents=True)
-        with self.get_managed_conn():
-            files, dirs, _ = self.get_tree_map(remote_full_path)
-            for dir_path in dirs:
-                new_local_path = os.path.join(local_full_path, os.path.relpath(dir_path, remote_full_path))
-                Path(new_local_path).mkdir(parents=True, exist_ok=True)
-            for file_path in files:
-                new_local_path = os.path.join(local_full_path, os.path.relpath(file_path, remote_full_path))
-                self.retrieve_file(file_path, new_local_path, prefetch)
+        files, dirs, _ = self.get_tree_map(remote_full_path)
+        for dir_path in dirs:
+            new_local_path = os.path.join(local_full_path, os.path.relpath(dir_path, remote_full_path))
+            Path(new_local_path).mkdir(parents=True, exist_ok=True)
+        for file_path in files:
+            new_local_path = os.path.join(local_full_path, os.path.relpath(file_path, remote_full_path))
+            self.retrieve_file(file_path, new_local_path, prefetch)
 
     def retrieve_directory_concurrently(
-        self, remote_full_path: str, local_full_path: str, workers: int = os.cpu_count() or 2
+        self,
+        remote_full_path: str,
+        local_full_path: str,
+        workers: int = os.cpu_count() or 2,
+        prefetch: bool = True,
     ) -> None:
         """
         Transfer the remote directory to a local location concurrently.
@@ -405,6 +428,7 @@ class SFTPHook(SSHHook):
                         conns[i],
                         local_file_chunks[i],
                         remote_file_chunks[i],
+                        prefetch,
                     )
                     for i in range(workers)
                 ]
@@ -414,6 +438,7 @@ class SFTPHook(SSHHook):
             for conn in conns:
                 conn.close()
 
+    @handle_connection_management
     def store_directory(self, remote_full_path: str, local_full_path: str, confirm: bool = True) -> None:
         """
         Transfer a local directory to the remote location.
@@ -426,21 +451,16 @@ class SFTPHook(SSHHook):
         """
         if self.path_exists(remote_full_path):
             raise AirflowException(f"{remote_full_path} already exists")
-        with self.get_managed_conn():
-            self.create_directory(remote_full_path)
-            for root, dirs, files in os.walk(local_full_path):
-                for dir_name in dirs:
-                    dir_path = os.path.join(root, dir_name)
-                    new_remote_path = os.path.join(
-                        remote_full_path, os.path.relpath(dir_path, local_full_path)
-                    )
-                    self.create_directory(new_remote_path)
-                for file_name in files:
-                    file_path = os.path.join(root, file_name)
-                    new_remote_path = os.path.join(
-                        remote_full_path, os.path.relpath(file_path, local_full_path)
-                    )
-                    self.store_file(new_remote_path, file_path, confirm)
+        self.create_directory(remote_full_path)
+        for root, dirs, files in os.walk(local_full_path):
+            for dir_name in dirs:
+                dir_path = os.path.join(root, dir_name)
+                new_remote_path = os.path.join(remote_full_path, os.path.relpath(dir_path, local_full_path))
+                self.create_directory(new_remote_path)
+            for file_name in files:
+                file_path = os.path.join(root, file_name)
+                new_remote_path = os.path.join(remote_full_path, os.path.relpath(file_path, local_full_path))
+                self.store_file(new_remote_path, file_path, confirm)
 
     def store_directory_concurrently(
         self,
@@ -507,28 +527,28 @@ class SFTPHook(SSHHook):
             for conn in conns:
                 conn.close()
 
+    @handle_connection_management
     def get_mod_time(self, path: str) -> str:
         """
         Get an entry's modification time.
 
         :param path: full path to the remote file
         """
-        with self.get_managed_conn() as conn:
-            ftp_mdtm = conn.stat(path).st_mtime
-            return datetime.datetime.fromtimestamp(ftp_mdtm).strftime("%Y%m%d%H%M%S")  # type: ignore
+        ftp_mdtm = self.conn.stat(path).st_mtime  # type: ignore[union-attr]
+        return datetime.datetime.fromtimestamp(ftp_mdtm).strftime("%Y%m%d%H%M%S")  # type: ignore
 
+    @handle_connection_management
     def path_exists(self, path: str) -> bool:
         """
         Whether a remote entity exists.
 
         :param path: full path to the remote file or directory
         """
-        with self.get_managed_conn() as conn:
-            try:
-                conn.stat(path)
-            except OSError:
-                return False
-            return True
+        try:
+            self.conn.stat(path)  # type: ignore[union-attr]
+        except OSError:
+            return False
+        return True
 
     @staticmethod
     def _is_path_match(path: str, prefix: str | None = None, delimiter: str | None = None) -> bool:
@@ -681,10 +701,10 @@ class SFTPHookAsync(BaseHook):
     def __init__(  # nosec: B107
         self,
         sftp_conn_id: str = default_conn_name,
-        host: str = "",
-        port: int = 22,
-        username: str = "",
-        password: str = "",
+        host: str | None = None,
+        port: int | None = None,
+        username: str | None = None,
+        password: str | None = None,
         known_hosts: str = default_known_hosts,
         key_file: str = "",
         passphrase: str = "",
@@ -713,19 +733,16 @@ class SFTPHookAsync(BaseHook):
             self.private_key = extra_options["private_key"]
 
         host_key = extra_options.get("host_key")
-        no_host_key_check = extra_options.get("no_host_key_check")
+        nhkc_raw = extra_options.get("no_host_key_check")
+        no_host_key_check = True if nhkc_raw is None else (str(nhkc_raw).lower() == "true")
 
-        if no_host_key_check is not None:
-            no_host_key_check = str(no_host_key_check).lower() == "true"
-            if host_key is not None and no_host_key_check:
-                raise ValueError("Host key check was skipped, but `host_key` value was given")
-            if no_host_key_check:
-                self.log.warning(
-                    "No Host Key Verification. This won't protect against Man-In-The-Middle attacks"
-                )
-                self.known_hosts = "none"
+        if host_key is not None and no_host_key_check:
+            raise ValueError("Host key check was skipped, but `host_key` value was given")
 
-        if host_key is not None:
+        if no_host_key_check:
+            self.log.warning("No Host Key Verification. This won't protect against Man-In-The-Middle attacks")
+            self.known_hosts = "none"
+        elif host_key is not None:
             self.known_hosts = f"{conn.host} {host_key}".encode()
 
     async def _get_conn(self) -> asyncssh.SSHClientConnection:
@@ -743,11 +760,19 @@ class SFTPHookAsync(BaseHook):
         if conn.extra is not None:
             self._parse_extras(conn)  # type: ignore[arg-type]
 
-        conn_config: dict[str, Any] = {
-            "host": conn.host,
-            "port": conn.port,
-            "username": conn.login,
-            "password": conn.password,
+        def _get_value(self_val, conn_val, default=None):
+            """Return the first non-None value among self, conn, default."""
+            if self_val is not None:
+                return self_val
+            if conn_val is not None:
+                return conn_val
+            return default
+
+        conn_config = {
+            "host": _get_value(self.host, conn.host),
+            "port": _get_value(self.port, conn.port, SSH_PORT),
+            "username": _get_value(self.username, conn.login),
+            "password": _get_value(self.password, conn.password),
         }
         if self.key_file:
             conn_config.update(client_keys=self.key_file)

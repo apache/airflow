@@ -25,8 +25,10 @@ from airflow.models import DagModel
 from airflow.models.backfill import Backfill
 from airflow.utils.session import provide_session
 
+from tests_common.test_utils.asserts import assert_queries_count
 from tests_common.test_utils.db import (
     clear_db_backfills,
+    clear_db_dag_bundles,
     clear_db_dags,
     clear_db_runs,
     clear_db_serialized_dags,
@@ -46,6 +48,7 @@ def _clean_db():
     clear_db_runs()
     clear_db_dags()
     clear_db_serialized_dags()
+    clear_db_dag_bundles()
 
 
 @pytest.fixture(autouse=True)
@@ -62,6 +65,7 @@ class TestBackfillEndpoint:
         for num in range(1, count + 1):
             dag_model = DagModel(
                 dag_id=f"{dag_id_prefix}_{num}",
+                bundle_name="testing",
                 fileloc=f"/tmp/dag_{num}.py",
                 is_stale=False,
                 timetable_summary="0 0 * * *",
@@ -74,7 +78,7 @@ class TestBackfillEndpoint:
 
 class TestListBackfills(TestBackfillEndpoint):
     @pytest.mark.parametrize(
-        "test_params, response_params, total_entries",
+        ("test_params", "response_params", "total_entries"),
         [
             ({}, ["backfill1", "backfill2", "backfill3"], 3),
             ({"active": True}, ["backfill2", "backfill3"], 2),
@@ -87,7 +91,9 @@ class TestListBackfills(TestBackfillEndpoint):
             ({"dag_id": "TEST_DAG_1"}, ["backfill1"], 1),
         ],
     )
-    def test_should_response_200(self, test_params, response_params, total_entries, test_client, session):
+    def test_should_response_200(
+        self, test_params, response_params, total_entries, test_client, session, testing_dag_bundle
+    ):
         dags = self._create_dag_models()
         from_date = timezone.utcnow()
         to_date = timezone.utcnow()
@@ -147,7 +153,8 @@ class TestListBackfills(TestBackfillEndpoint):
         expected_response = []
         for backfill in response_params:
             expected_response.append(backfill_responses[backfill])
-        response = test_client.get("/backfills", params=test_params)
+        with assert_queries_count(2):
+            response = test_client.get("/backfills", params=test_params)
         assert response.status_code == 200
         assert response.json() == {
             "backfills": expected_response,

@@ -16,10 +16,10 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { type ButtonProps, IconButton } from "@chakra-ui/react";
+import { Button, type ButtonProps, IconButton } from "@chakra-ui/react";
 import type { FC, ReactElement } from "react";
 
-import { Button, Tooltip } from "src/components/ui";
+import { Tooltip } from "src/components/ui";
 
 type Props = {
   readonly actionName: string;
@@ -50,7 +50,7 @@ const ActionButton = ({
       <div>
         <ButtonComponent
           aria-label={actionName}
-          colorPalette={withText ? colorPalette : "blue"}
+          colorPalette={withText ? colorPalette : "brand"}
           disabled={disabled}
           onClick={onClick}
           size={withText ? "md" : "sm"}

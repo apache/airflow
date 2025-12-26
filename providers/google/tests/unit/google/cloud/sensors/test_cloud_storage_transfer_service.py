@@ -21,7 +21,7 @@ from unittest import mock
 
 import pytest
 
-from airflow.exceptions import AirflowException, TaskDeferred
+from airflow.providers.common.compat.sdk import AirflowException, TaskDeferred
 from airflow.providers.google.cloud.hooks.cloud_storage_transfer_service import GcpTransferOperationStatus
 from airflow.providers.google.cloud.sensors.cloud_storage_transfer_service import (
     CloudDataTransferServiceJobStatusSensor,
@@ -180,7 +180,7 @@ class TestGcpStorageTransferOperationWaitForJobStatusSensor:
         )
 
     @pytest.mark.parametrize(
-        "expected_status, received_status",
+        ("expected_status", "received_status"),
         [
             (GcpTransferOperationStatus.SUCCESS, {GcpTransferOperationStatus.SUCCESS}),
             ({GcpTransferOperationStatus.SUCCESS}, {GcpTransferOperationStatus.SUCCESS}),

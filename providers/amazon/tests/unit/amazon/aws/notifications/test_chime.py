@@ -24,9 +24,6 @@ import pytest
 from airflow.models import Connection
 from airflow.providers.amazon.aws.hooks.chime import ChimeWebhookHook
 from airflow.providers.amazon.aws.notifications.chime import ChimeNotifier, send_chime_notification
-from airflow.providers.standard.operators.empty import EmptyOperator
-
-pytestmark = pytest.mark.db_test
 
 
 class TestChimeNotifier:
@@ -44,34 +41,25 @@ class TestChimeNotifier:
         )
 
     @mock.patch.object(ChimeWebhookHook, "send_message")
-    def test_chime_notifier(self, mock_chime_hook, dag_maker):
-        with dag_maker("test_chime_notifier") as dag:
-            EmptyOperator(task_id="task1")
-
+    def test_chime_notifier(self, mock_chime_hook, create_dag_without_db):
         notifier = send_chime_notification(
             chime_conn_id="default-chime-webhook", message="Chime Test Message"
         )
-        notifier({"dag": dag})
+        notifier({"dag": create_dag_without_db("test_chime_notifier")})
         mock_chime_hook.assert_called_once_with(message="Chime Test Message")
 
     @mock.patch.object(ChimeWebhookHook, "send_message")
-    def test_chime_notifier_with_notifier_class(self, mock_chime_hook, dag_maker):
-        with dag_maker("test_chime_notifier") as dag:
-            EmptyOperator(task_id="task1")
-
+    def test_chime_notifier_with_notifier_class(self, mock_chime_hook, create_dag_without_db):
         notifier = ChimeNotifier(
             chime_conn_id="default-chime-webhook", message="Test Chime Message for Class"
         )
-        notifier({"dag": dag})
+        notifier({"dag": create_dag_without_db("test_chime_notifier")})
         mock_chime_hook.assert_called_once_with(message="Test Chime Message for Class")
 
     @mock.patch.object(ChimeWebhookHook, "send_message")
-    def test_chime_notifier_templated(self, mock_chime_hook, dag_maker):
-        with dag_maker("test_chime_notifier") as dag:
-            EmptyOperator(task_id="task1")
-
+    def test_chime_notifier_templated(self, mock_chime_hook, create_dag_without_db):
         notifier = send_chime_notification(
             chime_conn_id="default-chime-webhook", message="Test Chime Message. Dag is {{ dag.dag_id }}."
         )
-        notifier({"dag": dag})
+        notifier({"dag": create_dag_without_db("test_chime_notifier")})
         mock_chime_hook.assert_called_once_with(message="Test Chime Message. Dag is test_chime_notifier.")

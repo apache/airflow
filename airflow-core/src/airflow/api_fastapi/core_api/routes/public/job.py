@@ -41,8 +41,7 @@ from airflow.api_fastapi.core_api.datamodels.job import (
 )
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
 from airflow.api_fastapi.core_api.security import AccessView, requires_access_view
-from airflow.jobs.job import Job
-from airflow.utils.state import JobState
+from airflow.jobs.job import Job, JobState
 
 job_router = AirflowRouter(tags=["Job"], prefix="/jobs")
 

@@ -24,13 +24,11 @@ import pytest
 from moto import mock_aws
 
 import airflow.version
-from airflow.exceptions import AirflowException
 from airflow.models import Connection
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
-from airflow.utils import db
+from airflow.providers.common.compat.sdk import AirflowException
 
 from tests_common.test_utils.config import conf_vars
-from tests_common.test_utils.db import clear_db_connections
 
 AWS_CONN_ID_WITH_REGION = "s3_dags_connection"
 AWS_CONN_ID_REGION = "eu-central-1"
@@ -78,13 +76,9 @@ def bundle_temp_dir(tmp_path):
 
 @pytest.mark.skipif(not airflow.version.version.strip().startswith("3"), reason="Airflow >=3.0.0 test")
 class TestS3DagBundle:
-    @classmethod
-    def teardown_class(cls) -> None:
-        clear_db_connections()
-
-    @classmethod
-    def setup_class(cls) -> None:
-        db.merge_conn(
+    @pytest.fixture(autouse=True)
+    def setup_connections(self, create_connection_without_db):
+        create_connection_without_db(
             Connection(
                 conn_id=AWS_CONN_ID_DEFAULT,
                 conn_type="aws",
@@ -93,8 +87,8 @@ class TestS3DagBundle:
                 },
             )
         )
-        db.merge_conn(
-            conn=Connection(
+        create_connection_without_db(
+            Connection(
                 conn_id=AWS_CONN_ID_WITH_REGION,
                 conn_type="aws",
                 extra={
@@ -104,15 +98,21 @@ class TestS3DagBundle:
             )
         )
 
-    @pytest.mark.db_test
     def test_view_url_generates_presigned_url(self):
         bundle = S3DagBundle(
             name="test", aws_conn_id=AWS_CONN_ID_DEFAULT, prefix="project1/dags", bucket_name=S3_BUCKET_NAME
         )
+
         url: str = bundle.view_url("test_version")
         assert url.startswith("https://my-airflow-dags-bucket.s3.amazonaws.com/project1/dags")
 
-    @pytest.mark.db_test
+    def test_view_url_template_generates_presigned_url(self):
+        bundle = S3DagBundle(
+            name="test", aws_conn_id=AWS_CONN_ID_DEFAULT, prefix="project1/dags", bucket_name=S3_BUCKET_NAME
+        )
+        url: str = bundle.view_url_template()
+        assert url.startswith("https://my-airflow-dags-bucket.s3.amazonaws.com/project1/dags")
+
     def test_supports_versioning(self):
         bundle = S3DagBundle(
             name="test", aws_conn_id=AWS_CONN_ID_DEFAULT, prefix="project1/dags", bucket_name=S3_BUCKET_NAME
@@ -127,14 +127,12 @@ class TestS3DagBundle:
         with pytest.raises(AirflowException, match="S3 url with version is not supported"):
             bundle.view_url("test_version")
 
-    @pytest.mark.db_test
     def test_correct_bundle_path_used(self):
         bundle = S3DagBundle(
             name="test", aws_conn_id=AWS_CONN_ID_DEFAULT, prefix="project1_dags", bucket_name="airflow_dags"
         )
         assert str(bundle.base_dir) == str(bundle.s3_dags_dir)
 
-    @pytest.mark.db_test
     def test_s3_bucket_and_prefix_validated(self, s3_bucket):
         hook = S3Hook(aws_conn_id=AWS_CONN_ID_DEFAULT)
         assert hook.check_for_bucket(s3_bucket.name) is True
@@ -186,7 +184,6 @@ class TestS3DagBundle:
             key = os.path.relpath(path, fixtures_dir)
             client.upload_file(Filename=path, Bucket=bucket, Key=key)
 
-    @pytest.mark.db_test
     def test_refresh(self, s3_bucket, s3_client):
         bundle = S3DagBundle(
             name="test",
@@ -209,7 +206,6 @@ class TestS3DagBundle:
         assert bundle._log.debug.call_count == 3
         assert bundle._log.debug.call_args_list == [download_log_call, download_log_call, download_log_call]
 
-    @pytest.mark.db_test
     def test_refresh_without_prefix(self, s3_bucket, s3_client):
         bundle = S3DagBundle(
             name="test",

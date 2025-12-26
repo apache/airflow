@@ -23,14 +23,12 @@ import { useParams } from "react-router-dom";
 
 import { DetailsLayout } from "src/layouts/Details/DetailsLayout";
 import { useGridTiSummaries } from "src/queries/useGridTISummaries.ts";
-import { isStatePending, useAutoRefresh } from "src/utils";
 
 import { Header } from "./Header";
 
 export const MappedTaskInstance = () => {
   const { dagId = "", runId = "", taskId = "" } = useParams();
-  const refetchInterval = useAutoRefresh({ dagId });
-  const { t: translate } = useTranslation();
+  const { t: translate } = useTranslation("dag");
   const { data: gridTISummaries } = useGridTiSummaries({ dagId, runId });
 
   const taskInstance = gridTISummaries?.task_instances.find((ti) => ti.task_id === taskId);
@@ -41,18 +39,13 @@ export const MappedTaskInstance = () => {
   });
 
   const tabs = [
-    { icon: <MdOutlineTask />, label: `${translate("taskInstances_other")} [${taskCount}]`, value: "" },
+    { icon: <MdOutlineTask />, label: `${translate("tabs.taskInstances")} [${taskCount}]`, value: "" },
   ];
 
   return (
     <ReactFlowProvider>
       <DetailsLayout tabs={tabs}>
-        {taskInstance === undefined ? undefined : (
-          <Header
-            isRefreshing={Boolean(isStatePending(taskInstance.state) && Boolean(refetchInterval))}
-            taskInstance={taskInstance}
-          />
-        )}
+        {taskInstance === undefined ? undefined : <Header taskInstance={taskInstance} />}
       </DetailsLayout>
     </ReactFlowProvider>
   );

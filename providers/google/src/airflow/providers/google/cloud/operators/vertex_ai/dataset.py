@@ -26,7 +26,7 @@ from google.api_core.exceptions import NotFound
 from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
 from google.cloud.aiplatform_v1.types import Dataset, ExportDataConfig, ImportDataConfig
 
-from airflow.exceptions import AirflowException
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.google.cloud.hooks.vertex_ai.dataset import DatasetHook
 from airflow.providers.google.cloud.links.vertex_ai import VertexAIDatasetLink, VertexAIDatasetListLink
 from airflow.providers.google.cloud.operators.cloud_base import GoogleCloudBaseOperator
@@ -35,7 +35,7 @@ if TYPE_CHECKING:
     from google.api_core.retry import Retry
     from google.protobuf.field_mask_pb2 import FieldMask
 
-    from airflow.utils.context import Context
+    from airflow.providers.common.compat.sdk import Context
 
 
 class CreateDatasetOperator(GoogleCloudBaseOperator):
@@ -410,7 +410,7 @@ class ImportDataOperator(GoogleCloudBaseOperator, DatasetImportDataResultsCheckH
         )
         initial_dataset_size = self._get_number_of_ds_items(
             dataset=hook.get_dataset(
-                dataset_id=self.dataset_id,
+                dataset=self.dataset_id,
                 project_id=self.project_id,
                 region=self.region,
                 retry=self.retry,
@@ -432,7 +432,7 @@ class ImportDataOperator(GoogleCloudBaseOperator, DatasetImportDataResultsCheckH
         hook.wait_for_operation(timeout=self.timeout, operation=operation)
         result_dataset_size = self._get_number_of_ds_items(
             dataset=hook.get_dataset(
-                dataset_id=self.dataset_id,
+                dataset=self.dataset_id,
                 project_id=self.project_id,
                 region=self.region,
                 retry=self.retry,

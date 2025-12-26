@@ -1,0 +1,30 @@
+{
+  "consumingDags": "Consumindo Dags",
+  "createEvent": {
+    "button": "Criar Evento",
+    "manual": {
+      "description": "Manualmente criar um Evento de Asset",
+      "extra": "Evento de Asset Extra",
+      "label": "Manual"
+    },
+    "materialize": {
+      "description": "Ativar o Dag acima deste Asset",
+      "descriptionWithDag": "Ativar o Dag acima deste Asset: {{dagName}}",
+      "label": "Materializar",
+      "unpauseDag": "Despausar {{dagName}} ao ativar"
+    },
+    "success": {
+      "manualDescription": "Criação de evento de Asset manual foi bem-sucedida.",
+      "manualTitle": "Evento de Asset Criado",
+      "materializeDescription": "Dag acima {{dagId}} foi ativado com sucesso.",
+      "materializeTitle": "Materializando Asset"
+    },
+    "title": "Criar Evento de Asset para {{name}}"
+  },
+  "group": "Grupo",
+  "lastAssetEvent": "Último Evento de Asset",
+  "name": "Nome",
+  "producingTasks": "Produzindo Tarefas",
+  "scheduledDags": "Dags Programados",
+  "searchPlaceholder": "Pesquisar Assets"
+}

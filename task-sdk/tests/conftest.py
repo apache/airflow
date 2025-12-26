@@ -20,9 +20,10 @@ import logging
 import os
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, NoReturn, Protocol
-from unittest.mock import patch
 
 import pytest
+
+from tests_common.test_utils.config import conf_vars
 
 pytest_plugins = "tests_common.pytest_plugin"
 
@@ -55,9 +56,18 @@ def pytest_configure(config: pytest.Config) -> None:
     # Always skip looking for tests in these folders!
     config.addinivalue_line("norecursedirs", "tests/test_dags")
 
+    config.addinivalue_line("markers", "log_level: ")
+
     import airflow.settings
 
-    airflow.settings.configure_policy_plugin_manager()
+    airflow.settings.get_policy_plugin_manager()
+
+
+@pytest.fixture(scope="session", autouse=True)
+def _init_log():
+    from airflow.sdk.log import configure_logging
+
+    configure_logging()
 
 
 @pytest.hookimpl(tryfirst=True)
@@ -91,31 +101,42 @@ def test_dags_dir():
 
 
 @pytest.fixture
-def captured_logs(request):
+def captured_logs(request, monkeypatch):
     import structlog
+    import structlog.processors
 
+    from airflow.sdk._shared.logging.structlog import PER_LOGGER_LEVELS
     from airflow.sdk.log import configure_logging, reset_logging
 
     # Use our real log config
     reset_logging()
-    configure_logging(enable_pretty_log=False)
+    configure_logging(json_output=False, colored_console_log=False)
 
     # Get log level from test parameter, which can either be a single log level or a
     # tuple of log level and desired output type, defaulting to INFO if not provided
     log_level = logging.INFO
     output = "dict"
-    param = getattr(request, "param", logging.INFO)
+
+    param = getattr(request, "param", None)
+    if not param:
+        mark = next(request.node.iter_markers(name="log_level"), None)
+        param = mark.args[0] if mark is not None else None
+
     if isinstance(param, int):
         log_level = param
     elif isinstance(param, tuple):
         log_level = param[0]
         output = param[1]
 
-    # We want to capture all logs, but we don't want to see them in the test output
-    structlog.configure(wrapper_class=structlog.make_filtering_bound_logger(log_level))
+    monkeypatch.setitem(PER_LOGGER_LEVELS, "", log_level)
 
     cur_processors = structlog.get_config()["processors"]
     processors = cur_processors.copy()
+
+    if not any(isinstance(proc, structlog.processors.MaybeTimeStamper) for proc in processors):
+        timestamper = structlog.processors.MaybeTimeStamper(fmt="iso")
+        processors.append(timestamper)
+
     if output == "dict":
         # We need to replace remove the last processor (the one that turns JSON into text, as we want the
         # event dict for tests)
@@ -129,7 +150,7 @@ def captured_logs(request):
         structlog.configure(processors=processors)
         task_logger = logging.getLogger("airflow.task")
 
-        from airflow.sdk.execution_time.secrets_masker import SecretsMasker
+        from airflow.sdk._shared.secrets_masker import SecretsMasker
 
         task_logger.addFilter(SecretsMasker())
         yield cap.entries
@@ -154,6 +175,48 @@ def _disable_ol_plugin():
     yield
 
     airflow.plugins_manager.plugins = None
+
+
+@pytest.fixture(autouse=True)
+def _cleanup_async_resources(request):
+    """
+    Clean up async resources that can cause Python 3.12 fork warnings.
+
+    Problem: asgiref.sync.sync_to_async (used in _async_get_connection) creates
+    ThreadPoolExecutors that persist between tests. When supervisor.py calls
+    os.fork() in subsequent tests, Python 3.12+ warns about forking a
+    multi-threaded process.
+
+    Solution: Clean up asgiref's ThreadPoolExecutors after async tests to ensure
+    subsequent tests start with a clean thread environment.
+    """
+    yield
+
+    # Only clean up after async tests to avoid unnecessary overhead
+    if "asyncio" in request.keywords:
+        # Clean up asgiref ThreadPoolExecutors that persist between tests
+        # These are created by sync_to_async() calls in async connection retrieval
+        try:
+            from asgiref.sync import SyncToAsync
+
+            # SyncToAsync maintains a class-level executor for performance
+            # We need to shut it down to prevent multi-threading warnings on fork()
+            if hasattr(SyncToAsync, "single_thread_executor") and SyncToAsync.single_thread_executor:
+                if not SyncToAsync.single_thread_executor._shutdown:
+                    SyncToAsync.single_thread_executor.shutdown(wait=True)
+                SyncToAsync.single_thread_executor = None
+
+            # SyncToAsync also maintains a WeakKeyDictionary of context-specific executors
+            # Clean these up too to ensure complete thread cleanup
+            if hasattr(SyncToAsync, "context_to_thread_executor"):
+                for executor in list(SyncToAsync.context_to_thread_executor.values()):
+                    if hasattr(executor, "shutdown") and not getattr(executor, "_shutdown", True):
+                        executor.shutdown(wait=True)
+                SyncToAsync.context_to_thread_executor.clear()
+
+        except (ImportError, AttributeError):
+            # If asgiref structure changes, fail gracefully
+            pass
 
 
 class MakeTIContextCallable(Protocol):
@@ -197,8 +260,8 @@ class MakeTIContextDictCallable(Protocol):
 @pytest.fixture
 def make_ti_context() -> MakeTIContextCallable:
     """Factory for creating TIRunContext objects."""
+    from airflow.sdk import DagRunState
     from airflow.sdk.api.datamodels._generated import DagRun, TIRunContext
-    from airflow.utils.state import DagRunState
 
     def _make_context(
         dag_id: str = "test_dag",
@@ -276,10 +339,12 @@ def make_ti_context_dict(make_ti_context: MakeTIContextCallable) -> MakeTIContex
     return _make_context_dict
 
 
-@pytest.fixture
-def patched_secrets_masker():
-    from airflow.sdk.execution_time.secrets_masker import SecretsMasker
-
-    secrets_masker = SecretsMasker()
-    with patch("airflow.sdk.execution_time.secrets_masker._secrets_masker", return_value=secrets_masker):
-        yield secrets_masker
+@pytest.fixture(scope="class", autouse=True)
+def allow_test_classes_deserialization():
+    """
+    Allow test classes and airflow SDK classes to be deserialized. In airflow-core tests, this is provided by
+    unit_tests.cfg which sets allowed_deserialization_classes = airflow.* tests.*
+    SDK tests may not inherit that configuration, so we explicitly allow airflow.sdk.* and tests.* here.
+    """
+    with conf_vars({("core", "allowed_deserialization_classes"): "airflow.sdk.* tests.*"}):
+        yield

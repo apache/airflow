@@ -16,14 +16,19 @@
 # under the License.
 from __future__ import annotations
 
+import argparse
 import json
 import logging
+import time
+from base64 import urlsafe_b64decode
 from typing import TYPE_CHECKING, Any
 from urllib.parse import urljoin
 
 import requests
 from fastapi import FastAPI
-from keycloak import KeycloakOpenID
+from keycloak import KeycloakOpenID, KeycloakPostError
+from requests.adapters import HTTPAdapter
+from urllib3.util import Retry
 
 from airflow.api_fastapi.app import AUTH_MANAGER_FASTAPI_APP_PREFIX
 from airflow.api_fastapi.auth.managers.base_auth_manager import BaseAuthManager
@@ -34,14 +39,16 @@ except ImportError:
     from airflow.api_fastapi.auth.managers.base_auth_manager import ResourceMethod as ExtendedResourceMethod
 
 from airflow.api_fastapi.common.types import MenuItem
-from airflow.cli.cli_config import CLICommand, GroupCommand
+from airflow.cli.cli_config import CLICommand, DefaultHelpParser, GroupCommand
 from airflow.configuration import conf
-from airflow.exceptions import AirflowException
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.keycloak.auth_manager.cli.definition import KEYCLOAK_AUTH_MANAGER_COMMANDS
 from airflow.providers.keycloak.auth_manager.constants import (
     CONF_CLIENT_ID_KEY,
     CONF_CLIENT_SECRET_KEY,
     CONF_REALM_KEY,
+    CONF_REQUESTS_POOL_SIZE_KEY,
+    CONF_REQUESTS_RETRIES_KEY,
     CONF_SECTION_NAME,
     CONF_SERVER_URL_KEY,
 )
@@ -69,12 +76,52 @@ log = logging.getLogger(__name__)
 RESOURCE_ID_ATTRIBUTE_NAME = "resource_id"
 
 
+def get_parser() -> argparse.ArgumentParser:
+    """Generate documentation; used by Sphinx argparse."""
+    from airflow.cli.cli_parser import AirflowHelpFormatter, _add_command
+
+    parser = DefaultHelpParser(prog="airflow", formatter_class=AirflowHelpFormatter)
+    subparsers = parser.add_subparsers(dest="subcommand", metavar="GROUP_OR_COMMAND")
+    for group_command in KeycloakAuthManager.get_cli_commands():
+        _add_command(subparsers, group_command)
+    return parser
+
+
 class KeycloakAuthManager(BaseAuthManager[KeycloakAuthManagerUser]):
     """
     Keycloak auth manager.
 
     Leverages Keycloak to perform authentication and authorization in Airflow.
     """
+
+    def __init__(self):
+        super().__init__()
+        self._http_session = None
+
+    @property
+    def http_session(self) -> requests.Session:
+        """Lazy-initialize and return the requests session with connection pooling."""
+        if self._http_session is not None:
+            return self._http_session
+
+        self._http_session = requests.Session()
+
+        pool_size = conf.getint(CONF_SECTION_NAME, CONF_REQUESTS_POOL_SIZE_KEY, fallback=10)
+        retry_total = conf.getint(CONF_SECTION_NAME, CONF_REQUESTS_RETRIES_KEY, fallback=3)
+
+        retry_strategy = Retry(
+            total=retry_total,
+            backoff_factor=0.1,
+            status_forcelist=[500, 502, 503, 504],
+            allowed_methods=["HEAD", "GET", "OPTIONS", "POST"],
+        )
+
+        adapter = HTTPAdapter(pool_connections=pool_size, pool_maxsize=pool_size, max_retries=retry_strategy)
+
+        self._http_session.mount("https://", adapter)
+        self._http_session.mount("http://", adapter)
+
+        return self._http_session
 
     def deserialize_user(self, token: dict[str, Any]) -> KeycloakAuthManagerUser:
         return KeycloakAuthManagerUser(
@@ -96,9 +143,34 @@ class KeycloakAuthManager(BaseAuthManager[KeycloakAuthManagerUser]):
         base_url = conf.get("api", "base_url", fallback="/")
         return urljoin(base_url, f"{AUTH_MANAGER_FASTAPI_APP_PREFIX}/login")
 
-    def get_url_refresh(self) -> str | None:
+    def get_url_logout(self) -> str | None:
         base_url = conf.get("api", "base_url", fallback="/")
-        return urljoin(base_url, f"{AUTH_MANAGER_FASTAPI_APP_PREFIX}/refresh")
+        return urljoin(base_url, f"{AUTH_MANAGER_FASTAPI_APP_PREFIX}/logout")
+
+    def refresh_user(self, *, user: KeycloakAuthManagerUser) -> KeycloakAuthManagerUser | None:
+        if self._token_expired(user.access_token):
+            tokens = self.refresh_tokens(user=user)
+
+            if tokens:
+                user.refresh_token = tokens["refresh_token"]
+                user.access_token = tokens["access_token"]
+                return user
+
+        return None
+
+    def refresh_tokens(self, *, user: KeycloakAuthManagerUser) -> dict[str, str]:
+        try:
+            log.debug("Refreshing the token")
+            client = self.get_keycloak_client()
+            return client.refresh_token(user.refresh_token)
+        except KeycloakPostError as exc:
+            log.warning(
+                "KeycloakPostError encountered during token refresh. "
+                "Suppressing the exception and returning None.",
+                exc_info=exc,
+            )
+
+        return {}
 
     def is_authorized_configuration(
         self,
@@ -274,15 +346,21 @@ class KeycloakAuthManager(BaseAuthManager[KeycloakAuthManagerUser]):
         context_attributes = prune_dict(attributes or {})
         if resource_id:
             context_attributes[RESOURCE_ID_ATTRIBUTE_NAME] = resource_id
+        elif method == "GET":
+            method = "LIST"
 
-        resp = requests.post(
+        resp = self.http_session.post(
             self._get_token_url(server_url, realm),
             data=self._get_payload(client_id, f"{resource_type.value}#{method}", context_attributes),
             headers=self._get_headers(user.access_token),
+            timeout=5,
         )
 
         if resp.status_code == 200:
             return True
+        if resp.status_code == 401:
+            log.debug("Received 401 from Keycloak: %s", resp.text)
+            return False
         if resp.status_code == 403:
             return False
         if resp.status_code == 400:
@@ -302,10 +380,11 @@ class KeycloakAuthManager(BaseAuthManager[KeycloakAuthManagerUser]):
         realm = conf.get(CONF_SECTION_NAME, CONF_REALM_KEY)
         server_url = conf.get(CONF_SECTION_NAME, CONF_SERVER_URL_KEY)
 
-        resp = requests.post(
+        resp = self.http_session.post(
             self._get_token_url(server_url, realm),
             data=self._get_batch_payload(client_id, permissions),
             headers=self._get_headers(user.access_token),
+            timeout=5,
         )
 
         if resp.status_code == 200:
@@ -352,3 +431,17 @@ class KeycloakAuthManager(BaseAuthManager[KeycloakAuthManagerUser]):
             "Authorization": f"Bearer {access_token}",
             "Content-Type": "application/x-www-form-urlencoded",
         }
+
+    @staticmethod
+    def _token_expired(token: str) -> bool:
+        """
+        Check whether a JWT token is expired.
+
+        :meta private:
+
+        :param token: the token
+        """
+        payload_b64 = token.split(".")[1] + "=="
+        payload_bytes = urlsafe_b64decode(payload_b64)
+        payload = json.loads(payload_bytes)
+        return payload["exp"] < int(time.time())

@@ -16,7 +16,6 @@
 # under the License.
 from __future__ import annotations
 
-import concurrent
 import concurrent.futures
 import datetime
 import itertools
@@ -99,6 +98,14 @@ def should_be_refreshed(pkg_name: str, refresh_airflow_inventories: bool) -> boo
     return False
 
 
+def is_airflow_package(pkg_name: str) -> bool:
+    """
+    Check if the package name is an Airflow package.
+    This includes the main Airflow package and any provider packages.
+    """
+    return pkg_name.startswith("apache-airflow") or pkg_name in ["helm-chart", "docker-stack", "task-sdk"]
+
+
 def fetch_inventories(clean_build: bool, refresh_airflow_inventories: bool = False) -> list[str]:
     """Fetch all inventories for Airflow documentation packages and store in cache."""
     if clean_build:
@@ -166,20 +173,39 @@ def fetch_inventories(clean_build: bool, refresh_airflow_inventories: bool = Fal
     print(f"Result: {len(success)} success, {len(failed)} failed")
     if failed:
         terminate = False
+        missing_airflow_packages = False
         print("Failed packages:")
         for pkg_no, (pkg_name, _) in enumerate(failed, start=1):
             print(f"{pkg_no}. {pkg_name}")
-            if not terminate and not pkg_name.startswith("apache-airflow"):
-                # For solve situation that newly created Community Provider doesn't upload inventory yet.
-                # And we terminate execution only if any error happen during fetching
-                # third party intersphinx inventories.
+            if not is_airflow_package(pkg_name):
+                print(
+                    f"[yellow]Missing {pkg_name} inventory is not for an Airflow package: "
+                    f"it will terminate the execution."
+                )
                 terminate = True
+            else:
+                print(
+                    f"[yellow]Missing {pkg_name} inventory is for an Airflow package, "
+                    f"it will be built from sources."
+                )
+                missing_airflow_packages = True
         if terminate:
-            print("Terminate execution.")
+            print(
+                "[red]Terminate execution[/]\n\n"
+                "[yellow]Some non-airflow inventories are missing. If missing inventory is really "
+                "an Airflow package, please add it to the `is_airflow_package` in `fetch_inventories.py`."
+            )
             raise SystemExit(1)
-
+        if missing_airflow_packages:
+            print(f"[yellow]Failed to fetch those airflow inventories - building them first: {failed}.")
     return [pkg_name for pkg_name, status in failed]
 
 
 if __name__ == "__main__":
-    fetch_inventories(clean_build=len(sys.argv) > 1 and sys.argv[1] == "clean")
+    if len(sys.argv) > 1 and sys.argv[1] == "clean":
+        print("[bright_blue]Cleaning inventory cache before fetching inventories")
+        clean_build = True
+    else:
+        print("[bright_blue]Just fetching inventories without cleaning cache")
+        clean_build = False
+    fetch_inventories(clean_build=clean_build)

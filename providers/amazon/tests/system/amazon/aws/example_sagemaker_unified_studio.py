@@ -103,7 +103,6 @@ with DAG(
     DAG_ID,
     schedule="@once",
     start_date=datetime(2021, 1, 1),
-    tags=["example"],
     catchup=False,
 ) as dag:
     test_context = sys_test_context_task()
@@ -142,7 +141,17 @@ with DAG(
         waiter_delay=5,  # optional
         deferrable=False,  # optional
         executor_config={  # optional
-            "overrides": {"containerOverrides": {"environment": mock_mwaa_environment_params}}
+            "overrides": {
+                "containerOverrides": [
+                    {
+                        "environment": [
+                            {"name": key, "value": value}
+                            for key, value in mock_mwaa_environment_params.items()
+                        ],
+                        "name": "ECSExecutorContainer",  # Necessary parameter
+                    }
+                ]
+            }
         },
     )
     # [END howto_operator_sagemaker_unified_studio_notebook]

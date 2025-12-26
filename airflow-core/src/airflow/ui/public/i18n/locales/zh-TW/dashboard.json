@@ -14,7 +14,7 @@
     "metaDatabase": "系統資料庫",
     "scheduler": "排程器",
     "status": "狀態",
-    "triggerer": "觸發器",
+    "triggerer": "觸發者",
     "unhealthy": "健康狀態異常"
   },
   "history": "歷史記錄",
@@ -36,6 +36,7 @@
     "activeDags": "啟用中的 Dags",
     "failedDags": "失敗的 Dags",
     "queuedDags": "排隊中的 Dags",
+    "requiredActions": "待回應的任務實例",
     "runningDags": "執行中的 Dags",
     "stats": "統計"
   },

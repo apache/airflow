@@ -19,25 +19,25 @@ from __future__ import annotations
 import logging
 import os
 import signal
+import sys
 from datetime import datetime
+from functools import cache
 from http import HTTPStatus
 from multiprocessing import Process
 from pathlib import Path
-from subprocess import Popen
 from time import sleep
 from typing import TYPE_CHECKING
-from urllib.parse import urlparse
 
 from lockfile.pidlockfile import remove_existing_pidfile
 from requests import HTTPError
 
 from airflow import __version__ as airflow_version
 from airflow.configuration import conf
+from airflow.providers.common.compat.sdk import timezone
 from airflow.providers.edge3 import __version__ as edge_provider_version
 from airflow.providers.edge3.cli.api_client import (
     jobs_fetch,
     jobs_set_state,
-    logs_logfile_path,
     logs_push,
     worker_register,
     worker_set_state,
@@ -49,9 +49,11 @@ from airflow.providers.edge3.cli.signalling import (
     status_file_path,
     write_pid_to_pidfile,
 )
-from airflow.providers.edge3.models.edge_worker import EdgeWorkerState, EdgeWorkerVersionException
-from airflow.providers.edge3.version_compat import AIRFLOW_V_3_0_PLUS
-from airflow.utils import timezone
+from airflow.providers.edge3.models.edge_worker import (
+    EdgeWorkerDuplicateException,
+    EdgeWorkerState,
+    EdgeWorkerVersionException,
+)
 from airflow.utils.net import getfqdn
 from airflow.utils.state import TaskInstanceState
 
@@ -59,6 +61,11 @@ if TYPE_CHECKING:
     from airflow.providers.edge3.worker_api.datamodels import EdgeJobFetched
 
 logger = logging.getLogger(__name__)
+
+if sys.platform == "darwin":
+    setproctitle = lambda title: logger.debug("Mac OS detected, skipping setproctitle")
+else:
+    from setproctitle import setproctitle
 
 
 def _edge_hostname() -> str:
@@ -169,78 +176,59 @@ class EdgeWorker:
             return EdgeWorkerState.MAINTENANCE_MODE
         return EdgeWorkerState.IDLE
 
-    def _launch_job_af3(self, edge_job: EdgeJobFetched) -> tuple[Process, Path]:
+    @staticmethod
+    @cache
+    def _execution_api_server_url() -> str:
+        """Get the execution api server url from config or environment."""
+        api_url = conf.get("edge", "api_url")
+        execution_api_server_url = conf.get("core", "execution_api_server_url", fallback="")
+        if not execution_api_server_url and api_url:
+            # Derive execution api url from edge api url as fallback
+            execution_api_server_url = api_url.replace("edge_worker/v1/rpcapi", "execution")
+        logger.info("Using execution api server url: %s", execution_api_server_url)
+        return execution_api_server_url
+
+    @staticmethod
+    def _run_job_via_supervisor(workload, execution_api_server_url) -> int:
+        from airflow.sdk.execution_time.supervisor import supervise
+
+        # Ignore ctrl-c in this process -- we don't want to kill _this_ one. we let tasks run to completion
+        signal.signal(signal.SIGINT, signal.SIG_IGN)
+
+        logger.info("Worker starting up pid=%d", os.getpid())
+        setproctitle(f"airflow edge worker: {workload.ti.key}")
+
+        try:
+            supervise(
+                # This is the "wrong" ti type, but it duck types the same. TODO: Create a protocol for this.
+                # Same like in airflow/executors/local_executor.py:_execute_work()
+                ti=workload.ti,  # type: ignore[arg-type]
+                dag_rel_path=workload.dag_rel_path,
+                bundle_info=workload.bundle_info,
+                token=workload.token,
+                server=execution_api_server_url,
+                log_path=workload.log_path,
+            )
+            return 0
+        except Exception as e:
+            logger.exception("Task execution failed: %s", e)
+            return 1
+
+    @staticmethod
+    def _launch_job(edge_job: EdgeJobFetched):
         if TYPE_CHECKING:
             from airflow.executors.workloads import ExecuteTask
 
-        def _run_job_via_supervisor(
-            workload: ExecuteTask,
-        ) -> int:
-            from setproctitle import setproctitle
-
-            from airflow.sdk.execution_time.supervisor import supervise
-
-            # Ignore ctrl-c in this process -- we don't want to kill _this_ one. we let tasks run to completion
-            signal.signal(signal.SIGINT, signal.SIG_IGN)
-
-            logger.info("Worker starting up pid=%d", os.getpid())
-            setproctitle(f"airflow edge worker: {workload.ti.key}")
-
-            try:
-                api_url = conf.get("edge", "api_url")
-                execution_api_server_url = conf.get("core", "execution_api_server_url", fallback="")
-                if not execution_api_server_url:
-                    parsed = urlparse(api_url)
-                    execution_api_server_url = f"{parsed.scheme}://{parsed.netloc}/execution/"
-
-                logger.info("Worker starting up server=execution_api_server_url=%s", execution_api_server_url)
-
-                supervise(
-                    # This is the "wrong" ti type, but it duck types the same. TODO: Create a protocol for this.
-                    # Same like in airflow/executors/local_executor.py:_execute_work()
-                    ti=workload.ti,  # type: ignore[arg-type]
-                    dag_rel_path=workload.dag_rel_path,
-                    bundle_info=workload.bundle_info,
-                    token=workload.token,
-                    server=execution_api_server_url,
-                    log_path=workload.log_path,
-                )
-                return 0
-            except Exception as e:
-                logger.exception("Task execution failed: %s", e)
-                return 1
-
         workload: ExecuteTask = edge_job.command
         process = Process(
-            target=_run_job_via_supervisor,
-            kwargs={"workload": workload},
+            target=EdgeWorker._run_job_via_supervisor,
+            kwargs={"workload": workload, "execution_api_server_url": EdgeWorker._execution_api_server_url()},
         )
         process.start()
         base_log_folder = conf.get("logging", "base_log_folder", fallback="NOT AVAILABLE")
         if TYPE_CHECKING:
             assert workload.log_path  # We need to assume this is defined in here
         logfile = Path(base_log_folder, workload.log_path)
-        return process, logfile
-
-    def _launch_job_af2_10(self, edge_job: EdgeJobFetched) -> tuple[Popen, Path]:
-        """Compatibility for Airflow 2.10 Launch."""
-        env = os.environ.copy()
-        env["AIRFLOW__CORE__DATABASE_ACCESS_ISOLATION"] = "True"
-        env["AIRFLOW__CORE__INTERNAL_API_URL"] = conf.get("edge", "api_url")
-        env["_AIRFLOW__SKIP_DATABASE_EXECUTOR_COMPATIBILITY_CHECK"] = "1"
-        command: list[str] = edge_job.command  # type: ignore[assignment]
-        process = Popen(command, close_fds=True, env=env, start_new_session=True)
-        logfile = logs_logfile_path(edge_job.key)
-        return process, logfile
-
-    def _launch_job(self, edge_job: EdgeJobFetched):
-        """Get the received job executed."""
-        process: Popen | Process
-        if AIRFLOW_V_3_0_PLUS:
-            process, logfile = self._launch_job_af3(edge_job)
-        else:
-            # Airflow 2.10
-            process, logfile = self._launch_job_af2_10(edge_job)
         EdgeWorker.jobs.append(Job(edge_job, process, logfile, 0))
 
     def start(self):
@@ -251,6 +239,9 @@ class EdgeWorker:
             ).last_update
         except EdgeWorkerVersionException as e:
             logger.info("Version mismatch of Edge worker and Core. Shutting down worker.")
+            raise SystemExit(str(e))
+        except EdgeWorkerDuplicateException as e:
+            logger.error(str(e))
             raise SystemExit(str(e))
         except HTTPError as e:
             if e.response.status_code == HTTPStatus.NOT_FOUND:
@@ -312,7 +303,7 @@ class EdgeWorker:
         edge_job = jobs_fetch(self.hostname, self.queues, self.free_concurrency)
         if edge_job:
             logger.info("Received job: %s", edge_job)
-            self._launch_job(edge_job)
+            EdgeWorker._launch_job(edge_job)
             jobs_set_state(edge_job.key, TaskInstanceState.RUNNING)
             return True
 
@@ -338,7 +329,11 @@ class EdgeWorker:
             else:
                 used_concurrency += job.edge_job.concurrency_slots
 
-            if job.logfile.exists() and job.logfile.stat().st_size > job.logsize:
+            if (
+                conf.getboolean("edge", "push_logs")
+                and job.logfile.exists()
+                and job.logfile.stat().st_size > job.logsize
+            ):
                 with job.logfile.open("rb") as logfile:
                     push_log_chunk_size = conf.getint("edge", "push_log_chunk_size")
                     logfile.seek(job.logsize, os.SEEK_SET)

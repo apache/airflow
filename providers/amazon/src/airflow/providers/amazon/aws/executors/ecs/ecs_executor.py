@@ -32,8 +32,6 @@ from typing import TYPE_CHECKING
 
 from botocore.exceptions import ClientError, NoCredentialsError
 
-from airflow.configuration import conf
-from airflow.exceptions import AirflowException
 from airflow.executors.base_executor import BaseExecutor
 from airflow.providers.amazon.aws.executors.ecs.boto_schema import BotoDescribeTasksSchema, BotoRunTaskSchema
 from airflow.providers.amazon.aws.executors.ecs.utils import (
@@ -50,8 +48,12 @@ from airflow.providers.amazon.aws.executors.utils.exponential_backoff_retry impo
 )
 from airflow.providers.amazon.aws.hooks.ecs import EcsHook
 from airflow.providers.amazon.version_compat import AIRFLOW_V_3_0_PLUS
-from airflow.stats import Stats
-from airflow.utils import timezone
+from airflow.providers.common.compat.sdk import AirflowException, Stats
+
+try:
+    from airflow.sdk import timezone
+except ImportError:
+    from airflow.utils import timezone  # type: ignore[attr-defined,no-redef]
 from airflow.utils.helpers import merge_dicts
 from airflow.utils.state import State
 
@@ -94,13 +96,6 @@ class AwsEcsExecutor(BaseExecutor):
      Airflow TaskInstance's executor_config.
     """
 
-    # Maximum number of retries to run an ECS task.
-    MAX_RUN_TASK_ATTEMPTS = conf.get(
-        CONFIG_GROUP_NAME,
-        AllEcsConfigKeys.MAX_RUN_TASK_ATTEMPTS,
-        fallback=CONFIG_DEFAULTS[AllEcsConfigKeys.MAX_RUN_TASK_ATTEMPTS],
-    )
-
     # AWS limits the maximum number of ARNs in the describe_tasks function.
     DESCRIBE_TASKS_BATCH_SIZE = 99
 
@@ -114,14 +109,31 @@ class AwsEcsExecutor(BaseExecutor):
         self.active_workers: EcsTaskCollection = EcsTaskCollection()
         self.pending_tasks: deque = deque()
 
-        self.cluster = conf.get(CONFIG_GROUP_NAME, AllEcsConfigKeys.CLUSTER)
-        self.container_name = conf.get(CONFIG_GROUP_NAME, AllEcsConfigKeys.CONTAINER_NAME)
+        # Check if self has the ExecutorConf set on the self.conf attribute, and if not, set it to the global
+        # configuration object. This allows the changes to be backwards compatible with older versions of
+        # Airflow.
+        # Can be removed when minimum supported provider version is equal to the version of core airflow
+        # which introduces multi-team configuration.
+        if not hasattr(self, "conf"):
+            from airflow.configuration import conf
+
+            self.conf = conf
+
+        self.cluster = self.conf.get(CONFIG_GROUP_NAME, AllEcsConfigKeys.CLUSTER)
+        self.container_name = self.conf.get(CONFIG_GROUP_NAME, AllEcsConfigKeys.CONTAINER_NAME)
         self.attempts_since_last_successful_connection = 0
 
         self.load_ecs_connection(check_connection=False)
         self.IS_BOTO_CONNECTION_HEALTHY = False
 
         self.run_task_kwargs = self._load_run_kwargs()
+
+        # Maximum number of retries to run an ECS task.
+        self.max_run_task_attempts = self.conf.get(
+            CONFIG_GROUP_NAME,
+            AllEcsConfigKeys.MAX_RUN_TASK_ATTEMPTS,
+            fallback=CONFIG_DEFAULTS[AllEcsConfigKeys.MAX_RUN_TASK_ATTEMPTS],
+        )
 
     def queue_workload(self, workload: workloads.All, session: Session | None) -> None:
         from airflow.executors import workloads
@@ -150,7 +162,7 @@ class AwsEcsExecutor(BaseExecutor):
 
     def start(self):
         """Call this when the Executor is run for the first time by the scheduler."""
-        check_health = conf.getboolean(
+        check_health = self.conf.getboolean(
             CONFIG_GROUP_NAME, AllEcsConfigKeys.CHECK_HEALTH_ON_STARTUP, fallback=False
         )
 
@@ -214,12 +226,12 @@ class AwsEcsExecutor(BaseExecutor):
 
     def load_ecs_connection(self, check_connection: bool = True):
         self.log.info("Loading Connection information")
-        aws_conn_id = conf.get(
+        aws_conn_id = self.conf.get(
             CONFIG_GROUP_NAME,
             AllEcsConfigKeys.AWS_CONN_ID,
             fallback=CONFIG_DEFAULTS[AllEcsConfigKeys.AWS_CONN_ID],
         )
-        region_name = conf.get(CONFIG_GROUP_NAME, AllEcsConfigKeys.REGION_NAME, fallback=None)
+        region_name = self.conf.get(CONFIG_GROUP_NAME, AllEcsConfigKeys.REGION_NAME, fallback=None)
         self.ecs = EcsHook(aws_conn_id=aws_conn_id, region_name=region_name).conn
         self.attempts_since_last_successful_connection += 1
         self.last_connection_reload = timezone.utcnow()
@@ -336,13 +348,13 @@ class AwsEcsExecutor(BaseExecutor):
         queue = task_info.queue
         exec_info = task_info.config
         failure_count = self.active_workers.failure_count_by_key(task_key)
-        if int(failure_count) < int(self.__class__.MAX_RUN_TASK_ATTEMPTS):
+        if int(failure_count) < int(self.max_run_task_attempts):
             self.log.warning(
                 "Airflow task %s failed due to %s. Failure %s out of %s occurred on %s. Rescheduling.",
                 task_key,
                 reason,
                 failure_count,
-                self.__class__.MAX_RUN_TASK_ATTEMPTS,
+                self.max_run_task_attempts,
                 task_arn,
             )
             self.pending_tasks.append(
@@ -412,8 +424,8 @@ class AwsEcsExecutor(BaseExecutor):
                     failure_reasons.extend([f["reason"] for f in run_task_response["failures"]])
 
             if failure_reasons:
-                # Make sure the number of attempts does not exceed MAX_RUN_TASK_ATTEMPTS
-                if int(attempt_number) < int(self.__class__.MAX_RUN_TASK_ATTEMPTS):
+                # Make sure the number of attempts does not exceed max_run_task_attempts
+                if int(attempt_number) < int(self.max_run_task_attempts):
                     ecs_task.attempt_number += 1
                     ecs_task.next_attempt_time = timezone.utcnow() + calculate_next_attempt_delay(
                         attempt_number
@@ -541,7 +553,7 @@ class AwsEcsExecutor(BaseExecutor):
     def _load_run_kwargs(self) -> dict:
         from airflow.providers.amazon.aws.executors.ecs.ecs_executor_config import build_task_kwargs
 
-        ecs_executor_run_task_kwargs = build_task_kwargs()
+        ecs_executor_run_task_kwargs = build_task_kwargs(self.conf)
 
         try:
             self.get_container(ecs_executor_run_task_kwargs["overrides"]["containerOverrides"])["command"]

@@ -69,7 +69,7 @@ Alter the API Server health check to trust the certificate:
       - "8080:8080"
     healthcheck:
       # Add --cacert to trust certificate
-      test: ["CMD", "curl", "--fail", "--cacert", "${AIRFLOW_PROJ_DIR:-.}/config/cert.pem", "https://localhost:8080/api/v2/version"]
+      test: ["CMD", "curl", "--fail", "--cacert", "${AIRFLOW_PROJ_DIR:-.}/config/cert.pem", "https://localhost:8080/api/v2/monitor/health"]
 
 Running Airflow
 ===============

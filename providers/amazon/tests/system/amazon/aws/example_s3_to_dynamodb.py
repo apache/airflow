@@ -38,7 +38,11 @@ else:
     from airflow.models.baseoperator import chain  # type: ignore[attr-defined,no-redef]
     from airflow.models.dag import DAG  # type: ignore[attr-defined,no-redef,assignment]
 
-from airflow.utils.trigger_rule import TriggerRule
+try:
+    from airflow.sdk import TriggerRule
+except ImportError:
+    # Compatibility for Airflow < 3.1
+    from airflow.utils.trigger_rule import TriggerRule  # type: ignore[no-redef,attr-defined]
 
 from system.amazon.aws.utils import ENV_ID_KEY, SystemTestContextBuilder
 
@@ -87,7 +91,7 @@ def wait_for_bucket(s3_bucket_name):
 def delete_dynamodb_table(table_name: str):
     boto3.resource("dynamodb").Table(table_name).delete()
     boto3.client("dynamodb").get_waiter("table_not_exists").wait(
-        TableName=table_name, WaiterConfig={"Delay": 10, "MaxAttempts": 10}
+        TableName=table_name, WaiterConfig={"Delay": 10, "MaxAttempts": 30}
     )
 
 
@@ -96,7 +100,6 @@ with DAG(
     schedule="@once",
     start_date=datetime(2021, 1, 1),
     catchup=False,
-    tags=["example"],
 ) as dag:
     test_context = sys_test_context_task()
     env_id = test_context[ENV_ID_KEY]

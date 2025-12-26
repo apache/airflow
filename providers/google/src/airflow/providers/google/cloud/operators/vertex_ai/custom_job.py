@@ -30,7 +30,7 @@ from google.cloud.aiplatform_v1.types.dataset import Dataset
 from google.cloud.aiplatform_v1.types.training_pipeline import TrainingPipeline
 
 from airflow.configuration import conf
-from airflow.exceptions import AirflowException
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.google.cloud.hooks.vertex_ai.custom_job import CustomJobHook
 from airflow.providers.google.cloud.links.vertex_ai import (
     VertexAIModelLink,
@@ -51,8 +51,9 @@ if TYPE_CHECKING:
         CustomPythonPackageTrainingJob,
         CustomTrainingJob,
     )
+    from google.cloud.aiplatform_v1.types import PscInterfaceConfig
 
-    from airflow.utils.context import Context
+    from airflow.providers.common.compat.sdk import Context
 
 
 class CustomTrainingJobBaseOperator(GoogleCloudBaseOperator):
@@ -110,6 +111,7 @@ class CustomTrainingJobBaseOperator(GoogleCloudBaseOperator):
         predefined_split_column_name: str | None = None,
         timestamp_split_column_name: str | None = None,
         tensorboard: str | None = None,
+        psc_interface_config: PscInterfaceConfig | None = None,
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
@@ -166,6 +168,7 @@ class CustomTrainingJobBaseOperator(GoogleCloudBaseOperator):
         self.predefined_split_column_name = predefined_split_column_name
         self.timestamp_split_column_name = timestamp_split_column_name
         self.tensorboard = tensorboard
+        self.psc_interface_config = psc_interface_config
         # END Run param
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
@@ -473,6 +476,8 @@ class CreateCustomContainerTrainingJobOperator(CustomTrainingJobBaseOperator):
             ``projects/{project}/locations/{location}/tensorboards/{tensorboard}``
             For more information on configuring your service account please visit:
             https://cloud.google.com/vertex-ai/docs/experiments/tensorboard-training
+    :param psc_interface_config: Optional. Configuration for Private Service Connect interface used for
+        training.
     :param gcp_conn_id: The connection ID to use connecting to Google Cloud.
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
@@ -586,6 +591,7 @@ class CreateCustomContainerTrainingJobOperator(CustomTrainingJobBaseOperator):
             timestamp_split_column_name=self.timestamp_split_column_name,
             tensorboard=self.tensorboard,
             sync=True,
+            psc_interface_config=self.psc_interface_config,
         )
 
         if model:
@@ -652,6 +658,7 @@ class CreateCustomContainerTrainingJobOperator(CustomTrainingJobBaseOperator):
             predefined_split_column_name=self.predefined_split_column_name,
             timestamp_split_column_name=self.timestamp_split_column_name,
             tensorboard=self.tensorboard,
+            psc_interface_config=self.psc_interface_config,
         )
         custom_container_training_job_obj.wait_for_resource_creation()
         training_pipeline_id: str = custom_container_training_job_obj.name
@@ -931,6 +938,8 @@ class CreateCustomPythonPackageTrainingJobOperator(CustomTrainingJobBaseOperator
             ``projects/{project}/locations/{location}/tensorboards/{tensorboard}``
             For more information on configuring your service account please visit:
             https://cloud.google.com/vertex-ai/docs/experiments/tensorboard-training
+    :param psc_interface_config: Optional. Configuration for Private Service Connect interface used for
+        training.
     :param gcp_conn_id: The connection ID to use connecting to Google Cloud.
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
@@ -1043,6 +1052,7 @@ class CreateCustomPythonPackageTrainingJobOperator(CustomTrainingJobBaseOperator
             timestamp_split_column_name=self.timestamp_split_column_name,
             tensorboard=self.tensorboard,
             sync=True,
+            psc_interface_config=self.psc_interface_config,
         )
 
         if model:
@@ -1110,6 +1120,7 @@ class CreateCustomPythonPackageTrainingJobOperator(CustomTrainingJobBaseOperator
             predefined_split_column_name=self.predefined_split_column_name,
             timestamp_split_column_name=self.timestamp_split_column_name,
             tensorboard=self.tensorboard,
+            psc_interface_config=self.psc_interface_config,
         )
         custom_python_training_job_obj.wait_for_resource_creation()
         training_pipeline_id: str = custom_python_training_job_obj.name
@@ -1389,6 +1400,8 @@ class CreateCustomTrainingJobOperator(CustomTrainingJobBaseOperator):
             ``projects/{project}/locations/{location}/tensorboards/{tensorboard}``
             For more information on configuring your service account please visit:
             https://cloud.google.com/vertex-ai/docs/experiments/tensorboard-training
+    :param psc_interface_config: Optional. Configuration for Private Service Connect interface used for
+        training.
     :param gcp_conn_id: The connection ID to use connecting to Google Cloud.
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
@@ -1506,6 +1519,7 @@ class CreateCustomTrainingJobOperator(CustomTrainingJobBaseOperator):
             timestamp_split_column_name=self.timestamp_split_column_name,
             tensorboard=self.tensorboard,
             sync=True,
+            psc_interface_config=None,
         )
 
         if model:
@@ -1573,6 +1587,7 @@ class CreateCustomTrainingJobOperator(CustomTrainingJobBaseOperator):
             predefined_split_column_name=self.predefined_split_column_name,
             timestamp_split_column_name=self.timestamp_split_column_name,
             tensorboard=self.tensorboard,
+            psc_interface_config=self.psc_interface_config,
         )
         custom_training_job_obj.wait_for_resource_creation()
         training_pipeline_id: str = custom_training_job_obj.name

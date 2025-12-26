@@ -17,7 +17,7 @@
 #
 # This is automatically generated stub for the `common.sql` provider
 #
-# This file is generated automatically by the `update-common-sql-api stubs` pre-commit
+# This file is generated automatically by the `update-common-sql-api stubs` prek hook
 # and the .pyi file represents part of the "public" API that the
 # `common.sql` provider exposes to other providers.
 #
@@ -27,10 +27,7 @@
 #
 # You can read more in the README_API.md file
 #
-"""
-Definition of the public interface for airflow.providers.common.sql.operators.generic_transfer
-isort:skip_file
-"""
+"""Definition of the public interface for airflow.providers.common.sql.operators.generic_transfer."""
 
 from collections.abc import Sequence
 from functools import cached_property as cached_property
@@ -60,7 +57,7 @@ class GenericTransfer(BaseOperator):
     def __init__(
         self,
         *,
-        sql: str,
+        sql: str | list[str],
         destination_table: str,
         source_conn_id: str,
         source_hook_params: dict | None = None,

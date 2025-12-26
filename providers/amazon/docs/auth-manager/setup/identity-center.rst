@@ -66,7 +66,7 @@ Please follow the instructions below to create the AWS IAM Identity Center appli
       Replace ``<base_url>`` by the base URL of your Airflow UI. It should be defined in ``AIRFLOW__API__BASE_URL``
       (e.g. ``localhost:8080`` if Airflow is running locally).
 
-   * **Application ACS URL**: ``<base_url>/login_callback``
+   * **Application ACS URL**: ``<base_url>/auth/login_callback``
    * **Application SAML audience**: ``aws-auth-manager-saml-client``
 
 11. Choose **Submit**. The application is now created.

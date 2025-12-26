@@ -18,8 +18,11 @@
 from __future__ import annotations
 
 import json
+import os
 from tempfile import gettempdir
 from typing import TYPE_CHECKING
+
+from sqlalchemy import select
 
 from airflow.configuration import conf
 from airflow.jobs.job import Job
@@ -57,7 +60,7 @@ from tests_common.test_utils.compat import (
     ParseImportError,
     TaskOutletAssetReference,
 )
-from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V_3_1_PLUS
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V_3_1_PLUS, AIRFLOW_V_3_2_PLUS
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -71,9 +74,26 @@ if AIRFLOW_V_3_1_PLUS:
     from airflow.models.dag_favorite import DagFavorite
 
 
+def _deactivate_unknown_dags(active_dag_ids, session):
+    """
+    Given a list of known DAGs, deactivate any other DAGs that are marked as active in the ORM.
+
+    :param active_dag_ids: list of DAG IDs that are active
+    :return: None
+    """
+    if not active_dag_ids:
+        return
+    for dag in session.scalars(select(DagModel).where(~DagModel.dag_id.in_(active_dag_ids))):
+        dag.is_stale = True
+        session.merge(dag)
+    session.commit()
+
+
 def _bootstrap_dagbag():
-    from airflow.models.dag import DAG
-    from airflow.models.dagbag import DagBag
+    if AIRFLOW_V_3_2_PLUS:
+        from airflow.dag_processing.dagbag import DagBag
+    else:  # back-compat for Airflow <3.2
+        from airflow.models.dagbag import DagBag  # type: ignore[no-redef, attribute-defined]
 
     if AIRFLOW_V_3_0_PLUS:
         from airflow.dag_processing.bundles.manager import DagBundlesManager
@@ -85,13 +105,24 @@ def _bootstrap_dagbag():
 
         dagbag = DagBag()
         # Save DAGs in the ORM
-        if AIRFLOW_V_3_0_PLUS:
-            dagbag.sync_to_db(bundle_name="dags-folder", bundle_version=None, session=session)
+        if AIRFLOW_V_3_1_PLUS:
+            try:
+                from airflow.dag_processing.dagbag import sync_bag_to_db
+            except ImportError:
+                from airflow.models.dagbag import sync_bag_to_db
+
+            sync_bag_to_db(dagbag, bundle_name="dags-folder", bundle_version=None, session=session)
+        elif AIRFLOW_V_3_0_PLUS:
+            dagbag.sync_to_db(  # type: ignore[attr-defined]
+                bundle_name="dags-folder",
+                bundle_version=None,
+                session=session,
+            )
         else:
-            dagbag.sync_to_db(session=session)
+            dagbag.sync_to_db(session=session)  # type: ignore[attr-defined]
 
         # Deactivate the unknown ones
-        DAG.deactivate_unknown_dags(dagbag.dags.keys(), session=session)
+        _deactivate_unknown_dags(dagbag.dags, session=session)
 
 
 def initial_db_init():
@@ -101,9 +132,26 @@ def initial_db_init():
     from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
     db.resetdb()
+
     if AIRFLOW_V_3_0_PLUS:
-        db.downgrade(to_revision="5f2621c13b39")
-        db.upgradedb(to_revision="head")
+        try:
+            from airflow.providers.fab.auth_manager.models.db import FABDBManager
+        except ModuleNotFoundError:
+            # Reasons it might fail: we're in a provider bundle without FAB, or we're on a version of Python
+            # where FAB isn't yet supported
+            pass
+        else:
+            if os.getenv("TEST_GROUP") != "providers":
+                # If we loaded the provider, and we're running core (or running via breeze where TEST_GROUP
+                # isn't specified) run the downgrade+upgrade to ensure migrations are in sync with Model
+                # classes
+                db.downgrade(to_revision="5f2621c13b39")
+                db.upgradedb(to_revision="head")
+            else:
+                # Just create the tables so they are there
+                with create_session() as session:
+                    FABDBManager(session).create_db_from_orm()
+                    session.commit()
     else:
         from flask import Flask
 
@@ -121,7 +169,10 @@ def initial_db_init():
 
 
 def parse_and_sync_to_db(folder: Path | str, include_examples: bool = False):
-    from airflow.models.dagbag import DagBag
+    if AIRFLOW_V_3_2_PLUS:
+        from airflow.dag_processing.dagbag import DagBag
+    else:
+        from airflow.models.dagbag import DagBag  # type: ignore[no-redef, attribute-defined]
 
     if AIRFLOW_V_3_0_PLUS:
         from airflow.dag_processing.bundles.manager import DagBundlesManager
@@ -129,14 +180,22 @@ def parse_and_sync_to_db(folder: Path | str, include_examples: bool = False):
     with create_session() as session:
         if AIRFLOW_V_3_0_PLUS:
             DagBundlesManager().sync_bundles_to_db(session=session)
-            session.commit()
+            session.flush()
 
         dagbag = DagBag(dag_folder=folder, include_examples=include_examples)
-        if AIRFLOW_V_3_0_PLUS:
-            dagbag.sync_to_db("dags-folder", None, session)
+        if AIRFLOW_V_3_1_PLUS:
+            try:
+                from airflow.dag_processing.dagbag import sync_bag_to_db
+            except ImportError:
+                from airflow.models.dagbag import sync_bag_to_db  # type: ignore[no-redef, attribute-defined]
+
+            sync_bag_to_db(dagbag, "dags-folder", None, session=session)
+        elif AIRFLOW_V_3_0_PLUS:
+            dagbag.sync_to_db("dags-folder", None, session)  # type: ignore[attr-defined]
         else:
-            dagbag.sync_to_db(session=session)  # type: ignore[call-arg]
-        session.commit()
+            dagbag.sync_to_db(session=session)  # type: ignore[attr-defined]
+
+    return dagbag
 
 
 def clear_db_runs():
@@ -168,6 +227,10 @@ def clear_db_assets():
         session.query(AssetDagRunQueue).delete()
         session.query(DagScheduleAssetReference).delete()
         session.query(TaskOutletAssetReference).delete()
+        if AIRFLOW_V_3_1_PLUS:
+            from airflow.models.asset import TaskInletAssetReference
+
+            session.query(TaskInletAssetReference).delete()
         from tests_common.test_utils.compat import AssetAliasModel, DagScheduleAssetAliasReference
 
         session.query(AssetAliasModel).delete()
@@ -177,21 +240,23 @@ def clear_db_assets():
                 AssetActive,
                 DagScheduleAssetNameReference,
                 DagScheduleAssetUriReference,
-                asset_trigger_association_table,
             )
 
-            session.query(asset_trigger_association_table).delete()
             session.query(AssetActive).delete()
             session.query(DagScheduleAssetNameReference).delete()
             session.query(DagScheduleAssetUriReference).delete()
+        if AIRFLOW_V_3_2_PLUS:
+            from airflow.models.asset import AssetWatcherModel
+
+            session.query(AssetWatcherModel).delete()
 
 
 def clear_db_triggers():
     with create_session() as session:
-        if AIRFLOW_V_3_0_PLUS:
-            from airflow.models.asset import asset_trigger_association_table
+        if AIRFLOW_V_3_2_PLUS:
+            from airflow.models.asset import AssetWatcherModel
 
-            session.query(asset_trigger_association_table).delete()
+            session.query(AssetWatcherModel).delete()
         session.query(Trigger).delete()
 
 
@@ -201,9 +266,9 @@ def clear_db_dags():
             session.query(DagFavorite).delete()
         session.query(DagTag).delete()
         session.query(DagOwnerAttributes).delete()
-        session.query(
-            DagRun
-        ).delete()  # todo: this should not be necessary because the fk to DagVersion should be ON DELETE SET NULL
+        session.query(DagRun).delete(
+            synchronize_session=False
+        )  # todo: this should not be necessary because the fk to DagVersion should be ON DELETE SET NULL
         session.query(DagModel).delete()
 
 
@@ -265,7 +330,13 @@ def clear_db_dag_code():
 
 def clear_db_callbacks():
     with create_session() as session:
-        session.query(DbCallbackRequest).delete()
+        if AIRFLOW_V_3_2_PLUS:
+            from airflow.models.callback import Callback
+
+            session.query(Callback).delete()
+
+        else:
+            session.query(DbCallbackRequest).delete()
 
 
 def set_default_pool_slots(slots):
@@ -292,6 +363,24 @@ def clear_db_dag_warnings():
 def clear_db_xcom():
     with create_session() as session:
         session.query(XCom).delete()
+
+
+def clear_db_pakl():
+    if not AIRFLOW_V_3_2_PLUS:
+        return
+    from airflow.models.asset import PartitionedAssetKeyLog
+
+    with create_session() as session:
+        session.query(PartitionedAssetKeyLog).delete()
+
+
+def clear_db_apdr():
+    if not AIRFLOW_V_3_2_PLUS:
+        return
+    from airflow.models.asset import AssetPartitionDagRun
+
+    with create_session() as session:
+        session.query(AssetPartitionDagRun).delete()
 
 
 def clear_db_logs():
@@ -321,6 +410,13 @@ def clear_db_dag_bundles():
         from airflow.models.dagbundle import DagBundleModel
 
         session.query(DagBundleModel).delete()
+
+
+def clear_db_teams():
+    with create_session() as session:
+        from airflow.models.team import Team
+
+        session.query(Team).delete()
 
 
 def clear_dag_specific_permissions():
@@ -819,6 +915,8 @@ def create_default_connections_for_tests():
 def clear_all():
     clear_db_runs()
     clear_db_assets()
+    clear_db_apdr()
+    clear_db_pakl()
     clear_db_triggers()
     clear_db_dags()
     clear_db_serialized_dags()

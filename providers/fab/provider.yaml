@@ -28,13 +28,23 @@ description: |
 # For providers until we think it should be released.
 state: ready
 
-source-date-epoch: 1753690707
+source-date-epoch: 1765299122
 
 # Note that those versions are maintained by release manager - do not update them manually
 # with the exception of case where other provider in sources has >= new provider version.
 # In such case adding >= NEW_VERSION and bumping to NEW_VERSION in a provider have
 # to be done in the same PR
 versions:
+  - 3.1.0
+  - 3.0.3
+  - 3.0.2
+  - 3.0.1
+  - 3.0.0
+  - 2.4.4
+  - 2.4.3
+  - 2.4.2
+  - 2.4.1
+  - 2.4.0
   - 2.3.1
   - 2.3.0
   - 2.2.1
@@ -67,6 +77,20 @@ config:
   fab:
     description: This section contains configs specific to FAB provider.
     options:
+      cookie_secure:
+        description: |
+          Cookie with the secure attribute is only sent to the server with an HTTPS connection.
+        version_added: 2.4.0
+        type: boolean
+        example: ~
+        default: "False"
+      cookie_samesite:
+        description: |
+          Whether the cookie is restricted to a first-party or same-site context.
+        version_added: 2.4.0
+        type: string
+        example: ~
+        default: "Lax"
       navbar_color:
         description: |
           Define the color of navigation bar
@@ -227,5 +251,3 @@ config:
 
 auth-managers:
   - airflow.providers.fab.auth_manager.fab_auth_manager.FabAuthManager
-
-extra-project-metadata: license-files = ["NOTICE", "*/LICENSE*"]

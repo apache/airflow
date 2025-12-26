@@ -16,11 +16,11 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Flex, useDisclosure, Text, VStack, Heading, Code } from "@chakra-ui/react";
+import { Button, Code, Flex, Heading, Text, useDisclosure, VStack } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
-import { FiTrash } from "react-icons/fi";
+import { FiTrash2 } from "react-icons/fi";
 
-import { Button, Dialog } from "src/components/ui";
+import { Dialog } from "src/components/ui";
 import ActionButton from "src/components/ui/ActionButton";
 import { useDeleteConnection } from "src/queries/useDeleteConnection";
 
@@ -40,8 +40,9 @@ const DeleteConnectionButton = ({ connectionId, disabled }: Props) => {
     <>
       <ActionButton
         actionName={translate("connections.delete.title")}
+        colorPalette="danger"
         disabled={disabled}
-        icon={<FiTrash />}
+        icon={<FiTrash2 />}
         onClick={() => {
           onOpen();
         }}
@@ -60,7 +61,7 @@ const DeleteConnectionButton = ({ connectionId, disabled }: Props) => {
           <Dialog.CloseTrigger />
 
           <Dialog.Body width="full">
-            <Text color="gray.solid" fontSize="md" fontWeight="semibold" mb={4}>
+            <Text color="fg" fontSize="md" fontWeight="semibold" mb={4}>
               {translate("connections.delete.firstConfirmMessage_one")}
               <br />
               <Code mb={2} mt={2} p={4}>
@@ -72,7 +73,7 @@ const DeleteConnectionButton = ({ connectionId, disabled }: Props) => {
             </Text>
             <Flex justifyContent="end" mt={3}>
               <Button
-                colorPalette="red"
+                colorPalette="danger"
                 loading={isPending}
                 onClick={() => {
                   mutate({
@@ -80,7 +81,7 @@ const DeleteConnectionButton = ({ connectionId, disabled }: Props) => {
                   });
                 }}
               >
-                <FiTrash /> <Text fontWeight="bold">{translate("deleteActions.modal.confirmButton")}</Text>
+                <FiTrash2 /> <Text fontWeight="bold">{translate("deleteActions.modal.confirmButton")}</Text>
               </Button>
             </Flex>
           </Dialog.Body>

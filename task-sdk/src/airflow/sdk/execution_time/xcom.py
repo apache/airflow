@@ -16,8 +16,8 @@
 # under the License.
 from __future__ import annotations
 
-from airflow.configuration import conf
 from airflow.sdk.bases.xcom import BaseXCom
+from airflow.sdk.configuration import conf
 
 
 def resolve_xcom_backend():

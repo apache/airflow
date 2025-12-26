@@ -16,14 +16,18 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, HStack, Table, Code } from "@chakra-ui/react";
+import { Box, Table } from "@chakra-ui/react";
 import { useParams } from "react-router-dom";
 
 import { useTaskInstanceServiceGetMappedTaskInstance } from "openapi/queries";
 import { ClipboardRoot, ClipboardIconButton } from "src/components/ui";
+import { useColorMode } from "src/context/colorMode";
+import { detectLanguage } from "src/utils/detectLanguage";
+import { oneDark, oneLight, SyntaxHighlighter } from "src/utils/syntaxHighlighter";
 
 export const RenderedTemplates = () => {
   const { dagId = "", mapIndex = "-1", runId = "", taskId = "" } = useParams();
+  const { colorMode } = useColorMode();
 
   const { data: taskInstance } = useTaskInstanceServiceGetMappedTaskInstance({
     dagId,
@@ -32,24 +36,52 @@ export const RenderedTemplates = () => {
     taskId,
   });
 
+  const style = colorMode === "dark" ? oneDark : oneLight;
+
   return (
     <Box p={2}>
       <Table.Root striped>
         <Table.Body>
           {Object.entries(taskInstance?.rendered_fields ?? {}).map(([key, value]) => {
             if (value !== null && value !== undefined) {
-              const renderedValue = JSON.stringify(value);
+              const renderedValue = typeof value === "string" ? value : JSON.stringify(value);
+              const language = detectLanguage(renderedValue);
 
               return (
                 <Table.Row key={key}>
                   <Table.Cell>{key}</Table.Cell>
                   <Table.Cell>
-                    <HStack>
-                      <Code>{renderedValue}</Code>
-                      <ClipboardRoot value={renderedValue}>
+                    <Box
+                      css={{
+                        "&:hover .copy-button": {
+                          opacity: 1,
+                        },
+                      }}
+                    >
+                      <Box as="pre" borderRadius="md" fontSize="sm" m={0} overflowX="auto" p={2}>
+                        <SyntaxHighlighter
+                          language={language}
+                          PreTag="div" // Prevents double <pre> nesting
+                          showLineNumbers
+                          style={style}
+                          wrapLongLines
+                        >
+                          {renderedValue}
+                        </SyntaxHighlighter>
+                      </Box>
+                      <ClipboardRoot
+                        className="copy-button"
+                        float="right"
+                        marginTop="-3.5rem"
+                        opacity={0}
+                        position="sticky"
+                        right={4}
+                        transition="opacity 0.2s ease-in-out"
+                        value={renderedValue}
+                      >
                         <ClipboardIconButton />
                       </ClipboardRoot>
-                    </HStack>
+                    </Box>
                   </Table.Cell>
                 </Table.Row>
               );

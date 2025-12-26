@@ -50,7 +50,12 @@ from airflow.providers.google.cloud.sensors.dataform import (
     DataformWorkflowInvocationStateSensor,
 )
 from airflow.providers.google.cloud.utils.dataform import make_initialization_workspace_flow
-from airflow.utils.trigger_rule import TriggerRule
+
+try:
+    from airflow.sdk import TriggerRule
+except ImportError:
+    # Compatibility for Airflow < 3.1
+    from airflow.utils.trigger_rule import TriggerRule  # type: ignore[no-redef,attr-defined]
 
 from system.google import DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
 

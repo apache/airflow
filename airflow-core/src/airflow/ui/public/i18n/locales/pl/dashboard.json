@@ -33,13 +33,15 @@
   "poolSlots": "",
   "sortBy": {
     "newestFirst": "Najnowsze Pierwsze",
-    "oldestFirst": "Najstarsze Pierwsze"
+    "oldestFirst": "Najstarsze Pierwsze",
+    "placeholder": "Sortuj według"
   },
   "source": "Kod źródłowy",
   "stats": {
     "activeDags": "Aktywne Dagi",
     "failedDags": "Nieudane Dagi",
     "queuedDags": "Zakolejkowane Dagi",
+    "requiredActions": "Wymagane akcje",
     "runningDags": "Wykonane Dagi",
     "stats": "Statystyki"
   },

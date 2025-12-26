@@ -22,6 +22,8 @@
 /* eslint-disable perfectionist/sort-objects */
 import { createListCollection } from "@chakra-ui/react";
 
+import type { TaskInstancesLogResponse } from "openapi/requests/types.gen";
+
 export enum LogLevel {
   DEBUG = "debug",
   INFO = "info",
@@ -51,3 +53,29 @@ export const logLevelOptions = createListCollection<{
     { label: "dag:logs.critical", value: LogLevel.CRITICAL },
   ],
 });
+
+export const parseStreamingLogContent = (
+  data: TaskInstancesLogResponse | undefined,
+): TaskInstancesLogResponse["content"] => {
+  if (data?.content) {
+    return data.content;
+  }
+
+  if (typeof data === "string") {
+    try {
+      return (data as string)
+        .split("\n")
+        .filter((line) => line.trim() !== "")
+        .map((line) => JSON.parse(line) as string);
+    } catch {
+      return [];
+    }
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
+  if (typeof data === "object" && data !== null) {
+    return [data] as unknown as TaskInstancesLogResponse["content"];
+  }
+
+  return [];
+};

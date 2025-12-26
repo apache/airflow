@@ -17,7 +17,9 @@
 # under the License.
 from __future__ import annotations
 
+import datetime
 from collections import defaultdict
+from datetime import timedelta
 from typing import TYPE_CHECKING
 from unittest import mock
 from unittest.mock import patch
@@ -26,18 +28,16 @@ import pytest
 from sqlalchemy import select
 
 from airflow.exceptions import AirflowSkipException
-from airflow.models.baseoperator import BaseOperator
-from airflow.models.dag import DAG
 from airflow.models.dag_version import DagVersion
-from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.taskinstance import TaskInstance
 from airflow.models.taskmap import TaskMap
 from airflow.providers.standard.operators.python import PythonOperator
-from airflow.sdk import setup, task, task_group, teardown
-from airflow.sdk.definitions.taskgroup import TaskGroup
+from airflow.sdk import DAG, BaseOperator, TaskGroup, setup, task, task_group, teardown
+from airflow.serialization.definitions.baseoperator import SerializedBaseOperator
+from airflow.task.trigger_rule import TriggerRule
 from airflow.utils.state import TaskInstanceState
-from airflow.utils.trigger_rule import TriggerRule
 
+from tests_common.test_utils.dag import sync_dag_to_db
 from tests_common.test_utils.mapping import expand_mapped_task
 from tests_common.test_utils.mock_operators import MockOperator
 from unit.models import DEFAULT_DATE
@@ -49,6 +49,7 @@ if TYPE_CHECKING:
 
 
 @patch("airflow.sdk.definitions._internal.abstractoperator.AbstractOperator.render_template")
+@pytest.mark.usefixtures("testing_dag_bundle")
 def test_task_mapping_with_dag_and_list_of_pandas_dataframe(mock_render_template, caplog):
     class UnrenderableClass:
         def __bool__(self):
@@ -69,8 +70,7 @@ def test_task_mapping_with_dag_and_list_of_pandas_dataframe(mock_render_template
         unrenderable_values = [UnrenderableClass(), UnrenderableClass()]
         mapped = CustomOperator.partial(task_id="task_2").expand(arg=unrenderable_values)
         task1 >> mapped
-    dag.sync_to_db()
-    SerializedDagModel.write_dag(dag, bundle_name="testing")
+    sync_dag_to_db(dag)
     dag.test()
     assert (
         "Unable to check if the value of type 'UnrenderableClass' is False for task 'task_2', field 'arg'"
@@ -80,7 +80,7 @@ def test_task_mapping_with_dag_and_list_of_pandas_dataframe(mock_render_template
 
 
 @pytest.mark.parametrize(
-    ["num_existing_tis", "expected"],
+    ("num_existing_tis", "expected"),
     (
         pytest.param(0, [(0, None), (1, None), (2, None)], id="only-unmapped-ti-exists"),
         pytest.param(
@@ -103,9 +103,11 @@ def test_task_mapping_with_dag_and_list_of_pandas_dataframe(mock_render_template
 )
 def test_expand_mapped_task_instance(dag_maker, session, num_existing_tis, expected):
     literal = [1, 2, {"a": "b"}]
-    with dag_maker(session=session):
+    with dag_maker(session=session, serialized=True) as dag:
         task1 = BaseOperator(task_id="op1")
         mapped = MockOperator.partial(task_id="task_2").expand(arg2=task1.output)
+
+    mapped_deser = dag.task_dict[mapped.task_id]
 
     dr = dag_maker.create_dagrun()
 
@@ -142,7 +144,7 @@ def test_expand_mapped_task_instance(dag_maker, session, num_existing_tis, expec
         session.add(ti)
     session.flush()
 
-    TaskMap.expand_mapped_task(mapped, dr.run_id, session=session)
+    TaskMap.expand_mapped_task(mapped_deser, dr.run_id, session=session)
 
     indices = (
         session.query(TaskInstance.map_index, TaskInstance.state)
@@ -161,11 +163,12 @@ def test_expand_mapped_task_failed_state_in_db(dag_maker, session):
     So we have instances with map_index [-1, 0, 1]. The -1 task instances should be removed in this case.
     """
     literal = [1, 2]
-    with dag_maker(session=session):
+    with dag_maker(session=session, serialized=True) as dag:
         task1 = BaseOperator(task_id="op1")
         mapped = MockOperator.partial(task_id="task_2").expand(arg2=task1.output)
 
     dr = dag_maker.create_dagrun()
+    mapped_deser = dag.task_dict[mapped.task_id]
 
     session.add(
         TaskMap(
@@ -199,7 +202,7 @@ def test_expand_mapped_task_failed_state_in_db(dag_maker, session):
     # Make sure we have the faulty state in the database
     assert indices == [(-1, None), (0, "success"), (1, "success")]
 
-    TaskMap.expand_mapped_task(mapped, dr.run_id, session=session)
+    TaskMap.expand_mapped_task(mapped_deser, dr.run_id, session=session)
 
     indices = (
         session.query(TaskInstance.map_index, TaskInstance.state)
@@ -212,13 +215,13 @@ def test_expand_mapped_task_failed_state_in_db(dag_maker, session):
 
 
 def test_expand_mapped_task_instance_skipped_on_zero(dag_maker, session):
-    with dag_maker(session=session):
+    with dag_maker(session=session, serialized=True) as dag:
         task1 = BaseOperator(task_id="op1")
         mapped = MockOperator.partial(task_id="task_2").expand(arg2=task1.output)
 
     dr = dag_maker.create_dagrun()
 
-    expand_mapped_task(mapped, dr.run_id, task1.task_id, length=0, session=session)
+    expand_mapped_task(dag.task_dict[mapped.task_id], dr.run_id, task1.task_id, length=0, session=session)
 
     indices = (
         session.query(TaskInstance.map_index, TaskInstance.state)
@@ -231,7 +234,7 @@ def test_expand_mapped_task_instance_skipped_on_zero(dag_maker, session):
 
 
 @pytest.mark.parametrize(
-    ["num_existing_tis", "expected"],
+    ("num_existing_tis", "expected"),
     (
         pytest.param(0, [(0, None), (1, None), (2, None)], id="only-unmapped-ti-exists"),
         pytest.param(
@@ -254,7 +257,7 @@ def test_expand_mapped_task_instance_skipped_on_zero(dag_maker, session):
 )
 def test_expand_kwargs_mapped_task_instance(dag_maker, session, num_existing_tis, expected):
     literal = [{"arg1": "a"}, {"arg1": "b"}, {"arg1": "c"}]
-    with dag_maker(session=session):
+    with dag_maker(session=session, serialized=True) as dag:
         task1 = BaseOperator(task_id="op1")
         mapped = MockOperator.partial(task_id="task_2").expand_kwargs(task1.output)
 
@@ -292,7 +295,7 @@ def test_expand_kwargs_mapped_task_instance(dag_maker, session, num_existing_tis
         session.add(ti)
     session.flush()
 
-    TaskMap.expand_mapped_task(mapped, dr.run_id, session=session)
+    TaskMap.expand_mapped_task(dag.task_dict[mapped.task_id], dr.run_id, session=session)
 
     indices = (
         session.query(TaskInstance.map_index, TaskInstance.state)
@@ -308,7 +311,7 @@ def test_map_product_expansion(dag_maker, session):
     """Test the cross-product effect of mapping two inputs"""
     outputs = []
 
-    with dag_maker(dag_id="product", session=session) as dag:
+    with dag_maker(dag_id="product", session=session, serialized=True) as dag:
 
         @dag.task
         def emit_numbers():
@@ -396,7 +399,7 @@ def _create_named_map_index_renders_on_failure_taskflow(*, task_id, map_names, t
 
 
 @pytest.mark.parametrize(
-    "template, expected_rendered_names",
+    ("template", "expected_rendered_names"),
     [
         pytest.param(None, [None, None], id="unset"),
         pytest.param("", ["", ""], id="constant"),
@@ -459,14 +462,20 @@ def test_expand_mapped_task_task_instance_mutation_hook(dag_maker, session, crea
     """Test that the tast_instance_mutation_hook is called."""
     expected_map_index = [0, 1, 2]
 
-    with dag_maker(session=session):
+    with dag_maker(session=session, serialized=True) as dag:
         task1 = BaseOperator(task_id="op1")
         mapped = MockOperator.partial(task_id="task_2").expand(arg2=task1.output)
 
     dr = dag_maker.create_dagrun()
 
     with mock.patch("airflow.settings.task_instance_mutation_hook") as mock_hook:
-        expand_mapped_task(mapped, dr.run_id, task1.task_id, length=len(expected_map_index), session=session)
+        expand_mapped_task(
+            dag.task_dict[mapped.task_id],
+            dr.run_id,
+            task1.task_id,
+            length=len(expected_map_index),
+            session=session,
+        )
 
         for index, call in enumerate(mock_hook.call_args_list):
             assert call.args[0].map_index == expected_map_index[index]
@@ -1365,6 +1374,181 @@ class TestMappedSetupTeardown:
         }
         assert states == expected
 
+    @pytest.mark.parametrize(
+        (
+            "email",
+            "execution_timeout",
+            "retry_delay",
+            "max_retry_delay",
+            "retry_exponential_backoff",
+            "max_active_tis_per_dag",
+            "max_active_tis_per_dagrun",
+            "run_as_user",
+            "resources",
+            "has_on_execute_callback",
+            "has_on_failure_callback",
+            "has_on_retry_callback",
+            "has_on_success_callback",
+            "has_on_skipped_callback",
+            "executor_config",
+            "inlets",
+            "outlets",
+            "doc",
+            "doc_md",
+            "doc_json",
+            "doc_yaml",
+            "doc_rst",
+        ),
+        [
+            pytest.param(
+                # Default case
+                "email",
+                timedelta(seconds=10),
+                timedelta(seconds=5),
+                timedelta(seconds=60),
+                2.0,
+                1,
+                2,
+                "user",
+                None,
+                False,
+                False,
+                False,
+                False,
+                False,
+                None,
+                None,
+                None,
+                None,
+                None,
+                None,
+                None,
+                None,
+                id="default",
+            ),
+            pytest.param(
+                # With all optional values and callbacks set
+                None,
+                timedelta(seconds=20),
+                timedelta(seconds=10),
+                timedelta(seconds=120),
+                False,
+                3,
+                5,
+                None,
+                {"CPU": 1},
+                True,
+                True,
+                True,
+                True,
+                True,
+                {"key": "value"},
+                ["input_table"],
+                ["output_table"],
+                "Some docs",
+                "MD docs",
+                {"json": True},
+                "yaml: true",
+                "RST docs",
+                id="with-values-and-callbacks",
+            ),
+        ],
+    )
+    def test_properties(
+        self,
+        email,
+        execution_timeout,
+        retry_delay,
+        max_retry_delay,
+        retry_exponential_backoff,
+        max_active_tis_per_dag,
+        max_active_tis_per_dagrun,
+        run_as_user,
+        resources,
+        has_on_execute_callback,
+        has_on_failure_callback,
+        has_on_retry_callback,
+        has_on_success_callback,
+        has_on_skipped_callback,
+        executor_config,
+        inlets,
+        outlets,
+        doc,
+        doc_md,
+        doc_json,
+        doc_yaml,
+        doc_rst,
+    ):
+        op = PythonOperator.partial(
+            task_id="mapped",
+            python_callable=print,
+            email=email,
+            execution_timeout=execution_timeout,
+            retry_delay=retry_delay,
+            max_retry_delay=max_retry_delay,
+            retry_exponential_backoff=retry_exponential_backoff,
+            max_active_tis_per_dag=max_active_tis_per_dag,
+            max_active_tis_per_dagrun=max_active_tis_per_dagrun,
+            run_as_user=run_as_user,
+            resources=resources,
+            on_execute_callback=(lambda: None) if has_on_execute_callback else None,
+            on_failure_callback=(lambda: None) if has_on_failure_callback else None,
+            on_retry_callback=(lambda: None) if has_on_retry_callback else None,
+            on_success_callback=(lambda: None) if has_on_success_callback else None,
+            on_skipped_callback=(lambda: None) if has_on_skipped_callback else None,
+            executor_config=executor_config,
+            inlets=inlets,
+            outlets=outlets,
+            doc=doc,
+            doc_md=doc_md,
+            doc_json=doc_json,
+            doc_yaml=doc_yaml,
+            doc_rst=doc_rst,
+        ).expand(op_args=["Hello", "world"])
+
+        assert op.operator_name == PythonOperator.__name__
+        assert op.roots == [op]
+        assert op.leaves == [op]
+        assert op.task_display_name == "mapped"
+        assert op.owner == SerializedBaseOperator.owner
+        assert op.trigger_rule == SerializedBaseOperator.trigger_rule
+        assert not op.map_index_template
+        assert not op.is_setup
+        assert not op.is_teardown
+        assert not op.depends_on_past
+        assert op.ignore_first_depends_on_past == bool(SerializedBaseOperator.ignore_first_depends_on_past)
+        assert not op.wait_for_downstream
+        assert op.retries == SerializedBaseOperator.retries
+        assert op.queue == SerializedBaseOperator.queue
+        assert op.pool == SerializedBaseOperator.pool
+        assert op.pool_slots == SerializedBaseOperator.pool_slots
+        assert op.priority_weight == SerializedBaseOperator.priority_weight
+        assert op.weight_rule == "downstream"
+        assert op.email == email
+        assert op.execution_timeout == execution_timeout
+        assert op.retry_delay == retry_delay
+        assert op.max_retry_delay == max_retry_delay
+        assert op.retry_exponential_backoff == retry_exponential_backoff
+        assert op.max_active_tis_per_dag == max_active_tis_per_dag
+        assert op.max_active_tis_per_dagrun == max_active_tis_per_dagrun
+        assert op.run_as_user == run_as_user
+        assert op.email_on_failure
+        assert op.email_on_retry
+        assert (op.resources is not None) == bool(resources)
+        assert op.has_on_execute_callback == has_on_execute_callback
+        assert op.has_on_failure_callback == has_on_failure_callback
+        assert op.has_on_retry_callback == has_on_retry_callback
+        assert op.has_on_success_callback == has_on_success_callback
+        assert op.has_on_skipped_callback == has_on_skipped_callback
+        assert (op.executor_config is not None) == bool(executor_config)
+        assert (op.inlets is not None) == bool(inlets)
+        assert (op.outlets is not None) == bool(outlets)
+        assert (op.doc is not None) == bool(doc)
+        assert (op.doc_md is not None) == bool(doc_md)
+        assert (op.doc_json is not None) == bool(doc_json)
+        assert (op.doc_yaml is not None) == bool(doc_yaml)
+        assert (op.doc_rst is not None) == bool(doc_rst)
+
 
 def test_mapped_tasks_in_mapped_task_group_waits_for_upstreams_to_complete(dag_maker, session):
     """Test that one failed trigger rule works well in mapped task group"""
@@ -1395,3 +1579,45 @@ def test_mapped_tasks_in_mapped_task_group_waits_for_upstreams_to_complete(dag_m
     dr.task_instance_scheduling_decisions()
     ti3 = dr.get_task_instance(task_id="tg1.t3")
     assert not ti3.state
+
+
+def test_mapped_operator_retry_delay_default(dag_maker):
+    """
+    Test that MappedOperator.retry_delay returns default value when not explicitly set.
+
+    This test verifies the fix for a KeyError that occurred when accessing retry_delay
+    on a MappedOperator without an explicit retry_delay value in partial_kwargs.
+    The property should fall back to SerializedBaseOperator.retry_delay (300 seconds).
+    """
+    with dag_maker(dag_id="test_retry_delay", serialized=True) as dag:
+        # Create a mapped operator without explicitly setting retry_delay
+        MockOperator.partial(task_id="mapped_task").expand(arg2=[1, 2, 3])
+
+    # Get the deserialized mapped task
+    mapped_deser = dag.task_dict["mapped_task"]
+
+    # Accessing retry_delay should not raise KeyError
+    # and should return the default value (300 seconds)
+    assert mapped_deser.retry_delay == datetime.timedelta(seconds=300)
+
+
+def test_mapped_operator_retry_delay_explicit(dag_maker):
+    """
+    Test that MappedOperator.retry_delay returns explicit value when set.
+
+    This test verifies that when retry_delay is explicitly set in partial(),
+    the MappedOperator returns that value instead of the default.
+    """
+    custom_retry_delay = datetime.timedelta(seconds=600)
+
+    with dag_maker(dag_id="test_retry_delay_explicit", serialized=True) as dag:
+        # Create a mapped operator with explicit retry_delay
+        MockOperator.partial(task_id="mapped_task_with_retry", retry_delay=custom_retry_delay).expand(
+            arg2=[1, 2, 3]
+        )
+
+    # Get the deserialized mapped task
+    mapped_deser = dag.task_dict["mapped_task_with_retry"]
+
+    # Should return the explicitly set value
+    assert mapped_deser.retry_delay == custom_retry_delay

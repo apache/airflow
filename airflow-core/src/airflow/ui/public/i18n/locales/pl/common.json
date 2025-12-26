@@ -7,6 +7,13 @@
     "Providers": "Providery",
     "Variables": "Zmienne"
   },
+  "allOperators": "Wszystkie operatory",
+  "appearance": {
+    "appearance": "Wygląd",
+    "darkMode": "Tryb ciemny",
+    "lightMode": "Tryb jasny",
+    "systemMode": "Użyj ustawień systemu"
+  },
   "asset_few": "Zasoby",
   "asset_many": "Zasobów",
   "asset_one": "Zasób",
@@ -21,8 +28,10 @@
   "backfill_other": "Wypełnienia wsteczne",
   "browse": {
     "auditLog": "Log audytu",
+    "requiredActions": "Wymagane akcje",
     "xcoms": "XComy"
   },
+  "collapseAllExtra": "Zwiń wszystkie dodatkowe dane JSON",
   "collapseDetailsPanel": "Zwiń panel szczegółów",
   "createdAssetEvent_few": "Utworzone zdarzenia zasobów",
   "createdAssetEvent_many": "Utworzonych zdarzeń zasobów",
@@ -34,21 +43,21 @@
   "dag_other": "Dagi",
   "dagDetails": {
     "catchup": "Nadrabianie zaległości",
-    "concurrency": "Współbieżność",
-    "dagRunTimeout": "Limit czasu wykonania Daga",
+    "dagRunTimeout": "Limit czasu wykonania",
     "defaultArgs": "Domyślne argumenty",
     "description": "Opis",
     "documentation": "Dokumentacja Daga",
     "fileLocation": "Lokalizacja pliku",
     "hasTaskConcurrencyLimits": "Posiada ograniczenia współbieżności zadań",
     "lastExpired": "Ostatnio wygasły",
+    "lastParseDuration": "Czas ostatniego parsowania",
     "lastParsed": "Ostatnia analiza",
     "latestDagVersion": "Najnowsza wersja Daga",
     "latestRun": "Ostatnie wykonanie",
     "maxActiveRuns": "Maksymalna liczba aktywnych wykonań",
     "maxActiveTasks": "Maksymalna liczba aktywnych zadań",
     "maxConsecutiveFailedDagRuns": "Maksymalna liczba kolejnych nieudanych wykonań Daga",
-    "nextRun": "Następne Wykonanie Daga",
+    "nextRun": "Następne Wykonanie",
     "owner": "Właściciel",
     "params": "Parametry",
     "schedule": "Harmonogram",
@@ -61,6 +70,7 @@
     "dataIntervalEnd": "Koniec interwału danych",
     "dataIntervalStart": "Początek interwału danych",
     "lastSchedulingDecision": "Ostatnia decyzja harmonogramu",
+    "partitionKey": "Klucz partycji",
     "queuedAt": "Zakolejkowano o",
     "runAfter": "Wykonaj po",
     "runType": "Typ wykonania",
@@ -68,50 +78,79 @@
     "triggeredBy": "Uruchomiony jako",
     "triggeringUser": "Użytkownik który uruchomił"
   },
-  "dagRun_few": "Wykonania Dagów",
-  "dagRun_many": "Wykonań Dagów",
-  "dagRun_one": "Wykonanie Daga",
-  "dagRun_other": "Wykonania Dagów",
+  "dagRun_few": "Wykonania",
+  "dagRun_many": "Wykonań",
+  "dagRun_one": "Wykonanie",
+  "dagRun_other": "Wykonania",
+  "dagRunId": "Identyfikator wykonania",
   "dagWarnings": "Ostrzeżenia/Błędy Daga",
   "defaultToGraphView": "Domyślnie widok grafu",
   "defaultToGridView": "Domyślnie widok siatki",
+  "delete": "Usuń",
+  "diff": "Porównaj",
+  "diffCompareWith": "Porównaj z",
+  "diffExit": "Wyjdź z porównywania",
+  "diffSelectVersionToCompare": "Wybierz wersję do porównania",
   "direction": "Kierunek",
   "docs": {
     "documentation": "Dokumentacja",
     "githubRepo": "Repozytorium GitHub",
     "restApiReference": "Dokuentacja REST API"
   },
+  "download": {
+    "download": "Pobierz",
+    "hotkey": "d",
+    "tooltip": "Naciśnij {{hotkey}}, aby pobrać logi"
+  },
   "duration": "Czas trwania",
+  "edit": "Edytuj",
   "endDate": "Data zakończenia",
   "error": {
     "back": "Powrót",
     "defaultMessage": "Wystąpił nieoczekiwany błąd",
     "home": "Strona główna",
+    "invalidUrl": "Nie znaleziono strony. Sprawdź adres URL i spróbuj ponownie.",
     "notFound": "Nie znaleziono strony",
     "title": "Błąd"
   },
   "expand": {
     "collapse": "Zwiń",
     "expand": "Rozwiń",
+    "hotkey": "e",
     "tooltip": "Wybierz {{hotkey}} aby przełączyć rozwijanie"
   },
+  "expandAllExtra": "Rozwiń wszystkie dodatkowe dane JSON",
   "expression": {
     "all": "Wszystkie",
     "and": "ORAZ",
     "any": "Dowolne",
     "or": "LUB"
   },
+  "filter": "Filtr",
+  "filters": {
+    "durationFrom": "Czas trwania od",
+    "durationTo": "Czas trwania do",
+    "endTime": "Czas zakończenia",
+    "logicalDateFrom": "Data logiczna od",
+    "logicalDateTo": "Data logiczna do",
+    "runAfterFrom": "Uruchom po (od)",
+    "runAfterTo": "Uruchom po (do)",
+    "selectDateRange": "Wybierz zakres dat",
+    "startTime": "Czas rozpoczęcia"
+  },
   "logicalDate": "Data logiczna",
   "logout": "Wyloguj",
   "logoutConfirmation": "Zamierzasz wylogować się z aplikacji.",
   "mapIndex": "Indeks mapowania",
   "modal": {
+    "add": "Dodaj",
     "cancel": "Anuluj",
     "confirm": "Potwierdź",
     "delete": {
       "button": "Usuń",
       "confirmation": "Jesteś pewien, że chcesz usunąć {{resourceName}}? Ta operacja nie może być cofnięta."
-    }
+    },
+    "save": "Zapisz"
   },
   "nav": {
     "admin": "Admin",
@@ -126,8 +165,8 @@
   },
   "noItemsFound": "Nie znaleziono modelu {{modelName}}",
   "note": {
-    "add": "Dodać notatkę",
-    "dagRun": "Notatki wykonania Daga",
+    "add": "Dodaj notatkę",
+    "dagRun": "Notatki wykonania",
     "label": "Notatka",
     "placeholder": "Dodaj notatkę...",
     "taskInstance": "Notatka instancji zadania"
@@ -143,6 +182,7 @@
     "running": "W trakcie",
     "scheduled": "Zaplanowane"
   },
+  "reset": "Resetuj",
   "runId": "Identyfikator wykonania",
   "runTypes": {
     "asset_triggered": "Uruchomiony przez zasób",
@@ -157,7 +197,6 @@
     },
     "tooltip": "Naciśnij {{hotkey}}, aby przewinąć do {{direction}}"
   },
-  "seconds": "{{count}}s",
   "security": {
     "actions": "Akcje",
     "permissions": "Uprawnienia",
@@ -167,6 +206,12 @@
   },
   "selectLanguage": "Wybierz język",
   "showDetailsPanel": "Pokaż panel szczegółów",
+  "signedInAs": "Zalogowano jako",
+  "source": {
+    "hide": "Ukryj źródła",
+    "hotkey": "s",
+    "show": "Pokaż źródła"
+  },
   "sourceAssetEvent_few": "Zdarzenia źródłowych zasobów",
   "sourceAssetEvent_many": "Zdarzeń źródłowych zasobów",
   "sourceAssetEvent_one": "Zdarzenie źródłowego zasobu",
@@ -178,6 +223,7 @@
     "failed": "Niepowodzenie",
     "no_status": "Brak stanu",
     "none": "Brak stanu",
+    "planned": "Zaplanowane",
     "queued": "W kolejce",
     "removed": "Usunięte",
     "restarting": "Restartowanie",
@@ -189,8 +235,6 @@
     "up_for_retry": "Do ponownej próby",
     "upstream_failed": "Niepowodzenie poprzednika"
   },
-  "switchToDarkMode": "Przełącz na tryb ciemny",
-  "switchToLightMode": "Przełącz na tryb jasny",
   "table": {
     "completedAt": "Zakończono o",
     "createdAt": "Utworzono o",
@@ -220,7 +264,8 @@
   "task_many": "Zadań",
   "task_one": "Zadanie",
   "task_other": "Zadania",
-  "taskId": "Identifikator Zadania",
+  "taskGroup": "Grupa zadań",
+  "taskId": "Identyfikator Zadania",
   "taskInstance": {
     "dagVersion": "Wersja Daga",
     "executor": "Wykonawca",
@@ -253,6 +298,11 @@
     "last24Hours": "Ostatnie 24 godziny",
     "lastHour": "Ostatnia godzina",
     "pastWeek": "Poprzedni tydzień"
+  },
+  "timestamp": {
+    "hide": "Ukryj znaczniki czasu",
+    "hotkey": "t",
+    "show": "Pokaż znaczniki czasu"
   },
   "timezone": "Strefa czasowa",
   "timezoneModal": {
@@ -303,6 +353,7 @@
   "tryNumber": "Numer próby",
   "user": "Profil",
   "wrap": {
+    "hotkey": "w",
     "tooltip": "Wybierz {{hotkey}} aby przełączyć zawijanie",
     "unwrap": "Wyłącz zawijanie",
     "wrap": "Włącz zawijanie"

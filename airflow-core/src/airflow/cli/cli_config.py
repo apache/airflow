@@ -29,12 +29,13 @@ from typing import NamedTuple
 
 import lazy_object_proxy
 
+from airflow._shared.module_loading import import_string
 from airflow._shared.timezones.timezone import parse as parsedate
 from airflow.cli.commands.legacy_commands import check_legacy_command
 from airflow.configuration import conf
+from airflow.jobs.job import JobState
 from airflow.utils.cli import ColorMode
-from airflow.utils.module_loading import import_string
-from airflow.utils.state import DagRunState, JobState
+from airflow.utils.state import DagRunState
 
 BUILD_DOCS = "BUILDING_AIRFLOW_DOCS" in os.environ
 
@@ -166,8 +167,24 @@ ARG_BUNDLE_NAME = Arg(
     default=None,
     action="append",
 )
-ARG_START_DATE = Arg(("-s", "--start-date"), help="Override start_date YYYY-MM-DD", type=parsedate)
-ARG_END_DATE = Arg(("-e", "--end-date"), help="Override end_date YYYY-MM-DD", type=parsedate)
+ARG_START_DATE = Arg(
+    ("-s", "--start-date"),
+    help=(
+        "Override start_date. Accepts multiple datetime formats including: "
+        "YYYY-MM-DD, YYYY-MM-DDTHH:MM:SS, YYYY-MM-DDTHH:MM:SS±HH:MM (ISO 8601), "
+        "and other formats supported by pendulum.parse()"
+    ),
+    type=parsedate,
+)
+ARG_END_DATE = Arg(
+    ("-e", "--end-date"),
+    help=(
+        "Override end_date. Accepts multiple datetime formats including: "
+        "YYYY-MM-DD, YYYY-MM-DDTHH:MM:SS, YYYY-MM-DDTHH:MM:SS±HH:MM (ISO 8601), "
+        "and other formats supported by pendulum.parse()"
+    ),
+    type=parsedate,
+)
 ARG_OUTPUT_PATH = Arg(
     (
         "-o",
@@ -304,6 +321,8 @@ ARG_VERBOSE = Arg(("-v", "--verbose"), help="Make logging output more verbose", 
 ARG_LOCAL = Arg(("-l", "--local"), help="Run the task using the LocalExecutor", action="store_true")
 ARG_POOL = Arg(("--pool",), "Resource pool to use")
 
+# teams
+ARG_TEAM_NAME = Arg(("name",), help="Team name")
 
 # backfill
 ARG_BACKFILL_DAG = Arg(flags=("--dag-id",), help="The dag to backfill.", required=True)
@@ -343,10 +362,11 @@ ARG_BACKFILL_REPROCESS_BEHAVIOR = Arg(
 ARG_BACKFILL_RUN_ON_LATEST_VERSION = Arg(
     ("--run-on-latest-version",),
     help=(
-        "(Experimental) If set, the backfill will run tasks using the latest bundle version instead of "
-        "the version that was active when the original Dag run was created."
+        "(Experimental) The backfill will run tasks using the latest bundle version instead of "
+        "the version that was active when the original Dag run was created. Defaults to True."
     ),
     action="store_true",
+    default=True,
 )
 
 
@@ -540,7 +560,7 @@ ARG_VAR_DESCRIPTION = Arg(
 )
 ARG_DESERIALIZE_JSON = Arg(("-j", "--json"), help="Deserialize JSON variable", action="store_true")
 ARG_SERIALIZE_JSON = Arg(("-j", "--json"), help="Serialize JSON variable", action="store_true")
-ARG_VAR_IMPORT = Arg(("file",), help="Import variables from JSON file")
+ARG_VAR_IMPORT = Arg(("file",), help="Import variables from .env, .json, .yaml or .yml file")
 ARG_VAR_EXPORT = Arg(
     ("file",),
     help="Export all variables to JSON file",
@@ -666,7 +686,7 @@ ARG_SSL_KEY = Arg(
     default=conf.get("api", "ssl_key"),
     help="Path to the key to use with the SSL certificate",
 )
-ARG_DEV = Arg(("-d", "--dev"), help="Start FastAPI in development mode", action="store_true")
+ARG_DEV = Arg(("-d", "--dev"), help="Start in development mode with hot-reload enabled", action="store_true")
 
 # scheduler
 ARG_NUM_RUNS = Arg(
@@ -1390,6 +1410,26 @@ VARIABLES_COMMANDS = (
         args=(ARG_VAR_EXPORT, ARG_VERBOSE),
     ),
 )
+TEAMS_COMMANDS = (
+    ActionCommand(
+        name="create",
+        help="Create a team",
+        func=lazy_load_command("airflow.cli.commands.team_command.team_create"),
+        args=(ARG_TEAM_NAME, ARG_VERBOSE),
+    ),
+    ActionCommand(
+        name="delete",
+        help="Delete a team",
+        func=lazy_load_command("airflow.cli.commands.team_command.team_delete"),
+        args=(ARG_TEAM_NAME, ARG_YES, ARG_VERBOSE),
+    ),
+    ActionCommand(
+        name="list",
+        help="List teams",
+        func=lazy_load_command("airflow.cli.commands.team_command.team_list"),
+        args=(ARG_OUTPUT, ARG_VERBOSE),
+    ),
+)
 DB_COMMANDS = (
     ActionCommand(
         name="check-migrations",
@@ -1835,6 +1875,11 @@ core_commands: list[CLICommand] = [
         subcommands=VARIABLES_COMMANDS,
     ),
     GroupCommand(
+        name="teams",
+        help="Manage teams",
+        subcommands=TEAMS_COMMANDS,
+    ),
+    GroupCommand(
         name="jobs",
         help="Manage jobs",
         subcommands=JOBS_COMMANDS,
@@ -1895,6 +1940,7 @@ core_commands: list[CLICommand] = [
             ARG_LOG_FILE,
             ARG_SKIP_SERVE_LOGS,
             ARG_VERBOSE,
+            ARG_DEV,
         ),
         epilog=(
             "Signals:\n"
@@ -1918,6 +1964,7 @@ core_commands: list[CLICommand] = [
             ARG_CAPACITY,
             ARG_VERBOSE,
             ARG_SKIP_SERVE_LOGS,
+            ARG_DEV,
         ),
     ),
     ActionCommand(
@@ -1933,6 +1980,7 @@ core_commands: list[CLICommand] = [
             ARG_STDERR,
             ARG_LOG_FILE,
             ARG_VERBOSE,
+            ARG_DEV,
         ),
     ),
     ActionCommand(

@@ -12,23 +12,26 @@
     "title": "Configuration d'Airflow"
   },
   "connections": {
-    "add": "Ajouter une Connexion",
+    "add": "Ajouter une connexion",
     "columns": {
-      "connectionId": "ID de la connexion",
-      "connectionType": "Type de la connexion",
+      "connectionId": "ID de connexion",
+      "connectionType": "Type de connexion",
       "host": "Hôte",
       "port": "Port"
     },
+    "connection_many": "Connexions",
     "connection_one": "Connexion",
     "connection_other": "Connexions",
     "delete": {
+      "deleteConnection_many": "Supprimer {{count}} connexions",
       "deleteConnection_one": "Supprimer 1 connexion",
       "deleteConnection_other": "Supprimer {{count}} connexions",
+      "firstConfirmMessage_many": "Vous êtes sur le point de supprimer les connexions suivantes :",
       "firstConfirmMessage_one": "Vous êtes sur le point de supprimer la connexion suivante :",
       "firstConfirmMessage_other": "Vous êtes sur le point de supprimer les connexions suivantes :",
       "title": "Supprimer la Connexion"
     },
-    "edit": "Modifier la Connexion",
+    "edit": "Modifier la connexion",
     "form": {
       "connectionIdRequired": "L'ID de la connexion est requis",
       "connectionIdRequirement": "L'ID de la connexion ne peut pas contenir uniquement des espaces",
@@ -36,14 +39,18 @@
       "extraFields": "Champs Supplémentaires",
       "extraFieldsJson": "Champs Supplémentaires JSON",
       "helperText": "Le type de la connexion est manquant ? Assurez-vous d'avoir installé le package Airflow Providers correspondant.",
-      "selectConnectionType": "Sélectionner le Type de Connexion",
-      "standardFields": "Champs Standards"
+      "helperTextForRedactedFields": "Les champs masqués ('***') resteront inchangés s'ils ne sont pas modifiés.",
+      "selectConnectionType": "Sélectionner le type de connexion",
+      "standardFields": "Champs standards"
     },
     "nothingFound": {
-      "title": "Aucune connexion trouvée!"
+      "description": "Les connexions définies via des variables d'environnement ou des gestionnaires de secrets ne sont pas listées ici.",
+      "documentationLink": "En savoir plus dans la documentation Airflow.",
+      "learnMore": "Celles-ci sont résolues à l'exécution et ne sont pas visibles dans l'UI.",
+      "title": "Aucune connexion trouvée !"
     },
     "searchPlaceholder": "Rechercher les connexions",
-    "test": "Test la connexion",
+    "test": "Tester la connexion",
     "testDisabled": "Le test de connexion est désactivé. Veuillez contacter un administrateur pour l'activer.",
     "typeMeta": {
       "error": "Échec de la récupération des métadonnées du type de connexion",
@@ -68,25 +75,25 @@
     "tooltip": "Supprimer les connexions sélectionnées"
   },
   "formActions": {
-    "reset": "Réinitialiser",
     "save": "Sauvegarder"
   },
   "plugins": {
     "columns": {
       "source": "Source"
     },
+    "importError_many": "Erreurs d'importation de plugin",
     "importError_one": "Erreur d'importation de plugin",
     "importError_other": "Erreurs d'importation de plugins",
     "searchPlaceholder": "Rechercher par fichier"
   },
   "pools": {
-    "add": "Ajouter un Pool",
+    "add": "Ajouter un pool",
     "deferredSlotsIncluded": "Slots Différés Inclus",
     "delete": {
       "title": "Supprimer le Pool",
       "warning": "Cela supprimera toutes les métadonnées liées au pool et peut affecter les tâches utilisant ce pool."
     },
-    "edit": "Modifier le Pool",
+    "edit": "Modifier le pool",
     "form": {
       "checkbox": "Cochez pour inclure les tâches différées lors du calcul des slots libres du pool",
       "description": "Description",
@@ -96,6 +103,7 @@
       "slots": "Slots"
     },
     "noPoolsFound": "Aucun pool trouvé",
+    "pool_many": "Pools",
     "pool_one": "Pool",
     "pool_other": "Pools",
     "searchPlaceholder": "Rechercher des Pools",
@@ -112,21 +120,21 @@
     }
   },
   "variables": {
-    "add": "Ajouter une Variable",
+    "add": "Ajouter une variable",
     "columns": {
       "isEncrypted": "Est chiffrée"
     },
     "delete": {
+      "deleteVariable_many": "Supprimer {{count}} Variables",
       "deleteVariable_one": "Supprimer 1 Variable",
       "deleteVariable_other": "Supprimer {{count}} Variables",
+      "firstConfirmMessage_many": "Vous êtes sur le point de supprimer les variables suivantes :",
       "firstConfirmMessage_one": "Vous êtes sur le point de supprimer la variable suivante :",
       "firstConfirmMessage_other": "Vous êtes sur le point de supprimer les variables suivantes :",
       "title": "Supprimer la Variable",
       "tooltip": "Supprimer les variables sélectionnées"
     },
-    "edit": "Modifier la Variable",
-    "export": "Exporter",
-    "exportTooltip": "Exporter les variables sélectionnées",
+    "edit": "Modifier la variable",
     "form": {
       "invalidJson": "JSON invalide",
       "keyMaxLength": "La clé peut contenir un maximum de 250 caractères",
@@ -157,6 +165,7 @@
     },
     "noRowsMessage": "Aucune variable trouvée",
     "searchPlaceholder": "Rechercher des Variables",
+    "variable_many": "Variables",
     "variable_one": "Variable",
     "variable_other": "Variables"
   }

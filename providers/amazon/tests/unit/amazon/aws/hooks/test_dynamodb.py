@@ -24,8 +24,8 @@ import pytest
 from botocore.exceptions import ClientError
 from moto import mock_aws
 
-from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.dynamodb import DynamoDBHook
+from airflow.providers.common.compat.sdk import AirflowException
 
 TEST_IMPORT_ARN = "arn:aws:dynamodb:us-east-1:255683865591:table/test-table/import/01662190284205-aa94decf"
 
@@ -76,7 +76,7 @@ class TestDynamoDBHook:
         assert path.as_uri().endswith("/airflow/providers/amazon/aws/waiters/dynamodb.json")
 
     @pytest.mark.parametrize(
-        "response, status, error",
+        ("response", "status", "error"),
         [
             pytest.param(
                 {"ImportTableDescription": {"ImportStatus": "COMPLETED"}}, "COMPLETED", False, id="complete"
@@ -116,7 +116,7 @@ class TestDynamoDBHook:
             assert msg is None
 
     @pytest.mark.parametrize(
-        "effect, error",
+        ("effect", "error"),
         [
             pytest.param(
                 ClientError(

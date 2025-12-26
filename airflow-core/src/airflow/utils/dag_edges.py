@@ -16,17 +16,20 @@
 # under the License.
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
 
 from airflow.sdk.definitions._internal.abstractoperator import AbstractOperator
-from airflow.serialization.serialized_objects import SerializedBaseOperator
+from airflow.serialization.definitions.baseoperator import SerializedBaseOperator
+from airflow.serialization.definitions.dag import SerializedDAG
+from airflow.serialization.definitions.mappedoperator import SerializedMappedOperator
 
 if TYPE_CHECKING:
     from airflow.sdk import DAG
-    from airflow.sdk.types import Operator
+    from airflow.serialization.definitions.dag import SerializedDAG
+    from airflow.serialization.definitions.mappedoperator import Operator
 
 
-def dag_edges(dag: DAG):
+def dag_edges(dag: DAG | SerializedDAG):
     """
     Create the list of edges needed to construct the Graph view.
 
@@ -61,7 +64,7 @@ def dag_edges(dag: DAG):
 
     def collect_edges(task_group):
         """Update edges_to_add and edges_to_skip according to TaskGroups."""
-        if isinstance(task_group, (AbstractOperator, SerializedBaseOperator)):
+        if isinstance(task_group, (AbstractOperator, SerializedBaseOperator, SerializedMappedOperator)):
             return
 
         for target_id in task_group.downstream_group_ids:
@@ -108,7 +111,9 @@ def dag_edges(dag: DAG):
     edges = set()
     setup_teardown_edges = set()
 
-    tasks_to_trace: list[Operator] = dag.roots
+    # TODO (GH-52141): 'roots' in scheduler needs to return scheduler types
+    # instead, but currently it inherits SDK's DAG.
+    tasks_to_trace = cast("list[Operator]", dag.roots)
     while tasks_to_trace:
         tasks_to_trace_next: list[Operator] = []
         for task in tasks_to_trace:

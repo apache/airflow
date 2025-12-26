@@ -47,7 +47,7 @@ on:  # yamllint disable-line rule:truthy
       providers-compatibility-tests-matrix:
         description: >
           JSON-formatted array of providers compatibility tests in the form of array of dicts
-          (airflow-version, python-versions, remove-providers, run-tests)
+          (airflow-version, python-versions, remove-providers, run-unit-tests)
         required: true
         type: string
       providers-test-types-list-as-strings-in-json:
@@ -92,14 +92,21 @@ jobs:
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
         with:
           persist-credentials: false
+      - name: "Free up disk space"
+        shell: bash
+        run: ./scripts/tools/free_up_disk_space.sh
       - name: "Prepare breeze & CI image: ${{ inputs.default-python-version }}"
         uses: ./.github/actions/prepare_breeze_and_image
         with:
           platform: ${{ inputs.platform }}
           python: "${{ inputs.default-python-version }}"
           use-uv: ${{ inputs.use-uv }}
+          make-mnt-writeable-and-cleanup: true
       - name: "Cleanup dist files"
         run: rm -fv ./dist/*
+      - name: "Set current date as RELEASE_DATE variable"
+        id: date
+        run: echo "RELEASE_DATE=$(date +'%Y-%m-%d')" >> $GITHUB_ENV
       - name: "Prepare provider documentation"
         run: >
           breeze release-management prepare-provider-documentation --include-not-ready-providers
@@ -187,12 +194,16 @@ jobs:
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
         with:
           persist-credentials: false
+      - name: "Free up disk space"
+        shell: bash
+        run: ./scripts/tools/free_up_disk_space.sh
       - name: "Prepare breeze & CI image: ${{ matrix.compat.python-version }}"
         uses: ./.github/actions/prepare_breeze_and_image
         with:
           platform: ${{ inputs.platform }}
           python: ${{ matrix.compat.python-version }}
           use-uv: ${{ inputs.use-uv }}
+          make-mnt-writeable-and-cleanup: true
       - name: "Cleanup dist files"
         run: rm -fv ./dist/*
       - name: "Prepare provider distributions: wheel"
@@ -217,7 +228,7 @@ jobs:
           Airflow ${{ matrix.compat.airflow-version }}:Python ${{ matrix.compat.python-version }}
         # We do not need to run import check if we run tests, the tests should cover all the import checks
         # automatically
-        if: matrix.compat.run-tests != 'true'
+        if: matrix.compat.run-unit-tests != 'true'
         env:
           AIRFLOW_VERSION: "${{ matrix.compat.airflow-version }}"
         run: >
@@ -234,7 +245,7 @@ jobs:
       - name: >
           Run provider unit tests on Airflow ${{ matrix.compat.airflow-version }}:Python
           ${{ matrix.compat.python-version }}:${{ matrix.test-types.description }}
-        if: matrix.compat.run-tests == 'true'
+        if: matrix.compat.run-unit-tests == 'true'
         env:
           PROVIDERS_TEST_TYPES: "${{ matrix.test-types.test_types }}"
           AIRFLOW_VERSION: "${{ matrix.compat.airflow-version }}"

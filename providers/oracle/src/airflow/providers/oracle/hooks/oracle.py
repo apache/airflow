@@ -20,9 +20,13 @@ from __future__ import annotations
 import math
 import warnings
 from datetime import datetime
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import oracledb
+
+if TYPE_CHECKING:
+    from airflow.models.connection import Connection
+    from airflow.providers.openlineage.sqlparser import DatabaseInfo
 
 from airflow.providers.common.sql.hooks.sql import DbApiHook
 
@@ -116,6 +120,20 @@ class OracleHook(DbApiHook):
         self.thick_mode_config_dir = thick_mode_config_dir
         self.fetch_decimals = fetch_decimals
         self.fetch_lobs = fetch_lobs
+        self._service_name: str | None = None
+        self._sid: str | None = None
+
+    @property
+    def service_name(self) -> str | None:
+        if self._service_name is None:
+            self._service_name = self.get_connection(self.get_conn_id()).extra_dejson.get("service_name")
+        return self._service_name
+
+    @property
+    def sid(self) -> str | None:
+        if self._sid is None:
+            self._sid = self.get_connection(self.get_conn_id()).extra_dejson.get("sid")
+        return self._sid
 
     def get_conn(self) -> oracledb.Connection:
         """
@@ -131,6 +149,16 @@ class OracleHook(DbApiHook):
               that you are connecting to (CONNECT_DATA part of TNS)
         :param sid: Oracle System ID that identifies a particular
               database on a system
+        :param wallet_location: Specify the directory where the wallet can be found.
+        :param wallet_password: the password to use to decrypt the wallet, if it is encrypted.
+            For Oracle Autonomous Database this is the password created when downloading the wallet.
+        :param ssl_server_cert_dn: Specify the distinguished name (DN) which should be matched
+            with the server. This value is ignored if the ``ssl_server_dn_match`` parameter is not
+            set to the value True.
+        :param ssl_server_dn_match: Specify whether the server certificate distinguished name
+            (DN) should be matched in addition to the regular certificate verification that is performed.
+        :param cclass:  the connection class to use for Database Resident Connection Pooling (DRCP).
+        :param pool_name: the name of the DRCP pool when using multi-pool DRCP with Oracle Database 23.4, or higher.
 
         You can set these parameters in the extra fields of your connection
         as in
@@ -203,6 +231,8 @@ class OracleHook(DbApiHook):
         if "events" in conn.extra_dejson:
             conn_config["events"] = conn.extra_dejson.get("events")
 
+        # TODO: Replace mapping with oracledb.AuthMode enum once python-oracledb>=2.3
+        # mode = getattr(oracledb.AuthMode, conn.extra_dejson.get("mode", "").upper(), None)
         mode = conn.extra_dejson.get("mode", "").lower()
         if mode == "sysdba":
             conn_config["mode"] = oracledb.AUTH_MODE_SYSDBA
@@ -219,6 +249,8 @@ class OracleHook(DbApiHook):
         elif mode == "sysrac":
             conn_config["mode"] = oracledb.AUTH_MODE_SYSRAC
 
+        # TODO: Replace mapping with oracledb.Purity enum once python-oracledb>=2.3
+        # purity = getattr(oracledb.Purity, conn.extra_dejson.get("purity", "").upper(), None)
         purity = conn.extra_dejson.get("purity", "").lower()
         if purity == "new":
             conn_config["purity"] = oracledb.PURITY_NEW
@@ -230,6 +262,18 @@ class OracleHook(DbApiHook):
         expire_time = conn.extra_dejson.get("expire_time")
         if expire_time:
             conn_config["expire_time"] = expire_time
+
+        for name in [
+            "wallet_location",
+            "wallet_password",
+            "ssl_server_cert_dn",
+            "ssl_server_dn_match",
+            "cclass",
+            "pool_name",
+        ]:
+            value = conn.extra_dejson.get(name)
+            if value is not None:
+                conn_config[name] = value
 
         oracle_conn = oracledb.connect(**conn_config)
         if mod is not None:
@@ -358,21 +402,19 @@ class OracleHook(DbApiHook):
             )
 
         if sequence_column and sequence_name:
-            prepared_stm = "insert into {tablename} {columns} values ({values})".format(
-                tablename=table,
-                columns="({})".format(", ".join([sequence_column] + target_fields))
+            columns = (
+                f"({', '.join([sequence_column] + target_fields)})"
                 if target_fields
-                else f"({sequence_column})",
-                values=", ".join(
-                    [f"{sequence_name}.NEXTVAL"] + [f":{i}" for i in range(1, len(values_base) + 1)]
-                ),
+                else f"({sequence_column})"
+            )
+            value_placeholders = ", ".join(
+                [f"{sequence_name}.NEXTVAL"] + [f":{i}" for i in range(1, len(values_base) + 1)]
             )
         else:
-            prepared_stm = "insert into {tablename} {columns} values ({values})".format(
-                tablename=table,
-                columns="({})".format(", ".join(target_fields)) if target_fields else "",
-                values=", ".join(f":{i}" for i in range(1, len(values_base) + 1)),
-            )
+            columns = f"({', '.join(target_fields)})" if target_fields else ""
+            value_placeholders = ", ".join(f":{i}" for i in range(1, len(values_base) + 1))
+        prepared_stm = f"insert into {table} {columns} values ({value_placeholders})"
+
         row_count = 0
         # Chunk the rows
         row_chunk = []
@@ -449,6 +491,33 @@ class OracleHook(DbApiHook):
         )
 
         return result
+
+    def get_openlineage_database_info(self, connection: Connection) -> DatabaseInfo:
+        """Return Oracle specific information for OpenLineage."""
+        from airflow.providers.openlineage.sqlparser import DatabaseInfo
+
+        return DatabaseInfo(
+            scheme=self.get_openlineage_database_dialect(connection),
+            authority=DbApiHook.get_openlineage_authority_part(connection, default_port=DEFAULT_DB_PORT),
+            information_schema_table_name="ALL_TAB_COLUMNS",
+            information_schema_columns=[
+                "owner",
+                "table_name",
+                "column_name",
+                "column_id",
+                "data_type",
+            ],
+            database=self.service_name or self.sid,
+            normalize_name_method=lambda name: name.upper(),
+        )
+
+    def get_openlineage_database_dialect(self, _) -> str:
+        """Return database dialect."""
+        return "oracle"
+
+    def get_openlineage_default_schema(self) -> str | None:
+        """Return current schema."""
+        return self.get_first("SELECT SYS_CONTEXT('USERENV', 'CURRENT_SCHEMA') FROM dual")[0]
 
     def get_uri(self) -> str:
         """Get the URI for the Oracle connection."""

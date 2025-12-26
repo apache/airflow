@@ -17,7 +17,7 @@
  * under the License.
  */
 import { Box } from "@chakra-ui/react";
-import { useParams, useSearchParams } from "react-router-dom";
+import { useParams } from "react-router-dom";
 
 import type { LightGridTaskInstanceSummary } from "openapi/requests/types.gen";
 
@@ -27,14 +27,13 @@ import type { GridTask } from "./utils";
 type Props = {
   readonly depth?: number;
   readonly nodes: Array<GridTask>;
+  readonly onCellClick?: () => void;
   readonly runId: string;
   readonly taskInstances: Array<LightGridTaskInstanceSummary>;
 };
 
-export const TaskInstancesColumn = ({ nodes, runId, taskInstances }: Props) => {
+export const TaskInstancesColumn = ({ nodes, onCellClick, runId, taskInstances }: Props) => {
   const { dagId = "" } = useParams();
-  const [searchParams] = useSearchParams();
-  const search = searchParams.toString();
 
   return nodes.map((node) => {
     // todo: how does this work with mapped? same task id for multiple tis
@@ -52,8 +51,8 @@ export const TaskInstancesColumn = ({ nodes, runId, taskInstances }: Props) => {
         isMapped={node.is_mapped}
         key={node.id}
         label={node.label}
+        onClick={onCellClick}
         runId={runId}
-        search={search}
         taskId={node.id}
       />
     );

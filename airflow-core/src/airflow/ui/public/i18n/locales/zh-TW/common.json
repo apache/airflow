@@ -7,6 +7,13 @@
     "Providers": "Providers",
     "Variables": "變數"
   },
+  "allOperators": "所有任務操作器",
+  "appearance": {
+    "appearance": "外觀",
+    "darkMode": "深色模式",
+    "lightMode": "淺色模式",
+    "systemMode": "跟隨系統設定"
+  },
   "asset_one": "資源",
   "asset_other": "資源",
   "assetEvent_one": "資源事件",
@@ -15,8 +22,10 @@
   "backfill_other": "回填",
   "browse": {
     "auditLog": "審計日誌",
+    "requiredActions": "待回應的任務實例",
     "xcoms": "XComs"
   },
+  "collapseAllExtra": "收合所有額外 JSON",
   "collapseDetailsPanel": "收起詳細資訊",
   "createdAssetEvent_one": "已建立資源事件",
   "createdAssetEvent_other": "已建立資源事件",
@@ -24,7 +33,6 @@
   "dag_other": "Dags",
   "dagDetails": {
     "catchup": "自動回填",
-    "concurrency": "並行數",
     "dagRunTimeout": "Dag 執行超時",
     "defaultArgs": "預設參數",
     "description": "描述",
@@ -32,6 +40,7 @@
     "fileLocation": "檔案位置",
     "hasTaskConcurrencyLimits": "有任務並行數限制",
     "lastExpired": "最後過期時間",
+    "lastParseDuration": "最後解析時長",
     "lastParsed": "最後解析時間",
     "latestDagVersion": "最新 Dag 版本",
     "latestRun": "上次 Dag 執行",
@@ -51,14 +60,17 @@
     "dataIntervalEnd": "資料區間結束",
     "dataIntervalStart": "資料區間起始",
     "lastSchedulingDecision": "最後排程決策",
+    "partitionKey": "資產分割鍵",
     "queuedAt": "開始排隊時間",
     "runAfter": "最早可執行時間",
     "runType": "執行類型",
     "sourceAssetEvent": "來源資源事件",
-    "triggeredBy": "觸發者"
+    "triggeredBy": "觸發來源",
+    "triggeringUser": "觸發使用者名稱"
   },
   "dagRun_one": "Dag 執行",
   "dagRun_other": "Dag 執行",
+  "dagRunId": "Dag 執行 ID",
   "dagWarnings": "Dag 警告 / 錯誤",
   "defaultToGraphView": "預設使用圖形視圖",
   "defaultToGridView": "預設使用網格視圖",
@@ -68,20 +80,41 @@
     "githubRepo": "GitHub 倉庫",
     "restApiReference": "REST API 參考"
   },
+  "download": {
+    "download": "下載",
+    "hotkey": "d",
+    "tooltip": "按下 {{hotkey}} 下載日誌"
+  },
   "duration": "執行時間",
   "endDate": "結束日期",
   "error": {
     "back": "返回",
     "defaultMessage": "發生未預期的錯誤",
     "home": "首頁",
+    "invalidUrl": "找不到頁面。請檢查 URL 並重試。",
     "notFound": "找不到頁面",
     "title": "錯誤"
   },
+  "expand": {
+    "collapse": "收合",
+    "expand": "展開",
+    "hotkey": "e",
+    "tooltip": "按下 {{hotkey}} 切換展開"
+  },
+  "expandAllExtra": "展開所有額外 JSON",
   "expression": {
     "all": "全部",
     "and": "且",
     "any": "任何",
     "or": "或"
+  },
+  "filter": "篩選",
+  "filters": {
+    "durationFrom": "從執行時間",
+    "durationTo": "到執行時間",
+    "endTime": "結束時間",
+    "selectDateRange": "選擇日期範圍",
+    "startTime": "起始時間"
   },
   "logicalDate": "邏輯日期",
   "logout": "登出",
@@ -102,7 +135,8 @@
     "dags": "Dags",
     "docs": "文件",
     "home": "首頁",
-    "plugins": "插件",
+    "legacyFabViews": "舊版檢視",
+    "plugins": "外掛",
     "security": "安全"
   },
   "noItemsFound": "找不到 {{modelName}}",
@@ -122,6 +156,7 @@
     "running": "執行中",
     "scheduled": "已排程"
   },
+  "reset": "重置",
   "runId": "執行 ID",
   "runTypes": {
     "asset_triggered": "資源觸發",
@@ -136,7 +171,6 @@
     },
     "tooltip": "按 {{hotkey}} 捲動到{{direction}}"
   },
-  "seconds": "{{count}} 秒",
   "security": {
     "actions": "操作",
     "permissions": "權限",
@@ -146,6 +180,11 @@
   },
   "selectLanguage": "選擇語言",
   "showDetailsPanel": "顯示詳細資訊",
+  "source": {
+    "hide": "隱藏來源",
+    "hotkey": "s",
+    "show": "顯示來源"
+  },
   "sourceAssetEvent_one": "來源資源事件",
   "sourceAssetEvent_other": "來源資源事件",
   "startDate": "開始日期",
@@ -155,6 +194,7 @@
     "failed": "失敗",
     "no_status": "無狀態",
     "none": "無狀態",
+    "planned": "已計劃",
     "queued": "排隊中",
     "removed": "已移除",
     "restarting": "重啟中",
@@ -166,8 +206,6 @@
     "up_for_retry": "等待重試",
     "upstream_failed": "上游任務失敗"
   },
-  "switchToDarkMode": "切換到深色模式",
-  "switchToLightMode": "切換到淺色模式",
   "table": {
     "completedAt": "完成時間",
     "createdAt": "建立時間",
@@ -193,6 +231,7 @@
   },
   "task_one": "任務",
   "task_other": "任務",
+  "taskGroup": "任務群組",
   "taskId": "任務 ID",
   "taskInstance": {
     "dagVersion": "Dag 版本",
@@ -208,12 +247,12 @@
     "queuedWhen": "開始排隊時間",
     "scheduledWhen": "開始排程時間",
     "triggerer": {
-      "assigned": "指派的觸發器",
+      "assigned": "指派的觸發者",
       "class": "觸發器類別",
       "createdAt": "觸發器建立時間",
       "id": "觸發器 ID",
-      "latestHeartbeat": "最新觸發器心跳時間",
-      "title": "觸發器資訊"
+      "latestHeartbeat": "最新觸發者心跳時間",
+      "title": "觸發者資訊"
     },
     "unixname": "Unix 名稱"
   },
@@ -224,6 +263,11 @@
     "last24Hours": "最近 24 小時",
     "lastHour": "最近 1 小時",
     "pastWeek": "過去一週"
+  },
+  "timestamp": {
+    "hide": "隱藏時間戳記",
+    "hotkey": "t",
+    "show": "顯示時間戳記"
   },
   "timezone": "時區",
   "timezoneModal": {
@@ -269,10 +313,12 @@
       }
     }
   },
+  "total": "總計 {{state}}",
   "triggered": "已觸發",
   "tryNumber": "嘗試次數",
   "user": "使用者",
   "wrap": {
+    "hotkey": "w",
     "tooltip": "按 {{hotkey}} 切換換行",
     "unwrap": "不換行",
     "wrap": "換行"

@@ -37,7 +37,7 @@ from google.cloud.bigquery import (
 from google.cloud.bigquery.table import EncryptionConfiguration, Table, TableReference
 
 from airflow.configuration import conf
-from airflow.exceptions import AirflowException
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.google.cloud.hooks.bigquery import BigQueryHook, BigQueryJob
 from airflow.providers.google.cloud.hooks.gcs import GCSHook
 from airflow.providers.google.cloud.links.bigquery import BigQueryTableLink
@@ -49,7 +49,7 @@ from airflow.utils.helpers import merge_dicts
 if TYPE_CHECKING:
     from google.api_core.retry import Retry
 
-    from airflow.utils.context import Context
+    from airflow.providers.common.compat.sdk import Context
 
 ALLOWED_FORMATS = [
     "CSV",
@@ -144,6 +144,9 @@ class GCSToBigQueryOperator(BaseOperator):
         partition by field, type and  expiration as per API specifications.
         Note that 'field' is not available in concurrency with
         dataset.table$partition.
+        Ignored if 'range_partitioning' is set.
+    :param range_partitioning: configure optional range partitioning fields i.e.
+        partition by field and integer interval as per API specifications.
     :param cluster_fields: Request that the result of this load be stored sorted
         by one or more columns. BigQuery supports clustering for both partitioned and
         non-partitioned tables. The order of columns given determines the sort order.
@@ -219,6 +222,7 @@ class GCSToBigQueryOperator(BaseOperator):
         src_fmt_configs=None,
         external_table=False,
         time_partitioning=None,
+        range_partitioning=None,
         cluster_fields=None,
         autodetect=True,
         encryption_configuration=None,
@@ -246,6 +250,10 @@ class GCSToBigQueryOperator(BaseOperator):
             src_fmt_configs = {}
         if time_partitioning is None:
             time_partitioning = {}
+        if range_partitioning is None:
+            range_partitioning = {}
+        if range_partitioning and time_partitioning:
+            raise ValueError("Only one of time_partitioning or range_partitioning can be set.")
         self.bucket = bucket
         self.source_objects = source_objects
         self.schema_object = schema_object
@@ -283,6 +291,7 @@ class GCSToBigQueryOperator(BaseOperator):
         self.schema_update_options = schema_update_options
         self.src_fmt_configs = src_fmt_configs
         self.time_partitioning = time_partitioning
+        self.range_partitioning = range_partitioning
         self.cluster_fields = cluster_fields
         self.autodetect = autodetect
         self.encryption_configuration = encryption_configuration
@@ -337,8 +346,9 @@ class GCSToBigQueryOperator(BaseOperator):
             job_id=self.job_id,
             dag_id=self.dag_id,
             task_id=self.task_id,
-            logical_date=context["logical_date"],
+            logical_date=None,
             configuration=self.configuration,
+            run_after=hook.get_run_after_or_logical_date(context),
             force_rerun=self.force_rerun,
         )
 
@@ -583,6 +593,8 @@ class GCSToBigQueryOperator(BaseOperator):
         self.hook.create_table(
             table_resource=table_obj_api_repr,
             project_id=self.project_id or self.hook.project_id,
+            dataset_id=table.dataset_id,
+            table_id=table.table_id,
             location=self.location,
             exists_ok=True,
         )
@@ -627,6 +639,8 @@ class GCSToBigQueryOperator(BaseOperator):
         )
         if self.time_partitioning:
             self.configuration["load"].update({"timePartitioning": self.time_partitioning})
+        if self.range_partitioning:
+            self.configuration["load"].update({"rangePartitioning": self.range_partitioning})
 
         if self.cluster_fields:
             self.configuration["load"].update({"clustering": {"fields": self.cluster_fields}})
@@ -635,12 +649,6 @@ class GCSToBigQueryOperator(BaseOperator):
             self.configuration["load"]["schema"] = {"fields": self.schema_fields}
 
         if self.schema_update_options:
-            if self.write_disposition not in ["WRITE_APPEND", "WRITE_TRUNCATE"]:
-                raise ValueError(
-                    "schema_update_options is only "
-                    "allowed if write_disposition is "
-                    "'WRITE_APPEND' or 'WRITE_TRUNCATE'."
-                )
             # To provide backward compatibility
             self.schema_update_options = list(self.schema_update_options or [])
             self.log.info("Adding experimental 'schemaUpdateOptions': %s", self.schema_update_options)

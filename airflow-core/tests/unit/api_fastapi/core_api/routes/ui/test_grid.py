@@ -25,8 +25,8 @@ import pytest
 from sqlalchemy import select
 
 from airflow._shared.timezones import timezone
-from airflow.models import DagBag
 from airflow.models.dag import DagModel
+from airflow.models.dagbag import DBDagBag
 from airflow.models.taskinstance import TaskInstance
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.sdk import task_group
@@ -35,6 +35,7 @@ from airflow.utils.session import provide_session
 from airflow.utils.state import DagRunState, TaskInstanceState
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
+from tests_common.test_utils.asserts import assert_queries_count
 from tests_common.test_utils.db import clear_db_assets, clear_db_dags, clear_db_runs, clear_db_serialized_dags
 from tests_common.test_utils.mock_operators import MockOperator
 
@@ -44,6 +45,8 @@ DAG_ID = "test_dag"
 DAG_ID_2 = "test_dag_2"
 DAG_ID_3 = "test_dag_3"
 DAG_ID_4 = "test_dag_4"
+DAG_ID_5 = "test_dag_5"
+DAG_ID_6 = "test_dag_6"
 TASK_ID = "task"
 TASK_ID_2 = "task2"
 TASK_ID_3 = "task3"
@@ -57,7 +60,7 @@ INNER_TASK_GROUP_SUB_TASK = "inner_task_group_sub_task"
 
 GRID_RUN_1 = {
     "dag_id": "test_dag",
-    "duration": 0,
+    "duration": 283996800.0,
     "end_date": "2024-12-31T00:00:00Z",
     "run_after": "2024-11-30T00:00:00Z",
     "run_id": "run_1",
@@ -68,7 +71,7 @@ GRID_RUN_1 = {
 
 GRID_RUN_2 = {
     "dag_id": "test_dag",
-    "duration": 0,
+    "duration": 283996800.0,
     "end_date": "2024-12-31T00:00:00Z",
     "run_after": "2024-11-30T00:00:00Z",
     "run_id": "run_2",
@@ -84,7 +87,7 @@ GRID_NODES = [
         "is_mapped": True,
         "label": "mapped_task_group",
     },
-    {"id": "task", "label": "task"},
+    {"id": "task", "label": "A Beautiful Task Name 🚀"},
     {
         "children": [
             {
@@ -92,11 +95,11 @@ GRID_NODES = [
                     {
                         "id": "task_group.inner_task_group.inner_task_group_sub_task",
                         "is_mapped": True,
-                        "label": "inner_task_group_sub_task",
+                        "label": "Inner Task Group Sub Task Label",
                     }
                 ],
                 "id": "task_group.inner_task_group",
-                "label": "inner_task_group",
+                "label": "My Inner Task Group",
             },
             {"id": "task_group.mapped_task", "is_mapped": True, "label": "mapped_task"},
         ],
@@ -109,8 +112,7 @@ GRID_NODES = [
 
 @pytest.fixture(autouse=True, scope="module")
 def examples_dag_bag():
-    # Speed up: We don't want example dags for this module
-    return DagBag(include_examples=False, read_dags_from_db=True)
+    return DBDagBag()
 
 
 @pytest.fixture(autouse=True)
@@ -122,7 +124,7 @@ def setup(dag_maker, session=None):
 
     # DAG 1
     with dag_maker(dag_id=DAG_ID, serialized=True, session=session) as dag:
-        task = EmptyOperator(task_id=TASK_ID)
+        task = EmptyOperator(task_id=TASK_ID, task_display_name="A Beautiful Task Name 🚀")
 
         @task_group
         def mapped_task_group(arg1):
@@ -132,8 +134,10 @@ def setup(dag_maker, session=None):
 
         with TaskGroup(group_id=TASK_GROUP_ID):
             MockOperator.partial(task_id=MAPPED_TASK_ID).expand(arg1=["a", "b", "c", "d"])
-            with TaskGroup(group_id=INNER_TASK_GROUP):
-                MockOperator.partial(task_id=INNER_TASK_GROUP_SUB_TASK).expand(arg1=["a", "b"])
+            with TaskGroup(group_id=INNER_TASK_GROUP, group_display_name="My Inner Task Group"):
+                MockOperator.partial(
+                    task_id=INNER_TASK_GROUP_SUB_TASK, task_display_name="Inner Task Group Sub Task Label"
+                ).expand(arg1=["a", "b"])
 
         # Mapped but never expanded. API should not crash, but count this as one no-status ti.
         MockOperator.partial(task_id=MAPPED_TASK_ID_2).expand(arg1=task.output)
@@ -157,6 +161,8 @@ def setup(dag_maker, session=None):
         data_interval=data_interval,
         **triggered_by_kwargs,
     )
+    # Set specific triggering users for testing filtering (only for manual runs)
+    run_2.triggering_user_name = "user2"
     for ti in run_1.task_instances:
         ti.state = TaskInstanceState.SUCCESS
     for ti in sorted(run_2.task_instances, key=lambda ti: (ti.task_id, ti.map_index)):
@@ -249,6 +255,84 @@ def setup(dag_maker, session=None):
         ti.end_date = end_date
         start_date = end_date
         end_date = start_date.add(seconds=2)
+
+    # DAG 5 for testing root, include_upstream, include_downstream parameters
+    # Also includes a Historical task
+    with dag_maker(dag_id=DAG_ID_5, serialized=True, session=session) as dag_5:
+        task_a = EmptyOperator(task_id="task_a")
+        task_b = EmptyOperator(task_id="task_b")
+        task_c = EmptyOperator(task_id="task_c")
+        task_d = EmptyOperator(task_id="task_d")
+        task_f = EmptyOperator(task_id="task_f")
+        task_a >> task_b >> task_c >> task_d >> task_f
+        # Create linear dependency: task_a >> task_b >> task_c >> task_d >> task_f (HISTORICAL_TASK)
+
+    logical_date = timezone.datetime(2024, 11, 30)
+    data_interval = dag_5.timetable.infer_manual_data_interval(run_after=logical_date)
+    run_5_1 = dag_maker.create_dagrun(
+        run_id="run_5_1",
+        state=DagRunState.SUCCESS,
+        run_type=DagRunType.SCHEDULED,
+        start_date=logical_date,
+        logical_date=logical_date,
+        data_interval=data_interval,
+        **triggered_by_kwargs,
+    )
+
+    with dag_maker(dag_id=DAG_ID_5, serialized=True, session=session) as dag_5:
+        task_a = EmptyOperator(task_id="task_a")
+        task_b = EmptyOperator(task_id="task_b")
+        task_c = EmptyOperator(task_id="task_c")
+        task_d = EmptyOperator(task_id="task_d")
+        task_e = EmptyOperator(task_id="task_e")
+        task_a >> task_b >> task_c >> task_d >> task_e
+        # Create linear dependency: task_a >> task_b >> task_c >> task_d >> task_e
+
+    run_5_2 = dag_maker.create_dagrun(
+        run_id="run_5_2",
+        state=DagRunState.SUCCESS,
+        run_type=DagRunType.SCHEDULED,
+        start_date=logical_date,
+        logical_date=logical_date + timedelta(days=1),
+        data_interval=data_interval,
+        **triggered_by_kwargs,
+    )
+    for ti in run_5_1.task_instances:
+        ti.state = TaskInstanceState.SUCCESS
+        ti.end_date = None
+    for ti in run_5_2.task_instances:
+        ti.state = TaskInstanceState.SUCCESS
+        ti.end_date = None
+
+    # DAG 6 for testing root, include_upstream, include_downstream with non-linear dependencies
+    # Structure: start >> [branch_a, branch_b] >> merge >> end
+    #            branch_a >> intermediate >> merge
+    with dag_maker(dag_id=DAG_ID_6, serialized=True, session=session) as dag_6:
+        start = EmptyOperator(task_id="start")
+        branch_a = EmptyOperator(task_id="branch_a")
+        branch_b = EmptyOperator(task_id="branch_b")
+        intermediate = EmptyOperator(task_id="intermediate")
+        merge = EmptyOperator(task_id="merge")
+        end = EmptyOperator(task_id="end")
+        # Create non-linear dependencies
+        start >> [branch_a, branch_b]
+        branch_a >> intermediate >> merge
+        branch_b >> merge
+        merge >> end
+
+    logical_date = timezone.datetime(2024, 11, 30)
+    data_interval = dag_6.timetable.infer_manual_data_interval(run_after=logical_date)
+    run_6 = dag_maker.create_dagrun(
+        run_id="run_6-1",
+        state=DagRunState.SUCCESS,
+        run_type=DagRunType.SCHEDULED,
+        start_date=logical_date,
+        logical_date=logical_date,
+        data_interval=data_interval,
+        **triggered_by_kwargs,
+    )
+    for ti in run_6.task_instances:
+        ti.state = TaskInstanceState.SUCCESS
     session.commit()
 
 
@@ -270,7 +354,8 @@ def _freeze_time_for_dagruns(time_machine):
 @pytest.mark.usefixtures("_freeze_time_for_dagruns")
 class TestGetGridDataEndpoint:
     def test_should_response_200(self, test_client):
-        response = test_client.get(f"/grid/runs/{DAG_ID}")
+        with assert_queries_count(5):
+            response = test_client.get(f"/grid/runs/{DAG_ID}")
         assert response.status_code == 200
         assert response.json() == [
             GRID_RUN_1,
@@ -278,7 +363,7 @@ class TestGetGridDataEndpoint:
         ]
 
     @pytest.mark.parametrize(
-        "order_by,expected",
+        ("order_by", "expected"),
         [
             (
                 "logical_date",
@@ -311,12 +396,13 @@ class TestGetGridDataEndpoint:
         ],
     )
     def test_should_response_200_order_by(self, test_client, order_by, expected):
-        response = test_client.get(f"/grid/runs/{DAG_ID}", params={"order_by": order_by})
+        with assert_queries_count(5):
+            response = test_client.get(f"/grid/runs/{DAG_ID}", params={"order_by": order_by})
         assert response.status_code == 200
         assert response.json() == expected
 
     @pytest.mark.parametrize(
-        "limit, expected",
+        ("limit", "expected"),
         [
             (
                 1,
@@ -329,12 +415,13 @@ class TestGetGridDataEndpoint:
         ],
     )
     def test_should_response_200_limit(self, test_client, limit, expected):
-        response = test_client.get(f"/grid/runs/{DAG_ID}", params={"limit": limit})
+        with assert_queries_count(5):
+            response = test_client.get(f"/grid/runs/{DAG_ID}", params={"limit": limit})
         assert response.status_code == 200
         assert response.json() == expected
 
     @pytest.mark.parametrize(
-        "params, expected",
+        ("params", "expected"),
         [
             (
                 {
@@ -353,15 +440,16 @@ class TestGetGridDataEndpoint:
         ],
     )
     def test_runs_should_response_200_date_filters(self, test_client, params, expected):
-        response = test_client.get(
-            f"/grid/runs/{DAG_ID}",
-            params=params,
-        )
+        with assert_queries_count(5):
+            response = test_client.get(
+                f"/grid/runs/{DAG_ID}",
+                params=params,
+            )
         assert response.status_code == 200
         assert response.json() == expected
 
     @pytest.mark.parametrize(
-        "params, expected",
+        ("params", "expected", "expected_queries_count"),
         [
             (
                 {
@@ -369,6 +457,7 @@ class TestGetGridDataEndpoint:
                     "run_after_lte": timezone.datetime(2024, 11, 30),
                 },
                 GRID_NODES,
+                7,
             ),
             (
                 {
@@ -376,14 +465,18 @@ class TestGetGridDataEndpoint:
                     "run_after_lte": timezone.datetime(2024, 10, 30),
                 },
                 GRID_NODES,
+                5,
             ),
         ],
     )
-    def test_structure_should_response_200_date_filters(self, test_client, params, expected):
-        response = test_client.get(
-            f"/grid/structure/{DAG_ID}",
-            params=params,
-        )
+    def test_structure_should_response_200_date_filters(
+        self, test_client, params, expected, expected_queries_count
+    ):
+        with assert_queries_count(expected_queries_count):
+            response = test_client.get(
+                f"/grid/structure/{DAG_ID}",
+                params=params,
+            )
         assert response.status_code == 200
         assert response.json() == expected
 
@@ -404,12 +497,14 @@ class TestGetGridDataEndpoint:
         assert response.json() == {"detail": "Dag with id invalid_dag was not found"}
 
     def test_structure_should_response_200_without_dag_run(self, test_client):
-        response = test_client.get(f"/grid/structure/{DAG_ID_2}")
+        with assert_queries_count(5):
+            response = test_client.get(f"/grid/structure/{DAG_ID_2}")
         assert response.status_code == 200
         assert response.json() == [{"id": "task2", "label": "task2"}]
 
     def test_runs_should_response_200_without_dag_run(self, test_client):
-        response = test_client.get(f"/grid/runs/{DAG_ID_2}")
+        with assert_queries_count(5):
+            response = test_client.get(f"/grid/runs/{DAG_ID_2}")
         assert response.status_code == 200
         assert response.json() == []
 
@@ -423,7 +518,8 @@ class TestGetGridDataEndpoint:
         ti.dag_version = session.scalar(select(DagModel).where(DagModel.dag_id == DAG_ID_3)).dag_versions[-1]
         session.commit()
 
-        response = test_client.get(f"/grid/structure/{DAG_ID_3}")
+        with assert_queries_count(7):
+            response = test_client.get(f"/grid/structure/{DAG_ID_3}")
         assert response.status_code == 200
         assert response.json() == [
             {"id": "task3", "label": "task3"},
@@ -435,9 +531,45 @@ class TestGetGridDataEndpoint:
             },
         ]
 
+        # Also verify that TI summaries include a leaf entry for the removed task
+        with assert_queries_count(4):
+            ti_resp = test_client.get(f"/grid/ti_summaries/{DAG_ID_3}/run_3")
+        assert ti_resp.status_code == 200
+        ti_payload = ti_resp.json()
+        assert ti_payload["dag_id"] == DAG_ID_3
+        assert ti_payload["run_id"] == "run_3"
+        # Find the removed task summary; it should exist even if not in current serialized DAG structure
+        removed_ti = next(
+            (
+                n
+                for n in ti_payload["task_instances"]
+                if n["task_id"] == TASK_ID_4 and n["child_states"] is None
+            ),
+            None,
+        )
+        assert removed_ti is not None
+        # Its state should be the aggregated state of its TIs, which includes 'removed'
+        assert removed_ti["state"] in (
+            "removed",
+            None,
+            "skipped",
+            "success",
+            "failed",
+            "running",
+            "queued",
+            "scheduled",
+            "deferred",
+            "restarting",
+            "up_for_retry",
+            "up_for_reschedule",
+            "upstream_failed",
+        )
+
     def test_get_dag_structure(self, session, test_client):
         session.commit()
-        response = test_client.get(f"/grid/structure/{DAG_ID}?limit=5")
+
+        with assert_queries_count(7):
+            response = test_client.get(f"/grid/structure/{DAG_ID}?limit=5")
         assert response.status_code == 200
         assert response.json() == [
             {
@@ -446,7 +578,7 @@ class TestGetGridDataEndpoint:
                 "is_mapped": True,
                 "label": "mapped_task_group",
             },
-            {"id": "task", "label": "task"},
+            {"id": "task", "label": "A Beautiful Task Name 🚀"},
             {
                 "children": [
                     {
@@ -454,11 +586,11 @@ class TestGetGridDataEndpoint:
                             {
                                 "id": "task_group.inner_task_group.inner_task_group_sub_task",
                                 "is_mapped": True,
-                                "label": "inner_task_group_sub_task",
+                                "label": "Inner Task Group Sub Task Label",
                             }
                         ],
                         "id": "task_group.inner_task_group",
-                        "label": "inner_task_group",
+                        "label": "My Inner Task Group",
                     },
                     {"id": "task_group.mapped_task", "is_mapped": True, "label": "mapped_task"},
                 ],
@@ -470,12 +602,13 @@ class TestGetGridDataEndpoint:
 
     def test_get_grid_runs(self, session, test_client):
         session.commit()
-        response = test_client.get(f"/grid/runs/{DAG_ID}?limit=5")
+        with assert_queries_count(5):
+            response = test_client.get(f"/grid/runs/{DAG_ID}?limit=5")
         assert response.status_code == 200
         assert response.json() == [
             {
                 "dag_id": "test_dag",
-                "duration": 0,
+                "duration": 283996800.0,
                 "end_date": "2024-12-31T00:00:00Z",
                 "run_after": "2024-11-30T00:00:00Z",
                 "run_id": "run_1",
@@ -485,7 +618,7 @@ class TestGetGridDataEndpoint:
             },
             {
                 "dag_id": "test_dag",
-                "duration": 0,
+                "duration": 283996800.0,
                 "end_date": "2024-12-31T00:00:00Z",
                 "run_after": "2024-11-30T00:00:00Z",
                 "run_id": "run_2",
@@ -495,10 +628,64 @@ class TestGetGridDataEndpoint:
             },
         ]
 
+    @pytest.mark.parametrize(
+        ("endpoint", "run_type", "expected"),
+        [
+            ("runs", "scheduled", [GRID_RUN_1]),
+            ("runs", "manual", [GRID_RUN_2]),
+            ("structure", "scheduled", GRID_NODES),
+            ("structure", "manual", GRID_NODES),
+        ],
+    )
+    def test_filter_by_run_type(self, session, test_client, endpoint, run_type, expected):
+        session.commit()
+        response = test_client.get(f"/grid/{endpoint}/{DAG_ID}?run_type={run_type}")
+        assert response.status_code == 200
+        assert response.json() == expected
+
+    @pytest.mark.parametrize(
+        ("endpoint", "triggering_user", "expected"),
+        [
+            ("runs", "user2", [GRID_RUN_2]),
+            ("runs", "nonexistent", []),
+            ("structure", "user2", GRID_NODES),
+        ],
+    )
+    def test_filter_by_triggering_user(self, session, test_client, endpoint, triggering_user, expected):
+        session.commit()
+        response = test_client.get(f"/grid/{endpoint}/{DAG_ID}?triggering_user={triggering_user}")
+        assert response.status_code == 200
+        assert response.json() == expected
+
+    def test_get_grid_runs_filter_by_run_type_and_triggering_user(self, session, test_client):
+        session.commit()
+        with assert_queries_count(5):
+            response = test_client.get(f"/grid/runs/{DAG_ID}?run_type=manual&triggering_user=user2")
+        assert response.status_code == 200
+        assert response.json() == [GRID_RUN_2]
+
+    @pytest.mark.parametrize(
+        ("endpoint", "state", "expected"),
+        [
+            ("runs", "success", [GRID_RUN_1]),
+            ("runs", "failed", [GRID_RUN_2]),
+            ("runs", "running", []),
+            ("structure", "success", GRID_NODES),
+            ("structure", "failed", GRID_NODES),
+        ],
+    )
+    def test_filter_by_state(self, session, test_client, endpoint, state, expected):
+        session.commit()
+        response = test_client.get(f"/grid/{endpoint}/{DAG_ID}?state={state}")
+        assert response.status_code == 200
+        assert response.json() == expected
+
     def test_grid_ti_summaries_group(self, session, test_client):
         run_id = "run_4-1"
         session.commit()
-        response = test_client.get(f"/grid/ti_summaries/{DAG_ID_4}/{run_id}")
+
+        with assert_queries_count(4):
+            response = test_client.get(f"/grid/ti_summaries/{DAG_ID_4}/{run_id}")
         assert response.status_code == 200
         actual = response.json()
         expected = {
@@ -527,7 +714,7 @@ class TestGetGridDataEndpoint:
                     "min_start_date": None,
                 },
                 {
-                    "child_states": {"success": 2},
+                    "child_states": {"success": 4},
                     "max_end_date": "2025-03-02T00:00:12Z",
                     "min_start_date": "2025-03-02T00:00:04Z",
                     "state": "success",
@@ -578,7 +765,9 @@ class TestGetGridDataEndpoint:
     def test_grid_ti_summaries_mapped(self, session, test_client):
         run_id = "run_2"
         session.commit()
-        response = test_client.get(f"/grid/ti_summaries/{DAG_ID}/{run_id}")
+
+        with assert_queries_count(4):
+            response = test_client.get(f"/grid/ti_summaries/{DAG_ID}/{run_id}")
         assert response.status_code == 200
         data = response.json()
         actual = data["task_instances"]
@@ -600,7 +789,7 @@ class TestGetGridDataEndpoint:
                 "state": None,
             },
             {
-                "child_states": {"running": 1},
+                "child_states": {"success": 1, "running": 1, "None": 1},
                 "max_end_date": "2024-12-30T01:02:03Z",
                 "min_start_date": "2024-12-30T01:00:00Z",
                 "state": "running",
@@ -621,14 +810,14 @@ class TestGetGridDataEndpoint:
                 "min_start_date": None,
             },
             {
-                "child_states": {"None": 2},
+                "child_states": {"None": 6},
                 "task_id": "task_group",
                 "max_end_date": None,
                 "min_start_date": None,
                 "state": None,
             },
             {
-                "child_states": {"None": 1},
+                "child_states": {"None": 2},
                 "task_id": "task_group.inner_task_group",
                 "max_end_date": None,
                 "min_start_date": None,
@@ -652,3 +841,95 @@ class TestGetGridDataEndpoint:
         expected = sort_dict(expected)
         actual = sort_dict(actual)
         assert actual == expected
+
+    def test_structure_includes_historical_removed_task_with_proper_shape(self, session, test_client):
+        # Ensure the structure endpoint returns synthetic node for historical/removed task
+
+        with assert_queries_count(7):
+            response = test_client.get(f"/grid/structure/{DAG_ID_3}")
+        assert response.status_code == 200
+        nodes = response.json()
+        # Find the historical removed task id
+        t4 = next((n for n in nodes if n["id"] == TASK_ID_4), None)
+        assert t4 is not None
+        assert t4["label"] == TASK_ID_4
+        # Optional None fields are excluded from response due to response_model_exclude_none=True
+        assert "is_mapped" not in t4
+        assert "children" not in t4
+
+    # Tests for root, include_upstream, and include_downstream parameters
+    def test_structure_with_root_only(self, test_client):
+        """Test that specifying only root parameter returns just that task."""
+        response = test_client.get(f"/grid/structure/{DAG_ID_5}?root=task_c")
+        assert response.status_code == 200
+        nodes = response.json()
+        task_ids = [node["id"] for node in nodes]
+        # Only task_c should be returned when root is specified without upstream/downstream
+        assert task_ids == ["task_c"]
+
+    def test_structure_with_root_and_include_upstream(self, test_client):
+        """Test that root + include_upstream returns the root task and all upstream tasks."""
+        response = test_client.get(f"/grid/structure/{DAG_ID_5}?root=task_c&include_upstream=true")
+        assert response.status_code == 200
+        nodes = response.json()
+        task_ids = sorted([node["id"] for node in nodes])
+        # Should return task_c and all upstream tasks (task_a, task_b)
+        assert task_ids == ["task_a", "task_b", "task_c"]
+
+    def test_structure_with_root_and_include_downstream_and_historical(self, test_client):
+        """Test that root + include_downstream returns the root task and all downstream tasks."""
+        response = test_client.get(f"/grid/structure/{DAG_ID_5}?root=task_c&include_downstream=true")
+        assert response.status_code == 200
+        nodes = response.json()
+        task_ids = sorted([node["id"] for node in nodes])
+        # Should return task_c and all downstream tasks, including the historical (task_d, task_e, task_f (HISTORICAL))
+        assert task_ids == ["task_c", "task_d", "task_e", "task_f"]
+
+    # Tests for non-linear DAG structure
+    def test_nonlinear_structure_with_root_downstream_from_branch(self, test_client):
+        """Test filtering downstream from branch point includes both branches."""
+        response = test_client.get(f"/grid/structure/{DAG_ID_6}?root=start&include_downstream=true")
+        assert response.status_code == 200
+        nodes = response.json()
+        task_ids = sorted([node["id"] for node in nodes])
+        # Should return all tasks since start is the root of the DAG
+        assert task_ids == ["branch_a", "branch_b", "end", "intermediate", "merge", "start"]
+
+    def test_nonlinear_structure_with_root_upstream_from_merge(self, test_client):
+        """Test filtering upstream from merge point includes all upstream branches."""
+        response = test_client.get(f"/grid/structure/{DAG_ID_6}?root=merge&include_upstream=true")
+        assert response.status_code == 200
+        nodes = response.json()
+        task_ids = sorted([node["id"] for node in nodes])
+        # Should return merge and all upstream tasks (both branches and their parents)
+        assert task_ids == ["branch_a", "branch_b", "intermediate", "merge", "start"]
+
+    def test_nonlinear_structure_with_root_on_branch_include_downstream(self, test_client):
+        """Test filtering downstream from one branch."""
+        response = test_client.get(f"/grid/structure/{DAG_ID_6}?root=branch_a&include_downstream=true")
+        assert response.status_code == 200
+        nodes = response.json()
+        task_ids = sorted([node["id"] for node in nodes])
+        # Should return branch_a and its downstream path (intermediate, merge, end)
+        assert task_ids == ["branch_a", "end", "intermediate", "merge"]
+
+    def test_nonlinear_structure_with_root_on_branch_include_upstream(self, test_client):
+        """Test filtering upstream from one branch."""
+        response = test_client.get(f"/grid/structure/{DAG_ID_6}?root=branch_a&include_upstream=true")
+        assert response.status_code == 200
+        nodes = response.json()
+        task_ids = sorted([node["id"] for node in nodes])
+        # Should return branch_a and its upstream (start)
+        assert task_ids == ["branch_a", "start"]
+
+    def test_nonlinear_structure_intermediate_with_both_directions(self, test_client):
+        """Test filtering from intermediate node with both upstream and downstream."""
+        response = test_client.get(
+            f"/grid/structure/{DAG_ID_6}?root=intermediate&include_upstream=true&include_downstream=true"
+        )
+        assert response.status_code == 200
+        nodes = response.json()
+        task_ids = sorted([node["id"] for node in nodes])
+        # Should return intermediate, its upstream path, and downstream path
+        # upstream: branch_a, start; downstream: merge, end
+        assert task_ids == ["branch_a", "end", "intermediate", "merge", "start"]

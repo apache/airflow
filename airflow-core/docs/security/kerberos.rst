@@ -19,7 +19,7 @@ Kerberos
 --------
 
 Airflow has initial support for Kerberos. This means that Airflow can renew Kerberos
-tickets for itself and store it in the ticket cache. The hooks and dags can make use of ticket
+tickets for itself and store it in the ticket cache. The hooks and Dags can make use of ticket
 to authenticate against kerberized services.
 
 Limitations
@@ -150,7 +150,7 @@ Of course if you need to tighten your security replace the asterisk with somethi
 Using Kerberos authentication
 '''''''''''''''''''''''''''''
 
-The Hive hook has been updated to take advantage of Kerberos authentication. To allow your dags to
+The Hive hook has been updated to take advantage of Kerberos authentication. To allow your Dags to
 use it, simply update the connection details with, for example:
 
 .. code-block:: json
@@ -160,20 +160,20 @@ use it, simply update the connection details with, for example:
 Adjust the principal to your settings. The ``_HOST`` part will be replaced by the fully qualified domain name of
 the server.
 
-You can specify if you would like to use the DAG owner as the user for the connection or the user specified in the login
+You can specify if you would like to use the Dag owner as the user for the connection or the user specified in the login
 section of the connection. For the login user, specify the following as extra:
 
 .. code-block:: json
 
     { "use_beeline": true, "principal": "hive/_HOST@EXAMPLE.COM", "proxy_user": "login"}
 
-For the DAG owner use:
+For the Dag owner use:
 
 .. code-block:: json
 
     { "use_beeline": true, "principal": "hive/_HOST@EXAMPLE.COM", "proxy_user": "owner"}
 
-and in your DAG, when initializing the HiveOperator, specify:
+and in your Dag, when initializing the HiveOperator, specify:
 
 .. code-block:: bash
 

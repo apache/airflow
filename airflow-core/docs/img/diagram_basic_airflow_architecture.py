@@ -15,9 +15,9 @@
 # specific language governing permissions and limitations
 # under the License.
 # /// script
-# requires-python = ">=3.11"
+# requires-python = ">=3.10"
 # dependencies = [
-#    "rich>=12.4.4",
+#    "rich>=13.6.0",
 #    "diagrams>=0.23.4",
 # ]
 # ///
@@ -84,7 +84,7 @@ def generate_basic_airflow_diagram():
         user >> Edge(color="blue", style="solid", reverse=False, label="install\n\n") >> plugins_and_packages
 
         with Cluster("UI"):
-            webserver = Python("Webserver")
+            webserver = Python("API Server")
 
         webserver >> Edge(color="black", style="solid", reverse=True, label="operate\n\n") >> user
 

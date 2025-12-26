@@ -17,10 +17,13 @@
 # under the License.
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
+import pendulum
 import pytest
+from sqlalchemy import func, select
 
 from airflow import settings
-from airflow._shared.timezones import timezone
 from airflow.exceptions import AirflowException, PoolNotFound
 from airflow.models.dag_version import DagVersion
 from airflow.models.pool import Pool
@@ -36,9 +39,14 @@ from tests_common.test_utils.db import (
     set_default_pool_slots,
 )
 
+if TYPE_CHECKING:
+    from sqlalchemy.orm import Session
+
+    from airflow.models.team import Team
+
 pytestmark = pytest.mark.db_test
 
-DEFAULT_DATE = timezone.datetime(2016, 1, 1)
+DEFAULT_DATE = pendulum.datetime(2016, 1, 1, tz="UTC")
 
 
 class TestPool:
@@ -285,7 +293,7 @@ class TestPool:
         assert pool.slots == 5
         assert pool.description == ""
         assert pool.include_deferred is True
-        assert session.query(Pool).count() == self.TOTAL_POOL_COUNT + 1
+        assert session.scalar(select(func.count()).select_from(Pool)) == self.TOTAL_POOL_COUNT + 1
 
     def test_create_pool_existing(self, session):
         self.add_pools()
@@ -296,13 +304,13 @@ class TestPool:
         assert pool.slots == 5
         assert pool.description == ""
         assert pool.include_deferred is False
-        assert session.query(Pool).count() == self.TOTAL_POOL_COUNT
+        assert session.scalar(select(func.count()).select_from(Pool)) == self.TOTAL_POOL_COUNT
 
     def test_delete_pool(self, session):
         self.add_pools()
         pool = Pool.delete_pool(name=self.pools[-1].pool)
         assert pool.pool == self.pools[-1].pool
-        assert session.query(Pool).count() == self.TOTAL_POOL_COUNT - 1
+        assert session.scalar(select(func.count()).select_from(Pool)) == self.TOTAL_POOL_COUNT - 1
 
     def test_delete_pool_non_existing(self):
         with pytest.raises(PoolNotFound, match="^Pool 'test' doesn't exist$"):
@@ -319,3 +327,22 @@ class TestPool:
         default_pool = Pool.get_default_pool()
         assert not Pool.is_default_pool(id=pool.id)
         assert Pool.is_default_pool(str(default_pool.id))
+
+    def test_get_team_name(self, testing_team: Team, session: Session):
+        pool = Pool(pool="test", include_deferred=False, team_name=testing_team.name)
+        session.add(pool)
+        session.flush()
+
+        assert Pool.get_team_name("test", session=session) == "testing"
+
+    def test_get_name_to_team_name_mapping(self, testing_team: Team, session: Session):
+        pool1 = Pool(pool="pool1", include_deferred=False, team_name=testing_team.name)
+        pool2 = Pool(pool="pool2", include_deferred=False)
+        session.add(pool1)
+        session.add(pool2)
+        session.flush()
+
+        assert Pool.get_name_to_team_name_mapping(["pool1", "pool2"], session=session) == {
+            "pool1": "testing",
+            "pool2": None,
+        }

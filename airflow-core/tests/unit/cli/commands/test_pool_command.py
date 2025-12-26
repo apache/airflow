@@ -18,8 +18,6 @@
 from __future__ import annotations
 
 import json
-from contextlib import redirect_stdout
-from io import StringIO
 
 import pytest
 
@@ -54,9 +52,9 @@ class TestCliPools:
         add_default_pool_if_not_exists()
         session.close()
 
-    def test_pool_list(self):
+    def test_pool_list(self, stdout_capture):
         pool_command.pool_set(self.parser.parse_args(["pools", "set", "foo", "1", "test"]))
-        with redirect_stdout(StringIO()) as stdout:
+        with stdout_capture as stdout:
             pool_command.pool_list(self.parser.parse_args(["pools", "list"]))
 
         assert "foo" in stdout.getvalue()

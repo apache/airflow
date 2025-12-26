@@ -95,8 +95,6 @@ function startairflow_if_requested() {
         echo
         export AIRFLOW__CORE__LOAD_EXAMPLES=${LOAD_EXAMPLES}
 
-        . "$( dirname "${BASH_SOURCE[0]}" )/configure_environment.sh"
-
         if airflow db migrate
         then
             if [[ ${LOAD_DEFAULT_CONNECTIONS=} == "true" || ${LOAD_DEFAULT_CONNECTIONS=} == "True" ]]; then
@@ -116,12 +114,19 @@ function startairflow_if_requested() {
 
         if airflow config get-value core auth_manager | grep -q "FabAuthManager"; then
             airflow users create -u admin -p admin -f Thor -l Adminstra -r Admin -e admin@email.domain || true
+
+            # Create all roles for testing if CREATE_ALL_ROLES is set
+            if [[ "${CREATE_ALL_ROLES}" == "true" ]]; then
+                echo "Creating all test roles for FabAuthManager..."
+                airflow users create -u viewer -p viewer -f Test -l Viewer -r Viewer -e viewer@email.domain || true
+                airflow users create -u user -p user -f Test -l User -r User -e user@email.domain || true
+                airflow users create -u op -p op -f Test -l Op -r Op -e op@email.domain || true
+                airflow users create -u testadmin -p testadmin -f Test -l TestAdmin -r Admin -e testadmin@email.domain || true
+                echo "All test roles created successfully for FabAuthManager."
+            fi
         else
-            echo "Skipping user creation as auth manager different from Fab is used"
+            echo "SimpleAuthManager detected. All roles (admin, viewer, user, op) are always available via configuration in .dev/breeze/src/airflow_breeze/files/simple_auth_manager_passwords.json"
         fi
-
-        . "$( dirname "${BASH_SOURCE[0]}" )/run_init_script.sh"
-
     fi
     return $?
 }

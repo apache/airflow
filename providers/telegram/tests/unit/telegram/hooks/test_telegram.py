@@ -71,7 +71,7 @@ class TestTelegramHook:
         assert not hook.chat_id
 
     @pytest.mark.db_test
-    def test_should_raise_exception_if_conn_id_doesnt_exist(self):
+    def test_should_raise_exception_if_conn_id_doesnt_exist(self, sdk_connection_not_found):
         with pytest.raises(airflow.exceptions.AirflowNotFoundException) as ctx:
             TelegramHook(telegram_conn_id="telegram-webhook-non-existent")
 

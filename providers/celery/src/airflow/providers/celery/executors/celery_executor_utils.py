@@ -29,28 +29,25 @@ import os
 import subprocess
 import sys
 import traceback
-import warnings
-from collections.abc import Mapping, MutableMapping, Sequence
+from collections.abc import Collection, Mapping, MutableMapping, Sequence
 from concurrent.futures import ProcessPoolExecutor
+from functools import cache
 from typing import TYPE_CHECKING, Any
 
 from celery import Celery, Task, states as celery_states
 from celery.backends.base import BaseKeyValueStoreBackend
 from celery.backends.database import DatabaseBackend, Task as TaskDb, retry, session_cleanup
 from celery.signals import import_modules as celery_import_modules
-from setproctitle import setproctitle
 from sqlalchemy import select
 
 import airflow.settings as settings
 from airflow.configuration import conf
-from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning, AirflowTaskTimeout
 from airflow.executors.base_executor import BaseExecutor
 from airflow.providers.celery.version_compat import AIRFLOW_V_3_0_PLUS
-from airflow.stats import Stats
+from airflow.providers.common.compat.sdk import AirflowException, AirflowTaskTimeout, Stats, timeout
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.net import get_hostname
 from airflow.utils.providers_configuration_loader import providers_configuration_loaded
-from airflow.utils.timeout import timeout
 
 try:
     from airflow.sdk.definitions._internal.dag_parsing_context import _airflow_parsing_context_manager
@@ -58,6 +55,11 @@ except ImportError:
     from airflow.utils.dag_parsing_context import _airflow_parsing_context_manager
 
 log = logging.getLogger(__name__)
+
+if sys.platform == "darwin":
+    setproctitle = lambda title: log.debug("Mac OS detected, skipping setproctitle")
+else:
+    from setproctitle import setproctitle
 
 if TYPE_CHECKING:
     from typing import TypeAlias
@@ -81,34 +83,24 @@ OPERATION_TIMEOUT = conf.getfloat("celery", "operation_timeout")
 # Make it constant for unit test.
 CELERY_FETCH_ERR_MSG_HEADER = "Error fetching Celery task state"
 
-celery_configuration = None
+
+@cache
+def get_celery_configuration() -> dict[str, Any]:
+    """Get the Celery configuration dictionary."""
+    if conf.has_option("celery", "celery_config_options"):
+        return conf.getimport("celery", "celery_config_options")
+
+    from airflow.providers.celery.executors.default_celery import DEFAULT_CELERY_CONFIG
+
+    return DEFAULT_CELERY_CONFIG
 
 
 @providers_configuration_loaded
 def _get_celery_app() -> Celery:
     """Init providers before importing the configuration, so the _SECRET and _CMD options work."""
-    global celery_configuration
-
-    if conf.has_option("celery", "celery_config_options"):
-        celery_configuration = conf.getimport("celery", "celery_config_options")
-    else:
-        from airflow.providers.celery.executors.default_celery import DEFAULT_CELERY_CONFIG
-
-        celery_configuration = DEFAULT_CELERY_CONFIG
-
     celery_app_name = conf.get("celery", "CELERY_APP_NAME")
-    if celery_app_name == "airflow.executors.celery_executor":
-        warnings.warn(
-            "The celery.CELERY_APP_NAME configuration uses deprecated package name: "
-            "'airflow.executors.celery_executor'. "
-            "Change it to `airflow.providers.celery.executors.celery_executor`, and "
-            "update the `-app` flag in your Celery Health Checks "
-            "to use `airflow.providers.celery.executors.celery_executor.app`.",
-            AirflowProviderDeprecationWarning,
-            stacklevel=2,
-        )
 
-    return Celery(celery_app_name, config_source=celery_configuration)
+    return Celery(celery_app_name, config_source=get_celery_configuration())
 
 
 app = _get_celery_app()
@@ -119,7 +111,7 @@ def on_celery_import_modules(*args, **kwargs):
     """
     Preload some "expensive" airflow modules once, so other task processes won't have to import it again.
 
-    Loading these for each task adds 0.3-0.5s *per task* before the task can run. For long running tasks this
+    Loading these for each task adds 0.3-0.5s *per task* before the task can run. For long-running tasks this
     doesn't matter, but for short tasks this starts to be a noticeable impact.
     """
     import jinja2.ext  # noqa: F401
@@ -244,7 +236,14 @@ def _execute_in_subprocess(command_to_exec: CommandType, celery_task_id: str | N
     if celery_task_id:
         env["external_executor_id"] = celery_task_id
     try:
-        subprocess.run(command_to_exec, stderr=sys.__stderr__, stdout=sys.__stdout__, close_fds=True, env=env)
+        subprocess.run(
+            command_to_exec,
+            check=False,
+            stderr=sys.__stderr__,
+            stdout=sys.__stdout__,
+            close_fds=True,
+            env=env,
+        )
     except subprocess.CalledProcessError as e:
         log.exception("[%s] execute_command encountered a CalledProcessError", celery_task_id)
         log.error(e.output)
@@ -320,14 +319,14 @@ class BulkStateFetcher(LoggingMixin):
     Otherwise, multiprocessing.Pool will be used. Each task status will be downloaded individually.
     """
 
-    def __init__(self, sync_parallelism=None):
+    def __init__(self, sync_parallelism: int):
         super().__init__()
         self._sync_parallelism = sync_parallelism
 
-    def _tasks_list_to_task_ids(self, async_tasks) -> set[str]:
+    def _tasks_list_to_task_ids(self, async_tasks: Collection[AsyncResult]) -> set[str]:
         return {a.task_id for a in async_tasks}
 
-    def get_many(self, async_results) -> Mapping[str, EventBufferValueType]:
+    def get_many(self, async_results: Collection[AsyncResult]) -> Mapping[str, EventBufferValueType]:
         """Get status for many Celery tasks using the best method available."""
         if isinstance(app.backend, BaseKeyValueStoreBackend):
             result = self._get_many_from_kv_backend(async_results)
@@ -338,7 +337,9 @@ class BulkStateFetcher(LoggingMixin):
         self.log.debug("Fetched %d state(s) for %d task(s)", len(result), len(async_results))
         return result
 
-    def _get_many_from_kv_backend(self, async_tasks) -> Mapping[str, EventBufferValueType]:
+    def _get_many_from_kv_backend(
+        self, async_tasks: Collection[AsyncResult]
+    ) -> Mapping[str, EventBufferValueType]:
         task_ids = self._tasks_list_to_task_ids(async_tasks)
         keys = [app.backend.get_key_for_task(k) for k in task_ids]
         values = app.backend.mget(keys)
@@ -348,13 +349,15 @@ class BulkStateFetcher(LoggingMixin):
         return self._prepare_state_and_info_by_task_dict(task_ids, task_results_by_task_id)
 
     @retry
-    def _query_task_cls_from_db_backend(self, task_ids, **kwargs):
+    def _query_task_cls_from_db_backend(self, task_ids: set[str], **kwargs):
         session = app.backend.ResultSession()
         task_cls = getattr(app.backend, "task_cls", TaskDb)
         with session_cleanup(session):
             return session.scalars(select(task_cls).where(task_cls.task_id.in_(task_ids))).all()
 
-    def _get_many_from_db_backend(self, async_tasks) -> Mapping[str, EventBufferValueType]:
+    def _get_many_from_db_backend(
+        self, async_tasks: Collection[AsyncResult]
+    ) -> Mapping[str, EventBufferValueType]:
         task_ids = self._tasks_list_to_task_ids(async_tasks)
         tasks = self._query_task_cls_from_db_backend(task_ids)
         task_results = [app.backend.meta_from_decoded(task.to_dict()) for task in tasks]
@@ -364,21 +367,23 @@ class BulkStateFetcher(LoggingMixin):
 
     @staticmethod
     def _prepare_state_and_info_by_task_dict(
-        task_ids, task_results_by_task_id
+        task_ids: set[str], task_results_by_task_id: dict[str, dict[str, Any]]
     ) -> Mapping[str, EventBufferValueType]:
         state_info: MutableMapping[str, EventBufferValueType] = {}
         for task_id in task_ids:
             task_result = task_results_by_task_id.get(task_id)
             if task_result:
                 state = task_result["status"]
-                info = None if not hasattr(task_result, "info") else task_result["info"]
+                info = task_result.get("info")
             else:
                 state = celery_states.PENDING
                 info = None
             state_info[task_id] = state, info
         return state_info
 
-    def _get_many_using_multiprocessing(self, async_results) -> Mapping[str, EventBufferValueType]:
+    def _get_many_using_multiprocessing(
+        self, async_results: Collection[AsyncResult]
+    ) -> Mapping[str, EventBufferValueType]:
         num_process = min(len(async_results), self._sync_parallelism)
 
         with ProcessPoolExecutor(max_workers=num_process) as sync_pool:

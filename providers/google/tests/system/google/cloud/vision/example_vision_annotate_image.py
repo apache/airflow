@@ -32,10 +32,15 @@ from airflow.providers.google.cloud.operators.vision import (
 )
 from airflow.providers.google.cloud.transfers.gcs_to_gcs import GCSToGCSOperator
 from airflow.providers.standard.operators.bash import BashOperator
-from airflow.utils.trigger_rule import TriggerRule
+
+try:
+    from airflow.sdk import TriggerRule
+except ImportError:
+    # Compatibility for Airflow < 3.1
+    from airflow.utils.trigger_rule import TriggerRule  # type: ignore[no-redef,attr-defined]
 
 # [START howto_operator_vision_retry_import]
-from google.api_core.retry import Retry  # isort:skip
+from google.api_core.retry import Retry
 
 # [END howto_operator_vision_retry_import]
 

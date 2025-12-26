@@ -29,6 +29,7 @@ import { Configs } from "src/pages/Configs";
 import { Connections } from "src/pages/Connections";
 import { Dag } from "src/pages/Dag";
 import { Backfills } from "src/pages/Dag/Backfills";
+import { Calendar } from "src/pages/Dag/Calendar/Calendar";
 import { Code } from "src/pages/Dag/Code";
 import { Details as DagDetails } from "src/pages/Dag/Details";
 import { Overview } from "src/pages/Dag/Overview";
@@ -40,6 +41,7 @@ import { ErrorPage } from "src/pages/Error";
 import { Events } from "src/pages/Events";
 import { ExternalView } from "src/pages/ExternalView";
 import { GroupTaskInstance } from "src/pages/GroupTaskInstance";
+import { HITLTaskInstances } from "src/pages/HITLTaskInstances";
 import { MappedTaskInstance } from "src/pages/MappedTaskInstance";
 import { Plugins } from "src/pages/Plugins";
 import { Pools } from "src/pages/Pools";
@@ -53,6 +55,7 @@ import { Overview as TaskOverview } from "src/pages/Task/Overview";
 import { TaskInstance, Logs } from "src/pages/TaskInstance";
 import { AssetEvents as TaskInstanceAssetEvents } from "src/pages/TaskInstance/AssetEvents";
 import { Details as TaskInstanceDetails } from "src/pages/TaskInstance/Details";
+import { HITLResponse } from "src/pages/TaskInstance/HITLResponse";
 import { RenderedTemplates } from "src/pages/TaskInstance/RenderedTemplates";
 import { TaskInstances } from "src/pages/TaskInstances";
 import { Variables } from "src/pages/Variables";
@@ -62,11 +65,11 @@ import { client } from "./queryClient";
 
 const pluginRoute = {
   element: <ExternalView />,
-  path: "plugin/:page",
+  path: "plugin/:page/*",
 };
 
-const taskInstanceRoutes = [
-  { element: <Logs />, index: true },
+export const taskInstanceRoutes = [
+  { element: <Logs />, index: true, path: undefined },
   { element: <Events />, path: "events" },
   { element: <XCom />, path: "xcom" },
   { element: <Code />, path: "code" },
@@ -74,6 +77,7 @@ const taskInstanceRoutes = [
   { element: <RenderedTemplates />, path: "rendered_templates" },
   { element: <TaskInstances />, path: "task_instances" },
   { element: <TaskInstanceAssetEvents />, path: "asset_events" },
+  { element: <HITLResponse />, path: "required_actions" },
   pluginRoute,
 ];
 
@@ -83,6 +87,10 @@ export const routerConfig = [
       {
         element: <Dashboard />,
         index: true,
+      },
+      {
+        element: <HITLTaskInstances />,
+        path: "required_actions",
       },
       {
         element: <DagsList />,
@@ -154,6 +162,8 @@ export const routerConfig = [
           { element: <Overview />, index: true },
           { element: <DagRuns />, path: "runs" },
           { element: <Tasks />, path: "tasks" },
+          { element: <Calendar />, path: "calendar" },
+          { element: <HITLTaskInstances />, path: "required_actions" },
           { element: <Backfills />, path: "backfills" },
           { element: <Events />, path: "events" },
           { element: <Code />, path: "code" },
@@ -166,6 +176,7 @@ export const routerConfig = [
       {
         children: [
           { element: <TaskInstances />, index: true },
+          { element: <HITLTaskInstances />, path: "required_actions" },
           { element: <Events />, path: "events" },
           { element: <Code />, path: "code" },
           { element: <DagRunDetails />, path: "details" },
@@ -194,6 +205,7 @@ export const routerConfig = [
         children: [
           { element: <TaskOverview />, index: true },
           { element: <TaskInstances />, path: "task_instances" },
+          { element: <HITLTaskInstances />, path: "required_actions" },
           pluginRoute,
         ],
         element: <Task />,
@@ -208,11 +220,16 @@ export const routerConfig = [
         children: [
           { element: <TaskOverview />, index: true },
           { element: <TaskInstances />, path: "task_instances" },
+          { element: <HITLTaskInstances />, path: "required_actions" },
           { element: <Events />, path: "events" },
           pluginRoute,
         ],
         element: <Task />,
         path: "dags/:dagId/tasks/:taskId",
+      },
+      {
+        element: <ErrorPage />,
+        path: "*",
       },
     ],
     element: <BaseLayout />,

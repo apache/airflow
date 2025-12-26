@@ -1,0 +1,22 @@
+{
+  "auditLog": {
+    "columns": {
+      "event": "Etkinlik",
+      "extra": "Ek Bilgi",
+      "user": "Kullanıcı",
+      "when": "Zaman"
+    },
+    "filters": {
+      "eventType": "Etkinlik Türü"
+    },
+    "title": "Denetim Günlüğü"
+  },
+  "xcom": {
+    "columns": {
+      "dag": "Dag",
+      "key": "Anahtar",
+      "value": "Değer"
+    },
+    "title": "XCom"
+  }
+}

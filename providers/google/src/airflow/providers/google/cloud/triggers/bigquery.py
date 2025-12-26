@@ -24,16 +24,18 @@ from aiohttp import ClientSession
 from aiohttp.client_exceptions import ClientResponseError
 from asgiref.sync import sync_to_async
 
-from airflow.exceptions import AirflowException
-from airflow.models.taskinstance import TaskInstance
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.google.cloud.hooks.bigquery import BigQueryAsyncHook, BigQueryTableAsyncHook
 from airflow.providers.google.version_compat import AIRFLOW_V_3_0_PLUS
 from airflow.triggers.base import BaseTrigger, TriggerEvent
-from airflow.utils.session import provide_session
 from airflow.utils.state import TaskInstanceState
 
 if TYPE_CHECKING:
     from sqlalchemy.orm.session import Session
+
+if not AIRFLOW_V_3_0_PLUS:
+    from airflow.models.taskinstance import TaskInstance
+    from airflow.utils.session import provide_session
 
 
 class BigQueryInsertJobTrigger(BaseTrigger):
@@ -99,24 +101,26 @@ class BigQueryInsertJobTrigger(BaseTrigger):
             },
         )
 
-    @provide_session
-    def get_task_instance(self, session: Session) -> TaskInstance:
-        query = session.query(TaskInstance).filter(
-            TaskInstance.dag_id == self.task_instance.dag_id,
-            TaskInstance.task_id == self.task_instance.task_id,
-            TaskInstance.run_id == self.task_instance.run_id,
-            TaskInstance.map_index == self.task_instance.map_index,
-        )
-        task_instance = query.one_or_none()
-        if task_instance is None:
-            raise AirflowException(
-                "TaskInstance with dag_id: %s, task_id: %s, run_id: %s and map_index: %s is not found",
-                self.task_instance.dag_id,
-                self.task_instance.task_id,
-                self.task_instance.run_id,
-                self.task_instance.map_index,
+    if not AIRFLOW_V_3_0_PLUS:
+
+        @provide_session
+        def get_task_instance(self, session: Session) -> TaskInstance:
+            query = session.query(TaskInstance).filter(
+                TaskInstance.dag_id == self.task_instance.dag_id,
+                TaskInstance.task_id == self.task_instance.task_id,
+                TaskInstance.run_id == self.task_instance.run_id,
+                TaskInstance.map_index == self.task_instance.map_index,
             )
-        return task_instance
+            task_instance = query.one_or_none()
+            if task_instance is None:
+                raise AirflowException(
+                    "TaskInstance with dag_id: %s, task_id: %s, run_id: %s and map_index: %s is not found",
+                    self.task_instance.dag_id,
+                    self.task_instance.task_id,
+                    self.task_instance.run_id,
+                    self.task_instance.map_index,
+                )
+            return task_instance
 
     async def get_task_state(self):
         from airflow.sdk.execution_time.task_runner import RuntimeTaskInstance
@@ -163,6 +167,7 @@ class BigQueryInsertJobTrigger(BaseTrigger):
                     job_id=self.job_id, project_id=self.project_id, location=self.location
                 )
                 if job_status["status"] == "success":
+                    self.log.info("BigQuery Job succeeded")
                     yield TriggerEvent(
                         {
                             "job_id": self.job_id,
@@ -172,7 +177,13 @@ class BigQueryInsertJobTrigger(BaseTrigger):
                     )
                     return
                 elif job_status["status"] == "error":
-                    yield TriggerEvent(job_status)
+                    self.log.info("BigQuery Job failed: %s", job_status)
+                    yield TriggerEvent(
+                        {
+                            "status": job_status["status"],
+                            "message": job_status["message"],
+                        }
+                    )
                     return
                 else:
                     self.log.info(
@@ -330,7 +341,12 @@ class BigQueryGetDataTrigger(BigQueryInsertJobTrigger):
                     )
                     return
                 elif job_status["status"] == "error":
-                    yield TriggerEvent(job_status)
+                    yield TriggerEvent(
+                        {
+                            "status": job_status["status"],
+                            "message": job_status["message"],
+                        }
+                    )
                     return
                 else:
                     self.log.info(
@@ -769,7 +785,7 @@ class BigQueryTablePartitionExistenceTrigger(BigQueryTableExistenceTrigger):
                         return
                     job_id = None
                 elif job_status["status"] == "error":
-                    yield TriggerEvent(job_status)
+                    yield TriggerEvent({"status": job_status["status"]})
                     return
                 self.log.info("Sleeping for %s seconds.", self.poll_interval)
                 await asyncio.sleep(self.poll_interval)

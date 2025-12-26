@@ -53,7 +53,7 @@ Port (optional)
 Schema (optional)
     Specify the service type etc: http/https.
 
-Extras (optional)
+Extra (optional)
     Specify headers and default requests parameters in json format.
     Following default requests parameters are taken into account:
 

@@ -25,14 +25,15 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from airflow._shared.timezones import timezone
-from airflow.models import DagBag
 from airflow.models.asset import AssetAliasModel, AssetEvent, AssetModel
+from airflow.models.dagbag import DBDagBag
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.providers.standard.operators.trigger_dagrun import TriggerDagRunOperator
 from airflow.providers.standard.sensors.external_task import ExternalTaskSensor
 from airflow.sdk import Metadata, task
 from airflow.sdk.definitions.asset import Asset, AssetAlias, Dataset
 
+from tests_common.test_utils.asserts import assert_queries_count
 from tests_common.test_utils.db import clear_db_assets, clear_db_runs
 
 pytestmark = pytest.mark.db_test
@@ -89,10 +90,8 @@ FIRST_VERSION_DAG_RESPONSE["nodes"] = [
 
 
 @pytest.fixture(autouse=True, scope="module")
-def examples_dag_bag() -> DagBag:
-    # Speed up: We don't want example dags for this module
-
-    return DagBag(include_examples=False, read_dags_from_db=True)
+def examples_dag_bag() -> DBDagBag:
+    return DBDagBag()
 
 
 @pytest.fixture(autouse=True)
@@ -209,7 +208,7 @@ def asset3_id(make_dags, asset3, session) -> str:
 
 class TestStructureDataEndpoint:
     @pytest.mark.parametrize(
-        "params, expected",
+        ("params", "expected", "expected_queries_count"),
         [
             (
                 {"dag_id": DAG_ID},
@@ -266,6 +265,7 @@ class TestStructureDataEndpoint:
                         },
                     ],
                 },
+                3,
             ),
             (
                 {
@@ -273,6 +273,7 @@ class TestStructureDataEndpoint:
                     "root": "unknown_task",
                 },
                 {"edges": [], "nodes": []},
+                3,
             ),
             (
                 {
@@ -297,6 +298,7 @@ class TestStructureDataEndpoint:
                         },
                     ],
                 },
+                3,
             ),
             (
                 {"dag_id": DAG_ID_EXTERNAL_TRIGGER, "external_dependencies": True},
@@ -335,12 +337,14 @@ class TestStructureDataEndpoint:
                         },
                     ],
                 },
+                10,
             ),
         ],
     )
     @pytest.mark.usefixtures("make_dags")
-    def test_should_return_200(self, test_client, params, expected):
-        response = test_client.get("/structure/structure_data", params=params)
+    def test_should_return_200(self, test_client, params, expected, expected_queries_count):
+        with assert_queries_count(expected_queries_count):
+            response = test_client.get("/structure/structure_data", params=params)
         assert response.status_code == 200
         assert response.json() == expected
 
@@ -530,7 +534,8 @@ class TestStructureDataEndpoint:
             ],
         }
 
-        response = test_client.get("/structure/structure_data", params=params)
+        with assert_queries_count(10):
+            response = test_client.get("/structure/structure_data", params=params)
         assert response.status_code == 200
         assert response.json() == expected
 
@@ -539,7 +544,7 @@ class TestStructureDataEndpoint:
         self, test_client, session
     ):
         resolved_asset = session.scalar(
-            session.query(AssetModel).filter_by(name="resolved_example_asset_alias")
+            select(AssetModel).where(AssetModel.name == "resolved_example_asset_alias")
         )
         params = {
             "dag_id": DAG_ID_RESOLVED_ASSET_ALIAS,
@@ -604,7 +609,7 @@ class TestStructureDataEndpoint:
         assert response.json() == expected
 
     @pytest.mark.parametrize(
-        "params, expected",
+        ("params", "expected"),
         [
             pytest.param(
                 {"dag_id": DAG_ID},
@@ -656,3 +661,71 @@ class TestStructureDataEndpoint:
             response.json()["detail"]
             == "Dag with id dag_with_multiple_versions and version number 999 was not found"
         )
+
+    def test_mapped_operator_graph_view(self, dag_maker, test_client, session):
+        """
+        Ensures structure_data endpoint handles MappedOperator without AttributeError.
+        """
+        from airflow.providers.standard.operators.bash import BashOperator
+
+        with dag_maker(
+            dag_id="test_mapped_operator_dag",
+            serialized=True,
+            session=session,
+            start_date=pendulum.DateTime(2023, 2, 1, 0, 0, 0, tzinfo=pendulum.UTC),
+        ):
+            task1 = EmptyOperator(task_id="task1")
+            mapped_task = BashOperator.partial(
+                task_id="mapped_bash_task",
+                do_xcom_push=False,
+            ).expand(bash_command=["echo 1", "echo 2", "echo 3"])
+            task2 = EmptyOperator(task_id="task2")
+
+            task1 >> mapped_task >> task2
+
+        dag_maker.sync_dagbag_to_db()
+        response = test_client.get("/structure/structure_data", params={"dag_id": "test_mapped_operator_dag"})
+        assert response.status_code == 200
+        data = response.json()
+
+        mapped_node = next(node for node in data["nodes"] if node["id"] == "mapped_bash_task")
+        assert mapped_node["is_mapped"] is True
+        assert mapped_node["operator"] == "BashOperator"
+        assert len(data["edges"]) == 2
+
+    def test_mapped_operator_in_task_group(self, dag_maker, test_client, session):
+        """
+        Test that mapped operators within task groups are handled correctly.
+        Specifically tests task_group_to_dict function with MappedOperator instances.
+        """
+        from airflow.providers.standard.operators.python import PythonOperator
+        from airflow.sdk.definitions.taskgroup import TaskGroup
+
+        with dag_maker(
+            dag_id="test_mapped_in_group_dag",
+            serialized=True,
+            session=session,
+            start_date=pendulum.DateTime(2023, 2, 1, 0, 0, 0, tzinfo=pendulum.UTC),
+        ):
+            with TaskGroup(group_id="processing_group"):
+                prep = EmptyOperator(task_id="prep")
+                mapped = PythonOperator.partial(
+                    task_id="process",
+                    python_callable=lambda x: print(f"Processing {x}"),
+                ).expand(op_args=[[1], [2], [3], [4]])
+
+                prep >> mapped
+
+        dag_maker.sync_dagbag_to_db()
+        response = test_client.get("/structure/structure_data", params={"dag_id": "test_mapped_in_group_dag"})
+
+        assert response.status_code == 200
+        data = response.json()
+        group_node = next(node for node in data["nodes"] if node["id"] == "processing_group")
+        assert group_node["children"] is not None
+
+        mapped_in_group = next(
+            child for child in group_node["children"] if child["id"] == "processing_group.process"
+        )
+        assert mapped_in_group["is_mapped"] is True
+        assert mapped_in_group["operator"] == "PythonOperator"

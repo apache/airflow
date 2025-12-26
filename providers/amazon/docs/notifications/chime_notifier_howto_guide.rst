@@ -21,7 +21,7 @@ How-to Guide for Chime notifications
 Introduction
 ------------
 Chime notifier (:class:`airflow.providers.amazon.aws.notifications.chime.ChimeNotifier`) allows users to send
-messages to a Chime chat room setup via a webhook using the various ``on_*_callbacks`` at both the DAG level and Task level
+messages to a Chime chat room setup via a webhook using the various ``on_*_callbacks`` at both the Dag level and Task level
 
 
 Example Code:
@@ -39,7 +39,7 @@ Example Code:
         schedule="@once",
         start_date=datetime(2023, 6, 27),
         on_success_callback=[
-            send_chime_notification(chime_conn_id="my_chime_conn", message="The DAG {{ dag.dag_id }} succeeded")
+            send_chime_notification(chime_conn_id="my_chime_conn", message="The Dag {{ dag.dag_id }} succeeded")
         ],
         catchup=False,
     ):

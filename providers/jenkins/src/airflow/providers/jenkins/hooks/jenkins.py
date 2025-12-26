@@ -21,7 +21,7 @@ from typing import Any
 
 import jenkins
 
-from airflow.providers.jenkins.version_compat import BaseHook
+from airflow.providers.common.compat.sdk import BaseHook
 
 
 class JenkinsHook(BaseHook):
@@ -49,7 +49,7 @@ class JenkinsHook(BaseHook):
     def get_ui_field_behaviour(cls) -> dict[str, Any]:
         """Return custom UI field behaviour for Jenkins connection."""
         return {
-            "hidden_fields": ["schema", "extra"],
+            "hidden_fields": ["extra"],
             "relabeling": {},
             "placeholders": {
                 "login": "Login for the Jenkins service you would like to connect to",
@@ -67,7 +67,9 @@ class JenkinsHook(BaseHook):
         # connection.extra contains info about using https (true) or http (false)
         if connection.extra_dejson.get("use_https"):
             connection_prefix = "https"
-        url = f"{connection_prefix}://{connection.host}:{connection.port}/{connection.schema}"
+        url = f"{connection_prefix}://{connection.host}:{connection.port}"
+        if connection.schema:
+            url = f"{url}/{connection.schema}"
         self.log.info("Trying to connect to %s", url)
         self.jenkins_server = jenkins.Jenkins(url, connection.login, connection.password)
 

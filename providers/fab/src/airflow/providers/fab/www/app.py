@@ -18,10 +18,11 @@
 from __future__ import annotations
 
 from datetime import timedelta
+from functools import cache
 from os.path import isabs
 
 from flask import Flask
-from flask_appbuilder import SQLA
+from flask_sqlalchemy import SQLAlchemy
 from flask_wtf.csrf import CSRFProtect
 from sqlalchemy.engine.url import make_url
 
@@ -30,7 +31,7 @@ from airflow.api_fastapi.app import get_auth_manager
 from airflow.configuration import conf
 from airflow.exceptions import AirflowConfigException
 from airflow.logging_config import configure_logging
-from airflow.providers.fab.www.extensions.init_appbuilder import init_appbuilder
+from airflow.providers.fab.www.extensions.init_appbuilder import AirflowAppBuilder
 from airflow.providers.fab.www.extensions.init_jinja_globals import init_jinja_globals
 from airflow.providers.fab.www.extensions.init_manifest_files import configure_manifest_files
 from airflow.providers.fab.www.extensions.init_security import init_api_auth
@@ -43,8 +44,6 @@ from airflow.providers.fab.www.extensions.init_views import (
 )
 from airflow.providers.fab.www.extensions.init_wsgi_middlewares import init_wsgi_middleware
 from airflow.providers.fab.www.utils import get_session_lifetime_config
-
-app: Flask | None = None
 
 # Initializes at the module level, so plugins can access it.
 # See: /docs/plugins.rst
@@ -60,6 +59,12 @@ def create_app(enable_plugins: bool):
     flask_app.config["SQLALCHEMY_DATABASE_URI"] = conf.get("database", "SQL_ALCHEMY_CONN")
     flask_app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
     flask_app.config["PERMANENT_SESSION_LIFETIME"] = timedelta(minutes=get_session_lifetime_config())
+
+    flask_app.config["SESSION_COOKIE_HTTPONLY"] = True
+    if conf.has_option("fab", "COOKIE_SECURE"):
+        flask_app.config["SESSION_COOKIE_SECURE"] = conf.getboolean("fab", "COOKIE_SECURE")
+    if conf.has_option("fab", "COOKIE_SAMESITE"):
+        flask_app.config["SESSION_COOKIE_SAMESITE"] = conf.get("fab", "COOKIE_SAMESITE")
 
     webserver_config = conf.get_mandatory_value("fab", "config_file")
     # Enable customizations in webserver_config.py to be applied via Flask.current_app.
@@ -78,16 +83,22 @@ def create_app(enable_plugins: bool):
 
     csrf.init_app(flask_app)
 
-    db = SQLA()
+    db = SQLAlchemy(flask_app)
+    if settings.Session is None:
+        raise RuntimeError("Session not configured. Call configure_orm() first.")
     db.session = settings.Session
-    db.init_app(flask_app)
 
     configure_logging()
     configure_manifest_files(flask_app)
     init_api_auth(flask_app)
 
     with flask_app.app_context():
-        init_appbuilder(flask_app, enable_plugins=enable_plugins)
+        AirflowAppBuilder(
+            app=flask_app,
+            session=db.session(),
+            base_template="airflow/main.html",
+            enable_plugins=enable_plugins,
+        )
         init_error_handlers(flask_app)
         # In two scenarios a Flask application can be created:
         # - To support Airflow 2 plugins relying on Flask (``enable_plugins`` is True)
@@ -101,21 +112,18 @@ def create_app(enable_plugins: bool):
         elif isinstance(get_auth_manager(), FabAuthManager):
             init_api_auth_provider(flask_app)
             init_api_error_handlers(flask_app)
+            init_airflow_session_interface(flask_app, db)
         init_jinja_globals(flask_app, enable_plugins=enable_plugins)
-        init_airflow_session_interface(flask_app)
         init_wsgi_middleware(flask_app)
     return flask_app
 
 
+@cache
 def cached_app():
     """Return cached instance of Airflow WWW app."""
-    global app
-    if not app:
-        app = create_app()
-    return app
+    return create_app()
 
 
 def purge_cached_app():
     """Remove the cached version of the app in global state."""
-    global app
-    app = None
+    cached_app.cache_clear()

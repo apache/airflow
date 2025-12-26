@@ -16,41 +16,46 @@
 # under the License.
 from __future__ import annotations
 
-from unittest.mock import Mock, patch
-
-from keycloak import KeycloakAuthenticationError
+from unittest.mock import patch
 
 from airflow.api_fastapi.app import AUTH_MANAGER_FASTAPI_APP_PREFIX
 
+from tests_common.test_utils.config import conf_vars
+
 
 class TestTokenRouter:
-    @patch("airflow.providers.keycloak.auth_manager.routes.login.KeycloakAuthManager.get_keycloak_client")
-    def test_create_token(self, mock_get_keycloak_client, client):
-        mock_keycloak_client = Mock()
-        mock_keycloak_client.token.return_value = {
-            "access_token": "access_token",
-            "refresh_token": "refresh_token",
+    token = "token"
+    token_body_dict = {"username": "username", "password": "password"}
+
+    @conf_vars(
+        {
+            ("api_auth", "jwt_expiration_time"): "10",
         }
-        mock_keycloak_client.userinfo.return_value = {"sub": "sub", "preferred_username": "username"}
-        mock_get_keycloak_client.return_value = mock_keycloak_client
+    )
+    @patch("airflow.providers.keycloak.auth_manager.routes.token.create_token_for")
+    def test_create_token(self, mock_create_token_for, client):
+        mock_create_token_for.return_value = self.token
         response = client.post(
             AUTH_MANAGER_FASTAPI_APP_PREFIX + "/token",
-            json={"username": "username", "password": "password"},
+            json=self.token_body_dict,
         )
 
         assert response.status_code == 201
-        mock_keycloak_client.token.assert_called_once_with("username", "password")
-        mock_keycloak_client.userinfo.assert_called_once_with("access_token")
+        assert response.json() == {"access_token": self.token}
 
-    @patch("airflow.providers.keycloak.auth_manager.routes.login.KeycloakAuthManager.get_keycloak_client")
-    def test_create_token_with_invalid_creds(self, mock_get_keycloak_client, client):
-        mock_keycloak_client = Mock()
-        mock_keycloak_client.token.side_effect = KeycloakAuthenticationError()
-        mock_get_keycloak_client.return_value = mock_keycloak_client
+    @conf_vars(
+        {
+            ("api_auth", "jwt_cli_expiration_time"): "10",
+            ("api_auth", "jwt_expiration_time"): "10",
+        }
+    )
+    @patch("airflow.providers.keycloak.auth_manager.routes.token.create_token_for")
+    def test_create_token_cli(self, mock_create_token_for, client):
+        mock_create_token_for.return_value = self.token
         response = client.post(
-            AUTH_MANAGER_FASTAPI_APP_PREFIX + "/token",
-            json={"username": "username", "password": "password"},
+            AUTH_MANAGER_FASTAPI_APP_PREFIX + "/token/cli",
+            json=self.token_body_dict,
         )
 
-        assert response.status_code == 401
-        mock_keycloak_client.token.assert_called_once_with("username", "password")
+        assert response.status_code == 201
+        assert response.json() == {"access_token": self.token}

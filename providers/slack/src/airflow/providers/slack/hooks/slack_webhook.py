@@ -24,15 +24,25 @@ from functools import cached_property, wraps
 from typing import TYPE_CHECKING, Any
 
 from slack_sdk import WebhookClient
+from slack_sdk.webhook.async_client import AsyncWebhookClient
 
-from airflow.exceptions import AirflowException, AirflowNotFoundException
+from airflow.providers.common.compat.connection import get_async_connection
+from airflow.providers.common.compat.sdk import AirflowException, AirflowNotFoundException, BaseHook
 from airflow.providers.slack.utils import ConnectionExtraConfig
-from airflow.providers.slack.version_compat import BaseHook
 
 if TYPE_CHECKING:
     from slack_sdk.http_retry import RetryHandler
 
 LEGACY_INTEGRATION_PARAMS = ("channel", "username", "icon_emoji", "icon_url")
+
+
+def _validate_response(resp):
+    """Validate webhook response and raise error if status code != 200."""
+    if resp.status_code != 200:
+        raise AirflowException(
+            f"Response body: {resp.body!r}, Status Code: {resp.status_code}. "
+            "See: https://api.slack.com/messaging/webhooks#handling_errors"
+        )
 
 
 def check_webhook_response(func: Callable) -> Callable:
@@ -41,11 +51,19 @@ def check_webhook_response(func: Callable) -> Callable:
     @wraps(func)
     def wrapper(*args, **kwargs) -> Callable:
         resp = func(*args, **kwargs)
-        if resp.status_code != 200:
-            raise AirflowException(
-                f"Response body: {resp.body!r}, Status Code: {resp.status_code}. "
-                "See: https://api.slack.com/messaging/webhooks#handling_errors"
-            )
+        _validate_response(resp)
+        return resp
+
+    return wrapper
+
+
+def async_check_webhook_response(func: Callable) -> Callable:
+    """Check WebhookResponse and raise an error if status code != 200 (async)."""
+
+    @wraps(func)
+    async def wrapper(*args, **kwargs) -> Callable:
+        resp = await func(*args, **kwargs)
+        _validate_response(resp)
         return resp
 
     return wrapper
@@ -134,13 +152,26 @@ class SlackWebhookHook(BaseHook):
         """Get the underlying slack_sdk.webhook.WebhookClient (cached)."""
         return WebhookClient(**self._get_conn_params())
 
+    async def get_async_client(self) -> AsyncWebhookClient:
+        """Get the underlying `slack_sdk.webhook.async_client.AsyncWebhookClient`."""
+        return AsyncWebhookClient(**await self._async_get_conn_params())
+
     def get_conn(self) -> WebhookClient:
-        """Get the underlying slack_sdk.webhook.WebhookClient (cached)."""
+        """Get the underlying `slack_sdk.webhook.WebhookClient` (cached)."""
         return self.client
 
     def _get_conn_params(self) -> dict[str, Any]:
         """Fetch connection params as a dict and merge it with hook parameters."""
         conn = self.get_connection(self.slack_webhook_conn_id)
+        return self._build_conn_params(conn)
+
+    async def _async_get_conn_params(self) -> dict[str, Any]:
+        """Fetch connection params as a dict and merge it with hook parameters (async)."""
+        conn = await get_async_connection(self.slack_webhook_conn_id)
+        return self._build_conn_params(conn)
+
+    def _build_conn_params(self, conn) -> dict[str, Any]:
+        """Build connection parameters from connection object."""
         if not conn.password or not conn.password.strip():
             raise AirflowNotFoundException(
                 f"Connection ID {self.slack_webhook_conn_id!r} does not contain password "
@@ -173,14 +204,8 @@ class SlackWebhookHook(BaseHook):
         conn_params.update(self.extra_client_args)
         return {k: v for k, v in conn_params.items() if v is not None}
 
-    @check_webhook_response
-    def send_dict(self, body: dict[str, Any] | str, *, headers: dict[str, str] | None = None):
-        """
-        Perform a Slack Incoming Webhook request with given JSON data block.
-
-        :param body: JSON data structure, expected dict or JSON-string.
-        :param headers: Request headers for this request.
-        """
+    def _process_body(self, body: dict[str, Any] | str) -> dict[str, Any]:
+        """Validate and process the request body."""
         if isinstance(body, str):
             try:
                 body = json.loads(body)
@@ -203,8 +228,30 @@ class SlackWebhookHook(BaseHook):
                 UserWarning,
                 stacklevel=2,
             )
+        return body
 
+    @check_webhook_response
+    def send_dict(self, body: dict[str, Any] | str, *, headers: dict[str, str] | None = None):
+        """
+        Perform a Slack Incoming Webhook request with given JSON data block.
+
+        :param body: JSON data structure, expected dict or JSON-string.
+        :param headers: Request headers for this request.
+        """
+        body = self._process_body(body)
         return self.client.send_dict(body, headers=headers)
+
+    @async_check_webhook_response
+    async def async_send_dict(self, body: dict[str, Any] | str, *, headers: dict[str, str] | None = None):
+        """
+        Perform a Slack Incoming Webhook request with given JSON data block (async).
+
+        :param body: JSON data structure, expected dict or JSON-string.
+        :param headers: Request headers for this request.
+        """
+        body = self._process_body(body)
+        async_client = await self.get_async_client()
+        return await async_client.send_dict(body, headers=headers)
 
     def send(
         self,
@@ -235,19 +282,68 @@ class SlackWebhookHook(BaseHook):
         :param attachments: (legacy) A collection of attachments.
         """
         body = {
-            "text": text,
-            "attachments": attachments,
-            "blocks": blocks,
-            "response_type": response_type,
-            "replace_original": replace_original,
-            "delete_original": delete_original,
-            "unfurl_links": unfurl_links,
-            "unfurl_media": unfurl_media,
-            # Legacy Integration Parameters
-            **kwargs,
+            k: v
+            for k, v in {
+                "text": text,
+                "attachments": attachments,
+                "blocks": blocks,
+                "response_type": response_type,
+                "replace_original": replace_original,
+                "delete_original": delete_original,
+                "unfurl_links": unfurl_links,
+                "unfurl_media": unfurl_media,
+                # Legacy Integration Parameters
+                **kwargs,
+            }.items()
+            if v is not None
         }
-        body = {k: v for k, v in body.items() if v is not None}
         return self.send_dict(body=body, headers=headers)
+
+    async def async_send(
+        self,
+        *,
+        text: str | None = None,
+        blocks: list[dict[str, Any]] | None = None,
+        response_type: str | None = None,
+        replace_original: bool | None = None,
+        delete_original: bool | None = None,
+        unfurl_links: bool | None = None,
+        unfurl_media: bool | None = None,
+        headers: dict[str, str] | None = None,
+        attachments: list[dict[str, Any]] | None = None,
+        **kwargs,
+    ):
+        """
+        Perform a Slack Incoming Webhook request with given arguments (async).
+
+        :param text: The text message
+            (even when having blocks, setting this as well is recommended as it works as fallback).
+        :param blocks: A collection of Block Kit UI components.
+        :param response_type: The type of message (either 'in_channel' or 'ephemeral').
+        :param replace_original: True if you use this option for response_url requests.
+        :param delete_original: True if you use this option for response_url requests.
+        :param unfurl_links: Option to indicate whether text url should unfurl.
+        :param unfurl_media: Option to indicate whether media url should unfurl.
+        :param headers: Request headers for this request.
+        :param attachments: (legacy) A collection of attachments.
+        """
+        body = {
+            k: v
+            for k, v in {
+                "text": text,
+                "attachments": attachments,
+                "blocks": blocks,
+                "response_type": response_type,
+                "replace_original": replace_original,
+                "delete_original": delete_original,
+                "unfurl_links": unfurl_links,
+                "unfurl_media": unfurl_media,
+                # Legacy Integration Parameters
+                **kwargs,
+            }.items()
+            if v is not None
+        }
+        return await self.async_send_dict(body=body, headers=headers)
 
     def send_text(
         self,

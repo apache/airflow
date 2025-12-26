@@ -7,6 +7,65 @@ info:
   version: 0.1.0
 paths:
   /auth/token:
+    post:
+      tags:
+      - SimpleAuthManagerLogin
+      summary: Create Token
+      description: Authenticate the user.
+      operationId: create_token
+      parameters:
+      - name: Content-Type
+        in: header
+        required: false
+        schema:
+          type: string
+          description: Content-Type of the request body
+          enum:
+          - application/json
+          - application/x-www-form-urlencoded
+          default: application/json
+          title: Content-Type
+        description: Content-Type of the request body
+      responses:
+        '201':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoginResponse'
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Bad Request
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Unauthorized
+        '415':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Unsupported Media Type
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginBody'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/LoginBody'
     get:
       tags:
       - SimpleAuthManagerLogin
@@ -22,48 +81,11 @@ paths:
               schema:
                 $ref: '#/components/schemas/LoginResponse'
         '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
           description: Forbidden
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPExceptionResponse'
-    post:
-      tags:
-      - SimpleAuthManagerLogin
-      summary: Create Token
-      description: Authenticate the user.
-      operationId: create_token
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/LoginBody'
-        required: true
-      responses:
-        '201':
-          description: Successful Response
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/LoginResponse'
-        '400':
-          description: Bad Request
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPExceptionResponse'
-        '401':
-          description: Unauthorized
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPExceptionResponse'
-        '422':
-          description: Validation Error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPValidationError'
   /auth/token/login:
     get:
       tags:

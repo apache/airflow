@@ -24,7 +24,8 @@ from typing import TYPE_CHECKING
 
 from airflow._shared.timezones import timezone
 from airflow.exceptions import DagNotFound, DagRunAlreadyExists
-from airflow.models import DagBag, DagModel, DagRun
+from airflow.models import DagModel, DagRun
+from airflow.models.dagbag import DBDagBag
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.state import DagRunState
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
@@ -34,11 +35,13 @@ if TYPE_CHECKING:
 
     from sqlalchemy.orm.session import Session
 
+    from airflow.timetables.base import DataInterval
+
 
 @provide_session
 def _trigger_dag(
     dag_id: str,
-    dag_bag: DagBag,
+    dag_bag: DBDagBag,
     *,
     triggered_by: DagRunTriggeredByType,
     triggering_user_name: str | None = None,
@@ -63,9 +66,7 @@ def _trigger_dag(
     :param replace_microseconds: whether microseconds should be zeroed
     :return: list of triggered dags
     """
-    dag = dag_bag.get_dag(dag_id, session=session)  # prefetch dag if it is stored serialized
-
-    if dag is None or dag_id not in dag_bag.dags:
+    if (dag := dag_bag.get_latest_version_of_dag(dag_id, session=session)) is None:
         raise DagNotFound(f"Dag id {dag_id} not found")
 
     run_after = run_after or timezone.coerce_datetime(timezone.utcnow())
@@ -85,14 +86,16 @@ def _trigger_dag(
                     f"[{min_dag_start_date.isoformat()}] from DAG's default_args"
                 )
         coerced_logical_date = timezone.coerce_datetime(logical_date)
-        data_interval = dag.timetable.infer_manual_data_interval(run_after=run_after)
+        data_interval: DataInterval | None = dag.timetable.infer_manual_data_interval(
+            run_after=timezone.coerce_datetime(run_after)
+        )
     else:
         data_interval = None
 
-    run_id = run_id or DagRun.generate_run_id(
+    run_id = run_id or dag.timetable.generate_run_id(
         run_type=DagRunType.MANUAL,
-        logical_date=coerced_logical_date,
         run_after=timezone.coerce_datetime(run_after),
+        data_interval=data_interval,
     )
 
     # This intentionally does not use 'session' in the current scope because it
@@ -152,7 +155,7 @@ def trigger_dag(
     if dag_model is None:
         raise DagNotFound(f"Dag id {dag_id} not found in DagModel")
 
-    dagbag = DagBag(dag_folder=dag_model.fileloc, read_dags_from_db=True)
+    dagbag = DBDagBag()
     dr = _trigger_dag(
         dag_id=dag_id,
         dag_bag=dagbag,

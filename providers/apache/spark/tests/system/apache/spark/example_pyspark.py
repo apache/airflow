@@ -69,7 +69,7 @@ def example_pyspark():
     print_df(df)
 
 
-# work around pre-commit
+# work around mypy
 dag = example_pyspark()  # type: ignore
 
 

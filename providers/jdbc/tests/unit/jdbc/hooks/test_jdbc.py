@@ -29,9 +29,11 @@ from unittest.mock import MagicMock, Mock, patch
 import jaydebeapi
 import pytest
 
-from airflow.exceptions import AirflowException
 from airflow.models import Connection
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.jdbc.hooks.jdbc import JdbcHook, suppress_and_warn
+
+from tests_common.test_utils.version_compat import SQLALCHEMY_V_1_4
 
 jdbc_conn_mock = Mock(name="jdbc_conn")
 logger = logging.getLogger(__name__)
@@ -224,7 +226,11 @@ class TestJdbcHook:
         hook_params = {"driver_path": "ParamDriverPath", "driver_class": "ParamDriverClass"}
         hook = get_hook(conn_params=conn_params, hook_params=hook_params)
 
-        assert str(hook.sqlalchemy_url) == "mssql://login:password@host:1234/schema"
+        expected = "mssql://login:password@host:1234/schema"
+        if SQLALCHEMY_V_1_4:
+            assert str(hook.sqlalchemy_url) == expected
+        else:
+            assert hook.sqlalchemy_url.render_as_string(hide_password=False) == expected
 
     def test_sqlalchemy_url_with_sqlalchemy_scheme_and_query(self):
         conn_params = dict(
@@ -233,7 +239,11 @@ class TestJdbcHook:
         hook_params = {"driver_path": "ParamDriverPath", "driver_class": "ParamDriverClass"}
         hook = get_hook(conn_params=conn_params, hook_params=hook_params)
 
-        assert str(hook.sqlalchemy_url) == "mssql://login:password@host:1234/schema?servicename=test"
+        expected = "mssql://login:password@host:1234/schema?servicename=test"
+        if SQLALCHEMY_V_1_4:
+            assert str(hook.sqlalchemy_url) == expected
+        else:
+            assert hook.sqlalchemy_url.render_as_string(hide_password=False) == expected
 
     def test_sqlalchemy_url_with_sqlalchemy_scheme_and_wrong_query_value(self):
         conn_params = dict(extra=json.dumps(dict(sqlalchemy_scheme="mssql", sqlalchemy_query="wrong type")))
@@ -267,6 +277,25 @@ class TestJdbcHook:
             host="localhost",
             schema="sap",
             port=30215,
+        )
+
+        assert jdbc_hook.dialect_name == "hana"
+
+    def test_dialect_name_when_host_is_jdbc_url(self):
+        jdbc_hook = get_hook(
+            conn_params=dict(
+                extra={
+                    "driver_class": "com.sap.db.jdbc.Driver",
+                    "driver_path": "/usr/local/lib/java/ngdbc.jar",
+                    "placeholder": "?",
+                    "sqlalchemy_scheme": "hana",
+                    "replace_statement_format": "UPSERT {} {} VALUES ({}) WITH PRIMARY KEY",
+                }
+            ),
+            conn_type="jdbc",
+            login=None,
+            password=None,
+            host="jdbc:sap://localhost:30015",
         )
 
         assert jdbc_hook.dialect_name == "hana"
@@ -308,7 +337,7 @@ class TestJdbcHook:
             assert mock_connect.call_count == 10
 
     @pytest.mark.parametrize(
-        "params,expected_uri",
+        ("params", "expected_uri"),
         [
             # JDBC URL fallback cases
             pytest.param(
@@ -353,6 +382,17 @@ class TestJdbcHook:
                 },
                 "postgresql+psycopg2://login:password@host:1234/schema",
                 id="sqlalchemy-scheme-with-driver",
+            ),
+            pytest.param(
+                {
+                    "conn_params": {
+                        "extra": json.dumps(
+                            {"sqlalchemy_scheme": "postgresql", "sqlalchemy_driver": "psycopg"}
+                        )
+                    }
+                },
+                "postgresql+psycopg://login:password@host:1234/schema",
+                id="sqlalchemy-scheme-with-driver-ppg3",
             ),
             pytest.param(
                 {

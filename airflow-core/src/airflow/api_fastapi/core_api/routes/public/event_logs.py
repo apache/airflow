@@ -21,6 +21,7 @@ from typing import Annotated
 
 from fastapi import Depends, HTTPException, status
 from sqlalchemy import select
+from sqlalchemy.orm import joinedload
 
 from airflow.api_fastapi.common.db.common import (
     SessionDep,
@@ -32,7 +33,9 @@ from airflow.api_fastapi.common.parameters import (
     QueryLimit,
     QueryOffset,
     SortParam,
+    _SearchParam,
     filter_param_factory,
+    search_param_factory,
 )
 from airflow.api_fastapi.common.router import AirflowRouter
 from airflow.api_fastapi.core_api.datamodels.event_logs import (
@@ -55,7 +58,9 @@ def get_event_log(
     event_log_id: int,
     session: SessionDep,
 ) -> EventLogResponse:
-    event_log = session.scalar(select(Log).where(Log.id == event_log_id))
+    event_log = session.scalar(
+        select(Log).where(Log.id == event_log_id).options(joinedload(Log.task_instance))
+    )
     if event_log is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, f"The Event Log with id: `{event_log_id}` not found")
     return event_log
@@ -89,6 +94,7 @@ def get_event_logs(
             ).dynamic_depends()
         ),
     ],
+    # Exact match filters (for backward compatibility)
     dag_id: Annotated[FilterParam[str | None], Depends(filter_param_factory(Log.dag_id, str | None))],
     task_id: Annotated[FilterParam[str | None], Depends(filter_param_factory(Log.task_id, str | None))],
     run_id: Annotated[FilterParam[str | None], Depends(filter_param_factory(Log.run_id, str | None))],
@@ -114,13 +120,20 @@ def get_event_logs(
         FilterParam[datetime | None],
         Depends(filter_param_factory(Log.dttm, datetime | None, FilterOptionEnum.GREATER_THAN, "after")),
     ],
+    # Pattern search filters (new - for partial matching)
+    dag_id_pattern: Annotated[_SearchParam, Depends(search_param_factory(Log.dag_id, "dag_id_pattern"))],
+    task_id_pattern: Annotated[_SearchParam, Depends(search_param_factory(Log.task_id, "task_id_pattern"))],
+    run_id_pattern: Annotated[_SearchParam, Depends(search_param_factory(Log.run_id, "run_id_pattern"))],
+    owner_pattern: Annotated[_SearchParam, Depends(search_param_factory(Log.owner, "owner_pattern"))],
+    event_pattern: Annotated[_SearchParam, Depends(search_param_factory(Log.event, "event_pattern"))],
 ) -> EventLogCollectionResponse:
     """Get all Event Logs."""
-    query = select(Log)
+    query = select(Log).options(joinedload(Log.task_instance), joinedload(Log.dag_model))
     event_logs_select, total_entries = paginated_select(
         statement=query,
         order_by=order_by,
         filters=[
+            # Exact match filters
             dag_id,
             task_id,
             run_id,
@@ -132,6 +145,12 @@ def get_event_logs(
             included_events,
             before,
             after,
+            # Pattern search filters
+            dag_id_pattern,
+            task_id_pattern,
+            run_id_pattern,
+            owner_pattern,
+            event_pattern,
         ],
         offset=offset,
         limit=limit,

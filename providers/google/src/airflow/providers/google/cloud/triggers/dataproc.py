@@ -27,20 +27,22 @@ from typing import TYPE_CHECKING, Any
 
 from asgiref.sync import sync_to_async
 from google.api_core.exceptions import NotFound
-from google.cloud.dataproc_v1 import Batch, Cluster, ClusterStatus, JobStatus
+from google.cloud.dataproc_v1 import Batch, Cluster, ClusterStatus, Job, JobStatus
 
-from airflow.exceptions import AirflowException
-from airflow.models.taskinstance import TaskInstance
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.google.cloud.hooks.dataproc import DataprocAsyncHook, DataprocHook
 from airflow.providers.google.cloud.utils.dataproc import DataprocOperationType
 from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID
 from airflow.providers.google.version_compat import AIRFLOW_V_3_0_PLUS
 from airflow.triggers.base import BaseTrigger, TriggerEvent
-from airflow.utils.session import provide_session
 from airflow.utils.state import TaskInstanceState
 
 if TYPE_CHECKING:
     from sqlalchemy.orm.session import Session
+
+if not AIRFLOW_V_3_0_PLUS:
+    from airflow.models.taskinstance import TaskInstance
+    from airflow.utils.session import provide_session
 
 
 class DataprocBaseTrigger(BaseTrigger):
@@ -119,29 +121,31 @@ class DataprocSubmitTrigger(DataprocBaseTrigger):
             },
         )
 
-    @provide_session
-    def get_task_instance(self, session: Session) -> TaskInstance:
-        """
-        Get the task instance for the current task.
+    if not AIRFLOW_V_3_0_PLUS:
 
-        :param session: Sqlalchemy session
-        """
-        query = session.query(TaskInstance).filter(
-            TaskInstance.dag_id == self.task_instance.dag_id,
-            TaskInstance.task_id == self.task_instance.task_id,
-            TaskInstance.run_id == self.task_instance.run_id,
-            TaskInstance.map_index == self.task_instance.map_index,
-        )
-        task_instance = query.one_or_none()
-        if task_instance is None:
-            raise AirflowException(
-                "TaskInstance with dag_id: %s,task_id: %s, run_id: %s and map_index: %s is not found",
-                self.task_instance.dag_id,
-                self.task_instance.task_id,
-                self.task_instance.run_id,
-                self.task_instance.map_index,
+        @provide_session
+        def get_task_instance(self, session: Session) -> TaskInstance:
+            """
+            Get the task instance for the current task.
+
+            :param session: Sqlalchemy session
+            """
+            query = session.query(TaskInstance).filter(
+                TaskInstance.dag_id == self.task_instance.dag_id,
+                TaskInstance.task_id == self.task_instance.task_id,
+                TaskInstance.run_id == self.task_instance.run_id,
+                TaskInstance.map_index == self.task_instance.map_index,
             )
-        return task_instance
+            task_instance = query.one_or_none()
+            if task_instance is None:
+                raise AirflowException(
+                    "TaskInstance with dag_id: %s,task_id: %s, run_id: %s and map_index: %s is not found",
+                    self.task_instance.dag_id,
+                    self.task_instance.task_id,
+                    self.task_instance.run_id,
+                    self.task_instance.map_index,
+                )
+            return task_instance
 
     async def get_task_state(self):
         from airflow.sdk.execution_time.task_runner import RuntimeTaskInstance
@@ -190,7 +194,9 @@ class DataprocSubmitTrigger(DataprocBaseTrigger):
                 if state in (JobStatus.State.DONE, JobStatus.State.CANCELLED, JobStatus.State.ERROR):
                     break
                 await asyncio.sleep(self.polling_interval_seconds)
-            yield TriggerEvent({"job_id": self.job_id, "job_state": state, "job": job})
+            yield TriggerEvent(
+                {"job_id": self.job_id, "job_state": JobStatus.State(state).name, "job": Job.to_dict(job)}
+            )
         except asyncio.CancelledError:
             self.log.info("Task got cancelled.")
             try:
@@ -208,7 +214,12 @@ class DataprocSubmitTrigger(DataprocBaseTrigger):
                         job_id=self.job_id, project_id=self.project_id, region=self.region
                     )
                     self.log.info("Job: %s is cancelled", self.job_id)
-                    yield TriggerEvent({"job_id": self.job_id, "job_state": ClusterStatus.State.DELETING})
+                    yield TriggerEvent(
+                        {
+                            "job_id": self.job_id,
+                            "job_state": ClusterStatus.State.DELETING.name,
+                        }
+                    )
             except Exception as e:
                 self.log.error("Failed to cancel the job: %s with error : %s", self.job_id, str(e))
                 raise e
@@ -251,24 +262,26 @@ class DataprocClusterTrigger(DataprocBaseTrigger):
             },
         )
 
-    @provide_session
-    def get_task_instance(self, session: Session) -> TaskInstance:
-        query = session.query(TaskInstance).filter(
-            TaskInstance.dag_id == self.task_instance.dag_id,
-            TaskInstance.task_id == self.task_instance.task_id,
-            TaskInstance.run_id == self.task_instance.run_id,
-            TaskInstance.map_index == self.task_instance.map_index,
-        )
-        task_instance = query.one_or_none()
-        if task_instance is None:
-            raise AirflowException(
-                "TaskInstance with dag_id: %s,task_id: %s, run_id: %s and map_index: %s is not found.",
-                self.task_instance.dag_id,
-                self.task_instance.task_id,
-                self.task_instance.run_id,
-                self.task_instance.map_index,
+    if not AIRFLOW_V_3_0_PLUS:
+
+        @provide_session
+        def get_task_instance(self, session: Session) -> TaskInstance:
+            query = session.query(TaskInstance).filter(
+                TaskInstance.dag_id == self.task_instance.dag_id,
+                TaskInstance.task_id == self.task_instance.task_id,
+                TaskInstance.run_id == self.task_instance.run_id,
+                TaskInstance.map_index == self.task_instance.map_index,
             )
-        return task_instance
+            task_instance = query.one_or_none()
+            if task_instance is None:
+                raise AirflowException(
+                    "TaskInstance with dag_id: %s,task_id: %s, run_id: %s and map_index: %s is not found.",
+                    self.task_instance.dag_id,
+                    self.task_instance.task_id,
+                    self.task_instance.run_id,
+                    self.task_instance.map_index,
+                )
+            return task_instance
 
     async def get_task_state(self):
         from airflow.sdk.execution_time.task_runner import RuntimeTaskInstance
@@ -316,7 +329,7 @@ class DataprocClusterTrigger(DataprocBaseTrigger):
                     yield TriggerEvent(
                         {
                             "cluster_name": self.cluster_name,
-                            "cluster_state": ClusterStatus.State(ClusterStatus.State.DELETING).name,
+                            "cluster_state": ClusterStatus.State.DELETING.name,  # type: ignore
                             "cluster": Cluster.to_dict(cluster),
                         }
                     )
@@ -422,12 +435,16 @@ class DataprocBatchTrigger(DataprocBaseTrigger):
 
             if state in (Batch.State.FAILED, Batch.State.SUCCEEDED, Batch.State.CANCELLED):
                 break
-            self.log.info("Current state is %s", state)
+            self.log.info("Current state is %s", Batch.State(state).name)
             self.log.info("Sleeping for %s seconds.", self.polling_interval_seconds)
             await asyncio.sleep(self.polling_interval_seconds)
 
         yield TriggerEvent(
-            {"batch_id": self.batch_id, "batch_state": state, "batch_state_message": batch.state_message}
+            {
+                "batch_id": self.batch_id,
+                "batch_state": Batch.State(state).name,
+                "batch_state_message": batch.state_message,
+            }
         )
 
 

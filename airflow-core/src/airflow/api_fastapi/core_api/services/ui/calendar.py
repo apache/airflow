@@ -17,8 +17,8 @@
 from __future__ import annotations
 
 import collections
-import datetime
-from collections.abc import Iterator
+from collections.abc import Iterator, Sequence
+from datetime import datetime
 from typing import Literal, cast
 
 import sqlalchemy as sa
@@ -26,7 +26,7 @@ import structlog
 from croniter.croniter import croniter
 from pendulum import DateTime
 from sqlalchemy.engine import Row
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import InstrumentedAttribute, Session
 
 from airflow._shared.timezones import timezone
 from airflow.api_fastapi.common.parameters import RangeFilter
@@ -34,11 +34,12 @@ from airflow.api_fastapi.core_api.datamodels.ui.calendar import (
     CalendarTimeRangeCollectionResponse,
     CalendarTimeRangeResponse,
 )
-from airflow.models.dag import DAG
 from airflow.models.dagrun import DagRun
+from airflow.serialization.definitions.dag import SerializedDAG
 from airflow.timetables._cron import CronMixin
 from airflow.timetables.base import DataInterval, TimeRestriction
 from airflow.timetables.simple import ContinuousTimetable
+from airflow.utils.sqlalchemy import get_dialect_name
 
 log = structlog.get_logger(logger_name=__name__)
 
@@ -52,7 +53,7 @@ class CalendarService:
         self,
         dag_id: str,
         session: Session,
-        dag: DAG,
+        dag: SerializedDAG,
         logical_date: RangeFilter,
         granularity: Literal["hourly", "daily"] = "daily",
     ) -> CalendarTimeRangeCollectionResponse:
@@ -90,9 +91,9 @@ class CalendarService:
         session: Session,
         logical_date: RangeFilter,
         granularity: Literal["hourly", "daily"],
-    ) -> tuple[list[CalendarTimeRangeResponse], list[Row]]:
+    ) -> tuple[list[CalendarTimeRangeResponse], Sequence[Row]]:
         """Get historical DAG runs from the database."""
-        dialect = session.bind.dialect.name
+        dialect = get_dialect_name(session)
 
         time_expression = self._get_time_truncation_expression(DagRun.logical_date, granularity, dialect)
 
@@ -117,7 +118,7 @@ class CalendarService:
                 # ds.datetime in sqlite and mysql is a string, in postgresql it is a datetime
                 date=ds.datetime,
                 state=ds.state,
-                count=ds.count,
+                count=int(ds._mapping["count"]),
             )
             for ds in dag_states
         ]
@@ -126,8 +127,8 @@ class CalendarService:
 
     def _get_planned_dag_runs(
         self,
-        dag: DAG,
-        raw_dag_states: list[Row],
+        dag: SerializedDAG,
+        raw_dag_states: Sequence[Row],
         logical_date: RangeFilter,
         granularity: Literal["hourly", "daily"],
     ) -> list[CalendarTimeRangeResponse]:
@@ -152,7 +153,7 @@ class CalendarService:
             dag, last_data_interval, year, restriction, logical_date, granularity
         )
 
-    def _should_calculate_planned_runs(self, dag: DAG, raw_dag_states: list[Row]) -> bool:
+    def _should_calculate_planned_runs(self, dag: SerializedDAG, raw_dag_states: Sequence[Row]) -> bool:
         """Check if we should calculate planned runs."""
         return (
             bool(raw_dag_states)
@@ -161,7 +162,7 @@ class CalendarService:
             and not isinstance(dag.timetable, ContinuousTimetable)
         )
 
-    def _get_last_data_interval(self, raw_dag_states: list[Row]) -> DataInterval | None:
+    def _get_last_data_interval(self, raw_dag_states: Sequence[Row]) -> DataInterval | None:
         """Extract the last data interval from raw database results."""
         if not raw_dag_states:
             return None
@@ -177,19 +178,19 @@ class CalendarService:
 
     def _calculate_cron_planned_runs(
         self,
-        dag: DAG,
+        dag: SerializedDAG,
         last_data_interval: DataInterval,
         year: int,
         logical_date: RangeFilter,
         granularity: Literal["hourly", "daily"],
     ) -> list[CalendarTimeRangeResponse]:
         """Calculate planned runs for cron-based timetables."""
-        dates: dict[datetime.datetime, int] = collections.Counter()
+        dates: dict[datetime, int] = collections.Counter()
 
-        dates_iter: Iterator[datetime.datetime | None] = croniter(
+        dates_iter: Iterator[datetime | None] = croniter(
             cast("CronMixin", dag.timetable)._expression,
             start_time=last_data_interval.end,
-            ret_type=datetime.datetime,
+            ret_type=datetime,
         )
 
         for dt in dates_iter:
@@ -208,7 +209,7 @@ class CalendarService:
 
     def _calculate_timetable_planned_runs(
         self,
-        dag: DAG,
+        dag: SerializedDAG,
         last_data_interval: DataInterval,
         year: int,
         restriction: TimeRestriction,
@@ -216,7 +217,7 @@ class CalendarService:
         granularity: Literal["hourly", "daily"],
     ) -> list[CalendarTimeRangeResponse]:
         """Calculate planned runs for generic timetables."""
-        dates: dict[datetime.datetime, int] = collections.Counter()
+        dates: dict[datetime, int] = collections.Counter()
         prev_logical_date = DateTime.min
         total_planned = 0
 
@@ -251,10 +252,10 @@ class CalendarService:
 
     def _get_time_truncation_expression(
         self,
-        column: sa.Column,
+        column: InstrumentedAttribute[datetime | None],
         granularity: Literal["hourly", "daily"],
-        dialect: str,
-    ) -> sa.Column:
+        dialect: str | None,
+    ) -> sa.sql.elements.ColumnElement:
         """
         Get database-specific time truncation expression for SQLAlchemy.
 
@@ -295,9 +296,9 @@ class CalendarService:
 
     def _truncate_datetime_for_granularity(
         self,
-        dt: datetime.datetime,
+        dt: datetime,
         granularity: Literal["hourly", "daily"],
-    ) -> datetime.datetime:
+    ) -> datetime:
         """
         Truncate datetime based on granularity for planned tasks grouping.
 
@@ -312,14 +313,18 @@ class CalendarService:
             return dt.replace(minute=0, second=0, microsecond=0)
         return dt.replace(hour=0, minute=0, second=0, microsecond=0)
 
-    def _is_date_in_range(self, dt: datetime.datetime, logical_date: RangeFilter) -> bool:
+    def _is_date_in_range(self, dt: datetime, logical_date: RangeFilter) -> bool:
         """Check if a date is within the specified range filter."""
         if not logical_date.value:
             return True
 
-        if logical_date.value.lower_bound and dt < logical_date.value.lower_bound:
+        if logical_date.value.lower_bound_gte and dt < logical_date.value.lower_bound_gte:
             return False
-        if logical_date.value.upper_bound and dt > logical_date.value.upper_bound:
+        if logical_date.value.lower_bound_gt and dt <= logical_date.value.lower_bound_gt:
+            return False
+        if logical_date.value.upper_bound_lte and dt > logical_date.value.upper_bound_lte:
+            return False
+        if logical_date.value.upper_bound_lt and dt >= logical_date.value.upper_bound_lt:
             return False
 
         return True

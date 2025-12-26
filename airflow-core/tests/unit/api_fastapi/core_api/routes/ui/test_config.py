@@ -18,9 +18,30 @@ from __future__ import annotations
 
 import pytest
 
+from tests_common.test_utils.asserts import assert_queries_count
 from tests_common.test_utils.config import conf_vars
 
 pytestmark = pytest.mark.db_test
+
+THEME = {
+    "tokens": {
+        "colors": {
+            "brand": {
+                "50": {"value": "oklch(0.98 0.006 248.717)"},
+                "100": {"value": "oklch(0.962 0.012 249.46)"},
+                "200": {"value": "oklch(0.923 0.023 255.082)"},
+                "300": {"value": "oklch(0.865 0.039 252.42)"},
+                "400": {"value": "oklch(0.705 0.066 256.378)"},
+                "500": {"value": "oklch(0.575 0.08 257.759)"},
+                "600": {"value": "oklch(0.469 0.084 257.657)"},
+                "700": {"value": "oklch(0.399 0.084 257.85)"},
+                "800": {"value": "oklch(0.324 0.072 260.329)"},
+                "900": {"value": "oklch(0.259 0.062 265.566)"},
+                "950": {"value": "oklch(0.179 0.05 265.487)"},
+            }
+        }
+    }
+}
 
 mock_config_response = {
     "page_size": 100,
@@ -34,6 +55,7 @@ mock_config_response = {
     "dashboard_alert": [],
     "show_external_log_redirect": False,
     "external_log_name": None,
+    "theme": THEME,
 }
 
 
@@ -61,7 +83,8 @@ class TestGetConfig:
         """
         Test the /config endpoint to verify response matches mock data.
         """
-        response = test_client.get("/config")
+        with assert_queries_count(0):
+            response = test_client.get("/config")
 
         assert response.status_code == 200
         assert response.json() == mock_config_response

@@ -166,13 +166,14 @@ config_dict: dict[str, _TableConfig] = {x.orm_model.name: x for x in sorted(conf
 def _check_for_rows(*, query: Query, print_rows: bool = False) -> int:
     num_entities = query.count()
     print(f"Found {num_entities} rows meeting deletion criteria.")
-    if print_rows:
-        max_rows_to_print = 100
-        if num_entities > 0:
-            print(f"Printing first {max_rows_to_print} rows.")
-        logger.debug("print entities query: %s", query)
-        for entry in query.limit(max_rows_to_print):
-            print(entry.__dict__)
+    if not print_rows or num_entities == 0:
+        return num_entities
+
+    max_rows_to_print = 100
+    print(f"Printing first {max_rows_to_print} rows.")
+    logger.debug("print entities query: %s", query)
+    for entry in query.limit(max_rows_to_print):
+        print(entry.__dict__)
     return num_entities
 
 
@@ -251,7 +252,7 @@ def _do_delete(
                 )
             else:
                 delete = source_table.delete().where(
-                    and_(col == target_table.c[col.name] for col in source_table.primary_key.columns)
+                    and_(*[col == target_table.c[col.name] for col in source_table.primary_key.columns])
                 )
             logger.debug("delete statement:\n%s", delete.compile())
             session.execute(delete)
@@ -270,7 +271,7 @@ def _do_delete(
 
 def _subquery_keep_last(
     *, recency_column, keep_last_filters, group_by_columns, max_date_colname, session: Session
-) -> Query:
+):
     subquery = select(*group_by_columns, func.max(recency_column).label(max_date_colname))
 
     if keep_last_filters is not None:
@@ -316,7 +317,7 @@ def _build_query(
     conditions = [base_table_recency_col < clean_before_timestamp]
     if keep_last:
         max_date_col_name = "max_date_per_group"
-        group_by_columns = [column(x) for x in keep_last_group_by]
+        group_by_columns: list[Any] = [column(x) for x in keep_last_group_by]
         subquery = _subquery_keep_last(
             recency_column=recency_column,
             keep_last_filters=keep_last_filters,
@@ -327,7 +328,7 @@ def _build_query(
         query = query.select_from(base_table).outerjoin(
             subquery,
             and_(
-                *[base_table.c[x] == subquery.c[x] for x in keep_last_group_by],
+                *[base_table.c[x] == subquery.c[x] for x in keep_last_group_by],  # type: ignore[attr-defined]
                 base_table_recency_col == column(max_date_col_name),
             ),
         )
@@ -422,11 +423,7 @@ def _print_config(*, configs: dict[str, _TableConfig]) -> None:
 
 @contextmanager
 def _suppress_with_logging(table: str, session: Session):
-    """
-    Suppresses errors but logs them.
-
-    Also stores the exception instance so it can be referred to after exiting context.
-    """
+    """Suppresses errors but logs them."""
     try:
         yield
     except (OperationalError, ProgrammingError):
@@ -475,7 +472,7 @@ def _get_archived_table_names(table_names: list[str] | None, session: Session) -
     inspector = inspect(session.bind)
     db_table_names = [
         x
-        for x in inspector.get_table_names()
+        for x in (inspector.get_table_names() if inspector else [])
         if x.startswith(ARCHIVE_TABLE_PREFIX) or x in ARCHIVED_TABLES_FROM_DB_MIGRATIONS
     ]
     effective_table_names, _ = _effective_table_names(table_names=table_names)
@@ -519,8 +516,9 @@ def run_cleanup(
     :param dry_run: If true, print rows meeting deletion criteria
     :param verbose: If true, may provide more detailed output.
     :param confirm: Require user input to confirm before processing deletions.
-    :param skip_archive: Set to True if you don't want the purged rows preservied in an archive table.
+    :param skip_archive: Set to True if you don't want the purged rows preserved in an archive table.
     :param session: Session representing connection to the metadata database.
+    :param batch_size: Maximum number of rows to delete or archive in a single transaction.
     """
     clean_before_timestamp = timezone.coerce_datetime(clean_before_timestamp)
 

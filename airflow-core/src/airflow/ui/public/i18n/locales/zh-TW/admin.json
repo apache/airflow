@@ -36,10 +36,14 @@
       "extraFields": "額外欄位",
       "extraFieldsJson": "額外欄位 JSON",
       "helperText": "找不到連線類型？請確保您已安裝對應的 Airflow Providers 套件。",
+      "helperTextForRedactedFields": "已遮蔽的欄位 ('***') 若未修改，將保持不變。",
       "selectConnectionType": "選擇連線類型",
       "standardFields": "標準欄位"
     },
     "nothingFound": {
+      "description": "透過環境變數或密鑰管理器定義的連線不會列在此處。",
+      "documentationLink": "在 Airflow 文件中了解更多。",
+      "learnMore": "這些連線會在執行時間解析，不會在 UI 顯示。",
       "title": "找不到連線"
     },
     "searchPlaceholder": "搜尋連線",
@@ -68,7 +72,6 @@
     "tooltip": "刪除所選連線"
   },
   "formActions": {
-    "reset": "重置",
     "save": "儲存"
   },
   "plugins": {
@@ -125,8 +128,6 @@
       "tooltip": "刪除所選變數"
     },
     "edit": "編輯變數",
-    "export": "匯出",
-    "exportTooltip": "匯出所選變數",
     "form": {
       "invalidJson": "無效的 JSON",
       "keyMaxLength": "鍵最多只能包含 250 個字元",

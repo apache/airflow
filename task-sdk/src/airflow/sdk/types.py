@@ -27,8 +27,10 @@ from airflow.sdk.definitions._internal.types import NOTSET, ArgNotSet
 if TYPE_CHECKING:
     from collections.abc import Iterator
 
-    from pydantic import AwareDatetime
+    from pydantic import AwareDatetime, JsonValue
 
+    from airflow.sdk._shared.logging.types import Logger as Logger
+    from airflow.sdk.api.datamodels._generated import PreviousTIResponse, TaskInstanceState
     from airflow.sdk.bases.operator import BaseOperator
     from airflow.sdk.definitions.asset import Asset, AssetAlias, AssetAliasEvent, AssetRef, BaseAssetUniqueKey
     from airflow.sdk.definitions.context import Context
@@ -38,7 +40,7 @@ if TYPE_CHECKING:
 
 
 class DagRunProtocol(Protocol):
-    """Minimal interface for a DAG run available during the execution."""
+    """Minimal interface for a Dag run available during the execution."""
 
     dag_id: str
     run_id: str
@@ -50,6 +52,7 @@ class DagRunProtocol(Protocol):
     run_type: Any
     run_after: AwareDatetime
     conf: dict[str, Any] | None
+    triggering_user_name: str | None
 
 
 class RuntimeTaskInstanceProtocol(Protocol):
@@ -67,6 +70,7 @@ class RuntimeTaskInstanceProtocol(Protocol):
     hostname: str | None = None
     start_date: AwareDatetime
     end_date: AwareDatetime | None = None
+    state: TaskInstanceState | None = None
 
     def xcom_pull(
         self,
@@ -87,6 +91,13 @@ class RuntimeTaskInstanceProtocol(Protocol):
     def get_first_reschedule_date(self, first_try_number) -> AwareDatetime | None: ...
 
     def get_previous_dagrun(self, state: str | None = None) -> DagRunProtocol | None: ...
+
+    def get_previous_ti(
+        self,
+        state: TaskInstanceState | None = None,
+        logical_date: AwareDatetime | None = None,
+        map_index: int = -1,
+    ) -> PreviousTIResponse | None: ...
 
     @staticmethod
     def get_ti_count(
@@ -125,17 +136,17 @@ class OutletEventAccessorProtocol(Protocol):
     """Protocol for managing access to a specific outlet event accessor."""
 
     key: BaseAssetUniqueKey
-    extra: dict[str, Any]
+    extra: dict[str, JsonValue]
     asset_alias_events: list[AssetAliasEvent]
 
     def __init__(
         self,
         *,
         key: BaseAssetUniqueKey,
-        extra: dict[str, Any],
+        extra: dict[str, JsonValue],
         asset_alias_events: list[AssetAliasEvent],
     ) -> None: ...
-    def add(self, asset: Asset, extra: dict[str, Any] | None = None) -> None: ...
+    def add(self, asset: Asset, extra: dict[str, JsonValue] | None = None) -> None: ...
 
 
 class OutletEventAccessorsProtocol(Protocol):

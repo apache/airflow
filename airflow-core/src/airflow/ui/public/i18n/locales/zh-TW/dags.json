@@ -19,7 +19,8 @@
       "active": "啟用中",
       "all": "全部",
       "paused": "暫停"
-    }
+    },
+    "runIdPatternFilter": "搜尋 Dag 執行"
   },
   "ownerLink": "擁有者 {{owner}} 的連結",
   "runAndTaskActions": {
@@ -32,6 +33,10 @@
       "buttonTooltip": "按下 shift+c 清除",
       "error": "清除 {{type}} 時發生錯誤",
       "title": "清除 {{type}}"
+    },
+    "confirmationDialog": {
+      "description": "此任務目前處於 {{state}} 狀態，由使用者 {{user}} 於 {{time}} 啟動。\n除非任務執行完畢，或是在清除任務對話框中取消勾選「防止重新執行執行中的任務」選項，否則無法清除此任務。",
+      "title": "無法清除任務實例"
     },
     "delete": {
       "button": "刪除 {{type}}",
@@ -60,7 +65,9 @@
       "future": "未來",
       "onlyFailed": "只清除失敗任務",
       "past": "過去",
+      "preventRunningTasks": "如果任務正在運行，則阻止重新運行",
       "queueNew": "排隊新任務",
+      "runOnLatestVersion": "執行最新套件包版本",
       "upstream": "上游"
     }
   },

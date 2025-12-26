@@ -33,7 +33,10 @@ if AIRFLOW_V_3_0_PLUS:
 else:
     from airflow.decorators import setup, task, teardown  # type: ignore[attr-defined,no-redef]
 
-from airflow.utils import timezone
+try:
+    from airflow.utils import timezone  # type: ignore[attr-defined]
+except AttributeError:
+    from airflow.sdk import timezone
 
 pytestmark = pytest.mark.db_test
 
@@ -67,7 +70,7 @@ def venv_python_with_cloudpickle_and_dill(tmp_path_factory):
     venv_dir = tmp_path_factory.mktemp("venv_serializers")
     venv.create(venv_dir, with_pip=True)
     python_path = (venv_dir / "bin" / "python").resolve(strict=True).as_posix()
-    subprocess.call([python_path, "-m", "pip", "install", "cloudpickle", "dill"])
+    subprocess.check_call([python_path, "-m", "pip", "install", "cloudpickle", "dill"])
     return python_path
 
 

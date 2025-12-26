@@ -81,10 +81,9 @@ class TestOpsgenieAlertHook:
         api_key = hook._get_api_key()
         assert api_key == "eb243592-faa2-4ba2-a551q-1afdf565c889"
 
-    @pytest.mark.db_test
     def test_get_conn_defaults_host(self):
-        hook = OpsgenieAlertHook()
-        assert hook.get_conn().api_client.configuration.host == "https://api.opsgenie.com"
+        hook = OpsgenieAlertHook(opsgenie_conn_id=self.conn_id)
+        assert hook.get_conn().api_client.configuration.host == "https://api.opsgenie.com/"
 
     def test_get_conn_custom_host(self, create_connection_without_db):
         conn_id = "custom_host_opsgenie_test"
@@ -107,9 +106,17 @@ class TestOpsgenieAlertHook:
             == "eb243592-faa2-4ba2-a551q-1afdf565c889"
         )
 
-    @pytest.mark.db_test
-    def test_create_alert_api_key_not_set(self):
-        hook = OpsgenieAlertHook()
+    @mock.patch.object(AlertApi, "create_alert")
+    def test_create_alert_api_key_not_set(self, mock_create_alert, create_connection_without_db):
+        create_connection_without_db(
+            Connection(
+                conn_id="opsgenie_without_api_key",
+                conn_type="opsgenie",
+                host="https://api.opsgenie.com/",
+            )
+        )
+        mock_create_alert.side_effect = AuthenticationException
+        hook = OpsgenieAlertHook(opsgenie_conn_id="opsgenie_without_api_key")
         with pytest.raises(AuthenticationException):
             hook.create_alert(payload=self._create_alert_payload)
 

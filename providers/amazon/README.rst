@@ -23,9 +23,8 @@
 
 Package ``apache-airflow-providers-amazon``
 
-Release: ``9.11.0``
+Release: ``9.18.1``
 
-Release Date: ``|PypiReleaseDate|``
 
 Amazon integration (including `Amazon Web Services (AWS) <https://aws.amazon.com/>`__).
 
@@ -37,12 +36,12 @@ This is a provider package for ``amazon`` provider. All classes for this provide
 are in ``airflow.providers.amazon`` python package.
 
 You can find package information and changelog for the provider
-in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-amazon/9.11.0/>`_.
+in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-amazon/9.18.1/>`_.
 
 Installation
 ------------
 
-You can install this package on top of an existing Airflow 2 installation (see ``Requirements`` below
+You can install this package on top of an existing Airflow installation (see ``Requirements`` below
 for the minimum Airflow version supported) via
 ``pip install apache-airflow-providers-amazon``
 
@@ -51,11 +50,11 @@ The package supports the following python versions: 3.10,3.11,3.12,3.13
 Requirements
 ------------
 
-==========================================  ==================
+==========================================  ======================================
 PIP package                                 Version required
-==========================================  ==================
-``apache-airflow``                          ``>=2.10.0``
-``apache-airflow-providers-common-compat``  ``>=1.6.1``
+==========================================  ======================================
+``apache-airflow``                          ``>=2.11.0``
+``apache-airflow-providers-common-compat``  ``>=1.10.1``
 ``apache-airflow-providers-common-sql``     ``>=1.27.0``
 ``apache-airflow-providers-http``
 ``boto3``                                   ``>=1.37.2``
@@ -68,8 +67,10 @@ PIP package                                 Version required
 ``PyAthena``                                ``>=3.10.0``
 ``jmespath``                                ``>=0.7.0``
 ``sagemaker-studio``                        ``>=1.0.9``
+``pydynamodb``                              ``>=0.7.5; python_version >= "3.13"``
+``sqlean.py``                               ``>=3.47.0; python_version >= "3.13"``
 ``marshmallow``                             ``>=3``
-==========================================  ==================
+==========================================  ======================================
 
 Cross provider package dependencies
 -----------------------------------
@@ -104,5 +105,31 @@ Dependent package                                                               
 `apache-airflow-providers-ssh <https://airflow.apache.org/docs/apache-airflow-providers-ssh>`_                            ``ssh``
 ========================================================================================================================  ====================
 
+Optional dependencies
+----------------------
+
+====================  ========================================================================================================================================
+Extra                 Dependencies
+====================  ========================================================================================================================================
+``aiobotocore``       ``aiobotocore[boto3]>=2.21.1``
+``cncf.kubernetes``   ``apache-airflow-providers-cncf-kubernetes>=7.2.0``
+``s3fs``              ``s3fs>=2023.10.0``
+``python3-saml``      ``python3-saml>=1.16.0; python_version < '3.13'``, ``xmlsec>=1.3.14; python_version < '3.13'``, ``lxml>=6.0.0; python_version < '3.13'``
+``apache.hive``       ``apache-airflow-providers-apache-hive``
+``exasol``            ``apache-airflow-providers-exasol``
+``fab``               ``apache-airflow-providers-fab>=2.2.0; python_version < '3.13'``
+``ftp``               ``apache-airflow-providers-ftp``
+``google``            ``apache-airflow-providers-google``
+``imap``              ``apache-airflow-providers-imap``
+``microsoft.azure``   ``apache-airflow-providers-microsoft-azure``
+``mongo``             ``apache-airflow-providers-mongo``
+``pandas``            ``pandas>=2.1.2; python_version <"3.13"``, ``pandas>=2.2.3; python_version >="3.13"``
+``openlineage``       ``apache-airflow-providers-openlineage>=2.3.0``
+``salesforce``        ``apache-airflow-providers-salesforce``
+``ssh``               ``apache-airflow-providers-ssh``
+``standard``          ``apache-airflow-providers-standard``
+``common.messaging``  ``apache-airflow-providers-common-messaging>=2.0.0``
+====================  ========================================================================================================================================
+
 The changelog for the provider package can be found in the
-`changelog <https://airflow.apache.org/docs/apache-airflow-providers-amazon/9.11.0/changelog.html>`_.
+`changelog <https://airflow.apache.org/docs/apache-airflow-providers-amazon/9.18.1/changelog.html>`_.

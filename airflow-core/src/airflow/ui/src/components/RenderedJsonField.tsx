@@ -17,10 +17,10 @@
  * under the License.
  */
 import { Flex, type FlexProps } from "@chakra-ui/react";
-import { useTheme } from "next-themes";
 import ReactJson, { type ReactJsonViewProps } from "react-json-view";
 
 import { ClipboardRoot, ClipboardIconButton } from "src/components/ui";
+import { useColorMode } from "src/context/colorMode";
 
 type Props = {
   readonly content: object;
@@ -30,7 +30,7 @@ type Props = {
 
 const RenderedJsonField = ({ content, enableClipboard = true, jsonProps, ...rest }: Props) => {
   const contentFormatted = JSON.stringify(content, undefined, 4);
-  const { theme } = useTheme();
+  const { colorMode } = useColorMode();
 
   return (
     <Flex {...rest}>
@@ -44,7 +44,7 @@ const RenderedJsonField = ({ content, enableClipboard = true, jsonProps, ...rest
         style={{
           backgroundColor: "inherit",
         }}
-        theme={theme === "dark" ? "monokai" : "rjv-default"}
+        theme={colorMode === "dark" ? "monokai" : "rjv-default"}
         {...jsonProps}
       />
       {enableClipboard ? (

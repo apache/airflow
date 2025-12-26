@@ -20,9 +20,8 @@ from __future__ import annotations
 from unittest import mock
 
 import pytest
-from wtforms.validators import ValidationError
 
-from airflow.providers.google.cloud.utils.validators import ValidJson
+pytest.importorskip("wtforms")  # Remove after upgrading to FAB5
 
 
 class TestValidJson:
@@ -32,6 +31,8 @@ class TestValidJson:
         self.form_mock = mock.MagicMock(spec_set=dict)
 
     def _validate(self, message=None):
+        from airflow.providers.google.cloud.utils.validators import ValidJson
+
         validator = ValidJson(message=message)
 
         return validator(self.form_mock, self.form_field_mock)
@@ -45,12 +46,16 @@ class TestValidJson:
         assert self._validate() is None
 
     def test_validation_raises_default_message(self):
+        from wtforms.validators import ValidationError
+
         self.form_field_mock.data = "2017-05-04"
 
         with pytest.raises(ValidationError, match="JSON Validation Error:.*"):
             self._validate()
 
     def test_validation_raises_custom_message(self):
+        from wtforms.validators import ValidationError
+
         self.form_field_mock.data = "2017-05-04"
 
         with pytest.raises(ValidationError, match="Invalid JSON"):

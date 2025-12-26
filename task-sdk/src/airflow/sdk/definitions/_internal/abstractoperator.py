@@ -26,18 +26,15 @@ from collections.abc import (
     Iterable,
     Iterator,
 )
-from typing import TYPE_CHECKING, Any, ClassVar
+from typing import TYPE_CHECKING, Any, ClassVar, TypeAlias
 
-import methodtools
-
-from airflow.configuration import conf
+from airflow.sdk import TriggerRule, WeightRule
+from airflow.sdk.configuration import conf
 from airflow.sdk.definitions._internal.mixins import DependencyMixin
 from airflow.sdk.definitions._internal.node import DAGNode
 from airflow.sdk.definitions._internal.setup_teardown import SetupTeardownContext
 from airflow.sdk.definitions._internal.templater import Templater
 from airflow.sdk.definitions.context import Context
-from airflow.utils.trigger_rule import TriggerRule
-from airflow.utils.weight_rule import WeightRule
 
 if TYPE_CHECKING:
     import jinja2
@@ -49,6 +46,7 @@ if TYPE_CHECKING:
     from airflow.sdk.definitions.taskgroup import MappedTaskGroup
 
 TaskStateChangeCallback = Callable[[Context], None]
+TaskStateChangeCallbackAttrType: TypeAlias = TaskStateChangeCallback | list[TaskStateChangeCallback] | None
 
 DEFAULT_OWNER: str = conf.get_mandatory_value("operators", "default_owner")
 DEFAULT_POOL_SLOTS: int = 1
@@ -68,6 +66,7 @@ DEFAULT_RETRIES: int = conf.getint("core", "default_task_retries", fallback=0)
 DEFAULT_RETRY_DELAY: datetime.timedelta = datetime.timedelta(
     seconds=conf.getint("core", "default_task_retry_delay", fallback=300)
 )
+DEFAULT_RETRY_DELAY_MULTIPLIER: float = 2.0
 MAX_RETRY_DELAY: int = conf.getint("core", "max_task_retry_delay", fallback=24 * 60 * 60)
 
 # TODO: Task-SDK -- these defaults should be overridable from the Airflow config
@@ -80,10 +79,6 @@ DEFAULT_TASK_EXECUTION_TIMEOUT: datetime.timedelta | None = conf.gettimedelta(
 )
 
 log = logging.getLogger(__name__)
-
-
-class NotMapped(Exception):
-    """Raise if a task is neither mapped nor has any parent mapped groups."""
 
 
 class AbstractOperator(Templater, DAGNode):
@@ -150,10 +145,6 @@ class AbstractOperator(Templater, DAGNode):
     def operator_name(self) -> str:
         raise NotImplementedError()
 
-    @property
-    def inherits_from_empty_operator(self) -> bool:
-        raise NotImplementedError()
-
     _is_sensor: bool = False
     _is_mapped: bool = False
     _can_skip_downstream: bool = False
@@ -211,6 +202,14 @@ class AbstractOperator(Templater, DAGNode):
                 f"'{self.task_id}' because it is not a teardown task."
             )
         self._on_failure_fail_dagrun = value
+
+    @property
+    def inherits_from_empty_operator(self):
+        """Used to determine if an Operator is inherited from EmptyOperator."""
+        # This looks like `isinstance(self, EmptyOperator) would work, but this also
+        # needs to cope when `self` is a Serialized instance of a EmptyOperator or one
+        # of its subclasses (which don't inherit from anything but BaseOperator).
+        return getattr(self, "_is_empty", False)
 
     @property
     def inherits_from_skipmixin(self):
@@ -300,12 +299,15 @@ class AbstractOperator(Templater, DAGNode):
                 else:
                     rendered_content = self.render_template(value, context, jinja_env, seen_oids)
             except Exception:
-                # TODO: Mask the value. Depends on https://github.com/apache/airflow/issues/45438
+                # Mask sensitive values in the template before logging
+                from airflow.sdk._shared.secrets_masker import redact
+
+                masked_value = redact(value)
                 log.exception(
                     "Exception rendering Jinja template for task '%s', field '%s'. Template: %r",
                     self.task_id,
                     attr_name,
-                    value,
+                    masked_value,
                 )
                 raise
             else:
@@ -315,10 +317,10 @@ class AbstractOperator(Templater, DAGNode):
         """
         Return mapped nodes that are direct dependencies of the current task.
 
-        For now, this walks the entire DAG to find mapped nodes that has this
+        For now, this walks the entire Dag to find mapped nodes that has this
         current task as an upstream. We cannot use ``downstream_list`` since it
         only contains operators, not task groups. In the future, we should
-        provide a way to record an DAG node's all downstream nodes instead.
+        provide a way to record a Dag node's all downstream nodes instead.
 
         Note that this does not guarantee the returned tasks actually use the
         current task for task mapping, but only checks those task are mapped
@@ -344,7 +346,7 @@ class AbstractOperator(Templater, DAGNode):
 
         dag = self.get_dag()
         if not dag:
-            raise RuntimeError("Cannot check for mapped dependants when not attached to a DAG")
+            raise RuntimeError("Cannot check for mapped dependants when not attached to a Dag")
         for key, child in _walk_group(dag.task_group):
             if key == self.node_id:
                 continue
@@ -357,10 +359,10 @@ class AbstractOperator(Templater, DAGNode):
         """
         Return mapped nodes that depend on the current task the expansion.
 
-        For now, this walks the entire DAG to find mapped nodes that has this
+        For now, this walks the entire Dag to find mapped nodes that has this
         current task as an upstream. We cannot use ``downstream_list`` since it
         only contains operators, not task groups. In the future, we should
-        provide a way to record an DAG node's all downstream nodes instead.
+        provide a way to record a Dag node's all downstream nodes instead.
         """
         return (
             downstream
@@ -382,7 +384,7 @@ class AbstractOperator(Templater, DAGNode):
 
     def get_closest_mapped_task_group(self) -> MappedTaskGroup | None:
         """
-        Get the mapped task group "closest" to this task in the DAG.
+        Get the mapped task group "closest" to this task in the Dag.
 
         :meta private:
         """
@@ -400,21 +402,3 @@ class AbstractOperator(Templater, DAGNode):
             else:
                 self._needs_expansion = False
         return self._needs_expansion
-
-    @methodtools.lru_cache(maxsize=None)
-    def get_parse_time_mapped_ti_count(self) -> int:
-        """
-        Return the number of mapped task instances that can be created on DAG run creation.
-
-        This only considers literal mapped arguments, and would return *None*
-        when any non-literal values are used for mapping.
-
-        :raise NotFullyPopulated: If non-literal mapped arguments are encountered.
-        :raise NotMapped: If the operator is neither mapped, nor has any parent
-            mapped task groups.
-        :return: Total number of mapped TIs this task should have.
-        """
-        group = self.get_closest_mapped_task_group()
-        if group is None:
-            raise NotMapped()
-        return group.get_parse_time_mapped_ti_count()

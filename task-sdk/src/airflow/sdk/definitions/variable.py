@@ -23,6 +23,7 @@ from typing import Any
 import attrs
 
 from airflow.sdk.definitions._internal.types import NOTSET
+from airflow.sdk.log import mask_secret
 
 log = logging.getLogger(__name__)
 
@@ -43,7 +44,6 @@ class Variable:
     value: Any | None = None
     description: str | None = None
 
-    # TODO: Extend this definition for reading/writing variables without context
     @classmethod
     def get(cls, key: str, default: Any = NOTSET, deserialize_json: bool = False):
         from airflow.sdk.exceptions import AirflowRuntimeError, ErrorType
@@ -53,6 +53,7 @@ class Variable:
             return _get_variable(key, deserialize_json=deserialize_json)
         except AirflowRuntimeError as e:
             if e.error.error == ErrorType.VARIABLE_NOT_FOUND and default is not NOTSET:
+                mask_secret(default, name=key)
                 return default
             raise
 

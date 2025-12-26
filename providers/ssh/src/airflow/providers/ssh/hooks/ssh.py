@@ -19,6 +19,7 @@
 
 from __future__ import annotations
 
+import logging
 import os
 from base64 import decodebytes
 from collections.abc import Sequence
@@ -32,10 +33,20 @@ from paramiko.config import SSH_PORT
 from sshtunnel import SSHTunnelForwarder
 from tenacity import Retrying, stop_after_attempt, wait_fixed, wait_random
 
-from airflow.exceptions import AirflowException
-from airflow.providers.ssh.version_compat import BaseHook
+from airflow.providers.common.compat.sdk import AirflowException, BaseHook
 from airflow.utils.platform import getuser
-from airflow.utils.types import NOTSET, ArgNotSet
+
+try:
+    from airflow.sdk.definitions._internal.types import NOTSET, ArgNotSet
+except ImportError:
+    from airflow.utils.types import NOTSET, ArgNotSet  # type: ignore[attr-defined,no-redef]
+try:
+    from airflow.sdk.definitions._internal.types import is_arg_set
+except ImportError:
+
+    def is_arg_set(value):  # type: ignore[misc,no-redef]
+        return value is not NOTSET
+
 
 CMD_TIMEOUT = 10
 
@@ -391,6 +402,11 @@ class SSHHook(BaseHook):
                 host_pkey_directories=None,
             )
 
+        if not hasattr(self.log, "handlers"):
+            # We need to not hit this https://github.com/pahaz/sshtunnel/blob/dc0732884379a19a21bf7a49650d0708519ec54f/sshtunnel.py#L238-L239
+            paramkio_log = logging.getLogger("paramiko.transport")
+            paramkio_log.addHandler(logging.NullHandler())
+            paramkio_log.propagate = True
         client = SSHTunnelForwarder(self.remote_host, **tunnel_kwargs)
 
         return client
@@ -432,9 +448,9 @@ class SSHHook(BaseHook):
         self.log.info("Running command: %s", command)
 
         cmd_timeout: float | None
-        if not isinstance(timeout, ArgNotSet):
+        if is_arg_set(timeout):
             cmd_timeout = timeout
-        elif not isinstance(self.cmd_timeout, ArgNotSet):
+        elif is_arg_set(self.cmd_timeout):
             cmd_timeout = self.cmd_timeout
         else:
             cmd_timeout = CMD_TIMEOUT

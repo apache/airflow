@@ -18,9 +18,17 @@
 from __future__ import annotations
 
 from unittest import mock
+from unittest.mock import MagicMock
 
 import oracledb
+import pytest
 
+from airflow.models import Connection
+from airflow.providers.common.compat.openlineage.facet import (
+    OutputDataset,
+    SchemaDatasetFacetFields,
+)
+from airflow.providers.common.sql.hooks.sql import DbApiHook
 from airflow.providers.google.cloud.transfers.oracle_to_gcs import OracleToGCSOperator
 
 TASK_ID = "test-oracle-to-gcs"
@@ -141,3 +149,71 @@ class TestOracleToGoogleCloudStorageOperator:
 
         # once for the file and once for the schema
         assert gcs_hook_mock.upload.call_count == 2
+
+    @pytest.mark.parametrize(
+        ("input_service_name", "input_sid", "connection_port", "default_port", "expected_port"),
+        [
+            ("ServiceName", None, None, 1521, 1521),
+            (None, "SID", None, 1521, 1521),
+            (None, "SID", 1234, None, 1234),
+            (None, "SID", 1234, 1521, 1234),
+        ],
+    )
+    def test_execute_openlineage_events(
+        self, input_service_name, input_sid, connection_port, default_port, expected_port
+    ):
+        class DBApiHookForTests(DbApiHook):
+            conn_name_attr = "sql_default"
+            get_conn = MagicMock(name="conn")
+            get_connection = MagicMock()
+            service_name = input_service_name
+            sid = input_sid
+
+            def get_openlineage_database_info(self, connection):
+                from airflow.providers.openlineage.sqlparser import DatabaseInfo
+
+                return DatabaseInfo(
+                    scheme="oracle",
+                    authority=DbApiHook.get_openlineage_authority_part(connection, default_port=default_port),
+                )
+
+        dbapi_hook = DBApiHookForTests()
+
+        class OracleToGCSOperatorForTest(OracleToGCSOperator):
+            @property
+            def db_hook(self):
+                return dbapi_hook
+
+        sql = """SELECT employee_id, first_name FROM hr.employees"""
+        op = OracleToGCSOperatorForTest(task_id=TASK_ID, sql=sql, bucket="bucket", filename="dir/file{}.csv")
+        DB_SCHEMA_NAME = "HR"
+        rows = [
+            (DB_SCHEMA_NAME, "employees", "employee_id", 1, "NUMBER"),
+            (DB_SCHEMA_NAME, "employees", "first_name", 2, "VARCHAR2"),
+            (DB_SCHEMA_NAME, "employees", "age", 3, "NUMBER"),
+        ]
+        dbapi_hook.get_connection.return_value = Connection(
+            conn_id="sql_default", conn_type="oracle", host="host", port=connection_port
+        )
+        dbapi_hook.get_conn.return_value.cursor.return_value.fetchall.side_effect = [rows, []]
+
+        lineage = op.get_openlineage_facets_on_start()
+        assert len(lineage.inputs) == 1
+        assert lineage.inputs[0].namespace == f"oracle://host:{expected_port}"
+        assert lineage.inputs[0].name == f"{input_service_name or input_sid}.HR.employees"
+        assert len(lineage.inputs[0].facets) == 1
+        assert lineage.inputs[0].facets["schema"].fields == [
+            SchemaDatasetFacetFields(name="employee_id", type="NUMBER"),
+            SchemaDatasetFacetFields(name="first_name", type="VARCHAR2"),
+            SchemaDatasetFacetFields(name="age", type="NUMBER"),
+        ]
+        assert lineage.outputs == [
+            OutputDataset(
+                namespace="gs://bucket",
+                name="dir",
+            )
+        ]
+
+        assert len(lineage.job_facets) == 1
+        assert lineage.job_facets["sql"].query == sql
+        assert lineage.run_facets == {}

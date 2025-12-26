@@ -21,16 +21,18 @@
 Dynamic Task Mapping
 ====================
 
-Dynamic Task Mapping allows a way for a workflow to create a number of tasks at runtime based upon current data, rather than the DAG author having to know in advance how many tasks would be needed.
+Dynamic Task Mapping allows a way for a workflow to create a number of tasks at runtime based upon current data, rather than the Dag author having to know in advance how many tasks would be needed.
 
-This is similar to defining your tasks in a for loop, but instead of having the DAG file fetch the data and do that itself, the scheduler can do this based on the output of a previous task. Right before a mapped task is executed the scheduler will create *n* copies of the task, one for each input.
+This is similar to defining your tasks in a for loop, but instead of having the DAG file fetch the data and do that itself, the scheduler can do this based on the output of a previous task.
+Unlike a Python for-loop executed at DAG parse time, dynamic task mapping defers task creation until runtime, allowing the scheduler to determine the exact number of task instances based on upstream task outputs.
+Right before a mapped task is executed the scheduler will create *n* copies of the task, one for each input.
 
 It is also possible to have a task operate on the collected output of a mapped task, commonly known as map and reduce.
 
 Simple mapping
 ==============
 
-In its simplest form you can map over a list defined directly in your DAG file using the ``expand()`` function instead of calling your task directly.
+In its simplest form you can map over a list defined directly in your Dag file using the ``expand()`` function instead of calling your task directly.
 
 If you want to see a simple usage of Dynamic Task Mapping, you can look below:
 
@@ -39,7 +41,7 @@ If you want to see a simple usage of Dynamic Task Mapping, you can look below:
 
 This will show ``Total was 9`` in the task logs when executed.
 
-This is the resulting DAG structure:
+This is the resulting Dag structure:
 
 .. image:: /img/ui-light/mapping_simple_graph.png
 
@@ -88,7 +90,7 @@ The grid view also provides visibility into your mapped tasks in the details pan
 Task-generated Mapping
 ----------------------
 
-The above examples we've shown could all be achieved with a ``for`` loop in the DAG file, but the real power of dynamic task mapping comes from being able to have a task generate the list to iterate over.
+The above examples we've shown could all be achieved with a ``for`` loop in the Dag file, but the real power of dynamic task mapping comes from being able to have a task generate the list to iterate over.
 
 .. code-block:: python
 
@@ -112,7 +114,7 @@ The ``make_list`` task runs as a normal task and must return a list or dict (see
 .. warning:: Task-generated mapping cannot be utilized with ``TriggerRule.ALWAYS``
 
     Assigning ``trigger_rule=TriggerRule.ALWAYS`` in task-generated mapping is not allowed, as expanded parameters are undefined with the task's immediate execution.
-    This is enforced at the time of the DAG parsing, for both tasks and mapped tasks groups, and will raise an error if you try to use it.
+    This is enforced at the time of the Dag parsing, for both tasks and mapped tasks groups, and will raise an error if you try to use it.
     In the recent example, setting ``trigger_rule=TriggerRule.ALWAYS`` in the ``consumer`` task will raise an error since ``make_list`` is a task-generated mapping.
 
 Repeated mapping
@@ -528,7 +530,7 @@ Since it is common to want to transform the output data format for task mapping,
 
 There are a couple of things to note:
 
-#. The callable argument of :func:`map()` (``create_copy_kwargs`` in the example) **must not** be a task, but a plain Python function. The transformation is as a part of the "pre-processing" of the downstream task (i.e. ``copy_files``), not a standalone task in the DAG.
+#. The callable argument of :func:`map()` (``create_copy_kwargs`` in the example) **must not** be a task, but a plain Python function. The transformation is as a part of the "pre-processing" of the downstream task (i.e. ``copy_files``), not a standalone task in the Dag.
 #. The callable always take exactly one positional argument. This function is called for each item in the iterable used for task-mapping, similar to how Python's built-in :func:`map()` works.
 #. Since the callable is executed as a part of the downstream task, you can use any existing techniques to write the task function. To mark a component as skipped, for example, you should raise ``AirflowSkipException``. Note that returning ``None`` **does not** work here.
 
@@ -589,7 +591,7 @@ Another common pattern to combine input sources is to run the same task against 
     download_file.override(task_id="download_file_a").expand(filename=list_filenames_a.output)
     download_file.override(task_id="download_file_b").expand(filename=list_filenames_b.output)
 
-The DAG, however, would be both more scalable and easier to inspect if the tasks can be combined into one. This can done with ``concat``:
+The Dag, however, would be both more scalable and easier to inspect if the tasks can be combined into one. This can done with ``concat``:
 
 .. code-block:: python
 

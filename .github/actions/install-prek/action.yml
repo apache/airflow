@@ -1,0 +1,119 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+#
+---
+name: 'Install prek'
+description: 'Installs prek and related packages'
+inputs:
+  python-version:
+    description: 'Python version to use'
+    default: "3.10"
+  uv-version:
+    description: 'uv version to use'
+    default: "0.9.18"  # Keep this comment to allow automatic replacement of uv version
+  prek-version:
+    description: 'prek version to use'
+    default: "0.2.23"  # Keep this comment to allow automatic replacement of prek version
+  save-cache:
+    description: "Whether to save prek cache"
+    required: true
+  platform:
+    description: 'Platform for the build - linux/amd64 or linux/arm64'
+    required: true
+runs:
+  using: "composite"
+  steps:
+    - name: "Install uv"
+      shell: bash
+      run: curl -LsSf https://astral.sh/uv/${UV_VERSION}/install.sh | sh
+      env:
+        UV_VERSION: ${{ inputs.uv-version }}
+    - name: Install prek
+      shell: bash
+      env:
+        PREK_VERSION: ${{inputs.prek-version}}
+        UV_VERSION: ${{ inputs.uv-version }}
+      run: |
+        uv tool install prek==${PREK_VERSION} --with uv==${UV_VERSION}
+      working-directory: ${{ github.workspace }}
+    # We need to use tar file with archive to restore all the permissions and symlinks
+    - name: "Delete ~.cache"
+      run: |
+        du ~/ --max-depth=2
+        echo
+        echo Deleting ~/.cache
+        echo
+        rm -rf ~/.cache
+        echo
+      shell: bash
+    - name: "Restore prek cache"
+      uses: apache/infrastructure-actions/stash/restore@1c35b5ccf8fba5d4c3fdf25a045ca91aa0cbc468
+      with:
+        # yamllint disable rule:line-length
+        key: cache-prek-v9-${{ inputs.platform }}-python${{ inputs.python-version }}-uv${{ inputs.uv-version }}-${{ hashFiles('**/.pre-commit-config.yaml') }}
+        path: /tmp/
+      id: restore-prek-cache
+    - name: "Check if prek cache tarball exists"
+      shell: bash
+      run: |
+        if [ -f /tmp/cache-prek.tar.gz ]; then
+          echo "✅ Cache tarball found: /tmp/cache-prek.tar.gz"
+        else
+          echo "❌ Cache tarball missing. Expected /tmp/cache-prek.tar.gz"
+          exit 1
+        fi
+      if: steps.restore-prek-cache.outputs.stash-hit == 'true'
+    - name: "Restore .cache from the tar file"
+      run: tar -C ~ -xzf /tmp/cache-prek.tar.gz
+      shell: bash
+      if: steps.restore-prek-cache.outputs.stash-hit == 'true'
+    - name: "Show restored files"
+      run: |
+        echo "Restored files"
+        du ~/ --max-depth=2
+        echo
+      shell: bash
+      if: steps.restore-prek-cache.outputs.stash-hit == 'true'
+    - name: "Make sure cache is cleared on cache miss"
+      run: |
+        echo "Cleaning up prek cache in case of cache miss (in case of pre-installed-cache from the system)"
+        ls -la ~/.cache/prek || true
+        rm -rf ~/.cache/prek
+      shell: bash
+      if: steps.restore-prek-cache.outputs.stash-hit != 'true'
+    - name: Install prek hooks
+      shell: bash
+      run: prek install-hooks
+      working-directory: ${{ github.workspace }}
+    - name: "Show prek log"
+      shell: bash
+      run: cat ~/.cache/prek/prek.log || true
+      if: always()
+    - name: "Prepare .tar file from prek cache"
+      run: |
+        tar -C ~ -czf /tmp/cache-prek.tar.gz .cache/prek
+      shell: bash
+      if: inputs.save-cache == 'true'
+    - name: "Save prek cache"
+      uses: apache/infrastructure-actions/stash/save@1c35b5ccf8fba5d4c3fdf25a045ca91aa0cbc468
+      with:
+        # yamllint disable rule:line-length
+        key: cache-prek-v9-${{ inputs.platform }}-python${{ inputs.python-version }}-uv${{ inputs.uv-version }}-${{ hashFiles('**/.pre-commit-config.yaml') }}
+        path: /tmp/cache-prek.tar.gz
+        if-no-files-found: 'error'
+        retention-days: '2'
+      if: inputs.save-cache == 'true'

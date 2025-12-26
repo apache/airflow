@@ -29,7 +29,7 @@ console = Console(width=400, color_system="standard")
 
 
 @pytest.mark.parametrize(
-    "env_vars, kwargs, expected_vars",
+    ("env_vars", "kwargs", "expected_vars"),
     [
         pytest.param(
             {},

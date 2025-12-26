@@ -22,22 +22,23 @@ from datetime import date
 
 import pytest
 
-from airflow.exceptions import AirflowException, XComNotFound
 from airflow.models.taskinstance import TaskInstance
 from airflow.models.taskmap import TaskMap
-from airflow.utils import timezone
-from airflow.utils.task_instance_session import set_current_task_instance_session
-from airflow.utils.trigger_rule import TriggerRule
+from airflow.providers.common.compat.sdk import AirflowException, XComNotFound
 
-from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_1, AIRFLOW_V_3_0_PLUS, XCOM_RETURN_KEY
+from tests_common.test_utils.version_compat import (
+    AIRFLOW_V_3_0_1,
+    AIRFLOW_V_3_0_PLUS,
+    AIRFLOW_V_3_1_PLUS,
+    AIRFLOW_V_3_2_PLUS,
+    XCOM_RETURN_KEY,
+)
 from unit.standard.operators.test_python import BasePythonTest
 
 if AIRFLOW_V_3_0_PLUS:
     from airflow.sdk import DAG, BaseOperator, TaskGroup, XComArg, setup, task as task_decorator, teardown
     from airflow.sdk.bases.decorator import DecoratedMappedOperator
     from airflow.sdk.definitions._internal.expandinput import DictOfListsExpandInput
-    from airflow.sdk.definitions.mappedoperator import MappedOperator
-
 else:
     from airflow.decorators import (  # type: ignore[attr-defined,no-redef]
         setup,
@@ -46,11 +47,23 @@ else:
     )
     from airflow.decorators.base import DecoratedMappedOperator  # type: ignore[no-redef]
     from airflow.models.baseoperator import BaseOperator  # type: ignore[no-redef]
-    from airflow.models.dag import DAG  # type: ignore[assignment]
-    from airflow.models.expandinput import DictOfListsExpandInput
-    from airflow.models.mappedoperator import MappedOperator
-    from airflow.models.xcom_arg import XComArg
+    from airflow.models.dag import DAG  # type: ignore[assignment,no-redef]
+    from airflow.models.expandinput import DictOfListsExpandInput  # type: ignore[attr-defined,no-redef]
+    from airflow.models.xcom_arg import XComArg  # type: ignore[no-redef]
     from airflow.utils.task_group import TaskGroup  # type: ignore[no-redef]
+
+if AIRFLOW_V_3_1_PLUS:
+    from airflow.sdk import TriggerRule, timezone
+else:
+    from airflow.utils import timezone  # type: ignore[attr-defined,no-redef]
+    from airflow.utils.trigger_rule import TriggerRule  # type: ignore[no-redef,attr-defined]
+
+if AIRFLOW_V_3_2_PLUS:
+    from airflow.serialization.definitions.mappedoperator import SerializedMappedOperator
+else:
+    from airflow.models.mappedoperator import (  # type: ignore[no-redef]
+        MappedOperator as SerializedMappedOperator,  # type: ignore[assignment,attr-defined]
+    )
 
 pytestmark = pytest.mark.db_test
 
@@ -577,7 +590,7 @@ class TestAirflowTaskDecorator(BasePythonTest):
         assert "add_2" in self.dag_non_serialized.task_ids
 
     @pytest.mark.parametrize(
-        argnames=["op_doc_attr", "op_doc_value", "expected_doc_md"],
+        argnames=("op_doc_attr", "op_doc_value", "expected_doc_md"),
         argvalues=[
             pytest.param("doc", "task docs.", None, id="set_doc"),
             pytest.param("doc_json", '{"task": "docs."}', None, id="set_doc_json"),
@@ -672,13 +685,11 @@ def test_mapped_decorator_shadow_context() -> None:
     def print_info(message: str, run_id: str = "") -> None:
         print(f"{run_id}: {message}")
 
-    with pytest.raises(ValueError) as ctx:
+    with pytest.raises(ValueError, match=r"cannot call partial\(\) on task context variable 'run_id'"):
         print_info.partial(run_id="hi")
-    assert str(ctx.value) == "cannot call partial() on task context variable 'run_id'"
 
-    with pytest.raises(ValueError) as ctx:
+    with pytest.raises(ValueError, match=r"cannot call expand\(\) on task context variable 'run_id'"):
         print_info.expand(run_id=["hi", "there"])
-    assert str(ctx.value) == "cannot call expand() on task context variable 'run_id'"
 
 
 def test_mapped_decorator_wrong_argument() -> None:
@@ -694,9 +705,10 @@ def test_mapped_decorator_wrong_argument() -> None:
         print_info.expand(wrong_name=["hi", "there"])
     assert str(ct.value) == "expand() got an unexpected keyword argument 'wrong_name'"
 
-    with pytest.raises(ValueError) as cv:
+    with pytest.raises(
+        ValueError, match=r"expand\(\) got an unexpected type 'str' for keyword argument 'message'"
+    ):
         print_info.expand(message="hi")
-    assert str(cv.value) == "expand() got an unexpected type 'str' for keyword argument 'message'"
 
 
 def test_mapped_decorator():
@@ -777,7 +789,7 @@ def test_partial_mapped_decorator() -> None:
 
 
 def test_mapped_decorator_unmap_merge_op_kwargs(dag_maker, session):
-    with dag_maker(session=session):
+    with dag_maker(session=session, serialized=True):
 
         @task_decorator
         def task1():
@@ -788,17 +800,21 @@ def test_mapped_decorator_unmap_merge_op_kwargs(dag_maker, session):
 
         task2.partial(arg1=1).expand(arg2=task1())
 
-    run = dag_maker.create_dagrun()
+    run = dag_maker.create_dagrun(session=session)
 
     # Run task1.
     dec = run.task_instance_scheduling_decisions(session=session)
     assert [ti.task_id for ti in dec.schedulable_tis] == ["task1"]
-    dec.schedulable_tis[0].run(session=session)
+    ti = dec.schedulable_tis[0]
+    dag_maker.run_ti(task_id=ti.task_id, dag_run=run, session=session)
 
     # Expand task2.
     dec = run.task_instance_scheduling_decisions(session=session)
     assert [ti.task_id for ti in dec.schedulable_tis] == ["task2"]
     ti = dec.schedulable_tis[0]
+
+    # Use the real task for unmapping to mimic actual execution path
+    ti.task = dag_maker.dag.task_dict[ti.task_id]
 
     if AIRFLOW_V_3_0_PLUS:
         unmapped = ti.task.unmap((ti.get_template_context(session),))
@@ -807,7 +823,48 @@ def test_mapped_decorator_unmap_merge_op_kwargs(dag_maker, session):
     assert set(unmapped.op_kwargs) == {"arg1", "arg2"}
 
 
+@pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="Different test for AF 2")
 def test_mapped_render_template_fields(dag_maker, session):
+    from airflow.sdk.definitions.mappedoperator import MappedOperator
+
+    @task_decorator
+    def fn(arg1, arg2): ...
+
+    with dag_maker(session=session):
+        task1 = BaseOperator(task_id="op1")
+        mapped = fn.partial(arg2="{{ ti.task_id }}").expand(arg1=task1.output)
+
+    dr = dag_maker.create_dagrun()
+    ti: TaskInstance = dr.get_task_instance(task1.task_id, session=session)
+
+    ti.xcom_push(key=XCOM_RETURN_KEY, value=["{{ ds }}"], session=session)
+
+    session.add(
+        TaskMap(
+            dag_id=dr.dag_id,
+            task_id=task1.task_id,
+            run_id=dr.run_id,
+            map_index=-1,
+            length=1,
+            keys=None,
+        )
+    )
+    session.flush()
+
+    mapped_ti: TaskInstance = dr.get_task_instance(mapped.operator.task_id, session=session)
+    mapped_ti.map_index = 0
+    assert isinstance(mapped_ti.task, MappedOperator)
+    mapped.operator.render_template_fields(context=mapped_ti.get_template_context(session=session))
+    assert isinstance(mapped_ti.task, BaseOperator)
+
+    assert mapped_ti.task.op_kwargs["arg1"] == "{{ ds }}"
+    assert mapped_ti.task.op_kwargs["arg2"] == "fn"
+
+
+@pytest.mark.skipif(AIRFLOW_V_3_0_PLUS, reason="Different test for AF 2")
+def test_mapped_render_template_fields_af2(dag_maker, session):
+    from airflow.utils.task_instance_session import set_current_task_instance_session
+
     @task_decorator
     def fn(arg1, arg2): ...
 
@@ -835,7 +892,7 @@ def test_mapped_render_template_fields(dag_maker, session):
 
         mapped_ti: TaskInstance = dr.get_task_instance(mapped.operator.task_id, session=session)
         mapped_ti.map_index = 0
-        assert isinstance(mapped_ti.task, MappedOperator)
+        assert isinstance(mapped_ti.task, SerializedMappedOperator)
         mapped.operator.render_template_fields(context=mapped_ti.get_template_context(session=session))
         assert isinstance(mapped_ti.task, BaseOperator)
 
@@ -878,12 +935,17 @@ def test_task_decorator_has_doc_attr():
 
 
 def test_upstream_exception_produces_none_xcom(dag_maker, session):
-    from airflow.exceptions import AirflowSkipException
-    from airflow.utils.trigger_rule import TriggerRule
+    from airflow.providers.common.compat.sdk import AirflowSkipException
+
+    try:
+        from airflow.sdk import TriggerRule
+    except ImportError:
+        # Compatibility for Airflow < 3.1
+        from airflow.utils.trigger_rule import TriggerRule  # type: ignore[no-redef,attr-defined]
 
     result = None
 
-    with dag_maker(session=session) as dag:
+    with dag_maker(session=session, serialized=True) as dag:
 
         @dag.task()
         def up1() -> str:
@@ -905,22 +967,27 @@ def test_upstream_exception_produces_none_xcom(dag_maker, session):
     decision = dr.task_instance_scheduling_decisions(session=session)
     assert len(decision.schedulable_tis) == 2  # "up1" and "up2"
     for ti in decision.schedulable_tis:
-        ti.run(session=session)
+        dag_maker.run_ti(ti.task_id, dag_run=dr, session=session)
 
     decision = dr.task_instance_scheduling_decisions(session=session)
     assert len(decision.schedulable_tis) == 1  # "down"
-    decision.schedulable_tis[0].run(session=session)
+    dag_maker.run_ti(decision.schedulable_tis[0].task_id, dag_run=dr, session=session)
     assert result == "'example' None"
 
 
 @pytest.mark.parametrize("multiple_outputs", [True, False])
 def test_multiple_outputs_produces_none_xcom_when_task_is_skipped(dag_maker, session, multiple_outputs):
-    from airflow.exceptions import AirflowSkipException
-    from airflow.utils.trigger_rule import TriggerRule
+    from airflow.providers.common.compat.sdk import AirflowSkipException
+
+    try:
+        from airflow.sdk import TriggerRule
+    except ImportError:
+        # Compatibility for Airflow < 3.1
+        from airflow.utils.trigger_rule import TriggerRule  # type: ignore[no-redef,attr-defined]
 
     result = None
 
-    with dag_maker(session=session) as dag:
+    with dag_maker(session=session, serialized=True) as dag:
 
         @dag.task()
         def up1() -> str:
@@ -944,16 +1011,16 @@ def test_multiple_outputs_produces_none_xcom_when_task_is_skipped(dag_maker, ses
     decision = dr.task_instance_scheduling_decisions(session=session)
     assert len(decision.schedulable_tis) == 2  # "up1" and "up2"
     for ti in decision.schedulable_tis:
-        ti.run(session=session)
+        dag_maker.run_ti(ti.task_id, dag_run=dr, session=session)
 
     decision = dr.task_instance_scheduling_decisions(session=session)
     assert len(decision.schedulable_tis) == 1  # "down"
     if multiple_outputs:
-        decision.schedulable_tis[0].run(session=session)
+        dag_maker.run_ti(decision.schedulable_tis[0].task_id, dag_run=dr, session=session)
         assert result == "'example' None"
     else:
         with pytest.raises(XComNotFound):
-            decision.schedulable_tis[0].run(session=session)
+            dag_maker.run_ti(decision.schedulable_tis[0].task_id, dag_run=dr, session=session)
 
 
 @pytest.mark.filterwarnings("error")
@@ -970,25 +1037,20 @@ def test_no_warnings(reset_logging_config, caplog):
     assert caplog.messages == []
 
 
+@pytest.mark.need_serialized_dag
 def test_task_decorator_asset(dag_maker, session):
-    if AIRFLOW_V_3_0_PLUS:
-        from airflow.models.asset import AssetActive, AssetModel
-        from airflow.sdk.definitions.asset import Asset
-    else:
-        from airflow.datasets import Dataset as Asset
-        from airflow.models.dataset import DatasetModel as AssetModel
-
     result = None
     uri = "s3://bucket/name"
     asset_name = "test_asset"
 
     if AIRFLOW_V_3_0_PLUS:
+        from airflow.sdk import Asset
+
         asset = Asset(uri=uri, name=asset_name)
     else:
+        from airflow.datasets import Dataset as Asset
+
         asset = Asset(uri)
-    session.add(AssetModel.from_public(asset))
-    if AIRFLOW_V_3_0_PLUS:
-        session.add(AssetActive.for_asset(asset))
 
     with dag_maker(session=session) as dag:
 
@@ -1012,15 +1074,18 @@ def test_task_decorator_asset(dag_maker, session):
     dr: DagRun = dag_maker.create_dagrun()
     decision = dr.task_instance_scheduling_decisions(session=session)
     assert len(decision.schedulable_tis) == 1  # "up1"
-    decision.schedulable_tis[0].run(session=session)
+    ti = decision.schedulable_tis[0]
+    dag_maker.run_ti(ti.task_id, dag_run=dr, session=session)
 
     decision = dr.task_instance_scheduling_decisions(session=session)
     assert len(decision.schedulable_tis) == 1  # "up2"
-    decision.schedulable_tis[0].run(session=session)
+    ti = decision.schedulable_tis[0]
+    dag_maker.run_ti(ti.task_id, dag_run=dr, session=session)
 
     decision = dr.task_instance_scheduling_decisions(session=session)
     assert len(decision.schedulable_tis) == 1  # "down"
-    decision.schedulable_tis[0].run(session=session)
+    ti = decision.schedulable_tis[0]
+    dag_maker.run_ti(ti.task_id, dag_run=dr, session=session)
     assert result == uri
 
 

@@ -24,22 +24,26 @@ from functools import singledispatch
 from traceback import format_exception
 from typing import TYPE_CHECKING, Any
 
-from sqlalchemy import Column, Integer, String, Text, delete, func, or_, select, update
-from sqlalchemy.orm import Session, relationship, selectinload
+from sqlalchemy import Integer, String, Text, delete, func, or_, select, update
+from sqlalchemy.ext.associationproxy import association_proxy
+from sqlalchemy.orm import Mapped, Session, relationship, selectinload
 from sqlalchemy.sql.functions import coalesce
 
 from airflow._shared.timezones import timezone
 from airflow.assets.manager import AssetManager
-from airflow.models.asset import asset_trigger_association_table
+from airflow.configuration import conf
+from airflow.models import Callback
+from airflow.models.asset import AssetWatcherModel
 from airflow.models.base import Base
 from airflow.models.taskinstance import TaskInstance
 from airflow.triggers.base import BaseTaskEndEvent
 from airflow.utils.retries import run_with_db_retries
 from airflow.utils.session import NEW_SESSION, provide_session
-from airflow.utils.sqlalchemy import UtcDateTime, with_row_locks
+from airflow.utils.sqlalchemy import UtcDateTime, get_dialect_name, mapped_column, with_row_locks
 from airflow.utils.state import TaskInstanceState
 
 if TYPE_CHECKING:
+    from sqlalchemy import Row
     from sqlalchemy.sql import Select
 
     from airflow.triggers.base import BaseTrigger, TriggerEvent
@@ -89,11 +93,11 @@ class Trigger(Base):
 
     __tablename__ = "trigger"
 
-    id = Column(Integer, primary_key=True)
-    classpath = Column(String(1000), nullable=False)
-    encrypted_kwargs = Column("kwargs", Text, nullable=False)
-    created_date = Column(UtcDateTime, nullable=False)
-    triggerer_id = Column(Integer, nullable=True)
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    classpath: Mapped[str] = mapped_column(String(1000), nullable=False)
+    encrypted_kwargs: Mapped[str] = mapped_column("kwargs", Text, nullable=False)
+    created_date: Mapped[datetime.datetime] = mapped_column(UtcDateTime, nullable=False)
+    triggerer_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
 
     triggerer_job = relationship(
         "Job",
@@ -104,9 +108,12 @@ class Trigger(Base):
 
     task_instance = relationship("TaskInstance", back_populates="trigger", lazy="selectin", uselist=False)
 
-    assets = relationship("AssetModel", secondary=asset_trigger_association_table, back_populates="triggers")
+    asset_watchers = relationship("AssetWatcherModel", back_populates="trigger")
+    assets = association_proxy("asset_watchers", "asset")
 
-    deadline = relationship("Deadline", back_populates="trigger", uselist=False)
+    callback = relationship("Callback", back_populates="trigger", uselist=False)
+
+    max_trigger_to_select_per_loop = conf.getint("triggerer", "max_trigger_to_select_per_loop", fallback=50)
 
     def __init__(
         self,
@@ -190,11 +197,9 @@ class Trigger(Base):
     @classmethod
     @provide_session
     def fetch_trigger_ids_with_non_task_associations(cls, session: Session = NEW_SESSION) -> set[str]:
-        """Fetch all trigger IDs actively associated with non-task entities like assets and deadlines."""
-        from airflow.models import Deadline
-
-        query = select(asset_trigger_association_table.columns.trigger_id).union_all(
-            select(Deadline.trigger_id).where(Deadline.trigger_id.is_not(None))
+        """Fetch all trigger IDs actively associated with non-task entities like assets and callbacks."""
+        query = select(AssetWatcherModel.trigger_id).union_all(
+            select(Callback.trigger_id).where(Callback.trigger_id.is_not(None))
         )
 
         return set(session.scalars(query))
@@ -219,20 +224,24 @@ class Trigger(Base):
                     .values(trigger_id=None)
                 )
 
-        # Get all triggers that have no task instances, assets, or deadlines depending on them and delete them
+        # Get all triggers that have no task instances, assets, or callbacks depending on them and delete them
         ids = (
             select(cls.id)
-            .where(~cls.assets.any(), ~cls.deadline.has())
+            .where(~cls.assets.any(), ~cls.callback.has())
             .join(TaskInstance, cls.id == TaskInstance.trigger_id, isouter=True)
             .group_by(cls.id)
             .having(func.count(TaskInstance.trigger_id) == 0)
         )
-        if session.bind.dialect.name == "mysql":
+        if get_dialect_name(session) == "mysql":
             # MySQL doesn't support DELETE with JOIN, so we need to do it in two steps
-            ids = session.scalars(ids).all()
-        session.execute(
-            delete(Trigger).where(Trigger.id.in_(ids)).execution_options(synchronize_session=False)
-        )
+            ids_list = list(session.scalars(ids).all())
+            session.execute(
+                delete(Trigger).where(Trigger.id.in_(ids_list)).execution_options(synchronize_session=False)
+            )
+        else:
+            session.execute(
+                delete(Trigger).where(Trigger.id.in_(ids)).execution_options(synchronize_session=False)
+            )
 
     @classmethod
     @provide_session
@@ -258,12 +267,12 @@ class Trigger(Base):
             return
         for asset in trigger.assets:
             AssetManager.register_asset_change(
-                asset=asset.to_public(),
+                asset=asset.to_serialized(),
                 extra={"from_trigger": True, "payload": event.payload},
                 session=session,
             )
-        if trigger.deadline:
-            trigger.deadline.handle_callback_event(event, session)
+        if trigger.callback:
+            trigger.callback.handle_event(event, session)
 
     @classmethod
     @provide_session
@@ -304,7 +313,7 @@ class Trigger(Base):
     @provide_session
     def ids_for_triggerer(cls, triggerer_id, session: Session = NEW_SESSION) -> list[int]:
         """Retrieve a list of trigger ids."""
-        return session.scalars(select(cls.id).where(cls.triggerer_id == triggerer_id)).all()
+        return list(session.scalars(select(cls.id).where(cls.triggerer_id == triggerer_id)).all())
 
     @classmethod
     @provide_session
@@ -324,6 +333,11 @@ class Trigger(Base):
         capacity -= count
 
         if capacity <= 0:
+            log.info(
+                "Triggerer %s has reached the maximum capacity triggers assigned (%d). Not assigning any more triggers",
+                triggerer_id,
+                count,
+            )
             return
 
         alive_triggerer_ids = select(Job.id).where(
@@ -340,7 +354,7 @@ class Trigger(Base):
         if trigger_ids_query:
             session.execute(
                 update(cls)
-                .where(cls.id.in_([i.id for i in trigger_ids_query]))
+                .where(cls.id.in_([i[0] for i in trigger_ids_query]))
                 .values(triggerer_id=triggerer_id)
                 .execution_options(synchronize_session=False)
             )
@@ -356,13 +370,15 @@ class Trigger(Base):
         :param alive_triggerer_ids: The alive triggerer ids as a list or a select query.
         :param session: The database session.
         """
-        result: list[int] = []
+        result: list[Row[Any]] = []
 
-        # Add triggers associated to deadlines first, then tasks, then assets
-        # It prioritizes deadline triggers, then DAGs over event driven scheduling which is fair
+        # Add triggers associated to callbacks first, then tasks, then assets
+        # It prioritizes callbacks, then DAGs over event driven scheduling which is fair
         queries = [
-            # Deadline triggers
-            select(cls.id).where(cls.deadline.has()).order_by(cls.created_date),
+            # Callback triggers
+            select(cls.id)
+            .join(Callback, isouter=False)
+            .order_by(Callback.priority_weight.desc(), cls.created_date),
             # Task Instance triggers
             select(cls.id)
             .prefix_with("STRAIGHT_JOIN", dialect="mysql")
@@ -378,6 +394,10 @@ class Trigger(Base):
             remaining_capacity = capacity - len(result)
             if remaining_capacity <= 0:
                 break
+
+            # Limit the number of triggers selected per loop to avoid one triggerer
+            # picking up too many triggers and starving other triggerers for HA setup.
+            remaining_capacity = min(remaining_capacity, cls.max_trigger_to_select_per_loop)
 
             locked_query = with_row_locks(query.limit(remaining_capacity), session, skip_locked=True)
             result.extend(session.execute(locked_query).all())
@@ -438,6 +458,8 @@ def _(event: BaseTaskEndEvent, *, task_instance: TaskInstance, session: Session)
     def _submit_callback_if_necessary() -> None:
         """Submit a callback request if the task state is SUCCESS or FAILED."""
         if event.task_instance_state in (TaskInstanceState.SUCCESS, TaskInstanceState.FAILED):
+            if task_instance.dag_model.relative_fileloc is None:
+                raise RuntimeError("relative_fileloc should not be None for a finished task")
             request = TaskCallbackRequest(
                 filepath=task_instance.dag_model.relative_fileloc,
                 ti=task_instance,

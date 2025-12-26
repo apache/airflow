@@ -18,21 +18,19 @@
 from __future__ import annotations
 
 import json
+import warnings
 from collections.abc import Sequence
 from functools import cached_property
 from typing import TYPE_CHECKING, Any, Literal
 
+from airflow.exceptions import AirflowProviderDeprecationWarning
+from airflow.providers.common.compat.sdk import BaseOperator
 from airflow.providers.slack.hooks.slack import SlackHook
-from airflow.providers.slack.version_compat import BaseOperator
 
 if TYPE_CHECKING:
     from slack_sdk.http_retry import RetryHandler
 
-    try:
-        from airflow.sdk.definitions.context import Context
-    except ImportError:
-        # TODO: Remove once provider drops support for Airflow 2
-        from airflow.utils.context import Context
+    from airflow.providers.common.compat.sdk import Context
 
 
 class SlackAPIOperator(BaseOperator):
@@ -225,7 +223,7 @@ class SlackAPIFileOperator(SlackAPIOperator):
         filetype: str | None = None,
         content: str | None = None,
         title: str | None = None,
-        method_version: Literal["v1", "v2"] = "v2",
+        method_version: Literal["v1", "v2"] | None = None,
         snippet_type: str | None = None,
         **kwargs,
     ) -> None:
@@ -239,18 +237,25 @@ class SlackAPIFileOperator(SlackAPIOperator):
         self.method_version = method_version
         self.snippet_type = snippet_type
 
-    @property
-    def _method_resolver(self):
-        if self.method_version == "v1":
-            return self.hook.send_file
-        return self.hook.send_file_v1_to_v2
+        if self.filetype:
+            warnings.warn(
+                "The property `filetype` is no longer supported in slack_sdk and will be removed in a future release.",
+                AirflowProviderDeprecationWarning,
+                stacklevel=2,
+            )
+
+        if self.method_version:
+            warnings.warn(
+                "The property `method_version` is no longer required for `SlackAPIFileOperator`, as slack_sdk is using the files_upload_v2 method by default.",
+                AirflowProviderDeprecationWarning,
+                stacklevel=2,
+            )
 
     def execute(self, context: Context):
-        self._method_resolver(
+        self.hook.send_file_v1_to_v2(
             channels=self.channels,
             # For historical reason SlackAPIFileOperator use filename as reference to file
             file=self.filename,
-            filetype=self.filetype,
             content=self.content,
             initial_comment=self.initial_comment,
             title=self.title,

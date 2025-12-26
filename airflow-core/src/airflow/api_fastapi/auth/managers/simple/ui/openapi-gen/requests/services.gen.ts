@@ -3,14 +3,41 @@ import type { CancelablePromise } from "./core/CancelablePromise";
 import { OpenAPI } from "./core/OpenAPI";
 import { request as __request } from "./core/request";
 import type {
-  CreateTokenAllAdminsResponse,
   CreateTokenData,
   CreateTokenResponse,
+  CreateTokenAllAdminsResponse,
   CreateTokenCliData,
   CreateTokenCliResponse,
 } from "./types.gen";
 
 export class SimpleAuthManagerLoginService {
+  /**
+   * Create Token
+   * Authenticate the user.
+   * @param data The data for the request.
+   * @param data.requestBody
+   * @param data.contentType Content-Type of the request body
+   * @returns LoginResponse Successful Response
+   * @throws ApiError
+   */
+  public static createToken(data: CreateTokenData): CancelablePromise<CreateTokenResponse> {
+    return __request(OpenAPI, {
+      method: "POST",
+      url: "/auth/token",
+      headers: {
+        "Content-Type": data.contentType,
+      },
+      body: data.requestBody,
+      mediaType: "application/json",
+      errors: {
+        400: "Bad Request",
+        401: "Unauthorized",
+        415: "Unsupported Media Type",
+        422: "Validation Error",
+      },
+    });
+  }
+
   /**
    * Create Token All Admins
    * Create a token with no credentials only if ``simple_auth_manager_all_admins`` is True.
@@ -23,28 +50,6 @@ export class SimpleAuthManagerLoginService {
       url: "/auth/token",
       errors: {
         403: "Forbidden",
-      },
-    });
-  }
-
-  /**
-   * Create Token
-   * Authenticate the user.
-   * @param data The data for the request.
-   * @param data.requestBody
-   * @returns LoginResponse Successful Response
-   * @throws ApiError
-   */
-  public static createToken(data: CreateTokenData): CancelablePromise<CreateTokenResponse> {
-    return __request(OpenAPI, {
-      method: "POST",
-      url: "/auth/token",
-      body: data.requestBody,
-      mediaType: "application/json",
-      errors: {
-        400: "Bad Request",
-        401: "Unauthorized",
-        422: "Validation Error",
       },
     });
   }

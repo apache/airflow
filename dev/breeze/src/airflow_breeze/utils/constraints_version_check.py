@@ -88,10 +88,14 @@ def count_versions_between(releases: dict[str, Any], current_version: str, lates
     if current == latest:
         return 0
 
-    valid_versions = [
-        v for v in releases.keys() if releases[v] and is_valid_version(version_str=v, latest_version=latest)
+    versions_between = [
+        v
+        for v in releases.keys()
+        if releases[v]
+        and is_valid_version(version_str=v, latest_version=latest)
+        and current < version.parse(v) <= latest
     ]
-    return max(len(valid_versions), 1) if current < latest else 0
+    return len(versions_between)
 
 
 def get_status_emoji(constraint_date, latest_date, is_latest_version):
@@ -240,8 +244,8 @@ def constraints_version_check(
 def parse_packages_from_lines(lines: list[str], selected_packages: set[str] | None) -> list[tuple[str, str]]:
     remaining_packages: set[str] = selected_packages.copy() if selected_packages else set()
     packages = []
-    for line in lines:
-        line = line.strip()
+    for line_raw in lines:
+        line = line_raw.strip()
         if line and not line.startswith("#") and "@" not in line:
             match = re.match(r"^([a-zA-Z0-9_.\-]+)==([\w.\-]+)$", line)
             if match:

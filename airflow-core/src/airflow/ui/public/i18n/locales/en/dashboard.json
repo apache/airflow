@@ -29,13 +29,15 @@
   "poolSlots": "Pool Slots",
   "sortBy": {
     "newestFirst": "Newest First",
-    "oldestFirst": "Oldest First"
+    "oldestFirst": "Oldest First",
+    "placeholder": "Sort by"
   },
   "source": "Source",
   "stats": {
     "activeDags": "Active Dags",
     "failedDags": "Failed Dags",
     "queuedDags": "Queued Dags",
+    "requiredActions": "Required Actions",
     "runningDags": "Running Dags",
     "stats": "Stats"
   },

@@ -255,27 +255,31 @@ If release name contains chart name it will be used as a full name.
     - name: GITSYNC_SSH_KNOWN_HOSTS
       value: "false"
     {{- end }}
-    {{ else if .Values.dags.gitSync.credentialsSecret }}
-    - name: GIT_SYNC_USERNAME
-      valueFrom:
-        secretKeyRef:
-          name: {{ .Values.dags.gitSync.credentialsSecret | quote }}
-          key: GIT_SYNC_USERNAME
+    {{- else if .Values.dags.gitSync.credentialsSecret }}
+    {{- $tag := trimPrefix "v" .Values.images.gitSync.tag }}
+    {{- if or (eq $tag "latest") (semverCompare ">=4.0.0" $tag) }}
     - name: GITSYNC_USERNAME
       valueFrom:
         secretKeyRef:
           name: {{ .Values.dags.gitSync.credentialsSecret | quote }}
           key: GITSYNC_USERNAME
-    - name: GIT_SYNC_PASSWORD
-      valueFrom:
-        secretKeyRef:
-          name: {{ .Values.dags.gitSync.credentialsSecret | quote }}
-          key: GIT_SYNC_PASSWORD
     - name: GITSYNC_PASSWORD
       valueFrom:
         secretKeyRef:
           name: {{ .Values.dags.gitSync.credentialsSecret | quote }}
           key: GITSYNC_PASSWORD
+    {{- else }}
+    - name: GIT_SYNC_USERNAME
+      valueFrom:
+        secretKeyRef:
+          name: {{ .Values.dags.gitSync.credentialsSecret | quote }}
+          key: GIT_SYNC_USERNAME
+    - name: GIT_SYNC_PASSWORD
+      valueFrom:
+        secretKeyRef:
+          name: {{ .Values.dags.gitSync.credentialsSecret | quote }}
+          key: GIT_SYNC_PASSWORD
+    {{- end }}
     {{- end }}
     - name: GIT_SYNC_REV
       value: {{ .Values.dags.gitSync.rev | quote }}
@@ -323,6 +327,12 @@ If release name contains chart name it will be used as a full name.
     {{- toYaml . | nindent 4 }}
     {{- end }}
   resources: {{ toYaml .Values.dags.gitSync.resources | nindent 4 }}
+  {{- if and .Values.dags.gitSync.livenessProbe (not .is_init) }}
+  livenessProbe: {{ tpl (toYaml .Values.dags.gitSync.livenessProbe) . | nindent 4 }}
+  {{- end }}
+  {{- if and .Values.dags.gitSync.readinessProbe (not .is_init) }}
+  readinessProbe: {{ tpl (toYaml .Values.dags.gitSync.readinessProbe) . | nindent 4 }}
+  {{- end }}
   volumeMounts:
   - name: dags
     mountPath: /git
@@ -407,11 +417,11 @@ If release name contains chart name it will be used as a full name.
 {{- end }}
 
 {{- define "fernet_key_secret" -}}
-  {{- default (printf "%s-fernet-key" .Release.Name) .Values.fernetKeySecretName }}
+  {{- default (printf "%s-fernet-key" (include "airflow.fullname" .)) .Values.fernetKeySecretName }}
 {{- end }}
 
 {{- define "jwt_secret" -}}
-  {{- default (printf "%s-jwt-secret" .Release.Name) .Values.jwtSecretName }}
+  {{- default (printf "%s-jwt-secret" (include "airflow.fullname" .)) .Values.jwtSecretName }}
 {{- end }}
 
 {{- define "webserver_secret_key_secret" -}}
@@ -423,7 +433,7 @@ If release name contains chart name it will be used as a full name.
 {{- end }}
 
 {{- define "redis_password_secret" -}}
-  {{- default (printf "%s-redis-password" .Release.Name) .Values.redis.passwordSecretName }}
+  {{- default (printf "%s-redis-password" (include "airflow.fullname" .)) .Values.redis.passwordSecretName }}
 {{- end }}
 
 {{- define "airflow_metadata_secret" -}}
@@ -450,8 +460,20 @@ If release name contains chart name it will be used as a full name.
   {{- default (printf "%s-pgbouncer-stats" (include "airflow.fullname" .)) .Values.pgbouncer.metricsExporterSidecar.statsSecretName }}
 {{- end }}
 
-{{- define "registry_secret" -}}
-  {{- default (printf "%s-registry" (include "airflow.fullname" .)) .Values.registry.secretName }}
+{{- define "image_pull_secrets" -}}
+  {{- $secrets := (default (list .Values.registry.secretName) .Values.imagePullSecrets) -}}
+  {{- $secrets = ($secrets | compact | uniq) -}}
+  {{- if and (not $secrets) (or .Values.registry.connection) -}}
+    {{- $secrets = append $secrets (printf "%s-registry" (include "airflow.fullname" .)) -}}
+  {{- end -}}
+  {{- $out := list -}}
+  {{- range $n := $secrets }}
+    {{- if kindIs "string" $n }}
+      {{- $n = dict "name" $n -}}
+    {{- end -}}
+    {{- $out = append $out (dict "name" $n.name) -}}
+  {{- end -}}
+  {{- toYaml $out -}}
 {{- end }}
 
 {{- define "elasticsearch_secret" -}}
@@ -594,7 +616,7 @@ server_tls_key_file = /etc/pgbouncer/server.key
 {{- end }}
 
 {{- define "airflow_webserver_config_configmap_name" -}}
-  {{- default (printf "%s-webserver-config" .Release.Name) .Values.webserver.webserverConfigConfigMapName }}
+  {{- default (printf "%s-webserver-config" (include "airflow.fullname" .)) .Values.webserver.webserverConfigConfigMapName }}
 {{- end }}
 
 {{- define "airflow_webserver_config_mount" -}}
@@ -605,7 +627,7 @@ server_tls_key_file = /etc/pgbouncer/server.key
 {{- end }}
 
 {{- define "airflow_api_server_config_configmap_name" -}}
-  {{- default (printf "%s-api-server-config" .Release.Name) .Values.webserver.webserverConfigConfigMapName }}
+  {{- default (printf "%s-api-server-config" (include "airflow.fullname" .)) .Values.apiServer.apiServerConfigConfigMapName }}
 {{- end }}
 
 {{- define "airflow_api_server_config_mount" -}}
@@ -736,6 +758,11 @@ server_tls_key_file = /etc/pgbouncer/server.key
 {{/* Create the name of the cleanup service account to use */}}
 {{- define "cleanup.serviceAccountName" -}}
   {{- include "_serviceAccountName" (merge (dict "key" "cleanup") .) -}}
+{{- end }}
+
+{{/* Create the name of the database cleanup service account to use */}}
+{{- define "databaseCleanup.serviceAccountName" -}}
+  {{- include "_serviceAccountName" (merge (dict "key" "databaseCleanup" "nameSuffix" "database-cleanup") .) -}}
 {{- end }}
 
 {{- define "wait-for-migrations-command" -}}
@@ -1120,3 +1147,28 @@ capabilities:
             app: keda-operator
   {{- end }}
 {{- end }}
+
+{{/*
+Convert a Kubernetes CPU limit (e.g., "500m", "1.5", "2", "750m") into an integer number of CPU cores.
+*/}}
+{{- define "cpu_count" -}}
+  {{- $v := toString . -}}
+    {{- if hasSuffix "m" $v -}}
+      {{- /* millicores path: e.g. 500m, 1500m */ -}}
+      {{- $m := float64 (trimSuffix "m" $v) -}}
+      {{- int (ceil (divf $m 1000)) -}}
+    {{- else -}}
+      {{- /* plain cores: e.g. 0.5, 1, 1.5 */ -}}
+      {{- int (ceil (float64 $v)) -}}
+    {{- end -}}
+{{- end }}
+
+{{/*
+Check if the current executor launches pods
+This helper function returns true if the executor can launch pods (Kubernetes-based executors)
+*/}}
+{{- define "airflow.podLaunchingExecutor" -}}
+  {{- if or (contains "CeleryExecutor" .Values.executor) (contains "CeleryKubernetesExecutor" .Values.executor) (contains "KubernetesExecutor" .Values.executor) (contains "LocalKubernetesExecutor" .Values.executor) -}}
+    {{- print "true" -}}
+  {{- end -}}
+{{- end -}}

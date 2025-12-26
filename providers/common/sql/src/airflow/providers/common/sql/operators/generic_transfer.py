@@ -21,19 +21,14 @@ from collections.abc import Sequence
 from functools import cached_property
 from typing import TYPE_CHECKING, Any
 
-from airflow.exceptions import AirflowException
+from airflow.providers.common.compat.sdk import AirflowException, BaseHook, BaseOperator
 from airflow.providers.common.sql.hooks.sql import DbApiHook
 from airflow.providers.common.sql.triggers.sql import SQLExecuteQueryTrigger
-from airflow.providers.common.sql.version_compat import BaseHook, BaseOperator
 
 if TYPE_CHECKING:
     import jinja2
 
-    try:
-        from airflow.sdk.definitions.context import Context
-    except ImportError:
-        # TODO: Remove once provider drops support for Airflow 2
-        from airflow.utils.context import Context
+    from airflow.providers.common.compat.sdk import Context
 
 
 class GenericTransfer(BaseOperator):
@@ -56,6 +51,7 @@ class GenericTransfer(BaseOperator):
         executed prior to loading the data. (templated)
     :param insert_args: extra params for `insert_rows` method.
     :param page_size: number of records to be read in paginated mode (optional).
+    :param paginated_sql_statement_clause: SQL statement clause to be used for pagination (optional).
     """
 
     template_fields: Sequence[str] = (
@@ -65,6 +61,8 @@ class GenericTransfer(BaseOperator):
         "destination_table",
         "preoperator",
         "insert_args",
+        "page_size",
+        "paginated_sql_statement_clause",
     )
     template_ext: Sequence[str] = (
         ".sql",
@@ -76,7 +74,7 @@ class GenericTransfer(BaseOperator):
     def __init__(
         self,
         *,
-        sql: str,
+        sql: str | list[str],
         destination_table: str,
         source_conn_id: str,
         source_hook_params: dict | None = None,
@@ -85,6 +83,7 @@ class GenericTransfer(BaseOperator):
         preoperator: str | list[str] | None = None,
         insert_args: dict | None = None,
         page_size: int | None = None,
+        paginated_sql_statement_clause: str | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -97,9 +96,7 @@ class GenericTransfer(BaseOperator):
         self.preoperator = preoperator
         self.insert_args = insert_args or {}
         self.page_size = page_size
-        self._paginated_sql_statement_format = kwargs.get(
-            "paginated_sql_statement_format", "{} LIMIT {} OFFSET {}"
-        )
+        self.paginated_sql_statement_clause = paginated_sql_statement_clause or "{} LIMIT {} OFFSET {}"
 
     @classmethod
     def get_hook(cls, conn_id: str, hook_params: dict | None = None) -> DbApiHook:
@@ -126,7 +123,7 @@ class GenericTransfer(BaseOperator):
 
     def get_paginated_sql(self, offset: int) -> str:
         """Format the paginated SQL statement using the current format."""
-        return self._paginated_sql_statement_format.format(self.sql, self.page_size, offset)
+        return self.paginated_sql_statement_clause.format(self.sql, self.page_size, offset)
 
     def render_template_fields(
         self,
@@ -158,13 +155,19 @@ class GenericTransfer(BaseOperator):
                 method_name=self.execute_complete.__name__,
             )
         else:
+            if isinstance(self.sql, str):
+                self.sql = [self.sql]
+
             self.log.info("Extracting data from %s", self.source_conn_id)
-            self.log.info("Executing: \n %s", self.sql)
+            for sql in self.sql:
+                self.log.info("Executing: \n %s", sql)
 
-            results = self.source_hook.get_records(self.sql)
+                results = self.source_hook.get_records(sql)
 
-            self.log.info("Inserting rows into %s", self.destination_conn_id)
-            self.destination_hook.insert_rows(table=self.destination_table, rows=results, **self.insert_args)
+                self.log.info("Inserting rows into %s", self.destination_conn_id)
+                self.destination_hook.insert_rows(
+                    table=self.destination_table, rows=results, **self.insert_args
+                )
 
     def execute_complete(
         self,

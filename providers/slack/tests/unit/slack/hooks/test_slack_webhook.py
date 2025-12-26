@@ -27,11 +27,16 @@ from unittest.mock import patch
 
 import pytest
 from slack_sdk.http_retry.builtin_handlers import ConnectionErrorRetryHandler, RateLimitErrorRetryHandler
+from slack_sdk.webhook.async_client import AsyncWebhookClient
 from slack_sdk.webhook.webhook_response import WebhookResponse
 
-from airflow.exceptions import AirflowException, AirflowNotFoundException
 from airflow.models.connection import Connection
-from airflow.providers.slack.hooks.slack_webhook import SlackWebhookHook, check_webhook_response
+from airflow.providers.common.compat.sdk import AirflowException, AirflowNotFoundException
+from airflow.providers.slack.hooks.slack_webhook import (
+    SlackWebhookHook,
+    async_check_webhook_response,
+    check_webhook_response,
+)
 
 TEST_TOKEN = "T00000000/B00000000/XXXXXXXXXXXXXXXXXXXXXXXX"
 TEST_WEBHOOK_URL = f"https://hooks.slack.com/services/{TEST_TOKEN}"
@@ -149,7 +154,7 @@ class TestCheckWebhookResponseDecorator:
         assert decorated() is MOCK_WEBHOOK_RESPONSE
 
     @pytest.mark.parametrize(
-        "status_code,body",
+        ("status_code", "body"),
         [
             (400, "invalid_payload"),
             (403, "action_prohibited"),
@@ -170,6 +175,42 @@ class TestCheckWebhookResponseDecorator:
         error_message = rf"Response body: '{body}', Status Code: {status_code}\."
         with pytest.raises(AirflowException, match=error_message):
             assert decorated()
+
+
+class TestAsyncCheckWebhookResponseDecorator:
+    @pytest.mark.asyncio
+    async def test_ok_response(self):
+        """Test async decorator with OK response."""
+
+        @async_check_webhook_response
+        async def decorated():
+            return MOCK_WEBHOOK_RESPONSE
+
+        assert await decorated() is MOCK_WEBHOOK_RESPONSE
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        ("status_code", "body"),
+        [
+            (400, "invalid_payload"),
+            (403, "action_prohibited"),
+            (404, "channel_not_found"),
+            (410, "channel_is_archived"),
+            (500, "rollup_error"),
+            (418, "i_am_teapot"),
+        ],
+    )
+    async def test_error_response(self, status_code, body):
+        """Test async decorator with error response."""
+        test_response = WebhookResponse(url="foo://bar", status_code=status_code, body=body, headers={})
+
+        @async_check_webhook_response
+        async def decorated():
+            return test_response
+
+        error_message = rf"Response body: '{body}', Status Code: {status_code}\."
+        with pytest.raises(AirflowException, match=error_message):
+            await decorated()
 
 
 class TestSlackWebhookHook:
@@ -235,7 +276,7 @@ class TestSlackWebhookHook:
             hook._get_conn_params()
 
     @pytest.mark.parametrize(
-        "hook_config,conn_extra,expected",
+        ("hook_config", "conn_extra", "expected"),
         [
             (  # Test Case: hook config
                 {
@@ -432,6 +473,7 @@ class TestSlackWebhookHook:
             {"text": "Test Text"},
             {"text": "Fallback Text", "blocks": ["Dummy Block"]},
             {"text": "Fallback Text", "blocks": ["Dummy Block"], "unfurl_media": True, "unfurl_links": True},
+            {"legacy": "value"},
         ],
     )
     @mock.patch("airflow.providers.slack.hooks.slack_webhook.SlackWebhookHook.send_dict")
@@ -503,3 +545,92 @@ class TestSlackWebhookHook:
             hook = SlackWebhookHook(slack_webhook_conn_id="my_conn")
             params = hook._get_conn_params()
             assert "proxy" not in params
+
+
+class TestSlackWebhookHookAsync:
+    @pytest.mark.asyncio
+    @mock.patch("airflow.providers.slack.hooks.slack_webhook.SlackWebhookHook._async_get_conn_params")
+    async def test_async_client(self, mock_async_get_conn_params):
+        """Test async_client property creates AsyncWebhookClient with correct params."""
+        mock_async_get_conn_params.return_value = {"url": TEST_WEBHOOK_URL}
+
+        hook = SlackWebhookHook(slack_webhook_conn_id=TEST_CONN_ID)
+        client = await hook.get_async_client()
+
+        assert isinstance(client, AsyncWebhookClient)
+        assert client.url == TEST_WEBHOOK_URL
+        mock_async_get_conn_params.assert_called_once()
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("headers", [None, {"User-Agent": "Airflow"}])
+    @pytest.mark.parametrize(
+        "send_body",
+        [
+            {"text": "Test Text"},
+            {"text": "Fallback Text", "blocks": ["Dummy Block"]},
+            {"text": "Fallback Text", "blocks": ["Dummy Block"], "unfurl_media": True, "unfurl_links": True},
+        ],
+    )
+    @mock.patch("airflow.providers.slack.hooks.slack_webhook.AsyncWebhookClient")
+    @mock.patch("airflow.providers.slack.hooks.slack_webhook.SlackWebhookHook._async_get_conn_params")
+    async def test_async_send_dict(
+        self, mock_async_get_conn_params, mock_async_webhook_client_cls, send_body, headers
+    ):
+        """Test async_send_dict method with dict input."""
+        mock_async_get_conn_params.return_value = {"url": TEST_WEBHOOK_URL}
+        mock_async_client = mock_async_webhook_client_cls.return_value
+        mock_async_client.send_dict = mock.AsyncMock(return_value=MOCK_WEBHOOK_RESPONSE)
+
+        hook = SlackWebhookHook(slack_webhook_conn_id=TEST_CONN_ID)
+        resp = await hook.async_send_dict(body=send_body, headers=headers)
+
+        assert resp == MOCK_WEBHOOK_RESPONSE
+        mock_async_client.send_dict.assert_called_once_with(send_body, headers=headers)
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("headers", [None, {"User-Agent": "Airflow"}])
+    @pytest.mark.parametrize(
+        "send_body",
+        [
+            {"text": "Test Text"},
+            {"text": "Fallback Text", "blocks": ["Dummy Block"]},
+            {"text": "Fallback Text", "blocks": ["Dummy Block"], "unfurl_media": True, "unfurl_links": True},
+        ],
+    )
+    @mock.patch("airflow.providers.slack.hooks.slack_webhook.AsyncWebhookClient")
+    @mock.patch("airflow.providers.slack.hooks.slack_webhook.SlackWebhookHook._async_get_conn_params")
+    async def test_async_send_dict_json_string(
+        self, mock_async_get_conn_params, mock_async_webhook_client_cls, send_body, headers
+    ):
+        """Test async_send_dict method with JSON string input."""
+        mock_async_get_conn_params.return_value = {"url": TEST_WEBHOOK_URL}
+        mock_async_client = mock_async_webhook_client_cls.return_value
+        mock_async_client.send_dict = mock.AsyncMock(return_value=MOCK_WEBHOOK_RESPONSE)
+
+        hook = SlackWebhookHook(slack_webhook_conn_id=TEST_CONN_ID)
+        resp = await hook.async_send_dict(body=json.dumps(send_body), headers=headers)
+
+        assert resp == MOCK_WEBHOOK_RESPONSE
+        mock_async_client.send_dict.assert_called_once_with(send_body, headers=headers)
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("headers", [None, {"User-Agent": "Airflow"}])
+    @pytest.mark.parametrize(
+        "send_params",
+        [
+            {"text": "Test Text"},
+            {"text": "Fallback Text", "blocks": ["Dummy Block"]},
+            {"text": "Fallback Text", "blocks": ["Dummy Block"], "unfurl_media": True, "unfurl_links": True},
+            {"legacy": "value"},
+        ],
+    )
+    @mock.patch("airflow.providers.slack.hooks.slack_webhook.SlackWebhookHook.async_send_dict")
+    async def test_async_send(self, mock_async_send_dict, send_params, headers):
+        """Test at async_send method."""
+        mock_async_send_dict.return_value = MOCK_WEBHOOK_RESPONSE
+
+        hook = SlackWebhookHook(slack_webhook_conn_id=TEST_CONN_ID)
+        resp = await hook.async_send(**send_params, headers=headers)
+
+        assert resp == MOCK_WEBHOOK_RESPONSE
+        mock_async_send_dict.assert_called_once_with(body=send_params, headers=headers)

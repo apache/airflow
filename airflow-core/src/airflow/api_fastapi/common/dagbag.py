@@ -16,19 +16,24 @@
 # under the License.
 from __future__ import annotations
 
-from typing import Annotated
+from typing import TYPE_CHECKING, Annotated
 
-from fastapi import Depends, Request
+from fastapi import Depends, HTTPException, Request, status
+from sqlalchemy.orm import Session
 
-from airflow.models.dagbag import SchedulerDagBag
+from airflow.models.dagbag import DBDagBag
+
+if TYPE_CHECKING:
+    from airflow.models.dagrun import DagRun
+    from airflow.serialization.definitions.dag import SerializedDAG
 
 
-def create_dag_bag() -> SchedulerDagBag:
+def create_dag_bag() -> DBDagBag:
     """Create DagBag to retrieve DAGs from the database."""
-    return SchedulerDagBag()
+    return DBDagBag()
 
 
-def dag_bag_from_app(request: Request) -> SchedulerDagBag:
+def dag_bag_from_app(request: Request) -> DBDagBag:
     """
     FastAPI dependency resolver that returns the shared DagBag instance from app.state.
 
@@ -38,4 +43,41 @@ def dag_bag_from_app(request: Request) -> SchedulerDagBag:
     return request.app.state.dag_bag
 
 
-DagBagDep = Annotated[SchedulerDagBag, Depends(dag_bag_from_app)]
+def get_latest_version_of_dag(
+    dag_bag: DBDagBag, dag_id: str, session: Session, include_reason: bool = False
+) -> SerializedDAG:
+    dag = dag_bag.get_latest_version_of_dag(dag_id, session=session)
+    if not dag:
+        if include_reason:
+            raise HTTPException(
+                status.HTTP_404_NOT_FOUND,
+                detail={
+                    "reason": "not_found",
+                    "message": f"The Dag with ID: `{dag_id}` was not found",
+                },
+            )
+        raise HTTPException(status.HTTP_404_NOT_FOUND, f"The Dag with ID: `{dag_id}` was not found")
+    return dag
+
+
+def get_dag_for_run(dag_bag: DBDagBag, dag_run: DagRun, session: Session) -> SerializedDAG:
+    dag = dag_bag.get_dag_for_run(dag_run, session=session)
+    if not dag:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, f"The Dag with ID: `{dag_run.dag_id}` was not found")
+    return dag
+
+
+def get_dag_for_run_or_latest_version(
+    dag_bag: DBDagBag, dag_run: DagRun | None, dag_id: str | None, session: Session
+) -> SerializedDAG:
+    dag: SerializedDAG | None = None
+    if dag_run:
+        dag = dag_bag.get_dag_for_run(dag_run, session=session)
+    elif dag_id:
+        dag = dag_bag.get_latest_version_of_dag(dag_id, session=session)
+    if not dag:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, f"The Dag with ID: `{dag_id}` was not found")
+    return dag
+
+
+DagBagDep = Annotated[DBDagBag, Depends(dag_bag_from_app)]

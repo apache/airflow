@@ -20,12 +20,19 @@ name: Microsoft Azure
 description: |
   `Microsoft Azure <https://azure.microsoft.com/>`__
 state: ready
-source-date-epoch: 1753691575
+source-date-epoch: 1765299261
 # Note that those versions are maintained by release manager - do not update them manually
 # with the exception of case where other provider in sources has >= new provider version.
 # In such case adding >= NEW_VERSION and bumping to NEW_VERSION in a provider have
 # to be done in the same PR
 versions:
+  - 12.10.0
+  - 12.9.0
+  - 12.8.1
+  - 12.8.0
+  - 12.7.1
+  - 12.7.0
+  - 12.6.1
   - 12.6.0
   - 12.5.0
   - 12.4.1
@@ -107,6 +114,8 @@ integrations:
     tags: [azure]
   - integration-name: Microsoft Azure Blob Storage
     external-doc-url: https://azure.microsoft.com/en-us/services/storage/blobs/
+    how-to-guide:
+      - /docs/apache-airflow-providers-microsoft-azure/sensors/wasb_sensors.rst
     logo: /docs/integration-logos/Blob-Storage.svg
     tags: [azure]
   - integration-name: Microsoft Azure Container Instances
@@ -115,6 +124,8 @@ integrations:
     tags: [azure]
   - integration-name: Microsoft Azure Cosmos DB
     external-doc-url: https://azure.microsoft.com/en-us/services/cosmos-db/
+    how-to-guide:
+      - /docs/apache-airflow-providers-microsoft-azure/sensors/cosmos_document_sensor.rst
     logo: /docs/integration-logos/Azure-Cosmos-DB.svg
     tags: [azure]
   - integration-name: Microsoft Azure Data Explorer
@@ -165,6 +176,7 @@ integrations:
     logo: /docs/integration-logos/Microsoft-Graph-API.png
     how-to-guide:
       - /docs/apache-airflow-providers-microsoft-azure/operators/msgraph.rst
+      - /docs/apache-airflow-providers-microsoft-azure/sensors/msgraph.rst
     tags: [azure]
   - integration-name: Microsoft Power BI
     external-doc-url: https://learn.microsoft.com/en-us/rest/api/power-bi/
@@ -223,6 +235,7 @@ sensors:
 
 filesystems:
   - airflow.providers.microsoft.azure.fs.adls
+  - airflow.providers.microsoft.azure.fs.msgraph
 
 hooks:
   - integration-name: Microsoft Azure Container Instances
@@ -283,6 +296,9 @@ triggers:
   - integration-name: Microsoft Power BI
     python-modules:
       - airflow.providers.microsoft.azure.triggers.powerbi
+  - integration-name: Microsoft Azure Service Bus
+    python-modules:
+      - airflow.providers.microsoft.azure.triggers.message_bus
 
 transfers:
   - source-integration-name: Local

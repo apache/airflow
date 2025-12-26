@@ -1,14 +1,13 @@
 {
   "auditLog": {
-    "actions": {
-      "collapseAllExtra": "طي جميع الJSON الإضافية",
-      "expandAllExtra": "توسيع جميع الJSON الإضافية"
-    },
     "columns": {
       "event": "اصل",
       "extra": "إضافي",
       "user": "مستخدم",
       "when": "متى"
+    },
+    "filters": {
+      "eventType": "نوع الأصل"
     },
     "title": "سجل المراجعة"
   },

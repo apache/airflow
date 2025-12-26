@@ -16,22 +16,23 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Select as ChakraSelect } from "@chakra-ui/react";
+import { CloseButton, Select as ChakraSelect } from "@chakra-ui/react";
 import { forwardRef } from "react";
-
-import { CloseButton } from "../CloseButton";
 
 type Props = {
   readonly clearable?: boolean;
   readonly isActive?: boolean;
+  readonly triggerProps?: ChakraSelect.TriggerProps;
 } & ChakraSelect.ControlProps;
 
 export const Trigger = forwardRef<HTMLButtonElement, Props>((props, ref) => {
-  const { children, clearable, isActive, ...rest } = props;
+  const { children, clearable, isActive, triggerProps, ...rest } = props;
 
   return (
     <ChakraSelect.Control {...rest}>
-      <ChakraSelect.Trigger ref={ref}>{children}</ChakraSelect.Trigger>
+      <ChakraSelect.Trigger ref={ref} {...triggerProps}>
+        {children}
+      </ChakraSelect.Trigger>
       <ChakraSelect.IndicatorGroup _rtl={{ bottom: 0, left: 0, right: "auto", top: 0 }}>
         {clearable ? (
           <ChakraSelect.ClearTrigger asChild>

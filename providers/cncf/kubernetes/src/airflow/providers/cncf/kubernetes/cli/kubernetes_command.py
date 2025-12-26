@@ -32,11 +32,19 @@ from airflow.providers.cncf.kubernetes.executors.kubernetes_executor import Kube
 from airflow.providers.cncf.kubernetes.kube_client import get_kube_client
 from airflow.providers.cncf.kubernetes.kubernetes_helper_functions import create_unique_id
 from airflow.providers.cncf.kubernetes.pod_generator import PodGenerator, generate_pod_command_args
-from airflow.providers.cncf.kubernetes.version_compat import AIRFLOW_V_3_0_PLUS
+from airflow.providers.cncf.kubernetes.version_compat import (
+    AIRFLOW_V_3_0_PLUS,
+    AIRFLOW_V_3_1_PLUS,
+    AIRFLOW_V_3_2_PLUS,
+)
 from airflow.utils import cli as cli_utils, yaml
-from airflow.utils.cli import get_dag
 from airflow.utils.providers_configuration_loader import providers_configuration_loaded
 from airflow.utils.types import DagRunType
+
+if AIRFLOW_V_3_1_PLUS:
+    from airflow.utils.cli import get_bagged_dag
+else:
+    from airflow.utils.cli import get_dag as get_bagged_dag  # type: ignore[attr-defined,no-redef]
 
 
 @cli_utils.action_cli
@@ -45,9 +53,9 @@ def generate_pod_yaml(args):
     """Generate yaml files for each task in the DAG. Used for testing output of KubernetesExecutor."""
     logical_date = args.logical_date if AIRFLOW_V_3_0_PLUS else args.execution_date
     if AIRFLOW_V_3_0_PLUS:
-        dag = get_dag(bundle_names=args.bundle_name, dag_id=args.dag_id)
+        dag = get_bagged_dag(bundle_names=args.bundle_name, dag_id=args.dag_id)
     else:
-        dag = get_dag(subdir=args.subdir, dag_id=args.dag_id)
+        dag = get_bagged_dag(subdir=args.subdir, dag_id=args.dag_id)
     yaml_output_path = args.output_path
 
     dm = DagModel(dag_id=dag.dag_id)
@@ -66,7 +74,13 @@ def generate_pod_yaml(args):
     kube_config = KubeConfig()
 
     for task in dag.tasks:
-        if AIRFLOW_V_3_0_PLUS:
+        if AIRFLOW_V_3_2_PLUS:
+            from uuid6 import uuid7
+
+            from airflow.serialization.serialized_objects import create_scheduler_operator
+
+            ti = TaskInstance(create_scheduler_operator(task), run_id=dr.run_id, dag_version_id=uuid7())
+        elif AIRFLOW_V_3_0_PLUS:
             from uuid6 import uuid7
 
             ti = TaskInstance(task, run_id=dr.run_id, dag_version_id=uuid7())
@@ -100,7 +114,7 @@ def generate_pod_yaml(args):
     print(f"YAML output can be found at {yaml_output_path}/airflow_yaml_output/")
 
 
-@cli_utils.action_cli
+@cli_utils.action_cli(check_db=False)
 @providers_configuration_loaded
 def cleanup_pods(args):
     """Clean up k8s pods in evicted/failed/succeeded/pending states."""

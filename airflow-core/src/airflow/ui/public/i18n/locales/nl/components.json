@@ -1,0 +1,142 @@
+{
+  "backfill": {
+    "affected_one": "1 run zal getriggerd worden.",
+    "affected_other": "{{count}} Runs zullen getriggerd worden.",
+    "affectedNone": "Geen Runs komen overeen met de geselecteerde criteria.",
+    "allRuns": "Alle Runs",
+    "backwards": "Run achterstevoren",
+    "dateRange": "Datumbereik",
+    "errorStartDateBeforeEndDate": "Startdatum moet voor de einddatum",
+    "maxRuns": "Maximaal aantal actieve Runs",
+    "missingAndErroredRuns": "Missende en mislukte Runs",
+    "missingRuns": "Missende Runs",
+    "reprocessBehavior": "Reprocess gedrag",
+    "run": "Run Backfill",
+    "selectDescription": "Draai deze Dag voor een geselecteerd datumbereik",
+    "selectLabel": "Backfill",
+    "title": "Run Backfill",
+    "toaster": {
+      "success": {
+        "description": "Backfill jobs zijn succesvol getriggerd.",
+        "title": "Backfill gegenereerd"
+      }
+    },
+    "tooltip": "Backfill benodigd een planning",
+    "unpause": "Hervat {{dag_display_name}} na een trigger",
+    "validation": {
+      "datesRequired": "Data interval startdatum en einddatum moeten beide gegeven zijn.",
+      "startBeforeEnd": "Data interval startdatum moet eerder of gelijk aan de data interval einddatum zijn."
+    }
+  },
+  "banner": {
+    "backfillInProgress": "Backfill in uitvoering",
+    "cancel": "Annuleer backfill",
+    "pause": "Pauzeer backfill",
+    "unpause": "Backfill hervatten"
+  },
+  "clipboard": {
+    "copy": "Kopieer"
+  },
+  "close": "Sluiten",
+  "configForm": {
+    "advancedOptions": "Geavanceerde opties",
+    "configJson": "Configuratie JSON",
+    "invalidJson": "Ongeldig JSON formaat: {{errorMessage}}"
+  },
+  "dagWarnings": {
+    "error_one": "1 fout",
+    "error_other": "{{count}} fouten",
+    "errorAndWarning": "1 fout en {{warningText}}",
+    "warning_one": "1 waarschuwing",
+    "warning_other": "{{count}} waarschuwingen"
+  },
+  "durationChart": {
+    "duration": "Duur (seconds)",
+    "lastDagRun_one": "Laatste Dag Run",
+    "lastDagRun_other": "Laatste {{count}} Dag Runs",
+    "lastTaskInstance_one": "Laatste Task Instance",
+    "lastTaskInstance_other": "Laatste {{count}} Task Instances",
+    "queuedDuration": "Duur in de wachtrij",
+    "runAfter": "Run na",
+    "runDuration": "Run duur"
+  },
+  "fileUpload": {
+    "files_one": "{{count}} bestand",
+    "files_other": "{{count}} bestanden"
+  },
+  "flexibleForm": {
+    "placeholder": "Selecteer waarde",
+    "placeholderArray": "Voer elke string in op een nieuwe regel",
+    "placeholderExamples": "Start met typen om opties te zien",
+    "placeholderMulti": "Selecteer een of meerder waarden",
+    "validationErrorArrayNotArray": "Waarde moet een array zijn.",
+    "validationErrorArrayNotNumbers": "Alle elementen in de array moeten nummers zijn.",
+    "validationErrorArrayNotObject": "Alle elementen in de array moeten objecten zijn.",
+    "validationErrorRequired": "Dit veld is verplicht"
+  },
+  "graph": {
+    "directionDown": "Boven naar beneden",
+    "directionLeft": "Rechts naar links",
+    "directionRight": "Links naar rechts",
+    "directionUp": "Beneden naar boven",
+    "downloadImage": "Download afbeelding van de grafiek",
+    "downloadImageError": "Mislukt om de afbeelding van de grafiek te downloaden.",
+    "downloadImageErrorTitle": "Download mislukt",
+    "otherDagRuns": "+Andere Dag Runs",
+    "taskCount_one": "{{count}} Task",
+    "taskCount_other": "{{count}} Tasks",
+    "taskGroup": "Task Group"
+  },
+  "limitedList": "+{{count}} meer",
+  "limitedList.allItems": "Alle {{count}} items:",
+  "limitedList.allTags_one": "Alle labels (1)",
+  "limitedList.allTags_other": "Alle labels ({{count}})",
+  "limitedList.clickToInteract": "Klik op een label om Dags te filteren",
+  "limitedList.clickToOpenFull": "Klik op \"+{{count}} meer\" om de volledige lijst te openen",
+  "limitedList.copyPasteText": "Je kunt de bovenstaande tekst kopiëren en plakken",
+  "limitedList.showingItems_one": "Toont 1 item",
+  "limitedList.showingItems_other": "Toont {{count}} items",
+  "logs": {
+    "file": "Bestand",
+    "location": "regel {{line}} in {{name}}"
+  },
+  "reparseDag": "Herparse Dag",
+  "sortedAscending": "oplopend gesorteerd",
+  "sortedDescending": "aflopend gesorteerd",
+  "sortedUnsorted": "ongesorteerd",
+  "taskTries": "Task pogingen",
+  "toggleCardView": "Toon kaartweergave",
+  "toggleTableView": "Toon tabelweergave",
+  "triggerDag": {
+    "button": "Trigger",
+    "loading": "Dag informatie aan het laden...",
+    "loadingFailed": "Mislukt om Dag informatie te laden. Probeer het opnieuw.",
+    "runIdHelp": "Optioneel - wordt gegenereerd indien niet opgegeven",
+    "selectDescription": "Trigger een enkele run van deze Dag",
+    "selectLabel": "Enkele Run",
+    "title": "Trigger Dag",
+    "toaster": {
+      "success": {
+        "description": "Dag run is succesvol getriggerd.",
+        "title": "Dag Run triggered"
+      }
+    },
+    "unpause": "Hervat {{dagDisplayName}} op trigger"
+  },
+  "trimText": {
+    "details": "Details",
+    "empty": "Leeg",
+    "noContent": "Geen inhoud beschikbaar."
+  },
+  "versionDetails": {
+    "bundleLink": "Bundle link",
+    "bundleName": "Bundle naam",
+    "bundleVersion": "Bundle versie",
+    "createdAt": "Gemaakt op",
+    "versionId": "Versie ID"
+  },
+  "versionSelect": {
+    "dagVersion": "Dag versie",
+    "versionCode": "v{{versionCode}}"
+  }
+}

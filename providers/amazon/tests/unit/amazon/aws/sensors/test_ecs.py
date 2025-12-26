@@ -24,7 +24,6 @@ import boto3
 import pytest
 from slugify import slugify
 
-from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.sensors.ecs import (
     EcsBaseSensor,
     EcsClusterStates,
@@ -35,8 +34,13 @@ from airflow.providers.amazon.aws.sensors.ecs import (
     EcsTaskStates,
     EcsTaskStateSensor,
 )
-from airflow.utils import timezone
-from airflow.utils.types import NOTSET
+from airflow.providers.amazon.version_compat import NOTSET
+from airflow.providers.common.compat.sdk import AirflowException
+
+try:
+    from airflow.sdk import timezone
+except ImportError:
+    from airflow.utils import timezone  # type: ignore[attr-defined,no-redef]
 
 _Operator = TypeVar("_Operator")
 TEST_CLUSTER_NAME = "fake-cluster"
@@ -105,7 +109,7 @@ class TestEcsBaseSensor(EcsBaseTestCase):
 
 class TestEcsClusterStateSensor(EcsBaseTestCase):
     @pytest.mark.parametrize(
-        "return_state, expected", [("ACTIVE", True), ("PROVISIONING", False), ("DEPROVISIONING", False)]
+        ("return_state", "expected"), [("ACTIVE", True), ("PROVISIONING", False), ("DEPROVISIONING", False)]
     )
     def test_default_values_poke(self, return_state, expected):
         task = self.create_rendered_task(EcsClusterStateSensor, cluster_name=TEST_CLUSTER_NAME)
@@ -124,7 +128,7 @@ class TestEcsClusterStateSensor(EcsBaseTestCase):
             m.assert_called_once_with(cluster_name=TEST_CLUSTER_NAME)
 
     @pytest.mark.parametrize(
-        "target_state, return_state, expected",
+        ("target_state", "return_state", "expected"),
         [
             (EcsClusterStates.ACTIVE, "ACTIVE", True),
             (EcsClusterStates.ACTIVE, "DEPROVISIONING", False),
@@ -142,7 +146,7 @@ class TestEcsClusterStateSensor(EcsBaseTestCase):
             m.assert_called_once_with(cluster_name=TEST_CLUSTER_NAME)
 
     @pytest.mark.parametrize(
-        "failure_states, return_state",
+        ("failure_states", "return_state"),
         [
             ({EcsClusterStates.ACTIVE}, "ACTIVE"),
             ({EcsClusterStates.PROVISIONING, EcsClusterStates.DEPROVISIONING}, "DEPROVISIONING"),
@@ -165,7 +169,7 @@ class TestEcsClusterStateSensor(EcsBaseTestCase):
 
 class TestEcsTaskDefinitionStateSensor(EcsBaseTestCase):
     @pytest.mark.parametrize(
-        "return_state, expected", [("ACTIVE", True), ("INACTIVE", False), ("DELETE_IN_PROGRESS", False)]
+        ("return_state", "expected"), [("ACTIVE", True), ("INACTIVE", False), ("DELETE_IN_PROGRESS", False)]
     )
     def test_default_values_poke(self, return_state, expected):
         task = self.create_rendered_task(
@@ -177,7 +181,7 @@ class TestEcsTaskDefinitionStateSensor(EcsBaseTestCase):
             m.assert_called_once_with(task_definition=TEST_TASK_DEFINITION_ARN)
 
     @pytest.mark.parametrize(
-        "target_state, return_state, expected",
+        ("target_state", "return_state", "expected"),
         [
             (EcsTaskDefinitionStates.INACTIVE, "ACTIVE", False),
             (EcsTaskDefinitionStates.INACTIVE, "INACTIVE", True),
@@ -197,7 +201,7 @@ class TestEcsTaskDefinitionStateSensor(EcsBaseTestCase):
 
 class TestEcsTaskStateSensor(EcsBaseTestCase):
     @pytest.mark.parametrize(
-        "return_state, expected",
+        ("return_state", "expected"),
         [
             ("PROVISIONING", False),
             ("PENDING", False),
@@ -226,7 +230,7 @@ class TestEcsTaskStateSensor(EcsBaseTestCase):
             m.assert_called_once_with(cluster=TEST_CLUSTER_NAME, task=TEST_TASK_ARN)
 
     @pytest.mark.parametrize(
-        "target_state, return_state, expected",
+        ("target_state", "return_state", "expected"),
         [
             (EcsTaskStates.RUNNING, "RUNNING", True),
             (EcsTaskStates.DEACTIVATING, "DEACTIVATING", True),
@@ -244,7 +248,7 @@ class TestEcsTaskStateSensor(EcsBaseTestCase):
             m.assert_called_once_with(cluster=TEST_CLUSTER_NAME, task=TEST_TASK_ARN)
 
     @pytest.mark.parametrize(
-        "failure_states, return_state",
+        ("failure_states", "return_state"),
         [
             ({EcsTaskStates.RUNNING}, "RUNNING"),
             ({EcsTaskStates.RUNNING, EcsTaskStates.DEACTIVATING}, "DEACTIVATING"),

@@ -19,6 +19,7 @@
 
 from __future__ import annotations
 
+from collections import OrderedDict
 from collections.abc import Callable, Sequence
 from typing import TYPE_CHECKING, NamedTuple
 
@@ -26,16 +27,19 @@ from google.api_core.exceptions import AlreadyExists, GoogleAPICallError
 from google.cloud.spanner_v1.client import Client
 from sqlalchemy import create_engine
 
-from airflow.exceptions import AirflowException
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.common.sql.hooks.sql import DbApiHook
 from airflow.providers.google.common.consts import CLIENT_INFO
 from airflow.providers.google.common.hooks.base_google import GoogleBaseHook, get_field
+from airflow.providers.openlineage.sqlparser import DatabaseInfo
 
 if TYPE_CHECKING:
     from google.cloud.spanner_v1.database import Database
     from google.cloud.spanner_v1.instance import Instance
     from google.cloud.spanner_v1.transaction import Transaction
     from google.longrunning.operations_grpc_pb2 import Operation
+
+    from airflow.models.connection import Connection
 
 
 class SpannerConnectionParams(NamedTuple):
@@ -388,7 +392,7 @@ class SpannerHook(GoogleBaseHook, DbApiHook):
         database_id: str,
         queries: list[str],
         project_id: str,
-    ) -> None:
+    ) -> list[int]:
         """
         Execute an arbitrary DML query (INSERT, UPDATE, DELETE).
 
@@ -398,12 +402,73 @@ class SpannerHook(GoogleBaseHook, DbApiHook):
         :param project_id: Optional, the ID of the Google Cloud project that owns the Cloud Spanner
             database. If set to None or missing, the default project_id from the Google Cloud connection
             is used.
+        :return: list of numbers of affected rows by DML query
         """
-        self._get_client(project_id=project_id).instance(instance_id=instance_id).database(
-            database_id=database_id
-        ).run_in_transaction(lambda transaction: self._execute_sql_in_transaction(transaction, queries))
+        db = (
+            self._get_client(project_id=project_id)
+            .instance(instance_id=instance_id)
+            .database(database_id=database_id)
+        )
+
+        def _tx_runner(tx: Transaction) -> dict[str, int]:
+            return self._execute_sql_in_transaction(tx, queries)
+
+        result = db.run_in_transaction(_tx_runner)
+
+        result_rows_count_per_query = []
+        for i, (sql, rc) in enumerate(result.items(), start=1):
+            if not sql.startswith("SELECT"):
+                preview = sql if len(sql) <= 300 else sql[:300] + "…"
+                self.log.info("[DML %d/%d] affected rows=%d | %s", i, len(result), rc, preview)
+                result_rows_count_per_query.append(rc)
+        return result_rows_count_per_query
 
     @staticmethod
-    def _execute_sql_in_transaction(transaction: Transaction, queries: list[str]):
+    def _execute_sql_in_transaction(transaction: Transaction, queries: list[str]) -> dict[str, int]:
+        counts: OrderedDict[str, int] = OrderedDict()
         for sql in queries:
-            transaction.execute_update(sql)
+            rc = transaction.execute_update(sql)
+            counts[sql] = rc
+        return counts
+
+    def _get_openlineage_authority_part(self, connection: Connection) -> str | None:
+        """Build Spanner-specific authority part for OpenLineage. Returns {project}/{instance}."""
+        extras = connection.extra_dejson
+        project_id = extras.get("project_id")
+        instance_id = extras.get("instance_id")
+
+        if not project_id or not instance_id:
+            return None
+
+        return f"{project_id}/{instance_id}"
+
+    def get_openlineage_database_dialect(self, connection: Connection) -> str:
+        """Return database dialect for OpenLineage."""
+        return "spanner"
+
+    def get_openlineage_database_info(self, connection: Connection) -> DatabaseInfo:
+        """Return Spanner specific information for OpenLineage."""
+        extras = connection.extra_dejson
+        database_id = extras.get("database_id")
+
+        return DatabaseInfo(
+            scheme=self.get_openlineage_database_dialect(connection),
+            authority=self._get_openlineage_authority_part(connection),
+            database=database_id,
+            information_schema_columns=[
+                "table_schema",
+                "table_name",
+                "column_name",
+                "ordinal_position",
+                "spanner_type",
+            ],
+        )
+
+    def get_openlineage_default_schema(self) -> str | None:
+        """
+        Spanner expose 'public' or '' schema depending on dialect(Postgres vs GoogleSQL).
+
+        SQLAlchemy dialect for Spanner does not expose default schema, so we return None
+        to follow the same approach.
+        """
+        return None

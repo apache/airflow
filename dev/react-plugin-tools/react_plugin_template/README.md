@@ -82,6 +82,11 @@ The template is configured with:
 - **CSS injection** - styles are automatically injected into the JavaScript bundle
 - **External dependencies** - React and other common libraries are marked as external to reduce bundle size
 
+### Upgrading dependencies
+
+Be mindful when upgrading dependencies that are marked as external in `vite.config.ts`, those are shared dependencies with the host application
+(Airflow UI) and should remain in a compatible version range to avoid issues.
+
 ### Customization
 
 1. **Component Props**: Update the `PluginComponentProps` interface in `src/main.tsx`

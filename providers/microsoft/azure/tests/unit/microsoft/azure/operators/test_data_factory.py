@@ -24,10 +24,10 @@ from unittest.mock import MagicMock, patch
 import pendulum
 import pytest
 
-from airflow.exceptions import AirflowException, TaskDeferred
 from airflow.models import DAG, Connection
 from airflow.models.dagrun import DagRun
 from airflow.models.taskinstance import TaskInstance
+from airflow.providers.common.compat.sdk import AirflowException, TaskDeferred
 from airflow.providers.microsoft.azure.hooks.data_factory import (
     AzureDataFactoryHook,
     AzureDataFactoryPipelineRunException,
@@ -103,7 +103,7 @@ class TestAzureDataFactoryRunPipelineOperator:
 
     @patch.object(AzureDataFactoryHook, "run_pipeline", return_value=MagicMock(**PIPELINE_RUN_RESPONSE))
     @pytest.mark.parametrize(
-        "pipeline_run_status,expected_output",
+        ("pipeline_run_status", "expected_output"),
         [
             (AzureDataFactoryPipelineRunStatus.SUCCEEDED, None),
             (AzureDataFactoryPipelineRunStatus.FAILED, "exception"),
@@ -226,7 +226,7 @@ class TestAzureDataFactoryRunPipelineOperator:
 
     @pytest.mark.db_test
     @pytest.mark.parametrize(
-        "resource_group,factory",
+        ("resource_group", "factory"),
         [
             # Both resource_group_name and factory_name are passed to the operator.
             ("op-resource-group", "op-factory-name"),

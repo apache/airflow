@@ -16,11 +16,11 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Heading, useDisclosure } from "@chakra-ui/react";
+import { Button, Heading, useDisclosure } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 import { FiPlusCircle } from "react-icons/fi";
 
-import { Button, Dialog, Toaster } from "src/components/ui";
+import { Dialog, Toaster } from "src/components/ui";
 import { useAddVariable } from "src/queries/useAddVariable";
 
 import VariableForm, { type VariableBody } from "./VariableForm";
@@ -50,7 +50,7 @@ const AddVariableButton = ({ disabled }: Props) => {
   return (
     <>
       <Toaster />
-      <Button colorPalette="blue" disabled={disabled} onClick={onOpen}>
+      <Button colorPalette="brand" disabled={disabled} onClick={onOpen}>
         <FiPlusCircle /> {translate("variables.add")}
       </Button>
 

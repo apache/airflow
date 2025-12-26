@@ -17,25 +17,84 @@
  * under the License.
  */
 import type { TaskInstanceResponse } from "openapi/requests/types.gen";
+import { taskInstanceRoutes } from "src/router";
 
-export const getTaskInstanceLink = (ti: TaskInstanceResponse) =>
-  `/dags/${ti.dag_id}/runs/${ti.dag_run_id}/tasks/${ti.task_id}${ti.map_index >= 0 ? `/mapped/${ti.map_index}` : ""}`;
+export const getTaskInstanceLink = (
+  tiOrParams:
+    | TaskInstanceResponse
+    | {
+        dagId: string;
+        dagRunId: string;
+        mapIndex?: number;
+        taskId: string;
+      },
+): string => {
+  if ("dag_id" in tiOrParams) {
+    return `/dags/${tiOrParams.dag_id}/runs/${tiOrParams.dag_run_id}/tasks/${tiOrParams.task_id}${
+      tiOrParams.map_index >= 0 ? `/mapped/${tiOrParams.map_index}` : ""
+    }`;
+  }
 
-export const getTaskInstanceLinkFromObj = ({
-  dagId,
-  dagRunId,
-  mapIndex = -1,
-  taskId,
-}: {
-  dagId: string;
-  dagRunId: string;
-  mapIndex: number;
-  taskId: string;
-}) => `/dags/${dagId}/runs/${dagRunId}/tasks/${taskId}${mapIndex >= 0 ? `/mapped/${mapIndex}` : ""}`;
+  const { dagId, dagRunId, mapIndex = -1, taskId } = tiOrParams;
+
+  return `/dags/${dagId}/runs/${dagRunId}/tasks/${taskId}${mapIndex >= 0 ? `/mapped/${mapIndex}` : ""}`;
+};
 
 export const getRedirectPath = (targetPath: string): string => {
   const baseHref = document.querySelector("head > base")?.getAttribute("href") ?? "";
   const baseUrl = new URL(baseHref, globalThis.location.origin);
 
   return new URL(targetPath, baseUrl).pathname;
+};
+
+export const getTaskInstanceAdditionalPath = (pathname: string): string => {
+  const subRoutes = taskInstanceRoutes.filter((route) => route.path !== undefined).map((route) => route.path);
+  // Look for patterns like /tasks/{taskId}/mapped/{mapIndex}/{sub-route}
+  const mappedRegex = /\/tasks\/[^/]+\/mapped\/[^/]+\/(?<subRoute>.+)$/u;
+  const mappedMatch = mappedRegex.exec(pathname);
+
+  if (mappedMatch?.groups?.subRoute !== undefined) {
+    return `/${mappedMatch.groups.subRoute}`;
+  }
+
+  // Look for patterns like /tasks/{taskId}/{sub-route} or /tasks/group/{groupId}/{sub-route}
+  const taskRegex = /\/tasks\/(?:group\/)?[^/]+\/(?<subRoute>.+)$/u;
+  const taskMatch = taskRegex.exec(pathname);
+
+  if (taskMatch?.groups?.subRoute !== undefined) {
+    const { subRoute } = taskMatch.groups;
+
+    // Only preserve if it's a known task instance route or plugin route
+    if (subRoutes.includes(subRoute) || subRoute.startsWith("plugin/")) {
+      return `/${subRoute}`;
+    }
+  }
+
+  return "";
+};
+
+export const buildTaskInstanceUrl = (params: {
+  currentPathname: string;
+  dagId: string;
+  isGroup?: boolean;
+  isMapped?: boolean;
+  mapIndex?: string;
+  runId: string;
+  taskId: string;
+}): string => {
+  const { currentPathname, dagId, isGroup = false, isMapped = false, mapIndex, runId, taskId } = params;
+  const groupPath = isGroup ? "group/" : "";
+  // Task groups only have "Task Instances" tab, so never preserve tabs for groups
+  const additionalPath = isGroup ? "" : getTaskInstanceAdditionalPath(currentPathname);
+
+  let basePath = `/dags/${dagId}/runs/${runId}/tasks/${groupPath}${taskId}`;
+
+  if (isMapped) {
+    basePath += `/mapped`;
+    if (mapIndex !== undefined && mapIndex !== "-1") {
+      basePath += `/${mapIndex}`;
+    }
+  }
+
+  return `${basePath}${additionalPath}`;
 };

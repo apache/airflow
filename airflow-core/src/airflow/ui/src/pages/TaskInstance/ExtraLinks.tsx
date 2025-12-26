@@ -23,7 +23,7 @@ import { useParams } from "react-router-dom";
 import { useTaskInstanceServiceGetExtraLinks } from "openapi/queries";
 
 export const ExtraLinks = () => {
-  const { t: translate } = useTranslation();
+  const { t: translate } = useTranslation("dag");
   const { dagId = "", mapIndex = "-1", runId = "", taskId = "" } = useParams();
 
   const { data } = useTaskInstanceServiceGetExtraLinks({
@@ -35,11 +35,11 @@ export const ExtraLinks = () => {
 
   return data && Object.keys(data.extra_links).length > 0 ? (
     <Box py={1}>
-      <Heading size="sm">{translate("dag.extraLinks")}</Heading>
+      <Heading size="sm">{translate("extraLinks")}</Heading>
       <HStack gap={2} py={2}>
         {Object.entries(data.extra_links).map(([key, value], _) =>
           value === null ? undefined : (
-            <Button asChild colorPalette="blue" key={key} variant="surface">
+            <Button asChild colorPalette="brand" key={key} variant="surface">
               <a href={value} rel="noopener noreferrer" target="_blank">
                 {key}
               </a>

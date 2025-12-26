@@ -24,8 +24,10 @@ import { useParams } from "react-router-dom";
 
 import { useTaskInstanceServiceGetTaskInstances } from "openapi/queries";
 import { DurationChart } from "src/components/DurationChart";
+import { NeedsReviewButton } from "src/components/NeedsReviewButton";
 import TimeRangeSelector from "src/components/TimeRangeSelector";
 import { TrendCountButton } from "src/components/TrendCountButton";
+import { SearchParamsKeys } from "src/constants/searchParams";
 import { isStatePending, useAutoRefresh } from "src/utils";
 
 const defaultHour = "24";
@@ -48,17 +50,17 @@ export const Overview = () => {
       runAfterGte: startDate,
       runAfterLte: endDate,
       state: ["failed"],
-      taskDisplayNamePattern: groupId ?? undefined,
+      taskGroupId: groupId ?? undefined,
       taskId: Boolean(groupId) ? undefined : taskId,
     });
 
-  const { data: taskInstances, isLoading: isLoadingTaskInstances } = useTaskInstanceServiceGetTaskInstances(
+  const { data: tiData, isLoading: isLoadingTaskInstances } = useTaskInstanceServiceGetTaskInstances(
     {
       dagId,
       dagRunId: "~",
       limit: 14,
       orderBy: ["-run_after"],
-      taskDisplayNamePattern: groupId ?? undefined,
+      taskGroupId: groupId ?? undefined,
       taskId: Boolean(groupId) ? undefined : taskId,
     },
     undefined,
@@ -70,6 +72,7 @@ export const Overview = () => {
 
   return (
     <Box m={4} spaceY={4}>
+      <NeedsReviewButton taskId={taskId} />
       <Box my={2}>
         <TimeRangeSelector
           defaultValue={defaultHour}
@@ -93,7 +96,7 @@ export const Overview = () => {
           })}
           route={{
             pathname: "task_instances",
-            search: "state=failed",
+            search: `${SearchParamsKeys.TASK_STATE}=failed`,
           }}
           startDate={startDate}
         />
@@ -103,7 +106,7 @@ export const Overview = () => {
           {isLoadingTaskInstances ? (
             <Skeleton height="200px" w="full" />
           ) : (
-            <DurationChart entries={taskInstances?.task_instances.slice().reverse()} kind="Task Instance" />
+            <DurationChart entries={tiData?.task_instances.slice().reverse()} kind="Task Instance" />
           )}
         </Box>
       </SimpleGrid>

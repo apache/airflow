@@ -23,20 +23,19 @@ import { paramPlaceholder, useParamStore } from "src/queries/useParamStore";
 import type { FlexibleFormElementProps } from ".";
 import { DateTimeInput } from "../DateTimeInput";
 
-export const FieldDateTime = ({ name, onUpdate, ...rest }: FlexibleFormElementProps & InputProps) => {
-  const { paramsDict, setParamsDict } = useParamStore();
+export const FieldDateTime = ({
+  name,
+  namespace = "default",
+  onUpdate,
+  ...rest
+}: FlexibleFormElementProps & InputProps) => {
+  const { disabled, paramsDict, setParamsDict } = useParamStore(namespace);
   const param = paramsDict[name] ?? paramPlaceholder;
   const handleChange = (value: string) => {
+    // "undefined" values are removed from params, so we set it to null to avoid falling back to DAG defaults.
     if (paramsDict[name]) {
-      if (rest.type === "datetime-local") {
-        // "undefined" values are removed from params, so we set it to null to avoid falling back to DAG defaults.
-        // eslint-disable-next-line unicorn/no-null
-        paramsDict[name].value = value === "" ? null : `${value}:00+00:00`; // Need to suffix to make it UTC like
-      } else {
-        // "undefined" values are removed from params, so we set it to null to avoid falling back to DAG defaults.
-        // eslint-disable-next-line unicorn/no-null
-        paramsDict[name].value = value === "" ? null : value;
-      }
+      // eslint-disable-next-line unicorn/no-null
+      paramsDict[name].value = value === "" ? null : value;
     }
 
     setParamsDict(paramsDict);
@@ -46,17 +45,19 @@ export const FieldDateTime = ({ name, onUpdate, ...rest }: FlexibleFormElementPr
   if (rest.type === "datetime-local") {
     return (
       <DateTimeInput
+        disabled={disabled}
         id={`element_${name}`}
         name={`element_${name}`}
         onChange={(event) => handleChange(event.target.value)}
         size="sm"
-        value={((param.value ?? "") as string).slice(0, 16)}
+        value={(param.value as string) || ""}
       />
     );
   }
 
   return (
     <Input
+      disabled={disabled}
       id={`element_${name}`}
       name={`element_${name}`}
       onChange={(event) => handleChange(event.target.value)}

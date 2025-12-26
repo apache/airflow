@@ -25,9 +25,11 @@ build-backend = "flit_core.buildapi"
 
 [project]
 name = "apache-airflow-providers-microsoft-azure"
-version = "12.6.0"
+version = "12.10.0"
 description = "Provider package apache-airflow-providers-microsoft-azure for Apache Airflow"
 readme = "README.rst"
+license = "Apache-2.0"
+license-files = ['LICENSE', 'NOTICE']
 authors = [
     {name="Apache Software Foundation", email="dev@airflow.apache.org"},
 ]
@@ -43,7 +45,6 @@ classifiers = [
     "Intended Audience :: System Administrators",
     "Framework :: Apache Airflow",
     "Framework :: Apache Airflow :: Provider",
-    "License :: OSI Approved :: Apache Software License",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
@@ -54,10 +55,11 @@ requires-python = ">=3.10"
 
 # The dependencies should be modified in place in the generated file.
 # Any change in the dependencies is preserved when the file is regenerated
-# Make sure to run ``breeze static-checks --type update-providers-dependencies --all-files``
+# Make sure to run ``prek update-providers-dependencies --all-files``
 # After you modify the dependencies, and rebuild your Breeze CI image with ``breeze ci-image build``
 dependencies = [
-    "apache-airflow>=2.10.0",
+    "apache-airflow>=2.11.0",
+    "apache-airflow-providers-common-compat>=1.10.1",  # use next version
     "adlfs>=2023.10.0",
     "azure-batch>=8.0.0",
     "azure-cosmos>=4.6.0",
@@ -73,22 +75,24 @@ dependencies = [
     "azure-servicebus>=7.12.1",
     "azure-synapse-spark>=0.2.0",
     "azure-synapse-artifacts>=0.17.0",
-    "adal>=1.2.7",
     "azure-storage-file-datalake>=12.9.1",
     # azure-kusto-data 4.6.0 breaks main - see https://github.com/apache/airflow/issues/42575
-    "azure-kusto-data>=4.1.0,!=4.6.0",
+    # azure-kusto-data 5.0.0 pins requests to a specific version which makes resolving dependencies harder
+    "azure-kusto-data>=4.1.0,!=4.6.0,!=5.0.0",
     "azure-mgmt-datafactory>=2.0.0",
     "azure-mgmt-containerregistry>=8.0.0",
     "azure-mgmt-containerinstance>=10.1.0",
-    "flask-appbuilder>=4.0.0",
     "msgraph-core>=1.3.3",
+    "msgraphfs>=0.3.0",
     "microsoft-kiota-http>=1.9.4,<2.0.0",
     "microsoft-kiota-serialization-json>=1.9.4",
     "microsoft-kiota-serialization-text>=1.9.4",
     "microsoft-kiota-abstractions>=1.9.4,<2.0.0",
     "microsoft-kiota-authentication-azure>=1.9.4,<2.0.0",
-    "msal-extensions>=1.1.0",
-    "portalocker>=2.8.1",
+    # TODO: verify if we really need to have this as explicit dependency.
+    # It was added in https://github.com/apache/airflow/pull/47990/files
+    # maybe this should be set from upstream
+    "msal-extensions>=1.3.0",
 ]
 
 # The optional dependencies should be modified in place in the generated file
@@ -147,8 +151,8 @@ apache-airflow-providers-common-sql = {workspace = true}
 apache-airflow-providers-standard = {workspace = true}
 
 [project.urls]
-"Documentation" = "https://airflow.apache.org/docs/apache-airflow-providers-microsoft-azure/12.6.0"
-"Changelog" = "https://airflow.apache.org/docs/apache-airflow-providers-microsoft-azure/12.6.0/changelog.html"
+"Documentation" = "https://airflow.apache.org/docs/apache-airflow-providers-microsoft-azure/12.10.0"
+"Changelog" = "https://airflow.apache.org/docs/apache-airflow-providers-microsoft-azure/12.10.0/changelog.html"
 "Bug Tracker" = "https://github.com/apache/airflow/issues"
 "Source Code" = "https://github.com/apache/airflow"
 "Slack Chat" = "https://s.apache.org/airflow-slack"

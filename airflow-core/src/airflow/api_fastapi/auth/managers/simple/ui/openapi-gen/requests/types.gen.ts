@@ -36,13 +36,17 @@ export type ValidationError = {
   type: string;
 };
 
-export type CreateTokenAllAdminsResponse = LoginResponse;
-
 export type CreateTokenData = {
+  /**
+   * Content-Type of the request body
+   */
+  contentType?: "application/json" | "application/x-www-form-urlencoded";
   requestBody: LoginBody;
 };
 
 export type CreateTokenResponse = LoginResponse;
+
+export type CreateTokenAllAdminsResponse = LoginResponse;
 
 export type CreateTokenCliData = {
   requestBody: LoginBody;
@@ -52,18 +56,6 @@ export type CreateTokenCliResponse = LoginResponse;
 
 export type $OpenApiTs = {
   "/auth/token": {
-    get: {
-      res: {
-        /**
-         * Successful Response
-         */
-        201: LoginResponse;
-        /**
-         * Forbidden
-         */
-        403: HTTPExceptionResponse;
-      };
-    };
     post: {
       req: CreateTokenData;
       res: {
@@ -80,9 +72,25 @@ export type $OpenApiTs = {
          */
         401: HTTPExceptionResponse;
         /**
+         * Unsupported Media Type
+         */
+        415: HTTPExceptionResponse;
+        /**
          * Validation Error
          */
         422: HTTPValidationError;
+      };
+    };
+    get: {
+      res: {
+        /**
+         * Successful Response
+         */
+        201: LoginResponse;
+        /**
+         * Forbidden
+         */
+        403: HTTPExceptionResponse;
       };
     };
   };

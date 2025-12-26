@@ -84,10 +84,10 @@ class TestKubernetesDecoratorsBase:
     def setup(self, dag_maker):
         self.dag_maker = dag_maker
 
-        with dag_maker(dag_id=DAG_ID) as dag:
+        with dag_maker(dag_id=DAG_ID):
             ...
 
-        self.dag = dag
+        self.dag = self.dag_maker.dag
 
         self.mock_create_pod = mock.patch(f"{POD_MANAGER_CLASS}.create_pod").start()
         self.mock_await_pod_start = mock.patch(f"{POD_MANAGER_CLASS}.await_pod_start").start()
@@ -122,9 +122,7 @@ class TestKubernetesDecoratorsBase:
 
     def execute_task(self, task):
         session = self.dag_maker.session
-        dag_run = self.dag_maker.create_dagrun(
-            run_id=f"k8s_decorator_test_{DEFAULT_DATE.date()}", session=session
-        )
+        dag_run = self.dag_maker.create_dagrun(run_id=f"k8s_decorator_test_{DEFAULT_DATE.date()}")
         ti = dag_run.get_task_instance(task.operator.task_id, session=session)
         return_val = task.operator.execute(context=ti.get_template_context(session=session))
 
@@ -136,7 +134,7 @@ def parametrize_kubernetes_decorators_commons(cls):
         if not name.startswith("test_") or not callable(method):
             continue
         new_method = pytest.mark.parametrize(
-            "task_decorator,decorator_name",
+            ("task_decorator", "decorator_name"),
             [
                 (task.kubernetes, "kubernetes"),
                 (task.kubernetes_cmd, "kubernetes_cmd"),
@@ -153,7 +151,7 @@ class TestKubernetesDecoratorsCommons(TestKubernetesDecoratorsBase):
     def test_k8s_decorator_init(self, task_decorator, decorator_name):
         """Test the initialization of the @task.kubernetes[_cmd] decorated task."""
 
-        with self.dag:
+        with self.dag_maker:
 
             @task_decorator(
                 image="python:3.10-slim-buster",
@@ -174,7 +172,7 @@ class TestKubernetesDecoratorsCommons(TestKubernetesDecoratorsBase):
 
     def test_decorators_with_marked_as_setup(self, task_decorator, decorator_name):
         """Test the @task.kubernetes[_cmd] decorated task works with setup decorator."""
-        with self.dag:
+        with self.dag_maker:
             task_function_name = setup(_prepare_task(task_decorator, decorator_name))
             task_function_name()
 
@@ -184,7 +182,7 @@ class TestKubernetesDecoratorsCommons(TestKubernetesDecoratorsBase):
 
     def test_decorators_with_marked_as_teardown(self, task_decorator, decorator_name):
         """Test the @task.kubernetes[_cmd] decorated task works with teardown decorator."""
-        with self.dag:
+        with self.dag_maker:
             task_function_name = teardown(_prepare_task(task_decorator, decorator_name))
             task_function_name()
 
@@ -229,7 +227,7 @@ class TestKubernetesDecoratorsCommons(TestKubernetesDecoratorsBase):
             **extra_kwargs,
         }
 
-        with self.dag:
+        with self.dag_maker:
             task_function_name = _prepare_task(
                 task_decorator,
                 decorator_name,

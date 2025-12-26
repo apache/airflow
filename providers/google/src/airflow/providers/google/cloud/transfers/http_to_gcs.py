@@ -31,7 +31,7 @@ if TYPE_CHECKING:
 
     from requests.auth import AuthBase
 
-    from airflow.utils.context import Context
+    from airflow.providers.common.compat.sdk import Context
 
 
 class HttpToGCSOperator(BaseOperator):

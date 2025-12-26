@@ -16,25 +16,27 @@
 # under the License.
 from __future__ import annotations
 
-import logging
 from importlib.util import find_spec
-from io import StringIO as StringBuffer
 
 import pytest
 
-from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
-
-if AIRFLOW_V_3_0_PLUS:
-    from airflow.sdk import setup, task, teardown
-else:
-    from airflow.decorators import setup, task, teardown  # type: ignore[attr-defined,no-redef]
-from airflow.exceptions import AirflowException
 from airflow.models import TaskInstance
-from airflow.models.dag import DAG
-from airflow.utils import timezone
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.utils.state import TaskInstanceState
 
 from tests_common.test_utils.markers import skip_if_force_lowest_dependencies_marker
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V_3_1_PLUS
+
+if AIRFLOW_V_3_0_PLUS:
+    from airflow.sdk import DAG, setup, task, teardown
+else:
+    from airflow.decorators import setup, task, teardown  # type: ignore[attr-defined,no-redef]
+    from airflow.models import DAG  # type: ignore[attr-defined,no-redef]
+
+if AIRFLOW_V_3_1_PLUS:
+    from airflow.sdk import timezone
+else:
+    from airflow.utils import timezone  # type: ignore[attr-defined,no-redef]
 
 DEFAULT_DATE = timezone.datetime(2021, 9, 1)
 DILL_INSTALLED = find_spec("dill") is not None
@@ -155,7 +157,7 @@ class TestDockerDecorator:
 
     @pytest.mark.db_test
     @pytest.mark.parametrize(
-        "kwargs, actual_exit_code, expected_state",
+        ("kwargs", "actual_exit_code", "expected_state"),
         [
             ({}, 0, TaskInstanceState.SUCCESS),
             ({}, 100, TaskInstanceState.FAILED),
@@ -335,7 +337,7 @@ class TestDockerDecorator:
         assert ret.operator.docker_url == "unix://var/run/docker.sock"
 
     @pytest.mark.db_test
-    def test_failing_task(self, dag_maker, session):
+    def test_failing_task(self, dag_maker, session, caplog):
         """Test regression #39319
 
         Check the log content of the DockerOperator when the task fails.
@@ -345,12 +347,6 @@ class TestDockerDecorator:
         def f():
             raise ValueError("This task is expected to fail")
 
-        docker_operator_logger_name = "airflow.task.operators"
-
-        docker_operator_logger = logging.getLogger(docker_operator_logger_name)
-        log_capture_string = StringBuffer()
-        ch = logging.StreamHandler(log_capture_string)
-        docker_operator_logger.addHandler(ch)
         with dag_maker(session=session):
             f()
 
@@ -362,10 +358,8 @@ class TestDockerDecorator:
         ti = dr.get_task_instances(session=session)[0]
         assert ti.state == TaskInstanceState.FAILED
 
-        log_content = str(log_capture_string.getvalue())
-        assert 'with open(sys.argv[4], "w") as file:' not in log_content
-        last_line_of_docker_operator_log = log_content.splitlines()[-1]
-        assert "ValueError: This task is expected to fail" in last_line_of_docker_operator_log
+        assert 'with open(sys.argv[4], "w") as file:' not in caplog.text
+        assert "ValueError: This task is expected to fail" in caplog.messages
 
     @pytest.mark.db_test
     def test_invalid_serializer(self, dag_maker):

@@ -7,23 +7,37 @@
     "Providers": "Providers",
     "Variables": "Variables"
   },
+  "allOperators": "Tous les opérateurs",
+  "appearance": {
+    "appearance": "Apparence",
+    "darkMode": "Mode sombre",
+    "lightMode": "Mode clair",
+    "systemMode": "Suivre les paramètres du système"
+  },
+  "asset_many": "Assets",
   "asset_one": "Asset",
   "asset_other": "Assets",
+  "assetEvent_many": "Événements d'Asset",
   "assetEvent_one": "Événement d'Asset",
   "assetEvent_other": "Événements d'Asset",
+  "backfill_many": "Rattrapages",
   "backfill_one": "Rattrapage",
   "backfill_other": "Rattrapages",
   "browse": {
     "auditLog": "Journal d'audit",
+    "requiredActions": "Actions requises",
     "xcoms": "XComs"
   },
+  "collapseAllExtra": "Réduire tous les extra json",
+  "collapseDetailsPanel": "Replier le panneau des détails",
+  "createdAssetEvent_many": "Événements d'Asset créés",
   "createdAssetEvent_one": "Événement d'Asset créé",
   "createdAssetEvent_other": "Événements d'Asset créés",
+  "dag_many": "Dags",
   "dag_one": "Dag",
   "dag_other": "Dags",
   "dagDetails": {
     "catchup": "Rattrapage",
-    "concurrency": "Concurrence",
     "dagRunTimeout": "Délai d'exécution du Dag",
     "defaultArgs": "Arguments par défaut",
     "description": "Description",
@@ -31,6 +45,7 @@
     "fileLocation": "Emplacement du fichier",
     "hasTaskConcurrencyLimits": "Limites de concurrence par tâche",
     "lastExpired": "Date d'expiration",
+    "lastParseDuration": "Dernière durée d'analyse",
     "lastParsed": "Dernière analyse",
     "latestDagVersion": "Dernière version du Dag",
     "latestRun": "Dernière exécution",
@@ -54,10 +69,13 @@
     "runAfter": "Exécuté après",
     "runType": "Type d'exécution",
     "sourceAssetEvent": "Événement d'Asset source",
-    "triggeredBy": "Déclenché par"
+    "triggeredBy": "Déclenché par",
+    "triggeringUser": "Nom de l'utilisateur déclencheur"
   },
+  "dagRun_many": "Exécutions de Dag",
   "dagRun_one": "Exécution de Dag",
   "dagRun_other": "Exécutions de Dag",
+  "dagRunId": "ID d'exécution du Dag",
   "dagWarnings": "Avertissements/erreurs du Dag",
   "defaultToGraphView": "Vue par défaut : graphe",
   "defaultToGridView": "Vue par défaut : grille",
@@ -76,11 +94,25 @@
     "notFound": "Page introuvable",
     "title": "Erreur"
   },
+  "expand": {
+    "collapse": "Réduire",
+    "expand": "Développer",
+    "hotkey": "e",
+    "tooltip": "Appuyez sur {{hotkey}} pour développer/réduire"
+  },
+  "expandAllExtra": "Ouvrir tous les extra json",
   "expression": {
     "all": "Tous",
     "and": "Et",
     "any": "N'importe lequel",
     "or": "Ou"
+  },
+  "filter": "Filtre",
+  "filters": {
+    "logicalDateFrom": "Date logique de début",
+    "logicalDateTo": "Date logique de fin",
+    "runAfterFrom": "Exécuté après - de",
+    "runAfterTo": "Exécuté après - à"
   },
   "logicalDate": "Date logique",
   "logout": "Déconnexion",
@@ -101,6 +133,7 @@
     "dags": "Dags",
     "docs": "Docs",
     "home": "Accueil",
+    "legacyFabViews": "Vues héritées",
     "plugins": "Plugins",
     "security": "Sécurité"
   },
@@ -115,12 +148,14 @@
   "pools": {
     "deferred": "Différé",
     "open": "Libre",
+    "pools_many": "Pools",
     "pools_one": "Pool",
     "pools_other": "Pools",
     "queued": "En file",
     "running": "En cours",
     "scheduled": "Planifié"
   },
+  "reset": "Réinitialiser",
   "runId": "ID d'exécution",
   "runTypes": {
     "asset_triggered": "Déclenché par Asset",
@@ -128,7 +163,13 @@
     "manual": "Manuel",
     "scheduled": "Planifié"
   },
-  "seconds": "{{count}}s",
+  "scroll": {
+    "direction": {
+      "bottom": "bas",
+      "top": "haut"
+    },
+    "tooltip": "Appuyez sur {{hotkey}} pour faire défiler vers le {{direction}}"
+  },
   "security": {
     "actions": "Actions",
     "permissions": "Permissions",
@@ -137,6 +178,13 @@
     "users": "Utilisateurs"
   },
   "selectLanguage": "Choisir la langue",
+  "showDetailsPanel": "Afficher le panneau des détails",
+  "source": {
+    "hide": "Masquer la source",
+    "hotkey": "s",
+    "show": "Afficher la source"
+  },
+  "sourceAssetEvent_many": "Événements sources",
   "sourceAssetEvent_one": "Événement source",
   "sourceAssetEvent_other": "Événements sources",
   "startDate": "Date de début",
@@ -146,6 +194,7 @@
     "failed": "Échoué",
     "no_status": "Aucun statut",
     "none": "Aucun statut",
+    "planned": "Planifié",
     "queued": "En file",
     "removed": "Supprimé",
     "restarting": "Redémarrage",
@@ -157,13 +206,12 @@
     "up_for_retry": "À réessayer",
     "upstream_failed": "Échec en amont"
   },
-  "switchToDarkMode": "Passer en mode sombre",
-  "switchToLightMode": "Passer en mode clair",
   "table": {
     "completedAt": "Terminé à",
     "createdAt": "Créé à",
     "filterByTag": "Filtrer les Dags par tag",
     "filterColumns": "Filtrer les colonnes du tableau",
+    "filterReset_many": "Réinitialiser les filtres",
     "filterReset_one": "Réinitialiser le filtre",
     "filterReset_other": "Réinitialiser les filtres",
     "from": "De",
@@ -182,8 +230,10 @@
     "operator": "Opérateur",
     "triggerRule": "Règle de déclenchement"
   },
+  "task_many": "Tâches",
   "task_one": "Tâche",
   "task_other": "Tâches",
+  "taskGroup": "Groupe de tâches",
   "taskId": "ID de la tâche",
   "taskInstance": {
     "dagVersion": "Version du Dag",
@@ -208,6 +258,7 @@
     },
     "unixname": "Nom Unix"
   },
+  "taskInstance_many": "Instances de tâche",
   "taskInstance_one": "Instance de tâche",
   "taskInstance_other": "Instances de tâche",
   "timeRange": {
@@ -215,6 +266,11 @@
     "last24Hours": "24 dernières heures",
     "lastHour": "Dernière heure",
     "pastWeek": "Dernière semaine"
+  },
+  "timestamp": {
+    "hide": "Masquer les horodatages",
+    "hotkey": "t",
+    "show": "Afficher les horodatages"
   },
   "timezone": "Fuseau horaire",
   "timezoneModal": {
@@ -260,10 +316,12 @@
       }
     }
   },
+  "total": "Total {{state}}",
   "triggered": "Déclenché",
   "tryNumber": "Numéro de l'essai",
   "user": "Utilisateur",
   "wrap": {
+    "hotkey": "w",
     "tooltip": "Appuyez sur {{hotkey}} pour activer/désactiver le retour à la ligne",
     "unwrap": "Désactiver le retour à la ligne",
     "wrap": "Activer le retour à la ligne"

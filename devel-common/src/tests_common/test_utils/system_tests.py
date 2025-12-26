@@ -19,6 +19,7 @@ from __future__ import annotations
 import logging
 import os
 from collections.abc import Callable
+from datetime import datetime
 from typing import TYPE_CHECKING
 
 import pytest
@@ -44,7 +45,7 @@ def get_test_run(dag, **test_kwargs):
             logger.warning("could not retrieve tasks that ran in the DAG, cannot display a summary")
             return
 
-        ti.sort(key=lambda x: x.end_date)
+        ti.sort(key=lambda x: x.end_date or datetime.max)
 
         headers = ["Task ID", "Status"]
         results = []
@@ -62,6 +63,7 @@ def get_test_run(dag, **test_kwargs):
         return [current, new]
 
     @pytest.mark.system
+    @pytest.mark.usefixtures("testing_dag_bundle")
     def test_run():
         dag.on_failure_callback = add_callback(dag.on_failure_callback, callback)
         dag.on_success_callback = add_callback(dag.on_success_callback, callback)
@@ -70,13 +72,15 @@ def get_test_run(dag, **test_kwargs):
         if AIRFLOW_V_3_0_PLUS:
             from airflow.models.dag import DagModel
             from airflow.models.serialized_dag import SerializedDagModel
+            from airflow.serialization.serialized_objects import LazyDeserializedDAG
             from airflow.settings import Session
 
-            d = DagModel(dag_id=dag.dag_id)
             s = Session()
+            bundle_name = "testing"
+            d = DagModel(dag_id=dag.dag_id, bundle_name=bundle_name)
             s.add(d)
             s.commit()
-            SerializedDagModel.write_dag(dag, bundle_name="testing")
+            SerializedDagModel.write_dag(LazyDeserializedDAG.from_dag(dag), bundle_name=bundle_name)
 
         dag_run = dag.test(
             use_executor=os.environ.get("_AIRFLOW__SYSTEM_TEST_USE_EXECUTOR") == "1",

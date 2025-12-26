@@ -32,7 +32,7 @@ Develop Spark batch applications
 Purpose
 """""""
 
-This example dag uses ``AnalyticDBSparkBatchOperator`` to submit Spark Pi and Spark Logistic regression applications.
+This example Dag uses ``AnalyticDBSparkBatchOperator`` to submit Spark Pi and Spark Logistic regression applications.
 
 Defining tasks
 """"""""""""""

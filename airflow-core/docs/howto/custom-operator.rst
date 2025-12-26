@@ -29,7 +29,7 @@ You can create any operator you want by extending the public SDK base class :cla
 There are two methods that you need to override in a derived class:
 
 * Constructor - Define the parameters required for the operator. You only need to specify the arguments specific to your operator.
-  You can specify the ``default_args`` in the DAG file. See :ref:`Default args <concepts-default-arguments>` for more details.
+  You can specify the ``default_args`` in the Dag file. See :ref:`Default args <concepts-default-arguments>` for more details.
 
 * Execute - The code to execute when the runner calls the operator. The method contains the
   Airflow context as a parameter that can be used to read config values.
@@ -95,10 +95,10 @@ logic of an operation is in one place - in the operator.
 
 Hooks
 -----
-Hooks act as an interface to communicate with the external shared resources in a DAG.
-For example, multiple tasks in a DAG can require access to a MySQL database. Instead of
+Hooks act as an interface to communicate with the external shared resources in a Dag.
+For example, multiple tasks in a Dag can require access to a MySQL database. Instead of
 creating a connection per task, you can retrieve a connection from the hook and utilize it.
-Hook also helps to avoid storing connection auth parameters in a DAG.
+Hook also helps to avoid storing connection auth parameters in a Dag.
 See :doc:`connection` for how to create and manage connections and :doc:`apache-airflow-providers:index` for
 details of how to add your custom connection types via providers.
 
@@ -125,14 +125,14 @@ When the operator invokes the query on the hook object, a new connection gets cr
 The hook retrieves the auth parameters such as username and password from Airflow
 backend and passes the params to the :py:func:`airflow.hooks.base.BaseHook.get_connection`.
 You should create hook only in the ``execute`` method or any method which is called from ``execute``.
-The constructor gets called whenever Airflow parses a DAG which happens frequently. And instantiating a hook
+The constructor gets called whenever Airflow parses a Dag which happens frequently. And instantiating a hook
 there will result in many unnecessary database connections.
-The ``execute`` gets called only during a DAG run.
+The ``execute`` gets called only during a Dag run.
 
 
 User interface
 --------------
-Airflow also allows the developer to control how the operator shows up in the DAG UI.
+Airflow also allows the developer to control how the operator shows up in the Dag UI.
 Override ``ui_color`` to change the background color of the operator in UI.
 Override ``ui_fgcolor`` to change the color of the label.
 Override ``custom_operator_name`` to change the displayed name to something other than the classname.
@@ -349,7 +349,7 @@ Thus, the following example is valid:
         class MyHelloOperator(HelloOperator):
             template_fields = "foo"
 
-The limitations above are enforced by a pre-commit named 'validate-operators-init'.
+The limitations above are enforced by a prek hook named 'validate-operators-init'.
 
 Add template fields with subclassing
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^

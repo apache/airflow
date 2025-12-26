@@ -17,13 +17,12 @@
 
 from __future__ import annotations
 
-from abc import abstractmethod
-from collections.abc import Sequence
+from collections.abc import Generator, Sequence
 from typing import TYPE_CHECKING
 
+from airflow.sdk.definitions._internal.logging_mixin import LoggingMixin
 from airflow.sdk.definitions._internal.templater import Templater
-from airflow.utils.context import context_merge
-from airflow.utils.log.logging_mixin import LoggingMixin
+from airflow.sdk.definitions.context import context_merge
 
 if TYPE_CHECKING:
     import jinja2
@@ -33,13 +32,32 @@ if TYPE_CHECKING:
 
 
 class BaseNotifier(LoggingMixin, Templater):
-    """BaseNotifier class for sending notifications."""
+    """
+    BaseNotifier class for sending notifications.
+
+    It can be used asynchronously (preferred) if `async_notify`is implemented and/or
+    synchronously if `notify` is implemented.
+
+    Currently, the Dag/Task state change callbacks run on the Dag Processor and only support sync usage.
+
+    Usage::
+        # Asynchronous usage
+        await Notifier(context)
+
+        # Synchronous usage
+        notifier = Notifier()
+        notifier(context)
+    """
 
     template_fields: Sequence[str] = ()
     template_ext: Sequence[str] = ()
 
-    def __init__(self):
+    # Context stored as attribute here because parameters can't be passed to __await__
+    context: Context
+
+    def __init__(self, context: Context | None = None):
         super().__init__()
+        self.context = context or {}
         self.resolve_template_files()
 
     def _update_context(self, context: Context) -> Context:
@@ -53,7 +71,7 @@ class BaseNotifier(LoggingMixin, Templater):
         return context
 
     def _render(self, template, context, dag: DAG | None = None):
-        dag = dag or context["dag"]
+        dag = dag or context.get("dag")
         return super()._render(template, context, dag)
 
     def render_template_fields(
@@ -69,19 +87,34 @@ class BaseNotifier(LoggingMixin, Templater):
         :param context: Context dict with values to apply on content.
         :param jinja_env: Jinja environment to use for rendering.
         """
-        dag = context["dag"]
+        dag = context.get("dag")
         if not jinja_env:
             jinja_env = self.get_template_env(dag=dag)
         self._do_render_template_fields(self, self.template_fields, context, jinja_env, set())
 
-    @abstractmethod
+    async def async_notify(self, context: Context) -> None:
+        """
+        Send a notification (async).
+
+        Implementing this is a requirement for running this notifier in the triggerer, which is the
+        recommended approach for using Deadline Alerts.
+
+        :param context: The airflow context
+
+        Note: the context is not available in the current version.
+        """
+        raise NotImplementedError
+
     def notify(self, context: Context) -> None:
         """
-        Send a notification.
+        Send a notification (sync).
+
+        Implementing this is a requirement for running this notifier in the Dag processor, which is where the
+        `on_success_callback` and `on_failure_callback` run.
 
         :param context: The airflow context
         """
-        ...
+        raise NotImplementedError
 
     def __call__(self, *args) -> None:
         """
@@ -104,4 +137,19 @@ class BaseNotifier(LoggingMixin, Templater):
         try:
             self.notify(context)
         except Exception as e:
-            self.log.exception("Failed to send notification: %s", e)
+            self.log.error("Failed to send notification (sync): %s", e)
+            raise
+
+    def __await__(self) -> Generator:
+        """
+        Make the notifier awaitable.
+
+        Context must be provided as an attribute.
+        """
+        self._update_context(self.context)
+        self.render_template_fields(self.context)
+        try:
+            return self.async_notify(self.context).__await__()
+        except Exception as e:
+            self.log.error("Failed to send notification (async): %s", e)
+            raise

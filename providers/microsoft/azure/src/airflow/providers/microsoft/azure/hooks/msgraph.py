@@ -17,8 +17,12 @@
 # under the License.
 from __future__ import annotations
 
+import asyncio
+import inspect
 import json
+import warnings
 from ast import literal_eval
+from collections.abc import Callable
 from contextlib import suppress
 from http import HTTPStatus
 from io import BytesIO
@@ -44,13 +48,8 @@ from kiota_serialization_text.text_parse_node_factory import TextParseNodeFactor
 from msgraph_core import APIVersion, GraphClientFactory
 from msgraph_core._enums import NationalClouds
 
-from airflow.exceptions import (
-    AirflowBadRequest,
-    AirflowConfigException,
-    AirflowException,
-    AirflowNotFoundException,
-)
-from airflow.providers.microsoft.azure.version_compat import BaseHook
+from airflow.exceptions import AirflowBadRequest, AirflowConfigException, AirflowProviderDeprecationWarning
+from airflow.providers.common.compat.sdk import AirflowException, AirflowNotFoundException, BaseHook
 
 if TYPE_CHECKING:
     from azure.identity._internal.client_credential_base import ClientCredentialBase
@@ -58,7 +57,34 @@ if TYPE_CHECKING:
     from kiota_abstractions.response_handler import NativeResponseType
     from kiota_abstractions.serialization import ParsableFactory
 
-    from airflow.models import Connection
+    from airflow.providers.common.compat.sdk import Connection
+
+from airflow.providers.common.compat.sdk import redact
+
+PaginationCallable = Callable[..., tuple[str, dict[str, Any] | None]]
+
+
+def execute_callable(func: Callable, *args: Any, **kwargs: Any) -> Any:
+    """Dynamically call a function by matching its signature to provided args/kwargs."""
+    sig = inspect.signature(func)
+    accepts_kwargs = any(p.kind == inspect.Parameter.VAR_KEYWORD for p in sig.parameters.values())
+
+    if not accepts_kwargs:
+        # Only pass arguments the function explicitly declares
+        filtered_kwargs = {k: v for k, v in kwargs.items() if k in sig.parameters}
+    else:
+        filtered_kwargs = kwargs
+
+    try:
+        sig.bind(*args, **filtered_kwargs)
+    except TypeError as err:
+        raise TypeError(
+            f"Failed to bind arguments to function {func.__name__}: {err}\n"
+            f"Expected parameters: {list(sig.parameters.keys())}\n"
+            f"Provided kwargs: {list(kwargs.keys())}"
+        ) from err
+
+    return func(*args, **filtered_kwargs)
 
 
 class DefaultResponseHandler(ResponseHandler):
@@ -114,7 +140,7 @@ class KiotaRequestAdapterHook(BaseHook):
 
     DEFAULT_HEADERS = {"Accept": "application/json;q=1"}
     DEFAULT_SCOPE = "https://graph.microsoft.com/.default"
-    cached_request_adapters: dict[str, tuple[APIVersion, RequestAdapter]] = {}
+    cached_request_adapters: dict[str, tuple[str, RequestAdapter]] = {}
     conn_type: str = "msgraph"
     conn_name_attr: str = "conn_id"
     default_conn_name: str = "msgraph_default"
@@ -125,7 +151,7 @@ class KiotaRequestAdapterHook(BaseHook):
         conn_id: str = default_conn_name,
         timeout: float | None = None,
         proxies: dict | None = None,
-        host: str = NationalClouds.Global.value,
+        host: str | None = None,
         scopes: str | list[str] | None = None,
         api_version: APIVersion | str | None = None,
     ):
@@ -138,7 +164,7 @@ class KiotaRequestAdapterHook(BaseHook):
             self.scopes = [scopes]
         else:
             self.scopes = scopes or [self.DEFAULT_SCOPE]
-        self._api_version = self.resolve_api_version_from_value(api_version)
+        self.api_version = self.resolve_api_version_from_value(api_version)
 
     @classmethod
     def get_connection_form_widgets(cls) -> dict[str, Any]:
@@ -149,6 +175,7 @@ class KiotaRequestAdapterHook(BaseHook):
 
         return {
             "tenant_id": StringField(lazy_gettext("Tenant ID"), widget=BS3TextFieldWidget()),
+            "drive_id": StringField(lazy_gettext("Drive ID"), widget=BS3TextFieldWidget()),
             "api_version": StringField(
                 lazy_gettext("API Version"), widget=BS3TextFieldWidget(), default=APIVersion.v1.value
             ),
@@ -186,11 +213,6 @@ class KiotaRequestAdapterHook(BaseHook):
             },
         }
 
-    @property
-    def api_version(self) -> str | None:
-        self.get_conn()  # Make sure config has been loaded through get_conn to have correct api version!
-        return self._api_version
-
     @staticmethod
     def resolve_api_version_from_value(
         api_version: APIVersion | str, default: str | None = None
@@ -200,14 +222,25 @@ class KiotaRequestAdapterHook(BaseHook):
         return api_version or default
 
     def get_api_version(self, config: dict) -> str:
-        return self._api_version or self.resolve_api_version_from_value(
+        return self.api_version or self.resolve_api_version_from_value(
             config.get("api_version"), APIVersion.v1.value
         )  # type: ignore
 
     def get_host(self, connection: Connection) -> str:
-        if connection.schema and connection.host:
-            return f"{connection.schema}://{connection.host}"
+        if not self.host:
+            if connection.schema and connection.host:
+                return f"{connection.schema}://{connection.host}"
+            return NationalClouds.Global.value
+        if not self.host.startswith("http://") or not self.host.startswith("https://"):
+            return f"{connection.schema}://{self.host}"
         return self.host
+
+    def get_base_url(self, host: str, api_version: str, config: dict) -> str:
+        base_url = config.get("base_url", urljoin(host, api_version)).strip()
+
+        if not base_url.endswith("/"):
+            return f"{base_url}/"
+        return base_url
 
     @staticmethod
     def format_no_proxy_url(url: str) -> str:
@@ -216,7 +249,7 @@ class KiotaRequestAdapterHook(BaseHook):
         return url
 
     @classmethod
-    def to_httpx_proxies(cls, proxies: dict) -> dict:
+    def to_httpx_proxies(cls, proxies: dict | None) -> dict | None:
         if proxies:
             proxies = proxies.copy()
             if proxies.get("http"):
@@ -226,9 +259,10 @@ class KiotaRequestAdapterHook(BaseHook):
             if proxies.get("no"):
                 for url in proxies.pop("no", "").split(","):
                     proxies[cls.format_no_proxy_url(url.strip())] = None
-        return proxies
+            return proxies
+        return None
 
-    def to_msal_proxies(self, authority: str | None, proxies: dict) -> dict | None:
+    def to_msal_proxies(self, authority: str | None, proxies: dict | None) -> dict | None:
         self.log.debug("authority: %s", authority)
         if authority and proxies:
             no_proxies = proxies.get("no")
@@ -240,103 +274,146 @@ class KiotaRequestAdapterHook(BaseHook):
                     self.log.debug("domain_name: %s", domain_name)
                     if authority.endswith(domain_name):
                         return None
-        return proxies
+            return proxies
+        return None
+
+    def _build_request_adapter(self, connection) -> tuple[str, RequestAdapter]:
+        client_id = connection.login
+        client_secret = connection.password
+        # TODO (#54350): do not use connection.extra_dejson until it's fixed in Airflow otherwise expect:
+        #       RuntimeError: You cannot use AsyncToSync in the same thread as an async event loop.
+        config = json.loads(connection.extra) if connection.extra else {}
+        api_version = self.get_api_version(config)
+        host = self.get_host(connection)  # type: ignore[arg-type]
+        base_url = self.get_base_url(host, api_version, config)
+        authority = config.get("authority")
+        proxies = self.get_proxies(config)
+        httpx_proxies = self.to_httpx_proxies(proxies=proxies)
+        scopes = config.get("scopes", self.scopes)
+        if isinstance(scopes, str):
+            scopes = scopes.split(",")
+        verify = config.get("verify", True)
+        trust_env = config.get("trust_env", False)
+        allowed_hosts = (config.get("allowed_hosts", authority) or "").split(",")
+
+        self.log.info(
+            "Creating Microsoft Graph SDK client %s for conn_id: %s",
+            api_version,
+            self.conn_id,
+        )
+        self.log.info("Host: %s", host)
+        self.log.info("Base URL: %s", base_url)
+        self.log.info("Client id: %s", client_id)
+        self.log.info("Client secret: %s", redact(client_secret, name="client_secret"))
+        self.log.info("API version: %s", api_version)
+        self.log.info("Scope: %s", scopes)
+        self.log.info("Verify: %s", verify)
+        self.log.info("Timeout: %s", self.timeout)
+        self.log.info("Trust env: %s", trust_env)
+        self.log.info("Authority: %s", authority)
+        self.log.info("Allowed hosts: %s", allowed_hosts)
+        self.log.info("Proxies: %s", redact(proxies, name="proxies"))
+        self.log.info("HTTPX Proxies: %s", redact(httpx_proxies, name="proxies"))
+        credentials = self.get_credentials(
+            login=connection.login,
+            password=connection.password,
+            config=config,
+            authority=authority,
+            verify=verify,
+            proxies=proxies,
+        )
+        http_client = GraphClientFactory.create_with_default_middleware(
+            api_version=api_version,
+            client=httpx.AsyncClient(
+                mounts=httpx_proxies,
+                timeout=Timeout(timeout=self.timeout),
+                verify=verify,
+                trust_env=trust_env,
+                base_url=base_url,
+            ),
+            host=host,
+        )
+        auth_provider = AzureIdentityAuthenticationProvider(
+            credentials=credentials,
+            scopes=scopes,
+            allowed_hosts=allowed_hosts,
+        )
+        parse_node_factory = ParseNodeFactoryRegistry()
+        parse_node_factory.CONTENT_TYPE_ASSOCIATED_FACTORIES["text/plain"] = TextParseNodeFactory()
+        parse_node_factory.CONTENT_TYPE_ASSOCIATED_FACTORIES["application/json"] = JsonParseNodeFactory()
+        request_adapter = HttpxRequestAdapter(
+            authentication_provider=auth_provider,
+            parse_node_factory=parse_node_factory,
+            http_client=http_client,
+            base_url=base_url,
+        )
+        self.cached_request_adapters[self.conn_id] = (api_version, request_adapter)
+        return api_version, request_adapter
 
     def get_conn(self) -> RequestAdapter:
+        """
+        Initiate a new RequestAdapter connection.
+
+        .. warning::
+           This method is deprecated.
+        """
+        if not self.conn_id:
+            raise AirflowException("Failed to create the KiotaRequestAdapterHook. No conn_id provided!")
+
+        warnings.warn(
+            "get_conn is deprecated, please use the async get_async_conn method!",
+            category=AirflowProviderDeprecationWarning,
+            stacklevel=2,
+        )
+
+        api_version, request_adapter = self.cached_request_adapters.get(self.conn_id, (None, None))
+
+        if not request_adapter:
+            connection = self.get_connection(conn_id=self.conn_id)
+            api_version, request_adapter = self._build_request_adapter(connection)
+        self.api_version = api_version
+        return request_adapter
+
+    @classmethod
+    async def get_async_connection(cls, conn_id: str) -> Connection:
+        if hasattr(BaseHook, "aget_connection"):
+            return await BaseHook.aget_connection(conn_id=conn_id)
+
+        from asgiref.sync import sync_to_async
+
+        return await sync_to_async(BaseHook.get_connection)(conn_id=conn_id)
+
+    async def get_async_conn(self) -> RequestAdapter:
+        """Initiate a new RequestAdapter connection asynchronously."""
         if not self.conn_id:
             raise AirflowException("Failed to create the KiotaRequestAdapterHook. No conn_id provided!")
 
         api_version, request_adapter = self.cached_request_adapters.get(self.conn_id, (None, None))
 
         if not request_adapter:
-            connection = self.get_connection(conn_id=self.conn_id)
-            client_id = connection.login
-            client_secret = connection.password
-            config = connection.extra_dejson if connection.extra else {}
-            api_version = self.get_api_version(config)
-            host = self.get_host(connection)  # type: ignore[arg-type]
-            base_url = config.get("base_url", urljoin(host, api_version))
-            authority = config.get("authority")
-            proxies = self.get_proxies(config)
-            httpx_proxies = self.to_httpx_proxies(proxies=proxies)
-            scopes = config.get("scopes", self.scopes)
-            if isinstance(scopes, str):
-                scopes = scopes.split(",")
-            verify = config.get("verify", True)
-            trust_env = config.get("trust_env", False)
-            allowed_hosts = (config.get("allowed_hosts", authority) or "").split(",")
-
-            self.log.info(
-                "Creating Microsoft Graph SDK client %s for conn_id: %s",
-                api_version,
-                self.conn_id,
-            )
-            self.log.info("Host: %s", host)
-            self.log.info("Base URL: %s", base_url)
-            self.log.info("Client id: %s", client_id)
-            self.log.info("Client secret: %s", client_secret)
-            self.log.info("API version: %s", api_version)
-            self.log.info("Scope: %s", scopes)
-            self.log.info("Verify: %s", verify)
-            self.log.info("Timeout: %s", self.timeout)
-            self.log.info("Trust env: %s", trust_env)
-            self.log.info("Authority: %s", authority)
-            self.log.info("Allowed hosts: %s", allowed_hosts)
-            self.log.info("Proxies: %s", proxies)
-            self.log.info("HTTPX Proxies: %s", httpx_proxies)
-            credentials = self.get_credentials(
-                login=connection.login,
-                password=connection.password,
-                config=config,
-                authority=authority,
-                verify=verify,
-                proxies=proxies,
-            )
-            http_client = GraphClientFactory.create_with_default_middleware(
-                api_version=api_version,
-                client=httpx.AsyncClient(
-                    mounts=httpx_proxies,
-                    timeout=Timeout(timeout=self.timeout),
-                    verify=verify,
-                    trust_env=trust_env,
-                    base_url=base_url,
-                ),
-                host=host,
-            )
-            auth_provider = AzureIdentityAuthenticationProvider(
-                credentials=credentials,
-                scopes=scopes,
-                allowed_hosts=allowed_hosts,
-            )
-            parse_node_factory = ParseNodeFactoryRegistry()
-            parse_node_factory.CONTENT_TYPE_ASSOCIATED_FACTORIES["text/plain"] = TextParseNodeFactory()
-            parse_node_factory.CONTENT_TYPE_ASSOCIATED_FACTORIES["application/json"] = JsonParseNodeFactory()
-            request_adapter = HttpxRequestAdapter(
-                authentication_provider=auth_provider,
-                parse_node_factory=parse_node_factory,
-                http_client=http_client,
-                base_url=base_url,
-            )
-            self.cached_request_adapters[self.conn_id] = (api_version, request_adapter)
-        self._api_version = api_version
+            connection = await self.get_async_connection(conn_id=self.conn_id)
+            api_version, request_adapter = self._build_request_adapter(connection)
+        self.api_version = api_version
         return request_adapter
 
-    def get_proxies(self, config: dict) -> dict:
-        proxies = self.proxies or config.get("proxies", {})
-        if isinstance(proxies, str):
-            # TODO: Once provider depends on Airflow 2.10 or higher code below won't be needed anymore as
-            #       we could then use the get_extra_dejson method on the connection which deserializes
-            #       nested json. Make sure to use connection.get_extra_dejson(nested=True) instead of
-            #       connection.extra_dejson.
-            with suppress(JSONDecodeError):
-                proxies = json.loads(proxies)
-            with suppress(Exception):
-                proxies = literal_eval(proxies)
-        if not isinstance(proxies, dict):
-            raise AirflowConfigException(
-                f"Proxies must be of type dict, got {type(proxies).__name__} instead!"
-            )
-        return proxies
+    def get_proxies(self, config: dict) -> dict | None:
+        proxies = self.proxies if self.proxies is not None else config.get("proxies", {})
+        if proxies:
+            if isinstance(proxies, str):
+                # TODO: Once provider depends on Airflow 2.10 or higher code below won't be needed anymore as
+                #       we could then use the get_extra_dejson method on the connection which deserializes
+                #       nested json. Make sure to use connection.get_extra_dejson(nested=True) instead of
+                #       connection.extra_dejson.
+                with suppress(JSONDecodeError):
+                    proxies = json.loads(proxies)
+                with suppress(Exception):
+                    proxies = literal_eval(proxies)
+            if not isinstance(proxies, dict):
+                raise AirflowConfigException(
+                    f"Proxies must be of type dict, got {type(proxies).__name__} instead!"
+                )
+            return proxies
+        return None
 
     def get_credentials(
         self,
@@ -345,7 +422,7 @@ class KiotaRequestAdapterHook(BaseHook):
         config,
         authority: str | None,
         verify: bool,
-        proxies: dict,
+        proxies: dict | None,
     ) -> ClientCredentialBase:
         tenant_id = config.get("tenant_id") or config.get("tenantId")
         certificate_path = config.get("certificate_path")
@@ -357,7 +434,7 @@ class KiotaRequestAdapterHook(BaseHook):
         self.log.info("Certificate data: %s", certificate_data is not None)
         self.log.info("Authority: %s", authority)
         self.log.info("Disable instance discovery: %s", disable_instance_discovery)
-        self.log.info("MSAL Proxies: %s", msal_proxies)
+        self.log.info("MSAL Proxies: %s", redact(msal_proxies, name="proxies"))
         if certificate_path or certificate_data:
             return CertificateCredential(
                 tenant_id=tenant_id,
@@ -383,10 +460,31 @@ class KiotaRequestAdapterHook(BaseHook):
     def test_connection(self):
         """Test HTTP Connection."""
         try:
-            self.run()
+            asyncio.run(self.run())
             return True, "Connection successfully tested"
         except Exception as e:
             return False, str(e)
+
+    @staticmethod
+    def default_pagination(
+        response: dict,
+        url: str | None = None,
+        query_parameters: dict[str, Any] | None = None,
+        responses: Callable[[], list[dict[str, Any]] | None] = lambda: [],
+    ) -> tuple[Any, dict[str, Any] | None]:
+        if isinstance(response, dict):
+            odata_count = response.get("@odata.count")
+            if odata_count and query_parameters:
+                top = query_parameters.get("$top")
+
+                if top and odata_count:
+                    if len(response.get("value", [])) == top:
+                        results = responses()
+                        skip = sum([len(result["value"]) for result in results]) + top if results else top  # type: ignore
+                        query_parameters["$skip"] = skip
+                        return url, query_parameters
+            return response.get("@odata.nextLink"), query_parameters
+        return None, query_parameters
 
     async def run(
         self,
@@ -417,14 +515,70 @@ class KiotaRequestAdapterHook(BaseHook):
 
         return response
 
+    async def paginated_run(
+        self,
+        url: str = "",
+        response_type: str | None = None,
+        path_parameters: dict[str, Any] | None = None,
+        method: str = "GET",
+        query_parameters: dict[str, Any] | None = None,
+        headers: dict[str, str] | None = None,
+        data: dict[str, Any] | str | BytesIO | None = None,
+        pagination_function: PaginationCallable | None = None,
+    ):
+        if pagination_function is None:
+            pagination_function = self.default_pagination
+
+        responses: list[dict] = []
+
+        async def run(
+            url: str = "",
+            query_parameters: dict[str, Any] | None = None,
+        ):
+            while url:
+                response = await self.run(
+                    url=url,
+                    response_type=response_type,
+                    path_parameters=path_parameters,
+                    method=method,
+                    query_parameters=query_parameters,
+                    headers=headers,
+                    data=data,
+                )
+
+                if response:
+                    responses.append(response)
+
+                    if pagination_function:
+                        url, query_parameters = execute_callable(
+                            pagination_function,
+                            response=response,
+                            url=url,
+                            response_type=response_type,
+                            path_parameters=path_parameters,
+                            method=method,
+                            query_parameters=query_parameters,
+                            headers=headers,
+                            data=data,
+                            responses=lambda: responses,
+                        )
+                else:
+                    break
+
+        await run(url=url, query_parameters=query_parameters)
+
+        return responses
+
     async def send_request(self, request_info: RequestInformation, response_type: str | None = None):
+        conn = await self.get_async_conn()
+
         if response_type:
-            return await self.get_conn().send_primitive_async(
+            return await conn.send_primitive_async(
                 request_info=request_info,
                 response_type=response_type,
                 error_map=self.error_mapping(),
             )
-        return await self.get_conn().send_no_response_content_async(
+        return await conn.send_no_response_content_async(
             request_info=request_info,
             error_map=self.error_mapping(),
         )
@@ -437,7 +591,7 @@ class KiotaRequestAdapterHook(BaseHook):
         method: str = "GET",
         query_parameters: dict[str, Any] | None = None,
         headers: dict[str, str] | None = None,
-        data: dict[str, Any] | str | BytesIO | None = None,
+        data: dict[str, Any] | str | bytes | BytesIO | None = None,
     ) -> RequestInformation:
         request_information = RequestInformation()
         request_information.path_parameters = path_parameters or {}
@@ -468,7 +622,7 @@ class KiotaRequestAdapterHook(BaseHook):
                 header_name=RequestInformation.CONTENT_TYPE_HEADER, header_value="application/json"
             )
             request_information.content = json.dumps(data).encode("utf-8")
-        print("Request Information:", request_information.url)
+        self.log.debug("Request Information: %s", request_information.url)
         return request_information
 
     @staticmethod

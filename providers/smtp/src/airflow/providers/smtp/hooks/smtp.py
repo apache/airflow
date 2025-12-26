@@ -18,7 +18,8 @@
 """
 Search in emails for a specific attachment and also to download it.
 
-It uses the smtplib library that is already integrated in python 3.
+It uses the smtplib library that is already integrated in python 3 for
+synchronous connections or aiosmtplib for async connections.
 """
 
 from __future__ import annotations
@@ -33,17 +34,21 @@ from email.mime.application import MIMEApplication
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from email.utils import formatdate
+from functools import cached_property
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, cast
 
-from airflow.exceptions import AirflowException, AirflowNotFoundException
-from airflow.providers.smtp.version_compat import BaseHook
+import aiosmtplib
+
+from airflow.providers.common.compat.sdk import AirflowException, AirflowNotFoundException, BaseHook
 
 if TYPE_CHECKING:
-    try:
-        from airflow.sdk import Connection
-    except ImportError:
-        from airflow.models.connection import Connection  # type: ignore[assignment]
+    from airflow.providers.common.compat.sdk import Connection
+
+
+def build_xoauth2_string(username: str, token: str) -> str:
+    """Local fallback for older Airflow cores (≤2.11)."""
+    return f"user={username}\x01auth=Bearer {token}\x01\x01"
 
 
 class SmtpHook(BaseHook):
@@ -62,17 +67,41 @@ class SmtpHook(BaseHook):
     conn_type = "smtp"
     hook_name = "SMTP"
 
-    def __init__(self, smtp_conn_id: str = default_conn_name) -> None:
+    def __init__(self, smtp_conn_id: str = default_conn_name, auth_type: str = "basic") -> None:
         super().__init__()
         self.smtp_conn_id = smtp_conn_id
         self.smtp_connection: Connection | None = None
-        self.smtp_client: smtplib.SMTP_SSL | smtplib.SMTP | None = None
+        self._smtp_client: smtplib.SMTP_SSL | smtplib.SMTP | aiosmtplib.SMTP | None = None
+        self._auth_type = auth_type
+        self._access_token: str | None = None
 
     def __enter__(self) -> SmtpHook:
         return self.get_conn()
 
+    async def __aenter__(self) -> SmtpHook:
+        return await self.aget_conn()
+
     def __exit__(self, exc_type, exc_val, exc_tb):
-        self.smtp_client.close()
+        self._smtp_client.close()
+
+    async def __aexit__(self, exc_type, exc_val, exc_tb):
+        if self._smtp_client:
+            await self._smtp_client.quit()
+
+    def _setup_oauth2(self) -> tuple[str, str]:
+        """
+        Set up OAuth2 credentials and return token and user identity.
+
+        :return: Tuple of (user_identity, access_token)
+        """
+        if not self._access_token:
+            self._access_token = self._get_oauth2_token()
+
+        user_identity = self.smtp_user or self.from_email
+        if user_identity is None:
+            raise AirflowException("smtp_user or from_email must be set for OAuth2 authentication")
+
+        return user_identity, self._access_token
 
     def get_conn(self) -> SmtpHook:
         """
@@ -83,7 +112,7 @@ class SmtpHook(BaseHook):
 
         :return: an authorized SmtpHook object.
         """
-        if not self.smtp_client:
+        if not self._smtp_client:
             try:
                 self.smtp_connection = self.get_connection(self.smtp_conn_id)
             except AirflowNotFoundException:
@@ -91,44 +120,111 @@ class SmtpHook(BaseHook):
 
             for attempt in range(1, self.smtp_retry_limit + 1):
                 try:
-                    self.smtp_client = self._build_client()
+                    self._smtp_client = self._build_client()
                 except smtplib.SMTPServerDisconnected:
                     if attempt == self.smtp_retry_limit:
                         raise AirflowException("Unable to connect to smtp server")
                 else:
                     if self.smtp_starttls:
-                        self.smtp_client.starttls()
-                    if self.smtp_user and self.smtp_password:
-                        self.smtp_client.login(self.smtp_user, self.smtp_password)
+                        self._smtp_client.starttls()
+
+                    # choose auth
+                    if self._auth_type == "oauth2":
+                        if not self._access_token:
+                            self._access_token = self._get_oauth2_token()
+                        user_identity = self.smtp_user or self.from_email
+                        if user_identity is None:
+                            raise AirflowException(
+                                "smtp_user or from_email must be set for OAuth2 authentication"
+                            )
+                        self._smtp_client.auth(
+                            "XOAUTH2",
+                            lambda _=None: build_xoauth2_string(user_identity, self._access_token),
+                        )
+                    elif self.smtp_user and self.smtp_password:
+                        self._smtp_client.login(self.smtp_user, self.smtp_password)
                     break
 
         return self
 
-    def _build_client(self) -> smtplib.SMTP_SSL | smtplib.SMTP:
-        SMTP: type[smtplib.SMTP_SSL] | type[smtplib.SMTP]
-        if self.use_ssl:
-            SMTP = smtplib.SMTP_SSL
-        else:
-            SMTP = smtplib.SMTP
+    async def aget_conn(self) -> SmtpHook:
+        """
+        Login to the smtp server (async).
 
-        smtp_kwargs: dict[str, Any] = {"host": self.host}
+        .. note:: Please call this Hook as context manager via `with`
+            to automatically open and close the connection to the smtp server.
+
+        :return: an authorized SmtpHook object.
+        """
+        if not self._smtp_client:
+            try:
+                self.smtp_connection = await self.aget_connection(self.smtp_conn_id)
+            except AirflowNotFoundException:
+                raise AirflowException("SMTP connection is not found.")
+
+            for attempt in range(1, self.smtp_retry_limit + 1):
+                try:
+                    async_client = await self._abuild_client()
+                    self._smtp_client = async_client
+                except aiosmtplib.errors.SMTPServerDisconnected:
+                    if attempt == self.smtp_retry_limit:
+                        raise AirflowException("Unable to connect to smtp server")
+                else:
+                    if self.smtp_starttls:
+                        await async_client.starttls()
+
+                    if self.smtp_user and self.smtp_password:
+                        await async_client.auth_login(self.smtp_user, self.smtp_password)
+                    break
+
+        return self
+
+    def _build_client_kwargs(self, is_async: bool) -> dict[str, Any]:
+        """Build kwargs appropriate for sync or async SMTP client."""
+        valid_contexts = (None, "default", "none")  # Values accepted for ssl_context configuration
+
+        kwargs: dict[str, Any] = {"timeout": self.timeout}
+
         if self.port:
-            smtp_kwargs["port"] = self.port
-        smtp_kwargs["timeout"] = self.timeout
+            kwargs["port"] = self.port
 
-        if self.use_ssl:
-            ssl_context_string = self.ssl_context
-            if ssl_context_string is None or ssl_context_string == "default":
-                ssl_context = ssl.create_default_context()
-            elif ssl_context_string == "none":
-                ssl_context = None
-            else:
-                raise RuntimeError(
-                    f"The connection extra field `ssl_context` must "
-                    f"be set to 'default' or 'none' but it is set to '{ssl_context_string}'."
-                )
-            smtp_kwargs["context"] = ssl_context
-        return SMTP(**smtp_kwargs)
+        if is_async:
+            kwargs["hostname"] = self.host
+            kwargs["use_tls"] = self.use_ssl
+            kwargs["start_tls"] = self.smtp_starttls if not self.use_ssl else None
+        else:
+            kwargs["host"] = self.host
+            if self.use_ssl:
+                if self.ssl_context not in valid_contexts:
+                    raise RuntimeError(
+                        f"The connection extra field `ssl_context` must "
+                        f"be set to 'default' or 'none' but it is set to '{self.ssl_context}'."
+                    )
+                kwargs["context"] = None if self.ssl_context == "none" else ssl.create_default_context()
+
+        return kwargs
+
+    def _build_client(self) -> smtplib.SMTP_SSL | smtplib.SMTP:
+        """Build a synchronous SMTP client."""
+        client: type[smtplib.SMTP_SSL] | type[smtplib.SMTP] = (
+            smtplib.SMTP_SSL if self.use_ssl else smtplib.SMTP
+        )
+        return client(**self._build_client_kwargs(is_async=False))
+
+    async def _abuild_client(self) -> aiosmtplib.SMTP:
+        """
+        Build an asynchronous SMTP client.
+
+        Unlike the synchronous client (which connects automatically when instantiated),
+        aiosmtplib requires explicit connect() and ehlo() calls. We handle those here
+        to keep the async implementation details contained and make aget_conn behavior
+        match get_conn.
+        """
+        async_client = aiosmtplib.SMTP(**self._build_client_kwargs(is_async=True))
+        await async_client.connect()
+        await async_client.ehlo()
+
+        return async_client
 
     @classmethod
     def get_connection_form_widgets(cls) -> dict[str, Any]:
@@ -136,7 +232,7 @@ class SmtpHook(BaseHook):
         from flask_appbuilder.fieldwidgets import BS3TextFieldWidget
         from flask_babel import lazy_gettext
         from wtforms import BooleanField, IntegerField, StringField
-        from wtforms.validators import NumberRange
+        from wtforms.validators import NumberRange, any_of
 
         return {
             "from_email": StringField(lazy_gettext("From email"), widget=BS3TextFieldWidget()),
@@ -160,19 +256,98 @@ class SmtpHook(BaseHook):
             "html_content_template": StringField(
                 lazy_gettext("Path to the html content template"), widget=BS3TextFieldWidget()
             ),
+            "auth_type": StringField(
+                lazy_gettext("Auth Type"),
+                widget=BS3TextFieldWidget(),
+                description="basic  or  oauth2",
+                validators=[any_of(["basic", "oauth2"])],
+                default="basic",
+            ),
+            "access_token": StringField(lazy_gettext("Access Token"), widget=BS3TextFieldWidget()),
+            "client_id": StringField(lazy_gettext("Client ID"), widget=BS3TextFieldWidget()),
+            "client_secret": StringField(lazy_gettext("Client Secret"), widget=BS3TextFieldWidget()),
+            "tenant_id": StringField(lazy_gettext("Tenant ID"), widget=BS3TextFieldWidget()),
+            "scope": StringField(lazy_gettext("Scope"), widget=BS3TextFieldWidget()),
         }
 
     def test_connection(self) -> tuple[bool, str]:
         """Test SMTP connectivity from UI."""
         try:
-            smtp_client = self.get_conn().smtp_client
+            smtp_client = self.get_conn()._smtp_client
             if smtp_client:
-                status = smtp_client.noop()[0]
+                status = smtp_client.noop()
                 if status == 250:
                     return True, "Connection successfully tested"
         except Exception as e:
             return False, str(e)
         return False, "Failed to establish connection"
+
+    async def atest_connection(self) -> tuple[bool, str]:
+        """Test SMTP connectivity (async)."""
+        try:
+            smtp_client = (await self.aget_conn())._smtp_client
+            if smtp_client is None:
+                return False, "SMTP client not initialized"
+
+            if isinstance(smtp_client, aiosmtplib.SMTP):
+                async_client: aiosmtplib.SMTP = smtp_client
+                response = await async_client.noop()
+                if response.code == 250:
+                    return True, "Async connection successfully tested"
+                return False, f"Connection test failed with code: {response.code}"
+
+        except Exception as e:
+            return False, str(e)
+        return False, "Failed to establish connection"
+
+    def _build_message(
+        self,
+        to: str | Iterable[str],
+        subject: str | None = None,
+        html_content: str | None = None,
+        from_email: str | None = None,
+        files: list[str] | None = None,
+        cc: str | Iterable[str] | None = None,
+        bcc: str | Iterable[str] | None = None,
+        mime_subtype: str = "mixed",
+        mime_charset: str = "utf-8",
+        custom_headers: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
+        if not self._smtp_client:
+            raise AirflowException("The 'smtp_client' should be initialized before!")
+
+        from_email = from_email or self.from_email
+        if not from_email:
+            raise AirflowException("You should provide `from_email` or define it in the connection.")
+
+        if not subject:
+            if self.subject_template is None:
+                raise AirflowException(
+                    "You should provide `subject` or define `subject_template` in the connection."
+                )
+            subject = self._read_template(self.subject_template)
+
+        if not html_content:
+            if self.html_content_template is None:
+                raise AirflowException(
+                    "You should provide `html_content` or define `html_content_template` in the connection."
+                )
+            html_content = self._read_template(self.html_content_template)
+
+        mime_msg, recipients = self._build_mime_message(
+            mail_from=from_email,
+            to=to,
+            subject=subject,
+            html_content=html_content,
+            files=files,
+            cc=cc,
+            bcc=bcc,
+            mime_subtype=mime_subtype,
+            mime_charset=mime_charset,
+            custom_headers=custom_headers,
+        )
+
+        return {"mime_msg": mime_msg, "recipients": recipients, "from_email": from_email}
 
     def send_email_smtp(
         self,
@@ -213,27 +388,9 @@ class SmtpHook(BaseHook):
                 'test@example.com', 'foo', '<b>Foo</b> bar', ['/dev/null'], dryrun=True
             )
         """
-        if not self.smtp_client:
-            raise AirflowException("The 'smtp_client' should be initialized before!")
-        from_email = from_email or self.from_email
-        if not from_email:
-            raise AirflowException("You should provide `from_email` or define it in the connection.")
-        if not subject:
-            if self.subject_template is None:
-                raise AirflowException(
-                    "You should provide `subject` or define `subject_template` in the connection."
-                )
-            subject = self._read_template(self.subject_template)
-        if not html_content:
-            if self.html_content_template is None:
-                raise AirflowException(
-                    "You should provide `html_content` or define `html_content_template` in the connection."
-                )
-            html_content = self._read_template(self.html_content_template)
-
-        mime_msg, recipients = self._build_mime_message(
-            mail_from=from_email,
+        msg = self._build_message(
             to=to,
+            from_email=from_email,
             subject=subject,
             html_content=html_content,
             files=files,
@@ -244,16 +401,92 @@ class SmtpHook(BaseHook):
             custom_headers=custom_headers,
         )
         if not dryrun:
+            if self._smtp_client is None:
+                raise AirflowException("The SMTP client is not initialized")
+            # Casting here to make MyPy happy.
+            smtp_client = cast("smtplib.SMTP_SSL | smtplib.SMTP", self._smtp_client)
+
             for attempt in range(1, self.smtp_retry_limit + 1):
                 try:
-                    self.smtp_client.sendmail(
-                        from_addr=from_email, to_addrs=recipients, msg=mime_msg.as_string()
+                    smtp_client.sendmail(
+                        from_addr=msg["from_email"],
+                        to_addrs=msg["recipients"],
+                        msg=msg["mime_msg"].as_string(),
                     )
-                except smtplib.SMTPServerDisconnected as e:
+                    break
+                except Exception as e:
                     if attempt == self.smtp_retry_limit:
                         raise e
-                else:
+
+    async def asend_email_smtp(
+        self,
+        *,
+        to: str | Iterable[str],
+        subject: str | None = None,
+        html_content: str | None = None,
+        from_email: str | None = None,
+        files: list[str] | None = None,
+        dryrun: bool = False,
+        cc: str | Iterable[str] | None = None,
+        bcc: str | Iterable[str] | None = None,
+        mime_subtype: str = "mixed",
+        mime_charset: str = "utf-8",
+        custom_headers: dict[str, Any] | None = None,
+        **kwargs,
+    ) -> None:
+        """
+        Send an email with html content.
+
+        :param to: Recipient email address or list of addresses.
+        :param subject: Email subject. If it's None, the hook will check if there is a path to a subject
+            file provided in the connection, and raises an exception if not.
+        :param html_content: Email body in HTML format. If it's None, the hook will check if there is a path
+            to a html content file provided in the connection, and raises an exception if not.
+        :param from_email: Sender email address. If it's None, the hook will check if there is an email
+            provided in the connection, and raises an exception if not.
+        :param files: List of file paths to attach to the email.
+        :param dryrun: If True, the email will not be sent, but all other actions will be performed.
+        :param cc: Carbon copy recipient email address or list of addresses.
+        :param bcc: Blind carbon copy recipient email address or list of addresses.
+        :param mime_subtype: MIME subtype of the email.
+        :param mime_charset: MIME charset of the email.
+        :param custom_headers: Dictionary of custom headers to include in the email.
+        :param kwargs: Additional keyword arguments.
+
+        >>> send_email_smtp(
+                'test@example.com', 'foo', '<b>Foo</b> bar', ['/dev/null'], dryrun=True
+            )
+        """
+        msg = self._build_message(
+            to=to,
+            subject=subject,
+            html_content=html_content,
+            from_email=from_email,
+            files=files,
+            cc=cc,
+            bcc=bcc,
+            mime_subtype=mime_subtype,
+            mime_charset=mime_charset,
+            custom_headers=custom_headers,
+        )
+        if self._smtp_client is None:
+            raise AirflowException("The SMTP client is not initialized")
+        # Casting here to make MyPy happy.
+        smtp_client = cast("aiosmtplib.SMTP", self._smtp_client)
+
+        if not dryrun:
+            for attempt in range(1, self.smtp_retry_limit + 1):
+                try:
+                    #  The async version of sendmail only supports positional arguments for some reason.
+                    await smtp_client.sendmail(
+                        msg["from_email"],
+                        msg["recipients"],
+                        msg["mime_msg"].as_string(),
+                    )
                     break
+                except Exception as e:
+                    if attempt == self.smtp_retry_limit:
+                        raise e
 
     def _build_mime_message(
         self,
@@ -353,7 +586,41 @@ class SmtpHook(BaseHook):
         pattern = r"\s*[,;]\s*"
         return re.split(pattern, addresses)
 
-    @property
+    def _get_oauth2_token(self) -> str:
+        """
+        Return a valid OAuth 2.0 access-token.
+
+        If access_token provided in connection extra, then use it.
+        Else, try MSAL client-credential flow when client_id & client_secret exist.
+        """
+        extra = self.conn.extra_dejson
+
+        if token := extra.get("access_token"):
+            return token
+
+        client_id = extra.get("client_id")
+        client_secret = extra.get("client_secret")
+        tenant_id = extra.get("tenant_id", "common")
+        scope = extra.get("scope", "https://outlook.office.com/.default")
+
+        if client_id and client_secret:
+            from msal import ConfidentialClientApplication
+
+            app = ConfidentialClientApplication(
+                client_id=client_id,
+                client_credential=client_secret,
+                authority=f"https://login.microsoftonline.com/{tenant_id}",
+            )
+            result = app.acquire_token_for_client(scopes=[scope])
+            if "access_token" not in result:
+                raise AirflowException(f"Unable to obtain access token: {result.get('error_description')}")
+            return result["access_token"]
+
+        raise AirflowException(
+            "auth_type='oauth2' but neither 'access_token' nor client credentials supplied in connection extra."
+        )
+
+    @cached_property
     def conn(self) -> Connection:
         if not self.smtp_connection:
             raise AirflowException("The smtp connection should be loaded before!")
@@ -406,6 +673,19 @@ class SmtpHook(BaseHook):
     @property
     def ssl_context(self) -> str | None:
         return self.conn.extra_dejson.get("ssl_context")
+
+    @property
+    def auth_type(self) -> str:
+        return self.conn.extra_dejson.get("auth_type", self._auth_type)
+
+    @property
+    def access_token(self) -> str | None:
+        if self._access_token:
+            return self._access_token
+        token = self.conn.extra_dejson.get("access_token")
+        if token:
+            self._access_token = token
+        return self._access_token
 
     @staticmethod
     def _read_template(template_path: str) -> str:

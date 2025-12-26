@@ -66,9 +66,9 @@ class BaseXCom:
 
         :param key: Key to store the XCom.
         :param value: XCom value to store.
-        :param dag_id: DAG ID.
+        :param dag_id: Dag ID.
         :param task_id: Task ID.
-        :param run_id: DAG run ID for the task.
+        :param run_id: Dag run ID for the task.
         :param map_index: Optional map index to assign XCom for a mapped task.
             The default is ``-1`` (set for a non-mapped task).
         """
@@ -111,9 +111,9 @@ class BaseXCom:
 
         :param key: Key to store the XCom.
         :param value: XCom value to store.
-        :param dag_id: DAG ID.
+        :param dag_id: Dag ID.
         :param task_id: Task ID.
-        :param run_id: DAG run ID for the task.
+        :param run_id: Dag run ID for the task.
         :param map_index: Optional map index to assign XCom for a mapped task.
             The default is ``-1`` (set for a non-mapped task).
         """
@@ -180,8 +180,8 @@ class BaseXCom:
         .. seealso:: ``get_value()`` is a convenience function if you already
             have a structured TaskInstance or TaskInstanceKey object available.
 
-        :param run_id: DAG run ID for the task.
-        :param dag_id: Only pull XCom from this DAG. Pass *None* (default) to
+        :param run_id: Dag run ID for the task.
+        :param dag_id: Only pull XCom from this Dag. Pass *None* (default) to
             remove the filter.
         :param task_id: Only XCom from task with matching ID will be pulled.
             Pass *None* (default) to remove the filter.
@@ -230,8 +230,8 @@ class BaseXCom:
         .. seealso:: ``get_value()`` is a convenience function if you already
             have a structured TaskInstance or TaskInstanceKey object available.
 
-        :param run_id: DAG run ID for the task.
-        :param dag_id: Only pull XCom from this DAG. Pass *None* (default) to
+        :param run_id: Dag run ID for the task.
+        :param dag_id: Only pull XCom from this Dag. Pass *None* (default) to
             remove the filter.
         :param task_id: Only XCom from task with matching ID will be pulled.
             Pass *None* (default) to remove the filter.
@@ -240,7 +240,7 @@ class BaseXCom:
         :param key: A key for the XCom. If provided, only XCom with matching
             keys will be returned. Pass *None* (default) to remove the filter.
         :param include_prior_dates: If *False* (default), only XCom from the
-            specified DAG run is returned. If *True*, the latest matching XCom is
+            specified Dag run is returned. If *True*, the latest matching XCom is
             returned regardless of the run it belongs to.
         """
         from airflow.sdk.execution_time.task_runner import SUPERVISOR_COMMS
@@ -291,11 +291,11 @@ class BaseXCom:
         indexes of a mapped task at once.
 
         :param key: A key for the XCom. Only XComs with this key will be returned.
-        :param run_id: DAG run ID for the task.
-        :param dag_id: DAG ID to pull XComs from.
+        :param run_id: Dag run ID for the task.
+        :param dag_id: Dag ID to pull XComs from.
         :param task_id: Task ID to pull XComs from.
         :param include_prior_dates: If *False* (default), only XComs from the
-            specified DAG run are returned. If *True*, the latest matching XComs are
+            specified Dag run are returned. If *True*, the latest matching XComs are
             returned regardless of the run they belong to.
         :return: List of all XCom values if found.
         """
@@ -333,7 +333,7 @@ class BaseXCom:
         map_index: int | None = None,
     ) -> str:
         """Serialize XCom value to JSON str."""
-        from airflow.serialization.serde import serialize
+        from airflow.sdk.serde import serialize
 
         # return back the value for BaseXCom, custom backends will implement this
         return serialize(value)  # type: ignore[return-value]
@@ -341,7 +341,7 @@ class BaseXCom:
     @staticmethod
     def deserialize_value(result) -> Any:
         """Deserialize XCom value from str objects."""
-        from airflow.serialization.serde import deserialize
+        from airflow.sdk.serde import deserialize
 
         return deserialize(result.value)
 
@@ -376,5 +376,6 @@ class BaseXCom:
                 dag_id=dag_id,
                 task_id=task_id,
                 run_id=run_id,
+                map_index=map_index,
             ),
         )

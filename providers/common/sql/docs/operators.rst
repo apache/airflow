@@ -148,6 +148,29 @@ The below example demonstrates how to instantiate the SQLTableCheckOperator task
     :end-before: [END howto_operator_sql_table_check]
 
 
+.. _howto/operator:SQLValueCheckOperator:
+
+Check value against expected
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Use the :class:`~airflow.providers.common.sql.operators.sql.SQLValueCheckOperator` to compare a SQL query result
+against an expected value, with some optionally specified tolerance for numeric results.
+The parameters for this operator are:
+
+- ``sql`` - the sql query to be executed, as a templated string.
+- ``pass_value`` - the expected value to compare the query result against.
+- ``tolerance`` (optional) - numerical tolerance for comparisons involving numeric values.
+- ``conn_id`` (optional) - the connection ID used to connect to the database.
+- ``database`` (optional) - name of the database which overwrites the name defined in the connection.
+
+The below example demonstrates how to instantiate the SQLValueCheckOperator task.
+
+.. exampleinclude:: /../tests/system/common/sql/example_sql_value_check.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_sql_value_check]
+    :end-before: [END howto_operator_sql_value_check]
+
 .. _howto/operator:SQLThresholdCheckOperator:
 
 Check values against a threshold
@@ -173,6 +196,37 @@ The below example demonstrates how to instantiate the SQLThresholdCheckOperator 
     :end-before: [END howto_operator_sql_threshold_check]
 
 If the value returned by the query, is within the thresholds, the task passes. Otherwise, it fails.
+
+.. _howto/operator:SQLInsertRowsOperator:
+
+Insert rows into Table
+~~~~~~~~~~~~~~~~~~~~~~
+
+Use the :class:`~airflow.providers.common.sql.operators.sql.SQLInsertRowsOperator` to insert rows into a database table
+directly from Python data structures or an XCom. Parameters of the operator are:
+
+- ``table_name`` - name of the table in which the rows will be inserted (templated).
+- ``conn_id`` - the Airflow connection ID used to connect to the database.
+- ``schema`` (optional) - the schema in which the table is defined.
+- ``database`` (optional) - name of the database which overrides the one defined in the connection.
+- ``columns`` (optional) - list of columns to use for the insert when passing a list of dictionaries.
+- ``ignored_columns`` (optional) - list of columns to ignore for the insert, if no columns are specified,
+  columns will be dynamically resolved from the metadata.
+- ``rows`` - rows to insert, a list of tuples.
+- ``rows_processor`` (optional) - a function applied to the rows before inserting them.
+- ``preoperator`` (optional) - SQL statement or list of statements to execute before inserting data (templated).
+- ``postoperator`` (optional) - SQL statement or list of statements to execute after inserting data (templated).
+- ``hook_params`` (optional) - dictionary of additional parameters passed to the underlying hook.
+- ``insert_args`` (optional) - dictionary of additional arguments passed to the hook's ``insert_rows`` method,
+  can include ``replace``, ``executemany``, ``fast_executemany``, ``autocommit``, and others supported by the hook.
+
+The example below shows how to instantiate the SQLInsertRowsOperator task.
+
+.. exampleinclude:: /../tests/system/common/sql/example_sql_insert_rows.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_sql_insert_rows]
+    :end-before: [END howto_operator_sql_insert_rows]
 
 .. _howto/operator:GenericTransfer:
 

@@ -24,19 +24,20 @@ import enum
 from collections.abc import Collection, Iterable, Sequence
 from typing import TYPE_CHECKING, Any
 
-from sqlalchemy import CheckConstraint, Column, ForeignKeyConstraint, Integer, String, func, or_, select
+from sqlalchemy import CheckConstraint, ForeignKeyConstraint, Integer, String, func, or_, select
+from sqlalchemy.orm import Mapped
 
 from airflow.models.base import COLLATION_ARGS, ID_LEN, TaskInstanceDependencies
 from airflow.models.dag_version import DagVersion
 from airflow.utils.db import exists_query
-from airflow.utils.sqlalchemy import ExtendedJSON, with_row_locks
+from airflow.utils.sqlalchemy import ExtendedJSON, mapped_column, with_row_locks
 from airflow.utils.state import State, TaskInstanceState
 
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
 
-    from airflow.models.dag import DAG as SchedulerDAG
     from airflow.models.taskinstance import TaskInstance
+    from airflow.serialization.definitions.mappedoperator import Operator
 
 
 class TaskMapVariant(enum.Enum):
@@ -62,13 +63,13 @@ class TaskMap(TaskInstanceDependencies):
     __tablename__ = "task_map"
 
     # Link to upstream TaskInstance creating this dynamic mapping information.
-    dag_id = Column(String(ID_LEN, **COLLATION_ARGS), primary_key=True)
-    task_id = Column(String(ID_LEN, **COLLATION_ARGS), primary_key=True)
-    run_id = Column(String(ID_LEN, **COLLATION_ARGS), primary_key=True)
-    map_index = Column(Integer, primary_key=True)
+    dag_id: Mapped[str] = mapped_column(String(ID_LEN, **COLLATION_ARGS), primary_key=True)
+    task_id: Mapped[str] = mapped_column(String(ID_LEN, **COLLATION_ARGS), primary_key=True)
+    run_id: Mapped[str] = mapped_column(String(ID_LEN, **COLLATION_ARGS), primary_key=True)
+    map_index: Mapped[int] = mapped_column(Integer, primary_key=True)
 
-    length = Column(Integer, nullable=False)
-    keys = Column(ExtendedJSON, nullable=True)
+    length: Mapped[int] = mapped_column(Integer, nullable=False)
+    keys: Mapped[list | None] = mapped_column(ExtendedJSON, nullable=True)
 
     __table_args__ = (
         CheckConstraint(length >= 0, name="task_map_length_not_negative"),
@@ -122,7 +123,13 @@ class TaskMap(TaskInstanceDependencies):
         return TaskMapVariant.DICT
 
     @classmethod
-    def expand_mapped_task(cls, task, run_id: str, *, session: Session) -> tuple[Sequence[TaskInstance], int]:
+    def expand_mapped_task(
+        cls,
+        task: Operator,
+        run_id: str,
+        *,
+        session: Session,
+    ) -> tuple[Sequence[TaskInstance], int]:
         """
         Create the mapped task instances for mapped task.
 
@@ -131,14 +138,15 @@ class TaskMap(TaskInstanceDependencies):
             order by map index, and the maximum map index value.
         """
         from airflow.models.expandinput import NotFullyPopulated
-        from airflow.models.mappedoperator import get_mapped_ti_count
         from airflow.models.taskinstance import TaskInstance
-        from airflow.sdk.bases.operator import BaseOperator
-        from airflow.sdk.definitions.mappedoperator import MappedOperator
-        from airflow.serialization.serialized_objects import SerializedBaseOperator
+        from airflow.serialization.definitions.baseoperator import SerializedBaseOperator
+        from airflow.serialization.definitions.mappedoperator import (
+            SerializedMappedOperator,
+            get_mapped_ti_count,
+        )
         from airflow.settings import task_instance_mutation_hook
 
-        if not isinstance(task, (BaseOperator, MappedOperator, SerializedBaseOperator)):
+        if not isinstance(task, (SerializedMappedOperator, SerializedBaseOperator)):
             raise RuntimeError(
                 f"cannot expand unrecognized operator type {type(task).__module__}.{type(task).__name__}"
             )
@@ -155,7 +163,7 @@ class TaskMap(TaskInstanceDependencies):
                 )
             total_length = None
 
-        state: TaskInstanceState | None = None
+        state: str | None = None
         unmapped_ti: TaskInstance | None = session.scalars(
             select(TaskInstance).where(
                 TaskInstance.dag_id == task.dag_id,
@@ -170,7 +178,7 @@ class TaskMap(TaskInstanceDependencies):
 
         if unmapped_ti:
             if TYPE_CHECKING:
-                assert task.dag is None or isinstance(task.dag, SchedulerDAG)
+                assert task.dag is None
 
             # The unmapped task instance still exists and is unfinished, i.e. we
             # haven't tried to run it before.
@@ -216,12 +224,15 @@ class TaskMap(TaskInstanceDependencies):
             indexes_to_map: Iterable[int] = ()
         else:
             # Only create "missing" ones.
-            current_max_mapping = session.scalar(
-                select(func.max(TaskInstance.map_index)).where(
-                    TaskInstance.dag_id == task.dag_id,
-                    TaskInstance.task_id == task.task_id,
-                    TaskInstance.run_id == run_id,
+            current_max_mapping = (
+                session.scalar(
+                    select(func.max(TaskInstance.map_index)).where(
+                        TaskInstance.dag_id == task.dag_id,
+                        TaskInstance.task_id == task.task_id,
+                        TaskInstance.run_id == run_id,
+                    )
                 )
+                or 0
             )
             indexes_to_map = range(current_max_mapping + 1, total_length)
 
@@ -259,8 +270,7 @@ class TaskMap(TaskInstanceDependencies):
             TaskInstance.run_id == run_id,
             TaskInstance.map_index >= total_expanded_ti_count,
         )
-        query = with_row_locks(query, of=TaskInstance, session=session, skip_locked=True)
-        to_update = session.scalars(query)
+        to_update = session.scalars(with_row_locks(query, of=TaskInstance, session=session, skip_locked=True))
         for ti in to_update:
             ti.state = TaskInstanceState.REMOVED
         session.flush()

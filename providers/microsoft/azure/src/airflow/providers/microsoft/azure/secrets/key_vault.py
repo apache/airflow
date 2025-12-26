@@ -100,15 +100,18 @@ class AzureKeyVaultBackend(BaseSecretsBackend, LoggingMixin):
     ) -> None:
         super().__init__()
         self.vault_url = vault_url
-        if connections_prefix is not None:
+        self.connections_prefix: str | None
+        if connections_prefix:
             self.connections_prefix = connections_prefix.rstrip(sep)
         else:
             self.connections_prefix = connections_prefix
-        if variables_prefix is not None:
+        self.variables_prefix: str | None
+        if variables_prefix:
             self.variables_prefix = variables_prefix.rstrip(sep)
         else:
             self.variables_prefix = variables_prefix
-        if config_prefix is not None:
+        self.config_prefix: str | None
+        if config_prefix:
             self.config_prefix = config_prefix.rstrip(sep)
         else:
             self.config_prefix = config_prefix
@@ -152,11 +155,12 @@ class AzureKeyVaultBackend(BaseSecretsBackend, LoggingMixin):
 
         return self._get_secret(self.connections_prefix, conn_id)
 
-    def get_variable(self, key: str) -> str | None:
+    def get_variable(self, key: str, team_name: str | None = None) -> str | None:
         """
         Get an Airflow Variable from an Azure Key Vault secret.
 
         :param key: Variable Key
+        :param team_name: Team name associated to the task trying to access the variable (if any)
         :return: Variable Value
         """
         if self.variables_prefix is None:

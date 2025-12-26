@@ -57,6 +57,7 @@ If you do not work in a remote development environment, you will need these prer
 
 The below setup describes `Ubuntu installation <https://docs.docker.com/engine/install/ubuntu/>`_.
 It might be slightly different on different machines.
+For Windows, click on Start menu and type WSL to enter Linux console. Please note, not doing this will result in errors in next steps.
 
 Docker Community Edition
 ------------------------
@@ -234,8 +235,8 @@ Forking and cloning Project
 
   git config core.autocrlf true
 
-Configuring Pre-commit
-----------------------
+Configuring prek
+----------------
 
 Before committing changes to github or raising a pull request, the code needs to be checked for certain quality standards
 such as spell check, code syntax, code formatting, compatibility with Apache License requirements etc. This set of
@@ -249,7 +250,7 @@ tests are applied when you commit your code.
   </div>
 
 
-To avoid burden on our CI infrastructure and to save time, Pre-commit hooks can be run locally before committing changes.
+To avoid burden on our CI infrastructure and to save time, prek hooks can be run locally before committing changes.
 
 .. note::
     We have recently started to recommend ``uv`` for our local development.
@@ -258,7 +259,7 @@ To avoid burden on our CI infrastructure and to save time, Pre-commit hooks can 
     Remember to have global python set to Python >= 3.10 - Python 3.10 is end-of-life already and we've
     started to use Python 3.10+ features in Airflow and accompanying scripts.
 
-Installing pre-commit is best done with ``uv`` (recommended) or ``pipx``.
+Installing prek is best done with ``uv`` (recommended) or ``pipx``.
 
 1.  Installing required packages
 
@@ -274,7 +275,7 @@ on macOS, install via
 
   brew install libxml2
 
-2. Installing pre-commit:
+2. Installing prek:
 
 .. note::
   You might need to pass ``--python <python>`` to force the python version if not it uses the latest system python version.
@@ -282,15 +283,14 @@ on macOS, install via
 
 .. code-block:: bash
 
-  uv tool install pre-commit --with pre-commit-uv
+  uv tool install prek
 
-You can add ``uv`` support for ``pre-commit`` even if you've installed it with ``pipx`` using the commands
-(then pre-commit will use ``uv`` to create virtualenvs for the hooks):
+or with pipx:
 
 .. code-block:: bash
 
-  pipx install pre-commit
-  pipx install inject pre-commit pre-commit-uv # optional, configures pre-commit to use uv to install virtualenvs
+  pipx install prek
+
 
 3. Go to your project directory
 
@@ -299,11 +299,11 @@ You can add ``uv`` support for ``pre-commit`` even if you've installed it with `
   cd ~/Projects/airflow
 
 
-4. Running pre-commit hooks
+4. Running prek hooks
 
 .. code-block:: bash
 
-  pre-commit run --all-files
+  prek --all-files
     No-tabs checker......................................................Passed
     Add license for all SQL files........................................Passed
     Add license for all other files......................................Passed
@@ -327,39 +327,39 @@ You can add ``uv`` support for ``pre-commit`` even if you've installed it with `
     Fix End of Files.....................................................Passed
     ...........................................................................
 
-5. Running pre-commit for selected files
+5. Running prek for selected files
 
 .. code-block:: bash
 
-  pre-commit run  --files airflow-core/src/airflow/utils/decorators.py  airflow-core/tests/unit/utils/test_task_group.py
+  prek  --files airflow-core/src/airflow/utils/decorators.py  airflow-core/tests/unit/utils/test_task_group.py
 
 
 6. Running specific hook for selected files
 
 .. code-block:: bash
 
-  pre-commit run black --files airflow-core/src/airflow/utils/decorators.py airflow-core/tests/unit/utils/test_task_group.py
+  prek black --files airflow-core/src/airflow/utils/decorators.py airflow-core/tests/unit/utils/test_task_group.py
     black...............................................................Passed
-  pre-commit run ruff --files airflow-core/src/airflow/utils/decorators.py airflow-core/tests/unit/utils/test_task_group.py
+  prek ruff --files airflow-core/src/airflow/utils/decorators.py airflow-core/tests/unit/utils/test_task_group.py
     Run ruff............................................................Passed
 
 
-7. Enabling Pre-commit check before push
+7. Enabling prek hook check before push
 
-It will run pre-commit automatically before committing and stops the commit on failure
+It will run prek hooks automatically before committing and stops the commit on failure
 
 .. code-block:: bash
 
   cd ~/Projects/airflow
-  pre-commit install
+  prek install
   git commit -m "Added xyz"
 
-8. To disable Pre-commit
+8. If you want to disable prek hooks
 
 .. code-block:: bash
 
   cd ~/Projects/airflow
-  pre-commit uninstall
+  prek uninstall
 
 - For more information on this visit |08_static_code_checks.rst|
 
@@ -370,12 +370,12 @@ It will run pre-commit automatically before committing and stops the commit on f
 
 - Following are some of the important links of 08_static_code_checks.rst
 
-  - |Pre-commit Hooks|
+  - |Prek Hooks|
 
-  .. |Pre-commit Hooks| raw:: html
+  .. |Prek Hooks| raw:: html
 
-   <a href="https://github.com/apache/airflow/blob/main/contributing-docs/08_static_code_checks.rst#pre-commit-hooks" target="_blank">
-   Pre-commit Hooks</a>
+   <a href="https://github.com/apache/airflow/blob/main/contributing-docs/08_static_code_checks.rst#prek-hooks" target="_blank">
+   Prek Hooks</a>
 
   - |Running Static Code Checks via Breeze|
 
@@ -445,8 +445,28 @@ see in CI in your local environment.
 
    Once the package is installed, execute the breeze command again to resume image building.
 
+   If you encounter an error such as
 
-5. When you enter the Breeze environment you should see a prompt similar to ``root@e4756f6ac886:/opt/airflow#``. This
+   .. code-block:: text
+
+      jinja2.exceptions.TemplateNotFound: '/index.html' not found in search path: '/opt/airflow/airflow-core/src/airflow/ui/dist'
+
+   you may need to compile the UI assets before starting the Breeze environment. To do so, run the following command **before** executing step 4:
+
+   .. code-block:: bash
+
+      breeze ui compile-assets
+
+   After running this, verify that the compiled UI assets have been added to ``/airflow/.build/ui``.
+
+   Then, proceed with:
+
+   .. code-block:: bash
+
+      breeze --python 3.10 --backend postgres
+
+
+5. When you enter the Breeze environment you should see a prompt similar to ``[Breeze:3.10.19] root@e4756f6ac886:/opt/airflow#``. This
    means that you are inside the Breeze container and ready to run most of the development tasks. You can leave
    the environment with ``exit`` and re-enter it with just ``breeze`` command
 
@@ -456,11 +476,11 @@ see in CI in your local environment.
 
 .. code-block:: bash
 
-  root@b76fcb399bb6:/opt/airflow# airflow db reset
+  [Breeze:3.10.19] root@b76fcb399bb6:/opt/airflow# airflow db reset
 
 .. code-block:: bash
 
-        root@b76fcb399bb6:/opt/airflow# airflow users create \
+   [Breeze:3.10.19] root@b76fcb399bb6:/opt/airflow# airflow users create \
                 --username admin \
                 --firstname FIRST_NAME \
                 --lastname LAST_NAME \
@@ -476,7 +496,7 @@ see in CI in your local environment.
 
 .. code-block:: bash
 
-  root@b76fcb399bb6:/opt/airflow# exit
+  [Breeze:3.10.19] root@b76fcb399bb6:/opt/airflow# exit
 
 8. You can stop the environment (which means deleting the databases and database servers running in the
    background) via ``breeze down`` command
@@ -492,7 +512,7 @@ Using Breeze
 1. Starting the Breeze environment using ``breeze start-airflow`` starts the Breeze environment with last configuration run(
    In this case Python version and backend are picked up from last execution ``breeze --python 3.10 --backend postgres``)
    It also automatically starts the API server (FastAPI api and UI), triggerer, dag processor and scheduler. It drops you in tmux with triggerer to the right, and
-   Scheduler, API server (FastAPI api and UI), DAG processor from left to right at the bottom. Use ``[Ctrl + B] and Arrow keys`` to navigate.
+   Scheduler, API server (FastAPI api and UI), Dag processor from left to right at the bottom. Use ``[Ctrl + B] and Arrow keys`` to navigate.
 
 .. code-block:: bash
 
@@ -611,24 +631,44 @@ If ``breeze`` was started with ``breeze start-airflow``, this command will stop 
 
 .. code-block:: bash
 
-  root@f3619b74c59a:/opt/airflow# stop_airflow
+  [Breeze:3.10.19] root@f3619b74c59a:/opt/airflow# stop_airflow
   breeze down
 
 If ``breeze`` was started with ``breeze --python 3.10 --backend postgres`` (or similar):
 
 .. code-block:: bash
 
-  root@f3619b74c59a:/opt/airflow# exit
+  [Breeze:3.10.19] root@f3619b74c59a:/opt/airflow# exit
   breeze down
 
 .. note::
-    ``stop_airflow`` is available only when `breeze` is started with ``breeze start-airflow``.
+    ``stop_airflow`` is available only when ``breeze`` is started with ``breeze start-airflow``.
+
+Using mprocs Instead of tmux
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+By default, ``breeze start-airflow`` uses tmux to manage Airflow components. You can use mprocs as an
+alternative with the ``--use-mprocs`` flag:
+
+.. code-block:: bash
+
+  breeze start-airflow --use-mprocs
+
+**Benefits of using mprocs:**
+
+* Modern terminal UI with better visual feedback
+* Easier navigation with mouse and keyboard
+* Individual process controls (start, stop, restart)
+* Process status indicators
+* Better cross-platform support
+
+For more information on mprocs, look at `mprocs documentation <mprocs/MPROCS_QUICK_REFERENCE.md>`__.
 
 1. Knowing more about Breeze
 
 .. code-block:: bash
 
-  breeze --help
+   breeze --help
 
 
 Following are some of important topics of `Breeze documentation <../dev/breeze/doc/README.rst>`__:
@@ -672,9 +712,9 @@ All Tests are inside ./tests directory.
 
 .. code-block:: bash
 
-   root@63528318c8b1:/opt/airflow# pytest tests/utils/test_dates.py
+   [Breeze:3.10.19] root@63528318c8b1:/opt/airflow# pytest tests/utils/test_dates.py
    ============================================================= test session starts ==============================================================
-   platform linux -- Python 3.10.20, pytest-8.3.3, pluggy-1.5.0 -- /usr/local/bin/python
+   platform linux -- Python 3.10.20, pytest-8.3.3, pluggy-1.5.0 -- /usr/python/bin/python
    cachedir: .pytest_cache
    rootdir: /opt/airflow
    configfile: pyproject.toml

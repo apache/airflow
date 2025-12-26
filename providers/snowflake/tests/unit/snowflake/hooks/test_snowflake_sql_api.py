@@ -31,8 +31,9 @@ from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import rsa
 
-from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
+from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.models import Connection
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.snowflake.hooks.snowflake_sql_api import SnowflakeSqlApiHook
 
 if TYPE_CHECKING:
@@ -218,7 +219,7 @@ def create_async_request_client_response_success(json=GET_RESPONSE, status_code=
 
 class TestSnowflakeSqlApiHook:
     @pytest.mark.parametrize(
-        "sql,statement_count,expected_response, expected_query_ids",
+        ("sql", "statement_count", "expected_response", "expected_query_ids"),
         [
             (SINGLE_STMT, 1, {"statementHandle": "uuid"}, ["uuid"]),
             (SQL_MULTIPLE_STMTS, 4, {"statementHandles": ["uuid", "uuid1"]}, ["uuid", "uuid1"]),
@@ -285,7 +286,7 @@ class TestSnowflakeSqlApiHook:
         assert query_ids == expected_query_ids
 
     @pytest.mark.parametrize(
-        "sql,statement_count,expected_response, expected_query_ids",
+        ("sql", "statement_count", "expected_response", "expected_query_ids"),
         [(SINGLE_STMT, 1, {"statementHandle": "uuid"}, ["uuid"])],
     )
     @mock.patch(f"{HOOK_PATH}._get_conn_params", new_callable=PropertyMock)
@@ -313,7 +314,7 @@ class TestSnowflakeSqlApiHook:
         assert exception_info
 
     @pytest.mark.parametrize(
-        "sql,statement_count,bindings",
+        ("sql", "statement_count", "bindings"),
         [
             (SQL_MULTIPLE_STMTS, 4, {"1": {"type": "FIXED", "value": "123"}}),
         ],
@@ -589,7 +590,7 @@ class TestSnowflakeSqlApiHook:
             SnowflakeSqlApiHook(snowflake_conn_id="test_conn").get_private_key()
 
     @pytest.mark.parametrize(
-        "status_code,response,expected_response",
+        ("status_code", "response", "expected_response"),
         [
             (
                 200,
@@ -618,7 +619,20 @@ class TestSnowflakeSqlApiHook:
                 },
             ),
             (202, {}, {"status": "running", "message": "Query statements are still running"}),
-            (422, {"status": "error", "message": "test"}, {"status": "error", "message": "test"}),
+            (422, {"message": "test"}, {"status": "error", "message": "test"}),
+            (
+                422,
+                {
+                    "message": "SQL compilation error",
+                    "code": "000904",
+                    "sqlState": "42000",
+                    "statementHandle": "handle123",
+                },
+                {
+                    "status": "error",
+                    "message": "SQL compilation error (Code: 000904, SQL State: 42000, Statement Handle: handle123)",
+                },
+            ),
             (404, {"status": "error", "message": "test"}, {"status": "error", "message": "test"}),
         ],
     )
@@ -649,7 +663,7 @@ class TestSnowflakeSqlApiHook:
 
     @pytest.mark.asyncio
     @pytest.mark.parametrize(
-        "status_code,response,expected_response",
+        ("status_code", "response", "expected_response"),
         [
             (
                 200,
@@ -678,7 +692,7 @@ class TestSnowflakeSqlApiHook:
                 },
             ),
             (202, {}, {"status": "running", "message": "Query statements are still running"}),
-            (422, {"status": "error", "message": "test"}, {"status": "error", "message": "test"}),
+            (422, {"message": "test"}, {"status": "error", "message": "test"}),
             (404, {"status": "error", "message": "test"}, {"status": "error", "message": "test"}),
         ],
     )
@@ -709,7 +723,7 @@ class TestSnowflakeSqlApiHook:
         assert hook.role == hook_params.get("role", None)
 
     @pytest.mark.parametrize(
-        "test_hook_params, sql, statement_count, expected_payload, expected_response",
+        ("test_hook_params", "sql", "statement_count", "expected_payload", "expected_response"),
         [
             (
                 {},
@@ -829,7 +843,7 @@ class TestSnowflakeSqlApiHook:
         )
 
     @pytest.mark.parametrize(
-        "status_code,should_retry",
+        ("status_code", "should_retry"),
         [
             (429, True),  # Too Many Requests - should retry
             (503, True),  # Service Unavailable - should retry
@@ -1420,3 +1434,39 @@ class TestSnowflakeSqlApiHook:
 
         failed_response.raise_for_status.assert_called_once()
         failed_response.json.assert_not_called()
+
+    @mock.patch(f"{HOOK_PATH}.get_request_url_header_params")
+    def test_cancel_sql_api_query_execution(self, mock_get_url_header_params, mock_requests):
+        """Test _cancel_sql_api_query_execution makes POST request with /cancel suffix."""
+        query_id = "test-query-id"
+        mock_get_url_header_params.return_value = (
+            HEADERS,
+            {"requestId": "uuid"},
+            f"{API_URL}/{query_id}/cancel",
+        )
+        mock_requests.request.return_value = create_successful_response_mock(
+            {"status": "success", "message": "Statement cancelled."}
+        )
+
+        hook = SnowflakeSqlApiHook(snowflake_conn_id="test_conn")
+        hook._cancel_sql_api_query_execution(query_id)
+
+        mock_get_url_header_params.assert_called_once_with(query_id, "/cancel")
+        mock_requests.request.assert_called_once_with(
+            method="post",
+            url=f"{API_URL}/{query_id}/cancel",
+            headers=HEADERS,
+            params={"requestId": "uuid"},
+            json=None,
+        )
+
+    @mock.patch(f"{HOOK_PATH}._cancel_sql_api_query_execution")
+    def test_cancel_queries(self, mock_cancel_execution):
+        """Test cancel_queries calls _cancel_sql_api_query_execution for each query id."""
+        query_ids = ["query-1", "query-2", "query-3"]
+
+        hook = SnowflakeSqlApiHook(snowflake_conn_id="test_conn")
+        hook.cancel_queries(query_ids)
+
+        assert mock_cancel_execution.call_count == 3
+        mock_cancel_execution.assert_has_calls([call("query-1"), call("query-2"), call("query-3")])

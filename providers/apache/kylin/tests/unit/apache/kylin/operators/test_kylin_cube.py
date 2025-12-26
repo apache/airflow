@@ -22,13 +22,14 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from airflow.exceptions import AirflowException
 from airflow.models import DagRun, TaskInstance
 from airflow.models.dag import DAG
 from airflow.providers.apache.kylin.operators.kylin_cube import KylinCubeOperator
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.utils import state, timezone
 from airflow.utils.types import DagRunType
 
+from tests_common.test_utils.dag import sync_dag_to_db
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
 DEFAULT_DATE = timezone.datetime(2020, 1, 1)
@@ -151,7 +152,7 @@ class TestKylinCubeOperator:
             operator.execute(None)
 
     @pytest.mark.db_test
-    def test_render_template(self, session):
+    def test_render_template(self, session, testing_dag_bundle):
         operator = KylinCubeOperator(
             task_id="kylin_build_1",
             kylin_conn_id="kylin_default",
@@ -172,11 +173,9 @@ class TestKylinCubeOperator:
         )
 
         if AIRFLOW_V_3_0_PLUS:
-            self.dag.sync_to_db()
             from airflow.models.dag_version import DagVersion
-            from airflow.models.serialized_dag import SerializedDagModel
 
-            SerializedDagModel.write_dag(dag=self.dag, bundle_name="testing")
+            sync_dag_to_db(self.dag)
             dag_version = DagVersion.get_latest_version(operator.dag_id)
             ti = TaskInstance(operator, run_id="kylin_test", dag_version_id=dag_version.id)
             ti.dag_run = DagRun(

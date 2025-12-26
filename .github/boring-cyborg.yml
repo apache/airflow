@@ -332,8 +332,9 @@ labelPRBasedOnFilePath:
     - .rat-excludes
     - .readthedocs.yml
 
-  # This should be copy of the "area:dev-tools" above and should be updated when we switch maintenance branch
-  backport-to-v3-0-test:
+  # This should be copy of the "area:dev-tools" above and should be updated when
+  # we switch maintenance branch
+  backport-to-v3-1-test:
     - scripts/**/*
     - dev/**/*
     - .github/**/*
@@ -349,7 +350,6 @@ labelPRBasedOnFilePath:
     - .rat-excludes
     - .readthedocs.yml
 
-
   kind:documentation:
     - airflow-core/docs/**/*
     - chart/docs/**/*
@@ -357,6 +357,7 @@ labelPRBasedOnFilePath:
     - providers/**/docs/**/*
     - providers-summary-docs/**/*
     - docker-stack-docs/**/*
+    - airflow-ctl/docs/**/*
 
   area:helm-chart:
     - chart/**/*
@@ -374,8 +375,14 @@ labelPRBasedOnFilePath:
   translation:ar:
     - airflow-core/src/airflow/ui/public/i18n/locales/ar/*
 
+  translation:ca:
+    - airflow-core/src/airflow/ui/public/i18n/locales/ca/*
+
   translation:de:
     - airflow-core/src/airflow/ui/public/i18n/locales/de/*
+
+  translation:el:
+    - airflow-core/src/airflow/ui/public/i18n/locales/el/*
 
   translation:es:
     - airflow-core/src/airflow/ui/public/i18n/locales/es/*
@@ -386,6 +393,18 @@ labelPRBasedOnFilePath:
   translation:he:
     - airflow-core/src/airflow/ui/public/i18n/locales/he/*
 
+  translation:hi:
+    - airflow-core/src/airflow/ui/public/i18n/locales/hi/*
+
+  translation:hu:
+    - airflow-core/src/airflow/ui/public/i18n/locales/hu/*
+
+  translation:it:
+    - airflow-core/src/airflow/ui/public/i18n/locales/it/*
+
+  translation:ja:
+    - airflow-core/src/airflow/ui/public/i18n/locales/ja/*
+
   translation:ko:
     - airflow-core/src/airflow/ui/public/i18n/locales/ko/*
 
@@ -394,6 +413,18 @@ labelPRBasedOnFilePath:
 
   translation:pl:
     - airflow-core/src/airflow/ui/public/i18n/locales/pl/*
+
+  translation:pt:
+    - airflow-core/src/airflow/ui/public/i18n/locales/pt/*
+
+  translation:th:
+    - airflow-core/src/airflow/ui/public/i18n/locales/th/*
+
+  translation:tr:
+    - airflow-core/src/airflow/ui/public/i18n/locales/tr/*
+
+  translation:zh-CN:
+    - airflow-core/src/airflow/ui/public/i18n/locales/zh-CN/*
 
   translation:zh-TW:
     - airflow-core/src/airflow/ui/public/i18n/locales/zh-TW/*
@@ -411,7 +442,7 @@ labelPRBasedOnFilePath:
 
   area:Logging:
     - airflow-core/src/airflow/config_templates/airflow_local_settings.py
-    - airflow-core/tests/unit/core/test_logging_config.py
+    - shared/logging/**/*
     - airflow-core/src/airflow/utils/log/**/*
     - airflow-core/docs/administration-and-deployment/logging-monitoring/logging-*.rst
     - airflow-core/tests/unit/utils/log/**/*
@@ -445,7 +476,6 @@ labelPRBasedOnFilePath:
 
   area:Secrets:
     - airflow-core/src/airflow/secrets/**/*
-    - airflow-core/tests/unit/secrets/**/*
     - providers/**/secrets/*
     - airflow-core/docs/security/secrets/**/*
 
@@ -519,8 +549,8 @@ firstPRWelcomeComment: >
 
   Here are some useful points:
 
-  - Pay attention to the quality of your code (ruff, mypy and type annotations). Our [pre-commits](
-  https://github.com/apache/airflow/blob/main/contributing-docs/08_static_code_checks.rst#prerequisites-for-pre-commit-hooks)
+  - Pay attention to the quality of your code (ruff, mypy and type annotations). Our [prek-hooks](
+  https://github.com/apache/airflow/blob/main/contributing-docs/08_static_code_checks.rst#prerequisites-for-prek-hooks)
   will help you with that.
 
   - In case of a new feature add useful documentation (in docstrings or in `docs/` directory).

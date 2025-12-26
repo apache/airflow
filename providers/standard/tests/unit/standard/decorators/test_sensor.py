@@ -20,7 +20,7 @@ from __future__ import annotations
 
 import pytest
 
-from airflow.exceptions import AirflowSensorTimeout
+from airflow.providers.common.compat.sdk import AirflowSensorTimeout
 from airflow.sensors.base import PokeReturnValue
 from airflow.utils.state import State
 

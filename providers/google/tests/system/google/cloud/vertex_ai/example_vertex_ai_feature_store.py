@@ -44,7 +44,12 @@ from airflow.providers.google.cloud.operators.vertex_ai.feature_store import (
     SyncFeatureViewOperator,
 )
 from airflow.providers.google.cloud.sensors.vertex_ai.feature_store import FeatureViewSyncSensor
-from airflow.utils.trigger_rule import TriggerRule
+
+try:
+    from airflow.sdk import TriggerRule
+except ImportError:
+    # Compatibility for Airflow < 3.1
+    from airflow.utils.trigger_rule import TriggerRule  # type: ignore[no-redef,attr-defined]
 
 PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT", "default")
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID", "default")
@@ -56,7 +61,8 @@ BQ_DATASET_ID = "bq_ds_featurestore_demo"
 BQ_VIEW_ID = "product_features_view"
 BQ_VIEW_FQN = f"{PROJECT_ID}.{BQ_DATASET_ID}.{BQ_VIEW_ID}"
 
-FEATURE_ONLINE_STORE_ID = f"my_feature_online_store_unique_{ENV_ID}"
+# Please take into consideration that max ID length is 60 symbols
+FEATURE_ONLINE_STORE_ID = f"{ENV_ID}_fo_id".replace("-", "_")
 FEATURE_VIEW_ID = "feature_view_product"
 FEATURE_VIEW_DATA_KEY = {"key": "28098"}
 

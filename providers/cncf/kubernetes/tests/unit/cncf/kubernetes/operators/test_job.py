@@ -26,18 +26,19 @@ import pendulum
 import pytest
 from kubernetes.client import ApiClient, models as k8s
 
-from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
+from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.models import DAG, DagModel, DagRun, TaskInstance
-from airflow.models.serialized_dag import SerializedDagModel
 from airflow.providers.cncf.kubernetes.operators.job import (
     KubernetesDeleteJobOperator,
     KubernetesJobOperator,
     KubernetesPatchJobOperator,
 )
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.utils import timezone
 from airflow.utils.session import create_session
 from airflow.utils.types import DagRunType
 
+from tests_common.test_utils.dag import sync_dag_to_db
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
 DEFAULT_DATE = timezone.datetime(2016, 1, 1, 1, 0, 0)
@@ -62,8 +63,7 @@ def create_context(task, persist_to_db=False, map_index=None):
         dag = DAG(dag_id="dag", schedule=None, start_date=pendulum.now())
         dag.add_task(task)
     if AIRFLOW_V_3_0_PLUS:
-        dag.sync_to_db()
-        SerializedDagModel.write_dag(dag, bundle_name="testing")
+        sync_dag_to_db(dag)
         dag_run = DagRun(
             run_id=DagRun.generate_run_id(
                 run_type=DagRunType.MANUAL, logical_date=DEFAULT_DATE, run_after=DEFAULT_DATE
@@ -89,7 +89,8 @@ def create_context(task, persist_to_db=False, map_index=None):
         task_instance.map_index = map_index
     if persist_to_db:
         with create_session() as session:
-            session.add(DagModel(dag_id=dag.dag_id))
+            if not AIRFLOW_V_3_0_PLUS:
+                session.add(DagModel(dag_id=dag.dag_id))
             session.add(dag_run)
             session.add(task_instance)
             session.commit()
@@ -168,7 +169,7 @@ class TestKubernetesJobOperator:
     def sanitize_for_serialization(self, obj):
         return ApiClient().sanitize_for_serialization(obj)
 
-    def test_backoff_limit_correctly_set(self):
+    def test_backoff_limit_correctly_set(self, clean_dags_dagruns_and_dagbundles):
         k = KubernetesJobOperator(
             task_id="task",
             backoff_limit=6,
@@ -176,7 +177,7 @@ class TestKubernetesJobOperator:
         job = k.build_job_request_obj(create_context(k))
         assert job.spec.backoff_limit == 6
 
-    def test_completion_mode_correctly_set(self):
+    def test_completion_mode_correctly_set(self, clean_dags_dagruns_and_dagbundles):
         k = KubernetesJobOperator(
             task_id="task",
             completion_mode="NonIndexed",
@@ -184,7 +185,7 @@ class TestKubernetesJobOperator:
         job = k.build_job_request_obj(create_context(k))
         assert job.spec.completion_mode == "NonIndexed"
 
-    def test_completions_correctly_set(self):
+    def test_completions_correctly_set(self, clean_dags_dagruns_and_dagbundles):
         k = KubernetesJobOperator(
             task_id="task",
             completions=1,
@@ -192,7 +193,7 @@ class TestKubernetesJobOperator:
         job = k.build_job_request_obj(create_context(k))
         assert job.spec.completions == 1
 
-    def test_manual_selector_correctly_set(self):
+    def test_manual_selector_correctly_set(self, clean_dags_dagruns_and_dagbundles):
         k = KubernetesJobOperator(
             task_id="task",
             manual_selector=False,
@@ -200,7 +201,7 @@ class TestKubernetesJobOperator:
         job = k.build_job_request_obj(create_context(k))
         assert job.spec.manual_selector is False
 
-    def test_parallelism_correctly_set(self):
+    def test_parallelism_correctly_set(self, clean_dags_dagruns_and_dagbundles):
         k = KubernetesJobOperator(
             task_id="task",
             parallelism=2,
@@ -208,7 +209,7 @@ class TestKubernetesJobOperator:
         job = k.build_job_request_obj(create_context(k))
         assert job.spec.parallelism == 2
 
-    def test_selector(self):
+    def test_selector(self, clean_dags_dagruns_and_dagbundles):
         selector = k8s.V1LabelSelector(
             match_expressions=[],
             match_labels={"foo": "bar", "hello": "airflow"},
@@ -223,7 +224,7 @@ class TestKubernetesJobOperator:
         assert isinstance(job.spec.selector, k8s.V1LabelSelector)
         assert job.spec.selector == selector
 
-    def test_suspend_correctly_set(self):
+    def test_suspend_correctly_set(self, clean_dags_dagruns_and_dagbundles):
         k = KubernetesJobOperator(
             task_id="task",
             suspend=True,
@@ -231,13 +232,13 @@ class TestKubernetesJobOperator:
         job = k.build_job_request_obj(create_context(k))
         assert job.spec.suspend is True
 
-    def test_ttl_seconds_after_finished_correctly_set(self):
+    def test_ttl_seconds_after_finished_correctly_set(self, clean_dags_dagruns_and_dagbundles):
         k = KubernetesJobOperator(task_id="task", ttl_seconds_after_finished=5)
         job = k.build_job_request_obj(create_context(k))
         assert job.spec.ttl_seconds_after_finished == 5
 
     @pytest.mark.parametrize("randomize", [True, False])
-    def test_provided_job_name(self, randomize):
+    def test_provided_job_name(self, randomize, clean_dags_dagruns_and_dagbundles):
         name_base = "test"
         k = KubernetesJobOperator(
             name=name_base,
@@ -275,8 +276,8 @@ class TestKubernetesJobOperator:
             ),
         )
 
-    @pytest.mark.parametrize(("randomize_name",), ([True], [False]))
-    def test_full_job_spec(self, randomize_name, job_spec):
+    @pytest.mark.parametrize("randomize_name", (True, False))
+    def test_full_job_spec(self, randomize_name, job_spec, clean_dags_dagruns_and_dagbundles):
         job_spec_name_base = job_spec.metadata.name
 
         k = KubernetesJobOperator(
@@ -299,8 +300,8 @@ class TestKubernetesJobOperator:
         )
         assert job.metadata.labels == {"foo": "bar"}
 
-    @pytest.mark.parametrize(("randomize_name",), ([True], [False]))
-    def test_full_job_spec_kwargs(self, randomize_name, job_spec):
+    @pytest.mark.parametrize("randomize_name", (True, False))
+    def test_full_job_spec_kwargs(self, randomize_name, job_spec, clean_dags_dagruns_and_dagbundles):
         # kwargs take precedence, however
         image = "some.custom.image:andtag"
         name_base = "world"
@@ -376,8 +377,8 @@ class TestKubernetesJobOperator:
 
         return tpl_file
 
-    @pytest.mark.parametrize(("randomize_name",), ([True], [False]))
-    def test_job_template_file(self, randomize_name, job_template_file):
+    @pytest.mark.parametrize("randomize_name", (True, False))
+    def test_job_template_file(self, randomize_name, job_template_file, clean_dags_dagruns_and_dagbundles):
         k = KubernetesJobOperator(
             task_id="task",
             random_name_suffix=randomize_name,
@@ -426,8 +427,10 @@ class TestKubernetesJobOperator:
 
         assert job.spec.template.spec.affinity.to_dict() == affinity
 
-    @pytest.mark.parametrize(("randomize_name",), ([True], [False]))
-    def test_job_template_file_kwargs_override(self, randomize_name, job_template_file):
+    @pytest.mark.parametrize("randomize_name", (True, False))
+    def test_job_template_file_kwargs_override(
+        self, randomize_name, job_template_file, clean_dags_dagruns_and_dagbundles
+    ):
         # kwargs take precedence, however
         image = "some.custom.image:andtag"
         name_base = "world"
@@ -479,7 +482,7 @@ class TestKubernetesJobOperator:
         job = k.build_job_request_obj({})
         assert (
             re.match(
-                r"job-a{71}-[a-z0-9]{8}",
+                r"job-a{50}-[a-z0-9]{8}",
                 job.metadata.name,
             )
             is not None
@@ -1000,7 +1003,7 @@ class TestKubernetesDeleteJobOperator:
         mock_delete_namespaced_job.assert_called_once_with(name=JOB_NAME, namespace=JOB_NAMESPACE)
 
     @pytest.mark.parametrize(
-        "on_status, success, fail, deleted",
+        ("on_status", "success", "fail", "deleted"),
         [
             (None, True, True, True),
             (None, True, False, True),

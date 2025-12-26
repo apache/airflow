@@ -24,10 +24,24 @@ import time
 import boto3
 
 from airflow.providers.amazon.aws.operators.ec2 import EC2CreateInstanceOperator, EC2TerminateInstanceOperator
-from airflow.providers.amazon.aws.operators.ssm import SsmRunCommandOperator
+from airflow.providers.amazon.aws.operators.ssm import SsmGetCommandInvocationOperator, SsmRunCommandOperator
 from airflow.providers.amazon.aws.sensors.ssm import SsmRunCommandCompletedSensor
-from airflow.sdk import DAG, chain, task
-from airflow.utils.trigger_rule import TriggerRule
+
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
+
+if AIRFLOW_V_3_0_PLUS:
+    from airflow.sdk import DAG, chain, task
+else:
+    # Airflow 2 path
+    from airflow.decorators import task  # type: ignore[attr-defined,no-redef]
+    from airflow.models.baseoperator import chain  # type: ignore[attr-defined,no-redef]
+    from airflow.models.dag import DAG  # type: ignore[attr-defined,no-redef,assignment]
+
+try:
+    from airflow.sdk import TriggerRule
+except ImportError:
+    # Compatibility for Airflow < 3.1
+    from airflow.utils.trigger_rule import TriggerRule  # type: ignore[no-redef,attr-defined]
 
 from system.amazon.aws.utils import ENV_ID_KEY, SystemTestContextBuilder, get_role_name
 from system.amazon.aws.utils.ec2 import get_latest_ami_id
@@ -144,7 +158,6 @@ with DAG(
     dag_id=DAG_ID,
     schedule="@once",
     start_date=datetime.datetime(2021, 1, 1),
-    tags=["example"],
     catchup=False,
 ) as dag:
     # Create EC2 instance with SSM agent
@@ -156,7 +169,7 @@ with DAG(
     instance_profile_name = f"{env_id}-ssm-instance-profile"
 
     config = {
-        "InstanceType": "t2.micro",
+        "InstanceType": "t4g.micro",
         "IamInstanceProfile": {"Name": instance_profile_name},
         # Optional: Tags for identifying test resources in the AWS console
         "TagSpecifications": [
@@ -198,9 +211,17 @@ with DAG(
 
     # [START howto_sensor_run_command]
     await_run_command = SsmRunCommandCompletedSensor(
-        task_id="await_run_command", command_id=run_command.output
+        task_id="await_run_command", command_id="{{ ti.xcom_pull(task_ids='run_command') }}"
     )
     # [END howto_sensor_run_command]
+
+    # [START howto_operator_get_command_invocation]
+    get_command_output = SsmGetCommandInvocationOperator(
+        task_id="get_command_output",
+        command_id="{{ ti.xcom_pull(task_ids='run_command') }}",
+        instance_id=instance_id,
+    )
+    # [END howto_operator_get_command_invocation]
 
     delete_instance = EC2TerminateInstanceOperator(
         task_id="terminate_instance",
@@ -222,6 +243,7 @@ with DAG(
         # TEST BODY
         run_command,
         await_run_command,
+        get_command_output,
         # TEST TEARDOWN
         delete_instance,
         delete_instance_profile(instance_profile_name, role_name),

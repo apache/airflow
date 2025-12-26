@@ -25,8 +25,9 @@ import re
 import ssl
 
 from airflow.configuration import conf
-from airflow.exceptions import AirflowConfigException, AirflowException
+from airflow.exceptions import AirflowConfigException
 from airflow.providers.celery.version_compat import AIRFLOW_V_3_0_PLUS
+from airflow.providers.common.compat.sdk import AirflowException
 
 
 def _broker_supports_visibility_timeout(url):
@@ -52,7 +53,7 @@ broker_url = conf.get("celery", "BROKER_URL", fallback="redis://redis:6379/0")
 broker_transport_options: dict = conf.getsection("celery_broker_transport_options") or {}
 if "visibility_timeout" not in broker_transport_options:
     if _broker_supports_visibility_timeout(broker_url):
-        broker_transport_options["visibility_timeout"] = 84600
+        broker_transport_options["visibility_timeout"] = 86400
 
 if "sentinel_kwargs" in broker_transport_options:
     try:

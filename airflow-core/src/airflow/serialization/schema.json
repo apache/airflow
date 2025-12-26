@@ -175,8 +175,8 @@
             "value": { "$ref": "#/definitions/dict" }
           }
         },
-        "catchup": { "type": "boolean" },
-        "fail_fast": { "type": "boolean" },
+        "catchup": { "type": "boolean", "default": false },
+        "fail_fast": { "type": "boolean", "default": false },
         "fileloc": { "type" : "string"},
         "relative_fileloc": { "type" : "string"},
         "_processor_dags_folder": {
@@ -190,13 +190,17 @@
         "deadline": {
             "anyOf": [
                 { "$ref": "#/definitions/dict" },
+                {
+                    "type": "array",
+                    "items": { "$ref": "#/definitions/dict" }
+                },
                 { "type": "null" }
             ]
         },
         "_concurrency": { "type" : "number"},
-        "max_active_tasks": { "type" : "number"},
-        "max_active_runs": { "type" : "number"},
-        "max_consecutive_failed_dag_runs": { "type" : "number"},
+        "max_active_tasks": { "type" : "number", "default": 16},
+        "max_active_runs": { "type" : "number", "default": 16},
+        "max_consecutive_failed_dag_runs": { "type" : "number", "default": 0},
         "default_args": { "$ref": "#/definitions/dict" },
         "start_date": { "$ref": "#/definitions/datetime" },
         "end_date": { "$ref": "#/definitions/datetime" },
@@ -204,9 +208,9 @@
         "doc_md": { "type" : "string"},
         "access_control": {"$ref": "#/definitions/dict" },
         "is_paused_upon_creation":  { "type": "boolean" },
-        "has_on_success_callback":  { "type": "boolean" },
-        "has_on_failure_callback":  { "type": "boolean" },
-        "render_template_as_native_obj":  { "type": "boolean" },
+        "has_on_success_callback":  { "type": "boolean", "default": false },
+        "has_on_failure_callback":  { "type": "boolean", "default": false },
+        "render_template_as_native_obj":  { "type": "boolean", "default": false },
         "tags": { "type": "array" },
         "task_group": {"anyOf": [
           { "type": "null" },
@@ -214,7 +218,7 @@
         ]},
         "edge_info": { "$ref": "#/definitions/edge_info" },
         "dag_dependencies": { "$ref": "#/definitions/dag_dependencies" },
-        "disable_bundle_versioning": {"type":  "boolean"}
+        "disable_bundle_versioning": {"type":  "boolean", "default": false }
       },
       "required": [
         "dag_id",
@@ -261,58 +265,78 @@
         "template_fields"
       ],
       "properties": {
-        "task_type": { "type": "string" },
+        "task_type": { "type": "string", "default": "BaseOperator"},
         "_task_module": { "type": "string" },
         "_operator_extra_links": { "$ref":  "#/definitions/extra_links" },
         "task_id": { "type": "string" },
-        "task_display_name": { "type": "string" },
-        "label": { "type": "string" },
-        "owner": { "type": "string" },
+        "_task_display_name": { "type": "string" },
+        "owner": { "type": "string", "default": "airflow" },
         "start_date": { "$ref": "#/definitions/datetime" },
         "end_date": { "$ref": "#/definitions/datetime" },
-        "trigger_rule": { "type": "string" },
-        "depends_on_past": { "type": "boolean" },
-        "ignore_first_depends_on_past": { "type": "boolean" },
-        "wait_for_past_depends_before_skipping": { "type": "boolean" },
-        "wait_for_downstream": { "type": "boolean" },
-        "retries": { "type": "number" },
-        "queue": { "type": "string" },
-        "pool": { "type": "string" },
-        "pool_slots": { "type": "number" },
+        "trigger_rule": { "type": "string", "default": "all_success" },
+        "depends_on_past": { "type": "boolean", "default": false },
+        "ignore_first_depends_on_past": { "type": "boolean", "default": false },
+        "wait_for_past_depends_before_skipping": { "type": "boolean", "default": false },
+        "wait_for_downstream": { "type": "boolean", "default": false },
+        "retries": { "type": "number", "default": 0 },
+        "queue": { "type": "string", "default": "default" },
+        "pool": { "type": "string", "default": "default_pool" },
+        "pool_slots": { "type": "number", "default": 1 },
         "execution_timeout": { "$ref": "#/definitions/timedelta" },
-        "retry_delay": { "$ref": "#/definitions/timedelta" },
-        "retry_exponential_backoff": { "type": "boolean" },
+        "retry_delay": { "$ref": "#/definitions/timedelta", "default": 300.0 },
+        "retry_exponential_backoff": { "type": "number", "default": 0 },
         "max_retry_delay": { "$ref": "#/definitions/timedelta" },
         "params": { "$ref": "#/definitions/params" },
-        "priority_weight": { "type": "number" },
-        "weight_rule": { "type": "string" },
+        "priority_weight": { "type": "number", "default": 1 },
+        "weight_rule": { "type": "string", "default": "downstream" },
         "executor": { "type": "string" },
         "executor_config": { "$ref": "#/definitions/dict" },
-        "do_xcom_push": { "type": "boolean" },
-        "ui_color": { "$ref": "#/definitions/color" },
-        "ui_fgcolor": { "$ref": "#/definitions/color" },
+        "do_xcom_push": { "type": "boolean", "default": true },
+        "email_on_failure": { "type": "boolean", "default": true },
+        "email_on_retry": { "type": "boolean", "default": true },
+        "ui_color": { "type": "string", "default": "#fff" },
+        "ui_fgcolor": { "type": "string", "default": "#000" },
         "template_fields": {
           "type": "array",
-          "items": { "type": "string" }
+          "items": { "type": "string" },
+          "default": []
         },
+        "template_ext": {"type": "array", "default": []},
+        "template_fields_renderers": {"$ref": "#/definitions/dict", "default": {}},
         "downstream_task_ids": {
           "type": "array",
-          "items": { "type": "string" }
+          "items": { "type": "string" },
+          "default": []
         },
-        "_is_dummy": { "type": "boolean" },
         "doc":  { "type": "string" },
         "doc_md":  { "type": "string" },
         "doc_json":  { "type": "string" },
         "doc_yaml":  { "type": "string" },
         "doc_rst":  { "type": "string" },
         "_logger_name": { "type": "string" },
-        "_log_config_logger_name": { "type": "string" },
-        "_is_mapped": { "const": true, "$comment": "only present when True" },
-        "_is_sensor": { "const": true, "$comment": "only present when True" },
-        "expand_input": { "type": "object" },
+        "_needs_expansion": { "type": "boolean"},
+        "_is_mapped": { "const": true, "$comment": "only present when True", "default": false },
+        "_is_sensor": { "const": true, "$comment": "only present when True", "default": false },
         "partial_kwargs": { "type": "object" },
+        "_disallow_kwargs_override": { "type": "boolean"},
+        "_expand_input_attr": { "type": "string" },
         "map_index_template": { "type": "string" },
-        "allow_nested_operators": { "type": "boolean" }
+        "allow_nested_operators": { "type": "boolean", "default": true },
+        "inlets": {"type":  "array", "default": []},
+        "outlets": {"type":  "array", "default": []},
+        "has_on_execute_callback": {"type": "boolean", "default": false},
+        "has_on_failure_callback": {"type": "boolean", "default": false},
+        "has_on_skipped_callback": {"type": "boolean", "default": false},
+        "has_on_success_callback": {"type": "boolean", "default": false},
+        "has_on_retry_callback": {"type": "boolean", "default": false},
+        "multiple_outputs": {"type": "boolean", "default": false},
+        "start_from_trigger": {"type": "boolean", "default": false},
+        "start_trigger_args": {"type": "object", "default": null},
+        "is_setup": {"type": "boolean", "default": false},
+        "is_teardown": {"type": "boolean", "default": false},
+        "on_failure_fail_dagrun": {"type": "boolean", "default": false},
+        "max_active_tis_per_dag": {"type": "integer"},
+        "max_active_tis_per_dagrun": {"type": "integer"}
       },
       "dependencies": {
         "expand_input": ["partial_kwargs", "_is_mapped"],
@@ -391,7 +415,18 @@
           "type": "integer",
           "exclusiveMinimum": 0
         },
-        "dag": { "$ref": "#/definitions/dag" }
+        "dag": { "$ref": "#/definitions/dag" },
+        "client_defaults": {
+          "type": "object",
+          "description": "SDK-specific default values that differ from schema defaults",
+          "properties": {
+            "tasks": {
+              "type": "object",
+              "description": "Task-level default overrides"
+            }
+          },
+          "additionalProperties": false
+        }
       },
       "additionalProperties": false,
       "required": [ "__version", "dag" ]

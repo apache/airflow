@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import re
 import sys
+from typing import TYPE_CHECKING
 from unittest import mock
 
 import pytest
@@ -28,11 +29,36 @@ from airflow.models import Connection
 from airflow.sdk.exceptions import AirflowRuntimeError, ErrorType
 from airflow.sdk.execution_time.comms import ErrorResponse
 
+from tests_common.test_utils.db import clear_db_connections
+
+if TYPE_CHECKING:
+    from sqlalchemy.orm import Session
+
+    from airflow.models.team import Team
+
 
 class TestConnection:
+    @pytest.fixture(autouse=True)
+    def clear_fernet_cache(self):
+        """Clear the fernet cache before each test to avoid encryption issues."""
+        from airflow.models.crypto import get_fernet
+
+        get_fernet.cache_clear()
+        yield
+        get_fernet.cache_clear()
+
     @pytest.mark.parametrize(
-        "uri, expected_conn_type, expected_host, expected_login, expected_password,"
-        " expected_port, expected_schema, expected_extra_dict, expected_exception_message",
+        (
+            "uri",
+            "expected_conn_type",
+            "expected_host",
+            "expected_login",
+            "expected_password",
+            "expected_port",
+            "expected_schema",
+            "expected_extra_dict",
+            "expected_exception_message",
+        ),
         [
             (
                 "type://user:pass@host:100/schema",
@@ -150,7 +176,7 @@ class TestConnection:
             assert conn.extra_dejson == expected_extra_dict
 
     @pytest.mark.parametrize(
-        "connection, expected_uri",
+        ("connection", "expected_uri"),
         [
             (
                 Connection(
@@ -192,7 +218,7 @@ class TestConnection:
         assert connection.get_uri() == expected_uri
 
     @pytest.mark.parametrize(
-        "connection, expected_conn_id",
+        ("connection", "expected_conn_id"),
         [
             # a valid example of connection id
             (
@@ -256,7 +282,7 @@ class TestConnection:
         assert connection.conn_id == expected_conn_id
 
     @pytest.mark.parametrize(
-        "conn_type, host",
+        ("conn_type", "host"),
         [
             # same protocol to type
             ("http", "http://host"),
@@ -355,3 +381,30 @@ class TestConnection:
         # Verify the backends were called
         mock_env_backend.assert_called_once_with(conn_id="test_conn")
         mock_db_backend.assert_called_once_with(conn_id="test_conn")
+
+    @pytest.mark.db_test
+    def test_get_team_name(self, testing_team: Team, session: Session):
+        clear_db_connections()
+
+        connection = Connection(conn_id="test_conn", conn_type="test_type", team_name=testing_team.name)
+        session.add(connection)
+        session.flush()
+
+        assert Connection.get_team_name("test_conn", session=session) == "testing"
+        clear_db_connections()
+
+    @pytest.mark.db_test
+    def test_get_conn_id_to_team_name_mapping(self, testing_team: Team, session: Session):
+        clear_db_connections()
+
+        connection1 = Connection(conn_id="test_conn1", conn_type="test_type", team_name=testing_team.name)
+        connection2 = Connection(conn_id="test_conn2", conn_type="test_type")
+        session.add(connection1)
+        session.add(connection2)
+        session.flush()
+
+        assert Connection.get_conn_id_to_team_name_mapping(["test_conn1", "test_conn2"], session=session) == {
+            "test_conn1": "testing",
+            "test_conn2": None,
+        }
+        clear_db_connections()

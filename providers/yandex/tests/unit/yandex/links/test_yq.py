@@ -21,15 +21,11 @@ from unittest import mock
 import pytest
 
 from airflow.models.taskinstance import TaskInstance
+from airflow.providers.common.compat.sdk import XCom
 from airflow.providers.yandex.links.yq import YQLink
 
 from tests_common.test_utils.mock_operators import MockOperator
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
-
-if AIRFLOW_V_3_0_PLUS:
-    from airflow.sdk.execution_time.xcom import XCom
-else:
-    from airflow.models import XCom
 
 yandexcloud = pytest.importorskip("yandexcloud")
 

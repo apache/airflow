@@ -42,7 +42,7 @@ from google.cloud.aiplatform_v1 import (
     types,
 )
 
-from airflow.exceptions import AirflowException
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.google.common.consts import CLIENT_INFO
 from airflow.providers.google.common.hooks.base_google import GoogleBaseAsyncHook, GoogleBaseHook
 from airflow.providers.google.common.hooks.operation_helpers import OperationHelper
@@ -55,7 +55,7 @@ if TYPE_CHECKING:
     from google.cloud.aiplatform_v1.services.pipeline_service.pagers import (
         ListTrainingPipelinesPager,
     )
-    from google.cloud.aiplatform_v1.types import CustomJob, TrainingPipeline
+    from google.cloud.aiplatform_v1.types import CustomJob, PscInterfaceConfig, TrainingPipeline
 
 
 class CustomJobHook(GoogleBaseHook, OperationHelper):
@@ -317,6 +317,7 @@ class CustomJobHook(GoogleBaseHook, OperationHelper):
         is_default_version: bool | None = None,
         model_version_aliases: list[str] | None = None,
         model_version_description: str | None = None,
+        psc_interface_config: PscInterfaceConfig | None = None,
     ) -> tuple[models.Model | None, str, str]:
         """Run a training pipeline job and wait until its completion."""
         model = job.run(
@@ -350,6 +351,7 @@ class CustomJobHook(GoogleBaseHook, OperationHelper):
             is_default_version=is_default_version,
             model_version_aliases=model_version_aliases,
             model_version_description=model_version_description,
+            psc_interface_config=psc_interface_config,
         )
         training_id = self.extract_training_id(job.resource_name)
         custom_job_id = self.extract_custom_job_id(
@@ -574,6 +576,7 @@ class CustomJobHook(GoogleBaseHook, OperationHelper):
         timestamp_split_column_name: str | None = None,
         tensorboard: str | None = None,
         sync=True,
+        psc_interface_config: PscInterfaceConfig | None = None,
     ) -> tuple[models.Model | None, str, str]:
         """
         Create Custom Container Training Job.
@@ -837,6 +840,8 @@ class CustomJobHook(GoogleBaseHook, OperationHelper):
         :param sync: Whether to execute the AI Platform job synchronously. If False, this method
                 will be executed in concurrent Future and any downstream object will
                 be immediately returned and synced when the Future has completed.
+        :param psc_interface_config: Optional. Configuration for Private Service Connect interface used for
+            training.
         """
         self._job = self.get_custom_container_training_job(
             project=project_id,
@@ -896,6 +901,7 @@ class CustomJobHook(GoogleBaseHook, OperationHelper):
             is_default_version=is_default_version,
             model_version_aliases=model_version_aliases,
             model_version_description=model_version_description,
+            psc_interface_config=psc_interface_config,
         )
 
         return model, training_id, custom_job_id
@@ -958,6 +964,7 @@ class CustomJobHook(GoogleBaseHook, OperationHelper):
         model_version_aliases: list[str] | None = None,
         model_version_description: str | None = None,
         sync=True,
+        psc_interface_config: PscInterfaceConfig | None = None,
     ) -> tuple[models.Model | None, str, str]:
         """
         Create Custom Python Package Training Job.
@@ -1220,6 +1227,8 @@ class CustomJobHook(GoogleBaseHook, OperationHelper):
         :param sync: Whether to execute the AI Platform job synchronously. If False, this method
                 will be executed in concurrent Future and any downstream object will
                 be immediately returned and synced when the Future has completed.
+        :param psc_interface_config: Optional. Configuration for Private Service Connect interface used for
+            training.
         """
         self._job = self.get_custom_python_package_training_job(
             project=project_id,
@@ -1280,6 +1289,7 @@ class CustomJobHook(GoogleBaseHook, OperationHelper):
             is_default_version=is_default_version,
             model_version_aliases=model_version_aliases,
             model_version_description=model_version_description,
+            psc_interface_config=psc_interface_config,
         )
 
         return model, training_id, custom_job_id
@@ -1342,6 +1352,7 @@ class CustomJobHook(GoogleBaseHook, OperationHelper):
         timestamp_split_column_name: str | None = None,
         tensorboard: str | None = None,
         sync=True,
+        psc_interface_config: PscInterfaceConfig | None = None,
     ) -> tuple[models.Model | None, str, str]:
         """
         Create Custom Training Job.
@@ -1604,6 +1615,8 @@ class CustomJobHook(GoogleBaseHook, OperationHelper):
         :param sync: Whether to execute the AI Platform job synchronously. If False, this method
                 will be executed in concurrent Future and any downstream object will
                 be immediately returned and synced when the Future has completed.
+        :param psc_interface_config: Optional. Configuration for Private Service Connect interface used for
+            training.
         """
         self._job = self.get_custom_training_job(
             project=project_id,
@@ -1664,6 +1677,7 @@ class CustomJobHook(GoogleBaseHook, OperationHelper):
             is_default_version=is_default_version,
             model_version_aliases=model_version_aliases,
             model_version_description=model_version_description,
+            psc_interface_config=psc_interface_config,
         )
 
         return model, training_id, custom_job_id
@@ -1725,6 +1739,7 @@ class CustomJobHook(GoogleBaseHook, OperationHelper):
         predefined_split_column_name: str | None = None,
         timestamp_split_column_name: str | None = None,
         tensorboard: str | None = None,
+        psc_interface_config: PscInterfaceConfig | None = None,
     ) -> CustomContainerTrainingJob:
         """
         Create and submit a Custom Container Training Job pipeline, then exit without waiting for it to complete.
@@ -1985,6 +2000,8 @@ class CustomJobHook(GoogleBaseHook, OperationHelper):
                 ``projects/{project}/locations/{location}/tensorboards/{tensorboard}``
                 For more information on configuring your service account please visit:
                 https://cloud.google.com/vertex-ai/docs/experiments/tensorboard-training
+        :param psc_interface_config: Optional. Configuration for Private Service Connect interface used for
+            training.
         """
         self._job = self.get_custom_container_training_job(
             project=project_id,
@@ -2043,6 +2060,7 @@ class CustomJobHook(GoogleBaseHook, OperationHelper):
             model_version_aliases=model_version_aliases,
             model_version_description=model_version_description,
             sync=False,
+            psc_interface_config=psc_interface_config,
         )
         return self._job
 
@@ -2104,6 +2122,7 @@ class CustomJobHook(GoogleBaseHook, OperationHelper):
         is_default_version: bool | None = None,
         model_version_aliases: list[str] | None = None,
         model_version_description: str | None = None,
+        psc_interface_config: PscInterfaceConfig | None = None,
     ) -> CustomPythonPackageTrainingJob:
         """
         Create and submit a Custom Python Package Training Job pipeline, then exit without waiting for it to complete.
@@ -2363,6 +2382,8 @@ class CustomJobHook(GoogleBaseHook, OperationHelper):
                 ``projects/{project}/locations/{location}/tensorboards/{tensorboard}``
                 For more information on configuring your service account please visit:
                 https://cloud.google.com/vertex-ai/docs/experiments/tensorboard-training
+        :param psc_interface_config: Optional. Configuration for Private Service Connect interface used for
+            training.
         """
         self._job = self.get_custom_python_package_training_job(
             project=project_id,
@@ -2422,6 +2443,7 @@ class CustomJobHook(GoogleBaseHook, OperationHelper):
             model_version_aliases=model_version_aliases,
             model_version_description=model_version_description,
             sync=False,
+            psc_interface_config=psc_interface_config,
         )
 
         return self._job
@@ -2484,6 +2506,7 @@ class CustomJobHook(GoogleBaseHook, OperationHelper):
         predefined_split_column_name: str | None = None,
         timestamp_split_column_name: str | None = None,
         tensorboard: str | None = None,
+        psc_interface_config: PscInterfaceConfig | None = None,
     ) -> CustomTrainingJob:
         """
         Create and submit a Custom Training Job pipeline, then exit without waiting for it to complete.
@@ -2747,6 +2770,8 @@ class CustomJobHook(GoogleBaseHook, OperationHelper):
                 ``projects/{project}/locations/{location}/tensorboards/{tensorboard}``
                 For more information on configuring your service account please visit:
                 https://cloud.google.com/vertex-ai/docs/experiments/tensorboard-training
+        :param psc_interface_config: Optional. Configuration for Private Service Connect interface used for
+            training.
         """
         self._job = self.get_custom_training_job(
             project=project_id,
@@ -2806,6 +2831,7 @@ class CustomJobHook(GoogleBaseHook, OperationHelper):
             model_version_aliases=model_version_aliases,
             model_version_description=model_version_description,
             sync=False,
+            psc_interface_config=psc_interface_config,
         )
         return self._job
 

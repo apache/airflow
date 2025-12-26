@@ -20,10 +20,7 @@ Global constants that are used by all other Breeze components.
 
 from __future__ import annotations
 
-import json
 import platform
-import subprocess
-from collections.abc import Generator
 from enum import Enum
 from pathlib import Path
 
@@ -31,13 +28,21 @@ from airflow_breeze.utils.functools_cache import clearable_cache
 from airflow_breeze.utils.host_info_utils import Architecture
 from airflow_breeze.utils.path_utils import (
     AIRFLOW_CORE_SOURCES_PATH,
-    AIRFLOW_PYPROJECT_TOML_FILE_PATH,
+    AIRFLOW_CTL_SOURCES_PATH,
     AIRFLOW_ROOT_PATH,
     AIRFLOW_TASK_SDK_SOURCES_PATH,
 )
 
 PUBLIC_AMD_RUNNERS = '["ubuntu-22.04"]'
 PUBLIC_ARM_RUNNERS = '["ubuntu-22.04-arm"]'
+
+# The runner type cross-mapping is intentional — if the previous scheduled build used AMD, the current scheduled build should run with ARM.
+RUNNERS_TYPE_CROSS_MAPPING = {
+    "ubuntu-22.04": '["ubuntu-22.04-arm"]',
+    "ubuntu-22.04-arm": '["ubuntu-22.04"]',
+    "windows-2022": '["windows-2022"]',
+    "windows-2025": '["windows-2025"]',
+}
 
 ANSWER = ""
 
@@ -52,7 +57,7 @@ DEFAULT_PYTHON_MAJOR_MINOR_VERSION_FOR_IMAGES = "3.12"
 
 # Maps each supported Python version to the minimum Airflow version that supports it.
 # Used to filter Airflow versions incompatible with a given Python runtime.
-PYTHON_TO_MIN_AIRFLOW_MAPPING = {"3.10": "2.4.0"}
+PYTHON_TO_MIN_AIRFLOW_MAPPING = {"3.10": "v3.10.18"}
 
 ALLOWED_ARCHITECTURES = [Architecture.X86_64, Architecture.ARM]
 # Database Backends used when starting Breeze. The "none" value means that the configuration is invalid.
@@ -69,8 +74,10 @@ TESTABLE_PROVIDERS_INTEGRATIONS = [
     "celery",
     "cassandra",
     "drill",
+    "elasticsearch",
     "tinkerpop",
     "kafka",
+    "localstack",
     "mongo",
     "mssql",
     "pinot",
@@ -80,7 +87,17 @@ TESTABLE_PROVIDERS_INTEGRATIONS = [
     "ydb",
 ]
 DISABLE_TESTABLE_INTEGRATIONS_FROM_CI = [
+    "elasticsearch",
     "mssql",
+    "localstack",  # just for local integration testing for now
+]
+DISABLE_TESTABLE_INTEGRATIONS_FROM_ARM = [
+    "kerberos",
+    "drill",
+    "tinkerpop",
+    "pinot",
+    "trino",
+    "ydb",
 ]
 KEYCLOAK_INTEGRATION = "keycloak"
 STATSD_INTEGRATION = "statsd"
@@ -124,14 +141,16 @@ AUTOCOMPLETE_ALL_INTEGRATIONS = sorted(
     ]
 )
 ALLOWED_TTY = ["auto", "enabled", "disabled"]
-ALLOWED_DOCKER_COMPOSE_PROJECTS = ["breeze", "pre-commit", "docker-compose"]
+ALLOWED_DOCKER_COMPOSE_PROJECTS = ["breeze", "prek", "docker-compose"]
+ALLOWED_LOG_LEVELS = ["INFO", "DEBUG", "WARNING", "ERROR", "CRITICAL"]
+DEFAULT_LOG_LEVEL = ALLOWED_LOG_LEVELS[0]
 
 # Unlike everything else, k8s versions are supported as long as 2 major cloud providers support them.
 # See:
 #   - https://endoflife.date/amazon-eks
 #   - https://endoflife.date/azure-kubernetes-service
 #   - https://endoflife.date/google-kubernetes-engine
-ALLOWED_KUBERNETES_VERSIONS = ["v1.30.10", "v1.31.6", "v1.32.3", "v1.33.0"]
+ALLOWED_KUBERNETES_VERSIONS = ["v1.30.13", "v1.31.12", "v1.32.8", "v1.33.4", "v1.34.0"]
 
 LOCAL_EXECUTOR = "LocalExecutor"
 KUBERNETES_EXECUTOR = "KubernetesExecutor"
@@ -183,7 +202,6 @@ ALLOWED_MOUNT_OPTIONS = [
 ]
 
 USE_AIRFLOW_MOUNT_SOURCES = [MOUNT_REMOVE, MOUNT_TESTS, MOUNT_PROVIDERS_AND_TESTS]
-ALLOWED_POSTGRES_VERSIONS = ["13", "14", "15", "16", "17"]
 # Oracle introduced new release model for MySQL
 # - LTS: Long Time Support releases, new release approx every 2 year,
 #  with 5 year premier and 3 year extended support, no new features/removals during current LTS release.
@@ -197,27 +215,41 @@ ALLOWED_MYSQL_VERSIONS = [*MYSQL_OLD_RELEASES, *MYSQL_LTS_RELEASES]
 if MYSQL_INNOVATION_RELEASE:
     ALLOWED_MYSQL_VERSIONS.append(MYSQL_INNOVATION_RELEASE)
 
-ALLOWED_INSTALL_MYSQL_CLIENT_TYPES = ["mariadb", "mysql"]
+ALLOWED_INSTALL_MYSQL_CLIENT_TYPES = ["mariadb"]
 
-PIP_VERSION = "25.1.1"
-UV_VERSION = "0.8.3"
+PIP_VERSION = "25.3"
+UV_VERSION = "0.9.18"
 
 DEFAULT_UV_HTTP_TIMEOUT = 300
 DEFAULT_WSL2_HTTP_TIMEOUT = 900
 
-# packages that  providers docs
+# packages that providers docs
 REGULAR_DOC_PACKAGES = [
     "apache-airflow",
     "docker-stack",
     "helm-chart",
     "apache-airflow-providers",
     "task-sdk",
+    "apache-airflow-ctl",
 ]
+
+
+# Type of the tarball to build
+class TarBallType(Enum):
+    AIRFLOW = "apache_airflow"
+    PROVIDERS = "apache_airflow_providers"
+    TASK_SDK = "apache_airflow_task_sdk"
+    AIRFLOW_CTL = "apache_airflow_ctl"
+    PYTHON_CLIENT = "apache_airflow_python_client"
+    HELM_CHART = "helm-chart"
+
 
 DESTINATION_LOCATIONS = [
     "s3://live-docs-airflow-apache-org/docs/",
     "s3://staging-docs-airflow-apache-org/docs/",
 ]
+
+PACKAGES_METADATA_EXCLUDE_NAMES = ["docker-stack", "apache-airflow-providers"]
 
 
 @clearable_cache
@@ -261,6 +293,7 @@ class GroupOfTests(Enum):
     TASK_SDK = "task-sdk"
     TASK_SDK_INTEGRATION = "task-sdk-integration"
     CTL = "airflow-ctl"
+    CTL_INTEGRATION = "airflow-ctl-integration"
     HELM = "helm"
     INTEGRATION_CORE = "integration-core"
     INTEGRATION_PROVIDERS = "integration-providers"
@@ -298,6 +331,7 @@ ALLOWED_TEST_TYPE_CHOICES: dict[GroupOfTests, list[str]] = {
     GroupOfTests.TASK_SDK_INTEGRATION: [ALL_TEST_TYPE],
     GroupOfTests.HELM: [ALL_TEST_TYPE, *all_helm_test_packages()],
     GroupOfTests.CTL: [ALL_TEST_TYPE],
+    GroupOfTests.CTL_INTEGRATION: [ALL_TEST_TYPE],
 }
 
 
@@ -354,6 +388,9 @@ ALLOWED_USE_AIRFLOW_VERSIONS = ["none", "wheel", "sdist"]
 
 ALL_HISTORICAL_PYTHON_VERSIONS = ["3.6", "3.7", "3.8", "3.9", "3.10", "3.11", "3.12", "3.13"]
 
+GITHUB_REPO_BRANCH_PATTERN = r"^([^/]+)/([^/:]+):([^:]+)$"
+PR_NUMBER_PATTERN = r"^\d+$"
+
 
 def normalize_platform_machine(platform_machine: str) -> str:
     if "linux/" in platform_machine:
@@ -380,6 +417,7 @@ MYSQL_HOST_PORT = "23306"
 POSTGRES_HOST_PORT = "25433"
 RABBITMQ_HOST_PORT = "25672"
 REDIS_HOST_PORT = "26379"
+RABBITMQ_HOST_PORT = "25672"
 SSH_PORT = "12322"
 VITE_DEV_PORT = "5173"
 WEB_HOST_PORT = "28080"
@@ -401,8 +439,11 @@ PRODUCTION_IMAGE = False
 # changes from main to the previous branch.
 ALL_PYTHON_MAJOR_MINOR_VERSIONS = ["3.10", "3.11", "3.12", "3.13"]
 CURRENT_PYTHON_MAJOR_MINOR_VERSIONS = ALL_PYTHON_MAJOR_MINOR_VERSIONS
-CURRENT_POSTGRES_VERSIONS = ["13", "14", "15", "16", "17"]
+# All versions we can run against (Need to include versions for main branch and the current release branch)
+ALLOWED_POSTGRES_VERSIONS = ["13", "14", "15", "16", "17", "18"]
+CURRENT_POSTGRES_VERSIONS = ["14", "15", "16", "17", "18"]
 DEFAULT_POSTGRES_VERSION = CURRENT_POSTGRES_VERSIONS[0]
+
 USE_MYSQL_INNOVATION_RELEASE = True
 if USE_MYSQL_INNOVATION_RELEASE:
     CURRENT_MYSQL_VERSIONS = ALLOWED_MYSQL_VERSIONS.copy()
@@ -510,6 +551,7 @@ COMMITTERS = [
     "feng-tao",
     "ferruzzi",
     "gopidesupavan",
+    "guan404ming",
     "houqp",
     "hussein-awala",
     "jason810496",
@@ -557,6 +599,19 @@ COMMITTERS = [
 ]
 
 
+def get_airflowctl_version():
+    airflowctl_init_py_file = AIRFLOW_CTL_SOURCES_PATH / "airflowctl" / "__init__.py"
+    airflowctl_version = "unknown"
+    with open(airflowctl_init_py_file) as init_file:
+        while line := init_file.readline():
+            if "__version__ = " in line:
+                airflowctl_version = line.split()[2][1:-1]
+                break
+    if airflowctl_version == "unknown":
+        raise RuntimeError("Unable to determine AirflowCTL version")
+    return airflowctl_version
+
+
 def get_airflow_version():
     airflow_init_py_file = AIRFLOW_CORE_SOURCES_PATH / "airflow" / "__init__.py"
     airflow_version = "unknown"
@@ -587,89 +642,25 @@ def get_task_sdk_version():
 def get_airflow_extras():
     airflow_dockerfile = AIRFLOW_ROOT_PATH / "Dockerfile"
     with open(airflow_dockerfile) as dockerfile:
-        for line in dockerfile.readlines():
-            if "ARG AIRFLOW_EXTRAS=" in line:
-                line = line.split("=")[1].strip()
+        for line_raw in dockerfile.readlines():
+            if "ARG AIRFLOW_EXTRAS=" in line_raw:
+                line = line_raw.split("=")[1].strip()
                 return line.replace('"', "")
 
 
 # Initialize integrations
 PROVIDER_RUNTIME_DATA_SCHEMA_PATH = AIRFLOW_CORE_SOURCES_PATH / "airflow" / "provider_info.schema.json"
-AIRFLOW_GENERATED_PROVIDER_DEPENDENCIES_PATH = AIRFLOW_ROOT_PATH / "generated" / "provider_dependencies.json"
-AIRFLOW_GENERATED_PROVIDER_DEPENDENCIES_HASH_PATH = (
-    AIRFLOW_ROOT_PATH / "generated" / "provider_dependencies.json.sha256sum"
-)
+
+ALL_PYPROJECT_TOML_FILES: list[Path] = []
+
 
 UPDATE_PROVIDER_DEPENDENCIES_SCRIPT = (
-    AIRFLOW_ROOT_PATH / "scripts" / "ci" / "pre_commit" / "update_providers_dependencies.py"
+    AIRFLOW_ROOT_PATH / "scripts" / "ci" / "prek" / "update_providers_dependencies.py"
 )
-
-ALL_PYPROJECT_TOML_FILES = []
-
-
-def get_all_provider_pyproject_toml_provider_yaml_files() -> Generator[Path, None, None]:
-    pyproject_toml_content = AIRFLOW_PYPROJECT_TOML_FILE_PATH.read_text().splitlines()
-    in_workspace = False
-    for line in pyproject_toml_content:
-        trimmed_line = line.strip()
-        if not in_workspace and trimmed_line.startswith("[tool.uv.workspace]"):
-            in_workspace = True
-        elif in_workspace:
-            if trimmed_line.startswith("#"):
-                continue
-            if trimmed_line.startswith('"'):
-                path = trimmed_line.split('"')[1]
-                ALL_PYPROJECT_TOML_FILES.append(AIRFLOW_ROOT_PATH / path / "pyproject.toml")
-                if trimmed_line.startswith('"providers/'):
-                    yield AIRFLOW_ROOT_PATH / path / "pyproject.toml"
-                    yield AIRFLOW_ROOT_PATH / path / "provider.yaml"
-            elif trimmed_line.startswith("]"):
-                break
-
-
-def _calculate_provider_deps_hash():
-    import hashlib
-
-    hasher = hashlib.sha256()
-    for file in sorted(get_all_provider_pyproject_toml_provider_yaml_files()):
-        hasher.update(file.read_bytes())
-    return hasher.hexdigest()
-
-
-def _run_provider_dependencies_generation(calculated_hash=None) -> dict:
-    if calculated_hash is None:
-        calculated_hash = _calculate_provider_deps_hash()
-    AIRFLOW_GENERATED_PROVIDER_DEPENDENCIES_HASH_PATH.write_text(calculated_hash)
-    # We use regular print there as rich console might not be initialized yet here
-    print("Regenerating provider dependencies file")
-    subprocess.check_call(["uv", "run", UPDATE_PROVIDER_DEPENDENCIES_SCRIPT.as_posix()])
-    return json.loads(AIRFLOW_GENERATED_PROVIDER_DEPENDENCIES_PATH.read_text())
-
-
-if not AIRFLOW_GENERATED_PROVIDER_DEPENDENCIES_PATH.exists():
-    PROVIDER_DEPENDENCIES = _run_provider_dependencies_generation()
-else:
-    PROVIDER_DEPENDENCIES = json.loads(AIRFLOW_GENERATED_PROVIDER_DEPENDENCIES_PATH.read_text())
-
-
-def generate_provider_dependencies_if_needed():
-    regenerate_provider_dependencies = False
-    if (
-        not AIRFLOW_GENERATED_PROVIDER_DEPENDENCIES_PATH.exists()
-        or not AIRFLOW_GENERATED_PROVIDER_DEPENDENCIES_HASH_PATH.exists()
-    ):
-        regenerate_provider_dependencies = True
-        calculated_hash = _calculate_provider_deps_hash()
-    else:
-        calculated_hash = _calculate_provider_deps_hash()
-        if calculated_hash.strip() != AIRFLOW_GENERATED_PROVIDER_DEPENDENCIES_HASH_PATH.read_text().strip():
-            regenerate_provider_dependencies = True
-    if regenerate_provider_dependencies:
-        global PROVIDER_DEPENDENCIES
-        PROVIDER_DEPENDENCIES = _run_provider_dependencies_generation(calculated_hash)
 
 
 DEVEL_DEPS_PATH = AIRFLOW_ROOT_PATH / "generated" / "devel_deps.txt"
+
 
 # Initialize files for rebuild check
 FILES_FOR_REBUILD_CHECK = [
@@ -688,8 +679,9 @@ CURRENT_EXECUTORS = [KUBERNETES_EXECUTOR]
 DEFAULT_KUBERNETES_VERSION = CURRENT_KUBERNETES_VERSIONS[0]
 DEFAULT_EXECUTOR = CURRENT_EXECUTORS[0]
 
-KIND_VERSION = "v0.27.0"
+KIND_VERSION = "v0.30.0"
 HELM_VERSION = "v3.17.3"
+SKAFFOLD_VERSION = "v2.17.0"
 
 # Initialize image build variables - Have to check if this has to go to ci dataclass
 USE_AIRFLOW_VERSION = None
@@ -698,7 +690,7 @@ GITHUB_ACTIONS = ""
 ISSUE_ID = ""
 NUM_RUNS = ""
 
-MIN_DOCKER_VERSION = "24.0.0"
+MIN_DOCKER_VERSION = "25.0.0"
 MIN_DOCKER_COMPOSE_VERSION = "2.20.2"
 MIN_GH_VERSION = "2.70.0"
 
@@ -746,32 +738,29 @@ DEFAULT_EXTRAS = [
 PROVIDERS_COMPATIBILITY_TESTS_MATRIX: list[dict[str, str | list[str]]] = [
     {
         "python-version": "3.10",
-        "airflow-version": "2.10.5",
-        "remove-providers": "common.messaging fab git keycloak",
-        "run-tests": "true",
-    },
-    {
-        "python-version": "3.10",
         "airflow-version": "2.11.0",
-        "remove-providers": "common.messaging fab git keycloak",
-        "run-tests": "true",
+        "remove-providers": "common.messaging edge3 fab git keycloak",
+        "run-unit-tests": "true",
     },
     {
         "python-version": "3.10",
-        "airflow-version": "3.0.3",
+        "airflow-version": "3.0.6",
         "remove-providers": "",
-        "run-tests": "true",
+        "run-unit-tests": "true",
+    },
+    {
+        "python-version": "3.10",
+        "airflow-version": "3.1.5",
+        "remove-providers": "",
+        "run-unit-tests": "true",
     },
 ]
 
-ALL_PYTHON_VERSION_TO_PATCH_VERSION: dict[str, str] = {
-    "3.6": "v3.6.15",
-    "3.7": "v3.7.17",
-    "3.8": "v3.8.20",
-    "3.9": "v3.9.23",
-    "3.10": "v3.10.18",
-    "3.11": "v3.11.13",
-    "3.12": "v3.12.11",
+ALL_PYTHON_VERSION_TO_PATCHLEVEL_VERSION: dict[str, str] = {
+    "3.10": "3.10.19",
+    "3.11": "3.11.14",
+    "3.12": "3.12.12",
+    "3.13": "3.13.11",
 }
 
 # Number of slices for low dep tests

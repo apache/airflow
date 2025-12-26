@@ -22,9 +22,8 @@ from unittest.mock import MagicMock, Mock
 
 import pytest
 
-from airflow.exceptions import AirflowException
-from airflow.models.mappedoperator import MappedOperator
 from airflow.models.taskinstance import TaskInstance as TI
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.utils import timezone
 from airflow.utils.state import State
@@ -36,8 +35,8 @@ from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 pytestmark = pytest.mark.db_test
 
 if AIRFLOW_V_3_0_PLUS:
-    from airflow.exceptions import DownstreamTasksSkipped
     from airflow.models.dag_version import DagVersion
+    from airflow.providers.common.compat.sdk import DownstreamTasksSkipped
     from airflow.providers.standard.utils.skipmixin import SkipMixin
     from airflow.sdk import task, task_group
 else:
@@ -107,27 +106,22 @@ class TestSkipMixin:
 
     @pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="Airflow 2 had a different implementation")
     def test_skip__only_mapped_operators_passed(self):
+        from airflow.sdk.definitions.mappedoperator import MappedOperator
+
         ti = Mock(map_index=2)
-        assert (
-            SkipMixin().skip(
-                ti=ti,
-                tasks=[MagicMock(spec=MappedOperator)],
-            )
-            is None
-        )
+        assert SkipMixin().skip(ti=ti, tasks=[MagicMock(spec=MappedOperator)]) is None
 
     @pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="Airflow 2 had a different implementation")
     def test_skip__only_none_mapped_operators_passed(self):
+        from airflow.sdk.definitions.mappedoperator import MappedOperator
+
         ti = Mock(map_index=-1)
         with pytest.raises(DownstreamTasksSkipped) as exc_info:
-            SkipMixin().skip(
-                ti=ti,
-                tasks=[MagicMock(spec=MappedOperator, task_id="task")],
-            )
+            SkipMixin().skip(ti=ti, tasks=[MagicMock(spec=MappedOperator, task_id="task")])
         assert exc_info.value.tasks == ["task"]
 
     @pytest.mark.parametrize(
-        "branch_task_ids, expected_states",
+        ("branch_task_ids", "expected_states"),
         [
             (None, {"task2": State.SKIPPED, "task3": State.SKIPPED}),
             ([], {"task2": State.SKIPPED, "task3": State.SKIPPED}),
@@ -175,7 +169,7 @@ class TestSkipMixin:
             assert executed_states == expected_states
 
     @pytest.mark.parametrize(
-        "branch_task_ids, expected_states",
+        ("branch_task_ids", "expected_states"),
         [
             (["task2"], {"task2": State.NONE, "task3": State.SKIPPED}),
             (("task2",), {"task2": State.NONE, "task3": State.SKIPPED}),
@@ -326,10 +320,21 @@ class TestSkipMixin:
             ti1 = TI(task, run_id=DEFAULT_DAG_RUN_ID, dag_version_id=dag_version.id)
         else:
             ti1 = TI(task, run_id=DEFAULT_DAG_RUN_ID)
-        error_message = (
-            r"'branch_task_ids' expected all task IDs are strings. "
-            r"Invalid tasks found: \{\(42, 'int'\)\}\."
-        )
+
+        if AIRFLOW_V_3_0_PLUS:
+            # Improved error message for Airflow 3.0+
+            error_message = (
+                r"Unable to branch to the specified tasks\. "
+                r"The branching function returned invalid 'branch_task_ids': \{\(42, 'int'\)\}\. "
+                r"Please check that your function returns an Iterable of valid task IDs that exist in your DAG\."
+            )
+        else:
+            # Old error message for Airflow 2.x
+            error_message = (
+                r"'branch_task_ids' expected all task IDs are strings\. "
+                r"Invalid tasks found: \{\(42, 'int'\)\}\."
+            )
+
         with pytest.raises(AirflowException, match=error_message):
             SkipMixin().skip_all_except(ti=ti1, branch_task_ids=["task", 42])
 

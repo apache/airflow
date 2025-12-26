@@ -23,10 +23,16 @@ This page documents the full public API exposed in Airflow 3.0+ via the Task SDK
 If something is not on this page it is best to assume that it is not part of the public API and use of it is entirely at your own risk
 -- we won't go out of our way break usage of them, but we make no promises either.
 
-Defining DAGs
+Defining Dags
 -------------
 .. autoapiclass:: airflow.sdk.DAG
 
+
+Configuration
+-------------
+
+The ``conf`` object is available as part of the Task SDK. It provides an interface to the
+configurations, allowing you to read and interact with Airflow configuration values.
 
 Decorators
 ----------
@@ -66,8 +72,6 @@ Bases
 
 .. autoapiclass:: airflow.sdk.BaseXCom
 
-.. autoapiclass:: airflow.sdk.XComArg
-
 .. autoapiclass:: airflow.sdk.PokeReturnValue
 
 .. autoapiclass:: airflow.sdk.BaseHook
@@ -82,11 +86,27 @@ Tasks & Operators
 -----------------
 .. autoapiclass:: airflow.sdk.TaskGroup
 
+.. autoapiclass:: airflow.sdk.XComArg
+
+.. autoapifunction:: airflow.sdk.literal
+
+.. autoapiclass:: airflow.sdk.Param
+
+.. autoclass:: airflow.sdk.ParamsDict
+
+.. autoclass:: airflow.sdk.TriggerRule
+
 .. autoapifunction:: airflow.sdk.get_current_context
 
 .. autoapifunction:: airflow.sdk.get_parsing_context
 
-.. autoapiclass:: airflow.sdk.Param
+State Enums
+-----------
+.. autoclass:: airflow.sdk.TaskInstanceState
+
+.. autoclass:: airflow.sdk.DagRunState
+
+.. autoclass:: airflow.sdk.WeightRule
 
 Setting Dependencies
 ~~~~~~~~~~~~~~~~~~~~
@@ -95,8 +115,6 @@ Setting Dependencies
 .. autoapifunction:: airflow.sdk.chain_linear
 
 .. autoapifunction:: airflow.sdk.cross_downstream
-
-.. autoapifunction:: airflow.sdk.literal
 
 Edges & Labels
 ~~~~~~~~~~~~~~
@@ -118,6 +136,22 @@ Assets
 
 .. autoapiclass:: airflow.sdk.Metadata
 
+Timetables
+----------
+.. autoapiclass:: airflow.sdk.AssetOrTimeSchedule
+
+.. autoapiclass:: airflow.sdk.CronDataIntervalTimetable
+
+.. autoapiclass:: airflow.sdk.CronTriggerTimetable
+
+.. autoapiclass:: airflow.sdk.DeltaDataIntervalTimetable
+
+.. autoapiclass:: airflow.sdk.DeltaTriggerTimetable
+
+.. autoapiclass:: airflow.sdk.EventsTimetable
+
+.. autoapiclass:: airflow.sdk.MultipleCronTriggerTimetable
+
 I/O Helpers
 -----------
 .. autoapiclass:: airflow.sdk.ObjectStoragePath
@@ -125,11 +159,16 @@ I/O Helpers
 Execution Time Components
 -------------------------
 .. rubric:: Context
-.. autoapiclass:: airflow.sdk.Context
-.. autoapimodule:: airflow.sdk.execution_time.context
-   :members:
-   :undoc-members:
 
+.. autoapiclass:: airflow.sdk.Context
+
+.. rubric:: Logging
+
+.. autofunction:: airflow.sdk.log.mask_secret
+
+Observability
+-------------
+.. autoclass:: airflow.sdk.Trace
 
 Everything else
 ---------------

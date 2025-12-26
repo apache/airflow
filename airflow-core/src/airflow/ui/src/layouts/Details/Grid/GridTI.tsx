@@ -16,15 +16,39 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Badge, chakra, Flex } from "@chakra-ui/react";
+import { Badge, Flex } from "@chakra-ui/react";
 import type { MouseEvent } from "react";
-import React, { useRef } from "react";
+import React, { useCallback } from "react";
 import { useTranslation } from "react-i18next";
-import { Link, useParams } from "react-router-dom";
+import { Link, useLocation, useParams, useSearchParams } from "react-router-dom";
 
 import type { LightGridTaskInstanceSummary } from "openapi/requests/types.gen";
+import { BasicTooltip } from "src/components/BasicTooltip";
 import { StateIcon } from "src/components/StateIcon";
 import Time from "src/components/Time";
+import { type HoverContextType, useHover } from "src/context/hover";
+import { buildTaskInstanceUrl } from "src/utils/links";
+
+const handleMouseEnter =
+  (setHoveredTaskId: HoverContextType["setHoveredTaskId"]) => (event: MouseEvent<HTMLDivElement>) => {
+    const tasks = document.querySelectorAll<HTMLDivElement>(`#${event.currentTarget.id}`);
+
+    tasks.forEach((task) => {
+      task.style.backgroundColor = "var(--chakra-colors-info-subtle)";
+    });
+
+    setHoveredTaskId(event.currentTarget.id.replaceAll("-", "."));
+  };
+
+const handleMouseLeave = (taskId: string, setHoveredTaskId: HoverContextType["setHoveredTaskId"]) => () => {
+  const tasks = document.querySelectorAll<HTMLDivElement>(`#task-${taskId.replaceAll(".", "-")}`);
+
+  tasks.forEach((task) => {
+    task.style.backgroundColor = "";
+  });
+
+  setHoveredTaskId(undefined);
+};
 
 type Props = {
   readonly dagId: string;
@@ -32,122 +56,65 @@ type Props = {
   readonly isGroup?: boolean;
   readonly isMapped?: boolean | null;
   readonly label: string;
+  readonly onClick?: () => void;
   readonly runId: string;
-  readonly search: string;
   readonly taskId: string;
 };
 
-const onMouseEnter = (event: MouseEvent<HTMLDivElement>) => {
-  const tasks = document.querySelectorAll<HTMLDivElement>(`#${event.currentTarget.id}`);
-
-  tasks.forEach((task) => {
-    task.style.backgroundColor = "var(--chakra-colors-blue-subtle)";
-  });
-};
-
-const onMouseLeave = (event: MouseEvent<HTMLDivElement>) => {
-  const tasks = document.querySelectorAll<HTMLDivElement>(`#${event.currentTarget.id}`);
-
-  tasks.forEach((task) => {
-    task.style.backgroundColor = "";
-  });
-};
-
-const Instance = ({ dagId, instance, isGroup, isMapped, runId, search, taskId }: Props) => {
+const Instance = ({ dagId, instance, isGroup, isMapped, onClick, runId, taskId }: Props) => {
+  const { setHoveredTaskId } = useHover();
   const { groupId: selectedGroupId, taskId: selectedTaskId } = useParams();
   const { t: translate } = useTranslation();
-  const debounceTimeoutRef = useRef<NodeJS.Timeout | undefined>(undefined);
-  const tooltipRef = useRef<HTMLElement | undefined>(undefined);
+  const location = useLocation();
 
-  const onBadgeMouseEnter = (event: MouseEvent<HTMLDivElement>) => {
-    // Clear any existing timeout
-    if (debounceTimeoutRef.current) {
-      clearTimeout(debounceTimeoutRef.current);
-    }
+  const [searchParams] = useSearchParams();
 
-    // Store reference to the tooltip element
-    const tooltip = event.currentTarget.querySelector("#tooltip") as HTMLElement;
+  const onMouseEnter = handleMouseEnter(setHoveredTaskId);
+  const onMouseLeave = handleMouseLeave(taskId, setHoveredTaskId);
 
-    tooltipRef.current = tooltip;
+  const getTaskUrl = useCallback(
+    () =>
+      buildTaskInstanceUrl({
+        currentPathname: location.pathname,
+        dagId,
+        isGroup,
+        isMapped: Boolean(isMapped),
+        runId,
+        taskId,
+      }),
+    [dagId, isGroup, isMapped, location.pathname, runId, taskId],
+  );
 
-    // Set a new timeout to show the tooltip after 200ms
-    debounceTimeoutRef.current = setTimeout(() => {
-      if (tooltipRef.current) {
-        tooltipRef.current.style.visibility = "visible";
-      }
-    }, 200);
-  };
-
-  const onBadgeMouseLeave = () => {
-    // Clear any existing timeout
-    if (debounceTimeoutRef.current) {
-      clearTimeout(debounceTimeoutRef.current);
-      debounceTimeoutRef.current = undefined;
-    }
-
-    // Hide the tooltip immediately
-    if (tooltipRef.current) {
-      tooltipRef.current.style.visibility = "hidden";
-      tooltipRef.current = undefined;
-    }
-  };
+  // Remove try_number query param when navigating to reset to the
+  // latest try of the task instance and avoid issues with invalid try numbers:
+  // https://github.com/apache/airflow/issues/56977
+  searchParams.delete("try_number");
+  const redirectionSearch = searchParams.toString();
 
   return (
     <Flex
       alignItems="center"
-      bg={selectedTaskId === taskId || selectedGroupId === taskId ? "blue.muted" : undefined}
+      bg={selectedTaskId === taskId || selectedGroupId === taskId ? "info.muted" : undefined}
       height="20px"
-      id={taskId.replaceAll(".", "-")}
+      id={`task-${taskId.replaceAll(".", "-")}`}
       justifyContent="center"
       key={taskId}
       onMouseEnter={onMouseEnter}
       onMouseLeave={onMouseLeave}
+      position="relative"
       px="2px"
       py={0}
       transition="background-color 0.2s"
-      zIndex={1}
     >
-      <Link
-        replace
-        to={{
-          pathname: `/dags/${dagId}/runs/${runId}/tasks/${isGroup ? "group/" : ""}${taskId}${isMapped ? "/mapped" : ""}`,
-          search,
-        }}
-      >
-        <Badge
-          borderRadius={4}
-          colorPalette={instance.state ?? "none"}
-          height="14px"
-          minH={0}
-          onMouseEnter={onBadgeMouseEnter}
-          onMouseLeave={onBadgeMouseLeave}
-          p={0}
-          position="relative"
-          variant="solid"
-          width="14px"
-        >
-          <StateIcon
-            size={10}
-            state={instance.state}
-            style={{
-              marginLeft: "2px",
-            }}
-          />
-          <chakra.span
-            bg="bg.inverted"
-            borderRadius={2}
-            bottom={0}
-            color="fg.inverted"
-            id="tooltip"
-            p={2}
-            position="absolute"
-            right={0}
-            visibility="hidden"
-            zIndex={1}
-          >
+      <BasicTooltip
+        content={
+          <>
             {translate("taskId")}: {taskId}
             <br />
-            {translate("state")}: {instance.state}
+            {translate("state")}:{" "}
+            {instance.state
+              ? translate(`common:states.${instance.state}`)
+              : translate("common:states.no_status")}
             {instance.min_start_date !== null && (
               <>
                 <br />
@@ -160,9 +127,34 @@ const Instance = ({ dagId, instance, isGroup, isMapped, runId, search, taskId }:
                 {translate("endDate")}: <Time datetime={instance.max_end_date} />
               </>
             )}
-          </chakra.span>
-        </Badge>
-      </Link>
+          </>
+        }
+      >
+        <Link
+          id={`grid-${runId}-${taskId}`}
+          onClick={onClick}
+          replace
+          to={{
+            pathname: getTaskUrl(),
+            search: redirectionSearch,
+          }}
+        >
+          <Badge
+            alignItems="center"
+            borderRadius={4}
+            colorPalette={instance.state ?? "none"}
+            display="flex"
+            height="14px"
+            justifyContent="center"
+            minH={0}
+            p={0}
+            variant="solid"
+            width="14px"
+          >
+            <StateIcon size={10} state={instance.state} />
+          </Badge>
+        </Link>
+      </BasicTooltip>
     </Flex>
   );
 };

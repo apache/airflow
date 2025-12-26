@@ -18,49 +18,52 @@
 Dag Bundles
 ===========
 
-A dag bundle is a collection of one or more dags, files along with their associated files, such as other
-Python scripts, configuration files, or other resources. Dag bundles can source the dags from various
+A Dag bundle is a collection of one or more Dags, files along with their associated files, such as other
+Python scripts, configuration files, or other resources. Dag bundles can source the Dags from various
 locations, such as local directories, Git repositories, or other external systems. Deployment administrators
-can also write their own dag bundle classes to support custom sources. You can also define more than one dag
-bundle in an Airflow deployments, allowing for better organization of your dags. By keeping the bundle at a
-higher level, it allows for versioning everything the dag needs to run.
+can also write their own Dag bundle classes to support custom sources. You can also define more than one Dag
+bundle in an Airflow deployments, allowing for better organization of your Dags. By keeping the bundle at a
+higher level, it allows for versioning everything the Dag needs to run.
 
-This is similar, but more powerful than the *dags folder* in Airflow 2 or earlier, where dags were required to
-be in one place on the local disk, and getting the dags there was solely the responsibility of the deployment
+This is similar, but more powerful than the *Dags folder* in Airflow 2 or earlier, where Dags were required to
+be in one place on the local disk, and getting the Dags there was solely the responsibility of the deployment
 manager.
 
-Since dag bundles support versioning, they also allow Airflow to run a task using a specific version of the
-dag bundle, allowing for a dag run to use the same code for the whole run, even if the dag is updated mid-way
+Since Dag bundles support versioning, they also allow Airflow to run a task using a specific version of the
+Dag bundle, allowing for a Dag run to use the same code for the whole run, even if the Dag is updated mid-way
 through the run.
 
-Why are dag bundles important?
+Why are Dag bundles important?
 ------------------------------
 
-- **Version Control**: By supporting versioning, dag bundles allow dag runs to use the same code for the whole run, even if the dag is updated mid way through the run.
-- **Scalability**: With dag bundles, Airflow can efficiently manage large numbers of DAGs by organizing them into logical units.
-- **Flexibility**: Dag bundles enable seamless integration with external systems, such as Git repositories, to source dags.
+- **Version Control**: By supporting versioning, Dag bundles allow Dag runs to use the same code for the whole run, even if the Dag is updated mid way through the run.
+- **Scalability**: With Dag bundles, Airflow can efficiently manage large numbers of Dags by organizing them into logical units.
+- **Flexibility**: Dag bundles enable seamless integration with external systems, such as Git repositories, to source Dags.
 
-Types of dag bundles
+Types of Dag bundles
 --------------------
-Airflow supports multiple types of dag Bundles, each catering to specific use cases:
+Airflow supports multiple types of Dag Bundles, each catering to specific use cases:
 
 **airflow.dag_processing.bundles.local.LocalDagBundle**
-    These bundles reference a local directory containing DAG files. They are ideal for development and testing environments, but do not support versioning of the bundle, meaning tasks always run using the latest code.
+    These bundles reference a local directory containing Dag files. They are ideal for development and testing environments, but do not support versioning of the bundle, meaning tasks always run using the latest code.
 
 **airflow.providers.git.bundles.git.GitDagBundle**
-    These bundles integrate with Git repositories, allowing Airflow to fetch dags directly from a repository.
+    These bundles integrate with Git repositories, allowing Airflow to fetch Dags directly from a repository.
 
 **airflow.providers.amazon.aws.bundles.s3.S3DagBundle**
-    These bundles reference an S3 bucket containing DAG files. They do not support versioning of the bundle, meaning tasks always run using the latest code.
+    These bundles reference an S3 bucket containing Dag files. They do not support versioning of the bundle, meaning tasks always run using the latest code.
 
-Configuring dag bundles
+**airflow.providers.google.cloud.bundles.gcs.GCSDagBundle**
+    These bundles reference a GCS bucket containing Dag files. They do not support versioning of the bundle, meaning tasks always run using the latest code.
+
+Configuring Dag bundles
 -----------------------
 
-Dag bundles are configured in :ref:`config:dag_processor__dag_bundle_config_list`. You can add one or more dag bundles here.
+Dag bundles are configured in :ref:`config:dag_processor__dag_bundle_config_list`. You can add one or more Dag bundles here.
 
-By default, Airflow adds a local dag bundle, which is the same as the old dags folder. This is done for backwards compatibility, and you can remove it if you do not want to use it. You can also keep it and add other dag bundles, such as a git dag bundle.
+By default, Airflow adds a local Dag bundle, which is the same as the old Dags folder. This is done for backwards compatibility, and you can remove it if you do not want to use it. You can also keep it and add other Dag bundles, such as a git Dag bundle.
 
-For example, adding multiple dag bundles to your ``airflow.cfg`` file:
+For example, adding multiple Dag bundles to your ``airflow.cfg`` file:
 
 .. code-block:: ini
 
@@ -83,8 +86,32 @@ For example, adding multiple dag bundles to your ``airflow.cfg`` file:
     The whitespace, particularly on the last line, is important so a multi-line value works properly. More details can be found in the
     the `configparser docs <https://docs.python.org/3/library/configparser.html#supported-ini-file-structure>`_.
 
-You can also override the :ref:`config:dag_processor__refresh_interval` per dag bundle by passing it in kwargs.
-This controls how often the dag processor refreshes, or looks for new files, in the dag bundles.
+If you want a view url different from the default provided by the Dag bundle, you can change the url in the kwargs of the Dag bundle configuration.
+For example, if you want to use a custom URL for the git Dag bundle:
+
+.. code-block:: ini
+
+    [dag_processor]
+    dag_bundle_config_list = [
+        {
+          "name": "my_git_repo",
+          "classpath": "airflow.providers.git.bundles.git.GitDagBundle",
+          "kwargs": {
+            "tracking_ref": "main",
+            "git_conn_id": "my_git_conn",
+            "view_url_template": "https://my.custom.git.repo/view/{subdir}",
+          }
+        }
+      ]
+
+Above, the ``view_url_template`` is set to a custom URL that will be used to view the Dags in the ``my_git_repo`` bundle. The ``{subdir}`` placeholder will be replaced
+with the ``subdir`` attribute of the bundle. The placeholders are attributes of the bundle. You cannot use any placeholder outside of the bundle's attributes.
+When you specify a custom URL, it overrides the default URL provided by the Dag bundle.
+
+The url is verified for safety, and if it is not safe, the view url for the bundle will be set to ``None``. This is to prevent any potential security issues with unsafe URLs.
+
+You can also override the :ref:`config:dag_processor__refresh_interval` per Dag bundle by passing it in kwargs.
+This controls how often the Dag processor refreshes, or looks for new files, in the Dag bundles.
 
 Starting Airflow 3.0.2 git is pre installed in the base image. However, if you are using versions prior 3.0.2, you would need to install git in your docker image.
 
@@ -95,18 +122,18 @@ Starting Airflow 3.0.2 git is pre installed in the base image. However, if you a
   ENV GIT_PYTHON_REFRESH=quiet
 
 
-Writing custom dag bundles
+Writing custom Dag bundles
 --------------------------
 
-When implementing your own dag bundle by extending the ``BaseDagBundle`` class, there are several methods you must implement. Below is a guide to help you implement a custom dag bundle.
+When implementing your own Dag bundle by extending the ``BaseDagBundle`` class, there are several methods you must implement. Below is a guide to help you implement a custom Dag bundle.
 
 Abstract Methods
 ~~~~~~~~~~~~~~~~
 The following methods are abstract and must be implemented in your custom bundle class:
 
 **path**
-    This property should return a ``Path`` to the directory where the dag files for this bundle are stored.
-    Airflow uses this property to locate the DAG files for processing.
+    This property should return a ``Path`` to the directory where the Dag files for this bundle are stored.
+    Airflow uses this property to locate the Dag files for processing.
 
 **get_current_version**
     This method should return the current version of the bundle as a string.
@@ -115,7 +142,7 @@ The following methods are abstract and must be implemented in your custom bundle
 
 **refresh**
     This method should handle refreshing the bundle's contents from its source (e.g., pulling the latest changes from a remote repository).
-    This is used by the dag processor periodically to ensure that the bundle is up-to-date.
+    This is used by the Dag processor periodically to ensure that the bundle is up-to-date.
 
 Optional Methods
 ~~~~~~~~~~~~~~~~
@@ -128,7 +155,7 @@ In addition to the abstract methods, you may choose to override the following me
     in the ``initialize`` method instead.
 
 **initialize**
-    This method is called before the bundle is first used in the dag processor or worker. It allows you to perform expensive operations only when the bundle's content is accessed.
+    This method is called before the bundle is first used in the Dag processor or worker. It allows you to perform expensive operations only when the bundle's content is accessed.
 
 **view_url**
     This method should return a URL as a string to view the bundle on an external system (e.g., a Git repository's web interface).
@@ -141,3 +168,8 @@ Other Considerations
 - **Concurrency**: Workers may create many bundles simultaneously, and does nothing to serialize calls to the bundle objects. Thus, the bundle class must handle locking if
   that is problematic for the underlying technology. For example, if you are cloning a git repo, the bundle class is responsible for locking to ensure only 1 bundle
   object is cloning at a time. There is a ``lock`` method in the base class that can be used for this purpose, if necessary.
+
+- **Triggerer Limitation**: DAG bundles are not initialized in the triggerer component. In practice, this means that triggers cannot come from a DAG bundle.
+  This is because the triggerer does not deal with changes in trigger code over time, as everything happens in the main process.
+  Triggers can come from anywhere else on ``sys.path`` instead. If you need to use custom triggers, ensure they are available in the Python environment's
+  ``sys.path`` rather than being sourced from DAG bundles.

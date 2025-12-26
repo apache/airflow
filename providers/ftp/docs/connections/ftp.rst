@@ -65,3 +65,19 @@ Example connection string:
 .. code-block:: bash
 
    export AIRFLOW_CONN_FTP_DEFAULT='ftp://user:pass@localhost?passive=false'
+
+
+Extra Parameters
+----------------
+
+You can specify additional parameters in the extra field of your connection:
+
+- ``passive``: Set passive mode for FTP transfers (default: true).
+- ``encoding``: Specify the encoding for the FTP connection (e.g., ``cp1251`` for legacy servers).
+
+Example::
+
+    {
+        "passive": true,
+        "encoding": "cp1251"
+    }

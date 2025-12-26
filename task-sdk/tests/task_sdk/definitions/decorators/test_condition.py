@@ -21,9 +21,9 @@ from typing import TYPE_CHECKING
 
 import pytest
 
+from airflow.sdk import TaskInstanceState
 from airflow.sdk.definitions.dag import DAG
 from airflow.sdk.definitions.decorators import task
-from airflow.utils.state import TaskInstanceState
 
 if TYPE_CHECKING:
     from airflow.sdk.definitions.context import Context

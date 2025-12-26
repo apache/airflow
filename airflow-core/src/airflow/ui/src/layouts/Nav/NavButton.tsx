@@ -16,48 +16,110 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, Button, Link, type ButtonProps } from "@chakra-ui/react";
-import type { ReactElement } from "react";
-import { NavLink } from "react-router-dom";
+import { Box, type BoxProps, Button, Icon, type IconProps, Link, type ButtonProps } from "@chakra-ui/react";
+import { type ReactNode, useMemo, type ForwardRefExoticComponent, type RefAttributes } from "react";
+import type { IconType } from "react-icons";
+import { Link as RouterLink, useMatch } from "react-router-dom";
 
-const styles = {
-  alignItems: "center",
-  borderRadius: "none",
-  colorPalette: "blue",
-  flexDir: "column",
-  height: 20,
-  variant: "ghost",
-  whiteSpace: "wrap",
-  width: 20,
-} satisfies ButtonProps;
+const commonLabelProps: BoxProps = {
+  fontSize: "2xs",
+  overflow: "hidden",
+  textAlign: "center",
+  textOverflow: "ellipsis",
+  whiteSpace: "nowrap",
+  width: "full",
+};
 
 type NavButtonProps = {
-  readonly icon: ReactElement;
+  readonly icon: ForwardRefExoticComponent<IconProps & RefAttributes<SVGSVGElement>> | IconType;
   readonly isExternal?: boolean;
-  readonly title?: string;
+  readonly pluginIcon?: ReactNode;
+  readonly title: string;
   readonly to?: string;
 } & ButtonProps;
 
-export const NavButton = ({ icon, isExternal = false, title, to, ...rest }: NavButtonProps) =>
-  to === undefined ? (
-    <Button {...styles} {...rest}>
-      <Box alignSelf="center">{icon}</Box>
-      <Box fontSize="xs">{title}</Box>
-    </Button>
-  ) : isExternal ? (
-    <Link href={to} px={2} rel="noopener noreferrer" target="_blank">
-      <Button {...styles} variant="ghost" {...rest}>
-        <Box alignSelf="center">{icon}</Box>
-        <Box fontSize="xs">{title}</Box>
-      </Button>
-    </Link>
-  ) : (
-    <NavLink to={to}>
-      {({ isActive }: { readonly isActive: boolean }) => (
-        <Button {...styles} variant={isActive ? "solid" : "ghost"} {...rest}>
-          <Box alignSelf="center">{icon}</Box>
-          <Box fontSize="xs">{title}</Box>
-        </Button>
-      )}
-    </NavLink>
+export const NavButton = ({ icon, isExternal = false, pluginIcon, title, to, ...rest }: NavButtonProps) => {
+  // Use useMatch to determine if the current route matches the button's destination
+  // This provides the same functionality as NavLink's isActive prop
+  // Only applies to buttons with a to prop (but needs to be before any return statements)
+  const match = useMatch({
+    end: to === "/", // Only exact match for root path
+    path: to ?? "",
+  });
+  // Only applies to buttons with a to prop
+  const isActive = Boolean(to) ? Boolean(match) : false;
+
+  const commonButtonProps = useMemo<ButtonProps>(
+    () => ({
+      _expanded: isActive
+        ? undefined
+        : {
+            bg: "brand.emphasized", // Even darker for better light mode contrast
+            color: "fg",
+          },
+      _focus: isActive
+        ? undefined
+        : {
+            color: "fg",
+          },
+      _hover: isActive
+        ? undefined
+        : {
+            _active: {
+              bg: "brand.solid",
+              color: "white",
+            },
+            bg: "brand.emphasized", // Even darker for better light mode contrast
+            color: "fg",
+          },
+      alignItems: "center",
+      bg: isActive ? "brand.solid" : undefined,
+      borderRadius: "md",
+      borderWidth: 0,
+      boxSize: 14,
+      color: isActive ? "white" : "fg.muted",
+      colorPalette: "brand",
+      cursor: "pointer",
+      flexDir: "column",
+      gap: 0,
+      overflow: "hidden",
+      padding: 0,
+      textDecoration: "none",
+      title,
+      transition: "background-color 0.2s ease, color 0.2s ease",
+      variant: "plain",
+      whiteSpace: "wrap",
+      ...rest,
+    }),
+    [isActive, rest, title],
   );
+
+  if (to === undefined) {
+    return (
+      <Button {...commonButtonProps}>
+        {pluginIcon ?? <Icon as={icon} boxSize={5} />}
+        <Box {...commonLabelProps}>{title}</Box>
+      </Button>
+    );
+  }
+
+  if (isExternal) {
+    return (
+      <Link asChild href={to} rel="noopener noreferrer" target="_blank">
+        <Button {...commonButtonProps}>
+          {pluginIcon ?? <Icon as={icon} boxSize={5} />}
+          <Box {...commonLabelProps}>{title}</Box>
+        </Button>
+      </Link>
+    );
+  }
+
+  return (
+    <Button as={Link} asChild {...commonButtonProps}>
+      <RouterLink to={to}>
+        {pluginIcon ?? <Icon as={icon} boxSize={5} />}
+        <Box {...commonLabelProps}>{title}</Box>
+      </RouterLink>
+    </Button>
+  );
+};

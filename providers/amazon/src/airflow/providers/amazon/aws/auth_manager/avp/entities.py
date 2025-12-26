@@ -57,7 +57,7 @@ def get_entity_type(resource_type: AvpEntities) -> str:
     return AVP_PREFIX_ENTITIES + resource_type.value
 
 
-def get_action_id(resource_type: AvpEntities, method: ResourceMethod | str):
+def get_action_id(resource_type: AvpEntities, method: ResourceMethod | str, entity_id: str | None):
     """
     Return action id.
 
@@ -65,5 +65,9 @@ def get_action_id(resource_type: AvpEntities, method: ResourceMethod | str):
 
     :param resource_type: Resource type.
     :param method: Resource method.
+    :param entity_id: The entity ID.
     """
+    if method == "GET" and not entity_id:
+        method = "LIST"
+
     return f"{resource_type.value}.{method}"

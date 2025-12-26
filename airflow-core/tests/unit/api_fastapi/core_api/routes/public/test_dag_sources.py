@@ -24,12 +24,12 @@ import pytest
 from httpx import Response
 from sqlalchemy import select
 
-from airflow.models.dagbag import SchedulerDagBag
+from airflow.models.dagbag import DBDagBag
 from airflow.models.dagcode import DagCode
-from airflow.models.serialized_dag import SerializedDagModel
 from airflow.utils.state import DagRunState
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
+from tests_common.test_utils.dag import sync_dag_to_db
 from tests_common.test_utils.db import clear_db_dags, clear_db_runs, parse_and_sync_to_db
 from unit.serialization.test_dag_serialization import AIRFLOW_REPO_ROOT_PATH
 
@@ -46,9 +46,22 @@ TEST_DAG_DISPLAY_NAME = "example_simplest_dag"
 
 
 @pytest.fixture
-def test_dag(session):
-    parse_and_sync_to_db(EXAMPLE_DAG_FILE, include_examples=False)
-    return SchedulerDagBag().get_latest_version_of_dag(TEST_DAG_ID, session)
+def real_dag_bag():
+    return parse_and_sync_to_db(EXAMPLE_DAG_FILE, include_examples=False)
+
+
+@pytest.fixture
+def test_dag(session, real_dag_bag):
+    return DBDagBag().get_latest_version_of_dag(TEST_DAG_ID, session=session)
+
+
+@pytest.fixture
+def force_reserialization(real_dag_bag, session):
+    def _force_reserialization(dag_id, bundle_name):
+        dag = real_dag_bag.get_dag(dag_id, session=session)
+        sync_dag_to_db(dag, bundle_name=bundle_name, session=session)
+
+    return _force_reserialization
 
 
 class TestGetDAGSource:
@@ -112,7 +125,7 @@ class TestGetDAGSource:
         assert response.headers["Content-Type"].startswith("application/json")
 
     @pytest.mark.parametrize("accept", ["application/json", "text/plain"])
-    def test_should_respond_200_version(self, test_client, accept, session, test_dag):
+    def test_should_respond_200_version(self, test_client, accept, session, test_dag, force_reserialization):
         dag_content = self._get_dag_file_code(test_dag.fileloc)
         test_dag.create_dagrun(
             run_id="test1",
@@ -123,13 +136,10 @@ class TestGetDAGSource:
         )
         # force reserialization
         test_dag.doc_md = "new doc"
-        SerializedDagModel.write_dag(test_dag, bundle_name="dags-folder")
-        dagcode = (
-            session.query(DagCode)
-            .filter(DagCode.fileloc == test_dag.fileloc)
-            .order_by(DagCode.id.desc())
-            .first()
-        )
+        force_reserialization(test_dag.dag_id, "dag-folder")
+        dagcode = session.scalars(
+            select(DagCode).where(DagCode.fileloc == test_dag.fileloc).order_by(DagCode.id.desc())
+        ).first()
         assert dagcode.dag_version.version_number == 2
         # populate the latest dagcode with a value
         dag_content2 = "new source code"

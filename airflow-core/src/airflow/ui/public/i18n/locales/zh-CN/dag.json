@@ -1,0 +1,152 @@
+{
+  "allRuns": "所有执行",
+  "blockingDeps": {
+    "dependency": "依赖 ",
+    "reason": "原因",
+    "title": "依赖阻碍任务调度"
+  },
+  "calendar": {
+    "daily": "每日",
+    "hourly": "每小时",
+    "legend": {
+      "less": "更少",
+      "more": "更多"
+    },
+    "navigation": {
+      "nextMonth": "下个月",
+      "nextYear": "下一年",
+      "previousMonth": "上个月",
+      "previousYear": "上一年"
+    },
+    "noData": "无数据",
+    "noRuns": "未执行",
+    "totalRuns": "总执行次数",
+    "week": "第 {{weekNumber}} 周",
+    "weekdays": {
+      "friday": "周五",
+      "monday": "周一",
+      "saturday": "周六",
+      "sunday": "周日",
+      "thursday": "周四",
+      "tuesday": "周二",
+      "wednesday": "周三"
+    }
+  },
+  "code": {
+    "bundleUrl": "套件包链接",
+    "noCode": "找不到代码",
+    "parseDuration": "解析耗时：",
+    "parsedAt": "解析时间："
+  },
+  "extraLinks": "额外链接",
+  "grid": {
+    "buttons": {
+      "resetToLatest": "重置为最新",
+      "toggleGroup": "切换分组状态"
+    }
+  },
+  "header": {
+    "buttons": {
+      "advanced": "高级功能",
+      "dagDocs": "Dag 文档"
+    }
+  },
+  "logs": {
+    "allLevels": "所有日志等级",
+    "allSources": "所有来源",
+    "critical": "CRITICAL",
+    "debug": "DEBUG",
+    "error": "ERROR",
+    "fullscreen": {
+      "button": "全屏",
+      "tooltip": "按下 {{hotkey}} 进入全屏"
+    },
+    "info": "INFO",
+    "noTryNumber": "没有重试次数",
+    "settings": "日志设置",
+    "viewInExternal": "在 {{name}} 中查看日志(重试 {{attempt}})",
+    "warning": "WARNING"
+  },
+  "navigation": {
+    "navigation": "导航: {{arrow}}",
+    "toggleGroup": "展开/收起分组: 空格键"
+  },
+  "overview": {
+    "buttons": {
+      "failedRun_one": "失败的执行",
+      "failedRun_other": "失败的执行",
+      "failedTask_one": "失败的任务",
+      "failedTask_other": "失败的任务",
+      "failedTaskInstance_one": "失败的任务实例",
+      "failedTaskInstance_other": "失败的任务实例"
+    },
+    "charts": {
+      "assetEvent_one": "已创建资源事件",
+      "assetEvent_other": "已创建资源事件"
+    },
+    "failedLogs": {
+      "hideLogs": "隐藏日志",
+      "showLogs": "显示日志",
+      "title": "最近失败任务的日志",
+      "viewFullLogs": "查看完整日志"
+    }
+  },
+  "panel": {
+    "buttons": {
+      "options": "选项",
+      "showGantt": "显示甘特图",
+      "showGraphShortcut": "显示图表（按 g）",
+      "showGridShortcut": "显示网格（按 g）"
+    },
+    "dagRuns": {
+      "label": "Dag 执行次数"
+    },
+    "dependencies": {
+      "label": "依赖项",
+      "options": {
+        "allDagDependencies": "所有 Dag 依赖项",
+        "externalConditions": "外部条件",
+        "onlyTasks": "仅限任务"
+      },
+      "placeholder": "依赖项"
+    },
+    "graphDirection": {
+      "label": "图表方向"
+    }
+  },
+  "paramsFailed": "加载参数失败",
+  "parse": {
+    "toaster": {
+      "error": {
+        "description": "Dag 解析请求失败。可能还有待处理的解析请求。",
+        "title": "Dag 重新解析失败"
+      },
+      "success": {
+        "description": "Dag 即将重新解析。",
+        "title": "已成功提交重新解析请求"
+      }
+    }
+  },
+  "tabs": {
+    "assetEvents": "资源事件",
+    "auditLog": "审计日志",
+    "backfills": "回填",
+    "calendar": "日历",
+    "code": "代码",
+    "details": "详细信息",
+    "logs": "日志",
+    "mappedTaskInstances_one": "任务实例 [{{count}}]",
+    "mappedTaskInstances_other": "任务实例 [{{count}}]",
+    "overview": "总览",
+    "renderedTemplates": "渲染后的模板",
+    "requiredActions": "待响应的任务实例",
+    "runs": "执行记录",
+    "taskInstances": "任务实例",
+    "tasks": "任务",
+    "xcom": "XCom"
+  },
+  "taskGroups": {
+    "collapseAll": "收起所有任务分组",
+    "expandAll": "展开所有任务分组"
+  }
+}

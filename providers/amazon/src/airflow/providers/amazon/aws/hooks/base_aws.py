@@ -52,16 +52,11 @@ from dateutil.tz import tzlocal
 from slugify import slugify
 
 from airflow.configuration import conf
-from airflow.exceptions import (
-    AirflowException,
-    AirflowNotFoundException,
-    AirflowProviderDeprecationWarning,
-)
+from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.amazon.aws.utils.connection_wrapper import AwsConnectionWrapper
 from airflow.providers.amazon.aws.utils.identifiers import generate_uuid
 from airflow.providers.amazon.aws.utils.suppress import return_on_error
-from airflow.providers.amazon.version_compat import BaseHook
-from airflow.providers.common.compat.version_compat import AIRFLOW_V_3_0_PLUS
+from airflow.providers.common.compat.sdk import AirflowException, AirflowNotFoundException, BaseHook
 from airflow.providers_manager import ProvidersManager
 from airflow.utils.helpers import exactly_one
 from airflow.utils.log.logging_mixin import LoggingMixin
@@ -77,9 +72,6 @@ from airflow.utils.log.logging_mixin import LoggingMixin
 BaseAwsConnection = TypeVar("BaseAwsConnection", bound=Union[BaseClient, ServiceResource])  # noqa: UP007
 
 
-if AIRFLOW_V_3_0_PLUS:
-    from airflow.sdk.exceptions import AirflowRuntimeError, ErrorType
-
 if TYPE_CHECKING:
     from aiobotocore.session import AioSession
     from botocore.client import ClientMeta
@@ -89,9 +81,12 @@ if TYPE_CHECKING:
     from airflow.sdk.execution_time.secrets_masker import mask_secret
 else:
     try:
-        from airflow.sdk.execution_time.secrets_masker import mask_secret
+        from airflow.sdk.log import mask_secret
     except ImportError:
-        from airflow.utils.log.secrets_masker import mask_secret
+        try:
+            from airflow.sdk.execution_time.secrets_masker import mask_secret
+        except ImportError:
+            from airflow.utils.log.secrets_masker import mask_secret
 
 _loader = botocore.loaders.Loader()
 """
@@ -621,20 +616,17 @@ class AwsGenericHook(BaseHook, Generic[BaseAwsConnection]):
         if self.aws_conn_id:
             try:
                 connection = self.get_connection(self.aws_conn_id)
-            except Exception as e:
-                not_found_exc_via_core = isinstance(e, AirflowNotFoundException)
-                not_found_exc_via_task_sdk = (
-                    AIRFLOW_V_3_0_PLUS
-                    and isinstance(e, AirflowRuntimeError)
-                    and e.error.error == ErrorType.CONNECTION_NOT_FOUND
+            except AirflowNotFoundException:
+                self.log.warning(
+                    "Unable to find AWS Connection ID '%s', switching to empty.", self.aws_conn_id
                 )
-                if not_found_exc_via_core or not_found_exc_via_task_sdk:
-                    self.log.warning(
-                        "Unable to find AWS Connection ID '%s', switching to empty.", self.aws_conn_id
-                    )
+            # In the TaskSDK's BaseHook, it only retrieves the connection via task-sdk. Since the AWS system testing infrastructure
+            # doesn't use task-sdk, this leads to an error which we handle below.
+            except ImportError as e:
+                if "SUPERVISOR_COMMS" in str(e):
+                    self.log.exception(e)
                 else:
                     raise
-
         return AwsConnectionWrapper(
             conn=connection,
             region_name=self._region_name,
@@ -794,7 +786,7 @@ class AwsGenericHook(BaseHook, Generic[BaseAwsConnection]):
     async def get_async_conn(self):
         """Get an aiobotocore client to use for async operations."""
         # We have to wrap the call `self.get_client_type` in another call `_get_async_conn`,
-        # because one of it's arguments `self.region_name` is a `@property` decorated function
+        # because one of its arguments `self.region_name` is a `@property` decorated function
         # calling the cached property `self.conn_config` at the end.
         return await sync_to_async(self._get_async_conn)()
 

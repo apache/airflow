@@ -21,11 +21,14 @@
     },
     "connection_one": "חיבור",
     "connection_other": "חיבורים",
+    "connection_two": "חיבורים",
     "delete": {
-      "deleteConnection_one": "מחק חיבור אחד",
+      "deleteConnection_one": "מחק חיבור",
       "deleteConnection_other": "מחק {{count}} חיבורים",
+      "deleteConnection_two": "מחק שני חיבורים",
       "firstConfirmMessage_one": "אתה עומד למחוק את החיבור הבא:",
       "firstConfirmMessage_other": "אתה עומד למחוק את החיבורים הבאים:",
+      "firstConfirmMessage_two": "אתה עומד למחוק את החיבורים הבאים:",
       "title": "מחק חיבור"
     },
     "edit": "ערוך חיבור",
@@ -35,7 +38,8 @@
       "connectionTypeRequired": "נדרש סוג חיבור",
       "extraFields": "שדות נוספים",
       "extraFieldsJson": "שדות נוספים JSON",
-      "helperText": "סוג החיבור המבוקש חסר? וודא שהתקנת את חבילת ה-Airflow Providers המתאימה",
+      "helperText": "סוג החיבור המבוקש חסר? וודא שהתקנת את חבילת העזר המתאימה",
+      "helperTextForRedactedFields": "שדות שהוסתרו ('***') יישארו ללא שינוי אם לא בוצע בהם עדכון",
       "selectConnectionType": "בחר סוג חיבור",
       "standardFields": "שדות סטנדרטיים"
     },
@@ -71,7 +75,6 @@
     "tooltip": "מחק חיבורים נבחרים"
   },
   "formActions": {
-    "reset": "אתחל",
     "save": "שמור"
   },
   "plugins": {
@@ -80,6 +83,7 @@
     },
     "importError_one": "שגיאה בייבוא תוסף",
     "importError_other": "שגיאות בייבוא תוסף",
+    "importError_two": "שגיאות בייבוא תוסף",
     "searchPlaceholder": "חפש לפי קובץ"
   },
   "pools": {
@@ -101,6 +105,7 @@
     "noPoolsFound": "לא נמצאו מאגרי משאבים",
     "pool_one": "מאגר משאבים",
     "pool_other": "מאגרי משאבים",
+    "pool_two": "מאגרי משאבים",
     "searchPlaceholder": "חפש מאגרי משאבים",
     "sort": {
       "asc": "שם (A-Z)",
@@ -122,14 +127,14 @@
     "delete": {
       "deleteVariable_one": "מחר משתנה אחד",
       "deleteVariable_other": "מחק {{count}} משתנים",
+      "deleteVariable_two": "מחק שני משתנים",
       "firstConfirmMessage_one": "אתה עומד למחוק את מאגר המשאבים הבא:",
       "firstConfirmMessage_other": "אתה עומד למחוק את מאגרי המשאבים הבאים:",
+      "firstConfirmMessage_two": "אתה עומד למחוק את מאגרי המשאבים הבאים:",
       "title": "מחק מאגר משאבים",
       "tooltip": "מחר משתנים נבחרים"
     },
     "edit": "ערוך משתנה",
-    "export": "ייצא",
-    "exportTooltip": "ייצא משתנים נבחרים",
     "form": {
       "invalidJson": "JSON לא תקין",
       "keyMaxLength": "מפתח יכול להכיל מקסימום 250 תווים",
@@ -139,7 +144,7 @@
     "import": {
       "button": "ייבא",
       "conflictResolution": "בחר מנגנון ליישוב קונפליקט משתנים",
-      "errorParsingJsonFile": "שגיאה בפירסור קובץ JSON: העלה קובץ JSON המכיל משתנים (לדוגמה, {\"key\": \"value\", ...}).",
+      "errorParsingJsonFile": "שגיאה בניתוח קובץ JSON: העלה קובץ JSON המכיל משתנים (לדוגמה, {\"key\": \"value\", ...}).",
       "options": {
         "fail": {
           "description": "הכשלת הייבוא אם מזוהים משתנים קיימים.",
@@ -161,6 +166,7 @@
     "noRowsMessage": "לא נמצאו משתנים",
     "searchPlaceholder": "חפש מאגרי משאבים",
     "variable_one": "משתנה",
-    "variable_other": "משתנים"
+    "variable_other": "משתנים",
+    "variable_two": "משתנים"
   }
 }

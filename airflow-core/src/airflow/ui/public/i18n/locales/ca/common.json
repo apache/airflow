@@ -1,0 +1,330 @@
+{
+  "admin": {
+    "Config": "Configuració",
+    "Connections": "Connexions",
+    "Plugins": "Extensions",
+    "Pools": "Pools",
+    "Providers": "Proveïdors",
+    "Variables": "Variables"
+  },
+  "allOperators": "Tots els operadors",
+  "appearance": {
+    "appearance": "Aparença",
+    "darkMode": "Mode fosc",
+    "lightMode": "Mode clar",
+    "systemMode": "Seguir la configuració del sistema"
+  },
+  "asset_one": "Asset",
+  "asset_other": "Assets",
+  "assetEvent_one": "Esdeveniment d'Asset",
+  "assetEvent_other": "Esdeveniments d'Asset",
+  "backfill_one": "Reompliment",
+  "backfill_other": "Reompliments",
+  "browse": {
+    "auditLog": "Registre d'auditoria",
+    "requiredActions": "Accions requerides",
+    "xcoms": "XComs"
+  },
+  "collapseAllExtra": "Col·lapsar tots els camps extra json",
+  "collapseDetailsPanel": "Col·lapsar el panell de detalls",
+  "createdAssetEvent_one": "Esdeveniment d'Asset creat",
+  "createdAssetEvent_other": "Esdeveniments d'Asset creats",
+  "dag_one": "Dag",
+  "dag_other": "Dags",
+  "dagDetails": {
+    "catchup": "Recuperar (catchup)",
+    "dagRunTimeout": "Temps d'espera de l'execució del Dag",
+    "defaultArgs": "Arguments per defecte",
+    "description": "Descripció",
+    "documentation": "Documentació del Dag",
+    "fileLocation": "Ubicació del fitxer",
+    "hasTaskConcurrencyLimits": "Té límits de concurrència de tasques",
+    "lastExpired": "Últim caducat",
+    "lastParseDuration": "Duració de l'últim anàlisi",
+    "lastParsed": "Últim analitzat",
+    "latestDagVersion": "Última versió del Dag",
+    "latestRun": "Última execució",
+    "maxActiveRuns": "Màxim d'execucions actives",
+    "maxActiveTasks": "Màxim de tasques actives",
+    "maxConsecutiveFailedDagRuns": "Màxim d'execucions fallides consecutives del Dag",
+    "nextRun": "Propera execució",
+    "owner": "Propietari",
+    "params": "Paràmetres",
+    "schedule": "Programació",
+    "tags": "Etiquetes"
+  },
+  "dagId": "ID del Dag",
+  "dagRun": {
+    "conf": "Configuració",
+    "dagVersions": "Versió/ns del Dag",
+    "dataIntervalEnd": "Fi de l'interval de dades",
+    "dataIntervalStart": "Inici de l'interval de dades",
+    "lastSchedulingDecision": "Última decisió de programació",
+    "partitionKey": "Clau de partició",
+    "queuedAt": "Enviat a cua a les",
+    "runAfter": "Executar després de",
+    "runType": "Tipus d'execució",
+    "sourceAssetEvent": "Esdeveniment d'Asset d'origen",
+    "triggeredBy": "Executat per",
+    "triggeringUser": "Nom de l'usuari que executa"
+  },
+  "dagRun_one": "Execució de Dag",
+  "dagRun_other": "Execucions de Dag",
+  "dagRunId": "ID d'Execució del Dag",
+  "dagWarnings": "Advertències/errors del Dag",
+  "defaultToGraphView": "Visualització de gràfic per defecte",
+  "defaultToGridView": "Visualització de graella per defecte",
+  "direction": "Direcció",
+  "docs": {
+    "documentation": "Documentació",
+    "githubRepo": "Repositori de GitHub",
+    "restApiReference": "Referència de l'API REST"
+  },
+  "download": {
+    "download": "Descarregar",
+    "hotkey": "d",
+    "tooltip": "Prem {{hotkey}} per a descarregar els registres"
+  },
+  "duration": "Duració",
+  "endDate": "Data de finalització",
+  "error": {
+    "back": "Tornar",
+    "defaultMessage": "S'ha produït un error inesperat",
+    "home": "Inici",
+    "invalidUrl": "Pàgina no trobada. Si us plau, comprova la URL i torna-ho a provar.",
+    "notFound": "Pàgina no trobada",
+    "title": "Error"
+  },
+  "expand": {
+    "collapse": "Col·lapsar",
+    "expand": "Expandir",
+    "hotkey": "e",
+    "tooltip": "Prem {{hotkey}} per alternar l'expansió"
+  },
+  "expandAllExtra": "Expandir tots els camps extra json",
+  "expression": {
+    "all": "Tots",
+    "and": "I",
+    "any": "Qualsevol",
+    "or": "O"
+  },
+  "filter": "Filtre",
+  "filters": {
+    "durationFrom": "Duració Des de",
+    "durationTo": "Duració Fins a",
+    "endTime": "Hora de finalització",
+    "logicalDateFrom": "Data Lògica Des de",
+    "logicalDateTo": "Data Lògica Fins a",
+    "runAfterFrom": "Executar Després de",
+    "runAfterTo": "Executar Després de",
+    "selectDateRange": "Seleccionar interval de dates",
+    "startTime": "Hora d'inici"
+  },
+  "logicalDate": "Data Lògica",
+  "logout": "Tancar sessió",
+  "logoutConfirmation": "Està a punt de tancar sessió de l'aplicació.",
+  "mapIndex": "Índex del mapa",
+  "modal": {
+    "cancel": "Cancel·lar",
+    "confirm": "Confirmar",
+    "delete": {
+      "button": "Eliminar",
+      "confirmation": "Està segur que vol eliminar {{resourceName}}? Aquesta acció no es pot desfer."
+    }
+  },
+  "nav": {
+    "admin": "Configuració",
+    "assets": "Assets",
+    "browse": "Navegar",
+    "dags": "Dags",
+    "docs": "Docs",
+    "home": "Inici",
+    "legacyFabViews": "Vistes obsoletes",
+    "plugins": "Extensions",
+    "security": "Seguretat"
+  },
+  "noItemsFound": "No s'ha trobat {{modelName}}",
+  "note": {
+    "add": "Afegir una nota",
+    "dagRun": "Nota de l'execució del Dag",
+    "label": "Nota",
+    "placeholder": "Afegir una nota...",
+    "taskInstance": "Nota de la instància de la tasca"
+  },
+  "pools": {
+    "deferred": "Diferit",
+    "open": "Obert",
+    "pools_one": "pool",
+    "pools_other": "pools",
+    "queued": "En cua",
+    "running": "Executant-se",
+    "scheduled": "Programat"
+  },
+  "reset": "Restablir",
+  "runId": "ID de l'execució",
+  "runTypes": {
+    "asset_triggered": "Executat per Asset",
+    "backfill": "Reomplir",
+    "manual": "Manual",
+    "scheduled": "Programat"
+  },
+  "scroll": {
+    "direction": {
+      "bottom": "Avall",
+      "top": "Amunt"
+    },
+    "tooltip": "Prem {{hotkey}} per desplaçar-te cap a {{direction}}"
+  },
+  "security": {
+    "actions": "Accions",
+    "permissions": "Permisos",
+    "resources": "Recursos",
+    "roles": "Rols",
+    "users": "Usuaris"
+  },
+  "selectLanguage": "Seleccionar idioma",
+  "showDetailsPanel": "Mostrar panell de detalls",
+  "source": {
+    "hide": "Amagar origen",
+    "hotkey": "s",
+    "show": "Mostrar origen"
+  },
+  "sourceAssetEvent_one": "Esdeveniment d'Asset d'origen",
+  "sourceAssetEvent_other": "Esdeveniments d'Asset d'origen",
+  "startDate": "Data d'inici",
+  "state": "Estat",
+  "states": {
+    "deferred": "Diferit",
+    "failed": "Fallit",
+    "no_status": "Sense estat",
+    "none": "Sense estat",
+    "planned": "Planificat",
+    "queued": "En cua",
+    "removed": "Eliminat",
+    "restarting": "Reiniciant",
+    "running": "Executant-se",
+    "scheduled": "Programat",
+    "skipped": "Saltat",
+    "success": "Exitós",
+    "up_for_reschedule": "A reprogramar",
+    "up_for_retry": "A reintentar",
+    "upstream_failed": "Fallit aigües amunt"
+  },
+  "table": {
+    "completedAt": "Completat a",
+    "createdAt": "Creat a",
+    "filterByTag": "Filtrar Dags per etiqueta",
+    "filterColumns": "Filtrar columnes de la taula",
+    "filterReset_one": "Restablir filtre",
+    "filterReset_other": "Restablir filtres",
+    "from": "De",
+    "maxActiveRuns": "Màxim d'execucions actives",
+    "noTagsFound": "No s'han trobat etiquetes",
+    "tagMode": {
+      "all": "Totes",
+      "any": "Qualsevol"
+    },
+    "tagPlaceholder": "Filtrar per etiqueta",
+    "to": "A"
+  },
+  "task": {
+    "documentation": "Documentació de la tasca",
+    "lastInstance": "Última instància",
+    "operator": "Operador",
+    "triggerRule": "Regla d'execució"
+  },
+  "task_one": "Tasca",
+  "task_other": "Tasques",
+  "taskGroup": "Grup de tasques",
+  "taskId": "ID de la tasca",
+  "taskInstance": {
+    "dagVersion": "Versió del Dag",
+    "executor": "Executor",
+    "executorConfig": "Configuració de l'executor",
+    "hostname": "Nom del Host",
+    "maxTries": "Màxim de reintents",
+    "pid": "PID",
+    "pool": "Pool",
+    "poolSlots": "Slots de pool",
+    "priorityWeight": "Pes de prioritat",
+    "queue": "Cua",
+    "queuedWhen": "Enviat a cua a les",
+    "scheduledWhen": "Programat a les",
+    "triggerer": {
+      "assigned": "Triggerer assignat",
+      "class": "Classe del trigger",
+      "createdAt": "Hora de creació del trigger",
+      "id": "ID del trigger",
+      "latestHeartbeat": "Darrer batec del triggerer",
+      "title": "Informació del Triggerer"
+    },
+    "unixname": "Nom Unix"
+  },
+  "taskInstance_one": "Instància de tasca",
+  "taskInstance_other": "Instàncies de tasca",
+  "timeRange": {
+    "last12Hours": "Darreres 12 hores",
+    "last24Hours": "Darreres 24 hores",
+    "lastHour": "Darrera hora",
+    "pastWeek": "Darrera setmana"
+  },
+  "timestamp": {
+    "hide": "Amagar segell de temps",
+    "hotkey": "t",
+    "show": "Mostrar segell de temps"
+  },
+  "timezone": "Zona horària",
+  "timezoneModal": {
+    "current-timezone": "Hora actual a",
+    "placeholder": "Selecciona una zona horària",
+    "title": "Selecciona la zona horària",
+    "utc": "UTC (Temps Universal Coordinat)"
+  },
+  "toaster": {
+    "bulkDelete": {
+      "error": "Error en la sol·licitud de supressió massiva de {{resourceName}}",
+      "success": {
+        "description": "{{count}} {{resourceName}} s'han suprimit correctament. Claus: {{keys}}",
+        "title": "Sol·licitud de supressió massiva de {{resourceName}} enviada"
+      }
+    },
+    "create": {
+      "error": "Error en la sol·licitud de creació de {{resourceName}}",
+      "success": {
+        "description": "{{resourceName}} s'ha creat correctament.",
+        "title": "Sol·licitud de creació de {{resourceName}} enviada"
+      }
+    },
+    "delete": {
+      "error": "Error en la sol·licitud de supressió de {{resourceName}}",
+      "success": {
+        "description": "{{resourceName}} s'ha suprimit correctament.",
+        "title": "Sol·licitud de supressió de {{resourceName}} enviada"
+      }
+    },
+    "import": {
+      "error": "Error en la sol·licitud d'importació de {{resourceName}}",
+      "success": {
+        "description": "{{count}} {{resourceName}} s'han importat correctament.",
+        "title": "Sol·licitud d'importació de {{resourceName}} enviada"
+      }
+    },
+    "update": {
+      "error": "Error en la sol·licitud d'actualització de {{resourceName}}",
+      "success": {
+        "description": "{{resourceName}} s'ha actualitzat correctament.",
+        "title": "Sol·licitud d'actualització de {{resourceName}} enviada"
+      }
+    }
+  },
+  "total": "Total {{state}}",
+  "triggered": "Executat",
+  "tryNumber": "Número d'intent",
+  "user": "Usuari",
+  "wrap": {
+    "hotkey": "w",
+    "tooltip": "Premeu {{hotkey}} per alternar l'ajust de línia",
+    "unwrap": "Desactiva l'ajust de línia",
+    "wrap": "Activa l'ajust de línia"
+  }
+}

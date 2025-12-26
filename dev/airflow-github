@@ -1,4 +1,14 @@
 #!/usr/bin/env python3
+# /// script
+# requires-python = ">=3.10"
+# dependencies = [
+#     "GitPython",
+#     "PyGithub",
+#     "rich-click",
+#     "packaging",
+#     "rich",
+# ]
+# ///
 
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -29,21 +39,21 @@ from typing import TYPE_CHECKING
 
 import git
 import rich_click as click
-from github import Github
+from github import Auth, Github
 from packaging import version
 from rich.console import Console
 from rich.progress import Progress
 
 if TYPE_CHECKING:
     from github.Issue import Issue
-    from github.PullRequest import PullRequest
 
 GIT_COMMIT_FIELDS = ["id", "author_name", "author_email", "date", "subject", "body"]
 GIT_LOG_FORMAT = "%x1f".join(["%h", "%an", "%ae", "%ad", "%s", "%b"]) + "%x1e"
 pr_title_re = re.compile(r".*\((#[0-9]{1,6})\)$")
 
 STATUS_COLOR_MAP = {
-    "Closed": "green",
+    "Closed": "yellow",
+    "Merged": "green",
     "Open": "red",
 }
 
@@ -84,32 +94,96 @@ def get_issue_type(issue):
     return issue_type
 
 
-def get_commit_in_main_associated_with_pr(repo: git.Repo, issue: Issue) -> str | None:
+def build_main_commits_cache(repo: git.Repo, issue_numbers: set[int]) -> dict[int, str]:
+    """Build a cache of PR number -> main branch commit SHA with a single git log operation"""
+    cache = {}
+
+    if not issue_numbers:
+        return cache
+
+    try:
+        # Single git log to get all main branch commits
+        # Use a reasonable range to avoid scanning entire history
+        try:
+            # Try to get commits since last major version (should cover most PR ranges)
+            log_output = repo.git.log("origin/main", "--format=%H %s", "--since=1 year ago")
+        except Exception:
+            # Fallback to last 2000 commits if date fails
+            log_output = repo.git.log("origin/main", "--format=%H %s", "-2000")
+
+        # Use regex to find all PR numbers in commit messages at once
+        import re
+        pr_pattern = r"\(#(\d+)\)$"  # PR number at end of commit message
+
+        for commit_line in log_output.splitlines():
+            if not commit_line:
+                continue
+
+            # Find PR number at end of commit message
+            match = re.search(pr_pattern, commit_line)
+            if match:
+                pr_number = int(match.group(1))
+                if pr_number in issue_numbers:
+                    commit_sha = commit_line.split(" ")[0]
+                    cache[pr_number] = commit_sha
+
+    except Exception:
+        # Fallback to empty cache if git operation fails
+        pass
+
+    return cache
+
+
+def get_commit_in_main_associated_with_pr(repo: git.Repo, issue: Issue, main_commits_cache: dict[int, str]) -> str | None:
     """For a PR, find the associated merged commit & return its SHA"""
     if issue.pull_request:
-        log_output = repo.git.log(f"--grep=(#{issue.number})$", "origin/main", "--format=%H %s")
-        if log_output:
-            for commit_line in log_output.splitlines():
-                # We only want the commit for the PR where squash-merge added (#PR) at the end of subject
-                if commit_line and commit_line.endswith(f"(#{issue.number})"):
-                    return commit_line.split(" ")[0]
-            return None
-        pr: PullRequest = issue.as_pull_request()
-        if pr.is_merged():
-            return pr.merge_commit_sha
+        # Use cache (should be pre-populated)
+        return main_commits_cache.get(issue.number)
     return None
+
+
+def build_cherrypicked_cache(repo: git.Repo, issue_numbers: list[int], previous_version: str | None = None) -> dict[int, bool]:
+    """Build a cache of which issues are cherry-picked by doing a single git log operation"""
+    cache = {num: False for num in issue_numbers}
+
+    if not issue_numbers:
+        return cache
+
+    # Get all commits in range and process them
+    log_args = ["--format=%H %s"]
+    if previous_version:
+        log_args.append(previous_version + "..")
+
+    try:
+        log_output = repo.git.log(*log_args)
+        # Use regex to find all PR numbers in the entire log output at once
+        import re
+        pr_pattern = r"\(#(\d+)\)"
+
+        for commit_line in log_output.splitlines():
+            # Find all PR numbers in this commit
+            matches = re.findall(pr_pattern, commit_line)
+            for match in matches:
+                issue_num = int(match)
+                if issue_num in cache:
+                    cache[issue_num] = True
+    except Exception:
+        # Fallback to individual checks if batch fails
+        pass
+
+    return cache
 
 
 def is_cherrypicked(repo: git.Repo, issue: Issue, previous_version: str | None = None) -> bool:
     """Check if a given issue is cherry-picked in the current branch or not"""
-    log_args = ["--format=%H %s", f"--grep=(#{issue.number})$"]
+    log_args = ["--format=%H %s", f"--grep=(#{issue.number})"]
     if previous_version:
         log_args.append(previous_version + "..")
     log_output = repo.git.log(*log_args)
 
     for commit_line in log_output.splitlines():
-        # We only want the commit for the PR where squash-merge added (#PR) at the end of subject
-        if commit_line and commit_line.endswith(f"(#{issue.number})"):
+        # Check if the PR number exists in the commit message (handles cherry-picked commits with multiple PR numbers)
+        if commit_line and f"(#{issue.number})" in commit_line:
             return True
     return False
 
@@ -225,22 +299,52 @@ def cli():
     " searching for few commits to find the cherry-picked commits",
 )
 @click.option("--unmerged", "show_uncherrypicked_only", help="Show unmerged PRs only", is_flag=True)
-def compare(target_version, github_token, previous_version=None, show_uncherrypicked_only=False):
+@click.option("--show-commits", help="Show commit SHAs (default: on, off when --unmerged)", is_flag=True, default=None)
+def compare(target_version, github_token, previous_version=None, show_uncherrypicked_only=False, show_commits=None):
+    # Set smart defaults
+    if show_commits is None:
+        show_commits = not show_uncherrypicked_only  # Default off for --unmerged
+
     repo = git.Repo(".", search_parent_directories=True)
 
-    github_handler = Github(github_token)
-    milestone_issues: list[Issue] = list(
+    github_handler = Github(auth=Auth.Token(github_token))
+
+    # Fetch PRs and Issues separately, with merged PRs identified upfront
+    merged_prs: list[Issue] = list(
         github_handler.search_issues(
-            f'repo:apache/airflow milestone:"Airflow {target_version}" is:pull-request '
+            f'repo:apache/airflow milestone:"Airflow {target_version}" is:pull-request is:merged'
         )
     )
-    milestone_issues.extend(
-        list(
+    closed_prs: list[Issue] = list(
+        github_handler.search_issues(
+            f'repo:apache/airflow milestone:"Airflow {target_version}" is:pull-request is:closed -is:merged'
+        )
+    )
+    open_prs: list[Issue] = list(
+        github_handler.search_issues(
+            f'repo:apache/airflow milestone:"Airflow {target_version}" is:pull-request is:open'
+        )
+    )
+
+    # Skip fetching issues if we only care about unmerged PRs
+    if show_uncherrypicked_only:
+        issues = []
+    else:
+        issues: list[Issue] = list(
             github_handler.search_issues(
-                f'repo:apache/airflow milestone:"Airflow {target_version}" is:issue '
+                f'repo:apache/airflow milestone:"Airflow {target_version}" is:issue'
             )
         )
-    )
+
+    # Create a merge status lookup
+    pr_merge_status_cache = {}
+    for pr in merged_prs:
+        pr_merge_status_cache[pr.number] = True
+    for pr in closed_prs:
+        pr_merge_status_cache[pr.number] = False
+    # Open PRs are neither merged nor closed, so we don't need to cache them
+
+    milestone_issues = merged_prs + closed_prs + open_prs + issues
 
     num_cherrypicked = 0
     num_uncherrypicked = Counter()
@@ -248,33 +352,73 @@ def compare(target_version, github_token, previous_version=None, show_uncherrypi
     # :<18 says left align, pad to 18, :>6 says right align, pad to 6
     # :<50.50 truncates after 50 chars
     # !s forces as string
-    formatstr = (
-        "{number:>6} | {typ!s:<5} | {changelog!s:<13} | {status!s} "
-        "| {title:<83.83} | {merged:<6} | {commit:>7.7} | {url}"
-    )
-
-    print(
-        formatstr.format(
-            number="NUMBER",
-            typ="TYPE",
-            changelog="CHANGELOG",
-            status="STATUS".ljust(6),
-            title="TITLE",
-            merged="MERGED",
-            commit="COMMIT",
-            url="URL",
+    if show_commits:
+        formatstr = (
+            "{number:>6} | {typ!s:<5} | {changelog!s:<13} | {status!s} "
+            "| {title:<83.83} | {merged:<6} | {commit:>7.7} | {url}"
         )
-    )
+        header_fields = {
+            "number": "NUMBER",
+            "typ": "TYPE",
+            "changelog": "CHANGELOG",
+            "status": "STATUS".ljust(6),
+            "title": "TITLE",
+            "merged": "CHERRY",
+            "commit": "COMMIT",
+            "url": "URL",
+        }
+    else:
+        formatstr = (
+            "{number:>6} | {typ!s:<5} | {changelog!s:<13} | {status!s} "
+            "| {title:<95.95} | {merged:<6} | {url}"
+        )
+        header_fields = {
+            "number": "NUMBER",
+            "typ": "TYPE",
+            "changelog": "CHANGELOG",
+            "status": "STATUS".ljust(6),
+            "title": "TITLE",
+            "merged": "CHERRY",
+            "commit": "",  # Not used
+            "url": "URL",
+        }
+
+    print(formatstr.format(**header_fields))
     milestone_issues = sorted(
         milestone_issues, key=lambda x: x.closed_at if x.closed_at else x.created_at, reverse=True
     )
+
+    # Build caches for performance optimization
+    issue_numbers = [issue.number for issue in milestone_issues if is_pr(issue)]
+
+    # Convert to set for O(1) lookups in cache building
+    issue_numbers_set = set(issue_numbers)
+
+    # Build all caches upfront with batch operations
+    if show_commits:
+        main_commits_cache = build_main_commits_cache(repo, issue_numbers_set)
+    else:
+        main_commits_cache = {}
+
+    cherrypicked_cache = build_cherrypicked_cache(repo, issue_numbers, previous_version)
+
     for issue in milestone_issues:
-        commit_in_main = get_commit_in_main_associated_with_pr(repo, issue)
-        status = issue.state.capitalize()
         issue_is_pr = is_pr(issue)
 
-        # Checks if commit was cherrypicked into branch.
-        if is_cherrypicked(repo, issue, previous_version):
+        # Determine status - differentiate between Closed and Merged for PRs using cache
+        if issue_is_pr and issue.state == "closed":
+            is_merged = pr_merge_status_cache.get(issue.number, False)
+            status = "Merged" if is_merged else "Closed"
+        else:
+            status = issue.state.capitalize()
+
+        # Checks if commit was cherrypicked into branch using cache
+        if issue_is_pr:
+            is_cherry_picked = cherrypicked_cache.get(issue.number, False)
+        else:
+            is_cherry_picked = is_cherrypicked(repo, issue, previous_version)
+
+        if is_cherry_picked:
             num_cherrypicked += 1
             if show_uncherrypicked_only:
                 continue
@@ -297,9 +441,12 @@ def compare(target_version, github_token, previous_version=None, show_uncherrypi
             url=issue.html_url,
         )
 
-        print(
-            formatstr.format(**fields, merged=cherrypicked, commit=commit_in_main if commit_in_main else "")
-        )
+        # Only get commit info if we're showing commits
+        if show_commits:
+            commit_in_main = get_commit_in_main_associated_with_pr(repo, issue, main_commits_cache)
+            fields["commit"] = commit_in_main if commit_in_main else ""
+
+        print(formatstr.format(**fields, merged=cherrypicked))
 
     print(
         f"Commits on branch: {num_cherrypicked:d}, {sum(num_uncherrypicked.values()):d} "
@@ -320,7 +467,7 @@ def changelog(previous_version, target_version, github_token, disable_progress_b
     if disable_progress_bar:
         print(f"Processing {len(log)} commits")
 
-    gh = Github(github_token)
+    gh = Github(auth=Auth.Token(github_token))
     gh_repo = gh.get_repo("apache/airflow")
     sections = defaultdict(list)
     with open("RELEASE_NOTES.rst") as file:
@@ -360,7 +507,7 @@ def needs_categorization(previous_version, target_version, show_skipped, show_fi
     repo = git.Repo(".", search_parent_directories=True)
     log = get_commits_between(repo, previous_version, target_version)
 
-    gh = Github(github_token)
+    gh = Github(auth=Auth.Token(github_token))
     gh_repo = gh.get_repo("apache/airflow")
     for commit in log:
         tickets = pr_title_re.findall(commit["subject"])

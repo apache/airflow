@@ -1,13 +1,14 @@
 {
   "favorite": {
-    "favoriteDags_one": "{{count}} Dags מועדפים ראשונים",
-    "favoriteDags_other": "{{count}} Dags מועדפים ראשונים",
+    "favoriteDags_one": "ה-Dag המועדף הראשון",
+    "favoriteDags_other": "{{ count }} ה-Dags המועדפים הראשונים",
+    "favoriteDags_two": "שני ה-Dags המועדפים הראשונים",
     "noDagRuns": "אין עדיין הרצת Dag עבור Dag זה.",
     "noFavoriteDags": "אין עדיין מועדפים. לחץ על סמל הכוכב ליד Dag ברשימה כדי להוסיף אותו למועדפים."
   },
   "group": "קבוצה",
   "health": {
-    "dagProcessor": "Dag מנתח",
+    "dagProcessor": "מנתח Dags",
     "health": "תקינות",
     "healthy": "תקין",
     "lastHeartbeat": "פעימה אחרונה",
@@ -19,8 +20,9 @@
   },
   "history": "היסטוריה",
   "importErrors": {
-    "dagImportError_one": "שגיאות בטעינת Dags",
-    "dagImportError_other": "שגיאות בטעינת Dags",
+    "dagImportError_one": "שגיאה בטעינת Dag",
+    "dagImportError_other": "שגיאות בטעינת Dag",
+    "dagImportError_two": "שגיאות בטעינת Dags",
     "searchByFile": "חפש לפי קובץ",
     "timestamp": "חותמת זמן"
   },
@@ -33,9 +35,10 @@
   },
   "source": "מקור",
   "stats": {
-    "activeDags": "Dags פעיל",
-    "failedDags": "Dags בכשלון",
+    "activeDags": "Dags פעילים",
+    "failedDags": "Dags נכשלו",
     "queuedDags": "Dags בתור",
+    "requiredActions": "פעולות נדרשות",
     "runningDags": "Dags בריצה",
     "stats": "סטטיסטיקות"
   },

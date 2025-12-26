@@ -1,5 +1,9 @@
 {
+  "additional_data": "資源額外資訊",
+  "asset_many": "資源",
+  "asset_one": "資源",
   "consumingDags": "消費者 Dags",
+  "consumingTasks": "消費者任務",
   "createEvent": {
     "button": "建立事件",
     "manual": {
@@ -25,5 +29,6 @@
   "lastAssetEvent": "最後資源事件",
   "name": "名稱",
   "producingTasks": "生產任務",
+  "scheduledDags": "已排程的 Dags",
   "searchPlaceholder": "搜尋資源"
 }

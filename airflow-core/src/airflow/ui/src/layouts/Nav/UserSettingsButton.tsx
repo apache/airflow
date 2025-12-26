@@ -16,12 +16,24 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { useDisclosure } from "@chakra-ui/react";
+import { Box, Icon, useDisclosure } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
-import { FiGrid, FiLogOut, FiMoon, FiSun, FiUser, FiGlobe } from "react-icons/fi";
+import {
+  FiGrid,
+  FiLogOut,
+  FiMoon,
+  FiSun,
+  FiUser,
+  FiGlobe,
+  FiEye,
+  FiChevronRight,
+  FiChevronLeft,
+  FiMonitor,
+} from "react-icons/fi";
 import { MdOutlineAccountTree } from "react-icons/md";
 import { useLocalStorage } from "usehooks-ts";
 
+import { useAuthLinksServiceGetCurrentUserInfo } from "openapi/queries";
 import { Menu } from "src/components/ui";
 import { useColorMode } from "src/context/colorMode/useColorMode";
 import type { NavItemResponse } from "src/utils/types";
@@ -33,65 +45,115 @@ import { PluginMenuItem } from "./PluginMenuItem";
 import { TimezoneMenuItem } from "./TimezoneMenuItem";
 import TimezoneModal from "./TimezoneModal";
 
+const COLOR_MODES = {
+  DARK: "dark",
+  LIGHT: "light",
+  SYSTEM: "system",
+} as const;
+
+type ColorMode = (typeof COLOR_MODES)[keyof typeof COLOR_MODES];
+
 export const UserSettingsButton = ({ externalViews }: { readonly externalViews: Array<NavItemResponse> }) => {
-  const { t: translate } = useTranslation();
-  const { colorMode, toggleColorMode } = useColorMode();
+  const { i18n, t: translate } = useTranslation();
+  const { selectedTheme, setColorMode } = useColorMode();
+  const { data: currentUser } = useAuthLinksServiceGetCurrentUserInfo();
+
+  const colorModeOptions = [
+    {
+      icon: FiSun,
+      label: translate("appearance.lightMode"),
+      value: COLOR_MODES.LIGHT,
+    },
+    {
+      icon: FiMoon,
+      label: translate("appearance.darkMode"),
+      value: COLOR_MODES.DARK,
+    },
+    {
+      icon: FiMonitor,
+      label: translate("appearance.systemMode"),
+      value: COLOR_MODES.SYSTEM,
+    },
+  ];
+
   const { onClose: onCloseTimezone, onOpen: onOpenTimezone, open: isOpenTimezone } = useDisclosure();
   const { onClose: onCloseLogout, onOpen: onOpenLogout, open: isOpenLogout } = useDisclosure();
   const { onClose: onCloseLanguage, onOpen: onOpenLanguage, open: isOpenLanguage } = useDisclosure();
+
   const [dagView, setDagView] = useLocalStorage<"graph" | "grid">("default_dag_view", "grid");
 
+  const theme = selectedTheme ?? COLOR_MODES.SYSTEM;
+
+  const isRTL = i18n.dir() === "rtl";
+
   return (
-    <Menu.Root positioning={{ placement: "right" }}>
-      <Menu.Trigger asChild>
-        <NavButton icon={<FiUser size="1.75rem" />} title={translate("user")} />
-      </Menu.Trigger>
-      <Menu.Content>
-        <Menu.Item onClick={onOpenLanguage} value="language">
-          <FiGlobe size="1.25rem" style={{ marginRight: "8px" }} />
-          {translate("selectLanguage")}
-        </Menu.Item>
-        <Menu.Item onClick={toggleColorMode} value="color-mode">
-          {colorMode === "light" ? (
+    <>
+      <Menu.Root positioning={{ placement: "right" }}>
+        <Menu.Trigger asChild>
+          <NavButton icon={FiUser} title={translate("user")} />
+        </Menu.Trigger>
+        <Menu.Content>
+          {currentUser ? (
             <>
-              <FiMoon size="1.25rem" style={{ marginRight: "8px" }} />
-              {translate("switchToDarkMode")}
+              <Box p={3}>
+                <Box color="fg.muted" fontSize="sm">
+                  {translate("signedInAs")}
+                </Box>
+                <Box fontSize="md" fontWeight="semibold">
+                  {currentUser.username}
+                </Box>
+              </Box>
+              <Menu.Separator />
             </>
-          ) : (
-            <>
-              <FiSun size="1.25rem" style={{ marginRight: "8px" }} />
-              {translate("switchToLightMode")}
-            </>
-          )}
-        </Menu.Item>
-        <Menu.Item
-          onClick={() => (dagView === "grid" ? setDagView("graph") : setDagView("grid"))}
-          value={dagView}
-        >
-          {dagView === "grid" ? (
-            <>
-              <MdOutlineAccountTree size="1.25rem" style={{ marginRight: "8px" }} />
-              {translate("defaultToGraphView")}
-            </>
-          ) : (
-            <>
-              <FiGrid size="1.25rem" style={{ marginRight: "8px" }} />
-              {translate("defaultToGridView")}
-            </>
-          )}
-        </Menu.Item>
-        <TimezoneMenuItem onOpen={onOpenTimezone} />
-        {externalViews.map((view) => (
-          <PluginMenuItem {...view} key={view.name} />
-        ))}
-        <Menu.Item onClick={onOpenLogout} value="logout">
-          <FiLogOut size="1.25rem" style={{ marginRight: "8px" }} />
-          {translate("logout")}
-        </Menu.Item>
-      </Menu.Content>
+          ) : undefined}
+          <Menu.Item onClick={onOpenLanguage} value="language">
+            <Icon as={FiGlobe} boxSize={4} />
+            <Box flex="1">{translate("selectLanguage")}</Box>
+          </Menu.Item>
+          <Menu.Root>
+            <Menu.TriggerItem>
+              <Icon as={FiEye} boxSize={4} />
+              <Box flex="1">{translate("appearance.appearance")}</Box>
+              <Icon as={isRTL ? FiChevronLeft : FiChevronRight} boxSize={4} color="fg.muted" />
+            </Menu.TriggerItem>
+            <Menu.Content>
+              <Menu.RadioItemGroup
+                onValueChange={(element) => setColorMode(element.value as ColorMode)}
+                value={theme}
+              >
+                {colorModeOptions.map(({ icon, label, value }) => (
+                  <Menu.RadioItem key={value} value={value}>
+                    <Icon as={icon} boxSize={4} />
+                    <Box flex="1">{label}</Box>
+                    <Menu.ItemIndicator color="fg.muted" />
+                  </Menu.RadioItem>
+                ))}
+              </Menu.RadioItemGroup>
+            </Menu.Content>
+          </Menu.Root>
+          <Menu.Item
+            onClick={() => (dagView === "grid" ? setDagView("graph") : setDagView("grid"))}
+            value={dagView}
+          >
+            <Icon as={dagView === "grid" ? MdOutlineAccountTree : FiGrid} boxSize={4} />
+            <Box flex="1">
+              {dagView === "grid" ? translate("defaultToGraphView") : translate("defaultToGridView")}
+            </Box>
+          </Menu.Item>
+          <TimezoneMenuItem onOpen={onOpenTimezone} />
+          {externalViews.map((view) => (
+            <PluginMenuItem {...view} key={view.name} />
+          ))}
+          <Menu.Separator />
+          <Menu.Item onClick={onOpenLogout} value="logout">
+            <Icon as={FiLogOut} boxSize={4} transform={isRTL ? "rotate(180deg)" : undefined} />
+            <Box flex="1">{translate("logout")}</Box>
+          </Menu.Item>
+        </Menu.Content>
+      </Menu.Root>
       <LanguageModal isOpen={isOpenLanguage} onClose={onCloseLanguage} />
       <TimezoneModal isOpen={isOpenTimezone} onClose={onCloseTimezone} />
       <LogoutModal isOpen={isOpenLogout} onClose={onCloseLogout} />
-    </Menu.Root>
+    </>
   );
 };

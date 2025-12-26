@@ -1,14 +1,13 @@
 {
   "auditLog": {
-    "actions": {
-      "collapseAllExtra": "Réduire tous les extra json",
-      "expandAllExtra": "Ouvrir tous les extra json"
-    },
     "columns": {
       "event": "Événement",
       "extra": "Extra",
       "user": "Utilisateur",
       "when": "Quand"
+    },
+    "filters": {
+      "eventType": "Type d'événement"
     },
     "title": "Journal d'Audit"
   },

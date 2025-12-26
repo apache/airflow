@@ -22,12 +22,17 @@ description: |
     `Java Database Connectivity (JDBC) <https://docs.oracle.com/javase/8/docs/technotes/guides/jdbc/>`__
 
 state: ready
-source-date-epoch: 1753691525
+source-date-epoch: 1765299199
 # Note that those versions are maintained by release manager - do not update them manually
 # with the exception of case where other provider in sources has >= new provider version.
 # In such case adding >= NEW_VERSION and bumping to NEW_VERSION in a provider have
 # to be done in the same PR
 versions:
+  - 5.3.1
+  - 5.3.0
+  - 5.2.5
+  - 5.2.4
+  - 5.2.3
   - 5.2.2
   - 5.2.1
   - 5.2.0

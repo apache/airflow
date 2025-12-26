@@ -1,0 +1,96 @@
+{
+  "assetSchedule": "{{total}} में से {{count}} एसेट्स अपडेट किए गए",
+  "dagActions": {
+    "delete": {
+      "button": "डैग हटाएं",
+      "warning": "यह रन्स और टास्क्स सहित डैग से संबंधित सभी मेटाडेटा को हटा देगा।"
+    }
+  },
+  "favoriteDag": "पसंदीदा डैग",
+  "filters": {
+    "allRunTypes": "सभी रन प्रकार",
+    "allStates": "सभी स्थितियां",
+    "favorite": {
+      "all": "सभी",
+      "favorite": "पसंदीदा",
+      "unfavorite": "गैर-पसंदीदा"
+    },
+    "paused": {
+      "active": "सक्रिय",
+      "all": "सभी",
+      "paused": "रोका गया"
+    },
+    "runIdPatternFilter": "डैग रन्स खोजें"
+  },
+  "ownerLink": "{{owner}} के लिए स्वामी लिंक",
+  "runAndTaskActions": {
+    "affectedTasks": {
+      "noItemsFound": "कोई टास्क्स नहीं मिले।",
+      "title": "प्रभावित टास्क्स: {{count}}"
+    },
+    "clear": {
+      "button": "{{type}} साफ करें",
+      "buttonTooltip": "साफ करने के लिए shift+c दबाएं",
+      "error": "{{type}} साफ करने में विफल",
+      "title": "{{type}} साफ करें"
+    },
+    "delete": {
+      "button": "{{type}} हटाएं",
+      "dialog": {
+        "resourceName": "{{type}} {{id}}",
+        "title": "{{type}} हटाएं",
+        "warning": "यह {{type}} से संबंधित सभी मेटाडेटा को हटा देगा।"
+      },
+      "error": "{{type}} हटाने में त्रुटि",
+      "success": {
+        "description": "{{type}} हटाने का अनुरोध सफल रहा।",
+        "title": "{{type}} सफलतापूर्वक हटा दिया गया"
+      }
+    },
+    "markAs": {
+      "button": "{{type}} को... के रूप में चिह्नित करें",
+      "buttonTooltip": {
+        "failed": "विफल के रूप में चिह्नित करने के लिए shift+f दबाएं",
+        "success": "सफल के रूप में चिह्नित करने के लिए shift+s दबाएं"
+      },
+      "title": "{{type}} को {{state}} के रूप में चिह्नित करें"
+    },
+    "options": {
+      "downstream": "डाउनस्ट्रीम",
+      "existingTasks": "मौजूदा टास्क्स साफ करें",
+      "future": "भविष्य",
+      "onlyFailed": "केवल विफल टास्क्स साफ करें",
+      "past": "अतीत",
+      "queueNew": "नए टास्क्स को कतार में डालें",
+      "runOnLatestVersion": "नवीनतम बंडल संस्करण के साथ चलाएं",
+      "upstream": "अपस्ट्रीम"
+    }
+  },
+  "search": {
+    "advanced": "उन्नत खोज",
+    "clear": "खोज साफ करें",
+    "dags": "डैग्स खोजें",
+    "hotkey": "+K",
+    "tasks": "टास्क्स खोजें"
+  },
+  "sort": {
+    "displayName": {
+      "asc": "डिस्प्ले नाम से सॉर्ट करें (A-Z)",
+      "desc": "डिस्प्ले नाम से सॉर्ट करें (Z-A)"
+    },
+    "lastRunStartDate": {
+      "asc": "नवीनतम रन प्रारंभ तिथि से सॉर्ट करें (पहले-बाद में)",
+      "desc": "नवीनतम रन प्रारंभ तिथि से सॉर्ट करें (बाद में-पहले)"
+    },
+    "lastRunState": {
+      "asc": "नवीनतम रन स्थिति से सॉर्ट करें (A-Z)",
+      "desc": "नवीनतम रन स्थिति से सॉर्ट करें (Z-A)"
+    },
+    "nextDagRun": {
+      "asc": "अगले डैग रन से सॉर्ट करें (पहले-बाद में)",
+      "desc": "अगले डैग रन से सॉर्ट करें (बाद में-पहले)"
+    },
+    "placeholder": "सॉर्ट करें"
+  },
+  "unfavoriteDag": "पसंदीदा से हटाएं"
+}

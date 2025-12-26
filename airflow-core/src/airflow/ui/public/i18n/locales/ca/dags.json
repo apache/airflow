@@ -1,0 +1,101 @@
+{
+  "assetSchedule": "Actualitzats {{count}} de {{total}} Assets",
+  "dagActions": {
+    "delete": {
+      "button": "Eliminar Dag",
+      "warning": "Això eliminarà tota la metadada relacionada amb el Dag, incloent-hi Execucions i Tasques."
+    }
+  },
+  "favoriteDag": "Dag favorit",
+  "filters": {
+    "allRunTypes": "Tots els tipus d'execució",
+    "allStates": "Tots els estats",
+    "favorite": {
+      "all": "Tots",
+      "favorite": "Favorits",
+      "unfavorite": "No favorits"
+    },
+    "paused": {
+      "active": "Actius",
+      "all": "Tots",
+      "paused": "Pausats"
+    },
+    "runIdPatternFilter": "Cerca execucions de Dag"
+  },
+  "ownerLink": "Enllaç del propietari {{owner}}",
+  "runAndTaskActions": {
+    "affectedTasks": {
+      "noItemsFound": "No s'han trobat tasques.",
+      "title": "Tasques afectades: {{count}}"
+    },
+    "clear": {
+      "button": "Rellançar {{type}}",
+      "buttonTooltip": "Prem shift+c per a rellançar",
+      "error": "No s'ha pogut rellançar {{type}}",
+      "title": "Rellançar {{type}}"
+    },
+    "confirmationDialog": {
+      "description": "La tasca es troba en estat {{state}} iniciada per l'usuari {{user}} a les {{time}}. \nL'usuari no pot rellançar aquesta tasca fins que no hagi acabat d'executar-se o fins que un usuari desmarqui l'opció \"Evitar rellançar tasques en execució\" al diàleg de rellançament de tasques.",
+      "title": "No s'ha pogut rellançar la instància de tasca"
+    },
+    "delete": {
+      "button": "Eliminar {{type}}",
+      "dialog": {
+        "resourceName": "{{type}} {{id}}",
+        "title": "Eliminar {{type}}",
+        "warning": "Això eliminarà tota la metadada relacionada amb el {{type}}."
+      },
+      "error": "Error eliminant {{type}}",
+      "success": {
+        "description": "La sol·licitud d'eliminació del {{type}} ha estat exitosa.",
+        "title": "{{type}} eliminat exitosament"
+      }
+    },
+    "markAs": {
+      "button": "Marcar {{type}} com a...",
+      "buttonTooltip": {
+        "failed": "Prem shift+f per a marcar com a fallit",
+        "success": "Prem shift+s per a marcar com a exitós"
+      },
+      "title": "Marcar {{type}} com a {{state}}"
+    },
+    "options": {
+      "downstream": "Aigües avall",
+      "existingTasks": "Rellançar tasques existents",
+      "future": "Futur",
+      "onlyFailed": "Rellançar només tasques fallides",
+      "past": "Passat",
+      "preventRunningTasks": "Evitar rellançar tasques en execució",
+      "queueNew": "Afegir noves tasques a la cua",
+      "runOnLatestVersion": "Executar amb la última versió de la col·lecció",
+      "upstream": "Aigües amunt"
+    }
+  },
+  "search": {
+    "advanced": "Cerca avançada",
+    "clear": "Netejar cerca",
+    "dags": "Cercar Dags",
+    "hotkey": "+K",
+    "tasks": "Cercar Tasques"
+  },
+  "sort": {
+    "displayName": {
+      "asc": "Ordenar per nom mostrat (A-Z)",
+      "desc": "Ordenar per nom mostrat (Z-A)"
+    },
+    "lastRunStartDate": {
+      "asc": "Ordenar per data d'inici de l'última execució (Més antic-Més recent)",
+      "desc": "Ordenar per data d'inici de l'última execució (Més recent-Més antic)"
+    },
+    "lastRunState": {
+      "asc": "Ordenar per estat de l'última execució (A-Z)",
+      "desc": "Ordenar per estat de l'última execució (Z-A)"
+    },
+    "nextDagRun": {
+      "asc": "Ordenar per pròxima execució del Dag (Més antic-Més recent)",
+      "desc": "Ordenar per pròxima execució del Dag (Més recent-Més antic)"
+    },
+    "placeholder": "Ordenar per"
+  },
+  "unfavoriteDag": "Desmarcar el Dag com a favorit"
+}

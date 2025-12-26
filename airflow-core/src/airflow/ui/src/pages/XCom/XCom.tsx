@@ -16,22 +16,43 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, Heading, Link } from "@chakra-ui/react";
+import { Box, Flex, Heading, Link, useDisclosure } from "@chakra-ui/react";
 import type { ColumnDef } from "@tanstack/react-table";
+import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
-import { Link as RouterLink, useParams } from "react-router-dom";
+import { Link as RouterLink, useParams, useSearchParams } from "react-router-dom";
 
 import { useXcomServiceGetXcomEntries } from "openapi/queries";
 import type { XComResponse } from "openapi/requests/types.gen";
 import { DataTable } from "src/components/DataTable";
 import { useTableURLState } from "src/components/DataTable/useTableUrlState";
 import { ErrorAlert } from "src/components/ErrorAlert";
+import { ExpandCollapseButtons } from "src/components/ExpandCollapseButtons";
+import Time from "src/components/Time";
 import { TruncatedText } from "src/components/TruncatedText";
-import { getTaskInstanceLinkFromObj } from "src/utils/links";
+import { SearchParamsKeys, type SearchParamsKeysType } from "src/constants/searchParams";
+import { getTaskInstanceLink } from "src/utils/links";
 
+import AddXComButton from "./AddXComButton";
+import DeleteXComButton from "./DeleteXComButton";
+import EditXComButton from "./EditXComButton";
 import { XComEntry } from "./XComEntry";
+import { XComFilters } from "./XComFilters";
 
-const columns = (translate: (key: string) => string): Array<ColumnDef<XComResponse>> => [
+const {
+  DAG_DISPLAY_NAME_PATTERN: DAG_DISPLAY_NAME_PATTERN_PARAM,
+  KEY_PATTERN: KEY_PATTERN_PARAM,
+  MAP_INDEX: MAP_INDEX_PARAM,
+  RUN_ID_PATTERN: RUN_ID_PATTERN_PARAM,
+  TASK_ID_PATTERN: TASK_ID_PATTERN_PARAM,
+}: SearchParamsKeysType = SearchParamsKeys;
+
+type ColumnsProps = {
+  readonly open: boolean;
+  readonly translate: (key: string) => string;
+};
+
+const columns = ({ open, translate }: ColumnsProps): Array<ColumnDef<XComResponse>> => [
   {
     accessorKey: "key",
     enableSorting: false,
@@ -60,23 +81,23 @@ const columns = (translate: (key: string) => string): Array<ColumnDef<XComRespon
     header: translate("common:runId"),
   },
   {
-    accessorKey: "task_id",
+    accessorKey: "task_display_name",
     cell: ({ row: { original } }: { row: { original: XComResponse } }) => (
       <Link asChild color="fg.info" fontWeight="bold">
         <RouterLink
-          to={getTaskInstanceLinkFromObj({
+          to={getTaskInstanceLink({
             dagId: original.dag_id,
             dagRunId: original.run_id,
             mapIndex: original.map_index,
             taskId: original.task_id,
           })}
         >
-          <TruncatedText text={original.task_id} />
+          <TruncatedText text={original.task_display_name} />
         </RouterLink>
       </Link>
     ),
     enableSorting: false,
-    header: translate("common:taskId"),
+    header: translate("common:task_one"),
   },
   {
     accessorKey: "map_index",
@@ -84,10 +105,17 @@ const columns = (translate: (key: string) => string): Array<ColumnDef<XComRespon
     header: translate("common:mapIndex"),
   },
   {
+    accessorKey: "timestamp",
+    cell: ({ row: { original } }) => <Time datetime={original.timestamp} />,
+    enableSorting: false,
+    header: translate("dashboard:timestamp"),
+  },
+  {
     cell: ({ row: { original } }) => (
       <XComEntry
         dagId={original.dag_id}
         mapIndex={original.map_index}
+        open={open}
         runId={original.run_id}
         taskId={original.task_id}
         xcomKey={original.key}
@@ -96,6 +124,17 @@ const columns = (translate: (key: string) => string): Array<ColumnDef<XComRespon
     enableSorting: false,
     header: translate("xcom.columns.value"),
   },
+  {
+    accessorKey: "actions",
+    cell: ({ row: { original } }) => (
+      <Flex justifyContent="end">
+        <EditXComButton xcom={original} />
+        <DeleteXComButton xcom={original} />
+      </Flex>
+    ),
+    enableSorting: false,
+    header: "",
+  },
 ];
 
 export const XCom = () => {
@@ -103,28 +142,85 @@ export const XCom = () => {
   const { t: translate } = useTranslation(["browse", "common"]);
   const { setTableURLState, tableURLState } = useTableURLState();
   const { pagination } = tableURLState;
+  const [searchParams] = useSearchParams();
+  const { onClose, onOpen, open } = useDisclosure();
 
-  const { data, error, isFetching, isLoading } = useXcomServiceGetXcomEntries(
-    {
-      dagId,
-      dagRunId: runId,
-      limit: pagination.pageSize,
-      mapIndex: mapIndex === "-1" ? undefined : parseInt(mapIndex, 10),
-      offset: pagination.pageIndex * pagination.pageSize,
-      taskId,
-    },
-    undefined,
-    { enabled: !isNaN(pagination.pageSize) },
+  const filteredKey = searchParams.get(KEY_PATTERN_PARAM);
+  const filteredDagDisplayName = searchParams.get(DAG_DISPLAY_NAME_PATTERN_PARAM);
+  const filteredMapIndex = searchParams.get(MAP_INDEX_PARAM);
+  const filteredRunId = searchParams.get(RUN_ID_PATTERN_PARAM);
+  const filteredTaskId = searchParams.get(TASK_ID_PATTERN_PARAM);
+
+  const { LOGICAL_DATE_GTE, LOGICAL_DATE_LTE, RUN_AFTER_GTE, RUN_AFTER_LTE } = SearchParamsKeys;
+  const logicalDateGte = searchParams.get(LOGICAL_DATE_GTE);
+  const logicalDateLte = searchParams.get(LOGICAL_DATE_LTE);
+  const runAfterGte = searchParams.get(RUN_AFTER_GTE);
+  const runAfterLte = searchParams.get(RUN_AFTER_LTE);
+
+  const apiParams = {
+    dagDisplayNamePattern: filteredDagDisplayName ?? undefined,
+    dagId,
+    dagRunId: runId,
+    limit: pagination.pageSize,
+    logicalDateGte: logicalDateGte ?? undefined,
+    logicalDateLte: logicalDateLte ?? undefined,
+    mapIndex:
+      filteredMapIndex !== null && filteredMapIndex !== ""
+        ? parseInt(filteredMapIndex, 10)
+        : mapIndex === "-1"
+          ? undefined
+          : parseInt(mapIndex, 10),
+    offset: pagination.pageIndex * pagination.pageSize,
+    runAfterGte: runAfterGte ?? undefined,
+    runAfterLte: runAfterLte ?? undefined,
+    runIdPattern: filteredRunId ?? undefined,
+    taskId,
+    taskIdPattern: filteredTaskId ?? undefined,
+    xcomKeyPattern: filteredKey ?? undefined,
+  };
+
+  const { data, error, isFetching, isLoading } = useXcomServiceGetXcomEntries(apiParams, undefined);
+
+  const memoizedColumns = useMemo(
+    () =>
+      columns({
+        open,
+        translate,
+      }),
+    [open, translate],
   );
+
+  const isTaskInstancePage = dagId !== "~" && runId !== "~" && taskId !== "~";
 
   return (
     <Box>
       {dagId === "~" && runId === "~" && taskId === "~" ? (
         <Heading size="md">{translate("xcom.title")}</Heading>
       ) : undefined}
+
+      <Flex alignItems="center" justifyContent="space-between">
+        <XComFilters />
+        <Flex gap={2}>
+          {isTaskInstancePage ? (
+            <AddXComButton
+              dagId={dagId}
+              mapIndex={mapIndex === "~" || mapIndex === "-1" ? -1 : parseInt(mapIndex, 10)}
+              runId={runId}
+              taskId={taskId}
+            />
+          ) : undefined}
+          <ExpandCollapseButtons
+            collapseLabel={translate("common:collapseAllExtra")}
+            expandLabel={translate("common:expandAllExtra")}
+            onCollapse={onClose}
+            onExpand={onOpen}
+          />
+        </Flex>
+      </Flex>
+
       <ErrorAlert error={error} />
       <DataTable
-        columns={columns(translate)}
+        columns={memoizedColumns}
         data={data ? data.xcom_entries : []}
         displayMode="table"
         initialState={tableURLState}

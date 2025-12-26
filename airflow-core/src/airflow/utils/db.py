@@ -24,8 +24,10 @@ import itertools
 import json
 import logging
 import os
+import signal
 import sys
 import time
+import traceback
 import warnings
 from collections.abc import Callable, Generator, Iterable, Iterator, Sequence
 from tempfile import gettempdir
@@ -57,7 +59,22 @@ from airflow.models import import_all_models
 from airflow.utils import helpers
 from airflow.utils.db_manager import RunDBManager
 from airflow.utils.session import NEW_SESSION, provide_session
-from airflow.utils.task_instance_session import get_current_task_instance_session
+from airflow.utils.sqlalchemy import get_dialect_name
+
+USE_PSYCOPG3: bool
+try:
+    from importlib.util import find_spec
+
+    import sqlalchemy
+    from packaging.version import Version
+
+    is_psycopg3 = find_spec("psycopg") is not None
+    sqlalchemy_version = Version(sqlalchemy.__version__)
+    is_sqla2 = (sqlalchemy_version.major, sqlalchemy_version.minor, sqlalchemy_version.micro) >= (2, 0, 0)
+
+    USE_PSYCOPG3 = is_psycopg3 and is_sqla2
+except (ImportError, ModuleNotFoundError):
+    USE_PSYCOPG3 = False
 
 if TYPE_CHECKING:
     from alembic.runtime.environment import EnvironmentContext
@@ -65,7 +82,7 @@ if TYPE_CHECKING:
     from sqlalchemy.engine import Row
     from sqlalchemy.ext.asyncio import AsyncSession
     from sqlalchemy.orm import Session
-    from sqlalchemy.sql.elements import ClauseElement, TextClause
+    from sqlalchemy.sql.elements import ColumnElement, TextClause
     from sqlalchemy.sql.selectable import Select
 
     from airflow.models.connection import Connection
@@ -84,6 +101,7 @@ T = TypeVar("T")
 log = logging.getLogger(__name__)
 
 _REVISION_HEADS_MAP: dict[str, str] = {
+    "2.6.2": "4bc4d934e2bc",
     "2.7.0": "405de8318b3a",
     "2.8.0": "10b52ebd31f7",
     "2.8.1": "88344c1d9134",
@@ -93,8 +111,48 @@ _REVISION_HEADS_MAP: dict[str, str] = {
     "2.10.3": "5f2621c13b39",
     "3.0.0": "29ce7909c52b",
     "3.0.3": "fe199e1abd77",
-    "3.1.0": "f56f68b9e02f",
+    "3.1.0": "cc92b33c6709",
+    "3.2.0": "edc4f85a4619",
 }
+
+
+@contextlib.contextmanager
+def timeout_with_traceback(seconds, message="Operation timed out"):
+    """
+    Raise a TimeoutException after specified seconds.
+
+    Logs the full call stack when timeout occurs.
+
+    Note: This uses SIGALRM and only works on Unix systems (not Windows).
+    """
+
+    class TimeoutException(Exception):
+        """Exception raised when a timeout occurs."""
+
+    def timeout_handler(signum, frame):
+        # Capture the full call stack
+        stack_trace = "".join(traceback.format_stack(frame))
+
+        # Log the timeout and stack trace
+        log.error(
+            "\n%s after %s seconds\nFull call stack at timeout:\n%s",
+            message,
+            seconds,
+            stack_trace,
+        )
+
+        raise TimeoutException(message)
+
+    # Set the signal handler
+    old_handler = signal.signal(signal.SIGALRM, timeout_handler)
+    signal.alarm(seconds)
+
+    try:
+        yield
+    finally:
+        # Cancel the alarm and restore the old handler
+        signal.alarm(0)
+        signal.signal(signal.SIGALRM, old_handler)
 
 
 @provide_session
@@ -110,7 +168,7 @@ def add_default_pool_if_not_exists(session: Session = NEW_SESSION):
     """Add default pool if it does not exist."""
     from airflow.models.pool import Pool
 
-    if not Pool.get_pool(Pool.DEFAULT_POOL_NAME, session=session):
+    if not session.scalar(select(Pool.id).where(Pool.pool == Pool.DEFAULT_POOL_NAME)):
         default_pool = Pool(
             pool=Pool.DEFAULT_POOL_NAME,
             slots=conf.getint(section="core", key="default_pool_task_slot_count"),
@@ -571,19 +629,110 @@ def get_default_connections():
     return conns
 
 
-def _create_db_from_orm(session):
-    log.info("Creating Airflow database tables from the ORM")
-    from alembic import command
+class AutocommitEngineForMySQL:
+    """
+    Context manager to temporarily use AUTOCOMMIT isolation level for MySQL.
 
+    This is needed to work around MySQL 8.4 metadata lock issues with SQLAlchemy 2.0.
+    """
+
+    def __init__(self):
+        self.is_mysql = settings.SQL_ALCHEMY_CONN and settings.SQL_ALCHEMY_CONN.lower().startswith("mysql")
+        self.original_prepare_engine_args = None
+
+    def __enter__(self):
+        if not self.is_mysql:
+            return self
+
+        log.info("Entering AUTOCOMMIT mode for MySQL DDL operations")
+
+        # Save and replace prepare_engine_args
+        self.original_prepare_engine_args = settings.prepare_engine_args
+
+        def autocommit_prepare_engine_args(disable_connection_pool=False, pool_class=None):
+            # Call with keyword arguments to preserve the calling convention
+            args = self.original_prepare_engine_args(
+                disable_connection_pool=disable_connection_pool, pool_class=pool_class
+            )
+            args["isolation_level"] = "AUTOCOMMIT"
+            return args
+
+        settings.prepare_engine_args = autocommit_prepare_engine_args
+
+        # Recreate engine with AUTOCOMMIT
+        settings.dispose_orm(do_log=False)
+        settings.configure_orm()
+
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        if not self.is_mysql:
+            return
+
+        log.info("Exiting AUTOCOMMIT mode, restoring normal transaction engine")
+
+        # Restore original function
+        settings.prepare_engine_args = self.original_prepare_engine_args
+
+        # Recreate engine with normal settings
+        settings.dispose_orm(do_log=False)
+        settings.configure_orm()
+
+
+def _create_db_from_orm(session):
+    """Create database tables from ORM models and stamp alembic version."""
     from airflow.models.base import Base
 
+    log.info("Creating Airflow database tables from the ORM")
+
+    # Debug setup if requested
+    _setup_debug_logging_if_needed()
+
+    log.info("Creating context")
     with create_global_lock(session=session, lock=DBLocks.MIGRATIONS):
+        log.info("Binding engine")
         engine = session.get_bind().engine
+        log.info("Pool status: %s", engine.pool.status())
+
+        log.info("Creating metadata")
         Base.metadata.create_all(engine)
-        # stamp the migration head
+
+        log.info("Getting alembic config")
         config = _get_alembic_config()
-        command.stamp(config, "head")
+
+        # Use AUTOCOMMIT for DDL to avoid metadata lock issues
+        with AutocommitEngineForMySQL():  # TODO: enable for sqlite too
+            from alembic import command
+
+            log.info("Stamping migration head")
+            command.stamp(config, "head")
+
         log.info("Airflow database tables created")
+
+
+def _setup_debug_logging_if_needed():
+    """Set up debug logging and stack trace dumping if SQLALCHEMY_ENGINE_DEBUG is set."""
+    if not os.environ.get("SQLALCHEMY_ENGINE_DEBUG"):
+        return
+
+    import faulthandler
+    import threading
+
+    # Enable SQLA debug logging
+    logging.getLogger("sqlalchemy.engine").setLevel(logging.DEBUG)
+
+    # Enable Fault Handler
+    faulthandler.enable(file=sys.stderr, all_threads=True)
+
+    # Print Active Threads and Stack Traces Periodically
+    def dump_stacks():
+        while True:
+            for thread_id, frame in sys._current_frames().items():
+                log.info("\nThread %s stack:", thread_id)
+                traceback.print_stack(frame)
+            time.sleep(300)
+
+    threading.Thread(target=dump_stacks, daemon=True).start()
 
 
 @provide_session
@@ -596,10 +745,11 @@ def initdb(session: Session = NEW_SESSION):
     import_all_models()
 
     db_exists = _get_current_revision(session)
-    if db_exists:
-        upgradedb(session=session)
-    else:
-        _create_db_from_orm(session=session)
+    with timeout_with_traceback(60 * 20, "DB upgrade/creation timed out."):
+        if db_exists:
+            upgradedb(session=session)
+        else:
+            _create_db_from_orm(session=session)
 
     external_db_manager.initdb(session)
     # Add default pool & sync log_template
@@ -678,7 +828,7 @@ def _configured_alembic_environment() -> Generator[EnvironmentContext, None, Non
             config,
             script,
         ) as env,
-        settings.engine.connect() as connection,
+        settings.get_engine().connect() as connection,
     ):
         alembic_logger = logging.getLogger("alembic")
         level = alembic_logger.level
@@ -894,7 +1044,7 @@ def _revisions_above_min_for_offline(config, revisions) -> None:
     :param revisions: list of Alembic revision ids
     :return: None
     """
-    dbname = settings.engine.dialect.name
+    dbname = settings.get_engine().dialect.name
     if dbname == "sqlite":
         raise SystemExit("Offline migration not supported for SQLite.")
     min_version, min_revision = ("2.7.0", "937cbd173ca1")
@@ -917,7 +1067,6 @@ def upgradedb(
     to_revision: str | None = None,
     from_revision: str | None = None,
     show_sql_only: bool = False,
-    reserialize_dags: bool = True,
     session: Session = NEW_SESSION,
 ):
     """
@@ -970,7 +1119,7 @@ def upgradedb(
     if errors_seen:
         exit(1)
 
-    if not _get_current_revision(session=session):
+    if not _get_current_revision(session=session) and not to_revision:
         # Don't load default connections
         # New DB; initialize and exit
         initdb(session=session)
@@ -1054,23 +1203,9 @@ def downgrade(*, to_revision, from_revision=None, show_sql_only=False, session: 
 
     log.info("Attempting downgrade to revision %s", to_revision)
     config = _get_alembic_config()
-    # Check if downgrade is less than 3.0.0 and requires that `ab_user` fab table is present
+    # If downgrading to less than 3.0.0, we need to handle the FAB provider
     if _revision_greater(config, _REVISION_HEADS_MAP["2.10.3"], to_revision):
-        unitest_mode = conf.getboolean("core", "unit_test_mode")
-        if unitest_mode:
-            try:
-                from airflow.providers.fab.auth_manager.models.db import FABDBManager
-
-                dbm = FABDBManager(session)
-                dbm.initdb()
-            except ImportError:
-                log.warning("Import error occurred while importing FABDBManager. Skipping the check.")
-                return
-        if not inspect(settings.engine).has_table("ab_user") and not unitest_mode:
-            raise AirflowException(
-                "Downgrade to revision less than 3.0.0 requires that `ab_user` table is present. "
-                "Please add FabDBManager to [core] external_db_managers and run fab migrations before proceeding"
-            )
+        _handle_fab_downgrade(session=session)
     with create_global_lock(session=session, lock=DBLocks.MIGRATIONS):
         if show_sql_only:
             log.warning("Generating sql scripts for manual migration.")
@@ -1081,6 +1216,70 @@ def downgrade(*, to_revision, from_revision=None, show_sql_only=False, session: 
         else:
             log.info("Applying downgrade migrations to Airflow database.")
             command.downgrade(config, revision=to_revision, sql=show_sql_only)
+
+
+def _get_fab_migration_version(*, session: Session) -> str | None:
+    """
+    Get the current FAB migration version from the database.
+
+    This intentionally queries the db directly, as the FAB provider and FABDBManager may not even be installed.
+
+    :param session: sqlalchemy session for connection to airflow metadata database
+    :return: The current FAB migration revision, or None if not found
+    """
+    try:
+        result = session.execute(text("SELECT version_num FROM alembic_version_fab LIMIT 1"))
+        row = result.fetchone()
+        return row[0] if row else None
+    except Exception:
+        # Table might not exist or other database error
+        return None
+
+
+def _handle_fab_downgrade(*, session: Session) -> None:
+    """
+    Handle FAB downgrade requirements for downgrades to Airflow versions < 3.0.0.
+
+    First, checks if the FAB db version matches the known version from 1.4.0.
+    If it matches, no FAB db tables need to be touched.
+    Otherwise, imports the FABDBManager and calls its downgrade method.
+
+    :param session: sqlalchemy session for connection to airflow metadata database
+    :raises RuntimeError: If FAB provider is required but cannot be imported
+    """
+    fab_version = _get_fab_migration_version(session=session)
+    if fab_version == "6709f7a774b9":  # 1.4.0
+        # FAB version matches - we can proceed without touching the FAB db tables
+        log.info(
+            "FAB migration version %s matches known version from 1.4.0. "
+            "FAB provider is not required for downgrade.",
+            fab_version,
+        )
+        return
+    connection = settings.get_engine().connect()
+    insp = inspect(connection)
+    if not fab_version and insp.has_table("ab_user"):
+        log.info(
+            "FAB migration version not found, but FAB tables exist. "
+            "FAB provider is not required for downgrade.",
+        )
+        return
+
+    # FAB db version is different or not found - require the FAB provider
+    try:
+        from airflow.providers.fab.auth_manager.models.db import FABDBManager
+    except ImportError:
+        raise RuntimeError(
+            "Import error occurred while importing FABDBManager. The apache-airflow-provider-fab package must be installed before we can "
+            "downgrade to <3.0.0."
+        )
+    dbm = FABDBManager(session)
+    if hasattr(dbm, "reset_to_2_x"):
+        dbm.reset_to_2_x()
+    else:
+        # Older version before we added that function, it only has a single migration so we can just create the tables
+        # to ensure they are there
+        dbm.create_db_from_orm()
 
 
 def drop_airflow_models(connection):
@@ -1147,23 +1346,51 @@ def create_global_lock(
     lock_timeout: int = 1800,
 ) -> Generator[None, None, None]:
     """Contextmanager that will create and teardown a global db lock."""
-    conn = session.get_bind().connect()
-    dialect = conn.dialect
+    bind = session.get_bind()
+    if hasattr(bind, "connect"):
+        conn = bind.connect()
+    else:
+        conn = bind
+    dialect_name = get_dialect_name(session)
     try:
-        if dialect.name == "postgresql":
-            conn.execute(text("SET LOCK_TIMEOUT to :timeout"), {"timeout": lock_timeout})
-            conn.execute(text("SELECT pg_advisory_lock(:id)"), {"id": lock.value})
-        elif dialect.name == "mysql" and dialect.server_version_info >= (5, 6):
+        if dialect_name == "postgresql":
+            if USE_PSYCOPG3:
+                # psycopg3 doesn't support parameters for `SET`. Use `set_config` instead.
+                # The timeout value must be passed as a string of milliseconds.
+                conn.execute(
+                    text("SELECT set_config('lock_timeout', :timeout, false)"),
+                    {"timeout": str(lock_timeout)},
+                )
+                conn.execute(text("SELECT pg_advisory_lock(:id)"), {"id": lock.value})
+            else:
+                conn.execute(text("SET LOCK_TIMEOUT to :timeout"), {"timeout": lock_timeout})
+                conn.execute(text("SELECT pg_advisory_lock(:id)"), {"id": lock.value})
+        elif (
+            dialect_name == "mysql"
+            and conn.dialect.server_version_info
+            and conn.dialect.server_version_info >= (5, 6)
+        ):
             conn.execute(text("SELECT GET_LOCK(:id, :timeout)"), {"id": str(lock), "timeout": lock_timeout})
 
         yield
     finally:
-        if dialect.name == "postgresql":
-            conn.execute(text("SET LOCK_TIMEOUT TO DEFAULT"))
-            (unlocked,) = conn.execute(text("SELECT pg_advisory_unlock(:id)"), {"id": lock.value}).fetchone()
+        if dialect_name == "postgresql":
+            if USE_PSYCOPG3:
+                # Use set_config() to reset the timeout to its default (0 = off/wait forever).
+                conn.execute(text("SELECT set_config('lock_timeout', '0', false)"))
+            else:
+                conn.execute(text("SET LOCK_TIMEOUT TO DEFAULT"))
+            result = conn.execute(text("SELECT pg_advisory_unlock(:id)"), {"id": lock.value}).fetchone()
+            if result is None:
+                raise RuntimeError("Error releasing DB lock!")
+            (unlocked,) = result
             if not unlocked:
                 raise RuntimeError("Error releasing DB lock!")
-        elif dialect.name == "mysql" and dialect.server_version_info >= (5, 6):
+        elif (
+            dialect_name == "mysql"
+            and conn.dialect.server_version_info
+            and conn.dialect.server_version_info >= (5, 6)
+        ):
             conn.execute(text("select RELEASE_LOCK(:id)"), {"id": str(lock)})
 
 
@@ -1248,7 +1475,8 @@ def get_query_count(query_stmt: Select, *, session: Session) -> int:
     :meta private:
     """
     count_stmt = select(func.count()).select_from(query_stmt.order_by(None).subquery())
-    return session.scalar(count_stmt)
+    result = session.scalar(count_stmt)
+    return result or 0
 
 
 async def get_query_count_async(statement: Select, *, session: AsyncSession) -> int:
@@ -1263,7 +1491,8 @@ async def get_query_count_async(statement: Select, *, session: AsyncSession) -> 
     :meta private:
     """
     count_stmt = select(func.count()).select_from(statement.order_by(None).subquery())
-    return await session.scalar(count_stmt)
+    result = await session.scalar(count_stmt)
+    return result or 0
 
 
 def check_query_exists(query_stmt: Select, *, session: Session) -> bool:
@@ -1281,7 +1510,7 @@ def check_query_exists(query_stmt: Select, *, session: Session) -> bool:
     return bool(session.scalar(count_stmt))
 
 
-def exists_query(*where: ClauseElement, session: Session) -> bool:
+def exists_query(*where: ColumnElement[bool], session: Session) -> bool:
     """
     Check whether there is at least one row matching given clauses.
 
@@ -1315,9 +1544,9 @@ class LazySelectSequence(Sequence[T]):
     :meta private:
     """
 
-    _select_asc: ClauseElement
-    _select_desc: ClauseElement
-    _session: Session = attrs.field(kw_only=True, factory=get_current_task_instance_session)
+    _select_asc: Select
+    _select_desc: Select
+    _session: Session
     _len: int | None = attrs.field(init=False, default=None)
 
     @classmethod
@@ -1325,8 +1554,8 @@ class LazySelectSequence(Sequence[T]):
         cls,
         select: Select,
         *,
-        order_by: Sequence[ClauseElement],
-        session: Session | None = None,
+        order_by: Sequence[ColumnElement],
+        session: Session,
     ) -> Self:
         s1 = select
         for col in order_by:
@@ -1334,7 +1563,7 @@ class LazySelectSequence(Sequence[T]):
         s2 = select
         for col in order_by:
             s2 = s2.order_by(col.desc())
-        return cls(s1, s2, session=session or get_current_task_instance_session())
+        return cls(s1, s2, session=session)
 
     @staticmethod
     def _rebuild_select(stmt: TextClause) -> Select:
@@ -1374,7 +1603,6 @@ class LazySelectSequence(Sequence[T]):
         s1, s2, self._len = state
         self._select_asc = self._rebuild_select(text(s1))
         self._select_desc = self._rebuild_select(text(s2))
-        self._session = get_current_task_instance_session()
 
     def __bool__(self) -> bool:
         return check_query_exists(self._select_asc, session=self._session)
@@ -1384,6 +1612,9 @@ class LazySelectSequence(Sequence[T]):
             return NotImplemented
         z = itertools.zip_longest(iter(self), iter(other), fillvalue=object())
         return all(x == y for x, y in z)
+
+    def __hash__(self):
+        return hash(tuple(x for x in iter(self)))
 
     def __reversed__(self) -> Iterator[T]:
         return iter(self._process_row(r) for r in self._session.execute(self._select_desc))

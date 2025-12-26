@@ -20,11 +20,12 @@ from typing import TYPE_CHECKING
 
 import pytest
 
-from airflow.jobs.job import Job
+from airflow.jobs.job import Job, JobState
 from airflow.jobs.scheduler_job_runner import SchedulerJobRunner
 from airflow.utils.session import provide_session
-from airflow.utils.state import JobState, State
+from airflow.utils.state import State
 
+from tests_common.test_utils.asserts import assert_queries_count
 from tests_common.test_utils.db import clear_db_jobs
 from tests_common.test_utils.format_datetime import from_datetime_to_zulu
 
@@ -127,7 +128,7 @@ class TestJobEndpoint:
 
 class TestGetJobs(TestJobEndpoint):
     @pytest.mark.parametrize(
-        "testcase, query_params, expected_status_code, expected_total_entries",
+        ("testcase", "query_params", "expected_status_code", "expected_total_entries"),
         [
             # original testcases refactor from tests/cli/commands/test_jobs_command.py
             (TESTCASE_ONE_SCHEDULER, {}, 200, 1),
@@ -142,7 +143,8 @@ class TestGetJobs(TestJobEndpoint):
     ):
         # setup testcase at runtime based on the `testcase` parameter
         self.setup(testcase)
-        response = test_client.get("/jobs", params=query_params)
+        with assert_queries_count(2):
+            response = test_client.get("/jobs", params=query_params)
         assert response.status_code == expected_status_code
         if expected_status_code != 200:
             return

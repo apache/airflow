@@ -23,6 +23,7 @@ import click
 
 from airflow_breeze.global_constants import (
     ALL_HISTORICAL_PYTHON_VERSIONS,
+    ALLOWED_AUTH_MANAGERS,
     ALLOWED_BACKENDS,
     ALLOWED_DOCKER_COMPOSE_PROJECTS,
     ALLOWED_INSTALLATION_DISTRIBUTION_FORMATS,
@@ -36,6 +37,7 @@ from airflow_breeze.global_constants import (
     AUTOCOMPLETE_ALL_INTEGRATIONS,
     AUTOCOMPLETE_CORE_INTEGRATIONS,
     AUTOCOMPLETE_PROVIDERS_INTEGRATIONS,
+    DEFAULT_POSTGRES_VERSION,
     DEFAULT_UV_HTTP_TIMEOUT,
     DOCKER_DEFAULT_PLATFORM,
     SINGLE_PLATFORMS,
@@ -277,6 +279,14 @@ option_mount_sources = click.option(
     envvar="MOUNT_SOURCES",
     help="Choose scope of local sources that should be mounted, skipped, or removed (default = selected).",
 )
+option_mount_ui_dist = click.option(
+    "--mount-ui-dist",
+    is_flag=True,
+    default=False,
+    show_default=True,
+    envvar="MOUNT_UI_DIST",
+    help="Mount pre-built UI dist directories from host to breeze container to skip UI assets compilation.",
+)
 option_mysql_version = click.option(
     "-M",
     "--mysql-version",
@@ -311,7 +321,7 @@ option_postgres_version = click.option(
     "-P",
     "--postgres-version",
     type=BackendVersionChoice(ALLOWED_POSTGRES_VERSIONS),
-    default=CacheableDefault(ALLOWED_POSTGRES_VERSIONS[0]),
+    default=CacheableDefault(DEFAULT_POSTGRES_VERSION),
     envvar="POSTGRES_VERSION",
     show_default=True,
     help="Version of Postgres used.",
@@ -382,6 +392,14 @@ option_standalone_dag_processor = click.option(
     help="Run standalone dag processor for start-airflow (required for Airflow 3).",
     envvar="STANDALONE_DAG_PROCESSOR",
 )
+option_use_mprocs = click.option(
+    "--use-mprocs/--use-tmux",
+    is_flag=True,
+    default=False,
+    show_default=True,
+    help="Use mprocs instead of tmux for start-airflow.",
+    envvar="USE_MPROCS",
+)
 option_tty = click.option(
     "--tty",
     envvar="TTY",
@@ -389,7 +407,7 @@ option_tty = click.option(
     default=ALLOWED_TTY[0],
     show_default=True,
     help="Whether to allocate pseudo-tty when running docker command"
-    " (useful for pre-commit and CI to force-enable it).",
+    " (useful for prek and CI to force-enable it).",
 )
 option_upgrade_boto = click.option(
     "--upgrade-boto",
@@ -411,12 +429,12 @@ option_use_uv = click.option(
     help="Use uv instead of pip as packaging tool to build the image.",
     envvar="USE_UV",
 )
-option_use_uv_default_disabled = click.option(
+option_use_uv_default_depends_on_installation_method = click.option(
     "--use-uv/--no-use-uv",
     is_flag=True,
-    default=False,
-    show_default=True,
-    help="Use uv instead of pip as packaging tool to build the image.",
+    default=None,
+    help="Use uv instead of pip as packaging tool to build the image (default is True for installing "
+    "from sources and False for installing from packages).",
     envvar="USE_UV",
 )
 option_uv_http_timeout = click.option(
@@ -430,14 +448,16 @@ option_uv_http_timeout = click.option(
 option_use_airflow_version = click.option(
     "--use-airflow-version",
     help="Use (reinstall at entry) Airflow version from PyPI. It can also be version (to install from PyPI), "
-    "`none`, `wheel`, or `sdist` to install from `dist` folder, or VCS URL to install from "
-    "(https://pip.pypa.io/en/stable/topics/vcs-support/). Implies --mount-sources `remove`.",
+    "`none`, `wheel`, or `sdist` to install from `dist` folder, `owner/repo:branch` to "
+    "install from GitHub repo, or a PR number (e.g., `57219`) to install from a pull request. "
+    "Uses --mount-sources `remove` if not specified, but `providers-and-tests` "
+    "or `tests` can be specified for `--mount-sources` when `--use-airflow-version` is used.",
     type=UseAirflowVersionType(ALLOWED_USE_AIRFLOW_VERSIONS),
     envvar="USE_AIRFLOW_VERSION",
 )
 option_allow_pre_releases = click.option(
     "--allow-pre-releases",
-    help="Allow pre-releases of Airflow, task-sdk and providers to be installed. "
+    help="Allow pre-releases of Airflow, task-sdk, providers and airflowctl to be installed. "
     "Set to true automatically for pre-release --use-airflow-version)",
     is_flag=True,
     envvar="ALLOW_PRE_RELEASES",
@@ -530,6 +550,15 @@ option_version_suffix = click.option(
 )
 
 
+option_auth_manager = click.option(
+    "--auth-manager",
+    type=CacheableChoice(ALLOWED_AUTH_MANAGERS, case_sensitive=False),
+    help="Specify the auth manager to set",
+    default=CacheableDefault(ALLOWED_AUTH_MANAGERS[0]),
+    show_default=True,
+)
+
+
 def _normalize_platform(ctx: click.core.Context, param: click.core.Option, value: str):
     if not value:
         return value
@@ -543,4 +572,111 @@ option_platform_single = click.option(
     envvar="PLATFORM",
     callback=_normalize_platform,
     type=BetterChoice(SINGLE_PLATFORMS),
+)
+
+
+# UI E2E Testing Options
+
+option_airflow_ui_base_url = click.option(
+    "--airflow-ui-base-url",
+    help="Base URL for Airflow UI during e2e tests",
+    default="http://localhost:8080",
+    show_default=True,
+    envvar="AIRFLOW_UI_BASE_URL",
+)
+
+option_browser = click.option(
+    "--browser",
+    help="Browser to use for e2e tests",
+    type=BetterChoice(["chromium", "firefox", "webkit", "all"]),
+    default="all",
+    show_default=True,
+)
+
+option_headed = click.option(
+    "--headed",
+    help="Run e2e tests in headed mode (show browser window)",
+    is_flag=True,
+)
+
+option_debug_e2e = click.option(
+    "--debug-e2e",
+    help="Run e2e tests in debug mode",
+    is_flag=True,
+)
+
+option_ui_mode = click.option(
+    "--ui-mode",
+    help="Run e2e tests in Playwright UI mode",
+    is_flag=True,
+)
+
+option_update_snapshots = click.option(
+    "--update-snapshots",
+    help="Update visual regression snapshots",
+    is_flag=True,
+)
+
+option_test_pattern = click.option(
+    "--test-pattern",
+    help="Glob pattern to filter test files",
+    type=str,
+)
+
+option_e2e_workers = click.option(
+    "--workers",
+    help="Number of parallel workers for e2e tests",
+    type=int,
+    default=1,
+    show_default=True,
+)
+
+option_e2e_timeout = click.option(
+    "--timeout",
+    help="Test timeout in milliseconds",
+    type=int,
+    default=60000,
+    show_default=True,
+)
+
+option_e2e_reporter = click.option(
+    "--reporter",
+    help="Test reporter for e2e tests",
+    type=BetterChoice(["list", "dot", "line", "json", "junit", "html", "github"]),
+    default="html",
+    show_default=True,
+)
+
+option_test_admin_username = click.option(
+    "--test-admin-username",
+    help="Admin username for e2e tests",
+    default="airflow",
+    show_default=True,
+    envvar="TEST_ADMIN_USERNAME",
+)
+
+option_test_admin_password = click.option(
+    "--test-admin-password",
+    help="Admin password for e2e tests",
+    default="airflow",
+    show_default=True,
+    envvar="TEST_ADMIN_PASSWORD",
+)
+
+option_skip_airflow_start = click.option(
+    "--skip-airflow-start",
+    help="Skip starting Airflow services (assume already running)",
+    is_flag=True,
+)
+
+option_keep_airflow_running = click.option(
+    "--keep-airflow-running",
+    help="Keep Airflow services running after tests",
+    is_flag=True,
+)
+
+option_force_reinstall_deps = click.option(
+    "--force-reinstall-deps",
+    help="Force reinstall UI dependencies",
+    is_flag=True,
 )

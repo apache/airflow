@@ -34,28 +34,20 @@ from sqlalchemy.engine import make_url
 from sqlalchemy.exc import ArgumentError, NoSuchModuleError
 
 from airflow.configuration import conf
-from airflow.exceptions import (
-    AirflowException,
-    AirflowOptionalProviderFeatureException,
-    AirflowProviderDeprecationWarning,
-)
+from airflow.exceptions import AirflowOptionalProviderFeatureException, AirflowProviderDeprecationWarning
+from airflow.providers.common.compat.module_loading import import_string
+from airflow.providers.common.compat.sdk import AirflowException, BaseHook
 from airflow.providers.common.sql.dialects.dialect import Dialect
 from airflow.providers.common.sql.hooks import handlers
-from airflow.providers.common.sql.version_compat import BaseHook
-from airflow.utils.module_loading import import_string
 
 if TYPE_CHECKING:
     from pandas import DataFrame as PandasDataFrame
     from polars import DataFrame as PolarsDataFrame
     from sqlalchemy.engine import URL, Engine, Inspector
 
+    from airflow.providers.common.compat.sdk import Connection
     from airflow.providers.openlineage.extractors import OperatorLineage
     from airflow.providers.openlineage.sqlparser import DatabaseInfo
-
-    try:
-        from airflow.sdk import Connection
-    except ImportError:
-        from airflow.models.connection import Connection  # type: ignore[assignment]
 
 
 T = TypeVar("T")
@@ -316,7 +308,7 @@ class DbApiHook(BaseHook):
             engine_kwargs = {}
 
         try:
-            url = self.sqlalchemy_url
+            url: URL | str = self.sqlalchemy_url
         except NotImplementedError:
             url = self.get_uri()
 
@@ -332,7 +324,7 @@ class DbApiHook(BaseHook):
     def dialect_name(self) -> str:
         try:
             return make_url(self.get_uri()).get_dialect().name
-        except (ArgumentError, NoSuchModuleError):
+        except (ArgumentError, NoSuchModuleError, ValueError):
             config = self.connection_extra
             sqlalchemy_scheme = config.get("sqlalchemy_scheme")
             if sqlalchemy_scheme:
@@ -341,7 +333,7 @@ class DbApiHook(BaseHook):
 
     @cached_property
     def dialect(self) -> Dialect:
-        from airflow.utils.module_loading import import_string
+        from airflow.providers.common.compat.module_loading import import_string
 
         dialect_info = self._dialects.get(self.dialect_name)
 
@@ -810,6 +802,9 @@ class DbApiHook(BaseHook):
             self.log.info("Running statement: %s, parameters: %s", sql_statement, parameters)
 
         if parameters:
+            # If we're using psycopg3, we might need to handle parameters differently
+            if hasattr(cur, "__module__") and "psycopg" in cur.__module__ and isinstance(parameters, list):
+                parameters = tuple(parameters)
             cur.execute(sql_statement, parameters)
         else:
             cur.execute(sql_statement)

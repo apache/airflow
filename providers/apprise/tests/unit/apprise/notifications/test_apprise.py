@@ -22,69 +22,102 @@ from unittest import mock
 import pytest
 from apprise import NotifyFormat, NotifyType
 
+from airflow.models import Connection
 from airflow.providers.apprise.notifications.apprise import (
     AppriseNotifier,
     send_apprise_notification,
 )
-from airflow.providers.standard.operators.empty import EmptyOperator
-
-pytestmark = pytest.mark.db_test
 
 
 class TestAppriseNotifier:
+    @pytest.fixture(autouse=True)
+    def setup_connections(self, create_connection_without_db):
+        extra = {"config": {"path": "http://some_path_that_dont_exist/", "tag": "alert"}}
+        create_connection_without_db(
+            Connection(
+                conn_id="apprise_default",
+                conn_type="apprise",
+                extra=extra,
+            )
+        )
+
     @mock.patch("airflow.providers.apprise.notifications.apprise.AppriseHook")
-    def test_notifier(self, mock_apprise_hook, dag_maker):
-        with dag_maker("test_notifier") as dag:
-            EmptyOperator(task_id="task1")
+    def test_notifier(self, mock_apprise_hook, create_dag_without_db):
         notifier = send_apprise_notification(body="DISK at 99%", notify_type=NotifyType.FAILURE)
-        notifier({"dag": dag})
-        mock_apprise_hook.return_value.notify.assert_called_once_with(
-            body="DISK at 99%",
-            notify_type=NotifyType.FAILURE,
-            title=None,
-            body_format=NotifyFormat.TEXT,
-            tag="all",
-            attach=None,
-            interpret_escapes=None,
-            config=None,
-        )
+        notifier({"dag": create_dag_without_db("test_notifier")})
+        call_args = mock_apprise_hook.return_value.notify.call_args.kwargs
+
+        assert call_args == {
+            "body": "DISK at 99%",
+            "notify_type": NotifyType.FAILURE,
+            "title": None,
+            "body_format": NotifyFormat.TEXT,
+            "tag": "all",
+            "attach": None,
+            "interpret_escapes": None,
+            "config": None,
+        }
+        mock_apprise_hook.return_value.notify.assert_called_once()
 
     @mock.patch("airflow.providers.apprise.notifications.apprise.AppriseHook")
-    def test_notifier_with_notifier_class(self, mock_apprise_hook, dag_maker):
-        with dag_maker("test_notifier") as dag:
-            EmptyOperator(task_id="task1")
+    def test_notifier_with_notifier_class(self, mock_apprise_hook, create_dag_without_db):
         notifier = AppriseNotifier(body="DISK at 99%", notify_type=NotifyType.FAILURE)
-        notifier({"dag": dag})
-        mock_apprise_hook.return_value.notify.assert_called_once_with(
-            body="DISK at 99%",
-            notify_type=NotifyType.FAILURE,
-            title=None,
-            body_format=NotifyFormat.TEXT,
-            tag="all",
-            attach=None,
-            interpret_escapes=None,
-            config=None,
-        )
+        notifier({"dag": create_dag_without_db("test_notifier")})
+        call_args = mock_apprise_hook.return_value.notify.call_args.kwargs
+
+        assert call_args == {
+            "body": "DISK at 99%",
+            "notify_type": NotifyType.FAILURE,
+            "title": None,
+            "body_format": NotifyFormat.TEXT,
+            "tag": "all",
+            "attach": None,
+            "interpret_escapes": None,
+            "config": None,
+        }
+        mock_apprise_hook.return_value.notify.assert_called_once()
 
     @mock.patch("airflow.providers.apprise.notifications.apprise.AppriseHook")
-    def test_notifier_templated(self, mock_apprise_hook, dag_maker):
-        with dag_maker("test_notifier") as dag:
-            EmptyOperator(task_id="task1")
-
+    def test_notifier_templated(self, mock_apprise_hook, create_dag_without_db):
         notifier = AppriseNotifier(
             notify_type=NotifyType.FAILURE,
             title="DISK at 99% {{dag.dag_id}}",
             body="System can crash soon {{dag.dag_id}}",
         )
-        context = {"dag": dag}
+        context = {"dag": create_dag_without_db("test_notifier")}
         notifier(context)
-        mock_apprise_hook.return_value.notify.assert_called_once_with(
-            notify_type=NotifyType.FAILURE,
-            title="DISK at 99% test_notifier",
-            body="System can crash soon test_notifier",
-            body_format=NotifyFormat.TEXT,
-            tag="all",
-            attach=None,
-            interpret_escapes=None,
-            config=None,
-        )
+        call_args = mock_apprise_hook.return_value.notify.call_args.kwargs
+        assert call_args == {
+            "body": "System can crash soon test_notifier",
+            "title": "DISK at 99% test_notifier",
+            "notify_type": NotifyType.FAILURE,
+            "body_format": NotifyFormat.TEXT,
+            "tag": "all",
+            "attach": None,
+            "interpret_escapes": None,
+            "config": None,
+        }
+        mock_apprise_hook.return_value.notify.assert_called_once()
+
+    @pytest.mark.asyncio
+    @mock.patch("airflow.providers.apprise.notifications.apprise.AppriseHook")
+    async def test_async_apprise_notifier(self, mock_apprise_hook, create_dag_without_db):
+        mock_apprise_hook.return_value.async_notify = mock.AsyncMock()
+
+        notifier = send_apprise_notification(body="DISK at 99%", notify_type=NotifyType.FAILURE)
+
+        await notifier.async_notify({"dag": create_dag_without_db("test_notifier")})
+
+        call_args = mock_apprise_hook.return_value.async_notify.call_args.kwargs
+
+        assert call_args == {
+            "body": "DISK at 99%",
+            "notify_type": NotifyType.FAILURE,
+            "title": None,
+            "body_format": NotifyFormat.TEXT,
+            "tag": "all",
+            "attach": None,
+            "interpret_escapes": None,
+            "config": None,
+        }
+        mock_apprise_hook.return_value.async_notify.assert_called_once()

@@ -7,6 +7,13 @@
     "Providers": "حُزم",
     "Variables": "متغيرات"
   },
+  "allOperators": "جميع المُشغِّلات",
+  "appearance": {
+    "appearance": "المظهر",
+    "darkMode": "الوضع الداكن",
+    "lightMode": "الوضع الفاتح",
+    "systemMode": "اتّباع إعداد النظام"
+  },
   "asset_few": "أصول",
   "asset_many": "أصول",
   "asset_one": "أصل",
@@ -27,8 +34,10 @@
   "backfill_zero": "لا يوجد أي إعادة ملء",
   "browse": {
     "auditLog": "سجل المراجعة",
+    "requiredActions": "إجراءات مطلوبة",
     "xcoms": "(XComs) إكس كوم"
   },
+  "collapseAllExtra": "طي جميع الJSON الإضافية",
   "collapseDetailsPanel": "طي لوحة التفاصيل",
   "createdAssetEvent_few": "تم إنشاء واقعات أصل",
   "createdAssetEvent_many": "تم إنشاء واقعات أصل",
@@ -44,7 +53,6 @@
   "dag_zero": "لا يوجد أي Dag",
   "dagDetails": {
     "catchup": "إلحاق",
-    "concurrency": "تزامن",
     "dagRunTimeout": "مهلة تشغيل الDag",
     "defaultArgs": "متغيرات افتراضية",
     "description": "وصف",
@@ -52,6 +60,7 @@
     "fileLocation": "موقع الملف",
     "hasTaskConcurrencyLimits": "لديه حدود تزامن المهام",
     "lastExpired": "انتهت صلاحيته آخر مرة في",
+    "lastParseDuration": "مدة التحليل الأخير",
     "lastParsed": "تم تحليله آخر مرة في",
     "latestDagVersion": "آخر إصدار لDag",
     "latestRun": "آخر تشغيل",
@@ -84,6 +93,7 @@
   "dagRun_other": "مثيلات تشغيل لDag",
   "dagRun_two": "مثيلا تشغيل لDag",
   "dagRun_zero": "لا يوجد أي مثيل تشغيل لDag",
+  "dagRunId": "معرف تشغيل الDag",
   "dagWarnings": "تحذيرات الDag",
   "defaultToGraphView": "عرض الرسم البياني تلقائياً",
   "defaultToGridView": "عرض الشبكة تلقائياً",
@@ -92,6 +102,11 @@
     "documentation": "توثيق",
     "githubRepo": "مستودع GitHub",
     "restApiReference": "مرجع REST API"
+  },
+  "download": {
+    "download": "تنزيل",
+    "hotkey": "d",
+    "tooltip": "اضغط على {{hotkey}} لتنزيل السجلات"
   },
   "duration": "المدة",
   "endDate": "تاريخ الانتهاء",
@@ -108,11 +123,21 @@
     "hotkey": "e",
     "tooltip": "اضغط {{hotkey}} للتوسيع"
   },
+  "expandAllExtra": "توسيع جميع الJSON الإضافية",
   "expression": {
     "all": "الكل",
     "and": "و",
     "any": "أي",
     "or": "أو"
+  },
+  "filter": "فلتر",
+  "filters": {
+    "durationFrom": "المدة من",
+    "durationTo": "المدة إلى",
+    "logicalDateFrom": "من التاريخ المنطقي",
+    "logicalDateTo": "إلى التاريخ المنطقي",
+    "runAfterFrom": "من تشغيل بعد",
+    "runAfterTo": "إلى تشغيل بعد"
   },
   "logicalDate": "التاريخ المنطقي",
   "logout": "تسجيل الخروج",
@@ -158,6 +183,7 @@
     "running": "قيد التشغيل",
     "scheduled": "مجدول"
   },
+  "reset": "إعادة تعيين",
   "runId": "معرف التشغيل",
   "runTypes": {
     "asset_triggered": "مُشغل بواسطة الأصل",
@@ -172,7 +198,6 @@
     },
     "tooltip": "اضغط {{hotkey}} للتمرير إلى {{direction}}"
   },
-  "seconds": "ثواني",
   "security": {
     "actions": "إجراءات",
     "permissions": "صلاحيات",
@@ -200,6 +225,7 @@
     "failed": "فشِل",
     "no_status": "بلا حالة",
     "none": "لا شيء",
+    "planned": "مخطط",
     "queued": "في الانتظار",
     "removed": "محذوف",
     "restarting": "إعادة التشغيل",
@@ -211,8 +237,6 @@
     "up_for_retry": "جاهز للمحاولة مرة أخرى",
     "upstream_failed": "فشِل في المهام السابقة"
   },
-  "switchToDarkMode": "تبديل إلى الوضع الداكن",
-  "switchToLightMode": "تبديل إلى الوضع الفاتح",
   "table": {
     "completedAt": "اكتمل في",
     "createdAt": "تم الإنشاء في",
@@ -246,6 +270,7 @@
   "task_other": "مهام",
   "task_two": "مهمتان",
   "task_zero": "لا يوجد أي مهمة",
+  "taskGroup": "مجموعة المهام",
   "taskId": "معرف المهمة",
   "taskInstance": {
     "dagVersion": "إصدار الDag",

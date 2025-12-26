@@ -34,6 +34,7 @@ airbnb
 Airbyte
 airbyte
 AirflowConfigParser
+airflowctl
 AirflowException
 airflowignore
 ajax
@@ -65,6 +66,7 @@ AnExampleDisplayName
 AnnotateTextResponse
 AnotherExampleDisplayName
 ans
+anser
 Ansible
 anyOf
 apache
@@ -224,6 +226,7 @@ bytestring
 cacert
 Cadwyn
 callables
+callsite
 camelCase
 Cancelled
 cancelled
@@ -250,6 +253,8 @@ chakra
 Changelog
 changelog
 charset
+chatbot
+chatbots
 Checklicence
 checklicence
 CheckOperator
@@ -270,6 +275,7 @@ classpaths
 cleartext
 cli
 clientId
+ClientSecretCredential
 cloudant
 CloudantV
 cloudbuild
@@ -360,6 +366,7 @@ csrf
 CSRFProtect
 css
 csv
+Ctl
 ctor
 Ctrl
 cubeName
@@ -369,6 +376,8 @@ customizable
 customizations
 cwd
 cx
+Cypher
+cypher
 Daemonize
 daemonize
 daemonized
@@ -474,6 +483,7 @@ deduplicated
 deduplication
 deepcopy
 deepcopying
+DefaultAzureCredential
 deferrable
 deidentify
 DeidentifyContentResponse
@@ -529,6 +539,9 @@ Dlp
 dlp
 DlpJob
 DlpServiceClient
+DLQ
+Dlq
+dlq
 dms
 DNs
 dns
@@ -602,6 +615,7 @@ encodable
 encryptor
 enqueue
 enqueued
+Entra
 Entry
 EntryGroup
 EntryGroups
@@ -690,11 +704,14 @@ filesystems
 filetype
 finalizers
 findall
+fips
 firebase
 Firehose
 Firestore
 firestore
 firstname
+Flamegraph
+flamegraph
 Flink
 flink
 flinkDeployment
@@ -1027,6 +1044,7 @@ kwargs
 KYLIN
 Kylin
 kylin
+Kyverno
 Lakehouse
 LanguageServiceClient
 lastname
@@ -1111,6 +1129,7 @@ memberOf
 memcached
 Memorystore
 memorystore
+memray
 Mesos
 mesos
 MessageAttributes
@@ -1235,6 +1254,7 @@ od
 odbc
 odps
 ok
+oklch
 Okta
 okta
 onboarded
@@ -1365,6 +1385,7 @@ prefetched
 prefetches
 preflight
 prefork
+prek
 Preload
 preloading
 prepend
@@ -1504,6 +1525,7 @@ repos
 repr
 req
 reqs
+requeue
 requeued
 Reserialize
 reserialize
@@ -1569,6 +1591,7 @@ sched
 schedulable
 schedulername
 schemas
+scrollbar
 sdk
 sdks
 searchpath
@@ -1603,6 +1626,9 @@ serializer
 serializers
 serverless
 ServiceAccount
+servicebus
+ServiceBusReceivedMessage
+ServicePrincipalCredentials
 ServiceResource
 SES
 sessionmaker
@@ -1793,12 +1819,15 @@ TaskInstanceKey
 taskinstancekey
 taskmeta
 taskmixin
+tasksDuration
 tasksetmeta
 tasksState
 taskTree
 tblproperties
+tbuild
 TCP
 tcp
+tdload
 teardown
 teardowns
 templatable
@@ -1853,6 +1882,7 @@ toolchain
 Tooltip
 tooltip
 tooltips
+tpt
 traceback
 tracebacks
 tracemalloc
@@ -1871,6 +1901,8 @@ tsql
 tsv
 ttl
 ttlSecondsAfterFinished
+TTU
+Ttu
 TTY
 Tunables
 tunables
@@ -1960,6 +1992,8 @@ utilise
 Utils
 utils
 uuid
+uv
+uvicorn
 V1JobList
 validator
 validators

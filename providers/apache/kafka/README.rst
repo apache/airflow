@@ -23,9 +23,8 @@
 
 Package ``apache-airflow-providers-apache-kafka``
 
-Release: ``1.10.1``
+Release: ``1.11.1``
 
-Release Date: ``|PypiReleaseDate|``
 
 `Apache Kafka  <https://kafka.apache.org/>`__
 
@@ -37,12 +36,12 @@ This is a provider package for ``apache.kafka`` provider. All classes for this p
 are in ``airflow.providers.apache.kafka`` python package.
 
 You can find package information and changelog for the provider
-in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-apache-kafka/1.10.1/>`_.
+in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-apache-kafka/1.11.1/>`_.
 
 Installation
 ------------
 
-You can install this package on top of an existing Airflow 2 installation (see ``Requirements`` below
+You can install this package on top of an existing Airflow installation (see ``Requirements`` below
 for the minimum Airflow version supported) via
 ``pip install apache-airflow-providers-apache-kafka``
 
@@ -51,13 +50,14 @@ The package supports the following python versions: 3.10,3.11,3.12
 Requirements
 ------------
 
-===================  ==================
-PIP package          Version required
-===================  ==================
-``apache-airflow``   ``>=2.10.0``
-``asgiref``          ``>=2.3.0``
-``confluent-kafka``  ``>=2.6.0``
-===================  ==================
+==========================================  ==================
+PIP package                                 Version required
+==========================================  ==================
+``apache-airflow``                          ``>=2.11.0``
+``apache-airflow-providers-common-compat``  ``>=1.10.1``
+``asgiref``                                 ``>=2.3.0``
+``confluent-kafka``                         ``>=2.6.0``
+==========================================  ==================
 
 Cross provider package dependencies
 -----------------------------------
@@ -69,15 +69,26 @@ You can install such cross-provider dependencies when installing from PyPI. For 
 
 .. code-block:: bash
 
-    pip install apache-airflow-providers-apache-kafka[common.messaging]
+    pip install apache-airflow-providers-apache-kafka[common.compat]
 
 
 ========================================================================================================================  ====================
 Dependent package                                                                                                         Extra
 ========================================================================================================================  ====================
+`apache-airflow-providers-common-compat <https://airflow.apache.org/docs/apache-airflow-providers-common-compat>`_        ``common.compat``
 `apache-airflow-providers-common-messaging <https://airflow.apache.org/docs/apache-airflow-providers-common-messaging>`_  ``common.messaging``
 `apache-airflow-providers-google <https://airflow.apache.org/docs/apache-airflow-providers-google>`_                      ``google``
 ========================================================================================================================  ====================
 
+Optional dependencies
+----------------------
+
+====================  ====================================================
+Extra                 Dependencies
+====================  ====================================================
+``google``            ``apache-airflow-providers-google``
+``common.messaging``  ``apache-airflow-providers-common-messaging>=2.0.0``
+====================  ====================================================
+
 The changelog for the provider package can be found in the
-`changelog <https://airflow.apache.org/docs/apache-airflow-providers-apache-kafka/1.10.1/changelog.html>`_.
+`changelog <https://airflow.apache.org/docs/apache-airflow-providers-apache-kafka/1.11.1/changelog.html>`_.

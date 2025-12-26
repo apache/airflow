@@ -30,8 +30,7 @@ sudo rm -rf /usr/local/share/powershell
 sudo rm -rf /usr/local/share/chromium
 sudo rm -rf /usr/local/share/boost
 sudo rm -rf /usr/local/lib/android
-sudo rm -rf /opt/hostedtoolcache/CodeQL
-sudo rm -rf /opt/hostedtoolcache/Ruby
+sudo rm -rf /opt/hostedtoolcache
 sudo rm -rf /opt/ghc
 sudo apt-get clean
 echo "${COLOR_BLUE}Disk space after cleanup${COLOR_RESET}"

@@ -1,0 +1,24 @@
+{
+  "requiredAction_one": "आवश्यक क्रिया",
+  "requiredAction_other": "आवश्यक क्रियाएं",
+  "requiredActionState": "आवश्यक क्रिया स्थिति",
+  "response": {
+    "error": "प्रतिक्रिया विफल",
+    "optionsDescription": "इस टास्क इंस्टेंस के लिए अपने विकल्प चुनें",
+    "optionsLabel": "विकल्प",
+    "received": "प्रतिक्रिया प्राप्त हुई ",
+    "respond": "प्रतिक्रिया दें",
+    "success": "{{taskId}} प्रतिक्रिया सफल",
+    "title": "मानव टास्क इंस्टेंस - {{taskId}}"
+  },
+  "state": {
+    "approvalReceived": "स्वीकृति प्राप्त",
+    "approvalRequired": "स्वीकृति आवश्यक",
+    "choiceReceived": "विकल्प प्राप्त",
+    "choiceRequired": "विकल्प आवश्यक",
+    "rejectionReceived": "अस्वीकृति प्राप्त",
+    "responseReceived": "प्रतिक्रिया प्राप्त",
+    "responseRequired": "प्रतिक्रिया आवश्यक"
+  },
+  "subject": "विषय"
+}

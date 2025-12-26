@@ -20,7 +20,10 @@ import contextlib
 import os
 import signal
 import sys
+from collections.abc import Generator
 from datetime import datetime
+from functools import cache
+from multiprocessing.pool import Pool
 from time import sleep
 
 import click
@@ -28,19 +31,27 @@ from click import IntRange
 
 from airflow_breeze.commands.ci_image_commands import rebuild_or_pull_ci_image_if_needed
 from airflow_breeze.commands.common_options import (
+    option_airflow_ui_base_url,
     option_allow_pre_releases,
     option_backend,
+    option_browser,
     option_clean_airflow_installation,
     option_core_integration,
     option_db_reset,
+    option_debug_e2e,
     option_debug_resources,
     option_downgrade_pendulum,
     option_downgrade_sqlalchemy,
     option_dry_run,
+    option_e2e_reporter,
+    option_e2e_timeout,
+    option_e2e_workers,
     option_excluded_providers,
     option_force_lowest_dependencies,
+    option_force_reinstall_deps,
     option_forward_credentials,
     option_github_repository,
+    option_headed,
     option_image_name,
     option_include_success_outputs,
     option_install_airflow_with_constraints,
@@ -56,6 +67,10 @@ from airflow_breeze.commands.common_options import (
     option_run_in_parallel,
     option_skip_cleanup,
     option_skip_db_tests,
+    option_test_admin_password,
+    option_test_admin_username,
+    option_test_pattern,
+    option_ui_mode,
     option_upgrade_boto,
     option_upgrade_sqlalchemy,
     option_use_airflow_version,
@@ -96,6 +111,7 @@ from airflow_breeze.utils.parallel import (
 )
 from airflow_breeze.utils.path_utils import AIRFLOW_CTL_ROOT_PATH, FILES_PATH, cleanup_python_generated_files
 from airflow_breeze.utils.run_tests import (
+    TASK_SDK_INTEGRATION_TESTS_ROOT_PATH,
     file_name_from_test_type,
     generate_args_for_pytest,
     run_docker_compose_tests,
@@ -108,15 +124,27 @@ GRACE_CONTAINER_STOP_TIMEOUT = 10  # Timeout in seconds to wait for containers t
 LOW_MEMORY_CONDITION = 8 * 1024 * 1024 * 1024  # 8 GB
 DEFAULT_TOTAL_TEST_TIMEOUT = 60 * 60  # 60 minutes
 
-logs_already_dumped = False
+option_skip_docker_compose_deletion = click.option(
+    "--skip-docker-compose-deletion",
+    help="Skip deletion of docker-compose instance after the test",
+    envvar="SKIP_DOCKER_COMPOSE_DELETION",
+    is_flag=True,
+)
+option_skip_mounting_local_volumes = click.option(
+    "--skip-mounting-local-volumes",
+    is_flag=True,
+    default=False,
+    help="Skip mounting local volumes - useful when we do not want to iterate with modified local files. "
+    "For example, when the PROD image is built from packages rather than from local sources.",
+)
 
 
 @click.group(cls=BreezeGroup, name="testing", help="Tools that developers can use to run tests")
-def group_for_testing():
+def testing_group():
     pass
 
 
-@group_for_testing.command(
+@testing_group.command(
     name="docker-compose-tests",
     context_settings=dict(
         ignore_unknown_options=True,
@@ -125,12 +153,7 @@ def group_for_testing():
 )
 @option_python
 @option_image_name
-@click.option(
-    "--skip-docker-compose-deletion",
-    help="Skip deletion of docker-compose instance after the test",
-    envvar="SKIP_DOCKER_COMPOSE_DELETION",
-    is_flag=True,
-)
+@option_skip_docker_compose_deletion
 @option_github_repository
 @option_include_success_outputs
 @option_verbose
@@ -152,8 +175,10 @@ def docker_compose_tests(
     get_console().print(f"[info]Running docker-compose with PROD image: {image_name}[/]")
     return_code, info = run_docker_compose_tests(
         image_name=image_name,
+        python_version=python,
         include_success_outputs=include_success_outputs,
         extra_pytest_args=extra_pytest_args,
+        skip_mounting_local_volumes=False,
         skip_docker_compose_deletion=skip_docker_compose_deletion,
     )
     sys.exit(return_code)
@@ -241,8 +266,8 @@ def _run_test(
             notify_on_unhealthy_backend_container(
                 project_name=project_name, backend=shell_params.backend, output=output
             )
-        if os.environ.get("CI") == "true" and result.returncode != 0 and not logs_already_dumped:
-            get_console(output=output).print(f"[error]Test failed with {result.returncode}. Dumping logs[/]")
+        if os.environ.get("CI") == "true" and result.returncode != 0:
+            get_console(output=output).print(f"[error]Test failed with {result.returncode}.[/]")
             _dump_container_logs(output=output, shell_params=shell_params)
     finally:
         if not skip_docker_compose_down:
@@ -270,12 +295,16 @@ def _run_test(
 def _get_project_names(shell_params: ShellParams) -> tuple[str, str]:
     """Return compose project name and project name."""
     project_name = file_name_from_test_type(shell_params.test_type)
-    compose_project_name = f"airflow-test-{project_name}"
+    if shell_params.test_type == ALL_TEST_TYPE:
+        compose_project_name = "airflow-test"
+    else:
+        compose_project_name = f"airflow-test-{project_name}"
     return compose_project_name, project_name
 
 
+@cache  # Note: using functools.cache to avoid multiple dumps in the same run
 def _dump_container_logs(output: Output | None, shell_params: ShellParams):
-    global logs_already_dumped
+    get_console().print("[warning]Dumping container logs[/]")
     ps_result = run_command(
         ["docker", "ps", "--all", "--format", "{{.Names}}"],
         check=True,
@@ -283,23 +312,24 @@ def _dump_container_logs(output: Output | None, shell_params: ShellParams):
         text=True,
     )
     container_ids = ps_result.stdout.splitlines()
-    get_console(output=output).print("[info]Wait 10 seconds for logs to find their way to stderr.\n")
+    get_console(output=output).print("[warning]Wait 10 seconds for logs to find their way to stderr.\n")
     sleep(10)
     compose_project_name, project_name = _get_project_names(shell_params)
-    get_console(output=output).print(f"[info]Dumping containers: {container_ids} for {project_name}.\n")
+    get_console(output=output).print(
+        f"[warning]Dumping container logs: {container_ids} for compose project {compose_project_name} (cp.\n"
+    )
     date_str = datetime.now().strftime("%Y_%d_%m_%H_%M_%S")
     for container_id in container_ids:
         if compose_project_name not in container_id:
             continue
         dump_path = FILES_PATH / f"container_logs_{container_id}_{date_str}.log"
-        get_console(output=output).print(f"[info]Dumping container {container_id} to {dump_path}\n")
+        get_console(output=output).print(f"[info]Dumping container log {container_id} to {dump_path}\n")
         with open(dump_path, "w") as outfile:
             run_command(
                 ["docker", "logs", "--details", "--timestamps", container_id],
                 check=False,
                 stdout=outfile,
             )
-    logs_already_dumped = True
 
 
 def _run_tests_in_pool(
@@ -312,6 +342,7 @@ def _run_tests_in_pool(
     skip_docker_compose_down: bool,
     test_timeout: int,
     tests_to_run: list[str],
+    handler: TimeoutHandler,
 ):
     if not tests_to_run:
         return
@@ -349,6 +380,7 @@ def _run_tests_in_pool(
                 lines_to_search=400,
             ),
         ) as (pool, outputs):
+            handler.set_pool(pool)
             results = [
                 pool.apply_async(
                     _run_test,
@@ -366,12 +398,13 @@ def _run_tests_in_pool(
     escaped_tests = [test.replace("[", "\\[") for test in tests_to_run]
     check_async_run_results(
         results=results,
-        success=f"Tests {' '.join(escaped_tests)} completed successfully",
+        success_message=f"Tests {' '.join(escaped_tests)} completed successfully",
         outputs=outputs,
         include_success_outputs=include_success_outputs,
         skip_cleanup=skip_cleanup,
         summarize_on_ci=SummarizeAfter.FAILURE,
         summary_start_regexp=r".*= FAILURES.*|.*= ERRORS.*",
+        terminated_on_timeout=handler.terminated_on_timeout_output_list[0],
     )
 
 
@@ -395,6 +428,7 @@ def run_tests_in_parallel(
     parallelism: int,
     skip_cleanup: bool,
     skip_docker_compose_down: bool,
+    handler: TimeoutHandler,
 ) -> None:
     get_console().print("\n[info]Summary of the tests to run\n")
     get_console().print(f"[info]Running tests in parallel with parallelism={parallelism}")
@@ -417,6 +451,7 @@ def run_tests_in_parallel(
         debug_resources=debug_resources,
         skip_cleanup=skip_cleanup,
         skip_docker_compose_down=skip_docker_compose_down,
+        handler=handler,
     )
 
 
@@ -576,15 +611,9 @@ option_total_test_timeout = click.option(
     type=int,
     envvar="TOTAL_TEST_TIMEOUT",
 )
-option_skip_docker_compose_deletion = click.option(
-    "--skip-docker-compose-deletion",
-    help="Skip deletion of docker-compose instance after the test",
-    envvar="SKIP_DOCKER_COMPOSE_DELETION",
-    is_flag=True,
-)
 
 
-@group_for_testing.command(
+@testing_group.command(
     name="core-tests",
     help="Run all (default) or specified core unit tests.",
     context_settings=dict(
@@ -646,7 +675,7 @@ def core_tests(**kwargs):
     )
 
 
-@group_for_testing.command(
+@testing_group.command(
     name="providers-tests",
     help="Run all (default) or specified Providers unit tests.",
     context_settings=dict(
@@ -704,7 +733,7 @@ def providers_tests(**kwargs):
     _run_test_command(test_group=GroupOfTests.PROVIDERS, integration=(), **kwargs)
 
 
-@group_for_testing.command(
+@testing_group.command(
     name="task-sdk-tests",
     help="Run task-sdk tests - all task SDK tests are non-DB bound tests.",
     context_settings=dict(
@@ -765,8 +794,87 @@ def task_sdk_tests(**kwargs):
     )
 
 
-@group_for_testing.command(
+@testing_group.command(
     name="task-sdk-integration-tests",
+    context_settings=dict(
+        ignore_unknown_options=True,
+        allow_extra_args=True,
+    ),
+)
+@option_python
+@option_image_name
+@option_skip_docker_compose_deletion
+@option_skip_mounting_local_volumes
+@click.option(
+    "--task-sdk-version",
+    help="Version of Task SDK to test",
+    envvar="TASK_SDK_VERSION",
+)
+@click.option(
+    "--down",
+    help="Shuts down the docker-compose setup without running any tests. "
+    "Useful to make sure to free resources.",
+    is_flag=True,
+)
+@option_github_repository
+@option_include_success_outputs
+@option_verbose
+@option_dry_run
+@click.argument("extra_pytest_args", nargs=-1, type=click.Path(path_type=str))
+def task_sdk_integration_tests(
+    python: str,
+    image_name: str,
+    task_sdk_version: str,
+    down: bool,
+    skip_docker_compose_deletion: bool,
+    skip_mounting_local_volumes: bool,
+    github_repository: str,
+    include_success_outputs: bool,
+    extra_pytest_args: tuple,
+):
+    """Run task SDK integration tests."""
+    perform_environment_checks()
+    if image_name is None:
+        build_params = BuildProdParams(python=python, github_repository=github_repository)
+        image_name = build_params.airflow_image_name
+
+    import os
+
+    if down:
+        env = {
+            **os.environ,
+            "DOCKER_IMAGE": image_name,
+        }
+        down_cmd = [
+            "docker",
+            "compose",
+            "down",
+            "--remove-orphans",
+            "--volumes",
+        ]
+        get_console().print("[info]Running docker-compose down[/]")
+        run_command(down_cmd, output=None, check=False, env=env, cwd=TASK_SDK_INTEGRATION_TESTS_ROOT_PATH)
+        sys.exit(0)
+    # Export the TASK_SDK_VERSION environment variable for the test ONLY if it is set
+    if task_sdk_version:
+        os.environ["TASK_SDK_VERSION"] = task_sdk_version
+
+    get_console().print(f"[info]Running task SDK integration tests with PROD image: {image_name}[/]")
+    get_console().print(f"[info]Using Task SDK version: {task_sdk_version}[/]")
+    return_code, info = run_docker_compose_tests(
+        image_name=image_name,
+        python_version=python,
+        include_success_outputs=include_success_outputs,
+        extra_pytest_args=extra_pytest_args,
+        skip_docker_compose_deletion=skip_docker_compose_deletion,
+        skip_mounting_local_volumes=skip_mounting_local_volumes,
+        test_type="task-sdk-integration",
+    )
+    sys.exit(return_code)
+
+
+@testing_group.command(
+    name="airflow-ctl-integration-tests",
     context_settings=dict(
         ignore_unknown_options=True,
         allow_extra_args=True,
@@ -780,48 +888,52 @@ def task_sdk_tests(**kwargs):
 @option_verbose
 @option_dry_run
 @click.option(
-    "--task-sdk-version",
-    help="Version of Task SDK to test",
-    default="1.1.0",
+    "--airflow-ctl-version",
+    help="Version of airflowctl to test",
+    default=None,
     show_default=True,
-    envvar="TASK_SDK_VERSION",
+    envvar="AIRFLOW_CTL_VERSION",
 )
 @click.argument("extra_pytest_args", nargs=-1, type=click.Path(path_type=str))
-def task_sdk_integration_tests(
+def airflowctl_integration_tests(
     python: str,
-    image_name: str,
+    image_name: str | None,
     skip_docker_compose_deletion: bool,
     github_repository: str,
     include_success_outputs: bool,
-    task_sdk_version: str,
+    airflow_ctl_version: str | None,
     extra_pytest_args: tuple,
 ):
-    """Run task SDK integration tests."""
+    """Run airflowctl integration tests."""
+    # Export the AIRFLOW_CTL_VERSION environment variable for the test
+    import os
+
     perform_environment_checks()
+    if airflow_ctl_version:
+        os.environ["AIRFLOW_CTL_VERSION"] = airflow_ctl_version
+    image_name = image_name or os.environ.get("DOCKER_IMAGE")
+
     if image_name is None:
         build_params = BuildProdParams(python=python, github_repository=github_repository)
         image_name = build_params.airflow_image_name
 
-    # Export the TASK_SDK_VERSION environment variable for the test
-    import os
-
-    os.environ["TASK_SDK_VERSION"] = task_sdk_version
-
-    get_console().print(f"[info]Running task SDK integration tests with PROD image: {image_name}[/]")
-    get_console().print(f"[info]Using Task SDK version: {task_sdk_version}[/]")
+    get_console().print(f"[info]Running airflowctl integration tests with PROD image: {image_name}[/]")
+    get_console().print(f"[info]Using airflowctl version: {airflow_ctl_version}[/]")
     return_code, info = run_docker_compose_tests(
         image_name=image_name,
+        python_version=python,
         include_success_outputs=include_success_outputs,
         extra_pytest_args=extra_pytest_args,
         skip_docker_compose_deletion=skip_docker_compose_deletion,
-        test_type="task-sdk-integration",
+        skip_mounting_local_volumes=False,
+        test_type="airflow-ctl-integration",
     )
     sys.exit(return_code)
 
 
-@group_for_testing.command(
+@testing_group.command(
     name="airflow-ctl-tests",
-    help="Run airflow-ctl tests - all Airflow CTL tests are non-DB bound tests.",
+    help="Run airflow-ctl tests - all airflowctl tests are non-DB bound tests.",
     context_settings=dict(
         ignore_unknown_options=False,
         allow_extra_args=False,
@@ -847,13 +959,13 @@ def airflow_ctl_tests(python: str, parallelism: int, extra_pytest_args: tuple):
     result = run_command(test_command, cwd=AIRFLOW_CTL_ROOT_PATH, check=False)
     if result.returncode != 0:
         get_console().print(
-            f"[error]Airflow CTL tests failed with return code {result.returncode}.[/]\n"
+            f"[error]airflowctl tests failed with return code {result.returncode}.[/]\n"
             f"Command: {' '.join(test_command)}\n"
         )
         sys.exit(result.returncode)
 
 
-@group_for_testing.command(
+@testing_group.command(
     name="core-integration-tests",
     help="Run the specified integration tests.",
     context_settings=dict(
@@ -934,7 +1046,7 @@ def core_integration_tests(
     sys.exit(returncode)
 
 
-@group_for_testing.command(
+@testing_group.command(
     name="providers-integration-tests",
     help="Run the specified integration tests.",
     context_settings=dict(
@@ -1015,7 +1127,7 @@ def integration_providers_tests(
     sys.exit(returncode)
 
 
-@group_for_testing.command(
+@testing_group.command(
     name="system-tests",
     help="Run the specified system tests.",
     context_settings=dict(
@@ -1118,7 +1230,7 @@ def system_tests(
     sys.exit(returncode)
 
 
-@group_for_testing.command(
+@testing_group.command(
     name="helm-tests",
     help="Run Helm chart tests.",
     context_settings=dict(
@@ -1176,7 +1288,7 @@ def helm_tests(
     sys.exit(result.returncode)
 
 
-@group_for_testing.command(
+@testing_group.command(
     name="python-api-client-tests",
     help="Run python api client tests.",
     context_settings=dict(
@@ -1255,43 +1367,267 @@ def python_api_client_tests(
     sys.exit(returncode)
 
 
-@contextlib.contextmanager
-def run_with_timeout(timeout: int, shell_params: ShellParams):
-    def timeout_handler(signum, frame):
-        get_console().print("[warning]Timeout reached. Killing the container(s)[/]:")
-        _print_all_containers()
-        if os.environ.get("CI") == "true":
-            get_console().print("[warning]Dumping container logs first[/]:")
-            _dump_container_logs(output=None, shell_params=shell_params)
-        list_of_containers = _get_running_containers().stdout.splitlines()
-        get_console().print("[warning]Attempting to send TERM signal to all remaining containers:")
-        get_console().print(list_of_containers)
-        _send_signal_to_containers(list_of_containers, "SIGTERM")
-        get_console().print(f"[warning]Waiting {GRACE_CONTAINER_STOP_TIMEOUT} seconds for containers to stop")
-        sleep(GRACE_CONTAINER_STOP_TIMEOUT)
-        containers_left = _get_running_containers().stdout.splitlines()
-        if containers_left:
-            get_console().print("[warning]Some containers are still running. Killing them with SIGKILL:")
-            get_console().print(containers_left)
-            _send_signal_to_containers(list_of_containers, "SIGKILL")
-            get_console().print(
-                f"[warning]Waiting {GRACE_CONTAINER_STOP_TIMEOUT} seconds for containers to stop"
-            )
-            sleep(GRACE_CONTAINER_STOP_TIMEOUT)
-            containers_left = _get_running_containers().stdout.splitlines()
-            if containers_left:
-                get_console().print("[error]Some containers are still running. Exiting anyway.")
-                get_console().print(containers_left)
-                sys.exit(1)
+option_e2e_test_mode = click.option(
+    "--e2e-test-mode",
+    help="Specify the mode to use for E2E tests.",
+    default="basic",
+    show_default=True,
+    envvar="E2E_TEST_MODE",
+    type=click.Choice(["basic", "remote_log"], case_sensitive=False),
+)
 
-    def _send_signal_to_containers(list_of_containers: list[str], signal: str):
+
+@testing_group.command(
+    name="airflow-e2e-tests",
+    context_settings=dict(
+        ignore_unknown_options=True,
+        allow_extra_args=True,
+    ),
+)
+@option_python
+@option_image_name
+@option_skip_docker_compose_deletion
+@option_github_repository
+@option_include_success_outputs
+@option_verbose
+@option_dry_run
+@option_e2e_test_mode
+@click.argument("extra_pytest_args", nargs=-1, type=click.Path(path_type=str))
+def airflow_e2e_tests(
+    python: str,
+    image_name: str | None,
+    skip_docker_compose_deletion: bool,
+    github_repository: str,
+    include_success_outputs: bool,
+    e2e_test_mode: str,
+    extra_pytest_args: tuple,
+):
+    """Run Airflow E2E tests."""
+
+    perform_environment_checks()
+    image_name = image_name or os.environ.get("DOCKER_IMAGE")
+    if image_name is None or image_name.strip() == "":
+        build_params = BuildProdParams(python=python, github_repository=github_repository)
+        image_name = build_params.airflow_image_name
+
+    get_console().print(f"[info]Running Airflow E2E tests with PROD image: {image_name}[/]")
+    # If the image is used from docker hub, test container will pull that part of test.
+    skip_image_check = True if image_name.startswith("apache/airflow") else False
+    return_code, info = run_docker_compose_tests(
+        image_name=image_name,
+        python_version=python,
+        include_success_outputs=include_success_outputs,
+        extra_pytest_args=extra_pytest_args,
+        skip_docker_compose_deletion=skip_docker_compose_deletion,
+        skip_mounting_local_volumes=False,
+        test_type="airflow-e2e-tests",
+        skip_image_check=skip_image_check,
+        test_mode=e2e_test_mode,
+    )
+    sys.exit(return_code)
+
+
+@testing_group.command(
+    name="ui-e2e-tests",
+    help="Run UI End-to-End tests using Playwright.",
+    context_settings=dict(
+        ignore_unknown_options=True,
+        allow_extra_args=True,
+    ),
+)
+@option_python
+@option_image_name
+@option_github_repository
+@option_airflow_ui_base_url
+@option_browser
+@option_debug_e2e
+@option_dry_run
+@option_e2e_reporter
+@option_e2e_timeout
+@option_e2e_workers
+@option_force_reinstall_deps
+@option_headed
+@option_test_admin_password
+@option_test_admin_username
+@option_test_pattern
+@option_ui_mode
+@option_verbose
+@click.argument("extra_playwright_args", nargs=-1, type=click.Path(path_type=str))
+def ui_e2e_tests(
+    python: str,
+    image_name: str | None,
+    github_repository: str,
+    airflow_ui_base_url: str,
+    browser: str,
+    debug_e2e: bool,
+    reporter: str,
+    timeout: int,
+    workers: int,
+    force_reinstall_deps: bool,
+    headed: bool,
+    test_admin_password: str,
+    test_admin_username: str,
+    test_pattern: str,
+    ui_mode: bool,
+    extra_playwright_args: tuple,
+):
+    """Run UI end-to-end tests using Playwright."""
+    import shutil
+    import sys
+    import tempfile
+    from pathlib import Path
+
+    from airflow_breeze.params.build_prod_params import BuildProdParams
+    from airflow_breeze.utils.console import get_console
+    from airflow_breeze.utils.run_utils import check_pnpm_installed, run_command
+    from airflow_breeze.utils.shared_options import get_dry_run, get_verbose
+
+    perform_environment_checks()
+    check_pnpm_installed()
+
+    airflow_root = Path(__file__).resolve().parents[5]
+    ui_dir = airflow_root / "airflow-core" / "src" / "airflow" / "ui"
+    docker_compose_source = (
+        airflow_root / "airflow-core" / "docs" / "howto" / "docker-compose" / "docker-compose.yaml"
+    )
+
+    if not ui_dir.exists():
+        get_console().print(f"[error]UI directory not found: {ui_dir}[/]")
+        sys.exit(1)
+
+    tmp_dir = Path(tempfile.mkdtemp(prefix="airflow-ui-e2e-"))
+    get_console().print(f"[info]Using temporary directory: {tmp_dir}[/]")
+
+    try:
+        from airflow_breeze.utils.docker_compose_utils import (
+            ensure_image_exists_and_build_if_needed,
+            setup_airflow_docker_compose_environment,
+            start_docker_compose_and_wait_for_health,
+            stop_docker_compose,
+        )
+
+        if image_name is None:
+            image_name = os.environ.get("DOCKER_IMAGE")
+        if image_name is None or image_name.strip() == "":
+            build_params = BuildProdParams(python=python, github_repository=github_repository)
+            image_name = build_params.airflow_image_name
+
+        get_console().print(f"[info]Running UI E2E tests with PROD image: {image_name}[/]")
+        ensure_image_exists_and_build_if_needed(image_name, python)
+
+        env_vars = {
+            "AIRFLOW_UID": str(os.getuid()),
+            "AIRFLOW__CORE__LOAD_EXAMPLES": "true",
+            "AIRFLOW_IMAGE_NAME": image_name,
+        }
+
+        tmp_dir, dot_env = setup_airflow_docker_compose_environment(
+            docker_compose_source=docker_compose_source,
+            tmp_dir=tmp_dir,
+            env_vars=env_vars,
+        )
+
+        result = start_docker_compose_and_wait_for_health(tmp_dir, airflow_base_url=airflow_ui_base_url)
+        if result != 0:
+            sys.exit(result)
+
+        get_console().print("[success]Airflow is ready! Login with default credentials: airflow/airflow[/]")
+
+        env_vars = {
+            "AIRFLOW_UI_BASE_URL": airflow_ui_base_url,
+            "TEST_USERNAME": test_admin_username,
+            "TEST_PASSWORD": test_admin_password,
+            "TEST_DAG_ID": "example_bash_operator",
+        }
+
+        if force_reinstall_deps:
+            clean_cmd = ["pnpm", "install", "--force"]
+            if not get_dry_run():
+                run_command(clean_cmd, cwd=ui_dir, env=env_vars, verbose_override=get_verbose())
+        else:
+            install_cmd = ["pnpm", "install"]
+            if not get_dry_run():
+                run_command(install_cmd, cwd=ui_dir, env=env_vars, verbose_override=get_verbose())
+
+        install_browsers_cmd = ["pnpm", "exec", "playwright", "install"]
+        if browser != "all":
+            install_browsers_cmd.append(browser)
+
+        if not get_dry_run():
+            run_command(install_browsers_cmd, cwd=ui_dir, env=env_vars, verbose_override=get_verbose())
+
+        get_console().print(f"[info]Using Airflow at: {airflow_ui_base_url}[/]")
+
+        playwright_cmd = ["pnpm", "exec", "playwright", "test"]
+
+        if browser != "all":
+            playwright_cmd.extend(["--project", browser])
+        if headed:
+            playwright_cmd.append("--headed")
+        if debug_e2e:
+            playwright_cmd.append("--debug")
+        if ui_mode:
+            playwright_cmd.append("--ui")
+        if workers > 1:
+            playwright_cmd.extend(["--workers", str(workers)])
+        if timeout != 60000:
+            playwright_cmd.extend(["--timeout", str(timeout)])
+        if reporter != "html":
+            playwright_cmd.extend(["--reporter", reporter])
+        if test_pattern:
+            playwright_cmd.append(test_pattern)
+        if extra_playwright_args:
+            playwright_cmd.extend(extra_playwright_args)
+
+        get_console().print(f"[info]Running: {' '.join(playwright_cmd)}[/]")
+
+        if get_dry_run():
+            return
+
+        result = run_command(
+            playwright_cmd, cwd=ui_dir, env=env_vars, verbose_override=get_verbose(), check=False
+        )
+
+        report_path = ui_dir / "playwright-report" / "index.html"
+        if report_path.exists():
+            get_console().print(f"[info]Report: file://{report_path}[/]")
+
+        stop_docker_compose(tmp_dir)
+        shutil.rmtree(tmp_dir, ignore_errors=True)
+
+        if result.returncode != 0:
+            sys.exit(result.returncode)
+
+    except Exception as e:
+        get_console().print(f"[error]{str(e)}[/]")
+        stop_docker_compose(tmp_dir)
+        shutil.rmtree(tmp_dir, ignore_errors=True)
+        sys.exit(1)
+
+
+class TimeoutHandler:
+    def __init__(self, shell_params: ShellParams, terminated_on_timeout_output_list: list[bool]):
+        # Initialize the timeout handler with shell parameters and a list to track terminated outputs
+        # The terminated_on_timeout_output_list list is used to signal to the outside world that the
+        # output has been terminate by setting the first element to True when the timeout is reached.
+        self.shell_params = shell_params
+        self.pool: Pool | None = None
+        self.terminated_on_timeout_output_list = terminated_on_timeout_output_list
+        self.terminated_on_timeout_output_list[0] = False
+
+    def set_pool(self, pool: Pool):
+        self.pool = pool
+
+    @staticmethod
+    def _send_signal_to_containers(list_of_containers: list[str], signal_number: str):
         run_command(
-            ["docker", "kill", "--signal", signal, *list_of_containers],
+            ["docker", "kill", "--signal", signal_number, *list_of_containers],
             check=True,
             capture_output=False,
             text=True,
         )
 
+    @staticmethod
     def _get_running_containers() -> RunCommandResult:
         return run_command(
             ["docker", "ps", "-q"],
@@ -1300,16 +1636,58 @@ def run_with_timeout(timeout: int, shell_params: ShellParams):
             text=True,
         )
 
+    @staticmethod
     def _print_all_containers():
         run_command(
             ["docker", "ps"],
             check=True,
         )
 
-    signal.signal(signal.SIGALRM, timeout_handler)
+    def timeout_method(self, signum, frame):
+        get_console().print("[warning]Timeout reached.[/]")
+        if self.pool:
+            get_console().print("[warning]Terminating the pool[/]")
+            self.pool.close()
+            self.pool.terminate()
+            # No join here. The pool is joined already in the main function
+        get_console().print("[warning]Stopping all running containers[/]:")
+        self._print_all_containers()
+        if os.environ.get("CI") == "true":
+            _dump_container_logs(output=None, shell_params=self.shell_params)
+        list_of_containers = self._get_running_containers().stdout.splitlines()
+        get_console().print("[warning]Attempting to send TERM signal to all remaining containers:")
+        get_console().print(list_of_containers)
+        self._send_signal_to_containers(list_of_containers, "SIGTERM")
+        get_console().print(f"[warning]Waiting {GRACE_CONTAINER_STOP_TIMEOUT} seconds for containers to stop")
+        sleep(GRACE_CONTAINER_STOP_TIMEOUT)
+        containers_left = self._get_running_containers().stdout.splitlines()
+        if containers_left:
+            get_console().print("[warning]Some containers are still running. Killing them with SIGKILL:")
+            get_console().print(containers_left)
+            self._send_signal_to_containers(list_of_containers, "SIGKILL")
+            get_console().print(
+                f"[warning]Waiting {GRACE_CONTAINER_STOP_TIMEOUT} seconds for containers to stop"
+            )
+            sleep(GRACE_CONTAINER_STOP_TIMEOUT)
+            containers_left = self._get_running_containers().stdout.splitlines()
+            if containers_left:
+                get_console().print(
+                    "[error]Some containers are still running. Marking stuff as terminated anyway."
+                )
+                get_console().print(containers_left)
+        get_console().print(
+            "[warning]All containers stopped. Marking the whole run as terminated on timeout[/]"
+        )
+        self.terminated_on_timeout_output_list[0] = True
+
+
+@contextlib.contextmanager
+def run_with_timeout(timeout: int, shell_params: ShellParams) -> Generator[TimeoutHandler, None, None]:
+    timeout_handler = TimeoutHandler(shell_params=shell_params, terminated_on_timeout_output_list=[False])
+    signal.signal(signal.SIGALRM, lambda signum, frame: timeout_handler.timeout_method(signum, frame))
     signal.alarm(timeout)
     try:
-        yield
+        yield timeout_handler
     finally:
         signal.alarm(0)
 
@@ -1429,7 +1807,7 @@ def _run_test_command(
                 f"Your test type = {test_type}\n"
             )
             sys.exit(1)
-        with run_with_timeout(total_test_timeout, shell_params=shell_params):
+        with run_with_timeout(total_test_timeout, shell_params=shell_params) as handler:
             run_tests_in_parallel(
                 shell_params=shell_params,
                 extra_pytest_args=extra_pytest_args,
@@ -1439,6 +1817,7 @@ def _run_test_command(
                 skip_cleanup=skip_cleanup,
                 debug_resources=debug_resources,
                 skip_docker_compose_down=skip_docker_compose_down,
+                handler=handler,
             )
     else:
         if shell_params.test_type == ALL_TEST_TYPE:

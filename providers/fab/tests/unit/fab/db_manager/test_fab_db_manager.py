@@ -21,8 +21,8 @@ from unittest import mock
 import pytest
 from sqlalchemy import Table
 
-from airflow.exceptions import AirflowException
-from airflow.utils.db import downgrade, initdb
+from airflow.providers.common.compat.sdk import AirflowException
+from airflow.utils.db import initdb
 from airflow.utils.db_manager import RunDBManager
 
 from tests_common.test_utils.config import conf_vars
@@ -57,27 +57,12 @@ class TestRunDBManagerWithFab:
             run_db_manager.validate()
         metadata._remove_table("dag_run", None)
 
-    @mock.patch.object(RunDBManager, "downgrade")
     @mock.patch.object(RunDBManager, "upgradedb")
     @mock.patch.object(RunDBManager, "initdb")
-    def test_init_db_calls_rundbmanager(self, mock_initdb, mock_upgrade_db, mock_downgrade_db, session):
+    def test_init_db_calls_rundbmanager(self, mock_initdb, mock_upgrade_db, session):
         initdb(session=session)
         mock_initdb.assert_called()
         mock_initdb.assert_called_once_with(session)
-        mock_downgrade_db.assert_not_called()
-
-    @mock.patch.object(RunDBManager, "downgrade")
-    @mock.patch.object(RunDBManager, "upgradedb")
-    @mock.patch.object(RunDBManager, "initdb")
-    @mock.patch("alembic.command")
-    def test_downgrade_dont_call_rundbmanager(
-        self, mock_alembic_command, mock_initdb, mock_upgrade_db, mock_downgrade_db, session
-    ):
-        downgrade(to_revision="base")
-        mock_alembic_command.downgrade.assert_called_once_with(mock.ANY, revision="base", sql=False)
-        mock_upgrade_db.assert_not_called()
-        mock_initdb.assert_not_called()
-        mock_downgrade_db.assert_not_called()
 
     @conf_vars(
         {("database", "external_db_managers"): "airflow.providers.fab.auth_manager.models.db.FABDBManager"}
@@ -93,9 +78,7 @@ class TestRunDBManagerWithFab:
         # upgradedb
         ext_db.upgradedb(session=session)
         fabdb_manager.upgradedb.assert_called_once()
-        # downgrade
-        ext_db.downgrade(session=session)
-        mock_fabdb_manager.return_value.downgrade.assert_called_once()
+        # drop_tables
         connection = mock.MagicMock()
         ext_db.drop_tables(session, connection)
         mock_fabdb_manager.return_value.drop_tables.assert_called_once_with(connection)

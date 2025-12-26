@@ -38,10 +38,12 @@ export default defineConfig(({ command }) => {
         name: 'AirflowPlugin',
       },
       rollupOptions: {
-        external: ["react", "react-dom"],
+        external: ["react", "react-dom", "react-router-dom", "react/jsx-runtime"],
         output: {
           globals: {
             react: "React",
+            "react-dom": "ReactDOM",
+            "react-router-dom": "ReactRouterDOM",
             "react/jsx-runtime": "ReactJSXRuntime",
           },
         },
@@ -77,6 +79,7 @@ export default defineConfig(({ command }) => {
       environment: "happy-dom",
       globals: true,
       mockReset: true,
+      passWithNoTests: true,
       restoreMocks: true,
       setupFiles: "./testsSetup.ts",
     },

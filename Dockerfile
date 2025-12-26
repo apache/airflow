@@ -46,18 +46,32 @@ ARG AIRFLOW_UID="50000"
 ARG AIRFLOW_USER_HOME_DIR=/home/airflow
 
 # latest released version here
-ARG AIRFLOW_VERSION="3.0.3"
+ARG AIRFLOW_VERSION="3.1.5"
 
-ARG PYTHON_BASE_IMAGE="python:3.10-slim-bookworm"
+ARG BASE_IMAGE="debian:bookworm-slim"
+ARG AIRFLOW_PYTHON_VERSION="3.12.12"
 
+# PYTHON_LTO: Controls whether Python is built with Link-Time Optimization (LTO).
+#
+# Link-Time Optimization uses MD5 checksums during the compilation process to verify
+# object files and intermediate representations. In FIPS-compliant environments, MD5
+# is blocked as it's not an approved cryptographic algorithm (see FIPS 140-2/140-3).
+# This can cause Python builds with LTO to fail when FIPS mode is enabled.
+#
+# When building FIPS-compliant images, set this to "false" to disable LTO:
+#   docker build --build-arg PYTHON_LTO="false" ...
+#
+# Default: "true" (LTO enabled for better performance)
+#
+# Related: https://github.com/apache/airflow/issues/58337
+ARG PYTHON_LTO="true"
 
 # You can swap comments between those two args to test pip from the main version
 # When you attempt to test if the version of `pip` from specified branch works for our builds
 # Also use `force pip` label on your PR to swap all places we use `uv` to `pip`
-ARG AIRFLOW_PIP_VERSION=25.1.1
+ARG AIRFLOW_PIP_VERSION=25.3
 # ARG AIRFLOW_PIP_VERSION="git+https://github.com/pypa/pip.git@main"
-ARG AIRFLOW_SETUPTOOLS_VERSION=80.9.0
-ARG AIRFLOW_UV_VERSION=0.8.3
+ARG AIRFLOW_UV_VERSION=0.9.18
 ARG AIRFLOW_USE_UV="false"
 ARG UV_HTTP_TIMEOUT="300"
 ARG AIRFLOW_IMAGE_REPOSITORY="https://github.com/apache/airflow"
@@ -87,7 +101,7 @@ FROM scratch as scripts
 
 ##############################################################################################
 # Please DO NOT modify the inlined scripts manually. The content of those files will be
-# replaced by pre-commit automatically from the "scripts/docker/" folder.
+# replaced by prek automatically from the "scripts/docker/" folder.
 # This is done in order to avoid problems with caching and file permissions and in order to
 # make the PROD Dockerfile standalone
 ##############################################################################################
@@ -98,26 +112,89 @@ COPY <<"EOF" /install_os_dependencies.sh
 set -euo pipefail
 
 if [[ "$#" != 1 ]]; then
-    echo "ERROR! There should be 'runtime' or 'dev' parameter passed as argument.".
+    echo
+    echo "ERROR! There should be 'runtime', 'ci' or 'dev' parameter passed as argument.".
+    echo
     exit 1
 fi
+
+AIRFLOW_PYTHON_VERSION=${AIRFLOW_PYTHON_VERSION:-3.10.18}
+PYTHON_LTO=${PYTHON_LTO:-true}
+GOLANG_MAJOR_MINOR_VERSION=${GOLANG_MAJOR_MINOR_VERSION:-1.24.4}
 
 if [[ "${1}" == "runtime" ]]; then
     INSTALLATION_TYPE="RUNTIME"
 elif   [[ "${1}" == "dev" ]]; then
-    INSTALLATION_TYPE="dev"
+    INSTALLATION_TYPE="DEV"
+elif   [[ "${1}" == "ci" ]]; then
+    INSTALLATION_TYPE="CI"
 else
-    echo "ERROR! Wrong argument. Passed ${1} and it should be one of 'runtime' or 'dev'.".
+    echo
+    echo "ERROR! Wrong argument. Passed ${1} and it should be one of 'runtime', 'ci' or 'dev'.".
+    echo
     exit 1
 fi
 
 function get_dev_apt_deps() {
     if [[ "${DEV_APT_DEPS=}" == "" ]]; then
-        DEV_APT_DEPS="apt-transport-https apt-utils build-essential ca-certificates dirmngr \
-freetds-bin freetds-dev git graphviz graphviz-dev krb5-user ldap-utils libev4 libev-dev libffi-dev libgeos-dev \
-libkrb5-dev libldap2-dev libleveldb1d libleveldb-dev libsasl2-2 libsasl2-dev libsasl2-modules \
-libssl-dev libxmlsec1 libxmlsec1-dev locales lsb-release openssh-client pkgconf sasl2-bin \
-software-properties-common sqlite3 sudo unixodbc unixodbc-dev zlib1g-dev"
+        DEV_APT_DEPS="\
+apt-transport-https \
+apt-utils \
+build-essential \
+dirmngr \
+freetds-bin \
+freetds-dev \
+git \
+graphviz \
+graphviz-dev \
+krb5-user \
+lcov \
+ldap-utils \
+libbluetooth-dev \
+libbz2-dev \
+libc6-dev \
+libdb-dev \
+libev-dev \
+libev4 \
+libffi-dev \
+libgdbm-compat-dev \
+libgdbm-dev \
+libgdbm-dev \
+libgeos-dev \
+libkrb5-dev \
+libldap2-dev \
+libleveldb-dev \
+libleveldb1d \
+liblzma-dev \
+libncurses5-dev \
+libreadline6-dev \
+libsasl2-2 \
+libsasl2-dev \
+libsasl2-modules \
+libsqlite3-dev \
+libssl-dev \
+libxmlsec1 \
+libxmlsec1-dev \
+libzstd-dev \
+locales \
+lsb-release \
+lzma \
+lzma-dev \
+openssh-client \
+openssl \
+pkg-config \
+pkgconf \
+sasl2-bin \
+sqlite3 \
+sudo \
+tk-dev \
+unixodbc \
+unixodbc-dev \
+uuid-dev \
+wget \
+xz-utils \
+zlib1g-dev \
+"
         export DEV_APT_DEPS
     fi
 }
@@ -131,15 +208,43 @@ function get_runtime_apt_deps() {
     echo
     echo "DEBIAN CODENAME: ${debian_version}"
     echo
-    debian_version_apt_deps="libffi8 libldap-2.5-0 libssl3 netcat-openbsd"
+    debian_version_apt_deps="\
+libffi8 \
+libldap-2.5-0 \
+libssl3 \
+netcat-openbsd\
+"
     echo
     echo "APPLIED INSTALLATION CONFIGURATION FOR DEBIAN VERSION: ${debian_version}"
     echo
     if [[ "${RUNTIME_APT_DEPS=}" == "" ]]; then
-        RUNTIME_APT_DEPS="apt-transport-https apt-utils ca-certificates \
-curl dumb-init freetds-bin git krb5-user libev4 libgeos-dev \
-ldap-utils libsasl2-2 libsasl2-modules libxmlsec1 locales ${debian_version_apt_deps} \
-lsb-release openssh-client python3-selinux rsync sasl2-bin sqlite3 sudo unixodbc"
+        RUNTIME_APT_DEPS="\
+${debian_version_apt_deps} \
+apt-transport-https \
+apt-utils \
+curl \
+dumb-init \
+freetds-bin \
+git \
+gnupg \
+iputils-ping \
+krb5-user \
+ldap-utils \
+libev4 \
+libgeos-dev \
+libsasl2-2 \
+libsasl2-modules \
+libxmlsec1 \
+locales \
+lsb-release \
+openssh-client \
+rsync \
+sasl2-bin \
+sqlite3 \
+sudo \
+unixodbc \
+wget\
+"
         export RUNTIME_APT_DEPS
     fi
 }
@@ -162,7 +267,7 @@ function install_docker_cli() {
 function install_debian_dev_dependencies() {
     apt-get update
     apt-get install -yqq --no-install-recommends apt-utils >/dev/null 2>&1
-    apt-get install -y --no-install-recommends curl gnupg2 lsb-release
+    apt-get install -y --no-install-recommends wget curl gnupg2 lsb-release ca-certificates
     # shellcheck disable=SC2086
     export ${ADDITIONAL_DEV_APT_ENV?}
     if [[ ${DEV_APT_COMMAND} != "" ]]; then
@@ -181,13 +286,48 @@ function install_debian_dev_dependencies() {
     echo "DEBIAN CODENAME: ${debian_version}"
     echo
     # shellcheck disable=SC2086
-    apt-get install -y --no-install-recommends ${DEV_APT_DEPS} ${ADDITIONAL_DEV_APT_DEPS}
+    apt-get install -y --no-install-recommends ${DEV_APT_DEPS}
+}
+
+function install_additional_dev_dependencies() {
+    if [[ "${ADDITIONAL_DEV_APT_DEPS=}" != "" ]]; then
+        # shellcheck disable=SC2086
+        apt-get install -y --no-install-recommends ${ADDITIONAL_DEV_APT_DEPS}
+    fi
+}
+
+function link_python() {
+    # link python binaries to /usr/local/bin and /usr/python/bin with and without 3 suffix
+    # Links in /usr/local/bin are needed for tools that expect python to be there
+    # Links in /usr/python/bin are needed for tools that are detecting home of python installation including
+    # lib/site-packages. The /usr/python/bin should be first in PATH in order to help with the last part.
+    for dst in pip3 python3 python3-config; do
+        src="$(echo "${dst}" | tr -d 3)"
+        echo "Linking ${dst} in /usr/local/bin and /usr/python/bin"
+        ln -sv "/usr/python/bin/${dst}" "/usr/local/bin/${dst}"
+        for dir in /usr/local/bin /usr/python/bin; do
+            if [[ ! -e "${dir}/${src}" ]]; then
+                echo "Creating ${src} - > ${dst} link in ${dir}"
+                ln -sv "${dir}/${dst}" "${dir}/${src}"
+            fi
+        done
+    done
+    for dst in /usr/python/lib/*
+    do
+        src="/usr/local/lib/$(basename "${dst}")"
+        if [[ -e "${src}" ]]; then
+            rm -rf "${src}"
+        fi
+        echo "Linking ${dst} to ${src}"
+        ln -sv "${dst}" "${src}"
+    done
+    ldconfig
 }
 
 function install_debian_runtime_dependencies() {
     apt-get update
     apt-get install --no-install-recommends -yqq apt-utils >/dev/null 2>&1
-    apt-get install -y --no-install-recommends curl gnupg2 lsb-release
+    apt-get install -y --no-install-recommends wget curl gnupg2 lsb-release ca-certificates
     # shellcheck disable=SC2086
     export ${ADDITIONAL_RUNTIME_APT_ENV?}
     if [[ "${RUNTIME_APT_COMMAND}" != "" ]]; then
@@ -201,6 +341,101 @@ function install_debian_runtime_dependencies() {
     apt-get install -y --no-install-recommends ${RUNTIME_APT_DEPS} ${ADDITIONAL_RUNTIME_APT_DEPS}
     apt-get autoremove -yqq --purge
     apt-get clean
+    link_python
+    rm -rf /var/lib/apt/lists/* /var/log/*
+}
+
+function install_python() {
+    # If system python (3.11 in bookworm) is installed (via automatic installation of some dependencies for example), we need
+    # to fail and make sure that it is not there, because there can be strange interactions if we install
+    # newer version and system libraries are installed, because
+    # when you create a virtualenv part of the shared libraries of Python can be taken from the system
+    # Installation leading to weird errors when you want to install some modules - for example when you install ssl:
+    # /usr/python/lib/python3.11/lib-dynload/_ssl.cpython-311-aarch64-linux-gnu.so: undefined symbol: _PyModule_Add
+    if dpkg -l | grep '^ii' | grep '^ii  libpython' >/dev/null; then
+        echo
+        echo "ERROR! System python is installed by one of the previous steps"
+        echo
+        echo "Please make sure that no python packages are installed by default. Displaying the reason why libpython3.11 is installed:"
+        echo
+        apt-get install -yqq aptitude >/dev/null
+        aptitude why libpython3.11
+        echo
+        exit 1
+    else
+        echo
+        echo "GOOD! System python is not installed - OK"
+        echo
+    fi
+    wget -O python.tar.xz "https://www.python.org/ftp/python/${AIRFLOW_PYTHON_VERSION%%[a-z]*}/Python-${AIRFLOW_PYTHON_VERSION}.tar.xz"
+    wget -O python.tar.xz.asc "https://www.python.org/ftp/python/${AIRFLOW_PYTHON_VERSION%%[a-z]*}/Python-${AIRFLOW_PYTHON_VERSION}.tar.xz.asc";
+    declare -A keys=(
+        # gpg: key B26995E310250568: public key "\xc5\x81ukasz Langa (GPG langa.pl) <lukasz@langa.pl>" imported
+        # https://peps.python.org/pep-0596/#release-manager-and-crew
+        [3.9]="E3FF2839C048B25C084DEBE9B26995E310250568"
+        # gpg: key 64E628F8D684696D: public key "Pablo Galindo Salgado <pablogsal@gmail.com>" imported
+        # https://peps.python.org/pep-0619/#release-manager-and-crew
+        [3.10]="A035C8C19219BA821ECEA86B64E628F8D684696D"
+        # gpg: key 64E628F8D684696D: public key "Pablo Galindo Salgado <pablogsal@gmail.com>" imported
+        # https://peps.python.org/pep-0664/#release-manager-and-crew
+        [3.11]="A035C8C19219BA821ECEA86B64E628F8D684696D"
+        # gpg: key A821E680E5FA6305: public key "Thomas Wouters <thomas@python.org>" imported
+        # https://peps.python.org/pep-0693/#release-manager-and-crew
+        [3.12]="7169605F62C751356D054A26A821E680E5FA6305"
+        # gpg: key A821E680E5FA6305: public key "Thomas Wouters <thomas@python.org>" imported
+        # https://peps.python.org/pep-0719/#release-manager-and-crew
+        [3.13]="7169605F62C751356D054A26A821E680E5FA6305"
+    )
+    major_minor_version="${AIRFLOW_PYTHON_VERSION%.*}"
+    echo "Verifying Python ${AIRFLOW_PYTHON_VERSION} (${major_minor_version})"
+    GNUPGHOME="$(mktemp -d)"; export GNUPGHOME;
+    gpg_key="${keys[${major_minor_version}]}"
+    echo "Using GPG key ${gpg_key}"
+    gpg --batch --keyserver hkps://keys.openpgp.org --recv-keys "${gpg_key}"
+    gpg --batch --verify python.tar.xz.asc python.tar.xz;
+    gpgconf --kill all
+    rm -rf "$GNUPGHOME" python.tar.xz.asc
+    mkdir -p /usr/src/python
+    tar --extract --directory /usr/src/python --strip-components=1 --file python.tar.xz
+    rm python.tar.xz
+    cd /usr/src/python
+    arch="$(dpkg --print-architecture)"; arch="${arch##*-}"
+    gnuArch="$(dpkg-architecture --query DEB_BUILD_GNU_TYPE)"
+    EXTRA_CFLAGS="$(dpkg-buildflags --get CFLAGS)"
+    EXTRA_CFLAGS="${EXTRA_CFLAGS:-} -fno-omit-frame-pointer -mno-omit-leaf-frame-pointer";
+    LDFLAGS="$(dpkg-buildflags --get LDFLAGS)"
+    LDFLAGS="${LDFLAGS:--Wl},--strip-all"
+    # Link-Time Optimization (LTO) uses MD5 checksums for object file verification during
+    # compilation. In FIPS mode, MD5 is blocked as a non-approved algorithm, causing builds
+    # to fail. The PYTHON_LTO variable allows disabling LTO for FIPS-compliant builds.
+    # See: https://github.com/apache/airflow/issues/58337
+    local lto_option=""
+    if [[ "${PYTHON_LTO:-true}" == "true" ]]; then
+        lto_option="--with-lto"
+    fi
+    ./configure --enable-optimizations --prefix=/usr/python/ --with-ensurepip --build="$gnuArch" \
+        --enable-loadable-sqlite-extensions --enable-option-checking=fatal \
+            --enable-shared ${lto_option}
+    make -s -j "$(nproc)" "EXTRA_CFLAGS=${EXTRA_CFLAGS:-}" \
+        "LDFLAGS=${LDFLAGS:--Wl},-rpath='\$\$ORIGIN/../lib'" python
+    make -s -j "$(nproc)" install
+    cd /
+    rm -rf /usr/src/python
+    find /usr/python -depth \
+      \( \
+        \( -type d -a \( -name test -o -name tests -o -name idle_test \) \) \
+        -o \( -type f -a \( -name 'libpython*.a' \) \) \
+    \) -exec rm -rf '{}' +
+    link_python
+}
+
+function install_golang() {
+    curl "https://dl.google.com/go/go${GOLANG_MAJOR_MINOR_VERSION}.linux-$(dpkg --print-architecture).tar.gz" -o "go${GOLANG_MAJOR_MINOR_VERSION}.linux.tar.gz"
+    rm -rf /usr/local/go && tar -C /usr/local -xzf go"${GOLANG_MAJOR_MINOR_VERSION}".linux.tar.gz
+}
+
+function apt_clean() {
+    apt-get purge -y --auto-remove -o APT::AutoRemove::RecommendsImportant=false
     rm -rf /var/lib/apt/lists/* /var/log/*
 }
 
@@ -208,11 +443,17 @@ if [[ "${INSTALLATION_TYPE}" == "RUNTIME" ]]; then
     get_runtime_apt_deps
     install_debian_runtime_dependencies
     install_docker_cli
-
+    apt_clean
 else
     get_dev_apt_deps
     install_debian_dev_dependencies
+    install_python
+    install_additional_dev_dependencies
+    if [[ "${INSTALLATION_TYPE}" == "CI" ]]; then
+        install_golang
+    fi
     install_docker_cli
+    apt_clean
 fi
 EOF
 
@@ -226,11 +467,40 @@ set -euo pipefail
 common::get_colors
 declare -a packages
 
-readonly MYSQL_LTS_VERSION="8.0"
 readonly MARIADB_LTS_VERSION="10.11"
 
 : "${INSTALL_MYSQL_CLIENT:?Should be true or false}"
 : "${INSTALL_MYSQL_CLIENT_TYPE:-mariadb}"
+
+if [[ "${INSTALL_MYSQL_CLIENT}" != "true" && "${INSTALL_MYSQL_CLIENT}" != "false" ]]; then
+    echo
+    echo "${COLOR_RED}INSTALL_MYSQL_CLIENT must be either true or false${COLOR_RESET}"
+    echo
+    exit 1
+fi
+
+if [[ "${INSTALL_MYSQL_CLIENT_TYPE}" != "mysql" && "${INSTALL_MYSQL_CLIENT_TYPE}" != "mariadb" ]]; then
+    echo
+    echo "${COLOR_RED}INSTALL_MYSQL_CLIENT_TYPE must be either mysql or mariadb${COLOR_RESET}"
+    echo
+    exit 1
+fi
+
+if [[ "${INSTALL_MYSQL_CLIENT_TYPE}" == "mysql" ]]; then
+    echo
+    echo "${COLOR_RED}The 'mysql' client type is not supported any more. Use 'mariadb' instead.${COLOR_RESET}"
+    echo
+    echo "The MySQL drivers are wrongly packaged and released by Oracle with an expiration date on their GPG keys,"
+    echo "which causes builds to fail after the expiration date. MariaDB client is protocol-compatible with MySQL client."
+    echo ""
+    echo "Every two years the MySQL packages fail and Oracle team is always surprised and struggling"
+    echo "with fixes and re-signing the packages which lasts few days"
+    echo "See https://bugs.mysql.com/bug.php?id=113432 for more details."
+    echo "As a community we are not able to support this broken packaging practice from Oracle"
+    echo "Feel free however to install MySQL drivers on your own as extension of the image."
+    echo
+    exit 1
+fi
 
 retry() {
     local retries=3
@@ -248,44 +518,6 @@ retry() {
             return $exit_code
         fi
     done
-}
-
-install_mysql_client() {
-    if [[ "${1}" == "dev" ]]; then
-        packages=("libmysqlclient-dev" "mysql-client")
-    elif [[ "${1}" == "prod" ]]; then
-        # `libmysqlclientXX` where XX is number, and it should be increased every new GA MySQL release, for example
-        # 18 - MySQL 5.6.48
-        # 20 - MySQL 5.7.42
-        # 21 - MySQL 8.0.34
-        # 22 - MySQL 8.1
-        packages=("libmysqlclient21" "mysql-client")
-    else
-        echo
-        echo "${COLOR_RED}Specify either prod or dev${COLOR_RESET}"
-        echo
-        exit 1
-    fi
-
-    common::import_trusted_gpg "B7B3B788A8D3785C" "mysql"
-
-    echo
-    echo "${COLOR_BLUE}Installing Oracle MySQL client version ${MYSQL_LTS_VERSION}: ${1}${COLOR_RESET}"
-    echo
-
-    echo "deb http://repo.mysql.com/apt/debian/ $(lsb_release -cs) mysql-${MYSQL_LTS_VERSION}" > \
-        /etc/apt/sources.list.d/mysql.list
-    retry apt-get update
-    retry apt-get install --no-install-recommends -y "${packages[@]}"
-    apt-get autoremove -yqq --purge
-    apt-get clean && rm -rf /var/lib/apt/lists/*
-
-    # Remove mysql repository from sources.list.d as MySQL repos have a basic flaw that they put expiry
-    # date on their GPG signing keys and they sign their repo with those keys. This means that after a
-    # certain date, the GPG key becomes invalid and if you have the repository added in your sources.list
-    # then you will not be able to install anything from any other repository. This id unlike any other
-    # repository we have seen (for example Postgres, MariaDB, MsSQL - all have non-expiring signing keys)
-    rm /etc/apt/sources.list.d/mysql.list
 }
 
 install_mariadb_client() {
@@ -327,23 +559,7 @@ install_mariadb_client() {
 }
 
 if [[ ${INSTALL_MYSQL_CLIENT:="true"} == "true" ]]; then
-    if [[ $(uname -m) == "arm64" || $(uname -m) == "aarch64" ]]; then
-        INSTALL_MYSQL_CLIENT_TYPE="mariadb"
-        echo
-        echo "${COLOR_YELLOW}Client forced to mariadb for ARM${COLOR_RESET}"
-        echo
-    fi
-
-    if [[ "${INSTALL_MYSQL_CLIENT_TYPE}" == "mysql" ]]; then
-        install_mysql_client "${@}"
-    elif [[ "${INSTALL_MYSQL_CLIENT_TYPE}" == "mariadb" ]]; then
-        install_mariadb_client "${@}"
-    else
-        echo
-        echo "${COLOR_RED}Specify either mysql or mariadb, got ${INSTALL_MYSQL_CLIENT_TYPE}${COLOR_RESET}"
-        echo
-        exit 1
-    fi
+    install_mariadb_client "${@}"
 fi
 EOF
 
@@ -590,12 +806,6 @@ function common::install_packaging_tools() {
             pip install --root-user-action ignore --disable-pip-version-check "pip==${AIRFLOW_PIP_VERSION}"
         fi
     fi
-    if [[ ${AIRFLOW_SETUPTOOLS_VERSION=} != "" ]]; then
-        echo
-        echo "${COLOR_BLUE}Installing setuptools version ${AIRFLOW_SETUPTOOLS_VERSION} {COLOR_RESET}"
-        echo
-        pip install --root-user-action ignore setuptools==${AIRFLOW_SETUPTOOLS_VERSION}
-    fi
     if [[ ${AIRFLOW_UV_VERSION=} == "" ]]; then
         echo
         echo "${COLOR_BLUE}Installing latest uv version${COLOR_RESET}"
@@ -618,20 +828,19 @@ function common::install_packaging_tools() {
             pip install --root-user-action ignore --disable-pip-version-check "uv==${AIRFLOW_UV_VERSION}"
         fi
     fi
-    if  [[ ${AIRFLOW_PRE_COMMIT_VERSION=} == "" ]]; then
+    if  [[ ${AIRFLOW_PREK_VERSION=} == "" ]]; then
         echo
-        echo "${COLOR_BLUE}Installing latest pre-commit with pre-commit-uv uv${COLOR_RESET}"
+        echo "${COLOR_BLUE}Installing latest prek, uv${COLOR_RESET}"
         echo
-        uv tool install pre-commit --with pre-commit-uv --with uv
+        uv tool install prek --with uv
         # make sure that the venv/user in .local exists
         mkdir -p "${HOME}/.local/bin"
     else
         echo
-        echo "${COLOR_BLUE}Installing predefined versions of pre-commit with pre-commit-uv and uv:${COLOR_RESET}"
-        echo "${COLOR_BLUE}pre_commit(${AIRFLOW_PRE_COMMIT_VERSION}) uv(${AIRFLOW_UV_VERSION}) pre_commit-uv(${AIRFLOW_PRE_COMMIT_UV_VERSION})${COLOR_RESET}"
+        echo "${COLOR_BLUE}Installing predefined versions of prek, uv:${COLOR_RESET}"
+        echo "${COLOR_BLUE}prek(${AIRFLOW_PREK_VERSION}) uv(${AIRFLOW_UV_VERSION})${COLOR_RESET}"
         echo
-        uv tool install "pre-commit==${AIRFLOW_PRE_COMMIT_VERSION}" \
-            --with "uv==${AIRFLOW_UV_VERSION}" --with "pre-commit-uv==${AIRFLOW_PRE_COMMIT_UV_VERSION}"
+        uv tool install "prek==${AIRFLOW_PREK_VERSION}" --with "uv==${AIRFLOW_UV_VERSION}"
         # make sure that the venv/user in .local exists
         mkdir -p "${HOME}/.local/bin"
     fi
@@ -788,7 +997,11 @@ function install_airflow_and_providers_from_docker_context_files(){
         "${install_airflow_distribution[@]}" "${install_airflow_core_distribution[@]}" "${airflow_distributions[@]}"
     set +x
     common::install_packaging_tools
-    pip check
+    # Here we should use `pip check` not `uv pip check` to detect any incompatibilities that might happen
+    # between `pip` and `uv` installations
+    # However, in the current version of `pip` there is a bug that incorrectly detects `pagefind-bin` as unsupported
+    # https://github.com/pypa/pip/issues/13709 -> once this is fixed, we should bring `pip check` back.
+    uv pip check
 }
 
 function install_all_other_distributions_from_docker_context_files() {
@@ -886,7 +1099,8 @@ function install_from_sources() {
         # See https://bugs.launchpad.net/lxml/+bug/2110068
         set -x
         uv sync --all-packages --resolution highest --group dev --group docs --group docs-gen \
-            --group leveldb ${extra_sync_flags} --no-binary-package lxml --no-binary-package xmlsec
+            --group leveldb ${extra_sync_flags} --no-binary-package lxml --no-binary-package xmlsec \
+            --no-python-downloads --no-managed-python
     else
         # We only use uv here but Installing using constraints is not supported with `uv sync`, so we
         # do not use ``uv sync`` because we are not committing and using uv.lock yet.
@@ -904,7 +1118,9 @@ function install_from_sources() {
         installation_command_flags=" --editable .[${AIRFLOW_EXTRAS}] \
               --editable ./airflow-core --editable ./task-sdk --editable ./airflow-ctl \
               --editable ./kubernetes-tests --editable ./docker-tests --editable ./helm-tests \
-              --editable ./task-sdk-tests \
+              --editable ./task-sdk-integration-tests \
+              --editable ./airflow-ctl-tests \
+              --editable ./airflow-e2e-tests \
               --editable ./devel-common[all] --editable ./dev \
               --group dev --group docs --group docs-gen --group leveldb"
         local -a projects_with_devel_dependencies
@@ -930,8 +1146,10 @@ function install_from_sources() {
                 for project_folder in "${projects_with_devel_dependencies[@]}"; do
                     echo "${COLOR_BLUE}Installing provider ${project_folder} with development dependencies.${COLOR_RESET}"
                     set -x
-                    if ! uv pip install --editable .  --directory "${project_folder}" --constraint "${HOME}/constraints.txt" --group dev; then
-                        fallback_no_constraints_installation="true"
+                    if ! uv pip install --editable .  --directory "${project_folder}" \
+                        --constraint "${HOME}/constraints.txt" --group dev \
+                        --no-python-downloads --no-managed-python; then
+                            fallback_no_constraints_installation="true"
                     fi
                     set +x
                 done
@@ -949,7 +1167,8 @@ function install_from_sources() {
             # See https://bugs.launchpad.net/lxml/+bug/2110068
             set -x
             uv sync --all-packages --group dev --group docs --group docs-gen \
-                --group leveldb ${extra_sync_flags} --no-binary-package lxml --no-binary-package xmlsec
+                --group leveldb ${extra_sync_flags} --no-binary-package lxml --no-binary-package xmlsec \
+                --no-python-downloads --no-managed-python
             set +x
         fi
     fi
@@ -959,13 +1178,11 @@ function install_from_external_spec() {
      local installation_command_flags
     if [[ ${AIRFLOW_INSTALLATION_METHOD} == "apache-airflow" ]]; then
         installation_command_flags="apache-airflow[${AIRFLOW_EXTRAS}]${AIRFLOW_VERSION_SPECIFICATION}"
-    elif [[ ${AIRFLOW_INSTALLATION_METHOD} == apache-airflow\ @\ * ]]; then
-        installation_command_flags="apache-airflow[${AIRFLOW_EXTRAS}] @ ${AIRFLOW_VERSION_SPECIFICATION/apache-airflow @//}"
     else
         echo
         echo "${COLOR_RED}The '${INSTALLATION_METHOD}' installation method is not supported${COLOR_RESET}"
         echo
-        echo "${COLOR_YELLOW}Supported methods are ('.', 'apache-airflow', 'apache-airflow @ URL')${COLOR_RESET}"
+        echo "${COLOR_YELLOW}Supported methods are ('.', 'apache-airflow')${COLOR_RESET}"
         echo
         exit 1
     fi
@@ -1024,7 +1241,11 @@ function install_airflow_when_building_images() {
     echo
     echo "${COLOR_BLUE}Running 'pip check'${COLOR_RESET}"
     echo
-    pip check
+    # Here we should use `pip check` not `uv pip check` to detect any incompatibilities that might happen
+    # between `pip` and `uv` installations
+    # However, in the current version of `pip` there is a bug that incorrectly detects `pagefind-bin` as unsupported
+    # https://github.com/pypa/pip/issues/13709 -> once this is fixed, we should bring `pip check` back.
+    uv pip check
 }
 
 common::get_colors
@@ -1059,7 +1280,11 @@ function install_additional_dependencies() {
         echo
         echo "${COLOR_BLUE}Running 'pip check'${COLOR_RESET}"
         echo
-        pip check
+        # Here we should use `pip check` not `uv pip check` to detect any incompatibilities that might happen
+        # between `pip` and `uv` installations
+        # However, in the current version of `pip` there is a bug that incorrectly detects `pagefind-bin` as unsupported
+        # https://github.com/pypa/pip/issues/13709 -> once this is fixed, we should bring `pip check` back.
+        uv pip check
     else
         echo
         echo "${COLOR_BLUE}Installing additional dependencies upgrading only if needed${COLOR_RESET}"
@@ -1073,7 +1298,11 @@ function install_additional_dependencies() {
         echo
         echo "${COLOR_BLUE}Running 'pip check'${COLOR_RESET}"
         echo
-        pip check
+        # Here we should use `pip check` not `uv pip check` to detect any incompatibilities that might happen
+        # between `pip` and `uv` installations
+        # However, in the current version of `pip` there is a bug that incorrectly detects `pagefind-bin` as unsupported
+        # https://github.com/pypa/pip/issues/13709 -> once this is fixed, we should bring `pip check` back.
+        uv pip check
     fi
 }
 
@@ -1407,6 +1636,11 @@ if [[ ${AIRFLOW_COMMAND} =~ ^(scheduler|celery)$ ]] \
     wait_for_celery_broker
 fi
 
+if [[ "$#" -eq 0 && "${_AIRFLOW_DB_MIGRATE}" == "true" ]]; then
+    echo "[INFO] No commands passed and _AIRFLOW_DB_MIGRATE=true. Exiting script with code 0."
+    exit 0
+fi
+
 exec "airflow" "${@}"
 EOF
 
@@ -1461,14 +1695,16 @@ EOF
 ##############################################################################################
 # This is the build image where we build all dependencies
 ##############################################################################################
-FROM ${PYTHON_BASE_IMAGE} as airflow-build-image
+FROM ${BASE_IMAGE} as airflow-build-image
 
 # Nolog bash flag is currently ignored - but you can replace it with
 # xtrace - to show commands executed)
 SHELL ["/bin/bash", "-o", "pipefail", "-o", "errexit", "-o", "nounset", "-o", "nolog", "-c"]
 
-ARG PYTHON_BASE_IMAGE
-ENV PYTHON_BASE_IMAGE=${PYTHON_BASE_IMAGE} \
+ARG BASE_IMAGE
+
+# Make sure noninteractive debian install is used and language variables set
+ENV BASE_IMAGE=${BASE_IMAGE} \
     DEBIAN_FRONTEND=noninteractive LANGUAGE=C.UTF-8 LANG=C.UTF-8 LC_ALL=C.UTF-8 \
     LC_CTYPE=C.UTF-8 LC_MESSAGES=C.UTF-8 \
     PIP_CACHE_DIR=/tmp/.cache/pip \
@@ -1479,15 +1715,25 @@ ARG ADDITIONAL_DEV_APT_DEPS=""
 ARG DEV_APT_COMMAND=""
 ARG ADDITIONAL_DEV_APT_COMMAND=""
 ARG ADDITIONAL_DEV_APT_ENV=""
+ARG AIRFLOW_PYTHON_VERSION
 
 ENV DEV_APT_DEPS=${DEV_APT_DEPS} \
     ADDITIONAL_DEV_APT_DEPS=${ADDITIONAL_DEV_APT_DEPS} \
     DEV_APT_COMMAND=${DEV_APT_COMMAND} \
     ADDITIONAL_DEV_APT_COMMAND=${ADDITIONAL_DEV_APT_COMMAND} \
-    ADDITIONAL_DEV_APT_ENV=${ADDITIONAL_DEV_APT_ENV}
+    ADDITIONAL_DEV_APT_ENV=${ADDITIONAL_DEV_APT_ENV} \
+    AIRFLOW_PYTHON_VERSION=${AIRFLOW_PYTHON_VERSION}
+
+ARG PYTHON_LTO
+
 
 COPY --from=scripts install_os_dependencies.sh /scripts/docker/
-RUN bash /scripts/docker/install_os_dependencies.sh dev
+RUN PYTHON_LTO=${PYTHON_LTO} bash /scripts/docker/install_os_dependencies.sh dev
+
+# In case system python is installed, setting LD_LIBRARY_PATH prevents any case the system python
+# libraries will be accidentally used before the library installed from sources (which is newer and
+# python interpreter might break if accidentally the old system libraries are used.
+ENV LD_LIBRARY_PATH="/usr/python/lib"
 
 ARG INSTALL_MYSQL_CLIENT="true"
 ARG INSTALL_MYSQL_CLIENT_TYPE="mariadb"
@@ -1569,7 +1815,6 @@ RUN if [[ -f /docker-context-files/pip.conf ]]; then \
 ARG ADDITIONAL_PIP_INSTALL_FLAGS=""
 
 ARG AIRFLOW_PIP_VERSION
-ARG AIRFLOW_SETUPTOOLS_VERSION
 ARG AIRFLOW_UV_VERSION
 ARG AIRFLOW_USE_UV
 ARG UV_HTTP_TIMEOUT
@@ -1577,7 +1822,6 @@ ARG INCLUDE_PRE_RELEASE="false"
 
 ENV AIRFLOW_PIP_VERSION=${AIRFLOW_PIP_VERSION} \
     AIRFLOW_UV_VERSION=${AIRFLOW_UV_VERSION} \
-    AIRFLOW_SETUPTOOLS_VERSION=${AIRFLOW_SETUPTOOLS_VERSION} \
     UV_HTTP_TIMEOUT=${UV_HTTP_TIMEOUT} \
     AIRFLOW_USE_UV=${AIRFLOW_USE_UV} \
     AIRFLOW_VERSION=${AIRFLOW_VERSION} \
@@ -1628,7 +1872,7 @@ ARG USE_CONSTRAINTS_FOR_CONTEXT_DISTRIBUTIONS="false"
 
 # By default PIP installs everything to ~/.local and it's also treated as VIRTUALENV
 ENV VIRTUAL_ENV="${AIRFLOW_USER_HOME_DIR}/.local"
-
+ENV PATH="/usr/python/bin:$PATH"
 RUN bash /scripts/docker/install_packaging_tools.sh; bash /scripts/docker/create_prod_venv.sh
 
 COPY --chown=airflow:0 ${AIRFLOW_SOURCES_FROM} ${AIRFLOW_SOURCES_TO}
@@ -1653,7 +1897,7 @@ COPY --from=scripts install_from_docker_context_files.sh install_airflow_when_bu
 # an incorrect architecture.
 ARG TARGETARCH
 # Value to be able to easily change cache id and therefore use a bare new cache
-ARG DEPENDENCY_CACHE_EPOCH="9"
+ARG DEPENDENCY_CACHE_EPOCH="11"
 
 # hadolint ignore=SC2086, SC2010, DL3042
 RUN --mount=type=cache,id=prod-$TARGETARCH-$DEPENDENCY_CACHE_EPOCH,target=/tmp/.cache/,uid=${AIRFLOW_UID} \
@@ -1685,7 +1929,7 @@ RUN --mount=type=cache,id=prod-$TARGETARCH-$DEPENDENCY_CACHE_EPOCH,target=/tmp/.
 # This is the actual Airflow image - much smaller than the build one. We copy
 # installed Airflow and all its dependencies from the build image to make it smaller.
 ##############################################################################################
-FROM ${PYTHON_BASE_IMAGE} as main
+FROM ${BASE_IMAGE} as main
 
 # Nolog bash flag is currently ignored - but you can replace it with other flags (for example
 # xtrace - to show commands executed)
@@ -1699,12 +1943,12 @@ LABEL org.apache.airflow.distro="debian" \
   org.apache.airflow.image="airflow" \
   org.apache.airflow.uid="${AIRFLOW_UID}"
 
-ARG PYTHON_BASE_IMAGE
+ARG BASE_IMAGE
 
-ENV PYTHON_BASE_IMAGE=${PYTHON_BASE_IMAGE} \
-    # Make sure noninteractive debian install is used and language variables set
+# Make sure noninteractive debian install is used and language variables set
+ENV BASE_IMAGE=${BASE_IMAGE} \
     DEBIAN_FRONTEND=noninteractive LANGUAGE=C.UTF-8 LANG=C.UTF-8 LC_ALL=C.UTF-8 \
-    LC_CTYPE=C.UTF-8 LC_MESSAGES=C.UTF-8 LD_LIBRARY_PATH=/usr/local/lib \
+    LC_CTYPE=C.UTF-8 LC_MESSAGES=C.UTF-8 \
     PIP_CACHE_DIR=/tmp/.cache/pip \
     UV_CACHE_DIR=/tmp/.cache/uv
 
@@ -1730,6 +1974,9 @@ ENV RUNTIME_APT_DEPS=${RUNTIME_APT_DEPS} \
     GUNICORN_CMD_ARGS="--worker-tmp-dir /dev/shm" \
     AIRFLOW_INSTALLATION_METHOD=${AIRFLOW_INSTALLATION_METHOD}
 
+ARG PYTHON_LTO
+
+COPY --from=airflow-build-image "/usr/python/" "/usr/python/"
 COPY --from=scripts install_os_dependencies.sh /scripts/docker/
 RUN bash /scripts/docker/install_os_dependencies.sh runtime
 
@@ -1742,7 +1989,7 @@ ARG AIRFLOW_HOME
 ARG AIRFLOW_IMAGE_TYPE
 
 # By default PIP installs everything to ~/.local
-ENV PATH="${AIRFLOW_USER_HOME_DIR}/.local/bin:${PATH}" \
+ENV PATH="${AIRFLOW_USER_HOME_DIR}/.local/bin:/usr/python/bin:${PATH}" \
     VIRTUAL_ENV="${AIRFLOW_USER_HOME_DIR}/.local" \
     AIRFLOW_UID=${AIRFLOW_UID} \
     AIRFLOW_USER_HOME_DIR=${AIRFLOW_USER_HOME_DIR} \
@@ -1804,9 +2051,9 @@ RUN sed --in-place=.bak "s/secure_path=\"/secure_path=\"$(echo -n ${AIRFLOW_USER
 
 ARG AIRFLOW_VERSION
 ARG AIRFLOW_PIP_VERSION
-ARG AIRFLOW_SETUPTOOLS_VERSION
 ARG AIRFLOW_UV_VERSION
 ARG AIRFLOW_USE_UV
+ARG AIRFLOW_PYTHON_VERSION
 
 # See https://airflow.apache.org/docs/docker-stack/entrypoint.html#signal-propagation
 # to learn more about the way how signals are handled by the image
@@ -1814,11 +2061,11 @@ ARG AIRFLOW_USE_UV
 ENV DUMB_INIT_SETSID="1" \
     PS1="(airflow)" \
     AIRFLOW_VERSION=${AIRFLOW_VERSION} \
+    AIRFLOW_PYTHON_VERSION=${AIRFLOW_PYTHON_VERSION} \
     AIRFLOW__CORE__LOAD_EXAMPLES="false" \
     PATH="/root/bin:${PATH}" \
     AIRFLOW_PIP_VERSION=${AIRFLOW_PIP_VERSION} \
     AIRFLOW_UV_VERSION=${AIRFLOW_UV_VERSION} \
-    AIRFLOW_SETUPTOOLS_VERSION=${AIRFLOW_SETUPTOOLS_VERSION} \
     AIRFLOW_USE_UV=${AIRFLOW_USE_UV}
 
 # Add protection against running pip as root user
@@ -1846,6 +2093,7 @@ LABEL org.apache.airflow.distro="debian" \
   org.apache.airflow.component="airflow" \
   org.apache.airflow.image="airflow" \
   org.apache.airflow.version="${AIRFLOW_VERSION}" \
+  org.apache.airflow.python.version="${AIRFLOW_PYTHON_VERSION}" \
   org.apache.airflow.uid="${AIRFLOW_UID}" \
   org.apache.airflow.main-image.build-id="${BUILD_ID}" \
   org.apache.airflow.main-image.commit-sha="${COMMIT_SHA}" \

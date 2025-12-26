@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import jmespath
+import pytest
 from chart_utils.helm_template_generator import render_chart
 
 
@@ -266,7 +267,15 @@ class TestGitSyncSchedulerTest:
         )
         assert "git-sync-ssh-key" not in jmespath.search("spec.template.spec.volumes[].name", docs[0])
 
-    def test_should_set_username_and_pass_env_variables(self):
+    @pytest.mark.parametrize(
+        ("tag", "expected_prefix"),
+        [
+            ("v3.6.7", "GIT_SYNC_"),
+            ("v4.4.2", "GITSYNC_"),
+            ("latest", "GITSYNC_"),
+        ],
+    )
+    def test_should_set_username_and_pass_env_variables_in_scheduler(self, tag, expected_prefix):
         docs = render_chart(
             values={
                 "airflowVersion": "2.10.5",
@@ -277,28 +286,26 @@ class TestGitSyncSchedulerTest:
                         "sshKeySecret": None,
                     }
                 },
+                "images": {
+                    "gitSync": {
+                        "tag": tag,
+                    }
+                },
             },
             show_only=["templates/scheduler/scheduler-deployment.yaml"],
         )
 
-        assert {
-            "name": "GIT_SYNC_USERNAME",
-            "valueFrom": {"secretKeyRef": {"name": "user-pass-secret", "key": "GIT_SYNC_USERNAME"}},
-        } in jmespath.search("spec.template.spec.containers[1].env", docs[0])
-        assert {
-            "name": "GIT_SYNC_PASSWORD",
-            "valueFrom": {"secretKeyRef": {"name": "user-pass-secret", "key": "GIT_SYNC_PASSWORD"}},
-        } in jmespath.search("spec.template.spec.containers[1].env", docs[0])
+        envs = jmespath.search("spec.template.spec.containers[1].env", docs[0])
 
-        # Testing git-sync v4
         assert {
-            "name": "GITSYNC_USERNAME",
-            "valueFrom": {"secretKeyRef": {"name": "user-pass-secret", "key": "GITSYNC_USERNAME"}},
-        } in jmespath.search("spec.template.spec.containers[1].env", docs[0])
+            "name": f"{expected_prefix}USERNAME",
+            "valueFrom": {"secretKeyRef": {"name": "user-pass-secret", "key": f"{expected_prefix}USERNAME"}},
+        } in envs
+
         assert {
-            "name": "GITSYNC_PASSWORD",
-            "valueFrom": {"secretKeyRef": {"name": "user-pass-secret", "key": "GITSYNC_PASSWORD"}},
-        } in jmespath.search("spec.template.spec.containers[1].env", docs[0])
+            "name": f"{expected_prefix}PASSWORD",
+            "valueFrom": {"secretKeyRef": {"name": "user-pass-secret", "key": f"{expected_prefix}PASSWORD"}},
+        } in envs
 
     def test_should_set_the_volume_claim_correctly_when_using_an_existing_claim(self):
         docs = render_chart(
@@ -408,3 +415,46 @@ class TestGitSyncSchedulerTest:
             jmespath.search("spec.template.spec.containers[1].resources.requests.memory", docs[0]) == "169Mi"
         )
         assert jmespath.search("spec.template.spec.containers[1].resources.requests.cpu", docs[0]) == "300m"
+
+    def test_liveliness_and_readiness_probes_are_configurable(self):
+        livenessProbe = {
+            "failureThreshold": 10,
+            "exec": {"command": ["/bin/true"]},
+            "initialDelaySeconds": 0,
+            "periodSeconds": 1,
+            "successThreshold": 1,
+            "timeoutSeconds": 5,
+        }
+        readinessProbe = {
+            "failureThreshold": 10,
+            "exec": {"command": ["/bin/true"]},
+            "initialDelaySeconds": 0,
+            "periodSeconds": 1,
+            "successThreshold": 1,
+            "timeoutSeconds": 5,
+        }
+        docs = render_chart(
+            values={
+                "airflowVersion": "2.10.5",
+                "dags": {
+                    "gitSync": {
+                        "enabled": True,
+                        "livenessProbe": livenessProbe,
+                        "readinessProbe": readinessProbe,
+                    },
+                },
+            },
+            show_only=["templates/scheduler/scheduler-deployment.yaml"],
+        )
+        container_search_result = jmespath.search(
+            "spec.template.spec.containers[?name == 'git-sync']", docs[0]
+        )
+        init_container_search_result = jmespath.search(
+            "spec.template.spec.initContainers[?name == 'git-sync-init']", docs[0]
+        )
+        assert "livenessProbe" in container_search_result[0]
+        assert "readinessProbe" in container_search_result[0]
+        assert "readinessProbe" not in init_container_search_result[0]
+        assert "readinessProbe" not in init_container_search_result[0]
+        assert livenessProbe == container_search_result[0]["livenessProbe"]
+        assert readinessProbe == container_search_result[0]["readinessProbe"]

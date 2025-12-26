@@ -1,0 +1,118 @@
+{
+  "allRuns": "सभी रन्स",
+  "blockingDeps": {
+    "dependency": "निर्भरता",
+    "reason": "कारण",
+    "title": "टास्क को शेड्यूल होने से रोकने वाली निर्भरताएं"
+  },
+  "code": {
+    "bundleUrl": "बंडल URL",
+    "noCode": "कोई कोड नहीं मिला",
+    "parsedAt": "पार्स किया गया:"
+  },
+  "extraLinks": "अतिरिक्त लिंक्स",
+  "grid": {
+    "buttons": {
+      "resetToLatest": "नवीनतम पर रीसेट करें",
+      "toggleGroup": "ग्रुप टॉगल करें"
+    }
+  },
+  "header": {
+    "buttons": {
+      "advanced": "उन्नत",
+      "dagDocs": "डैग प्रलेखन"
+    }
+  },
+  "logs": {
+    "allLevels": "सभी लॉग स्तर",
+    "allSources": "सभी स्रोत",
+    "critical": "CRITICAL",
+    "debug": "DEBUG",
+    "error": "ERROR",
+    "fullscreen": {
+      "button": "पूर्ण स्क्रीन",
+      "tooltip": "पूर्ण स्क्रीन के लिए {{hotkey}} दबाएं"
+    },
+    "info": "INFO",
+    "noTryNumber": "कोई प्रयास संख्या नहीं",
+    "settings": "लॉग सेटिंग्स",
+    "viewInExternal": "{{name}} में लॉग्स देखें (प्रयास {{attempt}})",
+    "warning": "WARNING"
+  },
+  "navigation": {
+    "navigation": "नेवीगेशन: {{arrow}}",
+    "toggleGroup": "ग्रुप टॉगल करें: Space"
+  },
+  "overview": {
+    "buttons": {
+      "failedRun_one": "विफल रन",
+      "failedRun_other": "विफल रन्स",
+      "failedTask_one": "विफल टास्क",
+      "failedTask_other": "विफल टास्क्स",
+      "failedTaskInstance_one": "विफल टास्क इंस्टेंस",
+      "failedTaskInstance_other": "विफल टास्क इंस्टेंसेज"
+    },
+    "charts": {
+      "assetEvent_one": "बनाया गया एसेट इवेंट",
+      "assetEvent_other": "बनाए गए एसेट इवेंट्स"
+    },
+    "failedLogs": {
+      "title": "हाल ही की विफल टास्क लॉग्स",
+      "viewFullLogs": "पूर्ण लॉग्स देखें"
+    }
+  },
+  "panel": {
+    "buttons": {
+      "options": "विकल्प"
+    },
+    "dagRuns": {
+      "label": "डैग रन्स की संख्या"
+    },
+    "dependencies": {
+      "label": "निर्भरताएं",
+      "options": {
+        "allDagDependencies": "सभी डैग निर्भरताएं",
+        "externalConditions": "बाहरी स्थितियां",
+        "onlyTasks": "केवल टास्क्स"
+      },
+      "placeholder": "निर्भरताएं"
+    },
+    "graphDirection": {
+      "label": "ग्राफ़ दिशा"
+    }
+  },
+  "paramsFailed": "पैरामीटर लोड करने में विफल",
+  "parse": {
+    "toaster": {
+      "error": {
+        "description": "डैग पार्सिंग अनुरोध विफल। अभी भी प्रक्रिया होने वाले पार्सिंग अनुरोध हो सकते हैं।",
+        "title": "डैग दोबारा पार्स करने में विफल"
+      },
+      "success": {
+        "description": "डैग जल्द ही दोबारा पार्स हो जाना चाहिए।",
+        "title": "पुनः पार्सिंग अनुरोध सफलतापूर्वक सबमिट किया गया"
+      }
+    }
+  },
+  "tabs": {
+    "assetEvents": "एसेट इवेंट्स",
+    "auditLog": "ऑडिट लॉग",
+    "backfills": "बैकफ़िल्स",
+    "code": "कोड",
+    "details": "विवरण",
+    "logs": "लॉग्स",
+    "mappedTaskInstances_one": "टास्क इंस्टेंस [{{count}}]",
+    "mappedTaskInstances_other": "टास्क इंस्टेंसेज [{{count}}]",
+    "overview": "ओवरव्यू",
+    "renderedTemplates": "रेंडर किए गए टेम्प्लेट्स",
+    "requiredActions": "आवश्यक क्रियाएं",
+    "runs": "रन्स",
+    "taskInstances": "टास्क इंस्टेंसेज",
+    "tasks": "टास्क्स",
+    "xcom": "XCom"
+  },
+  "taskGroups": {
+    "collapseAll": "सभी टास्क ग्रुप्स को संकुचित करें",
+    "expandAll": "सभी टास्क ग्रुप्स को विस्तृत करें"
+  }
+}

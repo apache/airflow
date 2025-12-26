@@ -21,7 +21,7 @@ from typing import TYPE_CHECKING, Any
 
 from zenpy import Zenpy
 
-from airflow.providers.zendesk.version_compat import BaseHook
+from airflow.providers.common.compat.sdk import BaseHook
 
 if TYPE_CHECKING:
     from zenpy.lib.api import BaseApi

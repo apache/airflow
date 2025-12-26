@@ -17,7 +17,7 @@
 #
 # This is automatically generated stub for the `common.sql` provider
 #
-# This file is generated automatically by the `update-common-sql-api stubs` pre-commit
+# This file is generated automatically by the `update-common-sql-api stubs` prek hook
 # and the .pyi file represents part of the "public" API that the
 # `common.sql` provider exposes to other providers.
 #
@@ -28,8 +28,8 @@
 # You can read more in the README_API.md file
 #
 """
-Definition of the public interface for airflow.providers.common.sql.src.airflow.providers.common.sql.sensors.sql
-isort:skip_file
+Definition of the public interface for
+airflow.providers.common.sql.src.airflow.providers.common.sql.sensors.sql.
 """
 
 from collections.abc import Callable, Mapping, Sequence
@@ -37,13 +37,7 @@ from typing import Any
 
 from _typeshed import Incomplete as Incomplete
 
-from airflow.providers.common.sql.version_compat import AIRFLOW_V_3_0_PLUS
-
-if AIRFLOW_V_3_0_PLUS:
-    from airflow.sdk import BaseSensorOperator
-else:
-    from airflow.sensors.base import BaseSensorOperator  # type: ignore[no-redef]
-
+from airflow.providers.common.compat.sdk import BaseSensorOperator
 from airflow.utils.context import Context as Context
 
 class SqlSensor(BaseSensorOperator):

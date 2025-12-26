@@ -19,6 +19,7 @@ from __future__ import annotations
 from unittest import mock
 
 import pytest
+from moto import mock_aws
 
 from airflow.providers.amazon.aws.hooks.athena import (
     MULTI_LINE_QUERY_LOG_PREFIX,
@@ -58,8 +59,9 @@ MOCK_QUERY_EXECUTION_OUTPUT = {
 }
 
 
+@mock_aws
 class TestAthenaHook:
-    def setup_method(self):
+    def setup_method(self, _):
         self.athena = AthenaHook()
 
     def test_init(self):

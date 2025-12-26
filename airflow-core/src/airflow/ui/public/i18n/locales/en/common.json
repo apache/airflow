@@ -7,6 +7,13 @@
     "Providers": "Providers",
     "Variables": "Variables"
   },
+  "allOperators": "All Operators",
+  "appearance": {
+    "appearance": "Appearance",
+    "darkMode": "Dark Mode",
+    "lightMode": "Light Mode",
+    "systemMode": "Follow System Setting"
+  },
   "asset_one": "Asset",
   "asset_other": "Assets",
   "assetEvent_one": "Asset Event",
@@ -15,8 +22,10 @@
   "backfill_other": "Backfills",
   "browse": {
     "auditLog": "Audit Log",
+    "requiredActions": "Required Actions",
     "xcoms": "XComs"
   },
+  "collapseAllExtra": "Collapse all extra JSON",
   "collapseDetailsPanel": "Collapse Details Panel",
   "createdAssetEvent_one": "Created Asset Event",
   "createdAssetEvent_other": "Created Asset Events",
@@ -24,7 +33,6 @@
   "dag_other": "Dags",
   "dagDetails": {
     "catchup": "Catchup",
-    "concurrency": "Concurrency",
     "dagRunTimeout": "Dag Run Timeout",
     "defaultArgs": "Default Args",
     "description": "Description",
@@ -32,6 +40,7 @@
     "fileLocation": "File Location",
     "hasTaskConcurrencyLimits": "Has Task Concurrency Limits",
     "lastExpired": "Last Expired",
+    "lastParseDuration": "Last Parse Duration",
     "lastParsed": "Last Parsed",
     "latestDagVersion": "Latest Dag Version",
     "latestRun": "Latest Run",
@@ -51,12 +60,13 @@
     "dataIntervalEnd": "Data Interval End",
     "dataIntervalStart": "Data Interval Start",
     "lastSchedulingDecision": "Last Scheduling Decision",
+    "partitionKey": "Partition key",
     "queuedAt": "Queued At",
     "runAfter": "Run After",
     "runType": "Run Type",
     "sourceAssetEvent": "Source Asset Event",
     "triggeredBy": "Triggered By",
-    "triggeringUser": "Triggering User Name"
+    "triggeringUser": "Triggering User"
   },
   "dagRun_one": "Dag Run",
   "dagRun_other": "Dag Runs",
@@ -64,18 +74,30 @@
   "dagWarnings": "Dag warnings/errors",
   "defaultToGraphView": "Default to graph view",
   "defaultToGridView": "Default to grid view",
+  "delete": "Delete",
+  "diff": "Diff",
+  "diffCompareWith": "Compare with",
+  "diffExit": "Exit Diff",
+  "diffSelectVersionToCompare": "Select version to compare",
   "direction": "Direction",
   "docs": {
     "documentation": "Documentation",
     "githubRepo": "GitHub Repo",
     "restApiReference": "REST API Reference"
   },
+  "download": {
+    "download": "Download",
+    "hotkey": "d",
+    "tooltip": "Press {{hotkey}} to download logs"
+  },
   "duration": "Duration",
+  "edit": "Edit",
   "endDate": "End Date",
   "error": {
     "back": "Back",
     "defaultMessage": "An unexpected error occurred",
     "home": "Home",
+    "invalidUrl": "Page Not Found. Please check the URL and try again.",
     "notFound": "Page Not Found",
     "title": "Error"
   },
@@ -85,23 +107,38 @@
     "hotkey": "e",
     "tooltip": "Press {{hotkey}} to toggle expand"
   },
+  "expandAllExtra": "Expand all extra JSON",
   "expression": {
     "all": "All",
     "and": "AND",
     "any": "Any",
     "or": "OR"
   },
+  "filter": "Filter",
+  "filters": {
+    "durationFrom": "Duration From",
+    "durationTo": "Duration To",
+    "endTime": "End Time",
+    "logicalDateFrom": "Logical Date From",
+    "logicalDateTo": "Logical Date To",
+    "runAfterFrom": "Run After From",
+    "runAfterTo": "Run After To",
+    "selectDateRange": "Select Date Range",
+    "startTime": "Start Time"
+  },
   "logicalDate": "Logical Date",
   "logout": "Logout",
   "logoutConfirmation": "You are about to logout from the application.",
   "mapIndex": "Map Index",
   "modal": {
+    "add": "Add",
     "cancel": "Cancel",
     "confirm": "Confirm",
     "delete": {
       "button": "Delete",
       "confirmation": "Are you sure you want to delete {{resourceName}}? This action cannot be undone."
-    }
+    },
+    "save": "Save"
   },
   "nav": {
     "admin": "Admin",
@@ -131,6 +168,7 @@
     "running": "Running",
     "scheduled": "Scheduled"
   },
+  "reset": "Reset",
   "runId": "Run ID",
   "runTypes": {
     "asset_triggered": "Asset Triggered",
@@ -145,7 +183,6 @@
     },
     "tooltip": "Press {{hotkey}} to scroll to {{direction}}"
   },
-  "seconds": "{{count}}s",
   "security": {
     "actions": "Actions",
     "permissions": "Permissions",
@@ -155,6 +192,7 @@
   },
   "selectLanguage": "Select Language",
   "showDetailsPanel": "Show Details Panel",
+  "signedInAs": "Signed in as",
   "source": {
     "hide": "Hide Source",
     "hotkey": "s",
@@ -169,6 +207,7 @@
     "failed": "Failed",
     "no_status": "No Status",
     "none": "No Status",
+    "planned": "Planned",
     "queued": "Queued",
     "removed": "Removed",
     "restarting": "Restarting",
@@ -180,8 +219,6 @@
     "up_for_retry": "Up For Retry",
     "upstream_failed": "Upstream Failed"
   },
-  "switchToDarkMode": "Switch to Dark Mode",
-  "switchToLightMode": "Switch to Light Mode",
   "table": {
     "completedAt": "Completed at",
     "createdAt": "Created at",
@@ -207,6 +244,7 @@
   },
   "task_one": "Task",
   "task_other": "Tasks",
+  "taskGroup": "Task Group",
   "taskId": "Task ID",
   "taskInstance": {
     "dagVersion": "Dag Version",

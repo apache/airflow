@@ -18,7 +18,6 @@
 from __future__ import annotations
 
 from unittest import mock
-from unittest.mock import Mock
 
 import pytest
 
@@ -28,23 +27,24 @@ from airflow.ti_deps.deps.dag_unpaused_dep import DagUnpausedDep
 pytestmark = pytest.mark.db_test
 
 
+@mock.patch.object(DagUnpausedDep, "_is_dag_paused")
 class TestDagUnpausedDep:
-    def test_concurrency_reached(self):
+    def test_concurrency_reached(self, mock_is_dag_paused):
         """
         Test paused DAG should fail dependency
         """
-        dag = Mock(**{"get_is_paused.return_value": True})
-        task = Mock(dag=dag)
+        mock_is_dag_paused.return_value = True
+        task = mock.Mock()
         ti = TaskInstance(task=task, dag_version_id=mock.MagicMock())
 
         assert not DagUnpausedDep().is_met(ti=ti)
 
-    def test_all_conditions_met(self):
+    def test_all_conditions_met(self, mock_is_dag_paused):
         """
         Test all conditions met should pass dep
         """
-        dag = Mock(**{"get_is_paused.return_value": False})
-        task = Mock(dag=dag)
+        mock_is_dag_paused.return_value = False
+        task = mock.Mock()
         ti = TaskInstance(task=task, dag_version_id=mock.MagicMock())
 
         assert DagUnpausedDep().is_met(ti=ti)

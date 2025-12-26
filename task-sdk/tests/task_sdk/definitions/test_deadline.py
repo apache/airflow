@@ -19,75 +19,35 @@ from __future__ import annotations
 from datetime import datetime, timedelta
 
 import pytest
+from task_sdk.definitions.test_callback import TEST_CALLBACK_KWARGS, TEST_CALLBACK_PATH, UNIMPORTABLE_DOT_PATH
 
+from airflow.sdk.definitions.callback import AsyncCallback, SyncCallback
 from airflow.sdk.definitions.deadline import DeadlineAlert, DeadlineReference
-
-UNIMPORTABLE_DOT_PATH = "valid.but.nonexistent.path"
 
 DAG_ID = "dag_id_1"
 RUN_ID = 1
 DEFAULT_DATE = datetime(2025, 6, 26)
 
-TEST_CALLBACK_PATH = f"{__name__}.test_callback_for_deadline"
-TEST_CALLBACK_KWARGS = {"arg1": "value1"}
-
 REFERENCE_TYPES = [
     pytest.param(DeadlineReference.DAGRUN_LOGICAL_DATE, id="logical_date"),
     pytest.param(DeadlineReference.DAGRUN_QUEUED_AT, id="queued_at"),
     pytest.param(DeadlineReference.FIXED_DATETIME(DEFAULT_DATE), id="fixed_deadline"),
+    pytest.param(DeadlineReference.AVERAGE_RUNTIME, id="average_runtime"),
 ]
 
 
-def test_callback_for_deadline():
-    """Used in a number of tests to confirm that Deadlines and DeadlineAlerts function correctly."""
-    pass
+TEST_DEADLINE_CALLBACK = AsyncCallback(TEST_CALLBACK_PATH, kwargs=TEST_CALLBACK_KWARGS)
 
 
 class TestDeadlineAlert:
     @pytest.mark.parametrize(
-        "callback_value, expected_path",
-        [
-            pytest.param(test_callback_for_deadline, TEST_CALLBACK_PATH, id="valid_callable"),
-            pytest.param(TEST_CALLBACK_PATH, TEST_CALLBACK_PATH, id="valid_path_string"),
-            pytest.param(lambda x: x, None, id="lambda_function"),
-            pytest.param(TEST_CALLBACK_PATH + "  ", TEST_CALLBACK_PATH, id="path_with_whitespace"),
-            pytest.param(UNIMPORTABLE_DOT_PATH, UNIMPORTABLE_DOT_PATH, id="valid_format_not_importable"),
-        ],
-    )
-    def test_get_callback_path_happy_cases(self, callback_value, expected_path):
-        path = DeadlineAlert.get_callback_path(callback_value)
-        if expected_path is None:
-            assert path.endswith("<lambda>")
-        else:
-            assert path == expected_path
-
-    @pytest.mark.parametrize(
-        "callback_value, error_type",
-        [
-            pytest.param(42, ImportError, id="not_a_string"),
-            pytest.param("", ImportError, id="empty_string"),
-            pytest.param("os.path", AttributeError, id="non_callable_module"),
-        ],
-    )
-    def test_get_callback_path_error_cases(self, callback_value, error_type):
-        expected_message = ""
-        if error_type is ImportError:
-            expected_message = "doesn't look like a valid dot path."
-        elif error_type is AttributeError:
-            expected_message = "is not callable."
-
-        with pytest.raises(error_type, match=expected_message):
-            DeadlineAlert.get_callback_path(callback_value)
-
-    @pytest.mark.parametrize(
-        "test_alert, should_equal",
+        ("test_alert", "should_equal"),
         [
             pytest.param(
                 DeadlineAlert(
                     reference=DeadlineReference.DAGRUN_QUEUED_AT,
                     interval=timedelta(hours=1),
-                    callback=TEST_CALLBACK_PATH,
-                    callback_kwargs=TEST_CALLBACK_KWARGS,
+                    callback=TEST_DEADLINE_CALLBACK,
                 ),
                 True,
                 id="same_alert",
@@ -96,8 +56,7 @@ class TestDeadlineAlert:
                 DeadlineAlert(
                     reference=DeadlineReference.DAGRUN_LOGICAL_DATE,
                     interval=timedelta(hours=1),
-                    callback=TEST_CALLBACK_PATH,
-                    callback_kwargs=TEST_CALLBACK_KWARGS,
+                    callback=TEST_DEADLINE_CALLBACK,
                 ),
                 False,
                 id="different_reference",
@@ -106,8 +65,7 @@ class TestDeadlineAlert:
                 DeadlineAlert(
                     reference=DeadlineReference.DAGRUN_QUEUED_AT,
                     interval=timedelta(hours=2),
-                    callback=TEST_CALLBACK_PATH,
-                    callback_kwargs=TEST_CALLBACK_KWARGS,
+                    callback=TEST_DEADLINE_CALLBACK,
                 ),
                 False,
                 id="different_interval",
@@ -116,8 +74,7 @@ class TestDeadlineAlert:
                 DeadlineAlert(
                     reference=DeadlineReference.DAGRUN_QUEUED_AT,
                     interval=timedelta(hours=1),
-                    callback="other.callback",
-                    callback_kwargs=TEST_CALLBACK_KWARGS,
+                    callback=AsyncCallback(UNIMPORTABLE_DOT_PATH, kwargs=TEST_CALLBACK_KWARGS),
                 ),
                 False,
                 id="different_callback",
@@ -126,8 +83,7 @@ class TestDeadlineAlert:
                 DeadlineAlert(
                     reference=DeadlineReference.DAGRUN_QUEUED_AT,
                     interval=timedelta(hours=1),
-                    callback=TEST_CALLBACK_PATH,
-                    callback_kwargs={"arg2": "value2"},
+                    callback=AsyncCallback(TEST_CALLBACK_PATH, kwargs={"arg2": "value2"}),
                 ),
                 False,
                 id="different_kwargs",
@@ -139,8 +95,7 @@ class TestDeadlineAlert:
         base_alert = DeadlineAlert(
             reference=DeadlineReference.DAGRUN_QUEUED_AT,
             interval=timedelta(hours=1),
-            callback=TEST_CALLBACK_PATH,
-            callback_kwargs=TEST_CALLBACK_KWARGS,
+            callback=TEST_DEADLINE_CALLBACK,
         )
 
         assert (base_alert == test_alert) == should_equal
@@ -153,14 +108,12 @@ class TestDeadlineAlert:
         alert1 = DeadlineAlert(
             reference=DeadlineReference.DAGRUN_QUEUED_AT,
             interval=std_interval,
-            callback=std_callback,
-            callback_kwargs=std_kwargs,
+            callback=AsyncCallback(std_callback, kwargs=std_kwargs),
         )
         alert2 = DeadlineAlert(
             reference=DeadlineReference.DAGRUN_QUEUED_AT,
             interval=std_interval,
-            callback=std_callback,
-            callback_kwargs=std_kwargs,
+            callback=AsyncCallback(std_callback, kwargs=std_kwargs),
         )
 
         assert hash(alert1) == hash(alert1)
@@ -174,19 +127,21 @@ class TestDeadlineAlert:
         alert1 = DeadlineAlert(
             reference=DeadlineReference.DAGRUN_QUEUED_AT,
             interval=std_interval,
-            callback=std_callback,
-            callback_kwargs=std_kwargs,
+            callback=AsyncCallback(std_callback, kwargs=std_kwargs),
         )
         alert2 = DeadlineAlert(
             reference=DeadlineReference.DAGRUN_QUEUED_AT,
             interval=std_interval,
-            callback=std_callback,
-            callback_kwargs=std_kwargs,
+            callback=AsyncCallback(std_callback, kwargs=std_kwargs),
         )
 
         alert_set = {alert1, alert2}
         assert len(alert_set) == 1
 
-
-# While DeadlineReference lives in the SDK package, the unit tests to confirm it
-# works need database access so they live in the models/test_deadline.py module.
+    def test_deadline_alert_unsupported_callback(self):
+        with pytest.raises(ValueError, match="Callbacks of type SyncCallback are not currently supported"):
+            DeadlineAlert(
+                reference=DeadlineReference.DAGRUN_QUEUED_AT,
+                interval=timedelta(hours=1),
+                callback=SyncCallback(TEST_CALLBACK_PATH),
+            )

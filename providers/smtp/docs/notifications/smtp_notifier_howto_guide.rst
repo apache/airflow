@@ -21,7 +21,7 @@ How-to Guide for SMTP notifications
 Introduction
 ------------
 The SMTP notifier (:class:`airflow.providers.smtp.notifications.smtp.SmtpNotifier`) allows users to send
-messages to SMTP servers using the various ``on_*_callbacks`` at both the DAG level and Task level.
+messages to SMTP servers using the various ``on_*_callbacks`` at both the Dag level and Task level.
 
 
 Example Code:

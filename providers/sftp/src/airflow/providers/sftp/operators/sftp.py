@@ -27,9 +27,8 @@ from typing import Any
 
 import paramiko
 
-from airflow.exceptions import AirflowException
+from airflow.providers.common.compat.sdk import AirflowException, BaseOperator
 from airflow.providers.sftp.hooks.sftp import SFTPHook
-from airflow.providers.sftp.version_compat import BaseOperator
 
 
 class SFTPOperation:
@@ -76,6 +75,7 @@ class SFTPOperator(BaseOperator):
             )
     :param concurrency: Number of threads when transferring directories. Each thread opens a new SFTP connection.
         This parameter is used only when transferring directories, not individual files. (Default is 1)
+    :param prefetch: controls whether prefetch is performed (default: True)
 
     """
 
@@ -93,6 +93,7 @@ class SFTPOperator(BaseOperator):
         confirm: bool = True,
         create_intermediate_dirs: bool = False,
         concurrency: int = 1,
+        prefetch: bool = True,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -105,6 +106,7 @@ class SFTPOperator(BaseOperator):
         self.local_filepath = local_filepath
         self.remote_filepath = remote_filepath
         self.concurrency = concurrency
+        self.prefetch = prefetch
 
     def execute(self, context: Any) -> str | list[str] | None:
         if self.local_filepath is None:
@@ -141,23 +143,24 @@ class SFTPOperator(BaseOperator):
 
         file_msg = None
         try:
-            if self.ssh_conn_id:
-                if self.sftp_hook and isinstance(self.sftp_hook, SFTPHook):
-                    self.log.info("ssh_conn_id is ignored when sftp_hook is provided.")
-                else:
-                    self.log.info("sftp_hook not provided or invalid. Trying ssh_conn_id to create SFTPHook.")
-                    self.sftp_hook = SFTPHook(ssh_conn_id=self.ssh_conn_id)
-
-            if not self.sftp_hook:
-                raise AirflowException("Cannot operate without sftp_hook or ssh_conn_id.")
-
             if self.remote_host is not None:
                 self.log.info(
                     "remote_host is provided explicitly. "
                     "It will replace the remote_host which was defined "
                     "in sftp_hook or predefined in connection of ssh_conn_id."
                 )
-                self.sftp_hook.remote_host = self.remote_host
+
+            if self.ssh_conn_id:
+                if self.sftp_hook and isinstance(self.sftp_hook, SFTPHook):
+                    self.log.info("ssh_conn_id is ignored when sftp_hook is provided.")
+                else:
+                    self.log.info("sftp_hook not provided or invalid. Trying ssh_conn_id to create SFTPHook.")
+                    self.sftp_hook = SFTPHook(
+                        ssh_conn_id=self.ssh_conn_id, remote_host=self.remote_host or ""
+                    )
+
+            if not self.sftp_hook:
+                raise AirflowException("Cannot operate without sftp_hook or ssh_conn_id.")
 
             if self.operation.lower() in (SFTPOperation.GET, SFTPOperation.PUT):
                 for _local_filepath, _remote_filepath in zip(local_filepath_array, remote_filepath_array):
@@ -173,6 +176,7 @@ class SFTPOperator(BaseOperator):
                                     _remote_filepath,
                                     _local_filepath,
                                     workers=self.concurrency,
+                                    prefetch=self.prefetch,
                                 )
                             elif self.concurrency == 1:
                                 self.sftp_hook.retrieve_directory(_remote_filepath, _local_filepath)

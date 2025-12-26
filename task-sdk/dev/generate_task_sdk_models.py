@@ -20,6 +20,7 @@ import json
 import os
 import sys
 from pathlib import Path
+from unittest import mock
 
 import httpx
 from datamodel_code_generator import (
@@ -37,7 +38,7 @@ os.environ["_AIRFLOW__AS_LIBRARY"] = "1"
 AIRFLOW_ROOT_PATH = Path(__file__).parents[2].resolve()
 AIRFLOW_TASK_SDK_ROOT_PATH = AIRFLOW_ROOT_PATH / "task-sdk"
 AIRFLOW_CORE_SOURCES_PATH = AIRFLOW_ROOT_PATH / "airflow-core" / "src"
-sys.path.insert(0, str(Path(__file__).parent.resolve()))  # make sure common_precommit_utils is imported
+sys.path.insert(0, str(Path(__file__).parent.resolve()))  # make sure common_prek_utils is imported
 
 sys.path.insert(0, AIRFLOW_CORE_SOURCES_PATH.as_posix())
 sys.path.insert(0, str(AIRFLOW_ROOT_PATH))  # make sure setup is imported from Airflow
@@ -75,6 +76,7 @@ def load_config():
     return cfg
 
 
+@mock.patch("fastapi._compat.v2.get_long_model_name", lambda model: model.__name__)
 def generate_file():
     from airflow.api_fastapi.execution_api.app import InProcessExecutionAPI
 

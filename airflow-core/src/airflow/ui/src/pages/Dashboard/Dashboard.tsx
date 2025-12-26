@@ -19,11 +19,13 @@
 import { Box, Heading, VStack } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 
-import type { UIAlert } from "openapi/requests/types.gen";
+import { usePluginServiceGetPlugins } from "openapi/queries";
+import type { ReactAppResponse, UIAlert } from "openapi/requests/types.gen";
 import ReactMarkdown from "src/components/ReactMarkdown";
 import { Accordion, Alert } from "src/components/ui";
 import { useConfig } from "src/queries/useConfig";
 
+import { ReactPlugin } from "../ReactPlugin";
 import { FavoriteDags } from "./FavoriteDags";
 import { Health } from "./Health";
 import { HistoricalMetrics } from "./HistoricalMetrics";
@@ -33,9 +35,17 @@ import { Stats } from "./Stats";
 export const Dashboard = () => {
   const alerts = useConfig("dashboard_alert") as Array<UIAlert>;
   const { t: translate } = useTranslation("dashboard");
+  const instanceName = useConfig("instance_name");
+
+  const { data: pluginData } = usePluginServiceGetPlugins();
+
+  const dashboardReactPlugins =
+    pluginData?.plugins
+      .flatMap((plugin) => plugin.react_apps)
+      .filter((reactAppPlugin: ReactAppResponse) => reactAppPlugin.destination === "dashboard") ?? [];
 
   return (
-    <Box overflow="auto" px={4}>
+    <Box overflow="auto" px={{ base: 2, md: 4 }}>
       <VStack alignItems="stretch" gap={6}>
         {/* All flex items within this VStack should specify an increasing order. This
         will be used by third parties plugins to position themselves within the page via CSS */}
@@ -61,7 +71,9 @@ export const Dashboard = () => {
           </Accordion.Root>
         ) : undefined}
         <Heading order={2} size="2xl">
-          {translate("welcome")}
+          {typeof instanceName === "string" && instanceName !== "" && instanceName !== "Airflow"
+            ? instanceName
+            : translate("welcome")}
         </Heading>
         <Box order={3}>
           <Stats />
@@ -69,13 +81,16 @@ export const Dashboard = () => {
         <Box order={4}>
           <FavoriteDags />
         </Box>
-        <Box display="flex" gap={8} order={5}>
+        <Box display="flex" flexDirection={{ base: "column", md: "row" }} gap={{ base: 4, md: 8 }} order={5}>
           <Health />
           <PoolSummary />
         </Box>
         <Box order={6}>
           <HistoricalMetrics />
         </Box>
+        {dashboardReactPlugins.map((plugin) => (
+          <ReactPlugin key={plugin.name} reactApp={plugin} />
+        ))}
       </VStack>
     </Box>
   );

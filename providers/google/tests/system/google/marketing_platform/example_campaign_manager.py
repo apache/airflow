@@ -34,8 +34,6 @@ import uuid
 from datetime import datetime
 from typing import Any, cast
 
-from google.api_core.exceptions import NotFound
-
 try:
     from airflow.sdk import task
 except ImportError:
@@ -43,8 +41,8 @@ except ImportError:
     from airflow.decorators import task  # type: ignore[attr-defined,no-redef]
 from airflow.models.dag import DAG
 from airflow.models.xcom_arg import XComArg
-from airflow.providers.google.cloud.hooks.secret_manager import GoogleCloudSecretManagerHook
 from airflow.providers.google.cloud.operators.gcs import GCSCreateBucketOperator, GCSDeleteBucketOperator
+from airflow.providers.google.common.utils.get_secret import get_secret
 from airflow.providers.google.marketing_platform.operators.campaign_manager import (
     GoogleCampaignManagerBatchInsertConversionsOperator,
     GoogleCampaignManagerBatchUpdateConversionsOperator,
@@ -56,16 +54,23 @@ from airflow.providers.google.marketing_platform.operators.campaign_manager impo
 from airflow.providers.google.marketing_platform.sensors.campaign_manager import (
     GoogleCampaignManagerReportSensor,
 )
-from airflow.utils.trigger_rule import TriggerRule
+
+try:
+    from airflow.sdk import TriggerRule
+except ImportError:
+    # Compatibility for Airflow < 3.1
+    from airflow.utils.trigger_rule import TriggerRule  # type: ignore[no-redef,attr-defined]
 
 from system.google import DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
-from tests_common.test_utils.api_client_helpers import create_airflow_connection, delete_airflow_connection
+from system.google.gcp_api_client_helpers import create_airflow_connection, delete_airflow_connection
 
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID", "default")
 PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT") or DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
 CM360_IMPERSONATION_CHAIN = os.environ.get("IMPERSONATION_CHAIN", None)
 
 DAG_ID = "campaign_manager"
+
+IS_COMPOSER = bool(os.environ.get("COMPOSER_ENVIRONMENT", ""))
 
 SECRET_ACCOUNT_ID = "cm360_account_id"
 SECRET_DCLID = "cm360_dclid"
@@ -141,13 +146,6 @@ CONVERSION_UPDATE = {
 log = logging.getLogger(__name__)
 
 
-def get_secret(secret_id: str) -> str:
-    hook = GoogleCloudSecretManagerHook()
-    if hook.secret_exists(secret_id=secret_id):
-        return hook.access_secret(secret_id=secret_id).payload.data.decode().strip()
-    raise NotFound("The secret '%s' not found", secret_id)
-
-
 with DAG(
     DAG_ID,
     schedule="@once",  # Override to match your needs,
@@ -171,6 +169,7 @@ with DAG(
         create_airflow_connection(
             connection_id=connection_id,
             connection_conf=connection,
+            is_composer=IS_COMPOSER,
         )
 
     @task
@@ -285,7 +284,7 @@ with DAG(
 
     @task(task_id="delete_connection")
     def delete_connection(connection_id: str) -> None:
-        delete_airflow_connection(connection_id=connection_id)
+        delete_airflow_connection(connection_id=connection_id, is_composer=IS_COMPOSER)
 
     (
         # TEST SETUP

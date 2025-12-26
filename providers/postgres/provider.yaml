@@ -22,12 +22,18 @@ description: |
   `PostgreSQL <https://www.postgresql.org/>`__
 
 state: ready
-source-date-epoch: 1753691797
+source-date-epoch: 1765299355
 # Note that those versions are maintained by release manager - do not update them manually
 # with the exception of case where other provider in sources has >= new provider version.
 # In such case adding >= NEW_VERSION and bumping to NEW_VERSION in a provider have
 # to be done in the same PR
 versions:
+  - 6.5.1
+  - 6.5.0
+  - 6.4.1
+  - 6.4.0
+  - 6.3.0
+  - 6.2.3
   - 6.2.2
   - 6.2.1
   - 6.2.0
@@ -107,3 +113,17 @@ asset-uris:
 dataset-uris:
   - schemes: [postgres, postgresql]
     handler: airflow.providers.postgres.assets.postgres.sanitize_uri
+
+config:
+  postgres:
+    description: |
+      Configuration for Postgres hooks and operators.
+    options:
+      azure_oauth_scope:
+        description: |
+          The scope to use while retrieving Oauth token for Postgres Flexible Server
+          from Azure Entra authentication.
+        version_added: 6.4.0
+        type: string
+        example: ~
+        default: "https://ossrdbms-aad.database.windows.net/.default"

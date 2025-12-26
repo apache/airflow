@@ -80,7 +80,7 @@ def reinstall_breeze(breeze_sources: Path, re_run: bool = True):
 
     if re_run:
         # Make sure we don't loop forever if the metadata hash hasn't been updated yet (else it is tricky to
-        # run pre-commit checks via breeze!)
+        # run prek checks via breeze!)
         os.environ["SKIP_BREEZE_SELF_UPGRADE_CHECK"] = "true"
         os.execl(sys.executable, sys.executable, *sys.argv)
     get_console().print(f"\n[info]Breeze has been reinstalled from {breeze_sources}. Exiting now.[/]\n\n")
@@ -99,11 +99,8 @@ def warn_non_editable():
     )
 
 
-def warn_dependencies_changed():
+def inform_about_self_upgrade():
     get_console().print(
-        f"\n[warning]Breeze dependencies changed since the installation![/]\n\n"
-        f"[warning]This might cause various problems!![/]\n\n"
-        f"If you experience problems - reinstall Breeze with:\n\n"
-        f"    {NAME} setup self-upgrade\n"
-        "\nThis should usually take couple of seconds.\n"
+        "\n[info]Breeze dependencies changed since the installation. Reinstalling them!\n\n[/]"
+        "You might need to rerun the command in case it fails\n\n"
     )

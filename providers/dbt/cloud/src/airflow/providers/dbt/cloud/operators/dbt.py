@@ -24,6 +24,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 from airflow.configuration import conf
+from airflow.providers.common.compat.sdk import BaseOperator, BaseOperatorLink, XCom
 from airflow.providers.dbt.cloud.hooks.dbt import (
     DbtCloudHook,
     DbtCloudJobRunException,
@@ -32,11 +33,6 @@ from airflow.providers.dbt.cloud.hooks.dbt import (
 )
 from airflow.providers.dbt.cloud.triggers.dbt import DbtCloudRunJobTrigger
 from airflow.providers.dbt.cloud.utils.openlineage import generate_openlineage_events_from_dbt_cloud_run
-from airflow.providers.dbt.cloud.version_compat import (
-    BaseOperator,
-    BaseOperatorLink,
-    XCom,
-)
 
 if TYPE_CHECKING:
     from airflow.providers.openlineage.extractors import OperatorLineage
@@ -87,6 +83,7 @@ class DbtCloudRunJobOperator(BaseOperator):
         run. For more information on retry logic, see:
         https://docs.getdbt.com/dbt-cloud/api-v2#/operations/Retry%20Failed%20Job
     :param deferrable: Run operator in the deferrable mode
+    :param hook_params: Extra arguments passed to the DbtCloudHook constructor.
     :return: The ID of the triggered dbt Cloud job run.
     """
 
@@ -124,6 +121,7 @@ class DbtCloudRunJobOperator(BaseOperator):
         reuse_existing_run: bool = False,
         retry_from_failure: bool = False,
         deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
+        hook_params: dict[str, Any] | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -144,6 +142,7 @@ class DbtCloudRunJobOperator(BaseOperator):
         self.reuse_existing_run = reuse_existing_run
         self.retry_from_failure = retry_from_failure
         self.deferrable = deferrable
+        self.hook_params = hook_params or {}
 
     def execute(self, context: Context):
         if self.trigger_reason is None:
@@ -192,9 +191,11 @@ class DbtCloudRunJobOperator(BaseOperator):
             self.run_id = trigger_job_response.json()["data"]["id"]
             job_run_url = trigger_job_response.json()["data"]["href"]
 
-        # Push the ``job_run_url`` value to XCom regardless of what happens during execution so that the job
-        # run can be monitored via the operator link.
+        # Push the ``job_run_url`` and ``job_run_id`` value to XCom regardless of what happens during execution.
+        # This enables job monitoring via the operator link and provides direct access
+        # to the job run ID without requiring users to parse the URL manually
         context["ti"].xcom_push(key="job_run_url", value=job_run_url)
+        context["ti"].xcom_push(key="job_run_id", value=self.run_id)
 
         if self.wait_for_termination and isinstance(self.run_id, int):
             if self.deferrable is False:
@@ -271,7 +272,7 @@ class DbtCloudRunJobOperator(BaseOperator):
     @cached_property
     def hook(self):
         """Returns DBT Cloud hook."""
-        return DbtCloudHook(self.dbt_cloud_conn_id)
+        return DbtCloudHook(self.dbt_cloud_conn_id, **self.hook_params)
 
     def get_openlineage_facets_on_complete(self, task_instance) -> OperatorLineage:
         """
@@ -309,6 +310,7 @@ class DbtCloudGetJobRunArtifactOperator(BaseOperator):
         be returned.
     :param output_file_name: Optional. The desired file name for the download artifact file.
         Defaults to <run_id>_<path> (e.g. "728368_run_results.json").
+    :param hook_params: Extra arguments passed to the DbtCloudHook constructor.
     """
 
     template_fields = ("dbt_cloud_conn_id", "run_id", "path", "account_id", "output_file_name")
@@ -322,6 +324,7 @@ class DbtCloudGetJobRunArtifactOperator(BaseOperator):
         account_id: int | None = None,
         step: int | None = None,
         output_file_name: str | None = None,
+        hook_params: dict[str, Any] | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -331,9 +334,10 @@ class DbtCloudGetJobRunArtifactOperator(BaseOperator):
         self.account_id = account_id
         self.step = step
         self.output_file_name = output_file_name or f"{self.run_id}_{self.path}".replace("/", "-")
+        self.hook_params = hook_params or {}
 
     def execute(self, context: Context) -> str:
-        hook = DbtCloudHook(self.dbt_cloud_conn_id)
+        hook = DbtCloudHook(self.dbt_cloud_conn_id, **self.hook_params)
         response = hook.get_job_run_artifact(
             run_id=self.run_id, path=self.path, account_id=self.account_id, step=self.step
         )
@@ -368,6 +372,7 @@ class DbtCloudListJobsOperator(BaseOperator):
     :param order_by: Optional. Field to order the result by. Use '-' to indicate reverse order.
         For example, to use reverse order by the run ID use ``order_by=-id``.
     :param project_id: Optional. The ID of a dbt Cloud project.
+    :param hook_params: Extra arguments passed to the DbtCloudHook constructor.
     """
 
     template_fields = (
@@ -382,6 +387,7 @@ class DbtCloudListJobsOperator(BaseOperator):
         account_id: int | None = None,
         project_id: int | None = None,
         order_by: str | None = None,
+        hook_params: dict[str, Any] | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -389,9 +395,10 @@ class DbtCloudListJobsOperator(BaseOperator):
         self.account_id = account_id
         self.project_id = project_id
         self.order_by = order_by
+        self.hook_params = hook_params or {}
 
     def execute(self, context: Context) -> list:
-        hook = DbtCloudHook(self.dbt_cloud_conn_id)
+        hook = DbtCloudHook(self.dbt_cloud_conn_id, **self.hook_params)
         list_jobs_response = hook.list_jobs(
             account_id=self.account_id, order_by=self.order_by, project_id=self.project_id
         )

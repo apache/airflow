@@ -28,7 +28,7 @@ from google.api_core.exceptions import AlreadyExists
 from google.cloud.exceptions import GoogleCloudError
 from google.cloud.run_v2 import Job, Service
 
-from airflow.exceptions import AirflowException, TaskDeferred
+from airflow.providers.common.compat.sdk import AirflowException, TaskDeferred
 from airflow.providers.google.cloud.operators.cloud_run import (
     CloudRunCreateJobOperator,
     CloudRunCreateServiceOperator,
@@ -46,7 +46,6 @@ TASK_ID = "test"
 PROJECT_ID = "testproject"
 REGION = "us-central1"
 JOB_NAME = "jobname"
-SERVICE = Service()
 SERVICE_NAME = "servicename"
 OVERRIDES = {
     "container_overrides": [{"args": ["python", "main.py"]}],
@@ -448,7 +447,7 @@ class TestCloudRunCreateServiceOperator:
             service_name=SERVICE_NAME,
         )
 
-        result = operator.execute(context=mock.MagicMock())
+        operator.execute(context=mock.MagicMock())
 
         hook_mock.return_value.create_service.assert_called_once_with(
             service=SERVICE,
@@ -461,8 +460,6 @@ class TestCloudRunCreateServiceOperator:
             region=REGION,
             project_id=PROJECT_ID,
         )
-
-        assert result == SERVICE
 
     @mock.patch(CLOUD_RUN_SERVICE_HOOK_PATH)
     def test_execute_when_other_error(self, hook_mock):

@@ -26,6 +26,189 @@
 Changelog
 ---------
 
+2.9.1
+.....
+
+Misc
+~~~~
+
+* ``chore: Adjust AirflowRunFacet and docs after moving OL methods to BaseSQLOperator (#58903)``
+* ``Move the traces and metrics code under a common observability package (#56187)``
+* ``Implement timetables in SDK (#58669)``
+* ``Remove global from openlineage provider (#58868)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``tests: Add OL system tests for deferrable TriggerDagRunOperator (#58933)``
+
+2.9.0
+.....
+
+.. note::
+    This release of provider is only available for Airflow 2.11+ as explained in the
+    Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/PROVIDERS.rst#minimum-supported-version-of-airflow-for-community-managed-providers>_.
+
+Features
+~~~~~~~~
+
+* ``Add few attrs from external_task sensor to OpenLineage events (#58719)``
+* ``Auto-inject OpenLineage parent info into TriggerDagRunOperator conf (#58672)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix OL root macros should reflect root from dagrun conf parent (#58428)``
+* ``Fix root in parentRunFacet is not always sourced from dag run (#58407)``
+
+Misc
+~~~~
+
+* ``Bump minimum Airflow version in providers to Airflow 2.11.0 (#58612)``
+* ``Bump min version of openlineage libraries to 1.40.0 to fix compat issues (#58302)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Updates to release process of providers (#58316)``
+   * ``Remove global from lineage.hook (#58285)``
+
+2.8.0
+.....
+
+Features
+~~~~~~~~
+
+* ``feat(openlineage): Add parentRunFacet for DAG events (#57809)``
+* ``nit: Use new taskinstance method to determine if task will emit OL event (#57446)``
+
+Misc
+~~~~
+
+* ``Convert all airflow distributions to be compliant with ASF requirements (#58138)``
+* ``Refactor import statement for Session to use sqlalchemy.orm (#57586)``
+* ``Migrate openlineage provider to common.compat (#57124)``
+
+Doc-only
+~~~~~~~~
+
+* ``[Doc] Fixing 404 errors for OpenLineage & Oracle providers (#57469)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Delete all unnecessary LICENSE Files (#58191)``
+   * ``Enable ruff PLW2101,PLW2901,PLW3301 rule (#57700)``
+   * ``Enable PT006 rule to openlineage Provider test (#57940)``
+   * ``Fix MyPy type errors in providers openlineage (#57435)``
+   * ``Fix MyPy type errors in providers utils/sql.py (#57448)``
+
+2.7.3
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix openlineage dag state event emit on timed out dag (#56542)``
+* ``Only import OpenLineage plugin listeners/hooks if plugin is enabled (#56266)``
+
+Misc
+~~~~
+
+* ``nit: Bump required OL client for Openlineage provider (#56302)``
+* ``chore: safeguard external call in OL sqlparser (#55692)``
+
+Doc-only
+~~~~~~~~
+
+* ``Correct 'Dag' to 'DAG' for code snippets in provider docs (#56727)``
+* ``Remove placeholder Release Date in changelog and index files (#56056)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``chore: add sleep in ol test operator (#54807)``
+   * ``Fix DagBag imports in 3.2+ (#56109)``
+
+2.7.2
+.....
+
+Misc
+~~~~
+
+* ``Adjust OpenLineage utils to be compatible with Airflow 3.1.0 (#56040)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Enable PT011 rule to prvoider tests (#56021)``
+   * ``Move DagBag to airflow/dag_processing (#55139)``
+
+2.7.1
+.....
+
+
+Bug Fixes
+~~~~~~~~~
+
+* ``fix: prevent user facets from overriding OL facets (#55765)``
+
+Misc
+~~~~
+
+* ``Remove SDK dependency from SerializedDAG (#55538)``
+* ``Decouple secrets_masker project from airflow configuration (#55259)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+2.7.0
+.....
+
+
+Features
+~~~~~~~~
+
+* ``add tasksDuration to state run facet (#53644)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix setproctitle usage on macos (#53122)``
+* ``Fix mypy no-redef errors for timeout imports in providers (#54471)``
+
+Misc
+~~~~
+
+* ``Decouple serialization and deserialization code for tasks (#54569)``
+* ``Move secrets_masker over to airflow_shared distribution (#54449)``
+* ``Remove MappedOperator inheritance (#53696)``
+* ``Update usage of timeout contextmanager from SDK where possible (#54183)``
+
+Doc-only
+~~~~~~~~
+
+* ``Make term Dag consistent in providers docs (#55101)``
+* ``docs: fix broken link on OpenLineage developer section (#54356)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Remove airflow.models.DAG (#54383)``
+   * ``chore: add more test cases to OpenLineage system tests (#55138)``
+   * ``chore: update ol system tests after bug fix in AF3 (#54629)``
+   * ``Switch pre-commit to prek (#54258)``
+   * ``Remove SDK BaseOperator in TaskInstance (#53223)``
+   * ``chore: Adjust OL system tests to latest changes (#54352)``
+   * ``Move email notifications from scheduler to DAG processor (#55238)``
+   * ``Fix Airflow 2 reference in README/index of providers (#55240)``
+
+2.6.1
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Allow secrets redact function to have different redaction than '***' (#53977)``
+* ``Fix several deprecation warnings related to airflow.sdk (#53791)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 2.6.0
 .....
 
@@ -667,7 +850,8 @@ Features
 
 * ``feat: Add dag_id when generating OpenLineage run_id for task instance. (#36659)``
 
-.. Review and move the new changes to one of the sections above:
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
    * ``Prepare docs 2nd wave of Providers January 2024 (#36945)``
 
 1.4.0
@@ -741,10 +925,7 @@ Features
 
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):
-
    * ``Pre-upgrade 'ruff==0.0.292' changes in providers (#35053)``
-
-.. Review and move the new changes to one of the sections above:
    * ``Prepare docs 3rd wave of Providers October 2023 (#35187)``
 
 1.1.1

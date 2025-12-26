@@ -33,15 +33,15 @@ from opensearchpy import OpenSearch
 from opensearchpy.exceptions import NotFoundError
 
 from airflow.configuration import conf
-from airflow.exceptions import AirflowException
 from airflow.models import DagRun
+from airflow.providers.common.compat.module_loading import import_string
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.opensearch.log.os_json_formatter import OpensearchJSONFormatter
 from airflow.providers.opensearch.log.os_response import Hit, OpensearchResponse
 from airflow.providers.opensearch.version_compat import AIRFLOW_V_3_0_PLUS
 from airflow.utils import timezone
 from airflow.utils.log.file_task_handler import FileTaskHandler
 from airflow.utils.log.logging_mixin import ExternalLoggingMixin, LoggingMixin
-from airflow.utils.module_loading import import_string
 from airflow.utils.session import create_session
 
 if TYPE_CHECKING:
@@ -165,11 +165,17 @@ class OpensearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMixin)
         index_patterns: str = conf.get("opensearch", "index_patterns", fallback="_all"),
         index_patterns_callable: str = conf.get("opensearch", "index_patterns_callable", fallback=""),
         os_kwargs: dict | None | Literal["default_os_kwargs"] = "default_os_kwargs",
-    ):
+        max_bytes: int = 0,
+        backup_count: int = 0,
+        delay: bool = False,
+    ) -> None:
         os_kwargs = os_kwargs or {}
         if os_kwargs == "default_os_kwargs":
             os_kwargs = get_os_kwargs_from_config()
-        super().__init__(base_log_folder)
+        # support log file size handling of FileTaskHandler
+        super().__init__(
+            base_log_folder=base_log_folder, max_bytes=max_bytes, backup_count=backup_count, delay=delay
+        )
         self.closed = False
         self.mark_end_on_close = True
         self.end_of_log_mark = end_of_log_mark.strip()
@@ -298,32 +304,16 @@ class OpensearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMixin)
             if USE_PER_RUN_LOG_ID:
                 log_id_template = dag_run.get_log_template(session=session).elasticsearch_id
 
-        if TYPE_CHECKING:
-            assert ti.task
-        try:
-            dag = ti.task.dag
-        except AttributeError:  # ti.task is not always set.
-            data_interval = (dag_run.data_interval_start, dag_run.data_interval_end)
-        else:
-            if TYPE_CHECKING:
-                assert dag is not None
-            # TODO: Task-SDK: Where should this function be?
-            data_interval = dag.get_run_data_interval(dag_run)  # type: ignore[attr-defined]
-
         if self.json_format:
-            data_interval_start = self._clean_date(data_interval[0])
-            data_interval_end = self._clean_date(data_interval[1])
+            data_interval_start = self._clean_date(dag_run.data_interval_start)
+            data_interval_end = self._clean_date(dag_run.data_interval_end)
             logical_date = self._clean_date(dag_run.logical_date)
         else:
-            if data_interval[0]:
-                data_interval_start = data_interval[0].isoformat()
-            else:
-                data_interval_start = ""
-            if data_interval[1]:
-                data_interval_end = data_interval[1].isoformat()
-            else:
-                data_interval_end = ""
-            logical_date = dag_run.logical_date.isoformat()
+            data_interval_start = (
+                dag_run.data_interval_start.isoformat() if dag_run.data_interval_start else ""
+            )
+            data_interval_end = dag_run.data_interval_end.isoformat() if dag_run.data_interval_end else ""
+            logical_date = dag_run.logical_date.isoformat() if dag_run.logical_date else ""
         return log_id_template.format(
             dag_id=ti.dag_id,
             task_id=ti.task_id,

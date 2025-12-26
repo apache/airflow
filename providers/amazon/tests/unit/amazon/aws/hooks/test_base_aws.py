@@ -38,7 +38,6 @@ from botocore.utils import FileWebIdentityTokenLoader
 from moto import mock_aws
 from moto.core import DEFAULT_ACCOUNT_ID
 
-from airflow.exceptions import AirflowException
 from airflow.models.connection import Connection
 from airflow.providers.amazon.aws.executors.ecs.ecs_executor import AwsEcsExecutor
 from airflow.providers.amazon.aws.hooks.base_aws import (
@@ -48,8 +47,10 @@ from airflow.providers.amazon.aws.hooks.base_aws import (
     resolve_session_factory,
 )
 from airflow.providers.amazon.aws.utils.connection_wrapper import AwsConnectionWrapper
+from airflow.providers.common.compat.sdk import AirflowException
 
 from tests_common.test_utils.config import conf_vars
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
 pytest.importorskip("aiobotocore")
 
@@ -166,7 +167,7 @@ class TestSessionFactory:
         assert isinstance(sf.conn, AwsConnectionWrapper)
 
     @pytest.mark.parametrize(
-        "region_name,conn_region_name",
+        ("region_name", "conn_region_name"),
         [
             ("eu-west-1", "cn-north-1"),
             ("eu-west-1", None),
@@ -184,7 +185,7 @@ class TestSessionFactory:
         assert sf.region_name == expected
 
     @pytest.mark.parametrize(
-        "botocore_config, conn_botocore_config",
+        ("botocore_config", "conn_botocore_config"),
         [
             (Config(s3={"us_east_1_regional_endpoint": "regional"}), None),
             (Config(s3={"us_east_1_regional_endpoint": "regional"}), Config(region_name="ap-southeast-1")),
@@ -282,7 +283,7 @@ class TestSessionFactory:
 
     @mock_aws
     @pytest.mark.parametrize(
-        "conn_id, conn_extra",
+        ("conn_id", "conn_extra"),
         config_for_credentials_test,
     )
     @pytest.mark.parametrize("region_name", ["ap-southeast-2", "sa-east-1"])
@@ -305,7 +306,7 @@ class TestSessionFactory:
 
     @pytest.mark.asyncio
     @pytest.mark.parametrize(
-        "conn_id, conn_extra",
+        ("conn_id", "conn_extra"),
         config_for_credentials_test,
     )
     @pytest.mark.parametrize("region_name", ["ap-southeast-2", "sa-east-1"])
@@ -430,9 +431,8 @@ class TestAwsBaseHook:
         assert mock_class_name.call_count == len(found_classes)
         assert user_agent_tags["Caller"] == found_classes[-1]
 
-    @pytest.mark.db_test
     @mock.patch.object(AwsEcsExecutor, "_load_run_kwargs")
-    def test_user_agent_caller_target_executor_found(self, mock_load_run_kwargs):
+    def test_user_agent_caller_target_executor_found(self, mock_load_run_kwargs, sdk_connection_not_found):
         with conf_vars(
             {
                 ("aws_ecs_executor", "cluster"): "foo",
@@ -454,9 +454,20 @@ class TestAwsBaseHook:
         assert user_agent_tags["Caller"] == default_caller_name
 
     @pytest.mark.db_test
-    @pytest.mark.parametrize("env_var, expected_version", [({"AIRFLOW_CTX_DAG_ID": "banana"}, 5), [{}, None]])
+    @pytest.mark.parametrize(
+        ("env_var", "expected_version"), [({"AIRFLOW_CTX_DAG_ID": "banana"}, 5), [{}, None]]
+    )
     @mock.patch.object(AwsBaseHook, "_get_caller", return_value="Test")
-    def test_user_agent_dag_run_key_is_hashed_correctly(self, _, env_var, expected_version):
+    def test_user_agent_dag_run_key_is_hashed_correctly(
+        self, _, env_var, expected_version, mock_supervisor_comms
+    ):
+        if AIRFLOW_V_3_0_PLUS:
+            from airflow.sdk.execution_time.comms import ConnectionResult
+
+            mock_supervisor_comms.send.return_value = ConnectionResult(
+                conn_id="aws_default",
+                conn_type="aws",
+            )
         with mock.patch.dict(os.environ, env_var, clear=True):
             dag_run_key = self.fetch_tags()["DagRunKey"]
 
@@ -796,7 +807,7 @@ class TestAwsBaseHook:
     @mock_aws
     @pytest.mark.parametrize("conn_type", ["client", "resource"])
     @pytest.mark.parametrize(
-        "connection_uri,region_name,env_region,expected_region_name",
+        ("connection_uri", "region_name", "env_region", "expected_region_name"),
         [
             ("aws://?region_name=eu-west-1", None, "", "eu-west-1"),
             ("aws://?region_name=eu-west-1", "cn-north-1", "", "cn-north-1"),
@@ -824,7 +835,7 @@ class TestAwsBaseHook:
     @mock_aws
     @pytest.mark.parametrize("conn_type", ["client", "resource"])
     @pytest.mark.parametrize(
-        "connection_uri,expected_partition",
+        ("connection_uri", "expected_partition"),
         [
             ("aws://?region_name=eu-west-1", "aws"),
             ("aws://?region_name=cn-north-1", "aws-cn"),
@@ -862,7 +873,7 @@ class TestAwsBaseHook:
             resource_hook._resolve_service_name(is_resource_type=False)
 
     @pytest.mark.parametrize(
-        "client_type,resource_type",
+        ("client_type", "resource_type"),
         [
             ("s3", "dynamodb"),
             (None, None),
@@ -913,7 +924,7 @@ class TestAwsBaseHook:
         assert hook.client_type == "ec2"
 
     @pytest.mark.parametrize(
-        "sts_service_endpoint_url, result_url",
+        ("sts_service_endpoint_url", "result_url"),
         [
             pytest.param(None, None, id="not-set"),
             pytest.param("https://sts.service:1234", "https://sts.service:1234", id="sts-service-endpoint"),

@@ -21,10 +21,9 @@ import os
 from unittest import mock
 
 import pytest
+from moto import mock_aws
 
-from airflow.exceptions import AirflowException, TaskDeferred
 from airflow.models import DAG, DagRun, TaskInstance
-from airflow.models.serialized_dag import SerializedDagModel
 from airflow.providers.amazon.aws.hooks.athena import AthenaHook
 from airflow.providers.amazon.aws.operators.athena import AthenaOperator
 from airflow.providers.amazon.aws.triggers.athena import AthenaTrigger
@@ -37,17 +36,22 @@ from airflow.providers.common.compat.openlineage.facet import (
     SQLJobFacet,
     SymlinksDatasetFacet,
 )
+from airflow.providers.common.compat.sdk import AirflowException, TaskDeferred
 from airflow.providers.openlineage.extractors import OperatorLineage
-from airflow.utils import timezone
 from airflow.utils.state import DagRunState
-from airflow.utils.timezone import datetime
 from airflow.utils.types import DagRunType
 
+from tests_common.test_utils.dag import sync_dag_to_db
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 from unit.amazon.aws.utils.test_template_fields import validate_template_fields
 
+try:
+    from airflow.sdk import timezone
+except ImportError:
+    from airflow.utils import timezone  # type: ignore[attr-defined,no-redef]
+
 TEST_DAG_ID = "unit_tests"
-DEFAULT_DATE = datetime(2018, 1, 1)
+DEFAULT_DATE = timezone.datetime(2018, 1, 1)
 ATHENA_QUERY_ID = "eac29bf8-daa1-4ffc-b19a-0db31dc3b784"
 
 MOCK_DATA = {
@@ -64,6 +68,7 @@ query_context = {"Database": MOCK_DATA["database"], "Catalog": MOCK_DATA["catalo
 result_configuration = {"OutputLocation": MOCK_DATA["outputLocation"]}
 
 
+@mock_aws
 class TestAthenaOperator:
     @pytest.fixture(autouse=True)
     def _setup_test_cases(self):
@@ -232,14 +237,19 @@ class TestAthenaOperator:
     @mock.patch.object(AthenaHook, "run_query", return_value=ATHENA_QUERY_ID)
     @mock.patch.object(AthenaHook, "get_conn")
     def test_return_value(
-        self, mock_conn, mock_run_query, mock_check_query_status, session, clean_dags_and_dagruns
+        self,
+        mock_conn,
+        mock_run_query,
+        mock_check_query_status,
+        session,
+        clean_dags_dagruns_and_dagbundles,
+        testing_dag_bundle,
     ):
         """Test we return the right value -- that will get put in to XCom by the execution engine"""
         if AIRFLOW_V_3_0_PLUS:
             from airflow.models.dag_version import DagVersion
 
-            self.dag.sync_to_db()
-            SerializedDagModel.write_dag(self.dag, bundle_name="testing")
+            sync_dag_to_db(self.dag)
             dag_version = DagVersion.get_latest_version(self.dag.dag_id)
             ti = TaskInstance(task=self.athena, dag_version_id=dag_version.id)
             dag_run = DagRun(

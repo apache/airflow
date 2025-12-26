@@ -17,34 +17,39 @@
  * under the License.
  */
 import { Heading, Text, HStack } from "@chakra-ui/react";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { LuFileWarning } from "react-icons/lu";
 import { PiFilePy } from "react-icons/pi";
 
-import type { ImportErrorResponse } from "openapi/requests/types.gen";
+import { useImportErrorServiceGetImportErrors } from "openapi/queries";
 import { SearchBar } from "src/components/SearchBar";
 import Time from "src/components/Time";
 import { Accordion, Dialog } from "src/components/ui";
 import { Pagination } from "src/components/ui/Pagination";
 
 type ImportDAGErrorModalProps = {
-  importErrors: Array<ImportErrorResponse>;
   onClose: () => void;
   open: boolean;
 };
 
 const PAGE_LIMIT = 15;
 
-export const DAGImportErrorsModal: React.FC<ImportDAGErrorModalProps> = ({ importErrors, onClose, open }) => {
+export const DAGImportErrorsModal: React.FC<ImportDAGErrorModalProps> = ({ onClose, open }) => {
   const [page, setPage] = useState(1);
   const [searchQuery, setSearchQuery] = useState("");
-  const [filteredErrors, setFilteredErrors] = useState(importErrors);
-  const { t: translate } = useTranslation(["dashboard", "components"]);
 
-  const startRange = (page - 1) * PAGE_LIMIT;
-  const endRange = startRange + PAGE_LIMIT;
-  const visibleItems = filteredErrors.slice(startRange, endRange);
+  const { data } = useImportErrorServiceGetImportErrors(
+    {
+      filenamePattern: searchQuery || undefined,
+      limit: PAGE_LIMIT,
+      offset: PAGE_LIMIT * (page - 1),
+    },
+    undefined,
+    { enabled: open },
+  );
+
+  const { t: translate } = useTranslation(["dashboard", "components"]);
 
   const onOpenChange = () => {
     setSearchQuery("");
@@ -52,13 +57,10 @@ export const DAGImportErrorsModal: React.FC<ImportDAGErrorModalProps> = ({ impor
     onClose();
   };
 
-  useEffect(() => {
-    const query = searchQuery.toLowerCase();
-    const filtered = importErrors.filter((error) => error.filename.toLowerCase().includes(query));
-
-    setFilteredErrors(filtered);
+  const handleSearchChange = (value: string) => {
+    setSearchQuery(value);
     setPage(1);
-  }, [searchQuery, importErrors]);
+  };
 
   return (
     <Dialog.Root onOpenChange={onOpenChange} open={open} scrollBehavior="inside" size="xl">
@@ -66,14 +68,12 @@ export const DAGImportErrorsModal: React.FC<ImportDAGErrorModalProps> = ({ impor
         <Dialog.Header display="flex" justifyContent="space-between">
           <HStack fontSize="xl">
             <LuFileWarning />
-            <Heading>{translate("importErrors.dagImportError", { count: importErrors.length })}</Heading>
+            <Heading>{translate("importErrors.dagImportError", { count: data?.total_entries ?? 0 })}</Heading>
           </HStack>
           <SearchBar
-            buttonProps={{ disabled: true }}
             defaultValue={searchQuery}
-            hideAdvanced
-            onChange={setSearchQuery}
-            placeHolder={translate("importErrors.searchByFile")}
+            onChange={handleSearchChange}
+            placeholder={translate("importErrors.searchByFile")}
           />
         </Dialog.Header>
 
@@ -81,7 +81,7 @@ export const DAGImportErrorsModal: React.FC<ImportDAGErrorModalProps> = ({ impor
 
         <Dialog.Body>
           <Accordion.Root collapsible multiple size="md" variant="enclosed">
-            {visibleItems.map((importError) => (
+            {data?.import_errors.map((importError) => (
               <Accordion.Item key={importError.import_error_id} value={importError.filename}>
                 <Accordion.ItemTrigger cursor="pointer">
                   <Text display="flex" fontWeight="bold">
@@ -108,7 +108,7 @@ export const DAGImportErrorsModal: React.FC<ImportDAGErrorModalProps> = ({ impor
         </Dialog.Body>
 
         <Pagination.Root
-          count={filteredErrors.length}
+          count={data?.total_entries ?? 0}
           onPageChange={(event) => setPage(event.page)}
           p={4}
           page={page}

@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import logging
 from contextlib import AsyncExitStack, asynccontextmanager
+from functools import cache
 from typing import TYPE_CHECKING, cast
 from urllib.parse import urlsplit
 
@@ -49,10 +50,14 @@ API_ROOT_PATH = urlsplit(API_BASE_URL).path
 # Define the full path on which the potential auth manager fastapi is mounted
 AUTH_MANAGER_FASTAPI_APP_PREFIX = f"{API_ROOT_PATH}auth"
 
+# Fast API apps mounted under these prefixes are not allowed
+RESERVED_URL_PREFIXES = ["/api/v2", "/ui", "/execution"]
+
 log = logging.getLogger(__name__)
 
-app: FastAPI | None = None
-auth_manager: BaseAuthManager | None = None
+
+class _AuthManagerState:
+    instance: BaseAuthManager | None = None
 
 
 @asynccontextmanager
@@ -83,13 +88,13 @@ def create_app(apps: str = "all") -> FastAPI:
 
     dag_bag = create_dag_bag()
 
-    if "execution" in apps_list or "all" in apps_list:
+    if "all" in apps_list or "execution" in apps_list:
         task_exec_api_app = create_task_execution_api_app()
         task_exec_api_app.state.dag_bag = dag_bag
         init_error_handlers(task_exec_api_app)
         app.mount("/execution", task_exec_api_app)
 
-    if "core" in apps_list or "all" in apps_list:
+    if "all" in apps_list or "core" in apps_list:
         app.state.dag_bag = dag_bag
         init_plugins(app)
         init_auth_manager(app)
@@ -104,19 +109,16 @@ def create_app(apps: str = "all") -> FastAPI:
     return app
 
 
+@cache
 def cached_app(config=None, testing=False, apps="all") -> FastAPI:
     """Return cached instance of Airflow API app."""
-    global app
-    if not app:
-        app = create_app(apps=apps)
-    return app
+    return create_app(apps=apps)
 
 
 def purge_cached_app() -> None:
     """Remove the cached version of the app and auth_manager in global state."""
-    global app, auth_manager
-    app = None
-    auth_manager = None
+    cached_app.cache_clear()
+    _AuthManagerState.instance = None
 
 
 def get_auth_manager_cls() -> type[BaseAuthManager]:
@@ -137,10 +139,9 @@ def get_auth_manager_cls() -> type[BaseAuthManager]:
 
 def create_auth_manager() -> BaseAuthManager:
     """Create the auth manager."""
-    global auth_manager
     auth_manager_cls = get_auth_manager_cls()
-    auth_manager = auth_manager_cls()
-    return auth_manager
+    _AuthManagerState.instance = auth_manager_cls()
+    return _AuthManagerState.instance
 
 
 def init_auth_manager(app: FastAPI | None = None) -> BaseAuthManager:
@@ -158,14 +159,12 @@ def init_auth_manager(app: FastAPI | None = None) -> BaseAuthManager:
 
 def get_auth_manager() -> BaseAuthManager:
     """Return the auth manager, provided it's been initialized before."""
-    global auth_manager
-
-    if auth_manager is None:
+    if _AuthManagerState.instance is None:
         raise RuntimeError(
             "Auth Manager has not been initialized yet. "
             "The `init_auth_manager` method needs to be called first."
         )
-    return auth_manager
+    return _AuthManagerState.instance
 
 
 def init_plugins(app: FastAPI) -> None:
@@ -185,6 +184,12 @@ def init_plugins(app: FastAPI) -> None:
         if url_prefix is None:
             log.error("'url_prefix' key is missing for the fastapi app: %s", name)
             continue
+        if url_prefix == "":
+            log.error("'url_prefix' key is empty string for the fastapi app: %s", name)
+            continue
+        if any(url_prefix.startswith(prefix) for prefix in RESERVED_URL_PREFIXES):
+            log.error("Plugin %s attempted to use reserved url_prefix '%s'", name, url_prefix)
+            continue
 
         log.debug("Adding subapplication %s under prefix %s", name, url_prefix)
         app.mount(url_prefix, subapp)
@@ -198,6 +203,10 @@ def init_plugins(app: FastAPI) -> None:
 
         if middleware is None:
             log.error("'middleware' key is missing for the fastapi middleware: %s", name)
+            continue
+
+        if not callable(middleware):
+            log.error("'middleware' value for %s is should be callable: %s", name, middleware)
             continue
 
         log.debug("Adding root middleware %s", name)
