@@ -56,20 +56,22 @@ if TYPE_CHECKING:
     from airflow.ti_deps.deps.base_ti_dep import BaseTIDep
     from airflow.triggers.base import StartTriggerArgs
 
-    Operator: TypeAlias = "SerializedBaseOperator | MappedOperator"
+    Operator: TypeAlias = "SerializedBaseOperator | SerializedMappedOperator"
 
 log = structlog.get_logger(__name__)
 
 
 @overload
-def is_mapped(obj: Operator) -> TypeGuard[MappedOperator]: ...
+def is_mapped(obj: Operator) -> TypeGuard[SerializedMappedOperator]: ...
 
 
 @overload
 def is_mapped(obj: SerializedTaskGroup) -> TypeGuard[SerializedMappedTaskGroup]: ...
 
 
-def is_mapped(obj: Operator | SerializedTaskGroup) -> TypeGuard[MappedOperator | SerializedMappedTaskGroup]:
+def is_mapped(
+    obj: Operator | SerializedTaskGroup,
+) -> TypeGuard[SerializedMappedOperator | SerializedMappedTaskGroup]:
     return obj.is_mapped
 
 
@@ -85,7 +87,7 @@ def is_mapped(obj: Operator | SerializedTaskGroup) -> TypeGuard[MappedOperator |
     getstate_setstate=False,
     repr=False,
 )
-class MappedOperator(DAGNode):
+class SerializedMappedOperator(DAGNode):
     """Object representing a mapped operator in a DAG."""
 
     # Stores minimal class type information (task_type, _operator_name) instead of full serialized data
@@ -418,7 +420,7 @@ class MappedOperator(DAGNode):
         link = self.operator_extra_link_dict.get(name) or self.global_operator_extra_link_dict.get(name)
         if not link:
             return None
-        return link.get_link(self, ti_key=ti.key)  # type: ignore[arg-type] # TODO: GH-52141 - BaseOperatorLink.get_link expects BaseOperator but receives MappedOperator
+        return link.get_link(self, ti_key=ti.key)
 
     def serialize_for_task_group(self) -> tuple[DagAttributeTypes, Any]:
         """Implement DAGNode."""
@@ -517,9 +519,9 @@ def _(task: SerializedBaseOperator | TaskSDKBaseOperator, run_id: str, *, sessio
 
 # Still accept TaskSDKMappedOperator because some tests don't go through serialization.
 # TODO (GH-52141): Rewrite tests so we can drop SDK references at some point.
-@get_mapped_ti_count.register(MappedOperator)
+@get_mapped_ti_count.register(SerializedMappedOperator)
 @get_mapped_ti_count.register(TaskSDKMappedOperator)
-def _(task: MappedOperator | TaskSDKMappedOperator, run_id: str, *, session: Session) -> int:
+def _(task: SerializedMappedOperator | TaskSDKMappedOperator, run_id: str, *, session: Session) -> int:
     from airflow.serialization.serialized_objects import BaseSerialization, _ExpandInputRef
 
     exp_input = task._get_specified_expand_input()

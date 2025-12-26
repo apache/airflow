@@ -103,7 +103,7 @@ log = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
     from datetime import datetime
-    from typing import Literal, TypeAlias
+    from typing import Literal
 
     import pendulum
     from sqlalchemy.engine import Connection as SAConnection, Engine
@@ -114,14 +114,11 @@ if TYPE_CHECKING:
     from airflow.api_fastapi.execution_api.datamodels.asset import AssetProfile
     from airflow.models.dag import DagModel
     from airflow.models.dagrun import DagRun
-    from airflow.models.mappedoperator import MappedOperator
-    from airflow.serialization.definitions.baseoperator import SerializedBaseOperator
     from airflow.serialization.definitions.dag import SerializedDAG
+    from airflow.serialization.definitions.mappedoperator import Operator
     from airflow.serialization.definitions.taskgroup import SerializedTaskGroup
     from airflow.triggers.base import StartTriggerArgs
     from airflow.utils.context import Context
-
-    Operator: TypeAlias = MappedOperator | SerializedBaseOperator
 
 
 PAST_DEPENDS_MET = "past_depends_met"
@@ -1734,7 +1731,6 @@ class TaskInstance(Base, LoggingMixin):
             session = settings.get_session()()
 
         from airflow.exceptions import NotMapped
-        from airflow.models.mappedoperator import get_mapped_ti_count
         from airflow.sdk.api.datamodels._generated import (
             DagRun as DagRunSDK,
             PrevSuccessfulDagRunResponse,
@@ -1743,6 +1739,7 @@ class TaskInstance(Base, LoggingMixin):
         from airflow.sdk.definitions.param import process_params
         from airflow.sdk.execution_time.context import InletEventsAccessors
         from airflow.sdk.execution_time.task_runner import RuntimeTaskInstance
+        from airflow.serialization.definitions.mappedoperator import get_mapped_ti_count
         from airflow.utils.context import (
             ConnectionAccessor,
             OutletEventAccessors,
@@ -2267,7 +2264,7 @@ def _find_common_ancestor_mapped_group(node1: Operator, node2: Operator) -> Seri
 
 def _is_further_mapped_inside(operator: Operator, container: SerializedTaskGroup) -> bool:
     """Whether given operator is *further* mapped inside a task group."""
-    from airflow.models.mappedoperator import is_mapped
+    from airflow.serialization.definitions.mappedoperator import is_mapped
 
     if is_mapped(operator):
         return True
@@ -2334,7 +2331,7 @@ def _get_relevant_map_indexes(
     :return: Specific map index or map indexes to pull, or ``None`` if we
         want to "whole" return value (i.e. no mapped task groups involved).
     """
-    from airflow.models.mappedoperator import get_mapped_ti_count
+    from airflow.serialization.definitions.mappedoperator import get_mapped_ti_count
 
     # This value should never be None since we already know the current task
     # is in a mapped task group, and should have been expanded, despite that,
@@ -2381,7 +2378,7 @@ def find_relevant_relatives(
     run_id: str,
     session: Session,
 ) -> Collection[str | tuple[str, int]]:
-    from airflow.models.mappedoperator import get_mapped_ti_count
+    from airflow.serialization.definitions.mappedoperator import get_mapped_ti_count
 
     visited: set[str | tuple[str, int]] = set()
 

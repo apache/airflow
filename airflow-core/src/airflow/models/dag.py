@@ -70,16 +70,13 @@ from airflow.utils.types import DagRunType
 if TYPE_CHECKING:
     from typing import TypeAlias
 
-    from airflow.models.mappedoperator import MappedOperator
     from airflow.serialization.definitions.assets import (
         SerializedAsset,
         SerializedAssetAlias,
         SerializedAssetBase,
     )
-    from airflow.serialization.definitions.baseoperator import SerializedBaseOperator
     from airflow.serialization.definitions.dag import SerializedDAG
 
-    Operator: TypeAlias = MappedOperator | SerializedBaseOperator
     UKey: TypeAlias = SerializedAssetUniqueKey
 
 log = logging.getLogger(__name__)

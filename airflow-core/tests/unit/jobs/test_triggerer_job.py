@@ -130,12 +130,17 @@ def create_trigger_in_db(session, trigger, operator=None):
         operator = BaseOperator(task_id="test_ti", dag=dag)
     session.add(dag_model)
 
-    SerializedDagModel.write_dag(LazyDeserializedDAG.from_dag(dag), bundle_name=bundle_name)
+    lazy_serdag = LazyDeserializedDAG.from_dag(dag)
+    SerializedDagModel.write_dag(lazy_serdag, bundle_name=bundle_name)
     session.add(run)
     session.add(trigger_orm)
     session.flush()
     dag_version = DagVersion.get_latest_version(dag.dag_id)
-    task_instance = TaskInstance(operator, run_id=run.run_id, dag_version_id=dag_version.id)
+    task_instance = TaskInstance(
+        lazy_serdag._real_dag.get_task(operator.task_id),
+        run_id=run.run_id,
+        dag_version_id=dag_version.id,
+    )
     task_instance.trigger_id = trigger_orm.id
     session.add(task_instance)
     session.commit()
@@ -441,7 +446,8 @@ class TestTriggerRunner:
 
 
 @pytest.mark.asyncio
-async def test_trigger_create_race_condition_38599(session, supervisor_builder, testing_dag_bundle):
+@pytest.mark.usefixtures("testing_dag_bundle")
+async def test_trigger_create_race_condition_38599(session, supervisor_builder):
     """
     This verifies the resolution of race condition documented in github issue #38599.
     More details in the issue description.
@@ -466,14 +472,17 @@ async def test_trigger_create_race_condition_38599(session, supervisor_builder, 
     session.flush()
 
     bundle_name = "testing"
-    dag = DAG(dag_id="test-dag")
+    with DAG(dag_id="test-dag") as dag:
+        task = PythonOperator(task_id="dummy-task", python_callable=print)
     dm = DagModel(dag_id="test-dag", bundle_name=bundle_name)
     session.add(dm)
-    SerializedDagModel.write_dag(LazyDeserializedDAG.from_dag(dag), bundle_name=bundle_name)
+
+    lazy_serdag = LazyDeserializedDAG.from_dag(dag)
+    SerializedDagModel.write_dag(lazy_serdag, bundle_name=bundle_name)
     dag_run = DagRun(dag.dag_id, run_id="abc", run_type="none", run_after=timezone.utcnow())
     dag_version = DagVersion.get_latest_version(dag.dag_id)
     ti = TaskInstance(
-        PythonOperator(task_id="dummy-task", python_callable=print),
+        lazy_serdag._real_dag.get_task(task.task_id),
         run_id=dag_run.run_id,
         state=TaskInstanceState.DEFERRED,
         dag_version_id=dag_version.id,
