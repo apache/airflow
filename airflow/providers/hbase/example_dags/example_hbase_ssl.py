@@ -17,6 +17,13 @@
 # under the License.
 """
 Example DAG showing HBase provider usage with SSL/TLS connection.
+
+To test this DAG:
+1. Start HBase with Thrift1 server: hbase thrift start -p 9090
+2. This DAG uses 'hbase_thrift' connection (port 9090, plain text)
+3. Run: airflow dags test example_hbase_ssl 2024-01-01
+
+Note: For SSL encryption, configure stunnel proxy on port 9092 -> 9090
 """
 
 from datetime import datetime, timedelta
@@ -52,7 +59,7 @@ dag = DAG(
 delete_table_cleanup = HBaseDeleteTableOperator(
     task_id="delete_table_cleanup",
     table_name="test_table_ssl",
-    hbase_conn_id="hbase_ssl",  # SSL HBase connection
+    hbase_conn_id="hbase_thrift",  # Thrift1 connection
     dag=dag,
 )
 
@@ -64,14 +71,14 @@ create_table = HBaseCreateTableOperator(
         "cf1": {},  # Column family 1
         "cf2": {},  # Column family 2
     },
-    hbase_conn_id="hbase_ssl",  # SSL HBase connection
+    hbase_conn_id="hbase_thrift",  # Thrift1 connection
     dag=dag,
 )
 
 check_table = HBaseTableSensor(
     task_id="check_table_exists",
     table_name="test_table_ssl",
-    hbase_conn_id="hbase_ssl",  # SSL HBase connection
+    hbase_conn_id="hbase_thrift",  # Thrift1 connection
     timeout=60,
     poke_interval=10,
     dag=dag,
@@ -86,7 +93,7 @@ put_data = HBasePutOperator(
         "cf1:col2": "ssl_value2",
         "cf2:col1": "ssl_value3",
     },
-    hbase_conn_id="hbase_ssl",  # SSL HBase connection
+    hbase_conn_id="hbase_thrift",  # Thrift1 connection
     dag=dag,
 )
 
@@ -94,7 +101,7 @@ check_row = HBaseRowSensor(
     task_id="check_row_exists",
     table_name="test_table_ssl",
     row_key="ssl_row1",
-    hbase_conn_id="hbase_ssl",  # SSL HBase connection
+    hbase_conn_id="hbase_thrift",  # Thrift1 connection
     timeout=60,
     poke_interval=10,
     dag=dag,
@@ -103,7 +110,7 @@ check_row = HBaseRowSensor(
 delete_table = HBaseDeleteTableOperator(
     task_id="delete_table",
     table_name="test_table_ssl",
-    hbase_conn_id="hbase_ssl",  # SSL HBase connection
+    hbase_conn_id="hbase_thrift",  # Thrift1 connection
     dag=dag,
 )
 
