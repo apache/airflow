@@ -998,6 +998,7 @@ function install_airflow_and_providers_from_docker_context_files(){
         "${install_airflow_distribution[@]}" "${install_airflow_core_distribution[@]}" "${airflow_distributions[@]}"
     set +x
     common::install_packaging_tools
+    # We use pip check here to make sure that whatever `uv` installs, is also "correct" according to `pip`
     pip check
 }
 
@@ -1237,11 +1238,8 @@ function install_airflow_when_building_images() {
     echo
     echo "${COLOR_BLUE}Running 'uv pip check'${COLOR_RESET}"
     echo
-    # Here we should use `pip check` not `uv pip check` to detect any incompatibilities that might happen
-    # between `pip` and `uv` installations
-    # However, in the current version of `pip` there is a bug that incorrectly detects `pagefind-bin` as unsupported
-    # https://github.com/pypa/pip/issues/13709 -> once this is fixed, we should bring `pip check` back.
-    uv pip check
+    # We use pip check here to make sure that whatever `uv` installs, is also "correct" according to `pip`
+    pip check
 }
 
 common::get_colors
@@ -1276,6 +1274,7 @@ function install_additional_dependencies() {
         echo
         echo "${COLOR_BLUE}Running 'pip check'${COLOR_RESET}"
         echo
+        # We use pip check here to make sure that whatever `uv` installs, is also "correct" according to `pip`
         pip check
     else
         echo
@@ -1290,6 +1289,7 @@ function install_additional_dependencies() {
         echo
         echo "${COLOR_BLUE}Running 'pip check'${COLOR_RESET}"
         echo
+        # We use pip check here to make sure that whatever `uv` installs, is also "correct" according to `pip`
         pip check
     fi
 }

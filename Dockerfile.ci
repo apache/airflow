@@ -16,6 +16,20 @@
 #
 # WARNING: THIS DOCKERFILE IS NOT INTENDED FOR PRODUCTION USE OR DEPLOYMENT.
 #
+# PYTHON_LTO: Controls whether Python is built with Link-Time Optimization (LTO).
+#
+# Link-Time Optimization uses MD5 checksums during the compilation process to verify
+# object files and intermediate representations. In FIPS-compliant environments, MD5
+# is blocked as it's not an approved cryptographic algorithm (see FIPS 140-2/140-3).
+# This can cause Python builds with LTO to fail when FIPS mode is enabled.
+#
+# When building FIPS-compliant images, set this to "false" to disable LTO:
+#   docker build --build-arg PYTHON_LTO="false" ...
+#
+# Default: "true" (LTO enabled for better performance)
+#
+# Related: https://github.com/apache/airflow/issues/58337
+ARG PYTHON_LTO="true"
 ARG BASE_IMAGE="debian:bookworm-slim"
 
 ##############################################################################################
@@ -991,11 +1005,8 @@ function install_airflow_when_building_images() {
     echo
     echo "${COLOR_BLUE}Running 'uv pip check'${COLOR_RESET}"
     echo
-    # Here we should use `pip check` not `uv pip check` to detect any incompatibilities that might happen
-    # between `pip` and `uv` installations
-    # However, in the current version of `pip` there is a bug that incorrectly detects `pagefind-bin` as unsupported
-    # https://github.com/pypa/pip/issues/13709 -> once this is fixed, we should bring `pip check` back.
-    uv pip check
+    # We use pip check here to make sure that whatever `uv` installs, is also "correct" according to `pip`
+    pip check
 }
 
 common::get_colors
@@ -1030,6 +1041,7 @@ function install_additional_dependencies() {
         echo
         echo "${COLOR_BLUE}Running 'pip check'${COLOR_RESET}"
         echo
+        # We use pip check here to make sure that whatever `uv` installs, is also "correct" according to `pip`
         pip check
     else
         echo
@@ -1044,6 +1056,7 @@ function install_additional_dependencies() {
         echo
         echo "${COLOR_BLUE}Running 'pip check'${COLOR_RESET}"
         echo
+        # We use pip check here to make sure that whatever `uv` installs, is also "correct" according to `pip`
         pip check
     fi
 }
@@ -1328,8 +1341,12 @@ function check_boto_upgrade() {
     echo
     # shellcheck disable=SC2086
     ${PACKAGING_TOOL_CMD} uninstall ${EXTRA_UNINSTALL_FLAGS} aiobotocore s3fs || true
+
+    # Urllib 2.6.0 breaks kubernetes client because kubernetes client uses deprecated in 2.0.0 and
+    # removed in 2.6.0 `getheaders()` call (instead of `headers` property.
+    # Tracked in https://github.com/kubernetes-client/python/issues/2477
     # shellcheck disable=SC2086
-    ${PACKAGING_TOOL_CMD} install ${EXTRA_INSTALL_FLAGS} --upgrade "boto3<1.38.3" "botocore<1.38.3"
+    ${PACKAGING_TOOL_CMD} install ${EXTRA_INSTALL_FLAGS} --upgrade "boto3<1.38.3" "botocore<1.38.3" "urllib3<2.6.0"
 }
 
 function check_upgrade_sqlalchemy() {
@@ -1356,6 +1373,10 @@ function check_downgrade_sqlalchemy() {
     echo
     # shellcheck disable=SC2086
     ${PACKAGING_TOOL_CMD} install ${EXTRA_INSTALL_FLAGS} "sqlalchemy[asyncio]==${min_sqlalchemy_version}"
+    echo
+    echo "${COLOR_BLUE}Running 'pip check'${COLOR_RESET}"
+    echo
+    # We use pip check here to make sure that whatever `uv` installs, is also "correct" according to `pip`
     pip check
 }
 
@@ -1370,6 +1391,10 @@ function check_downgrade_pendulum() {
     echo
     # shellcheck disable=SC2086
     ${PACKAGING_TOOL_CMD} install ${EXTRA_INSTALL_FLAGS} "pendulum==${min_pendulum_version}"
+    echo
+    echo "${COLOR_BLUE}Running 'pip check'${COLOR_RESET}"
+    echo
+    # We use pip check here to make sure that whatever `uv` installs, is also "correct" according to `pip`
     pip check
 }
 
@@ -1556,9 +1581,11 @@ ARG AIRFLOW_PYTHON_VERSION="3.12.12"
 ENV AIRFLOW_PYTHON_VERSION=${AIRFLOW_PYTHON_VERSION}
 ENV GOLANG_MAJOR_MINOR_VERSION="1.25.5"
 
+ARG PYTHON_LTO
+
 COPY --from=scripts install_os_dependencies.sh /scripts/docker/
 
-RUN bash /scripts/docker/install_os_dependencies.sh ci
+RUN PYTHON_LTO=${PYTHON_LTO} bash /scripts/docker/install_os_dependencies.sh ci
 
 # In case system python is installed, setting LD_LIBRARY_PATH prevents any case the system python
 # libraries will be accidentally used before the library installed from sources (which is newer and
@@ -1608,7 +1635,7 @@ RUN SYSTEM=$(uname -s | tr '[:upper:]' '[:lower:]') \
     && chmod +x /usr/local/bin/helm
 
 # Install mprocs - a modern process manager for managing multiple Airflow components
-ARG MPROCS_VERSION="0.7.3"
+ARG MPROCS_VERSION="0.8.1"
 
 RUN SYSTEM=$(uname -s | tr '[:upper:]' '[:lower:]') \
     && PLATFORM="$(uname -m)" \
@@ -1699,8 +1726,8 @@ COPY --from=scripts common.sh install_packaging_tools.sh install_additional_depe
 # Also use `force pip` label on your PR to swap all places we use `uv` to `pip`
 ARG AIRFLOW_PIP_VERSION=25.3
 # ARG AIRFLOW_PIP_VERSION="git+https://github.com/pypa/pip.git@main"
-ARG AIRFLOW_UV_VERSION=0.9.14
-ARG AIRFLOW_PREK_VERSION="0.2.19"
+ARG AIRFLOW_UV_VERSION=0.9.18
+ARG AIRFLOW_PREK_VERSION="0.2.23"
 
 # UV_LINK_MODE=copy is needed since we are using cache mounted from the host
 ENV AIRFLOW_PIP_VERSION=${AIRFLOW_PIP_VERSION} \
@@ -1714,7 +1741,7 @@ ENV PATH="/usr/python/bin:/root/.local/bin:/root/.cargo/bin:${PATH}"
 # an incorrect architecture.
 ARG TARGETARCH
 # Value to be able to easily change cache id and therefore use a bare new cache
-ARG DEPENDENCY_CACHE_EPOCH="1"
+ARG DEPENDENCY_CACHE_EPOCH="2"
 
 # Install useful command line tools in their own virtualenv so that they do not clash with
 # dependencies installed in Airflow also reinstall PIP and UV to make sure they are installed
