@@ -21,6 +21,7 @@ from fastapi import Depends
 
 from airflow.api_fastapi.auth.managers.models.resource_details import AccessView
 from airflow.api_fastapi.common.parameters import QueryLimit, QueryOffset
+from airflow.api_fastapi.common.responses import ORJSONResponse
 from airflow.api_fastapi.common.router import AirflowRouter
 from airflow.api_fastapi.core_api.datamodels.providers import ProviderCollectionResponse
 from airflow.api_fastapi.core_api.security import requires_access_view
@@ -33,11 +34,13 @@ providers_router = AirflowRouter(tags=["Provider"], prefix="/providers")
 @providers_router.get(
     "",
     dependencies=[Depends(requires_access_view(AccessView.PROVIDERS))],
+    response_model=ProviderCollectionResponse,
+    response_class=ORJSONResponse,
 )
 def get_providers(
     limit: QueryLimit,
     offset: QueryOffset,
-) -> ProviderCollectionResponse:
+):
     """Get providers."""
     providers = sorted(
         [_provider_mapper(d) for d in ProvidersManager().providers.values()], key=lambda x: x.package_name
@@ -46,4 +49,5 @@ def get_providers(
 
     if limit.value is not None and offset.value is not None:
         providers = providers[offset.value : offset.value + limit.value]
-    return ProviderCollectionResponse(providers=providers, total_entries=total_entries)
+    provider_collection = ProviderCollectionResponse(providers=providers, total_entries=total_entries)
+    return ORJSONResponse(content=provider_collection.model_dump())

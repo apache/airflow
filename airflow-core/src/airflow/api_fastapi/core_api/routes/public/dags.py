@@ -56,6 +56,7 @@ from airflow.api_fastapi.common.parameters import (
     datetime_range_filter_factory,
     filter_param_factory,
 )
+from airflow.api_fastapi.common.responses import ORJSONResponse
 from airflow.api_fastapi.common.router import AirflowRouter
 from airflow.api_fastapi.compat import HTTP_422_UNPROCESSABLE_CONTENT
 from airflow.api_fastapi.core_api.datamodels.dags import (
@@ -81,7 +82,12 @@ from airflow.utils.state import DagRunState
 dags_router = AirflowRouter(tags=["DAG"], prefix="/dags")
 
 
-@dags_router.get("", dependencies=[Depends(requires_access_dag(method="GET"))])
+@dags_router.get(
+    "",
+    dependencies=[Depends(requires_access_dag(method="GET"))],
+    response_model=DAGCollectionResponse,
+    response_class=ORJSONResponse,
+)
 def get_dags(
     limit: QueryLimit,
     offset: QueryOffset,
@@ -129,7 +135,7 @@ def get_dags(
     readable_dags_filter: ReadableDagsFilterDep,
     session: SessionDep,
     is_favorite: QueryFavoriteFilter,
-) -> DAGCollectionResponse:
+):
     """Get all DAGs."""
     query = generate_dag_with_latest_run_query(
         max_run_filters=[
@@ -167,10 +173,11 @@ def get_dags(
 
     dags = session.scalars(dags_select)
 
-    return DAGCollectionResponse(
+    dag_collection = DAGCollectionResponse(
         dags=dags,
         total_entries=total_entries,
     )
+    return ORJSONResponse(content=dag_collection.model_dump())
 
 
 @dags_router.get(
