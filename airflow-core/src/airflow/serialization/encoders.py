@@ -59,10 +59,17 @@ from airflow.utils.docs import get_docs_url
 if TYPE_CHECKING:
     from dateutil.relativedelta import relativedelta
 
+    from airflow.sdk.definitions._internal.expandinput import ExpandInput
     from airflow.sdk.definitions.asset import BaseAsset
     from airflow.triggers.base import BaseEventTrigger
 
     T = TypeVar("T")
+
+
+def encode_expand_input(var: ExpandInput) -> dict[str, Any]:
+    from airflow.serialization.serialized_objects import BaseSerialization
+
+    return {"type": var.EXPAND_INPUT_TYPE, "value": BaseSerialization.serialize(var.value)}
 
 
 def encode_relativedelta(var: relativedelta) -> dict[str, Any]:
