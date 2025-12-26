@@ -109,44 +109,8 @@ class AdbcHook(DbApiHook):
 
     @cached_property
     def uri(self) -> str:
-        uri = f"{self.dialect_name.lower().replace('_', '-')}://"
-        host = self.connection.host
-
-        if host and "://" in host:
-            protocol, host = host.split("://", 1)
-        else:
-            protocol, host = None, host
-
-        if protocol:
-            uri += f"{protocol}://"
-
-        authority_block = ""
-        if self.connection.login is not None:
-            authority_block += quote(self.connection.login, safe="")
-
-        if self.connection.password is not None:
-            authority_block += ":" + quote(self.connection.password, safe="")
-
-        if authority_block > "":
-            authority_block += "@"
-
-            uri += authority_block
-
-        host_block = ""
-        if host:
-            host_block += quote(host, safe="")
-
-        if self.connection.port:
-            if host_block == "" and authority_block == "":
-                host_block += f"@:{self.connection.port}"
-            else:
-                host_block += f":{self.connection.port}"
-
-        if self.connection.schema:
-            host_block += f"/{quote(self.connection.schema, safe='')}"
-
-        uri += host_block
-        return uri
+        uri = self.get_uri()
+        return uri.replace(f"{self.conn_type.lower().replace('_', '-')}://", f"{self.dialect_name.lower().replace('_', '-')}://")
 
     @cached_property
     def driver(self) -> str:
