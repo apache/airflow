@@ -56,7 +56,7 @@ else:
     from airflow.decorators.base import DecoratedMappedOperator, _TaskDecorator  # type: ignore[no-redef]
     from airflow.models.baseoperator import BaseOperator  # type: ignore[no-redef]
     from airflow.models.dag import DAG  # type: ignore[assignment,no-redef]
-    from airflow.models.expandinput import DictOfListsExpandInput
+    from airflow.models.expandinput import DictOfListsExpandInput  # type: ignore[attr-defined,no-redef]
     from airflow.models.xcom_arg import XComArg  # type: ignore[no-redef]
     from airflow.utils.task_group import TaskGroup  # type: ignore[no-redef]
 
