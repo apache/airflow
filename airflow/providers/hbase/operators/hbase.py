@@ -344,10 +344,20 @@ class HBaseCreateBackupOperator(BaseOperator):
         """Execute the operator."""
         hook = HBaseHook(hbase_conn_id=self.hbase_conn_id)
         
+        if hook.is_standalone_mode():
+            raise ValueError(
+                "HBase backup is not supported in standalone mode. "
+                "Please configure HDFS for distributed mode."
+            )
+        
         if self.backup_type not in ["full", "incremental"]:
             raise ValueError("backup_type must be 'full' or 'incremental'")
         
-        command = f"backup create {self.backup_type} {self.backup_path}"
+        # Validate and adjust backup path based on HBase configuration
+        validated_path = hook.validate_backup_path(self.backup_path)
+        self.log.info("Using backup path: %s (original: %s)", validated_path, self.backup_path)
+        
+        command = f"backup create {self.backup_type} {validated_path}"
         
         if self.backup_set_name:
             command += f" -s {self.backup_set_name}"
@@ -362,7 +372,9 @@ class HBaseCreateBackupOperator(BaseOperator):
         if self.ignore_checksum:
             command += " -i"
         
-        return hook.execute_hbase_command(command, ssh_conn_id=self.ssh_conn_id)
+        output = hook.execute_hbase_command(command, ssh_conn_id=self.ssh_conn_id)
+        self.log.info("Backup command output: %s", output)
+        return output
 
 
 class HBaseRestoreOperator(BaseOperator):
@@ -377,7 +389,7 @@ class HBaseRestoreOperator(BaseOperator):
     :param hbase_conn_id: The connection ID to use for HBase connection.
     """
 
-    template_fields: Sequence[str] = ("backup_path", "backup_id", "backup_set_name", "tables")
+    template_fields: Sequence[str] = ("backup_path", "backup_set_name", "tables")
 
     def __init__(
         self,
@@ -405,7 +417,17 @@ class HBaseRestoreOperator(BaseOperator):
         """Execute the operator."""
         hook = HBaseHook(hbase_conn_id=self.hbase_conn_id)
         
-        command = f"restore {self.backup_path} {self.backup_id}"
+        if hook.is_standalone_mode():
+            raise ValueError(
+                "HBase backup restore is not supported in standalone mode. "
+                "Please configure HDFS for distributed mode."
+            )
+        
+        # Validate and adjust backup path based on HBase configuration
+        validated_path = hook.validate_backup_path(self.backup_path)
+        self.log.info("Using backup path: %s (original: %s)", validated_path, self.backup_path)
+        
+        command = f"restore {validated_path} {self.backup_id}"
         
         if self.backup_set_name:
             command += f" -s {self.backup_set_name}"

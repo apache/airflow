@@ -63,6 +63,14 @@ dag = DAG(
     tags=["example", "hbase", "advanced"],
 )
 
+# Delete table if exists for idempotency
+delete_table_cleanup = HBaseDeleteTableOperator(
+    task_id="delete_table_cleanup",
+    table_name="advanced_test_table",
+    hbase_conn_id="hbase_thrift",
+    dag=dag,
+)
+
 # Create table
 # Note: "hbase_thrift" is the Connection ID configured in Airflow UI (Admin -> Connections)
 create_table = HBaseCreateTableOperator(
@@ -121,7 +129,7 @@ batch_put = HBaseBatchPutOperator(
 check_row_count = HBaseRowCountSensor(
     task_id="check_row_count",
     table_name="advanced_test_table",
-    min_row_count=3,
+    expected_count=3,
     hbase_conn_id="hbase_thrift",  # HBase connection name from Airflow UI
     timeout=60,
     poke_interval=10,
@@ -174,5 +182,5 @@ delete_table = HBaseDeleteTableOperator(
 )
 
 # Set dependencies
-create_table >> check_table >> batch_put >> check_row_count
+delete_table_cleanup >> create_table >> check_table >> batch_put >> check_row_count
 check_row_count >> [scan_table, batch_get, check_column_value] >> delete_table

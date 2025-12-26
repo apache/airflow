@@ -90,6 +90,8 @@ class TestHBaseCreateBackupOperator:
         """Test creating full backup with backup set."""
         mock_hook = MagicMock()
         mock_hook_class.return_value = mock_hook
+        mock_hook.is_standalone_mode.return_value = False
+        mock_hook.validate_backup_path.return_value = "/tmp/backup"
         mock_hook.execute_hbase_command.return_value = "Backup created: backup_123"
 
         operator = HBaseCreateBackupOperator(
@@ -112,6 +114,8 @@ class TestHBaseCreateBackupOperator:
         """Test creating incremental backup with table list."""
         mock_hook = MagicMock()
         mock_hook_class.return_value = mock_hook
+        mock_hook.is_standalone_mode.return_value = False
+        mock_hook.validate_backup_path.return_value = "/tmp/backup"
         mock_hook.execute_hbase_command.return_value = "Incremental backup created"
 
         operator = HBaseCreateBackupOperator(
@@ -140,8 +144,14 @@ class TestHBaseCreateBackupOperator:
         with pytest.raises(ValueError, match="backup_type must be 'full' or 'incremental'"):
             operator.execute({})
 
-    def test_create_backup_no_tables_or_set(self):
+    @patch("airflow.providers.hbase.operators.hbase.HBaseHook")
+    def test_create_backup_no_tables_or_set(self, mock_hook_class):
         """Test creating backup without tables or backup set."""
+        mock_hook = MagicMock()
+        mock_hook_class.return_value = mock_hook
+        mock_hook.is_standalone_mode.return_value = False
+        mock_hook.validate_backup_path.return_value = "/tmp/backup"
+        
         operator = HBaseCreateBackupOperator(
             task_id="test_task",
             backup_type="full",
@@ -160,6 +170,8 @@ class TestHBaseRestoreOperator:
         """Test restore with backup set."""
         mock_hook = MagicMock()
         mock_hook_class.return_value = mock_hook
+        mock_hook.is_standalone_mode.return_value = False
+        mock_hook.validate_backup_path.return_value = "/tmp/backup"
         mock_hook.execute_hbase_command.return_value = "Restore completed"
 
         operator = HBaseRestoreOperator(
@@ -182,6 +194,8 @@ class TestHBaseRestoreOperator:
         """Test restore with table list."""
         mock_hook = MagicMock()
         mock_hook_class.return_value = mock_hook
+        mock_hook.is_standalone_mode.return_value = False
+        mock_hook.validate_backup_path.return_value = "/tmp/backup"
         mock_hook.execute_hbase_command.return_value = "Restore completed"
 
         operator = HBaseRestoreOperator(

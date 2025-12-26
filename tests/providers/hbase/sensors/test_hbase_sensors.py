@@ -129,14 +129,14 @@ class TestHBaseRowCountSensor:
         """Test poke method with sufficient rows."""
         mock_hook = MagicMock()
         mock_hook.scan_table.return_value = [
-            ("row1", {}), ("row2", {}), ("row3", {})
+            ("row1", {}), ("row2", {})
         ]
         mock_hook_class.return_value = mock_hook
 
         sensor = HBaseRowCountSensor(
             task_id="test_row_count",
             table_name="test_table",
-            min_row_count=2
+            expected_count=2
         )
         
         result = sensor.poke({})
@@ -154,7 +154,7 @@ class TestHBaseRowCountSensor:
         sensor = HBaseRowCountSensor(
             task_id="test_row_count",
             table_name="test_table",
-            min_row_count=3
+            expected_count=3
         )
         
         result = sensor.poke({})

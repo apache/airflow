@@ -16,12 +16,9 @@
 # specific language governing permissions and limitations
 # under the License.
 """
-Simple HBase backup operations example.
+HBase restore operations example.
 
-This DAG demonstrates basic HBase backup functionality:
-1. Creating backup sets
-2. Creating full backup
-3. Getting backup history
+This DAG demonstrates HBase restore functionality.
 """
 
 from __future__ import annotations
@@ -30,10 +27,10 @@ from datetime import datetime, timedelta
 
 from airflow import DAG
 from airflow.providers.hbase.operators.hbase import (
-    HBaseBackupHistoryOperator,
-    HBaseBackupSetOperator,
-    HBaseCreateBackupOperator,
+    HBaseRestoreOperator,
+    HBaseScanOperator,
 )
+from airflow.providers.hbase.sensors.hbase import HBaseRowSensor
 
 default_args = {
     "owner": "airflow",
@@ -46,46 +43,24 @@ default_args = {
 }
 
 dag = DAG(
-    "example_hbase_backup_simple",
+    "example_hbase_restore",
     default_args=default_args,
-    description="Simple HBase backup operations",
-    schedule=None,
+    description="HBase restore operations",
+    schedule_interval=None,
     catchup=False,
-    tags=["example", "hbase", "backup", "simple"],
+    tags=["example", "hbase", "restore"],
 )
 
-# Create backup set
-create_backup_set = HBaseBackupSetOperator(
-    task_id="create_backup_set",
-    action="add",
-    backup_set_name="test_backup_set",
-    tables=["test_table"],
-    dag=dag,
-)
-
-# List backup sets
-list_backup_sets = HBaseBackupSetOperator(
-    task_id="list_backup_sets",
-    action="list",
-    dag=dag,
-)
-
-# Create full backup
-create_full_backup = HBaseCreateBackupOperator(
-    task_id="create_full_backup",
-    backup_type="full",
+# Restore backup (manually specify backup_id)
+restore_backup = HBaseRestoreOperator(
+    task_id="restore_backup",
     backup_path="/tmp/hbase-backup",
-    backup_set_name="test_backup_set",
-    workers=1,
-    dag=dag,
-)
-
-# Get backup history
-get_backup_history = HBaseBackupHistoryOperator(
-    task_id="get_backup_history",
-    backup_set_name="test_backup_set",
+    backup_id="backup_1766648674630",
+    tables=["test_table"],
+    overwrite=True,
+    hbase_conn_id="hbase_kerberos",
     dag=dag,
 )
 
 # Define task dependencies
-create_backup_set >> list_backup_sets >> create_full_backup >> get_backup_history
+restore_backup

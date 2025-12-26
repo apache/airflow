@@ -82,8 +82,10 @@ This provider package contains operators, hooks, and sensors for interacting wit
 - **Data Operations**: Insert, retrieve, scan, and batch operations on table data
 - **Backup & Restore**: Full and incremental backup operations with restore capabilities
 - **Monitoring**: Sensors for table existence, row counts, and column values
+- **Security**: SSL/TLS encryption and Kerberos authentication support
+- **Integration**: Seamless integration with Airflow Secrets Backend
 
-Release: 1.0.0
+Release: 1.1.0
 
 Provider package
 ----------------
@@ -95,19 +97,7 @@ Installation
 ------------
 
 This provider is included as part of Apache Airflow starting from version 2.7.0.
-No separate installation is required - the HBase provider is available when you install Airflow.
-
-To use HBase functionality, you need to install the ``happybase`` dependency:
-
-.. code-block:: bash
-
-    pip install 'apache-airflow[hbase]'
-
-Or install the dependency directly:
-
-.. code-block:: bash
-
-    pip install happybase>=1.2.0
+No separate installation is required - the HBase provider and its dependencies are automatically installed when you install Airflow.
 
 For backup and restore operations, you'll also need access to HBase shell commands on your system or via SSH.
 
@@ -115,18 +105,32 @@ Configuration
 -------------
 
 To use this provider, you need to configure an HBase connection in Airflow.
-The connection should include:
+The provider supports multiple connection types:
+
+**Basic Thrift Connection**
 
 - **Host**: HBase Thrift server hostname
-- **Port**: HBase Thrift server port (default: 9090)
+- **Port**: HBase Thrift server port (default: 9090 for Thrift1, 9091 for Thrift2)
 - **Extra**: Additional connection parameters in JSON format
 
-For backup operations that require SSH access, configure an SSH connection with:
+**SSL/TLS Connection**
+
+- **Host**: SSL proxy hostname (e.g., stunnel)
+- **Port**: SSL proxy port (e.g., 9092)
+- **Extra**: SSL configuration including certificate validation settings
+
+**Kerberos Authentication**
+
+- **Extra**: Kerberos principal, keytab path or secret key for authentication
+
+**SSH Connection (for backup operations)**
 
 - **Host**: HBase cluster node hostname
 - **Username**: SSH username
 - **Password/Key**: SSH authentication credentials
-- **Extra**: Optional ``hbase_home`` and ``java_home`` paths
+- **Extra**: Required ``hbase_home`` and ``java_home`` paths
+
+For detailed connection configuration examples, see the :doc:`connections guide <connections/hbase>`.
 
 Requirements
 ------------
@@ -166,3 +170,16 @@ Features
 **Hooks**
 
 - ``HBaseHook`` - Core hook for HBase operations via Thrift API and shell commands
+
+**Security Features**
+
+- **SSL/TLS Support** - Secure connections with certificate validation
+- **Kerberos Authentication** - Enterprise authentication with keytab support
+- **Secrets Integration** - Certificate and credential management via Airflow Secrets Backend
+- **Data Protection** - Automatic masking of sensitive information in logs
+
+**Connection Modes**
+
+- **Thrift API** - Direct connection to HBase Thrift servers (Thrift1/Thrift2)
+- **SSH Mode** - Remote execution via SSH for backup operations and shell commands
+- **SSL Proxy** - Encrypted connections through SSL proxies (e.g., stunnel)
