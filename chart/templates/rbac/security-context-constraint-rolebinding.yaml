@@ -97,7 +97,7 @@ subjects:
   - kind: ServiceAccount
     name: {{ include "migrateDatabaseJob.serviceAccountName" . }}
     namespace: "{{ .Release.Namespace }}"
-  {{- if .Values.webserver.defaultUser.enabled }}
+  {{- if .Values.createUserJob.enabled }}
   - kind: ServiceAccount
     name: {{ include "createUserJob.serviceAccountName" . }}
     namespace: "{{ .Release.Namespace }}"

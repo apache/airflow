@@ -33,8 +33,7 @@ from airflow.models.taskinstance import TaskInstance
 from airflow.models.taskmap import TaskMap
 from airflow.providers.standard.operators.python import PythonOperator
 from airflow.sdk import DAG, BaseOperator, TaskGroup, setup, task, task_group, teardown
-from airflow.serialization.serialized_objects import SerializedBaseOperator
-from airflow.task.priority_strategy import PriorityWeightStrategy
+from airflow.serialization.definitions.baseoperator import SerializedBaseOperator
 from airflow.task.trigger_rule import TriggerRule
 from airflow.utils.state import TaskInstanceState
 
@@ -1524,7 +1523,7 @@ class TestMappedSetupTeardown:
         assert op.pool == SerializedBaseOperator.pool
         assert op.pool_slots == SerializedBaseOperator.pool_slots
         assert op.priority_weight == SerializedBaseOperator.priority_weight
-        assert isinstance(op.weight_rule, PriorityWeightStrategy)
+        assert op.weight_rule == "downstream"
         assert op.email == email
         assert op.execution_timeout == execution_timeout
         assert op.retry_delay == retry_delay

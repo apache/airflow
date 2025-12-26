@@ -24,7 +24,7 @@ import itertools
 import operator
 import re
 import weakref
-from typing import TYPE_CHECKING, cast, overload
+from typing import TYPE_CHECKING, TypedDict, cast, overload
 
 import attrs
 import structlog
@@ -60,13 +60,23 @@ if TYPE_CHECKING:
     from airflow.models.taskinstance import TaskInstance
     from airflow.sdk import DAG
     from airflow.sdk.definitions.deadline import DeadlineAlert
-    from airflow.sdk.definitions.edges import EdgeInfoType
     from airflow.serialization.definitions.taskgroup import SerializedTaskGroup
     from airflow.serialization.serialized_objects import LazyDeserializedDAG, SerializedOperator
     from airflow.timetables.base import Timetable
     from airflow.utils.types import DagRunTriggeredByType
 
 log = structlog.get_logger(__name__)
+
+
+# TODO (GH-52141): Share definition with SDK?
+class EdgeInfoType(TypedDict):
+    """
+    Extra metadata that the Dag can store about an edge.
+
+    This is duplicated from SDK.
+    """
+
+    label: str | None
 
 
 @attrs.define(eq=False, hash=False, slots=False)
@@ -244,8 +254,8 @@ class SerializedDAG:
         include_direct_upstream: bool = False,
         exclude_original: bool = False,
     ):
-        from airflow.models.mappedoperator import MappedOperator as SerializedMappedOperator
-        from airflow.serialization.serialized_objects import SerializedBaseOperator
+        from airflow.serialization.definitions.baseoperator import SerializedBaseOperator
+        from airflow.serialization.definitions.mappedoperator import SerializedMappedOperator
 
         def is_task(obj) -> TypeIs[SerializedOperator]:
             return isinstance(obj, (SerializedMappedOperator, SerializedBaseOperator))
@@ -284,9 +294,7 @@ class SerializedDAG:
         direct_upstreams: list[SerializedOperator] = []
         if include_direct_upstream:
             for t in itertools.chain(matched_tasks, also_include):
-                # TODO (GH-52141): This should return scheduler types, but currently we reuse SDK DAGNode.
-                upstream = (u for u in cast("Iterable[SerializedOperator]", t.upstream_list) if is_task(u))
-                direct_upstreams.extend(upstream)
+                direct_upstreams.extend(u for u in t.upstream_list if is_task(u))
 
         # Make sure to not recursively deepcopy the dag or task_group while copying the task.
         # task_group is reset later
