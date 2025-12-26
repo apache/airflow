@@ -956,7 +956,7 @@ class TriggerRunner:
 
     async def create_triggers(self):
         def create_runtime_ti(encoded_dag: dict) -> RuntimeTaskInstance:
-            task = DagSerialization.deserialize_dag(encoded_dag).get_task(workload.ti.task_id)
+            task = DagSerialization.from_dict(encoded_dag).get_task(workload.ti.task_id)
 
             # I need to recreate a TaskInstance from task_runner before invoking get_template_context (airflow.executors.workloads.TaskInstance)
             return RuntimeTaskInstance.model_construct(
