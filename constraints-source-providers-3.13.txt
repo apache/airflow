@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-12-25T15:48:42.462631
+# This constraints file was automatically generated on 2025-12-26T04:05:06.783335
 # via `uv sync --resolution highest for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider distributions.
@@ -189,7 +189,7 @@ execnet==2.1.2
 executing==2.2.1
 facebook_business==24.0.1
 fastapi-cli==0.0.20
-fastapi==0.125.0
+fastapi==0.127.0
 fastavro==1.12.1
 fastjsonschema==2.21.2
 fastuuid==0.14.0
@@ -478,6 +478,8 @@ pybreaker==1.4.1
 pycountry==24.6.1
 pycparser==2.23
 pycryptodome==3.23.0
+pydantic-extra-types==2.10.6
+pydantic-settings==2.12.0
 pydantic==2.12.5
 pydantic_core==2.41.5
 pydata-google-auth==1.9.1
