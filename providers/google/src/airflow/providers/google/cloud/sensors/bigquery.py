@@ -257,3 +257,84 @@ class BigQueryTablePartitionExistenceSensor(BaseSensorOperator):
 
         message = "No event received in trigger callback"
         raise AirflowException(message)
+
+
+class BigQueryTableStreamingBufferEmptySensor(BaseSensorOperator):
+    """
+    Check if a BigQuery table's streaming buffer is empty.
+
+    This sensor is useful before running DML statements (UPDATE, DELETE, MERGE) on tables
+    that receive streaming inserts, as BigQuery does not allow DML operations on rows
+    in the streaming buffer.
+
+    The sensor will wait until the streaming buffer is empty (flushed) before succeeding.
+
+    :param project_id: The Google Cloud project ID containing the table.
+    :param dataset_id: The dataset ID containing the table.
+    :param table_id: The table ID to check for streaming buffer.
+    :param gcp_conn_id: The connection ID used to connect to Google Cloud.
+    :param impersonation_chain: Optional service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account (templated).
+
+    .. seealso::
+        For more information on BigQuery streaming buffer limitations, see:
+        https://cloud.google.com/bigquery/docs/streaming-data-into-bigquery#dataconsistency
+    """
+
+    template_fields: Sequence[str] = (
+        "project_id",
+        "dataset_id",
+        "table_id",
+        "impersonation_chain",
+    )
+    ui_color = "#f0eee4"
+
+    def __init__(
+        self,
+        *,
+        project_id: str,
+        dataset_id: str,
+        table_id: str,
+        gcp_conn_id: str = "google_cloud_default",
+        impersonation_chain: str | Sequence[str] | None = None,
+        **kwargs,
+    ) -> None:
+        super().__init__(**kwargs)
+        self.project_id = project_id
+        self.dataset_id = dataset_id
+        self.table_id = table_id
+        self.gcp_conn_id = gcp_conn_id
+        self.impersonation_chain = impersonation_chain
+
+    def poke(self, context: Context) -> bool:
+        """Check if the streaming buffer is empty."""
+        table_uri = f"{self.project_id}:{self.dataset_id}.{self.table_id}"
+        self.log.info("Checking if streaming buffer is empty for table: %s", table_uri)
+
+        hook = BigQueryHook(
+            gcp_conn_id=self.gcp_conn_id,
+            impersonation_chain=self.impersonation_chain,
+        )
+
+        # Get table metadata
+        table = hook.get_client(project_id=self.project_id).get_table(
+            f"{self.project_id}.{self.dataset_id}.{self.table_id}"
+        )
+
+        # Check if streaming buffer exists
+        if table.streaming_buffer is None:
+            self.log.info("Table %s has no streaming buffer - ready for DML operations", table_uri)
+            return True
+
+        # Streaming buffer exists - check if it's empty
+        estimated_rows = table.streaming_buffer.estimated_rows
+        self.log.info(
+            "Table %s has %s rows in streaming buffer - waiting for flush", table_uri, estimated_rows
+        )
+        return False
