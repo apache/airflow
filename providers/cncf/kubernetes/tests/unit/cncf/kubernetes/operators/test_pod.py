@@ -141,6 +141,9 @@ def create_context(task, persist_to_db=False, map_index=None):
                 session.commit()
                 session.refresh(dag_version)
         task_instance = TaskInstance(task=task, run_id=dag_run.run_id, dag_version_id=dag_version.id)
+        # Set priority_weight explicitly as SDK operators have string weight_rule
+        if persist_to_db:
+            task_instance.priority_weight = task.priority_weight
     else:
         task_instance = TaskInstance(task=task, run_id=dag_run.run_id)
     task_instance.dag_run = dag_run
