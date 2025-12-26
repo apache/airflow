@@ -24,45 +24,83 @@ from typing import TYPE_CHECKING, Any, ClassVar
 
 import attrs
 
-from airflow.sdk.definitions._internal.expandinput import (
-    DictOfListsExpandInput,
-    ListOfDictsExpandInput,
-    MappedArgument,
-    NotFullyPopulated,
-    OperatorExpandArgument,
-    OperatorExpandKwargsArgument,
-    is_mappable,
-)
-
 if TYPE_CHECKING:
-    from typing import TypeGuard
+    from collections.abc import Mapping, Sequence
+    from typing import TypeAlias
 
     from sqlalchemy.orm import Session
+    from typing_extensions import TypeIs
 
     from airflow.serialization.definitions.mappedoperator import Operator
     from airflow.serialization.definitions.xcom_arg import SchedulerXComArg
 
+    ExpandArgument: TypeAlias = "SchedulerMappedArgument" | SchedulerXComArg | Sequence | Mapping[str, Any]
+    ExpandKwargsArgument: TypeAlias = SchedulerXComArg | Sequence[SchedulerXComArg | Mapping[str, Any]]
+
 
 __all__ = [
-    "DictOfListsExpandInput",
-    "ListOfDictsExpandInput",
-    "MappedArgument",
     "NotFullyPopulated",
-    "OperatorExpandArgument",
-    "OperatorExpandKwargsArgument",
-    "is_mappable",
+    "SchedulerMappedArgument",
+    "SchedulerDictOfListsExpandInput",
+    "SchedulerListOfDictsExpandInput",
 ]
 
 
-def _needs_run_time_resolution(v: OperatorExpandArgument) -> TypeGuard[MappedArgument | SchedulerXComArg]:
+class NotFullyPopulated(RuntimeError):
+    """
+    Raise when mapped length cannot be calculated due to incomplete metadata.
+
+    This is generally due to not all upstream tasks have been completed (or in
+    parse-time length calculations, when any upstream has runtime dependencies
+    on mapped length) when the function is called.
+    """
+
+    def __init__(self, missing: set[str]) -> None:
+        self.missing = missing
+
+    def __str__(self) -> str:
+        keys = ", ".join(repr(k) for k in sorted(self.missing))
+        return f"Failed to populate all mapping metadata; missing: {keys}"
+
+
+def _needs_run_time_resolution(v: ExpandArgument) -> TypeIs[SchedulerMappedArgument | SchedulerXComArg]:
     from airflow.serialization.definitions.xcom_arg import SchedulerXComArg
 
-    return isinstance(v, (MappedArgument, SchedulerXComArg))
+    return isinstance(v, (SchedulerMappedArgument, SchedulerXComArg))
+
+
+@attrs.define(kw_only=True)
+class SchedulerMappedArgument:
+    """
+    Stand-in stub for task-group-mapping arguments.
+
+    This corresponds on SDK's ``MappedArgument``, which is created when
+    dynamically mapping a task group, and an argument used to dynamic-map is
+    passed into a task inside the group.
+
+    This value is not currently used anywhere in the scheduler since nested
+    dynamic mapping is not supported (i.e. using this value to further expand
+    an operator inside a mapped task group), but this is implemented so the
+    value is displayed better in the UI.
+    """
+
+    _input: SchedulerExpandInput = attrs.field()
+    _key: str
+
+    def iter_references(self) -> Iterable[tuple[Operator, str]]:
+        yield from self._input.iter_references()
 
 
 @attrs.define
 class SchedulerDictOfListsExpandInput:
-    value: dict
+    """
+    Serialized storage of a mapped operator's mapped kwargs.
+
+    This corresponds to SDK's ``DictOfListsExpandInput``, which was created by
+    calling ``expand(**kwargs)`` on an operator type.
+    """
+
+    value: dict[str, ExpandArgument]
 
     EXPAND_INPUT_TYPE: ClassVar[str] = "dict-of-lists"
 
@@ -90,7 +128,7 @@ class SchedulerDictOfListsExpandInput:
 
         # TODO: This initiates one database call for each XComArg. Would it be
         # more efficient to do one single db call and unpack the value here?
-        def _get_length(v: OperatorExpandArgument) -> int | None:
+        def _get_length(v: ExpandArgument) -> int | None:
             if isinstance(v, SchedulerXComArg):
                 return get_task_map_length(v, run_id, session=session)
 
@@ -123,7 +161,14 @@ class SchedulerDictOfListsExpandInput:
 
 @attrs.define
 class SchedulerListOfDictsExpandInput:
-    value: list
+    """
+    Serialized storage of a mapped operator's mapped kwargs.
+
+    This corresponds to SDK's ``ListOfDictsExpandInput``, which was created by
+    calling ``expand_kwargs(xcom_arg)`` on an operator type.
+    """
+
+    value: ExpandKwargsArgument
 
     EXPAND_INPUT_TYPE: ClassVar[str] = "list-of-dicts"
 
