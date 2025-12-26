@@ -16,7 +16,8 @@
 # specific language governing permissions and limitations
 # under the License.
 
-"""Add next trigger id to task instance table
+"""
+Add next trigger id to task instance table
 
 Revision ID: 658517c60c7f
 Revises: edc4f85a4619
@@ -24,15 +25,16 @@ Create Date: 2025-12-26 12:07:05.849152
 
 """
 
+from __future__ import annotations
+
 import sqlalchemy as sa
 from alembic import op
 
-
-# revision identifiers, used by Alembic.
 revision = "658517c60c7f"
 down_revision = "edc4f85a4619"
 branch_labels = None
 depends_on = None
+airflow_version = "3.2.0"
 
 
 def upgrade():
