@@ -439,6 +439,7 @@ def test_defer_task_queue_assignment(
     actual_msg, actual_state = _defer_task(
         defer=TaskDeferred(trigger=mock_trigger, method_name="foo"), ti=runtime_ti, log=mock.MagicMock()
     )
+    assert isinstance(actual_msg, DeferTask)
     assert actual_state == TaskInstanceState.DEFERRED
     actual_queue = actual_msg.queue
     assert actual_queue == expected_trigger_queue, (
