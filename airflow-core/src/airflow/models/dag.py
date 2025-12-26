@@ -70,15 +70,13 @@ from airflow.utils.types import DagRunType
 if TYPE_CHECKING:
     from typing import TypeAlias
 
-    from airflow.models.mappedoperator import MappedOperator
     from airflow.serialization.definitions.assets import (
         SerializedAsset,
         SerializedAssetAlias,
         SerializedAssetBase,
     )
-    from airflow.serialization.serialized_objects import SerializedBaseOperator, SerializedDAG
+    from airflow.serialization.definitions.dag import SerializedDAG
 
-    Operator: TypeAlias = MappedOperator | SerializedBaseOperator
     UKey: TypeAlias = SerializedAssetUniqueKey
 
 log = logging.getLogger(__name__)
@@ -336,7 +334,7 @@ class DagModel(Base):
     is_paused_at_creation = airflow_conf.getboolean("core", "dags_are_paused_at_creation")
     is_paused: Mapped[bool] = mapped_column(Boolean, default=is_paused_at_creation)
     # Whether that DAG was seen on the last DagBag load
-    is_stale: Mapped[bool] = mapped_column(Boolean, default=True)
+    is_stale: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
     # Last time the scheduler started
     last_parsed_time: Mapped[datetime | None] = mapped_column(UtcDateTime, nullable=True)
     # How long it took to parse this file

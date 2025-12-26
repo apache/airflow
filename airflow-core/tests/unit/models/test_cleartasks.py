@@ -21,7 +21,7 @@ import datetime
 import random
 
 import pytest
-from sqlalchemy import select
+from sqlalchemy import func, select
 
 from airflow.models.dag_version import DagVersion
 from airflow.models.dagrun import DagRun
@@ -30,7 +30,7 @@ from airflow.models.taskinstancehistory import TaskInstanceHistory
 from airflow.models.taskreschedule import TaskReschedule
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.providers.standard.sensors.python import PythonSensor
-from airflow.serialization.serialized_objects import SerializedDAG
+from airflow.serialization.definitions.dag import SerializedDAG
 from airflow.utils.session import create_session
 from airflow.utils.state import DagRunState, State, TaskInstanceState
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
@@ -87,7 +87,7 @@ class TestClearTasks:
             # this is equivalent to topological sort. It would not work in general case
             # but it works for our case because we specifically constructed test DAGS
             # in the way that those two sort methods are equivalent
-            qry = session.query(TI).filter(TI.dag_id == dag.dag_id).order_by(TI.task_id).all()
+            qry = session.scalars(select(TI).where(TI.dag_id == dag.dag_id).order_by(TI.task_id)).all()
             clear_task_instances(qry, session)
 
             ti0.refresh_from_db(session)
@@ -121,7 +121,7 @@ class TestClearTasks:
             # this is equivalent to topological sort. It would not work in general case
             # but it works for our case because we specifically constructed test DAGS
             # in the way that those two sort methods are equivalent
-            qry = session.query(TI).filter(TI.dag_id == dag.dag_id).order_by(TI.task_id).all()
+            qry = session.scalars(select(TI).where(TI.dag_id == dag.dag_id).order_by(TI.task_id)).all()
             clear_task_instances(qry, session)
 
             ti0.refresh_from_db()
@@ -186,12 +186,12 @@ class TestClearTasks:
         # this is equivalent to topological sort. It would not work in general case
         # but it works for our case because we specifically constructed test DAGS
         # in the way that those two sort methods are equivalent
-        qry = session.query(TI).filter(TI.dag_id == dag.dag_id).order_by(TI.task_id).all()
-        assert session.query(TaskInstanceHistory).count() == 0
+        qry = session.scalars(select(TI).where(TI.dag_id == dag.dag_id).order_by(TI.task_id)).all()
+        assert session.scalar(select(func.count()).select_from(TaskInstanceHistory)) == 0
         clear_task_instances(qry, session, dag_run_state=state)
         session.flush()
         # 2 TIs were cleared so 2 history records should be created
-        assert session.query(TaskInstanceHistory).count() == 2
+        assert session.scalar(select(func.count()).select_from(TaskInstanceHistory)) == 2
 
         session.refresh(dr)
 
@@ -229,7 +229,7 @@ class TestClearTasks:
         # this is equivalent to topological sort. It would not work in general case
         # but it works for our case because we specifically constructed test DAGS
         # in the way that those two sort methods are equivalent
-        qry = session.query(TI).filter(TI.dag_id == dag.dag_id).order_by(TI.task_id).all()
+        qry = session.scalars(select(TI).where(TI.dag_id == dag.dag_id).order_by(TI.task_id)).all()
         clear_task_instances(qry, session)
         session.flush()
 
@@ -282,7 +282,7 @@ class TestClearTasks:
         # this is equivalent to topological sort. It would not work in general case
         # but it works for our case because we specifically constructed test DAGS
         # in the way that those two sort methods are equivalent
-        qry = session.query(TI).filter(TI.dag_id == dag.dag_id).order_by(TI.task_id).all()
+        qry = session.scalars(select(TI).where(TI.dag_id == dag.dag_id).order_by(TI.task_id)).all()
         clear_task_instances(qry, session)
         session.flush()
 
@@ -394,7 +394,7 @@ class TestClearTasks:
         # this is equivalent to topological sort. It would not work in general case
         # but it works for our case because we specifically constructed test DAGS
         # in the way that those two sort methods are equivalent
-        qry = session.query(TI).filter(TI.dag_id == dag.dag_id).order_by(TI.task_id).all()
+        qry = session.scalars(select(TI).where(TI.dag_id == dag.dag_id).order_by(TI.task_id)).all()
         clear_task_instances(qry, session)
 
         ti0.refresh_from_db(session=session)
@@ -477,7 +477,9 @@ class TestClearTasks:
         with create_session() as session:
 
             def count_task_reschedule(ti):
-                return session.query(TaskReschedule).filter(TaskReschedule.ti_id == ti.id).count()
+                return session.scalar(
+                    select(func.count()).select_from(TaskReschedule).where(TaskReschedule.ti_id == ti.id)
+                )
 
             assert count_task_reschedule(ti0) == 1
             assert count_task_reschedule(ti1) == 1
@@ -485,12 +487,9 @@ class TestClearTasks:
             # this is equivalent to topological sort. It would not work in general case
             # but it works for our case because we specifically constructed test DAGS
             # in the way that those two sort methods are equivalent
-            qry = (
-                session.query(TI)
-                .filter(TI.dag_id == dag.dag_id, TI.task_id == ti0.task_id)
-                .order_by(TI.task_id)
-                .all()
-            )
+            qry = session.scalars(
+                select(TI).where(TI.dag_id == dag.dag_id, TI.task_id == ti0.task_id).order_by(TI.task_id)
+            ).all()
             clear_task_instances(qry, session)
             assert count_task_reschedule(ti0) == 0
             assert count_task_reschedule(ti1) == 1
@@ -531,7 +530,7 @@ class TestClearTasks:
         ti1.state = state
         session = dag_maker.session
         session.flush()
-        qry = session.query(TI).filter(TI.dag_id == dag.dag_id).order_by(TI.task_id).all()
+        qry = session.scalars(select(TI).where(TI.dag_id == dag.dag_id).order_by(TI.task_id)).all()
         clear_task_instances(qry, session)
         session.flush()
 
@@ -606,7 +605,7 @@ class TestClearTasks:
             )
             ti = dr.task_instances[0]
             ti.task = task
-            dags.append(dag_maker.dag)
+            dags.append(dag_maker.serialized_model.dag)
             tis.append(ti)
 
         # test clear all dags
@@ -716,10 +715,10 @@ class TestClearTasks:
         new_dag_version = DagVersion.get_latest_version(dag.dag_id)
 
         assert old_dag_version.id != new_dag_version.id
-        qry = session.query(TI).filter(TI.dag_id == dag.dag_id).order_by(TI.task_id).all()
+        qry = session.scalars(select(TI).where(TI.dag_id == dag.dag_id).order_by(TI.task_id)).all()
         clear_task_instances(qry, session, run_on_latest_version=run_on_latest_version)
         session.commit()
-        dr = session.query(DagRun).filter(DagRun.dag_id == dag.dag_id).one()
+        dr = session.scalar(select(DagRun).where(DagRun.dag_id == dag.dag_id))
         if run_on_latest_version:
             assert dr.created_dag_version_id == new_dag_version.id
             assert dr.bundle_version == new_dag_version.bundle_version
