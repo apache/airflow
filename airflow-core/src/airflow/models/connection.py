@@ -22,6 +22,7 @@ import logging
 import re
 import sys
 import warnings
+from contextlib import suppress
 from json import JSONDecodeError
 from typing import Any
 from urllib.parse import parse_qsl, quote, unquote, urlencode, urlsplit
@@ -468,14 +469,14 @@ class Connection(Base, LoggingMixin):
 
         if self.extra:
             try:
-                extra = json.loads(self.extra)
                 if nested:
-                    for key, value in extra.items():
+                    for key, value in json.loads(self.extra).items():
+                        extra[key] = value
                         if isinstance(value, str):
-                            try:
+                            with suppress(JSONDecodeError):
                                 extra[key] = json.loads(value)
-                            except (JSONDecodeError, TypeError):
-                                pass
+                else:
+                    extra = json.loads(self.extra)
             except JSONDecodeError:
                 self.log.exception("Failed parsing the json for conn_id %s", self.conn_id)
 
