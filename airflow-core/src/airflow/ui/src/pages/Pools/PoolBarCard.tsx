@@ -61,11 +61,8 @@ const PoolBarCard = ({ pool }: PoolBarCardProps) => {
           )}
         </VStack>
       </Flex>
-
       <Box margin={4}>
-        <Flex bg="bg.muted" borderRadius="md" h="20px" overflow="hidden" w="100%">
-          <PoolBar pool={pool} totalSlots={pool.slots} />
-        </Flex>
+        <PoolBar pool={pool} totalSlots={pool.slots} />
       </Box>
     </Box>
   );
