@@ -37,7 +37,12 @@ from airflow.api_fastapi.core_api.datamodels.common import (
     BulkDeleteAction,
     BulkUpdateAction,
 )
-from airflow.api_fastapi.core_api.datamodels.task_instances import BulkTaskInstanceBody, PatchTaskInstanceBody
+from airflow.api_fastapi.core_api.datamodels.task_instances import (
+    BulkTaskInstanceBody,
+    PatchTaskInstanceBody,
+    TaskInstanceCollectionResponse,
+    TaskInstanceResponse,
+)
 from airflow.api_fastapi.core_api.security import GetUserDep
 from airflow.api_fastapi.core_api.services.public.common import BulkService
 from airflow.listeners.listener import get_listener_manager
@@ -100,7 +105,8 @@ def _patch_task_instance_state(
     task_instance_body: BulkTaskInstanceBody | PatchTaskInstanceBody,
     data: dict,
     session: Session,
-) -> None:
+    commit: bool,
+) -> list[TI]:
     map_index = getattr(task_instance_body, "map_index", None)
     map_indexes = None if map_index is None else [map_index]
 
@@ -113,7 +119,7 @@ def _patch_task_instance_state(
         downstream=task_instance_body.include_downstream,
         future=task_instance_body.include_future,
         past=task_instance_body.include_past,
-        commit=True,
+        commit=commit,
         session=session,
     )
     if not updated_tis:
@@ -121,6 +127,8 @@ def _patch_task_instance_state(
             status.HTTP_409_CONFLICT,
             f"Task id {task_id} is already in {data['new_state']} state",
         )
+    if not commit:
+        return updated_tis
 
     for ti in updated_tis:
         try:
@@ -134,6 +142,8 @@ def _patch_task_instance_state(
                 )
         except Exception:
             log.exception("error calling listener")
+
+    return updated_tis
 
 
 def _patch_task_instance_note(
@@ -162,6 +172,7 @@ class BulkTaskInstanceService(BulkService[BulkTaskInstanceBody]):
         dag_run_id: str,
         dag_bag: DagBagDep,
         user: GetUserDep,
+        commit: bool = False,
     ):
         super().__init__(session, request)
         self.dag_id = dag_id
@@ -307,7 +318,7 @@ class BulkTaskInstanceService(BulkService[BulkTaskInstanceBody]):
 
     def handle_bulk_update(
         self, action: BulkUpdateAction[BulkTaskInstanceBody], results: BulkActionResponse
-    ) -> None:
+    ) -> TaskInstanceCollectionResponse:
         """Bulk Update Task Instances."""
         # Validate and categorize entities into specific and all map index update sets
         update_specific_map_index_task_keys, update_all_map_index_task_keys = self._categorize_entities(
@@ -387,6 +398,7 @@ class BulkTaskInstanceService(BulkService[BulkTaskInstanceBody]):
                             status_code=status.HTTP_404_NOT_FOUND,
                             detail=f"No task instances found for dag_id: {dag_id}, run_id: {run_id}, task_id: {task_id}",
                         )
+                        all_updated_tis.extend(tis)
 
                     entity = all_map_entity_map.get((dag_id, run_id, task_id))
 
