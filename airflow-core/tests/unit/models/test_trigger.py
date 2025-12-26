@@ -312,10 +312,7 @@ def create_triggerer():
         latest_heartbeat: datetime.datetime | None = None,
     ) -> Job:
         test_triggerer = Job(heartrate=10, state=state, latest_heartbeat=latest_heartbeat)
-        if queues:
-            TriggererJobRunner(test_triggerer, queues=queues)
-        else:
-            TriggererJobRunner(test_triggerer)
+        TriggererJobRunner(test_triggerer, queues=queues)
         if end_date:
             test_triggerer.end_date = end_date
         session.add(test_triggerer)
@@ -335,8 +332,7 @@ def create_trigger(create_task_instance):
         triggerer_id: int | None = None,
         queue: str | None = None,
     ) -> Trigger:
-        trig_kwargs = {"queue": queue} if queue else {}
-        trig = Trigger(classpath="airflow.triggers.testing.SuccessTrigger", kwargs=trig_kwargs)
+        trig = Trigger(classpath="airflow.triggers.testing.SuccessTrigger", kwargs={}, queue=queue)
         trig.triggerer_id = triggerer_id
         session.add(trig)
         ti = create_task_instance(task_id=f"ti_{name}", logical_date=logical_date, run_id=f"{name}_run_id")
@@ -448,6 +444,89 @@ def test_assign_unassigned(session, create_triggerer, create_trigger, use_queues
             ).triggerer_id
             == new_triggerer.id
         )
+
+
+@pytest.mark.need_serialized_dag
+@conf_vars({("triggerer", "queues_enabled"): "True"})
+def test_assign_unassigned_with_qeueus(session, create_triggerer, create_trigger) -> None:
+    """Ensures trigger assignment is handled properly when the `triggerer.queues_enabled` option is set to `True`."""
+    time_now = timezone.utcnow()
+    single_q = "custom_q_name"
+    team1_q = "team1"
+    team2_q = "team2"
+    # Queue name which no triggerers are set to consume from
+    bad_q_name = "bad_q"
+    triggerers_and_qs: list[tuple[Job, set[str] | None]] = []
+    one_q_triggerer = create_triggerer(session, State.RUNNING, latest_heartbeat=time_now, queues={single_q})
+    triggerers_and_qs.append((one_q_triggerer, {single_q}))
+    assert one_q_triggerer.is_alive()
+    multi_q_triggerer = create_triggerer(
+        session, State.RUNNING, latest_heartbeat=time_now, queues={team1_q, team2_q}
+    )
+    triggerers_and_qs.append((multi_q_triggerer, {team1_q, team2_q}))
+    assert multi_q_triggerer.is_alive()
+    no_q_triggerer = create_triggerer(session, State.RUNNING, latest_heartbeat=time_now, queues=None)
+    triggerers_and_qs.append((no_q_triggerer, None))
+    assert no_q_triggerer.is_alive()
+    session.commit()
+    dates = [time_now + datetime.timedelta(hours=i) for i in range(5)]
+    # This should only be assigned to one_q_triggerer.
+    trigger_single_q = create_trigger(
+        session=session, name="trigger_single_q", logical_date=dates[0], triggerer_id=None, queue=single_q
+    )
+    # This should only be assigned to multi_q_triggerer.
+    trigger_team1_q = create_trigger(
+        session=session, name="trigger_team1_q", logical_date=dates[1], triggerer_id=None, queue=team1_q
+    )
+    # This should only be assigned to multi_q_triggerer.
+    trigger_team2_q = create_trigger(
+        session=session, name="trigger_team2_q", logical_date=dates[2], triggerer_id=None, queue=team2_q
+    )
+    # This should only be assigned to the triggerer which is not consuming from any queues (e.g. no_q_triggerer).
+    trigger_no_queue = create_trigger(
+        session=session, name="trigger_no_queue", logical_date=dates[3], triggerer_id=None, queue=None
+    )
+    # This should never get assigned since no triggerers are consuming from this queue value.
+    trigger_bad_q = create_trigger(
+        session=session, name="trigger_bad_q", logical_date=dates[4], triggerer_id=None, queue=bad_q_name
+    )
+
+    for trig in [trigger_single_q, trigger_team1_q, trigger_team2_q, trigger_no_queue, trigger_bad_q]:
+        assert trig.triggerer_id is None
+    session.commit()
+    assert session.scalar(select(func.count()).select_from(Trigger)) == 5
+    # Call assign_unassigned against all triggerers
+    for triggerer, triggerer_queues in triggerers_and_qs:
+        Trigger.assign_unassigned(
+            triggerer.id, capacity=100, health_check_threshold=30, queues=triggerer_queues
+        )
+    session.expire_all()
+    # Ensure trigger_single_q (queue value: 'custom_q_name') is assigned to one_q_triggerer
+    assert (
+        session.scalar(select(Trigger).where(Trigger.id == trigger_single_q.id)).triggerer_id
+        == one_q_triggerer.id
+    ), f"Trigger with queue '{single_q}' was not assigned to triggerer consuming from that queue."
+    # Ensure trigger_team1_q (queue value: 'team1') is assigned to multi_q_triggerer
+    assert (
+        session.scalar(select(Trigger).where(Trigger.id == trigger_team1_q.id)).triggerer_id
+        == multi_q_triggerer.id
+    ), f"Trigger with queue '{team1_q}' was not assigned to triggerer consuming from that queue."
+    # Ensure trigger_team2_q (queue value: 'team2') is assigned to multi_q_triggerer
+    assert (
+        session.scalar(select(Trigger).where(Trigger.id == trigger_team2_q.id)).triggerer_id
+        == multi_q_triggerer.id
+    ), f"Trigger with queue '{team2_q}' was not assigned to triggerer consuming from that queue."
+    # Ensure trigger_no_queue (queue value: `None`) is assigned to no_q_triggerer (queues: `None`)
+    assert (
+        session.scalar(select(Trigger).where(Trigger.id == trigger_no_queue.id)).triggerer_id
+        == no_q_triggerer.id
+    ), (
+        "Trigger with no queue should only be assigned to triggerers with no `--queues` constraint, but was not."
+    )
+    # Check that unassigned trigger with a queue value which has no consuming triggerers remains unassigned
+    assert session.scalar(select(Trigger).where(Trigger.id == trigger_bad_q.id)).triggerer_id is None, (
+        f"Trigger with queue '{bad_q_name}' should not be assigned to any triggerers since no triggerers reference it."
+    )
 
 
 @pytest.mark.need_serialized_dag
@@ -611,31 +690,39 @@ def test_get_sorted_triggers_different_priority_weights(session, create_task_ins
             capacity=100, queues=queues, alive_triggerer_ids=[], session=session
         )
 
-        assert trigger_ids_query == [
-            (callback_triggers[2].id,),
-            (callback_triggers[1].id,),
-            (callback_triggers[0].id,),
-            (trigger_new.id,),
-            (trigger_old.id,),
-        ]
+        if use_queues:
+            assert trigger_ids_query == [(trigger_new.id,), (trigger_old.id,)]
+            trigger_ids_query_no_queue = Trigger.get_sorted_triggers(
+                capacity=100, queues=None, alive_triggerer_ids=[], session=session
+            )
+            # Callback triggers should not have a queue assignment
+            assert trigger_ids_query_no_queue == [
+                (callback_triggers[2].id,),
+                (callback_triggers[1].id,),
+                (callback_triggers[0].id,),
+            ]
+        else:
+            assert trigger_ids_query == [
+                (callback_triggers[2].id,),
+                (callback_triggers[1].id,),
+                (callback_triggers[0].id,),
+                (trigger_new.id,),
+                (trigger_old.id,),
+            ]
 
 
 @pytest.mark.need_serialized_dag
-@pytest.mark.parametrize("use_queues", [False, True])
-def test_get_sorted_triggers_dont_starve_for_ha(session, create_task_instance, use_queues: bool):
+def test_get_sorted_triggers_dont_starve_for_ha(session, create_task_instance):
     """
     Tests that get_sorted_triggers respects max_trigger_to_select_per_loop to prevent
     starvation in HA setups. When capacity is large, it should limit triggers per loop
     to avoid one triggerer picking up too many triggers.
     """
     # Whether or not trigger queues are used should not fundamentally change trigger capacity logic.
-    queue = "fake_trigger_q_name" if use_queues else None
-    queues = {queue} if isinstance(queue, str) else None
-    trig_kwargs = {"queue": queue} if queue else {}
     # Create 20 callback triggers with different priorities
     callback_triggers = []
     for i in range(20):
-        trigger = Trigger(classpath="airflow.triggers.testing.CallbackTrigger", kwargs=trig_kwargs)
+        trigger = Trigger(classpath="airflow.triggers.testing.CallbackTrigger", kwargs={})
         session.add(trigger)
         session.flush()
         callback = TriggererCallback(
@@ -650,9 +737,7 @@ def test_get_sorted_triggers_dont_starve_for_ha(session, create_task_instance, u
     for i in range(20):
         logical_date = datetime.datetime(2023, 5, 9, 12, i, 0, tzinfo=pytz.timezone("UTC"))
         trigger = Trigger(
-            classpath="airflow.triggers.testing.SuccessTrigger",
-            kwargs=trig_kwargs,
-            created_date=logical_date,
+            classpath="airflow.triggers.testing.SuccessTrigger", kwargs={}, created_date=logical_date
         )
         session.add(trigger)
         session.flush()
@@ -671,9 +756,7 @@ def test_get_sorted_triggers_dont_starve_for_ha(session, create_task_instance, u
     for i in range(20):
         logical_date = datetime.datetime(2023, 5, 9, 13, i, 0, tzinfo=pytz.timezone("UTC"))
         trigger = Trigger(
-            classpath="airflow.triggers.testing.AssetTrigger",
-            kwargs=trig_kwargs,
-            created_date=logical_date,
+            classpath="airflow.triggers.testing.AssetTrigger", kwargs={}, created_date=logical_date
         )
         session.add(trigger)
         session.flush()
@@ -690,7 +773,7 @@ def test_get_sorted_triggers_dont_starve_for_ha(session, create_task_instance, u
         # Test with large capacity (100) - should respect max_trigger_to_select_per_loop (5)
         # and return only 5 triggers from each category (callback, task, asset)
         trigger_ids_query = Trigger.get_sorted_triggers(
-            capacity=100, queues=queues, alive_triggerer_ids=[], session=session
+            capacity=100, alive_triggerer_ids=[], session=session, queues=None
         )
 
         # Should get 5 callbacks (max_trigger_to_select_per_loop), then 5 tasks, then 5 assets
@@ -712,12 +795,70 @@ def test_get_sorted_triggers_dont_starve_for_ha(session, create_task_instance, u
         # Test with capacity smaller than max_trigger_to_select_per_loop
         # Should respect capacity instead
         trigger_ids_query = Trigger.get_sorted_triggers(
-            capacity=3, queues=queues, alive_triggerer_ids=[], session=session
+            capacity=3, alive_triggerer_ids=[], session=session, queues=None
         )
 
         # Should get only 3 callback triggers (capacity limit)
         assert len(trigger_ids_query) == 3
         assert [row[0] for row in trigger_ids_query] == callback_ids[:3]
+
+
+@pytest.mark.need_serialized_dag
+@conf_vars({("triggerer", "queues_enabled"): "True"})
+def test_get_sorted_triggers_dont_starve_for_ha_with_queues(session, create_task_instance):
+    """
+    Tests that get_sorted_triggers respects max_trigger_to_select_per_loop when trigger queue assignment
+    is enabled. When capacity is large, it should limit triggers per loop to avoid one triggerer picking
+    up too many triggers.
+    """
+    # Whether or not trigger queues are used should not fundamentally change trigger capacity logic.
+
+    # Create 20 task instance triggers with different priorities
+    task_triggers = []
+    queue = "fake_q"
+    for i in range(20):
+        logical_date = datetime.datetime(2023, 5, 9, 12, i, 0, tzinfo=pytz.timezone("UTC"))
+        trigger = Trigger(
+            classpath="airflow.triggers.testing.SuccessTrigger",
+            kwargs={},
+            created_date=logical_date,
+            queue=queue,
+        )
+        session.add(trigger)
+        session.flush()
+        ti = create_task_instance(task_id=f"task_{i}", logical_date=logical_date, run_id=f"run_{i}")
+        ti.priority_weight = 20 - i
+        ti.trigger_id = trigger.id
+        session.add(ti)
+        task_triggers.append(trigger)
+
+    session.commit()
+    assert session.scalar(select(func.count()).select_from(Trigger)) == 20
+
+    # Mock max_trigger_to_select_per_loop to 5 for testing
+    with patch.object(Trigger, "max_trigger_to_select_per_loop", 5):
+        # Test with large capacity (100) - should respect max_trigger_to_select_per_loop (5)
+        # and return only 5 task triggers
+        trigger_ids_query = Trigger.get_sorted_triggers(
+            capacity=100, alive_triggerer_ids=[], session=session, queues={queue}
+        )
+
+        # Should get 5 task triggers out of a total of 20
+        assert len(trigger_ids_query) == 5
+
+        # 5 task triggers should be the highest priority ones
+        task_ids = [t.id for t in task_triggers[:5]]
+        assert [row[0] for row in trigger_ids_query[:5]] == task_ids
+
+        # Test with capacity smaller than max_trigger_to_select_per_loop
+        # Should respect capacity instead
+        trigger_ids_query = Trigger.get_sorted_triggers(
+            capacity=3, alive_triggerer_ids=[], session=session, queues={queue}
+        )
+
+        # Should get only 3 task triggers (capacity limit)
+        assert len(trigger_ids_query) == 3
+        assert [row[0] for row in trigger_ids_query] == task_ids[:3]
 
 
 class SensitiveKwargsTrigger(BaseTrigger):

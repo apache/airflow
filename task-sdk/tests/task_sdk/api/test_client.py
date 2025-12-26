@@ -344,9 +344,11 @@ class TestTaskInstanceOperations:
         client = make_client(transport=httpx.MockTransport(handle_request))
         client.task_instances.heartbeat(ti_id, 100)
 
-    def test_task_instance_defer(self):
+    @pytest.mark.parametrize("queues_enabled", [False, True])
+    def test_task_instance_defer(self, queues_enabled: bool):
         # Simulate a successful response from the server that defers a task
         ti_id = uuid6.uuid7()
+        fake_q = "test" if queues_enabled else None
 
         msg = DeferTask(
             classpath="airflow.providers.standard.triggers.temporal.DateTimeTrigger",
@@ -359,6 +361,7 @@ class TestTaskInstanceOperations:
                 },
             },
             next_kwargs={"__type": "dict", "__var": {}},
+            queue=fake_q if queues_enabled else None,
         )
 
         def handle_request(request: httpx.Request) -> httpx.Response:
@@ -370,6 +373,10 @@ class TestTaskInstanceOperations:
                     actual_body["classpath"] == "airflow.providers.standard.triggers.temporal.DateTimeTrigger"
                 )
                 assert actual_body["next_method"] == "execute_complete"
+                if queues_enabled:
+                    assert actual_body["queue"] == fake_q
+                else:
+                    assert actual_body.get("queue") is None
                 return httpx.Response(
                     status_code=204,
                 )

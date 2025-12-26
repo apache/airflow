@@ -24,6 +24,8 @@ import pytest
 from airflow.cli import cli_parser
 from airflow.cli.commands import triggerer_command
 
+from tests_common.test_utils.config import conf_vars
+
 pytestmark = pytest.mark.db_test
 
 
@@ -51,18 +53,13 @@ class TestTriggererCommand:
         mock_serve.return_value.__exit__.assert_called_once()
         mock_triggerer_job_runner.assert_called_once_with(job=mock.ANY, capacity=42, queues=None)
 
+    @conf_vars({("triggerer", "queues_enabled"): "True"})
     @mock.patch("airflow.cli.commands.triggerer_command.TriggererJobRunner")
     @mock.patch("airflow.cli.commands.triggerer_command._serve_logs")
-    def test_queues_argument(
-        self,
-        mock_serve,
-        mock_triggerer_job_runner,
-    ):
+    def test_queues_argument(self, mock_serve, mock_triggerer_job_runner):
         """Ensure that the queues argument is passed correctly"""
         mock_triggerer_job_runner.return_value.job_type = "TriggererJob"
-        args = self.parser.parse_args(
-            ["triggerer", "--capacity=4", "--consume-trigger-queues=my_queue,other_queue"]
-        )
+        args = self.parser.parse_args(["triggerer", "--capacity=4", "--queues=my_queue,other_queue"])
         triggerer_command.triggerer(args)
         mock_serve.return_value.__enter__.assert_called_once()
         mock_serve.return_value.__exit__.assert_called_once()
