@@ -27,8 +27,156 @@ Default Connection IDs
 
 HBase hook and HBase operators use ``hbase_default`` by default.
 
+Supported Connection Types
+--------------------------
+
+The HBase provider supports multiple connection types for different use cases:
+
+* **hbase** - Direct Thrift connection (recommended for most operations)
+* **generic** - Generic connection for Thrift servers
+* **ssh** - SSH connection for backup operations and shell commands
+
+Connection Examples
+-------------------
+
+The following connection examples are based on the provider's test configuration:
+
+Basic Thrift Connection (hbase_thrift)
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+:Connection Type: ``generic``
+:Host: ``172.17.0.1`` (or your HBase Thrift server host)
+:Port: ``9090`` (default Thrift1 port)
+:Extra:
+
+.. code-block:: json
+
+    {
+      "use_kerberos": false
+    }
+
+SSL/TLS Connection (hbase_ssl)
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+:Connection Type: ``hbase``
+:Host: ``172.17.0.1`` (or your SSL proxy host)
+:Port: ``9092`` (SSL proxy port, e.g., stunnel)
+:Extra:
+
+.. code-block:: json
+
+    {
+      "use_ssl": true,
+      "ssl_check_hostname": false,
+      "ssl_verify_mode": "none",
+      "transport": "framed"
+    }
+
+Kerberos Connection (hbase_kerberos)
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+:Connection Type: ``generic``
+:Host: ``172.17.0.1`` (or your HBase Thrift server host)
+:Port: ``9090``
+:Extra:
+
+.. code-block:: json
+
+    {
+      "use_kerberos": true,
+      "principal": "hbase_user@EXAMPLE.COM",
+      "keytab_secret_key": "hbase_keytab",
+      "connection_mode": "ssh",
+      "ssh_conn_id": "hbase_ssh",
+      "hdfs_uri": "hdfs://localhost:9000"
+    }
+
+SSH Connection for Backup Operations (hbase_ssh)
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+:Connection Type: ``ssh``
+:Host: ``172.17.0.1`` (or your HBase cluster node)
+:Port: ``22``
+:Login: ``hbase_user`` (SSH username)
+:Password: ``your_password`` (or use key-based auth)
+:Extra:
+
+.. code-block:: json
+
+    {
+      "hbase_home": "/opt/hbase-2.6.4",
+      "java_home": "/usr/lib/jvm/java-17-openjdk-amd64",
+      "connection_mode": "ssh",
+      "ssh_conn_id": "hbase_ssh"
+    }
+
+Thrift2 Connection (hbase_thrift2)
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+:Connection Type: ``generic``
+:Host: ``172.17.0.1`` (or your HBase Thrift2 server host)
+:Port: ``9091`` (default Thrift2 port)
+:Extra:
+
+.. code-block:: json
+
+    {
+      "use_ssl": false,
+      "transport": "framed"
+    }
+
+.. note::
+    This connection is typically used as a backend for SSL proxy configurations.
+    When using SSL, configure an SSL proxy (like stunnel) to forward encrypted 
+    traffic from port 9092 to this plain Thrift2 connection on port 9091.
+
 Configuring the Connection
 --------------------------
+
+SSL/TLS Configuration
+^^^^^^^^^^^^^^^^^^^^^
+
+SSL Certificate Management
+""""""""""""""""""""""""""
+
+The provider supports SSL certificates stored in Airflow's Secrets Backend or Variables:
+
+* ``hbase/ca-cert`` - CA certificate for server verification
+* ``hbase/client-cert`` - Client certificate for mutual TLS
+* ``hbase/client-key`` - Client private key for mutual TLS
+
+SSL Connection Parameters
+"""""""""""""""""""""""""
+
+The following SSL parameters are supported in the Extra field:
+
+* ``use_ssl`` - Enable SSL/TLS (true/false)
+* ``ssl_check_hostname`` - Verify server hostname (true/false)
+* ``ssl_verify_mode`` - Certificate verification mode:
+  
+  - ``"none"`` - No certificate verification (CERT_NONE)
+  - ``"optional"`` - Optional certificate verification (CERT_OPTIONAL)
+  - ``"required"`` - Required certificate verification (CERT_REQUIRED)
+
+* ``ssl_ca_secret`` - Airflow Variable/Secret key containing CA certificate
+* ``ssl_cert_secret`` - Airflow Variable/Secret key containing client certificate
+* ``ssl_key_secret`` - Airflow Variable/Secret key containing client private key
+* ``ssl_min_version`` - Minimum SSL/TLS version (e.g., "TLSv1.2")
+
+SSL Example with Certificate Secrets
+"""""""""""""""""""""""""""""""""""""
+
+.. code-block:: json
+
+    {
+      "use_ssl": true,
+      "ssl_verify_mode": "required",
+      "ssl_ca_secret": "hbase/ca-cert",
+      "ssl_cert_secret": "hbase/client-cert",
+      "ssl_key_secret": "hbase/client-key",
+      "ssl_min_version": "TLSv1.2",
+      "transport": "framed"
+    }
 
 HBase Thrift Connection
 ^^^^^^^^^^^^^^^^^^^^^^^
@@ -175,8 +323,7 @@ When using backup operators, specify the SSH connection ID:
         backup_type="full",
         backup_path="hdfs://namenode:9000/hbase/backup",
         backup_set_name="my_backup_set",
-        hbase_conn_id="hbase_default",  # HBase Thrift connection
-        ssh_conn_id="hbase_ssh",        # SSH connection for shell commands
+        hbase_conn_id="hbase_ssh",  # SSH connection for backup operations
     )
 
 .. note::
