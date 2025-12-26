@@ -335,12 +335,10 @@ class KubernetesPodTrigger(BaseTrigger):
         return AsyncPodManager(async_hook=self.hook)
 
     def define_container_state(self, pod: V1Pod) -> ContainerState:
-        pod_containers = pod.status.container_statuses
-
-        if pod_containers is None:
+        if pod.status is None or pod.status.container_statuses is None:
             return ContainerState.UNDEFINED
 
-        container = next(c for c in pod_containers if c.name == self.base_container_name)
+        container = next(c for c in pod.status.container_statuses if c.name == self.base_container_name)
 
         for state in (ContainerState.RUNNING, ContainerState.WAITING, ContainerState.TERMINATED):
             state_obj = getattr(container.state, state)
