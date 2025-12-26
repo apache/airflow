@@ -57,6 +57,24 @@ with DAG(
     )
     # [END howto_azure_batch_operator]
 
+    # [START howto_azure_batch_operator_deferrable]
+    azure_batch_operator_deferrable = AzureBatchOperator(
+        task_id="azure_batch_deferrable",
+        batch_pool_id=f"{POOL_ID}-deferrable",
+        batch_pool_vm_size="standard_d2s_v3",
+        batch_job_id="example-job-deferrable",
+        batch_task_command_line="/bin/bash -c 'set -e; set -o pipefail; echo hello from deferrable!; wait'",
+        batch_task_id="example-task-deferrable",
+        vm_node_agent_sku_id="batch.node.ubuntu 22.04",
+        vm_publisher="Canonical",
+        vm_offer="0001-com-ubuntu-server-jammy",
+        vm_sku="22_04-lts-gen2",
+        target_dedicated_nodes=1,
+        deferrable=True,
+        poll_interval=30,  # Check every 30 seconds
+    )
+    # [END howto_azure_batch_operator_deferrable]
+
 from tests_common.test_utils.system_tests import get_test_run  # noqa: E402
 
 # Needed to run the example DAG with pytest (see: tests/system/README.md#run_via_pytest)
