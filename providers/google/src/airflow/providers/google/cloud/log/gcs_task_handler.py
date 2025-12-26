@@ -159,9 +159,7 @@ class GCSRemoteLogIO(LoggingMixin):  # noqa: D101
         logs: list[str] = []
         try:
             # for each log_stream, exhaust the generator into a string
-            for log_stream in log_streams:
-                log_content = "".join(line for line in log_stream)
-                logs.append(log_content)
+            logs = ["".join(line for line in log_stream) for log_stream in log_streams]
         except Exception as e:
             if not AIRFLOW_V_3_0_PLUS:
                 messages.append(f"Unable to read remote log {e}")
