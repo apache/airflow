@@ -42,7 +42,6 @@ from airflow.sdk.definitions._internal.abstractoperator import (
     DEFAULT_WAIT_FOR_PAST_DEPENDS_BEFORE_SKIPPING,
     DEFAULT_WEIGHT_RULE,
     AbstractOperator,
-    NotMapped,
     TaskStateChangeCallbackAttrType,
 )
 from airflow.sdk.definitions._internal.expandinput import (
@@ -795,16 +794,6 @@ class MappedOperator(AbstractOperator):
 
         for operator, _ in XComArg.iter_xcom_references(self._get_specified_expand_input()):
             yield operator
-
-    @methodtools.lru_cache(maxsize=None)
-    def get_parse_time_mapped_ti_count(self) -> int:
-        current_count = self._get_specified_expand_input().get_parse_time_mapped_ti_count()
-        try:
-            # The use of `methodtools` interferes with the zero-arg super
-            parent_count = super(MappedOperator, self).get_parse_time_mapped_ti_count()  # noqa: UP008
-        except NotMapped:
-            return current_count
-        return parent_count * current_count
 
     def render_template_fields(
         self,

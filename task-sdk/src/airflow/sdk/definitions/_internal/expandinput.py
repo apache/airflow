@@ -17,8 +17,6 @@
 # under the License.
 from __future__ import annotations
 
-import functools
-import operator
 from collections.abc import Iterable, Mapping, Sequence, Sized
 from typing import TYPE_CHECKING, Any, ClassVar, Union
 
@@ -123,15 +121,6 @@ class DictOfListsExpandInput(ResolveMixin):
         """Generate kwargs with values available on parse-time."""
         return ((k, v) for k, v in self.value.items() if _is_parse_time_mappable(v))
 
-    def get_parse_time_mapped_ti_count(self) -> int:
-        if not self.value:
-            return 0
-        literal_values = [len(v) for _, v in self._iter_parse_time_resolved_kwargs()]
-        if len(literal_values) != len(self.value):
-            literal_keys = (k for k, _ in self._iter_parse_time_resolved_kwargs())
-            raise NotFullyPopulated(set(self.value).difference(literal_keys))
-        return functools.reduce(operator.mul, literal_values, 1)
-
     def _get_map_lengths(
         self, resolved_vals: dict[str, Sized], upstream_map_indexes: dict[str, int]
     ) -> dict[str, int]:
@@ -235,11 +224,6 @@ class ListOfDictsExpandInput(ResolveMixin):
     value: OperatorExpandKwargsArgument
 
     EXPAND_INPUT_TYPE: ClassVar[str] = "list-of-dicts"
-
-    def get_parse_time_mapped_ti_count(self) -> int:
-        if isinstance(self.value, Sized):
-            return len(self.value)
-        raise NotFullyPopulated({"expand_kwargs() argument"})
 
     def iter_references(self) -> Iterable[tuple[Operator, str]]:
         from airflow.sdk.definitions.xcom_arg import XComArg
