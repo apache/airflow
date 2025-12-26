@@ -84,6 +84,9 @@ export class LoginPage extends BasePage {
     await this.maximizeBrowser();
 
     await this.navigateTo(LoginPage.loginUrl);
+
+    // Wait for login form to be fully loaded (especially important for first test run)
+    await this.usernameInput.waitFor({ state: "visible", timeout: 120_000 });
   }
 
   public async navigateAndLogin(username: string, password: string): Promise<void> {
