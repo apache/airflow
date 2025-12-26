@@ -123,7 +123,7 @@ class SageMakerNotebookHook(BaseHook):
         if self.compute:
             start_execution_params["compute"] = self.compute
         else:
-            start_execution_params["compute"] = {"instance_type": "ml.m4.xlarge"}
+            start_execution_params["compute"] = {"instance_type": "ml.m6i.xlarge"}
 
         print(start_execution_params)
         return self._sagemaker_studio.execution_client.start_execution(**start_execution_params)
