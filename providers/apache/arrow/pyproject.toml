@@ -71,6 +71,7 @@ dev = [
     "apache-airflow-task-sdk",
     "apache-airflow-devel-common",
     "apache-airflow-providers-common-sql",
+    "adbc-driver-sqlite",
     # Additional devel dependencies (do not remove this line and add extra development dependencies)
 ]
 
