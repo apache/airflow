@@ -14,35 +14,13 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from __future__ import annotations
-
-from typing import TYPE_CHECKING
-
-from airflow.models.taskmap import TaskMap
-
-if TYPE_CHECKING:
-    from sqlalchemy.orm import Session
-
-    from airflow.serialization.definitions.mappedoperator import Operator
-
-
-def expand_mapped_task(
-    mapped: Operator,
-    run_id: str,
-    upstream_task_id: str,
-    length: int,
-    session: Session,
-):
-    session.add(
-        TaskMap(
-            dag_id=mapped.dag_id,
-            task_id=upstream_task_id,
-            run_id=run_id,
-            map_index=-1,
-            length=length,
-            keys=None,
-        )
-    )
-    session.flush()
-
-    TaskMap.expand_mapped_task(mapped, run_id, session=session)
+---
+services:
+  airflow:
+    # Mount pre-built UI dist directories from host to container
+    # This allows using pre-compiled UI assets without rebuilding in container
+    volumes:
+      # Mount main UI dist directory
+      - ../../../airflow-core/src/airflow/ui/dist:/usr/python/lib/python${PYTHON_MAJOR_MINOR_VERSION}/site-packages/airflow/ui/dist:cached
+      # Mount Simple Auth Manager UI dist directory
+      - ../../../airflow-core/src/airflow/api_fastapi/auth/managers/simple/ui/dist:/usr/python/lib/python${PYTHON_MAJOR_MINOR_VERSION}/site-packages/airflow/api_fastapi/auth/managers/simple/ui/dist:cached

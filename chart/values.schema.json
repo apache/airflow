@@ -9084,6 +9084,11 @@
                     "type": "boolean",
                     "default": false
                 },
+                "applyCustomEnv": {
+                    "description": "Specify if you want additional configured env vars applied to database cleanup job",
+                    "type": "boolean",
+                    "default": true
+                },
                 "schedule": {
                     "description": "Database cleanup schedule (templated).",
                     "type": "string",
