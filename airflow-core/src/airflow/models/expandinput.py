@@ -24,33 +24,24 @@ from typing import TYPE_CHECKING, Any, ClassVar
 
 import attrs
 
-from airflow.sdk.definitions._internal.expandinput import (
-    DictOfListsExpandInput,
-    ListOfDictsExpandInput,
-    MappedArgument,
-    NotFullyPopulated,
-    OperatorExpandArgument,
-    OperatorExpandKwargsArgument,
-    is_mappable,
-)
+from airflow.sdk.definitions._internal.expandinput import MappedArgument, NotFullyPopulated
 
 if TYPE_CHECKING:
-    from typing import TypeGuard
+    from collections.abc import Sequence
+    from typing import TypeAlias, TypeGuard
 
     from sqlalchemy.orm import Session
 
     from airflow.serialization.definitions.mappedoperator import Operator
     from airflow.serialization.definitions.xcom_arg import SchedulerXComArg
 
+    OperatorExpandArgument: TypeAlias = MappedArgument | SchedulerXComArg | Sequence | dict[str, Any]
+
 
 __all__ = [
-    "DictOfListsExpandInput",
-    "ListOfDictsExpandInput",
-    "MappedArgument",
+    "SchedulerDictOfListsExpandInput",
+    "SchedulerListOfDictsExpandInput",
     "NotFullyPopulated",
-    "OperatorExpandArgument",
-    "OperatorExpandKwargsArgument",
-    "is_mappable",
 ]
 
 
@@ -62,6 +53,13 @@ def _needs_run_time_resolution(v: OperatorExpandArgument) -> TypeGuard[MappedArg
 
 @attrs.define
 class SchedulerDictOfListsExpandInput:
+    """
+    Serialized storage of a mapped operator's mapped kwargs.
+
+    This corresponds to SDK's ``DictOfListsExpandInput``, which was created by
+    calling ``expand(**kwargs)`` on an operator type.
+    """
+
     value: dict
 
     EXPAND_INPUT_TYPE: ClassVar[str] = "dict-of-lists"
@@ -123,6 +121,13 @@ class SchedulerDictOfListsExpandInput:
 
 @attrs.define
 class SchedulerListOfDictsExpandInput:
+    """
+    Serialized storage of a mapped operator's mapped kwargs.
+
+    This corresponds to SDK's ``ListOfDictsExpandInput``, which was created by
+    calling ``expand_kwargs(xcom_arg)`` on an operator type.
+    """
+
     value: list
 
     EXPAND_INPUT_TYPE: ClassVar[str] = "list-of-dicts"
