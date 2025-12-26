@@ -2260,7 +2260,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         dag_model: DagModel,
         session: Session,
         active_non_backfill_runs: int | None = None,
-        data_interval: DataInterval,
+        data_interval: DataInterval | None,
     ):
         """
         Conditionally update fields next_dagrun and next_dagrun_create_after on dag table.

@@ -4427,7 +4427,7 @@ class TestSchedulerJob:
             EmptyOperator(task_id="dummy")
 
         index = 0
-        dr = None
+        dr: DagRun
         for index in range(other_runs):
             dr = dag_maker.create_dagrun(
                 run_id=f"run_{index}",
