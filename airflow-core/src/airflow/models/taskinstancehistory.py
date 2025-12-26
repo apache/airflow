@@ -22,6 +22,7 @@ from typing import TYPE_CHECKING
 
 import dill
 from sqlalchemy import (
+    JSON,
     DateTime,
     Float,
     ForeignKeyConstraint,
@@ -109,7 +110,9 @@ class TaskInstanceHistory(Base):
     trigger_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
     trigger_timeout: Mapped[DateTime | None] = mapped_column(DateTime, nullable=True)
     next_method: Mapped[str | None] = mapped_column(String(1000), nullable=True)
-    next_kwargs: Mapped[dict | None] = mapped_column(MutableDict.as_mutable(ExtendedJSON), nullable=True)
+    next_kwargs: Mapped[dict | None] = mapped_column(
+        MutableDict.as_mutable(JSON().with_variant(postgresql.JSONB, "postgresql")), nullable=True
+    )
 
     task_display_name: Mapped[str | None] = mapped_column(String(2000), nullable=True)
     dag_version_id: Mapped[str | None] = mapped_column(UUIDType(binary=False), nullable=True)
