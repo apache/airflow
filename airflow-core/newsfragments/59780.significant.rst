@@ -1,0 +1,4 @@
+Usused methods removed from (experimental) PriorityWeightStrategy
+
+Functions ``serialize`` and ``deserialize`` were never used anywhere, and have
+been removed from the class. They should not be relied in in user code.

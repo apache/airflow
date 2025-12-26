@@ -728,11 +728,12 @@ class TaskInstance(Base, LoggingMixin):
         :param task: The task object to copy from
         :param pool_override: Use the pool_override instead of task's pool
         """
-        from airflow.serialization.serialized_objects import create_scheduler_operator
+        from airflow.serialization.definitions.baseoperator import SerializedBaseOperator
+        from airflow.serialization.definitions.mappedoperator import SerializedMappedOperator
 
-        # Many tests are not set up well to use serialized tasks.
-        # TODO: Fix tests to get rid of this.
-        self.task = task = create_scheduler_operator(task)
+        if not isinstance(task, (SerializedBaseOperator, SerializedMappedOperator)):
+            raise ValueError(f"expects serialized task object, received {type(task).__name__}")
+        self.task = task
         self.queue = task.queue
         self.pool = pool_override or task.pool
         self.pool_slots = task.pool_slots
