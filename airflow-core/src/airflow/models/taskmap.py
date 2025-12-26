@@ -37,7 +37,6 @@ if TYPE_CHECKING:
     from sqlalchemy.orm import Session
 
     from airflow.models.taskinstance import TaskInstance
-    from airflow.serialization.definitions.baseoperator import SerializedBaseOperator
     from airflow.serialization.definitions.mappedoperator import Operator
 
 
