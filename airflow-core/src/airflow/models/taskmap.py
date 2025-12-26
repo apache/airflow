@@ -37,7 +37,6 @@ if TYPE_CHECKING:
     from sqlalchemy.orm import Session
 
     from airflow.models.taskinstance import TaskInstance
-    from airflow.sdk.bases.operator import BaseOperator
     from airflow.serialization.definitions.baseoperator import SerializedBaseOperator
     from airflow.serialization.definitions.mappedoperator import Operator
 
@@ -170,7 +169,7 @@ class TaskMap(TaskInstanceDependencies):
             if not total_length:
                 total_length = get_mapped_ti_count(task, run_id, session=session)
             else:
-                task = next((op for op in task.get_direct_relatives(upstream=False) if op.is_mapped), None)
+                task = next((op for op in task.get_direct_relatives(upstream=False) if op.is_mapped), task)
         except NotFullyPopulated as e:
             if not task.dag or not task.dag.partial:
                 task.log.error(
