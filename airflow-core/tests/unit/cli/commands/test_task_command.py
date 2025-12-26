@@ -370,6 +370,7 @@ class TestCliTasks:
         )
         dag_version = DagVersion.get_latest_version(dag2.dag_id)
         ti2 = TaskInstance(task2, run_id=dagrun.run_id, dag_version_id=dag_version.id)
+        ti2.priority_weight = task2.priority_weight
         ti2.set_state(State.SUCCESS)
         ti_start = ti2.start_date
         ti_end = ti2.end_date
