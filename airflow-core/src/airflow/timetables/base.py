@@ -18,6 +18,8 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any, NamedTuple, Protocol, runtime_checkable
 
+from airflow.exceptions import AirflowException
+
 from airflow.serialization.definitions.assets import SerializedAssetBase
 
 if TYPE_CHECKING:
@@ -34,21 +36,34 @@ if TYPE_CHECKING:
     )
     from airflow.utils.types import DagRunType
 
-
 class DataInterval(NamedTuple):
     """
     A data interval for a DagRun to operate over.
 
-    Both ``start`` and ``end`` **MUST** be "aware", i.e. contain timezone
-    information.
+    Both ``start`` and ``end`` **MUST** be timezone-aware, and ``end`` must not
+    be earlier than ``start``.
+
+    :raises AirflowException: If ``start`` or ``end`` are not timezone-aware,
+        or if ``end`` is earlier than ``start``.
     """
 
     start: DateTime
     end: DateTime
 
+    def __new__(cls, start: DateTime, end: DateTime):
+        if start.tzinfo is None or end.tzinfo is None:
+            raise AirflowException(
+                "DataInterval requires timezone-aware datetimes for both start and end."
+            )
+        if end < start:
+            raise AirflowException(
+                f"DataInterval end ({end}) must not be earlier than start ({start})."
+            )
+        return super().__new__(cls, start, end)
+
     @classmethod
-    def exact(cls, at: DateTime) -> DataInterval:
-        """Represent an "interval" containing only an exact time."""
+    def exact(cls, at: DateTime) -> "DataInterval":
+        """Represent an interval containing only an exact time."""
         return cls(start=at, end=at)
 
 
