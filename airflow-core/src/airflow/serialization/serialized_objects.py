@@ -32,7 +32,7 @@ from collections.abc import Collection, Iterable, Mapping
 from functools import cache, cached_property, lru_cache
 from inspect import signature
 from textwrap import dedent
-from typing import TYPE_CHECKING, Any, ClassVar, NamedTuple, TypeAlias, TypeVar, cast, overload
+from typing import TYPE_CHECKING, Any, ClassVar, NamedTuple, TypeVar, cast, overload
 
 import attrs
 import lazy_object_proxy
@@ -107,16 +107,17 @@ if TYPE_CHECKING:
     from kubernetes.client import models as k8s  # noqa: TC004
 
     from airflow.models.expandinput import SchedulerExpandInput
-    from airflow.models.mappedoperator import MappedOperator as SerializedMappedOperator
     from airflow.providers.cncf.kubernetes.pod_generator import PodGenerator  # noqa: TC004
     from airflow.sdk import BaseOperatorLink
     from airflow.sdk.definitions._internal.node import DAGNode as SDKDAGNode
+    from airflow.sdk.types import Operator as SdkOperator
+    from airflow.serialization.definitions.mappedoperator import (
+        Operator as SerializedOperator,
+        SerializedMappedOperator,
+    )
     from airflow.serialization.json_schema import Validator
     from airflow.timetables.base import DagRunInfo, Timetable
     from airflow.timetables.simple import PartitionMapper
-
-    SerializedOperator: TypeAlias = "SerializedMappedOperator | SerializedBaseOperator"
-    SdkOperator: TypeAlias = BaseOperator | MappedOperator
 
 log = logging.getLogger(__name__)
 
@@ -1344,7 +1345,7 @@ class OperatorSerialization(DAGNode, BaseSerialization):
         """Deserializes an operator from a JSON object."""
         op: SerializedOperator
         if encoded_op.get("_is_mapped", False):
-            from airflow.models.mappedoperator import MappedOperator as SerializedMappedOperator
+            from airflow.serialization.definitions.mappedoperator import SerializedMappedOperator
 
             try:
                 operator_name = encoded_op["_operator_name"]
@@ -2370,7 +2371,7 @@ def create_scheduler_operator(op: MappedOperator | SerializedMappedOperator) -> 
 
 
 def create_scheduler_operator(op: SdkOperator | SerializedOperator) -> SerializedOperator:
-    from airflow.models.mappedoperator import MappedOperator as SerializedMappedOperator
+    from airflow.serialization.definitions.mappedoperator import SerializedMappedOperator
 
     if isinstance(op, (SerializedBaseOperator, SerializedMappedOperator)):
         return op
