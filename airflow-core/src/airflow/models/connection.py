@@ -36,7 +36,6 @@ from airflow.configuration import ensure_secrets_loaded
 from airflow.exceptions import AirflowException, AirflowNotFoundException
 from airflow.models.base import ID_LEN, Base
 from airflow.models.crypto import get_fernet
-from airflow.sdk import SecretCache
 from airflow.utils.helpers import prune_dict
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.session import NEW_SESSION, provide_session
@@ -519,6 +518,8 @@ class Connection(Base, LoggingMixin):
 
         # check cache first
         # enabled only if SecretCache.init() has been called first
+        from airflow.sdk import SecretCache
+
         try:
             uri = SecretCache.get_connection_uri(conn_id)
             return Connection(conn_id=conn_id, uri=uri)
