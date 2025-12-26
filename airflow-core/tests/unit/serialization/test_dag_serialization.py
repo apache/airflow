@@ -56,7 +56,6 @@ from airflow.exceptions import (
 )
 from airflow.models.asset import AssetModel
 from airflow.models.connection import Connection
-from airflow.models.mappedoperator import MappedOperator
 from airflow.models.taskinstance import TaskInstance as TI
 from airflow.models.xcom import XCOM_RETURN_KEY, XComModel
 from airflow.providers.cncf.kubernetes.pod_generator import PodGenerator
@@ -71,6 +70,7 @@ from airflow.security import permissions
 from airflow.serialization.definitions.assets import SerializedAssetUniqueKey
 from airflow.serialization.definitions.baseoperator import SerializedBaseOperator
 from airflow.serialization.definitions.dag import SerializedDAG
+from airflow.serialization.definitions.mappedoperator import SerializedMappedOperator
 from airflow.serialization.definitions.notset import NOTSET
 from airflow.serialization.definitions.operatorlink import XComOperatorLink
 from airflow.serialization.definitions.param import SerializedParam
@@ -84,7 +84,12 @@ from airflow.serialization.serialized_objects import (
     OperatorSerialization,
     _XComRef,
 )
-from airflow.task.priority_strategy import _AbsolutePriorityWeightStrategy, _DownstreamPriorityWeightStrategy
+from airflow.task.priority_strategy import (
+    PriorityWeightStrategy,
+    _DownstreamPriorityWeightStrategy,
+    airflow_priority_weight_strategies,
+    validate_and_load_priority_weight_strategy,
+)
 from airflow.ti_deps.deps.ready_to_reschedule import ReadyToRescheduleDep
 from airflow.timetables.simple import NullTimetable, OnceTimetable
 from airflow.triggers.base import StartTriggerArgs
@@ -764,7 +769,6 @@ class TestStringifiedDAGs:
         task,
     ):
         """Verify non-Airflow operators are casted to BaseOperator or MappedOperator."""
-        from airflow.models.mappedoperator import MappedOperator as SchedulerMappedOperator
         from airflow.sdk import BaseOperator
         from airflow.sdk.definitions.mappedoperator import MappedOperator
 
@@ -780,6 +784,7 @@ class TestStringifiedDAGs:
                 "inlets",
                 "outlets",
                 "task_type",
+                "weight_rule",
                 "_operator_name",
                 # Type is excluded, so don't check it
                 "_log",
@@ -796,7 +801,7 @@ class TestStringifiedDAGs:
                 "_is_sensor",
             }
         else:  # Promised to be mapped by the assert above.
-            assert isinstance(serialized_task, SchedulerMappedOperator)
+            assert isinstance(serialized_task, SerializedMappedOperator)
             fields_to_check = {f.name for f in attrs.fields(MappedOperator)}
             fields_to_check -= {
                 "map_index_template",
@@ -813,6 +818,7 @@ class TestStringifiedDAGs:
                 "operator_class",
                 "partial_kwargs",
                 "expand_input",
+                "weight_rule",
             }
 
         assert serialized_task.task_type == task.task_type
@@ -846,6 +852,12 @@ class TestStringifiedDAGs:
         # Ugly hack as some operators override params var in their init
         if isinstance(task.params, ParamsDict) and isinstance(serialized_task.params, ParamsDict):
             assert serialized_task.params.dump() == task.params.dump()
+
+        if isinstance(task.weight_rule, PriorityWeightStrategy):
+            assert task.weight_rule == serialized_task.weight_rule
+        else:
+            task_weight_strat = validate_and_load_priority_weight_strategy(task.weight_rule)
+            assert task_weight_strat == serialized_task.weight_rule
 
         if isinstance(task, MappedOperator):
             # MappedOperator.operator_class now stores only minimal type information
@@ -1573,7 +1585,7 @@ class TestStringifiedDAGs:
             "ui_fgcolor": "#000",
             "wait_for_downstream": False,
             "wait_for_past_depends_before_skipping": False,
-            "weight_rule": _DownstreamPriorityWeightStrategy(),
+            "weight_rule": WeightRule.DOWNSTREAM,
             "multiple_outputs": False,
         }, """
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -1813,7 +1825,7 @@ class TestStringifiedDAGs:
         assert "outlets" not in serialized
 
         round_tripped = OperatorSerialization.deserialize_operator(serialized)
-        assert isinstance(round_tripped, MappedOperator)
+        assert isinstance(round_tripped, SerializedMappedOperator)
         assert round_tripped.inlets == []
         assert round_tripped.outlets == []
 
@@ -2646,7 +2658,7 @@ def test_operator_expand_serde():
     }
 
     op = BaseSerialization.deserialize(serialized)
-    assert isinstance(op, MappedOperator)
+    assert isinstance(op, SerializedMappedOperator)
 
     # operator_class now stores only minimal type information for memory efficiency
     assert op.operator_class == {
@@ -2900,7 +2912,7 @@ def test_taskflow_expand_serde():
     }
 
     deserialized = BaseSerialization.deserialize(serialized)
-    assert isinstance(deserialized, MappedOperator)
+    assert isinstance(deserialized, SerializedMappedOperator)
     assert deserialized.upstream_task_ids == set()
     assert deserialized.downstream_task_ids == set()
 
@@ -2992,7 +3004,7 @@ def test_taskflow_expand_kwargs_serde(strict):
     }
 
     deserialized = BaseSerialization.deserialize(serialized)
-    assert isinstance(deserialized, MappedOperator)
+    assert isinstance(deserialized, SerializedMappedOperator)
     assert deserialized._disallow_kwargs_override == strict
     assert deserialized.upstream_task_ids == set()
     assert deserialized.downstream_task_ids == set()
@@ -3987,27 +3999,6 @@ def test_task_callback_backward_compatibility(old_callback_name, new_callback_na
     assert getattr(deserialized_task_empty, new_callback_name) is False
 
 
-def test_weight_rule_absolute_serialization_deserialization():
-    """Test that weight_rule can be serialized and deserialized correctly."""
-    from airflow.sdk import task
-
-    with DAG("test_weight_rule_dag") as dag:
-
-        @task(weight_rule=WeightRule.ABSOLUTE)
-        def test_task():
-            return "test"
-
-        test_task()
-
-    serialized_dag = DagSerialization.to_dict(dag)
-    assert serialized_dag["dag"]["tasks"][0]["__var"]["weight_rule"] == "absolute"
-
-    deserialized_dag = DagSerialization.from_dict(serialized_dag)
-
-    deserialized_task = deserialized_dag.task_dict["test_task"]
-    assert isinstance(deserialized_task.weight_rule, _AbsolutePriorityWeightStrategy)
-
-
 class TestClientDefaultsGeneration:
     """Test client defaults generation functionality."""
 
@@ -4237,9 +4228,7 @@ class TestMappedOperatorSerializationAndClientDefaults:
             deserialized_task = deserialized_dag.get_task("mapped_task")
 
             # Verify it's still a MappedOperator
-            from airflow.models.mappedoperator import MappedOperator as SchedulerMappedOperator
-
-            assert isinstance(deserialized_task, SchedulerMappedOperator)
+            assert isinstance(deserialized_task, SerializedMappedOperator)
 
             # Check that client_defaults values are applied (e.g., retry_delay from client_defaults)
             client_defaults = serialized_dag["client_defaults"]["tasks"]
@@ -4482,3 +4471,50 @@ def test_dag_default_args_callbacks_serialization(callbacks, expected_has_flags,
 
     deserialized_dag = DagSerialization.deserialize_dag(serialized_dag_dict)
     assert deserialized_dag.dag_id == "test_default_args_callbacks"
+
+
+class RegisteredPriorityWeightStrategy(PriorityWeightStrategy):
+    def get_weight(self, ti):
+        return 99
+
+
+class TestWeightRule:
+    def test_default(self):
+        sdkop = BaseOperator(task_id="should_fail")
+        serop = OperatorSerialization.deserialize(OperatorSerialization.serialize(sdkop))
+        assert serop.weight_rule == _DownstreamPriorityWeightStrategy()
+
+    @pytest.mark.parametrize(("value", "expected"), list(airflow_priority_weight_strategies.items()))
+    def test_builtin(self, value, expected):
+        sdkop = BaseOperator(task_id="should_fail", weight_rule=value)
+        serop = OperatorSerialization.deserialize(OperatorSerialization.serialize(sdkop))
+        assert serop.weight_rule == expected()
+
+    def test_custom(self):
+        sdkop = BaseOperator(task_id="should_fail", weight_rule=RegisteredPriorityWeightStrategy())
+        with mock.patch(
+            "airflow.serialization.serialized_objects._get_registered_priority_weight_strategy",
+            return_value=RegisteredPriorityWeightStrategy,
+        ) as mock_get_registered_priority_weight_strategy:
+            serop = OperatorSerialization.deserialize(OperatorSerialization.serialize(sdkop))
+
+        assert serop.weight_rule == RegisteredPriorityWeightStrategy()
+        assert mock_get_registered_priority_weight_strategy.mock_calls == [
+            mock.call("unit.serialization.test_dag_serialization.RegisteredPriorityWeightStrategy"),
+            mock.call("unit.serialization.test_dag_serialization.RegisteredPriorityWeightStrategy"),
+            mock.call("unit.serialization.test_dag_serialization.RegisteredPriorityWeightStrategy"),
+        ]
+
+    def test_invalid(self):
+        op = BaseOperator(task_id="should_fail", weight_rule="no rule")
+        with pytest.raises(ValueError, match="Unknown priority strategy"):
+            OperatorSerialization.serialize(op)
+
+    def test_not_registered_custom(self):
+        class NotRegisteredPriorityWeightStrategy(PriorityWeightStrategy):
+            def get_weight(self, ti):
+                return 99
+
+        op = BaseOperator(task_id="empty_task", weight_rule=NotRegisteredPriorityWeightStrategy())
+        with pytest.raises(ValueError, match="Unknown priority strategy"):
+            OperatorSerialization.serialize(op)

@@ -30,6 +30,7 @@ from tests_common.test_utils.version_compat import (
     AIRFLOW_V_3_0_1,
     AIRFLOW_V_3_0_PLUS,
     AIRFLOW_V_3_1_PLUS,
+    AIRFLOW_V_3_2_PLUS,
     XCOM_RETURN_KEY,
 )
 from unit.standard.operators.test_python import BasePythonTest
@@ -46,7 +47,6 @@ if AIRFLOW_V_3_0_PLUS:
     )
     from airflow.sdk.bases.decorator import DecoratedMappedOperator, _TaskDecorator
     from airflow.sdk.definitions._internal.expandinput import DictOfListsExpandInput
-    from airflow.sdk.definitions.mappedoperator import MappedOperator
 else:
     from airflow.decorators import (  # type: ignore[attr-defined,no-redef]
         setup,
@@ -57,7 +57,6 @@ else:
     from airflow.models.baseoperator import BaseOperator  # type: ignore[no-redef]
     from airflow.models.dag import DAG  # type: ignore[assignment,no-redef]
     from airflow.models.expandinput import DictOfListsExpandInput
-    from airflow.models.mappedoperator import MappedOperator  # type: ignore[assignment,no-redef]
     from airflow.models.xcom_arg import XComArg  # type: ignore[no-redef]
     from airflow.utils.task_group import TaskGroup  # type: ignore[no-redef]
 
@@ -66,6 +65,13 @@ if AIRFLOW_V_3_1_PLUS:
 else:
     from airflow.utils import timezone  # type: ignore[attr-defined,no-redef]
     from airflow.utils.trigger_rule import TriggerRule  # type: ignore[no-redef,attr-defined]
+
+if AIRFLOW_V_3_2_PLUS:
+    from airflow.serialization.definitions.mappedoperator import SerializedMappedOperator
+else:
+    from airflow.models.mappedoperator import (  # type: ignore[no-redef]
+        MappedOperator as SerializedMappedOperator,  # type: ignore[assignment,attr-defined]
+    )
 
 pytestmark = pytest.mark.db_test
 
@@ -827,6 +833,8 @@ def test_mapped_decorator_unmap_merge_op_kwargs(dag_maker, session):
 
 @pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="Different test for AF 2")
 def test_mapped_render_template_fields(dag_maker, session):
+    from airflow.sdk.definitions.mappedoperator import MappedOperator
+
     @task_decorator
     def fn(arg1, arg2): ...
 
@@ -892,7 +900,7 @@ def test_mapped_render_template_fields_af2(dag_maker, session):
 
         mapped_ti: TaskInstance = dr.get_task_instance(mapped.operator.task_id, session=session)
         mapped_ti.map_index = 0
-        assert isinstance(mapped_ti.task, MappedOperator)
+        assert isinstance(mapped_ti.task, SerializedMappedOperator)
         mapped.operator.render_template_fields(context=mapped_ti.get_template_context(session=session))
         assert isinstance(mapped_ti.task, BaseOperator)
 

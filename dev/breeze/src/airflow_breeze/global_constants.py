@@ -142,6 +142,8 @@ AUTOCOMPLETE_ALL_INTEGRATIONS = sorted(
 )
 ALLOWED_TTY = ["auto", "enabled", "disabled"]
 ALLOWED_DOCKER_COMPOSE_PROJECTS = ["breeze", "prek", "docker-compose"]
+ALLOWED_LOG_LEVELS = ["INFO", "DEBUG", "WARNING", "ERROR", "CRITICAL"]
+DEFAULT_LOG_LEVEL = ALLOWED_LOG_LEVELS[0]
 
 # Unlike everything else, k8s versions are supported as long as 2 major cloud providers support them.
 # See:
@@ -679,6 +681,7 @@ DEFAULT_EXECUTOR = CURRENT_EXECUTORS[0]
 
 KIND_VERSION = "v0.30.0"
 HELM_VERSION = "v3.17.3"
+SKAFFOLD_VERSION = "v2.17.0"
 
 # Initialize image build variables - Have to check if this has to go to ci dataclass
 USE_AIRFLOW_VERSION = None
