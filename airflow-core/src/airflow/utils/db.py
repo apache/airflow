@@ -816,7 +816,7 @@ def _single_connection_pool() -> Generator[None, None, None]:
         yield
     finally:
         os.environ.pop("AIRFLOW__DATABASE__SQL_ALCHEMY_MAX_SIZE", None)
-        if previous_pool_size:
+        if previous_pool_size is not None:
             os.environ["AIRFLOW__DATABASE__SQL_ALCHEMY_MAX_SIZE"] = previous_pool_size
         settings.reconfigure_orm()
 
@@ -1175,8 +1175,8 @@ def _run_upgradedb(config, to_revision: str | None, session: Session) -> None:
             external_db_manager = RunDBManager()
             external_db_manager.upgradedb(work_session)
 
-    add_default_pool_if_not_exists(session=work_session)
-    synchronize_log_template(session=work_session)
+        add_default_pool_if_not_exists(session=work_session)
+        synchronize_log_template(session=work_session)
 
 
 @provide_session
@@ -1365,7 +1365,7 @@ def downgrade(*, to_revision, from_revision=None, show_sql_only=False, session: 
             revision_range = f"{from_revision}:{to_revision}"
             _offline_migration(command.downgrade, config=config, revision=revision_range)
         else:
-            dialect_label = " (MySQL)" if get_dialect_name(session) == "mysql" else ""
+            dialect_label = " (MySQL)" if get_dialect_name(work_session) == "mysql" else ""
             log.info("Applying downgrade migrations to Airflow database%s.", dialect_label)
             command.downgrade(config, revision=to_revision, sql=show_sql_only)
 
@@ -1538,8 +1538,10 @@ def _create_global_lock_postgresql(
     bind = session.get_bind()
     if hasattr(bind, "connect"):
         conn = bind.connect()
+        owns_connection = True
     else:
         conn = bind
+        owns_connection = False
 
     try:
         if _USE_PSYCOPG3:
@@ -1566,6 +1568,9 @@ def _create_global_lock_postgresql(
         (unlocked,) = result
         if not unlocked:
             raise RuntimeError("Error releasing DB lock!")
+
+        if owns_connection:
+            conn.close()
 
 
 @contextlib.contextmanager
