@@ -24,6 +24,12 @@ To test this DAG:
 3. Run: airflow dags test example_hbase_ssl 2024-01-01
 
 Note: For SSL encryption, configure stunnel proxy on port 9092 -> 9090
+example (hbase-thrift-ssl-conf)
+[hbase-thrift2-ssl]
+accept = 9092
+connect = localhost:9091
+cert = /opt/hbase-2.6.4/conf/server.pem
+key = /opt/hbase-2.6.4/conf/server-key.pem
 """
 
 from datetime import datetime, timedelta
