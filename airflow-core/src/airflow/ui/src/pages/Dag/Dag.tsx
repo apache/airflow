@@ -106,7 +106,10 @@ export const Dag = () => {
 
   const { tabs: processedTabs } = useRequiredActionTabs({ dagId }, tabs, {
     refetchInterval:
-      (dag?.active_runs_count ?? 0) > 0 || isStatePending(latestRun?.state)
+      
+      (dag?.active_runs_count ?? 0) > 0 ||
+      (latestRun && isStatePending(latestRun.state))
+
         ? refetchInterval
         : false,
   });
