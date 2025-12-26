@@ -106,7 +106,7 @@ class SnowflakeHook(DbApiHook):
             BS3TextFieldWidget,
         )
         from flask_babel import lazy_gettext
-        from wtforms import BooleanField, PasswordField, StringField
+        from wtforms import BooleanField, IntegerField, PasswordField, StringField
 
         return {
             "account": StringField(lazy_gettext("Account"), widget=BS3TextFieldWidget()),
@@ -121,6 +121,10 @@ class SnowflakeHook(DbApiHook):
             "insecure_mode": BooleanField(
                 label=lazy_gettext("Insecure mode"), description="Turns off OCSP certificate checks"
             ),
+            "proxy_host": StringField(lazy_gettext("Proxy Host"), widget=BS3TextFieldWidget()),
+            "proxy_port": IntegerField(lazy_gettext("Proxy Port")),
+            "proxy_user": StringField(lazy_gettext("Proxy User"), widget=BS3TextFieldWidget()),
+            "proxy_password": PasswordField(lazy_gettext("Proxy Password"), widget=BS3PasswordFieldWidget()),
         }
 
     @classmethod
@@ -143,6 +147,10 @@ class SnowflakeHook(DbApiHook):
                         "token_endpoint": "token endpoint",
                         "refresh_token": "refresh token",
                         "scope": "scope",
+                        "proxy_host": "proxy.example.com",
+                        "proxy_port": "8080",
+                        "proxy_user": "proxy_username",
+                        "proxy_password": "proxy_password",
                     },
                     indent=1,
                 ),
@@ -157,6 +165,10 @@ class SnowflakeHook(DbApiHook):
                 "private_key_file": "Path of snowflake private key (PEM Format)",
                 "private_key_content": "Content to snowflake private key (PEM format)",
                 "insecure_mode": "insecure mode",
+                "proxy_host": "Proxy server hostname",
+                "proxy_port": "Proxy server port",
+                "proxy_user": "Proxy username (optional)",
+                "proxy_password": "Proxy password (optional)",
             },
         }
 
@@ -422,6 +434,21 @@ class SnowflakeHook(DbApiHook):
         if ocsp_fail_open is not None:
             conn_config["ocsp_fail_open"] = _try_to_boolean(ocsp_fail_open)
 
+        # Add proxy configuration if specified
+        proxy_host = self._get_field(extra_dict, "proxy_host")
+        proxy_port = self._get_field(extra_dict, "proxy_port")
+        proxy_user = self._get_field(extra_dict, "proxy_user")
+        proxy_password = self._get_field(extra_dict, "proxy_password")
+
+        if proxy_host:
+            conn_config["proxy_host"] = proxy_host
+        if proxy_port:
+            conn_config["proxy_port"] = int(proxy_port) if isinstance(proxy_port, str) else proxy_port
+        if proxy_user:
+            conn_config["proxy_user"] = proxy_user
+        if proxy_password:
+            conn_config["proxy_password"] = proxy_password
+
         return conn_config
 
     def get_uri(self) -> str:
@@ -444,6 +471,10 @@ class SnowflakeHook(DbApiHook):
                     "client_store_temporary_credential",
                     "json_result_force_utf8_decoding",
                     "ocsp_fail_open",
+                    "proxy_host",
+                    "proxy_port",
+                    "proxy_user",
+                    "proxy_password",
                 ]
             }
         )
