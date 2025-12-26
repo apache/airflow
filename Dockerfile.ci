@@ -1067,6 +1067,8 @@ EOF
 # The content below is automatically copied from scripts/docker/entrypoint_ci.sh
 COPY <<"EOF" /entrypoint_ci.sh
 #!/usr/bin/env bash
+export SQLALCHEMY_ENGINE_DEBUG="true"
+
 function set_verbose() {
     if [[ ${VERBOSE_COMMANDS:="false"} == "true" ]]; then
         set -x
