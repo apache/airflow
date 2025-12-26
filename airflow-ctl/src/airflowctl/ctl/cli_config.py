@@ -74,13 +74,11 @@ def safe_call_command(function: Callable, args: Iterable[Arg]) -> None:
 
     try:
         function(args)
-    except AirflowCtlCredentialNotFoundException as e:
-        rich.print(f"command failed due to {e}")
-        sys.exit(1)
-    except AirflowCtlConnectionException as e:
-        rich.print(f"command failed due to {e}")
-        sys.exit(1)
-    except AirflowCtlNotFoundException as e:
+    except (
+        AirflowCtlCredentialNotFoundException,
+        AirflowCtlConnectionException,
+        AirflowCtlNotFoundException,
+    ) as e:
         rich.print(f"command failed due to {e}")
         sys.exit(1)
     except (httpx.RemoteProtocolError, httpx.ReadError) as e:

@@ -35,15 +35,12 @@ from airflow.sdk.definitions._internal.expandinput import (
 )
 
 if TYPE_CHECKING:
-    from typing import TypeAlias, TypeGuard
+    from typing import TypeGuard
 
     from sqlalchemy.orm import Session
 
-    from airflow.models.mappedoperator import MappedOperator
-    from airflow.serialization.definitions.baseoperator import SerializedBaseOperator
+    from airflow.serialization.definitions.mappedoperator import Operator
     from airflow.serialization.definitions.xcom_arg import SchedulerXComArg
-
-    Operator: TypeAlias = MappedOperator | SerializedBaseOperator
 
 
 __all__ = [

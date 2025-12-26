@@ -35,9 +35,8 @@ if TYPE_CHECKING:
     from sqlalchemy.orm import Session
     from sqlalchemy.sql import ColumnElement
 
-    from airflow.models.mappedoperator import MappedOperator
     from airflow.models.taskinstance import TaskInstance
-    from airflow.serialization.definitions.baseoperator import SerializedBaseOperator
+    from airflow.serialization.definitions.mappedoperator import Operator
     from airflow.serialization.definitions.taskgroup import SerializedMappedTaskGroup
     from airflow.ti_deps.dep_context import DepContext
     from airflow.ti_deps.deps.base_ti_dep import TIDepStatus
@@ -132,8 +131,8 @@ class TriggerRuleDep(BaseTIDep):
         """
         from airflow.exceptions import NotMapped
         from airflow.models.expandinput import NotFullyPopulated
-        from airflow.models.mappedoperator import is_mapped
         from airflow.models.taskinstance import TaskInstance
+        from airflow.serialization.definitions.mappedoperator import is_mapped
 
         task = ti.task
         if TYPE_CHECKING:
@@ -147,7 +146,7 @@ class TriggerRuleDep(BaseTIDep):
             This extra closure allows us to query the database only when needed,
             and at most once.
             """
-            from airflow.models.mappedoperator import get_mapped_ti_count
+            from airflow.serialization.definitions.mappedoperator import get_mapped_ti_count
 
             return get_mapped_ti_count(task, ti.run_id, session=session)
 
@@ -256,7 +255,7 @@ class TriggerRuleDep(BaseTIDep):
                     yield and_(TaskInstance.task_id == upstream_id, TaskInstance.map_index == map_indexes)
 
         def _evaluate_setup_constraint(
-            *, relevant_setups: Mapping[str, SerializedBaseOperator | MappedOperator]
+            *, relevant_setups: Mapping[str, Operator]
         ) -> Iterator[tuple[TIDepStatus, bool]]:
             """
             Evaluate whether ``ti``'s trigger rule was met as part of the setup constraint.
@@ -620,8 +619,7 @@ class TriggerRuleDep(BaseTIDep):
 
         if not task.is_teardown:
             # a teardown cannot have any indirect setups
-            relevant_setups = {t.task_id: t for t in task.get_upstreams_only_setups()}
-            if relevant_setups:
+            if relevant_setups := {t.task_id: t for t in task.get_upstreams_only_setups()}:
                 for status, changed in _evaluate_setup_constraint(relevant_setups=relevant_setups):
                     yield status
                     if not status.passed and changed:

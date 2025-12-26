@@ -38,10 +38,10 @@ from airflow.ti_deps.deps.trigger_rule_dep import TriggerRuleDep
 if TYPE_CHECKING:
     from collections.abc import Collection, Iterable, Iterator, Sequence
 
-    from airflow.models.mappedoperator import MappedOperator
     from airflow.models.taskinstance import TaskInstance
     from airflow.sdk import Context
     from airflow.serialization.definitions.dag import SerializedDAG
+    from airflow.serialization.definitions.mappedoperator import SerializedMappedOperator
     from airflow.serialization.definitions.operatorlink import XComOperatorLink
     from airflow.serialization.definitions.taskgroup import SerializedMappedTaskGroup, SerializedTaskGroup
     from airflow.task.trigger_rule import TriggerRule
@@ -286,8 +286,7 @@ class SerializedBaseOperator(DAGNode):
         link = self.operator_extra_link_dict.get(name) or self.global_operator_extra_link_dict.get(name)
         if not link:
             return None
-        # TODO: GH-52141 - BaseOperatorLink.get_link expects BaseOperator but receives SerializedBaseOperator.
-        return link.get_link(self, ti_key=ti.key)  # type: ignore[arg-type]
+        return link.get_link(self, ti_key=ti.key)
 
     @property
     def inherits_from_empty_operator(self) -> bool:
@@ -343,7 +342,7 @@ class SerializedBaseOperator(DAGNode):
         """
         return self.start_from_trigger
 
-    def _iter_all_mapped_downstreams(self) -> Iterator[MappedOperator | SerializedMappedTaskGroup]:
+    def _iter_all_mapped_downstreams(self) -> Iterator[SerializedMappedOperator | SerializedMappedTaskGroup]:
         """
         Return mapped nodes that are direct dependencies of the current task.
 
@@ -359,7 +358,7 @@ class SerializedBaseOperator(DAGNode):
         To get a list of tasks that uses the current task for task mapping, use
         :meth:`iter_mapped_dependants` instead.
         """
-        from airflow.models.mappedoperator import MappedOperator
+        from airflow.serialization.definitions.mappedoperator import SerializedMappedOperator
         from airflow.serialization.definitions.taskgroup import SerializedMappedTaskGroup, SerializedTaskGroup
 
         def _walk_group(group: SerializedTaskGroup) -> Iterable[tuple[str, DAGNode]]:
@@ -379,12 +378,12 @@ class SerializedBaseOperator(DAGNode):
         for key, child in _walk_group(dag.task_group):
             if key == self.node_id:
                 continue
-            if not isinstance(child, MappedOperator | SerializedMappedTaskGroup):
+            if not isinstance(child, SerializedMappedOperator | SerializedMappedTaskGroup):
                 continue
             if self.node_id in child.upstream_task_ids:
                 yield child
 
-    def iter_mapped_dependants(self) -> Iterator[MappedOperator | SerializedMappedTaskGroup]:
+    def iter_mapped_dependants(self) -> Iterator[SerializedMappedOperator | SerializedMappedTaskGroup]:
         """
         Return mapped nodes that depend on the current task the expansion.
 

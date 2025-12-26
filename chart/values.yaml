@@ -2943,6 +2943,7 @@ cleanup:
 # This runs as a CronJob to cleanup database for old entries.
 databaseCleanup:
   enabled: false
+  applyCustomEnv: true
   # Run every week on Sunday at midnight (templated).
   schedule: "0 0 * * 0"
   # Command to use when running the database cleanup cronjob (templated).

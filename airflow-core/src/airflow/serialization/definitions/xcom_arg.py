@@ -19,7 +19,7 @@ from __future__ import annotations
 
 from collections.abc import Iterator, Sequence
 from functools import singledispatch
-from typing import TYPE_CHECKING, Any, TypeAlias
+from typing import TYPE_CHECKING, Any
 
 import attrs
 from sqlalchemy import func, or_, select
@@ -34,12 +34,9 @@ from airflow.utils.state import State
 __all__ = ["SchedulerXComArg", "deserialize_xcom_arg", "get_task_map_length"]
 
 if TYPE_CHECKING:
-    from airflow.models.mappedoperator import MappedOperator
-    from airflow.serialization.definitions.baseoperator import SerializedBaseOperator
     from airflow.serialization.definitions.dag import SerializedDAG
+    from airflow.serialization.definitions.mappedoperator import Operator
     from airflow.typing_compat import Self
-
-    Operator: TypeAlias = MappedOperator | SerializedBaseOperator
 
 
 class SchedulerXComArg:
@@ -71,8 +68,8 @@ class SchedulerXComArg:
         Recursively traverse ``arg`` and look for XComArg instances in any
         collection objects, and instances with ``template_fields`` set.
         """
-        from airflow.models.mappedoperator import MappedOperator
         from airflow.serialization.definitions.baseoperator import SerializedBaseOperator
+        from airflow.serialization.definitions.mappedoperator import SerializedMappedOperator
 
         if isinstance(arg, ReferenceMixin):
             yield from arg.iter_references()
@@ -82,7 +79,7 @@ class SchedulerXComArg:
         elif isinstance(arg, dict):
             for elem in arg.values():
                 yield from cls.iter_xcom_references(elem)
-        elif isinstance(arg, (MappedOperator, SerializedBaseOperator)):
+        elif isinstance(arg, (SerializedMappedOperator, SerializedBaseOperator)):
             for attr in arg.template_fields:
                 yield from cls.iter_xcom_references(getattr(arg, attr))
 
@@ -156,10 +153,10 @@ def get_task_map_length(xcom_arg: SchedulerXComArg, run_id: str, *, session: Ses
 
 @get_task_map_length.register
 def _(xcom_arg: SchedulerPlainXComArg, run_id: str, *, session: Session) -> int | None:
-    from airflow.models.mappedoperator import is_mapped
     from airflow.models.taskinstance import TaskInstance
     from airflow.models.taskmap import TaskMap
     from airflow.models.xcom import XComModel
+    from airflow.serialization.definitions.mappedoperator import is_mapped
 
     dag_id = xcom_arg.operator.dag_id
     task_id = xcom_arg.operator.task_id
