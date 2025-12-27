@@ -39,6 +39,7 @@ from airflow_breeze.commands.common_options import (
     option_github_repository,
     option_verbose,
 )
+from airflow_breeze.commands.release_management_commands import prepare_python_client
 from airflow_breeze.global_constants import (
     DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
     PUBLIC_AMD_RUNNERS,
@@ -640,6 +641,9 @@ def upgrade(target_branch: str, create_pr: bool | None, switch_to_base: bool | N
     # Execute all upgrade commands with the environment containing GitHub token
     for command in upgrade_commands:
         run_command(command.split(), check=False, env=command_env)
+
+    get_console().print("[info]Regenerating OpenAPI Python client[/]")
+    prepare_python_client()
 
     res = run_command(["git", "diff", "--exit-code"], check=False)
     if res.returncode == 0:
