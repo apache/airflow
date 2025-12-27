@@ -21,9 +21,10 @@ import hashlib
 from typing import TYPE_CHECKING, Any
 
 from sqlalchemy import String, inspect, select
-from sqlalchemy.orm import Mapped, joinedload
+from sqlalchemy.orm import Mapped, Session, joinedload
 from sqlalchemy.orm.attributes import NO_VALUE
 
+from airflow.models import DagRun
 from airflow.models.base import Base, StringID
 from airflow.models.dag_version import DagVersion
 from airflow.utils.sqlalchemy import mapped_column
@@ -31,9 +32,6 @@ from airflow.utils.sqlalchemy import mapped_column
 if TYPE_CHECKING:
     from collections.abc import Generator
 
-    from sqlalchemy.orm import Session
-
-    from airflow.models import DagRun
     from airflow.models.serialized_dag import SerializedDagModel
     from airflow.serialization.definitions.dag import SerializedDAG
 
@@ -100,6 +98,12 @@ class DBDagBag:
         if not (serdag := SerializedDagModel.get(dag_id, session=session)):
             return None
         return self._read_dag(serdag)
+
+    def get_dag(self, dag_id: str, run_id: str, *, session: Session) -> SerializedDAG | None:
+        dag_run = DagRun.find_duplicate(dag_id=dag_id, run_id=run_id, session=session)
+        if dag_run:
+            return self.get_dag_for_run(dag_run=dag_run, session=session)
+        return None
 
 
 def generate_md5_hash(context):
