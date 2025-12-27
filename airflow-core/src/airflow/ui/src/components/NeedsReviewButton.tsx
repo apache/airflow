@@ -20,7 +20,7 @@ import { Box } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 import { LuUserRoundPen } from "react-icons/lu";
 
-import { useTaskInstanceServiceGetHitlDetails } from "openapi/queries";
+import { useTaskInstanceServiceGetHitlDetails, useTaskInstanceServiceGetTaskInstances } from "openapi/queries";
 import { useAutoRefresh } from "src/utils/query";
 
 import { StatsCard } from "./StatsCard";
@@ -36,6 +36,24 @@ export const NeedsReviewButton = ({
 }) => {
   const refetchInterval = useAutoRefresh({ checkPendingRuns: true, dagId });
 
+  // First check if there are any deferred task instances before querying hitlDetails
+  const { data: deferredTasksData } = useTaskInstanceServiceGetTaskInstances(
+    {
+      dagId: dagId ?? "~",
+      dagRunId: runId ?? "~",
+      limit: 1,
+      state: ["deferred"],
+      taskId,
+    },
+    undefined,
+    {
+      refetchInterval,
+    },
+  );
+
+  const hasDeferredTasks = (deferredTasksData?.total_entries ?? 0) > 0;
+
+  // Only fetch hitlDetails if there are deferred tasks
   const { data: hitlStatsData, isLoading } = useTaskInstanceServiceGetHitlDetails(
     {
       dagId: dagId ?? "~",
@@ -46,6 +64,7 @@ export const NeedsReviewButton = ({
     },
     undefined,
     {
+      enabled: hasDeferredTasks,
       refetchInterval,
     },
   );
