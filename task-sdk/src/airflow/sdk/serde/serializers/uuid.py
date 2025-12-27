@@ -17,34 +17,34 @@
 
 from __future__ import annotations
 
-import abc
 from typing import TYPE_CHECKING
 
-from airflow._shared.dagnode.node import GenericDAGNode
+from airflow.sdk.module_loading import qualname
 
 if TYPE_CHECKING:
-    from collections.abc import Sequence
+    import uuid
 
-    from airflow.serialization.definitions.dag import SerializedDAG  # noqa: F401
-    from airflow.serialization.definitions.mappedoperator import Operator  # noqa: F401
-    from airflow.serialization.definitions.taskgroup import SerializedTaskGroup  # noqa: F401
+    from airflow.sdk.serde import U
 
-__all__ = ["DAGNode"]
+__version__ = 1
+
+serializers = ["uuid.UUID"]
+deserializers = serializers
 
 
-class DAGNode(GenericDAGNode["SerializedDAG", "Operator", "SerializedTaskGroup"], metaclass=abc.ABCMeta):
-    """
-    Base class for a node in the graph of a workflow.
+def serialize(o: object) -> tuple[U, str, int, bool]:
+    """Serialize a UUID object to a string representation."""
+    import uuid
 
-    A node may be an operator or task group, either mapped or unmapped.
-    """
+    if isinstance(o, uuid.UUID):
+        return str(o), qualname(o), __version__, True
+    return "", "", 0, False
 
-    @property
-    @abc.abstractmethod
-    def roots(self) -> Sequence[DAGNode]:
-        raise NotImplementedError()
 
-    @property
-    @abc.abstractmethod
-    def leaves(self) -> Sequence[DAGNode]:
-        raise NotImplementedError()
+def deserialize(cls: type, version: int, data: str) -> uuid.UUID:
+    """Deserialize a string back to a UUID object."""
+    import uuid
+
+    if cls is uuid.UUID and isinstance(data, str):
+        return uuid.UUID(data)
+    raise TypeError(f"cannot deserialize {qualname(cls)} from {type(data)}")

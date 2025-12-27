@@ -14,19 +14,13 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
-from __future__ import annotations
-
-import warnings
-
-from airflow.sdk import XComArg
-from airflow.utils.deprecation_tools import DeprecatedImportWarning
-
-__all__ = ["XComArg"]
-
-warnings.warn(
-    "Importing airflow.models.xcom_arg is deprecated and will be removed in "
-    "the future. Please import from 'airflow.sdk' instead.",
-    DeprecatedImportWarning,
-    stacklevel=2,
-)
+---
+services:
+  airflow:
+    # Mount pre-built UI dist directories from host to container
+    # This allows using pre-compiled UI assets without rebuilding in container
+    volumes:
+      # Mount main UI dist directory
+      - ../../../airflow-core/src/airflow/ui/dist:/usr/python/lib/python${PYTHON_MAJOR_MINOR_VERSION}/site-packages/airflow/ui/dist:cached
+      # Mount Simple Auth Manager UI dist directory
+      - ../../../airflow-core/src/airflow/api_fastapi/auth/managers/simple/ui/dist:/usr/python/lib/python${PYTHON_MAJOR_MINOR_VERSION}/site-packages/airflow/api_fastapi/auth/managers/simple/ui/dist:cached
