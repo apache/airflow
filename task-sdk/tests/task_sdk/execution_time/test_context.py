@@ -910,7 +910,7 @@ class TestSecretsBackend:
 
     def test_metastore_backend_in_server_chain(self):
         """Test that MetastoreBackend is in the API server search path."""
-        from airflow.secrets import DEFAULT_SECRETS_SEARCH_PATH
+        from airflow.sdk._shared.secrets_backend import DEFAULT_SECRETS_SEARCH_PATH
 
         assert "airflow.secrets.metastore.MetastoreBackend" in DEFAULT_SECRETS_SEARCH_PATH
         assert (
