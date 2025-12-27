@@ -1277,6 +1277,50 @@ class TestDataprocClusterDeleteOperator:
         mock_hook.return_value.wait_for_operation.assert_not_called()
         assert not mock_defer.called
 
+    @mock.patch(DATAPROC_PATH.format("DataprocHook"))
+    def test_delete_cluster_not_found_idempotent(self, mock_hook):
+        """Test that operator succeeds when cluster doesn't exist (idempotent behavior)."""
+        mock_hook.return_value.delete_cluster.side_effect = NotFound("Cluster not found")
+        
+        op = DataprocDeleteClusterOperator(
+            task_id=TASK_ID,
+            region=GCP_REGION,
+            project_id=GCP_PROJECT,
+            cluster_name=CLUSTER_NAME,
+            gcp_conn_id=GCP_CONN_ID,
+        )
+        
+        # Should complete successfully without raising an exception
+        op.execute(context={})
+        
+        mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID, impersonation_chain=None)
+        mock_hook.return_value.delete_cluster.assert_called_once()
+        # wait_for_operation should not be called since cluster doesn't exist
+        mock_hook.return_value.wait_for_operation.assert_not_called()
+
+    @mock.patch(DATAPROC_PATH.format("DataprocHook"))
+    def test_delete_cluster_not_found_deferrable(self, mock_hook):
+        """Test idempotent behavior in deferrable mode when cluster doesn't exist."""
+        mock_hook.return_value.delete_cluster.side_effect = NotFound("Cluster not found")
+        
+        op = DataprocDeleteClusterOperator(
+            task_id=TASK_ID,
+            region=GCP_REGION,
+            project_id=GCP_PROJECT,
+            cluster_name=CLUSTER_NAME,
+            gcp_conn_id=GCP_CONN_ID,
+            deferrable=True,
+        )
+        
+        # Should complete successfully without deferring
+        op.execute(context={})
+        
+        mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID, impersonation_chain=None)
+        mock_hook.return_value.delete_cluster.assert_called_once()
+        # Should not call get_cluster or wait_for_operation
+        mock_hook.return_value.get_cluster.assert_not_called()
+        mock_hook.return_value.wait_for_operation.assert_not_called()
+
 
 class TestDataprocSubmitJobOperator(DataprocJobTestBase):
     @mock.patch(DATAPROC_PATH.format("DataprocHook"))

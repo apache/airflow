@@ -926,6 +926,9 @@ class DataprocDeleteClusterOperator(GoogleCloudBaseOperator):
     """
     Delete a cluster in a project.
 
+    This operator is idempotent. If the cluster does not exist (e.g., it was already deleted
+    or never created), the operator will complete successfully without raising an error.
+
     :param region: Required. The Cloud Dataproc region in which to handle the request (templated).
     :param cluster_name: Required. The cluster name (templated).
     :param project_id: Optional. The ID of the Google Cloud project that the cluster belongs to (templated).
@@ -995,7 +998,12 @@ class DataprocDeleteClusterOperator(GoogleCloudBaseOperator):
 
     def execute(self, context: Context) -> None:
         hook = DataprocHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain)
-        operation = self._delete_cluster(hook)
+        try:
+            operation = self._delete_cluster(hook)
+        except NotFound:
+            self.log.info("Cluster already deleted. Cluster %s not found.", self.cluster_name)
+            return
+
         if not self.deferrable:
             hook.wait_for_operation(timeout=self.timeout, result_retry=self.retry, operation=operation)
             self.log.info("Cluster deleted.")
