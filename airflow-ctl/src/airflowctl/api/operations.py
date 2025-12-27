@@ -72,6 +72,7 @@ from airflowctl.api.datamodels.generated import (
     VersionInfo,
 )
 from airflowctl.exceptions import AirflowCtlConnectionException
+from airflowctl.utils.config_masking import mask_config
 
 if TYPE_CHECKING:
     from airflowctl.api.client import Client
@@ -360,7 +361,8 @@ class ConfigOperations(BaseOperations):
         """Get a config from the API server."""
         try:
             self.response = self.client.get(f"/config/section/{section}/option/{option}")
-            return Config.model_validate_json(self.response.content)
+            config_response = Config.model_validate_json(self.response.content)
+            return Config.model_validate(mask_config(config_response))
         except ServerResponseError as e:
             raise e
 
@@ -368,7 +370,9 @@ class ConfigOperations(BaseOperations):
         """List all configs from the API server."""
         try:
             self.response = self.client.get("/config")
-            return Config.model_validate_json(self.response.content)
+            config_response = Config.model_validate_json(self.response.content)
+            return Config.model_validate(mask_config(config_response))
+
         except ServerResponseError as e:
             raise e
 

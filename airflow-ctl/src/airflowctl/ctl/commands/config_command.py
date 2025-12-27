@@ -25,6 +25,7 @@ from typing import TYPE_CHECKING, Any, NamedTuple
 import rich
 
 from airflowctl.api.client import NEW_API_CLIENT, ClientKind, provide_api_client
+from airflowctl.utils.config_masking import mask_config, is_sensitive_config_key
 
 if TYPE_CHECKING:
     from airflowctl.api.datamodels.generated import Config
@@ -774,7 +775,7 @@ def lint(args, api_client=NEW_API_CLIENT) -> None:
     ignore_options = args.ignore_option or []
 
     try:
-        all_configs = api_client.configs.list()
+        all_configs = mask_config(api_client.configs.list())
         for configuration in CONFIGS_CHANGES:
             if (
                 section_to_check_if_provided
