@@ -241,6 +241,11 @@ class Connection(Base, LoggingMixin):
             if self.EXTRA_KEY in query:
                 self.extra = query[self.EXTRA_KEY]
             else:
+                for key, value in query.items():
+                    try:
+                        query[key] = json.loads(value)
+                    except (JSONDecodeError, TypeError):
+                        self.log.info("Failed parsing the json for key %s", key)
                 self.extra = json.dumps(query)
 
     @staticmethod
@@ -316,15 +321,22 @@ class Connection(Base, LoggingMixin):
         uri += host_block
 
         if self.extra:
+            extra_dict = self.extra_dejson
+            can_flatten = True
+            for value in extra_dict.values():
+                if not isinstance(value, str):
+                    can_flatten = False
+                    break
+
             try:
-                query: str | None = urlencode(self.extra_dejson)
+                query: str | None = urlencode(extra_dict)
             except TypeError:
                 query = None
-            if query and self.extra_dejson == dict(parse_qsl(query, keep_blank_values=True)):
+
+            if can_flatten and query and extra_dict == dict(parse_qsl(query, keep_blank_values=True)):
                 uri += ("?" if self.schema else "/?") + query
             else:
                 uri += ("?" if self.schema else "/?") + urlencode({self.EXTRA_KEY: self.extra})
-
         return uri
 
     def get_password(self) -> str | None:
