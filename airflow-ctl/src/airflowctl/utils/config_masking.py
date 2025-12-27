@@ -16,8 +16,9 @@
 # under the License.
 """Mask Sensitive information in Config."""
 from __future__ import annotations
-
 from typing import Any
+
+from airflowctl.api.datamodels.generated import Config, ConfigSection, ConfigOption
 
 SENSITIVE_CONFIG_OPTIONS = frozenset({
     # Database credentials
@@ -68,12 +69,20 @@ def is_sensitive_config_key(key: str) -> bool:
     for suffix in ["_password", "_secret", "_key", "_token", "_credential"]:
         if key_lower.endswith(suffix):
             return True
+
+    sensitive_words = ["password", "secret", "passwd", "credentials"]
+    for word in sensitive_words:
+        if word in key_lower:
+            return True
     return False
 
 
 def mask_config_value(key: str, value: Any) -> str:
     """Mask a configuration if the key is sensitive."""
-    if not is_sensitive_config_key(key):
+
+    if not key:
+        return ""
+    if is_sensitive_config_key(key):
         return replacement_value
 
     # Handle Dictionary Values
@@ -107,12 +116,17 @@ def mask_config(config: Any) -> Any:
         masked_sections = []
         for section in config.sections:
             masked_options = [
-                {"key": opt.key, "value": mask_config_value(opt.key, opt.value)}
+                ConfigOption(
+                    key=opt.key,
+                    value=mask_config_value(opt.key, opt.value)
+                )
                 for opt in section.options
             ]
-        masked_sections.append({
-            "name": section.name,
-            "options": masked_options
-        })
-        return {"sections": masked_sections}
+        masked_sections.append(
+            ConfigSection(
+                name=section.name,
+                options=masked_options
+            )
+        )
+        return Config(sections=masked_sections)
     return config
