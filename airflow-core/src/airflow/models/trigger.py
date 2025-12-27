@@ -206,7 +206,7 @@ class Trigger(Base):
 
     @classmethod
     @provide_session
-    def clean_unused(cls, finished_triggers: set, session: Session = NEW_SESSION) -> None:
+    def clean_unused(cls, finished_triggers: set | None = None, session: Session = NEW_SESSION) -> None:
         """
         Delete all triggers that have no tasks dependent on them and are not associated to an asset.
 
