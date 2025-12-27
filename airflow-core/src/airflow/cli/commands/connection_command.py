@@ -24,7 +24,7 @@ import warnings
 from functools import cache
 from pathlib import Path
 from typing import Any
-from urllib.parse import urlsplit, urlunsplit
+from urllib.parse import urlparse, urlunparse, urlsplit, urlunsplit
 
 from sqlalchemy import select
 from sqlalchemy.orm import exc
@@ -43,6 +43,35 @@ from airflow.utils.providers_configuration_loader import providers_configuration
 from airflow.utils.session import create_session
 
 
+def _mask_uri_password(uri: str) -> str:
+    """
+    Mask password in connection URI.
+    
+    :param uri: Connection URI string
+    :return: URI with masked password
+    """
+    try:
+        parsed = urlparse(uri)
+        if parsed.password:
+            # Rebuild netloc with masked password
+            netloc = f"{parsed.username}:***@{parsed.hostname}" if parsed.username else parsed.hostname
+            if parsed.port:
+                netloc += f":{parsed.port}"
+            
+            return urlunparse((
+                parsed.scheme,
+                netloc,
+                parsed.path,
+                parsed.params,
+                parsed.query,
+                parsed.fragment
+            ))
+    except Exception:
+        # Fallback to regex if URL parsing fails
+        import re
+        return re.sub(r'(://[^:]+:)[^@]+(@)', r'\1***\2', uri)
+    
+    return uri
 
 
 def _connection_mapper(conn: Connection, show_values: bool = True, hide_sensitive: bool = False) -> dict[str, Any]:
@@ -50,51 +79,23 @@ def _connection_mapper(conn: Connection, show_values: bool = True, hide_sensitiv
     Map connection to dictionary for display.
     
     :param conn: Connection object
-    :param show_values: If False, hide sensitive fields (password, URI, extra)
-    :param hide_sensitive: If True, mask sensitive fields instead of showing them
+    :param show_values: If True, show actual sensitive values
+    :param hide_sensitive: If True, force mask sensitive fields
     """
-    # Determine what to show for sensitive fields
-    if not show_values:
-        # Hide all sensitive values completely
+    from airflow._shared.secrets_masker import mask_secret
+    
+    # Determine if we should mask
+    should_mask = hide_sensitive or not show_values
+    
+    if should_mask:
+        # Register secrets with the masker
+        if conn.password:
+            mask_secret(conn.password, "password")
+        
         password = "***"
-        uri = "***"
         extra = "***"
-    elif hide_sensitive:
-        # Mask sensitive values
-        password = _mask_sensitive(conn.password)
-        uri = _mask_sensitive(conn.get_uri())
-        extra = _mask_sensitive(conn.extra)
+        uri = _mask_uri_password(conn.get_uri())
     else:
-     from airflow_shared.secrets_masker.secrets_masker import redact
-    from airflow_shared.secrets_masker.secrets_masker import redact
-    if not show_values:
-        password = "***"
-        uri = "***"
-        extra = "***"
-    elif hide_sensitive:
-        password = redact(conn.password, name="password")
-        uri = redact(conn.get_uri(), name="uri")
-        extra = redact(conn.extra, name="extra")
-    else:
-        password = conn.password
-        uri = conn.get_uri()
-        extra = conn.extra_dejson
-    return {
-        "id": conn.id,
-        "conn_id": conn.conn_id,
-        "conn_type": conn.conn_type,
-        "description": conn.description,
-        "host": conn.host,
-        "schema": conn.schema,
-        "login": conn.login,
-        "password": password,
-        "port": conn.port,
-        "is_encrypted": conn.is_encrypted,
-        "is_extra_encrypted": conn.is_encrypted,
-        "extra_dejson": extra,
-        "get_uri": uri,
-    }
-        # Show everything
         password = conn.password
         uri = conn.get_uri()
         extra = conn.extra_dejson
@@ -110,7 +111,7 @@ def _connection_mapper(conn: Connection, show_values: bool = True, hide_sensitiv
         "password": password,
         "port": conn.port,
         "is_encrypted": conn.is_encrypted,
-        "is_extra_encrypted": conn.is_encrypted,
+        "is_extra_encrypted": conn.is_extra_encrypted,
         "extra_dejson": extra,
         "get_uri": uri,
     }
