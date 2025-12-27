@@ -45,8 +45,8 @@ ANSWER = ""
 APACHE_AIRFLOW_GITHUB_REPOSITORY = "apache/airflow"
 
 # Checked before putting in build cache
-ALLOWED_PYTHON_MAJOR_MINOR_VERSIONS = ["3.9", "3.10", "3.11", "3.12"]
-DEFAULT_PYTHON_MAJOR_MINOR_VERSION = "3.9"
+ALLOWED_PYTHON_MAJOR_MINOR_VERSIONS = ["3.10", "3.11", "3.12"]
+DEFAULT_PYTHON_MAJOR_MINOR_VERSION = "3.10"
 ALLOWED_ARCHITECTURES = [Architecture.X86_64, Architecture.ARM]
 # Database Backends used when starting Breeze. The "none" value means that the configuration is invalid.
 # No database will be started - access to a database will fail.
@@ -186,8 +186,8 @@ if MYSQL_INNOVATION_RELEASE:
 
 ALLOWED_INSTALL_MYSQL_CLIENT_TYPES = ["mariadb", "mysql"]
 
-PIP_VERSION = "25.1.1"
-UV_VERSION = "0.7.16"
+PIP_VERSION = "25.3"
+UV_VERSION = "0.9.11"
 
 DEFAULT_UV_HTTP_TIMEOUT = 300
 DEFAULT_WSL2_HTTP_TIMEOUT = 900
@@ -313,7 +313,7 @@ PRODUCTION_IMAGE = False
 # All python versions include all past python versions available in previous branches
 # Even if we remove them from the main version. This is needed to make sure we can cherry-pick
 # changes from main to the previous branch.
-ALL_PYTHON_MAJOR_MINOR_VERSIONS = ["3.9", "3.10", "3.11", "3.12"]
+ALL_PYTHON_MAJOR_MINOR_VERSIONS = ["3.10", "3.11", "3.12"]
 CURRENT_PYTHON_MAJOR_MINOR_VERSIONS = ALL_PYTHON_MAJOR_MINOR_VERSIONS
 CURRENT_POSTGRES_VERSIONS = ["13", "14", "15", "16", "17"]
 DEFAULT_POSTGRES_VERSION = CURRENT_POSTGRES_VERSIONS[0]
@@ -376,6 +376,7 @@ AIRFLOW_PYTHON_COMPATIBILITY_MATRIX = {
     "2.10.4": ["3.8", "3.9", "3.10", "3.11", "3.12"],
     "2.10.5": ["3.8", "3.9", "3.10", "3.11", "3.12"],
     "2.11.0": ["3.9", "3.10", "3.11", "3.12"],
+    "2.11.1": ["3.10", "3.11", "3.12"],
 }
 
 DB_RESET = False
@@ -567,13 +568,13 @@ CHICKEN_EGG_PROVIDERS = ""
 
 PROVIDERS_COMPATIBILITY_TESTS_MATRIX: list[dict[str, str | list[str]]] = [
     {
-        "python-version": "3.9",
+        "python-version": "3.10",
         "airflow-version": "2.9.3",
         "remove-providers": "cloudant fab edge",
         "run-tests": "true",
     },
     {
-        "python-version": "3.9",
+        "python-version": "3.10",
         "airflow-version": "2.11.0",
         "remove-providers": "cloudant fab",
         "run-tests": "true",

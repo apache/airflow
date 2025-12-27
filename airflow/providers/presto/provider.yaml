@@ -67,8 +67,7 @@ dependencies:
   # https://pandas.pydata.org/docs/whatsnew/v2.2.0.html#increased-minimum-versions-for-dependencies
   # However Airflow not fully supports it yet: https://github.com/apache/airflow/issues/28723
   # In addition FAB also limit sqlalchemy to < 2.0
-  - pandas>=2.1.2,<2.2;python_version>="3.9"
-  - pandas>=1.5.3,<2.2;python_version<"3.9"
+  - pandas>=2.1.2,<2.2
 
 
 integrations:

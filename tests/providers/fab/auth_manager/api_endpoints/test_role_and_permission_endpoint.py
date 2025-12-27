@@ -17,23 +17,21 @@
 from __future__ import annotations
 
 import pytest
+from tests_common.test_utils.api_connexion_utils import assert_401
+from tests_common.test_utils.compat import ignore_provider_compatibility_error
 
 from airflow.api_connexion.exceptions import EXCEPTIONS_LINK_MAP
-from tests.test_utils.compat import ignore_provider_compatibility_error
-
-with ignore_provider_compatibility_error("2.9.0+", __file__):
-    from airflow.providers.fab.auth_manager.models import Role
-    from airflow.providers.fab.auth_manager.security_manager.override import EXISTING_ROLES
-
-
 from airflow.security import permissions
-from tests.test_utils.api_connexion_utils import (
-    assert_401,
+from providers.tests.fab.auth_manager.api_endpoints.api_connexion_utils import (
     create_role,
     create_user,
     delete_role,
     delete_user,
 )
+
+with ignore_provider_compatibility_error("2.9.0+", __file__):
+    from airflow.providers.fab.auth_manager.models import Role
+    from airflow.providers.fab.auth_manager.security_manager.override import EXISTING_ROLES
 
 pytestmark = pytest.mark.db_test
 
@@ -42,7 +40,7 @@ pytestmark = pytest.mark.db_test
 def configured_app(minimal_app_for_auth_api):
     app = minimal_app_for_auth_api
     create_user(
-        app,  # type: ignore
+        app,
         username="test",
         role_name="Test",
         permissions=[
@@ -53,11 +51,11 @@ def configured_app(minimal_app_for_auth_api):
             (permissions.ACTION_CAN_READ, permissions.RESOURCE_ACTION),
         ],
     )
-    create_user(app, username="test_no_permissions", role_name="TestNoPermissions")  # type: ignore
+    create_user(app, username="test_no_permissions", role_name="TestNoPermissions")
     yield app
 
-    delete_user(app, username="test")  # type: ignore
-    delete_user(app, username="test_no_permissions")  # type: ignore
+    delete_user(app, username="test")
+    delete_user(app, username="test_no_permissions")
 
 
 class TestRoleEndpoint:
@@ -108,13 +106,13 @@ class TestGetRoleEndpoint(TestRoleEndpoint):
         assert response.status_code == 403
 
     @pytest.mark.parametrize(
-        "set_auto_role_public, expected_status_code",
+        "set_auth_role_public, expected_status_code",
         (("Public", 403), ("Admin", 200)),
-        indirect=["set_auto_role_public"],
+        indirect=["set_auth_role_public"],
     )
-    def test_with_auth_role_public_set(self, set_auto_role_public, expected_status_code):
+    def test_with_auth_role_public_set(self, set_auth_role_public, expected_status_code):
         response = self.client.get("/auth/fab/v1/roles/Admin")
-        assert response.status_code == expected_status_code
+        assert response.status_code == expected_status_code, response.json
 
 
 class TestGetRolesEndpoint(TestRoleEndpoint):
@@ -146,13 +144,13 @@ class TestGetRolesEndpoint(TestRoleEndpoint):
         assert response.status_code == 403
 
     @pytest.mark.parametrize(
-        "set_auto_role_public, expected_status_code",
+        "set_auth_role_public, expected_status_code",
         (("Public", 403), ("Admin", 200)),
-        indirect=["set_auto_role_public"],
+        indirect=["set_auth_role_public"],
     )
-    def test_with_auth_role_public_set(self, set_auto_role_public, expected_status_code):
+    def test_with_auth_role_public_set(self, set_auth_role_public, expected_status_code):
         response = self.client.get("/auth/fab/v1/roles")
-        assert response.status_code == expected_status_code
+        assert response.status_code == expected_status_code, response.json
 
 
 class TestGetRolesEndpointPaginationandFilter(TestRoleEndpoint):
@@ -208,13 +206,13 @@ class TestGetPermissionsEndpoint(TestRoleEndpoint):
         assert response.status_code == 403
 
     @pytest.mark.parametrize(
-        "set_auto_role_public, expected_status_code",
+        "set_auth_role_public, expected_status_code",
         (("Public", 403), ("Admin", 200)),
-        indirect=["set_auto_role_public"],
+        indirect=["set_auth_role_public"],
     )
-    def test_with_auth_role_public_set(self, set_auto_role_public, expected_status_code):
+    def test_with_auth_role_public_set(self, set_auth_role_public, expected_status_code):
         response = self.client.get("/auth/fab/v1/permissions")
-        assert response.status_code == expected_status_code
+        assert response.status_code == expected_status_code, response.json
 
 
 class TestPostRole(TestRoleEndpoint):
@@ -346,17 +344,17 @@ class TestPostRole(TestRoleEndpoint):
         assert response.status_code == 403
 
     @pytest.mark.parametrize(
-        "set_auto_role_public, expected_status_code",
+        "set_auth_role_public, expected_status_code",
         (("Public", 403), ("Admin", 200)),
-        indirect=["set_auto_role_public"],
+        indirect=["set_auth_role_public"],
     )
-    def test_with_auth_role_public_set(self, set_auto_role_public, expected_status_code):
+    def test_with_auth_role_public_set(self, set_auth_role_public, expected_status_code):
         payload = {
             "name": "Test2",
             "actions": [{"resource": {"name": "Connections"}, "action": {"name": "can_create"}}],
         }
         response = self.client.post("/auth/fab/v1/roles", json=payload)
-        assert response.status_code == expected_status_code
+        assert response.status_code == expected_status_code, response.json
 
 
 class TestDeleteRole(TestRoleEndpoint):
@@ -393,14 +391,14 @@ class TestDeleteRole(TestRoleEndpoint):
         assert response.status_code == 403
 
     @pytest.mark.parametrize(
-        "set_auto_role_public, expected_status_code",
+        "set_auth_role_public, expected_status_code",
         (("Public", 403), ("Admin", 204)),
-        indirect=["set_auto_role_public"],
+        indirect=["set_auth_role_public"],
     )
-    def test_with_auth_role_public_set(self, set_auto_role_public, expected_status_code):
+    def test_with_auth_role_public_set(self, set_auth_role_public, expected_status_code):
         role = create_role(self.app, "mytestrole")
         response = self.client.delete(f"/auth/fab/v1/roles/{role.name}")
-        assert response.status_code == expected_status_code
+        assert response.status_code == expected_status_code, response.location
 
 
 class TestPatchRole(TestRoleEndpoint):
@@ -579,14 +577,14 @@ class TestPatchRole(TestRoleEndpoint):
         assert response.status_code == 403
 
     @pytest.mark.parametrize(
-        "set_auto_role_public, expected_status_code",
+        "set_auth_role_public, expected_status_code",
         (("Public", 403), ("Admin", 200)),
-        indirect=["set_auto_role_public"],
+        indirect=["set_auth_role_public"],
     )
-    def test_with_auth_role_public_set(self, set_auto_role_public, expected_status_code):
+    def test_with_auth_role_public_set(self, set_auth_role_public, expected_status_code):
         role = create_role(self.app, "mytestrole")
         response = self.client.patch(
             f"/auth/fab/v1/roles/{role.name}",
             json={"name": "mytest"},
         )
-        assert response.status_code == expected_status_code
+        assert response.status_code == expected_status_code, response.json

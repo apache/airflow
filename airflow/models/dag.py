@@ -2014,7 +2014,7 @@ class DAG(LoggingMixin):
                 visited_external_tis = set()
 
             p_dag = self.parent_dag.partial_subset(
-                task_ids_or_regex=r"^{}$".format(self.dag_id.split(".")[1]),
+                task_ids_or_regex=rf"^{self.dag_id.split('.')[1]}$",
                 include_upstream=False,
                 include_downstream=True,
             )
