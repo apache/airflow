@@ -45,7 +45,16 @@ def variables_list(args):
     """Display all the variables."""
     with create_session() as session:
         variables = session.scalars(select(Variable)).all()
-    AirflowConsole().print_as(data=variables, output=args.output, mapper=lambda x: {"key": x.key})
+
+    def variable_mapper(var):
+        return {
+            "key": var.key,
+            "val": var.val if args.show_values else "***",
+            "description": var.description,
+            "is_encrypted": var.is_encrypted,
+        }
+
+    AirflowConsole().print_as(data=variables, output=args.output, mapper=variable_mapper)
 
 
 @suppress_logs_and_warning
