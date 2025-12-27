@@ -916,10 +916,11 @@ def dag_maker(request) -> Generator[DagMaker, None, None]:
                         factory.dag.add_task(task)
                         factory._make_serdag(factory.dag)
 
-                return DAGProxy(self._serialized_dag)
+                return DAGProxy(lambda: self.serialized_dag)
             return self.dag
 
-        def _serialized_dag(self):
+        @property
+        def serialized_dag(self):
             return self.serialized_model.dag
 
         def get_serialized_data(self):
@@ -1058,7 +1059,7 @@ def dag_maker(request) -> Generator[DagMaker, None, None]:
                 )
                 logical_date = kwargs.pop("execution_date")
 
-            dag = self._serialized_dag()
+            dag = self.serialized_dag
             kwargs = {
                 "state": DagRunState.RUNNING,
                 "start_date": self.start_date,
@@ -1124,12 +1125,12 @@ def dag_maker(request) -> Generator[DagMaker, None, None]:
             self.dag_run = dag.create_dagrun(**kwargs)
             for ti in self.dag_run.task_instances:
                 # This need to always operate on the _real_ dag
-                ti.refresh_from_task(self._serialized_dag().get_task(ti.task_id))
+                ti.refresh_from_task(self.serialized_dag.get_task(ti.task_id))
             self.session.commit()
             return self.dag_run
 
         def create_dagrun_after(self, dagrun, **kwargs):
-            sdag = self._serialized_dag()
+            sdag = self.serialized_dag
             if AIRFLOW_V_3_1_PLUS:
                 from airflow.models.dag import get_run_data_interval
 
@@ -1167,7 +1168,7 @@ def dag_maker(request) -> Generator[DagMaker, None, None]:
                     f"Task instance with task_id '{task_id}' not found in dag run. "
                     f"Available task_ids: {available_task_ids}"
                 )
-            task = self._serialized_dag().get_task(ti.task_id)
+            task = self.serialized_dag.get_task(ti.task_id)
 
             if not AIRFLOW_V_3_1_PLUS:
                 # Airflow <3.1 has a bug for DecoratedOperator has an unused signature for

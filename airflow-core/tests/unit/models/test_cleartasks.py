@@ -605,7 +605,7 @@ class TestClearTasks:
             )
             ti = dr.task_instances[0]
             ti.task = task
-            dags.append(dag_maker.serialized_model.dag)
+            dags.append(dag_maker.serialized_dag)
             tis.append(ti)
 
         # test clear all dags
