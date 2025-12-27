@@ -60,6 +60,7 @@ from tests_common.test_utils import db
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.dag import sync_dag_to_db
 from tests_common.test_utils.mock_operators import MockOperator
+from tests_common.test_utils.taskinstance import create_task_instance, run_task_instance
 from unit.models import DEFAULT_DATE as _DEFAULT_DATE
 
 pytestmark = [pytest.mark.db_test, pytest.mark.need_serialized_dag]
@@ -1705,12 +1706,14 @@ def test_mapped_literal_faulty_state_in_db(dag_maker, session):
 
     dr = dag_maker.create_dagrun()
     ti = dr.get_task_instance(task_id="task_1")
-    ti.run()
+    run_task_instance(ti, dag_maker.dag.get_task("task_1"))
     decision = dr.task_instance_scheduling_decisions()
     assert len(decision.schedulable_tis) == 2
 
     # We insert a faulty record
-    session.add(TaskInstance(task=dag.get_task("task_2"), run_id=dr.run_id, dag_version_id=ti.dag_version_id))
+    session.add(
+        create_task_instance(task=dag.get_task("task_2"), run_id=dr.run_id, dag_version_id=ti.dag_version_id)
+    )
     session.flush()
 
     decision = dr.task_instance_scheduling_decisions()
@@ -2009,15 +2012,21 @@ def test_schedule_tis_map_index(dag_maker, session):
 
     dr = DagRun(dag_id="test", run_id="test", run_type=DagRunType.MANUAL)
     dag_version = DagVersion.get_latest_version(dag_id=dr.dag_id)
-    ti0 = TI(
+    ti0 = create_task_instance(
         task=task,
         run_id=dr.run_id,
         map_index=0,
         state=TaskInstanceState.SUCCESS,
         dag_version_id=dag_version.id,
     )
-    ti1 = TI(task=task, run_id=dr.run_id, map_index=1, state=None, dag_version_id=dag_version.id)
-    ti2 = TI(
+    ti1 = create_task_instance(
+        task=task,
+        run_id=dr.run_id,
+        map_index=1,
+        state=None,
+        dag_version_id=dag_version.id,
+    )
+    ti2 = create_task_instance(
         task=task,
         run_id=dr.run_id,
         map_index=2,
@@ -2157,8 +2166,8 @@ def test_mapped_expand_kwargs(dag_maker):
     assert sorted(map_index for (task_id, map_index) in tis if task_id == "task_3") == [0, 1, 2]
     assert sorted(map_index for (task_id, map_index) in tis if task_id == "task_4") == [0, 1, 2]
 
-    tis[("task_0", -1)].run()
-    tis[("task_1", -1)].run()
+    run_task_instance(tis[("task_0", -1)], args_0.operator)
+    run_task_instance(tis[("task_1", -1)], args_list.operator)
 
     # With the upstreams available, everything should get expanded now.
     decision = dr.task_instance_scheduling_decisions()
@@ -2229,12 +2238,17 @@ def test_schedulable_task_exist_when_rerun_removed_upstream_mapped_task(session,
             ti.map_index = 0
             task = ti.task
             for map_index in range(1, 5):
-                ti_new = TI(task, run_id=dr.run_id, map_index=map_index, dag_version_id=ti.dag_version_id)
+                ti_new = create_task_instance(
+                    task,
+                    run_id=dr.run_id,
+                    map_index=map_index,
+                    dag_version_id=ti.dag_version_id,
+                )
                 session.add(ti_new)
                 ti_new.dag_run = dr
         else:
             # run tasks "do_something" to get XCOMs for correct downstream length
-            ti.run()
+            run_task_instance(ti, dag_maker.dag.get_task(ti.task_id))
     session.flush()
 
     tis = dr.get_task_instances()
