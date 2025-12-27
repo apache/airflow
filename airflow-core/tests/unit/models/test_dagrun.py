@@ -1142,7 +1142,7 @@ class TestDagRun:
             metric_name = f"dagrun.{dag.dag_id}.first_task_scheduling_delay"
 
             if expected:
-                true_delay = ti.start_date - dag_run.data_interval_end
+                true_delay = ti.start_date - dag_run.run_after
                 sched_delay_stat_call = call(metric_name, true_delay, tags=expected_stat_tags)
                 sched_delay_stat_call_with_tags = call(
                     "dagrun.first_task_scheduling_delay", true_delay, tags=expected_stat_tags
