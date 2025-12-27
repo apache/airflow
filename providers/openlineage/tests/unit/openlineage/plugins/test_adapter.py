@@ -57,7 +57,7 @@ from airflow.utils.types import DagRunType
 from tests_common.test_utils.compat import BashOperator
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.markers import skip_if_force_lowest_dependencies_marker
-from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V_3_2_PLUS
 
 
 @pytest.mark.parametrize(
@@ -140,8 +140,8 @@ def test_create_client_overrides_env_vars():
         assert client.transport.kind == "console"
 
 
-@mock.patch("airflow.providers.openlineage.plugins.adapter.Stats.timer")
-@mock.patch("airflow.providers.openlineage.plugins.adapter.Stats.incr")
+@mock.patch("airflow.observability.metrics.DualStatsManager.timer")
+@mock.patch("airflow.observability.metrics.DualStatsManager.incr")
 def test_emit_start_event(mock_stats_incr, mock_stats_timer):
     client = MagicMock()
     adapter = OpenLineageAdapter(client)
@@ -197,11 +197,16 @@ def test_emit_start_event(mock_stats_incr, mock_stats_timer):
     )
 
     mock_stats_incr.assert_not_called()
-    mock_stats_timer.assert_called_with("ol.emit.attempts")
+    if AIRFLOW_V_3_2_PLUS:
+        mock_stats_timer.assert_called_with(
+            "ol.emit.attempts", extra_tags={"event_type": ANY, "transport_type": ANY}
+        )
+    else:
+        mock_stats_timer.assert_called_with("ol.emit.attempts")
 
 
-@mock.patch("airflow.providers.openlineage.plugins.adapter.Stats.timer")
-@mock.patch("airflow.providers.openlineage.plugins.adapter.Stats.incr")
+@mock.patch("airflow.observability.metrics.DualStatsManager.timer")
+@mock.patch("airflow.observability.metrics.DualStatsManager.incr")
 def test_emit_start_event_with_additional_information(mock_stats_incr, mock_stats_timer):
     client = MagicMock()
     adapter = OpenLineageAdapter(client)
@@ -310,11 +315,16 @@ def test_emit_start_event_with_additional_information(mock_stats_incr, mock_stat
     )
 
     mock_stats_incr.assert_not_called()
-    mock_stats_timer.assert_called_with("ol.emit.attempts")
+    if AIRFLOW_V_3_2_PLUS:
+        mock_stats_timer.assert_called_with(
+            "ol.emit.attempts", extra_tags={"event_type": ANY, "transport_type": ANY}
+        )
+    else:
+        mock_stats_timer.assert_called_with("ol.emit.attempts")
 
 
-@mock.patch("airflow.providers.openlineage.plugins.adapter.Stats.timer")
-@mock.patch("airflow.providers.openlineage.plugins.adapter.Stats.incr")
+@mock.patch("airflow.observability.metrics.DualStatsManager.timer")
+@mock.patch("airflow.observability.metrics.DualStatsManager.incr")
 def test_emit_complete_event(mock_stats_incr, mock_stats_timer):
     client = MagicMock()
     adapter = OpenLineageAdapter(client)
@@ -368,11 +378,16 @@ def test_emit_complete_event(mock_stats_incr, mock_stats_timer):
     )
 
     mock_stats_incr.assert_not_called()
-    mock_stats_timer.assert_called_with("ol.emit.attempts")
+    if AIRFLOW_V_3_2_PLUS:
+        mock_stats_timer.assert_called_with(
+            "ol.emit.attempts", extra_tags={"event_type": ANY, "transport_type": ANY}
+        )
+    else:
+        mock_stats_timer.assert_called_with("ol.emit.attempts")
 
 
-@mock.patch("airflow.providers.openlineage.plugins.adapter.Stats.timer")
-@mock.patch("airflow.providers.openlineage.plugins.adapter.Stats.incr")
+@mock.patch("airflow.observability.metrics.DualStatsManager.timer")
+@mock.patch("airflow.observability.metrics.DualStatsManager.incr")
 def test_emit_complete_event_with_additional_information(mock_stats_incr, mock_stats_timer):
     client = MagicMock()
     adapter = OpenLineageAdapter(client)
@@ -483,11 +498,16 @@ def test_emit_complete_event_with_additional_information(mock_stats_incr, mock_s
     )
 
     mock_stats_incr.assert_not_called()
-    mock_stats_timer.assert_called_with("ol.emit.attempts")
+    if AIRFLOW_V_3_2_PLUS:
+        mock_stats_timer.assert_called_with(
+            "ol.emit.attempts", extra_tags={"event_type": ANY, "transport_type": ANY}
+        )
+    else:
+        mock_stats_timer.assert_called_with("ol.emit.attempts")
 
 
-@mock.patch("airflow.providers.openlineage.plugins.adapter.Stats.timer")
-@mock.patch("airflow.providers.openlineage.plugins.adapter.Stats.incr")
+@mock.patch("airflow.observability.metrics.DualStatsManager.timer")
+@mock.patch("airflow.observability.metrics.DualStatsManager.incr")
 def test_emit_failed_event(mock_stats_incr, mock_stats_timer):
     client = MagicMock()
     adapter = OpenLineageAdapter(client)
@@ -541,11 +561,16 @@ def test_emit_failed_event(mock_stats_incr, mock_stats_timer):
     )
 
     mock_stats_incr.assert_not_called()
-    mock_stats_timer.assert_called_with("ol.emit.attempts")
+    if AIRFLOW_V_3_2_PLUS:
+        mock_stats_timer.assert_called_with(
+            "ol.emit.attempts", extra_tags={"event_type": ANY, "transport_type": ANY}
+        )
+    else:
+        mock_stats_timer.assert_called_with("ol.emit.attempts")
 
 
-@mock.patch("airflow.providers.openlineage.plugins.adapter.Stats.timer")
-@mock.patch("airflow.providers.openlineage.plugins.adapter.Stats.incr")
+@mock.patch("airflow.observability.metrics.DualStatsManager.timer")
+@mock.patch("airflow.observability.metrics.DualStatsManager.incr")
 def test_emit_failed_event_with_additional_information(mock_stats_incr, mock_stats_timer):
     client = MagicMock()
     adapter = OpenLineageAdapter(client)
@@ -657,13 +682,18 @@ def test_emit_failed_event_with_additional_information(mock_stats_incr, mock_sta
     )
 
     mock_stats_incr.assert_not_called()
-    mock_stats_timer.assert_called_with("ol.emit.attempts")
+    if AIRFLOW_V_3_2_PLUS:
+        mock_stats_timer.assert_called_with(
+            "ol.emit.attempts", extra_tags={"event_type": ANY, "transport_type": ANY}
+        )
+    else:
+        mock_stats_timer.assert_called_with("ol.emit.attempts")
 
 
 @mock.patch("airflow.providers.openlineage.conf.debug_mode", return_value=True)
 @mock.patch("airflow.providers.openlineage.plugins.adapter.generate_static_uuid")
-@mock.patch("airflow.providers.openlineage.plugins.adapter.Stats.timer")
-@mock.patch("airflow.providers.openlineage.plugins.adapter.Stats.incr")
+@mock.patch("airflow.observability.metrics.DualStatsManager.timer")
+@mock.patch("airflow.observability.metrics.DualStatsManager.incr")
 def test_emit_dag_started_event(mock_stats_incr, mock_stats_timer, generate_static_uuid, mock_debug_mode):
     random_uuid = "9d3b14f7-de91-40b6-aeef-e887e2c7673e"
     client = MagicMock()
@@ -828,14 +858,19 @@ def test_emit_dag_started_event(mock_stats_incr, mock_stats_timer, generate_stat
         )
     )
     mock_stats_incr.assert_not_called()
-    mock_stats_timer.assert_called_with("ol.emit.attempts")
+    if AIRFLOW_V_3_2_PLUS:
+        mock_stats_timer.assert_called_with(
+            "ol.emit.attempts", extra_tags={"event_type": ANY, "transport_type": ANY}
+        )
+    else:
+        mock_stats_timer.assert_called_with("ol.emit.attempts")
 
 
 @mock.patch("airflow.providers.openlineage.conf.debug_mode", return_value=True)
 @mock.patch.object(DagRun, "fetch_task_instances")
 @mock.patch("airflow.providers.openlineage.plugins.adapter.generate_static_uuid")
-@mock.patch("airflow.providers.openlineage.plugins.adapter.Stats.timer")
-@mock.patch("airflow.providers.openlineage.plugins.adapter.Stats.incr")
+@mock.patch("airflow.observability.metrics.DualStatsManager.timer")
+@mock.patch("airflow.observability.metrics.DualStatsManager.incr")
 def test_emit_dag_complete_event(
     mock_stats_incr, mock_stats_timer, generate_static_uuid, mocked_fetch_tis, mock_debug_mode
 ):
@@ -994,14 +1029,19 @@ def test_emit_dag_complete_event(
     )
 
     mock_stats_incr.assert_not_called()
-    mock_stats_timer.assert_called_with("ol.emit.attempts")
+    if AIRFLOW_V_3_2_PLUS:
+        mock_stats_timer.assert_called_with(
+            "ol.emit.attempts", extra_tags={"event_type": ANY, "transport_type": ANY}
+        )
+    else:
+        mock_stats_timer.assert_called_with("ol.emit.attempts")
 
 
 @mock.patch("airflow.providers.openlineage.conf.debug_mode", return_value=True)
 @mock.patch.object(DagRun, "fetch_task_instances")
 @mock.patch("airflow.providers.openlineage.plugins.adapter.generate_static_uuid")
-@mock.patch("airflow.providers.openlineage.plugins.adapter.Stats.timer")
-@mock.patch("airflow.providers.openlineage.plugins.adapter.Stats.incr")
+@mock.patch("airflow.observability.metrics.DualStatsManager.timer")
+@mock.patch("airflow.observability.metrics.DualStatsManager.incr")
 def test_emit_dag_failed_event(
     mock_stats_incr, mock_stats_timer, generate_static_uuid, mocked_fetch_tis, mock_debug_mode
 ):
@@ -1164,13 +1204,18 @@ def test_emit_dag_failed_event(
     )
 
     mock_stats_incr.assert_not_called()
-    mock_stats_timer.assert_called_with("ol.emit.attempts")
+    if AIRFLOW_V_3_2_PLUS:
+        mock_stats_timer.assert_called_with(
+            "ol.emit.attempts", extra_tags={"event_type": ANY, "transport_type": ANY}
+        )
+    else:
+        mock_stats_timer.assert_called_with("ol.emit.attempts")
 
 
 @patch("airflow.providers.openlineage.plugins.adapter.OpenLineageAdapter.get_or_create_openlineage_client")
 @patch("airflow.providers.openlineage.plugins.adapter.OpenLineageRedactor")
-@patch("airflow.providers.openlineage.plugins.adapter.Stats.timer")
-@patch("airflow.providers.openlineage.plugins.adapter.Stats.incr")
+@patch("airflow.observability.metrics.DualStatsManager.timer")
+@patch("airflow.providers.common.compat.sdk.Stats.incr")
 def test_openlineage_adapter_stats_emit_failed(
     mock_stats_incr, mock_stats_timer, mock_redact, mock_get_client
 ):
@@ -1179,7 +1224,12 @@ def test_openlineage_adapter_stats_emit_failed(
 
     adapter.emit(MagicMock())
 
-    mock_stats_timer.assert_called_with("ol.emit.attempts")
+    if AIRFLOW_V_3_2_PLUS:
+        mock_stats_timer.assert_called_with(
+            "ol.emit.attempts", extra_tags={"event_type": ANY, "transport_type": ANY}
+        )
+    else:
+        mock_stats_timer.assert_called_with("ol.emit.attempts")
     mock_stats_incr.assert_has_calls([mock.call("ol.emit.failed")])
 
 
