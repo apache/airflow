@@ -20,6 +20,7 @@ from __future__ import annotations
 import datetime as dt
 import itertools
 import os
+import time_machine
 from datetime import timedelta
 from typing import TYPE_CHECKING
 from unittest import mock
@@ -3956,6 +3957,7 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
         assert response2.json()["state"] == state
         assert listener.state == listener_state
 
+    @time_machine.travel(datetime(2025, 12, 26, 13, 44, 59), tick=False)
     @mock.patch("airflow.serialization.definitions.dag.SerializedDAG.set_task_instance_state")
     def test_should_call_mocked_api(self, mock_set_ti_state, test_client, session):
         self.create_task_instances(session)
@@ -3981,7 +3983,16 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
                 {
                     "dag_id": self.DAG_ID,
                     "dag_display_name": self.DAG_DISPLAY_NAME,
-                    "dag_version": mock.ANY,
+                    "dag_version": {
+                      "bundle_name": "dags-folder",
+                      "bundle_url": None,
+                      "bundle_version": None,
+                      "created_at": "2025-12-26T13:44:59.165817Z",
+                      "dag_display_name": "example_python_operator",
+                      "dag_id": "example_python_operator",
+                      "id": mock.ANY,
+                      "version_number": 1,
+                    },
                     "dag_run_id": self.RUN_ID,
                     "logical_date": "2020-01-01T00:00:00Z",
                     "task_id": self.TASK_ID,
