@@ -43,7 +43,48 @@ from airflow.utils.providers_configuration_loader import providers_configuration
 from airflow.utils.session import create_session
 
 
-def _connection_mapper(conn: Connection) -> dict[str, Any]:
+def _mask_sensitive(value: str | None, show_last: int = 3) -> str:
+    """Mask sensitive value, showing only the last few characters."""
+    if not value:
+        return "***"
+    if len(value) <= show_last:
+        return "***"
+    return "*" * (len(value) - show_last) + value[-show_last:]
+
+
+def _connection_mapper(conn: Connection, show_values: bool = True, hide_sensitive: bool = False) -> dict[str, Any]:
+    """
+    Map connection to dictionary for display.
+    
+    :param conn: Connection object
+    :param show_values: If False, hide sensitive fields (password, URI, extra)
+    :param hide_sensitive: If True, mask sensitive fields instead of showing them
+    """
+    # Determine what to show for sensitive fields
+    if not show_values:
+        # Hide all sensitive values completely
+        password = "***"
+        uri = "***"
+        extra = "***"
+    elif hide_sensitive:
+        # Mask sensitive values
+        password = _mask_sensitive(conn.password)
+        uri = _mask_sensitive(conn.get_uri())
+        extra = _mask_sensitive(conn.extra)
+    else:
+     from airflow_shared.secrets_masker.secrets_masker import redact
+    if not show_values:
+        password = "***"
+        uri = "***"
+        extra = "***"
+    elif hide_sensitive:
+        password = redact(conn.password, name="password")
+        uri = redact(conn.get_uri(), name="uri")
+        extra = redact(conn.extra, name="extra")
+    else:
+        password = conn.password
+        uri = conn.get_uri()
+        extra = conn.extra_dejson
     return {
         "id": conn.id,
         "conn_id": conn.conn_id,
@@ -52,12 +93,32 @@ def _connection_mapper(conn: Connection) -> dict[str, Any]:
         "host": conn.host,
         "schema": conn.schema,
         "login": conn.login,
-        "password": conn.password,
+        "password": password,
         "port": conn.port,
         "is_encrypted": conn.is_encrypted,
         "is_extra_encrypted": conn.is_encrypted,
-        "extra_dejson": conn.extra_dejson,
-        "get_uri": conn.get_uri(),
+        "extra_dejson": extra,
+        "get_uri": uri,
+    }
+        # Show everything
+        password = conn.password
+        uri = conn.get_uri()
+        extra = conn.extra_dejson
+    
+    return {
+        "id": conn.id,
+        "conn_id": conn.conn_id,
+        "conn_type": conn.conn_type,
+        "description": conn.description,
+        "host": conn.host,
+        "schema": conn.schema,
+        "login": conn.login,
+        "password": password,
+        "port": conn.port,
+        "is_encrypted": conn.is_encrypted,
+        "is_extra_encrypted": conn.is_encrypted,
+        "extra_dejson": extra,
+        "get_uri": uri,
     }
 
 
@@ -71,10 +132,15 @@ def connections_get(args):
         conn = Connection.get_connection_from_secrets(args.conn_id)
     except AirflowNotFoundException:
         raise SystemExit("Connection not found.")
+    
+    # Use show_values and hide_sensitive flags
+    show_values = getattr(args, 'show_values', False)
+    hide_sensitive = getattr(args, 'hide_sensitive', False)
+    
     AirflowConsole().print_as(
         data=[conn],
         output=args.output,
-        mapper=_connection_mapper,
+        mapper=lambda c: _connection_mapper(c, show_values=show_values, hide_sensitive=hide_sensitive),
     )
 
 
@@ -89,10 +155,14 @@ def connections_list(args):
         query = session.scalars(query)
         conns = query.all()
 
+        # Use show_values and hide_sensitive flags
+        show_values = getattr(args, 'show_values', False)
+        hide_sensitive = getattr(args, 'hide_sensitive', False)
+
         AirflowConsole().print_as(
             data=conns,
             output=args.output,
-            mapper=_connection_mapper,
+            mapper=lambda c: _connection_mapper(c, show_values=show_values, hide_sensitive=hide_sensitive),
         )
 
 

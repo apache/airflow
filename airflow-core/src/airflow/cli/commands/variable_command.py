@@ -21,6 +21,7 @@ from __future__ import annotations
 
 import json
 import os
+from typing import Any
 
 from sqlalchemy import select
 
@@ -39,13 +40,55 @@ from airflow.utils.providers_configuration_loader import providers_configuration
 from airflow.utils.session import create_session, provide_session
 
 
+def _mask_sensitive(value: str | None, show_last: int = 3) -> str:
+    """Mask sensitive value, showing only the last few characters."""
+    if not value:
+        return "***"
+    if len(value) <= show_last:
+        return "***"
+    return "*" * (len(value) - show_last) + value[-show_last:]
+
+
+def _variable_mapper(var: Variable, show_values: bool = True, hide_sensitive: bool = False) -> dict[str, Any]:
+    """
+    Map variable to dictionary for display.
+    
+    :param var: Variable object
+    :param show_values: If False, hide variable values
+    :param hide_sensitive: If True, mask variable values instead of showing them
+    """
+    result = {"key": var.key}
+    
+    # Determine what to show for the value
+    if not show_values:
+        # Hide value completely
+        result["value"] = "***"
+    elif hide_sensitive:
+        # Mask the value
+        result["value"] = _mask_sensitive(var.val)
+    else:
+        # Show the actual value
+        result["value"] = var.val
+    
+    return result
+
+
 @suppress_logs_and_warning
 @providers_configuration_loaded
 def variables_list(args):
     """Display all the variables."""
     with create_session() as session:
         variables = session.scalars(select(Variable)).all()
-    AirflowConsole().print_as(data=variables, output=args.output, mapper=lambda x: {"key": x.key})
+    
+    # Use show_values and hide_sensitive flags
+    show_values = getattr(args, 'show_values', False)
+    hide_sensitive = getattr(args, 'hide_sensitive', False)
+    
+    AirflowConsole().print_as(
+        data=variables,
+        output=args.output,
+        mapper=lambda x: _variable_mapper(x, show_values=show_values, hide_sensitive=hide_sensitive),
+    )
 
 
 @suppress_logs_and_warning
@@ -63,6 +106,16 @@ def variables_get(args):
         raise SystemExit(str(e).strip("'\""))
 
 
+            from airflow_shared.secrets_masker.secrets_masker import redact
+            result = {"key": var.key}
+            if not show_values:
+                result["value"] = "***"
+            elif hide_sensitive:
+                # Use Airflow's SecretsMasker to redact sensitive values
+                result["value"] = redact(var.val, name=var.key)
+            else:
+                result["value"] = var.val
+            return result
 @cli_utils.action_cli
 @providers_configuration_loaded
 def variables_set(args):
