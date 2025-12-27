@@ -8106,12 +8106,11 @@ class TestSchedulerJobQueriesCount:
                 {
                     ("scheduler", "use_job_schedule"): "True",
                     ("core", "load_examples"): "False",
-                    # For longer running tests under heavy load, the min_serialized_dag_fetch_interval
-                    # and min_serialized_dag_update_interval might kick-in and re-retrieve the record.
+                    # For longer running tests under heavy load, the min_serialized_dag_update_interval
+                    # might kick-in and re-retrieve the record.
                     # This will increase the count of serliazied_dag.py.get() count.
                     # That's why we keep the values high
                     ("core", "min_serialized_dag_update_interval"): "100",
-                    ("core", "min_serialized_dag_fetch_interval"): "100",
                 }
             ),
         ):
@@ -8198,12 +8197,11 @@ class TestSchedulerJobQueriesCount:
             conf_vars(
                 {
                     ("scheduler", "use_job_schedule"): "True",
-                    # For longer running tests under heavy load, the min_serialized_dag_fetch_interval
-                    # and min_serialized_dag_update_interval might kick-in and re-retrieve the record.
+                    # For longer running tests under heavy load, the min_serialized_dag_update_interval
+                    # might kick-in and re-retrieve the record.
                     # This will increase the count of serliazied_dag.py.get() count.
                     # That's why we keep the values high
                     ("core", "min_serialized_dag_update_interval"): "100",
-                    ("core", "min_serialized_dag_fetch_interval"): "100",
                 }
             ),
         ):
