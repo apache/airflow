@@ -17,7 +17,6 @@
 from __future__ import annotations
 
 import pytest
-from providers.tests.fab.auth_manager.api_endpoints.api_connexion_utils import create_user, delete_user
 from tests_common.test_utils.compat import AIRFLOW_V_3_0_PLUS, ParseImportError
 from tests_common.test_utils.db import clear_db_dags, clear_db_import_errors
 from tests_common.test_utils.permissions import _resource_name
@@ -25,6 +24,7 @@ from tests_common.test_utils.permissions import _resource_name
 from airflow.models.dag import DagModel
 from airflow.security import permissions
 from airflow.utils import timezone
+from providers.tests.fab.auth_manager.api_endpoints.api_connexion_utils import create_user, delete_user
 
 pytestmark = [
     pytest.mark.db_test,

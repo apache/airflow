@@ -43,13 +43,6 @@ with ignore_provider_compatibility_error("2.9.0+", __file__):
     from airflow.providers.fab.auth_manager.models import assoc_permission_role
     from airflow.providers.fab.auth_manager.models.anonymous_user import AnonymousUser
 
-from providers.tests.fab.auth_manager.api_endpoints.api_connexion_utils import (
-    create_user,
-    create_user_scope,
-    delete_role,
-    delete_user,
-    set_user_single_role,
-)
 from tests_common.test_utils.asserts import assert_queries_count
 from tests_common.test_utils.db import clear_db_dags, clear_db_runs
 from tests_common.test_utils.mock_security_manager import MockSecurityManager
@@ -61,6 +54,13 @@ from airflow.www import app as application
 from airflow.www.auth import get_access_denied_message
 from airflow.www.extensions.init_auth_manager import get_auth_manager
 from airflow.www.utils import CustomSQLAInterface
+from providers.tests.fab.auth_manager.api_endpoints.api_connexion_utils import (
+    create_user,
+    create_user_scope,
+    delete_role,
+    delete_user,
+    set_user_single_role,
+)
 
 if TYPE_CHECKING:
     from airflow.security.permissions import RESOURCE_ASSET

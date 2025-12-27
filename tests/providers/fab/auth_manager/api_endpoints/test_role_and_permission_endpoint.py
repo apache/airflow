@@ -17,17 +17,17 @@
 from __future__ import annotations
 
 import pytest
+from tests_common.test_utils.api_connexion_utils import assert_401
+from tests_common.test_utils.compat import ignore_provider_compatibility_error
+
+from airflow.api_connexion.exceptions import EXCEPTIONS_LINK_MAP
+from airflow.security import permissions
 from providers.tests.fab.auth_manager.api_endpoints.api_connexion_utils import (
     create_role,
     create_user,
     delete_role,
     delete_user,
 )
-from tests_common.test_utils.api_connexion_utils import assert_401
-from tests_common.test_utils.compat import ignore_provider_compatibility_error
-
-from airflow.api_connexion.exceptions import EXCEPTIONS_LINK_MAP
-from airflow.security import permissions
 
 with ignore_provider_compatibility_error("2.9.0+", __file__):
     from airflow.providers.fab.auth_manager.models import Role

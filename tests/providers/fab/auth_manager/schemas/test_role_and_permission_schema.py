@@ -17,7 +17,6 @@
 from __future__ import annotations
 
 import pytest
-from providers.tests.fab.auth_manager.api_endpoints.api_connexion_utils import create_role, delete_role
 
 from airflow.providers.fab.auth_manager.schemas.role_and_permission_schema import (
     RoleCollection,
@@ -25,6 +24,7 @@ from airflow.providers.fab.auth_manager.schemas.role_and_permission_schema impor
     role_schema,
 )
 from airflow.security import permissions
+from providers.tests.fab.auth_manager.api_endpoints.api_connexion_utils import create_role, delete_role
 
 pytestmark = [pytest.mark.db_test, pytest.mark.skip_if_database_isolation_mode]
 

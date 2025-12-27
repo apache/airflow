@@ -19,11 +19,6 @@ from __future__ import annotations
 from datetime import timedelta
 
 import pytest
-from providers.tests.fab.auth_manager.api_endpoints.api_connexion_utils import (
-    create_user,
-    delete_roles,
-    delete_user,
-)
 from tests_common.test_utils.compat import AIRFLOW_V_3_0_PLUS
 from tests_common.test_utils.db import clear_db_dags, clear_db_runs, clear_db_serialized_dags
 
@@ -34,6 +29,11 @@ from airflow.security import permissions
 from airflow.utils import timezone
 from airflow.utils.session import create_session
 from airflow.utils.state import DagRunState
+from providers.tests.fab.auth_manager.api_endpoints.api_connexion_utils import (
+    create_user,
+    delete_roles,
+    delete_user,
+)
 
 try:
     from airflow.utils.types import DagRunTriggeredByType, DagRunType
