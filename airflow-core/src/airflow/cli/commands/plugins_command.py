@@ -19,7 +19,6 @@ from __future__ import annotations
 import inspect
 from typing import Any
 
-from airflow import plugins_manager
 from airflow.cli.simple_table import AirflowConsole
 from airflow.plugins_manager import PluginsDirectorySource, get_plugin_info
 from airflow.utils.cli import suppress_logs_and_warning
@@ -44,7 +43,7 @@ def _join_plugins_names(value: list[Any] | Any) -> str:
 def dump_plugins(args):
     """Dump plugins information."""
     plugins_info: list[dict[str, str]] = get_plugin_info()
-    if not plugins_manager.plugins:
+    if not plugins_info:
         print("No plugins loaded")
         return
 

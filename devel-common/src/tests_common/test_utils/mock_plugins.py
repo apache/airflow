@@ -21,24 +21,6 @@ from unittest import mock
 
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V_3_2_PLUS
 
-PLUGINS_MANAGER_NULLABLE_ATTRIBUTES = [
-    "plugins",
-    "macros_modules",
-    "flask_blueprints",
-    "fastapi_apps",
-    "fastapi_root_middlewares",
-    "external_views",
-    "react_apps",
-    "flask_appbuilder_views",
-    "flask_appbuilder_menu_links",
-    "global_operator_extra_links",
-    "operator_extra_links",
-    "registered_operator_link_classes",
-    "timetable_classes",
-    "hook_lineage_reader_classes",
-]
-
-
 PLUGINS_MANAGER_NULLABLE_ATTRIBUTES_V3_0 = [
     "plugins",
     "macros_modules",
@@ -93,83 +75,59 @@ def mock_plugin_manager(plugins=None, **kwargs):
     Use this context if you want your test to not have side effects in airflow.plugins_manager, and
     other tests do not affect the results of this test.
     """
-    illegal_arguments = set(kwargs.keys()) - set(PLUGINS_MANAGER_NULLABLE_ATTRIBUTES) - {"import_errors"}
+    illegal_arguments = set(kwargs.keys()) - set(PLUGINS_MANAGER_NULLABLE_ATTRIBUTES_V3_0) - {"import_errors"}
     if illegal_arguments:
         raise TypeError(
             f"TypeError: mock_plugin_manager got an unexpected keyword arguments: {illegal_arguments}"
         )
     # Handle plugins specially
     with ExitStack() as exit_stack:
+        if AIRFLOW_V_3_2_PLUS:
+            # Always start the block with an non-initialized plugins, so ensure_plugins_loaded runs.
+            from airflow import plugins_manager
 
-        def mock_loaded_plugins():
-            if AIRFLOW_V_3_2_PLUS:
+            plugins_manager._get_plugins.cache_clear()
+            plugins_manager._get_ui_plugins.cache_clear()
+            plugins_manager.get_flask_plugins.cache_clear()
+            plugins_manager.get_fastapi_plugins.cache_clear()
+            plugins_manager._get_extra_operators_links_plugins.cache_clear()
+            plugins_manager.get_timetables_plugins.cache_clear()
+            plugins_manager.get_hook_lineage_readers_plugins.cache_clear()
+            plugins_manager.integrate_macros_plugins.cache_clear()
+            plugins_manager.get_priority_weight_strategy_plugins.cache_clear()
+
+            if plugins or "import_errors" in kwargs:
                 exit_stack.enter_context(
-                    mock.patch("airflow.plugins_manager._PluginsManagerState.plugins_initialized", True)
+                    mock.patch(
+                        "airflow.plugins_manager._get_plugins",
+                        return_value=(
+                            plugins or [],
+                            kwargs.get("import_errors", {}),
+                        ),
+                    )
                 )
-                exit_stack.enter_context(
-                    mock.patch("airflow.plugins_manager._PluginsManagerState.plugins", plugins or [])
+            elif kwargs:
+                raise NotImplementedError(
+                    "mock_plugin_manager does not support patching other attributes in Airflow 3.2+"
                 )
-            else:
+        else:
+
+            def mock_loaded_plugins():
                 exit_stack.enter_context(mock.patch("airflow.plugins_manager.plugins", plugins or []))
 
-        exit_stack.enter_context(
-            mock.patch(
-                "airflow.plugins_manager.load_plugins_from_plugin_directory", side_effect=mock_loaded_plugins
+            exit_stack.enter_context(
+                mock.patch(
+                    "airflow.plugins_manager.load_plugins_from_plugin_directory",
+                    side_effect=mock_loaded_plugins,
+                )
             )
-        )
-        exit_stack.enter_context(
-            mock.patch("airflow.plugins_manager.load_providers_plugins", side_effect=mock_loaded_plugins)
-        )
-        exit_stack.enter_context(
-            mock.patch("airflow.plugins_manager.load_entrypoint_plugins", side_effect=mock_loaded_plugins)
-        )
+            exit_stack.enter_context(
+                mock.patch("airflow.plugins_manager.load_providers_plugins", side_effect=mock_loaded_plugins)
+            )
+            exit_stack.enter_context(
+                mock.patch("airflow.plugins_manager.load_entrypoint_plugins", side_effect=mock_loaded_plugins)
+            )
 
-        if AIRFLOW_V_3_2_PLUS:
-            for attr in PLUGINS_MANAGER_NULLABLE_ATTRIBUTES:
-                exit_stack.enter_context(
-                    mock.patch(f"airflow.plugins_manager._PluginsManagerState.{attr}", kwargs.get(attr, []))
-                )
-
-            # Always start the block with an non-initialized plugins, so ensure_plugins_loaded runs.
-            exit_stack.enter_context(
-                mock.patch("airflow.plugins_manager._PluginsManagerState.plugins_initialized", False)
-            )
-            exit_stack.enter_context(
-                mock.patch("airflow.plugins_manager._PluginsManagerState.ui_plugins_initialized", False)
-            )
-            exit_stack.enter_context(
-                mock.patch("airflow.plugins_manager._PluginsManagerState.flask_plugins_initialized", False)
-            )
-            exit_stack.enter_context(
-                mock.patch("airflow.plugins_manager._PluginsManagerState.fastapi_plugins_initialized", False)
-            )
-            exit_stack.enter_context(
-                mock.patch("airflow.plugins_manager._PluginsManagerState.links_initialized", False)
-            )
-            exit_stack.enter_context(
-                mock.patch("airflow.plugins_manager._PluginsManagerState.timetables_initialized", False)
-            )
-            exit_stack.enter_context(
-                mock.patch(
-                    "airflow.plugins_manager._PluginsManagerState.hook_lineage_readers_initialized", False
-                )
-            )
-            exit_stack.enter_context(
-                mock.patch("airflow.plugins_manager._PluginsManagerState.macros_initialized", False)
-            )
-            exit_stack.enter_context(
-                mock.patch(
-                    "airflow.plugins_manager._PluginsManagerState.priority_weight_strategies_initialized",
-                    False,
-                )
-            )
-            exit_stack.enter_context(
-                mock.patch(
-                    "airflow.plugins_manager._PluginsManagerState.import_errors",
-                    kwargs.get("import_errors", {}),
-                )
-            )
-        else:
             if AIRFLOW_V_3_0_PLUS:
                 ATTR_TO_PATCH = PLUGINS_MANAGER_NULLABLE_ATTRIBUTES_V3_0
             else:

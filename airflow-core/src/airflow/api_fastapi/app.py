@@ -31,7 +31,6 @@ from airflow.api_fastapi.core_api.app import (
     init_error_handlers,
     init_flask_plugins,
     init_middlewares,
-    init_ui_plugins,
     init_views,
 )
 from airflow.api_fastapi.execution_api.app import create_task_execution_api_app
@@ -99,7 +98,6 @@ def create_app(apps: str = "all") -> FastAPI:
         init_plugins(app)
         init_auth_manager(app)
         init_flask_plugins(app)
-        init_ui_plugins(app)
         init_views(app)  # Core views need to be the last routes added - it has a catch all route
         init_error_handlers(app)
         init_middlewares(app)

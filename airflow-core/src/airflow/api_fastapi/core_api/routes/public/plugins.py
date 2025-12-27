@@ -75,8 +75,6 @@ def get_plugins(
     dependencies=[Depends(requires_access_view(AccessView.PLUGINS))],
 )
 def import_errors() -> PluginImportErrorCollectionResponse:
-    plugins_manager.ensure_plugins_loaded()  # make sure import_errors are loaded
-
     return PluginImportErrorCollectionResponse.model_validate(
         {
             "import_errors": [

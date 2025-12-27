@@ -186,10 +186,3 @@ def init_middlewares(app: FastAPI) -> None:
         from airflow.api_fastapi.auth.managers.simple.middleware import SimpleAllAdminMiddleware
 
         app.add_middleware(SimpleAllAdminMiddleware)
-
-
-def init_ui_plugins(app: FastAPI) -> None:
-    """Initialize UI plugins."""
-    from airflow import plugins_manager
-
-    plugins_manager.initialize_ui_plugins()
