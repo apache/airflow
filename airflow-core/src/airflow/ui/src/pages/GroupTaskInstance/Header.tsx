@@ -23,8 +23,8 @@ import { MdOutlineTask } from "react-icons/md";
 
 import type { LightGridTaskInstanceSummary } from "openapi/requests/types.gen";
 import { ClearTaskInstanceButton } from "src/components/Clear";
-import { MarkTaskGroupInstanceAsButton } from "src/components/MarkAs";
 import { HeaderCard } from "src/components/HeaderCard";
+import { MarkTaskGroupInstanceAsButton } from "src/components/MarkAs";
 import Time from "src/components/Time";
 import { getDuration } from "src/utils";
 
