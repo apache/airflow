@@ -211,10 +211,10 @@ class TriggererCallback(Callback):
         from airflow.triggers.callback import CallbackTrigger
 
         self.trigger = Trigger.from_object(
-            trigger=CallbackTrigger(
+            CallbackTrigger(
                 callback_path=self.data["path"],
                 callback_kwargs=self.data["kwargs"],
-            ),
+            )
         )
         super().queue()
 

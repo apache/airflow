@@ -375,17 +375,16 @@ def test_run_deferred_basic(time_machine, create_runtime_ti, mock_supervisor_com
             queue=task_queue,
         )
         time_machine.move_to(instant, tick=False)
-        expected_trigger_kwargs = {
-            "end_from_trigger": False,
-            "moment": instant + timedelta(seconds=3),
-        }
 
         # Expected DeferTask
         expected_defer_task = DeferTask(
             state="deferred",
             classpath="airflow.providers.standard.triggers.temporal.DateTimeTrigger",
             # Since we are in the task process here, we expect this to have not been encoded by serde yet
-            trigger_kwargs=expected_trigger_kwargs,
+            trigger_kwargs={
+                "end_from_trigger": False,
+                "moment": instant + timedelta(seconds=3),
+            },
             trigger_timeout=None,
             queue=deferred_queue,
             next_method="execute_complete",

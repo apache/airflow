@@ -81,7 +81,7 @@ class BaseTrigger(abc.ABC, LoggingMixin):
         """
         Return the information needed to reconstruct this Trigger.
 
-        :return: Tuple of (class path, keyword arguments needed to re-instantiate including possible trigger queue).
+        :return: Tuple of (class path, keyword arguments needed to re-instantiate).
         """
         raise NotImplementedError("Triggers must implement serialize()")
 
