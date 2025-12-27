@@ -48,6 +48,7 @@ from airflow.callbacks.callback_requests import (
 )
 from airflow.configuration import conf
 from airflow.dag_processing.bundles.base import BundleUsageTrackingManager
+from airflow.dag_processing.collection import _get_latest_runs_stmt
 from airflow.exceptions import DagNotFound
 from airflow.executors import workloads
 from airflow.jobs.base_job_runner import BaseJobRunner
@@ -80,6 +81,7 @@ from airflow.models.trigger import TRIGGER_FAIL_REPR, Trigger, TriggerFailureRea
 from airflow.serialization.definitions.notset import NOTSET
 from airflow.stats import Stats
 from airflow.ti_deps.dependencies_states import EXECUTION_STATES
+from airflow.timetables.base import DataInterval
 from airflow.timetables.simple import AssetTriggeredTimetable
 from airflow.traces import utils as trace_utils
 from airflow.traces.tracer import DebugTrace, Trace, add_debug_span
@@ -1716,6 +1718,25 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         for b in backfills:
             b.completed_at = now
 
+    def _get_latest_automated_dagrun_data_interval(
+        self, dag_id: str, dag: SerializedDAG, session: Session
+    ) -> DataInterval | None:
+        """
+        Query and return the data interval of the latest automated DagRun for a given DAG.
+
+        This ensures we always use the actual latest run when calculating next dagrun fields,
+        avoiding issues where next_dagrun could be set back in time in a distributed system.
+
+        :param dag_id: The DAG ID to query for
+        :param dag: The DAG object (needed for timetable)
+        :param session: The database session
+        :return: DataInterval of the latest automated run, or None if no runs exist
+        """
+        latest_run = session.scalar(_get_latest_runs_stmt([dag_id]))
+        if latest_run is None:
+            return None
+        return get_run_data_interval(dag.timetable, latest_run)
+
     @add_debug_span
     def _create_dag_runs(self, dag_models: Collection[DagModel], session: Session) -> None:
         """Create a DAG run and update the dag_model to control if/when the next DAGRun should be created."""
@@ -1798,7 +1819,10 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 active_non_backfill_runs=active_runs_of_dags[dag.dag_id],
                 session=session,
             ):
-                dag_model.calculate_dagrun_date_fields(dag, data_interval)
+                latest_data_interval = self._get_latest_automated_dagrun_data_interval(
+                    dag.dag_id, dag, session
+                )
+                dag_model.calculate_dagrun_date_fields(dag, latest_data_interval)
         # TODO[HA]: Should we do a session.flush() so we don't have to keep lots of state/object in
         # memory for larger dags? or expunge_all()
 
@@ -2135,7 +2159,10 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 if self._should_update_dag_next_dagruns(
                     dag, dag_model, last_dag_run=dag_run, session=session
                 ):
-                    dag_model.calculate_dagrun_date_fields(dag, get_run_data_interval(dag.timetable, dag_run))
+                    latest_data_interval = self._get_latest_automated_dagrun_data_interval(
+                        dag.dag_id, dag, session
+                    )
+                    dag_model.calculate_dagrun_date_fields(dag, latest_data_interval)
 
                 callback_to_execute = DagCallbackRequest(
                     filepath=dag_model.relative_fileloc or "",
@@ -2196,7 +2223,10 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             schedulable_tis, callback_to_run = dag_run.update_state(session=session, execute_callbacks=False)
 
             if self._should_update_dag_next_dagruns(dag, dag_model, last_dag_run=dag_run, session=session):
-                dag_model.calculate_dagrun_date_fields(dag, get_run_data_interval(dag.timetable, dag_run))
+                latest_data_interval = self._get_latest_automated_dagrun_data_interval(
+                    dag.dag_id, dag, session
+                )
+                dag_model.calculate_dagrun_date_fields(dag, latest_data_interval)
             # This will do one query per dag run. We "could" build up a complex
             # query to update all the TIs across all the logical dates and dag
             # IDs in a single query, but it turns out that can be _very very slow_

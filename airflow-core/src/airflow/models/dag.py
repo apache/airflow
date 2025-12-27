@@ -693,22 +693,22 @@ class DagModel(Base):
     def calculate_dagrun_date_fields(
         self,
         dag: SerializedDAG,
-        last_automated_dag_run: None | DataInterval,
+        last_automated_data_interval: None | DataInterval,
     ) -> None:
         """
         Calculate ``next_dagrun`` and `next_dagrun_create_after``.
 
         :param dag: The DAG object
-        :param last_automated_dag_run: DataInterval (or datetime) of most recent run of this dag, or none
-            if not yet scheduled.
+        :param last_automated_data_interval: DataInterval of the most recent automated run of this dag,
+            or None if not yet scheduled. This should be the data interval of the actual latest
+            automated run (SCHEDULED or BACKFILL_JOB), not just any run the scheduler happens to be
+            processing, to avoid setting next_dagrun fields incorrectly.
         """
-        last_automated_data_interval: DataInterval | None
-        if isinstance(last_automated_dag_run, datetime):
+        if isinstance(last_automated_data_interval, datetime):
             raise ValueError(
                 "Passing a datetime to `DagModel.calculate_dagrun_date_fields` is not supported. "
                 "Provide a data interval instead."
             )
-        last_automated_data_interval = last_automated_dag_run
         next_dagrun_info = dag.next_dagrun_info(last_automated_data_interval)
         if next_dagrun_info is None:
             self.next_dagrun_data_interval = self.next_dagrun = self.next_dagrun_create_after = None
