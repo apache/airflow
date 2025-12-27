@@ -123,12 +123,12 @@ class BasePythonTest:
     default_date: datetime = DEFAULT_DATE
 
     @pytest.fixture(autouse=True)
-    def base_tests_setup(self, request, create_serialized_task_instance_of_operator, dag_maker):
+    def base_tests_setup(self, request, create_task_instance_of_operator, dag_maker):
         self.dag_id = f"dag_{slugify(request.cls.__name__)}"
         self.task_id = f"task_{slugify(request.node.name, max_length=40)}"
         self.run_id = f"run_{slugify(request.node.name, max_length=40)}"
         self.ds_templated = self.default_date.date().isoformat()
-        self.ti_maker = create_serialized_task_instance_of_operator
+        self.ti_maker = create_task_instance_of_operator
 
         self.dag_maker = dag_maker
         self.dag_non_serialized = self.dag_maker(self.dag_id, template_searchpath=TEMPLATE_SEARCHPATH).dag

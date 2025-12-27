@@ -1253,33 +1253,6 @@ class TaskInstance(Base, LoggingMixin):
         self.next_method = None
         self.next_kwargs = None
 
-    @provide_session
-    def _run_raw_task(
-        self,
-        mark_success: bool = False,
-        session: Session = NEW_SESSION,
-        **kwargs: Any,
-    ) -> None:
-        """Only kept for tests."""
-        from airflow.sdk.definitions.dag import _run_task
-
-        if mark_success:
-            self.set_state(TaskInstanceState.SUCCESS)
-            log.info("[DAG TEST] Marking success for %s ", self.task_id)
-            return None
-
-        # TODO (TaskSDK): This is the old ti execution path. The only usage is
-        # in TI.run(...), someone needs to analyse if it's still actually used
-        # somewhere and fix it, likely by rewriting TI.run(...) to use the same
-        # mechanism as Operator.test().
-        taskrun_result = _run_task(ti=self, task=self.task)  # type: ignore[arg-type]
-        if taskrun_result is None:
-            return None
-        if taskrun_result.error:
-            raise taskrun_result.error
-        self.task = taskrun_result.ti.task  # type: ignore[assignment]
-        return None
-
     @staticmethod
     @provide_session
     def register_asset_changes_in_db(
@@ -1459,55 +1432,6 @@ class TaskInstance(Base, LoggingMixin):
                 .where(TaskInstance.id == self.id)
                 .values(last_heartbeat_at=timezone.utcnow())
             )
-
-    @provide_session
-    def run(
-        self,
-        verbose: bool = True,
-        ignore_all_deps: bool = False,
-        ignore_depends_on_past: bool = False,
-        wait_for_past_depends_before_skipping: bool = False,
-        ignore_task_deps: bool = False,
-        ignore_ti_state: bool = False,
-        mark_success: bool = False,
-        test_mode: bool = False,
-        pool: str | None = None,
-        session: Session = NEW_SESSION,
-        raise_on_defer: bool = False,
-    ) -> None:
-        """Run TaskInstance (only kept for tests)."""
-        # This method is only used in ti.run and dag.test and task.test.
-        # So doing the s10n/de-s10n dance to operator on Serialized task for the scheduler dep check part.
-        from airflow.serialization.definitions.dag import SerializedDAG
-        from airflow.serialization.serialized_objects import DagSerialization
-
-        original_task = self.task
-        if TYPE_CHECKING:
-            assert original_task is not None
-            assert original_task.dag is not None
-
-        # We don't set up all tests well...
-        if not isinstance(original_task.dag, SerializedDAG):
-            serialized_dag = DagSerialization.from_dict(DagSerialization.to_dict(original_task.dag))
-            self.task = serialized_dag.get_task(original_task.task_id)
-
-        res = self.check_and_change_state_before_execution(
-            verbose=verbose,
-            ignore_all_deps=ignore_all_deps,
-            ignore_depends_on_past=ignore_depends_on_past,
-            wait_for_past_depends_before_skipping=wait_for_past_depends_before_skipping,
-            ignore_task_deps=ignore_task_deps,
-            ignore_ti_state=ignore_ti_state,
-            mark_success=mark_success,
-            test_mode=test_mode,
-            pool=pool,
-            session=session,
-        )
-        self.task = original_task
-        if not res:
-            return
-
-        self._run_raw_task(mark_success=mark_success)
 
     @classmethod
     def fetch_handle_failure_context(

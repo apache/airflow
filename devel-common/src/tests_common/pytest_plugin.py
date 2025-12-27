@@ -17,6 +17,7 @@
 
 from __future__ import annotations
 
+import copy
 import importlib
 import json
 import logging
@@ -30,7 +31,7 @@ from collections.abc import Callable, Generator
 from contextlib import ExitStack, suppress
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Generic, Protocol, TypeVar
+from typing import TYPE_CHECKING, Any, Generic, Protocol, TypeVar, cast
 from unittest import mock
 
 import pytest
@@ -838,6 +839,9 @@ class DagMaker(Generic[Dag], Protocol):
         **kwargs,
     ) -> Self: ...
 
+    @property
+    def serialized_dag(self) -> SerializedDAG: ...
+
 
 @pytest.fixture
 def dag_maker(request) -> Generator[DagMaker, None, None]:
@@ -876,7 +880,12 @@ def dag_maker(request) -> Generator[DagMaker, None, None]:
     # This fixture is "called" early on in the pytest collection process, and
     # if we import airflow.* here the wrong (non-test) config will be loaded
     # and "baked" in to various constants
-    from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V_3_1_PLUS, NOTSET
+    from tests_common.test_utils.version_compat import (
+        AIRFLOW_V_3_0_PLUS,
+        AIRFLOW_V_3_1_PLUS,
+        AIRFLOW_V_3_2_PLUS,
+        NOTSET,
+    )
 
     want_serialized = False
     want_activate_assets = True  # Only has effect if want_serialized=True on Airflow 3.
@@ -1168,8 +1177,8 @@ def dag_maker(request) -> Generator[DagMaker, None, None]:
                     f"Task instance with task_id '{task_id}' not found in dag run. "
                     f"Available task_ids: {available_task_ids}"
                 )
-            task = self.serialized_dag.get_task(ti.task_id)
 
+            task = self.dag.get_task(task_id)
             if not AIRFLOW_V_3_1_PLUS:
                 # Airflow <3.1 has a bug for DecoratedOperator has an unused signature for
                 # `DecoratedOperator._handle_output` for xcom_push
@@ -1182,8 +1191,14 @@ def dag_maker(request) -> Generator[DagMaker, None, None]:
                 #                                                                                      ^^^^^^^^^^^^^^
                 # E   AttributeError: '_PythonDecoratedOperator' object has no attribute 'xcom_push'
                 task.xcom_push = lambda *args, **kwargs: None
-            ti.refresh_from_task(task)
-            ti.run(**kwargs)
+            if AIRFLOW_V_3_2_PLUS:
+                from tests_common.test_utils.taskinstance import run_task_instance
+
+                ti.refresh_from_task(self.serialized_dag.get_task(task_id))
+                run_task_instance(ti, task, **kwargs)
+            else:
+                ti.refresh_from_task(task)
+                ti.run(**kwargs)
             return ti
 
         def sync_dagbag_to_db(self):
@@ -1411,6 +1426,30 @@ def create_dummy_dag(dag_maker: DagMaker) -> CreateDummyDAG:
     return create_dag
 
 
+class TaskInstanceWrapper:
+    """Compat wrapper for TaskInstance to support ``run()``."""
+
+    def __init__(self, ti: TaskInstance, task: Operator) -> None:
+        self.__dict__.update(__ti=ti, __task=task)
+
+    def __delattr__(self, name):
+        delattr(self.__dict__["__ti"], name)
+
+    def __setattr__(self, name, value):
+        setattr(self.__dict__["__ti"], name, value)
+
+    def __getattr__(self, name):
+        return getattr(self.__dict__["__ti"], name)
+
+    def __copy__(self):
+        return TaskInstanceWrapper(copy.copy(self.__dict__["__ti"]), copy.copy(self.__dict__["__task"]))
+
+    def run(self, **kwargs):
+        from tests_common.test_utils.taskinstance import run_task_instance
+
+        run_task_instance(self.__dict__["__ti"], self.__dict__["__task"], **kwargs)
+
+
 class CreateTaskInstance(Protocol):
     """Type stub for create_task_instance."""
 
@@ -1443,7 +1482,10 @@ class CreateTaskInstance(Protocol):
 
 
 @pytest.fixture
-def create_task_instance(dag_maker: DagMaker, create_dummy_dag: CreateDummyDAG) -> CreateTaskInstance:
+def create_task_instance(
+    dag_maker: DagMaker,
+    create_dummy_dag: CreateDummyDAG,
+) -> CreateTaskInstance:
     """
     Create a TaskInstance, and associated DB rows (DagRun, DagModel, etc).
 
@@ -1451,7 +1493,12 @@ def create_task_instance(dag_maker: DagMaker, create_dummy_dag: CreateDummyDAG) 
     """
     from airflow.providers.standard.operators.empty import EmptyOperator
 
-    from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS, NOTSET, ArgNotSet
+    from tests_common.test_utils.version_compat import (
+        AIRFLOW_V_3_0_PLUS,
+        AIRFLOW_V_3_2_PLUS,
+        NOTSET,
+        ArgNotSet,
+    )
 
     def maker(
         logical_date: datetime | None | ArgNotSet = NOTSET,
@@ -1529,7 +1576,6 @@ def create_task_instance(dag_maker: DagMaker, create_dummy_dag: CreateDummyDAG) 
             dagrun_kwargs["data_interval"] = data_interval
         dagrun = dag_maker.create_dagrun(**dagrun_kwargs)
         (ti,) = dagrun.task_instances
-        ti.task = task
         ti.state = state
         ti.external_executor_id = external_executor_id
         ti.map_index = map_index
@@ -1537,13 +1583,17 @@ def create_task_instance(dag_maker: DagMaker, create_dummy_dag: CreateDummyDAG) 
         ti.pid = pid
         ti.last_heartbeat_at = last_heartbeat_at
         dag_maker.session.flush()
+        if AIRFLOW_V_3_2_PLUS:
+            ti.task = dag_maker.serialized_dag.get_task(task_id)
+            return cast("TaskInstance", TaskInstanceWrapper(ti, task))
+        ti.task = task
         return ti
 
     return maker
 
 
 class CreateTaskInstanceOfOperator(Protocol):
-    """Type stub for create_task_instance_of_operator and create_serialized_task_instance_of_operator."""
+    """Type stub for create_task_instance_of_operator."""
 
     def __call__(
         self,
@@ -1557,28 +1607,8 @@ class CreateTaskInstanceOfOperator(Protocol):
 
 
 @pytest.fixture
-def create_serialized_task_instance_of_operator(dag_maker: DagMaker) -> CreateTaskInstanceOfOperator:
-    from tests_common.test_utils.version_compat import NOTSET
-
-    def _create_task_instance(
-        operator_class,
-        *,
-        dag_id,
-        logical_date=NOTSET,
-        session=None,
-        **operator_kwargs,
-    ) -> TaskInstance:
-        with dag_maker(dag_id=dag_id, serialized=True, session=session):
-            operator_class(**operator_kwargs)
-        (ti,) = dag_maker.create_dagrun(logical_date=logical_date).task_instances
-        return ti
-
-    return _create_task_instance
-
-
-@pytest.fixture
 def create_task_instance_of_operator(dag_maker: DagMaker) -> CreateTaskInstanceOfOperator:
-    from tests_common.test_utils.version_compat import NOTSET
+    from tests_common.test_utils.version_compat import AIRFLOW_V_3_2_PLUS, NOTSET
 
     def _create_task_instance(
         operator_class,
@@ -1588,9 +1618,11 @@ def create_task_instance_of_operator(dag_maker: DagMaker) -> CreateTaskInstanceO
         session=None,
         **operator_kwargs,
     ) -> TaskInstance:
-        with dag_maker(dag_id=dag_id, session=session, serialized=True):
-            operator_class(**operator_kwargs)
+        with dag_maker(dag_id=dag_id, session=session):
+            task = operator_class(**operator_kwargs)
         (ti,) = dag_maker.create_dagrun(logical_date=logical_date).task_instances
+        if AIRFLOW_V_3_2_PLUS:
+            return cast("TaskInstance", TaskInstanceWrapper(ti, task))
         return ti
 
     return _create_task_instance
