@@ -995,8 +995,14 @@ class DataprocDeleteClusterOperator(GoogleCloudBaseOperator):
 
     def execute(self, context: Context) -> None:
         hook = DataprocHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain)
+<<<<<<< HEAD
         try:
             op: operation.Operation = self._delete_cluster(hook)
+=======
+        op: operation.Operation = None
+        try:
+            op = self._delete_cluster(hook)
+>>>>>>> fix: variable renaming fof operation
             if not self.deferrable:
                 hook.wait_for_operation(timeout=self.timeout, result_retry=self.retry, operation=op)
                 self.log.info("Cluster deleted.")
