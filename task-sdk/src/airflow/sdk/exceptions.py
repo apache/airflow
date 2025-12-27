@@ -28,6 +28,7 @@ if TYPE_CHECKING:
 
     from airflow.sdk.definitions.asset import AssetNameRef, AssetUniqueKey, AssetUriRef
     from airflow.sdk.execution_time.comms import ErrorResponse
+    from airflow.triggers.base import BaseTrigger
 
 
 class AirflowException(Exception):
@@ -183,7 +184,7 @@ class TaskDeferred(BaseException):
     def __init__(
         self,
         *,
-        trigger,
+        trigger: BaseTrigger,
         method_name: str,
         kwargs: dict[str, Any] | None = None,
         timeout=None,
