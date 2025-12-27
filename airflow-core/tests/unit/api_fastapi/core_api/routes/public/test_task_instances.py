@@ -20,13 +20,13 @@ from __future__ import annotations
 import datetime as dt
 import itertools
 import os
-import time_machine
 from datetime import timedelta
 from typing import TYPE_CHECKING
 from unittest import mock
 
 import pendulum
 import pytest
+import time_machine
 from sqlalchemy import select
 
 from airflow._shared.timezones.timezone import datetime
@@ -3984,14 +3984,14 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
                     "dag_id": self.DAG_ID,
                     "dag_display_name": self.DAG_DISPLAY_NAME,
                     "dag_version": {
-                      "bundle_name": "dags-folder",
-                      "bundle_url": None,
-                      "bundle_version": None,
-                      "created_at": "2025-12-26T13:44:59.165817Z",
-                      "dag_display_name": "example_python_operator",
-                      "dag_id": "example_python_operator",
-                      "id": mock.ANY,
-                      "version_number": 1,
+                        "bundle_name": "dags-folder",
+                        "bundle_url": None,
+                        "bundle_version": None,
+                        "created_at": "2025-12-26T13:44:59.165817Z",
+                        "dag_display_name": "example_python_operator",
+                        "dag_id": "example_python_operator",
+                        "id": mock.ANY,
+                        "version_number": 1,
                     },
                     "dag_run_id": self.RUN_ID,
                     "logical_date": "2020-01-01T00:00:00Z",
