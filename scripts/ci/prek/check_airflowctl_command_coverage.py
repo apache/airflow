@@ -70,6 +70,8 @@ EXCLUDED_COMMANDS = {
     "dags delete",
     "dags get-import-error",
     "dags get-tags",
+    "pools export",  # Export only available via local Airflow CLI
+    "variables export",  # Export only available via local Airflow CLI
 }
 
 
