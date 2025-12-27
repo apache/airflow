@@ -2634,6 +2634,7 @@ class TestTaskInstance:
             "trigger_id": None,
             "next_kwargs": None,
             "next_method": None,
+            "next_trigger_id": None,
             "updated_at": None,
             "task_display_name": "Test Refresh from DB Task",
             "dag_version_id": mock.ANY,
