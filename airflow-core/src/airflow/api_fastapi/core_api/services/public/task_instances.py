@@ -41,7 +41,6 @@ from airflow.api_fastapi.core_api.datamodels.task_instances import (
     BulkTaskInstanceBody,
     PatchTaskInstanceBody,
     TaskInstanceCollectionResponse,
-    TaskInstanceResponse,
 )
 from airflow.api_fastapi.core_api.security import GetUserDep
 from airflow.api_fastapi.core_api.services.public.common import BulkService
@@ -401,7 +400,7 @@ class BulkTaskInstanceService(BulkService[BulkTaskInstanceBody]):
                             status_code=status.HTTP_404_NOT_FOUND,
                             detail=f"No task instances found for dag_id: {dag_id}, run_id: {run_id}, task_id: {task_id}",
                         )
-                        all_updated_tis.extend(tis)
+                        # all_updated_tis.extend(tis)
 
                     entity = all_map_entity_map.get((dag_id, run_id, task_id))
 
