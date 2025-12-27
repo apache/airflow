@@ -20,9 +20,8 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
-from airflow._shared.module_loading import qualname
 from airflow.task.weight_rule import WeightRule
 
 if TYPE_CHECKING:
@@ -42,22 +41,46 @@ class PriorityWeightStrategy(ABC):
     """
 
     @abstractmethod
-    def get_weight(self, ti: TaskInstance) -> int:
+    def get_weight(self, ti: TaskInstance):
         """Get the priority weight of a task."""
-        raise NotImplementedError("must be implemented by a subclass")
+        ...
+
+    @classmethod
+    def deserialize(cls, data: dict[str, Any]) -> PriorityWeightStrategy:
+        """
+        Deserialize a priority weight strategy from data.
+
+        This is called when a serialized DAG is deserialized. ``data`` will be whatever
+        was returned by ``serialize`` during DAG serialization. The default
+        implementation constructs the priority weight strategy without any arguments.
+        """
+        return cls(**data)
+
+    def serialize(self) -> dict[str, Any]:
+        """
+        Serialize the priority weight strategy for JSON encoding.
+
+        This is called during DAG serialization to store priority weight strategy information
+        in the database. This should return a JSON-serializable dict that will be fed into
+        ``deserialize`` when the DAG is deserialized. The default implementation returns
+        an empty dict.
+        """
+        return {}
 
     def __eq__(self, other: object) -> bool:
         """Equality comparison."""
-        return isinstance(other, type(self))
+        if not isinstance(other, type(self)):
+            return False
+        return self.serialize() == other.serialize()
 
-    def __hash__(self) -> int:
-        return hash(None)
+    def __hash__(self):
+        return hash(self.serialize())
 
 
 class _AbsolutePriorityWeightStrategy(PriorityWeightStrategy):
     """Priority weight strategy that uses the task's priority weight directly."""
 
-    def get_weight(self, ti: TaskInstance) -> int:
+    def get_weight(self, ti: TaskInstance):
         if TYPE_CHECKING:
             assert ti.task
         return ti.task.priority_weight
@@ -81,7 +104,7 @@ class _DownstreamPriorityWeightStrategy(PriorityWeightStrategy):
 class _UpstreamPriorityWeightStrategy(PriorityWeightStrategy):
     """Priority weight strategy that uses the sum of the priority weights of all upstream tasks."""
 
-    def get_weight(self, ti: TaskInstance) -> int:
+    def get_weight(self, ti: TaskInstance):
         if TYPE_CHECKING:
             assert ti.task
         dag = ti.task.get_dag()
@@ -93,9 +116,6 @@ class _UpstreamPriorityWeightStrategy(PriorityWeightStrategy):
 
 
 airflow_priority_weight_strategies: dict[str, type[PriorityWeightStrategy]] = {
-    qualname(_AbsolutePriorityWeightStrategy): _AbsolutePriorityWeightStrategy,
-    qualname(_DownstreamPriorityWeightStrategy): _DownstreamPriorityWeightStrategy,
-    qualname(_UpstreamPriorityWeightStrategy): _UpstreamPriorityWeightStrategy,
     WeightRule.ABSOLUTE: _AbsolutePriorityWeightStrategy,
     WeightRule.DOWNSTREAM: _DownstreamPriorityWeightStrategy,
     WeightRule.UPSTREAM: _UpstreamPriorityWeightStrategy,
@@ -103,9 +123,7 @@ airflow_priority_weight_strategies: dict[str, type[PriorityWeightStrategy]] = {
 
 
 airflow_priority_weight_strategies_classes = {
-    _AbsolutePriorityWeightStrategy: WeightRule.ABSOLUTE,
-    _DownstreamPriorityWeightStrategy: WeightRule.DOWNSTREAM,
-    _UpstreamPriorityWeightStrategy: WeightRule.UPSTREAM,
+    cls: name for name, cls in airflow_priority_weight_strategies.items()
 }
 
 
@@ -121,6 +139,7 @@ def validate_and_load_priority_weight_strategy(
 
     :meta private:
     """
+    from airflow._shared.module_loading import qualname
     from airflow.serialization.serialized_objects import _get_registered_priority_weight_strategy
 
     if priority_weight_strategy is None:

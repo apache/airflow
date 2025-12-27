@@ -24,6 +24,7 @@ from unittest import mock
 
 import pytest
 from cryptography.fernet import Fernet
+from sqlalchemy import select
 
 from airflow.models import Variable, crypto, variable
 from airflow.sdk import SecretCache
@@ -59,7 +60,7 @@ class TestVariable:
         """
         crypto.get_fernet.cache_clear()
         Variable.set(key="key", value="value", session=session)
-        test_var = session.query(Variable).filter(Variable.key == "key").one()
+        test_var = session.scalar(select(Variable).where(Variable.key == "key"))
         assert not test_var.is_encrypted
         assert test_var.val == "value"
         # We always call mask_secret for variables, and let the SecretsMasker decide based on the name if it
@@ -73,7 +74,7 @@ class TestVariable:
         """
         crypto.get_fernet.cache_clear()
         Variable.set(key="key", value="value", session=session)
-        test_var = session.query(Variable).filter(Variable.key == "key").one()
+        test_var = session.scalar(select(Variable).where(Variable.key == "key"))
         assert test_var.is_encrypted
         assert test_var.val == "value"
 
@@ -88,7 +89,7 @@ class TestVariable:
         with conf_vars({("core", "fernet_key"): key1.decode()}):
             crypto.get_fernet.cache_clear()
             Variable.set(key="key", value=test_value, session=session)
-            test_var = session.query(Variable).filter(Variable.key == "key").one()
+            test_var = session.scalar(select(Variable).where(Variable.key == "key"))
             assert test_var.is_encrypted
             assert test_var.val == test_value
             assert Fernet(key1).decrypt(test_var._val.encode()) == test_value.encode()
@@ -149,7 +150,7 @@ class TestVariable:
     def test_variable_set_update_existing(self, session):
         Variable.set(key="test_key", value="initial_value", session=session)
 
-        initial_var = session.query(Variable).filter(Variable.key == "test_key").one()
+        initial_var = session.scalar(select(Variable).where(Variable.key == "test_key"))
         initial_id = initial_var.id
 
         # Need to expire session cache to fetch fresh data from db on next query
@@ -159,7 +160,7 @@ class TestVariable:
 
         Variable.set(key="test_key", value="updated_value", session=session)
 
-        updated_var = session.query(Variable).filter(Variable.key == "test_key").one()
+        updated_var = session.scalar(select(Variable).where(Variable.key == "test_key"))
 
         # 1. The ID remains the same (no delete-insert)
         assert updated_var.id == initial_id, "Variable ID should remain the same after update"
@@ -206,7 +207,7 @@ class TestVariable:
         Variable.set(key="key", value="value", description="a test variable", session=session)
         assert Variable.get("key") == "value"
         Variable.update("key", "value2")
-        test_var = session.query(Variable).filter(Variable.key == "key").one()
+        test_var = session.scalar(select(Variable).where(Variable.key == "key"))
         assert test_var.val == "value2"
         assert test_var.description == "a test variable"
 
@@ -230,14 +231,14 @@ class TestVariable:
 
     def test_set_variable_sets_description(self, session):
         Variable.set(key="key", value="value", description="a test variable", session=session)
-        test_var = session.query(Variable).filter(Variable.key == "key").one()
+        test_var = session.scalar(select(Variable).where(Variable.key == "key"))
         assert test_var.description == "a test variable"
         assert test_var.val == "value"
 
     @conf_vars({("core", "multi_team"): "True"})
     def test_set_variable_sets_team(self, testing_team, session):
         Variable.set(key="key", value="value", team_name=testing_team.name, session=session)
-        test_var = session.query(Variable).filter(Variable.key == "key").one()
+        test_var = session.scalar(select(Variable).where(Variable.key == "key"))
         assert test_var.team_name == testing_team.name
         assert test_var.val == "value"
 

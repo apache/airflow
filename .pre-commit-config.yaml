@@ -433,6 +433,11 @@ repos:
             ^airflow-core/tests/unit/models/test_cleartasks.py$|
             ^airflow-core/tests/unit/models/test_xcom.py$|
             ^airflow-core/tests/unit/models/test_dagrun.py$|
+            ^airflow-core/tests/unit/models/test_dag\.py$|
+            ^airflow-core/tests/unit/models/test_dagcode\.py$|
+            ^airflow-core/tests/unit/models/test_mappedoperator\.py$|
+            ^airflow-core/tests/unit/models/test_taskinstance\.py$|
+            ^airflow-core/tests/unit/models/test_variable\.py$|
             ^airflow-core/tests/unit/api_fastapi/core_api/routes/public/test_dag_sources.py$|
             ^airflow-core/tests/unit/api_fastapi/core_api/routes/public/test_hitl.py$|
             ^airflow-core/tests/unit/api_fastapi/core_api/routes/ui/test_assets.py$|
