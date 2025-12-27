@@ -22,6 +22,7 @@ from unittest.mock import Mock, call
 import pytest
 
 import airflow
+from airflow.configuration import conf
 from airflow.sdk.bases.xcom import BaseXCom
 from airflow.sdk.exceptions import ErrorType
 from airflow.sdk.execution_time.comms import (
@@ -74,35 +75,75 @@ def test_len(mock_supervisor_comms, lazy_sequence):
 
 
 def test_iter(mock_supervisor_comms, lazy_sequence):
+    stop = conf.getint("core", "parallelism")
     it = iter(lazy_sequence)
 
     mock_supervisor_comms.send.side_effect = [
-        XComSequenceIndexResult(root="f"),
-        ErrorResponse(error=ErrorType.XCOM_NOT_FOUND, detail={"oops": "sorry!"}),
+        XComSequenceSliceResult(root=["f"]),
     ]
     assert list(it) == ["f"]
-    mock_supervisor_comms.send.assert_has_calls(
-        [
-            call(
-                msg=GetXComSequenceItem(
-                    key=BaseXCom.XCOM_RETURN_KEY,
-                    dag_id="dag",
-                    task_id="task",
-                    run_id="run",
-                    offset=0,
-                ),
-            ),
-            call(
-                msg=GetXComSequenceItem(
-                    key=BaseXCom.XCOM_RETURN_KEY,
-                    dag_id="dag",
-                    task_id="task",
-                    run_id="run",
-                    offset=1,
-                ),
-            ),
-        ]
-    )
+
+    assert mock_supervisor_comms.send.call_args_list == [
+        call(
+            GetXComSequenceSlice(
+                key=BaseXCom.XCOM_RETURN_KEY,
+                dag_id="dag",
+                task_id="task",
+                run_id="run",
+                start=0,
+                stop=stop,
+                step=None,
+            )
+        ),
+        call(
+            GetXComSequenceSlice(
+                key=BaseXCom.XCOM_RETURN_KEY,
+                dag_id="dag",
+                task_id="task",
+                run_id="run",
+                start=1,
+                stop=stop + 1,
+                step=None,
+            )
+        ),
+    ]
+
+
+def test_iter_when_xcom_not_found(mock_supervisor_comms, lazy_sequence):
+    stop = conf.getint("core", "parallelism")
+    it = iter(lazy_sequence)
+
+    mock_supervisor_comms.send.side_effect = [
+        XComSequenceSliceResult(root=["f"]),
+        ErrorResponse(error=ErrorType.XCOM_NOT_FOUND, detail={"oops": "sorry!"}),
+    ]
+    with pytest.raises(TypeError):
+        list(it)
+
+    assert mock_supervisor_comms.send.call_args_list == [
+        call(
+            GetXComSequenceSlice(
+                key=BaseXCom.XCOM_RETURN_KEY,
+                dag_id="dag",
+                task_id="task",
+                run_id="run",
+                start=0,
+                stop=stop,
+                step=None,
+            )
+        ),
+        call(
+            GetXComSequenceSlice(
+                key=BaseXCom.XCOM_RETURN_KEY,
+                dag_id="dag",
+                task_id="task",
+                run_id="run",
+                start=1,
+                stop=stop + 1,
+                step=None,
+            )
+        ),
+    ]
 
 
 def test_getitem_index(mock_supervisor_comms, lazy_sequence):
