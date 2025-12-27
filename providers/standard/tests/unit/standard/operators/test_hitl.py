@@ -123,6 +123,21 @@ class TestHITLOperator:
         )
         hitl_op.validate_options()
 
+    def test_init_allow_no_default_param(self):
+        try:
+            op = HITLOperator(
+                task_id="wait_for_human",
+                subject="Please input data",
+                options=["Submit"],
+                params={"user_input_data": Param(type="string", description="No default here!")},
+            )
+        except Exception as e:
+            pytest.fail(f"Initialization failed with exception: {e}")
+
+        param_obj = op.params.get_param("user_input_data")
+        assert isinstance(param_obj, Param)
+        assert "user_input_data" in op.params
+
     def test_validate_options_with_empty_options(self) -> None:
         # validate_options is called during initialization
         with pytest.raises(ValueError, match='"options" cannot be empty.'):
@@ -138,19 +153,7 @@ class TestHITLOperator:
 
     @pytest.mark.parametrize(
         ("params", "exc", "error_msg"),
-        (
-            (ParamsDict({"_options": 1}), ValueError, '"_options" is not allowed in params'),
-            (
-                ParamsDict({"param": Param("", type="integer")}),
-                ParamValidationError,
-                (
-                    "Invalid input for param param: '' is not of type 'integer'\n\n"
-                    "Failed validating 'type' in schema:\n"
-                    "    {'type': 'integer'}\n\n"
-                    "On instance:\n    ''"
-                ),
-            ),
-        ),
+        ((ParamsDict({"_options": 1}), ValueError, '"_options" is not allowed in params'),),
     )
     def test_validate_params(
         self, params: ParamsDict, exc: type[ValueError | ParamValidationError], error_msg: str
