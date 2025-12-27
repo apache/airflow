@@ -103,7 +103,7 @@ def test_fetch_trigger_ids_with_non_task_associations(session):
     assert results == {asset_trigger.id, callback_trigger.id}
 
 
-def test_clean_unused(session, create_task_instance):
+def test_clean_unused(session, dag_maker):
     """
     Tests that unused triggers (those with no task instances referencing them)
     are cleaned out automatically.
@@ -121,48 +121,41 @@ def test_clean_unused(session, create_task_instance):
     session.add(trigger4)
     session.add(trigger5)
     session.add(trigger6)
-    session.commit()
+    session.flush()
     assert session.scalar(select(func.count()).select_from(Trigger)) == 6
+
     # Tie one to a fake TaskInstance that is not deferred, and one to one that is
-    task_instance = create_task_instance(
-        session=session, task_id="fake", state=State.DEFERRED, logical_date=timezone.utcnow()
-    )
-    task_instance.trigger_id = trigger1.id
-    session.add(task_instance)
-    fake_task1 = EmptyOperator(task_id="fake2", dag=task_instance.task.dag)
-    task_instance1 = TaskInstance(
-        task=fake_task1, run_id=task_instance.run_id, dag_version_id=task_instance.dag_version_id
-    )
-    task_instance1.state = State.SUCCESS
-    task_instance1.trigger_id = trigger2.id
-    session.add(task_instance1)
-    fake_task2 = EmptyOperator(task_id="fake3", dag=task_instance.task.dag)
-    task_instance2 = TaskInstance(
-        task=fake_task2, run_id=task_instance.run_id, dag_version_id=task_instance.dag_version_id
-    )
-    task_instance2.state = State.SUCCESS
-    task_instance2.trigger_id = trigger4.id
-    session.add(task_instance2)
-    session.commit()
+    with dag_maker(session=session):
+        EmptyOperator(task_id="fake0")
+        EmptyOperator(task_id="fake1")
+        EmptyOperator(task_id="fake2")
+
+    dr = dag_maker.create_dagrun(logical_date=timezone.utcnow())
+    tis = {ti.task_id: ti for ti in dr.task_instances}
+    tis["fake0"].state = State.DEFERRED
+    tis["fake0"].trigger_id = trigger1.id
+    tis["fake1"].state = State.SUCCESS
+    tis["fake1"].trigger_id = trigger2.id
+    tis["fake2"].state = State.SUCCESS
+    tis["fake2"].trigger_id = trigger4.id
+    session.flush()
 
     # Create assets
     asset = AssetModel("test")
     asset.add_trigger(trigger4, "test_asset_watcher1")
     asset.add_trigger(trigger5, "test_asset_watcher2")
     session.add(asset)
-    session.commit()
+    session.flush()
     assert session.scalar(select(func.count()).select_from(AssetModel)) == 1
 
     # Create callback with trigger
-    callback = TriggererCallback(
-        callback_def=AsyncCallback("classpath.callback"),
-    )
+    callback = TriggererCallback(callback_def=AsyncCallback("classpath.callback"))
     callback.trigger = trigger6
     session.add(callback)
-    session.commit()
+    session.flush()
 
     # Run clear operation
-    Trigger.clean_unused()
+    Trigger.clean_unused(session=session)
     results = session.scalars(select(Trigger)).all()
     assert len(results) == 4
     assert {result.id for result in results} == {trigger1.id, trigger4.id, trigger5.id, trigger6.id}

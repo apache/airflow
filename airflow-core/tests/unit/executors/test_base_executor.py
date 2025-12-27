@@ -36,6 +36,7 @@ from airflow.executors.base_executor import BaseExecutor, RunningRetryAttemptTyp
 from airflow.executors.local_executor import LocalExecutor
 from airflow.models.taskinstance import TaskInstance, TaskInstanceKey
 from airflow.sdk import BaseOperator
+from airflow.serialization.definitions.baseoperator import SerializedBaseOperator
 from airflow.utils.state import State, TaskInstanceState
 
 from tests_common.test_utils.markers import skip_if_force_lowest_dependencies_marker
@@ -60,7 +61,7 @@ def test_invalid_slotspool():
 
 def test_get_task_log():
     executor = BaseExecutor()
-    ti = TaskInstance(task=BaseOperator(task_id="dummy"), dag_version_id=mock.MagicMock(spec=UUID))
+    ti = TaskInstance(task=SerializedBaseOperator(task_id="dummy"), dag_version_id=mock.MagicMock(spec=UUID))
     assert executor.get_task_log(ti=ti, try_number=1) == ([], [])
 
 

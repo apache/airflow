@@ -309,7 +309,7 @@ class TestLogView:
         def echo_run_type(dag_run: DagRun, **kwargs):
             print(dag_run.run_type)
 
-        with dag_maker(dag_id, start_date=self.DEFAULT_DATE, schedule="@daily") as dag:
+        with dag_maker(dag_id, start_date=self.DEFAULT_DATE, schedule="@daily"):
             PythonOperator(task_id=task_id, python_callable=echo_run_type)
 
         start = pendulum.datetime(2021, 1, 1)
@@ -334,8 +334,8 @@ class TestLogView:
         assert scheduled_ti is not None
         assert manual_ti is not None
 
-        scheduled_ti.refresh_from_task(dag.get_task(task_id))
-        manual_ti.refresh_from_task(dag.get_task(task_id))
+        scheduled_ti.refresh_from_task(dag_maker.serialized_dag.get_task(task_id))
+        manual_ti.refresh_from_task(dag_maker.serialized_dag.get_task(task_id))
 
         reader = TaskLogReader()
         assert reader.render_log_filename(scheduled_ti, 1) != reader.render_log_filename(manual_ti, 1)

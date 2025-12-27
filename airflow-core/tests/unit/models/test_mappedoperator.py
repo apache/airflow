@@ -34,13 +34,13 @@ from airflow.models.taskmap import TaskMap
 from airflow.providers.standard.operators.python import PythonOperator
 from airflow.sdk import DAG, BaseOperator, TaskGroup, setup, task, task_group, teardown
 from airflow.serialization.definitions.baseoperator import SerializedBaseOperator
-from airflow.task.priority_strategy import PriorityWeightStrategy
 from airflow.task.trigger_rule import TriggerRule
 from airflow.utils.state import TaskInstanceState
 
 from tests_common.test_utils.dag import sync_dag_to_db
 from tests_common.test_utils.mapping import expand_mapped_task
 from tests_common.test_utils.mock_operators import MockOperator
+from tests_common.test_utils.taskinstance import run_task_instance
 from unit.models import DEFAULT_DATE
 
 pytestmark = pytest.mark.db_test
@@ -138,7 +138,7 @@ def test_expand_mapped_task_instance(dag_maker, session, num_existing_tis, expec
     for index in range(num_existing_tis):
         # Give the existing TIs a state to make sure we don't change them
         ti = TaskInstance(
-            mapped,
+            mapped_deser,
             run_id=dr.run_id,
             map_index=index,
             state=TaskInstanceState.SUCCESS,
@@ -190,7 +190,7 @@ def test_expand_mapped_task_failed_state_in_db(dag_maker, session):
     for index in range(2):
         # Give the existing TIs a state to make sure we don't change them
         ti = TaskInstance(
-            mapped,
+            mapped_deser,
             run_id=dr.run_id,
             map_index=index,
             state=TaskInstanceState.SUCCESS,
@@ -303,7 +303,7 @@ def test_expand_kwargs_mapped_task_instance(dag_maker, session, num_existing_tis
     for index in range(num_existing_tis):
         # Give the existing TIs a state to make sure we don't change them
         ti = TaskInstance(
-            mapped,
+            dag.get_task(mapped.task_id),
             run_id=dr.run_id,
             map_index=index,
             state=TaskInstanceState.SUCCESS,
@@ -455,7 +455,7 @@ def test_expand_mapped_task_instance_with_named_index(
     dr = dag_maker.create_dagrun(session=session)
     tis = dr.get_task_instances(session=session)
     for ti in tis:
-        ti.run()
+        run_task_instance(ti, dag_maker.dag.get_task(ti.task_id))
     session.flush()
 
     indices = session.scalars(
@@ -1543,7 +1543,7 @@ class TestMappedSetupTeardown:
         assert op.pool == SerializedBaseOperator.pool
         assert op.pool_slots == SerializedBaseOperator.pool_slots
         assert op.priority_weight == SerializedBaseOperator.priority_weight
-        assert isinstance(op.weight_rule, PriorityWeightStrategy)
+        assert op.weight_rule == "downstream"
         assert op.email == email
         assert op.execution_timeout == execution_timeout
         assert op.retry_delay == retry_delay
@@ -1595,7 +1595,7 @@ def test_mapped_tasks_in_mapped_task_group_waits_for_upstreams_to_complete(dag_m
 
     dr = dag_maker.create_dagrun()
     ti = dr.get_task_instance(task_id="t1")
-    ti.run()
+    run_task_instance(ti, dag.get_task(ti.task_id))
     dr.task_instance_scheduling_decisions()
     ti3 = dr.get_task_instance(task_id="tg1.t3")
     assert not ti3.state
