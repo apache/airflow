@@ -36,10 +36,9 @@ from airflow.models import Variable
 from airflow.secrets.local_filesystem import load_variables
 from airflow.utils import cli as cli_utils
 from airflow.utils.cli import suppress_logs_and_warning
+from airflow._shared.secrets_masker import redact
 from airflow.utils.providers_configuration_loader import providers_configuration_loaded
 from airflow.utils.session import create_session, provide_session
-
-
 
 
 def _variable_mapper(var: Variable, show_values: bool = True, hide_sensitive: bool = False) -> dict[str, Any]:
@@ -50,14 +49,19 @@ def _variable_mapper(var: Variable, show_values: bool = True, hide_sensitive: bo
     :param show_values: If False, hide variable values
     :param hide_sensitive: If True, mask variable values instead of showing them
     """
-    from airflow_shared.secrets_masker.secrets_masker import redact
     result = {"key": var.key}
+    
+    # Determine what to show for the value
     if not show_values:
+        # Hide value completely
         result["value"] = "***"
     elif hide_sensitive:
+        # Use Airflow's secrets masker to redact the value
         result["value"] = redact(var.val, name=var.key)
     else:
+        # Show the actual value
         result["value"] = var.val
+    
     return result
 
 
@@ -94,16 +98,6 @@ def variables_get(args):
         raise SystemExit(str(e).strip("'\""))
 
 
-            from airflow_shared.secrets_masker.secrets_masker import redact
-            result = {"key": var.key}
-            if not show_values:
-                result["value"] = "***"
-            elif hide_sensitive:
-                # Use Airflow's SecretsMasker to redact sensitive values
-                result["value"] = redact(var.val, name=var.key)
-            else:
-                result["value"] = var.val
-            return result
 @cli_utils.action_cli
 @providers_configuration_loaded
 def variables_set(args):
@@ -124,7 +118,7 @@ def variables_delete(args):
 @providers_configuration_loaded
 @provide_session
 def variables_import(args, session):
-    """Import variables from a given file."""
+    """Import variables from a file."""
     if not os.path.exists(args.file):
         raise SystemExit("Missing variables file.")
 
