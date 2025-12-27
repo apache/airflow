@@ -45,6 +45,13 @@ export const useRefreshOnNewDagRuns = (dagId: string, hasPendingRuns: boolean | 
   useEffect(() => {
     const latestDagRunId = latestDagRun?.run_id;
 
+    // On initial load, just set the ref without invalidating cache
+    if (previousDagRunIdRef.current === undefined) {
+      previousDagRunIdRef.current = latestDagRunId;
+      return;
+    }
+
+    // Only invalidate cache when there's a new DAG run (not on initial load)
     if ((latestDagRunId ?? "") && previousDagRunIdRef.current !== latestDagRunId) {
       previousDagRunIdRef.current = latestDagRunId;
 
