@@ -17,21 +17,29 @@
  * under the License.
  */
 import { Skeleton, Box } from "@chakra-ui/react";
+import { useQuery } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { useParams, useSearchParams } from "react-router-dom";
 
 import { useTaskServiceGetTasks } from "openapi/queries";
-import type { TaskResponse } from "openapi/requests/types.gen";
+import { TaskInstanceService } from "openapi/requests/services.gen";
+import type { TaskInstanceResponse, TaskResponse } from "openapi/requests/types.gen";
 import { DataTable } from "src/components/DataTable";
 import type { CardDef } from "src/components/DataTable/types";
 import { ErrorAlert } from "src/components/ErrorAlert";
 import { SearchParamsKeys } from "src/constants/searchParams.ts";
+import { isStatePending, useAutoRefresh } from "src/utils";
 import { TaskFilters } from "src/pages/Dag/Tasks/TaskFilters/TaskFilters.tsx";
 
 import { TaskCard } from "./TaskCard";
 
-const cardDef = (dagId: string): CardDef<TaskResponse> => ({
-  card: ({ row }) => <TaskCard dagId={dagId} task={row} />,
+const cardDef = (
+  dagId: string,
+  taskInstancesByTaskId: Record<string, Array<TaskInstanceResponse>>,
+): CardDef<TaskResponse> => ({
+  card: ({ row }) => (
+    <TaskCard dagId={dagId} task={row} taskInstances={taskInstancesByTaskId[row.task_id ?? ""] ?? []} />
+  ),
   meta: {
     customSkeleton: <Skeleton height="120px" width="100%" />,
   },
@@ -47,6 +55,7 @@ export const Tasks = () => {
   const selectedRetries = searchParams.getAll(RETRIES);
   const selectedMapped = searchParams.get(MAPPED) ?? undefined;
   const namePattern = searchParams.get(NAME_PATTERN) ?? undefined;
+  const refetchInterval = useAutoRefresh({ dagId });
 
   const {
     data,
@@ -56,6 +65,52 @@ export const Tasks = () => {
   } = useTaskServiceGetTasks({
     dagId,
   });
+
+  // Extract task IDs for batch fetching task instances
+  const taskIds = data?.tasks.map((task) => task.task_id ?? "").filter((id) => id) ?? [];
+
+  // Batch fetch task instances for all tasks in one API call
+  const {
+    data: taskInstancesData,
+    error: taskInstancesError,
+    isFetching: isFetchingTaskInstances,
+  } = useQuery({
+    enabled: Boolean(dagId) && taskIds.length > 0,
+    queryFn: () =>
+      TaskInstanceService.getTaskInstancesBatch({
+        dagId: "~",
+        dagRunId: "~",
+        requestBody: {
+          dag_ids: [dagId],
+          order_by: "-run_after",
+          page_limit: taskIds.length * 14, // Fetch up to 14 instances per task
+          task_ids: taskIds,
+        },
+      }),
+    queryKey: ["taskInstancesBatch", dagId, taskIds],
+    refetchInterval: (query) =>
+      query.state.data?.task_instances.some((ti) => isStatePending(ti.state)) ? refetchInterval : false,
+  });
+
+  // Group task instances by task_id for efficient lookup
+  const taskInstancesByTaskId = (taskInstancesData?.task_instances ?? []).reduce(
+    (acc, ti) => {
+      const taskId = ti.task_id;
+
+      if (taskId) {
+        if (!acc[taskId]) {
+          acc[taskId] = [];
+        }
+        // Limit to 14 instances per task (matching original behavior)
+        if (acc[taskId].length < 14) {
+          acc[taskId].push(ti);
+        }
+      }
+
+      return acc;
+    },
+    {} as Record<string, Array<TaskInstanceResponse>>,
+  );
 
   const filterTasks = ({
     mapped,
@@ -89,16 +144,16 @@ export const Tasks = () => {
 
   return (
     <Box>
-      <ErrorAlert error={tasksError} />
+      <ErrorAlert error={tasksError ?? taskInstancesError} />
 
       <TaskFilters tasksData={data} />
 
       <DataTable
-        cardDef={cardDef(dagId)}
+        cardDef={cardDef(dagId, taskInstancesByTaskId)}
         columns={[]}
         data={filteredTasks}
         displayMode="card"
-        isFetching={isFetching}
+        isFetching={isFetching || isFetchingTaskInstances}
         isLoading={isLoading}
         modelName={translate("task_one")}
         total={data ? data.total_entries : 0}

@@ -20,12 +20,10 @@ import { Heading, VStack, Box, SimpleGrid, Text, Link } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 import { Link as RouterLink } from "react-router-dom";
 
-import { useTaskInstanceServiceGetTaskInstances } from "openapi/queries/queries.ts";
-import type { TaskResponse } from "openapi/requests/types.gen";
+import type { TaskInstanceResponse, TaskResponse } from "openapi/requests/types.gen";
 import { StateBadge } from "src/components/StateBadge";
 import TaskInstanceTooltip from "src/components/TaskInstanceTooltip";
 import Time from "src/components/Time";
-import { isStatePending, useAutoRefresh } from "src/utils";
 import { getTaskInstanceLink } from "src/utils/links";
 
 import { TaskRecentRuns } from "./TaskRecentRuns.tsx";
@@ -33,27 +31,11 @@ import { TaskRecentRuns } from "./TaskRecentRuns.tsx";
 type Props = {
   readonly dagId: string;
   readonly task: TaskResponse;
+  readonly taskInstances: Array<TaskInstanceResponse>;
 };
 
-export const TaskCard = ({ dagId, task }: Props) => {
+export const TaskCard = ({ dagId, task, taskInstances }: Props) => {
   const { t: translate } = useTranslation();
-  const refetchInterval = useAutoRefresh({ dagId });
-
-  const { data } = useTaskInstanceServiceGetTaskInstances(
-    {
-      dagId,
-      dagRunId: "~",
-      limit: 14,
-      orderBy: ["-run_after"],
-      taskId: task.task_id ?? "",
-    },
-    undefined,
-    {
-      enabled: Boolean(dagId) && Boolean(task.task_id),
-      refetchInterval: (query) =>
-        query.state.data?.task_instances.some((ti) => isStatePending(ti.state)) ? refetchInterval : false,
-    },
-  );
 
   return (
     <Box borderColor="border.emphasized" borderRadius={8} borderWidth={1} overflow="hidden" px={3} py={2}>
@@ -80,19 +62,19 @@ export const TaskCard = ({ dagId, task }: Props) => {
           <Heading color="fg.muted" fontSize="xs">
             {translate("task.lastInstance")}
           </Heading>
-          {data?.task_instances[0] ? (
-            <TaskInstanceTooltip taskInstance={data.task_instances[0]}>
+          {taskInstances[0] ? (
+            <TaskInstanceTooltip taskInstance={taskInstances[0]}>
               <Link asChild color="fg.info" fontSize="sm">
-                <RouterLink to={getTaskInstanceLink(data.task_instances[0])}>
-                  <Time datetime={data.task_instances[0].start_date} />
-                  <StateBadge state={data.task_instances[0].state} />
+                <RouterLink to={getTaskInstanceLink(taskInstances[0])}>
+                  <Time datetime={taskInstances[0].start_date} />
+                  <StateBadge state={taskInstances[0].state} />
                 </RouterLink>
               </Link>
             </TaskInstanceTooltip>
           ) : undefined}
         </VStack>
         {/* TODO: Handled mapped tasks to not plot each map index as a task instance */}
-        {!task.is_mapped && <TaskRecentRuns taskInstances={data?.task_instances ?? []} />}
+        {!task.is_mapped && <TaskRecentRuns taskInstances={taskInstances} />}
       </SimpleGrid>
     </Box>
   );
