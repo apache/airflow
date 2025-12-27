@@ -19,7 +19,7 @@ from __future__ import annotations
 import logging
 from contextlib import AsyncExitStack, asynccontextmanager
 from functools import cache
-from typing import TYPE_CHECKING, cast
+from typing import TYPE_CHECKING
 from urllib.parse import urlsplit
 
 from fastapi import FastAPI
@@ -171,10 +171,9 @@ def init_plugins(app: FastAPI) -> None:
     """Integrate FastAPI app, middlewares and UI plugins."""
     from airflow import plugins_manager
 
-    plugins_manager.initialize_fastapi_plugins()
+    apps, root_middlewares = plugins_manager.get_fastapi_plugins()
 
-    # After calling initialize_fastapi_plugins, fastapi_apps cannot be None anymore.
-    for subapp_dict in cast("list", plugins_manager.fastapi_apps):
+    for subapp_dict in apps:
         name = subapp_dict.get("name")
         subapp = subapp_dict.get("app")
         if subapp is None:
@@ -194,8 +193,7 @@ def init_plugins(app: FastAPI) -> None:
         log.debug("Adding subapplication %s under prefix %s", name, url_prefix)
         app.mount(url_prefix, subapp)
 
-    # After calling initialize_fastapi_plugins, fastapi_root_middlewares cannot be None anymore.
-    for middleware_dict in cast("list", plugins_manager.fastapi_root_middlewares):
+    for middleware_dict in root_middlewares:
         name = middleware_dict.get("name")
         middleware = middleware_dict.get("middleware")
         args = middleware_dict.get("args", [])
