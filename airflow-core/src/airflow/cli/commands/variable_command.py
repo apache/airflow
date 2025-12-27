@@ -40,13 +40,6 @@ from airflow.utils.providers_configuration_loader import providers_configuration
 from airflow.utils.session import create_session, provide_session
 
 
-def _mask_sensitive(value: str | None, show_last: int = 3) -> str:
-    """Mask sensitive value, showing only the last few characters."""
-    if not value:
-        return "***"
-    if len(value) <= show_last:
-        return "***"
-    return "*" * (len(value) - show_last) + value[-show_last:]
 
 
 def _variable_mapper(var: Variable, show_values: bool = True, hide_sensitive: bool = False) -> dict[str, Any]:
@@ -57,19 +50,14 @@ def _variable_mapper(var: Variable, show_values: bool = True, hide_sensitive: bo
     :param show_values: If False, hide variable values
     :param hide_sensitive: If True, mask variable values instead of showing them
     """
+    from airflow_shared.secrets_masker.secrets_masker import redact
     result = {"key": var.key}
-    
-    # Determine what to show for the value
     if not show_values:
-        # Hide value completely
         result["value"] = "***"
     elif hide_sensitive:
-        # Mask the value
-        result["value"] = _mask_sensitive(var.val)
+        result["value"] = redact(var.val, name=var.key)
     else:
-        # Show the actual value
         result["value"] = var.val
-    
     return result
 
 

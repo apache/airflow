@@ -43,13 +43,6 @@ from airflow.utils.providers_configuration_loader import providers_configuration
 from airflow.utils.session import create_session
 
 
-def _mask_sensitive(value: str | None, show_last: int = 3) -> str:
-    """Mask sensitive value, showing only the last few characters."""
-    if not value:
-        return "***"
-    if len(value) <= show_last:
-        return "***"
-    return "*" * (len(value) - show_last) + value[-show_last:]
 
 
 def _connection_mapper(conn: Connection, show_values: bool = True, hide_sensitive: bool = False) -> dict[str, Any]:
@@ -73,6 +66,7 @@ def _connection_mapper(conn: Connection, show_values: bool = True, hide_sensitiv
         extra = _mask_sensitive(conn.extra)
     else:
      from airflow_shared.secrets_masker.secrets_masker import redact
+    from airflow_shared.secrets_masker.secrets_masker import redact
     if not show_values:
         password = "***"
         uri = "***"
