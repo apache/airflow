@@ -337,7 +337,6 @@ def get_hook_lineage_collector() -> HookLineageCollector:
     """Get singleton lineage collector."""
     from airflow import plugins_manager
 
-    plugins_manager.initialize_hook_lineage_readers_plugins()
-    if plugins_manager.hook_lineage_reader_classes:
+    if plugins_manager.get_hook_lineage_readers_plugins():
         return HookLineageCollector()
     return NoOpCollector()
