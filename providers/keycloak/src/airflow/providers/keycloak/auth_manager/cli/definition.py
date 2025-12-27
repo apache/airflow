@@ -97,3 +97,16 @@ KEYCLOAK_AUTH_MANAGER_COMMANDS = (
         args=(ARG_USERNAME, ARG_PASSWORD, ARG_USER_REALM, ARG_CLIENT_ID, ARG_DRY_RUN),
     ),
 )
+
+
+def get_keycloak_cli_commands():
+    """Return CLI commands for Keycloak auth manager."""
+    from airflow.cli.cli_config import GroupCommand
+
+    return [
+        GroupCommand(
+            name="keycloak-auth-manager",
+            help="Manage resources used by Keycloak auth manager",
+            subcommands=KEYCLOAK_AUTH_MANAGER_COMMANDS,
+        ),
+    ]

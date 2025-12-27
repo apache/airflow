@@ -39,10 +39,6 @@ from airflow.cli.cli_config import ActionCommand, core_commands, lazy_load_comma
 from airflow.cli.utils import CliConflictError
 from airflow.configuration import AIRFLOW_HOME
 from airflow.executors import executor_loader
-from airflow.executors.executor_utils import ExecutorName
-from airflow.executors.local_executor import LocalExecutor
-from airflow.providers.amazon.aws.executors.ecs.ecs_executor import AwsEcsExecutor
-from airflow.providers.celery.executors.celery_executor import CeleryExecutor
 
 from tests_common.test_utils.config import conf_vars
 
@@ -143,43 +139,88 @@ class TestCli:
                     f"short option flags {conflict_short_option}"
                 )
 
-    @pytest.mark.db_test
-    @patch.object(LocalExecutor, "get_cli_commands")
-    def test_dynamic_conflict_detection(self, cli_commands_mock: MagicMock):
-        core_commands.append(
+    @staticmethod
+    def mock_duplicate_command():
+        return [
             ActionCommand(
                 name="test_command",
                 help="does nothing",
                 func=lambda: None,
                 args=[],
-            )
-        )
-        cli_commands_mock.return_value = [
+            ),
             ActionCommand(
                 name="test_command",
-                help="just a command that'll conflict with one defined in core",
+                help="just a command that'll conflict with the other one",
                 func=lambda: None,
                 args=[],
-            )
+            ),
         ]
-        reload(executor_loader)
+
+    @patch(
+        "airflow.providers_manager.ProvidersManager.cli_command_function_names",
+        new_callable=mock.PropertyMock,
+    )
+    @patch("airflow._shared.module_loading.import_string")
+    def test_dynamic_conflict_detection(
+        self, mock_import_string: MagicMock, mock_cli_command_function_names: MagicMock
+    ):
+        mock_cli_command_function_names.return_value = [
+            "unit.cli.test_cli_parser.TestCli.mock_duplicate_command"
+        ]
+        # Mock import_string to return our duplicate command function
+        mock_import_string.return_value = self.mock_duplicate_command
+
+        test_command = ActionCommand(
+            name="test_command",
+            help="does nothing",
+            func=lambda: None,
+            args=[],
+        )
+        core_commands.append(test_command)
+
         with pytest.raises(CliConflictError, match="test_command"):
             # force re-evaluation of cli commands (done in top level code)
             reload(cli_parser)
 
-    @patch.object(CeleryExecutor, "get_cli_commands")
-    @patch.object(AwsEcsExecutor, "get_cli_commands")
+    @pytest.mark.parametrize(
+        "module_pattern",
+        ["airflow.auth.managers", "airflow.executors.executor_loader"],
+    )
+    def test_should_not_import_in_cli_parser(self, module_pattern: str):
+        """Test that cli_parser does not import auth_managers or executor_loader at import time."""
+        # Remove the module from sys.modules if present to force a fresh import
+        import sys
+
+        modules_to_remove = [mod for mod in sys.modules.keys() if module_pattern in mod]
+        removed_modules = {}
+        for mod in modules_to_remove:
+            removed_modules[mod] = sys.modules.pop(mod)
+
+        try:
+            reload(cli_parser)
+            # Check that the module pattern is not in sys.modules after reload
+            loaded_modules = list(sys.modules.keys())
+            matching_modules = [mod for mod in loaded_modules if module_pattern in mod]
+            assert not matching_modules, (
+                f"Module pattern '{module_pattern}' found in sys.modules: {matching_modules}"
+            )
+        finally:
+            # Restore removed modules
+            sys.modules.update(removed_modules)
+
+    @patch("airflow.providers.cncf.kubernetes.cli.definition.get_kubernetes_cli_commands")
+    @patch("airflow.providers.celery.cli.definition.get_celery_cli_commands")
     def test_hybrid_executor_get_cli_commands(
-        self, ecs_executor_cli_commands_mock, celery_executor_cli_commands_mock
+        self, kubernetes_executor_cli_commands_mock, celery_executor_cli_commands_mock
     ):
         """Test that if multiple executors are configured, then every executor loads its commands."""
-        ecs_executor_command = ActionCommand(
-            name="ecs_command",
-            help="test command for ecs executor",
+        kubernetes_executor_command = ActionCommand(
+            name="kubernetes_command",
+            help="test command for kubernetes executor",
             func=lambda: None,
             args=[],
         )
-        ecs_executor_cli_commands_mock.return_value = [ecs_executor_command]
+        kubernetes_executor_cli_commands_mock.return_value = [kubernetes_executor_command]
 
         celery_executor_command = ActionCommand(
             name="celery_command",
@@ -188,36 +229,24 @@ class TestCli:
             args=[],
         )
         celery_executor_cli_commands_mock.return_value = [celery_executor_command]
-        reload(executor_loader)
-        executor_loader.ExecutorLoader.get_executor_names = mock.Mock(
-            return_value=[
-                ExecutorName("airflow.providers.celery.executors.celery_executor.CeleryExecutor"),
-                ExecutorName("airflow.providers.amazon.aws.executors.ecs.ecs_executor.AwsEcsExecutor"),
-            ]
-        )
-
         reload(cli_parser)
         commands = [command.name for command in cli_parser.airflow_commands]
         assert celery_executor_command.name in commands
-        assert ecs_executor_command.name in commands
+        assert kubernetes_executor_command.name in commands
 
-    @patch.object(CeleryExecutor, "get_cli_commands")
-    @patch.object(AwsEcsExecutor, "get_cli_commands")
+    @patch(
+        "airflow.providers_manager.ProvidersManager.cli_command_function_names",
+        new_callable=mock.PropertyMock,
+    )
+    @patch("airflow._shared.module_loading.import_string")
     def test_hybrid_executor_get_cli_commands_with_error(
-        self, ecs_executor_cli_commands_mock, celery_executor_cli_commands_mock, caplog
+        self, mock_import_string, mock_cli_command_function_names, caplog
     ):
         """
-        Test that if multiple executors are configured, then every executor loads its commands.
-        If the executor fails to load its commands, the CLI should log the error, and continue loading
+        Test that if a provider function raises an exception during CLI command loading,
+        the CLI should log the error and continue loading other commands.
         """
         caplog.set_level("ERROR")
-        ecs_executor_command = ActionCommand(
-            name="ecs_command",
-            help="test command for ecs executor",
-            func=lambda: None,
-            args=[],
-        )
-        ecs_executor_cli_commands_mock.side_effect = Exception()
 
         celery_executor_command = ActionCommand(
             name="celery_command",
@@ -225,50 +254,30 @@ class TestCli:
             func=lambda: None,
             args=[],
         )
-        celery_executor_cli_commands_mock.return_value = [celery_executor_command]
-        reload(executor_loader)
-        executor_loader.ExecutorLoader.get_executor_names = mock.Mock(
-            return_value=[
-                ExecutorName("airflow.providers.amazon.aws.executors.ecs.ecs_executor.AwsEcsExecutor"),
-                ExecutorName("airflow.providers.celery.executors.celery_executor.CeleryExecutor"),
-            ]
-        )
+
+        def mock_celery_get_cli_commands():
+            return [celery_executor_command]
+
+        # Mock import_string to return the celery function but raise for ecs
+        def side_effect(function_name):
+            if "kubernetes" in function_name:
+                raise Exception("Failed to import Kubernetes CLI commands")
+            return mock_celery_get_cli_commands
+
+        mock_import_string.side_effect = side_effect
+        mock_cli_command_function_names.return_value = [
+            "airflow.providers.celery.cli.definition.get_celery_cli_commands",
+            "airflow.providers.cncf.kubernetes.cli.definition.get_kubernetes_cli_commands",
+        ]
 
         reload(cli_parser)
         commands = [command.name for command in cli_parser.airflow_commands]
         assert celery_executor_command.name in commands
-        assert ecs_executor_command.name not in commands
-        assert (
-            "Failed to load CLI commands from executor: ::airflow.providers.amazon.aws.executors.ecs.ecs_executor.AwsEcsExecutor"
-            in caplog.messages[0]
-        )
-
-    @patch.object(AwsEcsExecutor, "get_cli_commands")
-    def test_cli_parser_fail_to_load_executor(self, ecs_executor_cli_commands_mock, caplog):
-        caplog.set_level("ERROR")
-
-        ecs_executor_command = ActionCommand(
-            name="ecs_command",
-            help="test command for ecs executor",
-            func=lambda: None,
-            args=[],
-        )
-        ecs_executor_cli_commands_mock.return_value = [ecs_executor_command]
-
-        reload(executor_loader)
-        executor_loader.ExecutorLoader.get_executor_names = mock.Mock(
-            return_value=[
-                ExecutorName("airflow.providers.incorrect.executor.Executor"),
-                ExecutorName("airflow.providers.amazon.aws.executors.ecs.ecs_executor.AwsEcsExecutor"),
-            ]
-        )
-
-        reload(cli_parser)
-        commands = [command.name for command in cli_parser.airflow_commands]
-        assert ecs_executor_command.name in commands
-        assert (
-            "Failed to load CLI commands from executor: ::airflow.providers.incorrect.executor.Executor"
-            in caplog.messages[0]
+        assert "kubernetes_command" not in commands
+        assert any(
+            "Failed to load CLI commands from provider function" in msg
+            and "airflow.providers.cncf.kubernetes.cli.definition.get_kubernetes_cli_commands" in msg
+            for msg in caplog.messages
         )
 
     def test_falsy_default_value(self):
@@ -367,27 +376,6 @@ class TestCli:
             f"Help message: '{ARG_VAR_IMPORT.kwargs['help']}'\n"
             f"Please update ARG_VAR_IMPORT help message in cli_config.py to include: {', '.join([f'.{fmt}' for fmt in sorted(missing_in_help)])}"
         )
-
-    @pytest.mark.parametrize(
-        "command",
-        [
-            "celery",
-            "kubernetes",
-        ],
-    )
-    def test_executor_specific_commands_not_accessible(self, command):
-        with (
-            contextlib.redirect_stderr(StringIO()) as stderr,
-        ):
-            reload(executor_loader)
-            reload(cli_parser)
-            parser = cli_parser.get_parser()
-            with pytest.raises(SystemExit):
-                parser.parse_args([command])
-            stderr_val = stderr.getvalue()
-        assert (
-            f"airflow command error: argument GROUP_OR_COMMAND: invalid choice: '{command}'"
-        ) in stderr_val
 
     @pytest.mark.parametrize(
         ("executor", "expected_args"),
@@ -493,24 +481,6 @@ class TestCliSubprocess:
         # Average run time of Airflow CLI should at least be within 3.5s
         assert timing_result < threshold
 
-    def test_cli_parsing_does_not_initialize_providers_manager(self):
-        """
-        Test that CLI parsing does not initialize providers manager.
-
-        This test is here to make sure that we do not initialize providers manager - it is run as a
-        separate subprocess, to make sure we do not have providers manager initialized in the main
-        process from other tests.
-        """
-        CONFIG_FILE.parent.mkdir(parents=True, exist_ok=True)
-        CONFIG_FILE.touch(exist_ok=True)
-        result = subprocess.run(
-            [sys.executable, "-m", "airflow", "providers", "lazy-loaded"],
-            env={"PYTHONPATH": os.pathsep.join(sys.path)},
-            check=False,
-            text=True,
-        )
-        assert result.returncode == 0
-
     def test_airflow_config_contains_providers(self):
         """
         Test that airflow config has providers included by default.
@@ -558,13 +528,3 @@ class TestCliSubprocess:
         )
         assert result.returncode == 0
         assert "celery_config_options" not in result.stdout
-
-    def test_cli_parser_skips_team_validation(self):
-        """Test that CLI parser calls get_executor_names with validate_teams=False to prevent database dependency during CLI loading."""
-        with patch.object(executor_loader.ExecutorLoader, "get_executor_names") as mock_get_executor_names:
-            mock_get_executor_names.return_value = []
-            # Force reload of cli_parser to trigger the executor loading
-            reload(cli_parser)
-
-            # Verify get_executor_names was called with validate_teams=False
-            mock_get_executor_names.assert_called_with(validate_teams=False)

@@ -27,16 +27,13 @@ from fastapi import FastAPI
 
 from airflow.api_fastapi.app import AUTH_MANAGER_FASTAPI_APP_PREFIX
 from airflow.api_fastapi.auth.managers.base_auth_manager import BaseAuthManager
-from airflow.cli.cli_config import CLICommand, DefaultHelpParser, GroupCommand
+from airflow.cli.cli_config import CLICommand, DefaultHelpParser
 from airflow.configuration import conf
 from airflow.exceptions import AirflowOptionalProviderFeatureException
 from airflow.providers.amazon.aws.auth_manager.avp.entities import AvpEntities
 from airflow.providers.amazon.aws.auth_manager.avp.facade import (
     AwsAuthManagerAmazonVerifiedPermissionsFacade,
     IsAuthorizedRequest,
-)
-from airflow.providers.amazon.aws.auth_manager.cli.definition import (
-    AWS_AUTH_MANAGER_COMMANDS,
 )
 from airflow.providers.amazon.aws.auth_manager.user import AwsAuthManagerUser
 from airflow.providers.amazon.version_compat import AIRFLOW_V_3_0_PLUS
@@ -468,13 +465,9 @@ class AwsAuthManager(BaseAuthManager[AwsAuthManagerUser]):
     @staticmethod
     def get_cli_commands() -> list[CLICommand]:
         """Vends CLI commands to be included in Airflow CLI."""
-        return [
-            GroupCommand(
-                name="aws-auth-manager",
-                help="Manage resources used by AWS auth manager",
-                subcommands=AWS_AUTH_MANAGER_COMMANDS,
-            ),
-        ]
+        from airflow.providers.amazon.aws.auth_manager.cli.definition import get_aws_cli_commands
+
+        return get_aws_cli_commands()
 
     def get_fastapi_app(self) -> FastAPI | None:
         from airflow.providers.amazon.aws.auth_manager.routes.login import login_router

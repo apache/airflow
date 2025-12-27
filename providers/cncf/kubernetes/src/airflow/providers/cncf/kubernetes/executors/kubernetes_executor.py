@@ -39,25 +39,6 @@ from deprecated import deprecated
 from kubernetes.dynamic import DynamicClient
 from sqlalchemy import select
 
-from airflow.providers.cncf.kubernetes.pod_generator import PodGenerator
-from airflow.providers.cncf.kubernetes.version_compat import AIRFLOW_V_3_0_PLUS
-
-try:
-    from airflow.cli.cli_config import ARG_LOGICAL_DATE
-except ImportError:  # 2.x compatibility.
-    from airflow.cli.cli_config import (  # type: ignore[attr-defined, no-redef]
-        ARG_EXECUTION_DATE as ARG_LOGICAL_DATE,
-    )
-from airflow.cli.cli_config import (
-    ARG_DAG_ID,
-    ARG_OUTPUT_PATH,
-    ARG_VERBOSE,
-    ActionCommand,
-    Arg,
-    GroupCommand,
-    lazy_load_command,
-    positive_int,
-)
 from airflow.configuration import conf
 from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.executors.base_executor import BaseExecutor
@@ -70,6 +51,8 @@ from airflow.providers.cncf.kubernetes.executors.kubernetes_executor_types impor
 )
 from airflow.providers.cncf.kubernetes.kube_config import KubeConfig
 from airflow.providers.cncf.kubernetes.kubernetes_helper_functions import annotations_to_key
+from airflow.providers.cncf.kubernetes.pod_generator import PodGenerator
+from airflow.providers.cncf.kubernetes.version_compat import AIRFLOW_V_3_0_PLUS
 from airflow.providers.common.compat.sdk import Stats
 from airflow.utils.log.logging_mixin import remove_escape_codes
 from airflow.utils.session import NEW_SESSION, provide_session
@@ -83,60 +66,13 @@ if TYPE_CHECKING:
     from kubernetes.client import models as k8s
     from sqlalchemy.orm import Session
 
+    from airflow.cli.cli_config import GroupCommand
     from airflow.executors import workloads
     from airflow.models.taskinstance import TaskInstance
     from airflow.models.taskinstancekey import TaskInstanceKey
     from airflow.providers.cncf.kubernetes.executors.kubernetes_executor_utils import (
         AirflowKubernetesScheduler,
     )
-
-
-if AIRFLOW_V_3_0_PLUS:
-    from airflow.cli.cli_config import ARG_BUNDLE_NAME
-
-    ARG_COMPAT = ARG_BUNDLE_NAME
-else:
-    from airflow.cli.cli_config import ARG_SUBDIR  # type: ignore[attr-defined]
-
-    ARG_COMPAT = ARG_SUBDIR
-
-# CLI Args
-ARG_NAMESPACE = Arg(
-    ("--namespace",),
-    default=conf.get("kubernetes_executor", "namespace"),
-    help="Kubernetes Namespace. Default value is `[kubernetes] namespace` in configuration.",
-)
-
-ARG_MIN_PENDING_MINUTES = Arg(
-    ("--min-pending-minutes",),
-    default=30,
-    type=positive_int(allow_zero=False),
-    help=(
-        "Pending pods created before the time interval are to be cleaned up, "
-        "measured in minutes. Default value is 30(m). The minimum value is 5(m)."
-    ),
-)
-
-# CLI Commands
-KUBERNETES_COMMANDS = (
-    ActionCommand(
-        name="cleanup-pods",
-        help=(
-            "Clean up Kubernetes pods "
-            "(created by KubernetesExecutor/KubernetesPodOperator) "
-            "in evicted/failed/succeeded/pending states"
-        ),
-        func=lazy_load_command("airflow.providers.cncf.kubernetes.cli.kubernetes_command.cleanup_pods"),
-        args=(ARG_NAMESPACE, ARG_MIN_PENDING_MINUTES, ARG_VERBOSE),
-    ),
-    ActionCommand(
-        name="generate-dag-yaml",
-        help="Generate YAML files for all tasks in DAG. Useful for debugging tasks without "
-        "launching into a cluster",
-        func=lazy_load_command("airflow.providers.cncf.kubernetes.cli.kubernetes_command.generate_pod_yaml"),
-        args=(ARG_DAG_ID, ARG_LOGICAL_DATE, ARG_COMPAT, ARG_OUTPUT_PATH, ARG_VERBOSE),
-    ),
-)
 
 
 class KubernetesExecutor(BaseExecutor):
@@ -812,13 +748,9 @@ class KubernetesExecutor(BaseExecutor):
 
     @staticmethod
     def get_cli_commands() -> list[GroupCommand]:
-        return [
-            GroupCommand(
-                name="kubernetes",
-                help="Tools to help run the KubernetesExecutor",
-                subcommands=KUBERNETES_COMMANDS,
-            )
-        ]
+        from airflow.providers.cncf.kubernetes.cli.definition import get_kubernetes_cli_commands
+
+        return get_kubernetes_cli_commands()
 
 
 def _get_parser() -> argparse.ArgumentParser:

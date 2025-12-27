@@ -58,3 +58,16 @@ AWS_AUTH_MANAGER_COMMANDS = (
         args=(ARG_POLICY_STORE_ID, ARG_DRY_RUN),
     ),
 )
+
+
+def get_aws_cli_commands():
+    """Return CLI commands for AWS auth manager."""
+    from airflow.cli.cli_config import GroupCommand
+
+    return [
+        GroupCommand(
+            name="aws-auth-manager",
+            help="Manage resources used by AWS auth manager",
+            subcommands=AWS_AUTH_MANAGER_COMMANDS,
+        ),
+    ]
