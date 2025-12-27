@@ -292,6 +292,7 @@ ARG_INCLUDE_DESCRIPTIONS = Arg(
     help="Show descriptions for the configuration variables",
     action="store_true",
 )
+
 ARG_INCLUDE_EXAMPLES = Arg(
     ("-e", "--include-examples"), help="Show examples for the configuration variables", action="store_true"
 )
@@ -301,6 +302,19 @@ ARG_INCLUDE_SOURCES = Arg(
 ARG_INCLUDE_ENV_VARS = Arg(
     ("-V", "--include-env-vars"), help="Show environment variable for each option", action="store_true"
 )
+
+ARG_SHOW_VALUES = Arg(
+    ("--show-values",),
+    help="Show sensitive values (passwords, URIs, extra)",
+    action="store_true",
+)
+
+ARG_HIDE_SENSITIVE = Arg(
+    ("--hide-sensitive",),
+    help="Mask sensitive values when showing them",
+    action="store_true",
+)
+
 ARG_COMMENT_OUT_EVERYTHING = Arg(
     ("-c", "--comment-out-everything"),
     help="Comment out all configuration options. Useful as starting point for new installation",
@@ -1373,7 +1387,7 @@ VARIABLES_COMMANDS = (
         name="list",
         help="List variables",
         func=lazy_load_command("airflow.cli.commands.variable_command.variables_list"),
-        args=(ARG_OUTPUT, ARG_VERBOSE),
+        args=(ARG_OUTPUT, ARG_VERBOSE, ARG_SHOW_VALUES, ARG_HIDE_SENSITIVE),
     ),
     ActionCommand(
         name="get",
@@ -1537,13 +1551,13 @@ CONNECTIONS_COMMANDS = (
         name="get",
         help="Get a connection",
         func=lazy_load_command("airflow.cli.commands.connection_command.connections_get"),
-        args=(ARG_CONN_ID, ARG_COLOR, ARG_OUTPUT, ARG_VERBOSE),
+        args=(ARG_CONN_ID, ARG_COLOR, ARG_OUTPUT, ARG_VERBOSE, ARG_SHOW_VALUES, ARG_HIDE_SENSITIVE),
     ),
     ActionCommand(
         name="list",
         help="List connections",
         func=lazy_load_command("airflow.cli.commands.connection_command.connections_list"),
-        args=(ARG_OUTPUT, ARG_VERBOSE, ARG_CONN_ID_FILTER),
+        args=(ARG_OUTPUT, ARG_VERBOSE, ARG_CONN_ID_FILTER, ARG_SHOW_VALUES, ARG_HIDE_SENSITIVE),
     ),
     ActionCommand(
         name="add",

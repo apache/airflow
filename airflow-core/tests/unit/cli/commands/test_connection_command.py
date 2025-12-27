@@ -56,7 +56,7 @@ class TestCliGetConnection:
             connection_command.connections_get(
                 self.parser.parse_args(["connections", "get", "google_cloud_default", "--output", "json"])
             )
-        assert "google-cloud-platform:///default" in capture.getvalue()
+        assert '"get_uri": "***"' in capture.getvalue()
 
     def test_cli_connection_get_invalid(self):
         with pytest.raises(SystemExit, match=re.escape("Connection not found.")):
