@@ -37,7 +37,7 @@ from airflow.providers.common.compat.sdk import AirflowException
 from airflow.utils.helpers import prune_dict
 
 if TYPE_CHECKING:
-    from airflow.utils.context import Context
+    from airflow.sdk import Context
 
 
 class RedshiftCreateClusterOperator(AwsBaseOperator[RedshiftHook]):

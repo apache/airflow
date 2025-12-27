@@ -33,7 +33,7 @@ from airflow.providers.common.compat.sdk import AirflowException
 if TYPE_CHECKING:
     from airflow.providers.common.compat.openlineage.facet import BaseFacet, Dataset, DatasetFacet
     from airflow.providers.openlineage.extractors.base import OperatorLineage
-    from airflow.utils.context import Context
+    from airflow.sdk import Context
 
 
 class AthenaOperator(AwsBaseOperator[AthenaHook]):

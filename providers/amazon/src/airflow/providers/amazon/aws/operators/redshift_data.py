@@ -33,7 +33,7 @@ if TYPE_CHECKING:
         GetStatementResultResponseTypeDef,
     )
 
-    from airflow.utils.context import Context
+    from airflow.sdk import Context
 
 
 class RedshiftDataOperator(AwsBaseOperator[RedshiftDataHook]):

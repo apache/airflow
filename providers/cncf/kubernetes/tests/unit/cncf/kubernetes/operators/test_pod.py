@@ -59,7 +59,7 @@ else:
     from airflow.models.xcom import XCom  # type: ignore[no-redef]
 
 if TYPE_CHECKING:
-    from airflow.utils.context import Context
+    from airflow.sdk import Context
 
 pytestmark = pytest.mark.db_test
 

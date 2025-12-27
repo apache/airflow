@@ -24,7 +24,7 @@ import kubernetes_asyncio.client as async_k8s
 
 if TYPE_CHECKING:
     from airflow.providers.cncf.kubernetes.operators.pod import KubernetesPodOperator
-    from airflow.utils.context import Context
+    from airflow.sdk import Context
 
 client_type: TypeAlias = k8s.CoreV1Api | async_k8s.CoreV1Api
 

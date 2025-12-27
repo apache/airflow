@@ -33,7 +33,7 @@ from airflow.providers.common.compat.sdk import AirflowException
 if TYPE_CHECKING:
     import boto3
 
-    from airflow.utils.context import Context
+    from airflow.sdk import Context
 
 
 def _check_failed(current_state, target_state, failure_states) -> None:

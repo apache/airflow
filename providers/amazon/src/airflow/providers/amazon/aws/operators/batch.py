@@ -49,7 +49,7 @@ from airflow.providers.amazon.aws.utils.task_log_fetcher import AwsTaskLogFetche
 from airflow.providers.common.compat.sdk import AirflowException
 
 if TYPE_CHECKING:
-    from airflow.utils.context import Context
+    from airflow.sdk import Context
 
 
 class BatchOperator(AwsBaseOperator[BatchClientHook]):

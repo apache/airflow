@@ -30,7 +30,7 @@ from airflow.providers.common.compat.sdk import (
 from airflow.utils.operator_helpers import determine_kwargs
 
 if TYPE_CHECKING:
-    from airflow.utils.context import Context
+    from airflow.sdk import Context
 
 
 class _KubernetesCmdDecoratedOperator(DecoratedOperator, KubernetesPodOperator):

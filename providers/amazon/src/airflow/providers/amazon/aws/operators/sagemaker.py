@@ -48,7 +48,7 @@ from airflow.utils.helpers import prune_dict
 if TYPE_CHECKING:
     from airflow.providers.common.compat.openlineage.facet import Dataset
     from airflow.providers.openlineage.extractors.base import OperatorLineage
-    from airflow.utils.context import Context
+    from airflow.sdk import Context
 
 # DEFAULT_CONN_ID: str = "aws_default"
 CHECK_INTERVAL_SECOND: int = 30

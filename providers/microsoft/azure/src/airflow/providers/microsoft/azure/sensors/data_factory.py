@@ -31,7 +31,7 @@ from airflow.providers.microsoft.azure.hooks.data_factory import (
 from airflow.providers.microsoft.azure.triggers.data_factory import ADFPipelineRunStatusSensorTrigger
 
 if TYPE_CHECKING:
-    from airflow.utils.context import Context
+    from airflow.sdk import Context
 
 
 class AzureDataFactoryPipelineRunStatusSensor(BaseSensorOperator):

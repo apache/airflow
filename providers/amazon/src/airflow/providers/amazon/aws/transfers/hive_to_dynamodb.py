@@ -28,7 +28,7 @@ from airflow.providers.apache.hive.hooks.hive import HiveServer2Hook
 from airflow.providers.common.compat.sdk import BaseOperator
 
 if TYPE_CHECKING:
-    from airflow.utils.context import Context
+    from airflow.sdk import Context
 
 
 class HiveToDynamoDBOperator(BaseOperator):
