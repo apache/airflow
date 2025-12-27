@@ -73,6 +73,7 @@ from airflow.sdk.execution_time.comms import (
     CreateHITLDetailPayload,
     DagRunResult,
     DagRunStateResult,
+    DagStateResult,
     DeferTask,
     DeleteVariable,
     DeleteXCom,
@@ -85,6 +86,7 @@ from airflow.sdk.execution_time.comms import (
     GetConnection,
     GetDagRun,
     GetDagRunState,
+    GetDagState,
     GetDRCount,
     GetHITLDetailResponse,
     GetPreviousDagRun,
@@ -1420,7 +1422,8 @@ REQUEST_TEST_CASES = [
         client_mock=ClientMock(
             method_path="connections.get",
             args=("test_conn",),
-            response=ConnectionResult(conn_id="test_conn", conn_type="mysql", schema="mysql"),  # type: ignore[call-arg]
+            response=ConnectionResult(conn_id="test_conn", conn_type="mysql", schema="mysql"),
+            # type: ignore[call-arg]
         ),
         expected_body={
             "conn_id": "test_conn",
@@ -2451,6 +2454,18 @@ REQUEST_TEST_CASES = [
             "type": "TaskBreadcrumbsResult",
         },
         test_id="get_task_breadcrumbs",
+    ),
+    RequestTestCase(
+        message=GetDagState(dag_id="test_dag"),
+        expected_body={"is_paused": False, "type": "DagStateResult"},
+        client_mock=ClientMock(
+            method_path="dags.get_state",
+            kwargs={
+                "dag_id": "test_dag",
+            },
+            response=DagStateResult(is_paused=False),
+        ),
+        test_id="get_dag_state",
     ),
 ]
 
