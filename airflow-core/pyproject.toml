@@ -85,7 +85,12 @@ dependencies = [
     "cryptography>=41.0.0,<46.0.0",
     "deprecated>=1.2.13",
     "dill>=0.2.2",
-    "fastapi[standard-no-fastapi-cloud-cli]>=0.127.0,!=0.128.0",
+    # Cadwyn is not compatible with FastAPI 0.128.0 due to dropping of Pydantic v1 and Cadwyn using some
+    # internal methods dropped in FastAPI 0.128.0. Tracked in https://github.com/zmievsa/cadwyn/issues/316
+    # We will also have tp fix `task-sdk/dev/generate_task_sdk_models.py` script as we are mocking removed
+    # _get_long_model_name method there once Cadwyn releases a new version - we should find a better way
+    # to override long model name (if it is still needed) without relying on private methods.
+    "fastapi[standard-no-fastapi-cloud-cli]>=0.127.0,<0.128.0",
     "uvicorn>=0.37.0",
     "starlette>=0.45.0",
     "httpx>=0.25.0",
