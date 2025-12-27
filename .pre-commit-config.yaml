@@ -472,7 +472,10 @@ repos:
             ^providers/edge3/.*\.py$|
             ^providers/mysql/.*\.py$|
             ^providers/openlineage/.*\.py$|
-            ^task_sdk.*\.py$
+            ^task_sdk.*\.py$|
+            ^devel-common/src/tests_common/pytest_plugin\.py$|
+            ^devel-common/src/tests_common/test_utils/.*\.py$
+
         pass_filenames: true
       - id: update-supported-versions
         name: Updates supported versions in documentation
