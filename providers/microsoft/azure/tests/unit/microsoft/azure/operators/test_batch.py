@@ -22,10 +22,12 @@ from unittest import mock
 
 import pytest
 
+from airflow.exceptions import TaskDeferred
 from airflow.models import Connection
 from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.microsoft.azure.hooks.batch import AzureBatchHook
 from airflow.providers.microsoft.azure.operators.batch import AzureBatchOperator
+from airflow.providers.microsoft.azure.triggers.batch import AzureBatchJobTrigger
 
 TASK_ID = "MyDag"
 BATCH_POOL_ID = "MyPool"
@@ -247,3 +249,393 @@ class TestAzureBatchOperator:
         self.operator.clean_up("mypool", "myjob")
         self.batch_client.job.delete.assert_called_with("myjob")
         self.batch_client.pool.delete.assert_called_with("mypool")
+
+    def test_execute_deferrable_defers_with_expected_trigger(self):
+        operator = AzureBatchOperator(
+            task_id=TASK_ID,
+            batch_pool_id=BATCH_POOL_ID,
+            batch_pool_vm_size=BATCH_VM_SIZE,
+            batch_job_id=BATCH_JOB_ID,
+            batch_task_id=BATCH_TASK_ID,
+            vm_publisher=self.test_vm_publisher,
+            vm_offer=self.test_vm_offer,
+            vm_sku=self.test_vm_sku,
+            vm_node_agent_sku_id=self.test_node_agent_sku,
+            sku_starts_with=self.test_vm_sku,
+            batch_task_command_line="echo hello",
+            azure_batch_conn_id=self.test_vm_conn_id,
+            target_dedicated_nodes=1,
+            timeout=7,
+            deferrable=True,
+        )
+
+        hook_mock = mock.MagicMock(spec=AzureBatchHook)
+        hook_mock.connection = mock.MagicMock()
+        hook_mock.connection.config = mock.MagicMock()
+        hook_mock.connection.pool.get.return_value = mock.Mock(resize_errors=None)
+        hook_mock.connection.compute_node.list.return_value = []
+        hook_mock.configure_pool.return_value = mock.sentinel.pool
+        hook_mock.configure_job.return_value = mock.sentinel.job
+        hook_mock.configure_task.return_value = mock.sentinel.task
+        operator.hook = hook_mock
+
+        with pytest.raises(TaskDeferred) as deferred:
+            operator.execute(context={})
+
+        assert deferred.value.method_name == "execute_complete"
+        assert isinstance(deferred.value.trigger, AzureBatchJobTrigger)
+
+        class_path, trigger_kwargs = deferred.value.trigger.serialize()
+        assert class_path == "airflow.providers.microsoft.azure.triggers.batch.AzureBatchJobTrigger"
+        assert trigger_kwargs == {
+            "job_id": BATCH_JOB_ID,
+            "azure_batch_conn_id": self.test_vm_conn_id,
+            "timeout": 7,
+            "poll_interval": 15,
+        }
+
+    def test_execute_complete_success(self):
+        """Test execute_complete with success event returns batch_job_id."""
+        operator = AzureBatchOperator(
+            task_id=TASK_ID,
+            batch_pool_id=BATCH_POOL_ID,
+            batch_pool_vm_size=BATCH_VM_SIZE,
+            batch_job_id=BATCH_JOB_ID,
+            batch_task_id=BATCH_TASK_ID,
+            vm_node_agent_sku_id=self.test_node_agent_sku,
+            os_family="4",
+            batch_task_command_line="echo hello",
+            azure_batch_conn_id=self.test_vm_conn_id,
+            target_dedicated_nodes=1,
+            deferrable=True,
+        )
+
+        event = {"status": "success", "fail_task_ids": []}
+        result = operator.execute_complete(context={}, event=event)
+
+        assert result == BATCH_JOB_ID
+
+    def test_execute_complete_failure(self):
+        """Test execute_complete with failure event raises AirflowException."""
+        operator = AzureBatchOperator(
+            task_id=TASK_ID,
+            batch_pool_id=BATCH_POOL_ID,
+            batch_pool_vm_size=BATCH_VM_SIZE,
+            batch_job_id=BATCH_JOB_ID,
+            batch_task_id=BATCH_TASK_ID,
+            vm_node_agent_sku_id=self.test_node_agent_sku,
+            os_family="4",
+            batch_task_command_line="echo hello",
+            azure_batch_conn_id=self.test_vm_conn_id,
+            target_dedicated_nodes=1,
+            deferrable=True,
+        )
+
+        event = {"status": "failure", "fail_task_ids": ["task1", "task2"]}
+
+        with pytest.raises(AirflowException) as ctx:
+            operator.execute_complete(context={}, event=event)
+
+        assert "Job failed. Failed tasks: ['task1', 'task2']" in str(ctx.value)
+
+    def test_execute_complete_timeout(self):
+        """Test execute_complete with timeout event raises AirflowException."""
+        operator = AzureBatchOperator(
+            task_id=TASK_ID,
+            batch_pool_id=BATCH_POOL_ID,
+            batch_pool_vm_size=BATCH_VM_SIZE,
+            batch_job_id=BATCH_JOB_ID,
+            batch_task_id=BATCH_TASK_ID,
+            vm_node_agent_sku_id=self.test_node_agent_sku,
+            os_family="4",
+            batch_task_command_line="echo hello",
+            azure_batch_conn_id=self.test_vm_conn_id,
+            target_dedicated_nodes=1,
+            deferrable=True,
+        )
+
+        event = {"status": "timeout", "message": "Timed out waiting for tasks"}
+
+        with pytest.raises(AirflowException) as ctx:
+            operator.execute_complete(context={}, event=event)
+
+        assert "Timed out waiting for tasks" in str(ctx.value)
+
+    def test_execute_complete_error(self):
+        """Test execute_complete with error event raises AirflowException."""
+        operator = AzureBatchOperator(
+            task_id=TASK_ID,
+            batch_pool_id=BATCH_POOL_ID,
+            batch_pool_vm_size=BATCH_VM_SIZE,
+            batch_job_id=BATCH_JOB_ID,
+            batch_task_id=BATCH_TASK_ID,
+            vm_node_agent_sku_id=self.test_node_agent_sku,
+            os_family="4",
+            batch_task_command_line="echo hello",
+            azure_batch_conn_id=self.test_vm_conn_id,
+            target_dedicated_nodes=1,
+            deferrable=True,
+        )
+
+        event = {"status": "error", "message": "Azure API error"}
+
+        with pytest.raises(AirflowException) as ctx:
+            operator.execute_complete(context={}, event=event)
+
+        assert "Azure API error" in str(ctx.value)
+
+    def test_execute_complete_none_event(self):
+        """Test execute_complete with None event raises AirflowException."""
+        operator = AzureBatchOperator(
+            task_id=TASK_ID,
+            batch_pool_id=BATCH_POOL_ID,
+            batch_pool_vm_size=BATCH_VM_SIZE,
+            batch_job_id=BATCH_JOB_ID,
+            batch_task_id=BATCH_TASK_ID,
+            vm_node_agent_sku_id=self.test_node_agent_sku,
+            os_family="4",
+            batch_task_command_line="echo hello",
+            azure_batch_conn_id=self.test_vm_conn_id,
+            target_dedicated_nodes=1,
+            deferrable=True,
+        )
+
+        with pytest.raises(AirflowException) as ctx:
+            operator.execute_complete(context={}, event=None)
+
+        assert "No event received in trigger callback" in str(ctx.value)
+
+    @mock.patch.object(AzureBatchHook, "wait_for_all_node_state")
+    def test_cleanup_runs_once_on_success(self, wait_mock):
+        """Test cleanup runs exactly once after successful execution."""
+        wait_mock.return_value = True
+        operator = AzureBatchOperator(
+            task_id=TASK_ID,
+            batch_pool_id=BATCH_POOL_ID,
+            batch_pool_vm_size=BATCH_VM_SIZE,
+            batch_job_id=BATCH_JOB_ID,
+            batch_task_id=BATCH_TASK_ID,
+            vm_node_agent_sku_id=self.test_node_agent_sku,
+            os_family="4",
+            batch_task_command_line="echo hello",
+            azure_batch_conn_id=self.test_vm_conn_id,
+            target_dedicated_nodes=1,
+            should_delete_job=True,
+            should_delete_pool=True,
+        )
+
+        operator.execute(None)
+
+        # Simulate post_execute hook call
+        operator.post_execute(context={}, result=None)
+
+        # Verify cleanup was called
+        assert self.batch_client.job.delete.call_count == 1
+        assert self.batch_client.pool.delete.call_count == 1
+
+        # Call post_execute again to ensure cleanup doesn't run twice
+        operator.post_execute(context={}, result=None)
+        assert self.batch_client.job.delete.call_count == 1
+        assert self.batch_client.pool.delete.call_count == 1
+
+    @mock.patch.object(AzureBatchHook, "wait_for_all_node_state")
+    @mock.patch.object(AzureBatchHook, "wait_for_job_tasks_to_complete")
+    def test_cleanup_runs_once_on_task_failure(self, wait_tasks_mock, wait_node_mock):
+        """Test cleanup runs exactly once after task failure."""
+        wait_node_mock.return_value = True
+        wait_tasks_mock.return_value = ["failed-task"]
+
+        operator = AzureBatchOperator(
+            task_id=TASK_ID,
+            batch_pool_id=BATCH_POOL_ID,
+            batch_pool_vm_size=BATCH_VM_SIZE,
+            batch_job_id=BATCH_JOB_ID,
+            batch_task_id=BATCH_TASK_ID,
+            vm_node_agent_sku_id=self.test_node_agent_sku,
+            os_family="4",
+            batch_task_command_line="echo hello",
+            azure_batch_conn_id=self.test_vm_conn_id,
+            target_dedicated_nodes=1,
+            should_delete_job=True,
+            should_delete_pool=True,
+        )
+
+        with pytest.raises(AirflowException):
+            operator.execute(None)
+
+        # Cleanup should happen in post_execute
+        operator.post_execute(context={}, result=None)
+
+        assert self.batch_client.job.delete.call_count == 1
+        assert self.batch_client.pool.delete.call_count == 1
+
+        # Ensure no double cleanup
+        operator.post_execute(context={}, result=None)
+        assert self.batch_client.job.delete.call_count == 1
+        assert self.batch_client.pool.delete.call_count == 1
+
+    @mock.patch.object(AzureBatchHook, "create_pool")
+    def test_cleanup_on_pool_creation_failure(self, create_pool_mock):
+        """Test cleanup runs when pool creation fails."""
+        create_pool_mock.side_effect = Exception("Pool creation failed")
+
+        operator = AzureBatchOperator(
+            task_id=TASK_ID,
+            batch_pool_id=BATCH_POOL_ID,
+            batch_pool_vm_size=BATCH_VM_SIZE,
+            batch_job_id=BATCH_JOB_ID,
+            batch_task_id=BATCH_TASK_ID,
+            vm_node_agent_sku_id=self.test_node_agent_sku,
+            os_family="4",
+            batch_task_command_line="echo hello",
+            azure_batch_conn_id=self.test_vm_conn_id,
+            target_dedicated_nodes=1,
+            should_delete_job=True,
+            should_delete_pool=True,
+        )
+
+        with pytest.raises(Exception, match="Pool creation failed"):
+            operator.execute(None)
+
+        # Cleanup should still run in post_execute
+        operator.post_execute(context={}, result=None)
+
+        # Pool deletion should be attempted (even though creation failed)
+        assert self.batch_client.pool.delete.call_count == 1
+
+    @mock.patch.object(AzureBatchHook, "wait_for_all_node_state")
+    @mock.patch.object(AzureBatchHook, "create_job")
+    def test_cleanup_on_job_creation_failure(self, create_job_mock, wait_mock):
+        """Test cleanup runs when job creation fails."""
+        wait_mock.return_value = True
+        create_job_mock.side_effect = Exception("Job creation failed")
+
+        operator = AzureBatchOperator(
+            task_id=TASK_ID,
+            batch_pool_id=BATCH_POOL_ID,
+            batch_pool_vm_size=BATCH_VM_SIZE,
+            batch_job_id=BATCH_JOB_ID,
+            batch_task_id=BATCH_TASK_ID,
+            vm_node_agent_sku_id=self.test_node_agent_sku,
+            os_family="4",
+            batch_task_command_line="echo hello",
+            azure_batch_conn_id=self.test_vm_conn_id,
+            target_dedicated_nodes=1,
+            should_delete_job=True,
+            should_delete_pool=True,
+        )
+
+        with pytest.raises(Exception, match="Job creation failed"):
+            operator.execute(None)
+
+        # Cleanup should run in post_execute
+        operator.post_execute(context={}, result=None)
+
+        assert self.batch_client.job.delete.call_count == 1
+        assert self.batch_client.pool.delete.call_count == 1
+
+    @mock.patch.object(AzureBatchHook, "wait_for_all_node_state")
+    @mock.patch.object(AzureBatchHook, "add_single_task_to_job")
+    def test_cleanup_on_task_addition_failure(self, add_task_mock, wait_mock):
+        """Test cleanup runs when task addition fails."""
+        wait_mock.return_value = True
+        add_task_mock.side_effect = Exception("Task addition failed")
+
+        operator = AzureBatchOperator(
+            task_id=TASK_ID,
+            batch_pool_id=BATCH_POOL_ID,
+            batch_pool_vm_size=BATCH_VM_SIZE,
+            batch_job_id=BATCH_JOB_ID,
+            batch_task_id=BATCH_TASK_ID,
+            vm_node_agent_sku_id=self.test_node_agent_sku,
+            os_family="4",
+            batch_task_command_line="echo hello",
+            azure_batch_conn_id=self.test_vm_conn_id,
+            target_dedicated_nodes=1,
+            should_delete_job=True,
+            should_delete_pool=True,
+        )
+
+        with pytest.raises(Exception, match="Task addition failed"):
+            operator.execute(None)
+
+        # Cleanup should run in post_execute
+        operator.post_execute(context={}, result=None)
+
+        assert self.batch_client.job.delete.call_count == 1
+        assert self.batch_client.pool.delete.call_count == 1
+
+    def test_execute_deferrable_with_cleanup(self):
+        """Test deferrable mode triggers cleanup after execute_complete."""
+        operator = AzureBatchOperator(
+            task_id=TASK_ID,
+            batch_pool_id=BATCH_POOL_ID,
+            batch_pool_vm_size=BATCH_VM_SIZE,
+            batch_job_id=BATCH_JOB_ID,
+            batch_task_id=BATCH_TASK_ID,
+            vm_publisher=self.test_vm_publisher,
+            vm_offer=self.test_vm_offer,
+            vm_sku=self.test_vm_sku,
+            vm_node_agent_sku_id=self.test_node_agent_sku,
+            sku_starts_with=self.test_vm_sku,
+            batch_task_command_line="echo hello",
+            azure_batch_conn_id=self.test_vm_conn_id,
+            target_dedicated_nodes=1,
+            should_delete_job=True,
+            should_delete_pool=True,
+            deferrable=True,
+        )
+
+        # execute_complete should NOT run cleanup
+        event = {"status": "success", "fail_task_ids": []}
+        result = operator.execute_complete(context={}, event=event)
+        assert result == BATCH_JOB_ID
+
+        # Verify cleanup hasn't been triggered yet
+        assert self.batch_client.job.delete.call_count == 0
+        assert self.batch_client.pool.delete.call_count == 0
+
+        # Cleanup should happen in post_execute
+        operator.post_execute(context={}, result=result)
+
+        assert self.batch_client.job.delete.call_count == 1
+        assert self.batch_client.pool.delete.call_count == 1
+
+    def test_poll_interval_passed_to_trigger(self):
+        """Test poll_interval parameter is passed to trigger."""
+        operator = AzureBatchOperator(
+            task_id=TASK_ID,
+            batch_pool_id=BATCH_POOL_ID,
+            batch_pool_vm_size=BATCH_VM_SIZE,
+            batch_job_id=BATCH_JOB_ID,
+            batch_task_id=BATCH_TASK_ID,
+            vm_publisher=self.test_vm_publisher,
+            vm_offer=self.test_vm_offer,
+            vm_sku=self.test_vm_sku,
+            vm_node_agent_sku_id=self.test_node_agent_sku,
+            sku_starts_with=self.test_vm_sku,
+            batch_task_command_line="echo hello",
+            azure_batch_conn_id=self.test_vm_conn_id,
+            target_dedicated_nodes=1,
+            timeout=10,
+            poll_interval=30,
+            deferrable=True,
+        )
+
+        hook_mock = mock.MagicMock(spec=AzureBatchHook)
+        hook_mock.connection = mock.MagicMock()
+        hook_mock.connection.config = mock.MagicMock()
+        hook_mock.connection.pool.get.return_value = mock.Mock(resize_errors=None)
+        hook_mock.connection.compute_node.list.return_value = []
+        hook_mock.configure_pool.return_value = mock.sentinel.pool
+        hook_mock.configure_job.return_value = mock.sentinel.job
+        hook_mock.configure_task.return_value = mock.sentinel.task
+        operator.hook = hook_mock
+
+        with pytest.raises(TaskDeferred) as deferred:
+            operator.execute(context={})
+
+        trigger = deferred.value.trigger
+        class_path, trigger_kwargs = trigger.serialize()
+
+        assert trigger_kwargs["poll_interval"] == 30
