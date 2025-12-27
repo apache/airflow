@@ -30,7 +30,7 @@ from contextlib import contextmanager
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
-from sqlalchemy import and_, column, func, inspect, select, table, text
+from sqlalchemy import and_, column, func, inspect, not_, select, table, text
 from sqlalchemy.exc import OperationalError, ProgrammingError
 from sqlalchemy.ext.compiler import compiles
 from sqlalchemy.orm import aliased
@@ -333,6 +333,32 @@ def _build_query(
             ),
         )
         conditions.append(column(max_date_col_name).is_(None))
+    
+    # Special handling for dag_version table to respect foreign key constraints
+    # Only delete dag_version rows that are not referenced by task_instance or dag_run
+    if orm_model.name == "dag_version":
+        # Exclude dag_version rows that are still referenced by task_instance
+        task_instance_table = table("task_instance", column("dag_version_id"))
+        conditions.append(
+            not_(
+                select(1)
+                .select_from(task_instance_table)
+                .where(task_instance_table.c.dag_version_id == base_table.c.id)
+                .exists()
+            )
+        )
+        
+        # Exclude dag_version rows that are still referenced by dag_run
+        dag_run_table = table("dag_run", column("dag_version_id"))
+        conditions.append(
+            not_(
+                select(1)
+                .select_from(dag_run_table)
+                .where(dag_run_table.c.dag_version_id == base_table.c.id)
+                .exists()
+            )
+        )
+    
     query = query.filter(and_(*conditions))
     return query
 
