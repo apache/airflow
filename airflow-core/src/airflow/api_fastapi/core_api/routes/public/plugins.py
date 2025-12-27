@@ -80,8 +80,9 @@ def import_errors() -> PluginImportErrorCollectionResponse:
     return PluginImportErrorCollectionResponse.model_validate(
         {
             "import_errors": [
-                {"source": source, "error": error} for source, error in plugins_manager.import_errors.items()
+                {"source": source, "error": error}
+                for source, error in plugins_manager.get_import_errors().items()
             ],
-            "total_entries": len(plugins_manager.import_errors),
+            "total_entries": len(plugins_manager.get_import_errors()),
         }
     )

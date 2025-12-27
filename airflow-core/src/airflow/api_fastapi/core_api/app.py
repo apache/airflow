@@ -113,14 +113,10 @@ def init_flask_plugins(app: FastAPI) -> None:
     """Integrate Flask plugins (plugins from Airflow 2)."""
     from airflow import plugins_manager
 
-    plugins_manager.initialize_flask_plugins()
+    blueprints, appbuilder_views, appbuilder_menu_links = plugins_manager.get_flask_plugins()
 
     # If no Airflow 2.x plugin is in the environment, no need to go further
-    if (
-        not plugins_manager.flask_blueprints
-        and not plugins_manager.flask_appbuilder_views
-        and not plugins_manager.flask_appbuilder_menu_links
-    ):
+    if not blueprints and not appbuilder_views and not appbuilder_menu_links:
         return
 
     from fastapi.middleware.wsgi import WSGIMiddleware

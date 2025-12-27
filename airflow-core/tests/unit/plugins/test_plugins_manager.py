@@ -75,8 +75,8 @@ class TestPluginsManager:
     def clean_plugins(self):
         from airflow import plugins_manager
 
-        plugins_manager.loaded_plugins = set()
-        plugins_manager.plugins = []
+        plugins_manager._PluginsManagerState.loaded_plugins = set()
+        plugins_manager._PluginsManagerState.plugins = []
 
     def test_no_log_when_no_plugins(self, caplog):
         with mock_plugin_manager(plugins=[]):
@@ -89,11 +89,11 @@ class TestPluginsManager:
     def test_loads_filesystem_plugins(self, caplog):
         from airflow import plugins_manager
 
-        with mock.patch("airflow.plugins_manager.plugins", []):
+        with mock.patch("airflow.plugins_manager._PluginsManagerState.plugins", []):
             plugins_manager.load_plugins_from_plugin_directory()
 
-            assert len(plugins_manager.plugins) == 10
-            for plugin in plugins_manager.plugins:
+            assert len(plugins_manager._PluginsManagerState.plugins) == 10
+            for plugin in plugins_manager._PluginsManagerState.plugins:
                 if "AirflowTestOnLoadPlugin" in str(plugin):
                     assert plugin.name == "postload"
                     break
@@ -105,13 +105,13 @@ class TestPluginsManager:
     def test_loads_filesystem_plugins_exception(self, caplog, tmp_path):
         from airflow import plugins_manager
 
-        with mock.patch("airflow.plugins_manager.plugins", []):
+        with mock.patch("airflow.plugins_manager._PluginsManagerState.plugins", []):
             (tmp_path / "testplugin.py").write_text(ON_LOAD_EXCEPTION_PLUGIN)
 
             with conf_vars({("core", "plugins_folder"): os.fspath(tmp_path)}):
                 plugins_manager.load_plugins_from_plugin_directory()
 
-            assert len(plugins_manager.plugins) == 3  # three are loaded from examples
+            assert len(plugins_manager._PluginsManagerState.plugins) == 3  # three are loaded from examples
 
             received_logs = caplog.text
             assert "Failed to import plugin" in received_logs
@@ -134,7 +134,7 @@ class TestPluginsManager:
         ):
             from airflow import plugins_manager
 
-            plugins_manager.initialize_flask_plugins()
+            plugins_manager.get_flask_plugins()
 
         assert caplog.record_tuples == [
             (
@@ -172,11 +172,15 @@ class TestPluginsManager:
             plugins_manager.initialize_ui_plugins()
 
             # Verify that the conflicting external view and react app are not loaded
-            plugin_b = next(plugin for plugin in plugins_manager.plugins if plugin.name == "test_plugin_b")
+            plugin_b = next(
+                plugin
+                for plugin in plugins_manager._PluginsManagerState.plugins
+                if plugin.name == "test_plugin_b"
+            )
             assert plugin_b.external_views == []
             assert plugin_b.react_apps == []
-            assert len(plugins_manager.external_views) == 1
-            assert len(plugins_manager.react_apps) == 0
+            assert len(plugins_manager._PluginsManagerState.external_views) == 1
+            assert len(plugins_manager._PluginsManagerState.react_apps) == 0
 
     def test_should_warning_about_external_views_or_react_app_wrong_object(self, caplog):
         class TestPluginA(AirflowPlugin):
@@ -194,11 +198,15 @@ class TestPluginsManager:
             plugins_manager.initialize_ui_plugins()
 
             # Verify that the conflicting external view and react app are not loaded
-            plugin_a = next(plugin for plugin in plugins_manager.plugins if plugin.name == "test_plugin_a")
+            plugin_a = next(
+                plugin
+                for plugin in plugins_manager._PluginsManagerState.plugins
+                if plugin.name == "test_plugin_a"
+            )
             assert plugin_a.external_views == [{"url_route": "/test_route"}]
             assert plugin_a.react_apps == [{"url_route": "/test_route_react_app"}]
-            assert len(plugins_manager.external_views) == 1
-            assert len(plugins_manager.react_apps) == 1
+            assert len(plugins_manager._PluginsManagerState.external_views) == 1
+            assert len(plugins_manager._PluginsManagerState.react_apps) == 1
 
         assert caplog.record_tuples == [
             (
@@ -232,7 +240,7 @@ class TestPluginsManager:
         ):
             from airflow import plugins_manager
 
-            plugins_manager.initialize_flask_plugins()
+            plugins_manager.get_flask_plugins()
 
         assert caplog.record_tuples == []
 
@@ -255,7 +263,7 @@ class TestPluginsManager:
         ):
             from airflow import plugins_manager
 
-            plugins_manager.initialize_flask_plugins()
+            plugins_manager.get_flask_plugins()
 
         assert caplog.record_tuples == []
 
@@ -263,7 +271,7 @@ class TestPluginsManager:
         """
         Test that Airflow does not raise an error if there is any Exception because of a plugin.
         """
-        from airflow.plugins_manager import import_errors, load_entrypoint_plugins
+        from airflow.plugins_manager import _PluginsManagerState, load_entrypoint_plugins
 
         mock_dist = mock.Mock()
         mock_dist.metadata = {"Name": "test-dist"}
@@ -286,7 +294,10 @@ class TestPluginsManager:
             assert "Traceback (most recent call last):" in received_logs
             assert "my_fake_module not found" in received_logs
             assert "Failed to import plugin test-entrypoint" in received_logs
-            assert ("test.plugins.test_plugins_manager", "my_fake_module not found") in import_errors.items()
+            assert (
+                "test.plugins.test_plugins_manager",
+                "my_fake_module not found",
+            ) in _PluginsManagerState.import_errors.items()
 
     def test_registering_plugin_macros(self, request):
         """
@@ -326,14 +337,14 @@ class TestPluginsManager:
             # Verify that the symbol table in airflow.sdk.execution_time.macros has been updated with an entry for
             # this plugin, this is necessary in order to allow the plugin's macros to be used when
             # rendering templates.
-            assert hasattr(macros, MacroPlugin.name)
+            assert hasattr(macros, MacroPlugin.name or "")
 
     @skip_if_force_lowest_dependencies_marker
     def test_registering_plugin_listeners(self):
         from airflow import plugins_manager
 
         assert not get_listener_manager().has_listeners
-        with mock.patch("airflow.plugins_manager.plugins", []):
+        with mock.patch("airflow.plugins_manager._PluginsManagerState.plugins", []):
             plugins_manager.load_plugins_from_plugin_directory()
             plugins_manager.integrate_listener_plugins(get_listener_manager())
 
@@ -351,10 +362,10 @@ class TestPluginsManager:
     def test_should_import_plugin_from_providers(self):
         from airflow import plugins_manager
 
-        with mock.patch("airflow.plugins_manager.plugins", []):
-            assert len(plugins_manager.plugins) == 0
+        with mock.patch("airflow.plugins_manager._PluginsManagerState.plugins", []):
+            assert len(plugins_manager._PluginsManagerState.plugins) == 0
             plugins_manager.load_providers_plugins()
-            assert len(plugins_manager.plugins) >= 2
+            assert len(plugins_manager._PluginsManagerState.plugins) >= 2
 
     @skip_if_force_lowest_dependencies_marker
     def test_does_not_double_import_entrypoint_provider_plugins(self):
@@ -369,11 +380,11 @@ class TestPluginsManager:
         mock_dist.version = "1.0.0"
         mock_dist.entry_points = [mock_entrypoint]
 
-        with mock.patch("airflow.plugins_manager.plugins", []):
-            assert len(plugins_manager.plugins) == 0
+        with mock.patch("airflow.plugins_manager._PluginsManagerState.plugins", []):
+            assert len(plugins_manager._PluginsManagerState.plugins) == 0
             plugins_manager.load_entrypoint_plugins()
             plugins_manager.load_providers_plugins()
-            assert len(plugins_manager.plugins) == 4
+            assert len(plugins_manager._PluginsManagerState.plugins) == 4
 
 
 class TestPluginsDirectorySource:

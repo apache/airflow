@@ -131,11 +131,7 @@ def _get_registered_priority_weight_strategy(
 
     if importable_string in airflow_priority_weight_strategies:
         return airflow_priority_weight_strategies[importable_string]
-    plugins_manager.initialize_priority_weight_strategy_plugins()
-    if plugins_manager.priority_weight_strategy_classes:
-        return plugins_manager.priority_weight_strategy_classes.get(importable_string)
-    else:
-        return None
+    return plugins_manager.get_priority_weight_strategy_plugins().get(importable_string)
 
 
 class _PartitionMapperNotFound(ValueError):
@@ -1159,12 +1155,7 @@ class OperatorSerialization(DAGNode, BaseSerialization):
         if cls._load_operator_extra_links:
             from airflow import plugins_manager
 
-            plugins_manager.initialize_extra_operators_links_plugins()
-
-            if plugins_manager.operator_extra_links is None:
-                raise AirflowException("Can not load plugins")
-
-            for ope in plugins_manager.operator_extra_links:
+            for ope in plugins_manager.get_operator_extra_links():
                 for operator in ope.operators:
                     if (
                         operator.__name__ == encoded_op["task_type"]
@@ -1545,10 +1536,7 @@ class OperatorSerialization(DAGNode, BaseSerialization):
         """
         from airflow import plugins_manager
 
-        plugins_manager.initialize_extra_operators_links_plugins()
-
-        if plugins_manager.registered_operator_link_classes is None:
-            raise AirflowException("Can't load plugins")
+        plugins_manager.get_operator_extra_links()
         op_predefined_extra_links = {}
 
         for name, xcom_key in encoded_op_links.items():
