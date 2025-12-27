@@ -37,7 +37,7 @@ from google.cloud.dataproc_v1 import Batch, Cluster, ClusterStatus, JobStatus
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowProviderDeprecationWarning
-from airflow.providers.common.compat.sdk import AirflowException
+from airflow.providers.common.compat.sdk import AirflowException, AirflowSkipException
 from airflow.providers.google.cloud.hooks.dataproc import (
     DataprocHook,
     DataProcJobBuilder,
@@ -996,22 +996,16 @@ class DataprocDeleteClusterOperator(GoogleCloudBaseOperator):
 
     def execute(self, context: Context) -> None:
         hook = DataprocHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain)
-        operation = self._delete_cluster(hook)
-        if not self.deferrable:
-            hook.wait_for_operation(timeout=self.timeout, result_retry=self.retry, operation=operation)
-            self.log.info("Cluster deleted.")
-        else:
-            try:
-                hook.get_cluster(
-                    project_id=self.project_id, region=self.region, cluster_name=self.cluster_name
-                )
-            except NotFound:
+        try:
+            operation = self._delete_cluster(hook)
+            if not isinstance(operation, "google.api_core.operation.Operation"):
                 self.log.info("Cluster deleted.")
-                return
-            except Exception as e:
-                raise AirflowException(str(e))
-
-            end_time: float = time.time() + self.timeout
+                raise AirflowSkipException("Skipping Delete Cluster Action as cluster is already DELETED")
+            
+            if not self.deferrable:
+                hook.wait_for_operation(timeout=self.timeout, result_retry=self.retry, operation=operation)
+                self.log.info("Cluster deleted.")
+                end_time: float = time.time() + self.timeout
             self.defer(
                 trigger=DataprocDeleteClusterTrigger(
                     gcp_conn_id=self.gcp_conn_id,
@@ -1025,6 +1019,9 @@ class DataprocDeleteClusterOperator(GoogleCloudBaseOperator):
                 ),
                 method_name="execute_complete",
             )
+            
+        except Exception as e:
+            raise AirflowException(str(e))
 
     def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> Any:
         """
