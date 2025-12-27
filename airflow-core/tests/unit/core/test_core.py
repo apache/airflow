@@ -22,8 +22,8 @@ from datetime import timedelta
 import pytest
 
 from airflow._shared.timezones.timezone import datetime
-from airflow.models.baseoperator import BaseOperator
 from airflow.providers.standard.operators.empty import EmptyOperator
+from airflow.sdk import BaseOperator
 from airflow.utils.types import DagRunType
 
 from tests_common.test_utils.db import clear_db_dags, clear_db_runs
