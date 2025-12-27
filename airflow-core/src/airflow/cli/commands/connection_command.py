@@ -41,9 +41,18 @@ from airflow.utils.cli import suppress_logs_and_warning
 from airflow.utils.db import create_default_connections as db_create_default_connections
 from airflow.utils.providers_configuration_loader import providers_configuration_loaded
 from airflow.utils.session import create_session
+from airflow._shared.secrets_masker.secrets_masker import redact
 
 
-def _connection_mapper(conn: Connection) -> dict[str, Any]:
+def _connection_mapper(conn: Connection, show_values: bool = False) -> dict[str, Any]:
+    password = conn.password
+    extra_dejson = conn.extra_dejson
+    if not show_values:
+        if password:
+            password = "***"
+        if extra_dejson:
+            extra_dejson = redact(extra_dejson)
+
     return {
         "id": conn.id,
         "conn_id": conn.conn_id,
@@ -52,12 +61,12 @@ def _connection_mapper(conn: Connection) -> dict[str, Any]:
         "host": conn.host,
         "schema": conn.schema,
         "login": conn.login,
-        "password": conn.password,
+        "password": password,
         "port": conn.port,
         "is_encrypted": conn.is_encrypted,
         "is_extra_encrypted": conn.is_encrypted,
-        "extra_dejson": conn.extra_dejson,
-        "get_uri": conn.get_uri(),
+        "extra_dejson": extra_dejson,
+        "get_uri": conn.get_uri() if show_values else "***",
     }
 
 
@@ -74,7 +83,7 @@ def connections_get(args):
     AirflowConsole().print_as(
         data=[conn],
         output=args.output,
-        mapper=_connection_mapper,
+        mapper=lambda x: _connection_mapper(x, show_values=True),
     )
 
 
@@ -92,7 +101,7 @@ def connections_list(args):
         AirflowConsole().print_as(
             data=conns,
             output=args.output,
-            mapper=_connection_mapper,
+            mapper=lambda x: _connection_mapper(x, show_values=args.show_values),
         )
 
 

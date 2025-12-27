@@ -198,6 +198,11 @@ ARG_PID = Arg(("--pid",), help="PID file location", nargs="?")
 ARG_DAEMON = Arg(
     ("-D", "--daemon"), help="Daemonize instead of running in the foreground", action="store_true"
 )
+ARG_SHOW_VALUES = Arg(
+    ("--show-values",),
+    help="Show sensitive values (e.g. connection passwords, variable values) instead of masking them",
+    action="store_true",
+)
 ARG_STDERR = Arg(("--stderr",), help="Redirect stderr to this file")
 ARG_STDOUT = Arg(("--stdout",), help="Redirect stdout to this file")
 ARG_LOG_FILE = Arg(("-l", "--log-file"), help="Location of the log file")
@@ -1543,7 +1548,7 @@ CONNECTIONS_COMMANDS = (
         name="list",
         help="List connections",
         func=lazy_load_command("airflow.cli.commands.connection_command.connections_list"),
-        args=(ARG_OUTPUT, ARG_VERBOSE, ARG_CONN_ID_FILTER),
+        args=(ARG_OUTPUT, ARG_VERBOSE, ARG_CONN_ID_FILTER, ARG_SHOW_VALUES),
     ),
     ActionCommand(
         name="add",
