@@ -374,7 +374,7 @@ def initialize_ui_plugins():
     ensure_plugins_loaded()
 
     if plugins is None:
-        raise AirflowPluginException("Can't load plugins.")
+        raise AirflowPluginException("No plugins to load.")
 
     log.debug("Initialize UI plugin")
 
@@ -461,7 +461,7 @@ def initialize_flask_plugins():
     ensure_plugins_loaded()
 
     if plugins is None:
-        raise AirflowPluginException("Can't load plugins.")
+        raise AirflowPluginException("No plugins to load.")
 
     log.debug("Initialize legacy Web UI plugin")
 
@@ -495,7 +495,7 @@ def initialize_fastapi_plugins():
     ensure_plugins_loaded()
 
     if plugins is None:
-        raise AirflowPluginException("Can't load plugins.")
+        raise AirflowPluginException("No plugins to load.")
 
     log.debug("Initialize FastAPI plugins")
 
@@ -523,7 +523,7 @@ def initialize_extra_operators_links_plugins():
     ensure_plugins_loaded()
 
     if plugins is None:
-        raise AirflowPluginException("Can't load plugins.")
+        raise AirflowPluginException("No plugins to load.")
 
     log.debug("Initialize extra operators links plugins")
 
@@ -550,7 +550,7 @@ def initialize_timetables_plugins():
     ensure_plugins_loaded()
 
     if plugins is None:
-        raise AirflowPluginException("Can't load plugins.")
+        raise AirflowPluginException("No plugins to load.")
 
     log.debug("Initialize extra timetables plugins")
 
@@ -571,7 +571,7 @@ def initialize_hook_lineage_readers_plugins():
     ensure_plugins_loaded()
 
     if plugins is None:
-        raise AirflowPluginException("Can't load plugins.")
+        raise AirflowPluginException("No plugins to load.")
 
     log.debug("Initialize hook lineage readers plugins")
 
@@ -592,7 +592,7 @@ def integrate_macros_plugins() -> None:
     ensure_plugins_loaded()
 
     if plugins is None:
-        raise AirflowPluginException("Can't load plugins.")
+        raise AirflowPluginException("No plugins to load.")
 
     log.debug("Integrate Macros plugins")
 
@@ -694,7 +694,7 @@ def initialize_priority_weight_strategy_plugins():
     ensure_plugins_loaded()
 
     if plugins is None:
-        raise AirflowPluginException("Can't load plugins.")
+        raise AirflowPluginException("No plugins to load.")
 
     log.debug("Initialize extra priority weight strategy plugins")
 

@@ -1548,7 +1548,7 @@ class OperatorSerialization(DAGNode, BaseSerialization):
         plugins_manager.initialize_extra_operators_links_plugins()
 
         if plugins_manager.registered_operator_link_classes is None:
-            raise AirflowException("Can't load plugins")
+            raise AirflowException("No plugins to load")
         op_predefined_extra_links = {}
 
         for name, xcom_key in encoded_op_links.items():
