@@ -27,6 +27,7 @@ from airflow.ti_deps.dep_context import DepContext
 from airflow.ti_deps.deps.not_previously_skipped_dep import NotPreviouslySkippedDep
 from airflow.utils.state import State
 from airflow.utils.types import DagRunType
+from sqlalchemy import delete, select
 
 pytestmark = pytest.mark.db_test
 
@@ -34,8 +35,8 @@ pytestmark = pytest.mark.db_test
 @pytest.fixture(autouse=True)
 def clean_db(session):
     yield
-    session.query(DagRun).delete()
-    session.query(TaskInstance).delete()
+    session.execute(delete(DagRun))
+    session.execute(delete(TaskInstance))
 
 
 def test_no_parent(session, dag_maker):

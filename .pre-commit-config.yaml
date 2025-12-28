@@ -482,7 +482,8 @@ repos:
           ^scripts/ci/prek/version_heads_map\.py$|
           ^airflow-core/src/airflow/migrations/versions/.*$|
           ^airflow-core/src/airflow/migrations/versions|
-          ^airflow-core/src/airflow/utils/db\.py$
+          ^airflow-core/src/airflow/utils/db\.py$|
+          ^airflow-core/tests/unit/ti_deps/deps/test_not_previously_skipped_dep.py
       - id: update-version
         name: Update versions in docs
         entry: ./scripts/ci/prek/update_versions.py
