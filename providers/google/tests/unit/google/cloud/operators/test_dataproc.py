@@ -1306,6 +1306,7 @@ class TestDataprocClusterDeleteOperator:
             metadata=METADATA,
         )
 
+
 class TestDataprocSubmitJobOperator(DataprocJobTestBase):
     @mock.patch(DATAPROC_PATH.format("DataprocHook"))
     def test_execute(self, mock_hook):
