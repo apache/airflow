@@ -135,13 +135,9 @@ test.describe("Dashboard Metrics Display", () => {
     // DAG Import Errors button only appears when there are actual import errors
     const isDagImportErrorsVisible = await homePage.isDagImportErrorsVisible();
 
-    if (isDagImportErrorsVisible) {
-      await expect(homePage.dagImportErrorsCard).toBeVisible();
-    }
+    // Skip test with clear message if no import errors exist in the test environment
+    test.skip(!isDagImportErrorsVisible, "No DAG import errors present in test environment");
 
-    // Stats section should always be visible regardless of import errors
-    const isStatsVisible = await homePage.isStatsSectionVisible();
-
-    expect(isStatsVisible).toBe(true);
+    await expect(homePage.dagImportErrorsCard).toBeVisible();
   });
 });

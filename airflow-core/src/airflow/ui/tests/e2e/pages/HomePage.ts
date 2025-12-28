@@ -53,27 +53,26 @@ export class HomePage extends BasePage {
   public constructor(page: Page) {
     super(page);
 
-    // Stats section - using the heading text
-    this.statsSection = page.locator('text="Stats"').locator("..").locator("..");
-
     // Stats cards - using link patterns that match the StatsCard component
     this.failedDagsCard = page.locator('a[href*="last_dag_run_state=failed"]');
     this.runningDagsCard = page.locator('a[href*="last_dag_run_state=running"]');
     this.activeDagsCard = page.locator('a[href*="paused=false"]');
     this.dagImportErrorsCard = page.locator('button:has-text("DAG Import Errors")');
 
-    // Health section - using text content matching
-    this.healthSection = page.locator('text="Health"').locator("..").locator("..");
+    // Stats section - using role-based selector
+    this.statsSection = page.getByRole("heading", { name: "Stats" }).locator("..");
+    // Health section - using role-based selector
+    this.healthSection = page.getByRole("heading", { name: "Health" }).locator("..");
     this.metaDatabaseHealth = page.getByText("Metadatabase").first();
     this.schedulerHealth = page.getByText("Scheduler").first();
     this.triggererHealth = page.getByText("Triggerer").first();
     this.dagProcessorHealth = page.getByText("DAG Processor").first();
 
-    // Pool Summary section
-    this.poolSummarySection = page.locator('text="Pool Summary"').locator("..").locator("..");
+    // Pool Summary section - using role-based selector
+    this.poolSummarySection = page.getByRole("heading", { name: "Pool Summary" }).locator("..");
 
-    // Historical Metrics section (recent runs)
-    this.historicalMetricsSection = page.getByText("History").first().locator("..").locator("..");
+    // Historical Metrics section (recent runs) - using role-based selector
+    this.historicalMetricsSection = page.getByRole("heading", { name: "History" }).locator("..");
     this.dagRunMetrics = page.getByRole("heading", { name: /dag run/i }).first();
     this.taskInstanceMetrics = page.getByRole("heading", { name: /task instance/i }).first();
   }
@@ -169,13 +168,14 @@ export class HomePage extends BasePage {
    */
   // eslint-disable-next-line @typescript-eslint/class-methods-use-this
   private async getStatsCardCount(card: Locator): Promise<number> {
-    try {
-      const badgeText = await card.locator("span").first().textContent();
-      const match = badgeText?.match(/\d+/);
+    await card.waitFor({ state: "visible" }); // Fail fast if card doesn't exist
+    const badgeText = await card.locator("span").first().textContent();
+    const match = badgeText?.match(/\d+/);
 
-      return match ? parseInt(match[0], 10) : 0;
-    } catch {
-      return 0;
+    if (!match) {
+      throw new Error("Could not find count in stats card");
     }
+
+    return parseInt(match[0], 10);
   }
 }
