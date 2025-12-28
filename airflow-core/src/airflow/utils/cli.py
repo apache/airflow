@@ -37,7 +37,6 @@ from airflow import settings
 from airflow._shared.timezones import timezone
 from airflow.dag_processing.bundles.manager import DagBundlesManager
 from airflow.exceptions import AirflowException
-from airflow.sdk.definitions._internal.dag_parsing_context import _airflow_parsing_context_manager
 from airflow.utils import cli_action_loggers
 from airflow.utils.log.non_caching_file_handler import NonCachingFileHandler
 from airflow.utils.platform import getuser, is_terminal_support_colors
@@ -46,7 +45,7 @@ T = TypeVar("T", bound=Callable)
 
 if TYPE_CHECKING:
     from airflow.sdk import DAG
-    from airflow.serialization.serialized_objects import SerializedDAG
+    from airflow.serialization.definitions.dag import SerializedDAG
 
 logger = logging.getLogger(__name__)
 
@@ -274,6 +273,7 @@ def get_bagged_dag(bundle_names: list | None, dag_id: str, dagfile_path: str | N
     dags folder.
     """
     from airflow.dag_processing.dagbag import DagBag, sync_bag_to_db
+    from airflow.sdk.definitions._internal.dag_parsing_context import _airflow_parsing_context_manager
 
     manager = DagBundlesManager()
     for bundle_name in bundle_names or ():

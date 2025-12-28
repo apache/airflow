@@ -915,8 +915,7 @@ class DAG:
         direct_upstreams: list[Operator] = []
         if include_direct_upstream:
             for t in itertools.chain(matched_tasks, also_include):
-                upstream = (u for u in t.upstream_list if is_task(u))
-                direct_upstreams.extend(upstream)
+                direct_upstreams.extend(u for u in t.upstream_list if is_task(u))
 
         # Make sure to not recursively deepcopy the dag or task_group while copying the task.
         # task_group is reset later
@@ -1185,8 +1184,9 @@ class DAG:
         from airflow import settings
         from airflow.models.dagrun import DagRun, get_or_create_dagrun
         from airflow.sdk import DagRunState, timezone
+        from airflow.serialization.definitions.dag import SerializedDAG
         from airflow.serialization.encoders import coerce_to_core_timetable
-        from airflow.serialization.serialized_objects import SerializedDAG
+        from airflow.serialization.serialized_objects import DagSerialization
         from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
         exit_stack = ExitStack()
@@ -1214,6 +1214,7 @@ class DAG:
 
         with exit_stack:
             self.validate()
+            scheduler_dag = DagSerialization.deserialize_dag(DagSerialization.serialize_dag(self))
 
             # Allow users to explicitly pass None. If it isn't set, we default to current time.
             logical_date = logical_date if is_arg_set(logical_date) else timezone.utcnow()
@@ -1221,7 +1222,7 @@ class DAG:
             log.debug("Clearing existing task instances for logical date %s", logical_date)
             # TODO: Replace with calling client.dag_run.clear in Execution API at some point
             SerializedDAG.clear_dags(
-                dags=[self],
+                dags=[scheduler_dag],
                 start_date=logical_date,
                 end_date=logical_date,
                 dag_run_state=False,
@@ -1261,7 +1262,7 @@ class DAG:
                     version = DagVersion.get_version(self.dag_id)
                     if version:
                         break
-            scheduler_dag = SerializedDAG.deserialize_dag(SerializedDAG.serialize_dag(self))
+
             # Preserve callback functions from original Dag since they're lost during serialization
             # and yes it is a hack for now! It is a tradeoff for code simplicity.
             # Without it, we need "Scheduler Dag" (Serialized dag) for the scheduler bits
