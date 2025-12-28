@@ -105,6 +105,7 @@ def init_plugins(app):
     if AIRFLOW_V_3_2_PLUS:
         blueprints, appbuilder_views, appbuilder_menu_links = plugins_manager.get_flask_plugins()
     else:
+        plugins_manager.initialize_flask_plugins()  # type: ignore
         blueprints = plugins_manager.flask_blueprints  # type: ignore
         appbuilder_views = plugins_manager.flask_appbuilder_views  # type: ignore
         appbuilder_menu_links = plugins_manager.flask_appbuilder_menu_links  # type: ignore

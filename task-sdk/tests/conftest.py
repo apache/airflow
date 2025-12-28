@@ -166,15 +166,15 @@ def _disable_ol_plugin():
     # And we load plugins when setting the priority_weight field
     import airflow.plugins_manager
 
-    old = airflow.plugins_manager.plugins
+    old = airflow.plugins_manager._get_plugins
 
-    assert old is None, "Plugins already loaded, too late to stop them being loaded!"
+    assert old.cache_info().currsize == 0, "Plugins already loaded, too late to stop them being loaded!"
 
-    airflow.plugins_manager.plugins = []
+    airflow.plugins_manager._get_plugins = lambda: ([], {})
 
     yield
 
-    airflow.plugins_manager.plugins = None
+    airflow.plugins_manager._get_plugins = old
 
 
 @pytest.fixture(autouse=True)

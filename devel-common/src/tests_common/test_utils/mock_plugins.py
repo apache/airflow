@@ -96,7 +96,7 @@ def mock_plugin_manager(plugins=None, **kwargs):
             plugins_manager.integrate_macros_plugins.cache_clear()
             plugins_manager.get_priority_weight_strategy_plugins.cache_clear()
 
-            if plugins or "import_errors" in kwargs:
+            if plugins is not None or "import_errors" in kwargs:
                 exit_stack.enter_context(
                     mock.patch(
                         "airflow.plugins_manager._get_plugins",
