@@ -30,7 +30,6 @@ from sqlalchemy.orm import Session
 
 from airflow.exceptions import AirflowException, NotMapped
 from airflow.sdk import BaseOperator as TaskSDKBaseOperator
-from airflow.sdk.definitions._internal.abstractoperator import DEFAULT_RETRY_DELAY_MULTIPLIER
 from airflow.sdk.definitions.mappedoperator import MappedOperator as TaskSDKMappedOperator
 from airflow.serialization.definitions.baseoperator import DEFAULT_OPERATOR_DEPS, SerializedBaseOperator
 from airflow.serialization.definitions.node import DAGNode
@@ -287,10 +286,6 @@ class SerializedMappedOperator(DAGNode):
     @property
     def max_retry_delay(self) -> datetime.timedelta | float | None:
         return self._get_partial_kwargs_or_operator_default("max_retry_delay")
-
-    @property
-    def retry_delay_multiplier(self) -> float:
-        return float(self.partial_kwargs.get("retry_delay_multiplier", DEFAULT_RETRY_DELAY_MULTIPLIER))
 
     @property
     def weight_rule(self) -> PriorityWeightStrategy:
