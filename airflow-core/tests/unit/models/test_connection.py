@@ -361,7 +361,7 @@ class TestConnection:
         mock_get.return_value = expected_connection
 
         mock_task_runner = mock.MagicMock()
-        mock_task_runner.SUPERVISOR_COMMS = True
+        mock_task_runner._SupervisorCommsHolder.comms = True
 
         with mock.patch.dict(sys.modules, {"airflow.sdk.execution_time.task_runner": mock_task_runner}):
             result = Connection.get_connection_from_secrets("test_conn")
@@ -373,7 +373,7 @@ class TestConnection:
     def test_get_connection_from_secrets_task_sdk_not_found(self, mock_task_sdk_connection):
         """Test the get_connection_from_secrets method with Task SDK not found path."""
         mock_task_runner = mock.MagicMock()
-        mock_task_runner.SUPERVISOR_COMMS = True
+        mock_task_runner._SupervisorCommsHolder.comms = True
 
         mock_task_sdk_connection.get.side_effect = AirflowRuntimeError(
             error=ErrorResponse(error=ErrorType.CONNECTION_NOT_FOUND)
