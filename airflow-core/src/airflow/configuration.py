@@ -781,7 +781,7 @@ def load_standard_airflow_configuration(airflow_config_parser: AirflowConfigPars
     :param airflow_config_parser: parser to which the configuration will be loaded
 
     """
-    global AIRFLOW_HOME  # to be cleaned in Airflow 4.0
+    global AIRFLOW_HOME  # noqa: PLW0603  # to be cleaned in Airflow 4.0
     log.info("Reading the config from %s", AIRFLOW_CONFIG)
     airflow_config_parser.read(AIRFLOW_CONFIG)
     if airflow_config_parser.has_option("core", "AIRFLOW_HOME"):
