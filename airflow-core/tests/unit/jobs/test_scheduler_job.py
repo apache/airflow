@@ -1476,22 +1476,18 @@ class TestSchedulerJob:
             )
 
         assert (
-            len(
-                session.scalars(
-                    select(TaskInstance).where(
-                        TaskInstance.dag_id == dag_id, TaskInstance.state == State.SCHEDULED
-                    )
-                ).all()
+            session.scalar(
+                select(func.count())
+                .select_from(TaskInstance)
+                .where(TaskInstance.dag_id == dag_id, TaskInstance.state == State.SCHEDULED)
             )
             == 1
         )
         assert (
-            len(
-                session.scalars(
-                    select(TaskInstance).where(
-                        TaskInstance.dag_id == dag_id, TaskInstance.state == State.QUEUED
-                    )
-                ).all()
+            session.scalar(
+                select(func.count())
+                .select_from(TaskInstance)
+                .where(TaskInstance.dag_id == dag_id, TaskInstance.state == State.QUEUED)
             )
             == 1
         )
@@ -3638,10 +3634,10 @@ class TestSchedulerJob:
 
         session = settings.Session()
         ti1s = session.scalars(
-            select(TaskInstance).filter(TaskInstance.dag_id == dag_id, TaskInstance.task_id == "dummy1")
+            select(TaskInstance).where(TaskInstance.dag_id == dag_id, TaskInstance.task_id == "dummy1")
         ).all()
         ti2s = session.scalars(
-            select(TaskInstance).filter(TaskInstance.dag_id == dag_id, TaskInstance.task_id == "dummy2")
+            select(TaskInstance).where(TaskInstance.dag_id == dag_id, TaskInstance.task_id == "dummy2")
         ).all()
 
         # With catchup=False, future task start dates are ignored
@@ -3901,7 +3897,7 @@ class TestSchedulerJob:
     def test_verify_integrity_if_dag_not_changed(self, dag_maker, session):
         # CleanUp
         session.execute(
-            select(SerializedDagModel).where(
+            delete(SerializedDagModel).where(
                 SerializedDagModel.dag_id == "test_verify_integrity_if_dag_not_changed"
             ),
             execution_options={"synchronize_session": False},
@@ -3953,7 +3949,7 @@ class TestSchedulerJob:
         # CleanUp
         with create_session() as session:
             session.execute(
-                select(SerializedDagModel).where(
+                delete(SerializedDagModel).where(
                     SerializedDagModel.dag_id == "test_verify_integrity_if_dag_changed"
                 ),
                 execution_options={"synchronize_session": False},
@@ -4723,7 +4719,9 @@ class TestSchedulerJob:
             BashOperator(task_id="task", bash_command="echo 1", outlets=asset)
         asset_manger = AssetManager()
 
-        asset_id = session.scalars(select(AssetModel.id).filter_by(uri=asset.uri, name=asset.name)).one()
+        asset_id = session.scalars(
+            select(AssetModel.id).where(AssetModel.uri == asset.uri, AssetModel.name == asset.name)
+        ).one()
         ase_q = select(AssetEvent).where(AssetEvent.asset_id == asset_id).order_by(AssetEvent.timestamp)
         adrq_q = select(AssetDagRunQueue).where(
             AssetDagRunQueue.asset_id == asset_id, AssetDagRunQueue.target_dag_id == "consumer"
@@ -6273,7 +6271,11 @@ class TestSchedulerJob:
 
             self.job_runner._schedule_dag_run(dr, session)
             assert (
-                len(session.scalars(select(TaskInstance).where(TaskInstance.state == State.SCHEDULED)).all())
+                session.scalar(
+                    select(func.count())
+                    .select_from(TaskInstance)
+                    .where(TaskInstance.state == State.SCHEDULED)
+                )
                 == 2
             )
 
