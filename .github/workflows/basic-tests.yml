@@ -315,6 +315,7 @@ jobs:
           UPGRADE_MPROCS: "true"
           UPGRADE_MYPY: "false"
           UPGRADE_PROTOC: "false"
+          UPGRADE_OPENAPI_GENERATOR: "false"
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: "Run automated upgrade for important versions minus uv (failing if needed)"
         run: |
@@ -341,6 +342,7 @@ jobs:
           UPGRADE_MYPY: "true"
           UPGRADE_MPROCS: "false"
           UPGRADE_PROTOC: "false"
+          UPGRADE_OPENAPI_GENERATOR: "false"
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   test-airflow-release-commands:
