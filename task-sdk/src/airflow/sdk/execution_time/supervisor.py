@@ -845,7 +845,7 @@ def _fetch_remote_logging_conn(conn_id: str, client: Client) -> Connection | Non
         Connection object or None if not found.
     """
     # Since we need to use the API Client directly, we can't use Connection.get as that would try to use
-    # SUPERVISOR_COMMS
+    # supervisor-comms
 
     # TODO: Store in the SecretsCache if its enabled - see #48858
 
@@ -888,7 +888,7 @@ def _remote_logging_conn(client: Client):
     connection it needs, now, directly from the API client, and store it in an env var, so that when the logging
     hook tries to get the connection it can find it easily from the env vars.
 
-    This is needed as the BaseHook.get_connection looks for SUPERVISOR_COMMS, but we are still in the
+    This is needed as the BaseHook.get_connection looks for supervisor-comms, but we are still in the
     supervisor process when this is needed, so that doesn't exist yet.
 
     The connection details are fetched eagerly on every invocation to avoid retaining
@@ -1689,7 +1689,7 @@ class InProcessTestSupervisor(ActivitySubprocess):
         Run a trigger in-process for testing, similar to how we run tasks.
 
         This creates a minimal supervisor instance specifically for trigger execution
-        and ensures the trigger has access to SUPERVISOR_COMMS for connection access.
+        and ensures the trigger has access to supervisor-comms for connection access.
         """
         # Create a minimal supervisor instance for trigger execution
         supervisor = cls(
@@ -1723,34 +1723,34 @@ class InProcessTestSupervisor(ActivitySubprocess):
 @contextmanager
 def set_supervisor_comms(temp_comms):
     """
-    Temporarily override `SUPERVISOR_COMMS` in the `task_runner` module.
+    Temporarily override `supervisor_comms()` in the `task_runner` module.
 
     This is used to simulate task-runner ↔ supervisor communication in-process,
     by injecting a test Comms implementation (e.g. `InProcessSupervisorComms`)
     in place of the real inter-process communication layer.
 
     Some parts of the code (e.g. models.Variable.get) check for the presence
-    of `task_runner.SUPERVISOR_COMMS` to determine if the code is running in a Task SDK execution context.
+    of `task_runner.supervisor_comms()` to determine if the code is running in a Task SDK execution context.
     This override ensures those code paths behave correctly during in-process tests.
     """
     from airflow.sdk.execution_time import task_runner
 
     sentinel = object()
-    old = getattr(task_runner, "SUPERVISOR_COMMS", sentinel)
+    old = getattr(task_runner._SupervisorCommsHolder, "comms", sentinel)
 
     if temp_comms is not None:
-        task_runner.SUPERVISOR_COMMS = temp_comms
+        task_runner._SupervisorCommsHolder.comms = temp_comms
     elif old is not sentinel:
-        delattr(task_runner, "SUPERVISOR_COMMS")
+        task_runner._SupervisorCommsHolder.comms = None
 
     try:
         yield
     finally:
         if old is sentinel:
-            if hasattr(task_runner, "SUPERVISOR_COMMS"):
-                delattr(task_runner, "SUPERVISOR_COMMS")
+            if task_runner._SupervisorCommsHolder.comms is not None:
+                task_runner._SupervisorCommsHolder.comms = None
         else:
-            task_runner.SUPERVISOR_COMMS = old
+            task_runner._SupervisorCommsHolder.comms = old
 
 
 def run_task_in_process(ti: TaskInstance, task) -> TaskRunResult:
@@ -1910,13 +1910,13 @@ def ensure_secrets_backend_loaded() -> list[BaseSecretsBackend]:
     Initialize secrets backend with auto-detected context.
 
     Detection strategy:
-    1. SUPERVISOR_COMMS exists and is set → client chain (ExecutionAPISecretsBackend)
+    1. supervisor-comms exists and is set → client chain (ExecutionAPISecretsBackend)
     2. _AIRFLOW_PROCESS_CONTEXT=server env var → server chain (MetastoreBackend)
     3. Neither → fallback chain (only env vars + external backends, no MetastoreBackend)
 
-    Client contexts: task runner in worker (has SUPERVISOR_COMMS)
+    Client contexts: task runner in worker (has supervisor-comms)
     Server contexts: API server, scheduler (set _AIRFLOW_PROCESS_CONTEXT=server)
-    Fallback contexts: supervisor, unknown contexts (no SUPERVISOR_COMMS, no env var)
+    Fallback contexts: supervisor, unknown contexts (no supervisor-comms, no env var)
 
     The fallback chain ensures supervisor can use external secrets (AWS Secrets Manager,
     Vault, etc.) while falling back to API client, without trying MetastoreBackend.
@@ -1926,12 +1926,12 @@ def ensure_secrets_backend_loaded() -> list[BaseSecretsBackend]:
     from airflow.sdk.configuration import ensure_secrets_loaded
     from airflow.sdk.execution_time.secrets import DEFAULT_SECRETS_SEARCH_PATH_WORKERS
 
-    # 1. Check for client context (SUPERVISOR_COMMS)
+    # 1. Check for client context (supervisor-comms)
     try:
         from airflow.sdk.execution_time import task_runner
 
-        if hasattr(task_runner, "SUPERVISOR_COMMS") and task_runner.SUPERVISOR_COMMS is not None:
-            # Client context: task runner with SUPERVISOR_COMMS
+        if task_runner.is_supervisor_comms_initialized():
+            # Client context: task runner with supervisor-comms
             return ensure_secrets_loaded(default_backends=DEFAULT_SECRETS_SEARCH_PATH_WORKERS)
     except (ImportError, AttributeError):
         pass

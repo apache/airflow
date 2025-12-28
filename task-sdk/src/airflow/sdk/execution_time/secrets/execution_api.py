@@ -30,14 +30,14 @@ class ExecutionAPISecretsBackend(BaseSecretsBackend):
     """
     Secrets backend for client contexts (workers, DAG processors, triggerers).
 
-    Routes connection and variable requests through SUPERVISOR_COMMS to the
+    Routes connection and variable requests through supervisor-comms to the
     Execution API server. This backend should only be registered in client
     processes, not in API server/scheduler processes.
     """
 
     def get_conn_value(self, conn_id: str, team_name: str | None = None) -> str | None:
         """
-        Get connection URI via SUPERVISOR_COMMS.
+        Get connection URI via supervisor-comms.
 
         Not used since we override get_connection directly.
         """
@@ -45,7 +45,7 @@ class ExecutionAPISecretsBackend(BaseSecretsBackend):
 
     def get_connection(self, conn_id: str, team_name: str | None = None) -> Connection | None:  # type: ignore[override]
         """
-        Return connection object by routing through SUPERVISOR_COMMS.
+        Return connection object by routing through supervisor-comms.
 
         :param conn_id: connection id
         :param team_name: Name of the team associated to the task trying to access the connection.
@@ -54,10 +54,10 @@ class ExecutionAPISecretsBackend(BaseSecretsBackend):
         """
         from airflow.sdk.execution_time.comms import ErrorResponse, GetConnection
         from airflow.sdk.execution_time.context import _process_connection_result_conn
-        from airflow.sdk.execution_time.task_runner import SUPERVISOR_COMMS
+        from airflow.sdk.execution_time.task_runner import supervisor_comms
 
         try:
-            msg = SUPERVISOR_COMMS.send(GetConnection(conn_id=conn_id))
+            msg = supervisor_comms().send(GetConnection(conn_id=conn_id))
 
             if isinstance(msg, ErrorResponse):
                 # Connection not found or error occurred
@@ -86,13 +86,13 @@ class ExecutionAPISecretsBackend(BaseSecretsBackend):
             # Fall through to the general exception handler for other RuntimeErrors
             return None
         except Exception:
-            # If SUPERVISOR_COMMS fails for any reason, return None
+            # If supervisor-comms fails for any reason, return None
             # to allow fallback to other backends
             return None
 
     def get_variable(self, key: str, team_name: str | None = None) -> str | None:
         """
-        Return variable value by routing through SUPERVISOR_COMMS.
+        Return variable value by routing through supervisor-comms.
 
         :param key: Variable key
         :param team_name: Name of the team associated to the task trying to access the variable.
@@ -100,10 +100,10 @@ class ExecutionAPISecretsBackend(BaseSecretsBackend):
         :return: Variable value or None if not found
         """
         from airflow.sdk.execution_time.comms import ErrorResponse, GetVariable, VariableResult
-        from airflow.sdk.execution_time.task_runner import SUPERVISOR_COMMS
+        from airflow.sdk.execution_time.task_runner import supervisor_comms
 
         try:
-            msg = SUPERVISOR_COMMS.send(GetVariable(key=key))
+            msg = supervisor_comms().send(GetVariable(key=key))
 
             if isinstance(msg, ErrorResponse):
                 # Variable not found or error occurred
@@ -114,23 +114,23 @@ class ExecutionAPISecretsBackend(BaseSecretsBackend):
                 return msg.value  # Already a string | None
             return None
         except Exception:
-            # If SUPERVISOR_COMMS fails for any reason, return None
+            # If supervisor-comms fails for any reason, return None
             # to allow fallback to other backends
             return None
 
     async def aget_connection(self, conn_id: str) -> Connection | None:  # type: ignore[override]
         """
-        Return connection object asynchronously via SUPERVISOR_COMMS.
+        Return connection object asynchronously via supervisor-comms.
 
         :param conn_id: connection id
         :return: Connection object or None if not found
         """
         from airflow.sdk.execution_time.comms import ErrorResponse, GetConnection
         from airflow.sdk.execution_time.context import _process_connection_result_conn
-        from airflow.sdk.execution_time.task_runner import SUPERVISOR_COMMS
+        from airflow.sdk.execution_time.task_runner import supervisor_comms
 
         try:
-            msg = await SUPERVISOR_COMMS.asend(GetConnection(conn_id=conn_id))
+            msg = await supervisor_comms().asend(GetConnection(conn_id=conn_id))
 
             if isinstance(msg, ErrorResponse):
                 # Connection not found or error occurred
@@ -139,22 +139,22 @@ class ExecutionAPISecretsBackend(BaseSecretsBackend):
             # Convert ExecutionAPI response to SDK Connection
             return _process_connection_result_conn(msg)
         except Exception:
-            # If SUPERVISOR_COMMS fails for any reason, return None
+            # If supervisor-comms fails for any reason, return None
             # to allow fallback to other backends
             return None
 
     async def aget_variable(self, key: str) -> str | None:
         """
-        Return variable value asynchronously via SUPERVISOR_COMMS.
+        Return variable value asynchronously via supervisor-comms.
 
         :param key: Variable key
         :return: Variable value or None if not found
         """
         from airflow.sdk.execution_time.comms import ErrorResponse, GetVariable, VariableResult
-        from airflow.sdk.execution_time.task_runner import SUPERVISOR_COMMS
+        from airflow.sdk.execution_time.task_runner import supervisor_comms
 
         try:
-            msg = await SUPERVISOR_COMMS.asend(GetVariable(key=key))
+            msg = await supervisor_comms().asend(GetVariable(key=key))
 
             if isinstance(msg, ErrorResponse):
                 # Variable not found or error occurred
@@ -165,6 +165,6 @@ class ExecutionAPISecretsBackend(BaseSecretsBackend):
                 return msg.value  # Already a string | None
             return None
         except Exception:
-            # If SUPERVISOR_COMMS fails for any reason, return None
+            # If supervisor-comms fails for any reason, return None
             # to allow fallback to other backends
             return None
