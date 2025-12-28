@@ -34,6 +34,7 @@ from google.cloud.bigquery.table import RowIterator, Table, TableListItem, Table
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowProviderDeprecationWarning
+from airflow.providers.google.common.deprecated import deprecated
 from airflow.providers.common.compat.sdk import AirflowException, AirflowSkipException
 from airflow.providers.common.sql.operators.sql import (  # for _parse_boolean
     SQLCheckOperator,
@@ -1018,6 +1019,9 @@ class BigQueryGetDataOperator(GoogleCloudBaseOperator, _BigQueryOperatorsEncrypt
     )
     ui_color = BigQueryUIColors.QUERY.value
 
+    @deprecated(planned_removal_date = "June 30, 2026", use_instead = "table_project_id", 
+                category = AirflowProviderDeprecationWarning
+        )
     def __init__(
         self,
         *,
@@ -1040,6 +1044,14 @@ class BigQueryGetDataOperator(GoogleCloudBaseOperator, _BigQueryOperatorsEncrypt
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
+        
+        """ Handle deprecated 'project_id' parameter """
+        if project_id and not table_project_id:
+            table_project_id = project_id
+        elif project_id and table_project_id:
+            self.log.info(
+                "The 'project_id' parameter is deprecated. Please use 'table_project_id' instead."
+            )
 
         self.table_project_id = table_project_id
         self.dataset_id = dataset_id
@@ -1090,15 +1102,6 @@ class BigQueryGetDataOperator(GoogleCloudBaseOperator, _BigQueryOperatorsEncrypt
         return query
 
     def execute(self, context: Context):
-        if self.project_id:
-            warnings.warn(
-                "The project_id parameter is deprecated, and will be removed in a future release."
-                " Please use table_project_id instead.",AirflowDeprecationWarning
-            )
-            if not self.table_project_id:
-                self.table_project_id = self.project_id
-            else:
-                self.log.info("Ignoring deprecated 'project_id' parameter because 'table_project_id' is provided.")
 
         if not exactly_one(self.job_id, self.table_id):
             raise AirflowException(
