@@ -457,6 +457,7 @@ repos:
             ^airflow-core/tests/unit/utils/test_db_cleanup.py$|
             ^airflow-core/tests/unit/utils/test_state.py$|
             ^airflow-core/tests/unit/utils/test_log_handlers.py$|
+            ^airflow-core/tests/unit/ti_deps/deps/test_not_previously_skipped_dep.py|
             ^dev/airflow_perf/scheduler_dag_execution_timing.py$|
             ^providers/celery/.*\.py$|
             ^providers/cncf/kubernetes/.*\.py$|
@@ -482,8 +483,7 @@ repos:
           ^scripts/ci/prek/version_heads_map\.py$|
           ^airflow-core/src/airflow/migrations/versions/.*$|
           ^airflow-core/src/airflow/migrations/versions|
-          ^airflow-core/src/airflow/utils/db\.py$|
-          ^airflow-core/tests/unit/ti_deps/deps/test_not_previously_skipped_dep.py
+          ^airflow-core/src/airflow/utils/db\.py$
       - id: update-version
         name: Update versions in docs
         entry: ./scripts/ci/prek/update_versions.py
