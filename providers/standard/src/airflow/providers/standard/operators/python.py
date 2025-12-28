@@ -239,12 +239,16 @@ class PythonOperator(BaseAsyncOperator):
         # This needs to be lazy because subclasses may implement execute_callable
         # by running a separate process that can't use the eager result.
         def __prepare_execution() -> tuple[AsyncExecutionCallableRunner, OutletEventAccessorsProtocol] | None:
-            from airflow.sdk.execution_time.callback_runner import (
+            from airflow.providers.common.compat.standard.operators import (
                 create_async_executable_runner,
             )
-            from airflow.sdk.execution_time.context import (
-                context_get_outlet_events,
-            )
+
+            if AIRFLOW_V_3_0_PLUS:
+                from airflow.sdk.execution_time.context import (
+                    context_get_outlet_events,
+                )
+            else:
+                from airflow.utils.context import context_get_outlet_events  # type: ignore
 
             return (
                 cast("AsyncExecutionCallableRunner", create_async_executable_runner),
