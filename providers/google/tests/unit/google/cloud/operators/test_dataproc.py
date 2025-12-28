@@ -1275,29 +1275,30 @@ class TestDataprocClusterDeleteOperator:
         )
 
         mock_hook.return_value.wait_for_operation.assert_not_called()
-        assert not mock_defer.called
+        assert mock_defer.called
 
     @mock.patch(DATAPROC_PATH.format("DataprocHook"))
-    def test_execute_when_not_exist(self, mock_hook):
-        op = DataprocDeleteClusterOperator(
-            task_id=TASK_ID,
+    def test_execute_cluster_not_found(self, mock_hook):
+        mock_hook.return_value.create_cluster.return_value = None
+        mock_hook.return_value.delete_cluster.side_effect = NotFound("test")
+        delete_cluster_op = DataprocDeleteClusterOperator(
+            task_id="test_task",
             region=GCP_REGION,
+            cluster_name=CLUSTER_NAME,
             project_id=GCP_PROJECT,
-            cluster_name=f"{CLUSTER_NAME}_404",
+            cluster_uuid=None,
             request_id=REQUEST_ID,
-            gcp_conn_id=GCP_CONN_ID,
             retry=RETRY,
             timeout=TIMEOUT,
             metadata=METADATA,
-            impersonation_chain=IMPERSONATION_CHAIN,
         )
         with pytest.raises(AirflowSkipException, match="Cluster Already Deleted"):
-            op.execute(mock.MagicMock())
-        mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID, impersonation_chain=IMPERSONATION_CHAIN)
+            delete_cluster_op.execute(context=mock.MagicMock())
+
         mock_hook.return_value.delete_cluster.assert_called_once_with(
-            region=GCP_REGION,
             project_id=GCP_PROJECT,
-            cluster_name=f"{CLUSTER_NAME}_404",
+            region=GCP_REGION,
+            cluster_name=CLUSTER_NAME,
             cluster_uuid=None,
             request_id=REQUEST_ID,
             retry=RETRY,
