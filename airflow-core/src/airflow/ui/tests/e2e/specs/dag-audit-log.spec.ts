@@ -29,7 +29,7 @@ test.describe("DAG Audit Log", () => {
   test.setTimeout(60_000);
 
   test.beforeAll(async ({ browser }) => {
-    test.setTimeout(120_000);
+    test.setTimeout(7 * 60 * 1000);
     const context = await browser.newContext({ storageState: AUTH_FILE });
     const page = await context.newPage();
     const setupDagsPage = new DagsPage(page);

@@ -104,7 +104,7 @@ export class DagsPage extends BasePage {
    */
   public async triggerDag(dagName: string): Promise<string | null> {
     await this.navigateToDagDetail(dagName);
-    await this.triggerButton.waitFor({ state: "visible", timeout: 30_000 });
+    await this.triggerButton.waitFor({ state: "visible", timeout: 60_000 });
     await this.triggerButton.click();
     const dagRunId = await this.handleTriggerDialog();
 

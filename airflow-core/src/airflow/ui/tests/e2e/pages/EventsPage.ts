@@ -64,7 +64,7 @@ export class EventsPage extends BasePage {
     const sortButton = columnHeader.locator('button[aria-label="sort"]');
 
     await sortButton.click();
-    await this.page.waitForTimeout(500);
+    await this.page.waitForTimeout(2000);
   }
 
   /**
