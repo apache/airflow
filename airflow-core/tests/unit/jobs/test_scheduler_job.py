@@ -2785,12 +2785,12 @@ class TestSchedulerJob:
             dr.state = State.RUNNING
             session.merge(dr)
         session.commit()
-        assert len(session.scalars(select(DagRun.state).where(DagRun.state == State.RUNNING)).all()) == 10
+        assert session.scalar(select(func.count(DagRun.state)).where(DagRun.state == State.RUNNING)) == 10
         for _ in range(20):
             self.job_runner._create_dag_runs([orm_dag], session)
-        assert len(session.scalars(select(DagRun)).all()) == 10
-        assert len(session.scalars(select(DagRun.state).where(DagRun.state == State.RUNNING)).all()) == 10
-        assert len(session.scalars(select(DagRun.state).where(DagRun.state == State.QUEUED)).all()) == 0
+        assert session.scalar(select(func.count()).select_from(DagRun)) == 10
+        assert session.scalar(select(func.count(DagRun.state)).where(DagRun.state == State.RUNNING)) == 10
+        assert session.scalar(select(func.count(DagRun.state)).where(DagRun.state == State.QUEUED)) == 0
         assert orm_dag.next_dagrun_create_after is None
 
     def test_runs_are_created_after_max_active_runs_was_reached(self, dag_maker, session):
@@ -3136,10 +3136,10 @@ class TestSchedulerJob:
         assert dag_maker.dag_model.next_dagrun_create_after == dr.logical_date + timedelta(days=1)
         # check that no running/queued runs yet
         assert (
-            len(
-                session.scalars(
-                    select(DagRun).where(DagRun.state.in_([DagRunState.RUNNING, DagRunState.QUEUED]))
-                ).all()
+            session.scalar(
+                select(func.count())
+                .select_from(DagRun)
+                .where(DagRun.state.in_([DagRunState.RUNNING, DagRunState.QUEUED]))
             )
             == 0
         )
@@ -5086,7 +5086,7 @@ class TestSchedulerJob:
         self.job_runner = SchedulerJobRunner(job=scheduler_job)
 
         session = settings.Session()
-        assert len(session.scalars(select(DagRun)).all()) == 0
+        assert session.scalar(select(func.count()).select_from(DagRun)) == 0
         query, _ = DagModel.dags_needing_dagruns(session)
         dag_models = query.all()
         self.job_runner._create_dag_runs(dag_models, session)
@@ -7993,8 +7993,8 @@ def test_schedule_dag_run_with_upstream_skip(dag_maker, session):
 
         # Verify SerializedDAG has max_active_runs=1
         dag_run_1 = session.scalars(
-            select(DagRun).where(DagRun.dag_id == dag.dag_id).order_by(DagRun.logical_date).first()
-        )
+            select(DagRun).where(DagRun.dag_id == dag.dag_id).order_by(DagRun.logical_date)
+        ).first()
         assert dag_run_1 is not None
         serialized_dag = self.job_runner.scheduler_dag_bag.get_dag_for_run(dag_run_1, session=session)
         assert serialized_dag is not None
@@ -8024,15 +8024,15 @@ def test_schedule_dag_run_with_upstream_skip(dag_maker, session):
         session.refresh(dag_run_2)
 
         # Verify we have 1 running and 1 queued
-        running_count = len(
-            session.scalars(
-                select(DagRun).where(DagRun.dag_id == dag.dag_id, DagRun.state == DagRunState.RUNNING)
-            ).all()
+        running_count = session.scalar(
+            select(func.count())
+            .select_from(DagRun)
+            .where(DagRun.dag_id == dag.dag_id, DagRun.state == DagRunState.RUNNING)
         )
-        queued_count = len(
-            session.scalars(
-                select(DagRun).where(DagRun.dag_id == dag.dag_id, DagRun.state == DagRunState.QUEUED)
-            ).all()
+        queued_count = session.scalar(
+            select(func.count())
+            .select_from(DagRun)
+            .where(DagRun.dag_id == dag.dag_id, DagRun.state == DagRunState.QUEUED)
         )
         assert running_count == 1
         assert queued_count == 1
@@ -8057,10 +8057,10 @@ def test_schedule_dag_run_with_upstream_skip(dag_maker, session):
         )
 
         # Verify we now have 2 running dag runs
-        running_count = len(
-            session.scalars(
-                select(DagRun).where(DagRun.dag_id == dag.dag_id, DagRun.state == DagRunState.RUNNING)
-            ).all()
+        running_count = session.scalar(
+            select(func.count())
+            .select_from(DagRun)
+            .where(DagRun.dag_id == dag.dag_id, DagRun.state == DagRunState.RUNNING)
         )
         assert running_count == 2
 
