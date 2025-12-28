@@ -30,7 +30,7 @@ from airflow.providers.common.compat.sdk import AirflowException
 from airflow.utils.helpers import exactly_one
 
 if TYPE_CHECKING:
-    from airflow.utils.context import Context
+    from airflow.sdk import Context
 
 
 class OpenSearchServerlessCollectionActiveSensor(AwsBaseSensor[OpenSearchServerlessHook]):

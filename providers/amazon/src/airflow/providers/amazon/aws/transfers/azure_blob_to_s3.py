@@ -33,7 +33,7 @@ except ModuleNotFoundError as e:
     raise AirflowOptionalProviderFeatureException(e)
 
 if TYPE_CHECKING:
-    from airflow.utils.context import Context
+    from airflow.sdk import Context
 
 
 class AzureBlobStorageToS3Operator(BaseOperator):

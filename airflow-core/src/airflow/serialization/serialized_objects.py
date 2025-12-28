@@ -46,10 +46,11 @@ from airflow._shared.timezones.timezone import from_timestamp, parse_timezone, u
 from airflow.callbacks.callback_requests import DagCallbackRequest, TaskCallbackRequest
 from airflow.exceptions import AirflowException, DeserializationError, SerializationError
 from airflow.models.connection import Connection
-from airflow.models.expandinput import create_expand_input
+from airflow.models.expandinput import SchedulerMappedArgument, create_expand_input
 from airflow.models.taskinstancekey import TaskInstanceKey
 from airflow.sdk import DAG, Asset, AssetAlias, BaseOperator, XComArg
 from airflow.sdk.bases.operator import OPERATOR_DEFAULTS  # TODO: Copy this into the scheduler?
+from airflow.sdk.definitions._internal.expandinput import MappedArgument
 from airflow.sdk.definitions.asset import (
     AssetAliasEvent,
     AssetAliasUniqueKey,
@@ -81,6 +82,7 @@ from airflow.serialization.definitions.xcom_arg import SchedulerXComArg, deseria
 from airflow.serialization.encoders import (
     coerce_to_core_timetable,
     encode_asset_like,
+    encode_expand_input,
     encode_relativedelta,
     encode_timetable,
     encode_timezone,
@@ -94,7 +96,6 @@ from airflow.task.priority_strategy import (
     PriorityWeightStrategy,
     airflow_priority_weight_strategies,
     airflow_priority_weight_strategies_classes,
-    validate_and_load_priority_weight_strategy,
 )
 from airflow.timetables.base import DagRunInfo, Timetable
 from airflow.triggers.base import BaseTrigger, StartTriggerArgs
@@ -248,7 +249,7 @@ def decode_partition_mapper(var: dict[str, Any]) -> PartitionMapper:
     return partition_mapper_class.deserialize(var[Encoding.VAR])
 
 
-def encode_priority_weight_strategy(var: PriorityWeightStrategy | str) -> str:
+def encode_priority_weight_strategy(var: PriorityWeightStrategy) -> str:
     """
     Encode a priority weight strategy instance.
 
@@ -256,7 +257,7 @@ def encode_priority_weight_strategy(var: PriorityWeightStrategy | str) -> str:
     for any parameters to be passed to it. If you need to store the parameters, you
     should store them in the class itself.
     """
-    priority_weight_strategy_class = type(validate_and_load_priority_weight_strategy(var))
+    priority_weight_strategy_class = type(var)
     if priority_weight_strategy_class in airflow_priority_weight_strategies_classes:
         return airflow_priority_weight_strategies_classes[priority_weight_strategy_class]
     importable_string = qualname(priority_weight_strategy_class)
@@ -654,6 +655,9 @@ class BaseSerialization:
             return cls._encode(var.to_json(), type_=DAT.TASK_CALLBACK_REQUEST)
         elif isinstance(var, DagCallbackRequest):
             return cls._encode(var.to_json(), type_=DAT.DAG_CALLBACK_REQUEST)
+        elif isinstance(var, MappedArgument):
+            data = {"input": encode_expand_input(var._input), "key": var._key}
+            return cls._encode(data, type_=DAT.MAPPED_ARGUMENT)
         elif var.__class__ == Context:
             d = {}
             for k, v in var.items():
@@ -763,6 +767,9 @@ class BaseSerialization:
             return DagCallbackRequest.from_json(var)
         elif type_ == DAT.TASK_INSTANCE_KEY:
             return TaskInstanceKey(**var)
+        elif type_ == DAT.MAPPED_ARGUMENT:
+            expand_input = create_expand_input(var["input"]["type"], var["input"]["value"])
+            return SchedulerMappedArgument(input=expand_input, key=var["key"])
         elif type_ == DAT.ARG_NOT_SET:
             from airflow.serialization.definitions.notset import NOTSET
 
@@ -1033,10 +1040,7 @@ class OperatorSerialization(DAGNode, BaseSerialization):
         expansion_kwargs = op._get_specified_expand_input()
         if TYPE_CHECKING:  # Let Mypy check the input type for us!
             _ExpandInputRef.validate_expand_input_value(expansion_kwargs.value)
-        serialized_op[op._expand_input_attr] = {
-            "type": type(expansion_kwargs).EXPAND_INPUT_TYPE,
-            "value": cls.serialize(expansion_kwargs.value),
-        }
+        serialized_op[op._expand_input_attr] = encode_expand_input(expansion_kwargs)
 
         if op.partial_kwargs:
             serialized_op["partial_kwargs"] = {}
@@ -2179,11 +2183,7 @@ class TaskGroupSerialization(BaseSerialization):
         }
 
         if isinstance(task_group, MappedTaskGroup):
-            expand_input = task_group._expand_input
-            encoded["expand_input"] = {
-                "type": expand_input.EXPAND_INPUT_TYPE,
-                "value": cls.serialize(expand_input.value),
-            }
+            encoded["expand_input"] = encode_expand_input(task_group._expand_input)
             encoded["is_mapped"] = True
 
         return encoded
