@@ -35,7 +35,7 @@ from airflow.providers.common.compat.sdk import AirflowException
 if TYPE_CHECKING:
     from airflow.providers.amazon.aws.hooks.base_aws import BaseAwsConnection
     from airflow.providers.amazon.aws.utils.sqs import MessageFilteringType
-    from airflow.utils.context import Context
+    from airflow.sdk import Context
 
 
 class SqsSensor(AwsBaseSensor[SqsHook]):

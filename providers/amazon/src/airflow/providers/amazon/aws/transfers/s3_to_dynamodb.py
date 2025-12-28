@@ -26,7 +26,7 @@ from airflow.providers.amazon.aws.hooks.dynamodb import DynamoDBHook
 from airflow.providers.common.compat.sdk import AirflowException, BaseOperator
 
 if TYPE_CHECKING:
-    from airflow.utils.context import Context
+    from airflow.sdk import Context
 
 
 class AttributeDefinition(TypedDict):
