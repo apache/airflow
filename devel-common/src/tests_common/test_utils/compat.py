@@ -53,6 +53,14 @@ except ImportError:
     OperatorSerialization = SerializedBaseOperator  # type: ignore[assignment,misc,no-redef]
 
 try:
+    from airflow.serialization.serialized_objects import create_scheduler_operator
+except ImportError:
+    # Compatibility for Airflow < 3.1
+    def create_scheduler_operator(op):  # type: ignore[no-redef]
+        return op
+
+
+try:
     from airflow.providers.common.sql.operators.generic_transfer import GenericTransfer
     from airflow.providers.standard.operators.bash import BashOperator
     from airflow.providers.standard.operators.empty import EmptyOperator
