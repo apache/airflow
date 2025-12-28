@@ -93,7 +93,7 @@ except ImportError:
 if TYPE_CHECKING:
     from airflow.models.dag import DAG
     from airflow.models.dagrun import DagRun
-    from airflow.utils.context import Context
+    from airflow.sdk import Context
 
 pytestmark = [pytest.mark.db_test, pytest.mark.need_serialized_dag]
 
