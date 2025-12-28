@@ -415,7 +415,7 @@ def set_xcom(
 @router.delete(
     "/{dag_id}/{run_id}/{task_id}/{key:path}",
     responses={status.HTTP_404_NOT_FOUND: {"description": "XCom not found"}},
-    description="Delete a single XCom Value",
+    description="Delete XCom Value(s).",
 )
 def delete_xcom(
     session: SessionDep,
@@ -425,14 +425,27 @@ def delete_xcom(
     key: Annotated[str, Path(min_length=1)],
     map_index: Annotated[int, Query()] = -1,
 ):
-    """Delete a single XCom Value."""
+    """
+    Delete XCom entry(ies).
+
+    This endpoint allows specifying `~` as the task_id or key to enable bulk deletion.
+    """
     query = delete(XComModel).where(
-        XComModel.key == key,
-        XComModel.run_id == run_id,
-        XComModel.task_id == task_id,
         XComModel.dag_id == dag_id,
-        XComModel.map_index == map_index,
+        XComModel.run_id == run_id,
     )
+
+    if task_id != "~":
+        query = query.where(XComModel.task_id == task_id)
+
+    if key != "~":
+        query = query.where(XComModel.key == key)
+
+    if map_index != -1:
+        query = query.where(XComModel.map_index == map_index)
+
     session.execute(query)
     session.commit()
-    return {"message": f"XCom with key: {key} successfully deleted."}
+    if key != "~":
+        return {"message": f"XCom with key: {key} successfully deleted."}
+    return {"message": "XCom entries successfully deleted."}
