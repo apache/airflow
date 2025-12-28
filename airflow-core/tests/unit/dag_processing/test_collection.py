@@ -330,17 +330,15 @@ class TestUpdateDagParsingResults:
         dag_import_error_listener.clear()
 
     @mark_fab_auth_manager_test
+    @conf_vars({("core", "min_serialized_dag_update_interval"): "5"})
     @pytest.mark.usefixtures("clean_db")  # sync_perms in fab has bad session commit hygiene
     def test_sync_perms_syncs_dag_specific_perms_on_update(
         self, monkeypatch, spy_agency: SpyAgency, session, time_machine, testing_dag_bundle
     ):
         """Test DAG-specific permissions are synced when a DAG is new or updated"""
-        from airflow import settings
-
         serialized_dags_count = session.query(func.count(SerializedDagModel.dag_id)).scalar()
         assert serialized_dags_count == 0
 
-        monkeypatch.setattr(settings, "MIN_SERIALIZED_DAG_UPDATE_INTERVAL", 5)
         time_machine.move_to(tz.datetime(2020, 1, 5, 0, 0, 0), tick=False)
 
         dag = DAG(dag_id="test")
@@ -501,6 +499,7 @@ class TestUpdateDagParsingResults:
 
     @patch.object(ParseImportError, "full_file_path")
     @mark_fab_auth_manager_test
+    @conf_vars({("core", "min_serialized_dag_update_interval"): "5"})
     @pytest.mark.usefixtures("clean_db")
     def test_import_error_persist_for_invalid_access_control_role(
         self,
@@ -515,12 +514,8 @@ class TestUpdateDagParsingResults:
         """
         Test that import errors related to invalid access control role are tracked in the DB until being fixed.
         """
-        from airflow import settings
-
         serialized_dags_count = session.query(func.count(SerializedDagModel.dag_id)).scalar()
         assert serialized_dags_count == 0
-
-        monkeypatch.setattr(settings, "MIN_SERIALIZED_DAG_UPDATE_INTERVAL", 5)
         time_machine.move_to(tz.datetime(2020, 1, 5, 0, 0, 0), tick=False)
 
         # create a DAG and assign it a non-exist role.
