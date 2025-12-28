@@ -236,7 +236,6 @@ class TaskMap(TaskInstanceDependencies):
                     task.log.debug("Deleting the original task instance: %s", unmapped_ti)
                     session.delete(unmapped_ti)
                 state = unmapped_ti.state
-            dag_version_id = unmapped_ti.dag_version_id
 
         if total_length is None or total_length < 1:
             # Nothing to fixup.

@@ -49,7 +49,7 @@ from airflow.providers.standard.operators.bash import BashOperator
 from airflow.utils.state import State
 
 from tests_common.test_utils import db
-from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V_3_1_PLUS
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
 logger = logging.getLogger(__name__)
 
@@ -215,21 +215,13 @@ class TestCeleryExecutor:
             # fake_execute_command takes no arguments while execute_workload takes 1,
             # which will cause TypeError when calling task.apply_async()
             executor = celery_executor.CeleryExecutor()
-            with DAG(dag_id="dag_id") as dag:
-                task = BashOperator(
-                    task_id="test",
-                    bash_command="true",
-                    start_date=datetime.now(),
-                )
-            if AIRFLOW_V_3_1_PLUS:
-                from tests_common.test_utils.dag import create_scheduler_dag
-
-                ti = TaskInstance(
-                    task=create_scheduler_dag(dag).get_task(task.task_id),
-                    run_id="abc",
-                    dag_version_id=uuid6.uuid7(),
-                )
-            elif AIRFLOW_V_3_0_PLUS:
+            task = BashOperator(
+                task_id="test",
+                bash_command="true",
+                dag=DAG(dag_id="dag_id"),
+                start_date=datetime.now(),
+            )
+            if AIRFLOW_V_3_0_PLUS:
                 ti = TaskInstance(task=task, run_id="abc", dag_version_id=uuid6.uuid7())
             else:
                 ti = TaskInstance(task=task, run_id="abc")
@@ -262,21 +254,13 @@ class TestCeleryExecutor:
             assert executor.task_publish_retries == {}
             assert executor.task_publish_max_retries == 3, "Assert Default Max Retries is 3"
 
-            with DAG(dag_id="id") as dag:
-                task = BashOperator(
-                    task_id="test",
-                    bash_command="true",
-                    start_date=datetime.now(),
-                )
-            if AIRFLOW_V_3_1_PLUS:
-                from tests_common.test_utils.dag import create_scheduler_dag
-
-                ti = TaskInstance(
-                    task=create_scheduler_dag(dag).get_task(task.task_id),
-                    run_id="abc",
-                    dag_version_id=uuid6.uuid7(),
-                )
-            elif AIRFLOW_V_3_0_PLUS:
+            task = BashOperator(
+                task_id="test",
+                bash_command="true",
+                dag=DAG(dag_id="id"),
+                start_date=datetime.now(),
+            )
+            if AIRFLOW_V_3_0_PLUS:
                 ti = TaskInstance(task=task, run_id="abc", dag_version_id=uuid6.uuid7())
             else:
                 ti = TaskInstance(task=task, run_id="abc")
