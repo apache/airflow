@@ -82,7 +82,8 @@ from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.providers.standard.triggers.file import FileDeleteTrigger
 from airflow.sdk import DAG, Asset, AssetAlias, AssetWatcher, task
 from airflow.sdk.definitions.callback import AsyncCallback, SyncCallback
-from airflow.serialization.serialized_objects import LazyDeserializedDAG, SerializedDAG
+from airflow.serialization.definitions.dag import SerializedDAG
+from airflow.serialization.serialized_objects import LazyDeserializedDAG
 from airflow.timetables.base import DataInterval
 from airflow.timetables.simple import IdentityMapper, PartitionedAssetTimetable
 from airflow.utils.session import create_session, provide_session
@@ -4138,6 +4139,8 @@ class TestSchedulerJob:
         list(sorted(State.adoptable_states)),
     )
     def test_adopt_or_reset_resettable_tasks(self, dag_maker, adoptable_state, session):
+        from airflow.models.taskinstancehistory import TaskInstanceHistory
+
         dag_id = "test_adopt_or_reset_adoptable_tasks_" + adoptable_state.name
         with dag_maker(dag_id=dag_id, schedule="@daily"):
             task_id = dag_id + "_task"
@@ -4152,12 +4155,30 @@ class TestSchedulerJob:
         ti = dr1.get_task_instances(session=session)[0]
         ti.state = adoptable_state
         ti.queued_by_job_id = old_job.id
+        old_ti_id = ti.id
+        old_try_number = ti.try_number
         session.merge(ti)
         session.merge(dr1)
         session.commit()
 
         num_reset_tis = self.job_runner.adopt_or_reset_orphaned_tasks(session=session)
         assert num_reset_tis == 1
+
+        ti.refresh_from_db(session=session)
+        assert ti.id != old_ti_id
+        assert (
+            session.scalar(
+                select(TaskInstanceHistory).where(
+                    TaskInstanceHistory.dag_id == ti.dag_id,
+                    TaskInstanceHistory.task_id == ti.task_id,
+                    TaskInstanceHistory.run_id == ti.run_id,
+                    TaskInstanceHistory.map_index == ti.map_index,
+                    TaskInstanceHistory.try_number == old_try_number,
+                    TaskInstanceHistory.task_instance_id == old_ti_id,
+                )
+            )
+            is not None
+        )
 
     def test_adopt_or_reset_orphaned_tasks_external_triggered_dag(self, dag_maker, session):
         dag_id = "test_reset_orphaned_tasks_external_triggered_dag"
@@ -8091,12 +8112,11 @@ class TestSchedulerJobQueriesCount:
                 {
                     ("scheduler", "use_job_schedule"): "True",
                     ("core", "load_examples"): "False",
-                    # For longer running tests under heavy load, the min_serialized_dag_fetch_interval
-                    # and min_serialized_dag_update_interval might kick-in and re-retrieve the record.
+                    # For longer running tests under heavy load, the min_serialized_dag_update_interval
+                    # might kick-in and re-retrieve the record.
                     # This will increase the count of serliazied_dag.py.get() count.
                     # That's why we keep the values high
                     ("core", "min_serialized_dag_update_interval"): "100",
-                    ("core", "min_serialized_dag_fetch_interval"): "100",
                 }
             ),
         ):
@@ -8183,12 +8203,11 @@ class TestSchedulerJobQueriesCount:
             conf_vars(
                 {
                     ("scheduler", "use_job_schedule"): "True",
-                    # For longer running tests under heavy load, the min_serialized_dag_fetch_interval
-                    # and min_serialized_dag_update_interval might kick-in and re-retrieve the record.
+                    # For longer running tests under heavy load, the min_serialized_dag_update_interval
+                    # might kick-in and re-retrieve the record.
                     # This will increase the count of serliazied_dag.py.get() count.
                     # That's why we keep the values high
                     ("core", "min_serialized_dag_update_interval"): "100",
-                    ("core", "min_serialized_dag_fetch_interval"): "100",
                 }
             ),
         ):

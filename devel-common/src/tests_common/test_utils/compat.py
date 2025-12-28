@@ -41,12 +41,16 @@ except ImportError:
 
 try:
     from airflow.serialization.definitions.dag import SerializedDAG
-    from airflow.serialization.serialized_objects import DagSerialization
+    from airflow.serialization.serialized_objects import DagSerialization, OperatorSerialization
 except ImportError:
     # Compatibility for Airflow < 3.2.*
-    from airflow.serialization.serialized_objects import SerializedDAG  # type: ignore[no-redef]
+    from airflow.serialization.serialized_objects import (  # type: ignore[no-redef]
+        SerializedBaseOperator,
+        SerializedDAG,
+    )
 
     DagSerialization = SerializedDAG  # type: ignore[assignment,misc,no-redef]
+    OperatorSerialization = SerializedBaseOperator  # type: ignore[assignment,misc,no-redef]
 
 try:
     from airflow.providers.common.sql.operators.generic_transfer import GenericTransfer
@@ -76,6 +80,11 @@ try:
     from airflow.sdk import timezone
 except ImportError:
     from airflow.utils import timezone  # type: ignore[no-redef,attr-defined]
+
+try:
+    from airflow.sdk import Context
+except ImportError:
+    from airflow.utils.context import Context  # type: ignore[no-redef,attr-defined]
 
 try:
     from airflow.sdk import TriggerRule
