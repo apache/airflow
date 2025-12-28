@@ -131,8 +131,8 @@ Those users should be highly trusted not to misuse this capability.
    been changed in Airflow 3 to improve security of the accidental spilling of credentials of the connection configuration
    users. Previously - in Airflow 2 - the **Connection configuration users** had deliberately access to view the
    sensitive information and could either reveal it by using Inspect capabilities of the browser or they were plain visible in
-   case of the sensitive credentials stored in configuration extras. Airflow 3 and later versions include security
-   improvement to mask those sensitive credentials at the API level.
+   case of the sensitive credentials stored in configuration extras. Airflow 3 and later versions mask these sensitive credentials 
+   at the API level and do not return them in clear text.
 
 Audit log users
 ...............
