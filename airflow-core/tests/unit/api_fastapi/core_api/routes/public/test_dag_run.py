@@ -85,7 +85,7 @@ def custom_timetable_plugin(monkeypatch):
     monkeypatch.setattr(
         plugins_manager,
         "get_timetables_plugins",
-        {**existing_timetables, timetable_class_name: CustomTimetable},
+        lambda: {**existing_timetables, timetable_class_name: CustomTimetable},
     )
 
 

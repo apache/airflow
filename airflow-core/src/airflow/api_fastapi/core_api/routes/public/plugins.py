@@ -75,12 +75,10 @@ def get_plugins(
     dependencies=[Depends(requires_access_view(AccessView.PLUGINS))],
 )
 def import_errors() -> PluginImportErrorCollectionResponse:
+    import_errors = plugins_manager.get_import_errors()
     return PluginImportErrorCollectionResponse.model_validate(
         {
-            "import_errors": [
-                {"source": source, "error": error}
-                for source, error in plugins_manager.get_import_errors().items()
-            ],
-            "total_entries": len(plugins_manager.get_import_errors()),
+            "import_errors": [{"source": source, "error": error} for source, error in import_errors.items()],
+            "total_entries": len(import_errors),
         }
     )
