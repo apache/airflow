@@ -27,7 +27,7 @@ from airflow.ti_deps.dep_context import DepContext
 from airflow.ti_deps.deps.not_previously_skipped_dep import NotPreviouslySkippedDep
 from airflow.utils.state import State
 from airflow.utils.types import DagRunType
-from sqlalchemy import delete, select
+from sqlalchemy import delete
 
 pytestmark = pytest.mark.db_test
 
