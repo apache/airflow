@@ -45,16 +45,15 @@ from airflow.providers.cncf.kubernetes.triggers.job import KubernetesJobTrigger
 from airflow.providers.cncf.kubernetes.utils.pod_manager import EMPTY_XCOM_RESULT, PodNotFoundException
 from airflow.providers.cncf.kubernetes.version_compat import AIRFLOW_V_3_1_PLUS
 from airflow.providers.common.compat.sdk import AirflowException
+from airflow.utils import yaml
 
 if AIRFLOW_V_3_1_PLUS:
     from airflow.sdk import BaseOperator
 else:
     from airflow.models import BaseOperator
-from airflow.utils import yaml
-from airflow.utils.context import Context
 
 if TYPE_CHECKING:
-    from airflow.utils.context import Context
+    from airflow.sdk import Context
 
 log = logging.getLogger(__name__)
 
