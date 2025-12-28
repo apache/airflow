@@ -21,7 +21,7 @@ from collections.abc import Iterable
 from typing import TYPE_CHECKING, Any
 from unittest import mock
 
-from airflow.utils.context import Context
+from tests_common.test_utils.compat import Context
 
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session

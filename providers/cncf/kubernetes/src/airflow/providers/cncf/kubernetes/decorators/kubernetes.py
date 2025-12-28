@@ -38,7 +38,7 @@ from airflow.providers.common.compat.sdk import (
 )
 
 if TYPE_CHECKING:
-    from airflow.utils.context import Context
+    from airflow.sdk import Context
 
 _PYTHON_SCRIPT_ENV = "__PYTHON_SCRIPT"
 _PYTHON_INPUT_ENV = "__PYTHON_INPUT"

@@ -40,6 +40,7 @@ class GenericDAGNode(Generic[Dag, Task, TaskGroup]):
 
     dag: Dag | None
     task_group: TaskGroup | None
+    downstream_group_ids: set[str | None]
     upstream_task_ids: set[str]
     downstream_task_ids: set[str]
 

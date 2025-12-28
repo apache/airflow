@@ -36,7 +36,7 @@ from airflow.providers.dbt.cloud.utils.openlineage import generate_openlineage_e
 
 if TYPE_CHECKING:
     from airflow.providers.openlineage.extractors import OperatorLineage
-    from airflow.utils.context import Context
+    from airflow.sdk import Context
 
 
 class DbtCloudRunJobOperatorLink(BaseOperatorLink):

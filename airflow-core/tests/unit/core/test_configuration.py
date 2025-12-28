@@ -1952,8 +1952,8 @@ def test_write_default_config_contains_generated_secrets(tmp_path, monkeypatch):
 
     cfgpath = tmp_path / "airflow-gneerated.cfg"
     # Patch these globals so it gets reverted by monkeypath after this test is over.
-    monkeypatch.setattr(airflow.configuration, "FERNET_KEY", "")
-    monkeypatch.setattr(airflow.configuration, "JWT_SECRET_KEY", "")
+    monkeypatch.setattr(airflow.configuration._SecretKeys, "fernet_key", "")
+    monkeypatch.setattr(airflow.configuration._SecretKeys, "jwt_secret_key", "")
     monkeypatch.setattr(airflow.configuration, "AIRFLOW_CONFIG", str(cfgpath))
 
     # Create a new global conf object so our changes don't persist
@@ -1966,11 +1966,11 @@ def test_write_default_config_contains_generated_secrets(tmp_path, monkeypatch):
 
     lines = cfgpath.read_text().splitlines()
 
-    assert airflow.configuration.FERNET_KEY
-    assert airflow.configuration.JWT_SECRET_KEY
+    assert airflow.configuration._SecretKeys.fernet_key
+    assert airflow.configuration._SecretKeys.jwt_secret_key
 
     fernet_line = next(line for line in lines if line.startswith("fernet_key = "))
     jwt_secret_line = next(line for line in lines if line.startswith("jwt_secret = "))
 
-    assert fernet_line == f"fernet_key = {airflow.configuration.FERNET_KEY}"
-    assert jwt_secret_line == f"jwt_secret = {airflow.configuration.JWT_SECRET_KEY}"
+    assert fernet_line == f"fernet_key = {airflow.configuration._SecretKeys.fernet_key}"
+    assert jwt_secret_line == f"jwt_secret = {airflow.configuration._SecretKeys.jwt_secret_key}"

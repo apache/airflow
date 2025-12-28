@@ -1635,8 +1635,6 @@ class DagRun(Base, LoggingMixin):
         Note that the stat will only be emitted for scheduler-triggered DAG runs
         (i.e. when ``run_type`` is *SCHEDULED* and ``clear_number`` is equal to 0).
         """
-        from airflow.models.dag import get_run_data_interval
-
         if self.state == TaskInstanceState.RUNNING:
             return
         if self.run_type != DagRunType.SCHEDULED:
@@ -1658,13 +1656,7 @@ class DagRun(Base, LoggingMixin):
             except ValueError:  # No start dates at all.
                 pass
             else:
-                # TODO: Logically, this should be DagRunInfo.run_after, but the
-                # information is not stored on a DagRun, only before the actual
-                # execution on DagModel.next_dagrun_create_after. We should add
-                # a field on DagRun for this instead of relying on the run
-                # always happening immediately after the data interval.
-                data_interval_end = get_run_data_interval(dag.timetable, self).end
-                true_delay = first_start_date - data_interval_end
+                true_delay = first_start_date - self.run_after
                 if true_delay.total_seconds() > 0:
                     Stats.timing(
                         f"dagrun.{dag.dag_id}.first_task_scheduling_delay", true_delay, tags=self.stats_tags

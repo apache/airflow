@@ -82,6 +82,11 @@ except ImportError:
     from airflow.utils import timezone  # type: ignore[no-redef,attr-defined]
 
 try:
+    from airflow.sdk import Context
+except ImportError:
+    from airflow.utils.context import Context  # type: ignore[no-redef,attr-defined]
+
+try:
     from airflow.sdk import TriggerRule
 except ImportError:
     # Compatibility for Airflow < 3.1

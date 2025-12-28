@@ -31,7 +31,7 @@ from airflow.providers.amazon.version_compat import NOTSET, ArgNotSet, is_arg_se
 from airflow.providers.common.compat.sdk import AirflowException, BaseOperator
 
 if TYPE_CHECKING:
-    from airflow.utils.context import Context
+    from airflow.sdk import Context
 
 
 class RedshiftToS3Operator(BaseOperator):

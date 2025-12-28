@@ -295,9 +295,14 @@ Here is a sample ``curl`` command, which sends a request to retrieve a pool list
 .. code-block:: bash
 
     ENDPOINT_URL="http://localhost:8080"
-    curl -X GET  \
-        --user "airflow:airflow" \
-        "${ENDPOINT_URL}/api/v1/pools"
+    JWT_TOKEN=$(curl -s -X POST ${ENDPOINT_URL}/auth/token \
+                     -H "Content-Type: application/json" \
+                     -d '{"username": "airflow", "password": "airflow"}' |\
+                jq -r '.access_token' \
+              )
+    curl -X GET \
+        "${ENDPOINT_URL}/api/v2/pools" \
+        -H "Authorization: Bearer ${JWT_TOKEN}"
 
 Cleaning up
 ===========

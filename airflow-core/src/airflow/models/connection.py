@@ -36,7 +36,6 @@ from airflow.configuration import ensure_secrets_loaded
 from airflow.exceptions import AirflowException, AirflowNotFoundException
 from airflow.models.base import ID_LEN, Base
 from airflow.models.crypto import get_fernet
-from airflow.sdk import SecretCache
 from airflow.utils.helpers import prune_dict
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.session import NEW_SESSION, provide_session
@@ -252,6 +251,11 @@ class Connection(Base, LoggingMixin):
             if self.EXTRA_KEY in query:
                 self.extra = query[self.EXTRA_KEY]
             else:
+                for key, value in query.items():
+                    try:
+                        query[key] = json.loads(value)
+                    except (JSONDecodeError, TypeError):
+                        self.log.info("Failed parsing the json for key %s", key)
                 self.extra = json.dumps(query)
 
     @staticmethod
@@ -330,15 +334,22 @@ class Connection(Base, LoggingMixin):
         uri += host_block
 
         if self.extra:
+            extra_dict = self.extra_dejson
+            can_flatten = True
+            for value in extra_dict.values():
+                if not isinstance(value, str):
+                    can_flatten = False
+                    break
+
             try:
-                query: str | None = urlencode(self.extra_dejson)
+                query: str | None = urlencode(extra_dict)
             except TypeError:
                 query = None
-            if query and self.extra_dejson == dict(parse_qsl(query, keep_blank_values=True)):
+
+            if can_flatten and query and extra_dict == dict(parse_qsl(query, keep_blank_values=True)):
                 uri += ("?" if self.schema else "/?") + query
             else:
                 uri += ("?" if self.schema else "/?") + urlencode({self.EXTRA_KEY: self.extra})
-
         return uri
 
     def get_password(self) -> str | None:
@@ -519,6 +530,8 @@ class Connection(Base, LoggingMixin):
 
         # check cache first
         # enabled only if SecretCache.init() has been called first
+        from airflow.sdk import SecretCache
+
         try:
             uri = SecretCache.get_connection_uri(conn_id)
             return Connection(conn_id=conn_id, uri=uri)
