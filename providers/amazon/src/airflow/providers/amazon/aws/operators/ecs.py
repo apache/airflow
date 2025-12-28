@@ -45,7 +45,7 @@ if TYPE_CHECKING:
     import boto3
 
     from airflow.models import TaskInstance
-    from airflow.utils.context import Context
+    from airflow.sdk import Context
 
 
 class EcsBaseOperator(AwsBaseOperator[EcsHook]):

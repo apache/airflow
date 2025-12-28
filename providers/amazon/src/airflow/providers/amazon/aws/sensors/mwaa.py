@@ -29,7 +29,7 @@ from airflow.providers.common.compat.sdk import AirflowException
 from airflow.utils.state import DagRunState, TaskInstanceState
 
 if TYPE_CHECKING:
-    from airflow.utils.context import Context
+    from airflow.sdk import Context
 
 
 class MwaaDagRunSensor(AwsBaseSensor[MwaaHook]):
