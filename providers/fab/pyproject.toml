@@ -73,6 +73,8 @@ dependencies = [
     # In particular, make sure any breaking changes, for example any new methods, are accounted for.
     "flask-appbuilder==5.0.1; python_version < '3.13'",
     "flask-login>=0.6.2; python_version < '3.13'",
+    # Flask-Session 0.6 add new arguments into the SqlAlchemySessionInterface constructor as well as
+    # all parameters now are mandatory which make AirflowDatabaseSessionInterface incompatible with this version.    
     "flask-session>=0.8.0; python_version < '3.13'",
     "msgpack>=1.0.0; python_version < '3.13'",
     "flask-sqlalchemy>=3.0.5; python_version < '3.13'",
