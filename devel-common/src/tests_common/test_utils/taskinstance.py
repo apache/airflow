@@ -18,22 +18,59 @@
 
 from __future__ import annotations
 
+import copy
 from typing import TYPE_CHECKING
 
 from airflow.models.taskinstance import TaskInstance
-from airflow.serialization.definitions.baseoperator import SerializedBaseOperator
-from airflow.serialization.definitions.mappedoperator import SerializedMappedOperator
-from airflow.serialization.serialized_objects import create_scheduler_operator
 
+from tests_common.test_utils.compat import SerializedBaseOperator, SerializedMappedOperator
 from tests_common.test_utils.dag import create_scheduler_dag
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V_3_2_PLUS
+
+try:
+    from airflow.serialization.serialized_objects import create_scheduler_operator
+except ImportError:
+    create_scheduler_operator = lambda t: t
 
 if TYPE_CHECKING:
     from uuid import UUID
 
+    from jinja2 import Environment
+
+    from airflow.sdk import Context
     from airflow.sdk.types import Operator as SdkOperator
     from airflow.serialization.definitions.mappedoperator import Operator as SerializedOperator
 
-__all__ = ["create_task_instance", "run_task_instance"]
+__all__ = ["TaskInstanceWrapper", "create_task_instance", "render_template_fields", "run_task_instance"]
+
+
+class TaskInstanceWrapper:
+    """Compat wrapper for TaskInstance to support ``run()``."""
+
+    def __init__(self, ti: TaskInstance, task: SdkOperator) -> None:
+        self.__dict__.update(__ti=ti, __task=task)
+
+    def __delattr__(self, name):
+        delattr(self.__dict__["__ti"], name)
+
+    def __setattr__(self, name, value):
+        setattr(self.__dict__["__ti"], name, value)
+
+    def __getattr__(self, name):
+        return getattr(self.__dict__["__ti"], name)
+
+    def __copy__(self):
+        return TaskInstanceWrapper(copy.copy(self.__dict__["__ti"]), copy.copy(self.__dict__["__task"]))
+
+    def run(self, **kwargs) -> None:
+        from tests_common.test_utils.taskinstance import run_task_instance
+
+        run_task_instance(self.__dict__["__ti"], self.__dict__["__task"], **kwargs)
+
+    def render_templates(self, **kwargs) -> SdkOperator:
+        from tests_common.test_utils.taskinstance import render_template_fields
+
+        return render_template_fields(self.__dict__["__ti"], self.__dict__["__task"], **kwargs)
 
 
 def create_task_instance(
@@ -43,6 +80,7 @@ def create_task_instance(
     run_id: str | None = None,
     state: str | None = None,
     map_index: int = -1,
+    ti_type: type[TaskInstance] = TaskInstance,
 ) -> TaskInstance:
     if isinstance(task, (SerializedBaseOperator, SerializedMappedOperator)):
         serialized_task = task
@@ -50,9 +88,16 @@ def create_task_instance(
         serialized_task = create_scheduler_dag(sdk_dag).get_task(task.task_id)
     else:
         serialized_task = create_scheduler_operator(task)
-    return TaskInstance(
+    if AIRFLOW_V_3_0_PLUS:
+        return ti_type(
+            serialized_task,
+            dag_version_id=dag_version_id,
+            run_id=run_id,
+            state=state,
+            map_index=map_index,
+        )
+    return ti_type(  # type: ignore[call-arg]
         serialized_task,
-        dag_version_id=dag_version_id,
         run_id=run_id,
         state=state,
         map_index=map_index,
@@ -64,21 +109,46 @@ def run_task_instance(
     task: SdkOperator,
     *,
     ignore_depends_on_past: bool = False,
+    ignore_task_deps: bool = False,
     ignore_ti_state: bool = False,
     mark_success: bool = False,
     session=None,
-) -> None:
+):
+    if not AIRFLOW_V_3_2_PLUS:
+        ti.refresh_from_task(task)  # type: ignore[arg-type]
+        ti.run()
+        return ti
+
     kwargs = {"session": session} if session else {}
     if not ti.check_and_change_state_before_execution(
         ignore_depends_on_past=ignore_depends_on_past,
+        ignore_task_deps=ignore_task_deps,
         ignore_ti_state=ignore_ti_state,
         mark_success=mark_success,
         **kwargs,
     ):
-        return
+        return ti
 
     from airflow.sdk.definitions.dag import _run_task
 
-    if (taskrun_result := _run_task(ti=ti, task=task)) and (error := taskrun_result.error):
-        raise error from error
-    return
+    taskrun_result = _run_task(ti=ti, task=task)
+    if not taskrun_result:
+        return None
+    if error := taskrun_result.error:
+        raise error
+    return taskrun_result.ti
+
+
+def render_template_fields(
+    ti: TaskInstance,
+    task: SdkOperator,
+    *,
+    context: Context | None = None,
+    jinja_env: Environment | None = None,
+) -> SdkOperator:
+    if AIRFLOW_V_3_2_PLUS:
+        task.render_template_fields(context or ti.get_template_context(), jinja_env)
+        return task
+    ti.refresh_from_task(task)  # type: ignore[arg-type]
+    ti.render_templates(context, jinja_env)
+    return ti.task  # type: ignore[return-value]

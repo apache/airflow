@@ -1718,32 +1718,6 @@ class TaskInstance(Base, LoggingMixin):
 
         return context
 
-    # TODO (GH-52141): We should remove this entire function (only makes sense at runtime).
-    # This is intentionally left untyped so Mypy complains less about this dead code.
-    def render_templates(self, context=None, jinja_env=None):
-        """
-        Render templates in the operator fields.
-
-        If the task was originally mapped, this may replace ``self.task`` with
-        the unmapped, fully rendered BaseOperator. The original ``self.task``
-        before replacement is returned.
-        """
-        from airflow.sdk.definitions.mappedoperator import MappedOperator
-
-        if not context:
-            context = self.get_template_context()
-        original_task = self.task
-
-        # If self.task is mapped, this call replaces self.task to point to the
-        # unmapped BaseOperator created by this function! This is because the
-        # MappedOperator is useless for template rendering, and we need to be
-        # able to access the unmapped task instead.
-        original_task.render_template_fields(context, jinja_env)
-        if isinstance(self.task, MappedOperator):
-            self.task = context["ti"].task
-
-        return original_task
-
     def set_duration(self) -> None:
         """Set task instance duration."""
         if self.end_date and self.start_date:

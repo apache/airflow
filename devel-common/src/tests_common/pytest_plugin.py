@@ -17,7 +17,6 @@
 
 from __future__ import annotations
 
-import copy
 import importlib
 import json
 import logging
@@ -1133,8 +1132,10 @@ def dag_maker(request) -> Generator[DagMaker, None, None]:
 
             self.dag_run = dag.create_dagrun(**kwargs)
             for ti in self.dag_run.task_instances:
-                # This need to always operate on the _real_ dag
-                ti.refresh_from_task(self.serialized_dag.get_task(ti.task_id))
+                if AIRFLOW_V_3_0_PLUS:
+                    ti.refresh_from_task(dag.get_task(ti.task_id))
+                else:
+                    ti.refresh_from_task(self.dag.get_task(ti.task_id))
             self.session.commit()
             return self.dag_run
 
@@ -1426,30 +1427,6 @@ def create_dummy_dag(dag_maker: DagMaker) -> CreateDummyDAG:
     return create_dag
 
 
-class TaskInstanceWrapper:
-    """Compat wrapper for TaskInstance to support ``run()``."""
-
-    def __init__(self, ti: TaskInstance, task: Operator) -> None:
-        self.__dict__.update(__ti=ti, __task=task)
-
-    def __delattr__(self, name):
-        delattr(self.__dict__["__ti"], name)
-
-    def __setattr__(self, name, value):
-        setattr(self.__dict__["__ti"], name, value)
-
-    def __getattr__(self, name):
-        return getattr(self.__dict__["__ti"], name)
-
-    def __copy__(self):
-        return TaskInstanceWrapper(copy.copy(self.__dict__["__ti"]), copy.copy(self.__dict__["__task"]))
-
-    def run(self, **kwargs):
-        from tests_common.test_utils.taskinstance import run_task_instance
-
-        run_task_instance(self.__dict__["__ti"], self.__dict__["__task"], **kwargs)
-
-
 class CreateTaskInstance(Protocol):
     """Type stub for create_task_instance."""
 
@@ -1493,12 +1470,8 @@ def create_task_instance(
     """
     from airflow.providers.standard.operators.empty import EmptyOperator
 
-    from tests_common.test_utils.version_compat import (
-        AIRFLOW_V_3_0_PLUS,
-        AIRFLOW_V_3_2_PLUS,
-        NOTSET,
-        ArgNotSet,
-    )
+    from tests_common.test_utils.taskinstance import TaskInstanceWrapper
+    from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS, NOTSET, ArgNotSet
 
     def maker(
         logical_date: datetime | None | ArgNotSet = NOTSET,
@@ -1583,11 +1556,8 @@ def create_task_instance(
         ti.pid = pid
         ti.last_heartbeat_at = last_heartbeat_at
         dag_maker.session.flush()
-        if AIRFLOW_V_3_2_PLUS:
-            ti.task = dag_maker.serialized_dag.get_task(task_id)
-            return cast("TaskInstance", TaskInstanceWrapper(ti, task))
-        ti.task = task
-        return ti
+        ti.task = dag_maker.serialized_dag.get_task(task_id)
+        return cast("TaskInstance", TaskInstanceWrapper(ti, task))
 
     return maker
 
@@ -1600,6 +1570,7 @@ class CreateTaskInstanceOfOperator(Protocol):
         operator_class: type[BaseOperator],
         *,
         dag_id: str,
+        template_searchpath: str,
         logical_date: datetime = ...,
         session: Session = ...,
         **kwargs,
@@ -1608,22 +1579,22 @@ class CreateTaskInstanceOfOperator(Protocol):
 
 @pytest.fixture
 def create_task_instance_of_operator(dag_maker: DagMaker) -> CreateTaskInstanceOfOperator:
-    from tests_common.test_utils.version_compat import AIRFLOW_V_3_2_PLUS, NOTSET
+    from tests_common.test_utils.taskinstance import TaskInstanceWrapper
+    from tests_common.test_utils.version_compat import NOTSET
 
     def _create_task_instance(
         operator_class,
         *,
         dag_id,
+        template_searchpath=None,
         logical_date=NOTSET,
         session=None,
         **operator_kwargs,
     ) -> TaskInstance:
-        with dag_maker(dag_id=dag_id, session=session):
+        with dag_maker(dag_id=dag_id, template_searchpath=template_searchpath, session=session):
             task = operator_class(**operator_kwargs)
         (ti,) = dag_maker.create_dagrun(logical_date=logical_date).task_instances
-        if AIRFLOW_V_3_2_PLUS:
-            return cast("TaskInstance", TaskInstanceWrapper(ti, task))
-        return ti
+        return cast("TaskInstance", TaskInstanceWrapper(ti, task))
 
     return _create_task_instance
 
