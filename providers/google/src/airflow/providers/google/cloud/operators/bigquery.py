@@ -1091,14 +1091,14 @@ class BigQueryGetDataOperator(GoogleCloudBaseOperator, _BigQueryOperatorsEncrypt
 
     def execute(self, context: Context):
         if self.project_id:
-            self.log.warning(
+            warnings.warn(
                 "The project_id parameter is deprecated, and will be removed in a future release."
-                " Please use table_project_id instead.",
+                " Please use table_project_id instead.",AirflowDeprecationWarning
             )
             if not self.table_project_id:
                 self.table_project_id = self.project_id
             else:
-                self.log.info("Ignoring 'project_id' parameter, as 'table_project_id' is found.")
+                self.log.info("Ignoring deprecated 'project_id' parameter because 'table_project_id' is provided.")
 
         if not exactly_one(self.job_id, self.table_id):
             raise AirflowException(
