@@ -28,15 +28,14 @@ import logging
 import math
 import sys
 import weakref
-from collections.abc import Collection, Iterable, Iterator, Mapping, Sequence
+from collections.abc import Collection, Iterable, Mapping
 from functools import cache, cached_property, lru_cache
 from inspect import signature
 from textwrap import dedent
-from typing import TYPE_CHECKING, Any, ClassVar, NamedTuple, TypeAlias, TypeVar, cast, overload
+from typing import TYPE_CHECKING, Any, ClassVar, NamedTuple, TypeVar, cast, overload
 
 import attrs
 import lazy_object_proxy
-import methodtools
 import pydantic
 from dateutil import relativedelta
 from pendulum.tz.timezone import FixedTimezone, Timezone
@@ -47,13 +46,11 @@ from airflow._shared.timezones.timezone import from_timestamp, parse_timezone, u
 from airflow.callbacks.callback_requests import DagCallbackRequest, TaskCallbackRequest
 from airflow.exceptions import AirflowException, DeserializationError, SerializationError
 from airflow.models.connection import Connection
-from airflow.models.expandinput import create_expand_input
+from airflow.models.expandinput import SchedulerMappedArgument, create_expand_input
 from airflow.models.taskinstancekey import TaskInstanceKey
-from airflow.models.xcom import XComModel
-from airflow.models.xcom_arg import SchedulerXComArg, deserialize_xcom_arg
 from airflow.sdk import DAG, Asset, AssetAlias, BaseOperator, XComArg
 from airflow.sdk.bases.operator import OPERATOR_DEFAULTS  # TODO: Copy this into the scheduler?
-from airflow.sdk.definitions._internal.node import DAGNode
+from airflow.sdk.definitions._internal.expandinput import MappedArgument
 from airflow.sdk.definitions.asset import (
     AssetAliasEvent,
     AssetAliasUniqueKey,
@@ -75,12 +72,17 @@ from airflow.serialization.definitions.assets import (
     SerializedAssetBase,
     SerializedAssetUniqueKey,
 )
+from airflow.serialization.definitions.baseoperator import SerializedBaseOperator
 from airflow.serialization.definitions.dag import SerializedDAG
+from airflow.serialization.definitions.node import DAGNode
+from airflow.serialization.definitions.operatorlink import XComOperatorLink
 from airflow.serialization.definitions.param import SerializedParam, SerializedParamsDict
 from airflow.serialization.definitions.taskgroup import SerializedMappedTaskGroup, SerializedTaskGroup
+from airflow.serialization.definitions.xcom_arg import SchedulerXComArg, deserialize_xcom_arg
 from airflow.serialization.encoders import (
     coerce_to_core_timetable,
     encode_asset_like,
+    encode_expand_input,
     encode_relativedelta,
     encode_timetable,
     encode_timezone,
@@ -94,19 +96,12 @@ from airflow.task.priority_strategy import (
     PriorityWeightStrategy,
     airflow_priority_weight_strategies,
     airflow_priority_weight_strategies_classes,
-    validate_and_load_priority_weight_strategy,
 )
-from airflow.ti_deps.deps.mapped_task_upstream_dep import MappedTaskUpstreamDep
-from airflow.ti_deps.deps.not_in_retry_period_dep import NotInRetryPeriodDep
-from airflow.ti_deps.deps.not_previously_skipped_dep import NotPreviouslySkippedDep
-from airflow.ti_deps.deps.prev_dagrun_dep import PrevDagrunDep
-from airflow.ti_deps.deps.trigger_rule_dep import TriggerRuleDep
+from airflow.timetables.base import DagRunInfo, Timetable
 from airflow.triggers.base import BaseTrigger, StartTriggerArgs
 from airflow.utils.code_utils import get_python_source
 from airflow.utils.context import ConnectionAccessor, Context, VariableAccessor
 from airflow.utils.db import LazySelectSequence
-from airflow.utils.log.logging_mixin import LoggingMixin
-from airflow.utils.session import create_session
 
 if TYPE_CHECKING:
     from inspect import Parameter
@@ -114,28 +109,17 @@ if TYPE_CHECKING:
     from kubernetes.client import models as k8s  # noqa: TC004
 
     from airflow.models.expandinput import SchedulerExpandInput
-    from airflow.models.mappedoperator import MappedOperator as SerializedMappedOperator
-    from airflow.models.taskinstance import TaskInstance
     from airflow.providers.cncf.kubernetes.pod_generator import PodGenerator  # noqa: TC004
     from airflow.sdk import BaseOperatorLink
+    from airflow.sdk.definitions._internal.node import DAGNode as SDKDAGNode
+    from airflow.sdk.types import Operator as SdkOperator
+    from airflow.serialization.definitions.mappedoperator import (
+        Operator as SerializedOperator,
+        SerializedMappedOperator,
+    )
     from airflow.serialization.json_schema import Validator
-    from airflow.task.trigger_rule import TriggerRule
-    from airflow.ti_deps.deps.base_ti_dep import BaseTIDep
     from airflow.timetables.base import DagRunInfo, Timetable
     from airflow.timetables.simple import PartitionMapper
-
-    SerializedOperator: TypeAlias = "SerializedMappedOperator | SerializedBaseOperator"
-    SdkOperator: TypeAlias = BaseOperator | MappedOperator
-
-DEFAULT_OPERATOR_DEPS: frozenset[BaseTIDep] = frozenset(
-    (
-        NotInRetryPeriodDep(),
-        PrevDagrunDep(),
-        TriggerRuleDep(),
-        NotPreviouslySkippedDep(),
-        MappedTaskUpstreamDep(),
-    )
-)
 
 log = logging.getLogger(__name__)
 
@@ -588,10 +572,10 @@ class BaseSerialization:
         elif isinstance(var, Resources):
             return var.to_dict()
         elif isinstance(var, MappedOperator):
-            return cls._encode(SerializedBaseOperator.serialize_mapped_operator(var), type_=DAT.OP)
+            return cls._encode(OperatorSerialization.serialize_mapped_operator(var), type_=DAT.OP)
         elif isinstance(var, BaseOperator):
             var._needs_expansion = var.get_needs_expansion()
-            return cls._encode(SerializedBaseOperator.serialize_operator(var), type_=DAT.OP)
+            return cls._encode(OperatorSerialization.serialize_operator(var), type_=DAT.OP)
         elif isinstance(var, cls._datetime_types):
             return cls._encode(var.timestamp(), type_=DAT.DATETIME)
         elif isinstance(var, datetime.timedelta):
@@ -671,6 +655,9 @@ class BaseSerialization:
             return cls._encode(var.to_json(), type_=DAT.TASK_CALLBACK_REQUEST)
         elif isinstance(var, DagCallbackRequest):
             return cls._encode(var.to_json(), type_=DAT.DAG_CALLBACK_REQUEST)
+        elif isinstance(var, MappedArgument):
+            data = {"input": encode_expand_input(var._input), "key": var._key}
+            return cls._encode(data, type_=DAT.MAPPED_ARGUMENT)
         elif var.__class__ == Context:
             d = {}
             for k, v in var.items():
@@ -728,7 +715,7 @@ class BaseSerialization:
         elif type_ == DAT.DAG:
             return DagSerialization.deserialize_dag(var)
         elif type_ == DAT.OP:
-            return SerializedBaseOperator.deserialize_operator(var)
+            return OperatorSerialization.deserialize_operator(var)
         elif type_ == DAT.DATETIME:
             return from_timestamp(var)
         elif type_ == DAT.POD:
@@ -780,6 +767,9 @@ class BaseSerialization:
             return DagCallbackRequest.from_json(var)
         elif type_ == DAT.TASK_INSTANCE_KEY:
             return TaskInstanceKey(**var)
+        elif type_ == DAT.MAPPED_ARGUMENT:
+            expand_input = create_expand_input(var["input"]["type"], var["input"]["value"])
+            return SchedulerMappedArgument(input=expand_input, key=var["key"])
         elif type_ == DAT.ARG_NOT_SET:
             from airflow.serialization.definitions.notset import NOTSET
 
@@ -1022,20 +1012,17 @@ class DependencyDetector:
         yield from tt.asset_condition.iter_dag_dependencies(source="", target=dag.dag_id)
 
 
-# TODO (GH-52141): Duplicate DAGNode in the scheduler.
-class SerializedBaseOperator(DAGNode, BaseSerialization):
+class OperatorSerialization(DAGNode, BaseSerialization):
     """
-    A JSON serializable representation of operator.
+    Logic to encode an operator and decode the data.
 
-    All operators are casted to SerializedBaseOperator after deserialization.
-    Class specific attributes used by UI are move to object attributes.
+    This covers serialization of both BaseOperator and MappedOperator. Creating
+    a serializaed operator is a three-step process:
 
-    Creating a SerializedBaseOperator is a three-step process:
-
-    1. Instantiate a :class:`SerializedBaseOperator` object.
-    2. Populate attributes with :func:`SerializedBaseOperator.populated_operator`.
+    1. Instantiate a :class:`SerializedBaseOperator` or :class:`MappedOperator` object.
+    2. Populate attributes with :func:`OperatorSerialization.populated_operator`.
     3. When the task's containing DAG is available, fix references to the DAG
-       with :func:`SerializedBaseOperator.set_task_dag_references`.
+       with :func:`OperatorSerialization.set_task_dag_references`.
     """
 
     _decorated_fields = {"executor_config"}
@@ -1046,202 +1033,6 @@ class SerializedBaseOperator(DAGNode, BaseSerialization):
 
     _const_fields: ClassVar[set[str] | None] = None
 
-    _can_skip_downstream: bool
-    _is_empty: bool
-    _needs_expansion: bool
-    _task_display_name: str | None
-    _weight_rule: str | PriorityWeightStrategy = "downstream"
-
-    # TODO (GH-52141): These should contain serialized containers, but currently
-    # this class inherits from an SDK one.
-    dag: SerializedDAG | None = None  # type: ignore[assignment]
-    task_group: SerializedTaskGroup | None = None  # type: ignore[assignment]
-
-    allow_nested_operators: bool = True
-    depends_on_past: bool = False
-    do_xcom_push: bool = True
-    doc: str | None = None
-    doc_md: str | None = None
-    doc_json: str | None = None
-    doc_yaml: str | None = None
-    doc_rst: str | None = None
-    downstream_task_ids: set[str] = set()
-    email: str | Sequence[str] | None
-
-    # Following 2 should be deprecated
-    email_on_retry: bool = True
-    email_on_failure: bool = True
-
-    execution_timeout: datetime.timedelta | None
-    executor: str | None
-    executor_config: dict = {}
-    ignore_first_depends_on_past: bool = False
-
-    inlets: Sequence = []
-    is_setup: bool = False
-    is_teardown: bool = False
-
-    map_index_template: str | None = None
-    max_active_tis_per_dag: int | None = None
-    max_active_tis_per_dagrun: int | None = None
-    max_retry_delay: datetime.timedelta | float | None = None
-    multiple_outputs: bool = False
-
-    # Boolean flags for callback existence
-    has_on_execute_callback: bool = False
-    has_on_failure_callback: bool = False
-    has_on_retry_callback: bool = False
-    has_on_success_callback: bool = False
-    has_on_skipped_callback: bool = False
-
-    operator_extra_links: Collection[BaseOperatorLink] = []
-    on_failure_fail_dagrun: bool = False
-
-    outlets: Sequence = []
-    owner: str = "airflow"
-    params: SerializedParamsDict = SerializedParamsDict()
-    pool: str = "default_pool"
-    pool_slots: int = 1
-    priority_weight: int = 1
-    queue: str = "default"
-
-    resources: dict[str, Any] | None = None
-    retries: int = 0
-    retry_delay: datetime.timedelta = datetime.timedelta(seconds=300)
-    retry_exponential_backoff: float = 0
-    run_as_user: str | None = None
-
-    start_date: datetime.datetime | None = None
-    end_date: datetime.datetime | None = None
-
-    start_from_trigger: bool = False
-    start_trigger_args: StartTriggerArgs | None = None
-
-    task_type: str = "BaseOperator"
-    template_ext: Sequence[str] = []
-    template_fields: Collection[str] = []
-    template_fields_renderers: ClassVar[dict[str, str]] = {}
-
-    trigger_rule: str | TriggerRule = "all_success"
-
-    # TODO: Remove the following, they aren't used anymore
-    ui_color: str = "#fff"
-    ui_fgcolor: str = "#000"
-
-    wait_for_downstream: bool = False
-    wait_for_past_depends_before_skipping: bool = False
-
-    is_mapped = False
-
-    def __init__(self, *, task_id: str, _airflow_from_mapped: bool = False) -> None:
-        super().__init__()
-
-        self._BaseOperator__from_mapped = _airflow_from_mapped
-        self.task_id = task_id
-        # Move class attributes into object attributes.
-        self.deps = DEFAULT_OPERATOR_DEPS
-        self._operator_name: str | None = None
-
-    def __eq__(self, other: Any) -> bool:
-        if not isinstance(other, (SerializedBaseOperator, BaseOperator)):
-            return NotImplemented
-        return self.task_type == other.task_type and all(
-            getattr(self, c, None) == getattr(other, c, None) for c in BaseOperator._comps
-        )
-
-    def __hash__(self):
-        return hash((self.task_type, *[getattr(self, c, None) for c in BaseOperator._comps]))
-
-    def __repr__(self) -> str:
-        return f"<SerializedTask({self.task_type}): {self.task_id}>"
-
-    @property
-    def node_id(self) -> str:
-        return self.task_id
-
-    # TODO (GH-52141): Replace DAGNode with a scheduler type.
-    def get_dag(self) -> SerializedDAG | None:  # type: ignore[override]
-        return self.dag
-
-    @property
-    def roots(self) -> Sequence[DAGNode]:
-        """Required by DAGNode."""
-        return [self]
-
-    @property
-    def leaves(self) -> Sequence[DAGNode]:
-        """Required by DAGNode."""
-        return [self]
-
-    @cached_property
-    def operator_extra_link_dict(self) -> dict[str, BaseOperatorLink]:
-        """Returns dictionary of all extra links for the operator."""
-        return {link.name: link for link in self.operator_extra_links}
-
-    @cached_property
-    def global_operator_extra_link_dict(self) -> dict[str, Any]:
-        """Returns dictionary of all global extra links."""
-        from airflow import plugins_manager
-
-        plugins_manager.initialize_extra_operators_links_plugins()
-        if plugins_manager.global_operator_extra_links is None:
-            raise AirflowException("Can't load operators")
-        return {link.name: link for link in plugins_manager.global_operator_extra_links}
-
-    @cached_property
-    def extra_links(self) -> list[str]:
-        return sorted(set(self.operator_extra_link_dict).union(self.global_operator_extra_link_dict))
-
-    def get_extra_links(self, ti: TaskInstance, name: str) -> str | None:
-        """
-        For an operator, gets the URLs that the ``extra_links`` entry points to.
-
-        :meta private:
-
-        :raise ValueError: The error message of a ValueError will be passed on through to
-            the fronted to show up as a tooltip on the disabled link.
-        :param ti: The TaskInstance for the URL being searched for.
-        :param name: The name of the link we're looking for the URL for. Should be
-            one of the options specified in ``extra_links``.
-        """
-        link = self.operator_extra_link_dict.get(name) or self.global_operator_extra_link_dict.get(name)
-        if not link:
-            return None
-        # TODO: GH-52141 - BaseOperatorLink.get_link expects BaseOperator but receives SerializedBaseOperator.
-        return link.get_link(self, ti_key=ti.key)  # type: ignore[arg-type]
-
-    @property
-    def operator_name(self) -> str:
-        # Overwrites operator_name of BaseOperator to use _operator_name instead of
-        # __class__.operator_name.
-        return self._operator_name or self.task_type
-
-    @operator_name.setter
-    def operator_name(self, operator_name: str):
-        self._operator_name = operator_name
-
-    @property
-    def task_display_name(self) -> str:
-        return self._task_display_name or self.task_id
-
-    def expand_start_trigger_args(self, *, context: Context) -> StartTriggerArgs | None:
-        return self.start_trigger_args
-
-    @property
-    def weight_rule(self) -> PriorityWeightStrategy:
-        if isinstance(self._weight_rule, PriorityWeightStrategy):
-            return self._weight_rule
-        return validate_and_load_priority_weight_strategy(self._weight_rule)
-
-    def __getattr__(self, name):
-        # Handle missing attributes with task_type instead of SerializedBaseOperator
-        # Don't intercept special methods that Python internals might check
-        if name.startswith("__") and name.endswith("__"):
-            # For special methods, raise the original error
-            raise AttributeError(f"'{self.__class__.__name__}' object has no attribute '{name}'")
-        # For regular attributes, use task_type in the error message
-        raise AttributeError(f"'{self.task_type}' object has no attribute '{name}'")
-
     @classmethod
     def serialize_mapped_operator(cls, op: MappedOperator) -> dict[str, Any]:
         serialized_op = cls._serialize_node(op)
@@ -1249,10 +1040,7 @@ class SerializedBaseOperator(DAGNode, BaseSerialization):
         expansion_kwargs = op._get_specified_expand_input()
         if TYPE_CHECKING:  # Let Mypy check the input type for us!
             _ExpandInputRef.validate_expand_input_value(expansion_kwargs.value)
-        serialized_op[op._expand_input_attr] = {
-            "type": type(expansion_kwargs).EXPAND_INPUT_TYPE,
-            "value": cls.serialize(expansion_kwargs.value),
-        }
+        serialized_op[op._expand_input_attr] = encode_expand_input(expansion_kwargs)
 
         if op.partial_kwargs:
             serialized_op["partial_kwargs"] = {}
@@ -1562,7 +1350,7 @@ class SerializedBaseOperator(DAGNode, BaseSerialization):
         """Deserializes an operator from a JSON object."""
         op: SerializedOperator
         if encoded_op.get("_is_mapped", False):
-            from airflow.models.mappedoperator import MappedOperator as SerializedMappedOperator
+            from airflow.serialization.definitions.mappedoperator import SerializedMappedOperator
 
             try:
                 operator_name = encoded_op["_operator_name"]
@@ -1680,7 +1468,7 @@ class SerializedBaseOperator(DAGNode, BaseSerialization):
         return False
 
     @classmethod
-    def _is_excluded(cls, var: Any, attrname: str, op: DAGNode):
+    def _is_excluded(cls, var: Any, attrname: str, op: SDKDAGNode) -> bool:
         """
         Determine if a variable is excluded from the serialized object.
 
@@ -1807,97 +1595,6 @@ class SerializedBaseOperator(DAGNode, BaseSerialization):
     def deserialize(cls, encoded_var: Any) -> Any:
         return BaseSerialization.deserialize(encoded_var=encoded_var)
 
-    def serialize_for_task_group(self) -> tuple[DAT, Any]:
-        """Serialize; required by DAGNode."""
-        return DAT.OP, self.task_id
-
-    @property
-    def inherits_from_empty_operator(self) -> bool:
-        return self._is_empty
-
-    @property
-    def inherits_from_skipmixin(self) -> bool:
-        return self._can_skip_downstream
-
-    def expand_start_from_trigger(self, *, context: Context) -> bool:
-        """
-        Get the start_from_trigger value of the current abstract operator.
-
-        Since a BaseOperator is not mapped to begin with, this simply returns
-        the original value of start_from_trigger.
-
-        :meta private:
-        """
-        return self.start_from_trigger
-
-    @classmethod
-    def get_serialized_fields(cls):
-        """Fields to deserialize from the serialized JSON object."""
-        return frozenset(
-            {
-                "_logger_name",
-                "_needs_expansion",
-                "_task_display_name",
-                "allow_nested_operators",
-                "depends_on_past",
-                "do_xcom_push",
-                "doc",
-                "doc_json",
-                "doc_md",
-                "doc_rst",
-                "doc_yaml",
-                "downstream_task_ids",
-                "email",
-                "email_on_failure",
-                "email_on_retry",
-                "end_date",
-                "execution_timeout",
-                "executor",
-                "executor_config",
-                "ignore_first_depends_on_past",
-                "inlets",
-                "is_setup",
-                "is_teardown",
-                "map_index_template",
-                "max_active_tis_per_dag",
-                "max_active_tis_per_dagrun",
-                "max_retry_delay",
-                "multiple_outputs",
-                "has_on_execute_callback",
-                "has_on_failure_callback",
-                "has_on_retry_callback",
-                "has_on_skipped_callback",
-                "has_on_success_callback",
-                "on_failure_fail_dagrun",
-                "outlets",
-                "owner",
-                "params",
-                "pool",
-                "pool_slots",
-                "priority_weight",
-                "queue",
-                "resources",
-                "retries",
-                "retry_delay",
-                "retry_exponential_backoff",
-                "run_as_user",
-                "start_date",
-                "start_from_trigger",
-                "start_trigger_args",
-                "task_id",
-                "task_type",
-                "template_ext",
-                "template_fields",
-                "template_fields_renderers",
-                "trigger_rule",
-                "ui_color",
-                "ui_fgcolor",
-                "wait_for_downstream",
-                "wait_for_past_depends_before_skipping",
-                "weight_rule",
-            }
-        )
-
     @classmethod
     @lru_cache(maxsize=1)
     def generate_client_defaults(cls) -> dict[str, Any]:
@@ -1916,7 +1613,7 @@ class SerializedBaseOperator(DAGNode, BaseSerialization):
 
         # Only include OPERATOR_DEFAULTS values that differ from schema defaults
         for k, v in OPERATOR_DEFAULTS.items():
-            if k not in cls.get_serialized_fields():
+            if k not in SerializedBaseOperator.get_serialized_fields():
                 continue
 
             # Exclude values that are None or empty collections
@@ -2048,112 +1745,6 @@ class SerializedBaseOperator(DAGNode, BaseSerialization):
 
         return result
 
-    def _iter_all_mapped_downstreams(self) -> Iterator[MappedOperator | SerializedMappedTaskGroup]:
-        """
-        Return mapped nodes that are direct dependencies of the current task.
-
-        For now, this walks the entire DAG to find mapped nodes that has this
-        current task as an upstream. We cannot use ``downstream_list`` since it
-        only contains operators, not task groups. In the future, we should
-        provide a way to record an DAG node's all downstream nodes instead.
-
-        Note that this does not guarantee the returned tasks actually use the
-        current task for task mapping, but only checks those task are mapped
-        operators, and are downstreams of the current task.
-
-        To get a list of tasks that uses the current task for task mapping, use
-        :meth:`iter_mapped_dependants` instead.
-        """
-
-        def _walk_group(group: SerializedTaskGroup) -> Iterable[tuple[str, DAGNode]]:
-            """
-            Recursively walk children in a task group.
-
-            This yields all direct children (including both tasks and task
-            groups), and all children of any task groups.
-            """
-            for key, child in group.children.items():
-                yield key, child
-                if isinstance(child, SerializedTaskGroup):
-                    yield from _walk_group(child)
-
-        if not (dag := self.dag):
-            raise RuntimeError("Cannot check for mapped dependants when not attached to a DAG")
-        for key, child in _walk_group(dag.task_group):
-            if key == self.node_id:
-                continue
-            if not isinstance(child, MappedOperator | SerializedMappedTaskGroup):
-                continue
-            if self.node_id in child.upstream_task_ids:
-                yield child
-
-    def iter_mapped_dependants(self) -> Iterator[MappedOperator | SerializedMappedTaskGroup]:
-        """
-        Return mapped nodes that depend on the current task the expansion.
-
-        For now, this walks the entire DAG to find mapped nodes that has this
-        current task as an upstream. We cannot use ``downstream_list`` since it
-        only contains operators, not task groups. In the future, we should
-        provide a way to record an DAG node's all downstream nodes instead.
-        """
-        return (
-            downstream
-            for downstream in self._iter_all_mapped_downstreams()
-            if any(p.node_id == self.node_id for p in downstream.iter_mapped_dependencies())
-        )
-
-    # TODO (GH-52141): Copied from sdk. Find a better place for this to live in.
-    def iter_mapped_task_groups(self) -> Iterator[SerializedMappedTaskGroup]:
-        """
-        Return mapped task groups this task belongs to.
-
-        Groups are returned from the innermost to the outmost.
-
-        :meta private:
-        """
-        if (group := self.task_group) is None:
-            return
-        yield from group.iter_mapped_task_groups()
-
-    # TODO (GH-52141): Copied from sdk. Find a better place for this to live in.
-    def get_closest_mapped_task_group(self) -> SerializedMappedTaskGroup | None:
-        """
-        Get the mapped task group "closest" to this task in the DAG.
-
-        :meta private:
-        """
-        return next(self.iter_mapped_task_groups(), None)
-
-    # TODO (GH-52141): Copied from sdk. Find a better place for this to live in.
-    def get_needs_expansion(self) -> bool:
-        """
-        Return true if the task is MappedOperator or is in a mapped task group.
-
-        :meta private:
-        """
-        return self._needs_expansion
-
-    # TODO (GH-52141): Copied from sdk. Find a better place for this to live in.
-    @methodtools.lru_cache(maxsize=1)
-    def get_parse_time_mapped_ti_count(self) -> int:
-        """
-        Return the number of mapped task instances that can be created on DAG run creation.
-
-        This only considers literal mapped arguments, and would return *None*
-        when any non-literal values are used for mapping.
-
-        :raise NotFullyPopulated: If non-literal mapped arguments are encountered.
-        :raise NotMapped: If the operator is neither mapped, nor has any parent
-            mapped task groups.
-        :return: Total number of mapped TIs this task should have.
-        """
-        from airflow.exceptions import NotMapped
-
-        group = self.get_closest_mapped_task_group()
-        if group is None:
-            raise NotMapped()
-        return group.get_parse_time_mapped_ti_count()
-
 
 class DagSerialization(BaseSerialization):
     """Logic to encode a ``DAG`` object and decode the data into ``SerializedDAG``."""
@@ -2187,7 +1778,7 @@ class DagSerialization(BaseSerialization):
             dag_deps = [
                 dep
                 for task in dag.task_dict.values()
-                for dep in SerializedBaseOperator.detect_dependencies(task)
+                for dep in OperatorSerialization.detect_dependencies(task)
             ]
             dag_deps.extend(DependencyDetector.detect_dag_dependencies(dag))
             serialized_dag["dag_dependencies"] = [x.__dict__ for x in sorted(dag_deps)]
@@ -2269,13 +1860,11 @@ class DagSerialization(BaseSerialization):
             if k == "_downstream_task_ids":
                 v = set(v)
             elif k == "tasks":
-                SerializedBaseOperator._load_operator_extra_links = cls._load_operator_extra_links
+                OperatorSerialization._load_operator_extra_links = cls._load_operator_extra_links
                 tasks = {}
                 for obj in v:
                     if obj.get(Encoding.TYPE) == DAT.OP:
-                        deser = SerializedBaseOperator.deserialize_operator(
-                            obj[Encoding.VAR], client_defaults
-                        )
+                        deser = OperatorSerialization.deserialize_operator(obj[Encoding.VAR], client_defaults)
                         tasks[deser.task_id] = deser
                 k = "task_dict"
                 v = tasks
@@ -2347,7 +1936,7 @@ class DagSerialization(BaseSerialization):
             setattr(dag, k, None)
 
         for t in dag.task_dict.values():
-            SerializedBaseOperator.set_task_dag_references(t, dag)
+            OperatorSerialization.set_task_dag_references(t, dag)
 
         return dag
 
@@ -2396,13 +1985,13 @@ class DagSerialization(BaseSerialization):
         """Stringifies DAGs and operators contained by var and returns a dict of var."""
         # Clear any cached client_defaults to ensure fresh generation for this DAG
         # Clear lru_cache for client defaults
-        SerializedBaseOperator.generate_client_defaults.cache_clear()
+        OperatorSerialization.generate_client_defaults.cache_clear()
 
         json_dict = {"__version": cls.SERIALIZER_VERSION, "dag": cls.serialize_dag(var)}
 
         # Add client_defaults section with only values that differ from schema defaults
         # for tasks
-        client_defaults = SerializedBaseOperator.generate_client_defaults()
+        client_defaults = OperatorSerialization.generate_client_defaults()
         if client_defaults:
             json_dict["client_defaults"] = {"tasks": client_defaults}
 
@@ -2594,11 +2183,7 @@ class TaskGroupSerialization(BaseSerialization):
         }
 
         if isinstance(task_group, MappedTaskGroup):
-            expand_input = task_group._expand_input
-            encoded["expand_input"] = {
-                "type": expand_input.EXPAND_INPUT_TYPE,
-                "value": cls.serialize(expand_input.value),
-            }
+            encoded["expand_input"] = encode_expand_input(task_group._expand_input)
             encoded["is_mapped"] = True
 
         return encoded
@@ -2778,48 +2363,6 @@ class LazyDeserializedDAG(pydantic.BaseModel):
         )
 
 
-@attrs.define()
-class XComOperatorLink(LoggingMixin):
-    """
-    Generic operator link class that can retrieve link only using XCOMs.
-
-    Used while deserializing operators.
-    """
-
-    name: str
-    xcom_key: str
-
-    def get_link(self, operator: BaseOperator, *, ti_key: TaskInstanceKey) -> str:
-        """
-        Retrieve the link from the XComs.
-
-        :param operator: The Airflow operator object this link is associated to.
-        :param ti_key: TaskInstance ID to return link for.
-        :return: link to external system, but by pulling it from XComs
-        """
-        self.log.info(
-            "Attempting to retrieve link from XComs with key: %s for task id: %s", self.xcom_key, ti_key
-        )
-        with create_session() as session:
-            value = session.execute(
-                XComModel.get_many(
-                    key=self.xcom_key,
-                    run_id=ti_key.run_id,
-                    dag_ids=ti_key.dag_id,
-                    task_ids=ti_key.task_id,
-                    map_indexes=ti_key.map_index,
-                ).with_only_columns(XComModel.value)
-            ).first()
-        if not value:
-            self.log.debug(
-                "No link with name: %s present in XCom as key: %s, returning empty link",
-                self.name,
-                self.xcom_key,
-            )
-            return ""
-        return XComModel.deserialize_value(value)
-
-
 @overload
 def create_scheduler_operator(op: BaseOperator | SerializedBaseOperator) -> SerializedBaseOperator: ...
 
@@ -2829,14 +2372,14 @@ def create_scheduler_operator(op: MappedOperator | SerializedMappedOperator) -> 
 
 
 def create_scheduler_operator(op: SdkOperator | SerializedOperator) -> SerializedOperator:
-    from airflow.models.mappedoperator import MappedOperator as SerializedMappedOperator
+    from airflow.serialization.definitions.mappedoperator import SerializedMappedOperator
 
     if isinstance(op, (SerializedBaseOperator, SerializedMappedOperator)):
         return op
     if isinstance(op, BaseOperator):
-        d = SerializedBaseOperator.serialize_operator(op)
+        d = OperatorSerialization.serialize_operator(op)
     elif isinstance(op, MappedOperator):
-        d = SerializedBaseOperator.serialize_mapped_operator(op)
+        d = OperatorSerialization.serialize_mapped_operator(op)
     else:
         raise TypeError(type(op).__name__)
-    return SerializedBaseOperator.deserialize_operator(d)
+    return OperatorSerialization.deserialize_operator(d)

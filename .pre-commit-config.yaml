@@ -319,7 +319,7 @@ repos:
           - --skip=providers/.*/src/airflow/providers/*/*.rst,providers/*/docs/changelog.rst,docs/*/commits.rst,providers/*/docs/commits.rst,providers/*/*/docs/commits.rst,docs/apache-airflow/tutorial/pipeline_example.csv,*.min.js,*.lock,INTHEWILD.md,*.svg
           - --exclude-file=.codespellignorelines
   - repo: https://github.com/woodruffw/zizmor-pre-commit
-    rev: 1e30511413f07e516c1844ba91abce8aca984963  # frozen: v1.18.0
+    rev: ea18690d7f8e44203c9efd7bc6229447d02e3951  # frozen: v1.19.0
     hooks:
       - id: zizmor
         name: Run zizmor to check for github workflow syntax errors
@@ -433,6 +433,11 @@ repos:
             ^airflow-core/tests/unit/models/test_cleartasks.py$|
             ^airflow-core/tests/unit/models/test_xcom.py$|
             ^airflow-core/tests/unit/models/test_dagrun.py$|
+            ^airflow-core/tests/unit/models/test_dag\.py$|
+            ^airflow-core/tests/unit/models/test_dagcode\.py$|
+            ^airflow-core/tests/unit/models/test_mappedoperator\.py$|
+            ^airflow-core/tests/unit/models/test_taskinstance\.py$|
+            ^airflow-core/tests/unit/models/test_variable\.py$|
             ^airflow-core/tests/unit/api_fastapi/core_api/routes/public/test_dag_sources.py$|
             ^airflow-core/tests/unit/api_fastapi/core_api/routes/public/test_hitl.py$|
             ^airflow-core/tests/unit/api_fastapi/core_api/routes/ui/test_assets.py$|
@@ -457,6 +462,9 @@ repos:
             ^airflow-core/tests/unit/utils/test_db_cleanup.py$|
             ^airflow-core/tests/unit/utils/test_state.py$|
             ^airflow-core/tests/unit/utils/test_log_handlers.py$|
+            ^airflow-core/tests/unit/utils/test_types.py$|
+            ^airflow-core/tests/unit/dag_processing/test_manager.py$|
+            ^airflow-core/tests/unit/dag_processing/test_processor.py$|
             ^dev/airflow_perf/scheduler_dag_execution_timing.py$|
             ^providers/celery/.*\.py$|
             ^providers/cncf/kubernetes/.*\.py$|
@@ -464,7 +472,10 @@ repos:
             ^providers/edge3/.*\.py$|
             ^providers/mysql/.*\.py$|
             ^providers/openlineage/.*\.py$|
-            ^task_sdk.*\.py$
+            ^task_sdk.*\.py$|
+            ^devel-common/src/tests_common/pytest_plugin\.py$|
+            ^devel-common/src/tests_common/test_utils/.*\.py$
+
         pass_filenames: true
       - id: update-supported-versions
         name: Updates supported versions in documentation
