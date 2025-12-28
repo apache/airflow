@@ -217,7 +217,7 @@ def mock_plugins_manager_for_all_non_db_tests():
         return
     from tests_common.test_utils.mock_plugins import mock_plugin_manager
 
-    with mock_plugin_manager() as _fixture:
+    with mock_plugin_manager(plugins=[]) as _fixture:
         yield _fixture
 
 
