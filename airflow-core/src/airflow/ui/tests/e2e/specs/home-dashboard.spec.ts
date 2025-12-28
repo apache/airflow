@@ -30,9 +30,8 @@ test.describe("Dashboard Metrics Display", () => {
     await homePage.navigate();
     await homePage.waitForDashboardLoad();
 
-    const isStatsVisible = await homePage.isStatsSectionVisible();
-
-    expect(isStatsVisible).toBe(true);
+    // Use Playwright assertions directly for clearer error messages
+    await expect(homePage.statsSection).toBeVisible();
 
     await expect(homePage.activeDagsCard).toBeVisible();
     const activeDagsCount = await homePage.getActiveDagsCount();
@@ -54,10 +53,8 @@ test.describe("Dashboard Metrics Display", () => {
     await homePage.navigate();
     await homePage.waitForDashboardLoad();
 
-    const areHealthBadgesVisible = await homePage.areHealthBadgesVisible();
-
-    expect(areHealthBadgesVisible).toBe(true);
-
+    // Use Playwright assertions directly for clearer error messages
+    await expect(homePage.healthSection).toBeVisible();
     await expect(homePage.metaDatabaseHealth).toBeVisible();
     await expect(homePage.schedulerHealth).toBeVisible();
     await expect(homePage.triggererHealth).toBeVisible();
@@ -103,9 +100,8 @@ test.describe("Dashboard Metrics Display", () => {
     await homePage.page.reload();
     await homePage.waitForDashboardLoad();
 
-    const isStatsVisible = await homePage.isStatsSectionVisible();
-
-    expect(isStatsVisible).toBe(true);
+    // Use Playwright assertions directly for clearer error messages
+    await expect(homePage.statsSection).toBeVisible();
 
     const reloadedActiveCount = await homePage.getActiveDagsCount();
     const reloadedRunningCount = await homePage.getRunningDagsCount();
@@ -120,10 +116,8 @@ test.describe("Dashboard Metrics Display", () => {
     await homePage.navigate();
     await homePage.waitForDashboardLoad();
 
-    const isHistoricalMetricsVisible = await homePage.isHistoricalMetricsSectionVisible();
-
-    expect(isHistoricalMetricsVisible).toBe(true);
-
+    // Use Playwright assertions directly for clearer error messages
+    await expect(homePage.historicalMetricsSection).toBeVisible();
     await expect(homePage.dagRunMetrics).toBeVisible();
     await expect(homePage.taskInstanceMetrics).toBeVisible();
   });

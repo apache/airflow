@@ -78,20 +78,6 @@ export class HomePage extends BasePage {
   }
 
   /**
-   * Check if health badges are visible
-   */
-  public async areHealthBadgesVisible(): Promise<boolean> {
-    try {
-      await this.metaDatabaseHealth.waitFor({ state: "visible", timeout: 10_000 });
-      await this.schedulerHealth.waitFor({ state: "visible", timeout: 5000 });
-
-      return true;
-    } catch {
-      return false;
-    }
-  }
-
-  /**
    * Get Active DAGs count
    */
   public async getActiveDagsCount(): Promise<number> {
@@ -118,32 +104,6 @@ export class HomePage extends BasePage {
   public async isDagImportErrorsVisible(): Promise<boolean> {
     try {
       return await this.dagImportErrorsCard.isVisible();
-    } catch {
-      return false;
-    }
-  }
-
-  /**
-   * Check if historical metrics (recent runs) section is visible
-   */
-  public async isHistoricalMetricsSectionVisible(): Promise<boolean> {
-    try {
-      await this.dagRunMetrics.waitFor({ state: "visible", timeout: 10_000 });
-
-      return true;
-    } catch {
-      return false;
-    }
-  }
-
-  /**
-   * Check if stats section is visible
-   */
-  public async isStatsSectionVisible(): Promise<boolean> {
-    try {
-      await this.activeDagsCard.waitFor({ state: "visible", timeout: 10_000 });
-
-      return true;
     } catch {
       return false;
     }
