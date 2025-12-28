@@ -35,7 +35,7 @@ from airflow.providers.amazon.aws.triggers.sagemaker_unified_studio import (
 from airflow.providers.common.compat.sdk import AirflowException, BaseOperator
 
 if TYPE_CHECKING:
-    from airflow.utils.context import Context
+    from airflow.sdk import Context
 
 
 class SageMakerNotebookOperator(BaseOperator):
