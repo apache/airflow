@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-12-27T13:54:46.178101
+# This constraints file was automatically generated on 2025-12-28T07:51:52.835481
 # via `uv pip install --resolution highest` for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -200,7 +200,7 @@ azure-cosmos==4.14.3
 azure-datalake-store==0.0.53
 azure-identity==1.25.1
 azure-keyvault-secrets==4.10.0
-azure-kusto-data==6.0.0
+azure-kusto-data==6.0.1
 azure-mgmt-containerinstance==10.1.0
 azure-mgmt-containerregistry==14.0.0
 azure-mgmt-core==1.6.0
@@ -548,7 +548,7 @@ python-dateutil==2.9.0.post0
 python-dotenv==1.2.1
 python-http-client==3.3.7
 python-jenkins==1.8.3
-python-keycloak==5.8.1
+python-keycloak==5.12.0
 python-ldap==3.4.5
 python-multipart==0.0.21
 python-slugify==8.0.4
