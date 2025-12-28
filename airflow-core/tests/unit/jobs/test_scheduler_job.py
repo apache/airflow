@@ -3147,7 +3147,7 @@ class TestSchedulerJob:
     @pytest.mark.parametrize(
         ("state", "expected_callback_msg"), [(State.SUCCESS, "success"), (State.FAILED, "task_failure")]
     )
-    @conf_vars({("scheduler", "use_job_schedule"): False})
+    @conf_vars({("scheduler", "use_job_schedule"): "False"})
     def test_dagrun_callbacks_are_called(self, state, expected_callback_msg, dag_maker, session):
         """
         Test if DagRun is successful, and if Success callbacks is defined, it is sent to DagFileProcessor.
@@ -3192,7 +3192,7 @@ class TestSchedulerJob:
     @pytest.mark.parametrize(
         ("state", "expected_callback_msg"), [(State.SUCCESS, "success"), (State.FAILED, "task_failure")]
     )
-    @conf_vars({("scheduler", "use_job_schedule"): False})
+    @conf_vars({("scheduler", "use_job_schedule"): "False"})
     def test_dagrun_plugins_are_notified(self, state, expected_callback_msg, dag_maker, session):
         """
         Test if DagRun is successful, and if Success callbacks is defined, it is sent to DagFileProcessor.
@@ -3225,7 +3225,7 @@ class TestSchedulerJob:
 
         session.rollback()
 
-    @conf_vars({("scheduler", "use_job_schedule"): False})
+    @conf_vars({("scheduler", "use_job_schedule"): "False"})
     def test_dagrun_timeout_callbacks_are_stored_in_database(self, dag_maker, session):
         with dag_maker(
             dag_id="test_dagrun_timeout_callbacks_are_stored_in_database",
@@ -3266,7 +3266,7 @@ class TestSchedulerJob:
 
         assert callback == expected_callback
 
-    @conf_vars({("scheduler", "use_job_schedule"): False})
+    @conf_vars({("scheduler", "use_job_schedule"): "False"})
     def test_dagrun_callbacks_commited_before_sent(self, dag_maker):
         """
         Tests that before any callbacks are sent to the processor, the session is committed. This ensures
@@ -3312,7 +3312,7 @@ class TestSchedulerJob:
         session.close()
 
     @pytest.mark.parametrize("state", [State.SUCCESS, State.FAILED])
-    @conf_vars({("scheduler", "use_job_schedule"): False})
+    @conf_vars({("scheduler", "use_job_schedule"): "False"})
     def test_dagrun_callbacks_are_not_added_when_callbacks_are_not_defined(self, state, dag_maker, session):
         """
         Test if no on_*_callback are defined on DAG, Callbacks not registered and sent to DAG Processor
@@ -3343,7 +3343,7 @@ class TestSchedulerJob:
         session.rollback()
 
     @pytest.mark.parametrize(("state", "msg"), [[State.SUCCESS, "success"], [State.FAILED, "task_failure"]])
-    @conf_vars({("scheduler", "use_job_schedule"): False})
+    @conf_vars({("scheduler", "use_job_schedule"): "False"})
     def test_dagrun_callbacks_are_added_when_callbacks_are_defined(self, state, msg, dag_maker):
         """
         Test if on_*_callback are defined on DAG, Callbacks ARE registered and sent to DAG Processor
@@ -3376,7 +3376,7 @@ class TestSchedulerJob:
         session.rollback()
         session.close()
 
-    @conf_vars({("scheduler", "use_job_schedule"): False})
+    @conf_vars({("scheduler", "use_job_schedule"): "False"})
     def test_dagrun_notify_called_success(self, dag_maker):
         with dag_maker(
             dag_id="test_dagrun_notify_called",
@@ -5994,7 +5994,7 @@ class TestSchedulerJob:
 
         assert dr[0].state == State.RUNNING
 
-    @conf_vars({("scheduler", "use_job_schedule"): False})
+    @conf_vars({("scheduler", "use_job_schedule"): "False"})
     def test_no_dagruns_would_stuck_in_running(self, dag_maker):
         # Test that running dagruns are not stuck in running.
         # Create one dagrun in 'running' state and 1 in 'queued' state from one dag(max_active_runs=1)
@@ -6635,7 +6635,7 @@ class TestSchedulerJob:
             "External Executor Id": "abcdefg",
         }
 
-    @conf_vars({("scheduler", "use_job_schedule"): False})
+    @conf_vars({("scheduler", "use_job_schedule"): "False"})
     def run_scheduler_until_dagrun_terminal(self):
         """
         Run a scheduler until any dag run reaches a terminal state, or the scheduler becomes "idle".
