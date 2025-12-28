@@ -5092,14 +5092,14 @@ class TestSchedulerJob:
         self.job_runner._create_dag_runs(dag_models, session)
         dr = session.scalars(select(DagRun)).one()
         dr.state == DagRunState.QUEUED
-        assert len(session.scalars(select(DagRun)).all()) == 1
+        assert session.scalar(select(func.count()).select_from(DagRun)) == 1
         assert dag_maker.dag_model.next_dagrun_create_after is None
         session.flush()
         # dags_needing_dagruns query should not return any value
         query, _ = DagModel.dags_needing_dagruns(session)
         assert len(query.all()) == 0
         self.job_runner._create_dag_runs(dag_models, session)
-        assert len(session.scalars(select(DagRun)).all()) == 1
+        assert session.scalar(select(func.count()).select_from(DagRun)) == 1
         assert dag_maker.dag_model.next_dagrun_create_after is None
         assert dag_maker.dag_model.next_dagrun == DEFAULT_DATE
         # set dagrun to success
@@ -5119,10 +5119,10 @@ class TestSchedulerJob:
         assert dag_maker.dag_model.next_dagrun == DEFAULT_DATE + timedelta(days=1)
         # assert no dagruns is created yet
         assert (
-            len(
-                session.scalars(
-                    select(DagRun).where(DagRun.state.in_([DagRunState.RUNNING, DagRunState.QUEUED]))
-                ).all()
+            session.scalar(
+                select(func.count())
+                .select_from(DagRun)
+                .where(DagRun.state.in_([DagRunState.RUNNING, DagRunState.QUEUED]))
             )
             == 0
         )
@@ -6117,7 +6117,11 @@ class TestSchedulerJob:
 
             self.job_runner._schedule_dag_run(dr, session)
             assert (
-                len(session.scalars(select(TaskInstance).where(TaskInstance.state == State.SCHEDULED)).all())
+                session.scalar(
+                    select(func.count())
+                    .select_from(TaskInstance)
+                    .where(TaskInstance.state == State.SCHEDULED)
+                )
                 == 1
             )
 
@@ -6166,7 +6170,11 @@ class TestSchedulerJob:
 
             self.job_runner._schedule_dag_run(dr, session)
             assert (
-                len(session.scalars(select(TaskInstance).where(TaskInstance.state == State.SCHEDULED)).all())
+                session.scalar(
+                    select(func.count())
+                    .select_from(TaskInstance)
+                    .where(TaskInstance.state == State.SCHEDULED)
+                )
                 == 1
             )
 
@@ -6215,7 +6223,11 @@ class TestSchedulerJob:
 
             self.job_runner._schedule_dag_run(dr, session)
             assert (
-                len(session.scalars(select(TaskInstance).where(TaskInstance.state == State.SCHEDULED)).all())
+                session.scalar(
+                    select(func.count())
+                    .select_from(TaskInstance)
+                    .where(TaskInstance.state == State.SCHEDULED)
+                )
                 == 1
             )
 
@@ -6324,7 +6336,10 @@ class TestSchedulerJob:
         self.job_runner._schedule_dag_run(dr, session)
         session.expunge_all()
         assert (
-            len(session.scalars(select(TaskInstance).where(TaskInstance.state == State.SCHEDULED)).all()) == 2
+            session.scalar(
+                select(func.count()).select_from(TaskInstance).where(TaskInstance.state == State.SCHEDULED)
+            )
+            == 2
         )
         session.flush()
 
