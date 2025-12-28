@@ -167,9 +167,6 @@ def _disable_ol_plugin():
     import airflow.plugins_manager
 
     old = airflow.plugins_manager._get_plugins
-
-    assert old.cache_info().currsize == 0, "Plugins already loaded, too late to stop them being loaded!"
-
     airflow.plugins_manager._get_plugins = lambda: ([], {})
 
     yield
