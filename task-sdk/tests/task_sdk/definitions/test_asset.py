@@ -17,7 +17,6 @@
 
 from __future__ import annotations
 
-import json
 import os
 from collections.abc import Callable
 from unittest import mock
@@ -28,7 +27,6 @@ from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.sdk.api.datamodels._generated import AssetProfile
 from airflow.sdk.definitions.asset import (
     Asset,
-    AssetAlias,
     AssetAll,
     AssetAny,
     AssetUniqueKey,
@@ -40,7 +38,9 @@ from airflow.sdk.definitions.asset import (
 )
 from airflow.sdk.definitions.dag import DAG
 from airflow.sdk.io import ObjectStoragePath
-from airflow.serialization.serialized_objects import SerializedDAG
+from airflow.serialization.definitions.assets import SerializedAsset, SerializedAssetAny
+
+from tests_common.test_utils.dag import create_scheduler_dag
 
 ASSET_MODULE_PATH = "airflow.sdk.definitions.asset"
 
@@ -206,27 +206,6 @@ def test_asset_logic_operations():
     assert isinstance(result_and, AssetAll)
 
 
-def test_asset_iter_assets():
-    assert list(asset1.iter_assets()) == [(AssetUniqueKey("asset-1", "s3://bucket1/data1"), asset1)]
-
-
-def test_asset_iter_asset_aliases():
-    base_asset = AssetAll(
-        AssetAlias(name="example-alias-1"),
-        Asset("1"),
-        AssetAny(
-            Asset(name="2", uri="test://asset1"),
-            AssetAlias("example-alias-2"),
-            Asset(name="3"),
-            AssetAll(AssetAlias("example-alias-3"), Asset("4"), AssetAlias("example-alias-4")),
-        ),
-        AssetAll(AssetAlias("example-alias-5"), Asset("5")),
-    )
-    assert list(base_asset.iter_asset_aliases()) == [
-        (f"example-alias-{i}", AssetAlias(f"example-alias-{i}")) for i in range(1, 6)
-    ]
-
-
 def test_asset_any_operations():
     result_or = (asset1 | asset2) | asset3
     assert isinstance(result_or, AssetAny)
@@ -259,14 +238,14 @@ def test_asset_trigger_setup_and_serialization(create_test_assets):
     assert isinstance(dag.timetable.asset_condition, AssetAny), "Dag assets should be an instance of AssetAny"
 
     # Round-trip the Dag through serialization
-    deserialized_dag = SerializedDAG.deserialize_dag(SerializedDAG.serialize_dag(dag))
+    deserialized_dag = create_scheduler_dag(dag)
 
     # Verify serialization and deserialization integrity
-    assert isinstance(deserialized_dag.timetable.asset_condition, AssetAny), (
-        "Deserialized assets should maintain type AssetAny"
-    )
-    assert deserialized_dag.timetable.asset_condition.objects == dag.timetable.asset_condition.objects, (
-        "Deserialized assets should match original"
+    assert deserialized_dag.timetable.asset_condition == SerializedAssetAny(
+        [
+            SerializedAsset(name="hello1", uri="test://asset1/", group="asset", extra={}, watchers=[]),
+            SerializedAsset(name="hello2", uri="test://asset2/", group="asset", extra={}, watchers=[]),
+        ],
     )
 
 
@@ -418,23 +397,9 @@ def test_normalize_uri_valid_uri(mock_get_normalized_scheme):
 
 
 class TestAssetUniqueKey:
-    def test_from_asset(self):
-        asset = Asset(name="test", uri="test://test/")
-
-        assert AssetUniqueKey.from_asset(asset) == AssetUniqueKey(name="test", uri="test://test/")
-
     def test_to_asset(self):
         assert AssetUniqueKey(name="test", uri="test://test/").to_asset() == Asset(
             name="test", uri="test://test/"
-        )
-
-    def test_from_str(self):
-        json_str = json.dumps({"name": "test", "uri": "test://test/"})
-        assert AssetUniqueKey.from_str(json_str) == AssetUniqueKey(name="test", uri="test://test/")
-
-    def test_to_str(self):
-        assert AssetUniqueKey(name="test", uri="test://test/").to_str() == json.dumps(
-            {"name": "test", "uri": "test://test/"}
         )
 
     @pytest.mark.parametrize(
@@ -448,12 +413,6 @@ class TestAssetUniqueKey:
     def test_from_profile(self, name, uri, expected_asset_unique_key):
         profile = AssetProfile(name=name, uri=uri, type="Asset")
         assert AssetUniqueKey.from_profile(profile) == expected_asset_unique_key
-
-
-class TestAssetAlias:
-    def test_as_expression(self):
-        alias = AssetAlias(name="test_name", group="test")
-        assert alias.as_expression() == {"alias": {"name": alias.name, "group": alias.group}}
 
 
 class TestAssetSubclasses:

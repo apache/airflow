@@ -36,7 +36,8 @@ if TYPE_CHECKING:
 class _KubernetesCmdDecoratedOperator(DecoratedOperator, KubernetesPodOperator):
     custom_operator_name = "@task.kubernetes_cmd"
 
-    template_fields: Sequence[str] = KubernetesPodOperator.template_fields
+    template_fields: Sequence[str] = tuple({"op_args", "op_kwargs", *KubernetesPodOperator.template_fields})
+
     overwrite_rtif_after_execution: bool = True
 
     def __init__(self, *, python_callable: Callable, args_only: bool = False, **kwargs) -> None:
@@ -69,6 +70,8 @@ class _KubernetesCmdDecoratedOperator(DecoratedOperator, KubernetesPodOperator):
         )
 
     def execute(self, context: Context):
+        self.render_template_fields(context)
+
         generated = self._generate_cmds(context)
         if self.args_only:
             self.cmds = []

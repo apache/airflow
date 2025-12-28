@@ -132,10 +132,9 @@ def _run_stale_bundle_cleanup():
         )
     if not check_interval or check_interval <= 0 or not AIRFLOW_V_3_0_PLUS:
         # do not start bundle cleanup process
-        try:
+        with suppress(BaseException):
             yield
-        finally:
-            return
+        return
     from airflow.dag_processing.bundles.base import BundleUsageTrackingManager
 
     log.info("starting stale bundle cleanup process")
@@ -192,6 +191,19 @@ def worker(args):
     """Start Airflow Celery worker."""
     # This needs to be imported locally to not trigger Providers Manager initialization
     from airflow.providers.celery.executors.celery_executor import app as celery_app
+
+    # Check if a worker with the same hostname already exists
+    if args.celery_hostname:
+        inspect = celery_app.control.inspect()
+        active_workers = inspect.active_queues()
+        if active_workers:
+            active_worker_names = list(active_workers.keys())
+            # Check if any worker ends with @hostname
+            if any(name.endswith(f"@{args.celery_hostname}") for name in active_worker_names):
+                raise SystemExit(
+                    f"Error: A worker with hostname '{args.celery_hostname}' is already running. "
+                    "Please use a different hostname or stop the existing worker first."
+                )
 
     if AIRFLOW_V_3_0_PLUS:
         from airflow.sdk.log import configure_logging

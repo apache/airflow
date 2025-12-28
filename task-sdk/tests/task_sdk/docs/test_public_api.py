@@ -56,6 +56,9 @@ def test_airflow_sdk_no_unexpected_exports():
         "secrets_masker",
         "configuration",
         "module_loading",
+        "yaml",
+        "serde",
+        "observability",
     }
     unexpected = actual - public - ignore
     assert not unexpected, f"Unexpected exports in airflow.sdk: {sorted(unexpected)}"
@@ -69,7 +72,7 @@ def test_lazy_imports_match_public_api():
     import airflow.sdk as sdk
 
     lazy = getattr(sdk, "__lazy_imports", {})
-    expected = set(getattr(sdk, "__all__", [])) - {"__version__", "literal"}
+    expected = set(getattr(sdk, "__all__", [])) - {"__version__"}
     ignore = {"SecretCache"}
     actual = set(lazy.keys())
     missing = expected - actual

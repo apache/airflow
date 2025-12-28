@@ -23,11 +23,11 @@ from unittest.mock import call
 import pendulum
 import pytest
 
-from airflow.exceptions import AirflowException, TaskDeferred
 from airflow.models import Connection
 from airflow.models.dag import DAG
 from airflow.models.dagrun import DagRun
 from airflow.models.taskinstance import TaskInstance
+from airflow.providers.common.compat.sdk import AirflowException, TaskDeferred
 from airflow.providers.common.sql.operators.sql import SQLExecuteQueryOperator
 from airflow.providers.snowflake.operators.snowflake import (
     SnowflakeCheckOperator,
@@ -574,3 +574,33 @@ class TestSnowflakeSqlApiOperator:
         with pytest.raises(AirflowException):
             operator.execute(context=None)
         mock_check_query_output.assert_not_called()
+
+    @mock.patch("airflow.providers.snowflake.hooks.snowflake_sql_api.SnowflakeSqlApiHook.cancel_queries")
+    def test_snowflake_sql_api_on_kill_cancels_queries(self, mock_cancel_queries):
+        """Test that on_kill cancels running queries."""
+        operator = SnowflakeSqlApiOperator(
+            task_id=TASK_ID,
+            snowflake_conn_id=CONN_ID,
+            sql=SQL_MULTIPLE_STMTS,
+            statement_count=4,
+        )
+        operator.query_ids = ["uuid1", "uuid2"]
+
+        operator.on_kill()
+
+        mock_cancel_queries.assert_called_once_with(["uuid1", "uuid2"])
+
+    @mock.patch("airflow.providers.snowflake.hooks.snowflake_sql_api.SnowflakeSqlApiHook.cancel_queries")
+    def test_snowflake_sql_api_on_kill_no_queries(self, mock_cancel_queries):
+        """Test that on_kill does nothing when no query ids exist."""
+        operator = SnowflakeSqlApiOperator(
+            task_id=TASK_ID,
+            snowflake_conn_id=CONN_ID,
+            sql=SQL_MULTIPLE_STMTS,
+            statement_count=4,
+        )
+        operator.query_ids = []
+
+        operator.on_kill()
+
+        mock_cancel_queries.assert_not_called()

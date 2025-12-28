@@ -19,8 +19,9 @@
 Core operators
 ==============
 At the moment, two core operators support OpenLineage. These operators function as a 'black box,'
-capable of running any code, which might limit the extent of lineage extraction. To enhance the extraction
-of lineage information, operators can utilize the hooks listed below that support OpenLineage.
+capable of running any code, which might limit the extent of lineage extraction (e.g. lineage will usually not contain
+input/output datasets). To enhance the extraction of lineage information, operators can utilize the hooks listed
+below that support OpenLineage.
 
 - :class:`~airflow.providers.standard.operators.python.PythonOperator` (via :class:`airflow.providers.openlineage.extractors.python.PythonExtractor`)
 - :class:`~airflow.providers.standard.operators.bash.BashOperator` (via :class:`airflow.providers.openlineage.extractors.bash.BashExtractor`)
@@ -62,23 +63,25 @@ apache-airflow-providers-google
     - Transport Information (only HTTP transport is supported for now (with api_key auth, if any))
 
 
-:class:`~airflow.providers.common.sql.operators.sql.SQLExecuteQueryOperator` and derivatives
-=============================================================================================
+.. _sql-operators:
 
-These operators are using SQL parsing and may query DB for lineage extraction.
+SQL operators
+=============
+
+Operators inheriting from :class:`~airflow.providers.common.sql.operators.sql.BaseSQLOperator` may be supported
+out of the box. These operators can use SQL parsing and may query DB for lineage extraction.
 To extract unique data from each database type, a dedicated Hook implementing OpenLineage methods is required.
-Not all subclasses of :class:`~airflow.providers.common.sql.operators.sql.SQLExecuteQueryOperator`
-are automatically supported, only those also using a supported Hook.
+Not all subclasses of :class:`~airflow.providers.common.sql.operators.sql.BaseSQLOperator` are automatically supported,
+only those also using a supported Hook and similar attribute naming convention (e.g., storing query under `self.sql`).
 
-.. note::
-  Due to the automatic generation of this documentation, some supported operators inheriting from
-  :class:`~airflow.providers.common.sql.operators.sql.SQLExecuteQueryOperator` may not appear in the ``Providers``
-  section below - to prevent false positives. Examples of such Operators are:
-  :class:`~airflow.providers.databricks.operators.databricks_sql.DatabricksSqlOperator` and
-  :class:`~airflow.providers.snowflake.operators.snowflake.SnowflakeSqlApiOperator`.
-  Please check your operator's code to confirm OpenLineage support.
+.. important::
+  The level of OpenLineage extraction may vary between SQL operators. Most will provide the executed SQL text,
+  while others may also expose additional metadata such as query IDs or other query-related information. Due to
+  the automatic generation of this documentation, some operators listed as supported SQL operators may not contain
+  full lineage information. Please review the implementation of your operator and its corresponding hook to confirm
+  the level of OpenLineage support.
 
-Currently, the following databases (hooks) are supported:
+Currently, the following databases (hooks) are supported together with SQL operators:
 
 {% for hook, db_type in db_hooks %}
 - {{ db_type }} (via :class:`~{{ hook }}`)
@@ -98,6 +101,14 @@ Operators
 ^^^^^^^^^
 {% for operator, methods in provider_dict['operators'].items() %}
 - :class:`~{{ operator }}`
+{% endfor %}
+{% endif %}
+
+{% if provider_dict['db_operators'] %}
+:ref:`SQL operators* <sql-operators>`
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+{% for db_operator, methods in provider_dict['db_operators'].items() %}
+- :class:`~{{ db_operator }}`
 {% endfor %}
 {% endif %}
 

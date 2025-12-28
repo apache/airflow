@@ -43,13 +43,11 @@ from packaging.version import InvalidVersion
 
 from airflow.exceptions import (
     AirflowConfigException,
-    AirflowException,
     AirflowProviderDeprecationWarning,
-    AirflowSkipException,
     DeserializingResultError,
 )
 from airflow.models.variable import Variable
-from airflow.providers.common.compat.sdk import context_merge
+from airflow.providers.common.compat.sdk import AirflowException, AirflowSkipException, context_merge
 from airflow.providers.standard.hooks.package_index import PackageIndexHook
 from airflow.providers.standard.utils.python_virtualenv import (
     _execute_in_subprocess,
@@ -488,7 +486,27 @@ class _BasePythonVirtualenvOperator(PythonOperator, metaclass=ABCMeta):
         serializable_keys = set(self._iter_serializable_context_keys())
         new = {k: v for k, v in context.items() if k in serializable_keys}
         serializable_context = cast("Context", new)
+        # Store bundle_path for subprocess execution
+        self._bundle_path = self._get_bundle_path_from_context(context)
         return super().execute(context=serializable_context)
+
+    def _get_bundle_path_from_context(self, context: Context) -> str | None:
+        """
+        Extract bundle_path from the task instance's bundle_instance.
+
+        :param context: The task execution context
+        :return: Path to the bundle root directory, or None if not in a bundle
+        """
+        if not AIRFLOW_V_3_0_PLUS:
+            return None
+
+        # In Airflow 3.x, the RuntimeTaskInstance has a bundle_instance attribute
+        # that contains the bundle information including its path
+        ti = context["ti"]
+        if bundle_instance := getattr(ti, "bundle_instance", None):
+            return bundle_instance.path
+
+        return None
 
     def get_python_source(self):
         """Return the source of self.python_callable."""
@@ -566,6 +584,16 @@ class _BasePythonVirtualenvOperator(PythonOperator, metaclass=ABCMeta):
                 env_vars["__AIRFLOW_SUPERVISOR_FD"] = fd
             if self.env_vars:
                 env_vars.update(self.env_vars)
+
+            # Add bundle_path to PYTHONPATH for subprocess to import Dag bundle modules
+            if self._bundle_path:
+                bundle_path = self._bundle_path
+                existing_pythonpath = env_vars.get("PYTHONPATH", "")
+                if existing_pythonpath:
+                    # Append bundle_path after existing PYTHONPATH
+                    env_vars["PYTHONPATH"] = f"{existing_pythonpath}{os.pathsep}{bundle_path}"
+                else:
+                    env_vars["PYTHONPATH"] = bundle_path
 
             try:
                 cmd: list[str] = [

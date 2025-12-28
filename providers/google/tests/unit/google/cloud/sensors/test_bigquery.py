@@ -20,10 +20,7 @@ from unittest import mock
 
 import pytest
 
-from airflow.exceptions import (
-    AirflowException,
-    TaskDeferred,
-)
+from airflow.providers.common.compat.sdk import AirflowException, TaskDeferred
 from airflow.providers.google.cloud.sensors.bigquery import (
     BigQueryTableExistenceSensor,
     BigQueryTablePartitionExistenceSensor,

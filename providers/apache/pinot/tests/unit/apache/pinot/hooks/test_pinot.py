@@ -24,8 +24,8 @@ from unittest import mock
 
 import pytest
 
-from airflow.exceptions import AirflowException
 from airflow.providers.apache.pinot.hooks.pinot import PinotAdminHook, PinotDbApiHook
+from airflow.providers.common.compat.sdk import AirflowException
 
 
 class TestPinotAdminHook:

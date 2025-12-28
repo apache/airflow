@@ -22,7 +22,7 @@ import os
 from tempfile import gettempdir
 from typing import TYPE_CHECKING
 
-from sqlalchemy import select
+from sqlalchemy import delete, select
 
 from airflow.configuration import conf
 from airflow.jobs.job import Job
@@ -200,14 +200,14 @@ def parse_and_sync_to_db(folder: Path | str, include_examples: bool = False):
 
 def clear_db_runs():
     with create_session() as session:
-        session.query(Job).delete()
-        session.query(Trigger).delete()
-        session.query(DagRun).delete()
-        session.query(TaskInstance).delete()
+        session.execute(delete(Job))
+        session.execute(delete(Trigger))
+        session.execute(delete(DagRun))
+        session.execute(delete(TaskInstance))
         try:
             from airflow.models import TaskInstanceHistory
 
-            session.query(TaskInstanceHistory).delete()
+            session.execute(delete(TaskInstanceHistory))
         except ImportError:
             pass
 
@@ -216,21 +216,25 @@ def clear_db_backfills():
     from airflow.models.backfill import Backfill, BackfillDagRun
 
     with create_session() as session:
-        session.query(BackfillDagRun).delete()
-        session.query(Backfill).delete()
+        session.execute(delete(BackfillDagRun))
+        session.execute(delete(Backfill))
 
 
 def clear_db_assets():
     with create_session() as session:
-        session.query(AssetEvent).delete()
-        session.query(AssetModel).delete()
-        session.query(AssetDagRunQueue).delete()
-        session.query(DagScheduleAssetReference).delete()
-        session.query(TaskOutletAssetReference).delete()
+        session.execute(delete(AssetEvent))
+        session.execute(delete(AssetModel))
+        session.execute(delete(AssetDagRunQueue))
+        session.execute(delete(DagScheduleAssetReference))
+        session.execute(delete(TaskOutletAssetReference))
+        if AIRFLOW_V_3_1_PLUS:
+            from airflow.models.asset import TaskInletAssetReference
+
+            session.execute(delete(TaskInletAssetReference))
         from tests_common.test_utils.compat import AssetAliasModel, DagScheduleAssetAliasReference
 
-        session.query(AssetAliasModel).delete()
-        session.query(DagScheduleAssetAliasReference).delete()
+        session.execute(delete(AssetAliasModel))
+        session.execute(delete(DagScheduleAssetAliasReference))
         if AIRFLOW_V_3_0_PLUS:
             from airflow.models.asset import (
                 AssetActive,
@@ -238,13 +242,13 @@ def clear_db_assets():
                 DagScheduleAssetUriReference,
             )
 
-            session.query(AssetActive).delete()
-            session.query(DagScheduleAssetNameReference).delete()
-            session.query(DagScheduleAssetUriReference).delete()
+            session.execute(delete(AssetActive))
+            session.execute(delete(DagScheduleAssetNameReference))
+            session.execute(delete(DagScheduleAssetUriReference))
         if AIRFLOW_V_3_2_PLUS:
             from airflow.models.asset import AssetWatcherModel
 
-            session.query(AssetWatcherModel).delete()
+            session.execute(delete(AssetWatcherModel))
 
 
 def clear_db_triggers():
@@ -252,20 +256,20 @@ def clear_db_triggers():
         if AIRFLOW_V_3_2_PLUS:
             from airflow.models.asset import AssetWatcherModel
 
-            session.query(AssetWatcherModel).delete()
-        session.query(Trigger).delete()
+            session.execute(delete(AssetWatcherModel))
+        session.execute(delete(Trigger))
 
 
 def clear_db_dags():
     with create_session() as session:
         if AIRFLOW_V_3_1_PLUS:
-            session.query(DagFavorite).delete()
-        session.query(DagTag).delete()
-        session.query(DagOwnerAttributes).delete()
-        session.query(
-            DagRun
-        ).delete()  # todo: this should not be necessary because the fk to DagVersion should be ON DELETE SET NULL
-        session.query(DagModel).delete()
+            session.execute(delete(DagFavorite))
+        session.execute(delete(DagTag))
+        session.execute(delete(DagOwnerAttributes))
+        session.execute(
+            delete(DagRun)
+        )  # todo: this should not be necessary because the fk to DagVersion should be ON DELETE SET NULL
+        session.execute(delete(DagModel))
 
 
 def clear_db_deadline():
@@ -273,7 +277,7 @@ def clear_db_deadline():
         if AIRFLOW_V_3_0_PLUS:
             from airflow.models.deadline import Deadline
 
-            session.query(Deadline).delete()
+            session.execute(delete(Deadline))
 
 
 def drop_tables_with_prefix(prefix):
@@ -286,12 +290,12 @@ def drop_tables_with_prefix(prefix):
 
 def clear_db_serialized_dags():
     with create_session() as session:
-        session.query(SerializedDagModel).delete()
+        session.execute(delete(SerializedDagModel))
 
 
 def clear_db_pools():
     with create_session() as session:
-        session.query(Pool).delete()
+        session.execute(delete(Pool))
         add_default_pool_if_not_exists(session)
 
 
@@ -309,19 +313,19 @@ def clear_test_connections(add_default_connections_back=True):
 
 def clear_db_connections(add_default_connections_back=True):
     with create_session() as session:
-        session.query(Connection).delete()
+        session.execute(delete(Connection))
         if add_default_connections_back:
             create_default_connections(session)
 
 
 def clear_db_variables():
     with create_session() as session:
-        session.query(Variable).delete()
+        session.execute(delete(Variable))
 
 
 def clear_db_dag_code():
     with create_session() as session:
-        session.query(DagCode).delete()
+        session.execute(delete(DagCode))
 
 
 def clear_db_callbacks():
@@ -329,10 +333,10 @@ def clear_db_callbacks():
         if AIRFLOW_V_3_2_PLUS:
             from airflow.models.callback import Callback
 
-            session.query(Callback).delete()
+            session.execute(delete(Callback))
 
         else:
-            session.query(DbCallbackRequest).delete()
+            session.execute(delete(DbCallbackRequest))
 
 
 def set_default_pool_slots(slots):
@@ -343,58 +347,76 @@ def set_default_pool_slots(slots):
 
 def clear_rendered_ti_fields():
     with create_session() as session:
-        session.query(RenderedTaskInstanceFields).delete()
+        session.execute(delete(RenderedTaskInstanceFields))
 
 
 def clear_db_import_errors():
     with create_session() as session:
-        session.query(ParseImportError).delete()
+        session.execute(delete(ParseImportError))
 
 
 def clear_db_dag_warnings():
     with create_session() as session:
-        session.query(DagWarning).delete()
+        session.execute(delete(DagWarning))
 
 
 def clear_db_xcom():
     with create_session() as session:
-        session.query(XCom).delete()
+        session.execute(delete(XCom))
+
+
+def clear_db_pakl():
+    if not AIRFLOW_V_3_2_PLUS:
+        return
+    from airflow.models.asset import PartitionedAssetKeyLog
+
+    with create_session() as session:
+        session.execute(delete(PartitionedAssetKeyLog))
+
+
+def clear_db_apdr():
+    if not AIRFLOW_V_3_2_PLUS:
+        return
+    from airflow.models.asset import AssetPartitionDagRun
+
+    with create_session() as session:
+        session.execute(delete(AssetPartitionDagRun))
 
 
 def clear_db_logs():
     with create_session() as session:
-        session.query(Log).delete()
+        session.execute(delete(Log))
 
 
 def clear_db_jobs():
     with create_session() as session:
-        session.query(Job).delete()
+        session.execute(delete(Job))
 
 
 def clear_db_task_reschedule():
     with create_session() as session:
-        session.query(TaskReschedule).delete()
+        session.execute(delete(TaskReschedule))
 
 
 def clear_db_dag_parsing_requests():
     with create_session() as session:
         from airflow.models.dagbag import DagPriorityParsingRequest
 
-        session.query(DagPriorityParsingRequest).delete()
+        session.execute(delete(DagPriorityParsingRequest))
 
 
 def clear_db_dag_bundles():
     with create_session() as session:
         from airflow.models.dagbundle import DagBundleModel
 
-        session.query(DagBundleModel).delete()
+        session.execute(delete(DagBundleModel))
 
 
 def clear_db_teams():
     with create_session() as session:
         from airflow.models.team import Team
 
-        session.query(Team).delete()
+        session.execute(delete(Team))
 
 
 def clear_dag_specific_permissions():
@@ -420,19 +442,23 @@ def clear_dag_specific_permissions():
         else:
             raise
     with create_session() as session:
-        dag_resources = session.query(Resource).filter(Resource.name.like(f"{RESOURCE_DAG_PREFIX}%")).all()
+        dag_resources = session.scalars(
+            select(Resource).where(Resource.name.like(f"{RESOURCE_DAG_PREFIX}%"))
+        ).all()
         dag_resource_ids = [d.id for d in dag_resources]
 
-        dag_permissions = session.query(Permission).filter(Permission.resource_id.in_(dag_resource_ids)).all()
+        dag_permissions = session.scalars(
+            select(Permission).where(Permission.resource_id.in_(dag_resource_ids))
+        ).all()
         dag_permission_ids = [d.id for d in dag_permissions]
 
-        session.query(assoc_permission_role).filter(
-            assoc_permission_role.c.permission_view_id.in_(dag_permission_ids)
-        ).delete(synchronize_session=False)
-        session.query(Permission).filter(Permission.resource_id.in_(dag_resource_ids)).delete(
-            synchronize_session=False
+        session.execute(
+            delete(assoc_permission_role).where(
+                assoc_permission_role.c.permission_view_id.in_(dag_permission_ids)
+            )
         )
-        session.query(Resource).filter(Resource.id.in_(dag_resource_ids)).delete(synchronize_session=False)
+        session.execute(delete(Permission).where(Permission.resource_id.in_(dag_resource_ids)))
+        session.execute(delete(Resource).where(Resource.id.in_(dag_resource_ids)))
 
 
 def create_default_connections_for_tests():
@@ -893,6 +919,8 @@ def create_default_connections_for_tests():
 def clear_all():
     clear_db_runs()
     clear_db_assets()
+    clear_db_apdr()
+    clear_db_pakl()
     clear_db_triggers()
     clear_db_dags()
     clear_db_serialized_dags()

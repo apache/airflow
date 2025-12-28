@@ -41,10 +41,8 @@ from airflow.exceptions import (
     AirflowClusterPolicyError,
     AirflowClusterPolicySkipDag,
     AirflowClusterPolicyViolation,
-    AirflowDagCycleException,
     AirflowDagDuplicatedIdException,
     AirflowException,
-    AirflowTaskTimeout,
     UnknownExecutorException,
 )
 from airflow.executors.executor_loader import ExecutorLoader
@@ -99,6 +97,8 @@ class FileLoadStat(NamedTuple):
     :param task_num: Total number of Tasks loaded in this file.
     :param dags: DAGs names loaded in this file.
     :param warning_num: Total number of warnings captured from processing this file.
+    :param bundle_path: The bundle path from DagBag, if any.
+    :param bundle_name: The bundle name from DagBag, if any.
     """
 
     file: str
@@ -107,6 +107,8 @@ class FileLoadStat(NamedTuple):
     task_num: int
     dags: str
     warning_num: int
+    bundle_path: Path | None
+    bundle_name: str | None
 
 
 @contextlib.contextmanager
@@ -119,6 +121,8 @@ def timeout(seconds=1, error_message="Timeout"):
     def handle_timeout(signum, frame):
         """Log information and raises AirflowTaskTimeout."""
         log.error("Process timed out, PID: %s", str(os.getpid()))
+        from airflow.sdk.exceptions import AirflowTaskTimeout
+
         raise AirflowTaskTimeout(error_message)
 
     try:
@@ -588,6 +592,7 @@ class DagBag(LoggingMixin):
         except Exception as e:
             self.log.exception(e)
             raise AirflowClusterPolicyError(e)
+        from airflow.sdk.exceptions import AirflowDagCycleException
 
         try:
             prev_dag = self.dags.get(dag.dag_id)
@@ -646,14 +651,21 @@ class DagBag(LoggingMixin):
                 found_dags = self.process_file(filepath, only_if_updated=only_if_updated, safe_mode=safe_mode)
 
                 file_parse_end_dttm = timezone.utcnow()
+                try:
+                    relative_file = Path(filepath).relative_to(Path(self.dag_folder)).as_posix()
+                except ValueError:
+                    # filepath is not under dag_folder (e.g., example DAGs from a different location)
+                    relative_file = Path(filepath).as_posix()
                 stats.append(
                     FileLoadStat(
-                        file=filepath.replace(settings.DAGS_FOLDER, ""),
+                        file=relative_file,
                         duration=file_parse_end_dttm - file_parse_start_dttm,
                         dag_num=len(found_dags),
                         task_num=sum(len(dag.tasks) for dag in found_dags),
                         dags=str([dag.dag_id for dag in found_dags]),
                         warning_num=len(self.captured_warnings.get(filepath, [])),
+                        bundle_path=self.bundle_path,
+                        bundle_name=self.bundle_name,
                     )
                 )
             except Exception as e:
@@ -695,6 +707,16 @@ def sync_bag_to_db(
     from airflow.dag_processing.collection import update_dag_parsing_results_in_db
 
     import_errors = {(bundle_name, rel_path): error for rel_path, error in dagbag.import_errors.items()}
+
+    # Build the set of all files that were parsed and include files with import errors
+    # in case they are not in file_last_changed
+    files_parsed = set(import_errors)
+    if dagbag.bundle_path:
+        files_parsed.update(
+            (bundle_name, dagbag._get_relative_fileloc(abs_filepath))
+            for abs_filepath in dagbag.file_last_changed
+        )
+
     update_dag_parsing_results_in_db(
         bundle_name,
         bundle_version,
@@ -703,4 +725,5 @@ def sync_bag_to_db(
         None,  # file parsing duration is not well defined when parsing multiple files / multiple DAGs.
         dagbag.dag_warnings,
         session=session,
+        files_parsed=files_parsed,
     )

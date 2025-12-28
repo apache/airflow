@@ -1,8 +1,7 @@
 {
   "filters": {
     "body": "본문",
-    "createdAtFrom": "생성일 (시작)",
-    "createdAtTo": "생성일 (종료)",
+    "createdAt": "생성 시간",
     "response": {
       "all": "전체",
       "pending": "대기 중",

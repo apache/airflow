@@ -52,6 +52,7 @@ from airflow.api_fastapi.common.parameters import (
     QueryTIQueueNamePatternSearch,
     QueryTIStateFilter,
     QueryTITaskDisplayNamePatternSearch,
+    QueryTITaskGroupFilter,
     QueryTITryNumberFilter,
     Range,
     RangeFilter,
@@ -424,7 +425,9 @@ def get_task_instances(
     update_at_range: Annotated[RangeFilter, Depends(datetime_range_filter_factory("updated_at", TI))],
     duration_range: Annotated[RangeFilter, Depends(float_range_filter_factory("duration", TI))],
     task_display_name_pattern: QueryTITaskDisplayNamePatternSearch,
+    task_group_id: QueryTITaskGroupFilter,
     dag_id_pattern: Annotated[_SearchParam, Depends(search_param_factory(TI.dag_id, "dag_id_pattern"))],
+    run_id_pattern: Annotated[_SearchParam, Depends(search_param_factory(TI.run_id, "run_id_pattern"))],
     state: QueryTIStateFilter,
     pool: QueryTIPoolFilter,
     pool_name_pattern: QueryTIPoolNamePatternSearch,
@@ -489,8 +492,10 @@ def get_task_instances(
             )
         query = query.where(TI.run_id == dag_run_id)
     if dag_id != "~":
-        get_dag_for_run_or_latest_version(dag_bag, dag_run, dag_id, session)
+        dag = get_dag_for_run_or_latest_version(dag_bag, dag_run, dag_id, session)
         query = query.where(TI.dag_id == dag_id)
+        if dag:
+            task_group_id.dag = dag
 
     task_instance_select, total_entries = paginated_select(
         statement=query,
@@ -509,7 +514,9 @@ def get_task_instances(
             executor,
             task_id,
             task_display_name_pattern,
+            task_group_id,
             dag_id_pattern,
+            run_id_pattern,
             version_number,
             readable_ti_filter,
             try_number,
@@ -758,33 +765,55 @@ def post_clear_task_instances(
     if future:
         body.end_date = None
 
-    task_ids = body.task_ids
-    if task_ids is not None:
-        tasks = set(task_ids)
-        mapped_tasks_tuples = set(t for t in tasks if isinstance(t, tuple))
+    if (task_markers_to_clear := body.task_ids) is not None:
+        mapped_tasks_tuples = {t for t in task_markers_to_clear if isinstance(t, tuple)}
         # Unmapped tasks are expressed in their task_ids (without map_indexes)
-        unmapped_task_ids = set(t for t in tasks if not isinstance(t, tuple))
+        normal_task_ids = {t for t in task_markers_to_clear if not isinstance(t, tuple)}
 
-        if upstream or downstream:
-            mapped_task_ids = set(tid for tid, _ in mapped_tasks_tuples)
-            relatives = dag.partial_subset(
-                task_ids=unmapped_task_ids | mapped_task_ids,
-                include_downstream=downstream,
-                include_upstream=upstream,
-                exclude_original=True,
+        def _collect_relatives(run_id: str, direction: Literal["upstream", "downstream"]) -> None:
+            from airflow.models.taskinstance import find_relevant_relatives
+
+            relevant_relatives = find_relevant_relatives(
+                normal_task_ids,
+                mapped_tasks_tuples,
+                dag=dag,
+                run_id=run_id,
+                direction=direction,
+                session=session,
             )
-            unmapped_task_ids = unmapped_task_ids | set(relatives.task_dict.keys())
+            normal_task_ids.update(t for t in relevant_relatives if not isinstance(t, tuple))
+            mapped_tasks_tuples.update(t for t in relevant_relatives if isinstance(t, tuple))
 
-        mapped_tasks_list = [
-            (tid, map_id) for tid, map_id in mapped_tasks_tuples if tid not in unmapped_task_ids
+        # We can't easily calculate upstream/downstream map indexes when not
+        # working for a specific dag run. It's possible by looking at the runs
+        # one by one, but that is both resource-consuming and logically complex.
+        # So instead we'll just clear all the tis based on task ID and hope
+        # that's good enough for most cases.
+        if dag_run_id is None:
+            if upstream or downstream:
+                partial_dag = dag.partial_subset(
+                    task_ids=normal_task_ids.union(tid for tid, _ in mapped_tasks_tuples),
+                    include_downstream=downstream,
+                    include_upstream=upstream,
+                    exclude_original=True,
+                )
+                normal_task_ids.update(partial_dag.task_dict)
+        else:
+            if upstream:
+                _collect_relatives(dag_run_id, "upstream")
+            if downstream:
+                _collect_relatives(dag_run_id, "downstream")
+
+        task_markers_to_clear = [
+            *normal_task_ids,
+            *((t, m) for t, m in mapped_tasks_tuples if t not in normal_task_ids),
         ]
-        task_ids = mapped_tasks_list + list(unmapped_task_ids)
 
     if dag_run_id is not None and not (past or future):
         # Use run_id-based clearing when we have a specific dag_run_id and not using past/future
         task_instances = dag.clear(
             dry_run=True,
-            task_ids=task_ids,
+            task_ids=task_markers_to_clear,
             run_id=dag_run_id,
             session=session,
             run_on_latest_version=body.run_on_latest_version,
@@ -795,7 +824,7 @@ def post_clear_task_instances(
         # Use date-based clearing when no dag_run_id or when past/future is specified
         task_instances = dag.clear(
             dry_run=True,
-            task_ids=task_ids,
+            task_ids=task_markers_to_clear,
             start_date=body.start_date,
             end_date=body.end_date,
             session=session,

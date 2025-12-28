@@ -110,10 +110,16 @@
   "sortedDescending": "sorted descending",
   "sortedUnsorted": "unsorted",
   "taskTries": "Task Tries",
+  "taskTryPlaceholder": "Task Try",
   "toggleCardView": "Show card view",
   "toggleTableView": "Show table view",
   "triggerDag": {
     "button": "Trigger",
+    "dataInterval": "Data Interval",
+    "dataIntervalAuto": "Inferred from Logical Date and Timetable",
+    "dataIntervalManual": "Specify Manually",
+    "intervalEnd": "End",
+    "intervalStart": "Start",
     "loading": "Loading Dag information...",
     "loadingFailed": "Failed to load Dag information. Please try again.",
     "runIdHelp": "Optional - will be generated if not provided",
@@ -121,6 +127,9 @@
     "selectLabel": "Single Run",
     "title": "Trigger Dag",
     "toaster": {
+      "error": {
+        "title": "Failed to Trigger Dag"
+      },
       "success": {
         "description": "Dag run has been successfully triggered.",
         "title": "Dag Run Triggered"
@@ -141,6 +150,7 @@
     "versionId": "Version ID"
   },
   "versionSelect": {
+    "allVersions": "All Versions",
     "dagVersion": "Dag Version",
     "versionCode": "v{{versionCode}}"
   }

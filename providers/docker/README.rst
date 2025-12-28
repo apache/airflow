@@ -23,7 +23,7 @@
 
 Package ``apache-airflow-providers-docker``
 
-Release: ``4.4.5``
+Release: ``4.5.1``
 
 
 `Docker <https://www.docker.com/>`__
@@ -36,7 +36,7 @@ This is a provider package for ``docker`` provider. All classes for this provide
 are in ``airflow.providers.docker`` python package.
 
 You can find package information and changelog for the provider
-in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-docker/4.4.5/>`_.
+in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-docker/4.5.1/>`_.
 
 Installation
 ------------
@@ -53,8 +53,8 @@ Requirements
 ==========================================  ==================
 PIP package                                 Version required
 ==========================================  ==================
-``apache-airflow``                          ``>=2.10.0``
-``apache-airflow-providers-common-compat``  ``>=1.8.0``
+``apache-airflow``                          ``>=2.11.0``
+``apache-airflow-providers-common-compat``  ``>=1.10.1``
 ``docker``                                  ``>=7.1.0``
 ``python-dotenv``                           ``>=0.21.0``
 ==========================================  ==================
@@ -88,4 +88,4 @@ Extra              Dependencies
 =================  ==========================================
 
 The changelog for the provider package can be found in the
-`changelog <https://airflow.apache.org/docs/apache-airflow-providers-docker/4.4.5/changelog.html>`_.
+`changelog <https://airflow.apache.org/docs/apache-airflow-providers-docker/4.5.1/changelog.html>`_.

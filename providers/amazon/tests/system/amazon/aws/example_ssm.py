@@ -26,7 +26,16 @@ import boto3
 from airflow.providers.amazon.aws.operators.ec2 import EC2CreateInstanceOperator, EC2TerminateInstanceOperator
 from airflow.providers.amazon.aws.operators.ssm import SsmGetCommandInvocationOperator, SsmRunCommandOperator
 from airflow.providers.amazon.aws.sensors.ssm import SsmRunCommandCompletedSensor
-from airflow.sdk import DAG, chain, task
+
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
+
+if AIRFLOW_V_3_0_PLUS:
+    from airflow.sdk import DAG, chain, task
+else:
+    # Airflow 2 path
+    from airflow.decorators import task  # type: ignore[attr-defined,no-redef]
+    from airflow.models.baseoperator import chain  # type: ignore[attr-defined,no-redef]
+    from airflow.models.dag import DAG  # type: ignore[attr-defined,no-redef,assignment]
 
 try:
     from airflow.sdk import TriggerRule
@@ -149,7 +158,6 @@ with DAG(
     dag_id=DAG_ID,
     schedule="@once",
     start_date=datetime.datetime(2021, 1, 1),
-    tags=["example"],
     catchup=False,
 ) as dag:
     # Create EC2 instance with SSM agent

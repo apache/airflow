@@ -20,6 +20,7 @@ import json
 import logging
 import os
 from datetime import datetime
+from functools import cache
 from http import HTTPStatus
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
@@ -29,9 +30,12 @@ import requests
 from retryhttp import retry, wait_retry_after
 from tenacity import before_sleep_log, wait_random_exponential
 
+from airflow.api_fastapi.auth.tokens import JWTGenerator
 from airflow.configuration import conf
-from airflow.providers.edge3.models.edge_worker import EdgeWorkerVersionException
-from airflow.providers.edge3.version_compat import AIRFLOW_V_3_0_PLUS
+from airflow.providers.edge3.models.edge_worker import (
+    EdgeWorkerDuplicateException,
+    EdgeWorkerVersionException,
+)
 from airflow.providers.edge3.worker_api.datamodels import (
     EdgeJobFetched,
     PushLogsBody,
@@ -71,6 +75,15 @@ API_RETRY_WAIT_MAX = float(
 _default_wait = wait_random_exponential(min=API_RETRY_WAIT_MIN, max=API_RETRY_WAIT_MAX)
 
 
+@cache
+def jwt_generator() -> JWTGenerator:
+    return JWTGenerator(
+        secret_key=conf.get("api_auth", "jwt_secret"),
+        valid_for=conf.getint("api_auth", "jwt_leeway", fallback=30),
+        audience="api",
+    )
+
+
 @retry(
     reraise=True,
     max_attempt_number=API_RETRIES,
@@ -81,28 +94,7 @@ _default_wait = wait_random_exponential(min=API_RETRY_WAIT_MIN, max=API_RETRY_WA
     before_sleep=before_sleep_log(logger, logging.WARNING),
 )
 def _make_generic_request(method: str, rest_path: str, data: str | None = None) -> Any:
-    if AIRFLOW_V_3_0_PLUS:
-        from functools import cache
-
-        from airflow.api_fastapi.auth.tokens import JWTGenerator
-
-        @cache
-        def jwt_generator() -> JWTGenerator:
-            return JWTGenerator(
-                secret_key=conf.get("api_auth", "jwt_secret"),
-                valid_for=conf.getint("api_auth", "jwt_leeway", fallback=30),
-                audience="api",
-            )
-
-        generator = jwt_generator()
-        authorization = generator.generate({"method": rest_path})
-    else:
-        # Airflow 2.10 compatibility
-        from airflow.providers.edge3.worker_api.auth import jwt_signer
-
-        signer = jwt_signer()
-        authorization = signer.generate_signed_token({"method": rest_path})
-
+    authorization = jwt_generator().generate({"method": rest_path})
     api_url = conf.get("edge", "api_url")
     headers = {
         "Content-Type": "application/json",
@@ -132,6 +124,11 @@ def worker_register(
     except requests.HTTPError as e:
         if e.response.status_code == 400:
             raise EdgeWorkerVersionException(str(e))
+        if e.response.status_code == 409:
+            raise EdgeWorkerDuplicateException(
+                f"A worker with the name '{hostname}' is already active. "
+                "Please ensure worker names are unique, or stop the existing worker before starting a new one."
+            )
         raise e
     return WorkerRegistrationReturn(**result)
 

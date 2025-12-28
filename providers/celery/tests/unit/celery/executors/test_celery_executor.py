@@ -44,7 +44,7 @@ from airflow.utils.state import State
 from tests_common.test_utils import db
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.dag import sync_dag_to_db
-from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V_3_1_PLUS
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V_3_1_PLUS, AIRFLOW_V_3_2_PLUS
 
 if AIRFLOW_V_3_0_PLUS:
     from airflow.models.dag_version import DagVersion
@@ -86,7 +86,7 @@ def _prepare_app(broker_url=None, execute=None):
         execute_name = "execute_command"
         execute = execute or celery_executor_utils.execute_command.__wrapped__
 
-    test_config = dict(celery_executor_utils.celery_configuration)
+    test_config = dict(celery_executor_utils.get_celery_configuration())
     test_config.update({"broker_url": broker_url})
     test_app = Celery(broker_url, config_source=test_config)
     test_execute = test_app.task(execute)
@@ -121,6 +121,11 @@ class TestCeleryExecutor:
         db.clear_db_runs()
         db.clear_db_jobs()
 
+    @pytest.mark.skipif(not AIRFLOW_V_3_2_PLUS, reason="Airflow 3.2+ prefers new configuration")
+    def test_sentry_integration(self):
+        assert CeleryExecutor.sentry_integration == "sentry_sdk.integrations.celery.CeleryIntegration"
+
+    @pytest.mark.skipif(AIRFLOW_V_3_2_PLUS, reason="Test only for Airflow < 3.2")
     def test_supports_sentry(self):
         assert CeleryExecutor.supports_sentry
 
@@ -461,3 +466,94 @@ def test_celery_extra_celery_config_loaded_from_string():
     # reload celery conf to apply the new config
     importlib.reload(default_celery)
     assert default_celery.DEFAULT_CELERY_CONFIG["worker_max_tasks_per_child"] == 10
+
+
+@conf_vars({("celery_result_backend_transport_options", "sentinel_kwargs"): '{"password": "redis_password"}'})
+def test_result_backend_sentinel_kwargs_loaded_from_string():
+    """Test that sentinel_kwargs for result backend transport options is correctly parsed."""
+    import importlib
+
+    # reload celery conf to apply the new config
+    importlib.reload(default_celery)
+    assert "result_backend_transport_options" in default_celery.DEFAULT_CELERY_CONFIG
+    assert default_celery.DEFAULT_CELERY_CONFIG["result_backend_transport_options"]["sentinel_kwargs"] == {
+        "password": "redis_password"
+    }
+
+
+@conf_vars({("celery_result_backend_transport_options", "master_name"): "mymaster"})
+def test_result_backend_master_name_loaded():
+    """Test that master_name for result backend transport options is correctly loaded."""
+    import importlib
+
+    # reload celery conf to apply the new config
+    importlib.reload(default_celery)
+    assert "result_backend_transport_options" in default_celery.DEFAULT_CELERY_CONFIG
+    assert (
+        default_celery.DEFAULT_CELERY_CONFIG["result_backend_transport_options"]["master_name"] == "mymaster"
+    )
+
+
+@conf_vars(
+    {
+        ("celery_result_backend_transport_options", "sentinel_kwargs"): '{"password": "redis_password"}',
+        ("celery_result_backend_transport_options", "master_name"): "mymaster",
+    }
+)
+def test_result_backend_transport_options_with_multiple_options():
+    """Test that multiple result backend transport options are correctly loaded."""
+    import importlib
+
+    # reload celery conf to apply the new config
+    importlib.reload(default_celery)
+    result_backend_opts = default_celery.DEFAULT_CELERY_CONFIG["result_backend_transport_options"]
+    assert result_backend_opts["sentinel_kwargs"] == {"password": "redis_password"}
+    assert result_backend_opts["master_name"] == "mymaster"
+
+
+@conf_vars({("celery_result_backend_transport_options", "sentinel_kwargs"): "invalid_json"})
+def test_result_backend_sentinel_kwargs_invalid_json():
+    """Test that invalid JSON in sentinel_kwargs raises an error."""
+    import importlib
+
+    from airflow.providers.common.compat.sdk import AirflowException
+
+    with pytest.raises(
+        AirflowException, match="sentinel_kwargs.*should be written in the correct dictionary format"
+    ):
+        importlib.reload(default_celery)
+
+
+@conf_vars({("celery_result_backend_transport_options", "sentinel_kwargs"): '"not_a_dict"'})
+def test_result_backend_sentinel_kwargs_not_dict():
+    """Test that non-dict sentinel_kwargs raises an error."""
+    import importlib
+
+    from airflow.providers.common.compat.sdk import AirflowException
+
+    with pytest.raises(
+        AirflowException, match="sentinel_kwargs.*should be written in the correct dictionary format"
+    ):
+        importlib.reload(default_celery)
+
+
+@conf_vars(
+    {
+        ("celery", "result_backend"): "sentinel://sentinel1:26379;sentinel://sentinel2:26379",
+        ("celery_result_backend_transport_options", "sentinel_kwargs"): '{"password": "redis_pass"}',
+        ("celery_result_backend_transport_options", "master_name"): "mymaster",
+    }
+)
+def test_result_backend_sentinel_full_config():
+    """Test full Redis Sentinel configuration for result backend."""
+    import importlib
+
+    # reload celery conf to apply the new config
+    importlib.reload(default_celery)
+
+    assert default_celery.DEFAULT_CELERY_CONFIG["result_backend"] == (
+        "sentinel://sentinel1:26379;sentinel://sentinel2:26379"
+    )
+    result_backend_opts = default_celery.DEFAULT_CELERY_CONFIG["result_backend_transport_options"]
+    assert result_backend_opts["sentinel_kwargs"] == {"password": "redis_pass"}
+    assert result_backend_opts["master_name"] == "mymaster"

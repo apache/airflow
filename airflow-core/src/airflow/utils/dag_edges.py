@@ -16,18 +16,17 @@
 # under the License.
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, TypeAlias, cast
+from typing import TYPE_CHECKING, cast
 
-from airflow.models.mappedoperator import MappedOperator
 from airflow.sdk.definitions._internal.abstractoperator import AbstractOperator
-from airflow.serialization.serialized_objects import SerializedBaseOperator, SerializedDAG
+from airflow.serialization.definitions.baseoperator import SerializedBaseOperator
+from airflow.serialization.definitions.dag import SerializedDAG
+from airflow.serialization.definitions.mappedoperator import SerializedMappedOperator
 
 if TYPE_CHECKING:
-    from collections.abc import Iterable
-
     from airflow.sdk import DAG
-
-    Operator: TypeAlias = MappedOperator | SerializedBaseOperator
+    from airflow.serialization.definitions.dag import SerializedDAG
+    from airflow.serialization.definitions.mappedoperator import Operator
 
 
 def dag_edges(dag: DAG | SerializedDAG):
@@ -65,7 +64,7 @@ def dag_edges(dag: DAG | SerializedDAG):
 
     def collect_edges(task_group):
         """Update edges_to_add and edges_to_skip according to TaskGroups."""
-        if isinstance(task_group, (AbstractOperator, SerializedBaseOperator, MappedOperator)):
+        if isinstance(task_group, (AbstractOperator, SerializedBaseOperator, SerializedMappedOperator)):
             return
 
         for target_id in task_group.downstream_group_ids:
@@ -118,11 +117,7 @@ def dag_edges(dag: DAG | SerializedDAG):
     while tasks_to_trace:
         tasks_to_trace_next: list[Operator] = []
         for task in tasks_to_trace:
-            # TODO (GH-52141): downstream_list on DAGNode needs to be able to
-            # return scheduler types when used in scheduler, but SDK types when
-            # used at runtime. This means DAGNode needs to be rewritten as a
-            # generic class.
-            for child in cast("Iterable[Operator]", task.downstream_list):
+            for child in task.downstream_list:
                 edge = (task.task_id, child.task_id)
                 if task.is_setup and child.is_teardown:
                     setup_teardown_edges.add(edge)

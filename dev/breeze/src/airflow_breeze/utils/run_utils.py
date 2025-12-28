@@ -260,6 +260,42 @@ def assert_prek_installed():
         sys.exit(1)
 
 
+def check_pnpm_installed():
+    """
+    Check if pnpm is installed and install it if npm is available.
+    """
+    if shutil.which("pnpm"):
+        return
+
+    get_console().print("[warning]pnpm is not installed. Installing pnpm...[/]")
+
+    # Check if npm is available (required to install pnpm)
+    if not shutil.which("npm"):
+        get_console().print("[error]npm is not installed. Please install Node.js and npm first.[/]")
+        get_console().print("[warning]Visit: https://nodejs.org/[/]")
+        sys.exit(1)
+
+    try:
+        get_console().print("[info]Installing pnpm using npm...[/]")
+        result = run_command(
+            ["npm", "install", "-g", "pnpm"],
+            no_output_dump_on_exception=True,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        if result.returncode == 0:
+            get_console().print("[success]pnpm has been installed successfully![/]")
+        else:
+            get_console().print(f"[error]Failed to install pnpm: {result.stderr}[/]")
+            get_console().print("[warning]Please install pnpm manually: https://pnpm.io/installation[/]")
+            sys.exit(1)
+    except Exception as e:
+        get_console().print(f"[error]Failed to install pnpm: {e}[/]")
+        get_console().print("[warning]Please install pnpm manually: https://pnpm.io/installation[/]")
+        sys.exit(1)
+
+
 def get_filesystem_type(filepath: str):
     """
     Determine the type of filesystem used - we might want to use different parameters if tmpfs is used.
@@ -368,7 +404,20 @@ def check_if_buildx_plugin_installed() -> bool:
         text=True,
         check=False,
     )
-    if docker_buildx_version_result.returncode == 0:
+    if "buildah" in docker_buildx_version_result.stdout.lower():
+        get_console().print(
+            "[warning]Detected buildah installation.[/]\n"
+            "[warning]The Dockerfiles are only compatible with BuildKit.[/]\n"
+            "[warning]Please see the syntax declaration at the top of the Dockerfiles for BuildKit version\n"
+        )
+        return False
+    if (
+        docker_buildx_version_result.returncode == 0
+        and "buildx" in docker_buildx_version_result.stdout.lower()
+    ):
+        get_console().print(
+            "[success]Docker BuildKit is installed and will be used for the image build.[/]\n"
+        )
         return True
     return False
 

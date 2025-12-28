@@ -23,7 +23,7 @@ import os
 import re
 import sys
 from collections import defaultdict
-from enum import Enum
+from enum import Enum, auto
 from functools import cached_property
 from pathlib import Path
 from typing import Any, TypeVar
@@ -71,7 +71,7 @@ from airflow_breeze.utils.path_utils import (
     AIRFLOW_PROVIDERS_ROOT_PATH,
     AIRFLOW_ROOT_PATH,
 )
-from airflow_breeze.utils.provider_dependencies import DEPENDENCIES, get_related_providers
+from airflow_breeze.utils.provider_dependencies import get_provider_dependencies, get_related_providers
 from airflow_breeze.utils.run_utils import run_command
 
 ALL_VERSIONS_LABEL = "all versions"
@@ -88,6 +88,7 @@ UPGRADE_TO_NEWER_DEPENDENCIES_LABEL = "upgrade to newer dependencies"
 USE_PUBLIC_RUNNERS_LABEL = "use public runners"
 ALLOW_TRANSACTION_CHANGE_LABEL = "allow translation change"
 ALLOW_PROVIDER_DEPENDENCY_BUMP_LABEL = "allow provider dependency bump"
+SKIP_COMMON_COMPAT_CHECK_LABEL = "skip common compat check"
 ALL_CI_SELECTIVE_TEST_TYPES = "API Always CLI Core Other Serialization"
 
 ALL_PROVIDERS_SELECTIVE_TEST_TYPES = (
@@ -99,38 +100,39 @@ FAIL_WHEN_ENGLISH_TRANSLATION_CHANGED = False
 
 
 class FileGroupForCi(Enum):
-    ENVIRONMENT_FILES = "environment_files"
-    PYTHON_PRODUCTION_FILES = "python_scans"
-    JAVASCRIPT_PRODUCTION_FILES = "javascript_scans"
-    ALWAYS_TESTS_FILES = "always_test_files"
-    API_FILES = "api_files"
-    GIT_PROVIDER_FILES = "git_provider_files"
-    STANDARD_PROVIDER_FILES = "standard_provider_files"
-    API_CODEGEN_FILES = "api_codegen_files"
-    HELM_FILES = "helm_files"
-    DEPENDENCY_FILES = "dependency_files"
-    DOC_FILES = "doc_files"
-    UI_FILES = "ui_files"
-    SYSTEM_TEST_FILES = "system_tests"
-    KUBERNETES_FILES = "kubernetes_files"
-    TASK_SDK_FILES = "task_sdk_files"
-    GO_SDK_FILES = "go_sdk_files"
-    AIRFLOW_CTL_FILES = "airflow_ctl_files"
-    ALL_PYPROJECT_TOML_FILES = "all_pyproject_toml_files"
-    ALL_PYTHON_FILES = "all_python_files"
-    ALL_SOURCE_FILES = "all_sources_for_tests"
-    ALL_AIRFLOW_PYTHON_FILES = "all_airflow_python_files"
-    ALL_AIRFLOW_CTL_PYTHON_FILES = "all_airflow_ctl_python_files"
-    ALL_PROVIDERS_PYTHON_FILES = "all_provider_python_files"
-    ALL_PROVIDERS_DISTRIBUTION_CONFIG_FILES = "all_provider_distribution_config_files"
-    ALL_DEV_PYTHON_FILES = "all_dev_python_files"
-    ALL_DEVEL_COMMON_PYTHON_FILES = "all_devel_common_python_files"
-    ALL_PROVIDER_YAML_FILES = "all_provider_yaml_files"
-    TESTS_UTILS_FILES = "test_utils_files"
-    ASSET_FILES = "asset_files"
-    UNIT_TEST_FILES = "unit_test_files"
-    DEVEL_TOML_FILES = "devel_toml_files"
-    UI_ENGLISH_TRANSLATION_FILES = "ui_english_translation_files"
+    ENVIRONMENT_FILES = auto()
+    PYTHON_PRODUCTION_FILES = auto()
+    JAVASCRIPT_PRODUCTION_FILES = auto()
+    ALWAYS_TESTS_FILES = auto()
+    API_FILES = auto()
+    GIT_PROVIDER_FILES = auto()
+    STANDARD_PROVIDER_FILES = auto()
+    API_CODEGEN_FILES = auto()
+    HELM_FILES = auto()
+    DEPENDENCY_FILES = auto()
+    DOC_FILES = auto()
+    UI_FILES = auto()
+    SYSTEM_TEST_FILES = auto()
+    KUBERNETES_FILES = auto()
+    TASK_SDK_FILES = auto()
+    TASK_SDK_INTEGRATION_TEST_FILES = auto()
+    GO_SDK_FILES = auto()
+    AIRFLOW_CTL_FILES = auto()
+    ALL_PYPROJECT_TOML_FILES = auto()
+    ALL_PYTHON_FILES = auto()
+    ALL_SOURCE_FILES = auto()
+    ALL_AIRFLOW_PYTHON_FILES = auto()
+    ALL_AIRFLOW_CTL_PYTHON_FILES = auto()
+    ALL_PROVIDERS_PYTHON_FILES = auto()
+    ALL_PROVIDERS_DISTRIBUTION_CONFIG_FILES = auto()
+    ALL_DEV_PYTHON_FILES = auto()
+    ALL_DEVEL_COMMON_PYTHON_FILES = auto()
+    ALL_PROVIDER_YAML_FILES = auto()
+    TESTS_UTILS_FILES = auto()
+    ASSET_FILES = auto()
+    UNIT_TEST_FILES = auto()
+    DEVEL_TOML_FILES = auto()
+    UI_ENGLISH_TRANSLATION_FILES = auto()
 
 
 class AllProvidersSentinel:
@@ -281,6 +283,9 @@ CI_FILE_GROUP_MATCHES: HashableDict[FileGroupForCi] = HashableDict(
         FileGroupForCi.TASK_SDK_FILES: [
             r"^task-sdk/src/airflow/sdk/.*\.py$",
             r"^task-sdk/tests/.*\.py$",
+        ],
+        FileGroupForCi.TASK_SDK_INTEGRATION_TEST_FILES: [
+            r"^task-sdk-integration-tests/.*\.py$",
         ],
         FileGroupForCi.GO_SDK_FILES: [
             r"^go-sdk/.*\.go$",
@@ -583,12 +588,82 @@ class SelectiveChecks:
         ):
             get_console().print("[warning]Running full set of tests because tests/utils changed[/]")
             return True
+        if self._is_large_enough_pr():
+            return True
         if FULL_TESTS_NEEDED_LABEL in self._pr_labels:
             get_console().print(
                 "[warning]Full tests needed because "
                 f"label '{FULL_TESTS_NEEDED_LABEL}' is in  {self._pr_labels}[/]"
             )
             return True
+        return False
+
+    def _is_large_enough_pr(self) -> bool:
+        """
+        Check if PR is large enough to run full tests.
+
+        The heuristics are based on number of files changed and total lines changed,
+        while excluding generated files which can be ignored.
+        """
+        FILE_THRESHOLD = 25
+        LINE_THRESHOLD = 500
+
+        if not self._files:
+            return False
+
+        exclude_patterns = [
+            r"/newsfragments/",
+            r"^uv\.lock$",
+            r"pnpm-lock\.yaml$",
+            r"package-lock\.json$",
+        ]
+
+        relevant_files = [
+            f for f in self._files if not any(re.search(pattern, f) for pattern in exclude_patterns)
+        ]
+
+        files_changed = len(relevant_files)
+        if files_changed >= FILE_THRESHOLD:
+            get_console().print(
+                f"[warning]Running full set of tests because PR touches {files_changed} files "
+                f"(≥25 threshold)[/]"
+            )
+            return True
+
+        if not self._commit_ref:
+            get_console().print("[warning]Cannot determine if PR is big enough, skipping the check[/]")
+            return False
+
+        try:
+            result = run_command(
+                ["git", "diff", "--numstat", f"{self._commit_ref}^...{self._commit_ref}"] + relevant_files,
+                capture_output=True,
+                text=True,
+                cwd=AIRFLOW_ROOT_PATH,
+                check=False,
+            )
+
+            if result.returncode == 0:
+                total_lines = 0
+                for line in result.stdout.strip().split("\n"):
+                    if line:
+                        parts = line.split("\t")
+                        if len(parts) >= 2:
+                            try:
+                                additions = int(parts[0])
+                                deletions = int(parts[1])
+                                total_lines += additions + deletions
+                            except ValueError:
+                                pass
+                if total_lines >= LINE_THRESHOLD:
+                    get_console().print(
+                        f"[warning]Running full set of tests because PR changes {total_lines} lines "
+                        f"in {files_changed} files[/]"
+                    )
+                    return True
+        except Exception:
+            pass
+
         return False
 
     @cached_property
@@ -794,6 +869,10 @@ class SelectiveChecks:
         return self._should_be_run(FileGroupForCi.UI_FILES)
 
     @cached_property
+    def run_ui_e2e_tests(self) -> bool:
+        return self._should_be_run(FileGroupForCi.UI_FILES)
+
+    @cached_property
     def run_amazon_tests(self) -> bool:
         if self.providers_test_types_list_as_strings_in_json == "[]":
             return False
@@ -805,6 +884,12 @@ class SelectiveChecks:
     @cached_property
     def run_task_sdk_tests(self) -> bool:
         return self._should_be_run(FileGroupForCi.TASK_SDK_FILES)
+
+    @cached_property
+    def run_task_sdk_integration_tests(self) -> bool:
+        return self._should_be_run(FileGroupForCi.TASK_SDK_FILES) or self._should_be_run(
+            FileGroupForCi.TASK_SDK_INTEGRATION_TEST_FILES
+        )
 
     @cached_property
     def run_go_sdk_tests(self) -> bool:
@@ -865,6 +950,7 @@ class SelectiveChecks:
             self.run_unit_tests
             or self.docs_build
             or self.run_kubernetes_tests
+            or self.run_task_sdk_integration_tests
             or self.run_helm_tests
             or self.run_ui_tests
             or self.pyproject_toml_changed
@@ -873,7 +959,12 @@ class SelectiveChecks:
 
     @cached_property
     def prod_image_build(self) -> bool:
-        return self.run_kubernetes_tests or self.run_helm_tests
+        return (
+            self.run_kubernetes_tests
+            or self.run_helm_tests
+            or self.run_task_sdk_integration_tests
+            or self.run_ui_e2e_tests
+        )
 
     def _select_test_type_if_matching(
         self, test_types: set[str], test_type: SelectiveCoreTestType
@@ -1387,7 +1478,7 @@ class SelectiveChecks:
     @cached_property
     def excluded_providers_as_string(self) -> str:
         providers_to_exclude = defaultdict(list)
-        for provider, provider_info in DEPENDENCIES.items():
+        for provider, provider_info in get_provider_dependencies().items():
             if "excluded-python-versions" in provider_info:
                 for python_version in provider_info["excluded-python-versions"]:
                     providers_to_exclude[python_version].append(provider)
@@ -1439,7 +1530,7 @@ class SelectiveChecks:
             if provider == "Providers":
                 all_providers_affected = True
             elif provider is not None:
-                if provider not in DEPENDENCIES:
+                if provider not in get_provider_dependencies():
                     suspended_providers.add(provider)
                 else:
                     affected_providers.add(provider)
@@ -1536,7 +1627,7 @@ class SelectiveChecks:
             FileGroupForCi.ALL_PYPROJECT_TOML_FILES,
             CI_FILE_GROUP_MATCHES,
         )
-        if not pyproject_files or not self._commit_ref:
+        if not pyproject_files or not self._github_event == GithubEvents.PULL_REQUEST:
             return False
 
         try:
@@ -1686,3 +1777,93 @@ class SelectiveChecks:
                             )
 
         return violations
+
+    def _has_common_compat_changed(self) -> bool:
+        """Check if any common.compat provider file was changed."""
+        return any(f.startswith("providers/common/compat/") for f in self._files)
+
+    def _get_changed_providers_excluding_common_compat(self) -> set[str]:
+        """Get set of changed providers excluding common.compat itself."""
+        changed_providers: set[str] = set()
+        for changed_file in self._files:
+            provider = find_provider_affected(changed_file, include_docs=False)
+            if provider and provider not in ["common.compat", "Providers"]:
+                changed_providers.add(provider)
+        return changed_providers
+
+    def _uses_next_version_comment(self, provider: str) -> bool:
+        """Check if provider's pyproject.toml has '# use next version' for common-compat dependency."""
+        pyproject_file = f"providers/{provider.replace('.', '/')}/pyproject.toml"
+        result = run_command(
+            ["git", "show", f"{self._commit_ref}:{pyproject_file}"],
+            capture_output=True,
+            text=True,
+            cwd=AIRFLOW_ROOT_PATH,
+            check=False,
+        )
+        if result.returncode != 0:
+            return True  # If file doesn't exist, don't flag as violation
+
+        # Check if dependency line contains both the package and the comment
+        for line in result.stdout.splitlines():
+            if "apache-airflow-providers-common-compat" in line.lower():
+                return "# use next version" in line.lower()
+        return True  # If dependency not found, don't flag as violation
+
+    def _print_violations_and_exit_or_bypass(self, violations: list[str]) -> bool:
+        """Print violations and either exit with error or bypass with warning."""
+        console = get_console()
+
+        if SKIP_COMMON_COMPAT_CHECK_LABEL in self._pr_labels:
+            console.print("[warning]The 'skip common compat check' label is set. Bypassing check for:[/]")
+            for provider in violations:
+                console.print(
+                    f"[warning]  - {provider} (providers/{provider.replace('.', '/')}/pyproject.toml)[/]"
+                )
+            console.print()
+            return True
+
+        console.print(
+            "[error]common.compat provider changed but the following providers don't have "
+            "'# use next version' comment for their common-compat dependency![/]"
+        )
+        console.print()
+        for provider in violations:
+            console.print(f"[error]  - {provider} (providers/{provider.replace('.', '/')}/pyproject.toml)[/]")
+        console.print()
+        console.print(
+            "[warning]When common.compat changes with other providers in the same PR, "
+            "add '# use next version' comment where they depend on common-compat.[/]\n"
+            "[warning]Example:[/] "
+            '[info]"apache-airflow-providers-common-compat>=1.8.0",  # use next version[/]\n'
+        )
+        console.print(
+            f"[warning]To bypass this check, add the label: '[info]{SKIP_COMMON_COMPAT_CHECK_LABEL}[/]'\n"
+        )
+        sys.exit(1)
+
+    @cached_property
+    def common_compat_changed_without_next_version(self) -> bool:
+        """
+        Check if common.compat provider changed and other providers changed don't have '# use next version'
+        comment for their common-compat dependency.
+        """
+        if self._github_event != GithubEvents.PULL_REQUEST:
+            return False
+
+        if not self._has_common_compat_changed():
+            return False
+
+        changed_providers = self._get_changed_providers_excluding_common_compat()
+        if not changed_providers:
+            return False  # Only common.compat changed
+
+        get_console().print(f"[warning]common.compat changed with providers: {sorted(changed_providers)}[/]")
+
+        # Find providers missing '# use next version' comment
+        violations = [p for p in sorted(changed_providers) if not self._uses_next_version_comment(p)]
+
+        if violations:
+            return self._print_violations_and_exit_or_bypass(violations)
+
+        return False

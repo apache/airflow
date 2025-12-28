@@ -22,8 +22,8 @@ from unittest.mock import MagicMock, Mock
 
 import pytest
 
-from airflow.exceptions import AirflowException
 from airflow.models.taskinstance import TaskInstance as TI
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.utils import timezone
 from airflow.utils.state import State
@@ -35,14 +35,12 @@ from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 pytestmark = pytest.mark.db_test
 
 if AIRFLOW_V_3_0_PLUS:
-    from airflow.exceptions import DownstreamTasksSkipped
     from airflow.models.dag_version import DagVersion
+    from airflow.providers.common.compat.sdk import DownstreamTasksSkipped
     from airflow.providers.standard.utils.skipmixin import SkipMixin
     from airflow.sdk import task, task_group
-    from airflow.sdk.definitions.mappedoperator import MappedOperator
 else:
     from airflow.decorators import task, task_group  # type: ignore[attr-defined,no-redef]
-    from airflow.models.mappedoperator import MappedOperator  # type: ignore[assignment]
     from airflow.models.skipmixin import SkipMixin
 
 DEFAULT_DATE = timezone.datetime(2016, 1, 1)
@@ -108,23 +106,18 @@ class TestSkipMixin:
 
     @pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="Airflow 2 had a different implementation")
     def test_skip__only_mapped_operators_passed(self):
+        from airflow.sdk.definitions.mappedoperator import MappedOperator
+
         ti = Mock(map_index=2)
-        assert (
-            SkipMixin().skip(
-                ti=ti,
-                tasks=[MagicMock(spec=MappedOperator)],
-            )
-            is None
-        )
+        assert SkipMixin().skip(ti=ti, tasks=[MagicMock(spec=MappedOperator)]) is None
 
     @pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="Airflow 2 had a different implementation")
     def test_skip__only_none_mapped_operators_passed(self):
+        from airflow.sdk.definitions.mappedoperator import MappedOperator
+
         ti = Mock(map_index=-1)
         with pytest.raises(DownstreamTasksSkipped) as exc_info:
-            SkipMixin().skip(
-                ti=ti,
-                tasks=[MagicMock(spec=MappedOperator, task_id="task")],
-            )
+            SkipMixin().skip(ti=ti, tasks=[MagicMock(spec=MappedOperator, task_id="task")])
         assert exc_info.value.tasks == ["task"]
 
     @pytest.mark.parametrize(

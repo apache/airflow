@@ -16,11 +16,12 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { useEffect, useState, useCallback } from "react";
-import { VStack, Icon, Text, Spinner } from "@chakra-ui/react";
-import { GoAlertFill } from "react-icons/go";
+import { Button, Icon, Spinner, Text, VStack } from "@chakra-ui/react";
+import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Button, Dialog } from "src/components/ui";
+import { GoAlertFill } from "react-icons/go";
+
+import { Dialog } from "src/components/ui";
 import { useClearTaskInstancesDryRun } from "src/queries/useClearTaskInstancesDryRun";
 import { getRelativeTime } from "src/utils/datetimeUtils";
 
@@ -73,7 +74,9 @@ const ClearTaskInstanceConfirmationDialog = ({
   const [isReady, setIsReady] = useState(false);
 
   const handleConfirm = useCallback(() => {
-    if (onConfirm) onConfirm();
+    if (onConfirm) {
+      onConfirm();
+    }
     onClose();
   }, [onConfirm, onClose]);
 
@@ -83,8 +86,7 @@ const ClearTaskInstanceConfirmationDialog = ({
 
   useEffect(() => {
     if (!isFetching && open && data) {
-      const isInTriggeringState =
-        taskCurrentState === "queued" || taskCurrentState === "scheduled";
+      const isInTriggeringState = taskCurrentState === "queued" || taskCurrentState === "scheduled";
 
       if (!preventRunningTask || !isInTriggeringState) {
         handleConfirm();
@@ -109,7 +111,7 @@ const ClearTaskInstanceConfirmationDialog = ({
             <Dialog.Header>
               <VStack align="start" gap={4}>
                 <Dialog.Title>
-                  <Icon color="tomato" size="lg" pr="2">
+                  <Icon color="tomato" pr="2" size="lg">
                     <GoAlertFill />
                   </Icon>
                   {translate("dags:runAndTaskActions.confirmationDialog.title")}
@@ -117,20 +119,17 @@ const ClearTaskInstanceConfirmationDialog = ({
                 <Dialog.Description>
                   {taskInstances.length > 0 && (
                     <>
-                      {translate(
-                        "dags:runAndTaskActions.confirmationDialog.description",
-                        {
-                          state: taskCurrentState,
-                          time:
-                            firstInstance?.start_date !== null && firstInstance?.start_date !== undefined
-                              ? getRelativeTime(firstInstance.start_date)
-                              : undefined,
-                          user:
-                            (firstInstance?.unixname?.trim().length ?? 0) > 0
-                              ? firstInstance?.unixname
-                              : "unknown user",
-                        }
-                      )}
+                      {translate("dags:runAndTaskActions.confirmationDialog.description", {
+                        state: taskCurrentState,
+                        time:
+                          firstInstance?.start_date !== null && firstInstance?.start_date !== undefined
+                            ? getRelativeTime(firstInstance.start_date)
+                            : undefined,
+                        user:
+                          (firstInstance?.unixname?.trim().length ?? 0) > 0
+                            ? firstInstance?.unixname
+                            : "unknown user",
+                      })}
                     </>
                   )}
                 </Dialog.Description>

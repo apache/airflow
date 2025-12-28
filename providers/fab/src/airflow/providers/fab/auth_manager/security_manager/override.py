@@ -67,7 +67,7 @@ from sqlalchemy.orm import joinedload
 from werkzeug.security import check_password_hash, generate_password_hash
 
 from airflow.configuration import conf
-from airflow.exceptions import AirflowException
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.fab.auth_manager.models import (
     Action,
     Group,
@@ -101,7 +101,6 @@ from airflow.providers.fab.version_compat import AIRFLOW_V_3_1_PLUS
 from airflow.providers.fab.www.security import permissions
 from airflow.providers.fab.www.security_manager import AirflowSecurityManagerV2
 from airflow.providers.fab.www.session import AirflowDatabaseSessionInterface
-from airflow.security.permissions import RESOURCE_BACKFILL
 
 if TYPE_CHECKING:
     from airflow.providers.fab.www.security.permissions import (
@@ -109,7 +108,7 @@ if TYPE_CHECKING:
         RESOURCE_ASSET_ALIAS,
     )
     from airflow.sdk import DAG
-    from airflow.serialization.serialized_objects import SerializedDAG
+    from airflow.serialization.definitions.dag import SerializedDAG
 else:
     from airflow.providers.common.compat.security.permissions import (
         RESOURCE_ASSET,
@@ -236,7 +235,7 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG_WARNING),
         (permissions.ACTION_CAN_READ, RESOURCE_ASSET),
         (permissions.ACTION_CAN_READ, RESOURCE_ASSET_ALIAS),
-        (permissions.ACTION_CAN_READ, RESOURCE_BACKFILL),
+        (permissions.ACTION_CAN_READ, permissions.RESOURCE_BACKFILL),
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_CLUSTER_ACTIVITY),
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_POOL),
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_IMPORT_ERROR),
@@ -308,9 +307,9 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
         (permissions.ACTION_CAN_DELETE, permissions.RESOURCE_XCOM),
         (permissions.ACTION_CAN_CREATE, RESOURCE_ASSET),
         (permissions.ACTION_CAN_DELETE, RESOURCE_ASSET),
-        (permissions.ACTION_CAN_CREATE, RESOURCE_BACKFILL),
-        (permissions.ACTION_CAN_EDIT, RESOURCE_BACKFILL),
-        (permissions.ACTION_CAN_DELETE, RESOURCE_BACKFILL),
+        (permissions.ACTION_CAN_CREATE, permissions.RESOURCE_BACKFILL),
+        (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_BACKFILL),
+        (permissions.ACTION_CAN_DELETE, permissions.RESOURCE_BACKFILL),
     ]
     # [END security_op_perms]
 
@@ -2019,7 +2018,7 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
             if _provider["name"] == provider:
                 return _provider.get("token_secret", "oauth_token_secret")
 
-    def auth_user_oauth(self, userinfo):
+    def auth_user_oauth(self, userinfo, rotate_session_id=True):
         """
         Authenticate user with OAuth.
 
@@ -2073,7 +2072,8 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
 
         # LOGIN SUCCESS (only if user is now registered)
         if user:
-            self._rotate_session_id()
+            if rotate_session_id:
+                self._rotate_session_id()
             self.update_user_auth_stat(user)
             return user
         return None
