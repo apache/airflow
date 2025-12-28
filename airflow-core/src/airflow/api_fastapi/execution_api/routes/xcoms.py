@@ -41,9 +41,9 @@ from airflow.utils.db import get_query_count
 async def has_xcom_access(
     dag_id: str,
     run_id: str,
-    task_id: str,
-    xcom_key: Annotated[str, Path(alias="key", min_length=1)],
     request: Request,
+    task_id: str | None = None,
+    key: str | None = None,
     token=CurrentTIToken,
 ) -> bool:
     """Check if the task has access to the XCom."""
@@ -53,7 +53,7 @@ async def has_xcom_access(
         "Checking %s XCom access for xcom from TaskInstance with key '%s' to XCom '%s'",
         "write" if write else "read",
         token.id,
-        xcom_key,
+        key,
     )
 
     # The current version of Airflow does not support true
@@ -444,3 +444,37 @@ def delete_xcom(
     session.execute(query)
     session.commit()
     return {"message": f"XCom with key: {key} successfully deleted."}
+
+
+@router.delete(
+    "/{dag_id}/{run_id}",
+    description="Bulk delete Xcom values.",
+)
+def bulk_delete_xcoms(
+    session: SessionDep,
+    dag_id: str,
+    run_id: str,
+    task_id: Annotated[str | None, Query()] = None,
+    key: Annotated[str | None, Query()] = None,
+    map_index: Annotated[int | None, Query()] = None,
+):
+    """Bulk delete Xcom values."""
+    query = delete(XComModel).where(
+        XComModel.dag_id == dag_id,
+        XComModel.run_id == run_id,
+    )
+
+    if task_id is not None:
+        query = query.where(XComModel.task_id == task_id)
+
+    if key is not None:
+        query = query.where(XComModel.key == key)
+
+    if map_index is not None:
+        query = query.where(XComModel.map_index == map_index)
+
+    result = session.execute(query)
+    count = getattr(result, "rowcount", 0)
+    session.commit()
+
+    return {"count": count}

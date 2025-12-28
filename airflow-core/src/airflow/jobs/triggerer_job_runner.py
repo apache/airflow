@@ -59,6 +59,7 @@ from airflow.models.trigger import Trigger
 from airflow.observability.metrics import stats_utils
 from airflow.sdk.api.datamodels._generated import HITLDetailResponse
 from airflow.sdk.execution_time.comms import (
+    BulkDeleteXCom,
     CommsDecoder,
     ConnectionResult,
     DagRunStateResult,
@@ -344,6 +345,7 @@ ToTriggerSupervisor = Annotated[
     | GetVariableKeys
     | PutVariable
     | DeleteXCom
+    | BulkDeleteXCom
     | GetXCom
     | SetXCom
     | GetTICount
@@ -556,6 +558,9 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
             resp, dump_opts = handle_put_variable(self.client, msg)
         elif isinstance(msg, DeleteXCom):
             resp, dump_opts = handle_delete_xcom(self.client, msg)
+            self.client.xcoms.delete(msg.dag_id, msg.run_id, msg.task_id, msg.key, msg.map_index)
+        elif isinstance(msg, BulkDeleteXCom):
+            resp = self.client.xcoms.delete_all(msg.dag_id, msg.run_id, msg.task_id, msg.key, msg.map_index)
         elif isinstance(msg, GetXCom):
             resp, dump_opts = handle_get_xcom(self.client, msg)
         elif isinstance(msg, SetXCom):

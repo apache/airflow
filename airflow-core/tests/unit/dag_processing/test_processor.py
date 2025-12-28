@@ -1946,6 +1946,7 @@ class TestDagProcessingMessageTypes:
         in_supervisor_but_not_in_manager = {
             "DeferTask",
             "DeleteXCom",
+            "BulkDeleteXCom",
             "GetAssetByName",
             "GetAssetByUri",
             "GetAssetsByAlias",
@@ -2008,6 +2009,7 @@ class TestDagProcessingMessageTypes:
             # AIP-103 task/asset state results — worker-only responses to the above messages.
             "TaskStateResult",
             "AssetStateResult",
+            "XComDeleteCountResponse",
         }
 
         supervisor_diff = supervisor_types - manager_types - in_supervisor_but_not_in_manager

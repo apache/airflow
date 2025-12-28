@@ -78,3 +78,13 @@ class AddStateEndpoints(VersionChange):
         endpoint("/state/asset/by-uri/value", ["DELETE"]).didnt_exist,
         endpoint("/state/asset/by-uri/clear", ["DELETE"]).didnt_exist,
     )
+
+
+class AddXcomBulkDeleteEndpoint(VersionChange):
+    """Add XCom bulk delete endpoint."""
+
+    description = __doc__
+
+    instructions_to_migrate_to_previous_version = (
+        endpoint("xcoms/{dag_id}/{run_id}", ["DELETE"]).didnt_exist,
+    )
