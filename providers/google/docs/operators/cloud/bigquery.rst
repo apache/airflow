@@ -204,6 +204,10 @@ nesting will a nested list where elements would represent the column values for
 that row.
 ``True`` - A Python list of dictionaries, where each dictionary represents a row. In each dictionary, the keys are the column names and the values are the corresponding values for those columns.
 
+..note::
+The project_id parameter is deprecated and will be removed in a future release.
+Please use table_project_id instead.
+
 .. exampleinclude:: /../../google/tests/system/google/cloud/bigquery/example_bigquery_queries.py
     :language: python
     :dedent: 4
