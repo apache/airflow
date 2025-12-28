@@ -419,12 +419,3 @@ repos:
           ^src/airflow/serialization/serialized_objects\.py$
         pass_filenames: false
         require_serial: true
-      - id: prevent-deprecated-sqlalchemy-usage
-        name: Prevent deprecated sqlalchemy usage
-        entry: ./scripts/ci/prek/prevent_deprecated_sqlalchemy_usage.py
-        language: python
-        files: >
-            (?x)
-            ^airflow-ctl.*\.py$|
-            ^airflow-core/tests/unit/dag_processing/test_processor.py$|
-            ^airflow-ctl/tests/.*\.py$|

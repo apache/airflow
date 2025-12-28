@@ -135,8 +135,8 @@ dependencies = [
     "rich-argparse>=1.0.0",
     "rich>=13.6.0",
     "setproctitle>=1.3.3",
-    # SQLAlchemy >=2.0.36 fixes Python 3.13 TypingOnly import AssertionError caused by new typing attributes (__static_attributes__, __firstlineno__)
-    "sqlalchemy[asyncio]>=2.0.36",
+    # The issue tracking deprecations for sqlalchemy 2 is https://github.com/apache/airflow/issues/28723
+    "sqlalchemy[asyncio]>=1.4.49",
     "sqlalchemy-jsonfield>=1.0",
     "sqlalchemy-utils>=0.41.2",
     "svcs>=25.1.0",
