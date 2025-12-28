@@ -73,7 +73,7 @@ class BaseXCom:
         :param map_index: Optional map index to assign XCom for a mapped task.
             The default is ``-1`` (set for a non-mapped task).
         """
-        from airflow.sdk.execution_time.task_runner import SUPERVISOR_COMMS
+        from airflow.sdk.execution_time.task_runner import supervisor_comms
 
         value = cls.serialize_value(
             value=value,
@@ -84,7 +84,7 @@ class BaseXCom:
             map_index=map_index,
         )
 
-        SUPERVISOR_COMMS.send(
+        supervisor_comms().send(
             SetXCom(
                 key=key,
                 value=value,
@@ -119,9 +119,9 @@ class BaseXCom:
         :param map_index: Optional map index to assign XCom for a mapped task.
             The default is ``-1`` (set for a non-mapped task).
         """
-        from airflow.sdk.execution_time.task_runner import SUPERVISOR_COMMS
+        from airflow.sdk.execution_time.task_runner import supervisor_comms
 
-        SUPERVISOR_COMMS.send(
+        supervisor_comms().send(
             SetXCom(
                 key=key,
                 value=value,
@@ -192,9 +192,9 @@ class BaseXCom:
         :param key: A key for the XCom. If provided, only XCom with matching
             keys will be returned. Pass *None* (default) to remove the filter.
         """
-        from airflow.sdk.execution_time.task_runner import SUPERVISOR_COMMS
+        from airflow.sdk.execution_time.task_runner import supervisor_comms
 
-        msg = SUPERVISOR_COMMS.send(
+        msg = supervisor_comms().send(
             GetXCom(
                 key=key,
                 dag_id=dag_id,
@@ -245,9 +245,9 @@ class BaseXCom:
             specified Dag run is returned. If *True*, the latest matching XCom is
             returned regardless of the run it belongs to.
         """
-        from airflow.sdk.execution_time.task_runner import SUPERVISOR_COMMS
+        from airflow.sdk.execution_time.task_runner import supervisor_comms
 
-        msg = SUPERVISOR_COMMS.send(
+        msg = supervisor_comms().send(
             GetXCom(
                 key=key,
                 dag_id=dag_id,
@@ -301,9 +301,9 @@ class BaseXCom:
             returned regardless of the run they belong to.
         :return: List of all XCom values if found.
         """
-        from airflow.sdk.execution_time.task_runner import SUPERVISOR_COMMS
+        from airflow.sdk.execution_time.task_runner import supervisor_comms
 
-        msg = SUPERVISOR_COMMS.send(
+        msg = supervisor_comms().send(
             msg=GetXComSequenceSlice(
                 key=key,
                 dag_id=dag_id,
@@ -362,7 +362,7 @@ class BaseXCom:
         map_index: int | None = None,
     ) -> None:
         """Delete an Xcom entry, for custom xcom backends, it gets the path associated with the data on the backend and purges it."""
-        from airflow.sdk.execution_time.task_runner import SUPERVISOR_COMMS
+        from airflow.sdk.execution_time.task_runner import supervisor_comms
 
         xcom_result = cls._get_xcom_db_ref(
             key=key,
@@ -372,7 +372,7 @@ class BaseXCom:
             map_index=map_index,
         )
         cls.purge(xcom_result)
-        SUPERVISOR_COMMS.send(
+        supervisor_comms().send(
             DeleteXCom(
                 key=key,
                 dag_id=dag_id,
