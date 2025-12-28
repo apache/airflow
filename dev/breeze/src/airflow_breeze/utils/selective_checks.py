@@ -158,6 +158,7 @@ CI_FILE_GROUP_MATCHES: HashableDict[FileGroupForCi] = HashableDict(
             r"^Dockerfile",
             r"^scripts/ci/docker-compose",
             r"^scripts/ci/kubernetes",
+            r"^scripts/ci/prek",
             r"^scripts/docker",
             r"^scripts/in_container",
             r"^generated/provider_dependencies.json$",
@@ -1710,7 +1711,9 @@ class SelectiveChecks:
             get_console().print(
                 "[warning]Only Release Managers should change >= conditions for apache-airflow-providers "
                 "dependencies.[/]\n\nIf you want to refer to a future version of the dependency, please add a "
-                "comment [info]'# use next version'[/info] in the line of the dependency instead.\n"
+                "comment [info]'# use next version'[/info] in the line of the dependency instead.\n\n"
+                "If there is already the same provider before the `# Additional devel dependencies` without"
+                "version, move the provider depedendy to required ones and add `# use next version` there."
             )
             get_console().print()
             get_console().print(
