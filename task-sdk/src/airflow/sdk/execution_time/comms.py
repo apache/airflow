@@ -826,10 +826,10 @@ class SetXCom(BaseModel):
 
 
 class DeleteXCom(BaseModel):
-    key: str
     dag_id: str
     run_id: str
-    task_id: str
+    task_id: str | None = None
+    key: str | None = None
     map_index: int | None = None
     type: Literal["DeleteXCom"] = "DeleteXCom"
 
