@@ -16,13 +16,21 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, Heading, Text } from "@chakra-ui/react";
+import { Box, Button, Flex, Heading, Text, type ButtonProps } from "@chakra-ui/react";
+import { useQueryClient } from "@tanstack/react-query";
 import type { ColumnDef } from "@tanstack/react-table";
-import { useMemo } from "react";
+import { useCallback, useMemo } from "react";
 import { useTranslation } from "react-i18next";
+import { MdPause, MdPlayArrow, MdStop } from "react-icons/md";
 import { useParams } from "react-router-dom";
 
-import { useBackfillServiceListBackfillsUi } from "openapi/queries";
+import {
+  useBackfillServiceCancelBackfill,
+  useBackfillServiceListBackfillsUi,
+  useBackfillServiceListBackfillsUiKey,
+  useBackfillServicePauseBackfill,
+  useBackfillServiceUnpauseBackfill,
+} from "openapi/queries";
 import type { BackfillResponse } from "openapi/requests/types.gen";
 import { DataTable } from "src/components/DataTable";
 import { useTableURLState } from "src/components/DataTable/useTableUrlState";
@@ -30,7 +38,29 @@ import { ErrorAlert } from "src/components/ErrorAlert";
 import Time from "src/components/Time";
 import { getDuration } from "src/utils";
 
-const getColumns = (translate: (key: string) => string): Array<ColumnDef<BackfillResponse>> => [
+const buttonProps = {
+  rounded: "full",
+  size: "xs",
+  variant: "outline",
+} satisfies ButtonProps;
+
+type GetColumnsParams = {
+  readonly isCancelPending: boolean;
+  readonly isPausePending: boolean;
+  readonly isUnpausePending: boolean;
+  readonly onCancel: (backfill: BackfillResponse) => void;
+  readonly onPause: (backfill: BackfillResponse) => void;
+  readonly translate: (key: string) => string;
+};
+
+const getColumns = ({
+  isCancelPending,
+  isPausePending,
+  isUnpausePending,
+  onCancel,
+  onPause,
+  translate,
+}: GetColumnsParams): Array<ColumnDef<BackfillResponse>> => [
   {
     accessorKey: "date_from",
     cell: ({ row }) => (
@@ -102,6 +132,46 @@ const getColumns = (translate: (key: string) => string): Array<ColumnDef<Backfil
     enableSorting: false,
     header: translate("table.maxActiveRuns"),
   },
+  {
+    accessorKey: "actions",
+    cell: ({ row }) => {
+      const backfill = row.original;
+
+      if (backfill.completed_at !== null) {
+        return null;
+      }
+
+      return (
+        <Flex gap={2} justifyContent="end">
+          <Button
+            aria-label={
+              backfill.is_paused
+                ? translate("components:banner.unpause")
+                : translate("components:banner.pause")
+            }
+            loading={isPausePending || isUnpausePending}
+            onClick={() => onPause(backfill)}
+            {...buttonProps}
+          >
+            {backfill.is_paused ? <MdPlayArrow /> : <MdPause />}
+          </Button>
+          <Button
+            aria-label={translate("components:banner.cancel")}
+            loading={isCancelPending}
+            onClick={() => onCancel(backfill)}
+            {...buttonProps}
+          >
+            <MdStop />
+          </Button>
+        </Flex>
+      );
+    },
+    enableSorting: false,
+    header: "",
+    meta: {
+      skeletonWidth: 10,
+    },
+  },
 ];
 
 export const Backfills = () => {
@@ -118,7 +188,51 @@ export const Backfills = () => {
     offset: pagination.pageIndex * pagination.pageSize,
   });
 
-  const columns = useMemo(() => getColumns(translate), [translate]);
+  const queryClient = useQueryClient();
+  const onSuccess = async () => {
+    await queryClient.invalidateQueries({
+      queryKey: [useBackfillServiceListBackfillsUiKey],
+    });
+  };
+
+  const { isPending: isPausePending, mutate: pauseMutate } = useBackfillServicePauseBackfill({ onSuccess });
+  const { isPending: isUnpausePending, mutate: unpauseMutate } = useBackfillServiceUnpauseBackfill({
+    onSuccess,
+  });
+  const { isPending: isCancelPending, mutate: cancelMutate } = useBackfillServiceCancelBackfill({
+    onSuccess,
+  });
+
+  const handlePause = useCallback(
+    (backfill: BackfillResponse) => {
+      if (backfill.is_paused) {
+        unpauseMutate({ backfillId: backfill.id });
+      } else {
+        pauseMutate({ backfillId: backfill.id });
+      }
+    },
+    [pauseMutate, unpauseMutate],
+  );
+
+  const handleCancel = useCallback(
+    (backfill: BackfillResponse) => {
+      cancelMutate({ backfillId: backfill.id });
+    },
+    [cancelMutate],
+  );
+
+  const columns = useMemo(
+    () =>
+      getColumns({
+        isCancelPending,
+        isPausePending,
+        isUnpausePending,
+        onCancel: handleCancel,
+        onPause: handlePause,
+        translate,
+      }),
+    [translate, handlePause, handleCancel, isPausePending, isUnpausePending, isCancelPending],
+  );
 
   return (
     <Box>
