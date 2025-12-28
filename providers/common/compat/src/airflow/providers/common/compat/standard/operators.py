@@ -214,7 +214,7 @@ else:
         def is_async(self) -> bool:
             return True
 
-        if AIRFLOW_V_3_0_PLUS and not AIRFLOW_V_3_1_PLUS:
+        if not AIRFLOW_V_3_1_PLUS:
 
             @property
             def xcom_push(self) -> bool:
