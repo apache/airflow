@@ -479,15 +479,16 @@ def serialize_subprocess(queue, dag_folder):
 
 
 @pytest.fixture
-def timetable_plugin(monkeypatch):
+def timetable_plugin(monkeypatch: pytest.MonkeyPatch):
     """Patch plugins manager to always and only return our custom timetable."""
     from airflow import plugins_manager
 
-    monkeypatch.setattr(plugins_manager, "initialize_timetables_plugins", lambda: None)
     monkeypatch.setattr(
         plugins_manager,
-        "timetable_classes",
-        {"tests_common.test_utils.timetables.CustomSerializationTimetable": CustomSerializationTimetable},
+        "get_timetables_plugins",
+        lambda: {
+            "tests_common.test_utils.timetables.CustomSerializationTimetable": CustomSerializationTimetable
+        },
     )
 
 
