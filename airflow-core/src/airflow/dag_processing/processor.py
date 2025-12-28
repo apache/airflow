@@ -195,7 +195,7 @@ def _parse_file_entrypoint():
     if not isinstance(msg, DagFileParseRequest):
         raise RuntimeError(f"Required first message to be a DagFileParseRequest, it was {msg}")
 
-    task_runner.SUPERVISOR_COMMS = comms_decoder
+    task_runner.set_supervisor_comms(comms_decoder)
     log = structlog.get_logger(logger_name="task")
 
     result = _parse_file(msg, log)

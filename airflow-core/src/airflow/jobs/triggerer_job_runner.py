@@ -930,7 +930,7 @@ class TriggerRunner:
         """
         Set up the communications pipe between this process and the supervisor.
 
-        This also sets up the SUPERVISOR_COMMS so that TaskSDK code can work as expected too (but that will
+        This also sets up the supervisor-comms so that TaskSDK code can work as expected too (but that will
         need to be wrapped in an ``sync_to_async()`` call)
         """
         from airflow.sdk.execution_time import task_runner
@@ -943,7 +943,7 @@ class TriggerRunner:
             async_reader=reader,
         )
 
-        task_runner.SUPERVISOR_COMMS = self.comms_decoder
+        task_runner.set_supervisor_comms(self.comms_decoder)
 
         msg = await self.comms_decoder._aget_response(expect_id=0)
 

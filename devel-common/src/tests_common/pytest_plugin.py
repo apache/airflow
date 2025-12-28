@@ -2250,12 +2250,12 @@ def mock_supervisor_comms(monkeypatch):
     # core and TaskSDK is finished
     if CommsDecoder := getattr(comms, "CommsDecoder", None):
         comms = mock.create_autospec(CommsDecoder)
-        monkeypatch.setattr(task_runner, "SUPERVISOR_COMMS", comms, raising=False)
+        monkeypatch.setattr(task_runner._SupervisorCommsHolder, "comms", comms, raising=False)
     else:
         CommsDecoder = getattr(task_runner, "CommsDecoder")
         comms = mock.create_autospec(CommsDecoder)
         comms.send = comms.get_message
-        monkeypatch.setattr(task_runner, "SUPERVISOR_COMMS", comms, raising=False)
+        monkeypatch.setattr(task_runner._SupervisorCommsHolder, "comms", comms, raising=False)
     yield comms
 
 
