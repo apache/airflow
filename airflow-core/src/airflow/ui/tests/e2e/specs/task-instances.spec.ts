@@ -6,50 +6,43 @@ test.describe("Task Instances Page", () => {
   test.setTimeout(60_000);
 
   test("should render task instances table and verify details", async ({ page }) => {
-    
+    // 1. Setup Data
     const loginPage = new LoginPage(page);
     const testCredentials = testConfig.credentials;
     const testDagId = testConfig.testDag.id;
 
-    // Login using the Shared Page Object (Fixes Reviewer Comment)
-    await loginPage.navigateAndLogin(testCredentials.username, testCredentials.password);
+    // 2. Login with Explicit Wait (This fixes the timeout)
+    await page.goto("/login");
+    // Wait up to 30 seconds for the username box (CI is slow!)
+    await page.waitForSelector('input[name="username"]', { state: "visible", timeout: 30_000 });
+    
+    // Now use the page object to type and click
+    await loginPage.login(testCredentials.username, testCredentials.password);
     await loginPage.expectLoginSuccess();
 
-    
+    // 3. Navigate to Task Instances
     await page.goto("/task_instances");
     
-   
-    //render task instances table
-    // Verify Table Rendering
+    // 4. Verify Table Rendering
     const table = page.getByRole("table");
     await expect(table).toBeVisible({ timeout: 15_000 });
 
-    //Verify Headers
+    // 5. Verify Headers
     const expectedHeaders = [
-      /DAG ID/i,
-      /Task ID/i,
-      /Run ID|Dag Run/i,
-      /State/i,
-      /Start Date/i,
-      /Duration/i,
+      /DAG ID/i, /Task ID/i, /Run ID|Dag Run/i, /State/i, /Start Date/i, /Duration/i,
     ];
 
     for (const headerName of expectedHeaders) {
-      
       await expect(page.getByText(headerName).first()).toBeVisible({ timeout: 10_000 });
     }
-    
-   
-    //Verify Visual Distinction (Fixes Reviewer Comment)
-    // Check that the "Success" badge has a specific background color
+
+    // 6. Verify Visual Distinction
     const successBadge = page.locator('.state-success, [data-state="success"]').first();
-    
     if (await successBadge.isVisible()) {
         await expect(successBadge).toHaveCSS("background-color", /rgb/);
     }
 
-    // 7. Verify Filter Functionality (Fixes Reviewer Comment)
-    // Open Filter -> Select Dag ID -> Type Configured Dag ID -> Verify Row Appears
+    // 7. Verify Filter
     await page.getByRole("button", { name: /filter/i }).first().click();
     await page.getByRole("menuitem", { name: "Dag ID" }).click();
 
@@ -59,7 +52,6 @@ test.describe("Task Instances Page", () => {
     await searchInput.fill(testDagId);
     await searchInput.press("Enter");
     
-    // Assert the table actually filtered by finding the DAG ID in a cell
     await expect(page.getByRole("table")).toBeVisible();
     await expect(page.getByRole("cell", { name: testDagId }).first()).toBeVisible();
   });
