@@ -27,7 +27,12 @@ from airflow.providers.cncf.kubernetes.cli.definition import (
     get_kubernetes_cli_commands,
 )
 
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_2_PLUS
 
+
+@pytest.mark.skipif(
+    not AIRFLOW_V_3_2_PLUS, reason="The ProviderManager-based CLI is available in Airflow 3.2+"
+)
 class TestKubernetesCliDefinition:
     @pytest.fixture(autouse=True)
     def setup_parser(self):
