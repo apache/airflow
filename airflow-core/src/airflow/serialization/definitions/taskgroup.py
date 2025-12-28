@@ -185,13 +185,13 @@ class SerializedTaskGroup(DAGNode):
 
     def iter_tasks(self) -> Iterator[SerializedOperator]:
         """Return an iterator of the child tasks."""
-        from airflow.models.mappedoperator import MappedOperator
         from airflow.serialization.definitions.baseoperator import SerializedBaseOperator
+        from airflow.serialization.definitions.mappedoperator import SerializedMappedOperator
 
         groups_to_visit = [self]
         while groups_to_visit:
             for child in groups_to_visit.pop(0).children.values():
-                if isinstance(child, (MappedOperator, SerializedBaseOperator)):
+                if isinstance(child, (SerializedMappedOperator, SerializedBaseOperator)):
                     yield child
                 elif isinstance(child, SerializedTaskGroup):
                     groups_to_visit.append(child)
@@ -288,7 +288,7 @@ class SerializedMappedTaskGroup(SerializedTaskGroup):
 
     def iter_mapped_dependencies(self) -> Iterator[SerializedOperator]:
         """Upstream dependencies that provide XComs used by this mapped task group."""
-        from airflow.models.xcom_arg import SchedulerXComArg
+        from airflow.serialization.definitions.xcom_arg import SchedulerXComArg
 
         for op, _ in SchedulerXComArg.iter_xcom_references(self._expand_input):
             yield op

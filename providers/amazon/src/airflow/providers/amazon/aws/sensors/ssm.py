@@ -28,7 +28,7 @@ from airflow.providers.amazon.aws.utils import validate_execute_complete_event
 from airflow.providers.amazon.aws.utils.mixins import aws_template_fields
 
 if TYPE_CHECKING:
-    from airflow.utils.context import Context
+    from airflow.sdk import Context
 
 
 class SsmRunCommandCompletedSensor(AwsBaseSensor[SsmHook]):

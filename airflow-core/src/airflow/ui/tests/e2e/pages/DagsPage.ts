@@ -63,7 +63,7 @@ export class DagsPage extends BasePage {
    */
   public async clickNextPage(): Promise<void> {
     await this.paginationNextButton.click();
-    await this.waitForPageLoad();
+    await this.waitForDagList();
   }
 
   /**
@@ -71,16 +71,15 @@ export class DagsPage extends BasePage {
    */
   public async clickPrevPage(): Promise<void> {
     await this.paginationPrevButton.click();
-    await this.waitForPageLoad();
+    await this.waitForDagList();
   }
 
   /**
    * Get all Dag names from the current page
    */
   public async getDagNames(): Promise<Array<string>> {
+    await this.waitForDagList();
     const dagLinks = this.page.locator('[data-testid="dag-id"]');
-
-    await dagLinks.first().waitFor({ state: "visible", timeout: 10_000 });
     const texts = await dagLinks.allTextContents();
 
     return texts.map((text) => text.trim()).filter((text) => text !== "");
@@ -105,7 +104,7 @@ export class DagsPage extends BasePage {
    */
   public async triggerDag(dagName: string): Promise<string | null> {
     await this.navigateToDagDetail(dagName);
-    await this.triggerButton.waitFor({ state: "visible", timeout: 10_000 });
+    await expect(this.triggerButton).toBeVisible({ timeout: 10_000 });
     await this.triggerButton.click();
     const dagRunId = await this.handleTriggerDialog();
 
@@ -120,7 +119,7 @@ export class DagsPage extends BasePage {
 
     const detailsTab = this.page.locator('a[href$="/details"]');
 
-    await detailsTab.waitFor({ state: "visible" });
+    await expect(detailsTab).toBeVisible();
     await detailsTab.click();
 
     // Verify the details table is present
@@ -227,7 +226,7 @@ export class DagsPage extends BasePage {
 
       .catch(() => undefined);
 
-    await this.confirmButton.waitFor({ state: "visible", timeout: 8000 });
+    await expect(this.confirmButton).toBeVisible({ timeout: 8000 });
 
     await this.page.waitForTimeout(2000);
     await this.confirmButton.click({ force: true });
@@ -249,5 +248,14 @@ export class DagsPage extends BasePage {
 
     // eslint-disable-next-line unicorn/no-null
     return null;
+  }
+
+  /**
+   * Wait for DAG list to be rendered
+   */
+  private async waitForDagList(): Promise<void> {
+    await expect(this.page.locator('[data-testid="dag-id"]').first()).toBeVisible({
+      timeout: 10_000,
+    });
   }
 }

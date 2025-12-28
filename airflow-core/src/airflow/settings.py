@@ -109,16 +109,12 @@ HEADER = "\n".join(
 
 LOGGING_LEVEL = logging.INFO
 
-# the prefix to append to gunicorn worker processes after init
-GUNICORN_WORKER_READY_PREFIX = "[ready] "
-
 LOG_FORMAT = conf.get("logging", "log_format")
 SIMPLE_LOG_FORMAT = conf.get("logging", "simple_log_format")
 
 SQL_ALCHEMY_CONN: str | None = None
 SQL_ALCHEMY_CONN_ASYNC: str | None = None
 PLUGINS_FOLDER: str | None = None
-DONOT_MODIFY_HANDLERS: bool | None = None
 DAGS_FOLDER: str = os.path.expanduser(conf.get_mandatory_value("core", "DAGS_FOLDER"))
 
 AIO_LIBS_MAPPING = {"sqlite": "aiosqlite", "postgresql": "asyncpg", "mysql": "aiomysql"}
@@ -264,7 +260,6 @@ def configure_vars():
     global SQL_ALCHEMY_CONN_ASYNC
     global DAGS_FOLDER
     global PLUGINS_FOLDER
-    global DONOT_MODIFY_HANDLERS
 
     SQL_ALCHEMY_CONN = conf.get("database", "sql_alchemy_conn")
     if conf.has_option("database", "sql_alchemy_conn_async"):
@@ -275,13 +270,6 @@ def configure_vars():
     DAGS_FOLDER = os.path.expanduser(conf.get("core", "DAGS_FOLDER"))
 
     PLUGINS_FOLDER = conf.get("core", "plugins_folder", fallback=os.path.join(AIRFLOW_HOME, "plugins"))
-
-    # If donot_modify_handlers=True, we do not modify logging handlers in task_run command
-    # If the flag is set to False, we remove all handlers from the root logger
-    # and add all handlers from 'airflow.task' logger to the root Logger. This is done
-    # to get all the logs from the print & log statements in the DAG files before a task is run
-    # The handlers are restored after the task completes execution.
-    DONOT_MODIFY_HANDLERS = conf.getboolean("logging", "donot_modify_handlers", fallback=False)
 
 
 def _run_openlineage_runtime_check():
@@ -340,10 +328,6 @@ class SkipDBTestsSession:
 
 
 AIRFLOW_PATH = os.path.dirname(os.path.dirname(__file__))
-AIRFLOW_TESTS_PATH = os.path.join(AIRFLOW_PATH, "tests")
-AIRFLOW_SETTINGS_PATH = os.path.join(AIRFLOW_PATH, "airflow", "settings.py")
-AIRFLOW_UTILS_SESSION_PATH = os.path.join(AIRFLOW_PATH, "airflow", "utils", "session.py")
-AIRFLOW_MODELS_BASEOPERATOR_PATH = os.path.join(AIRFLOW_PATH, "airflow", "models", "baseoperator.py")
 
 
 def _is_sqlite_db_path_relative(sqla_conn_str: str) -> bool:
@@ -753,9 +737,6 @@ def initialize():
 
 
 # Const stuff
-
-KILOBYTE = 1024
-MEGABYTE = KILOBYTE * KILOBYTE
 WEB_COLORS = {"LIGHTBLUE": "#4d9de0", "LIGHTORANGE": "#FF9933"}
 
 # Updating serialized DAG can not be faster than a minimum interval to reduce database
@@ -764,10 +745,6 @@ MIN_SERIALIZED_DAG_UPDATE_INTERVAL = conf.getint("core", "min_serialized_dag_upd
 
 # If set to True, serialized DAGs is compressed before writing to DB,
 COMPRESS_SERIALIZED_DAGS = conf.getboolean("core", "compress_serialized_dags", fallback=False)
-
-# Fetching serialized DAG can not be faster than a minimum interval to reduce database
-# read rate. This config controls when your DAGs are updated in the Webserver
-MIN_SERIALIZED_DAG_FETCH_INTERVAL = conf.getint("core", "min_serialized_dag_fetch_interval", fallback=10)
 
 CAN_FORK = hasattr(os, "fork")
 
