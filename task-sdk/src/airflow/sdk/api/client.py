@@ -82,6 +82,7 @@ from airflow.sdk.execution_time.comms import (
     ErrorResponse,
     OKResponse,
     PreviousDagRunResult,
+    PreviousTIResult,
     SkipDownstreamTasks,
     TaskRescheduleStartDate,
     TICount,
@@ -321,6 +322,32 @@ class TaskInstanceOperations:
 
         resp = self.client.get("task-instances/count", params=params)
         return TICount(count=resp.json())
+
+    def get_previous(
+        self,
+        dag_id: str,
+        task_id: str,
+        logical_date: datetime | None = None,
+        map_index: int = -1,
+        state: TaskInstanceState | str | None = None,
+    ) -> PreviousTIResult:
+        """
+        Get the previous task instance matching the given criteria.
+
+        :param dag_id: DAG ID
+        :param task_id: Task ID
+        :param logical_date: If provided, finds TI with logical_date < this value (before filter)
+        :param map_index: Map index to filter by (defaults to -1 for non-mapped tasks)
+        :param state: If provided, filters by TaskInstance state
+        """
+        params: dict[str, Any] = {"map_index": map_index}
+        if logical_date:
+            params["logical_date"] = logical_date.isoformat()
+        if state:
+            params["state"] = state.value if isinstance(state, TaskInstanceState) else state
+
+        resp = self.client.get(f"task-instances/previous/{dag_id}/{task_id}", params=params)
+        return PreviousTIResult(task_instance=resp.json())
 
     def get_task_states(
         self,
@@ -883,7 +910,8 @@ class Client(httpx.Client):
             kwargs.setdefault("base_url", "dry-run://server")
         else:
             kwargs["base_url"] = base_url
-            kwargs["verify"] = self._get_ssl_context_cached(certifi.where(), API_SSL_CERT_PATH)
+            # Call via the class to avoid binding lru_cache wires to this instance.
+            kwargs["verify"] = type(self)._get_ssl_context_cached(certifi.where(), API_SSL_CERT_PATH)
 
         # Set timeout if not explicitly provided
         kwargs.setdefault("timeout", API_TIMEOUT)

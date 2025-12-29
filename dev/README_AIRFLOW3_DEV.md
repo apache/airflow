@@ -20,33 +20,29 @@
 <!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
 **Table of contents**
 
-- [Main branch is Airflow 3](#main-branch-is-airflow-3)
+- [Main branch is Airflow 3.x](#main-branch-is-airflow-3x)
 - [Contributors](#contributors)
   - [Developing for Providers and the Helm Chart](#developing-for-providers-and-the-helm-chart)
-  - [Developing for Airflow 3 and 2.11.x](#developing-for-airflow-3-and-211x)
+  - [Developing for Airflow 3.x, 3.1.x](#developing-for-airflow-3x-31x)
   - [Developing for Airflow 3](#developing-for-airflow-3)
   - [Developing for Airflow 2.11.x](#developing-for-airflow-211x)
 - [Committers / PMCs](#committers--pmcs)
   - [Merging PRs for providers and Helm chart](#merging-prs-for-providers-and-helm-chart)
   - [Merging PRs targeted for Airflow 3.X](#merging-prs-targeted-for-airflow-3x)
-  - [What do we backport to `v3-X-test` branch?](#what-do-we-backport-to-v3-x-test-branch)
-  - [Merging PR for Airflow 3 and 2.11.x](#merging-pr-for-airflow-3-and-211x)
+  - [What do we backport to `v3-1-test` branch?](#what-do-we-backport-to-v3-1-test-branch)
   - [How to backport PR with GitHub Actions](#how-to-backport-pr-with-github-actions)
   - [How to backport PR with `cherry-picker` CLI](#how-to-backport-pr-with-cherry-picker-cli)
-  - [Merging PRs for Airflow 2](#merging-prs-for-airflow-2)
   - [Merging PRs for Airflow 3](#merging-prs-for-airflow-3)
-  - [Merging PRs for Airflow 2.11](#merging-prs-for-airflow-211)
 - [Milestones for PR](#milestones-for-pr)
-  - [Set 2.10.x milestone](#set-210x-milestone)
-  - [Set 2.11 milestone](#set-211-milestone)
-  - [Set 3 milestone](#set-3-milestone)
+  - [Set 3.1.x milestone](#set-31x-milestone)
+  - [Set 3.2 milestone](#set-32-milestone)
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
 
-# Main branch is Airflow 3
+# Main branch is Airflow 3.x
 
-The `main` branch is for development of Airflow 3.x.
-Airflow 3.0.x releases will be cut from `v3-10-stable` branch.
+The `main` branch is for development of Airflow 3.x (next minor release).
+Airflow 3.1.x releases will be cut from `v3-1-stable` branch.
 Airflow 2.11.x releases will be cut from `v2-11-stable` branch.
 
 # Contributors
@@ -59,33 +55,14 @@ PRs should target the `main` branch.
 Make sure your changes are only related to Providers or the Helm chart.
 Avoid mixing core changes into the same PR.
 
-> [!NOTE]
-> Please note that providers have been relocated from `airflow/providers` to `providers/<provider_id>/src/airflow/providers`.
+## Developing for Airflow 3.x, 3.1.x
 
-## Developing for Airflow 3 and 2.11.x
+If the PR is relevant to both Airflow 3.x and 3.1.x, it should target the `main` branch.
 
-If the PR is relevant to both Airflow 3 and 2.11.x, it should target the `main` branch.
+If you want to have a fix backported to 3.1.x please add (or request to add) "backport-to-v3-1-test" label to the PR. CI will automatically attempt to create a backport PR after merge.
 
-> [!IMPORTANT]
-> Airflow 2.11 is intended as a bridge release for Airflow 3.
-> As such, it is not expected to introduce new features beyond those relevant to the transition to Airflow 3.
-> That said, we recognize there may be exceptions.
-> If you believe a specific feature is essential for Airflow 2.11, please start a discussion thread on the mailing list.
-> Points to address to make your case:
->
-> 1. You must clarify the urgency, specifically why it can't wait for Airflow 3.
-> 2. You need to be willing to deliver the feature for both the `main` branch and the `v2-11-test` branch (either by automatic or manual backporting).
-> 3. You must be willing to provide support for future bug fixes as needed.
->
-> Points PMC members consider when evaluating exception requests:
->
-> 1. **Feature impact** – Is it truly urgent? How many users are affected?
-> 2. **Workarounds** – Are viable alternatives available?
-> 3. **Scope of change** – How extensive is the change (e.g., number of lines, files, or components affected)?
-> 4. **Centrality** – Does the feature affect core parts of Airflow (e.g., scheduler, DAG parser) or more peripheral areas?
-> 5. **Community support** – Is the request made or endorsed by an active community member?
-> 6. **Precedents** – Have similar cases been approved in the past?
-> 7. **Other considerations** – Any additional factors PMC members may raise based on the specific context.
+When preparing a new 3.1.x release, the release manager will sync the `v3-1-test` branch to `v3-1-stable` and cut the release from the stable branch.
+PRs should **never** target `v3-1-stable` directly unless explicitly instructed by the release manager.
 
 ## Developing for Airflow 3
 
@@ -96,10 +73,13 @@ PRs should target `main` branch.
 If a PR can be cleanly cherry-picked from `main` to `v2-11-test`, it should target the `main` branch and include the `backport-to-v2-11-test` label to automate the backport.
 If the PR cannot be cherry-picked without conflicts, you must manually create a PR targeting the `v2-11-test` branch.
 
+> [!IMPORTANT]
+> Airflow 2.11 is intended as a bridge release for Airflow 3.
+> As such, it is not expected to introduce new features beyond those relevant to the transition to Airflow 3.
+> That said, we focus only critical security fixes in the maintenance period until end-of-life.
+
 When preparing a new 2.11.x release, the release manager will sync the `v2-11-test` branch to `v2-11-stable` and cut the release from the stable branch.
 PRs should **never** target `v2-11-stable` directly unless explicitly instructed by the release manager.
-
-Only features relevant to the Airflow 3 bridge should be backported to 2.11. Other features from the `main` branch will not be backported.
 
 # Committers / PMCs
 
@@ -115,29 +95,28 @@ Do not treat PR approval (Green V) as exclusion approval.
 
 ## Merging PRs targeted for Airflow 3.X
 
-The committer who merges the PR is responsible for backporting the PRs that are 3.0 bugfixes (generally speaking)
-to `v3-X-test` (latest active branch we release bugfixes from). See next chapter to see what kind of changes we cherry-pick.
+The committer who merges the PR is responsible for backporting the PRs that are 3.1 bug fixes (generally speaking)
+to `v3-1-test` (latest active branch we release bugfixes from). See next chapter to see what kind of changes we cherry-pick.
 
 It means that they should create a new PR where the original commit from main is cherry-picked and take care for resolving conflicts.
-If the cherry-pick is too complex, then ask the PR author / start your own PR against `v3-0-test` directly with the change.
+If the cherry-pick is too complex, then ask the PR author / start your own PR against `v3-1-test` directly with the change.
 Note: tracking that the PRs merged as expected is the responsibility of committer who merged the PR.
 
-Committer may also request from PR author to raise 2 PRs one against `main` branch and one against `v3-0-test` prior to accepting the code change.
+Committer may also request from PR author to raise 2 PRs one against `main` branch and one against `v3-1-test` prior to accepting the code change.
 
 Mistakes happen, and such backport PR work might fall through cracks. Therefore, if the committer thinks
-that certain PRs should be backported, they should set 3.0.x milestone for them.
+that certain PRs should be backported, they should set 3.1.x milestone for them.
 
 This way release manager can verify (as usual) if all the "expected" PRs have
 been backported and cherry-pick remaining PRS.
-
 
 We are using `cherry-picker` - a [tool](https://github.com/python/cherry-picker) that has been developed by
 Python developers. It allows to easily cherry-pick PRs from one branch to another. It works both - via
 command line and via GitHub Actions interface.
 
-## What do we backport to `v3-X-test` branch?
+## What do we backport to `v3-1-test` branch?
 
-The `v3-x-test` latest branch is generally used to release bugfixes, but what we cherry-pick is a bit more
+The `v3-1-test` latest branch is generally used to release bugfixes, but what we cherry-pick is a bit more
 nuanced than `bugfixes only`. We cherry-pick:
 
 * **Bug-fixes** (obviously) - but not all of them - often we might decide to not cherry-pick bug-fixes that are
@@ -154,19 +133,6 @@ nuanced than `bugfixes only`. We cherry-pick:
   it is to make it easier for future cherry-picks to avoid conflicts. Committers should use their judgment
   whether to cherry-pick such changes (default being `no`) and they should be always justified by explaining
   why this change is cherry-picked even if it is not a bug-fix.
-
-## Merging PR for Airflow 3 and 2.11.x
-
-The committer who merges the PR is responsible for backporting the PR to `v2-11-test`, when it's possible and desirable to do so.
-It means that they should create a new PR where the original commit from main is cherry-picked and take care for resolving conflicts.
-If the cherry-pick is too complex, then ask the PR author / start your own PR against `v2-11-test` directly with the change.
-Note: tracking that the PRs merged as expected is the responsibility of committer who merged the PR.
-
-Committer may also request from PR author to raise 2 PRs one against `main` branch and one against `v2-11-test` prior to accepting the code change.
-
-Mistakes happen, and such backport PR work might fall through cracks. Therefore, if the committer thinks that certain PRs should be backported, they should set 2.11.x milestone for them.
-
-This way release manager can verify (as usual) if all the "expected" PRs have been backported and cherry-pick remaining PRS.
 
 
 ## How to backport PR with GitHub Actions
@@ -247,11 +213,6 @@ cherry_picker --continue  # Should continue cherry-picking process
 > you might need to run `git config --local --remove-section cherry-picker` to clean up the configuration
 > stored in `.git/config`.
 
-## Merging PRs for Airflow 2
-
-Make sure PR targets `v2-11-test` branch and merge it when ready.
-All regular protocols of merging considerations are applied.
-
 ## Merging PRs for Airflow 3
 
 Make sure PR target `main` branch.
@@ -260,24 +221,16 @@ Make sure PR target `main` branch.
 
 Our goal is to avoid breaking changes whenever possible. Therefore, we should allow time for community members to review PRs that contain such changes - please avoid rushing to merge them. Also, please make sure that such PRs contain a `significant` newsfragment that contains `**Breaking Change**`.
 
-## Merging PRs for Airflow 2.11
-
-TBD
 
 # Milestones for PR
 
-## Set 2.10.x milestone
+## Set 3.1.x milestone
 
 Milestone will be added only to the original PR.
 
-1. PR targeting `v2-10-test` directly - milestone will be on that PR.
-2. PR targeting `main` with backport PR targeting `v2-10-test`. Milestone will be added only on the PR targeting `v2-10-main`.
+1. PR targeting `v3-1-test` directly - milestone will be on that PR.
+2. PR targeting `main` with backport PR targeting `v3-1-test`. Milestone will be added only on the PR targeting `v3-1-main`.
 
-## Set 2.11 milestone
+## Set 3.2 milestone
 
-TBD
-For now, similar procedure as 2.10.x
-
-## Set 3 milestone
-
-Set for any feature that targets Airflow 3 only.
+Set for any feature that targets Airflow 3.x only.

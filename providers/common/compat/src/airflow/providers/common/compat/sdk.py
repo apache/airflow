@@ -90,7 +90,8 @@ if TYPE_CHECKING:
         TaskDeferred as TaskDeferred,
         XComNotFound as XComNotFound,
     )
-    from airflow.sdk.observability.stats import Stats  # noqa: F401
+    from airflow.sdk.log import redact as redact
+    from airflow.sdk.observability.stats import Stats as Stats
 
     # Airflow 3-only exceptions (conditionally imported)
     if AIRFLOW_V_3_0_PLUS:
@@ -239,6 +240,15 @@ _IMPORT_MAP: dict[str, str | tuple[str, ...]] = {
     # Observability
     # ============================================================================
     "Stats": ("airflow.sdk.observability.stats", "airflow.stats"),
+    # ============================================================================
+    # Secrets Masking
+    # ============================================================================
+    "redact": (
+        "airflow.sdk.log",
+        "airflow.sdk._shared.secrets_masker",
+        "airflow.sdk.execution_time.secrets_masker",
+        "airflow.utils.log.secrets_masker",
+    ),
 }
 
 # Airflow 3-only exceptions (not available in Airflow 2)
