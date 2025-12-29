@@ -19,17 +19,14 @@ from __future__ import annotations
 
 from functools import cache
 
-from airflow._shared.listeners.listener import (
-    ListenerManager,
-    get_listener_manager as _create_listener_manager,
-)
+from airflow._shared.listeners.listener import ListenerManager
 from airflow.plugins_manager import integrate_listener_plugins
 
 
 @cache
 def get_listener_manager() -> ListenerManager:
     """Get singleton listener manager."""
-    _listener_manager = _create_listener_manager()
+    _listener_manager = ListenerManager()
     integrate_listener_plugins(_listener_manager)
     return _listener_manager
 

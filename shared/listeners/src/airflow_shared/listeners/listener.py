@@ -18,12 +18,9 @@
 from __future__ import annotations
 
 import logging
-from functools import cache
 from typing import TYPE_CHECKING
 
 import pluggy
-
-from airflow.plugins_manager import integrate_listener_plugins
 
 if TYPE_CHECKING:
     from pluggy._hooks import _HookRelay
@@ -78,11 +75,3 @@ class ListenerManager:
         """Remove registered plugins."""
         for plugin in self.pm.get_plugins():
             self.pm.unregister(plugin)
-
-
-@cache
-def get_listener_manager() -> ListenerManager:
-    """Get singleton listener manager."""
-    _listener_manager = ListenerManager()
-    integrate_listener_plugins(_listener_manager)
-    return _listener_manager
