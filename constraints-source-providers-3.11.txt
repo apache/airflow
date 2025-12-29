@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-12-29T13:55:30.025494
+# This constraints file was automatically generated on 2025-12-29T19:45:45.307325
 # via `uv sync --resolution highest for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider distributions.
@@ -125,7 +125,7 @@ azure-synapse-spark==0.7.0
 babel==2.17.0
 backoff==2.2.1
 backports.tarfile==1.2.0
-backports.zstd==1.2.0
+backports.zstd==1.3.0
 bcrypt==5.0.0
 beartype==0.21.0
 beautifulsoup4==4.14.3
@@ -380,11 +380,11 @@ mdurl==0.1.2
 memray==1.19.1
 mergedeep==1.3.4
 methodtools==0.4.7
-microsoft-kiota-abstractions==1.9.7
-microsoft-kiota-authentication-azure==1.9.7
-microsoft-kiota-http==1.9.7
-microsoft-kiota-serialization-json==1.9.7
-microsoft-kiota-serialization-text==1.9.7
+microsoft-kiota-abstractions==1.9.8
+microsoft-kiota-authentication-azure==1.9.8
+microsoft-kiota-http==1.9.8
+microsoft-kiota-serialization-json==1.9.8
+microsoft-kiota-serialization-text==1.9.8
 mistune==3.2.0
 mmh3==5.2.0
 more-itertools==10.8.0

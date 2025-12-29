@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-12-29T13:59:20.679905
+# This constraints file was automatically generated on 2025-12-29T19:48:49.017140
 # via `uv pip install --resolution highest` for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -428,11 +428,11 @@ mdurl==0.1.2
 memray==1.19.1
 mergedeep==1.3.4
 methodtools==0.4.7
-microsoft-kiota-abstractions==1.9.7
-microsoft-kiota-authentication-azure==1.9.7
-microsoft-kiota-http==1.9.7
-microsoft-kiota-serialization-json==1.9.7
-microsoft-kiota-serialization-text==1.9.7
+microsoft-kiota-abstractions==1.9.8
+microsoft-kiota-authentication-azure==1.9.8
+microsoft-kiota-http==1.9.8
+microsoft-kiota-serialization-json==1.9.8
+microsoft-kiota-serialization-text==1.9.8
 mistune==3.2.0
 mmh3==5.2.0
 more-itertools==10.8.0
@@ -649,7 +649,7 @@ universal_pathlib==0.2.6
 uritemplate==4.2.0
 urllib3==2.6.2
 uuid6==2025.0.1
-uv==0.9.18
+uv==0.9.19
 uvicorn==0.40.0
 uvloop==0.22.1
 validators==0.35.0
