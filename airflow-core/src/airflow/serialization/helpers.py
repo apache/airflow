@@ -28,6 +28,23 @@ from airflow.settings import json
 if TYPE_CHECKING:
     from airflow.timetables.base import Timetable as CoreTimetable
 
+def _truncate_rendered_value(rendered: str, max_length: int) -> str:
+    if max_length <= 0:
+        return ""
+
+    prefix = "Truncated. You can change this behaviour in [core]max_templated_field_length. "
+    suffix = "..."
+
+    if max_length <= len(prefix):
+        return rendered[:max_length]
+
+    available = max_length - len(prefix) - len(suffix)
+    if available <= 0:
+        return rendered[:max_length]
+
+    return f"{prefix}{rendered[:available]!r}{suffix}"
+
+
 
 def serialize_template_field(template_field: Any, name: str) -> str | dict | list | int | float:
     """
@@ -74,10 +91,7 @@ def serialize_template_field(template_field: Any, name: str) -> str | dict | lis
             serialized = str(template_field)
         if len(serialized) > max_length:
             rendered = redact(serialized, name)
-            return (
-                "Truncated. You can change this behaviour in [core]max_templated_field_length. "
-                f"{rendered[: max_length - 79]!r}... "
-            )
+            return _truncate_rendered_value(rendered, max_length)
         return serialized
     if not template_field and not isinstance(template_field, tuple):
         # Avoid unnecessary serialization steps for empty fields unless they are tuples
@@ -91,10 +105,7 @@ def serialize_template_field(template_field: Any, name: str) -> str | dict | lis
     serialized = str(template_field)
     if len(serialized) > max_length:
         rendered = redact(serialized, name)
-        return (
-            "Truncated. You can change this behaviour in [core]max_templated_field_length. "
-            f"{rendered[: max_length - 79]!r}... "
-        )
+        return _truncate_rendered_value(rendered, max_length)
     return template_field
 
 
