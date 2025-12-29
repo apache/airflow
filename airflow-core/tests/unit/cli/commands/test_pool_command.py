@@ -67,7 +67,7 @@ class TestCliPools:
 
     def test_pool_create(self):
         pool_command.pool_set(self.parser.parse_args(["pools", "set", "foo", "1", "test"]))
-        assert self.session.execute(select(func.count()).select_from(Pool)).scalar_one() == 2
+        assert self.session.scalar(select(func.count()).select_from(Pool)) == 2
 
     def test_pool_update_deferred(self):
         pool_command.pool_set(self.parser.parse_args(["pools", "set", "foo", "1", "test"]))
@@ -88,7 +88,7 @@ class TestCliPools:
     def test_pool_delete(self):
         pool_command.pool_set(self.parser.parse_args(["pools", "set", "foo", "1", "test"]))
         pool_command.pool_delete(self.parser.parse_args(["pools", "delete", "foo"]))
-        assert self.session.execute(select(func.count()).select_from(Pool)).scalar_one() == 1
+        assert self.session.scalar(select(func.count()).select_from(Pool)) == 1
 
     def test_pool_import_nonexistent(self):
         with pytest.raises(SystemExit):
