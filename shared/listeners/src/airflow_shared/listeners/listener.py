@@ -41,7 +41,7 @@ class ListenerManager:
     """Manage listener registration and provides hook property for calling them."""
 
     def __init__(self):
-        from airflow.listeners.spec import (
+        from spec import (
             asset,
             dagrun,
             importerrors,
