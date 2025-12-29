@@ -32,10 +32,14 @@ const getPastDate = (daysAgo: number): string => {
 
 test.describe("Backfills List Display", () => {
   let backfillPage: BackfillPage;
-
   const testDagId = testConfig.testDag.id;
 
-  test.beforeEach(async ({ page }) => {
+  test.beforeAll(async ({ browser }) => {
+    test.setTimeout(60_000);
+
+    const context = await browser.newContext();
+    const page = await context.newPage();
+
     backfillPage = new BackfillPage(page);
 
     const fromDate = getPastDate(2);
@@ -50,7 +54,7 @@ test.describe("Backfills List Display", () => {
     await backfillPage.navigateToBackfillsTab(testDagId);
   });
 
-  test("should Verify backfills list displays (or empty state if none)", async () => {
+  test("should Verify backfills list displays", async () => {
     const rowsCount = await backfillPage.getBackfillsTableRows();
 
     if (rowsCount > 0) {
@@ -64,15 +68,15 @@ test.describe("Backfills List Display", () => {
   test("Verify backfill details display: date range, status, created time", async () => {
     const backfillDetails = await backfillPage.getBackfillDetails(0);
 
-    expect(backfillDetails.fromDate).toBeTruthy();
-    expect(backfillDetails.toDate).toBeTruthy();
+    expect(backfillDetails.fromDate).not.toEqual("");
+    expect(backfillDetails.toDate).not.toEqual("");
 
-    expect(backfillDetails.reprocessBehavior).toBeTruthy();
+    expect(backfillDetails.reprocessBehavior).not.toEqual("");
     expect(["All Runs", "Missing Runs", "Missing and Errored Runs"]).toContain(
       backfillDetails.reprocessBehavior,
     );
 
-    expect(backfillDetails.createdAt).toBeTruthy();
+    expect(backfillDetails.createdAt).not.toEqual("");
   });
 
   test("should verify Table filters", async () => {
@@ -80,41 +84,50 @@ test.describe("Backfills List Display", () => {
 
     expect(initialColumnCount).toBeGreaterThan(0);
 
-    const isFilterAvailable = await backfillPage.isFilterAvailable();
+    // Verify filter button is available
+    await expect(backfillPage.getFilterButton()).toBeVisible();
 
-    expect(isFilterAvailable).toBe(true);
-
+    // Open filter menu to see available columns
     await backfillPage.openFilterMenu();
 
-    const columnToToggle = "Duration";
-    const isInitiallyVisible = await backfillPage.isColumnVisible(columnToToggle);
+    // Get all filterable columns (those with checkboxes in the menu)
+    const filterMenuItems = backfillPage.page.locator('[role="menuitem"]');
+    const filterMenuCount = await filterMenuItems.count();
 
-    if (isInitiallyVisible) {
-      await backfillPage.toggleColumn(columnToToggle);
+    // Ensure there are filterable columns
+    expect(filterMenuCount).toBeGreaterThan(0);
 
-      await backfillPage.page.keyboard.press("Escape");
-      await backfillPage.page.waitForTimeout(500);
+    // Get the first filterable column that has a checkbox
+    const firstMenuItem = filterMenuItems.first();
+    const columnToToggle = (await firstMenuItem.textContent())?.trim() ?? "";
 
-      const isVisibleAfterToggle = await backfillPage.isColumnVisible(columnToToggle);
+    expect(columnToToggle).not.toBe("");
 
-      expect(isVisibleAfterToggle).toBe(false);
+    // Toggle column off
+    await backfillPage.toggleColumn(columnToToggle);
 
-      const newColumnCount = await backfillPage.getTableColumnCount();
+    await backfillPage.page.keyboard.press("Escape");
+    await backfillPage.page.locator('[role="menu"]').waitFor({ state: "hidden" });
 
-      expect(newColumnCount).toBeLessThan(initialColumnCount);
+    // Verify column is hidden
+    await expect(backfillPage.getColumnHeader(columnToToggle)).not.toBeVisible();
 
-      await backfillPage.openFilterMenu();
-      await backfillPage.toggleColumn(columnToToggle);
-      await backfillPage.page.keyboard.press("Escape");
-      await backfillPage.page.waitForTimeout(500);
+    const newColumnCount = await backfillPage.getTableColumnCount();
 
-      const isVisibleAfterRestore = await backfillPage.isColumnVisible(columnToToggle);
+    expect(newColumnCount).toBeLessThan(initialColumnCount);
 
-      expect(isVisibleAfterRestore).toBe(true);
+    // Toggle column back on
+    await backfillPage.openFilterMenu();
+    await backfillPage.toggleColumn(columnToToggle);
 
-      const finalColumnCount = await backfillPage.getTableColumnCount();
+    await backfillPage.page.keyboard.press("Escape");
+    await backfillPage.page.locator('[role="menu"]').waitFor({ state: "hidden" });
 
-      expect(finalColumnCount).toBe(initialColumnCount);
-    }
+    // Verify column is visible again
+    await expect(backfillPage.getColumnHeader(columnToToggle)).toBeVisible();
+
+    const finalColumnCount = await backfillPage.getTableColumnCount();
+
+    expect(finalColumnCount).toBe(initialColumnCount);
   });
 });

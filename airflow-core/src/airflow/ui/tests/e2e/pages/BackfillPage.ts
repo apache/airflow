@@ -82,20 +82,40 @@ export class BackfillPage extends BasePage {
     await this.backfillRunButton.click();
   }
 
-  // Get backfill details from a specific row (default: first row)
+  // Get backfill details
   public async getBackfillDetails(rowIndex: number = 0): Promise<{
     createdAt: string;
     fromDate: string;
     reprocessBehavior: string;
     toDate: string;
   }> {
+    // Get the row data
     const row = this.page.locator("table tbody tr").nth(rowIndex);
     const cells = row.locator("td");
 
-    const fromDate = (await cells.nth(0).textContent()) ?? "";
-    const toDate = (await cells.nth(1).textContent()) ?? "";
-    const reprocessBehavior = (await cells.nth(2).textContent()) ?? "";
-    const createdAt = (await cells.nth(3).textContent()) ?? "";
+    await expect(cells.first()).not.toHaveText("", { timeout: 10_000 });
+
+    // Get column headers to map column names to indices
+    const headers = this.page.locator("table thead th");
+    const headerCount = await headers.count();
+    const columnMap = new Map<string, number>();
+
+    for (let i = 0; i < headerCount; i++) {
+      const headerText = (await headers.nth(i).textContent()) ?? "";
+
+      columnMap.set(headerText.trim(), i);
+    }
+
+    // Extract data using column headers
+    const fromDateIndex = columnMap.get("From") ?? 0;
+    const toDateIndex = columnMap.get("To") ?? 1;
+    const reprocessBehaviorIndex = columnMap.get("Reprocess Behavior") ?? 2;
+    const createdAtIndex = columnMap.get("Created at") ?? 3;
+
+    const fromDate = (await cells.nth(fromDateIndex).textContent()) ?? "";
+    const toDate = (await cells.nth(toDateIndex).textContent()) ?? "";
+    const reprocessBehavior = (await cells.nth(reprocessBehaviorIndex).textContent()) ?? "";
+    const createdAt = (await cells.nth(createdAtIndex).textContent()) ?? "";
 
     return {
       createdAt: createdAt.trim(),
@@ -114,6 +134,11 @@ export class BackfillPage extends BasePage {
     return count;
   }
 
+  // Get column header locator for assertions
+  public getColumnHeader(columnName: string): Locator {
+    return this.page.locator(`th:has-text("${columnName}")`);
+  }
+
   // Get filter button
   public getFilterButton(): Locator {
     return this.page.locator('button[aria-label*="filter"], button[aria-label*="Filter"]');
@@ -130,38 +155,14 @@ export class BackfillPage extends BasePage {
     return this.backfillDateError.isVisible();
   }
 
-  //  Check if a specific column is visible in the table
-  public async isColumnVisible(columnName: string): Promise<boolean> {
-    const header = this.page.locator(`th:has-text("${columnName}")`);
-
-    try {
-      await header.waitFor({ state: "visible", timeout: 2000 });
-
-      return true;
-    } catch {
-      return false;
-    }
-  }
-
-  // Check if filter button is available
-  public async isFilterAvailable(): Promise<boolean> {
-    const filterButton = this.getFilterButton();
-
-    try {
-      await filterButton.waitFor({ state: "visible", timeout: 2000 });
-
-      return true;
-    } catch {
-      return false;
-    }
-  }
-
   public async navigateToBackfillsTab(dagName: string): Promise<void> {
     await this.navigateTo(BackfillPage.getBackfillsUrl(dagName));
+    await this.page.waitForLoadState("networkidle");
   }
 
   public async navigateToDagDetail(dagName: string): Promise<void> {
     await this.navigateTo(BackfillPage.getDagDetailUrl(dagName));
+    await this.page.waitForLoadState("networkidle");
   }
 
   public async openBackfillDialog(): Promise<void> {
