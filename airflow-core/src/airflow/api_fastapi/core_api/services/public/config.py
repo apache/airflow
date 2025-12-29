@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import warnings
 from fastapi import HTTPException, status
 from fastapi.responses import Response
 
@@ -29,9 +30,15 @@ def _check_expose_config() -> bool:
     if conf.get("api", "expose_config").lower() == "non-sensitive-only":
         expose_config = True
         display_sensitive = False
+        warnings.warn(
+            f"The value 'non-sensitive-only' for [api] expose_config is deprecated. "
+            f"Use 'true' instead; sensitive configuration values are always masked.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
     else:
         expose_config = conf.getboolean("api", "expose_config")
-        display_sensitive = True
+        display_sensitive = False
 
     if not expose_config:
         raise HTTPException(
