@@ -81,98 +81,6 @@ export class DagsPage extends BasePage {
   }
 
   /**
-   * Get all Dag names from the current page
-   */
-  public async getDagNames(): Promise<Array<string>> {
-    const dagLinks = this.page.locator('[data-testid="dag-id"]');
-
-    await dagLinks.first().waitFor({ state: "visible", timeout: 10_000 });
-    const texts = await dagLinks.allTextContents();
-
-    return texts.map((text) => text.trim()).filter((text) => text !== "");
-  }
-
-  /**
-   * Navigate to Dags list page
-   */
-  public async navigate(): Promise<void> {
-    await this.navigateTo(DagsPage.dagsListUrl);
-  }
-
-  /**
-   * Navigate to Dag detail page
-   */
-  public async navigateToDagDetail(dagName: string): Promise<void> {
-    await this.navigateTo(DagsPage.getDagDetailUrl(dagName));
-  }
-
-  /**
-   * Trigger a Dag run
-   */
-  public async triggerDag(dagName: string): Promise<string | null> {
-    await this.navigateToDagDetail(dagName);
-    await this.triggerButton.waitFor({ state: "visible", timeout: 10_000 });
-    await this.triggerButton.click();
-    const dagRunId = await this.handleTriggerDialog();
-
-    return dagRunId;
-  }
-
-  /**
-   * Navigate to details tab and verify Dag details are displayed correctly
-   */
-  /**
-   * Navigate to the Runs tab for a specific DAG
-   */
-  public async navigateToRunsTab(dagName: string): Promise<void> {
-    await this.navigateToDagDetail(dagName);
-    await this.runsTab.waitFor({ state: "visible" });
-    await this.runsTab.click();
-    await this.waitForPageLoad();
-  }
-
-  /**
-   * Verify the Runs tab is displayed correctly
-   */
-  public async verifyRunsTabDisplayed(): Promise<void> {
-    // Verify the runs table is present
-    await expect(this.runsTable).toBeVisible();
-
-    // Verify pagination controls are visible
-    await expect(this.paginationNextButton).toBeVisible();
-    await expect(this.paginationPrevButton).toBeVisible();
-  }
-
-  /**
-   * Get run details from the runs table
-   */
-  public async getRunDetails(): Promise<
-    Array<{
-      runId: string;
-      state: string;
-    }>
-  > {
-    const runRows = this.page.locator('[data-testid="dag-runs-table"] table tbody tr');
-    await runRows.first().waitFor({ state: "visible", timeout: 10_000 });
-
-    const runCount = await runRows.count();
-    const runs: Array<{ runId: string; state: string }> = [];
-
-    for (let i = 0; i < runCount; i++) {
-      const row = runRows.nth(i);
-      const cells = row.locator("td");
-
-      // Assuming first column is run ID and state column exists
-      const runId = (await cells.nth(0).textContent()) ?? "";
-      const state = (await cells.nth(1).textContent()) ?? "";
-
-      runs.push({ runId: runId.trim(), state: state.trim() });
-    }
-
-    return runs;
-  }
-
-  /**
    * Click on a specific run to view details
    */
   public async clickRun(runId: string): Promise<void> {
@@ -203,6 +111,70 @@ export class DagsPage extends BasePage {
   }
 
   /**
+   * Get all Dag names from the current page
+   */
+  public async getDagNames(): Promise<Array<string>> {
+    const dagLinks = this.page.locator('[data-testid="dag-id"]');
+
+    await dagLinks.first().waitFor({ state: "visible", timeout: 10_000 });
+    const texts = await dagLinks.allTextContents();
+
+    return texts.map((text) => text.trim()).filter((text) => text !== "");
+  }
+
+  /**
+   * Get run details from the runs table
+   */
+  public async getRunDetails(): Promise<
+    Array<{
+      runId: string;
+      state: string;
+    }>
+  > {
+    const runRows = this.page.locator('[data-testid="dag-runs-table"] table tbody tr');
+
+    await runRows.first().waitFor({ state: "visible", timeout: 10_000 });
+
+    const runCount = await runRows.count();
+    const runs: Array<{ runId: string; state: string }> = [];
+
+    for (let i = 0; i < runCount; i++) {
+      const row = runRows.nth(i);
+
+      const runId = (await row.locator('[data-testid="run-id"]').textContent()) ?? "";
+      const state = (await row.locator('[data-testid="run-state"]').textContent()) ?? "";
+
+      runs.push({ runId: runId.trim(), state: state.trim() });
+    }
+
+    return runs;
+  }
+
+  /**
+   * Navigate to Dags list page
+   */
+  public async navigate(): Promise<void> {
+    await this.navigateTo(DagsPage.dagsListUrl);
+  }
+
+  /**
+   * Navigate to Dag detail page
+   */
+  public async navigateToDagDetail(dagName: string): Promise<void> {
+    await this.navigateTo(DagsPage.getDagDetailUrl(dagName));
+  }
+
+  /**
+   * Navigate to the Runs tab for a specific DAG
+   */
+  public async navigateToRunsTab(dagName: string): Promise<void> {
+    await this.navigateToDagDetail(dagName);
+    await this.runsTab.waitFor({ state: "visible" });
+    await this.runsTab.click();
+    await this.waitForPageLoad();
+  }
+
+  /**
    * Search for dag runs by run ID pattern
    */
   public async searchRun(searchTerm: string): Promise<void> {
@@ -215,19 +187,25 @@ export class DagsPage extends BasePage {
     await searchInput.fill(searchTerm);
 
     // Wait for the search to take effect
-    await this.page.waitForTimeout(1000);
+    await this.page.waitForResponse(
+      (response) =>
+        response.url().includes("dagRuns") &&
+        response.request().method() === "GET" &&
+        response.status() === 200,
+    );
     await this.waitForPageLoad();
   }
 
   /**
-   * Verify we're on the run details page
+   * Trigger a Dag run
    */
-  public async verifyRunDetailsPage(runId: string): Promise<void> {
-    // Wait for the page to load
-    await this.waitForPageLoad();
+  public async triggerDag(dagName: string): Promise<string | null> {
+    await this.navigateToDagDetail(dagName);
+    await this.triggerButton.waitFor({ state: "visible", timeout: 10_000 });
+    await this.triggerButton.click();
+    const dagRunId = await this.handleTriggerDialog();
 
-    // Verify URL contains the run ID
-    await expect(this.page).toHaveURL(new RegExp(`/runs/${runId}`));
+    return dagRunId;
   }
 
   public async verifyDagDetails(dagName: string): Promise<void> {
@@ -298,6 +276,29 @@ export class DagsPage extends BasePage {
     }
 
     throw new Error(`Dag run did not complete within 5 minutes: ${dagRunId}`);
+  }
+
+  /**
+   * Verify we're on the run details page
+   */
+  public async verifyRunDetailsPage(runId: string): Promise<void> {
+    // Wait for the page to load
+    await this.waitForPageLoad();
+
+    // Verify URL contains the run ID
+    await expect(this.page).toHaveURL(new RegExp(`/runs/${runId}`));
+  }
+
+  /**
+   * Verify the Runs tab is displayed correctly
+   */
+  public async verifyRunsTabDisplayed(): Promise<void> {
+    // Verify the runs table is present
+    await expect(this.runsTable).toBeVisible();
+
+    // Verify pagination controls are visible
+    await expect(this.paginationNextButton).toBeVisible();
+    await expect(this.paginationPrevButton).toBeVisible();
   }
 
   private async getCurrentDagRunStatus(): Promise<string> {

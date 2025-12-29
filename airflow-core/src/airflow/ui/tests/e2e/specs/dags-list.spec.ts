@@ -86,15 +86,16 @@ test.describe("Dag Details Tab", () => {
 });
 
 /*
- * DAG Runs Tab E2E Tests
+ * Dag Runs Tab E2E Tests
  */
-test.describe("DAG Runs Tab", () => {
+test.describe("Dag Runs Tab", () => {
   let dagsPage: DagsPage;
 
   const testDagId = testConfig.testDag.id;
 
-  test.beforeEach(({ page }) => {
+  test.beforeEach(async ({ page }) => {
     dagsPage = new DagsPage(page);
+    await dagsPage.triggerDag(testDagId);
   });
 
   test("should navigate to Runs tab and display correctly", async () => {
@@ -117,7 +118,7 @@ test.describe("DAG Runs Tab", () => {
     expect(runs.length).toBeGreaterThan(0);
 
     // Verify first run has required fields
-    const firstRun = runs[0];
+    const [firstRun] = runs;
 
     expect(firstRun.runId).toBeTruthy();
     expect(firstRun.state).toBeTruthy();
@@ -130,12 +131,64 @@ test.describe("DAG Runs Tab", () => {
 
     expect(runs.length).toBeGreaterThan(0);
 
-    const firstRun = runs[0];
+    const [firstRun] = runs;
 
     await dagsPage.clickRun(firstRun.runId);
 
     // Verify we're on the run details page
     await dagsPage.verifyRunDetailsPage(firstRun.runId);
+  });
+
+  test("should filter runs by state", async () => {
+    await dagsPage.navigateToRunsTab(testDagId);
+
+    const runs = await dagsPage.getRunDetails();
+
+    expect(runs.length).toBeGreaterThan(0);
+
+    const [firstRun] = runs;
+
+    if (firstRun === undefined) {
+      throw new Error("No runs found");
+    }
+
+    const targetState = firstRun.state;
+
+    await dagsPage.filterByState(targetState);
+
+    const filteredRuns = await dagsPage.getRunDetails();
+
+    expect(filteredRuns.length).toBeGreaterThan(0);
+    expect(filteredRuns.every((run) => run.state === targetState)).toBeTruthy();
+  });
+
+  test("should search runs", async () => {
+    await dagsPage.navigateToRunsTab(testDagId);
+
+    const runs = await dagsPage.getRunDetails();
+
+    expect(runs.length).toBeGreaterThan(0);
+
+    const [firstRun] = runs;
+
+    if (firstRun === undefined) {
+      throw new Error("No runs found");
+    }
+
+    const targetRunId = firstRun.runId;
+
+    await dagsPage.searchRun(targetRunId);
+
+    const searchedRuns = await dagsPage.getRunDetails();
+
+    expect(searchedRuns.length).toBeGreaterThan(0);
+    const [firstSearchedRun] = searchedRuns;
+
+    if (firstSearchedRun === undefined) {
+      throw new Error("No searched runs found");
+    }
+
+    expect(firstSearchedRun.runId).toContain(targetRunId);
   });
 
   test("should verify pagination works on the Runs tab", async () => {
@@ -151,20 +204,22 @@ test.describe("DAG Runs Tab", () => {
     // Check if next button is enabled (has more than one page)
     const isNextEnabled = await dagsPage.paginationNextButton.isEnabled();
 
-    if (isNextEnabled) {
-      await dagsPage.clickNextPage();
-
-      const runsAfterNext = await dagsPage.getRunDetails();
-
-      expect(runsAfterNext.length).toBeGreaterThan(0);
-      // Verify we got different runs
-      expect(runsAfterNext[0].runId).not.toEqual(initialRuns[0].runId);
-
-      await dagsPage.clickPrevPage();
-
-      const runsAfterPrev = await dagsPage.getRunDetails();
-
-      expect(runsAfterPrev[0].runId).toEqual(initialRuns[0].runId);
+    if (!isNextEnabled) {
+      test.skip(true, "Pagination skipped because not enough runs");
     }
+
+    await dagsPage.clickNextPage();
+
+    const runsAfterNext = await dagsPage.getRunDetails();
+
+    expect(runsAfterNext.length).toBeGreaterThan(0);
+    // Verify we got different runs
+    expect(runsAfterNext[0].runId).not.toEqual(initialRuns[0].runId);
+
+    await dagsPage.clickPrevPage();
+
+    const runsAfterPrev = await dagsPage.getRunDetails();
+
+    expect(runsAfterPrev[0].runId).toEqual(initialRuns[0].runId);
   });
 });

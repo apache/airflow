@@ -80,7 +80,7 @@ const runColumns = (translate: TFunction, dagId?: string): Array<ColumnDef<DAGRu
     accessorKey: "dag_run_id",
     cell: ({ row: { original } }: DagRunRow) => (
       <Link asChild color="fg.info" fontWeight="bold">
-        <RouterLink to={`/dags/${original.dag_id}/runs/${original.dag_run_id}`}>
+        <RouterLink data-testid="run-id" to={`/dags/${original.dag_id}/runs/${original.dag_run_id}`}>
           <TruncatedText text={original.dag_run_id} />
         </RouterLink>
       </Link>
@@ -104,7 +104,11 @@ const runColumns = (translate: TFunction, dagId?: string): Array<ColumnDef<DAGRu
       row: {
         original: { state },
       },
-    }) => <StateBadge state={state}>{translate(`common:states.${state}`)}</StateBadge>,
+    }) => (
+      <Flex data-testid="run-state">
+        <StateBadge state={state}>{translate(`common:states.${state}`)}</StateBadge>
+      </Flex>
+    ),
     header: () => translate("state"),
   },
   {
