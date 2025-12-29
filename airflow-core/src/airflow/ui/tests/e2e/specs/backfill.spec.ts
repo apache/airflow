@@ -54,15 +54,11 @@ test.describe("Backfills List Display", () => {
     await backfillPage.navigateToBackfillsTab(testDagId);
   });
 
-  test("should Verify backfills list displays", async () => {
+  test("should verify backfills list display", async () => {
     const rowsCount = await backfillPage.getBackfillsTableRows();
 
-    if (rowsCount > 0) {
-      await expect(backfillPage.backfillsTable).toBeVisible();
-      expect(rowsCount).toBeGreaterThanOrEqual(1);
-    } else {
-      await expect(backfillPage.page.locator('text="No backfills found"')).toBeVisible();
-    }
+    await expect(backfillPage.backfillsTable).toBeVisible();
+    expect(rowsCount).toBeGreaterThanOrEqual(1);
   });
 
   test("Verify backfill details display: date range, status, created time", async () => {
