@@ -2787,6 +2787,7 @@ class TestTaskInstance:
         with pytest.raises(TypeError):
             ti.run()
         ti = session.scalar(select(TaskInstance))
+        assert ti is not None
         # the ti.id should be different from the previous one
         assert ti.id != try_id
         assert ti.state == State.UP_FOR_RETRY
