@@ -174,8 +174,13 @@ class ThriftStrategy(HBaseStrategy):
         table = self.connection.table(table_name)
         with table.batch() as batch:
             for row in rows:
-                row_key = row.pop('row_key')
-                batch.put(row_key, row)
+                # Handle case where row_key might be in the row dict
+                if 'row_key' in row:
+                    row_key = row.pop('row_key')
+                    batch.put(row_key, row)
+                else:
+                    # If no row_key, skip this row
+                    continue
 
     def scan_table(
         self,
@@ -220,6 +225,121 @@ class ThriftStrategy(HBaseStrategy):
 
     def restore_backup(self, backup_root: str, backup_id: str, tables: list[str] | None = None, overwrite: bool = False) -> str:
         """Restore backup - not supported in Thrift mode."""
+        raise NotImplementedError("Backup operations require SSH connection mode")
+
+
+class PooledThriftStrategy(HBaseStrategy):
+    """HBase strategy using connection pool."""
+
+    def __init__(self, pool, logger):
+        self.pool = pool
+        self.log = logger
+
+    def table_exists(self, table_name: str) -> bool:
+        """Check if table exists via pooled connection."""
+        with self.pool.connection() as connection:
+            return table_name.encode() in connection.tables()
+
+    def create_table(self, table_name: str, families: dict[str, dict]) -> None:
+        """Create table via pooled connection."""
+        with self.pool.connection() as connection:
+            connection.create_table(table_name, families)
+
+    def delete_table(self, table_name: str, disable: bool = True) -> None:
+        """Delete table via pooled connection."""
+        with self.pool.connection() as connection:
+            if disable:
+                connection.disable_table(table_name)
+            connection.delete_table(table_name)
+
+    def put_row(self, table_name: str, row_key: str, data: dict[str, Any]) -> None:
+        """Put row via pooled connection."""
+        with self.pool.connection() as connection:
+            table = connection.table(table_name)
+            table.put(row_key, data)
+
+    def get_row(self, table_name: str, row_key: str, columns: list[str] | None = None) -> dict[str, Any]:
+        """Get row via pooled connection."""
+        with self.pool.connection() as connection:
+            table = connection.table(table_name)
+            return table.row(row_key, columns=columns)
+
+    def delete_row(self, table_name: str, row_key: str, columns: list[str] | None = None) -> None:
+        """Delete row via pooled connection."""
+        with self.pool.connection() as connection:
+            table = connection.table(table_name)
+            table.delete(row_key, columns=columns)
+
+    def get_table_families(self, table_name: str) -> dict[str, dict]:
+        """Get column families via pooled connection."""
+        with self.pool.connection() as connection:
+            table = connection.table(table_name)
+            return table.families()
+
+    def batch_get_rows(self, table_name: str, row_keys: list[str], columns: list[str] | None = None) -> list[dict[str, Any]]:
+        """Get multiple rows via pooled connection."""
+        with self.pool.connection() as connection:
+            table = connection.table(table_name)
+            return [dict(data) for key, data in table.rows(row_keys, columns=columns)]
+
+    def batch_put_rows(self, table_name: str, rows: list[dict[str, Any]]) -> None:
+        """Insert multiple rows via pooled connection."""
+        with self.pool.connection() as connection:
+            table = connection.table(table_name)
+            with table.batch() as batch:
+                for row in rows:
+                    # Handle case where row_key might be in the row dict
+                    if 'row_key' in row:
+                        row_key = row.pop('row_key')
+                        batch.put(row_key, row)
+                    else:
+                        # If no row_key, skip this row
+                        continue
+
+    def scan_table(
+        self,
+        table_name: str,
+        row_start: str | None = None,
+        row_stop: str | None = None,
+        columns: list[str] | None = None,
+        limit: int | None = None
+    ) -> list[tuple[str, dict[str, Any]]]:
+        """Scan table via pooled connection."""
+        with self.pool.connection() as connection:
+            table = connection.table(table_name)
+            return list(table.scan(
+                row_start=row_start,
+                row_stop=row_stop,
+                columns=columns,
+                limit=limit
+            ))
+
+    def create_backup_set(self, backup_set_name: str, tables: list[str]) -> str:
+        """Create backup set - not supported in pooled Thrift mode."""
+        raise NotImplementedError("Backup operations require SSH connection mode")
+
+    def list_backup_sets(self) -> str:
+        """List backup sets - not supported in pooled Thrift mode."""
+        raise NotImplementedError("Backup operations require SSH connection mode")
+
+    def create_full_backup(self, backup_root: str, backup_set_name: str | None = None, tables: list[str] | None = None, workers: int | None = None) -> str:
+        """Create full backup - not supported in pooled Thrift mode."""
+        raise NotImplementedError("Backup operations require SSH connection mode")
+
+    def create_incremental_backup(self, backup_root: str, backup_set_name: str | None = None, tables: list[str] | None = None, workers: int | None = None) -> str:
+        """Create incremental backup - not supported in pooled Thrift mode."""
+        raise NotImplementedError("Backup operations require SSH connection mode")
+
+    def get_backup_history(self, backup_set_name: str | None = None) -> str:
+        """Get backup history - not supported in pooled Thrift mode."""
+        raise NotImplementedError("Backup operations require SSH connection mode")
+
+    def describe_backup(self, backup_id: str) -> str:
+        """Describe backup - not supported in pooled Thrift mode."""
+        raise NotImplementedError("Backup operations require SSH connection mode")
+
+    def restore_backup(self, backup_root: str, backup_id: str, tables: list[str] | None = None, overwrite: bool = False) -> str:
+        """Restore backup - not supported in pooled Thrift mode."""
         raise NotImplementedError("Backup operations require SSH connection mode")
 
 
