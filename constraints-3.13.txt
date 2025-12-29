@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-12-26T22:58:59.884947
+# This constraints file was automatically generated on 2025-12-29T21:22:53.891029
 # via `uv pip install --resolution highest` for the "v3-1-test" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -199,7 +199,7 @@ azure-cosmos==4.14.3
 azure-datalake-store==0.0.53
 azure-identity==1.25.1
 azure-keyvault-secrets==4.10.0
-azure-kusto-data==6.0.0
+azure-kusto-data==6.0.1
 azure-mgmt-containerinstance==10.1.0
 azure-mgmt-containerregistry==14.0.0
 azure-mgmt-core==1.6.0
@@ -406,7 +406,7 @@ jupyter_core==5.9.1
 jupyterlab_pygments==0.3.0
 jwcrypto==1.5.6
 keyring==25.7.0
-kombu==5.6.1
+kombu==5.6.2
 krb5==0.9.0
 kubernetes==33.1.0
 kubernetes_asyncio==33.3.0
@@ -426,11 +426,11 @@ matplotlib-inline==0.2.1
 mdurl==0.1.2
 mergedeep==1.3.4
 methodtools==0.4.7
-microsoft-kiota-abstractions==1.9.7
-microsoft-kiota-authentication-azure==1.9.7
-microsoft-kiota-http==1.9.7
-microsoft-kiota-serialization-json==1.9.7
-microsoft-kiota-serialization-text==1.9.7
+microsoft-kiota-abstractions==1.9.8
+microsoft-kiota-authentication-azure==1.9.8
+microsoft-kiota-http==1.9.8
+microsoft-kiota-serialization-json==1.9.8
+microsoft-kiota-serialization-text==1.9.8
 mistune==3.2.0
 mmh3==5.2.0
 more-itertools==10.8.0
@@ -506,7 +506,7 @@ prompt_toolkit==3.0.52
 propcache==0.4.1
 proto-plus==1.27.0
 protobuf==6.33.2
-psutil==7.2.0
+psutil==7.2.1
 psycopg2-binary==2.9.11
 ptyprocess==0.7.0
 pure-sasl==0.6.2
@@ -543,7 +543,7 @@ python-dateutil==2.9.0.post0
 python-dotenv==1.2.1
 python-http-client==3.3.7
 python-jenkins==1.8.3
-python-keycloak==5.8.1
+python-keycloak==6.0.0
 python-ldap==3.4.5
 python-multipart==0.0.21
 python-slugify==8.0.4
@@ -615,7 +615,7 @@ tabulate==0.9.0
 tenacity==9.1.2
 teradatasql==20.0.0.48
 teradatasqlalchemy==20.0.0.9
-termcolor==3.2.0
+termcolor==3.3.0
 text-unidecode==1.3
 threadpoolctl==3.6.0
 thrift-sasl==0.4.3
@@ -643,7 +643,7 @@ universal_pathlib==0.2.6
 uritemplate==4.2.0
 urllib3==2.6.2
 uuid6==2025.0.1
-uv==0.9.18
+uv==0.9.20
 uvicorn==0.40.0
 uvloop==0.22.1
 validators==0.35.0

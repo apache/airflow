@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-12-26T22:56:10.016432
+# This constraints file was automatically generated on 2025-12-29T21:19:26.447797
 # via `uv sync --resolution highest for the "v3-1-test" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider distributions.
@@ -93,7 +93,7 @@ azure-cosmos==4.14.3
 azure-datalake-store==0.0.53
 azure-identity==1.25.1
 azure-keyvault-secrets==4.10.0
-azure-kusto-data==6.0.0
+azure-kusto-data==6.0.1
 azure-mgmt-containerinstance==10.1.0
 azure-mgmt-containerregistry==14.0.0
 azure-mgmt-core==1.6.0
@@ -113,7 +113,7 @@ azure-synapse-artifacts==0.21.0
 azure-synapse-spark==0.7.0
 babel==2.17.0
 backoff==2.2.1
-backports.zstd==1.2.0
+backports.zstd==1.3.0
 bcrypt==5.0.0
 beautifulsoup4==4.14.3
 billiard==4.2.4
@@ -132,7 +132,7 @@ celery==5.6.0
 certifi==2025.11.12
 cffi==2.0.0
 cfgv==3.5.0
-cfn-lint==1.43.1
+cfn-lint==1.41.0
 chardet==5.2.0
 charset-normalizer==3.4.4
 checksumdir==1.3.0
@@ -147,7 +147,7 @@ colorama==0.4.6
 colorlog==6.10.1
 comm==0.2.3
 confluent-kafka==2.12.2
-coverage==7.13.0
+coverage==7.13.1
 crcmod==1.7
 cron_descriptor==2.0.6
 croniter==6.0.0
@@ -334,7 +334,7 @@ kerberos==1.3.1
 keyring==25.6.0
 keyrings.alt==5.0.2
 kgb==7.3
-kombu==5.6.1
+kombu==5.6.2
 krb5==0.9.0
 kubernetes==32.0.1
 kubernetes_asyncio==32.3.2
@@ -355,15 +355,15 @@ matplotlib-inline==0.2.1
 mdurl==0.1.2
 mergedeep==1.3.4
 methodtools==0.4.7
-microsoft-kiota-abstractions==1.9.7
-microsoft-kiota-authentication-azure==1.9.7
-microsoft-kiota-http==1.9.7
-microsoft-kiota-serialization-json==1.9.7
-microsoft-kiota-serialization-text==1.9.7
+microsoft-kiota-abstractions==1.9.8
+microsoft-kiota-authentication-azure==1.9.8
+microsoft-kiota-http==1.9.8
+microsoft-kiota-serialization-json==1.9.8
+microsoft-kiota-serialization-text==1.9.8
 mistune==3.2.0
 mmh3==5.2.0
 more-itertools==10.8.0
-moto==5.1.18
+moto==5.1.19
 mpmath==1.3.0
 msal-extensions==1.3.1
 msal==1.34.0
@@ -431,7 +431,7 @@ parso==0.8.5
 pathable==0.4.4
 pathspec==0.12.1
 pbr==7.0.3
-pdbr==0.9.2
+pdbr==0.9.3
 pendulum==3.1.0
 pexpect==4.9.0
 pgvector==0.4.2
@@ -455,7 +455,7 @@ prompt_toolkit==3.0.52
 propcache==0.4.1
 proto-plus==1.27.0
 protobuf==6.33.2
-psutil==7.2.0
+psutil==7.2.1
 psycopg-binary==3.3.2
 psycopg2-binary==2.9.11
 psycopg==3.3.2
@@ -508,7 +508,7 @@ python-dateutil==2.9.0.post0
 python-dotenv==1.2.1
 python-http-client==3.3.7
 python-jenkins==1.8.3
-python-keycloak==5.8.1
+python-keycloak==6.0.0
 python-ldap==3.4.5
 python-multipart==0.0.21
 python-on-whales==0.79.0
@@ -611,7 +611,7 @@ tabulate==0.9.0
 tenacity==9.1.2
 teradatasql==20.0.0.48
 teradatasqlalchemy==20.0.0.9
-termcolor==3.2.0
+termcolor==3.3.0
 testcontainers==4.13.3
 text-unidecode==1.3
 threadpoolctl==3.6.0
