@@ -93,24 +93,20 @@ export class BackfillPage extends BasePage {
     const row = this.page.locator("table tbody tr").nth(rowIndex);
     const cells = row.locator("td");
 
-    await expect(cells.first()).not.toHaveText("", { timeout: 10_000 });
+    await expect(row).toBeVisible({ timeout: 10_000 });
 
     // Get column headers to map column names to indices
     const headers = this.page.locator("table thead th");
-    const headerCount = await headers.count();
-    const columnMap = new Map<string, number>();
-
-    for (let i = 0; i < headerCount; i++) {
-      const headerText = (await headers.nth(i).textContent()) ?? "";
-
-      columnMap.set(headerText.trim(), i);
-    }
+    const headerTexts = await headers.allTextContents();
+    const columnMap = new Map<string, number>(headerTexts.map((text, index) => [text.trim(), index]));
 
     // Extract data using column headers
     const fromDateIndex = columnMap.get("From") ?? 0;
     const toDateIndex = columnMap.get("To") ?? 1;
     const reprocessBehaviorIndex = columnMap.get("Reprocess Behavior") ?? 2;
     const createdAtIndex = columnMap.get("Created at") ?? 3;
+
+    await expect(row.first()).not.toBeEmpty();
 
     const fromDate = (await cells.nth(fromDateIndex).textContent()) ?? "";
     const toDate = (await cells.nth(toDateIndex).textContent()) ?? "";
@@ -132,6 +128,24 @@ export class BackfillPage extends BasePage {
     const count = await rows.count();
 
     return count;
+  }
+
+  // Get backfill status
+  public async getBackfillStatus(): Promise<string> {
+    const statusIcon = this.page.getByTestId("state-badge").first();
+
+    await expect(statusIcon).toBeVisible();
+    await statusIcon.click();
+
+    await this.page.waitForLoadState("networkidle");
+
+    const statusBadge = this.page.getByTestId("state-badge").first();
+
+    await expect(statusBadge).toBeVisible();
+
+    const statusText = (await statusBadge.textContent()) ?? "";
+
+    return statusText.trim();
   }
 
   // Get column header locator for assertions

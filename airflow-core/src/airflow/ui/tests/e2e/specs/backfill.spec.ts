@@ -24,6 +24,7 @@ const getPastDate = (daysAgo: number): string => {
   const date = new Date();
 
   date.setDate(date.getDate() - daysAgo);
+  date.setHours(0, 0, 0, 0);
 
   return date.toISOString().slice(0, 16);
 };
@@ -33,6 +34,8 @@ const getPastDate = (daysAgo: number): string => {
 test.describe("Backfills List Display", () => {
   let backfillPage: BackfillPage;
   const testDagId = testConfig.testDag.id;
+  let createdFromDate: string;
+  let createdToDate: string;
 
   test.beforeAll(async ({ browser }) => {
     test.setTimeout(60_000);
@@ -42,13 +45,13 @@ test.describe("Backfills List Display", () => {
 
     backfillPage = new BackfillPage(page);
 
-    const fromDate = getPastDate(2);
-    const toDate = getPastDate(1);
+    createdFromDate = getPastDate(2);
+    createdToDate = getPastDate(1);
 
     await backfillPage.createBackfill(testDagId, {
-      fromDate,
+      fromDate: createdFromDate,
       reprocessBehavior: "All Runs",
-      toDate,
+      toDate: createdToDate,
     });
 
     await backfillPage.navigateToBackfillsTab(testDagId);
@@ -64,18 +67,22 @@ test.describe("Backfills List Display", () => {
   test("Verify backfill details display: date range, status, created time", async () => {
     const backfillDetails = await backfillPage.getBackfillDetails(0);
 
-    expect(backfillDetails.fromDate).not.toEqual("");
-    expect(backfillDetails.toDate).not.toEqual("");
+    // validate date range
+    expect(backfillDetails.fromDate.slice(0, 10)).toEqual(createdFromDate.slice(0, 10));
+    expect(backfillDetails.toDate.slice(0, 10)).toEqual(createdToDate.slice(0, 10));
 
-    expect(backfillDetails.reprocessBehavior).not.toEqual("");
-    expect(["All Runs", "Missing Runs", "Missing and Errored Runs"]).toContain(
-      backfillDetails.reprocessBehavior,
-    );
+    // Validate backfill status
+    const status = await backfillPage.getBackfillStatus();
 
+    expect(status).not.toEqual("");
+
+    // Validate created time
     expect(backfillDetails.createdAt).not.toEqual("");
   });
 
   test("should verify Table filters", async () => {
+    await backfillPage.navigateToBackfillsTab(testDagId);
+
     const initialColumnCount = await backfillPage.getTableColumnCount();
 
     expect(initialColumnCount).toBeGreaterThan(0);
