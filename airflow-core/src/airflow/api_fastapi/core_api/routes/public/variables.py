@@ -113,12 +113,17 @@ def get_variables(
     variable_key_pattern: QueryVariableKeyPatternSearch,
 ) -> VariableCollectionResponse:
     """Get all Variables entries."""
+    MAX_PUBLIC_API_LIMIT = 100
+    if limit.value is not None and limit.value > MAX_PUBLIC_API_LIMIT:
+        limit.value = MAX_PUBLIC_API_LIMIT
+
+
     variable_select, total_entries = paginated_select(
         statement=select(Variable),
         filters=[variable_key_pattern, readable_variables_filter],
         order_by=order_by,
-        offset=offset,
-        limit=limit,
+        offset=offset.offset,
+        limit=limit.limit,
         session=session,
     )
 

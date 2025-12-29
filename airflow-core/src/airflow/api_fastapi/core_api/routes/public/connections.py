@@ -125,7 +125,13 @@ def get_connections(
     session: SessionDep,
     connection_id_pattern: QueryConnectionIdPatternSearch,
 ) -> ConnectionCollectionResponse:
-    """Get all connection entries."""
+      
+    """Get connection entries."""
+    MAX_PUBLIC_API_LIMIT = 100
+    if limit.value is not None and limit.value > MAX_PUBLIC_API_LIMIT:
+        limit.value = MAX_PUBLIC_API_LIMIT
+
+
     connection_select, total_entries = paginated_select(
         statement=select(Connection),
         filters=[connection_id_pattern, readable_connections_filter],
