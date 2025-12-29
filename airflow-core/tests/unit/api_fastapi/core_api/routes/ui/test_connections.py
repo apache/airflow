@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import pytest
 
+from airflow.api_fastapi.core_api.datamodels.connections import ConnectionHookMetaData
 from tests_common.test_utils.asserts import assert_queries_count
 from tests_common.test_utils.markers import skip_if_force_lowest_dependencies_marker
 
@@ -36,6 +37,15 @@ class TestHookMetaData:
         for hook_data in response_data:
             if hook_data["connection_type"] == "fs":
                 assert hook_data["hook_name"] == "File (path)"
+
+    @pytest.mark.enable_redact
+    def test_hook_meta_data_with_extra_fields_redacted(self, test_client):
+        with assert_queries_count(0):
+            response = test_client.get("/connections/hook_meta")
+        response_data = response.json()
+        response_data["extra_fields"] = '{"password": "test-password"}'
+
+        assert response_data["extra_fields"] == '{"password": "***"}'
 
     def test_should_respond_401(self, unauthenticated_test_client):
         response = unauthenticated_test_client.get("/connections/hook_meta")

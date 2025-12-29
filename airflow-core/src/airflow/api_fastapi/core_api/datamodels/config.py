@@ -16,6 +16,12 @@
 # under the License.
 from __future__ import annotations
 
+import json
+
+from pydantic import model_validator
+from typing_extensions import Self
+
+from airflow._shared.secrets_masker import redact
 from airflow.api_fastapi.core_api.base import StrictBaseModel
 
 
@@ -24,6 +30,20 @@ class ConfigOption(StrictBaseModel):
 
     key: str
     value: str | tuple[str, str]
+
+    @model_validator(mode="after")
+    def redact_value(self) -> Self:
+        if self.value is None:
+            return self
+        try:
+            value_dict = json.loads(self.value)
+            redacted_dict = redact(value_dict, max_depth=1)
+            self.value = json.dumps(redacted_dict)
+            return self
+        except json.JSONDecodeError:
+            # value is not a serialized string representation of a dict.
+            self.value = str(redact(self.value, self.key))
+            return self
 
     @property
     def text_format(self):
