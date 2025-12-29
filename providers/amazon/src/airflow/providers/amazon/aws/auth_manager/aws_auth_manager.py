@@ -465,7 +465,7 @@ class AwsAuthManager(BaseAuthManager[AwsAuthManagerUser]):
     @staticmethod
     def get_cli_commands() -> list[CLICommand]:
         """Vends CLI commands to be included in Airflow CLI."""
-        from airflow.providers.amazon.aws.auth_manager.cli.definition import get_aws_cli_commands
+        from airflow.providers.amazon.aws.cli.definition import get_aws_cli_commands
 
         return get_aws_cli_commands()
 

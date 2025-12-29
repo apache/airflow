@@ -190,7 +190,7 @@ class FabAuthManager(BaseAuthManager[User]):
     @staticmethod
     def get_cli_commands() -> list[CLICommand]:
         """Vends CLI commands to be included in Airflow CLI."""
-        from airflow.providers.fab.auth_manager.cli.definition import get_fab_cli_commands
+        from airflow.providers.fab.cli.definition import get_fab_cli_commands
 
         return get_fab_cli_commands()
 
@@ -736,7 +736,7 @@ class FabAuthManager(BaseAuthManager[User]):
 def get_parser() -> argparse.ArgumentParser:
     """Generate documentation; used by Sphinx argparse."""
     from airflow.cli.cli_parser import AirflowHelpFormatter, _add_command
-    from airflow.providers.fab.auth_manager.cli.definition import get_fab_cli_commands
+    from airflow.providers.fab.cli.definition import get_fab_cli_commands
 
     parser = DefaultHelpParser(prog="airflow", formatter_class=AirflowHelpFormatter)
     subparsers = parser.add_subparsers(dest="subcommand", metavar="GROUP_OR_COMMAND")

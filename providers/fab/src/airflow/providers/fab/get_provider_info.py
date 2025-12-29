@@ -181,5 +181,5 @@ def get_provider_info():
             }
         },
         "auth-managers": ["airflow.providers.fab.auth_manager.fab_auth_manager.FabAuthManager"],
-        "cli": ["airflow.providers.fab.auth_manager.cli.definition.get_fab_cli_commands"],
+        "cli": ["airflow.providers.fab.cli.definition.get_fab_cli_commands"],
     }

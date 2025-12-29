@@ -29,7 +29,7 @@ def get_provider_info():
         "auth-managers": [
             "airflow.providers.keycloak.auth_manager.keycloak_auth_manager.KeycloakAuthManager"
         ],
-        "cli": ["airflow.providers.keycloak.auth_manager.cli.definition.get_keycloak_cli_commands"],
+        "cli": ["airflow.providers.keycloak.cli.definition.get_keycloak_cli_commands"],
         "config": {
             "keycloak_auth_manager": {
                 "description": "This section contains settings for Keycloak auth manager integration.",
