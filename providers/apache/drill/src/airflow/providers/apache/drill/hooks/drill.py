@@ -19,8 +19,11 @@ from __future__ import annotations
 
 from collections.abc import Iterable
 from typing import TYPE_CHECKING, Any, NoReturn
-
-from sqlalchemy import create_engine
+from airflow.exceptions import AirflowOptionalProviderFeatureException
+try:
+    from sqlalchemy import create_engine
+except ImportError:
+    create_engine = None
 
 from airflow.providers.common.sql.hooks.sql import DbApiHook
 
@@ -52,6 +55,11 @@ class DrillHook(DbApiHook):
     def get_conn(self) -> PoolProxiedConnection:
         """Establish a connection to Drillbit."""
         conn_md = self.get_connection(self.get_conn_id())
+
+        if create_engine is None:
+
+            raise AirflowOptionalProviderFeatureException("The 'sqlalchemy' library is required to use this hook.")
+
         creds = f"{conn_md.login}:{conn_md.password}@" if conn_md.login else ""
         database_url = (
             f"{conn_md.extra_dejson.get('dialect_driver', 'drill+sadrill')}://{creds}"
