@@ -536,7 +536,13 @@ def handle_event_submit(
 
 
 @handle_event_submit.register
-def _(event: BaseTaskEndEvent, *, task_instance: TaskInstance, session: Session) -> None:
+def _(
+    event: BaseTaskEndEvent,
+    *,
+    task_instance: TaskInstance,
+    session: Session,
+    **_: Any,
+) -> None:
     """
     Submit event for the given task instance.
 
