@@ -30,7 +30,7 @@ import pendulum
 import pytest
 import time_machine
 import uuid6
-from sqlalchemy import select
+from sqlalchemy import delete, func, select
 from sqlalchemy.exc import IntegrityError
 
 from airflow import settings
@@ -82,7 +82,7 @@ from airflow.sdk.execution_time.comms import AssetEventsResult
 from airflow.serialization.definitions.assets import SerializedAsset
 from airflow.serialization.definitions.dag import SerializedDAG
 from airflow.serialization.encoders import ensure_serialized_asset
-from airflow.serialization.serialized_objects import OperatorSerialization, create_scheduler_operator
+from airflow.serialization.serialized_objects import OperatorSerialization
 from airflow.ti_deps.dep_context import DepContext
 from airflow.ti_deps.dependencies_deps import REQUEUEABLE_DEPS, RUNNING_DEPS
 from airflow.ti_deps.dependencies_states import RUNNABLE_STATES
@@ -2700,16 +2700,16 @@ class TestTaskInstance:
         XComModel.set(key="key", value="value", task_id=ti.task_id, dag_id=ti.dag_id, run_id=ti.run_id)
         session.commit()
         for table in tables:
-            assert session.query(table).count() == 1
+            assert session.scalar(select(func.count()).select_from(table)) == 1
 
-        ti_note = session.query(TaskInstanceNote).filter_by(ti_id=ti.id).one()
+        ti_note = session.scalar(select(TaskInstanceNote).where(TaskInstanceNote.ti_id == ti.id))
         assert ti_note.content == "sample note"
 
         ti.clear_db_references(session)
         for table in tables:
-            assert session.query(table).count() == 0
+            assert session.scalar(select(func.count()).select_from(table)) == 0
 
-        assert session.query(TaskInstanceNote).filter_by(ti_id=ti.id).one_or_none() is None
+        assert session.scalar(select(TaskInstanceNote).where(TaskInstanceNote.ti_id == ti.id)) is None
 
     def test_skipped_task_call_on_skipped_callback(self, dag_maker):
         def raise_skip_exception():
@@ -2755,12 +2755,12 @@ class TestTaskInstance:
         try_id = ti.id
         with pytest.raises(AirflowException):
             ti.run()
-        ti = session.query(TaskInstance).one()
+        ti = session.scalar(select(TaskInstance))
         # the ti.id should be different from the previous one
         assert ti.id != try_id
         assert ti.state == State.UP_FOR_RETRY
-        assert session.query(TaskInstance).count() == 1
-        tih = session.query(TaskInstanceHistory).all()
+        assert session.scalar(select(func.count()).select_from(TaskInstance)) == 1
+        tih = session.scalars(select(TaskInstanceHistory)).all()
         assert len(tih) == 1
         # the new try_id should be different from what's recorded in tih
         assert str(tih[0].task_instance_id) == try_id
@@ -2786,16 +2786,17 @@ class TestTaskInstance:
         try_id = ti.id
         with pytest.raises(TypeError):
             ti.run()
-        ti = session.query(TaskInstance).one()
+        ti = session.scalar(select(TaskInstance))
+        assert ti is not None
         # the ti.id should be different from the previous one
         assert ti.id != try_id
         assert ti.state == State.UP_FOR_RETRY
-        assert session.query(TaskInstance).count() == 1
-        tih = session.query(TaskInstanceHistory).all()
+        assert session.scalar(select(func.count()).select_from(TaskInstance)) == 1
+        tih = session.scalars(select(TaskInstanceHistory)).all()
         assert len(tih) == 1
         # the new try_id should be different from what's recorded in tih
         assert str(tih[0].task_instance_id) == try_id
-        hitl_histories = session.query(HITLDetailHistory).all()
+        hitl_histories = session.scalars(select(HITLDetailHistory)).all()
         assert len(hitl_histories) == 1
         assert str(hitl_histories[0].task_instance.id) == try_id
 
@@ -2812,7 +2813,7 @@ def test_refresh_from_task(pool_override, queue_by_policy, monkeypatch):
 
         monkeypatch.setattr("airflow.models.taskinstance.task_instance_mutation_hook", mock_policy)
 
-    sdk_task = EmptyOperator(
+    task = EmptyOperator(
         task_id="empty",
         queue=default_queue,
         pool="test_pool1",
@@ -2822,28 +2823,27 @@ def test_refresh_from_task(pool_override, queue_by_policy, monkeypatch):
         retries=30,
         executor_config={"KubernetesExecutor": {"image": "myCustomDockerImage"}},
     )
-    ser_task = create_scheduler_operator(sdk_task)
-    ti = TI(ser_task, run_id=None, dag_version_id=mock.MagicMock())
-    ti.refresh_from_task(ser_task, pool_override=pool_override)
+    ti = TI(task, run_id=None, dag_version_id=mock.MagicMock())
+    ti.refresh_from_task(task, pool_override=pool_override)
 
     assert ti.queue == expected_queue
 
     if pool_override:
         assert ti.pool == pool_override
     else:
-        assert ti.pool == sdk_task.pool
+        assert ti.pool == task.pool
 
-    assert ti.pool_slots == sdk_task.pool_slots
-    assert ti.priority_weight == ser_task.weight_rule.get_weight(ti)
-    assert ti.run_as_user == sdk_task.run_as_user
-    assert ti.max_tries == sdk_task.retries
-    assert ti.executor_config == sdk_task.executor_config
+    assert ti.pool_slots == task.pool_slots
+    assert ti.priority_weight == task.weight_rule.get_weight(ti)
+    assert ti.run_as_user == task.run_as_user
+    assert ti.max_tries == task.retries
+    assert ti.executor_config == task.executor_config
     assert ti.operator == EmptyOperator.__name__
 
     # Test that refresh_from_task does not reset ti.max_tries
-    expected_max_tries = sdk_task.retries + 10
+    expected_max_tries = task.retries + 10
     ti.max_tries = expected_max_tries
-    ti.refresh_from_task(ser_task)
+    ti.refresh_from_task(task)
     assert ti.max_tries == expected_max_tries
 
 
@@ -2853,7 +2853,7 @@ class TestTaskInstanceRecordTaskMapXComPush:
     def setup_class(self):
         """Ensure we start fresh."""
         with create_session() as session:
-            session.query(TaskMap).delete()
+            session.execute(delete(TaskMap))
 
     @pytest.mark.parametrize("xcom_value", [[1, 2, 3], {"a": 1, "b": 2}, "abc"])
     def test_not_recorded_if_leaf(self, dag_maker, xcom_value):
@@ -2869,7 +2869,7 @@ class TestTaskInstanceRecordTaskMapXComPush:
         ti = next(ti for ti in dag_maker.create_dagrun().task_instances if ti.task_id == "push_something")
         ti.run()
 
-        assert dag_maker.session.query(TaskMap).count() == 0
+        assert dag_maker.session.scalar(select(func.count()).select_from(TaskMap)) == 0
 
     @pytest.mark.parametrize("xcom_value", [[1, 2, 3], {"a": 1, "b": 2}, "abc"])
     def test_not_recorded_if_not_used(self, dag_maker, xcom_value):
@@ -2889,7 +2889,7 @@ class TestTaskInstanceRecordTaskMapXComPush:
         ti = next(ti for ti in dag_maker.create_dagrun().task_instances if ti.task_id == "push_something")
         ti.run()
 
-        assert dag_maker.session.query(TaskMap).count() == 0
+        assert dag_maker.session.scalar(select(func.count()).select_from(TaskMap)) == 0
 
     @pytest.mark.parametrize("xcom_1", [[1, 2, 3], {"a": 1, "b": 2}, "abc"])
     @pytest.mark.parametrize("xcom_4", [[1, 2, 3], {"a": 1, "b": 2}])
@@ -2928,16 +2928,16 @@ class TestTaskInstanceRecordTaskMapXComPush:
         tis = {ti.task_id: ti for ti in dag_maker.create_dagrun().task_instances}
 
         tis["push_1"].run()
-        assert dag_maker.session.query(TaskMap).count() == 0
+        assert dag_maker.session.scalar(select(func.count()).select_from(TaskMap)) == 0
 
         tis["push_2"].run()
-        assert dag_maker.session.query(TaskMap).count() == 1
+        assert dag_maker.session.scalar(select(func.count()).select_from(TaskMap)) == 1
 
         tis["push_3"].run()
-        assert dag_maker.session.query(TaskMap).count() == 1
+        assert dag_maker.session.scalar(select(func.count()).select_from(TaskMap)) == 1
 
         tis["push_4"].run()
-        assert dag_maker.session.query(TaskMap).count() == 2
+        assert dag_maker.session.scalar(select(func.count()).select_from(TaskMap)) == 2
 
 
 class TestMappedTaskInstanceReceiveValue:
@@ -2960,12 +2960,11 @@ class TestMappedTaskInstanceReceiveValue:
             show_task = show.expand(value=literal).operator
 
         dag_run = dag_maker.create_dagrun()
-        mapped_tis = (
-            session.query(TI)
-            .filter_by(task_id="show", dag_id=dag_run.dag_id, run_id=dag_run.run_id)
+        mapped_tis = session.scalars(
+            select(TI)
+            .where(TI.task_id == "show", TI.dag_id == dag_run.dag_id, TI.run_id == dag_run.run_id)
             .order_by(TI.map_index)
-            .all()
-        )
+        ).all()
         assert len(mapped_tis) == len(literal)
 
         for ti in sorted(mapped_tis, key=operator.attrgetter("map_index")):
@@ -3031,16 +3030,15 @@ class TestMappedTaskInstanceReceiveValue:
         assert len(mapped_tis) == 0  # Expanded at parse!
         assert max_map_index == 5
 
-        tis = (
-            session.query(TaskInstance)
-            .filter(
+        tis = session.scalars(
+            select(TaskInstance)
+            .where(
                 TaskInstance.dag_id == dag.dag_id,
                 TaskInstance.task_id == "show",
                 TaskInstance.run_id == dag_run.run_id,
             )
             .order_by(TaskInstance.map_index)
-            .all()
-        )
+        ).all()
         for ti in tis:
             ti.refresh_from_task(show_task)
             dag_maker.run_ti(ti.task_id, map_index=ti.map_index, dag_run=dag_run, session=session)
@@ -3141,14 +3139,16 @@ def test_taskinstance_with_note(create_task_instance, session):
     session.add(ti)
     session.commit()
 
-    ti_note: TaskInstanceNote = session.query(TaskInstanceNote).filter_by(ti_id=ti.id).one()
+    ti_note: TaskInstanceNote = session.scalar(
+        select(TaskInstanceNote).where(TaskInstanceNote.ti_id == ti.id)
+    )
     assert ti_note.content == "ti with note"
 
     session.delete(ti)
     session.commit()
 
-    assert session.query(TaskInstance).filter_by(id=ti.id).one_or_none() is None
-    assert session.query(TaskInstanceNote).filter_by(ti_id=ti.id).one_or_none() is None
+    assert session.scalar(select(TaskInstance).where(TaskInstance.id == ti.id)) is None
+    assert session.scalar(select(TaskInstanceNote).where(TaskInstanceNote.ti_id == ti.id)) is None
 
 
 def test__refresh_from_db_should_not_increment_try_number(dag_maker, session):

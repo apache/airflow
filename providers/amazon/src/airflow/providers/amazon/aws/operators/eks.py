@@ -54,7 +54,7 @@ except ImportError:
     )
 
 if TYPE_CHECKING:
-    from airflow.utils.context import Context
+    from airflow.sdk import Context
 
 
 CHECK_INTERVAL_SECONDS = 15

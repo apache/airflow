@@ -1612,7 +1612,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         """
         # Put a check in place to make sure we don't commit unexpectedly
         with prohibit_commit(session) as guard:
-            if settings.USE_JOB_SCHEDULE:
+            if conf.getboolean("scheduler", "use_job_schedule", fallback=True):
                 self._create_dagruns_for_dags(guard, session)
 
             self._start_queued_dagruns(session)
@@ -2037,14 +2037,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 and dag_run.triggered_by != DagRunTriggeredByType.ASSET
                 and dag_run.clear_number < 1
             ):
-                # TODO: Logically, this should be DagRunInfo.run_after, but the
-                #  information is not stored on a DagRun, only before the actual
-                #  execution on DagModel.next_dagrun_create_after. We should add
-                #  a field on DagRun for this instead of relying on the run
-                #  always happening immediately after the data interval.
-                #  We only publish these metrics for scheduled dag runs and only
-                #  when ``run_type`` is *MANUAL* and ``clear_number`` is 0.
-                expected_start_date = get_run_data_interval(dag.timetable, dag_run).end
+                expected_start_date = dag_run.run_after
                 schedule_delay = dag_run.start_date - expected_start_date
                 # Publish metrics twice with backward compatible name, and then with tags
                 Stats.timing(f"dagrun.schedule_delay.{dag.dag_id}", schedule_delay)
