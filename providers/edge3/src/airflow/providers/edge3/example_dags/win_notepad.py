@@ -37,7 +37,7 @@ from airflow.models.dag import DAG
 from airflow.sdk import Param
 
 if TYPE_CHECKING:
-    from airflow.utils.context import Context
+    from airflow.sdk import Context
 
 
 class NotepadOperator(BaseOperator):
