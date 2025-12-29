@@ -1189,7 +1189,7 @@ def _deploy_helm_chart(
             "--kube-context",
             kubectl_context,
             "--timeout",
-            "10m0s",
+            "20m0s",
             "--namespace",
             HELM_AIRFLOW_NAMESPACE,
             "--set",
@@ -1235,10 +1235,28 @@ def _deploy_helm_chart(
             kubernetes_version=kubernetes_version,
             output=output,
             check=False,
+            capture_output=True,
+            text=True,
         )
+        # Print captured output to the console/output file
+        if result.stdout:
+            get_console(output=output).print(result.stdout)
+        if result.stderr:
+            get_console(output=output).print(result.stderr)
         if result.returncode == 0:
             get_console(output=output).print(f"[success]Deployed {cluster_name} with airflow Helm Chart.")
         return result
+
+
+def _is_helm_timeout_error(result: RunCommandResult) -> bool:
+    """Check if the Helm command failed due to a timeout."""
+    # Check stderr and stdout for timeout-related messages
+    error_output = ""
+    if hasattr(result, "stderr") and result.stderr:
+        error_output += result.stderr if isinstance(result.stderr, str) else result.stderr.decode()
+    if hasattr(result, "stdout") and result.stdout:
+        error_output += result.stdout if isinstance(result.stdout, str) else result.stdout.decode()
+    return "timed out waiting for the condition" in error_output
 
 
 def _deploy_airflow(
@@ -1251,20 +1269,52 @@ def _deploy_airflow(
     use_standard_naming: bool,
     extra_options: tuple[str, ...] | None = None,
     multi_namespace_mode: bool = False,
+    num_tries: int = 1,
 ) -> tuple[int, str]:
     action = "Deploying" if not upgrade else "Upgrading"
     cluster_name = get_kind_cluster_name(python=python, kubernetes_version=kubernetes_version)
-    get_console(output=output).print(f"[info]{action} Airflow for cluster {cluster_name}")
-    result = _deploy_helm_chart(
-        python=python,
-        kubernetes_version=kubernetes_version,
-        output=output,
-        upgrade=upgrade,
-        executor=executor,
-        use_standard_naming=use_standard_naming,
-        extra_options=extra_options,
-        multi_namespace_mode=multi_namespace_mode,
-    )
+    kubectl_context = get_kubectl_cluster_name(python=python, kubernetes_version=kubernetes_version)
+    while True:
+        get_console(output=output).print(f"[info]{action} Airflow for cluster {cluster_name}")
+        result = _deploy_helm_chart(
+            python=python,
+            kubernetes_version=kubernetes_version,
+            output=output,
+            upgrade=upgrade,
+            executor=executor,
+            use_standard_naming=use_standard_naming,
+            extra_options=extra_options,
+            multi_namespace_mode=multi_namespace_mode,
+        )
+        if result.returncode == 0:
+            break
+        # Only retry on timeout errors, fail immediately for other errors
+        if not _is_helm_timeout_error(result):
+            return result.returncode, f"{action} Airflow to {cluster_name}"
+        num_tries -= 1
+        if num_tries == 0:
+            return result.returncode, f"{action} Airflow to {cluster_name}"
+        get_console(output=output).print(
+            f"[warning]Helm deployment timed out for {cluster_name}. "
+            f"Retrying! There are {num_tries} tries left.\n"
+        )
+        # Uninstall the failed release before retrying
+        run_command_with_k8s_env(
+            [
+                "helm",
+                "uninstall",
+                "airflow",
+                "--kube-context",
+                kubectl_context,
+                "--namespace",
+                HELM_AIRFLOW_NAMESPACE,
+                "--ignore-not-found",
+            ],
+            python=python,
+            kubernetes_version=kubernetes_version,
+            output=output,
+            check=False,
+        )
     if result.returncode == 0:
         if multi_namespace_mode:
             # duplicate Airflow configmaps, secrets and service accounts to test namespace
@@ -1957,6 +2007,7 @@ def _run_complete_tests(
             wait_time_in_seconds=wait_time_in_seconds,
             extra_options=extra_options,
             multi_namespace_mode=True,
+            num_tries=3,
         )
         if returncode != 0:
             _logs(python=python, kubernetes_version=kubernetes_version)
@@ -1990,6 +2041,7 @@ def _run_complete_tests(
                 wait_time_in_seconds=wait_time_in_seconds,
                 extra_options=extra_options,
                 multi_namespace_mode=True,
+                num_tries=3,
             )
             if returncode != 0 or include_success_outputs:
                 _logs(python=python, kubernetes_version=kubernetes_version)
