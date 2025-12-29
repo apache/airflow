@@ -17,6 +17,26 @@
 # under the License.
 from __future__ import annotations
 
-from airflow._shared.listeners import hookimpl
+from typing import TYPE_CHECKING
 
-__all__ = ["hookimpl"]
+from pluggy import HookspecMarker
+
+if TYPE_CHECKING:
+    from airflow.serialization.definitions.assets import SerializedAsset, SerializedAssetAlias
+
+hookspec = HookspecMarker("airflow")
+
+
+@hookspec
+def on_asset_created(asset: SerializedAsset):
+    """Execute when a new asset is created."""
+
+
+@hookspec
+def on_asset_alias_created(asset_alias: SerializedAssetAlias):
+    """Execute when a new asset alias is created."""
+
+
+@hookspec
+def on_asset_changed(asset: SerializedAsset):
+    """Execute when asset change is registered."""

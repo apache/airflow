@@ -17,6 +17,16 @@
 # under the License.
 from __future__ import annotations
 
-from airflow._shared.listeners import hookimpl
+from pluggy import HookspecMarker
 
-__all__ = ["hookimpl"]
+hookspec = HookspecMarker("airflow")
+
+
+@hookspec
+def on_new_dag_import_error(filename, stacktrace):
+    """Execute when new dag import error appears."""
+
+
+@hookspec
+def on_existing_dag_import_error(filename, stacktrace):
+    """Execute when existing dag import error appears."""

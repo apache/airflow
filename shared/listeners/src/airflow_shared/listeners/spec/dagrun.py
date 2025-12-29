@@ -17,6 +17,26 @@
 # under the License.
 from __future__ import annotations
 
-from airflow._shared.listeners import hookimpl
+from typing import TYPE_CHECKING
 
-__all__ = ["hookimpl"]
+from pluggy import HookspecMarker
+
+if TYPE_CHECKING:
+    from airflow.models.dagrun import DagRun
+
+hookspec = HookspecMarker("airflow")
+
+
+@hookspec
+def on_dag_run_running(dag_run: DagRun, msg: str):
+    """Execute when dag run state changes to RUNNING."""
+
+
+@hookspec
+def on_dag_run_success(dag_run: DagRun, msg: str):
+    """Execute when dag run state changes to SUCCESS."""
+
+
+@hookspec
+def on_dag_run_failed(dag_run: DagRun, msg: str):
+    """Execute when dag run state changes to FAIL."""

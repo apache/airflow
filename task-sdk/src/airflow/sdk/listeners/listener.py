@@ -17,6 +17,21 @@
 # under the License.
 from __future__ import annotations
 
-from airflow._shared.listeners import hookimpl
+from functools import cache
 
-__all__ = ["hookimpl"]
+from airflow.plugins_manager import integrate_listener_plugins
+from airflow.sdk._shared.listeners.listener import (
+    ListenerManager,
+    get_listener_manager as _create_listener_manager,
+)
+
+
+@cache
+def get_listener_manager() -> ListenerManager:
+    """Get singleton listener manager."""
+    _listener_manager = _create_listener_manager()
+    integrate_listener_plugins(_listener_manager)
+    return _listener_manager
+
+
+__all__ = ["get_listener_manager", "ListenerManager"]

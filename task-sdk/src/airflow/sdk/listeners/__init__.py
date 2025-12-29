@@ -17,6 +17,6 @@
 # under the License.
 from __future__ import annotations
 
-from airflow._shared.listeners import hookimpl
+from airflow.sdk._shared.listeners import hookimpl
 
 __all__ = ["hookimpl"]

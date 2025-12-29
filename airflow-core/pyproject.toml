@@ -231,6 +231,7 @@ exclude = [
 "../shared/secrets_backend/src/airflow_shared/secrets_backend" = "src/airflow/_shared/secrets_backend"
 "../shared/secrets_masker/src/airflow_shared/secrets_masker" = "src/airflow/_shared/secrets_masker"
 "../shared/timezones/src/airflow_shared/timezones" = "src/airflow/_shared/timezones"
+"../shared/listeners/src/airflow_shared/listeners" = "src/airflow/_shared/listeners"
 
 [tool.hatch.build.targets.custom]
 path = "./hatch_build.py"
@@ -300,6 +301,7 @@ apache-airflow-devel-common = { workspace = true }
 shared_distributions = [
     "apache-airflow-shared-configuration",
     "apache-airflow-shared-dagnode",
+    "apache-airflow-shared-listeners",
     "apache-airflow-shared-logging",
     "apache-airflow-shared-module-loading",
     "apache-airflow-shared-observability",

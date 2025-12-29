@@ -17,6 +17,28 @@
 # under the License.
 from __future__ import annotations
 
-from airflow._shared.listeners import hookimpl
+from pluggy import HookspecMarker
 
-__all__ = ["hookimpl"]
+hookspec = HookspecMarker("airflow")
+
+
+@hookspec
+def on_starting(component):
+    """
+    Execute before Airflow component - jobs like scheduler, worker, or task runner starts.
+
+    It's guaranteed this will be called before any other plugin method.
+
+    :param component: Component that calls this method
+    """
+
+
+@hookspec
+def before_stopping(component):
+    """
+    Execute before Airflow component - jobs like scheduler, worker, or task runner stops.
+
+    It's guaranteed this will be called after any other plugin method.
+
+    :param component: Component that calls this method
+    """
