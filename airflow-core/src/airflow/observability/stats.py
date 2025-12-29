@@ -49,15 +49,15 @@ class _Stats(type):
         if not hasattr(cls.__class__, "factory"):
             is_datadog_enabled_defined = conf.has_option("metrics", "statsd_datadog_enabled")
             if is_datadog_enabled_defined and conf.getboolean("metrics", "statsd_datadog_enabled"):
-                from airflow._shared.observability.metrics import datadog_logger
+                from airflow.observability.metrics import datadog_logger
 
                 cls.__class__.factory = datadog_logger.get_dogstatsd_logger
             elif conf.getboolean("metrics", "statsd_on"):
-                from airflow._shared.observability.metrics import statsd_logger
+                from airflow.observability.metrics import statsd_logger
 
                 cls.__class__.factory = statsd_logger.get_statsd_logger
             elif conf.getboolean("metrics", "otel_on"):
-                from airflow._shared.observability.metrics import otel_logger
+                from airflow.observability.metrics import otel_logger
 
                 cls.__class__.factory = otel_logger.get_otel_logger
             else:
