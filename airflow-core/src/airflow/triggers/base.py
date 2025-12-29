@@ -21,7 +21,7 @@ import json
 from collections.abc import AsyncIterator
 from dataclasses import dataclass
 from datetime import timedelta
-from typing import TYPE_CHECKING, Annotated, Any
+from typing import Annotated, Any
 
 import structlog
 from pydantic import (
@@ -34,9 +34,6 @@ from pydantic import (
 
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.state import TaskInstanceState
-
-if TYPE_CHECKING:
-    from airflow.models.taskinstance import TaskInstance
 
 log = structlog.get_logger(logger_name=__name__)
 
@@ -69,7 +66,7 @@ class BaseTrigger(abc.ABC, LoggingMixin):
     def __init__(self, **kwargs):
         # these values are set by triggerer when preparing to run the instance
         # when run, they are injected into logger record.
-        self.task_instance: TaskInstance | None = None
+        self.task_instance = None
         self.trigger_id = None
 
     def _set_context(self, context):

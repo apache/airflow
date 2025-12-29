@@ -130,8 +130,6 @@ class DataprocSubmitTrigger(DataprocBaseTrigger):
 
             :param session: Sqlalchemy session
             """
-            if self.task_instance is None:
-                raise ValueError("Trigger task instance attribute is `None`.")
             query = session.query(TaskInstance).filter(
                 TaskInstance.dag_id == self.task_instance.dag_id,
                 TaskInstance.task_id == self.task_instance.task_id,
@@ -268,8 +266,6 @@ class DataprocClusterTrigger(DataprocBaseTrigger):
 
         @provide_session
         def get_task_instance(self, session: Session) -> TaskInstance:
-            if self.task_instance is None:
-                raise ValueError("Trigger task instance attribute is `None`.")
             query = session.query(TaskInstance).filter(
                 TaskInstance.dag_id == self.task_instance.dag_id,
                 TaskInstance.task_id == self.task_instance.task_id,

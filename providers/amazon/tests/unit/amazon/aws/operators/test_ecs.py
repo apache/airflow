@@ -34,11 +34,7 @@ from airflow.providers.amazon.aws.operators.ecs import (
     EcsRegisterTaskDefinitionOperator,
     EcsRunTaskOperator,
 )
-from airflow.providers.amazon.aws.triggers.ecs import (
-    ClusterActiveTrigger,
-    ClusterInactiveTrigger,
-    TaskDoneTrigger,
-)
+from airflow.providers.amazon.aws.triggers.ecs import TaskDoneTrigger
 from airflow.providers.amazon.aws.utils.task_log_fetcher import AwsTaskLogFetcher
 from airflow.providers.amazon.version_compat import NOTSET
 from airflow.providers.common.compat.sdk import AirflowException, TaskDeferred
@@ -898,7 +894,6 @@ class TestEcsCreateClusterOperator(EcsBaseTestCase):
         with pytest.raises(TaskDeferred) as defer:
             op.execute(context={})
 
-        assert isinstance(defer.value.trigger, ClusterActiveTrigger)
         assert defer.value.trigger.waiter_delay == 12
         assert defer.value.trigger.attempts == 34
 
@@ -974,7 +969,6 @@ class TestEcsDeleteClusterOperator(EcsBaseTestCase):
         with pytest.raises(TaskDeferred) as defer:
             op.execute(context={})
 
-        assert isinstance(defer.value.trigger, ClusterInactiveTrigger)
         assert defer.value.trigger.waiter_delay == 12
         assert defer.value.trigger.attempts == 34
 
