@@ -31,7 +31,7 @@ if TYPE_CHECKING:
 
     from requests.auth import AuthBase
 
-    from airflow.utils.context import Context
+    from airflow.sdk import Context
 
 
 class HttpToS3Operator(BaseOperator):

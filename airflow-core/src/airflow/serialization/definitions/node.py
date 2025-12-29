@@ -24,14 +24,10 @@ from airflow._shared.dagnode.node import GenericDAGNode
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
-    from typing import TypeAlias
 
-    from airflow.models.mappedoperator import MappedOperator
-    from airflow.serialization.definitions.baseoperator import SerializedBaseOperator
     from airflow.serialization.definitions.dag import SerializedDAG  # noqa: F401
+    from airflow.serialization.definitions.mappedoperator import Operator  # noqa: F401
     from airflow.serialization.definitions.taskgroup import SerializedTaskGroup  # noqa: F401
-
-    Operator: TypeAlias = SerializedBaseOperator | MappedOperator
 
 __all__ = ["DAGNode"]
 

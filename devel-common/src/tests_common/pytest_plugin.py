@@ -217,7 +217,7 @@ def mock_plugins_manager_for_all_non_db_tests():
         return
     from tests_common.test_utils.mock_plugins import mock_plugin_manager
 
-    with mock_plugin_manager() as _fixture:
+    with mock_plugin_manager(plugins=[]) as _fixture:
         yield _fixture
 
 
@@ -1252,10 +1252,16 @@ def dag_maker(request) -> Generator[DagMaker, None, None]:
             self.bundle_name = bundle_name or "dag_maker"
             self.bundle_version = bundle_version
             if AIRFLOW_V_3_0_PLUS:
+                from sqlalchemy import func, select
+
                 from airflow.models.dagbundle import DagBundleModel
 
                 if (
-                    self.session.query(DagBundleModel).filter(DagBundleModel.name == self.bundle_name).count()
+                    self.session.scalar(
+                        select(func.count())
+                        .select_from(DagBundleModel)
+                        .where(DagBundleModel.name == self.bundle_name)
+                    )
                     == 0
                 ):
                     self.session.add(DagBundleModel(name=self.bundle_name))
@@ -1285,39 +1291,25 @@ def dag_maker(request) -> Generator[DagMaker, None, None]:
                     self.session.rollback()
 
                     if AIRFLOW_V_3_0_PLUS:
+                        from sqlalchemy import delete
+
                         from airflow.models.dag_version import DagVersion
 
-                        self.session.query(DagRun).filter(DagRun.dag_id.in_(dag_ids)).delete(
-                            synchronize_session=False,
-                        )
-                        self.session.query(TaskInstance).filter(TaskInstance.dag_id.in_(dag_ids)).delete(
-                            synchronize_session=False,
-                        )
-                        self.session.query(DagVersion).filter(DagVersion.dag_id.in_(dag_ids)).delete(
-                            synchronize_session=False
-                        )
+                        self.session.execute(delete(DagRun).where(DagRun.dag_id.in_(dag_ids)))
+                        self.session.execute(delete(TaskInstance).where(TaskInstance.dag_id.in_(dag_ids)))
+                        self.session.execute(delete(DagVersion).where(DagVersion.dag_id.in_(dag_ids)))
                     else:
-                        self.session.query(SerializedDagModel).filter(
-                            SerializedDagModel.dag_id.in_(dag_ids)
-                        ).delete(synchronize_session=False)
-                        self.session.query(DagRun).filter(DagRun.dag_id.in_(dag_ids)).delete(
-                            synchronize_session=False,
+                        from sqlalchemy import delete
+
+                        self.session.execute(
+                            delete(SerializedDagModel).where(SerializedDagModel.dag_id.in_(dag_ids))
                         )
-                        self.session.query(TaskInstance).filter(TaskInstance.dag_id.in_(dag_ids)).delete(
-                            synchronize_session=False,
-                        )
-                    self.session.query(XCom).filter(XCom.dag_id.in_(dag_ids)).delete(
-                        synchronize_session=False,
-                    )
-                    self.session.query(DagModel).filter(DagModel.dag_id.in_(dag_ids)).delete(
-                        synchronize_session=False,
-                    )
-                    self.session.query(TaskMap).filter(TaskMap.dag_id.in_(dag_ids)).delete(
-                        synchronize_session=False,
-                    )
-                    self.session.query(AssetEvent).filter(AssetEvent.source_dag_id.in_(dag_ids)).delete(
-                        synchronize_session=False,
-                    )
+                        self.session.execute(delete(DagRun).where(DagRun.dag_id.in_(dag_ids)))
+                        self.session.execute(delete(TaskInstance).where(TaskInstance.dag_id.in_(dag_ids)))
+                    self.session.execute(delete(XCom).where(XCom.dag_id.in_(dag_ids)))
+                    self.session.execute(delete(DagModel).where(DagModel.dag_id.in_(dag_ids)))
+                    self.session.execute(delete(TaskMap).where(TaskMap.dag_id.in_(dag_ids)))
+                    self.session.execute(delete(AssetEvent).where(AssetEvent.source_dag_id.in_(dag_ids)))
                     self.session.commit()
                     if self._own_session:
                         self.session.expunge_all()
@@ -1714,10 +1706,12 @@ def create_log_template(request):
         session.commit()
 
         def _delete_log_template():
+            from sqlalchemy import delete
+
             from airflow.models import DagRun, TaskInstance
 
-            session.query(TaskInstance).delete()
-            session.query(DagRun).delete()
+            session.execute(delete(TaskInstance))
+            session.execute(delete(DagRun))
             session.delete(log_template)
             session.commit()
 
@@ -2753,11 +2747,18 @@ def testing_dag_bundle():
     from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
     if AIRFLOW_V_3_0_PLUS:
+        from sqlalchemy import func, select
+
         from airflow.models.dagbundle import DagBundleModel
         from airflow.utils.session import create_session
 
         with create_session() as session:
-            if session.query(DagBundleModel).filter(DagBundleModel.name == "testing").count() == 0:
+            if (
+                session.scalar(
+                    select(func.count()).select_from(DagBundleModel).where(DagBundleModel.name == "testing")
+                )
+                == 0
+            ):
                 testing = DagBundleModel(name="testing")
                 session.add(testing)
 
@@ -2767,11 +2768,13 @@ def testing_team():
     from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
     if AIRFLOW_V_3_0_PLUS:
+        from sqlalchemy import select
+
         from airflow.models.team import Team
         from airflow.utils.session import create_session
 
         with create_session() as session:
-            team = session.query(Team).filter_by(name="testing").one_or_none()
+            team = session.scalar(select(Team).where(Team.name == "testing"))
             if not team:
                 team = Team(name="testing")
                 session.add(team)
