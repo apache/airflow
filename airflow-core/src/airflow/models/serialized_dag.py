@@ -34,6 +34,7 @@ from sqlalchemy.sql.expression import func, literal
 from sqlalchemy_utils import UUIDType
 
 from airflow._shared.timezones import timezone
+from airflow.configuration import conf
 from airflow.models.asset import (
     AssetAliasModel,
     AssetModel,
@@ -46,7 +47,7 @@ from airflow.models.dagrun import DagRun
 from airflow.serialization.dag_dependency import DagDependency
 from airflow.serialization.definitions.assets import SerializedAssetUniqueKey as UKey
 from airflow.serialization.serialized_objects import DagSerialization
-from airflow.settings import COMPRESS_SERIALIZED_DAGS, json
+from airflow.settings import json
 from airflow.utils.hashlib_wrapper import md5
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.sqlalchemy import UtcDateTime, get_dialect_name, mapped_column
@@ -61,6 +62,9 @@ if TYPE_CHECKING:
 
 
 log = logging.getLogger(__name__)
+
+# If set to True, serialized DAGs is compressed before writing to DB,
+_COMPRESS_SERIALIZED_DAGS = conf.getboolean("core", "compress_serialized_dags", fallback=False)
 
 
 class _DagDependenciesResolver:
@@ -329,7 +333,7 @@ class SerializedDagModel(Base):
         # partially ordered json data
         dag_data_json = json.dumps(dag_data, sort_keys=True).encode("utf-8")
 
-        if COMPRESS_SERIALIZED_DAGS:
+        if _COMPRESS_SERIALIZED_DAGS:
             self._data = None
             self._data_compressed = zlib.compress(dag_data_json)
         else:
@@ -620,7 +624,7 @@ class SerializedDagModel(Base):
         """
         load_json: Callable
         data_col_to_select: ColumnElement[Any] | InstrumentedAttribute[bytes | None]
-        if COMPRESS_SERIALIZED_DAGS is False:
+        if _COMPRESS_SERIALIZED_DAGS is False:
             dialect = get_dialect_name(session)
             if dialect in ["sqlite", "mysql"]:
                 data_col_to_select = func.json_extract(cls._data, "$.dag.dag_dependencies")
