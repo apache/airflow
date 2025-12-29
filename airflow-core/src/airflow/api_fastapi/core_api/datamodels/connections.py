@@ -123,9 +123,9 @@ class ConnectionHookMetaData(BaseModel):
     standard_fields: StandardHookFields | None
     extra_fields: Mapping | None
 
-    @field_validator("extra_fields", mode="before")
+    @field_validator("extra_fields", mode="after")
     @classmethod
-    def redact_extra_fields(cls, v: Mapping | None) -> Mapping | None:
+    def redact_extra_fields(cls, v: Mapping | None):
         if v is None:
             return None
 
