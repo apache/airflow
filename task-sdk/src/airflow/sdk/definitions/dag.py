@@ -1438,7 +1438,9 @@ def _run_task(
 
                 log.info("[DAG TEST] running trigger in line")
                 # trigger_kwargs need to be deserialized before passing to the trigger class since they are in serde encoded format
-                kwargs = deserialize(msg.trigger_kwargs)  # type: ignore[type-var]  # mypy doesn't like passing JsonValue | str to deserialize but its correct
+                kwargs = deserialize(msg.trigger_kwargs)
+                if TYPE_CHECKING:
+                    assert isinstance(kwargs, dict)
                 trigger = import_string(msg.classpath)(**kwargs)
                 event = _run_inline_trigger(trigger, task_sdk_ti)
                 ti.next_method = msg.next_method
