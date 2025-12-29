@@ -38,6 +38,8 @@ import attrs
 from airflow.sdk import TriggerRule, timezone
 from airflow.sdk._shared.secrets_masker import redact
 from airflow.sdk.definitions._internal.abstractoperator import (
+    DEFAULT_EMAIL_ON_FAILURE,
+    DEFAULT_EMAIL_ON_RETRY,
     DEFAULT_IGNORE_FIRST_DEPENDS_ON_PAST,
     DEFAULT_OWNER,
     DEFAULT_POOL_NAME,
@@ -50,8 +52,6 @@ from airflow.sdk.definitions._internal.abstractoperator import (
     DEFAULT_TRIGGER_RULE,
     DEFAULT_WAIT_FOR_PAST_DEPENDS_BEFORE_SKIPPING,
     DEFAULT_WEIGHT_RULE,
-    DEFAULT_EMAIL_ON_FAILURE,
-    DEFAULT_EMAIL_ON_RETRY,
     AbstractOperator,
     DependencyMixin,
     TaskStateChangeCallback,
