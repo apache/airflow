@@ -1019,9 +1019,6 @@ class BigQueryGetDataOperator(GoogleCloudBaseOperator, _BigQueryOperatorsEncrypt
     )
     ui_color = BigQueryUIColors.QUERY.value
 
-    @deprecated(planned_removal_date = "June 30, 2026", use_instead = "table_project_id", 
-                category = AirflowProviderDeprecationWarning
-        )
     def __init__(
         self,
         *,
@@ -1044,14 +1041,6 @@ class BigQueryGetDataOperator(GoogleCloudBaseOperator, _BigQueryOperatorsEncrypt
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
-        
-        """ Handle deprecated 'project_id' parameter """
-        if project_id and not table_project_id:
-            table_project_id = project_id
-        elif project_id and table_project_id:
-            self.log.info(
-                "The 'project_id' parameter is deprecated. Please use 'table_project_id' instead."
-            )
 
         self.table_project_id = table_project_id
         self.dataset_id = dataset_id
@@ -1100,9 +1089,21 @@ class BigQueryGetDataOperator(GoogleCloudBaseOperator, _BigQueryOperatorsEncrypt
             f".{self.table_id}` limit {self.max_results}"
         )
         return query
-
+    
+    """Deprecated method to assign project_id to table_project_id."""
+    @deprecated(
+        planned_removal_date="June 30, 2026",
+        use_instead="table_project_id",
+        category=AirflowProviderDeprecationWarning,
+    )
+    def _assign_project_id(self, project_id: str) -> str:
+        return project_id
+    
     def execute(self, context: Context):
-
+        if self.project_id != PROVIDE_PROJECT_ID and not self.table_project_id:
+            self.table_project_id = self._assign_project_id(self.project_id)
+        elif self.project_id != PROVIDE_PROJECT_ID and self.table_project_id:
+            self.log.info("The 'project_id' parameter is deprecated. Please use 'table_project_id' instead.")
         if not exactly_one(self.job_id, self.table_id):
             raise AirflowException(
                 "'job_id' and 'table_id' parameters are mutually exclusive, "
