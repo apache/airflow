@@ -205,7 +205,7 @@ class TestHBaseBatchPutOperator:
         
         operator.execute({})
         
-        mock_hook.batch_put_rows.assert_called_once_with("test_table", rows, 1000, 4)
+        mock_hook.batch_put_rows.assert_called_once_with("test_table", rows, 200, 4)
 
 
 class TestHBaseBatchGetOperator:

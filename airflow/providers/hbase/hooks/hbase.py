@@ -356,7 +356,7 @@ class HBaseHook(BaseHook):
         """
         return self._get_strategy().scan_table(table_name, row_start, row_stop, columns, limit)
 
-    def batch_put_rows(self, table_name: str, rows: list[dict[str, Any]], batch_size: int = 1000, max_workers: int = 1) -> None:
+    def batch_put_rows(self, table_name: str, rows: list[dict[str, Any]], batch_size: int = 200, max_workers: int = 1) -> None:
         """Insert multiple rows in batch.
 
         :param table_name: Name of the table.

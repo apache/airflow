@@ -19,6 +19,7 @@
 
 from __future__ import annotations
 
+import time
 import concurrent.futures
 from abc import ABC, abstractmethod
 from typing import Any
@@ -81,7 +82,7 @@ class HBaseStrategy(ABC):
         pass
 
     @abstractmethod
-    def batch_put_rows(self, table_name: str, rows: list[dict[str, Any]], batch_size: int = 1000, max_workers: int = 4) -> None:
+    def batch_put_rows(self, table_name: str, rows: list[dict[str, Any]], batch_size: int = 200, max_workers: int = 4) -> None:
         """Insert multiple rows in batch with chunking and parallel processing."""
         pass
 
@@ -179,27 +180,28 @@ class ThriftStrategy(HBaseStrategy):
         table = self.connection.table(table_name)
         return [dict(data) for key, data in table.rows(row_keys, columns=columns)]
 
-    def batch_put_rows(self, table_name: str, rows: list[dict[str, Any]], batch_size: int = 1000, max_workers: int = 4) -> None:
-        """Insert multiple rows via Thrift with chunking and parallel processing."""
-        def process_chunk(chunk):
-            """Process a single chunk of rows."""
+    def batch_put_rows(self, table_name: str, rows: list[dict[str, Any]], batch_size: int = 200, max_workers: int = 1) -> None:
+        """Insert multiple rows via Thrift with chunking (single-threaded only)."""
+
+        # Single-threaded processing for ThriftStrategy
+        data_size = sum(len(str(row)) for row in rows)
+        self.log.info(f"Processing {len(rows)} rows, ~{data_size} bytes (single-threaded)")
+
+        try:
             table = self.connection.table(table_name)
-            with table.batch(batch_size=batch_size) as batch:  # Use built-in batch_size
-                for row in chunk:
+            with table.batch(batch_size=batch_size) as batch:
+                for row in rows:
                     if 'row_key' in row:
                         row_key = row.get('row_key')
                         row_data = {k: v for k, v in row.items() if k != 'row_key'}
                         batch.put(row_key, row_data)
 
-        # Split rows into chunks for parallel processing only
-        chunk_size = max(1, len(rows) // max_workers)
-        chunks = self._create_chunks(rows, chunk_size)
+            # Small backpressure
+            time.sleep(0.05)
 
-        # Process chunks in parallel
-        with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
-            futures = [executor.submit(process_chunk, chunk) for chunk in chunks]
-            for future in futures:
-                future.result()  # Propagate exceptions
+        except Exception as e:
+            self.log.error(f"Batch processing failed: {e}")
+            raise
 
     def scan_table(
         self,
@@ -301,22 +303,41 @@ class PooledThriftStrategy(HBaseStrategy):
             table = connection.table(table_name)
             return [dict(data) for key, data in table.rows(row_keys, columns=columns)]
 
-    def batch_put_rows(self, table_name: str, rows: list[dict[str, Any]], batch_size: int = 1000, max_workers: int = 4) -> None:
+    def batch_put_rows(self, table_name: str, rows: list[dict[str, Any]], batch_size: int = 200, max_workers: int = 4) -> None:
         """Insert multiple rows via pooled connection with chunking and parallel processing."""
+
+        # Ensure pool size is adequate for parallel processing
+        if hasattr(self.pool, '_size') and self.pool._size < max_workers:
+            self.log.warning(f"Pool size ({self.pool._size}) < max_workers ({max_workers}). Consider increasing pool size.")
+
         def process_chunk(chunk):
             """Process a single chunk of rows using pooled connection."""
-            with self.pool.connection() as connection:
-                table = connection.table(table_name)
-                with table.batch(batch_size=batch_size) as batch:  # Use built-in batch_size
-                    for row in chunk:
-                        if 'row_key' in row:
-                            row_key = row.get('row_key')
-                            row_data = {k: v for k, v in row.items() if k != 'row_key'}
-                            batch.put(row_key, row_data)
+            # Calculate data size for monitoring
+            data_size = sum(len(str(row)) for row in chunk)
+            self.log.info(f"Processing chunk: {len(chunk)} rows, ~{data_size} bytes")
 
-        # Split rows into chunks for parallel processing only
+            try:
+                with self.pool.connection() as connection:  # Get dedicated connection from pool
+                    table = connection.table(table_name)
+                    with table.batch(batch_size=batch_size) as batch:
+                        for row in chunk:
+                            if 'row_key' in row:
+                                row_key = row.get('row_key')
+                                row_data = {k: v for k, v in row.items() if k != 'row_key'}
+                                batch.put(row_key, row_data)
+
+                # Backpressure: small pause between chunks
+                time.sleep(0.1)
+
+            except Exception as e:
+                self.log.error(f"Chunk processing failed: {e}")
+                raise
+
+        # Split rows into chunks for parallel processing
         chunk_size = max(1, len(rows) // max_workers)
         chunks = self._create_chunks(rows, chunk_size)
+
+        self.log.info(f"Processing {len(rows)} rows in {len(chunks)} chunks with {max_workers} workers")
 
         # Process chunks in parallel using connection pool
         with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:

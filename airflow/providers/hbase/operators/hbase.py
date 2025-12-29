@@ -195,7 +195,7 @@ class HBaseBatchPutOperator(BaseOperator):
         self,
         table_name: str,
         rows: list[dict[str, Any]],
-        batch_size: int = 1000,
+        batch_size: int = 200,
         max_workers: int = 4,
         hbase_conn_id: str = HBaseHook.default_conn_name,
         **kwargs,

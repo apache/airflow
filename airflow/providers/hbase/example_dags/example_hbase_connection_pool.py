@@ -129,6 +129,8 @@ batch_put_data = HBaseBatchPutOperator(
             "cf2:city": "San Francisco",
         },
     ],
+    batch_size=500,   # Smaller batch for connection pool example
+    max_workers=2,    # Fewer workers for connection pool
     hbase_conn_id=HBASE_CONN_ID,
     dag=dag,
 )
