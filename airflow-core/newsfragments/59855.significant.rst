@@ -1,1 +1,1 @@
-Removed the redundant ``--conn-id`` option from the ``airflow connections list`` CLI command. Use 'airflow connections get` instead.
+Removed the redundant ``--conn-id`` option from the ``airflow connections list`` CLI command. Use ``airflow connections get`` instead.
