@@ -123,6 +123,14 @@ class ConnectionHookMetaData(BaseModel):
     standard_fields: StandardHookFields | None
     extra_fields: Mapping | None
 
+    @field_validator("extra_fields", mode="before")
+    @classmethod
+    def redact_extra_fields(cls, v: Mapping | None) -> Mapping | None:
+        if v is None:
+            return None
+
+        return redact(v)
+
 
 # Request Models
 class ConnectionBody(StrictBaseModel):
