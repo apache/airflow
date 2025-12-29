@@ -113,7 +113,7 @@ def test_catch_all_route_last(client):
 )
 def test_plugin_with_invalid_url_prefix(caplog, fastapi_apps, expected_message, invalid_path):
     app = FastAPI()
-    with mock.patch.object(plugins_manager, "fastapi_apps", fastapi_apps):
+    with mock.patch.object(plugins_manager, "get_fastapi_plugins", return_value=(fastapi_apps, [])):
         app_module.init_plugins(app)
 
     assert any(expected_message in rec.message for rec in caplog.records)
