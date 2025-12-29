@@ -177,12 +177,35 @@ class TestHBaseBatchPutOperator:
         operator = HBaseBatchPutOperator(
             task_id="test_batch_put",
             table_name="test_table",
+            rows=rows,
+            batch_size=500,
+            max_workers=2
+        )
+        
+        operator.execute({})
+        
+        mock_hook.batch_put_rows.assert_called_once_with("test_table", rows, 500, 2)
+
+    @patch("airflow.providers.hbase.operators.hbase.HBaseHook")
+    def test_execute_default_params(self, mock_hook_class):
+        """Test execute method with default parameters."""
+        mock_hook = MagicMock()
+        mock_hook_class.return_value = mock_hook
+
+        rows = [
+            {"row_key": "row1", "cf1:col1": "value1"},
+            {"row_key": "row2", "cf1:col1": "value2"}
+        ]
+
+        operator = HBaseBatchPutOperator(
+            task_id="test_batch_put",
+            table_name="test_table",
             rows=rows
         )
         
         operator.execute({})
         
-        mock_hook.batch_put_rows.assert_called_once_with("test_table", rows)
+        mock_hook.batch_put_rows.assert_called_once_with("test_table", rows, 1000, 4)
 
 
 class TestHBaseBatchGetOperator:

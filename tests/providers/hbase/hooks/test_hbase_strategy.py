@@ -262,9 +262,10 @@ class TestHBaseHookStrategy:
             {"row_key": "row1", "cf1:col1": "value1"},
             {"row_key": "row2", "cf1:col1": "value2"}
         ]
-        hook.batch_put_rows("test_table", rows)
+        hook.batch_put_rows("test_table", rows, batch_size=500, max_workers=2)
         
-        mock_table.batch.assert_called_once()
+        # Verify batch was called with batch_size
+        mock_table.batch.assert_called_with(batch_size=500)
 
     @patch("airflow.providers.hbase.hooks.hbase.happybase.Connection")
     @patch.object(HBaseHook, "get_connection")

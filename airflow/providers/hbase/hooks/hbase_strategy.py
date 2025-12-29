@@ -19,6 +19,7 @@
 
 from __future__ import annotations
 
+import concurrent.futures
 from abc import ABC, abstractmethod
 from typing import Any
 
@@ -29,6 +30,15 @@ from airflow.providers.ssh.hooks.ssh import SSHHook
 
 class HBaseStrategy(ABC):
     """Abstract base class for HBase connection strategies."""
+
+    @staticmethod
+    def _create_chunks(rows: list, chunk_size: int) -> list[list]:
+        """Split rows into chunks of specified size."""
+        if not rows:
+            return []
+        if chunk_size <= 0:
+            raise ValueError("chunk_size must be positive")
+        return [rows[i:i + chunk_size] for i in range(0, len(rows), chunk_size)]
 
     @abstractmethod
     def table_exists(self, table_name: str) -> bool:
@@ -71,8 +81,8 @@ class HBaseStrategy(ABC):
         pass
 
     @abstractmethod
-    def batch_put_rows(self, table_name: str, rows: list[dict[str, Any]]) -> None:
-        """Insert multiple rows in batch."""
+    def batch_put_rows(self, table_name: str, rows: list[dict[str, Any]], batch_size: int = 1000, max_workers: int = 4) -> None:
+        """Insert multiple rows in batch with chunking and parallel processing."""
         pass
 
     @abstractmethod
@@ -169,18 +179,27 @@ class ThriftStrategy(HBaseStrategy):
         table = self.connection.table(table_name)
         return [dict(data) for key, data in table.rows(row_keys, columns=columns)]
 
-    def batch_put_rows(self, table_name: str, rows: list[dict[str, Any]]) -> None:
-        """Insert multiple rows via Thrift."""
-        table = self.connection.table(table_name)
-        with table.batch() as batch:
-            for row in rows:
-                # Handle case where row_key might be in the row dict
-                if 'row_key' in row:
-                    row_key = row.pop('row_key')
-                    batch.put(row_key, row)
-                else:
-                    # If no row_key, skip this row
-                    continue
+    def batch_put_rows(self, table_name: str, rows: list[dict[str, Any]], batch_size: int = 1000, max_workers: int = 4) -> None:
+        """Insert multiple rows via Thrift with chunking and parallel processing."""
+        def process_chunk(chunk):
+            """Process a single chunk of rows."""
+            table = self.connection.table(table_name)
+            with table.batch(batch_size=batch_size) as batch:  # Use built-in batch_size
+                for row in chunk:
+                    if 'row_key' in row:
+                        row_key = row.get('row_key')
+                        row_data = {k: v for k, v in row.items() if k != 'row_key'}
+                        batch.put(row_key, row_data)
+
+        # Split rows into chunks for parallel processing only
+        chunk_size = max(1, len(rows) // max_workers)
+        chunks = self._create_chunks(rows, chunk_size)
+
+        # Process chunks in parallel
+        with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
+            futures = [executor.submit(process_chunk, chunk) for chunk in chunks]
+            for future in futures:
+                future.result()  # Propagate exceptions
 
     def scan_table(
         self,
@@ -282,19 +301,28 @@ class PooledThriftStrategy(HBaseStrategy):
             table = connection.table(table_name)
             return [dict(data) for key, data in table.rows(row_keys, columns=columns)]
 
-    def batch_put_rows(self, table_name: str, rows: list[dict[str, Any]]) -> None:
-        """Insert multiple rows via pooled connection."""
-        with self.pool.connection() as connection:
-            table = connection.table(table_name)
-            with table.batch() as batch:
-                for row in rows:
-                    # Handle case where row_key might be in the row dict
-                    if 'row_key' in row:
-                        row_key = row.pop('row_key')
-                        batch.put(row_key, row)
-                    else:
-                        # If no row_key, skip this row
-                        continue
+    def batch_put_rows(self, table_name: str, rows: list[dict[str, Any]], batch_size: int = 1000, max_workers: int = 4) -> None:
+        """Insert multiple rows via pooled connection with chunking and parallel processing."""
+        def process_chunk(chunk):
+            """Process a single chunk of rows using pooled connection."""
+            with self.pool.connection() as connection:
+                table = connection.table(table_name)
+                with table.batch(batch_size=batch_size) as batch:  # Use built-in batch_size
+                    for row in chunk:
+                        if 'row_key' in row:
+                            row_key = row.get('row_key')
+                            row_data = {k: v for k, v in row.items() if k != 'row_key'}
+                            batch.put(row_key, row_data)
+
+        # Split rows into chunks for parallel processing only
+        chunk_size = max(1, len(rows) // max_workers)
+        chunks = self._create_chunks(rows, chunk_size)
+
+        # Process chunks in parallel using connection pool
+        with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
+            futures = [executor.submit(process_chunk, chunk) for chunk in chunks]
+            for future in futures:
+                future.result()  # Propagate exceptions
 
     def scan_table(
         self,
@@ -354,7 +382,7 @@ class SSHStrategy(HBaseStrategy):
     def _execute_hbase_command(self, command: str) -> str:
         """Execute HBase shell command via SSH."""
         from airflow.hooks.base import BaseHook
-        
+
         conn = BaseHook.get_connection(self.hbase_conn_id)
         ssh_conn_id = conn.extra_dejson.get("ssh_conn_id") if conn.extra_dejson else None
         if not ssh_conn_id:
@@ -440,7 +468,7 @@ class SSHStrategy(HBaseStrategy):
         if columns:
             cols_str = "', '".join(columns)
             command = f"get '{table_name}', '{row_key}', '{cols_str}'"
-        result = self._execute_hbase_command(f"shell <<< \"{command}\"")
+        self._execute_hbase_command(f"shell <<< \"{command}\"")
         # TODO: Parse result - this is a simplified implementation
         return {}
 
@@ -456,7 +484,7 @@ class SSHStrategy(HBaseStrategy):
     def get_table_families(self, table_name: str) -> dict[str, dict]:
         """Get column families via SSH."""
         command = f"describe '{table_name}'"
-        result = self._execute_hbase_command(f"shell <<< \"{command}\"")
+        self._execute_hbase_command(f"shell <<< \"{command}\"")
         # TODO: Parse result - this is a simplified implementation
         # For now return empty dict, should parse HBase describe output
         return {}
@@ -469,15 +497,23 @@ class SSHStrategy(HBaseStrategy):
             results.append(row_data)
         return results
 
-    def batch_put_rows(self, table_name: str, rows: list[dict[str, Any]]) -> None:
-        """Insert multiple rows via SSH."""
-        puts = []
-        for row in rows:
-            row_key = row.pop('row_key')
-            for col, val in row.items():
-                puts.append(f"put '{table_name}', '{row_key}', '{col}', '{val}'")
-        command = "; ".join(puts)
-        self._execute_hbase_command(f"shell <<< \"{command}\"")
+    def batch_put_rows(self, table_name: str, rows: list[dict[str, Any]], batch_size: int = 1000, max_workers: int = 1) -> None:
+        """Insert multiple rows via SSH with chunking."""
+        # SSH strategy processes sequentially due to shell limitations
+        chunks = self._create_chunks(rows, batch_size)
+
+        for chunk in chunks:
+            puts = []
+            for row in chunk:
+                if 'row_key' in row:
+                    row_key = row.get('row_key')
+                    row_data = {k: v for k, v in row.items() if k != 'row_key'}
+                    for col, val in row_data.items():
+                        puts.append(f"put '{table_name}', '{row_key}', '{col}', '{val}'")
+
+            if puts:
+                command = "; ".join(puts)
+                self._execute_hbase_command(f"shell <<< \"{command}\"")
 
     def scan_table(
         self,
@@ -509,31 +545,31 @@ class SSHStrategy(HBaseStrategy):
     def create_full_backup(self, backup_root: str, backup_set_name: str | None = None, tables: list[str] | None = None, workers: int | None = None) -> str:
         """Create full backup via SSH."""
         command = f"backup create full {backup_root}"
-        
+
         if backup_set_name:
             command += f" -s {backup_set_name}"
         elif tables:
             tables_str = ",".join(tables)
             command += f" -t {tables_str}"
-        
+
         if workers:
             command += f" -w {workers}"
-        
+
         return self._execute_hbase_command(command)
 
     def create_incremental_backup(self, backup_root: str, backup_set_name: str | None = None, tables: list[str] | None = None, workers: int | None = None) -> str:
         """Create incremental backup via SSH."""
         command = f"backup create incremental {backup_root}"
-        
+
         if backup_set_name:
             command += f" -s {backup_set_name}"
         elif tables:
             tables_str = ",".join(tables)
             command += f" -t {tables_str}"
-        
+
         if workers:
             command += f" -w {workers}"
-        
+
         return self._execute_hbase_command(command)
 
     def get_backup_history(self, backup_set_name: str | None = None) -> str:
@@ -551,55 +587,55 @@ class SSHStrategy(HBaseStrategy):
     def restore_backup(self, backup_root: str, backup_id: str, tables: list[str] | None = None, overwrite: bool = False) -> str:
         """Restore backup via SSH."""
         command = f"restore {backup_root} {backup_id}"
-        
+
         if tables:
             tables_str = ",".join(tables)
             command += f" -t {tables_str}"
-        
+
         if overwrite:
             command += " -o"
-        
+
         return self._execute_hbase_command(command)
 
     def _mask_sensitive_command_parts(self, command: str) -> str:
         """
         Mask sensitive parts in HBase commands for logging.
-        
+
         :param command: Original command string.
         :return: Command with sensitive parts masked.
         """
         import re
-        
+
         # Mask potential keytab paths
         command = re.sub(r'(/[\w/.-]*\.keytab)', '***KEYTAB_PATH***', command)
-        
+
         # Mask potential passwords in commands
         command = re.sub(r'(password[=:]\s*[^\s]+)', 'password=***MASKED***', command, flags=re.IGNORECASE)
-        
+
         # Mask potential tokens
         command = re.sub(r'(token[=:]\s*[^\s]+)', 'token=***MASKED***', command, flags=re.IGNORECASE)
-        
+
         # Mask JAVA_HOME paths that might contain sensitive info
         command = re.sub(r'(JAVA_HOME=[^\s]+)', 'JAVA_HOME=***MASKED***', command)
-        
+
         return command
-    
+
     def _mask_sensitive_data_in_output(self, output: str) -> str:
         """
         Mask sensitive data in command output for logging.
-        
+
         :param output: Original output string.
         :return: Output with sensitive data masked.
         """
         import re
-        
+
         # Mask potential file paths that might contain sensitive info
         output = re.sub(r'(/[\w/.-]*\.keytab)', '***KEYTAB_PATH***', output)
-        
+
         # Mask potential passwords
         output = re.sub(r'(password[=:]\s*[^\s]+)', 'password=***MASKED***', output, flags=re.IGNORECASE)
-        
+
         # Mask potential authentication tokens
         output = re.sub(r'(token[=:]\s*[^\s]+)', 'token=***MASKED***', output, flags=re.IGNORECASE)
-        
+
         return output
