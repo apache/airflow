@@ -529,6 +529,13 @@ def test_assign_unassigned_with_qeueus(session, create_triggerer, create_trigger
     )
 
 
+def test_queue_column_max_len_matches_ti_column_max_len() -> None:
+    """Ensures that the `trigger.queue` column has the same max length as the `task_instance.queue` column."""
+    expected_queue_col_max_length_from_ti = TaskInstance.queue.property.columns[0].type.length
+    trigger_queue_col_max_length = Trigger.queue.property.columns[0].type.length
+    assert trigger_queue_col_max_length == expected_queue_col_max_length_from_ti
+
+
 @pytest.mark.need_serialized_dag
 @pytest.mark.parametrize("use_queues", [False, True])
 def test_get_sorted_triggers_same_priority_weight(session, create_task_instance, use_queues: bool):

@@ -98,7 +98,7 @@ class Trigger(Base):
     encrypted_kwargs: Mapped[str] = mapped_column("kwargs", Text, nullable=False)
     created_date: Mapped[datetime.datetime] = mapped_column(UtcDateTime, nullable=False)
     triggerer_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
-    queue: Mapped[str] = mapped_column(String(128), nullable=True)
+    queue: Mapped[str] = mapped_column(String(256), nullable=True)
 
     triggerer_job = relationship(
         "Job",
