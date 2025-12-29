@@ -575,7 +575,9 @@ class TestXComsDeleteEndpoint:
         assert xcoms is not None
         assert len(xcoms) == 2
 
-        response = client.delete(f"/execution/xcoms/{ti.dag_id}/{ti.run_id}/{ti.task_id}/xcom_1")
+        response = client.delete(
+            f"/execution/xcoms/{ti.dag_id}/{ti.run_id}", params={"task_id": ti.task_id, "key": "xcom_1"}
+        )
 
         assert response.status_code == 200
         assert response.json() == {"message": "XCom with key: xcom_1 successfully deleted."}
@@ -601,10 +603,10 @@ class TestXComsDeleteEndpoint:
     @pytest.mark.parametrize(
         ("task_id", "key", "expected_remaining", "expected_message"),
         [
-            pytest.param("~", "~", 0, "XCom entries successfully deleted.", id="all_xcoms_for_run"),
-            pytest.param("t1", "~", 2, "XCom entries successfully deleted.", id="all_keys_for_task"),
+            pytest.param(None, None, 0, "XCom entries successfully deleted.", id="all_xcoms_for_run"),
+            pytest.param("t1", None, 2, "XCom entries successfully deleted.", id="all_keys_for_task"),
             pytest.param(
-                "~", "xcom_3", 3, "XCom with key: xcom_3 successfully deleted.", id="specific_key_all_tasks"
+                None, "xcom_3", 3, "XCom with key: xcom_3 successfully deleted.", id="specific_key_all_tasks"
             ),
         ],
     )
@@ -618,7 +620,7 @@ class TestXComsDeleteEndpoint:
         expected_remaining,
         expected_message,
     ):
-        """Test XCom deletion endpoint with wildcard patterns for specific and bulk deletions."""
+        """Test XCom bulk deletions."""
 
         with dag_maker(dag_id="dag"):
             EmptyOperator(task_id="t1")
@@ -636,7 +638,12 @@ class TestXComsDeleteEndpoint:
         ti2.xcom_push(key="xcom_3", value='"value3"', session=session)
         session.commit()
 
-        response = client.delete(f"/execution/xcoms/{ti.dag_id}/{ti.run_id}/{task_id}/{key}")
+        params = {}
+        if task_id is not None:
+            params["task_id"] = task_id
+        if key is not None:
+            params["key"] = key
+        response = client.delete(f"/execution/xcoms/{ti.dag_id}/{ti.run_id}", params=params)
 
         assert response.status_code == 200
         assert response.json() == {"message": f"{expected_message}"}

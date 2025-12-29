@@ -541,13 +541,17 @@ class XComOperations:
         key: str | None = None,
         map_index: int | None = None,
     ) -> OKResponse:
-        """Delete a XCom with given key via the API server."""
-        task_id_param = task_id if task_id is not None else "~"
-        key_param = key if key is not None else "~"
-        url = f"xcoms/{dag_id}/{run_id}/{task_id_param}/{key_param}"
+        """Delete XCom entry(ies) via the API server."""
+        url = f"xcoms/{dag_id}/{run_id}"
         params = {}
+
         if map_index is not None and map_index >= 0:
-            params = {"map_index": map_index}
+            params["map_index"] = map_index
+        if task_id is not None:
+            params["task_id"] = task_id
+        if key is not None:
+            params["key"] = key
+
         self.client.delete(url=url, params=params)
         # Any error from the server will anyway be propagated down to the supervisor,
         # so we choose to send a generic response to the supervisor over the server response to
