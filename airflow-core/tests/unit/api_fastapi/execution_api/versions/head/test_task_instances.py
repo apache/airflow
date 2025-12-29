@@ -566,8 +566,6 @@ class TestTIRunState:
         assert response.json()["upstream_map_indexes"] == {"tg.task_2": None}
 
     def test_next_kwargs_still_encoded(self, client, session, create_task_instance, time_machine):
-        from airflow.sdk.serde import serialize
-
         instant_str = "2024-09-30T12:00:00Z"
         instant = timezone.parse(instant_str)
         time_machine.move_to(instant, tick=False)
@@ -581,9 +579,22 @@ class TestTIRunState:
         )
 
         ti.next_method = "execute_complete"
-        # explicitly serialize using serde before assigning since we use JSON/JSONB now
-        # this value comes serde serialized from the worker
-        expected_next_kwargs = serialize({"moment": instant})
+        # explicitly use serde serialized value before assigning since we use JSON/JSONB now
+        # that this value comes serde serialized from the worker
+        expected_next_kwargs = {
+            "moment": {
+                "__classname__": "pendulum.datetime.DateTime",
+                "__version__": 2,
+                "__data__": {
+                    "timestamp": 1727697600.0,
+                    "tz": {
+                        "__classname__": "builtins.tuple",
+                        "__version__": 1,
+                        "__data__": ["UTC", "pendulum.tz.timezone.Timezone", 1, True],
+                    },
+                },
+            }
+        }
         ti.next_kwargs = expected_next_kwargs
 
         session.commit()
@@ -615,8 +626,6 @@ class TestTIRunState:
 
     @pytest.mark.parametrize("resume", [True, False])
     def test_next_kwargs_determines_start_date_update(self, client, session, create_task_instance, resume):
-        from airflow.sdk.serde import serialize
-
         dag_start_time_str = "2024-09-30T12:00:00Z"
         dag_start_time = timezone.parse(dag_start_time_str)
         orig_task_start_time = dag_start_time.add(seconds=5)
@@ -639,7 +648,20 @@ class TestTIRunState:
         # this value comes serde serialized from the worker
         if resume:
             # expected format is now in serde serialized format
-            expected_next_kwargs = serialize({"moment": second_start_time})
+            expected_next_kwargs = {
+                "moment": {
+                    "__classname__": "pendulum.datetime.DateTime",
+                    "__version__": 2,
+                    "__data__": {
+                        "timestamp": 1727697635.0,
+                        "tz": {
+                            "__classname__": "builtins.tuple",
+                            "__version__": 1,
+                            "__data__": ["UTC", "pendulum.tz.timezone.Timezone", 1, True],
+                        },
+                    },
+                }
+            }
             ti.next_kwargs = expected_next_kwargs
             expected_start_date = orig_task_start_time
         else:
@@ -1123,10 +1145,9 @@ class TestTIUpdateState:
         instant = timezone.datetime(2024, 11, 22)
         time_machine.move_to(instant, tick=False)
 
-        from airflow.sdk.serde import serialize
-
         payload = {
             "state": "deferred",
+            # expected format is now in serde serialized format
             "trigger_kwargs": {
                 "key": "value",
                 "moment": {
@@ -1145,9 +1166,22 @@ class TestTIUpdateState:
             "trigger_timeout": "P1D",  # 1 day
             "classpath": "my-classpath",
             "next_method": "execute_callback",
-            "next_kwargs": serialize(
-                {"foo": datetime(2024, 12, 18, 0, 0, 0, tzinfo=timezone.utc), "bar": "abc"}
-            ),
+            # expected format is now in serde serialized format
+            "next_kwargs": {
+                "foo": {
+                    "__classname__": "datetime.datetime",
+                    "__version__": 2,
+                    "__data__": {
+                        "timestamp": 1734480000.0,
+                        "tz": {
+                            "__classname__": "builtins.tuple",
+                            "__version__": 1,
+                            "__data__": ["UTC", "pendulum.tz.timezone.Timezone", 1, True],
+                        },
+                    },
+                },
+                "bar": "abc",
+            },
         }
 
         response = client.patch(f"/execution/task-instances/{ti.id}/state", json=payload)
@@ -1162,14 +1196,22 @@ class TestTIUpdateState:
 
         assert tis[0].state == TaskInstanceState.DEFERRED
         assert tis[0].next_method == "execute_callback"
-        from airflow.sdk.serde import serialize
 
-        assert tis[0].next_kwargs == serialize(
-            {
-                "bar": "abc",
-                "foo": datetime(2024, 12, 18, 00, 00, 00, tzinfo=timezone.utc),
-            }
-        )
+        assert tis[0].next_kwargs == {
+            "foo": {
+                "__classname__": "datetime.datetime",
+                "__version__": 2,
+                "__data__": {
+                    "timestamp": 1734480000.0,
+                    "tz": {
+                        "__classname__": "builtins.tuple",
+                        "__version__": 1,
+                        "__data__": ["UTC", "pendulum.tz.timezone.Timezone", 1, True],
+                    },
+                },
+            },
+            "bar": "abc",
+        }
         assert tis[0].trigger_timeout == timezone.make_aware(datetime(2024, 11, 23), timezone=timezone.utc)
 
         t = session.scalars(select(Trigger)).all()
