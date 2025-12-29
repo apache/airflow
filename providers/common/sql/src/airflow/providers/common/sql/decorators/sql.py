@@ -38,10 +38,9 @@ class _SQLDecoratedOperator(DecoratedOperator, SQLExecuteQueryOperator):
     """
     Wraps a Python callable and uses the callable return value as the SQL command to be executed.
 
-    TODO: Comeback and update these!
-    :param python_callable:
-    :param op_kwargs:
-    :param op_args:
+    :param python_callable: A reference to an object that is callable.
+    :param op_kwargs: A dictionary of keyword arguments that will get unpacked (templated).
+    :param op_args: A list of positional arguments that will get unpacked (templated).
     """
 
     template_fields: Sequence[str] = (
@@ -67,7 +66,7 @@ class _SQLDecoratedOperator(DecoratedOperator, SQLExecuteQueryOperator):
             op_args=op_args,
             op_kwargs=op_kwargs,
             sql=SET_DURING_EXECUTION,
-            # TODO: Comeback and add more
+            # TODO: Comeback and add more, such as sql_conn, etc.
             **kwargs,
         )
 
