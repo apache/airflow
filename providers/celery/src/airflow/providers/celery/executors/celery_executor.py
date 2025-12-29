@@ -51,7 +51,6 @@ CELERY_SEND_ERR_MSG_HEADER = "Error sending Celery task"
 
 
 if TYPE_CHECKING:
-    import argparse
     from collections.abc import Sequence
 
     from sqlalchemy.orm import Session
@@ -368,12 +367,3 @@ class CeleryExecutor(BaseExecutor):
             raise RuntimeError(f"{type(self)} cannot handle workloads of type {type(workload)}")
         ti = workload.ti
         self.queued_tasks[ti.key] = workload
-
-
-def _get_parser() -> argparse.ArgumentParser:
-    """
-    Generate documentation; used by Sphinx.
-
-    :meta private:
-    """
-    return CeleryExecutor._get_parser()

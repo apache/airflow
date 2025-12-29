@@ -16,7 +16,6 @@
 # under the License.
 from __future__ import annotations
 
-import argparse
 from collections import defaultdict
 from collections.abc import Sequence
 from functools import cached_property
@@ -27,7 +26,7 @@ from fastapi import FastAPI
 
 from airflow.api_fastapi.app import AUTH_MANAGER_FASTAPI_APP_PREFIX
 from airflow.api_fastapi.auth.managers.base_auth_manager import BaseAuthManager
-from airflow.cli.cli_config import CLICommand, DefaultHelpParser
+from airflow.cli.cli_config import CLICommand
 from airflow.exceptions import AirflowOptionalProviderFeatureException
 from airflow.providers.amazon.aws.auth_manager.avp.entities import AvpEntities
 from airflow.providers.amazon.aws.auth_manager.avp.facade import (
@@ -59,6 +58,7 @@ if TYPE_CHECKING:
         VariableDetails,
     )
     from airflow.api_fastapi.common.types import MenuItem
+    from airflow.cli.cli_config import CLICommand
 
 
 class AwsAuthManager(BaseAuthManager[AwsAuthManagerUser]):
@@ -508,14 +508,3 @@ class AwsAuthManager(BaseAuthManager[AwsAuthManagerUser]):
                 "Please update it to its latest version. "
                 "See doc: https://airflow.apache.org/docs/apache-airflow-providers-amazon/stable/auth-manager/setup/amazon-verified-permissions.html#update-the-policy-store-schema."
             )
-
-
-def get_parser() -> argparse.ArgumentParser:
-    """Generate documentation; used by Sphinx argparse."""
-    from airflow.cli.cli_parser import AirflowHelpFormatter, _add_command
-
-    parser = DefaultHelpParser(prog="airflow", formatter_class=AirflowHelpFormatter)
-    subparsers = parser.add_subparsers(dest="subcommand", metavar="GROUP_OR_COMMAND")
-    for group_command in AwsAuthManager.get_cli_commands():
-        _add_command(subparsers, group_command)
-    return parser

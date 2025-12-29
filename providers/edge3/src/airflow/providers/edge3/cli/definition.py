@@ -16,8 +16,14 @@
 # under the License.
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 from airflow.cli.cli_config import ARG_PID, ARG_VERBOSE, ActionCommand, Arg, GroupCommand, lazy_load_command
 from airflow.configuration import conf
+
+if TYPE_CHECKING:
+    import argparse
+
 
 ARG_CONCURRENCY = Arg(
     ("-c", "--concurrency"),
@@ -238,3 +244,18 @@ def get_edge_cli_commands() -> list[GroupCommand]:
             subcommands=EDGE_COMMANDS,
         ),
     ]
+
+
+def get_parser() -> argparse.ArgumentParser:
+    """
+    Generate documentation; used by Sphinx.
+
+    :meta private:
+    """
+    from airflow.cli.cli_parser import AirflowHelpFormatter, DefaultHelpParser, _add_command
+
+    parser = DefaultHelpParser(prog="airflow", formatter_class=AirflowHelpFormatter)
+    subparsers = parser.add_subparsers(dest="subcommand", metavar="GROUP_OR_COMMAND")
+    for group_command in get_edge_cli_commands():
+        _add_command(subparsers, group_command)
+    return parser

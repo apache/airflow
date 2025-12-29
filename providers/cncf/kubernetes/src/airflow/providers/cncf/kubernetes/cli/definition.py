@@ -16,6 +16,8 @@
 # under the License.
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 from airflow.cli.cli_config import (
     ARG_DAG_ID,
     ARG_OUTPUT_PATH,
@@ -28,6 +30,10 @@ from airflow.cli.cli_config import (
 )
 from airflow.configuration import conf
 from airflow.providers.cncf.kubernetes.version_compat import AIRFLOW_V_3_0_PLUS
+
+if TYPE_CHECKING:
+    import argparse
+
 
 try:
     from airflow.cli.cli_config import ARG_LOGICAL_DATE
@@ -92,3 +98,18 @@ def get_kubernetes_cli_commands() -> list[GroupCommand]:
             subcommands=KUBERNETES_COMMANDS,
         )
     ]
+
+
+def get_parser() -> argparse.ArgumentParser:
+    """
+    Generate documentation; used by Sphinx.
+
+    :meta private:
+    """
+    from airflow.cli.cli_parser import AirflowHelpFormatter, DefaultHelpParser, _add_command
+
+    parser = DefaultHelpParser(prog="airflow", formatter_class=AirflowHelpFormatter)
+    subparsers = parser.add_subparsers(dest="subcommand", metavar="GROUP_OR_COMMAND")
+    for group_command in get_kubernetes_cli_commands():
+        _add_command(subparsers, group_command)
+    return parser

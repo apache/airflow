@@ -59,7 +59,6 @@ from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.state import TaskInstanceState
 
 if TYPE_CHECKING:
-    import argparse
     from collections.abc import Sequence
 
     from kubernetes import client
@@ -751,12 +750,3 @@ class KubernetesExecutor(BaseExecutor):
         from airflow.providers.cncf.kubernetes.cli.definition import get_kubernetes_cli_commands
 
         return get_kubernetes_cli_commands()
-
-
-def _get_parser() -> argparse.ArgumentParser:
-    """
-    Generate documentation; used by Sphinx.
-
-    :meta private:
-    """
-    return KubernetesExecutor._get_parser()

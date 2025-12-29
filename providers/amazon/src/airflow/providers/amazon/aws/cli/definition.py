@@ -17,11 +17,16 @@
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 from airflow.cli.cli_config import (
     ActionCommand,
     Arg,
     lazy_load_command,
 )
+
+if TYPE_CHECKING:
+    import argparse
 
 ############
 # # ARGS # #
@@ -71,3 +76,18 @@ def get_aws_cli_commands():
             subcommands=AWS_AUTH_MANAGER_COMMANDS,
         ),
     ]
+
+
+def get_parser() -> argparse.ArgumentParser:
+    """
+    Generate documentation; used by Sphinx argparse.
+
+    :meta private:
+    """
+    from airflow.cli.cli_parser import AirflowHelpFormatter, DefaultHelpParser, _add_command
+
+    parser = DefaultHelpParser(prog="airflow", formatter_class=AirflowHelpFormatter)
+    subparsers = parser.add_subparsers(dest="subcommand", metavar="GROUP_OR_COMMAND")
+    for group_command in get_aws_cli_commands():
+        _add_command(subparsers, group_command)
+    return parser

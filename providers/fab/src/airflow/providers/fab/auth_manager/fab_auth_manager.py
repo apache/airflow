@@ -17,7 +17,6 @@
 # under the License.
 from __future__ import annotations
 
-import argparse
 from functools import cached_property
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
@@ -50,7 +49,6 @@ from airflow.api_fastapi.auth.managers.models.resource_details import (
     VariableDetails,
 )
 from airflow.api_fastapi.common.types import ExtraMenuItem, MenuItem
-from airflow.cli.cli_config import DefaultHelpParser
 from airflow.configuration import conf
 from airflow.exceptions import AirflowConfigException
 from airflow.models import Connection, DagModel, Pool, Variable
@@ -731,15 +729,3 @@ class FabAuthManager(BaseAuthManager[User]):
         # delete the old ones.
         if conf.getboolean("fab", "UPDATE_FAB_PERMS"):
             self.security_manager.sync_roles()
-
-
-def get_parser() -> argparse.ArgumentParser:
-    """Generate documentation; used by Sphinx argparse."""
-    from airflow.cli.cli_parser import AirflowHelpFormatter, _add_command
-    from airflow.providers.fab.cli.definition import get_fab_cli_commands
-
-    parser = DefaultHelpParser(prog="airflow", formatter_class=AirflowHelpFormatter)
-    subparsers = parser.add_subparsers(dest="subcommand", metavar="GROUP_OR_COMMAND")
-    for group_command in get_fab_cli_commands():
-        _add_command(subparsers, group_command)
-    return parser

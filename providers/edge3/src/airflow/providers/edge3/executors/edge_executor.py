@@ -40,8 +40,6 @@ from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.state import TaskInstanceState
 
 if TYPE_CHECKING:
-    import argparse
-
     from sqlalchemy.engine.base import Engine
 
     from airflow.cli.cli_config import GroupCommand
@@ -385,12 +383,3 @@ class EdgeExecutor(BaseExecutor):
         from airflow.providers.edge3.cli.definition import get_edge_cli_commands
 
         return get_edge_cli_commands()
-
-
-def _get_parser() -> argparse.ArgumentParser:
-    """
-    Generate documentation; used by Sphinx.
-
-    :meta private:
-    """
-    return EdgeExecutor._get_parser()

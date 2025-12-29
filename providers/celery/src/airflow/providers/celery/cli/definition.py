@@ -18,6 +18,8 @@
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 from airflow.cli.cli_config import (
     ARG_DAEMON,
     ARG_LOG_FILE,
@@ -32,6 +34,9 @@ from airflow.cli.cli_config import (
     lazy_load_command,
 )
 from airflow.configuration import conf
+
+if TYPE_CHECKING:
+    import argparse
 
 # flower cli args
 ARG_BROKER_API = Arg(("-a", "--broker-api"), help="Broker API")
@@ -232,3 +237,18 @@ CELERY_CLI_COMMANDS = [
 def get_celery_cli_commands():
     """Return CLI commands for Celery executor."""
     return CELERY_CLI_COMMANDS
+
+
+def get_parser() -> argparse.ArgumentParser:
+    """
+    Generate documentation; used by Sphinx.
+
+    :meta private:
+    """
+    from airflow.cli.cli_parser import AirflowHelpFormatter, DefaultHelpParser, _add_command
+
+    parser = DefaultHelpParser(prog="airflow", formatter_class=AirflowHelpFormatter)
+    subparsers = parser.add_subparsers(dest="subcommand", metavar="GROUP_OR_COMMAND")
+    for group_command in get_celery_cli_commands():
+        _add_command(subparsers, group_command)
+    return parser
