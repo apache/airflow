@@ -35,6 +35,8 @@ class ConfigOption(StrictBaseModel):
     def redact_value(self) -> Self:
         if self.value is None:
             return self
+        if isinstance(self.value, tuple):
+            return self
         try:
             value_dict = json.loads(self.value)
             redacted_dict = redact(value_dict, max_depth=1)
