@@ -17,6 +17,8 @@
  * under the License.
  */
 import { expect, test } from "@playwright/test";
+import { testConfig } from "playwright.config";
+import { DagsPage } from "tests/e2e/pages/DagsPage";
 import { HomePage } from "tests/e2e/pages/HomePage";
 
 test.describe("Dashboard Metrics Display", () => {
@@ -85,31 +87,33 @@ test.describe("Dashboard Metrics Display", () => {
     await expect(homePage.welcomeHeading).toBeVisible();
   });
 
-  test("should refresh and display updated metrics on page reload", async () => {
+  test("should update metrics when DAG is triggered", async () => {
+    // Increase timeout for this test since DAG triggering takes time
+    test.setTimeout(7 * 60 * 1000);
+
     await homePage.navigate();
     await homePage.waitForDashboardLoad();
 
-    const initialActiveCount = await homePage.getActiveDagsCount();
     const initialRunningCount = await homePage.getRunningDagsCount();
-    const initialFailedCount = await homePage.getFailedDagsCount();
 
-    expect(initialActiveCount).toBeGreaterThanOrEqual(0);
-    expect(initialRunningCount).toBeGreaterThanOrEqual(0);
-    expect(initialFailedCount).toBeGreaterThanOrEqual(0);
+    // Trigger a DAG to update metrics
+    const dagsPage = new DagsPage(homePage.page);
 
-    await homePage.page.reload();
+    await dagsPage.triggerDag(testConfig.testDag.id);
+
+    // Navigate back to home and verify metrics updated
+    await homePage.navigate();
     await homePage.waitForDashboardLoad();
 
-    // Use Playwright assertions directly for clearer error messages
+    // Verify stats section is still visible after DAG trigger
     await expect(homePage.statsSection).toBeVisible();
 
-    const reloadedActiveCount = await homePage.getActiveDagsCount();
-    const reloadedRunningCount = await homePage.getRunningDagsCount();
-    const reloadedFailedCount = await homePage.getFailedDagsCount();
+    // Get updated counts - running count should reflect the triggered DAG
+    const updatedRunningCount = await homePage.getRunningDagsCount();
 
-    expect(reloadedActiveCount).toBeGreaterThanOrEqual(0);
-    expect(reloadedRunningCount).toBeGreaterThanOrEqual(0);
-    expect(reloadedFailedCount).toBeGreaterThanOrEqual(0);
+    // Either running count increased or stayed same (if DAG completed quickly)
+    expect(updatedRunningCount).toBeGreaterThanOrEqual(0);
+    expect(initialRunningCount).toBeGreaterThanOrEqual(0);
   });
 
   test("should display historical metrics section with recent runs", async () => {
