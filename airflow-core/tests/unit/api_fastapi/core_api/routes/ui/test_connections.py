@@ -21,10 +21,11 @@ from unittest import mock
 import pytest
 
 from airflow.api_fastapi.core_api.datamodels.connections import (
+    ConnectionHookFieldBehavior,
     ConnectionHookMetaData,
     StandardHookFields,
-    ConnectionHookFieldBehavior,
 )
+
 from tests_common.test_utils.asserts import assert_queries_count
 from tests_common.test_utils.markers import skip_if_force_lowest_dependencies_marker
 
