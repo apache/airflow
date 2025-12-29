@@ -157,6 +157,9 @@ dependencies = [
     # Start of shared configuration dependencies
     "pyyaml>=6.0.3",
     # End of shared configuration dependencies
+    # Start of shared listeners dependencies
+    "pluggy>=1.5.0",
+    # End of shared listeners dependencies
 ]
 
 

@@ -78,7 +78,7 @@ dependencies = [
     "typing-extensions>=4.14.1",
     # End of shared configuration dependencies
     # Start of shared listeners dependencies
-    "pluggy>=1.0.0",
+    "pluggy>=1.5.0",
     # End of shared listeners dependencies
 ]
 
