@@ -630,6 +630,7 @@ You can also set it by env variable: `export AIRFLOW__CORE__LOAD_EXAMPLES=True`
 
 * optionally expose configuration (NOTE! that this is dangerous setting). The script will happily run with
   the default setting, but if you want to see the configuration, you need to expose it.
+  Note that sensitive configuration values are values are always masked
   In the `[api]` section of your `airflow.cfg` set:
 
 ```ini
