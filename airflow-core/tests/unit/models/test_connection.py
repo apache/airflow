@@ -383,7 +383,6 @@ class TestConnection:
             with pytest.raises(AirflowNotFoundException):
                 Connection.get_connection_from_secrets("test_conn")
 
-    @mock.patch.dict(sys.modules, {"airflow.sdk.execution_time.task_runner": None})
     @mock.patch("airflow.sdk.Connection")
     @mock.patch("airflow.secrets.environment_variables.EnvironmentVariablesBackend.get_connection")
     @mock.patch("airflow.secrets.metastore.MetastoreBackend.get_connection")
