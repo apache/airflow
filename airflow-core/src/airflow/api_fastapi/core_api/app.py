@@ -33,11 +33,11 @@ from starlette.templating import Jinja2Templates
 from airflow.api_fastapi.auth.tokens import get_signing_key
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
-from airflow.settings import AIRFLOW_PATH
 
 log = logging.getLogger(__name__)
 
-PY313 = sys.version_info >= (3, 13)
+_PY313 = sys.version_info >= (3, 13)
+_AIRFLOW_PATH = Path(__file__).parents[3]
 
 
 def init_views(app: FastAPI) -> None:
@@ -50,7 +50,7 @@ def init_views(app: FastAPI) -> None:
 
     dev_mode = os.environ.get("DEV_MODE", str(False)) == "true"
 
-    directory = Path(AIRFLOW_PATH) / ("airflow/ui/dev" if dev_mode else "airflow/ui/dist")
+    directory = _AIRFLOW_PATH / ("airflow/ui/dev" if dev_mode else "airflow/ui/dist")
 
     # During python tests or when the backend is run without having the frontend build
     # those directories might not exist. App should not fail initializing in those scenarios.
@@ -61,7 +61,7 @@ def init_views(app: FastAPI) -> None:
     if dev_mode:
         app.mount(
             "/static/i18n/locales",
-            StaticFiles(directory=Path(AIRFLOW_PATH) / "airflow/ui/public/i18n/locales"),
+            StaticFiles(directory=_AIRFLOW_PATH / "airflow/ui/public/i18n/locales"),
             name="dev_i18n_static",
         )
 
@@ -124,7 +124,7 @@ def init_flask_plugins(app: FastAPI) -> None:
     try:
         from airflow.providers.fab.www.app import create_app
     except ImportError:
-        if PY313:
+        if _PY313:
             log.info(
                 "Some Airflow 2 plugins have been detected in your environment. Currently FAB provider "
                 "does not support Python 3.13, so you cannot use Airflow 2 plugins with Airflow 3 until "
