@@ -33,7 +33,6 @@ from airflow.dag_processing.bundles.manager import DagBundlesManager
 from airflow.dag_processing.dagbag import DagBag, sync_bag_to_db
 from airflow.jobs.job import Job
 from airflow.jobs.triggerer_job_runner import TriggererJobRunner
-from airflow.listeners.listener import get_listener_manager
 from airflow.models import DagRun, Log, TaskInstance
 from airflow.models.dag_version import DagVersion
 from airflow.models.hitl import HITLDetail
@@ -3923,12 +3922,6 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
     TASK_ID = "print_the_context"
     RUN_ID = "TEST_DAG_RUN_ID"
 
-    @pytest.fixture(autouse=True)
-    def clean_listener_manager(self):
-        get_listener_manager().clear()
-        yield
-        get_listener_manager().clear()
-
     @pytest.mark.parametrize(
         ("state", "listener_state"),
         [
@@ -3937,13 +3930,15 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
             ("skipped", []),
         ],
     )
-    def test_patch_task_instance_notifies_listeners(self, test_client, session, state, listener_state):
+    def test_patch_task_instance_notifies_listeners(
+        self, test_client, session, state, listener_state, listener_manager
+    ):
         from unit.listeners.class_listener import ClassBasedListener
 
         self.create_task_instances(session)
 
         listener = ClassBasedListener()
-        get_listener_manager().add_listener(listener)
+        listener_manager(listener)
         test_client.patch(
             self.ENDPOINT_URL,
             json={
