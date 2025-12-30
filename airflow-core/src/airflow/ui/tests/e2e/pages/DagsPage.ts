@@ -16,13 +16,13 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import type { Locator, Page } from "@playwright/test";
+import { expect, type Locator, type Page } from "@playwright/test";
 import { BasePage } from "tests/e2e/pages/BasePage";
 
 import type { DAGRunResponse } from "openapi/requests/types.gen";
 
 /**
- * DAGs Page Object
+ * Dags Page Object
  */
 export class DagsPage extends BasePage {
   // Page URLs
@@ -33,6 +33,10 @@ export class DagsPage extends BasePage {
   // Core page elements
   public readonly confirmButton: Locator;
   public readonly dagsTable: Locator;
+  // Pagination elements
+  public readonly paginationNextButton: Locator;
+  public readonly paginationPrevButton: Locator;
+
   public readonly stateElement: Locator;
   public readonly triggerButton: Locator;
 
@@ -42,6 +46,8 @@ export class DagsPage extends BasePage {
     this.triggerButton = page.locator('button[aria-label="Trigger Dag"]:has-text("Trigger")');
     this.confirmButton = page.locator('button:has-text("Trigger")').nth(1);
     this.stateElement = page.locator('*:has-text("State") + *').first();
+    this.paginationNextButton = page.locator('[data-testid="next"]');
+    this.paginationPrevButton = page.locator('[data-testid="prev"]');
   }
 
   // URL builders for dynamic paths
@@ -54,29 +60,93 @@ export class DagsPage extends BasePage {
   }
 
   /**
-   * Navigate to DAGs list page
+   * Click next page button
+   */
+  public async clickNextPage(): Promise<void> {
+    await this.paginationNextButton.click();
+    await this.waitForDagList();
+  }
+
+  /**
+   * Click previous page button
+   */
+  public async clickPrevPage(): Promise<void> {
+    await this.paginationPrevButton.click();
+    await this.waitForDagList();
+  }
+
+  /**
+   * Get all Dag names from the current page
+   */
+  public async getDagNames(): Promise<Array<string>> {
+    await this.waitForDagList();
+    const dagLinks = this.page.locator('[data-testid="dag-id"]');
+    const texts = await dagLinks.allTextContents();
+
+    return texts.map((text) => text.trim()).filter((text) => text !== "");
+  }
+
+  /**
+   * Navigate to Dags list page
    */
   public async navigate(): Promise<void> {
     await this.navigateTo(DagsPage.dagsListUrl);
   }
 
   /**
-   * Navigate to DAG detail page
+   * Navigate to Dag detail page
    */
   public async navigateToDagDetail(dagName: string): Promise<void> {
     await this.navigateTo(DagsPage.getDagDetailUrl(dagName));
   }
 
   /**
-   * Trigger a DAG run
+   * Trigger a Dag run
    */
   public async triggerDag(dagName: string): Promise<string | null> {
     await this.navigateToDagDetail(dagName);
-    await this.triggerButton.waitFor({ state: "visible", timeout: 10_000 });
+    await expect(this.triggerButton).toBeVisible({ timeout: 10_000 });
     await this.triggerButton.click();
     const dagRunId = await this.handleTriggerDialog();
 
     return dagRunId;
+  }
+
+  /**
+   * Navigate to details tab and verify Dag details are displayed correctly
+   */
+  public async verifyDagDetails(dagName: string): Promise<void> {
+    await this.navigateToDagDetail(dagName);
+
+    const detailsTab = this.page.locator('a[href$="/details"]');
+
+    await expect(detailsTab).toBeVisible();
+    await detailsTab.click();
+
+    // Verify the details table is present
+    const detailsTable = this.page.locator('[data-testid="dag-details-table"]');
+
+    await expect(detailsTable).toBeVisible();
+
+    // Verify all metadata fields are present
+    await expect(this.page.locator('[data-testid="dag-id-row"]')).toBeVisible();
+    await expect(this.page.locator('[data-testid="description-row"]')).toBeVisible();
+    await expect(this.page.locator('[data-testid="timezone-row"]')).toBeVisible();
+    await expect(this.page.locator('[data-testid="file-location-row"]')).toBeVisible();
+    await expect(this.page.locator('[data-testid="last-parsed-row"]')).toBeVisible();
+    await expect(this.page.locator('[data-testid="last-parse-duration-row"]')).toBeVisible();
+    await expect(this.page.locator('[data-testid="latest-dag-version-row"]')).toBeVisible();
+    await expect(this.page.locator('[data-testid="start-date-row"]')).toBeVisible();
+    await expect(this.page.locator('[data-testid="end-date-row"]')).toBeVisible();
+    await expect(this.page.locator('[data-testid="last-expired-row"]')).toBeVisible();
+    await expect(this.page.locator('[data-testid="has-task-concurrency-limits-row"]')).toBeVisible();
+    await expect(this.page.locator('[data-testid="dag-run-timeout-row"]')).toBeVisible();
+    await expect(this.page.locator('[data-testid="max-active-runs-row"]')).toBeVisible();
+    await expect(this.page.locator('[data-testid="max-active-tasks-row"]')).toBeVisible();
+    await expect(this.page.locator('[data-testid="max-consecutive-failed-dag-runs-row"]')).toBeVisible();
+    await expect(this.page.locator('[data-testid="catchup-row"]')).toBeVisible();
+    await expect(this.page.locator('[data-testid="default-args-row"]')).toBeVisible();
+    await expect(this.page.locator('[data-testid="params-row"]')).toBeVisible();
   }
 
   public async verifyDagRunStatus(dagName: string, dagRunId: string | null): Promise<void> {
@@ -102,7 +172,7 @@ export class DagsPage extends BasePage {
       if (currentStatus === "success") {
         return;
       } else if (currentStatus === "failed") {
-        throw new Error(`DAG run failed: ${dagRunId}`);
+        throw new Error(`Dag run failed: ${dagRunId}`);
       }
 
       await this.page.waitForTimeout(checkInterval);
@@ -112,7 +182,7 @@ export class DagsPage extends BasePage {
       await this.page.waitForTimeout(2000);
     }
 
-    throw new Error(`DAG run did not complete within 5 minutes: ${dagRunId}`);
+    throw new Error(`Dag run did not complete within 5 minutes: ${dagRunId}`);
   }
 
   private async getCurrentDagRunStatus(): Promise<string> {
@@ -157,7 +227,7 @@ export class DagsPage extends BasePage {
 
       .catch(() => undefined);
 
-    await this.confirmButton.waitFor({ state: "visible", timeout: 8000 });
+    await expect(this.confirmButton).toBeVisible({ timeout: 8000 });
 
     await this.page.waitForTimeout(2000);
     await this.confirmButton.click({ force: true });
@@ -179,5 +249,14 @@ export class DagsPage extends BasePage {
 
     // eslint-disable-next-line unicorn/no-null
     return null;
+  }
+
+  /**
+   * Wait for DAG list to be rendered
+   */
+  private async waitForDagList(): Promise<void> {
+    await expect(this.page.locator('[data-testid="dag-id"]').first()).toBeVisible({
+      timeout: 10_000,
+    });
   }
 }

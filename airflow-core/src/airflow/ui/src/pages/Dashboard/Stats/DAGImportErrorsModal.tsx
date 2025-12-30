@@ -71,11 +71,9 @@ export const DAGImportErrorsModal: React.FC<ImportDAGErrorModalProps> = ({ onClo
             <Heading>{translate("importErrors.dagImportError", { count: data?.total_entries ?? 0 })}</Heading>
           </HStack>
           <SearchBar
-            buttonProps={{ disabled: true }}
             defaultValue={searchQuery}
-            hideAdvanced
             onChange={handleSearchChange}
-            placeHolder={translate("importErrors.searchByFile")}
+            placeholder={translate("importErrors.searchByFile")}
           />
         </Dialog.Header>
 

@@ -23,8 +23,8 @@ from unittest.mock import Mock, mock_open, patch
 
 import pytest
 
-from airflow.exceptions import AirflowException
 from airflow.models import Connection
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.imap.hooks.imap import ImapHook
 
 from tests_common.test_utils.config import conf_vars

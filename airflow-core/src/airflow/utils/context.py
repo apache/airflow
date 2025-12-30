@@ -19,29 +19,21 @@
 
 from __future__ import annotations
 
-from collections.abc import (
-    Container,
-)
-from typing import (
-    TYPE_CHECKING,
-    Any,
-    cast,
-)
+import warnings
+from typing import Any
 
 from sqlalchemy import select
 
 from airflow.models.asset import AssetModel
-from airflow.sdk.definitions.context import Context
+from airflow.sdk import Asset
 from airflow.sdk.execution_time.context import (
     ConnectionAccessor as ConnectionAccessorSDK,
     OutletEventAccessors as OutletEventAccessorsSDK,
     VariableAccessor as VariableAccessorSDK,
 )
 from airflow.serialization.definitions.notset import NOTSET, is_arg_set
+from airflow.utils.deprecation_tools import DeprecatedImportWarning
 from airflow.utils.session import create_session
-
-if TYPE_CHECKING:
-    from airflow.sdk.definitions.asset import Asset
 
 # NOTE: Please keep this in sync with the following:
 # * Context in task-sdk/src/airflow/sdk/definitions/context.py
@@ -145,33 +137,20 @@ class OutletEventAccessors(OutletEventAccessorsSDK):
 
         if asset is None:
             raise ValueError("No active asset found with either name or uri.")
-        return asset.to_public()
+        return Asset(name=asset.name, uri=asset.uri, group=asset.group, extra=asset.extra)
 
 
-def context_merge(context: Context, *args: Any, **kwargs: Any) -> None:
-    """
-    Merge parameters into an existing context.
+def __getattr__(name: str):
+    if name in ("Context", "context_copy_partial", "context_merge"):
+        warnings.warn(
+            "Importing Context from airflow.utils.context is deprecated and will "
+            "be removed in the future. Please import it from airflow.sdk instead.",
+            DeprecatedImportWarning,
+            stacklevel=2,
+        )
 
-    Like ``dict.update()`` , this take the same parameters, and updates
-    ``context`` in-place.
+        import airflow.sdk.definitions.context as sdk
 
-    This is implemented as a free function because the ``Context`` type is
-    "faked" as a ``TypedDict`` in ``context.pyi``, which cannot have custom
-    functions.
+        return getattr(sdk, name)
 
-    :meta private:
-    """
-    if not context:
-        context = Context()
-
-    context.update(*args, **kwargs)
-
-
-def context_copy_partial(source: Context, keys: Container[str]) -> Context:
-    """
-    Create a context by copying items under selected keys in ``source``.
-
-    :meta private:
-    """
-    new = {k: v for k, v in source.items() if k in keys}
-    return cast("Context", new)
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")

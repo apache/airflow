@@ -25,16 +25,16 @@ from collections import namedtuple
 from collections.abc import Iterable, Mapping, Sequence
 from typing import TYPE_CHECKING, Any, Literal, cast
 
-from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
+from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
-from airflow.providers.common.compat.sdk import BaseHook, BaseOperator
+from airflow.providers.common.compat.sdk import AirflowException, BaseHook, BaseOperator
 
 if TYPE_CHECKING:
     import pandas as pd
     import polars as pl
 
     from airflow.providers.common.sql.hooks.sql import DbApiHook
-    from airflow.utils.context import Context
+    from airflow.sdk import Context
 
 
 class FILE_FORMAT(enum.Enum):

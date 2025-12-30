@@ -26,15 +26,17 @@ import pytest
 from botocore.waiter import Waiter
 from jinja2 import StrictUndefined
 
-from airflow.exceptions import AirflowProviderDeprecationWarning, TaskDeferred
+from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.models import DAG, DagRun, TaskInstance
 from airflow.providers.amazon.aws.operators.emr import EmrCreateJobFlowOperator
 from airflow.providers.amazon.aws.triggers.emr import EmrCreateJobFlowTrigger
 from airflow.providers.amazon.aws.utils.waiter import WAITER_POLICY_NAME_MAPPING, WaitPolicy
+from airflow.providers.common.compat.sdk import TaskDeferred
 from airflow.utils.state import DagRunState
 from airflow.utils.types import DagRunType
 
 from tests_common.test_utils.dag import sync_dag_to_db
+from tests_common.test_utils.taskinstance import create_task_instance, render_template_fields
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 from unit.amazon.aws.utils.test_template_fields import validate_template_fields
 from unit.amazon.aws.utils.test_waiter import assert_expected_waiter_type
@@ -109,13 +111,14 @@ class TestEmrCreateJobFlowOperator:
 
             sync_dag_to_db(self.operator.dag)
             dag_version = DagVersion.get_latest_version(self.operator.dag.dag_id)
-            ti = TaskInstance(task=self.operator, dag_version_id=dag_version.id)
+            ti = create_task_instance(task=self.operator, dag_version_id=dag_version.id)
             dag_run = DagRun(
                 dag_id=self.operator.dag_id,
                 logical_date=DEFAULT_DATE,
                 run_id="test",
                 run_type=DagRunType.MANUAL,
                 state=DagRunState.RUNNING,
+                run_after=timezone.utcnow(),
             )
         else:
             dag_run = DagRun(
@@ -127,9 +130,7 @@ class TestEmrCreateJobFlowOperator:
             )
             ti = TaskInstance(task=self.operator)
         ti.dag_run = dag_run
-        session.add(ti)
-        session.commit()
-        ti.render_templates()
+        render_template_fields(ti, self.operator)
 
         expected_args = {
             "Name": "test_job_flow",
@@ -164,13 +165,14 @@ class TestEmrCreateJobFlowOperator:
 
             sync_dag_to_db(self.operator.dag)
             dag_version = DagVersion.get_latest_version(self.operator.dag.dag_id)
-            ti = TaskInstance(task=self.operator, dag_version_id=dag_version.id)
+            ti = create_task_instance(task=self.operator, dag_version_id=dag_version.id)
             dag_run = DagRun(
                 dag_id=self.operator.dag_id,
                 logical_date=DEFAULT_DATE,
                 run_id="test",
                 run_type=DagRunType.MANUAL,
                 state=DagRunState.RUNNING,
+                run_after=timezone.utcnow(),
             )
         else:
             dag_run = DagRun(
@@ -182,9 +184,7 @@ class TestEmrCreateJobFlowOperator:
             )
             ti = TaskInstance(task=self.operator)
         ti.dag_run = dag_run
-        session.add(ti)
-        session.commit()
-        ti.render_templates()
+        render_template_fields(ti, self.operator)
 
         mocked_hook_client.run_job_flow.return_value = RUN_JOB_FLOW_SUCCESS_RETURN
 

@@ -25,19 +25,16 @@ from unittest.mock import MagicMock, call, patch
 import pytest
 from jinja2 import StrictUndefined
 
-from airflow.exceptions import AirflowException, TaskDeferred
 from airflow.models import DAG, DagRun, TaskInstance
 from airflow.providers.amazon.aws.operators.emr import EmrAddStepsOperator
 from airflow.providers.amazon.aws.triggers.emr import EmrAddStepsTrigger
-
-try:
-    from airflow.sdk import timezone
-except ImportError:
-    from airflow.utils import timezone  # type: ignore[attr-defined,no-redef]
+from airflow.providers.common.compat.sdk import AirflowException, TaskDeferred
 from airflow.utils.state import DagRunState
 from airflow.utils.types import DagRunType
 
+from tests_common.test_utils.compat import timezone
 from tests_common.test_utils.dag import sync_dag_to_db
+from tests_common.test_utils.taskinstance import create_task_instance, render_template_fields
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 from unit.amazon.aws.utils.test_template_fields import validate_template_fields
 
@@ -110,13 +107,14 @@ class TestEmrAddStepsOperator:
 
             sync_dag_to_db(self.operator.dag)
             dag_version = DagVersion.get_latest_version(self.operator.dag.dag_id)
-            ti = TaskInstance(task=self.operator, dag_version_id=dag_version.id)
+            ti = create_task_instance(task=self.operator, dag_version_id=dag_version.id)
             dag_run = DagRun(
                 dag_id=self.operator.dag.dag_id,
                 logical_date=DEFAULT_DATE,
                 run_id="test",
                 run_type=DagRunType.MANUAL,
                 state=DagRunState.RUNNING,
+                run_after=timezone.utcnow(),
             )
         else:
             dag_run = DagRun(
@@ -128,9 +126,7 @@ class TestEmrAddStepsOperator:
             )
             ti = TaskInstance(task=self.operator)
         ti.dag_run = dag_run
-        session.add(ti)
-        session.commit()
-        ti.render_templates()
+        render_template_fields(ti, self.operator)
 
         expected_args = [
             {
@@ -184,13 +180,14 @@ class TestEmrAddStepsOperator:
 
             sync_dag_to_db(dag)
             dag_version = DagVersion.get_latest_version(dag.dag_id)
-            ti = TaskInstance(task=test_task, dag_version_id=dag_version.id)
+            ti = create_task_instance(task=test_task, dag_version_id=dag_version.id)
             dag_run = DagRun(
                 dag_id=dag.dag_id,
                 logical_date=timezone.utcnow(),
                 run_id="test",
                 run_type=DagRunType.MANUAL,
                 state=DagRunState.RUNNING,
+                run_after=timezone.utcnow(),
             )
         else:
             dag_run = DagRun(
@@ -202,9 +199,7 @@ class TestEmrAddStepsOperator:
             )
             ti = TaskInstance(task=test_task)
         ti.dag_run = dag_run
-        session.add(ti)
-        session.commit()
-        ti.render_templates()
+        render_template_fields(ti, test_task)
 
         assert json.loads(test_task.steps) == file_steps
 

@@ -21,15 +21,14 @@ from functools import cached_property
 from typing import TYPE_CHECKING, Any
 
 from airflow.configuration import conf
-from airflow.exceptions import AirflowException
-from airflow.providers.common.compat.sdk import BaseSensorOperator
+from airflow.providers.common.compat.sdk import AirflowException, BaseSensorOperator
 from airflow.providers.dbt.cloud.hooks.dbt import DbtCloudHook, DbtCloudJobRunException, DbtCloudJobRunStatus
 from airflow.providers.dbt.cloud.triggers.dbt import DbtCloudRunJobTrigger
 from airflow.providers.dbt.cloud.utils.openlineage import generate_openlineage_events_from_dbt_cloud_run
 
 if TYPE_CHECKING:
     from airflow.providers.openlineage.extractors import OperatorLineage
-    from airflow.utils.context import Context
+    from airflow.sdk import Context
 
 
 class DbtCloudJobRunSensor(BaseSensorOperator):

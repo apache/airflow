@@ -1,0 +1,101 @@
+{
+  "assetSchedule": "{{total}} 件中 {{count}} 件のアセットが更新されました",
+  "dagActions": {
+    "delete": {
+      "button": "Dag を削除",
+      "warning": "実行履歴やタスクを含め、Dag に関連するメタデータはすべて削除されます"
+    }
+  },
+  "favoriteDag": "お気に入りの Dag",
+  "filters": {
+    "allRunTypes": "すべての実行タイプ",
+    "allStates": "すべての状態",
+    "favorite": {
+      "all": "すべて",
+      "favorite": "お気に入り",
+      "unfavorite": "お気に入り以外"
+    },
+    "paused": {
+      "active": "アクティブ",
+      "all": "すべて",
+      "paused": "停止済"
+    },
+    "runIdPatternFilter": "Dag 実行を検索"
+  },
+  "ownerLink": "Owner link for {{owner}}",
+  "runAndTaskActions": {
+    "affectedTasks": {
+      "noItemsFound": "タスクが見つかりません",
+      "title": "影響を受けたタスク: {{count}} 件"
+    },
+    "clear": {
+      "button": "{{type}} を消去",
+      "buttonTooltip": "消去するには shift+c を押してください",
+      "error": "{{type}} の消去に失敗しました",
+      "title": "{{type}} を消去"
+    },
+    "confirmationDialog": {
+      "description": "ユーザ {{user}} により {{time}} に開始されたタスクが現在、 {{state}} 状態にあります。\nこのタスクは、実行が完了するか、タスククリアダイアログで「タスクが実行中の場合、再実行を防止する」オプションを外すまで、ユーザがクリアできません",
+      "title": "タスクインスタンスをクリアできません"
+    },
+    "delete": {
+      "button": "{{type}} を削除",
+      "dialog": {
+        "resourceName": "{{type}} {{id}}",
+        "title": "{{type}} を削除",
+        "warning": "{{type}} に関連するすべてのメタデータを削除します"
+      },
+      "error": "{{type}} 削除エラー",
+      "success": {
+        "description": "{{type}} の削除に成功しました",
+        "title": "{{type}} の削除に成功しました"
+      }
+    },
+    "markAs": {
+      "button": "{{type}} をマーク",
+      "buttonTooltip": {
+        "failed": "失敗とマークするには shift+f を押してください",
+        "success": "成功とマークするには shift+s を押してください"
+      },
+      "title": "{{type}} を {{state}} とマーク"
+    },
+    "options": {
+      "downstream": "下流",
+      "existingTasks": "存在するタスクを消去",
+      "future": "未来",
+      "onlyFailed": "失敗したタスクのみを消去",
+      "past": "過去",
+      "preventRunningTasks": "タスクが実行中の場合、再実行を防止する",
+      "queueNew": "新しいタスクを準備",
+      "runOnLatestVersion": "最新のバンドルバージョンで実行",
+      "upstream": "上流"
+    }
+  },
+  "search": {
+    "advanced": "高度な検索",
+    "clear": "検索条件を消去",
+    "dags": "Dag を検索",
+    "hotkey": "+K",
+    "tasks": "タスクを検索"
+  },
+  "sort": {
+    "displayName": {
+      "asc": "表示名で並び替え (A-Z)",
+      "desc": "表示名で並び替え (Z-A)"
+    },
+    "lastRunStartDate": {
+      "asc": "最新の実行開始日時で並び替え (旧-新)",
+      "desc": "最新の実行開始日時で並び替え (新-旧)"
+    },
+    "lastRunState": {
+      "asc": "最新の実行状態で並び替え (A-Z)",
+      "desc": "最新の実行状態で並び替え (Z-A)"
+    },
+    "nextDagRun": {
+      "asc": "次の Dag 実行で並び替え (旧-新)",
+      "desc": "次の Dag 実行で並び替え (新-旧)"
+    },
+    "placeholder": "以下で並び替え"
+  },
+  "unfavoriteDag": "お気に入り以外の Dag"
+}

@@ -30,8 +30,8 @@ from slack_sdk.http_retry.builtin_handlers import ConnectionErrorRetryHandler, R
 from slack_sdk.webhook.async_client import AsyncWebhookClient
 from slack_sdk.webhook.webhook_response import WebhookResponse
 
-from airflow.exceptions import AirflowException, AirflowNotFoundException
 from airflow.models.connection import Connection
+from airflow.providers.common.compat.sdk import AirflowException, AirflowNotFoundException
 from airflow.providers.slack.hooks.slack_webhook import (
     SlackWebhookHook,
     async_check_webhook_response,

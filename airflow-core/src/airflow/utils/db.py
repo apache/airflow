@@ -61,7 +61,7 @@ from airflow.utils.db_manager import RunDBManager
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.sqlalchemy import get_dialect_name
 
-USE_PSYCOPG3: bool
+_USE_PSYCOPG3: bool
 try:
     from importlib.util import find_spec
 
@@ -72,9 +72,9 @@ try:
     sqlalchemy_version = Version(sqlalchemy.__version__)
     is_sqla2 = (sqlalchemy_version.major, sqlalchemy_version.minor, sqlalchemy_version.micro) >= (2, 0, 0)
 
-    USE_PSYCOPG3 = is_psycopg3 and is_sqla2
+    _USE_PSYCOPG3 = is_psycopg3 and is_sqla2
 except (ImportError, ModuleNotFoundError):
-    USE_PSYCOPG3 = False
+    _USE_PSYCOPG3 = False
 
 if TYPE_CHECKING:
     from alembic.runtime.environment import EnvironmentContext
@@ -101,6 +101,7 @@ T = TypeVar("T")
 log = logging.getLogger(__name__)
 
 _REVISION_HEADS_MAP: dict[str, str] = {
+    "2.6.2": "4bc4d934e2bc",
     "2.7.0": "405de8318b3a",
     "2.8.0": "10b52ebd31f7",
     "2.8.1": "88344c1d9134",
@@ -111,8 +112,11 @@ _REVISION_HEADS_MAP: dict[str, str] = {
     "3.0.0": "29ce7909c52b",
     "3.0.3": "fe199e1abd77",
     "3.1.0": "cc92b33c6709",
-    "3.2.0": "665854ef0536",
+    "3.2.0": "edc4f85a4619",
 }
+
+# Prefix used to identify tables holding data moved during migration.
+AIRFLOW_MOVED_TABLE_PREFIX = "_airflow_moved"
 
 
 @contextlib.contextmanager
@@ -167,7 +171,7 @@ def add_default_pool_if_not_exists(session: Session = NEW_SESSION):
     """Add default pool if it does not exist."""
     from airflow.models.pool import Pool
 
-    if not Pool.get_pool(Pool.DEFAULT_POOL_NAME, session=session):
+    if not session.scalar(select(Pool.id).where(Pool.pool == Pool.DEFAULT_POOL_NAME)):
         default_pool = Pool(
             pool=Pool.DEFAULT_POOL_NAME,
             slots=conf.getint(section="core", key="default_pool_task_slot_count"),
@@ -1118,7 +1122,7 @@ def upgradedb(
     if errors_seen:
         exit(1)
 
-    if not _get_current_revision(session=session):
+    if not _get_current_revision(session=session) and not to_revision:
         # Don't load default connections
         # New DB; initialize and exit
         initdb(session=session)
@@ -1302,7 +1306,6 @@ def drop_airflow_models(connection):
 
 def drop_airflow_moved_tables(connection):
     from airflow.models.base import Base
-    from airflow.settings import AIRFLOW_MOVED_TABLE_PREFIX
 
     tables = set(inspect(connection).get_table_names())
     to_delete = [Table(x, Base.metadata) for x in tables if x.startswith(AIRFLOW_MOVED_TABLE_PREFIX)]
@@ -1353,7 +1356,7 @@ def create_global_lock(
     dialect_name = get_dialect_name(session)
     try:
         if dialect_name == "postgresql":
-            if USE_PSYCOPG3:
+            if _USE_PSYCOPG3:
                 # psycopg3 doesn't support parameters for `SET`. Use `set_config` instead.
                 # The timeout value must be passed as a string of milliseconds.
                 conn.execute(
@@ -1374,7 +1377,7 @@ def create_global_lock(
         yield
     finally:
         if dialect_name == "postgresql":
-            if USE_PSYCOPG3:
+            if _USE_PSYCOPG3:
                 # Use set_config() to reset the timeout to its default (0 = off/wait forever).
                 conn.execute(text("SELECT set_config('lock_timeout', '0', false)"))
             else:

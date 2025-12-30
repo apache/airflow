@@ -58,6 +58,8 @@ DEFAULT_SENSITIVE_FIELDS = frozenset(
         "passwd",
         "password",
         "private_key",
+        "proxy",
+        "proxies",
         "secret",
         "token",
         "keyfile_dict",
@@ -127,9 +129,7 @@ def merge(
     return _secrets_masker().merge(new_value, old_value, name, max_depth)
 
 
-_global_secrets_masker: SecretsMasker | None = None
-
-
+@cache
 def _secrets_masker() -> SecretsMasker:
     """
     Get or create the module-level secrets masker instance.
@@ -139,10 +139,7 @@ def _secrets_masker() -> SecretsMasker:
     airflow.sdk._shared) will have separate global variables and thus separate
     masker instances.
     """
-    global _global_secrets_masker
-    if _global_secrets_masker is None:
-        _global_secrets_masker = SecretsMasker()
-    return _global_secrets_masker
+    return SecretsMasker()
 
 
 def reset_secrets_masker() -> None:
@@ -530,9 +527,9 @@ class SecretsMasker(logging.Filter):
 
         Name might be a Variable name, or key in conn.extra_dejson, for example.
         """
-        from airflow import settings
+        from airflow.configuration import conf
 
-        if isinstance(name, str) and settings.HIDE_SENSITIVE_VAR_CONN_FIELDS:
+        if isinstance(name, str) and conf.getboolean("core", "hide_sensitive_var_conn_fields"):
             name = name.strip().lower()
             return any(s in name for s in self.sensitive_variables_fields)
         return False

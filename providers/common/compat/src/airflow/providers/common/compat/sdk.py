@@ -80,13 +80,18 @@ if TYPE_CHECKING:
     from airflow.sdk.definitions.mappedoperator import MappedOperator as MappedOperator
     from airflow.sdk.definitions.template import literal as literal
     from airflow.sdk.exceptions import (
+        AirflowException as AirflowException,
         AirflowFailException as AirflowFailException,
+        AirflowNotFoundException as AirflowNotFoundException,
+        AirflowSensorTimeout as AirflowSensorTimeout,
         AirflowSkipException as AirflowSkipException,
         AirflowTaskTimeout as AirflowTaskTimeout,
         ParamValidationError as ParamValidationError,
         TaskDeferred as TaskDeferred,
+        XComNotFound as XComNotFound,
     )
-    from airflow.sdk.observability.stats import Stats  # noqa: F401
+    from airflow.sdk.log import redact as redact
+    from airflow.sdk.observability.stats import Stats as Stats
 
     # Airflow 3-only exceptions (conditionally imported)
     if AIRFLOW_V_3_0_PLUS:
@@ -220,16 +225,30 @@ _IMPORT_MAP: dict[str, str | tuple[str, ...]] = {
     # ============================================================================
     # Exceptions (deprecated in airflow.exceptions, prefer SDK)
     # ============================================================================
-    # Exceptions available in both Airflow 2 and 3
+    # Note: AirflowException and AirflowNotFoundException are not deprecated, but exposing them
+    # here keeps provider imports consistent across Airflow 2 and 3.
+    "AirflowException": ("airflow.sdk.exceptions", "airflow.exceptions"),
+    "AirflowFailException": ("airflow.sdk.exceptions", "airflow.exceptions"),
+    "AirflowNotFoundException": ("airflow.sdk.exceptions", "airflow.exceptions"),
     "AirflowSkipException": ("airflow.sdk.exceptions", "airflow.exceptions"),
     "AirflowTaskTimeout": ("airflow.sdk.exceptions", "airflow.exceptions"),
-    "AirflowFailException": ("airflow.sdk.exceptions", "airflow.exceptions"),
+    "AirflowSensorTimeout": ("airflow.sdk.exceptions", "airflow.exceptions"),
     "ParamValidationError": ("airflow.sdk.exceptions", "airflow.exceptions"),
     "TaskDeferred": ("airflow.sdk.exceptions", "airflow.exceptions"),
+    "XComNotFound": ("airflow.sdk.exceptions", "airflow.exceptions"),
     # ============================================================================
     # Observability
     # ============================================================================
     "Stats": ("airflow.sdk.observability.stats", "airflow.stats"),
+    # ============================================================================
+    # Secrets Masking
+    # ============================================================================
+    "redact": (
+        "airflow.sdk.log",
+        "airflow.sdk._shared.secrets_masker",
+        "airflow.sdk.execution_time.secrets_masker",
+        "airflow.utils.log.secrets_masker",
+    ),
 }
 
 # Airflow 3-only exceptions (not available in Airflow 2)

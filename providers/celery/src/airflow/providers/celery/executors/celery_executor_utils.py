@@ -40,12 +40,10 @@ from celery.backends.database import DatabaseBackend, Task as TaskDb, retry, ses
 from celery.signals import import_modules as celery_import_modules
 from sqlalchemy import select
 
-import airflow.settings as settings
 from airflow.configuration import conf
-from airflow.exceptions import AirflowException
 from airflow.executors.base_executor import BaseExecutor
 from airflow.providers.celery.version_compat import AIRFLOW_V_3_0_PLUS
-from airflow.providers.common.compat.sdk import AirflowTaskTimeout, Stats, timeout
+from airflow.providers.common.compat.sdk import AirflowException, AirflowTaskTimeout, Stats, timeout
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.net import get_hostname
 from airflow.utils.providers_configuration_loader import providers_configuration_loaded
@@ -177,12 +175,18 @@ if not AIRFLOW_V_3_0_PLUS:
     @app.task
     def execute_command(command_to_exec: CommandType) -> None:
         """Execute command."""
+        EXECUTE_TASKS_NEW_PYTHON_INTERPRETER = not hasattr(os, "fork") or conf.getboolean(
+            "core",
+            "execute_tasks_new_python_interpreter",
+            fallback=False,
+        )
+
         dag_id, task_id = BaseExecutor.validate_airflow_tasks_run_command(command_to_exec)  # type: ignore[attr-defined]
         celery_task_id = app.current_task.request.id
         log.info("[%s] Executing command in Celery: %s", celery_task_id, command_to_exec)
         with _airflow_parsing_context_manager(dag_id=dag_id, task_id=task_id):
             try:
-                if settings.EXECUTE_TASKS_NEW_PYTHON_INTERPRETER:
+                if EXECUTE_TASKS_NEW_PYTHON_INTERPRETER:
                     _execute_in_subprocess(command_to_exec, celery_task_id)
                 else:
                     _execute_in_fork(command_to_exec, celery_task_id)

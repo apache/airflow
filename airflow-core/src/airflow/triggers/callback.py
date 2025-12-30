@@ -22,9 +22,9 @@ import traceback
 from collections.abc import AsyncIterator
 from typing import Any
 
+from airflow._shared.module_loading import import_string, qualname
 from airflow.models.callback import CallbackState
 from airflow.triggers.base import BaseTrigger, TriggerEvent
-from airflow.utils.module_loading import import_string, qualname
 
 log = logging.getLogger(__name__)
 

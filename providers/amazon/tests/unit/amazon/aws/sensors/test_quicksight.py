@@ -21,9 +21,9 @@ from unittest import mock
 
 import pytest
 
-from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.quicksight import QuickSightHook
 from airflow.providers.amazon.aws.sensors.quicksight import QuickSightSensor
+from airflow.providers.common.compat.sdk import AirflowException
 
 DATA_SET_ID = "DemoDataSet"
 INGESTION_ID = "DemoDataSet_Ingestion"

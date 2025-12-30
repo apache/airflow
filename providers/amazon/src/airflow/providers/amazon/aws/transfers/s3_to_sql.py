@@ -21,12 +21,11 @@ from functools import cached_property
 from tempfile import NamedTemporaryFile
 from typing import TYPE_CHECKING
 
-from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
-from airflow.providers.common.compat.sdk import BaseHook, BaseOperator
+from airflow.providers.common.compat.sdk import AirflowException, BaseHook, BaseOperator
 
 if TYPE_CHECKING:
-    from airflow.utils.context import Context
+    from airflow.sdk import Context
 
 
 class S3ToSqlOperator(BaseOperator):

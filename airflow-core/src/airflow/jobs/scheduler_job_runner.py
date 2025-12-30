@@ -111,7 +111,7 @@ if TYPE_CHECKING:
     from airflow.executors.base_executor import BaseExecutor
     from airflow.executors.executor_utils import ExecutorName
     from airflow.models.taskinstance import TaskInstanceKey
-    from airflow.serialization.serialized_objects import SerializedDAG
+    from airflow.serialization.definitions.dag import SerializedDAG
     from airflow.utils.sqlalchemy import CommitProhibitorGuard
 
 TI = TaskInstance
@@ -1453,8 +1453,8 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
         if self._is_metrics_enabled():
             timers.call_regular_interval(
-                conf.getfloat("scheduler", "running_metrics_interval", fallback=30.0),
-                self._emit_running_ti_metrics,
+                conf.getfloat("scheduler", "ti_metrics_interval", fallback=30.0),
+                self._emit_ti_metrics,
             )
 
             timers.call_regular_interval(
@@ -1613,7 +1613,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         """
         # Put a check in place to make sure we don't commit unexpectedly
         with prohibit_commit(session) as guard:
-            if settings.USE_JOB_SCHEDULE:
+            if conf.getboolean("scheduler", "use_job_schedule", fallback=True):
                 self._create_dagruns_for_dags(guard, session)
 
             self._start_queued_dagruns(session)
@@ -1680,6 +1680,8 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             select(AssetPartitionDagRun).where(AssetPartitionDagRun.created_dag_run_id.is_(None))
         )
         for apdr in apdrs:
+            if TYPE_CHECKING:
+                assert apdr.target_dag_id
             partition_dag_ids.add(apdr.target_dag_id)
             dag = _get_current_dag(dag_id=apdr.target_dag_id, session=session)
             if not dag:
@@ -1787,6 +1789,19 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         )
 
         for dag_model in dag_models:
+            if dag_model.next_dagrun is None:
+                self.log.error(
+                    "dag_model.next_dagrun is None; expected datetime",
+                    dag_id=dag_model.dag_id,
+                )
+                continue
+            if dag_model.next_dagrun_create_after is None:
+                self.log.error(
+                    "dag_model.next_dagrun_create_after is None; expected datetime",
+                    dag_id=dag_model.dag_id,
+                )
+                continue
+
             serdag = _get_current_dag(dag_id=dag_model.dag_id, session=session)
             if not serdag:
                 self.log.error("DAG '%s' not found in serialized_dag table", dag_model.dag_id)
@@ -1803,34 +1818,35 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             # instead of falling in a loop of IntegrityError.
             if (serdag.dag_id, dag_model.next_dagrun) not in existing_dagruns:
                 try:
-                    if dag_model.next_dagrun is not None and dag_model.next_dagrun_create_after is not None:
-                        serdag.create_dagrun(
-                            run_id=serdag.timetable.generate_run_id(
-                                run_type=DagRunType.SCHEDULED,
-                                run_after=timezone.coerce_datetime(dag_model.next_dagrun),
-                                data_interval=data_interval,
-                            ),
-                            logical_date=dag_model.next_dagrun,
-                            data_interval=data_interval,
-                            run_after=dag_model.next_dagrun_create_after,
+                    serdag.create_dagrun(
+                        run_id=serdag.timetable.generate_run_id(
                             run_type=DagRunType.SCHEDULED,
-                            triggered_by=DagRunTriggeredByType.TIMETABLE,
-                            state=DagRunState.QUEUED,
-                            creating_job_id=self.job.id,
-                            session=session,
-                        )
-                        active_runs_of_dags[serdag.dag_id] += 1
-                    else:
-                        if dag_model.next_dagrun is None:
-                            raise ValueError("dag_model.next_dagrun is None; expected datetime")
-                        raise ValueError("dag_model.next_dagrun_create_after is None; expected datetime")
+                            run_after=timezone.coerce_datetime(dag_model.next_dagrun),
+                            data_interval=data_interval,
+                        ),
+                        logical_date=dag_model.next_dagrun,
+                        data_interval=data_interval,
+                        run_after=dag_model.next_dagrun_create_after,
+                        run_type=DagRunType.SCHEDULED,
+                        triggered_by=DagRunTriggeredByType.TIMETABLE,
+                        state=DagRunState.QUEUED,
+                        creating_job_id=self.job.id,
+                        session=session,
+                    )
+                    active_runs_of_dags[serdag.dag_id] += 1
+
                 # Exceptions like ValueError, ParamValidationError, etc. are raised by
                 # DagModel.create_dagrun() when dag is misconfigured. The scheduler should not
                 # crash due to misconfigured dags. We should log any exception encountered
                 # and continue to the next serdag.
                 except Exception:
                     self.log.exception("Failed creating DagRun for %s", serdag.dag_id)
+                    # todo: if you get a database error here, continuing does not work because
+                    #  session needs rollback. you need either to make smaller transactions and
+                    #  commit after every dag run or use savepoints.
+                    #  https://github.com/apache/airflow/issues/59120
                     continue
+
             if self._should_update_dag_next_dagruns(
                 serdag,
                 dag_model,
@@ -2022,14 +2038,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 and dag_run.triggered_by != DagRunTriggeredByType.ASSET
                 and dag_run.clear_number < 1
             ):
-                # TODO: Logically, this should be DagRunInfo.run_after, but the
-                #  information is not stored on a DagRun, only before the actual
-                #  execution on DagModel.next_dagrun_create_after. We should add
-                #  a field on DagRun for this instead of relying on the run
-                #  always happening immediately after the data interval.
-                #  We only publish these metrics for scheduled dag runs and only
-                #  when ``run_type`` is *MANUAL* and ``clear_number`` is 0.
-                expected_start_date = get_run_data_interval(dag.timetable, dag_run).end
+                expected_start_date = dag_run.run_after
                 schedule_delay = dag_run.start_date - expected_start_date
                 # Publish metrics twice with backward compatible name, and then with tags
                 Stats.timing(f"dagrun.schedule_delay.{dag.dag_id}", schedule_delay)
@@ -2217,6 +2226,19 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 ):
                     dag_model.calculate_dagrun_date_fields(dag, get_run_data_interval(dag.timetable, dag_run))
 
+                dag_run_reloaded = session.scalar(
+                    select(DagRun)
+                    .where(DagRun.id == dag_run.id)
+                    .options(
+                        selectinload(DagRun.consumed_asset_events).selectinload(AssetEvent.asset),
+                        selectinload(DagRun.consumed_asset_events).selectinload(AssetEvent.source_aliases),
+                    )
+                )
+                if dag_run_reloaded is None:
+                    # This should never happen since we just had the dag_run
+                    self.log.error("DagRun %s was deleted unexpectedly", dag_run.id)
+                    return None
+                dag_run = dag_run_reloaded
                 callback_to_execute = DagCallbackRequest(
                     filepath=dag_model.relative_fileloc or "",
                     dag_id=dag.dag_id,
@@ -2484,36 +2506,48 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         count_result: int | None = query.count()
         return count_result if count_result is not None else 0
 
-    previous_ti_running_metrics: dict[tuple[str, str, str], int] = {}
+    previous_ti_metrics: dict[TaskInstanceState, dict[tuple[str, str, str], int]] = {}
 
     @provide_session
-    def _emit_running_ti_metrics(self, session: Session = NEW_SESSION) -> None:
-        running = (
-            session.query(
+    def _emit_ti_metrics(self, session: Session = NEW_SESSION) -> None:
+        metric_states = {State.SCHEDULED, State.QUEUED, State.RUNNING, State.DEFERRED}
+        stmt = (
+            select(
+                TaskInstance.state,
                 TaskInstance.dag_id,
                 TaskInstance.task_id,
                 TaskInstance.queue,
-                func.count(TaskInstance.task_id).label("running_count"),
+                func.count(TaskInstance.task_id).label("count"),
             )
-            .filter(TaskInstance.state == State.RUNNING)
-            .group_by(TaskInstance.dag_id, TaskInstance.task_id, TaskInstance.queue)
-            .all()
+            .filter(TaskInstance.state.in_(metric_states))
+            .group_by(TaskInstance.state, TaskInstance.dag_id, TaskInstance.task_id, TaskInstance.queue)
         )
+        all_states_metric = session.execute(stmt).all()
 
-        ti_running_metrics = {(row.dag_id, row.task_id, row.queue): row.running_count for row in running}
+        for state in metric_states:
+            if state not in self.previous_ti_metrics:
+                self.previous_ti_metrics[state] = {}
 
-        for (dag_id, task_id, queue), count in ti_running_metrics.items():
-            Stats.gauge(f"ti.running.{queue}.{dag_id}.{task_id}", count)
-            Stats.gauge("ti.running", count, tags={"queue": queue, "dag_id": dag_id, "task_id": task_id})
+            ti_metrics = {
+                (dag_id, task_id, queue): count
+                for row_state, dag_id, task_id, queue, count in all_states_metric
+                if row_state == state
+            }
 
-        for prev_key in self.previous_ti_running_metrics:
-            # reset stats which are not running anymore
-            if prev_key not in ti_running_metrics:
-                dag_id, task_id, queue = prev_key
-                Stats.gauge(f"ti.running.{queue}.{dag_id}.{task_id}", 0)
-                Stats.gauge("ti.running", 0, tags={"queue": queue, "dag_id": dag_id, "task_id": task_id})
+            for (dag_id, task_id, queue), count in ti_metrics.items():
+                Stats.gauge(f"ti.{state}.{queue}.{dag_id}.{task_id}", float(count))
+                Stats.gauge(
+                    f"ti.{state}", float(count), tags={"queue": queue, "dag_id": dag_id, "task_id": task_id}
+                )
 
-        self.previous_ti_running_metrics = ti_running_metrics
+            for prev_key in self.previous_ti_metrics[state]:
+                # Reset previously exported stats that are no longer present in current metrics to zero
+                if prev_key not in ti_metrics:
+                    dag_id, task_id, queue = prev_key
+                    Stats.gauge(f"ti.{state}.{queue}.{dag_id}.{task_id}", 0)
+                    Stats.gauge(f"ti.{state}", 0, tags={"queue": queue, "dag_id": dag_id, "task_id": task_id})
+
+            self.previous_ti_metrics[state] = ti_metrics
 
     @provide_session
     def _emit_running_dags_metric(self, session: Session = NEW_SESSION) -> None:
@@ -2613,8 +2647,16 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     reset_tis_message = []
                     for ti in to_reset:
                         reset_tis_message.append(repr(ti))
+                        # If we reset a TI, it will be eligible to be scheduled again.
+                        # This can cause the scheduler to increase the try_number on the TI.
+                        # Record the current try to TaskInstanceHistory first so users have an audit trail for
+                        # the attempt that was abandoned.
+                        ti.prepare_db_for_next_try(session=session)
+
                         ti.state = None
                         ti.queued_by_job_id = None
+                        ti.external_executor_id = None
+                        ti.clear_next_method_args()
 
                     for ti in set(tis_to_adopt_or_reset) - set(to_reset):
                         ti.queued_by_job_id = self.job.id
@@ -2980,6 +3022,10 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     # First executor that resolves should be the default for that team
                     if _executor.team_name == team_name:
                         executor = _executor
+                        break
+                else:
+                    # No executor found for that team, fall back to global default
+                    executor = self.job.executor
         else:
             # An executor is specified on the TaskInstance (as a str), so we need to find it in the list of executors
             for _executor in self.job.executors:

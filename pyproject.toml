@@ -61,7 +61,7 @@ classifiers = [
 version = "3.2.0"
 
 dependencies = [
-    "apache-airflow-task-sdk<1.3.0,>=1.1.0",
+    "apache-airflow-task-sdk<1.3.0,>=1.2.0",
     "apache-airflow-core==3.2.0",
 ]
 
@@ -534,7 +534,7 @@ packages = []
     "apache-airflow-providers-amazon[s3fs]",
 ]
 "uv" = [
-    "uv>=0.9.16",
+    "uv>=0.9.18",
 ]
 
 [project.urls]
@@ -629,11 +629,13 @@ extend-select = [
     "PGH004",  # Use specific rule codes when using noqa
     "PGH005", # Invalid unittest.mock.Mock methods/attributes/properties
     "S101", # Checks use `assert` outside the test cases, test cases should be added into the exclusions
+    "SIM107", # Don't use `return` in `try`-`except` and `finally`
     "SIM300", # Checks for conditions that position a constant on the left-hand side of the comparison
               # operator, rather than the right-hand side.
     "B004", # Checks for use of hasattr(x, "__call__") and replaces it with callable(x)
     "B006", # Checks for uses of mutable objects as function argument defaults.
     "B007", # Checks for unused variables in the loop
+    "B012", # Checks for `break`, `continue`, and `return` statements in `finally` blocks
     "B017", # Checks for pytest.raises context managers that catch Exception or BaseException.
     "B019", # Use of functools.lru_cache or functools.cache on methods can lead to memory leaks
     "B028", # No explicit stacklevel keyword argument found
@@ -1292,6 +1294,7 @@ dev = [
     "apache-airflow-ctl-tests",
     "apache-airflow-shared-configuration",
     "apache-airflow-shared-logging",
+    "apache-airflow-shared-module-loading",
     "apache-airflow-shared-secrets-backend",
     "apache-airflow-shared-secrets-masker",
     "apache-airflow-shared-timezones",
@@ -1345,7 +1348,9 @@ apache-airflow-kubernetes-tests = { workspace = true }
 apache-airflow-providers = { workspace = true }
 apache-aurflow-docker-stack = { workspace = true }
 apache-airflow-shared-configuration = { workspace = true }
+apache-airflow-shared-dagnode = { workspace = true }
 apache-airflow-shared-logging = { workspace = true }
+apache-airflow-shared-module-loading = { workspace = true }
 apache-airflow-shared-secrets-backend = { workspace = true }
 apache-airflow-shared-secrets-masker = { workspace = true }
 apache-airflow-shared-timezones = { workspace = true }
@@ -1468,6 +1473,7 @@ members = [
     "providers-summary-docs",
     "docker-stack-docs",
     "shared/configuration",
+    "shared/module_loading",
     "shared/logging",
     "shared/secrets_backend",
     "shared/secrets_masker",

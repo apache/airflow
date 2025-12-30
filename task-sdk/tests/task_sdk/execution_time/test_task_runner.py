@@ -53,6 +53,7 @@ from airflow.sdk.api.datamodels._generated import (
     AssetResponse,
     DagRun,
     DagRunState,
+    PreviousTIResponse,
     TaskInstance,
     TaskInstanceState,
     TIRunContext,
@@ -84,6 +85,7 @@ from airflow.sdk.execution_time.comms import (
     GetDagRunState,
     GetDRCount,
     GetPreviousDagRun,
+    GetPreviousTI,
     GetTaskStates,
     GetTICount,
     GetVariable,
@@ -92,6 +94,7 @@ from airflow.sdk.execution_time.comms import (
     MaskSecret,
     OKResponse,
     PreviousDagRunResult,
+    PreviousTIResult,
     PrevSuccessfulDagRunResult,
     SetRenderedFields,
     SetXCom,
@@ -363,18 +366,30 @@ def test_run_deferred_basic(time_machine, create_runtime_ti, mock_supervisor_com
     )
     time_machine.move_to(instant, tick=False)
 
-    # Expected DeferTask
+    # Expected DeferTask, it is constructed by _defer_task from exception and is sent to supervisor
     expected_defer_task = DeferTask(
         state="deferred",
         classpath="airflow.providers.standard.triggers.temporal.DateTimeTrigger",
-        # Since we are in the task process here, we expect this to have not been encoded by serde yet
         trigger_kwargs={
+            "moment": {
+                "__classname__": "pendulum.datetime.DateTime",
+                "__version__": 2,
+                "__data__": {
+                    "timestamp": 1732233603.0,
+                    "tz": {
+                        "__classname__": "builtins.tuple",
+                        "__version__": 1,
+                        "__data__": ["UTC", "pendulum.tz.timezone.Timezone", 1, True],
+                    },
+                },
+            },
             "end_from_trigger": False,
-            "moment": instant + timedelta(seconds=3),
         },
         trigger_timeout=None,
         next_method="execute_complete",
         next_kwargs={},
+        rendered_map_index=None,
+        type="DeferTask",
     )
 
     # Run the task
@@ -2143,6 +2158,131 @@ class TestRuntimeTaskInstance:
         assert dr.run_id == "prev_success_run"
         assert dr.state == "success"
 
+    def test_get_previous_ti_basic(self, create_runtime_ti, mock_supervisor_comms):
+        """Test that get_previous_ti sends the correct request without filters."""
+
+        task = BaseOperator(task_id="test_task")
+        dag_id = "test_dag"
+        runtime_ti = create_runtime_ti(task=task, dag_id=dag_id, logical_date=timezone.datetime(2025, 1, 2))
+
+        ti_data = PreviousTIResponse(
+            task_id="test_task",
+            dag_id=dag_id,
+            run_id="prev_run",
+            logical_date=timezone.datetime(2025, 1, 1),
+            start_date=timezone.datetime(2025, 1, 1, 12, 0, 0),
+            end_date=timezone.datetime(2025, 1, 1, 12, 5, 0),
+            state="success",
+            try_number=1,
+            map_index=-1,
+            duration=300.0,
+        )
+
+        mock_supervisor_comms.send.return_value = PreviousTIResult(task_instance=ti_data)
+
+        prev_ti = runtime_ti.get_previous_ti()
+
+        mock_supervisor_comms.send.assert_called_once_with(
+            msg=GetPreviousTI(
+                dag_id="test_dag",
+                task_id="test_task",
+                logical_date=timezone.datetime(2025, 1, 2),
+                map_index=-1,
+                state=None,
+            ),
+        )
+        assert prev_ti.task_id == "test_task"
+        assert prev_ti.dag_id == "test_dag"
+        assert prev_ti.run_id == "prev_run"
+        assert prev_ti.state == "success"
+
+    def test_get_previous_ti_with_state(self, create_runtime_ti, mock_supervisor_comms):
+        """Test get_previous_ti with state filter."""
+
+        task = BaseOperator(task_id="test_task")
+        dag_id = "test_dag"
+        runtime_ti = create_runtime_ti(task=task, dag_id=dag_id, logical_date=timezone.datetime(2025, 1, 2))
+
+        ti_data = PreviousTIResponse(
+            task_id="test_task",
+            dag_id=dag_id,
+            run_id="prev_success_run",
+            logical_date=timezone.datetime(2025, 1, 1),
+            start_date=timezone.datetime(2025, 1, 1, 12, 0, 0),
+            end_date=timezone.datetime(2025, 1, 1, 12, 5, 0),
+            state="success",
+            try_number=1,
+            map_index=-1,
+            duration=300.0,
+        )
+
+        mock_supervisor_comms.send.return_value = PreviousTIResult(task_instance=ti_data)
+
+        prev_ti = runtime_ti.get_previous_ti(state=TaskInstanceState.SUCCESS)
+
+        mock_supervisor_comms.send.assert_called_once_with(
+            msg=GetPreviousTI(
+                dag_id="test_dag",
+                task_id="test_task",
+                logical_date=timezone.datetime(2025, 1, 2),
+                map_index=-1,
+                state=TaskInstanceState.SUCCESS,
+            ),
+        )
+        assert prev_ti.state == "success"
+        assert prev_ti.run_id == "prev_success_run"
+
+    def test_get_previous_ti_with_map_index(self, create_runtime_ti, mock_supervisor_comms):
+        """Test get_previous_ti with explicit map_index filter."""
+
+        task = BaseOperator(task_id="test_task")
+        dag_id = "test_dag"
+        runtime_ti = create_runtime_ti(
+            task=task, dag_id=dag_id, logical_date=timezone.datetime(2025, 1, 2), map_index=0
+        )
+
+        ti_data = PreviousTIResponse(
+            task_id="test_task",
+            dag_id=dag_id,
+            run_id="prev_run",
+            logical_date=timezone.datetime(2025, 1, 1),
+            start_date=timezone.datetime(2025, 1, 1, 12, 0, 0),
+            end_date=timezone.datetime(2025, 1, 1, 12, 5, 0),
+            state="success",
+            try_number=1,
+            map_index=1,
+            duration=300.0,
+        )
+
+        mock_supervisor_comms.send.return_value = PreviousTIResult(task_instance=ti_data)
+
+        # Query for a different map_index than current TI
+        prev_ti = runtime_ti.get_previous_ti(map_index=1)
+
+        mock_supervisor_comms.send.assert_called_once_with(
+            msg=GetPreviousTI(
+                dag_id="test_dag",
+                task_id="test_task",
+                logical_date=timezone.datetime(2025, 1, 2),
+                map_index=1,
+                state=None,
+            ),
+        )
+        assert prev_ti.map_index == 1
+
+    def test_get_previous_ti_not_found(self, create_runtime_ti, mock_supervisor_comms):
+        """Test get_previous_ti when no previous TI exists."""
+
+        task = BaseOperator(task_id="test_task")
+        dag_id = "test_dag"
+        runtime_ti = create_runtime_ti(task=task, dag_id=dag_id, logical_date=timezone.datetime(2025, 1, 2))
+
+        mock_supervisor_comms.send.return_value = PreviousTIResult(task_instance=None)
+
+        prev_ti = runtime_ti.get_previous_ti()
+
+        assert prev_ti is None
+
     @pytest.mark.parametrize(
         "map_index",
         [
@@ -2206,6 +2346,129 @@ class TestRuntimeTaskInstance:
             run(runtime_ti, context=runtime_ti.get_template_context(), log=mock.MagicMock())
 
             mock_delete.assert_not_called()
+
+    def test_xcom_push_pull_with_slash_in_key(self, create_runtime_ti, mock_supervisor_comms):
+        """
+        Ensure that XCom keys containing slashes are correctly quoted/unquoted
+        and do not break API routes (no 400/404).
+        """
+
+        class PushOperator(BaseOperator):
+            def execute(self, context):
+                context["ti"].xcom_push(key="some/key/with/slash", value="slash_value")
+
+        task = PushOperator(task_id="push_task")
+        runtime_ti = create_runtime_ti(task=task, dag_id="test_dag")
+
+        # Run the task (which should trigger xcom_push)
+        run(runtime_ti, context=runtime_ti.get_template_context(), log=mock.MagicMock())
+
+        # Verify supervisor received a SetXCom with quoted key
+        called_args = [
+            call.kwargs.get("msg") or call.args[0] for call in mock_supervisor_comms.send.call_args_list
+        ]
+        assert any(getattr(arg, "key", None) == "some/key/with/slash" for arg in called_args)
+
+        ser_value = BaseXCom.serialize_value("slash_value")
+        mock_supervisor_comms.send.reset_mock()
+        mock_supervisor_comms.send.return_value = XComSequenceSliceResult(
+            key="some/key/with/slash",
+            root=[ser_value],
+        )
+
+        pulled_value = runtime_ti.xcom_pull(key="some/key/with/slash", task_ids="push_task")
+        assert pulled_value == "slash_value"
+
+        # Key should NOT be quoted here - client API will handle encoding
+        mock_supervisor_comms.send.assert_any_call(
+            GetXComSequenceSlice(
+                key="some/key/with/slash",
+                dag_id="test_dag",
+                run_id="test_run",
+                task_id="push_task",
+                map_index=0,
+                include_prior_dates=False,
+                start=None,
+                stop=None,
+                step=None,
+                type="GetXComSequenceSlice",
+            )
+        )
+
+    def test_taskflow_dict_return_with_slash_key(self, create_runtime_ti, mock_supervisor_comms):
+        """
+        High-level: Ensure TaskFlow returning dict with slash in key doesn't 404 during XCom push.
+        """
+
+        @dag_decorator(schedule=None, start_date=timezone.datetime(2024, 12, 3))
+        def dag_with_slash_key():
+            @task_decorator
+            def dict_task():
+                return {"key with slash /": "Some Value"}
+
+            return dict_task()  # returns XComArg
+
+        dag_obj = dag_with_slash_key()
+        task_op = dag_obj.get_task("dict_task")
+        runtime_ti = create_runtime_ti(task=task_op, dag_id=dag_obj.dag_id)
+
+        # Run task instance → should trigger TaskFlow dict expansion + XCom push
+        run(runtime_ti, context=runtime_ti.get_template_context(), log=mock.MagicMock())
+
+        # Mock supervisor response to simulate retrieval
+        ser_value = BaseXCom.serialize_value("Some Value")
+        mock_supervisor_comms.send.reset_mock()
+        mock_supervisor_comms.send.return_value = XComSequenceSliceResult(
+            key="key/slash",
+            root=[ser_value],
+        )
+
+        pulled = runtime_ti.xcom_pull(key="key/slash", task_ids="dict_task")
+        assert pulled == "Some Value"
+
+    @pytest.mark.enable_redact
+    def test_rendered_templates_mask_secrets_with_truncation(self, create_runtime_ti, mock_supervisor_comms):
+        """Test that secrets are masked before truncation when rendered fields exceed max_templated_field_length."""
+        from airflow.sdk._shared.secrets_masker import _secrets_masker
+
+        secret_url = "postgresql+psycopg2://username:testpass123@test.domain.com/testdb"
+        _secrets_masker().add_mask(secret_url, None)
+
+        class CustomOperator(BaseOperator):
+            template_fields = ("env_vars", "region")
+
+            def __init__(self, env_vars, region, *args, **kwargs):
+                super().__init__(*args, **kwargs)
+                self.env_vars = env_vars
+                self.region = region
+
+            def execute(self, context):
+                pass
+
+        # generate 50 env_vars to exceed default char limit of 4096 (50 * 87 chars ≈ 4350 chars)
+        env_vars = {f"TEST_URL_{i}": secret_url for i in range(50)}
+
+        task = CustomOperator(
+            task_id="test_truncation_masking",
+            env_vars=env_vars,
+            region="us-west-2",
+        )
+
+        runtime_ti = create_runtime_ti(task=task, dag_id="test_truncation_masking_dag")
+        run(runtime_ti, context=runtime_ti.get_template_context(), log=mock.MagicMock())
+
+        assert (
+            call(
+                msg=SetRenderedFields(
+                    rendered_fields={
+                        "env_vars": "Truncated. You can change this behaviour in [core]max_templated_field_length. \"{'TEST_URL_0': '***', 'TEST_URL_1': '***', 'TEST_URL_10': '***', 'TEST_URL_11': '***', 'TEST_URL_12': '***', 'TEST_URL_13': '***', 'TEST_URL_14': '***', 'TEST_URL_15': '***', 'TEST_URL_16': '***', 'TEST_URL_17': '***', 'TEST_URL_18': '***', 'TEST_URL_19': '***', 'TEST_URL_2': '***', 'TEST_URL_20': '***', 'TEST_URL_21': '***', 'TEST_URL_22': '***', 'TEST_URL_23': '***', 'TEST_URL_24': '***', 'TEST_URL_25': '***', 'TEST_URL_26': '***', 'TEST_URL_27': '***', 'TEST_URL_28': '***', 'TEST_URL_29': '***', 'TEST_URL_3': '***', 'TEST_URL_30': '***', 'TEST_URL_31': '***', 'TEST_URL_32': '***', 'TEST_URL_33': '***', 'TEST_URL_34': '***', 'TEST_URL_35': '***', 'TEST_URL_36': '***', 'TEST_URL_37': '***', 'TEST_URL_38': '***', 'TEST_URL_39': '***', 'TEST_URL_4': '***', 'TEST_URL_40': '***', 'TEST_URL_41': '***', 'TEST_URL_42': '***', 'TEST_URL_43': '***', 'TEST_URL_44': '***', 'TEST_URL_45': '***', 'TEST_URL_46': '***', 'TEST_URL_47': '***', 'TEST_URL_48': '***', 'TEST_URL_49': '***', 'TEST_URL_5': '***', 'TEST_URL_6': '***', 'TEST_URL_7': '***', 'TEST_URL_8': '***', 'TEST_URL_9': '***'}\"... ",
+                        "region": "us-west-2",
+                    },
+                    type="SetRenderedFields",
+                )
+            )
+            in mock_supervisor_comms.send.mock_calls
+        )
 
 
 class TestXComAfterTaskExecution:

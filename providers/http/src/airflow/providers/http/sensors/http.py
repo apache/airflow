@@ -22,24 +22,12 @@ from datetime import timedelta
 from typing import TYPE_CHECKING, Any
 
 from airflow.configuration import conf
-from airflow.exceptions import AirflowException
-from airflow.providers.common.compat.sdk import BaseSensorOperator
+from airflow.providers.common.compat.sdk import AirflowException, BaseSensorOperator
 from airflow.providers.http.hooks.http import HttpHook
 from airflow.providers.http.triggers.http import HttpSensorTrigger
 
 if TYPE_CHECKING:
-    from airflow.providers.common.compat.version_compat import AIRFLOW_V_3_0_PLUS
-
-    try:
-        from airflow.sdk.definitions.context import Context
-
-        if AIRFLOW_V_3_0_PLUS:
-            from airflow.sdk import PokeReturnValue
-        else:
-            from airflow.sensors.base import PokeReturnValue  # type: ignore[no-redef]
-    except ImportError:
-        # TODO: Remove once provider drops support for Airflow 2
-        from airflow.utils.context import Context
+    from airflow.sdk import Context, PokeReturnValue
 
 
 class HttpSensor(BaseSensorOperator):

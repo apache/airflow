@@ -279,6 +279,14 @@ option_mount_sources = click.option(
     envvar="MOUNT_SOURCES",
     help="Choose scope of local sources that should be mounted, skipped, or removed (default = selected).",
 )
+option_mount_ui_dist = click.option(
+    "--mount-ui-dist",
+    is_flag=True,
+    default=False,
+    show_default=True,
+    envvar="MOUNT_UI_DIST",
+    help="Mount pre-built UI dist directories from host to breeze container to skip UI assets compilation.",
+)
 option_mysql_version = click.option(
     "-M",
     "--mysql-version",
@@ -572,7 +580,7 @@ option_platform_single = click.option(
 option_airflow_ui_base_url = click.option(
     "--airflow-ui-base-url",
     help="Base URL for Airflow UI during e2e tests",
-    default="http://localhost:28080",
+    default="http://localhost:8080",
     show_default=True,
     envvar="AIRFLOW_UI_BASE_URL",
 )
@@ -642,7 +650,7 @@ option_e2e_reporter = click.option(
 option_test_admin_username = click.option(
     "--test-admin-username",
     help="Admin username for e2e tests",
-    default="admin",
+    default="airflow",
     show_default=True,
     envvar="TEST_ADMIN_USERNAME",
 )
@@ -650,7 +658,7 @@ option_test_admin_username = click.option(
 option_test_admin_password = click.option(
     "--test-admin-password",
     help="Admin password for e2e tests",
-    default="admin",
+    default="airflow",
     show_default=True,
     envvar="TEST_ADMIN_PASSWORD",
 )

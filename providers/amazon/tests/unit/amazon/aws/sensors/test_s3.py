@@ -24,15 +24,16 @@ import pytest
 import time_machine
 from moto import mock_aws
 
-from airflow.exceptions import AirflowException
 from airflow.models import DAG, DagRun, TaskInstance
 from airflow.models.variable import Variable
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
 from airflow.providers.amazon.aws.sensors.s3 import S3KeySensor, S3KeysUnchangedSensor
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.utils.state import DagRunState
 from airflow.utils.types import DagRunType
 
 from tests_common.test_utils.dag import sync_dag_to_db
+from tests_common.test_utils.taskinstance import create_task_instance, render_template_fields
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
 try:
@@ -146,8 +147,9 @@ class TestS3KeySensor:
                 run_id="test",
                 run_type=DagRunType.MANUAL,
                 state=DagRunState.RUNNING,
+                run_after=timezone.utcnow(),
             )
-            ti = TaskInstance(task=op, dag_version_id=dag_version.id)
+            ti = create_task_instance(task=op, dag_version_id=dag_version.id)
         else:
             dag_run = DagRun(
                 dag_id=dag.dag_id,
@@ -158,11 +160,8 @@ class TestS3KeySensor:
             )
             ti = TaskInstance(task=op)
         ti.dag_run = dag_run
-        session.add(ti)
-        session.commit()
-        context = ti.get_template_context(session)
-        ti.render_templates(context)
-        op.poke(None)
+        rendered = render_template_fields(ti, op)
+        rendered.poke(None)
 
         mock_head_object.assert_called_once_with("key", "bucket")
 
@@ -205,14 +204,12 @@ class TestS3KeySensor:
                 run_id="test",
                 run_type=DagRunType.MANUAL,
                 state=DagRunState.RUNNING,
+                run_after=timezone.utcnow(),
             )
-            ti = TaskInstance(task=op, dag_version_id=dag_version.id)
+            ti = create_task_instance(task=op, dag_version_id=dag_version.id)
         ti.dag_run = dag_run
-        session.add(ti)
-        session.commit()
-        context = ti.get_template_context(session)
-        ti.render_templates(context)
-        op.poke(None)
+        rendered = render_template_fields(ti, op)
+        rendered.poke(None)
 
         mock_head_object.assert_any_call("file1", "bucket")
         mock_head_object.assert_any_call("file2", "bucket")

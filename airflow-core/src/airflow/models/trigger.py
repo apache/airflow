@@ -31,6 +31,7 @@ from sqlalchemy.sql.functions import coalesce
 
 from airflow._shared.timezones import timezone
 from airflow.assets.manager import AssetManager
+from airflow.configuration import conf
 from airflow.models import Callback
 from airflow.models.asset import AssetWatcherModel
 from airflow.models.base import Base
@@ -112,6 +113,8 @@ class Trigger(Base):
 
     callback = relationship("Callback", back_populates="trigger", uselist=False)
 
+    max_trigger_to_select_per_loop = conf.getint("triggerer", "max_trigger_to_select_per_loop", fallback=50)
+
     def __init__(
         self,
         classpath: str,
@@ -139,9 +142,9 @@ class Trigger(Base):
         import json
 
         from airflow.models.crypto import get_fernet
-        from airflow.serialization.serialized_objects import BaseSerialization
+        from airflow.sdk.serde import serialize
 
-        serialized_kwargs = BaseSerialization.serialize(kwargs)
+        serialized_kwargs = serialize(kwargs)
         return get_fernet().encrypt(json.dumps(serialized_kwargs).encode("utf-8")).decode("utf-8")
 
     @staticmethod
@@ -150,7 +153,7 @@ class Trigger(Base):
         import json
 
         from airflow.models.crypto import get_fernet
-        from airflow.serialization.serialized_objects import BaseSerialization
+        from airflow.sdk.serde import deserialize
 
         # We weren't able to encrypt the kwargs in all migration paths,
         # so we need to handle the case where they are not encrypted.
@@ -162,7 +165,16 @@ class Trigger(Base):
                 get_fernet().decrypt(encrypted_kwargs.encode("utf-8")).decode("utf-8")
             )
 
-        return BaseSerialization.deserialize(decrypted_kwargs)
+        try:
+            result = deserialize(decrypted_kwargs)
+            if TYPE_CHECKING:
+                assert isinstance(result, dict)
+            return result
+        except (ImportError, KeyError, AttributeError, TypeError):
+            # Backward compatibility: fall back to BaseSerialization for old format
+            from airflow.serialization.serialized_objects import BaseSerialization
+
+            return BaseSerialization.deserialize(decrypted_kwargs)
 
     def rotate_fernet_key(self):
         """Encrypts data with a new key. See: :ref:`security/fernet`."""
@@ -264,7 +276,7 @@ class Trigger(Base):
             return
         for asset in trigger.assets:
             AssetManager.register_asset_change(
-                asset=asset.to_public(),
+                asset=asset.to_serialized(),
                 extra={"from_trigger": True, "payload": event.payload},
                 session=session,
             )
@@ -392,6 +404,10 @@ class Trigger(Base):
             if remaining_capacity <= 0:
                 break
 
+            # Limit the number of triggers selected per loop to avoid one triggerer
+            # picking up too many triggers and starving other triggerers for HA setup.
+            remaining_capacity = min(remaining_capacity, cls.max_trigger_to_select_per_loop)
+
             locked_query = with_row_locks(query.limit(remaining_capacity), session, skip_locked=True)
             result.extend(session.execute(locked_query).all())
 
@@ -410,16 +426,28 @@ def handle_event_submit(event: TriggerEvent, *, task_instance: TaskInstance, ses
     :param task_instance: The task instance to handle the submit event for.
     :param session: The session to be used for the database callback sink.
     """
+    from airflow.sdk.serde import deserialize, serialize
     from airflow.utils.state import TaskInstanceState
 
-    # Get the next kwargs of the task instance, or an empty dictionary if it doesn't exist
-    next_kwargs = task_instance.next_kwargs or {}
+    next_kwargs_raw = task_instance.next_kwargs or {}
 
-    # Add the event's payload into the kwargs for the task
+    # deserialize first to provide a compat layer if there are mixed serialized (BaseSerialisation and serde) data
+    # which can happen if a deferred task resumes after upgrade
+    try:
+        next_kwargs = deserialize(next_kwargs_raw)
+    except (ImportError, KeyError, AttributeError, TypeError):
+        from airflow.serialization.serialized_objects import BaseSerialization
+
+        next_kwargs = BaseSerialization.deserialize(next_kwargs_raw)
+
+    # Add event to the plain dict, then serialize everything together. This ensures that the event is properly
+    # nested inside __var__ in the final serde serialized structure.
+    if TYPE_CHECKING:
+        assert isinstance(next_kwargs, dict)
     next_kwargs["event"] = event.payload
 
-    # Update the next kwargs of the task instance
-    task_instance.next_kwargs = next_kwargs
+    # re-serialize the entire dict using serde to ensure consistent structure
+    task_instance.next_kwargs = serialize(next_kwargs)
 
     # Remove ourselves as its trigger
     task_instance.trigger_id = None

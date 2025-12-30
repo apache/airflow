@@ -16,12 +16,12 @@
 # under the License.
 from __future__ import annotations
 
-from copy import deepcopy
 from datetime import datetime, timedelta
 from unittest.mock import MagicMock, patch
 
 import pytest
 import time_machine
+from sqlalchemy import delete, select
 
 from airflow.configuration import conf
 from airflow.models.taskinstancekey import TaskInstanceKey
@@ -33,7 +33,6 @@ from airflow.utils.session import create_session
 from airflow.utils.state import TaskInstanceState
 
 from tests_common.test_utils.config import conf_vars
-from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
 pytestmark = pytest.mark.db_test
 
@@ -42,7 +41,7 @@ class TestEdgeExecutor:
     @pytest.fixture(autouse=True)
     def setup_test_cases(self):
         with create_session() as session:
-            session.query(EdgeJobModel).delete()
+            session.execute(delete(EdgeJobModel))
 
     def get_test_executor(self, pool_slots=1):
         key = TaskInstanceKey(
@@ -58,43 +57,12 @@ class TestEdgeExecutor:
 
         return (executor, key)
 
-    @pytest.mark.skipif(AIRFLOW_V_3_0_PLUS, reason="_process_tasks is not used in Airflow 3.0+")
-    def test__process_tasks_bad_command(self):
-        executor, key = self.get_test_executor()
-        task_tuple = (key, ["hello", "world"], None, None)
-        with pytest.raises(ValueError, match="The command must start with "):
-            executor._process_tasks([task_tuple])
-
-    @pytest.mark.skipif(AIRFLOW_V_3_0_PLUS, reason="_process_tasks is not used in Airflow 3.0+")
-    @pytest.mark.parametrize(
-        ("pool_slots", "expected_concurrency"),
-        [
-            pytest.param(1, 1, id="default_pool_size"),
-            pytest.param(5, 5, id="increased_pool_size"),
-        ],
-    )
-    def test__process_tasks_ok_command(self, pool_slots, expected_concurrency):
-        executor, key = self.get_test_executor(pool_slots=pool_slots)
-        task_tuple = (key, ["airflow", "tasks", "run", "hello", "world"], None, None)
-        executor._process_tasks([task_tuple])
-
-        with create_session() as session:
-            jobs: list[EdgeJobModel] = session.query(EdgeJobModel).all()
-        assert len(jobs) == 1
-        assert jobs[0].dag_id == "test_dag"
-        assert jobs[0].run_id == "test_run"
-        assert jobs[0].task_id == "test_task"
-        assert jobs[0].concurrency_slots == expected_concurrency
-
     @patch(f"{Stats.__module__}.Stats.incr")
     def test_sync_orphaned_tasks(self, mock_stats_incr):
         executor = EdgeExecutor()
 
         delta_to_purge = timedelta(minutes=conf.getint("edge", "job_fail_purge") + 1)
-        if AIRFLOW_V_3_0_PLUS:
-            delta_to_orphaned_config_name = "task_instance_heartbeat_timeout"
-        else:
-            delta_to_orphaned_config_name = "scheduler_zombie_task_threshold"
+        delta_to_orphaned_config_name = "task_instance_heartbeat_timeout"
 
         delta_to_orphaned = timedelta(seconds=conf.getint("scheduler", delta_to_orphaned_config_name) + 1)
 
@@ -137,7 +105,7 @@ class TestEdgeExecutor:
         mock_stats_incr.call_count == 2
 
         with create_session() as session:
-            jobs = session.query(EdgeJobModel).all()
+            jobs = session.scalars(select(EdgeJobModel)).all()
             assert len(jobs) == 1
             assert jobs[0].task_id == "started_running_orphaned"
             assert jobs[0].state == TaskInstanceState.REMOVED
@@ -187,8 +155,8 @@ class TestEdgeExecutor:
         executor.sync()
 
         with create_session() as session:
-            jobs = session.query(EdgeJobModel).all()
-            assert len(session.query(EdgeJobModel).all()) == 1
+            jobs = session.scalars(select(EdgeJobModel)).all()
+            assert len(session.scalars(select(EdgeJobModel)).all()) == 1
             assert jobs[0].task_id == "started_running"
             assert jobs[0].state == TaskInstanceState.RUNNING
 
@@ -248,7 +216,7 @@ class TestEdgeExecutor:
         # Prepare some data
         with create_session() as session:
             # Clear existing workers to avoid unique constraint violation
-            session.query(EdgeWorkerModel).delete()
+            session.execute(delete(EdgeWorkerModel))
             session.commit()
 
             # Add workers with different states
@@ -286,7 +254,7 @@ class TestEdgeExecutor:
                 executor.sync()
 
         with create_session() as session:
-            for worker in session.query(EdgeWorkerModel).all():
+            for worker in session.scalars(select(EdgeWorkerModel)).all():
                 print(worker.worker_name)
                 if "maintenance_" in worker.worker_name:
                     EdgeWorkerState.OFFLINE_MAINTENANCE
@@ -296,145 +264,6 @@ class TestEdgeExecutor:
                     assert worker.state == EdgeWorkerState.UNKNOWN
                 else:
                     assert worker.state == EdgeWorkerState.IDLE
-
-    @pytest.mark.skipif(AIRFLOW_V_3_0_PLUS, reason="API only available in Airflow <3.0")
-    def test_execute_async(self):
-        executor, key = self.get_test_executor()
-
-        # Need to apply "trick" which is used to pass pool_slots
-        executor.edge_queued_tasks = deepcopy(executor.queued_tasks)
-
-        executor.execute_async(key=key, command=["airflow", "tasks", "run", "hello", "world"])
-
-        with create_session() as session:
-            jobs = session.query(EdgeJobModel).all()
-            assert len(jobs) == 1
-
-    @pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="API only available in Airflow 3.0+")
-    def test_queue_workload(self):
-        from airflow.executors.workloads import ExecuteTask, TaskInstance
-
-        executor = self.get_test_executor()[0]
-
-        with pytest.raises(TypeError):
-            # Does not like the Airflow 2.10 type of workload
-            executor.queue_workload(command=["airflow", "tasks", "run", "hello", "world"])
-
-        workload = ExecuteTask(
-            token="mock",
-            ti=TaskInstance(
-                id="4d828a62-a417-4936-a7a6-2b3fabacecab",
-                task_id="mock",
-                dag_id="mock",
-                run_id="mock",
-                try_number=1,
-                pool_slots=1,
-                queue="default",
-                priority_weight=1,
-                start_date=timezone.utcnow(),
-                dag_version_id="4d828a62-a417-4936-a7a6-2b3fabacecab",
-            ),
-            dag_rel_path="mock.py",
-            log_path="mock.log",
-            bundle_info={"name": "n/a", "version": "no matter"},
-        )
-        executor.queue_workload(workload=workload)
-
-        with create_session() as session:
-            jobs = session.query(EdgeJobModel).all()
-            assert len(jobs) == 1
-
-    @pytest.mark.skipif(AIRFLOW_V_3_0_PLUS, reason="API only available in Airflow <3.0")
-    def test_execute_async_updates_existing_job(self):
-        executor, key = self.get_test_executor()
-
-        # First insert a job with the same key
-        with create_session() as session:
-            session.add(
-                EdgeJobModel(
-                    dag_id=key.dag_id,
-                    run_id=key.run_id,
-                    task_id=key.task_id,
-                    map_index=key.map_index,
-                    try_number=key.try_number,
-                    state=TaskInstanceState.SCHEDULED,
-                    queue="default",
-                    concurrency_slots=1,
-                    command="old-command",
-                    last_update=timezone.utcnow(),
-                )
-            )
-            session.commit()
-
-        # Trigger execute_async which should update the existing job
-        executor.edge_queued_tasks = deepcopy(executor.queued_tasks)
-        executor.execute_async(key=key, command=["airflow", "tasks", "run", "new", "command"])
-
-        with create_session() as session:
-            jobs = session.query(EdgeJobModel).all()
-            assert len(jobs) == 1
-            job = jobs[0]
-            assert job.state == TaskInstanceState.QUEUED
-            assert job.command != "old-command"
-            assert "new" in job.command
-
-    @pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="API only available in Airflow 3.0+")
-    def test_queue_workload_updates_existing_job(self):
-        from uuid import uuid4
-
-        from airflow.executors.workloads import ExecuteTask, TaskInstance
-
-        executor = self.get_test_executor()[0]
-
-        key = TaskInstanceKey(dag_id="mock", run_id="mock", task_id="mock", map_index=-1, try_number=1)
-
-        # Insert an existing job
-        with create_session() as session:
-            session.add(
-                EdgeJobModel(
-                    dag_id=key.dag_id,
-                    task_id=key.task_id,
-                    run_id=key.run_id,
-                    map_index=key.map_index,
-                    try_number=key.try_number,
-                    state=TaskInstanceState.SCHEDULED,
-                    queue="default",
-                    command="old-command",
-                    concurrency_slots=1,
-                    last_update=timezone.utcnow(),
-                )
-            )
-            session.commit()
-
-        # Queue a workload with same key
-        workload = ExecuteTask(
-            token="mock",
-            ti=TaskInstance(
-                id=uuid4(),
-                task_id=key.task_id,
-                dag_id=key.dag_id,
-                run_id=key.run_id,
-                try_number=key.try_number,
-                map_index=key.map_index,
-                pool_slots=1,
-                queue="updated-queue",
-                priority_weight=1,
-                start_date=timezone.utcnow(),
-                dag_version_id=uuid4(),
-            ),
-            dag_rel_path="mock.py",
-            log_path="mock.log",
-            bundle_info={"name": "n/a", "version": "no matter"},
-        )
-
-        executor.queue_workload(workload=workload)
-
-        with create_session() as session:
-            jobs = session.query(EdgeJobModel).all()
-            assert len(jobs) == 1
-            job = jobs[0]
-            assert job.queue == "updated-queue"
-            assert job.command != "old-command"
 
     def test_revoke_task(self):
         """Test that revoke_task removes task from executor and database."""
@@ -476,7 +305,7 @@ class TestEdgeExecutor:
 
         # Verify job exists before revoke
         with create_session() as session:
-            jobs = session.query(EdgeJobModel).all()
+            jobs = session.scalars(select(EdgeJobModel)).all()
             assert len(jobs) == 1
 
         # Revoke the task
@@ -489,7 +318,7 @@ class TestEdgeExecutor:
 
         # Verify job is removed from database
         with create_session() as session:
-            jobs = session.query(EdgeJobModel).all()
+            jobs = session.scalars(select(EdgeJobModel)).all()
             assert len(jobs) == 0
 
     def test_revoke_task_nonexistent(self):

@@ -23,13 +23,13 @@ from unittest import mock
 from unittest.mock import MagicMock
 
 import pytest
+from sqlalchemy import delete, func, select
 
 from airflow._shared.timezones import timezone
 from airflow.configuration import conf
 from airflow.models.dag import DAG
 from airflow.models.dag_version import DagVersion
 from airflow.models.dagrun import DagRun, DagRunType
-from airflow.models.taskinstance import TaskInstance
 from airflow.models.xcom import XComModel
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.sdk.bases.xcom import BaseXCom
@@ -40,12 +40,15 @@ from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.dag import sync_dag_to_db
 from tests_common.test_utils.db import clear_db_dag_bundles, clear_db_dags, clear_db_runs, clear_db_xcom
 from tests_common.test_utils.markers import skip_if_force_lowest_dependencies_marker
+from tests_common.test_utils.taskinstance import create_task_instance
 
 pytestmark = pytest.mark.db_test
 
 
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
+
+    from airflow.models.taskinstance import TaskInstance
 
 
 class CustomXCom(BaseXCom): ...
@@ -81,14 +84,18 @@ def task_instance_factory(request, session: Session):
         session.add(run)
         session.flush()
         dag_version = DagVersion.get_latest_version(run.dag_id, session=session)
-        ti = TaskInstance(EmptyOperator(task_id=task_id), run_id=run_id, dag_version_id=dag_version.id)
+        ti = create_task_instance(
+            EmptyOperator(task_id=task_id),
+            run_id=run_id,
+            dag_version_id=dag_version.id,
+        )
         ti.dag_id = dag_id
         session.add(ti)
         session.commit()
 
         def cleanup_database():
             # This should also clear task instances by cascading.
-            session.query(DagRun).filter_by(id=run.id).delete()
+            session.execute(delete(DagRun).where(DagRun.id == run.id))
             session.commit()
 
         request.addfinalizer(cleanup_database)
@@ -108,7 +115,7 @@ def task_instance(task_instance_factory):
 
 @pytest.fixture
 def task_instances(session, task_instance):
-    ti2 = TaskInstance(
+    ti2 = create_task_instance(
         EmptyOperator(task_id="task_2"),
         run_id=task_instance.run_id,
         dag_version_id=task_instance.dag_version_id,
@@ -384,7 +391,7 @@ class TestXComSet:
             run_id=task_instance.run_id,
             session=session,
         )
-        stored_xcoms = session.query(XComModel).all()
+        stored_xcoms = session.scalars(select(XComModel)).all()
         assert stored_xcoms[0].key == key
         assert isinstance(stored_xcoms[0].value, type(json.dumps(expected_value)))
         assert stored_xcoms[0].value == json.dumps(expected_value)
@@ -398,7 +405,7 @@ class TestXComSet:
 
     @pytest.mark.usefixtures("setup_for_xcom_set_again_replace")
     def test_xcom_set_again_replace(self, session, task_instance):
-        assert session.query(XComModel).one().value == json.dumps({"key1": "value1"})
+        assert session.scalar(select(XComModel)).value == json.dumps({"key1": "value1"})
         XComModel.set(
             key="xcom_1",
             value={"key2": "value2"},
@@ -407,7 +414,7 @@ class TestXComSet:
             run_id=task_instance.run_id,
             session=session,
         )
-        assert session.query(XComModel).one().value == json.dumps({"key2": "value2"})
+        assert session.scalar(select(XComModel)).value == json.dumps({"key2": "value2"})
 
     def test_xcom_set_invalid_key(self, session, task_instance):
         """Test that setting an XCom with an invalid key raises a ValueError."""
@@ -438,16 +445,16 @@ class TestXComClear:
         push_simple_json_xcom(ti=task_instance, key="xcom_1", value={"key": "value"})
 
     @pytest.mark.usefixtures("setup_for_xcom_clear")
-    @mock.patch("airflow.models.xcom.XCom.purge")
+    @mock.patch("airflow.sdk.execution_time.xcom.XCom.purge")
     def test_xcom_clear(self, mock_purge, session, task_instance):
-        assert session.query(XComModel).count() == 1
+        assert session.scalar(select(func.count()).select_from(XComModel)) == 1
         XComModel.clear(
             dag_id=task_instance.dag_id,
             task_id=task_instance.task_id,
             run_id=task_instance.run_id,
             session=session,
         )
-        assert session.query(XComModel).count() == 0
+        assert session.scalar(select(func.count()).select_from(XComModel)) == 0
         # purge will not be done when we clear, will be handled in task sdk
         assert mock_purge.call_count == 0
 
@@ -459,7 +466,7 @@ class TestXComClear:
             run_id="different_run",
             session=session,
         )
-        assert session.query(XComModel).count() == 1
+        assert session.scalar(select(func.count()).select_from(XComModel)) == 1
 
 
 class TestXComRoundTrip:

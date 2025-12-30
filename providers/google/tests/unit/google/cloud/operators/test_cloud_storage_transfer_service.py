@@ -25,7 +25,7 @@ import pytest
 import time_machine
 from botocore.credentials import Credentials
 
-from airflow.exceptions import AirflowException, TaskDeferred
+from airflow.providers.common.compat.sdk import AirflowException, TaskDeferred
 from airflow.providers.google.cloud.hooks.cloud_storage_transfer_service import (
     ACCESS_KEY_ID,
     AWS_ACCESS_KEY,
@@ -403,12 +403,10 @@ class TestGcpStorageTransferJobCreateOperator:
             aws_conn_id="{{ dag.dag_id }}",
             task_id="task-id",
         )
-        session.add(ti)
-        session.commit()
-        ti.render_templates()
-        assert excepted == getattr(ti.task, "body")
-        assert dag_id == getattr(ti.task, "gcp_conn_id")
-        assert dag_id == getattr(ti.task, "aws_conn_id")
+        rendered = ti.render_templates()
+        assert excepted == getattr(rendered, "body")
+        assert dag_id == getattr(rendered, "gcp_conn_id")
+        assert dag_id == getattr(rendered, "aws_conn_id")
 
 
 class TestGcpStorageTransferJobUpdateOperator:
@@ -451,11 +449,9 @@ class TestGcpStorageTransferJobUpdateOperator:
             body={"transferJob": {"name": "{{ dag.dag_id }}"}},
             task_id="task-id",
         )
-        session.add(ti)
-        session.commit()
-        ti.render_templates()
-        assert dag_id == getattr(ti.task, "body")["transferJob"]["name"]
-        assert dag_id == getattr(ti.task, "job_name")
+        rendered = ti.render_templates()
+        assert dag_id == getattr(rendered, "body")["transferJob"]["name"]
+        assert dag_id == getattr(rendered, "job_name")
 
 
 class TestGcpStorageTransferJobDeleteOperator:
@@ -496,12 +492,10 @@ class TestGcpStorageTransferJobDeleteOperator:
             api_version="{{ dag.dag_id }}",
             task_id=TASK_ID,
         )
-        session.add(ti)
-        session.commit()
-        ti.render_templates()
-        assert dag_id == ti.task.job_name
-        assert dag_id == ti.task.gcp_conn_id
-        assert dag_id == ti.task.api_version
+        rendered = ti.render_templates()
+        assert dag_id == rendered.job_name
+        assert dag_id == rendered.gcp_conn_id
+        assert dag_id == rendered.api_version
 
     def test_job_delete_should_throw_ex_when_name_none(self):
         with pytest.raises(AirflowException, match="The required parameter 'job_name' is empty or None"):
@@ -550,14 +544,12 @@ class TestGcpStorageTransferJobRunOperator:
             google_impersonation_chain="{{ dag.dag_id }}",
             task_id=TASK_ID,
         )
-        session.add(ti)
-        session.commit()
-        ti.render_templates()
-        assert dag_id == ti.task.job_name
-        assert dag_id == ti.task.project_id
-        assert dag_id == ti.task.gcp_conn_id
-        assert dag_id == ti.task.api_version
-        assert dag_id == ti.task.google_impersonation_chain
+        rendered = ti.render_templates()
+        assert dag_id == rendered.job_name
+        assert dag_id == rendered.project_id
+        assert dag_id == rendered.gcp_conn_id
+        assert dag_id == rendered.api_version
+        assert dag_id == rendered.google_impersonation_chain
 
     def test_job_run_should_throw_ex_when_name_none(self):
         op = CloudDataTransferServiceRunJobOperator(job_name="", task_id="task-id")
@@ -600,10 +592,8 @@ class TestGpcStorageTransferOperationsGetOperator:
             operation_name="{{ dag.dag_id }}",
             task_id="task-id",
         )
-        session.add(ti)
-        session.commit()
-        ti.render_templates()
-        assert dag_id == ti.task.operation_name
+        rendered = ti.render_templates()
+        assert dag_id == rendered.operation_name
 
     def test_operation_get_should_throw_ex_when_operation_name_none(self):
         with pytest.raises(
@@ -648,12 +638,10 @@ class TestGcpStorageTransferOperationListOperator:
             gcp_conn_id="{{ dag.dag_id }}",
             task_id="task-id",
         )
-        session.add(ti)
-        session.commit()
-        ti.render_templates()
+        rendered = ti.render_templates()
 
-        assert dag_id == ti.task.request_filter["job_names"][0]
-        assert dag_id == ti.task.gcp_conn_id
+        assert dag_id == rendered.request_filter["job_names"][0]
+        assert dag_id == rendered.gcp_conn_id
 
 
 class TestGcpStorageTransferOperationsPauseOperator:
@@ -691,12 +679,10 @@ class TestGcpStorageTransferOperationsPauseOperator:
             api_version="{{ dag.dag_id }}",
             task_id=TASK_ID,
         )
-        session.add(ti)
-        session.commit()
-        ti.render_templates()
-        assert dag_id == ti.task.operation_name
-        assert dag_id == ti.task.gcp_conn_id
-        assert dag_id == ti.task.api_version
+        rendered = ti.render_templates()
+        assert dag_id == rendered.operation_name
+        assert dag_id == rendered.gcp_conn_id
+        assert dag_id == rendered.api_version
 
     def test_operation_pause_should_throw_ex_when_name_none(self):
         with pytest.raises(
@@ -743,12 +729,10 @@ class TestGcpStorageTransferOperationsResumeOperator:
             api_version="{{ dag.dag_id }}",
             task_id=TASK_ID,
         )
-        session.add(ti)
-        session.commit()
-        ti.render_templates()
-        assert dag_id == ti.task.operation_name
-        assert dag_id == ti.task.gcp_conn_id
-        assert dag_id == ti.task.api_version
+        rendered = ti.render_templates()
+        assert dag_id == rendered.operation_name
+        assert dag_id == rendered.gcp_conn_id
+        assert dag_id == rendered.api_version
 
     @mock.patch(
         "airflow.providers.google.cloud.operators.cloud_storage_transfer_service.CloudDataTransferServiceHook"
@@ -798,12 +782,10 @@ class TestGcpStorageTransferOperationsCancelOperator:
             api_version="{{ dag.dag_id }}",
             task_id=TASK_ID,
         )
-        session.add(ti)
-        session.commit()
-        ti.render_templates()
-        assert dag_id == ti.task.operation_name
-        assert dag_id == ti.task.gcp_conn_id
-        assert dag_id == ti.task.api_version
+        rendered = ti.render_templates()
+        assert dag_id == rendered.operation_name
+        assert dag_id == rendered.gcp_conn_id
+        assert dag_id == rendered.api_version
 
     @mock.patch(
         "airflow.providers.google.cloud.operators.cloud_storage_transfer_service.CloudDataTransferServiceHook"
@@ -852,14 +834,12 @@ class TestS3ToGoogleCloudStorageTransferOperator:
             gcp_conn_id="{{ dag.dag_id }}",
             task_id=TASK_ID,
         )
-        session.add(ti)
-        session.commit()
-        ti.render_templates()
-        assert dag_id == ti.task.s3_bucket
-        assert dag_id == ti.task.gcs_bucket
-        assert dag_id == ti.task.description
-        assert dag_id == ti.task.object_conditions["exclude_prefixes"][0]
-        assert dag_id == ti.task.gcp_conn_id
+        rendered = ti.render_templates()
+        assert dag_id == rendered.s3_bucket
+        assert dag_id == rendered.gcs_bucket
+        assert dag_id == rendered.description
+        assert dag_id == rendered.object_conditions["exclude_prefixes"][0]
+        assert dag_id == rendered.gcp_conn_id
 
     @mock.patch(
         "airflow.providers.google.cloud.operators.cloud_storage_transfer_service.CloudDataTransferServiceHook"
@@ -1215,14 +1195,12 @@ class TestGoogleCloudStorageToGoogleCloudStorageTransferOperator:
             gcp_conn_id="{{ dag.dag_id }}",
             task_id=TASK_ID,
         )
-        session.add(ti)
-        session.commit()
-        ti.render_templates()
-        assert dag_id == ti.task.source_bucket
-        assert dag_id == ti.task.destination_bucket
-        assert dag_id == ti.task.description
-        assert dag_id == ti.task.object_conditions["exclude_prefixes"][0]
-        assert dag_id == ti.task.gcp_conn_id
+        rendered = ti.render_templates()
+        assert dag_id == rendered.source_bucket
+        assert dag_id == rendered.destination_bucket
+        assert dag_id == rendered.description
+        assert dag_id == rendered.object_conditions["exclude_prefixes"][0]
+        assert dag_id == rendered.gcp_conn_id
 
     @mock.patch(
         "airflow.providers.google.cloud.operators.cloud_storage_transfer_service.CloudDataTransferServiceHook"

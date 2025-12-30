@@ -17,10 +17,9 @@
  * under the License.
  */
 import { defineConfig, devices } from "@playwright/test";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 
-/**
- * Playwright configuration for Airflow UI End-to-End Tests
- */
 export const testConfig = {
   credentials: {
     password: process.env.TEST_PASSWORD ?? "admin",
@@ -31,12 +30,18 @@ export const testConfig = {
   },
 };
 
+const currentFilename = fileURLToPath(import.meta.url);
+const currentDirname = path.dirname(currentFilename);
+
+export const AUTH_FILE = path.join(currentDirname, "playwright/.auth/user.json");
+
 export default defineConfig({
   expect: {
     timeout: 5000,
   },
   forbidOnly: process.env.CI !== undefined && process.env.CI !== "",
   fullyParallel: true,
+  globalSetup: "./tests/e2e/global-setup.ts",
   projects: [
     {
       name: "chromium",
@@ -50,9 +55,9 @@ export default defineConfig({
             "--window-size=1920,1080",
             "--window-position=0,0",
           ],
-          channel: "chrome",
           ignoreDefaultArgs: ["--enable-automation"],
         },
+        storageState: AUTH_FILE,
       },
     },
     {
@@ -68,6 +73,7 @@ export default defineConfig({
             "--disable-web-security",
           ],
         },
+        storageState: AUTH_FILE,
       },
     },
     {
@@ -77,6 +83,7 @@ export default defineConfig({
         launchOptions: {
           args: [],
         },
+        storageState: AUTH_FILE,
       },
     },
   ],

@@ -116,11 +116,13 @@ path = "src/airflow/sdk/__init__.py"
 
 [tool.hatch.build.targets.sdist.force-include]
 "../shared/configuration/src/airflow_shared/configuration" = "src/airflow/sdk/_shared/configuration"
+"../shared/dagnode/src/airflow_shared/dagnode" = "src/airflow/sdk/_shared/dagnode"
 "../shared/logging/src/airflow_shared/logging" = "src/airflow/sdk/_shared/logging"
+"../shared/module_loading/src/airflow_shared/module_loading" = "src/airflow/sdk/_shared/module_loading"
+"../shared/observability/src/airflow_shared/observability" = "src/airflow/_shared/observability"
+"../shared/secrets_backend/src/airflow_shared/secrets_backend" = "src/airflow/sdk/_shared/secrets_backend"
 "../shared/secrets_masker/src/airflow_shared/secrets_masker" = "src/airflow/sdk/_shared/secrets_masker"
 "../shared/timezones/src/airflow_shared/timezones" = "src/airflow/sdk/_shared/timezones"
-"../shared/secrets_backend/src/airflow_shared/secrets_backend" = "src/airflow/sdk/_shared/secrets_backend"
-"../shared/observability/src/airflow_shared/observability" = "src/airflow/_shared/observability"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/airflow"]
@@ -263,7 +265,9 @@ tmp_path_retention_policy = "failed"
 [tool.airflow]
 shared_distributions = [
     "apache-airflow-shared-configuration",
+    "apache-airflow-shared-dagnode",
     "apache-airflow-shared-logging",
+    "apache-airflow-shared-module-loading",
     "apache-airflow-shared-secrets-backend",
     "apache-airflow-shared-secrets-masker",
     "apache-airflow-shared-timezones",

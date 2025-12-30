@@ -26,6 +26,7 @@ import pendulum
 import pytest
 import pytz
 from cryptography.fernet import Fernet
+from sqlalchemy import delete, func, select
 
 from airflow._shared.timezones import timezone
 from airflow.jobs.job import Job
@@ -61,21 +62,21 @@ def session():
 
 @pytest.fixture(autouse=True)
 def clear_db(session):
-    session.query(TaskInstance).delete()
-    session.query(AssetWatcherModel).delete()
-    session.query(Callback).delete()
-    session.query(Trigger).delete()
-    session.query(AssetModel).delete()
-    session.query(AssetEvent).delete()
-    session.query(Job).delete()
+    session.execute(delete(TaskInstance))
+    session.execute(delete(AssetWatcherModel))
+    session.execute(delete(Callback))
+    session.execute(delete(Trigger))
+    session.execute(delete(AssetModel))
+    session.execute(delete(AssetEvent))
+    session.execute(delete(Job))
     yield session
-    session.query(TaskInstance).delete()
-    session.query(AssetWatcherModel).delete()
-    session.query(Callback).delete()
-    session.query(Trigger).delete()
-    session.query(AssetModel).delete()
-    session.query(AssetEvent).delete()
-    session.query(Job).delete()
+    session.execute(delete(TaskInstance))
+    session.execute(delete(AssetWatcherModel))
+    session.execute(delete(Callback))
+    session.execute(delete(Trigger))
+    session.execute(delete(AssetModel))
+    session.execute(delete(AssetEvent))
+    session.execute(delete(Job))
     session.commit()
 
 
@@ -102,7 +103,7 @@ def test_fetch_trigger_ids_with_non_task_associations(session):
     assert results == {asset_trigger.id, callback_trigger.id}
 
 
-def test_clean_unused(session, create_task_instance):
+def test_clean_unused(session, dag_maker):
     """
     Tests that unused triggers (those with no task instances referencing them)
     are cleaned out automatically.
@@ -120,49 +121,42 @@ def test_clean_unused(session, create_task_instance):
     session.add(trigger4)
     session.add(trigger5)
     session.add(trigger6)
-    session.commit()
-    assert session.query(Trigger).count() == 6
+    session.flush()
+    assert session.scalar(select(func.count()).select_from(Trigger)) == 6
+
     # Tie one to a fake TaskInstance that is not deferred, and one to one that is
-    task_instance = create_task_instance(
-        session=session, task_id="fake", state=State.DEFERRED, logical_date=timezone.utcnow()
-    )
-    task_instance.trigger_id = trigger1.id
-    session.add(task_instance)
-    fake_task1 = EmptyOperator(task_id="fake2", dag=task_instance.task.dag)
-    task_instance1 = TaskInstance(
-        task=fake_task1, run_id=task_instance.run_id, dag_version_id=task_instance.dag_version_id
-    )
-    task_instance1.state = State.SUCCESS
-    task_instance1.trigger_id = trigger2.id
-    session.add(task_instance1)
-    fake_task2 = EmptyOperator(task_id="fake3", dag=task_instance.task.dag)
-    task_instance2 = TaskInstance(
-        task=fake_task2, run_id=task_instance.run_id, dag_version_id=task_instance.dag_version_id
-    )
-    task_instance2.state = State.SUCCESS
-    task_instance2.trigger_id = trigger4.id
-    session.add(task_instance2)
-    session.commit()
+    with dag_maker(session=session):
+        EmptyOperator(task_id="fake0")
+        EmptyOperator(task_id="fake1")
+        EmptyOperator(task_id="fake2")
+
+    dr = dag_maker.create_dagrun(logical_date=timezone.utcnow())
+    tis = {ti.task_id: ti for ti in dr.task_instances}
+    tis["fake0"].state = State.DEFERRED
+    tis["fake0"].trigger_id = trigger1.id
+    tis["fake1"].state = State.SUCCESS
+    tis["fake1"].trigger_id = trigger2.id
+    tis["fake2"].state = State.SUCCESS
+    tis["fake2"].trigger_id = trigger4.id
+    session.flush()
 
     # Create assets
     asset = AssetModel("test")
     asset.add_trigger(trigger4, "test_asset_watcher1")
     asset.add_trigger(trigger5, "test_asset_watcher2")
     session.add(asset)
-    session.commit()
-    assert session.query(AssetModel).count() == 1
+    session.flush()
+    assert session.scalar(select(func.count()).select_from(AssetModel)) == 1
 
     # Create callback with trigger
-    callback = TriggererCallback(
-        callback_def=AsyncCallback("classpath.callback"),
-    )
+    callback = TriggererCallback(callback_def=AsyncCallback("classpath.callback"))
     callback.trigger = trigger6
     session.add(callback)
-    session.commit()
+    session.flush()
 
     # Run clear operation
-    Trigger.clean_unused()
-    results = session.query(Trigger).all()
+    Trigger.clean_unused(session=session)
+    results = session.scalars(select(Trigger)).all()
     assert len(results) == 4
     assert {result.id for result in results} == {trigger1.id, trigger4.id, trigger5.id, trigger6.id}
 
@@ -196,7 +190,10 @@ def test_submit_event(mock_callback_handle_event, session, create_task_instance)
     session.commit()
 
     # Check that the asset has 0 event prior to sending an event to the trigger
-    assert session.query(AssetEvent).filter_by(asset_id=asset.id).count() == 0
+    assert (
+        session.scalar(select(func.count()).select_from(AssetEvent).where(AssetEvent.asset_id == asset.id))
+        == 0
+    )
 
     # Create event
     payload = "payload"
@@ -210,8 +207,11 @@ def test_submit_event(mock_callback_handle_event, session, create_task_instance)
     assert task_instance.state == State.SCHEDULED
     assert task_instance.next_kwargs == {"event": payload, "cheesecake": True}
     # Check that the asset has received an event
-    assert session.query(AssetEvent).filter_by(asset_id=asset.id).count() == 1
-    asset_event = session.query(AssetEvent).filter_by(asset_id=asset.id).first()
+    assert (
+        session.scalar(select(func.count()).select_from(AssetEvent).where(AssetEvent.asset_id == asset.id))
+        == 1
+    )
+    asset_event = session.scalar(select(AssetEvent).where(AssetEvent.asset_id == asset.id))
     assert asset_event.extra == {"from_trigger": True, "payload": payload}
 
     # Check that the callback's handle_event was called
@@ -233,7 +233,7 @@ def test_submit_failure(session, create_task_instance):
     # Call submit_event
     Trigger.submit_failure(trigger.id, session=session)
     # Check that the task instance is now scheduled to fail
-    updated_task_instance = session.query(TaskInstance).one()
+    updated_task_instance = session.scalar(select(TaskInstance))
     assert updated_task_instance.state == State.SCHEDULED
     assert updated_task_instance.next_method == "__fail__"
 
@@ -272,7 +272,7 @@ def test_submit_event_task_end(mock_utcnow, session, create_task_instance, event
 
     # now for the real test
     # first check initial state
-    ti: TaskInstance = session.query(TaskInstance).one()
+    ti: TaskInstance = session.scalar(select(TaskInstance))
     assert ti.state == "deferred"
     assert get_xcoms(ti) == []
 
@@ -285,7 +285,7 @@ def test_submit_event_task_end(mock_utcnow, session, create_task_instance, event
     # commit changes made by submit event and expire all cache to read from db.
     session.flush()
     # Check that the task instance is now correct
-    ti = session.query(TaskInstance).one()
+    ti = session.scalar(select(TaskInstance))
     assert ti.state == expected
     assert ti.next_kwargs is None
     assert ti.end_date == now
@@ -370,26 +370,26 @@ def test_assign_unassigned(session, create_task_instance):
     session.add(ti_trigger_unassigned_to_triggerer)
     assert trigger_unassigned_to_triggerer.triggerer_id is None
     session.commit()
-    assert session.query(Trigger).count() == 4
+    assert session.scalar(select(func.count()).select_from(Trigger)) == 4
     Trigger.assign_unassigned(new_triggerer.id, 100, health_check_threshold=30)
     session.expire_all()
     # Check that trigger on killed triggerer and unassigned trigger are assigned to new triggerer
     assert (
-        session.query(Trigger).filter(Trigger.id == trigger_on_killed_triggerer.id).one().triggerer_id
+        session.scalar(select(Trigger).where(Trigger.id == trigger_on_killed_triggerer.id)).triggerer_id
         == new_triggerer.id
     )
     assert (
-        session.query(Trigger).filter(Trigger.id == trigger_unassigned_to_triggerer.id).one().triggerer_id
+        session.scalar(select(Trigger).where(Trigger.id == trigger_unassigned_to_triggerer.id)).triggerer_id
         == new_triggerer.id
     )
     # Check that trigger on healthy triggerer still assigned to existing triggerer
     assert (
-        session.query(Trigger).filter(Trigger.id == trigger_on_healthy_triggerer.id).one().triggerer_id
+        session.scalar(select(Trigger).where(Trigger.id == trigger_on_healthy_triggerer.id)).triggerer_id
         == healthy_triggerer.id
     )
     # Check that trigger on unhealthy triggerer is assigned to new triggerer
     assert (
-        session.query(Trigger).filter(Trigger.id == trigger_on_unhealthy_triggerer.id).one().triggerer_id
+        session.scalar(select(Trigger).where(Trigger.id == trigger_on_unhealthy_triggerer.id)).triggerer_id
         == new_triggerer.id
     )
 
@@ -453,7 +453,7 @@ def test_get_sorted_triggers_same_priority_weight(session, create_task_instance)
     )
     session.add(trigger_callback)
     session.commit()
-    assert session.query(Trigger).count() == 5
+    assert session.scalar(select(func.count()).select_from(Trigger)) == 5
     # Create assets
     asset = AssetModel("test")
     asset.add_trigger(trigger_asset, "test_asset_watcher")
@@ -534,7 +534,7 @@ def test_get_sorted_triggers_different_priority_weights(session, create_task_ins
     session.add(TI_new)
 
     session.commit()
-    assert session.query(Trigger).count() == 5
+    assert session.scalar(select(func.count()).select_from(Trigger)) == 5
 
     trigger_ids_query = Trigger.get_sorted_triggers(capacity=100, alive_triggerer_ids=[], session=session)
 
@@ -545,6 +545,97 @@ def test_get_sorted_triggers_different_priority_weights(session, create_task_ins
         (trigger_new.id,),
         (trigger_old.id,),
     ]
+
+
+@pytest.mark.need_serialized_dag
+def test_get_sorted_triggers_dont_starve_for_ha(session, create_task_instance):
+    """
+    Tests that get_sorted_triggers respects max_trigger_to_select_per_loop to prevent
+    starvation in HA setups. When capacity is large, it should limit triggers per loop
+    to avoid one triggerer picking up too many triggers.
+    """
+    # Create 20 callback triggers with different priorities
+    callback_triggers = []
+    for i in range(20):
+        trigger = Trigger(classpath="airflow.triggers.testing.CallbackTrigger", kwargs={})
+        session.add(trigger)
+        session.flush()
+        callback = TriggererCallback(
+            callback_def=AsyncCallback(f"classpath.callback_{i}"), priority_weight=20 - i
+        )
+        callback.trigger = trigger
+        session.add(callback)
+        callback_triggers.append(trigger)
+
+    # Create 20 task instance triggers with different priorities
+    task_triggers = []
+    for i in range(20):
+        logical_date = datetime.datetime(2023, 5, 9, 12, i, 0, tzinfo=pytz.timezone("UTC"))
+        trigger = Trigger(
+            classpath="airflow.triggers.testing.SuccessTrigger",
+            kwargs={},
+            created_date=logical_date,
+        )
+        session.add(trigger)
+        session.flush()
+        ti = create_task_instance(
+            task_id=f"task_{i}",
+            logical_date=logical_date,
+            run_id=f"run_{i}",
+        )
+        ti.priority_weight = 20 - i
+        ti.trigger_id = trigger.id
+        session.add(ti)
+        task_triggers.append(trigger)
+
+    # Create 20 asset triggers
+    asset_triggers = []
+    for i in range(20):
+        logical_date = datetime.datetime(2023, 5, 9, 13, i, 0, tzinfo=pytz.timezone("UTC"))
+        trigger = Trigger(
+            classpath="airflow.triggers.testing.AssetTrigger",
+            kwargs={},
+            created_date=logical_date,
+        )
+        session.add(trigger)
+        session.flush()
+        asset = AssetModel(f"test_asset_{i}")
+        asset.add_trigger(trigger, f"test_asset_watcher_{i}")
+        session.add(asset)
+        asset_triggers.append(trigger)
+
+    session.commit()
+    assert session.scalar(select(func.count()).select_from(Trigger)) == 60
+
+    # Mock max_trigger_to_select_per_loop to 5 for testing
+    with patch.object(Trigger, "max_trigger_to_select_per_loop", 5):
+        # Test with large capacity (100) - should respect max_trigger_to_select_per_loop (5)
+        # and return only 5 triggers from each category (callback, task, asset)
+        trigger_ids_query = Trigger.get_sorted_triggers(capacity=100, alive_triggerer_ids=[], session=session)
+
+        # Should get 5 callbacks (max_trigger_to_select_per_loop), then 5 tasks, then 5 assets
+        # Total: 15 triggers instead of all 60
+        assert len(trigger_ids_query) == 15
+
+        # First 5 should be callback triggers (highest priority first)
+        callback_ids = [t.id for t in callback_triggers[:5]]
+        assert [row[0] for row in trigger_ids_query[:5]] == callback_ids
+
+        # Next 5 should be task triggers (highest priority first)
+        task_ids = [t.id for t in task_triggers[:5]]
+        assert [row[0] for row in trigger_ids_query[5:10]] == task_ids
+
+        # Last 5 should be asset triggers (earliest created_date first)
+        asset_ids = [t.id for t in asset_triggers[:5]]
+        assert [row[0] for row in trigger_ids_query[10:15]] == asset_ids
+
+        # Test with capacity smaller than max_trigger_to_select_per_loop
+        # Should respect capacity instead
+        trigger_ids_query = Trigger.get_sorted_triggers(capacity=3, alive_triggerer_ids=[], session=session)
+
+        # Should get only 3 callback triggers (capacity limit)
+        assert len(trigger_ids_query) == 3
+        assert [row[0] for row in trigger_ids_query] == callback_ids[:3]
 
 
 class SensitiveKwargsTrigger(BaseTrigger):

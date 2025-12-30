@@ -22,6 +22,7 @@ from unittest import mock
 import pytest
 
 from airflow.models import TaskInstance
+from airflow.serialization.definitions.baseoperator import SerializedBaseOperator
 from airflow.ti_deps.deps.dag_unpaused_dep import DagUnpausedDep
 
 pytestmark = pytest.mark.db_test
@@ -34,7 +35,7 @@ class TestDagUnpausedDep:
         Test paused DAG should fail dependency
         """
         mock_is_dag_paused.return_value = True
-        task = mock.Mock()
+        task = SerializedBaseOperator(task_id="op")
         ti = TaskInstance(task=task, dag_version_id=mock.MagicMock())
 
         assert not DagUnpausedDep().is_met(ti=ti)
@@ -44,7 +45,7 @@ class TestDagUnpausedDep:
         Test all conditions met should pass dep
         """
         mock_is_dag_paused.return_value = False
-        task = mock.Mock()
+        task = SerializedBaseOperator(task_id="op")
         ti = TaskInstance(task=task, dag_version_id=mock.MagicMock())
 
         assert DagUnpausedDep().is_met(ti=ti)

@@ -579,8 +579,23 @@ class TestTIRunState:
         )
 
         ti.next_method = "execute_complete"
-        # ti.next_kwargs under the hood applies the serde encoding for us
-        ti.next_kwargs = {"moment": instant}
+        # explicitly use serde serialized value before assigning since we use JSON/JSONB now
+        # that this value comes serde serialized from the worker
+        expected_next_kwargs = {
+            "moment": {
+                "__classname__": "pendulum.datetime.DateTime",
+                "__version__": 2,
+                "__data__": {
+                    "timestamp": 1727697600.0,
+                    "tz": {
+                        "__classname__": "builtins.tuple",
+                        "__version__": 1,
+                        "__data__": ["UTC", "pendulum.tz.timezone.Timezone", 1, True],
+                    },
+                },
+            }
+        }
+        ti.next_kwargs = expected_next_kwargs
 
         session.commit()
 
@@ -606,10 +621,7 @@ class TestTIRunState:
             "connections": [],
             "xcom_keys_to_clear": [],
             "next_method": "execute_complete",
-            "next_kwargs": {
-                "__type": "dict",
-                "__var": {"moment": {"__type": "datetime", "__var": 1727697600.0}},
-            },
+            "next_kwargs": expected_next_kwargs,
         }
 
     @pytest.mark.parametrize("resume", [True, False])
@@ -632,14 +644,26 @@ class TestTIRunState:
         second_start_time = orig_task_start_time.add(seconds=30)
         second_start_time_str = second_start_time.isoformat()
 
-        # ti.next_kwargs under the hood applies the serde encoding for us
+        # explicitly serialize using serde before assigning since we use JSON/JSONB now
+        # this value comes serde serialized from the worker
         if resume:
-            ti.next_kwargs = {"moment": second_start_time}
-            expected_start_date = orig_task_start_time
+            # expected format is now in serde serialized format
             expected_next_kwargs = {
-                "__type": "dict",
-                "__var": {"moment": {"__type": "datetime", "__var": second_start_time.timestamp()}},
+                "moment": {
+                    "__classname__": "pendulum.datetime.DateTime",
+                    "__version__": 2,
+                    "__data__": {
+                        "timestamp": 1727697635.0,
+                        "tz": {
+                            "__classname__": "builtins.tuple",
+                            "__version__": 1,
+                            "__data__": ["UTC", "pendulum.tz.timezone.Timezone", 1, True],
+                        },
+                    },
+                }
             }
+            ti.next_kwargs = expected_next_kwargs
+            expected_start_date = orig_task_start_time
         else:
             expected_start_date = second_start_time
             expected_next_kwargs = None
@@ -1123,17 +1147,40 @@ class TestTIUpdateState:
 
         payload = {
             "state": "deferred",
-            # Raw payload is already "encoded", but not encrypted
+            # expected format is now in serde serialized format
             "trigger_kwargs": {
-                "__type": "dict",
-                "__var": {"key": "value", "moment": {"__type": "datetime", "__var": 1734480001.0}},
+                "key": "value",
+                "moment": {
+                    "__classname__": "datetime.datetime",
+                    "__version__": 2,
+                    "__data__": {
+                        "timestamp": 1734480001.0,
+                        "tz": {
+                            "__classname__": "builtins.tuple",
+                            "__version__": 1,
+                            "__data__": ["UTC", "pendulum.tz.timezone.Timezone", 1, True],
+                        },
+                    },
+                },
             },
             "trigger_timeout": "P1D",  # 1 day
             "classpath": "my-classpath",
             "next_method": "execute_callback",
+            # expected format is now in serde serialized format
             "next_kwargs": {
-                "__type": "dict",
-                "__var": {"foo": {"__type": "datetime", "__var": 1734480000.0}, "bar": "abc"},
+                "foo": {
+                    "__classname__": "datetime.datetime",
+                    "__version__": 2,
+                    "__data__": {
+                        "timestamp": 1734480000.0,
+                        "tz": {
+                            "__classname__": "builtins.tuple",
+                            "__version__": 1,
+                            "__data__": ["UTC", "pendulum.tz.timezone.Timezone", 1, True],
+                        },
+                    },
+                },
+                "bar": "abc",
             },
         }
 
@@ -1144,18 +1191,30 @@ class TestTIUpdateState:
 
         session.expire_all()
 
-        tis = session.query(TaskInstance).all()
+        tis = session.scalars(select(TaskInstance)).all()
         assert len(tis) == 1
 
         assert tis[0].state == TaskInstanceState.DEFERRED
         assert tis[0].next_method == "execute_callback"
+
         assert tis[0].next_kwargs == {
+            "foo": {
+                "__classname__": "datetime.datetime",
+                "__version__": 2,
+                "__data__": {
+                    "timestamp": 1734480000.0,
+                    "tz": {
+                        "__classname__": "builtins.tuple",
+                        "__version__": 1,
+                        "__data__": ["UTC", "pendulum.tz.timezone.Timezone", 1, True],
+                    },
+                },
+            },
             "bar": "abc",
-            "foo": datetime(2024, 12, 18, 00, 00, 00, tzinfo=timezone.utc),
         }
         assert tis[0].trigger_timeout == timezone.make_aware(datetime(2024, 11, 23), timezone=timezone.utc)
 
-        t = session.query(Trigger).all()
+        t = session.scalars(select(Trigger)).all()
         assert len(t) == 1
         assert t[0].created_date == instant
         assert t[0].classpath == "my-classpath"
@@ -1192,14 +1251,14 @@ class TestTIUpdateState:
 
         session.expire_all()
 
-        tis = session.query(TaskInstance).all()
+        tis = session.scalars(select(TaskInstance)).all()
         assert len(tis) == 1
         assert tis[0].state == TaskInstanceState.UP_FOR_RESCHEDULE
         assert tis[0].next_method is None
         assert tis[0].next_kwargs is None
         assert tis[0].duration == 129600
 
-        trs = session.query(TaskReschedule).all()
+        trs = session.scalars(select(TaskReschedule)).all()
         assert len(trs) == 1
         assert trs[0].task_instance.dag_id == "dag"
         assert trs[0].task_instance.task_id == "test_ti_update_state_to_reschedule"
@@ -1273,11 +1332,11 @@ class TestTIUpdateState:
         assert ti.next_method is None
         assert ti.next_kwargs is None
 
-        tih = (
-            session.query(TaskInstanceHistory)
-            .where(TaskInstanceHistory.task_id == ti.task_id, TaskInstanceHistory.run_id == ti.run_id)
-            .one()
-        )
+        tih = session.scalars(
+            select(TaskInstanceHistory).where(
+                TaskInstanceHistory.task_id == ti.task_id, TaskInstanceHistory.run_id == ti.run_id
+            )
+        ).one()
         assert tih.task_instance_id
         assert tih.task_instance_id != ti.id
 
@@ -1680,7 +1739,7 @@ class TestTIPutRTIF:
 
         session.expire_all()
 
-        rtifs = session.query(RenderedTaskInstanceFields).all()
+        rtifs = session.scalars(select(RenderedTaskInstanceFields)).all()
         assert len(rtifs) == 1
 
         assert rtifs[0].dag_id == "dag"
@@ -2136,6 +2195,195 @@ class TestGetCount:
         )
         assert response.status_code == 200
         assert response.json() == expected_count
+
+
+class TestGetPreviousTI:
+    def setup_method(self):
+        clear_db_runs()
+
+    def teardown_method(self):
+        clear_db_runs()
+
+    def test_get_previous_ti_basic(self, client, session, create_task_instance):
+        """Test basic get_previous_ti without filters."""
+        # Create TIs with different logical dates
+        create_task_instance(
+            task_id="test_task",
+            state=State.SUCCESS,
+            logical_date=timezone.datetime(2025, 1, 1),
+            run_id="run1",
+        )
+        create_task_instance(
+            task_id="test_task",
+            state=State.SUCCESS,
+            logical_date=timezone.datetime(2025, 1, 2),
+            run_id="run2",
+        )
+        session.commit()
+
+        response = client.get(
+            "/execution/task-instances/previous/dag/test_task",
+            params={
+                "logical_date": "2025-01-02T00:00:00Z",
+            },
+        )
+        assert response.status_code == 200
+        data = response.json()
+        assert data["task_id"] == "test_task"
+        assert data["dag_id"] == "dag"
+        assert data["run_id"] == "run1"
+        assert data["state"] == State.SUCCESS
+
+    def test_get_previous_ti_with_state_filter(self, client, session, create_task_instance):
+        """Test get_previous_ti with state filter."""
+        # Create TIs with different states
+        create_task_instance(
+            task_id="test_task",
+            state=State.FAILED,
+            logical_date=timezone.datetime(2025, 1, 1),
+            run_id="run1",
+        )
+        create_task_instance(
+            task_id="test_task",
+            state=State.SUCCESS,
+            logical_date=timezone.datetime(2025, 1, 2),
+            run_id="run2",
+        )
+        create_task_instance(
+            task_id="test_task",
+            state=State.FAILED,
+            logical_date=timezone.datetime(2025, 1, 3),
+            run_id="run3",
+        )
+        session.commit()
+
+        # Query for previous successful TI before 2025-01-03
+        response = client.get(
+            "/execution/task-instances/previous/dag/test_task",
+            params={
+                "logical_date": "2025-01-03T00:00:00Z",
+                "state": State.SUCCESS,
+            },
+        )
+        assert response.status_code == 200
+        data = response.json()
+        assert data["task_id"] == "test_task"
+        assert data["run_id"] == "run2"
+        assert data["state"] == State.SUCCESS
+
+    def test_get_previous_ti_with_map_index_filter(self, client, session, create_task_instance):
+        """Test get_previous_ti with map_index filter for mapped tasks."""
+        # Create TIs with different map_index values
+        # map_index=0 in run1
+        create_task_instance(
+            task_id="test_task",
+            state=State.SUCCESS,
+            logical_date=timezone.datetime(2025, 1, 1),
+            run_id="run1",
+            map_index=0,
+        )
+        # map_index=1 in run1_alt (different logical date to avoid constraint)
+        create_task_instance(
+            task_id="test_task",
+            state=State.SUCCESS,
+            logical_date=timezone.datetime(2025, 1, 1, 12, 0, 0),
+            run_id="run1_alt",
+            map_index=1,
+        )
+        # map_index=0 in run2
+        create_task_instance(
+            task_id="test_task",
+            state=State.SUCCESS,
+            logical_date=timezone.datetime(2025, 1, 2),
+            run_id="run2",
+            map_index=0,
+        )
+        session.commit()
+
+        # Query for previous TI with map_index=0 before 2025-01-02
+        response = client.get(
+            "/execution/task-instances/previous/dag/test_task",
+            params={
+                "logical_date": "2025-01-02T00:00:00Z",
+                "map_index": 0,
+            },
+        )
+        assert response.status_code == 200
+        data = response.json()
+        assert data["run_id"] == "run1"
+        assert data["map_index"] == 0
+
+    def test_get_previous_ti_not_found(self, client, session):
+        """Test get_previous_ti when no previous TI exists."""
+        response = client.get(
+            "/execution/task-instances/previous/dag/test_task",
+        )
+        assert response.status_code == 200
+        assert response.json() is None
+
+    def test_get_previous_ti_returns_most_recent(self, client, session, create_task_instance):
+        """Test that get_previous_ti returns the most recent matching TI."""
+        # Create multiple TIs
+        for i in range(5):
+            create_task_instance(
+                task_id="test_task",
+                state=State.SUCCESS,
+                logical_date=timezone.datetime(2025, 1, i + 1),
+                run_id=f"run{i + 1}",
+            )
+        session.commit()
+
+        # Query for TI before 2025-01-05
+        response = client.get(
+            "/execution/task-instances/previous/dag/test_task",
+            params={
+                "logical_date": "2025-01-05T00:00:00Z",
+            },
+        )
+        assert response.status_code == 200
+        data = response.json()
+        # Should return the most recent one (2025-01-04)
+        assert data["run_id"] == "run4"
+
+    def test_get_previous_ti_with_all_filters(self, client, session, create_task_instance):
+        """Test get_previous_ti with all filters combined."""
+        # Create TIs with different states and map_index values
+        create_task_instance(
+            task_id="test_task",
+            state=State.SUCCESS,
+            logical_date=timezone.datetime(2025, 1, 1),
+            run_id="target_run_1",
+            map_index=0,
+        )
+        create_task_instance(
+            task_id="test_task",
+            state=State.FAILED,
+            logical_date=timezone.datetime(2025, 1, 2),
+            run_id="target_run_2",
+            map_index=0,
+        )
+        create_task_instance(
+            task_id="test_task",
+            state=State.SUCCESS,
+            logical_date=timezone.datetime(2025, 1, 3),
+            run_id="target_run_3",
+            map_index=1,
+        )
+        session.commit()
+
+        # Query for previous successful TI before 2025-01-03 with map_index=0
+        response = client.get(
+            "/execution/task-instances/previous/dag/test_task",
+            params={
+                "logical_date": "2025-01-03T00:00:00Z",
+                "state": State.SUCCESS,
+                "map_index": 0,
+            },
+        )
+        assert response.status_code == 200
+        data = response.json()
+        assert data["run_id"] == "target_run_1"
+        assert data["state"] == State.SUCCESS
 
 
 class TestGetTaskStates:
