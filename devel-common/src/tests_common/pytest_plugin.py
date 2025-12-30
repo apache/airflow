@@ -2864,19 +2864,26 @@ def listener_manager():
             listener_manager(full_listener)
     """
     from airflow.listeners.listener import get_listener_manager as get_core_lm
-    from airflow.sdk.listeners.listener import get_listener_manager as get_sdk_lm
+
+    try:
+        from airflow.sdk.listeners.listener import get_listener_manager as get_sdk_lm
+    except ImportError:
+        get_sdk_lm = None
 
     core_lm = get_core_lm()
-    sdk_lm = get_sdk_lm()
+    sdk_lm = get_sdk_lm() if get_sdk_lm else None
 
     core_lm.clear()
-    sdk_lm.clear()
+    if sdk_lm:
+        sdk_lm.clear()
 
     def add_listener(listener):
         core_lm.add_listener(listener)
-        sdk_lm.add_listener(listener)
+        if sdk_lm:
+            sdk_lm.add_listener(listener)
 
     yield add_listener
 
     core_lm.clear()
-    sdk_lm.clear()
+    if sdk_lm:
+        sdk_lm.clear()
