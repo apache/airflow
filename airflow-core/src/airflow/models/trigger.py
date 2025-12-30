@@ -426,15 +426,26 @@ def handle_event_submit(event: TriggerEvent, *, task_instance: TaskInstance, ses
     :param task_instance: The task instance to handle the submit event for.
     :param session: The session to be used for the database callback sink.
     """
-    from airflow.sdk.serde import serialize
+    from airflow.sdk.serde import deserialize, serialize
     from airflow.utils.state import TaskInstanceState
 
-    # Get the next kwargs of the task instance, or an empty dictionary if it doesn't exist
-    next_kwargs = task_instance.next_kwargs or {}
+    next_kwargs_raw = task_instance.next_kwargs or {}
 
-    # Update the next kwargs of the task instance
-    next_kwargs["event"] = serialize(event.payload)
-    task_instance.next_kwargs = next_kwargs
+    # deserialize first to provide a compat layer if there are mixed serialized (BaseSerialisation and serde) data
+    # which can happen if a deferred task resumes after upgrade
+    try:
+        next_kwargs = deserialize(next_kwargs_raw)
+    except (ImportError, KeyError, AttributeError, TypeError):
+        from airflow.serialization.serialized_objects import BaseSerialization
+
+        next_kwargs = BaseSerialization.deserialize(next_kwargs_raw)
+
+    # Add event to the plain dict, then serialize everything together. This ensures that the event is properly
+    # nested inside __var__ in the final serde serialized structure.
+    next_kwargs["event"] = event.payload
+
+    # re-serialize the entire dict using serde to ensure consistent structure
+    task_instance.next_kwargs = serialize(next_kwargs)
 
     # Remove ourselves as its trigger
     task_instance.trigger_id = None
