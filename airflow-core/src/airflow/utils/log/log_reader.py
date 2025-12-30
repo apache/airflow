@@ -25,16 +25,12 @@ from functools import cached_property
 from typing import TYPE_CHECKING
 
 from airflow.configuration import conf
-from airflow.utils.helpers import render_log_filename
 from airflow.utils.log.file_task_handler import FileTaskHandler, StructuredLogMessage
 from airflow.utils.log.logging_mixin import ExternalLoggingMixin
-from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.state import TaskInstanceState
 
 if TYPE_CHECKING:
     from typing import TypeAlias
-
-    from sqlalchemy.orm.session import Session
 
     from airflow.models.taskinstance import TaskInstance
     from airflow.models.taskinstancehistory import TaskInstanceHistory
@@ -190,25 +186,3 @@ class TaskLogReader:
             return False
 
         return self.log_handler.supports_external_link
-
-    @provide_session
-    def render_log_filename(
-        self,
-        ti: TaskInstance | TaskInstanceHistory,
-        try_number: int | None = None,
-        *,
-        session: Session = NEW_SESSION,
-    ) -> str:
-        """
-        Render the log attachment filename.
-
-        :param ti: The task instance
-        :param try_number: The task try number
-        """
-        dagrun = ti.get_dagrun(session=session)
-        attachment_filename = render_log_filename(
-            ti=ti,
-            try_number="all" if try_number is None else try_number,
-            filename_template=dagrun.get_log_template(session=session).filename,
-        )
-        return attachment_filename

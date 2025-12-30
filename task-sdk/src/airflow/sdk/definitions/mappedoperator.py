@@ -793,7 +793,7 @@ class MappedOperator(AbstractOperator):
         self,
         context: Context,
         jinja_env: jinja2.Environment | None = None,
-    ) -> BaseOperator:
+    ) -> None:
         """
         Template all attributes listed in *self.template_fields*.
 
@@ -824,7 +824,6 @@ class MappedOperator(AbstractOperator):
             jinja_env=jinja_env,
             seen_oids=seen_oids,
         )
-        return unmapped_task
 
     def expand_start_trigger_args(self, *, context: Context) -> StartTriggerArgs | None:
         """

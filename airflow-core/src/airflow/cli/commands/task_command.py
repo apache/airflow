@@ -463,7 +463,7 @@ def task_render(args, dag: DAG | None = None) -> None:
 
     task = sdk_dag.get_task(args.task_id)
     context = _get_template_context(ti, task)
-    rendered_task = task.render_template_fields(context)
+    task.render_template_fields(context)
     for attr in task.template_fields:
         print(
             textwrap.dedent(
@@ -473,7 +473,7 @@ def task_render(args, dag: DAG | None = None) -> None:
                 # ----------------------------------------------------------
                 """
             ),
-            getattr(rendered_task, attr),  # This shouldn't be dedented.
+            getattr(context["task"], attr),  # This shouldn't be dedented.
             sep="",
         )
 
