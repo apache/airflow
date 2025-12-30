@@ -77,6 +77,9 @@ dependencies = [
 "ssh" = [
     "apache-airflow-providers-ssh"
 ]
+"sqlalchemy" = [
+    "sqlalchemy>=1.4.49",
+]
 
 [dependency-groups]
 dev = [
