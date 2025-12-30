@@ -33,11 +33,23 @@ export class DagsPage extends BasePage {
   // Core page elements
   public readonly confirmButton: Locator;
   public readonly dagsTable: Locator;
+  public readonly mappedFilter: Locator;
+  public readonly operatorFilter: Locator;
+
   // Pagination elements
   public readonly paginationNextButton: Locator;
   public readonly paginationPrevButton: Locator;
+  public readonly retriesFilter: Locator;
+  public readonly searchBox: Locator;
   public readonly stateElement: Locator;
+  // Tasks Tab elements
+  public readonly tasksTab: Locator;
   public readonly triggerButton: Locator;
+  public readonly triggerRuleFilter: Locator;
+
+  public get taskCards(): Locator {
+    return this.page.locator('[data-testid="card-list"]');
+  }
 
   public constructor(page: Page) {
     super(page);
@@ -47,6 +59,14 @@ export class DagsPage extends BasePage {
     this.stateElement = page.locator('*:has-text("State") + *').first();
     this.paginationNextButton = page.locator('[data-testid="next"]');
     this.paginationPrevButton = page.locator('[data-testid="prev"]');
+
+    // Tasks Tab elements
+    this.tasksTab = page.locator('a[title="Tasks"]:has-text("Tasks")');
+    this.searchBox = page.getByPlaceholder("Search tasks");
+    this.operatorFilter = page.locator('span[data-scope="select"]:has-text("Select operators")');
+    this.triggerRuleFilter = page.locator('span[data-scope="select"]:has-text("Select trigger rules")');
+    this.retriesFilter = page.locator('span[data-scope="select"]:has-text("Select retry values")');
+    this.mappedFilter = page.locator('span[data-scope="select"]:has-text("Select mapped")');
   }
 
   // URL builders for dynamic paths
@@ -74,6 +94,29 @@ export class DagsPage extends BasePage {
     await this.waitForDagList();
   }
 
+  public async filterByMappedStatus(status: string) {
+    await this.mappedFilter.click();
+    await this.page.locator(`div[role="option"]:has-text("${status}")`).click();
+  }
+
+  public async filterByOperator(operator: string) {
+    await this.operatorFilter.click();
+    await this.page.locator(`div[role="option"]:has-text("${operator}")`).click();
+    await this.page.keyboard.press("Escape");
+  }
+
+  public async filterByRetries(retries: string) {
+    await this.retriesFilter.click();
+    await this.page.locator(`div[role="option"]:has-text("${retries}")`).click();
+    await this.page.keyboard.press("Escape");
+  }
+
+  public async filterByTriggerRule(rule: string) {
+    await this.triggerRuleFilter.click();
+    await this.page.locator(`div[role="option"]:has-text("${rule}")`).click();
+    await this.page.keyboard.press("Escape");
+  }
+
   /**
    * Get all Dag names from the current page
    */
@@ -97,6 +140,10 @@ export class DagsPage extends BasePage {
    */
   public async navigateToDagDetail(dagName: string): Promise<void> {
     await this.navigateTo(DagsPage.getDagDetailUrl(dagName));
+  }
+
+  public async navigateToDagTasks(dagId: string = "example_bash_operator") {
+    await this.page.goto(`/dags/${dagId}/tasks`);
   }
 
   /**
