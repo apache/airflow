@@ -647,7 +647,7 @@ class TestDbtCloudRunJobOperator:
     )
     @pytest.mark.db_test
     def test_run_job_operator_link(
-        self, conn_id, account_id, create_task_instance_of_operator, request, mock_supervisor_comms
+        self, conn_id, account_id, dag_maker, create_task_instance_of_operator, request, mock_supervisor_comms
     ):
         ti = create_task_instance_of_operator(
             DbtCloudRunJobOperator,
@@ -674,7 +674,9 @@ class TestDbtCloudRunJobOperator:
                     run_id=_run_response["data"]["id"],
                 ),
             )
-        url = ti.task.operator_extra_links[0].get_link(operator=ti.task, ti_key=ti.key)
+
+        task = dag_maker.dag.get_task(ti.task_id)
+        url = task.operator_extra_links[0].get_link(operator=ti.task, ti_key=ti.key)
 
         assert url == (
             EXPECTED_JOB_RUN_OP_EXTRA_LINK.format(
