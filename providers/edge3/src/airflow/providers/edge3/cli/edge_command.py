@@ -42,7 +42,6 @@ from airflow.providers.edge3.cli.signalling import (
     pid_file_path,
     status_file_path,
 )
-from airflow.providers.edge3.cli.worker import SIG_STATUS, EdgeWorker
 from airflow.providers.edge3.models.edge_worker import EdgeWorkerState
 from airflow.utils import cli as cli_utils
 from airflow.utils.net import getfqdn
@@ -89,6 +88,8 @@ def _launch_worker(args):
     print(settings.HEADER)
     print(EDGE_WORKER_HEADER)
 
+    from airflow.providers.edge3.cli.worker import EdgeWorker
+
     edge_worker = EdgeWorker(
         pid_file_path=pid_file_path(args.pid),
         hostname=args.edge_hostname or getfqdn(),
@@ -121,6 +122,8 @@ def worker(args):
 @providers_configuration_loaded
 def status(args):
     """Check for Airflow Local Edge Worker status."""
+    from airflow.providers.edge3.cli.worker import SIG_STATUS
+
     pid = get_pid(args.pid)
 
     # Send Signal as notification to drop status JSON
@@ -147,6 +150,8 @@ def status(args):
 @providers_configuration_loaded
 def maintenance(args):
     """Set or Unset maintenance mode of local edge worker."""
+    from airflow.providers.edge3.cli.worker import SIG_STATUS
+
     if args.maintenance == "on" and not args.comments:
         logger.error("Comments are required when setting maintenance mode.")
         sys.exit(4)

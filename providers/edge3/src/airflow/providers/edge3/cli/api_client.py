@@ -44,11 +44,11 @@ from airflow.providers.edge3.worker_api.datamodels import (
     WorkerSetStateReturn,
     WorkerStateBody,
 )
-from airflow.utils.state import TaskInstanceState  # noqa: TC001
 
 if TYPE_CHECKING:
     from airflow.models.taskinstancekey import TaskInstanceKey
     from airflow.providers.edge3.models.edge_worker import EdgeWorkerState
+    from airflow.utils.state import TaskInstanceState
 
 logger = logging.getLogger(__name__)
 
@@ -85,7 +85,6 @@ def jwt_generator() -> JWTGenerator:
 
 
 @retry(
-    before_sleep=before_log(logger, logging.WARNING),
     reraise=True,
     max_attempt_number=API_RETRIES,
     wait_server_errors=_default_wait,
@@ -96,7 +95,7 @@ def jwt_generator() -> JWTGenerator:
     network_errors=ClientConnectionError,
     timeouts=ServerTimeoutError,
 )
-def _make_generic_request(method: str, rest_path: str, data: str | None = None) -> Any:
+async def _make_generic_request(method: str, rest_path: str, data: str | None = None) -> Any:
     authorization = jwt_generator().generate({"method": rest_path})
     api_url = conf.get("edge", "api_url")
     headers = {
@@ -127,7 +126,7 @@ async def worker_register(
     except ClientResponseError as e:
         if e.status == HTTPStatus.BAD_REQUEST:
             raise EdgeWorkerVersionException(str(e))
-        if e.response.status_code == 409:
+        if e.status == HTTPStatus.CONFLICT:
             raise EdgeWorkerDuplicateException(
                 f"A worker with the name '{hostname}' is already active. "
                 "Please ensure worker names are unique, or stop the existing worker before starting a new one."
