@@ -165,10 +165,6 @@ export class BackfillPage extends BasePage {
     return await headers.count();
   }
 
-  public async isBackfillDateErrorVisible(): Promise<boolean> {
-    return this.backfillDateError.isVisible();
-  }
-
   public async navigateToBackfillsTab(dagName: string): Promise<void> {
     await this.navigateTo(BackfillPage.getBackfillsUrl(dagName));
     await this.page.waitForLoadState("networkidle");
