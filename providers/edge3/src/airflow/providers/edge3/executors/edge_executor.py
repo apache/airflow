@@ -23,8 +23,6 @@ from copy import deepcopy
 from datetime import datetime, timedelta
 from typing import TYPE_CHECKING, Any
 
-from airflow.exceptions import AirflowOptionalProviderFeatureException
-
 try:
     from sqlalchemy import delete, inspect, select, text
     from sqlalchemy.exc import NoSuchTableError

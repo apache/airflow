@@ -18,8 +18,6 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from airflow.exceptions import AirflowOptionalProviderFeatureException
-
 try:
     from sqlalchemy import (
         Index,

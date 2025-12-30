@@ -21,8 +21,6 @@ from typing import Annotated
 
 from fastapi import Body, Depends, status
 
-from airflow.exceptions import AirflowOptionalProviderFeatureException
-
 try:
     from sqlalchemy import select, update
 except ImportError:
@@ -71,6 +69,11 @@ def fetch(
     session: SessionDep,
 ) -> EdgeJobFetched | None:
     """Fetch a job to execute on the edge worker."""
+    if select is None or update is None:
+        raise AirflowOptionalProviderFeatureException(
+            "sqlalchemy is required for Edge Worker job operations. "
+            "Install it with: pip install 'apache-airflow-providers-edge3[sqlalchemy]'"
+        )
     query = (
         select(EdgeJobModel)
         .where(
@@ -125,6 +128,11 @@ def state(
     session: SessionDep,
 ) -> None:
     """Update the state of a job running on the edge worker."""
+    if select is None or update is None:
+        raise AirflowOptionalProviderFeatureException(
+            "sqlalchemy is required for Edge Worker job operations. "
+            "Install it with: pip install 'apache-airflow-providers-edge3[sqlalchemy]'"
+        )
     # execute query to catch the queue and check if state toggles to success or failed
     # otherwise possible that Executor resets orphaned jobs and stats are exported 2 times
     if state in [TaskInstanceState.SUCCESS, state == TaskInstanceState.FAILED]:

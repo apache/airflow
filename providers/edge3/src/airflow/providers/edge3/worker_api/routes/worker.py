@@ -22,8 +22,6 @@ from typing import Annotated
 
 from fastapi import Body, Depends, HTTPException, Path, status
 
-from airflow.exceptions import AirflowOptionalProviderFeatureException
-
 try:
     from sqlalchemy import select
 except ImportError:
@@ -170,6 +168,11 @@ def register(
     session: SessionDep,
 ) -> WorkerRegistrationReturn:
     """Register a new worker to the backend."""
+    if select is None:
+        raise AirflowOptionalProviderFeatureException(
+            "sqlalchemy is required for Edge Worker operations. "
+            "Install it with: pip install 'apache-airflow-providers-edge3[sqlalchemy]'"
+        )
     _assert_version(body.sysinfo)
     query = select(EdgeWorkerModel).where(EdgeWorkerModel.worker_name == worker_name)
     worker: EdgeWorkerModel | None = session.scalar(query)
@@ -206,6 +209,11 @@ def set_state(
     session: SessionDep,
 ) -> WorkerSetStateReturn:
     """Set state of worker and returns the current assigned queues."""
+    if select is None:
+        raise AirflowOptionalProviderFeatureException(
+            "sqlalchemy is required for Edge Worker operations. "
+            "Install it with: pip install 'apache-airflow-providers-edge3[sqlalchemy]'"
+        )
     query = select(EdgeWorkerModel).where(EdgeWorkerModel.worker_name == worker_name)
     worker: EdgeWorkerModel | None = session.scalar(query)
     if not worker:
@@ -243,6 +251,11 @@ def update_queues(
     body: Annotated[WorkerQueueUpdateBody, _worker_queue_doc],
     session: SessionDep,
 ) -> None:
+    if select is None:
+        raise AirflowOptionalProviderFeatureException(
+            "sqlalchemy is required for Edge Worker operations. "
+            "Install it with: pip install 'apache-airflow-providers-edge3[sqlalchemy]'"
+        )
     query = select(EdgeWorkerModel).where(EdgeWorkerModel.worker_name == worker_name)
     worker: EdgeWorkerModel | None = session.scalar(query)
     if not worker:

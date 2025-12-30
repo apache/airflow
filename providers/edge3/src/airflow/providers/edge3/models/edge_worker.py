@@ -23,8 +23,6 @@ from datetime import datetime
 from enum import Enum
 from typing import TYPE_CHECKING
 
-from airflow.exceptions import AirflowOptionalProviderFeatureException
-
 try:
     from sqlalchemy import Integer, String, delete, select
     from sqlalchemy.orm import Mapped

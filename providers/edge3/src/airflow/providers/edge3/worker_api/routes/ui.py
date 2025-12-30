@@ -22,8 +22,6 @@ from typing import TYPE_CHECKING, Annotated
 
 from fastapi import Depends, HTTPException, Query, status
 
-from airflow.exceptions import AirflowOptionalProviderFeatureException
-
 try:
     from sqlalchemy import select
 except ImportError:
@@ -73,6 +71,11 @@ def worker(
     state: Annotated[list[EdgeWorkerState] | None, Query()] = None,
 ) -> WorkerCollectionResponse:
     """Return Edge Workers."""
+    if select is None:
+        raise AirflowOptionalProviderFeatureException(
+            "sqlalchemy is required for Edge Worker UI operations. "
+            "Install it with: pip install 'apache-airflow-providers-edge3[sqlalchemy]'"
+        )
     query = select(EdgeWorkerModel)
     if worker_name_pattern:
         query = query.where(EdgeWorkerModel.worker_name.ilike(f"%{worker_name_pattern}%"))
@@ -112,6 +115,11 @@ def jobs(
     session: SessionDep,
 ) -> JobCollectionResponse:
     """Return Edge Jobs."""
+    if select is None:
+        raise AirflowOptionalProviderFeatureException(
+            "sqlalchemy is required for Edge Worker UI operations. "
+            "Install it with: pip install 'apache-airflow-providers-edge3[sqlalchemy]'"
+        )
     query = select(EdgeJobModel).order_by(EdgeJobModel.queued_dttm)
     jobs: ScalarResult[EdgeJobModel] = session.scalars(query)
 
