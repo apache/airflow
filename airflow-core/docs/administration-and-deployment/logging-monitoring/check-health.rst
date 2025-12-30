@@ -84,7 +84,6 @@ status of the application. The return code is only indicative of the state of th
 
 Served by the web server, this health check endpoint is independent of the newer :ref:`Scheduler Health Check Server <check-health/scheduler-health-check-server>`, which optionally runs on each scheduler.
 
-
 .. note::
 
   * For this check to work, at least one working web server is required. Suppose you use this check for scheduler
