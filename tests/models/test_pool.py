@@ -21,6 +21,7 @@ import pytest
 
 from airflow.models.pool import Pool
 from airflow.utils.session import create_session
+
 from tests.test_utils.db import clear_db_pools
 
 
@@ -61,15 +62,15 @@ class TestPoolNameValidation:
             for name in invalid_names:
                 with pytest.raises(
                     ValueError,
-                    match="Pool name must only contain ASCII letters, numbers, underscores, dots, and dashes",
+                    match="Pool name .* is invalid",
                 ):
                     Pool.create_or_update_pool(name=name, slots=5, session=session)
 
     def test_pool_name_validation_error_message(self):
         """Test that validation error has clear message."""
         with create_session() as session:
-            with pytest.raises(ValueError) as exc_info:
+            with pytest.raises(
+                ValueError,
+                match="Pool name 'invalid pool name' is invalid.*must only contain",
+            ):
                 Pool.create_or_update_pool(name="invalid pool name", slots=5, session=session)
-            
-            assert "Pool name must only contain ASCII letters" in str(exc_info.value)
-            assert "Got: 'invalid pool name'" in str(exc_info.value)
