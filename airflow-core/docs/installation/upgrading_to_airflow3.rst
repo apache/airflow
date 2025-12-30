@@ -162,6 +162,8 @@ code import Airflow components correctly in Airflow 3. The older paths are depre
      - ``airflow.sdk.BaseNotifier``
    * - ``airflow.utils.task_group.TaskGroup``
      - ``airflow.sdk.TaskGroup``
+   * - ``airflow.utils.context.Context``
+     - ``airflow.sdk.Context``
    * - ``airflow.datasets.Dataset``
      - ``airflow.sdk.Asset``
    * - ``airflow.datasets.DatasetAlias``
@@ -172,8 +174,6 @@ code import Airflow components correctly in Airflow 3. The older paths are depre
      - ``airflow.sdk.AssetAny``
    * - ``airflow.models.connection.Connection``
      - ``airflow.sdk.Connection``
-   * - ``airflow.models.context.Context``
-     - ``airflow.sdk.Context``
    * - ``airflow.models.variable.Variable``
      - ``airflow.sdk.Variable``
    * - ``airflow.io.*``
