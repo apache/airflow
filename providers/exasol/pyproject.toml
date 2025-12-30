@@ -65,6 +65,13 @@ dependencies = [
     'pandas>=2.2.3; python_version >="3.13"',
 ]
 
+# The optional dependencies should be modified in place in the generated file
+# Any change in the dependencies is preserved when the file is regenerated
+[project.optional-dependencies]
+sqlalchemy = [
+    "sqlalchemy>=1.4.0",
+]
+
 [dependency-groups]
 dev = [
     "apache-airflow",
