@@ -63,11 +63,33 @@ Batch Insert Operations
 The :class:`~airflow.providers.apache.hbase.operators.hbase.HBaseBatchPutOperator` operator is used to insert multiple rows into an HBase table in a single batch operation.
 
 Use the ``table_name`` parameter to specify the table and ``rows`` parameter to provide a list of row data.
+For optimal performance, configure ``batch_size`` (default: 200) and ``max_workers`` (default: 4) parameters.
 
 .. exampleinclude:: /../../airflow/providers/hbase/example_dags/example_hbase_advanced.py
     :language: python
     :start-after: [START howto_operator_hbase_batch_put]
     :end-before: [END howto_operator_hbase_batch_put]
+
+Performance Optimization
+""""""""""""""""""""""""
+
+For high-throughput batch operations, use connection pooling and configure batch parameters:
+
+.. code-block:: python
+
+    # Optimized batch insert with connection pooling
+    optimized_batch_put = HBaseBatchPutOperator(
+        task_id="optimized_batch_put",
+        table_name="my_table",
+        rows=large_dataset,
+        batch_size=500,  # Process 500 rows per batch
+        max_workers=8,   # Use 8 parallel workers
+        hbase_conn_id="hbase_pooled",  # Connection with pool_size > 1
+    )
+
+.. note::
+    Connection pooling is automatically enabled when ``pool_size`` > 1 in the connection configuration.
+    This provides significant performance improvements for concurrent operations.
 
 .. _howto/operator:HBaseBatchGetOperator:
 

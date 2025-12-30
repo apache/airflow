@@ -36,6 +36,32 @@ The HBase provider supports multiple connection types for different use cases:
 * **generic** - Generic connection for Thrift servers
 * **ssh** - SSH connection for backup operations and shell commands
 
+Connection Strategies
+--------------------
+
+The provider supports two connection strategies for optimal performance:
+
+* **ThriftStrategy** - Single connection for simple operations
+* **PooledThriftStrategy** - Connection pooling for high-throughput operations
+
+Connection pooling is automatically enabled when ``pool_size`` is specified in the connection Extra field.
+Pooled connections provide better performance for batch operations and concurrent access.
+
+Connection Pool Configuration
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+To enable connection pooling, add the following to your connection's Extra field:
+
+.. code-block:: json
+
+    {
+      "pool_size": 10,
+      "pool_timeout": 30
+    }
+
+* ``pool_size`` - Maximum number of connections in the pool (default: 1, no pooling)
+* ``pool_timeout`` - Timeout in seconds for getting connection from pool (default: 30)
+
 Connection Examples
 -------------------
 
@@ -54,6 +80,26 @@ Basic Thrift Connection (hbase_thrift)
     {
       "use_kerberos": false
     }
+
+Pooled Thrift Connection (hbase_pooled)
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+:Connection Type: ``generic``
+:Host: ``172.17.0.1`` (or your HBase Thrift server host)
+:Port: ``9090`` (default Thrift1 port)
+:Extra:
+
+.. code-block:: json
+
+    {
+      "use_kerberos": false,
+      "pool_size": 10,
+      "pool_timeout": 30
+    }
+
+.. note::
+    Connection pooling significantly improves performance for batch operations
+    and concurrent access patterns. Use pooled connections for production workloads.
 
 SSL/TLS Connection (hbase_ssl)
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -212,6 +258,16 @@ Extra (optional)
     * ``compat`` - Compatibility mode for older HBase versions. Default is '0.98'.
     * ``transport`` - Transport type ('buffered', 'framed'). Default is 'buffered'.
     * ``protocol`` - Protocol type ('binary', 'compact'). Default is 'binary'.
+    
+    **Connection pooling parameters:**
+    
+    * ``pool_size`` - Maximum number of connections in the pool. Default is 1 (no pooling).
+    * ``pool_timeout`` - Timeout in seconds for getting connection from pool. Default is 30.
+    
+    **Batch operation parameters:**
+    
+    * ``batch_size`` - Default batch size for bulk operations. Default is 200.
+    * ``max_workers`` - Maximum number of worker threads for parallel processing. Default is 4.
 
 SSH Connection for Backup Operations
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -284,6 +340,18 @@ Examples for the **Extra** field
       "table_prefix": "airflow",
       "table_prefix_separator": "_",
       "compat": "0.96"
+    }
+
+5. Connection with pooling and batch optimization
+
+.. code-block:: json
+
+    {
+      "pool_size": 10,
+      "pool_timeout": 30,
+      "batch_size": 500,
+      "max_workers": 8,
+      "transport": "framed"
     }
 
 SSH Connection Examples
