@@ -22,6 +22,7 @@ import copy
 from typing import TYPE_CHECKING
 
 from airflow.models.taskinstance import TaskInstance
+from airflow.utils.session import NEW_SESSION
 
 from tests_common.test_utils.compat import SerializedBaseOperator, SerializedMappedOperator
 from tests_common.test_utils.dag import create_scheduler_dag
@@ -36,6 +37,7 @@ if TYPE_CHECKING:
     from uuid import UUID
 
     from jinja2 import Environment
+    from sqlalchemy.orm import Session
 
     from airflow.sdk import Context
     from airflow.sdk.types import Operator as SdkOperator
@@ -63,14 +65,13 @@ class TaskInstanceWrapper:
         return TaskInstanceWrapper(copy.copy(self.__dict__["__ti"]), copy.copy(self.__dict__["__task"]))
 
     def run(self, **kwargs) -> None:
-        from tests_common.test_utils.taskinstance import run_task_instance
-
         run_task_instance(self.__dict__["__ti"], self.__dict__["__task"], **kwargs)
 
     def render_templates(self, **kwargs) -> SdkOperator:
-        from tests_common.test_utils.taskinstance import render_template_fields
-
         return render_template_fields(self.__dict__["__ti"], self.__dict__["__task"], **kwargs)
+
+    def get_template_context(self) -> Context:
+        return get_template_context(self.__dict__["__ti"], self.__dict__["__task"])
 
 
 def create_task_instance(
@@ -139,6 +140,32 @@ def run_task_instance(
     return taskrun_result.ti
 
 
+def get_template_context(ti: TaskInstance, task: SdkOperator, *, session: Session = NEW_SESSION) -> Context:
+    if not AIRFLOW_V_3_2_PLUS:
+        ti.refresh_from_task(task)  # type: ignore[arg-type]
+        return ti.get_template_context(session=session)
+
+    from airflow.api_fastapi.execution_api.datamodels.taskinstance import DagRun, TaskInstance, TIRunContext
+    from airflow.sdk.execution_time.task_runner import RuntimeTaskInstance
+
+    runtime_ti = RuntimeTaskInstance.model_construct(
+        **TaskInstance.model_validate(ti, from_attributes=True).model_dump(exclude_unset=True),
+        task=task,
+        _ti_context_from_server=TIRunContext(
+            dag_run=DagRun.model_validate(ti.dag_run, from_attributes=True),
+            max_tries=ti.max_tries,
+            variables=[],
+            connections=[],
+            xcom_keys_to_clear=[],
+        ),
+    )
+    # TODO: Move these functions to test_utils too.
+    runtime_ti.__dict__["xcom_push"] = ti.xcom_push
+    runtime_ti.__dict__["xcom_pull"] = ti.xcom_pull
+
+    return runtime_ti.get_template_context()
+
+
 def render_template_fields(
     ti: TaskInstance,
     task: SdkOperator,
@@ -147,7 +174,7 @@ def render_template_fields(
     jinja_env: Environment | None = None,
 ) -> SdkOperator:
     if AIRFLOW_V_3_2_PLUS:
-        task.render_template_fields(context or ti.get_template_context(), jinja_env)
+        task.render_template_fields(context or get_template_context(ti, task), jinja_env)
         return task
     ti.refresh_from_task(task)  # type: ignore[arg-type]
     ti.render_templates(context, jinja_env)

@@ -20,12 +20,11 @@ from importlib.util import find_spec
 
 import pytest
 
-from airflow.models import TaskInstance
 from airflow.providers.common.compat.sdk import AirflowException
 from airflow.utils.state import TaskInstanceState
 
 from tests_common.test_utils.markers import skip_if_force_lowest_dependencies_marker
-from tests_common.test_utils.taskinstance import create_task_instance, render_template_fields
+from tests_common.test_utils.taskinstance import render_template_fields
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V_3_1_PLUS
 
 if AIRFLOW_V_3_0_PLUS:
@@ -99,17 +98,9 @@ class TestDockerDecorator:
         with dag_maker():
             ret = f()
 
-        dr = dag_maker.create_dagrun()
-        if AIRFLOW_V_3_0_PLUS:
-            ti = create_task_instance(
-                task=ret.operator,
-                run_id=dr.run_id,
-                dag_version_id=dr.created_dag_version_id,
-            )
-        else:
-            ti = TaskInstance(task=ret.operator, run_id=dr.run_id)
+        ti = dag_maker.create_ti("f")
         rendered = render_template_fields(ti, ret.operator)
-        assert rendered.container_name == f"python_{dr.dag_id}"
+        assert rendered.container_name == f"python_{ti.dag_id}"
         assert rendered.mounts[0]["Target"] == f"/{ti.run_id}"
 
     @pytest.mark.db_test
