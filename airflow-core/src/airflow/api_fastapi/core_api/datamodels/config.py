@@ -31,7 +31,10 @@ class ConfigOption(StrictBaseModel):
 
     @model_validator(mode="after")
     def redact_value(self) -> Self:
-        self.value = redact(self.value, self.key)
+        if isinstance(self.value, tuple):
+            self.value = (str(redact(self.value[0], self.key)), str(redact(self.value[1], self.key)))
+        else:
+            self.value = str(redact(self.value, self.key))
         return self
 
     @property
