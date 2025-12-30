@@ -83,9 +83,10 @@ This provider package contains operators, hooks, and sensors for interacting wit
 - **Backup & Restore**: Full and incremental backup operations with restore capabilities
 - **Monitoring**: Sensors for table existence, row counts, and column values
 - **Security**: SSL/TLS encryption and Kerberos authentication support
+- **Performance**: Connection pooling and optimized batch operations
 - **Integration**: Seamless integration with Airflow Secrets Backend
 
-Release: 1.1.0
+Release: 1.2.0
 
 Provider package
 ----------------

@@ -180,10 +180,12 @@ class HBaseScanOperator(BaseOperator):
 
 class HBaseBatchPutOperator(BaseOperator):
     """
-    Operator to insert multiple rows into HBase table in batch.
+    Operator to insert multiple rows into HBase table in batch with optimization.
     
     :param table_name: Name of the table.
     :param rows: List of dictionaries with 'row_key' and data columns.
+    :param batch_size: Number of rows per batch chunk (default: 1000).
+    :param max_workers: Number of parallel workers (default: 4).
     :param hbase_conn_id: The connection ID to use for HBase connection.
     """
 
@@ -193,18 +195,22 @@ class HBaseBatchPutOperator(BaseOperator):
         self,
         table_name: str,
         rows: list[dict[str, Any]],
+        batch_size: int = 200,
+        max_workers: int = 4,
         hbase_conn_id: str = HBaseHook.default_conn_name,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
         self.table_name = table_name
         self.rows = rows
+        self.batch_size = batch_size
+        self.max_workers = max_workers
         self.hbase_conn_id = hbase_conn_id
 
     def execute(self, context: Context) -> None:
         """Execute the operator."""
         hook = HBaseHook(hbase_conn_id=self.hbase_conn_id)
-        hook.batch_put_rows(self.table_name, self.rows)
+        hook.batch_put_rows(self.table_name, self.rows, self.batch_size, self.max_workers)
 
 
 class HBaseBatchGetOperator(BaseOperator):

@@ -119,6 +119,8 @@ batch_put = HBaseBatchPutOperator(
             "cf2:status": "inactive",
         },
     ],
+    batch_size=1000,  # Use built-in happybase batch_size
+    max_workers=4,    # Parallel processing with 4 workers
     hbase_conn_id="hbase_thrift",  # HBase connection name from Airflow UI
     outlets=[test_table_dataset],
     dag=dag,

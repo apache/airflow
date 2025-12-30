@@ -34,7 +34,8 @@ from thriftpy2.transport.base import TTransportException
 from airflow.hooks.base import BaseHook
 from airflow.models import Variable
 from airflow.providers.hbase.auth import AuthenticatorFactory
-from airflow.providers.hbase.hooks.hbase_strategy import HBaseStrategy, ThriftStrategy, SSHStrategy
+from airflow.providers.hbase.connection_pool import get_or_create_pool
+from airflow.providers.hbase.hooks.hbase_strategy import HBaseStrategy, ThriftStrategy, SSHStrategy, PooledThriftStrategy
 from airflow.providers.hbase.ssl_connection import create_ssl_connection
 from airflow.providers.ssh.hooks.ssh import SSHHook
 
@@ -47,7 +48,7 @@ class ConnectionMode(Enum):
 
 def retry_on_connection_error(max_attempts: int = 3, delay: float = 1.0, backoff_factor: float = 2.0):
     """Decorator for retrying connection operations with exponential backoff.
-    
+
     Args:
         max_attempts: Maximum number of connection attempts
         delay: Initial delay between attempts in seconds
@@ -57,7 +58,7 @@ def retry_on_connection_error(max_attempts: int = 3, delay: float = 1.0, backoff
         @wraps(func)
         def wrapper(self, *args, **kwargs):
             last_exception = None
-            
+
             for attempt in range(max_attempts):
                 try:
                     return func(self, *args, **kwargs)
@@ -66,18 +67,18 @@ def retry_on_connection_error(max_attempts: int = 3, delay: float = 1.0, backoff
                     if attempt == max_attempts - 1:  # Last attempt
                         self.log.error("All %d connection attempts failed. Last error: %s", max_attempts, e)
                         raise e
-                    
+
                     wait_time = delay * (backoff_factor ** attempt)
                     self.log.warning(
-                        "Connection attempt %d/%d failed: %s. Retrying in %.1fs...", 
+                        "Connection attempt %d/%d failed: %s. Retrying in %.1fs...",
                         attempt + 1, max_attempts, e, wait_time
                     )
                     time.sleep(wait_time)
-            
+
             # This should never be reached, but just in case
             if last_exception:
                 raise last_exception
-                
+
         return wrapper
     return decorator
 
@@ -130,8 +131,19 @@ class HBaseHook(BaseHook):
                 ssh_hook = SSHHook(ssh_conn_id=self._get_ssh_conn_id())
                 self._strategy = SSHStrategy(self.hbase_conn_id, ssh_hook, self.log)
             else:
-                connection = self.get_conn()
-                self._strategy = ThriftStrategy(connection, self.log)
+                conn = self.get_connection(self.hbase_conn_id)
+                pool_config = self._get_pool_config(conn.extra_dejson or {})
+
+                if pool_config.get('enabled', False):
+                    # Use pooled strategy - reuse existing pool
+                    connection_args = self._get_connection_args()
+                    pool_size = pool_config.get('size', 10)
+                    pool = get_or_create_pool(self.hbase_conn_id, pool_size, **connection_args)
+                    self._strategy = PooledThriftStrategy(pool, self.log)
+                else:
+                    # Use single connection strategy
+                    connection = self.get_conn()
+                    self._strategy = ThriftStrategy(connection, self.log)
         return self._strategy
 
     def _get_ssh_conn_id(self) -> str:
@@ -172,18 +184,56 @@ class HBaseHook(BaseHook):
             self.log.info("Connecting to HBase at %s:%s with %s authentication%s (retry: %d attempts)",
                           connection_args["host"], connection_args["port"], auth_method,
                           " (SSL)" if ssl_args else "", retry_config["max_attempts"])
-            
+
             # Use retry logic for connection
             self._connection = self._connect_with_retry(conn.extra_dejson or {}, **connection_args)
 
         return self._connection
 
-    def _get_retry_config(self, extra_config: dict[str, Any]) -> dict[str, Any]:
-        """Get retry configuration from connection extra.
-        
+    def _get_pool_config(self, extra_config: dict[str, Any]) -> dict[str, Any]:
+        """Get connection pool configuration from connection extra.
+
         Args:
             extra_config: Connection extra configuration
-            
+
+        Returns:
+            Dictionary with pool configuration
+        """
+        pool_config = extra_config.get('connection_pool', {})
+        return {
+            'enabled': pool_config.get('enabled', False),
+            'size': pool_config.get('size', 10),
+            'timeout': pool_config.get('timeout', 30),
+            'retry_delay': pool_config.get('retry_delay', 1.0)
+        }
+
+    def _get_connection_args(self) -> dict[str, Any]:
+        """Get connection arguments for pool creation.
+
+        Returns:
+            Dictionary with connection arguments
+        """
+        conn = self.get_connection(self.hbase_conn_id)
+
+        connection_args = {
+            "host": conn.host or "localhost",
+            "port": conn.port or 9090,
+        }
+
+        # Setup authentication
+        auth_method = conn.extra_dejson.get("auth_method", "simple") if conn.extra_dejson else "simple"
+        authenticator = AuthenticatorFactory.create(auth_method)
+        auth_kwargs = authenticator.authenticate(conn.extra_dejson or {})
+        connection_args.update(auth_kwargs)
+
+        return connection_args
+
+    def _get_retry_config(self, extra_config: dict[str, Any]) -> dict[str, Any]:
+        """Get retry configuration from connection extra.
+
+        Args:
+            extra_config: Connection extra configuration
+
         Returns:
             Dictionary with retry configuration
         """
@@ -196,11 +246,11 @@ class HBaseHook(BaseHook):
     @retry_on_connection_error(max_attempts=3, delay=1.0, backoff_factor=2.0)
     def _connect_with_retry(self, extra_config: dict[str, Any], **connection_args) -> happybase.Connection:
         """Connect to HBase with retry logic.
-        
+
         Args:
             extra_config: Connection extra configuration
             **connection_args: Connection arguments for HappyBase
-            
+
         Returns:
             Connected HappyBase connection
         """
@@ -214,12 +264,12 @@ class HBaseHook(BaseHook):
             )
         else:
             connection = happybase.Connection(**connection_args)
-        
+
         # Test the connection by opening it
         connection.open()
-        self.log.info("Successfully connected to HBase at %s:%s", 
+        self.log.info("Successfully connected to HBase at %s:%s",
                      connection_args["host"], connection_args["port"])
-        
+
         return connection
 
     def get_table(self, table_name: str) -> happybase.Table:
@@ -306,15 +356,17 @@ class HBaseHook(BaseHook):
         """
         return self._get_strategy().scan_table(table_name, row_start, row_stop, columns, limit)
 
-    def batch_put_rows(self, table_name: str, rows: list[dict[str, Any]]) -> None:
-        """
-        Insert multiple rows in batch.
+    def batch_put_rows(self, table_name: str, rows: list[dict[str, Any]], batch_size: int = 200, max_workers: int = 1) -> None:
+        """Insert multiple rows in batch.
 
         :param table_name: Name of the table.
         :param rows: List of dictionaries with 'row_key' and data columns.
+        :param batch_size: Number of rows per batch chunk.
+        :param max_workers: Number of parallel workers.
         """
-        self._get_strategy().batch_put_rows(table_name, rows)
-        self.log.info("Batch put %d rows into table %s", len(rows), table_name)
+        self._get_strategy().batch_put_rows(table_name, rows, batch_size, max_workers)
+        self.log.info("Batch put %d rows into table %s (batch_size=%d, workers=%d)", 
+                     len(rows), table_name, batch_size, max_workers)
 
     def batch_get_rows(self, table_name: str, row_keys: list[str], columns: list[str] | None = None) -> list[dict[str, Any]]:
         """
@@ -391,7 +443,13 @@ class HBaseHook(BaseHook):
   "ssl_port": 9091,
   "retry_max_attempts": 3,
   "retry_delay": 1.0,
-  "retry_backoff_factor": 2.0
+  "retry_backoff_factor": 2.0,
+  "connection_pool": {
+    "enabled": false,
+    "size": 10,
+    "timeout": 30,
+    "retry_delay": 1.0
+  }
 }'''
             },
         }
