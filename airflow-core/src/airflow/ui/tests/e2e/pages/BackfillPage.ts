@@ -82,20 +82,53 @@ export class BackfillPage extends BasePage {
     await this.backfillRunButton.click();
   }
 
-  // Get backfill details
-  public async getBackfillDetails(rowIndex: number): Promise<{
+  public async findBackfillByDateRange(fromDate: string, toDate: string): Promise<number | null> {
+    const headers = this.page.locator("table thead th");
+    const headerTexts = await headers.allTextContents();
+    const columnMap = new Map<string, number>(headerTexts.map((text, index) => [text.trim(), index]));
+
+    const fromDateIndex = columnMap.get("From") ?? 0;
+    const toDateIndex = columnMap.get("To") ?? 1;
+
+    const rows = this.page.locator("table tbody tr");
+
+    await rows.first().waitFor({ state: "visible", timeout: 10_000 });
+    const rowCount = await rows.count();
+
+    for (let i = 0; i < rowCount; i++) {
+      const row = rows.nth(i);
+      const cells = row.locator("td");
+
+      const rowFromDate = (await cells.nth(fromDateIndex).textContent()) ?? "";
+      const rowToDate = (await cells.nth(toDateIndex).textContent()) ?? "";
+
+      if (
+        rowFromDate.trim().slice(0, 10) === fromDate.slice(0, 10) &&
+        rowToDate.trim().slice(0, 10) === toDate.slice(0, 10)
+      ) {
+        return i;
+      }
+    }
+
+    return null;
+  }
+
+  public async getBackfillDetails(
+    fromDate: string,
+    toDate: string,
+  ): Promise<{
     createdAt: string;
     fromDate: string;
     reprocessBehavior: string;
     toDate: string;
   }> {
-    // Get the row data
-    const row = this.page.locator("table tbody tr").nth(rowIndex);
+    const rowIndex = await this.findBackfillByDateRange(fromDate, toDate);
+
+    const row = this.page.locator("table tbody tr").nth(rowIndex!);
     const cells = row.locator("td");
 
     await expect(row).toBeVisible({ timeout: 10_000 });
 
-    // Get column headers to map column names to indices
     const headers = this.page.locator("table thead th");
     const headerTexts = await headers.allTextContents();
     const columnMap = new Map<string, number>(headerTexts.map((text, index) => [text.trim(), index]));
@@ -108,26 +141,17 @@ export class BackfillPage extends BasePage {
 
     await expect(row.first()).not.toBeEmpty();
 
-    const fromDate = (await cells.nth(fromDateIndex).textContent()) ?? "";
-    const toDate = (await cells.nth(toDateIndex).textContent()) ?? "";
+    const fromDateText = (await cells.nth(fromDateIndex).textContent()) ?? "";
+    const toDateText = (await cells.nth(toDateIndex).textContent()) ?? "";
     const reprocessBehavior = (await cells.nth(reprocessBehaviorIndex).textContent()) ?? "";
     const createdAt = (await cells.nth(createdAtIndex).textContent()) ?? "";
 
     return {
       createdAt: createdAt.trim(),
-      fromDate: fromDate.trim(),
+      fromDate: fromDateText.trim(),
       reprocessBehavior: reprocessBehavior.trim(),
-      toDate: toDate.trim(),
+      toDate: toDateText.trim(),
     };
-  }
-
-  public async getBackfillsTableRows(): Promise<number> {
-    const rows = this.page.locator("table tbody tr");
-
-    await rows.first().waitFor({ state: "visible", timeout: 10_000 });
-    const count = await rows.count();
-
-    return count;
   }
 
   // Get backfill status
