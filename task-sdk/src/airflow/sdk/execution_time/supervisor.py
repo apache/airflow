@@ -97,7 +97,6 @@ from airflow.sdk.execution_time.comms import (
     MaskSecret,
     PrevSuccessfulDagRunResult,
     PutVariable,
-    RequeueTask,
     RescheduleTask,
     ResendLoggingFD,
     RetryTask,
@@ -1255,9 +1254,6 @@ class ActivitySubprocess(WatchedSubprocess):
                 end_date=msg.end_date,
                 rendered_map_index=self._rendered_map_index,
             )
-        elif isinstance(msg, RequeueTask):
-            self._task_end_time_monotonic = time.monotonic()
-            self.client.task_instances.requeue(id=self.id)
         elif isinstance(msg, GetConnection):
             conn = self.client.connections.get(msg.conn_id)
             if isinstance(conn, ConnectionResponse):
