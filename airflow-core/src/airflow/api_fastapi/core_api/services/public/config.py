@@ -17,7 +17,7 @@
 from __future__ import annotations
 
 import warnings
-    
+
 from fastapi import HTTPException, status
 from fastapi.responses import Response
 
