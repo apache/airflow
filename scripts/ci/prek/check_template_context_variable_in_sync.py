@@ -32,14 +32,10 @@ import sys
 import typing
 
 sys.path.insert(0, str(pathlib.Path(__file__).parent.resolve()))  # make sure common_prek_utils is imported
-from common_prek_utils import (
-    AIRFLOW_CORE_ROOT_PATH,
-    AIRFLOW_CORE_SOURCES_PATH,
-    AIRFLOW_TASK_SDK_SOURCES_PATH,
-)
+
+from common_prek_utils import AIRFLOW_CORE_ROOT_PATH, AIRFLOW_TASK_SDK_SOURCES_PATH
 
 TASKRUNNER_PY = AIRFLOW_TASK_SDK_SOURCES_PATH / "airflow" / "sdk" / "execution_time" / "task_runner.py"
-CONTEXT_PY = AIRFLOW_CORE_SOURCES_PATH / "airflow" / "utils" / "context.py"
 CONTEXT_HINT = AIRFLOW_TASK_SDK_SOURCES_PATH / "airflow" / "sdk" / "definitions" / "context.py"
 TEMPLATES_REF_RST = AIRFLOW_CORE_ROOT_PATH / "docs" / "templates-ref.rst"
 
@@ -117,23 +113,6 @@ def _iter_template_context_keys_from_original_return() -> typing.Iterator[str]:
                     yield from extract_keys_from_dict(sub_stmt.value)
 
 
-def _iter_template_context_keys_from_declaration() -> typing.Iterator[str]:
-    context_mod = ast.parse(CONTEXT_PY.read_text("utf-8"), str(CONTEXT_PY))
-    st_known_context_keys = next(
-        stmt.value
-        for stmt in context_mod.body
-        if isinstance(stmt, ast.AnnAssign)
-        and isinstance(stmt.target, ast.Name)
-        and stmt.target.id == "KNOWN_CONTEXT_KEYS"
-    )
-    if not isinstance(st_known_context_keys, ast.Set):
-        raise ValueError("'KNOWN_CONTEXT_KEYS' is not assigned a set literal")
-    for expr in st_known_context_keys.elts:
-        if not isinstance(expr, ast.Constant) or not isinstance(expr.value, str):
-            raise ValueError("item in 'KNOWN_CONTEXT_KEYS' set is not a str literal")
-        yield expr.value
-
-
 def _iter_template_context_keys_from_type_hints() -> typing.Iterator[str]:
     context_mod = ast.parse(CONTEXT_HINT.read_text("utf-8"), str(CONTEXT_HINT))
     cls_context = next(
@@ -158,7 +137,7 @@ def _iter_template_context_keys_from_documentation() -> typing.Iterator[str]:
         yield match.group("name")
 
 
-def _compare_keys(retn_keys: set[str], decl_keys: set[str], hint_keys: set[str], docs_keys: set[str]) -> int:
+def _compare_keys(retn_keys: set[str], hint_keys: set[str], docs_keys: set[str]) -> int:
     # Added by PythonOperator and commonly used.
     # Not listed in templates-ref (but in operator docs).
     retn_keys.add("templates_dict")
@@ -182,7 +161,6 @@ def _compare_keys(retn_keys: set[str], decl_keys: set[str], hint_keys: set[str],
 
     check_candidates = [
         ("get_template_context()", retn_keys),
-        ("KNOWN_CONTEXT_KEYS", decl_keys),
         ("Context type hint", hint_keys),
         ("templates-ref", docs_keys),
     ]
@@ -198,10 +176,9 @@ def _compare_keys(retn_keys: set[str], decl_keys: set[str], hint_keys: set[str],
 
 def main() -> str | int | None:
     retn_keys = set(_iter_template_context_keys_from_original_return())
-    decl_keys = set(_iter_template_context_keys_from_declaration())
     hint_keys = set(_iter_template_context_keys_from_type_hints())
     docs_keys = set(_iter_template_context_keys_from_documentation())
-    return _compare_keys(retn_keys, decl_keys, hint_keys, docs_keys)
+    return _compare_keys(retn_keys, hint_keys, docs_keys)
 
 
 if __name__ == "__main__":
