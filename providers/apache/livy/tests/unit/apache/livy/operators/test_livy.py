@@ -588,8 +588,7 @@ def test_spark_params_templating(create_task_instance_of_operator, session):
     )
     session.add(ti)
     session.commit()
-    ti.render_templates()
-    task: LivyOperator = ti.task
+    task = ti.render_templates()
     assert task.spark_params == {
         "archives": "literal-archives",
         "args": "literal-args",
