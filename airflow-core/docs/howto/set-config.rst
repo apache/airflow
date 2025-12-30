@@ -28,7 +28,7 @@ However, for production case you are advised to generate the configuration using
 
 .. code-block:: bash
 
-    airflow config list --defaults
+    airflow config list --defaults --show-values
 
 This command will produce the output that you can copy to your configuration file and edit.
 
@@ -42,7 +42,15 @@ You can redirect it to your configuration file and edit it:
 
 .. code-block:: bash
 
-    airflow config list --defaults > "${AIRFLOW_HOME}/airflow.cfg"
+    airflow config list --defaults --show-values > "${AIRFLOW_HOME}/airflow.cfg"
+
+.. note::
+    By default, Airflow masks sensitive values (passwords, secrets, connection strings)
+    in CLI output to prevent accidental exposure. You must include the ``--show-values`` flag when generating or
+    exporting configuration files.
+
+    Running ``airflow config list`` without this flag and redirecting to a file will save non-functional placeholders
+    (e.g., ``<hidden>``). This will cause Airflow to fail when it attempts to use those configurations.
 
 
 You can also set options with environment variables by using this format:

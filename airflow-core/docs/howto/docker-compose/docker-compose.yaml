@@ -267,7 +267,7 @@ services:
         echo
         echo "Running airflow config list to create default config file if missing."
         echo
-        /entrypoint airflow config list >/dev/null
+        /entrypoint airflow config list --show-values >/dev/null
         echo
         echo "Files in shared volumes:"
         echo
