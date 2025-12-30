@@ -249,7 +249,8 @@ def test_connection(
         test_status, test_message = conn.test_connection()
         return ConnectionTestResponse.model_validate({"status": test_status, "message": test_message})
     finally:
-        os.environ.pop(conn_env_var, None)
+        if conn_env_var:
+            os.environ.pop(conn_env_var, None)
 
 
 @connections_router.post(

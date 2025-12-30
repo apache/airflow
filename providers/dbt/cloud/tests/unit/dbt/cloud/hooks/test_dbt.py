@@ -1058,25 +1058,33 @@ class TestDbtCloudHook:
         hook._paginate.assert_not_called()
 
     @pytest.mark.parametrize(
-        argnames="conn_id",
-        argvalues=[ACCOUNT_ID_CONN, NO_ACCOUNT_ID_CONN],
+        argnames=("conn_id", "account_id"),
+        argvalues=[(ACCOUNT_ID_CONN, None), (NO_ACCOUNT_ID_CONN, ACCOUNT_ID)],
         ids=["default_account", "explicit_account"],
     )
-    def test_connection_success(self, requests_mock, conn_id):
-        requests_mock.get(BASE_URL, status_code=200)
-        status, msg = DbtCloudHook(conn_id).test_connection()
+    @patch.object(
+        DbtCloudHook,
+        "run_with_advanced_retry",
+        return_value={"data": "success"},
+    )
+    def test_connection_success(self, _, conn_id, account_id):
+        status, msg = DbtCloudHook(conn_id).test_connection(account_id=account_id)
 
         assert status is True
         assert msg == "Successfully connected to dbt Cloud."
 
     @pytest.mark.parametrize(
-        argnames="conn_id",
-        argvalues=[ACCOUNT_ID_CONN, NO_ACCOUNT_ID_CONN],
+        argnames=("conn_id", "account_id"),
+        argvalues=[(ACCOUNT_ID_CONN, None), (NO_ACCOUNT_ID_CONN, ACCOUNT_ID)],
         ids=["default_account", "explicit_account"],
     )
-    def test_connection_failure(self, requests_mock, conn_id):
-        requests_mock.get(BASE_URL, status_code=403, reason="Authentication credentials were not provided")
-        status, msg = DbtCloudHook(conn_id).test_connection()
+    @patch.object(
+        DbtCloudHook,
+        "run_with_advanced_retry",
+        side_effect=Exception("403:Authentication credentials were not provided"),
+    )
+    def test_connection_failure(self, _, conn_id, account_id):
+        status, msg = DbtCloudHook(conn_id).test_connection(account_id=account_id)
 
         assert status is False
         assert msg == "403:Authentication credentials were not provided"
