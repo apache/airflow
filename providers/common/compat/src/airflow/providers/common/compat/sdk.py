@@ -90,6 +90,8 @@ if TYPE_CHECKING:
         TaskDeferred as TaskDeferred,
         XComNotFound as XComNotFound,
     )
+    from airflow.sdk.listeners import hookimpl as hookimpl
+    from airflow.sdk.listeners.listener import get_listener_manager as get_listener_manager
     from airflow.sdk.log import redact as redact
     from airflow.sdk.observability.stats import Stats as Stats
 
@@ -249,6 +251,11 @@ _IMPORT_MAP: dict[str, str | tuple[str, ...]] = {
         "airflow.sdk.execution_time.secrets_masker",
         "airflow.utils.log.secrets_masker",
     ),
+    # ============================================================================
+    # Listeners
+    # ============================================================================
+    "hookimpl": ("airflow.sdk.listeners", "airflow.listeners"),
+    "get_listener_manager": ("airflow.sdk.listeners.listener", "airflow.listeners.listener"),
 }
 
 # Airflow 3-only exceptions (not available in Airflow 2)
