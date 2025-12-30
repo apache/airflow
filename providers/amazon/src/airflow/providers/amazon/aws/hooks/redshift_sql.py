@@ -29,10 +29,10 @@ try:
 except ImportError:
     URL = create_engine = None
 
+from airflow.exceptions import AirflowOptionalProviderFeatureException
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.common.sql.hooks.sql import DbApiHook
-from airflow.exceptions import AirflowOptionalProviderFeatureException
 
 if TYPE_CHECKING:
     from airflow.models.connection import Connection
