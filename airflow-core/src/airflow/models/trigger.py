@@ -442,6 +442,8 @@ def handle_event_submit(event: TriggerEvent, *, task_instance: TaskInstance, ses
 
     # Add event to the plain dict, then serialize everything together. This ensures that the event is properly
     # nested inside __var__ in the final serde serialized structure.
+    if TYPE_CHECKING:
+        assert isinstance(next_kwargs, dict)
     next_kwargs["event"] = event.payload
 
     # re-serialize the entire dict using serde to ensure consistent structure
