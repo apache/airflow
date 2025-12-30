@@ -163,7 +163,7 @@ class RenderedTaskInstanceFields(TaskInstanceDependencies):
         self.map_index = ti.map_index
         self.ti = ti
         if render_templates:
-            ti.render_templates()
+            raise ValueError("render_templates=True is no longer supported")
 
         if TYPE_CHECKING:
             assert isinstance(ti.task, SerializedBaseOperator)

@@ -365,18 +365,30 @@ def test_run_deferred_basic(time_machine, create_runtime_ti, mock_supervisor_com
     )
     time_machine.move_to(instant, tick=False)
 
-    # Expected DeferTask
+    # Expected DeferTask, it is constructed by _defer_task from exception and is sent to supervisor
     expected_defer_task = DeferTask(
         state="deferred",
         classpath="airflow.providers.standard.triggers.temporal.DateTimeTrigger",
-        # Since we are in the task process here, we expect this to have not been encoded by serde yet
         trigger_kwargs={
+            "moment": {
+                "__classname__": "pendulum.datetime.DateTime",
+                "__version__": 2,
+                "__data__": {
+                    "timestamp": 1732233603.0,
+                    "tz": {
+                        "__classname__": "builtins.tuple",
+                        "__version__": 1,
+                        "__data__": ["UTC", "pendulum.tz.timezone.Timezone", 1, True],
+                    },
+                },
+            },
             "end_from_trigger": False,
-            "moment": instant + timedelta(seconds=3),
         },
         trigger_timeout=None,
         next_method="execute_complete",
         next_kwargs={},
+        rendered_map_index=None,
+        type="DeferTask",
     )
 
     # Run the task

@@ -48,6 +48,7 @@ from airflow.utils.state import DagRunState
 from airflow.utils.types import DagRunType
 
 from tests_common.test_utils.dag import sync_dag_to_db
+from tests_common.test_utils.taskinstance import create_task_instance, render_template_fields
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 from unit.amazon.aws.utils.test_template_fields import validate_template_fields
 
@@ -332,7 +333,7 @@ class TestDmsDescribeTasksOperator:
         if AIRFLOW_V_3_0_PLUS:
             sync_dag_to_db(self.dag)
             dag_version = DagVersion.get_latest_version(self.dag.dag_id)
-            ti = TaskInstance(task=describe_task, dag_version_id=dag_version.id)
+            ti = create_task_instance(task=describe_task, dag_version_id=dag_version.id)
             dag_run = DagRun(
                 dag_id=self.dag.dag_id,
                 logical_date=timezone.utcnow(),
@@ -534,23 +535,14 @@ class TestDmsDescribeReplicationConfigsOperator:
         if AIRFLOW_V_3_0_PLUS:
             sync_dag_to_db(dag)
             dag_version = DagVersion.get_latest_version(dag.dag_id)
-            ti = TaskInstance(task=op, dag_version_id=dag_version.id)
+            ti = create_task_instance(task=op, dag_version_id=dag_version.id)
             dag_run = DagRun(
                 dag_id=dag.dag_id,
                 run_id="test",
                 run_type=DagRunType.MANUAL,
                 state=DagRunState.RUNNING,
                 logical_date=logical_date,
-            )
-            sync_dag_to_db(dag)
-            dag_version = DagVersion.get_latest_version(dag.dag_id)
-            ti = TaskInstance(task=op, dag_version_id=dag_version.id)
-            dag_run = DagRun(
-                dag_id=dag.dag_id,
-                run_id="test",
-                run_type=DagRunType.MANUAL,
-                state=DagRunState.RUNNING,
-                logical_date=logical_date,
+                run_after=timezone.utcnow(),
             )
         else:
             dag_run = DagRun(
@@ -562,11 +554,7 @@ class TestDmsDescribeReplicationConfigsOperator:
             )
             ti = TaskInstance(task=op)
         ti.dag_run = dag_run
-        session.add(ti)
-        session.commit()
-        context = ti.get_template_context(session)
-        ti.render_templates(context)
-
+        render_template_fields(ti, op)
         assert op.filter == self.filter
 
 
