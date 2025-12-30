@@ -26,6 +26,7 @@ from openlineage.client.event_v2 import Dataset
 from openlineage.client.facet_v2 import column_lineage_dataset, extraction_error_run, sql_job
 from openlineage.common.sql import DbTableMeta, SqlMeta, parse
 
+from airflow.exceptions import AirflowOptionalProviderFeatureException
 from airflow.providers.openlineage.extractors.base import OperatorLineage
 from airflow.providers.openlineage.utils.sql import (
     TablesHierarchy,
@@ -497,6 +498,14 @@ def get_openlineage_facets_with_sql(
 
     try:
         sqlalchemy_engine = hook.get_sqlalchemy_engine()
+    except ImportError as e:
+        if "sqlalchemy" in str(e).lower() or "No module named 'sqlalchemy" in str(e):
+            raise AirflowOptionalProviderFeatureException(
+                "sqlalchemy is required for SQL lineage extraction with schema information. "
+                "Install it with: pip install 'apache-airflow-providers-openlineage[sqlalchemy]'"
+            ) from e
+        log.debug("Failed to get sql alchemy engine: %s", e)
+        sqlalchemy_engine = None
     except Exception as e:
         log.debug("Failed to get sql alchemy engine: %s", e)
         sqlalchemy_engine = None

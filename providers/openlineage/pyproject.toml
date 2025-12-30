@@ -66,6 +66,13 @@ dependencies = [
     "openlineage-python>=1.41.0",
 ]
 
+# The optional dependencies should be modified in place in the generated file
+# Any change in the dependencies is preserved when the file is regenerated
+[project.optional-dependencies]
+"sqlalchemy" = [
+    "sqlalchemy[asyncio]>=1.4.49",
+]
+
 [dependency-groups]
 dev = [
     "apache-airflow",
