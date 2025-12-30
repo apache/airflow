@@ -14,31 +14,22 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+
 from __future__ import annotations
 
-from datetime import datetime
-from typing import Literal
+from typing import Any
 
-from airflow.api_fastapi.core_api.base import BaseModel
-from airflow.utils.state import DagRunState
+from cadwyn import VersionChange, schema
 
-
-class CalendarTimeRangeResponse(BaseModel):
-    """Represents a summary of DAG runs for a specific calendar time range."""
-
-    date: datetime
-    state: Literal[
-        DagRunState.QUEUED,
-        DagRunState.RUNNING,
-        DagRunState.SUCCESS,
-        DagRunState.FAILED,
-        "planned",
-    ]
-    count: int
+from airflow.api_fastapi.execution_api.datamodels.taskinstance import TIDeferredStatePayload
 
 
-class CalendarTimeRangeCollectionResponse(BaseModel):
-    """Response model for calendar time range results."""
+class ModifyDeferredTaskKwargsToJsonValue(VersionChange):
+    """Change the types of `trigger_kwargs` and `next_kwargs` in TIDeferredStatePayload to JsonValue."""
 
-    total_entries: int
-    dag_runs: list[CalendarTimeRangeResponse]
+    description = __doc__
+
+    instructions_to_migrate_to_previous_version = (
+        schema(TIDeferredStatePayload).field("trigger_kwargs").had(type=dict[str, Any] | str),
+        schema(TIDeferredStatePayload).field("next_kwargs").had(type=dict[str, Any]),
+    )

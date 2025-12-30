@@ -70,6 +70,7 @@ from airflow.utils.types import DagRunType
 
 from tests_common.test_utils.compat import BashOperator, OperatorSerialization, PythonOperator
 from tests_common.test_utils.mock_operators import MockOperator
+from tests_common.test_utils.taskinstance import create_task_instance
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_3_PLUS, AIRFLOW_V_3_0_PLUS
 
 BASH_OPERATOR_PATH = "airflow.providers.standard.operators.bash"
@@ -1439,7 +1440,7 @@ def test_get_task_groups_details_no_task_groups():
 @patch("airflow.providers.openlineage.conf.custom_run_facets", return_value=set())
 def test_get_user_provided_run_facets_with_no_function_definition(mock_custom_facet_funcs):
     if AIRFLOW_V_3_0_PLUS:
-        sample_ti = TaskInstance(
+        sample_ti = create_task_instance(
             task=EmptyOperator(
                 task_id="test-task",
                 dag=DAG("test-dag", schedule=None, start_date=datetime.datetime(2024, 7, 1)),
@@ -1465,7 +1466,7 @@ def test_get_user_provided_run_facets_with_no_function_definition(mock_custom_fa
 )
 def test_get_user_provided_run_facets_with_function_definition(mock_custom_facet_funcs):
     if AIRFLOW_V_3_0_PLUS:
-        sample_ti = TaskInstance(
+        sample_ti = create_task_instance(
             task=EmptyOperator(
                 task_id="test-task",
                 dag=DAG("test-dag", schedule=None, start_date=datetime.datetime(2024, 7, 1)),
@@ -1495,7 +1496,7 @@ def test_get_user_provided_run_facets_with_function_definition(mock_custom_facet
 )
 def test_get_user_provided_run_facets_with_return_value_as_none(mock_custom_facet_funcs):
     if AIRFLOW_V_3_0_PLUS:
-        sample_ti = TaskInstance(
+        sample_ti = create_task_instance(
             task=BashOperator(
                 task_id="test-task",
                 bash_command="exit 0;",
@@ -1528,7 +1529,7 @@ def test_get_user_provided_run_facets_with_return_value_as_none(mock_custom_face
 )
 def test_get_user_provided_run_facets_with_multiple_function_definition(mock_custom_facet_funcs):
     if AIRFLOW_V_3_0_PLUS:
-        sample_ti = TaskInstance(
+        sample_ti = create_task_instance(
             task=EmptyOperator(
                 task_id="test-task",
                 dag=DAG("test-dag", schedule=None, start_date=datetime.datetime(2024, 7, 1)),
@@ -1560,7 +1561,7 @@ def test_get_user_provided_run_facets_with_multiple_function_definition(mock_cus
 )
 def test_get_user_provided_run_facets_with_duplicate_facet_keys(mock_custom_facet_funcs):
     if AIRFLOW_V_3_0_PLUS:
-        sample_ti = TaskInstance(
+        sample_ti = create_task_instance(
             task=EmptyOperator(
                 task_id="test-task",
                 dag=DAG("test-dag", schedule=None, start_date=datetime.datetime(2024, 7, 1)),
@@ -1588,7 +1589,7 @@ def test_get_user_provided_run_facets_with_duplicate_facet_keys(mock_custom_face
 )
 def test_get_user_provided_run_facets_with_invalid_function_definition(mock_custom_facet_funcs):
     if AIRFLOW_V_3_0_PLUS:
-        sample_ti = TaskInstance(
+        sample_ti = create_task_instance(
             task=EmptyOperator(
                 task_id="test-task",
                 dag=DAG("test-dag", schedule=None, start_date=datetime.datetime(2024, 7, 1)),
@@ -1614,7 +1615,7 @@ def test_get_user_provided_run_facets_with_invalid_function_definition(mock_cust
 )
 def test_get_user_provided_run_facets_with_wrong_return_type_function(mock_custom_facet_funcs):
     if AIRFLOW_V_3_0_PLUS:
-        sample_ti = TaskInstance(
+        sample_ti = create_task_instance(
             task=EmptyOperator(
                 task_id="test-task",
                 dag=DAG("test-dag", schedule=None, start_date=datetime.datetime(2024, 7, 1)),
@@ -1640,7 +1641,7 @@ def test_get_user_provided_run_facets_with_wrong_return_type_function(mock_custo
 )
 def test_get_user_provided_run_facets_with_exception(mock_custom_facet_funcs):
     if AIRFLOW_V_3_0_PLUS:
-        sample_ti = TaskInstance(
+        sample_ti = create_task_instance(
             task=EmptyOperator(
                 task_id="test-task",
                 dag=DAG("test-dag", schedule=None, start_date=datetime.datetime(2024, 7, 1)),
