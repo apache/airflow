@@ -18,7 +18,9 @@
 from __future__ import annotations
 
 import attrs
+
 from airflow.sdk.bases.timetable import BaseTimetable
+
 
 @attrs.define
 class NullTimetable(BaseTimetable):
@@ -30,6 +32,7 @@ class NullTimetable(BaseTimetable):
 
     can_be_scheduled = False
 
+
 @attrs.define
 class OnceTimetable(BaseTimetable):
     """
@@ -37,6 +40,7 @@ class OnceTimetable(BaseTimetable):
 
     This corresponds to ``schedule="@once"``.
     """
+
 
 @attrs.define
 class ContinuousTimetable(BaseTimetable):
