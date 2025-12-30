@@ -60,7 +60,6 @@ from airflow.sdk.api.datamodels._generated import (
     TIDeferredStatePayload,
     TIEnterRunningPayload,
     TIHeartbeatInfo,
-    TIRequeuePayload,
     TIRescheduleStatePayload,
     TIRetryStatePayload,
     TIRunContext,
@@ -232,10 +231,6 @@ class TaskInstanceOperations:
     def retry(self, id: uuid.UUID, end_date: datetime, rendered_map_index):
         """Tell the API server that this TI has failed and reached a up_for_retry state."""
         body = TIRetryStatePayload(end_date=end_date, rendered_map_index=rendered_map_index)
-        self.client.patch(f"task-instances/{id}/state", content=body.model_dump_json())
-
-    def requeue(self, id: uuid.UUID):
-        body = TIRequeuePayload()
         self.client.patch(f"task-instances/{id}/state", content=body.model_dump_json())
 
     def succeed(self, id: uuid.UUID, when: datetime, task_outlets, outlet_events, rendered_map_index):

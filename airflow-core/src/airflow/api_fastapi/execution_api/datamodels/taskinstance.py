@@ -185,23 +185,6 @@ class TIRetryStatePayload(StrictBaseModel):
     rendered_map_index: str | None = None
 
 
-class TIRequeuePayload(StrictBaseModel):
-    """Schema for re-queuing TaskInstance."""
-
-    state: Annotated[
-        Literal[IntermediateTIState.UP_FOR_RESCHEDULE],
-        # Specify a default in the schema, but not in code, so Pydantic marks it as required.
-        WithJsonSchema(
-            {
-                "type": "string",
-                "enum": [IntermediateTIState.UP_FOR_RESCHEDULE],
-                "default": IntermediateTIState.UP_FOR_RESCHEDULE,
-            }
-        ),
-    ]
-    reason: str | None = None
-
-
 class TISkippedDownstreamTasksStatePayload(StrictBaseModel):
     """Schema for updating downstream tasks to a skipped state."""
 
@@ -243,8 +226,7 @@ TIStateUpdate = Annotated[
     | Annotated[TITargetStatePayload, Tag("_other_")]
     | Annotated[TIDeferredStatePayload, Tag("deferred")]
     | Annotated[TIRescheduleStatePayload, Tag("up_for_reschedule")]
-    | Annotated[TIRetryStatePayload, Tag("up_for_retry")]
-    | Annotated[TIRequeuePayload, Tag("up_for_reschedule")],
+    | Annotated[TIRetryStatePayload, Tag("up_for_retry")],
     Field(discriminator=ti_state_discriminator),
 ]
 
