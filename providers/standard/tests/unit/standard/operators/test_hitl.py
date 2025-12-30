@@ -16,6 +16,8 @@
 # under the License.
 from __future__ import annotations
 
+from uuid import UUID
+
 import pytest
 
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_1_PLUS, AIRFLOW_V_3_2_PLUS
@@ -252,8 +254,12 @@ class TestHITLOperator:
         assert notifier.called is True
 
         expected_params_in_trigger_kwargs: dict[str, dict[str, Any]]
+        # trigger_kwargs are encoded via BaseSerialization in versions < 3.2
+        expected_ti_id = ti.id
         if AIRFLOW_V_3_2_PLUS:
             expected_params_in_trigger_kwargs = expected_params
+            # trigger_kwargs are encoded via serde from task sdk in versions >= 3.2
+            expected_ti_id = UUID(ti.id)
         else:
             expected_params_in_trigger_kwargs = {"input_1": {"value": 1, "description": None, "schema": {}}}
 
@@ -262,7 +268,7 @@ class TestHITLOperator:
         )
         assert registered_trigger is not None
         assert registered_trigger.kwargs == {
-            "ti_id": ti.id,
+            "ti_id": expected_ti_id,
             "options": ["1", "2", "3", "4", "5"],
             "defaults": ["1"],
             "params": expected_params_in_trigger_kwargs,
