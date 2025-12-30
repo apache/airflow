@@ -353,8 +353,8 @@ class TestCliTasks:
 
         SerializedDagModel.write_dag(lazy_deserialized_dag2, bundle_name="testing")
 
-        task2 = dag2.get_task(task_id="print_the_context")
         dag2 = DagSerialization.from_dict(lazy_deserialized_dag2.data)
+        task2 = dag2.get_task(task_id="print_the_context")
 
         default_date2 = timezone.datetime(2016, 1, 9)
         dag2.clear()
