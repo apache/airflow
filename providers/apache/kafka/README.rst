@@ -23,7 +23,7 @@
 
 Package ``apache-airflow-providers-apache-kafka``
 
-Release: ``1.11.1``
+Release: ``1.11.2``
 
 
 `Apache Kafka  <https://kafka.apache.org/>`__
@@ -36,7 +36,7 @@ This is a provider package for ``apache.kafka`` provider. All classes for this p
 are in ``airflow.providers.apache.kafka`` python package.
 
 You can find package information and changelog for the provider
-in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-apache-kafka/1.11.1/>`_.
+in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-apache-kafka/1.11.2/>`_.
 
 Installation
 ------------
@@ -91,4 +91,4 @@ Extra                 Dependencies
 ====================  ====================================================
 
 The changelog for the provider package can be found in the
-`changelog <https://airflow.apache.org/docs/apache-airflow-providers-apache-kafka/1.11.1/changelog.html>`_.
+`changelog <https://airflow.apache.org/docs/apache-airflow-providers-apache-kafka/1.11.2/changelog.html>`_.
