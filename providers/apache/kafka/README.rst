@@ -54,7 +54,7 @@ Requirements
 PIP package                                 Version required
 ==========================================  ==================
 ``apache-airflow``                          ``>=2.11.0``
-``apache-airflow-providers-common-compat``  ``>=1.10.1``
+``apache-airflow-providers-common-compat``  ``>=1.11.0``
 ``asgiref``                                 ``>=2.3.0``
 ``confluent-kafka``                         ``>=2.6.0``
 ==========================================  ==================

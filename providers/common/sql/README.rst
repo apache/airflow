@@ -54,7 +54,7 @@ Requirements
 PIP package                                 Version required
 ==========================================  ==================
 ``apache-airflow``                          ``>=2.11.0``
-``apache-airflow-providers-common-compat``  ``>=1.10.1``
+``apache-airflow-providers-common-compat``  ``>=1.11.0``
 ``sqlparse``                                ``>=0.5.1``
 ``more-itertools``                          ``>=9.0.0``
 ``methodtools``                             ``>=0.4.7``
