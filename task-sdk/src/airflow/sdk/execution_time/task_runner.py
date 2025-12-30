@@ -826,6 +826,25 @@ def startup() -> tuple[RuntimeTaskInstance, Context, Logger]:
 
     return ti, ti.get_template_context(), log
 
+def _truncate_rendered_value(rendered: str, max_length: int) -> str:
+    if max_length <= 0:
+        return ""
+
+    prefix = "Truncated. You can change this behaviour in [core]max_templated_field_length. "
+    suffix = "..."
+
+    if max_length <= len(suffix):
+        return suffix[:max_length]
+
+    if max_length <= len(prefix) + len(suffix):
+        return (prefix + suffix)[:max_length]
+
+    available = max_length - len(prefix) - len(suffix)
+    return f"{prefix}{rendered[:available]}{suffix}"
+
+def _safe_truncate_rendered_value(rendered: Any, max_length: int) -> str:
+    return _truncate_rendered_value(str(rendered), max_length)
+
 
 def _serialize_template_field(template_field: Any, name: str) -> str | dict | list | int | float:
     """
@@ -877,10 +896,7 @@ def _serialize_template_field(template_field: Any, name: str) -> str | dict | li
             serialized = str(template_field)
         if len(serialized) > max_length:
             rendered = redact(serialized, name)
-            return (
-                "Truncated. You can change this behaviour in [core]max_templated_field_length. "
-                f"{rendered[: max_length - 79]!r}... "
-            )
+            return _safe_truncate_rendered_value(rendered, max_length)
         return serialized
     if not template_field and not isinstance(template_field, tuple):
         # Avoid unnecessary serialization steps for empty fields unless they are tuples
@@ -894,10 +910,7 @@ def _serialize_template_field(template_field: Any, name: str) -> str | dict | li
     serialized = str(template_field)
     if len(serialized) > max_length:
         rendered = redact(serialized, name)
-        return (
-            "Truncated. You can change this behaviour in [core]max_templated_field_length. "
-            f"{rendered[: max_length - 79]!r}... "
-        )
+        return _safe_truncate_rendered_value(rendered, max_length)
     return template_field
 
 
