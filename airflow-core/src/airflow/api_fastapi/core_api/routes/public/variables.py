@@ -47,6 +47,7 @@ from airflow.api_fastapi.core_api.services.public.variables import (
 )
 from airflow.api_fastapi.logging.decorators import action_logging
 from airflow.models.variable import Variable
+MAX_PUBLIC_API_LIMIT = 100
 
 variables_router = AirflowRouter(tags=["Variable"], prefix="/variables")
 
@@ -113,7 +114,7 @@ def get_variables(
     variable_key_pattern: QueryVariableKeyPatternSearch,
 ) -> VariableCollectionResponse:
     """Get all Variables entries."""
-    MAX_PUBLIC_API_LIMIT = 100
+    
     if limit.value is not None and limit.value > MAX_PUBLIC_API_LIMIT:
         limit.value = MAX_PUBLIC_API_LIMIT
 

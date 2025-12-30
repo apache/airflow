@@ -58,6 +58,7 @@ from airflow.models import Connection
 from airflow.secrets.environment_variables import CONN_ENV_PREFIX
 from airflow.utils.db import create_default_connections as db_create_default_connections
 from airflow.utils.strings import get_random_string
+MAX_PUBLIC_API_LIMIT = 100
 
 connections_router = AirflowRouter(tags=["Connection"], prefix="/connections")
 
@@ -127,7 +128,7 @@ def get_connections(
 ) -> ConnectionCollectionResponse:
       
     """Get connection entries."""
-    MAX_PUBLIC_API_LIMIT = 100
+    
     if limit.value is not None and limit.value > MAX_PUBLIC_API_LIMIT:
         limit.value = MAX_PUBLIC_API_LIMIT
 
