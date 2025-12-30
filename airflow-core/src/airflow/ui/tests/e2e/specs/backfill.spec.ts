@@ -52,8 +52,8 @@ test.describe("Backfill creation", () => {
   });
 
   test("Should create backfill with 'all runs' behavior", async () => {
-    const createdFromDate = getPastDate(2);
-    const createdToDate = getPastDate(1);
+    const createdFromDate = getPastDate(10);
+    const createdToDate = getPastDate(5);
 
     await backfillPage.createBackfill(testDagId, {
       fromDate: createdFromDate,
