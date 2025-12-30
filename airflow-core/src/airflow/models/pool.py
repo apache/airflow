@@ -40,14 +40,14 @@ if TYPE_CHECKING:
 def validate_pool_name(name: str) -> None:
     """
     Validate that pool name only contains valid characters for stats reporting.
-    
+
     Pool names must only contain ASCII alphabets, numbers, underscores, dots, and dashes
     to ensure compatibility with stats naming requirements.
-    
+
     :param name: The pool name to validate
     :raises ValueError: If the pool name contains invalid characters
     """
-    if not re.match(r'^[a-zA-Z0-9_.-]+$', name):
+    if not re.match(r"^[a-zA-Z0-9_.-]+$', name):
         raise ValueError(
             f"Pool name '{name}' is invalid. Pool names must only contain "
             "ASCII alphabets (a-z, A-Z), numbers (0-9), underscores (_), dots (.), and dashes (-)."
@@ -142,7 +142,7 @@ class Pool(Base):
         """Create a pool with given parameters or update it if it already exists."""
         if not name:
             raise ValueError("Pool name must not be empty")
-        
+
         # Validate pool name to ensure it's compatible with stats naming
         validate_pool_name(name)
 
