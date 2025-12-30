@@ -41,7 +41,7 @@ from airflow.utils.helpers import prune_dict
 if TYPE_CHECKING:
     from mypy_boto3_rds.type_defs import TagTypeDef
 
-    from airflow.utils.context import Context
+    from airflow.sdk import Context
 
 
 class RdsBaseOperator(AwsBaseOperator[RdsHook]):

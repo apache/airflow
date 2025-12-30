@@ -56,12 +56,11 @@ from airflow.exceptions import (
 )
 from airflow.models.asset import AssetModel
 from airflow.models.connection import Connection
-from airflow.models.mappedoperator import MappedOperator
 from airflow.models.taskinstance import TaskInstance as TI
 from airflow.models.xcom import XCOM_RETURN_KEY, XComModel
 from airflow.providers.cncf.kubernetes.pod_generator import PodGenerator
 from airflow.providers.standard.operators.bash import BashOperator
-from airflow.sdk import DAG, Asset, AssetAlias, BaseHook, TaskGroup, WeightRule, teardown
+from airflow.sdk import DAG, Asset, AssetAlias, BaseHook, TaskGroup, WeightRule, XComArg, teardown
 from airflow.sdk.bases.decorator import DecoratedOperator
 from airflow.sdk.bases.operator import OPERATOR_DEFAULTS, BaseOperator
 from airflow.sdk.definitions._internal.expandinput import EXPAND_INPUT_EMPTY
@@ -71,9 +70,11 @@ from airflow.security import permissions
 from airflow.serialization.definitions.assets import SerializedAssetUniqueKey
 from airflow.serialization.definitions.baseoperator import SerializedBaseOperator
 from airflow.serialization.definitions.dag import SerializedDAG
+from airflow.serialization.definitions.mappedoperator import SerializedMappedOperator
 from airflow.serialization.definitions.notset import NOTSET
 from airflow.serialization.definitions.operatorlink import XComOperatorLink
 from airflow.serialization.definitions.param import SerializedParam
+from airflow.serialization.definitions.xcom_arg import SchedulerPlainXComArg
 from airflow.serialization.encoders import ensure_serialized_asset
 from airflow.serialization.enums import Encoding
 from airflow.serialization.json_schema import load_dag_schema_dict
@@ -81,6 +82,7 @@ from airflow.serialization.serialized_objects import (
     BaseSerialization,
     DagSerialization,
     OperatorSerialization,
+    _XComRef,
 )
 from airflow.task.priority_strategy import _AbsolutePriorityWeightStrategy, _DownstreamPriorityWeightStrategy
 from airflow.ti_deps.deps.ready_to_reschedule import ReadyToRescheduleDep
@@ -477,15 +479,16 @@ def serialize_subprocess(queue, dag_folder):
 
 
 @pytest.fixture
-def timetable_plugin(monkeypatch):
+def timetable_plugin(monkeypatch: pytest.MonkeyPatch):
     """Patch plugins manager to always and only return our custom timetable."""
     from airflow import plugins_manager
 
-    monkeypatch.setattr(plugins_manager, "initialize_timetables_plugins", lambda: None)
     monkeypatch.setattr(
         plugins_manager,
-        "timetable_classes",
-        {"tests_common.test_utils.timetables.CustomSerializationTimetable": CustomSerializationTimetable},
+        "get_timetables_plugins",
+        lambda: {
+            "tests_common.test_utils.timetables.CustomSerializationTimetable": CustomSerializationTimetable
+        },
     )
 
 
@@ -762,7 +765,6 @@ class TestStringifiedDAGs:
         task,
     ):
         """Verify non-Airflow operators are casted to BaseOperator or MappedOperator."""
-        from airflow.models.mappedoperator import MappedOperator as SchedulerMappedOperator
         from airflow.sdk import BaseOperator
         from airflow.sdk.definitions.mappedoperator import MappedOperator
 
@@ -794,7 +796,7 @@ class TestStringifiedDAGs:
                 "_is_sensor",
             }
         else:  # Promised to be mapped by the assert above.
-            assert isinstance(serialized_task, SchedulerMappedOperator)
+            assert isinstance(serialized_task, SerializedMappedOperator)
             fields_to_check = {f.name for f in attrs.fields(MappedOperator)}
             fields_to_check -= {
                 "map_index_template",
@@ -1811,7 +1813,7 @@ class TestStringifiedDAGs:
         assert "outlets" not in serialized
 
         round_tripped = OperatorSerialization.deserialize_operator(serialized)
-        assert isinstance(round_tripped, MappedOperator)
+        assert isinstance(round_tripped, SerializedMappedOperator)
         assert round_tripped.inlets == []
         assert round_tripped.outlets == []
 
@@ -2644,7 +2646,7 @@ def test_operator_expand_serde():
     }
 
     op = BaseSerialization.deserialize(serialized)
-    assert isinstance(op, MappedOperator)
+    assert isinstance(op, SerializedMappedOperator)
 
     # operator_class now stores only minimal type information for memory efficiency
     assert op.operator_class == {
@@ -2656,10 +2658,6 @@ def test_operator_expand_serde():
 
 
 def test_operator_expand_xcomarg_serde():
-    from airflow.models.xcom_arg import SchedulerPlainXComArg
-    from airflow.sdk.definitions.xcom_arg import XComArg
-    from airflow.serialization.serialized_objects import _XComRef
-
     with DAG("test-dag", schedule=None, start_date=datetime(2020, 1, 1)) as dag:
         task1 = BaseOperator(task_id="op1")
         mapped = MockOperator.partial(task_id="task_2").expand(arg2=XComArg(task1))
@@ -2767,10 +2765,6 @@ def test_operator_expand_kwargs_literal_serde(strict):
 
 @pytest.mark.parametrize("strict", [True, False])
 def test_operator_expand_kwargs_xcomarg_serde(strict):
-    from airflow.models.xcom_arg import SchedulerPlainXComArg
-    from airflow.sdk.definitions.xcom_arg import XComArg
-    from airflow.serialization.serialized_objects import _XComRef
-
     with DAG("test-dag", schedule=None, start_date=datetime(2020, 1, 1)) as dag:
         task1 = BaseOperator(task_id="op1")
         mapped = MockOperator.partial(task_id="task_2").expand_kwargs(XComArg(task1), strict=strict)
@@ -2906,7 +2900,7 @@ def test_taskflow_expand_serde():
     }
 
     deserialized = BaseSerialization.deserialize(serialized)
-    assert isinstance(deserialized, MappedOperator)
+    assert isinstance(deserialized, SerializedMappedOperator)
     assert deserialized.upstream_task_ids == set()
     assert deserialized.downstream_task_ids == set()
 
@@ -2998,7 +2992,7 @@ def test_taskflow_expand_kwargs_serde(strict):
     }
 
     deserialized = BaseSerialization.deserialize(serialized)
-    assert isinstance(deserialized, MappedOperator)
+    assert isinstance(deserialized, SerializedMappedOperator)
     assert deserialized._disallow_kwargs_override == strict
     assert deserialized.upstream_task_ids == set()
     assert deserialized.downstream_task_ids == set()
@@ -4243,9 +4237,7 @@ class TestMappedOperatorSerializationAndClientDefaults:
             deserialized_task = deserialized_dag.get_task("mapped_task")
 
             # Verify it's still a MappedOperator
-            from airflow.models.mappedoperator import MappedOperator as SchedulerMappedOperator
-
-            assert isinstance(deserialized_task, SchedulerMappedOperator)
+            assert isinstance(deserialized_task, SerializedMappedOperator)
 
             # Check that client_defaults values are applied (e.g., retry_delay from client_defaults)
             client_defaults = serialized_dag["client_defaults"]["tasks"]

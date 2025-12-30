@@ -32,7 +32,7 @@ from collections.abc import Collection, Iterable, Mapping
 from functools import cache, cached_property, lru_cache
 from inspect import signature
 from textwrap import dedent
-from typing import TYPE_CHECKING, Any, ClassVar, NamedTuple, TypeAlias, TypeVar, cast, overload
+from typing import TYPE_CHECKING, Any, ClassVar, NamedTuple, TypeVar, cast, overload
 
 import attrs
 import lazy_object_proxy
@@ -46,11 +46,11 @@ from airflow._shared.timezones.timezone import from_timestamp, parse_timezone, u
 from airflow.callbacks.callback_requests import DagCallbackRequest, TaskCallbackRequest
 from airflow.exceptions import AirflowException, DeserializationError, SerializationError
 from airflow.models.connection import Connection
-from airflow.models.expandinput import create_expand_input
+from airflow.models.expandinput import SchedulerMappedArgument, create_expand_input
 from airflow.models.taskinstancekey import TaskInstanceKey
-from airflow.models.xcom_arg import SchedulerXComArg, deserialize_xcom_arg
 from airflow.sdk import DAG, Asset, AssetAlias, BaseOperator, XComArg
 from airflow.sdk.bases.operator import OPERATOR_DEFAULTS  # TODO: Copy this into the scheduler?
+from airflow.sdk.definitions._internal.expandinput import MappedArgument
 from airflow.sdk.definitions.asset import (
     AssetAliasEvent,
     AssetAliasUniqueKey,
@@ -78,9 +78,11 @@ from airflow.serialization.definitions.node import DAGNode
 from airflow.serialization.definitions.operatorlink import XComOperatorLink
 from airflow.serialization.definitions.param import SerializedParam, SerializedParamsDict
 from airflow.serialization.definitions.taskgroup import SerializedMappedTaskGroup, SerializedTaskGroup
+from airflow.serialization.definitions.xcom_arg import SchedulerXComArg, deserialize_xcom_arg
 from airflow.serialization.encoders import (
     coerce_to_core_timetable,
     encode_asset_like,
+    encode_expand_input,
     encode_relativedelta,
     encode_timetable,
     encode_timezone,
@@ -107,16 +109,17 @@ if TYPE_CHECKING:
     from kubernetes.client import models as k8s  # noqa: TC004
 
     from airflow.models.expandinput import SchedulerExpandInput
-    from airflow.models.mappedoperator import MappedOperator as SerializedMappedOperator
     from airflow.providers.cncf.kubernetes.pod_generator import PodGenerator  # noqa: TC004
     from airflow.sdk import BaseOperatorLink
     from airflow.sdk.definitions._internal.node import DAGNode as SDKDAGNode
+    from airflow.sdk.types import Operator as SdkOperator
+    from airflow.serialization.definitions.mappedoperator import (
+        Operator as SerializedOperator,
+        SerializedMappedOperator,
+    )
     from airflow.serialization.json_schema import Validator
     from airflow.timetables.base import DagRunInfo, Timetable
     from airflow.timetables.simple import PartitionMapper
-
-    SerializedOperator: TypeAlias = "SerializedMappedOperator | SerializedBaseOperator"
-    SdkOperator: TypeAlias = BaseOperator | MappedOperator
 
 log = logging.getLogger(__name__)
 
@@ -128,11 +131,7 @@ def _get_registered_priority_weight_strategy(
 
     if importable_string in airflow_priority_weight_strategies:
         return airflow_priority_weight_strategies[importable_string]
-    plugins_manager.initialize_priority_weight_strategy_plugins()
-    if plugins_manager.priority_weight_strategy_classes:
-        return plugins_manager.priority_weight_strategy_classes.get(importable_string)
-    else:
-        return None
+    return plugins_manager.get_priority_weight_strategy_plugins().get(importable_string)
 
 
 class _PartitionMapperNotFound(ValueError):
@@ -652,6 +651,9 @@ class BaseSerialization:
             return cls._encode(var.to_json(), type_=DAT.TASK_CALLBACK_REQUEST)
         elif isinstance(var, DagCallbackRequest):
             return cls._encode(var.to_json(), type_=DAT.DAG_CALLBACK_REQUEST)
+        elif isinstance(var, MappedArgument):
+            data = {"input": encode_expand_input(var._input), "key": var._key}
+            return cls._encode(data, type_=DAT.MAPPED_ARGUMENT)
         elif var.__class__ == Context:
             d = {}
             for k, v in var.items():
@@ -761,6 +763,9 @@ class BaseSerialization:
             return DagCallbackRequest.from_json(var)
         elif type_ == DAT.TASK_INSTANCE_KEY:
             return TaskInstanceKey(**var)
+        elif type_ == DAT.MAPPED_ARGUMENT:
+            expand_input = create_expand_input(var["input"]["type"], var["input"]["value"])
+            return SchedulerMappedArgument(input=expand_input, key=var["key"])
         elif type_ == DAT.ARG_NOT_SET:
             from airflow.serialization.definitions.notset import NOTSET
 
@@ -1031,10 +1036,7 @@ class OperatorSerialization(DAGNode, BaseSerialization):
         expansion_kwargs = op._get_specified_expand_input()
         if TYPE_CHECKING:  # Let Mypy check the input type for us!
             _ExpandInputRef.validate_expand_input_value(expansion_kwargs.value)
-        serialized_op[op._expand_input_attr] = {
-            "type": type(expansion_kwargs).EXPAND_INPUT_TYPE,
-            "value": cls.serialize(expansion_kwargs.value),
-        }
+        serialized_op[op._expand_input_attr] = encode_expand_input(expansion_kwargs)
 
         if op.partial_kwargs:
             serialized_op["partial_kwargs"] = {}
@@ -1153,12 +1155,7 @@ class OperatorSerialization(DAGNode, BaseSerialization):
         if cls._load_operator_extra_links:
             from airflow import plugins_manager
 
-            plugins_manager.initialize_extra_operators_links_plugins()
-
-            if plugins_manager.operator_extra_links is None:
-                raise AirflowException("Can not load plugins")
-
-            for ope in plugins_manager.operator_extra_links:
+            for ope in plugins_manager.get_operator_extra_links():
                 for operator in ope.operators:
                     if (
                         operator.__name__ == encoded_op["task_type"]
@@ -1344,7 +1341,7 @@ class OperatorSerialization(DAGNode, BaseSerialization):
         """Deserializes an operator from a JSON object."""
         op: SerializedOperator
         if encoded_op.get("_is_mapped", False):
-            from airflow.models.mappedoperator import MappedOperator as SerializedMappedOperator
+            from airflow.serialization.definitions.mappedoperator import SerializedMappedOperator
 
             try:
                 operator_name = encoded_op["_operator_name"]
@@ -1539,10 +1536,7 @@ class OperatorSerialization(DAGNode, BaseSerialization):
         """
         from airflow import plugins_manager
 
-        plugins_manager.initialize_extra_operators_links_plugins()
-
-        if plugins_manager.registered_operator_link_classes is None:
-            raise AirflowException("Can't load plugins")
+        plugins_manager.get_operator_extra_links()
         op_predefined_extra_links = {}
 
         for name, xcom_key in encoded_op_links.items():
@@ -2177,11 +2171,7 @@ class TaskGroupSerialization(BaseSerialization):
         }
 
         if isinstance(task_group, MappedTaskGroup):
-            expand_input = task_group._expand_input
-            encoded["expand_input"] = {
-                "type": expand_input.EXPAND_INPUT_TYPE,
-                "value": cls.serialize(expand_input.value),
-            }
+            encoded["expand_input"] = encode_expand_input(task_group._expand_input)
             encoded["is_mapped"] = True
 
         return encoded
@@ -2370,7 +2360,7 @@ def create_scheduler_operator(op: MappedOperator | SerializedMappedOperator) -> 
 
 
 def create_scheduler_operator(op: SdkOperator | SerializedOperator) -> SerializedOperator:
-    from airflow.models.mappedoperator import MappedOperator as SerializedMappedOperator
+    from airflow.serialization.definitions.mappedoperator import SerializedMappedOperator
 
     if isinstance(op, (SerializedBaseOperator, SerializedMappedOperator)):
         return op

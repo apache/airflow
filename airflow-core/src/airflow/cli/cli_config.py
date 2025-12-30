@@ -167,8 +167,24 @@ ARG_BUNDLE_NAME = Arg(
     default=None,
     action="append",
 )
-ARG_START_DATE = Arg(("-s", "--start-date"), help="Override start_date YYYY-MM-DD", type=parsedate)
-ARG_END_DATE = Arg(("-e", "--end-date"), help="Override end_date YYYY-MM-DD", type=parsedate)
+ARG_START_DATE = Arg(
+    ("-s", "--start-date"),
+    help=(
+        "Override start_date. Accepts multiple datetime formats including: "
+        "YYYY-MM-DD, YYYY-MM-DDTHH:MM:SS, YYYY-MM-DDTHH:MM:SS±HH:MM (ISO 8601), "
+        "and other formats supported by pendulum.parse()"
+    ),
+    type=parsedate,
+)
+ARG_END_DATE = Arg(
+    ("-e", "--end-date"),
+    help=(
+        "Override end_date. Accepts multiple datetime formats including: "
+        "YYYY-MM-DD, YYYY-MM-DDTHH:MM:SS, YYYY-MM-DDTHH:MM:SS±HH:MM (ISO 8601), "
+        "and other formats supported by pendulum.parse()"
+    ),
+    type=parsedate,
+)
 ARG_OUTPUT_PATH = Arg(
     (
         "-o",
@@ -705,9 +721,6 @@ ARG_ENV_VARS = Arg(
 
 # connections
 ARG_CONN_ID = Arg(("conn_id",), help="Connection id, required to get/add/delete/test a connection", type=str)
-ARG_CONN_ID_FILTER = Arg(
-    ("--conn-id",), help="If passed, only items with the specified connection ID will be displayed", type=str
-)
 ARG_CONN_URI = Arg(
     ("--conn-uri",), help="Connection URI, required to add a connection without conn_type", type=str
 )
@@ -1527,7 +1540,7 @@ CONNECTIONS_COMMANDS = (
         name="list",
         help="List connections",
         func=lazy_load_command("airflow.cli.commands.connection_command.connections_list"),
-        args=(ARG_OUTPUT, ARG_VERBOSE, ARG_CONN_ID_FILTER),
+        args=(ARG_OUTPUT, ARG_VERBOSE),
     ),
     ActionCommand(
         name="add",

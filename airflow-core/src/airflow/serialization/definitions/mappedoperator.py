@@ -28,9 +28,8 @@ import methodtools
 import structlog
 from sqlalchemy.orm import Session
 
-from airflow.exceptions import AirflowException, NotMapped
+from airflow.exceptions import NotMapped
 from airflow.sdk import BaseOperator as TaskSDKBaseOperator
-from airflow.sdk.definitions._internal.abstractoperator import DEFAULT_RETRY_DELAY_MULTIPLIER
 from airflow.sdk.definitions.mappedoperator import MappedOperator as TaskSDKMappedOperator
 from airflow.serialization.definitions.baseoperator import DEFAULT_OPERATOR_DEPS, SerializedBaseOperator
 from airflow.serialization.definitions.node import DAGNode
@@ -56,20 +55,22 @@ if TYPE_CHECKING:
     from airflow.ti_deps.deps.base_ti_dep import BaseTIDep
     from airflow.triggers.base import StartTriggerArgs
 
-    Operator: TypeAlias = "SerializedBaseOperator | MappedOperator"
+    Operator: TypeAlias = "SerializedBaseOperator | SerializedMappedOperator"
 
 log = structlog.get_logger(__name__)
 
 
 @overload
-def is_mapped(obj: Operator) -> TypeGuard[MappedOperator]: ...
+def is_mapped(obj: Operator) -> TypeGuard[SerializedMappedOperator]: ...
 
 
 @overload
 def is_mapped(obj: SerializedTaskGroup) -> TypeGuard[SerializedMappedTaskGroup]: ...
 
 
-def is_mapped(obj: Operator | SerializedTaskGroup) -> TypeGuard[MappedOperator | SerializedMappedTaskGroup]:
+def is_mapped(
+    obj: Operator | SerializedTaskGroup,
+) -> TypeGuard[SerializedMappedOperator | SerializedMappedTaskGroup]:
     return obj.is_mapped
 
 
@@ -85,7 +86,7 @@ def is_mapped(obj: Operator | SerializedTaskGroup) -> TypeGuard[MappedOperator |
     getstate_setstate=False,
     repr=False,
 )
-class MappedOperator(DAGNode):
+class SerializedMappedOperator(DAGNode):
     """Object representing a mapped operator in a DAG."""
 
     # Stores minimal class type information (task_type, _operator_name) instead of full serialized data
@@ -287,10 +288,6 @@ class MappedOperator(DAGNode):
         return self._get_partial_kwargs_or_operator_default("max_retry_delay")
 
     @property
-    def retry_delay_multiplier(self) -> float:
-        return float(self.partial_kwargs.get("retry_delay_multiplier", DEFAULT_RETRY_DELAY_MULTIPLIER))
-
-    @property
     def weight_rule(self) -> PriorityWeightStrategy:
         from airflow.serialization.definitions.baseoperator import SerializedBaseOperator
 
@@ -375,11 +372,9 @@ class MappedOperator(DAGNode):
         op_extra_links_from_plugin: dict[str, Any] = {}
         from airflow import plugins_manager
 
-        plugins_manager.initialize_extra_operators_links_plugins()
-        if plugins_manager.operator_extra_links is None:
-            raise AirflowException("Can't load operators")
+        operator_extra_links = plugins_manager.get_operator_extra_links()
         operator_class_type = self.operator_class["task_type"]  # type: ignore
-        for ope in plugins_manager.operator_extra_links:
+        for ope in operator_extra_links:
             if ope.operators and any(operator_class_type in cls.__name__ for cls in ope.operators):
                 op_extra_links_from_plugin.update({ope.name: ope})
 
@@ -394,10 +389,8 @@ class MappedOperator(DAGNode):
         """Returns dictionary of all global extra links."""
         from airflow import plugins_manager
 
-        plugins_manager.initialize_extra_operators_links_plugins()
-        if plugins_manager.global_operator_extra_links is None:
-            raise AirflowException("Can't load operators")
-        return {link.name: link for link in plugins_manager.global_operator_extra_links}
+        global_operator_extra_links = plugins_manager.get_global_operator_extra_links()
+        return {link.name: link for link in global_operator_extra_links}
 
     @functools.cached_property
     def extra_links(self) -> list[str]:
@@ -418,7 +411,7 @@ class MappedOperator(DAGNode):
         link = self.operator_extra_link_dict.get(name) or self.global_operator_extra_link_dict.get(name)
         if not link:
             return None
-        return link.get_link(self, ti_key=ti.key)  # type: ignore[arg-type] # TODO: GH-52141 - BaseOperatorLink.get_link expects BaseOperator but receives MappedOperator
+        return link.get_link(self, ti_key=ti.key)
 
     def serialize_for_task_group(self) -> tuple[DagAttributeTypes, Any]:
         """Implement DAGNode."""
@@ -478,7 +471,7 @@ class MappedOperator(DAGNode):
 
     def iter_mapped_dependencies(self) -> Iterator[Operator]:
         """Upstream dependencies that provide XComs used by this task for task mapping."""
-        from airflow.models.xcom_arg import SchedulerXComArg
+        from airflow.serialization.definitions.xcom_arg import SchedulerXComArg
 
         for op, _ in SchedulerXComArg.iter_xcom_references(self._get_specified_expand_input()):
             yield op
@@ -517,9 +510,9 @@ def _(task: SerializedBaseOperator | TaskSDKBaseOperator, run_id: str, *, sessio
 
 # Still accept TaskSDKMappedOperator because some tests don't go through serialization.
 # TODO (GH-52141): Rewrite tests so we can drop SDK references at some point.
-@get_mapped_ti_count.register(MappedOperator)
+@get_mapped_ti_count.register(SerializedMappedOperator)
 @get_mapped_ti_count.register(TaskSDKMappedOperator)
-def _(task: MappedOperator | TaskSDKMappedOperator, run_id: str, *, session: Session) -> int:
+def _(task: SerializedMappedOperator | TaskSDKMappedOperator, run_id: str, *, session: Session) -> int:
     from airflow.serialization.serialized_objects import BaseSerialization, _ExpandInputRef
 
     exp_input = task._get_specified_expand_input()

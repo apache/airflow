@@ -1142,7 +1142,7 @@ class TestDagRun:
             metric_name = f"dagrun.{dag.dag_id}.first_task_scheduling_delay"
 
             if expected:
-                true_delay = ti.start_date - dag_run.data_interval_end
+                true_delay = ti.start_date - dag_run.run_after
                 sched_delay_stat_call = call(metric_name, true_delay, tags=expected_stat_tags)
                 sched_delay_stat_call_with_tags = call(
                     "dagrun.first_task_scheduling_delay", true_delay, tags=expected_stat_tags
@@ -1456,7 +1456,7 @@ def test_mapped_literal_verify_integrity(dag_maker, session):
         task_2.expand(arg2=[1, 2])
 
     # Update it to use the new serialized DAG
-    dr.dag = dag_maker.dag
+    dr.dag = dag_maker.serialized_model.dag
     dag_version_id = DagVersion.get_latest_version(dag_id=dr.dag_id, session=session).id
     dr.verify_integrity(dag_version_id=dag_version_id, session=session)
 
@@ -1479,7 +1479,7 @@ def test_mapped_literal_to_xcom_arg_verify_integrity(dag_maker, session):
         t1 = BaseOperator(task_id="task_1")
         task_2.expand(arg2=t1.output)
 
-    dr.dag = dag_maker.dag
+    dr.dag = dag_maker.serialized_model.dag
     dag_version_id = DagVersion.get_latest_version(dag_id=dr.dag_id, session=session).id
     dr.verify_integrity(dag_version_id=dag_version_id, session=session)
 
@@ -1522,10 +1522,10 @@ def test_mapped_literal_length_increase_adds_additional_ti(dag_maker, session):
     ]
 
     # Now "increase" the length of literal
-    with dag_maker(session=session, serialized=True) as dag:
+    with dag_maker(session=session, serialized=True):
         task_2.expand(arg2=[1, 2, 3, 4, 5])
 
-    dr.dag = dag
+    dr.dag = dag_maker.serialized_model.dag
     # Every mapped task is revised at task_instance_scheduling_decision
     dr.task_instance_scheduling_decisions()
 
@@ -1565,7 +1565,7 @@ def test_mapped_literal_length_reduction_adds_removed_state(dag_maker, session):
     with dag_maker(session=session):
         task_2.expand(arg2=[1, 2])
 
-    dr.dag = dag_maker.dag
+    dr.dag = dag_maker.serialized_model.dag
     # Since we change the literal on the dag file itself, the dag_hash will
     # change which will have the scheduler verify the dr integrity
     dag_version_id = DagVersion.get_latest_version(dag_id=dr.dag_id, session=session).id

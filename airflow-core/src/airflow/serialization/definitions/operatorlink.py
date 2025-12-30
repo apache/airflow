@@ -18,7 +18,7 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, TypeAlias
+from typing import TYPE_CHECKING
 
 import attrs
 
@@ -27,11 +27,8 @@ from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.session import create_session
 
 if TYPE_CHECKING:
-    from airflow.models.mappedoperator import MappedOperator as SerializedMappedOperator
     from airflow.models.taskinstancekey import TaskInstanceKey
-    from airflow.serialization.definitions.baseoperator import SerializedBaseOperator
-
-    Operator: TypeAlias = "SerializedMappedOperator | SerializedBaseOperator"
+    from airflow.serialization.definitions.mappedoperator import Operator
 
 
 @attrs.define()
