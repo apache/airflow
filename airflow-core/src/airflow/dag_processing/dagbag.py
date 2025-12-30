@@ -439,7 +439,20 @@ class DagBag(LoggingMixin):
                 spec = importlib.util.spec_from_loader(mod_name, loader)
                 new_module = importlib.util.module_from_spec(spec)
                 sys.modules[spec.name] = new_module
-                loader.exec_module(new_module)
+                module_dir = os.fspath(Path(filepath).parent)
+                # Insert module directory into sys.path to allow relative imports. Imp to note
+                # that this is just for the duration of `loader.exec_module(new_module)`, ensuring
+                # that helper modules located alongside the DAG are importable.
+                path_inserted = False
+                if module_dir and module_dir not in sys.path:
+                    sys.path.insert(0, module_dir)
+                    path_inserted = True
+                try:
+                    loader.exec_module(new_module)
+                finally:
+                    # Remove module directory from sys.path to avoid polluting the global namespace.
+                    if path_inserted and sys.path and sys.path[0] == module_dir:
+                        del sys.path[0]
                 return [new_module]
             except KeyboardInterrupt:
                 # re-raise ctrl-c
