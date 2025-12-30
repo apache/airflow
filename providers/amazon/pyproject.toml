@@ -151,6 +151,9 @@ dependencies = [
 "common.messaging" = [
     "apache-airflow-providers-common-messaging>=2.0.0"
 ]
+"sqlalchemy" = [
+    "sqlalchemy>=1.4.49",
+]
 
 [dependency-groups]
 dev = [
