@@ -465,7 +465,7 @@ repos:
             ^airflow-core/tests/unit/utils/test_log_handlers.py$|
             ^airflow-core/tests/unit/utils/test_types.py$|
             ^airflow-core/tests/unit/dag_processing/test_manager.py$|
-            ^airflow-core/tests/unit/dag_processing/test_processor.py$|
+            ^airflow-core/tests/unit/dag_processing/test_collection\.py$|
             ^dev/airflow_perf/scheduler_dag_execution_timing.py$|
             ^providers/celery/.*\.py$|
             ^providers/cncf/kubernetes/.*\.py$|
