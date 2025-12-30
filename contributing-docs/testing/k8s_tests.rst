@@ -503,7 +503,8 @@ Should show the status of current KinD cluster.
     Established connection to webserver at http://localhost:18150/health and it is healthy.
     Airflow Web server URL: http://localhost:18150 (admin/admin)
 
-    NEXT STEP: You might now run tests or interact with Airflow via shell (kubectl, pytest etc.) or k9s commands:
+    NEXT STEP: You might now run tests, interact with airflow via shell (kubectl, pytest etc.) or k9s commands,
+    or start the dev sync loop (dags/core hot-reload):
 
 
     breeze k8s tests
@@ -511,6 +512,8 @@ Should show the status of current KinD cluster.
     breeze k8s shell
 
     breeze k8s k9s
+
+    breeze k8s dev
 
 
 8. Run Kubernetes tests

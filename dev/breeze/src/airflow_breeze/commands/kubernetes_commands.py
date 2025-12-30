@@ -1465,12 +1465,14 @@ def deploy_airflow(
         )
         if return_code == 0:
             get_console().print(
-                "\n[warning]NEXT STEP:[/][info] You might now run tests or interact "
-                "with airflow via shell (kubectl, pytest etc.) or k9s commands:\n"
+                "\n[warning]NEXT STEP:[/][info] You might now run tests, interact "
+                "with airflow via shell (kubectl, pytest etc.) or k9s commands, "
+                "or start the dev sync loop (dags/core hot-reload):\n"
             )
             get_console().print("\nbreeze k8s tests")
             get_console().print("\nbreeze k8s shell")
-            get_console().print("\nbreeze k8s k9s\n")
+            get_console().print("\nbreeze k8s k9s")
+            get_console().print("\nbreeze k8s dev\n")
         sys.exit(return_code)
 
 
