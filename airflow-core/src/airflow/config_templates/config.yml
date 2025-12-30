@@ -1444,7 +1444,7 @@ api:
     expose_config:
       description: |
         Expose the configuration file in the web server. Set to ``True`` to expose configuration with
-        sensitive values always masked. The deprecated value ``non-sensitive-only`` is treated the same as 
+        sensitive values always masked. The deprecated value ``non-sensitive-only`` is treated the same as
         ``True`` for backward compatibility. ``False`` hides the configuration completely.
       version_added: ~
       type: string
@@ -2678,4 +2678,4 @@ profiling:
       type: string
       example: "scheduler,api,dag_processor"
       default: ~
-      
+
