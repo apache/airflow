@@ -40,7 +40,7 @@ if TYPE_CHECKING:
     from sqlalchemy.orm import Session
 
     from airflow.sdk import Context
-    from airflow.sdk.types import Operator as SdkOperator
+    from airflow.sdk.types import Operator as SdkOperator, RuntimeTaskInstanceProtocol
     from airflow.serialization.definitions.mappedoperator import Operator as SerializedOperator
 
 __all__ = ["TaskInstanceWrapper", "create_task_instance", "render_template_fields", "run_task_instance"]
@@ -64,8 +64,8 @@ class TaskInstanceWrapper:
     def __copy__(self):
         return TaskInstanceWrapper(copy.copy(self.__dict__["__ti"]), copy.copy(self.__dict__["__task"]))
 
-    def run(self, **kwargs) -> None:
-        run_task_instance(self.__dict__["__ti"], self.__dict__["__task"], **kwargs)
+    def run(self, **kwargs) -> RuntimeTaskInstanceProtocol:
+        return run_task_instance(self.__dict__["__ti"], self.__dict__["__task"], **kwargs)
 
     def render_templates(self, **kwargs) -> SdkOperator:
         return render_template_fields(self.__dict__["__ti"], self.__dict__["__task"], **kwargs)
@@ -114,27 +114,37 @@ def run_task_instance(
     ignore_ti_state: bool = False,
     mark_success: bool = False,
     session=None,
-):
+) -> RuntimeTaskInstanceProtocol:
+    session_kwargs = {"session": session} if session else {}
     if not AIRFLOW_V_3_2_PLUS:
         ti.refresh_from_task(task)  # type: ignore[arg-type]
-        ti.run()
+        ti.run(**session_kwargs)
         return ti
 
-    kwargs = {"session": session} if session else {}
     if not ti.check_and_change_state_before_execution(
         ignore_depends_on_past=ignore_depends_on_past,
         ignore_task_deps=ignore_task_deps,
         ignore_ti_state=ignore_ti_state,
         mark_success=mark_success,
-        **kwargs,
+        **session_kwargs,
     ):
         return ti
 
     from airflow.sdk.definitions.dag import _run_task
 
-    taskrun_result = _run_task(ti=ti, task=task)
+    # Session handling is a mess in tests; use a fresh ti to run the task.
+    new_ti = TaskInstance.get_task_instance(
+        dag_id=ti.dag_id,
+        run_id=ti.run_id,
+        task_id=ti.task_id,
+        map_index=ti.map_index,
+        **session_kwargs,
+    )
+    # Some tests don't even save the ti at all, in which case new_ti is None.
+    taskrun_result = _run_task(ti=new_ti or ti, task=task)
+    ti.refresh_from_db(**session_kwargs)  # Some tests expect side effects.
     if not taskrun_result:
-        return None
+        raise RuntimeError("task failed to finish with a result")
     if error := taskrun_result.error:
         raise error
     return taskrun_result.ti
@@ -145,25 +155,21 @@ def get_template_context(ti: TaskInstance, task: SdkOperator, *, session: Sessio
         ti.refresh_from_task(task)  # type: ignore[arg-type]
         return ti.get_template_context(session=session)
 
-    from airflow.api_fastapi.execution_api.datamodels.taskinstance import DagRun, TaskInstance, TIRunContext
-    from airflow.sdk.execution_time.task_runner import RuntimeTaskInstance
+    from airflow.cli.commands.task_command import _get_template_context
+    from airflow.utils.context import ConnectionAccessor, VariableAccessor
 
-    runtime_ti = RuntimeTaskInstance.model_construct(
-        **TaskInstance.model_validate(ti, from_attributes=True).model_dump(exclude_unset=True),
-        task=task,
-        _ti_context_from_server=TIRunContext(
-            dag_run=DagRun.model_validate(ti.dag_run, from_attributes=True),
-            max_tries=ti.max_tries,
-            variables=[],
-            connections=[],
-            xcom_keys_to_clear=[],
-        ),
+    # TODO: Move these to test_utils too.
+    context = _get_template_context(ti, task)
+    context["ti"].__dict__.update(xcom_push=ti.xcom_push, xcom_pull=ti.xcom_pull)  # Avoid execution API.
+    context.update(  # type: ignore[call-arg]  # https://github.com/python/mypy/issues/17750
+        conn=ConnectionAccessor(),
+        test_mode=ti.test_mode,
+        var={
+            "json": VariableAccessor(deserialize_json=True),
+            "value": VariableAccessor(deserialize_json=False),
+        },
     )
-    # TODO: Move these functions to test_utils too.
-    runtime_ti.__dict__["xcom_push"] = ti.xcom_push
-    runtime_ti.__dict__["xcom_pull"] = ti.xcom_pull
-
-    return runtime_ti.get_template_context()
+    return context
 
 
 def render_template_fields(
@@ -172,10 +178,11 @@ def render_template_fields(
     *,
     context: Context | None = None,
     jinja_env: Environment | None = None,
+    session: Session = NEW_SESSION,
 ) -> SdkOperator:
     if AIRFLOW_V_3_2_PLUS:
         task.render_template_fields(context or get_template_context(ti, task), jinja_env)
         return task
     ti.refresh_from_task(task)  # type: ignore[arg-type]
-    ti.render_templates(context, jinja_env)
+    ti.render_templates(context or ti.get_template_context(session=session), jinja_env)
     return ti.task  # type: ignore[return-value]

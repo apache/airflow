@@ -1559,7 +1559,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         self,
         context: Context,
         jinja_env: jinja2.Environment | None = None,
-    ) -> None:
+    ) -> BaseOperator:
         """
         Template all attributes listed in *self.template_fields*.
 
@@ -1571,6 +1571,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         if not jinja_env:
             jinja_env = self.get_template_env()
         self._do_render_template_fields(self, self.template_fields, context, jinja_env, set())
+        return self
 
     def pre_execute(self, context: Any):
         """Execute right before self.execute() is called."""

@@ -147,10 +147,7 @@ def _compare_keys(retn_keys: set[str], hint_keys: set[str], docs_keys: set[str])
     retn_keys.add("expanded_ti_count")
 
     # TODO: These are the keys that are yet to be ported over to the Task SDK.
-    retn_keys.add("inlet_events")
-    retn_keys.add("params")
     retn_keys.add("test_mode")
-    retn_keys.add("triggering_asset_events")
 
     # Only present in callbacks. Not listed in templates-ref (that doc is for task execution).
     retn_keys.update(("exception", "reason", "try_number"))

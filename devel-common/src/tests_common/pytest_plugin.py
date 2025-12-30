@@ -807,6 +807,8 @@ class DagMaker(Generic[Dag], Protocol):
 
     def get_serialized_data(self) -> dict[str, Any]: ...
 
+    def sync_dag_to_db(self) -> None: ...
+
     def create_dagrun(
         self,
         run_id: str = ...,
@@ -1056,6 +1058,9 @@ def dag_maker(request) -> Generator[DagMaker, None, None]:
             self._bag_dag_compat(dag)
             self.session.flush()
 
+        def sync_dag_to_db(self):
+            self._make_serdag(self.dag)
+
         def create_dagrun(self, *, logical_date=NOTSET, **kwargs):
             from airflow.utils.state import DagRunState
             from airflow.utils.types import DagRunType
@@ -1164,7 +1169,7 @@ def dag_maker(request) -> Generator[DagMaker, None, None]:
                 **kwargs,
             )
 
-        def create_ti(self, task_id, dag_run=None, dag_run_kwargs=None, map_index=-1, **kwargs):
+        def create_ti(self, task_id, dag_run=None, dag_run_kwargs=None, map_index=-1):
             """
             Create a specific task instance with proper task refresh.
 
@@ -1187,7 +1192,6 @@ def dag_maker(request) -> Generator[DagMaker, None, None]:
                     f"Task instance with task_id '{task_id}' not found in dag run. "
                     f"Available task_ids: {available_task_ids}"
                 )
-
             if AIRFLOW_V_3_2_PLUS:
                 ti.refresh_from_task(self.serialized_dag.get_task(task_id))
             else:
@@ -1219,13 +1223,7 @@ def dag_maker(request) -> Generator[DagMaker, None, None]:
                 # E   AttributeError: '_PythonDecoratedOperator' object has no attribute 'xcom_push'
                 task.xcom_push = lambda *args, **kwargs: None
 
-            ti = self.create_ti(
-                task_id,
-                dag_run=dag_run,
-                dag_run_kwargs=dag_run_kwargs,
-                map_index=map_index,
-                **kwargs,
-            )
+            ti = self.create_ti(task_id, dag_run=dag_run, dag_run_kwargs=dag_run_kwargs, map_index=map_index)
             if AIRFLOW_V_3_2_PLUS:
                 from tests_common.test_utils.taskinstance import run_task_instance
 

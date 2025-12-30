@@ -20,23 +20,12 @@ from importlib.util import find_spec
 
 import pytest
 
-from airflow.providers.common.compat.sdk import AirflowException
+from airflow.providers.common.compat.sdk import DAG, AirflowException, setup, task, teardown
 from airflow.utils.state import TaskInstanceState
 
+from tests_common.test_utils.compat import timezone
 from tests_common.test_utils.markers import skip_if_force_lowest_dependencies_marker
 from tests_common.test_utils.taskinstance import render_template_fields
-from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V_3_1_PLUS
-
-if AIRFLOW_V_3_0_PLUS:
-    from airflow.sdk import DAG, setup, task, teardown
-else:
-    from airflow.decorators import setup, task, teardown  # type: ignore[attr-defined,no-redef]
-    from airflow.models import DAG  # type: ignore[attr-defined,no-redef]
-
-if AIRFLOW_V_3_1_PLUS:
-    from airflow.sdk import timezone
-else:
-    from airflow.utils import timezone  # type: ignore[attr-defined,no-redef]
 
 DEFAULT_DATE = timezone.datetime(2021, 9, 1)
 DILL_INSTALLED = find_spec("dill") is not None
