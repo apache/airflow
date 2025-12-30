@@ -34,7 +34,6 @@ from google.cloud.bigquery.table import RowIterator, Table, TableListItem, Table
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowProviderDeprecationWarning
-from airflow.providers.google.common.deprecated import deprecated
 from airflow.providers.common.compat.sdk import AirflowException, AirflowSkipException
 from airflow.providers.common.sql.operators.sql import (  # for _parse_boolean
     SQLCheckOperator,
@@ -61,6 +60,7 @@ from airflow.providers.google.cloud.triggers.bigquery import (
     BigQueryValueCheckTrigger,
 )
 from airflow.providers.google.cloud.utils.bigquery import convert_job_id
+from airflow.providers.google.common.deprecated import deprecated
 from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID
 from airflow.utils.helpers import exactly_one
 
@@ -1089,8 +1089,9 @@ class BigQueryGetDataOperator(GoogleCloudBaseOperator, _BigQueryOperatorsEncrypt
             f".{self.table_id}` limit {self.max_results}"
         )
         return query
-    
+
     """Deprecated method to assign project_id to table_project_id."""
+
     @deprecated(
         planned_removal_date="June 30, 2026",
         use_instead="table_project_id",
@@ -1098,7 +1099,7 @@ class BigQueryGetDataOperator(GoogleCloudBaseOperator, _BigQueryOperatorsEncrypt
     )
     def _assign_project_id(self, project_id: str) -> str:
         return project_id
-    
+
     def execute(self, context: Context):
         if self.project_id != PROVIDE_PROJECT_ID and not self.table_project_id:
             self.table_project_id = self._assign_project_id(self.project_id)
