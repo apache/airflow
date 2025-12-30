@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-12-29T19:48:49.017140
+# This constraints file was automatically generated on 2025-12-30T02:46:29.161335
 # via `uv pip install --resolution highest` for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -233,7 +233,7 @@ cachetools==6.2.4
 cadwyn==6.0.0
 cassandra-driver==3.29.3
 cattrs==25.3.0
-celery==5.6.0
+celery==5.6.1
 certifi==2025.11.12
 cffi==2.0.0
 chardet==5.2.0
@@ -276,7 +276,6 @@ email-validator==2.3.0
 entrypoints==0.4
 et_xmlfile==2.0.0
 eventlet==0.40.4
-exceptiongroup==1.3.1
 executing==2.2.1
 facebook_business==24.0.1
 fastapi-cli==0.0.20
@@ -407,7 +406,7 @@ jupyter_core==5.9.1
 jupyterlab_pygments==0.3.0
 jwcrypto==1.5.6
 keyring==25.7.0
-kombu==5.6.1
+kombu==5.6.2
 krb5==0.9.0
 kubernetes==33.1.0
 kubernetes_asyncio==33.3.0
@@ -649,7 +648,7 @@ universal_pathlib==0.2.6
 uritemplate==4.2.0
 urllib3==2.6.2
 uuid6==2025.0.1
-uv==0.9.19
+uv==0.9.20
 uvicorn==0.40.0
 uvloop==0.22.1
 validators==0.35.0
