@@ -214,6 +214,7 @@ def patch_connection(
 @connections_router.post("/test", dependencies=[Depends(requires_access_connection(method="POST"))])
 def test_connection(
     test_body: ConnectionBody,
+    session: SessionDep,
 ) -> ConnectionTestResponse:
     """
     Test an API connection.
@@ -229,12 +230,21 @@ def test_connection(
             "Contact your deployment admin to enable it.",
         )
 
-    transient_conn_id = get_random_string()
-    conn_env_var = f"{CONN_ENV_PREFIX}{transient_conn_id.upper()}"
+    conn_env_var: str | None = None
     try:
-        data = test_body.model_dump(by_alias=True)
-        data["conn_id"] = transient_conn_id
-        conn = Connection(**data)
+        conn = None
+        if test_body.connection_id:
+            conn = session.scalar(select(Connection).filter_by(conn_id=test_body.connection_id))
+
+        if conn is None:
+            effective_conn_id = get_random_string()
+            data = test_body.model_dump(by_alias=True)
+            data["conn_id"] = effective_conn_id
+            conn = Connection(**data)
+        else:
+            effective_conn_id = conn.conn_id
+
+        conn_env_var = f"{CONN_ENV_PREFIX}{effective_conn_id.upper()}"
         os.environ[conn_env_var] = conn.get_uri()
         test_status, test_message = conn.test_connection()
         return ConnectionTestResponse.model_validate({"status": test_status, "message": test_message})

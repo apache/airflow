@@ -945,20 +945,55 @@ class TestConnection(TestConnectionEndpoint):
     @pytest.mark.parametrize(
         ("body", "message"),
         [
-            ({"connection_id": TEST_CONN_ID, "conn_type": "sqlite"}, "Connection successfully tested"),
             (
-                {"connection_id": TEST_CONN_ID, "conn_type": "fs", "extra": '{"path": "/"}'},
+                {
+                    "connection_id": TEST_CONN_ID,
+                    "conn_type": "fs",
+                    "extra": '{"path": "/"}',
+                    "password": "***",
+                },
                 "Path / is existing.",
             ),
         ],
     )
-    def test_should_respond_200(self, test_client, body, message):
+    def test_should_respond_200_saved_connection(self, test_client, session, body, message):
+        connection = Connection(
+            conn_id=TEST_CONN_ID,
+            conn_type="fs",
+            login="a",
+            password="a",
+            extra='{"path": "/"}',
+        )
+        session.add(connection)
+        session.commit()
+
         response = test_client.post("/connections/test", json=body)
         assert response.status_code == 200
         assert response.json() == {
             "status": True,
             "message": message,
         }
+
+    @mock.patch.dict(os.environ, {"AIRFLOW__CORE__TEST_CONNECTION": "Enabled"})
+    @pytest.mark.parametrize(
+        ("body", "message"),
+        [
+            (
+                {
+                    "connection_id": "pre_save_conn",
+                    "conn_type": "sqlite",
+                    "host": "example.com",
+                    "login": "user",
+                    "password": "pass",
+                },
+                "Connection successfully tested",
+            ),
+        ],
+    )
+    def test_should_respond_200_transient_connection(self, test_client, body, message):
+        response = test_client.post("/connections/test", json=body)
+        assert response.status_code == 200
+        assert response.json() == {"status": True, "message": message}
 
     def test_should_respond_401(self, unauthenticated_test_client):
         response = unauthenticated_test_client.post(
