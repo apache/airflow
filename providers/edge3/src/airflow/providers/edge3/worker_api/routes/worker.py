@@ -21,7 +21,13 @@ import json
 from typing import Annotated
 
 from fastapi import Body, Depends, HTTPException, Path, status
-from sqlalchemy import select
+
+from airflow.exceptions import AirflowOptionalProviderFeatureException
+
+try:
+    from sqlalchemy import select
+except ImportError:
+    select = None
 
 from airflow.api_fastapi.common.db.common import SessionDep  # noqa: TC001
 from airflow.api_fastapi.common.router import AirflowRouter

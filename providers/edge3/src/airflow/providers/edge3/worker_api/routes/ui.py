@@ -21,7 +21,13 @@ from datetime import datetime
 from typing import TYPE_CHECKING, Annotated
 
 from fastapi import Depends, HTTPException, Query, status
-from sqlalchemy import select
+
+from airflow.exceptions import AirflowOptionalProviderFeatureException
+
+try:
+    from sqlalchemy import select
+except ImportError:
+    select = None
 
 from airflow.api_fastapi.auth.managers.models.resource_details import AccessView
 from airflow.api_fastapi.common.db.common import SessionDep  # noqa: TC001

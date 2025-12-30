@@ -20,7 +20,13 @@ from __future__ import annotations
 from typing import Annotated
 
 from fastapi import Body, Depends, status
-from sqlalchemy import select, update
+
+from airflow.exceptions import AirflowOptionalProviderFeatureException
+
+try:
+    from sqlalchemy import select, update
+except ImportError:
+    select = update = None
 
 from airflow.api_fastapi.common.db.common import SessionDep  # noqa: TC001
 from airflow.api_fastapi.common.router import AirflowRouter

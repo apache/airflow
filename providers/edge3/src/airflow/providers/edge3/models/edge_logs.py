@@ -18,13 +18,20 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from sqlalchemy import (
-    Integer,
-    Text,
-    text,
-)
-from sqlalchemy.dialects.mysql import MEDIUMTEXT
-from sqlalchemy.orm import Mapped
+from airflow.exceptions import AirflowOptionalProviderFeatureException
+
+try:
+    from sqlalchemy import (
+        Integer,
+        Text,
+        text,
+    )
+    from sqlalchemy.dialects.mysql import MEDIUMTEXT
+    from sqlalchemy.orm import Mapped
+except ImportError:
+    Integer = Text = text = None
+    MEDIUMTEXT = None
+    Mapped = None
 
 from airflow.models.base import Base, StringID
 from airflow.providers.common.compat.sqlalchemy.orm import mapped_column

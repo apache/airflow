@@ -64,6 +64,9 @@ dependencies = [
     "retryhttp>=1.2.0,!=1.3.0",
 ]
 
+[project.optional-dependencies]
+"sqlalchemy" = ["sqlalchemy>=1.4.49"]
+
 [dependency-groups]
 dev = [
     "apache-airflow",

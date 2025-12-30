@@ -18,13 +18,19 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from sqlalchemy import (
-    Index,
-    Integer,
-    String,
-    text,
-)
-from sqlalchemy.orm import Mapped
+from airflow.exceptions import AirflowOptionalProviderFeatureException
+
+try:
+    from sqlalchemy import (
+        Index,
+        Integer,
+        String,
+        text,
+    )
+    from sqlalchemy.orm import Mapped
+except ImportError:
+    Index = Integer = String = text = None
+    Mapped = None
 
 from airflow.models.base import Base, StringID
 from airflow.models.taskinstancekey import TaskInstanceKey

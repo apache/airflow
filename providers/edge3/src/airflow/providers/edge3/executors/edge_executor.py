@@ -23,9 +23,16 @@ from copy import deepcopy
 from datetime import datetime, timedelta
 from typing import TYPE_CHECKING, Any
 
-from sqlalchemy import delete, inspect, select, text
-from sqlalchemy.exc import NoSuchTableError
-from sqlalchemy.orm import Session
+from airflow.exceptions import AirflowOptionalProviderFeatureException
+
+try:
+    from sqlalchemy import delete, inspect, select, text
+    from sqlalchemy.exc import NoSuchTableError
+    from sqlalchemy.orm import Session
+except ImportError:
+    delete = inspect = select = text = None
+    NoSuchTableError = None
+    Session = None
 
 from airflow.cli.cli_config import GroupCommand
 from airflow.configuration import conf

@@ -23,8 +23,14 @@ from datetime import datetime
 from enum import Enum
 from typing import TYPE_CHECKING
 
-from sqlalchemy import Integer, String, delete, select
-from sqlalchemy.orm import Mapped
+from airflow.exceptions import AirflowOptionalProviderFeatureException
+
+try:
+    from sqlalchemy import Integer, String, delete, select
+    from sqlalchemy.orm import Mapped
+except ImportError:
+    Integer = String = delete = select = None
+    Mapped = None
 
 from airflow.models.base import Base
 from airflow.providers.common.compat.sdk import AirflowException, Stats, timezone
