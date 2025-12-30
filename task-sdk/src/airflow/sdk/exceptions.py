@@ -347,16 +347,6 @@ class FailFastDagInvalidTriggerRule(AirflowException):
         return f"A 'fail_fast' dag can only have {TriggerRule.ALL_SUCCESS} trigger rule"
 
 
-class AirflowRequeueException(AirflowException):
-    """
-    Indicate the Dag run / task should be re-queued (not retrired) and attempted again.
-
-    :meta private:
-    """
-
-    status_code = HTTPStatus.SERVICE_UNAVAILABLE
-
-
 class RemovedInAirflow4Warning(DeprecationWarning):
     """Issued for usage of deprecated features that will be removed in Airflow4."""
 
