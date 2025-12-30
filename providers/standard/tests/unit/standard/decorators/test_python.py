@@ -26,6 +26,7 @@ from airflow.models.taskinstance import TaskInstance
 from airflow.models.taskmap import TaskMap
 from airflow.providers.common.compat.sdk import AirflowException, XComNotFound
 
+from tests_common.test_utils.taskinstance import create_task_instance, render_template_fields
 from tests_common.test_utils.version_compat import (
     AIRFLOW_V_3_0_1,
     AIRFLOW_V_3_0_PLUS,
@@ -65,11 +66,10 @@ else:
         MappedOperator as SerializedMappedOperator,  # type: ignore[assignment,attr-defined]
     )
 
-pytestmark = pytest.mark.db_test
-
-
 if typing.TYPE_CHECKING:
     from airflow.models.dagrun import DagRun
+
+pytestmark = pytest.mark.db_test
 
 DEFAULT_DATE = timezone.datetime(2016, 1, 1)
 PY38 = sys.version_info >= (3, 8)
@@ -400,10 +400,14 @@ class TestAirflowTaskDecorator(BasePythonTest):
 
         dr = self.create_dag_run()
         if AIRFLOW_V_3_0_PLUS:
-            ti = TaskInstance(task=ret.operator, run_id=dr.run_id, dag_version_id=dr.created_dag_version_id)
+            ti = create_task_instance(
+                task=ret.operator,
+                run_id=dr.run_id,
+                dag_version_id=dr.created_dag_version_id,
+            )
         else:
             ti = TaskInstance(task=ret.operator, run_id=dr.run_id)
-        rendered_op_args = ti.render_templates().op_args
+        rendered_op_args = render_template_fields(ti, ret.operator).op_args
         assert len(rendered_op_args) == 4
         assert rendered_op_args[0] == 4
         assert rendered_op_args[1] == date(2019, 1, 1)
@@ -424,10 +428,14 @@ class TestAirflowTaskDecorator(BasePythonTest):
 
         dr = self.create_dag_run()
         if AIRFLOW_V_3_0_PLUS:
-            ti = TaskInstance(task=ret.operator, run_id=dr.run_id, dag_version_id=dr.created_dag_version_id)
+            ti = create_task_instance(
+                task=ret.operator,
+                run_id=dr.run_id,
+                dag_version_id=dr.created_dag_version_id,
+            )
         else:
             ti = TaskInstance(task=ret.operator, run_id=dr.run_id)
-        rendered_op_kwargs = ti.render_templates().op_kwargs
+        rendered_op_kwargs = render_template_fields(ti, ret.operator).op_kwargs
         assert rendered_op_kwargs["an_int"] == 4
         assert rendered_op_kwargs["a_date"] == date(2019, 1, 1)
         assert rendered_op_kwargs["a_templated_string"] == f"dag {self.dag_id} ran on {self.ds_templated}."
@@ -853,6 +861,7 @@ def test_mapped_render_template_fields(dag_maker, session):
 
     mapped_ti: TaskInstance = dr.get_task_instance(mapped.operator.task_id, session=session)
     mapped_ti.map_index = 0
+    mapped_ti.task = mapped.operator
     assert isinstance(mapped_ti.task, MappedOperator)
     mapped.operator.render_template_fields(context=mapped_ti.get_template_context(session=session))
     assert isinstance(mapped_ti.task, BaseOperator)
