@@ -22,6 +22,8 @@ from typing import TYPE_CHECKING, Annotated
 
 from fastapi import Depends, HTTPException, Query, status
 
+from airflow.exceptions import AirflowOptionalProviderFeatureException
+
 try:
     from sqlalchemy import select
 except ImportError:

@@ -22,6 +22,8 @@ from typing import Annotated
 
 from fastapi import Body, Depends, HTTPException, Path, status
 
+from airflow.exceptions import AirflowOptionalProviderFeatureException
+
 try:
     from sqlalchemy import select
 except ImportError:

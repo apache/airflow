@@ -21,6 +21,8 @@ from typing import Annotated
 
 from fastapi import Body, Depends, status
 
+from airflow.exceptions import AirflowOptionalProviderFeatureException
+
 try:
     from sqlalchemy import select, update
 except ImportError:
