@@ -47,7 +47,7 @@ def validate_pool_name(name: str) -> None:
     :param name: The pool name to validate
     :raises ValueError: If the pool name contains invalid characters
     """
-    if not re.match(r"^[a-zA-Z0-9_.-]+$', name):
+    if not re.match(r"^[a-zA-Z0-9_.-]+$", name):
         raise ValueError(
             f"Pool name '{name}' is invalid. Pool names must only contain "
             "ASCII alphabets (a-z, A-Z), numbers (0-9), underscores (_), dots (.), and dashes (-)."
