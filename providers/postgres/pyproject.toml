@@ -88,6 +88,10 @@ dependencies = [
 "psycopg" = [
     "psycopg[binary]>=3.2.9",
 ]
+"sqlalchemy" = [
+    "sqlalchemy>=1.4",
+]
+
 
 [dependency-groups]
 dev = [
