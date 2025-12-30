@@ -94,7 +94,11 @@ with DAG(
         py_requirements=["apache-beam[gcp]==2.67.0"],
         py_interpreter="python3",
         py_system_site_packages=False,
-        dataflow_config={"location": LOCATION, "job_name": "start_python_job_streaming"},
+        dataflow_config={
+            "location": LOCATION,
+            "job_name": "start_python_job_streaming",
+            "max_num_workers": 1,
+        },
     )
     # [END howto_operator_start_streaming_python_job]
 
