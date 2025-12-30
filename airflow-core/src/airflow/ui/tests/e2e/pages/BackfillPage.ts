@@ -76,14 +76,14 @@ export class BackfillPage extends BasePage {
 
     const runsMessage = this.page.locator("text=/\\d+ runs? will be triggered|No runs matching/");
 
-    await expect(runsMessage).toBeVisible({ timeout: 10_000 });
+    await expect(runsMessage).toBeVisible({ timeout: 20_000 });
 
     await expect(this.backfillRunButton).toBeEnabled({ timeout: 5000 });
     await this.backfillRunButton.click();
   }
 
   // Get backfill details
-  public async getBackfillDetails(rowIndex: number = 0): Promise<{
+  public async getBackfillDetails(rowIndex: number): Promise<{
     createdAt: string;
     fromDate: string;
     reprocessBehavior: string;

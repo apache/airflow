@@ -31,6 +31,66 @@ const getPastDate = (daysAgo: number): string => {
 
 // Backfills E2E Tests
 
+test.describe("Backfill creation", () => {
+  let backfillPage: BackfillPage;
+  const testDagId = testConfig.testDag.id;
+
+  test.beforeEach(({ page }) => {
+    test.setTimeout(90_000);
+    backfillPage = new BackfillPage(page);
+  });
+
+  test("verify date range selection (start date, end date)", async () => {
+    const fromDate = getPastDate(1);
+    const toDate = getPastDate(7);
+
+    await backfillPage.navigateToDagDetail(testDagId);
+    await backfillPage.openBackfillDialog();
+    await backfillPage.backfillFromDateInput.fill(fromDate);
+    await backfillPage.backfillToDateInput.fill(toDate);
+    await expect(backfillPage.backfillDateError).toBeVisible();
+  });
+
+  test("Should create backfill with 'all runs' behavior", async () => {
+    const createdFromDate = getPastDate(2);
+    const createdToDate = getPastDate(1);
+
+    await backfillPage.createBackfill(testDagId, {
+      fromDate: createdFromDate,
+      reprocessBehavior: "All Runs",
+      toDate: createdToDate,
+    });
+
+    await backfillPage.navigateToBackfillsTab(testDagId);
+  });
+
+  test("Should create backfill with 'Missing Runs' behavior", async () => {
+    const createdFromDate = getPastDate(45);
+    const createdToDate = getPastDate(30);
+
+    await backfillPage.createBackfill(testDagId, {
+      fromDate: createdFromDate,
+      reprocessBehavior: "Missing Runs",
+      toDate: createdToDate,
+    });
+
+    await backfillPage.navigateToBackfillsTab(testDagId);
+  });
+
+  test("Should create backfill with 'Missing and Errored runs' behavior", async () => {
+    const createdFromDate = getPastDate(60);
+    const createdToDate = getPastDate(55);
+
+    await backfillPage.createBackfill(testDagId, {
+      fromDate: createdFromDate,
+      reprocessBehavior: "Missing and Errored Runs",
+      toDate: createdToDate,
+    });
+
+    await backfillPage.navigateToBackfillsTab(testDagId);
+  });
+});
+
 test.describe("Backfills List Display", () => {
   let backfillPage: BackfillPage;
   const testDagId = testConfig.testDag.id;
