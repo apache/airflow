@@ -1,0 +1,1 @@
+Add validation for pool names to prevent ``InvalidStatsNameException`` when reporting metrics. Pool names must now only contain ASCII letters, numbers, underscores, dots, and dashes.
