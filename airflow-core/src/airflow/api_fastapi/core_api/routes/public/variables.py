@@ -122,8 +122,8 @@ def get_variables(
         statement=select(Variable),
         filters=[variable_key_pattern, readable_variables_filter],
         order_by=order_by,
-        offset=offset.offset,
-        limit=limit.limit,
+        offset=offset,
+        limit=limit,
         session=session,
     )
 
