@@ -27,7 +27,7 @@ import sys
 import time
 from collections.abc import Callable, Iterable, Iterator, Mapping
 from contextlib import suppress
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from itertools import product
 from pathlib import Path
 from typing import TYPE_CHECKING, Annotated, Any, Literal
@@ -61,6 +61,7 @@ from airflow.sdk.definitions.param import process_params
 from airflow.sdk.exceptions import (
     AirflowException,
     AirflowInactiveAssetInInletOrOutletException,
+    AirflowRescheduleException,
     AirflowRuntimeError,
     AirflowTaskTimeout,
     ErrorType,
@@ -726,6 +727,13 @@ def parse(what: StartupDetails, log: Logger) -> RuntimeTaskInstance:
         log.error(
             "Dag not found during start up", dag_id=what.ti.dag_id, bundle=bundle_info, path=what.dag_rel_path
         )
+        max_reschedules = conf.getint("workers", "startup_dagbag_reschedule_max_attempts", fallback=3)
+        reschedule_delay = conf.getint("workers", "startup_dagbag_reschedule_delay", fallback=60)
+        reschedule_count = int(getattr(what.ti_context, "task_reschedule_count", 0) or 0)
+        if max_reschedules > 0 and reschedule_count < max_reschedules:
+            raise AirflowRescheduleException(
+                datetime.now(tz=timezone.utc) + timedelta(seconds=reschedule_delay)
+            )
         sys.exit(1)
 
     # install_loader()
@@ -740,6 +748,13 @@ def parse(what: StartupDetails, log: Logger) -> RuntimeTaskInstance:
             bundle=bundle_info,
             path=what.dag_rel_path,
         )
+        max_reschedules = conf.getint("workers", "startup_dagbag_reschedule_max_attempts", fallback=3)
+        reschedule_delay = conf.getint("workers", "startup_dagbag_reschedule_delay", fallback=60)
+        reschedule_count = int(getattr(what.ti_context, "task_reschedule_count", 0) or 0)
+        if max_reschedules > 0 and reschedule_count < max_reschedules:
+            raise AirflowRescheduleException(
+                datetime.now(tz=timezone.utc) + timedelta(seconds=reschedule_delay)
+            )
         sys.exit(1)
 
     if not isinstance(task, (BaseOperator, MappedOperator)):
@@ -1729,6 +1744,14 @@ def main():
             state, _, error = run(ti, context, log)
             context["exception"] = error
             finalize(ti, state, context, log, error)
+    except AirflowRescheduleException as exc:
+        log.info("Rescheduling task during startup, marking task as UP_FOR_RESCHEDULE")
+        SUPERVISOR_COMMS.send(
+            msg=RescheduleTask(
+                reschedule_date=exc.reschedule_date,
+                end_date=datetime.now(tz=timezone.utc),
+            )
+        )
     except KeyboardInterrupt:
         log.exception("Ctrl-c hit")
         exit(2)
