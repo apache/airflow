@@ -2402,6 +2402,15 @@ triggerer:
       type: integer
       example: ~
       default: "50"
+    queues_enabled:
+      description: |
+        When set to True, deferred tasks will register triggers with the task queue they originated from,
+        and triggerers can selectively run triggers based on their queue assignment. Only relevant when using
+        executors which support task queue assignment. For more details, refer to the trigger docs.
+      version_added: 3.2.0
+      type: boolean
+      example: ~
+      default: "False"
 kerberos:
   description: ~
   options:
