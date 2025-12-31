@@ -24,6 +24,7 @@ classifiers = [
 ]
 
 dependencies = [
+    "pendulum>=3.1.0",
     "methodtools>=0.4.7",
 ]
 
