@@ -40,7 +40,7 @@ from flask_appbuilder.views import IndexView, UtilView
 
 from airflow import settings
 from airflow.api_fastapi.app import create_auth_manager, get_auth_manager
-from airflow.configuration import conf
+from airflow.providers.common.compat.sdk import conf
 from airflow.providers.fab.www.security_manager import AirflowSecurityManagerV2
 from airflow.providers.fab.www.views import FabIndexView, redirect
 
