@@ -92,7 +92,9 @@ class AwsLambdaExecutor(BaseExecutor):
 
     def start(self):
         """Call this when the Executor is run for the first time by the scheduler."""
-        check_health = conf.getboolean(CONFIG_GROUP_NAME, AllLambdaConfigKeys.CHECK_HEALTH_ON_STARTUP)
+        check_health = conf.getboolean(
+            CONFIG_GROUP_NAME, AllLambdaConfigKeys.CHECK_HEALTH_ON_STARTUP, fallback=True
+        )
 
         if not check_health:
             return
