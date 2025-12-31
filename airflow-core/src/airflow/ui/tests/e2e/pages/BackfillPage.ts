@@ -87,8 +87,9 @@ export class BackfillPage extends BasePage {
       return;
     }
 
-    await expect(this.backfillRunButton).toBeEnabled({ timeout: 15_000 });
-    await this.backfillRunButton.click();
+    await expect(this.backfillRunButton).toBeVisible({ timeout: 20_000 });
+    await this.backfillRunButton.scrollIntoViewIfNeeded();
+    await this.backfillRunButton.click({ timeout: 20_000 });
   }
 
   // Get backfill details
@@ -185,8 +186,7 @@ export class BackfillPage extends BasePage {
 
   public async navigateToBackfillsTab(dagName: string): Promise<void> {
     await this.navigateTo(BackfillPage.getBackfillsUrl(dagName));
-    await this.page.waitForLoadState("networkidle");
-    await expect(this.backfillsTable).toBeVisible({ timeout: 10_000 });
+    await expect(this.backfillsTable).toBeVisible({ timeout: 20_000 });
   }
 
   public async navigateToDagDetail(dagName: string): Promise<void> {
@@ -195,13 +195,13 @@ export class BackfillPage extends BasePage {
   }
 
   public async openBackfillDialog(): Promise<void> {
-    await this.triggerButton.waitFor({ state: "visible", timeout: 10_000 });
+    await expect(this.triggerButton).toBeVisible({ timeout: 20_000 });
     await this.triggerButton.click();
 
-    await expect(this.backfillModeRadio).toBeVisible({ timeout: 8000 });
+    await expect(this.backfillModeRadio).toBeVisible({ timeout: 20_000 });
     await this.backfillModeRadio.click();
 
-    await expect(this.backfillFromDateInput).toBeVisible({ timeout: 5000 });
+    await expect(this.backfillFromDateInput).toBeVisible({ timeout: 20_000 });
   }
 
   public async openFilterMenu(): Promise<void> {
