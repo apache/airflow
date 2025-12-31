@@ -830,18 +830,25 @@ def _truncate_rendered_value(rendered: str, max_length: int) -> str:
     if max_length <= 0:
         return ""
 
-    prefix = "Truncated. You can change this behaviour in [core]max_templated_field_length. "
+    prefix = (
+        "Truncated. You can change this behaviour in "
+        "[core]max_templated_field_length. "
+    )
     suffix = "..."
+    value = str(rendered)
 
-    if max_length <= len(suffix):
-        return suffix[:max_length]
+    trunc_only = f"{prefix}{suffix}"
 
-    if max_length <= len(prefix) + len(suffix):
-        return (prefix + suffix)[:max_length]
+    if max_length < len(trunc_only):
+        return trunc_only
 
-    available = max_length - len(prefix) - len(suffix)
-    return f"{prefix}{rendered[:available]}{suffix}"
+    overhead = len(prefix) + 2 + len(suffix)
+    available = max_length - overhead
 
+    if available <= 0:
+        return trunc_only
+
+    return f"{prefix}'{value[:available]}'{suffix}"
 def _safe_truncate_rendered_value(rendered: Any, max_length: int) -> str:
     return _truncate_rendered_value(str(rendered), max_length)
 
