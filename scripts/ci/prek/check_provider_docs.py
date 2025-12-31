@@ -19,7 +19,7 @@
 # requires-python = ">=3.10,<3.11"
 # dependencies = [
 #   "jinja2>=3.1.2",
-#   "pyyaml>=6.0.2",
+#   "pyyaml>=6.0.3",
 #   "rich>=13.6.0",
 # ]
 # ///

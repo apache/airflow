@@ -1619,7 +1619,7 @@ RUN SYSTEM=$(uname -s | tr '[:upper:]' '[:lower:]') \
     && chmod +x /usr/local/bin/helm
 
 # Install mprocs - a modern process manager for managing multiple Airflow components
-ARG MPROCS_VERSION="0.8.1"
+ARG MPROCS_VERSION="0.8.2"
 
 RUN SYSTEM=$(uname -s | tr '[:upper:]' '[:lower:]') \
     && PLATFORM="$(uname -m)" \
@@ -1710,8 +1710,8 @@ COPY --from=scripts common.sh install_packaging_tools.sh install_additional_depe
 # Also use `force pip` label on your PR to swap all places we use `uv` to `pip`
 ARG AIRFLOW_PIP_VERSION=25.3
 # ARG AIRFLOW_PIP_VERSION="git+https://github.com/pypa/pip.git@main"
-ARG AIRFLOW_UV_VERSION=0.9.18
-ARG AIRFLOW_PREK_VERSION="0.2.23"
+ARG AIRFLOW_UV_VERSION=0.9.19
+ARG AIRFLOW_PREK_VERSION="0.2.25"
 
 # UV_LINK_MODE=copy is needed since we are using cache mounted from the host
 ENV AIRFLOW_PIP_VERSION=${AIRFLOW_PIP_VERSION} \

@@ -627,6 +627,7 @@ repos:
           ^.*RELEASE_NOTES\.rst$|
           ^scripts/ci/docker-compose/integration-keycloak\.yml$|
           ^scripts/ci/docker-compose/keycloak/keycloak-entrypoint\.sh$|
+          ^scripts/ci/prek/upgrade_important_versions.py$|
           ^scripts/ci/prek/vendor_k8s_json_schema\.py$
       - id: check-base-operator-partial-arguments
         name: Check BaseOperator and partial() arguments
