@@ -8252,6 +8252,10 @@
                                 "null"
                             ],
                             "default": null
+                        },
+                        "persistentVolumeClaimRetentionPolicy": {
+                            "$ref": "#/definitions/persistentVolumeClaimRetentionPolicy",
+                            "description": "PersistentVolumeClaim retention policy to be used in the lifecycle of a StatefulSet."
                         }
                     }
                 },
