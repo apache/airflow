@@ -35,6 +35,7 @@ def _check_expose_config() -> bool:
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Your Airflow administrator chose not to expose the configuration, most likely for security reasons.",
         )
+    return False
 
 
 def _response_based_on_accept(accept: Mimetype, config: Config):
