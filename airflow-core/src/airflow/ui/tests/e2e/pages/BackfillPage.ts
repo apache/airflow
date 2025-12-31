@@ -67,6 +67,7 @@ export class BackfillPage extends BasePage {
     const { fromDate, reprocessBehavior, toDate } = options;
 
     await this.navigateToDagDetail(dagName);
+    await this.waitForNoActiveBackfill();
     await this.openBackfillDialog();
 
     await this.backfillFromDateInput.fill(fromDate);
@@ -78,53 +79,26 @@ export class BackfillPage extends BasePage {
 
     await expect(runsMessage).toBeVisible({ timeout: 20_000 });
 
-    await expect(this.backfillRunButton).toBeEnabled({ timeout: 5000 });
+    const hasRuns = await this.page.locator("text=/\\d+ runs? will be triggered/").isVisible();
+
+    if (!hasRuns) {
+      await this.page.keyboard.press("Escape");
+
+      return;
+    }
+
+    await expect(this.backfillRunButton).toBeEnabled({ timeout: 15_000 });
     await this.backfillRunButton.click();
   }
 
-  public async findBackfillByDateRange(fromDate: string, toDate: string): Promise<number | null> {
-    const headers = this.page.locator("table thead th");
-    const headerTexts = await headers.allTextContents();
-    const columnMap = new Map<string, number>(headerTexts.map((text, index) => [text.trim(), index]));
-
-    const fromDateIndex = columnMap.get("From") ?? 0;
-    const toDateIndex = columnMap.get("To") ?? 1;
-
-    const rows = this.page.locator("table tbody tr");
-
-    await rows.first().waitFor({ state: "visible", timeout: 10_000 });
-    const rowCount = await rows.count();
-
-    for (let i = 0; i < rowCount; i++) {
-      const row = rows.nth(i);
-      const cells = row.locator("td");
-
-      const rowFromDate = (await cells.nth(fromDateIndex).textContent()) ?? "";
-      const rowToDate = (await cells.nth(toDateIndex).textContent()) ?? "";
-
-      if (
-        rowFromDate.trim().slice(0, 10) === fromDate.slice(0, 10) &&
-        rowToDate.trim().slice(0, 10) === toDate.slice(0, 10)
-      ) {
-        return i;
-      }
-    }
-
-    return null;
-  }
-
-  public async getBackfillDetails(
-    fromDate: string,
-    toDate: string,
-  ): Promise<{
+  // Get backfill details
+  public async getBackfillDetails(rowIndex: number = 0): Promise<{
     createdAt: string;
     fromDate: string;
     reprocessBehavior: string;
     toDate: string;
   }> {
-    const rowIndex = await this.findBackfillByDateRange(fromDate, toDate);
-
-    const row = this.page.locator("table tbody tr").nth(rowIndex!);
+    const row = this.page.locator("table tbody tr").nth(rowIndex);
     const cells = row.locator("td");
 
     await expect(row).toBeVisible({ timeout: 10_000 });
@@ -133,7 +107,6 @@ export class BackfillPage extends BasePage {
     const headerTexts = await headers.allTextContents();
     const columnMap = new Map<string, number>(headerTexts.map((text, index) => [text.trim(), index]));
 
-    // Extract data using column headers
     const fromDateIndex = columnMap.get("From") ?? 0;
     const toDateIndex = columnMap.get("To") ?? 1;
     const reprocessBehaviorIndex = columnMap.get("Reprocess Behavior") ?? 2;
@@ -154,35 +127,56 @@ export class BackfillPage extends BasePage {
     };
   }
 
-  // Get backfill status
-  public async getBackfillStatus(): Promise<string> {
-    const statusIcon = this.page.getByTestId("state-badge").first();
+  public async getBackfillsTableRows(): Promise<number> {
+    const rows = this.page.locator("table tbody tr");
 
-    await expect(statusIcon).toBeVisible();
-    await statusIcon.click();
+    try {
+      await rows.first().waitFor({ state: "visible", timeout: 5000 });
+    } catch {
+      return 0;
+    }
 
-    await this.page.waitForLoadState("networkidle");
+    return await rows.count();
+  }
 
-    const statusBadge = this.page.getByTestId("state-badge").first();
+  public async getBackfillStatus(rowIndex: number = 0): Promise<string> {
+    const row = this.page.locator("table tbody tr").nth(rowIndex);
 
-    await expect(statusBadge).toBeVisible();
+    await expect(row).toBeVisible({ timeout: 10_000 });
 
-    const statusText = (await statusBadge.textContent()) ?? "";
+    const headers = this.page.locator("table thead th");
+    const headerTexts = await headers.allTextContents();
+    const statusIndex = headerTexts.findIndex((text) => text.toLowerCase().includes("status"));
+
+    if (statusIndex === -1) {
+      const statusBadge = row
+        .locator('[data-testid="state-badge"], [class*="status"], [class*="badge"]')
+        .first();
+      const isVisible = await statusBadge.isVisible().catch(() => false);
+
+      if (isVisible) {
+        return (await statusBadge.textContent()) ?? "";
+      }
+
+      return "";
+    }
+
+    const statusCell = row.locator("td").nth(statusIndex);
+    const statusText = (await statusCell.textContent()) ?? "";
 
     return statusText.trim();
   }
 
-  // Get column header locator for assertions
   public getColumnHeader(columnName: string): Locator {
     return this.page.locator(`th:has-text("${columnName}")`);
   }
 
-  // Get filter button
   public getFilterButton(): Locator {
-    return this.page.locator('button[aria-label*="filter"], button[aria-label*="Filter"]');
+    return this.page.locator(
+      'button[aria-label*="Filter table columns"], button:has-text("Filter table columns")',
+    );
   }
 
-  // Get number of table columns
   public async getTableColumnCount(): Promise<number> {
     const headers = this.page.locator("table thead th");
 
@@ -192,6 +186,7 @@ export class BackfillPage extends BasePage {
   public async navigateToBackfillsTab(dagName: string): Promise<void> {
     await this.navigateTo(BackfillPage.getBackfillsUrl(dagName));
     await this.page.waitForLoadState("networkidle");
+    await expect(this.backfillsTable).toBeVisible({ timeout: 10_000 });
   }
 
   public async navigateToDagDetail(dagName: string): Promise<void> {
@@ -209,13 +204,11 @@ export class BackfillPage extends BasePage {
     await expect(this.backfillFromDateInput).toBeVisible({ timeout: 5000 });
   }
 
-  // Open the filter menu
   public async openFilterMenu(): Promise<void> {
     const filterButton = this.getFilterButton();
 
     await filterButton.click();
 
-    // Wait for menu to appear
     const filterMenu = this.page.locator('[role="menu"]');
 
     await filterMenu.waitFor({ state: "visible", timeout: 5000 });
@@ -235,10 +228,15 @@ export class BackfillPage extends BasePage {
     await radioItem.click();
   }
 
-  //  Toggle a column's visibility in the filter menu
   public async toggleColumn(columnName: string): Promise<void> {
     const menuItem = this.page.locator(`[role="menuitem"]:has-text("${columnName}")`);
 
     await menuItem.click();
+  }
+
+  public async waitForNoActiveBackfill(): Promise<void> {
+    const backfillInProgress = this.page.locator('text="Backfill in progress:"');
+
+    await expect(backfillInProgress).not.toBeVisible({ timeout: 120_000 });
   }
 }

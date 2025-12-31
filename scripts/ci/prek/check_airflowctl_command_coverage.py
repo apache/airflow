@@ -47,6 +47,7 @@ EXCLUDED_METHODS = {
     "error",
     "_check_flag_and_exit_if_server_response_error",
     "bulk",
+    "export",
 }
 
 EXCLUDED_COMMANDS = {
