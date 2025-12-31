@@ -109,4 +109,4 @@ def has_execution_context() -> bool:
 
     # If this is set it means are in some kind of execution context (Task, Dag Parse or Triggerer perhaps)
     # and should use the Task SDK API server path
-    return hasattr(sys.modules.get("airflow.sdk.execution_time.task_runner"), "_SupervisorCommsHolder")
+    return hasattr(sys.modules.get("airflow.sdk.execution_time.task_runner"), "_SupervisorCommsHolder.comms")
