@@ -27,6 +27,7 @@ import types
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
+# TODO: these should be moved into module_loading i think
 from airflow.utils.entry_points import entry_points_with_dist
 from airflow.utils.file import find_path_from_directory
 
