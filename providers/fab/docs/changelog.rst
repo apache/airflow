@@ -20,6 +20,28 @@
 Changelog
 ---------
 
+3.1.1
+.....
+
+Misc
+~~~~
+
+* ``Remove global from plugins_manager (#59851)``
+* ``Replace imports from airflow.security.permissions module in fab provider due to future deprecation of the module. (#59755)``
+* ``Split SerializedBaseOperator from serde logic (#59627)``
+* ``Adaptions for custom auth manager example in documentation (#59355)``
+* ``Pnpm upgrade to 10.x and prevent script execution (#59466)``
+* ``Bump the fab-ui-package-updates group across 1 directory with 3 updates (#59242)``
+
+Doc-only
+~~~~~~~~
+
+* ``Add hints for claim validation to auth manager documentation (#59320)``
+* ``Fix release process issues after going through 2025-12-09 release (#59261)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 3.1.0
 .....
 

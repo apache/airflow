@@ -54,6 +54,7 @@ from tests_common.test_utils.db import (
 )
 from tests_common.test_utils.logs import check_last_log
 from tests_common.test_utils.mock_operators import MockOperator
+from tests_common.test_utils.taskinstance import create_task_instance
 
 if TYPE_CHECKING:
     from tests_common.pytest_plugin import CreateTaskInstance
@@ -717,7 +718,7 @@ class TestGetMappedTaskInstances:
                     itertools.repeat(TaskInstanceState.RUNNING, dag["running"]),
                 )
             ):
-                ti = TaskInstance(
+                ti = create_task_instance(
                     mapped, run_id=dr.run_id, map_index=index, state=state, dag_version_id=dag_version.id
                 )
                 setattr(ti, "start_date", DEFAULT_DATETIME_1)

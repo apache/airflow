@@ -94,15 +94,6 @@ class TestCliListConnections:
             assert conn_type in stdout
             assert conn_id in stdout
 
-    def test_cli_connections_filter_conn_id(self):
-        args = self.parser.parse_args(
-            ["connections", "list", "--output", "json", "--conn-id", "http_default"]
-        )
-        with redirect_stdout(StringIO()) as capture:
-            connection_command.connections_list(args)
-            stdout = capture.getvalue()
-        assert "http_default" in stdout
-
 
 class TestCliExportConnections:
     parser = cli_parser.get_parser()

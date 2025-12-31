@@ -113,6 +113,7 @@ from tests_common.test_utils.db import (
 )
 from tests_common.test_utils.mock_executor import MockExecutor
 from tests_common.test_utils.mock_operators import CustomOperator
+from tests_common.test_utils.taskinstance import create_task_instance, run_task_instance
 from unit.listeners import dag_listener
 from unit.listeners.test_listeners import get_listener_manager
 from unit.models import TEST_DAGS_FOLDER
@@ -893,7 +894,7 @@ class TestSchedulerJob:
         dr1 = dag_maker.create_dagrun(run_type=DagRunType.BACKFILL_JOB)
         dag_version = DagVersion.get_latest_version(dr1.dag_id)
 
-        ti1 = TaskInstance(task1, run_id=dr1.run_id, dag_version_id=dag_version.id)
+        ti1 = create_task_instance(task1, run_id=dr1.run_id, dag_version_id=dag_version.id)
         ti1.refresh_from_db()
         ti1.state = State.SCHEDULED
         session.merge(ti1)
@@ -3147,6 +3148,7 @@ class TestSchedulerJob:
     @pytest.mark.parametrize(
         ("state", "expected_callback_msg"), [(State.SUCCESS, "success"), (State.FAILED, "task_failure")]
     )
+    @conf_vars({("scheduler", "use_job_schedule"): "False"})
     def test_dagrun_callbacks_are_called(self, state, expected_callback_msg, dag_maker, session):
         """
         Test if DagRun is successful, and if Success callbacks is defined, it is sent to DagFileProcessor.
@@ -3167,8 +3169,7 @@ class TestSchedulerJob:
         ti.set_state(state, session)
         session.flush()
 
-        with mock.patch.object(settings, "USE_JOB_SCHEDULE", False):
-            self.job_runner._do_scheduling(session)
+        self.job_runner._do_scheduling(session)
 
         expected_callback = DagCallbackRequest(
             filepath=dag.relative_fileloc,
@@ -3192,6 +3193,7 @@ class TestSchedulerJob:
     @pytest.mark.parametrize(
         ("state", "expected_callback_msg"), [(State.SUCCESS, "success"), (State.FAILED, "task_failure")]
     )
+    @conf_vars({("scheduler", "use_job_schedule"): "False"})
     def test_dagrun_plugins_are_notified(self, state, expected_callback_msg, dag_maker, session):
         """
         Test if DagRun is successful, and if Success callbacks is defined, it is sent to DagFileProcessor.
@@ -3215,8 +3217,7 @@ class TestSchedulerJob:
         ti = dr.get_task_instance("dummy", session)
         ti.set_state(state, session)
 
-        with mock.patch.object(settings, "USE_JOB_SCHEDULE", False):
-            self.job_runner._do_scheduling(session)
+        self.job_runner._do_scheduling(session)
 
         assert len(dag_listener.success) or len(dag_listener.failure)
 
@@ -3225,6 +3226,7 @@ class TestSchedulerJob:
 
         session.rollback()
 
+    @conf_vars({("scheduler", "use_job_schedule"): "False"})
     def test_dagrun_timeout_callbacks_are_stored_in_database(self, dag_maker, session):
         with dag_maker(
             dag_id="test_dagrun_timeout_callbacks_are_stored_in_database",
@@ -3241,8 +3243,7 @@ class TestSchedulerJob:
 
         dr = dag_maker.create_dagrun(start_date=DEFAULT_DATE)
 
-        with mock.patch.object(settings, "USE_JOB_SCHEDULE", False):
-            self.job_runner._do_scheduling(session)
+        self.job_runner._do_scheduling(session)
 
         callback = (
             session.scalars(select(DbCallbackRequest).order_by(DbCallbackRequest.id.desc()))
@@ -3266,6 +3267,7 @@ class TestSchedulerJob:
 
         assert callback == expected_callback
 
+    @conf_vars({("scheduler", "use_job_schedule"): "False"})
     def test_dagrun_callbacks_commited_before_sent(self, dag_maker):
         """
         Tests that before any callbacks are sent to the processor, the session is committed. This ensures
@@ -3286,10 +3288,7 @@ class TestSchedulerJob:
         ti = dr.get_task_instance("dummy")
         ti.set_state(State.SUCCESS, session)
 
-        with (
-            mock.patch.object(settings, "USE_JOB_SCHEDULE", False),
-            mock.patch("airflow.jobs.scheduler_job_runner.prohibit_commit") as mock_guard,
-        ):
+        with mock.patch("airflow.jobs.scheduler_job_runner.prohibit_commit") as mock_guard:
             mock_guard.return_value.__enter__.return_value.commit.side_effect = session.commit
 
             def mock_schedule_dag_run(*args, **kwargs):
@@ -3314,6 +3313,7 @@ class TestSchedulerJob:
         session.close()
 
     @pytest.mark.parametrize("state", [State.SUCCESS, State.FAILED])
+    @conf_vars({("scheduler", "use_job_schedule"): "False"})
     def test_dagrun_callbacks_are_not_added_when_callbacks_are_not_defined(self, state, dag_maker, session):
         """
         Test if no on_*_callback are defined on DAG, Callbacks not registered and sent to DAG Processor
@@ -3333,8 +3333,7 @@ class TestSchedulerJob:
         ti = dr.get_task_instance("test_task", session)
         ti.set_state(state, session)
 
-        with mock.patch.object(settings, "USE_JOB_SCHEDULE", False):
-            self.job_runner._do_scheduling(session)
+        self.job_runner._do_scheduling(session)
 
         # Verify Callback is not set (i.e is None) when no callbacks are set on DAG
         self.job_runner._send_dag_callbacks_to_processor.assert_called_once()
@@ -3345,6 +3344,7 @@ class TestSchedulerJob:
         session.rollback()
 
     @pytest.mark.parametrize(("state", "msg"), [[State.SUCCESS, "success"], [State.FAILED, "task_failure"]])
+    @conf_vars({("scheduler", "use_job_schedule"): "False"})
     def test_dagrun_callbacks_are_added_when_callbacks_are_defined(self, state, msg, dag_maker):
         """
         Test if on_*_callback are defined on DAG, Callbacks ARE registered and sent to DAG Processor
@@ -3366,8 +3366,7 @@ class TestSchedulerJob:
         ti = dr.get_task_instance("test_task")
         ti.set_state(state, session)
 
-        with mock.patch.object(settings, "USE_JOB_SCHEDULE", False):
-            self.job_runner._do_scheduling(session)
+        self.job_runner._do_scheduling(session)
 
         # Verify Callback is set (i.e is None) when no callbacks are set on DAG
         self.job_runner._send_dag_callbacks_to_processor.assert_called_once()
@@ -3378,6 +3377,7 @@ class TestSchedulerJob:
         session.rollback()
         session.close()
 
+    @conf_vars({("scheduler", "use_job_schedule"): "False"})
     def test_dagrun_notify_called_success(self, dag_maker):
         with dag_maker(
             dag_id="test_dagrun_notify_called",
@@ -3400,8 +3400,7 @@ class TestSchedulerJob:
         ti = dr.get_task_instance("dummy")
         ti.set_state(State.SUCCESS, session)
 
-        with mock.patch.object(settings, "USE_JOB_SCHEDULE", False):
-            self.job_runner._do_scheduling(session)
+        self.job_runner._do_scheduling(session)
 
         assert dag_listener.success[0].dag_id == dr.dag_id
         assert dag_listener.success[0].run_id == dr.run_id
@@ -4094,11 +4093,11 @@ class TestSchedulerJob:
                 )
             ).first()
         assert ti is not None, "Task not created by scheduler"
-        ti.task = dag_task1
 
         def run_with_error(ti, ignore_ti_state=False):
+            ti.refresh_from_task(dag_maker.serialized_dag.get_task(dag_task1.task_id))
             with contextlib.suppress(AirflowException):
-                ti.run(ignore_ti_state=ignore_ti_state)
+                run_task_instance(ti, dag_task1, ignore_ti_state=ignore_ti_state)
 
         assert ti.try_number == 1
         # At this point, scheduler has tried to schedule the task once and
@@ -5996,6 +5995,7 @@ class TestSchedulerJob:
 
         assert dr[0].state == State.RUNNING
 
+    @conf_vars({("scheduler", "use_job_schedule"): "False"})
     def test_no_dagruns_would_stuck_in_running(self, dag_maker):
         # Test that running dagruns are not stuck in running.
         # Create one dagrun in 'running' state and 1 in 'queued' state from one dag(max_active_runs=1)
@@ -6066,15 +6066,14 @@ class TestSchedulerJob:
         self.job_runner = SchedulerJobRunner(job=scheduler_job)
 
         dag_version = DagVersion.get_latest_version(dag_id=dag.dag_id)
-        ti = TaskInstance(task=task1, run_id=dr1_running.run_id, dag_version_id=dag_version.id)
+        ti = create_task_instance(task=task1, run_id=dr1_running.run_id, dag_version_id=dag_version.id)
         ti.refresh_from_db()
         ti.state = State.SUCCESS
         session.merge(ti)
         session.flush()
         # Run the scheduler loop
-        with mock.patch.object(settings, "USE_JOB_SCHEDULE", False):
-            self.job_runner._do_scheduling(session)
-            self.job_runner._do_scheduling(session)
+        self.job_runner._do_scheduling(session)
+        self.job_runner._do_scheduling(session)
 
         assert DagRun.find(run_id="dr1_run_1")[0].state == State.SUCCESS
         assert DagRun.find(run_id="dr1_run_2")[0].state == State.RUNNING
@@ -6538,7 +6537,12 @@ class TestSchedulerJob:
 
             for task_id in tasks_to_setup:
                 task = dag.get_task(task_id=task_id)
-                ti = TaskInstance(task, run_id=dag_run.run_id, state=State.RUNNING, dag_version_id=dag_v.id)
+                ti = create_task_instance(
+                    task,
+                    run_id=dag_run.run_id,
+                    state=State.RUNNING,
+                    dag_version_id=dag_v.id,
+                )
 
                 ti.last_heartbeat_at = timezone.utcnow() - timedelta(minutes=6)
                 ti.start_date = timezone.utcnow() - timedelta(minutes=10)
@@ -6601,7 +6605,12 @@ class TestSchedulerJob:
         dag_version = DagVersion.get_latest_version(dag.dag_id)
         for task_id in tasks_to_setup:
             task = dag.get_task(task_id=task_id)
-            ti = TaskInstance(task, run_id=dag_run.run_id, state=State.RUNNING, dag_version_id=dag_version.id)
+            ti = create_task_instance(
+                task,
+                run_id=dag_run.run_id,
+                state=State.RUNNING,
+                dag_version_id=dag_version.id,
+            )
             ti.queued_by_job_id = 999
 
             session.add(ti)
@@ -6637,7 +6646,7 @@ class TestSchedulerJob:
             "External Executor Id": "abcdefg",
         }
 
-    @mock.patch.object(settings, "USE_JOB_SCHEDULE", False)
+    @conf_vars({("scheduler", "use_job_schedule"): "False"})
     def run_scheduler_until_dagrun_terminal(self):
         """
         Run a scheduler until any dag run reaches a terminal state, or the scheduler becomes "idle".

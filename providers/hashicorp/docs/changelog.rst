@@ -27,6 +27,17 @@
 Changelog
 ---------
 
+4.4.1
+.....
+
+Misc
+~~~~
+
+* ``Check team boundaries in variables (#58905)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 4.4.0
 .....
 
