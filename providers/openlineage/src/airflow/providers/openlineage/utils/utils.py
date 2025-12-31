@@ -551,17 +551,6 @@ if not AIRFLOW_V_3_0_PLUS:
 
         if not ti.task.reschedule:
             return False
-        if AIRFLOW_V_3_0_PLUS:
-            return (
-                session.scalar(
-                    select(
-                        exists().where(
-                            TaskReschedule.ti_id == ti.id, TaskReschedule.try_number == ti.try_number
-                        )
-                    )
-                )
-                is True
-            )
         return (
             session.scalar(
                 select(
