@@ -288,7 +288,7 @@ def mask_secret(secret: JsonValue, name: str | None = None) -> None:
         from airflow.sdk.execution_time import task_runner
         from airflow.sdk.execution_time.comms import MaskSecret
 
-        task_runner.supervisor_comms().send(MaskSecret(value=secret, name=name))
+        task_runner.supervisor_send(MaskSecret(value=secret, name=name))
 
 
 def reset_logging():

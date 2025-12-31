@@ -368,9 +368,9 @@ class AssetEventSourceTaskInstance:
 
 
 def _fetch_dag_run(*, dag_id: str, run_id: str) -> DagRun:
-    from airflow.sdk.execution_time.task_runner import supervisor_comms
+    from airflow.sdk.execution_time.task_runner import supervisor_send
 
-    response = supervisor_comms().send(GetDagRun(dag_id=dag_id, run_id=run_id))
+    response = supervisor_send(GetDagRun(dag_id=dag_id, run_id=run_id))
     if TYPE_CHECKING:
         assert isinstance(response, DagRunResult)
     return response
