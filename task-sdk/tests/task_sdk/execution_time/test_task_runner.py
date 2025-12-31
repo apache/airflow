@@ -3499,7 +3499,7 @@ class TestEmailNotifications:
 
         assert (
             call(
-                msg=SetRenderedFields(
+                SetRenderedFields(
                     rendered_fields={"username": "***", "region": "us-west-2"},
                     type="SetRenderedFields",
                 )
