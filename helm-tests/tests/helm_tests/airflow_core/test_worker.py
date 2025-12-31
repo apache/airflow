@@ -1049,8 +1049,9 @@ class TestWorker:
     @pytest.mark.parametrize(
         ("workers_values", "expected"),
         [
-            ({"replicas": 2}, 2),
+            ({"replicas": 2}, 1),
             ({"celery": {"replicas": 2}}, 2),
+            ({"celery": {"replicas": None}}, 1),
             ({"replicas": 2, "celery": {"replicas": 3}}, 3),
         ],
     )
