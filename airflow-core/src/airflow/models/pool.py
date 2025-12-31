@@ -37,21 +37,34 @@ if TYPE_CHECKING:
     from sqlalchemy.sql import Select
 
 
-def validate_pool_name(name: str) -> None:
+def normalize_pool_name_for_stats(name: str) -> str:
     """
-    Validate that pool name only contains valid characters for stats reporting.
+    Normalize pool name for stats reporting by replacing invalid characters.
 
-    Pool names must only contain ASCII alphabets, numbers, underscores, dots, and dashes
-    to ensure compatibility with stats naming requirements.
+    Stats names must only contain ASCII alphabets, numbers, underscores, dots, and dashes.
+    Invalid characters are replaced with underscores.
 
-    :param name: The pool name to validate
-    :raises ValueError: If the pool name contains invalid characters
+    :param name: The pool name to normalize
+    :return: Normalized pool name safe for stats reporting
     """
-    if not re.match(r"^[a-zA-Z0-9_.-]+$", name):
-        raise ValueError(
-            f"Pool name '{name}' is invalid. Pool names must only contain "
-            "ASCII alphabets (a-z, A-Z), numbers (0-9), underscores (_), dots (.), and dashes (-)."
-        )
+    # Check if normalization is needed
+    if re.match(r"^[a-zA-Z0-9_.-]+$", name):
+        return name
+
+    # Replace invalid characters with underscores
+    normalized = re.sub(r"[^a-zA-Z0-9_.-]", "_", name)
+
+    # Log warning
+    from airflow.utils.log.logging_mixin import LoggingMixin
+    LoggingMixin().log.warning(
+        "Pool name '%s' contains invalid characters for stats reporting. "
+        "Reporting stats with normalized name '%s'. "
+        "Consider renaming the pool to avoid this warning.",
+        name,
+        normalized
+    )
+
+    return normalized
 
 
 class PoolStats(TypedDict):
@@ -142,9 +155,6 @@ class Pool(Base):
         """Create a pool with given parameters or update it if it already exists."""
         if not name:
             raise ValueError("Pool name must not be empty")
-
-        # Validate pool name to ensure it's compatible with stats naming
-        validate_pool_name(name)
 
         pool = session.scalar(select(Pool).filter_by(pool=name))
         if pool is None:

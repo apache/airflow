@@ -69,6 +69,7 @@ from airflow.models.asset import (
 from airflow.models.backfill import Backfill
 from airflow.models.callback import Callback
 from airflow.models.dag import DagModel, get_next_data_interval, get_run_data_interval
+from airflow.models.pool import normalize_pool_name_for_stats
 from airflow.models.dag_version import DagVersion
 from airflow.models.dagbag import DBDagBag
 from airflow.models.dagbundle import DagBundleModel
@@ -2517,11 +2518,12 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         with DebugTrace.start_span(span_name="emit_pool_metrics", component="SchedulerJobRunner") as span:
             pools = Pool.slots_stats(session=session)
             for pool_name, slot_stats in pools.items():
-                Stats.gauge(f"pool.open_slots.{pool_name}", slot_stats["open"])
-                Stats.gauge(f"pool.queued_slots.{pool_name}", slot_stats["queued"])
-                Stats.gauge(f"pool.running_slots.{pool_name}", slot_stats["running"])
-                Stats.gauge(f"pool.deferred_slots.{pool_name}", slot_stats["deferred"])
-                Stats.gauge(f"pool.scheduled_slots.{pool_name}", slot_stats["scheduled"])
+                normalized_pool_name = normalize_pool_name_for_stats(pool_name)
+                Stats.gauge(f"pool.open_slots.{normalized_pool_name}", slot_stats["open"])
+                Stats.gauge(f"pool.queued_slots.{normalized_pool_name}", slot_stats["queued"])
+                Stats.gauge(f"pool.running_slots.{normalized_pool_name}", slot_stats["running"])
+                Stats.gauge(f"pool.deferred_slots.{normalized_pool_name}", slot_stats["deferred"])
+                Stats.gauge(f"pool.scheduled_slots.{normalized_pool_name}", slot_stats["scheduled"])
 
                 # Same metrics with tagging
                 Stats.gauge("pool.open_slots", slot_stats["open"], tags={"pool_name": pool_name})
@@ -2533,11 +2535,11 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 span.set_attributes(
                     {
                         "category": "scheduler",
-                        f"pool.open_slots.{pool_name}": slot_stats["open"],
-                        f"pool.queued_slots.{pool_name}": slot_stats["queued"],
-                        f"pool.running_slots.{pool_name}": slot_stats["running"],
-                        f"pool.deferred_slots.{pool_name}": slot_stats["deferred"],
-                        f"pool.scheduled_slots.{pool_name}": slot_stats["scheduled"],
+                        f"pool.open_slots.{normalized_pool_name}": slot_stats["open"],
+                        f"pool.queued_slots.{normalized_pool_name}": slot_stats["queued"],
+                        f"pool.running_slots.{normalized_pool_name}": slot_stats["running"],
+                        f"pool.deferred_slots.{normalized_pool_name}": slot_stats["deferred"],
+                        f"pool.scheduled_slots.{normalized_pool_name}": slot_stats["scheduled"],
                     }
                 )
 

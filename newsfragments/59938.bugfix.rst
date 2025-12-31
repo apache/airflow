@@ -1,1 +1,1 @@
-Add validation for pool names to prevent ``InvalidStatsNameException`` when reporting metrics. Pool names must now only contain ASCII letters, numbers, underscores, dots, and dashes.
+Pool names with invalid characters for stats reporting are now automatically normalized (invalid characters replaced with underscores) when emitting metrics, preventing ``InvalidStatsNameException``. A warning is logged when normalization occurs, suggesting the pool be renamed.
