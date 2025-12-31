@@ -33,6 +33,7 @@ from airflow._shared.plugins_manager.plugins_manager import (
     _load_plugins_from_plugin_directory,
     is_valid_plugin,
 )
+from airflow.configuration import conf
 from airflow.task.priority_strategy import (
     PriorityWeightStrategy,
     airflow_priority_weight_strategies,
@@ -112,7 +113,14 @@ def _get_plugins() -> tuple[list[AirflowPlugin], dict[str, str]]:
         import_errors.update(errors)
 
     with Stats.timer() as timer:
-        __register_plugins(*_load_plugins_from_plugin_directory())
+        load_examples = conf.getboolean("core", "LOAD_EXAMPLES")
+        __register_plugins(
+            *_load_plugins_from_plugin_directory(
+                plugins_folder=settings.PLUGINS_FOLDER,
+                load_examples=load_examples,
+                example_plugins_module="airflow.example_dags.plugins" if load_examples else None,
+            )
+        )
         __register_plugins(*_load_entrypoint_plugins())
 
         if not settings.LAZY_LOAD_PROVIDERS:
