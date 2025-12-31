@@ -221,7 +221,7 @@ _IMPORT_MAP: dict[str, str | tuple[str, ...]] = {
     # ============================================================================
     # XCom & Task Communication
     # ============================================================================
-    "BaseXCom": ("airflow.sdk.bases.xcom" "airflow.models.xcom"),
+    "BaseXCom": ("airflow.sdk.bases.xcom", "airflow.models.xcom"),
     "XCOM_RETURN_KEY": "airflow.models.xcom",
     # ============================================================================
     # Exceptions (deprecated in airflow.exceptions, prefer SDK)
