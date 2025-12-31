@@ -125,7 +125,7 @@ class TestExecutionAPISecretsBackend:
         """
         Test that RuntimeError from async_to_sync triggers greenback fallback.
 
-        This test verifies the fix for issue #57145: when supervisor_comms().send()
+        This test verifies the fix for issue #57145: when supervisor_send()
         raises the specific RuntimeError about async_to_sync in an event loop,
         the backend catches it and uses greenback to call aget_connection().
         """
@@ -161,7 +161,7 @@ class TestExecutionAPISecretsBackend:
 
         # Mock aget_connection to return the expected connection directly.
         # We need to mock this because the real aget_connection would try to
-        # use supervisor_comms().asend which is not set up for this test.
+        # use supervisor_asend which is not set up for this test.
         async def mock_aget_connection(self, conn_id):
             return expected_conn
 
@@ -183,7 +183,7 @@ class TestContextDetection:
     """Test context detection in ensure_secrets_backend_loaded."""
 
     def test_client_context_with_supervisor_comms(self, mock_supervisor_comms):
-        """Client context: supervisor_comms() set → uses worker chain."""
+        """Client context: get_supervisor_comms() set → uses worker chain."""
         from airflow.sdk.execution_time.supervisor import ensure_secrets_backend_loaded
 
         backends = ensure_secrets_backend_loaded()

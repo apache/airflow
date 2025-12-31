@@ -90,11 +90,11 @@ class LazyXComSequence(Sequence[T]):
     def __len__(self) -> int:
         if self._len is None:
             from airflow.sdk.execution_time.comms import ErrorResponse, GetXComCount, XComCountResponse
-            from airflow.sdk.execution_time.task_runner import supervisor_comms
+            from airflow.sdk.execution_time.task_runner import supervisor_send
 
             task = self._xcom_arg.operator
 
-            msg = supervisor_comms().send(
+            msg = supervisor_send(
                 GetXComCount(
                     key=self._xcom_arg.key,
                     dag_id=task.dag_id,
@@ -123,13 +123,13 @@ class LazyXComSequence(Sequence[T]):
             XComSequenceIndexResult,
             XComSequenceSliceResult,
         )
-        from airflow.sdk.execution_time.task_runner import supervisor_comms
+        from airflow.sdk.execution_time.task_runner import supervisor_send
         from airflow.sdk.execution_time.xcom import XCom
 
         if isinstance(key, slice):
             start, stop, step = _coerce_slice(key)
             source = (xcom_arg := self._xcom_arg).operator
-            msg = supervisor_comms().send(
+            msg = supervisor_send(
                 GetXComSequenceSlice(
                     key=xcom_arg.key,
                     dag_id=source.dag_id,
@@ -150,7 +150,7 @@ class LazyXComSequence(Sequence[T]):
             raise TypeError(f"Sequence indices must be integers or slices not {type(key).__name__}")
 
         source = (xcom_arg := self._xcom_arg).operator
-        msg = supervisor_comms().send(
+        msg = supervisor_send(
             GetXComSequenceItem(
                 key=xcom_arg.key,
                 dag_id=source.dag_id,
