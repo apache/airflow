@@ -676,6 +676,8 @@ class TestDBCleanup:
 
 
 def create_tis(base_date, num_tis, run_type=DagRunType.SCHEDULED):
+    from tests_common.test_utils.taskinstance import create_task_instance
+
     with create_session() as session:
         bundle_name = "testing"
         session.add(DagBundleModel(name=bundle_name))
@@ -695,7 +697,7 @@ def create_tis(base_date, num_tis, run_type=DagRunType.SCHEDULED):
                 run_type=run_type,
                 start_date=start_date,
             )
-            ti = TaskInstance(
+            ti = create_task_instance(
                 PythonOperator(task_id="dummy-task", python_callable=print),
                 run_id=dag_run.run_id,
                 dag_version_id=dag_version.id,

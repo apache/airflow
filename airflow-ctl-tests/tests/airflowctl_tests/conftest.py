@@ -293,7 +293,6 @@ def test_commands(login_command, date_param):
         "pools get --pool-name=test_pool -o yaml",
         "pools update --pool=test_pool --slots=10",
         "pools import tests/airflowctl_tests/fixtures/test_pools.json",
-        "pools export tests/airflowctl_tests/fixtures/pools_export.json --output=json",
         "pools delete --pool=test_pool",
         "pools delete --pool=test_import_pool",
         # Providers commands
@@ -305,7 +304,6 @@ def test_commands(login_command, date_param):
         "variables get --variable-key=test_key -o table",
         "variables update --key=test_key --value=updated_value",
         "variables import tests/airflowctl_tests/fixtures/test_variables.json",
-        "variables export tests/airflowctl_tests/fixtures/variables_export.json",
         "variables delete --variable-key=test_key",
         "variables delete --variable-key=test_import_var",
         "variables delete --variable-key=test_import_var_with_desc",

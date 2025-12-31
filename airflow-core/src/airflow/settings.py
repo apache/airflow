@@ -58,15 +58,15 @@ from airflow.logging_config import configure_logging
 from airflow.utils.orm_event_handlers import setup_event_handlers
 from airflow.utils.sqlalchemy import is_sqlalchemy_v1
 
-USE_PSYCOPG3: bool
+_USE_PSYCOPG3: bool
 try:
     from importlib.util import find_spec
 
     is_psycopg3 = find_spec("psycopg") is not None
 
-    USE_PSYCOPG3 = is_psycopg3 and not is_sqlalchemy_v1()
+    _USE_PSYCOPG3 = is_psycopg3 and not is_sqlalchemy_v1()
 except (ImportError, ModuleNotFoundError):
-    USE_PSYCOPG3 = False
+    _USE_PSYCOPG3 = False
 
 if TYPE_CHECKING:
     from sqlalchemy.engine import Engine
@@ -107,22 +107,12 @@ HEADER = "\n".join(
     ]
 )
 
-LOGGING_LEVEL = logging.INFO
-
-LOG_FORMAT = conf.get("logging", "log_format")
 SIMPLE_LOG_FORMAT = conf.get("logging", "simple_log_format")
 
 SQL_ALCHEMY_CONN: str | None = None
 SQL_ALCHEMY_CONN_ASYNC: str | None = None
 PLUGINS_FOLDER: str | None = None
 DAGS_FOLDER: str = os.path.expanduser(conf.get_mandatory_value("core", "DAGS_FOLDER"))
-
-AIO_LIBS_MAPPING = {"sqlite": "aiosqlite", "postgresql": "asyncpg", "mysql": "aiomysql"}
-"""
-Mapping of sync scheme to async scheme.
-
-:meta private:
-"""
 
 engine: Engine | None = None
 Session: scoped_session | None = None
@@ -246,6 +236,9 @@ def load_policy_plugins(pm: pluggy.PluginManager):
 
 
 def _get_async_conn_uri_from_sync(sync_uri):
+    AIO_LIBS_MAPPING = {"sqlite": "aiosqlite", "postgresql": "asyncpg", "mysql": "aiomysql"}
+    """Mapping of sync scheme to async scheme."""
+
     scheme, rest = sync_uri.split(":", maxsplit=1)
     scheme = scheme.split("+", maxsplit=1)[0]
     aiolib = AIO_LIBS_MAPPING.get(scheme)
@@ -325,9 +318,6 @@ class SkipDBTestsSession:
         _sa_skip_for_implicit_returning=False,
     ):
         pass
-
-
-AIRFLOW_PATH = os.path.dirname(os.path.dirname(__file__))
 
 
 def _is_sqlite_db_path_relative(sqla_conn_str: str) -> bool:
@@ -455,22 +445,21 @@ def configure_orm(disable_connection_pool=False, pool_class=None):
         register_at_fork(after_in_child=clean_in_fork)
 
 
-DEFAULT_ENGINE_ARGS: dict[str, dict[str, Any]] = {
-    "postgresql": (
-        {
-            "executemany_values_page_size" if is_sqlalchemy_v1() else "insertmanyvalues_page_size": 10000,
-        }
-        | (
-            {}
-            if USE_PSYCOPG3
-            else {"executemany_mode": "values_plus_batch", "executemany_batch_page_size": 2000}
-        )
-    )
-}
-
-
 def prepare_engine_args(disable_connection_pool=False, pool_class=None):
     """Prepare SQLAlchemy engine args."""
+    DEFAULT_ENGINE_ARGS: dict[str, dict[str, Any]] = {
+        "postgresql": (
+            {
+                "executemany_values_page_size" if is_sqlalchemy_v1() else "insertmanyvalues_page_size": 10000,
+            }
+            | (
+                {}
+                if _USE_PSYCOPG3
+                else {"executemany_mode": "values_plus_batch", "executemany_batch_page_size": 2000}
+            )
+        )
+    }
+
     default_args = {}
     for dialect, default in DEFAULT_ENGINE_ARGS.items():
         if SQL_ALCHEMY_CONN.startswith(dialect):
@@ -654,16 +643,39 @@ def prepare_syspath_for_config_and_plugins():
 
 def __getattr__(name: str):
     """Handle deprecated module attributes."""
-    if name == "MASK_SECRETS_IN_LOGS":
-        import warnings
+    import warnings
 
+    from airflow.exceptions import RemovedInAirflow4Warning
+
+    if name == "MASK_SECRETS_IN_LOGS":
         warnings.warn(
             "settings.MASK_SECRETS_IN_LOGS has been removed. This shim returns default value of False. "
             "Use SecretsMasker.enable_log_masking(), disable_log_masking(), or is_log_masking_enabled() instead.",
-            DeprecationWarning,
+            RemovedInAirflow4Warning,
             stacklevel=2,
         )
         return False
+    if name == "WEB_COLORS":
+        warnings.warn(
+            "settings.WEB_COLORS has been removed. This shim returns default value. "
+            "Please upgrade your provider or integration.",
+            RemovedInAirflow4Warning,
+            stacklevel=2,
+        )
+        return {"LIGHTBLUE": "#4d9de0", "LIGHTORANGE": "#FF9933"}
+    if name == "EXECUTE_TASKS_NEW_PYTHON_INTERPRETER":
+        warnings.warn(
+            "settings.EXECUTE_TASKS_NEW_PYTHON_INTERPRETER has been removed. This shim returns default value. "
+            "Please upgrade your provider or integration.",
+            RemovedInAirflow4Warning,
+            stacklevel=2,
+        )
+        return not hasattr(os, "fork") or conf.getboolean(
+            "core",
+            "execute_tasks_new_python_interpreter",
+            fallback=False,
+        )
+
     raise AttributeError(f"module '{__name__}' has no attribute '{name}'")
 
 
@@ -736,26 +748,6 @@ def initialize():
     atexit.register(dispose_orm)
 
 
-# Const stuff
-WEB_COLORS = {"LIGHTBLUE": "#4d9de0", "LIGHTORANGE": "#FF9933"}
-
-# Updating serialized DAG can not be faster than a minimum interval to reduce database
-# write rate.
-MIN_SERIALIZED_DAG_UPDATE_INTERVAL = conf.getint("core", "min_serialized_dag_update_interval", fallback=30)
-
-# If set to True, serialized DAGs is compressed before writing to DB,
-COMPRESS_SERIALIZED_DAGS = conf.getboolean("core", "compress_serialized_dags", fallback=False)
-
-CAN_FORK = hasattr(os, "fork")
-
-EXECUTE_TASKS_NEW_PYTHON_INTERPRETER = not CAN_FORK or conf.getboolean(
-    "core",
-    "execute_tasks_new_python_interpreter",
-    fallback=False,
-)
-
-USE_JOB_SCHEDULE = conf.getboolean("scheduler", "use_job_schedule", fallback=True)
-
 # By default Airflow plugins are lazily-loaded (only loaded when required). Set it to False,
 # if you want to load plugins whenever 'airflow' is invoked via cli or loaded from module.
 LAZY_LOAD_PLUGINS: bool = conf.getboolean("core", "lazy_load_plugins", fallback=True)
@@ -764,16 +756,5 @@ LAZY_LOAD_PLUGINS: bool = conf.getboolean("core", "lazy_load_plugins", fallback=
 # Set it to False, if you want to discover providers whenever 'airflow' is invoked via cli or
 # loaded from module.
 LAZY_LOAD_PROVIDERS: bool = conf.getboolean("core", "lazy_discover_providers", fallback=True)
-
-# Executors can set this to true to configure logging correctly for
-# containerized executors.
-IS_EXECUTOR_CONTAINER = bool(os.environ.get("AIRFLOW_IS_EXECUTOR_CONTAINER", ""))
-IS_K8S_EXECUTOR_POD = bool(os.environ.get("AIRFLOW_IS_K8S_EXECUTOR_POD", ""))
-"""Will be True if running in kubernetes executor pod."""
-
-HIDE_SENSITIVE_VAR_CONN_FIELDS = conf.getboolean("core", "hide_sensitive_var_conn_fields")
-
-# Prefix used to identify tables holding data moved during migration.
-AIRFLOW_MOVED_TABLE_PREFIX = "_airflow_moved"
 
 DAEMON_UMASK: str = conf.get("core", "daemon_umask", fallback="0o077")

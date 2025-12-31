@@ -26,6 +26,24 @@
 Changelog
 ---------
 
+2.9.2
+.....
+
+Misc
+~~~~
+
+* ``Move MappedOperator to serialization (#59628)``
+* ``Split SerializedBaseOperator from serde logic (#59627)``
+* ``Minor cleanups removing SDK references from Core (#59491)``
+* ``Refactor deprecated SQLA query openlineage provider (#59448)``
+* ``nit: bump OL client dependency to 1.41 (#59321)``
+* ``Extract shared "module_loading" distribution (#59139)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``TaskInstance unused method cleanup (#59835)``
+   * ``Split SDK and serialized asset classes (#58993)``
+
 2.9.1
 .....
 

@@ -455,6 +455,7 @@ repos:
             ^airflow-core/tests/unit/utils/test_cli_util.py$|
             ^airflow-core/tests/unit/timetables/test_assets_timetable.py$|
             ^airflow-core/tests/unit/assets/test_manager.py$|
+            ^airflow-core/tests/unit/jobs/test_scheduler_job.py$|
             ^airflow-core/tests/unit/api_fastapi/core_api/routes/public/test_dag_run.py$|
             ^airflow-core/tests/unit/ti_deps/deps/test_runnable_exec_date_dep.py$|
             ^airflow-core/tests/unit/models/test_dagwarning.py$|
@@ -465,6 +466,7 @@ repos:
             ^airflow-core/tests/unit/utils/test_types.py$|
             ^airflow-core/tests/unit/dag_processing/test_manager.py$|
             ^airflow-core/tests/unit/dag_processing/test_processor.py$|
+            ^airflow-core/tests/unit/dag_processing/test_collection\.py$|
             ^dev/airflow_perf/scheduler_dag_execution_timing.py$|
             ^providers/celery/.*\.py$|
             ^providers/cncf/kubernetes/.*\.py$|
