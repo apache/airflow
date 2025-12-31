@@ -91,7 +91,7 @@ async def xcom_query(
 @router.get(
     "/{dag_id}/{run_id}/{task_id}/{key:path}/item/{offset}",
     description="Get a single XCom value from a mapped task by sequence index",
-    dependencies=[Depends(has_xcom_access)]
+    dependencies=[Depends(has_xcom_access)],
 )
 def get_mapped_xcom_by_index(
     dag_id: str,
@@ -136,7 +136,7 @@ class GetXComSliceFilterParams(BaseModel):
 @router.get(
     "/{dag_id}/{run_id}/{task_id}/{key:path}/slice",
     description="Get XCom values from a mapped task by sequence slice",
-    dependencies=[Depends(has_xcom_access)]
+    dependencies=[Depends(has_xcom_access)],
 )
 def get_mapped_xcom_by_slice(
     dag_id: str,
@@ -230,7 +230,7 @@ def get_mapped_xcom_by_slice(
         },
     },
     description="Returns the count of mapped XCom values found in the `Content-Range` response header",
-    dependencies=[Depends(has_xcom_access)]
+    dependencies=[Depends(has_xcom_access)],
 )
 def head_xcom(
     response: Response,
@@ -262,7 +262,7 @@ class GetXcomFilterParams(BaseModel):
 @router.get(
     "/{dag_id}/{run_id}/{task_id}/{key:path}",
     description="Get a single XCom Value",
-    dependencies=[Depends(has_xcom_access)]
+    dependencies=[Depends(has_xcom_access)],
 )
 def get_xcom(
     dag_id: str,
@@ -319,7 +319,7 @@ def get_xcom(
 @router.post(
     "/{dag_id}/{run_id}/{task_id}/{key:path}",
     status_code=status.HTTP_201_CREATED,
-    dependencies=[Depends(has_xcom_access)]
+    dependencies=[Depends(has_xcom_access)],
 )
 def set_xcom(
     dag_id: str,
@@ -430,8 +430,8 @@ def delete_xcom(
     map_index: Annotated[int, Query()] = -1,
 ):
     """
-    Delete XCom entry(ies). 
-    
+    Delete XCom entry(ies).
+
     Supports bulk deletion when task_id and/or key are not provided.
     """
     query = delete(XComModel).where(
