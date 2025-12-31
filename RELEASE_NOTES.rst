@@ -545,8 +545,9 @@ This enables use cases like:
 New Trigger Rule: ``ALL_DONE_MIN_ONE_SUCCESS``
 """"""""""""""""""""""""""""""""""""""""""""""
 
-``ALL_DONE_MIN_ONE_SUCCESS``: This rule triggers when all upstream tasks are done (success, failed, or skipped) and
+``ALL_DONE_MIN_ONE_SUCCESS``: This rule triggers when all upstream tasks are done (success, failed) and
 at least one has succeeded, filling a gap between existing trigger rules for complex workflow patterns.
+Skipped upstream tasks work as usually - they skip downstream task.
 
 Enhanced DAG Processing Visibility
 """""""""""""""""""""""""""""""""""
