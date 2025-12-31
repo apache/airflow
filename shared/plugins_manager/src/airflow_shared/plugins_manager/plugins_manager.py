@@ -249,43 +249,28 @@ def make_module(name: str, objects: list[Any]) -> ModuleType | None:
     return module
 
 
-# TODO: Temporary stub - will be removed when integrate_* functions are refactored to accept plugins parameter
-def _get_plugins() -> tuple[list[AirflowPlugin], dict[str, str]]:
-    """
-    Temporary stub.
-
-    This will be removed when integrate_macros_plugins() and integrate_listener_plugins()
-    are refactored to accept plugins as a parameter (dependency injection phase).
-    """
-    raise NotImplementedError(
-        "_get_plugins() is not available in shared library. "
-        "Use integrate_macros_plugins(macros_module, plugins) and "
-        "integrate_listener_plugins(listener_manager, plugins) with plugins parameter instead."
-    )
-
-
-def integrate_macros_plugins() -> None:
+def integrate_macros_plugins(
+    macros_module: ModuleType, macros_module_name_prefix: str, plugins: list[AirflowPlugin]
+) -> None:
     """Integrates macro plugins."""
-    from airflow.sdk.execution_time import macros
-
     log.debug("Integrate Macros plugins")
 
-    for plugin in _get_plugins()[0]:
+    for plugin in plugins:
         if plugin.name is None:
             raise AirflowPluginException("Invalid plugin name")
 
-        macros_module = make_module(f"airflow.sdk.execution_time.macros.{plugin.name}", plugin.macros)
+        macros_module_instance = make_module(f"{macros_module_name_prefix}.{plugin.name}", plugin.macros)
 
-        if macros_module:
-            sys.modules[macros_module.__name__] = macros_module
+        if macros_module_instance:
+            sys.modules[macros_module_instance.__name__] = macros_module_instance
             # Register the newly created module on airflow.macros such that it
             # can be accessed when rendering templates.
-            setattr(macros, plugin.name, macros_module)
+            setattr(macros_module, plugin.name, macros_module_instance)
 
 
-def integrate_listener_plugins(listener_manager: ListenerManager) -> None:
+def integrate_listener_plugins(listener_manager: ListenerManager, plugins: list[AirflowPlugin]) -> None:
     """Add listeners from plugins."""
-    for plugin in _get_plugins()[0]:
+    for plugin in plugins:
         if plugin.name is None:
             raise AirflowPluginException("Invalid plugin name")
 
