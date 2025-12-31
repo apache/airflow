@@ -1053,6 +1053,7 @@ class TestWorker:
             ({"celery": {"replicas": 2}}, 2),
             ({"celery": {"replicas": None}}, 1),
             ({"replicas": 2, "celery": {"replicas": 3}}, 3),
+            ({"replicas": 2, "celery": {"replicas": None}}, 2),
         ],
     )
     def test_workers_replicas(self, workers_values, expected):
