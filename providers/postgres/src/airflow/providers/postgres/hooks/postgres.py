@@ -27,7 +27,11 @@ import psycopg2
 import psycopg2.extras
 from more_itertools import chunked
 from psycopg2.extras import DictCursor, NamedTupleCursor, RealDictCursor, execute_batch
-from sqlalchemy.engine import URL
+try:
+    from sqlalchemy.engine import URL
+except ImportError:
+    URL = None
+
 
 from airflow.exceptions import AirflowOptionalProviderFeatureException
 from airflow.providers.common.compat.sdk import AirflowException, Connection, conf
@@ -165,23 +169,34 @@ class PostgresHook(DbApiHook):
     def __cast_nullable(value, dst_type: type) -> Any:
         return dst_type(value) if value is not None else None
 
-    @property
-    def sqlalchemy_url(self) -> URL:
+        @property
+        def sqlalchemy_url(self) -> URL:
+           try:
+              import sqlalchemy  # noqa: F401
+           except (ImportError, ModuleNotFoundError):
+            raise AirflowOptionalProviderFeatureException(
+        "SQLAlchemy is required. Install with "
+        "pip install 'apache-airflow-providers-postgres[sqlalchemy]'."
+    )
+
         conn = self.connection
         query = conn.extra_dejson.get("sqlalchemy_query", {})
         if not isinstance(query, dict):
             raise AirflowException("The parameter 'sqlalchemy_query' must be of type dict!")
         if conn.extra_dejson.get("iam", False):
             conn.login, conn.password, conn.port = self.get_iam_token(conn)
+
         return URL.create(
             drivername="postgresql+psycopg" if USE_PSYCOPG3 else "postgresql",
             username=self.__cast_nullable(conn.login, str),
             password=self.__cast_nullable(conn.password, str),
             host=self.__cast_nullable(conn.host, str),
             port=self.__cast_nullable(conn.port, int),
-            database=self.__cast_nullable(self.database, str) or self.__cast_nullable(conn.schema, str),
+            database=self.__cast_nullable(self.database, str)
+            or self.__cast_nullable(conn.schema, str),
             query=query,
         )
+
 
     @property
     def dialect_name(self) -> str:
