@@ -34,6 +34,7 @@ from airflow.providers.microsoft.azure.triggers.wasb import WasbBlobSensorTrigge
 from airflow.utils import timezone
 from airflow.utils.types import DagRunType
 
+from tests_common.test_utils.taskinstance import create_task_instance
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
 if TYPE_CHECKING:
@@ -128,7 +129,7 @@ class TestWasbBlobAsyncSensor:
                 ),
             )
         if AIRFLOW_V_3_0_PLUS:
-            task_instance = TaskInstance(task=task, dag_version_id=mock.MagicMock())
+            task_instance = create_task_instance(task=task, dag_version_id=mock.MagicMock())
         else:
             task_instance = TaskInstance(task=task)
         task_instance.dag_run = dag_run
@@ -277,7 +278,7 @@ class TestWasbPrefixAsyncSensor:
                 ),
             )
         if AIRFLOW_V_3_0_PLUS:
-            task_instance = TaskInstance(task=task, dag_version_id=mock.MagicMock())
+            task_instance = create_task_instance(task=task, dag_version_id=mock.MagicMock())
         else:
             task_instance = TaskInstance(task=task)
         task_instance.dag_run = dag_run

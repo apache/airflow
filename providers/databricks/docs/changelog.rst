@@ -26,6 +26,20 @@
 Changelog
 ---------
 
+7.8.2
+.....
+
+Misc
+~~~~
+
+* ``'issue-59189:' Updating Databricks provider to point to '2.2/jobs/...' endpoint (#59217)``
+* ``Remove top-level SDK reference in Core (#59817)``
+* ``Refactor/sqla2 providers(celery, kubernetes, databricks, mysql) to remove SQLA query usage (#59537)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``TaskInstance unused method cleanup (#59835)``
+
 7.8.1
 .....
 
