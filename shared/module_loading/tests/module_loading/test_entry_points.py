@@ -20,7 +20,7 @@ from __future__ import annotations
 from collections.abc import Iterable
 from unittest import mock
 
-from airflow_shared.module_loading.entry_points import entry_points_with_dist, metadata
+from airflow_shared.module_loading import entry_points_with_dist, metadata
 
 
 class MockDistribution:
@@ -41,7 +41,7 @@ class MockMetadata:
         ]
 
 
-@mock.patch("airflow_shared.module_loading.entry_points.metadata", MockMetadata())
+@mock.patch("airflow_shared.module_loading.metadata", MockMetadata())
 def test_entry_points_with_dist():
     entries = list(entry_points_with_dist("group_x"))
 
