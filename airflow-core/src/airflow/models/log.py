@@ -20,7 +20,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import TYPE_CHECKING
 
-from sqlalchemy import Index, Integer, String, Text
+from sqlalchemy import Index, Integer, String, Text, and_
 from sqlalchemy.orm import Mapped, relationship
 
 from airflow._shared.timezones import timezone
@@ -61,7 +61,12 @@ class Log(Base):
         "TaskInstance",
         viewonly=True,
         foreign_keys=[task_id],
-        primaryjoin="Log.task_id == TaskInstance.task_id",
+        primaryjoin="and_("
+        "Log.dag_id == TaskInstance.dag_id,"
+        "Log.task_id == TaskInstance.task_id,"
+        "Log.run_id == TaskInstance.run_id,"
+        "Log.map_index == TaskInstance.map_index,"
+        ")",
         lazy="noload",
     )
 
