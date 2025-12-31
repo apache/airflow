@@ -43,8 +43,8 @@ from airflow.utils.providers_configuration_loader import providers_configuration
 from airflow.utils.session import create_session
 
 
-def _connection_mapper(conn: Connection) -> dict[str, Any]:
-    return {
+def _connection_mapper(conn: Connection, show_values: bool = False) -> dict[str, Any]:
+    data = {
         "id": conn.id,
         "conn_id": conn.conn_id,
         "conn_type": conn.conn_type,
@@ -52,13 +52,22 @@ def _connection_mapper(conn: Connection) -> dict[str, Any]:
         "host": conn.host,
         "schema": conn.schema,
         "login": conn.login,
-        "password": conn.password,
         "port": conn.port,
         "is_encrypted": conn.is_encrypted,
         "is_extra_encrypted": conn.is_encrypted,
-        "extra_dejson": conn.extra_dejson,
-        "get_uri": conn.get_uri(),
     }
+
+    if show_values:
+        data.update(
+            {
+                "password": conn.password,
+                "extra_dejson": conn.extra_dejson,
+                "get_uri": conn.get_uri(),
+            }
+        )
+
+    return data
+
 
 
 @suppress_logs_and_warning
@@ -76,14 +85,26 @@ def connections_get(args):
         output=args.output,
         mapper=_connection_mapper,
     )
-
-
+@cli_utils.action_cli(
+    help="List all connections",
+    args=(
+        {
+            "name": "--show-values",
+            "action": "store_true",
+            "help": (
+                "Show sensitive values such as passwords and extras. "
+                "By default, sensitive values are hidden for security reasons."
+            ),
+        },
+    ),
+)
 @suppress_logs_and_warning
 @providers_configuration_loaded
 def connections_list(args):
     """List all connections at the command line."""
     with create_session() as session:
         query = select(Connection)
+
         if args.conn_id:
             query = query.where(Connection.conn_id == args.conn_id)
         query = session.scalars(query)
@@ -92,8 +113,10 @@ def connections_list(args):
         AirflowConsole().print_as(
             data=conns,
             output=args.output,
-            mapper=_connection_mapper,
-        )
+            mapper=lambda conn: _connection_mapper(conn, show_values=args.show_values),
+)
+
+
 
 
 def _connection_to_dict(conn: Connection) -> dict:
