@@ -60,7 +60,7 @@ class Log(Base):
     task_instance = relationship(
         "TaskInstance",
         viewonly=True,
-        foreign_keys=[task_id],
+        foreign_keys=[dag_id, task_id, run_id, map_index],
         primaryjoin="and_("
         "Log.dag_id == TaskInstance.dag_id,"
         "Log.task_id == TaskInstance.task_id,"
