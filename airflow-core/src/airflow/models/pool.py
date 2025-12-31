@@ -17,7 +17,7 @@
 # under the License.
 from __future__ import annotations
 
-import re
+import logging
 from collections.abc import Sequence
 from typing import TYPE_CHECKING, Any, TypedDict
 
@@ -37,6 +37,8 @@ if TYPE_CHECKING:
     from sqlalchemy.sql import Select
 
 
+logger = logging.getLogger(__name__)
+
 def normalize_pool_name_for_stats(name: str) -> str:
     """
     Normalize pool name for stats reporting by replacing invalid characters.
@@ -55,16 +57,16 @@ def normalize_pool_name_for_stats(name: str) -> str:
     normalized = re.sub(r"[^a-zA-Z0-9_.-]", "_", name)
 
     # Log warning
-    from airflow.utils.log.logging_mixin import LoggingMixin
-    LoggingMixin().log.warning(
+    logger.warning(
         "Pool name '%s' contains invalid characters for stats reporting. "
         "Reporting stats with normalized name '%s'. "
         "Consider renaming the pool to avoid this warning.",
         name,
-        normalized
+        normalized,
     )
 
     return normalized
+
 
 
 class PoolStats(TypedDict):

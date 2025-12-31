@@ -16,12 +16,3 @@
 # under the License.
 
 from __future__ import annotations
-
-import pytest
-
-from airflow.models.pool import Pool
-from airflow.utils.session import create_session
-
-from tests.test_utils.db import clear_db_pools
-
-
