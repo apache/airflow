@@ -1974,3 +1974,16 @@ def test_write_default_config_contains_generated_secrets(tmp_path, monkeypatch):
 
     assert fernet_line == f"fernet_key = {airflow.configuration._SecretKeys.fernet_key}"
     assert jwt_secret_line == f"jwt_secret = {airflow.configuration._SecretKeys.jwt_secret_key}"
+
+
+@conf_vars({("core", "fernet_key"): ""})
+def test_ensure_fernet_is_generated(tmp_path, monkeypatch: pytest.MonkeyPatch):
+    import airflow.configuration
+
+    cfgpath = tmp_path / "airflow-not-existing.cfg"
+    monkeypatch.setattr(airflow.configuration, "AIRFLOW_CONFIG", str(cfgpath))
+
+    airflow.configuration.write_default_airflow_configuration_if_needed()
+
+    assert airflow.configuration._SecretKeys.fernet_key
+    assert airflow.configuration._SecretKeys.fernet_key != "None"
