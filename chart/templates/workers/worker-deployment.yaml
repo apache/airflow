@@ -62,7 +62,7 @@ spec:
   serviceName: {{ include "airflow.fullname" . }}-worker
   {{- end }}
   {{- if and (not $keda) (not $hpa) }}
-  replicas: {{ .Values.workers.replicas }}
+  replicas: {{ .Values.workers.celery.replicas | default .Values.workers.replicas }}
   {{- end }}
   {{- if $revisionHistoryLimit }}
   revisionHistoryLimit: {{ $revisionHistoryLimit }}
