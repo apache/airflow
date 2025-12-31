@@ -54,10 +54,10 @@ class ExecutionAPISecretsBackend(BaseSecretsBackend):
         """
         from airflow.sdk.execution_time.comms import ErrorResponse, GetConnection
         from airflow.sdk.execution_time.context import _process_connection_result_conn
-        from airflow.sdk.execution_time.task_runner import supervisor_comms
+        from airflow.sdk.execution_time.task_runner import supervisor_send
 
         try:
-            msg = supervisor_comms().send(GetConnection(conn_id=conn_id))
+            msg = supervisor_send(GetConnection(conn_id=conn_id))
 
             if isinstance(msg, ErrorResponse):
                 # Connection not found or error occurred
@@ -100,10 +100,10 @@ class ExecutionAPISecretsBackend(BaseSecretsBackend):
         :return: Variable value or None if not found
         """
         from airflow.sdk.execution_time.comms import ErrorResponse, GetVariable, VariableResult
-        from airflow.sdk.execution_time.task_runner import supervisor_comms
+        from airflow.sdk.execution_time.task_runner import supervisor_send
 
         try:
-            msg = supervisor_comms().send(GetVariable(key=key))
+            msg = supervisor_send(GetVariable(key=key))
 
             if isinstance(msg, ErrorResponse):
                 # Variable not found or error occurred
@@ -127,10 +127,10 @@ class ExecutionAPISecretsBackend(BaseSecretsBackend):
         """
         from airflow.sdk.execution_time.comms import ErrorResponse, GetConnection
         from airflow.sdk.execution_time.context import _process_connection_result_conn
-        from airflow.sdk.execution_time.task_runner import supervisor_comms
+        from airflow.sdk.execution_time.task_runner import supervisor_asend
 
         try:
-            msg = await supervisor_comms().asend(GetConnection(conn_id=conn_id))
+            msg = await supervisor_asend(GetConnection(conn_id=conn_id))
 
             if isinstance(msg, ErrorResponse):
                 # Connection not found or error occurred
@@ -151,10 +151,10 @@ class ExecutionAPISecretsBackend(BaseSecretsBackend):
         :return: Variable value or None if not found
         """
         from airflow.sdk.execution_time.comms import ErrorResponse, GetVariable, VariableResult
-        from airflow.sdk.execution_time.task_runner import supervisor_comms
+        from airflow.sdk.execution_time.task_runner import supervisor_asend
 
         try:
-            msg = await supervisor_comms().asend(GetVariable(key=key))
+            msg = await supervisor_asend(GetVariable(key=key))
 
             if isinstance(msg, ErrorResponse):
                 # Variable not found or error occurred
