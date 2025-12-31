@@ -74,6 +74,9 @@ dependencies = [
 "google" = [
     "apache-airflow-providers-google"
 ]
+"sqlalchemy" = [
+    "sqlalchemy>=1.4.49",
+]
 
 [dependency-groups]
 dev = [
@@ -85,6 +88,7 @@ dev = [
     "apache-airflow-providers-google",
     # Additional devel dependencies (do not remove this line and add extra development dependencies)
     "apache-airflow-providers-common-sql[pandas,polars]",
+    "apache-airflow-providers-presto[sqlalchemy]",
 ]
 
 # To build docs:
