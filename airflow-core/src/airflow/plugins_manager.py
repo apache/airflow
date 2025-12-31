@@ -29,6 +29,8 @@ from airflow import settings
 from airflow._shared.module_loading import import_string, qualname
 from airflow._shared.plugins_manager.plugins_manager import (
     AirflowPlugin,
+    AirflowPluginSource as AirflowPluginSource,
+    PluginsDirectorySource as PluginsDirectorySource,
     _load_entrypoint_plugins,
     _load_plugins_from_plugin_directory,
     is_valid_plugin,
