@@ -697,6 +697,33 @@ def _xcom_push_to_db(ti: RuntimeTaskInstance, key: str, value: Any) -> None:
     )
 
 
+def _maybe_reschedule_startup_failure(
+    *,
+    ti_context: TIRunContext,
+    log: Logger,
+) -> None:
+    """
+    Attempt to reschedule the task when a startup failure occurs.
+
+    This does not count as a retry. If the reschedule limit is exceeded, this function
+    returns and the caller should fail the task.
+    """
+    max_reschedules = conf.getint("workers", "startup_dagbag_reschedule_max_attempts", fallback=3)
+    reschedule_delay = conf.getint("workers", "startup_dagbag_reschedule_delay", fallback=60)
+
+    reschedule_count = int(getattr(ti_context, "task_reschedule_count", 0) or 0)
+    if max_reschedules > 0 and reschedule_count < max_reschedules:
+        raise AirflowRescheduleException(
+            reschedule_date=datetime.now(tz=timezone.utc) + timedelta(seconds=reschedule_delay)
+        )
+
+    log.error(
+        "Startup reschedule limit exceeded",
+        reschedule_count=reschedule_count,
+        max_reschedules=max_reschedules,
+    )
+
+
 def parse(what: StartupDetails, log: Logger) -> RuntimeTaskInstance:
     # TODO: Task-SDK:
     # Using BundleDagBag here is about 98% wrong, but it'll do for now
@@ -727,13 +754,7 @@ def parse(what: StartupDetails, log: Logger) -> RuntimeTaskInstance:
         log.error(
             "Dag not found during start up", dag_id=what.ti.dag_id, bundle=bundle_info, path=what.dag_rel_path
         )
-        max_reschedules = conf.getint("workers", "startup_dagbag_reschedule_max_attempts", fallback=3)
-        reschedule_delay = conf.getint("workers", "startup_dagbag_reschedule_delay", fallback=60)
-        reschedule_count = int(getattr(what.ti_context, "task_reschedule_count", 0) or 0)
-        if max_reschedules > 0 and reschedule_count < max_reschedules:
-            raise AirflowRescheduleException(
-                datetime.now(tz=timezone.utc) + timedelta(seconds=reschedule_delay)
-            )
+        _maybe_reschedule_startup_failure(ti_context=what.ti_context, log=log)
         sys.exit(1)
 
     # install_loader()
@@ -748,13 +769,7 @@ def parse(what: StartupDetails, log: Logger) -> RuntimeTaskInstance:
             bundle=bundle_info,
             path=what.dag_rel_path,
         )
-        max_reschedules = conf.getint("workers", "startup_dagbag_reschedule_max_attempts", fallback=3)
-        reschedule_delay = conf.getint("workers", "startup_dagbag_reschedule_delay", fallback=60)
-        reschedule_count = int(getattr(what.ti_context, "task_reschedule_count", 0) or 0)
-        if max_reschedules > 0 and reschedule_count < max_reschedules:
-            raise AirflowRescheduleException(
-                datetime.now(tz=timezone.utc) + timedelta(seconds=reschedule_delay)
-            )
+        _maybe_reschedule_startup_failure(ti_context=what.ti_context, log=log)
         sys.exit(1)
 
     if not isinstance(task, (BaseOperator, MappedOperator)):
@@ -1736,7 +1751,17 @@ def main():
     )
 
     try:
-        ti, context, log = startup()
+        try:
+            ti, context, log = startup()
+        except AirflowRescheduleException as reschedule:
+            log.warning("Rescheduling task during startup, marking task as UP_FOR_RESCHEDULE")
+            SUPERVISOR_COMMS.send(
+                msg=RescheduleTask(
+                    reschedule_date=reschedule.reschedule_date,
+                    end_date=datetime.now(tz=timezone.utc),
+                )
+            )
+            exit(0)
         with BundleVersionLock(
             bundle_name=ti.bundle_instance.name,
             bundle_version=ti.bundle_instance.version,
@@ -1744,14 +1769,6 @@ def main():
             state, _, error = run(ti, context, log)
             context["exception"] = error
             finalize(ti, state, context, log, error)
-    except AirflowRescheduleException as exc:
-        log.info("Rescheduling task during startup, marking task as UP_FOR_RESCHEDULE")
-        SUPERVISOR_COMMS.send(
-            msg=RescheduleTask(
-                reschedule_date=exc.reschedule_date,
-                end_date=datetime.now(tz=timezone.utc),
-            )
-        )
     except KeyboardInterrupt:
         log.exception("Ctrl-c hit")
         exit(2)
