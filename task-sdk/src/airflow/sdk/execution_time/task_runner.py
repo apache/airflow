@@ -877,10 +877,38 @@ def _serialize_template_field(template_field: Any, name: str) -> str | dict | li
             serialized = str(template_field)
         if len(serialized) > max_length:
             rendered = redact(serialized, name)
-            return (
-                "Truncated. You can change this behaviour in [core]max_templated_field_length. "
-                f"{rendered[: max_length - 79]!r}... "
-            )
+            # Calculate how much space is available for actual content after accounting for prefix and suffix
+            prefix = "Truncated. You can change this behaviour in [core]max_templated_field_length. "
+            suffix = "... "
+            
+            if max_length <= 0:
+                return ""
+            
+            if max_length <= len(suffix):
+                return suffix[:max_length]
+            
+            if max_length <= len(prefix) + len(suffix):
+                # Not enough space for prefix + suffix + content, return truncated prefix + suffix
+                return (prefix + suffix)[:max_length]
+            
+            # We have enough space for prefix + some content + suffix
+            # Need to account for the fact that !r may add quotes, so we need to be more conservative
+            available = max_length - len(prefix) - len(suffix)
+            # If we're using !r formatting, it may add quotes, so we need to account for that
+            # For strings, repr() adds 2 characters (quotes) around the content
+            tentative_content = rendered[:available]
+            tentative_repr = repr(tentative_content)
+            if len(prefix) + len(tentative_repr) + len(suffix) <= max_length:
+                return f"{prefix}{tentative_repr}{suffix}"
+            else:
+                # Need to reduce content length to account for the quotes added by repr()
+                # We need to find the right content length so that len(prefix) + len(repr(content)) + len(suffix) <= max_length
+                target_repr_length = max_length - len(prefix) - len(suffix)
+                # Since repr adds quotes, we need to find content length where len(repr(content)) <= target_repr_length
+                # For a string, repr adds 2 quotes, so content length should be target_repr_length - 2
+                content_length = max(0, target_repr_length - 2)  # -2 for the quotes
+                content_part = rendered[:content_length]
+                return f"{prefix}{repr(content_part)}{suffix}"
         return serialized
     if not template_field and not isinstance(template_field, tuple):
         # Avoid unnecessary serialization steps for empty fields unless they are tuples
@@ -894,10 +922,38 @@ def _serialize_template_field(template_field: Any, name: str) -> str | dict | li
     serialized = str(template_field)
     if len(serialized) > max_length:
         rendered = redact(serialized, name)
-        return (
-            "Truncated. You can change this behaviour in [core]max_templated_field_length. "
-            f"{rendered[: max_length - 79]!r}... "
-        )
+        # Calculate how much space is available for actual content after accounting for prefix and suffix
+        prefix = "Truncated. You can change this behaviour in [core]max_templated_field_length. "
+        suffix = "... "
+        
+        if max_length <= 0:
+            return ""
+        
+        if max_length <= len(suffix):
+            return suffix[:max_length]
+        
+        if max_length <= len(prefix) + len(suffix):
+            # Not enough space for prefix + suffix + content, return truncated prefix + suffix
+            return (prefix + suffix)[:max_length]
+        
+        # We have enough space for prefix + some content + suffix
+        # Need to account for the fact that !r may add quotes, so we need to be more conservative
+        available = max_length - len(prefix) - len(suffix)
+        # If we're using !r formatting, it may add quotes, so we need to account for that
+        # For strings, repr() adds 2 characters (quotes) around the content
+        tentative_content = rendered[:available]
+        tentative_repr = repr(tentative_content)
+        if len(prefix) + len(tentative_repr) + len(suffix) <= max_length:
+            return f"{prefix}{tentative_repr}{suffix}"
+        else:
+            # Need to reduce content length to account for the quotes added by repr()
+            # We need to find the right content length so that len(prefix) + len(repr(content)) + len(suffix) <= max_length
+            target_repr_length = max_length - len(prefix) - len(suffix)
+            # Since repr adds quotes, we need to find content length where len(repr(content)) <= target_repr_length
+            # For a string, repr adds 2 quotes, so content length should be target_repr_length - 2
+            content_length = max(0, target_repr_length - 2)  # -2 for the quotes
+            content_part = rendered[:content_length]
+            return f"{prefix}{repr(content_part)}{suffix}"
     return template_field
 
 
