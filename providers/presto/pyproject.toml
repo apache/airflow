@@ -25,7 +25,7 @@ build-backend = "flit_core.buildapi"
 
 [project]
 name = "apache-airflow-providers-presto"
-version = "5.10.1"
+version = "5.10.2"
 description = "Provider package apache-airflow-providers-presto for Apache Airflow"
 readme = "README.rst"
 license = "Apache-2.0"
@@ -74,6 +74,9 @@ dependencies = [
 "google" = [
     "apache-airflow-providers-google"
 ]
+"sqlalchemy" = [
+    "sqlalchemy>=1.4.49",
+]
 
 [dependency-groups]
 dev = [
@@ -85,6 +88,7 @@ dev = [
     "apache-airflow-providers-google",
     # Additional devel dependencies (do not remove this line and add extra development dependencies)
     "apache-airflow-providers-common-sql[pandas,polars]",
+    "apache-airflow-providers-presto[sqlalchemy]",
 ]
 
 # To build docs:
@@ -113,8 +117,8 @@ apache-airflow-providers-common-sql = {workspace = true}
 apache-airflow-providers-standard = {workspace = true}
 
 [project.urls]
-"Documentation" = "https://airflow.apache.org/docs/apache-airflow-providers-presto/5.10.1"
-"Changelog" = "https://airflow.apache.org/docs/apache-airflow-providers-presto/5.10.1/changelog.html"
+"Documentation" = "https://airflow.apache.org/docs/apache-airflow-providers-presto/5.10.2"
+"Changelog" = "https://airflow.apache.org/docs/apache-airflow-providers-presto/5.10.2/changelog.html"
 "Bug Tracker" = "https://github.com/apache/airflow/issues"
 "Source Code" = "https://github.com/apache/airflow"
 "Slack Chat" = "https://s.apache.org/airflow-slack"
