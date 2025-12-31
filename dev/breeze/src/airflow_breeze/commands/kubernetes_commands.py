@@ -58,6 +58,7 @@ from airflow_breeze.global_constants import (
 from airflow_breeze.params.build_prod_params import BuildProdParams
 from airflow_breeze.utils.ci_group import ci_group
 from airflow_breeze.utils.click_utils import BreezeGroup
+from airflow_breeze.utils.confirm import confirm_action
 from airflow_breeze.utils.console import Output, get_console
 from airflow_breeze.utils.custom_param_types import CacheableChoice, CacheableDefault
 from airflow_breeze.utils.kubernetes_utils import (
@@ -185,7 +186,7 @@ option_dags_path = click.option(
     "--dags-path",
     help="Local dags directory to sync.",
     type=click.Path(file_okay=False, dir_okay=True, path_type=Path),
-    default="dags",
+    default="files/dags",
     show_default=True,
 )
 option_dags_dest = click.option(
@@ -286,6 +287,8 @@ def _create_cluster(
     output: Output | None,
     num_tries: int,
     force_recreate_cluster: bool,
+    *,
+    show_hints: bool = True,
 ) -> tuple[int, str]:
     while True:
         if force_recreate_cluster:
@@ -319,10 +322,17 @@ def _create_cluster(
             kubeconfig_file = get_kubeconfig_file(python=python, kubernetes_version=kubernetes_version)
             (KUBERNETES_TEST_PATH / ".env").write_text(f"KUBECONFIG={quote(kubeconfig_file.as_posix())}\n")
             get_console(output=output).print(f"[success]KinD cluster {cluster_name} created!\n")
-            get_console(output=output).print(
-                "\n[warning]NEXT STEP:[/][info] You might now configure your cluster by:\n"
-            )
-            get_console(output=output).print("\nbreeze k8s configure-cluster\n")
+
+            if show_hints:
+                get_console(output=output).print(
+                    "\n[warning]NEXT STEP:[/][info] You might now configure your cluster by:\n"
+                )
+                get_console(output=output).print("\nbreeze k8s configure-cluster\n")
+                # or breeze k8s dev to both configure and deploy
+                get_console(output=output).print(
+                    f"\n[warning]Alternatively, jump straight into development on Kubernetes with:[/]\n\n"
+                    f"breeze k8s dev --python {python} --kubernetes-version {kubernetes_version}\n"
+                )
             return result.returncode, f"K8S cluster {cluster_name}."
         num_tries -= 1
         if num_tries == 0:
@@ -854,16 +864,18 @@ def _build_skaffold_config(
 
     params = BuildProdParams(python=python)
     use_flask_appbuilder = Version(python) < Version("3.13")
-    if use_flask_appbuilder:
-        auth_manager = "airflow.providers.fab.auth_manager.fab_auth_manager.FabAuthManager"
-    else:
-        auth_manager = "airflow.api_fastapi.auth.managers.simple.simple_auth_manager.SimpleAuthManager"
+    auth_manager = (
+        "airflow.providers.fab.auth_manager.fab_auth_manager.FabAuthManager"
+        if use_flask_appbuilder
+        else "airflow.api_fastapi.auth.managers.simple.simple_auth_manager.SimpleAuthManager"
+    )
+
     _, api_server_port = get_kubernetes_port_numbers(python=python, kubernetes_version=kubernetes_version)
+
+    # --------------------
+    # Helm values (NON-image)
+    # --------------------
     set_values: dict[str, object] = {
-        "defaultAirflowRepository": params.airflow_image_kubernetes,
-        "defaultAirflowTag": "latest",
-        "images.airflow.repository": params.airflow_image_kubernetes,
-        "images.airflow.tag": "latest",
         "config.logging.logging_level": log_level,
         "executor": executor,
         "airflowVersion": params.airflow_semver_version,
@@ -871,25 +883,36 @@ def _build_skaffold_config(
         "config.core.auth_manager": auth_manager,
         "config.api.base_url": f"http://localhost:{api_server_port}",
     }
+
     if multi_namespace_mode:
         set_values["multiNamespaceMode"] = True
     if not use_flask_appbuilder:
         set_values["webserver.defaultUser.enabled"] = False
     if use_standard_naming:
         set_values["useStandardNaming"] = True
+
+    # --------------------
+    # Sync configuration
+    # --------------------
     sync_entries: list[dict[str, str]] = []
-    sync_entry: dict[str, str] = {
+    dependencies_paths: list[str]
+
+    dags_sync_entry = {
         "src": f"{dags_relative_path}/**",
         "dest": dags_dest,
     }
+
     if dags_relative_path != ".":
-        sync_entry["strip"] = f"{dags_relative_path}/"
+        dags_sync_entry["strip"] = f"{dags_relative_path}/"
         dependencies_paths = [f"{dags_relative_path}/**"]
     else:
         dependencies_paths = ["**"]
-    sync_entries.append(sync_entry)
+
+    sync_entries.append(dags_sync_entry)
+
     core_relative_path = "airflow-core/src/airflow"
     core_dest = f"{AIRFLOW_SOURCES_TO}/airflow-core/src/airflow"
+
     sync_entries.append(
         {
             "src": f"{core_relative_path}/**",
@@ -897,8 +920,15 @@ def _build_skaffold_config(
             "strip": f"{core_relative_path}/",
         }
     )
+
     if dependencies_paths != ["**"]:
         dependencies_paths.append(f"{core_relative_path}/**")
+
+    # --------------------
+    # Skaffold config
+    # --------------------
+    image_var_suffix = params.airflow_image_kubernetes.replace("/", "_").replace(".", "_").replace("-", "_")
+
     return {
         "apiVersion": "skaffold/v4beta13",
         "kind": "Config",
@@ -925,7 +955,15 @@ def _build_skaffold_config(
                         "name": "airflow",
                         "chartPath": CHART_PATH.as_posix(),
                         "namespace": HELM_AIRFLOW_NAMESPACE,
+                        "createNamespace": True,
                         "skipBuildDependencies": True,
+                        # Let Skaffold inject the resolved image instead of hardcoding as `latest` here
+                        "setValueTemplates": {
+                            "defaultAirflowRepository": f"{{{{.IMAGE_REPO_{image_var_suffix}}}}}",
+                            "defaultAirflowTag": f"{{{{.IMAGE_TAG_{image_var_suffix}}}}}",
+                            "images.airflow.repository": f"{{{{.IMAGE_REPO_{image_var_suffix}}}}}",
+                            "images.airflow.tag": f"{{{{.IMAGE_TAG_{image_var_suffix}}}}}",
+                        },
                         "setValues": set_values,
                     }
                 ]
@@ -1151,7 +1189,7 @@ def _deploy_helm_chart(
             "--kube-context",
             kubectl_context,
             "--timeout",
-            "10m0s",
+            "20m0s",
             "--namespace",
             HELM_AIRFLOW_NAMESPACE,
             "--set",
@@ -1197,10 +1235,28 @@ def _deploy_helm_chart(
             kubernetes_version=kubernetes_version,
             output=output,
             check=False,
+            capture_output=True,
+            text=True,
         )
+        # Print captured output to the console/output file
+        if result.stdout:
+            get_console(output=output).print(result.stdout)
+        if result.stderr:
+            get_console(output=output).print(result.stderr)
         if result.returncode == 0:
             get_console(output=output).print(f"[success]Deployed {cluster_name} with airflow Helm Chart.")
         return result
+
+
+def _is_helm_timeout_error(result: RunCommandResult) -> bool:
+    """Check if the Helm command failed due to a timeout."""
+    # Check stderr and stdout for timeout-related messages
+    error_output = ""
+    if hasattr(result, "stderr") and result.stderr:
+        error_output += result.stderr if isinstance(result.stderr, str) else result.stderr.decode()
+    if hasattr(result, "stdout") and result.stdout:
+        error_output += result.stdout if isinstance(result.stdout, str) else result.stdout.decode()
+    return "timed out waiting for the condition" in error_output
 
 
 def _deploy_airflow(
@@ -1213,20 +1269,52 @@ def _deploy_airflow(
     use_standard_naming: bool,
     extra_options: tuple[str, ...] | None = None,
     multi_namespace_mode: bool = False,
+    num_tries: int = 1,
 ) -> tuple[int, str]:
     action = "Deploying" if not upgrade else "Upgrading"
     cluster_name = get_kind_cluster_name(python=python, kubernetes_version=kubernetes_version)
-    get_console(output=output).print(f"[info]{action} Airflow for cluster {cluster_name}")
-    result = _deploy_helm_chart(
-        python=python,
-        kubernetes_version=kubernetes_version,
-        output=output,
-        upgrade=upgrade,
-        executor=executor,
-        use_standard_naming=use_standard_naming,
-        extra_options=extra_options,
-        multi_namespace_mode=multi_namespace_mode,
-    )
+    kubectl_context = get_kubectl_cluster_name(python=python, kubernetes_version=kubernetes_version)
+    while True:
+        get_console(output=output).print(f"[info]{action} Airflow for cluster {cluster_name}")
+        result = _deploy_helm_chart(
+            python=python,
+            kubernetes_version=kubernetes_version,
+            output=output,
+            upgrade=upgrade,
+            executor=executor,
+            use_standard_naming=use_standard_naming,
+            extra_options=extra_options,
+            multi_namespace_mode=multi_namespace_mode,
+        )
+        if result.returncode == 0:
+            break
+        # Only retry on timeout errors, fail immediately for other errors
+        if not _is_helm_timeout_error(result):
+            return result.returncode, f"{action} Airflow to {cluster_name}"
+        num_tries -= 1
+        if num_tries == 0:
+            return result.returncode, f"{action} Airflow to {cluster_name}"
+        get_console(output=output).print(
+            f"[warning]Helm deployment timed out for {cluster_name}. "
+            f"Retrying! There are {num_tries} tries left.\n"
+        )
+        # Uninstall the failed release before retrying
+        run_command_with_k8s_env(
+            [
+                "helm",
+                "uninstall",
+                "airflow",
+                "--kube-context",
+                kubectl_context,
+                "--namespace",
+                HELM_AIRFLOW_NAMESPACE,
+                "--ignore-not-found",
+            ],
+            python=python,
+            kubernetes_version=kubernetes_version,
+            output=output,
+            check=False,
+        )
     if result.returncode == 0:
         if multi_namespace_mode:
             # duplicate Airflow configmaps, secrets and service accounts to test namespace
@@ -1442,11 +1530,27 @@ def dev(
             f"\n[warning]Cluster for Python {python} and Kubernetes {kubernetes_version} "
             "has not been created yet.\n"
         )
-        get_console().print(
-            "[info]Run: "
-            f"`breeze k8s create-cluster --python {python} --kubernetes-version {kubernetes_version}`\n"
-        )
-        sys.exit(1)
+
+        if confirm_action(
+            f"Do you want to create cluster for Python {python} and Kubernetes {kubernetes_version} now?"
+        ):
+            return_code, _ = _create_cluster(
+                python=python,
+                kubernetes_version=kubernetes_version,
+                output=None,
+                force_recreate_cluster=False,
+                num_tries=1,
+                # Since we are using skaffold dev, so we don't need to show the hints for configuring the cluster
+                show_hints=False,
+            )
+            if return_code != 0:
+                sys.exit(return_code)
+        else:
+            get_console().print(
+                "\n[info]To create the cluster, please run: [/]\n\n"
+                f"breeze k8s create-cluster --python {python} --kubernetes-version {kubernetes_version}\n"
+            )
+            sys.exit(0)
     skaffold_config = _build_skaffold_config(
         python=python,
         kubernetes_version=kubernetes_version,
@@ -1473,6 +1577,9 @@ def dev(
         skaffold_config["deploy"]["helm"]["releases"][0]["valuesFiles"] = [dev_env_values_path.as_posix()]
         skaffold_config_path = Path(tmp_dir) / "skaffold.yaml"
         skaffold_config_path.write_text(yaml.safe_dump(skaffold_config, sort_keys=False))
+
+        get_console().print(f"[info]Generated skaffold config at {skaffold_config_path}")
+
         skaffold_command = [
             "skaffold",
             "dev",
@@ -1900,6 +2007,7 @@ def _run_complete_tests(
             wait_time_in_seconds=wait_time_in_seconds,
             extra_options=extra_options,
             multi_namespace_mode=True,
+            num_tries=3,
         )
         if returncode != 0:
             _logs(python=python, kubernetes_version=kubernetes_version)
@@ -1933,6 +2041,7 @@ def _run_complete_tests(
                 wait_time_in_seconds=wait_time_in_seconds,
                 extra_options=extra_options,
                 multi_namespace_mode=True,
+                num_tries=3,
             )
             if returncode != 0 or include_success_outputs:
                 _logs(python=python, kubernetes_version=kubernetes_version)

@@ -44,6 +44,7 @@ from airflow.utils.state import State
 from tests_common.test_utils import db
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.dag import sync_dag_to_db
+from tests_common.test_utils.taskinstance import create_task_instance
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V_3_1_PLUS, AIRFLOW_V_3_2_PLUS
 
 if AIRFLOW_V_3_0_PLUS:
@@ -229,7 +230,7 @@ class TestCeleryExecutor:
         if AIRFLOW_V_3_0_PLUS:
             sync_dag_to_db(dag)
             dag_version = DagVersion.get_latest_version(dag.dag_id)
-            key1 = TaskInstance(task=task_1, run_id=None, dag_version_id=dag_version.id)
+            key1 = create_task_instance(task=task_1, run_id=None, dag_version_id=dag_version.id)
         else:
             key1 = TaskInstance(task=task_1, run_id=None)
         tis = [key1]
@@ -250,8 +251,8 @@ class TestCeleryExecutor:
         if AIRFLOW_V_3_0_PLUS:
             sync_dag_to_db(dag)
             dag_version = DagVersion.get_latest_version(dag.dag_id)
-            ti1 = TaskInstance(task=task_1, run_id=None, dag_version_id=dag_version.id)
-            ti2 = TaskInstance(task=task_2, run_id=None, dag_version_id=dag_version.id)
+            ti1 = create_task_instance(task=task_1, run_id=None, dag_version_id=dag_version.id)
+            ti2 = create_task_instance(task=task_2, run_id=None, dag_version_id=dag_version.id)
         else:
             ti1 = TaskInstance(task=task_1, run_id=None)
             ti2 = TaskInstance(task=task_2, run_id=None)
@@ -294,7 +295,7 @@ class TestCeleryExecutor:
         if AIRFLOW_V_3_0_PLUS:
             sync_dag_to_db(dag)
             dag_version = DagVersion.get_latest_version(task.dag.dag_id)
-            ti = TaskInstance(task=task, run_id=None, dag_version_id=dag_version.id)
+            ti = create_task_instance(task=task, run_id=None, dag_version_id=dag_version.id)
         else:
             ti = TaskInstance(task=task, run_id=None)
         ti.external_executor_id = "231"
@@ -328,7 +329,7 @@ class TestCeleryExecutor:
         if AIRFLOW_V_3_0_PLUS:
             sync_dag_to_db(dag)
             dag_version = DagVersion.get_latest_version(task.dag.dag_id)
-            ti = TaskInstance(task=task, run_id=None, dag_version_id=dag_version.id)
+            ti = create_task_instance(task=task, run_id=None, dag_version_id=dag_version.id)
         else:
             ti = TaskInstance(task=task, run_id=None)
         ti.external_executor_id = "231"
