@@ -48,21 +48,47 @@ if dag is None:
 
 # Execute dag.test()
 try:
-    dr = dag.test(use_executor={str(use_executor).lower()})
+    dr = dag.test(use_executor={str(use_executor)})
     
-    # Get task instance states
+    # Refresh from DB to get latest state
+    from airflow import settings
+    from airflow.models.dagrun import DagRun
+    import time
+    session = settings.Session()
+    
+    # Wait a bit for state to propagate (especially for executor mode)
+    if {str(use_executor)}:
+        time.sleep(2)
+    
+    # Re-fetch the DagRun to ensure we have the latest state
+    dr = session.query(DagRun).filter(
+        DagRun.dag_id == dr.dag_id,
+        DagRun.run_id == dr.run_id
+    ).first()
+    
+    if dr is None:
+        print(f"ERROR: DagRun not found after test completion")
+        sys.exit(1)
+    
+    # Get task instance states using fetch_task_instances with our session
     task_states = {{}}
-    for ti in dr.get_task_instances():
+    task_instances = DagRun.fetch_task_instances(
+        dag_id=dr.dag_id,
+        run_id=dr.run_id,
+        session=session
+    )
+    for ti in task_instances:
         task_states[ti.task_id] = ti.state
     
     result = {{
-        "dag_run_state": dr.state,
+        "dag_run_state": str(dr.state),
         "dag_run_id": dr.run_id,
-        "task_states": task_states,
+        "task_states": {{k: str(v) for k, v in task_states.items()}},
         "success": dr.state == DagRunState.SUCCESS
     }}
     
     print(json.dumps(result))
+    session.close()
 except Exception as e:
     print(f"ERROR: {{str(e)}}")
     import traceback
@@ -71,18 +97,23 @@ except Exception as e:
 """
     # Execute the Python code in the scheduler container
     # Try scheduler first, fallback to dag-processor if scheduler doesn't exist
+    # exec_in_container returns (stdout, stderr, exit_code) tuple
     try:
-        stdout, stderr = _E2ETestState.compose_instance.exec_in_container(
+        stdout, stderr, exit_code = _E2ETestState.compose_instance.exec_in_container(
             command=["python", "-c", python_code],
             service_name="airflow-scheduler",
         )
     except Exception:
         # Fallback to dag-processor if scheduler service doesn't exist
-        stdout, stderr = _E2ETestState.compose_instance.exec_in_container(
+        stdout, stderr, exit_code = _E2ETestState.compose_instance.exec_in_container(
             command=["python", "-c", python_code],
             service_name="airflow-dag-processor",
         )
 
+    # Check exit code
+    if exit_code != 0:
+        raise RuntimeError(f"Command failed with exit code {exit_code}. stdout: {stdout}, stderr: {stderr}")
+    
     if stderr:
         # Check if there's an actual error (not just warnings)
         if "ERROR" in stderr or "Traceback" in stderr:
