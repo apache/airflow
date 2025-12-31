@@ -200,8 +200,7 @@ class Password(argparse.Action):
 ARG_FILE = Arg(
     flags=("file",),
     metavar="FILEPATH",
-    help="File path to read from or write to. "
-    "For import commands, it is a file to read from. For export commands, it is a file to write to.",
+    help="File path to read from for import commands.",
 )
 ARG_OUTPUT = Arg(
     (
@@ -802,9 +801,7 @@ CONFIG_COMMANDS = (
 CONNECTION_COMMANDS = (
     ActionCommand(
         name="import",
-        help="Import connections from a file. "
-        "This feature is compatible with airflow CLI `airflow connections export a.json` command. "
-        "Export it from `airflow CLI` and import it securely via this command.",
+        help="Import connections from a file exported with local CLI.",
         func=lazy_load_command("airflowctl.ctl.commands.connection_command.import_"),
         args=(Arg(flags=("file",), metavar="FILEPATH", help="Connections JSON file"),),
     ),
@@ -852,15 +849,9 @@ POOL_COMMANDS = (
 VARIABLE_COMMANDS = (
     ActionCommand(
         name="import",
-        help="Import variables",
+        help="Import variables from a file exported with local CLI.",
         func=lazy_load_command("airflowctl.ctl.commands.variable_command.import_"),
         args=(ARG_FILE, ARG_VARIABLE_ACTION_ON_EXISTING_KEY),
-    ),
-    ActionCommand(
-        name="export",
-        help="Export all variables",
-        func=lazy_load_command("airflowctl.ctl.commands.variable_command.export"),
-        args=(ARG_FILE,),
     ),
 )
 
