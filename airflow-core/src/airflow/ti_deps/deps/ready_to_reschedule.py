@@ -43,9 +43,18 @@ class ReadyToRescheduleDep(BaseTIDep):
         in the future.
         """
         if (
+            # Exclude infrastructure-triggered reschedules.
+            # When a task is rescheduled due to a startup failure (e.g. the task runner
+            # cannot load the Dag or task), the task instance will be set
+            # in UP_FOR_RESCHEDULE state. In this case, we'll ignore the task's
+            # "reschedule" attribute check, since the reschedule was not initiated by the
+            # operator itself.
+            ti.state != TaskInstanceState.UP_FOR_RESCHEDULE
+            and
             # Mapped sensors don't have the reschedule property (it can only be calculated after unmapping),
             # so we don't check them here. They are handled below by checking TaskReschedule instead.
-            ti.map_index < 0 and not getattr(ti.task, "reschedule", False)
+            ti.map_index < 0
+            and not getattr(ti.task, "reschedule", False)
         ):
             yield self._passing_status(reason="Task is not in reschedule mode.")
             return
@@ -76,8 +85,7 @@ class ReadyToRescheduleDep(BaseTIDep):
             yield self._passing_status(reason="There is no reschedule request for this task instance.")
             return
 
-        now = timezone.utcnow()
-        if now >= next_reschedule_date:
+        if (now := timezone.utcnow()) >= next_reschedule_date:
             yield self._passing_status(reason="Task instance id ready for reschedule.")
             return
 
