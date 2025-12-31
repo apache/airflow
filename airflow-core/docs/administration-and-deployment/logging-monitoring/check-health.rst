@@ -87,10 +87,12 @@ Served by the web server, this health check endpoint is independent of the newer
 .. note::
 
   * For this check to work, at least one working web server is required. Suppose you use this check for scheduler
-  monitoring, then in case of failure of the web server, you will lose the ability to monitor scheduler, which means
-  that it can be restarted even if it is in good condition. For greater confidence, consider using :ref:`CLI Check for Scheduler <check-health/cli-checks-for-scheduler>` or  :ref:`Scheduler Health Check Server <check-health/scheduler-health-check-server>`.
+    monitoring, then in case of failure of the web server, you will lose the ability to monitor scheduler, which means
+    that it can be restarted even if it is in good condition. For greater confidence, consider using :ref:`CLI Check for Scheduler <check-health/cli-checks-for-scheduler>` or  :ref:`Scheduler Health Check Server <check-health/scheduler-health-check-server>`.
 
-  * Using this endpoint as webserver probes (liveness/readiness) makes it contingent on Airflow core components' availability (database, scheduler, etc). Webservers will be frequently restarted if any of these core components are down. To make Webservers less prone to other components' failures, consider using endpoints like ``api/v2/version``.
+  * Using this endpoint as webserver probes (liveness/readiness) makes it contingent on Airflow core components' availability (database, scheduler, etc).
+    Webservers will be frequently restarted if any of these core components are down. To make Webservers less prone to other components' failures, consider using endpoints like ``api/v2/version``.
+
 .. _check-health/scheduler-health-check-server:
 
 Scheduler Health Check Server
