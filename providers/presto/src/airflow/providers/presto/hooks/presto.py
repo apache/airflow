@@ -25,6 +25,9 @@ import prestodb
 from deprecated import deprecated
 from prestodb.exceptions import DatabaseError
 from prestodb.transaction import IsolationLevel
+from airflow.configuration import conf
+- from airflow.configuration import conf
++ from airflow.sdk.configuration import conf
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowOptionalProviderFeatureException, AirflowProviderDeprecationWarning
