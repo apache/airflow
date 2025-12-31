@@ -20,8 +20,7 @@ import time
 from functools import cached_property
 from typing import TYPE_CHECKING, Any
 
-from airflow.providers.common.compat.sdk import conf
-from airflow.providers.common.compat.sdk import AirflowException, BaseSensorOperator
+from airflow.providers.common.compat.sdk import AirflowException, BaseSensorOperator, conf
 from airflow.providers.dbt.cloud.hooks.dbt import DbtCloudHook, DbtCloudJobRunException, DbtCloudJobRunStatus
 from airflow.providers.dbt.cloud.triggers.dbt import DbtCloudRunJobTrigger
 from airflow.providers.dbt.cloud.utils.openlineage import generate_openlineage_events_from_dbt_cloud_run

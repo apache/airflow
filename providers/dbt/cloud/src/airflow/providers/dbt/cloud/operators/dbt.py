@@ -23,8 +23,7 @@ from functools import cached_property
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
-from airflow.providers.common.compat.sdk import conf
-from airflow.providers.common.compat.sdk import BaseOperator, BaseOperatorLink, XCom
+from airflow.providers.common.compat.sdk import BaseOperator, BaseOperatorLink, XCom, conf
 from airflow.providers.dbt.cloud.hooks.dbt import (
     DbtCloudHook,
     DbtCloudJobRunException,
