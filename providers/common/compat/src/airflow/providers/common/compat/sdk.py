@@ -76,6 +76,7 @@ if TYPE_CHECKING:
         task_decorator_factory as task_decorator_factory,
     )
     from airflow.sdk.bases.sensor import poke_mode_only as poke_mode_only
+    from airflow.sdk.bases.xcom import BaseXCom as BaseXCom
     from airflow.sdk.definitions.context import context_merge as context_merge
     from airflow.sdk.definitions.mappedoperator import MappedOperator as MappedOperator
     from airflow.sdk.definitions.template import literal as literal
@@ -221,6 +222,7 @@ _IMPORT_MAP: dict[str, str | tuple[str, ...]] = {
     # ============================================================================
     # XCom & Task Communication
     # ============================================================================
+    "BaseXCom": ("airflow.sdk.bases.xcom", "airflow.models.xcom"),
     "XCOM_RETURN_KEY": "airflow.models.xcom",
     # ============================================================================
     # Exceptions (deprecated in airflow.exceptions, prefer SDK)
