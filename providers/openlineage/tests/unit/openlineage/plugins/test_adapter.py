@@ -57,6 +57,7 @@ from airflow.utils.types import DagRunType
 from tests_common.test_utils.compat import BashOperator
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.markers import skip_if_force_lowest_dependencies_marker
+from tests_common.test_utils.taskinstance import create_task_instance
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
 
@@ -870,14 +871,14 @@ def test_emit_dag_complete_event(
     dag_run._state = DagRunState.SUCCESS
     dag_run.end_date = event_time
     if AIRFLOW_V_3_0_PLUS:
-        ti0 = TaskInstance(
+        ti0 = create_task_instance(
             task=task_0, run_id=run_id, state=TaskInstanceState.SUCCESS, dag_version_id=mock.MagicMock()
         )
-        ti1 = TaskInstance(
+        ti1 = create_task_instance(
             task=task_1, run_id=run_id, state=TaskInstanceState.SKIPPED, dag_version_id=mock.MagicMock()
         )
 
-        ti2 = TaskInstance(
+        ti2 = create_task_instance(
             task=task_2, run_id=run_id, state=TaskInstanceState.FAILED, dag_version_id=mock.MagicMock()
         )
     else:
@@ -1035,14 +1036,14 @@ def test_emit_dag_failed_event(
     dag_run.end_date = event_time
 
     if AIRFLOW_V_3_0_PLUS:
-        ti0 = TaskInstance(
+        ti0 = create_task_instance(
             task=task_0, run_id=run_id, state=TaskInstanceState.SUCCESS, dag_version_id=mock.MagicMock()
         )
-        ti1 = TaskInstance(
+        ti1 = create_task_instance(
             task=task_1, run_id=run_id, state=TaskInstanceState.SKIPPED, dag_version_id=mock.MagicMock()
         )
 
-        ti2 = TaskInstance(
+        ti2 = create_task_instance(
             task=task_2, run_id=run_id, state=TaskInstanceState.FAILED, dag_version_id=mock.MagicMock()
         )
     else:

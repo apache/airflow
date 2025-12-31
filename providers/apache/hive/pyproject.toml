@@ -25,7 +25,7 @@ build-backend = "flit_core.buildapi"
 
 [project]
 name = "apache-airflow-providers-apache-hive"
-version = "9.2.1"
+version = "9.2.2"
 description = "Provider package apache-airflow-providers-apache-hive for Apache Airflow"
 readme = "README.rst"
 license = "Apache-2.0"
@@ -141,8 +141,8 @@ apache-airflow-providers-common-sql = {workspace = true}
 apache-airflow-providers-standard = {workspace = true}
 
 [project.urls]
-"Documentation" = "https://airflow.apache.org/docs/apache-airflow-providers-apache-hive/9.2.1"
-"Changelog" = "https://airflow.apache.org/docs/apache-airflow-providers-apache-hive/9.2.1/changelog.html"
+"Documentation" = "https://airflow.apache.org/docs/apache-airflow-providers-apache-hive/9.2.2"
+"Changelog" = "https://airflow.apache.org/docs/apache-airflow-providers-apache-hive/9.2.2/changelog.html"
 "Bug Tracker" = "https://github.com/apache/airflow/issues"
 "Source Code" = "https://github.com/apache/airflow"
 "Slack Chat" = "https://s.apache.org/airflow-slack"

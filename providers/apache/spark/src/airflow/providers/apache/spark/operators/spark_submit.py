@@ -27,7 +27,6 @@ from airflow.providers.common.compat.openlineage.utils.spark import (
     inject_transport_information_into_spark_properties,
 )
 from airflow.providers.common.compat.sdk import BaseOperator
-from airflow.settings import WEB_COLORS
 
 if TYPE_CHECKING:
     from airflow.providers.common.compat.sdk import Context
@@ -105,7 +104,6 @@ class SparkSubmitOperator(BaseOperator):
         "env_vars",
         "properties_file",
     )
-    ui_color = WEB_COLORS["LIGHTORANGE"]
 
     def __init__(
         self,
