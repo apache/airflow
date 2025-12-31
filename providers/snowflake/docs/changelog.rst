@@ -27,6 +27,18 @@
 Changelog
 ---------
 
+6.8.1
+.....
+
+Misc
+~~~~
+
+* ``'issue-59385': Removing unneeded call the 'SnowflakeSqlApiHook' (#59470)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``TaskInstance unused method cleanup (#59835)``
+
 6.8.0
 .....
 

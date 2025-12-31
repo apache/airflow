@@ -1612,7 +1612,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         """
         # Put a check in place to make sure we don't commit unexpectedly
         with prohibit_commit(session) as guard:
-            if settings.USE_JOB_SCHEDULE:
+            if conf.getboolean("scheduler", "use_job_schedule", fallback=True):
                 self._create_dagruns_for_dags(guard, session)
 
             self._start_queued_dagruns(session)

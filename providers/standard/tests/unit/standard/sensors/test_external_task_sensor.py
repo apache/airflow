@@ -1579,13 +1579,13 @@ def test_external_task_sensor_extra_link(
         external_dag_id=external_dag_id,
         external_task_id=external_task_id,
     )
-    ti.render_templates()
+    task = ti.render_templates()
 
-    assert ti.task.external_dag_id == expected_external_dag_id
-    assert ti.task.external_task_id == expected_external_task_id
-    assert ti.task.external_task_ids == [expected_external_task_id]
+    assert task.external_dag_id == expected_external_dag_id
+    assert task.external_task_id == expected_external_task_id
+    assert task.external_task_ids == [expected_external_task_id]
 
-    url = ti.task.operator_extra_links[0].get_link(operator=ti.task, ti_key=ti.key)
+    url = task.operator_extra_links[0].get_link(operator=task, ti_key=ti.key)
 
     assert f"/dags/{expected_external_dag_id}/runs" in url
 
