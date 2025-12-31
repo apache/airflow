@@ -169,16 +169,13 @@ class PostgresHook(DbApiHook):
     def __cast_nullable(value, dst_type: type) -> Any:
         return dst_type(value) if value is not None else None
 
-        @property
-        def sqlalchemy_url(self) -> URL:
-           try:
-              import sqlalchemy  # noqa: F401
-           except (ImportError, ModuleNotFoundError):
+    @property
+    def sqlalchemy_url(self) -> URL:
+        if URL is None:
             raise AirflowOptionalProviderFeatureException(
-        "SQLAlchemy is required. Install with "
-        "pip install 'apache-airflow-providers-postgres[sqlalchemy]'."
-    )
-
+                "SQLAlchemy is required. Install with "
+                "pip install 'apache-airflow-providers-postgres[sqlalchemy]'."
+            )
         conn = self.connection
         query = conn.extra_dejson.get("sqlalchemy_query", {})
         if not isinstance(query, dict):
@@ -192,8 +189,7 @@ class PostgresHook(DbApiHook):
             password=self.__cast_nullable(conn.password, str),
             host=self.__cast_nullable(conn.host, str),
             port=self.__cast_nullable(conn.port, int),
-            database=self.__cast_nullable(self.database, str)
-            or self.__cast_nullable(conn.schema, str),
+            database=self.__cast_nullable(self.database, str) or self.__cast_nullable(conn.schema, str),
             query=query,
         )
 
@@ -403,7 +399,13 @@ class PostgresHook(DbApiHook):
 
         :return: the extracted URI in Sqlalchemy URI format.
         """
+        if URL is None:
+         raise AirflowOptionalProviderFeatureException(
+        "The 'sqlalchemy' library is required to render the connection URI."
+    )
+
         return self.sqlalchemy_url.render_as_string(hide_password=False)
+
 
     def bulk_load(self, table: str, tmp_file: str) -> None:
         """Load a tab-delimited file into a database table."""
