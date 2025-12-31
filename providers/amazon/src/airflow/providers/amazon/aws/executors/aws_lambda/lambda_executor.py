@@ -25,7 +25,6 @@ from typing import TYPE_CHECKING
 from boto3.session import NoCredentialsError
 from botocore.utils import ClientError
 
-from airflow.configuration import conf
 from airflow.executors.base_executor import BaseExecutor
 from airflow.models.taskinstancekey import TaskInstanceKey
 from airflow.providers.amazon.aws.executors.aws_lambda.utils import (
@@ -41,7 +40,7 @@ from airflow.providers.amazon.aws.executors.utils.exponential_backoff_retry impo
 )
 from airflow.providers.amazon.aws.hooks.lambda_function import LambdaHook
 from airflow.providers.amazon.aws.hooks.sqs import SqsHook
-from airflow.providers.common.compat.sdk import AirflowException, Stats
+from airflow.providers.common.compat.sdk import AirflowException, Stats, conf
 
 try:
     from airflow.sdk import timezone
