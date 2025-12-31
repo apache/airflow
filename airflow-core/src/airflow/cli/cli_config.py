@@ -905,6 +905,11 @@ ARG_CAPACITY = Arg(
     type=positive_int(allow_zero=False),
     help="The maximum number of triggers that a Triggerer will run at one time.",
 )
+ARG_QUEUES = Arg(
+    ("--queues",),
+    type=string_list_type,
+    help="Optional comma-separated list of task queues which the triggerer should consume from.",
+)
 
 ARG_DAG_LIST_COLUMNS = Arg(
     ("--columns",),
@@ -1962,6 +1967,7 @@ core_commands: list[CLICommand] = [
             ARG_VERBOSE,
             ARG_SKIP_SERVE_LOGS,
             ARG_DEV,
+            ARG_QUEUES,
         ),
     ),
     ActionCommand(
