@@ -1635,7 +1635,7 @@
             "additionalProperties": false,
             "properties": {
                 "replicas": {
-                    "description": "Number of Airflow Celery workers.",
+                    "description": "Number of Airflow Celery workers (deprecated, use `workers.celery.replicas` instead).",
                     "type": "integer",
                     "default": 1
                 },
@@ -2608,6 +2608,11 @@
                     "type": "object",
                     "x-docsSection": "Workers",
                     "properties": {
+                        "replicas": {
+                            "description": "Number of Airflow Celery workers.",
+                            "type": "integer",
+                            "default": 1
+                        },
                         "serviceAccount": {
                             "description": "Create ServiceAccount.",
                             "type": "object",
@@ -8252,6 +8257,10 @@
                                 "null"
                             ],
                             "default": null
+                        },
+                        "persistentVolumeClaimRetentionPolicy": {
+                            "$ref": "#/definitions/persistentVolumeClaimRetentionPolicy",
+                            "description": "PersistentVolumeClaim retention policy to be used in the lifecycle of a StatefulSet."
                         }
                     }
                 },

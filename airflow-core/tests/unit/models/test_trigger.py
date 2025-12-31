@@ -19,7 +19,7 @@ from __future__ import annotations
 import datetime
 import json
 from collections.abc import AsyncIterator
-from typing import Any
+from typing import TYPE_CHECKING, Any
 from unittest.mock import patch
 
 import pendulum
@@ -49,6 +49,9 @@ from airflow.utils.session import create_session
 from airflow.utils.state import State
 
 from tests_common.test_utils.config import conf_vars
+
+if TYPE_CHECKING:
+    from sqlalchemy.orm import Session
 
 pytestmark = pytest.mark.db_test
 
@@ -297,254 +300,422 @@ def test_submit_event_task_end(mock_utcnow, session, create_task_instance, event
     assert actual_xcoms == expected_xcoms
 
 
+@pytest.fixture
+def create_triggerer():
+    """Fixture factory which creates individual test Triggerer instances."""
+
+    def _create_triggerer(
+        session: Session,
+        state: State,
+        queues: set[str] | None = None,
+        end_date: datetime.datetime | None = None,
+        latest_heartbeat: datetime.datetime | None = None,
+    ) -> Job:
+        test_triggerer = Job(heartrate=10, state=state, latest_heartbeat=latest_heartbeat)
+        TriggererJobRunner(test_triggerer, queues=queues)
+        if end_date:
+            test_triggerer.end_date = end_date
+        session.add(test_triggerer)
+        return test_triggerer
+
+    return _create_triggerer
+
+
+@pytest.fixture
+def create_trigger(create_task_instance):
+    """Fixture factory which creates individual test trigger instances."""
+
+    def _create_test_trigger(
+        session: Session,
+        name: str,
+        logical_date: datetime.datetime,
+        triggerer_id: int | None = None,
+        queue: str | None = None,
+    ) -> Trigger:
+        trig = Trigger(classpath="airflow.triggers.testing.SuccessTrigger", kwargs={}, queue=queue)
+        trig.triggerer_id = triggerer_id
+        session.add(trig)
+        ti = create_task_instance(task_id=f"ti_{name}", logical_date=logical_date, run_id=f"{name}_run_id")
+        ti.trigger_id = trig.id
+        session.add(ti)
+        return trig
+
+    return _create_test_trigger
+
+
 @pytest.mark.need_serialized_dag
-def test_assign_unassigned(session, create_task_instance):
-    """
-    Tests that unassigned triggers of all appropriate states are assigned.
-    """
+@pytest.mark.parametrize("use_queues", [False, True])
+def test_assign_unassigned(session, create_triggerer, create_trigger, use_queues: bool):
+    """Tests that unassigned triggers of all appropriate states are assigned."""
     time_now = timezone.utcnow()
-    triggerer_heartrate = 10
-    finished_triggerer = Job(heartrate=triggerer_heartrate, state=State.SUCCESS)
-    TriggererJobRunner(finished_triggerer)
-    finished_triggerer.end_date = time_now - datetime.timedelta(hours=1)
-    session.add(finished_triggerer)
-    assert not finished_triggerer.is_alive()
-    healthy_triggerer = Job(heartrate=triggerer_heartrate, state=State.RUNNING)
-    TriggererJobRunner(healthy_triggerer)
-    session.add(healthy_triggerer)
-    assert healthy_triggerer.is_alive()
-    new_triggerer = Job(heartrate=triggerer_heartrate, state=State.RUNNING)
-    TriggererJobRunner(new_triggerer)
-    session.add(new_triggerer)
-    assert new_triggerer.is_alive()
-    # This trigger's last heartbeat is older than the check threshold, expect
-    # its triggers to be taken by other healthy triggerers below
-    unhealthy_triggerer = Job(
-        heartrate=triggerer_heartrate,
-        state=State.RUNNING,
-        latest_heartbeat=time_now - datetime.timedelta(seconds=100),
-    )
-    TriggererJobRunner(unhealthy_triggerer)
-    session.add(unhealthy_triggerer)
-    # Triggerer is not healtht, its last heartbeat was too long ago
-    assert not unhealthy_triggerer.is_alive()
-    session.commit()
-    trigger_on_healthy_triggerer = Trigger(classpath="airflow.triggers.testing.SuccessTrigger", kwargs={})
-    trigger_on_healthy_triggerer.triggerer_id = healthy_triggerer.id
-    session.add(trigger_on_healthy_triggerer)
-    ti_trigger_on_healthy_triggerer = create_task_instance(
-        task_id="ti_trigger_on_healthy_triggerer",
-        logical_date=time_now,
-        run_id="trigger_on_healthy_triggerer_run_id",
-    )
-    ti_trigger_on_healthy_triggerer.trigger_id = trigger_on_healthy_triggerer.id
-    session.add(ti_trigger_on_healthy_triggerer)
-    trigger_on_unhealthy_triggerer = Trigger(classpath="airflow.triggers.testing.SuccessTrigger", kwargs={})
-    trigger_on_unhealthy_triggerer.triggerer_id = unhealthy_triggerer.id
-    session.add(trigger_on_unhealthy_triggerer)
-    ti_trigger_on_unhealthy_triggerer = create_task_instance(
-        task_id="ti_trigger_on_unhealthy_triggerer",
-        logical_date=time_now + datetime.timedelta(hours=1),
-        run_id="trigger_on_unhealthy_triggerer_run_id",
-    )
-    ti_trigger_on_unhealthy_triggerer.trigger_id = trigger_on_unhealthy_triggerer.id
-    session.add(ti_trigger_on_unhealthy_triggerer)
-    trigger_on_killed_triggerer = Trigger(classpath="airflow.triggers.testing.SuccessTrigger", kwargs={})
-    trigger_on_killed_triggerer.triggerer_id = finished_triggerer.id
-    session.add(trigger_on_killed_triggerer)
-    ti_trigger_on_killed_triggerer = create_task_instance(
-        task_id="ti_trigger_on_killed_triggerer",
-        logical_date=time_now + datetime.timedelta(hours=2),
-        run_id="trigger_on_killed_triggerer_run_id",
-    )
-    ti_trigger_on_killed_triggerer.trigger_id = trigger_on_killed_triggerer.id
-    session.add(ti_trigger_on_killed_triggerer)
-    trigger_unassigned_to_triggerer = Trigger(classpath="airflow.triggers.testing.SuccessTrigger", kwargs={})
-    session.add(trigger_unassigned_to_triggerer)
-    ti_trigger_unassigned_to_triggerer = create_task_instance(
-        task_id="ti_trigger_unassigned_to_triggerer",
-        logical_date=time_now + datetime.timedelta(hours=3),
-        run_id="trigger_unassigned_to_triggerer_run_id",
-    )
-    ti_trigger_unassigned_to_triggerer.trigger_id = trigger_unassigned_to_triggerer.id
-    session.add(ti_trigger_unassigned_to_triggerer)
-    assert trigger_unassigned_to_triggerer.triggerer_id is None
-    session.commit()
-    assert session.scalar(select(func.count()).select_from(Trigger)) == 4
-    Trigger.assign_unassigned(new_triggerer.id, 100, health_check_threshold=30)
-    session.expire_all()
-    # Check that trigger on killed triggerer and unassigned trigger are assigned to new triggerer
-    assert (
-        session.scalar(select(Trigger).where(Trigger.id == trigger_on_killed_triggerer.id)).triggerer_id
-        == new_triggerer.id
-    )
-    assert (
-        session.scalar(select(Trigger).where(Trigger.id == trigger_unassigned_to_triggerer.id)).triggerer_id
-        == new_triggerer.id
-    )
-    # Check that trigger on healthy triggerer still assigned to existing triggerer
-    assert (
-        session.scalar(select(Trigger).where(Trigger.id == trigger_on_healthy_triggerer.id)).triggerer_id
-        == healthy_triggerer.id
-    )
-    # Check that trigger on unhealthy triggerer is assigned to new triggerer
-    assert (
-        session.scalar(select(Trigger).where(Trigger.id == trigger_on_unhealthy_triggerer.id)).triggerer_id
-        == new_triggerer.id
-    )
+    queue = "custom_q_name" if use_queues else None
+    queues = {queue} if isinstance(queue, str) else None
+    with conf_vars({("triggerer", "queues_enabled"): str(use_queues)}):
+        finished_triggerer = create_triggerer(
+            session, State.SUCCESS, end_date=time_now - datetime.timedelta(hours=1), queues=queues
+        )
+        assert not finished_triggerer.is_alive()
+        healthy_triggerer = create_triggerer(session, State.RUNNING, latest_heartbeat=time_now, queues=queues)
+        assert healthy_triggerer.is_alive()
+        new_triggerer = create_triggerer(session, State.RUNNING, latest_heartbeat=time_now, queues=queues)
+        assert new_triggerer.is_alive()
+        # This triggerer's last heartbeat is older than the check threshold, expect
+        # its triggers to be taken by other healthy triggerers below
+        unhealthy_triggerer = create_triggerer(
+            session, State.RUNNING, latest_heartbeat=time_now - datetime.timedelta(seconds=100), queues=queues
+        )
+        # Triggerer is not healthy, its last heartbeat was too long ago
+        assert not unhealthy_triggerer.is_alive()
+        session.commit()
+
+        trigger_on_healthy_triggerer = create_trigger(
+            session=session,
+            name="trigger_on_healthy_triggerer",
+            logical_date=time_now,
+            triggerer_id=healthy_triggerer.id,
+            queue=queue,
+        )
+
+        trigger_on_unhealthy_triggerer = create_trigger(
+            session=session,
+            name="trigger_on_unhealthy_triggerer",
+            logical_date=time_now + datetime.timedelta(hours=1),
+            triggerer_id=unhealthy_triggerer.id,
+            queue=queue,
+        )
+
+        trigger_on_killed_triggerer = create_trigger(
+            session=session,
+            name="trigger_on_killed_triggerer",
+            logical_date=time_now + datetime.timedelta(hours=2),
+            triggerer_id=finished_triggerer.id,
+            queue=queue,
+        )
+
+        trigger_unassigned_to_triggerer = create_trigger(
+            session=session,
+            name="trigger_unassigned_to_triggerer",
+            logical_date=time_now + datetime.timedelta(hours=3),
+            triggerer_id=None,
+            queue=queue,
+        )
+
+        trigger_explicit_bad_queue_unassigned_to_triggerer = create_trigger(
+            session=session,
+            name="trigger_explicit_bad_queue_unassigned_to_triggerer_bad_q_name",
+            logical_date=time_now + datetime.timedelta(hours=4),
+            triggerer_id=None,
+            queue="bad_q_name",
+        )
+
+        assert trigger_unassigned_to_triggerer.triggerer_id is None
+        assert trigger_explicit_bad_queue_unassigned_to_triggerer.triggerer_id is None
+        session.commit()
+        assert session.scalar(select(func.count()).select_from(Trigger)) == 5
+        Trigger.assign_unassigned(new_triggerer.id, capacity=100, health_check_threshold=30, queues=queues)
+        session.expire_all()
+        # Check that trigger on killed triggerer and unassigned trigger are assigned to new triggerer
+        assert (
+            session.scalar(select(Trigger).where(Trigger.id == trigger_on_killed_triggerer.id)).triggerer_id
+            == new_triggerer.id
+        )
+        assert (
+            session.scalar(
+                select(Trigger).where(Trigger.id == trigger_unassigned_to_triggerer.id)
+            ).triggerer_id
+            == new_triggerer.id
+        )
+        # Check that unassigned trigger with a queue value which has no consuming triggerers remains unassigned
+        assert (
+            session.scalar(
+                select(Trigger).where(Trigger.id == trigger_explicit_bad_queue_unassigned_to_triggerer.id)
+            ).triggerer_id
+            is None
+        )
+        # Check that trigger on healthy triggerer still assigned to existing triggerer
+        assert (
+            session.scalar(select(Trigger).where(Trigger.id == trigger_on_healthy_triggerer.id)).triggerer_id
+            == healthy_triggerer.id
+        )
+        # Check that trigger on unhealthy triggerer is assigned to new triggerer
+        assert (
+            session.scalar(
+                select(Trigger).where(Trigger.id == trigger_on_unhealthy_triggerer.id)
+            ).triggerer_id
+            == new_triggerer.id
+        )
 
 
 @pytest.mark.need_serialized_dag
-def test_get_sorted_triggers_same_priority_weight(session, create_task_instance):
+@conf_vars({("triggerer", "queues_enabled"): "True"})
+def test_assign_unassigned_with_qeueus(session, create_triggerer, create_trigger) -> None:
+    """Ensures trigger assignment is handled properly when the `triggerer.queues_enabled` option is set to `True`."""
+    time_now = timezone.utcnow()
+    single_q = "custom_q_name"
+    team1_q = "team1"
+    team2_q = "team2"
+    # Queue name which no triggerers are set to consume from
+    bad_q_name = "bad_q"
+    triggerers_and_qs: list[tuple[Job, set[str] | None]] = []
+    one_q_triggerer = create_triggerer(session, State.RUNNING, latest_heartbeat=time_now, queues={single_q})
+    triggerers_and_qs.append((one_q_triggerer, {single_q}))
+    assert one_q_triggerer.is_alive()
+    multi_q_triggerer = create_triggerer(
+        session, State.RUNNING, latest_heartbeat=time_now, queues={team1_q, team2_q}
+    )
+    triggerers_and_qs.append((multi_q_triggerer, {team1_q, team2_q}))
+    assert multi_q_triggerer.is_alive()
+    no_q_triggerer = create_triggerer(session, State.RUNNING, latest_heartbeat=time_now, queues=None)
+    triggerers_and_qs.append((no_q_triggerer, None))
+    assert no_q_triggerer.is_alive()
+    session.commit()
+    dates = [time_now + datetime.timedelta(hours=i) for i in range(5)]
+    # This should only be assigned to one_q_triggerer.
+    trigger_single_q = create_trigger(
+        session=session, name="trigger_single_q", logical_date=dates[0], triggerer_id=None, queue=single_q
+    )
+    # This should only be assigned to multi_q_triggerer.
+    trigger_team1_q = create_trigger(
+        session=session, name="trigger_team1_q", logical_date=dates[1], triggerer_id=None, queue=team1_q
+    )
+    # This should only be assigned to multi_q_triggerer.
+    trigger_team2_q = create_trigger(
+        session=session, name="trigger_team2_q", logical_date=dates[2], triggerer_id=None, queue=team2_q
+    )
+    # This should only be assigned to the triggerer which is not consuming from any queues (e.g. no_q_triggerer).
+    trigger_no_queue = create_trigger(
+        session=session, name="trigger_no_queue", logical_date=dates[3], triggerer_id=None, queue=None
+    )
+    # This should never get assigned since no triggerers are consuming from this queue value.
+    trigger_bad_q = create_trigger(
+        session=session, name="trigger_bad_q", logical_date=dates[4], triggerer_id=None, queue=bad_q_name
+    )
+
+    for trig in [trigger_single_q, trigger_team1_q, trigger_team2_q, trigger_no_queue, trigger_bad_q]:
+        assert trig.triggerer_id is None
+    session.commit()
+    assert session.scalar(select(func.count()).select_from(Trigger)) == 5
+    # Call assign_unassigned against all triggerers
+    for triggerer, triggerer_queues in triggerers_and_qs:
+        Trigger.assign_unassigned(
+            triggerer.id, capacity=100, health_check_threshold=30, queues=triggerer_queues
+        )
+    session.expire_all()
+    # Ensure trigger_single_q (queue value: 'custom_q_name') is assigned to one_q_triggerer
+    assert (
+        session.scalar(select(Trigger).where(Trigger.id == trigger_single_q.id)).triggerer_id
+        == one_q_triggerer.id
+    ), f"Trigger with queue '{single_q}' was not assigned to triggerer consuming from that queue."
+    # Ensure trigger_team1_q (queue value: 'team1') is assigned to multi_q_triggerer
+    assert (
+        session.scalar(select(Trigger).where(Trigger.id == trigger_team1_q.id)).triggerer_id
+        == multi_q_triggerer.id
+    ), f"Trigger with queue '{team1_q}' was not assigned to triggerer consuming from that queue."
+    # Ensure trigger_team2_q (queue value: 'team2') is assigned to multi_q_triggerer
+    assert (
+        session.scalar(select(Trigger).where(Trigger.id == trigger_team2_q.id)).triggerer_id
+        == multi_q_triggerer.id
+    ), f"Trigger with queue '{team2_q}' was not assigned to triggerer consuming from that queue."
+    # Ensure trigger_no_queue (queue value: `None`) is assigned to no_q_triggerer (queues: `None`)
+    assert (
+        session.scalar(select(Trigger).where(Trigger.id == trigger_no_queue.id)).triggerer_id
+        == no_q_triggerer.id
+    ), (
+        "Trigger with no queue should only be assigned to triggerers with no `--queues` constraint, but was not."
+    )
+    # Check that unassigned trigger with a queue value which has no consuming triggerers remains unassigned
+    assert session.scalar(select(Trigger).where(Trigger.id == trigger_bad_q.id)).triggerer_id is None, (
+        f"Trigger with queue '{bad_q_name}' should not be assigned to any triggerers since no triggerers reference it."
+    )
+
+
+def test_queue_column_max_len_matches_ti_column_max_len() -> None:
+    """Ensures that the `trigger.queue` column has the same max length as the `task_instance.queue` column."""
+    expected_queue_col_max_length_from_ti = TaskInstance.queue.property.columns[0].type.length
+    trigger_queue_col_max_length = Trigger.queue.property.columns[0].type.length
+    assert trigger_queue_col_max_length == expected_queue_col_max_length_from_ti
+
+
+@pytest.mark.need_serialized_dag
+@pytest.mark.parametrize("use_queues", [False, True])
+def test_get_sorted_triggers_same_priority_weight(session, create_task_instance, use_queues: bool):
     """
     Tests that triggers are sorted by the creation_date if they have the same priority.
     """
     old_logical_date = datetime.datetime(
         2023, 5, 9, 12, 16, 14, 474415, tzinfo=pytz.timezone("Africa/Abidjan")
     )
-    trigger_old = Trigger(
-        classpath="airflow.triggers.testing.SuccessTrigger",
-        kwargs={},
-        created_date=old_logical_date + datetime.timedelta(seconds=30),
-    )
-    session.add(trigger_old)
-    TI_old = create_task_instance(
-        task_id="old",
-        logical_date=old_logical_date,
-        run_id="old_run_id",
-    )
-    TI_old.priority_weight = 1
-    TI_old.trigger_id = trigger_old.id
-    session.add(TI_old)
+    # Whether or not trigger queues are used should have no impact on the matched trigger sort order.
+    queue = "fake_trigger_q_name" if use_queues else None
+    queues = {queue} if isinstance(queue, str) else None
+    with conf_vars({("triggerer", "queues_enabled"): str(use_queues)}):
+        trigger_old = Trigger(
+            classpath="airflow.triggers.testing.SuccessTrigger",
+            kwargs={},
+            created_date=old_logical_date + datetime.timedelta(seconds=30),
+            queue=queue,
+        )
+        session.add(trigger_old)
+        TI_old = create_task_instance(task_id="old", logical_date=old_logical_date, run_id="old_run_id")
+        TI_old.priority_weight = 1
+        TI_old.trigger_id = trigger_old.id
+        session.add(TI_old)
 
-    new_logical_date = datetime.datetime(
-        2023, 5, 9, 12, 17, 14, 474415, tzinfo=pytz.timezone("Africa/Abidjan")
-    )
-    trigger_new = Trigger(
-        classpath="airflow.triggers.testing.SuccessTrigger",
-        kwargs={},
-        created_date=new_logical_date + datetime.timedelta(seconds=30),
-    )
-    session.add(trigger_new)
-    TI_new = create_task_instance(
-        task_id="new",
-        logical_date=new_logical_date,
-        run_id="new_run_id",
-    )
-    TI_new.priority_weight = 1
-    TI_new.trigger_id = trigger_new.id
-    session.add(TI_new)
-    trigger_orphan = Trigger(
-        classpath="airflow.triggers.testing.TriggerOrphan",
-        kwargs={},
-        created_date=new_logical_date,
-    )
-    session.add(trigger_orphan)
-    trigger_asset = Trigger(
-        classpath="airflow.triggers.testing.TriggerAsset",
-        kwargs={},
-        created_date=new_logical_date,
-    )
-    session.add(trigger_asset)
-    trigger_callback = Trigger(
-        classpath="airflow.triggers.testing.TriggerCallback",
-        kwargs={},
-        created_date=new_logical_date,
-    )
-    session.add(trigger_callback)
-    session.commit()
-    assert session.scalar(select(func.count()).select_from(Trigger)) == 5
-    # Create assets
-    asset = AssetModel("test")
-    asset.add_trigger(trigger_asset, "test_asset_watcher")
-    session.add(asset)
-    # Create callback with trigger
-    callback = TriggererCallback(callback_def=AsyncCallback("classpath.callback"))
-    callback.trigger = trigger_callback
-    session.add(callback)
-    session.commit()
+        new_logical_date = datetime.datetime(
+            2023, 5, 9, 12, 17, 14, 474415, tzinfo=pytz.timezone("Africa/Abidjan")
+        )
+        trigger_new = Trigger(
+            classpath="airflow.triggers.testing.SuccessTrigger",
+            kwargs={},
+            created_date=new_logical_date + datetime.timedelta(seconds=30),
+            queue=queue,
+        )
+        session.add(trigger_new)
+        TI_new = create_task_instance(
+            task_id="new",
+            logical_date=new_logical_date,
+            run_id="new_run_id",
+        )
+        TI_new.priority_weight = 1
+        TI_new.trigger_id = trigger_new.id
+        session.add(TI_new)
+        trigger_orphan = Trigger(
+            classpath="airflow.triggers.testing.TriggerOrphan",
+            kwargs={},
+            created_date=new_logical_date,
+            queue=queue,
+        )
+        session.add(trigger_orphan)
+        trigger_asset = Trigger(
+            classpath="airflow.triggers.testing.TriggerAsset",
+            kwargs={},
+            created_date=new_logical_date,
+            queue=queue,
+        )
+        session.add(trigger_asset)
+        trigger_callback = Trigger(
+            classpath="airflow.triggers.testing.TriggerCallback",
+            kwargs={},
+            created_date=new_logical_date,
+            queue=queue,
+        )
+        session.add(trigger_callback)
+        session.commit()
+        assert session.scalar(select(func.count()).select_from(Trigger)) == 5
+        # Create assets
+        asset = AssetModel("test")
+        asset.add_trigger(trigger_asset, "test_asset_watcher")
+        session.add(asset)
+        # Create callback with trigger
+        callback = TriggererCallback(callback_def=AsyncCallback("classpath.callback"))
+        callback.trigger = trigger_callback
+        session.add(callback)
+        session.commit()
 
-    trigger_ids_query = Trigger.get_sorted_triggers(capacity=100, alive_triggerer_ids=[], session=session)
+        trigger_ids_query = Trigger.get_sorted_triggers(
+            capacity=100, alive_triggerer_ids=[], queues=queues, session=session
+        )
 
-    # Callback triggers should be first, followed by task triggers, then asset triggers
-    assert trigger_ids_query == [
-        (trigger_callback.id,),
-        (trigger_old.id,),
-        (trigger_new.id,),
-        (trigger_asset.id,),
-    ]
+        # Callback triggers should be first, followed by task triggers, then asset triggers
+        assert trigger_ids_query == [
+            (trigger_callback.id,),
+            (trigger_old.id,),
+            (trigger_new.id,),
+            (trigger_asset.id,),
+        ]
 
 
 @pytest.mark.need_serialized_dag
-def test_get_sorted_triggers_different_priority_weights(session, create_task_instance):
+@pytest.mark.parametrize("use_queues", [False, True])
+def test_get_sorted_triggers_different_priority_weights(session, create_task_instance, use_queues: bool):
     """
     Tests that triggers are sorted by the priority_weight.
     """
-    callback_triggers = [
-        Trigger(classpath="airflow.triggers.testing.CallbackTrigger", kwargs={}),
-        Trigger(classpath="airflow.triggers.testing.CallbackTrigger", kwargs={}),
-        Trigger(classpath="airflow.triggers.testing.CallbackTrigger", kwargs={}),
-    ]
-    session.add_all(callback_triggers)
-    session.flush()
+    # Whether or not trigger queues are used should have no impact on the matched trigger sort order.
+    queue = "fake_trigger_q_name" if use_queues else None
+    queues = {queue} if isinstance(queue, str) else None
+    with conf_vars({("triggerer", "queues_enabled"): str(use_queues)}):
+        callback_triggers = [
+            Trigger(classpath="airflow.triggers.testing.CallbackTrigger", kwargs={}),
+            Trigger(classpath="airflow.triggers.testing.CallbackTrigger", kwargs={}),
+            Trigger(classpath="airflow.triggers.testing.CallbackTrigger", kwargs={}),
+        ]
+        session.add_all(callback_triggers)
+        session.flush()
 
-    callbacks = [
-        TriggererCallback(callback_def=AsyncCallback("classpath.low"), priority_weight=1),
-        TriggererCallback(callback_def=AsyncCallback("classpath.mid"), priority_weight=5),
-        TriggererCallback(callback_def=AsyncCallback("classpath.high"), priority_weight=10),
-    ]
-    for callback, trigger in zip(callbacks, callback_triggers):
-        callback.trigger = trigger
-    session.add_all(callbacks)
+        callbacks = [
+            TriggererCallback(callback_def=AsyncCallback("classpath.low"), priority_weight=1),
+            TriggererCallback(callback_def=AsyncCallback("classpath.mid"), priority_weight=5),
+            TriggererCallback(callback_def=AsyncCallback("classpath.high"), priority_weight=10),
+        ]
+        for callback, trigger in zip(callbacks, callback_triggers):
+            callback.trigger = trigger
+        session.add_all(callbacks)
 
-    old_logical_date = datetime.datetime(
-        2023, 5, 9, 12, 16, 14, 474415, tzinfo=pytz.timezone("Africa/Abidjan")
-    )
-    trigger_old = Trigger(
-        classpath="airflow.triggers.testing.SuccessTrigger",
-        kwargs={},
-        created_date=old_logical_date + datetime.timedelta(seconds=30),
-    )
-    session.add(trigger_old)
-    TI_old = create_task_instance(
-        task_id="old",
-        logical_date=old_logical_date,
-        run_id="old_run_id",
-    )
-    TI_old.priority_weight = 1
-    TI_old.trigger_id = trigger_old.id
-    session.add(TI_old)
+        old_logical_date = datetime.datetime(
+            2023, 5, 9, 12, 16, 14, 474415, tzinfo=pytz.timezone("Africa/Abidjan")
+        )
+        trigger_old = Trigger(
+            classpath="airflow.triggers.testing.SuccessTrigger",
+            kwargs={},
+            created_date=old_logical_date + datetime.timedelta(seconds=30),
+            queue=queue,
+        )
+        session.add(trigger_old)
+        TI_old = create_task_instance(
+            task_id="old",
+            logical_date=old_logical_date,
+            run_id="old_run_id",
+        )
+        TI_old.priority_weight = 1
+        TI_old.trigger_id = trigger_old.id
+        session.add(TI_old)
 
-    new_logical_date = datetime.datetime(
-        2023, 5, 9, 12, 17, 14, 474415, tzinfo=pytz.timezone("Africa/Abidjan")
-    )
-    trigger_new = Trigger(
-        classpath="airflow.triggers.testing.SuccessTrigger",
-        kwargs={},
-        created_date=new_logical_date + datetime.timedelta(seconds=30),
-    )
-    session.add(trigger_new)
-    TI_new = create_task_instance(
-        task_id="new",
-        logical_date=new_logical_date,
-        run_id="new_run_id",
-    )
-    TI_new.priority_weight = 2
-    TI_new.trigger_id = trigger_new.id
-    session.add(TI_new)
+        new_logical_date = datetime.datetime(
+            2023, 5, 9, 12, 17, 14, 474415, tzinfo=pytz.timezone("Africa/Abidjan")
+        )
+        trigger_new = Trigger(
+            classpath="airflow.triggers.testing.SuccessTrigger",
+            kwargs={},
+            created_date=new_logical_date + datetime.timedelta(seconds=30),
+            queue=queue,
+        )
+        session.add(trigger_new)
+        TI_new = create_task_instance(
+            task_id="new",
+            logical_date=new_logical_date,
+            run_id="new_run_id",
+        )
+        TI_new.priority_weight = 2
+        TI_new.trigger_id = trigger_new.id
+        session.add(TI_new)
 
-    session.commit()
-    assert session.scalar(select(func.count()).select_from(Trigger)) == 5
+        session.commit()
+        assert session.scalar(select(func.count()).select_from(Trigger)) == 5
 
-    trigger_ids_query = Trigger.get_sorted_triggers(capacity=100, alive_triggerer_ids=[], session=session)
+        trigger_ids_query = Trigger.get_sorted_triggers(
+            capacity=100, queues=queues, alive_triggerer_ids=[], session=session
+        )
 
-    assert trigger_ids_query == [
-        (callback_triggers[2].id,),
-        (callback_triggers[1].id,),
-        (callback_triggers[0].id,),
-        (trigger_new.id,),
-        (trigger_old.id,),
-    ]
+        if use_queues:
+            assert trigger_ids_query == [(trigger_new.id,), (trigger_old.id,)]
+            trigger_ids_query_no_queue = Trigger.get_sorted_triggers(
+                capacity=100, queues=None, alive_triggerer_ids=[], session=session
+            )
+            # Callback triggers should not have a queue assignment
+            assert trigger_ids_query_no_queue == [
+                (callback_triggers[2].id,),
+                (callback_triggers[1].id,),
+                (callback_triggers[0].id,),
+            ]
+        else:
+            assert trigger_ids_query == [
+                (callback_triggers[2].id,),
+                (callback_triggers[1].id,),
+                (callback_triggers[0].id,),
+                (trigger_new.id,),
+                (trigger_old.id,),
+            ]
 
 
 @pytest.mark.need_serialized_dag
@@ -554,6 +725,7 @@ def test_get_sorted_triggers_dont_starve_for_ha(session, create_task_instance):
     starvation in HA setups. When capacity is large, it should limit triggers per loop
     to avoid one triggerer picking up too many triggers.
     """
+    # Whether or not trigger queues are used should not fundamentally change trigger capacity logic.
     # Create 20 callback triggers with different priorities
     callback_triggers = []
     for i in range(20):
@@ -572,9 +744,7 @@ def test_get_sorted_triggers_dont_starve_for_ha(session, create_task_instance):
     for i in range(20):
         logical_date = datetime.datetime(2023, 5, 9, 12, i, 0, tzinfo=pytz.timezone("UTC"))
         trigger = Trigger(
-            classpath="airflow.triggers.testing.SuccessTrigger",
-            kwargs={},
-            created_date=logical_date,
+            classpath="airflow.triggers.testing.SuccessTrigger", kwargs={}, created_date=logical_date
         )
         session.add(trigger)
         session.flush()
@@ -593,9 +763,7 @@ def test_get_sorted_triggers_dont_starve_for_ha(session, create_task_instance):
     for i in range(20):
         logical_date = datetime.datetime(2023, 5, 9, 13, i, 0, tzinfo=pytz.timezone("UTC"))
         trigger = Trigger(
-            classpath="airflow.triggers.testing.AssetTrigger",
-            kwargs={},
-            created_date=logical_date,
+            classpath="airflow.triggers.testing.AssetTrigger", kwargs={}, created_date=logical_date
         )
         session.add(trigger)
         session.flush()
@@ -611,7 +779,9 @@ def test_get_sorted_triggers_dont_starve_for_ha(session, create_task_instance):
     with patch.object(Trigger, "max_trigger_to_select_per_loop", 5):
         # Test with large capacity (100) - should respect max_trigger_to_select_per_loop (5)
         # and return only 5 triggers from each category (callback, task, asset)
-        trigger_ids_query = Trigger.get_sorted_triggers(capacity=100, alive_triggerer_ids=[], session=session)
+        trigger_ids_query = Trigger.get_sorted_triggers(
+            capacity=100, alive_triggerer_ids=[], session=session, queues=None
+        )
 
         # Should get 5 callbacks (max_trigger_to_select_per_loop), then 5 tasks, then 5 assets
         # Total: 15 triggers instead of all 60
@@ -631,11 +801,71 @@ def test_get_sorted_triggers_dont_starve_for_ha(session, create_task_instance):
 
         # Test with capacity smaller than max_trigger_to_select_per_loop
         # Should respect capacity instead
-        trigger_ids_query = Trigger.get_sorted_triggers(capacity=3, alive_triggerer_ids=[], session=session)
+        trigger_ids_query = Trigger.get_sorted_triggers(
+            capacity=3, alive_triggerer_ids=[], session=session, queues=None
+        )
 
         # Should get only 3 callback triggers (capacity limit)
         assert len(trigger_ids_query) == 3
         assert [row[0] for row in trigger_ids_query] == callback_ids[:3]
+
+
+@pytest.mark.need_serialized_dag
+@conf_vars({("triggerer", "queues_enabled"): "True"})
+def test_get_sorted_triggers_dont_starve_for_ha_with_queues(session, create_task_instance):
+    """
+    Tests that get_sorted_triggers respects max_trigger_to_select_per_loop when trigger queue assignment
+    is enabled. When capacity is large, it should limit triggers per loop to avoid one triggerer picking
+    up too many triggers.
+    """
+    # Whether or not trigger queues are used should not fundamentally change trigger capacity logic.
+
+    # Create 20 task instance triggers with different priorities
+    task_triggers = []
+    queue = "fake_q"
+    for i in range(20):
+        logical_date = datetime.datetime(2023, 5, 9, 12, i, 0, tzinfo=pytz.timezone("UTC"))
+        trigger = Trigger(
+            classpath="airflow.triggers.testing.SuccessTrigger",
+            kwargs={},
+            created_date=logical_date,
+            queue=queue,
+        )
+        session.add(trigger)
+        session.flush()
+        ti = create_task_instance(task_id=f"task_{i}", logical_date=logical_date, run_id=f"run_{i}")
+        ti.priority_weight = 20 - i
+        ti.trigger_id = trigger.id
+        session.add(ti)
+        task_triggers.append(trigger)
+
+    session.commit()
+    assert session.scalar(select(func.count()).select_from(Trigger)) == 20
+
+    # Mock max_trigger_to_select_per_loop to 5 for testing
+    with patch.object(Trigger, "max_trigger_to_select_per_loop", 5):
+        # Test with large capacity (100) - should respect max_trigger_to_select_per_loop (5)
+        # and return only 5 task triggers
+        trigger_ids_query = Trigger.get_sorted_triggers(
+            capacity=100, alive_triggerer_ids=[], session=session, queues={queue}
+        )
+
+        # Should get 5 task triggers out of a total of 20
+        assert len(trigger_ids_query) == 5
+
+        # 5 task triggers should be the highest priority ones
+        task_ids = [t.id for t in task_triggers[:5]]
+        assert [row[0] for row in trigger_ids_query[:5]] == task_ids
+
+        # Test with capacity smaller than max_trigger_to_select_per_loop
+        # Should respect capacity instead
+        trigger_ids_query = Trigger.get_sorted_triggers(
+            capacity=3, alive_triggerer_ids=[], session=session, queues={queue}
+        )
+
+        # Should get only 3 task triggers (capacity limit)
+        assert len(trigger_ids_query) == 3
+        assert [row[0] for row in trigger_ids_query] == task_ids[:3]
 
 
 class SensitiveKwargsTrigger(BaseTrigger):
