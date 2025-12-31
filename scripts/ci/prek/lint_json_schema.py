@@ -19,7 +19,7 @@
 # requires-python = ">=3.10,<3.11"
 # dependencies = [
 #   "jsonschema>=3.2.0,<5.0",
-#   "pyyaml>=6.0.2",
+#   "pyyaml>=6.0.3",
 #   "requests==2.32.3",
 #   "rich>=13.6.0",
 # ]
