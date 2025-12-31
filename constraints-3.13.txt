@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-12-31T02:27:50.355764
+# This constraints file was automatically generated on 2025-12-31T13:57:59.116488
 # via `uv pip install --resolution highest` for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -625,7 +625,7 @@ vine==5.1.0
 watchfiles==1.1.1
 watchtower==3.4.0
 wcwidth==0.2.14
-weaviate-client==4.19.0
+weaviate-client==4.19.2
 webencodings==0.5.1
 websocket-client==1.8.0
 websockets==15.0.1
