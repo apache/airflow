@@ -24,6 +24,7 @@ classifiers = [
 ]
 
 dependencies = [
+    "methodtools>=0.4.7",
 ]
 
 [dependency-groups]
