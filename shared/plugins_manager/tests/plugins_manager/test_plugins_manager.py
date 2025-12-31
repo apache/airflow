@@ -24,6 +24,12 @@ from unittest import mock
 
 import pytest
 
+from airflow_shared.plugins_manager.plugins_manager import (
+    EntryPointSource,
+    PluginsDirectorySource,
+    _load_entrypoint_plugins,
+)
+
 
 @pytest.fixture
 def mock_metadata_distribution(mocker):
@@ -41,10 +47,12 @@ def mock_metadata_distribution(mocker):
 
 
 class TestPluginsDirectorySource:
-    def test_should_return_correct_path_name(self):
-        from airflow_shared.plugins_manager import plugins_manager
+    def test_should_return_correct_path_name(self, tmp_path):
+        plugins_folder = str(tmp_path)
+        test_file = tmp_path / "test_plugins_manager.py"
+        test_file.write_text("# test file")
 
-        source = plugins_manager.PluginsDirectorySource(__file__)
+        source = PluginsDirectorySource(str(test_file), plugins_folder)
         assert source.path == "test_plugins_manager.py"
         assert str(source) == "$PLUGINS_FOLDER/test_plugins_manager.py"
         assert source.__html__() == "<em>$PLUGINS_FOLDER/</em>test_plugins_manager.py"
@@ -52,11 +60,10 @@ class TestPluginsDirectorySource:
 
 class TestEntryPointSource:
     def test_should_return_correct_source_details(self, mock_metadata_distribution):
-        from airflow_shared.plugins_manager import plugins_manager
-
         mock_entrypoint = mock.Mock()
         mock_entrypoint.name = "test-entrypoint-plugin"
         mock_entrypoint.module = "module_name_plugin"
+        mock_entrypoint.group = "airflow.plugins"
 
         mock_dist = mock.Mock()
         mock_dist.metadata = {"Name": "test-entrypoint-plugin"}
@@ -64,9 +71,9 @@ class TestEntryPointSource:
         mock_dist.entry_points = [mock_entrypoint]
 
         with mock_metadata_distribution(return_value=[mock_dist]):
-            plugins_manager._load_entrypoint_plugins()
+            _load_entrypoint_plugins()
 
-        source = plugins_manager.EntryPointSource(mock_entrypoint, mock_dist)
+        source = EntryPointSource(mock_entrypoint, mock_dist)
         assert str(mock_entrypoint) == source.entrypoint
         assert "test-entrypoint-plugin==1.0.0: " + str(mock_entrypoint) == str(source)
         assert "<em>test-entrypoint-plugin==1.0.0:</em> " + str(mock_entrypoint) == source.__html__()
@@ -77,8 +84,6 @@ class TestPluginsManager:
         """
         Test that Airflow does not raise an error if there is any Exception because of a plugin.
         """
-        from airflow_shared.plugins_manager import plugins_manager
-
         mock_dist = mock.Mock()
         mock_dist.metadata = {"Name": "test-dist"}
 
@@ -93,7 +98,7 @@ class TestPluginsManager:
             mock_metadata_distribution(return_value=[mock_dist]),
             caplog.at_level(logging.ERROR, logger="airflow_shared.plugins_manager.plugins_manager"),
         ):
-            _, import_errors = plugins_manager._load_entrypoint_plugins()
+            _, import_errors = _load_entrypoint_plugins()
 
             received_logs = caplog.text
             # Assert Traceback is shown too
