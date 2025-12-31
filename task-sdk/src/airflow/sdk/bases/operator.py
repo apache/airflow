@@ -38,6 +38,8 @@ import attrs
 from airflow.sdk import TriggerRule, timezone
 from airflow.sdk._shared.secrets_masker import redact
 from airflow.sdk.definitions._internal.abstractoperator import (
+    DEFAULT_EMAIL_ON_FAILURE,
+    DEFAULT_EMAIL_ON_RETRY,
     DEFAULT_IGNORE_FIRST_DEPENDS_ON_PAST,
     DEFAULT_OWNER,
     DEFAULT_POOL_NAME,
@@ -219,8 +221,8 @@ class _PartialDescriptor:
 OPERATOR_DEFAULTS: dict[str, Any] = {
     "allow_nested_operators": True,
     "depends_on_past": False,
-    "email_on_failure": True,
-    "email_on_retry": True,
+    "email_on_failure": DEFAULT_EMAIL_ON_FAILURE,
+    "email_on_retry": DEFAULT_EMAIL_ON_RETRY,
     "execution_timeout": DEFAULT_TASK_EXECUTION_TIMEOUT,
     # "executor": DEFAULT_EXECUTOR,
     "executor_config": {},
@@ -830,8 +832,8 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
     task_id: str
     owner: str = DEFAULT_OWNER
     email: str | Sequence[str] | None = None
-    email_on_retry: bool = True
-    email_on_failure: bool = True
+    email_on_retry: bool = DEFAULT_EMAIL_ON_RETRY
+    email_on_failure: bool = DEFAULT_EMAIL_ON_FAILURE
     retries: int | None = DEFAULT_RETRIES
     retry_delay: timedelta = DEFAULT_RETRY_DELAY
     retry_exponential_backoff: float = 0
@@ -988,8 +990,8 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         task_id: str,
         owner: str = DEFAULT_OWNER,
         email: str | Sequence[str] | None = None,
-        email_on_retry: bool = True,
-        email_on_failure: bool = True,
+        email_on_retry: bool = DEFAULT_EMAIL_ON_RETRY,
+        email_on_failure: bool = DEFAULT_EMAIL_ON_FAILURE,
         retries: int | None = DEFAULT_RETRIES,
         retry_delay: timedelta | float = DEFAULT_RETRY_DELAY,
         retry_exponential_backoff: float = 0,
