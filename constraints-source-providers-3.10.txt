@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-12-31T13:53:36.491818
+# This constraints file was automatically generated on 2025-12-31T19:44:48.450781
 # via `uv sync --resolution highest for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider distributions.
@@ -505,7 +505,7 @@ pybreaker==1.4.1
 pycountry==24.6.1
 pycparser==2.23
 pycryptodome==3.23.0
-pydantic-extra-types==2.10.6
+pydantic-extra-types==2.11.0
 pydantic-settings==2.12.0
 pydantic==2.12.5
 pydantic_core==2.41.5
@@ -580,8 +580,8 @@ rich-toolkit==0.17.1
 rich==13.9.4
 rpds-py==0.30.0
 rsa==4.9.1
-ruamel.yaml.clib==0.2.15
-ruamel.yaml==0.18.17
+ruamel.yaml.clibz==0.3.4
+ruamel.yaml==0.19.0
 ruff==0.14.10
 s3fs==2025.12.0
 s3transfer==0.15.0
