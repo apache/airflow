@@ -1,3 +1,4 @@
+#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -14,24 +15,36 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+
+"""
+Add ``queue`` column to ``trigger`` table.
+
+Revision ID: c47f2e1ab9d4
+Revises: edc4f85a4619
+Create Date: 2025-12-09 20:30:40.500001
+
+"""
+
 from __future__ import annotations
 
-from datetime import datetime
-from typing import Annotated
+import sqlalchemy as sa
+from alembic import op
 
-from pydantic import BeforeValidator, ConfigDict
+# revision identifiers, used by Alembic.
+revision = "c47f2e1ab9d4"
+down_revision = "edc4f85a4619"
+branch_labels = None
+depends_on = None
+airflow_version = "3.2.0"
 
-from airflow.api_fastapi.core_api.base import BaseModel
+
+def upgrade():
+    """Add ``queue`` column in trigger table."""
+    with op.batch_alter_table("trigger") as batch_op:
+        batch_op.add_column(sa.Column("queue", sa.String(length=256), nullable=True))
 
 
-class TriggerResponse(BaseModel):
-    """Trigger serializer for responses."""
-
-    model_config = ConfigDict(populate_by_name=True)
-
-    id: int
-    classpath: str
-    kwargs: Annotated[str, BeforeValidator(str)]
-    created_date: datetime
-    queue: str | None
-    triggerer_id: int | None
+def downgrade():
+    """Remove ``queue`` column from trigger table."""
+    with op.batch_alter_table("trigger") as batch_op:
+        batch_op.drop_column("queue")
