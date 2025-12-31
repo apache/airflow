@@ -543,7 +543,7 @@ class XComOperations:
     ) -> OKResponse:
         """Delete XCom entry(ies) via the API server."""
         url = f"xcoms/{dag_id}/{run_id}"
-        params = {}
+        params: dict[str, str | int] = {}
 
         if map_index is not None and map_index >= 0:
             params["map_index"] = map_index
