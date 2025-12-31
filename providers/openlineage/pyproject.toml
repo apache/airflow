@@ -70,7 +70,7 @@ dependencies = [
 # Any change in the dependencies is preserved when the file is regenerated
 [project.optional-dependencies]
 "sqlalchemy" = [
-    "sqlalchemy[asyncio]>=1.4.49",
+    "sqlalchemy>=1.4.49",
 ]
 
 [dependency-groups]

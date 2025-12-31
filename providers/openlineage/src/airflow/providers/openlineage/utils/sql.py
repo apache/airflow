@@ -28,12 +28,8 @@ from openlineage.client.facet_v2 import schema_dataset
 
 from airflow.exceptions import AirflowOptionalProviderFeatureException
 
-try:
-    from sqlalchemy import Column, MetaData, Table, and_, or_, union_all
-except ImportError:
-    Column = MetaData = Table = and_ = or_ = union_all = None
-
 if TYPE_CHECKING:
+    from sqlalchemy import Table
     from sqlalchemy.engine import Engine
     from sqlalchemy.sql.elements import ColumnElement
 
@@ -163,14 +159,9 @@ def create_information_schema_query(
     sqlalchemy_engine: Engine | None = None,
 ) -> str:
     """Create query for getting table schemas from information schema."""
-    if (
-        Column is None
-        or MetaData is None
-        or Table is None
-        or and_ is None
-        or or_ is None
-        or union_all is None
-    ):
+    try:
+        from sqlalchemy import Column, MetaData, Table, union_all
+    except ImportError:
         raise AirflowOptionalProviderFeatureException(
             "sqlalchemy is required for SQL schema query generation. "
             "Install it with: pip install 'apache-airflow-providers-openlineage[sqlalchemy]'"
@@ -235,7 +226,9 @@ def create_filter_clauses(
         therefore it is expected the table has them defined.
     :param uppercase_names: if True use schema and table names uppercase
     """
-    if and_ is None or or_ is None:
+    try:
+        from sqlalchemy import and_, or_
+    except ImportError:
         raise AirflowOptionalProviderFeatureException(
             "sqlalchemy is required for SQL filter clause generation. "
             "Install it with: pip install 'apache-airflow-providers-openlineage[sqlalchemy]'"
