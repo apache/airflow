@@ -626,7 +626,7 @@ class TestXComsDeleteEndpoint:
         session.commit()
 
         params = {"task_id": "task", "key": "xcom_1", "map_index": 1}
-        response = client.delete(f"/execution/xcoms/dag/runid", params=params)
+        response = client.delete("/execution/xcoms/dag/runid", params=params)
         assert response.status_code == 200
         assert response.json() == {"message": "XCom with key: xcom_1 successfully deleted."}
         xcoms = session.scalars(
