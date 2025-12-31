@@ -19,8 +19,6 @@
 
 from __future__ import annotations
 
-import importlib.machinery
-import importlib.util
 import inspect
 import logging
 import os
@@ -29,8 +27,6 @@ import types
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
-from airflow import settings
-from airflow.configuration import conf
 from airflow.utils.entry_points import entry_points_with_dist
 from airflow.utils.file import find_path_from_directory
 
@@ -60,8 +56,8 @@ class AirflowPluginSource:
 class PluginsDirectorySource(AirflowPluginSource):
     """Class used to define Plugins loaded from Plugins Directory."""
 
-    def __init__(self, path):
-        self.path = os.path.relpath(path, settings.PLUGINS_FOLDER)
+    def __init__(self, path, plugins_folder: str):
+        self.path = os.path.relpath(path, plugins_folder)
 
     def __str__(self):
         return f"$PLUGINS_FOLDER/{self.path}"
@@ -191,18 +187,23 @@ def _load_entrypoint_plugins() -> tuple[list[AirflowPlugin], dict[str, str]]:
     return plugins, import_errors
 
 
-def _load_plugins_from_plugin_directory() -> tuple[list[AirflowPlugin], dict[str, str]]:
+def _load_plugins_from_plugin_directory(
+    plugins_folder: str,
+    load_examples: bool = False,
+    example_plugins_module: str | None = None,
+) -> tuple[list[AirflowPlugin], dict[str, str]]:
     """Load and register Airflow Plugins from plugins directory."""
-    if settings.PLUGINS_FOLDER is None:
+    if not plugins_folder:
         raise ValueError("Plugins folder is not set")
-    log.debug("Loading plugins from directory: %s", settings.PLUGINS_FOLDER)
-    files = find_path_from_directory(settings.PLUGINS_FOLDER, ".airflowignore")
+    log.debug("Loading plugins from directory: %s", plugins_folder)
+    files = find_path_from_directory(plugins_folder, ".airflowignore")
     plugin_search_locations: list[tuple[str, Generator[str, None, None]]] = [("", files)]
 
-    if conf.getboolean("core", "LOAD_EXAMPLES"):
-        log.debug("Note: Loading plugins from examples as well: %s", settings.PLUGINS_FOLDER)
-        from airflow.example_dags import plugins as example_plugins
+    if load_examples:
+        log.debug("Note: Loading plugins from examples as well: %s", plugins_folder)
+        import importlib
 
+        example_plugins = importlib.import_module(example_plugins_module)
         example_plugins_folder = next(iter(example_plugins.__path__))
         example_files = find_path_from_directory(example_plugins_folder, ".airflowignore")
         plugin_search_locations.append((example_plugins.__name__, example_files))
@@ -228,7 +229,7 @@ def _load_plugins_from_plugin_directory() -> tuple[list[AirflowPlugin], dict[str
 
                 for mod_attr_value in (m for m in mod.__dict__.values() if is_valid_plugin(m)):
                     plugin_instance: AirflowPlugin = mod_attr_value()
-                    plugin_instance.source = PluginsDirectorySource(file_path)
+                    plugin_instance.source = PluginsDirectorySource(file_path, plugins_folder)
                     plugins.append(plugin_instance)
             except Exception as e:
                 log.exception("Failed to import plugin %s", file_path)
