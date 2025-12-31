@@ -399,10 +399,13 @@ class PostgresHook(DbApiHook):
 
         :return: the extracted URI in Sqlalchemy URI format.
         """
-        if URL is None:
-         raise AirflowOptionalProviderFeatureException(
-            "The 'sqlalchemy' library is required to render the connection URI."
-         )
+        try:
+             import sqlalchemy  # noqa: F401
+        except (ImportError, ModuleNotFoundError):
+            raise AirflowOptionalProviderFeatureException(
+                 "The 'sqlalchemy' library is required to render the connection URI."
+                 )   
+
 
         return self.sqlalchemy_url.render_as_string(hide_password=False)
 
