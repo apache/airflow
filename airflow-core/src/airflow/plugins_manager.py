@@ -29,11 +29,9 @@ from airflow import settings
 from airflow._shared.module_loading import import_string, qualname
 from airflow._shared.plugins_manager.plugins_manager import (
     AirflowPlugin,
-    AirflowPluginException,
     _load_entrypoint_plugins,
     _load_plugins_from_plugin_directory,
     is_valid_plugin,
-    make_module,
 )
 from airflow.task.priority_strategy import (
     PriorityWeightStrategy,
@@ -277,33 +275,27 @@ def get_hook_lineage_readers_plugins() -> list[type[HookLineageReader]]:
 @cache
 def integrate_macros_plugins() -> None:
     """Integrates macro plugins."""
+    from airflow._shared.plugins_manager.plugins_manager import (
+        integrate_macros_plugins as _integrate_macros_plugins,
+    )
     from airflow.sdk.execution_time import macros
 
-    log.debug("Integrate Macros plugins")
-
-    for plugin in _get_plugins()[0]:
-        if plugin.name is None:
-            raise AirflowPluginException("Invalid plugin name")
-
-        macros_module = make_module(f"airflow.sdk.execution_time.macros.{plugin.name}", plugin.macros)
-
-        if macros_module:
-            import sys
-
-            sys.modules[macros_module.__name__] = macros_module
-            # Register the newly created module on airflow.macros such that it
-            # can be accessed when rendering templates.
-            setattr(macros, plugin.name, macros_module)
+    plugins, _ = _get_plugins()
+    _integrate_macros_plugins(
+        macros_module=macros,
+        macros_module_name_prefix="airflow.sdk.execution_time.macros",
+        plugins=plugins,
+    )
 
 
 def integrate_listener_plugins(listener_manager: ListenerManager) -> None:
     """Add listeners from plugins."""
-    for plugin in _get_plugins()[0]:
-        if plugin.name is None:
-            raise AirflowPluginException("Invalid plugin name")
+    from airflow._shared.plugins_manager.plugins_manager import (
+        integrate_listener_plugins as _integrate_listener_plugins,
+    )
 
-        for listener in plugin.listeners:
-            listener_manager.add_listener(listener)
+    plugins, _ = _get_plugins()
+    _integrate_listener_plugins(listener_manager, plugins=plugins)
 
 
 def get_plugin_info(attrs_to_dump: Iterable[str] | None = None) -> list[dict[str, Any]]:
