@@ -129,15 +129,18 @@ test.describe("Backfills List Display", () => {
 
     await backfillPage.navigateToBackfillsTab(testDagId);
 
-    const backfillDetails = await backfillPage.getBackfillDetails(0);
+    const backfillDetails = await backfillPage.getBackfillDetailsByDateRange({
+      fromDate: createdFromDate,
+      toDate: createdToDate,
+    });
 
     expect(backfillDetails.fromDate.slice(0, 10)).toEqual(createdFromDate.slice(0, 10));
     expect(backfillDetails.toDate.slice(0, 10)).toEqual(createdToDate.slice(0, 10));
 
+    expect(backfillDetails.createdAt).not.toEqual("");
     const status = await backfillPage.getBackfillStatus();
 
-    expect(typeof status).toBe("string");
-    expect(backfillDetails.createdAt).not.toEqual("");
+    expect(status).not.toEqual("");
   });
 
   test("Verify backfill table filters", async ({ page }) => {

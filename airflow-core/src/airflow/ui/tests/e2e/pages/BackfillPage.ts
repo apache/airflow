@@ -35,6 +35,40 @@ export type VerifyBackfillOptions = {
   reprocessBehavior: ReprocessBehavior;
 };
 
+export type BackfillDetails = {
+  createdAt: string;
+  fromDate: string;
+  reprocessBehavior: string;
+  toDate: string;
+};
+
+export type BackfillRowIdentifier = {
+  fromDate: string;
+  toDate: string;
+};
+
+function normalizeDate(dateString: string): string {
+  const trimmed = dateString.trim();
+
+  if (trimmed.includes("T")) {
+    const parts = trimmed.split("T");
+
+    return parts[0] ?? trimmed;
+  }
+
+  if (trimmed.includes(" ")) {
+    const parts = trimmed.split(" ");
+
+    return parts[0] ?? trimmed;
+  }
+
+  return trimmed;
+}
+
+function datesMatch(date1: string, date2: string): boolean {
+  return normalizeDate(date1) === normalizeDate(date2);
+}
+
 export class BackfillPage extends BasePage {
   public readonly backfillDateError: Locator;
   public readonly backfillFromDateInput: Locator;
@@ -92,39 +126,83 @@ export class BackfillPage extends BasePage {
     await this.backfillRunButton.click({ timeout: 20_000 });
   }
 
-  // Get backfill details
-  public async getBackfillDetails(rowIndex: number = 0): Promise<{
-    createdAt: string;
-    fromDate: string;
-    reprocessBehavior: string;
-    toDate: string;
-  }> {
-    const row = this.page.locator("table tbody tr").nth(rowIndex);
+  public async findBackfillRowByDateRange(identifier: BackfillRowIdentifier): Promise<Locator> {
+    const { fromDate: expectedFrom, toDate: expectedTo } = identifier;
+
+    await this.backfillsTable.waitFor({ state: "visible", timeout: 10_000 });
+
+    const columnMap = await this.getColumnIndexMap();
+    const fromIndex = columnMap.get("From");
+    const toIndex = columnMap.get("To");
+
+    if (fromIndex === undefined || toIndex === undefined) {
+      const availableColumns = [...columnMap.keys()].join(", ");
+
+      throw new Error(
+        `Required columns "From" and/or "To" not found. Available columns: [${availableColumns}]`,
+      );
+    }
+
+    const rows = this.page.locator("table tbody tr");
+    const rowCount = await rows.count();
+
+    if (rowCount === 0) {
+      throw new Error(
+        `No backfill rows found in table. Expected to find backfill with From: "${expectedFrom}", To: "${expectedTo}"`,
+      );
+    }
+
+    for (let i = 0; i < rowCount; i++) {
+      const row = rows.nth(i);
+      const cells = row.locator("td");
+      const fromCell = (await cells.nth(fromIndex).textContent()) ?? "";
+      const toCell = (await cells.nth(toIndex).textContent()) ?? "";
+
+      if (datesMatch(fromCell, expectedFrom) && datesMatch(toCell, expectedTo)) {
+        return row;
+      }
+    }
+
+    const availableRows: Array<string> = [];
+
+    for (let i = 0; i < rowCount; i++) {
+      const row = rows.nth(i);
+      const cells = row.locator("td");
+      const fromCell = (await cells.nth(fromIndex).textContent()) ?? "";
+      const toCell = (await cells.nth(toIndex).textContent()) ?? "";
+
+      availableRows.push(`  Row ${i}: From="${fromCell.trim()}", To="${toCell.trim()}"`);
+    }
+
+    throw new Error(
+      `Backfill not found with From: "${expectedFrom}" (normalized: ${normalizeDate(expectedFrom)}), ` +
+        `To: "${expectedTo}" (normalized: ${normalizeDate(expectedTo)})\n` +
+        `Available rows:\n${availableRows.join("\n")}`,
+    );
+  }
+
+  public async getBackfillDetailsByDateRange(identifier: BackfillRowIdentifier): Promise<BackfillDetails> {
+    const row = await this.findBackfillRowByDateRange(identifier);
     const cells = row.locator("td");
+    const columnMap = await this.getColumnIndexMap();
 
-    await expect(row).toBeVisible({ timeout: 10_000 });
-
-    const headers = this.page.locator("table thead th");
-    const headerTexts = await headers.allTextContents();
-    const columnMap = new Map<string, number>(headerTexts.map((text, index) => [text.trim(), index]));
-
-    const fromDateIndex = columnMap.get("From") ?? 0;
-    const toDateIndex = columnMap.get("To") ?? 1;
-    const reprocessBehaviorIndex = columnMap.get("Reprocess Behavior") ?? 2;
+    const fromIndex = columnMap.get("From") ?? 0;
+    const toIndex = columnMap.get("To") ?? 1;
+    const reprocessIndex = columnMap.get("Reprocess Behavior") ?? 2;
     const createdAtIndex = columnMap.get("Created at") ?? 3;
 
-    await expect(row.first()).not.toBeEmpty();
-
-    const fromDateText = (await cells.nth(fromDateIndex).textContent()) ?? "";
-    const toDateText = (await cells.nth(toDateIndex).textContent()) ?? "";
-    const reprocessBehavior = (await cells.nth(reprocessBehaviorIndex).textContent()) ?? "";
-    const createdAt = (await cells.nth(createdAtIndex).textContent()) ?? "";
+    const [fromDate, toDate, reprocessBehavior, createdAt] = await Promise.all([
+      cells.nth(fromIndex).textContent(),
+      cells.nth(toIndex).textContent(),
+      cells.nth(reprocessIndex).textContent(),
+      cells.nth(createdAtIndex).textContent(),
+    ]);
 
     return {
-      createdAt: createdAt.trim(),
-      fromDate: fromDateText.trim(),
-      reprocessBehavior: reprocessBehavior.trim(),
-      toDate: toDateText.trim(),
+      createdAt: (createdAt ?? "").trim(),
+      fromDate: (fromDate ?? "").trim(),
+      reprocessBehavior: (reprocessBehavior ?? "").trim(),
+      toDate: (toDate ?? "").trim(),
     };
   }
 
@@ -140,36 +218,45 @@ export class BackfillPage extends BasePage {
     return await rows.count();
   }
 
-  public async getBackfillStatus(rowIndex: number = 0): Promise<string> {
-    const row = this.page.locator("table tbody tr").nth(rowIndex);
+  public async getBackfillStatus(): Promise<string> {
+    const statusIcon = this.page.getByTestId("state-badge").first();
 
-    await expect(row).toBeVisible({ timeout: 10_000 });
+    await expect(statusIcon).toBeVisible();
+    await statusIcon.click({ timeout: 20_000 });
 
-    const headers = this.page.locator("table thead th");
-    const headerTexts = await headers.allTextContents();
-    const statusIndex = headerTexts.findIndex((text) => text.toLowerCase().includes("status"));
+    const statusBadge = this.page.getByTestId("state-badge").first();
 
-    if (statusIndex === -1) {
-      const statusBadge = row
-        .locator('[data-testid="state-badge"], [class*="status"], [class*="badge"]')
-        .first();
-      const isVisible = await statusBadge.isVisible().catch(() => false);
+    await expect(statusBadge).toBeVisible();
 
-      if (isVisible) {
-        return (await statusBadge.textContent()) ?? "";
-      }
-
-      return "";
-    }
-
-    const statusCell = row.locator("td").nth(statusIndex);
-    const statusText = (await statusCell.textContent()) ?? "";
+    const statusText = (await statusBadge.textContent()) ?? "";
 
     return statusText.trim();
   }
 
   public getColumnHeader(columnName: string): Locator {
     return this.page.locator(`th:has-text("${columnName}")`);
+  }
+
+  public async getColumnIndex(columnName: string): Promise<number> {
+    const columnMap = await this.getColumnIndexMap();
+    const index = columnMap.get(columnName);
+
+    if (index === undefined) {
+      const availableColumns = [...columnMap.keys()].join(", ");
+
+      throw new Error(`Column "${columnName}" not found in table. Available columns: [${availableColumns}]`);
+    }
+
+    return index;
+  }
+
+  public async getColumnIndexMap(): Promise<Map<string, number>> {
+    const headers = this.page.locator("table thead th");
+
+    await headers.first().waitFor({ state: "visible", timeout: 10_000 });
+    const headerTexts = await headers.allTextContents();
+
+    return new Map(headerTexts.map((text, index) => [text.trim(), index]));
   }
 
   public getFilterButton(): Locator {
