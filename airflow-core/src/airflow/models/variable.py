@@ -29,7 +29,7 @@ from sqlalchemy.orm import Mapped, declared_attr, reconstructor, synonym
 
 from airflow._shared.secrets_masker import mask_secret
 from airflow.configuration import conf, ensure_secrets_loaded
-from airflow.models.base import ID_LEN, Base
+from airflow.models.base import ID_LEN, Base, has_execution_context
 from airflow.models.crypto import get_fernet
 from airflow.secrets.metastore import MetastoreBackend
 from airflow.utils.log.logging_mixin import LoggingMixin
@@ -147,15 +147,7 @@ class Variable(Base, LoggingMixin):
         :param deserialize_json: Deserialize the value to a Python dict
         :param team_name: Team name associated to the task trying to access the variable (if any)
         """
-        # TODO: This is not the best way of having compat, but it's "better than erroring" for now. This still
-        # means SQLA etc is loaded, but we can't avoid that unless/until we add import shims as a big
-        # back-compat layer
-
-        # If this is set it means we are in some kind of execution context (Task, Dag Parse or Triggerer perhaps)
-        # and should use the Task SDK API server path
-        from airflow.sdk.execution_time.task_runner import is_supervisor_comms_initialized
-
-        if is_supervisor_comms_initialized():
+        if has_execution_context():
             warnings.warn(
                 "Using Variable.get from `airflow.models` is deprecated."
                 "Please use `get` on Variable from sdk(`airflow.sdk.Variable`) instead",
@@ -209,15 +201,7 @@ class Variable(Base, LoggingMixin):
         :param team_name: Team name associated to the variable (if any)
         :param session: optional session, use if provided or create a new one
         """
-        # TODO: This is not the best way of having compat, but it's "better than erroring" for now. This still
-        # means SQLA etc is loaded, but we can't avoid that unless/until we add import shims as a big
-        # back-compat layer
-
-        # If this is set it means we are in some kind of execution context (Task, Dag Parse or Triggerer perhaps)
-        # and should use the Task SDK API server path
-        from airflow.sdk.execution_time.task_runner import is_supervisor_comms_initialized
-
-        if is_supervisor_comms_initialized():
+        if has_execution_context():
             warnings.warn(
                 "Using Variable.set from `airflow.models` is deprecated."
                 "Please use `set` on Variable from sdk(`airflow.sdk.Variable`) instead",
@@ -342,15 +326,7 @@ class Variable(Base, LoggingMixin):
         :param team_name: Team name associated to the variable (if any)
         :param session: optional session, use if provided or create a new one
         """
-        # TODO: This is not the best way of having compat, but it's "better than erroring" for now. This still
-        # means SQLA etc is loaded, but we can't avoid that unless/until we add import shims as a big
-        # back-compat layer
-
-        # If this is set it means are in some kind of execution context (Task, Dag Parse or Triggerer perhaps)
-        # and should use the Task SDK API server path
-        from airflow.sdk.execution_time.task_runner import is_supervisor_comms_initialized
-
-        if is_supervisor_comms_initialized():
+        if has_execution_context():
             warnings.warn(
                 "Using Variable.update from `airflow.models` is deprecated."
                 "Please use `set` on Variable from sdk(`airflow.sdk.Variable`) instead as it is an upsert.",
@@ -410,15 +386,7 @@ class Variable(Base, LoggingMixin):
         :param team_name: Team name associated to the task trying to delete the variable (if any)
         :param session: optional session, use if provided or create a new one
         """
-        # TODO: This is not the best way of having compat, but it's "better than erroring" for now. This still
-        # means SQLA etc is loaded, but we can't avoid that unless/until we add import shims as a big
-        # back-compat layer
-
-        # If this is set it means are in some kind of execution context (Task, Dag Parse or Triggerer perhaps)
-        # and should use the Task SDK API server path
-        from airflow.sdk.execution_time.task_runner import is_supervisor_comms_initialized
-
-        if is_supervisor_comms_initialized():
+        if has_execution_context():
             warnings.warn(
                 "Using Variable.delete from `airflow.models` is deprecated."
                 "Please use `delete` on Variable from sdk(`airflow.sdk.Variable`) instead",

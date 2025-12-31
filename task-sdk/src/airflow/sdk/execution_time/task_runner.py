@@ -805,21 +805,21 @@ class _SupervisorCommsHolder:
 def supervisor_send(msg: ToSupervisor) -> ToTask | None:
     """Send a message to the supervisor as convenience for get_supervisor_comms().send()."""
     if _SupervisorCommsHolder.comms is None:
-        raise RuntimeError("Supervisor comms not initialized yet")
+        raise RuntimeError("Supervisor comms not initialized yet. Call set_supervisor_comms() instead.")
     return _SupervisorCommsHolder.comms.send(msg)
 
 
 async def supervisor_asend(msg: ToSupervisor) -> ToTask | None:
     """Send a message to the supervisor as convenience for get_supervisor_comms().asend()."""
     if _SupervisorCommsHolder.comms is None:
-        raise RuntimeError("Supervisor comms not initialized yet")
+        raise RuntimeError("Supervisor comms not initialized yet. Call set_supervisor_comms() instead.")
     return await _SupervisorCommsHolder.comms.asend(msg)
 
 
 def get_supervisor_comms() -> CommsDecoder[ToTask, ToSupervisor]:
     """Get the global supervisor comms instance."""
     if _SupervisorCommsHolder.comms is None:
-        raise RuntimeError("Supervisor comms not initialized yet")
+        raise RuntimeError("Supervisor comms not initialized yet. Call set_supervisor_comms() instead.")
     return _SupervisorCommsHolder.comms
 
 

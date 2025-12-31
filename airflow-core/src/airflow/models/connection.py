@@ -33,7 +33,7 @@ from airflow._shared.module_loading import import_string
 from airflow._shared.secrets_masker import mask_secret
 from airflow.configuration import conf, ensure_secrets_loaded
 from airflow.exceptions import AirflowException, AirflowNotFoundException
-from airflow.models.base import ID_LEN, Base
+from airflow.models.base import ID_LEN, Base, has_execution_context
 from airflow.models.crypto import get_fernet
 from airflow.utils.helpers import prune_dict
 from airflow.utils.log.logging_mixin import LoggingMixin
@@ -499,15 +499,7 @@ class Connection(Base, LoggingMixin):
         :param team_name: Team name associated to the task trying to access the connection (if any)
         :return: connection
         """
-        # TODO: This is not the best way of having compat, but it's "better than erroring" for now. This still
-        # means SQLA etc is loaded, but we can't avoid that unless/until we add import shims as a big
-        # back-compat layer
-
-        # If this is set it means are in some kind of execution context (Task, Dag Parse or Triggerer perhaps)
-        # and should use the Task SDK API server path
-        from airflow.sdk.execution_time.task_runner import is_supervisor_comms_initialized
-
-        if is_supervisor_comms_initialized():
+        if has_execution_context():
             from airflow.sdk import Connection as TaskSDKConnection
             from airflow.sdk.exceptions import AirflowRuntimeError, ErrorType
 
@@ -591,9 +583,7 @@ class Connection(Base, LoggingMixin):
 
     @classmethod
     def from_json(cls, value, conn_id=None) -> Connection:
-        from airflow.sdk.execution_time.task_runner import is_supervisor_comms_initialized
-
-        if is_supervisor_comms_initialized():
+        if has_execution_context():
             from airflow.sdk import Connection as TaskSDKConnection
 
             warnings.warn(
