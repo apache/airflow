@@ -498,7 +498,7 @@ class AwsLambdaExecutor(BaseExecutor):
         :param heartbeat_interval: The interval in seconds to wait between checks for task completion.
         """
         self.log.info("Received signal to end, waiting for outstanding tasks to finish.")
-        time_to_wait = int(conf.get(CONFIG_GROUP_NAME, AllLambdaConfigKeys.END_WAIT_TIMEOUT))
+        time_to_wait = int(conf.get(CONFIG_GROUP_NAME, AllLambdaConfigKeys.END_WAIT_TIMEOUT, fallback="0"))
         start_time = timezone.utcnow()
         while True:
             if time_to_wait:
