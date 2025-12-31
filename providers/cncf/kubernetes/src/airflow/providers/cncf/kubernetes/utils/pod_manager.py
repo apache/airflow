@@ -907,12 +907,13 @@ class PodManager(LoggingMixin):
                 _preload_content=False,
             )
         ) as resp:
-            self._exec_pod_command(
-                resp,
+            alpine_fallback = (
                 "for f in /proc/[0-9]*/comm; do "
                 "[ -O $f ] && read c < $f && [ \"$c\" = \"sh\" ] && pid=${f%/comm} && kill -2 ${pid##*/}; "
-                "done",
+                "done"
             )
+            # Try original command first, fallback to /proc loop (Alpine/BusyBox)
+            self._exec_pod_command(resp, alpine_fallback)
 
     def _exec_pod_command(self, resp, command: str) -> str | None:
         res = ""
