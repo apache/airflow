@@ -25,20 +25,16 @@ from airflow.configuration import conf
 
 
 def _check_expose_config() -> bool:
-    display_sensitive: bool | None = None
     if conf.get("api", "expose_config").lower() == "non-sensitive-only":
         expose_config = True
-        display_sensitive = False
     else:
         expose_config = conf.getboolean("api", "expose_config")
-        display_sensitive = True
 
     if not expose_config:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Your Airflow administrator chose not to expose the configuration, most likely for security reasons.",
         )
-    return display_sensitive
 
 
 def _response_based_on_accept(accept: Mimetype, config: Config):
