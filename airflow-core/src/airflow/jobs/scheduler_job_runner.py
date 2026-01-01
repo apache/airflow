@@ -69,12 +69,12 @@ from airflow.models.asset import (
 from airflow.models.backfill import Backfill
 from airflow.models.callback import Callback
 from airflow.models.dag import DagModel, get_next_data_interval, get_run_data_interval
-from airflow.models.pool import normalize_pool_name_for_stats
 from airflow.models.dag_version import DagVersion
 from airflow.models.dagbag import DBDagBag
 from airflow.models.dagbundle import DagBundleModel
 from airflow.models.dagrun import DagRun
 from airflow.models.dagwarning import DagWarning, DagWarningType
+from airflow.models.pool import normalize_pool_name_for_stats
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.taskinstance import TaskInstance
 from airflow.models.team import Team

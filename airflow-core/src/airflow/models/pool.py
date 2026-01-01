@@ -36,10 +36,7 @@ from airflow.utils.state import TaskInstanceState
 if TYPE_CHECKING:
     from sqlalchemy.orm.session import Session
     from sqlalchemy.sql import Select
-
-
 logger = logging.getLogger(__name__)
-
 def normalize_pool_name_for_stats(name: str) -> str:
     """
     Normalize pool name for stats reporting by replacing invalid characters.
@@ -68,8 +65,6 @@ def normalize_pool_name_for_stats(name: str) -> str:
 
     return normalized
 
-
-
 class PoolStats(TypedDict):
     """Dictionary containing Pool Stats."""
 
@@ -79,8 +74,6 @@ class PoolStats(TypedDict):
     queued: int
     open: int | float  # Note: float("inf") is used to mark infinite slots
     scheduled: int
-
-
 class Pool(Base):
     """the class to get Pool info."""
 
