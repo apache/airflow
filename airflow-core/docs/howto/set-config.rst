@@ -42,7 +42,7 @@ You can redirect it to your configuration file and edit it:
 
 .. code-block:: bash
 
-    airflow config list --defaults --show-values > "${AIRFLOW_HOME}/airflow.cfg"
+    airflow config list --defaults > "${AIRFLOW_HOME}/airflow.cfg"
 
 .. note::
     By default, Airflow masks sensitive values (passwords, secrets, connection strings)
