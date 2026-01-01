@@ -16,7 +16,7 @@
 # under the License.
 from __future__ import annotations
 
-from fastapi import HTTPException, status, Request
+from fastapi import HTTPException, status
 from fastapi.responses import Response
 
 from airflow.api_fastapi.common.types import Mimetype
@@ -24,24 +24,16 @@ from airflow.api_fastapi.core_api.datamodels.config import Config
 from airflow.configuration import conf
 
 
-def _check_expose_config(request: Request | None = None) -> bool:
-    if conf.get("api", "expose_config").lower() == "non-sensitive-only":
-        expose_config = True
-    else:
-        expose_config = conf.getboolean("api", "expose_config")
-
-    if not expose_config:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Your Airflow administrator chose not to expose the configuration, most likely for security reasons.",
-        )
-    if request:
-        user_agent = request.headers.get("user-agent", "")
-        if "apache-airflow-ctl/" in user_agent:
-            return False
+def _check_expose_sensitive_config() -> bool:
     if conf.get("api", "expose_config").lower() == "non-sensitive-only":
         return False
-    return True
+    if conf.getboolean("api", "expose_config"):
+        return True
+
+    raise HTTPException(
+        status_code=status.HTTP_403_FORBIDDEN,
+        detail="Your Airflow administrator chose not to expose the configuration, most likely for security reasons.",
+    )
 
 
 def _response_based_on_accept(accept: Mimetype, config: Config):
