@@ -18,7 +18,7 @@ from __future__ import annotations
 
 import textwrap
 
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends, HTTPException, status, Request
 
 from airflow.api_fastapi.common.headers import HeaderAcceptJsonOrText
 from airflow.api_fastapi.common.router import AirflowRouter
@@ -91,9 +91,10 @@ config_router = AirflowRouter(tags=["Config"], prefix="/config")
 )
 def get_config(
     accept: HeaderAcceptJsonOrText,
+    request: Request,
     section: str | None = None,
 ):
-    display_sensitive = _check_expose_config()
+    display_sensitive = _check_expose_config(request)
 
     if section and not conf.has_section(section):
         raise HTTPException(
@@ -139,8 +140,9 @@ def get_config_value(
     section: str,
     option: str,
     accept: HeaderAcceptJsonOrText,
+    request: Request,
 ):
-    _check_expose_config()
+    _check_expose_config(request)
 
     if not conf.has_option(section, option):
         raise HTTPException(
