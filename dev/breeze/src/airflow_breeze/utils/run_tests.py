@@ -143,22 +143,25 @@ def run_docker_compose_tests(
                     )
                     sys.exit(1)
 
+    # Always with color
+    pytest_args = ["--color=yes"]
     if test_type == "task-sdk-integration":
         test_path = Path("tests") / "task_sdk_tests"
         cwd = TASK_SDK_INTEGRATION_TESTS_ROOT_PATH.as_posix()
+        pytest_args.append("-s")  # -s to see print outputs as they come
     elif test_type == "airflow-e2e-tests":
         test_path = Path("tests") / "airflow_e2e_tests" / f"{test_mode}_tests"
         cwd = AIRFLOW_E2E_TESTS_ROOT_PATH.as_posix()
+        pytest_args.append("-s")  # -s to see print outputs as they come
     elif test_type == "airflow-ctl-integration":
         test_path = Path("tests") / "airflowctl_tests" / "test_airflowctl_commands.py"
         cwd = AIRFLOW_CTL_TESTS_ROOT_PATH.as_posix()
     else:
         test_path = Path("tests") / "docker_tests" / "test_docker_compose_quick_start.py"
         cwd = DOCKER_TESTS_ROOT_PATH.as_posix()
+        pytest_args.append("-s")  # -s to see print outputs as they come
 
     all_tests = [test_path.as_posix()]
-    # Always with color and -s to see print outputs as they come
-    pytest_args = ["--color=yes", "-s"]
     if not any(pytest_arg.startswith("tests/") for pytest_arg in extra_pytest_args):
         # Only add all tests when no tests were specified on the command line
         pytest_args.extend(all_tests)
