@@ -3046,6 +3046,86 @@ def test_find_relevant_relatives_with_non_mapped_task_as_tuple(dag_maker, sessio
     assert result == {"t1"}
 
 
+@pytest.mark.parametrize("map_index", [0, 1, 2])
+def test_find_relevant_relatives_downstream_same_group_siblings(dag_maker, session, map_index):
+    """
+    Test that clearing a specific mapped task instance in a mapped task group
+    only clears downstream siblings with the same map_index (depth-first execution).
+
+    This tests the fix for issue #40543 where clearing etl.e[map_index] should only
+    clear etl.t[map_index] and etl.l[map_index], not all instances of etl.t[] and etl.l[].
+    """
+    files = ["a", "b", "c"]
+
+    with dag_maker(session=session) as dag:
+        @task_group(group_id="etl")
+        def etl_pipeline(file):
+            e = EmptyOperator(task_id="e")
+            t = EmptyOperator(task_id="t")
+            l = EmptyOperator(task_id="l")
+            e >> t >> l
+
+        etl = etl_pipeline.expand(file=files)
+
+    dr = dag_maker.create_dagrun(state="success")
+
+    # When clearing etl.e[map_index] with include_downstream=True,
+    # only etl.t[map_index] and etl.l[map_index] should be cleared (same map_index)
+    result = find_relevant_relatives(
+        normal_tasks=[],
+        mapped_tasks=[("etl.e", map_index)],
+        direction="downstream",
+        dag=dag,
+        run_id=dr.run_id,
+        session=session,
+    )
+
+    # Should only return t[map_index] and l[map_index], not all instances
+    expected = {("etl.t", map_index), ("etl.l", map_index)}
+    assert result == expected, (
+        f"Expected only siblings with same map_index ({map_index}), "
+        f"but got {result}. This violates depth-first execution."
+    )
+
+
+def test_find_relevant_relatives_upstream_same_group_siblings(dag_maker, session):
+    """
+    Test that clearing a specific mapped task instance in a mapped task group
+    only clears upstream siblings with the same map_index (depth-first execution).
+    """
+    files = ["a", "b", "c"]
+
+    with dag_maker(session=session) as dag:
+        @task_group(group_id="etl")
+        def etl_pipeline(file):
+            e = EmptyOperator(task_id="e")
+            t = EmptyOperator(task_id="t")
+            l = EmptyOperator(task_id="l")
+            e >> t >> l
+
+        etl = etl_pipeline.expand(file=files)
+
+    dr = dag_maker.create_dagrun(state="success")
+
+    # When clearing etl.l[1] with include_upstream=True,
+    # only etl.t[1] and etl.e[1] should be cleared (same map_index)
+    result = find_relevant_relatives(
+        normal_tasks=[],
+        mapped_tasks=[("etl.l", 1)],
+        direction="upstream",
+        dag=dag,
+        run_id=dr.run_id,
+        session=session,
+    )
+
+    # Should only return t[1] and e[1], not all instances
+    expected = {("etl.t", 1), ("etl.e", 1)}
+    assert result == expected, (
+        f"Expected only siblings with same map_index (1), "
+        f"but got {result}. This violates depth-first execution."
+    )
+
+
 def test_when_dag_run_has_partition_then_asset_does(dag_maker, session):
     asset = Asset(name="hello")
     with dag_maker(dag_id="asset_event_tester", schedule=None) as dag:

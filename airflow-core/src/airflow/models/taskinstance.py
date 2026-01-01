@@ -2180,6 +2180,15 @@ def _get_relevant_map_indexes(
     # between the ancestor and further expansion happened inside it.
 
     ancestor_ti_count = get_mapped_ti_count(common_ancestor, run_id, session=session)
+    
+    # Special case: If both tasks are siblings in the same mapped task group
+    # (ti_count == ancestor_ti_count), they share the same map_index.
+    # This ensures depth-first execution where each mapped instance operates independently.
+    if ti_count == ancestor_ti_count:
+        # Both task and relative are in the same mapped group with no further expansion.
+        # They should share the same map_index.
+        return map_index
+    
     ancestor_map_index = map_index * ancestor_ti_count // ti_count
 
     # If the task is NOT further expanded inside the common ancestor, we
