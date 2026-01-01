@@ -586,6 +586,9 @@ class DagModel(Base):
 
         any_deactivated = False
         for dm in dag_models:
+            # Skip DAGs with None relative_fileloc - they will be updated when parsed
+            if dm.relative_fileloc is None:
+                continue
             if dm.relative_fileloc not in rel_filelocs:
                 dm.is_stale = True
                 any_deactivated = True

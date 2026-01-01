@@ -318,8 +318,16 @@ class DagFileProcessorManager(LoggingMixin):
             # last_parsed_time is the processor_timeout. Longer than that indicates that the DAG is
             # no longer present in the file. We have a stale_dag_threshold configured to prevent a
             # significant delay in deactivation of stale dags when a large timeout is configured
+
+            # Skip DAGs with None relative_fileloc - they will be updated when parsed
+            if dag.relative_fileloc is None:
+                continue
+
             file_info = DagFileInfo(rel_path=Path(dag.relative_fileloc), bundle_name=dag.bundle_name)
             if last_finish_time := last_parsed.get(file_info, None):
+                # Skip DAGs with None last_parsed_time - they will be updated when parsed
+                if dag.last_parsed_time is None:
+                    continue
                 if dag.last_parsed_time + timedelta(seconds=self.stale_dag_threshold) < last_finish_time:
                     self.log.info("DAG %s is missing and will be deactivated.", dag.dag_id)
                     to_deactivate.add(dag.dag_id)
@@ -616,6 +624,14 @@ class DagFileProcessorManager(LoggingMixin):
 
     def deactivate_deleted_dags(self, bundle_name: str, present: set[DagFileInfo]) -> None:
         """Deactivate DAGs that come from files that are no longer present in bundle."""
+        # Guard against empty file list - don't mark all DAGs stale if no files found.
+        # This could happen due to transient filesystem issues (NFS delays, volume mount issues, etc.)
+        if not present:
+            self.log.warning(
+                "No DAG files found in bundle %s. Skipping deactivation to avoid marking all DAGs stale.",
+                bundle_name,
+            )
+            return
 
         def find_zipped_dags(abs_path: os.PathLike) -> Iterator[str]:
             """

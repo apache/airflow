@@ -838,6 +838,170 @@ class TestDagFileProcessorManager:
         else:
             mock_remove_references.assert_not_called()
 
+    def test_deactivate_deleted_dags_skips_empty_file_list(self, dag_maker, session, caplog):
+        """Test that deactivate_deleted_dags skips deactivation when file list is empty.
+
+        This is a safeguard against transient filesystem issues (NFS delays, volume mounts)
+        that could cause an empty file list to be returned, which would otherwise mark
+        all DAGs in the bundle as stale.
+        """
+        with dag_maker("test_dag1") as dag1:
+            dag1.relative_fileloc = "test_dag1.py"
+        with dag_maker("test_dag2") as dag2:
+            dag2.relative_fileloc = "test_dag2.py"
+        dag_maker.sync_dagbag_to_db()
+
+        manager = DagFileProcessorManager(max_runs=1)
+
+        # Pass an empty set of files - this simulates a transient filesystem issue
+        manager.deactivate_deleted_dags("dag_maker", set())
+
+        # Both DAGs should still be active since we skipped deactivation
+        assert session.get(DagModel, "test_dag1").is_stale is False
+        assert session.get(DagModel, "test_dag2").is_stale is False
+
+        # Check that a warning was logged
+        assert "No DAG files found in bundle" in caplog.text
+        assert "Skipping deactivation" in caplog.text
+
+    def test_deactivate_deleted_dags_skips_null_relative_fileloc(self, dag_maker, session):
+        """Test that DAGs with None relative_fileloc are not marked stale.
+
+        A DAG with relative_fileloc=None should be skipped during the deleted dags check,
+        as it will be updated when the DAG file is properly parsed.
+        """
+        # Create a DAG with relative_fileloc set
+        with dag_maker("test_dag_with_fileloc") as dag1:
+            dag1.relative_fileloc = "test_dag1.py"
+        dag_maker.sync_dagbag_to_db()
+
+        # Create a DAG model with None relative_fileloc (manually)
+        dag_model_null = DagModel(
+            dag_id="test_dag_null_fileloc",
+            bundle_name="dag_maker",
+            relative_fileloc=None,
+        )
+        session.add(dag_model_null)
+        session.commit()
+
+        # Active files only include test_dag1.py
+        active_files = [
+            DagFileInfo(
+                bundle_name="dag_maker",
+                rel_path=Path("test_dag1.py"),
+                bundle_path=TEST_DAGS_FOLDER,
+            ),
+        ]
+
+        manager = DagFileProcessorManager(max_runs=1)
+        manager.deactivate_deleted_dags("dag_maker", active_files)
+
+        # The DAG with relative_fileloc should remain active
+        assert session.get(DagModel, "test_dag_with_fileloc").is_stale is False
+        # The DAG with None relative_fileloc should also remain active (skipped)
+        assert session.get(DagModel, "test_dag_null_fileloc").is_stale is False
+
+    @pytest.mark.usefixtures("testing_dag_bundle")
+    def test_scan_stale_dags_skips_null_last_parsed_time(self, session):
+        """Test that DAGs with None last_parsed_time are not marked stale.
+
+        A DAG with last_parsed_time=None should be skipped during the stale dags check,
+        as it will be updated when the DAG file is properly parsed.
+        """
+        manager = DagFileProcessorManager(
+            max_runs=1,
+            processor_timeout=10 * 60,
+        )
+        bundle = MagicMock()
+        bundle.name = "testing"
+        manager._dag_bundles = [bundle]
+
+        # Create a DAG model with None last_parsed_time
+        dag_model = DagModel(
+            dag_id="test_dag_null_last_parsed",
+            bundle_name="testing",
+            relative_fileloc="test_dag.py",
+            last_parsed_time=None,  # Explicitly None
+        )
+        session.add(dag_model)
+        session.commit()
+
+        test_dag_path = DagFileInfo(
+            bundle_name="testing",
+            rel_path=Path("test_dag.py"),
+            bundle_path=TEST_DAGS_FOLDER,
+        )
+
+        # Add file stats that would trigger stale detection if last_parsed_time was set
+        stat = DagFileStat(
+            num_dags=1,
+            import_errors=0,
+            last_finish_time=timezone.utcnow() + timedelta(hours=1),
+            last_duration=1,
+            run_count=1,
+            last_num_of_db_queries=1,
+        )
+        manager._file_stats[test_dag_path] = stat
+
+        # Before running scan, the DAG should be active
+        assert session.get(DagModel, "test_dag_null_last_parsed").is_stale is False
+
+        manager._scan_stale_dags()
+
+        # After running scan, the DAG should still be active (skipped due to None last_parsed_time)
+        session.expire_all()  # Clear cache
+        assert session.get(DagModel, "test_dag_null_last_parsed").is_stale is False
+
+    @pytest.mark.usefixtures("testing_dag_bundle")
+    def test_scan_stale_dags_skips_null_relative_fileloc(self, session):
+        """Test that DAGs with None relative_fileloc are not marked stale in scan_stale_dags.
+
+        A DAG with relative_fileloc=None should be skipped during the stale dags check
+        because we can't construct a valid DagFileInfo to look up in file stats.
+        """
+        manager = DagFileProcessorManager(
+            max_runs=1,
+            processor_timeout=10 * 60,
+        )
+        bundle = MagicMock()
+        bundle.name = "testing"
+        manager._dag_bundles = [bundle]
+
+        # Create a DAG model with None relative_fileloc
+        dag_model = DagModel(
+            dag_id="test_dag_null_fileloc",
+            bundle_name="testing",
+            relative_fileloc=None,  # Explicitly None
+            last_parsed_time=timezone.utcnow() - timedelta(hours=2),
+        )
+        session.add(dag_model)
+        session.commit()
+
+        # Add some file stats (not related to the DAG with null fileloc)
+        test_dag_path = DagFileInfo(
+            bundle_name="testing",
+            rel_path=Path("other_dag.py"),
+            bundle_path=TEST_DAGS_FOLDER,
+        )
+        stat = DagFileStat(
+            num_dags=1,
+            import_errors=0,
+            last_finish_time=timezone.utcnow() + timedelta(hours=1),
+            last_duration=1,
+            run_count=1,
+            last_num_of_db_queries=1,
+        )
+        manager._file_stats[test_dag_path] = stat
+
+        # Before running scan, the DAG should be active
+        assert session.get(DagModel, "test_dag_null_fileloc").is_stale is False
+
+        manager._scan_stale_dags()
+
+        # After running scan, the DAG should still be active (skipped due to None relative_fileloc)
+        session.expire_all()  # Clear cache
+        assert session.get(DagModel, "test_dag_null_fileloc").is_stale is False
+
     @conf_vars({("core", "load_examples"): "False"})
     def test_fetch_callbacks_from_database(self, configure_testing_dag_bundle):
         """Test _fetch_callbacks returns callbacks ordered by priority_weight desc."""
