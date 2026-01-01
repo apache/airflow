@@ -21,7 +21,7 @@ function make_mnt_writeable {
     lsblk
     sudo blkid
     echo "Check that we have expected /mnt to be a separate mount"
-    if ! lsblk | grep -q /NegativeTest; then
+    if ! lsblk | grep -q /mnt; then
         echo "/mnt is missing as a separate mount, runner misconfigured!"
         exit 42
     fi
