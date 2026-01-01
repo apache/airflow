@@ -187,6 +187,15 @@ class CustomUserDBModelView(MultiResourceUserMixin, UserDBModelView):
         "conf_password",
     ]
 
+    edit_columns = [
+        "first_name",
+        "last_name",
+        "username",
+        "active",
+        "email",
+        "roles",
+    ]
+
     validators_columns = {"roles": [DataRequired()]}
 
     base_permissions = [
