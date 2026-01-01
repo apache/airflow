@@ -430,6 +430,12 @@ repos:
           ^airflow-core/src/airflow/migrations/versions/.*$|
           ^airflow-core/src/airflow/migrations/versions|
           ^airflow-core/src/airflow/utils/db\.py$
+      - id: check-no-orm-in-migrations
+        name: Check that Alembic migrations do not use ORM models
+        language: python
+        entry: ./dev/check_no_orm_in_migrations.py
+        pass_filenames: false
+        files: ^airflow-core/src/airflow/migrations/versions/.*\.py$
       - id: update-version
         name: Update versions in docs
         entry: ./scripts/ci/prek/update_versions.py

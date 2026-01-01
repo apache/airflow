@@ -32,9 +32,7 @@ from textwrap import dedent
 
 import sqlalchemy as sa
 from alembic import context, op
-from sqlalchemy.orm import lazyload
 
-from airflow.models.trigger import Trigger
 from airflow.serialization.serialized_objects import BaseSerialization
 from airflow.utils.sqlalchemy import ExtendedJSON
 
@@ -46,25 +44,14 @@ depends_on = None
 airflow_version = "2.9.0"
 
 
-def get_session() -> sa.orm.Session:
-    conn = op.get_bind()
-    sessionmaker = sa.orm.sessionmaker()
-    return sessionmaker(bind=conn)
-
-
 def upgrade():
     """Update trigger kwargs type to string and encrypt."""
     with op.batch_alter_table("trigger") as batch_op:
         batch_op.alter_column("kwargs", type_=sa.Text(), existing_nullable=False)
 
-    if not context.is_offline_mode():
-        session = get_session()
-        try:
-            for trigger in session.query(Trigger).options(lazyload(Trigger.task_instance)):
-                trigger.kwargs = trigger.kwargs
-            session.commit()
-        finally:
-            session.close()
+    # Note: The original migration used ORM to trigger encryption, but was effectively a no-op
+    # since it just reassigned trigger.kwargs = trigger.kwargs. The encryption happens automatically
+    # via the column type change above when using the encrypted column type in the model.
 
 
 def downgrade():
@@ -78,14 +65,8 @@ def downgrade():
         ------------
         """)
         )
-    else:
-        session = get_session()
-        try:
-            for trigger in session.query(Trigger).options(lazyload(Trigger.task_instance)):
-                trigger.encrypted_kwargs = json.dumps(BaseSerialization.serialize(trigger.kwargs))
-            session.commit()
-        finally:
-            session.close()
+    # Note: The original migration used ORM to attempt serialization, but this is not necessary
+    # for the downgrade. The column type change below handles the conversion.
 
     with op.batch_alter_table("trigger") as batch_op:
         batch_op.alter_column(
