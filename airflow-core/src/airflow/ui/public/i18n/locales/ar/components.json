@@ -62,6 +62,13 @@
     "warning_two": "تحذيران",
     "warning_zero": "لا يوجد أي تحذير"
   },
+  "dateRangeFilter": {
+    "validation": {
+      "invalidDateFormat": "Invalid date format.",
+      "invalidTimeFormat": "Invalid time format.",
+      "startBeforeEnd": "Start date/time must be before end date/time"
+    }
+  },
   "durationChart": {
     "duration": "المدة (بالثواني)",
     "lastDagRun_few": "آخر {{count}} تشغيلات Dag",
@@ -141,10 +148,16 @@
   "sortedDescending": "الترتيب تنازلي",
   "sortedUnsorted": "غير مرتب",
   "taskTries": "محاولات المهمة",
+  "taskTryPlaceholder": "Task Try",
   "toggleCardView": "عرض البطاقة",
   "toggleTableView": "عرض الجدول",
   "triggerDag": {
     "button": "تشغيل",
+    "dataInterval": "Data Interval",
+    "dataIntervalAuto": "Inferred from Logical Date and Timetable",
+    "dataIntervalManual": "Specify Manually",
+    "intervalEnd": "End",
+    "intervalStart": "Start",
     "loading": "جارٍ تحميل معلومات Dag...",
     "loadingFailed": "فشل تحميل معلومات Dag. يرجى المحاولة مرة أخرى.",
     "runIdHelp": "اختياري - سيتم توليده تلقائيًا إذا لم يتم توفيره.",
@@ -152,6 +165,9 @@
     "selectLabel": "تشغيلة واحدة",
     "title": "تشغيل Dag",
     "toaster": {
+      "error": {
+        "title": "Failed to Trigger Dag"
+      },
       "success": {
         "description": "تم تشغيل عملية Dag بنجاح.",
         "title": "تم تشغيل Dag"
@@ -172,6 +188,7 @@
     "versionId": "معرف الإصدار"
   },
   "versionSelect": {
+    "allVersions": "All Versions",
     "dagVersion": "إصدار Dag",
     "versionCode": "v{{versionCode}}"
   }

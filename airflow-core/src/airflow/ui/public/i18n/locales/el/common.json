@@ -60,6 +60,7 @@
     "dataIntervalEnd": "Τέλος Διαστήματος Δεδομένων",
     "dataIntervalStart": "Έναρξη Διαστήματος Δεδομένων",
     "lastSchedulingDecision": "Τελευταία Απόφαση Προγραμματισμού",
+    "partitionKey": "Partition key",
     "queuedAt": "Σε Ουρά Στις",
     "runAfter": "Εκτέλεση Μετά",
     "runType": "Τύπος Εκτέλεσης",
@@ -73,18 +74,30 @@
   "dagWarnings": "Προειδοποιήσεις/Σφάλματα Dag",
   "defaultToGraphView": "Προεπιλογή σε γραφική προβολή",
   "defaultToGridView": "Προεπιλογή σε πλέγμα",
+  "delete": "Delete",
+  "diff": "Diff",
+  "diffCompareWith": "Compare with",
+  "diffExit": "Exit Diff",
+  "diffSelectVersionToCompare": "Select version to compare",
   "direction": "Κατεύθυνση",
   "docs": {
     "documentation": "Τεκμηρίωση",
     "githubRepo": "Αποθετήριο GitHub",
     "restApiReference": "REST API Αναφορά"
   },
+  "download": {
+    "download": "Download",
+    "hotkey": "d",
+    "tooltip": "Press {{hotkey}} to download logs"
+  },
   "duration": "Διάρκεια",
+  "edit": "Edit",
   "endDate": "Ημερομηνία Λήξης",
   "error": {
     "back": "Πίσω",
     "defaultMessage": "Παρουσιάστηκε απρόσμενο σφάλμα",
     "home": "Αρχική",
+    "invalidUrl": "Page Not Found. Please check the URL and try again.",
     "notFound": "Η σελίδα δεν βρέθηκε",
     "title": "Σφάλμα"
   },
@@ -105,22 +118,27 @@
   "filters": {
     "durationFrom": "Διάρκεια Από",
     "durationTo": "Διάρκεια Έως",
+    "endTime": "End Time",
     "logicalDateFrom": "Λογική Ημερομηνία Από",
     "logicalDateTo": "Λογική Ημερομηνία Έως",
     "runAfterFrom": "Εκτέλεση Μετά Από",
-    "runAfterTo": "Εκτέλεση Μετά Έως"
+    "runAfterTo": "Εκτέλεση Μετά Έως",
+    "selectDateRange": "Select Date Range",
+    "startTime": "Start Time"
   },
   "logicalDate": "Λογική Ημερομηνία",
   "logout": "Αποσύνδεση",
   "logoutConfirmation": "Πρόκειται να αποσυνδεθείτε από την εφαρμογή.",
   "mapIndex": "Δείκτης Χάρτη",
   "modal": {
+    "add": "Add",
     "cancel": "Ακύρωση",
     "confirm": "Επιβεβαίωση",
     "delete": {
       "button": "Διαγραφή",
       "confirmation": "Είστε σίγουροι ότι θέλετε να διαγράψετε το {{resourceName}}; Αυτή η ενέργεια δεν μπορεί να αναιρεθεί."
-    }
+    },
+    "save": "Save"
   },
   "nav": {
     "admin": "Διαχείριση",
@@ -174,6 +192,7 @@
   },
   "selectLanguage": "Επιλογή Γλώσσας",
   "showDetailsPanel": "Εμφάνιση Πίνακα Λεπτομερειών",
+  "signedInAs": "Signed in as",
   "source": {
     "hide": "Απόκρυψη Πηγαίου Κώδικα",
     "hotkey": "s",

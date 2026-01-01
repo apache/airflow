@@ -55,6 +55,12 @@
     "searchPlaceholder": "Pesquisar Conexões",
     "test": "Testar Conexão",
     "testDisabled": "A funcionalidade de teste de conexão está desativada. Por favor, contate um administrador para ativá-la.",
+    "testError": {
+      "title": "Test Connection Failed"
+    },
+    "testSuccess": {
+      "title": "Test Connection Successful"
+    },
     "typeMeta": {
       "error": "Falha ao recuperar Meta do Tipo de Conexão",
       "standardFields": {

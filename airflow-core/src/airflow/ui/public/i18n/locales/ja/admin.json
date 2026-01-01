@@ -49,6 +49,12 @@
     "searchPlaceholder": "接続を検索",
     "test": "接続をテストする",
     "testDisabled": "接続をテストする機能は無効化されています。有効化するには管理者に問い合わせてください",
+    "testError": {
+      "title": "接続テスト失敗"
+    },
+    "testSuccess": {
+      "title": "接続テスト成功"
+    },
     "typeMeta": {
       "error": "接続タイプの取得に失敗しました",
       "standardFields": {

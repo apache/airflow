@@ -34,6 +34,10 @@
       "error": "Falha ao limpar {{type}}",
       "title": "Limpar {{type}}"
     },
+    "confirmationDialog": {
+      "description": "Task is currently in a {{state}} state started by user {{user}} at {{time}}. \nThe user is unable to clear this task until it is done running or a user unchecks the \"Prevent rerun if task is running\" option in the clear task dialog.",
+      "title": "Cannot Clear Task Instance"
+    },
     "delete": {
       "button": "Excluir {{type}}",
       "dialog": {
@@ -61,6 +65,7 @@
       "future": "Futuro",
       "onlyFailed": "Limpar somente tarefas falhadas",
       "past": "Passado",
+      "preventRunningTasks": "Prevent rerun if task is running",
       "queueNew": "Enfileirar novas tarefas",
       "runOnLatestVersion": "Executar com a versão mais recente do pacote",
       "upstream": "Upstream"

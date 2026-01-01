@@ -37,7 +37,8 @@
   "poolSlots": "حصص مجموعة الموارد",
   "sortBy": {
     "newestFirst": "الأحدث أولاً",
-    "oldestFirst": "الأقدم أولاً"
+    "oldestFirst": "الأقدم أولاً",
+    "placeholder": "Sort by"
   },
   "source": "المصدر",
   "stats": {

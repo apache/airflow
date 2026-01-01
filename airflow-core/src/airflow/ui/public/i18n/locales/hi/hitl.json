@@ -1,13 +1,26 @@
 {
+  "filters": {
+    "body": "Body",
+    "createdAt": "Created At",
+    "response": {
+      "all": "All",
+      "pending": "Pending",
+      "received": "Reviewed"
+    }
+  },
   "requiredAction_one": "आवश्यक क्रिया",
   "requiredAction_other": "आवश्यक क्रियाएं",
+  "requiredActionCount_one": "Required Action ({{count}})",
+  "requiredActionCount_other": "Required Actions ({{count}})",
   "requiredActionState": "आवश्यक क्रिया स्थिति",
   "response": {
+    "created": "Response created at ",
     "error": "प्रतिक्रिया विफल",
     "optionsDescription": "इस टास्क इंस्टेंस के लिए अपने विकल्प चुनें",
     "optionsLabel": "विकल्प",
     "received": "प्रतिक्रिया प्राप्त हुई ",
     "respond": "प्रतिक्रिया दें",
+    "responded_by_user_name": "Responded by (User Name)",
     "success": "{{taskId}} प्रतिक्रिया सफल",
     "title": "मानव टास्क इंस्टेंस - {{taskId}}"
   },
@@ -16,6 +29,7 @@
     "approvalRequired": "स्वीकृति आवश्यक",
     "choiceReceived": "विकल्प प्राप्त",
     "choiceRequired": "विकल्प आवश्यक",
+    "noResponseReceived": "No Response Received",
     "rejectionReceived": "अस्वीकृति प्राप्त",
     "responseReceived": "प्रतिक्रिया प्राप्त",
     "responseRequired": "प्रतिक्रिया आवश्यक"

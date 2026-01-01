@@ -29,7 +29,8 @@
   "poolSlots": "Pool slotok",
   "sortBy": {
     "newestFirst": "Legújabb először",
-    "oldestFirst": "Legrégebbi először"
+    "oldestFirst": "Legrégebbi először",
+    "placeholder": "Sort by"
   },
   "source": "Forrás",
   "stats": {

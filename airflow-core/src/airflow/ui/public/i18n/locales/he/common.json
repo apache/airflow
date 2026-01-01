@@ -80,6 +80,11 @@
   "dagWarnings": "אזהרות/שגיאות Dag",
   "defaultToGraphView": "תצוגת גרף כברירת מחדל",
   "defaultToGridView": "תצוגת רשת כברירת מחדל",
+  "delete": "Delete",
+  "diff": "Diff",
+  "diffCompareWith": "Compare with",
+  "diffExit": "Exit Diff",
+  "diffSelectVersionToCompare": "Select version to compare",
   "direction": "כיוון",
   "docs": {
     "documentation": "תיעוד",
@@ -92,6 +97,7 @@
     "tooltip": "לחץ {{hotkey}} להורדת רישומים"
   },
   "duration": "משך זמן",
+  "edit": "Edit",
   "endDate": "תאריך סיום",
   "error": {
     "back": "חזור",
@@ -131,12 +137,14 @@
   "logoutConfirmation": "האם אתה בטוח שברצונך להתנתק?",
   "mapIndex": "אינדקס מיפוי",
   "modal": {
+    "add": "Add",
     "cancel": "ביטול",
     "confirm": "אישור",
     "delete": {
       "button": "מחק",
       "confirmation": "האם אתה בטוח שברצונך למחוק את {{resourceName}}? פעולה זו אינה הפיכה"
-    }
+    },
+    "save": "Save"
   },
   "nav": {
     "admin": "ניהול",

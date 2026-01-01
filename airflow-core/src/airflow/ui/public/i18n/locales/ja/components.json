@@ -110,10 +110,16 @@
   "sortedDescending": "降順でソート",
   "sortedUnsorted": "未ソート",
   "taskTries": "タスクの試行",
+  "taskTryPlaceholder": "Task Try",
   "toggleCardView": "カードビューを表示",
   "toggleTableView": "テーブルビューを表示",
   "triggerDag": {
     "button": "トリガー",
+    "dataInterval": "Data Interval",
+    "dataIntervalAuto": "Inferred from Logical Date and Timetable",
+    "dataIntervalManual": "Specify Manually",
+    "intervalEnd": "End",
+    "intervalStart": "Start",
     "loading": "Dag 情報を読込中...",
     "loadingFailed": "情報読込に失敗しました。もう一度試してください",
     "runIdHelp": "オプション- 指定しない場合自動的に生成されます",
@@ -144,6 +150,7 @@
     "versionId": "バージョン ID"
   },
   "versionSelect": {
+    "allVersions": "All Versions",
     "dagVersion": "Dag バージョン",
     "versionCode": "v{{versionCode}}"
   }

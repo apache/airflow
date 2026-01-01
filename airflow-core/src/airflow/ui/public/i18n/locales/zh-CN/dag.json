@@ -10,6 +10,7 @@
     "hourly": "每小时",
     "legend": {
       "less": "更少",
+      "mixed": "Mixed",
       "more": "更多"
     },
     "navigation": {
@@ -19,6 +20,7 @@
       "previousYear": "上一年"
     },
     "noData": "无数据",
+    "noFailedRuns": "No failed runs",
     "noRuns": "未执行",
     "totalRuns": "总执行次数",
     "week": "第 {{weekNumber}} 周",
@@ -112,6 +114,18 @@
     },
     "graphDirection": {
       "label": "图表方向"
+    },
+    "taskStreamFilter": {
+      "activeFilter": "Active filter",
+      "clearFilter": "Clear Filter",
+      "clickTask": "Click a task to select it as the filter root",
+      "label": "Filter",
+      "options": {
+        "both": "Both upstream & downstream",
+        "downstream": "Downstream",
+        "upstream": "Upstream"
+      },
+      "selectedTask": "Selected task"
     }
   },
   "paramsFailed": "加载参数失败",

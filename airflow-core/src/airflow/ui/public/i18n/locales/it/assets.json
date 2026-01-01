@@ -1,5 +1,11 @@
 {
+  "additional_data": "Additional Data",
+  "asset_many": "Assets",
+  "asset_one": "Asset",
+  "asset_other": "Asset",
+  "asset_zero": "Asset",
   "consumingDags": "Dag Consumatori",
+  "consumingTasks": "Consuming Tasks",
   "createEvent": {
     "button": "Creare un Evento",
     "manual": {
@@ -21,6 +27,7 @@
     },
     "title": "Creare Evento Asset per {{name}}"
   },
+  "extra": "Extra",
   "group": "Gruppo",
   "lastAssetEvent": "Ultimo Evento Asset",
   "name": "Nome",

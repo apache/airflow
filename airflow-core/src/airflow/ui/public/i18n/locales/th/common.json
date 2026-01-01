@@ -60,6 +60,7 @@
     "dataIntervalEnd": "สิ้นสุดช่วงข้อมูล",
     "dataIntervalStart": "เริ่มต้นช่วงข้อมูล",
     "lastSchedulingDecision": "การตัดสินใจกำหนดเวลาล่าสุด",
+    "partitionKey": "Partition key",
     "queuedAt": "เข้าคิวเมื่อ",
     "runAfter": "ทำงานหลังจาก",
     "runType": "ประเภทการทำงาน",
@@ -73,18 +74,30 @@
   "dagWarnings": "คำเตือน/ข้อผิดพลาดของ Dag",
   "defaultToGraphView": "ค่าเริ่มต้นเป็นมุมมองกราฟ",
   "defaultToGridView": "ค่าเริ่มต้นเป็นมุมมองกริด",
+  "delete": "Delete",
+  "diff": "Diff",
+  "diffCompareWith": "Compare with",
+  "diffExit": "Exit Diff",
+  "diffSelectVersionToCompare": "Select version to compare",
   "direction": "ทิศทาง",
   "docs": {
     "documentation": "เอกสารประกอบ",
     "githubRepo": "GitHub Repo",
     "restApiReference": "เอกสารอ้างอิง REST API"
   },
+  "download": {
+    "download": "Download",
+    "hotkey": "d",
+    "tooltip": "Press {{hotkey}} to download logs"
+  },
   "duration": "ระยะเวลา",
+  "edit": "Edit",
   "endDate": "วันที่สิ้นสุด",
   "error": {
     "back": "ย้อนกลับ",
     "defaultMessage": "เกิดข้อผิดพลาดที่ไม่คาดคิดขึ้น",
     "home": "หน้าแรก",
+    "invalidUrl": "Page Not Found. Please check the URL and try again.",
     "notFound": "ไม่พบหน้านี้",
     "title": "เกิดข้อผิดพลาด"
   },
@@ -105,22 +118,27 @@
   "filters": {
     "durationFrom": "ระยะเวลาตั้งแต่",
     "durationTo": "ระยะเวลาถึง",
+    "endTime": "End Time",
     "logicalDateFrom": "วันที่ตามกำหนดทำงานตั้งแต่",
     "logicalDateTo": "วันที่ตามกำหนดทำงานถึง",
     "runAfterFrom": "ทำงานตั้งแต่",
-    "runAfterTo": "ทำงานถึง"
+    "runAfterTo": "ทำงานถึง",
+    "selectDateRange": "Select Date Range",
+    "startTime": "Start Time"
   },
   "logicalDate": "วันที่ตามกำหนดทำงาน",
   "logout": "ออกจากระบบ",
   "logoutConfirmation": "คุณกำลังจะออกจากระบบแอปพลิเคชัน",
   "mapIndex": "ดัชนีแผนที่",
   "modal": {
+    "add": "Add",
     "cancel": "ยกเลิก",
     "confirm": "ยืนยัน",
     "delete": {
       "button": "ลบ",
       "confirmation": "คุณแน่ใจหรือไม่ว่าต้องการลบ {{resourceName}}? การดำเนินการนี้ไม่สามารถย้อนกลับได้"
-    }
+    },
+    "save": "Save"
   },
   "nav": {
     "admin": "ผู้ดูแลระบบ",
@@ -174,6 +192,7 @@
   },
   "selectLanguage": "เลือกภาษา",
   "showDetailsPanel": "แสดงแผงรายละเอียด",
+  "signedInAs": "Signed in as",
   "source": {
     "hide": "ซ่อนแหล่งที่มา",
     "hotkey": "s",

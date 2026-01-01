@@ -1,0 +1,10 @@
+{
+  "mapped": "मैप किया गया",
+  "notMapped": "मैप नहीं किया गया",
+  "retries": "पुनः प्रयास",
+  "searchTasks": "टास्क्स खोजें",
+  "selectMapped": "मैप किए गए चुनें",
+  "selectOperator": "ऑपरेटर चुनें",
+  "selectRetryValues": "पुनः प्रयास मान चुनें",
+  "selectTriggerRules": "ट्रिगर नियम चुनें"
+}

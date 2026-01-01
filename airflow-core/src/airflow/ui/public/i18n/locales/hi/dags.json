@@ -34,6 +34,10 @@
       "error": "{{type}} साफ करने में विफल",
       "title": "{{type}} साफ करें"
     },
+    "confirmationDialog": {
+      "description": "Task is currently in a {{state}} state started by user {{user}} at {{time}}. \nThe user is unable to clear this task until it is done running or a user unchecks the \"Prevent rerun if task is running\" option in the clear task dialog.",
+      "title": "Cannot Clear Task Instance"
+    },
     "delete": {
       "button": "{{type}} हटाएं",
       "dialog": {
@@ -61,6 +65,7 @@
       "future": "भविष्य",
       "onlyFailed": "केवल विफल टास्क्स साफ करें",
       "past": "अतीत",
+      "preventRunningTasks": "Prevent rerun if task is running",
       "queueNew": "नए टास्क्स को कतार में डालें",
       "runOnLatestVersion": "नवीनतम बंडल संस्करण के साथ चलाएं",
       "upstream": "अपस्ट्रीम"

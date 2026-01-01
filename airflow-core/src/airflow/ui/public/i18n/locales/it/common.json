@@ -70,6 +70,7 @@
     "dataIntervalEnd": "Data Intervallo Fine",
     "dataIntervalStart": "Data Intervallo Inizio",
     "lastSchedulingDecision": "Ultima Decisione di Programmazione",
+    "partitionKey": "Partition key",
     "queuedAt": "In Coda il",
     "runAfter": "Esegui dopo",
     "runType": "Tipo di Run",
@@ -85,6 +86,11 @@
   "dagWarnings": "Avvisi/Errori del Dag",
   "defaultToGraphView": "Default to vista grafica",
   "defaultToGridView": "Default to vista griglia",
+  "delete": "Delete",
+  "diff": "Diff",
+  "diffCompareWith": "Compare with",
+  "diffExit": "Exit Diff",
+  "diffSelectVersionToCompare": "Select version to compare",
   "direction": "Direzione",
   "docs": {
     "documentation": "Documentazione",
@@ -97,11 +103,13 @@
     "tooltip": "Premi {{hotkey}} per scaricare i log"
   },
   "duration": "Durata",
+  "edit": "Edit",
   "endDate": "Data di Fine",
   "error": {
     "back": "Indietro",
     "defaultMessage": "Si è verificato un errore imprevisto",
     "home": "Home",
+    "invalidUrl": "Page Not Found. Please check the URL and try again.",
     "notFound": "Pagina non trovata",
     "title": "Errore"
   },
@@ -122,22 +130,27 @@
   "filters": {
     "durationFrom": "Durata da",
     "durationTo": "Durata a",
+    "endTime": "End Time",
     "logicalDateFrom": "Data Logica Da",
     "logicalDateTo": "Data Logica A",
     "runAfterFrom": "Esegui Dopo Da",
-    "runAfterTo": "Esegui Dopo A"
+    "runAfterTo": "Esegui Dopo A",
+    "selectDateRange": "Select Date Range",
+    "startTime": "Start Time"
   },
   "logicalDate": "Data Logica",
   "logout": "Esci",
   "logoutConfirmation": "Stai per uscire dall'applicazione.",
   "mapIndex": "Mappa Index",
   "modal": {
+    "add": "Add",
     "cancel": "Annulla",
     "confirm": "Conferma",
     "delete": {
       "button": "Elimina",
       "confirmation": "Confermi di voler eliminare {{resourceName}}? Questa azione non può essere annullata."
-    }
+    },
+    "save": "Save"
   },
   "nav": {
     "admin": "Amministrazione",
@@ -193,6 +206,7 @@
   },
   "selectLanguage": "Seleziona la Lingua",
   "showDetailsPanel": "Mostra il Pannello dei Dettagli",
+  "signedInAs": "Signed in as",
   "source": {
     "hide": "Nascondi Sorgente",
     "hotkey": "s",

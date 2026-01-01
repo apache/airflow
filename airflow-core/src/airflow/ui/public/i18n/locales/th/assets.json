@@ -1,5 +1,9 @@
 {
+  "additional_data": "Additional Data",
+  "asset_many": "Assets",
+  "asset_one": "Asset",
   "consumingDags": "Dags ที่ใช้",
+  "consumingTasks": "Consuming Tasks",
   "createEvent": {
     "button": "สร้างอีเวนต์",
     "manual": {
@@ -21,6 +25,7 @@
     },
     "title": "สร้างอีเวนต์ให้กับ Asset สำหรับ {{name}}"
   },
+  "extra": "Extra",
   "group": "กลุ่ม",
   "lastAssetEvent": "อีเวนต์ของ Asset ล่าสุด",
   "name": "ชื่อ",

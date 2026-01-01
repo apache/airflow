@@ -12,11 +12,35 @@
     "title": "יומן מערכת"
   },
   "xcom": {
+    "add": {
+      "error": "Failed to add XCom",
+      "errorTitle": "Error",
+      "success": "XCom added successfully",
+      "successTitle": "XCom Added",
+      "title": "Add XCom"
+    },
     "columns": {
       "dag": "Dag",
       "key": "מפתח",
       "value": "ערך"
     },
-    "title": "XCom"
+    "delete": {
+      "error": "Failed to delete XCom",
+      "errorTitle": "Error",
+      "success": "XCom deleted successfully",
+      "successTitle": "XCom Deleted",
+      "title": "Delete XCom",
+      "warning": "Are you sure you want to delete this XCom? This action cannot be undone."
+    },
+    "edit": {
+      "error": "Failed to update XCom",
+      "errorTitle": "Error",
+      "success": "XCom updated successfully",
+      "successTitle": "XCom Updated",
+      "title": "Edit XCom"
+    },
+    "key": "Key",
+    "title": "XCom",
+    "value": "Value"
   }
 }

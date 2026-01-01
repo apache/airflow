@@ -1,6 +1,7 @@
 {
   "filters": {
     "body": "Törzs",
+    "createdAt": "Created At",
     "createdAtFrom": "Kezdő létrehozás dátum",
     "createdAtTo": "Végső létrehozás dátum",
     "response": {

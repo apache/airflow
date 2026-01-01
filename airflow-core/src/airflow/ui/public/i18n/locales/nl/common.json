@@ -74,6 +74,11 @@
   "dagWarnings": "Dag waarschuwingen/fouten",
   "defaultToGraphView": "Standaard grafiekweergave",
   "defaultToGridView": "Standaard rasterweergave",
+  "delete": "Delete",
+  "diff": "Diff",
+  "diffCompareWith": "Compare with",
+  "diffExit": "Exit Diff",
+  "diffSelectVersionToCompare": "Select version to compare",
   "direction": "Richting",
   "docs": {
     "documentation": "Documentatie",
@@ -86,11 +91,13 @@
     "tooltip": "Druk op {{hotkey}} om logs te downloaden"
   },
   "duration": "Duur",
+  "edit": "Edit",
   "endDate": "Einddatum",
   "error": {
     "back": "Terug",
     "defaultMessage": "Een onverwachte fout is opgetreden",
     "home": "Home",
+    "invalidUrl": "Page Not Found. Please check the URL and try again.",
     "notFound": "Pagina niet gevonden",
     "title": "Fout"
   },
@@ -111,22 +118,27 @@
   "filters": {
     "durationFrom": "Duur van",
     "durationTo": "Duur tot",
+    "endTime": "End Time",
     "logicalDateFrom": "Van logische datum",
     "logicalDateTo": "Tot logische datum",
     "runAfterFrom": "Van Run na",
-    "runAfterTo": "Tot Run na"
+    "runAfterTo": "Tot Run na",
+    "selectDateRange": "Select Date Range",
+    "startTime": "Start Time"
   },
   "logicalDate": "Logische datum",
   "logout": "Uitloggen",
   "logoutConfirmation": "Je staat op het punt om uit te loggen uit de applicatie.",
   "mapIndex": "Map Index",
   "modal": {
+    "add": "Add",
     "cancel": "Annuleer",
     "confirm": "Bevestig",
     "delete": {
       "button": "Verwijder",
       "confirmation": "Weet je zeker dat je {{resourceName}} wilt verwijderen? Deze actie kan niet ongedaan gemaakt worden."
-    }
+    },
+    "save": "Save"
   },
   "nav": {
     "admin": "Beheer",
@@ -180,6 +192,7 @@
   },
   "selectLanguage": "Selecteer taal",
   "showDetailsPanel": "Details weergeven",
+  "signedInAs": "Signed in as",
   "source": {
     "hide": "Verberg bron",
     "hotkey": "s",

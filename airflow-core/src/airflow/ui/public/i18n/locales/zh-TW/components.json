@@ -110,10 +110,16 @@
   "sortedDescending": "遞減排序",
   "sortedUnsorted": "未排序",
   "taskTries": "任務嘗試次數",
+  "taskTryPlaceholder": "Task Try",
   "toggleCardView": "顯示卡片視圖",
   "toggleTableView": "顯示表格視圖",
   "triggerDag": {
     "button": "觸發",
+    "dataInterval": "Data Interval",
+    "dataIntervalAuto": "Inferred from Logical Date and Timetable",
+    "dataIntervalManual": "Specify Manually",
+    "intervalEnd": "End",
+    "intervalStart": "Start",
     "loading": "正在載入 Dag 資訊...",
     "loadingFailed": "載入 Dag 資訊失敗，請重試。",
     "runIdHelp": "選填 - 若未提供將會自動產生",
@@ -121,6 +127,9 @@
     "selectLabel": "單次執行",
     "title": "觸發 Dag",
     "toaster": {
+      "error": {
+        "title": "Failed to Trigger Dag"
+      },
       "success": {
         "description": "已成功觸發 Dag 執行。",
         "title": "已觸發 Dag 執行"
@@ -141,6 +150,7 @@
     "versionId": "版本 ID"
   },
   "versionSelect": {
+    "allVersions": "All Versions",
     "dagVersion": "Dag 版本",
     "versionCode": "v{{versionCode}}"
   }

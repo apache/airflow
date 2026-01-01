@@ -34,6 +34,10 @@
       "error": "حدث خطأ أثناء المسح {{type}}",
       "title": "مسح {{type}}"
     },
+    "confirmationDialog": {
+      "description": "Task is currently in a {{state}} state started by user {{user}} at {{time}}. \nThe user is unable to clear this task until it is done running or a user unchecks the \"Prevent rerun if task is running\" option in the clear task dialog.",
+      "title": "Cannot Clear Task Instance"
+    },
     "delete": {
       "button": "حذف {{type}}",
       "dialog": {
@@ -61,6 +65,7 @@
       "future": "المستقبل",
       "onlyFailed": "مسح المهام الفاشلة فقط",
       "past": "الماضي",
+      "preventRunningTasks": "Prevent rerun if task is running",
       "queueNew": "إضافة مهام جديدة للانتظار",
       "runOnLatestVersion": "تشغيل بآخر إصدار الحزمة",
       "upstream": "المهام السابقة"

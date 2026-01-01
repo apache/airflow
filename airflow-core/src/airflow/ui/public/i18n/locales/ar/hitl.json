@@ -1,6 +1,7 @@
 {
   "filters": {
     "body": "المحتوى",
+    "createdAt": "Created At",
     "createdAtFrom": "أُنشئت في من",
     "createdAtTo": "أُنشئت في إلى",
     "response": {

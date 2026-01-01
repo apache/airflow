@@ -112,10 +112,16 @@
   "sortedDescending": "ordenat de manera descendent",
   "sortedUnsorted": "no ordenat",
   "taskTries": "Reintents de tasca",
+  "taskTryPlaceholder": "Task Try",
   "toggleCardView": "Mostrar vista de targeta",
   "toggleTableView": "Mostrar vista de taula",
   "triggerDag": {
     "button": "Executar",
+    "dataInterval": "Data Interval",
+    "dataIntervalAuto": "Inferred from Logical Date and Timetable",
+    "dataIntervalManual": "Specify Manually",
+    "intervalEnd": "End",
+    "intervalStart": "Start",
     "loading": "Carregant informació del Dag...",
     "loadingFailed": "No s'ha pogut carregar la informació del Dag. Si us plau, torneu-ho a intentar.",
     "runIdHelp": "Opcional - es generarà si no es proporciona",
@@ -146,6 +152,7 @@
     "versionId": "ID de la versió"
   },
   "versionSelect": {
+    "allVersions": "All Versions",
     "dagVersion": "Versió del Dag",
     "versionCode": "v{{versionCode}}"
   }

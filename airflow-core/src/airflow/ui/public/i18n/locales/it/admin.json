@@ -55,6 +55,12 @@
     "searchPlaceholder": "Cercare Connessioni",
     "test": "Test Connessione",
     "testDisabled": "La funzione di test della connessione è disabilitata. Per favore contatta un amministratore per abilitarla.",
+    "testError": {
+      "title": "Test Connection Failed"
+    },
+    "testSuccess": {
+      "title": "Test Connection Successful"
+    },
     "typeMeta": {
       "error": "Impossibile recuperare il tipo di connessione",
       "standardFields": {

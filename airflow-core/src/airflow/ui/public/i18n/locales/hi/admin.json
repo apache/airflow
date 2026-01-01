@@ -49,6 +49,12 @@
     "searchPlaceholder": "कनेक्शन खोजें",
     "test": "कनेक्शन टेस्ट करें",
     "testDisabled": "टेस्ट कनेक्शन सुविधा अक्षम है। कृपया इसे सक्षम करने के लिए एडमिनिस्ट्रेटर से संपर्क करें।",
+    "testError": {
+      "title": "Test Connection Failed"
+    },
+    "testSuccess": {
+      "title": "Test Connection Successful"
+    },
     "typeMeta": {
       "error": "कनेक्शन प्रकार मेटा प्राप्त करने में विफल",
       "standardFields": {

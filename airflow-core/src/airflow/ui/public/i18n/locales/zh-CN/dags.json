@@ -34,6 +34,10 @@
       "error": "清除 {{type}} 时发生错误",
       "title": "清除 {{type}}"
     },
+    "confirmationDialog": {
+      "description": "Task is currently in a {{state}} state started by user {{user}} at {{time}}. \nThe user is unable to clear this task until it is done running or a user unchecks the \"Prevent rerun if task is running\" option in the clear task dialog.",
+      "title": "Cannot Clear Task Instance"
+    },
     "delete": {
       "button": "删除 {{type}}",
       "dialog": {
@@ -61,6 +65,7 @@
       "future": "未来",
       "onlyFailed": "只清除失败任务",
       "past": "过去",
+      "preventRunningTasks": "Prevent rerun if task is running",
       "queueNew": "加入新任务到队列",
       "runOnLatestVersion": "执行最新套件包版本",
       "upstream": "上游"

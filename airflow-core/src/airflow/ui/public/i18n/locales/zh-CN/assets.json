@@ -1,5 +1,9 @@
 {
+  "additional_data": "Additional Data",
+  "asset_many": "Assets",
+  "asset_one": "Asset",
   "consumingDags": "消费者 Dags",
+  "consumingTasks": "Consuming Tasks",
   "createEvent": {
     "button": "创建事件",
     "manual": {
@@ -21,6 +25,7 @@
     },
     "title": "为 {{name}} 创建资源事件"
   },
+  "extra": "Extra",
   "group": "分组",
   "lastAssetEvent": "最后资源事件",
   "name": "名称",

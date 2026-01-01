@@ -16,6 +16,8 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+
+/* eslint-disable max-lines */
 import "@testing-library/jest-dom";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import dayjs from "dayjs";
@@ -75,6 +77,26 @@ const TestWrapper = ({ children }: { readonly children: React.ReactNode }) => {
   );
 };
 
+const findCloseIcon = (svg: Element): boolean => {
+  const path = svg.querySelector('path[d*="M19 6.41"]');
+
+  return path !== null;
+};
+
+type DateRangeCall = [{ endDate?: string; startDate?: string }];
+
+const hasStartDate = (call: Array<unknown>): call is DateRangeCall => {
+  const firstArg = call[0] as { endDate?: string; startDate?: string } | undefined;
+
+  return Boolean(firstArg?.startDate);
+};
+
+const hasEndDate = (call: Array<unknown>): call is DateRangeCall => {
+  const firstArg = call[0] as { endDate?: string; startDate?: string } | undefined;
+
+  return Boolean(firstArg?.endDate);
+};
+
 // Mock data
 const mockFilter = {
   config: {
@@ -99,38 +121,44 @@ describe("DateRangeFilter", () => {
   });
 
   describe("Input Validation", () => {
-  it("shows error for invalid date format in start date", async () => {
-    render(
-      <TestWrapper>
-        <DateRangeFilter {...defaultProps} />
-      </TestWrapper>,
-    );
+    it("shows error for invalid date format in start date", async () => {
+      render(
+        <TestWrapper>
+          <DateRangeFilter {...defaultProps} />
+        </TestWrapper>,
+      );
 
-    const [startDateInput] = screen.getAllByPlaceholderText("YYYY/MM/DD");
+      const [startDateInput] = screen.getAllByPlaceholderText("YYYY/MM/DD");
+
       expect(startDateInput).toBeInTheDocument();
 
       fireEvent.change(startDateInput!, { target: { value: "invalid-date" } });
 
-    await waitFor(() => {
+      // eslint-disable-next-line max-nested-callbacks
+      await waitFor(() => {
         const errorMessage = screen.getByText("Invalid date format.");
+
         expect(errorMessage).toBeInTheDocument();
+      });
     });
-  });
 
-  it("shows error for invalid date format in end date", async () => {
-    render(
-      <TestWrapper>
-        <DateRangeFilter {...defaultProps} />
-      </TestWrapper>,
-    );
+    it("shows error for invalid date format in end date", async () => {
+      render(
+        <TestWrapper>
+          <DateRangeFilter {...defaultProps} />
+        </TestWrapper>,
+      );
 
-    const [, endDateInput] = screen.getAllByPlaceholderText("YYYY/MM/DD");
+      const [, endDateInput] = screen.getAllByPlaceholderText("YYYY/MM/DD");
+
       expect(endDateInput).toBeInTheDocument();
 
       fireEvent.change(endDateInput!, { target: { value: "invalid-date" } });
 
+      // eslint-disable-next-line max-nested-callbacks
       await waitFor(() => {
         const errorMessage = screen.getByText("Invalid date format.");
+
         expect(errorMessage).toBeInTheDocument();
       });
     });
@@ -143,9 +171,11 @@ describe("DateRangeFilter", () => {
       );
 
       const [startDateInput] = screen.getAllByPlaceholderText("YYYY/MM/DD");
+
       expect(startDateInput).toBeInTheDocument();
       fireEvent.change(startDateInput!, { target: { value: "2024/13/01" } });
 
+      // eslint-disable-next-line max-nested-callbacks
       await waitFor(() => {
         expect(screen.getByText("Invalid date format.")).toBeInTheDocument();
       });
@@ -159,9 +189,11 @@ describe("DateRangeFilter", () => {
       );
 
       const [startDateInput] = screen.getAllByPlaceholderText("YYYY/MM/DD");
+
       expect(startDateInput).toBeInTheDocument();
       fireEvent.change(startDateInput!, { target: { value: "2024/01/32" } });
 
+      // eslint-disable-next-line max-nested-callbacks
       await waitFor(() => {
         expect(screen.getByText("Invalid date format.")).toBeInTheDocument();
       });
@@ -175,46 +207,54 @@ describe("DateRangeFilter", () => {
       );
 
       const [startDateInput] = screen.getAllByPlaceholderText("YYYY/MM/DD");
+
       expect(startDateInput).toBeInTheDocument();
       fireEvent.change(startDateInput!, { target: { value: "2024/02/30" } });
 
-    await waitFor(() => {
-      expect(screen.getByText("Invalid date format.")).toBeInTheDocument();
+      // eslint-disable-next-line max-nested-callbacks
+      await waitFor(() => {
+        expect(screen.getByText("Invalid date format.")).toBeInTheDocument();
+      });
     });
-  });
 
-  it("shows error for invalid time format in start time", async () => {
-    render(
-      <TestWrapper>
-        <DateRangeFilter {...defaultProps} />
-      </TestWrapper>,
-    );
+    it("shows error for invalid time format in start time", async () => {
+      render(
+        <TestWrapper>
+          <DateRangeFilter {...defaultProps} />
+        </TestWrapper>,
+      );
 
-    const [startTimeInput] = screen.getAllByPlaceholderText("HH:mm");
+      const [startTimeInput] = screen.getAllByPlaceholderText("HH:mm");
+
       expect(startTimeInput).toBeInTheDocument();
 
       fireEvent.change(startTimeInput!, { target: { value: "invalid-time" } });
 
-    await waitFor(() => {
+      // eslint-disable-next-line max-nested-callbacks
+      await waitFor(() => {
         const errorMessage = screen.getByText("Invalid time format.");
+
         expect(errorMessage).toBeInTheDocument();
+      });
     });
-  });
 
-  it("shows error for invalid time format in end time", async () => {
-    render(
-      <TestWrapper>
-        <DateRangeFilter {...defaultProps} />
-      </TestWrapper>,
-    );
+    it("shows error for invalid time format in end time", async () => {
+      render(
+        <TestWrapper>
+          <DateRangeFilter {...defaultProps} />
+        </TestWrapper>,
+      );
 
-    const [, endTimeInput] = screen.getAllByPlaceholderText("HH:mm");
+      const [, endTimeInput] = screen.getAllByPlaceholderText("HH:mm");
+
       expect(endTimeInput).toBeInTheDocument();
 
       fireEvent.change(endTimeInput!, { target: { value: "invalid-time" } });
 
+      // eslint-disable-next-line max-nested-callbacks
       await waitFor(() => {
         const errorMessage = screen.getByText("Invalid time format.");
+
         expect(errorMessage).toBeInTheDocument();
       });
     });
@@ -227,9 +267,11 @@ describe("DateRangeFilter", () => {
       );
 
       const [startTimeInput] = screen.getAllByPlaceholderText("HH:mm");
+
       expect(startTimeInput).toBeInTheDocument();
       fireEvent.change(startTimeInput!, { target: { value: "25:00" } });
 
+      // eslint-disable-next-line max-nested-callbacks
       await waitFor(() => {
         expect(screen.getByText("Invalid time format.")).toBeInTheDocument();
       });
@@ -243,37 +285,41 @@ describe("DateRangeFilter", () => {
       );
 
       const [startTimeInput] = screen.getAllByPlaceholderText("HH:mm");
+
       expect(startTimeInput).toBeInTheDocument();
       fireEvent.change(startTimeInput!, { target: { value: "12:60" } });
 
-    await waitFor(() => {
-      expect(screen.getByText("Invalid time format.")).toBeInTheDocument();
+      // eslint-disable-next-line max-nested-callbacks
+      await waitFor(() => {
+        expect(screen.getByText("Invalid time format.")).toBeInTheDocument();
+      });
     });
-  });
 
-  it("shows error when start date/time is after end date/time", async () => {
-    render(
-      <TestWrapper>
-        <DateRangeFilter {...defaultProps} />
-      </TestWrapper>,
-    );
+    it("shows error when start date/time is after end date/time", async () => {
+      render(
+        <TestWrapper>
+          <DateRangeFilter {...defaultProps} />
+        </TestWrapper>,
+      );
 
-    const [startDateInput, endDateInput] = screen.getAllByPlaceholderText("YYYY/MM/DD");
-    const [startTimeInput, endTimeInput] = screen.getAllByPlaceholderText("HH:mm");
+      const [startDateInput, endDateInput] = screen.getAllByPlaceholderText("YYYY/MM/DD");
+      const [startTimeInput, endTimeInput] = screen.getAllByPlaceholderText("HH:mm");
 
       expect(startDateInput).toBeInTheDocument();
       expect(endDateInput).toBeInTheDocument();
       expect(startTimeInput).toBeInTheDocument();
       expect(endTimeInput).toBeInTheDocument();
 
-    // Set start date/time to be after end date/time
+      // Set start date/time to be after end date/time
       fireEvent.change(startDateInput!, { target: { value: "2024/01/15" } });
       fireEvent.change(startTimeInput!, { target: { value: "10:00" } });
       fireEvent.change(endDateInput!, { target: { value: "2024/01/14" } });
       fireEvent.change(endTimeInput!, { target: { value: "09:00" } });
 
+      // eslint-disable-next-line max-nested-callbacks
       await waitFor(() => {
         const errorMessage = screen.getByText("Start date/time must be before end date/time");
+
         expect(errorMessage).toBeInTheDocument();
       });
     });
@@ -299,39 +345,41 @@ describe("DateRangeFilter", () => {
       fireEvent.change(endDateInput!, { target: { value: "2024/01/15" } });
       fireEvent.change(endTimeInput!, { target: { value: "10:00" } });
 
-    await waitFor(() => {
-      expect(screen.getByText("Start date/time must be before end date/time")).toBeInTheDocument();
+      // eslint-disable-next-line max-nested-callbacks
+      await waitFor(() => {
+        expect(screen.getByText("Start date/time must be before end date/time")).toBeInTheDocument();
+      });
     });
-  });
 
-  it("accepts valid date and time inputs", async () => {
-    render(
-      <TestWrapper>
-        <DateRangeFilter {...defaultProps} />
-      </TestWrapper>,
-    );
+    it("accepts valid date and time inputs", async () => {
+      render(
+        <TestWrapper>
+          <DateRangeFilter {...defaultProps} />
+        </TestWrapper>,
+      );
 
-    const [startDateInput, endDateInput] = screen.getAllByPlaceholderText("YYYY/MM/DD");
-    const [startTimeInput, endTimeInput] = screen.getAllByPlaceholderText("HH:mm");
+      const [startDateInput, endDateInput] = screen.getAllByPlaceholderText("YYYY/MM/DD");
+      const [startTimeInput, endTimeInput] = screen.getAllByPlaceholderText("HH:mm");
 
       expect(startDateInput).toBeInTheDocument();
       expect(endDateInput).toBeInTheDocument();
       expect(startTimeInput).toBeInTheDocument();
       expect(endTimeInput).toBeInTheDocument();
 
-    // Set valid inputs
+      // Set valid inputs
       fireEvent.change(startDateInput!, { target: { value: "2024/01/15" } });
       fireEvent.change(startTimeInput!, { target: { value: "09:00" } });
       fireEvent.change(endDateInput!, { target: { value: "2024/01/20" } });
       fireEvent.change(endTimeInput!, { target: { value: "17:00" } });
 
-    await waitFor(() => {
-      // Should not show any validation errors
-      expect(screen.queryByText("Invalid date format.")).not.toBeInTheDocument();
-      expect(screen.queryByText("Invalid time format.")).not.toBeInTheDocument();
-      expect(screen.queryByText("Start date/time must be before end date/time")).not.toBeInTheDocument();
+      // eslint-disable-next-line max-nested-callbacks
+      await waitFor(() => {
+        // Should not show any validation errors
+        expect(screen.queryByText("Invalid date format.")).not.toBeInTheDocument();
+        expect(screen.queryByText("Invalid time format.")).not.toBeInTheDocument();
+        expect(screen.queryByText("Start date/time must be before end date/time")).not.toBeInTheDocument();
+      });
     });
-  });
 
     it("accepts same date with start time before end time", async () => {
       render(
@@ -354,6 +402,7 @@ describe("DateRangeFilter", () => {
       fireEvent.change(endDateInput!, { target: { value: "2024/01/15" } });
       fireEvent.change(endTimeInput!, { target: { value: "17:00" } });
 
+      // eslint-disable-next-line max-nested-callbacks
       await waitFor(() => {
         expect(screen.queryByText("Start date/time must be before end date/time")).not.toBeInTheDocument();
       });
@@ -380,23 +429,25 @@ describe("DateRangeFilter", () => {
       fireEvent.change(endDateInput!, { target: { value: "2024/01/15" } });
       fireEvent.change(endTimeInput!, { target: { value: "12:00" } });
 
+      // eslint-disable-next-line max-nested-callbacks
       await waitFor(() => {
-      expect(screen.queryByText("Start date/time must be before end date/time")).not.toBeInTheDocument();
+        expect(screen.queryByText("Start date/time must be before end date/time")).not.toBeInTheDocument();
+      });
     });
-  });
 
-  it("clears validation errors when invalid input is corrected", async () => {
-    render(
-      <TestWrapper>
-        <DateRangeFilter {...defaultProps} />
-      </TestWrapper>,
-    );
+    it("clears validation errors when invalid input is corrected", async () => {
+      render(
+        <TestWrapper>
+          <DateRangeFilter {...defaultProps} />
+        </TestWrapper>,
+      );
 
-    const [startDateInput] = screen.getAllByPlaceholderText("YYYY/MM/DD");
+      const [startDateInput] = screen.getAllByPlaceholderText("YYYY/MM/DD");
 
       // First, set an invalid date
       fireEvent.change(startDateInput!, { target: { value: "invalid-date" } });
 
+      // eslint-disable-next-line max-nested-callbacks
       await waitFor(() => {
         expect(screen.getByText("Invalid date format.")).toBeInTheDocument();
       });
@@ -404,6 +455,7 @@ describe("DateRangeFilter", () => {
       // Then, correct it to a valid date
       fireEvent.change(startDateInput!, { target: { value: "2024/01/15" } });
 
+      // eslint-disable-next-line max-nested-callbacks
       await waitFor(() => {
         expect(screen.queryByText("Invalid date format.")).not.toBeInTheDocument();
       });
@@ -421,6 +473,7 @@ describe("DateRangeFilter", () => {
       // First, set an invalid time
       fireEvent.change(startTimeInput!, { target: { value: "invalid-time" } });
 
+      // eslint-disable-next-line max-nested-callbacks
       await waitFor(() => {
         expect(screen.getByText("Invalid time format.")).toBeInTheDocument();
       });
@@ -428,6 +481,7 @@ describe("DateRangeFilter", () => {
       // Then, correct it to a valid time
       fireEvent.change(startTimeInput!, { target: { value: "09:00" } });
 
+      // eslint-disable-next-line max-nested-callbacks
       await waitFor(() => {
         expect(screen.queryByText("Invalid time format.")).not.toBeInTheDocument();
       });
@@ -453,6 +507,7 @@ describe("DateRangeFilter", () => {
       fireEvent.change(endDateInput!, { target: { value: "2024/01/14" } });
       fireEvent.change(endTimeInput!, { target: { value: "09:00" } });
 
+      // eslint-disable-next-line max-nested-callbacks
       await waitFor(() => {
         expect(screen.getByText("Start date/time must be before end date/time")).toBeInTheDocument();
       });
@@ -460,6 +515,7 @@ describe("DateRangeFilter", () => {
       // Correct the range
       fireEvent.change(endDateInput!, { target: { value: "2024/01/16" } });
 
+      // eslint-disable-next-line max-nested-callbacks
       await waitFor(() => {
         expect(screen.queryByText("Start date/time must be before end date/time")).not.toBeInTheDocument();
       });
@@ -490,28 +546,32 @@ describe("DateRangeFilter", () => {
       fireEvent.change(startTimeInput!, { target: { value: "09:00" } });
 
       // Wait for start date onChange call
+      // eslint-disable-next-line max-nested-callbacks
       await waitFor(() => {
         expect(mockOnChange).toHaveBeenCalled();
       });
 
       // Verify start date call has ISO string format
-      const startDateCall = mockOnChange.mock.calls.find((call) => call[0]?.startDate);
+      const startDateCall = mockOnChange.mock.calls.find(hasStartDate);
+
       expect(startDateCall).toBeDefined();
-      expect(startDateCall![0].startDate).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/);
+      expect(startDateCall?.[0]?.startDate).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/u);
 
       // Set end date and time
       fireEvent.change(endDateInput!, { target: { value: "2024/01/20" } });
       fireEvent.change(endTimeInput!, { target: { value: "17:00" } });
 
       // Wait for end date onChange call
+      // eslint-disable-next-line max-nested-callbacks
       await waitFor(() => {
         expect(mockOnChange.mock.calls.length).toBeGreaterThan(1);
       });
 
       // Verify end date call has ISO string format
-      const endDateCall = mockOnChange.mock.calls.find((call) => call[0]?.endDate);
+      const endDateCall = mockOnChange.mock.calls.find(hasEndDate);
+
       expect(endDateCall).toBeDefined();
-      expect(endDateCall![0].endDate).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/);
+      expect(endDateCall?.[0]?.endDate).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/u);
     });
 
     it("calls onChange when only start date is provided", async () => {
@@ -533,14 +593,17 @@ describe("DateRangeFilter", () => {
       fireEvent.change(startDateInput!, { target: { value: "2024/01/15" } });
       fireEvent.change(startTimeInput!, { target: { value: "09:00" } });
 
+      // eslint-disable-next-line max-nested-callbacks
       await waitFor(() => {
         expect(mockOnChange).toHaveBeenCalled();
       });
 
       expect(mockOnChange.mock.calls.length).toBeGreaterThan(0);
       const lastCall = mockOnChange.mock.calls[mockOnChange.mock.calls.length - 1]!;
-      expect(lastCall[0]).toHaveProperty("startDate");
-      expect(lastCall[0].startDate).toBeDefined();
+      const lastCallArg = lastCall[0] as { endDate?: string; startDate?: string };
+
+      expect(lastCallArg).toHaveProperty("startDate");
+      expect(lastCallArg.startDate).toBeDefined();
     });
 
     it("calls onChange when only end date is provided", async () => {
@@ -562,14 +625,17 @@ describe("DateRangeFilter", () => {
       fireEvent.change(endDateInput!, { target: { value: "2024/01/20" } });
       fireEvent.change(endTimeInput!, { target: { value: "17:00" } });
 
+      // eslint-disable-next-line max-nested-callbacks
       await waitFor(() => {
         expect(mockOnChange).toHaveBeenCalled();
       });
 
       expect(mockOnChange.mock.calls.length).toBeGreaterThan(0);
       const lastCall = mockOnChange.mock.calls[mockOnChange.mock.calls.length - 1]!;
-      expect(lastCall[0]).toHaveProperty("endDate");
-      expect(lastCall[0].endDate).toBeDefined();
+      const lastCallArg = lastCall[0] as { endDate?: string; startDate?: string };
+
+      expect(lastCallArg).toHaveProperty("endDate");
+      expect(lastCallArg.endDate).toBeDefined();
     });
 
     it("does not call onChange when date format is invalid", async () => {
@@ -583,10 +649,12 @@ describe("DateRangeFilter", () => {
       );
 
       const [startDateInput] = screen.getAllByPlaceholderText("YYYY/MM/DD");
+
       expect(startDateInput).toBeInTheDocument();
 
       fireEvent.change(startDateInput!, { target: { value: "invalid-date" } });
 
+      // eslint-disable-next-line max-nested-callbacks
       await waitFor(() => {
         expect(screen.getByText("Invalid date format.")).toBeInTheDocument();
       });
@@ -600,7 +668,10 @@ describe("DateRangeFilter", () => {
       const mockOnRemove = vi.fn();
       const props = {
         ...defaultProps,
-        filter: { ...mockFilter, value: { startDate: "2024-01-15T09:00:00Z", endDate: "2024-01-20T17:00:00Z" } },
+        filter: {
+          ...mockFilter,
+          value: { endDate: "2024-01-20T17:00:00Z", startDate: "2024-01-15T09:00:00Z" },
+        },
         onRemove: mockOnRemove,
       };
 
@@ -611,14 +682,12 @@ describe("DateRangeFilter", () => {
       );
 
       const allSvgs = container.querySelectorAll("svg");
-      const closeIcon = Array.from(allSvgs).find((svg) => {
-        const path = svg.querySelector('path[d*="M19 6.41"]');
-        return path !== null;
-      });
+      const closeIcon = [...allSvgs].find(findCloseIcon);
 
       expect(closeIcon).toBeInTheDocument();
 
       const removeButton = closeIcon?.parentElement as HTMLElement | null;
+
       expect(removeButton).toBeInTheDocument();
 
       fireEvent.click(removeButton!, { bubbles: true });
@@ -641,7 +710,10 @@ describe("DateRangeFilter", () => {
     it("displays formatted date range when both dates are set", () => {
       const props = {
         ...defaultProps,
-        filter: { ...mockFilter, value: { startDate: "2024-01-15T09:00:00Z", endDate: "2024-01-20T17:00:00Z" } },
+        filter: {
+          ...mockFilter,
+          value: { endDate: "2024-01-20T17:00:00Z", startDate: "2024-01-15T09:00:00Z" },
+        },
       };
 
       render(
@@ -650,14 +722,15 @@ describe("DateRangeFilter", () => {
         </TestWrapper>,
       );
 
-      const displayText = screen.getByText(/Jan 15, 2024/);
+      const displayText = screen.getByText(/Jan 15, 2024/u);
+
       expect(displayText).toBeInTheDocument();
     });
 
     it("displays 'From' prefix when only start date is set", () => {
       const props = {
         ...defaultProps,
-        filter: { ...mockFilter, value: { startDate: "2024-01-15T09:00:00Z", endDate: undefined } },
+        filter: { ...mockFilter, value: { endDate: undefined, startDate: "2024-01-15T09:00:00Z" } },
       };
 
       render(
@@ -666,13 +739,13 @@ describe("DateRangeFilter", () => {
         </TestWrapper>,
       );
 
-      expect(screen.getByText(/From/)).toBeInTheDocument();
+      expect(screen.getByText(/From/u)).toBeInTheDocument();
     });
 
     it("displays 'To' prefix when only end date is set", () => {
       const props = {
         ...defaultProps,
-        filter: { ...mockFilter, value: { startDate: undefined, endDate: "2024-01-20T17:00:00Z" } },
+        filter: { ...mockFilter, value: { endDate: "2024-01-20T17:00:00Z", startDate: undefined } },
       };
 
       render(
@@ -681,7 +754,7 @@ describe("DateRangeFilter", () => {
         </TestWrapper>,
       );
 
-      expect(screen.getByText(/To/)).toBeInTheDocument();
+      expect(screen.getByText(/To/u)).toBeInTheDocument();
     });
   });
 
@@ -694,13 +767,15 @@ describe("DateRangeFilter", () => {
       );
 
       const [startDateInput] = screen.getAllByPlaceholderText("YYYY/MM/DD");
+
       expect(startDateInput).toBeInTheDocument();
 
       // February 29 in a leap year
       fireEvent.change(startDateInput!, { target: { value: "2024/02/29" } });
 
-    await waitFor(() => {
-      expect(screen.queryByText("Invalid date format.")).not.toBeInTheDocument();
+      // eslint-disable-next-line max-nested-callbacks
+      await waitFor(() => {
+        expect(screen.queryByText("Invalid date format.")).not.toBeInTheDocument();
       });
     });
 
@@ -712,11 +787,13 @@ describe("DateRangeFilter", () => {
       );
 
       const [startDateInput] = screen.getAllByPlaceholderText("YYYY/MM/DD");
+
       expect(startDateInput).toBeInTheDocument();
 
       // February 29 in a non-leap year
       fireEvent.change(startDateInput!, { target: { value: "2023/02/29" } });
 
+      // eslint-disable-next-line max-nested-callbacks
       await waitFor(() => {
         expect(screen.getByText("Invalid date format.")).toBeInTheDocument();
       });
@@ -730,12 +807,14 @@ describe("DateRangeFilter", () => {
       );
 
       const [startDateInput, endDateInput] = screen.getAllByPlaceholderText("YYYY/MM/DD");
+
       expect(startDateInput).toBeInTheDocument();
       expect(endDateInput).toBeInTheDocument();
 
       fireEvent.change(startDateInput!, { target: { value: "2024/01/31" } });
       fireEvent.change(endDateInput!, { target: { value: "2024/02/01" } });
 
+      // eslint-disable-next-line max-nested-callbacks
       await waitFor(() => {
         expect(screen.queryByText("Invalid date format.")).not.toBeInTheDocument();
         expect(screen.queryByText("Start date/time must be before end date/time")).not.toBeInTheDocument();
@@ -750,12 +829,14 @@ describe("DateRangeFilter", () => {
       );
 
       const [startDateInput, endDateInput] = screen.getAllByPlaceholderText("YYYY/MM/DD");
+
       expect(startDateInput).toBeInTheDocument();
       expect(endDateInput).toBeInTheDocument();
 
       fireEvent.change(startDateInput!, { target: { value: "2023/12/31" } });
       fireEvent.change(endDateInput!, { target: { value: "2024/01/01" } });
 
+      // eslint-disable-next-line max-nested-callbacks
       await waitFor(() => {
         expect(screen.queryByText("Invalid date format.")).not.toBeInTheDocument();
         expect(screen.queryByText("Start date/time must be before end date/time")).not.toBeInTheDocument();
@@ -773,18 +854,22 @@ describe("DateRangeFilter", () => {
       );
 
       const [startDateInput] = screen.getAllByPlaceholderText("YYYY/MM/DD");
+
       expect(startDateInput).toBeInTheDocument();
 
       fireEvent.change(startDateInput!, { target: { value: "2024/01/15" } });
 
+      // eslint-disable-next-line max-nested-callbacks
       await waitFor(() => {
         expect(mockOnChange).toHaveBeenCalled();
       });
 
       expect(mockOnChange.mock.calls.length).toBeGreaterThan(0);
       const lastCall = mockOnChange.mock.calls[mockOnChange.mock.calls.length - 1]!;
-      expect(lastCall[0].startDate).toBeDefined();
-      expect(lastCall[0].startDate).toMatch(/T00:00:00/);
+      const lastCallArg = lastCall[0] as { endDate?: string; startDate?: string };
+
+      expect(lastCallArg.startDate).toBeDefined();
+      expect(lastCallArg.startDate).toMatch(/T00:00:00/u);
     });
 
     it("handles null filter value gracefully", () => {
@@ -793,13 +878,15 @@ describe("DateRangeFilter", () => {
         filter: { ...mockFilter, value: null },
       };
 
-      expect(() => {
+      const renderWithNullValue = (): void => {
         render(
           <TestWrapper>
             <DateRangeFilter {...props} />
           </TestWrapper>,
         );
-      }).not.toThrow();
+      };
+
+      expect(renderWithNullValue).not.toThrow();
     });
 
     it("handles undefined filter value gracefully", () => {
@@ -808,13 +895,15 @@ describe("DateRangeFilter", () => {
         filter: { ...mockFilter, value: undefined },
       };
 
-      expect(() => {
+      const renderWithUndefinedValue = (): void => {
         render(
           <TestWrapper>
             <DateRangeFilter {...props} />
           </TestWrapper>,
         );
-      }).not.toThrow();
+      };
+
+      expect(renderWithUndefinedValue).not.toThrow();
     });
   });
 });

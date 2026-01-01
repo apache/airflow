@@ -34,6 +34,10 @@
       "error": "Échec de la réinitialisation de {{type}}",
       "title": "Réinitialiser {{type}}"
     },
+    "confirmationDialog": {
+      "description": "Task is currently in a {{state}} state started by user {{user}} at {{time}}. \nThe user is unable to clear this task until it is done running or a user unchecks the \"Prevent rerun if task is running\" option in the clear task dialog.",
+      "title": "Cannot Clear Task Instance"
+    },
     "delete": {
       "button": "Supprimer {{type}}",
       "dialog": {
@@ -61,6 +65,7 @@
       "future": "Futur",
       "onlyFailed": "Réinitialiser uniquement les tâches échouées",
       "past": "Passé",
+      "preventRunningTasks": "Prevent rerun if task is running",
       "queueNew": "Ajouter de nouvelles tâches en file d'attente",
       "runOnLatestVersion": "Exécuter avec la dernière version du bundle",
       "upstream": "En amont"

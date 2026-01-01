@@ -29,7 +29,8 @@
   "poolSlots": "Havuz Slotları",
   "sortBy": {
     "newestFirst": "Önce En Yeni",
-    "oldestFirst": "Önce En Eski"
+    "oldestFirst": "Önce En Eski",
+    "placeholder": "Sort by"
   },
   "source": "Kaynak",
   "stats": {

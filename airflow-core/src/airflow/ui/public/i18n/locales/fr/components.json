@@ -53,6 +53,13 @@
     "warning_one": "1 avertissement",
     "warning_other": "{{count}} avertissements"
   },
+  "dateRangeFilter": {
+    "validation": {
+      "invalidDateFormat": "Invalid date format.",
+      "invalidTimeFormat": "Invalid time format.",
+      "startBeforeEnd": "Start date/time must be before end date/time"
+    }
+  },
   "durationChart": {
     "duration": "Durée (secondes)",
     "lastDagRun_many": "Dernières {{count}} exécutions du Dag",
@@ -114,10 +121,16 @@
   "sortedDescending": "tri décroissant",
   "sortedUnsorted": "non trié",
   "taskTries": "Essais de tâche",
+  "taskTryPlaceholder": "Task Try",
   "toggleCardView": "Afficher en mode cartes",
   "toggleTableView": "Afficher en mode tableau",
   "triggerDag": {
     "button": "Déclencher",
+    "dataInterval": "Data Interval",
+    "dataIntervalAuto": "Inferred from Logical Date and Timetable",
+    "dataIntervalManual": "Specify Manually",
+    "intervalEnd": "End",
+    "intervalStart": "Start",
     "loading": "Chargement des informations du Dag...",
     "loadingFailed": "Échec du chargement des informations du Dag. Veuillez réessayer.",
     "runIdHelp": "Optionnel – sera généré s'il n'est pas fourni",
@@ -125,6 +138,9 @@
     "selectLabel": "Exécution unique",
     "title": "Déclencher un Dag",
     "toaster": {
+      "error": {
+        "title": "Failed to Trigger Dag"
+      },
       "success": {
         "description": "L'exécution du Dag a été déclenchée avec succès.",
         "title": "Dag déclenché"
@@ -145,6 +161,7 @@
     "versionId": "ID de version"
   },
   "versionSelect": {
+    "allVersions": "All Versions",
     "dagVersion": "Version du Dag",
     "versionCode": "v{{versionCode}}"
   }

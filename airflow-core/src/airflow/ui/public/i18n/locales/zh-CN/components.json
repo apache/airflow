@@ -49,6 +49,13 @@
     "warning_one": "1 个警告",
     "warning_other": "{{count}} 个警告"
   },
+  "dateRangeFilter": {
+    "validation": {
+      "invalidDateFormat": "Invalid date format.",
+      "invalidTimeFormat": "Invalid time format.",
+      "startBeforeEnd": "Start date/time must be before end date/time"
+    }
+  },
   "durationChart": {
     "duration": "持续时间 (秒)",
     "lastDagRun_one": "最近 1 次 Dag 执行",
@@ -87,9 +94,13 @@
   },
   "limitedList": "+ 其他 {{count}} 项",
   "limitedList.allItems": "所有 {{count}} 项：",
+  "limitedList.allTags_one": "All Tags (1)",
+  "limitedList.allTags_other": "All Tags ({{count}})",
   "limitedList.clickToInteract": "点击标签以筛选 Dags",
   "limitedList.clickToOpenFull": "点击 \"+{{count}} 更多\" 打开完整视图",
   "limitedList.copyPasteText": "你可以复制并粘贴上方文本",
+  "limitedList.showingItems_one": "Showing 1 item",
+  "limitedList.showingItems_other": "Showing {{count}} items",
   "logs": {
     "file": "文件",
     "location": "第 {{line}} 行，位于 {{name}}"
@@ -99,10 +110,16 @@
   "sortedDescending": "递减排序",
   "sortedUnsorted": "未排序",
   "taskTries": "任务尝试次数",
+  "taskTryPlaceholder": "Task Try",
   "toggleCardView": "显示卡片视图",
   "toggleTableView": "显示表格视图",
   "triggerDag": {
     "button": "触发",
+    "dataInterval": "Data Interval",
+    "dataIntervalAuto": "Inferred from Logical Date and Timetable",
+    "dataIntervalManual": "Specify Manually",
+    "intervalEnd": "End",
+    "intervalStart": "Start",
     "loading": "正在加载 Dag 信息...",
     "loadingFailed": "加载 Dag 信息失败，请重试。",
     "runIdHelp": "选填 - 若未提供将会自动生成",
@@ -110,6 +127,9 @@
     "selectLabel": "单次执行",
     "title": "触发 Dag",
     "toaster": {
+      "error": {
+        "title": "Failed to Trigger Dag"
+      },
       "success": {
         "description": "已成功触发 Dag 执行。",
         "title": "已触发 Dag 执行"
@@ -130,6 +150,7 @@
     "versionId": "版本 ID"
   },
   "versionSelect": {
+    "allVersions": "All Versions",
     "dagVersion": "Dag 版本",
     "versionCode": "v{{versionCode}}"
   }

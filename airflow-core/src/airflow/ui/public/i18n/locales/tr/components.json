@@ -112,10 +112,16 @@
   "sortedDescending": "azalan sıralı",
   "sortedUnsorted": "sıralanmamış",
   "taskTries": "Görev Denemeleri",
+  "taskTryPlaceholder": "Task Try",
   "toggleCardView": "Kart görünümünü göster",
   "toggleTableView": "Tablo görünümünü göster",
   "triggerDag": {
     "button": "Tetikle",
+    "dataInterval": "Data Interval",
+    "dataIntervalAuto": "Inferred from Logical Date and Timetable",
+    "dataIntervalManual": "Specify Manually",
+    "intervalEnd": "End",
+    "intervalStart": "Start",
     "loading": "Dag bilgisi yükleniyor...",
     "loadingFailed": "Dag bilgisi yüklenemedi. Lütfen tekrar deneyin.",
     "runIdHelp": "İsteğe bağlı - sağlanmazsa oluşturulacaktır",
@@ -146,6 +152,7 @@
     "versionId": "Versiyon Kimliği"
   },
   "versionSelect": {
+    "allVersions": "All Versions",
     "dagVersion": "Dag Versiyonu",
     "versionCode": "v{{versionCode}}"
   }

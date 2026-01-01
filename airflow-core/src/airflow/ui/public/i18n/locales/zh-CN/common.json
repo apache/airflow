@@ -60,6 +60,7 @@
     "dataIntervalEnd": "数据区间结束",
     "dataIntervalStart": "数据区间起始",
     "lastSchedulingDecision": "最后调度决策",
+    "partitionKey": "Partition key",
     "queuedAt": "开始排队时间",
     "runAfter": "最早可执行时间",
     "runType": "执行类型",
@@ -73,18 +74,30 @@
   "dagWarnings": "Dag 警告 / 错误",
   "defaultToGraphView": "默认使用图形视图",
   "defaultToGridView": "默认使用网格视图",
+  "delete": "Delete",
+  "diff": "Diff",
+  "diffCompareWith": "Compare with",
+  "diffExit": "Exit Diff",
+  "diffSelectVersionToCompare": "Select version to compare",
   "direction": "书写方向",
   "docs": {
     "documentation": "文档",
     "githubRepo": "GitHub 仓库",
     "restApiReference": "REST API 参考"
   },
+  "download": {
+    "download": "Download",
+    "hotkey": "d",
+    "tooltip": "Press {{hotkey}} to download logs"
+  },
   "duration": "执行时间",
+  "edit": "Edit",
   "endDate": "结束日期",
   "error": {
     "back": "返回",
     "defaultMessage": "发生未预期的错误",
     "home": "首页",
+    "invalidUrl": "Page Not Found. Please check the URL and try again.",
     "notFound": "找不到页面",
     "title": "错误"
   },
@@ -103,22 +116,29 @@
   },
   "filter": "筛选",
   "filters": {
+    "durationFrom": "Duration From",
+    "durationTo": "Duration To",
+    "endTime": "End Time",
     "logicalDateFrom": "逻辑日期起始",
     "logicalDateTo": "逻辑结束日期",
     "runAfterFrom": "执行时间起始",
-    "runAfterTo": "执行时间结束"
+    "runAfterTo": "执行时间结束",
+    "selectDateRange": "Select Date Range",
+    "startTime": "Start Time"
   },
   "logicalDate": "逻辑日期",
   "logout": "退出登录",
   "logoutConfirmation": "确定要退出登录吗？",
   "mapIndex": "映射索引",
   "modal": {
+    "add": "Add",
     "cancel": "取消",
     "confirm": "确认",
     "delete": {
       "button": "删除",
       "confirmation": "确定要删除 {{resourceName}} 吗？此操作无法还原。"
-    }
+    },
+    "save": "Save"
   },
   "nav": {
     "admin": "管理",
@@ -172,6 +192,7 @@
   },
   "selectLanguage": "选择语言",
   "showDetailsPanel": "显示详细信息",
+  "signedInAs": "Signed in as",
   "source": {
     "hide": "隐藏来源",
     "hotkey": "s",

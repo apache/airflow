@@ -65,6 +65,7 @@
     "dataIntervalEnd": "Intervalo de Datos Final",
     "dataIntervalStart": "Intervalo de Datos Inicial",
     "lastSchedulingDecision": "Última Decisión de Programación",
+    "partitionKey": "Partition key",
     "queuedAt": "En Cola en",
     "runAfter": "Ejecutar Después",
     "runType": "Tipo de Ejecución",
@@ -79,6 +80,11 @@
   "dagWarnings": "Advertencias/Errores del Dag",
   "defaultToGraphView": "Por defecto a vista gráfica",
   "defaultToGridView": "Por defecto a vista en cuadrícula",
+  "delete": "Delete",
+  "diff": "Diff",
+  "diffCompareWith": "Compare with",
+  "diffExit": "Exit Diff",
+  "diffSelectVersionToCompare": "Select version to compare",
   "direction": "Dirección",
   "docs": {
     "documentation": "Documentación",
@@ -91,11 +97,13 @@
     "tooltip": "Presiona {{hotkey}} para descargar los registros"
   },
   "duration": "Duración",
+  "edit": "Edit",
   "endDate": "Fecha Final",
   "error": {
     "back": "Atrás",
     "defaultMessage": "Ocurrió un error inesperado",
     "home": "Inicio",
+    "invalidUrl": "Page Not Found. Please check the URL and try again.",
     "notFound": "Página no encontrada",
     "title": "Error"
   },
@@ -116,22 +124,27 @@
   "filters": {
     "durationFrom": "Duración Desde",
     "durationTo": "Duración Hasta",
+    "endTime": "End Time",
     "logicalDateFrom": "Fecha Lógica Desde",
     "logicalDateTo": "Fecha Lógica Hasta",
     "runAfterFrom": "Ejecutar Después Desde",
-    "runAfterTo": "Ejecutar Después Hasta"
+    "runAfterTo": "Ejecutar Después Hasta",
+    "selectDateRange": "Select Date Range",
+    "startTime": "Start Time"
   },
   "logicalDate": "Fecha Lógica",
   "logout": "Cerrar Sesión",
   "logoutConfirmation": "Estás a punto de cerrar sesión de la aplicación.",
   "mapIndex": "Mapa de Índice",
   "modal": {
+    "add": "Add",
     "cancel": "Cancelar",
     "confirm": "Confirmar",
     "delete": {
       "button": "Eliminar",
       "confirmation": "¿Confirmas de querer eliminar {{resourceName}}? Esta acción no se puede deshacer."
-    }
+    },
+    "save": "Save"
   },
   "nav": {
     "admin": "Administración",
@@ -186,6 +199,7 @@
   },
   "selectLanguage": "Seleccionar Idioma",
   "showDetailsPanel": "Mostrar Panel de Detalles",
+  "signedInAs": "Signed in as",
   "source": {
     "hide": "Ocultar Fuente",
     "hotkey": "s",

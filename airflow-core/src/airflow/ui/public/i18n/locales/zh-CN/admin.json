@@ -49,6 +49,12 @@
     "searchPlaceholder": "搜索连接",
     "test": "测试连接",
     "testDisabled": "测试连接功能已停用。请联系管理员以启用。",
+    "testError": {
+      "title": "Test Connection Failed"
+    },
+    "testSuccess": {
+      "title": "Test Connection Successful"
+    },
     "typeMeta": {
       "error": "获取连接类型元数据失败",
       "standardFields": {

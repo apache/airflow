@@ -50,6 +50,13 @@
     "warning_one": "1 चेतावनी",
     "warning_other": "{{count}} चेतावनियां"
   },
+  "dateRangeFilter": {
+    "validation": {
+      "invalidDateFormat": "Invalid date format.",
+      "invalidTimeFormat": "Invalid time format.",
+      "startBeforeEnd": "Start date/time must be before end date/time"
+    }
+  },
   "durationChart": {
     "duration": "अवधि (सेकंड)",
     "lastDagRun_one": "अंतिम डैग रन",
@@ -89,9 +96,13 @@
   },
   "limitedList": "+{{count}} और",
   "limitedList.allItems": "सभी {{count}} आइटम:",
+  "limitedList.allTags_one": "All Tags (1)",
+  "limitedList.allTags_other": "All Tags ({{count}})",
   "limitedList.clickToInteract": "टैग पर क्लिक करके Dags फ़िल्टर करें",
   "limitedList.clickToOpenFull": "\"+{{count}} और\" पर क्लिक करके पूरी सूची खोलें",
   "limitedList.copyPasteText": "आप ऊपर दिए गए पाठ को कॉपी और पेस्ट कर सकते हैं",
+  "limitedList.showingItems_one": "Showing 1 item",
+  "limitedList.showingItems_other": "Showing {{count}} items",
   "logs": {
     "file": "फ़ाइल",
     "location": "{{name}} में लाइन {{line}}"
@@ -101,10 +112,16 @@
   "sortedDescending": "अवरोही क्रम में सॉर्ट किया गया",
   "sortedUnsorted": "अनसॉर्टेड",
   "taskTries": "टास्क प्रयास",
+  "taskTryPlaceholder": "Task Try",
   "toggleCardView": "कार्ड व्यू दिखाएं",
   "toggleTableView": "टेबल व्यू दिखाएं",
   "triggerDag": {
     "button": "ट्रिगर करें",
+    "dataInterval": "Data Interval",
+    "dataIntervalAuto": "Inferred from Logical Date and Timetable",
+    "dataIntervalManual": "Specify Manually",
+    "intervalEnd": "End",
+    "intervalStart": "Start",
     "loading": "डैग जानकारी लोड हो रही है...",
     "loadingFailed": "डैग जानकारी लोड करने में विफल। कृपया पुनः प्रयास करें।",
     "runIdHelp": "वैकल्पिक - प्रदान न किए जाने पर जेनरेट किया जाएगा",
@@ -112,6 +129,9 @@
     "selectLabel": "सिंगल रन",
     "title": "डैग ट्रिगर करें",
     "toaster": {
+      "error": {
+        "title": "Failed to Trigger Dag"
+      },
       "success": {
         "description": "डैग रन सफलतापूर्वक ट्रिगर किया गया।",
         "title": "डैग रन ट्रिगर किया गया"
@@ -132,6 +152,7 @@
     "versionId": "संस्करण ID"
   },
   "versionSelect": {
+    "allVersions": "All Versions",
     "dagVersion": "डैग संस्करण",
     "versionCode": "v{{versionCode}}"
   }

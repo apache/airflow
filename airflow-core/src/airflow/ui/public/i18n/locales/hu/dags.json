@@ -34,6 +34,10 @@
       "error": "{{type}} törlése sikertelen",
       "title": "{{type}} törlése"
     },
+    "confirmationDialog": {
+      "description": "Task is currently in a {{state}} state started by user {{user}} at {{time}}. \nThe user is unable to clear this task until it is done running or a user unchecks the \"Prevent rerun if task is running\" option in the clear task dialog.",
+      "title": "Cannot Clear Task Instance"
+    },
     "delete": {
       "button": "{{type}} törlése",
       "dialog": {
@@ -61,6 +65,7 @@
       "future": "Jövőbeni",
       "onlyFailed": "Csak a sikertelen feladatok törlése",
       "past": "Múltbeli",
+      "preventRunningTasks": "Prevent rerun if task is running",
       "queueNew": "Új feladatok sorba állítása",
       "runOnLatestVersion": "Futtatás a legújabb csomagverzióval",
       "upstream": "Felfelé mutató (upstream)"

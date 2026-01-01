@@ -52,6 +52,12 @@
     "searchPlaceholder": "Buscar Conexiones",
     "test": "Prueba de Conexión",
     "testDisabled": "La función de prueba de conexión está desactivada. Por favor, contacta a un administrador para activarla.",
+    "testError": {
+      "title": "Test Connection Failed"
+    },
+    "testSuccess": {
+      "title": "Test Connection Successful"
+    },
     "typeMeta": {
       "error": "Error al recuperar la Metadata del Tipo de Conexión",
       "standardFields": {

@@ -80,6 +80,7 @@
     "dataIntervalEnd": "نهاية فترة البيانات",
     "dataIntervalStart": "بداية فترة البيانات",
     "lastSchedulingDecision": "آخر قرار جدولة",
+    "partitionKey": "Partition key",
     "queuedAt": "في الطابور في",
     "runAfter": "تشغيل بعد",
     "runType": "نوع التشغيل",
@@ -97,6 +98,11 @@
   "dagWarnings": "تحذيرات الDag",
   "defaultToGraphView": "عرض الرسم البياني تلقائياً",
   "defaultToGridView": "عرض الشبكة تلقائياً",
+  "delete": "Delete",
+  "diff": "Diff",
+  "diffCompareWith": "Compare with",
+  "diffExit": "Exit Diff",
+  "diffSelectVersionToCompare": "Select version to compare",
   "direction": "الاتجاه",
   "docs": {
     "documentation": "توثيق",
@@ -109,11 +115,13 @@
     "tooltip": "اضغط على {{hotkey}} لتنزيل السجلات"
   },
   "duration": "المدة",
+  "edit": "Edit",
   "endDate": "تاريخ الانتهاء",
   "error": {
     "back": "رجوع",
     "defaultMessage": "حدث خطأ غير متوقع",
     "home": "الصفحة الرئيسية",
+    "invalidUrl": "Page Not Found. Please check the URL and try again.",
     "notFound": "غير موجود",
     "title": "خطأ"
   },
@@ -134,22 +142,27 @@
   "filters": {
     "durationFrom": "المدة من",
     "durationTo": "المدة إلى",
+    "endTime": "End Time",
     "logicalDateFrom": "من التاريخ المنطقي",
     "logicalDateTo": "إلى التاريخ المنطقي",
     "runAfterFrom": "من تشغيل بعد",
-    "runAfterTo": "إلى تشغيل بعد"
+    "runAfterTo": "إلى تشغيل بعد",
+    "selectDateRange": "Select Date Range",
+    "startTime": "Start Time"
   },
   "logicalDate": "التاريخ المنطقي",
   "logout": "تسجيل الخروج",
   "logoutConfirmation": "أنت على وشك تسجيل الخروج.",
   "mapIndex": "فهرس الخريطة",
   "modal": {
+    "add": "Add",
     "cancel": "إلغاء",
     "confirm": "تأكيد",
     "delete": {
       "button": "حذف",
       "confirmation": "هل أنت متأكد من أنك تريد حذف {{resourceName}}؟ لا يمكن التراجع عن هذا الإجراء."
-    }
+    },
+    "save": "Save"
   },
   "nav": {
     "admin": "إدارة",
@@ -207,6 +220,7 @@
   },
   "selectLanguage": "اختيار اللغة",
   "showDetailsPanel": "إظهار لوحة التفاصيل",
+  "signedInAs": "Signed in as",
   "source": {
     "hide": "إخفاء المصدر",
     "hotkey": "s",

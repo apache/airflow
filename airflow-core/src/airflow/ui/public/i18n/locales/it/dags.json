@@ -34,6 +34,10 @@
       "error": "Impossibile pulire {{type}}",
       "title": "Pulisci {{type}}"
     },
+    "confirmationDialog": {
+      "description": "Task is currently in a {{state}} state started by user {{user}} at {{time}}. \nThe user is unable to clear this task until it is done running or a user unchecks the \"Prevent rerun if task is running\" option in the clear task dialog.",
+      "title": "Cannot Clear Task Instance"
+    },
     "delete": {
       "button": "Elimina {{type}}",
       "dialog": {
@@ -61,6 +65,7 @@
       "future": "Futuro",
       "onlyFailed": "Pulisci solo le task fallite",
       "past": "Passato",
+      "preventRunningTasks": "Prevent rerun if task is running",
       "queueNew": "Inserisci nuove task",
       "runOnLatestVersion": "Esegui con l'ultima versione del bundle",
       "upstream": "Upstream"

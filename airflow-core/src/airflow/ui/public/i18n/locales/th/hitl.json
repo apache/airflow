@@ -1,5 +1,7 @@
 {
   "filters": {
+    "body": "Body",
+    "createdAt": "Created At",
     "response": {
       "all": "ทั้งหมด",
       "pending": "รอดำเนินการ",
@@ -12,11 +14,13 @@
   "requiredActionCount_other": "การดำเนินการที่จำเป็น ({{count}})",
   "requiredActionState": "สถานะการดำเนินการที่จำเป็น",
   "response": {
+    "created": "Response created at ",
     "error": "การตอบสนองล้มเหลว",
     "optionsDescription": "เลือกตัวเลือกของคุณสำหรับ Task Instance นี้",
     "optionsLabel": "ตัวเลือก",
     "received": "ได้รับการตอบสนองเมื่อ ",
     "respond": "ตอบสนอง",
+    "responded_by_user_name": "Responded by (User Name)",
     "success": "การตอบสนองของ {{taskId}} สำเร็จ",
     "title": "Human Task Instance - {{taskId}}"
   },

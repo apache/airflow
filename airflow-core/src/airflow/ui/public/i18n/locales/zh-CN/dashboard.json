@@ -29,7 +29,8 @@
   "poolSlots": "资源池配额",
   "sortBy": {
     "newestFirst": "由新到旧",
-    "oldestFirst": "由旧到新"
+    "oldestFirst": "由旧到新",
+    "placeholder": "Sort by"
   },
   "source": "来源",
   "stats": {

@@ -34,6 +34,10 @@
       "error": "Mislukt om {{type}} te wissen",
       "title": "Wis {{type}}"
     },
+    "confirmationDialog": {
+      "description": "Task is currently in a {{state}} state started by user {{user}} at {{time}}. \nThe user is unable to clear this task until it is done running or a user unchecks the \"Prevent rerun if task is running\" option in the clear task dialog.",
+      "title": "Cannot Clear Task Instance"
+    },
     "delete": {
       "button": "Verwijder {{type}}",
       "dialog": {
@@ -61,6 +65,7 @@
       "future": "Toekomst",
       "onlyFailed": "Wis enkel mislukte Tasks",
       "past": "Verleden",
+      "preventRunningTasks": "Prevent rerun if task is running",
       "queueNew": "Zet nieuwe Tasks in de wachtrij",
       "runOnLatestVersion": "Voer uit met de nieuwste bundelversie",
       "upstream": "Upstream"

@@ -1,5 +1,7 @@
 {
   "filters": {
+    "body": "Body",
+    "createdAt": "Created At",
     "response": {
       "all": "全部",
       "pending": "待响应",
@@ -12,11 +14,13 @@
   "requiredActionCount_other": "待操作的任务实例 ({{count}})",
   "requiredActionState": "待操作的任务实例状态",
   "response": {
+    "created": "Response created at ",
     "error": "响应失败",
     "optionsDescription": "请为此任务实例选择一个选项",
     "optionsLabel": "选项",
     "received": "收到响应的时间：",
     "respond": "发送响应",
+    "responded_by_user_name": "Responded by (User Name)",
     "success": "任务 {{taskId}} 响应成功",
     "title": "人类参与流程任务实例 - {{taskId}}"
   },

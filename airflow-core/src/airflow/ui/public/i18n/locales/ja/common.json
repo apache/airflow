@@ -74,9 +74,11 @@
   "dagWarnings": "Dag 実行警告/エラー",
   "defaultToGraphView": "グラフ表示を既定にします",
   "defaultToGridView": "グリッド表示を既定にします",
+  "delete": "Delete",
   "diff": "差分",
   "diffCompareWith": "比較する",
   "diffExit": "差分表示終了",
+  "diffSelectVersionToCompare": "Select version to compare",
   "direction": "方向",
   "docs": {
     "documentation": "ドキュメント",
@@ -89,6 +91,7 @@
     "tooltip": "ログをダウンロードするには {{hotkey}} キーを押してください"
   },
   "duration": "実行時間",
+  "edit": "Edit",
   "endDate": "終了日",
   "error": {
     "back": "戻る",
@@ -128,12 +131,14 @@
   "logoutConfirmation": "ログアウトしてもよろしいですか",
   "mapIndex": "Map Index",
   "modal": {
+    "add": "Add",
     "cancel": "キャンセル",
     "confirm": "確認",
     "delete": {
       "button": "削除",
       "confirmation": "{{resourceName}} を削除してもよろしいですか。この操作は元に戻せません"
-    }
+    },
+    "save": "Save"
   },
   "nav": {
     "admin": "管理",

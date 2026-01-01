@@ -70,6 +70,7 @@
     "dataIntervalEnd": "Fim do Intervalo de Dados",
     "dataIntervalStart": "Início do Intervalo de Dados",
     "lastSchedulingDecision": "Última Decisão de Agendamento",
+    "partitionKey": "Partition key",
     "queuedAt": "Enfileirado Em",
     "runAfter": "Executar Depois",
     "runType": "Tipo de Execução",
@@ -85,6 +86,11 @@
   "dagWarnings": "Avisos/Erros do Dag",
   "defaultToGraphView": "Padrão para visualização gráfica",
   "defaultToGridView": "Padrão para visualização em grade",
+  "delete": "Delete",
+  "diff": "Diff",
+  "diffCompareWith": "Compare with",
+  "diffExit": "Exit Diff",
+  "diffSelectVersionToCompare": "Select version to compare",
   "direction": "Direção",
   "docs": {
     "documentation": "Documentação",
@@ -97,11 +103,13 @@
     "tooltip": "Pressione {{hotkey}} para baixar os logs"
   },
   "duration": "Duração",
+  "edit": "Edit",
   "endDate": "Data Final",
   "error": {
     "back": "Voltar",
     "defaultMessage": "Ocorreu um erro inesperado",
     "home": "Início",
+    "invalidUrl": "Page Not Found. Please check the URL and try again.",
     "notFound": "Página Não Encontrada",
     "title": "Erro"
   },
@@ -122,22 +130,27 @@
   "filters": {
     "durationFrom": "Duração De",
     "durationTo": "Duração Até",
+    "endTime": "End Time",
     "logicalDateFrom": "Data Lógica De",
     "logicalDateTo": "Data Lógica Para",
     "runAfterFrom": "Executar Depois De",
-    "runAfterTo": "Executar Depois Para"
+    "runAfterTo": "Executar Depois Para",
+    "selectDateRange": "Select Date Range",
+    "startTime": "Start Time"
   },
   "logicalDate": "Data Lógica",
   "logout": "Sair",
   "logoutConfirmation": "Você está prestes a sair do aplicativo.",
   "mapIndex": "Índice do Mapa",
   "modal": {
+    "add": "Add",
     "cancel": "Cancelar",
     "confirm": "Confirmar",
     "delete": {
       "button": "Excluir",
       "confirmation": "Tem certeza que deseja excluir {{resourceName}}? Esta ação não pode ser desfeita."
-    }
+    },
+    "save": "Save"
   },
   "nav": {
     "admin": "Administração",
@@ -193,6 +206,7 @@
   },
   "selectLanguage": "Selecionar Idioma",
   "showDetailsPanel": "Mostrar Painel de Detalhes",
+  "signedInAs": "Signed in as",
   "source": {
     "hide": "Ocultar",
     "hotkey": "Pressione {{hotkey}} para ocultar/mostrar",

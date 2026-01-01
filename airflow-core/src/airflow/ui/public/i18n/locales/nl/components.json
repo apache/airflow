@@ -50,6 +50,13 @@
     "warning_one": "1 waarschuwing",
     "warning_other": "{{count}} waarschuwingen"
   },
+  "dateRangeFilter": {
+    "validation": {
+      "invalidDateFormat": "Invalid date format.",
+      "invalidTimeFormat": "Invalid time format.",
+      "startBeforeEnd": "Start date/time must be before end date/time"
+    }
+  },
   "durationChart": {
     "duration": "Duur (seconds)",
     "lastDagRun_one": "Laatste Dag Run",
@@ -105,10 +112,16 @@
   "sortedDescending": "aflopend gesorteerd",
   "sortedUnsorted": "ongesorteerd",
   "taskTries": "Task pogingen",
+  "taskTryPlaceholder": "Task Try",
   "toggleCardView": "Toon kaartweergave",
   "toggleTableView": "Toon tabelweergave",
   "triggerDag": {
     "button": "Trigger",
+    "dataInterval": "Data Interval",
+    "dataIntervalAuto": "Inferred from Logical Date and Timetable",
+    "dataIntervalManual": "Specify Manually",
+    "intervalEnd": "End",
+    "intervalStart": "Start",
     "loading": "Dag informatie aan het laden...",
     "loadingFailed": "Mislukt om Dag informatie te laden. Probeer het opnieuw.",
     "runIdHelp": "Optioneel - wordt gegenereerd indien niet opgegeven",
@@ -116,6 +129,9 @@
     "selectLabel": "Enkele Run",
     "title": "Trigger Dag",
     "toaster": {
+      "error": {
+        "title": "Failed to Trigger Dag"
+      },
       "success": {
         "description": "Dag run is succesvol getriggerd.",
         "title": "Dag Run triggered"
@@ -136,6 +152,7 @@
     "versionId": "Versie ID"
   },
   "versionSelect": {
+    "allVersions": "All Versions",
     "dagVersion": "Dag versie",
     "versionCode": "v{{versionCode}}"
   }

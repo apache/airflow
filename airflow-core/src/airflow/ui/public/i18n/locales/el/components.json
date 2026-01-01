@@ -1,4 +1,6 @@
 {
+  "allTags_one": "All Tags ({{count}})",
+  "allTags_other": "All Tags ({{count}})",
   "backfill": {
     "affected_one": "1 εκτέλεση θα ενεργοποιηθεί.",
     "affected_other": "{{count}} εκτελέσεις θα ενεργοποιηθούν.",
@@ -50,6 +52,13 @@
     "warning_one": "1 Προειδοποίηση",
     "warning_other": "{{count}} Προειδοποιήσεις"
   },
+  "dateRangeFilter": {
+    "validation": {
+      "invalidDateFormat": "Invalid date format.",
+      "invalidTimeFormat": "Invalid time format.",
+      "startBeforeEnd": "Start date/time must be before end date/time"
+    }
+  },
   "durationChart": {
     "duration": "Διάρκεια (δευτερόλεπτα)",
     "lastDagRun_one": "Τελευταία Εκτέλεση Dag",
@@ -88,19 +97,31 @@
     "taskGroup": "Ομάδα Εργασιών"
   },
   "limitedList": "+{{count}} ακόμα",
+  "limitedList.allItems": "All {{count}} items:",
+  "limitedList.clickToInteract": "Click a tag to filter Dags",
+  "limitedList.clickToOpenFull": "Click \"+{{count}} more\" to open full view",
+  "limitedList.copyPasteText": "You can copy and paste the text above",
   "logs": {
     "file": "Αρχείο",
     "location": "γραμμή {{line}} στο {{name}}"
   },
   "reparseDag": "Επαναανάλυση Dag",
+  "showingItems_one": "Showing {{count}} items",
+  "showingItems_other": "Showing {{count}} items",
   "sortedAscending": "αύξουσα ταξινόμηση",
   "sortedDescending": "φθίνουσα ταξινόμηση",
   "sortedUnsorted": "μη ταξινομημένο",
   "taskTries": "Προσπάθειες Εργασίας",
+  "taskTryPlaceholder": "Task Try",
   "toggleCardView": "Εμφάνιση κάρτας",
   "toggleTableView": "Εμφάνιση πίνακα",
   "triggerDag": {
     "button": "Ενεργοποίηση",
+    "dataInterval": "Data Interval",
+    "dataIntervalAuto": "Inferred from Logical Date and Timetable",
+    "dataIntervalManual": "Specify Manually",
+    "intervalEnd": "End",
+    "intervalStart": "Start",
     "loading": "Φόρτωση πληροφοριών Dag...",
     "loadingFailed": "Αποτυχία φόρτωσης πληροφοριών Dag. Παρακαλώ δοκιμάστε ξανά.",
     "runIdHelp": "Προαιρετικό - θα δημιουργηθεί αν δεν δοθεί",
@@ -108,6 +129,9 @@
     "selectLabel": "Μονή Εκτέλεση",
     "title": "Ενεργοποίηση Dag",
     "toaster": {
+      "error": {
+        "title": "Failed to Trigger Dag"
+      },
       "success": {
         "description": "Η εκτέλεση Dag ενεργοποιήθηκε με επιτυχία.",
         "title": "Η Εκτέλεση Dag Ενεργοποιήθηκε"
@@ -128,6 +152,7 @@
     "versionId": "ID Έκδοσης"
   },
   "versionSelect": {
+    "allVersions": "All Versions",
     "dagVersion": "Έκδοση Dag",
     "versionCode": "v{{versionCode}}"
   }

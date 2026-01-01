@@ -60,6 +60,7 @@
     "dataIntervalEnd": "Adatintervallum vége",
     "dataIntervalStart": "Adatintervallum kezdete",
     "lastSchedulingDecision": "Utolsó ütemezési döntés",
+    "partitionKey": "Partition key",
     "queuedAt": "Sorba állítva ekkor",
     "runAfter": "Futtatás ezután",
     "runType": "Futtatás típusa",
@@ -73,6 +74,11 @@
   "dagWarnings": "Dag figyelmeztetések/hibák",
   "defaultToGraphView": "Alapértelmezett gráf nézet",
   "defaultToGridView": "Alapértelmezett rács nézet",
+  "delete": "Delete",
+  "diff": "Diff",
+  "diffCompareWith": "Compare with",
+  "diffExit": "Exit Diff",
+  "diffSelectVersionToCompare": "Select version to compare",
   "direction": "Irány",
   "docs": {
     "documentation": "Dokumentáció",
@@ -85,11 +91,13 @@
     "tooltip": "Nyomja meg a(z) {{hotkey}} billentyűt a naplók letöltéséhez"
   },
   "duration": "Időtartam",
+  "edit": "Edit",
   "endDate": "Befejezés dátuma",
   "error": {
     "back": "Vissza",
     "defaultMessage": "Váratlan hiba történt",
     "home": "Kezdőlap",
+    "invalidUrl": "Page Not Found. Please check the URL and try again.",
     "notFound": "Az oldal nem található",
     "title": "Hiba"
   },
@@ -110,22 +118,27 @@
   "filters": {
     "durationFrom": "Kezdő időtartam",
     "durationTo": "Záró időtartam",
+    "endTime": "End Time",
     "logicalDateFrom": "Kezdő logikai dátum",
     "logicalDateTo": "Záró logikai dátum",
     "runAfterFrom": "Futás ekkortól",
-    "runAfterTo": "Futás eddig"
+    "runAfterTo": "Futás eddig",
+    "selectDateRange": "Select Date Range",
+    "startTime": "Start Time"
   },
   "logicalDate": "Logikai dátum",
   "logout": "Kijelentkezés",
   "logoutConfirmation": "Biztosan ki szeretne jelentkezni az alkalmazásból?",
   "mapIndex": "Map Index",
   "modal": {
+    "add": "Add",
     "cancel": "Mégse",
     "confirm": "Megerősítés",
     "delete": {
       "button": "Törlés",
       "confirmation": "Biztosan törölni akarja ezt: {{resourceName}}? Ez a művelet nem vonható vissza."
-    }
+    },
+    "save": "Save"
   },
   "nav": {
     "admin": "Admin",
@@ -179,6 +192,7 @@
   },
   "selectLanguage": "Nyelv kiválasztása",
   "showDetailsPanel": "Részletek panel megjelenítése",
+  "signedInAs": "Signed in as",
   "source": {
     "hide": "Forrás elrejtése",
     "hotkey": "s",

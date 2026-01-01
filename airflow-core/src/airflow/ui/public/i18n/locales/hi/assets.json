@@ -1,5 +1,10 @@
 {
+  "additional_data": "अतिरिक्त डेटा",
+  "asset_many": "एसेट्स",
+  "asset_one": "एसेट",
+  "asset_other": "Asset",
   "consumingDags": "उपभोग करने वाले डैग्स",
+  "consumingTasks": "उपभोग करने वाले टास्क्स",
   "createEvent": {
     "button": "इवेंट बनाएं",
     "manual": {
@@ -21,6 +26,7 @@
     },
     "title": "{{name}} के लिए एसेट इवेंट बनाएं"
   },
+  "extra": "अतिरिक्त",
   "group": "ग्रुप",
   "lastAssetEvent": "अंतिम एसेट इवेंट",
   "name": "नाम",

@@ -49,6 +49,12 @@
     "searchPlaceholder": "Kapcsolatok keresése",
     "test": "Kapcsolat tesztelése",
     "testDisabled": "A kapcsolat tesztelése funkció le van tiltva. Kérjük, forduljon az adminisztrátorhoz az engedélyezéshez.",
+    "testError": {
+      "title": "Test Connection Failed"
+    },
+    "testSuccess": {
+      "title": "Test Connection Successful"
+    },
     "typeMeta": {
       "error": "Nem sikerült lekérni a kapcsolat típus metaadatait",
       "standardFields": {

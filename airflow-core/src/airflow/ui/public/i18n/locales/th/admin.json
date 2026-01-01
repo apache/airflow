@@ -49,6 +49,12 @@
     "searchPlaceholder": "ค้นหาการเชื่อมต่อ",
     "test": "ทดสอบการเชื่อมต่อ",
     "testDisabled": "ฟีเจอร์ทดสอบการเชื่อมต่อถูกปิดใช้งาน โปรดติดต่อผู้ดูแลระบบเพื่อเปิดใช้งาน",
+    "testError": {
+      "title": "Test Connection Failed"
+    },
+    "testSuccess": {
+      "title": "Test Connection Successful"
+    },
     "typeMeta": {
       "error": "ไม่สามารถดึงข้อมูล Connection Type Meta ได้",
       "standardFields": {

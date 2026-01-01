@@ -1,5 +1,10 @@
 {
+  "additional_data": "Additional Data",
+  "asset_many": "Assets",
+  "asset_one": "Asset",
+  "asset_other": "Asset",
   "consumingDags": "Καταναλωτικά Dags",
+  "consumingTasks": "Consuming Tasks",
   "createEvent": {
     "button": "Δημιουργία Συμβάντος",
     "manual": {
@@ -21,6 +26,7 @@
     },
     "title": "Δημιουργία Συμβάντος Οντότητας για {{name}}"
   },
+  "extra": "Extra",
   "group": "Ομάδα",
   "lastAssetEvent": "Τελευταίο Συμβάν Οντότητας",
   "name": "Όνομα",

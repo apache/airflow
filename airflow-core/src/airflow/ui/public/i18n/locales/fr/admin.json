@@ -52,6 +52,12 @@
     "searchPlaceholder": "Rechercher les connexions",
     "test": "Tester la connexion",
     "testDisabled": "Le test de connexion est désactivé. Veuillez contacter un administrateur pour l'activer.",
+    "testError": {
+      "title": "Test Connection Failed"
+    },
+    "testSuccess": {
+      "title": "Test Connection Successful"
+    },
     "typeMeta": {
       "error": "Échec de la récupération des métadonnées du type de connexion",
       "standardFields": {

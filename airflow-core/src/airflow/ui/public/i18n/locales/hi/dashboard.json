@@ -29,7 +29,8 @@
   "poolSlots": "पूल स्लॉट्स",
   "sortBy": {
     "newestFirst": "नवीनतम पहले",
-    "oldestFirst": "पुराने पहले"
+    "oldestFirst": "पुराने पहले",
+    "placeholder": "Sort by"
   },
   "source": "स्रोत",
   "stats": {

@@ -31,7 +31,8 @@
   "poolSlots": "סטאטוס מאגרים",
   "sortBy": {
     "newestFirst": "חדש קודם",
-    "oldestFirst": "ישן קודם"
+    "oldestFirst": "ישן קודם",
+    "placeholder": "Sort by"
   },
   "source": "מקור",
   "stats": {

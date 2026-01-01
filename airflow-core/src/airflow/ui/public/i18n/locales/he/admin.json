@@ -52,6 +52,12 @@
     "searchPlaceholder": "חפש חיבורים",
     "test": "בדוק חיבור",
     "testDisabled": "אפשרות זו אינה זמינה. פנו למנהל המערכת להפעלתה",
+    "testError": {
+      "title": "Test Connection Failed"
+    },
+    "testSuccess": {
+      "title": "Test Connection Successful"
+    },
     "typeMeta": {
       "error": "נכשל באחזור מטא סוג חיבור",
       "standardFields": {

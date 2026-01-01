@@ -121,10 +121,16 @@
   "sortedDescending": "ממוין בסדר יורד",
   "sortedUnsorted": "לא ממוין",
   "taskTries": "ניסיונות משימה",
+  "taskTryPlaceholder": "Task Try",
   "toggleCardView": "הצג תצוגת כרטיסים",
   "toggleTableView": "הצג תצוגת טבלה",
   "triggerDag": {
     "button": "הפעל",
+    "dataInterval": "Data Interval",
+    "dataIntervalAuto": "Inferred from Logical Date and Timetable",
+    "dataIntervalManual": "Specify Manually",
+    "intervalEnd": "End",
+    "intervalStart": "Start",
     "loading": "טוען מידע Dag...",
     "loadingFailed": "טעינת מידע ה-Dag נכשלה. אנא נסו שוב.",
     "runIdHelp": "אופציונלי - ייווצר אוטומטית אם לא יסופק",
@@ -155,6 +161,7 @@
     "versionId": "מזהה גרסה"
   },
   "versionSelect": {
+    "allVersions": "All Versions",
     "dagVersion": "גרסת Dag",
     "versionCode": "גרסה {{versionCode}}"
   }

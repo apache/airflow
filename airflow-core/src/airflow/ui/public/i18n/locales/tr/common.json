@@ -74,6 +74,11 @@
   "dagWarnings": "Dag Uyarıları/Hataları",
   "defaultToGraphView": "Varsayılan olarak grafik görünümü",
   "defaultToGridView": "Varsayılan olarak ızgara görünümü",
+  "delete": "Delete",
+  "diff": "Diff",
+  "diffCompareWith": "Compare with",
+  "diffExit": "Exit Diff",
+  "diffSelectVersionToCompare": "Select version to compare",
   "direction": "Yön",
   "docs": {
     "documentation": "Dokümantasyon",
@@ -86,6 +91,7 @@
     "tooltip": "{{hotkey}} tuşuna basarak indir"
   },
   "duration": "Süre",
+  "edit": "Edit",
   "endDate": "Bitiş Tarihi",
   "error": {
     "back": "Geri",
@@ -125,12 +131,14 @@
   "logoutConfirmation": "Uygulamadan çıkış yapmak üzeresiniz.",
   "mapIndex": "Harita İndeksi",
   "modal": {
+    "add": "Add",
     "cancel": "İptal",
     "confirm": "Onayla",
     "delete": {
       "button": "Sil",
       "confirmation": "{{resourceName}} öğesini silmek istediğinizden emin misiniz? Bu işlem geri alınamaz."
-    }
+    },
+    "save": "Save"
   },
   "nav": {
     "admin": "Yönetici",
@@ -184,6 +192,7 @@
   },
   "selectLanguage": "Dil Seçin",
   "showDetailsPanel": "Detay Panelini Göster",
+  "signedInAs": "Signed in as",
   "source": {
     "hide": "Kaynağı Gizle",
     "hotkey": "s",

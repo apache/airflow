@@ -65,6 +65,7 @@
     "dataIntervalEnd": "Fin de l'intervalle de données",
     "dataIntervalStart": "Début de l'intervalle de données",
     "lastSchedulingDecision": "Dernière décision de planification",
+    "partitionKey": "Partition key",
     "queuedAt": "Mis en file à",
     "runAfter": "Exécuté après",
     "runType": "Type d'exécution",
@@ -79,18 +80,30 @@
   "dagWarnings": "Avertissements/erreurs du Dag",
   "defaultToGraphView": "Vue par défaut : graphe",
   "defaultToGridView": "Vue par défaut : grille",
+  "delete": "Delete",
+  "diff": "Diff",
+  "diffCompareWith": "Compare with",
+  "diffExit": "Exit Diff",
+  "diffSelectVersionToCompare": "Select version to compare",
   "direction": "Direction",
   "docs": {
     "documentation": "Documentation",
     "githubRepo": "Repo GitHub",
     "restApiReference": "Référence API REST"
   },
+  "download": {
+    "download": "Download",
+    "hotkey": "d",
+    "tooltip": "Press {{hotkey}} to download logs"
+  },
   "duration": "Durée",
+  "edit": "Edit",
   "endDate": "Date de fin",
   "error": {
     "back": "Retour",
     "defaultMessage": "Une erreur inattendue est survenue",
     "home": "Accueil",
+    "invalidUrl": "Page Not Found. Please check the URL and try again.",
     "notFound": "Page introuvable",
     "title": "Erreur"
   },
@@ -109,22 +122,29 @@
   },
   "filter": "Filtre",
   "filters": {
+    "durationFrom": "Duration From",
+    "durationTo": "Duration To",
+    "endTime": "End Time",
     "logicalDateFrom": "Date logique de début",
     "logicalDateTo": "Date logique de fin",
     "runAfterFrom": "Exécuté après - de",
-    "runAfterTo": "Exécuté après - à"
+    "runAfterTo": "Exécuté après - à",
+    "selectDateRange": "Select Date Range",
+    "startTime": "Start Time"
   },
   "logicalDate": "Date logique",
   "logout": "Déconnexion",
   "logoutConfirmation": "Vous êtes sur le point de vous déconnecter de l'application.",
   "mapIndex": "Map Index",
   "modal": {
+    "add": "Add",
     "cancel": "Annuler",
     "confirm": "Confirmer",
     "delete": {
       "button": "Supprimer",
       "confirmation": "Êtes-vous sûr de vouloir supprimer {{resourceName}} ? Cette action est irréversible."
-    }
+    },
+    "save": "Save"
   },
   "nav": {
     "admin": "Admin",
@@ -179,6 +199,7 @@
   },
   "selectLanguage": "Choisir la langue",
   "showDetailsPanel": "Afficher le panneau des détails",
+  "signedInAs": "Signed in as",
   "source": {
     "hide": "Masquer la source",
     "hotkey": "s",

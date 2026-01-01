@@ -53,6 +53,13 @@
     "warning_one": "1 Advertencia",
     "warning_other": "{{count}} Advertencias"
   },
+  "dateRangeFilter": {
+    "validation": {
+      "invalidDateFormat": "Invalid date format.",
+      "invalidTimeFormat": "Invalid time format.",
+      "startBeforeEnd": "Start date/time must be before end date/time"
+    }
+  },
   "durationChart": {
     "duration": "Duración (segundos)",
     "lastDagRun_many": "Últimas {{count}} Ejecuciones de Dag",
@@ -114,10 +121,16 @@
   "sortedDescending": "ordenado descendente",
   "sortedUnsorted": "sin ordenar",
   "taskTries": "Intentos de Tarea",
+  "taskTryPlaceholder": "Task Try",
   "toggleCardView": "Mostrar vista de tarjeta",
   "toggleTableView": "Mostrar vista de tabla",
   "triggerDag": {
     "button": "Trigger",
+    "dataInterval": "Data Interval",
+    "dataIntervalAuto": "Inferred from Logical Date and Timetable",
+    "dataIntervalManual": "Specify Manually",
+    "intervalEnd": "End",
+    "intervalStart": "Start",
     "loading": "Cargando información del Dag...",
     "loadingFailed": "Error al cargar la información del Dag. Por favor, inténtelo de nuevo.",
     "runIdHelp": "Opcional - se generará si no se proporciona",
@@ -125,6 +138,9 @@
     "selectLabel": "Ejecución Única",
     "title": "Activar Dag",
     "toaster": {
+      "error": {
+        "title": "Failed to Trigger Dag"
+      },
       "success": {
         "description": "La ejecución del Dag ha sido activada exitosamente.",
         "title": "Ejecución del Dag Activada"
@@ -145,6 +161,7 @@
     "versionId": "ID de la Versión"
   },
   "versionSelect": {
+    "allVersions": "All Versions",
     "dagVersion": "Versión del Dag",
     "versionCode": "v{{versionCode}}"
   }

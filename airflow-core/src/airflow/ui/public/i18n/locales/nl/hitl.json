@@ -1,6 +1,7 @@
 {
   "filters": {
     "body": "Body",
+    "createdAt": "Created At",
     "createdAtFrom": "Aangemaakt vanaf",
     "createdAtTo": "Aangemaakt tot",
     "response": {

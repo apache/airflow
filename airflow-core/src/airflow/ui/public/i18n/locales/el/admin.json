@@ -49,6 +49,12 @@
     "searchPlaceholder": "Αναζήτηση Συνδέσεων",
     "test": "Δοκιμή Σύνδεσης",
     "testDisabled": "Η λειτουργία δοκιμής σύνδεσης είναι απενεργοποιημένη. Επικοινωνήστε με τον διαχειριστή για να την ενεργοποιήσει.",
+    "testError": {
+      "title": "Test Connection Failed"
+    },
+    "testSuccess": {
+      "title": "Test Connection Successful"
+    },
     "typeMeta": {
       "error": "Αποτυχία ανάκτησης μεταδεδομένων τύπου σύνδεσης",
       "standardFields": {

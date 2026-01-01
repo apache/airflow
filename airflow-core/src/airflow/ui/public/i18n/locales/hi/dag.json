@@ -5,9 +5,39 @@
     "reason": "कारण",
     "title": "टास्क को शेड्यूल होने से रोकने वाली निर्भरताएं"
   },
+  "calendar": {
+    "daily": "Daily",
+    "hourly": "Hourly",
+    "legend": {
+      "less": "Less",
+      "mixed": "Mixed",
+      "more": "More"
+    },
+    "navigation": {
+      "nextMonth": "Next month",
+      "nextYear": "Next year",
+      "previousMonth": "Previous month",
+      "previousYear": "Previous year"
+    },
+    "noData": "No data available",
+    "noFailedRuns": "No failed runs",
+    "noRuns": "No runs",
+    "totalRuns": "Total Runs",
+    "week": "Week {{weekNumber}}",
+    "weekdays": {
+      "friday": "Fri",
+      "monday": "Mon",
+      "saturday": "Sat",
+      "sunday": "Sun",
+      "thursday": "Thu",
+      "tuesday": "Tue",
+      "wednesday": "Wed"
+    }
+  },
   "code": {
     "bundleUrl": "बंडल URL",
     "noCode": "कोई कोड नहीं मिला",
+    "parseDuration": "Parse Duration:",
     "parsedAt": "पार्स किया गया:"
   },
   "extraLinks": "अतिरिक्त लिंक्स",
@@ -57,13 +87,18 @@
       "assetEvent_other": "बनाए गए एसेट इवेंट्स"
     },
     "failedLogs": {
+      "hideLogs": "Hide Logs",
+      "showLogs": "Show Logs",
       "title": "हाल ही की विफल टास्क लॉग्स",
       "viewFullLogs": "पूर्ण लॉग्स देखें"
     }
   },
   "panel": {
     "buttons": {
-      "options": "विकल्प"
+      "options": "विकल्प",
+      "showGantt": "Show Gantt",
+      "showGraphShortcut": "Show Graph (Press g)",
+      "showGridShortcut": "Show Grid (Press g)"
     },
     "dagRuns": {
       "label": "डैग रन्स की संख्या"
@@ -79,6 +114,18 @@
     },
     "graphDirection": {
       "label": "ग्राफ़ दिशा"
+    },
+    "taskStreamFilter": {
+      "activeFilter": "Active filter",
+      "clearFilter": "Clear Filter",
+      "clickTask": "Click a task to select it as the filter root",
+      "label": "Filter",
+      "options": {
+        "both": "Both upstream & downstream",
+        "downstream": "Downstream",
+        "upstream": "Upstream"
+      },
+      "selectedTask": "Selected task"
     }
   },
   "paramsFailed": "पैरामीटर लोड करने में विफल",
@@ -98,6 +145,7 @@
     "assetEvents": "एसेट इवेंट्स",
     "auditLog": "ऑडिट लॉग",
     "backfills": "बैकफ़िल्स",
+    "calendar": "Calendar",
     "code": "कोड",
     "details": "विवरण",
     "logs": "लॉग्स",

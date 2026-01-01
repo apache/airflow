@@ -122,6 +122,18 @@
     },
     "graphDirection": {
       "label": "Direzione del Grafico"
+    },
+    "taskStreamFilter": {
+      "activeFilter": "Active filter",
+      "clearFilter": "Clear Filter",
+      "clickTask": "Click a task to select it as the filter root",
+      "label": "Filter",
+      "options": {
+        "both": "Both upstream & downstream",
+        "downstream": "Downstream",
+        "upstream": "Upstream"
+      },
+      "selectedTask": "Selected task"
     }
   },
   "paramsFailed": "Impossibile caricare i parametri",

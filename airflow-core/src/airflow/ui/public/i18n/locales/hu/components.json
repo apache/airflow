@@ -50,6 +50,13 @@
     "warning_one": "1 figyelmeztetés",
     "warning_other": "{{count}} figyelmeztetés"
   },
+  "dateRangeFilter": {
+    "validation": {
+      "invalidDateFormat": "Invalid date format.",
+      "invalidTimeFormat": "Invalid time format.",
+      "startBeforeEnd": "Start date/time must be before end date/time"
+    }
+  },
   "durationChart": {
     "duration": "Időtartam (másodperc)",
     "lastDagRun_one": "Utolsó Dag futás",
@@ -105,10 +112,16 @@
   "sortedDescending": "csökkenő sorrend",
   "sortedUnsorted": "nincs rendezve",
   "taskTries": "Feladatpróbálkozások",
+  "taskTryPlaceholder": "Task Try",
   "toggleCardView": "Kártyanézet megjelenítése",
   "toggleTableView": "Táblázatnézet megjelenítése",
   "triggerDag": {
     "button": "Indítás",
+    "dataInterval": "Data Interval",
+    "dataIntervalAuto": "Inferred from Logical Date and Timetable",
+    "dataIntervalManual": "Specify Manually",
+    "intervalEnd": "End",
+    "intervalStart": "Start",
     "loading": "Dag információk betöltése...",
     "loadingFailed": "A Dag információk betöltése sikertelen. Kérem, próbálja újra.",
     "runIdHelp": "Opcionális – ha nincs megadva, automatikusan generálódik",
@@ -116,6 +129,9 @@
     "selectLabel": "Egyszeri futás",
     "title": "Dag indítása",
     "toaster": {
+      "error": {
+        "title": "Failed to Trigger Dag"
+      },
       "success": {
         "description": "A Dag futás sikeresen elindult.",
         "title": "Dag futás elindítva"
@@ -136,6 +152,7 @@
     "versionId": "Verzióazonosító"
   },
   "versionSelect": {
+    "allVersions": "All Versions",
     "dagVersion": "Dag verzió",
     "versionCode": "v{{versionCode}}"
   }

@@ -74,6 +74,11 @@
   "dagWarnings": "Dag 警告 / 錯誤",
   "defaultToGraphView": "預設使用圖形視圖",
   "defaultToGridView": "預設使用網格視圖",
+  "delete": "Delete",
+  "diff": "Diff",
+  "diffCompareWith": "Compare with",
+  "diffExit": "Exit Diff",
+  "diffSelectVersionToCompare": "Select version to compare",
   "direction": "書寫方向",
   "docs": {
     "documentation": "文件",
@@ -86,6 +91,7 @@
     "tooltip": "按下 {{hotkey}} 下載日誌"
   },
   "duration": "執行時間",
+  "edit": "Edit",
   "endDate": "結束日期",
   "error": {
     "back": "返回",
@@ -113,6 +119,10 @@
     "durationFrom": "從執行時間",
     "durationTo": "到執行時間",
     "endTime": "結束時間",
+    "logicalDateFrom": "Logical Date From",
+    "logicalDateTo": "Logical Date To",
+    "runAfterFrom": "Run After From",
+    "runAfterTo": "Run After To",
     "selectDateRange": "選擇日期範圍",
     "startTime": "起始時間"
   },
@@ -121,12 +131,14 @@
   "logoutConfirmation": "確定要登出嗎？",
   "mapIndex": "映射索引",
   "modal": {
+    "add": "Add",
     "cancel": "取消",
     "confirm": "確認",
     "delete": {
       "button": "刪除",
       "confirmation": "確定要刪除 {{resourceName}} 嗎？此操作無法還原。"
-    }
+    },
+    "save": "Save"
   },
   "nav": {
     "admin": "管理者",
@@ -180,6 +192,7 @@
   },
   "selectLanguage": "選擇語言",
   "showDetailsPanel": "顯示詳細資訊",
+  "signedInAs": "Signed in as",
   "source": {
     "hide": "隱藏來源",
     "hotkey": "s",

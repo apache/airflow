@@ -56,6 +56,13 @@
     "warning_other": "{{count}} Avvisi",
     "warning_zero": "Nessun avviso"
   },
+  "dateRangeFilter": {
+    "validation": {
+      "invalidDateFormat": "Invalid date format.",
+      "invalidTimeFormat": "Invalid time format.",
+      "startBeforeEnd": "Start date/time must be before end date/time"
+    }
+  },
   "durationChart": {
     "duration": "Durata (secondi)",
     "lastDagRun_many": "Ultimi {{count}} Runs del Dag",
@@ -123,10 +130,16 @@
   "sortedDescending": "ordinato in ordine decrescente",
   "sortedUnsorted": "non ordinato",
   "taskTries": "Tentativi di Task",
+  "taskTryPlaceholder": "Task Try",
   "toggleCardView": "Mostra la vista in card",
   "toggleTableView": "Mostra la vista in tabella",
   "triggerDag": {
     "button": "Trigger",
+    "dataInterval": "Data Interval",
+    "dataIntervalAuto": "Inferred from Logical Date and Timetable",
+    "dataIntervalManual": "Specify Manually",
+    "intervalEnd": "End",
+    "intervalStart": "Start",
     "loading": "Caricamento informazioni del Dag...",
     "loadingFailed": "Impossibile caricare le informazioni del Dag. Per favore, riprova.",
     "runIdHelp": "Opzionale - verrà generato se non fornito",
@@ -134,6 +147,9 @@
     "selectLabel": "Singolo Run",
     "title": "Trigger del Dag",
     "toaster": {
+      "error": {
+        "title": "Failed to Trigger Dag"
+      },
       "success": {
         "description": "Il run del Dag è stato attivato con successo.",
         "title": "Run del Dag attivato"
@@ -154,6 +170,7 @@
     "versionId": "ID della Versione"
   },
   "versionSelect": {
+    "allVersions": "All Versions",
     "dagVersion": "Versione del Dag",
     "versionCode": "v{{versionCode}}"
   }

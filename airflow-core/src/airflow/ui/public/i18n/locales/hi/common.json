@@ -7,6 +7,13 @@
     "Providers": "प्रोवाइडर",
     "Variables": "वेरिएबल्स"
   },
+  "allOperators": "All Operators",
+  "appearance": {
+    "appearance": "Appearance",
+    "darkMode": "Dark Mode",
+    "lightMode": "Light Mode",
+    "systemMode": "Follow System Setting"
+  },
   "asset_one": "एसेट",
   "asset_other": "एसेट्स",
   "assetEvent_one": "एसेट इवेंट",
@@ -33,6 +40,7 @@
     "fileLocation": "फ़ाइल स्थान",
     "hasTaskConcurrencyLimits": "टास्क समानांतरता सीमा है",
     "lastExpired": "अंतिम समाप्त",
+    "lastParseDuration": "Last Parse Duration",
     "lastParsed": "अंतिम पार्स",
     "latestDagVersion": "नवीनतम डैग संस्करण",
     "latestRun": "नवीनतम रन",
@@ -52,6 +60,7 @@
     "dataIntervalEnd": "डेटा अंतराल अंत",
     "dataIntervalStart": "डेटा अंतराल प्रारंभ",
     "lastSchedulingDecision": "अंतिम शेड्यूलिंग निर्णय",
+    "partitionKey": "Partition key",
     "queuedAt": "कतार में",
     "runAfter": "के बाद चलाएं",
     "runType": "रन प्रकार",
@@ -65,18 +74,30 @@
   "dagWarnings": "डैग चेतावनियां/त्रुटियां",
   "defaultToGraphView": "ग्राफ़ व्यू को डिफ़ॉल्ट करें",
   "defaultToGridView": "ग्रिड व्यू को डिफ़ॉल्ट करें",
+  "delete": "Delete",
+  "diff": "Diff",
+  "diffCompareWith": "Compare with",
+  "diffExit": "Exit Diff",
+  "diffSelectVersionToCompare": "Select version to compare",
   "direction": "दिशा",
   "docs": {
     "documentation": "प्रलेखन",
     "githubRepo": "GitHub रेपो",
     "restApiReference": "REST API संदर्भ"
   },
+  "download": {
+    "download": "Download",
+    "hotkey": "d",
+    "tooltip": "Press {{hotkey}} to download logs"
+  },
   "duration": "अवधि",
+  "edit": "Edit",
   "endDate": "समाप्ति तिथि",
   "error": {
     "back": "वापस",
     "defaultMessage": "एक अप्रत्याशित त्रुटि हुई",
     "home": "मुख्य पृष्ठ",
+    "invalidUrl": "Page Not Found. Please check the URL and try again.",
     "notFound": "पेज नहीं मिला",
     "title": "त्रुटि"
   },
@@ -95,22 +116,29 @@
   },
   "filter": "फ़िल्टर",
   "filters": {
+    "durationFrom": "Duration From",
+    "durationTo": "Duration To",
+    "endTime": "End Time",
     "logicalDateFrom": "तार्किक तिथि से",
     "logicalDateTo": "तार्किक तिथि तक",
     "runAfterFrom": "रन आफ़्टर से",
-    "runAfterTo": "रन आफ़्टर तक"
+    "runAfterTo": "रन आफ़्टर तक",
+    "selectDateRange": "Select Date Range",
+    "startTime": "Start Time"
   },
   "logicalDate": "तार्किक तिथि",
   "logout": "लॉग आउट",
   "logoutConfirmation": "आप एप्लिकेशन से लॉग आउट करने वाले हैं।",
   "mapIndex": "मैप इंडेक्स",
   "modal": {
+    "add": "Add",
     "cancel": "रद्द करें",
     "confirm": "पुष्टि करें",
     "delete": {
       "button": "हटाएं",
       "confirmation": "क्या आप वास्तव में {{resourceName}} को हटाना चाहते हैं? यह क्रिया को पूर्ववत नहीं किया जा सकता।"
-    }
+    },
+    "save": "Save"
   },
   "nav": {
     "admin": "व्यवस्थापक",
@@ -164,6 +192,7 @@
   },
   "selectLanguage": "भाषा चुनें",
   "showDetailsPanel": "विवरण पैनल दिखाएं",
+  "signedInAs": "Signed in as",
   "source": {
     "hide": "स्रोत छुपाएं",
     "hotkey": "s",
@@ -178,6 +207,7 @@
     "failed": "विफल",
     "no_status": "कोई स्थिति नहीं",
     "none": "कुछ नहीं",
+    "planned": "Planned",
     "queued": "कतार में",
     "removed": "हटाया गया",
     "restarting": "पुनः आरंभ",
