@@ -37,8 +37,7 @@ import json
 import sys
 from airflow.dag_processing.dagbag import DagBag
 
-# Load the DAG
-dagbag = DagBag(dag_folder="/opt/airflow/dags", include_examples=False)
+dagbag = DagBag(dag_folder="/opt/airflow/dags", include_examples=True)
 dag = dagbag.get_dag("{dag_id}")
 
 if dag is None:
@@ -121,11 +120,11 @@ except Exception as e:
 
 
 class TestDagTestMethod:
-    """E2E tests for dag.test() method."""
+    """E2E tests for dag.test() method using example DAGs."""
 
     def test_dag_test_without_executor_simple(self):
         """Test dag.test() without executor for simple DAG."""
-        result = _execute_dag_test("test_dag_test_simple", use_executor=False)
+        result = _execute_dag_test("example_simplest_dag", use_executor=False)
 
         assert result["success"], f"DAG test failed. Result: {result}"
         assert result["dag_run_state"] == "success"
@@ -135,7 +134,7 @@ class TestDagTestMethod:
 
     def test_dag_test_with_executor_simple(self):
         """Test dag.test() with executor for simple DAG."""
-        result = _execute_dag_test("test_dag_test_simple", use_executor=True)
+        result = _execute_dag_test("example_simplest_dag", use_executor=True)
 
         assert result["success"], f"DAG test failed. Result: {result}"
         assert result["dag_run_state"] == "success"
@@ -145,7 +144,7 @@ class TestDagTestMethod:
 
     def test_dag_test_without_executor_xcom(self):
         """Test dag.test() without executor for DAG with XCom."""
-        result = _execute_dag_test("test_dag_test_xcom", use_executor=False)
+        result = _execute_dag_test("example_xcom", use_executor=False)
 
         assert result["success"], f"DAG test failed. Result: {result}"
         assert result["dag_run_state"] == "success"
@@ -155,7 +154,7 @@ class TestDagTestMethod:
 
     def test_dag_test_with_executor_xcom(self):
         """Test dag.test() with executor for DAG with XCom."""
-        result = _execute_dag_test("test_dag_test_xcom", use_executor=True)
+        result = _execute_dag_test("example_xcom", use_executor=True)
 
         assert result["success"], f"DAG test failed. Result: {result}"
         assert result["dag_run_state"] == "success"
@@ -165,7 +164,7 @@ class TestDagTestMethod:
 
     def test_dag_test_without_executor_branching(self):
         """Test dag.test() without executor for DAG with branching."""
-        result = _execute_dag_test("test_dag_test_branching", use_executor=False)
+        result = _execute_dag_test("example_branch_operator", use_executor=False)
 
         assert result["success"], f"DAG test failed. Result: {result}"
         assert result["dag_run_state"] == "success"
@@ -177,7 +176,7 @@ class TestDagTestMethod:
 
     def test_dag_test_with_executor_branching(self):
         """Test dag.test() with executor for DAG with branching."""
-        result = _execute_dag_test("test_dag_test_branching", use_executor=True)
+        result = _execute_dag_test("example_branch_operator", use_executor=True)
 
         assert result["success"], f"DAG test failed. Result: {result}"
         assert result["dag_run_state"] == "success"
@@ -189,7 +188,7 @@ class TestDagTestMethod:
 
     def test_dag_test_without_executor_task_groups(self):
         """Test dag.test() without executor for DAG with task groups."""
-        result = _execute_dag_test("test_dag_test_task_groups", use_executor=False)
+        result = _execute_dag_test("example_task_group", use_executor=False)
 
         assert result["success"], f"DAG test failed. Result: {result}"
         assert result["dag_run_state"] == "success"
@@ -199,7 +198,7 @@ class TestDagTestMethod:
 
     def test_dag_test_with_executor_task_groups(self):
         """Test dag.test() with executor for DAG with task groups."""
-        result = _execute_dag_test("test_dag_test_task_groups", use_executor=True)
+        result = _execute_dag_test("example_task_group", use_executor=True)
 
         assert result["success"], f"DAG test failed. Result: {result}"
         assert result["dag_run_state"] == "success"
