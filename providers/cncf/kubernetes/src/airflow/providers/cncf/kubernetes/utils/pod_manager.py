@@ -809,10 +809,7 @@ class PodManager(LoggingMixin):
     def read_pod(self, pod: V1Pod) -> V1Pod:
         """Read POD information."""
         try:
-            return self._client.read_namespaced_pod(
-                pod.metadata.name,
-                pod.metadata.namespace,
-            )
+            return self._client.read_namespaced_pod(pod.metadata.name, pod.metadata.namespace)
         except ApiException as e:
             if e.status == 404:
                 raise KubernetesApiException(
