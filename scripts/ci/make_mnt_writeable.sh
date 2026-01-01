@@ -19,7 +19,9 @@ function make_mnt_writeable {
     set -x
     echo "Investigating node disks"
     lsblk
-    blkid
+    sudo blkid
+    echo "Check that we have expected /mnt to be a separate mount"
+    lsblk | grep -q /mnt
     echo "Checking free space!"
     df -H
     echo "Cleaning /mnt just in case it is not empty"
