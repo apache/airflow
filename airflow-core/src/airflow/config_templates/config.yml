@@ -2053,7 +2053,8 @@ smtp:
       default: "5"
     smtp_password:
       description: |
-        The password for the SMTP server, used to authenticate to the server.
+        The password for SMTP server, used to authenticate to server.
+      version_added: 3.2.0
       type: string
       example: ~
       default: ""
