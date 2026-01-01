@@ -277,8 +277,8 @@ def test_commands(login_command, date_param):
         "dags list-warning",
         # Order of trigger and pause/unpause is important for test stability because state checked
         f"dags trigger --dag-id=example_bash_operator --logical-date={date_param} --run-after={date_param}",
-        "dags pause --dag-id=example_bash_operator",
-        "dags unpause --dag-id=example_bash_operator",
+        "dags pause example_bash_operator",
+        "dags unpause example_bash_operator",
         # DAG Run commands
         f'dagrun get --dag-id=example_bash_operator --dag-run-id="manual__{date_param}"',
         "dags update --dag-id=example_bash_operator --no-is-paused",
