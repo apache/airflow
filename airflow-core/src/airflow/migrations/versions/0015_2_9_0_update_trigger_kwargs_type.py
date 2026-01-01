@@ -27,16 +27,11 @@ Create Date: 2024-03-17 22:09:09.406395
 
 from __future__ import annotations
 
-import json
 from textwrap import dedent
 
 import sqlalchemy as sa
 from alembic import context, op
-from sqlalchemy import select
-from sqlalchemy.orm import lazyload
 
-from airflow.models.trigger import Trigger
-from airflow.serialization.serialized_objects import BaseSerialization
 from airflow.utils.sqlalchemy import ExtendedJSON
 
 # revision identifiers, used by Alembic.
@@ -56,16 +51,9 @@ def get_session() -> sa.orm.Session:
 def upgrade():
     """Update trigger kwargs type to string and encrypt."""
     with op.batch_alter_table("trigger") as batch_op:
-        batch_op.alter_column("kwargs", type_=sa.Text(), existing_nullable=False)
-
-    if not context.is_offline_mode():
-        session = get_session()
-        try:
-            for trigger in session.scalars(select(Trigger).options(lazyload(Trigger.task_instance))):
-                trigger.kwargs = trigger.kwargs
-            session.commit()
-        finally:
-            session.close()
+        batch_op.alter_column(
+            "kwargs", existing_type=ExtendedJSON(), type_=sa.Text(), existing_nullable=False
+        )
 
 
 def downgrade():
@@ -79,16 +67,12 @@ def downgrade():
         ------------
         """)
         )
-    else:
-        session = get_session()
-        try:
-            for trigger in session.scalars(select(Trigger).options(lazyload(Trigger.task_instance))):
-                trigger.encrypted_kwargs = json.dumps(BaseSerialization.serialize(trigger.kwargs))
-            session.commit()
-        finally:
-            session.close()
 
     with op.batch_alter_table("trigger") as batch_op:
         batch_op.alter_column(
-            "kwargs", type_=ExtendedJSON(), postgresql_using="kwargs::json", existing_nullable=False
+            "kwargs",
+            existing_type=sa.Text(),
+            type_=ExtendedJSON(),
+            postgresql_using="kwargs::json",
+            existing_nullable=False,
         )
