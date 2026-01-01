@@ -1,0 +1,1 @@
+Support for task queue-based Trigger assignment to specific Triggerer hosts via the new ``--queues`` CLI option for the ``trigger`` command.

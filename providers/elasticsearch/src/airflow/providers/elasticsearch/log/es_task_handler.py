@@ -39,30 +39,29 @@ from elasticsearch import helpers
 from elasticsearch.exceptions import NotFoundError
 
 from airflow.configuration import conf
-from airflow.exceptions import AirflowException
 from airflow.models.dagrun import DagRun
+from airflow.providers.common.compat.module_loading import import_string
+from airflow.providers.common.compat.sdk import AirflowException, timezone
 from airflow.providers.elasticsearch.log.es_json_formatter import ElasticsearchJSONFormatter
 from airflow.providers.elasticsearch.log.es_response import ElasticSearchResponse, Hit
-from airflow.providers.elasticsearch.version_compat import (
-    AIRFLOW_V_3_0_PLUS,
-    AIRFLOW_V_3_1_PLUS,
-    EsLogMsgType,
-)
+from airflow.providers.elasticsearch.version_compat import AIRFLOW_V_3_0_PLUS
 from airflow.utils.log.file_task_handler import FileTaskHandler
 from airflow.utils.log.logging_mixin import ExternalLoggingMixin, LoggingMixin
-from airflow.utils.module_loading import import_string
 from airflow.utils.session import create_session
-
-if AIRFLOW_V_3_1_PLUS:
-    from airflow.sdk import timezone
-else:
-    from airflow.utils import timezone  # type: ignore[attr-defined,no-redef]
 
 if TYPE_CHECKING:
     from datetime import datetime
 
     from airflow.models.taskinstance import TaskInstance, TaskInstanceKey
     from airflow.utils.log.file_task_handler import LogMetadata
+
+
+if AIRFLOW_V_3_0_PLUS:
+    from airflow.utils.log.file_task_handler import StructuredLogMessage
+
+    EsLogMsgType = list[StructuredLogMessage] | str
+else:
+    EsLogMsgType = list[tuple[str, str]]  # type: ignore[assignment,misc]
 
 
 LOG_LINE_DEFAULTS = {"exc_text": "", "stack_info": ""}
@@ -252,15 +251,11 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
             data_interval_end = self._clean_date(dag_run.data_interval_end)
             logical_date = self._clean_date(dag_run.logical_date)
         else:
-            if dag_run.data_interval_start:
-                data_interval_start = dag_run.data_interval_start.isoformat()
-            else:
-                data_interval_start = ""
-            if dag_run.data_interval_end:
-                data_interval_end = dag_run.data_interval_end.isoformat()
-            else:
-                data_interval_end = ""
-            logical_date = dag_run.logical_date.isoformat()
+            data_interval_start = (
+                dag_run.data_interval_start.isoformat() if dag_run.data_interval_start else ""
+            )
+            data_interval_end = dag_run.data_interval_end.isoformat() if dag_run.data_interval_end else ""
+            logical_date = dag_run.logical_date.isoformat() if dag_run.logical_date else ""
 
         return log_id_template.format(
             dag_id=ti.dag_id,

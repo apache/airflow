@@ -26,8 +26,7 @@ from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
 from google.cloud.orchestration.airflow.service_v1 import ImageVersion
 from google.cloud.orchestration.airflow.service_v1.types import Environment, ExecuteAirflowCommandResponse
 
-from airflow.configuration import conf
-from airflow.exceptions import AirflowException
+from airflow.providers.common.compat.sdk import AirflowException, conf
 from airflow.providers.google.cloud.hooks.cloud_composer import CloudComposerHook
 from airflow.providers.google.cloud.links.base import BaseGoogleLink
 from airflow.providers.google.cloud.operators.cloud_base import GoogleCloudBaseOperator
@@ -41,7 +40,7 @@ if TYPE_CHECKING:
     from google.api_core.retry import Retry
     from google.protobuf.field_mask_pb2 import FieldMask
 
-    from airflow.utils.context import Context
+    from airflow.providers.common.compat.sdk import Context
 
 CLOUD_COMPOSER_BASE_LINK = "https://console.cloud.google.com/composer/environments"
 CLOUD_COMPOSER_DETAILS_LINK = (

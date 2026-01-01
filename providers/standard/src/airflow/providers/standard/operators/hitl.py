@@ -19,7 +19,7 @@ from __future__ import annotations
 import logging
 
 from airflow.exceptions import AirflowOptionalProviderFeatureException
-from airflow.providers.standard.version_compat import AIRFLOW_V_3_1_PLUS
+from airflow.providers.standard.version_compat import AIRFLOW_V_3_1_3_PLUS, AIRFLOW_V_3_1_PLUS
 
 if not AIRFLOW_V_3_1_PLUS:
     raise AirflowOptionalProviderFeatureException("Human in the loop functionality needs Airflow 3.1+.")
@@ -29,7 +29,7 @@ from typing import TYPE_CHECKING, Any
 from urllib.parse import ParseResult, urlencode, urlparse, urlunparse
 
 from airflow.configuration import conf
-from airflow.providers.standard.exceptions import HITLTimeoutError, HITLTriggerEventError
+from airflow.providers.standard.exceptions import HITLRejectException, HITLTimeoutError, HITLTriggerEventError
 from airflow.providers.standard.operators.branch import BranchMixIn
 from airflow.providers.standard.triggers.hitl import HITLTrigger, HITLTriggerEventSuccessPayload
 from airflow.providers.standard.utils.skipmixin import SkipMixin
@@ -40,7 +40,7 @@ from airflow.sdk.execution_time.hitl import upsert_hitl_detail
 from airflow.sdk.timezone import utcnow
 
 if TYPE_CHECKING:
-    from airflow.sdk.definitions.context import Context
+    from airflow.providers.common.compat.sdk import Context
     from airflow.sdk.execution_time.hitl import HITLUser
     from airflow.sdk.types import RuntimeTaskInstanceProtocol
 
@@ -84,6 +84,14 @@ class HITLOperator(BaseOperator):
         self.multiple = multiple
 
         self.params: ParamsDict = params if isinstance(params, ParamsDict) else ParamsDict(params or {})
+        if hasattr(ParamsDict, "filter_params_by_source"):
+            # Params that exist only in Dag level does not make sense to appear in HITLOperator
+            self.params = ParamsDict.filter_params_by_source(self.params, source="task")
+        elif self.params:
+            self.log.debug(
+                "ParamsDict.filter_params_by_source not available; HITLOperator will also include Dag level params."
+            )
+
         self.notifiers: Sequence[BaseNotifier] = (
             [notifiers] if isinstance(notifiers, BaseNotifier) else notifiers or []
         )
@@ -110,6 +118,7 @@ class HITLOperator(BaseOperator):
         Raises:
             ValueError: If `"_options"` key is present in `params`, which is not allowed.
         """
+        self.params.validate()
         if "_options" in self.params:
             raise ValueError('"_options" is not allowed in params')
 
@@ -165,8 +174,10 @@ class HITLOperator(BaseOperator):
         )
 
     @property
-    def serialized_params(self) -> dict[str, Any]:
-        return self.params.dump() if isinstance(self.params, ParamsDict) else self.params
+    def serialized_params(self) -> dict[str, dict[str, Any]]:
+        if not AIRFLOW_V_3_1_3_PLUS:
+            return self.params.dump() if isinstance(self.params, ParamsDict) else self.params
+        return {k: self.params.get_param(k).serialize() for k in self.params}
 
     def execute_complete(self, context: Context, event: dict[str, Any]) -> Any:
         if "error" in event:
@@ -184,7 +195,7 @@ class HITLOperator(BaseOperator):
         )
 
     def process_trigger_event_error(self, event: dict[str, Any]) -> None:
-        if "error_type" == "timeout":
+        if event["error_type"] == "timeout":
             raise HITLTimeoutError(event)
 
         raise HITLTriggerEventError(event)
@@ -196,12 +207,11 @@ class HITLOperator(BaseOperator):
 
     def validate_params_input(self, params_input: Mapping) -> None:
         """Check whether user provide valid params input."""
-        if (
-            self.serialized_params is not None
-            and params_input is not None
-            and set(self.serialized_params.keys()) ^ set(params_input)
-        ):
+        if self.params and params_input and set(self.serialized_params.keys()) ^ set(params_input):
             raise ValueError(f"params_input {params_input} does not match params {self.params}")
+
+        for key, value in params_input.items():
+            self.params[key] = value
 
     def generate_link_to_ui(
         self,
@@ -303,12 +313,42 @@ class ApprovalOperator(HITLOperator, SkipMixin):
     APPROVE = "Approve"
     REJECT = "Reject"
 
-    def __init__(self, ignore_downstream_trigger_rules: bool = False, **kwargs) -> None:
+    def __init__(
+        self,
+        *,
+        ignore_downstream_trigger_rules: bool = False,
+        fail_on_reject: bool = False,
+        **kwargs,
+    ) -> None:
+        """
+        Human-in-the-loop Operator for simple approval workflows.
+
+        This operator presents the user with two fixed options: "Approve" and "Reject".
+
+        Behavior:
+        - "Approve": Downstream tasks execute as normal.
+        - "Reject":
+            - Downstream tasks are skipped according to the `ignore_downstream_trigger_rules` setting.
+            - If `fail_on_reject=True`, the task fails instead of only skipping downstream tasks.
+
+        Warning:
+            Using `fail_on_reject=True` is generally discouraged. A HITLOperator's role is to collect
+            human input, and receiving any response—including "Reject"—indicates the task succeeded.
+            Treating "Reject" as a task failure mixes human decision outcomes with Airflow task
+            success/failure states.
+            Only use this option if you explicitly intend for a "Reject" response to fail the task.
+
+        Args:
+            ignore_downstream_trigger_rules: If True, skips all downstream tasks regardless of trigger rules.
+            fail_on_reject: If True, the task fails when "Reject" is selected. Generally discouraged.
+                Read the warning carefully before using.
+        """
         for arg in self.FIXED_ARGS:
             if arg in kwargs:
                 raise ValueError(f"Passing {arg} to ApprovalOperator is not allowed.")
 
         self.ignore_downstream_trigger_rules = ignore_downstream_trigger_rules
+        self.fail_on_reject = fail_on_reject
 
         super().__init__(
             options=[self.APPROVE, self.REJECT],
@@ -323,6 +363,9 @@ class ApprovalOperator(HITLOperator, SkipMixin):
         if chosen_option == self.APPROVE:
             self.log.info("Approved. Proceeding with downstream tasks...")
             return ret
+
+        if self.fail_on_reject and chosen_option == self.REJECT:
+            raise HITLRejectException('Receive "Reject"')
 
         if not self.downstream_task_ids:
             self.log.info("No downstream tasks; nothing to do.")

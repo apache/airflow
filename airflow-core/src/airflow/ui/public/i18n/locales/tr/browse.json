@@ -1,9 +1,5 @@
 {
   "auditLog": {
-    "actions": {
-      "collapseAllExtra": "Tüm ek JSON'ları daralt",
-      "expandAllExtra": "Tüm ek JSON'ları genişlet"
-    },
     "columns": {
       "event": "Etkinlik",
       "extra": "Ek Bilgi",

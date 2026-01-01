@@ -20,6 +20,10 @@ from __future__ import annotations
 import structlog.processors
 
 OLD_DEFAULT_LOG_FORMAT = "[%(asctime)s] {%(filename)s:%(lineno)d} %(levelname)s - %(message)s"
+OLD_DEFAULT_COLOR_LOG_FORMAT = (
+    "[%(blue)s%(asctime)s%(reset)s] {%(blue)s%(filename)s:%(reset)s%(lineno)d} "
+    "%(log_color)s%(levelname)s%(reset)s - %(log_color)s%(message)s%(reset)s"
+)
 
 
 # This doesn't load the values from config, to avoid a cross dependency between shared logging and shared
@@ -28,8 +32,9 @@ def translate_config_values(
     log_format: str, callsite_params: list[str]
 ) -> tuple[str, tuple[structlog.processors.CallsiteParameter, ...]]:
     if log_format == OLD_DEFAULT_LOG_FORMAT:
-        # It's the default, don't use it, use the new default from structlog instead
-        log_format = ""
+        # It's the default, use the coloured version by default. This will automatically not put color codes
+        # if we're not a tty, or if colors are disabled
+        log_format = OLD_DEFAULT_COLOR_LOG_FORMAT
 
     # This will raise an exception if the value isn't valid
     params_out = tuple(

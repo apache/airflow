@@ -75,7 +75,7 @@ class TestExasolHookSqlalchemy:
         )
 
     @pytest.mark.parametrize(
-        "init_scheme, extra_scheme, expected_result, expect_error",
+        ("init_scheme", "extra_scheme", "expected_result", "expect_error"),
         [
             (None, None, "exa+websocket", False),
             ("exa+pyodbc", None, "exa+pyodbc", False),
@@ -99,11 +99,11 @@ class TestExasolHookSqlalchemy:
         if not expect_error:
             assert hook.sqlalchemy_scheme == expected_result
         else:
-            with pytest.raises(ValueError):
+            with pytest.raises(ValueError, match="sqlalchemy_scheme in connection extra should be one of"):
                 _ = hook.sqlalchemy_scheme
 
     @pytest.mark.parametrize(
-        "hook_scheme, extra, expected_url",
+        ("hook_scheme", "extra", "expected_url"),
         [
             (None, {}, "exa+websocket://login:password@host:1234/schema"),
             (
@@ -213,9 +213,8 @@ class TestExasolHook:
         self.conn.commit.assert_not_called()
 
     def test_run_no_queries(self):
-        with pytest.raises(ValueError) as err:
+        with pytest.raises(ValueError, match="List of SQL statements is empty"):
             self.db_hook.run(sql=[])
-        assert err.value.args[0] == "List of SQL statements is empty"
 
     def test_no_result_set(self):
         """Queries like DROP and SELECT are of type rowCount (not resultSet),

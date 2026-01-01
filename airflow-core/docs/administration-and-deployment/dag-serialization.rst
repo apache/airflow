@@ -74,15 +74,11 @@ Add the following settings in ``airflow.cfg``:
 
     # You can also update the following default configurations based on your needs
     min_serialized_dag_update_interval = 30
-    min_serialized_dag_fetch_interval = 10
     max_num_rendered_ti_fields_per_task = 30
     compress_serialized_dags = False
 
 *   ``min_serialized_dag_update_interval``: This flag sets the minimum interval (in seconds) after which
     the serialized Dags in the DB should be updated. This helps in reducing database write rate.
-*   ``min_serialized_dag_fetch_interval``: This option controls how often the Serialized Dag will be re-fetched
-    from the DB when it is already loaded in the DagBag in the Webserver. Setting this higher will reduce
-    load on the DB, but at the expense of displaying a possibly stale cached version of the Dag.
 *   ``max_num_rendered_ti_fields_per_task``: This option controls the maximum number of Rendered Task Instance
     Fields (Template Fields) per task to store in the Database.
 *   ``compress_serialized_dags``: This option controls whether to compress the Serialized Dag to the Database.
@@ -153,7 +149,7 @@ Serialized Dags now include a ``client_defaults`` section that contains common d
 .. code-block:: json
 
     {
-      "__version": 2,
+      "__version": 3,
       "client_defaults": {
         "tasks": {
           "retry_delay": 300.0,

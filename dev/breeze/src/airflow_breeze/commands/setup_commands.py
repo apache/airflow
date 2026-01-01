@@ -57,7 +57,6 @@ from airflow_breeze.utils.path_utils import (
     SCRIPTS_CI_DOCKER_COMPOSE_LOCAL_YAML_PATH,
     get_installation_airflow_sources,
     get_installation_sources_config_metadata_hash,
-    get_package_setup_metadata_hash,
     get_used_airflow_sources,
     get_used_sources_setup_metadata_hash,
 )
@@ -69,7 +68,7 @@ from airflow_breeze.utils.visuals import ASCIIART, ASCIIART_STYLE
 
 
 @click.group(cls=BreezeGroup, name="setup", help="Tools that developers can use to configure Breeze")
-def setup():
+def setup_group():
     pass
 
 
@@ -80,7 +79,7 @@ def setup():
     help="Use current workdir Airflow sources for upgrade"
     + (f" rather than {get_installation_airflow_sources()}." if not generating_command_images() else "."),
 )
-@setup.command(
+@setup_group.command(
     name="self-upgrade",
     help=f"Self upgrade Breeze. By default it re-installs Breeze from {get_installation_airflow_sources()}."
     if not generating_command_images()
@@ -99,7 +98,7 @@ def self_upgrade(use_current_airflow_sources: bool):
         sys.exit(1)
 
 
-@setup.command(name="autocomplete")
+@setup_group.command(name="autocomplete")
 @click.option(
     "-f",
     "--force",
@@ -164,7 +163,7 @@ def autocomplete(force: bool):
         sys.exit(0)
 
 
-@setup.command()
+@setup_group.command()
 @option_verbose
 @option_dry_run
 def version():
@@ -181,12 +180,9 @@ def version():
         get_console().print(
             f"[info]Used sources config hash         : {get_used_sources_setup_metadata_hash()}[/]"
         )
-        get_console().print(
-            f"[info]Package config hash              : {(get_package_setup_metadata_hash())}[/]\n"
-        )
 
 
-@setup.command(name="config")
+@setup_group.command(name="config")
 @option_python
 @option_backend
 @option_postgres_version
@@ -563,7 +559,6 @@ DEVELOPER_COMMANDS = [
     "exec",
     "shell",
     "run",
-    "compile-ui-assets",
     "cleanup",
     "generate-migration-file",
     "doctor",
@@ -672,7 +667,7 @@ def check_that_all_params_are_in_groups(commands: tuple[str, ...]) -> int:
     return 1 if errors_detected else 0
 
 
-@setup.command(name="regenerate-command-images", help="Regenerate breeze command images.")
+@setup_group.command(name="regenerate-command-images", help="Regenerate breeze command images.")
 @click.option("--force", is_flag=True, help="Forces regeneration of all images", envvar="FORCE")
 @click.option(
     "--check-only",
@@ -697,7 +692,7 @@ def regenerate_command_images(command: tuple[str, ...], force: bool, check_only:
     sys.exit(return_code)
 
 
-@setup.command(name="check-all-params-in-groups", help="Check that all parameters are put in groups.")
+@setup_group.command(name="check-all-params-in-groups", help="Check that all parameters are put in groups.")
 @click.option(
     "--command",
     help="Command(s) to regenerate images for (optional, might be repeated)",
@@ -729,7 +724,7 @@ def _insert_documentation(file_path: Path, content: list[str], header: str, foot
     file_path.write_text(src)
 
 
-@setup.command(
+@setup_group.command(
     name="synchronize-local-mounts",
     help="Synchronize local mounts between python files and docker compose yamls.",
 )

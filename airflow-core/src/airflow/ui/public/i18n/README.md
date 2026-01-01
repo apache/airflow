@@ -66,7 +66,7 @@ communicating in the dev list or merging Pull Requests on their behalf).
 **Inactive owner** — Either a translation owner or a code owner might be considered inactive if they meet any of
 the following criteria:
 
-- The locale under their responsibility has remained incomplete for at least 2 consecutive releases.
+- The locale under their responsibility has remained incomplete for at least 2 consecutive major/minor releases.
 - They have not contributed to Apache Airflow for more than 12 months.
 - Code owners specifically might be considered inactive according to any other terms mentioned in the
   ["Committers and PMC Members"](../../../../../../COMMITTERS.rst#inactive-committers) document.
@@ -224,7 +224,8 @@ The following steps outline the process for approving a new locale to be added t
 
 - Creating a PR for adding the suggested locale to the
   codebase ([see example](https://github.com/apache/airflow/pull/51258/files)), which includes:
-  - Adding the plural form rules for the suggested locale under `PLURAL_SUFFIXES` constant in `dev/i18n/check_translations_completeness.py`.
+  - Adding the plural form rules for the suggested locale under `PLURAL_SUFFIXES` constant in
+    `dev/breeze/commands/ui_commands.py`.
   - The locale files (translated according to the guidelines) in the
     `airflow-core/src/airflow/ui/public/i18n/locales/<LOCALE_CODE>` directory, where `<LOCALE_CODE>` is the
     code of the language according to ISO 639-1 standard (e.g., `fr` for French). Languages with regional
@@ -310,7 +311,7 @@ Language proficiency for translation owners can be demonstrated through any of t
 All files:
 
 ```bash
-uv run dev/i18n/check_translations_completeness.py
+breeze ui check-translation-completeness
 ```
 
 > [!NOTE]
@@ -320,7 +321,7 @@ uv run dev/i18n/check_translations_completeness.py
 Files for specific languages:
 
 ```bash
-uv run dev/i18n/check_translations_completeness.py --language <language_code>
+breeze ui check-translation-completeness --language <language_code>
 ```
 
 Where `<language_code>` is the code of the language you want to check, e.g., `en`, `fr`, `de`, etc.
@@ -328,13 +329,25 @@ Where `<language_code>` is the code of the language you want to check, e.g., `en
 Adding missing translations (with `TODO: translate` prefix):
 
 ```bash
-uv run dev/i18n/check_translations_completeness.py --language <language_code> --add-missing
+breeze ui check-translation-completeness --language <language_code> --add-missing
+```
+
+You can also remove extra translations from the language of your choice:
+
+```bash
+breeze ui check-translation-completeness --language <language_code> --remove-extra
+```
+
+Or from all languages:
+
+```bash
+breeze ui check-translation-completeness --remove-extra
 ```
 
 The script is also added as a prek hook (manual) so that it can be run from within `prek` and CI:
 
 ```bash
-prek run --hook-stage manual check-translations-completeness --verbose --all-files
+breeze ui check-translation-completeness --verbose --all-files
 ```
 
 
@@ -353,11 +366,11 @@ prek run --hook-stage manual check-translations-completeness --verbose --all-fil
 
 ## 11. Freeze time
 
-Few weeks before a minor or major release, a freeze time for accepting new translations
-MUST be announced in the dev list, to allow time for testing and verification of translations.
+A few weeks before a minor or major release, a freeze time for accepting new translations, might be announced in the dev list by the Release Manager.
+It should be announced when the median coverage across all translations is below the completeness threshold (90%), or when needed (e.g., due to a critical UI feature that requires many new terms to be added).
+It will be announced in the dev list about two weeks before it starts, to allow time for preparing, and it should last until median completeness is back above the threshold, or RC is cut for the release (whichever is earlier).
 
-During that freeze time there should be no changes applied to the English translation source files
-by default. When freeze time starts we set this variable in the
+During that freeze time there should be no changes applied to the default language (English) locale files. When freeze time starts we set this variable in the
 `dev/breeze/src/airflow_breeze/utils/selective_checks.py` file:
 
 ```python

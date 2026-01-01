@@ -46,17 +46,32 @@ ARG AIRFLOW_UID="50000"
 ARG AIRFLOW_USER_HOME_DIR=/home/airflow
 
 # latest released version here
-ARG AIRFLOW_VERSION="3.0.6"
+ARG AIRFLOW_VERSION="3.1.5"
 
 ARG BASE_IMAGE="debian:bookworm-slim"
-ARG AIRFLOW_PYTHON_VERSION="3.12.11"
+ARG AIRFLOW_PYTHON_VERSION="3.12.12"
+
+# PYTHON_LTO: Controls whether Python is built with Link-Time Optimization (LTO).
+#
+# Link-Time Optimization uses MD5 checksums during the compilation process to verify
+# object files and intermediate representations. In FIPS-compliant environments, MD5
+# is blocked as it's not an approved cryptographic algorithm (see FIPS 140-2/140-3).
+# This can cause Python builds with LTO to fail when FIPS mode is enabled.
+#
+# When building FIPS-compliant images, set this to "false" to disable LTO:
+#   docker build --build-arg PYTHON_LTO="false" ...
+#
+# Default: "true" (LTO enabled for better performance)
+#
+# Related: https://github.com/apache/airflow/issues/58337
+ARG PYTHON_LTO="true"
 
 # You can swap comments between those two args to test pip from the main version
 # When you attempt to test if the version of `pip` from specified branch works for our builds
 # Also use `force pip` label on your PR to swap all places we use `uv` to `pip`
-ARG AIRFLOW_PIP_VERSION=25.2
+ARG AIRFLOW_PIP_VERSION=25.3
 # ARG AIRFLOW_PIP_VERSION="git+https://github.com/pypa/pip.git@main"
-ARG AIRFLOW_UV_VERSION=0.8.17
+ARG AIRFLOW_UV_VERSION=0.9.18
 ARG AIRFLOW_USE_UV="false"
 ARG UV_HTTP_TIMEOUT="300"
 ARG AIRFLOW_IMAGE_REPOSITORY="https://github.com/apache/airflow"
@@ -104,6 +119,7 @@ if [[ "$#" != 1 ]]; then
 fi
 
 AIRFLOW_PYTHON_VERSION=${AIRFLOW_PYTHON_VERSION:-3.10.18}
+PYTHON_LTO=${PYTHON_LTO:-true}
 GOLANG_MAJOR_MINOR_VERSION=${GOLANG_MAJOR_MINOR_VERSION:-1.24.4}
 
 if [[ "${1}" == "runtime" ]]; then
@@ -389,9 +405,17 @@ function install_python() {
     EXTRA_CFLAGS="${EXTRA_CFLAGS:-} -fno-omit-frame-pointer -mno-omit-leaf-frame-pointer";
     LDFLAGS="$(dpkg-buildflags --get LDFLAGS)"
     LDFLAGS="${LDFLAGS:--Wl},--strip-all"
+    # Link-Time Optimization (LTO) uses MD5 checksums for object file verification during
+    # compilation. In FIPS mode, MD5 is blocked as a non-approved algorithm, causing builds
+    # to fail. The PYTHON_LTO variable allows disabling LTO for FIPS-compliant builds.
+    # See: https://github.com/apache/airflow/issues/58337
+    local lto_option=""
+    if [[ "${PYTHON_LTO:-true}" == "true" ]]; then
+        lto_option="--with-lto"
+    fi
     ./configure --enable-optimizations --prefix=/usr/python/ --with-ensurepip --build="$gnuArch" \
         --enable-loadable-sqlite-extensions --enable-option-checking=fatal \
-            --enable-shared --with-lto
+            --enable-shared ${lto_option}
     make -s -j "$(nproc)" "EXTRA_CFLAGS=${EXTRA_CFLAGS:-}" \
         "LDFLAGS=${LDFLAGS:--Wl},-rpath='\$\$ORIGIN/../lib'" python
     make -s -j "$(nproc)" install
@@ -400,7 +424,7 @@ function install_python() {
     find /usr/python -depth \
       \( \
         \( -type d -a \( -name test -o -name tests -o -name idle_test \) \) \
-        -o \( -type f -a \( -name '*.pyc' -o -name '*.pyo' -o -name 'libpython*.a' \) \) \
+        -o \( -type f -a \( -name 'libpython*.a' \) \) \
     \) -exec rm -rf '{}' +
     link_python
 }
@@ -443,11 +467,40 @@ set -euo pipefail
 common::get_colors
 declare -a packages
 
-readonly MYSQL_LTS_VERSION="8.0"
 readonly MARIADB_LTS_VERSION="10.11"
 
 : "${INSTALL_MYSQL_CLIENT:?Should be true or false}"
 : "${INSTALL_MYSQL_CLIENT_TYPE:-mariadb}"
+
+if [[ "${INSTALL_MYSQL_CLIENT}" != "true" && "${INSTALL_MYSQL_CLIENT}" != "false" ]]; then
+    echo
+    echo "${COLOR_RED}INSTALL_MYSQL_CLIENT must be either true or false${COLOR_RESET}"
+    echo
+    exit 1
+fi
+
+if [[ "${INSTALL_MYSQL_CLIENT_TYPE}" != "mysql" && "${INSTALL_MYSQL_CLIENT_TYPE}" != "mariadb" ]]; then
+    echo
+    echo "${COLOR_RED}INSTALL_MYSQL_CLIENT_TYPE must be either mysql or mariadb${COLOR_RESET}"
+    echo
+    exit 1
+fi
+
+if [[ "${INSTALL_MYSQL_CLIENT_TYPE}" == "mysql" ]]; then
+    echo
+    echo "${COLOR_RED}The 'mysql' client type is not supported any more. Use 'mariadb' instead.${COLOR_RESET}"
+    echo
+    echo "The MySQL drivers are wrongly packaged and released by Oracle with an expiration date on their GPG keys,"
+    echo "which causes builds to fail after the expiration date. MariaDB client is protocol-compatible with MySQL client."
+    echo ""
+    echo "Every two years the MySQL packages fail and Oracle team is always surprised and struggling"
+    echo "with fixes and re-signing the packages which lasts few days"
+    echo "See https://bugs.mysql.com/bug.php?id=113432 for more details."
+    echo "As a community we are not able to support this broken packaging practice from Oracle"
+    echo "Feel free however to install MySQL drivers on your own as extension of the image."
+    echo
+    exit 1
+fi
 
 retry() {
     local retries=3
@@ -465,44 +518,6 @@ retry() {
             return $exit_code
         fi
     done
-}
-
-install_mysql_client() {
-    if [[ "${1}" == "dev" ]]; then
-        packages=("libmysqlclient-dev" "mysql-client")
-    elif [[ "${1}" == "prod" ]]; then
-        # `libmysqlclientXX` where XX is number, and it should be increased every new GA MySQL release, for example
-        # 18 - MySQL 5.6.48
-        # 20 - MySQL 5.7.42
-        # 21 - MySQL 8.0.34
-        # 22 - MySQL 8.1
-        packages=("libmysqlclient21" "mysql-client")
-    else
-        echo
-        echo "${COLOR_RED}Specify either prod or dev${COLOR_RESET}"
-        echo
-        exit 1
-    fi
-
-    common::import_trusted_gpg "B7B3B788A8D3785C" "mysql"
-
-    echo
-    echo "${COLOR_BLUE}Installing Oracle MySQL client version ${MYSQL_LTS_VERSION}: ${1}${COLOR_RESET}"
-    echo
-
-    echo "deb http://repo.mysql.com/apt/debian/ $(lsb_release -cs) mysql-${MYSQL_LTS_VERSION}" > \
-        /etc/apt/sources.list.d/mysql.list
-    retry apt-get update
-    retry apt-get install --no-install-recommends -y "${packages[@]}"
-    apt-get autoremove -yqq --purge
-    apt-get clean && rm -rf /var/lib/apt/lists/*
-
-    # Remove mysql repository from sources.list.d as MySQL repos have a basic flaw that they put expiry
-    # date on their GPG signing keys and they sign their repo with those keys. This means that after a
-    # certain date, the GPG key becomes invalid and if you have the repository added in your sources.list
-    # then you will not be able to install anything from any other repository. This id unlike any other
-    # repository we have seen (for example Postgres, MariaDB, MsSQL - all have non-expiring signing keys)
-    rm /etc/apt/sources.list.d/mysql.list
 }
 
 install_mariadb_client() {
@@ -544,23 +559,7 @@ install_mariadb_client() {
 }
 
 if [[ ${INSTALL_MYSQL_CLIENT:="true"} == "true" ]]; then
-    if [[ $(uname -m) == "arm64" || $(uname -m) == "aarch64" ]]; then
-        INSTALL_MYSQL_CLIENT_TYPE="mariadb"
-        echo
-        echo "${COLOR_YELLOW}Client forced to mariadb for ARM${COLOR_RESET}"
-        echo
-    fi
-
-    if [[ "${INSTALL_MYSQL_CLIENT_TYPE}" == "mysql" ]]; then
-        install_mysql_client "${@}"
-    elif [[ "${INSTALL_MYSQL_CLIENT_TYPE}" == "mariadb" ]]; then
-        install_mariadb_client "${@}"
-    else
-        echo
-        echo "${COLOR_RED}Specify either mysql or mariadb, got ${INSTALL_MYSQL_CLIENT_TYPE}${COLOR_RESET}"
-        echo
-        exit 1
-    fi
+    install_mariadb_client "${@}"
 fi
 EOF
 
@@ -998,6 +997,7 @@ function install_airflow_and_providers_from_docker_context_files(){
         "${install_airflow_distribution[@]}" "${install_airflow_core_distribution[@]}" "${airflow_distributions[@]}"
     set +x
     common::install_packaging_tools
+    # We use pip check here to make sure that whatever `uv` installs, is also "correct" according to `pip`
     pip check
 }
 
@@ -1115,7 +1115,8 @@ function install_from_sources() {
         installation_command_flags=" --editable .[${AIRFLOW_EXTRAS}] \
               --editable ./airflow-core --editable ./task-sdk --editable ./airflow-ctl \
               --editable ./kubernetes-tests --editable ./docker-tests --editable ./helm-tests \
-              --editable ./task-sdk-tests \
+              --editable ./task-sdk-integration-tests \
+              --editable ./airflow-ctl-tests \
               --editable ./airflow-e2e-tests \
               --editable ./devel-common[all] --editable ./dev \
               --group dev --group docs --group docs-gen --group leveldb"
@@ -1237,6 +1238,7 @@ function install_airflow_when_building_images() {
     echo
     echo "${COLOR_BLUE}Running 'pip check'${COLOR_RESET}"
     echo
+    # We use pip check here to make sure that whatever `uv` installs, is also "correct" according to `pip`
     pip check
 }
 
@@ -1272,6 +1274,7 @@ function install_additional_dependencies() {
         echo
         echo "${COLOR_BLUE}Running 'pip check'${COLOR_RESET}"
         echo
+        # We use pip check here to make sure that whatever `uv` installs, is also "correct" according to `pip`
         pip check
     else
         echo
@@ -1286,6 +1289,7 @@ function install_additional_dependencies() {
         echo
         echo "${COLOR_BLUE}Running 'pip check'${COLOR_RESET}"
         echo
+        # We use pip check here to make sure that whatever `uv` installs, is also "correct" according to `pip`
         pip check
     fi
 }
@@ -1708,8 +1712,11 @@ ENV DEV_APT_DEPS=${DEV_APT_DEPS} \
     ADDITIONAL_DEV_APT_ENV=${ADDITIONAL_DEV_APT_ENV} \
     AIRFLOW_PYTHON_VERSION=${AIRFLOW_PYTHON_VERSION}
 
+ARG PYTHON_LTO
+
+
 COPY --from=scripts install_os_dependencies.sh /scripts/docker/
-RUN bash /scripts/docker/install_os_dependencies.sh dev
+RUN PYTHON_LTO=${PYTHON_LTO} bash /scripts/docker/install_os_dependencies.sh dev
 
 # In case system python is installed, setting LD_LIBRARY_PATH prevents any case the system python
 # libraries will be accidentally used before the library installed from sources (which is newer and
@@ -1878,7 +1885,7 @@ COPY --from=scripts install_from_docker_context_files.sh install_airflow_when_bu
 # an incorrect architecture.
 ARG TARGETARCH
 # Value to be able to easily change cache id and therefore use a bare new cache
-ARG DEPENDENCY_CACHE_EPOCH="10"
+ARG DEPENDENCY_CACHE_EPOCH="11"
 
 # hadolint ignore=SC2086, SC2010, DL3042
 RUN --mount=type=cache,id=prod-$TARGETARCH-$DEPENDENCY_CACHE_EPOCH,target=/tmp/.cache/,uid=${AIRFLOW_UID} \
@@ -1954,6 +1961,8 @@ ENV RUNTIME_APT_DEPS=${RUNTIME_APT_DEPS} \
     INSTALL_POSTGRES_CLIENT=${INSTALL_POSTGRES_CLIENT} \
     GUNICORN_CMD_ARGS="--worker-tmp-dir /dev/shm" \
     AIRFLOW_INSTALLATION_METHOD=${AIRFLOW_INSTALLATION_METHOD}
+
+ARG PYTHON_LTO
 
 COPY --from=airflow-build-image "/usr/python/" "/usr/python/"
 COPY --from=scripts install_os_dependencies.sh /scripts/docker/

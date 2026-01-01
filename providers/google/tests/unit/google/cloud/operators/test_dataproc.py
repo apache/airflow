@@ -31,13 +31,9 @@ from google.cloud.dataproc_v1 import Batch, Cluster, JobStatus
 from openlineage.client.transport import HttpConfig, HttpTransport, KafkaConfig, KafkaTransport
 
 from airflow import __version__ as AIRFLOW_VERSION
-from airflow.exceptions import (
-    AirflowException,
-    AirflowProviderDeprecationWarning,
-    AirflowTaskTimeout,
-    TaskDeferred,
-)
+from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.models import DAG, DagBag
+from airflow.providers.common.compat.sdk import AirflowException, AirflowTaskTimeout, TaskDeferred
 from airflow.providers.google.cloud.links.dataproc import (
     DATAPROC_BATCH_LINK,
     DATAPROC_CLUSTER_LINK_DEPRECATED,
@@ -70,9 +66,8 @@ from airflow.providers.google.cloud.triggers.dataproc import (
     DataprocSubmitTrigger,
 )
 from airflow.providers.google.common.consts import GOOGLE_DEFAULT_DEFERRABLE_METHOD_NAME
-from airflow.serialization.serialized_objects import SerializedDAG
-from airflow.utils.timezone import datetime
 
+from tests_common.test_utils.compat import DagSerialization, timezone
 from tests_common.test_utils.db import clear_db_runs, clear_db_xcom
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
@@ -351,7 +346,7 @@ WORKFLOW_TEMPLATE = {
     "jobs": [{"step_id": "pig_job_1", "pig_job": {}}],
 }
 TEST_DAG_ID = "test-dataproc-operators"
-DEFAULT_DATE = datetime(2020, 1, 1)
+DEFAULT_DATE = timezone.datetime(2020, 1, 1)
 TEST_JOB_ID = "test-job"
 TEST_WORKFLOW_ID = "test-workflow"
 
@@ -518,34 +513,31 @@ class DataprocClusterTestBase(DataprocTestBase):
 
 class TestsClusterGenerator:
     def test_image_version(self):
-        with pytest.raises(ValueError) as ctx:
+        with pytest.raises(ValueError, match="custom_image and image_version"):
             ClusterGenerator(
                 custom_image="custom_image",
                 image_version="image_version",
                 project_id=GCP_PROJECT,
                 cluster_name=CLUSTER_NAME,
             )
-        assert "custom_image and image_version" in str(ctx.value)
 
     def test_custom_image_family_error_with_image_version(self):
-        with pytest.raises(ValueError) as ctx:
+        with pytest.raises(ValueError, match="image_version and custom_image_family"):
             ClusterGenerator(
                 image_version="image_version",
                 custom_image_family="custom_image_family",
                 project_id=GCP_PROJECT,
                 cluster_name=CLUSTER_NAME,
             )
-        assert "image_version and custom_image_family" in str(ctx.value)
 
     def test_custom_image_family_error_with_custom_image(self):
-        with pytest.raises(ValueError) as ctx:
+        with pytest.raises(ValueError, match="custom_image and custom_image_family"):
             ClusterGenerator(
                 custom_image="custom_image",
                 custom_image_family="custom_image_family",
                 project_id=GCP_PROJECT,
                 cluster_name=CLUSTER_NAME,
             )
-        assert "custom_image and custom_image_family" in str(ctx.value)
 
     def test_nodes_number(self):
         with pytest.raises(ValueError, match="Single node cannot have preemptible workers"):
@@ -554,19 +546,18 @@ class TestsClusterGenerator:
             )
 
     def test_min_num_workers_less_than_num_workers(self):
-        with pytest.raises(ValueError) as ctx:
+        with pytest.raises(
+            ValueError,
+            match="The value of min_num_workers must be less than or equal to num_workers. "
+            r"Provided 4\(min_num_workers\) and 3\(num_workers\).",
+        ):
             ClusterGenerator(
                 num_workers=3, min_num_workers=4, project_id=GCP_PROJECT, cluster_name=CLUSTER_NAME
             )
-        assert (
-            "The value of min_num_workers must be less than or equal to num_workers. "
-            "Provided 4(min_num_workers) and 3(num_workers)." in str(ctx.value)
-        )
 
     def test_min_num_workers_without_num_workers(self):
-        with pytest.raises(ValueError) as ctx:
+        with pytest.raises(ValueError, match="Must specify num_workers when min_num_workers are provided."):
             ClusterGenerator(min_num_workers=4, project_id=GCP_PROJECT, cluster_name=CLUSTER_NAME)
-        assert "Must specify num_workers when min_num_workers are provided." in str(ctx.value)
 
     def test_build(self):
         generator = ClusterGenerator(
@@ -600,7 +591,7 @@ class TestsClusterGenerator:
             service_account="service_account",
             service_account_scopes=["service_account_scopes"],
             idle_delete_ttl=60,
-            auto_delete_time=datetime(2019, 9, 12),
+            auto_delete_time=timezone.datetime(2019, 9, 12),
             auto_delete_ttl=250,
             customer_managed_key="customer_managed_key",
             driver_pool_id="cluster_driver_pool",
@@ -641,7 +632,7 @@ class TestsClusterGenerator:
             service_account="service_account",
             service_account_scopes=["service_account_scopes"],
             idle_delete_ttl=60,
-            auto_delete_time=datetime(2019, 9, 12),
+            auto_delete_time=timezone.datetime(2019, 9, 12),
             auto_delete_ttl=250,
             customer_managed_key="customer_managed_key",
             enable_component_gateway=True,
@@ -680,7 +671,7 @@ class TestsClusterGenerator:
             service_account="service_account",
             service_account_scopes=["service_account_scopes"],
             idle_delete_ttl=60,
-            auto_delete_time=datetime(2019, 9, 12),
+            auto_delete_time=timezone.datetime(2019, 9, 12),
             auto_delete_ttl=250,
             customer_managed_key="customer_managed_key",
             secondary_worker_instance_flexibility_policy=InstanceFlexibilityPolicy(
@@ -737,7 +728,7 @@ class TestsClusterGenerator:
             service_account="service_account",
             service_account_scopes=["service_account_scopes"],
             idle_delete_ttl=60,
-            auto_delete_time=datetime(2019, 9, 12),
+            auto_delete_time=timezone.datetime(2019, 9, 12),
             auto_delete_ttl=250,
             customer_managed_key="customer_managed_key",
         )
@@ -1142,10 +1133,10 @@ def test_create_cluster_operator_extra_links(
         delete_on_error=True,
         gcp_conn_id=GCP_CONN_ID,
     )
-
+    task = dag_maker.dag.get_task(ti.task_id)
     serialized_dag = dag_maker.get_serialized_data()
     # Assert operator links for serialized DAG
-    deserialized_dag = SerializedDAG.deserialize_dag(serialized_dag["dag"])
+    deserialized_dag = DagSerialization.deserialize_dag(serialized_dag["dag"])
     operator_extra_link = deserialized_dag.tasks[0].operator_extra_links[0]
     assert operator_extra_link.name == "Dataproc Cluster"
 
@@ -1155,7 +1146,7 @@ def test_create_cluster_operator_extra_links(
             value="",
         )
     # Assert operator link is empty when no XCom push occurred
-    assert ti.task.operator_extra_links[0].get_link(operator=ti.task, ti_key=ti.key) == ""
+    assert task.operator_extra_links[0].get_link(operator=task, ti_key=ti.key) == ""
 
     ti.xcom_push(key="dataproc_cluster", value=DATAPROC_CLUSTER_EXPECTED)
 
@@ -1166,8 +1157,7 @@ def test_create_cluster_operator_extra_links(
         )
     # Assert operator links after execution
     assert (
-        ti.task.operator_extra_links[0].get_link(operator=ti.task, ti_key=ti.key)
-        == DATAPROC_CLUSTER_LINK_EXPECTED
+        task.operator_extra_links[0].get_link(operator=task, ti_key=ti.key) == DATAPROC_CLUSTER_LINK_EXPECTED
     )
 
 
@@ -1510,7 +1500,7 @@ class TestDataprocSubmitJobOperator(DataprocJobTestBase):
         )
 
     @mock.patch("airflow.providers.openlineage.plugins.adapter.generate_static_uuid")
-    @mock.patch("airflow.providers.openlineage.plugins.listener._openlineage_listener")
+    @mock.patch("airflow.providers.openlineage.utils.spark.get_openlineage_listener")
     @mock.patch("airflow.providers.google.cloud.openlineage.utils._is_openlineage_provider_accessible")
     @mock.patch(DATAPROC_PATH.format("DataprocHook"))
     def test_execute_openlineage_http_transport_info_injection(
@@ -1518,7 +1508,9 @@ class TestDataprocSubmitJobOperator(DataprocJobTestBase):
     ):
         mock_ol_accessible.return_value = True
         mock_static_uuid.return_value = "01931885-2800-7be7-aa8d-aaa15c337267"
-        mock_ol_listener.adapter.get_or_create_openlineage_client.return_value.transport = HttpTransport(
+        fake_listener = mock.MagicMock()
+        mock_ol_listener.return_value = fake_listener
+        fake_listener.adapter.get_or_create_openlineage_client.return_value.transport = HttpTransport(
             HttpConfig.from_dict(OPENLINEAGE_HTTP_TRANSPORT_EXAMPLE_CONFIG)
         )
         job_config = {
@@ -1565,7 +1557,7 @@ class TestDataprocSubmitJobOperator(DataprocJobTestBase):
         )
 
     @mock.patch("airflow.providers.openlineage.plugins.adapter.generate_static_uuid")
-    @mock.patch("airflow.providers.openlineage.plugins.listener._openlineage_listener")
+    @mock.patch("airflow.providers.openlineage.utils.spark.get_openlineage_listener")
     @mock.patch("airflow.providers.google.cloud.openlineage.utils._is_openlineage_provider_accessible")
     @mock.patch(DATAPROC_PATH.format("DataprocHook"))
     def test_execute_openlineage_all_info_injection(
@@ -1573,7 +1565,9 @@ class TestDataprocSubmitJobOperator(DataprocJobTestBase):
     ):
         mock_ol_accessible.return_value = True
         mock_static_uuid.return_value = "01931885-2800-7be7-aa8d-aaa15c337267"
-        mock_ol_listener.adapter.get_or_create_openlineage_client.return_value.transport = HttpTransport(
+        fake_listener = mock.MagicMock()
+        mock_ol_listener.return_value = fake_listener
+        fake_listener.adapter.get_or_create_openlineage_client.return_value.transport = HttpTransport(
             HttpConfig.from_dict(OPENLINEAGE_HTTP_TRANSPORT_EXAMPLE_CONFIG)
         )
         job_config = {
@@ -1621,7 +1615,7 @@ class TestDataprocSubmitJobOperator(DataprocJobTestBase):
             metadata=METADATA,
         )
 
-    @mock.patch("airflow.providers.openlineage.plugins.listener._openlineage_listener")
+    @mock.patch("airflow.providers.openlineage.plugins.listener.get_openlineage_listener")
     @mock.patch("airflow.providers.google.cloud.openlineage.utils._is_openlineage_provider_accessible")
     @mock.patch(DATAPROC_PATH.format("DataprocHook"))
     def test_execute_openlineage_unsupported_transport_info_injection(
@@ -1638,7 +1632,9 @@ class TestDataprocSubmitJobOperator(DataprocJobTestBase):
             flush=True,
             messageKey="some",
         )
-        mock_ol_listener.adapter.get_or_create_openlineage_client.return_value.transport = KafkaTransport(
+        fake_listener = mock.MagicMock()
+        mock_ol_listener.return_value = fake_listener
+        fake_listener.adapter.get_or_create_openlineage_client.return_value.transport = KafkaTransport(
             kafka_config
         )
         job_config = {
@@ -1714,14 +1710,16 @@ class TestDataprocSubmitJobOperator(DataprocJobTestBase):
             metadata=METADATA,
         )
 
-    @mock.patch("airflow.providers.openlineage.plugins.listener._openlineage_listener")
+    @mock.patch("airflow.providers.openlineage.plugins.listener.get_openlineage_listener")
     @mock.patch("airflow.providers.google.cloud.openlineage.utils._is_openlineage_provider_accessible")
     @mock.patch(DATAPROC_PATH.format("DataprocHook"))
     def test_execute_openlineage_transport_info_injection_skipped_when_already_present(
         self, mock_hook, mock_ol_accessible, mock_ol_listener
     ):
         mock_ol_accessible.return_value = True
-        mock_ol_listener.adapter.get_or_create_openlineage_client.return_value.transport = HttpTransport(
+        fake_listener = mock.MagicMock()
+        mock_ol_listener.return_value = fake_listener
+        fake_listener.adapter.get_or_create_openlineage_client.return_value.transport = HttpTransport(
             HttpConfig.from_dict(OPENLINEAGE_HTTP_TRANSPORT_EXAMPLE_CONFIG)
         )
         job_config = {
@@ -1797,14 +1795,16 @@ class TestDataprocSubmitJobOperator(DataprocJobTestBase):
             metadata=METADATA,
         )
 
-    @mock.patch("airflow.providers.openlineage.plugins.listener._openlineage_listener")
+    @mock.patch("airflow.providers.openlineage.plugins.listener.get_openlineage_listener")
     @mock.patch("airflow.providers.google.cloud.openlineage.utils._is_openlineage_provider_accessible")
     @mock.patch(DATAPROC_PATH.format("DataprocHook"))
     def test_execute_openlineage_transport_info_injection_skipped_by_default_unless_enabled(
         self, mock_hook, mock_ol_accessible, mock_ol_listener
     ):
         mock_ol_accessible.return_value = True
-        mock_ol_listener.adapter.get_or_create_openlineage_client.return_value.transport = HttpTransport(
+        fake_listener = mock.MagicMock()
+        mock_ol_listener.return_value = fake_listener
+        fake_listener.adapter.get_or_create_openlineage_client.return_value.transport = HttpTransport(
             HttpConfig.from_dict(OPENLINEAGE_HTTP_TRANSPORT_EXAMPLE_CONFIG)
         )
         job_config = {
@@ -1879,14 +1879,16 @@ class TestDataprocSubmitJobOperator(DataprocJobTestBase):
             metadata=METADATA,
         )
 
-    @mock.patch("airflow.providers.openlineage.plugins.listener._openlineage_listener")
+    @mock.patch("airflow.providers.openlineage.plugins.listener.get_openlineage_listener")
     @mock.patch("airflow.providers.google.cloud.openlineage.utils._is_openlineage_provider_accessible")
     @mock.patch(DATAPROC_PATH.format("DataprocHook"))
     def test_execute_openlineage_transport_info_injection_skipped_when_ol_not_accessible(
         self, mock_hook, mock_ol_accessible, mock_ol_listener
     ):
         mock_ol_accessible.return_value = False
-        mock_ol_listener.adapter.get_or_create_openlineage_client.return_value.transport = HttpTransport(
+        fake_listener = mock.MagicMock()
+        mock_ol_listener.return_value = fake_listener
+        fake_listener.adapter.get_or_create_openlineage_client.return_value.transport = HttpTransport(
             HttpConfig.from_dict(OPENLINEAGE_HTTP_TRANSPORT_EXAMPLE_CONFIG)
         )
         job_config = {
@@ -2012,11 +2014,11 @@ def test_submit_job_operator_extra_links(
         job={},
         gcp_conn_id=GCP_CONN_ID,
     )
-
+    task = dag_maker.dag.get_task(ti.task_id)
     serialized_dag = dag_maker.get_serialized_data()
 
     # Assert operator links for serialized DAG
-    deserialized_dag = SerializedDAG.deserialize_dag(serialized_dag["dag"])
+    deserialized_dag = DagSerialization.deserialize_dag(serialized_dag["dag"])
     operator_extra_link = deserialized_dag.tasks[0].operator_extra_links[0]
     assert operator_extra_link.name == "Dataproc Job"
 
@@ -2027,7 +2029,7 @@ def test_submit_job_operator_extra_links(
         )
 
     # Assert operator link is empty when no XCom push occurred
-    assert ti.task.operator_extra_links[0].get_link(operator=ti.task, ti_key=ti.key) == ""
+    assert task.operator_extra_links[0].get_link(operator=task, ti_key=ti.key) == ""
 
     ti.xcom_push(key="dataproc_job", value=DATAPROC_JOB_EXPECTED)
 
@@ -2038,10 +2040,7 @@ def test_submit_job_operator_extra_links(
         )
 
     # Assert operator links after execution
-    assert (
-        ti.task.operator_extra_links[0].get_link(operator=ti.task, ti_key=ti.key)
-        == DATAPROC_JOB_LINK_EXPECTED
-    )
+    assert task.operator_extra_links[0].get_link(operator=task, ti_key=ti.key) == DATAPROC_JOB_LINK_EXPECTED
 
 
 class TestDataprocUpdateClusterOperator(DataprocClusterTestBase):
@@ -2221,11 +2220,11 @@ def test_update_cluster_operator_extra_links(
         project_id=GCP_PROJECT,
         gcp_conn_id=GCP_CONN_ID,
     )
-
+    task = dag_maker.dag.get_task(ti.task_id)
     serialized_dag = dag_maker.get_serialized_data()
 
     # Assert operator links for serialized DAG
-    deserialized_dag = SerializedDAG.deserialize_dag(serialized_dag["dag"])
+    deserialized_dag = DagSerialization.deserialize_dag(serialized_dag["dag"])
     operator_extra_link = deserialized_dag.tasks[0].operator_extra_links[0]
     assert operator_extra_link.name == "Dataproc Cluster"
 
@@ -2235,7 +2234,7 @@ def test_update_cluster_operator_extra_links(
             value="",
         )
     # Assert operator link is empty when no XCom push occurred
-    assert ti.task.operator_extra_links[0].get_link(operator=ti.task, ti_key=ti.key) == ""
+    assert task.operator_extra_links[0].get_link(operator=task, ti_key=ti.key) == ""
 
     ti.xcom_push(key="dataproc_cluster", value=DATAPROC_CLUSTER_EXPECTED)
 
@@ -2247,8 +2246,7 @@ def test_update_cluster_operator_extra_links(
 
     # Assert operator links after execution
     assert (
-        ti.task.operator_extra_links[0].get_link(operator=ti.task, ti_key=ti.key)
-        == DATAPROC_CLUSTER_LINK_EXPECTED
+        task.operator_extra_links[0].get_link(operator=task, ti_key=ti.key) == DATAPROC_CLUSTER_LINK_EXPECTED
     )
 
 
@@ -2448,10 +2446,11 @@ def test_instantiate_workflow_operator_extra_links(
         template_id=TEMPLATE_ID,
         gcp_conn_id=GCP_CONN_ID,
     )
+    task = dag_maker.dag.get_task(ti.task_id)
     serialized_dag = dag_maker.get_serialized_data()
 
     # Assert operator links for serialized DAG
-    deserialized_dag = SerializedDAG.deserialize_dag(serialized_dag["dag"])
+    deserialized_dag = DagSerialization.deserialize_dag(serialized_dag["dag"])
     operator_extra_link = deserialized_dag.tasks[0].operator_extra_links[0]
     assert operator_extra_link.name == "Dataproc Workflow"
 
@@ -2461,7 +2460,7 @@ def test_instantiate_workflow_operator_extra_links(
             value="",
         )
     # Assert operator link is empty when no XCom push occurred
-    assert ti.task.operator_extra_links[0].get_link(operator=ti.task, ti_key=ti.key) == ""
+    assert task.operator_extra_links[0].get_link(operator=task, ti_key=ti.key) == ""
 
     ti.xcom_push(key="dataproc_workflow", value=DATAPROC_WORKFLOW_EXPECTED)
     if AIRFLOW_V_3_0_PLUS:
@@ -2471,8 +2470,7 @@ def test_instantiate_workflow_operator_extra_links(
         )
     # Assert operator links after execution
     assert (
-        ti.task.operator_extra_links[0].get_link(operator=ti.task, ti_key=ti.key)
-        == DATAPROC_WORKFLOW_LINK_EXPECTED
+        task.operator_extra_links[0].get_link(operator=task, ti_key=ti.key) == DATAPROC_WORKFLOW_LINK_EXPECTED
     )
 
 
@@ -2787,7 +2785,7 @@ class TestDataprocWorkflowTemplateInstantiateInlineOperator:
         )
 
     @mock.patch("airflow.providers.openlineage.plugins.adapter.generate_static_uuid")
-    @mock.patch("airflow.providers.openlineage.plugins.listener._openlineage_listener")
+    @mock.patch("airflow.providers.openlineage.utils.spark.get_openlineage_listener")
     @mock.patch("airflow.providers.google.cloud.openlineage.utils._is_openlineage_provider_accessible")
     @mock.patch(DATAPROC_PATH.format("DataprocHook"))
     def test_execute_openlineage_transport_info_injection(
@@ -2795,7 +2793,9 @@ class TestDataprocWorkflowTemplateInstantiateInlineOperator:
     ):
         mock_ol_accessible.return_value = True
         mock_static_uuid.return_value = "01931885-2800-7be7-aa8d-aaa15c337267"
-        mock_ol_listener.adapter.get_or_create_openlineage_client.return_value.transport = HttpTransport(
+        fake_listener = mock.MagicMock()
+        mock_ol_listener.return_value = fake_listener
+        fake_listener.adapter.get_or_create_openlineage_client.return_value.transport = HttpTransport(
             HttpConfig.from_dict(OPENLINEAGE_HTTP_TRANSPORT_EXAMPLE_CONFIG)
         )
 
@@ -2893,7 +2893,7 @@ class TestDataprocWorkflowTemplateInstantiateInlineOperator:
         )
 
     @mock.patch("airflow.providers.openlineage.plugins.adapter.generate_static_uuid")
-    @mock.patch("airflow.providers.openlineage.plugins.listener._openlineage_listener")
+    @mock.patch("airflow.providers.openlineage.utils.spark.get_openlineage_listener")
     @mock.patch("airflow.providers.google.cloud.openlineage.utils._is_openlineage_provider_accessible")
     @mock.patch(DATAPROC_PATH.format("DataprocHook"))
     def test_execute_openlineage_all_info_injection(
@@ -2901,7 +2901,9 @@ class TestDataprocWorkflowTemplateInstantiateInlineOperator:
     ):
         mock_ol_accessible.return_value = True
         mock_static_uuid.return_value = "01931885-2800-7be7-aa8d-aaa15c337267"
-        mock_ol_listener.adapter.get_or_create_openlineage_client.return_value.transport = HttpTransport(
+        fake_listener = mock.MagicMock()
+        mock_ol_listener.return_value = fake_listener
+        fake_listener.adapter.get_or_create_openlineage_client.return_value.transport = HttpTransport(
             HttpConfig.from_dict(OPENLINEAGE_HTTP_TRANSPORT_EXAMPLE_CONFIG)
         )
         template = {
@@ -3021,14 +3023,16 @@ class TestDataprocWorkflowTemplateInstantiateInlineOperator:
             metadata=METADATA,
         )
 
-    @mock.patch("airflow.providers.openlineage.plugins.listener._openlineage_listener")
+    @mock.patch("airflow.providers.openlineage.plugins.listener.get_openlineage_listener")
     @mock.patch("airflow.providers.google.cloud.openlineage.utils._is_openlineage_provider_accessible")
     @mock.patch(DATAPROC_PATH.format("DataprocHook"))
     def test_execute_openlineage_transport_info_injection_skipped_by_default_unless_enabled(
         self, mock_hook, mock_ol_accessible, mock_ol_listener
     ):
         mock_ol_accessible.return_value = True
-        mock_ol_listener.adapter.get_or_create_openlineage_client.return_value.transport = HttpTransport(
+        fake_listener = mock.MagicMock()
+        mock_ol_listener.return_value = fake_listener
+        fake_listener.adapter.get_or_create_openlineage_client.return_value.transport = HttpTransport(
             HttpConfig("https://some-custom.url")
         )
 
@@ -3069,14 +3073,16 @@ class TestDataprocWorkflowTemplateInstantiateInlineOperator:
             metadata=METADATA,
         )
 
-    @mock.patch("airflow.providers.openlineage.plugins.listener._openlineage_listener")
+    @mock.patch("airflow.providers.openlineage.plugins.listener.get_openlineage_listener")
     @mock.patch("airflow.providers.google.cloud.openlineage.utils._is_openlineage_provider_accessible")
     @mock.patch(DATAPROC_PATH.format("DataprocHook"))
     def test_execute_openlineage_transport_info_injection_skipped_when_ol_not_accessible(
         self, mock_hook, mock_ol_accessible, mock_ol_listener
     ):
         mock_ol_accessible.return_value = False
-        mock_ol_listener.adapter.get_or_create_openlineage_client.return_value.transport = HttpTransport(
+        fake_listener = mock.MagicMock()
+        mock_ol_listener.return_value = fake_listener
+        fake_listener.adapter.get_or_create_openlineage_client.return_value.transport = HttpTransport(
             HttpConfig("https://some-custom.url")
         )
 
@@ -3134,10 +3140,11 @@ def test_instantiate_inline_workflow_operator_extra_links(
         template={},
         gcp_conn_id=GCP_CONN_ID,
     )
+    task = dag_maker.dag.get_task(ti.task_id)
     serialized_dag = dag_maker.get_serialized_data()
 
     # Assert operator links for serialized DAG
-    deserialized_dag = SerializedDAG.deserialize_dag(serialized_dag["dag"])
+    deserialized_dag = DagSerialization.deserialize_dag(serialized_dag["dag"])
     operator_extra_link = deserialized_dag.tasks[0].operator_extra_links[0]
     assert operator_extra_link.name == "Dataproc Workflow"
     if AIRFLOW_V_3_0_PLUS:
@@ -3146,7 +3153,7 @@ def test_instantiate_inline_workflow_operator_extra_links(
             value="",
         )
     # Assert operator link is empty when no XCom push occurred
-    assert ti.task.operator_extra_links[0].get_link(operator=ti.task, ti_key=ti.key) == ""
+    assert task.operator_extra_links[0].get_link(operator=task, ti_key=ti.key) == ""
 
     ti.xcom_push(key="dataproc_workflow", value=DATAPROC_WORKFLOW_EXPECTED)
     if AIRFLOW_V_3_0_PLUS:
@@ -3156,8 +3163,7 @@ def test_instantiate_inline_workflow_operator_extra_links(
 
     # Assert operator links after execution
     assert (
-        ti.task.operator_extra_links[0].get_link(operator=ti.task, ti_key=ti.key)
-        == DATAPROC_WORKFLOW_LINK_EXPECTED
+        task.operator_extra_links[0].get_link(operator=task, ti_key=ti.key) == DATAPROC_WORKFLOW_LINK_EXPECTED
     )
 
 
@@ -3469,7 +3475,7 @@ class TestDataprocCreateBatchOperator:
 
     @mock.patch.object(DataprocCreateBatchOperator, "log", new_callable=mock.MagicMock)
     @mock.patch("airflow.providers.openlineage.plugins.adapter.generate_static_uuid")
-    @mock.patch("airflow.providers.openlineage.plugins.listener._openlineage_listener")
+    @mock.patch("airflow.providers.openlineage.utils.spark.get_openlineage_listener")
     @mock.patch("airflow.providers.google.cloud.openlineage.utils._is_openlineage_provider_accessible")
     @mock.patch(DATAPROC_PATH.format("Batch.to_dict"))
     @mock.patch(DATAPROC_PATH.format("DataprocHook"))
@@ -3478,7 +3484,9 @@ class TestDataprocCreateBatchOperator:
     ):
         mock_ol_accessible.return_value = True
         mock_static_uuid.return_value = "01931885-2800-7be7-aa8d-aaa15c337267"
-        mock_ol_listener.adapter.get_or_create_openlineage_client.return_value.transport = HttpTransport(
+        fake_listener = mock.MagicMock()
+        mock_ol_listener.return_value = fake_listener
+        fake_listener.adapter.get_or_create_openlineage_client.return_value.transport = HttpTransport(
             HttpConfig.from_dict(OPENLINEAGE_HTTP_TRANSPORT_EXAMPLE_CONFIG)
         )
         expected_batch = {
@@ -3526,7 +3534,7 @@ class TestDataprocCreateBatchOperator:
         )
 
     @mock.patch("airflow.providers.openlineage.plugins.adapter.generate_static_uuid")
-    @mock.patch("airflow.providers.openlineage.plugins.listener._openlineage_listener")
+    @mock.patch("airflow.providers.openlineage.utils.spark.get_openlineage_listener")
     @mock.patch("airflow.providers.google.cloud.openlineage.utils._is_openlineage_provider_accessible")
     @mock.patch(DATAPROC_PATH.format("Batch.to_dict"))
     @mock.patch(DATAPROC_PATH.format("DataprocHook"))
@@ -3535,7 +3543,9 @@ class TestDataprocCreateBatchOperator:
     ):
         mock_ol_accessible.return_value = True
         mock_static_uuid.return_value = "01931885-2800-7be7-aa8d-aaa15c337267"
-        mock_ol_listener.adapter.get_or_create_openlineage_client.return_value.transport = HttpTransport(
+        fake_listener = mock.MagicMock()
+        mock_ol_listener.return_value = fake_listener
+        fake_listener.adapter.get_or_create_openlineage_client.return_value.transport = HttpTransport(
             HttpConfig.from_dict(OPENLINEAGE_HTTP_TRANSPORT_EXAMPLE_CONFIG)
         )
         expected_batch = {
@@ -3621,7 +3631,7 @@ class TestDataprocCreateBatchOperator:
             metadata=METADATA,
         )
 
-    @mock.patch("airflow.providers.openlineage.plugins.listener._openlineage_listener")
+    @mock.patch("airflow.providers.openlineage.plugins.listener.get_openlineage_listener")
     @mock.patch("airflow.providers.google.cloud.openlineage.utils._is_openlineage_provider_accessible")
     @mock.patch(DATAPROC_PATH.format("Batch.to_dict"))
     @mock.patch(DATAPROC_PATH.format("DataprocHook"))
@@ -3629,7 +3639,9 @@ class TestDataprocCreateBatchOperator:
         self, mock_hook, to_dict_mock, mock_ol_accessible, mock_ol_listener
     ):
         mock_ol_accessible.return_value = True
-        mock_ol_listener.adapter.get_or_create_openlineage_client.return_value.transport = HttpTransport(
+        fake_listener = mock.MagicMock()
+        mock_ol_listener.return_value = fake_listener
+        fake_listener.adapter.get_or_create_openlineage_client.return_value.transport = HttpTransport(
             HttpConfig.from_dict(OPENLINEAGE_HTTP_TRANSPORT_EXAMPLE_CONFIG)
         )
         batch = {
@@ -3707,7 +3719,7 @@ class TestDataprocCreateBatchOperator:
             metadata=METADATA,
         )
 
-    @mock.patch("airflow.providers.openlineage.plugins.listener._openlineage_listener")
+    @mock.patch("airflow.providers.openlineage.plugins.listener.get_openlineage_listener")
     @mock.patch("airflow.providers.google.cloud.openlineage.utils._is_openlineage_provider_accessible")
     @mock.patch(DATAPROC_PATH.format("Batch.to_dict"))
     @mock.patch(DATAPROC_PATH.format("DataprocHook"))
@@ -3715,7 +3727,9 @@ class TestDataprocCreateBatchOperator:
         self, mock_hook, to_dict_mock, mock_ol_accessible, mock_ol_listener
     ):
         mock_ol_accessible.return_value = True
-        mock_ol_listener.adapter.get_or_create_openlineage_client.return_value.transport = HttpTransport(
+        fake_listener = mock.MagicMock()
+        mock_ol_listener.return_value = fake_listener
+        fake_listener.adapter.get_or_create_openlineage_client.return_value.transport = HttpTransport(
             HttpConfig.from_dict(OPENLINEAGE_HTTP_TRANSPORT_EXAMPLE_CONFIG)
         )
         batch = {
@@ -3787,7 +3801,7 @@ class TestDataprocCreateBatchOperator:
             metadata=METADATA,
         )
 
-    @mock.patch("airflow.providers.openlineage.plugins.listener._openlineage_listener")
+    @mock.patch("airflow.providers.openlineage.plugins.listener.get_openlineage_listener")
     @mock.patch("airflow.providers.google.cloud.openlineage.utils._is_openlineage_provider_accessible")
     @mock.patch(DATAPROC_PATH.format("Batch.to_dict"))
     @mock.patch(DATAPROC_PATH.format("DataprocHook"))
@@ -3795,7 +3809,9 @@ class TestDataprocCreateBatchOperator:
         self, mock_hook, to_dict_mock, mock_ol_accessible, mock_ol_listener
     ):
         mock_ol_accessible.return_value = False
-        mock_ol_listener.adapter.get_or_create_openlineage_client.return_value.transport = HttpTransport(
+        fake_listener = mock.MagicMock()
+        mock_ol_listener.return_value = fake_listener
+        fake_listener.adapter.get_or_create_openlineage_client.return_value.transport = HttpTransport(
             HttpConfig.from_dict(OPENLINEAGE_HTTP_TRANSPORT_EXAMPLE_CONFIG)
         )
         batch = {

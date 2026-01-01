@@ -22,7 +22,7 @@ The static code checks in Airflow are used to verify that the code meets certain
 All the static code checks can be run through prek hooks.
 
 The prek hooks perform all the necessary installation when you run them
-for the first time. See the table below to identify which prek checks require the Breeze Docker images.
+for the first time.
 
 You can also run the checks via `Breeze <../dev/breeze/doc/README.rst>`_ environment.
 
@@ -31,7 +31,7 @@ You can also run the checks via `Breeze <../dev/breeze/doc/README.rst>`_ environ
 Prek hooks
 ----------
 
-Pre-commit hooks help speed up your local development cycle and place less burden on the CI infrastructure.
+Prek hooks help speed up your local development cycle and place less burden on the CI infrastructure.
 Consider installing the prek hooks as a necessary prerequisite.
 
 The hooks by default only check the files you are currently working on (and are staged) which makes the
@@ -116,7 +116,7 @@ To install the checks also for ``pre-push`` operations, enter:
 
 .. code-block:: bash
 
-    prek install -t pre-push
+    prek install --hook-type pre-push
 
 For details on advanced usage of the install method, use:
 
@@ -157,7 +157,12 @@ Using prek
 ----------
 
 After installation, prek hooks are run automatically when you commit the
-code. But you can run prek hooks manually as needed.
+code or push it to the repository (depending on stages configured for the hooks). Some of the
+hooks are configured to run on "manual" stage only and are not run automatically.
+
+By default when you run ``prek``, the ``pre-commit`` stage hooks are run.
+
+But you can run prek hooks manually as needed.
 
 -   Run all checks on your staged files by using:
 
@@ -170,33 +175,36 @@ code. But you can run prek hooks manually as needed.
 
 .. code-block:: bash
 
-    prek mypy-airflow-core mypy-dev
+    prek mypy-airflow-core mypy-dev  --hook-stage pre-push
 
 -   Run only mypy airflow checks on all "airflow-core" files by using:
 
 .. code-block:: bash
 
-    prek mypy-airflow-core --all-files
+    prek mypy-airflow-core --all-files --hook-stage pre-push
 
--   Run all checks on all files by using:
+-   Run all pre-commit stage hooks on all files by using:
 
 .. code-block:: bash
 
     prek --all-files
 
--   Run all checks only on files modified in the last locally available commit in your checked out branch:
+-   Run all pre-commit stage hooks only on files modified in the last locally available
+    commit in your checked out branch:
 
 .. code-block:: bash
 
     prek --last-commit
 
--   Run all checks only on files modified in your last branch that is targeted to be merged into the main branch:
+-   Run all pre-commit stage hooks only on files modified in your last branch that is targeted
+    to be merged into the main branch:
 
 .. code-block:: bash
 
     prek --from-ref main
 
--   Show files modified automatically by prek when prek automatically fix errors
+-   Show files modified automatically by prek when prek automatically fixes errors (after running all
+    ``pre-commit`` stage hooks on locally modified files):
 
 .. code-block:: bash
 
@@ -207,7 +215,7 @@ code. But you can run prek hooks manually as needed.
 
 .. code-block:: bash
 
-    SKIP=mypy-airflow-core,ruff prek --all-files
+    SKIP=ruff,rst-backticks prek --all-files
 
 
 You can always skip running the tests by providing ``--no-verify`` flag to the
@@ -262,9 +270,8 @@ enter the terminal.
 Manual prek hooks
 -----------------
 
-Most of the checks we run are configured to run automatically when you commit the code. However,
-there are some checks that are not run automatically and you need to run them manually. Those
-checks are marked with ``manual`` in the ``Description`` column in the table below. You can run
+Most of the checks we run are configured to run automatically when you commit the code or push PR. However,
+there are some checks that are not run automatically and you need to run them manually. You can run
 them manually by running ``prek --hook-stage manual <hook-id>``.
 
 Special pin-versions prek
@@ -274,25 +281,25 @@ There is a separate prek ``pin-versions`` prek hook which is used to pin version
 GitHub Actions in the CI workflows.
 
 This action requires ``GITHUB_TOKEN`` to be set, otherwise you might hit the rate limits with GitHub API, it
-is also configured in a separate ``.prek-config.yaml`` file in the
-``dev`` directory as it requires Python 3.11 to run. It is not run automatically
-when you commit the code but in runs as a separate job in the CI. However, you can run it
-manually by running:
+It is not run automatically when you commit the code but in runs as a separate job in the CI.
+However, you can run it manually by running:
 
 .. code-block:: bash
 
     export GITHUB_TOKEN=YOUR_GITHUB_TOKEN
-    prek -c dev/.pre-commit-config.yaml --all-files --hook-stage manual --verbose
+    prek --all-files --hook-stage manual --verbose pin-versions
 
 
 Mypy checks
 -----------
 
-When we run mypy checks locally when committing a change, one of the ``mypy-*`` checks is run, ``mypy-airflow``,
+When we run mypy checks locally when pushing a change to PR, the ``mypy-*`` checks is run, ``mypy-airflow``,
 ``mypy-dev``, ``mypy-providers``, ``mypy-airflow-ctl``, depending on the files you are changing. The mypy checks
 are run by passing those changed files to mypy. This is way faster than running checks for all files (even
 if mypy cache is used - especially when you change a file in Airflow core that is imported and used by many
-files). However, in some cases, it produces different results than when running checks for the whole set
+files). You also need to have ``breeze ci-image build --python 3.10`` built locally to run the mypy checks.
+
+However, in some cases, it produces different results than when running checks for the whole set
 of files, because ``mypy`` does not even know that some types are defined in other files and it might not
 be able to follow imports properly if they are dynamic. Therefore in CI we run ``mypy`` check for whole
 directories (``airflow`` - excluding providers, ``providers``, ``dev`` and ``docs``) to make sure

@@ -37,7 +37,6 @@ from airflow.exceptions import AirflowException, AirflowSkipException
 from airflow.models.connection import Connection
 from airflow.models.dag import DAG
 from airflow.models.dagrun import DagRun
-from airflow.models.taskinstance import TaskInstance
 from airflow.providers.cncf.kubernetes.hooks.kubernetes import KubernetesHook
 from airflow.providers.cncf.kubernetes.operators.pod import KubernetesPodOperator
 from airflow.providers.cncf.kubernetes.utils.pod_manager import OnFinishAction, PodManager
@@ -46,6 +45,8 @@ from airflow.utils import timezone
 from airflow.utils.types import DagRunType
 from airflow.version import version as airflow_version
 from kubernetes_tests.test_base import BaseK8STest, StringContainingId
+
+from tests_common.test_utils.taskinstance import create_task_instance
 
 HOOK_CLASS = "airflow.providers.cncf.kubernetes.operators.pod.KubernetesHook"
 POD_MANAGER_CLASS = "airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager"
@@ -76,10 +77,7 @@ def create_context(task) -> Context:
                 logical_date=logical_date,
             ),
         )
-    if AIRFLOW_V_3_0_PLUS:
-        task_instance = TaskInstance(task=task, run_id=dag_run.run_id, dag_version_id=mock.MagicMock())
-    else:
-        task_instance = TaskInstance(task=task)
+    task_instance = create_task_instance(task=task, run_id=dag_run.run_id, dag_version_id=mock.MagicMock())
     task_instance.dag_run = dag_run
     task_instance.dag_id = dag.dag_id
     task_instance.try_number = 1
@@ -1434,7 +1432,7 @@ class TestKubernetesPodOperatorSystem:
         )
 
     @pytest.mark.parametrize(
-        "log_prefix_enabled, log_formatter, expected_log_message_check",
+        ("log_prefix_enabled", "log_formatter", "expected_log_message_check"),
         [
             pytest.param(
                 True,
@@ -1536,7 +1534,7 @@ class TestKubernetesPodOperator(BaseK8STest):
         create_connection_without_db(connection)
 
     @pytest.mark.parametrize(
-        "active_deadline_seconds,should_fail",
+        ("active_deadline_seconds", "should_fail"),
         [(3, True), (60, False)],
         ids=["should_fail", "should_not_fail"],
     )

@@ -32,8 +32,8 @@ from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
 from google.cloud.bigquery import DEFAULT_RETRY, CopyJob, ExtractJob, LoadJob, QueryJob, Row
 from google.cloud.bigquery.table import RowIterator, Table, TableListItem, TableReference
 
-from airflow.configuration import conf
-from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning, AirflowSkipException
+from airflow.exceptions import AirflowProviderDeprecationWarning
+from airflow.providers.common.compat.sdk import AirflowException, AirflowSkipException, conf
 from airflow.providers.common.sql.operators.sql import (  # for _parse_boolean
     SQLCheckOperator,
     SQLColumnCheckOperator,
@@ -66,7 +66,7 @@ if TYPE_CHECKING:
     from google.api_core.retry import Retry
     from google.cloud.bigquery import UnknownJob
 
-    from airflow.utils.context import Context
+    from airflow.providers.common.compat.sdk import Context
 
 
 BIGQUERY_JOB_DETAILS_LINK_FMT = "https://console.cloud.google.com/bigquery?j={job_id}"
@@ -1012,6 +1012,7 @@ class BigQueryGetDataOperator(GoogleCloudBaseOperator, _BigQueryOperatorsEncrypt
         "project_id",
         "max_results",
         "selected_fields",
+        "gcp_conn_id",
         "impersonation_chain",
     )
     ui_color = BigQueryUIColors.QUERY.value
@@ -1253,6 +1254,7 @@ class BigQueryCreateTableOperator(GoogleCloudBaseOperator):
         "table_resource",
         "project_id",
         "gcs_schema_object",
+        "gcp_conn_id",
         "impersonation_chain",
     )
     template_fields_renderers = {"table_resource": "json"}
@@ -1415,6 +1417,7 @@ class BigQueryDeleteDatasetOperator(GoogleCloudBaseOperator):
     template_fields: Sequence[str] = (
         "dataset_id",
         "project_id",
+        "gcp_conn_id",
         "impersonation_chain",
     )
     ui_color = BigQueryUIColors.DATASET.value
@@ -1494,6 +1497,7 @@ class BigQueryCreateEmptyDatasetOperator(GoogleCloudBaseOperator):
         "dataset_id",
         "project_id",
         "dataset_reference",
+        "gcp_conn_id",
         "impersonation_chain",
     )
     template_fields_renderers = {"dataset_reference": "json"}
@@ -1598,6 +1602,7 @@ class BigQueryGetDatasetOperator(GoogleCloudBaseOperator):
     template_fields: Sequence[str] = (
         "dataset_id",
         "project_id",
+        "gcp_conn_id",
         "impersonation_chain",
     )
     ui_color = BigQueryUIColors.DATASET.value
@@ -1662,6 +1667,7 @@ class BigQueryGetDatasetTablesOperator(GoogleCloudBaseOperator):
     template_fields: Sequence[str] = (
         "dataset_id",
         "project_id",
+        "gcp_conn_id",
         "impersonation_chain",
     )
     ui_color = BigQueryUIColors.DATASET.value
@@ -1732,6 +1738,7 @@ class BigQueryUpdateTableOperator(GoogleCloudBaseOperator):
         "dataset_id",
         "table_id",
         "project_id",
+        "gcp_conn_id",
         "impersonation_chain",
     )
     template_fields_renderers = {"table_resource": "json"}
@@ -1838,6 +1845,7 @@ class BigQueryUpdateDatasetOperator(GoogleCloudBaseOperator):
     template_fields: Sequence[str] = (
         "dataset_id",
         "project_id",
+        "gcp_conn_id",
         "impersonation_chain",
     )
     template_fields_renderers = {"dataset_resource": "json"}
@@ -1913,6 +1921,7 @@ class BigQueryDeleteTableOperator(GoogleCloudBaseOperator):
 
     template_fields: Sequence[str] = (
         "deletion_dataset_table",
+        "gcp_conn_id",
         "impersonation_chain",
     )
     ui_color = BigQueryUIColors.TABLE.value
@@ -2007,6 +2016,7 @@ class BigQueryUpsertTableOperator(GoogleCloudBaseOperator):
     template_fields: Sequence[str] = (
         "dataset_id",
         "table_resource",
+        "gcp_conn_id",
         "impersonation_chain",
         "project_id",
     )
@@ -2134,6 +2144,7 @@ class BigQueryUpdateTableSchemaOperator(GoogleCloudBaseOperator):
         "dataset_id",
         "table_id",
         "project_id",
+        "gcp_conn_id",
         "impersonation_chain",
     )
     template_fields_renderers = {"schema_fields_updates": "json"}
@@ -2263,6 +2274,7 @@ class BigQueryInsertJobOperator(GoogleCloudBaseOperator, _BigQueryInsertJobOpera
     template_fields: Sequence[str] = (
         "configuration",
         "job_id",
+        "gcp_conn_id",
         "impersonation_chain",
         "project_id",
     )
@@ -2370,20 +2382,13 @@ class BigQueryInsertJobOperator(GoogleCloudBaseOperator, _BigQueryInsertJobOpera
         if self.project_id is None:
             self.project_id = hook.project_id
 
-        # Handle missing logical_date. Example: asset-triggered DAGs (Airflow 3)
-        logical_date = context.get("logical_date")
-        if logical_date is None:
-            # Use dag_run.run_after as fallback when logical_date is not available
-            dag_run = context.get("dag_run")
-            if dag_run and hasattr(dag_run, "run_after"):
-                logical_date = dag_run.run_after
-
         self.job_id = hook.generate_job_id(
             job_id=self.job_id,
             dag_id=self.dag_id,
             task_id=self.task_id,
-            logical_date=logical_date,
+            logical_date=None,
             configuration=self.configuration,
+            run_after=hook.get_run_after_or_logical_date(context),
             force_rerun=self.force_rerun,
         )
 

@@ -18,15 +18,17 @@ from __future__ import annotations
 
 import os
 from importlib.metadata import PackageNotFoundError, metadata
-from unittest import SkipTest, mock
+from unittest import mock
 
 import pytest
+from sqlalchemy.orm import Session
 
 from airflow.models import Connection
 from airflow.secrets.environment_variables import CONN_ENV_PREFIX
-from airflow.utils.session import provide_session
+from airflow.utils.session import NEW_SESSION, provide_session
 
 from tests_common.test_utils.api_fastapi import _check_last_log
+from tests_common.test_utils.asserts import assert_queries_count
 from tests_common.test_utils.db import clear_db_connections, clear_db_logs, clear_test_connections
 from tests_common.test_utils.markers import skip_if_force_lowest_dependencies_marker
 
@@ -55,7 +57,7 @@ TEST_CONN_TYPE_3 = "test_type_3"
 
 
 @provide_session
-def _create_connection(session) -> None:
+def _create_connection(team_name: str | None = None, session: Session = NEW_SESSION) -> None:
     connection_model = Connection(
         conn_id=TEST_CONN_ID,
         conn_type=TEST_CONN_TYPE,
@@ -63,13 +65,14 @@ def _create_connection(session) -> None:
         host=TEST_CONN_HOST,
         port=TEST_CONN_PORT,
         login=TEST_CONN_LOGIN,
+        team_name=team_name,
     )
     session.add(connection_model)
 
 
 @provide_session
-def _create_connections(session) -> None:
-    _create_connection(session)
+def _create_connections(session: Session = NEW_SESSION) -> None:
+    _create_connection(session=session)
     connection_model_2 = Connection(
         conn_id=TEST_CONN_ID_2,
         conn_type=TEST_CONN_TYPE_2,
@@ -91,8 +94,8 @@ class TestConnectionEndpoint:
     def teardown_method(self) -> None:
         clear_db_connections()
 
-    def create_connection(self):
-        _create_connection()
+    def create_connection(self, team_name: str | None = None):
+        _create_connection(team_name=team_name)
 
     def create_connections(self):
         _create_connections()
@@ -125,13 +128,14 @@ class TestDeleteConnection(TestConnectionEndpoint):
 
 
 class TestGetConnection(TestConnectionEndpoint):
-    def test_get_should_respond_200(self, test_client, session):
-        self.create_connection()
+    def test_get_should_respond_200(self, test_client, testing_team, session):
+        self.create_connection(team_name=testing_team.name)
         response = test_client.get(f"/connections/{TEST_CONN_ID}")
         assert response.status_code == 200
         body = response.json()
         assert body["connection_id"] == TEST_CONN_ID
         assert body["conn_type"] == TEST_CONN_TYPE
+        assert body["team_name"] == testing_team.name
 
     def test_should_respond_401(self, unauthenticated_test_client):
         response = unauthenticated_test_client.get(f"/connections/{TEST_CONN_ID}")
@@ -191,7 +195,7 @@ class TestGetConnection(TestConnectionEndpoint):
 
 class TestGetConnections(TestConnectionEndpoint):
     @pytest.mark.parametrize(
-        "query_params, expected_total_entries, expected_ids",
+        ("query_params", "expected_total_entries", "expected_ids"),
         [
             # Filters
             ({}, 2, [TEST_CONN_ID, TEST_CONN_ID_2]),
@@ -217,7 +221,10 @@ class TestGetConnections(TestConnectionEndpoint):
         self, test_client, session, query_params, expected_total_entries, expected_ids
     ):
         self.create_connections()
-        response = test_client.get("/connections", params=query_params)
+
+        with assert_queries_count(3):
+            response = test_client.get("/connections", params=query_params)
+
         assert response.status_code == 200
 
         body = response.json()
@@ -274,6 +281,25 @@ class TestPostConnection(TestConnectionEndpoint):
         assert len(connection) == 1
         _check_last_log(session, dag_id=None, event="post_connection", logical_date=None)
 
+    def test_post_should_respond_201_with_team(self, test_client, session, testing_team):
+        response = test_client.post(
+            "/connections",
+            json={"connection_id": TEST_CONN_ID, "conn_type": TEST_CONN_TYPE, "team_name": testing_team.name},
+        )
+        assert response.status_code == 201
+        assert response.json() == {
+            "connection_id": TEST_CONN_ID,
+            "conn_type": TEST_CONN_TYPE,
+            "description": None,
+            "extra": None,
+            "host": None,
+            "login": None,
+            "password": None,
+            "port": None,
+            "schema": None,
+            "team_name": testing_team.name,
+        }
+
     def test_should_respond_401(self, unauthenticated_test_client):
         response = unauthenticated_test_client.post("/connections", json={})
         assert response.status_code == 401
@@ -325,7 +351,7 @@ class TestPostConnection(TestConnectionEndpoint):
 
     @pytest.mark.enable_redact
     @pytest.mark.parametrize(
-        "body, expected_response",
+        ("body", "expected_response"),
         [
             (
                 {"connection_id": TEST_CONN_ID, "conn_type": TEST_CONN_TYPE, "password": "test-password"},
@@ -339,6 +365,7 @@ class TestPostConnection(TestConnectionEndpoint):
                     "password": "***",
                     "port": None,
                     "schema": None,
+                    "team_name": None,
                 },
             ),
             (
@@ -353,6 +380,7 @@ class TestPostConnection(TestConnectionEndpoint):
                     "password": "***",
                     "port": None,
                     "schema": None,
+                    "team_name": None,
                 },
             ),
             (
@@ -372,6 +400,7 @@ class TestPostConnection(TestConnectionEndpoint):
                     "password": "***",
                     "port": None,
                     "schema": None,
+                    "team_name": None,
                 },
             ),
         ],
@@ -385,7 +414,7 @@ class TestPostConnection(TestConnectionEndpoint):
 
 class TestPatchConnection(TestConnectionEndpoint):
     @pytest.mark.parametrize(
-        "body, expected_result",
+        ("body", "expected_result"),
         [
             (
                 {"connection_id": TEST_CONN_ID, "conn_type": "new_type", "extra": '{"key": "var"}'},
@@ -399,6 +428,7 @@ class TestPatchConnection(TestConnectionEndpoint):
                     "password": None,
                     "port": TEST_CONN_PORT,
                     "schema": None,
+                    "team_name": None,
                 },
             ),
             (
@@ -413,6 +443,7 @@ class TestPatchConnection(TestConnectionEndpoint):
                     "password": None,
                     "port": TEST_CONN_PORT,
                     "schema": None,
+                    "team_name": None,
                 },
             ),
             (
@@ -432,6 +463,7 @@ class TestPatchConnection(TestConnectionEndpoint):
                     "password": None,
                     "port": 80,
                     "schema": None,
+                    "team_name": None,
                 },
             ),
             (
@@ -446,6 +478,7 @@ class TestPatchConnection(TestConnectionEndpoint):
                     "password": None,
                     "port": TEST_CONN_PORT,
                     "schema": None,
+                    "team_name": None,
                 },
             ),
             (
@@ -460,6 +493,7 @@ class TestPatchConnection(TestConnectionEndpoint):
                     "password": None,
                     "port": 80,
                     "schema": None,
+                    "team_name": None,
                 },
             ),
             (
@@ -480,6 +514,7 @@ class TestPatchConnection(TestConnectionEndpoint):
                     "password": "test_password_patch",
                     "port": 80,
                     "schema": None,
+                    "team_name": None,
                 },
             ),
             (
@@ -501,6 +536,7 @@ class TestPatchConnection(TestConnectionEndpoint):
                     "password": None,
                     "port": 80,
                     "schema": None,
+                    "team_name": None,
                 },
             ),
             (
@@ -520,6 +556,7 @@ class TestPatchConnection(TestConnectionEndpoint):
                     "password": None,
                     "port": TEST_CONN_PORT,
                     "schema": "http_patch",
+                    "team_name": None,
                 },
             ),
             (
@@ -544,11 +581,11 @@ class TestPatchConnection(TestConnectionEndpoint):
                     "password": None,
                     "port": None,
                     "schema": None,
+                    "team_name": None,
                 },
             ),
         ],
     )
-    @provide_session
     def test_patch_should_respond_200(
         self, test_client, body: dict[str, str], expected_result: dict[str, str], session
     ):
@@ -560,6 +597,29 @@ class TestPatchConnection(TestConnectionEndpoint):
 
         assert response.json() == expected_result
 
+    def test_patch_with_team_should_respond_200(self, test_client, testing_team, session):
+        self.create_connection()
+
+        response = test_client.patch(
+            f"/connections/{TEST_CONN_ID}",
+            json={"connection_id": TEST_CONN_ID, "conn_type": "new_type", "team_name": testing_team.name},
+        )
+        assert response.status_code == 200
+        _check_last_log(session, dag_id=None, event="patch_connection", logical_date=None)
+
+        assert response.json() == {
+            "conn_type": "new_type",
+            "connection_id": TEST_CONN_ID,
+            "description": TEST_CONN_DESCRIPTION,
+            "extra": None,
+            "host": TEST_CONN_HOST,
+            "login": TEST_CONN_LOGIN,
+            "password": None,
+            "port": TEST_CONN_PORT,
+            "schema": None,
+            "team_name": testing_team.name,
+        }
+
     def test_should_respond_401(self, unauthenticated_test_client):
         response = unauthenticated_test_client.patch(f"/connections/{TEST_CONN_ID}", json={})
         assert response.status_code == 401
@@ -569,7 +629,7 @@ class TestPatchConnection(TestConnectionEndpoint):
         assert response.status_code == 403
 
     @pytest.mark.parametrize(
-        "body, updated_connection, update_mask",
+        ("body", "updated_connection", "update_mask"),
         [
             (
                 {
@@ -589,6 +649,7 @@ class TestPatchConnection(TestConnectionEndpoint):
                     "schema": None,
                     "password": None,
                     "description": TEST_CONN_DESCRIPTION,
+                    "team_name": None,
                 },
                 {"update_mask": ["login", "port"]},
             ),
@@ -610,6 +671,7 @@ class TestPatchConnection(TestConnectionEndpoint):
                     "schema": None,
                     "password": None,
                     "description": TEST_CONN_DESCRIPTION,
+                    "team_name": None,
                 },
                 {"update_mask": ["login", "port"]},
             ),
@@ -625,6 +687,7 @@ class TestPatchConnection(TestConnectionEndpoint):
                     "schema": None,
                     "password": None,
                     "description": TEST_CONN_DESCRIPTION,
+                    "team_name": None,
                 },
                 {"update_mask": ["host"]},
             ),
@@ -645,6 +708,7 @@ class TestPatchConnection(TestConnectionEndpoint):
                     "schema": None,
                     "password": None,
                     "description": TEST_CONN_DESCRIPTION,
+                    "team_name": None,
                 },
                 {"update_mask": ["host", "port"]},
             ),
@@ -660,6 +724,7 @@ class TestPatchConnection(TestConnectionEndpoint):
                     "schema": None,
                     "password": None,
                     "description": TEST_CONN_DESCRIPTION,
+                    "team_name": None,
                 },
                 {"update_mask": ["login"]},
             ),
@@ -680,6 +745,7 @@ class TestPatchConnection(TestConnectionEndpoint):
                     "password": None,
                     "schema": None,
                     "description": TEST_CONN_DESCRIPTION,
+                    "team_name": None,
                 },
                 {"update_mask": ["host"]},
             ),
@@ -702,6 +768,7 @@ class TestPatchConnection(TestConnectionEndpoint):
                     "password": None,
                     "schema": "new_schema",
                     "description": TEST_CONN_DESCRIPTION,
+                    "team_name": None,
                 },
                 {"update_mask": ["schema", "extra"]},
             ),
@@ -800,7 +867,7 @@ class TestPatchConnection(TestConnectionEndpoint):
 
     @pytest.mark.enable_redact
     @pytest.mark.parametrize(
-        "body, expected_response, update_mask",
+        ("body", "expected_response", "update_mask"),
         [
             (
                 {"connection_id": TEST_CONN_ID, "conn_type": TEST_CONN_TYPE, "password": "test-password"},
@@ -814,6 +881,7 @@ class TestPatchConnection(TestConnectionEndpoint):
                     "password": "***",
                     "port": 8080,
                     "schema": None,
+                    "team_name": None,
                 },
                 {"update_mask": ["password"]},
             ),
@@ -829,6 +897,7 @@ class TestPatchConnection(TestConnectionEndpoint):
                     "password": "***",
                     "port": 8080,
                     "schema": None,
+                    "team_name": None,
                 },
                 {"update_mask": ["password"]},
             ),
@@ -849,6 +918,7 @@ class TestPatchConnection(TestConnectionEndpoint):
                     "password": "***",
                     "port": 8080,
                     "schema": None,
+                    "team_name": None,
                 },
                 {"update_mask": ["password", "extra"]},
             ),
@@ -869,11 +939,11 @@ class TestConnection(TestConnectionEndpoint):
         try:
             metadata("apache-airflow-providers-sqlite")
         except PackageNotFoundError:
-            raise SkipTest("The SQlite distribution package is not installed.")
+            pytest.skip("The SQlite distribution package is not installed.")
 
     @mock.patch.dict(os.environ, {"AIRFLOW__CORE__TEST_CONNECTION": "Enabled"})
     @pytest.mark.parametrize(
-        "body, message",
+        ("body", "message"),
         [
             ({"connection_id": TEST_CONN_ID, "conn_type": "sqlite"}, "Connection successfully tested"),
             (
@@ -955,7 +1025,7 @@ class TestCreateDefaultConnections(TestConnectionEndpoint):
 
 class TestBulkConnections(TestConnectionEndpoint):
     @pytest.mark.parametrize(
-        "actions, expected_results",
+        ("actions", "expected_results"),
         [
             pytest.param(
                 {
@@ -1142,6 +1212,26 @@ class TestBulkConnections(TestConnectionEndpoint):
                 {
                     "actions": [
                         {
+                            "action": "update",
+                            "entities": [
+                                {
+                                    "connection_id": TEST_CONN_ID,
+                                    "conn_type": TEST_CONN_TYPE,
+                                    "description": "updated_description",
+                                }
+                            ],
+                            "update_mask": ["description"],
+                            "action_on_non_existence": "fail",
+                        }
+                    ]
+                },
+                {"update": {"success": [TEST_CONN_ID], "errors": []}},
+                id="test_connection_update_with_valid_update_mask",
+            ),
+            pytest.param(
+                {
+                    "actions": [
+                        {
                             "action": "delete",
                             "entities": [TEST_CONN_ID],
                         }
@@ -1243,6 +1333,34 @@ class TestBulkConnections(TestConnectionEndpoint):
                 },
                 id="test_create_update_delete",
             ),
+            pytest.param(
+                {
+                    "actions": [
+                        {
+                            "action": "update",
+                            "entities": [
+                                {
+                                    "connection_id": TEST_CONN_ID,
+                                    "conn_type": TEST_CONN_TYPE,
+                                    "description": "updated_description",
+                                }
+                            ],
+                            "update_mask": ["description"],
+                            "action_on_non_existence": "fail",
+                        },
+                        {
+                            "action": "delete",
+                            "entities": [TEST_CONN_ID],
+                            "action_on_non_existence": "fail",
+                        },
+                    ]
+                },
+                {
+                    "update": {"success": [TEST_CONN_ID], "errors": []},
+                    "delete": {"success": [TEST_CONN_ID], "errors": []},
+                },
+                id="test_connection_create_update_delete_with_update_mask",
+            ),
         ],
     )
     def test_bulk_connections(self, test_client, actions, expected_results, session):
@@ -1286,7 +1404,7 @@ class TestPostConnectionExtraBackwardCompatibility(TestConnectionEndpoint):
         assert connection.extra == "{}"  # Backward compatibility: treat "" as empty JSON object
 
     @pytest.mark.parametrize(
-        "extra, expected_error_message",
+        ("extra", "expected_error_message"),
         [
             ("[1,2,3]", "Expected JSON object in `extra` field, got non-dict JSON"),
             ("some_string", "Encountered non-JSON in `extra` field"),

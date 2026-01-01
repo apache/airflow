@@ -90,7 +90,7 @@ class TestDataprepGetJobGroupOperator:
     @mock.patch("airflow.providers.google.cloud.operators.dataprep.GoogleDataprepHook")
     @mock.patch("airflow.providers.google.cloud.operators.dataprep.DataprepJobGroupLink")
     @pytest.mark.parametrize(
-        "provide_project_id, expected_call_count",
+        ("provide_project_id", "expected_call_count"),
         [
             (True, 1),
             (False, 0),
@@ -184,18 +184,16 @@ class TestDataprepCopyFlowOperatorTest:
             name="{{ dag.dag_id }}",
             description="{{ dag.dag_id }}",
         )
-        session.add(ti)
-        session.commit()
-        ti.render_templates()
-        assert dag_id == ti.task.project_id
-        assert dag_id == ti.task.flow_id
-        assert dag_id == ti.task.name
-        assert dag_id == ti.task.description
+        task = ti.render_templates()
+        assert dag_id == task.project_id
+        assert dag_id == task.flow_id
+        assert dag_id == task.name
+        assert dag_id == task.description
 
     @mock.patch("airflow.providers.google.cloud.operators.dataprep.GoogleDataprepHook")
     @mock.patch("airflow.providers.google.cloud.operators.dataprep.DataprepFlowLink")
     @pytest.mark.parametrize(
-        "provide_project_id, expected_call_count",
+        ("provide_project_id", "expected_call_count"),
         [
             (True, 1),
             (False, 0),
@@ -256,10 +254,8 @@ class TestDataprepDeleteFlowOperator:
             task_id=TASK_ID,
             flow_id="{{ dag.dag_id }}",
         )
-        session.add(ti)
-        session.commit()
-        ti.render_templates()
-        assert dag_id == ti.task.flow_id
+        task = ti.render_templates()
+        assert dag_id == task.flow_id
 
 
 class TestDataprepRunFlowOperator:
@@ -291,9 +287,7 @@ class TestDataprepRunFlowOperator:
             flow_id="{{ dag.dag_id }}",
             body_request={},
         )
-        session.add(ti)
-        session.commit()
-        ti.render_templates()
+        task = ti.render_templates()
 
-        assert dag_id == ti.task.project_id
-        assert dag_id == ti.task.flow_id
+        assert dag_id == task.project_id
+        assert dag_id == task.flow_id

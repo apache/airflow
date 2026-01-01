@@ -42,7 +42,6 @@ from airflow.sdk.definitions._internal.abstractoperator import (
     DEFAULT_WAIT_FOR_PAST_DEPENDS_BEFORE_SKIPPING,
     DEFAULT_WEIGHT_RULE,
     AbstractOperator,
-    NotMapped,
     TaskStateChangeCallbackAttrType,
 )
 from airflow.sdk.definitions._internal.expandinput import (
@@ -60,12 +59,12 @@ if TYPE_CHECKING:
     import jinja2  # Slow import.
     import pendulum
 
-    from airflow.models.expandinput import (
+    from airflow.sdk import DAG, BaseOperator, BaseOperatorLink, Context, TaskGroup, TriggerRule, XComArg
+    from airflow.sdk.definitions._internal.expandinput import (
+        ExpandInput,
         OperatorExpandArgument,
         OperatorExpandKwargsArgument,
     )
-    from airflow.sdk import DAG, BaseOperator, BaseOperatorLink, Context, TaskGroup, TriggerRule, XComArg
-    from airflow.sdk.definitions._internal.expandinput import ExpandInput
     from airflow.sdk.definitions.operator_resources import Resources
     from airflow.sdk.definitions.param import ParamsDict
     from airflow.triggers.base import StartTriggerArgs
@@ -535,11 +534,16 @@ class MappedOperator(AbstractOperator):
         self.partial_kwargs["retry_delay"] = value
 
     @property
-    def retry_exponential_backoff(self) -> bool:
-        return bool(self.partial_kwargs.get("retry_exponential_backoff"))
+    def retry_exponential_backoff(self) -> float:
+        value = self.partial_kwargs.get("retry_exponential_backoff", 0)
+        if value is True:
+            return 2.0
+        if value is False:
+            return 0.0
+        return float(value)
 
     @retry_exponential_backoff.setter
-    def retry_exponential_backoff(self, value: bool) -> None:
+    def retry_exponential_backoff(self, value: float) -> None:
         self.partial_kwargs["retry_exponential_backoff"] = value
 
     @property
@@ -790,16 +794,6 @@ class MappedOperator(AbstractOperator):
 
         for operator, _ in XComArg.iter_xcom_references(self._get_specified_expand_input()):
             yield operator
-
-    @methodtools.lru_cache(maxsize=None)
-    def get_parse_time_mapped_ti_count(self) -> int:
-        current_count = self._get_specified_expand_input().get_parse_time_mapped_ti_count()
-        try:
-            # The use of `methodtools` interferes with the zero-arg super
-            parent_count = super(MappedOperator, self).get_parse_time_mapped_ti_count()  # noqa: UP008
-        except NotMapped:
-            return current_count
-        return parent_count * current_count
 
     def render_template_fields(
         self,

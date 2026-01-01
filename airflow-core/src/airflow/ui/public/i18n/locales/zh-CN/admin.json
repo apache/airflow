@@ -16,7 +16,7 @@
     "columns": {
       "connectionId": "连接 ID",
       "connectionType": "连接类型",
-      "host": "主机",
+      "host": "主机地址",
       "port": "端口"
     },
     "connection_one": "连接",
@@ -53,7 +53,7 @@
       "error": "获取连接类型元数据失败",
       "standardFields": {
         "description": "描述",
-        "host": "主机",
+        "host": "主机地址",
         "login": "登录",
         "password": "密码",
         "port": "端口",
@@ -128,8 +128,6 @@
       "tooltip": "删除所选变量"
     },
     "edit": "编辑变量",
-    "export": "导出",
-    "exportTooltip": "导出所选变量",
     "form": {
       "invalidJson": "无效的 JSON",
       "keyMaxLength": "键最多只能包含 250 个字符",
@@ -143,15 +141,15 @@
       "options": {
         "fail": {
           "description": "如果检测到任何已存在的变量，则导入失败。",
-          "title": "失败"
+          "title": "严格模式"
         },
         "overwrite": {
           "description": "发生冲突时覆盖变量。",
-          "title": "覆盖"
+          "title": "覆盖模式"
         },
         "skip": {
           "description": "忽略导入已存在的变量。",
-          "title": "跳过"
+          "title": "非严格模式"
         }
       },
       "title": "导入变量",

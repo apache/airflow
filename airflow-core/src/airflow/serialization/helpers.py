@@ -18,11 +18,15 @@
 
 from __future__ import annotations
 
-from typing import Any
+import contextlib
+from typing import TYPE_CHECKING, Any
 
 from airflow._shared.secrets_masker import redact
 from airflow.configuration import conf
 from airflow.settings import json
+
+if TYPE_CHECKING:
+    from airflow.timetables.base import Timetable as CoreTimetable
 
 
 def serialize_template_field(template_field: Any, name: str) -> str | dict | list | int | float:
@@ -51,6 +55,16 @@ def serialize_template_field(template_field: Any, name: str) -> str | dict | lis
             return {key: translate_tuples_to_lists(value) for key, value in obj.items()}
         return obj
 
+    def sort_dict_recursively(obj: Any) -> Any:
+        """Recursively sort dictionaries to ensure consistent ordering."""
+        if isinstance(obj, dict):
+            return {k: sort_dict_recursively(v) for k, v in sorted(obj.items())}
+        if isinstance(obj, list):
+            return [sort_dict_recursively(item) for item in obj]
+        if isinstance(obj, tuple):
+            return tuple(sort_dict_recursively(item) for item in obj)
+        return obj
+
     max_length = conf.getint("core", "max_templated_field_length")
 
     if not is_jsonable(template_field):
@@ -70,6 +84,10 @@ def serialize_template_field(template_field: Any, name: str) -> str | dict | lis
         # and need to be converted to lists
         return template_field
     template_field = translate_tuples_to_lists(template_field)
+    # Sort dictionaries recursively to ensure consistent string representation
+    # This prevents hash inconsistencies when dict ordering varies
+    if isinstance(template_field, dict):
+        template_field = sort_dict_recursively(template_field)
     serialized = str(template_field)
     if len(serialized) > max_length:
         rendered = redact(serialized, name)
@@ -78,3 +96,32 @@ def serialize_template_field(template_field: Any, name: str) -> str | dict | lis
             f"{rendered[: max_length - 79]!r}... "
         )
     return template_field
+
+
+class TimetableNotRegistered(ValueError):
+    """When an unregistered timetable is being accessed."""
+
+    def __init__(self, type_string: str) -> None:
+        self.type_string = type_string
+
+    def __str__(self) -> str:
+        return (
+            f"Timetable class {self.type_string!r} is not registered or "
+            "you have a top level database access that disrupted the session. "
+            "Please check the airflow best practices documentation."
+        )
+
+
+def find_registered_custom_timetable(importable_string: str) -> type[CoreTimetable]:
+    """Find a user-defined custom timetable class registered via a plugin."""
+    from airflow import plugins_manager
+
+    timetable_classes = plugins_manager.get_timetables_plugins()
+    with contextlib.suppress(KeyError):
+        return timetable_classes[importable_string]
+    raise TimetableNotRegistered(importable_string)
+
+
+def is_core_timetable_import_path(importable_string: str) -> bool:
+    """Whether an importable string points to a core timetable class."""
+    return importable_string.startswith("airflow.timetables.")

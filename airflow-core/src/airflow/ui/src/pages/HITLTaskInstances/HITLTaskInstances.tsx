@@ -19,7 +19,7 @@
 import { Heading, Link, VStack } from "@chakra-ui/react";
 import type { ColumnDef } from "@tanstack/react-table";
 import type { TFunction } from "i18next";
-import { useCallback } from "react";
+import { useCallback, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { Link as RouterLink, useParams, useSearchParams } from "react-router-dom";
 
@@ -32,6 +32,7 @@ import { StateBadge } from "src/components/StateBadge";
 import Time from "src/components/Time";
 import { TruncatedText } from "src/components/TruncatedText";
 import { SearchParamsKeys, type SearchParamsKeysType } from "src/constants/searchParams";
+import { useAutoRefresh } from "src/utils";
 import { getHITLState } from "src/utils/hitl";
 import { getTaskInstanceLink } from "src/utils/links";
 
@@ -40,9 +41,15 @@ import { HITLFilters } from "./HITLFilters";
 type TaskInstanceRow = { row: { original: HITLDetail } };
 
 const {
+  BODY_SEARCH,
+  CREATED_AT_GTE,
+  CREATED_AT_LTE,
   DAG_DISPLAY_NAME_PATTERN,
+  MAP_INDEX,
   OFFSET: OFFSET_PARAM,
+  RESPONDED_BY_USER_NAME,
   RESPONSE_RECEIVED: RESPONSE_RECEIVED_PARAM,
+  SUBJECT_SEARCH,
   TASK_ID_PATTERN,
 }: SearchParamsKeysType = SearchParamsKeys;
 
@@ -58,7 +65,7 @@ const taskInstanceColumns = ({
   translate: TFunction;
 }): Array<ColumnDef<HITLDetail>> => [
   {
-    accessorKey: "task_instance.operator",
+    accessorKey: "task_instance_state",
     cell: ({ row: { original } }: TaskInstanceRow) => (
       <StateBadge state={original.task_instance.state}>{getHITLState(translate, original)}</StateBadge>
     ),
@@ -80,8 +87,32 @@ const taskInstanceColumns = ({
     : [
         {
           accessorKey: "task_instance.dag_id",
+          cell: ({ row: { original } }: TaskInstanceRow) => (
+            <Link asChild color="fg.info">
+              <RouterLink to={`/dags/${original.task_instance.dag_id}`}>
+                <TruncatedText text={original.task_instance.dag_display_name} />
+              </RouterLink>
+            </Link>
+          ),
           enableSorting: false,
           header: translate("common:dagId"),
+        },
+      ]),
+  ...(Boolean(runId)
+    ? []
+    : [
+        {
+          accessorKey: "run_id",
+          cell: ({ row: { original } }: TaskInstanceRow) => (
+            <Link asChild color="fg.info">
+              <RouterLink
+                to={`/dags/${original.task_instance.dag_id}/runs/${original.task_instance.dag_run_id}`}
+              >
+                <TruncatedText text={original.task_instance.dag_run_id} />
+              </RouterLink>
+            </Link>
+          ),
+          header: translate("common:dagRunId"),
         },
       ]),
   ...(Boolean(runId)
@@ -101,15 +132,34 @@ const taskInstanceColumns = ({
         {
           accessorKey: "task_display_name",
           cell: ({ row: { original } }: TaskInstanceRow) => (
-            <TruncatedText text={original.task_instance.task_display_name} />
+            <Link asChild color="fg.info" fontWeight="bold">
+              <RouterLink to={`${getTaskInstanceLink(original.task_instance)}/required_actions`}>
+                <TruncatedText text={original.task_instance.task_display_name} />
+              </RouterLink>
+            </Link>
           ),
-          enableSorting: false,
           header: translate("common:taskId"),
         },
       ]),
   {
     accessorKey: "rendered_map_index",
+    cell: ({ row: { original } }) => <TruncatedText text={original.task_instance.rendered_map_index ?? ""} />,
     header: translate("common:mapIndex"),
+  },
+  {
+    accessorKey: "task_instance_operator",
+    cell: ({ row: { original } }) => <TruncatedText text={original.task_instance.operator ?? ""} />,
+    header: translate("common:task.operator"),
+  },
+  {
+    accessorKey: "created_at",
+    cell: ({ row: { original } }) => <Time datetime={original.created_at} />,
+    header: translate("response.created"),
+  },
+  {
+    accessorKey: "responded_by_user_name",
+    cell: ({ row: { original } }) => <TruncatedText text={original.responded_by_user?.name ?? ""} />,
+    header: translate("response.responded_by_user_name"),
   },
   {
     accessorKey: "responded_at",
@@ -127,28 +177,59 @@ export const HITLTaskInstances = () => {
   const [sort] = sorting;
   const responseReceived = searchParams.get(RESPONSE_RECEIVED_PARAM);
 
+  const baseRefetchInterval = useAutoRefresh({});
+
+  const bodySearch = searchParams.get(BODY_SEARCH) ?? undefined;
+  const createdAtGte = searchParams.get(CREATED_AT_GTE) ?? undefined;
+  const createdAtLte = searchParams.get(CREATED_AT_LTE) ?? undefined;
   const dagIdPattern = searchParams.get(DAG_DISPLAY_NAME_PATTERN) ?? undefined;
   const taskIdPattern = searchParams.get(TASK_ID_PATTERN) ?? undefined;
+  const mapIndex = searchParams.get(MAP_INDEX) ?? "-1";
   const filterResponseReceived = searchParams.get(RESPONSE_RECEIVED_PARAM) ?? undefined;
+  const respondedByUserName = searchParams.get(RESPONDED_BY_USER_NAME) ?? undefined;
+  const subjectSearch = searchParams.get(SUBJECT_SEARCH) ?? undefined;
 
   // Use the filter value if available, otherwise fall back to the old responseReceived param
   const effectiveResponseReceived = filterResponseReceived ?? responseReceived;
 
-  const { data, error, isLoading } = useTaskInstanceServiceGetHitlDetails({
-    dagId: dagId ?? "~",
-    dagIdPattern,
-    dagRunId: runId ?? "~",
-    limit: pagination.pageSize,
-    offset: pagination.pageIndex * pagination.pageSize,
-    orderBy: sort ? [`${sort.desc ? "-" : ""}${sort.id}`] : [],
-    responseReceived:
-      Boolean(effectiveResponseReceived) && effectiveResponseReceived !== "all"
-        ? effectiveResponseReceived === "true"
-        : undefined,
-    state: effectiveResponseReceived === "false" ? ["deferred"] : undefined,
-    taskId,
-    taskIdPattern,
-  });
+  const { data, error, isLoading } = useTaskInstanceServiceGetHitlDetails(
+    {
+      bodySearch,
+      createdAtGte,
+      createdAtLte,
+      dagId: dagId ?? "~",
+      dagIdPattern,
+      dagRunId: runId ?? "~",
+      limit: pagination.pageSize,
+      mapIndex: parseInt(mapIndex, 10),
+      offset: pagination.pageIndex * pagination.pageSize,
+      orderBy: sort ? [`${sort.desc ? "-" : ""}${sort.id}`] : [],
+      respondedByUserName: respondedByUserName === undefined ? undefined : [respondedByUserName],
+      responseReceived:
+        Boolean(effectiveResponseReceived) && effectiveResponseReceived !== "all"
+          ? effectiveResponseReceived === "true"
+          : undefined,
+      state: effectiveResponseReceived === "false" ? ["deferred"] : undefined,
+      subjectSearch,
+      taskId,
+      taskIdPattern,
+    },
+    undefined,
+    {
+      // Only continue auto-refetching when filtering for unreceived responses
+      // and at least one TaskInstance is still deferred without a response.
+      refetchInterval: (query) => {
+        const hasDeferredWithoutResponse = Boolean(
+          query.state.data?.hitl_details.some(
+            (detail: HITLDetail) =>
+              detail.responded_at === undefined && detail.task_instance.state === "deferred",
+          ),
+        );
+
+        return hasDeferredWithoutResponse ? baseRefetchInterval : false;
+      },
+    },
+  );
 
   const handleResponseChange = useCallback(() => {
     setTableURLState({
@@ -159,6 +240,17 @@ export const HITLTaskInstances = () => {
     setSearchParams(searchParams);
   }, [pagination, searchParams, setSearchParams, setTableURLState, sorting]);
 
+  const columns = useMemo(
+    () =>
+      taskInstanceColumns({
+        dagId,
+        runId,
+        taskId,
+        translate,
+      }),
+    [dagId, runId, taskId, translate],
+  );
+
   return (
     <VStack align="start">
       {!Boolean(dagId) && !Boolean(runId) && !Boolean(taskId) ? (
@@ -168,12 +260,7 @@ export const HITLTaskInstances = () => {
       ) : undefined}
       <HITLFilters onResponseChange={handleResponseChange} />
       <DataTable
-        columns={taskInstanceColumns({
-          dagId,
-          runId,
-          taskId,
-          translate,
-        })}
+        columns={columns}
         data={data?.hitl_details ?? []}
         errorMessage={<ErrorAlert error={error} />}
         initialState={tableURLState}

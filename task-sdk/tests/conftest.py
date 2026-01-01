@@ -23,6 +23,8 @@ from typing import TYPE_CHECKING, Any, NoReturn, Protocol
 
 import pytest
 
+from tests_common.test_utils.config import conf_vars
+
 pytest_plugins = "tests_common.pytest_plugin"
 
 # Task SDK does not need access to the Airflow database
@@ -58,7 +60,7 @@ def pytest_configure(config: pytest.Config) -> None:
 
     import airflow.settings
 
-    airflow.settings.configure_policy_plugin_manager()
+    airflow.settings.get_policy_plugin_manager()
 
 
 @pytest.fixture(scope="session", autouse=True)
@@ -164,15 +166,54 @@ def _disable_ol_plugin():
     # And we load plugins when setting the priority_weight field
     import airflow.plugins_manager
 
-    old = airflow.plugins_manager.plugins
-
-    assert old is None, "Plugins already loaded, too late to stop them being loaded!"
-
-    airflow.plugins_manager.plugins = []
+    old = airflow.plugins_manager._get_plugins
+    airflow.plugins_manager._get_plugins = lambda: ([], {})
 
     yield
 
-    airflow.plugins_manager.plugins = None
+    airflow.plugins_manager._get_plugins = old
+
+
+@pytest.fixture(autouse=True)
+def _cleanup_async_resources(request):
+    """
+    Clean up async resources that can cause Python 3.12 fork warnings.
+
+    Problem: asgiref.sync.sync_to_async (used in _async_get_connection) creates
+    ThreadPoolExecutors that persist between tests. When supervisor.py calls
+    os.fork() in subsequent tests, Python 3.12+ warns about forking a
+    multi-threaded process.
+
+    Solution: Clean up asgiref's ThreadPoolExecutors after async tests to ensure
+    subsequent tests start with a clean thread environment.
+    """
+    yield
+
+    # Only clean up after async tests to avoid unnecessary overhead
+    if "asyncio" in request.keywords:
+        # Clean up asgiref ThreadPoolExecutors that persist between tests
+        # These are created by sync_to_async() calls in async connection retrieval
+        try:
+            from asgiref.sync import SyncToAsync
+
+            # SyncToAsync maintains a class-level executor for performance
+            # We need to shut it down to prevent multi-threading warnings on fork()
+            if hasattr(SyncToAsync, "single_thread_executor") and SyncToAsync.single_thread_executor:
+                if not SyncToAsync.single_thread_executor._shutdown:
+                    SyncToAsync.single_thread_executor.shutdown(wait=True)
+                SyncToAsync.single_thread_executor = None
+
+            # SyncToAsync also maintains a WeakKeyDictionary of context-specific executors
+            # Clean these up too to ensure complete thread cleanup
+            if hasattr(SyncToAsync, "context_to_thread_executor"):
+                for executor in list(SyncToAsync.context_to_thread_executor.values()):
+                    if hasattr(executor, "shutdown") and not getattr(executor, "_shutdown", True):
+                        executor.shutdown(wait=True)
+                SyncToAsync.context_to_thread_executor.clear()
+
+        except (ImportError, AttributeError):
+            # If asgiref structure changes, fail gracefully
+            pass
 
 
 class MakeTIContextCallable(Protocol):
@@ -293,3 +334,14 @@ def make_ti_context_dict(make_ti_context: MakeTIContextCallable) -> MakeTIContex
         return context.model_dump(exclude_unset=True, mode="json")
 
     return _make_context_dict
+
+
+@pytest.fixture(scope="class", autouse=True)
+def allow_test_classes_deserialization():
+    """
+    Allow test classes and airflow SDK classes to be deserialized. In airflow-core tests, this is provided by
+    unit_tests.cfg which sets allowed_deserialization_classes = airflow.* tests.*
+    SDK tests may not inherit that configuration, so we explicitly allow airflow.sdk.* and tests.* here.
+    """
+    with conf_vars({("core", "allowed_deserialization_classes"): "airflow.sdk.* tests.*"}):
+        yield

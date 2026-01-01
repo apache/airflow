@@ -26,17 +26,15 @@ from unittest import mock
 from unittest.mock import AsyncMock
 
 import aiohttp
-import aiohttp.client_exceptions
 import azure.identity
-import azure.identity.aio
 import pytest
 import tenacity
 from azure.core.credentials import AccessToken
 from requests import exceptions as requests_exceptions
 from requests.auth import HTTPBasicAuth
 
-from airflow.exceptions import AirflowException
 from airflow.models import Connection
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.databricks.hooks.databricks import (
     GET_RUN_ENDPOINT,
     SUBMIT_RUN_ENDPOINT,
@@ -59,7 +57,7 @@ TASK_ID = "databricks-operator"
 DEFAULT_CONN_ID = "databricks_default"
 NOTEBOOK_TASK = {"notebook_path": "/test"}
 SPARK_PYTHON_TASK = {"python_file": "test.py", "parameters": ["--param", "123"]}
-NEW_CLUSTER = {"spark_version": "2.0.x-scala2.10", "node_type_id": "r3.xlarge", "num_workers": 1}
+NEW_CLUSTER = {"spark_version": "2.2.x-scala2.10", "node_type_id": "r3.xlarge", "num_workers": 1}
 CLUSTER_ID = "cluster_id"
 RUN_ID = 1
 JOB_ID = 42
@@ -141,145 +139,145 @@ def create_endpoint(host):
     """
     Utility function to generate the create endpoint given the host.
     """
-    return f"https://{host}/api/2.1/jobs/create"
+    return f"https://{host}/api/2.2/jobs/create"
 
 
 def reset_endpoint(host):
     """
     Utility function to generate the reset endpoint given the host.
     """
-    return f"https://{host}/api/2.1/jobs/reset"
+    return f"https://{host}/api/2.2/jobs/reset"
 
 
 def update_endpoint(host):
     """
     Utility function to generate the update endpoint given the host.
     """
-    return f"https://{host}/api/2.1/jobs/update"
+    return f"https://{host}/api/2.2/jobs/update"
 
 
 def run_now_endpoint(host):
     """
     Utility function to generate the run now endpoint given the host.
     """
-    return f"https://{host}/api/2.1/jobs/run-now"
+    return f"https://{host}/api/2.2/jobs/run-now"
 
 
 def submit_run_endpoint(host):
     """
     Utility function to generate the submit run endpoint given the host.
     """
-    return f"https://{host}/api/2.1/jobs/runs/submit"
+    return f"https://{host}/api/2.2/jobs/runs/submit"
 
 
 def get_run_endpoint(host):
     """
     Utility function to generate the get run endpoint given the host.
     """
-    return f"https://{host}/api/2.1/jobs/runs/get"
+    return f"https://{host}/api/2.2/jobs/runs/get"
 
 
 def get_run_output_endpoint(host):
     """
     Utility function to generate the get run output endpoint given the host.
     """
-    return f"https://{host}/api/2.1/jobs/runs/get-output"
+    return f"https://{host}/api/2.2/jobs/runs/get-output"
 
 
 def cancel_run_endpoint(host):
     """
     Utility function to generate the cancel run endpoint given the host.
     """
-    return f"https://{host}/api/2.1/jobs/runs/cancel"
+    return f"https://{host}/api/2.2/jobs/runs/cancel"
 
 
 def cancel_all_runs_endpoint(host):
     """
     Utility function to generate the cancel all runs endpoint given the host.
     """
-    return f"https://{host}/api/2.1/jobs/runs/cancel-all"
+    return f"https://{host}/api/2.2/jobs/runs/cancel-all"
 
 
 def delete_run_endpoint(host):
     """
     Utility function to generate delete run endpoint given the host.
     """
-    return f"https://{host}/api/2.1/jobs/runs/delete"
+    return f"https://{host}/api/2.2/jobs/runs/delete"
 
 
 def repair_run_endpoint(host):
     """
     Utility function to generate delete run endpoint given the host.
     """
-    return f"https://{host}/api/2.1/jobs/runs/repair"
+    return f"https://{host}/api/2.2/jobs/runs/repair"
 
 
 def get_cluster_endpoint(host):
     """
     Utility function to generate the get run endpoint given the host.
     """
-    return f"https://{host}/api/2.0/clusters/get"
+    return f"https://{host}/api/2.2/clusters/get"
 
 
 def start_cluster_endpoint(host):
     """
     Utility function to generate the get run endpoint given the host.
     """
-    return f"https://{host}/api/2.0/clusters/start"
+    return f"https://{host}/api/2.2/clusters/start"
 
 
 def restart_cluster_endpoint(host):
     """
     Utility function to generate the get run endpoint given the host.
     """
-    return f"https://{host}/api/2.0/clusters/restart"
+    return f"https://{host}/api/2.2/clusters/restart"
 
 
 def terminate_cluster_endpoint(host):
     """
     Utility function to generate the get run endpoint given the host.
     """
-    return f"https://{host}/api/2.0/clusters/delete"
+    return f"https://{host}/api/2.2/clusters/delete"
 
 
 def install_endpoint(host):
     """
     Utility function to generate the install endpoint given the host.
     """
-    return f"https://{host}/api/2.0/libraries/install"
+    return f"https://{host}/api/2.2/libraries/install"
 
 
 def uninstall_endpoint(host):
     """
     Utility function to generate the uninstall endpoint given the host.
     """
-    return f"https://{host}/api/2.0/libraries/uninstall"
+    return f"https://{host}/api/2.2/libraries/uninstall"
 
 
 def list_jobs_endpoint(host):
     """
     Utility function to generate the list jobs endpoint given the host
     """
-    return f"https://{host}/api/2.1/jobs/list"
+    return f"https://{host}/api/2.2/jobs/list"
 
 
 def list_pipelines_endpoint(host):
     """
     Utility function to generate the list jobs endpoint given the host
     """
-    return f"https://{host}/api/2.0/pipelines"
+    return f"https://{host}/api/2.2/pipelines"
 
 
 def list_spark_versions_endpoint(host):
     """Utility function to generate the list spark versions endpoint given the host"""
-    return f"https://{host}/api/2.0/clusters/spark-versions"
+    return f"https://{host}/api/2.2/clusters/spark-versions"
 
 
 def permissions_endpoint(host, job_id):
     """
     Utility function to generate the permissions endpoint given the host
     """
-    return f"https://{host}/api/2.0/permissions/jobs/{job_id}"
+    return f"https://{host}/api/2.2/permissions/jobs/{job_id}"
 
 
 def create_valid_response_mock(content):
@@ -291,7 +289,7 @@ def create_valid_response_mock(content):
 
 def sql_statements_endpoint(host):
     """Utility function to generate the sql statements endpoint given the host."""
-    return f"https://{host}/api/2.0/sql/statements"
+    return f"https://{host}/api/2.2/sql/statements"
 
 
 def create_successful_response_mock(content):
@@ -358,7 +356,7 @@ class TestDatabricksHook:
         assert host == HOST
 
     def test_init_bad_retry_limit(self):
-        with pytest.raises(ValueError):
+        with pytest.raises(ValueError, match="Retry limit must be greater than or equal to 1"):
             DatabricksHook(retry_limit=0)
 
     def test_do_api_call_retries_with_retryable_error(self):
@@ -448,7 +446,7 @@ class TestDatabricksHook:
     def test_do_api_call_patch(self, mock_requests):
         mock_requests.patch.return_value.json.return_value = {"cluster_name": "new_name"}
         data = {"cluster_name": "new_name"}
-        patched_cluster_name = self.hook._do_api_call(("PATCH", "2.1/jobs/runs/submit"), data)
+        patched_cluster_name = self.hook._do_api_call(("PATCH", "2.2/jobs/runs/submit"), data)
 
         assert patched_cluster_name["cluster_name"] == "new_name"
         mock_requests.patch.assert_called_once_with(
@@ -975,7 +973,7 @@ class TestDatabricksHook:
         with pytest.raises(AirflowException):
             self.hook._is_oauth_token_valid({})
 
-    @pytest.mark.parametrize("access_token, token_type", [("my_token", None), ("my_token", "not bearer")])
+    @pytest.mark.parametrize(("access_token", "token_type"), [("my_token", None), ("my_token", "not bearer")])
     def test_is_oauth_token_valid_raises_invalid_type(self, access_token, token_type):
         with pytest.raises(AirflowException):
             self.hook._is_oauth_token_valid({"access_token": access_token, "token_type": token_type})
@@ -1304,7 +1302,7 @@ class TestDatabricksHook:
         self.hook.update_job_permission(1, ACCESS_CONTROL_DICT)
 
         mock_requests.patch.assert_called_once_with(
-            f"https://{HOST}/api/2.0/permissions/jobs/1",
+            f"https://{HOST}/api/2.2/permissions/jobs/1",
             json=utils.normalise_json_content(ACCESS_CONTROL_DICT),
             params=None,
             auth=HTTPBasicAuth(LOGIN, PASSWORD),
@@ -1842,7 +1840,7 @@ class TestDatabricksHookAsyncMethods:
         )
         data = {"cluster_name": "new_name"}
         async with self.hook:
-            patched_cluster_name = await self.hook._a_do_api_call(("PATCH", "2.1/jobs/runs/submit"), data)
+            patched_cluster_name = await self.hook._a_do_api_call(("PATCH", "2.2/jobs/runs/submit"), data)
 
         assert patched_cluster_name["cluster_name"] == "new_name"
         mock_patch.assert_called_once_with(

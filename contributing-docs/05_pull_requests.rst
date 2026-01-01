@@ -62,7 +62,7 @@ these guidelines:
     maintenance burden during rebase.
 
 -   Add an `Apache License <http://www.apache.org/legal/src-headers.html>`__ header to all new files. If you
-    have ``prek`` installed, prej will do it automatically for you. If you hesitate to install
+    have ``prek`` installed, prek will do it automatically for you. If you hesitate to install
     prek for your local repository - for example because it takes a few seconds to commit your changes,
     this one thing might be a good reason to convince anyone to install prek.
 
@@ -213,7 +213,7 @@ will be timed and submitted automatically:
 
 .. code-block:: python
 
-    from airflow.stats import Stats
+    from airflow.observability.stats import Stats
 
     ...
 
@@ -224,7 +224,7 @@ or to time but not send a metric:
 
 .. code-block:: python
 
-    from airflow.stats import Stats
+    from airflow.observability.stats import Stats
 
     ...
 

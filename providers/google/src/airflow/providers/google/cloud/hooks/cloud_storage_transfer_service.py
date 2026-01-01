@@ -38,6 +38,7 @@ from typing import TYPE_CHECKING, Any
 
 from google.cloud.storage_transfer_v1 import (
     ListTransferJobsRequest,
+    RunTransferJobRequest,
     StorageTransferServiceAsyncClient,
     TransferJob,
     TransferOperation,
@@ -46,7 +47,8 @@ from google.protobuf.json_format import MessageToDict
 from googleapiclient.discovery import Resource, build
 from googleapiclient.errors import HttpError
 
-from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
+from airflow.exceptions import AirflowProviderDeprecationWarning
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.google.common.consts import CLIENT_INFO
 from airflow.providers.google.common.hooks.base_google import (
     PROVIDE_PROJECT_ID,
@@ -55,6 +57,7 @@ from airflow.providers.google.common.hooks.base_google import (
 )
 
 if TYPE_CHECKING:
+    from google.api_core import operation_async
     from google.cloud.storage_transfer_v1.services.storage_transfer_service.pagers import (
         ListTransferJobsAsyncPager,
     )
@@ -712,3 +715,17 @@ class CloudDataTransferServiceAsyncHook(GoogleBaseAsyncHook):
                 f"Expected: {', '.join(expected_statuses_set)}"
             )
         return False
+
+    async def run_transfer_job(self, job_name: str) -> operation_async.AsyncOperation:
+        """
+        Run Google Storage Transfer Service job.
+
+        :param job_name: (Required) Name of the job to run.
+        """
+        client = await self.get_conn()
+        request = RunTransferJobRequest(
+            job_name=job_name,
+            project_id=self.project_id,
+        )
+        operation = await client.run_transfer_job(request=request)
+        return operation

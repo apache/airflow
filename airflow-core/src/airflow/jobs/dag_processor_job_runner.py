@@ -21,7 +21,7 @@ from typing import TYPE_CHECKING
 
 from airflow.jobs.base_job_runner import BaseJobRunner
 from airflow.jobs.job import Job, perform_heartbeat
-from airflow.stats import Stats
+from airflow.observability.stats import Stats
 from airflow.utils.log.logging_mixin import LoggingMixin
 
 if TYPE_CHECKING:

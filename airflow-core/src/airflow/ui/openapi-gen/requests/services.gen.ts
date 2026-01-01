@@ -3,7 +3,7 @@
 import type { CancelablePromise } from './core/CancelablePromise';
 import { OpenAPI } from './core/OpenAPI';
 import { request as __request } from './core/request';
-import type { GetAssetsData, GetAssetsResponse, GetAssetAliasesData, GetAssetAliasesResponse, GetAssetAliasData, GetAssetAliasResponse, GetAssetEventsData, GetAssetEventsResponse, CreateAssetEventData, CreateAssetEventResponse, MaterializeAssetData, MaterializeAssetResponse, GetAssetQueuedEventsData, GetAssetQueuedEventsResponse, DeleteAssetQueuedEventsData, DeleteAssetQueuedEventsResponse, GetAssetData, GetAssetResponse, GetDagAssetQueuedEventsData, GetDagAssetQueuedEventsResponse, DeleteDagAssetQueuedEventsData, DeleteDagAssetQueuedEventsResponse, GetDagAssetQueuedEventData, GetDagAssetQueuedEventResponse, DeleteDagAssetQueuedEventData, DeleteDagAssetQueuedEventResponse, NextRunAssetsData, NextRunAssetsResponse, ListBackfillsData, ListBackfillsResponse, CreateBackfillData, CreateBackfillResponse, GetBackfillData, GetBackfillResponse, PauseBackfillData, PauseBackfillResponse, UnpauseBackfillData, UnpauseBackfillResponse, CancelBackfillData, CancelBackfillResponse, CreateBackfillDryRunData, CreateBackfillDryRunResponse, ListBackfillsUiData, ListBackfillsUiResponse, DeleteConnectionData, DeleteConnectionResponse, GetConnectionData, GetConnectionResponse, PatchConnectionData, PatchConnectionResponse, GetConnectionsData, GetConnectionsResponse, PostConnectionData, PostConnectionResponse, BulkConnectionsData, BulkConnectionsResponse, TestConnectionData, TestConnectionResponse, CreateDefaultConnectionsResponse, HookMetaDataResponse, GetDagRunData, GetDagRunResponse, DeleteDagRunData, DeleteDagRunResponse, PatchDagRunData, PatchDagRunResponse, GetUpstreamAssetEventsData, GetUpstreamAssetEventsResponse, ClearDagRunData, ClearDagRunResponse, GetDagRunsData, GetDagRunsResponse, TriggerDagRunData, TriggerDagRunResponse, WaitDagRunUntilFinishedData, WaitDagRunUntilFinishedResponse, GetListDagRunsBatchData, GetListDagRunsBatchResponse, GetDagSourceData, GetDagSourceResponse, GetDagStatsData, GetDagStatsResponse, GetDagReportsData, GetDagReportsResponse, GetConfigData, GetConfigResponse, GetConfigValueData, GetConfigValueResponse, GetConfigsResponse, ListDagWarningsData, ListDagWarningsResponse, GetDagsData, GetDagsResponse, PatchDagsData, PatchDagsResponse, GetDagData, GetDagResponse, PatchDagData, PatchDagResponse, DeleteDagData, DeleteDagResponse, GetDagDetailsData, GetDagDetailsResponse, FavoriteDagData, FavoriteDagResponse, UnfavoriteDagData, UnfavoriteDagResponse, GetDagTagsData, GetDagTagsResponse, GetDagsUiData, GetDagsUiResponse, GetLatestRunInfoData, GetLatestRunInfoResponse, GetEventLogData, GetEventLogResponse, GetEventLogsData, GetEventLogsResponse, GetExtraLinksData, GetExtraLinksResponse, GetTaskInstanceData, GetTaskInstanceResponse, PatchTaskInstanceData, PatchTaskInstanceResponse, DeleteTaskInstanceData, DeleteTaskInstanceResponse, GetMappedTaskInstancesData, GetMappedTaskInstancesResponse, GetTaskInstanceDependenciesByMapIndexData, GetTaskInstanceDependenciesByMapIndexResponse, GetTaskInstanceDependenciesData, GetTaskInstanceDependenciesResponse, GetTaskInstanceTriesData, GetTaskInstanceTriesResponse, GetMappedTaskInstanceTriesData, GetMappedTaskInstanceTriesResponse, GetMappedTaskInstanceData, GetMappedTaskInstanceResponse, PatchTaskInstanceByMapIndexData, PatchTaskInstanceByMapIndexResponse, GetTaskInstancesData, GetTaskInstancesResponse, BulkTaskInstancesData, BulkTaskInstancesResponse, GetTaskInstancesBatchData, GetTaskInstancesBatchResponse, GetTaskInstanceTryDetailsData, GetTaskInstanceTryDetailsResponse, GetMappedTaskInstanceTryDetailsData, GetMappedTaskInstanceTryDetailsResponse, PostClearTaskInstancesData, PostClearTaskInstancesResponse, PatchTaskInstanceDryRunByMapIndexData, PatchTaskInstanceDryRunByMapIndexResponse, PatchTaskInstanceDryRunData, PatchTaskInstanceDryRunResponse, GetLogData, GetLogResponse, GetExternalLogUrlData, GetExternalLogUrlResponse, UpdateHitlDetailData, UpdateHitlDetailResponse, GetHitlDetailData, GetHitlDetailResponse, GetHitlDetailsData, GetHitlDetailsResponse, GetImportErrorData, GetImportErrorResponse, GetImportErrorsData, GetImportErrorsResponse, GetJobsData, GetJobsResponse, GetPluginsData, GetPluginsResponse, ImportErrorsResponse, DeletePoolData, DeletePoolResponse, GetPoolData, GetPoolResponse, PatchPoolData, PatchPoolResponse, GetPoolsData, GetPoolsResponse, PostPoolData, PostPoolResponse, BulkPoolsData, BulkPoolsResponse, GetProvidersData, GetProvidersResponse, GetXcomEntryData, GetXcomEntryResponse, UpdateXcomEntryData, UpdateXcomEntryResponse, GetXcomEntriesData, GetXcomEntriesResponse, CreateXcomEntryData, CreateXcomEntryResponse, GetTasksData, GetTasksResponse, GetTaskData, GetTaskResponse, DeleteVariableData, DeleteVariableResponse, GetVariableData, GetVariableResponse, PatchVariableData, PatchVariableResponse, GetVariablesData, GetVariablesResponse, PostVariableData, PostVariableResponse, BulkVariablesData, BulkVariablesResponse, ReparseDagFileData, ReparseDagFileResponse, GetDagVersionData, GetDagVersionResponse, GetDagVersionsData, GetDagVersionsResponse, GetHealthResponse, GetVersionResponse, LoginData, LoginResponse, LogoutData, LogoutResponse, RefreshData, RefreshResponse, GetAuthMenusResponse, GetDependenciesData, GetDependenciesResponse, HistoricalMetricsData, HistoricalMetricsResponse, DagStatsResponse2, StructureDataData, StructureDataResponse2, GetDagStructureData, GetDagStructureResponse, GetGridRunsData, GetGridRunsResponse, GetGridTiSummariesData, GetGridTiSummariesResponse, GetCalendarData, GetCalendarResponse } from './types.gen';
+import type { GetAssetsData, GetAssetsResponse, GetAssetAliasesData, GetAssetAliasesResponse, GetAssetAliasData, GetAssetAliasResponse, GetAssetEventsData, GetAssetEventsResponse, CreateAssetEventData, CreateAssetEventResponse, MaterializeAssetData, MaterializeAssetResponse, GetAssetQueuedEventsData, GetAssetQueuedEventsResponse, DeleteAssetQueuedEventsData, DeleteAssetQueuedEventsResponse, GetAssetData, GetAssetResponse, GetDagAssetQueuedEventsData, GetDagAssetQueuedEventsResponse, DeleteDagAssetQueuedEventsData, DeleteDagAssetQueuedEventsResponse, GetDagAssetQueuedEventData, GetDagAssetQueuedEventResponse, DeleteDagAssetQueuedEventData, DeleteDagAssetQueuedEventResponse, NextRunAssetsData, NextRunAssetsResponse, ListBackfillsData, ListBackfillsResponse, CreateBackfillData, CreateBackfillResponse, GetBackfillData, GetBackfillResponse, PauseBackfillData, PauseBackfillResponse, UnpauseBackfillData, UnpauseBackfillResponse, CancelBackfillData, CancelBackfillResponse, CreateBackfillDryRunData, CreateBackfillDryRunResponse, ListBackfillsUiData, ListBackfillsUiResponse, DeleteConnectionData, DeleteConnectionResponse, GetConnectionData, GetConnectionResponse, PatchConnectionData, PatchConnectionResponse, GetConnectionsData, GetConnectionsResponse, PostConnectionData, PostConnectionResponse, BulkConnectionsData, BulkConnectionsResponse, TestConnectionData, TestConnectionResponse, CreateDefaultConnectionsResponse, HookMetaDataResponse, GetDagRunData, GetDagRunResponse, DeleteDagRunData, DeleteDagRunResponse, PatchDagRunData, PatchDagRunResponse, GetUpstreamAssetEventsData, GetUpstreamAssetEventsResponse, ClearDagRunData, ClearDagRunResponse, GetDagRunsData, GetDagRunsResponse, TriggerDagRunData, TriggerDagRunResponse, WaitDagRunUntilFinishedData, WaitDagRunUntilFinishedResponse, GetListDagRunsBatchData, GetListDagRunsBatchResponse, GetDagSourceData, GetDagSourceResponse, GetDagStatsData, GetDagStatsResponse, GetConfigData, GetConfigResponse, GetConfigValueData, GetConfigValueResponse, GetConfigsResponse, ListDagWarningsData, ListDagWarningsResponse, GetDagsData, GetDagsResponse, PatchDagsData, PatchDagsResponse, GetDagData, GetDagResponse, PatchDagData, PatchDagResponse, DeleteDagData, DeleteDagResponse, GetDagDetailsData, GetDagDetailsResponse, FavoriteDagData, FavoriteDagResponse, UnfavoriteDagData, UnfavoriteDagResponse, GetDagTagsData, GetDagTagsResponse, GetDagsUiData, GetDagsUiResponse, GetLatestRunInfoData, GetLatestRunInfoResponse, GetEventLogData, GetEventLogResponse, GetEventLogsData, GetEventLogsResponse, GetExtraLinksData, GetExtraLinksResponse, GetTaskInstanceData, GetTaskInstanceResponse, PatchTaskInstanceData, PatchTaskInstanceResponse, DeleteTaskInstanceData, DeleteTaskInstanceResponse, GetMappedTaskInstancesData, GetMappedTaskInstancesResponse, GetTaskInstanceDependenciesByMapIndexData, GetTaskInstanceDependenciesByMapIndexResponse, GetTaskInstanceDependenciesData, GetTaskInstanceDependenciesResponse, GetTaskInstanceTriesData, GetTaskInstanceTriesResponse, GetMappedTaskInstanceTriesData, GetMappedTaskInstanceTriesResponse, GetMappedTaskInstanceData, GetMappedTaskInstanceResponse, PatchTaskInstanceByMapIndexData, PatchTaskInstanceByMapIndexResponse, GetTaskInstancesData, GetTaskInstancesResponse, BulkTaskInstancesData, BulkTaskInstancesResponse, GetTaskInstancesBatchData, GetTaskInstancesBatchResponse, GetTaskInstanceTryDetailsData, GetTaskInstanceTryDetailsResponse, GetMappedTaskInstanceTryDetailsData, GetMappedTaskInstanceTryDetailsResponse, PostClearTaskInstancesData, PostClearTaskInstancesResponse, PatchTaskInstanceDryRunByMapIndexData, PatchTaskInstanceDryRunByMapIndexResponse, PatchTaskInstanceDryRunData, PatchTaskInstanceDryRunResponse, GetLogData, GetLogResponse, GetExternalLogUrlData, GetExternalLogUrlResponse, UpdateHitlDetailData, UpdateHitlDetailResponse, GetHitlDetailData, GetHitlDetailResponse, GetHitlDetailsData, GetHitlDetailsResponse, GetImportErrorData, GetImportErrorResponse, GetImportErrorsData, GetImportErrorsResponse, GetJobsData, GetJobsResponse, GetPluginsData, GetPluginsResponse, ImportErrorsResponse, DeletePoolData, DeletePoolResponse, GetPoolData, GetPoolResponse, PatchPoolData, PatchPoolResponse, GetPoolsData, GetPoolsResponse, PostPoolData, PostPoolResponse, BulkPoolsData, BulkPoolsResponse, GetProvidersData, GetProvidersResponse, GetXcomEntryData, GetXcomEntryResponse, UpdateXcomEntryData, UpdateXcomEntryResponse, DeleteXcomEntryData, DeleteXcomEntryResponse, GetXcomEntriesData, GetXcomEntriesResponse, CreateXcomEntryData, CreateXcomEntryResponse, GetTasksData, GetTasksResponse, GetTaskData, GetTaskResponse, DeleteVariableData, DeleteVariableResponse, GetVariableData, GetVariableResponse, PatchVariableData, PatchVariableResponse, GetVariablesData, GetVariablesResponse, PostVariableData, PostVariableResponse, BulkVariablesData, BulkVariablesResponse, ReparseDagFileData, ReparseDagFileResponse, GetDagVersionData, GetDagVersionResponse, GetDagVersionsData, GetDagVersionsResponse, GetHealthResponse, GetVersionResponse, LoginData, LoginResponse, LogoutResponse, GetAuthMenusResponse, GetCurrentUserInfoResponse, GetDependenciesData, GetDependenciesResponse, HistoricalMetricsData, HistoricalMetricsResponse, DagStatsResponse2, StructureDataData, StructureDataResponse2, GetDagStructureData, GetDagStructureResponse, GetGridRunsData, GetGridRunsResponse, GetGridTiSummariesData, GetGridTiSummariesResponse, GetCalendarData, GetCalendarResponse, ListTeamsData, ListTeamsResponse } from './types.gen';
 
 export class AssetService {
     /**
@@ -16,7 +16,7 @@ export class AssetService {
      * @param data.uriPattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
      * @param data.dagIds
      * @param data.onlyActive
-     * @param data.orderBy
+     * @param data.orderBy Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `id, name, uri, created_at, updated_at`
      * @returns AssetCollectionResponse Successful Response
      * @throws ApiError
      */
@@ -49,7 +49,7 @@ export class AssetService {
      * @param data.limit
      * @param data.offset
      * @param data.namePattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
-     * @param data.orderBy
+     * @param data.orderBy Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `id, name`
      * @returns AssetAliasCollectionResponse Successful Response
      * @throws ApiError
      */
@@ -102,7 +102,7 @@ export class AssetService {
      * @param data The data for the request.
      * @param data.limit
      * @param data.offset
-     * @param data.orderBy
+     * @param data.orderBy Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `source_task_id, source_dag_id, source_run_id, source_map_index, timestamp`
      * @param data.assetId
      * @param data.sourceDagId
      * @param data.sourceTaskId
@@ -418,7 +418,7 @@ export class BackfillService {
      * @param data.dagId
      * @param data.limit
      * @param data.offset
-     * @param data.orderBy
+     * @param data.orderBy Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `id`
      * @returns BackfillCollectionResponse Successful Response
      * @throws ApiError
      */
@@ -586,7 +586,7 @@ export class BackfillService {
      * @param data The data for the request.
      * @param data.limit
      * @param data.offset
-     * @param data.orderBy
+     * @param data.orderBy Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `id`
      * @param data.dagId
      * @param data.active
      * @returns BackfillCollectionResponse Successful Response
@@ -699,7 +699,7 @@ export class ConnectionService {
      * @param data The data for the request.
      * @param data.limit
      * @param data.offset
-     * @param data.orderBy
+     * @param data.orderBy Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `conn_id, conn_type, description, host, port, id, connection_id`
      * @param data.connectionIdPattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
      * @returns ConnectionCollectionResponse Successful Response
      * @throws ApiError
@@ -992,16 +992,22 @@ export class DagRunService {
      * @param data.endDateGt
      * @param data.endDateLte
      * @param data.endDateLt
+     * @param data.durationGte
+     * @param data.durationGt
+     * @param data.durationLte
+     * @param data.durationLt
      * @param data.updatedAtGte
      * @param data.updatedAtGt
      * @param data.updatedAtLte
      * @param data.updatedAtLt
+     * @param data.confContains
      * @param data.runType
      * @param data.state
      * @param data.dagVersion
-     * @param data.orderBy
+     * @param data.orderBy Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `id, state, dag_id, run_id, logical_date, run_after, start_date, end_date, updated_at, conf, duration, dag_run_id`
      * @param data.runIdPattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
      * @param data.triggeringUserNamePattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
+     * @param data.dagIdPattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
      * @returns DAGRunCollectionResponse Successful Response
      * @throws ApiError
      */
@@ -1031,16 +1037,22 @@ export class DagRunService {
                 end_date_gt: data.endDateGt,
                 end_date_lte: data.endDateLte,
                 end_date_lt: data.endDateLt,
+                duration_gte: data.durationGte,
+                duration_gt: data.durationGt,
+                duration_lte: data.durationLte,
+                duration_lt: data.durationLt,
                 updated_at_gte: data.updatedAtGte,
                 updated_at_gt: data.updatedAtGt,
                 updated_at_lte: data.updatedAtLte,
                 updated_at_lt: data.updatedAtLt,
+                conf_contains: data.confContains,
                 run_type: data.runType,
                 state: data.state,
                 dag_version: data.dagVersion,
                 order_by: data.orderBy,
                 run_id_pattern: data.runIdPattern,
-                triggering_user_name_pattern: data.triggeringUserNamePattern
+                triggering_user_name_pattern: data.triggeringUserNamePattern,
+                dag_id_pattern: data.dagIdPattern
             },
             errors: {
                 401: 'Unauthorized',
@@ -1241,33 +1253,6 @@ export class DagStatsService {
     
 }
 
-export class DagReportService {
-    /**
-     * Get Dag Reports
-     * Get DAG report.
-     * @param data The data for the request.
-     * @param data.subdir
-     * @returns unknown Successful Response
-     * @throws ApiError
-     */
-    public static getDagReports(data: GetDagReportsData): CancelablePromise<GetDagReportsResponse> {
-        return __request(OpenAPI, {
-            method: 'GET',
-            url: '/api/v2/dagReports',
-            query: {
-                subdir: data.subdir
-            },
-            errors: {
-                400: 'Bad Request',
-                401: 'Unauthorized',
-                403: 'Forbidden',
-                422: 'Validation Error'
-            }
-        });
-    }
-    
-}
-
 export class ConfigService {
     /**
      * Get Config
@@ -1354,7 +1339,7 @@ export class DagWarningService {
      * @param data.warningType
      * @param data.limit
      * @param data.offset
-     * @param data.orderBy
+     * @param data.orderBy Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `dag_id, warning_type, message, timestamp`
      * @returns DAGWarningCollectionResponse Successful Response
      * @throws ApiError
      */
@@ -1408,7 +1393,7 @@ export class DagService {
      * @param data.dagRunEndDateLte
      * @param data.dagRunEndDateLt
      * @param data.dagRunState
-     * @param data.orderBy
+     * @param data.orderBy Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `dag_id, dag_display_name, next_dagrun, state, start_date, last_run_state, last_run_start_date`
      * @param data.isFavorite
      * @returns DAGCollectionResponse Successful Response
      * @throws ApiError
@@ -1659,7 +1644,7 @@ export class DagService {
      * @param data The data for the request.
      * @param data.limit
      * @param data.offset
-     * @param data.orderBy
+     * @param data.orderBy Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `name`
      * @param data.tagNamePattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
      * @returns DAGTagCollectionResponse Successful Response
      * @throws ApiError
@@ -1701,7 +1686,7 @@ export class DagService {
      * @param data.lastDagRunState
      * @param data.bundleName
      * @param data.bundleVersion
-     * @param data.orderBy
+     * @param data.orderBy Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `dag_id, dag_display_name, next_dagrun, state, start_date, last_run_state, last_run_start_date`
      * @param data.isFavorite
      * @param data.hasAssetSchedule Filter Dags with asset-based scheduling
      * @param data.assetDependency Filter Dags by asset dependency (name or URI)
@@ -1795,7 +1780,7 @@ export class EventLogService {
      * @param data The data for the request.
      * @param data.limit
      * @param data.offset
-     * @param data.orderBy
+     * @param data.orderBy Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `id, dttm, dag_id, task_id, run_id, event, logical_date, owner, extra, when, event_log_id`
      * @param data.dagId
      * @param data.taskId
      * @param data.runId
@@ -1993,7 +1978,7 @@ export class TaskInstanceService {
      * @param data.dagRunId
      * @param data.taskId
      * @param data.mapIndex
-     * @returns null Successful Response
+     * @returns unknown Successful Response
      * @throws ApiError
      */
     public static deleteTaskInstance(data: DeleteTaskInstanceData): CancelablePromise<DeleteTaskInstanceResponse> {
@@ -2050,15 +2035,18 @@ export class TaskInstanceService {
      * @param data.durationLt
      * @param data.state
      * @param data.pool
+     * @param data.poolNamePattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
      * @param data.queue
+     * @param data.queueNamePattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
      * @param data.executor
      * @param data.versionNumber
      * @param data.tryNumber
      * @param data.operator
+     * @param data.operatorNamePattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
      * @param data.mapIndex
      * @param data.limit
      * @param data.offset
-     * @param data.orderBy
+     * @param data.orderBy Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `id, state, duration, start_date, end_date, map_index, try_number, logical_date, run_after, data_interval_start, data_interval_end, rendered_map_index, operator, run_after, logical_date, data_interval_start, data_interval_end`
      * @returns TaskInstanceCollectionResponse Successful Response
      * @throws ApiError
      */
@@ -2098,11 +2086,14 @@ export class TaskInstanceService {
                 duration_lt: data.durationLt,
                 state: data.state,
                 pool: data.pool,
+                pool_name_pattern: data.poolNamePattern,
                 queue: data.queue,
+                queue_name_pattern: data.queueNamePattern,
                 executor: data.executor,
                 version_number: data.versionNumber,
                 try_number: data.tryNumber,
                 operator: data.operator,
+                operator_name_pattern: data.operatorNamePattern,
                 map_index: data.mapIndex,
                 limit: data.limit,
                 offset: data.offset,
@@ -2344,17 +2335,23 @@ export class TaskInstanceService {
      * @param data.durationLte
      * @param data.durationLt
      * @param data.taskDisplayNamePattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
+     * @param data.taskGroupId Filter by exact task group ID. Returns all tasks within the specified task group.
+     * @param data.dagIdPattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
+     * @param data.runIdPattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
      * @param data.state
      * @param data.pool
+     * @param data.poolNamePattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
      * @param data.queue
+     * @param data.queueNamePattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
      * @param data.executor
      * @param data.versionNumber
      * @param data.tryNumber
      * @param data.operator
+     * @param data.operatorNamePattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
      * @param data.mapIndex
      * @param data.limit
      * @param data.offset
-     * @param data.orderBy
+     * @param data.orderBy Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `id, state, duration, start_date, end_date, map_index, try_number, logical_date, run_after, data_interval_start, data_interval_end, rendered_map_index, operator, logical_date, run_after, data_interval_start, data_interval_end`
      * @returns TaskInstanceCollectionResponse Successful Response
      * @throws ApiError
      */
@@ -2393,13 +2390,19 @@ export class TaskInstanceService {
                 duration_lte: data.durationLte,
                 duration_lt: data.durationLt,
                 task_display_name_pattern: data.taskDisplayNamePattern,
+                task_group_id: data.taskGroupId,
+                dag_id_pattern: data.dagIdPattern,
+                run_id_pattern: data.runIdPattern,
                 state: data.state,
                 pool: data.pool,
+                pool_name_pattern: data.poolNamePattern,
                 queue: data.queue,
+                queue_name_pattern: data.queueNamePattern,
                 executor: data.executor,
                 version_number: data.versionNumber,
                 try_number: data.tryNumber,
                 operator: data.operator,
+                operator_name_pattern: data.operatorNamePattern,
                 map_index: data.mapIndex,
                 limit: data.limit,
                 offset: data.offset,
@@ -2558,6 +2561,7 @@ export class TaskInstanceService {
                 401: 'Unauthorized',
                 403: 'Forbidden',
                 404: 'Not Found',
+                409: 'Conflict',
                 422: 'Validation Error'
             }
         });
@@ -2788,10 +2792,11 @@ export class TaskInstanceService {
      * @param data.dagRunId
      * @param data.limit
      * @param data.offset
-     * @param data.orderBy
+     * @param data.orderBy Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `ti_id, subject, responded_at, created_at, responded_by_user_id, responded_by_user_name, dag_id, run_id, task_display_name, run_after, rendered_map_index, task_instance_operator, task_instance_state`
      * @param data.dagIdPattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
      * @param data.taskId
      * @param data.taskIdPattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
+     * @param data.mapIndex
      * @param data.state
      * @param data.responseReceived
      * @param data.respondedByUserId
@@ -2820,6 +2825,7 @@ export class TaskInstanceService {
                 dag_id_pattern: data.dagIdPattern,
                 task_id: data.taskId,
                 task_id_pattern: data.taskIdPattern,
+                map_index: data.mapIndex,
                 state: data.state,
                 response_received: data.responseReceived,
                 responded_by_user_id: data.respondedByUserId,
@@ -2872,7 +2878,7 @@ export class ImportErrorService {
      * @param data The data for the request.
      * @param data.limit
      * @param data.offset
-     * @param data.orderBy
+     * @param data.orderBy Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `id, timestamp, filename, bundle_name, stacktrace, import_error_id`
      * @param data.filenamePattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
      * @returns ImportErrorCollectionResponse Successful Response
      * @throws ApiError
@@ -2913,7 +2919,7 @@ export class JobService {
      * @param data.endDateLt
      * @param data.limit
      * @param data.offset
-     * @param data.orderBy
+     * @param data.orderBy Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `id, dag_id, state, job_type, start_date, end_date, latest_heartbeat, executor_class, hostname, unixname`
      * @param data.jobState
      * @param data.jobType
      * @param data.hostname
@@ -3085,7 +3091,7 @@ export class PoolService {
      * @param data The data for the request.
      * @param data.limit
      * @param data.offset
-     * @param data.orderBy
+     * @param data.orderBy Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `id, pool, name`
      * @param data.poolNamePattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
      * @returns PoolCollectionResponse Successful Response
      * @throws ApiError
@@ -3248,6 +3254,41 @@ export class XcomService {
             },
             body: data.requestBody,
             mediaType: 'application/json',
+            errors: {
+                400: 'Bad Request',
+                401: 'Unauthorized',
+                403: 'Forbidden',
+                404: 'Not Found',
+                422: 'Validation Error'
+            }
+        });
+    }
+    
+    /**
+     * Delete Xcom Entry
+     * Delete an XCom entry.
+     * @param data The data for the request.
+     * @param data.dagId
+     * @param data.taskId
+     * @param data.dagRunId
+     * @param data.xcomKey
+     * @param data.mapIndex
+     * @returns void Successful Response
+     * @throws ApiError
+     */
+    public static deleteXcomEntry(data: DeleteXcomEntryData): CancelablePromise<DeleteXcomEntryResponse> {
+        return __request(OpenAPI, {
+            method: 'DELETE',
+            url: '/api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/xcomEntries/{xcom_key}',
+            path: {
+                dag_id: data.dagId,
+                task_id: data.taskId,
+                dag_run_id: data.dagRunId,
+                xcom_key: data.xcomKey
+            },
+            query: {
+                map_index: data.mapIndex
+            },
             errors: {
                 400: 'Bad Request',
                 401: 'Unauthorized',
@@ -3505,7 +3546,7 @@ export class VariableService {
      * @param data The data for the request.
      * @param data.limit
      * @param data.offset
-     * @param data.orderBy
+     * @param data.orderBy Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `key, id, _val, description, is_encrypted`
      * @param data.variableKeyPattern SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
      * @returns VariableCollectionResponse Successful Response
      * @throws ApiError
@@ -3581,7 +3622,7 @@ export class DagParsingService {
      * Request re-parsing a DAG file.
      * @param data The data for the request.
      * @param data.fileToken
-     * @returns null Successful Response
+     * @returns unknown Successful Response
      * @throws ApiError
      */
     public static reparseDagFile(data: ReparseDagFileData): CancelablePromise<ReparseDagFileResponse> {
@@ -3641,7 +3682,7 @@ export class DagVersionService {
      * @param data.versionNumber
      * @param data.bundleName
      * @param data.bundleVersion
-     * @param data.orderBy
+     * @param data.orderBy Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `id, version_number, bundle_name, bundle_version`
      * @returns DAGVersionCollectionResponse Successful Response
      * @throws ApiError
      */
@@ -3728,43 +3769,15 @@ export class LoginService {
     /**
      * Logout
      * Logout the user.
-     * @param data The data for the request.
-     * @param data.next
      * @returns unknown Successful Response
      * @throws ApiError
      */
-    public static logout(data: LogoutData = {}): CancelablePromise<LogoutResponse> {
+    public static logout(): CancelablePromise<LogoutResponse> {
         return __request(OpenAPI, {
             method: 'GET',
             url: '/api/v2/auth/logout',
-            query: {
-                next: data.next
-            },
             errors: {
-                307: 'Temporary Redirect',
-                422: 'Validation Error'
-            }
-        });
-    }
-    
-    /**
-     * Refresh
-     * Refresh the authentication token.
-     * @param data The data for the request.
-     * @param data.next
-     * @returns unknown Successful Response
-     * @throws ApiError
-     */
-    public static refresh(data: RefreshData = {}): CancelablePromise<RefreshResponse> {
-        return __request(OpenAPI, {
-            method: 'GET',
-            url: '/api/v2/auth/refresh',
-            query: {
-                next: data.next
-            },
-            errors: {
-                307: 'Temporary Redirect',
-                422: 'Validation Error'
+                307: 'Temporary Redirect'
             }
         });
     }
@@ -3781,6 +3794,19 @@ export class AuthLinksService {
         return __request(OpenAPI, {
             method: 'GET',
             url: '/ui/auth/menus'
+        });
+    }
+    
+    /**
+     * Get Current User Info
+     * Convienently get the current authenticated user information.
+     * @returns AuthenticatedMeResponse Successful Response
+     * @throws ApiError
+     */
+    public static getCurrentUserInfo(): CancelablePromise<GetCurrentUserInfoResponse> {
+        return __request(OpenAPI, {
+            method: 'GET',
+            url: '/ui/auth/me'
         });
     }
     
@@ -3892,14 +3918,18 @@ export class GridService {
      * Return dag structure for grid view.
      * @param data The data for the request.
      * @param data.dagId
+     * @param data.includeUpstream
+     * @param data.includeDownstream
+     * @param data.root
      * @param data.offset
      * @param data.limit
-     * @param data.orderBy
+     * @param data.orderBy Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `run_after, logical_date, start_date, end_date`
      * @param data.runAfterGte
      * @param data.runAfterGt
      * @param data.runAfterLte
      * @param data.runAfterLt
      * @param data.runType
+     * @param data.state
      * @param data.triggeringUser SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
      * @returns GridNodeResponse Successful Response
      * @throws ApiError
@@ -3912,6 +3942,9 @@ export class GridService {
                 dag_id: data.dagId
             },
             query: {
+                include_upstream: data.includeUpstream,
+                include_downstream: data.includeDownstream,
+                root: data.root,
                 offset: data.offset,
                 limit: data.limit,
                 order_by: data.orderBy,
@@ -3920,6 +3953,7 @@ export class GridService {
                 run_after_lte: data.runAfterLte,
                 run_after_lt: data.runAfterLt,
                 run_type: data.runType,
+                state: data.state,
                 triggering_user: data.triggeringUser
             },
             errors: {
@@ -3937,12 +3971,13 @@ export class GridService {
      * @param data.dagId
      * @param data.offset
      * @param data.limit
-     * @param data.orderBy
+     * @param data.orderBy Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `run_after, logical_date, start_date, end_date`
      * @param data.runAfterGte
      * @param data.runAfterGt
      * @param data.runAfterLte
      * @param data.runAfterLt
      * @param data.runType
+     * @param data.state
      * @param data.triggeringUser SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
      * @returns GridRunsResponse Successful Response
      * @throws ApiError
@@ -3963,6 +3998,7 @@ export class GridService {
                 run_after_lte: data.runAfterLte,
                 run_after_lt: data.runAfterLt,
                 run_type: data.runType,
+                state: data.state,
                 triggering_user: data.triggeringUser
             },
             errors: {
@@ -4038,6 +4074,33 @@ export class CalendarService {
                 logical_date_gt: data.logicalDateGt,
                 logical_date_lte: data.logicalDateLte,
                 logical_date_lt: data.logicalDateLt
+            },
+            errors: {
+                422: 'Validation Error'
+            }
+        });
+    }
+    
+}
+
+export class TeamsService {
+    /**
+     * List Teams
+     * @param data The data for the request.
+     * @param data.limit
+     * @param data.offset
+     * @param data.orderBy Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `name`
+     * @returns TeamCollectionResponse Successful Response
+     * @throws ApiError
+     */
+    public static listTeams(data: ListTeamsData = {}): CancelablePromise<ListTeamsResponse> {
+        return __request(OpenAPI, {
+            method: 'GET',
+            url: '/ui/teams',
+            query: {
+                limit: data.limit,
+                offset: data.offset,
+                order_by: data.orderBy
             },
             errors: {
                 422: 'Validation Error'

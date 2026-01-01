@@ -74,6 +74,8 @@ Extra (optional)
       It specifies the json that contains the authentication information.
     * ``managed_identity_client_id``:  The client ID of a user-assigned managed identity. If provided with ``workload_identity_tenant_id``, they'll pass to DefaultAzureCredential_.
     * ``workload_identity_tenant_id``: ID of the application's Microsoft Entra tenant. Also called its "directory" ID. If provided with ``managed_identity_client_id``, they'll pass to DefaultAzureCredential_.
+    * ``use_azure_identity_object``: If set to true, it will use credential of newer type: ClientSecretCredential or DefaultAzureCredential instead of ServicePrincipalCredentials or AzureIdentityCredentialAdapter.
+      These newer credentials support get_token method which can be used to generate OAuth token with custom scope.
 
     The entire extra column can be left out to fall back on DefaultAzureCredential_.
 

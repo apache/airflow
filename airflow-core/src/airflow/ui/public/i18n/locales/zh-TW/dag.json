@@ -10,6 +10,7 @@
     "hourly": "每小時",
     "legend": {
       "less": "較少",
+      "mixed": "混合",
       "more": "較多"
     },
     "navigation": {
@@ -19,7 +20,8 @@
       "previousYear": "上一年"
     },
     "noData": "沒有可用的資料",
-    "noRuns": "沒有執行",
+    "noFailedRuns": "無失敗的執行",
+    "noRuns": "無執行",
     "totalRuns": "總執行數",
     "week": "第 {{weekNumber}} 週",
     "weekdays": {
@@ -62,7 +64,7 @@
       "tooltip": "按下 {{hotkey}} 進入全螢幕"
     },
     "info": "INFO",
-    "noTryNumber": "沒有嘗試次數",
+    "noTryNumber": "無嘗試次數",
     "settings": "日誌設定",
     "viewInExternal": "在 {{name}} 中檢視日誌(嘗試 {{attempt}})",
     "warning": "WARNING"
@@ -112,6 +114,18 @@
     },
     "graphDirection": {
       "label": "圖表方向"
+    },
+    "taskStreamFilter": {
+      "activeFilter": "啟用過濾器",
+      "clearFilter": "清除過濾器",
+      "clickTask": "點擊一個任務以將其選為過濾根",
+      "label": "過濾器",
+      "options": {
+        "both": "上游和下游",
+        "downstream": "下游",
+        "upstream": "上游"
+      },
+      "selectedTask": "選定任務"
     }
   },
   "paramsFailed": "載入參數失敗",

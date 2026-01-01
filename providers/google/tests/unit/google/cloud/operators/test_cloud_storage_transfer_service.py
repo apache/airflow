@@ -25,7 +25,7 @@ import pytest
 import time_machine
 from botocore.credentials import Credentials
 
-from airflow.exceptions import AirflowException, TaskDeferred
+from airflow.providers.common.compat.sdk import AirflowException, TaskDeferred
 from airflow.providers.google.cloud.hooks.cloud_storage_transfer_service import (
     ACCESS_KEY_ID,
     AWS_ACCESS_KEY,
@@ -39,6 +39,7 @@ from airflow.providers.google.cloud.hooks.cloud_storage_transfer_service import 
     LIST_URL,
     NAME,
     PATH,
+    PROJECT_ID,
     SCHEDULE,
     SCHEDULE_END_DATE,
     SCHEDULE_START_DATE,
@@ -46,6 +47,10 @@ from airflow.providers.google.cloud.hooks.cloud_storage_transfer_service import 
     START_TIME_OF_DAY,
     STATUS,
     TRANSFER_SPEC,
+)
+from airflow.providers.google.cloud.openlineage.facets import (
+    CloudStorageTransferJobFacet,
+    CloudStorageTransferRunFacet,
 )
 from airflow.providers.google.cloud.operators.cloud_storage_transfer_service import (
     CloudDataTransferServiceCancelOperationOperator,
@@ -382,7 +387,7 @@ class TestGcpStorageTransferJobCreateOperator:
     # fields
     @pytest.mark.db_test
     @pytest.mark.parametrize(
-        "body, excepted",
+        ("body", "excepted"),
         [(VALID_TRANSFER_JOB_JINJA, VALID_TRANSFER_JOB_JINJA_RENDERED)],
     )
     @mock.patch(
@@ -398,12 +403,10 @@ class TestGcpStorageTransferJobCreateOperator:
             aws_conn_id="{{ dag.dag_id }}",
             task_id="task-id",
         )
-        session.add(ti)
-        session.commit()
-        ti.render_templates()
-        assert excepted == getattr(ti.task, "body")
-        assert dag_id == getattr(ti.task, "gcp_conn_id")
-        assert dag_id == getattr(ti.task, "aws_conn_id")
+        rendered = ti.render_templates()
+        assert excepted == getattr(rendered, "body")
+        assert dag_id == getattr(rendered, "gcp_conn_id")
+        assert dag_id == getattr(rendered, "aws_conn_id")
 
 
 class TestGcpStorageTransferJobUpdateOperator:
@@ -446,11 +449,9 @@ class TestGcpStorageTransferJobUpdateOperator:
             body={"transferJob": {"name": "{{ dag.dag_id }}"}},
             task_id="task-id",
         )
-        session.add(ti)
-        session.commit()
-        ti.render_templates()
-        assert dag_id == getattr(ti.task, "body")["transferJob"]["name"]
-        assert dag_id == getattr(ti.task, "job_name")
+        rendered = ti.render_templates()
+        assert dag_id == getattr(rendered, "body")["transferJob"]["name"]
+        assert dag_id == getattr(rendered, "job_name")
 
 
 class TestGcpStorageTransferJobDeleteOperator:
@@ -491,12 +492,10 @@ class TestGcpStorageTransferJobDeleteOperator:
             api_version="{{ dag.dag_id }}",
             task_id=TASK_ID,
         )
-        session.add(ti)
-        session.commit()
-        ti.render_templates()
-        assert dag_id == ti.task.job_name
-        assert dag_id == ti.task.gcp_conn_id
-        assert dag_id == ti.task.api_version
+        rendered = ti.render_templates()
+        assert dag_id == rendered.job_name
+        assert dag_id == rendered.gcp_conn_id
+        assert dag_id == rendered.api_version
 
     def test_job_delete_should_throw_ex_when_name_none(self):
         with pytest.raises(AirflowException, match="The required parameter 'job_name' is empty or None"):
@@ -545,14 +544,12 @@ class TestGcpStorageTransferJobRunOperator:
             google_impersonation_chain="{{ dag.dag_id }}",
             task_id=TASK_ID,
         )
-        session.add(ti)
-        session.commit()
-        ti.render_templates()
-        assert dag_id == ti.task.job_name
-        assert dag_id == ti.task.project_id
-        assert dag_id == ti.task.gcp_conn_id
-        assert dag_id == ti.task.api_version
-        assert dag_id == ti.task.google_impersonation_chain
+        rendered = ti.render_templates()
+        assert dag_id == rendered.job_name
+        assert dag_id == rendered.project_id
+        assert dag_id == rendered.gcp_conn_id
+        assert dag_id == rendered.api_version
+        assert dag_id == rendered.google_impersonation_chain
 
     def test_job_run_should_throw_ex_when_name_none(self):
         op = CloudDataTransferServiceRunJobOperator(job_name="", task_id="task-id")
@@ -595,10 +592,8 @@ class TestGpcStorageTransferOperationsGetOperator:
             operation_name="{{ dag.dag_id }}",
             task_id="task-id",
         )
-        session.add(ti)
-        session.commit()
-        ti.render_templates()
-        assert dag_id == ti.task.operation_name
+        rendered = ti.render_templates()
+        assert dag_id == rendered.operation_name
 
     def test_operation_get_should_throw_ex_when_operation_name_none(self):
         with pytest.raises(
@@ -643,12 +638,10 @@ class TestGcpStorageTransferOperationListOperator:
             gcp_conn_id="{{ dag.dag_id }}",
             task_id="task-id",
         )
-        session.add(ti)
-        session.commit()
-        ti.render_templates()
+        rendered = ti.render_templates()
 
-        assert dag_id == ti.task.request_filter["job_names"][0]
-        assert dag_id == ti.task.gcp_conn_id
+        assert dag_id == rendered.request_filter["job_names"][0]
+        assert dag_id == rendered.gcp_conn_id
 
 
 class TestGcpStorageTransferOperationsPauseOperator:
@@ -686,12 +679,10 @@ class TestGcpStorageTransferOperationsPauseOperator:
             api_version="{{ dag.dag_id }}",
             task_id=TASK_ID,
         )
-        session.add(ti)
-        session.commit()
-        ti.render_templates()
-        assert dag_id == ti.task.operation_name
-        assert dag_id == ti.task.gcp_conn_id
-        assert dag_id == ti.task.api_version
+        rendered = ti.render_templates()
+        assert dag_id == rendered.operation_name
+        assert dag_id == rendered.gcp_conn_id
+        assert dag_id == rendered.api_version
 
     def test_operation_pause_should_throw_ex_when_name_none(self):
         with pytest.raises(
@@ -738,12 +729,10 @@ class TestGcpStorageTransferOperationsResumeOperator:
             api_version="{{ dag.dag_id }}",
             task_id=TASK_ID,
         )
-        session.add(ti)
-        session.commit()
-        ti.render_templates()
-        assert dag_id == ti.task.operation_name
-        assert dag_id == ti.task.gcp_conn_id
-        assert dag_id == ti.task.api_version
+        rendered = ti.render_templates()
+        assert dag_id == rendered.operation_name
+        assert dag_id == rendered.gcp_conn_id
+        assert dag_id == rendered.api_version
 
     @mock.patch(
         "airflow.providers.google.cloud.operators.cloud_storage_transfer_service.CloudDataTransferServiceHook"
@@ -793,12 +782,10 @@ class TestGcpStorageTransferOperationsCancelOperator:
             api_version="{{ dag.dag_id }}",
             task_id=TASK_ID,
         )
-        session.add(ti)
-        session.commit()
-        ti.render_templates()
-        assert dag_id == ti.task.operation_name
-        assert dag_id == ti.task.gcp_conn_id
-        assert dag_id == ti.task.api_version
+        rendered = ti.render_templates()
+        assert dag_id == rendered.operation_name
+        assert dag_id == rendered.gcp_conn_id
+        assert dag_id == rendered.api_version
 
     @mock.patch(
         "airflow.providers.google.cloud.operators.cloud_storage_transfer_service.CloudDataTransferServiceHook"
@@ -847,14 +834,12 @@ class TestS3ToGoogleCloudStorageTransferOperator:
             gcp_conn_id="{{ dag.dag_id }}",
             task_id=TASK_ID,
         )
-        session.add(ti)
-        session.commit()
-        ti.render_templates()
-        assert dag_id == ti.task.s3_bucket
-        assert dag_id == ti.task.gcs_bucket
-        assert dag_id == ti.task.description
-        assert dag_id == ti.task.object_conditions["exclude_prefixes"][0]
-        assert dag_id == ti.task.gcp_conn_id
+        rendered = ti.render_templates()
+        assert dag_id == rendered.s3_bucket
+        assert dag_id == rendered.gcs_bucket
+        assert dag_id == rendered.description
+        assert dag_id == rendered.object_conditions["exclude_prefixes"][0]
+        assert dag_id == rendered.gcp_conn_id
 
     @mock.patch(
         "airflow.providers.google.cloud.operators.cloud_storage_transfer_service.CloudDataTransferServiceHook"
@@ -1018,6 +1003,160 @@ class TestS3ToGoogleCloudStorageTransferOperator:
                 context={}, event={"status": "error", "message": "test failure message"}
             )
 
+    @pytest.mark.parametrize(
+        ("wait", "job_name"),
+        [
+            (True, "transferJobs/123"),
+            (False, "transferJobs/456"),
+        ],
+    )
+    def test_get_openlineage_facets_on_complete_facets_run_and_job(self, wait, job_name):
+        op = CloudDataTransferServiceS3ToGCSOperator(
+            task_id=TASK_ID,
+            s3_bucket=AWS_BUCKET_NAME,
+            s3_path="raw/",
+            gcs_bucket=GCS_BUCKET_NAME,
+            gcs_path="processed/",
+            project_id=GCP_PROJECT_ID,
+            wait=wait,
+            description=DESCRIPTION,
+        )
+        op._transfer_job = {
+            NAME: job_name,
+            PROJECT_ID: GCP_PROJECT_ID,
+            DESCRIPTION: DESCRIPTION,
+            STATUS: "ENABLED",
+            TRANSFER_SPEC: {
+                AWS_S3_DATA_SOURCE: {BUCKET_NAME: AWS_BUCKET_NAME, PATH: "raw/"},
+                GCS_DATA_SINK: {BUCKET_NAME: GCS_BUCKET_NAME, PATH: "processed/"},
+            },
+        }
+
+        result = op.get_openlineage_facets_on_complete(task_instance=mock.Mock())
+
+        assert result.inputs[0].namespace == f"s3://{AWS_BUCKET_NAME}"
+        assert result.inputs[0].name == "raw/"
+        assert result.outputs[0].namespace == f"gs://{GCS_BUCKET_NAME}"
+        assert result.outputs[0].name == "processed/"
+
+        job_facet = result.job_facets["cloudStorageTransferJob"]
+        assert isinstance(job_facet, CloudStorageTransferJobFacet)
+        assert job_facet.jobName == job_name
+        assert job_facet.projectId == GCP_PROJECT_ID
+        assert job_facet.description == DESCRIPTION
+        assert job_facet.status == "ENABLED"
+        assert job_facet.sourceBucket == AWS_BUCKET_NAME
+        assert job_facet.sourcePath == "raw/"
+        assert job_facet.targetBucket == GCS_BUCKET_NAME
+        assert job_facet.targetPath == "processed/"
+        assert job_facet.objectConditions is None
+        assert job_facet.transferOptions is None
+        assert job_facet.schedule is None
+
+        run_facet = result.run_facets["cloudStorageTransferRun"]
+        assert isinstance(run_facet, CloudStorageTransferRunFacet)
+        assert run_facet.jobName == job_name
+        assert run_facet.wait == wait
+
+    @pytest.mark.parametrize(
+        ("object_conditions", "delete_source"),
+        [
+            ({"includePrefixes": ["2025/"]}, True),
+            (None, False),
+        ],
+    )
+    def test_get_openlineage_facets_on_complete_job_facet_includes_object_conditions_and_options(
+        self, object_conditions, delete_source
+    ):
+        op = CloudDataTransferServiceS3ToGCSOperator(
+            task_id=TASK_ID,
+            s3_bucket=AWS_BUCKET_NAME,
+            gcs_bucket=GCS_BUCKET_NAME,
+            project_id=GCP_PROJECT_ID,
+            object_conditions=object_conditions,
+            transfer_options={"deleteObjectsFromSourceAfterTransfer": delete_source},
+            wait=True,
+        )
+        op._transfer_job = {
+            NAME: "transferJobs/789",
+            PROJECT_ID: GCP_PROJECT_ID,
+            TRANSFER_SPEC: {
+                AWS_S3_DATA_SOURCE: {BUCKET_NAME: AWS_BUCKET_NAME},
+                GCS_DATA_SINK: {BUCKET_NAME: GCS_BUCKET_NAME},
+                "objectConditions": object_conditions,
+                "transferOptions": {"deleteObjectsFromSourceAfterTransfer": delete_source},
+            },
+        }
+
+        result = op.get_openlineage_facets_on_complete(task_instance=mock.Mock())
+        job_facet = result.job_facets["cloudStorageTransferJob"]
+        assert job_facet.projectId == GCP_PROJECT_ID
+        assert job_facet.objectConditions == object_conditions
+        assert job_facet.transferOptions == {"deleteObjectsFromSourceAfterTransfer": delete_source}
+        assert isinstance(job_facet.objectConditions, (dict, type(None)))
+        assert isinstance(job_facet.transferOptions, (dict, type(None)))
+
+    def test_get_openlineage_facets_on_complete_job_facet_without_object_conditions_or_transfer_options(self):
+        op = CloudDataTransferServiceS3ToGCSOperator(
+            task_id=TASK_ID,
+            s3_bucket=AWS_BUCKET_NAME,
+            gcs_bucket=GCS_BUCKET_NAME,
+            wait=True,
+        )
+        op._transfer_job = {
+            NAME: "transferJobs/222",
+            PROJECT_ID: GCP_PROJECT_ID,
+            "transferSpec": {
+                AWS_S3_DATA_SOURCE: {BUCKET_NAME: AWS_BUCKET_NAME},
+                GCS_DATA_SINK: {BUCKET_NAME: GCS_BUCKET_NAME},
+            },
+        }
+
+        result = op.get_openlineage_facets_on_complete(task_instance=mock.Mock())
+        job_facet = result.job_facets["cloudStorageTransferJob"]
+        assert job_facet.objectConditions is None
+        assert job_facet.transferOptions is None
+        assert job_facet.schedule is None
+
+    def test_get_openlineage_facets_on_complete_delete_job_after_completion_still_produces_facets(self):
+        op = CloudDataTransferServiceS3ToGCSOperator(
+            task_id=TASK_ID,
+            s3_bucket=AWS_BUCKET_NAME,
+            gcs_bucket=GCS_BUCKET_NAME,
+            project_id=GCP_PROJECT_ID,
+            delete_job_after_completion=True,
+            wait=True,
+        )
+        op._transfer_job = {NAME: "transferJobs/333", PROJECT_ID: GCP_PROJECT_ID}
+
+        result = op.get_openlineage_facets_on_complete(task_instance=mock.Mock())
+
+        assert "cloudStorageTransferJob" in result.job_facets
+        assert "cloudStorageTransferRun" in result.run_facets
+        run_facet = result.run_facets["cloudStorageTransferRun"]
+        assert run_facet.deleteJobAfterCompletion is True
+
+    def test_get_openlineage_facets_on_complete_inputs_outputs_when_paths_missing(self):
+        op = CloudDataTransferServiceS3ToGCSOperator(
+            task_id=TASK_ID,
+            s3_bucket=AWS_BUCKET_NAME,
+            gcs_bucket=GCS_BUCKET_NAME,
+        )
+        op._transfer_job = {
+            NAME: "transferJobs/444",
+            PROJECT_ID: GCP_PROJECT_ID,
+            "transferSpec": {
+                AWS_S3_DATA_SOURCE: {BUCKET_NAME: AWS_BUCKET_NAME},
+                GCS_DATA_SINK: {BUCKET_NAME: GCS_BUCKET_NAME},
+            },
+        }
+
+        result = op.get_openlineage_facets_on_complete(task_instance=mock.Mock())
+        assert result.inputs[0].namespace == f"s3://{AWS_BUCKET_NAME}"
+        assert result.inputs[0].name == ""
+        assert result.outputs[0].namespace == f"gs://{GCS_BUCKET_NAME}"
+        assert result.outputs[0].name == ""
+
 
 class TestGoogleCloudStorageToGoogleCloudStorageTransferOperator:
     def test_constructor(self):
@@ -1056,14 +1195,12 @@ class TestGoogleCloudStorageToGoogleCloudStorageTransferOperator:
             gcp_conn_id="{{ dag.dag_id }}",
             task_id=TASK_ID,
         )
-        session.add(ti)
-        session.commit()
-        ti.render_templates()
-        assert dag_id == ti.task.source_bucket
-        assert dag_id == ti.task.destination_bucket
-        assert dag_id == ti.task.description
-        assert dag_id == ti.task.object_conditions["exclude_prefixes"][0]
-        assert dag_id == ti.task.gcp_conn_id
+        rendered = ti.render_templates()
+        assert dag_id == rendered.source_bucket
+        assert dag_id == rendered.destination_bucket
+        assert dag_id == rendered.description
+        assert dag_id == rendered.object_conditions["exclude_prefixes"][0]
+        assert dag_id == rendered.gcp_conn_id
 
     @mock.patch(
         "airflow.providers.google.cloud.operators.cloud_storage_transfer_service.CloudDataTransferServiceHook"

@@ -26,17 +26,20 @@ from io import StringIO
 from typing import TYPE_CHECKING, ClassVar
 
 import structlog.dev
-from structlog.dev import ConsoleRenderer, Styles
+from structlog.dev import ConsoleRenderer
 from structlog.processors import CallsiteParameter
 
 if TYPE_CHECKING:
+    from structlog.dev import ColumnStyles
     from structlog.typing import EventDict, WrappedLogger
 
 
 class _LazyLogRecordDict(collections.abc.Mapping):
     __slots__ = ("event", "styles", "level_styles", "method_name", "no_colors")
 
-    def __init__(self, event: EventDict, method_name: str, level_styles: dict[str, str], styles: Styles):
+    def __init__(
+        self, event: EventDict, method_name: str, level_styles: dict[str, str], styles: ColumnStyles
+    ):
         self.event = event
         self.method_name = method_name
         self.level_styles = level_styles
@@ -46,6 +49,16 @@ class _LazyLogRecordDict(collections.abc.Mapping):
     def __getitem__(self, key):
         # Roughly compatible with names from https://github.com/python/cpython/blob/v3.13.7/Lib/logging/__init__.py#L571
         # Plus with ColoredLog added in
+
+        # If there is no callsite info (often for stdout/stderr), show the same sort of thing that stdlib
+        # logging would
+        # https://github.com/python/cpython/blob/d3c888b4ec15dbd7d6b6ef4f15b558af77c228af/Lib/logging/__init__.py#L1652C34-L1652C48
+        if key == "lineno":
+            return self.event.get("lineno", 0)
+        if key == "filename":
+            return self.event.get("filename", "(unknown file)")
+        if key == "funcName":
+            return self.event.get("funcName", "(unknown function)")
 
         if key in PercentFormatRender.callsite_parameters:
             return self.event.get(PercentFormatRender.callsite_parameters[key].value)
@@ -140,7 +153,8 @@ class PercentFormatRender(ConsoleRenderer):
         params = _LazyLogRecordDict(
             event_dict,
             method_name,
-            ConsoleRenderer.get_default_level_styles(),
+            # To maintain compat with old log levels, we don't want to color info, just everything else
+            {**ConsoleRenderer.get_default_level_styles(), "info": ""},
             self._styles,
         )
 

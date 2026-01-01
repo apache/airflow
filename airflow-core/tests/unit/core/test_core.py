@@ -17,17 +17,13 @@
 # under the License.
 from __future__ import annotations
 
-import contextlib
 from datetime import timedelta
-from time import sleep
 
 import pytest
 
 from airflow._shared.timezones.timezone import datetime
-from airflow.exceptions import AirflowTaskTimeout
-from airflow.models.baseoperator import BaseOperator
 from airflow.providers.standard.operators.empty import EmptyOperator
-from airflow.providers.standard.operators.python import PythonOperator
+from airflow.sdk import BaseOperator
 from airflow.utils.types import DagRunType
 
 from tests_common.test_utils.db import clear_db_dags, clear_db_runs
@@ -73,21 +69,6 @@ class TestCore:
         )
         with pytest.raises(AttributeError, match=error_message):
             op.dry_run()
-
-    def test_timeout(self, dag_maker):
-        def sleep_and_catch_other_exceptions():
-            with contextlib.suppress(Exception):
-                # Catching Exception should NOT catch AirflowTaskTimeout
-                sleep(5)
-
-        with dag_maker(serialized=True):
-            op = PythonOperator(
-                task_id="test_timeout",
-                execution_timeout=timedelta(seconds=1),
-                python_callable=sleep_and_catch_other_exceptions,
-            )
-        with pytest.raises(AirflowTaskTimeout):
-            dag_maker.run_ti(op.task_id)
 
     def test_dag_params_and_task_params(self, dag_maker):
         # This test case guards how params of DAG and Operator work together.

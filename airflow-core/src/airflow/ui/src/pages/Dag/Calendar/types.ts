@@ -65,7 +65,13 @@ export type LegendItem = {
 export type CalendarScaleType = "empty" | "gradient" | "single_value";
 
 export type CalendarScale = {
-  readonly getColor: (counts: RunCounts) => string | { _dark: string; _light: string };
+  readonly getColor: (counts: RunCounts) =>
+    | string
+    | { _dark: string; _light: string }
+    | {
+        actual: string | { _dark: string; _light: string };
+        planned: string | { _dark: string; _light: string };
+      };
   readonly legendItems: Array<LegendItem>;
   readonly type: CalendarScaleType;
 };

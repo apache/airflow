@@ -87,7 +87,7 @@ apache-airflow-providers-amazon package
 Amazon integration (including `Amazon Web Services (AWS) <https://aws.amazon.com/>`__).
 
 
-Release: 9.13.0
+Release: 9.19.0
 
 Provider package
 ----------------
@@ -105,13 +105,13 @@ For the minimum Airflow version supported, see ``Requirements`` below.
 Requirements
 ------------
 
-The minimum Apache Airflow version supported by this provider distribution is ``2.10.0``.
+The minimum Apache Airflow version supported by this provider distribution is ``2.11.0``.
 
-==========================================  ==================
+==========================================  ======================================
 PIP package                                 Version required
-==========================================  ==================
-``apache-airflow``                          ``>=2.10.0``
-``apache-airflow-providers-common-compat``  ``>=1.6.1``
+==========================================  ======================================
+``apache-airflow``                          ``>=2.11.0``
+``apache-airflow-providers-common-compat``  ``>=1.10.1``
 ``apache-airflow-providers-common-sql``     ``>=1.27.0``
 ``apache-airflow-providers-http``
 ``boto3``                                   ``>=1.37.2``
@@ -124,8 +124,10 @@ PIP package                                 Version required
 ``PyAthena``                                ``>=3.10.0``
 ``jmespath``                                ``>=0.7.0``
 ``sagemaker-studio``                        ``>=1.0.9``
+``pydynamodb``                              ``>=0.7.5; python_version >= "3.13"``
+``sqlean.py``                               ``>=3.47.0; python_version >= "3.13"``
 ``marshmallow``                             ``>=3``
-==========================================  ==================
+==========================================  ======================================
 
 Cross provider package dependencies
 -----------------------------------
@@ -166,5 +168,5 @@ Downloading official packages
 You can download officially released packages and verify their checksums and signatures from the
 `Official Apache Download site <https://downloads.apache.org/airflow/providers/>`_
 
-* `The apache-airflow-providers-amazon 9.13.0 sdist package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_amazon-9.13.0.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_amazon-9.13.0.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_amazon-9.13.0.tar.gz.sha512>`__)
-* `The apache-airflow-providers-amazon 9.13.0 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_amazon-9.13.0-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_amazon-9.13.0-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_amazon-9.13.0-py3-none-any.whl.sha512>`__)
+* `The apache-airflow-providers-amazon 9.19.0 sdist package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_amazon-9.19.0.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_amazon-9.19.0.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_amazon-9.19.0.tar.gz.sha512>`__)
+* `The apache-airflow-providers-amazon 9.19.0 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_amazon-9.19.0-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_amazon-9.19.0-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_amazon-9.19.0-py3-none-any.whl.sha512>`__)

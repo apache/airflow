@@ -22,14 +22,13 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from airflow.exceptions import AirflowException, TaskDeferred
+from airflow.providers.common.compat.sdk import AirflowException, BaseHook, TaskDeferred
 from airflow.providers.microsoft.azure.hooks.powerbi import (
     PowerBIDatasetRefreshFields,
     PowerBIDatasetRefreshStatus,
 )
 from airflow.providers.microsoft.azure.operators.powerbi import PowerBIDatasetRefreshOperator
 from airflow.providers.microsoft.azure.triggers.powerbi import PowerBITrigger
-from airflow.providers.microsoft.azure.version_compat import BaseHook
 
 from tests_common.test_utils.mock_context import mock_context
 from unit.microsoft.azure.test_utils import get_airflow_connection
@@ -193,7 +192,7 @@ class TestPowerBIDatasetRefreshOperator:
         assert context["ti"].xcom_push.call_count == 0
 
     @pytest.mark.db_test
-    def test_powerbi_link(self, create_task_instance_of_operator):
+    def test_powerbi_link(self, dag_maker, create_task_instance_of_operator):
         """Assert Power BI Extra link matches the expected URL."""
         ti = create_task_instance_of_operator(
             PowerBIDatasetRefreshOperator,
@@ -207,7 +206,8 @@ class TestPowerBIDatasetRefreshOperator:
         )
 
         ti.xcom_push(key="powerbi_dataset_refresh_id", value=NEW_REFRESH_REQUEST_ID)
-        url = ti.task.operator_extra_links[0].get_link(operator=ti.task, ti_key=ti.key)
+        task = dag_maker.dag.get_task(ti.task_id)
+        url = task.operator_extra_links[0].get_link(operator=task, ti_key=ti.key)
         EXPECTED_ITEM_RUN_OP_EXTRA_LINK = (
             f"https://app.powerbi.com/groups/{GROUP_ID}/datasets/{DATASET_ID}/details?experience=power-bi"
         )

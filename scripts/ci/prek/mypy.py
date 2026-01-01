@@ -16,7 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 # /// script
-# requires-python = ">=3.10"
+# requires-python = ">=3.10,<3.11"
 # dependencies = [
 #   "rich>=13.6.0",
 # ]
@@ -31,6 +31,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.resolve()))
 
 from common_prek_utils import (
+    AIRFLOW_ROOT_PATH,
     console,
     initialize_breeze_prek,
     pre_process_files,
@@ -46,7 +47,12 @@ if not files_to_test:
 
 # TODO(potiuk): add suspended providers exclusion
 
-cmd = ["bash", "-c", f"TERM=ansi mypy {' '.join([shlex.quote(file) for file in files_to_test])}"]
+repo_root = AIRFLOW_ROOT_PATH.resolve()
+cmd = [
+    "bash",
+    "-c",
+    f"TERM=ansi mypy {' '.join([shlex.quote(str(Path(file).absolute().relative_to(repo_root))) for file in files_to_test])}",
+]
 
 res = run_command_via_breeze_shell(
     cmd=cmd,

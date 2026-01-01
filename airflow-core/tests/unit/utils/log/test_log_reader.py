@@ -268,7 +268,7 @@ class TestLogView:
         log_stream = task_log_reader.read_log_stream(ti=self.ti, try_number=1, metadata={})
         assert list(log_stream) == [
             '{"timestamp":null,"event":"hello"}\n',
-            "(Log stream stopped - End of log marker not found; logs may be incomplete.)\n",
+            '{"event": "Log stream stopped - End of log marker not found; logs may be incomplete."}\n',
         ]
         assert mock_read.call_count == 11
 
@@ -309,7 +309,7 @@ class TestLogView:
         def echo_run_type(dag_run: DagRun, **kwargs):
             print(dag_run.run_type)
 
-        with dag_maker(dag_id, start_date=self.DEFAULT_DATE, schedule="@daily") as dag:
+        with dag_maker(dag_id, start_date=self.DEFAULT_DATE, schedule="@daily"):
             PythonOperator(task_id=task_id, python_callable=echo_run_type)
 
         start = pendulum.datetime(2021, 1, 1)
@@ -334,14 +334,14 @@ class TestLogView:
         assert scheduled_ti is not None
         assert manual_ti is not None
 
-        scheduled_ti.refresh_from_task(dag.get_task(task_id))
-        manual_ti.refresh_from_task(dag.get_task(task_id))
+        scheduled_ti.refresh_from_task(dag_maker.serialized_dag.get_task(task_id))
+        manual_ti.refresh_from_task(dag_maker.serialized_dag.get_task(task_id))
 
         reader = TaskLogReader()
         assert reader.render_log_filename(scheduled_ti, 1) != reader.render_log_filename(manual_ti, 1)
 
     @pytest.mark.parametrize(
-        "state,try_number,expected_event,use_self_ti",
+        ("state", "try_number", "expected_event", "use_self_ti"),
         [
             (TaskInstanceState.SKIPPED, 0, "Task was skipped — no logs available.", False),
             (
@@ -370,7 +370,7 @@ class TestLogView:
         assert any(expected_event in e for e in events)
 
     @pytest.mark.parametrize(
-        "state,try_number,expected_event,use_self_ti",
+        ("state", "try_number", "expected_event", "use_self_ti"),
         [
             (TaskInstanceState.SKIPPED, 0, "Task was skipped — no logs available.", False),
             (

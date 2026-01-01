@@ -21,8 +21,8 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from airflow.exceptions import AirflowException
 from airflow.models import Connection
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.microsoft.azure.hooks.synapse import (
     AzureSynapsePipelineHook,
     AzureSynapsePipelineRunException,
@@ -164,7 +164,7 @@ class TestAzureSynapseRunPipelineOperator:
 
     @patch.object(AzureSynapsePipelineHook, "run_pipeline", return_value=MagicMock(**PIPELINE_RUN_RESPONSE))
     @pytest.mark.parametrize(
-        "pipeline_run_status,expected_output",
+        ("pipeline_run_status", "expected_output"),
         [
             (AzureSynapsePipelineRunStatus.SUCCEEDED, None),
             (AzureSynapsePipelineRunStatus.FAILED, "exception"),
@@ -281,7 +281,12 @@ class TestAzureSynapseRunPipelineOperator:
             mock_get_pipeline_run.assert_not_called()
 
     @pytest.mark.db_test
-    def test_run_pipeline_operator_link(self, create_task_instance_of_operator, mock_supervisor_comms):
+    def test_run_pipeline_operator_link(
+        self,
+        dag_maker,
+        create_task_instance_of_operator,
+        mock_supervisor_comms,
+    ):
         ti = create_task_instance_of_operator(
             AzureSynapseRunPipelineOperator,
             dag_id="test_synapse_run_pipeline_op_link",
@@ -298,7 +303,8 @@ class TestAzureSynapseRunPipelineOperator:
                 value=PIPELINE_RUN_RESPONSE["run_id"],
             )
 
-        url = ti.task.operator_extra_links[0].get_link(operator=ti.task, ti_key=ti.key)
+        task = dag_maker.dag.get_task(ti.task_id)
+        url = task.operator_extra_links[0].get_link(operator=task, ti_key=ti.key)
 
         EXPECTED_PIPELINE_RUN_OP_EXTRA_LINK = (
             "https://ms.web.azuresynapse.net/en/monitoring/pipelineruns/{run_id}"

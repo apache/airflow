@@ -28,7 +28,6 @@ import tenacity
 from kubernetes.client import CoreV1Api, CustomObjectsApi, models as k8s
 from kubernetes.client.rest import ApiException
 
-from airflow.exceptions import AirflowException
 from airflow.providers.cncf.kubernetes.resource_convert.configmap import (
     convert_configmap,
     convert_configmap_to_volume,
@@ -39,6 +38,7 @@ from airflow.providers.cncf.kubernetes.resource_convert.secret import (
     convert_secret,
 )
 from airflow.providers.cncf.kubernetes.utils.pod_manager import PodManager
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.utils.log.logging_mixin import LoggingMixin
 
 
@@ -238,7 +238,9 @@ class CustomObjectLauncher(LoggingMixin):
 
     def get_body(self):
         self.body: dict = SparkJobSpec(**self.template_body["spark"])
-        self.body.metadata = {"name": self.name, "namespace": self.namespace}
+        if not hasattr(self.body, "metadata") or not isinstance(self.body.metadata, dict):
+            self.body.metadata = {}
+        self.body.metadata.update({"name": self.name, "namespace": self.namespace})
         if self.template_body.get("kubernetes"):
             k8s_spec: dict = KubernetesSpec(**self.template_body["kubernetes"])
             self.body.spec["volumes"] = k8s_spec.volumes

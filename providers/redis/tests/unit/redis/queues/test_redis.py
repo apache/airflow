@@ -41,7 +41,7 @@ class TestRedisPubSubMessageQueueProvider:
         assert isinstance(self.provider, BaseMessageQueueProvider)
 
     @pytest.mark.parametrize(
-        "scheme, expected_result",
+        ("scheme", "expected_result"),
         [
             pytest.param("redis+pubsub", True, id="redis_pubsub_scheme"),
             pytest.param("kafka", False, id="kafka_scheme"),

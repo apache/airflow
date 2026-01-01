@@ -58,16 +58,19 @@ jobs:
       AIRFLOW_VERSION: ${{ github.event.inputs.airflowVersion }}
       AMD_ONLY: ${{ github.event.inputs.amdOnly }}
       LIMIT_PYTHON_VERSIONS: ${{ github.event.inputs.limitPythonVersions }}
-      UV_VERSION: "0.8.17"  # Keep this comment to allow automatic replacement of uv version
+      UV_VERSION: "0.9.18"  # Keep this comment to allow automatic replacement of uv version
     if: contains(fromJSON('[
       "ashb",
+      "bugraoz93",
       "eladkal",
       "ephraimbuddy",
       "jedcunningham",
+      "jscheffl",
       "kaxil",
       "pierrejeambrun",
       "potiuk",
-      "utkarsharma2"
+      "utkarsharma2",
+      "vincbeck",
       ]'), github.event.sender.login)
     steps:
       - name: "Input parameters summary"
@@ -87,19 +90,19 @@ jobs:
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
         with:
           persist-credentials: false
-      - name: "Install uv"
-        run: curl -LsSf https://astral.sh/uv/${UV_VERSION}/install.sh | sh
-      - name: "Check airflow version"
-        id: check-airflow-version
-        shell: bash
-        run: uv run scripts/ci/airflow_version_check.py "${AIRFLOW_VERSION}" >> "${GITHUB_OUTPUT}"
       - name: "Install Breeze"
         uses: ./.github/actions/breeze
+        with:
+          uv-version: ${{ env.UV_VERSION }}
       - name: Selective checks
         id: selective-checks
         env:
           VERBOSE: "false"
         run: breeze ci selective-check 2>> ${GITHUB_OUTPUT}
+      - name: "Check airflow version"
+        id: check-airflow-version
+        shell: bash
+        run: uv run scripts/ci/airflow_version_check.py "${AIRFLOW_VERSION}" >> "${GITHUB_OUTPUT}"
       - name: "Determine build matrix"
         shell: bash
         id: determine-matrix

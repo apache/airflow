@@ -22,9 +22,9 @@ import warnings
 from importlib import import_module
 from typing import TYPE_CHECKING, Any
 
+from airflow._shared.module_loading import import_string
 from airflow.configuration import conf
 from airflow.exceptions import AirflowConfigException
-from airflow.utils.module_loading import import_string
 
 if TYPE_CHECKING:
     from airflow.logging.remote import RemoteLogIO
@@ -32,22 +32,31 @@ if TYPE_CHECKING:
 log = logging.getLogger(__name__)
 
 
-REMOTE_TASK_LOG: RemoteLogIO | None
-DEFAULT_REMOTE_CONN_ID: str | None = None
+class _ActiveLoggingConfig:
+    """Private class to hold active logging config variables."""
+
+    logging_config_loaded: bool = False
+    remote_task_log: RemoteLogIO | None
+    default_remote_conn_id: str | None = None
 
 
-def __getattr__(name: str):
-    if name == "REMOTE_TASK_LOG":
-        global REMOTE_TASK_LOG
+def get_remote_task_log() -> RemoteLogIO | None:
+    if not _ActiveLoggingConfig.logging_config_loaded:
         load_logging_config()
-        return REMOTE_TASK_LOG
+    return _ActiveLoggingConfig.remote_task_log
+
+
+def get_default_remote_conn_id() -> str | None:
+    if not _ActiveLoggingConfig.logging_config_loaded:
+        load_logging_config()
+    return _ActiveLoggingConfig.default_remote_conn_id
 
 
 def load_logging_config() -> tuple[dict[str, Any], str]:
     """Configure & Validate Airflow Logging."""
-    global REMOTE_TASK_LOG, DEFAULT_REMOTE_CONN_ID
     fallback = "airflow.config_templates.airflow_local_settings.DEFAULT_LOGGING_CONFIG"
     logging_class_path = conf.get("logging", "logging_config_class", fallback=fallback)
+    _ActiveLoggingConfig.logging_config_loaded = True
 
     # Sometimes we end up with `""` as the value!
     logging_class_path = logging_class_path or fallback
@@ -76,8 +85,8 @@ def load_logging_config() -> tuple[dict[str, Any], str]:
             mod = import_module(modpath)
 
             # Load remote logging configuration from the custom module
-            REMOTE_TASK_LOG = getattr(mod, "REMOTE_TASK_LOG")
-            DEFAULT_REMOTE_CONN_ID = getattr(mod, "DEFAULT_REMOTE_CONN_ID", None)
+            _ActiveLoggingConfig.remote_task_log = getattr(mod, "REMOTE_TASK_LOG")
+            _ActiveLoggingConfig.default_remote_conn_id = getattr(mod, "DEFAULT_REMOTE_CONN_ID", None)
         except Exception as err:
             log.info("Remote task logs will not be available due to an error:  %s", err)
 
@@ -89,18 +98,28 @@ def configure_logging():
 
     logging_config, logging_class_path = load_logging_config()
     try:
-        level: str = conf.get_mandatory_value("logging", "LOGGING_LEVEL").upper()
+        level: str = getattr(
+            logging_config, "LOG_LEVEL", conf.get("logging", "logging_level", fallback="INFO")
+        ).upper()
+
+        colors = getattr(
+            logging_config,
+            "COLORED_LOG",
+            conf.getboolean("logging", "colored_console_log", fallback=True),
+        )
         # Try to init logging
 
         log_fmt, callsite_params = translate_config_values(
-            log_format=conf.get("logging", "log_format"),
+            log_format=getattr(logging_config, "LOG_FORMAT", conf.get("logging", "log_format", fallback="")),
             callsite_params=conf.getlist("logging", "callsite_parameters", fallback=[]),
         )
         configure_logging(
             log_level=level,
+            namespace_log_levels=conf.get("logging", "namespace_levels", fallback=None),
             stdlib_config=logging_config,
             log_format=log_fmt,
             callsite_parameters=callsite_params,
+            colors=colors,
         )
     except (ValueError, KeyError) as e:
         log.error("Unable to load the config, contains a configuration error.")
@@ -121,8 +140,6 @@ def configure_logging():
         base_log_folder,
         new_folder_permissions=new_folder_permissions,
     )
-
-    return logging_class_path
 
 
 def validate_logging_config():

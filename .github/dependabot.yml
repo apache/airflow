@@ -18,6 +18,8 @@
 version: 2
 updates:
   - package-ecosystem: pip
+    cooldown:
+      default-days: 4
     directories:
       - /airflow-core
       - /airflow-ctl
@@ -30,8 +32,14 @@ updates:
       - /
     schedule:
       interval: daily
+    groups:
+      pip-dependency-updates:
+        patterns:
+          - "*"
 
   - package-ecosystem: npm
+    cooldown:
+      default-days: 4
     directories:
       - /airflow-core/src/airflow/ui
     schedule:
@@ -42,6 +50,8 @@ updates:
           - "*"
 
   - package-ecosystem: npm
+    cooldown:
+      default-days: 4
     directories:
       - /airflow-core/src/airflow/api_fastapi/auth/managers/simple/ui
     schedule:
@@ -52,6 +62,20 @@ updates:
           - "*"
 
   - package-ecosystem: npm
+    cooldown:
+      default-days: 4
+    directories:
+      - /dev/react-plugin-tools/react_plugin_template
+    schedule:
+      interval: daily
+    groups:
+      ui-plugin-template-package-updates:
+        patterns:
+          - "*"
+
+  - package-ecosystem: npm
+    cooldown:
+      default-days: 4
     directories:
       - /providers/edge3/src/airflow/providers/edge3/plugins/www
     schedule:
@@ -62,6 +86,8 @@ updates:
           - "*"
 
   - package-ecosystem: npm
+    cooldown:
+      default-days: 4
     directories:
       - /providers/fab/src/airflow/providers/fab/www
     schedule:
@@ -73,6 +99,8 @@ updates:
 
   # Repeat dependency updates on v3-1-test branch as well
   - package-ecosystem: pip
+    cooldown:
+      default-days: 4
     directories:
       - /airflow-core
       - /airflow-ctl
@@ -86,8 +114,14 @@ updates:
     schedule:
       interval: daily
     target-branch: v3-1-test
+    groups:
+      pip-dependency-updates:
+        patterns:
+          - "*"
 
   - package-ecosystem: npm
+    cooldown:
+      default-days: 4
     directories:
       - /airflow-core/src/airflow/ui
     schedule:
@@ -100,6 +134,8 @@ updates:
 
   # Repeat dependency updates on 2.11 branch as well
   - package-ecosystem: pip
+    cooldown:
+      default-days: 4
     directories:
       - /clients/python
       - /dev/breeze
@@ -108,8 +144,14 @@ updates:
     schedule:
       interval: daily
     target-branch: v2-11-test
+    groups:
+      pip-dependency-updates:
+        patterns:
+          - "*"
 
   - package-ecosystem: npm
+    cooldown:
+      default-days: 4
     directories:
       - /airflow/www/
     schedule:
@@ -117,5 +159,16 @@ updates:
     target-branch: v2-11-test
     groups:
       core-ui-package-updates:
+        patterns:
+          - "*"
+
+  - package-ecosystem: "uv"
+    cooldown:
+      default-days: 4
+    directory: "/dev/breeze"
+    schedule:
+      interval: "weekly"
+    groups:
+      uv-dependency-updates:
         patterns:
           - "*"

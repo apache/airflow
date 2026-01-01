@@ -33,6 +33,7 @@ from airflow.api_fastapi.common.dagbag import (
     get_latest_version_of_dag,
 )
 from airflow.api_fastapi.common.db.common import SessionDep, paginated_select
+from airflow.api_fastapi.common.db.task_instances import eager_load_TI_and_TIH_for_validation
 from airflow.api_fastapi.common.parameters import (
     FilterOptionEnum,
     FilterParam,
@@ -44,28 +45,36 @@ from airflow.api_fastapi.common.parameters import (
     QueryTIExecutorFilter,
     QueryTIMapIndexFilter,
     QueryTIOperatorFilter,
+    QueryTIOperatorNamePatternSearch,
     QueryTIPoolFilter,
+    QueryTIPoolNamePatternSearch,
     QueryTIQueueFilter,
+    QueryTIQueueNamePatternSearch,
     QueryTIStateFilter,
     QueryTITaskDisplayNamePatternSearch,
+    QueryTITaskGroupFilter,
     QueryTITryNumberFilter,
     Range,
     RangeFilter,
     SortParam,
+    _SearchParam,
     datetime_range_filter_factory,
     filter_param_factory,
     float_range_filter_factory,
+    search_param_factory,
 )
 from airflow.api_fastapi.common.router import AirflowRouter
 from airflow.api_fastapi.core_api.datamodels.common import BulkBody, BulkResponse
+from airflow.api_fastapi.core_api.datamodels.task_instance_history import (
+    TaskInstanceHistoryCollectionResponse,
+    TaskInstanceHistoryResponse,
+)
 from airflow.api_fastapi.core_api.datamodels.task_instances import (
     BulkTaskInstanceBody,
     ClearTaskInstancesBody,
     PatchTaskInstanceBody,
     TaskDependencyCollectionResponse,
     TaskInstanceCollectionResponse,
-    TaskInstanceHistoryCollectionResponse,
-    TaskInstanceHistoryResponse,
     TaskInstanceResponse,
     TaskInstancesBatchBody,
 )
@@ -78,7 +87,7 @@ from airflow.api_fastapi.core_api.services.public.task_instances import (
     _patch_ti_validate_request,
 )
 from airflow.api_fastapi.logging.decorators import action_logging
-from airflow.exceptions import TaskNotFound
+from airflow.exceptions import AirflowClearRunningTaskException, TaskNotFound
 from airflow.models import Base, DagRun
 from airflow.models.taskinstance import TaskInstance as TI, clear_task_instances
 from airflow.models.taskinstancehistory import TaskInstanceHistory as TIH
@@ -145,11 +154,14 @@ def get_mapped_task_instances(
     duration_range: Annotated[RangeFilter, Depends(float_range_filter_factory("duration", TI))],
     state: QueryTIStateFilter,
     pool: QueryTIPoolFilter,
+    pool_name_pattern: QueryTIPoolNamePatternSearch,
     queue: QueryTIQueueFilter,
+    queue_name_pattern: QueryTIQueueNamePatternSearch,
     executor: QueryTIExecutorFilter,
     version_number: QueryTIDagVersionFilter,
     try_number: QueryTITryNumberFilter,
     operator: QueryTIOperatorFilter,
+    operator_name_pattern: QueryTIOperatorNamePatternSearch,
     map_index: QueryTIMapIndexFilter,
     limit: QueryLimit,
     offset: QueryOffset,
@@ -189,8 +201,7 @@ def get_mapped_task_instances(
         select(TI)
         .where(TI.dag_id == dag_id, TI.run_id == dag_run_id, TI.task_id == task_id, TI.map_index >= 0)
         .join(TI.dag_run)
-        .options(joinedload(TI.dag_version))
-        .options(joinedload(TI.dag_run).options(joinedload(DagRun.dag_model)))
+        .options(*eager_load_TI_and_TIH_for_validation())
     )
     # 0 can mean a mapped TI that expanded to an empty list, so it is not an automatic 404
     unfiltered_total_count = get_query_count(query, session=session)
@@ -217,11 +228,14 @@ def get_mapped_task_instances(
             duration_range,
             state,
             pool,
+            pool_name_pattern,
             queue,
+            queue_name_pattern,
             executor,
             version_number,
             try_number,
             operator,
+            operator_name_pattern,
             map_index,
         ],
         order_by=order_by,
@@ -274,7 +288,10 @@ def get_task_instance_dependencies(
 
     if ti.state in [None, TaskInstanceState.SCHEDULED]:
         dag_run = session.scalar(select(DagRun).where(DagRun.dag_id == ti.dag_id, DagRun.run_id == ti.run_id))
-        dag = dag_bag.get_dag_for_run(dag_run, session=session)
+        if dag_run:
+            dag = dag_bag.get_dag_for_run(dag_run, session=session)
+        else:
+            dag = None
 
         if dag:
             try:
@@ -317,8 +334,8 @@ def get_task_instance_tries(
                 orm_object.task_id == task_id,
                 orm_object.map_index == map_index,
             )
-            .options(joinedload(orm_object.dag_version))
-            .options(joinedload(orm_object.dag_run).options(joinedload(DagRun.dag_model)))
+            .options(*eager_load_TI_and_TIH_for_validation(orm_object))
+            .options(joinedload(orm_object.hitl_detail))
         )
         return query
 
@@ -326,7 +343,7 @@ def get_task_instance_tries(
     tis = session.scalars(
         _query(TI).where(or_(TI.state != TaskInstanceState.UP_FOR_RETRY, TI.state.is_(None)))
     ).all()
-    task_instances = session.scalars(_query(TIH)).all() + tis
+    task_instances = list(session.scalars(_query(TIH)).all()) + list(tis)
 
     if not task_instances:
         raise HTTPException(
@@ -408,13 +425,19 @@ def get_task_instances(
     update_at_range: Annotated[RangeFilter, Depends(datetime_range_filter_factory("updated_at", TI))],
     duration_range: Annotated[RangeFilter, Depends(float_range_filter_factory("duration", TI))],
     task_display_name_pattern: QueryTITaskDisplayNamePatternSearch,
+    task_group_id: QueryTITaskGroupFilter,
+    dag_id_pattern: Annotated[_SearchParam, Depends(search_param_factory(TI.dag_id, "dag_id_pattern"))],
+    run_id_pattern: Annotated[_SearchParam, Depends(search_param_factory(TI.run_id, "run_id_pattern"))],
     state: QueryTIStateFilter,
     pool: QueryTIPoolFilter,
+    pool_name_pattern: QueryTIPoolNamePatternSearch,
     queue: QueryTIQueueFilter,
+    queue_name_pattern: QueryTIQueueNamePatternSearch,
     executor: QueryTIExecutorFilter,
     version_number: QueryTIDagVersionFilter,
     try_number: QueryTITryNumberFilter,
     operator: QueryTIOperatorFilter,
+    operator_name_pattern: QueryTIOperatorNamePatternSearch,
     map_index: QueryTIMapIndexFilter,
     limit: QueryLimit,
     offset: QueryOffset,
@@ -458,11 +481,7 @@ def get_task_instances(
     """
     dag_run = None
     query = (
-        select(TI)
-        .join(TI.dag_run)
-        .outerjoin(TI.dag_version)
-        .options(joinedload(TI.dag_version))
-        .options(joinedload(TI.dag_run).options(joinedload(DagRun.dag_model)))
+        select(TI).join(TI.dag_run).outerjoin(TI.dag_version).options(*eager_load_TI_and_TIH_for_validation())
     )
     if dag_run_id != "~":
         dag_run = session.scalar(select(DagRun).filter_by(run_id=dag_run_id))
@@ -473,8 +492,10 @@ def get_task_instances(
             )
         query = query.where(TI.run_id == dag_run_id)
     if dag_id != "~":
-        get_dag_for_run_or_latest_version(dag_bag, dag_run, dag_id, session)
+        dag = get_dag_for_run_or_latest_version(dag_bag, dag_run, dag_id, session)
         query = query.where(TI.dag_id == dag_id)
+        if dag:
+            task_group_id.dag = dag
 
     task_instance_select, total_entries = paginated_select(
         statement=query,
@@ -487,14 +508,20 @@ def get_task_instances(
             duration_range,
             state,
             pool,
+            pool_name_pattern,
             queue,
+            queue_name_pattern,
             executor,
             task_id,
             task_display_name_pattern,
+            task_group_id,
+            dag_id_pattern,
+            run_id_pattern,
             version_number,
             readable_ti_filter,
             try_number,
             operator,
+            operator_name_pattern,
             map_index,
         ],
         order_by=order_by,
@@ -526,9 +553,9 @@ def get_task_instances_batch(
     session: SessionDep,
 ) -> TaskInstanceCollectionResponse:
     """Get list of task instances."""
-    dag_ids = FilterParam(TI.dag_id, body.dag_ids, FilterOptionEnum.IN)
-    dag_run_ids = FilterParam(TI.run_id, body.dag_run_ids, FilterOptionEnum.IN)
-    task_ids = FilterParam(TI.task_id, body.task_ids, FilterOptionEnum.IN)
+    dag_ids = FilterParam(TI.dag_id, body.dag_ids, FilterOptionEnum.IN)  # type: ignore[arg-type]
+    dag_run_ids = FilterParam(TI.run_id, body.dag_run_ids, FilterOptionEnum.IN)  # type: ignore[arg-type]
+    task_ids = FilterParam(TI.task_id, body.task_ids, FilterOptionEnum.IN)  # type: ignore[arg-type]
     run_after = RangeFilter(
         Range(
             lower_bound_gte=body.run_after_gte,
@@ -536,7 +563,7 @@ def get_task_instances_batch(
             upper_bound_lte=body.run_after_lte,
             upper_bound_lt=body.run_after_lt,
         ),
-        attribute=TI.run_after,
+        attribute=DagRun.run_after,
     )
     logical_date = RangeFilter(
         Range(
@@ -545,7 +572,7 @@ def get_task_instances_batch(
             upper_bound_lte=body.logical_date_lte,
             upper_bound_lt=body.logical_date_lt,
         ),
-        attribute=TI.logical_date,
+        attribute=DagRun.logical_date,
     )
     start_date = RangeFilter(
         Range(
@@ -554,7 +581,7 @@ def get_task_instances_batch(
             upper_bound_lte=body.start_date_lte,
             upper_bound_lt=body.start_date_lt,
         ),
-        attribute=TI.start_date,
+        attribute=TI.start_date,  # type: ignore[arg-type]
     )
     end_date = RangeFilter(
         Range(
@@ -563,7 +590,7 @@ def get_task_instances_batch(
             upper_bound_lte=body.end_date_lte,
             upper_bound_lt=body.end_date_lt,
         ),
-        attribute=TI.end_date,
+        attribute=TI.end_date,  # type: ignore[arg-type]
     )
     duration = RangeFilter(
         Range(
@@ -572,12 +599,12 @@ def get_task_instances_batch(
             upper_bound_lte=body.duration_lte,
             upper_bound_lt=body.duration_lt,
         ),
-        attribute=TI.duration,
+        attribute=TI.duration,  # type: ignore[arg-type]
     )
-    state = FilterParam(TI.state, body.state, FilterOptionEnum.ANY_EQUAL)
-    pool = FilterParam(TI.pool, body.pool, FilterOptionEnum.ANY_EQUAL)
-    queue = FilterParam(TI.queue, body.queue, FilterOptionEnum.ANY_EQUAL)
-    executor = FilterParam(TI.executor, body.executor, FilterOptionEnum.ANY_EQUAL)
+    state = FilterParam(TI.state, body.state, FilterOptionEnum.ANY_EQUAL)  # type: ignore[arg-type]
+    pool = FilterParam(TI.pool, body.pool, FilterOptionEnum.ANY_EQUAL)  # type: ignore[arg-type]
+    queue = FilterParam(TI.queue, body.queue, FilterOptionEnum.ANY_EQUAL)  # type: ignore[arg-type]
+    executor = FilterParam(TI.executor, body.executor, FilterOptionEnum.ANY_EQUAL)  # type: ignore[arg-type]
 
     offset = OffsetFilter(body.page_offset)
     limit = LimitFilter(body.page_limit)
@@ -587,7 +614,9 @@ def get_task_instances_batch(
         TI,
     ).set_value([body.order_by] if body.order_by else None)
 
-    query = select(TI)
+    query = (
+        select(TI).join(TI.dag_run).outerjoin(TI.dag_version).options(*eager_load_TI_and_TIH_for_validation())
+    )
     task_instance_select, total_entries = paginated_select(
         statement=query,
         filters=[
@@ -640,12 +669,16 @@ def get_task_instance_try_details(
     """Get task instance details by try number."""
 
     def _query(orm_object: Base) -> TI | TIH | None:
-        query = select(orm_object).where(
-            orm_object.dag_id == dag_id,
-            orm_object.run_id == dag_run_id,
-            orm_object.task_id == task_id,
-            orm_object.try_number == task_try_number,
-            orm_object.map_index == map_index,
+        query = (
+            select(orm_object)
+            .where(
+                orm_object.dag_id == dag_id,
+                orm_object.run_id == dag_run_id,
+                orm_object.task_id == task_id,
+                orm_object.try_number == task_try_number,
+                orm_object.map_index == map_index,
+            )
+            .options(joinedload(orm_object.hitl_detail))
         )
 
         task_instance = session.scalar(query)
@@ -685,7 +718,7 @@ def get_mapped_task_instance_try_details(
 
 @task_instances_router.post(
     "/clearTaskInstances",
-    responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND]),
+    responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND, status.HTTP_409_CONFLICT]),
     dependencies=[
         Depends(action_logging()),
         Depends(requires_access_dag(method="PUT", access_entity=DagAccessEntity.TASK_INSTANCE)),
@@ -732,53 +765,88 @@ def post_clear_task_instances(
     if future:
         body.end_date = None
 
-    task_ids = body.task_ids
-    if task_ids is not None:
-        task_id = [task[0] if isinstance(task, tuple) else task for task in task_ids]
-        dag = dag.partial_subset(
-            task_ids=task_id,
-            include_downstream=downstream,
-            include_upstream=upstream,
-        )
+    if (task_markers_to_clear := body.task_ids) is not None:
+        mapped_tasks_tuples = {t for t in task_markers_to_clear if isinstance(t, tuple)}
+        # Unmapped tasks are expressed in their task_ids (without map_indexes)
+        normal_task_ids = {t for t in task_markers_to_clear if not isinstance(t, tuple)}
 
-        if len(dag.task_dict) > 1:
-            # If we had upstream/downstream etc then also include those!
-            task_ids.extend(tid for tid in dag.task_dict if tid != task_id)
+        def _collect_relatives(run_id: str, direction: Literal["upstream", "downstream"]) -> None:
+            from airflow.models.taskinstance import find_relevant_relatives
 
-    # Prepare common parameters
-    common_params = {
-        "dry_run": True,
-        "task_ids": task_ids,
-        "session": session,
-        "run_on_latest_version": body.run_on_latest_version,
-        "only_failed": body.only_failed,
-        "only_running": body.only_running,
-    }
+            relevant_relatives = find_relevant_relatives(
+                normal_task_ids,
+                mapped_tasks_tuples,
+                dag=dag,
+                run_id=run_id,
+                direction=direction,
+                session=session,
+            )
+            normal_task_ids.update(t for t in relevant_relatives if not isinstance(t, tuple))
+            mapped_tasks_tuples.update(t for t in relevant_relatives if isinstance(t, tuple))
+
+        # We can't easily calculate upstream/downstream map indexes when not
+        # working for a specific dag run. It's possible by looking at the runs
+        # one by one, but that is both resource-consuming and logically complex.
+        # So instead we'll just clear all the tis based on task ID and hope
+        # that's good enough for most cases.
+        if dag_run_id is None:
+            if upstream or downstream:
+                partial_dag = dag.partial_subset(
+                    task_ids=normal_task_ids.union(tid for tid, _ in mapped_tasks_tuples),
+                    include_downstream=downstream,
+                    include_upstream=upstream,
+                    exclude_original=True,
+                )
+                normal_task_ids.update(partial_dag.task_dict)
+        else:
+            if upstream:
+                _collect_relatives(dag_run_id, "upstream")
+            if downstream:
+                _collect_relatives(dag_run_id, "downstream")
+
+        task_markers_to_clear = [
+            *normal_task_ids,
+            *((t, m) for t, m in mapped_tasks_tuples if t not in normal_task_ids),
+        ]
 
     if dag_run_id is not None and not (past or future):
         # Use run_id-based clearing when we have a specific dag_run_id and not using past/future
         task_instances = dag.clear(
-            **common_params,
+            dry_run=True,
+            task_ids=task_markers_to_clear,
             run_id=dag_run_id,
+            session=session,
+            run_on_latest_version=body.run_on_latest_version,
+            only_failed=body.only_failed,
+            only_running=body.only_running,
         )
     else:
         # Use date-based clearing when no dag_run_id or when past/future is specified
         task_instances = dag.clear(
-            **common_params,
+            dry_run=True,
+            task_ids=task_markers_to_clear,
             start_date=body.start_date,
             end_date=body.end_date,
+            session=session,
+            run_on_latest_version=body.run_on_latest_version,
+            only_failed=body.only_failed,
+            only_running=body.only_running,
         )
 
     if not dry_run:
-        clear_task_instances(
-            task_instances,
-            session,
-            DagRunState.QUEUED if reset_dag_runs else False,
-            run_on_latest_version=body.run_on_latest_version,
-        )
+        try:
+            clear_task_instances(
+                task_instances,
+                session,
+                DagRunState.QUEUED if reset_dag_runs else False,
+                run_on_latest_version=body.run_on_latest_version,
+                prevent_running_task=body.prevent_running_task,
+            )
+        except AirflowClearRunningTaskException as e:
+            raise HTTPException(status.HTTP_409_CONFLICT, str(e)) from e
 
     return TaskInstanceCollectionResponse(
-        task_instances=task_instances,
+        task_instances=[TaskInstanceResponse.model_validate(ti) for ti in task_instances],
         total_entries=len(task_instances),
     )
 
@@ -900,11 +968,23 @@ def patch_task_instance(
 
     for key, _ in data.items():
         if key == "new_state":
+            # Create BulkTaskInstanceBody object with map_index field
+            bulk_ti_body = BulkTaskInstanceBody(
+                task_id=task_id,
+                map_index=map_index,
+                new_state=body.new_state,
+                note=body.note,
+                include_upstream=body.include_upstream,
+                include_downstream=body.include_downstream,
+                include_future=body.include_future,
+                include_past=body.include_past,
+            )
+
             _patch_task_instance_state(
                 task_id=task_id,
                 dag_run_id=dag_run_id,
                 dag=dag,
-                task_instance_body=body,
+                task_instance_body=bulk_ti_body,
                 data=data,
                 session=session,
             )

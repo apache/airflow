@@ -25,12 +25,14 @@ import os
 import sys
 import textwrap
 from datetime import datetime, timezone
+from unittest import mock
 
 import pytest
 import structlog
 from structlog.dev import BLUE, BRIGHT, CYAN, DIM, GREEN, MAGENTA, RESET_ALL as RESET
 from structlog.processors import CallsiteParameter
 
+from airflow_shared.logging import structlog as structlog_module
 from airflow_shared.logging.structlog import configure_logging
 
 # We don't want to use the caplog fixture in this test, as the main purpose of this file is to capture the
@@ -56,7 +58,10 @@ def structlog_config():
             else:
                 buff = io.StringIO()
 
-            configure_logging(**kwargs, output=buff)
+            with mock.patch("sys.stdout") as mock_stdout:
+                mock_stdout.isatty.return_value = True
+                configure_logging(**kwargs, output=buff)
+
             yield buff
             buff.seek(0)
         finally:
@@ -112,6 +117,48 @@ def test_colorful(structlog_config, get_logger, config_kwargs, extra_kwargs, ext
         f" {BRIGHT}Hello world                   {RESET}"
         f" [{RESET}{BRIGHT}{BLUE}my.logger{RESET}]{RESET}" + extra_output + "\n"
     )
+
+
+@pytest.mark.parametrize(
+    ("no_color", "force_color", "is_tty", "colors_param", "expected_colors"),
+    [
+        # NO_COLOR takes precedence over everything
+        pytest.param("1", "", True, True, False, id="no_color_set_tty_colors_true"),
+        pytest.param("1", "", True, False, False, id="no_color_set_tty_colors_false"),
+        pytest.param("1", "", False, True, False, id="no_color_set_no_tty_colors_true"),
+        pytest.param("1", "", False, False, False, id="no_color_set_no_tty_colors_false"),
+        pytest.param("1", "1", True, True, False, id="no_color_and_force_color_tty_colors_true"),
+        pytest.param("1", "1", True, False, False, id="no_color_and_force_color_tty_colors_false"),
+        pytest.param("1", "1", False, True, False, id="no_color_and_force_color_no_tty_colors_true"),
+        pytest.param("1", "1", False, False, False, id="no_color_and_force_color_no_tty_colors_false"),
+        # FORCE_COLOR takes precedence when NO_COLOR is not set
+        pytest.param("", "1", True, True, True, id="force_color_tty_colors_true"),
+        pytest.param("", "1", True, False, True, id="force_color_tty_colors_false"),
+        pytest.param("", "1", False, True, True, id="force_color_no_tty_colors_true"),
+        pytest.param("", "1", False, False, True, id="force_color_no_tty_colors_false"),
+        # When neither NO_COLOR nor FORCE_COLOR is set, check TTY and colors param
+        pytest.param("", "", True, True, True, id="tty_colors_true"),
+        pytest.param("", "", True, False, False, id="tty_colors_false"),
+        pytest.param("", "", False, True, False, id="no_tty_colors_true"),
+        pytest.param("", "", False, False, False, id="no_tty_colors_false"),
+    ],
+)
+def test_color_config(monkeypatch, no_color, force_color, is_tty, colors_param, expected_colors):
+    """Test all combinations of NO_COLOR, FORCE_COLOR, is_atty(), and colors parameter."""
+
+    monkeypatch.setenv("NO_COLOR", no_color)
+    monkeypatch.setenv("FORCE_COLOR", force_color)
+
+    with mock.patch("sys.stdout") as mock_stdout:
+        mock_stdout.isatty.return_value = is_tty
+
+        with mock.patch.object(structlog_module, "structlog_processors") as mock_processors:
+            mock_processors.return_value = ([], None, None)
+
+            structlog_module.configure_logging(colors=colors_param)
+
+            mock_processors.assert_called_once()
+            assert mock_processors.call_args.kwargs["colors"] == expected_colors
 
 
 @pytest.mark.parametrize(
@@ -295,7 +342,7 @@ def test_json_exc(structlog_config, get_logger, monkeypatch):
 
 
 @pytest.mark.parametrize(
-    ("levels",),
+    "levels",
     (
         pytest.param("my.logger=warn", id="str"),
         pytest.param({"my.logger": "warn"}, id="dict"),
@@ -306,7 +353,7 @@ def test_logger_filtering(structlog_config, levels):
         colors=False,
         log_format="[%(name)s] %(message)s",
         log_level="DEBUG",
-        log_levels=levels,
+        namespace_log_levels=levels,
     ) as sio:
         structlog.get_logger("my").info("Hello", key1="value1")
         structlog.get_logger("my.logger").info("Hello", key1="value2")

@@ -20,11 +20,61 @@
 Changelog
 ---------
 
+3.3.0
+.....
+
+.. note::
+    This release of provider is only available for Airflow 2.11+ as explained in the
+    Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/PROVIDERS.rst#minimum-supported-version-of-airflow-for-community-managed-providers>_.
+
+Misc
+~~~~
+
+* ``Bump minimum Airflow version in providers to Airflow 2.11.0 (#58612)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Updates to release process of providers (#58316)``
+
+3.2.5
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``fix(providers-weaviate): honor connection port for HTTP, add param tests (#57742)``
+
+Misc
+~~~~
+
+* ``Convert all airflow distributions to be compliant with ASF requirements (#58138)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Delete all unnecessary LICENSE Files (#58191)``
+   * ``Enable PT006 rule to 19 files in providers (airbyte, alibaba, atlassian, papermill, presto, redis, singularity, sqlite, tableau, vertica, weaviate, elasticsearch, exasol) (#57986)``
+   * ``Enable ruff PLW1641 rule (#57679)``
+
+3.2.4
+.....
+
+Misc
+~~~~
+
+* ``Migrate weaviate provider to ''common.compat'' (#57019)``
+
+Doc-only
+~~~~~~~~
+
+* ``Remove placeholder Release Date in changelog and index files (#56056)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Enable pt011 rule 1 (#55706)``
+
 3.2.3
 .....
 
-
-Release Date: ``|PypiReleaseDate|``
 
 Bug Fixes
 ~~~~~~~~~
@@ -34,8 +84,6 @@ Bug Fixes
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):
    * ``Switch pre-commit to prek (#54258)``
-
-.. Review and move the new changes to one of the sections above:
    * ``Fix Airflow 2 reference in README/index of providers (#55240)``
 
 3.2.2
@@ -226,7 +274,8 @@ Bug Fixes
 
 * ``Fix mypy problems in new weaviate client (#40330)``
 
-.. Review and move the new changes to one of the sections above:
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
    * ``fix two typos (#40670)``
    * ``Fix weaviate changelog to bring back 1.4.2 (#40663)``
    * ``Prepare docs 1st wave July 2024 (#40644)``
@@ -241,7 +290,8 @@ Misc
 * ``Add dependency to httpx >= 0.25.0 everywhere (#40256)``
 
 
-.. Review and move the new changes to one of the sections above:
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
    * ``Enable enforcing pydocstyle rule D213 in ruff. (#40448)``
    * ``Prepare docs 2nd wave June 2024 (#40273)``
    * ``implement per-provider tests with lowest-direct dependency resolution (#39946)``
@@ -338,8 +388,6 @@ Bug Fixes
 
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):
-
-.. Review and move the new changes to one of the sections above:
    * ``Speed up autocompletion of Breeze by simplifying provider state (#36499)``
    * ``Add documentation for 3rd wave of providers in Deember (#36464)``
 

@@ -29,6 +29,7 @@ from pathlib import Path
 
 import pendulum
 
+from airflow.providers.common.compat.sdk import TriggerRule
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.providers.standard.operators.python import (
     BranchExternalPythonOperator,
@@ -39,12 +40,6 @@ from airflow.providers.standard.operators.python import (
     PythonVirtualenvOperator,
 )
 from airflow.sdk import DAG, Label
-
-try:
-    from airflow.sdk import TriggerRule
-except ImportError:
-    # Compatibility for Airflow < 3.1
-    from airflow.utils.trigger_rule import TriggerRule  # type: ignore[no-redef,attr-defined]
 
 PATH_TO_PYTHON_BINARY = sys.executable
 

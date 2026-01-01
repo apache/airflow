@@ -27,10 +27,223 @@
 Changelog
 ---------
 
-1.2.0
+2.0.1
 .....
 
-Release Date: ``|PypiReleaseDate|``
+Misc
+~~~~
+
+* ``Bump the edge-ui-package-updates group across 1 directory with 19 updates (#59719)``
+* ``Add typescript eslint plugin to edge3 (#59606)``
+* ``Make Edge provider SQLA2 compatible (#59414)``
+* ``Pnpm upgrade to 10.x and prevent script execution (#59466)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Remove top-level SDK reference in Core (#59817)``
+
+2.0.0
+.....
+
+.. warning::
+    This release of the Edge3 provider drops support for Airflow versions below 3.0.0.
+
+    The support for Airflow 2.10-2.11 was experimental and GA for the provider is only for Airflow 3.0+.
+    Productive operation was not intended in Airflow 2.x, therefore the support for Airflow 2.x is now dropped
+    earlier than the usual release support policy would indicate.
+
+
+Breaking Changes
+~~~~~~~~~~~~~~~~
+
+* ``Drop Airflow 2 Support in Edge Provider (#59143)``
+
+Misc
+~~~~
+
+* ``Add backcompat for exceptions in providers (#58727)``
+* ``Move the traces and metrics code under a common observability package (#56187)``
+* ``Bump minimum prek version to 0.2.0 (#58952)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+1.6.0
+.....
+
+.. note::
+    This release of provider is only available for Airflow 2.11+ as explained in the
+    Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/PROVIDERS.rst#minimum-supported-version-of-airflow-for-community-managed-providers>_.
+
+Features
+~~~~~~~~
+
+* ``Send executor integration info in workload (#57800)``
+* ``Prevent duplicate edge workers unless existing worker is offline or unkown (#58586)``
+* ``Add multi-select state filter to worker page (#58505)``
+* ``Add queue name filtering to Edge Worker tab (#58416)``
+* ``Add search functionality to Edge Worker tab (#58331)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Use 'before_sleep_log' in retries of Edge Worker (#58480)``
+
+Misc
+~~~~
+
+* ``Bump the edge-ui-package-updates group across 1 directory with 8 updates (#58780)``
+* ``Move out some exceptions to TaskSDK (#54505)``
+* ``Bump minimum Airflow version in providers to Airflow 2.11.0 (#58612)``
+* ``Upgrade Edge TS dependencies (#58413)``
+* ``Fix lower bound dependency to common-compat provider (#58833)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Remove SDK reference for NOTSET in Airflow Core (#58258)``
+   * ``Prepare release for 2025-11-27 wave of providers (#58697)``
+
+1.5.0
+.....
+
+Features
+~~~~~~~~
+
+* `` Add push_logs configuration option to Edge executor (#58125)``
+
+Misc
+~~~~
+
+* ``Convert all airflow distributions to be compliant with ASF requirements (#58138)``
+* ``Bump the edge-ui-package-updates group across 1 directory with 19 updates (#58235)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Delete all unnecessary LICENSE Files (#58191)``
+   * ``Enable PT006 rule to 6 files in providers (edge3,git) (#58018)``
+   * ``Synchronize default versions in all split .pre-commit-config.yaml (#57851)``
+
+1.4.1
+.....
+
+.. warning::
+  The React Plugin integration in this release is incompatible with Airflow 3.1.0
+  It is recommended to use apache-airflow>=3.1.1
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix Link to Dag in Plugin (#55642)``
+* ``Bugfix/support Subpath w/o Execution API Url (#57372)``
+* ``Adjust authentication token after UI changes in Airflow 3.1.1 (#57370)``
+
+Misc
+~~~~
+
+* ``Bump vite from 7.1.7 to 7.1.11 in plugin integration (#56909)``
+* ``Bump happy-dom from 18.0.1 to 20.0.2 in plugin integration (#56686)``
+* ``Bump the edge-ui-package-updates group across 1 directory with 23 updates (#57286)``
+* ``Fix mypy warnings for SQLA2 migration (#56989)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Extract prek hooks for Edge provider (#57104)``
+   * ``Prepare edge3 provider ad-hoc release (October 2025) (#57280)``
+   * ``Enable ruff PLW1508 rule (#57653)``
+   * ``Fix code formatting via ruff preview (#57641)``
+   * ``Prepare edge3 provider ad-hoc release rc2 (October 2025) (#57538)``
+
+1.4.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Introduce generic Callbacks to support running callbacks on executors (#54796)``
+* ``Add revoke_task implementation to EdgeExecutor for task queued timeout support (#56240)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Bugfix/remove airflow utils deprecations in edge (#56568)``
+* ``Fix Edge3 provider navigation with webserver base_url configuration (#56189)``
+
+Misc
+~~~~
+
+* ``Migrate edge3 provider to ''common.compat'' (#56998)``
+* ``SQLA2: Partially fix type hints in the edge3 provider (#56873)``
+
+Doc-only
+~~~~~~~~
+
+* ``Correct 'Dag' to 'DAG' for code snippets in provider docs (#56727)``
+* ``Revise details of edge documentation after Airflow 3.1 release (#56166)``
+* ``Remove placeholder Release Date in changelog and index files (#56056)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Common.Compat: Extract reusable compat utilities and rename to sdk (#56884)``
+   * ``Enable PT011 rule to prvoider tests (#56277)``
+
+1.3.1
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Regenerate the rest API spec to fix CI (#55986)``
+* ``build(open-api): regenerate open api spec (#55931)``
+
+Misc
+~~~~
+
+* ``Bump Edge UI packages (#56016)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+1.3.0
+.....
+
+
+Features
+~~~~~~~~
+
+* ``Add Color Scheme to all Operations Buttons in Edge React UI (#55637)``
+* ``Add shutdown-all-workers command to Edge CLI (#55626)``
+* ``add yellow hover background to enter maintenance icon (#55631)``
+* ``Add queue management UI buttons for Edge workers (#55625)``
+* ``Add Worker Maintenance Comment Change to React UI (#55547)``
+* ``feat: Add delete button for offline edge workers (#55529)``
+* ``feat: Add shutdown button for edge workers with confirmation dialog (#55513)``
+* ``Add confirmation dialog for exit maintenance action in Edge Worker Page (#55400)``
+* ``Add Links to Edge React UI (#55356)``
+* ``Feature/edge maintenance plugin beautification (#55348)``
+* ``Add worker maintenance mode functionality to Edge3 provider UI (#55301)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix EdgeWorker multiprocessing pickle error on Windows (#55284)``
+
+Misc
+~~~~
+
+* ``Pick/vite vitest full (#55623)``
+* ``Bump React and React-DOM (#55598)``
+* ``Bump axios from 1.11.0 to 1.12.0 in plugin integration (#55550)``
+* ``Some small UI polishing for Edge React UI (#55545)``
+* ``Adjust Edge color scheme after merge of PR 53981 (#55485)``
+* ``Bump vite from 5.4.19 to 5.4.20 in plugin integration (#55449)``
+
+Doc-only
+~~~~~~~~
+
+* ``Update docs for new Airflow 3.1 UI Plugins (#55654)``
+
+1.2.0
+.....
 
 Features
 ~~~~~~~~

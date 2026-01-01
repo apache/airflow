@@ -32,27 +32,38 @@ from airflow.providers.google.cloud.operators.cloud_logging_sink import (
     CloudLoggingListSinksOperator,
     CloudLoggingUpdateSinkOperator,
 )
+from airflow.providers.google.cloud.operators.gcs import GCSCreateBucketOperator, GCSDeleteBucketOperator
+
+try:
+    from airflow.sdk import TriggerRule
+except ImportError:
+    # Compatibility for Airflow < 3.1
+    from airflow.utils.trigger_rule import TriggerRule  # type: ignore[no-redef,attr-defined]
 
 PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT", "default")
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID", "default")
+DAG_ID = "gcp_cloud_logging_sink"
+BUCKET_NAME = f"bucket_{DAG_ID}_{ENV_ID}"
 
 SINK_NAME = "example-airflow-test-sink"
 CONN_ID = "google_cloud_default"
 
 with DAG(
-    dag_id="google_cloud_logging_sink",
+    dag_id=DAG_ID,
     schedule="@once",
     start_date=datetime(2024, 1, 1),
     catchup=False,
     tags=["example", "gcp", "cloud-logging"],
 ) as dag:
+    create_bucket = GCSCreateBucketOperator(task_id="create_bucket", bucket_name=BUCKET_NAME)
+
     # [START howto_operator_cloud_logging_create_sink_native_obj]
     create_sink = CloudLoggingCreateSinkOperator(
         task_id="create_sink",
         project_id=PROJECT_ID,
         sink_config={
             "name": SINK_NAME,
-            "destination": "storage.googleapis.com/test-log-sink-af",
+            "destination": f"storage.googleapis.com/{BUCKET_NAME}",
             "description": "Create with full sink_config",
             "filter": "severity>=INFO",
             "disabled": False,
@@ -110,7 +121,11 @@ with DAG(
     )
     # [END howto_operator_cloud_logging_delete_sink]
 
-    (create_sink >> update_sink_config >> list_sinks_after >> delete_sink)
+    delete_bucket = GCSDeleteBucketOperator(
+        task_id="delete_bucket", bucket_name=BUCKET_NAME, trigger_rule=TriggerRule.ALL_DONE
+    )
+
+    (create_bucket >> create_sink >> update_sink_config >> list_sinks_after >> delete_sink >> delete_bucket)
 
     from tests_common.test_utils.watcher import watcher
 

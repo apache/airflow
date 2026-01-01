@@ -23,6 +23,7 @@ import itertools
 import os
 import selectors
 import time
+import typing
 from collections.abc import AsyncIterator
 from socket import socket
 from typing import TYPE_CHECKING, Any
@@ -37,6 +38,8 @@ from airflow._shared.timezones import timezone
 from airflow.executors import workloads
 from airflow.jobs.job import Job
 from airflow.jobs.triggerer_job_runner import (
+    ToTriggerRunner,
+    ToTriggerSupervisor,
     TriggerCommsDecoder,
     TriggererJobRunner,
     TriggerRunner,
@@ -56,6 +59,7 @@ from airflow.providers.standard.operators.python import PythonOperator
 from airflow.providers.standard.triggers.file import FileDeleteTrigger
 from airflow.providers.standard.triggers.temporal import DateTimeTrigger, TimeDeltaTrigger
 from airflow.sdk import BaseHook, BaseOperator
+from airflow.sdk.execution_time.comms import ToSupervisor, ToTask
 from airflow.serialization.serialized_objects import LazyDeserializedDAG
 from airflow.triggers.base import BaseTrigger, TriggerEvent
 from airflow.triggers.testing import FailureTrigger, SuccessTrigger
@@ -176,7 +180,7 @@ def test_capacity_decode():
     ]
     for input_str in variants:
         job = Job()
-        with pytest.raises(ValueError):
+        with pytest.raises(ValueError, match=r"Capacity number .+ is invalid"):
             TriggererJobRunner(job=job, capacity=input_str)
 
 
@@ -275,7 +279,7 @@ def test_trigger_lifecycle(spy_agency: SpyAgency, session, testing_dag_bundle):
 
 
 @pytest.mark.parametrize(
-    "trigger, watcher_count, trigger_count",
+    ("trigger", "watcher_count", "trigger_count"),
     [
         (TimeDeltaTrigger(datetime.timedelta(days=7)), 0, 1),
         (FileDeleteTrigger("/tmp/foo.txt", poke_interval=1), 1, 0),
@@ -302,31 +306,33 @@ def test_trigger_log(mock_monotonic, trigger, watcher_count, trigger_count, sess
 
 
 class TestTriggerRunner:
-    @pytest.mark.asyncio
-    async def test_run_inline_trigger_canceled(self, session) -> None:
+    def test_run_inline_trigger_canceled(self, session) -> None:
         trigger_runner = TriggerRunner()
         trigger_runner.triggers = {
-            1: {"task": MagicMock(spec=asyncio.Task), "name": "mock_name", "events": 0}
+            1: {"task": MagicMock(spec=asyncio.Task), "is_watcher": False, "name": "mock_name", "events": 0}
         }
         mock_trigger = MagicMock(spec=BaseTrigger)
         mock_trigger.timeout_after = None
         mock_trigger.run.side_effect = asyncio.CancelledError()
 
         with pytest.raises(asyncio.CancelledError):
-            await trigger_runner.run_trigger(1, mock_trigger)
+            asyncio.run(trigger_runner.run_trigger(1, mock_trigger))
 
-    @pytest.mark.asyncio
-    async def test_run_inline_trigger_timeout(self, session, cap_structlog) -> None:
+    # @pytest.mark.asyncio
+    def test_run_inline_trigger_timeout(self, session, cap_structlog) -> None:
         trigger_runner = TriggerRunner()
         trigger_runner.triggers = {
-            1: {"task": MagicMock(spec=asyncio.Task), "name": "mock_name", "events": 0}
+            1: {"task": MagicMock(spec=asyncio.Task), "is_watcher": False, "name": "mock_name", "events": 0}
         }
         mock_trigger = MagicMock(spec=BaseTrigger)
-        mock_trigger.timeout_after = timezone.utcnow() - datetime.timedelta(hours=1)
         mock_trigger.run.side_effect = asyncio.CancelledError()
 
         with pytest.raises(asyncio.CancelledError):
-            await trigger_runner.run_trigger(1, mock_trigger)
+            asyncio.run(
+                trigger_runner.run_trigger(
+                    1, mock_trigger, timeout_after=timezone.utcnow() - datetime.timedelta(hours=1)
+                )
+            )
         assert {"event": "Trigger cancelled due to timeout", "log_level": "error"} in cap_structlog
 
     @patch("airflow.jobs.triggerer_job_runner.Trigger._decrypt_kwargs")
@@ -915,7 +921,7 @@ class CustomTriggerDagRun(BaseTrigger):
 
 
 @pytest.mark.asyncio
-@pytest.mark.execution_timeout(10)
+@pytest.mark.execution_timeout(20)
 async def test_trigger_can_fetch_trigger_dag_run_count_and_state_in_deferrable(session, dag_maker):
     """Checks that the trigger will successfully fetch the count of trigger DAG runs."""
     # Create the test DAG and task
@@ -1006,7 +1012,7 @@ class CustomTriggerWorkflowStateTrigger(BaseTrigger):
 
 
 @pytest.mark.asyncio
-@pytest.mark.execution_timeout(10)
+@pytest.mark.execution_timeout(20)
 async def test_trigger_can_fetch_dag_run_count_ti_count_in_deferrable(session, dag_maker):
     """Checks that the trigger will successfully fetch the count of DAG runs, Task count and task states."""
     # Create the test DAG and task
@@ -1135,3 +1141,120 @@ def test_update_triggers_prevents_duplicate_creation_queue_entries_with_multiple
     trigger_ids = {trigger.id for trigger in supervisor.creating_triggers}
     assert trigger_orm1.id in trigger_ids
     assert trigger_orm2.id in trigger_ids
+
+
+def test_update_triggers_skips_when_ti_has_no_dag_version(session, supervisor_builder, dag_maker):
+    """
+    Ensure supervisor skips creating a trigger when the linked TaskInstance has no dag_version_id.
+    """
+    with dag_maker(dag_id="test_no_dag_version"):
+        EmptyOperator(task_id="t1")
+    dr = dag_maker.create_dagrun()
+    ti = dr.task_instances[0]
+
+    # Create a Trigger and link it to the TaskInstance
+    trigger = TimeDeltaTrigger(datetime.timedelta(days=7))
+    trigger_orm = Trigger.from_object(trigger)
+    session.add(trigger_orm)
+    session.flush()
+
+    ti.trigger_id = trigger_orm.id
+    # Explicitly remove dag_version_id
+    ti.dag_version_id = None
+    session.merge(ti)
+    session.commit()
+
+    supervisor = supervisor_builder()
+
+    # Attempt to enqueue creation of this trigger
+    supervisor.update_triggers({trigger_orm.id})
+
+    # Assert that nothing was queued for creation and no subprocess writes happened
+    assert len(supervisor.creating_triggers) == 0
+    assert trigger_orm.id not in supervisor.running_triggers
+    supervisor.stdin.write.assert_not_called()
+
+
+class TestTriggererMessageTypes:
+    def test_message_types_in_triggerer(self):
+        """
+        Test that ToSupervisor is a superset of ToTriggerSupervisor and ToTask is a superset of ToTriggerRunner.
+
+        This test ensures that when new message types are added to ToSupervisor or ToTask,
+        they are also properly handled in ToTriggerSupervisor and ToTriggerSupervisor.
+        """
+
+        def get_type_names(union_type):
+            union_args = typing.get_args(union_type.__args__[0])
+            return {arg.__name__ for arg in union_args}
+
+        supervisor_types = get_type_names(ToSupervisor)
+        task_types = get_type_names(ToTask)
+
+        trigger_supervisor_types = get_type_names(ToTriggerSupervisor)
+        trigger_runner_types = get_type_names(ToTriggerRunner)
+
+        in_supervisor_but_not_in_trigger_supervisor = {
+            "DeferTask",
+            "GetAssetByName",
+            "GetAssetByUri",
+            "GetAssetEventByAsset",
+            "GetAssetEventByAssetAlias",
+            "GetDagRun",
+            "GetPrevSuccessfulDagRun",
+            "GetPreviousDagRun",
+            "GetTaskBreadcrumbs",
+            "GetTaskRescheduleStartDate",
+            "GetXComCount",
+            "GetXComSequenceItem",
+            "GetXComSequenceSlice",
+            "RescheduleTask",
+            "RetryTask",
+            "SetRenderedFields",
+            "SkipDownstreamTasks",
+            "SucceedTask",
+            "ValidateInletsAndOutlets",
+            "TaskState",
+            "TriggerDagRun",
+            "ResendLoggingFD",
+            "CreateHITLDetailPayload",
+            "SetRenderedMapIndex",
+        }
+
+        in_task_but_not_in_trigger_runner = {
+            "AssetResult",
+            "AssetEventsResult",
+            "DagRunResult",
+            "SentFDs",
+            "StartupDetails",
+            "TaskBreadcrumbsResult",
+            "TaskRescheduleStartDate",
+            "InactiveAssetsResult",
+            "CreateHITLDetailPayload",
+            "PrevSuccessfulDagRunResult",
+            "XComCountResponse",
+            "XComSequenceIndexResult",
+            "XComSequenceSliceResult",
+            "PreviousDagRunResult",
+            "PreviousTIResult",
+            "HITLDetailRequestResult",
+        }
+
+        supervisor_diff = (
+            supervisor_types - trigger_supervisor_types - in_supervisor_but_not_in_trigger_supervisor
+        )
+        task_diff = task_types - trigger_runner_types - in_task_but_not_in_trigger_runner
+
+        assert not supervisor_diff, (
+            f"New message types in ToSupervisor not handled in ToTriggerSupervisor: "
+            f"{len(supervisor_diff)} types found:\n"
+            + "\n".join(f"  - {t}" for t in sorted(supervisor_diff))
+            + "\n\nEither handle these types in ToTriggerSupervisor or update in_supervisor_but_not_in_trigger_supervisor list."
+        )
+
+        assert not task_diff, (
+            f"New message types in ToTask not handled in ToTriggerRunner: "
+            f"{len(task_diff)} types found:\n"
+            + "\n".join(f"  - {t}" for t in sorted(task_diff))
+            + "\n\nEither handle these types in ToTriggerRunner or update in_task_but_not_in_trigger_runner list."
+        )

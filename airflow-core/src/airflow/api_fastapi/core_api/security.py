@@ -19,14 +19,18 @@ from __future__ import annotations
 from collections.abc import Callable
 from pathlib import Path
 from typing import TYPE_CHECKING, Annotated, cast
-from urllib.parse import ParseResult, urljoin, urlparse
+from urllib.parse import ParseResult, unquote, urljoin, urlparse
 
 from fastapi import Depends, HTTPException, Request, status
-from fastapi.security import HTTPBearer, OAuth2PasswordBearer
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer, OAuth2PasswordBearer
 from jwt import ExpiredSignatureError, InvalidTokenError
 from pydantic import NonNegativeInt
 
 from airflow.api_fastapi.app import get_auth_manager
+from airflow.api_fastapi.auth.managers.base_auth_manager import (
+    COOKIE_NAME_JWT_TOKEN,
+    BaseAuthManager,
+)
 from airflow.api_fastapi.auth.managers.models.base_user import BaseUser
 from airflow.api_fastapi.auth.managers.models.batch_apis import (
     IsAuthorizedConnectionRequest,
@@ -46,7 +50,14 @@ from airflow.api_fastapi.auth.managers.models.resource_details import (
     VariableDetails,
 )
 from airflow.api_fastapi.core_api.base import OrmClause
-from airflow.api_fastapi.core_api.datamodels.common import BulkAction, BulkBody
+from airflow.api_fastapi.core_api.datamodels.common import (
+    BulkAction,
+    BulkActionOnExistence,
+    BulkBody,
+    BulkCreateAction,
+    BulkDeleteAction,
+    BulkUpdateAction,
+)
 from airflow.api_fastapi.core_api.datamodels.connections import ConnectionBody
 from airflow.api_fastapi.core_api.datamodels.pools import PoolBody
 from airflow.api_fastapi.core_api.datamodels.variables import VariableBody
@@ -55,13 +66,26 @@ from airflow.models import Connection, Pool, Variable
 from airflow.models.dag import DagModel, DagRun, DagTag
 from airflow.models.dagwarning import DagWarning
 from airflow.models.taskinstance import TaskInstance as TI
+from airflow.models.team import Team
 from airflow.models.xcom import XComModel
 
 if TYPE_CHECKING:
-    from fastapi.security import HTTPAuthorizationCredentials
     from sqlalchemy.sql import Select
 
-    from airflow.api_fastapi.auth.managers.base_auth_manager import BaseAuthManager, ResourceMethod
+    from airflow.api_fastapi.auth.managers.base_auth_manager import ResourceMethod
+
+
+def auth_manager_from_app(request: Request) -> BaseAuthManager:
+    """
+    FastAPI dependency resolver that returns the shared AuthManager instance from app.state.
+
+    This ensures that all API routes using AuthManager via dependency injection receive the same
+    singleton instance that was initialized at app startup.
+    """
+    return request.app.state.auth_manager
+
+
+AuthManagerDep = Annotated[BaseAuthManager, Depends(auth_manager_from_app)]
 
 auth_description = (
     "To authenticate Airflow API requests, clients must include a JWT (JSON Web Token) in "
@@ -96,14 +120,22 @@ async def resolve_user_from_token(token_str: str | None) -> BaseUser:
 
 
 async def get_user(
+    request: Request,
     oauth_token: str | None = Depends(oauth2_scheme),
     bearer_credentials: HTTPAuthorizationCredentials | None = Depends(bearer_scheme),
 ) -> BaseUser:
-    token_str = None
+    # A user might have been already built by a middleware, if so, it is stored in `request.state.user`
+    user: BaseUser | None = getattr(request.state, "user", None)
+    if user:
+        return user
+
+    token_str: str | None
     if bearer_credentials and bearer_credentials.scheme.lower() == "bearer":
         token_str = bearer_credentials.credentials
     elif oauth_token:
         token_str = oauth_token
+    else:
+        token_str = request.cookies.get(COOKIE_NAME_JWT_TOKEN)
 
     return await resolve_user_from_token(token_str)
 
@@ -138,47 +170,48 @@ class PermittedDagFilter(OrmClause[set[str]]):
     """A parameter that filters the permitted dags for the user."""
 
     def to_orm(self, select: Select) -> Select:
-        return select.where(DagModel.dag_id.in_(self.value))
+        # self.value may be None (OrmClause holds Optional), ensure we pass an Iterable to in_
+        return select.where(DagModel.dag_id.in_(self.value or set()))
 
 
 class PermittedDagRunFilter(PermittedDagFilter):
     """A parameter that filters the permitted dag runs for the user."""
 
     def to_orm(self, select: Select) -> Select:
-        return select.where(DagRun.dag_id.in_(self.value))
+        return select.where(DagRun.dag_id.in_(self.value or set()))
 
 
 class PermittedDagWarningFilter(PermittedDagFilter):
     """A parameter that filters the permitted dag warnings for the user."""
 
     def to_orm(self, select: Select) -> Select:
-        return select.where(DagWarning.dag_id.in_(self.value))
+        return select.where(DagWarning.dag_id.in_(self.value or set()))
 
 
 class PermittedTIFilter(PermittedDagFilter):
     """A parameter that filters the permitted task instances for the user."""
 
     def to_orm(self, select: Select) -> Select:
-        return select.where(TI.dag_id.in_(self.value))
+        return select.where(TI.dag_id.in_(self.value or set()))
 
 
 class PermittedXComFilter(PermittedDagFilter):
     """A parameter that filters the permitted XComs for the user."""
 
     def to_orm(self, select: Select) -> Select:
-        return select.where(XComModel.dag_id.in_(self.value))
+        return select.where(XComModel.dag_id.in_(self.value or set()))
 
 
 class PermittedTagFilter(PermittedDagFilter):
     """A parameter that filters the permitted dag tags for the user."""
 
     def to_orm(self, select: Select) -> Select:
-        return select.where(DagTag.dag_id.in_(self.value))
+        return select.where(DagTag.dag_id.in_(self.value or set()))
 
 
 def permitted_dag_filter_factory(
     method: ResourceMethod, filter_class=PermittedDagFilter
-) -> Callable[[Request, BaseUser], PermittedDagFilter]:
+) -> Callable[[BaseUser, BaseAuthManager], PermittedDagFilter]:
     """
     Create a callable for Depends in FastAPI that returns a filter of the permitted dags for the user.
 
@@ -187,10 +220,9 @@ def permitted_dag_filter_factory(
     """
 
     def depends_permitted_dags_filter(
-        request: Request,
         user: GetUserDep,
+        auth_manager: AuthManagerDep,
     ) -> PermittedDagFilter:
-        auth_manager: BaseAuthManager = request.app.state.auth_manager
         authorized_dags: set[str] = auth_manager.get_authorized_dag_ids(user=user, method=method)
         return filter_class(authorized_dags)
 
@@ -237,12 +269,12 @@ class PermittedPoolFilter(OrmClause[set[str]]):
     """A parameter that filters the permitted pools for the user."""
 
     def to_orm(self, select: Select) -> Select:
-        return select.where(Pool.pool.in_(self.value))
+        return select.where(Pool.pool.in_(self.value or set()))
 
 
 def permitted_pool_filter_factory(
     method: ResourceMethod,
-) -> Callable[[Request, BaseUser], PermittedPoolFilter]:
+) -> Callable[[BaseUser, BaseAuthManager], PermittedPoolFilter]:
     """
     Create a callable for Depends in FastAPI that returns a filter of the permitted pools for the user.
 
@@ -250,10 +282,9 @@ def permitted_pool_filter_factory(
     """
 
     def depends_permitted_pools_filter(
-        request: Request,
         user: GetUserDep,
+        auth_manager: AuthManagerDep,
     ) -> PermittedPoolFilter:
-        auth_manager: BaseAuthManager = request.app.state.auth_manager
         authorized_pools: set[str] = auth_manager.get_authorized_pools(user=user, method=method)
         return PermittedPoolFilter(authorized_pools)
 
@@ -297,6 +328,7 @@ def requires_access_pool_bulk() -> Callable[[BulkBody[PoolBody], BaseUser], None
 
         requests: list[IsAuthorizedPoolRequest] = []
         for action in request.actions:
+            methods = _get_resource_methods_from_bulk_request(action)
             for pool in action.entities:
                 pool_name = (
                     cast("str", pool) if action.action == BulkAction.DELETE else cast("PoolBody", pool).pool
@@ -304,14 +336,15 @@ def requires_access_pool_bulk() -> Callable[[BulkBody[PoolBody], BaseUser], None
                 # For each pool, build a `IsAuthorizedPoolRequest`
                 # The list of `IsAuthorizedPoolRequest` will then be sent using `batch_is_authorized_pool`
                 # Each `IsAuthorizedPoolRequest` is similar to calling `is_authorized_pool`
-                req: IsAuthorizedPoolRequest = {
-                    "method": MAP_BULK_ACTION_TO_AUTH_METHOD[action.action],
-                    "details": PoolDetails(
-                        name=pool_name,
-                        team_name=pool_name_to_team.get(pool_name),
-                    ),
-                }
-                requests.append(req)
+                for method in methods:
+                    req: IsAuthorizedPoolRequest = {
+                        "method": method,
+                        "details": PoolDetails(
+                            name=pool_name,
+                            team_name=pool_name_to_team.get(pool_name),
+                        ),
+                    }
+                    requests.append(req)
 
         _requires_access(
             # By calling `batch_is_authorized_pool`, we check the user has access to all pools provided in the request
@@ -328,12 +361,12 @@ class PermittedConnectionFilter(OrmClause[set[str]]):
     """A parameter that filters the permitted connections for the user."""
 
     def to_orm(self, select: Select) -> Select:
-        return select.where(Connection.conn_id.in_(self.value))
+        return select.where(Connection.conn_id.in_(self.value or set()))
 
 
 def permitted_connection_filter_factory(
     method: ResourceMethod,
-) -> Callable[[Request, BaseUser], PermittedConnectionFilter]:
+) -> Callable[[BaseUser, BaseAuthManager], PermittedConnectionFilter]:
     """
     Create a callable for Depends in FastAPI that returns a filter of the permitted connections for the user.
 
@@ -341,10 +374,9 @@ def permitted_connection_filter_factory(
     """
 
     def depends_permitted_connections_filter(
-        request: Request,
         user: GetUserDep,
+        auth_manager: AuthManagerDep,
     ) -> PermittedConnectionFilter:
-        auth_manager: BaseAuthManager = request.app.state.auth_manager
         authorized_connections: set[str] = auth_manager.get_authorized_connections(user=user, method=method)
         return PermittedConnectionFilter(authorized_connections)
 
@@ -394,6 +426,7 @@ def requires_access_connection_bulk() -> Callable[[BulkBody[ConnectionBody], Bas
 
         requests: list[IsAuthorizedConnectionRequest] = []
         for action in request.actions:
+            methods = _get_resource_methods_from_bulk_request(action)
             for connection in action.entities:
                 connection_id = (
                     cast("str", connection)
@@ -403,14 +436,15 @@ def requires_access_connection_bulk() -> Callable[[BulkBody[ConnectionBody], Bas
                 # For each pool, build a `IsAuthorizedConnectionRequest`
                 # The list of `IsAuthorizedConnectionRequest` will then be sent using `batch_is_authorized_connection`
                 # Each `IsAuthorizedConnectionRequest` is similar to calling `is_authorized_connection`
-                req: IsAuthorizedConnectionRequest = {
-                    "method": MAP_BULK_ACTION_TO_AUTH_METHOD[action.action],
-                    "details": ConnectionDetails(
-                        conn_id=connection_id,
-                        team_name=conn_id_to_team.get(connection_id),
-                    ),
-                }
-                requests.append(req)
+                for method in methods:
+                    req: IsAuthorizedConnectionRequest = {
+                        "method": method,
+                        "details": ConnectionDetails(
+                            conn_id=connection_id,
+                            team_name=conn_id_to_team.get(connection_id),
+                        ),
+                    }
+                    requests.append(req)
 
         _requires_access(
             # By calling `batch_is_authorized_connection`, we check the user has access to all connections provided in the request
@@ -441,16 +475,39 @@ def requires_access_configuration(method: ResourceMethod) -> Callable[[Request, 
     return inner
 
 
+class PermittedTeamFilter(OrmClause[set[str]]):
+    """A parameter that filters the permitted teams for the user."""
+
+    def to_orm(self, select: Select) -> Select:
+        return select.where(Team.name.in_(self.value or set()))
+
+
+def permitted_team_filter_factory() -> Callable[[BaseUser, BaseAuthManager], PermittedTeamFilter]:
+    """Create a callable for Depends in FastAPI that returns a filter of the permitted teams for the user."""
+
+    def depends_permitted_teams_filter(
+        user: GetUserDep,
+        auth_manager: AuthManagerDep,
+    ) -> PermittedTeamFilter:
+        authorized_teams: set[str] = auth_manager.get_authorized_teams(user=user, method="GET")
+        return PermittedTeamFilter(authorized_teams)
+
+    return depends_permitted_teams_filter
+
+
+ReadableTeamsFilterDep = Annotated[PermittedTeamFilter, Depends(permitted_team_filter_factory())]
+
+
 class PermittedVariableFilter(OrmClause[set[str]]):
     """A parameter that filters the permitted variables for the user."""
 
     def to_orm(self, select: Select) -> Select:
-        return select.where(Variable.key.in_(self.value))
+        return select.where(Variable.key.in_(self.value or set()))
 
 
 def permitted_variable_filter_factory(
     method: ResourceMethod,
-) -> Callable[[Request, BaseUser], PermittedVariableFilter]:
+) -> Callable[[BaseUser, BaseAuthManager], PermittedVariableFilter]:
     """
     Create a callable for Depends in FastAPI that returns a filter of the permitted variables for the user.
 
@@ -458,10 +515,9 @@ def permitted_variable_filter_factory(
     """
 
     def depends_permitted_variables_filter(
-        request: Request,
         user: GetUserDep,
+        auth_manager: AuthManagerDep,
     ) -> PermittedVariableFilter:
-        auth_manager: BaseAuthManager = request.app.state.auth_manager
         authorized_variables: set[str] = auth_manager.get_authorized_variables(user=user, method=method)
         return PermittedVariableFilter(authorized_variables)
 
@@ -507,6 +563,7 @@ def requires_access_variable_bulk() -> Callable[[BulkBody[VariableBody], BaseUse
 
         requests: list[IsAuthorizedVariableRequest] = []
         for action in request.actions:
+            methods = _get_resource_methods_from_bulk_request(action)
             for variable in action.entities:
                 variable_key = (
                     cast("str", variable)
@@ -516,14 +573,15 @@ def requires_access_variable_bulk() -> Callable[[BulkBody[VariableBody], BaseUse
                 # For each variable, build a `IsAuthorizedVariableRequest`
                 # The list of `IsAuthorizedVariableRequest` will then be sent using `batch_is_authorized_variable`
                 # Each `IsAuthorizedVariableRequest` is similar to calling `is_authorized_variable`
-                req: IsAuthorizedVariableRequest = {
-                    "method": MAP_BULK_ACTION_TO_AUTH_METHOD[action.action],
-                    "details": VariableDetails(
-                        key=variable_key,
-                        team_name=var_key_to_team.get(variable_key),
-                    ),
-                }
-                requests.append(req)
+                for method in methods:
+                    req: IsAuthorizedVariableRequest = {
+                        "method": method,
+                        "details": VariableDetails(
+                            key=variable_key,
+                            team_name=var_key_to_team.get(variable_key),
+                        ),
+                    }
+                    requests.append(req)
 
         _requires_access(
             # By calling `batch_is_authorized_variable`, we check the user has access to all variables provided in the request
@@ -623,7 +681,7 @@ def is_safe_url(target_url: str, request: Request | None = None) -> bool:
         return True
 
     for base_url, parsed_base in parsed_bases:
-        parsed_target = urlparse(urljoin(base_url, target_url))  # Resolves relative URLs
+        parsed_target = urlparse(urljoin(base_url, unquote(target_url)))  # Resolves relative URLs
 
         target_path = Path(parsed_target.path).resolve()
 
@@ -633,3 +691,15 @@ def is_safe_url(target_url: str, request: Request | None = None) -> bool:
         if parsed_target.scheme in {"http", "https"} and parsed_target.netloc == parsed_base.netloc:
             return True
     return False
+
+
+def _get_resource_methods_from_bulk_request(
+    action: BulkCreateAction | BulkUpdateAction | BulkDeleteAction,
+) -> list[ResourceMethod]:
+    resource_methods: list[ResourceMethod] = [MAP_BULK_ACTION_TO_AUTH_METHOD[action.action]]
+    # If ``action_on_existence`` == ``overwrite``, we need to check the user has ``PUT`` access as well.
+    # With ``action_on_existence`` == ``overwrite``, a create request is actually an update request if the
+    # resource already exists, hence adding this check.
+    if action.action == BulkAction.CREATE and action.action_on_existence == BulkActionOnExistence.OVERWRITE:
+        resource_methods.append("PUT")
+    return resource_methods

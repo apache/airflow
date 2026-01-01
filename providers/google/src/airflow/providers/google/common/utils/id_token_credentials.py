@@ -35,12 +35,11 @@ import json
 import os
 from typing import TYPE_CHECKING
 
-import google.auth.transport
 from google.auth import credentials as google_auth_credentials, environment_vars, exceptions
 from google.oauth2 import credentials as oauth2_credentials, service_account
 
 if TYPE_CHECKING:
-    import google.oauth2
+    import google.auth.transport
 
 # Valid types accepted for file-based credentials.
 # They are taken  from "google.auth._default" and since they are all "protected" and the imports might

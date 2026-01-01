@@ -20,8 +20,7 @@
       "all": "सभी",
       "paused": "रोका गया"
     },
-    "runIdPatternFilter": "डैग रन्स खोजें",
-    "triggeringUserNameFilter": "ट्रिगर करने वाले उपयोगकर्ता द्वारा खोजें"
+    "runIdPatternFilter": "डैग रन्स खोजें"
   },
   "ownerLink": "{{owner}} के लिए स्वामी लिंक",
   "runAndTaskActions": {

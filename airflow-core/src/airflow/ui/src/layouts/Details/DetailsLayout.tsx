@@ -23,19 +23,24 @@ import type { PropsWithChildren, ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import { FaChevronLeft, FaChevronRight } from "react-icons/fa";
 import { LuFileWarning } from "react-icons/lu";
-import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
+import {
+  type ImperativePanelGroupHandle,
+  Panel,
+  PanelGroup,
+  PanelResizeHandle,
+} from "react-resizable-panels";
 import { Outlet, useParams } from "react-router-dom";
 import { useLocalStorage } from "usehooks-ts";
 
 import { useDagServiceGetDag, useDagWarningServiceListDagWarnings } from "openapi/queries";
-import type { DagRunType } from "openapi/requests/types.gen";
+import type { DagRunState, DagRunType } from "openapi/requests/types.gen";
 import BackfillBanner from "src/components/Banner/BackfillBanner";
+import { DAGWarningsModal } from "src/components/DAGWarningsModal";
 import { SearchDagsButton } from "src/components/SearchDags";
 import TriggerDAGButton from "src/components/TriggerDag/TriggerDAGButton";
 import { ProgressBar } from "src/components/ui";
 import { Toaster } from "src/components/ui";
 import ActionButton from "src/components/ui/ActionButton";
-import { DAGWarningsModal } from "src/components/ui/DagWarningsModal";
 import { Tooltip } from "src/components/ui/Tooltip";
 import { HoverProvider } from "src/context/hover";
 import { OpenGroupsProvider } from "src/context/openGroups";
@@ -58,7 +63,7 @@ export const DetailsLayout = ({ children, error, isLoading, tabs }: Props) => {
   const { dagId = "", runId } = useParams();
   const { data: dag } = useDagServiceGetDag({ dagId });
   const [defaultDagView] = useLocalStorage<"graph" | "grid">("default_dag_view", "grid");
-  const panelGroupRef = useRef(null);
+  const panelGroupRef = useRef<ImperativePanelGroupHandle | null>(null);
   const [dagView, setDagView] = useLocalStorage<"graph" | "grid">(`dag_view-${dagId}`, defaultDagView);
   const [limit, setLimit] = useLocalStorage<number>(`dag_runs_limit-${dagId}`, 10);
   const [runTypeFilter, setRunTypeFilter] = useLocalStorage<DagRunType | undefined>(
@@ -69,8 +74,12 @@ export const DetailsLayout = ({ children, error, isLoading, tabs }: Props) => {
     `triggering_user_filter-${dagId}`,
     undefined,
   );
+  const [dagRunStateFilter, setDagRunStateFilter] = useLocalStorage<DagRunState | undefined>(
+    `dag_run_state_filter-${dagId}`,
+    undefined,
+  );
 
-  const [showGantt, setShowGantt] = useLocalStorage<boolean>(`show_gantt-${dagId}`, true);
+  const [showGantt, setShowGantt] = useLocalStorage<boolean>(`show_gantt-${dagId}`, false);
   const { fitView, getZoom } = useReactFlow();
   const { data: warningData } = useDagWarningServiceListDagWarnings({ dagId });
   const { onClose, onOpen, open } = useDisclosure();
@@ -129,12 +138,14 @@ export const DetailsLayout = ({ children, error, isLoading, tabs }: Props) => {
               minSize={showGantt && dagView === "grid" && Boolean(runId) ? 35 : 6}
               order={1}
             >
-              <Box height="100%" marginInlineEnd={2} overflowY="auto" position="relative">
+              <Box height="100%" marginInlineEnd={2} overflowY="auto" paddingRight={4} position="relative">
                 <PanelButtons
+                  dagRunStateFilter={dagRunStateFilter}
                   dagView={dagView}
                   limit={limit}
                   panelGroupRef={panelGroupRef}
                   runTypeFilter={runTypeFilter}
+                  setDagRunStateFilter={setDagRunStateFilter}
                   setDagView={setDagView}
                   setLimit={setLimit}
                   setRunTypeFilter={setRunTypeFilter}
@@ -146,14 +157,22 @@ export const DetailsLayout = ({ children, error, isLoading, tabs }: Props) => {
                 {dagView === "graph" ? (
                   <Graph />
                 ) : (
-                  <HStack gap={0}>
+                  <HStack alignItems="flex-end" gap={0}>
                     <Grid
+                      dagRunState={dagRunStateFilter}
                       limit={limit}
                       runType={runTypeFilter}
                       showGantt={Boolean(runId) && showGantt}
                       triggeringUser={triggeringUserFilter}
                     />
-                    {showGantt ? <Gantt limit={limit} /> : undefined}
+                    {showGantt ? (
+                      <Gantt
+                        dagRunState={dagRunStateFilter}
+                        limit={limit}
+                        runType={runTypeFilter}
+                        triggeringUser={triggeringUserFilter}
+                      />
+                    ) : undefined}
                   </HStack>
                 )}
               </Box>

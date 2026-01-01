@@ -59,9 +59,9 @@ from airflow.models import import_all_models
 from airflow.utils import helpers
 from airflow.utils.db_manager import RunDBManager
 from airflow.utils.session import NEW_SESSION, provide_session
-from airflow.utils.task_instance_session import get_current_task_instance_session
+from airflow.utils.sqlalchemy import get_dialect_name
 
-USE_PSYCOPG3: bool
+_USE_PSYCOPG3: bool
 try:
     from importlib.util import find_spec
 
@@ -72,9 +72,9 @@ try:
     sqlalchemy_version = Version(sqlalchemy.__version__)
     is_sqla2 = (sqlalchemy_version.major, sqlalchemy_version.minor, sqlalchemy_version.micro) >= (2, 0, 0)
 
-    USE_PSYCOPG3 = is_psycopg3 and is_sqla2
+    _USE_PSYCOPG3 = is_psycopg3 and is_sqla2
 except (ImportError, ModuleNotFoundError):
-    USE_PSYCOPG3 = False
+    _USE_PSYCOPG3 = False
 
 if TYPE_CHECKING:
     from alembic.runtime.environment import EnvironmentContext
@@ -82,7 +82,7 @@ if TYPE_CHECKING:
     from sqlalchemy.engine import Row
     from sqlalchemy.ext.asyncio import AsyncSession
     from sqlalchemy.orm import Session
-    from sqlalchemy.sql.elements import ClauseElement, TextClause
+    from sqlalchemy.sql.elements import ColumnElement, TextClause
     from sqlalchemy.sql.selectable import Select
 
     from airflow.models.connection import Connection
@@ -101,6 +101,7 @@ T = TypeVar("T")
 log = logging.getLogger(__name__)
 
 _REVISION_HEADS_MAP: dict[str, str] = {
+    "2.6.2": "4bc4d934e2bc",
     "2.7.0": "405de8318b3a",
     "2.8.0": "10b52ebd31f7",
     "2.8.1": "88344c1d9134",
@@ -110,8 +111,12 @@ _REVISION_HEADS_MAP: dict[str, str] = {
     "2.10.3": "5f2621c13b39",
     "3.0.0": "29ce7909c52b",
     "3.0.3": "fe199e1abd77",
-    "3.1.0": "eaf332f43c7c",
+    "3.1.0": "cc92b33c6709",
+    "3.2.0": "c47f2e1ab9d4",
 }
+
+# Prefix used to identify tables holding data moved during migration.
+AIRFLOW_MOVED_TABLE_PREFIX = "_airflow_moved"
 
 
 @contextlib.contextmanager
@@ -166,7 +171,7 @@ def add_default_pool_if_not_exists(session: Session = NEW_SESSION):
     """Add default pool if it does not exist."""
     from airflow.models.pool import Pool
 
-    if not Pool.get_pool(Pool.DEFAULT_POOL_NAME, session=session):
+    if not session.scalar(select(Pool.id).where(Pool.pool == Pool.DEFAULT_POOL_NAME)):
         default_pool = Pool(
             pool=Pool.DEFAULT_POOL_NAME,
             slots=conf.getint(section="core", key="default_pool_task_slot_count"),
@@ -826,7 +831,7 @@ def _configured_alembic_environment() -> Generator[EnvironmentContext, None, Non
             config,
             script,
         ) as env,
-        settings.engine.connect() as connection,
+        settings.get_engine().connect() as connection,
     ):
         alembic_logger = logging.getLogger("alembic")
         level = alembic_logger.level
@@ -1042,7 +1047,7 @@ def _revisions_above_min_for_offline(config, revisions) -> None:
     :param revisions: list of Alembic revision ids
     :return: None
     """
-    dbname = settings.engine.dialect.name
+    dbname = settings.get_engine().dialect.name
     if dbname == "sqlite":
         raise SystemExit("Offline migration not supported for SQLite.")
     min_version, min_revision = ("2.7.0", "937cbd173ca1")
@@ -1065,7 +1070,6 @@ def upgradedb(
     to_revision: str | None = None,
     from_revision: str | None = None,
     show_sql_only: bool = False,
-    reserialize_dags: bool = True,
     session: Session = NEW_SESSION,
 ):
     """
@@ -1118,7 +1122,7 @@ def upgradedb(
     if errors_seen:
         exit(1)
 
-    if not _get_current_revision(session=session):
+    if not _get_current_revision(session=session) and not to_revision:
         # Don't load default connections
         # New DB; initialize and exit
         initdb(session=session)
@@ -1255,7 +1259,7 @@ def _handle_fab_downgrade(*, session: Session) -> None:
             fab_version,
         )
         return
-    connection = settings.engine.connect()
+    connection = settings.get_engine().connect()
     insp = inspect(connection)
     if not fab_version and insp.has_table("ab_user"):
         log.info(
@@ -1302,7 +1306,6 @@ def drop_airflow_models(connection):
 
 def drop_airflow_moved_tables(connection):
     from airflow.models.base import Base
-    from airflow.settings import AIRFLOW_MOVED_TABLE_PREFIX
 
     tables = set(inspect(connection).get_table_names())
     to_delete = [Table(x, Base.metadata) for x in tables if x.startswith(AIRFLOW_MOVED_TABLE_PREFIX)]
@@ -1345,11 +1348,15 @@ def create_global_lock(
     lock_timeout: int = 1800,
 ) -> Generator[None, None, None]:
     """Contextmanager that will create and teardown a global db lock."""
-    conn = session.get_bind().connect()
-    dialect = conn.dialect
+    bind = session.get_bind()
+    if hasattr(bind, "connect"):
+        conn = bind.connect()
+    else:
+        conn = bind
+    dialect_name = get_dialect_name(session)
     try:
-        if dialect.name == "postgresql":
-            if USE_PSYCOPG3:
+        if dialect_name == "postgresql":
+            if _USE_PSYCOPG3:
                 # psycopg3 doesn't support parameters for `SET`. Use `set_config` instead.
                 # The timeout value must be passed as a string of milliseconds.
                 conn.execute(
@@ -1360,21 +1367,32 @@ def create_global_lock(
             else:
                 conn.execute(text("SET LOCK_TIMEOUT to :timeout"), {"timeout": lock_timeout})
                 conn.execute(text("SELECT pg_advisory_lock(:id)"), {"id": lock.value})
-        elif dialect.name == "mysql" and dialect.server_version_info >= (5, 6):
+        elif (
+            dialect_name == "mysql"
+            and conn.dialect.server_version_info
+            and conn.dialect.server_version_info >= (5, 6)
+        ):
             conn.execute(text("SELECT GET_LOCK(:id, :timeout)"), {"id": str(lock), "timeout": lock_timeout})
 
         yield
     finally:
-        if dialect.name == "postgresql":
-            if USE_PSYCOPG3:
+        if dialect_name == "postgresql":
+            if _USE_PSYCOPG3:
                 # Use set_config() to reset the timeout to its default (0 = off/wait forever).
                 conn.execute(text("SELECT set_config('lock_timeout', '0', false)"))
             else:
                 conn.execute(text("SET LOCK_TIMEOUT TO DEFAULT"))
-            (unlocked,) = conn.execute(text("SELECT pg_advisory_unlock(:id)"), {"id": lock.value}).fetchone()
+            result = conn.execute(text("SELECT pg_advisory_unlock(:id)"), {"id": lock.value}).fetchone()
+            if result is None:
+                raise RuntimeError("Error releasing DB lock!")
+            (unlocked,) = result
             if not unlocked:
                 raise RuntimeError("Error releasing DB lock!")
-        elif dialect.name == "mysql" and dialect.server_version_info >= (5, 6):
+        elif (
+            dialect_name == "mysql"
+            and conn.dialect.server_version_info
+            and conn.dialect.server_version_info >= (5, 6)
+        ):
             conn.execute(text("select RELEASE_LOCK(:id)"), {"id": str(lock)})
 
 
@@ -1459,7 +1477,8 @@ def get_query_count(query_stmt: Select, *, session: Session) -> int:
     :meta private:
     """
     count_stmt = select(func.count()).select_from(query_stmt.order_by(None).subquery())
-    return session.scalar(count_stmt)
+    result = session.scalar(count_stmt)
+    return result or 0
 
 
 async def get_query_count_async(statement: Select, *, session: AsyncSession) -> int:
@@ -1474,7 +1493,8 @@ async def get_query_count_async(statement: Select, *, session: AsyncSession) -> 
     :meta private:
     """
     count_stmt = select(func.count()).select_from(statement.order_by(None).subquery())
-    return await session.scalar(count_stmt)
+    result = await session.scalar(count_stmt)
+    return result or 0
 
 
 def check_query_exists(query_stmt: Select, *, session: Session) -> bool:
@@ -1492,7 +1512,7 @@ def check_query_exists(query_stmt: Select, *, session: Session) -> bool:
     return bool(session.scalar(count_stmt))
 
 
-def exists_query(*where: ClauseElement, session: Session) -> bool:
+def exists_query(*where: ColumnElement[bool], session: Session) -> bool:
     """
     Check whether there is at least one row matching given clauses.
 
@@ -1526,9 +1546,9 @@ class LazySelectSequence(Sequence[T]):
     :meta private:
     """
 
-    _select_asc: ClauseElement
-    _select_desc: ClauseElement
-    _session: Session = attrs.field(kw_only=True, factory=get_current_task_instance_session)
+    _select_asc: Select
+    _select_desc: Select
+    _session: Session
     _len: int | None = attrs.field(init=False, default=None)
 
     @classmethod
@@ -1536,8 +1556,8 @@ class LazySelectSequence(Sequence[T]):
         cls,
         select: Select,
         *,
-        order_by: Sequence[ClauseElement],
-        session: Session | None = None,
+        order_by: Sequence[ColumnElement],
+        session: Session,
     ) -> Self:
         s1 = select
         for col in order_by:
@@ -1545,7 +1565,7 @@ class LazySelectSequence(Sequence[T]):
         s2 = select
         for col in order_by:
             s2 = s2.order_by(col.desc())
-        return cls(s1, s2, session=session or get_current_task_instance_session())
+        return cls(s1, s2, session=session)
 
     @staticmethod
     def _rebuild_select(stmt: TextClause) -> Select:
@@ -1585,7 +1605,6 @@ class LazySelectSequence(Sequence[T]):
         s1, s2, self._len = state
         self._select_asc = self._rebuild_select(text(s1))
         self._select_desc = self._rebuild_select(text(s2))
-        self._session = get_current_task_instance_session()
 
     def __bool__(self) -> bool:
         return check_query_exists(self._select_asc, session=self._session)
@@ -1595,6 +1614,9 @@ class LazySelectSequence(Sequence[T]):
             return NotImplemented
         z = itertools.zip_longest(iter(self), iter(other), fillvalue=object())
         return all(x == y for x, y in z)
+
+    def __hash__(self):
+        return hash(tuple(x for x in iter(self)))
 
     def __reversed__(self) -> Iterator[T]:
         return iter(self._process_row(r) for r in self._session.execute(self._select_desc))

@@ -16,12 +16,11 @@
 # under the License.
 from __future__ import annotations
 
-from typing import Annotated
+from typing import Annotated, cast
 
 from fastapi import Depends, HTTPException, Query, status
-from fastapi.exceptions import RequestValidationError
-from pydantic import ValidationError
 from sqlalchemy import delete, select
+from sqlalchemy.engine import CursorResult
 
 from airflow.api_fastapi.common.db.common import SessionDep, paginated_select
 from airflow.api_fastapi.common.parameters import (
@@ -33,7 +32,6 @@ from airflow.api_fastapi.common.parameters import (
 from airflow.api_fastapi.common.router import AirflowRouter
 from airflow.api_fastapi.core_api.datamodels.common import BulkBody, BulkResponse
 from airflow.api_fastapi.core_api.datamodels.pools import (
-    BasePool,
     PoolBody,
     PoolCollectionResponse,
     PoolPatchBody,
@@ -45,7 +43,7 @@ from airflow.api_fastapi.core_api.security import (
     requires_access_pool,
     requires_access_pool_bulk,
 )
-from airflow.api_fastapi.core_api.services.public.pools import BulkPoolService
+from airflow.api_fastapi.core_api.services.public.pools import BulkPoolService, update_orm_from_pydantic
 from airflow.api_fastapi.logging.decorators import action_logging
 from airflow.models.pool import Pool
 
@@ -71,9 +69,9 @@ def delete_pool(
     if pool_name == "default_pool":
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "Default Pool can't be deleted")
 
-    affected_count = session.execute(delete(Pool).where(Pool.pool == pool_name)).rowcount
+    affected_count = cast("CursorResult", session.execute(delete(Pool).where(Pool.pool == pool_name)))
 
-    if affected_count == 0:
+    if affected_count.rowcount == 0:
         raise HTTPException(status.HTTP_404_NOT_FOUND, f"The Pool with name: `{pool_name}` was not found")
 
 
@@ -150,35 +148,8 @@ def patch_pool(
             status.HTTP_400_BAD_REQUEST,
             "Invalid body, pool name from request body doesn't match uri parameter",
         )
-    # Only slots and include_deferred can be modified in 'default_pool'
-    if pool_name == Pool.DEFAULT_POOL_NAME:
-        if update_mask and all(mask.strip() in {"slots", "include_deferred"} for mask in update_mask):
-            pass
-        else:
-            raise HTTPException(
-                status.HTTP_400_BAD_REQUEST,
-                "Only slots and included_deferred can be modified on Default Pool",
-            )
-    pool = session.scalar(select(Pool).where(Pool.pool == pool_name).limit(1))
-    if not pool:
-        raise HTTPException(
-            status.HTTP_404_NOT_FOUND, detail=f"The Pool with name: `{pool_name}` was not found"
-        )
 
-    fields_to_update = patch_body.model_fields_set
-    if update_mask:
-        fields_to_update = fields_to_update.intersection(update_mask)
-        data = patch_body.model_dump(include=fields_to_update, by_alias=True)
-    else:
-        data = patch_body.model_dump(include=fields_to_update, by_alias=True)
-        try:
-            BasePool.model_validate(data)
-        except ValidationError as e:
-            raise RequestValidationError(errors=e.errors())
-
-    for key, value in data.items():
-        setattr(pool, key, value)
-
+    pool = update_orm_from_pydantic(pool_name, patch_body, update_mask, session)
     return pool
 
 

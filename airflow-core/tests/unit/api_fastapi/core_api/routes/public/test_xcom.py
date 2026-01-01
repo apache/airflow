@@ -26,19 +26,21 @@ from airflow.api_fastapi.core_api.datamodels.xcom import XComCreateBody
 from airflow.models.dag_version import DagVersion
 from airflow.models.dagbundle import DagBundleModel
 from airflow.models.dagrun import DagRun
-from airflow.models.taskinstance import TaskInstance
 from airflow.models.xcom import XComModel
 from airflow.providers.standard.operators.empty import EmptyOperator
-from airflow.sdk import DAG
+from airflow.sdk import DAG, AssetAlias
 from airflow.sdk.bases.xcom import BaseXCom
 from airflow.sdk.execution_time.xcom import resolve_xcom_backend
 from airflow.utils.session import provide_session
 from airflow.utils.types import DagRunType
 
+from tests_common.test_utils.asserts import assert_queries_count
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.dag import sync_dag_to_db
 from tests_common.test_utils.db import clear_db_dag_bundles, clear_db_dags, clear_db_runs, clear_db_xcom
 from tests_common.test_utils.logs import check_last_log
+from tests_common.test_utils.mock_operators import MockOperator
+from tests_common.test_utils.taskinstance import create_task_instance
 
 pytestmark = pytest.mark.db_test
 
@@ -160,8 +162,20 @@ class TestGetXComEntry(TestXComEndpoint):
         assert response.status_code == 404
         assert response.json()["detail"] == f"XCom entry with key: `{TEST_XCOM_KEY_2}` not found"
 
+    def test_should_respond_200_native_with_slash_key(self, test_client):
+        slash_key = "folder/sub/value"
+        self._create_xcom(slash_key, TEST_XCOM_VALUE)
+        # Use raw slash_key directly - FastAPI with :path converter handles it
+        response = test_client.get(
+            f"/dags/{TEST_DAG_ID}/dagRuns/{run_id}/taskInstances/{TEST_TASK_ID}/xcomEntries/{slash_key}"
+        )
+        assert response.status_code == 200
+        current_data = response.json()
+        assert current_data["key"] == slash_key
+        assert current_data["value"] == json.dumps(TEST_XCOM_VALUE)
+
     @pytest.mark.parametrize(
-        "params, expected_value",
+        ("params", "expected_value"),
         [
             pytest.param(
                 {"deserialize": True},
@@ -194,6 +208,22 @@ class TestGetXComEntry(TestXComEndpoint):
         assert response.status_code == 200
         assert response.json()["value"] == expected_value
 
+    @pytest.mark.parametrize(
+        ("xcom_value", "expected_return"),
+        [
+            pytest.param(42, 42, id="jsonable"),
+            pytest.param(AssetAlias("x"), "AssetAlias(name='x', group='asset')", id="nonjsonable"),
+            pytest.param([42, AssetAlias("x")], [42, "AssetAlias(name='x', group='asset')"], id="nested"),
+        ],
+    )
+    def test_stringify_false(self, test_client, xcom_value, expected_return):
+        XComModel.set(TEST_XCOM_KEY, xcom_value, dag_id=TEST_DAG_ID, task_id=TEST_TASK_ID, run_id=run_id)
+
+        url = f"/dags/{TEST_DAG_ID}/dagRuns/{run_id}/taskInstances/{TEST_TASK_ID}/xcomEntries/{TEST_XCOM_KEY}"
+        response = test_client.get(url, params={"deserialize": True, "stringify": False})
+        assert response.status_code == 200
+        assert response.json()["value"] == expected_return
+
 
 class TestGetXComEntries(TestXComEndpoint):
     @pytest.fixture(autouse=True)
@@ -202,9 +232,10 @@ class TestGetXComEntries(TestXComEndpoint):
 
     def test_should_respond_200(self, test_client):
         self._create_xcom_entries(TEST_DAG_ID, run_id, logical_date_parsed, TEST_TASK_ID)
-        response = test_client.get(
-            f"/dags/{TEST_DAG_ID}/dagRuns/{run_id}/taskInstances/{TEST_TASK_ID}/xcomEntries"
-        )
+        with assert_queries_count(4):
+            response = test_client.get(
+                f"/dags/{TEST_DAG_ID}/dagRuns/{run_id}/taskInstances/{TEST_TASK_ID}/xcomEntries"
+            )
         assert response.status_code == 200
         response_data = response.json()
         for xcom_entry in response_data["xcom_entries"]:
@@ -243,7 +274,8 @@ class TestGetXComEntries(TestXComEndpoint):
         self._create_xcom_entries(TEST_DAG_ID, run_id, logical_date_parsed, TEST_TASK_ID)
         self._create_xcom_entries(TEST_DAG_ID_2, run_id, logical_date_parsed, TEST_TASK_ID_2)
 
-        response = test_client.get("/dags/~/dagRuns/~/taskInstances/~/xcomEntries")
+        with assert_queries_count(4):
+            response = test_client.get("/dags/~/dagRuns/~/taskInstances/~/xcomEntries")
         assert response.status_code == 200
         response_data = response.json()
         for xcom_entry in response_data["xcom_entries"]:
@@ -304,10 +336,11 @@ class TestGetXComEntries(TestXComEndpoint):
     def test_should_respond_200_with_map_index(self, map_index, test_client):
         self._create_xcom_entries(TEST_DAG_ID, run_id, logical_date_parsed, TEST_TASK_ID, mapped_ti=True)
 
-        response = test_client.get(
-            "/dags/~/dagRuns/~/taskInstances/~/xcomEntries",
-            params={"map_index": map_index} if map_index is not None else None,
-        )
+        with assert_queries_count(4):
+            response = test_client.get(
+                "/dags/~/dagRuns/~/taskInstances/~/xcomEntries",
+                params={"map_index": map_index} if map_index is not None else None,
+            )
         assert response.status_code == 200
         response_data = response.json()
 
@@ -348,7 +381,7 @@ class TestGetXComEntries(TestXComEndpoint):
         }
 
     @pytest.mark.parametrize(
-        "key, expected_entries",
+        ("key", "expected_entries"),
         [
             (
                 TEST_XCOM_KEY,
@@ -382,10 +415,11 @@ class TestGetXComEntries(TestXComEndpoint):
     )
     def test_should_respond_200_with_xcom_key(self, key, expected_entries, test_client):
         self._create_xcom_entries(TEST_DAG_ID, run_id, logical_date_parsed, TEST_TASK_ID, mapped_ti=True)
-        response = test_client.get(
-            "/dags/~/dagRuns/~/taskInstances/~/xcomEntries",
-            params={"xcom_key_pattern": key} if key is not None else None,
-        )
+        with assert_queries_count(4):
+            response = test_client.get(
+                "/dags/~/dagRuns/~/taskInstances/~/xcomEntries",
+                params={"xcom_key_pattern": key} if key is not None else None,
+            )
 
         assert response.status_code == 200
         response_data = response.json()
@@ -403,7 +437,11 @@ class TestGetXComEntries(TestXComEndpoint):
         session.merge(orm_dag_bundle)
         session.flush()
 
-        dag = DAG(dag_id=dag_id)
+        with DAG(dag_id=dag_id) as dag:
+            if mapped_ti:
+                task = MockOperator.partial(task_id=task_id).expand(arg1=[0, 1])
+            else:
+                task = EmptyOperator(task_id=task_id)
         sync_dag_to_db(dag)
         dagrun = DagRun(
             dag_id=dag_id,
@@ -416,14 +454,10 @@ class TestGetXComEntries(TestXComEndpoint):
         dag_version = DagVersion.get_latest_version(dag.dag_id)
         if mapped_ti:
             for i in [0, 1]:
-                ti = TaskInstance(
-                    EmptyOperator(task_id=task_id), run_id=run_id, map_index=i, dag_version_id=dag_version.id
-                )
-                ti.dag_id = dag_id
+                ti = create_task_instance(task, run_id=run_id, map_index=i, dag_version_id=dag_version.id)
                 session.add(ti)
         else:
-            ti = TaskInstance(EmptyOperator(task_id=task_id), run_id=run_id, dag_version_id=dag_version.id)
-            ti.dag_id = dag_id
+            ti = create_task_instance(task, run_id=run_id, dag_version_id=dag_version.id)
             session.add(ti)
         session.commit()
 
@@ -461,7 +495,7 @@ class TestGetXComEntries(TestXComEndpoint):
 
 class TestPaginationGetXComEntries(TestXComEndpoint):
     @pytest.mark.parametrize(
-        "query_params, expected_xcom_ids",
+        ("query_params", "expected_xcom_ids"),
         [
             (
                 {"limit": "1"},
@@ -523,7 +557,7 @@ class TestPaginationGetXComEntries(TestXComEndpoint):
 
 class TestCreateXComEntry(TestXComEndpoint):
     @pytest.mark.parametrize(
-        "dag_id, task_id, dag_run_id, request_body, expected_status, expected_detail",
+        ("dag_id", "task_id", "dag_run_id", "request_body", "expected_status", "expected_detail"),
         [
             # Test case: Valid input, should succeed with 201 CREATED
             pytest.param(
@@ -534,6 +568,36 @@ class TestCreateXComEntry(TestXComEndpoint):
                 201,
                 None,
                 id="valid-xcom-entry",
+            ),
+            # Test case: Valid input with string value
+            pytest.param(
+                TEST_DAG_ID,
+                TEST_TASK_ID,
+                run_id,
+                XComCreateBody(key="string_key", value="simple string"),
+                201,
+                None,
+                id="valid-xcom-with-string-value",
+            ),
+            # Test case: Valid input with integer value
+            pytest.param(
+                TEST_DAG_ID,
+                TEST_TASK_ID,
+                run_id,
+                XComCreateBody(key="int_key", value=42),
+                201,
+                None,
+                id="valid-xcom-with-integer-value",
+            ),
+            # Test case: Valid input with list value
+            pytest.param(
+                TEST_DAG_ID,
+                TEST_TASK_ID,
+                run_id,
+                XComCreateBody(key="list_key", value=[1, 2, 3]),
+                201,
+                None,
+                id="valid-xcom-with-list-value",
             ),
             # Test case: DAG not found
             pytest.param(
@@ -625,10 +689,63 @@ class TestCreateXComEntry(TestXComEndpoint):
         )
         assert response.status_code == 403
 
+    def test_create_xcom_entry_with_slash_key(self, test_client):
+        slash_key = "a/b/c"
+        body = XComCreateBody(key=slash_key, value=TEST_XCOM_VALUE)
+        response = test_client.post(
+            f"/dags/{TEST_DAG_ID}/dagRuns/{run_id}/taskInstances/{TEST_TASK_ID}/xcomEntries",
+            json=body.dict(),
+        )
+        assert response.status_code == 201
+        assert response.json()["key"] == slash_key
+        # Verify retrieval via encoded path
+        get_resp = test_client.get(
+            f"/dags/{TEST_DAG_ID}/dagRuns/{run_id}/taskInstances/{TEST_TASK_ID}/xcomEntries/{slash_key}"
+        )
+        assert get_resp.status_code == 200
+        assert get_resp.json()["key"] == slash_key
+        assert get_resp.json()["value"] == json.dumps(TEST_XCOM_VALUE)
+
+
+class TestDeleteXComEntry(TestXComEndpoint):
+    def test_delete_xcom_entry(self, test_client, session):
+        self._create_xcom(TEST_XCOM_KEY, TEST_XCOM_VALUE)
+
+        response = test_client.delete(
+            f"/dags/{TEST_DAG_ID}/dagRuns/{run_id}/taskInstances/{TEST_TASK_ID}/xcomEntries/{TEST_XCOM_KEY}"
+        )
+
+        assert response.status_code == 204
+        check_last_log(session, dag_id=TEST_DAG_ID, event="delete_xcom_entry", logical_date=None)
+
+        # Verify it's gone
+        response = test_client.get(
+            f"/dags/{TEST_DAG_ID}/dagRuns/{run_id}/taskInstances/{TEST_TASK_ID}/xcomEntries/{TEST_XCOM_KEY}"
+        )
+        assert response.status_code == 404
+
+    def test_delete_xcom_entry_not_found(self, test_client):
+        response = test_client.delete(
+            f"/dags/{TEST_DAG_ID}/dagRuns/{run_id}/taskInstances/{TEST_TASK_ID}/xcomEntries/{TEST_XCOM_KEY}"
+        )
+        assert response.status_code == 404
+
+    def test_should_respond_401(self, unauthenticated_test_client):
+        response = unauthenticated_test_client.delete(
+            f"/dags/{TEST_DAG_ID}/dagRuns/{run_id}/taskInstances/{TEST_TASK_ID}/xcomEntries/{TEST_XCOM_KEY}"
+        )
+        assert response.status_code == 401
+
+    def test_should_respond_403(self, unauthorized_test_client):
+        response = unauthorized_test_client.delete(
+            f"/dags/{TEST_DAG_ID}/dagRuns/{run_id}/taskInstances/{TEST_TASK_ID}/xcomEntries/{TEST_XCOM_KEY}"
+        )
+        assert response.status_code == 403
+
 
 class TestPatchXComEntry(TestXComEndpoint):
     @pytest.mark.parametrize(
-        "key, patch_body, expected_status, expected_detail",
+        ("key", "patch_body", "expected_status", "expected_detail"),
         [
             # Test case: Valid update, should return 200 OK
             pytest.param(
@@ -637,6 +754,30 @@ class TestPatchXComEntry(TestXComEndpoint):
                 200,
                 None,
                 id="valid-xcom-update",
+            ),
+            # Test case: Update with complex object
+            pytest.param(
+                TEST_XCOM_KEY,
+                {"value": {"nested": {"key": "value"}, "list": [1, 2, 3]}},
+                200,
+                None,
+                id="valid-xcom-update-complex-object",
+            ),
+            # Test case: Update with integer
+            pytest.param(
+                TEST_XCOM_KEY,
+                {"value": 999},
+                200,
+                None,
+                id="valid-xcom-update-integer",
+            ),
+            # Test case: Update with list
+            pytest.param(
+                TEST_XCOM_KEY,
+                {"value": ["updated", "list", "values"]},
+                200,
+                None,
+                id="valid-xcom-update-list",
             ),
             # Test case: XCom entry does not exist, should return 404
             pytest.param(
@@ -652,7 +793,6 @@ class TestPatchXComEntry(TestXComEndpoint):
         # Ensure the XCom entry exists before updating
         if expected_status != 404:
             self._create_xcom(TEST_XCOM_KEY, TEST_XCOM_VALUE)
-            new_value = XComModel.serialize_value(patch_body["value"])
 
         response = test_client.patch(
             f"/dags/{TEST_DAG_ID}/dagRuns/{run_id}/taskInstances/{TEST_TASK_ID}/xcomEntries/{key}",
@@ -662,7 +802,7 @@ class TestPatchXComEntry(TestXComEndpoint):
         assert response.status_code == expected_status
 
         if expected_status == 200:
-            assert response.json()["value"] == XComModel.serialize_value(new_value)
+            assert response.json()["value"] == json.dumps(patch_body["value"])
         else:
             assert response.json()["detail"] == expected_detail
         check_last_log(session, dag_id=TEST_DAG_ID, event="update_xcom_entry", logical_date=None)
@@ -680,3 +820,16 @@ class TestPatchXComEntry(TestXComEndpoint):
             json={},
         )
         assert response.status_code == 403
+
+    def test_patch_xcom_entry_with_slash_key(self, test_client, session):
+        slash_key = "x/y"
+        self._create_xcom(slash_key, TEST_XCOM_VALUE)
+        new_value = {"updated": True}
+        response = test_client.patch(
+            f"/dags/{TEST_DAG_ID}/dagRuns/{run_id}/taskInstances/{TEST_TASK_ID}/xcomEntries/{slash_key}",
+            json={"value": new_value},
+        )
+        assert response.status_code == 200
+        assert response.json()["key"] == slash_key
+        assert response.json()["value"] == json.dumps(new_value)
+        check_last_log(session, dag_id=TEST_DAG_ID, event="update_xcom_entry", logical_date=None)

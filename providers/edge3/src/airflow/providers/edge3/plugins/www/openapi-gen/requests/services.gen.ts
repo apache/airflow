@@ -3,7 +3,7 @@
 import type { CancelablePromise } from './core/CancelablePromise';
 import { OpenAPI } from './core/OpenAPI';
 import { request as __request } from './core/request';
-import type { FetchData, FetchResponse, StateData, StateResponse, LogfilePathData, LogfilePathResponse, PushLogsData, PushLogsResponse, RegisterData, RegisterResponse, SetStateData, SetStateResponse, UpdateQueuesData, UpdateQueuesResponse, HealthResponse, WorkerResponse, JobsResponse, RequestWorkerMaintenanceData, RequestWorkerMaintenanceResponse, UpdateWorkerMaintenanceData, UpdateWorkerMaintenanceResponse, ExitWorkerMaintenanceData, ExitWorkerMaintenanceResponse, RequestWorkerShutdownData, RequestWorkerShutdownResponse, DeleteWorkerData, DeleteWorkerResponse, AddWorkerQueueData, AddWorkerQueueResponse, RemoveWorkerQueueData, RemoveWorkerQueueResponse } from './types.gen';
+import type { FetchData, FetchResponse, StateData, StateResponse, LogfilePathData, LogfilePathResponse, PushLogsData, PushLogsResponse, RegisterData, RegisterResponse, SetStateData, SetStateResponse, UpdateQueuesData, UpdateQueuesResponse, HealthResponse, WorkerData, WorkerResponse, JobsResponse, RequestWorkerMaintenanceData, RequestWorkerMaintenanceResponse, UpdateWorkerMaintenanceData, UpdateWorkerMaintenanceResponse, ExitWorkerMaintenanceData, ExitWorkerMaintenanceResponse, RequestWorkerShutdownData, RequestWorkerShutdownResponse, DeleteWorkerData, DeleteWorkerResponse, AddWorkerQueueData, AddWorkerQueueResponse, RemoveWorkerQueueData, RemoveWorkerQueueResponse } from './types.gen';
 
 export class JobsService {
     /**
@@ -47,7 +47,7 @@ export class JobsService {
      * @param data.mapIndex For dynamically mapped tasks the mapping number, -1 if the task is not mapped.
      * @param data.state State of the assigned task under execution.
      * @param data.authorization JWT Authorization Token
-     * @returns null Successful Response
+     * @returns unknown Successful Response
      * @throws ApiError
      */
     public static state(data: StateData): CancelablePromise<StateResponse> {
@@ -122,7 +122,7 @@ export class LogsService {
      * @param data.mapIndex For dynamically mapped tasks the mapping number, -1 if the task is not mapped.
      * @param data.authorization JWT Authorization Token
      * @param data.requestBody
-     * @returns null Successful Response
+     * @returns unknown Successful Response
      * @throws ApiError
      */
     public static pushLogs(data: PushLogsData): CancelablePromise<PushLogsResponse> {
@@ -177,6 +177,7 @@ export class WorkerService {
             errors: {
                 400: 'Bad Request',
                 403: 'Forbidden',
+                409: 'Conflict',
                 422: 'Validation Error'
             }
         });
@@ -207,6 +208,7 @@ export class WorkerService {
             errors: {
                 400: 'Bad Request',
                 403: 'Forbidden',
+                409: 'Conflict',
                 422: 'Validation Error'
             }
         });
@@ -218,7 +220,7 @@ export class WorkerService {
      * @param data.workerName Hostname or instance name of the worker
      * @param data.authorization JWT Authorization Token
      * @param data.requestBody
-     * @returns null Successful Response
+     * @returns unknown Successful Response
      * @throws ApiError
      */
     public static updateQueues(data: UpdateQueuesData): CancelablePromise<UpdateQueuesResponse> {
@@ -236,6 +238,7 @@ export class WorkerService {
             errors: {
                 400: 'Bad Request',
                 403: 'Forbidden',
+                409: 'Conflict',
                 422: 'Validation Error'
             }
         });
@@ -263,13 +266,25 @@ export class UiService {
     /**
      * Worker
      * Return Edge Workers.
+     * @param data The data for the request.
+     * @param data.workerNamePattern
+     * @param data.queueNamePattern
+     * @param data.state
      * @returns WorkerCollectionResponse Successful Response
      * @throws ApiError
      */
-    public static worker(): CancelablePromise<WorkerResponse> {
+    public static worker(data: WorkerData = {}): CancelablePromise<WorkerResponse> {
         return __request(OpenAPI, {
             method: 'GET',
-            url: '/edge_worker/ui/worker'
+            url: '/edge_worker/ui/worker',
+            query: {
+                worker_name_pattern: data.workerNamePattern,
+                queue_name_pattern: data.queueNamePattern,
+                state: data.state
+            },
+            errors: {
+                422: 'Validation Error'
+            }
         });
     }
     
@@ -292,7 +307,7 @@ export class UiService {
      * @param data The data for the request.
      * @param data.workerName
      * @param data.requestBody
-     * @returns null Successful Response
+     * @returns unknown Successful Response
      * @throws ApiError
      */
     public static requestWorkerMaintenance(data: RequestWorkerMaintenanceData): CancelablePromise<RequestWorkerMaintenanceResponse> {
@@ -316,7 +331,7 @@ export class UiService {
      * @param data The data for the request.
      * @param data.workerName
      * @param data.requestBody
-     * @returns null Successful Response
+     * @returns unknown Successful Response
      * @throws ApiError
      */
     public static updateWorkerMaintenance(data: UpdateWorkerMaintenanceData): CancelablePromise<UpdateWorkerMaintenanceResponse> {
@@ -339,7 +354,7 @@ export class UiService {
      * Exit a worker from maintenance mode.
      * @param data The data for the request.
      * @param data.workerName
-     * @returns null Successful Response
+     * @returns unknown Successful Response
      * @throws ApiError
      */
     public static exitWorkerMaintenance(data: ExitWorkerMaintenanceData): CancelablePromise<ExitWorkerMaintenanceResponse> {
@@ -360,7 +375,7 @@ export class UiService {
      * Request shutdown of a worker.
      * @param data The data for the request.
      * @param data.workerName
-     * @returns null Successful Response
+     * @returns unknown Successful Response
      * @throws ApiError
      */
     public static requestWorkerShutdown(data: RequestWorkerShutdownData): CancelablePromise<RequestWorkerShutdownResponse> {
@@ -381,7 +396,7 @@ export class UiService {
      * Delete a worker record from the system.
      * @param data The data for the request.
      * @param data.workerName
-     * @returns null Successful Response
+     * @returns unknown Successful Response
      * @throws ApiError
      */
     public static deleteWorker(data: DeleteWorkerData): CancelablePromise<DeleteWorkerResponse> {
@@ -403,7 +418,7 @@ export class UiService {
      * @param data The data for the request.
      * @param data.workerName
      * @param data.queueName
-     * @returns null Successful Response
+     * @returns unknown Successful Response
      * @throws ApiError
      */
     public static addWorkerQueue(data: AddWorkerQueueData): CancelablePromise<AddWorkerQueueResponse> {
@@ -426,7 +441,7 @@ export class UiService {
      * @param data The data for the request.
      * @param data.workerName
      * @param data.queueName
-     * @returns null Successful Response
+     * @returns unknown Successful Response
      * @throws ApiError
      */
     public static removeWorkerQueue(data: RemoveWorkerQueueData): CancelablePromise<RemoveWorkerQueueResponse> {

@@ -26,18 +26,20 @@ import pendulum
 import pytest
 from kubernetes.client import ApiClient, models as k8s
 
-from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
+from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.models import DAG, DagModel, DagRun, TaskInstance
 from airflow.providers.cncf.kubernetes.operators.job import (
     KubernetesDeleteJobOperator,
     KubernetesJobOperator,
     KubernetesPatchJobOperator,
 )
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.utils import timezone
 from airflow.utils.session import create_session
 from airflow.utils.types import DagRunType
 
 from tests_common.test_utils.dag import sync_dag_to_db
+from tests_common.test_utils.taskinstance import create_task_instance
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
 DEFAULT_DATE = timezone.datetime(2016, 1, 1, 1, 0, 0)
@@ -80,7 +82,7 @@ def create_context(task, persist_to_db=False, map_index=None):
         from airflow.models.dag_version import DagVersion
 
         dag_version = DagVersion.get_latest_version(dag.dag_id)
-        task_instance = TaskInstance(task=task, run_id=dag_run.run_id, dag_version_id=dag_version.id)
+        task_instance = create_task_instance(task=task, run_id=dag_run.run_id, dag_version_id=dag_version.id)
     else:
         task_instance = TaskInstance(task=task, run_id=dag_run.run_id)
     task_instance.dag_run = dag_run
@@ -155,14 +157,14 @@ class TestKubernetesJobOperator:
         assert dag_id == rendered.container_resources.requests["cpu"]
         assert dag_id == rendered.volume_mounts[0].name
         assert dag_id == rendered.volume_mounts[0].sub_path
-        assert dag_id == ti.task.image
-        assert dag_id == ti.task.cmds
-        assert dag_id == ti.task.namespace
-        assert dag_id == ti.task.config_file
-        assert dag_id == ti.task.labels
-        assert dag_id == ti.task.job_template_file
-        assert dag_id == ti.task.arguments
-        assert dag_id == ti.task.env_vars[0]
+        assert dag_id == rendered.image
+        assert dag_id == rendered.cmds
+        assert dag_id == rendered.namespace
+        assert dag_id == rendered.config_file
+        assert dag_id == rendered.labels
+        assert dag_id == rendered.job_template_file
+        assert dag_id == rendered.arguments
+        assert dag_id == rendered.env_vars[0]
         assert dag_id == rendered.annotations["dag-id"]
 
     def sanitize_for_serialization(self, obj):
@@ -275,7 +277,7 @@ class TestKubernetesJobOperator:
             ),
         )
 
-    @pytest.mark.parametrize(("randomize_name",), ([True], [False]))
+    @pytest.mark.parametrize("randomize_name", (True, False))
     def test_full_job_spec(self, randomize_name, job_spec, clean_dags_dagruns_and_dagbundles):
         job_spec_name_base = job_spec.metadata.name
 
@@ -299,7 +301,7 @@ class TestKubernetesJobOperator:
         )
         assert job.metadata.labels == {"foo": "bar"}
 
-    @pytest.mark.parametrize(("randomize_name",), ([True], [False]))
+    @pytest.mark.parametrize("randomize_name", (True, False))
     def test_full_job_spec_kwargs(self, randomize_name, job_spec, clean_dags_dagruns_and_dagbundles):
         # kwargs take precedence, however
         image = "some.custom.image:andtag"
@@ -376,7 +378,7 @@ class TestKubernetesJobOperator:
 
         return tpl_file
 
-    @pytest.mark.parametrize(("randomize_name",), ([True], [False]))
+    @pytest.mark.parametrize("randomize_name", (True, False))
     def test_job_template_file(self, randomize_name, job_template_file, clean_dags_dagruns_and_dagbundles):
         k = KubernetesJobOperator(
             task_id="task",
@@ -426,7 +428,7 @@ class TestKubernetesJobOperator:
 
         assert job.spec.template.spec.affinity.to_dict() == affinity
 
-    @pytest.mark.parametrize(("randomize_name",), ([True], [False]))
+    @pytest.mark.parametrize("randomize_name", (True, False))
     def test_job_template_file_kwargs_override(
         self, randomize_name, job_template_file, clean_dags_dagruns_and_dagbundles
     ):
@@ -481,7 +483,7 @@ class TestKubernetesJobOperator:
         job = k.build_job_request_obj({})
         assert (
             re.match(
-                r"job-a{71}-[a-z0-9]{8}",
+                r"job-a{50}-[a-z0-9]{8}",
                 job.metadata.name,
             )
             is not None
@@ -1002,7 +1004,7 @@ class TestKubernetesDeleteJobOperator:
         mock_delete_namespaced_job.assert_called_once_with(name=JOB_NAME, namespace=JOB_NAMESPACE)
 
     @pytest.mark.parametrize(
-        "on_status, success, fail, deleted",
+        ("on_status", "success", "fail", "deleted"),
         [
             (None, True, True, True),
             (None, True, False, True),

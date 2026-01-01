@@ -25,6 +25,7 @@
     "requiredActions": "Accions requerides",
     "xcoms": "XComs"
   },
+  "collapseAllExtra": "Col·lapsar tots els camps extra json",
   "collapseDetailsPanel": "Col·lapsar el panell de detalls",
   "createdAssetEvent_one": "Esdeveniment d'Asset creat",
   "createdAssetEvent_other": "Esdeveniments d'Asset creats",
@@ -40,7 +41,7 @@
     "hasTaskConcurrencyLimits": "Té límits de concurrència de tasques",
     "lastExpired": "Últim caducat",
     "lastParseDuration": "Duració de l'últim anàlisi",
-    "lastParsed": "Últim anàlitzat",
+    "lastParsed": "Últim analitzat",
     "latestDagVersion": "Última versió del Dag",
     "latestRun": "Última execució",
     "maxActiveRuns": "Màxim d'execucions actives",
@@ -59,6 +60,7 @@
     "dataIntervalEnd": "Fi de l'interval de dades",
     "dataIntervalStart": "Inici de l'interval de dades",
     "lastSchedulingDecision": "Última decisió de programació",
+    "partitionKey": "Clau de partició",
     "queuedAt": "Enviat a cua a les",
     "runAfter": "Executar després de",
     "runType": "Tipus d'execució",
@@ -78,12 +80,18 @@
     "githubRepo": "Repositori de GitHub",
     "restApiReference": "Referència de l'API REST"
   },
+  "download": {
+    "download": "Descarregar",
+    "hotkey": "d",
+    "tooltip": "Prem {{hotkey}} per a descarregar els registres"
+  },
   "duration": "Duració",
   "endDate": "Data de finalització",
   "error": {
     "back": "Tornar",
     "defaultMessage": "S'ha produït un error inesperat",
     "home": "Inici",
+    "invalidUrl": "Pàgina no trobada. Si us plau, comprova la URL i torna-ho a provar.",
     "notFound": "Pàgina no trobada",
     "title": "Error"
   },
@@ -93,6 +101,7 @@
     "hotkey": "e",
     "tooltip": "Prem {{hotkey}} per alternar l'expansió"
   },
+  "expandAllExtra": "Expandir tots els camps extra json",
   "expression": {
     "all": "Tots",
     "and": "I",
@@ -101,10 +110,15 @@
   },
   "filter": "Filtre",
   "filters": {
+    "durationFrom": "Duració Des de",
+    "durationTo": "Duració Fins a",
+    "endTime": "Hora de finalització",
     "logicalDateFrom": "Data Lògica Des de",
     "logicalDateTo": "Data Lògica Fins a",
     "runAfterFrom": "Executar Després de",
-    "runAfterTo": "Executar Després de"
+    "runAfterTo": "Executar Després de",
+    "selectDateRange": "Seleccionar interval de dates",
+    "startTime": "Hora d'inici"
   },
   "logicalDate": "Data Lògica",
   "logout": "Tancar sessió",
@@ -161,7 +175,6 @@
     },
     "tooltip": "Prem {{hotkey}} per desplaçar-te cap a {{direction}}"
   },
-  "seconds": "{{count}}s",
   "security": {
     "actions": "Accions",
     "permissions": "Permisos",

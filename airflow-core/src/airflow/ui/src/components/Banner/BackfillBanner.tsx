@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, HStack, Spacer, Text, type ButtonProps } from "@chakra-ui/react";
+import { Box, Button, HStack, Spacer, Text, type ButtonProps } from "@chakra-ui/react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { MdPause, MdPlayArrow, MdStop } from "react-icons/md";
@@ -29,9 +29,11 @@ import {
   useBackfillServicePauseBackfill,
   useBackfillServiceUnpauseBackfill,
 } from "openapi/queries";
+import type { BackfillResponse } from "openapi/requests/types.gen";
+import { useAutoRefresh } from "src/utils";
 
 import Time from "../Time";
-import { Button, ProgressBar } from "../ui";
+import { ProgressBar } from "../ui";
 
 type Props = {
   readonly dagId: string;
@@ -48,10 +50,21 @@ const buttonProps = {
 
 const BackfillBanner = ({ dagId }: Props) => {
   const { t: translate } = useTranslation("components");
-  const { data, isLoading } = useBackfillServiceListBackfillsUi({
-    dagId,
-  });
-  const [backfill] = data?.backfills.filter((bf) => bf.completed_at === null) ?? [];
+  const refetchInterval = useAutoRefresh({ dagId });
+
+  const { data, isLoading } = useBackfillServiceListBackfillsUi(
+    {
+      dagId,
+    },
+    undefined,
+    {
+      refetchInterval: (query) =>
+        query.state.data?.backfills.some((bf: BackfillResponse) => bf.completed_at === null && !bf.is_paused)
+          ? refetchInterval
+          : false,
+    },
+  );
+  const [backfill] = data?.backfills.filter((bf: BackfillResponse) => bf.completed_at === null) ?? [];
 
   const queryClient = useQueryClient();
   const onSuccess = async () => {
@@ -64,7 +77,6 @@ const BackfillBanner = ({ dagId }: Props) => {
   const { isPending: isUnPausePending, mutate: unpauseMutate } = useBackfillServiceUnpauseBackfill({
     onSuccess,
   });
-
   const { isPending: isStopPending, mutate: stopPending } = useBackfillServiceCancelBackfill({ onSuccess });
 
   const togglePause = () => {

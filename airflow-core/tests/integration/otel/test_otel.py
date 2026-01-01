@@ -24,20 +24,22 @@ import subprocess
 import time
 
 import pytest
-from sqlalchemy import select
+from sqlalchemy import func, select
 
 from airflow._shared.timezones import timezone
 from airflow.dag_processing.bundles.manager import DagBundlesManager
+from airflow.dag_processing.dagbag import DagBag
 from airflow.executors import executor_loader
 from airflow.executors.executor_utils import ExecutorName
-from airflow.models import DAG, DagBag, DagRun
+from airflow.models import DAG, DagRun
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.taskinstance import TaskInstance
-from airflow.serialization.serialized_objects import SerializedDAG
+from airflow.serialization.definitions.dag import SerializedDAG
 from airflow.utils.session import create_session
 from airflow.utils.span_status import SpanStatus
 from airflow.utils.state import State
 
+from tests_common.test_utils.dag import create_scheduler_dag
 from tests_common.test_utils.otel_utils import (
     assert_parent_children_spans,
     assert_parent_children_spans_for_non_root,
@@ -86,13 +88,11 @@ def wait_for_dag_run_and_check_span_status(
 
     while timezone.utcnow().timestamp() - start_time < max_wait_time:
         with create_session() as session:
-            dag_run = (
-                session.query(DagRun)
-                .filter(
+            dag_run = session.scalar(
+                select(DagRun).where(
                     DagRun.dag_id == dag_id,
                     DagRun.run_id == run_id,
                 )
-                .first()
             )
 
             if dag_run is None:
@@ -120,15 +120,14 @@ def wait_for_dag_run_and_check_span_status(
 
 def check_dag_run_state_and_span_status(dag_id: str, run_id: str, state: str, span_status: str):
     with create_session() as session:
-        dag_run = (
-            session.query(DagRun)
-            .filter(
+        dag_run = session.scalar(
+            select(DagRun).where(
                 DagRun.dag_id == dag_id,
                 DagRun.run_id == run_id,
             )
-            .first()
         )
 
+        assert dag_run is not None
         assert dag_run.state == state, f"Dag Run state isn't {state}. State: {dag_run.state}"
         assert dag_run.span_status == span_status, (
             f"Dag Run span_status isn't {span_status}. Span_status: {dag_run.span_status}"
@@ -137,15 +136,14 @@ def check_dag_run_state_and_span_status(dag_id: str, run_id: str, state: str, sp
 
 def check_ti_state_and_span_status(task_id: str, run_id: str, state: str, span_status: str | None):
     with create_session() as session:
-        ti = (
-            session.query(TaskInstance)
-            .filter(
+        ti = session.scalar(
+            select(TaskInstance).where(
                 TaskInstance.task_id == task_id,
                 TaskInstance.run_id == run_id,
             )
-            .first()
         )
 
+        assert ti is not None
         assert ti.state == state, f"Task instance state isn't {state}. State: {ti.state}"
 
         if span_status is not None:
@@ -607,7 +605,7 @@ class TestOtelIntegration:
         "--daemon",
     ]
 
-    dags: dict[str, DAG] = {}
+    dags: dict[str, SerializedDAG] = {}
 
     @classmethod
     def setup_class(cls):
@@ -665,13 +663,18 @@ class TestOtelIntegration:
                 if AIRFLOW_V_3_0_PLUS:
                     from airflow.models.dagbundle import DagBundleModel
 
-                    if session.query(DagBundleModel).filter(DagBundleModel.name == "testing").count() == 0:
+                    count = session.scalar(
+                        select(func.count())
+                        .select_from(DagBundleModel)
+                        .where(DagBundleModel.name == "testing")
+                    )
+                    if count == 0:
                         session.add(DagBundleModel(name="testing"))
                         session.commit()
                     SerializedDAG.bulk_write_to_db(
                         bundle_name="testing", bundle_version=None, dags=[dag], session=session
                     )
-                    dag_dict[dag_id] = SerializedDAG.deserialize_dag(SerializedDAG.serialize_dag(dag))
+                    dag_dict[dag_id] = create_scheduler_dag(dag)
                 else:
                     dag.sync_to_db(session=session)
                     dag_dict[dag_id] = dag

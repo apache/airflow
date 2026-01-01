@@ -34,7 +34,7 @@ class TestAPIServerDeployment:
     """Tests api-server deployment."""
 
     @pytest.mark.parametrize(
-        "revision_history_limit, global_revision_history_limit",
+        ("revision_history_limit", "global_revision_history_limit"),
         [(8, 10), (10, 8), (8, None), (None, 10), (None, None)],
     )
     def test_revision_history_limit(self, revision_history_limit, global_revision_history_limit):
@@ -71,6 +71,15 @@ class TestAPIServerDeployment:
         assert "HTTPS" in jmespath.search(
             "spec.template.spec.containers[0].startupProbe.httpGet.scheme", docs[0]
         )
+
+    def test_should_use_monitor_health_for_http_probes(self):
+        docs = render_chart(show_only=["templates/api-server/api-server-deployment.yaml"])
+
+        for probe in ("livenessProbe", "readinessProbe", "startupProbe"):
+            assert (
+                jmespath.search(f"spec.template.spec.containers[0].{probe}.httpGet.path", docs[0])
+                == "/api/v2/monitor/health"
+            )
 
     def test_should_add_extra_containers(self):
         docs = render_chart(
@@ -384,7 +393,7 @@ class TestAPIServerDeployment:
         )
 
     @pytest.mark.parametrize(
-        "log_persistence_values, expected_claim_name",
+        ("log_persistence_values", "expected_claim_name"),
         [
             ({"enabled": False}, None),
             ({"enabled": True}, "release-name-logs"),
@@ -594,6 +603,17 @@ class TestAPIServerDeployment:
         assert jmespath.search("spec.template.spec.hostAliases[0].ip", docs[0]) == "127.0.0.1"
         assert jmespath.search("spec.template.spec.hostAliases[0].hostnames[0]", docs[0]) == "foo.local"
 
+    def test_can_be_disabled(self):
+        """
+        API server can be disabled by configuration.
+        """
+        docs = render_chart(
+            values={"apiServer": {"enabled": False}},
+            show_only=["templates/api-server/api-server-deployment.yaml"],
+        )
+
+        assert len(docs) == 0
+
 
 class TestAPIServerService:
     """Tests api-server service."""
@@ -636,7 +656,7 @@ class TestAPIServerService:
         assert jmespath.search("spec.loadBalancerSourceRanges", docs[0]) == ["10.123.0.0/16"]
 
     @pytest.mark.parametrize(
-        "ports, expected_ports",
+        ("ports", "expected_ports"),
         [
             ([{"port": 8888}], [{"port": 8888}]),  # name is optional with a single port
             (
@@ -679,7 +699,7 @@ class TestAPIServerService:
         assert jmespath.search("metadata.labels", docs[0])["test_label"] == "test_label_value"
 
     @pytest.mark.parametrize(
-        "ports, expected_ports",
+        ("ports", "expected_ports"),
         [
             (
                 [{"nodePort": "31000", "port": "8080"}],
@@ -699,6 +719,17 @@ class TestAPIServerService:
 
         assert jmespath.search("spec.type", docs[0]) == "NodePort"
         assert expected_ports == jmespath.search("spec.ports", docs[0])
+
+    def test_can_be_disabled(self):
+        """
+        API server service can be disabled by configuration.
+        """
+        docs = render_chart(
+            values={"apiServer": {"enabled": False}},
+            show_only=["templates/api-server/api-server-service.yaml"],
+        )
+
+        assert len(docs) == 0
 
 
 class TestAPIServerNetworkPolicy:
@@ -733,7 +764,7 @@ class TestAPIServerNetworkPolicy:
         assert jmespath.search("spec.ingress[0].ports", docs[0]) == [{"port": 8080}]
 
     @pytest.mark.parametrize(
-        "ports, expected_ports",
+        ("ports", "expected_ports"),
         [
             ([{"port": "sidecar"}], [{"port": "sidecar"}]),
             (
@@ -779,6 +810,17 @@ class TestAPIServerNetworkPolicy:
         assert "test_label" in jmespath.search("metadata.labels", docs[0])
         assert jmespath.search("metadata.labels", docs[0])["test_label"] == "test_label_value"
 
+    def test_can_be_disabled(self):
+        """
+        API server networkpolicy can be disabled by configuration.
+        """
+        docs = render_chart(
+            values={"apiServer": {"enabled": False}},
+            show_only=["templates/api-server/api-server-networkpolicy.yaml"],
+        )
+
+        assert len(docs) == 0
+
 
 class TestAPIServerServiceAccount:
     """Tests api-server service account."""
@@ -817,3 +859,14 @@ class TestAPIServerServiceAccount:
             show_only=["templates/api-server/api-server-serviceaccount.yaml"],
         )
         assert jmespath.search("automountServiceAccountToken", docs[0]) is False
+
+    def test_can_be_disabled(self):
+        """
+        API Server should be able to be disabled if the users desires.
+        """
+        docs = render_chart(
+            values={"apiServer": {"enabled": False}},
+            show_only=["templates/api-server/api-server-serviceaccount.yaml"],
+        )
+
+        assert len(docs) == 0

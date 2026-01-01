@@ -29,8 +29,8 @@ from elasticsearch.exceptions import ConnectionError as ESConnectionError
 from elasticsearch.helpers import bulk, parallel_bulk, reindex, scan, streaming_bulk
 
 from airflow.exceptions import AirflowConfigException, AirflowException
+from airflow.providers.common.compat.sdk import BaseHook
 from airflow.providers.common.sql.hooks.sql import DbApiHook
-from airflow.providers.elasticsearch.version_compat import BaseHook
 
 if TYPE_CHECKING:
     import pandas as pd

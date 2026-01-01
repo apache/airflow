@@ -25,7 +25,7 @@ from unittest import mock
 
 import pytest
 import time_machine
-from sqlalchemy import select
+from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
 
 from airflow._shared.timezones.timezone import utc, utcnow
@@ -34,6 +34,7 @@ from airflow.models.log import Log
 from airflow.sdk.execution_time.hitl import HITLUser
 from airflow.utils.state import TaskInstanceState
 
+from tests_common.test_utils.asserts import assert_queries_count
 from tests_common.test_utils.format_datetime import from_datetime_to_zulu_without_ms
 
 if TYPE_CHECKING:
@@ -135,7 +136,7 @@ def sample_tis(create_task_instance: CreateTaskInstance) -> list[TaskInstance]:
             dag_id=f"hitl_dag_{i}",
             run_id=f"hitl_run_{i}",
             task_id=f"hitl_task_{i}",
-            state=TaskInstanceState.RUNNING,
+            state=TaskInstanceState.DEFERRED,
         )
         for i in range(5)
     ]
@@ -215,7 +216,7 @@ def expected_sample_hitl_detail_dict(sample_ti: TaskInstance) -> dict[str, Any]:
         "defaults": ["Approve"],
         "multiple": False,
         "options": ["Approve", "Reject"],
-        "params": {"input_1": 1},
+        "params": {"input_1": {"value": 1, "schema": {}, "description": None}},
         "assigned_users": [],
         "created_at": mock.ANY,
         "params_input": {},
@@ -274,7 +275,7 @@ def expected_sample_hitl_detail_dict(sample_ti: TaskInstance) -> dict[str, Any]:
 
 @pytest.fixture(autouse=True)
 def cleanup_audit_log(session: Session) -> None:
-    session.query(Log).delete()
+    session.execute(delete(Log))
     session.commit()
 
 
@@ -328,6 +329,7 @@ class TestUpdateHITLDetailEndpoint:
         }
 
         audit_log = session.scalar(select(Log))
+        assert audit_log is not None
         _assert_sample_audit_log(audit_log)
 
     @time_machine.travel(datetime(2025, 7, 3, 0, 0, 0), tick=False)
@@ -354,6 +356,7 @@ class TestUpdateHITLDetailEndpoint:
         }
 
         audit_log = session.scalar(select(Log))
+        assert audit_log is not None
         _assert_sample_audit_log(audit_log)
 
     def test_should_respond_401(
@@ -526,7 +529,8 @@ class TestGetHITLDetailsEndpoint:
         test_client: TestClient,
         expected_sample_hitl_detail_dict: dict[str, Any],
     ) -> None:
-        response = test_client.get("/dags/~/dagRuns/~/hitlDetails")
+        with assert_queries_count(3):
+            response = test_client.get("/dags/~/dagRuns/~/hitlDetails")
         assert response.status_code == 200
         assert response.json() == {
             "hitl_details": [expected_sample_hitl_detail_dict],
@@ -535,14 +539,16 @@ class TestGetHITLDetailsEndpoint:
 
     @pytest.mark.usefixtures("sample_hitl_details")
     @pytest.mark.parametrize(
-        "params, expected_ti_count",
+        ("params", "expected_ti_count"),
         [
             # ti related filter
             ({"dag_id_pattern": "hitl_dag"}, 5),
             ({"dag_id_pattern": "other_Dag_"}, 3),
             ({"task_id": "hitl_task_0"}, 1),
             ({"task_id_pattern": "another_hitl"}, 3),
-            ({"state": "running"}, 5),
+            ({"map_index": -1}, 8),
+            ({"map_index": 1}, 0),
+            ({"state": "deferred"}, 5),
             ({"state": "success"}, 3),
             # hitl detail related filter
             ({"subject_search": "This is subject"}, 5),
@@ -570,16 +576,18 @@ class TestGetHITLDetailsEndpoint:
         ids=[
             "dag_id_pattern_hitl_dag",
             "dag_id_pattern_other_dag",
-            "task_id_pattern",
             "task_id",
-            "ti_state_running",
+            "task_id_pattern",
+            "map_index_none",
+            "map_index_1",
+            "ti_state_deferred",
             "ti_state_success",
             "subject",
             "body",
             "response_not_received",
             "response_received",
-            "responded_user_id",
-            "responded_user_name",
+            "responded_by_user_id",
+            "responded_by_user_name",
             "created_at_gte",
             "created_at_lte",
             "created_at",
@@ -591,7 +599,8 @@ class TestGetHITLDetailsEndpoint:
         params: dict[str, Any],
         expected_ti_count: int,
     ) -> None:
-        response = test_client.get("/dags/~/dagRuns/~/hitlDetails", params=params)
+        with assert_queries_count(3):
+            response = test_client.get("/dags/~/dagRuns/~/hitlDetails", params=params)
         assert response.status_code == 200
         assert response.json()["total_entries"] == expected_ti_count
         assert len(response.json()["hitl_details"]) == expected_ti_count
@@ -612,7 +621,7 @@ class TestGetHITLDetailsEndpoint:
                     "body": "this is body 0",
                     "defaults": ["Approve"],
                     "multiple": False,
-                    "params": {"input_1": 1},
+                    "params": {"input_1": {"value": 1, "schema": {}, "description": None}},
                     "assigned_users": [],
                     "created_at": DEFAULT_CREATED_AT.isoformat().replace("+00:00", "Z"),
                     "responded_by_user": None,
@@ -628,7 +637,7 @@ class TestGetHITLDetailsEndpoint:
     @pytest.mark.usefixtures("sample_hitl_details")
     @pytest.mark.parametrize("asc_desc_mark", ["", "-"], ids=["asc", "desc"])
     @pytest.mark.parametrize(
-        "key, get_key_lambda",
+        ("key", "get_key_lambda"),
         [
             # ti key
             ("ti_id", lambda x: x["task_instance"]["id"]),
@@ -637,18 +646,22 @@ class TestGetHITLDetailsEndpoint:
             ("run_after", lambda x: x["task_instance"]["run_after"]),
             ("rendered_map_index", lambda x: x["task_instance"]["rendered_map_index"]),
             ("task_instance_operator", lambda x: x["task_instance"]["operator_name"]),
+            ("task_instance_state", lambda x: x["task_instance"]["state"]),
             # htil key
             ("subject", itemgetter("subject")),
             ("responded_at", itemgetter("responded_at")),
             ("created_at", itemgetter("created_at")),
         ],
         ids=[
+            # ti key
             "ti_id",
             "dag_id",
             "run_id",
             "run_after",
             "rendered_map_index",
             "task_instance_operator",
+            "task_instance_state",
+            # htil key
             "subject",
             "responded_at",
             "created_at",
@@ -683,6 +696,10 @@ class TestGetHITLDetailsEndpoint:
             ),
             reverse=reverse,
         )
+
+        # Remove entries with None, because None orders depends on the DB implementation
+        hitl_details = [d for d in hitl_details if get_key_lambda(d) is not None]
+        sorted_hitl_details = [d for d in sorted_hitl_details if get_key_lambda(d) is not None]
 
         assert hitl_details == sorted_hitl_details
 

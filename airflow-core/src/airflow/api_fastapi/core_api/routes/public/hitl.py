@@ -29,6 +29,7 @@ from airflow.api_fastapi.common.db.common import SessionDep, paginated_select
 from airflow.api_fastapi.common.parameters import (
     QueryHITLDetailBodySearch,
     QueryHITLDetailDagIdPatternSearch,
+    QueryHITLDetailMapIndexFilter,
     QueryHITLDetailRespondedUserIdFilter,
     QueryHITLDetailRespondedUserNameFilter,
     QueryHITLDetailResponseReceivedFilter,
@@ -52,6 +53,7 @@ from airflow.api_fastapi.core_api.datamodels.hitl import (
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
 from airflow.api_fastapi.core_api.security import GetUserDep, ReadableTIFilterDep, requires_access_dag
 from airflow.api_fastapi.logging.decorators import action_logging
+from airflow.models.dag_version import DagVersion
 from airflow.models.dagrun import DagRun
 from airflow.models.hitl import HITLDetail as HITLDetailModel, HITLUser
 from airflow.models.taskinstance import TaskInstance as TI
@@ -212,29 +214,35 @@ def get_hitl_details(
                     "subject",
                     "responded_at",
                     "created_at",
+                    "responded_by_user_id",
+                    "responded_by_user_name",
                 ],
                 model=HITLDetailModel,
                 to_replace={
                     "dag_id": TI.dag_id,
                     "run_id": TI.run_id,
+                    "task_display_name": TI.task_display_name,
                     "run_after": DagRun.run_after,
                     "rendered_map_index": TI.rendered_map_index,
                     "task_instance_operator": TI.operator,
+                    "task_instance_state": TI.state,
                 },
             ).dynamic_depends(),
         ),
     ],
     session: SessionDep,
-    # ti related filter
+    # permission filter
     readable_ti_filter: ReadableTIFilterDep,
+    # ti related filter
     dag_id_pattern: QueryHITLDetailDagIdPatternSearch,
     task_id: QueryHITLDetailTaskIdFilter,
     task_id_pattern: QueryHITLDetailTaskIdPatternSearch,
+    map_index: QueryHITLDetailMapIndexFilter,
     ti_state: QueryTIStateFilter,
     # hitl detail related filter
     response_received: QueryHITLDetailResponseReceivedFilter,
-    responded_user_id: QueryHITLDetailRespondedUserIdFilter,
-    responded_user_name: QueryHITLDetailRespondedUserNameFilter,
+    responded_by_user_id: QueryHITLDetailRespondedUserIdFilter,
+    responded_by_user_name: QueryHITLDetailRespondedUserNameFilter,
     subject_patten: QueryHITLDetailSubjectSearch,
     body_patten: QueryHITLDetailBodySearch,
     created_at: Annotated[RangeFilter, Depends(datetime_range_filter_factory("created_at", HITLDetailModel))],
@@ -246,8 +254,10 @@ def get_hitl_details(
         .join(TI.dag_run)
         .options(
             joinedload(HITLDetailModel.task_instance).options(
-                joinedload(TI.dag_run),
-            )
+                joinedload(TI.dag_run).joinedload(DagRun.dag_model),
+                joinedload(TI.task_instance_note),
+                joinedload(TI.dag_version).joinedload(DagVersion.bundle),
+            ),
         )
     )
     if dag_id != "~":
@@ -257,16 +267,18 @@ def get_hitl_details(
     hitl_detail_select, total_entries = paginated_select(
         statement=query,
         filters=[
-            # ti related filter
+            # permission filter
             readable_ti_filter,
+            # ti related filter
             dag_id_pattern,
             task_id,
             task_id_pattern,
+            map_index,
             ti_state,
             # hitl detail related filter
             response_received,
-            responded_user_id,
-            responded_user_name,
+            responded_by_user_id,
+            responded_by_user_name,
             subject_patten,
             body_patten,
             created_at,

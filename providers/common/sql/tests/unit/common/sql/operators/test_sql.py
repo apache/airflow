@@ -18,24 +18,17 @@
 from __future__ import annotations
 
 import datetime
+import importlib.util
 import inspect
 from unittest import mock
 from unittest.mock import MagicMock
 
 import pytest
 
-try:
-    import importlib.util
-
-    if not importlib.util.find_spec("airflow.sdk.bases.hook"):
-        raise ImportError
-
-    BASEHOOK_PATCH_PATH = "airflow.sdk.bases.hook.BaseHook"
-except ImportError:
-    BASEHOOK_PATCH_PATH = "airflow.hooks.base.BaseHook"
 from airflow import DAG
-from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
+from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.models import Connection
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.common.sql.hooks.handlers import fetch_all_handler
 from airflow.providers.common.sql.operators.sql import (
     BaseSQLOperator,
@@ -59,7 +52,18 @@ from tests_common.test_utils.dag import sync_dag_to_db
 from tests_common.test_utils.db import clear_db_dag_bundles, clear_db_dags, clear_db_runs, clear_db_xcom
 from tests_common.test_utils.markers import skip_if_force_lowest_dependencies_marker
 from tests_common.test_utils.providers import get_provider_min_airflow_version
+from tests_common.test_utils.taskinstance import TaskInstanceWrapper
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_1, AIRFLOW_V_3_0_PLUS
+
+try:
+    import importlib.util
+
+    if not importlib.util.find_spec("airflow.sdk.bases.hook"):
+        raise ImportError
+
+    BASEHOOK_PATCH_PATH = "airflow.sdk.bases.hook.BaseHook"
+except ImportError:
+    BASEHOOK_PATCH_PATH = "airflow.hooks.base.BaseHook"
 
 if AIRFLOW_V_3_0_PLUS:
     from airflow.utils.types import DagRunTriggeredByType
@@ -362,7 +366,7 @@ class TestColumnCheckOperator:
             ("X", "min", -1),
             ("X", "max", 20),
         ]
-        operator = operator = self._construct_operator(monkeypatch, self.valid_column_mapping, records)
+        operator = self._construct_operator(monkeypatch, self.valid_column_mapping, records)
         with pytest.raises(AirflowException):
             operator.execute(context=MagicMock())
 
@@ -522,7 +526,7 @@ class TestTableCheckOperator:
         return operator
 
     @pytest.mark.parametrize(
-        ["conn_id"],
+        "conn_id",
         [
             pytest.param("postgres_default", marks=[pytest.mark.backend("postgres")]),
             pytest.param("mysql_default", marks=[pytest.mark.backend("mysql")]),
@@ -559,7 +563,7 @@ class TestTableCheckOperator:
             hook.run(["DROP TABLE employees"])
 
     @pytest.mark.parametrize(
-        ["conn_id"],
+        "conn_id",
         [
             pytest.param("postgres_default", marks=[pytest.mark.backend("postgres")]),
             pytest.param("mysql_default", marks=[pytest.mark.backend("mysql")]),
@@ -939,7 +943,16 @@ class TestIntervalCheckOperator:
             ignore_zero=True,
         )
 
-        with pytest.raises(AirflowException, match="f0, f1, f2"):
+        expected_err_message = (
+            "The following tests have failed:\n "
+            "f0: {'metric': 'f0', 'current_metric': 1, 'past_metric': 2, 'threshold': 1.0,"
+            " 'ignore_zero': True, 'ratio': 2.0, 'success': False}; "
+            "f1: {'metric': 'f1', 'current_metric': 1, 'past_metric': 2, 'threshold': 1.5,"
+            " 'ignore_zero': True, 'ratio': 2.0, 'success': False}; "
+            "f2: {'metric': 'f2', 'current_metric': 1, 'past_metric': 2, 'threshold': 2.0,"
+            " 'ignore_zero': True, 'ratio': 2.0, 'success': False}"
+        )
+        with pytest.raises(AirflowException, match=expected_err_message):
             operator.execute(context=MagicMock())
 
     @mock.patch.object(SQLIntervalCheckOperator, "get_db_hook")
@@ -969,7 +982,14 @@ class TestIntervalCheckOperator:
             ignore_zero=True,
         )
 
-        with pytest.raises(AirflowException, match="f0, f1"):
+        expected_err_message = (
+            "The following tests have failed:\n "
+            "f0: {'metric': 'f0', 'current_metric': 1, 'past_metric': 3, 'threshold': 0.5, "
+            "'ignore_zero': True, 'ratio': 0.6666666666666666, 'success': False}; "
+            "f1: {'metric': 'f1', 'current_metric': 1, 'past_metric': 3, 'threshold': 0.6, "
+            "'ignore_zero': True, 'ratio': 0.6666666666666666, 'success': False}"
+        )
+        with pytest.raises(AirflowException, match=expected_err_message):
             operator.execute(context=MagicMock())
 
 
@@ -1134,7 +1154,13 @@ class TestSqlBranch:
             )
 
         ti = dr.get_task_instance(task_id)
-        ti.task = self.dag.get_task(ti.task_id)
+        task = self.dag.get_task(ti.task_id)
+
+        if AIRFLOW_V_3_0_PLUS:
+            ti.task = self.scheduler_dag.get_task(ti.task_id)
+            ti = TaskInstanceWrapper(ti, task)
+        else:
+            ti.task = task
 
         return ti
 
@@ -1256,7 +1282,7 @@ class TestSqlBranch:
         mock_get_records.return_value = 1
 
         if AIRFLOW_V_3_0_1:
-            from airflow.exceptions import DownstreamTasksSkipped
+            from airflow.providers.common.compat.sdk import DownstreamTasksSkipped
 
             with pytest.raises(DownstreamTasksSkipped) as exc_info:
                 branch_op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
@@ -1305,7 +1331,7 @@ class TestSqlBranch:
         mock_get_records.return_value = true_value
 
         if AIRFLOW_V_3_0_1:
-            from airflow.exceptions import DownstreamTasksSkipped
+            from airflow.providers.common.compat.sdk import DownstreamTasksSkipped
 
             with pytest.raises(DownstreamTasksSkipped) as exc_info:
                 branch_op.execute({})
@@ -1353,7 +1379,7 @@ class TestSqlBranch:
         mock_get_records.return_value = false_value
 
         if AIRFLOW_V_3_0_1:
-            from airflow.exceptions import DownstreamTasksSkipped
+            from airflow.providers.common.compat.sdk import DownstreamTasksSkipped
 
             with pytest.raises(DownstreamTasksSkipped) as exc_info:
                 branch_op.execute({})
@@ -1412,7 +1438,7 @@ class TestSqlBranch:
         mock_get_records.return_value = [["1"]]
 
         if AIRFLOW_V_3_0_1:
-            from airflow.exceptions import DownstreamTasksSkipped
+            from airflow.providers.common.compat.sdk import DownstreamTasksSkipped
 
             with pytest.raises(DownstreamTasksSkipped) as exc_info:
                 branch_op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
@@ -1530,7 +1556,7 @@ class TestSqlBranch:
         mock_get_records.return_value = [false_value]
 
         if AIRFLOW_V_3_0_1:
-            from airflow.exceptions import DownstreamTasksSkipped
+            from airflow.providers.common.compat.sdk import DownstreamTasksSkipped
 
             with pytest.raises(DownstreamTasksSkipped) as exc_info:
                 branch_op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)

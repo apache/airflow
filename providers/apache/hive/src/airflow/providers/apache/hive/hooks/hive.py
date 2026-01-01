@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 import contextlib
+import csv
 import os
 import re
 import socket
@@ -28,20 +29,24 @@ from tempfile import NamedTemporaryFile, TemporaryDirectory
 from typing import TYPE_CHECKING, Any, Literal
 
 from deprecated import deprecated
+from sqlalchemy.engine import URL
 from typing_extensions import overload
+
+from airflow.exceptions import AirflowProviderDeprecationWarning
+from airflow.providers.common.compat.sdk import (
+    AIRFLOW_VAR_NAME_FORMAT_MAPPING,
+    AirflowException,
+    BaseHook,
+    conf,
+)
+from airflow.providers.common.sql.hooks.sql import DbApiHook
+from airflow.security import utils
+from airflow.utils.helpers import as_flattened_list
 
 if TYPE_CHECKING:
     import pandas as pd
     import polars as pl
 
-import csv
-
-from airflow.configuration import conf
-from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
-from airflow.providers.apache.hive.version_compat import AIRFLOW_VAR_NAME_FORMAT_MAPPING, BaseHook
-from airflow.providers.common.sql.hooks.sql import DbApiHook
-from airflow.security import utils
-from airflow.utils.helpers import as_flattened_list
 
 HIVE_QUEUE_PRIORITIES = ["VERY_HIGH", "HIGH", "NORMAL", "LOW", "VERY_LOW"]
 
@@ -317,8 +322,8 @@ class HiveCliHook(BaseHook):
             )
             self.sub_process = sub_process
             stdout = ""
-            for line in iter(sub_process.stdout.readline, b""):
-                line = line.decode()
+            for line_raw in iter(sub_process.stdout.readline, b""):
+                line = line_raw.decode()
                 stdout += line
                 if verbose:
                     self.log.info(line.strip())
@@ -333,24 +338,23 @@ class HiveCliHook(BaseHook):
         """Test an hql statement using the hive cli and EXPLAIN."""
         create, insert, other = [], [], []
         for query in hql.split(";"):  # naive
-            query_original = query
-            query = query.lower().strip()
+            query_lower = query.lower().strip()
 
-            if query.startswith("create table"):
-                create.append(query_original)
-            elif query.startswith(("set ", "add jar ", "create temporary function")):
-                other.append(query_original)
-            elif query.startswith("insert"):
-                insert.append(query_original)
+            if query_lower.startswith("create table"):
+                create.append(query)
+            elif query_lower.startswith(("set ", "add jar ", "create temporary function")):
+                other.append(query)
+            elif query_lower.startswith("insert"):
+                insert.append(query)
         other_ = ";".join(other)
         for query_set in [create, insert]:
-            for query in query_set:
-                query_preview = " ".join(query.split())[:50]
+            for query_item in query_set:
+                query_preview = " ".join(query_item.split())[:50]
                 self.log.info("Testing HQL [%s (...)]", query_preview)
                 if query_set == insert:
-                    query = other_ + "; explain " + query
+                    query = other_ + "; explain " + query_item
                 else:
-                    query = "explain " + query
+                    query = "explain " + query_item
                 try:
                     self.run_cli(query, verbose=False)
                 except AirflowException as e:
@@ -573,21 +577,15 @@ class HiveMetastoreHook(BaseHook):
         conn_socket = TSocket.TSocket(host, conn.port)
 
         if conf.get("core", "security") == "kerberos" and auth_mechanism == "GSSAPI":
-            try:
-                import saslwrapper as sasl
-            except ImportError:
-                import sasl
-
-            def sasl_factory() -> sasl.Client:
-                sasl_client = sasl.Client()
-                sasl_client.setAttr("host", host)
-                sasl_client.setAttr("service", kerberos_service_name)
-                sasl_client.init()
-                return sasl_client
-
+            from pyhive.hive import get_installed_sasl
             from thrift_sasl import TSaslClientTransport
 
-            transport = TSaslClientTransport(sasl_factory, "GSSAPI", conn_socket)
+            sasl_auth = "GSSAPI"
+            transport = TSaslClientTransport(
+                lambda: get_installed_sasl(host=host, sasl_auth=sasl_auth, service=kerberos_service_name),
+                sasl_auth,
+                conn_socket,
+            )
         else:
             transport = TTransport.TBufferedTransport(conn_socket)
 
@@ -1134,3 +1132,25 @@ class HiveServer2Hook(DbApiHook):
         **kwargs,
     ) -> pd.DataFrame:
         return self._get_pandas_df(sql, schema=schema, hive_conf=hive_conf, **kwargs)
+
+    @property
+    def sqlalchemy_url(self) -> URL:
+        """Return a `sqlalchemy.engine.URL` object constructed from the connection."""
+        conn = self.get_connection(self.get_conn_id())
+        extra = conn.extra_dejson or {}
+
+        query = {k: str(v) for k, v in extra.items() if v is not None and k != "__extra__"}
+
+        return URL.create(
+            drivername="hive",
+            username=conn.login,
+            password=conn.password,
+            host=conn.host,
+            port=conn.port,
+            database=conn.schema,
+            query=query,
+        )
+
+    def get_uri(self) -> str:
+        """Return a SQLAlchemy engine URL as a string."""
+        return self.sqlalchemy_url.render_as_string(hide_password=False)

@@ -23,7 +23,7 @@
 
 Package ``apache-airflow-providers-yandex``
 
-Release: ``4.2.0``
+Release: ``4.3.1``
 
 
 This package is for Yandex, including:
@@ -38,7 +38,7 @@ This is a provider package for ``yandex`` provider. All classes for this provide
 are in ``airflow.providers.yandex`` python package.
 
 You can find package information and changelog for the provider
-in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-yandex/4.2.0/>`_.
+in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-yandex/4.3.1/>`_.
 
 Installation
 ------------
@@ -52,13 +52,42 @@ The package supports the following python versions: 3.10,3.11,3.12
 Requirements
 ------------
 
-=======================  ======================================
-PIP package              Version required
-=======================  ======================================
-``apache-airflow``       ``>=2.10.0``
-``yandexcloud``          ``>=0.308.0; python_version < "3.13"``
-``yandex-query-client``  ``>=0.1.4; python_version < "3.13"``
-=======================  ======================================
+==========================================  ======================================
+PIP package                                 Version required
+==========================================  ======================================
+``apache-airflow``                          ``>=2.11.0``
+``yandexcloud``                             ``>=0.308.0; python_version < "3.13"``
+``yandex-query-client``                     ``>=0.1.4; python_version < "3.13"``
+``apache-airflow-providers-common-compat``  ``>=1.8.0``
+==========================================  ======================================
+
+Cross provider package dependencies
+-----------------------------------
+
+Those are dependencies that might be needed in order to use all the features of the package.
+You need to install the specified providers in order to use them.
+
+You can install such cross-provider dependencies when installing from PyPI. For example:
+
+.. code-block:: bash
+
+    pip install apache-airflow-providers-yandex[common.compat]
+
+
+==================================================================================================================  =================
+Dependent package                                                                                                   Extra
+==================================================================================================================  =================
+`apache-airflow-providers-common-compat <https://airflow.apache.org/docs/apache-airflow-providers-common-compat>`_  ``common.compat``
+==================================================================================================================  =================
+
+Optional dependencies
+----------------------
+
+=================  ==========================================
+Extra              Dependencies
+=================  ==========================================
+``common.compat``  ``apache-airflow-providers-common-compat``
+=================  ==========================================
 
 The changelog for the provider package can be found in the
-`changelog <https://airflow.apache.org/docs/apache-airflow-providers-yandex/4.2.0/changelog.html>`_.
+`changelog <https://airflow.apache.org/docs/apache-airflow-providers-yandex/4.3.1/changelog.html>`_.

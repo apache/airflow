@@ -35,11 +35,196 @@
 Changelog
 ---------
 
-1.7.0
+1.10.2
+......
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix DAG bundle imports in subprocess operators (#57631)``
+
+Misc
+~~~~
+
+* ``TaskInstance unused method cleanup (#59835)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Use SDK serde for trigger and next kwargs serialization (#59711)``
+   * ``Remove top-level SDK reference in Core (#59817)``
+   * ``Clean up SDK references in airflow.models.expandinput (#59815)``
+   * ``Move MappedOperator to serialization (#59628)``
+   * ``Split SerializedBaseOperator from serde logic (#59627)``
+   * ``Minor cleanups removing SDK references from Core (#59491)``
+   * ``Split SDK and serialized asset classes (#58993)``
+
+1.10.1
+......
+
+Bug Fixes
+~~~~~~~~~
+
+* ``fix uv venv fail without direct internet access (#59046)``
+
+Misc
+~~~~
+
+* ``Add backcompat for exceptions in providers (#58727)``
+* ``Implement timetables in SDK (#58669)``
+* ``nit: rename TriggerDagRunOperator._defer to deferrable (#58925)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+1.10.0
+......
+
+.. note::
+    This release of provider is only available for Airflow 2.11+ as explained in the
+    Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/PROVIDERS.rst#minimum-supported-version-of-airflow-for-community-managed-providers>_.
+
+Features
+~~~~~~~~
+
+* ``Auto-inject OpenLineage parent info into TriggerDagRunOperator conf (#58672)``
+* ``Add few attrs from external_task sensor to OpenLineage events (#58719)``
+* ``Allow virtualenv code to access connections/variables and send logs (#58148)``
+* ``Add source to Param (#58615)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``TriggerDagRunOperator deferral mode not working for Airflow 3 (#58497)``
+
+Misc
+~~~~
+
+* ``Move out some exceptions to TaskSDK (#54505)``
+* ``Bump minimum Airflow version in providers to Airflow 2.11.0 (#58612)``
+* ``Remove SDK reference for NOTSET in Airflow Core (#58258)``
+* ``Fix lower bound dependency to common-compat provider (#58833)``
+* ``Remove global from task instance session (#58601)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Updates to release process of providers (#58316)``
+   * ``Prepare release for 2025-11-27 wave of providers (#58697)``
+
+1.9.2
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``fix: HITL params not validating (#57547)``
+* ``Fix: Handle string formatted conf param in TriggerDagRunOperator (#57214)``
+* ``Fix walking through wildcarded directory in FileTrigger (#57155)``
+
+Misc
+~~~~
+
+* ``Convert all airflow distributions to be compliant with ASF requirements (#58138)``
+* ``Move subprocess utility closer to usage in python venv operators (#57189)``
+
+Doc-only
+~~~~~~~~
+
+* ``Add caution on using Airflow packages in virtualenv operator (#57599)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Delete all unnecessary LICENSE Files (#58191)``
+   * ``Enable pt006 rule and fix new generate errors (#58238)``
+   * ``fix MyPy type errors in datamodels/hitl.py (#57808)``
+   * ``Enable PT006 rule to standard Provider test(ssensor, trigge, util) 9 files (#58022)``
+   * ``Enable PT006 rule to standard Provider test(decorator, hook) 8 files (#58019)``
+   * ``PT006 modify standard (operator) (#58020)``
+   * ``Enable ruff PLW1509 rule (#57659)``
+   * ``Fix mypy static errors in standard provider (#57762)``
+   * ``Fix mypy type errors in providers/standard/ in external_task.py for SQLAlchemy 2 migration (#57369)``
+   * ``Fix code formatting via ruff preview (#57641)``
+   * ``Enable ruff PLW0602 rule (#57588)``
+   * ``Revert virtualenv connections/variables access and logging as test are failing``
+   * ``Enable PT011 rule to prvoider tests (#56929)``
+   * ``Allow virtualenv code to access connections/variables and send logs (#57213)``
+   * ``Fix mypy error in main (#57351)``
+   * ``fix mypy errors in providers/standard/ (#57266)``
+
+
+1.9.1
+.....
+
+Misc
+~~~~
+
+* ``Simplify version-specific imports in the Standard provider (#56867)``
+* ``Throw NotImplementedError error when fail_when_dag_is_paused is used in TriggerDagRunOperator with Airflow 3.x (#56965)``
+
+Doc-only
+~~~~~~~~
+
+* ``Correct 'Dag' to 'DAG' for code snippets in provider docs (#56727)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+1.9.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add a '@task.stub' to allow tasks in other languages to be defined in dags (#56055)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix DagBag imports in Airflow 3.2+ (#56109)``
+
+Misc
+~~~~
+
+* ``Move DagBag to airflow/dag_processing (#55139)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Fix 'example_bash_decorator' DAG (#56020)``
+   * ``Enable pt011 rule 2 (#55749)``
+   * ``Remove placeholder Release Date in changelog and index files (#56056)``
+   * ``Prepare release for Sep 2025 3rd ad-hoc wave of providers (#56007)``
+
+1.8.0
 .....
 
 
-Release Date: ``|PypiReleaseDate|``
+Features
+~~~~~~~~
+
+* ``feat(hitl): get rid off "Fallback to defaults" in HITL (#55536)``
+* ``feat(hitl): add fail_on_reject to ApprovalOperator (#55255)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``fix(hitl): make the user model in HITLDetail consistent with airflow user model (#55463)``
+* ``fix(hitl): Resolve Conflict 409 in API server when user actions at nearly timeout (#55243)``
+* ``fix(hitl): fix HITL timeout error handling (#55760)``
+
+Misc
+~~~~
+
+* ``refactor(hitl): rename response_at to responded_at (#55535)``
+* ``refactor(hitl): remove AirflowException from HITLTriggerEventError inheritance (#55763)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Remove SDK dependency from SerializedDAG (#55538)``
+   * ``Introduce e2e testing with testcontainers (#54072)``
+   * ``Switch all airflow logging to structlog (#52651)``
+
+1.7.0
+.....
+
 
 Features
 ~~~~~~~~
@@ -83,8 +268,6 @@ Doc-only
    * ``docs(hitl): fix typo in example_hitl_operator (#54537)``
    * ``make bundle_name not nullable (#47592)``
    * ``Remove SDK BaseOperator in TaskInstance (#53223)``
-
-.. Review and move the new changes to one of the sections above:
    * ``Fix Airflow 2 reference in README/index of providers (#55240)``
 
 1.6.0

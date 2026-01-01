@@ -24,11 +24,10 @@ from typing import TYPE_CHECKING, Any
 
 from airflow.providers.common.compat.notifier import BaseNotifier
 from airflow.providers.smtp.hooks.smtp import SmtpHook
-
-from tests_common.test_utils.version_compat import AIRFLOW_V_3_1_PLUS
+from airflow.providers.smtp.version_compat import AIRFLOW_V_3_1_PLUS
 
 if TYPE_CHECKING:
-    from airflow.sdk import Context
+    from airflow.providers.common.compat.sdk import Context
 
 
 class SmtpNotifier(BaseNotifier):

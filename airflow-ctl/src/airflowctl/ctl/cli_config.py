@@ -22,6 +22,7 @@ from __future__ import annotations
 
 import argparse
 import ast
+import datetime
 import getpass
 import inspect
 import os
@@ -36,7 +37,6 @@ import httpx
 import rich
 
 import airflowctl.api.datamodels.generated as generated_datamodels
-from airflowctl._shared.timezones.timezone import parse as parsedate
 from airflowctl.api.client import NEW_API_CLIENT, Client, ClientKind, provide_api_client
 from airflowctl.api.operations import BaseOperations, ServerResponseError
 from airflowctl.ctl.console_formatting import AirflowConsole
@@ -66,18 +66,22 @@ def lazy_load_command(import_path: str) -> Callable:
 def safe_call_command(function: Callable, args: Iterable[Arg]) -> None:
     import sys
 
+    if os.getenv("AIRFLOW_CLI_DEBUG_MODE") == "true":
+        rich.print(
+            "[yellow]Debug mode is enabled. Please be aware that your credentials are not secure.\n"
+            "Please unset AIRFLOW_CLI_DEBUG_MODE or set it to false.[/yellow]"
+        )
+
     try:
         function(args)
-    except AirflowCtlCredentialNotFoundException as e:
+    except (
+        AirflowCtlCredentialNotFoundException,
+        AirflowCtlConnectionException,
+        AirflowCtlNotFoundException,
+    ) as e:
         rich.print(f"command failed due to {e}")
         sys.exit(1)
-    except AirflowCtlConnectionException as e:
-        rich.print(f"command failed due to {e}")
-        sys.exit(1)
-    except AirflowCtlNotFoundException as e:
-        rich.print(f"command failed due to {e}")
-        sys.exit(1)
-    except httpx.RemoteProtocolError as e:
+    except (httpx.RemoteProtocolError, httpx.ReadError) as e:
         rich.print(f"[red]Remote protocol error: {e}[/red]")
         if "Server disconnected without sending a response." in str(e):
             rich.print(
@@ -87,7 +91,7 @@ def safe_call_command(function: Callable, args: Iterable[Arg]) -> None:
     except httpx.ReadTimeout as e:
         rich.print(f"[red]Read timeout error: {e}[/red]")
         if "timed out" in str(e):
-            rich.print("Please check if the server is running and the API ready to accept calls.[/red]")
+            rich.print("[red]Please check if the server is running and the API ready to accept calls.[/red]")
     except ServerResponseError as e:
         rich.print(f"Server response error: {e}")
         if "Client error message:" in str(e):
@@ -187,7 +191,8 @@ class Password(argparse.Action):
     """Custom action to prompt for password input."""
 
     def __call__(self, parser, namespace, values, option_string=None):
-        values = getpass.getpass()
+        if values is None:
+            values = getpass.getpass()
         setattr(namespace, self.dest, values)
 
 
@@ -195,8 +200,7 @@ class Password(argparse.Action):
 ARG_FILE = Arg(
     flags=("file",),
     metavar="FILEPATH",
-    help="File path to read from or write to. "
-    "For import commands, it is a file to read from. For export commands, it is a file to write to.",
+    help="File path to read from for import commands.",
 )
 ARG_OUTPUT = Arg(
     (
@@ -245,6 +249,13 @@ ARG_AUTH_PASSWORD = Arg(
     nargs="?",
 )
 
+# Dag Commands Args
+ARG_DAG_ID = Arg(
+    flags=("dag_id",),
+    type=str,
+    help="The DAG ID of the DAG to pause or unpause",
+)
+
 # Variable Commands Args
 ARG_VARIABLE_ACTION_ON_EXISTING_KEY = Arg(
     flags=("-a", "--action-on-existing-key"),
@@ -285,6 +296,14 @@ ARG_CONFIG_VERBOSE = Arg(
         "--verbose",
     ),
     help="Enables detailed output, including the list of ignored sections and options",
+    default=False,
+    action="store_true",
+)
+
+# Version Command Args
+ARG_REMOTE = Arg(
+    flags=("--remote",),
+    help="Fetch the Airflow version in remote server, otherwise only shows the local airflowctl version",
     default=False,
     action="store_true",
 )
@@ -467,7 +486,7 @@ class CommandFactory:
             "dict": dict,
             "tuple": tuple,
             "set": set,
-            "datetime.datetime": parsedate,
+            "datetime.datetime": datetime.datetime,
             "dict[str, typing.Any]": dict,
         }
         # Default to ``str`` to preserve previous behaviour for any unrecognised
@@ -781,11 +800,30 @@ CONFIG_COMMANDS = (
 CONNECTION_COMMANDS = (
     ActionCommand(
         name="import",
-        help="Import connections from a file. "
-        "This feature is compatible with airflow CLI `airflow connections export a.json` command. "
-        "Export it from `airflow CLI` and import it securely via this command.",
+        help="Import connections from a file exported with local CLI.",
         func=lazy_load_command("airflowctl.ctl.commands.connection_command.import_"),
         args=(Arg(flags=("file",), metavar="FILEPATH", help="Connections JSON file"),),
+    ),
+)
+
+DAG_COMMANDS = (
+    ActionCommand(
+        name="pause",
+        help="Pause a Dag",
+        func=lazy_load_command("airflowctl.ctl.commands.dag_command.pause"),
+        args=(
+            ARG_DAG_ID,
+            ARG_OUTPUT,
+        ),
+    ),
+    ActionCommand(
+        name="unpause",
+        help="Unpause a Dag",
+        func=lazy_load_command("airflowctl.ctl.commands.dag_command.unpause"),
+        args=(
+            ARG_DAG_ID,
+            ARG_OUTPUT,
+        ),
     ),
 )
 
@@ -810,15 +848,9 @@ POOL_COMMANDS = (
 VARIABLE_COMMANDS = (
     ActionCommand(
         name="import",
-        help="Import variables",
+        help="Import variables from a file exported with local CLI.",
         func=lazy_load_command("airflowctl.ctl.commands.variable_command.import_"),
         args=(ARG_FILE, ARG_VARIABLE_ACTION_ON_EXISTING_KEY),
-    ),
-    ActionCommand(
-        name="export",
-        help="Export all variables",
-        func=lazy_load_command("airflowctl.ctl.commands.variable_command.export"),
-        args=(ARG_FILE,),
     ),
 )
 
@@ -840,6 +872,11 @@ core_commands: list[CLICommand] = [
         subcommands=CONNECTION_COMMANDS,
     ),
     GroupCommand(
+        name="dags",
+        help="Manage Airflow Dags",
+        subcommands=DAG_COMMANDS,
+    ),
+    GroupCommand(
         name="pools",
         help="Manage Airflow pools",
         subcommands=POOL_COMMANDS,
@@ -849,7 +886,10 @@ core_commands: list[CLICommand] = [
         help="Show version information",
         description="Show version information",
         func=lazy_load_command("airflowctl.ctl.commands.version_command.version_info"),
-        args=(),
+        args=(
+            ARG_AUTH_ENVIRONMENT,
+            ARG_REMOTE,
+        ),
     ),
     GroupCommand(
         name="variables",

@@ -36,6 +36,7 @@
 
     Connection types <connections/neo4j>
     Operators <operators/neo4j>
+    Sensors <sensors/neo4j>
 
 .. toctree::
     :hidden:
@@ -77,7 +78,7 @@ apache-airflow-providers-neo4j package
 `Neo4j <https://neo4j.com/>`__
 
 
-Release: 3.10.1
+Release: 3.11.2
 
 Provider package
 ----------------
@@ -95,11 +96,40 @@ For the minimum Airflow version supported, see ``Requirements`` below.
 Requirements
 ------------
 
-The minimum Apache Airflow version supported by this provider distribution is ``2.10.0``.
+The minimum Apache Airflow version supported by this provider distribution is ``2.11.0``.
 
-==================  ==================
-PIP package         Version required
-==================  ==================
-``apache-airflow``  ``>=2.10.0``
-``neo4j``           ``>=5.20.0``
-==================  ==================
+==========================================  ==================
+PIP package                                 Version required
+==========================================  ==================
+``apache-airflow``                          ``>=2.11.0``
+``apache-airflow-providers-common-compat``  ``>=1.10.1``
+``neo4j``                                   ``>=5.20.0``
+==========================================  ==================
+
+Cross provider package dependencies
+-----------------------------------
+
+Those are dependencies that might be needed in order to use all the features of the package.
+You need to install the specified provider distributions in order to use them.
+
+You can install such cross-provider dependencies when installing from PyPI. For example:
+
+.. code-block:: bash
+
+    pip install apache-airflow-providers-neo4j[common.compat]
+
+
+==================================================================================================================  =================
+Dependent package                                                                                                   Extra
+==================================================================================================================  =================
+`apache-airflow-providers-common-compat <https://airflow.apache.org/docs/apache-airflow-providers-common-compat>`_  ``common.compat``
+==================================================================================================================  =================
+
+Downloading official packages
+-----------------------------
+
+You can download officially released packages and verify their checksums and signatures from the
+`Official Apache Download site <https://downloads.apache.org/airflow/providers/>`_
+
+* `The apache-airflow-providers-neo4j 3.11.2 sdist package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_neo4j-3.11.2.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_neo4j-3.11.2.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_neo4j-3.11.2.tar.gz.sha512>`__)
+* `The apache-airflow-providers-neo4j 3.11.2 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_neo4j-3.11.2-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_neo4j-3.11.2-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_neo4j-3.11.2-py3-none-any.whl.sha512>`__)

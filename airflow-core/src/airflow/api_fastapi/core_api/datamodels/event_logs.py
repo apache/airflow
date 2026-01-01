@@ -17,6 +17,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Iterable
 from datetime import datetime
 
 from pydantic import AliasPath, Field
@@ -41,10 +42,13 @@ class EventLogResponse(BaseModel):
     dag_display_name: str | None = Field(
         validation_alias=AliasPath("dag_model", "dag_display_name"), default=None
     )
+    task_display_name: str | None = Field(
+        validation_alias=AliasPath("task_instance", "task_display_name"), default=None
+    )
 
 
 class EventLogCollectionResponse(BaseModel):
     """Event Log Collection Response."""
 
-    event_logs: list[EventLogResponse]
+    event_logs: Iterable[EventLogResponse]
     total_entries: int

@@ -86,22 +86,13 @@ class TestCliListConnections:
 
     def test_cli_connections_list_as_json(self):
         args = self.parser.parse_args(["connections", "list", "--output", "json"])
-        with redirect_stdout(StringIO()) as stdout:
+        with redirect_stdout(StringIO()) as stdout_io:
             connection_command.connections_list(args)
-            print(stdout.getvalue())
-            stdout = stdout.getvalue()
+            print(stdout_io.getvalue())
+            stdout = stdout_io.getvalue()
         for conn_id, conn_type in self.EXPECTED_CONS:
             assert conn_type in stdout
             assert conn_id in stdout
-
-    def test_cli_connections_filter_conn_id(self):
-        args = self.parser.parse_args(
-            ["connections", "list", "--output", "json", "--conn-id", "http_default"]
-        )
-        with redirect_stdout(StringIO()) as capture:
-            connection_command.connections_list(args)
-            stdout = capture.getvalue()
-        assert "http_default" in stdout
 
 
 class TestCliExportConnections:
@@ -223,7 +214,7 @@ class TestCliExportConnections:
         assert output_filepath.read_text() == expected_connections
 
     @pytest.mark.parametrize(
-        "serialization_format, expected",
+        ("serialization_format", "expected"),
         [
             (
                 "uri",
@@ -370,7 +361,7 @@ class TestCliAddConnections:
 
     @skip_if_force_lowest_dependencies_marker
     @pytest.mark.parametrize(
-        "cmd, expected_output, expected_conn",
+        ("cmd", "expected_output", "expected_conn"),
         [
             pytest.param(
                 [

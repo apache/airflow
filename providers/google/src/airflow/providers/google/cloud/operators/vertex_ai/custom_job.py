@@ -29,8 +29,7 @@ from google.cloud.aiplatform.models import Model
 from google.cloud.aiplatform_v1.types.dataset import Dataset
 from google.cloud.aiplatform_v1.types.training_pipeline import TrainingPipeline
 
-from airflow.configuration import conf
-from airflow.exceptions import AirflowException
+from airflow.providers.common.compat.sdk import AirflowException, conf
 from airflow.providers.google.cloud.hooks.vertex_ai.custom_job import CustomJobHook
 from airflow.providers.google.cloud.links.vertex_ai import (
     VertexAIModelLink,
@@ -53,7 +52,7 @@ if TYPE_CHECKING:
     )
     from google.cloud.aiplatform_v1.types import PscInterfaceConfig
 
-    from airflow.utils.context import Context
+    from airflow.providers.common.compat.sdk import Context
 
 
 class CustomTrainingJobBaseOperator(GoogleCloudBaseOperator):

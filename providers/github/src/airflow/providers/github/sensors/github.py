@@ -22,12 +22,11 @@ from typing import TYPE_CHECKING, Any
 
 from github import GithubException
 
-from airflow.exceptions import AirflowException
+from airflow.providers.common.compat.sdk import AirflowException, BaseSensorOperator
 from airflow.providers.github.hooks.github import GithubHook
-from airflow.providers.github.version_compat import BaseSensorOperator
 
 if TYPE_CHECKING:
-    from airflow.providers.github.version_compat import Context
+    from airflow.providers.common.compat.sdk import Context
 
 
 class GithubSensor(BaseSensorOperator):

@@ -128,14 +128,14 @@ def create_sample_table(instance_name: str, db_name: str, table_name: str):
 
     table = Table(
         table_name,
-        MetaData(engine),
+        MetaData(),
         Column(TABLE_HEADERS[0], String, primary_key=True),
         Column(TABLE_HEADERS[1], String),
     )
 
     with engine.connect() as connection:
         # Create the Table.
-        table.create()
+        table.create(bind=connection)
         load_data = table.insert().values(SAMPLE_DATA)
         connection.execute(load_data)
 
@@ -240,7 +240,6 @@ with DAG(
     DAG_ID,
     schedule="@once",
     start_date=datetime(2021, 1, 1),
-    tags=["example"],
     catchup=False,
 ) as dag:
     test_context = sys_test_context_task()

@@ -79,7 +79,7 @@ class TestOpenAIBatchTrigger:
 
     @pytest.mark.asyncio
     @pytest.mark.parametrize(
-        "mock_batch_status, mock_status, mock_message",
+        ("mock_batch_status", "mock_status", "mock_message"),
         [
             (str(BatchStatus.COMPLETED), "success", "Batch batch_id has completed successfully."),
             (str(BatchStatus.CANCELLING), "cancelled", "Batch batch_id has been cancelled."),

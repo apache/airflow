@@ -23,7 +23,6 @@ from functools import cached_property
 from typing import TYPE_CHECKING
 
 from airflow.configuration import conf
-from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.sagemaker_unified_studio import (
     SageMakerNotebookHook,
 )
@@ -33,10 +32,10 @@ from airflow.providers.amazon.aws.links.sagemaker_unified_studio import (
 from airflow.providers.amazon.aws.triggers.sagemaker_unified_studio import (
     SageMakerNotebookJobTrigger,
 )
-from airflow.providers.amazon.version_compat import BaseOperator
+from airflow.providers.common.compat.sdk import AirflowException, BaseOperator
 
 if TYPE_CHECKING:
-    from airflow.utils.context import Context
+    from airflow.sdk import Context
 
 
 class SageMakerNotebookOperator(BaseOperator):

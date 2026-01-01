@@ -20,15 +20,11 @@ from __future__ import annotations
 from collections.abc import Callable, Mapping, Sequence
 from typing import TYPE_CHECKING, Any
 
-from airflow.providers.standard.version_compat import BaseSensorOperator, PokeReturnValue, context_merge
+from airflow.providers.common.compat.sdk import BaseSensorOperator, PokeReturnValue, context_merge
 from airflow.utils.operator_helpers import determine_kwargs
 
 if TYPE_CHECKING:
-    try:
-        from airflow.sdk.definitions.context import Context
-    except ImportError:
-        # TODO: Remove once provider drops support for Airflow 2
-        from airflow.utils.context import Context  # type: ignore[no-redef, attr-defined]
+    from airflow.providers.common.compat.sdk import Context
 
 
 class PythonSensor(BaseSensorOperator):

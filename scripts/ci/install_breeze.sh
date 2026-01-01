@@ -21,14 +21,12 @@ cd "$( dirname "${BASH_SOURCE[0]}" )/../../"
 
 PYTHON_ARG=""
 
-PIP_VERSION="25.2"
-UV_VERSION="0.8.17"
+PIP_VERSION="25.3"
 if [[ ${PYTHON_VERSION=} != "" ]]; then
     PYTHON_ARG="--python=$(which python"${PYTHON_VERSION}") "
 fi
 
 python -m pip install --upgrade "pip==${PIP_VERSION}"
-python -m pip install "uv==${UV_VERSION}"
 uv tool uninstall apache-airflow-breeze >/dev/null 2>&1 || true
 # shellcheck disable=SC2086
 uv tool install ${PYTHON_ARG} --force --editable ./dev/breeze/

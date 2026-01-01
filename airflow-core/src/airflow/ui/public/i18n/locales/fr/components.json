@@ -95,6 +95,16 @@
     "taskGroup": "Groupe de tâches"
   },
   "limitedList": "+{{count}} supplémentaires",
+  "limitedList.allItems": "Tous les {{count}} éléments :",
+  "limitedList.allTags_many": "Tous les éléments ({{count}}) :",
+  "limitedList.allTags_one": "Tous les éléments (1) :",
+  "limitedList.allTags_other": "Tous les éléments ({{count}}) :",
+  "limitedList.clickToInteract": "Cliquez sur une étiquette pour filtrer les Dags",
+  "limitedList.clickToOpenFull": "Cliquez sur \"+{{count}} supplémentaires\" pour ouvrir la vue complète",
+  "limitedList.copyPasteText": "Vous pouvez copier et coller le texte ci-dessus",
+  "limitedList.showingItems_many": "Affichage de {{count}} éléments",
+  "limitedList.showingItems_one": "Affichage de 1 élément",
+  "limitedList.showingItems_other": "Affichage de {{count}} éléments",
   "logs": {
     "file": "Fichier",
     "location": "ligne {{line}} dans {{name}}"

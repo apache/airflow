@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import copy
 import datetime
+import importlib
 import itertools
 import logging
 import uuid
@@ -26,13 +27,12 @@ from collections.abc import Collection, Iterable, Mapping
 from typing import TYPE_CHECKING, Any
 
 import jwt
-from flask import flash, g, has_request_context, session
-from flask_appbuilder import const
+from flask import current_app, flash, g, has_app_context, has_request_context, session
+from flask_appbuilder import Model, const
 from flask_appbuilder.const import (
     AUTH_DB,
     AUTH_LDAP,
     AUTH_OAUTH,
-    AUTH_OID,
     AUTH_REMOTE_USER,
     LOGMSG_ERR_SEC_ADD_REGISTER_USER,
     LOGMSG_ERR_SEC_AUTH_LDAP,
@@ -41,19 +41,16 @@ from flask_appbuilder.const import (
     LOGMSG_WAR_SEC_NOLDAP_OBJ,
     MICROSOFT_KEY_SET_URL,
 )
-from flask_appbuilder.models.sqla import Base
 from flask_appbuilder.models.sqla.interface import SQLAInterface
 from flask_appbuilder.security.api import SecurityApi
 from flask_appbuilder.security.registerviews import (
     RegisterUserDBView,
     RegisterUserOAuthView,
-    RegisterUserOIDView,
 )
 from flask_appbuilder.security.views import (
     AuthDBView,
     AuthLDAPView,
     AuthOAuthView,
-    AuthOIDView,
     AuthRemoteUserView,
     RegisterUserModelView,
     UserGroupModelView,
@@ -63,13 +60,14 @@ from flask_jwt_extended import JWTManager
 from flask_login import LoginManager
 from itsdangerous import want_bytes
 from markupsafe import Markup, escape
+from packaging.version import Version
 from sqlalchemy import delete, func, inspect, or_, select
 from sqlalchemy.exc import MultipleResultsFound
 from sqlalchemy.orm import joinedload
 from werkzeug.security import check_password_hash, generate_password_hash
 
 from airflow.configuration import conf
-from airflow.exceptions import AirflowException
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.fab.auth_manager.models import (
     Action,
     Group,
@@ -91,7 +89,6 @@ from airflow.providers.fab.auth_manager.views.user import (
     CustomUserDBModelView,
     CustomUserLDAPModelView,
     CustomUserOAuthModelView,
-    CustomUserOIDModelView,
     CustomUserRemoteUserModelView,
 )
 from airflow.providers.fab.auth_manager.views.user_edit import (
@@ -104,7 +101,6 @@ from airflow.providers.fab.version_compat import AIRFLOW_V_3_1_PLUS
 from airflow.providers.fab.www.security import permissions
 from airflow.providers.fab.www.security_manager import AirflowSecurityManagerV2
 from airflow.providers.fab.www.session import AirflowDatabaseSessionInterface
-from airflow.security.permissions import RESOURCE_BACKFILL
 
 if TYPE_CHECKING:
     from airflow.providers.fab.www.security.permissions import (
@@ -112,7 +108,7 @@ if TYPE_CHECKING:
         RESOURCE_ASSET_ALIAS,
     )
     from airflow.sdk import DAG
-    from airflow.serialization.serialized_objects import SerializedDAG
+    from airflow.serialization.definitions.dag import SerializedDAG
 else:
     from airflow.providers.common.compat.security.permissions import (
         RESOURCE_ASSET,
@@ -127,11 +123,17 @@ if AIRFLOW_V_3_1_PLUS:
         with create_session() as session:
             yield from DBDagBag().iter_all_latest_version_dags(session=session)
 else:
-    from airflow.models.dagbag import DagBag
+    try:
+        from airflow.models.dagbag import DagBag
+    except (ImportError, AttributeError):
+        DagBag = None
 
     def _iter_dags() -> Iterable[DAG | SerializedDAG]:
-        dagbag = DagBag(read_dags_from_db=True)  # type: ignore[call-arg]
-        dagbag.collect_dags_from_db()  # type: ignore[attr-defined]
+        if DagBag is None:
+            return []
+        dagbag = DagBag(read_dags_from_db=True)
+        if hasattr(dagbag, "collect_dags_from_db"):
+            dagbag.collect_dags_from_db()
         return dagbag.dags.values()
 
 
@@ -177,16 +179,12 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
     """ Override if you want your own Authentication DB view """
     authldapview = AuthLDAPView
     """ Override if you want your own Authentication LDAP view """
-    authoidview = AuthOIDView
-    """ Override if you want your own Authentication OID view """
     authoauthview = AuthOAuthView
     """ Override if you want your own Authentication OAuth view """
     authremoteuserview = AuthRemoteUserView
     """ Override if you want your own Authentication REMOTE_USER view """
     registeruserdbview = RegisterUserDBView
     """ Override if you want your own register user db view """
-    registeruseroidview = RegisterUserOIDView
-    """ Override if you want your own register user OpenID view """
     registeruseroauthview = RegisterUserOAuthView
     """ Override if you want your own register user OAuth view """
     actionmodelview = ActionModelView
@@ -203,7 +201,6 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
     userldapmodelview = CustomUserLDAPModelView
     useroauthmodelview = CustomUserOAuthModelView
     userremoteusermodelview = CustomUserRemoteUserModelView
-    useroidmodelview = CustomUserOIDModelView
     userstatschartview = CustomUserStatsChartView
 
     # API
@@ -238,7 +235,7 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG_WARNING),
         (permissions.ACTION_CAN_READ, RESOURCE_ASSET),
         (permissions.ACTION_CAN_READ, RESOURCE_ASSET_ALIAS),
-        (permissions.ACTION_CAN_READ, RESOURCE_BACKFILL),
+        (permissions.ACTION_CAN_READ, permissions.RESOURCE_BACKFILL),
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_CLUSTER_ACTIVITY),
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_POOL),
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_IMPORT_ERROR),
@@ -310,9 +307,9 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
         (permissions.ACTION_CAN_DELETE, permissions.RESOURCE_XCOM),
         (permissions.ACTION_CAN_CREATE, RESOURCE_ASSET),
         (permissions.ACTION_CAN_DELETE, RESOURCE_ASSET),
-        (permissions.ACTION_CAN_CREATE, RESOURCE_BACKFILL),
-        (permissions.ACTION_CAN_EDIT, RESOURCE_BACKFILL),
-        (permissions.ACTION_CAN_DELETE, RESOURCE_BACKFILL),
+        (permissions.ACTION_CAN_CREATE, permissions.RESOURCE_BACKFILL),
+        (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_BACKFILL),
+        (permissions.ACTION_CAN_DELETE, permissions.RESOURCE_BACKFILL),
     ]
     # [END security_op_perms]
 
@@ -424,7 +421,7 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
 
     def register_views(self):
         """Register FAB auth manager related views."""
-        if not self.appbuilder.get_app.config.get("FAB_ADD_SECURITY_VIEWS", True):
+        if not current_app.config.get("FAB_ADD_SECURITY_VIEWS", True):
             return
 
         # Security APIs
@@ -433,8 +430,6 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
         if self.auth_user_registration:
             if self.auth_type == AUTH_DB:
                 self.registeruser_view = self.registeruserdbview()
-            elif self.auth_type == AUTH_OID:
-                self.registeruser_view = self.registeruseroidview()
             elif self.auth_type == AUTH_OAUTH:
                 self.registeruser_view = self.registeruseroauthview()
             if self.registeruser_view:
@@ -456,9 +451,6 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
         elif self.auth_type == AUTH_REMOTE_USER:
             self.user_view = self.userremoteusermodelview
             self.auth_view = self.authremoteuserview()
-        else:
-            self.user_view = self.useroidmodelview
-            self.auth_view = self.authoidview()
 
         self.appbuilder.add_view_no_menu(self.auth_view)
 
@@ -504,7 +496,7 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
                 category="Security",
             )
         self.appbuilder.menu.add_separator("Security")
-        if self.appbuilder.get_app.config.get("FAB_ADD_SECURITY_PERMISSION_VIEW", True):
+        if current_app.config.get("FAB_ADD_SECURITY_PERMISSION_VIEW", True):
             self.appbuilder.add_view(
                 self.actionmodelview,
                 "Actions",
@@ -512,7 +504,7 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
                 label=lazy_gettext("Actions"),
                 category="Security",
             )
-        if self.appbuilder.get_app.config.get("FAB_ADD_SECURITY_VIEW_MENU_VIEW", True):
+        if current_app.config.get("FAB_ADD_SECURITY_VIEW_MENU_VIEW", True):
             self.appbuilder.add_view(
                 self.resourcemodelview,
                 "Resources",
@@ -520,7 +512,7 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
                 label=lazy_gettext("Resources"),
                 category="Security",
             )
-        if self.appbuilder.get_app.config.get("FAB_ADD_SECURITY_PERMISSION_VIEWS_VIEW", True):
+        if current_app.config.get("FAB_ADD_SECURITY_PERMISSION_VIEWS_VIEW", True):
             self.appbuilder.add_view(
                 self.permissionmodelview,
                 "Permission Pairs",
@@ -530,12 +522,12 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
             )
 
     @property
-    def get_session(self):
-        return self.appbuilder.get_session
+    def session(self):
+        return self.appbuilder.session
 
     def create_login_manager(self) -> LoginManager:
         """Create the login manager."""
-        lm = LoginManager(self.appbuilder.app)
+        lm = LoginManager(current_app)
         lm.anonymous_user = AnonymousUser
         lm.login_view = "login"
         lm.user_loader(self.load_user)
@@ -544,7 +536,7 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
     def create_jwt_manager(self):
         """Create the JWT manager."""
         jwt_manager = JWTManager()
-        jwt_manager.init_app(self.appbuilder.app)
+        jwt_manager.init_app(current_app)
         jwt_manager.user_lookup_loader(self.load_user_jwt)
 
     def reset_password(self, userid: int, password: str) -> bool:
@@ -562,9 +554,9 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
         return self.update_user(user)
 
     def reset_user_sessions(self, user: User) -> None:
-        if isinstance(self.appbuilder.get_app.session_interface, AirflowDatabaseSessionInterface):
-            interface = self.appbuilder.get_app.session_interface
-            session = interface.db.session
+        if isinstance(current_app.session_interface, AirflowDatabaseSessionInterface):
+            interface = current_app.session_interface
+            session = interface.client.session
             user_session_model = interface.sql_session_model
             num_sessions = session.scalars(select(func.count()).select_from(user_session_model)).one()
             if num_sessions > MAX_NUM_DATABASE_USER_SESSIONS:
@@ -582,7 +574,7 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
                 )
             else:
                 for s in session.scalars(select(user_session_model)).all():
-                    session_details = interface.serializer.loads(want_bytes(s.data))
+                    session_details = interface.serializer.decode(want_bytes(s.data))
                     if session_details.get("_user_id") == user.id:
                         session.delete(s)
                 session.commit()
@@ -601,7 +593,7 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
     def load_user_jwt(self, _jwt_header, jwt_data):
         identity = jwt_data["sub"]
         user = self.load_user(identity)
-        if user.is_active:
+        if user and user.is_active:
             # Set flask g.user to JWT user, we can't do it on before request
             g.user = user
             return user
@@ -609,165 +601,173 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
     @property
     def auth_type(self):
         """Get the auth type."""
-        return self.appbuilder.get_app.config["AUTH_TYPE"]
+        return current_app.config["AUTH_TYPE"]
 
     @property
     def is_auth_limited(self) -> bool:
         """Is the auth rate limited."""
-        return self.appbuilder.get_app.config["AUTH_RATE_LIMITED"]
+        return current_app.config["AUTH_RATE_LIMITED"]
 
     @property
     def auth_rate_limit(self) -> str:
         """Get the auth rate limit."""
-        return self.appbuilder.get_app.config["AUTH_RATE_LIMIT"]
+        return current_app.config["AUTH_RATE_LIMIT"]
 
     @property
     def auth_role_public(self):
         """Get the public role."""
-        return self.appbuilder.get_app.config.get("AUTH_ROLE_PUBLIC", None)
+        return current_app.config.get("AUTH_ROLE_PUBLIC", None)
 
     @property
     def oauth_providers(self):
         """Oauth providers."""
-        return self.appbuilder.get_app.config["OAUTH_PROVIDERS"]
+        return current_app.config["OAUTH_PROVIDERS"]
 
     @property
     def auth_ldap_tls_cacertdir(self):
         """LDAP TLS CA certificate directory."""
-        return self.appbuilder.get_app.config["AUTH_LDAP_TLS_CACERTDIR"]
+        return current_app.config["AUTH_LDAP_TLS_CACERTDIR"]
 
     @property
     def auth_ldap_tls_cacertfile(self):
         """LDAP TLS CA certificate file."""
-        return self.appbuilder.get_app.config["AUTH_LDAP_TLS_CACERTFILE"]
+        return current_app.config["AUTH_LDAP_TLS_CACERTFILE"]
 
     @property
     def auth_ldap_tls_certfile(self):
         """LDAP TLS certificate file."""
-        return self.appbuilder.get_app.config["AUTH_LDAP_TLS_CERTFILE"]
+        return current_app.config["AUTH_LDAP_TLS_CERTFILE"]
 
     @property
     def auth_ldap_tls_keyfile(self):
         """LDAP TLS key file."""
-        return self.appbuilder.get_app.config["AUTH_LDAP_TLS_KEYFILE"]
+        return current_app.config["AUTH_LDAP_TLS_KEYFILE"]
+
+    @property
+    def auth_ldap_use_nested_groups_for_roles(self):
+        return self.appbuilder.get_app.config["AUTH_LDAP_USE_NESTED_GROUPS_FOR_ROLES"]
 
     @property
     def auth_ldap_allow_self_signed(self):
         """LDAP allow self signed."""
-        return self.appbuilder.get_app.config["AUTH_LDAP_ALLOW_SELF_SIGNED"]
+        return current_app.config["AUTH_LDAP_ALLOW_SELF_SIGNED"]
 
     @property
     def auth_ldap_tls_demand(self):
         """LDAP TLS demand."""
-        return self.appbuilder.get_app.config["AUTH_LDAP_TLS_DEMAND"]
+        return current_app.config["AUTH_LDAP_TLS_DEMAND"]
 
     @property
     def auth_ldap_server(self):
         """Get the LDAP server object."""
-        return self.appbuilder.get_app.config["AUTH_LDAP_SERVER"]
+        return current_app.config["AUTH_LDAP_SERVER"]
 
     @property
     def auth_ldap_use_tls(self):
         """Should LDAP use TLS."""
-        return self.appbuilder.get_app.config["AUTH_LDAP_USE_TLS"]
+        return current_app.config["AUTH_LDAP_USE_TLS"]
 
     @property
     def auth_ldap_bind_user(self):
         """LDAP bind user."""
-        return self.appbuilder.get_app.config["AUTH_LDAP_BIND_USER"]
+        return current_app.config["AUTH_LDAP_BIND_USER"]
 
     @property
     def auth_ldap_bind_password(self):
         """LDAP bind password."""
-        return self.appbuilder.get_app.config["AUTH_LDAP_BIND_PASSWORD"]
+        return current_app.config["AUTH_LDAP_BIND_PASSWORD"]
 
     @property
     def auth_ldap_search(self):
         """LDAP search object."""
-        return self.appbuilder.get_app.config["AUTH_LDAP_SEARCH"]
+        return current_app.config["AUTH_LDAP_SEARCH"]
 
     @property
     def auth_ldap_search_filter(self):
         """LDAP search filter."""
-        return self.appbuilder.get_app.config["AUTH_LDAP_SEARCH_FILTER"]
+        return current_app.config["AUTH_LDAP_SEARCH_FILTER"]
 
     @property
     def auth_ldap_uid_field(self):
         """LDAP UID field."""
-        return self.appbuilder.get_app.config["AUTH_LDAP_UID_FIELD"]
+        return current_app.config["AUTH_LDAP_UID_FIELD"]
 
     @property
     def auth_ldap_firstname_field(self):
         """LDAP first name field."""
-        return self.appbuilder.get_app.config["AUTH_LDAP_FIRSTNAME_FIELD"]
+        return current_app.config["AUTH_LDAP_FIRSTNAME_FIELD"]
 
     @property
     def auth_ldap_lastname_field(self):
         """LDAP last name field."""
-        return self.appbuilder.get_app.config["AUTH_LDAP_LASTNAME_FIELD"]
+        return current_app.config["AUTH_LDAP_LASTNAME_FIELD"]
 
     @property
     def auth_ldap_email_field(self):
         """LDAP email field."""
-        return self.appbuilder.get_app.config["AUTH_LDAP_EMAIL_FIELD"]
+        return current_app.config["AUTH_LDAP_EMAIL_FIELD"]
 
     @property
     def auth_ldap_append_domain(self):
         """LDAP append domain."""
-        return self.appbuilder.get_app.config["AUTH_LDAP_APPEND_DOMAIN"]
+        return current_app.config["AUTH_LDAP_APPEND_DOMAIN"]
 
     @property
     def auth_ldap_username_format(self):
         """LDAP username format."""
-        return self.appbuilder.get_app.config["AUTH_LDAP_USERNAME_FORMAT"]
+        return current_app.config["AUTH_LDAP_USERNAME_FORMAT"]
 
     @property
     def auth_ldap_group_field(self) -> str:
         """LDAP group field."""
-        return self.appbuilder.get_app.config["AUTH_LDAP_GROUP_FIELD"]
+        return current_app.config["AUTH_LDAP_GROUP_FIELD"]
 
     @property
     def auth_roles_mapping(self) -> dict[str, list[str]]:
         """The mapping of auth roles."""
-        return self.appbuilder.get_app.config["AUTH_ROLES_MAPPING"]
+        return current_app.config["AUTH_ROLES_MAPPING"]
 
     @property
     def auth_user_registration_role_jmespath(self) -> str:
         """The JMESPATH role to use for user registration."""
-        return self.appbuilder.get_app.config["AUTH_USER_REGISTRATION_ROLE_JMESPATH"]
+        return current_app.config["AUTH_USER_REGISTRATION_ROLE_JMESPATH"]
+
+    @property
+    def auth_remote_user_env_var(self) -> str:
+        return current_app.config["AUTH_REMOTE_USER_ENV_VAR"]
 
     @property
     def auth_username_ci(self):
         """Get the auth username for CI."""
-        return self.appbuilder.get_app.config.get("AUTH_USERNAME_CI", True)
+        return current_app.config.get("AUTH_USERNAME_CI", True)
 
     @property
     def auth_user_registration(self):
         """Will user self registration be allowed."""
-        return self.appbuilder.get_app.config["AUTH_USER_REGISTRATION"]
+        return current_app.config["AUTH_USER_REGISTRATION"]
 
     @property
     def auth_user_registration_role(self):
         """The default user self registration role."""
-        return self.appbuilder.get_app.config["AUTH_USER_REGISTRATION_ROLE"]
+        return current_app.config["AUTH_USER_REGISTRATION_ROLE"]
 
     @property
     def auth_roles_sync_at_login(self) -> bool:
         """Should roles be synced at login."""
-        return self.appbuilder.get_app.config["AUTH_ROLES_SYNC_AT_LOGIN"]
+        return current_app.config["AUTH_ROLES_SYNC_AT_LOGIN"]
 
     @property
     def auth_role_admin(self):
         """Get the admin role."""
-        return self.appbuilder.get_app.config["AUTH_ROLE_ADMIN"]
+        return current_app.config["AUTH_ROLE_ADMIN"]
 
     @property
     def oauth_whitelists(self):
         return self.oauth_allow_list
 
-    def create_builtin_roles(self):
-        """Return FAB builtin roles."""
-        return self.appbuilder.get_app.config.get("FAB_ROLES", {})
+    @staticmethod
+    def create_builtin_roles():
+        return current_app.config.get("FAB_ROLES", {})
 
     @property
     def builtin_roles(self):
@@ -776,7 +776,7 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
 
     @property
     def api_login_allow_multiple_providers(self):
-        return self.appbuilder.get_app.config["AUTH_API_LOGIN_ALLOW_MULTIPLE_PROVIDERS"]
+        return current_app.config["AUTH_API_LOGIN_ALLOW_MULTIPLE_PROVIDERS"]
 
     @property
     def auth_type_provider_name(self):
@@ -789,33 +789,29 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
 
         :meta private:
         """
-        app = self.appbuilder.get_app
         # Base Security Config
-        app.config.setdefault("AUTH_ROLE_ADMIN", "Admin")
-        app.config.setdefault("AUTH_TYPE", AUTH_DB)
+        current_app.config.setdefault("AUTH_ROLE_ADMIN", "Admin")
+        current_app.config.setdefault("AUTH_TYPE", AUTH_DB)
         # Self Registration
-        app.config.setdefault("AUTH_USER_REGISTRATION", False)
-        app.config.setdefault("AUTH_USER_REGISTRATION_ROLE", self.auth_role_public)
-        app.config.setdefault("AUTH_USER_REGISTRATION_ROLE_JMESPATH", None)
+        current_app.config.setdefault("AUTH_USER_REGISTRATION", False)
+        current_app.config.setdefault("AUTH_USER_REGISTRATION_ROLE", self.auth_role_public)
+        current_app.config.setdefault("AUTH_USER_REGISTRATION_ROLE_JMESPATH", None)
         # Role Mapping
-        app.config.setdefault("AUTH_ROLES_MAPPING", {})
-        app.config.setdefault("AUTH_ROLES_SYNC_AT_LOGIN", False)
-        app.config.setdefault("AUTH_API_LOGIN_ALLOW_MULTIPLE_PROVIDERS", False)
+        current_app.config.setdefault("AUTH_ROLES_MAPPING", {})
+        current_app.config.setdefault("AUTH_ROLES_SYNC_AT_LOGIN", False)
+        current_app.config.setdefault("AUTH_API_LOGIN_ALLOW_MULTIPLE_PROVIDERS", False)
 
-        from packaging.version import Version
-        from werkzeug import __version__ as werkzeug_version
-
-        parsed_werkzeug_version = Version(werkzeug_version)
+        parsed_werkzeug_version = Version(importlib.metadata.version("werkzeug"))
         if parsed_werkzeug_version < Version("3.0.0"):
-            app.config.setdefault("FAB_PASSWORD_HASH_METHOD", "pbkdf2:sha256")
-            app.config.setdefault(
+            current_app.config.setdefault("FAB_PASSWORD_HASH_METHOD", "pbkdf2:sha256")
+            current_app.config.setdefault(
                 "AUTH_DB_FAKE_PASSWORD_HASH_CHECK",
                 "pbkdf2:sha256:150000$Z3t6fmj2$22da622d94a1f8118"
                 "c0976a03d2f18f680bfff877c9a965db9eedc51bc0be87c",
             )
         else:
-            app.config.setdefault("FAB_PASSWORD_HASH_METHOD", "scrypt")
-            app.config.setdefault(
+            current_app.config.setdefault("FAB_PASSWORD_HASH_METHOD", "scrypt")
+            current_app.config.setdefault(
                 "AUTH_DB_FAKE_PASSWORD_HASH_CHECK",
                 "scrypt:32768:8:1$wiDa0ruWlIPhp9LM$6e409d093e62ad54df2af895d0e125b05ff6cf6414"
                 "8350189ffc4bcc71286edf1b8ad94a442c00f890224bf2b32153d0750c89ee9"
@@ -824,35 +820,38 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
 
         # LDAP Config
         if self.auth_type == AUTH_LDAP:
-            if "AUTH_LDAP_SERVER" not in app.config:
+            if "AUTH_LDAP_SERVER" not in current_app.config:
                 raise ValueError("No AUTH_LDAP_SERVER defined on config with AUTH_LDAP authentication type.")
-            app.config.setdefault("AUTH_LDAP_SEARCH", "")
-            app.config.setdefault("AUTH_LDAP_SEARCH_FILTER", "")
-            app.config.setdefault("AUTH_LDAP_APPEND_DOMAIN", "")
-            app.config.setdefault("AUTH_LDAP_USERNAME_FORMAT", "")
-            app.config.setdefault("AUTH_LDAP_BIND_USER", "")
-            app.config.setdefault("AUTH_LDAP_BIND_PASSWORD", "")
+            current_app.config.setdefault("AUTH_LDAP_SEARCH", "")
+            current_app.config.setdefault("AUTH_LDAP_SEARCH_FILTER", "")
+            current_app.config.setdefault("AUTH_LDAP_APPEND_DOMAIN", "")
+            current_app.config.setdefault("AUTH_LDAP_USERNAME_FORMAT", "")
+            current_app.config.setdefault("AUTH_LDAP_BIND_USER", "")
+            current_app.config.setdefault("AUTH_LDAP_BIND_PASSWORD", "")
             # TLS options
-            app.config.setdefault("AUTH_LDAP_USE_TLS", False)
-            app.config.setdefault("AUTH_LDAP_ALLOW_SELF_SIGNED", False)
-            app.config.setdefault("AUTH_LDAP_TLS_DEMAND", False)
-            app.config.setdefault("AUTH_LDAP_TLS_CACERTDIR", "")
-            app.config.setdefault("AUTH_LDAP_TLS_CACERTFILE", "")
-            app.config.setdefault("AUTH_LDAP_TLS_CERTFILE", "")
-            app.config.setdefault("AUTH_LDAP_TLS_KEYFILE", "")
+            current_app.config.setdefault("AUTH_LDAP_USE_TLS", False)
+            current_app.config.setdefault("AUTH_LDAP_ALLOW_SELF_SIGNED", False)
+            current_app.config.setdefault("AUTH_LDAP_TLS_DEMAND", False)
+            current_app.config.setdefault("AUTH_LDAP_TLS_CACERTDIR", "")
+            current_app.config.setdefault("AUTH_LDAP_TLS_CACERTFILE", "")
+            current_app.config.setdefault("AUTH_LDAP_TLS_CERTFILE", "")
+            current_app.config.setdefault("AUTH_LDAP_TLS_KEYFILE", "")
             # Mapping options
-            app.config.setdefault("AUTH_LDAP_UID_FIELD", "uid")
-            app.config.setdefault("AUTH_LDAP_GROUP_FIELD", "memberOf")
-            app.config.setdefault("AUTH_LDAP_FIRSTNAME_FIELD", "givenName")
-            app.config.setdefault("AUTH_LDAP_LASTNAME_FIELD", "sn")
-            app.config.setdefault("AUTH_LDAP_EMAIL_FIELD", "mail")
+            current_app.config.setdefault("AUTH_LDAP_UID_FIELD", "uid")
+            current_app.config.setdefault("AUTH_LDAP_GROUP_FIELD", "memberOf")
+            current_app.config.setdefault("AUTH_LDAP_FIRSTNAME_FIELD", "givenName")
+            current_app.config.setdefault("AUTH_LDAP_LASTNAME_FIELD", "sn")
+            current_app.config.setdefault("AUTH_LDAP_EMAIL_FIELD", "mail")
+
+            # Nested groups options
+            current_app.config.setdefault("AUTH_LDAP_USE_NESTED_GROUPS_FOR_ROLES", False)
 
         if self.auth_type == AUTH_REMOTE_USER:
-            app.config.setdefault("AUTH_REMOTE_USER_ENV_VAR", "REMOTE_USER")
+            current_app.config.setdefault("AUTH_REMOTE_USER_ENV_VAR", "REMOTE_USER")
 
         # Rate limiting
-        app.config.setdefault("AUTH_RATE_LIMITED", True)
-        app.config.setdefault("AUTH_RATE_LIMIT", "5 per 40 second")
+        current_app.config.setdefault("AUTH_RATE_LIMITED", True)
+        current_app.config.setdefault("AUTH_RATE_LIMIT", "5 per 40 second")
 
     def _init_auth(self):
         """
@@ -860,11 +859,10 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
 
         :meta private:
         """
-        app = self.appbuilder.get_app
         if self.auth_type == AUTH_OAUTH:
             from authlib.integrations.flask_client import OAuth
 
-            self.oauth = OAuth(app)
+            self.oauth = OAuth(current_app)
             self.oauth_remotes = {}
             for provider in self.oauth_providers:
                 provider_name = provider["name"]
@@ -884,8 +882,6 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
             self.userdbmodelview.datamodel = user_data_model
         elif self.auth_type == const.AUTH_LDAP:
             self.userldapmodelview.datamodel = user_data_model
-        elif self.auth_type == const.AUTH_OID:
-            self.useroidmodelview.datamodel = user_data_model
         elif self.auth_type == const.AUTH_OAUTH:
             self.useroauthmodelview.datamodel = user_data_model
         elif self.auth_type == const.AUTH_REMOTE_USER:
@@ -908,37 +904,40 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
 
         Creates admin and public roles if they don't exist.
         """
-        if not self.appbuilder.update_perms:
-            log.debug("Skipping db since appbuilder disables update_perms")
+        if not current_app.config.get("FAB_CREATE_DB", True):
             return
-        try:
-            engine = self.get_session.get_bind(mapper=None, clause=None)
-            inspector = inspect(engine)
-            existing_tables = inspector.get_table_names()
-            if "ab_user" not in existing_tables or "ab_group" not in existing_tables:
-                log.info(const.LOGMSG_INF_SEC_NO_DB)
-                Base.metadata.create_all(engine)
-                log.info(const.LOGMSG_INF_SEC_ADD_DB)
+        if not has_app_context():
+            # Create a new application context
+            with current_app.app_context():
+                self._create_db()
+        else:
+            self._create_db()
 
-            roles_mapping = self.appbuilder.get_app.config.get("FAB_ROLES_MAPPING", {})
-            for pk, name in roles_mapping.items():
-                self.update_role(pk, name)
-            for role_name in self._builtin_roles:
-                self.add_role(role_name)
-            if self.auth_role_admin not in self._builtin_roles:
-                self.add_role(self.auth_role_admin)
-            if self.auth_role_public:
-                self.add_role(self.auth_role_public)
-            if self.count_users() == 0 and self.auth_role_public != self.auth_role_admin:
-                log.warning(const.LOGMSG_WAR_SEC_NO_USER)
-        except Exception:
-            log.exception(const.LOGMSG_ERR_SEC_CREATE_DB)
-            exit(1)
+    def _create_db(self) -> None:
+        engine = self.session.get_bind(mapper=None, clause=None)
+        inspector = inspect(engine)
+        existing_tables = inspector.get_table_names()
+        if "ab_user" not in existing_tables or "ab_group" not in existing_tables:
+            log.info(const.LOGMSG_INF_SEC_NO_DB)
+            Model.metadata.create_all(engine)
+            log.info(const.LOGMSG_INF_SEC_ADD_DB)
+
+        roles_mapping = current_app.config.get("FAB_ROLES_MAPPING", {})
+        for pk, name in roles_mapping.items():
+            self.update_role(pk, name)
+        for role_name in self._builtin_roles:
+            self.add_role(role_name)
+        if self.auth_role_admin not in self._builtin_roles:
+            self.add_role(self.auth_role_admin)
+        if self.auth_role_public:
+            self.add_role(self.auth_role_public)
+        if self.count_users() == 0 and self.auth_role_public != self.auth_role_admin:
+            log.warning(const.LOGMSG_WAR_SEC_NO_USER)
 
     def get_all_permissions(self) -> set[tuple[str, str]]:
         """Return all permissions as a set of tuples with the action and resource names."""
         return set(
-            self.appbuilder.get_session.execute(
+            self.session.execute(
                 select(self.action_model.name, self.resource_model.name)
                 .join(self.permission_model.action)
                 .join(self.permission_model.resource)
@@ -1049,7 +1048,7 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
                             self.remove_permission_from_role(role, perm)
 
         # Adding the access control permissions
-        for rolename, resource_actions in access_control.items():
+        for rolename, resource_actions_raw in access_control.items():
             role = self.find_role(rolename)
             if not role:
                 raise AirflowException(
@@ -1057,9 +1056,12 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
                     f"'{rolename}', but that role does not exist"
                 )
 
-            if not isinstance(resource_actions, dict):
-                # Support for old-style access_control where only the actions are specified
-                resource_actions = {permissions.RESOURCE_DAG: set(resource_actions)}
+            # Support for old-style access_control where only the actions are specified
+            resource_actions = (
+                resource_actions_raw
+                if isinstance(resource_actions_raw, dict)
+                else {permissions.RESOURCE_DAG: set(resource_actions_raw)}
+            )
 
             for resource_name, actions in resource_actions.items():
                 if resource_name not in self.RESOURCE_DETAILS_MAP:
@@ -1181,7 +1183,7 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
         for role in custom_roles:
             self.add_permission_to_role(role, website_permission)
 
-        self.appbuilder.get_session.commit()
+        self.session.commit()
 
     def update_admin_permission(self) -> None:
         """
@@ -1191,26 +1193,24 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
         because Admin already has Dags permission.
         Add the missing ones to the table for admin.
         """
-        session = self.appbuilder.get_session
         prefixes = getattr(permissions, "PREFIX_LIST", [permissions.RESOURCE_DAG_PREFIX])
-        dag_resources = session.scalars(
+        dag_resources = self.session.scalars(
             select(Resource).where(or_(*[Resource.name.like(f"{prefix}%") for prefix in prefixes]))
         )
         resource_ids = [resource.id for resource in dag_resources]
 
-        perms = session.scalars(select(Permission).where(~Permission.resource_id.in_(resource_ids)))
+        perms = self.session.scalars(select(Permission).where(~Permission.resource_id.in_(resource_ids)))
         perms = [p for p in perms if p.action and p.resource]
 
         admin = self.find_role("Admin")
         admin.permissions = list(set(admin.permissions) | set(perms))
 
-        session.commit()
+        self.session.commit()
 
     def clean_perms(self) -> None:
         """FAB leaves faulty permissions that need to be cleaned up."""
         self.log.debug("Cleaning faulty perms")
-        sesh = self.appbuilder.get_session
-        perms = sesh.scalars(
+        perms = self.session.scalars(
             select(Permission).where(
                 or_(
                     Permission.action == None,  # noqa: E711
@@ -1224,9 +1224,9 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
 
         deleted_count = 0
         for perm in perms:
-            sesh.delete(perm)
+            self.session.delete(perm)
             deleted_count += 1
-        sesh.commit()
+        self.session.commit()
         if deleted_count:
             self.log.info("Deleted %s faulty permissions", deleted_count)
 
@@ -1259,17 +1259,17 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
 
     def update_role(self, role_id, name: str) -> Role | None:
         """Update a role in the database."""
-        role = self.get_session.get(self.role_model, role_id)
+        role = self.session.get(self.role_model, role_id)
         if not role:
             return None
         try:
             role.name = name
-            self.get_session.merge(role)
-            self.get_session.commit()
+            self.session.merge(role)
+            self.session.commit()
             log.info(const.LOGMSG_INF_SEC_UPD_ROLE, role)
         except Exception as e:
             log.error(const.LOGMSG_ERR_SEC_UPD_ROLE, e)
-            self.get_session.rollback()
+            self.session.rollback()
             return None
         return role
 
@@ -1280,13 +1280,13 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
             try:
                 role = self.role_model()
                 role.name = name
-                self.get_session.add(role)
-                self.get_session.commit()
+                self.session.add(role)
+                self.session.commit()
                 log.info(const.LOGMSG_INF_SEC_ADD_ROLE, name)
                 return role
             except Exception as e:
                 log.error(const.LOGMSG_ERR_SEC_ADD_ROLE, e)
-                self.get_session.rollback()
+                self.session.rollback()
         return role
 
     def find_role(self, name):
@@ -1295,10 +1295,10 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
 
         :param name: the role name
         """
-        return self.get_session.scalars(select(self.role_model).filter_by(name=name)).unique().one_or_none()
+        return self.session.scalars(select(self.role_model).filter_by(name=name)).unique().one_or_none()
 
     def get_all_roles(self):
-        return self.get_session.scalars(select(self.role_model)).unique().all()
+        return self.session.scalars(select(self.role_model)).unique().all()
 
     def delete_role(self, role_name: str) -> None:
         """
@@ -1306,12 +1306,11 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
 
         :param role_name: the name of a role in the ab_role table
         """
-        session = self.get_session
-        role = session.scalars(select(Role).where(Role.name == role_name)).first()
+        role = self.session.scalars(select(Role).where(Role.name == role_name)).first()
         if role:
             log.info("Deleting role '%s'", role_name)
-            session.execute(delete(Role).where(Role.name == role_name))
-            session.commit()
+            self.session.execute(delete(Role).where(Role.name == role_name))
+            self.session.commit()
         else:
             raise AirflowException(f"Role named '{role_name}' does not exist")
 
@@ -1342,7 +1341,7 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
 
     def get_public_role(self):
         return (
-            self.get_session.scalars(select(self.role_model).filter_by(name=self.auth_role_public))
+            self.session.scalars(select(self.role_model).filter_by(name=self.auth_role_public))
             .unique()
             .one_or_none()
         )
@@ -1376,33 +1375,34 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
             user.username = username
             user.email = email
             user.active = True
-            self.get_session.add(user)
+            self.session.add(user)
             user.roles = roles
             user.groups = groups or []
             if hashed_password:
                 user.password = hashed_password
             else:
                 user.password = generate_password_hash(password)
-            self.get_session.commit()
+            self.session.commit()
             log.info(const.LOGMSG_INF_SEC_ADD_USER, username)
 
             return user
         except Exception as e:
             log.error(const.LOGMSG_ERR_SEC_ADD_USER, e)
-            self.get_session.rollback()
+            self.session.rollback()
             return False
 
-    def load_user(self, user_id):
-        user = self.get_user_by_id(int(user_id))
-        if user.is_active:
+    def load_user(self, pk: int) -> Any | None:
+        user = self.get_user_by_id(int(pk))
+        if user and user.is_active:
             return user
+        return None
 
     def get_user_by_id(self, pk):
-        return self.get_session.get(self.user_model, pk)
+        return self.session.get(self.user_model, pk)
 
     def count_users(self):
         """Return the number of users in the database."""
-        return self.get_session.scalar(select(func.count(self.user_model.id)))
+        return self.session.scalar(select(func.count(self.user_model.id)))
 
     def add_register_user(self, username, first_name, last_name, email, password="", hashed_password=""):
         """
@@ -1421,12 +1421,12 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
             register_user.password = generate_password_hash(password)
         register_user.registration_hash = str(uuid.uuid1())
         try:
-            self.get_session.add(register_user)
-            self.get_session.commit()
+            self.session.add(register_user)
+            self.session.commit()
             return register_user
         except Exception as e:
             log.error(const.LOGMSG_ERR_SEC_ADD_REGISTER_USER, e)
-            self.get_session.rollback()
+            self.session.rollback()
             return None
 
     def find_user(self, username=None, email=None):
@@ -1434,12 +1434,12 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
         if username:
             try:
                 if self.auth_username_ci:
-                    return self.get_session.scalars(
+                    return self.session.scalars(
                         select(self.user_model).where(
                             func.lower(self.user_model.username) == func.lower(username)
                         )
                     ).one_or_none()
-                return self.get_session.scalars(
+                return self.session.scalars(
                     select(self.user_model).where(
                         func.lower(self.user_model.username) == func.lower(username)
                     )
@@ -1449,19 +1449,19 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
                 return None
         elif email:
             try:
-                return self.get_session.scalars(select(self.user_model).filter_by(email=email)).one_or_none()
+                return self.session.scalars(select(self.user_model).filter_by(email=email)).one_or_none()
             except MultipleResultsFound:
                 log.error("Multiple results found for user with email %s", email)
                 return None
 
     def update_user(self, user: User) -> bool:
         try:
-            self.get_session.merge(user)
-            self.get_session.commit()
+            self.session.merge(user)
+            self.session.commit()
             log.info(const.LOGMSG_INF_SEC_UPD_USER, user)
         except Exception as e:
             log.error(const.LOGMSG_ERR_SEC_UPD_USER, e)
-            self.get_session.rollback()
+            self.session.rollback()
             return False
         return True
 
@@ -1472,16 +1472,16 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
         :param register_user: RegisterUser object to delete
         """
         try:
-            self.get_session.delete(register_user)
-            self.get_session.commit()
+            self.session.delete(register_user)
+            self.session.commit()
             return True
         except Exception as e:
             log.error(const.LOGMSG_ERR_SEC_DEL_REGISTER_USER, e)
-            self.get_session.rollback()
+            self.session.rollback()
             return False
 
     def get_all_users(self):
-        return self.get_session.scalars(select(self.user_model)).all()
+        return self.session.scalars(select(self.user_model)).all()
 
     def update_user_auth_stat(self, user, success=True):
         """
@@ -1521,7 +1521,7 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
 
         :param name: name
         """
-        return self.get_session.scalars(select(self.action_model).filter_by(name=name)).one_or_none()
+        return self.session.scalars(select(self.action_model).filter_by(name=name)).one_or_none()
 
     def create_action(self, name):
         """
@@ -1535,12 +1535,12 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
             try:
                 action = self.action_model()
                 action.name = name
-                self.get_session.add(action)
-                self.get_session.commit()
+                self.session.add(action)
+                self.session.commit()
                 return action
             except Exception as e:
                 log.error(const.LOGMSG_ERR_SEC_ADD_PERMISSION, e)
-                self.get_session.rollback()
+                self.session.rollback()
         return action
 
     def delete_action(self, name: str) -> bool:
@@ -1554,18 +1554,18 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
             log.warning(const.LOGMSG_WAR_SEC_DEL_PERMISSION, name)
             return False
         try:
-            perms = self.get_session.scalars(
-                select(self.permission_model).where(self.permission_model.action == action)
+            perms = self.session.scalars(
+                select(self.permission_model).where(self.permission_model.action_id == action.id)
             ).all()
             if perms:
                 log.warning(const.LOGMSG_WAR_SEC_DEL_PERM_PVM, action, perms)
                 return False
-            self.get_session.delete(action)
-            self.get_session.commit()
+            self.session.delete(action)
+            self.session.commit()
             return True
         except Exception as e:
             log.error(const.LOGMSG_ERR_SEC_DEL_PERMISSION, e)
-            self.get_session.rollback()
+            self.session.rollback()
             return False
 
     """
@@ -1580,7 +1580,7 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
 
         :param name: Name of resource
         """
-        return self.get_session.scalars(select(self.resource_model).filter_by(name=name)).one_or_none()
+        return self.session.scalars(select(self.resource_model).filter_by(name=name)).one_or_none()
 
     def create_resource(self, name) -> Resource | None:
         """
@@ -1593,12 +1593,12 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
             try:
                 resource = self.resource_model()
                 resource.name = name
-                self.get_session.add(resource)
-                self.get_session.commit()
+                self.session.add(resource)
+                self.session.commit()
                 return resource
             except Exception as e:
                 log.error(const.LOGMSG_ERR_SEC_ADD_VIEWMENU, e)
-                self.get_session.rollback()
+                self.session.rollback()
         return resource
 
     """
@@ -1622,7 +1622,7 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
         resource = self.get_resource(resource_name)
         if action and resource:
             return (
-                self.get_session.scalars(
+                self.session.scalars(
                     select(self.permission_model).filter_by(action=action, resource=resource)
                 )
                 .unique()
@@ -1637,9 +1637,7 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
 
         :param resource: Object representing a single resource.
         """
-        return self.get_session.scalars(
-            select(self.permission_model).filter_by(resource_id=resource.id)
-        ).all()
+        return self.session.scalars(select(self.permission_model).filter_by(resource_id=resource.id)).all()
 
     def create_permission(self, action_name, resource_name) -> Permission | None:
         """
@@ -1657,19 +1655,19 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
             return perm
         resource = self.create_resource(resource_name)
         if resource is None:
-            log.error(const.LOGMSG_ERR_SEC_ADD_PERMVIEW, f"Resource creation failed {resource_name}")
+            log.error(const.LOGMSG_ERR_SEC_ADD_PERMVIEW, "Resource creation failed %s", resource_name)
             return None
         action = self.create_action(action_name)
         perm = self.permission_model()
         perm.resource_id, perm.action_id = resource.id, action.id
         try:
-            self.get_session.add(perm)
-            self.get_session.commit()
+            self.session.add(perm)
+            self.session.commit()
             log.info(const.LOGMSG_INF_SEC_ADD_PERMVIEW, perm)
             return perm
         except Exception as e:
             log.error(const.LOGMSG_ERR_SEC_ADD_PERMVIEW, e)
-            self.get_session.rollback()
+            self.session.rollback()
             return None
 
     def delete_permission(self, action_name: str, resource_name: str) -> None:
@@ -1686,7 +1684,7 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
         perm = self.get_permission(action_name, resource_name)
         if not perm:
             return
-        roles = self.get_session.scalars(
+        roles = self.session.scalars(
             select(self.role_model).where(self.role_model.permissions.contains(perm))
         ).first()
         if roles:
@@ -1694,17 +1692,15 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
             return
         try:
             # delete permission on resource
-            self.get_session.delete(perm)
-            self.get_session.commit()
+            self.session.delete(perm)
+            self.session.commit()
             # if no more permission on permission view, delete permission
-            if not self.get_session.scalars(
-                select(self.permission_model).filter_by(action=perm.action)
-            ).all():
+            if not self.session.scalars(select(self.permission_model).filter_by(action=perm.action)).all():
                 self.delete_action(perm.action.name)
             log.info(const.LOGMSG_INF_SEC_DEL_PERMVIEW, action_name, resource_name)
         except Exception as e:
             log.error(const.LOGMSG_ERR_SEC_DEL_PERMVIEW, e)
-            self.get_session.rollback()
+            self.session.rollback()
 
     def add_permission_to_role(self, role: Role, permission: Permission | None) -> None:
         """
@@ -1716,12 +1712,12 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
         if permission and permission not in role.permissions:
             try:
                 role.permissions.append(permission)
-                self.get_session.merge(role)
-                self.get_session.commit()
+                self.session.merge(role)
+                self.session.commit()
                 log.info(const.LOGMSG_INF_SEC_ADD_PERMROLE, permission, role.name)
             except Exception as e:
                 log.error(const.LOGMSG_ERR_SEC_ADD_PERMROLE, e)
-                self.get_session.rollback()
+                self.session.rollback()
 
     def remove_permission_from_role(self, role: Role, permission: Permission) -> None:
         """
@@ -1733,12 +1729,12 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
         if permission in role.permissions:
             try:
                 role.permissions.remove(permission)
-                self.get_session.merge(role)
-                self.get_session.commit()
+                self.session.merge(role)
+                self.session.commit()
                 log.info(const.LOGMSG_INF_SEC_DEL_PERMROLE, permission, role.name)
             except Exception as e:
                 log.error(const.LOGMSG_ERR_SEC_DEL_PERMROLE, e)
-                self.get_session.rollback()
+                self.session.rollback()
 
     @staticmethod
     def get_user_roles(user=None):
@@ -1974,7 +1970,7 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
         if user is None or (not user.is_active):
             # Balance failure and success
             check_password_hash(
-                self.appbuilder.get_app.config["AUTH_DB_FAKE_PASSWORD_HASH_CHECK"],
+                current_app.config["AUTH_DB_FAKE_PASSWORD_HASH_CHECK"],
                 "password",
             )
             log.info(LOGMSG_WAR_SEC_LOGIN_FAILED, username)
@@ -2022,7 +2018,7 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
             if _provider["name"] == provider:
                 return _provider.get("token_secret", "oauth_token_secret")
 
-    def auth_user_oauth(self, userinfo):
+    def auth_user_oauth(self, userinfo, rotate_session_id=True):
         """
         Authenticate user with OAuth.
 
@@ -2076,7 +2072,8 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
 
         # LOGIN SUCCESS (only if user is now registered)
         if user:
-            self._rotate_session_id()
+            if rotate_session_id:
+                self._rotate_session_id()
             self.update_user_auth_stat(user)
             return user
         return None
@@ -2220,6 +2217,36 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
         # decode - if empty string, default to fallback, otherwise take first element
         return raw_value[0].decode("utf-8") or fallback
 
+    def auth_user_remote_user(self, username):
+        """
+        REMOTE_USER user Authentication.
+
+        :param username: user's username for remote auth
+        """
+        user = self.find_user(username=username)
+
+        # User does not exist, create one if auto user registration.
+        if user is None and self.auth_user_registration:
+            user = self.add_user(
+                # All we have is REMOTE_USER, so we set
+                # the other fields to blank.
+                username=username,
+                first_name=username,
+                last_name="-",
+                email=username + "@email.notfound",
+                role=self.find_role(self.auth_user_registration_role),
+            )
+
+        # If user does not exist on the DB and not auto user registration,
+        # or user is inactive, go away.
+        elif user is None or (not user.is_active):
+            log.info(LOGMSG_WAR_SEC_LOGIN_FAILED, username)
+            return None
+
+        self._rotate_session_id()
+        self.update_user_auth_stat(user)
+        return user
+
     """
     ---------------
     Private methods
@@ -2331,10 +2358,51 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
             user_dn = search_result[0][0]
             # extract the other attributes
             user_info = search_result[0][1]
-            # return
-            return user_dn, user_info
         except (IndexError, NameError):
             return None, None
+
+        # get nested groups for user
+        if self.auth_ldap_use_nested_groups_for_roles:
+            nested_groups = self._ldap_get_nested_groups(ldap, con, user_dn)
+
+            if self.auth_ldap_group_field in user_info:
+                user_info[self.auth_ldap_group_field].extend(nested_groups)
+            else:
+                user_info[self.auth_ldap_group_field] = nested_groups
+
+        # return
+        return user_dn, user_info
+
+    def _ldap_get_nested_groups(self, ldap, con, user_dn) -> list[str]:
+        """
+        Search nested groups for user.
+
+        Only for MS AD version.
+
+        :param ldap: The ldap module reference
+        :param con: The ldap connection
+        :param user_dn: user DN to match with CN
+        :return: ldap groups array
+        """
+        log.debug("Nested groups for LDAP enabled.")
+        # filter for microsoft active directory only
+        nested_groups_filter_str = f"(&(objectCategory=Group)(member:1.2.840.113556.1.4.1941:={user_dn}))"
+        nested_groups_request_fields = ["cn"]
+
+        nested_groups_search_result = con.search_s(
+            self.auth_ldap_search,
+            ldap.SCOPE_SUBTREE,
+            nested_groups_filter_str,
+            nested_groups_request_fields,
+        )
+        log.debug(
+            "LDAP search for nested groups returned: %s",
+            nested_groups_search_result,
+        )
+
+        nested_groups = [x[0].encode() for x in nested_groups_search_result if x[0] is not None]
+        log.debug("LDAP nested groups for users: %s", nested_groups)
+        return nested_groups
 
     @staticmethod
     def _ldap_bind(ldap, con, dn: str, password: str) -> bool:
@@ -2381,7 +2449,7 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
         resource = self.get_resource(resource_name)
         perm = None
         if action and resource:
-            perm = self.appbuilder.get_session.scalar(
+            perm = self.session.scalar(
                 select(self.permission_model).filter_by(action=action, resource=resource).limit(1)
             )
         if not perm and action_name and resource_name:
@@ -2391,7 +2459,7 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
         """Return a dict with a key of role name and value of role with early loaded permissions."""
         return {
             r.name: r
-            for r in self.appbuilder.get_session.scalars(
+            for r in self.session.scalars(
                 select(self.role_model).options(joinedload(self.role_model.permissions))
             ).unique()
         }
@@ -2406,7 +2474,7 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
         return {
             (action_name, resource_name): viewmodel
             for action_name, resource_name, viewmodel in (
-                self.appbuilder.get_session.execute(
+                self.session.execute(
                     select(
                         self.action_model.name,
                         self.resource_model.name,

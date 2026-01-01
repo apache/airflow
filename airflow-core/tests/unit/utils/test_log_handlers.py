@@ -21,7 +21,6 @@ import heapq
 import io
 import itertools
 import logging
-import logging.config
 import os
 import re
 from http import HTTPStatus
@@ -37,13 +36,13 @@ import pytest
 from pydantic import TypeAdapter
 from pydantic.v1.utils import deep_update
 from requests.adapters import Response
+from sqlalchemy import delete, select
 
 from airflow import settings
 from airflow.config_templates.airflow_local_settings import DEFAULT_LOGGING_CONFIG
 from airflow.executors import executor_constants, executor_loader
 from airflow.jobs.job import Job
 from airflow.jobs.triggerer_job_runner import TriggererJobRunner
-from airflow.models.dag_version import DagVersion
 from airflow.models.dagrun import DagRun
 from airflow.models.taskinstance import TaskInstance
 from airflow.models.taskinstancehistory import TaskInstanceHistory
@@ -72,6 +71,7 @@ from airflow.utils.state import State, TaskInstanceState
 from airflow.utils.types import DagRunType
 
 from tests_common.test_utils.config import conf_vars
+from tests_common.test_utils.db import clear_db_connections, clear_db_runs
 from tests_common.test_utils.file_task_handler import (
     convert_list_to_stream,
     extract_events,
@@ -86,11 +86,20 @@ TASK_LOGGER = "airflow.task"
 FILE_TASK_HANDLER = "task"
 
 
+@pytest.fixture(autouse=True)
+def cleanup_tables():
+    clear_db_runs()
+    clear_db_connections()
+    yield
+    clear_db_runs()
+    clear_db_connections()
+
+
 class TestFileTaskLogHandler:
     def clean_up(self):
         with create_session() as session:
-            session.query(DagRun).delete()
-            session.query(TaskInstance).delete()
+            session.execute(delete(DagRun))
+            session.execute(delete(TaskInstance))
 
     def setup_method(self):
         settings.configure_logging()
@@ -114,14 +123,13 @@ class TestFileTaskLogHandler:
             ti.log.info("test")
 
         with dag_maker("dag_for_testing_file_task_handler", schedule=None):
-            task = PythonOperator(
+            PythonOperator(
                 task_id="task_for_testing_file_log_handler",
                 python_callable=task_callable,
             )
 
         dagrun = dag_maker.create_dagrun()
-        dag_version = DagVersion.get_latest_version(dagrun.dag_id)
-        ti = TaskInstance(task=task, run_id=dagrun.run_id, dag_version_id=dag_version.id)
+        ti = dagrun.task_instances[0]
 
         logger = ti.log
         ti.log.disabled = False
@@ -162,13 +170,12 @@ class TestFileTaskLogHandler:
             ti.log.info("test")
 
         with dag_maker("dag_for_testing_file_task_handler", schedule=None):
-            task = PythonOperator(
+            PythonOperator(
                 task_id="task_for_testing_file_log_handler",
                 python_callable=task_callable,
             )
         dagrun = dag_maker.create_dagrun()
-        dag_version = DagVersion.get_latest_version(dagrun.dag_id)
-        ti = TaskInstance(task=task, run_id=dagrun.run_id, dag_version_id=dag_version.id)
+        ti = dagrun.task_instances[0]
 
         ti.try_number = 0
         ti.state = ti_state
@@ -334,13 +341,12 @@ class TestFileTaskLogHandler:
             ti.log.info("test")
 
         with dag_maker("dag_for_testing_file_task_handler", schedule=None):
-            task = PythonOperator(
+            PythonOperator(
                 task_id="task_for_testing_file_log_handler",
                 python_callable=task_callable,
             )
         dagrun = dag_maker.create_dagrun()
-        dag_version = DagVersion.get_latest_version(dagrun.dag_id)
-        ti = TaskInstance(task=task, run_id=dagrun.run_id, dag_version_id=dag_version.id)
+        ti = dagrun.task_instances[0]
 
         ti.try_number = 2
         ti.state = State.RUNNING
@@ -386,13 +392,12 @@ class TestFileTaskLogHandler:
         update_conf = {"handlers": {"task": {"max_bytes": max_bytes_size, "backup_count": 1}}}
         reset_log_config(update_conf)
         with dag_maker("dag_for_testing_file_task_handler_rotate_size_limit"):
-            task = PythonOperator(
+            PythonOperator(
                 task_id="task_for_testing_file_log_handler_rotate_size_limit",
                 python_callable=task_callable,
             )
         dagrun = dag_maker.create_dagrun()
-        dag_version = DagVersion.get_latest_version(dagrun.dag_id)
-        ti = TaskInstance(task=task, run_id=dagrun.run_id, dag_version_id=dag_version.id)
+        ti = dagrun.task_instances[0]
 
         ti.try_number = 1
         ti.state = State.RUNNING
@@ -484,7 +489,7 @@ class TestFileTaskLogHandler:
         assert list(log_streams[1]) == ["file2 content", "file2 content2"]
 
     @pytest.mark.parametrize(
-        "remote_logs, local_logs, served_logs_checked",
+        ("remote_logs", "local_logs", "served_logs_checked"),
         [
             (True, True, False),
             (True, False, False),
@@ -603,6 +608,72 @@ class TestFileTaskLogHandler:
         actual = h.handler.baseFilename
         assert actual == os.fspath(tmp_path / expected)
 
+    @skip_if_force_lowest_dependencies_marker
+    def test_read_remote_logs_with_real_s3_remote_log_io(self, create_task_instance, session):
+        """Test _read_remote_logs method using real S3RemoteLogIO with mock AWS"""
+        import tempfile
+
+        import boto3
+        from moto import mock_aws
+
+        from airflow.models.connection import Connection
+        from airflow.providers.amazon.aws.log.s3_task_handler import S3RemoteLogIO
+
+        def setup_mock_aws():
+            """Set up mock AWS S3 bucket and connection."""
+            s3_client = boto3.client("s3", region_name="us-east-1")
+            s3_client.create_bucket(Bucket="test-airflow-logs")
+            return s3_client
+
+        with mock_aws():
+            aws_conn = Connection(
+                conn_id="aws_s3_conn",
+                conn_type="aws",
+                login="test_access_key",
+                password="test_secret_key",
+                extra='{"region_name": "us-east-1"}',
+            )
+            session.add(aws_conn)
+            session.commit()
+            s3_client = setup_mock_aws()
+
+            ti = create_task_instance(
+                dag_id="test_dag_s3_remote_logs",
+                task_id="test_task_s3_remote_logs",
+                run_type=DagRunType.SCHEDULED,
+                logical_date=DEFAULT_DATE,
+            )
+            ti.try_number = 1
+
+            with tempfile.TemporaryDirectory() as temp_dir:
+                s3_remote_log_io = S3RemoteLogIO(
+                    remote_base="s3://test-airflow-logs/logs",
+                    base_log_folder=temp_dir,
+                    delete_local_copy=False,
+                )
+
+                with conf_vars({("logging", "REMOTE_LOG_CONN_ID"): "aws_s3_conn"}):
+                    fth = FileTaskHandler("")
+                    log_relative_path = fth._render_filename(ti, 1)
+
+                    log_content = "Log line 1 from S3\nLog line 2 from S3\nLog line 3 from S3"
+                    s3_client.put_object(
+                        Bucket="test-airflow-logs",
+                        Key=f"logs/{log_relative_path}",
+                        Body=log_content.encode("utf-8"),
+                    )
+
+                    import airflow.logging_config
+
+                    airflow.logging_config._ActiveLoggingConfig.remote_task_log = s3_remote_log_io
+
+                    sources, logs = fth._read_remote_logs(ti, try_number=1)
+
+                    assert len(sources) > 0, f"Expected sources but got: {sources}"
+                    assert len(logs) > 0, f"Expected logs but got: {logs}"
+                    assert logs[0] == log_content
+                    assert f"s3://test-airflow-logs/logs/{log_relative_path}" in sources[0]
+
 
 @pytest.mark.parametrize("logical_date", ((None), (DEFAULT_DATE)))
 class TestFilenameRendering:
@@ -706,16 +777,14 @@ class TestFilenameRendering:
         )
         TaskInstanceHistory.record_ti(ti, session=session)
         session.flush()
-        tih = (
-            session.query(TaskInstanceHistory)
-            .filter_by(
-                dag_id=ti.dag_id,
-                task_id=ti.task_id,
-                run_id=ti.run_id,
-                map_index=ti.map_index,
-                try_number=ti.try_number,
+        tih = session.scalar(
+            select(TaskInstanceHistory).where(
+                TaskInstanceHistory.dag_id == ti.dag_id,
+                TaskInstanceHistory.task_id == ti.task_id,
+                TaskInstanceHistory.run_id == ti.run_id,
+                TaskInstanceHistory.map_index == ti.map_index,
+                TaskInstanceHistory.try_number == ti.try_number,
             )
-            .one()
         )
         fth = FileTaskHandler("")
         rendered_ti = fth._render_filename(ti, ti.try_number, session=session)
@@ -782,7 +851,7 @@ AIRFLOW_CTX_DAG_RUN_ID=manual__2022-11-16T08:05:52.324532+00:00
 
 
 @pytest.mark.parametrize(
-    "chunk_size, expected_read_calls",
+    ("chunk_size", "expected_read_calls"),
     [
         (10, 4),
         (20, 3),
@@ -924,7 +993,7 @@ def test__create_sort_key():
 
 
 @pytest.mark.parametrize(
-    "timestamp, line_num, expected",
+    ("timestamp", "line_num", "expected"),
     [
         pytest.param(
             pendulum.parse("2022-11-16T00:05:54.278000-08:00"),
@@ -951,7 +1020,7 @@ def test__is_sort_key_with_default_timestamp(timestamp, line_num, expected):
 
 
 @pytest.mark.parametrize(
-    "log_stream, expected",
+    ("log_stream", "expected"),
     [
         pytest.param(
             convert_list_to_stream(
@@ -1053,7 +1122,7 @@ def test__add_log_from_parsed_log_streams_to_heap():
 
 
 @pytest.mark.parametrize(
-    "heap_setup, flush_size, last_log, expected_events",
+    ("heap_setup", "flush_size", "last_log", "expected_events"),
     [
         pytest.param(
             [("msg1", "2023-01-01"), ("msg2", "2023-01-02")],

@@ -20,8 +20,7 @@
       "all": "All",
       "paused": "Paused"
     },
-    "runIdPatternFilter": "Search Dag Runs",
-    "triggeringUserNameFilter": "Search by Triggering User"
+    "runIdPatternFilter": "Search Dag Runs"
   },
   "ownerLink": "Owner link for {{owner}}",
   "runAndTaskActions": {
@@ -34,6 +33,10 @@
       "buttonTooltip": "Press shift+c to clear",
       "error": "Failed to clear {{type}}",
       "title": "Clear {{type}}"
+    },
+    "confirmationDialog": {
+      "description": "Task is currently in a {{state}} state started by user {{user}} at {{time}}. \nThe user is unable to clear this task until it is done running or a user unchecks the \"Prevent rerun if task is running\" option in the clear task dialog.",
+      "title": "Cannot Clear Task Instance"
     },
     "delete": {
       "button": "Delete {{type}}",
@@ -62,6 +65,7 @@
       "future": "Future",
       "onlyFailed": "Clear only failed tasks",
       "past": "Past",
+      "preventRunningTasks": "Prevent rerun if task is running",
       "queueNew": "Queue up new tasks",
       "runOnLatestVersion": "Run with latest bundle version",
       "upstream": "Upstream"

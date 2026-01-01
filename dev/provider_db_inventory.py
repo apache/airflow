@@ -19,7 +19,7 @@
 # requires-python = ">=3.10"
 # dependencies = [
 #   "rich>=13.6.0",
-#   "pyyaml>=6.0.2",
+#   "pyyaml>=6.0.3",
 # ]
 # ///
 from __future__ import annotations

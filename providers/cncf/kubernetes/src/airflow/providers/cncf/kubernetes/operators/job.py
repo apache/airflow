@@ -32,9 +32,10 @@ from kubernetes.client.api_client import ApiClient
 from kubernetes.client.rest import ApiException
 
 from airflow.configuration import conf
-from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
+from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.cncf.kubernetes.hooks.kubernetes import KubernetesHook
 from airflow.providers.cncf.kubernetes.kubernetes_helper_functions import (
+    POD_NAME_MAX_LENGTH,
     add_unique_suffix,
     create_unique_id,
 )
@@ -42,14 +43,21 @@ from airflow.providers.cncf.kubernetes.operators.pod import KubernetesPodOperato
 from airflow.providers.cncf.kubernetes.pod_generator import PodGenerator, merge_objects
 from airflow.providers.cncf.kubernetes.triggers.job import KubernetesJobTrigger
 from airflow.providers.cncf.kubernetes.utils.pod_manager import EMPTY_XCOM_RESULT, PodNotFoundException
-from airflow.providers.cncf.kubernetes.version_compat import BaseOperator
+from airflow.providers.cncf.kubernetes.version_compat import AIRFLOW_V_3_1_PLUS
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.utils import yaml
-from airflow.utils.context import Context
+
+if AIRFLOW_V_3_1_PLUS:
+    from airflow.sdk import BaseOperator
+else:
+    from airflow.models import BaseOperator
 
 if TYPE_CHECKING:
-    from airflow.utils.context import Context
+    from airflow.sdk import Context
 
 log = logging.getLogger(__name__)
+
+JOB_NAME_PREFIX = "job-"
 
 
 class KubernetesJobOperator(KubernetesPodOperator):
@@ -373,15 +381,18 @@ class KubernetesJobOperator(KubernetesPodOperator):
 
         job = self.reconcile_jobs(job_template, job)
 
+        # Account for job name prefix when generating/truncating the name
+        max_base_length = POD_NAME_MAX_LENGTH - len(JOB_NAME_PREFIX)
+
         if not job.metadata.name:
             job.metadata.name = create_unique_id(
-                task_id=self.task_id, unique=self.random_name_suffix, max_length=80
+                task_id=self.task_id, unique=self.random_name_suffix, max_length=max_base_length
             )
         elif self.random_name_suffix:
             # user has supplied job name, we're just adding suffix
-            job.metadata.name = add_unique_suffix(name=job.metadata.name)
+            job.metadata.name = add_unique_suffix(name=job.metadata.name, max_len=max_base_length)
 
-        job.metadata.name = f"job-{job.metadata.name}"
+        job.metadata.name = f"{JOB_NAME_PREFIX}{job.metadata.name}"
 
         if not job.metadata.namespace:
             hook_namespace = self.hook.get_namespace()

@@ -35,16 +35,15 @@ classifiers = [
     "Environment :: Console",
     "Intended Audience :: Developers",
     "Framework :: Apache Airflow",
-    "License :: OSI Approved :: Apache Software License",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
 ]
-requires-python = ">=3.10, !=3.13"
+requires-python = ">=3.10,!=3.14"
 
 dependencies = [
-    "black>=23.11.0",
+    "black>=25.0.0",
     # There is a bug in Click 8.2.0 and 8.2.1 that makes flag variables do not properly evaluate
     # "false"-y values set in environment variables. See https://github.com/pallets/click/issues/2952
     "click>=8.1.8,<8.2.0",
@@ -55,17 +54,17 @@ dependencies = [
     "google-auth-httplib2>=0.2.0",
     "google-auth-oauthlib>=1.2.0",
     "gitpython>=3.1.40",
-    "hatch>=1.14.1",
+    "hatch>=1.16.2",
     "inputimeout>=1.0.4",
     "jinja2>=3.1.5",
     "jsonschema>=4.19.1",
     "packaging>=25.0",
-    "prek>=0.2.1",
+    "prek>=0.2.23",
     "psutil>=5.9.6",
     "pygithub>=2.1.1",
     "pytest-xdist>=3.3.1",
-    "pytest>=8.3.3",
-    "pyyaml>=6.0.2",
+    "pytest>=9.0.0",
+    "pyyaml>=6.0.3",
     "requests>=2.32.0",
     "restructuredtext-lint>=1.4.0",
     # Temporarily pinned to fix for changes in https://github.com/ewels/rich-click/releases/tag/v1.9.0
@@ -76,7 +75,7 @@ dependencies = [
     "tomli>=2.0.1; python_version < '3.11'",
     "twine>=4.0.2",
     "tqdm>=4.67.1",
-    "boto3>=1.34.90",
+    "boto3>=1.37.2",
     "semver>=3.0.4"
 ]
 
@@ -90,8 +89,15 @@ name = "airflow_breeze"
 line-length = 110
 target-version = ['py310', 'py311', 'py312']
 
-[tool.pytest.ini_options]
-addopts = "-rasl --verbosity=2 -p no:flaky -p no:nose -p no:legacypath"
+[tool.pytest]
+addopts = [
+    "-rasl",
+    "--verbosity=2",
+    "-p", "no:flaky",
+    "-p", "no:nose",
+    "-p", "no:legacypath",
+]
+
 norecursedirs = [
     ".eggs",
 ]

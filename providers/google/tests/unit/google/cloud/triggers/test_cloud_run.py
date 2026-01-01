@@ -152,7 +152,7 @@ class TestCloudBatchJobFinishedTrigger:
         assert (
             TriggerEvent(
                 {
-                    "status": RunJobStatus.TIMEOUT,
+                    "status": RunJobStatus.TIMEOUT.value,
                     "job_name": JOB_NAME,
                 }
             )

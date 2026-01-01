@@ -18,10 +18,11 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import TYPE_CHECKING, Annotated
+from typing import TYPE_CHECKING, Annotated, cast
 
 from fastapi import Depends, HTTPException, status
 from sqlalchemy import and_, delete, func, select
+from sqlalchemy.engine import CursorResult
 from sqlalchemy.orm import joinedload, subqueryload
 
 from airflow._shared.timezones import timezone
@@ -70,6 +71,7 @@ from airflow.models.asset import (
     AssetDagRunQueue,
     AssetEvent,
     AssetModel,
+    AssetWatcherModel,
     TaskOutletAssetReference,
 )
 from airflow.utils.state import DagRunState
@@ -182,16 +184,28 @@ def get_assets(
             subqueryload(AssetModel.scheduled_dags),
             subqueryload(AssetModel.producing_tasks),
             subqueryload(AssetModel.consuming_tasks),
+            subqueryload(AssetModel.aliases),
+            subqueryload(AssetModel.watchers).joinedload(AssetWatcherModel.trigger),
         )
     )
 
     assets = []
 
     for asset, last_asset_event_id, last_asset_event_timestamp in assets_rows:
+        watchers_data = [
+            {
+                "name": watcher.name,
+                "trigger_id": watcher.trigger_id,
+                "created_date": watcher.trigger.created_date,
+            }
+            for watcher in asset.watchers
+        ]
+
         asset_response = AssetResponse.model_validate(
             {
                 **asset.__dict__,
                 "aliases": asset.aliases,
+                "watchers": watchers_data,
                 "last_asset_event": {
                     "id": last_asset_event_id,
                     "timestamp": last_asset_event_timestamp,
@@ -317,7 +331,9 @@ def get_asset_events(
         session=session,
     )
 
-    assets_event_select = assets_event_select.options(subqueryload(AssetEvent.created_dagruns))
+    assets_event_select = assets_event_select.options(
+        subqueryload(AssetEvent.created_dagruns), joinedload(AssetEvent.asset)
+    )
     assets_events = session.scalars(assets_event_select)
 
     return AssetEventCollectionResponse(
@@ -345,6 +361,7 @@ def create_asset_event(
         asset=asset_model,
         timestamp=timestamp,
         extra=body.extra,
+        partition_key=body.partition_key,
         session=session,
     )
 
@@ -473,6 +490,7 @@ def get_asset(
             joinedload(AssetModel.scheduled_dags),
             joinedload(AssetModel.producing_tasks),
             joinedload(AssetModel.consuming_tasks),
+            joinedload(AssetModel.watchers).joinedload(AssetWatcherModel.trigger),
         )
     )
 
@@ -482,10 +500,20 @@ def get_asset(
     if asset is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, f"The Asset with ID: `{asset_id}` was not found")
 
+    watchers_data = [
+        {
+            "name": watcher.name,
+            "trigger_id": watcher.trigger_id,
+            "created_date": watcher.trigger.created_date,
+        }
+        for watcher in asset.watchers
+    ]
+
     return AssetResponse.model_validate(
         {
             **asset.__dict__,
             "aliases": asset.aliases,
+            "watchers": watchers_data,
             "last_asset_event": {
                 "id": last_asset_event_id,
                 "timestamp": last_asset_event_timestamp,
@@ -585,7 +613,7 @@ def delete_asset_queued_events(
         asset_id=asset_id, before=before, permitted_dag_ids=readable_dags_filter.value
     )
     delete_stmt = delete(AssetDagRunQueue).where(*where_clause).execution_options(synchronize_session="fetch")
-    result = session.execute(delete_stmt)
+    result = cast("CursorResult", session.execute(delete_stmt))
     if result.rowcount == 0:
         raise HTTPException(
             status.HTTP_404_NOT_FOUND,
@@ -619,7 +647,7 @@ def delete_dag_asset_queued_events(
     )
 
     delete_statement = delete(AssetDagRunQueue).where(*where_clause)
-    result = session.execute(delete_statement)
+    result = cast("CursorResult", session.execute(delete_statement))
 
     if result.rowcount == 0:
         raise HTTPException(status.HTTP_404_NOT_FOUND, f"Queue event with dag_id: `{dag_id}` was not found")
@@ -654,7 +682,7 @@ def delete_dag_asset_queued_event(
     delete_statement = (
         delete(AssetDagRunQueue).where(*where_clause).execution_options(synchronize_session="fetch")
     )
-    result = session.execute(delete_statement)
+    result = cast("CursorResult", session.execute(delete_statement))
     if result.rowcount == 0:
         raise HTTPException(
             status.HTTP_404_NOT_FOUND,

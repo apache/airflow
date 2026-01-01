@@ -26,3 +26,11 @@ import (
 //
 // See the “GetVariable“ method of [VariableClient] for an example
 var VariableNotFound = errors.New("variable not found")
+
+// ConnectionNotFound is an error value used to signal that a connection could not be found (and that there were
+// no communication issues to the API server).
+//
+// See the “GetConnection“ method of [ConnectionClient] for an example
+var ConnectionNotFound = errors.New("connection not found")
+
+var XComNotFound = errors.New("xcom not found")

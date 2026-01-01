@@ -23,7 +23,6 @@ from typing import TYPE_CHECKING, Any, cast
 
 from kubernetes.client import CoreV1Api, CustomObjectsApi, models as k8s
 
-from airflow.exceptions import AirflowException
 from airflow.providers.cncf.kubernetes import pod_generator
 from airflow.providers.cncf.kubernetes.hooks.kubernetes import KubernetesHook, _load_body_to_dict
 from airflow.providers.cncf.kubernetes.kubernetes_helper_functions import add_unique_suffix
@@ -31,16 +30,13 @@ from airflow.providers.cncf.kubernetes.operators.custom_object_launcher import C
 from airflow.providers.cncf.kubernetes.operators.pod import KubernetesPodOperator
 from airflow.providers.cncf.kubernetes.pod_generator import MAX_LABEL_LEN, PodGenerator
 from airflow.providers.cncf.kubernetes.utils.pod_manager import PodManager
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.utils.helpers import prune_dict
 
 if TYPE_CHECKING:
     import jinja2
 
-    try:
-        from airflow.sdk.definitions.context import Context
-    except ImportError:
-        # TODO: Remove once provider drops support for Airflow 2
-        from airflow.utils.context import Context
+    from airflow.sdk import Context
 
 
 class SparkKubernetesOperator(KubernetesPodOperator):
@@ -286,6 +282,16 @@ class SparkKubernetesOperator(KubernetesPodOperator):
     def custom_obj_api(self) -> CustomObjectsApi:
         return CustomObjectsApi()
 
+    @cached_property
+    def launcher(self) -> CustomObjectLauncher:
+        return CustomObjectLauncher(
+            name=self.name,
+            namespace=self.namespace,
+            kube_client=self.client,
+            custom_obj_api=self.custom_obj_api,
+            template_body=self.template_body,
+        )
+
     def get_or_create_spark_crd(self, launcher: CustomObjectLauncher, context) -> k8s.V1Pod:
         if self.reattach_on_restart:
             driver_pod = self.find_spark_job(context)
@@ -323,6 +329,8 @@ class SparkKubernetesOperator(KubernetesPodOperator):
                 )
                 self.pod = existing_pod
                 self.pod_request_obj = None
+                if self.pod.metadata.name.endswith("-driver"):
+                    self.name = self.pod.metadata.name.removesuffix("-driver")
                 return
 
             if "spark" not in template_body:
@@ -361,9 +369,12 @@ class SparkKubernetesOperator(KubernetesPodOperator):
         return self.find_spark_job(context, exclude_checked=exclude_checked)
 
     def on_kill(self) -> None:
-        if self.launcher:
-            self.log.debug("Deleting spark job for task %s", self.task_id)
-            self.launcher.delete_spark_job()
+        self.log.debug("Deleting spark job for task %s", self.task_id)
+        job_name = self.name
+        if self.pod and self.pod.metadata and self.pod.metadata.name:
+            if self.pod.metadata.name.endswith("-driver"):
+                job_name = self.pod.metadata.name.removesuffix("-driver")
+        self.launcher.delete_spark_job(spark_job_name=job_name)
 
     def patch_already_checked(self, pod: k8s.V1Pod, *, reraise=True):
         """Add an "already checked" annotation to ensure we don't reattach on retries."""

@@ -19,7 +19,6 @@
 
 from __future__ import annotations
 
-import importlib
 import importlib.machinery
 import importlib.util
 import inspect
@@ -28,10 +27,12 @@ import os
 import sys
 import types
 from collections.abc import Iterable
+from functools import cache
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 from airflow import settings
+from airflow._shared.module_loading import import_string, qualname
 from airflow.configuration import conf
 from airflow.task.priority_strategy import (
     PriorityWeightStrategy,
@@ -39,15 +40,14 @@ from airflow.task.priority_strategy import (
 )
 from airflow.utils.entry_points import entry_points_with_dist
 from airflow.utils.file import find_path_from_directory
-from airflow.utils.module_loading import import_string, qualname
 
 if TYPE_CHECKING:
     from airflow.lineage.hook import HookLineageReader
 
-    try:
+    if sys.version_info >= (3, 12):
+        from importlib import metadata
+    else:
         import importlib_metadata as metadata
-    except ImportError:
-        from importlib import metadata  # type: ignore[no-redef]
     from collections.abc import Generator
     from types import ModuleType
 
@@ -55,55 +55,6 @@ if TYPE_CHECKING:
     from airflow.timetables.base import Timetable
 
 log = logging.getLogger(__name__)
-
-import_errors: dict[str, str] = {}
-
-plugins: list[AirflowPlugin] | None = None
-loaded_plugins: set[str] = set()
-
-# Plugin components to integrate as modules
-macros_modules: list[Any] | None = None
-
-# Plugin components to integrate directly
-admin_views: list[Any] | None = None
-flask_blueprints: list[Any] | None = None
-fastapi_apps: list[Any] | None = None
-fastapi_root_middlewares: list[Any] | None = None
-external_views: list[Any] | None = None
-react_apps: list[Any] | None = None
-menu_links: list[Any] | None = None
-flask_appbuilder_views: list[Any] | None = None
-flask_appbuilder_menu_links: list[Any] | None = None
-global_operator_extra_links: list[Any] | None = None
-operator_extra_links: list[Any] | None = None
-registered_operator_link_classes: dict[str, type] | None = None
-timetable_classes: dict[str, type[Timetable]] | None = None
-hook_lineage_reader_classes: list[type[HookLineageReader]] | None = None
-priority_weight_strategy_classes: dict[str, type[PriorityWeightStrategy]] | None = None
-"""
-Mapping of class names to class of OperatorLinks registered by plugins.
-
-Used by the DAG serialization code to only allow specific classes to be created
-during deserialization
-"""
-PLUGINS_ATTRIBUTES_TO_DUMP = {
-    "macros",
-    "admin_views",
-    "flask_blueprints",
-    "fastapi_apps",
-    "fastapi_root_middlewares",
-    "external_views",
-    "react_apps",
-    "menu_links",
-    "appbuilder_views",
-    "appbuilder_menu_items",
-    "global_operator_extra_links",
-    "operator_extra_links",
-    "source",
-    "timetables",
-    "listeners",
-    "priority_weight_strategies",
-}
 
 
 class AirflowPluginSource:
@@ -206,7 +157,7 @@ class AirflowPlugin:
         """
 
 
-def is_valid_plugin(plugin_obj):
+def is_valid_plugin(plugin_obj) -> bool:
     """
     Check whether a potential object is a subclass of the AirflowPlugin class.
 
@@ -214,46 +165,26 @@ def is_valid_plugin(plugin_obj):
     :return: Whether or not the obj is a valid subclass of
         AirflowPlugin
     """
-    global plugins
-
     if (
         inspect.isclass(plugin_obj)
         and issubclass(plugin_obj, AirflowPlugin)
         and (plugin_obj is not AirflowPlugin)
     ):
         plugin_obj.validate()
-        return plugin_obj not in plugins
+        return True
     return False
 
 
-def register_plugin(plugin_instance):
-    """
-    Start plugin load and register it after success initialization.
-
-    If plugin is already registered, do nothing.
-
-    :param plugin_instance: subclass of AirflowPlugin
-    """
-    global plugins
-
-    if plugin_instance.name in loaded_plugins:
-        return
-
-    loaded_plugins.add(plugin_instance.name)
-    plugin_instance.on_load()
-    plugins.append(plugin_instance)
-
-
-def load_entrypoint_plugins():
+def _load_entrypoint_plugins() -> tuple[list[AirflowPlugin], dict[str, str]]:
     """
     Load and register plugins AirflowPlugin subclasses from the entrypoints.
 
     The entry_point group should be 'airflow.plugins'.
     """
-    global import_errors
-
     log.debug("Loading plugins from entrypoints")
 
+    plugins: list[AirflowPlugin] = []
+    import_errors: dict[str, str] = {}
     for entry_point, dist in entry_points_with_dist("airflow.plugins"):
         log.debug("Importing entry_point plugin %s", entry_point.name)
         try:
@@ -261,29 +192,33 @@ def load_entrypoint_plugins():
             if not is_valid_plugin(plugin_class):
                 continue
 
-            plugin_instance = plugin_class()
+            plugin_instance: AirflowPlugin = plugin_class()
             plugin_instance.source = EntryPointSource(entry_point, dist)
-            register_plugin(plugin_instance)
+            plugins.append(plugin_instance)
         except Exception as e:
             log.exception("Failed to import plugin %s", entry_point.name)
             import_errors[entry_point.module] = str(e)
+    return plugins, import_errors
 
 
-def load_plugins_from_plugin_directory():
+def _load_plugins_from_plugin_directory() -> tuple[list[AirflowPlugin], dict[str, str]]:
     """Load and register Airflow Plugins from plugins directory."""
-    global import_errors
+    if settings.PLUGINS_FOLDER is None:
+        raise ValueError("Plugins folder is not set")
     log.debug("Loading plugins from directory: %s", settings.PLUGINS_FOLDER)
     files = find_path_from_directory(settings.PLUGINS_FOLDER, ".airflowignore")
     plugin_search_locations: list[tuple[str, Generator[str, None, None]]] = [("", files)]
 
     if conf.getboolean("core", "LOAD_EXAMPLES"):
         log.debug("Note: Loading plugins from examples as well: %s", settings.PLUGINS_FOLDER)
-        from airflow.example_dags import plugins
+        from airflow.example_dags import plugins as example_plugins
 
-        example_plugins_folder = next(iter(plugins.__path__))
+        example_plugins_folder = next(iter(example_plugins.__path__))
         example_files = find_path_from_directory(example_plugins_folder, ".airflowignore")
-        plugin_search_locations.append((plugins.__name__, example_files))
+        plugin_search_locations.append((example_plugins.__name__, example_files))
 
+    plugins: list[AirflowPlugin] = []
+    import_errors: dict[str, str] = {}
     for module_prefix, plugin_files in plugin_search_locations:
         for file_path in plugin_files:
             path = Path(file_path)
@@ -294,39 +229,47 @@ def load_plugins_from_plugin_directory():
             try:
                 loader = importlib.machinery.SourceFileLoader(mod_name, file_path)
                 spec = importlib.util.spec_from_loader(mod_name, loader)
+                if not spec:
+                    log.error("Could not load spec for module %s at %s", mod_name, file_path)
+                    continue
                 mod = importlib.util.module_from_spec(spec)
                 sys.modules[spec.name] = mod
                 loader.exec_module(mod)
 
                 for mod_attr_value in (m for m in mod.__dict__.values() if is_valid_plugin(m)):
-                    plugin_instance = mod_attr_value()
+                    plugin_instance: AirflowPlugin = mod_attr_value()
                     plugin_instance.source = PluginsDirectorySource(file_path)
-                    register_plugin(plugin_instance)
+                    plugins.append(plugin_instance)
             except Exception as e:
                 log.exception("Failed to import plugin %s", file_path)
                 import_errors[file_path] = str(e)
+    return plugins, import_errors
 
 
-def load_providers_plugins():
+def _load_providers_plugins() -> tuple[list[AirflowPlugin], dict[str, str]]:
     from airflow.providers_manager import ProvidersManager
 
     log.debug("Loading plugins from providers")
     providers_manager = ProvidersManager()
     providers_manager.initialize_providers_plugins()
+
+    plugins: list[AirflowPlugin] = []
+    import_errors: dict[str, str] = {}
     for plugin in providers_manager.plugins:
         log.debug("Importing plugin %s from class %s", plugin.name, plugin.plugin_class)
 
         try:
             plugin_instance = import_string(plugin.plugin_class)
             if is_valid_plugin(plugin_instance):
-                register_plugin(plugin_instance)
+                plugins.append(plugin_instance)
             else:
                 log.warning("Plugin %s is not a valid plugin", plugin.name)
         except ImportError:
             log.exception("Failed to load plugin %s from class name %s", plugin.name, plugin.plugin_class)
+    return plugins, import_errors
 
 
-def make_module(name: str, objects: list[Any]):
+def make_module(name: str, objects: list[Any]) -> ModuleType | None:
     """Create new module."""
     if not objects:
         return None
@@ -339,65 +282,69 @@ def make_module(name: str, objects: list[Any]):
     return module
 
 
-def ensure_plugins_loaded():
+def ensure_plugins_loaded() -> None:
     """
     Load plugins from plugins directory and entrypoints.
 
     Plugins are only loaded if they have not been previously loaded.
     """
-    from airflow.stats import Stats
+    _get_plugins()
 
-    global plugins
 
-    if plugins is not None:
-        log.debug("Plugins are already loaded. Skipping.")
-        return
+@cache
+def _get_plugins() -> tuple[list[AirflowPlugin], dict[str, str]]:
+    """
+    Load plugins from plugins directory and entrypoints.
+
+    Plugins are only loaded if they have not been previously loaded.
+    """
+    from airflow.observability.stats import Stats
 
     if not settings.PLUGINS_FOLDER:
         raise ValueError("Plugins folder is not set")
 
     log.debug("Loading plugins")
 
-    with Stats.timer() as timer:
-        plugins = []
+    plugins: list[AirflowPlugin] = []
+    import_errors: dict[str, str] = {}
+    loaded_plugins: set[str | None] = set()
 
-        load_plugins_from_plugin_directory()
-        load_entrypoint_plugins()
+    def __register_plugins(plugin_instances: list[AirflowPlugin], errors: dict[str, str]) -> None:
+        for plugin_instance in plugin_instances:
+            if plugin_instance.name in loaded_plugins:
+                return
+
+            loaded_plugins.add(plugin_instance.name)
+            try:
+                plugin_instance.on_load()
+                plugins.append(plugin_instance)
+            except Exception as e:
+                log.exception("Failed to load plugin %s", plugin_instance.name)
+                name = str(plugin_instance.source) if plugin_instance.source else plugin_instance.name or ""
+                import_errors[name] = str(e)
+        import_errors.update(errors)
+
+    with Stats.timer() as timer:
+        __register_plugins(*_load_plugins_from_plugin_directory())
+        __register_plugins(*_load_entrypoint_plugins())
 
         if not settings.LAZY_LOAD_PROVIDERS:
-            load_providers_plugins()
+            __register_plugins(*_load_providers_plugins())
 
-    if plugins:
-        log.debug("Loading %d plugin(s) took %.2f seconds", len(plugins), timer.duration)
+    log.debug("Loading %d plugin(s) took %.2f seconds", len(plugins), timer.duration)
+    return plugins, import_errors
 
 
-def initialize_ui_plugins():
+@cache
+def _get_ui_plugins() -> tuple[list[Any], list[Any]]:
     """Collect extension points for the UI."""
-    global plugins
-    global external_views
-    global react_apps
-
-    if external_views is not None and react_apps is not None:
-        return
-
-    ensure_plugins_loaded()
-
-    if plugins is None:
-        raise AirflowPluginException("Can't load plugins.")
-
     log.debug("Initialize UI plugin")
 
-    seen_url_route = {}
-    external_views = []
-    react_apps = []
+    seen_url_routes: dict[str, str | None] = {}
 
-    def _remove_list_item(lst, item):
-        # Mutate in place the plugin's external views and react apps list to remove the invalid items
-        # because some function still access these plugin's attribute and not the
-        # global variables `external_views` `react_apps`. (get_plugin_info, for example)
-        lst.remove(item)
-
-    for plugin in plugins:
+    external_views: list[Any] = []
+    react_apps: list[Any] = []
+    for plugin in _get_plugins()[0]:
         external_views_to_remove = []
         react_apps_to_remove = []
         for external_view in plugin.external_views:
@@ -411,18 +358,18 @@ def initialize_ui_plugins():
             url_route = external_view.get("url_route")
             if url_route is None:
                 continue
-            if url_route in seen_url_route:
+            if url_route in seen_url_routes:
                 log.warning(
                     "Plugin '%s' has an external view with an URL route '%s' "
                     "that conflicts with another plugin '%s'. The view will not be loaded.",
                     plugin.name,
                     url_route,
-                    seen_url_route[url_route],
+                    seen_url_routes[url_route],
                 )
                 external_views_to_remove.append(external_view)
                 continue
             external_views.append(external_view)
-            seen_url_route[url_route] = plugin.name
+            seen_url_routes[url_route] = plugin.name
 
         for react_app in plugin.react_apps:
             if not isinstance(react_app, dict):
@@ -435,51 +382,35 @@ def initialize_ui_plugins():
             url_route = react_app.get("url_route")
             if url_route is None:
                 continue
-            if url_route in seen_url_route:
+            if url_route in seen_url_routes:
                 log.warning(
                     "Plugin '%s' has a React App with an URL route '%s' "
                     "that conflicts with another plugin '%s'. The React App will not be loaded.",
                     plugin.name,
                     url_route,
-                    seen_url_route[url_route],
+                    seen_url_routes[url_route],
                 )
                 react_apps_to_remove.append(react_app)
                 continue
             react_apps.append(react_app)
-            seen_url_route[url_route] = plugin.name
+            seen_url_routes[url_route] = plugin.name
 
         for item in external_views_to_remove:
-            _remove_list_item(plugin.external_views, item)
+            plugin.external_views.remove(item)
         for item in react_apps_to_remove:
-            _remove_list_item(plugin.react_apps, item)
+            plugin.react_apps.remove(item)
+    return external_views, react_apps
 
 
-def initialize_flask_plugins():
-    """Collect flask extension points for WEB UI (legacy)."""
-    global plugins
-    global flask_blueprints
-    global flask_appbuilder_views
-    global flask_appbuilder_menu_links
-
-    if (
-        flask_blueprints is not None
-        and flask_appbuilder_views is not None
-        and flask_appbuilder_menu_links is not None
-    ):
-        return
-
-    ensure_plugins_loaded()
-
-    if plugins is None:
-        raise AirflowPluginException("Can't load plugins.")
-
+@cache
+def get_flask_plugins() -> tuple[list[Any], list[Any], list[Any]]:
+    """Collect and get flask extension points for WEB UI (legacy)."""
     log.debug("Initialize legacy Web UI plugin")
 
-    flask_blueprints = []
-    flask_appbuilder_views = []
-    flask_appbuilder_menu_links = []
-
-    for plugin in plugins:
+    flask_appbuilder_views: list[Any] = []
+    flask_appbuilder_menu_links: list[Any] = []
+    flask_blueprints: list[Any] = []
+    for plugin in _get_plugins()[0]:
         flask_appbuilder_views.extend(plugin.appbuilder_views)
         flask_appbuilder_menu_links.extend(plugin.appbuilder_menu_items)
         flask_blueprints.extend([{"name": plugin.name, "blueprint": bp} for bp in plugin.flask_blueprints])
@@ -492,132 +423,82 @@ def initialize_flask_plugins():
                 "Please contact the author of the plugin.",
                 plugin.name,
             )
+    return flask_blueprints, flask_appbuilder_views, flask_appbuilder_menu_links
 
 
-def initialize_fastapi_plugins():
+@cache
+def get_fastapi_plugins() -> tuple[list[Any], list[Any]]:
     """Collect extension points for the API."""
-    global plugins
-    global fastapi_apps
-    global fastapi_root_middlewares
-
-    if fastapi_apps is not None and fastapi_root_middlewares is not None:
-        return
-
-    ensure_plugins_loaded()
-
-    if plugins is None:
-        raise AirflowPluginException("Can't load plugins.")
-
     log.debug("Initialize FastAPI plugins")
 
-    fastapi_apps = []
-    fastapi_root_middlewares = []
-
-    for plugin in plugins:
+    fastapi_apps: list[Any] = []
+    fastapi_root_middlewares: list[Any] = []
+    for plugin in _get_plugins()[0]:
         fastapi_apps.extend(plugin.fastapi_apps)
         fastapi_root_middlewares.extend(plugin.fastapi_root_middlewares)
+    return fastapi_apps, fastapi_root_middlewares
 
 
-def initialize_extra_operators_links_plugins():
-    """Create modules for loaded extension from extra operators links plugins."""
-    global global_operator_extra_links
-    global operator_extra_links
-    global registered_operator_link_classes
-
-    if (
-        global_operator_extra_links is not None
-        and operator_extra_links is not None
-        and registered_operator_link_classes is not None
-    ):
-        return
-
-    ensure_plugins_loaded()
-
-    if plugins is None:
-        raise AirflowPluginException("Can't load plugins.")
-
+@cache
+def _get_extra_operators_links_plugins() -> tuple[list[Any], list[Any]]:
+    """Create and get modules for loaded extension from extra operators links plugins."""
     log.debug("Initialize extra operators links plugins")
 
-    global_operator_extra_links = []
-    operator_extra_links = []
-    registered_operator_link_classes = {}
-
-    for plugin in plugins:
+    global_operator_extra_links: list[Any] = []
+    operator_extra_links: list[Any] = []
+    for plugin in _get_plugins()[0]:
         global_operator_extra_links.extend(plugin.global_operator_extra_links)
         operator_extra_links.extend(list(plugin.operator_extra_links))
-
-        registered_operator_link_classes.update(
-            {qualname(link.__class__): link.__class__ for link in plugin.operator_extra_links}
-        )
+    return global_operator_extra_links, operator_extra_links
 
 
-def initialize_timetables_plugins():
-    """Collect timetable classes registered by plugins."""
-    global timetable_classes
+def get_global_operator_extra_links() -> list[Any]:
+    """Get global operator extra links registered by plugins."""
+    return _get_extra_operators_links_plugins()[0]
 
-    if timetable_classes is not None:
-        return
 
-    ensure_plugins_loaded()
+def get_operator_extra_links() -> list[Any]:
+    """Get operator extra links registered by plugins."""
+    return _get_extra_operators_links_plugins()[1]
 
-    if plugins is None:
-        raise AirflowPluginException("Can't load plugins.")
 
+@cache
+def get_timetables_plugins() -> dict[str, type[Timetable]]:
+    """Collect and get timetable classes registered by plugins."""
     log.debug("Initialize extra timetables plugins")
 
-    timetable_classes = {
+    return {
         qualname(timetable_class): timetable_class
-        for plugin in plugins
+        for plugin in _get_plugins()[0]
         for timetable_class in plugin.timetables
     }
 
 
-def initialize_hook_lineage_readers_plugins():
-    """Collect hook lineage reader classes registered by plugins."""
-    global hook_lineage_reader_classes
-
-    if hook_lineage_reader_classes is not None:
-        return
-
-    ensure_plugins_loaded()
-
-    if plugins is None:
-        raise AirflowPluginException("Can't load plugins.")
-
+@cache
+def get_hook_lineage_readers_plugins() -> list[type[HookLineageReader]]:
+    """Collect and get hook lineage reader classes registered by plugins."""
     log.debug("Initialize hook lineage readers plugins")
+    result: list[type[HookLineageReader]] = []
 
-    hook_lineage_reader_classes = []
-    for plugin in plugins:
-        hook_lineage_reader_classes.extend(plugin.hook_lineage_readers)
+    for plugin in _get_plugins()[0]:
+        result.extend(plugin.hook_lineage_readers)
+    return result
 
 
+@cache
 def integrate_macros_plugins() -> None:
     """Integrates macro plugins."""
-    global plugins
-    global macros_modules
-
     from airflow.sdk.execution_time import macros
-
-    if macros_modules is not None:
-        return
-
-    ensure_plugins_loaded()
-
-    if plugins is None:
-        raise AirflowPluginException("Can't load plugins.")
 
     log.debug("Integrate Macros plugins")
 
-    macros_modules = []
-
-    for plugin in plugins:
+    for plugin in _get_plugins()[0]:
         if plugin.name is None:
             raise AirflowPluginException("Invalid plugin name")
 
         macros_module = make_module(f"airflow.sdk.execution_time.macros.{plugin.name}", plugin.macros)
 
         if macros_module:
-            macros_modules.append(macros_module)
             sys.modules[macros_module.__name__] = macros_module
             # Register the newly created module on airflow.macros such that it
             # can be accessed when rendering templates.
@@ -626,17 +507,12 @@ def integrate_macros_plugins() -> None:
 
 def integrate_listener_plugins(listener_manager: ListenerManager) -> None:
     """Add listeners from plugins."""
-    global plugins
+    for plugin in _get_plugins()[0]:
+        if plugin.name is None:
+            raise AirflowPluginException("Invalid plugin name")
 
-    ensure_plugins_loaded()
-
-    if plugins:
-        for plugin in plugins:
-            if plugin.name is None:
-                raise AirflowPluginException("Invalid plugin name")
-
-            for listener in plugin.listeners:
-                listener_manager.add_listener(listener)
+        for listener in plugin.listeners:
+            listener_manager.add_listener(listener)
 
 
 def get_plugin_info(attrs_to_dump: Iterable[str] | None = None) -> list[dict[str, Any]]:
@@ -645,79 +521,88 @@ def get_plugin_info(attrs_to_dump: Iterable[str] | None = None) -> list[dict[str
 
     :param attrs_to_dump: A list of plugin attributes to dump
     """
-    ensure_plugins_loaded()
-    integrate_macros_plugins()
-    initialize_flask_plugins()
-    initialize_fastapi_plugins()
-    initialize_ui_plugins()
-    initialize_extra_operators_links_plugins()
+    get_flask_plugins()
+    get_fastapi_plugins()
+    get_global_operator_extra_links()
+    get_operator_extra_links()
+    _get_ui_plugins()
     if not attrs_to_dump:
-        attrs_to_dump = PLUGINS_ATTRIBUTES_TO_DUMP
+        attrs_to_dump = {
+            "macros",
+            "admin_views",
+            "flask_blueprints",
+            "fastapi_apps",
+            "fastapi_root_middlewares",
+            "external_views",
+            "react_apps",
+            "menu_links",
+            "appbuilder_views",
+            "appbuilder_menu_items",
+            "global_operator_extra_links",
+            "operator_extra_links",
+            "source",
+            "timetables",
+            "listeners",
+            "priority_weight_strategies",
+        }
     plugins_info = []
-    if plugins:
-        for plugin in plugins:
-            info: dict[str, Any] = {"name": plugin.name}
-            for attr in attrs_to_dump:
-                if attr in ("global_operator_extra_links", "operator_extra_links"):
-                    info[attr] = [f"<{qualname(d.__class__)} object>" for d in getattr(plugin, attr)]
-                elif attr in ("macros", "timetables", "priority_weight_strategies"):
-                    info[attr] = [qualname(d) for d in getattr(plugin, attr)]
-                elif attr == "listeners":
-                    # listeners may be modules or class instances
-                    info[attr] = [
-                        d.__name__ if inspect.ismodule(d) else qualname(d) for d in getattr(plugin, attr)
-                    ]
-                elif attr == "appbuilder_views":
-                    info[attr] = [
-                        {**d, "view": qualname(d["view"].__class__) if "view" in d else None}
-                        for d in getattr(plugin, attr)
-                    ]
-                elif attr == "flask_blueprints":
-                    info[attr] = [
-                        f"<{qualname(d.__class__)}: name={d.name!r} import_name={d.import_name!r}>"
-                        for d in getattr(plugin, attr)
-                    ]
-                elif attr == "fastapi_apps":
-                    info[attr] = [
-                        {**d, "app": qualname(d["app"].__class__) if "app" in d else None}
-                        for d in getattr(plugin, attr)
-                    ]
-                elif attr == "fastapi_root_middlewares":
-                    # remove args and kwargs from plugin info to hide potentially sensitive info.
-                    info[attr] = [
-                        {
-                            k: (v if k != "middleware" else qualname(middleware_dict["middleware"]))
-                            for k, v in middleware_dict.items()
-                            if k not in ("args", "kwargs")
-                        }
-                        for middleware_dict in getattr(plugin, attr)
-                    ]
-                else:
-                    info[attr] = getattr(plugin, attr)
-            plugins_info.append(info)
+    for plugin in _get_plugins()[0]:
+        info: dict[str, Any] = {"name": plugin.name}
+        for attr in attrs_to_dump:
+            if attr in ("global_operator_extra_links", "operator_extra_links"):
+                info[attr] = [f"<{qualname(d.__class__)} object>" for d in getattr(plugin, attr)]
+            elif attr in ("macros", "timetables", "priority_weight_strategies"):
+                info[attr] = [qualname(d) for d in getattr(plugin, attr)]
+            elif attr == "listeners":
+                # listeners may be modules or class instances
+                info[attr] = [d.__name__ if inspect.ismodule(d) else qualname(d) for d in plugin.listeners]
+            elif attr == "appbuilder_views":
+                info[attr] = [
+                    {**d, "view": qualname(d["view"].__class__) if "view" in d else None}
+                    for d in plugin.appbuilder_views
+                ]
+            elif attr == "flask_blueprints":
+                info[attr] = [
+                    f"<{qualname(d.__class__)}: name={d.name!r} import_name={d.import_name!r}>"
+                    for d in plugin.flask_blueprints
+                ]
+            elif attr == "fastapi_apps":
+                info[attr] = [
+                    {**d, "app": qualname(d["app"].__class__) if "app" in d else None}
+                    for d in plugin.fastapi_apps
+                ]
+            elif attr == "fastapi_root_middlewares":
+                # remove args and kwargs from plugin info to hide potentially sensitive info.
+                info[attr] = [
+                    {
+                        k: (v if k != "middleware" else qualname(middleware_dict["middleware"]))
+                        for k, v in middleware_dict.items()
+                        if k not in ("args", "kwargs")
+                    }
+                    for middleware_dict in plugin.fastapi_root_middlewares
+                ]
+            else:
+                info[attr] = getattr(plugin, attr)
+        plugins_info.append(info)
     return plugins_info
 
 
-def initialize_priority_weight_strategy_plugins():
-    """Collect priority weight strategy classes registered by plugins."""
-    global priority_weight_strategy_classes
-
-    if priority_weight_strategy_classes is not None:
-        return
-
-    ensure_plugins_loaded()
-
-    if plugins is None:
-        raise AirflowPluginException("Can't load plugins.")
-
+@cache
+def get_priority_weight_strategy_plugins() -> dict[str, type[PriorityWeightStrategy]]:
+    """Collect and get priority weight strategy classes registered by plugins."""
     log.debug("Initialize extra priority weight strategy plugins")
 
     plugins_priority_weight_strategy_classes = {
         qualname(priority_weight_strategy_class): priority_weight_strategy_class
-        for plugin in plugins
+        for plugin in _get_plugins()[0]
         for priority_weight_strategy_class in plugin.priority_weight_strategies
     }
-    priority_weight_strategy_classes = {
+    return {
         **airflow_priority_weight_strategies,
         **plugins_priority_weight_strategy_classes,
     }
+
+
+def get_import_errors() -> dict[str, str]:
+    """Get import errors encountered during plugin loading."""
+    return _get_plugins()[1]

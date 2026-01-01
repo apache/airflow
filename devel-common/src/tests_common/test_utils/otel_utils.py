@@ -20,7 +20,7 @@ import json
 import logging
 import pprint
 
-from sqlalchemy import inspect
+from sqlalchemy import inspect, select
 
 from airflow.models import Base
 
@@ -40,8 +40,7 @@ def dump_airflow_metadata_db(session):
         log.debug("\nDumping table: %s", table_name)
         table = Base.metadata.tables.get(table_name)
         if table is not None:
-            query = session.query(table)
-            results = [dict(row) for row in query.all()]
+            results = [dict(row._mapping) for row in session.execute(select(table)).all()]
             db_dump[table_name] = results
             # Pretty-print the table contents
             if table_name == "connection":

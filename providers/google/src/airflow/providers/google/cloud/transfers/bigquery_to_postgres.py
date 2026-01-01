@@ -31,7 +31,7 @@ from airflow.providers.google.cloud.utils.bigquery_get_data import bigquery_get_
 from airflow.providers.postgres.hooks.postgres import PostgresHook
 
 if TYPE_CHECKING:
-    from airflow.utils.context import Context
+    from airflow.providers.common.compat.sdk import Context
 
 
 class BigQueryToPostgresOperator(BigQueryToSqlBaseOperator):

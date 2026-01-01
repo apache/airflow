@@ -27,7 +27,7 @@ import operator
 import re
 import subprocess
 import sys
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
 
 from sqlalchemy import func, select
 
@@ -37,11 +37,11 @@ from airflow.api_fastapi.core_api.datamodels.dags import DAGResponse
 from airflow.cli.simple_table import AirflowConsole
 from airflow.cli.utils import fetch_dag_run_from_run_id_or_logical_date_string
 from airflow.dag_processing.bundles.manager import DagBundlesManager
+from airflow.dag_processing.dagbag import DagBag, sync_bag_to_db
 from airflow.exceptions import AirflowConfigException, AirflowException
 from airflow.jobs.job import Job
-from airflow.models import DagBag, DagModel, DagRun, TaskInstance
+from airflow.models import DagModel, DagRun, TaskInstance
 from airflow.models.dag import get_next_data_interval
-from airflow.models.dagbag import sync_bag_to_db
 from airflow.models.errors import ParseImportError
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.utils import cli as cli_utils
@@ -60,6 +60,7 @@ if TYPE_CHECKING:
     from sqlalchemy.orm import Session
 
     from airflow import DAG
+    from airflow.serialization.definitions.dag import SerializedDAG
     from airflow.timetables.base import DataInterval
 
 DAG_DETAIL_FIELDS = {*DAGResponse.model_fields, *DAGResponse.model_computed_fields}
@@ -139,7 +140,7 @@ def set_is_paused(is_paused: bool, args, *, session: Session = NEW_SESSION) -> N
 
     query = query.where(DagModel.is_paused != is_paused)
 
-    matched_dags: list[DagModel] = session.scalars(query).all()
+    matched_dags = list(session.scalars(query).all())
     if not matched_dags:
         print(f"No {'un' if is_paused else ''}paused DAGs were found")
         return
@@ -237,16 +238,18 @@ def _save_dot_to_file(dot: Dot, filename: str) -> None:
     print(f"File {filename} saved")
 
 
-def _get_dagbag_dag_details(dag: DAG, session: Session) -> dict:
+def _get_dagbag_dag_details(dag: DAG) -> dict:
     """Return a dagbag dag details dict."""
-    dag_model: DagModel | None = session.get(DagModel, dag.dag_id)
+    from airflow.serialization.encoders import coerce_to_core_timetable
+
+    core_timetable = coerce_to_core_timetable(dag.timetable)
     return {
         "dag_id": dag.dag_id,
         "dag_display_name": dag.dag_display_name,
-        "bundle_name": dag_model.bundle_name if dag_model else None,
-        "bundle_version": dag_model.bundle_version if dag_model else None,
-        "is_paused": dag_model.is_paused if dag_model else None,
-        "is_stale": dag_model.is_stale if dag_model else None,
+        "bundle_name": None,
+        "bundle_version": None,
+        "is_paused": None,
+        "is_stale": None,
         "last_parsed_time": None,
         "last_parse_duration": None,
         "last_expired": None,
@@ -255,8 +258,8 @@ def _get_dagbag_dag_details(dag: DAG, session: Session) -> dict:
         "file_token": None,
         "owners": dag.owner,
         "description": dag.description,
-        "timetable_summary": dag.timetable.summary,
-        "timetable_description": dag.timetable.description,
+        "timetable_summary": core_timetable.summary,
+        "timetable_description": core_timetable.description,
         "tags": dag.tags,
         "max_active_tasks": dag.max_active_tasks,
         "max_active_runs": dag.max_active_runs,
@@ -364,7 +367,7 @@ def dag_list_dags(args, session: Session = NEW_SESSION) -> None:
     dagbag_import_errors = 0
     dags_list = []
     if args.local:
-        from airflow.models.dagbag import DagBag
+        from airflow.dag_processing.dagbag import DagBag
 
         # Get import errors from the local area
         if args.bundle_name:
@@ -375,7 +378,7 @@ def dag_list_dags(args, session: Session = NEW_SESSION) -> None:
 
             for bundle in all_bundles:
                 if bundle.name in bundles_to_search:
-                    dagbag = DagBag(bundle.path, bundle_path=bundle.path)
+                    dagbag = DagBag(bundle.path, bundle_path=bundle.path, bundle_name=bundle.name)
                     dagbag.collect_dags()
                     dags_list.extend(list(dagbag.dags.values()))
                     dagbag_import_errors += len(dagbag.import_errors)
@@ -385,11 +388,11 @@ def dag_list_dags(args, session: Session = NEW_SESSION) -> None:
             dags_list.extend(list(dagbag.dags.values()))
             dagbag_import_errors += len(dagbag.import_errors)
     else:
-        dags_list.extend(sm.dag for sm in session.scalars(select(SerializedDagModel)))
+        dags_list.extend(cast("DAG", sm.dag) for sm in session.scalars(select(SerializedDagModel)))
         pie_stmt = select(func.count()).select_from(ParseImportError)
         if args.bundle_name:
             pie_stmt = pie_stmt.where(ParseImportError.bundle_name.in_(args.bundle_name))
-        dagbag_import_errors = session.scalar(pie_stmt)
+        dagbag_import_errors = session.scalar(pie_stmt) or 0
 
     if dagbag_import_errors > 0:
         from rich import print as rich_print
@@ -401,11 +404,10 @@ def dag_list_dags(args, session: Session = NEW_SESSION) -> None:
         )
 
     def get_dag_detail(dag: DAG) -> dict:
-        dag_model = DagModel.get_dagmodel(dag.dag_id, session=session)
-        if dag_model:
+        if dag_model := DagModel.get_dagmodel(dag.dag_id, session=session):
             dag_detail = DAGResponse.model_validate(dag_model, from_attributes=True).model_dump()
         else:
-            dag_detail = _get_dagbag_dag_details(dag, session)
+            dag_detail = _get_dagbag_dag_details(dag)
         if not cols:
             return dag_detail
         return {col: dag_detail[col] for col in cols if col in DAG_DETAIL_FIELDS}
@@ -463,6 +465,7 @@ def dag_list_import_errors(args, session: Session = NEW_SESSION) -> None:
 
     if args.local:
         # Get import errors from local areas
+
         if args.bundle_name:
             manager = DagBundlesManager()
             validate_dag_bundle_arg(args.bundle_name)
@@ -471,7 +474,7 @@ def dag_list_import_errors(args, session: Session = NEW_SESSION) -> None:
 
             for bundle in all_bundles:
                 if bundle.name in bundles_to_search:
-                    dagbag = DagBag(bundle.path, bundle_path=bundle.path)
+                    dagbag = DagBag(bundle.path, bundle_path=bundle.path, bundle_name=bundle.name)
                     for filename, errors in dagbag.import_errors.items():
                         data.append({"bundle_name": bundle.name, "filepath": filename, "error": errors})
         else:
@@ -491,9 +494,9 @@ def dag_list_import_errors(args, session: Session = NEW_SESSION) -> None:
         for import_error in dagbag_import_errors:
             data.append(
                 {
-                    "bundle_name": import_error.bundle_name,
-                    "filepath": import_error.filename,
-                    "error": import_error.stacktrace,
+                    "bundle_name": import_error.bundle_name or "",
+                    "filepath": import_error.filename or "",
+                    "error": import_error.stacktrace or "",
                 }
             )
     AirflowConsole().print_as(
@@ -523,7 +526,7 @@ def dag_report(args) -> None:
         if bundle.name not in bundles_to_reserialize:
             continue
         bundle.initialize()
-        dagbag = DagBag(bundle.path, include_examples=False)
+        dagbag = DagBag(bundle.path, bundle_name=bundle.name, include_examples=False)
         all_dagbag_stats.extend(dagbag.dagbag_stats)
 
     AirflowConsole().print_as(
@@ -654,7 +657,7 @@ def dag_test(args, dag: DAG | None = None, session: Session = NEW_SESSION) -> No
             )
         ).all()
 
-        dot_graph = render_dag(dag, tis=tis)
+        dot_graph = render_dag(cast("SerializedDAG", dag), tis=list(tis))
         print()
         if filename:
             _save_dot_to_file(dot_graph, filename)
@@ -687,5 +690,7 @@ def dag_reserialize(args, session: Session = NEW_SESSION) -> None:
         if bundle.name not in bundles_to_reserialize:
             continue
         bundle.initialize()
-        dag_bag = DagBag(bundle.path, bundle_path=bundle.path, include_examples=False)
+        dag_bag = DagBag(
+            bundle.path, bundle_path=bundle.path, bundle_name=bundle.name, include_examples=False
+        )
         sync_bag_to_db(dag_bag, bundle.name, bundle_version=bundle.get_current_version(), session=session)

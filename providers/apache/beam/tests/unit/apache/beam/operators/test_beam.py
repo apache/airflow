@@ -23,7 +23,7 @@ from unittest.mock import MagicMock, call
 
 import pytest
 
-from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning, TaskDeferred
+from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.apache.beam.operators.beam import (
     BeamBasePipelineOperator,
     BeamRunGoPipelineOperator,
@@ -31,6 +31,7 @@ from airflow.providers.apache.beam.operators.beam import (
     BeamRunPythonPipelineOperator,
 )
 from airflow.providers.apache.beam.triggers.beam import BeamJavaPipelineTrigger, BeamPythonPipelineTrigger
+from airflow.providers.common.compat.sdk import AirflowException, TaskDeferred
 from airflow.providers.google.cloud.operators.dataflow import DataflowConfiguration
 from airflow.version import version
 
@@ -247,7 +248,12 @@ class TestBeamRunPythonPipelineOperator:
         }
         gcs_provide_file.assert_any_call(object_url=PY_FILE)
         gcs_provide_file.assert_any_call(object_url=REQURIEMENTS_FILE)
-        persist_link_mock.assert_called_once_with(context={}, region="us-central1")
+        persist_link_mock.assert_called_once_with(
+            context={},
+            region="us-central1",
+            job_id=None,
+            project_id=dataflow_hook_mock.return_value.project_id,
+        )
         beam_hook_mock.return_value.start_python_pipeline.assert_called_once_with(
             variables=expected_options,
             py_file=gcs_provide_file.return_value.__enter__.return_value.name,
@@ -468,7 +474,12 @@ class TestBeamRunJavaPipelineOperator:
             "output": "gs://test/output",
             "impersonateServiceAccount": TEST_IMPERSONATION_ACCOUNT,
         }
-        persist_link_mock.assert_called_once_with(context={})
+        persist_link_mock.assert_called_once_with(
+            context={},
+            region="us-central1",
+            job_id=None,
+            project_id=dataflow_hook_mock.return_value.project_id,
+        )
         beam_hook_mock.return_value.start_java_pipeline.assert_called_once_with(
             variables=expected_options,
             jar=gcs_provide_file.return_value.__enter__.return_value.name,
@@ -604,7 +615,7 @@ class TestBeamRunGoPipelineOperator:
         assert op.dataflow_config == {}
 
     @pytest.mark.parametrize(
-        "launcher_binary, go_file",
+        ("launcher_binary", "go_file"),
         [
             pytest.param("", "", id="both-empty"),
             pytest.param(None, None, id="both-not-set"),

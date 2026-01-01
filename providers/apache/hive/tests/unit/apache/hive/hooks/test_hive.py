@@ -27,10 +27,10 @@ import polars as pl
 import pytest
 from hmsclient import HMSClient
 
-from airflow.exceptions import AirflowException
 from airflow.models.connection import Connection
 from airflow.models.dag import DAG
 from airflow.providers.apache.hive.hooks.hive import HiveCliHook, HiveMetastoreHook, HiveServer2Hook
+from airflow.providers.common.compat.sdk import AIRFLOW_VAR_NAME_FORMAT_MAPPING, AirflowException
 from airflow.secrets.environment_variables import CONN_ENV_PREFIX
 from airflow.utils import timezone
 
@@ -43,13 +43,6 @@ from unit.apache.hive import (
     MockHiveServer2Hook,
     MockSubProcess,
 )
-
-if AIRFLOW_V_3_0_PLUS:
-    from airflow.sdk.execution_time.context import AIRFLOW_VAR_NAME_FORMAT_MAPPING
-else:
-    from airflow.utils.operator_helpers import (  # type: ignore[no-redef, attr-defined]
-        AIRFLOW_VAR_NAME_FORMAT_MAPPING,
-    )
 
 DEFAULT_DATE = timezone.datetime(2015, 1, 1)
 DEFAULT_DATE_ISO = DEFAULT_DATE.isoformat()
@@ -658,7 +651,7 @@ class TestHiveServer2Hook:
             )
 
     @pytest.mark.parametrize(
-        "host, port, schema, message",
+        ("host", "port", "schema", "message"),
         [
             ("localhost", "10000", "default", None),
             ("localhost:", "10000", "default", "The host used in beeline command"),
@@ -892,6 +885,27 @@ class TestHiveServer2Hook:
         assert f"test_{date_key}" in output
         assert "test_dag_run_id" in output
 
+    def test_sqlalchemy_uri(self):
+        """Test sqlalchemy_url with connection parameters"""
+
+        with mock.patch.object(HiveServer2Hook, "get_connection") as mock_get_conn:
+            mock_get_conn.return_value = Connection(
+                conn_id="test_hive_conn",
+                conn_type="hive_cli",
+                host="localhost",
+                port=10000,
+                schema="default",
+                login="admin",
+                password="admin",
+            )
+            hook = HiveServer2Hook()
+            uri = hook.sqlalchemy_url
+            assert uri.host == "localhost"
+            assert uri.port == 10000
+            assert uri.database == "default"
+            assert uri.username == "admin"
+            assert uri.password == "admin"
+
 
 @pytest.mark.db_test
 @mock.patch.dict("os.environ", AIRFLOW__CORE__SECURITY="kerberos")
@@ -912,7 +926,7 @@ class TestHiveCli:
         assert not hook.high_availability
 
     @pytest.mark.parametrize(
-        "extra_dejson, correct_proxy_user, proxy_user",
+        ("extra_dejson", "correct_proxy_user", "proxy_user"),
         [
             ({"proxy_user": "a_user_proxy"}, "hive.server2.proxy.user=a_user_proxy", None),
         ],
@@ -944,7 +958,7 @@ class TestHiveCli:
             hook._prepare_cli_cmd()
 
     @pytest.mark.parametrize(
-        "extra_dejson, expected_keys",
+        ("extra_dejson", "expected_keys"),
         [
             (
                 {"high_availability": "true"},

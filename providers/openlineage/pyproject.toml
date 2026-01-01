@@ -25,9 +25,11 @@ build-backend = "flit_core.buildapi"
 
 [project]
 name = "apache-airflow-providers-openlineage"
-version = "2.7.0"
+version = "2.9.2"
 description = "Provider package apache-airflow-providers-openlineage for Apache Airflow"
 readme = "README.rst"
+license = "Apache-2.0"
+license-files = ['LICENSE', 'NOTICE']
 authors = [
     {name="Apache Software Foundation", email="dev@airflow.apache.org"},
 ]
@@ -43,7 +45,6 @@ classifiers = [
     "Intended Audience :: System Administrators",
     "Framework :: Apache Airflow",
     "Framework :: Apache Airflow :: Provider",
-    "License :: OSI Approved :: Apache Software License",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
@@ -57,12 +58,19 @@ requires-python = ">=3.10"
 # Make sure to run ``prek update-providers-dependencies --all-files``
 # After you modify the dependencies, and rebuild your Breeze CI image with ``breeze ci-image build``
 dependencies = [
-    "apache-airflow>=2.10.0",
+    "apache-airflow>=2.11.0",
     "apache-airflow-providers-common-sql>=1.20.0",
-    "apache-airflow-providers-common-compat>=1.4.0",
+    "apache-airflow-providers-common-compat>=1.11.0",
     "attrs>=22.2",
-    "openlineage-integration-common>=1.36.0",
-    "openlineage-python>=1.36.0",
+    "openlineage-integration-common>=1.41.0",
+    "openlineage-python>=1.41.0",
+]
+
+# The optional dependencies should be modified in place in the generated file
+# Any change in the dependencies is preserved when the file is regenerated
+[project.optional-dependencies]
+"sqlalchemy" = [
+    "sqlalchemy>=1.4.49",
 ]
 
 [dependency-groups]
@@ -105,8 +113,8 @@ apache-airflow-providers-common-sql = {workspace = true}
 apache-airflow-providers-standard = {workspace = true}
 
 [project.urls]
-"Documentation" = "https://airflow.apache.org/docs/apache-airflow-providers-openlineage/2.7.0"
-"Changelog" = "https://airflow.apache.org/docs/apache-airflow-providers-openlineage/2.7.0/changelog.html"
+"Documentation" = "https://airflow.apache.org/docs/apache-airflow-providers-openlineage/2.9.2"
+"Changelog" = "https://airflow.apache.org/docs/apache-airflow-providers-openlineage/2.9.2/changelog.html"
 "Bug Tracker" = "https://github.com/apache/airflow/issues"
 "Source Code" = "https://github.com/apache/airflow"
 "Slack Chat" = "https://s.apache.org/airflow-slack"

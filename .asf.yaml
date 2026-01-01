@@ -144,6 +144,11 @@ github:
         required_approving_review_count: 1
       required_linear_history: true
       required_signatures: false
+    v3-1-stable:
+      required_pull_request_reviews:
+        required_approving_review_count: 1
+      required_linear_history: true
+      required_signatures: false
     providers-fab/v1-5:
       required_pull_request_reviews:
         required_approving_review_count: 1
@@ -163,6 +168,7 @@ github:
     - karenbraganz
     - gyli
     - jroachgolf84
+    - Dev-iL
 
 notifications:
   jobs: jobs@airflow.apache.org

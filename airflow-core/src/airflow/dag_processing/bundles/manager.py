@@ -20,13 +20,16 @@ import warnings
 from typing import TYPE_CHECKING
 
 from itsdangerous import URLSafeSerializer
-from sqlalchemy import delete
+from pydantic import BaseModel, ValidationError
+from sqlalchemy import delete, select
 
+from airflow._shared.module_loading import import_string
 from airflow.configuration import conf
+from airflow.dag_processing.bundles.base import BaseDagBundle  # noqa: TC001
 from airflow.exceptions import AirflowConfigException
 from airflow.models.dagbundle import DagBundleModel
+from airflow.models.team import Team
 from airflow.utils.log.logging_mixin import LoggingMixin
-from airflow.utils.module_loading import import_string
 from airflow.utils.session import NEW_SESSION, provide_session
 
 if TYPE_CHECKING:
@@ -34,9 +37,29 @@ if TYPE_CHECKING:
 
     from sqlalchemy.orm import Session
 
-    from airflow.dag_processing.bundles.base import BaseDagBundle
-
 _example_dag_bundle_name = "example_dags"
+
+
+class _ExternalBundleConfig(BaseModel):
+    """Schema defining the user-specified configuration for a DAG bundle."""
+
+    name: str
+    classpath: str
+    kwargs: dict
+    team_name: str | None = None
+
+
+class _InternalBundleConfig(BaseModel):
+    """
+    Schema used internally (in this file) to define the configuration for a DAG bundle.
+
+    Configuration defined by users when read must match ``_ExternalBundleConfig``.
+    This configuration is then parsed and converted to ``_InternalBundleConfig`` to be used across this file.
+    """
+
+    bundle_class: type[BaseDagBundle]
+    kwargs: dict
+    team_name: str | None = None
 
 
 def _bundle_item_exc(msg):
@@ -45,41 +68,41 @@ def _bundle_item_exc(msg):
     )
 
 
-def _validate_bundle_config(config_list):
-    all_names = []
-    expected_keys = {"name", "classpath", "kwargs"}
+def _parse_bundle_config(config_list) -> list[_ExternalBundleConfig]:
+    bundles = {}
     for item in config_list:
         if not isinstance(item, dict):
             raise _bundle_item_exc(f"Expected dict but got {item.__class__}")
-        actual_keys = set(item.keys())
-        if not actual_keys == expected_keys:
-            raise _bundle_item_exc(f"Expected keys {expected_keys} but found {actual_keys}")
-        bundle_name = item["name"]
-        if not bundle_name:
-            raise _bundle_item_exc(f"Item {item} missing required `name` attr.")
-        if bundle_name == _example_dag_bundle_name:
+
+        try:
+            cfg = _ExternalBundleConfig(**item)
+        except ValidationError as e:
+            raise _bundle_item_exc(f"Item {item} failed validation: {e}")
+
+        if cfg.name == _example_dag_bundle_name:
             raise AirflowConfigException(
                 f"Bundle name '{_example_dag_bundle_name}' is a reserved name. Please choose another name for your bundle."
                 " Example DAGs can be enabled with the '[core] load_examples' config."
             )
 
-        all_names.append(bundle_name)
-    if len(all_names) != len(set(all_names)):
-        raise _bundle_item_exc(f"One or more bundle names appeared multiple times: {all_names}")
+        bundles[cfg.name] = cfg
+    if len(bundles.keys()) != len(config_list):
+        raise _bundle_item_exc("One or more bundle names appeared multiple times")
+    return list(bundles.values())
 
 
-def _add_example_dag_bundle(config_list):
+def _add_example_dag_bundle(bundle_config_list: list[_ExternalBundleConfig]):
     from airflow import example_dags
 
     example_dag_folder = next(iter(example_dags.__path__))
-    config_list.append(
-        {
-            "name": _example_dag_bundle_name,
-            "classpath": "airflow.dag_processing.bundles.local.LocalDagBundle",
-            "kwargs": {
+    bundle_config_list.append(
+        _ExternalBundleConfig(
+            name=_example_dag_bundle_name,
+            classpath="airflow.dag_processing.bundles.local.LocalDagBundle",
+            kwargs={
                 "path": example_dag_folder,
             },
-        }
+        )
     )
 
 
@@ -143,7 +166,7 @@ class DagBundlesManager(LoggingMixin):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self._bundle_config = {}
+        self._bundle_config: dict[str, _InternalBundleConfig] = {}
         self.parse_config()
 
     def parse_config(self) -> None:
@@ -151,8 +174,6 @@ class DagBundlesManager(LoggingMixin):
         Get all DAG bundle configurations and store in instance variable.
 
         If a bundle class for a given name has already been imported, it will not be imported again.
-
-        todo (AIP-66): proper validation of the bundle configuration so we have better error messages
 
         :meta private:
         """
@@ -167,15 +188,24 @@ class DagBundlesManager(LoggingMixin):
                 "Section `dag_processor` key `dag_bundle_config_list` "
                 f"must be list but got {config_list.__class__}"
             )
-        _validate_bundle_config(config_list)
+        bundle_config_list = _parse_bundle_config(config_list)
         if conf.getboolean("core", "LOAD_EXAMPLES"):
-            _add_example_dag_bundle(config_list)
+            _add_example_dag_bundle(bundle_config_list)
 
-        for cfg in config_list:
-            name = cfg["name"]
-            class_ = import_string(cfg["classpath"])
-            kwargs = cfg["kwargs"]
-            self._bundle_config[name] = (class_, kwargs)
+        for bundle_config in bundle_config_list:
+            if bundle_config.team_name and not conf.getboolean("core", "multi_team"):
+                raise AirflowConfigException(
+                    "Section `dag_processor` key `dag_bundle_config_list` "
+                    "cannot have a team name when multi-team mode is disabled."
+                    "To enable multi-team, you need to update section `core` key `multi_team` in your config."
+                )
+
+            class_ = import_string(bundle_config.classpath)
+            self._bundle_config[bundle_config.name] = _InternalBundleConfig(
+                bundle_class=class_,
+                kwargs=bundle_config.kwargs,
+                team_name=bundle_config.team_name,
+            )
         self.log.info("DAG bundles loaded: %s", ", ".join(self._bundle_config.keys()))
 
     @provide_session
@@ -201,11 +231,26 @@ class DagBundlesManager(LoggingMixin):
             return new_template_, new_params_
 
         stored = {b.name: b for b in session.query(DagBundleModel).all()}
+        bundle_to_team = {
+            bundle.name: bundle.teams[0].name if len(bundle.teams) == 1 else None
+            for bundle in stored.values()
+        }
 
-        for name in self._bundle_config.keys():
+        for name, config in self._bundle_config.items():
+            team: Team | None = None
+            if config.team_name:
+                team = session.scalars(select(Team).where(Team.name == config.team_name)).one_or_none()
+                if not team:
+                    raise _bundle_item_exc(f"Team '{config.team_name}' does not exist")
+
+            try:
+                new_template, new_params = _extract_and_sign_template(name)
+            except Exception as e:
+                self.log.exception("Error creating bundle '%s': %s", name, e)
+                continue
+
             if bundle := stored.pop(name, None):
                 bundle.active = True
-                new_template, new_params = _extract_and_sign_template(name)
                 if new_template != bundle.signed_url_template:
                     bundle.signed_url_template = new_template
                     self.log.debug("Updated URL template for bundle %s", name)
@@ -213,19 +258,38 @@ class DagBundlesManager(LoggingMixin):
                     bundle.template_params = new_params
                     self.log.debug("Updated template parameters for bundle %s", name)
             else:
-                new_template, new_params = _extract_and_sign_template(name)
-                new_bundle = DagBundleModel(name=name)
-                new_bundle.signed_url_template = new_template
-                new_bundle.template_params = new_params
+                bundle = DagBundleModel(name=name)
+                bundle.signed_url_template = new_template
+                bundle.template_params = new_params
 
-                session.add(new_bundle)
+                session.add(bundle)
                 self.log.info("Added new DAG bundle %s to the database", name)
+
+            if team and bundle_to_team.get(name) != config.team_name:
+                # Change of team. It can be associating a team to a dag bundle that did not have one or
+                # swapping a team for another
+                bundle.teams = [team]
+                if bundle_to_team.get(name):
+                    self.log.warning(
+                        "Changing ownership of team '%s' from Dag bundle '%s' to '%s'",
+                        bundle_to_team[name],
+                        name,
+                        team.name,
+                    )
+            elif not team and name in bundle_to_team:
+                # Remove team association
+                self.log.warning(
+                    "Removing ownership of team '%s' from Dag bundle '%s'", bundle_to_team[name], name
+                )
+                bundle.teams = []
+
+        # Import here to avoid circular import
+        from airflow.models.errors import ParseImportError
 
         for name, bundle in stored.items():
             bundle.active = False
+            bundle.teams = []
             self.log.warning("DAG bundle %s is no longer found in config and has been disabled", name)
-            from airflow.models.errors import ParseImportError
-
             session.execute(delete(ParseImportError).where(ParseImportError.bundle_name == name))
             self.log.info("Deleted import errors for bundle %s which is no longer configured", name)
 
@@ -267,11 +331,10 @@ class DagBundlesManager(LoggingMixin):
 
         :return: The DAG bundle.
         """
-        cfg_tuple = self._bundle_config.get(name)
-        if not cfg_tuple:
+        cfg_bundle = self._bundle_config.get(name)
+        if not cfg_bundle:
             raise ValueError(f"Requested bundle '{name}' is not configured.")
-        class_, kwargs = cfg_tuple
-        return class_(name=name, version=version, **kwargs)
+        return cfg_bundle.bundle_class(name=name, version=version, **cfg_bundle.kwargs)
 
     def get_all_dag_bundles(self) -> Iterable[BaseDagBundle]:
         """
@@ -279,8 +342,21 @@ class DagBundlesManager(LoggingMixin):
 
         :return: list of DAG bundles.
         """
-        for name, (class_, kwargs) in self._bundle_config.items():
-            yield class_(name=name, version=None, **kwargs)
+        for name, cfg in self._bundle_config.items():
+            try:
+                yield cfg.bundle_class(name=name, version=None, **cfg.kwargs)
+            except Exception as e:
+                self.log.exception("Error creating bundle '%s': %s", name, e)
+                # Skip this bundle and continue with others
+                continue
+
+    def get_all_bundle_names(self) -> Iterable[str]:
+        """
+        Get all bundle names.
+
+        :return: sorted list of bundle names.
+        """
+        return sorted(self._bundle_config.keys())
 
     def view_url(self, name: str, version: str | None = None) -> str | None:
         warnings.warn(

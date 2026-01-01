@@ -40,6 +40,24 @@ except ImportError:
     from airflow.models.baseoperator import BaseOperatorLink  # type: ignore[no-redef]
 
 try:
+    from airflow.serialization.definitions.baseoperator import SerializedBaseOperator
+    from airflow.serialization.definitions.dag import SerializedDAG
+    from airflow.serialization.definitions.mappedoperator import SerializedMappedOperator
+    from airflow.serialization.serialized_objects import DagSerialization, OperatorSerialization
+except ImportError:
+    # Compatibility for Airflow < 3.2.*
+    from airflow.models.mappedoperator import (  # type: ignore[no-redef]
+        MappedOperator as SerializedMappedOperator,
+    )
+    from airflow.serialization.serialized_objects import (  # type: ignore[no-redef]
+        SerializedBaseOperator,
+        SerializedDAG,
+    )
+
+    DagSerialization = SerializedDAG  # type: ignore[assignment,misc,no-redef]
+    OperatorSerialization = SerializedBaseOperator  # type: ignore[assignment,misc,no-redef]
+
+try:
     from airflow.providers.common.sql.operators.generic_transfer import GenericTransfer
     from airflow.providers.standard.operators.bash import BashOperator
     from airflow.providers.standard.operators.empty import EmptyOperator
@@ -63,6 +81,15 @@ except ImportError:
     # Compatibility for Airflow < 3.1
     from airflow.utils.xcom import XCOM_RETURN_KEY  # type: ignore[no-redef,attr-defined]
 
+try:
+    from airflow.sdk import timezone
+except ImportError:
+    from airflow.utils import timezone  # type: ignore[no-redef,attr-defined]
+
+try:
+    from airflow.sdk import Context
+except ImportError:
+    from airflow.utils.context import Context  # type: ignore[no-redef,attr-defined]
 
 try:
     from airflow.sdk import TriggerRule

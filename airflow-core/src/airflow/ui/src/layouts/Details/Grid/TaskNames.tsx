@@ -51,7 +51,7 @@ const onMouseEnter = (
 };
 
 const onMouseLeave = (nodeId: string, setHoveredTaskId: HoverContextType["setHoveredTaskId"]) => {
-  const tasks = document.querySelectorAll<HTMLDivElement>(`#${nodeId.replaceAll(".", "-")}`);
+  const tasks = document.querySelectorAll<HTMLDivElement>(`#task-${nodeId.replaceAll(".", "-")}`);
 
   tasks.forEach((task) => {
     task.style.backgroundColor = "";
@@ -67,13 +67,14 @@ export const TaskNames = ({ nodes, onRowClick }: Props) => {
   const { dagId = "", groupId, taskId } = useParams();
   const [searchParams] = useSearchParams();
 
-  return nodes.map((node) => (
+  return nodes.map((node, index) => (
     <Box
       bg={node.id === taskId || node.id === groupId ? "info.muted" : undefined}
       borderBottomWidth={1}
       borderColor={node.isGroup ? "border.emphasized" : "border"}
+      borderTopWidth={index === 0 ? 1 : 0}
       cursor="pointer"
-      id={node.id.replaceAll(".", "-")}
+      id={`task-${node.id.replaceAll(".", "-")}`}
       key={node.id}
       maxHeight="20px"
       onMouseEnter={(event) => onMouseEnter(event, node.id, setHoveredTaskId)}
@@ -116,7 +117,7 @@ export const TaskNames = ({ nodes, onRowClick }: Props) => {
                 px={1}
               >
                 <FiChevronUp
-                  size="1rem"
+                  size={16}
                   style={{
                     transform: `rotate(${node.isOpen ? 0 : 180}deg)`,
                     transition: "transform 0.5s",

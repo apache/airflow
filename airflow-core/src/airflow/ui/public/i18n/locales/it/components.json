@@ -102,6 +102,18 @@
     "taskGroup": "Task Group"
   },
   "limitedList": "+{{count}} altro",
+  "limitedList.allItems": "Tutti i {{count}} elementi:",
+  "limitedList.allTags_many": "Tutte le etichette ({{count}})",
+  "limitedList.allTags_one": "Tutte le etichette (1)",
+  "limitedList.allTags_other": "Tutte le etichette ({{count}})",
+  "limitedList.allTags_zero": "Tutte le etichette (0)",
+  "limitedList.clickToInteract": "Fai clic su un'etichetta per filtrare i Dag",
+  "limitedList.clickToOpenFull": "Fai clic su \"+{{count}} altro\" per visualizzare tutto",
+  "limitedList.copyPasteText": "Puoi copiare e incollare il testo sopra",
+  "limitedList.showingItems_many": "Mostrando {{count}} elementi",
+  "limitedList.showingItems_one": "Mostrando 1 elemento",
+  "limitedList.showingItems_other": "Mostrando {{count}} elementi",
+  "limitedList.showingItems_zero": "Mostrando 0 elementi",
   "logs": {
     "file": "File",
     "location": "linea {{line}} in {{name}}"

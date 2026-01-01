@@ -95,17 +95,6 @@ class TestExecutorLoader:
                 id="one_executor",
             ),
             pytest.param(
-                "team_a=CeleryExecutor",
-                [
-                    ExecutorName(
-                        module_path="airflow.providers.celery.executors.celery_executor.CeleryExecutor",
-                        alias="CeleryExecutor",
-                        team_name="team_a",
-                    ),
-                ],
-                id="one_executor_one_team",
-            ),
-            pytest.param(
                 "=CeleryExecutor;team_a=CeleryExecutor;team_b=LocalExecutor",
                 [
                     ExecutorName(
@@ -246,8 +235,11 @@ class TestExecutorLoader:
     )
     def test_get_hybrid_executors_from_configs(self, executor_config, expected_executors_list):
         # Mock the blocking method for tests that involve actual team configurations
-        with mock.patch.object(executor_loader.ExecutorLoader, "block_use_of_multi_team"):
-            with conf_vars({("core", "executor"): executor_config}):
+        with (
+            mock.patch.object(executor_loader.ExecutorLoader, "block_use_of_multi_team"),
+            mock.patch.object(executor_loader.ExecutorLoader, "_validate_teams_exist_in_database"),
+        ):
+            with conf_vars({("core", "executor"): executor_config, ("core", "multi_team"): "True"}):
                 executors = executor_loader.ExecutorLoader._get_executor_names()
                 assert executors == expected_executors_list
 
@@ -399,10 +391,11 @@ class TestExecutorLoader:
     def test_get_executor_names_set_module_variables(self):
         with conf_vars(
             {
+                ("core", "multi_team"): "True",
                 (
                     "core",
                     "executor",
-                ): "=CeleryExecutor,LocalExecutor,fake_exec:unit.executors.test_executor_loader.FakeExecutor;team_a=CeleryExecutor,unit.executors.test_executor_loader.FakeExecutor;team_b=fake_exec:unit.executors.test_executor_loader.FakeExecutor"
+                ): "=CeleryExecutor,LocalExecutor,fake_exec:unit.executors.test_executor_loader.FakeExecutor;team_a=CeleryExecutor,unit.executors.test_executor_loader.FakeExecutor;team_b=fake_exec:unit.executors.test_executor_loader.FakeExecutor",
             }
         ):
             celery_path = "airflow.providers.celery.executors.celery_executor.CeleryExecutor"
@@ -430,7 +423,10 @@ class TestExecutorLoader:
             assert executor_loader._module_to_executors_per_team == {}
             assert executor_loader._classname_to_executors_per_team == {}
             assert executor_loader._team_name_to_executors == {}
-            with mock.patch.object(executor_loader.ExecutorLoader, "block_use_of_multi_team"):
+            with (
+                mock.patch.object(executor_loader.ExecutorLoader, "block_use_of_multi_team"),
+                mock.patch.object(executor_loader.ExecutorLoader, "_validate_teams_exist_in_database"),
+            ):
                 executor_loader.ExecutorLoader._get_executor_names()
             assert executor_loader._executor_names == [
                 celery_global,
@@ -486,16 +482,14 @@ class TestExecutorLoader:
     @pytest.mark.parametrize(
         "executor_config",
         [
-            "team1=CeleryExecutor;team1=LocalExecutor",
-            "team1=CeleryExecutor;team2=LocalExecutor;team1=KubernetesExecutor",
             "CeleryExecutor;team1=LocalExecutor;team1=KubernetesExecutor",
-            "team_a=CeleryExecutor;team_b=LocalExecutor;team_a=KubernetesExecutor",
+            "CeleryExecutor;team_a=LocalExecutor;team_b=KubernetesExecutor;team_a=CeleryExecutor",
         ],
     )
     def test_duplicate_team_names_should_fail(self, executor_config):
         """Test that duplicate team names in executor configuration raise an exception."""
         with mock.patch.object(executor_loader.ExecutorLoader, "block_use_of_multi_team"):
-            with conf_vars({("core", "executor"): executor_config}):
+            with conf_vars({("core", "executor"): executor_config, ("core", "multi_team"): "True"}):
                 with pytest.raises(
                     AirflowConfigException,
                     match=r"Team '.+' appears more than once in executor configuration",
@@ -532,8 +526,11 @@ class TestExecutorLoader:
             ("team2", ["LocalExecutor"]),
         ]
 
-        with mock.patch.object(executor_loader.ExecutorLoader, "block_use_of_multi_team"):
-            with conf_vars({("core", "executor"): executor_config}):
+        with (
+            mock.patch.object(executor_loader.ExecutorLoader, "block_use_of_multi_team"),
+            mock.patch.object(executor_loader.ExecutorLoader, "_validate_teams_exist_in_database"),
+        ):
+            with conf_vars({("core", "executor"): executor_config, ("core", "multi_team"): "True"}):
                 configs = executor_loader.ExecutorLoader._get_team_executor_configs()
                 assert configs == expected_configs
 
@@ -560,3 +557,103 @@ class TestExecutorLoader:
         with conf_vars({("core", "executor"): executor_config}):
             configs = executor_loader.ExecutorLoader._get_team_executor_configs()
             assert configs == expected_configs
+
+    @pytest.mark.parametrize(
+        "executor_config",
+        [
+            "team1=CeleryExecutor",
+            "team1=CeleryExecutor;team2=LocalExecutor",
+            "team1=CeleryExecutor;team2=LocalExecutor;team3=KubernetesExecutor",
+            "team_a=CeleryExecutor,LocalExecutor;team_b=KubernetesExecutor",
+        ],
+    )
+    def test_team_only_configurations_should_fail(self, executor_config):
+        """Test that configurations with only team-based executors fail validation."""
+        with (
+            mock.patch.object(executor_loader.ExecutorLoader, "block_use_of_multi_team"),
+            conf_vars({("core", "executor"): executor_config}),
+        ):
+            with pytest.raises(
+                AirflowConfigException, match=r"At least one global executor must be configured"
+            ):
+                executor_loader.ExecutorLoader._get_team_executor_configs()
+
+    def test_team_validation_with_valid_teams_in_config(self):
+        """Test that executor config with valid teams loads successfully."""
+        mock_team_names = {"team_a", "team_b"}
+
+        with (
+            patch.object(executor_loader.Team, "get_all_team_names", return_value=mock_team_names),
+            mock.patch.object(executor_loader.ExecutorLoader, "block_use_of_multi_team"),
+        ):
+            with conf_vars(
+                {
+                    ("core", "executor"): "=CeleryExecutor;team_a=CeleryExecutor;team_b=LocalExecutor",
+                    ("core", "multi_team"): "True",
+                }
+            ):
+                configs = executor_loader.ExecutorLoader._get_team_executor_configs()
+
+                assert len(configs) == 3
+                assert configs[0] == (None, ["CeleryExecutor"])
+                assert configs[1] == ("team_a", ["CeleryExecutor"])
+                assert configs[2] == ("team_b", ["LocalExecutor"])
+
+    def test_team_validation_with_invalid_teams_in_config(self):
+        """Test that executor config with invalid teams fails with clear error."""
+        mock_team_names = {"team_a"}  # team_b and team_c are missing
+
+        with (
+            patch.object(executor_loader.Team, "get_all_team_names", return_value=mock_team_names),
+            mock.patch.object(executor_loader.ExecutorLoader, "block_use_of_multi_team"),
+        ):
+            with conf_vars(
+                {
+                    (
+                        "core",
+                        "executor",
+                    ): "=CeleryExecutor;team_a=CeleryExecutor;team_b=LocalExecutor;team_c=KubernetesExecutor",
+                    ("core", "multi_team"): "True",
+                }
+            ):
+                with pytest.raises(AirflowConfigException):
+                    executor_loader.ExecutorLoader._get_team_executor_configs()
+
+    def test_team_validation_skips_global_teams(self):
+        """Test that team validation does not validate global teams."""
+        with patch.object(executor_loader.Team, "get_all_team_names") as mock_get_team_names:
+            with conf_vars({("core", "executor"): "CeleryExecutor,LocalExecutor"}):
+                configs = executor_loader.ExecutorLoader._get_team_executor_configs()
+
+                assert len(configs) == 1
+                assert configs[0] == (None, ["CeleryExecutor", "LocalExecutor"])
+
+                # No team validation should occur since only global teams are configured
+                mock_get_team_names.assert_not_called()
+
+    def test_get_executor_names_skip_team_validation(self):
+        """Test that get_executor_names can skip team validation."""
+        with (
+            patch.object(executor_loader.Team, "get_all_team_names") as mock_get_team_names,
+            mock.patch.object(executor_loader.ExecutorLoader, "block_use_of_multi_team"),
+        ):
+            with conf_vars(
+                {("core", "executor"): "=CeleryExecutor;team_a=LocalExecutor", ("core", "multi_team"): "True"}
+            ):
+                # Should not call team validation when validate_teams=False
+                executor_loader.ExecutorLoader.get_executor_names(validate_teams=False)
+                mock_get_team_names.assert_not_called()
+
+    def test_get_executor_names_default_validates_teams(self):
+        """Test that get_executor_names validates teams by default."""
+        with (
+            patch.object(executor_loader.Team, "get_all_team_names") as mock_get_team_names,
+            mock.patch.object(executor_loader.ExecutorLoader, "block_use_of_multi_team"),
+        ):
+            with conf_vars(
+                {("core", "executor"): "=CeleryExecutor;team_a=LocalExecutor", ("core", "multi_team"): "True"}
+            ):
+                # Default behavior should validate teams
+                mock_get_team_names.return_value = {"team_a"}
+                executor_loader.ExecutorLoader.get_executor_names()
+                mock_get_team_names.assert_called_once()

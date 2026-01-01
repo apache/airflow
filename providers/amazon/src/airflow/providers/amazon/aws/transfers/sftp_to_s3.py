@@ -23,11 +23,11 @@ from typing import TYPE_CHECKING
 from urllib.parse import urlsplit
 
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
-from airflow.providers.amazon.version_compat import BaseOperator
+from airflow.providers.common.compat.sdk import BaseOperator
 from airflow.providers.ssh.hooks.ssh import SSHHook
 
 if TYPE_CHECKING:
-    from airflow.utils.context import Context
+    from airflow.sdk import Context
 
 
 class SFTPToS3Operator(BaseOperator):

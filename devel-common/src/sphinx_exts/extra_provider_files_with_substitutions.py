@@ -23,37 +23,21 @@ from pathlib import Path
 from packaging.version import Version
 
 
-def _get_rc_matching_version(releases: dict, version: str):
-    """
-    Get the latest release candidate version matching the given version.
-    """
-
-    matching_versions = (v for v in releases.keys() if Version(v).base_version == version)
-    latest_version = max(matching_versions, key=Version, default=None)
-
-    return releases.get(latest_version, []) if latest_version else []
-
-
-def get_release_date(package_name: str, version) -> str:
-    """Get the release date of the current version."""
-    if package_name == "":
-        return ""
+def _get_all_versions(package_name: str):
     import requests
 
+    versions_with_dates = []
     resp = requests.get(f"https://pypi.org/pypi/{package_name}/json")
+
     resp_json = resp.json()
     releases = resp_json.get("releases", {})
-    release_info = releases.get(version, [])
-
-    # If no exact version found, try to find the latest release candidate version
-    if not release_info and len(releases) > 0:
-        release_info = _get_rc_matching_version(releases, version)
-
-    if release_info:
-        release_date = datetime.fromisoformat(release_info[0].get("upload_time")).date()
-        return str(release_date)
-
-    return "Release date unknown"
+    for version, release_data in releases.items():
+        base_version = Version(version).base_version
+        if release_data:
+            upload_time = release_data[0].get("upload_time")
+            release_date = datetime.fromisoformat(upload_time).date()
+            versions_with_dates.append((base_version, str(release_date)))
+    return versions_with_dates
 
 
 def _manual_substitution(line: str, replacements: dict[str, str]) -> str:
@@ -71,16 +55,31 @@ def fix_provider_references(app, exception):
 
     substitutions = {
         "|version|": app.config.version,
-        "|PypiReleaseDate|": get_release_date(os.environ.get("AIRFLOW_PACKAGE_NAME", ""), app.config.version),
     }
 
+    versions_dates = _get_all_versions(os.environ.get("AIRFLOW_PACKAGE_NAME", ""))
     # Replace `|version|` in the files that require manual substitution
     for path in Path(app.outdir).rglob("*.html"):
+        is_changelog = str(path).endswith("changelog.html")
+
         if path.exists():
             lines = path.read_text().splitlines(True)
             with path.open("w") as output_file:
                 for line in lines:
+                    # Check if |PypiReleaseDate| format is in the line and skip it, old changelog has this template format
+                    if "|PypiReleaseDate|" in line:
+                        continue
+
                     output_file.write(_manual_substitution(line, substitutions))
+
+                    if is_changelog:
+                        for version_date in versions_dates:
+                            if line.startswith(f"<h2>{version_date[0]}<a"):
+                                output_file.write(
+                                    f"""<p>Release Date: <code class="docutils literal notranslate"><span class="pre">{version_date[1]}</span></code></p>"""
+                                )
+                                versions_dates.remove(version_date)
+                                break
 
 
 def setup(app):

@@ -29,11 +29,11 @@ from airflow import __version__ as airflow_version
 
 __all__ = ["__version__"]
 
-__version__ = "1.2.0"
+__version__ = "2.0.1"
 
 if packaging.version.parse(packaging.version.parse(airflow_version).base_version) < packaging.version.parse(
-    "2.10.0"
+    "3.0.0"
 ):
     raise RuntimeError(
-        f"The package `apache-airflow-providers-edge3:{__version__}` needs Apache Airflow 2.10.0+"
+        f"The package `apache-airflow-providers-edge3:{__version__}` needs Apache Airflow 3.0.0+"
     )

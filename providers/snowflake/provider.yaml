@@ -22,12 +22,18 @@ description: |
     `Snowflake <https://www.snowflake.com/>`__
 
 state: ready
-source-date-epoch: 1756877547
+source-date-epoch: 1767125034
 # Note that those versions are maintained by release manager - do not update them manually
 # with the exception of case where other provider in sources has >= new provider version.
 # In such case adding >= NEW_VERSION and bumping to NEW_VERSION in a provider have
 # to be done in the same PR
 versions:
+  - 6.8.1
+  - 6.8.0
+  - 6.7.0
+  - 6.6.1
+  - 6.6.0
+  - 6.5.4
   - 6.5.3
   - 6.5.2
   - 6.5.1
@@ -128,9 +134,11 @@ transfers:
   - source-integration-name: Google Cloud Storage (GCS)
     target-integration-name: Snowflake
     python-module: airflow.providers.snowflake.transfers.copy_into_snowflake
+    how-to-guide: /docs/apache-airflow-providers-snowflake/operators/copy_into_snowflake.rst
   - source-integration-name: Microsoft Azure Blob Storage
     target-integration-name: Snowflake
     python-module: airflow.providers.snowflake.transfers.copy_into_snowflake
+    how-to-guide: /docs/apache-airflow-providers-snowflake/operators/copy_into_snowflake.rst
 
 connection-types:
   - hook-class-name: airflow.providers.snowflake.hooks.snowflake.SnowflakeHook
@@ -140,3 +148,16 @@ triggers:
   - integration-name: Snowflake
     python-modules:
       - airflow.providers.snowflake.triggers.snowflake_trigger
+
+config:
+  snowflake:
+    description: |
+      Configuration for Snowflake hooks and operators.
+    options:
+      azure_oauth_scope:
+        description: |
+          The scope to use while retrieving OAuth token for Snowflake from Azure Entra authentication.
+        version_added: 6.6.0
+        type: string
+        example: ~
+        default: "api://snowflake_oauth_server/.default"

@@ -22,9 +22,8 @@ from datetime import datetime, timezone
 from tempfile import NamedTemporaryFile
 from typing import TYPE_CHECKING, Any
 
-from airflow.configuration import conf
-from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
+from airflow.providers.common.compat.sdk import AirflowException, conf
 from airflow.providers.google.cloud.hooks.cloud_storage_transfer_service import (
     ACCESS_KEY_ID,
     AWS_ACCESS_KEY,
@@ -57,7 +56,7 @@ except ImportError:
     from airflow.providers.amazon.aws.operators.s3_list import S3ListOperator  # type: ignore[no-redef]
 
 if TYPE_CHECKING:
-    from airflow.utils.context import Context
+    from airflow.providers.common.compat.sdk import Context
 
 
 class S3ToGCSOperator(S3ListOperator):
