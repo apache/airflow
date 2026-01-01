@@ -21,7 +21,10 @@ function make_mnt_writeable {
     lsblk
     sudo blkid
     echo "Check that we have expected /mnt to be a separate mount"
-    lsblk | grep -q /mnt
+    if ! lsblk | grep -q /mnt; then
+        echo "/mnt is missing as a separate mount, runner misconfigured!"
+        exit 42
+    fi
     echo "Checking free space!"
     df -H
     echo "Cleaning /mnt just in case it is not empty"
