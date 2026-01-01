@@ -22,9 +22,9 @@ import contextlib
 from typing import TYPE_CHECKING, Any
 
 from airflow._shared.secrets_masker import redact
+from airflow._shared.truncation import truncate_rendered_value
 from airflow.configuration import conf
 from airflow.settings import json
-from airflow._shared.truncation import truncate_rendered_value
 
 if TYPE_CHECKING:
     from airflow.timetables.base import Timetable as CoreTimetable

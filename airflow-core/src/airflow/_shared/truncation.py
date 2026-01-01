@@ -18,13 +18,15 @@
 
 from __future__ import annotations
 
+from typing import Any
 
-def truncate_rendered_value(rendered: str, max_length: int) -> str:
+
+def truncate_rendered_value(rendered: Any, max_length: int) -> str:
     """
     Truncate rendered value respecting max_length while accounting for prefix, suffix, and repr() quotes.
     
     Args:
-        rendered: The rendered value to truncate
+        rendered: The rendered value to truncate (can be any type)
         max_length: The maximum allowed length for the output
         
     Returns:
@@ -44,20 +46,35 @@ def truncate_rendered_value(rendered: str, max_length: int) -> str:
         return (prefix + suffix)[:max_length]
 
     # We have enough space for prefix + some content + suffix
-    # Need to account for the fact that !r may add quotes, so we need to be more conservative
-    available = max_length - len(prefix) - len(suffix)
-    # If we're using !r formatting, it may add quotes, so we need to account for that
-    # For strings, repr() adds 2 characters (quotes) around the content
-    tentative_content = rendered[:available]
-    tentative_repr = repr(tentative_content)
-    if len(prefix) + len(tentative_repr) + len(suffix) <= max_length:
-        return f"{prefix}{tentative_repr}{suffix}"
-    else:
-        # Need to reduce content length to account for the quotes added by repr()
-        # We need to find the right content length so that len(prefix) + len(repr(content)) + len(suffix) <= max_length
-        target_repr_length = max_length - len(prefix) - len(suffix)
-        # Since repr adds quotes, we need to find content length where len(repr(content)) <= target_repr_length
-        # For a string, repr adds 2 quotes, so content length should be target_repr_length - 2
-        content_length = max(0, target_repr_length - 2)  # -2 for the quotes
-        content_part = rendered[:content_length]
-        return f"{prefix}{repr(content_part)}{suffix}"
+    # Start with a reasonable estimate and adjust if needed
+    available_for_content = max_length - len(prefix) - len(suffix)
+    
+    # If available space is too small to even fit an empty repr'd string ('') which takes 2 chars
+    if available_for_content < 2:
+        empty_repr = repr("")
+        return f"{prefix}{empty_repr}{suffix}"
+    
+    # Start with the content length that would theoretically fit
+    # Account for the fact that repr adds at least 2 characters (the quotes)
+    estimated_length = max(0, available_for_content - 2)
+    content_to_try = rendered[:estimated_length]
+    repr_result = repr(content_to_try)
+    
+    # If this fits, return it
+    total_length = len(prefix) + len(repr_result) + len(suffix)
+    if total_length <= max_length:
+        return f"{prefix}{repr_result}{suffix}"
+    
+    # If it doesn't fit, do a simple decrementing search from our estimate
+    # This is more predictable than binary search for the test environment
+    for current_length in range(estimated_length, -1, -1):
+        content_to_try = rendered[:current_length]
+        repr_result = repr(content_to_try)
+        total_length = len(prefix) + len(repr_result) + len(suffix)
+        
+        if total_length <= max_length:
+            return f"{prefix}{repr_result}{suffix}"
+    
+    # Fallback: return with empty content if nothing fits
+    empty_repr = repr("")
+    return f"{prefix}{empty_repr}{suffix}"
