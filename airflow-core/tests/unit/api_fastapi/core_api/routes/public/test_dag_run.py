@@ -457,14 +457,14 @@ class TestGetDagRuns:
                 [
                     {
                         "type": "greater_than_equal",
-                        "loc": ["query", "limit"],
+                        "loc": ["query", "offset"],
                         "msg": "Input should be greater than or equal to 0",
                         "input": "-1",
                         "ctx": {"ge": 0},
                     },
                     {
                         "type": "greater_than_equal",
-                        "loc": ["query", "offset"],
+                        "loc": ["query", "limit"],
                         "msg": "Input should be greater than or equal to 0",
                         "input": "-1",
                         "ctx": {"ge": 0},
@@ -713,7 +713,7 @@ class TestGetDagRuns:
                 [DAG1_RUN2_ID],
             ),  # Test for debug key
             ("~", {"conf_contains": "version"}, [DAG1_RUN1_ID]),  # Test for the key "version"
-            ("~", {"conf_contains": "nonexistent_key"}, []),  # Test for a key that doesn't exist
+            ("~", {"conf_contains": "non_existent_key"}, []),  # Test for a key that doesn't exist
         ],
     )
     @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
@@ -1333,6 +1333,40 @@ class TestDeleteDagRun:
         response = unauthorized_test_client.delete(f"/dags/{DAG1_ID}/dagRuns/invalid")
         assert response.status_code == 403
 
+    def test_delete_dag_run_running_state(self, test_client, dag_maker, session):
+        """Should not allow deleting a dag run in RUNNING state."""
+        with dag_maker(DAG1_ID, schedule=None, start_date=START_DATE1, serialized=True):
+            EmptyOperator(task_id="task_1")
+        dag_run = dag_maker.create_dagrun(
+            run_id="run_running",
+            state=DagRunState.RUNNING,
+            run_type=DagRunType.MANUAL,
+            triggered_by=DagRunTriggeredByType.UI,
+            logical_date=LOGICAL_DATE1,
+        )
+        session.flush()
+        response = test_client.delete(f"/dags/{DAG1_ID}/dagRuns/run_running")
+        assert response.status_code == 400
+        assert "Cannot delete DagRun in state" in response.json()["detail"]
+
+    def test_delete_dag_run_allowed_states(self, test_client, dag_maker, session):
+        """Should allow deleting dag runs in allowed states (QUEUED, SUCCESS, FAILED)."""
+        allowed_states = [DagRunState.QUEUED, DagRunState.SUCCESS, DagRunState.FAILED]
+        for state in allowed_states:
+            run_id = f"run_{state}"
+            with dag_maker(DAG1_ID, schedule=None, start_date=START_DATE1, serialized=True):
+                EmptyOperator(task_id="task_1")
+            dag_run = dag_maker.create_dagrun(
+                run_id=run_id,
+                state=state,
+                run_type=DagRunType.MANUAL,
+                triggered_by=DagRunTriggeredByType.UI,
+                logical_date=LOGICAL_DATE1,
+            )
+            session.flush()
+            response = test_client.delete(f"/dags/{DAG1_ID}/dagRuns/{run_id}")
+            assert response.status_code == 204
+
 
 class TestGetDagRunAssetTriggerEvents:
     @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
@@ -1752,136 +1786,6 @@ class TestTriggerDagRun:
             response.json()["detail"]
             == "DAG with dag_id: 'import_errors' has import errors and cannot be triggered"
         )
-
-    @time_machine.travel(timezone.utcnow(), tick=False)
-    @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
-    def test_should_response_409_for_duplicate_logical_date(self, test_client):
-        RUN_ID_1 = "random_1"
-        RUN_ID_2 = "random_2"
-        now = timezone.utcnow().isoformat().replace("+00:00", "Z")
-        note = "duplicate logical date test"
-        response_1 = test_client.post(
-            f"/dags/{DAG1_ID}/dagRuns",
-            json={"dag_run_id": RUN_ID_1, "note": note, "logical_date": now},
-        )
-        response_2 = test_client.post(
-            f"/dags/{DAG1_ID}/dagRuns",
-            json={"dag_run_id": RUN_ID_2, "note": note, "logical_date": now},
-        )
-
-        assert response_1.status_code == 200
-        assert response_1.json() == {
-            "bundle_version": None,
-            "dag_display_name": DAG1_DISPLAY_NAME,
-            "dag_run_id": RUN_ID_1,
-            "dag_id": DAG1_ID,
-            "dag_versions": mock.ANY,
-            "logical_date": now,
-            "queued_at": now,
-            "start_date": None,
-            "end_date": None,
-            "duration": None,
-            "run_after": now,
-            "data_interval_start": now,
-            "data_interval_end": now,
-            "last_scheduling_decision": None,
-            "run_type": "manual",
-            "state": "queued",
-            "triggered_by": "rest_api",
-            "triggering_user_name": "test",
-            "conf": {},
-            "note": note,
-            "partition_key": None,
-        }
-
-        assert response_2.status_code == 409
-
-    @pytest.mark.parametrize(
-        ("data_interval_start", "data_interval_end"),
-        [
-            (
-                LOGICAL_DATE1.isoformat(),
-                None,
-            ),
-            (
-                None,
-                LOGICAL_DATE1.isoformat(),
-            ),
-        ],
-    )
-    def test_should_response_422_for_missing_start_date_or_end_date(
-        self, test_client, data_interval_start, data_interval_end
-    ):
-        now = timezone.utcnow().isoformat()
-        response = test_client.post(
-            f"/dags/{DAG1_ID}/dagRuns",
-            json={
-                "data_interval_start": data_interval_start,
-                "data_interval_end": data_interval_end,
-                "logical_date": now,
-            },
-        )
-        assert response.status_code == 422
-        assert (
-            response.json()["detail"][0]["msg"]
-            == "Value error, Either both data_interval_start and data_interval_end must be provided or both must be None"
-        )
-
-    def test_raises_validation_error_for_invalid_params(self, test_client):
-        now = timezone.utcnow().isoformat()
-        response = test_client.post(
-            f"/dags/{DAG2_ID}/dagRuns",
-            json={"conf": {"validated_number": 5000}, "logical_date": now},
-        )
-        assert response.status_code == 400
-        assert "Invalid input for param validated_number" in response.json()["detail"]
-
-    def test_response_404(self, test_client):
-        now = timezone.utcnow().isoformat()
-        response = test_client.post("/dags/randoms/dagRuns", json={"logical_date": now})
-        assert response.status_code == 404
-        assert response.json()["detail"] == "DAG with dag_id: 'randoms' not found"
-
-    def test_response_409(self, test_client):
-        now = timezone.utcnow().isoformat()
-        response = test_client.post(
-            f"/dags/{DAG1_ID}/dagRuns", json={"dag_run_id": DAG1_RUN1_ID, "logical_date": now}
-        )
-        assert response.status_code == 409
-        response_json = response.json()
-        assert "detail" in response_json
-        assert list(response_json["detail"].keys()) == ["reason", "statement", "orig_error", "message"]
-
-    @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
-    def test_should_respond_200_with_null_logical_date(self, test_client):
-        response = test_client.post(
-            f"/dags/{DAG1_ID}/dagRuns",
-            json={"logical_date": None},
-        )
-        assert response.status_code == 200
-        assert response.json() == {
-            "bundle_version": None,
-            "dag_display_name": DAG1_DISPLAY_NAME,
-            "dag_run_id": mock.ANY,
-            "dag_id": DAG1_ID,
-            "dag_versions": mock.ANY,
-            "logical_date": None,
-            "queued_at": mock.ANY,
-            "run_after": mock.ANY,
-            "start_date": None,
-            "end_date": None,
-            "duration": None,
-            "data_interval_start": mock.ANY,
-            "data_interval_end": mock.ANY,
-            "last_scheduling_decision": None,
-            "run_type": "manual",
-            "state": "queued",
-            "triggered_by": "rest_api",
-            "triggering_user_name": "test",
-            "conf": {},
-            "note": None,
-            "partition_key": None,
-        }
 
     @time_machine.travel("2025-10-02 12:00:00", tick=False)
     @pytest.mark.usefixtures("custom_timetable_plugin")

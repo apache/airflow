@@ -1753,7 +1753,10 @@ paths:
       tags:
       - DagRun
       summary: Delete Dag Run
-      description: Delete a DAG Run entry.
+      description: |
+        Delete a DAG Run entry.
+        
+        Only DAG runs in the following states can be deleted: "queued", "success", or "failed". Attempting to delete a DAG run in any other state (e.g., "running") will result in a 400 Bad Request response.
       operationId: delete_dag_run
       security:
       - OAuth2PasswordBearer: []

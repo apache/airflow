@@ -138,6 +138,15 @@ def delete_dag_run(dag_id: str, dag_run_id: str, session: SessionDep):
             status.HTTP_404_NOT_FOUND,
             f"The DagRun with dag_id: `{dag_id}` and run_id: `{dag_run_id}` was not found",
         )
+
+    # Only allow deletion if dag_run.state is in DAGRunPatchStates
+    allowed_states = {state.value for state in DAGRunPatchStates}
+    if dag_run.state not in allowed_states:
+        raise HTTPException(
+            status.HTTP_400_BAD_REQUEST,
+            f"Cannot delete DagRun in state '{dag_run.state}'. Only allowed in states: {', '.join(allowed_states)}."
+        )
+
     session.delete(dag_run)
 
 
