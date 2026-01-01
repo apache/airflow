@@ -46,22 +46,43 @@ class TestWorker:
 
         assert kind == jmespath.search("kind", docs[0])
 
-    @pytest.mark.parametrize(
-        ("revision_history_limit", "global_revision_history_limit"),
-        [(8, 10), (10, 8), (8, None), (None, 10), (None, None)],
-    )
-    def test_revision_history_limit(self, revision_history_limit, global_revision_history_limit):
-        values = {"workers": {}}
-        if revision_history_limit:
-            values["workers"]["revisionHistoryLimit"] = revision_history_limit
-        if global_revision_history_limit:
-            values["revisionHistoryLimit"] = global_revision_history_limit
+    def test_revision_history_limit_default(self):
         docs = render_chart(
-            values=values,
             show_only=["templates/workers/worker-deployment.yaml"],
         )
-        expected_result = revision_history_limit or global_revision_history_limit
-        assert jmespath.search("spec.revisionHistoryLimit", docs[0]) == expected_result
+
+        assert jmespath.search("spec.revisionHistoryLimit", docs[0]) is None
+
+    def test_revision_history_limit_global(self):
+        docs = render_chart(
+            values={"revisionHistoryLimit": 10},
+            show_only=["templates/workers/worker-deployment.yaml"],
+        )
+
+        assert jmespath.search("spec.revisionHistoryLimit", docs[0]) == 10
+
+    def test_revision_history_limit(self):
+        docs = render_chart(
+            values={"workers": {"revisionHistoryLimit": 8}},
+            show_only=["templates/workers/worker-deployment.yaml"],
+        )
+
+        assert jmespath.search("spec.revisionHistoryLimit", docs[0]) == 8
+
+    @pytest.mark.parametrize(
+        ("limit", "global_limit"),
+        [(8, 10), (10, 8)],
+    )
+    def test_revision_history_limit_overwrite(self, limit, global_limit):
+        docs = render_chart(
+            values={
+                "revisionHistoryLimit": global_limit,
+                "workers": {"revisionHistoryLimit": limit},
+            },
+            show_only=["templates/workers/worker-deployment.yaml"],
+        )
+
+        assert jmespath.search("spec.revisionHistoryLimit", docs[0]) == limit
 
     def test_should_add_extra_containers(self):
         docs = render_chart(
