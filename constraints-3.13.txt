@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2025-12-29T21:22:53.891029
+# This constraints file was automatically generated on 2026-01-01T10:40:39.043741
 # via `uv pip install --resolution highest` for the "v3-1-test" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -233,7 +233,7 @@ cachetools==6.2.4
 cadwyn==5.4.6
 cassandra-driver==3.29.3
 cattrs==25.3.0
-celery==5.6.0
+celery==5.6.1
 certifi==2025.11.12
 cffi==2.0.0
 chardet==5.2.0
@@ -275,7 +275,6 @@ email-validator==2.3.0
 entrypoints==0.4
 et_xmlfile==2.0.0
 eventlet==0.40.4
-exceptiongroup==1.3.1
 executing==2.2.1
 facebook_business==24.0.1
 fastapi-cli==0.0.20
@@ -529,7 +528,7 @@ pyexasol==1.3.0
 pygtrie==2.5.0
 pykerberos==1.2.4
 pymongo==4.15.5
-pymssql==2.3.10
+pymssql==2.3.11
 pyodbc==5.3.0
 pyodps==0.12.5.1
 pyparsing==3.3.1
@@ -570,8 +569,8 @@ rich-toolkit==0.17.1
 rich==14.2.0
 rpds-py==0.30.0
 rsa==4.9.1
-ruamel.yaml.clib==0.2.15
-ruamel.yaml==0.18.17
+ruamel.yaml.clibz==0.3.4
+ruamel.yaml==0.19.0
 s3fs==2025.12.0
 s3transfer==0.15.0
 sagemaker_studio==1.0.23
@@ -643,7 +642,7 @@ universal_pathlib==0.2.6
 uritemplate==4.2.0
 urllib3==2.6.2
 uuid6==2025.0.1
-uv==0.9.20
+uv==0.9.21
 uvicorn==0.40.0
 uvloop==0.22.1
 validators==0.35.0
@@ -652,7 +651,7 @@ vine==5.1.0
 watchfiles==1.1.1
 watchtower==3.4.0
 wcwidth==0.2.14
-weaviate-client==4.19.0
+weaviate-client==4.19.2
 webencodings==0.5.1
 websocket-client==1.8.0
 websockets==15.0.1
