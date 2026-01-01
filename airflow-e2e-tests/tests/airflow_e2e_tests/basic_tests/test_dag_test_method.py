@@ -19,24 +19,23 @@
 from __future__ import annotations
 
 import json
-
-import pytest
+import time
 
 from airflow_e2e_tests.conftest import _E2ETestState
+from airflow_e2e_tests.e2e_test_utils.clients import AirflowClient
 
 
 def _execute_dag_test(dag_id: str, use_executor: bool = False) -> dict:
     """
-    Execute dag.test() inside the Airflow scheduler container.
+    Execute dag.test() inside the Airflow scheduler container and query state via REST API.
 
     Returns a dictionary with test results including dag_run state and task states.
     """
+    # Minimal Python code to execute dag.test() and return run_id
     python_code = f"""
 import json
 import sys
 from airflow.dag_processing.dagbag import DagBag
-from airflow.sdk import DagRunState
-from airflow.utils.state import TaskInstanceState
 
 # Load the DAG
 dagbag = DagBag(dag_folder="/opt/airflow/dags", include_examples=False)
@@ -49,46 +48,8 @@ if dag is None:
 # Execute dag.test()
 try:
     dr = dag.test(use_executor={str(use_executor)})
-    
-    # Refresh from DB to get latest state
-    from airflow import settings
-    from airflow.models.dagrun import DagRun
-    import time
-    session = settings.Session()
-    
-    # Wait a bit for state to propagate (especially for executor mode)
-    if {str(use_executor)}:
-        time.sleep(2)
-    
-    # Re-fetch the DagRun to ensure we have the latest state
-    dr = session.query(DagRun).filter(
-        DagRun.dag_id == dr.dag_id,
-        DagRun.run_id == dr.run_id
-    ).first()
-    
-    if dr is None:
-        print(f"ERROR: DagRun not found after test completion")
-        sys.exit(1)
-    
-    # Get task instance states using fetch_task_instances with our session
-    task_states = {{}}
-    task_instances = DagRun.fetch_task_instances(
-        dag_id=dr.dag_id,
-        run_id=dr.run_id,
-        session=session
-    )
-    for ti in task_instances:
-        task_states[ti.task_id] = ti.state
-    
-    result = {{
-        "dag_run_state": str(dr.state),
-        "dag_run_id": dr.run_id,
-        "task_states": {{k: str(v) for k, v in task_states.items()}},
-        "success": dr.state == DagRunState.SUCCESS
-    }}
-    
+    result = {{"dag_run_id": dr.run_id}}
     print(json.dumps(result))
-    session.close()
 except Exception as e:
     print(f"ERROR: {{str(e)}}")
     import traceback
@@ -113,27 +74,50 @@ except Exception as e:
     # Check exit code
     if exit_code != 0:
         raise RuntimeError(f"Command failed with exit code {exit_code}. stdout: {stdout}, stderr: {stderr}")
-    
+
     if stderr:
         # Check if there's an actual error (not just warnings)
         if "ERROR" in stderr or "Traceback" in stderr:
             raise RuntimeError(f"Error executing dag.test(): {stderr}")
 
-    # Parse the JSON output
+    # Parse the JSON output to get run_id
     output_lines = stdout.strip().split("\n")
-    json_output = None
+    run_id = None
     for line in output_lines:
-        if line.startswith("{") and "dag_run_state" in line:
+        if line.startswith("{") and "dag_run_id" in line:
             try:
-                json_output = json.loads(line)
+                result = json.loads(line)
+                run_id = result.get("dag_run_id")
                 break
             except json.JSONDecodeError:
                 continue
 
-    if json_output is None:
-        raise RuntimeError(f"Could not parse output from dag.test(). stdout: {stdout}, stderr: {stderr}")
+    if run_id is None:
+        raise RuntimeError(f"Could not parse run_id from dag.test() output. stdout: {stdout}, stderr: {stderr}")
 
-    return json_output
+    # Wait a bit for state to propagate (especially for executor mode)
+    if use_executor:
+        time.sleep(2)
+
+    # Use AirflowClient to query state via REST API
+    airflow_client = AirflowClient()
+
+    # Wait for DagRun to complete and get state
+    dag_run_state = airflow_client.wait_for_dag_run(dag_id, run_id, timeout=300, check_interval=2)
+
+    # Get task instances
+    task_instances_response = airflow_client.get_dag_run_task_instances(dag_id, run_id)
+    task_states = {
+        ti["task_id"]: ti["state"]
+        for ti in task_instances_response.get("task_instances", [])
+    }
+
+    return {
+        "dag_run_state": dag_run_state,
+        "dag_run_id": run_id,
+        "task_states": task_states,
+        "success": dag_run_state == "success",
+    }
 
 
 class TestDagTestMethod:
