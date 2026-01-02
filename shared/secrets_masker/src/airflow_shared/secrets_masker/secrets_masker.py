@@ -196,6 +196,7 @@ class SecretsMasker(logging.Filter):
         super().__init__()
         self.patterns = set()
         self.sensitive_variables_fields = []
+        self.hide_sensitive_var_conn_fields = True
 
     @classmethod
     def __init_subclass__(cls, **kwargs):
@@ -527,9 +528,7 @@ class SecretsMasker(logging.Filter):
 
         Name might be a Variable name, or key in conn.extra_dejson, for example.
         """
-        from airflow.configuration import conf
-
-        if isinstance(name, str) and conf.getboolean("core", "hide_sensitive_var_conn_fields"):
+        if isinstance(name, str) and self.hide_sensitive_var_conn_fields:
             name = name.strip().lower()
             return any(s in name for s in self.sensitive_variables_fields)
         return False
