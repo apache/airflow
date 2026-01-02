@@ -53,6 +53,7 @@ classifiers = [
 ]
 requires-python = ">=3.10"
 
+# Checked for conf import migration
 # The dependencies should be modified in place in the generated file.
 # Any change in the dependencies is preserved when the file is regenerated
 # Make sure to run ``prek update-providers-dependencies --all-files``
