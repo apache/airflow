@@ -855,13 +855,13 @@ class TestWorker:
             (["custom", "{{ .Release.Service }}"], ["custom", "Helm"]),
         ],
     )
-    def test_should_add_args(self, args):
+    def test_should_add_args(self, args, expected):
         docs = render_chart(
             values={"workers": {"args": args}},
             show_only=["templates/workers/worker-deployment.yaml"],
         )
 
-        assert args == jmespath.search("spec.template.spec.containers[0].args", docs[0])
+        assert expected == jmespath.search("spec.template.spec.containers[0].args", docs[0])
 
     @pytest.mark.parametrize("args", [None, []])
     def test_should_not_add_args(self, args):
