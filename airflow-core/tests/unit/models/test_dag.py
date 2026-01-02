@@ -100,6 +100,7 @@ from tests_common.test_utils.db import (
 )
 from tests_common.test_utils.mapping import expand_mapped_task
 from tests_common.test_utils.mock_plugins import mock_plugin_manager
+from tests_common.test_utils.taskinstance import run_task_instance
 from tests_common.test_utils.timetables import cron_timetable, delta_timetable
 from unit.models import DEFAULT_DATE
 from unit.plugins.priority_weight_strategy import (
@@ -2042,8 +2043,9 @@ class TestDagModel:
     def test_dags_needing_dagruns_asset_refs(self, dag_maker, session, ref):
         asset = Asset(name="1", uri="s3://bucket/assets/1")
 
-        with dag_maker(dag_id="producer", schedule=None, session=session):
+        with dag_maker(dag_id="producer", schedule=None, session=session) as dag:
             op = EmptyOperator(task_id="op", outlets=asset)
+        ser_op = dag.get_task(op.task_id)
 
         dr: DagRun = dag_maker.create_dagrun()
 
@@ -2057,8 +2059,8 @@ class TestDagModel:
 
         # Upstream triggered, now we need a run.
         ti = dr.get_task_instance("op")
-        ti.refresh_from_task(op)
-        ti.run()
+        ti.refresh_from_task(ser_op)
+        run_task_instance(ti, op)
 
         assert session.scalars(select(AssetDagRunQueue.target_dag_id)).all() == ["consumer"]
         query, _ = DagModel.dags_needing_dagruns(session)
@@ -2071,16 +2073,16 @@ class TestDagModel:
         dag_id_to_test = "test"
 
         # Dag 'test' depends on an outlet in 'producer'.
-        with dag_maker(dag_id="producer", schedule=None, session=session):
+        with dag_maker(dag_id="producer", schedule=None, session=session) as dag:
             op = EmptyOperator(task_id="op", outlets=asset)
         dr = dag_maker.create_dagrun()
         outlet_ti = dr.get_task_instance("op")
-        outlet_ti.refresh_from_task(op)
+        outlet_ti.refresh_from_task(dag.get_task(op.task_id))
         with dag_maker(dag_id=dag_id_to_test, schedule=asset, session=session):
             pass
 
         # An adrq should be created when the outlet task is run.
-        outlet_ti.run()
+        run_task_instance(outlet_ti, op)
         query, _ = DagModel.dags_needing_dagruns(session)
         assert [dm.dag_id for dm in query] == [dag_id_to_test]
         assert session.scalars(select(AssetDagRunQueue.target_dag_id)).all() == [dag_id_to_test]

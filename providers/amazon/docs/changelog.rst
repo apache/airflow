@@ -26,6 +26,34 @@
 Changelog
 ---------
 
+9.19.0
+......
+
+Features
+~~~~~~~~
+
+* ``Check team boundaries in variables (#58905)``
+
+Misc
+~~~~
+
+* ``Upgrade fallback instance type to ml.m6i.xlarge (#59827)``
+* ``Remove top-level SDK reference in Core (#59817)``
+
+Doc-only
+~~~~~~~~
+
+* ``Remove redundant InvokeModel calls (#59527)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``TaskInstance unused method cleanup (#59835)``
+   * ``Remove global from logging_config (#59763)``
+   * ``Split serde logic from SerializedDAG (#59596)``
+   * ``Add sqs hook tests (#59586)``
+   * ``Fix various Airflow 2 import issues revealed by previous fixes (#59341)``
+   * ``A few more missing compat imports in example dags (#59283)``
+
 9.18.1
 ......
 
