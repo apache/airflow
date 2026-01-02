@@ -809,25 +809,53 @@ class TestWorker:
             f"exec \\\n{expected_arg}",
         ] == jmespath.search("spec.template.spec.containers[0].args", docs[0])
 
-    @pytest.mark.parametrize("command", [None, ["custom", "command"]])
-    @pytest.mark.parametrize("args", [None, ["custom", "args"]])
-    def test_command_and_args_overrides(self, command, args):
+    @pytest.mark.parametrize(
+        ("command", "expected"),
+        [
+            (["custom", "command"], ["custom", "command"]),
+            (["custom", "{{ .Release.Name }}"], ["custom", "release-name"]),
+        ],
+    )
+    def test_should_add_command(self, command):
         docs = render_chart(
-            values={"workers": {"command": command, "args": args}},
+            values={"workers": {"command": command}},
             show_only=["templates/workers/worker-deployment.yaml"],
         )
 
         assert command == jmespath.search("spec.template.spec.containers[0].command", docs[0])
-        assert args == jmespath.search("spec.template.spec.containers[0].args", docs[0])
 
-    def test_command_and_args_overrides_are_templated(self):
+    @pytest.mark.parametrize("command", [None, []])
+    def test_should_not_add_command(self, command):
         docs = render_chart(
-            values={"workers": {"command": ["{{ .Release.Name }}"], "args": ["{{ .Release.Service }}"]}},
+            values={"workers": {"command": command}},
             show_only=["templates/workers/worker-deployment.yaml"],
         )
 
-        assert jmespath.search("spec.template.spec.containers[0].command", docs[0]) == ["release-name"]
-        assert jmespath.search("spec.template.spec.containers[0].args", docs[0]) == ["Helm"]
+        assert jmespath.search("spec.template.spec.containers[0].command", docs[0]) is None
+
+    @pytest.mark.parametrize(
+        ("args", "expected"),
+        [
+            (["custom", "args"], ["custom", "args"]),
+            (["custom", "{{ .Release.Service }}"], ["custom", "Helm"]),
+        ],
+    )
+    def test_should_add_args(self, args):
+        docs = render_chart(
+            values={"workers": {"args": args}},
+            show_only=["templates/workers/worker-deployment.yaml"],
+        )
+
+        assert args == jmespath.search("spec.template.spec.containers[0].args", docs[0])
+
+    @pytest.mark.parametrize("args", [None, []])
+    def test_should_not_add_args(self, args):
+        docs = render_chart(
+            values={"workers": {"args": args}},
+            show_only=["templates/workers/worker-deployment.yaml"],
+        )
+
+        assert jmespath.search("spec.template.spec.containers[0].args", docs[0]) is None
 
     def test_dags_gitsync_sidecar_and_init_container(self):
         docs = render_chart(
