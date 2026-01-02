@@ -803,6 +803,20 @@ ARG_OPTION = Arg(
     ("option",),
     help="The option name",
 )
+ARG_HIDE_SENSITIVE = Arg(
+    ("--hide-sensitive",),
+    action="store_true",
+    help="When used with --show-values, hide sensitive values (passwords, keys, tokens, etc.) and only show non-sensitive configuration values.",
+)
+ARG_CONFIG_SHOW_VALUES = Arg(
+    ("--show-values",),
+    action="store_true",
+    help=(
+        "Show configuration values. "
+        "By default only option names are shown and values (including potentially "
+        "sensitive ones) are hidden."
+    ),
+)
 
 # lint
 ARG_LINT_CONFIG_SECTION = Arg(
@@ -904,6 +918,11 @@ ARG_CAPACITY = Arg(
     ("--capacity",),
     type=positive_int(allow_zero=False),
     help="The maximum number of triggers that a Triggerer will run at one time.",
+)
+ARG_QUEUES = Arg(
+    ("--queues",),
+    type=string_list_type,
+    help="Optional comma-separated list of task queues which the triggerer should consume from.",
 )
 
 ARG_DAG_LIST_COLUMNS = Arg(
@@ -1731,6 +1750,8 @@ CONFIG_COMMANDS = (
             ARG_EXCLUDE_PROVIDERS,
             ARG_DEFAULTS,
             ARG_VERBOSE,
+            ARG_HIDE_SENSITIVE,
+            ARG_CONFIG_SHOW_VALUES,
         ),
     ),
     ActionCommand(
@@ -1962,6 +1983,7 @@ core_commands: list[CLICommand] = [
             ARG_VERBOSE,
             ARG_SKIP_SERVE_LOGS,
             ARG_DEV,
+            ARG_QUEUES,
         ),
     ),
     ActionCommand(

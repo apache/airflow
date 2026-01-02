@@ -251,9 +251,8 @@ ARG_AUTH_PASSWORD = Arg(
 
 # Dag Commands Args
 ARG_DAG_ID = Arg(
-    flags=("--dag-id",),
+    flags=("dag_id",),
     type=str,
-    dest="dag_id",
     help="The DAG ID of the DAG to pause or unpause",
 )
 

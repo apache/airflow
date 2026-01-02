@@ -1046,6 +1046,24 @@ class TestWorker:
             == "release-name-storage-class"
         )
 
+    @pytest.mark.parametrize(
+        ("workers_values", "expected"),
+        [
+            ({"replicas": 2}, 1),
+            ({"celery": {"replicas": 2}}, 2),
+            ({"celery": {"replicas": None}}, 1),
+            ({"replicas": 2, "celery": {"replicas": 3}}, 3),
+            ({"replicas": 2, "celery": {"replicas": None}}, 2),
+        ],
+    )
+    def test_workers_replicas(self, workers_values, expected):
+        docs = render_chart(
+            values={"workers": workers_values},
+            show_only=["templates/workers/worker-deployment.yaml"],
+        )
+
+        assert expected == jmespath.search("spec.replicas", docs[0])
+
 
 class TestWorkerLogGroomer(LogGroomerTestBase):
     """Worker groomer."""
