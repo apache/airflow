@@ -1104,7 +1104,7 @@ class BigQueryGetDataOperator(GoogleCloudBaseOperator, _BigQueryOperatorsEncrypt
         if self.project_id != PROVIDE_PROJECT_ID and not self.table_project_id:
             self.table_project_id = self._assign_project_id(self.project_id)
         elif self.project_id != PROVIDE_PROJECT_ID and self.table_project_id:
-            self.log.info("The 'project_id' parameter is deprecated. Please use 'table_project_id' instead.")
+            self.log.info("Ignoring 'project_id' parameter, as 'table_project_id' is found.")
         if not exactly_one(self.job_id, self.table_id):
             raise AirflowException(
                 "'job_id' and 'table_id' parameters are mutually exclusive, "
