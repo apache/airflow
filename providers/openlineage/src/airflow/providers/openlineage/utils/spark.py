@@ -18,13 +18,14 @@
 from __future__ import annotations
 
 import logging
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, NamedTuple
 
 from airflow.providers.openlineage.plugins.listener import get_openlineage_listener
 from airflow.providers.openlineage.plugins.macros import (
     lineage_job_name,
     lineage_job_namespace,
     lineage_root_job_name,
+    lineage_root_job_namespace,
     lineage_root_run_id,
     lineage_run_id,
 )
@@ -33,6 +34,43 @@ if TYPE_CHECKING:
     from airflow.providers.common.compat.sdk import Context
 
 log = logging.getLogger(__name__)
+
+
+class ParentJobInformation(NamedTuple):
+    """Container for OpenLineage parent job information."""
+
+    parent_job_namespace: str
+    parent_job_name: str
+    parent_run_id: str
+    root_parent_job_namespace: str
+    root_parent_job_name: str
+    root_parent_run_id: str
+
+
+def get_parent_job_information(context: Context) -> ParentJobInformation | None:
+    """
+    Retrieve parent job information from the Airflow context.
+
+    This function extracts OpenLineage parent job details from the task instance,
+    which can be used by various integrations (Spark, Glue, etc.) to propagate
+    lineage information to child jobs.
+
+    Args:
+        context: The Airflow context containing task instance information.
+
+    Returns:
+        ParentJobInformation containing namespace, job name, and run IDs
+        for both parent and root parent.
+    """
+    ti = context["ti"]
+    return ParentJobInformation(
+        parent_job_namespace=lineage_job_namespace(),
+        parent_job_name=lineage_job_name(ti),  # type: ignore[arg-type]
+        parent_run_id=lineage_run_id(ti),  # type: ignore[arg-type]
+        root_parent_job_namespace=lineage_root_job_namespace(),
+        root_parent_job_name=lineage_root_job_name(ti),  # type: ignore[arg-type]
+        root_parent_run_id=lineage_root_run_id(ti),  # type: ignore[arg-type]
+    )
 
 
 def _get_parent_job_information_as_spark_properties(context: Context) -> dict:
@@ -45,14 +83,14 @@ def _get_parent_job_information_as_spark_properties(context: Context) -> dict:
     Returns:
         Spark properties with the parent job information.
     """
-    ti = context["ti"]
+    info = get_parent_job_information(context)
     return {
-        "spark.openlineage.parentJobNamespace": lineage_job_namespace(),
-        "spark.openlineage.parentJobName": lineage_job_name(ti),  # type: ignore[arg-type]
-        "spark.openlineage.parentRunId": lineage_run_id(ti),  # type: ignore[arg-type]
-        "spark.openlineage.rootParentRunId": lineage_root_run_id(ti),  # type: ignore[arg-type]
-        "spark.openlineage.rootParentJobName": lineage_root_job_name(ti),  # type: ignore[arg-type]
-        "spark.openlineage.rootParentJobNamespace": lineage_job_namespace(),
+        "spark.openlineage.parentJobNamespace": info.parent_job_namespace,
+        "spark.openlineage.parentJobName": info.parent_job_name,
+        "spark.openlineage.parentRunId": info.parent_run_id,
+        "spark.openlineage.rootParentRunId": info.root_parent_run_id,
+        "spark.openlineage.rootParentJobName": info.root_parent_job_name,
+        "spark.openlineage.rootParentJobNamespace": info.root_parent_job_namespace,
     }
 
 
