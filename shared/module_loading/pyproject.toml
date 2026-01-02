@@ -25,7 +25,6 @@ classifiers = [
 
 dependencies = [
     'importlib_metadata>=6.5;python_version<"3.12"',
-    'importlib_metadata>=7.0;python_version>="3.12"',
 ]
 
 [dependency-groups]
