@@ -208,9 +208,13 @@ def _serialize_dag_capturing_errors(
 
     We can't place them directly in import_errors, as this may be retried, and work the next time
     """
-    from airflow import settings
     from airflow.models.dagcode import DagCode
     from airflow.models.serialized_dag import SerializedDagModel
+
+    # Updating serialized DAG can not be faster than a minimum interval to reduce database write rate.
+    MIN_SERIALIZED_DAG_UPDATE_INTERVAL = conf.getint(
+        "core", "min_serialized_dag_update_interval", fallback=30
+    )
 
     try:
         # We can't use bulk_write_to_db as we want to capture each error individually
@@ -218,7 +222,7 @@ def _serialize_dag_capturing_errors(
             dag,
             bundle_name=bundle_name,
             bundle_version=bundle_version,
-            min_update_interval=settings.MIN_SERIALIZED_DAG_UPDATE_INTERVAL,
+            min_update_interval=MIN_SERIALIZED_DAG_UPDATE_INTERVAL,
             session=session,
         )
         if not dag_was_updated:
