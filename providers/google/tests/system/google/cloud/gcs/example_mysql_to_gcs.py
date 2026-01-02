@@ -62,8 +62,11 @@ except ImportError:
     # Compatibility for Airflow < 3.1
     from airflow.utils.trigger_rule import TriggerRule  # type: ignore[no-redef,attr-defined]
 
-from system.google.gcp_api_client_helpers import create_airflow_connection, delete_airflow_connection
-from system.openlineage.operator import OpenLineageTestOperator
+from airflow.providers.google.tests.system.google.gcp_api_client_helpers import (
+    create_airflow_connection,
+    delete_airflow_connection,
+)
+from airflow.providers.openlineage.tests.system.openlineage.operator import OpenLineageTestOperator
 
 try:
     from airflow.providers.google.cloud.transfers.mysql_to_gcs import MySQLToGCSOperator

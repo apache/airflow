@@ -59,7 +59,7 @@ from google.cloud.vision_v1.types import Product  # isort:skip
 # [END howto_operator_vision_product_import_2]
 # [START howto_operator_vision_reference_image_import_2]
 from google.cloud.vision_v1.types import ReferenceImage  # isort:skip
-from system.google import DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
+from airflow.providers.google.tests.system.google import DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
 
 # [END howto_operator_vision_reference_image_import_2]
 

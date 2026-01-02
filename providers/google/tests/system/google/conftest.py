@@ -18,7 +18,9 @@ from __future__ import annotations
 
 import pytest
 
-from system.openlineage.conftest import set_transport_variable  # noqa: F401
+from airflow.providers.openlineage.tests.system.openlineage.conftest import (
+    set_transport_variable,  # noqa: F401
+)
 
 REQUIRED_ENV_VARS = ("SYSTEM_TESTS_GCP_PROJECT",)
 

@@ -62,7 +62,10 @@ except ImportError:
     # Compatibility for Airflow < 3.1
     from airflow.utils.trigger_rule import TriggerRule  # type: ignore[no-redef,attr-defined]
 
-from system.google.gcp_api_client_helpers import create_airflow_connection, delete_airflow_connection
+from airflow.providers.google.tests.system.google.gcp_api_client_helpers import (
+    create_airflow_connection,
+    delete_airflow_connection,
+)
 
 DAG_ID = "display_video"
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID", "default")
