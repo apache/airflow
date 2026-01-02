@@ -74,6 +74,7 @@ class _TableConfig:
         supply additional filters here (e.g. externally triggered dag runs)
     :param keep_last_group_by: if keeping the last record, can keep the last record for each group
     :param dependent_tables: list of tables which have FK relationship with this table
+    :param skip_if_referenced_by: dict mapping referencing table name to the FK column name.
     """
 
     table_name: str
@@ -86,6 +87,7 @@ class _TableConfig:
     # because the relationships are unlikely to change and the number of tables is small.
     # Relying on automation here would increase complexity and reduce maintainability.
     dependent_tables: list[str] | None = None
+    skip_if_referenced_by: dict[str, str] | None = None
 
     def __post_init__(self):
         self.recency_column = column(self.recency_column_name)
@@ -148,6 +150,7 @@ config_list: list[_TableConfig] = [
         table_name="dag_version",
         recency_column_name="created_at",
         dependent_tables=["task_instance", "dag_run"],
+        skip_if_referenced_by={"task_instance": "dag_version_id", "dag_run": "created_dag_version_id"},
     ),
     _TableConfig(table_name="deadline", recency_column_name="deadline_time"),
 ]
@@ -299,6 +302,36 @@ def _compile_create_table_as__other(element, compiler, **kw):
     return f"CREATE TABLE {element.name} AS {compiler.process(element.query)}"
 
 
+def _build_skip_if_referenced_filter(
+    *,
+    skip_if_referenced_by: dict[str, str],
+) -> list:
+    """
+    Build filter conditions to exclude rows that are still referenced by other tables.
+
+    :param skip_if_referenced_by: Dict mapping referencing table name to FK column name.
+    :return: List of filter conditions to exclude referenced rows
+    """
+    conditions = []
+
+    for ref_table_name, ref_column_name in skip_if_referenced_by.items():
+        ref_table = table(ref_table_name, column(ref_column_name))
+
+        # Build a subquery to find all IDs that are still referenced
+        referenced_ids_subquery = (
+            select(column(ref_column_name))
+            .select_from(ref_table)
+            .where(column(ref_column_name).isnot(None))
+            .distinct()
+            .scalar_subquery()
+        )
+
+        # Exclude rows where the primary key is in the set of referenced IDs
+        conditions.append(column("id").notin_(referenced_ids_subquery))
+
+    return conditions
+
+
 def _build_query(
     *,
     orm_model,
@@ -307,6 +340,7 @@ def _build_query(
     keep_last_filters,
     keep_last_group_by,
     clean_before_timestamp: DateTime,
+    skip_if_referenced_by: dict[str, str] | None = None,
     session: Session,
     **kwargs,
 ) -> Query:
@@ -333,6 +367,14 @@ def _build_query(
             ),
         )
         conditions.append(column(max_date_col_name).is_(None))
+
+    # Add conditions to skip rows that are still referenced by other tables
+    if skip_if_referenced_by:
+        skip_conditions = _build_skip_if_referenced_filter(
+            skip_if_referenced_by=skip_if_referenced_by,
+        )
+        conditions.extend(skip_conditions)
+
     query = query.filter(and_(*conditions))
     return query
 
@@ -345,6 +387,7 @@ def _cleanup_table(
     keep_last_filters,
     keep_last_group_by,
     clean_before_timestamp: DateTime,
+    skip_if_referenced_by: dict[str, str] | None = None,
     dry_run: bool = True,
     verbose: bool = False,
     skip_archive: bool = False,
@@ -362,6 +405,7 @@ def _cleanup_table(
         keep_last_filters=keep_last_filters,
         keep_last_group_by=keep_last_group_by,
         clean_before_timestamp=clean_before_timestamp,
+        skip_if_referenced_by=skip_if_referenced_by,
         session=session,
     )
     logger.debug("old rows query:\n%s", query.selectable.compile())
