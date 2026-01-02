@@ -14,7 +14,7 @@ class TestLogTaskInstanceReproduction:
     def test_log_task_instance_join_correctness(self, dag_maker, session):
         # Create dag_1 with a task
         with dag_maker("dag_1", session=session) as dag1:
-            task1 = EmptyOperator(task_id="common_task_id")
+            EmptyOperator(task_id="common_task_id")
         
         dr1 = dag_maker.create_dagrun()
         ti1 = dr1.get_task_instance("common_task_id")
@@ -24,7 +24,7 @@ class TestLogTaskInstanceReproduction:
 
         # Create dag_2 with the SAME task_id
         with dag_maker("dag_2", session=session) as dag2:
-            task2 = EmptyOperator(task_id="common_task_id")
+            EmptyOperator(task_id="common_task_id")
         
         dr2 = dag_maker.create_dagrun()
         ti2 = dr2.get_task_instance("common_task_id")
