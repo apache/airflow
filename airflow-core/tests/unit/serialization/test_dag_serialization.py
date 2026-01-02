@@ -1639,6 +1639,22 @@ class TestStringifiedDAGs:
         assert deserialized_task.resources == task.resources
         assert isinstance(deserialized_task.resources, Resources)
 
+    def test_template_field_via_callable_serialization(self):
+        """
+        Test operator template fields serialization.
+        """
+        from tests.task_sdk.bases.test_operator import MockOperator
+
+        def fn_template_field_callable(context, jinja_env):
+            pass
+
+        task = MockOperator(task_id="task1", arg1=fn_template_field_callable)
+        serialized_task = OperatorSerialization.serialize_operator(task)
+        assert (
+            serialized_task.get("arg1")
+            == "        def fn_template_field_callable(context, jinja_env):\n            pass\n"
+        )
+
     def test_task_group_serialization(self):
         """
         Test TaskGroup serialization/deserialization.
