@@ -37,11 +37,27 @@ from typing import TYPE_CHECKING, Any
 from celery import states as celery_states
 from deprecated import deprecated
 
+<<<<<<< HEAD
 from airflow.configuration import conf
+=======
+from airflow.cli.cli_config import (
+    ARG_DAEMON,
+    ARG_LOG_FILE,
+    ARG_PID,
+    ARG_SKIP_SERVE_LOGS,
+    ARG_STDERR,
+    ARG_STDOUT,
+    ARG_VERBOSE,
+    ActionCommand,
+    Arg,
+    GroupCommand,
+    lazy_load_command,
+)
+>>>>>>> e0223d0393 (fix(providers/celery): Migrate conf imports to SDK compatibility layer)
 from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.executors.base_executor import BaseExecutor
 from airflow.providers.celery.version_compat import AIRFLOW_V_3_0_PLUS
-from airflow.providers.common.compat.sdk import AirflowTaskTimeout, Stats
+from airflow.providers.common.compat.sdk import AirflowTaskTimeout, Stats, conf
 from airflow.utils.state import TaskInstanceState
 
 log = logging.getLogger(__name__)
@@ -79,6 +95,19 @@ To start the celery worker, run the command:
 airflow celery worker
 """
 
+from airflow.cli.cli_config import (
+    ARG_DAEMON,
+    ARG_LOG_FILE,
+    ARG_PID,
+    ARG_SKIP_SERVE_LOGS,
+    ARG_STDERR,
+    ARG_STDOUT,
+    ARG_VERBOSE,
+    ActionCommand,
+    Arg,
+    GroupCommand,
+    lazy_load_command,
+)
 
 class CeleryExecutor(BaseExecutor):
     """
@@ -108,7 +137,7 @@ class CeleryExecutor(BaseExecutor):
         # Celery doesn't support bulk sending the tasks (which can become a bottleneck on bigger clusters)
         # so we use a multiprocessing pool to speed this up.
         # How many worker processes are created for checking celery task state.
-        self._sync_parallelism = conf.getint("celery", "SYNC_PARALLELISM")
+        self._sync_parallelism = conf.getint("celery", "SYNC_PARALLELISM", fallback=0)
         if self._sync_parallelism == 0:
             self._sync_parallelism = max(1, cpu_count() - 1)
         from airflow.providers.celery.executors.celery_executor_utils import BulkStateFetcher
@@ -116,7 +145,7 @@ class CeleryExecutor(BaseExecutor):
         self.bulk_state_fetcher = BulkStateFetcher(self._sync_parallelism)
         self.tasks = {}
         self.task_publish_retries: Counter[TaskInstanceKey] = Counter()
-        self.task_publish_max_retries = conf.getint("celery", "task_publish_max_retries")
+        self.task_publish_max_retries = conf.getint("celery", "task_publish_max_retries", fallback=3)
 
     def start(self) -> None:
         self.log.debug("Starting Celery Executor using %s processes for syncing", self._sync_parallelism)

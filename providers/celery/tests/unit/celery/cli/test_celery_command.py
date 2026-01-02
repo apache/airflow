@@ -29,10 +29,10 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from airflow.cli import cli_parser
-from airflow.configuration import conf
 from airflow.executors import executor_loader
 from airflow.providers.celery.cli import celery_command
 from airflow.providers.celery.cli.celery_command import _run_stale_bundle_cleanup
+from airflow.providers.common.compat.sdk import conf
 
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS

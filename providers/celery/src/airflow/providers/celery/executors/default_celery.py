@@ -24,10 +24,9 @@ import logging
 import re
 import ssl
 
-from airflow.configuration import conf
 from airflow.exceptions import AirflowConfigException
 from airflow.providers.celery.version_compat import AIRFLOW_V_3_0_PLUS
-from airflow.providers.common.compat.sdk import AirflowException
+from airflow.providers.common.compat.sdk import AirflowException, conf
 
 
 def _broker_supports_visibility_timeout(url):
@@ -117,7 +116,7 @@ if AIRFLOW_V_3_0_PLUS:
 
 def _get_celery_ssl_active() -> bool:
     try:
-        return conf.getboolean("celery", "SSL_ACTIVE")
+        return conf.getboolean("celery", "SSL_ACTIVE", fallback=False)
     except AirflowConfigException:
         log.warning("Celery Executor will run without SSL")
         return False

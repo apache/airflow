@@ -34,9 +34,9 @@ from lockfile.pidlockfile import read_pid_from_pidfile, remove_existing_pidfile
 
 from airflow import settings
 from airflow.cli.simple_table import AirflowConsole
-from airflow.configuration import conf
 from airflow.exceptions import AirflowConfigException
 from airflow.providers.celery.version_compat import AIRFLOW_V_3_0_PLUS
+from airflow.providers.common.compat.sdk import conf
 from airflow.utils import cli as cli_utils
 from airflow.utils.cli import setup_locations
 
