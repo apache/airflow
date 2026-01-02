@@ -474,6 +474,16 @@ class TestShouldHideValueForKey:
             configure_secrets_masker_for_test(masker, sensitive_fields=sensitive_fields)
             assert expected_result == masker.should_hide_value_for_key(key)
 
+    @pytest.mark.parametrize("hide_sensitive_var_conn_fields", [True, False])
+    def test_hiding_disabled(self, hide_sensitive_var_conn_fields):
+        """Test that hiding can be disabled via hide_sensitive_var_conn_fields."""
+        masker = SecretsMasker()
+        configure_secrets_masker_for_test(masker)
+
+        masker.hide_sensitive_var_conn_fields = hide_sensitive_var_conn_fields
+        assert masker.should_hide_value_for_key("password") is hide_sensitive_var_conn_fields
+        assert masker.should_hide_value_for_key("GOOGLE_API_KEY") is hide_sensitive_var_conn_fields
+
 
 class ShortExcFormatter(logging.Formatter):
     """Don't include full path in exc_info messages"""
