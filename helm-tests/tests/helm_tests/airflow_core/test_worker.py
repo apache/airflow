@@ -53,36 +53,58 @@ class TestWorker:
 
         assert jmespath.search("spec.revisionHistoryLimit", docs[0]) is None
 
-    def test_revision_history_limit_global(self):
+    def test_revision_history_limit_global_unset(self):
         docs = render_chart(
-            values={"revisionHistoryLimit": 10},
+            values={"revisionHistoryLimit": None},
             show_only=["templates/workers/worker-deployment.yaml"],
         )
 
-        assert jmespath.search("spec.revisionHistoryLimit", docs[0]) == 10
+        assert jmespath.search("spec.revisionHistoryLimit", docs[0]) is None
 
-    def test_revision_history_limit(self):
+    def test_revision_history_limit_global(self):
         docs = render_chart(
-            values={"workers": {"revisionHistoryLimit": 8}},
+            values={"revisionHistoryLimit": 8},
             show_only=["templates/workers/worker-deployment.yaml"],
         )
 
         assert jmespath.search("spec.revisionHistoryLimit", docs[0]) == 8
 
     @pytest.mark.parametrize(
-        ("limit", "global_limit"),
-        [(8, 10), (10, 8)],
+        ("values", "expected"),
+        [
+            ({"revisionHistoryLimit": 8}, 8),
+            ({"celery": {"revisionHistoryLimit": 8}}, 8),
+        ],
     )
-    def test_revision_history_limit_overwrite(self, limit, global_limit):
+    def test_revision_history_limit(self, values, expected):
+        docs = render_chart(
+            values={"workers": values},
+            show_only=["templates/workers/worker-deployment.yaml"],
+        )
+
+        assert jmespath.search("spec.revisionHistoryLimit", docs[0]) == expected
+
+    @pytest.mark.parametrize(
+        ("worker_values", "global_limit", "expected"),
+        [
+            ({"revisionHistoryLimit": 8}, 10, 8),
+            ({"celery": {"revisionHistoryLimit": 8}}, 10, 8),
+            ({"revisionHistoryLimit": 8, "celery": {"revisionHistoryLimit": 6}}, 10, 6),
+            ({"revisionHistoryLimit": None, "celery": {"revisionHistoryLimit": 6}}, 10, 6),
+            ({"revisionHistoryLimit": 8, "celery": {"revisionHistoryLimit": None}}, 10, 8),
+            ({"revisionHistoryLimit": None, "celery": {"revisionHistoryLimit": None}}, 10, 10),
+        ],
+    )
+    def test_revision_history_limit_overwrite(self, worker_values, global_limit, expected):
         docs = render_chart(
             values={
                 "revisionHistoryLimit": global_limit,
-                "workers": {"revisionHistoryLimit": limit},
+                "workers": worker_values,
             },
             show_only=["templates/workers/worker-deployment.yaml"],
         )
 
-        assert jmespath.search("spec.revisionHistoryLimit", docs[0]) == limit
+        assert jmespath.search("spec.revisionHistoryLimit", docs[0]) == expected
 
     def test_should_add_extra_containers(self):
         docs = render_chart(
