@@ -27,6 +27,21 @@
 Changelog
 ---------
 
+2.0.1
+.....
+
+Misc
+~~~~
+
+* ``Bump the edge-ui-package-updates group across 1 directory with 19 updates (#59719)``
+* ``Add typescript eslint plugin to edge3 (#59606)``
+* ``Make Edge provider SQLA2 compatible (#59414)``
+* ``Pnpm upgrade to 10.x and prevent script execution (#59466)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Remove top-level SDK reference in Core (#59817)``
+
 2.0.0
 .....
 

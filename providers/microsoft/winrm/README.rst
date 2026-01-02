@@ -23,7 +23,7 @@
 
 Package ``apache-airflow-providers-microsoft-winrm``
 
-Release: ``3.13.1``
+Release: ``3.13.2``
 
 
 `Windows Remote Management (WinRM) <https://docs.microsoft.com/windows/win32/winrm/portal>`__
@@ -36,7 +36,7 @@ This is a provider package for ``microsoft.winrm`` provider. All classes for thi
 are in ``airflow.providers.microsoft.winrm`` python package.
 
 You can find package information and changelog for the provider
-in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-microsoft-winrm/3.13.1/>`_.
+in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-microsoft-winrm/3.13.2/>`_.
 
 Installation
 ------------
@@ -78,4 +78,4 @@ Dependent package                                                               
 ==================================================================================================================  =================
 
 The changelog for the provider package can be found in the
-`changelog <https://airflow.apache.org/docs/apache-airflow-providers-microsoft-winrm/3.13.1/changelog.html>`_.
+`changelog <https://airflow.apache.org/docs/apache-airflow-providers-microsoft-winrm/3.13.2/changelog.html>`_.

@@ -59,6 +59,7 @@ from airflow.utils.state import DagRunState
 from airflow.utils.types import DagRunType
 
 from tests_common.test_utils.dag import sync_dag_to_db
+from tests_common.test_utils.taskinstance import create_task_instance, render_template_fields
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V_3_1_PLUS
 from unit.amazon.aws.utils.test_template_fields import validate_template_fields
 
@@ -672,22 +673,19 @@ class TestS3DeleteObjectsOperator:
                 run_id="test",
                 run_type=DagRunType.MANUAL,
                 state=DagRunState.RUNNING,
+                run_after=utcnow(),
             )
         if AIRFLOW_V_3_0_PLUS:
             from airflow.models.dag_version import DagVersion
 
             sync_dag_to_db(dag)
             dag_version = DagVersion.get_latest_version(dag.dag_id)
-            ti = TaskInstance(task=op, dag_version_id=dag_version.id)
+            ti = create_task_instance(task=op, dag_version_id=dag_version.id)
         else:
             ti = TaskInstance(task=op)
         ti.dag_run = dag_run
-        session.add(ti)
-        session.commit()
-        context = ti.get_template_context(session)
-
-        ti.render_templates(context)
-        op.execute(None)
+        rendered = render_template_fields(ti, op)
+        rendered.execute(None)
         assert "Contents" not in conn.list_objects(Bucket=bucket)
 
     def test_s3_delete_from_to_datetime(self):

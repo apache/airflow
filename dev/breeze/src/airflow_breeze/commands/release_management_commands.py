@@ -255,11 +255,11 @@ class VersionedFile(NamedTuple):
 
 
 AIRFLOW_PIP_VERSION = "25.3"
-AIRFLOW_UV_VERSION = "0.9.18"
+AIRFLOW_UV_VERSION = "0.9.21"
 AIRFLOW_USE_UV = False
-GITPYTHON_VERSION = "3.1.45"
+GITPYTHON_VERSION = "3.1.46"
 RICH_VERSION = "14.2.0"
-PREK_VERSION = "0.2.23"
+PREK_VERSION = "0.2.25"
 HATCH_VERSION = "1.16.2"
 PYYAML_VERSION = "6.0.3"
 
@@ -3335,7 +3335,7 @@ SOURCE_API_YAML_PATH = (
     AIRFLOW_ROOT_PATH / "airflow-core/src/airflow/api_fastapi/core_api/openapi/v2-rest-api-generated.yaml"
 )
 TARGET_API_YAML_PATH = PYTHON_CLIENT_DIR_PATH / "v2.yaml"
-OPENAPI_GENERATOR_CLI_VER = "7.13.0"
+OPENAPI_GENERATOR_CLI_VER = "7.18.0"
 
 GENERATED_CLIENT_DIRECTORIES_TO_COPY: list[Path] = [
     Path("airflow_client") / "client",

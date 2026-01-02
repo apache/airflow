@@ -721,9 +721,6 @@ ARG_ENV_VARS = Arg(
 
 # connections
 ARG_CONN_ID = Arg(("conn_id",), help="Connection id, required to get/add/delete/test a connection", type=str)
-ARG_CONN_ID_FILTER = Arg(
-    ("--conn-id",), help="If passed, only items with the specified connection ID will be displayed", type=str
-)
 ARG_CONN_URI = Arg(
     ("--conn-uri",), help="Connection URI, required to add a connection without conn_type", type=str
 )
@@ -805,6 +802,20 @@ ARG_SECTION = Arg(
 ARG_OPTION = Arg(
     ("option",),
     help="The option name",
+)
+ARG_HIDE_SENSITIVE = Arg(
+    ("--hide-sensitive",),
+    action="store_true",
+    help="When used with --show-values, hide sensitive values (passwords, keys, tokens, etc.) and only show non-sensitive configuration values.",
+)
+ARG_CONFIG_SHOW_VALUES = Arg(
+    ("--show-values",),
+    action="store_true",
+    help=(
+        "Show configuration values. "
+        "By default only option names are shown and values (including potentially "
+        "sensitive ones) are hidden."
+    ),
 )
 
 # lint
@@ -907,6 +918,11 @@ ARG_CAPACITY = Arg(
     ("--capacity",),
     type=positive_int(allow_zero=False),
     help="The maximum number of triggers that a Triggerer will run at one time.",
+)
+ARG_QUEUES = Arg(
+    ("--queues",),
+    type=string_list_type,
+    help="Optional comma-separated list of task queues which the triggerer should consume from.",
 )
 
 ARG_DAG_LIST_COLUMNS = Arg(
@@ -1543,7 +1559,7 @@ CONNECTIONS_COMMANDS = (
         name="list",
         help="List connections",
         func=lazy_load_command("airflow.cli.commands.connection_command.connections_list"),
-        args=(ARG_OUTPUT, ARG_VERBOSE, ARG_CONN_ID_FILTER),
+        args=(ARG_OUTPUT, ARG_VERBOSE),
     ),
     ActionCommand(
         name="add",
@@ -1734,6 +1750,8 @@ CONFIG_COMMANDS = (
             ARG_EXCLUDE_PROVIDERS,
             ARG_DEFAULTS,
             ARG_VERBOSE,
+            ARG_HIDE_SENSITIVE,
+            ARG_CONFIG_SHOW_VALUES,
         ),
     ),
     ActionCommand(
@@ -1965,6 +1983,7 @@ core_commands: list[CLICommand] = [
             ARG_VERBOSE,
             ARG_SKIP_SERVE_LOGS,
             ARG_DEV,
+            ARG_QUEUES,
         ),
     ),
     ActionCommand(

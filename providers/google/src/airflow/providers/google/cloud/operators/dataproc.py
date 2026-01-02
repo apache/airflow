@@ -35,9 +35,8 @@ from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
 from google.api_core.retry import Retry, exponential_sleep_generator
 from google.cloud.dataproc_v1 import Batch, Cluster, ClusterStatus, JobStatus
 
-from airflow.configuration import conf
 from airflow.exceptions import AirflowProviderDeprecationWarning
-from airflow.providers.common.compat.sdk import AirflowException, AirflowSkipException
+from airflow.providers.common.compat.sdk import AirflowException, conf, AirflowSkipException
 from airflow.providers.google.cloud.hooks.dataproc import (
     DataprocHook,
     DataProcJobBuilder,
@@ -1016,7 +1015,8 @@ class DataprocDeleteClusterOperator(GoogleCloudBaseOperator):
                     method_name="execute_complete",
                 )
         except NotFound:
-            raise AirflowSkipException("Cluster Already Deleted")
+             self.log.info(f"Cluster {self.cluster_name} not found in region {self.region}. Skipping deletion.")
+             raise AirflowSkipException(f"Cluster {self.cluster_name} in region {self.region} was not found - it may have already been deleted")
         except Exception as e:
             raise AirflowException(str(e))
 
