@@ -120,6 +120,8 @@ from airflow.sdk.execution_time.sentry import Sentry
 from airflow.sdk.execution_time.xcom import XCom
 from airflow.sdk.observability.stats import Stats
 from airflow.sdk.timezone import coerce_datetime
+from airflow.triggers.base import BaseEventTrigger
+from airflow.triggers.callback import CallbackTrigger
 
 if TYPE_CHECKING:
     import jinja2
@@ -1004,6 +1006,13 @@ def _defer_task(
 
     log.info("Pausing task as DEFERRED. ", dag_id=ti.dag_id, task_id=ti.task_id, run_id=ti.run_id)
     classpath, trigger_kwargs = defer.trigger.serialize()
+    queue: str | None = None
+    # Currently, only task-associated BaseTrigger instances may have a non-None queue,
+    # and only when triggerer.queues_enabled is True.
+    if not isinstance(defer.trigger, (BaseEventTrigger, CallbackTrigger)) and conf.getboolean(
+        "triggerer", "queues_enabled", fallback=False
+    ):
+        queue = ti.task.queue
 
     from airflow.sdk.serde import serialize as serde_serialize
 
@@ -1018,6 +1027,7 @@ def _defer_task(
         classpath=classpath,
         trigger_kwargs=trigger_kwargs,
         trigger_timeout=defer.timeout,
+        queue=queue,
         next_method=defer.method_name,
         next_kwargs=next_kwargs,
     )

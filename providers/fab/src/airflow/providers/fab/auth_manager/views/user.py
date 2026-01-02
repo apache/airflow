@@ -26,6 +26,7 @@ from flask_appbuilder.security.views import (
     UserOAuthModelView,
     UserRemoteUserModelView,
 )
+from wtforms.validators import DataRequired
 
 from airflow.providers.fab.www.security import permissions
 
@@ -185,6 +186,17 @@ class CustomUserDBModelView(MultiResourceUserMixin, UserDBModelView):
         "password",
         "conf_password",
     ]
+
+    edit_columns = [
+        "first_name",
+        "last_name",
+        "username",
+        "active",
+        "email",
+        "roles",
+    ]
+
+    validators_columns = {"roles": [DataRequired()]}
 
     base_permissions = [
         permissions.ACTION_CAN_CREATE,

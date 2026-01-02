@@ -21,6 +21,7 @@ import datetime
 
 import pytest
 import time_machine
+from sqlalchemy import delete
 
 from airflow.models.dagrun import DagRun
 from airflow.models.taskinstance import TaskInstance as TI
@@ -70,9 +71,9 @@ class TestBranchDayOfWeekOperator:
     @classmethod
     def setup_class(cls):
         with create_session() as session:
-            session.query(DagRun).delete()
-            session.query(TI).delete()
-            session.query(XCom).delete()
+            session.execute(delete(DagRun))
+            session.execute(delete(TI))
+            session.execute(delete(XCom))
 
     def _assert_task_ids_match_states(self, dr, task_ids_to_states):
         """Helper that asserts task instances with a given id are in a given state"""
