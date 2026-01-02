@@ -15,6 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+
 import sys
 import typing
 from collections import namedtuple
@@ -74,6 +75,15 @@ pytestmark = pytest.mark.db_test
 DEFAULT_DATE = timezone.datetime(2016, 1, 1)
 PY38 = sys.version_info >= (3, 8)
 PY311 = sys.version_info >= (3, 11)
+
+
+@pytest.fixture(autouse=True)
+def clear_current_task_session():
+    try:
+        import airflow.utils.task_instance_session
+    except ModuleNotFoundError:
+        return
+    airflow.utils.task_instance_session.__current_task_instance_session = None
 
 
 class TestAirflowTaskDecorator(BasePythonTest):
