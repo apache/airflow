@@ -76,6 +76,14 @@ if not os.environ.get("AIRFLOW_PACKAGE_NAME", None):
         log.warning("Failed to load CLI commands from providers: %s", e)
         # do not re-raise for the same reason as above
 
+    WARNING_TEMPLATE = """
+Please define the 'cli' section in the 'get_provider_info' for custom {component} to avoid this warning.
+For community providers, please update to the version that support 'cli' section.
+For more details, see https://airflow.apache.org/docs/apache-airflow-providers/core-extensions/cli-commands.html
+
+Providers with {component} missing 'cli' section in 'get_provider_info': {not_defined_cli_dict}
+    """
+
     # compat loading for older providers that define get_cli_commands methods on Executors
     try:
         # if there is any executor_provider not in cli_provider, we have to do compat loading
@@ -87,17 +95,9 @@ if not os.environ.get("AIRFLOW_PACKAGE_NAME", None):
         }
         if executors_not_defined_cli:
             log.warning(
-                "Please define the 'cli' section in the 'get_provider_info' for custom executors to avoid this warning."
-            )
-            log.warning(
-                "For community providers, please update to the version that support '.cli.definition.get_cli_commands' function."
-            )
-            log.warning(
-                "For more details, see https://airflow.apache.org/docs/apache-airflow-providers/core-extensions/cli-commands.html"
-            )
-            log.warning(
-                "Providers with executors missing 'cli' section in 'get_provider_info': %s",
-                str(executors_not_defined_cli),
+                WARNING_TEMPLATE.format(
+                    component="executors", not_defined_cli_dict=str(executors_not_defined_cli)
+                )
             )
             from airflow.executors.executor_loader import ExecutorLoader
 
@@ -140,17 +140,9 @@ if not os.environ.get("AIRFLOW_PACKAGE_NAME", None):
         }
         if auth_managers_not_defined_cli:
             log.warning(
-                "Please define the 'cli' section in the provider.yaml for custom auth managers to avoid this warning."
-            )
-            log.warning(
-                "For community providers, please update to the version that support '.cli.definition.get_cli_commands' function."
-            )
-            log.warning(
-                "For more details, see https://airflow.apache.org/docs/apache-airflow/stable/providers_manager.html#cli-commands-in-providers"
-            )
-            log.warning(
-                "Providers with auth managers missing 'cli' section in provider.yaml: %s",
-                str(auth_managers_not_defined_cli),
+                WARNING_TEMPLATE.format(
+                    component="auth manager", not_defined_cli_dict=str(auth_managers_not_defined_cli)
+                )
             )
 
             from airflow.configuration import conf

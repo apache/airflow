@@ -20,12 +20,14 @@ from __future__ import annotations
 
 import argparse
 import contextlib
+import logging
 import os
 import re
 import subprocess
 import sys
 import timeit
 from collections import Counter
+from collections.abc import Callable
 from importlib import reload
 from io import StringIO
 from pathlib import Path
@@ -157,18 +159,11 @@ class TestCli:
         ]
 
     @patch(
-        "airflow.providers_manager.ProvidersManager.cli_command_function_names",
+        "airflow.providers_manager.ProvidersManager.cli_command_functions",
         new_callable=mock.PropertyMock,
     )
-    @patch("airflow._shared.module_loading.import_string")
-    def test_dynamic_conflict_detection(
-        self, mock_import_string: MagicMock, mock_cli_command_function_names: MagicMock
-    ):
-        mock_cli_command_function_names.return_value = [
-            "unit.cli.test_cli_parser.TestCli.mock_duplicate_command"
-        ]
-        # Mock import_string to return our duplicate command function
-        mock_import_string.return_value = self.mock_duplicate_command
+    def test_dynamic_conflict_detection(self, mock_cli_command_functions: MagicMock):
+        mock_cli_command_functions.return_value = [self.mock_duplicate_command]
 
         test_command = ActionCommand(
             name="test_command",
@@ -208,77 +203,244 @@ class TestCli:
             # Restore removed modules
             sys.modules.update(removed_modules)
 
-    @patch("airflow.providers.cncf.kubernetes.cli.definition.get_kubernetes_cli_commands")
-    @patch("airflow.providers.celery.cli.definition.get_celery_cli_commands")
-    def test_hybrid_executor_get_cli_commands(
-        self, kubernetes_executor_cli_commands_mock, celery_executor_cli_commands_mock
-    ):
+    def test_hybrid_executor_get_cli_commands(self):
         """Test that if multiple executors are configured, then every executor loads its commands."""
-        kubernetes_executor_command = ActionCommand(
-            name="kubernetes_command",
-            help="test command for kubernetes executor",
-            func=lambda: None,
-            args=[],
-        )
-        kubernetes_executor_cli_commands_mock.return_value = [kubernetes_executor_command]
 
-        celery_executor_command = ActionCommand(
-            name="celery_command",
-            help="test command for celery executor",
-            func=lambda: None,
-            args=[],
-        )
-        celery_executor_cli_commands_mock.return_value = [celery_executor_command]
+        expected_commands = ["celery", "kubernetes", "edge"]
         reload(cli_parser)
         commands = [command.name for command in cli_parser.airflow_commands]
-        assert celery_executor_command.name in commands
-        assert kubernetes_executor_command.name in commands
+        for executor_command in expected_commands:
+            assert executor_command in commands
 
+    @pytest.mark.parametrize(
+        (
+            "cli_command_functions",
+            "cli_command_providers",
+            "executor_without_check",
+            "expected_loaded_executors",
+        ),
+        [
+            pytest.param(
+                [],
+                set(),
+                {
+                    ("path.to.KubernetesExecutor", "apache-airflow-providers-cncf-kubernetes"),
+                },
+                ["path.to.KubernetesExecutor"],
+                id="empty cli section should load all the executors by ExecutorLoader",
+            ),
+            pytest.param(
+                [lambda: [ActionCommand(name="celery", help="", func=lambda: None, args=[])]],
+                {"apache-airflow-providers-celery"},
+                {
+                    ("path.to.CeleryExecutor", "apache-airflow-providers-celery"),
+                    ("path.to.KubernetesExecutor", "apache-airflow-providers-cncf-kubernetes"),
+                },
+                ["path.to.KubernetesExecutor"],
+                id="only partial executor define cli section in provider info, should load the rest by ExecutorLoader",
+            ),
+            pytest.param(
+                [
+                    lambda: [ActionCommand(name="celery", help="", func=lambda: None, args=[])],
+                    lambda: [ActionCommand(name="kubernetes", help="", func=lambda: None, args=[])],
+                ],
+                {"apache-airflow-providers-celery", "apache-airflow-providers-cncf-kubernetes"},
+                {
+                    ("path.to.CeleryExecutor", "apache-airflow-providers-celery"),
+                    ("path.to.KubernetesExecutor", "apache-airflow-providers-cncf-kubernetes"),
+                },
+                [],
+                id="all executors define cli section in provider info, should not load any by ExecutorLoader",
+            ),
+        ],
+    )
+    @patch("airflow.executors.executor_loader.ExecutorLoader.import_executor_cls")
     @patch(
-        "airflow.providers_manager.ProvidersManager.cli_command_function_names",
+        "airflow.executors.executor_loader.ExecutorLoader.get_executor_names",
+    )
+    @patch(
+        "airflow.providers_manager.ProvidersManager.executor_without_check",
         new_callable=mock.PropertyMock,
     )
-    @patch("airflow._shared.module_loading.import_string")
-    def test_hybrid_executor_get_cli_commands_with_error(
-        self, mock_import_string, mock_cli_command_function_names, caplog
+    @patch(
+        "airflow.providers_manager.ProvidersManager.cli_command_providers",
+        new_callable=mock.PropertyMock,
+    )
+    @patch(
+        "airflow.providers_manager.ProvidersManager.cli_command_functions",
+        new_callable=mock.PropertyMock,
+    )
+    def test_compat_cli_loading_for_executors_commands(
+        self,
+        mock_cli_command_functions: MagicMock,
+        mock_cli_command_providers: MagicMock,
+        mock_executor_without_check: MagicMock,
+        mock_get_executor_names: MagicMock,
+        mock_import_executor_cls: MagicMock,
+        cli_command_functions: list[Callable[[], list[ActionCommand | cli_parser.GroupCommand]]],
+        cli_command_providers: set[str],
+        executor_without_check: set[tuple[str, str]],
+        expected_loaded_executors: list[str],
+        caplog,
     ):
-        """
-        Test that if a provider function raises an exception during CLI command loading,
-        the CLI should log the error and continue loading other commands.
-        """
-        caplog.set_level("ERROR")
-
-        celery_executor_command = ActionCommand(
-            name="celery_command",
-            help="test command for celery executor",
-            func=lambda: None,
-            args=[],
-        )
-
-        def mock_celery_get_cli_commands():
-            return [celery_executor_command]
-
-        # Mock import_string to return the celery function but raise for ecs
-        def side_effect(function_name):
-            if "kubernetes" in function_name:
-                raise Exception("Failed to import Kubernetes CLI commands")
-            return mock_celery_get_cli_commands
-
-        mock_import_string.side_effect = side_effect
-        mock_cli_command_function_names.return_value = [
-            "airflow.providers.celery.cli.definition.get_celery_cli_commands",
-            "airflow.providers.cncf.kubernetes.cli.definition.get_kubernetes_cli_commands",
+        # Create mock ExecutorName objects
+        mock_executor_names = [
+            MagicMock(name=executor_name.split(".")[-1], module_path=executor_name)
+            for executor_name, _ in executor_without_check
         ]
 
-        reload(cli_parser)
-        commands = [command.name for command in cli_parser.airflow_commands]
-        assert celery_executor_command.name in commands
-        assert "kubernetes_command" not in commands
-        assert any(
-            "Failed to load CLI commands from provider function" in msg
-            and "airflow.providers.cncf.kubernetes.cli.definition.get_kubernetes_cli_commands" in msg
-            for msg in caplog.messages
-        )
+        # Create mock executor classes that return empty command lists
+        mock_executor_instance = MagicMock()
+        mock_executor_instance.get_cli_commands.return_value = []
+        mock_import_executor_cls.return_value = (mock_executor_instance, None)
+
+        # mock
+        mock_cli_command_functions.return_value = cli_command_functions
+        mock_cli_command_providers.return_value = cli_command_providers
+        mock_executor_without_check.return_value = executor_without_check
+        mock_get_executor_names.return_value = mock_executor_names
+
+        # act
+        with caplog.at_level(logging.WARNING, logger="airflow.cli.cli_parser"):
+            reload(cli_parser)
+
+        # assert
+        expected_warning = "Please define the 'cli' section in the 'get_provider_info' for custom executors to avoid this warning."
+        if expected_loaded_executors:
+            assert expected_warning in caplog.text
+            for executor_path in expected_loaded_executors:
+                assert executor_path in caplog.text
+        else:
+            assert expected_warning not in caplog.text
+
+        # Verify import_executor_cls was called with correct ExecutorName objects
+        if expected_loaded_executors:
+            expected_calls = [
+                mock.call(executor_name)
+                for executor_name in mock_executor_names
+                if executor_name.module_path in expected_loaded_executors
+            ]
+            mock_import_executor_cls.assert_has_calls(expected_calls, any_order=True)
+        else:
+            mock_import_executor_cls.assert_not_called()
+
+    @pytest.mark.parametrize(
+        (
+            "cli_command_functions",
+            "cli_command_providers",
+            "auth_manager_without_check",
+            "auth_manager_cls_path",
+            "expected_loaded",
+        ),
+        [
+            pytest.param(
+                [],
+                set(),
+                {
+                    (
+                        "airflow.providers.fab.auth_manager.fab_auth_manager.FabAuthManager",
+                        "apache-airflow-providers-fab",
+                    ),
+                },
+                "airflow.providers.fab.auth_manager.fab_auth_manager.FabAuthManager",
+                True,
+                id="empty cli section should load auth manager",
+            ),
+            pytest.param(
+                [lambda: [ActionCommand(name="fab", help="", func=lambda: None, args=[])]],
+                {"apache-airflow-providers-fab"},
+                {
+                    (
+                        "airflow.providers.fab.auth_manager.fab_auth_manager.FabAuthManager",
+                        "apache-airflow-providers-fab",
+                    ),
+                },
+                "airflow.providers.fab.auth_manager.fab_auth_manager.FabAuthManager",
+                False,
+                id="auth manager with cli section should not load by import_string",
+            ),
+            pytest.param(
+                [],
+                set(),
+                {
+                    (
+                        "airflow.providers.amazon.aws.auth_manager.aws_auth_manager.AwsAuthManager",
+                        "apache-airflow-providers-amazon",
+                    ),
+                    (
+                        "airflow.providers.fab.auth_manager.fab_auth_manager.FabAuthManager",
+                        "apache-airflow-providers-fab",
+                    ),
+                },
+                "airflow.providers.amazon.aws.auth_manager.aws_auth_manager.AwsAuthManager",
+                True,
+                id="only configured auth manager should be loaded",
+            ),
+        ],
+    )
+    @patch(
+        "airflow.providers_manager.ProvidersManager.cli_command_functions",
+        new_callable=mock.PropertyMock,
+    )
+    @patch(
+        "airflow.providers_manager.ProvidersManager.cli_command_providers",
+        new_callable=mock.PropertyMock,
+    )
+    @patch(
+        "airflow.providers_manager.ProvidersManager.auth_manager_without_check",
+        new_callable=mock.PropertyMock,
+    )
+    @patch("airflow.configuration.conf.get")
+    @patch("airflow._shared.module_loading.import_string")
+    def test_compat_cli_loading_for_auth_manager_commands(
+        self,
+        mock_import_string: MagicMock,
+        mock_conf_get: MagicMock,
+        mock_auth_manager_without_check: MagicMock,
+        mock_cli_command_providers: MagicMock,
+        mock_cli_command_functions: MagicMock,
+        cli_command_functions: list[Callable[[], list[ActionCommand | cli_parser.GroupCommand]]],
+        cli_command_providers: set[str],
+        auth_manager_without_check: set[tuple[str, str]],
+        auth_manager_cls_path: str,
+        expected_loaded: bool,
+        caplog,
+    ):
+        # Create mock auth manager instance that returns empty command lists
+        mock_auth_manager_instance = MagicMock()
+        mock_auth_manager_instance.get_cli_commands.return_value = []
+        mock_auth_manager_cls = MagicMock(return_value=mock_auth_manager_instance)
+        mock_import_string.return_value = mock_auth_manager_cls
+
+        # Mock configuration
+        mock_conf_get.return_value = auth_manager_cls_path
+
+        # mock providers manager
+        mock_cli_command_functions.return_value = cli_command_functions
+        mock_cli_command_providers.return_value = cli_command_providers
+        mock_auth_manager_without_check.return_value = auth_manager_without_check
+
+        # act
+        with caplog.at_level(logging.WARNING, logger="airflow.cli.cli_parser"):
+            reload(cli_parser)
+
+        # assert
+        expected_warning = "Please define the 'cli' section in the provider.yaml for custom auth managers to avoid this warning."
+        if expected_loaded:
+            assert expected_warning in caplog.text
+            assert auth_manager_cls_path in caplog.text
+            mock_import_string.assert_called_once_with(auth_manager_cls_path)
+            mock_auth_manager_cls.assert_called_once()
+            mock_auth_manager_instance.get_cli_commands.assert_called_once()
+        else:
+            if auth_manager_cls_path in [path for path, _ in auth_manager_without_check]:
+                # Auth manager is in the without_check but also in cli_providers, so warning should appear
+                # but import_string should NOT be called
+                assert expected_warning not in caplog.text
+                mock_import_string.assert_not_called()
+            else:
+                # Auth manager is not in the without_check, no warning
+                mock_import_string.assert_not_called()
 
     def test_falsy_default_value(self):
         arg = cli_config.Arg(("--test",), default=0, type=int)
