@@ -78,6 +78,18 @@ def connections_get(args):
     )
 
 
+def _connection_list_mapper(conn: Connection) -> dict[str, Any]:
+    return {
+        "id": conn.id,
+        "conn_id": conn.conn_id,
+        "conn_type": conn.conn_type,
+        "description": conn.description,
+        "host": conn.host,
+        "schema": conn.schema,
+        "port": conn.port,
+    }
+
+
 @suppress_logs_and_warning
 @providers_configuration_loaded
 def connections_list(args):
@@ -89,7 +101,7 @@ def connections_list(args):
         AirflowConsole().print_as(
             data=conns,
             output=args.output,
-            mapper=_connection_mapper,
+            mapper=_connection_list_mapper,
         )
 
 

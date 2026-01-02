@@ -1,0 +1,1 @@
+Prevent airflow connections list from exposing sensitive connection values by default.

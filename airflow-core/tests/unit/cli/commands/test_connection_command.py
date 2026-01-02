@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import argparse
 import json
 import os
 import re
@@ -28,6 +29,7 @@ import pytest
 
 from airflow.cli import cli_config, cli_parser
 from airflow.cli.commands import connection_command
+from airflow.cli.commands.connection_command import connections_list
 from airflow.exceptions import AirflowException
 from airflow.models import Connection
 from airflow.utils.db import merge_conn
@@ -1023,3 +1025,38 @@ class TestCliCreateDefaultConnection:
         )["create-default-connections"]
         create_default_connection_fnc(())
         mock_db_create_default_connections.assert_called_once()
+
+
+def test_connections_list_hides_sensitive_values(session, capsys):
+    conn = Connection(
+        conn_id="test_conn",
+        conn_type="generic",
+        login="user",
+        password="password",
+        host="localhost",
+        port=5432,
+        schema="db",
+    )
+    session.add(conn)
+    session.commit()
+
+    args = argparse.Namespace(
+        output="table",
+        verbose=False,
+        log_level="INFO",
+        subcommand="connections list",
+        cfg_path=None,
+    )
+
+    connections_list(args)
+
+    captured = capsys.readouterr()
+    stdout = captured.out
+
+    # Non-sensitive identifier should be present
+    assert "test_conn" in stdout
+
+    # Sensitive values must not be present
+    assert "user" not in stdout
+    assert "password" not in stdout
+    assert "generic://user:password" not in stdout
