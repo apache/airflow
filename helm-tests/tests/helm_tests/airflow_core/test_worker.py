@@ -810,24 +810,39 @@ class TestWorker:
         ] == jmespath.search("spec.template.spec.containers[0].args", docs[0])
 
     @pytest.mark.parametrize(
-        ("command", "expected"),
+        ("workers_values", "expected"),
         [
-            (["custom", "command"], ["custom", "command"]),
-            (["custom", "{{ .Release.Name }}"], ["custom", "release-name"]),
+            ({"command": ["custom", "command"]}, ["custom", "command"]),
+            ({"command": ["custom", "{{ .Release.Name }}"]}, ["custom", "release-name"]),
+            ({"celery": {"command": ["custom", "command"]}}, ["custom", "command"]),
+            ({"celery": {"command": ["custom", "{{ .Release.Name }}"]}}, ["custom", "release-name"]),
+            ({"command": ["test"], "celery": {"command": ["custom", "command"]}}, ["custom", "command"]),
+            (
+                {"command": ["test"], "celery": {"command": ["custom", "{{ .Release.Name }}"]}},
+                ["custom", "release-name"],
+            ),
         ],
     )
-    def test_should_add_command(self, command):
+    def test_should_add_command(self, workers_values, expected):
         docs = render_chart(
-            values={"workers": {"command": command}},
+            values={"workers": workers_values},
             show_only=["templates/workers/worker-deployment.yaml"],
         )
 
-        assert command == jmespath.search("spec.template.spec.containers[0].command", docs[0])
+        assert expected == jmespath.search("spec.template.spec.containers[0].command", docs[0])
 
-    @pytest.mark.parametrize("command", [None, []])
-    def test_should_not_add_command(self, command):
+    @pytest.mark.parametrize(
+        "workers_values",
+        [
+            {"command": None},
+            {"command": []},
+            {"celery": {"command": None}},
+            {"celery": {"command": []}},
+        ],
+    )
+    def test_should_not_add_command(self, workers_values):
         docs = render_chart(
-            values={"workers": {"command": command}},
+            values={"workers": workers_values},
             show_only=["templates/workers/worker-deployment.yaml"],
         )
 
