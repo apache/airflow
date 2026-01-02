@@ -221,12 +221,12 @@ export class BackfillPage extends BasePage {
   public async getBackfillStatus(): Promise<string> {
     const statusIcon = this.page.getByTestId("state-badge").first();
 
-    await expect(statusIcon).toBeVisible();
+    await expect(statusIcon).toBeVisible({ timeout: 20_000 });
     await statusIcon.click({ timeout: 20_000 });
 
     const statusBadge = this.page.getByTestId("state-badge").first();
 
-    await expect(statusBadge).toBeVisible();
+    await expect(statusBadge).toBeVisible({ timeout: 20_000 });
 
     const statusText = (await statusBadge.textContent()) ?? "";
 
