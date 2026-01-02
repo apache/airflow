@@ -98,8 +98,9 @@ def jwt_generator() -> JWTGenerator:
 async def _make_generic_request(method: str, rest_path: str, data: str | None = None) -> Any:
     authorization = jwt_generator().generate({"method": rest_path})
     api_url = conf.get("edge", "api_url")
+    content_type = {"Content-Type": "application/json"} if data else {}
     headers = {
-        "Content-Type": "application/json",
+        **content_type,
         "Accept": "application/json",
         "Authorization": authorization,
     }
