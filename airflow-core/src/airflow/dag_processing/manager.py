@@ -225,6 +225,10 @@ class DagFileProcessorManager(LoggingMixin):
     _force_refresh_bundles: set[str] = attrs.field(factory=set, init=False)
     """List of bundles that need to be force refreshed in the next loop"""
 
+    _file_parsing_sort_mode: str = attrs.field(
+        factory=_config_get_factory("dag_processor", "file_parsing_sort_mode")
+    )
+
     _api_server: InProcessExecutionAPI = attrs.field(init=False, factory=InProcessExecutionAPI)
     """API server to interact with Metadata DB"""
 
@@ -523,12 +527,14 @@ class DagFileProcessorManager(LoggingMixin):
 
         self._bundles_last_refreshed = now_seconds
 
+        any_refreshed = False
         for bundle in self._dag_bundles:
             # TODO: AIP-66 handle errors in the case of incomplete cloning? And test this.
             #  What if the cloning/refreshing took too long(longer than the dag processor timeout)
             if not bundle.is_initialized:
                 try:
                     bundle.initialize()
+                    any_refreshed = True
                 except AirflowException as e:
                     self.log.exception("Error initializing bundle %s: %s", bundle.name, e)
                     continue
@@ -563,6 +569,7 @@ class DagFileProcessorManager(LoggingMixin):
 
                 try:
                     bundle.refresh()
+                    any_refreshed = True
                 except Exception:
                     self.log.exception("Error refreshing bundle %s", bundle.name)
                     continue
@@ -599,13 +606,16 @@ class DagFileProcessorManager(LoggingMixin):
             }
 
             known_files[bundle.name] = found_files
-            self.handle_removed_files(known_files=known_files)
 
             self.deactivate_deleted_dags(bundle_name=bundle.name, present=found_files)
             self.clear_orphaned_import_errors(
                 bundle_name=bundle.name,
                 observed_filelocs={str(x.rel_path) for x in found_files},  # todo: make relative
             )
+
+        if any_refreshed:
+            self.handle_removed_files(known_files=known_files)
+            self._resort_file_queue()
 
     def _find_files_in_bundle(self, bundle: BaseDagBundle) -> list[Path]:
         """Get relative paths for dag files from bundle dir."""
@@ -960,6 +970,11 @@ class DagFileProcessorManager(LoggingMixin):
                     self.log.info("Adding new file %s to parsing queue", file)
                     self._file_queue.appendleft(file)
 
+    def _resort_file_queue(self):
+        if self._file_parsing_sort_mode == "modified_time" and self._file_queue:
+            files, _ = self._sort_by_mtime(self._file_queue)
+            self._file_queue = deque(files)
+
     def _sort_by_mtime(self, files: Iterable[DagFileInfo]):
         files_with_mtime: dict[DagFileInfo, float] = {}
         changed_recently = set()
@@ -1002,7 +1017,6 @@ class DagFileProcessorManager(LoggingMixin):
         now = timezone.utcnow()
 
         # Sort the file paths by the parsing order mode
-        list_mode = conf.get("dag_processor", "file_parsing_sort_mode")
         recently_processed = set()
         files = []
 
@@ -1013,11 +1027,11 @@ class DagFileProcessorManager(LoggingMixin):
                     recently_processed.add(file)
 
         changed_recently: set[DagFileInfo] = set()
-        if list_mode == "modified_time":
+        if self._file_parsing_sort_mode == "modified_time":
             files, changed_recently = self._sort_by_mtime(files=files)
-        elif list_mode == "alphabetical":
+        elif self._file_parsing_sort_mode == "alphabetical":
             files.sort(key=attrgetter("rel_path"))
-        elif list_mode == "random_seeded_by_host":
+        elif self._file_parsing_sort_mode == "random_seeded_by_host":
             # Shuffle the list seeded by hostname so multiple DAG processors can work on different
             # set of files. Since we set the seed, the sort order will remain same per host
             random.Random(get_hostname()).shuffle(files)
