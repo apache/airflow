@@ -41,7 +41,7 @@ from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.singleton import Singleton
 
 if TYPE_CHECKING:
-    from airflow.cli.cli_config import GroupCommand
+    from airflow.cli.cli_config import ActionCommand, GroupCommand
 
 log = logging.getLogger(__name__)
 
@@ -408,7 +408,7 @@ class ProvidersManager(LoggingMixin, metaclass=Singleton):
         self._connection_form_widgets: dict[str, ConnectionFormWidgetInfo] = {}
         # Customizations for javascript fields are kept here
         self._field_behaviours: dict[str, dict] = {}
-        self._cli_command_functions_set: set[Callable[[], GroupCommand]] = set()
+        self._cli_command_functions_set: set[Callable[[], GroupCommand | ActionCommand]] = set()
         self._cli_command_provider_name_set: set[str] = set()
         self._extra_link_class_name_set: set[str] = set()
         self._logging_class_name_set: set[str] = set()
@@ -1107,7 +1107,7 @@ class ProvidersManager(LoggingMixin, metaclass=Singleton):
                     # _correctness_check will return the function if found and correct
                     # we store the function itself instead of its name to avoid importing it again later in cli_parser to speed up cli loading
                     if cli_func := _correctness_check(provider_package, cli_command_function_name, provider):
-                        cli_func = cast("Callable[[], GroupCommand]", cli_func)
+                        cli_func = cast("Callable[[], ActionCommand | GroupCommand]", cli_func)
                         self._cli_command_functions_set.add(cli_func)
                         self._cli_command_provider_name_set.add(provider_package)
 
@@ -1210,7 +1210,7 @@ class ProvidersManager(LoggingMixin, metaclass=Singleton):
         return self._auth_manager_without_check_set
 
     @property
-    def cli_command_functions(self) -> list[Callable[[], GroupCommand]]:
+    def cli_command_functions(self) -> set[Callable[[], ActionCommand | GroupCommand]]:
         """Returns list of CLI command function names from providers."""
         self.initialize_providers_cli_command()
         return self._cli_command_functions_set

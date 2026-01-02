@@ -23,7 +23,7 @@ from unittest.mock import patch
 import pytest
 
 from airflow.cli import cli_parser
-from airflow.providers.keycloak.auth_manager.cli.definition import KEYCLOAK_AUTH_MANAGER_COMMANDS, Password
+from airflow.providers.keycloak.cli.definition import KEYCLOAK_AUTH_MANAGER_COMMANDS, Password
 
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_2_PLUS
