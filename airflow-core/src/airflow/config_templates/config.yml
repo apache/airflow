@@ -1443,9 +1443,9 @@ api:
       default: "{SECRET_KEY}"
     expose_config:
       description: |
-        Expose the configuration file in the web server. Set to ``non-sensitive-only`` to show all values
-        except those that have security implications. ``True`` shows all values. ``False`` hides the
-        configuration completely.
+        Expose the configuration file in the web server. Set to ``True`` to expose configuration with
+        sensitive values always masked. The deprecated value ``non-sensitive-only`` is treated the same as
+        ``True`` for backward compatibility. ``False`` hides the configuration completely.
       version_added: ~
       type: string
       example: ~
