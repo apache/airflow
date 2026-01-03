@@ -22,8 +22,9 @@ function make_mnt_writeable {
     sudo blkid
     echo "Check that we have expected /mnt to be a separate mount"
     if ! lsblk | grep -q /mnt; then
-        echo "/mnt is missing as a separate mount, runner misconfigured!"
-        exit 42
+        echo "!!!! /mnt is missing as a separate mount, runner misconfigured!"
+        echo "Creating /mnt drive hoping that it will be enough space to use in /"
+        sudo mkdir -p /mnt/
     fi
     echo "Checking free space!"
     df -H
