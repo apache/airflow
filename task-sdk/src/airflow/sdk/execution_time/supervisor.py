@@ -29,6 +29,7 @@ import signal
 import sys
 import threading
 import time
+import warnings
 import weakref
 from collections import deque
 from collections.abc import Callable, Generator
@@ -477,6 +478,13 @@ class WatchedSubprocess:
         # Open the socketpair before forking off the child, so that it is open when we fork.
         child_logs, read_logs = socketpair()
 
+        # Prevent on console:
+        # DeprecationWarning: This process (pid=NNN) is multi-threaded, use of fork() may lead to deadlocks in the child.
+        warnings.filterwarnings(
+            "ignore",
+            module="airflow.sdk.execution_time.supervisor",
+            message=".*use of fork() may lead to deadlocks in the child.",
+        )
         pid = os.fork()
         if pid == 0:
             # Close and delete of the parent end of the sockets.
