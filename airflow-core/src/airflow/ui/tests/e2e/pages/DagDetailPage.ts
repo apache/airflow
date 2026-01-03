@@ -24,30 +24,30 @@ import { BasePage } from "tests/e2e/pages/BasePage";
  * Handles interactions with the DAG detail page including grid view
  */
 export class DagDetailPage extends BasePage {
+  public readonly auditLogTab: Locator;
+  public readonly calendarTab: Locator;
+  public readonly codeTab: Locator;
+  public readonly dagId: Locator;
+  // DAG info
+  public readonly dagTitle: Locator;
+  public readonly detailsTab: Locator;
+  public readonly gridCells: Locator;
+
+  public readonly gridContainer: Locator;
+  // Grid view elements
+  public readonly gridView: Locator;
   // View tabs
   public readonly overviewTab: Locator;
   public readonly runsTab: Locator;
-  public readonly tasksTab: Locator;
-  public readonly calendarTab: Locator;
-  public readonly auditLogTab: Locator;
-  public readonly codeTab: Locator;
-  public readonly detailsTab: Locator;
 
-  // Grid view elements
-  public readonly gridView: Locator;
-  public readonly gridContainer: Locator;
-  public readonly taskInstances: Locator;
-  public readonly gridCells: Locator;
-
+  public readonly taskDetailsCloseButton: Locator;
   // Task details panel
   public readonly taskDetailsPanel: Locator;
   public readonly taskIdLabel: Locator;
-  public readonly taskStateLabel: Locator;
-  public readonly taskDetailsCloseButton: Locator;
+  public readonly taskInstances: Locator;
 
-  // DAG info
-  public readonly dagTitle: Locator;
-  public readonly dagId: Locator;
+  public readonly tasksTab: Locator;
+  public readonly taskStateLabel: Locator;
 
   public constructor(page: Page) {
     super(page);
@@ -83,46 +83,44 @@ export class DagDetailPage extends BasePage {
   }
 
   /**
-   * Navigate to DAG detail page
+   * Click on a task instance cell in the grid
    */
-  public async navigateToDagDetail(dagId: string): Promise<void> {
-    await this.navigateTo(`/dags/${dagId}`);
+  public async clickTaskCell(index = 0): Promise<void> {
+    await this.waitForGridView();
+    const cell = this.taskInstances.nth(index);
+
+    await cell.click({ timeout: 5000 });
+    await this.page.waitForTimeout(1000);
   }
 
   /**
-   * Switch to a specific view tab
+   * Close task details panel
    */
-  public async switchToTab(tabName: "overview" | "runs" | "tasks" | "calendar" | "auditLog" | "code" | "details"): Promise<void> {
-    const tabMap = {
-      auditLog: this.auditLogTab,
-      calendar: this.calendarTab,
-      code: this.codeTab,
-      details: this.detailsTab,
-      overview: this.overviewTab,
-      runs: this.runsTab,
-      tasks: this.tasksTab,
-    };
-
-    const tab = tabMap[tabName];
-    await tab.waitFor({ state: "visible", timeout: 10_0000 });
-    await tab.click();
-    await this.waitForPageLoad();
+  public async closeTaskDetails(): Promise<void> {
+    // Navigate back to close the task details view
+    await this.page.goBack();
+    await this.page.waitForTimeout(500);
   }
 
   /**
-   * Wait for grid view to be visible
+   * Get task ID from task details panel
    */
-  public async waitForGridView(): Promise<void> {
-    // Wait for grid container structure to load (even if empty)
-    await this.page.waitForTimeout(2000);
+  public async getTaskIdFromDetails(): Promise<string | null> {
+    const panelVisible = await this.isTaskDetailsPanelVisible();
 
-    // Check if there are any DAG runs (grid cells only exist with runs)
-    const gridCellCount = await this.page.locator('a[id^="grid-"]').count();
-
-    if (gridCellCount > 0) {
-      // If runs exist, wait for first grid cell to be visible
-      await this.page.locator('a[id^="grid-"]').first().waitFor({ state: "visible", timeout: 10_000 });
+    if (!panelVisible) {
+      return null;
     }
+
+    // Extract task ID from URL: /dags/{dagId}/task/{taskId}
+    const url = this.page.url();
+    const taskMatch = /\/task\/([^/?]+)/.exec(url);
+
+    if (taskMatch) {
+      return decodeURIComponent(taskMatch[1]);
+    }
+
+    return null;
   }
 
   /**
@@ -130,6 +128,7 @@ export class DagDetailPage extends BasePage {
    */
   public async getTaskInstanceCount(): Promise<number> {
     await this.waitForGridView();
+
     return await this.taskInstances.count();
   }
 
@@ -146,7 +145,7 @@ export class DagDetailPage extends BasePage {
     // Collect colorPalette attributes from Badge components (max 20)
     for (let i = 0; i < Math.min(count, 20); i++) {
       const badge = badges.nth(i);
-      const colorPalette = await badge.getAttribute("data-color-palette").catch(() => null);
+      const colorPalette = await badge.dataset.colorPalette.catch(() => null);
 
       if (colorPalette) {
         colors.push(colorPalette);
@@ -154,45 +153,6 @@ export class DagDetailPage extends BasePage {
     }
 
     return colors;
-  }
-
-  /**
-   * Click on a task instance cell in the grid
-   */
-  public async clickTaskCell(index = 0): Promise<void> {
-    await this.waitForGridView();
-    const cell = this.taskInstances.nth(index);
-    await cell.click({ timeout: 5000 });
-    await this.page.waitForTimeout(1000);
-  }
-
-  /**
-   * Check if task details panel is visible
-   */
-  public async isTaskDetailsPanelVisible(): Promise<boolean> {
-    // Check if the URL has changed to include task selection
-    const url = this.page.url();
-    return url.includes("/task/") || url.includes("/taskInstance/");
-  }
-
-  /**
-   * Get task ID from task details panel
-   */
-  public async getTaskIdFromDetails(): Promise<string | null> {
-    const panelVisible = await this.isTaskDetailsPanelVisible();
-
-    if (!panelVisible) {
-      return null;
-    }
-
-    // Extract task ID from URL: /dags/{dagId}/task/{taskId}
-    const url = this.page.url();
-    const taskMatch = url.match(/\/task\/([^/?]+)/);
-    if (taskMatch) {
-      return decodeURIComponent(taskMatch[1]);
-    }
-
-    return null;
   }
 
   /**
@@ -210,7 +170,8 @@ export class DagDetailPage extends BasePage {
     const isVisible = await stateBadge.isVisible().catch(() => false);
 
     if (isVisible) {
-      const colorPalette = await stateBadge.getAttribute("data-color-palette").catch(() => null);
+      const colorPalette = await stateBadge.dataset.colorPalette.catch(() => null);
+
       return colorPalette;
     }
 
@@ -218,12 +179,41 @@ export class DagDetailPage extends BasePage {
   }
 
   /**
-   * Close task details panel
+   * Check if task details panel is visible
    */
-  public async closeTaskDetails(): Promise<void> {
-    // Navigate back to close the task details view
-    await this.page.goBack();
-    await this.page.waitForTimeout(500);
+  public async isTaskDetailsPanelVisible(): Promise<boolean> {
+    // Check if the URL has changed to include task selection
+    const url = this.page.url();
+
+    return url.includes("/task/") || url.includes("/taskInstance/");
+  }
+
+  /**
+   * Navigate to DAG detail page
+   */
+  public async navigateToDagDetail(dagId: string): Promise<void> {
+    await this.navigateTo(`/dags/${dagId}`);
+  }
+
+  /**
+   * Switch to a specific view tab
+   */
+  public async switchToTab(tabName: "auditLog" | "calendar" | "code" | "details" | "overview" | "runs" | "tasks"): Promise<void> {
+    const tabMap = {
+      auditLog: this.auditLogTab,
+      calendar: this.calendarTab,
+      code: this.codeTab,
+      details: this.detailsTab,
+      overview: this.overviewTab,
+      runs: this.runsTab,
+      tasks: this.tasksTab,
+    };
+
+    const tab = tabMap[tabName];
+
+    await tab.waitFor({ state: "visible", timeout: 100_000 });
+    await tab.click();
+    await this.waitForPageLoad();
   }
 
   /**
@@ -250,5 +240,21 @@ export class DagDetailPage extends BasePage {
     const uniqueColors = new Set(colors);
 
     return uniqueColors.size > 0;
+  }
+
+  /**
+   * Wait for grid view to be visible
+   */
+  public async waitForGridView(): Promise<void> {
+    // Wait for grid container structure to load (even if empty)
+    await this.page.waitForTimeout(2000);
+
+    // Check if there are any DAG runs (grid cells only exist with runs)
+    const gridCellCount = await this.page.locator('a[id^="grid-"]').count();
+
+    if (gridCellCount > 0) {
+      // If runs exist, wait for first grid cell to be visible
+      await this.page.locator('a[id^="grid-"]').first().waitFor({ state: "visible", timeout: 10_000 });
+    }
   }
 }

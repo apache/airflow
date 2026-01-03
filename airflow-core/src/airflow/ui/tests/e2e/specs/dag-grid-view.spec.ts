@@ -50,6 +50,7 @@ test.describe("DAG Grid View", () => {
 
     // Try to trigger a run if possible
     const triggerButton = page.locator('button:has-text("Trigger DAG")');
+
     if (await triggerButton.isVisible()) {
       await triggerButton.click();
       await page.waitForTimeout(3000); // Wait for run to start
@@ -71,6 +72,7 @@ test.describe("DAG Grid View", () => {
 
     // Step 4: Verify grid renders (may be empty if no runs)
     const taskCount = await dagDetailPage.getTaskInstanceCount();
+
     console.log(`Grid task instance count: ${taskCount}`);
 
     // Grid should be visible even if empty
@@ -91,10 +93,12 @@ test.describe("DAG Grid View", () => {
 
     // Verify task states are color-coded
     const areColorCoded = await dagDetailPage.verifyTaskStatesAreColorCoded();
+
     expect(areColorCoded).toBe(true);
 
     // Get colors and verify we have some
     const colors = await dagDetailPage.getTaskStateColors();
+
     expect(colors.length).toBeGreaterThan(0);
   });
 
@@ -111,6 +115,7 @@ test.describe("DAG Grid View", () => {
 
     // Verify we have task instances to click
     const hasTaskInstances = await dagDetailPage.verifyGridHasTaskInstances();
+
     expect(hasTaskInstances).toBe(true);
 
     // Click on the first task cell
@@ -118,6 +123,7 @@ test.describe("DAG Grid View", () => {
 
     // Verify task details panel is visible
     const isPanelVisible = await dagDetailPage.isTaskDetailsPanelVisible();
+
     expect(isPanelVisible).toBe(true);
 
     // Verify we can get task information from the details panel
@@ -144,7 +150,7 @@ test.describe("DAG Grid View", () => {
     // Panel should be closed (or we can be lenient if close doesn't work in all cases)
     // This is a soft assertion as panel behavior might vary
     if (isPanelStillVisible) {
-      // eslint-disable-next-line no-console
+
       console.warn("Task details panel is still visible after close attempt");
     }
   });
@@ -163,6 +169,7 @@ test.describe("DAG Grid View", () => {
 
     // Verify grid is visible
     let hasTaskInstances = await dagDetailPage.verifyGridHasTaskInstances();
+
     expect(hasTaskInstances).toBe(true);
 
     // Switch to another tab (e.g., Details)
