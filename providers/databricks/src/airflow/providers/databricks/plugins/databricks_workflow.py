@@ -20,8 +20,6 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any
 from urllib.parse import unquote
 
-from sqlalchemy import select
-
 from airflow.exceptions import TaskInstanceNotFound
 from airflow.models.dagrun import DagRun
 from airflow.models.taskinstance import TaskInstance, TaskInstanceKey, clear_task_instances
@@ -33,13 +31,27 @@ from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.state import TaskInstanceState
 
 if TYPE_CHECKING:
-    from sqlalchemy.orm.session import Session
-
     from airflow.models import BaseOperator
     from airflow.providers.common.compat.sdk import Context
     from airflow.providers.databricks.operators.databricks import DatabricksTaskBaseOperator
     from airflow.sdk.types import Logger
 
+def __getattr__(name):
+    if name in ["select", "Session"]:
+        try:
+            if name == "select":
+                from sqlalchemy import select
+                return select
+            if name == "Session":
+                from sqlalchemy.orm.session import Session
+                return Session
+        except ImportError:
+            from airflow.exceptions import AirflowOptionalProviderFeatureException
+            raise AirflowOptionalProviderFeatureException(
+                "The 'sqlalchemy' extra is required for Databricks Workflow features. "
+                "Please install it with: pip install 'apache-airflow-providers-databricks[sqlalchemy]'"
+            )
+    raise AttributeError(f"module {__name__} has no attribute {name}")
 
 def get_databricks_task_ids(
     group_id: str, task_map: dict[str, DatabricksTaskBaseOperator], log: Logger
