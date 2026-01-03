@@ -1641,9 +1641,8 @@ class TestStringifiedDAGs:
 
     def test_template_field_via_callable_serialization(self):
         """
-        Test operator template fields serialization.
+        Test operator template fields serialization when provided as a callable.
         """
-        from tests.task_sdk.bases.test_operator import MockOperator
 
         def fn_template_field_callable(context, jinja_env):
             pass
