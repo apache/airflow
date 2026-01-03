@@ -28,7 +28,6 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 # TODO: these should be moved into module_loading i think
-from airflow.utils.entry_points import entry_points_with_dist
 from airflow.utils.file import find_path_from_directory
 
 if TYPE_CHECKING:
@@ -168,6 +167,8 @@ def _load_entrypoint_plugins() -> tuple[list[AirflowPlugin], dict[str, str]]:
 
     The entry_point group should be 'airflow.plugins'.
     """
+    from ..module_loading import entry_points_with_dist
+
     log.debug("Loading plugins from entrypoints")
 
     plugins: list[AirflowPlugin] = []
