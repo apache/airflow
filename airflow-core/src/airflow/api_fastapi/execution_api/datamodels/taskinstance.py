@@ -137,6 +137,7 @@ class TIDeferredStatePayload(StrictBaseModel):
     """
 
     trigger_timeout: timedelta | None = None
+    queue: str | None = None
     next_method: str
     """The name of the method on the operator to call in the worker after the trigger has fired."""
     next_kwargs: Annotated[dict[str, JsonValue], Field(default_factory=dict)]
