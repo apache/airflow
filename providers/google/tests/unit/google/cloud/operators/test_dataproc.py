@@ -33,7 +33,12 @@ from openlineage.client.transport import HttpConfig, HttpTransport, KafkaConfig,
 from airflow import __version__ as AIRFLOW_VERSION
 from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.models import DAG, DagBag
-from airflow.providers.common.compat.sdk import AirflowException, AirflowTaskTimeout, TaskDeferred
+from airflow.providers.common.compat.sdk import (
+    AirflowException,
+    AirflowSkipException,
+    AirflowTaskTimeout,
+    TaskDeferred,
+)
 from airflow.providers.google.cloud.links.dataproc import (
     DATAPROC_BATCH_LINK,
     DATAPROC_CLUSTER_LINK_DEPRECATED,
@@ -1269,7 +1274,39 @@ class TestDataprocClusterDeleteOperator:
         )
 
         mock_hook.return_value.wait_for_operation.assert_not_called()
-        assert not mock_defer.called
+        assert mock_defer.called
+
+    @mock.patch(DATAPROC_PATH.format("DataprocHook"))
+    def test_execute_cluster_not_found(self, mock_hook):
+        mock_hook.return_value.create_cluster.return_value = None
+        mock_hook.return_value.delete_cluster.side_effect = NotFound("test")
+        delete_cluster_op = DataprocDeleteClusterOperator(
+            task_id="test_task",
+            region=GCP_REGION,
+            cluster_name=CLUSTER_NAME,
+            project_id=GCP_PROJECT,
+            cluster_uuid=None,
+            request_id=REQUEST_ID,
+            retry=RETRY,
+            timeout=TIMEOUT,
+            metadata=METADATA,
+        )
+        with pytest.raises(
+            AirflowSkipException,
+            match=f"Cluster {CLUSTER_NAME} in region {GCP_REGION} was not found - it may have already been deleted",
+        ):
+            delete_cluster_op.execute(context=mock.MagicMock())
+
+        mock_hook.return_value.delete_cluster.assert_called_once_with(
+            project_id=GCP_PROJECT,
+            region=GCP_REGION,
+            cluster_name=CLUSTER_NAME,
+            cluster_uuid=None,
+            request_id=REQUEST_ID,
+            retry=RETRY,
+            timeout=TIMEOUT,
+            metadata=METADATA,
+        )
 
 
 class TestDataprocSubmitJobOperator(DataprocJobTestBase):
