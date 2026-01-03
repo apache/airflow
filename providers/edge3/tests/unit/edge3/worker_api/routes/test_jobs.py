@@ -33,7 +33,7 @@ if TYPE_CHECKING:
 try:
     from airflow.observability.metrics.dual_stats_manager import DualStatsManager  # noqa: F401
 
-    stats_reference = "airflow.observability.metrics.DualStatsManager"
+    stats_reference = "airflow.observability.metrics.dual_stats_manager.DualStatsManager"
     expected_call_count = 1
 except ImportError:
     from airflow.providers.common.compat.sdk import Stats
