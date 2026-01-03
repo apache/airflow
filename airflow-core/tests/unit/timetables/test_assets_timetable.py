@@ -172,7 +172,7 @@ def test_serialization(sdk_asset_timetable: SdkAssetOrTimeSchedule, monkeypatch:
 
 def test_serialization_and(asset_and_time_timetable: AssetAndTimeSchedule, monkeypatch: Any) -> None:
     """Tests serialization of AssetAndTimeSchedule."""
-    monkeypatch.setattr("airflow.serialization.serialized_objects.encode_timetable", serialize_timetable)
+    monkeypatch.setattr("airflow.serialization.encoders.encode_timetable", serialize_timetable)
     serialized = asset_and_time_timetable.serialize()
     assert serialized["timetable"] == "serialized_timetable"
     assert "asset_condition" in serialized
@@ -207,7 +207,7 @@ def test_deserialization(monkeypatch: Any, core_asset_timetable: CoreAssetOrTime
 def test_deserialization_and(monkeypatch: Any) -> None:
     """Tests deserialization of AssetAndTimeSchedule."""
     monkeypatch.setattr(
-        "airflow.serialization.serialized_objects.decode_timetable", lambda x: MockTimetable()
+        "airflow.serialization.decoders.decode_timetable", lambda x: MockTimetable()
     )
     mock_serialized_data = {
         "timetable": "mock_serialized_timetable",
