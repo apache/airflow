@@ -148,11 +148,12 @@ class EdgeWorker:
 
     def shutdown_handler(self):
         self.drain = True
-        msg = "SIGTERM received. Terminating all jobs and quit"
+        msg = "SIGTERM received. Sending SIGTERM to all jobs and quit"
         logger.info(msg)
         for job in self.jobs:
             if job.process.pid:
-                os.killpg(job.process.pid, signal.SIGTERM)
+                os.setpgid(job.process.pid, 0)
+                os.kill(job.process.pid, signal.SIGTERM)
 
     def _get_sysinfo(self) -> dict:
         """Produce the sysinfo from worker to post to central site."""
@@ -194,22 +195,27 @@ class EdgeWorker:
         return execution_api_server_url
 
     @staticmethod
-    def _run_job_via_supervisor(workload, execution_api_server_url, results_queue: Queue) -> int:
+    def _run_job_via_supervisor(
+        workload: ExecuteTask, execution_api_server_url: str, results_queue: Queue
+    ) -> int:
         from airflow.sdk.execution_time.supervisor import supervise
 
         # Ignore ctrl-c in this process -- we don't want to kill _this_ one. we let tasks run to completion
-        signal.signal(signal.SIGINT, signal.SIG_IGN)
-        # TODO Check also:
-        # /opt/airflow/task-sdk/src/airflow/sdk/execution_time/supervisor.py:480 DeprecationWarning: This process (pid=372) is multi-threaded, use of fork() may lead to deadlocks in the child.
+        os.setpgrp()
 
         logger.info("Worker starting up pid=%d", os.getpid())
-        setproctitle(f"airflow edge worker: {workload.ti.key}")
+        ti = workload.ti
+        setproctitle(
+            "airflow edge supervisor: "
+            f"dag_id={ti.dag_id} task_id={ti.task_id} run_id={ti.run_id} map_index={ti.map_index} "
+            f"try_number={ti.try_number}"
+        )
 
         try:
             supervise(
                 # This is the "wrong" ti type, but it duck types the same. TODO: Create a protocol for this.
                 # Same like in airflow/executors/local_executor.py:_execute_work()
-                ti=workload.ti,  # type: ignore[arg-type]
+                ti=ti,  # type: ignore[arg-type]
                 dag_rel_path=workload.dag_rel_path,
                 bundle_info=workload.bundle_info,
                 token=workload.token,
@@ -280,6 +286,7 @@ class EdgeWorker:
         loop.add_signal_handler(signal.SIGINT, self.signal_drain)
         loop.add_signal_handler(SIG_STATUS, self.signal_status)
         loop.add_signal_handler(signal.SIGTERM, self.shutdown_handler)
+        setproctitle(f"airflow edge worker: {self.hostname}")
         os.environ["HOSTNAME"] = self.hostname
         os.environ["AIRFLOW__CORE__HOSTNAME_CALLABLE"] = f"{_edge_hostname.__module__}._edge_hostname"
         try:
