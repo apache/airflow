@@ -209,6 +209,10 @@ class PodNotFoundException(AirflowException):
     """Expected pod does not exist in kube-api."""
 
 
+class PodCommandException(AirflowException):
+    """When a pod command execution fails."""
+
+
 class PodLogsConsumer:
     """
     Responsible for pulling pod logs from a stream with checking a container status before reading data.
@@ -907,12 +911,18 @@ class PodManager(LoggingMixin):
                 _preload_content=False,
             )
         ) as resp:
-            self._exec_pod_command(
-                resp,
+            xcom_kill_command = "kill -2 $(pgrep -u $(id -u) -f 'sh')"
+            # fallback command for containers that don't support pgrep -u
+            fallback_xcom_kill_command = (
                 "for f in /proc/[0-9]*/comm; do "
                 "[ -O $f ] && read c < $f && [ \"$c\" = \"sh\" ] && pid=${f%/comm} && kill -2 ${pid##*/}; "
-                "done",
+                "done"
             )
+            try:
+                self._exec_pod_command(resp, xcom_kill_command)
+            except PodCommandException:
+                self.log.info("Primary kill command failed, trying fallback command")
+                self._exec_pod_command(resp, fallback_xcom_kill_command)
 
     def _exec_pod_command(self, resp, command: str) -> str | None:
         res = ""
@@ -928,8 +938,8 @@ class PodManager(LoggingMixin):
             while resp.peek_stderr():
                 error_res += resp.read_stderr()
             if error_res:
-                self.log.info("stderr from command: %s", error_res)
-                break
+                self.log.warning("stderr from command: %s", error_res)
+                raise PodCommandException(f"Command failed with stderr: {error_res}")
             if res:
                 return res
         return None
