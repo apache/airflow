@@ -111,6 +111,7 @@ if TYPE_CHECKING:
     from airflow.executors.executor_utils import ExecutorName
     from airflow.models.taskinstance import TaskInstanceKey
     from airflow.serialization.definitions.dag import SerializedDAG
+    from airflow.timetables.base import DataInterval
     from airflow.utils.sqlalchemy import CommitProhibitorGuard
 
 TI = TaskInstance
@@ -1612,7 +1613,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         """
         # Put a check in place to make sure we don't commit unexpectedly
         with prohibit_commit(session) as guard:
-            if settings.USE_JOB_SCHEDULE:
+            if conf.getboolean("scheduler", "use_job_schedule", fallback=True):
                 self._create_dagruns_for_dags(guard, session)
 
             self._start_queued_dagruns(session)
@@ -1846,14 +1847,14 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     #  https://github.com/apache/airflow/issues/59120
                     continue
 
-            if self._should_update_dag_next_dagruns(
-                serdag,
-                dag_model,
-                last_dag_run=None,
-                active_non_backfill_runs=active_runs_of_dags[serdag.dag_id],
+            self._update_next_dagrun_fields(
+                serdag=serdag,
+                dag_model=dag_model,
                 session=session,
-            ):
-                dag_model.calculate_dagrun_date_fields(serdag, data_interval)
+                active_non_backfill_runs=active_runs_of_dags[serdag.dag_id],
+                data_interval=data_interval,
+            )
+
         # TODO[HA]: Should we do a session.flush() so we don't have to keep lots of state/object in
         #  memory for larger dags? or expunge_all()
 
@@ -1933,45 +1934,6 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             dag_run.consumed_asset_events.extend(asset_events)
             session.execute(delete(AssetDagRunQueue).where(AssetDagRunQueue.target_dag_id == dag_run.dag_id))
 
-    def _should_update_dag_next_dagruns(
-        self,
-        dag: SerializedDAG,
-        dag_model: DagModel,
-        *,
-        last_dag_run: DagRun | None = None,
-        active_non_backfill_runs: int | None = None,
-        session: Session,
-    ) -> bool:
-        """Check if the dag's next_dagruns_create_after should be updated."""
-        # If last_dag_run is defined, the update was triggered by a scheduling decision in this DAG run.
-        # In such case, schedule next only if last_dag_run is finished and was an automated run.
-        if last_dag_run and not (
-            last_dag_run.state in State.finished_dr_states and last_dag_run.run_type == DagRunType.SCHEDULED
-        ):
-            return False
-        # If the DAG never schedules skip save runtime
-        if not dag.timetable.can_be_scheduled:
-            return False
-
-        if active_non_backfill_runs is None:
-            runs_dict = DagRun.active_runs_of_dags(
-                dag_ids=[dag.dag_id],
-                exclude_backfill=True,
-                session=session,
-            )
-            active_non_backfill_runs = runs_dict.get(dag.dag_id, 0)
-
-        if active_non_backfill_runs >= dag.max_active_runs:
-            self.log.info(
-                "DAG %s is at (or above) max_active_runs (%d of %d), not creating any more runs",
-                dag_model.dag_id,
-                active_non_backfill_runs,
-                dag.max_active_runs,
-            )
-            dag_model.next_dagrun_create_after = None
-            return False
-        return True
-
     def _lock_backfills(self, dag_runs: Collection[DagRun], session: Session) -> dict[int, Backfill]:
         """
         Lock Backfill rows to prevent race conditions when multiple schedulers run concurrently.
@@ -2037,14 +1999,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 and dag_run.triggered_by != DagRunTriggeredByType.ASSET
                 and dag_run.clear_number < 1
             ):
-                # TODO: Logically, this should be DagRunInfo.run_after, but the
-                #  information is not stored on a DagRun, only before the actual
-                #  execution on DagModel.next_dagrun_create_after. We should add
-                #  a field on DagRun for this instead of relying on the run
-                #  always happening immediately after the data interval.
-                #  We only publish these metrics for scheduled dag runs and only
-                #  when ``run_type`` is *MANUAL* and ``clear_number`` is 0.
-                expected_start_date = get_run_data_interval(dag.timetable, dag_run).end
+                expected_start_date = dag_run.run_after
                 schedule_delay = dag_run.start_date - expected_start_date
                 # Publish metrics twice with backward compatible name, and then with tags
                 Stats.timing(f"dagrun.schedule_delay.{dag.dag_id}", schedule_delay)
@@ -2154,15 +2109,12 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
             dag = dag_run.dag = self.scheduler_dag_bag.get_dag_for_run(dag_run=dag_run, session=session)
             dag_model = DM.get_dagmodel(dag_run.dag_id, session)
-            if dag_model is None:
+            if not dag_model:
                 self.log.error("Couldn't find DAG model %s in database!", dag_run.dag_id)
                 return callback
 
             if not dag:
                 self.log.error("Couldn't find DAG %s in DAG bag!", dag_run.dag_id)
-                return callback
-            if not dag_model:
-                self.log.error("Couldn't find DAG model %s in database!", dag_run.dag_id)
                 return callback
 
             if (
@@ -2183,10 +2135,17 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 session.flush()
                 self.log.info("Run %s of %s has timed-out", dag_run.run_id, dag_run.dag_id)
 
-                if self._should_update_dag_next_dagruns(
-                    dag, dag_model, last_dag_run=dag_run, session=session
-                ):
-                    dag_model.calculate_dagrun_date_fields(dag, get_run_data_interval(dag.timetable, dag_run))
+                # TODO: questionable that this logic does what it is trying to do
+                #  I think its intent is, in part, to do this when it's the latest scheduled run
+                #  but it does not know that it is the latest. I think it could probably check that
+                #  logical date is equal to or greater than DagModel.next_dagrun, or something
+                if dag_run.state in State.finished_dr_states and dag_run.run_type == DagRunType.SCHEDULED:
+                    self._update_next_dagrun_fields(
+                        serdag=dag,
+                        dag_model=dag_model,
+                        session=session,
+                        data_interval=get_run_data_interval(dag.timetable, dag_run),
+                    )
 
                 dag_run_reloaded = session.scalar(
                     select(DagRun)
@@ -2259,8 +2218,18 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             # TODO[HA]: Rename update_state -> schedule_dag_run, ?? something else?
             schedulable_tis, callback_to_run = dag_run.update_state(session=session, execute_callbacks=False)
 
-            if self._should_update_dag_next_dagruns(dag, dag_model, last_dag_run=dag_run, session=session):
-                dag_model.calculate_dagrun_date_fields(dag, get_run_data_interval(dag.timetable, dag_run))
+            # TODO: questionable that this logic does what it is trying to do
+            #  I think its intent is, in part, to do this when it's the latest scheduled run
+            #  but it does not know that it is the latest. I think it could probably check that
+            #  logical date is equal to or greater than DagModel.next_dagrun, or something
+            if dag_run.state in State.finished_dr_states and dag_run.run_type == DagRunType.SCHEDULED:
+                self._update_next_dagrun_fields(
+                    serdag=dag,
+                    dag_model=dag_model,
+                    session=session,
+                    data_interval=get_run_data_interval(dag.timetable, dag_run),
+                )
+
             # This will do one query per dag run. We "could" build up a complex
             # query to update all the TIs across all the logical dates and dag
             # IDs in a single query, but it turns out that can be _very very slow_
@@ -2276,6 +2245,47 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             dag_run.schedule_tis(schedulable_tis, session, max_tis_per_query=self.job.max_tis_per_query)
 
             return callback_to_run
+
+    def _update_next_dagrun_fields(
+        self,
+        *,
+        serdag: SerializedDAG,
+        dag_model: DagModel,
+        session: Session,
+        active_non_backfill_runs: int | None = None,
+        data_interval: DataInterval | None,
+    ):
+        """
+        Conditionally update fields next_dagrun and next_dagrun_create_after on dag table.
+
+        If dag exceeds max active runs, set to None.
+
+        If dag's timetable not schedulable, don't update.
+
+        Otherwise, update via ``DagModel.calculate_dagrun_date_fields``.
+        """
+        exceeds_max, active_runs = self._exceeds_max_active_runs(
+            dag_model=dag_model,
+            active_non_backfill_runs=active_non_backfill_runs,
+            session=session,
+        )
+        if exceeds_max:
+            self.log.info(
+                "Dag exceeds max_active_runs; not creating any more runs",
+                dag_id=dag_model.dag_id,
+                active_runs=active_runs,
+                max_active_runs=dag_model.max_active_runs,
+            )
+            # null out next_dagrun_create_after so scheduler will not examine this dag
+            # this is periodically reconsidered in the scheduler and dag processor.
+            dag_model.next_dagrun_create_after = None
+            return
+
+        # If the DAG never schedules skip save runtime
+        if not serdag.timetable.can_be_scheduled:
+            return
+
+        dag_model.calculate_dagrun_date_fields(dag=serdag, last_automated_dag_run=data_interval)
 
     def _verify_integrity_if_dag_changed(self, dag_run: DagRun, session: Session) -> bool:
         """
@@ -3007,6 +3017,23 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             self.log.warning("Executor, %s, was not found but a Task was configured to use it", ti.executor)
 
         return executor
+
+    def _exceeds_max_active_runs(
+        self,
+        *,
+        dag_model: DagModel,
+        active_non_backfill_runs: int | None = None,
+        session: Session,
+    ):
+        if active_non_backfill_runs is None:
+            runs_dict = DagRun.active_runs_of_dags(
+                dag_ids=[dag_model.dag_id],
+                exclude_backfill=True,
+                session=session,
+            )
+            active_non_backfill_runs = runs_dict.get(dag_model.dag_id, 0)
+        exceeds = active_non_backfill_runs >= dag_model.max_active_runs
+        return exceeds, active_non_backfill_runs
 
 
 # Backcompat for older versions of task sdk import SchedulerDagBag from here

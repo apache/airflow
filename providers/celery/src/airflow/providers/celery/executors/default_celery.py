@@ -70,6 +70,20 @@ else:
     log.debug("Value for celery result_backend not found. Using sql_alchemy_conn with db+ prefix.")
     result_backend = f"db+{conf.get('database', 'SQL_ALCHEMY_CONN')}"
 
+# Handle result backend transport options (for Redis Sentinel support)
+result_backend_transport_options: dict = conf.getsection("celery_result_backend_transport_options") or {}
+if "sentinel_kwargs" in result_backend_transport_options:
+    try:
+        result_sentinel_kwargs = json.loads(result_backend_transport_options["sentinel_kwargs"])
+        if not isinstance(result_sentinel_kwargs, dict):
+            raise ValueError
+        result_backend_transport_options["sentinel_kwargs"] = result_sentinel_kwargs
+    except Exception:
+        raise AirflowException(
+            "sentinel_kwargs in [celery_result_backend_transport_options] should be written "
+            "in the correct dictionary format."
+        )
+
 extra_celery_config = conf.getjson("celery", "extra_celery_config", fallback={})
 
 DEFAULT_CELERY_CONFIG = {
@@ -86,6 +100,7 @@ DEFAULT_CELERY_CONFIG = {
         "celery", "broker_connection_retry_on_startup", fallback=True
     ),
     "result_backend": result_backend,
+    "result_backend_transport_options": result_backend_transport_options,
     "database_engine_options": conf.getjson(
         "celery", "result_backend_sqlalchemy_engine_options", fallback={}
     ),

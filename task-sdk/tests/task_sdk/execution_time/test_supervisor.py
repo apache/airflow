@@ -248,12 +248,21 @@ class TestWatchedSubprocess:
         This fixture ensures test isolation when running in parallel with pytest-xdist,
         regardless of what other tests patch.
         """
-        from airflow.sdk.execution_time.secrets import ExecutionAPISecretsBackend
+        import importlib
+
+        import airflow.sdk.execution_time.secrets.execution_api as execution_api_module
         from airflow.secrets.environment_variables import EnvironmentVariablesBackend
+
+        fresh_execution_backend = importlib.reload(execution_api_module).ExecutionAPISecretsBackend
+
+        # Ensure downstream imports see the restored class instead of any AsyncMock left by other tests
+        import airflow.sdk.execution_time.secrets as secrets_package
+
+        monkeypatch.setattr(secrets_package, "ExecutionAPISecretsBackend", fresh_execution_backend)
 
         monkeypatch.setattr(
             "airflow.sdk.execution_time.supervisor.ensure_secrets_backend_loaded",
-            lambda: [EnvironmentVariablesBackend(), ExecutionAPISecretsBackend()],
+            lambda: [EnvironmentVariablesBackend(), fresh_execution_backend()],
         )
 
     def test_reading_from_pipes(self, captured_logs, time_machine, client_with_ti_start):
@@ -677,13 +686,22 @@ class TestWatchedSubprocess:
                 classpath="airflow.providers.standard.triggers.temporal.DateTimeTrigger",
                 next_method="execute_complete",
                 trigger_kwargs={
-                    "__type": "dict",
-                    "__var": {
-                        "moment": {"__type": "datetime", "__var": 1730982899.0},
-                        "end_from_trigger": False,
+                    "moment": {
+                        "__classname__": "pendulum.datetime.DateTime",
+                        "__version__": 2,
+                        "__data__": {
+                            "timestamp": 1730982899.0,
+                            "tz": {
+                                "__classname__": "builtins.tuple",
+                                "__version__": 1,
+                                "__data__": ["UTC", "pendulum.tz.timezone.Timezone", 1, True],
+                            },
+                        },
                     },
+                    "end_from_trigger": False,
                 },
-                next_kwargs={"__type": "dict", "__var": {}},
+                trigger_timeout=None,
+                next_kwargs={},
             ),
         )
 

@@ -62,11 +62,9 @@ if TYPE_CHECKING:
 
     from sqlalchemy.orm.session import Session
 
-    from airflow.models.mappedoperator import MappedOperator
-    from airflow.serialization.definitions.baseoperator import SerializedBaseOperator
+    from airflow.serialization.definitions.mappedoperator import Operator
 
     CreateIfNecessary = Literal[False, "db", "memory"]
-    Operator = MappedOperator | SerializedBaseOperator
 
 log = logging.getLogger(__name__)
 
@@ -470,7 +468,7 @@ def task_render(args, dag: DAG | None = None) -> None:
 @providers_configuration_loaded
 def task_clear(args) -> None:
     """Clear all task instances or only those matched by regex for a DAG(s)."""
-    logging.basicConfig(level=settings.LOGGING_LEVEL, format=settings.SIMPLE_LOG_FORMAT)
+    logging.basicConfig(level=logging.INFO, format=settings.SIMPLE_LOG_FORMAT)
     if args.dag_id and not args.bundle_name and not args.dag_regex and not args.task_regex:
         dags = [get_dag_by_file_location(args.dag_id)]
     else:

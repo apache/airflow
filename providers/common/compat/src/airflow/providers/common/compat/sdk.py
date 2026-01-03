@@ -76,10 +76,12 @@ if TYPE_CHECKING:
         task_decorator_factory as task_decorator_factory,
     )
     from airflow.sdk.bases.sensor import poke_mode_only as poke_mode_only
+    from airflow.sdk.configuration import conf as conf
     from airflow.sdk.definitions.context import context_merge as context_merge
     from airflow.sdk.definitions.mappedoperator import MappedOperator as MappedOperator
     from airflow.sdk.definitions.template import literal as literal
     from airflow.sdk.exceptions import (
+        AirflowConfigException as AirflowConfigException,
         AirflowException as AirflowException,
         AirflowFailException as AirflowFailException,
         AirflowNotFoundException as AirflowNotFoundException,
@@ -249,6 +251,11 @@ _IMPORT_MAP: dict[str, str | tuple[str, ...]] = {
         "airflow.sdk.execution_time.secrets_masker",
         "airflow.utils.log.secrets_masker",
     ),
+    # ============================================================================
+    # Configuration
+    # ============================================================================
+    "conf": ("airflow.sdk.configuration", "airflow.configuration"),
+    "AirflowConfigException": ("airflow.sdk.exceptions", "airflow.exceptions"),
 }
 
 # Airflow 3-only exceptions (not available in Airflow 2)
