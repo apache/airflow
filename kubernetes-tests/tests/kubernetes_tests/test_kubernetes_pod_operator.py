@@ -1489,8 +1489,6 @@ class TestKubernetesPodOperatorSystem:
             assert expected_log_message_check(marker, logged_message)
 
 
-# TODO: Task SDK: https://github.com/apache/airflow/issues/45438
-@pytest.mark.skip(reason="AIP-72: Secret Masking yet to be implemented")
 def test_hide_sensitive_field_in_templated_fields_on_error(caplog, monkeypatch):
     logger = logging.getLogger("airflow.task")
     monkeypatch.setattr(logger, "propagate", True)
