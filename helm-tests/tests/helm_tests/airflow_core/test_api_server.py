@@ -105,8 +105,14 @@ class TestAPIServerDeployment:
                 "apiServer": {
                     "env": [
                         {"name": "TEST_ENV_1", "value": "test_env_1"},
-                        {"name": "TEST_ENV_2", "value": "test_env_2"},
-                        {"name": "TEST_ENV_3", "value": "test_env_3"},
+                        {
+                            "name": "TEST_ENV_2",
+                            "valueFrom": {"configMapKeyRef": {"name": "test-config", "key": "test-key"}},
+                        },
+                        {
+                            "name": "TEST_ENV_3",
+                            "valueFrom": {"secretKeyRef": {"name": "test-secret", "key": "test-key"}},
+                        }
                     ],
                 },
             },
@@ -115,8 +121,14 @@ class TestAPIServerDeployment:
 
         env_result = jmespath.search("spec.template.spec.containers[0].env", docs[0])
         assert {"name": "TEST_ENV_1", "value": "test_env_1"} in env_result
-        assert {"name": "TEST_ENV_2", "value": "test_env_2"} in env_result
-        assert {"name": "TEST_ENV_3", "value": "test_env_3"} in env_result
+        assert {
+            "name": "TEST_ENV_2",
+            "valueFrom": {"configMapKeyRef": {"name": "test-config", "key": "test-key"}},
+        } in env_result
+        assert {
+            "name": "TEST_ENV_3",
+            "valueFrom": {"secretKeyRef": {"name": "test-secret", "key": "test-key"}},
+        } in env_result
 
     def test_should_add_extra_volume_and_extra_volume_mount(self):
         docs = render_chart(
