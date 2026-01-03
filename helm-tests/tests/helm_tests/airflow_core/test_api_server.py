@@ -112,7 +112,7 @@ class TestAPIServerDeployment:
                         {
                             "name": "TEST_ENV_3",
                             "valueFrom": {"secretKeyRef": {"name": "test-secret", "key": "test-key"}},
-                        }
+                        },
                     ],
                 },
             },
