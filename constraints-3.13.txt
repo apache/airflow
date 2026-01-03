@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2026-01-03T07:49:55.408565
+# This constraints file was automatically generated on 2026-01-03T13:55:18.636289
 # via `uv pip install --resolution highest` for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -620,7 +620,7 @@ teradatasql==20.0.0.48
 teradatasqlalchemy==20.0.0.9
 termcolor==3.3.0
 text-unidecode==1.3
-textual==6.12.0
+textual==7.0.0
 threadpoolctl==3.6.0
 thrift-sasl==0.4.3
 thrift==0.16.0
