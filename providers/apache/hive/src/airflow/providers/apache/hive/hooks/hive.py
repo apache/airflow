@@ -46,6 +46,7 @@ from airflow.utils.helpers import as_flattened_list
 if TYPE_CHECKING:
     import pandas as pd
     import polars as pl
+    from sqlalchemy.engine import URL
 
 
 HIVE_QUEUE_PRIORITIES = ["VERY_HIGH", "HIGH", "NORMAL", "LOW", "VERY_LOW"]
@@ -1134,7 +1135,7 @@ class HiveServer2Hook(DbApiHook):
         return self._get_pandas_df(sql, schema=schema, hive_conf=hive_conf, **kwargs)
 
     @property
-    def sqlalchemy_url(self) -> URL:
+    def sqlalchemy_url(self) -> "URL":
         """Return a `sqlalchemy.engine.URL` object constructed from the connection."""
         conn = self.get_connection(self.get_conn_id())
         extra = conn.extra_dejson or {}
