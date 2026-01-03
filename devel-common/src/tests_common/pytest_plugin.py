@@ -1785,7 +1785,11 @@ def clear_lru_cache():
         yield
         return
 
-    from airflow._shared.module_loading import _get_grouped_entry_points
+    try:
+        from airflow._shared.module_loading import _get_grouped_entry_points
+    except ImportError:
+        # compat for airflow < 3.2
+        from airflow.utils.entry_points import _get_grouped_entry_points
 
     _get_grouped_entry_points.cache_clear()
     try:
