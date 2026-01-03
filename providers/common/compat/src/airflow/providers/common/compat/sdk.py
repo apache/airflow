@@ -81,6 +81,7 @@ if TYPE_CHECKING:
     from airflow.sdk.definitions.mappedoperator import MappedOperator as MappedOperator
     from airflow.sdk.definitions.template import literal as literal
     from airflow.sdk.exceptions import (
+        AirflowConfigException as AirflowConfigException,
         AirflowException as AirflowException,
         AirflowFailException as AirflowFailException,
         AirflowNotFoundException as AirflowNotFoundException,
@@ -254,6 +255,7 @@ _IMPORT_MAP: dict[str, str | tuple[str, ...]] = {
     # Configuration
     # ============================================================================
     "conf": ("airflow.sdk.configuration", "airflow.configuration"),
+    "AirflowConfigException": ("airflow.sdk.exceptions", "airflow.exceptions"),
 }
 
 # Airflow 3-only exceptions (not available in Airflow 2)
