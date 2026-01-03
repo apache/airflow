@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2026-01-03T13:55:18.636289
+# This constraints file was automatically generated on 2026-01-03T19:51:31.918414
 # via `uv pip install --resolution highest` for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -61,7 +61,7 @@ aenum==3.1.16
 aiobotocore==2.26.0
 aiofiles==24.1.0
 aiohappyeyeballs==2.6.1
-aiohttp==3.13.2
+aiohttp==3.13.3
 aioitertools==0.13.0
 aiomysql==0.3.2
 aiosignal==1.4.0
