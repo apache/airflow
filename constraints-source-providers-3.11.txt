@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2026-01-03T02:27:37.034017
+# This constraints file was automatically generated on 2026-01-03T07:46:43.842457
 # via `uv sync --resolution highest for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider distributions.
@@ -402,7 +402,7 @@ multidict==6.7.0
 mypy-boto3-appflow==1.42.3
 mypy-boto3-rds==1.42.5
 mypy-boto3-redshift-data==1.42.3
-mypy-boto3-s3==1.42.16
+mypy-boto3-s3==1.42.21
 mypy==1.19.1
 mypy_extensions==1.1.0
 mysql-connector-python==9.5.0
