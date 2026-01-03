@@ -97,7 +97,9 @@ dependencies = [
 "common.compat" = [
     "apache-airflow-providers-common-compat"
 ]
-"sqlalchemy" = ["sqlalchemy>=1.4.49"]
+"sqlalchemy" = [
+    "sqlalchemy>=1.4,<3.0"
+]
 
 
 [dependency-groups]
