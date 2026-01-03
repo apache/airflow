@@ -133,6 +133,7 @@ def asset_and_time_timetable(test_timetable: MockTimetable, test_assets: list[As
     return AssetAndTimeSchedule(timetable=test_timetable, assets=test_assets)
 
 
+@pytest.fixture
 def core_asset_timetable(test_timetable: MockTimetable) -> CoreAssetOrTimeSchedule:
     return CoreAssetOrTimeSchedule(
         timetable=test_timetable,
@@ -206,9 +207,7 @@ def test_deserialization(monkeypatch: Any, core_asset_timetable: CoreAssetOrTime
 
 def test_deserialization_and(monkeypatch: Any) -> None:
     """Tests deserialization of AssetAndTimeSchedule."""
-    monkeypatch.setattr(
-        "airflow.serialization.decoders.decode_timetable", lambda x: MockTimetable()
-    )
+    monkeypatch.setattr("airflow.serialization.decoders.decode_timetable", lambda x: MockTimetable())
     mock_serialized_data = {
         "timetable": "mock_serialized_timetable",
         "asset_condition": {
