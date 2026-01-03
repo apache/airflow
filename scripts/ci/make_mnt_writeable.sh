@@ -29,6 +29,12 @@ function make_mnt_writeable {
     echo "Checking free space!"
     df -H
     echo "Cleaning /mnt just in case it is not empty"
+
+    # Display TXT file
+    cat /mnt/DATALOSS_WARNING_README.txt
+    exit 42
+
+
     sudo rm -rf /mnt/*
     echo "Checking free space!"
     df -H
