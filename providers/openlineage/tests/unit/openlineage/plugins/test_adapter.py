@@ -63,7 +63,7 @@ from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V
 try:
     from airflow.observability.metrics.dual_stats_manager import DualStatsManager  # noqa: F401
 
-    stats_reference = "airflow.observability.metrics.DualStatsManager"
+    stats_reference = "airflow.observability.metrics.dual_stats_manager.DualStatsManager"
 except ImportError:
     stats_reference = "airflow.providers.openlineage.plugins.adapter.Stats"
 
