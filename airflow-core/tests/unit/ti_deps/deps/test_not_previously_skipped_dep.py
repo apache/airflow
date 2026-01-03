@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import pendulum
 import pytest
+from sqlalchemy import delete
 
 from airflow.models import DagRun, TaskInstance
 from airflow.providers.standard.operators.empty import EmptyOperator
@@ -27,7 +28,6 @@ from airflow.ti_deps.dep_context import DepContext
 from airflow.ti_deps.deps.not_previously_skipped_dep import NotPreviouslySkippedDep
 from airflow.utils.state import State
 from airflow.utils.types import DagRunType
-from sqlalchemy import delete
 
 from tests_common.test_utils.taskinstance import run_task_instance
 
