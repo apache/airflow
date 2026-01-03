@@ -108,6 +108,7 @@ dev = [
     "apache-airflow-providers-microsoft-azure",
     "apache-airflow-providers-common-sql[pandas,polars]",
     "apache-airflow-providers-fab",
+    "apache-airflow-providers-databricks[sqlalchemy]"
 ]
 
 # To build docs:

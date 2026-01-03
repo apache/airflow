@@ -93,16 +93,6 @@ versions:
   - 1.0.1
   - 1.0.0
 
-dependencies:
-  - apache-airflow>=2.9.0
-  - databricks-sdk>=0.20.0
-  - apache-airflow-providers-common-sql>=1.20.0
-
-additional-extras:
-  - name: sqlalchemy
-    dependencies:
-      - sqlalchemy>=1.4.0
-      
 integrations:
   - integration-name: Databricks
     external-doc-url: https://databricks.com/

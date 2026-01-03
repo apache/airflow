@@ -42,7 +42,7 @@ from airflow.providers.databricks.hooks.databricks_base import BaseDatabricksHoo
 
 if TYPE_CHECKING:
     from databricks.sql.client import Connection
-
+    from sqlalchemy.engine import URL
     from airflow.models.connection import Connection as AirflowConnection
     from airflow.providers.openlineage.extractors import OperatorLineage
     from airflow.providers.openlineage.sqlparser import DatabaseInfo
