@@ -23,8 +23,7 @@ from collections.abc import Sequence
 from functools import cached_property
 from typing import TYPE_CHECKING
 
-from airflow.configuration import conf
-from airflow.providers.common.compat.sdk import BaseOperator
+from airflow.providers.common.compat.sdk import BaseOperator, conf
 from airflow.providers.microsoft.azure.hooks.adx import AzureDataExplorerHook
 
 if TYPE_CHECKING:
