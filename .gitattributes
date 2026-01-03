@@ -30,7 +30,3 @@ ISSUE_TRIAGE_PROCESS.rst export-ignore
 .markdownlint.yml export-ignore
 .pre-commit-config.yaml export-ignore
 .readthedocs.yml export-ignore
-
-* text=auto eol=lf
-*.yml text eol=lf
-*.yaml text eol=lf
