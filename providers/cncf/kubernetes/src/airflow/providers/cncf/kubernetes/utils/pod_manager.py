@@ -907,33 +907,39 @@ class PodManager(LoggingMixin):
                 _preload_content=False,
             )
         ) as resp:
-            alpine_fallback = (
+            xcom_kill_command = "kill -2 $(pgrep -u $(id -u) -f 'sh')"
+            # fallback command for containers that don't support pgrep -u
+            fallback_xcom_kill_command = (
                 "for f in /proc/[0-9]*/comm; do "
                 "[ -O $f ] && read c < $f && [ \"$c\" = \"sh\" ] && pid=${f%/comm} && kill -2 ${pid##*/}; "
                 "done"
             )
-            # Try original command first, fallback to /proc loop (Alpine/BusyBox)
-            self._exec_pod_command(resp, alpine_fallback)
+            result, error = self._exec_pod_command(resp, xcom_kill_command)
+            
+            if error:
+                self.log.info("Primary kill command failed, trying fallback command")
+                self._exec_pod_command(resp, fallback_xcom_kill_command)
 
-    def _exec_pod_command(self, resp, command: str) -> str | None:
+    def _exec_pod_command(self, resp, command: str) -> tuple[str | None, str | None]:
+        """Execute a command in the pod and return the result and error (result, error)."""
         res = ""
+        error_res = ""
         if not resp.is_open():
-            return None
+            return None, None
         self.log.info("Running command... %s", command)
         resp.write_stdin(f"{command}\n")
         while resp.is_open():
             resp.update(timeout=1)
             while resp.peek_stdout():
                 res += resp.read_stdout()
-            error_res = ""
             while resp.peek_stderr():
                 error_res += resp.read_stderr()
             if error_res:
                 self.log.info("stderr from command: %s", error_res)
                 break
             if res:
-                return res
-        return None
+                return res, error_res or None
+        return res or None, error_res or None
 
     def _await_init_container_start(self, pod: V1Pod, container_name: str):
         while True:
