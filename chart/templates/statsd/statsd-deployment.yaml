@@ -62,7 +62,7 @@ spec:
         component: statsd
         release: {{ .Release.Name }}
         {{- if or .Values.labels .Values.statsd.labels }}
-        {{- mustMerge .Values.statsd.labels .Values.labels | toYaml | nindent 8 }}
+          {{- mustMerge .Values.statsd.labels .Values.labels | toYaml | nindent 8 }}
         {{- end }}
       {{- if or .Values.statsd.extraMappings .Values.statsd.podAnnotations }}
       annotations:
@@ -97,20 +97,20 @@ spec:
           {{- end }}
           args:
           {{- if .Values.statsd.cache.size }}
-          - "--statsd.cache-size={{ .Values.statsd.cache.size }}"
+            - "--statsd.cache-size={{ .Values.statsd.cache.size }}"
           {{- end }}
-          {{- if .Values.statsd.cache.type }}
-          - "--statsd.cache-type={{ .Values.statsd.cache.type }}"
+            {{- if .Values.statsd.cache.type }}
+            - "--statsd.cache-type={{ .Values.statsd.cache.type }}"
           {{- end }}
           {{- if .Values.statsd.cache.ttl }}
-          - "--ttl={{ .Values.statsd.cache.ttl }}"
+            - "--ttl={{ .Values.statsd.cache.ttl }}"
           {{- end }}
           {{- if .Values.statsd.args }}
           {{- range $arg := .Values.statsd.args }}
-          - {{ $arg | quote }}
+            - {{ $arg | quote }}
           {{- end }}
           {{- else }}
-          - "--statsd.mapping-config=/etc/statsd-exporter/mappings.yml"
+            - "--statsd.mapping-config=/etc/statsd-exporter/mappings.yml"
           {{- end }}
           resources: {{- toYaml .Values.statsd.resources | nindent 12 }}
           {{- with .Values.statsd.env }}

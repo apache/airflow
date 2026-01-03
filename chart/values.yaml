@@ -2407,16 +2407,16 @@ statsd:
   # Arguments for StatsD exporter command.
   args: ["--statsd.mapping-config=/etc/statsd-exporter/mappings.yml"]
 
-      # If you ever need to fully override the entire args list, you can
-    # supply your own array here; if set, all below flag-specific values
-    # (mappingConfig, cache-size, cache-type, ttl) are ignored.
-    # args:
-    #  - "--statsd.cache-size=1000"
-    #  - "--statsd.cache-type=random"
-    #  - "--ttl=10m"
-    # -------------------------------------------------------------------
+  # If you ever need to fully override the entire args list, you can
+  # supply your own array here; if set, all below flag-specific values
+  # (mappingConfig, cache-size, cache-type, ttl) are ignored.
+  # args:
+  #  - "--statsd.cache-size=1000"
+  #  - "--statsd.cache-type=random"
+  #  - "--ttl=10m"
+  # -------------------------------------------------------------------
 
-    # Path in the container to the mapping config file.
+  # Path in the container to the mapping config file.
 
   cache:
     # Maximum number of metric‐mapping entries to keep in cache.
