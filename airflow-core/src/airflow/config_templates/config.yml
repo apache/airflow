@@ -2051,14 +2051,6 @@ smtp:
       type: integer
       example: ~
       default: "5"
-    smtp_password:
-      description: |
-        The password for SMTP server, used to authenticate to server.
-      version_added: 3.2.0
-      type: string
-      example: ~
-      default: ""
-      sensitive: true
 sentry:
   description: |
     `Sentry <https://docs.sentry.io>`__ integration. Here you can supply
