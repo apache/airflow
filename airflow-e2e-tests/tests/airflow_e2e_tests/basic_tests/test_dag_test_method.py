@@ -21,6 +21,8 @@ from __future__ import annotations
 import json
 import time
 
+import pytest
+
 from airflow_e2e_tests.conftest import _E2ETestState
 from airflow_e2e_tests.e2e_test_utils.clients import AirflowClient
 
@@ -28,10 +30,11 @@ from airflow_e2e_tests.e2e_test_utils.clients import AirflowClient
 def _execute_dag_test(dag_id: str, use_executor: bool = False) -> dict:
     """
     Execute dag.test() inside the Airflow scheduler container and query state via REST API.
-
     Returns a dictionary with test results including dag_run state and task states.
     """
     # Minimal Python code to execute dag.test() and return run_id
+    # We execute this in the container because dag.test() needs the full Airflow runtime
+    # environment (database, executor, scheduler components) which is configured in containers.
     python_code = f"""
 import json
 import sys
@@ -122,87 +125,33 @@ except Exception as e:
 class TestDagTestMethod:
     """E2E tests for dag.test() method using example DAGs."""
 
-    def test_dag_test_without_executor_simple(self):
-        """Test dag.test() without executor for simple DAG."""
-        result = _execute_dag_test("example_simplest_dag", use_executor=False)
+    @pytest.mark.parametrize(
+        ("dag_id", "use_executor", "allow_skipped"),
+        [
+            ("example_simplest_dag", False, False),
+            ("example_simplest_dag", True, False),
+            ("example_xcom", False, False),
+            ("example_xcom", True, False),
+            ("example_branch_operator", False, True),
+            ("example_branch_operator", True, True),
+            ("example_task_group", False, False),
+            ("example_task_group", True, False),
+        ],
+        ids=lambda dag_id, use_executor, _: f"{dag_id}_{'executor' if use_executor else 'no_executor'}",
+    )
+    def test_dag_test(self, dag_id: str, use_executor: bool, allow_skipped: bool):
+        """Test dag.test() with and without executor for various DAG types."""
+        result = _execute_dag_test(dag_id, use_executor=use_executor)
 
+        # result["success"] already checks dag_run_state == "success", so no need for redundant assertion
         assert result["success"], f"DAG test failed. Result: {result}"
-        assert result["dag_run_state"] == "success"
-        # Verify all tasks completed successfully
+
+        # Verify all tasks completed successfully (or skipped for branching DAGs)
         for task_id, state in result["task_states"].items():
-            assert state == "success", f"Task {task_id} did not succeed. State: {state}"
-
-    def test_dag_test_with_executor_simple(self):
-        """Test dag.test() with executor for simple DAG."""
-        result = _execute_dag_test("example_simplest_dag", use_executor=True)
-
-        assert result["success"], f"DAG test failed. Result: {result}"
-        assert result["dag_run_state"] == "success"
-        # Verify all tasks completed successfully
-        for task_id, state in result["task_states"].items():
-            assert state == "success", f"Task {task_id} did not succeed. State: {state}"
-
-    def test_dag_test_without_executor_xcom(self):
-        """Test dag.test() without executor for DAG with XCom."""
-        result = _execute_dag_test("example_xcom", use_executor=False)
-
-        assert result["success"], f"DAG test failed. Result: {result}"
-        assert result["dag_run_state"] == "success"
-        # Verify all tasks completed successfully
-        for task_id, state in result["task_states"].items():
-            assert state == "success", f"Task {task_id} did not succeed. State: {state}"
-
-    def test_dag_test_with_executor_xcom(self):
-        """Test dag.test() with executor for DAG with XCom."""
-        result = _execute_dag_test("example_xcom", use_executor=True)
-
-        assert result["success"], f"DAG test failed. Result: {result}"
-        assert result["dag_run_state"] == "success"
-        # Verify all tasks completed successfully
-        for task_id, state in result["task_states"].items():
-            assert state == "success", f"Task {task_id} did not succeed. State: {state}"
-
-    def test_dag_test_without_executor_branching(self):
-        """Test dag.test() without executor for DAG with branching."""
-        result = _execute_dag_test("example_branch_operator", use_executor=False)
-
-        assert result["success"], f"DAG test failed. Result: {result}"
-        assert result["dag_run_state"] == "success"
-        # Verify all tasks completed successfully
-        for task_id, state in result["task_states"].items():
-            assert state in ["success", "skipped"], (
-                f"Task {task_id} did not succeed or was skipped. State: {state}"
-            )
-
-    def test_dag_test_with_executor_branching(self):
-        """Test dag.test() with executor for DAG with branching."""
-        result = _execute_dag_test("example_branch_operator", use_executor=True)
-
-        assert result["success"], f"DAG test failed. Result: {result}"
-        assert result["dag_run_state"] == "success"
-        # Verify all tasks completed successfully
-        for task_id, state in result["task_states"].items():
-            assert state in ["success", "skipped"], (
-                f"Task {task_id} did not succeed or was skipped. State: {state}"
-            )
-
-    def test_dag_test_without_executor_task_groups(self):
-        """Test dag.test() without executor for DAG with task groups."""
-        result = _execute_dag_test("example_task_group", use_executor=False)
-
-        assert result["success"], f"DAG test failed. Result: {result}"
-        assert result["dag_run_state"] == "success"
-        # Verify all tasks completed successfully
-        for task_id, state in result["task_states"].items():
-            assert state == "success", f"Task {task_id} did not succeed. State: {state}"
-
-    def test_dag_test_with_executor_task_groups(self):
-        """Test dag.test() with executor for DAG with task groups."""
-        result = _execute_dag_test("example_task_group", use_executor=True)
-
-        assert result["success"], f"DAG test failed. Result: {result}"
-        assert result["dag_run_state"] == "success"
-        # Verify all tasks completed successfully
-        for task_id, state in result["task_states"].items():
-            assert state == "success", f"Task {task_id} did not succeed. State: {state}"
+            if allow_skipped:
+                assert state in ["success", "skipped"], (
+                    f"Task {task_id} did not succeed or was skipped. State: {state}"
+                )
+            else:
+                assert state == "success", f"Task {task_id} did not succeed. State: {state}"
 
