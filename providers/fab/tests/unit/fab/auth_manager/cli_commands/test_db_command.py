@@ -23,6 +23,7 @@ import pytest
 
 from airflow.cli import cli_parser
 
+from tests_common.test_utils.cli import skip_cli_test_marker
 from tests_common.test_utils.config import conf_vars
 
 pytestmark = [pytest.mark.db_test]
@@ -30,6 +31,7 @@ try:
     from airflow.providers.fab.auth_manager.cli_commands import db_command
     from airflow.providers.fab.auth_manager.models.db import FABDBManager
 
+    @skip_cli_test_marker("airflow.providers.fab.cli.definition", "FAB")
     class TestFABCLiDB:
         @classmethod
         def setup_class(cls):

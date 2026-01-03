@@ -23,12 +23,10 @@ import pytest
 from airflow.cli import cli_parser
 from airflow.providers.edge3.cli.definition import EDGE_COMMANDS, get_edge_cli_commands
 
-from tests_common.test_utils.version_compat import AIRFLOW_V_3_2_PLUS
+from tests_common.test_utils.cli import skip_cli_test_marker
 
 
-@pytest.mark.skipif(
-    not AIRFLOW_V_3_2_PLUS, reason="The ProviderManager-based CLI is available in Airflow 3.2+"
-)
+@skip_cli_test_marker("airflow.providers.edge3.cli.definition", "edge3")
 class TestEdgeCliDefinition:
     @pytest.fixture(autouse=True)
     def setup_parser(self):

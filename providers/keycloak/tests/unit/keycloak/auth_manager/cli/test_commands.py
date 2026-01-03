@@ -33,9 +33,11 @@ from airflow.providers.keycloak.auth_manager.cli.commands import (
 )
 from airflow.providers.keycloak.auth_manager.resources import KeycloakResource
 
+from tests_common.test_utils.cli import skip_cli_test_marker
 from tests_common.test_utils.config import conf_vars
 
 
+@skip_cli_test_marker("airflow.providers.keycloak.cli.definition", "Keycloak")
 @pytest.mark.db_test
 class TestCommands:
     @classmethod

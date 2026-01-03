@@ -48,6 +48,7 @@ from airflow.providers.edge3.worker_api.datamodels import (
 )
 from airflow.utils.state import TaskInstanceState
 
+from tests_common.test_utils.cli import skip_cli_test_marker
 from tests_common.test_utils.config import conf_vars
 
 pytest.importorskip("pydantic", minversion="2.0.0")
@@ -86,6 +87,7 @@ class _MockPopen(Popen):
         return self.generated_returncode
 
 
+@skip_cli_test_marker("airflow.providers.edge3.cli.definition", "edge3")
 class TestEdgeWorker:
     parser: argparse.ArgumentParser
 

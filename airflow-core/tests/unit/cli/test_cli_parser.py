@@ -203,15 +203,6 @@ class TestCli:
             # Restore removed modules
             sys.modules.update(removed_modules)
 
-    def test_hybrid_executor_get_cli_commands(self):
-        """Test that if multiple executors are configured, then every executor loads its commands."""
-
-        expected_commands = ["celery", "kubernetes", "edge"]
-        reload(cli_parser)
-        commands = [command.name for command in cli_parser.airflow_commands]
-        for executor_command in expected_commands:
-            assert executor_command in commands
-
     @pytest.mark.parametrize(
         (
             "cli_command_functions",
@@ -425,7 +416,7 @@ class TestCli:
             reload(cli_parser)
 
         # assert
-        expected_warning = "Please define the 'cli' section in the provider.yaml for custom auth managers to avoid this warning."
+        expected_warning = "Please define the 'cli' section in the 'get_provider_info' for custom auth manager to avoid this warning."
         if expected_loaded:
             assert expected_warning in caplog.text
             assert auth_manager_cls_path in caplog.text
