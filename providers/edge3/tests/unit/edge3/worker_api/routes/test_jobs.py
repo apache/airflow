@@ -30,6 +30,17 @@ from airflow.utils.state import TaskInstanceState
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
 
+try:
+    from airflow.observability.metrics.dual_stats_manager import DualStatsManager  # noqa: F401
+
+    stats_reference = "airflow.observability.metrics.DualStatsManager"
+    expected_call_count = 1
+except ImportError:
+    from airflow.providers.common.compat.sdk import Stats
+
+    stats_reference = f"{Stats.__module__}.Stats"
+    expected_call_count = 2
+
 pytestmark = pytest.mark.db_test
 
 
@@ -45,7 +56,7 @@ class TestJobsApiRoutes:
         session.execute(delete(EdgeJobModel))
         session.commit()
 
-    @patch("airflow.observability.metrics.DualStatsManager.incr")
+    @patch(f"{stats_reference}.incr")
     def test_state(self, mock_stats_incr, session: Session):
         with create_session() as session:
             job = EdgeJobModel(
@@ -92,7 +103,7 @@ class TestJobsApiRoutes:
                     "task_id": TASK_ID,
                 },
             )
-            assert mock_stats_incr.call_count == 1
+            assert mock_stats_incr.call_count == expected_call_count
 
             db_job: EdgeJobModel | None = session.scalar(select(EdgeJobModel))
             assert db_job is not None
