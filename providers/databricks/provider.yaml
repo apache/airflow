@@ -101,8 +101,8 @@ dependencies:
 additional-extras:
   - name: sqlalchemy
     dependencies:
-      - sqlalchemy>=1.4
-
+      - sqlalchemy>=1.4.0
+      
 integrations:
   - integration-name: Databricks
     external-doc-url: https://databricks.com/
