@@ -466,6 +466,7 @@ repos:
             ^airflow-core/tests/unit/utils/test_types.py$|
             ^airflow-core/tests/unit/dag_processing/test_manager.py$|
             ^airflow-core/tests/unit/dag_processing/test_processor.py$|
+            ^airflow-core/tests/unit/dag_processing/test_collection\.py$|
             ^dev/airflow_perf/scheduler_dag_execution_timing.py$|
             ^providers/celery/.*\.py$|
             ^providers/cncf/kubernetes/.*\.py$|
@@ -473,6 +474,13 @@ repos:
             ^providers/edge3/.*\.py$|
             ^providers/mysql/.*\.py$|
             ^providers/openlineage/.*\.py$|
+            ^providers/standard/tests/unit/standard/operators/test_latest_only_operator\.py$|
+            ^providers/standard/tests/unit/standard/operators/test_trigger_dagrun\.py$|
+            ^providers/standard/tests/unit/standard/operators/test_weekday\.py$|
+            ^providers/standard/tests/unit/standard/operators/test_datetime\.py$|
+            ^providers/standard/tests/unit/standard/operators/test_branch_operator\.py$|
+            ^providers/standard/tests/unit/standard/sensors/test_external_task_sensor\.py$|
+            ^providers/standard/tests/unit/standard/utils/test_skipmixin\.py$|
             ^task_sdk.*\.py$|
             ^devel-common/src/tests_common/pytest_plugin\.py$|
             ^devel-common/src/tests_common/test_utils/.*\.py$

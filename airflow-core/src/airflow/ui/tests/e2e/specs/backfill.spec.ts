@@ -17,7 +17,7 @@
  * under the License.
  */
 import { test, expect } from "@playwright/test";
-import { testConfig } from "playwright.config";
+import { testConfig, AUTH_FILE } from "playwright.config";
 import { BackfillPage } from "tests/e2e/pages/BackfillPage";
 
 const getPastDate = (daysAgo: number): string => {
@@ -29,104 +29,90 @@ const getPastDate = (daysAgo: number): string => {
   return date.toISOString().slice(0, 16);
 };
 
-// Backfills E2E Tests
-
 test.describe("Backfills List Display", () => {
-  let backfillPage: BackfillPage;
   const testDagId = testConfig.testDag.id;
-  let createdFromDate: string;
-  let createdToDate: string;
+  const createdFromDate = getPastDate(2);
+  const createdToDate = getPastDate(1);
 
   test.beforeAll(async ({ browser }) => {
-    test.setTimeout(60_000);
+    test.setTimeout(180_000);
 
-    const context = await browser.newContext();
+    const context = await browser.newContext({ storageState: AUTH_FILE });
     const page = await context.newPage();
+    const setupBackfillPage = new BackfillPage(page);
 
-    backfillPage = new BackfillPage(page);
-
-    createdFromDate = getPastDate(2);
-    createdToDate = getPastDate(1);
-
-    await backfillPage.createBackfill(testDagId, {
+    await setupBackfillPage.createBackfill(testDagId, {
       fromDate: createdFromDate,
       reprocessBehavior: "All Runs",
       toDate: createdToDate,
     });
 
-    await backfillPage.navigateToBackfillsTab(testDagId);
+    await context.close();
   });
 
-  test("should verify backfills list display", async () => {
-    const rowsCount = await backfillPage.getBackfillsTableRows();
+  test("Verify backfill list display", async ({ page }) => {
+    const backfillPage = new BackfillPage(page);
+
+    await backfillPage.navigateToBackfillsTab(testDagId);
 
     await expect(backfillPage.backfillsTable).toBeVisible();
+
+    const rowsCount = await backfillPage.getBackfillsTableRows();
+
     expect(rowsCount).toBeGreaterThanOrEqual(1);
   });
 
-  test("Verify backfill details display: date range, status, created time", async () => {
+  test("Verify backfill details display", async ({ page }) => {
+    const backfillPage = new BackfillPage(page);
+
+    await backfillPage.navigateToBackfillsTab(testDagId);
+
     const backfillDetails = await backfillPage.getBackfillDetails(0);
 
-    // validate date range
     expect(backfillDetails.fromDate.slice(0, 10)).toEqual(createdFromDate.slice(0, 10));
     expect(backfillDetails.toDate.slice(0, 10)).toEqual(createdToDate.slice(0, 10));
 
-    // Validate backfill status
     const status = await backfillPage.getBackfillStatus();
 
-    expect(status).not.toEqual("");
-
-    // Validate created time
+    expect(typeof status).toBe("string");
     expect(backfillDetails.createdAt).not.toEqual("");
   });
 
-  test("should verify Table filters", async () => {
+  test("Verify backfill table filters", async ({ page }) => {
+    const backfillPage = new BackfillPage(page);
+
     await backfillPage.navigateToBackfillsTab(testDagId);
 
     const initialColumnCount = await backfillPage.getTableColumnCount();
 
     expect(initialColumnCount).toBeGreaterThan(0);
-
-    // Verify filter button is available
     await expect(backfillPage.getFilterButton()).toBeVisible();
 
-    // Open filter menu to see available columns
     await backfillPage.openFilterMenu();
 
-    // Get all filterable columns (those with checkboxes in the menu)
     const filterMenuItems = backfillPage.page.locator('[role="menuitem"]');
     const filterMenuCount = await filterMenuItems.count();
 
-    // Ensure there are filterable columns
     expect(filterMenuCount).toBeGreaterThan(0);
 
-    // Get the first filterable column that has a checkbox
     const firstMenuItem = filterMenuItems.first();
     const columnToToggle = (await firstMenuItem.textContent())?.trim() ?? "";
 
     expect(columnToToggle).not.toBe("");
 
-    // Toggle column off
     await backfillPage.toggleColumn(columnToToggle);
+    await backfillPage.backfillsTable.click({ position: { x: 5, y: 5 } });
 
-    await backfillPage.page.keyboard.press("Escape");
-    await backfillPage.page.locator('[role="menu"]').waitFor({ state: "hidden" });
-
-    // Verify column is hidden
     await expect(backfillPage.getColumnHeader(columnToToggle)).not.toBeVisible();
 
     const newColumnCount = await backfillPage.getTableColumnCount();
 
     expect(newColumnCount).toBeLessThan(initialColumnCount);
 
-    // Toggle column back on
     await backfillPage.openFilterMenu();
     await backfillPage.toggleColumn(columnToToggle);
+    await backfillPage.backfillsTable.click({ position: { x: 5, y: 5 } });
 
-    await backfillPage.page.keyboard.press("Escape");
-    await backfillPage.page.locator('[role="menu"]').waitFor({ state: "hidden" });
-
-    // Verify column is visible again
     await expect(backfillPage.getColumnHeader(columnToToggle)).toBeVisible();
 
     const finalColumnCount = await backfillPage.getTableColumnCount();

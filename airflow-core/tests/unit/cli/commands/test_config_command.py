@@ -51,6 +51,8 @@ class TestCliConfigList:
             include_env_vars=False,
             include_providers=True,
             comment_out_everything=False,
+            hide_sensitive=False,
+            show_values=False,
             only_defaults=False,
         )
 
@@ -69,16 +71,38 @@ class TestCliConfigList:
             include_env_vars=False,
             include_providers=True,
             comment_out_everything=False,
+            hide_sensitive=False,
+            show_values=False,
             only_defaults=False,
         )
 
     @conf_vars({("core", "testkey"): "test_value"})
     def test_cli_show_config_should_display_key(self, stdout_capture):
         with stdout_capture as temp_stdout:
-            config_command.show_config(self.parser.parse_args(["config", "list", "--color", "off"]))
+            config_command.show_config(
+                self.parser.parse_args(["config", "list", "--color", "off", "--show-values"])
+            )
         output = temp_stdout.getvalue()
         assert "[core]" in output
         assert "testkey = test_value" in temp_stdout.getvalue()
+
+    def test_cli_show_config_should_not_show_sensitive_values(self, stdout_capture):
+        with stdout_capture as temp_stdout:
+            config_command.show_config(
+                self.parser.parse_args(
+                    ["config", "list", "--color", "off", "--show-values", "--hide-sensitive"]
+                )
+            )
+        output = temp_stdout.getvalue()
+        assert "sql_alchemy_conn = < hidden >" in output
+        assert "fernet_key = < hidden >" in output
+
+    def test_cli_show_config_should_not_show_values(self, stdout_capture):
+        with stdout_capture as temp_stdout:
+            config_command.show_config(self.parser.parse_args(["config", "list", "--color", "off"]))
+        output = temp_stdout.getvalue()
+        lines = output.splitlines()
+        assert all(not line.startswith("testkey =") for line in lines if line)
 
     def test_cli_show_config_should_only_show_comments_when_no_defaults(self, stdout_capture):
         with stdout_capture as temp_stdout:
@@ -139,7 +163,7 @@ class TestCliConfigList:
     def test_cli_show_config_defaults(self, stdout_capture):
         with stdout_capture as temp_stdout:
             config_command.show_config(
-                self.parser.parse_args(["config", "list", "--color", "off", "--defaults"])
+                self.parser.parse_args(["config", "list", "--color", "off", "--defaults", "--show-values"])
             )
         output = temp_stdout.getvalue()
         lines = output.splitlines()
@@ -156,7 +180,7 @@ class TestCliConfigList:
     def test_cli_show_config_defaults_not_show_conf_changes(self, stdout_capture):
         with stdout_capture as temp_stdout:
             config_command.show_config(
-                self.parser.parse_args(["config", "list", "--color", "off", "--defaults"])
+                self.parser.parse_args(["config", "list", "--color", "off", "--defaults", "--show-values"])
             )
         output = temp_stdout.getvalue()
         lines = output.splitlines()
@@ -168,7 +192,7 @@ class TestCliConfigList:
     def test_cli_show_config_defaults_do_not_show_env_changes(self, stdout_capture):
         with stdout_capture as temp_stdout:
             config_command.show_config(
-                self.parser.parse_args(["config", "list", "--color", "off", "--defaults"])
+                self.parser.parse_args(["config", "list", "--color", "off", "--defaults", "--show-values"])
             )
         output = temp_stdout.getvalue()
         lines = output.splitlines()
@@ -179,7 +203,9 @@ class TestCliConfigList:
     @conf_vars({("core", "hostname_callable"): "testfn"})
     def test_cli_show_changed_defaults_when_overridden_in_conf(self, stdout_capture):
         with stdout_capture as temp_stdout:
-            config_command.show_config(self.parser.parse_args(["config", "list", "--color", "off"]))
+            config_command.show_config(
+                self.parser.parse_args(["config", "list", "--color", "off", "--show-values"])
+            )
         output = temp_stdout.getvalue()
         lines = output.splitlines()
         assert any(line.startswith("hostname_callable = testfn") for line in lines if line)
@@ -187,14 +213,18 @@ class TestCliConfigList:
     @mock.patch("os.environ", {"AIRFLOW__CORE__HOSTNAME_CALLABLE": "test_env"})
     def test_cli_show_changed_defaults_when_overridden_in_env(self, stdout_capture):
         with stdout_capture as temp_stdout:
-            config_command.show_config(self.parser.parse_args(["config", "list", "--color", "off"]))
+            config_command.show_config(
+                self.parser.parse_args(["config", "list", "--color", "off", "--show-values"])
+            )
         output = temp_stdout.getvalue()
         lines = output.splitlines()
         assert any(line.startswith("hostname_callable = test_env") for line in lines if line)
 
     def test_cli_has_providers(self, stdout_capture):
         with stdout_capture as temp_stdout:
-            config_command.show_config(self.parser.parse_args(["config", "list", "--color", "off"]))
+            config_command.show_config(
+                self.parser.parse_args(["config", "list", "--color", "off", "--show-values"])
+            )
         output = temp_stdout.getvalue()
         lines = output.splitlines()
         assert any(line.startswith("celery_config_options") for line in lines if line)
