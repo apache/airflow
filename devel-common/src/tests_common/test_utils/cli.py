@@ -18,16 +18,19 @@ from __future__ import annotations
 
 import pytest
 
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_2_PLUS
+
 
 def skip_cli_test(package_name: str):
     """Skip CLI tests if given package is not installed in Airflow 3.2+, as ProviderManger will try to load 'cli' section in CLI parser stage."""
-    from tests_common.test_utils.version_compat import AIRFLOW_V_3_2_PLUS
 
     if AIRFLOW_V_3_2_PLUS:
         import importlib
 
         return not importlib.util.find_spec(package_name)
-    return False
+
+    # if Airflow Core < 3.2, skip the test as 'cli' section is not yet introduced
+    return True
 
 
 def skip_cli_test_marker(package_name: str, provider_name: str):

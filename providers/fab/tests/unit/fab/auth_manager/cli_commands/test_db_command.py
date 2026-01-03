@@ -25,6 +25,7 @@ from airflow.cli import cli_parser
 
 from tests_common.test_utils.cli import skip_cli_test_marker
 from tests_common.test_utils.config import conf_vars
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_2_PLUS
 
 pytestmark = [pytest.mark.db_test]
 try:
@@ -33,8 +34,22 @@ try:
 
     @skip_cli_test_marker("airflow.providers.fab.cli.definition", "FAB")
     class TestFABCLiDB:
-        @classmethod
-        def setup_class(cls):
+        @pytest.fixture(autouse=True)
+        def setup_provider_manager(self):
+            if AIRFLOW_V_3_2_PLUS:
+                from airflow.providers.fab.cli.definition import get_fab_cli_commands
+
+                with mock.patch(
+                    "airflow.providers_manager.ProvidersManager.cli_command_functions",
+                    new_callable=mock.PropertyMock,
+                ) as mock_cli_command_functions:
+                    mock_cli_command_functions.return_value = [get_fab_cli_commands]
+                    yield
+            else:
+                yield
+
+        @pytest.fixture(autouse=True)
+        def setup_parser(self):
             with conf_vars(
                 {
                     (
@@ -47,7 +62,7 @@ try:
                 reload(cli_parser)
                 # Clearing the cache before calling it
                 cli_parser.get_parser.cache_clear()
-                cls.parser = cli_parser.get_parser()
+                self.parser = cli_parser.get_parser()
 
         @mock.patch.object(FABDBManager, "resetdb")
         def test_cli_resetdb(self, mock_resetdb):
