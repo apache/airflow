@@ -50,6 +50,14 @@ class TestHookMetaData:
         [
             ({"secret_key": "test-secret_key"}, {"secret_key": "***"}),
             ({"extra_fields": "test-extra_fields"}, {"extra_fields": "test-extra_fields"}),
+            (
+                {
+                    "secret_key": "test-secret_key",
+                    "extra_fields": "test-extra_fields",
+                    "password": "test-password",
+                },
+                {"secret_key": "***", "extra_fields": "test-extra_fields", "password": "***"},
+            ),
         ],
     )
     @pytest.mark.enable_redact
