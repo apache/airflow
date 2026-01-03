@@ -145,7 +145,8 @@ class EdgeWorker:
     def shutdown_handler(self, sig, frame):
         logger.info("SIGTERM received. Terminating all jobs and quit")
         for job in EdgeWorker.jobs:
-            os.killpg(job.process.pid, signal.SIGTERM)
+            if job.process.pid:
+                os.kill(job.process.pid, signal.SIGTERM)
         EdgeWorker.drain = True
 
     def _get_sysinfo(self) -> dict:
@@ -193,7 +194,7 @@ class EdgeWorker:
         from airflow.sdk.execution_time.supervisor import supervise
 
         # Ignore ctrl-c in this process -- we don't want to kill _this_ one. we let tasks run to completion
-        signal.signal(signal.SIGINT, signal.SIG_IGN)
+        os.setpgrp()
 
         logger.info("Worker starting up pid=%d", os.getpid())
         setproctitle(f"airflow edge worker: {workload.ti.key}")
