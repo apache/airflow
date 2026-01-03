@@ -17,8 +17,8 @@
 from __future__ import annotations
 
 import json
-from asyncio import CancelledError, Future
 from dataclasses import asdict, dataclass
+from multiprocessing import Process
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -72,7 +72,7 @@ class Job:
     """Holds all information for a task/job to be executed as bundle."""
 
     edge_job: EdgeJobFetched
-    process: Future
+    process: Process
     logfile: Path
     logsize: int = 0
     """Last size of log file, point of last chunk push."""
@@ -80,13 +80,9 @@ class Job:
     @property
     def is_running(self) -> bool:
         """Check if the job is still running."""
-        return not self.process.done()
+        return self.process.is_alive()
 
     @property
     def is_success(self) -> bool:
         """Check if the job was successful."""
-        try:
-            self.process.result()
-        except (Exception, CancelledError):
-            return False
-        return True
+        return self.process.exitcode == 0

@@ -19,10 +19,11 @@ from __future__ import annotations
 import contextlib
 import importlib
 import json
-from asyncio.subprocess import Process as AsyncProcess
 from datetime import datetime
 from io import StringIO
+from multiprocessing import Process, Queue
 from pathlib import Path
+from unittest import mock
 from unittest.mock import call, patch
 
 import pytest
@@ -74,7 +75,7 @@ MOCK_COMMAND = {
 }
 
 
-class _MockAsyncProcess(AsyncProcess):
+class _MockProcess(Process):
     def __init__(self, returncode=None):
         self.generated_returncode = None
 
@@ -120,7 +121,7 @@ class TestEdgeWorker:
                     concurrency_slots=1,
                     command=MOCK_COMMAND,  # type: ignore[arg-type]
                 ),
-                process=_MockAsyncProcess(),
+                process=_MockProcess(),
                 logfile=logfile,
                 logsize=0,
             ),
@@ -179,9 +180,11 @@ class TestEdgeWorker:
         worker_with_job: EdgeWorker,
     ):
         edge_job = worker_with_job.jobs.pop().edge_job
-        result = EdgeWorker._run_job_via_supervisor(edge_job.command, "http://mock-url")
+        q = mock.MagicMock()
+        result = EdgeWorker._run_job_via_supervisor(edge_job.command, "http://mock-url", q)
 
         assert result == 0
+        q.put.assert_not_called()
 
     @patch("airflow.sdk.execution_time.supervisor.supervise")
     @pytest.mark.asyncio
@@ -190,16 +193,20 @@ class TestEdgeWorker:
         mock_supervise,
         worker_with_job: EdgeWorker,
     ):
-        mock_supervise.side_effect = RuntimeError("Supervise failed")
+        mock_supervise.side_effect = Exception("Supervise failed")
         edge_job = worker_with_job.jobs.pop().edge_job
-        result = EdgeWorker._run_job_via_supervisor(edge_job.command, "http://mock-url")
+        q = mock.MagicMock()
+        result = EdgeWorker._run_job_via_supervisor(edge_job.command, "http://mock-url", q)
 
         assert result == 1
+        q.put.assert_called_once()
 
     @patch("airflow.providers.edge3.cli.worker.jobs_fetch")
+    @patch("airflow.providers.edge3.cli.worker.EdgeWorker._launch_job", return_value=(Process(), Queue()))
     @pytest.mark.asyncio
     async def test_fetch_and_run_job_no_job(
         self,
+        mock_launch_job,
         mock_jobs_fetch,
         worker_with_job: EdgeWorker,
     ):
@@ -209,10 +216,11 @@ class TestEdgeWorker:
 
         mock_jobs_fetch.assert_called_once()
         assert len(worker_with_job.jobs) == 1  # no new job added
+        mock_launch_job.assert_not_called()
 
     @patch("airflow.providers.edge3.cli.worker.jobs_fetch")
+    @patch("airflow.providers.edge3.cli.worker.EdgeWorker._launch_job", return_value=(Process(), Queue()))
     @patch("airflow.providers.edge3.cli.worker.jobs_set_state")
-    @patch("airflow.providers.edge3.cli.worker.get_running_loop")
     @patch("airflow.providers.edge3.cli.worker.EdgeWorker._push_logs_in_chunks")
     @patch("airflow.providers.edge3.cli.worker.logs_push")
     @patch.object(Job, "is_running", property(lambda _: False))
@@ -222,8 +230,8 @@ class TestEdgeWorker:
         self,
         mock_logs_push,
         mock_push_log_chunks,
-        mock_asyncio_loop,
         mock_jobs_set_state,
+        mock_launch_job,
         mock_jobs_fetch,
         worker_with_job: EdgeWorker,
     ):
@@ -244,15 +252,16 @@ class TestEdgeWorker:
 
         await worker_with_job.fetch_and_run_job()
 
+        mock_jobs_fetch.assert_called_once()
+        mock_launch_job.assert_called_once()
         assert mock_jobs_set_state.call_count == 2
-        mock_asyncio_loop.assert_called_once()
         mock_push_log_chunks.assert_called_once()
         assert len(worker_with_job.jobs) == 1  # no new job added (was removed at the end...)
         mock_logs_push.assert_not_called()
 
     @patch("airflow.providers.edge3.cli.worker.jobs_fetch")
+    @patch("airflow.providers.edge3.cli.worker.EdgeWorker._launch_job", return_value=(Process(), Queue()))
     @patch("airflow.providers.edge3.cli.worker.jobs_set_state")
-    @patch("airflow.providers.edge3.cli.worker.get_running_loop")
     @patch("airflow.providers.edge3.cli.worker.EdgeWorker._push_logs_in_chunks")
     @patch("airflow.providers.edge3.cli.worker.logs_push")
     @patch.object(Job, "is_running", property(lambda _: False))
@@ -264,8 +273,8 @@ class TestEdgeWorker:
         mock_traceback,
         mock_logs_push,
         mock_push_log_chunks,
-        mock_asyncio_loop,
         mock_jobs_set_state,
+        mock_launch_job,
         mock_jobs_fetch,
         worker_with_job: EdgeWorker,
     ):
@@ -286,8 +295,9 @@ class TestEdgeWorker:
 
         await worker_with_job.fetch_and_run_job()
 
+        mock_jobs_fetch.assert_called_once()
+        mock_launch_job.assert_called_once()
         assert mock_jobs_set_state.call_count == 2
-        mock_asyncio_loop.assert_called_once()
         mock_push_log_chunks.assert_called_once()
         assert len(worker_with_job.jobs) == 1  # no new job added (was removed at the end...)
         mock_logs_push.assert_called_once()
@@ -415,8 +425,8 @@ class TestEdgeWorker:
         self, mock_set_state, mock_loop, mock_register, worker_with_job: EdgeWorker
     ):
         def stop_running():
-            EdgeWorker.drain = True
-            EdgeWorker.jobs = []
+            worker_with_job.drain = True
+            worker_with_job.jobs = []
 
         mock_loop.side_effect = stop_running
         mock_register.side_effect = [WorkerRegistrationReturn(last_update=datetime.now())]
@@ -425,7 +435,7 @@ class TestEdgeWorker:
 
         mock_register.assert_called_once()
         mock_loop.assert_called_once()
-        assert mock_set_state.call_count == 2
+        assert mock_set_state.call_count == 1
 
     def test_get_sysinfo(self, worker_with_job: EdgeWorker):
         concurrency = 8

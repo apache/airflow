@@ -26,6 +26,7 @@ from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
 from functools import cache
 from http import HTTPStatus
+from multiprocessing import Process, Queue
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -83,10 +84,6 @@ class EdgeWorker:
 
     jobs: list[Job] = []
     """List of jobs that the worker is running currently."""
-    last_hb: datetime = datetime.now()
-    """Timestamp of last heart beat sent to server."""
-    previous_jobs: int = 0
-    """Number of jobs during last heart beat."""
     drain: bool = False
     """Flag if job processing should be completed and no new jobs fetched for a graceful stop/shutdown."""
     maintenance_mode: bool = False
@@ -154,7 +151,8 @@ class EdgeWorker:
         msg = "SIGTERM received. Terminating all jobs and quit"
         logger.info(msg)
         for job in self.jobs:
-            job.process.cancel(msg=msg)
+            if job.process.pid:
+                os.killpg(job.process.pid, signal.SIGTERM)
 
     def _get_sysinfo(self) -> dict:
         """Produce the sysinfo from worker to post to central site."""
@@ -196,13 +194,11 @@ class EdgeWorker:
         return execution_api_server_url
 
     @staticmethod
-    def _run_job_via_supervisor(workload, execution_api_server_url) -> int:
+    def _run_job_via_supervisor(workload, execution_api_server_url, results_queue: Queue) -> int:
         from airflow.sdk.execution_time.supervisor import supervise
 
         # Ignore ctrl-c in this process -- we don't want to kill _this_ one. we let tasks run to completion
-        # TODO check is this needs to be made different when locally executing
-        # signal.signal(signal.SIGINT, signal.SIG_IGN)
-        # TODO but when CTRL+C in console the subprocess is also killed :-(
+        signal.signal(signal.SIGINT, signal.SIG_IGN)
         # TODO Check also:
         # /opt/airflow/task-sdk/src/airflow/sdk/execution_time/supervisor.py:480 DeprecationWarning: This process (pid=372) is multi-threaded, use of fork() may lead to deadlocks in the child.
 
@@ -222,8 +218,24 @@ class EdgeWorker:
             )
             return 0
         except Exception as e:
-            logger.exception("Task execution failed: %s", e)
+            logger.exception("Task execution failed")
+            results_queue.put(e)
             return 1
+
+    def _launch_job(self, workload: ExecuteTask) -> tuple[Process, Queue[Exception]]:
+        # Improvement: Use frozen GC to prevent child process from copying unnecessary memory
+        # See _spawn_workers_with_gc_freeze() in airflow-core/src/airflow/executors/local_executor.py
+        results_queue: Queue[Exception] = Queue()
+        process = Process(
+            target=EdgeWorker._run_job_via_supervisor,
+            kwargs={
+                "workload": workload,
+                "execution_api_server_url": EdgeWorker._execution_api_server_url(),
+                "results_queue": results_queue,
+            },
+        )
+        process.start()
+        return process, results_queue
 
     async def _push_logs_in_chunks(self, job: Job):
         if push_logs and job.logfile.exists() and job.logfile.stat().st_size > job.logsize:
@@ -249,10 +261,7 @@ class EdgeWorker:
     async def start(self):
         """Start the execution in a loop until terminated."""
         try:
-            register_result = await worker_register(
-                self.hostname, EdgeWorkerState.STARTING, self.queues, self._get_sysinfo()
-            )
-            self.last_hb = register_result.last_update
+            await worker_register(self.hostname, EdgeWorkerState.STARTING, self.queues, self._get_sysinfo())
         except EdgeWorkerVersionException as e:
             logger.info("Version mismatch of Edge worker and Core. Shutting down worker.")
             raise SystemExit(str(e))
@@ -274,8 +283,6 @@ class EdgeWorker:
         os.environ["HOSTNAME"] = self.hostname
         os.environ["AIRFLOW__CORE__HOSTNAME_CALLABLE"] = f"{_edge_hostname.__module__}._edge_hostname"
         try:
-            self.worker_state_changed = await self.heartbeat()
-            self.last_hb = datetime.now()
             await self.loop()
 
             logger.info("Quitting worker, signal being offline.")
@@ -295,23 +302,29 @@ class EdgeWorker:
 
     async def loop(self):
         """Run a loop of scheduling and monitoring tasks."""
+        last_hb = datetime.now()
+        worker_state_changed = True  # force heartbeat at start
+        previous_jobs = 0
         while not self.drain or self.jobs:
-            if not self.maintenance_mode and not self.drain and self.free_concurrency > 0:
+            if (
+                self.drain
+                or datetime.now().timestamp() - last_hb.timestamp() > self.hb_interval
+                or worker_state_changed  # send heartbeat immediately if the state is different in db
+                or previous_jobs != len(self.jobs)  # when number of jobs changes
+            ):
+                worker_state_changed = await self.heartbeat()
+                last_hb = datetime.now()
+                previous_jobs = len(self.jobs)
+
+            if self.maintenance_mode:
+                logger.info("in maintenance mode%s", f", {len(self.jobs)} draining jobs" if self.jobs else "")
+            elif not self.drain and self.free_concurrency > 0:
                 task = create_task(self.fetch_and_run_job())
                 self.background_tasks.add(task)
                 task.add_done_callback(self.background_tasks.discard)
             else:
                 logger.info("%i %s running", len(self.jobs), "job is" if len(self.jobs) == 1 else "jobs are")
 
-            if (
-                self.drain
-                or datetime.now().timestamp() - self.last_hb.timestamp() > self.hb_interval
-                or self.worker_state_changed  # send heartbeat immediately if the state is different in db
-                or self.previous_jobs != len(self.jobs)  # when number of jobs changes
-            ):
-                self.worker_state_changed = await self.heartbeat()
-                self.last_hb = datetime.now()
-                self.previous_jobs = len(self.jobs)
             await self.interruptible_sleep()
 
     async def fetch_and_run_job(self) -> None:
@@ -328,16 +341,11 @@ class EdgeWorker:
         logger.info("Received job: %s", edge_job.identifier)
 
         workload: ExecuteTask = edge_job.command
-        future = get_running_loop().run_in_executor(
-            self.thread_pool,
-            EdgeWorker._run_job_via_supervisor,
-            workload,
-            EdgeWorker._execution_api_server_url(),
-        )
+        process, results_queue = self._launch_job(workload)
         if TYPE_CHECKING:
             assert workload.log_path  # We need to assume this is defined in here
         logfile = Path(base_log_folder, workload.log_path)
-        job = Job(edge_job, future, logfile)
+        job = Job(edge_job, process, logfile)
         self.jobs.append(job)
         await jobs_set_state(edge_job.key, TaskInstanceState.RUNNING)
 
@@ -360,8 +368,11 @@ class EdgeWorker:
             logger.info("Job completed: %s", job.edge_job.identifier)
             await jobs_set_state(job.edge_job.key, TaskInstanceState.SUCCESS)
         else:
-            ex = job.process.exception()
-            ex_txt = "\n".join(traceback.format_exception(ex))
+            if results_queue.empty():
+                ex_txt = "(Unknown error, no exception details available)"
+            else:
+                ex = results_queue.get()
+                ex_txt = "\n".join(traceback.format_exception(ex))
             logger.error("Job failed: %s with:\n%s", job.edge_job.identifier, ex_txt)
             # Push it upwards to logs for better diagnostic as well
             await logs_push(
