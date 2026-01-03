@@ -915,8 +915,7 @@ class DAG:
         direct_upstreams: list[Operator] = []
         if include_direct_upstream:
             for t in itertools.chain(matched_tasks, also_include):
-                upstream = (u for u in t.upstream_list if is_task(u))
-                direct_upstreams.extend(upstream)
+                direct_upstreams.extend(u for u in t.upstream_list if is_task(u))
 
         # Make sure to not recursively deepcopy the dag or task_group while copying the task.
         # task_group is reset later
@@ -1430,6 +1429,7 @@ def _run_task(
             ti.task = create_scheduler_operator(taskrun_result.ti.task)
 
             if ti.state == TaskInstanceState.DEFERRED and isinstance(msg, DeferTask) and run_triggerer:
+                from airflow.sdk.serde import deserialize, serialize
                 from airflow.utils.session import create_session
 
                 # API Server expects the task instance to be in QUEUED state before
@@ -1437,10 +1437,14 @@ def _run_task(
                 ti.set_state(TaskInstanceState.QUEUED)
 
                 log.info("[DAG TEST] running trigger in line")
-                trigger = import_string(msg.classpath)(**msg.trigger_kwargs)
+                # trigger_kwargs need to be deserialized before passing to the trigger class since they are in serde encoded format
+                kwargs = deserialize(msg.trigger_kwargs)  # type: ignore[type-var]  # needed to convince mypy that trigger_kwargs is a dict or a str because its unable to infer JsonValue
+                if TYPE_CHECKING:
+                    assert isinstance(kwargs, dict)
+                trigger = import_string(msg.classpath)(**kwargs)
                 event = _run_inline_trigger(trigger, task_sdk_ti)
                 ti.next_method = msg.next_method
-                ti.next_kwargs = {"event": event.payload} if event else msg.next_kwargs
+                ti.next_kwargs = {"event": serialize(event.payload)} if event else msg.next_kwargs
                 log.info("[DAG TEST] Trigger completed")
 
                 # Set the state to SCHEDULED so that the task can be resumed.

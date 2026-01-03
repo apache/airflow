@@ -29,6 +29,8 @@ from airflow.utils.state import State
 from airflow.utils.types import DagRunType
 from sqlalchemy import delete
 
+from tests_common.test_utils.taskinstance import run_task_instance
+
 pytestmark = pytest.mark.db_test
 
 
@@ -50,10 +52,9 @@ def test_no_parent(session, dag_maker):
         start_date=start_date,
         session=session,
     ):
-        op1 = EmptyOperator(task_id="op1")
+        EmptyOperator(task_id="op1")
 
     (ti1,) = dag_maker.create_dagrun(logical_date=start_date).task_instances
-    ti1.refresh_from_task(op1)
 
     dep = NotPreviouslySkippedDep()
     assert len(list(dep.get_dep_statuses(ti1, session, DepContext()))) == 0
@@ -77,7 +78,6 @@ def test_no_skipmixin_parent(session, dag_maker):
         op1 >> op2
 
     _, ti2 = dag_maker.create_dagrun().task_instances
-    ti2.refresh_from_task(op2)
 
     dep = NotPreviouslySkippedDep()
     assert len(list(dep.get_dep_statuses(ti2, session, DepContext()))) == 0
@@ -102,7 +102,7 @@ def test_parent_follow_branch(session, dag_maker):
 
     dagrun = dag_maker.create_dagrun(run_type=DagRunType.MANUAL, state=State.RUNNING)
     ti, ti2 = dagrun.task_instances
-    ti.run()
+    run_task_instance(ti, op1)
 
     dep = NotPreviouslySkippedDep()
     assert len(list(dep.get_dep_statuses(ti2, session, DepContext()))) == 0
@@ -130,7 +130,7 @@ def test_parent_skip_branch(session, dag_maker):
         ti.task_id: ti
         for ti in dag_maker.create_dagrun(run_type=DagRunType.MANUAL, state=State.RUNNING).task_instances
     }
-    tis["op1"].run()
+    run_task_instance(tis["op1"], op1)
 
     dep = NotPreviouslySkippedDep()
     assert len(list(dep.get_dep_statuses(tis["op2"], session, DepContext()))) == 1
@@ -156,7 +156,6 @@ def test_parent_not_executed(session, dag_maker):
         op1 >> [op2, op3]
 
     _, ti2, _ = dag_maker.create_dagrun().task_instances
-    ti2.refresh_from_task(op2)
 
     dep = NotPreviouslySkippedDep()
     assert len(list(dep.get_dep_statuses(ti2, session, DepContext()))) == 0

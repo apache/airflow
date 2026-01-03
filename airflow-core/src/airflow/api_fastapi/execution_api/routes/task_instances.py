@@ -44,6 +44,7 @@ from airflow.api_fastapi.common.types import UtcDateTime
 from airflow.api_fastapi.compat import HTTP_422_UNPROCESSABLE_CONTENT
 from airflow.api_fastapi.execution_api.datamodels.taskinstance import (
     InactiveAssetsResponse,
+    PreviousTIResponse,
     PrevSuccessfulDagRunResponse,
     TaskBreadcrumbsResponse,
     TaskStatesResponse,
@@ -63,21 +64,19 @@ from airflow.exceptions import TaskNotFound
 from airflow.models.asset import AssetActive
 from airflow.models.dag import DagModel
 from airflow.models.dagrun import DagRun as DR
+from airflow.models.expandinput import NotFullyPopulated
 from airflow.models.taskinstance import TaskInstance as TI, _stop_remaining_tasks
 from airflow.models.taskreschedule import TaskReschedule
 from airflow.models.trigger import Trigger
 from airflow.models.xcom import XComModel
-from airflow.sdk.definitions._internal.expandinput import NotFullyPopulated
 from airflow.serialization.definitions.assets import SerializedAsset, SerializedAssetUniqueKey
-from airflow.serialization.serialized_objects import SerializedDAG
+from airflow.serialization.definitions.dag import SerializedDAG
 from airflow.task.trigger_rule import TriggerRule
 from airflow.utils.sqlalchemy import get_dialect_name
 from airflow.utils.state import DagRunState, TaskInstanceState, TerminalTIState
 
 if TYPE_CHECKING:
     from sqlalchemy.sql.dml import Update
-
-    from airflow.models.expandinput import SchedulerExpandInput
 
 router = VersionedAPIRouter()
 
@@ -314,7 +313,7 @@ def _get_upstream_map_indexes(
             except NotFullyPopulated:
                 # Second try: resolve XCom for correct count
                 try:
-                    expand_input = cast("SchedulerExpandInput", upstream_mapped_group._expand_input)
+                    expand_input = upstream_mapped_group._expand_input
                     mapped_ti_count = expand_input.get_total_map_length(ti.run_id, session=session)
                 except NotFullyPopulated:
                     # For these trigger rules, unresolved map indexes are acceptable.
@@ -498,6 +497,7 @@ def _create_ti_state_update_query_and_update_state(
         trigger_row = Trigger(
             classpath=ti_patch_payload.classpath,
             kwargs={},
+            queue=ti_patch_payload.queue,
         )
         trigger_row.encrypted_kwargs = trigger_kwargs
         session.add(trigger_row)
@@ -508,19 +508,12 @@ def _create_ti_state_update_query_and_update_state(
 
         query = update(TI).where(TI.id == ti_id_str)
 
-        # This is slightly inefficient as we deserialize it to then right again serialize it in the sqla
-        # TypeAdapter.
-        next_kwargs = None
-        if ti_patch_payload.next_kwargs:
-            from airflow.serialization.serialized_objects import BaseSerialization
-
-            next_kwargs = BaseSerialization.deserialize(ti_patch_payload.next_kwargs)
-
+        # Store next_kwargs directly (already serialized by worker)
         query = query.values(
             state=TaskInstanceState.DEFERRED,
             trigger_id=trigger_row.id,
             next_method=ti_patch_payload.next_method,
-            next_kwargs=next_kwargs,
+            next_kwargs=ti_patch_payload.next_kwargs,
             trigger_timeout=timeout,
         )
         updated_state = TaskInstanceState.DEFERRED
@@ -870,6 +863,58 @@ def get_task_instance_count(
 
     count = session.scalar(query)
     return count or 0
+
+
+@router.get("/previous/{dag_id}/{task_id}", status_code=status.HTTP_200_OK)
+def get_previous_task_instance(
+    dag_id: str,
+    task_id: str,
+    session: SessionDep,
+    logical_date: Annotated[UtcDateTime | None, Query()] = None,
+    map_index: Annotated[int, Query()] = -1,
+    state: Annotated[TaskInstanceState | None, Query()] = None,
+) -> PreviousTIResponse | None:
+    """
+    Get the previous task instance matching the given criteria.
+
+    :param dag_id: DAG ID (from path)
+    :param task_id: Task ID (from path)
+    :param logical_date: If provided, finds TI with logical_date < this value (before filter)
+    :param map_index: Map index to filter by (defaults to -1 for non-mapped tasks)
+    :param state: If provided, filters by TaskInstance state
+    """
+    query = (
+        select(TI)
+        .join(DR, (TI.dag_id == DR.dag_id) & (TI.run_id == DR.run_id))
+        .options(joinedload(TI.dag_run))
+        .where(TI.dag_id == dag_id, TI.task_id == task_id, TI.map_index == map_index)
+        .order_by(DR.logical_date.desc())
+    )
+
+    if logical_date:
+        # Find TI with logical_date BEFORE the provided date (previous)
+        query = query.where(DR.logical_date < logical_date)
+
+    if state:
+        query = query.where(TI.state == state)
+
+    ti = session.scalars(query).first()
+
+    if not ti:
+        return None
+
+    return PreviousTIResponse(
+        task_id=ti.task_id,
+        dag_id=ti.dag_id,
+        run_id=ti.run_id,
+        logical_date=ti.dag_run.logical_date,
+        start_date=ti.start_date,
+        end_date=ti.end_date,
+        state=ti.state,
+        try_number=ti.try_number,
+        map_index=ti.map_index,
+        duration=ti.duration,
+    )
 
 
 @router.get("/states", status_code=status.HTTP_200_OK)

@@ -46,6 +46,7 @@ from airflow.utils.state import DagRunState
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
 from tests_common.test_utils import db
+from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.dag import create_scheduler_dag, sync_dag_to_db
 
 logger = logging.getLogger(__name__)
@@ -90,7 +91,7 @@ class TestSerializedDagModel:
         db.clear_db_dags()
         db.clear_db_runs()
         db.clear_db_serialized_dags()
-        with mock.patch("airflow.models.serialized_dag.COMPRESS_SERIALIZED_DAGS", request.param):
+        with conf_vars({("core", "compress_serialized_dags"): str(request.param)}):
             yield
         db.clear_db_serialized_dags()
 

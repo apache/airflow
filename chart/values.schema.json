@@ -1635,12 +1635,12 @@
             "additionalProperties": false,
             "properties": {
                 "replicas": {
-                    "description": "Number of Airflow Celery workers.",
+                    "description": "Number of Airflow Celery workers (deprecated, use `workers.celery.replicas` instead).",
                     "type": "integer",
                     "default": 1
                 },
                 "revisionHistoryLimit": {
-                    "description": "Max number of old Airflow Celery workers ReplicaSets to retain.",
+                    "description": "Max number of old Airflow Celery workers ReplicaSets to retain (deprecated, use `workers.celery.revisionHistoryLimit` instead).",
                     "type": [
                         "integer",
                         "null"
@@ -2608,6 +2608,20 @@
                     "type": "object",
                     "x-docsSection": "Workers",
                     "properties": {
+                        "replicas": {
+                            "description": "Number of Airflow Celery workers.",
+                            "type": "integer",
+                            "default": 1
+                        },
+                        "revisionHistoryLimit": {
+                            "description": "Max number of old Airflow Celery workers ReplicaSets to retain.",
+                            "type": [
+                                "integer",
+                                "null"
+                            ],
+                            "default": null,
+                            "x-docsSection": null
+                        },
                         "serviceAccount": {
                             "description": "Create ServiceAccount.",
                             "type": "object",
@@ -4394,6 +4408,49 @@
                     "type": "boolean",
                     "default": true
                 },
+                "defaultUser": {
+                    "description": "Optional default Airflow user information",
+                    "type": "object",
+                    "additionalProperties": false,
+                    "properties": {
+                        "enabled": {
+                            "description": "Enable default user creation.",
+                            "type": "boolean",
+                            "x-docsSection": "Common",
+                            "default": true
+                        },
+                        "role": {
+                            "description": "Default user role.",
+                            "type": "string",
+                            "default": "Admin"
+                        },
+                        "username": {
+                            "description": "Default user username.",
+                            "type": "string",
+                            "default": "admin"
+                        },
+                        "email": {
+                            "description": "Default user email address.",
+                            "type": "string",
+                            "default": "admin@example.com"
+                        },
+                        "firstName": {
+                            "description": "Default user firstname.",
+                            "type": "string",
+                            "default": "admin"
+                        },
+                        "lastName": {
+                            "description": "Default user lastname.",
+                            "type": "string",
+                            "default": "user"
+                        },
+                        "password": {
+                            "description": "Default user password.",
+                            "type": "string",
+                            "default": "admin"
+                        }
+                    }
+                },
                 "command": {
                     "description": "Command to use when running create user job (templated).",
                     "type": [
@@ -4420,17 +4477,17 @@
                         "exec \\\nairflow {{ semverCompare \">=2.0.0\" .Values.airflowVersion | ternary \"users create\" \"create_user\" }} \"$@\"",
                         "--",
                         "-r",
-                        "{{ .Values.webserver.defaultUser.role }}",
+                        "{{ .Values.createUserJob.defaultUser.role }}",
                         "-u",
-                        "{{ .Values.webserver.defaultUser.username }}",
+                        "{{ .Values.createUserJob.defaultUser.username }}",
                         "-e",
-                        "{{ .Values.webserver.defaultUser.email }}",
+                        "{{ .Values.createUserJob.defaultUser.email }}",
                         "-f",
-                        "{{ .Values.webserver.defaultUser.firstName }}",
+                        "{{ .Values.createUserJob.defaultUser.firstName }}",
                         "-l",
-                        "{{ .Values.webserver.defaultUser.lastName }}",
+                        "{{ .Values.createUserJob.defaultUser.lastName }}",
                         "-p",
-                        "{{ .Values.webserver.defaultUser.password }}"
+                        "{{ .Values.createUserJob.defaultUser.password }}"
                     ]
                 },
                 "annotations": {
@@ -5498,49 +5555,6 @@
                         "my-api-server-configmap"
                     ]
                 },
-                "defaultUser": {
-                    "description": "Optional default Airflow user information",
-                    "type": "object",
-                    "additionalProperties": false,
-                    "properties": {
-                        "enabled": {
-                            "description": "Enable default user creation.",
-                            "type": "boolean",
-                            "x-docsSection": "Common",
-                            "default": true
-                        },
-                        "role": {
-                            "description": "Default user role.",
-                            "type": "string",
-                            "default": "Admin"
-                        },
-                        "username": {
-                            "description": "Default user username.",
-                            "type": "string",
-                            "default": "admin"
-                        },
-                        "email": {
-                            "description": "Default user email address.",
-                            "type": "string",
-                            "default": "admin@example.com"
-                        },
-                        "firstName": {
-                            "description": "Default user firstname.",
-                            "type": "string",
-                            "default": "admin"
-                        },
-                        "lastName": {
-                            "description": "Default user lastname.",
-                            "type": "string",
-                            "default": "user"
-                        },
-                        "password": {
-                            "description": "Default user password.",
-                            "type": "string",
-                            "default": "admin"
-                        }
-                    }
-                },
                 "extraContainers": {
                     "description": "Launch additional containers into API server.",
                     "type": "array",
@@ -6299,49 +6313,6 @@
                         }
                     ],
                     "$ref": "#/definitions/io.k8s.api.core.v1.ResourceRequirements"
-                },
-                "defaultUser": {
-                    "description": "Optional default Airflow user information",
-                    "type": "object",
-                    "additionalProperties": false,
-                    "properties": {
-                        "enabled": {
-                            "description": "Enable default user creation.",
-                            "type": "boolean",
-                            "x-docsSection": "Common",
-                            "default": true
-                        },
-                        "role": {
-                            "description": "Default user role.",
-                            "type": "string",
-                            "default": "Admin"
-                        },
-                        "username": {
-                            "description": "Default user username.",
-                            "type": "string",
-                            "default": "admin"
-                        },
-                        "email": {
-                            "description": "Default user email address.",
-                            "type": "string",
-                            "default": "admin@example.com"
-                        },
-                        "firstName": {
-                            "description": "Default user firstname.",
-                            "type": "string",
-                            "default": "admin"
-                        },
-                        "lastName": {
-                            "description": "Default user lastname.",
-                            "type": "string",
-                            "default": "user"
-                        },
-                        "password": {
-                            "description": "Default user password.",
-                            "type": "string",
-                            "default": "admin"
-                        }
-                    }
                 },
                 "extraContainers": {
                     "description": "Launch additional containers into webserver (templated).",
@@ -8295,6 +8266,10 @@
                                 "null"
                             ],
                             "default": null
+                        },
+                        "persistentVolumeClaimRetentionPolicy": {
+                            "$ref": "#/definitions/persistentVolumeClaimRetentionPolicy",
+                            "description": "PersistentVolumeClaim retention policy to be used in the lifecycle of a StatefulSet."
                         }
                     }
                 },
@@ -9126,6 +9101,11 @@
                     "description": "Enable database cleanup.",
                     "type": "boolean",
                     "default": false
+                },
+                "applyCustomEnv": {
+                    "description": "Specify if you want additional configured env vars applied to database cleanup job",
+                    "type": "boolean",
+                    "default": true
                 },
                 "schedule": {
                     "description": "Database cleanup schedule (templated).",

@@ -26,7 +26,7 @@ import time
 from collections.abc import Iterable
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 from unittest import mock
 from unittest.mock import call, patch
 
@@ -53,6 +53,7 @@ from airflow.sdk.api.datamodels._generated import (
     AssetResponse,
     DagRun,
     DagRunState,
+    PreviousTIResponse,
     TaskInstance,
     TaskInstanceState,
     TIRunContext,
@@ -70,6 +71,7 @@ from airflow.sdk.exceptions import (
     AirflowTaskTimeout,
     DownstreamTasksSkipped,
     ErrorType,
+    TaskDeferred,
 )
 from airflow.sdk.execution_time.comms import (
     AssetEventResult,
@@ -84,6 +86,7 @@ from airflow.sdk.execution_time.comms import (
     GetDagRunState,
     GetDRCount,
     GetPreviousDagRun,
+    GetPreviousTI,
     GetTaskStates,
     GetTICount,
     GetVariable,
@@ -92,6 +95,7 @@ from airflow.sdk.execution_time.comms import (
     MaskSecret,
     OKResponse,
     PreviousDagRunResult,
+    PreviousTIResult,
     PrevSuccessfulDagRunResult,
     SetRenderedFields,
     SetXCom,
@@ -118,6 +122,7 @@ from airflow.sdk.execution_time.context import (
 from airflow.sdk.execution_time.task_runner import (
     RuntimeTaskInstance,
     TaskRunnerMarker,
+    _defer_task,
     _execute_task,
     _push_xcom_if_needed,
     _xcom_push,
@@ -127,6 +132,9 @@ from airflow.sdk.execution_time.task_runner import (
     startup,
 )
 from airflow.sdk.execution_time.xcom import XCom
+from airflow.triggers.base import BaseEventTrigger, BaseTrigger, TriggerEvent
+from airflow.triggers.callback import CallbackTrigger
+from airflow.triggers.testing import SuccessTrigger
 
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.mock_operators import AirflowLink
@@ -349,42 +357,105 @@ def test_parse_module_in_bundle_root(tmp_path: Path, make_ti_context):
     assert ti.task.dag.dag_id == "dag_name"
 
 
-def test_run_deferred_basic(time_machine, create_runtime_ti, mock_supervisor_comms):
+@pytest.mark.parametrize("use_queues", [False, True])
+def test_run_deferred_basic(time_machine, create_runtime_ti, mock_supervisor_comms, use_queues: bool):
     """Test that a task can transition to a deferred state."""
     from airflow.providers.standard.sensors.date_time import DateTimeSensorAsync
 
+    task_queue = "fake_q"
+    deferred_queue = task_queue if use_queues else None
     # Use the time machine to set the current time
     instant = timezone.datetime(2024, 11, 22)
-    task = DateTimeSensorAsync(
-        task_id="async",
-        target_time=str(instant + timedelta(seconds=3)),
-        poke_interval=60,
-        timeout=600,
+    with conf_vars({("triggerer", "queues_enabled"): str(use_queues)}):
+        task = DateTimeSensorAsync(
+            task_id="async",
+            target_time=str(instant + timedelta(seconds=3)),
+            poke_interval=60,
+            timeout=600,
+            queue=task_queue,
+        )
+        time_machine.move_to(instant, tick=False)
+
+        # Expected DeferTask, it is constructed by _defer_task from exception and is sent to supervisor
+        expected_defer_task = DeferTask(
+            state="deferred",
+            classpath="airflow.providers.standard.triggers.temporal.DateTimeTrigger",
+            trigger_kwargs={
+                "moment": {
+                    "__classname__": "pendulum.datetime.DateTime",
+                    "__version__": 2,
+                    "__data__": {
+                        "timestamp": 1732233603.0,
+                        "tz": {
+                            "__classname__": "builtins.tuple",
+                            "__version__": 1,
+                            "__data__": ["UTC", "pendulum.tz.timezone.Timezone", 1, True],
+                        },
+                    },
+                },
+                "end_from_trigger": False,
+            },
+            trigger_timeout=None,
+            queue=deferred_queue,
+            next_method="execute_complete",
+            next_kwargs={},
+            rendered_map_index=None,
+            type="DeferTask",
+        )
+
+        # Run the task
+        ti = create_runtime_ti(dag_id="basic_deferred_run", task=task)
+        run(ti, context=ti.get_template_context(), log=mock.MagicMock())
+
+        assert ti.state == TaskInstanceState.DEFERRED
+
+        # send will only be called when the TaskDeferred exception is raised
+        mock_supervisor_comms.send.assert_any_call(expected_defer_task)
+
+
+class FakeEventTrigger(BaseEventTrigger):
+    """Fake event trigger class for testing"""
+
+    def serialize(self) -> tuple[str, dict[str, Any]]:
+        return ("tests.task_sdk.execution_time.test_task_runner.FakeEventTrigger", {})
+
+    async def run(self):
+        yield TriggerEvent(True)
+
+
+@conf_vars({("triggerer", "queues_enabled"): "True"})
+@pytest.mark.parametrize(
+    ("mock_trigger", "expected_trigger_queue"),
+    [
+        (SuccessTrigger(kwargs={}), "task_q_test"),
+        (FakeEventTrigger(kwarg={}), None),
+        (
+            CallbackTrigger(
+                callback_path="classpath.test_callback",
+                callback_kwargs={"message": "test_msg", "context": {"dag_run": "test"}},
+            ),
+            None,
+        ),
+    ],
+)
+def test_defer_task_queue_assignment(
+    create_runtime_ti, mock_trigger: BaseTrigger, expected_trigger_queue: str | None
+) -> None:
+    """Ensure `_defer_task` will only pass along origin task queue information to the trigger message when expected."""
+    from airflow.providers.standard.operators.empty import EmptyOperator
+
+    mock_task_queue = "task_q_test"
+    task = EmptyOperator(task_id="empty_trig_queue_test", queue=mock_task_queue)
+    runtime_ti = create_runtime_ti(dag_id="deferred_run", task=task)
+    actual_msg, actual_state = _defer_task(
+        defer=TaskDeferred(trigger=mock_trigger, method_name="foo"), ti=runtime_ti, log=mock.MagicMock()
     )
-    time_machine.move_to(instant, tick=False)
-
-    # Expected DeferTask
-    expected_defer_task = DeferTask(
-        state="deferred",
-        classpath="airflow.providers.standard.triggers.temporal.DateTimeTrigger",
-        # Since we are in the task process here, we expect this to have not been encoded by serde yet
-        trigger_kwargs={
-            "end_from_trigger": False,
-            "moment": instant + timedelta(seconds=3),
-        },
-        trigger_timeout=None,
-        next_method="execute_complete",
-        next_kwargs={},
+    assert isinstance(actual_msg, DeferTask)
+    assert actual_state == TaskInstanceState.DEFERRED
+    actual_queue = actual_msg.queue
+    assert actual_queue == expected_trigger_queue, (
+        f"Expected DeferTask's queue value to be {mock_task_queue}, but got {actual_queue}"
     )
-
-    # Run the task
-    ti = create_runtime_ti(dag_id="basic_deferred_run", task=task)
-    run(ti, context=ti.get_template_context(), log=mock.MagicMock())
-
-    assert ti.state == TaskInstanceState.DEFERRED
-
-    # send will only be called when the TaskDeferred exception is raised
-    mock_supervisor_comms.send.assert_any_call(expected_defer_task)
 
 
 def test_run_downstream_skipped(mocked_parse, create_runtime_ti, mock_supervisor_comms):
@@ -2142,6 +2213,131 @@ class TestRuntimeTaskInstance:
         assert dr.dag_id == "test_dag"
         assert dr.run_id == "prev_success_run"
         assert dr.state == "success"
+
+    def test_get_previous_ti_basic(self, create_runtime_ti, mock_supervisor_comms):
+        """Test that get_previous_ti sends the correct request without filters."""
+
+        task = BaseOperator(task_id="test_task")
+        dag_id = "test_dag"
+        runtime_ti = create_runtime_ti(task=task, dag_id=dag_id, logical_date=timezone.datetime(2025, 1, 2))
+
+        ti_data = PreviousTIResponse(
+            task_id="test_task",
+            dag_id=dag_id,
+            run_id="prev_run",
+            logical_date=timezone.datetime(2025, 1, 1),
+            start_date=timezone.datetime(2025, 1, 1, 12, 0, 0),
+            end_date=timezone.datetime(2025, 1, 1, 12, 5, 0),
+            state="success",
+            try_number=1,
+            map_index=-1,
+            duration=300.0,
+        )
+
+        mock_supervisor_comms.send.return_value = PreviousTIResult(task_instance=ti_data)
+
+        prev_ti = runtime_ti.get_previous_ti()
+
+        mock_supervisor_comms.send.assert_called_once_with(
+            msg=GetPreviousTI(
+                dag_id="test_dag",
+                task_id="test_task",
+                logical_date=timezone.datetime(2025, 1, 2),
+                map_index=-1,
+                state=None,
+            ),
+        )
+        assert prev_ti.task_id == "test_task"
+        assert prev_ti.dag_id == "test_dag"
+        assert prev_ti.run_id == "prev_run"
+        assert prev_ti.state == "success"
+
+    def test_get_previous_ti_with_state(self, create_runtime_ti, mock_supervisor_comms):
+        """Test get_previous_ti with state filter."""
+
+        task = BaseOperator(task_id="test_task")
+        dag_id = "test_dag"
+        runtime_ti = create_runtime_ti(task=task, dag_id=dag_id, logical_date=timezone.datetime(2025, 1, 2))
+
+        ti_data = PreviousTIResponse(
+            task_id="test_task",
+            dag_id=dag_id,
+            run_id="prev_success_run",
+            logical_date=timezone.datetime(2025, 1, 1),
+            start_date=timezone.datetime(2025, 1, 1, 12, 0, 0),
+            end_date=timezone.datetime(2025, 1, 1, 12, 5, 0),
+            state="success",
+            try_number=1,
+            map_index=-1,
+            duration=300.0,
+        )
+
+        mock_supervisor_comms.send.return_value = PreviousTIResult(task_instance=ti_data)
+
+        prev_ti = runtime_ti.get_previous_ti(state=TaskInstanceState.SUCCESS)
+
+        mock_supervisor_comms.send.assert_called_once_with(
+            msg=GetPreviousTI(
+                dag_id="test_dag",
+                task_id="test_task",
+                logical_date=timezone.datetime(2025, 1, 2),
+                map_index=-1,
+                state=TaskInstanceState.SUCCESS,
+            ),
+        )
+        assert prev_ti.state == "success"
+        assert prev_ti.run_id == "prev_success_run"
+
+    def test_get_previous_ti_with_map_index(self, create_runtime_ti, mock_supervisor_comms):
+        """Test get_previous_ti with explicit map_index filter."""
+
+        task = BaseOperator(task_id="test_task")
+        dag_id = "test_dag"
+        runtime_ti = create_runtime_ti(
+            task=task, dag_id=dag_id, logical_date=timezone.datetime(2025, 1, 2), map_index=0
+        )
+
+        ti_data = PreviousTIResponse(
+            task_id="test_task",
+            dag_id=dag_id,
+            run_id="prev_run",
+            logical_date=timezone.datetime(2025, 1, 1),
+            start_date=timezone.datetime(2025, 1, 1, 12, 0, 0),
+            end_date=timezone.datetime(2025, 1, 1, 12, 5, 0),
+            state="success",
+            try_number=1,
+            map_index=1,
+            duration=300.0,
+        )
+
+        mock_supervisor_comms.send.return_value = PreviousTIResult(task_instance=ti_data)
+
+        # Query for a different map_index than current TI
+        prev_ti = runtime_ti.get_previous_ti(map_index=1)
+
+        mock_supervisor_comms.send.assert_called_once_with(
+            msg=GetPreviousTI(
+                dag_id="test_dag",
+                task_id="test_task",
+                logical_date=timezone.datetime(2025, 1, 2),
+                map_index=1,
+                state=None,
+            ),
+        )
+        assert prev_ti.map_index == 1
+
+    def test_get_previous_ti_not_found(self, create_runtime_ti, mock_supervisor_comms):
+        """Test get_previous_ti when no previous TI exists."""
+
+        task = BaseOperator(task_id="test_task")
+        dag_id = "test_dag"
+        runtime_ti = create_runtime_ti(task=task, dag_id=dag_id, logical_date=timezone.datetime(2025, 1, 2))
+
+        mock_supervisor_comms.send.return_value = PreviousTIResult(task_instance=None)
+
+        prev_ti = runtime_ti.get_previous_ti()
+
+        assert prev_ti is None
 
     @pytest.mark.parametrize(
         "map_index",
