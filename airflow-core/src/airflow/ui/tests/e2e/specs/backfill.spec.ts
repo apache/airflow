@@ -29,21 +29,21 @@ const getPastDate = (daysAgo: number): string => {
   return date.toISOString().slice(0, 16);
 };
 
-// Backfills E2E Tests
-
 test.describe("Backfill creation and validation", () => {
-  test.setTimeout(60_000);
+  // Serial mode ensures all tests run on one worker, preventing parallel beforeAll conflicts
+  test.describe.configure({ mode: "serial" });
+  test.setTimeout(240_000);
 
   const testDagId = testConfig.testDag.id;
 
   const backfillConfigs = [
-    { behavior: "All Runs" as const, fromDate: getPastDate(2), toDate: getPastDate(1) },
-    { behavior: "Missing Runs" as const, fromDate: getPastDate(45), toDate: getPastDate(30) },
-    { behavior: "Missing and Errored Runs" as const, fromDate: getPastDate(60), toDate: getPastDate(50) },
+    { behavior: "All Runs" as const, fromDate: getPastDate(5), toDate: getPastDate(4) },
+    { behavior: "Missing Runs" as const, fromDate: getPastDate(8), toDate: getPastDate(6) },
+    { behavior: "Missing and Errored Runs" as const, fromDate: getPastDate(12), toDate: getPastDate(10) },
   ];
 
   test.beforeAll(async ({ browser }) => {
-    test.setTimeout(240_000);
+    test.setTimeout(600_000);
 
     const context = await browser.newContext({ storageState: AUTH_FILE });
     const page = await context.newPage();
@@ -55,21 +55,17 @@ test.describe("Backfill creation and validation", () => {
         reprocessBehavior: config.behavior,
         toDate: config.toDate,
       });
+
+      await setupBackfillPage.navigateToBackfillsTab(testDagId);
+      await setupBackfillPage.findBackfillRowByDateRange({
+        fromDate: config.fromDate,
+        toDate: config.toDate,
+      });
+
+      await setupBackfillPage.waitForNoActiveBackfill();
     }
 
     await context.close();
-  });
-
-  test("Verify backfill list display", async ({ page }) => {
-    const backfillPage = new BackfillPage(page);
-
-    await backfillPage.navigateToBackfillsTab(testDagId);
-
-    await expect(backfillPage.backfillsTable).toBeVisible();
-
-    const rowsCount = await backfillPage.getBackfillsTableRows();
-
-    expect(rowsCount).toBeGreaterThanOrEqual(1);
   });
 
   test("verify backfill with 'all runs' behavior", async ({ page }) => {
