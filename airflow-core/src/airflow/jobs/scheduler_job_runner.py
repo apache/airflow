@@ -113,6 +113,7 @@ if TYPE_CHECKING:
     from airflow.executors.executor_utils import ExecutorName
     from airflow.models.taskinstance import TaskInstanceKey
     from airflow.serialization.definitions.dag import SerializedDAG
+    from airflow.timetables.base import DataInterval
     from airflow.utils.sqlalchemy import CommitProhibitorGuard
 
 TI = TaskInstance
