@@ -16,7 +16,18 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, Flex, HStack, SimpleGrid, Link, Spinner } from "@chakra-ui/react";
+
+import {
+  Box,
+  Flex,
+  HStack,
+  SimpleGrid,
+  Link,
+  Spinner,
+  Badge,
+  Wrap,
+  WrapItem,
+} from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 import { Link as RouterLink } from "react-router-dom";
 
@@ -30,6 +41,7 @@ import { TogglePause } from "src/components/TogglePause";
 import TriggerDAGButton from "src/components/TriggerDag/TriggerDAGButton";
 import { Tooltip } from "src/components/ui";
 import { isStatePending, useAutoRefresh } from "src/utils";
+import { useTaskInstances } from "src/queries/useTaskInstances";
 
 import { DagTags } from "./DagTags";
 import { RecentRuns } from "./RecentRuns";
@@ -39,6 +51,65 @@ type Props = {
   readonly dag: DAGWithLatestDagRunsResponse;
 };
 
+/* -------------------------------
+ * Task Instance Summary Component
+ * ------------------------------- */
+type TaskSummaryProps = {
+  dagId: string;
+  runId: string;
+};
+
+const TaskInstanceSummary = ({ dagId, runId }: TaskSummaryProps) => {
+  const { data, isLoading } = useTaskInstances({
+    dagId,
+    dagRunId: runId,
+    limit: 0,
+  });
+
+  if (isLoading) {
+    return <Spinner size="sm" />;
+  }
+
+  if (!data?.task_instances?.length) {
+    return null;
+  }
+
+  const counts = data.task_instances.reduce<Record<string, number>>((acc, ti) => {
+    if (ti.state) {
+      acc[ti.state] = (acc[ti.state] ?? 0) + 1;
+    }
+    return acc;
+  }, {});
+
+  const STATE_COLORS: Record<string, string> = {
+    success: "green",
+    failed: "red",
+    running: "yellow",
+    skipped: "gray",
+    upstream_failed: "red",
+  };
+
+  return (
+    <Wrap>
+      {Object.entries(counts).map(([state, count]) => (
+        <WrapItem key={state}>
+          <Link
+            as={RouterLink}
+            to={`/dags/${dagId}/runs/${runId}/tasks?state=${state}`}
+          >
+            <Badge colorScheme={STATE_COLORS[state] ?? "gray"}>
+              {state}: {count}
+            </Badge>
+          </Link>
+        </WrapItem>
+      ))}
+    </Wrap>
+  );
+};
+
+/* -------------------------------
+ * DAG Card
+ * ------------------------------- */
 export const DagCard = ({ dag }: Props) => {
   const { t: translate } = useTranslation(["common", "dag"]);
   const [latestRun] = dag.latest_dag_runs;
@@ -76,6 +147,7 @@ export const DagCard = ({ dag }: Props) => {
           <DeleteDagButton dagDisplayName={dag.dag_display_name} dagId={dag.dag_id} withText={false} />
         </HStack>
       </Flex>
+
       <SimpleGrid columns={4} gap={1} height={20} px={3} py={1}>
         <Stat data-testid="schedule" label={translate("dagDetails.schedule")}>
           <Schedule
@@ -86,6 +158,7 @@ export const DagCard = ({ dag }: Props) => {
             timetableSummary={dag.timetable_summary}
           />
         </Stat>
+
         <Stat data-testid="latest-run" label={translate("dagDetails.latestRun")}>
           {latestRun ? (
             <Link asChild color="fg.info">
@@ -104,14 +177,14 @@ export const DagCard = ({ dag }: Props) => {
             </Link>
           ) : undefined}
         </Stat>
-        <Stat data-testid="next-run" label={translate("dagDetails.nextRun")}>
-          {Boolean(dag.next_dagrun_run_after) ? (
-            <DagRunInfo
-              logicalDate={dag.next_dagrun_logical_date}
-              runAfter={dag.next_dagrun_run_after as string}
-            />
+
+        {/* 🔽 NEW: Task Instance Summary */}
+        <Stat label={translate("dagDetails.taskSummary")}>
+          {latestRun ? (
+            <TaskInstanceSummary dagId={dag.dag_id} runId={latestRun.run_id} />
           ) : undefined}
         </Stat>
+
         <RecentRuns latestRuns={dag.latest_dag_runs} />
       </SimpleGrid>
     </Box>
