@@ -539,7 +539,6 @@ class ProvidersManager(LoggingMixin, metaclass=Singleton):
         """Lazy initialization of providers executors information."""
         self.initialize_providers_list()
         self._discover_executors(check=False)
-        self._executor_without_check_set = sorted(self._executor_without_check_set)
 
     @provider_info_cache("queues")
     def initialize_providers_queues(self):
@@ -564,7 +563,6 @@ class ProvidersManager(LoggingMixin, metaclass=Singleton):
         """Lazy initialization of providers auth manager information."""
         self.initialize_providers_list()
         self._discover_auth_managers(check=False)
-        self._auth_manager_without_check_set = sorted(self._auth_manager_without_check_set)
 
     @provider_info_cache("config")
     def initialize_providers_configuration(self):
@@ -599,8 +597,6 @@ class ProvidersManager(LoggingMixin, metaclass=Singleton):
         """Lazy initialization of providers CLI commands."""
         self.initialize_providers_list()
         self._discover_cli_command()
-        self._cli_command_provider_name_set = sorted(self._cli_command_provider_name_set)
-        self._cli_command_functions_set = sorted(self._cli_command_functions_set, key=lambda x: x.__name__)
 
     def _discover_all_providers_from_packages(self) -> None:
         """
