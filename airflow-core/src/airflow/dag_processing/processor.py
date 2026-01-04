@@ -250,7 +250,9 @@ def _serialize_dags(
             dagbag_import_error_traceback_depth = conf.getint(
                 "core", "dagbag_import_error_traceback_depth", fallback=None
             )
-            serialization_import_errors[dag.fileloc] = traceback.format_exc(
+            # Use relative_fileloc to match the format of parse-time import errors
+            # This ensures consistency across bundle types (Git, Local, etc.)
+            serialization_import_errors[dag.relative_fileloc] = traceback.format_exc(
                 limit=-dagbag_import_error_traceback_depth
             )
     return serialized_dags, serialization_import_errors
