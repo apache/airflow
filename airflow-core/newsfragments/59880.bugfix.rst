@@ -1,0 +1,1 @@
+Always mask sensitive configuration values in public config APIs and treat the deprecated ``non-sensitive-only`` value as ``True``.
