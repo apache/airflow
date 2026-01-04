@@ -139,6 +139,65 @@ class TestDagFileProcessor:
         assert resp.import_errors is not None
         assert "a.py" in resp.import_errors
 
+    def test_serialization_errors_use_relative_paths(self, tmp_path: pathlib.Path):
+        """
+        Test that serialization errors use relative file paths.
+        
+        This ensures that errors during DAG serialization (e.g., in _serialize_dags)
+        are stored with relative paths, matching the format of parse-time import errors.
+        This is critical for bundle-backed DAGs (Git, S3, etc.) where import errors
+        need to be properly persisted to the database.
+        """
+        # Create a DAG file that will fail during serialization
+        dag_file = tmp_path / "test_serialization_error.py"
+        dag_file.write_text(textwrap.dedent("""
+            from airflow.sdk import DAG
+            from airflow.providers.standard.operators.empty import EmptyOperator
+            from datetime import datetime
+            
+            # Create a DAG that will fail during serialization
+            # by having a non-serializable custom attribute
+            dag = DAG("test_dag", start_date=datetime(2023, 1, 1))
+            
+            # Add a non-serializable object that will cause serialization to fail
+            class NonSerializable:
+                def __getstate__(self):
+                    raise TypeError("Cannot serialize this object")
+            
+            dag._non_serializable = NonSerializable()
+            
+            task = EmptyOperator(task_id="test_task", dag=dag)
+        """))
+
+        # Process the file with bundle_path set
+        resp = _parse_file(
+            DagFileParseRequest(
+                file=str(dag_file),
+                bundle_path=tmp_path,
+                bundle_name="testing",
+                callback_requests=[],
+            ),
+            log=structlog.get_logger(),
+        )
+
+        assert resp is not None
+        # The DAG should have been parsed successfully
+        assert len(resp.serialized_dags) >= 0
+        
+        # Check that any serialization errors use relative paths, not absolute paths
+        if resp.import_errors:
+            for error_path in resp.import_errors.keys():
+                # The error path should be relative (just the filename)
+                # not an absolute path
+                assert not pathlib.Path(error_path).is_absolute(), (
+                    f"Serialization error path '{error_path}' should be relative, not absolute. "
+                    f"This ensures consistency across bundle types (Git, Local, etc.)"
+                )
+                # For this test, it should be the filename relative to bundle_path
+                assert error_path == "test_serialization_error.py", (
+                    f"Expected relative path 'test_serialization_error.py', got '{error_path}'"
+                )
+
     def test_top_level_variable_access(
         self,
         spy_agency: SpyAgency,

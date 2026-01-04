@@ -607,6 +607,90 @@ class TestUpdateDagParsingResults:
         assert len(dag_import_error_listener.new) == 1
         assert len(dag_import_error_listener.existing) == 1
 
+    @pytest.mark.usefixtures("clean_db")
+    def test_import_errors_persisted_with_relative_paths(
+        self, session, dag_import_error_listener, testing_dag_bundle, dag_maker
+    ):
+        """
+        Test that import errors are persisted with relative file paths for bundle-backed DAGs.
+        
+        This ensures consistency across bundle types (Git, Local, S3, etc.) and that errors
+        don't disappear from the UI when DAGs originate from bundles.
+        
+        Reproduces issue where runtime errors in GitDagBundle were caught but not persisted
+        to import_error table because of path resolution inconsistencies.
+        """
+        bundle_name = "testing"
+        relative_fileloc = "subdir/test_runtime_error.py"
+        
+        # Create a dag with relative file paths (as would come from a bundle)
+        with dag_maker(dag_id="test_runtime_error") as dag:
+            pass
+        
+        # Set relative fileloc as it would be set for bundle-backed DAGs
+        dag.fileloc = f"/absolute/path/to/bundle/{relative_fileloc}"
+        dag.relative_fileloc = relative_fileloc
+        
+        # Simulate an import error with relative path (as stored in DagBag.import_errors)
+        import_errors = {
+            (bundle_name, relative_fileloc): "UnboundLocalError: local variable 'x' referenced before assignment"
+        }
+        
+        # Process the DAG with import errors
+        update_dag_parsing_results_in_db(
+            bundle_name=bundle_name,
+            bundle_version=None,
+            dags=[],  # No DAGs successfully parsed
+            import_errors=import_errors,
+            parse_duration=0.1,
+            warnings=set(),
+            session=session,
+            files_parsed={(bundle_name, relative_fileloc)},
+        )
+        
+        # Verify the import error was persisted to the database
+        import_error = session.scalar(
+            select(ParseImportError).where(
+                ParseImportError.bundle_name == bundle_name,
+                ParseImportError.filename == relative_fileloc,
+            )
+        )
+        
+        assert import_error is not None, (
+            f"Import error for {relative_fileloc} was not persisted to database. "
+            "This would cause the error to disappear from the UI."
+        )
+        assert import_error.filename == relative_fileloc
+        assert import_error.bundle_name == bundle_name
+        assert "UnboundLocalError" in import_error.stacktrace
+        
+        # Verify the listener was notified of the new error
+        assert len(dag_import_error_listener.new) == 1
+        
+        # Now test updating the error (simulating a re-parse with the same error)
+        update_dag_parsing_results_in_db(
+            bundle_name=bundle_name,
+            bundle_version=None,
+            dags=[],
+            import_errors=import_errors,
+            parse_duration=0.1,
+            warnings=set(),
+            session=session,
+            files_parsed={(bundle_name, relative_fileloc)},
+        )
+        
+        # Verify only one import error exists (updated, not duplicated)
+        import_errors_count = session.scalar(
+            select(func.count(ParseImportError.id)).where(
+                ParseImportError.bundle_name == bundle_name,
+                ParseImportError.filename == relative_fileloc,
+            )
+        )
+        assert import_errors_count == 1
+        
+        # Verify existing error listener was called
+        assert len(dag_import_error_listener.existing) == 1
+
     @patch.object(ParseImportError, "full_file_path")
     @pytest.mark.usefixtures("clean_db")
     def test_new_import_error_replaces_old(
