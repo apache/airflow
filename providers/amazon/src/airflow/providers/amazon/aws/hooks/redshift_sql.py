@@ -27,7 +27,7 @@ try:
     from sqlalchemy import create_engine
     from sqlalchemy.engine.url import URL
 except ImportError:
-    URL = create_engine = None
+    URL = create_engine = None  # type: ignore[assignment,misc]
 
 from airflow.exceptions import AirflowOptionalProviderFeatureException
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook

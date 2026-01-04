@@ -3034,7 +3034,9 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 session=session,
             )
             active_non_backfill_runs = runs_dict.get(dag_model.dag_id, 0)
-        exceeds = active_non_backfill_runs >= dag_model.max_active_runs
+        exceeds = (
+            dag_model.max_active_runs is not None and active_non_backfill_runs >= dag_model.max_active_runs
+        )
         return exceeds, active_non_backfill_runs
 
 
