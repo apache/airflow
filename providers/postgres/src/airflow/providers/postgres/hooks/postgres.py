@@ -27,7 +27,7 @@ import psycopg2
 import psycopg2.extras
 from more_itertools import chunked
 from psycopg2.extras import DictCursor, NamedTupleCursor, RealDictCursor, execute_batch
-
+URL: Any
 try:
     from sqlalchemy.engine import URL
 except ImportError:
