@@ -7957,6 +7957,54 @@ class TestSchedulerJob:
             assert result1 == scheduler_job.executor  # Default for no explicit executor
             assert result2 == mock_executors[1]  # Matched by executor name
 
+    def test_try_to_load_executor_queue_based_routing(self, dag_maker, session):
+        """Test executor selection based on task queue matching executor's kubernetes_queue config."""
+        mock_jwt_generator = MagicMock(spec=JWTGenerator)
+        mock_jwt_generator.generate.return_value = "mock-token"
+
+        # Create mock CeleryExecutor
+        celery_executor = mock.MagicMock(name="CeleryExecutor", slots_available=8, slots_occupied=0)
+        celery_executor.name = ExecutorName(alias="CeleryExecutor", module_path="celery.executor.path")
+        celery_executor.jwt_generator = mock_jwt_generator
+        celery_executor.team_name = None
+        celery_executor.sentry_integration = ""
+        celery_executor.queue_workload.__func__ = BaseExecutor.queue_workload
+
+        # Create mock KubernetesExecutor with kubernetes_queue attribute
+        k8s_executor = mock.MagicMock(name="KubernetesExecutor", slots_available=8, slots_occupied=0)
+        k8s_executor.name = ExecutorName(alias="KubernetesExecutor", module_path="kubernetes.executor.path")
+        k8s_executor.jwt_generator = mock_jwt_generator
+        k8s_executor.team_name = None
+        k8s_executor.sentry_integration = ""
+        k8s_executor.kubernetes_queue = "kubernetes"  # Configure kubernetes queue name
+        k8s_executor.queue_workload.__func__ = BaseExecutor.queue_workload
+
+        with mock.patch("airflow.jobs.job.Job.executors", new_callable=PropertyMock) as executors_mock:
+            executors_mock.return_value = [celery_executor, k8s_executor]
+
+            # Task with default queue should use CeleryExecutor (default executor)
+            with dag_maker(dag_id="test_dag_default", session=session):
+                task_default = EmptyOperator(task_id="task_default", queue="default")
+
+            dr_default = dag_maker.create_dagrun()
+            ti_default = dr_default.get_task_instance(task_default.task_id, session)
+
+            scheduler_job = Job()
+            self.job_runner = SchedulerJobRunner(job=scheduler_job)
+
+            result_default = self.job_runner._try_to_load_executor(ti_default, session)
+            assert result_default == celery_executor
+
+            # Task with kubernetes queue should use KubernetesExecutor
+            with dag_maker(dag_id="test_dag_k8s", session=session):
+                task_k8s = EmptyOperator(task_id="task_k8s", queue="kubernetes")
+
+            dr_k8s = dag_maker.create_dagrun()
+            ti_k8s = dr_k8s.get_task_instance(task_k8s.task_id, session)
+
+            result_k8s = self.job_runner._try_to_load_executor(ti_k8s, session)
+            assert result_k8s == k8s_executor
+
 
 @pytest.mark.need_serialized_dag
 def test_schedule_dag_run_with_upstream_skip(dag_maker, session):

@@ -107,6 +107,13 @@ def get_provider_info():
             "kubernetes_executor": {
                 "description": None,
                 "options": {
+                    "kubernetes_queue": {
+                        "description": "Define the queue name for tasks that should be executed by ``KubernetesExecutor`` when using multiple executors.\nWhen the queue of a task matches this value (default ``kubernetes``),\nthe task is routed to ``KubernetesExecutor``.\nThis is used for queue-based executor routing in multi-executor configurations.\n",
+                        "version_added": "3.0.7",
+                        "type": "string",
+                        "example": None,
+                        "default": "kubernetes",
+                    },
                     "api_client_retry_configuration": {
                         "description": "Kwargs to override the default urllib3 Retry used in the kubernetes API client\n",
                         "version_added": None,

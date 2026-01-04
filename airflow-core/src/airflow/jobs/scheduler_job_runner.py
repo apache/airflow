@@ -2987,7 +2987,28 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         # Firstly, check if there is no executor set on the TaskInstance, if not, we need to fetch the default
         # (either globally or for the team)
         if ti.executor is None:
-            if not team_name:
+            # Check if task queue matches any executor's specific queue configuration
+            # This enables queue-based routing for multiple executors (e.g., KubernetesExecutor)
+            queue_matched_executor = None
+            for _executor in self.job.executors:
+                # Match team if applicable
+                if team_name and _executor.team_name != team_name and _executor.team_name is not None:
+                    continue
+                # Check if executor has a queue configuration (e.g., kubernetes_queue)
+                if hasattr(_executor, "kubernetes_queue") and _executor.kubernetes_queue:
+                    if ti.queue == _executor.kubernetes_queue:
+                        queue_matched_executor = _executor
+                        self.log.debug(
+                            "Task %s matched queue '%s' to executor %s via kubernetes_queue config",
+                            ti,
+                            ti.queue,
+                            _executor.name,
+                        )
+                        break
+
+            if queue_matched_executor:
+                executor = queue_matched_executor
+            elif not team_name:
                 # No team is specified, so just use the global default executor
                 executor = self.job.executor
             else:

@@ -159,7 +159,9 @@ class KubernetesExecutor(BaseExecutor):
         self.kube_client: client.CoreV1Api | None = None
         self.scheduler_job_id: str | None = None
         self.last_handled: dict[TaskInstanceKey, float] = {}
-        self.kubernetes_queue: str | None = None
+        self.kubernetes_queue: str | None = conf.get(
+            "kubernetes_executor", "kubernetes_queue", fallback="kubernetes"
+        )
         self.task_publish_retries: Counter[TaskInstanceKey] = Counter()
         self.task_publish_max_retries = conf.getint(
             "kubernetes_executor", "task_publish_max_retries", fallback=0
