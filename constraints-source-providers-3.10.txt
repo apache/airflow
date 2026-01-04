@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2026-01-02T18:09:57.911084
+# This constraints file was automatically generated on 2026-01-04T02:00:27.556766
 # via `uv sync --resolution highest for the "v3-1-test" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider distributions.
@@ -52,7 +52,7 @@ aiobotocore==2.26.0
 aiofiles==24.1.0
 aiohappyeyeballs==2.6.1
 aiohttp-cors==0.8.1
-aiohttp==3.13.2
+aiohttp==3.13.3
 aioitertools==0.13.0
 aiomysql==0.3.2
 aioresponses==0.7.8
@@ -398,7 +398,7 @@ multidict==6.7.0
 mypy-boto3-appflow==1.42.3
 mypy-boto3-rds==1.42.5
 mypy-boto3-redshift-data==1.42.3
-mypy-boto3-s3==1.42.16
+mypy-boto3-s3==1.42.21
 mypy==1.19.1
 mypy_extensions==1.1.0
 mysql-connector-python==9.5.0
