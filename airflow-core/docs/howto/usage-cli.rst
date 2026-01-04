@@ -213,6 +213,8 @@ The ``db clean`` command works by deleting from each table the records older tha
 
 You can optionally provide a list of tables to perform deletes on. If no list of tables is supplied, all tables will be included.
 
+You can filter cleanup to specific DAGs using ``--dag-ids`` (comma-separated list), or exclude specific DAGs using ``--exclude-dag-ids`` (comma-separated list). These options allow you to target or avoid cleanup for particular DAGs.
+
 You can use the ``--dry-run`` option to print the row counts in the primary tables to be cleaned.
 
 By default, ``db clean`` will archive purged rows in tables of the form ``_airflow_deleted__<table>__<timestamp>``.  If you don't want the data preserved in this way, you may supply argument ``--skip-archive``.
