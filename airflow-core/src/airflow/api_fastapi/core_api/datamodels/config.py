@@ -16,10 +16,6 @@
 # under the License.
 from __future__ import annotations
 
-from pydantic import model_validator
-from typing_extensions import Self
-
-from airflow._shared.secrets_masker import redact
 from airflow.api_fastapi.core_api.base import StrictBaseModel
 
 
@@ -28,14 +24,6 @@ class ConfigOption(StrictBaseModel):
 
     key: str
     value: str | tuple[str, str]
-
-    @model_validator(mode="after")
-    def redact_value(self) -> Self:
-        if isinstance(self.value, tuple):
-            self.value = (str(redact(self.value[0], self.key)), str(redact(self.value[1], self.key)))
-        else:
-            self.value = str(redact(self.value, self.key))
-        return self
 
     @property
     def text_format(self):

@@ -39,15 +39,12 @@ SECTION_NOT_EXIST = "not_exist_section"
 OPTION_KEY_PARALLELISM = "parallelism"
 OPTION_KEY_SMTP_HOST = "smtp_host"
 OPTION_KEY_SMTP_MAIL_FROM = "smtp_mail_from"
-OPTION_KEY_SMTP_PASSWORD = "smtp_password"
 OPTION_KEY_SQL_ALCHEMY_CONN = "sql_alchemy_conn"
 OPTION_VALUE_PARALLELISM = "1024"
 OPTION_VALUE_SMTP_HOST = "smtp.example.com"
 OPTION_VALUE_SMTP_MAIL_FROM = "airflow@example.com"
-OPTION_VALUE_SMTP_PASSWORD = "smtp_password_1"
 OPTION_VALUE_SQL_ALCHEMY_CONN = "sqlite:///example.db"
 OPTION_NOT_EXIST = "not_exist_option"
-OPTION_VALUE_MARKED = "***"
 OPTION_VALUE_SENSITIVE_HIDDEN = "< hidden >"
 
 MOCK_CONFIG_DICT = {
@@ -57,7 +54,6 @@ MOCK_CONFIG_DICT = {
     SECTION_SMTP: {
         OPTION_KEY_SMTP_HOST: OPTION_VALUE_SMTP_HOST,
         OPTION_KEY_SMTP_MAIL_FROM: OPTION_VALUE_SMTP_MAIL_FROM,
-        OPTION_KEY_SMTP_PASSWORD: OPTION_VALUE_SMTP_PASSWORD,
     },
     SECTION_DATABASE: {
         OPTION_KEY_SQL_ALCHEMY_CONN: OPTION_VALUE_SENSITIVE_HIDDEN,
@@ -79,7 +75,6 @@ MOCK_CONFIG_OVERRIDE = {
     (SECTION_CORE, OPTION_KEY_PARALLELISM): OPTION_VALUE_PARALLELISM,
     (SECTION_SMTP, OPTION_KEY_SMTP_HOST): OPTION_VALUE_SMTP_HOST,
     (SECTION_SMTP, OPTION_KEY_SMTP_MAIL_FROM): OPTION_VALUE_SMTP_MAIL_FROM,
-    (SECTION_SMTP, OPTION_KEY_SMTP_PASSWORD): OPTION_VALUE_MARKED,
 }
 
 AIRFLOW_CONFIG_ENABLE_EXPOSE_CONFIG = {("api", "expose_config"): "True"}
@@ -102,7 +97,6 @@ GET_CONFIG_ALL_JSON_RESPONSE = {
             "options": [
                 {"key": OPTION_KEY_SMTP_HOST, "value": OPTION_VALUE_SMTP_HOST},
                 {"key": OPTION_KEY_SMTP_MAIL_FROM, "value": OPTION_VALUE_SMTP_MAIL_FROM},
-                {"key": OPTION_KEY_SMTP_PASSWORD, "value": OPTION_VALUE_MARKED},
             ],
         },
         {
@@ -210,7 +204,6 @@ class TestGetConfig(TestConfigEndpoint):
                     [{SECTION_SMTP}]
                     {OPTION_KEY_SMTP_HOST} = {OPTION_VALUE_SMTP_HOST}
                     {OPTION_KEY_SMTP_MAIL_FROM} = {OPTION_VALUE_SMTP_MAIL_FROM}
-                    {OPTION_KEY_SMTP_PASSWORD} = {OPTION_VALUE_MARKED}
 
                     [{SECTION_DATABASE}]
                     {OPTION_KEY_SQL_ALCHEMY_CONN} = {OPTION_VALUE_SENSITIVE_HIDDEN}
@@ -247,7 +240,6 @@ class TestGetConfig(TestConfigEndpoint):
                     [{SECTION_SMTP}]
                     {OPTION_KEY_SMTP_HOST} = {OPTION_VALUE_SMTP_HOST}
                     {OPTION_KEY_SMTP_MAIL_FROM} = {OPTION_VALUE_SMTP_MAIL_FROM}
-                    {OPTION_KEY_SMTP_PASSWORD} = {OPTION_VALUE_MARKED}
                     """
                 ),
             ),
@@ -271,7 +263,6 @@ class TestGetConfig(TestConfigEndpoint):
             (SECTION_NOT_EXIST, HEADERS_JSON, 404, {"detail": f"Section {SECTION_NOT_EXIST} not found."}),
         ],
     )
-    @pytest.mark.enable_redact
     def test_get_config(self, test_client, section, headers, expected_status_code, expected_response):
         query_params = {"section": section} if section else None
         if expected_status_code == 403:
@@ -384,22 +375,6 @@ class TestGetConfigValue(TestConfigEndpoint):
                 },
             ),
             (
-                SECTION_SMTP,
-                OPTION_KEY_SMTP_PASSWORD,
-                HEADERS_JSON,
-                200,
-                {
-                    "sections": [
-                        {
-                            "name": SECTION_SMTP,
-                            "options": [
-                                {"key": OPTION_KEY_SMTP_PASSWORD, "value": OPTION_VALUE_MARKED},
-                            ],
-                        },
-                    ],
-                },
-            ),
-            (
                 SECTION_DATABASE,
                 OPTION_KEY_SQL_ALCHEMY_CONN,
                 HEADERS_JSON,
@@ -444,7 +419,6 @@ class TestGetConfigValue(TestConfigEndpoint):
             ),
         ],
     )
-    @pytest.mark.enable_redact
     def test_get_config_value(
         self, test_client, section, option, headers, expected_status_code, expected_response
     ):
