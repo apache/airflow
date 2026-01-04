@@ -214,16 +214,6 @@ else:
         def is_async(self) -> bool:
             return True
 
-        if not AIRFLOW_V_3_1_PLUS:
-
-            @property
-            def xcom_push(self) -> bool:
-                return self.do_xcom_push
-
-            @xcom_push.setter
-            def xcom_push(self, value: bool):
-                self.do_xcom_push = value
-
         async def aexecute(self, context):
             """Async version of execute(). Subclasses should implement this."""
             raise NotImplementedError()
