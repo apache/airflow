@@ -20,7 +20,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import TYPE_CHECKING
 
-from sqlalchemy import Index, Integer, String, Text, and_
+from sqlalchemy import Index, Integer, String, Text
 from sqlalchemy.orm import Mapped, relationship
 
 from airflow._shared.timezones import timezone
@@ -28,6 +28,7 @@ from airflow.models.base import Base, StringID
 from airflow.utils.sqlalchemy import UtcDateTime, mapped_column
 
 if TYPE_CHECKING:
+    from airflow.models.dag import DagModel
     from airflow.models.taskinstance import TaskInstance
     from airflow.models.taskinstancekey import TaskInstanceKey
 
@@ -50,14 +51,14 @@ class Log(Base):
     extra: Mapped[str | None] = mapped_column(Text, nullable=True)
     try_number: Mapped[int | None] = mapped_column(Integer, nullable=True)
 
-    dag_model = relationship(
+    dag_model: Mapped[DagModel | None] = relationship(
         "DagModel",
         viewonly=True,
         foreign_keys=[dag_id],
         primaryjoin="Log.dag_id == DagModel.dag_id",
     )
 
-    task_instance = relationship(
+    task_instance: Mapped[TaskInstance | None] = relationship(
         "TaskInstance",
         viewonly=True,
         foreign_keys=[dag_id, task_id, run_id, map_index],

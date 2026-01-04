@@ -1,21 +1,19 @@
+from __future__ import annotations
 
 import pytest
-from airflow.models.dag import DAG
+
 from airflow.models.log import Log
-from airflow.models.taskinstance import TaskInstance
 from airflow.operators.empty import EmptyOperator
-from airflow.utils import timezone
 from airflow.utils.state import TaskInstanceState
-from airflow.utils.session import create_session
 
 pytestmark = pytest.mark.db_test
 
 class TestLogTaskInstanceReproduction:
     def test_log_task_instance_join_correctness(self, dag_maker, session):
         # Create dag_1 with a task
-        with dag_maker("dag_1", session=session) as dag1:
+        with dag_maker("dag_1", session=session):
             EmptyOperator(task_id="common_task_id")
-        
+
         dr1 = dag_maker.create_dagrun()
         ti1 = dr1.get_task_instance("common_task_id")
         ti1.state = TaskInstanceState.SUCCESS
@@ -23,9 +21,9 @@ class TestLogTaskInstanceReproduction:
         session.commit()
 
         # Create dag_2 with the SAME task_id
-        with dag_maker("dag_2", session=session) as dag2:
+        with dag_maker("dag_2", session=session):
             EmptyOperator(task_id="common_task_id")
-        
+
         dr2 = dag_maker.create_dagrun()
         ti2 = dr2.get_task_instance("common_task_id")
         ti2.state = TaskInstanceState.FAILED
@@ -43,7 +41,7 @@ class TestLogTaskInstanceReproduction:
         # Query with joinedload to trigger the relationship join
         from sqlalchemy import select
         from sqlalchemy.orm import joinedload
-        
+
         stmt = select(Log).where(Log.id == log.id).options(joinedload(Log.task_instance))
         loaded_log = session.scalar(stmt)
 
