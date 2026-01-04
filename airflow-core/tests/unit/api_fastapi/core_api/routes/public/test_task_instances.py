@@ -201,6 +201,7 @@ class TestGetTaskInstance(TestTaskInstanceEndpoint):
                 "dag_display_name": "example_python_operator",
                 "dag_id": "example_python_operator",
                 "id": response_data["dag_version"]["id"],
+                "version_number": 1,
             },
             "dag_display_name": "example_python_operator",
             "duration": 10000.0,
@@ -358,6 +359,7 @@ class TestGetTaskInstance(TestTaskInstanceEndpoint):
                 "dag_display_name": "example_python_operator",
                 "dag_id": "example_python_operator",
                 "id": response_data["dag_version"]["id"],
+                "version_number": 1,
             },
             "dag_display_name": "example_python_operator",
             "duration": 10000.0,
@@ -2287,6 +2289,7 @@ class TestGetTaskInstanceTry(TestTaskInstanceEndpoint):
                 "dag_display_name": "example_python_operator",
                 "dag_id": "example_python_operator",
                 "id": response_data["dag_version"]["id"],
+                "version_number": 1,
             },
             "hitl_detail": None,
         }
@@ -2334,6 +2337,7 @@ class TestGetTaskInstanceTry(TestTaskInstanceEndpoint):
                 "dag_display_name": "example_python_operator",
                 "dag_id": "example_python_operator",
                 "id": response_data["dag_version"]["id"],
+                "version_number": 1,
             },
             "hitl_detail": None,
         }
