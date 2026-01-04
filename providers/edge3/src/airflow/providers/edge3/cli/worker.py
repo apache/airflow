@@ -32,8 +32,7 @@ from lockfile.pidlockfile import remove_existing_pidfile
 from requests import HTTPError
 
 from airflow import __version__ as airflow_version
-from airflow.configuration import conf
-from airflow.providers.common.compat.sdk import timezone
+from airflow.providers.common.compat.sdk import conf, timezone
 from airflow.providers.edge3 import __version__ as edge_provider_version
 from airflow.providers.edge3.cli.api_client import (
     jobs_fetch,
