@@ -36,7 +36,8 @@ export const InputWithAddon = React.forwardRef<HTMLInputElement, InputWithAddonP
       borderColor="border"
       borderRadius="full"
       display="flex"
-      width={width}
+      minWidth={width}
+      width="auto"
     >
       <Text
         bg="gray.muted"
