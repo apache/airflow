@@ -25,7 +25,7 @@ import pyathena
 try:
     from sqlalchemy.engine.url import URL
 except ImportError:
-    URL = None
+    URL = None  # type: ignore[assignment,misc]
 
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 from airflow.providers.amazon.aws.utils.connection_wrapper import AwsConnectionWrapper
