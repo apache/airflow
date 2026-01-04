@@ -366,7 +366,7 @@ class DagModel(Base):
     # Timetable description
     timetable_description: Mapped[str | None] = mapped_column(String(1000), nullable=True)
     # Timetable Type
-    timetable_type: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    timetable_type: Mapped[str] = mapped_column(String(255), nullable=False, server_default="")
     # Asset expression based on asset triggers
     asset_expression: Mapped[dict[str, Any] | None] = mapped_column(
         sqlalchemy_jsonfield.JSONField(json=json), nullable=True

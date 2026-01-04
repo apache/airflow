@@ -18,6 +18,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any, NamedTuple, Protocol, runtime_checkable
 
+from airflow._shared.module_loading import qualname
 from airflow.serialization.definitions.assets import SerializedAssetBase
 
 if TYPE_CHECKING:
@@ -255,16 +256,15 @@ class Timetable(Protocol):
         ``"my_company.timetables.CustomTimetable"``
         """
         module = self.__class__.__module__
-        class_name = self.__class__.__name__
 
         # Built-in timetables from Core or SDK use class name only
         if module.startswith("airflow.timetables.") or module.startswith(
             "airflow.sdk.definitions.timetables."
         ):
-            return class_name
+            return self.__class__.__name__
 
         # Custom timetables use full import path
-        return f"{module}.{class_name}"
+        return qualname(self.__class__)
 
     def infer_manual_data_interval(self, *, run_after: DateTime) -> DataInterval:
         """
