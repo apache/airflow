@@ -39,7 +39,7 @@ Features
 Bug Fixes
 ~~~~~~~~~
 
-* ``bug fix (#59292)``
+* ``Fix '@task.kubernetes_cmd' TaskGroup.expand mappings by templating TaskFlow args (#59292)``
 * ``Fix 'KubernetesPodOperator' deferrable mode with env-defined connection (#41706) (#58841)``
 * ``Fix deferred mode KubernetesPodOperator:  fast-fail pod start errors (ErrImagePull/ImagePullBackOff) (#59010)``
 * ``Fix XCom directory creation logic in Kubernetes decorator (#56545) (#59347)``
@@ -51,7 +51,7 @@ Misc
 * ``Remove top-level SDK reference in Core (#59817)``
 * ``Add and fix SIM107 and B012 Ruff rule (#59770)``
 * ``Refactor/sqla2 providers(celery, kubernetes, databricks, mysql) to remove SQLA query usage (#59537)``
-* ``Optimize K8s API usage for watching events (#59080)``
+* ``Optimize Kubernetes API usage for watching events (#59080)``
 
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):

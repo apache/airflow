@@ -23,6 +23,9 @@ from typing import TYPE_CHECKING, Any
 
 from airflow.sdk import TriggerRule
 
+# Re exporting AirflowConfigException from shared configuration
+from airflow.sdk._shared.configuration.exceptions import AirflowConfigException as AirflowConfigException
+
 if TYPE_CHECKING:
     from collections.abc import Collection
 

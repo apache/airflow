@@ -28,7 +28,7 @@
 {{- $affinity := or .Values.workers.affinity .Values.affinity }}
 {{- $tolerations := or .Values.workers.tolerations .Values.tolerations }}
 {{- $topologySpreadConstraints := or .Values.workers.topologySpreadConstraints .Values.topologySpreadConstraints }}
-{{- $revisionHistoryLimit := or .Values.workers.revisionHistoryLimit .Values.revisionHistoryLimit }}
+{{- $revisionHistoryLimit := or .Values.workers.celery.revisionHistoryLimit .Values.workers.revisionHistoryLimit .Values.revisionHistoryLimit }}
 {{- $securityContext := include "airflowPodSecurityContext" (list . .Values.workers) }}
 {{- $containerSecurityContext := include "containerSecurityContext" (list . .Values.workers) }}
 {{- $containerSecurityContextPersistence := include "containerSecurityContext" (list . .Values.workers.persistence) }}
@@ -62,7 +62,7 @@ spec:
   serviceName: {{ include "airflow.fullname" . }}-worker
   {{- end }}
   {{- if and (not $keda) (not $hpa) }}
-  replicas: {{ .Values.workers.replicas }}
+  replicas: {{ .Values.workers.celery.replicas | default .Values.workers.replicas }}
   {{- end }}
   {{- if $revisionHistoryLimit }}
   revisionHistoryLimit: {{ $revisionHistoryLimit }}

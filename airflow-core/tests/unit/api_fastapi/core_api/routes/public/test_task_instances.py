@@ -392,6 +392,7 @@ class TestGetTaskInstance(TestTaskInstanceEndpoint):
             "trigger": {
                 "classpath": "none",
                 "kwargs": "{}",
+                "queue": None,
             },
             "triggerer_job": {
                 "dag_display_name": None,
