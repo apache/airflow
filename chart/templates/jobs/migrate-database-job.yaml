@@ -18,7 +18,7 @@
 */}}
 
 ################################
-## Airflow Run Migrations
+## Airflow Run Migrations_test
 #################################
 {{- if .Values.migrateDatabaseJob.enabled }}
 {{- $nodeSelector := or .Values.migrateDatabaseJob.nodeSelector .Values.nodeSelector }}
