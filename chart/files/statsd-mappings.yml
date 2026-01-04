@@ -92,7 +92,7 @@ mappings:
     name: "airflow_pool_used_slots"
     labels:
       pool: "$1"
-
+      
   - match: airflow.pool.starving_tasks.*
     name: "airflow_pool_starving_tasks"
     labels:
