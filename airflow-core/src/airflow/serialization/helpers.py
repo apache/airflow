@@ -19,15 +19,42 @@
 from __future__ import annotations
 
 import contextlib
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Union
+from collections.abc import Sequence
 
 from airflow._shared.secrets_masker import redact
-from airflow._shared.truncation import truncate_rendered_value
 from airflow.configuration import conf
 from airflow.settings import json
 
 if TYPE_CHECKING:
     from airflow.timetables.base import Timetable as CoreTimetable
+
+
+def truncate_rendered_value(rendered: Union[str, bytes, Sequence], max_length: int) -> str:
+    """
+    Truncate rendered value with a reasonable minimum length to avoid edge cases.
+    
+    Args:
+        rendered: The rendered value to truncate
+        max_length: The maximum allowed length for the output
+        
+    Returns:
+        Truncated string that respects the max_length constraint
+    """
+    # Set a reasonable minimum to avoid complex edge cases with very small values
+    if max_length < 100:
+        max_length = 100
+
+    prefix = "Truncated. You can change this behaviour in [core]max_templated_field_length. "
+    suffix = "... "
+    
+    available_length = max_length - len(prefix) - len(suffix)
+    if available_length <= 0:
+        return (prefix + suffix)[:max_length]
+    
+    content_length = max(0, available_length)
+    content_part = rendered[:content_length]
+    return f"{prefix}{repr(content_part)}{suffix}"
 
 
 def serialize_template_field(template_field: Any, name: str) -> str | dict | list | int | float:

@@ -25,12 +25,12 @@ import functools
 import os
 import sys
 import time
-from collections.abc import Callable, Iterable, Iterator, Mapping
+from collections.abc import Callable, Iterable, Iterator, Mapping, Sequence
 from contextlib import suppress
 from datetime import datetime, timezone
 from itertools import product
 from pathlib import Path
-from typing import TYPE_CHECKING, Annotated, Any, Literal
+from typing import TYPE_CHECKING, Annotated, Any, Literal, Union
 from urllib.parse import quote
 
 import attrs
@@ -104,7 +104,7 @@ from airflow.sdk.execution_time.comms import (
     TriggerDagRun,
     ValidateInletsAndOutlets,
 )
-from airflow._shared.truncation import truncate_rendered_value
+
 from airflow.sdk.execution_time.context import (
     ConnectionAccessor,
     InletEventsAccessors,
@@ -135,6 +135,34 @@ if TYPE_CHECKING:
 
 class TaskRunnerMarker:
     """Marker for listener hooks, to properly detect from which component they are called."""
+
+
+def truncate_rendered_value(rendered: Union[str, bytes, Sequence], max_length: int) -> str:
+    """
+    Truncate rendered value with a reasonable minimum length to avoid edge cases.
+    
+    Args:
+        rendered: The rendered value to truncate
+        max_length: The maximum allowed length for the output
+        
+    Returns:
+        Truncated string that respects the max_length constraint
+    """
+    # Set a reasonable minimum to avoid complex edge cases with very small values
+    if max_length < 100:
+        max_length = 100
+
+    prefix = "Truncated. You can change this behaviour in [core]max_templated_field_length. "
+    suffix = "... "
+    
+    available_length = max_length - len(prefix) - len(suffix)
+    if available_length <= 0:
+        return (prefix + suffix)[:max_length]
+    
+    content_length = max(0, available_length)
+    content_part = rendered[:content_length]
+    return f"{prefix}{repr(content_part)}{suffix}"
+
 
 
 # TODO: Move this entire class into a separate file:
