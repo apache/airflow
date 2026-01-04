@@ -33,7 +33,7 @@ import psutil
 from airflow import settings
 from airflow.cli.commands.daemon_utils import run_command_with_daemon_option
 from airflow.cli.simple_table import AirflowConsole
-from airflow.configuration import conf
+from airflow.providers.common.compat.sdk import conf
 from airflow.providers.edge3.cli.dataclasses import MaintenanceMarker, WorkerStatus
 from airflow.providers.edge3.cli.signalling import (
     EDGE_WORKER_PROCESS_NAME,
