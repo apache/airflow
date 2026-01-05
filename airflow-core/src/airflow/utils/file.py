@@ -28,7 +28,6 @@ from io import TextIOWrapper
 from pathlib import Path
 from typing import overload
 
-from airflow._shared.module_loading import find_path_from_directory
 from airflow.configuration import conf
 
 log = logging.getLogger(__name__)
@@ -101,6 +100,8 @@ def list_py_file_paths(
 
 def find_dag_file_paths(directory: str | os.PathLike[str], safe_mode: bool) -> list[str]:
     """Find file paths of all DAG files."""
+    from airflow._shared.module_loading.file_discovery import find_path_from_directory
+
     file_paths = []
     ignore_file_syntax = conf.get_mandatory_value("core", "DAG_IGNORE_FILE_SYNTAX", fallback="glob")
 
@@ -187,3 +188,21 @@ def get_unique_dag_module_name(file_path: str) -> str:
         org_mod_name = re.sub(r"[.-]", "_", Path(file_path).stem)
         return MODIFIED_DAG_MODULE_NAME.format(path_hash=path_hash, module_name=org_mod_name)
     raise ValueError("file_path should be a string to generate unique module name")
+
+
+def __getattr__(name: str):
+    if name == "find_path_from_directory":
+        import warnings
+
+        from airflow._shared.module_loading import find_path_from_directory
+        from airflow.utils.deprecation_tools import DeprecatedImportWarning
+
+        warnings.warn(
+            "Importing find_path_from_directory from airflow.utils.file is deprecated "
+            "and will be removed in a future version. "
+            "Use airflow._shared.module_loading.find_path_from_directory instead.",
+            DeprecatedImportWarning,
+            stacklevel=2,
+        )
+        return find_path_from_directory
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
