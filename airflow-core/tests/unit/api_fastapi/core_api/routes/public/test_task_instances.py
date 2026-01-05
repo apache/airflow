@@ -54,6 +54,7 @@ from tests_common.test_utils.db import (
 )
 from tests_common.test_utils.logs import check_last_log
 from tests_common.test_utils.mock_operators import MockOperator
+from tests_common.test_utils.taskinstance import create_task_instance
 
 if TYPE_CHECKING:
     from tests_common.pytest_plugin import CreateTaskInstance
@@ -188,11 +189,20 @@ class TestGetTaskInstance(TestTaskInstanceEndpoint):
         response = test_client.get(
             "/dags/example_python_operator/dagRuns/TEST_DAG_RUN_ID/taskInstances/print_the_context"
         )
-
+        response_data = response.json()
         assert response.status_code == 200
-        assert response.json() == {
+        assert response_data == {
             "dag_id": "example_python_operator",
-            "dag_version": mock.ANY,
+            "dag_version": {
+                "bundle_name": "dags-folder",
+                "bundle_url": None,
+                "bundle_version": None,
+                "created_at": response_data["dag_version"]["created_at"],
+                "dag_display_name": "example_python_operator",
+                "dag_id": "example_python_operator",
+                "id": response_data["dag_version"]["id"],
+                "version_number": 1,
+            },
             "dag_display_name": "example_python_operator",
             "duration": 10000.0,
             "end_date": "2020-01-03T00:00:00Z",
@@ -200,7 +210,7 @@ class TestGetTaskInstance(TestTaskInstanceEndpoint):
             "executor": None,
             "executor_config": "{}",
             "hostname": "",
-            "id": mock.ANY,
+            "id": response_data["id"],
             "map_index": -1,
             "max_tries": 0,
             "note": "placeholder-note",
@@ -265,10 +275,10 @@ class TestGetTaskInstance(TestTaskInstanceEndpoint):
     ):
         mock_hasattr.return_value = False
         response = test_client.get(f"/dags/dag_with_multiple_versions/dagRuns/{run_id}/taskInstances/task1")
-
+        response_data = response.json()
         assert response.status_code == 200
-        assert response.json() == {
-            "id": mock.ANY,
+        assert response_data == {
+            "id": response_data["id"],
             "task_id": "task1",
             "dag_id": "dag_with_multiple_versions",
             "dag_run_id": run_id,
@@ -302,14 +312,14 @@ class TestGetTaskInstance(TestTaskInstanceEndpoint):
             "trigger": None,
             "triggerer_job": None,
             "dag_version": {
-                "id": mock.ANY,
+                "id": response_data["dag_version"]["id"],
                 "version_number": expected_version_number,
                 "dag_id": "dag_with_multiple_versions",
                 "dag_display_name": "dag_with_multiple_versions",
                 "bundle_name": "dag_maker",
                 "bundle_version": f"some_commit_hash{expected_version_number}",
                 "bundle_url": f"http://test_host.github.com/tree/some_commit_hash{expected_version_number}/dags",
-                "created_at": mock.ANY,
+                "created_at": response_data["dag_version"]["created_at"],
             },
         }
 
@@ -327,7 +337,7 @@ class TestGetTaskInstance(TestTaskInstanceEndpoint):
         response = test_client.get(
             "/dags/example_python_operator/dagRuns/TEST_DAG_RUN_ID/taskInstances/print_the_context"
         )
-        data = response.json()
+        response_data = response.json()
 
         # this logic in effect replicates mock.ANY for these values
         values_to_ignore = {
@@ -336,12 +346,21 @@ class TestGetTaskInstance(TestTaskInstanceEndpoint):
         }
         for k, v in values_to_ignore.items():
             for elem in v:
-                del data[k][elem]
+                del response_data[k][elem]
 
         assert response.status_code == 200
-        assert data == {
+        assert response_data == {
             "dag_id": "example_python_operator",
-            "dag_version": mock.ANY,
+            "dag_version": {
+                "bundle_name": "dags-folder",
+                "bundle_url": None,
+                "bundle_version": None,
+                "created_at": response_data["dag_version"]["created_at"],
+                "dag_display_name": "example_python_operator",
+                "dag_id": "example_python_operator",
+                "id": response_data["dag_version"]["id"],
+                "version_number": 1,
+            },
             "dag_display_name": "example_python_operator",
             "duration": 10000.0,
             "end_date": "2020-01-03T00:00:00Z",
@@ -349,7 +368,7 @@ class TestGetTaskInstance(TestTaskInstanceEndpoint):
             "executor": None,
             "executor_config": "{}",
             "hostname": "",
-            "id": mock.ANY,
+            "id": response_data["id"],
             "map_index": -1,
             "max_tries": 0,
             "note": "placeholder-note",
@@ -375,6 +394,7 @@ class TestGetTaskInstance(TestTaskInstanceEndpoint):
             "trigger": {
                 "classpath": "none",
                 "kwargs": "{}",
+                "queue": None,
             },
             "triggerer_job": {
                 "dag_display_name": None,
@@ -391,10 +411,20 @@ class TestGetTaskInstance(TestTaskInstanceEndpoint):
         response = test_client.get(
             "/dags/example_python_operator/dagRuns/TEST_DAG_RUN_ID/taskInstances/print_the_context"
         )
+        response_data = response.json()
         assert response.status_code == 200
-        assert response.json() == {
+        assert response_data == {
             "dag_id": "example_python_operator",
-            "dag_version": mock.ANY,
+            "dag_version": {
+                "bundle_name": "dags-folder",
+                "bundle_url": None,
+                "bundle_version": None,
+                "created_at": response_data["dag_version"]["created_at"],
+                "dag_display_name": "example_python_operator",
+                "dag_id": "example_python_operator",
+                "id": response_data["dag_version"]["id"],
+                "version_number": 1,
+            },
             "dag_display_name": "example_python_operator",
             "duration": 10000.0,
             "end_date": "2020-01-03T00:00:00Z",
@@ -402,7 +432,7 @@ class TestGetTaskInstance(TestTaskInstanceEndpoint):
             "executor": None,
             "executor_config": "{}",
             "hostname": "",
-            "id": mock.ANY,
+            "id": response_data["id"],
             "map_index": -1,
             "max_tries": 0,
             "note": "placeholder-note",
@@ -438,11 +468,20 @@ class TestGetTaskInstance(TestTaskInstanceEndpoint):
         response = test_client.get(
             "/dags/example_python_operator/dagRuns/TEST_DAG_RUN_ID/taskInstances/print_the_context"
         )
+        response_data = response.json()
         assert response.status_code == 200
-
         assert response.json() == {
             "dag_id": "example_python_operator",
-            "dag_version": mock.ANY,
+            "dag_version": {
+                "bundle_name": "dags-folder",
+                "bundle_url": None,
+                "bundle_version": None,
+                "created_at": response_data["dag_version"]["created_at"],
+                "dag_display_name": "example_python_operator",
+                "dag_id": "example_python_operator",
+                "id": response_data["dag_version"]["id"],
+                "version_number": 1,
+            },
             "dag_display_name": "example_python_operator",
             "duration": 10000.0,
             "end_date": "2020-01-03T00:00:00Z",
@@ -450,7 +489,7 @@ class TestGetTaskInstance(TestTaskInstanceEndpoint):
             "executor": None,
             "executor_config": "{}",
             "hostname": "",
-            "id": mock.ANY,
+            "id": response_data["id"],
             "map_index": -1,
             "max_tries": 0,
             "note": "placeholder-note",
@@ -549,11 +588,20 @@ class TestGetMappedTaskInstance(TestTaskInstanceEndpoint):
                 "/dags/example_python_operator/dagRuns/TEST_DAG_RUN_ID/taskInstances"
                 f"/print_the_context/{map_index}",
             )
+            response_data = response.json()
             assert response.status_code == 200
-
-            assert response.json() == {
+            assert response_data == {
                 "dag_id": "example_python_operator",
-                "dag_version": mock.ANY,
+                "dag_version": {
+                    "bundle_name": "dags-folder",
+                    "bundle_url": None,
+                    "bundle_version": None,
+                    "created_at": response_data["dag_version"]["created_at"],
+                    "dag_display_name": "example_python_operator",
+                    "dag_id": "example_python_operator",
+                    "id": response_data["dag_version"]["id"],
+                    "version_number": 1,
+                },
                 "dag_display_name": "example_python_operator",
                 "duration": 10000.0,
                 "end_date": "2020-01-03T00:00:00Z",
@@ -561,7 +609,7 @@ class TestGetMappedTaskInstance(TestTaskInstanceEndpoint):
                 "executor": None,
                 "executor_config": "{}",
                 "hostname": "",
-                "id": mock.ANY,
+                "id": response_data["id"],
                 "map_index": map_index,
                 "max_tries": 0,
                 "note": "placeholder-note",
@@ -673,7 +721,7 @@ class TestGetMappedTaskInstances:
                     itertools.repeat(TaskInstanceState.RUNNING, dag["running"]),
                 )
             ):
-                ti = TaskInstance(
+                ti = create_task_instance(
                     mapped, run_id=dr.run_id, map_index=index, state=state, dag_version_id=dag_version.id
                 )
                 setattr(ti, "start_date", DEFAULT_DATETIME_1)
@@ -2007,8 +2055,9 @@ class TestGetTaskInstanceTry(TestTaskInstanceEndpoint):
         response = test_client.get(
             "/dags/example_python_operator/dagRuns/TEST_DAG_RUN_ID/taskInstances/print_the_context/tries/1"
         )
+        response_data = response.json()
         assert response.status_code == 200
-        assert response.json() == {
+        assert response_data == {
             "dag_id": "example_python_operator",
             "dag_display_name": "example_python_operator",
             "duration": 10000.0,
@@ -2034,7 +2083,16 @@ class TestGetTaskInstanceTry(TestTaskInstanceEndpoint):
             "try_number": 1,
             "unixname": getuser(),
             "dag_run_id": "TEST_DAG_RUN_ID",
-            "dag_version": mock.ANY,
+            "dag_version": {
+                "bundle_name": "dags-folder",
+                "bundle_url": None,
+                "bundle_version": None,
+                "created_at": response_data["dag_version"]["created_at"],
+                "dag_display_name": "example_python_operator",
+                "dag_id": "example_python_operator",
+                "id": response_data["dag_version"]["id"],
+                "version_number": 1,
+            },
             "hitl_detail": None,
         }
 
@@ -2044,9 +2102,9 @@ class TestGetTaskInstanceTry(TestTaskInstanceEndpoint):
         response = test_client.get(
             f"/dags/example_python_operator/dagRuns/TEST_DAG_RUN_ID/taskInstances/print_the_context/tries/{try_number}",
         )
-
+        response_data = response.json()
         assert response.status_code == 200
-        assert response.json() == {
+        assert response_data == {
             "dag_id": "example_python_operator",
             "dag_display_name": "example_python_operator",
             "duration": 10000.0,
@@ -2072,7 +2130,16 @@ class TestGetTaskInstanceTry(TestTaskInstanceEndpoint):
             "try_number": try_number,
             "unixname": getuser(),
             "dag_run_id": "TEST_DAG_RUN_ID",
-            "dag_version": mock.ANY,
+            "dag_version": {
+                "bundle_name": "dags-folder",
+                "bundle_url": None,
+                "bundle_version": None,
+                "created_at": response_data["dag_version"]["created_at"],
+                "dag_display_name": "example_python_operator",
+                "dag_id": "example_python_operator",
+                "id": response_data["dag_version"]["id"],
+                "version_number": 1,
+            },
             "hitl_detail": None,
         }
 
@@ -2113,9 +2180,9 @@ class TestGetTaskInstanceTry(TestTaskInstanceEndpoint):
                 "/dags/example_python_operator/dagRuns/TEST_DAG_RUN_ID/taskInstances"
                 f"/print_the_context/{map_index}/tries/{try_number}",
             )
+            response_data = response.json()
             assert response.status_code == 200
-
-            assert response.json() == {
+            assert response_data == {
                 "dag_id": "example_python_operator",
                 "dag_display_name": "example_python_operator",
                 "duration": 10000.0,
@@ -2141,7 +2208,16 @@ class TestGetTaskInstanceTry(TestTaskInstanceEndpoint):
                 "try_number": try_number,
                 "unixname": getuser(),
                 "dag_run_id": "TEST_DAG_RUN_ID",
-                "dag_version": mock.ANY,
+                "dag_version": {
+                    "bundle_name": "dags-folder",
+                    "bundle_url": None,
+                    "bundle_version": None,
+                    "created_at": response_data["dag_version"]["created_at"],
+                    "dag_display_name": "example_python_operator",
+                    "dag_id": "example_python_operator",
+                    "id": response_data["dag_version"]["id"],
+                    "version_number": 1,
+                },
                 "hitl_detail": None,
             }
 
@@ -2177,10 +2253,9 @@ class TestGetTaskInstanceTry(TestTaskInstanceEndpoint):
         response = test_client.get(
             "/dags/example_python_operator/dagRuns/TEST_DAG_RUN_ID/taskInstances/print_the_context/tries/1",
         )
+        response_data = response.json()
         assert response.status_code == 200
-        data = response.json()
-
-        assert data == {
+        assert response_data == {
             "dag_id": "example_python_operator",
             "dag_display_name": "example_python_operator",
             "duration": 10000.0,
@@ -2206,7 +2281,16 @@ class TestGetTaskInstanceTry(TestTaskInstanceEndpoint):
             "try_number": 1,
             "unixname": getuser(),
             "dag_run_id": "TEST_DAG_RUN_ID",
-            "dag_version": mock.ANY,
+            "dag_version": {
+                "bundle_name": "dags-folder",
+                "bundle_url": None,
+                "bundle_version": None,
+                "created_at": response_data["dag_version"]["created_at"],
+                "dag_display_name": "example_python_operator",
+                "dag_id": "example_python_operator",
+                "id": response_data["dag_version"]["id"],
+                "version_number": 1,
+            },
             "hitl_detail": None,
         }
 
@@ -2217,9 +2301,9 @@ class TestGetTaskInstanceTry(TestTaskInstanceEndpoint):
         response = test_client.get(
             "/dags/example_python_operator/dagRuns/TEST_DAG_RUN_ID/taskInstances/print_the_context/tries/1",
         )
+        response_data = response.json()
         assert response.status_code == 200
-
-        assert response.json() == {
+        assert response_data == {
             "dag_id": "example_python_operator",
             "dag_display_name": "example_python_operator",
             "duration": 10000.0,
@@ -2245,7 +2329,16 @@ class TestGetTaskInstanceTry(TestTaskInstanceEndpoint):
             "try_number": 1,
             "unixname": getuser(),
             "dag_run_id": "TEST_DAG_RUN_ID",
-            "dag_version": mock.ANY,
+            "dag_version": {
+                "bundle_name": "dags-folder",
+                "bundle_url": None,
+                "bundle_version": None,
+                "created_at": response_data["dag_version"]["created_at"],
+                "dag_display_name": "example_python_operator",
+                "dag_id": "example_python_operator",
+                "id": response_data["dag_version"]["id"],
+                "version_number": 1,
+            },
             "hitl_detail": None,
         }
 
@@ -3108,20 +3201,29 @@ class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
             f"/dags/{dag_id}/clearTaskInstances",
             json=payload,
         )
-        assert response.status_code == 200
+        response_data = response.json()
         expected_response = [
             {
                 "dag_id": "example_python_operator",
                 "dag_display_name": "example_python_operator",
-                "dag_version": mock.ANY,
+                "dag_version": {
+                    "bundle_name": "dags-folder",
+                    "bundle_url": None,
+                    "bundle_version": None,
+                    "created_at": response_data["task_instances"][0]["dag_version"]["created_at"],
+                    "dag_display_name": "example_python_operator",
+                    "dag_id": "example_python_operator",
+                    "id": response_data["task_instances"][0]["dag_version"]["id"],
+                    "version_number": 1,
+                },
                 "dag_run_id": "TEST_DAG_RUN_ID_0",
                 "task_id": "print_the_context",
-                "duration": mock.ANY,
-                "end_date": mock.ANY,
+                "duration": response_data["task_instances"][0]["duration"],
+                "end_date": response_data["task_instances"][0]["end_date"],
                 "executor": None,
                 "executor_config": "{}",
                 "hostname": "",
-                "id": mock.ANY,
+                "id": response_data["task_instances"][0]["id"],
                 "logical_date": response_logical_date,
                 "map_index": -1,
                 "max_tries": 0,
@@ -3144,11 +3246,12 @@ class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
                 "trigger": None,
                 "triggerer_job": None,
                 "try_number": 0,
-                "unixname": mock.ANY,
+                "unixname": getuser(),
             },
         ]
-        assert response.json()["task_instances"] == expected_response
-        assert response.json()["total_entries"] == 1
+        assert response.status_code == 200
+        assert response_data["task_instances"] == expected_response
+        assert response_data["total_entries"] == 1
 
     def test_should_respond_200_with_include_past(self, test_client, session):
         dag_id = "example_python_operator"
@@ -3481,10 +3584,11 @@ class TestGetTaskInstanceTries(TestTaskInstanceEndpoint):
             response = test_client.get(
                 "/dags/example_python_operator/dagRuns/TEST_DAG_RUN_ID/taskInstances/print_the_context/tries"
             )
+        response_data = response.json()
         assert response.status_code == 200
-        assert response.json()["total_entries"] == 2  # The task instance and its history
-        assert len(response.json()["task_instances"]) == 2
-        assert response.json() == {
+        assert response_data["total_entries"] == 2  # The task instance and its history
+        assert len(response_data["task_instances"]) == 2
+        assert response_data == {
             "task_instances": [
                 {
                     "dag_id": "example_python_operator",
@@ -3512,7 +3616,16 @@ class TestGetTaskInstanceTries(TestTaskInstanceEndpoint):
                     "try_number": 1,
                     "unixname": getuser(),
                     "dag_run_id": "TEST_DAG_RUN_ID",
-                    "dag_version": mock.ANY,
+                    "dag_version": {
+                        "bundle_name": "dags-folder",
+                        "bundle_url": None,
+                        "bundle_version": None,
+                        "created_at": response_data["task_instances"][0]["dag_version"]["created_at"],
+                        "dag_display_name": "example_python_operator",
+                        "dag_id": "example_python_operator",
+                        "id": response_data["task_instances"][0]["dag_version"]["id"],
+                        "version_number": 1,
+                    },
                     "hitl_detail": None,
                 },
                 {
@@ -3541,7 +3654,16 @@ class TestGetTaskInstanceTries(TestTaskInstanceEndpoint):
                     "try_number": 2,
                     "unixname": getuser(),
                     "dag_run_id": "TEST_DAG_RUN_ID",
-                    "dag_version": mock.ANY,
+                    "dag_version": {
+                        "bundle_name": "dags-folder",
+                        "bundle_url": None,
+                        "bundle_version": None,
+                        "created_at": response_data["task_instances"][1]["dag_version"]["created_at"],
+                        "dag_display_name": "example_python_operator",
+                        "dag_id": "example_python_operator",
+                        "id": response_data["task_instances"][1]["dag_version"]["id"],
+                        "version_number": 1,
+                    },
                     "hitl_detail": None,
                 },
             ],
@@ -3648,10 +3770,11 @@ class TestGetTaskInstanceTries(TestTaskInstanceEndpoint):
         response = test_client.get(
             "/dags/example_python_operator/dagRuns/TEST_DAG_RUN_ID/taskInstances/print_the_context/tries"
         )
+        response_data = response.json()
         assert response.status_code == 200
-        assert response.json()["total_entries"] == 1
-        assert len(response.json()["task_instances"]) == 1
-        assert response.json() == {
+        assert response_data["total_entries"] == 1
+        assert len(response_data["task_instances"]) == 1
+        assert response_data == {
             "task_instances": [
                 {
                     "dag_id": "example_python_operator",
@@ -3679,7 +3802,16 @@ class TestGetTaskInstanceTries(TestTaskInstanceEndpoint):
                     "try_number": 1,
                     "unixname": getuser(),
                     "dag_run_id": "TEST_DAG_RUN_ID",
-                    "dag_version": mock.ANY,
+                    "dag_version": {
+                        "bundle_name": "dags-folder",
+                        "bundle_url": None,
+                        "bundle_version": None,
+                        "created_at": response_data["task_instances"][0]["dag_version"]["created_at"],
+                        "dag_display_name": "example_python_operator",
+                        "dag_id": "example_python_operator",
+                        "id": response_data["task_instances"][0]["dag_version"]["id"],
+                        "version_number": 1,
+                    },
                     "hitl_detail": None,
                 },
             ],
@@ -3720,12 +3852,13 @@ class TestGetTaskInstanceTries(TestTaskInstanceEndpoint):
                     "/dags/example_python_operator/dagRuns/TEST_DAG_RUN_ID/taskInstances"
                     f"/print_the_context/{map_index}/tries",
                 )
+            response_data = response.json()
             assert response.status_code == 200
             assert (
-                response.json()["total_entries"] == 2
+                response_data["total_entries"] == 2
             )  # the mapped task was cleared. So both the task instance and its history
-            assert len(response.json()["task_instances"]) == 2
-            assert response.json() == {
+            assert len(response_data["task_instances"]) == 2
+            assert response_data == {
                 "task_instances": [
                     {
                         "dag_id": "example_python_operator",
@@ -3753,7 +3886,16 @@ class TestGetTaskInstanceTries(TestTaskInstanceEndpoint):
                         "try_number": 1,
                         "unixname": getuser(),
                         "dag_run_id": "TEST_DAG_RUN_ID",
-                        "dag_version": mock.ANY,
+                        "dag_version": {
+                            "bundle_name": "dags-folder",
+                            "bundle_url": None,
+                            "bundle_version": None,
+                            "created_at": response_data["task_instances"][0]["dag_version"]["created_at"],
+                            "dag_display_name": "example_python_operator",
+                            "dag_id": "example_python_operator",
+                            "id": response_data["task_instances"][0]["dag_version"]["id"],
+                            "version_number": 1,
+                        },
                         "hitl_detail": None,
                     },
                     {
@@ -3782,7 +3924,16 @@ class TestGetTaskInstanceTries(TestTaskInstanceEndpoint):
                         "try_number": 2,
                         "unixname": getuser(),
                         "dag_run_id": "TEST_DAG_RUN_ID",
-                        "dag_version": mock.ANY,
+                        "dag_version": {
+                            "bundle_name": "dags-folder",
+                            "bundle_url": None,
+                            "bundle_version": None,
+                            "created_at": response_data["task_instances"][1]["dag_version"]["created_at"],
+                            "dag_display_name": "example_python_operator",
+                            "dag_id": "example_python_operator",
+                            "id": response_data["task_instances"][1]["dag_version"]["id"],
+                            "version_number": 1,
+                        },
                         "hitl_detail": None,
                     },
                 ],
@@ -3817,9 +3968,9 @@ class TestGetTaskInstanceTries(TestTaskInstanceEndpoint):
         response = test_client.get(
             f"/dags/dag_with_multiple_versions/dagRuns/{run_id}/taskInstances/task1/tries"
         )
+        response_data = response.json()
         assert response.status_code == 200
-
-        assert response.json()["task_instances"][0] == {
+        assert response_data["task_instances"][0] == {
             "task_id": "task1",
             "dag_id": "dag_with_multiple_versions",
             "dag_display_name": "dag_with_multiple_versions",
@@ -3874,7 +4025,6 @@ class TestGetTaskInstanceTries(TestTaskInstanceEndpoint):
             f"/dags/dag_with_multiple_versions/dagRuns/{run_id}/taskInstances/task1/tries"
         )
         assert response.status_code == 200
-
         assert response.json()["task_instances"][0] == {
             "task_id": "task1",
             "dag_id": "dag_with_multiple_versions",
@@ -3975,13 +4125,23 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
                 "new_state": self.NEW_STATE,
             },
         )
+        response_data = response.json()
         assert response.status_code == 200
-        assert response.json() == {
+        assert response_data == {
             "task_instances": [
                 {
                     "dag_id": self.DAG_ID,
                     "dag_display_name": self.DAG_DISPLAY_NAME,
-                    "dag_version": mock.ANY,
+                    "dag_version": {
+                        "bundle_name": "dags-folder",
+                        "bundle_url": None,
+                        "bundle_version": None,
+                        "created_at": response_data["task_instances"][0]["dag_version"]["created_at"],
+                        "dag_display_name": "example_python_operator",
+                        "dag_id": "example_python_operator",
+                        "id": response_data["task_instances"][0]["dag_version"]["id"],
+                        "version_number": 1,
+                    },
                     "dag_run_id": self.RUN_ID,
                     "logical_date": "2020-01-01T00:00:00Z",
                     "task_id": self.TASK_ID,
@@ -3990,7 +4150,7 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
                     "executor": None,
                     "executor_config": "{}",
                     "hostname": "",
-                    "id": mock.ANY,
+                    "id": response_data["task_instances"][0]["id"],
                     "map_index": -1,
                     "max_tries": 0,
                     "note": "placeholder-note",
@@ -4246,7 +4406,16 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
                         {
                             "dag_id": "example_python_operator",
                             "dag_display_name": "example_python_operator",
-                            "dag_version": mock.ANY,
+                            "dag_version": {
+                                "bundle_name": "dags-folder",
+                                "bundle_url": None,
+                                "bundle_version": None,
+                                "created_at": mock.ANY,
+                                "dag_display_name": "example_python_operator",
+                                "dag_id": "example_python_operator",
+                                "id": mock.ANY,
+                                "version_number": 1,
+                            },
                             "dag_run_id": "TEST_DAG_RUN_ID",
                             "logical_date": "2020-01-01T00:00:00Z",
                             "task_id": "print_the_context",
@@ -4331,8 +4500,17 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
                 "new_state": new_state,
             },
         )
+        response_data = response.json()
+        if expected_status_code == 200:
+            expected_json["task_instances"][0]["dag_version"]["created_at"] = response_data["task_instances"][
+                0
+            ]["dag_version"]["created_at"]
+            expected_json["task_instances"][0]["dag_version"]["id"] = response_data["task_instances"][0][
+                "dag_version"
+            ]["id"]
+            expected_json["task_instances"][0]["id"] = response_data["task_instances"][0]["id"]
         assert response.status_code == expected_status_code
-        assert response.json() == expected_json
+        assert response_data == expected_json
         assert mock_set_ti_state.call_count == set_ti_state_call_count
 
     @pytest.mark.parametrize(
@@ -4364,11 +4542,20 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
                 {
                     "dag_id": self.DAG_ID,
                     "dag_display_name": self.DAG_DISPLAY_NAME,
-                    "dag_version": mock.ANY,
+                    "dag_version": {
+                        "bundle_name": "dags-folder",
+                        "bundle_url": None,
+                        "bundle_version": None,
+                        "created_at": response_data["task_instances"][0]["dag_version"]["created_at"],
+                        "dag_display_name": "example_python_operator",
+                        "dag_id": "example_python_operator",
+                        "id": response_data["task_instances"][0]["dag_version"]["id"],
+                        "version_number": 1,
+                    },
                     "duration": 10000.0,
                     "end_date": "2020-01-03T00:00:00Z",
                     "logical_date": "2020-01-01T00:00:00Z",
-                    "id": mock.ANY,
+                    "id": response_data["task_instances"][0]["id"],
                     "executor": None,
                     "executor_config": "{}",
                     "hostname": "",
@@ -4416,11 +4603,20 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
                 {
                     "dag_id": self.DAG_ID,
                     "dag_display_name": self.DAG_DISPLAY_NAME,
-                    "dag_version": mock.ANY,
+                    "dag_version": {
+                        "bundle_name": "dags-folder",
+                        "bundle_url": None,
+                        "bundle_version": None,
+                        "created_at": response_data["task_instances"][0]["dag_version"]["created_at"],
+                        "dag_display_name": "example_python_operator",
+                        "dag_id": "example_python_operator",
+                        "id": response_data["task_instances"][0]["dag_version"]["id"],
+                        "version_number": 1,
+                    },
                     "duration": 10000.0,
                     "end_date": "2020-01-03T00:00:00Z",
                     "logical_date": "2020-01-01T00:00:00Z",
-                    "id": mock.ANY,
+                    "id": response_data["task_instances"][0]["id"],
                     "executor": None,
                     "executor_config": "{}",
                     "hostname": "",
@@ -4481,17 +4677,25 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
             )
             assert response.status_code == 200, response.text
             response_data = response.json()
-
             assert response_data == {
                 "task_instances": [
                     {
                         "dag_id": self.DAG_ID,
                         "dag_display_name": self.DAG_DISPLAY_NAME,
-                        "dag_version": mock.ANY,
+                        "dag_version": {
+                            "bundle_name": "dags-folder",
+                            "bundle_url": None,
+                            "bundle_version": None,
+                            "created_at": response_data["task_instances"][0]["dag_version"]["created_at"],
+                            "dag_display_name": "example_python_operator",
+                            "dag_id": "example_python_operator",
+                            "id": response_data["task_instances"][0]["dag_version"]["id"],
+                            "version_number": 1,
+                        },
                         "duration": 10000.0,
                         "end_date": "2020-01-03T00:00:00Z",
                         "logical_date": "2020-01-01T00:00:00Z",
-                        "id": mock.ANY,
+                        "id": response_data["task_instances"][0]["id"],
                         "executor": None,
                         "executor_config": "{}",
                         "hostname": "",
@@ -4559,11 +4763,20 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
             assert response_ti == {
                 "dag_id": self.DAG_ID,
                 "dag_display_name": self.DAG_DISPLAY_NAME,
-                "dag_version": mock.ANY,
+                "dag_version": {
+                    "bundle_name": "dags-folder",
+                    "bundle_url": None,
+                    "bundle_version": None,
+                    "created_at": response_ti["dag_version"]["created_at"],
+                    "dag_display_name": "example_python_operator",
+                    "dag_id": "example_python_operator",
+                    "id": response_ti["dag_version"]["id"],
+                    "version_number": 1,
+                },
                 "duration": 10000.0,
                 "end_date": "2020-01-03T00:00:00Z",
                 "logical_date": "2020-01-01T00:00:00Z",
-                "id": mock.ANY,
+                "id": response_ti["id"],
                 "executor": None,
                 "executor_config": "{}",
                 "hostname": "",
@@ -4659,13 +4872,23 @@ class TestPatchTaskInstanceDryRun(TestTaskInstanceEndpoint):
                 "new_state": self.NEW_STATE,
             },
         )
+        response_data = response.json()
         assert response.status_code == 200
-        assert response.json() == {
+        assert response_data == {
             "task_instances": [
                 {
                     "dag_id": self.DAG_ID,
                     "dag_display_name": self.DAG_DISPLAY_NAME,
-                    "dag_version": mock.ANY,
+                    "dag_version": {
+                        "bundle_name": "dags-folder",
+                        "bundle_url": None,
+                        "bundle_version": None,
+                        "created_at": response_data["task_instances"][0]["dag_version"]["created_at"],
+                        "dag_display_name": "example_python_operator",
+                        "dag_id": "example_python_operator",
+                        "id": response_data["task_instances"][0]["dag_version"]["id"],
+                        "version_number": 1,
+                    },
                     "dag_run_id": self.RUN_ID,
                     "logical_date": "2020-01-01T00:00:00Z",
                     "task_id": self.TASK_ID,
@@ -4674,7 +4897,7 @@ class TestPatchTaskInstanceDryRun(TestTaskInstanceEndpoint):
                     "executor": None,
                     "executor_config": "{}",
                     "hostname": "",
-                    "id": mock.ANY,
+                    "id": response_data["task_instances"][0]["id"],
                     "map_index": -1,
                     "max_tries": 0,
                     "note": "placeholder-note",
@@ -4942,7 +5165,16 @@ class TestPatchTaskInstanceDryRun(TestTaskInstanceEndpoint):
                         {
                             "dag_id": "example_python_operator",
                             "dag_display_name": "example_python_operator",
-                            "dag_version": mock.ANY,
+                            "dag_version": {
+                                "bundle_name": "dags-folder",
+                                "bundle_url": None,
+                                "bundle_version": None,
+                                "created_at": mock.ANY,
+                                "dag_display_name": "example_python_operator",
+                                "dag_id": "example_python_operator",
+                                "id": mock.ANY,
+                                "version_number": 1,
+                            },
                             "dag_run_id": "TEST_DAG_RUN_ID",
                             "logical_date": "2020-01-01T00:00:00Z",
                             "task_id": "print_the_context",
@@ -5027,8 +5259,17 @@ class TestPatchTaskInstanceDryRun(TestTaskInstanceEndpoint):
                 "new_state": new_state,
             },
         )
+        response_data = response.json()
+        if expected_status_code == 200:
+            expected_json["task_instances"][0]["dag_version"]["created_at"] = response_data["task_instances"][
+                0
+            ]["dag_version"]["created_at"]
+            expected_json["task_instances"][0]["dag_version"]["id"] = response_data["task_instances"][0][
+                "dag_version"
+            ]["id"]
+            expected_json["task_instances"][0]["id"] = response_data["task_instances"][0]["id"]
         assert response.status_code == expected_status_code
-        assert response.json() == expected_json
+        assert response_data == expected_json
         assert mock_set_ti_state.call_count == set_ti_state_call_count
 
     @mock.patch("airflow.serialization.definitions.dag.SerializedDAG.set_task_instance_state")

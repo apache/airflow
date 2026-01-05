@@ -612,10 +612,13 @@ def _configure_secrets_masker():
     if sensitive_variable_fields:
         sensitive_fields |= frozenset({field.strip() for field in sensitive_variable_fields.split(",")})
 
+    hide_sensitive_var_conn_fields = conf.getboolean("core", "hide_sensitive_var_conn_fields")
+
     core_masker = secrets_masker_core()
     core_masker.min_length_to_mask = min_length_to_mask
     core_masker.sensitive_variables_fields = list(sensitive_fields)
     core_masker.secret_mask_adapter = secret_mask_adapter
+    core_masker.hide_sensitive_var_conn_fields = hide_sensitive_var_conn_fields
 
     from airflow.sdk._shared.secrets_masker import _secrets_masker as sdk_secrets_masker
 
@@ -623,6 +626,7 @@ def _configure_secrets_masker():
     sdk_masker.min_length_to_mask = min_length_to_mask
     sdk_masker.sensitive_variables_fields = list(sensitive_fields)
     sdk_masker.secret_mask_adapter = secret_mask_adapter
+    sdk_masker.hide_sensitive_var_conn_fields = hide_sensitive_var_conn_fields
 
 
 def configure_action_logging() -> None:

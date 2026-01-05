@@ -32,9 +32,8 @@ from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
 from google.cloud.bigquery import DEFAULT_RETRY, CopyJob, ExtractJob, LoadJob, QueryJob, Row
 from google.cloud.bigquery.table import RowIterator, Table, TableListItem, TableReference
 
-from airflow.configuration import conf
 from airflow.exceptions import AirflowProviderDeprecationWarning
-from airflow.providers.common.compat.sdk import AirflowException, AirflowSkipException
+from airflow.providers.common.compat.sdk import AirflowException, AirflowSkipException, conf
 from airflow.providers.common.sql.operators.sql import (  # for _parse_boolean
     SQLCheckOperator,
     SQLColumnCheckOperator,
@@ -1487,7 +1486,7 @@ class BigQueryCreateEmptyDatasetOperator(GoogleCloudBaseOperator):
             create_new_dataset = BigQueryCreateEmptyDatasetOperator(
                 dataset_id='new-dataset',
                 project_id='my-project',
-                dataset_reference={"friendlyName": "New Dataset"}
+                dataset_reference={"friendlyName": "New Dataset"},
                 gcp_conn_id='_my_gcp_conn_',
                 task_id='newDatasetCreator',
                 dag=dag)

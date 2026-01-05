@@ -63,7 +63,7 @@ from airflow.models.asset import (
     PartitionedAssetKeyLog,
 )
 from airflow.models.backfill import Backfill, _create_backfill
-from airflow.models.dag import DagModel, get_last_dagrun, infer_automated_data_interval
+from airflow.models.dag import DagModel, get_last_dagrun, get_run_data_interval, infer_automated_data_interval
 from airflow.models.dag_version import DagVersion
 from airflow.models.dagbundle import DagBundleModel
 from airflow.models.dagrun import DagRun
@@ -113,6 +113,7 @@ from tests_common.test_utils.db import (
 )
 from tests_common.test_utils.mock_executor import MockExecutor
 from tests_common.test_utils.mock_operators import CustomOperator
+from tests_common.test_utils.taskinstance import create_task_instance, run_task_instance
 from unit.listeners import dag_listener
 from unit.listeners.test_listeners import get_listener_manager
 from unit.models import TEST_DAGS_FOLDER
@@ -893,7 +894,7 @@ class TestSchedulerJob:
         dr1 = dag_maker.create_dagrun(run_type=DagRunType.BACKFILL_JOB)
         dag_version = DagVersion.get_latest_version(dr1.dag_id)
 
-        ti1 = TaskInstance(task1, run_id=dr1.run_id, dag_version_id=dag_version.id)
+        ti1 = create_task_instance(task1, run_id=dr1.run_id, dag_version_id=dag_version.id)
         ti1.refresh_from_db()
         ti1.state = State.SCHEDULED
         session.merge(ti1)
@@ -4092,11 +4093,11 @@ class TestSchedulerJob:
                 )
             ).first()
         assert ti is not None, "Task not created by scheduler"
-        ti.task = dag_task1
 
         def run_with_error(ti, ignore_ti_state=False):
+            ti.refresh_from_task(dag_maker.serialized_dag.get_task(dag_task1.task_id))
             with contextlib.suppress(AirflowException):
-                ti.run(ignore_ti_state=ignore_ti_state)
+                run_task_instance(ti, dag_task1, ignore_ti_state=ignore_ti_state)
 
         assert ti.try_number == 1
         # At this point, scheduler has tried to schedule the task once and
@@ -4420,8 +4421,9 @@ class TestSchedulerJob:
             EmptyOperator(task_id="dummy")
 
         index = 0
+        dr: DagRun
         for index in range(other_runs):
-            dag_maker.create_dagrun(
+            dr = dag_maker.create_dagrun(
                 run_id=f"run_{index}",
                 logical_date=(DEFAULT_DATE + timedelta(days=index)),
                 start_date=timezone.utcnow(),
@@ -4443,13 +4445,15 @@ class TestSchedulerJob:
         scheduler_job = Job(executor=self.null_exec)
         self.job_runner = SchedulerJobRunner(job=scheduler_job)
 
-        actual = self.job_runner._should_update_dag_next_dagruns(
-            dag=dag,
-            dag_model=dag_maker.dag_model,
-            active_non_backfill_runs=other_runs if provide_run_count else None,  # exclude backfill here
-            session=session,
-        )
-        assert actual == should_update
+        with patch("airflow.models.dag.DagModel.calculate_dagrun_date_fields") as mock_calc:
+            self.job_runner._update_next_dagrun_fields(
+                serdag=dag,
+                dag_model=dag_maker.dag_model,
+                active_non_backfill_runs=other_runs if provide_run_count else None,  # exclude backfill here
+                session=session,
+                data_interval=get_run_data_interval(dag.timetable, dr),
+            )
+        assert mock_calc.called == should_update
 
     @pytest.mark.parametrize(
         ("run_type", "expected"),
@@ -4471,10 +4475,8 @@ class TestSchedulerJob:
         with dag_maker(
             schedule="*/1 * * * *",
             max_active_runs=3,
-        ) as dag:
+        ):
             EmptyOperator(task_id="dummy")
-
-        dag_model = dag_maker.dag_model
 
         run = dag_maker.create_dagrun(
             run_id="run",
@@ -4489,13 +4491,19 @@ class TestSchedulerJob:
         scheduler_job = Job(executor=self.null_exec)
         self.job_runner = SchedulerJobRunner(job=scheduler_job)
 
-        actual = self.job_runner._should_update_dag_next_dagruns(
-            dag=dag,
-            dag_model=dag_model,
-            last_dag_run=run,
-            session=session,
-        )
-        assert actual == expected
+        # ensure terminal state; otherwise the run type is moot
+        run.state = DagRunState.FAILED
+        for ti in run.get_task_instances(session=session):
+            ti.state = "failed"
+        session.flush()
+
+        with patch("airflow.models.dag.DagModel.calculate_dagrun_date_fields") as mock_calc:
+            self.job_runner._schedule_dag_run(
+                dag_run=run,
+                session=session,
+            )
+
+        assert mock_calc.called == expected
 
     def test_create_dag_runs(self, dag_maker):
         """
@@ -6065,7 +6073,7 @@ class TestSchedulerJob:
         self.job_runner = SchedulerJobRunner(job=scheduler_job)
 
         dag_version = DagVersion.get_latest_version(dag_id=dag.dag_id)
-        ti = TaskInstance(task=task1, run_id=dr1_running.run_id, dag_version_id=dag_version.id)
+        ti = create_task_instance(task=task1, run_id=dr1_running.run_id, dag_version_id=dag_version.id)
         ti.refresh_from_db()
         ti.state = State.SUCCESS
         session.merge(ti)
@@ -6536,7 +6544,12 @@ class TestSchedulerJob:
 
             for task_id in tasks_to_setup:
                 task = dag.get_task(task_id=task_id)
-                ti = TaskInstance(task, run_id=dag_run.run_id, state=State.RUNNING, dag_version_id=dag_v.id)
+                ti = create_task_instance(
+                    task,
+                    run_id=dag_run.run_id,
+                    state=State.RUNNING,
+                    dag_version_id=dag_v.id,
+                )
 
                 ti.last_heartbeat_at = timezone.utcnow() - timedelta(minutes=6)
                 ti.start_date = timezone.utcnow() - timedelta(minutes=10)
@@ -6599,7 +6612,12 @@ class TestSchedulerJob:
         dag_version = DagVersion.get_latest_version(dag.dag_id)
         for task_id in tasks_to_setup:
             task = dag.get_task(task_id=task_id)
-            ti = TaskInstance(task, run_id=dag_run.run_id, state=State.RUNNING, dag_version_id=dag_version.id)
+            ti = create_task_instance(
+                task,
+                run_id=dag_run.run_id,
+                state=State.RUNNING,
+                dag_version_id=dag_version.id,
+            )
             ti.queued_by_job_id = 999
 
             session.add(ti)

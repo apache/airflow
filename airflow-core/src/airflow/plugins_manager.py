@@ -32,13 +32,12 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 from airflow import settings
-from airflow._shared.module_loading import import_string, qualname
+from airflow._shared.module_loading import entry_points_with_dist, import_string, qualname
 from airflow.configuration import conf
 from airflow.task.priority_strategy import (
     PriorityWeightStrategy,
     airflow_priority_weight_strategies,
 )
-from airflow.utils.entry_points import entry_points_with_dist
 from airflow.utils.file import find_path_from_directory
 
 if TYPE_CHECKING:
