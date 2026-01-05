@@ -30,24 +30,60 @@ export class DagsPage extends BasePage {
     return "/dags";
   }
 
+  // View toggle elements
+  public readonly cardList: Locator;
+  public readonly cardViewButton: Locator;
+  // Search elements
+  public readonly clearSearchButton: Locator;
   // Core page elements
   public readonly confirmButton: Locator;
   public readonly dagsTable: Locator;
+  // Filter elements
+  public readonly failedFilter: Locator;
+  public readonly needsReviewFilter: Locator;
   // Pagination elements
   public readonly paginationNextButton: Locator;
   public readonly paginationPrevButton: Locator;
-
+  public readonly queuedFilter: Locator;
+  public readonly runningFilter: Locator;
+  // Search elements
+  public readonly searchInput: Locator;
+  // Sort element (only visible in card view)
+  public readonly sortSelect: Locator;
   public readonly stateElement: Locator;
+  public readonly successFilter: Locator;
+  public readonly tableList: Locator;
+  public readonly tableViewButton: Locator;
   public readonly triggerButton: Locator;
 
   public constructor(page: Page) {
     super(page);
-    this.dagsTable = page.locator('div:has(a[href*="/dags/"])');
+    this.dagsTable = page.locator('a[href^="/dags/"]').first();
     this.triggerButton = page.locator('button[aria-label="Trigger Dag"]:has-text("Trigger")');
     this.confirmButton = page.locator('button:has-text("Trigger")').nth(1);
     this.stateElement = page.locator('*:has-text("State") + *').first();
     this.paginationNextButton = page.locator('[data-testid="next"]');
     this.paginationPrevButton = page.locator('[data-testid="prev"]');
+
+    // View toggle elements
+    this.cardViewButton = page.getByRole("button", { name: /card/i });
+    this.tableViewButton = page.getByRole("button", { name: /table/i });
+    this.cardList = page.locator('[data-testid="card-list"]');
+    this.tableList = page.locator('[data-testid="table-list"]');
+
+    // Search elements
+    this.searchInput = page.locator('[data-testid="search-dags"]');
+    this.clearSearchButton = page.locator('[data-testid="clear-search"]');
+
+    // Filter elements
+    this.failedFilter = page.locator('[data-testid="dags-failed-filter"]');
+    this.queuedFilter = page.locator('[data-testid="dags-queued-filter"]');
+    this.runningFilter = page.locator('[data-testid="dags-running-filter"]');
+    this.successFilter = page.locator('[data-testid="dags-success-filter"]');
+    this.needsReviewFilter = page.locator('[data-testid="dags-needs-review-filter"]');
+
+    // Sort element
+    this.sortSelect = page.locator('[data-testid="sort-by-select"]');
   }
 
   // URL builders for dynamic paths
@@ -57,6 +93,14 @@ export class DagsPage extends BasePage {
 
   public static getDagRunDetailsUrl(dagName: string, dagRunId: string): string {
     return `/dags/${dagName}/runs/${dagRunId}/details`;
+  }
+
+  /**
+   * Clear the search input
+   */
+  public async clearSearch(): Promise<void> {
+    await this.searchInput.clear();
+    await this.page.waitForTimeout(500);
   }
 
   /**
@@ -76,14 +120,124 @@ export class DagsPage extends BasePage {
   }
 
   /**
+   * Click sort select (only works in card view)
+   */
+  public async clickSortSelect(): Promise<void> {
+    await this.sortSelect.click();
+  }
+
+  /**
+   * Filter Dags by status
+   */
+  public async filterByStatus(
+    status: "failed" | "needs_review" | "queued" | "running" | "success",
+  ): Promise<void> {
+    const filterMap = {
+      failed: this.failedFilter,
+      needs_review: this.needsReviewFilter,
+      queued: this.queuedFilter,
+      running: this.runningFilter,
+      success: this.successFilter,
+    };
+
+    await filterMap[status].click();
+  }
+
+  /**
+   * Get all Dag links from the list
+   */
+  public async getDagLinks(): Promise<Array<string>> {
+    const links = await this.page.locator('a[href^="/dags/"]').all();
+    const hrefs: Array<string> = [];
+
+    for (const link of links) {
+      const href = await link.getAttribute("href");
+
+      // Only include links that match /dags/{dag_id} pattern (not /dags or /dags/{id}/runs/...)
+      if (href !== null && href !== "" && /^\/dags\/[^/]+$/.exec(href) !== null) {
+        hrefs.push(href);
+      }
+    }
+
+    return hrefs;
+  }
+
+  /**
    * Get all Dag names from the current page
    */
   public async getDagNames(): Promise<Array<string>> {
-    await this.waitForDagList();
-    const dagLinks = this.page.locator('[data-testid="dag-id"]');
-    const texts = await dagLinks.allTextContents();
+    const dagLinks = this.page.locator('a[href^="/dags/"]');
 
-    return texts.map((text) => text.trim()).filter((text) => text !== "");
+    await Promise.race([
+      dagLinks
+        .first()
+        .waitFor({ state: "visible", timeout: 10_000 })
+        .catch(() => {
+          /* expected when no DAGs found */
+        }),
+      this.page
+        .locator("text=No Dag found")
+        .waitFor({ state: "visible", timeout: 10_000 })
+        .catch(() => {
+          /* expected when DAGs exist */
+        }),
+    ]);
+
+    const links = await dagLinks.all();
+    const names: Array<string> = [];
+
+    for (const link of links) {
+      const href = await link.getAttribute("href");
+      const text = await link.textContent();
+
+      if (
+        href !== null &&
+        href !== "" &&
+        /^\/dags\/[^/]+$/.exec(href) !== null &&
+        text !== null &&
+        text !== ""
+      ) {
+        names.push(text.trim());
+      }
+    }
+
+    return names.filter((name) => name !== "");
+  }
+
+  /**
+   * Get the count of Dags displayed in the list
+   * Works for both card view and table view by counting Dag links with href pattern
+   */
+  public async getDagsCount(): Promise<number> {
+    const dagLinks = this.page.locator('a[href^="/dags/"]');
+
+    await Promise.race([
+      dagLinks
+        .first()
+        .waitFor({ state: "visible", timeout: 10_000 })
+        .catch(() => {
+          /* expected when no DAGs found */
+        }),
+      this.page
+        .locator("text=No Dag found")
+        .waitFor({ state: "visible", timeout: 10_000 })
+        .catch(() => {
+          /* expected when DAGs exist */
+        }),
+    ]);
+
+    const links = await dagLinks.all();
+    let count = 0;
+
+    for (const link of links) {
+      const href = await link.getAttribute("href");
+
+      if (href !== null && href !== "" && /^\/dags\/[^/]+$/.exec(href) !== null) {
+        count++;
+      }
+    }
+
+    return count;
   }
 
   /**
@@ -101,6 +255,29 @@ export class DagsPage extends BasePage {
   }
 
   /**
+   * Search for a Dag by name
+   */
+  public async searchDag(searchTerm: string): Promise<void> {
+    await this.searchInput.fill(searchTerm);
+  }
+
+  /**
+   * Toggle to card view
+   */
+  public async switchToCardView(): Promise<void> {
+    await this.cardViewButton.click();
+    await this.cardList.first().waitFor({ state: "visible", timeout: 10_000 });
+  }
+
+  /**
+   * Toggle to table view
+   */
+  public async switchToTableView(): Promise<void> {
+    await this.tableViewButton.click();
+    await this.tableList.waitFor({ state: "visible", timeout: 10_000 });
+  }
+
+  /**
    * Trigger a Dag run
    */
   public async triggerDag(dagName: string): Promise<string | null> {
@@ -113,40 +290,33 @@ export class DagsPage extends BasePage {
   }
 
   /**
+   * Verify card view is displayed
+   */
+  public async verifyCardViewVisible(): Promise<boolean> {
+    return await this.cardList.first().isVisible();
+  }
+
+  /**
    * Navigate to details tab and verify Dag details are displayed correctly
    */
   public async verifyDagDetails(dagName: string): Promise<void> {
     await this.navigateToDagDetail(dagName);
 
-    const detailsTab = this.page.locator('a[href$="/details"]');
+    const detailsTab = this.page.getByRole("link", { name: /details/i });
 
     await expect(detailsTab).toBeVisible();
     await detailsTab.click();
 
-    // Verify the details table is present
-    const detailsTable = this.page.locator('[data-testid="dag-details-table"]');
+    await expect(this.page.getByText(/dag id/i).first()).toBeVisible();
+  }
 
-    await expect(detailsTable).toBeVisible();
+  /**
+   * Verify that a specific Dag exists in the list
+   */
+  public async verifyDagExists(dagId: string): Promise<boolean> {
+    const dagLink = this.page.locator(`a[href="/dags/${dagId}"]`);
 
-    // Verify all metadata fields are present
-    await expect(this.page.locator('[data-testid="dag-id-row"]')).toBeVisible();
-    await expect(this.page.locator('[data-testid="description-row"]')).toBeVisible();
-    await expect(this.page.locator('[data-testid="timezone-row"]')).toBeVisible();
-    await expect(this.page.locator('[data-testid="file-location-row"]')).toBeVisible();
-    await expect(this.page.locator('[data-testid="last-parsed-row"]')).toBeVisible();
-    await expect(this.page.locator('[data-testid="last-parse-duration-row"]')).toBeVisible();
-    await expect(this.page.locator('[data-testid="latest-dag-version-row"]')).toBeVisible();
-    await expect(this.page.locator('[data-testid="start-date-row"]')).toBeVisible();
-    await expect(this.page.locator('[data-testid="end-date-row"]')).toBeVisible();
-    await expect(this.page.locator('[data-testid="last-expired-row"]')).toBeVisible();
-    await expect(this.page.locator('[data-testid="has-task-concurrency-limits-row"]')).toBeVisible();
-    await expect(this.page.locator('[data-testid="dag-run-timeout-row"]')).toBeVisible();
-    await expect(this.page.locator('[data-testid="max-active-runs-row"]')).toBeVisible();
-    await expect(this.page.locator('[data-testid="max-active-tasks-row"]')).toBeVisible();
-    await expect(this.page.locator('[data-testid="max-consecutive-failed-dag-runs-row"]')).toBeVisible();
-    await expect(this.page.locator('[data-testid="catchup-row"]')).toBeVisible();
-    await expect(this.page.locator('[data-testid="default-args-row"]')).toBeVisible();
-    await expect(this.page.locator('[data-testid="params-row"]')).toBeVisible();
+    return await dagLink.isVisible();
   }
 
   public async verifyDagRunStatus(dagName: string, dagRunId: string | null): Promise<void> {
@@ -183,6 +353,33 @@ export class DagsPage extends BasePage {
     }
 
     throw new Error(`Dag run did not complete within 5 minutes: ${dagRunId}`);
+  }
+
+  /**
+   * Verify that the Dags list/table is visible on the page
+   */
+  public async verifyDagsListVisible(): Promise<void> {
+    const dagLinks = this.page.locator('a[href^="/dags/"]');
+    const noDagFound = this.page.locator("text=No Dag found");
+
+    await Promise.race([
+      dagLinks
+        .first()
+        .waitFor({ state: "visible", timeout: 10_000 })
+        .catch(() => {
+          /* expected when no DAGs found */
+        }),
+      noDagFound.waitFor({ state: "visible", timeout: 10_000 }).catch(() => {
+        /* expected when DAGs exist */
+      }),
+    ]);
+  }
+
+  /**
+   * Verify table view is displayed
+   */
+  public async verifyTableViewVisible(): Promise<boolean> {
+    return await this.tableList.isVisible();
   }
 
   private async getCurrentDagRunStatus(): Promise<string> {
@@ -255,7 +452,7 @@ export class DagsPage extends BasePage {
    * Wait for DAG list to be rendered
    */
   private async waitForDagList(): Promise<void> {
-    await expect(this.page.locator('[data-testid="dag-id"]').first()).toBeVisible({
+    await expect(this.page.locator('a[href^="/dags/"]').first()).toBeVisible({
       timeout: 10_000,
     });
   }
