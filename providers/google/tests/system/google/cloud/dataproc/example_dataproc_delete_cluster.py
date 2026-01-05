@@ -25,14 +25,13 @@ from datetime import datetime
 
 from google.api_core.retry import Retry
 
-from airflow.decorators import task_group
 from airflow.exceptions import AirflowSkipException
 from airflow.models.dag import DAG
 from airflow.providers.google.cloud.operators.dataproc import (
     DataprocCreateClusterOperator,
     DataprocDeleteClusterOperator,
 )
-from airflow.sdk import task
+from airflow.sdk import task, task_group
 
 from system.google import DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
 
