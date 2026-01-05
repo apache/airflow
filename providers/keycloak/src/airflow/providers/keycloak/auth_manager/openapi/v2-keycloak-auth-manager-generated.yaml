@@ -209,7 +209,7 @@ components:
       - client_id
       - client_secret
       title: TokenClientCredentialsBody
-      description: Client Credentials Grant Token serializer for post bodies.
+      description: Client credentials grant token serializer for post bodies.
     TokenPasswordBody:
       properties:
         grant_type:
@@ -229,7 +229,7 @@ components:
       - username
       - password
       title: TokenPasswordBody
-      description: Password Grant Token serializer for post bodies.
+      description: Password grant token serializer for post bodies.
     TokenResponse:
       properties:
         access_token:

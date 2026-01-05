@@ -35,7 +35,7 @@ class TokenResponse(BaseModel):
 
 
 class TokenPasswordBody(StrictBaseModel):
-    """Password Grant Token serializer for post bodies."""
+    """Password grant token serializer for post bodies."""
 
     grant_type: Literal["password"] = "password"
     username: str = Field()
