@@ -600,7 +600,6 @@ class DagRun(Base, LoggingMixin):
                 DagModel.is_paused == false(),
                 DagModel.is_stale == false(),
             )
-            .options(joinedload(cls.task_instances))
             .order_by(
                 nulls_first(cast("ColumnElement[Any]", BackfillDagRun.sort_ordinal), session=session),
                 nulls_first(cast("ColumnElement[Any]", cls.last_scheduling_decision), session=session),
