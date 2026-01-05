@@ -24,7 +24,7 @@ from unittest import mock
 
 import pytest
 
-from airflow_shared.plugins_manager.plugins_manager import (
+from airflow_shared.plugins_manager import (
     EntryPointSource,
     PluginsDirectorySource,
     _load_entrypoint_plugins,

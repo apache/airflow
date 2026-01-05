@@ -30,7 +30,7 @@ from airflow._shared.module_loading import (
     import_string,
     qualname,
 )
-from airflow._shared.plugins_manager.plugins_manager import (
+from airflow._shared.plugins_manager import (
     AirflowPlugin,
     AirflowPluginSource as AirflowPluginSource,
     PluginsDirectorySource as PluginsDirectorySource,
@@ -290,7 +290,7 @@ def get_hook_lineage_readers_plugins() -> list[type[HookLineageReader]]:
 @cache
 def integrate_macros_plugins() -> None:
     """Integrates macro plugins."""
-    from airflow._shared.plugins_manager.plugins_manager import (
+    from airflow._shared.plugins_manager import (
         integrate_macros_plugins as _integrate_macros_plugins,
     )
     from airflow.sdk.execution_time import macros
@@ -305,7 +305,7 @@ def integrate_macros_plugins() -> None:
 
 def integrate_listener_plugins(listener_manager: ListenerManager) -> None:
     """Add listeners from plugins."""
-    from airflow._shared.plugins_manager.plugins_manager import (
+    from airflow._shared.plugins_manager import (
         integrate_listener_plugins as _integrate_listener_plugins,
     )
 
