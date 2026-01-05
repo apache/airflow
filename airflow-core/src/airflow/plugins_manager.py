@@ -119,11 +119,13 @@ def _get_plugins() -> tuple[list[AirflowPlugin], dict[str, str]]:
 
     with Stats.timer() as timer:
         load_examples = conf.getboolean("core", "LOAD_EXAMPLES")
+        ignore_file_syntax = conf.get_mandatory_value("core", "DAG_IGNORE_FILE_SYNTAX", fallback="glob")
         __register_plugins(
             *_load_plugins_from_plugin_directory(
                 plugins_folder=settings.PLUGINS_FOLDER,
                 load_examples=load_examples,
                 example_plugins_module="airflow.example_dags.plugins" if load_examples else None,
+                ignore_file_syntax=ignore_file_syntax,
             )
         )
         __register_plugins(*_load_entrypoint_plugins())

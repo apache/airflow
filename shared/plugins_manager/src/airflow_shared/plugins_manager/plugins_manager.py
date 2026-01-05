@@ -27,9 +27,6 @@ import types
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
-# TODO: these should be moved into module_loading i think
-from airflow.utils.file import find_path_from_directory
-
 if TYPE_CHECKING:
     if sys.version_info >= (3, 12):
         from importlib import metadata
@@ -193,12 +190,15 @@ def _load_plugins_from_plugin_directory(
     plugins_folder: str,
     load_examples: bool = False,
     example_plugins_module: str | None = None,
+    ignore_file_syntax: str = "glob",
 ) -> tuple[list[AirflowPlugin], dict[str, str]]:
     """Load and register Airflow Plugins from plugins directory."""
+    from ..module_loading import find_path_from_directory
+
     if not plugins_folder:
         raise ValueError("Plugins folder is not set")
     log.debug("Loading plugins from directory: %s", plugins_folder)
-    files = find_path_from_directory(plugins_folder, ".airflowignore")
+    files = find_path_from_directory(plugins_folder, ".airflowignore", ignore_file_syntax)
     plugin_search_locations: list[tuple[str, Generator[str, None, None]]] = [("", files)]
 
     if load_examples:
