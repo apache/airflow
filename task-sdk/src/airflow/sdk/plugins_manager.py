@@ -121,7 +121,7 @@ def integrate_macros_plugins() -> None:
 
     plugins, _ = _get_plugins()
     _integrate_macros_plugins(
-        macros_module=macros,
+        target_macros_module=macros,
         macros_module_name_prefix="airflow.sdk.execution_time.macros",
         plugins=plugins,
     )
