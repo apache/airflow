@@ -130,7 +130,7 @@ def create_async_executable_runner(
     func: Callable[P, Awaitable[R] | AsyncIterator],
     outlet_events: OutletEventAccessorsProtocol,
     *,
-    logger: logging.Logger | logging.Logger,
+    logger: logging.Logger | Logger,
 ) -> _AsyncExecutionCallableRunner[P, R]:
     """
     Run an async execution callable against a task context and given arguments.
