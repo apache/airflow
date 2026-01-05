@@ -59,7 +59,7 @@ requires-python = ">=3.10"
 # After you modify the dependencies, and rebuild your Breeze CI image with ``breeze ci-image build``
 dependencies = [
     "apache-airflow>=2.11.0",
-    "apache-airflow-providers-common-compat>=1.10.1",
+    "apache-airflow-providers-common-compat>=1.10.1", # use next version
     "apache-airflow-providers-common-sql>=1.27.0",
     "requests>=2.32.0,<3",
     "databricks-sql-connector>=4.0.0",
@@ -101,7 +101,8 @@ dev = [
     "apache-airflow-providers-common-sql",
     "apache-airflow-providers-openlineage",
     # Additional devel dependencies (do not remove this line and add extra development dependencies)
-    "deltalake>=1.1.3",
+    # Limit deltalake to avoid issue with missing linux ARM wheels: https://github.com/delta-io/delta-rs/issues/4041
+    "deltalake>=1.1.3,!=1.3.0",
     "apache-airflow-providers-fab>=2.2.0; python_version < '3.13'",
     "apache-airflow-providers-microsoft-azure",
     "apache-airflow-providers-common-sql[pandas,polars]",

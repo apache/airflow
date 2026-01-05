@@ -52,6 +52,7 @@ DEFAULT_FUNCTION_NAME = "function-name"
 @pytest.fixture
 def set_env_vars():
     overrides: dict[tuple[str, str], str] = {
+        (CONFIG_GROUP_NAME, AllLambdaConfigKeys.AWS_CONN_ID): "aws_default",
         (CONFIG_GROUP_NAME, AllLambdaConfigKeys.REGION_NAME): "us-west-1",
         (CONFIG_GROUP_NAME, AllLambdaConfigKeys.FUNCTION_NAME): DEFAULT_FUNCTION_NAME,
         (CONFIG_GROUP_NAME, AllLambdaConfigKeys.QUEUE_URL): DEFAULT_QUEUE_URL,
