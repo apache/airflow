@@ -264,9 +264,15 @@ def make_module(name: str, objects: list[Any]) -> ModuleType | None:
 
 
 def integrate_macros_plugins(
-    macros_module: ModuleType, macros_module_name_prefix: str, plugins: list[AirflowPlugin]
+    target_macros_module: ModuleType, macros_module_name_prefix: str, plugins: list[AirflowPlugin]
 ) -> None:
-    """Integrates macro plugins."""
+    """
+    Register macros from plugins onto the target macros module.
+
+    For each plugin with macros, creates a submodule and attaches it to
+    the target module so macros can be accessed in templates as
+    ``{{ macros.plugin_name.macro_func() }}``.
+    """
     log.debug("Integrate Macros plugins")
 
     for plugin in plugins:
@@ -279,7 +285,7 @@ def integrate_macros_plugins(
             sys.modules[macros_module_instance.__name__] = macros_module_instance
             # Register the newly created module on the provided macros module
             # so it can be accessed when rendering templates.
-            setattr(macros_module, plugin.name, macros_module_instance)
+            setattr(target_macros_module, plugin.name, macros_module_instance)
 
 
 def integrate_listener_plugins(listener_manager: ListenerManager, plugins: list[AirflowPlugin]) -> None:
