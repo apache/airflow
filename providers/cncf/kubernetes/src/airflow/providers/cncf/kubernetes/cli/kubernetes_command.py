@@ -32,14 +32,12 @@ from airflow.providers.cncf.kubernetes.executors.kubernetes_executor import Kube
 from airflow.providers.cncf.kubernetes.kube_client import get_kube_client
 from airflow.providers.cncf.kubernetes.kubernetes_helper_functions import create_unique_id
 from airflow.providers.cncf.kubernetes.pod_generator import PodGenerator, generate_pod_command_args
-from airflow.providers.cncf.kubernetes.version_compat import (
-    AIRFLOW_V_3_0_PLUS,
-    AIRFLOW_V_3_1_PLUS,
-    AIRFLOW_V_3_2_PLUS,
-)
+from airflow.providers.cncf.kubernetes.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V_3_1_PLUS
 from airflow.utils import cli as cli_utils, yaml
 from airflow.utils.providers_configuration_loader import providers_configuration_loaded
 from airflow.utils.types import DagRunType
+
+from tests_common.test_utils.taskinstance import create_task_instance
 
 if AIRFLOW_V_3_1_PLUS:
     from airflow.utils.cli import get_bagged_dag
@@ -74,16 +72,10 @@ def generate_pod_yaml(args):
     kube_config = KubeConfig()
 
     for task in dag.tasks:
-        if AIRFLOW_V_3_2_PLUS:
+        if AIRFLOW_V_3_0_PLUS:
             from uuid6 import uuid7
 
-            from airflow.serialization.serialized_objects import create_scheduler_operator
-
-            ti = TaskInstance(create_scheduler_operator(task), run_id=dr.run_id, dag_version_id=uuid7())
-        elif AIRFLOW_V_3_0_PLUS:
-            from uuid6 import uuid7
-
-            ti = TaskInstance(task, run_id=dr.run_id, dag_version_id=uuid7())
+            ti = create_task_instance(task, run_id=dr.run_id, dag_version_id=uuid7())
         else:
             ti = TaskInstance(task, run_id=dr.run_id)
         ti.dag_run = dr
