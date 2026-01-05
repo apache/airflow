@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2026-01-05T02:25:38.127792
+# This constraints file was automatically generated on 2026-01-05T19:54:07.469855
 # via `uv sync --resolution highest for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider distributions.
@@ -147,7 +147,7 @@ cohere==5.20.1
 colorama==0.4.6
 colorlog==6.10.1
 comm==0.2.3
-confluent-kafka==2.12.2
+confluent-kafka==2.13.0
 coverage==7.13.1
 crcmod==1.7
 cron_descriptor==2.0.6
@@ -306,7 +306,7 @@ iniconfig==2.3.0
 inputimeout==1.0.4
 ipdb==0.13.13
 ipykernel==7.1.0
-ipython==9.8.0
+ipython==9.9.0
 ipython_pygments_lexers==1.1.1
 isodate==0.7.2
 itsdangerous==2.2.0
@@ -435,7 +435,7 @@ parso==0.8.5
 pathable==0.4.4
 pathspec==0.12.1
 pbr==7.0.3
-pdbr==0.9.5
+pdbr==0.9.7
 pendulum==3.1.0
 pexpect==4.9.0
 pgvector==0.4.2
@@ -515,7 +515,7 @@ python-dateutil==2.9.0.post0
 python-dotenv==1.2.1
 python-http-client==3.3.7
 python-jenkins==1.8.3
-python-keycloak==7.0.0
+python-keycloak==7.0.1
 python-ldap==3.4.5
 python-multipart==0.0.21
 python-on-whales==0.79.0
@@ -628,7 +628,7 @@ thrift==0.16.0
 tiktoken==0.12.0
 time-machine==2.19.0
 tinycss2==1.4.0
-tokenizers==0.22.1
+tokenizers==0.22.2
 tomli_w==1.2.0
 tomlkit==0.13.3
 tornado==6.5.4

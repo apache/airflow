@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2026-01-05T02:28:29.955497
+# This constraints file was automatically generated on 2026-01-05T19:58:18.265364
 # via `uv pip install --resolution highest` for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -90,7 +90,6 @@ alibabacloud_openapi_util==0.2.2
 aliyun-python-sdk-core==2.16.0
 aliyun-python-sdk-kms==2.16.5
 amqp==5.3.1
-annotated-doc==0.0.4
 annotated-types==0.7.0
 ansicolors==1.1.8
 anyio==4.12.0
@@ -246,7 +245,7 @@ botocore==1.41.5
 build==1.3.0
 cachelib==0.13.0
 cachetools==6.2.4
-cadwyn==6.0.0
+cadwyn==5.4.6
 cassandra-driver==3.29.3
 cattrs==25.3.0
 celery==5.6.2
@@ -266,7 +265,7 @@ colorama==0.4.6
 colorful==0.5.8
 colorlog==6.10.1
 comm==0.2.3
-confluent-kafka==2.12.2
+confluent-kafka==2.13.0
 connexion==2.14.2
 crcmod==1.7
 cron_descriptor==2.0.6
@@ -301,7 +300,7 @@ eventlet==0.40.4
 executing==2.2.1
 facebook_business==24.0.1
 fastapi-cli==0.0.20
-fastapi==0.128.0
+fastapi==0.117.1
 fastavro==1.12.1
 fasteners==0.20
 fastjsonschema==2.21.2
@@ -409,7 +408,7 @@ impyla==0.22.0
 inflection==0.5.1
 influxdb-client==1.49.0
 ipykernel==7.1.0
-ipython==9.8.0
+ipython==9.9.0
 ipython_pygments_lexers==1.1.1
 isodate==0.7.2
 itsdangerous==2.2.0
@@ -450,9 +449,7 @@ markdown-it-py==4.0.0
 marshmallow-sqlalchemy==1.4.2
 marshmallow==3.26.2
 matplotlib-inline==0.2.1
-mdit-py-plugins==0.5.0
 mdurl==0.1.2
-memray==1.19.1
 mergedeep==1.3.4
 methodtools==0.4.7
 microsoft-kiota-abstractions==1.9.8
@@ -555,8 +552,6 @@ pybreaker==1.4.1
 pycountry==24.6.1
 pycparser==2.23
 pycryptodome==3.23.0
-pydantic-extra-types==2.11.0
-pydantic-settings==2.12.0
 pydantic==2.12.5
 pydantic_core==2.41.5
 pydata-google-auth==1.9.1
@@ -579,7 +574,7 @@ python-dateutil==2.9.0.post0
 python-dotenv==1.2.1
 python-http-client==3.3.7
 python-jenkins==1.8.3
-python-keycloak==7.0.0
+python-keycloak==7.0.1
 python-ldap==3.4.5
 python-multipart==0.0.21
 python-slugify==8.0.4
@@ -641,7 +636,7 @@ sqlalchemy_drill==1.1.9
 sqlparse==0.5.5
 sshtunnel==0.4.0
 stack-data==0.6.3
-starlette==0.50.0
+starlette==0.48.0
 statsd==4.0.1
 std-uritemplate==2.0.8
 structlog==25.5.0
@@ -653,13 +648,12 @@ teradatasql==20.0.0.48
 teradatasqlalchemy==20.0.0.9
 termcolor==3.3.0
 text-unidecode==1.3
-textual==6.2.1
 threadpoolctl==3.6.0
 thrift-sasl==0.4.3
 thrift==0.16.0
 tiktoken==0.12.0
 tinycss2==1.4.0
-tokenizers==0.22.1
+tokenizers==0.22.2
 tomlkit==0.13.3
 tornado==6.5.4
 tqdm==4.67.1

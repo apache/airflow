@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2026-01-05T02:25:08.080488
+# This constraints file was automatically generated on 2026-01-05T19:54:48.279017
 # via `uv sync --resolution highest for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider distributions.
@@ -17,7 +17,7 @@ Flask-AppBuilder==5.0.1
 Flask-JWT-Extended==4.7.1
 Flask-Limiter==3.12
 Flask-Login==0.6.3
-Flask-SQLAlchemy==3.0.5
+Flask-SQLAlchemy==3.1.1
 Flask-Session==0.8.0
 Flask-WTF==1.2.2
 Flask==2.2.5
@@ -38,13 +38,16 @@ PyYAML==6.0.3
 Pygments==2.19.2
 SQLAlchemy-JSONField==1.0.2
 SQLAlchemy-Utils==0.42.1
-SQLAlchemy==1.4.54
+SQLAlchemy==2.0.45
 SecretStorage==3.5.0
 Sphinx==8.2.3
 WTForms==3.2.1
 Werkzeug==2.2.3
 a2wsgi==1.10.10
 adal==1.2.7
+adbc-driver-manager==1.9.0
+adbc-driver-postgresql==1.9.0
+adbc-driver-sqlite==1.9.0
 adlfs==2025.8.0
 aenum==3.1.16
 aiobotocore==2.26.0
@@ -161,7 +164,7 @@ colorama==0.4.6
 colorful==0.5.8
 colorlog==6.10.1
 comm==0.2.3
-confluent-kafka==2.12.2
+confluent-kafka==2.13.0
 connexion==2.14.2
 coverage==7.13.1
 crcmod==1.7
@@ -170,7 +173,7 @@ croniter==6.0.0
 cryptography==42.0.8
 curlify==3.0.0
 databricks-sql-connector==4.2.3
-databricks-sqlalchemy==1.0.2
+databricks-sqlalchemy==2.0.8
 dataclasses-json==0.6.7
 datadog==0.52.1
 db-dtypes==1.5.0
@@ -317,6 +320,7 @@ ijson==3.4.0.post0
 imagesize==1.4.1
 immutabledict==4.2.2
 importlib_metadata==8.4.0
+importlib_resources==6.5.2
 impyla==0.22.0
 inflection==0.5.1
 influxdb-client==1.49.0
@@ -324,7 +328,7 @@ iniconfig==2.3.0
 inputimeout==1.0.4
 ipdb==0.13.13
 ipykernel==7.1.0
-ipython==9.8.0
+ipython==9.9.0
 ipython_pygments_lexers==1.1.1
 isodate==0.7.2
 itsdangerous==2.2.0
@@ -415,7 +419,7 @@ nest-asyncio==1.6.0
 networkx==3.6.1
 nh3==0.3.2
 nodeenv==1.10.0
-numpy==1.26.4
+numpy==2.2.6
 oauthlib==3.3.1
 objsize==0.7.1
 openai==2.14.0
@@ -450,7 +454,7 @@ pagefind_bin==1.5.0a3
 pagerduty==6.1.0
 pandas-gbq==0.32.0
 pandas-stubs==2.3.3.251201
-pandas==2.1.4
+pandas==2.3.3
 pandocfilters==1.5.1
 papermill==2.6.0
 paramiko==3.5.1
@@ -458,7 +462,7 @@ parso==0.8.5
 pathable==0.4.4
 pathspec==0.12.1
 pbr==7.0.3
-pdbr==0.9.5
+pdbr==0.9.7
 pendulum==3.1.0
 pexpect==4.9.0
 pgvector==0.4.2
@@ -540,7 +544,7 @@ python-dateutil==2.9.0.post0
 python-dotenv==1.2.1
 python-http-client==3.3.7
 python-jenkins==1.8.3
-python-keycloak==7.0.0
+python-keycloak==7.0.1
 python-ldap==3.4.5
 python-multipart==0.0.21
 python-on-whales==0.79.0
@@ -654,7 +658,7 @@ thrift==0.16.0
 tiktoken==0.12.0
 time-machine==2.19.0
 tinycss2==1.4.0
-tokenizers==0.22.1
+tokenizers==0.22.2
 tomli_w==1.2.0
 tomlkit==0.13.3
 tornado==6.5.4

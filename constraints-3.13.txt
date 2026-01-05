@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2026-01-05T02:29:05.644941
+# This constraints file was automatically generated on 2026-01-05T19:57:35.020768
 # via `uv pip install --resolution highest` for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -383,7 +383,7 @@ impyla==0.22.0
 inflection==0.5.1
 influxdb-client==1.49.0
 ipykernel==7.1.0
-ipython==9.8.0
+ipython==9.9.0
 ipython_pygments_lexers==1.1.1
 isodate==0.7.2
 itsdangerous==2.2.0
@@ -546,7 +546,7 @@ python-dateutil==2.9.0.post0
 python-dotenv==1.2.1
 python-http-client==3.3.7
 python-jenkins==1.8.3
-python-keycloak==7.0.0
+python-keycloak==7.0.1
 python-ldap==3.4.5
 python-multipart==0.0.21
 python-slugify==8.0.4
@@ -625,7 +625,7 @@ thrift-sasl==0.4.3
 thrift==0.16.0
 tiktoken==0.12.0
 tinycss2==1.4.0
-tokenizers==0.22.1
+tokenizers==0.22.2
 tomlkit==0.13.3
 tornado==6.5.4
 tqdm==4.67.1
