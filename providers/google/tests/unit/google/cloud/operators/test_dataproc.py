@@ -1308,6 +1308,42 @@ class TestDataprocClusterDeleteOperator:
             metadata=METADATA,
         )
 
+    @mock.patch(DATAPROC_PATH.format("DataprocHook"))
+    @mock.patch(DATAPROC_TRIGGERS_PATH.format("DataprocAsyncHook"))
+    def test_execute_cluster_not_found_deffered(self, mock_deffer, mock_hook):
+        mock_hook.return_value.create_cluster.return_value = None
+        mock_hook.return_value.delete_cluster.side_effect = NotFound("test")
+        delete_cluster_op = DataprocDeleteClusterOperator(
+            task_id="test_task",
+            region=GCP_REGION,
+            cluster_name=CLUSTER_NAME,
+            project_id=GCP_PROJECT,
+            cluster_uuid=None,
+            request_id=REQUEST_ID,
+            retry=RETRY,
+            timeout=TIMEOUT,
+            metadata=METADATA,
+            deferrable=True,
+        )
+        with pytest.raises(
+            AirflowSkipException,
+            match=f"Cluster {CLUSTER_NAME} in region {GCP_REGION} was not found - it may have already been deleted",
+        ):
+            delete_cluster_op.execute(context=mock.MagicMock())
+
+        mock_hook.return_value.delete_cluster.assert_called_once_with(
+            project_id=GCP_PROJECT,
+            region=GCP_REGION,
+            cluster_name=CLUSTER_NAME,
+            cluster_uuid=None,
+            request_id=REQUEST_ID,
+            retry=RETRY,
+            timeout=TIMEOUT,
+            metadata=METADATA,
+        )
+
+        assert not mock_deffer.called
+
 
 class TestDataprocSubmitJobOperator(DataprocJobTestBase):
     @mock.patch(DATAPROC_PATH.format("DataprocHook"))

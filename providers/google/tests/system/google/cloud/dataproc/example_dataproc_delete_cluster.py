@@ -25,6 +25,7 @@ from datetime import datetime
 
 from google.api_core.retry import Retry
 
+from airflow.decorators import task_group
 from airflow.exceptions import AirflowSkipException
 from airflow.models.dag import DAG
 from airflow.providers.google.cloud.operators.dataproc import (
@@ -60,8 +61,8 @@ CLUSTER_CONFIG = {
 }
 
 
-@task(task_id="delete_cluster_when_not_found")
-def delete_cluster(**context):
+@task(task_id="delete_cluster_when_already_deleted")
+def delete_cluster_when_already_deleted(**context):
     try:
         DataprocDeleteClusterOperator(
             task_id="delete_cluster",
@@ -75,6 +76,21 @@ def delete_cluster(**context):
         raise AssertionError("AirflowSkipException was not raised")
 
 
+@task(task_id="delete_cluster_when_exists")
+def delete_cluster_when_exists(**context):
+    try:
+        DataprocDeleteClusterOperator(
+            task_id="delete_cluster",
+            project_id=PROJECT_ID,
+            cluster_name=CLUSTER_NAME,
+            region=REGION,
+        ).execute(context=context)
+
+        print("Raised no exception as expected.")
+    except Exception as e:
+        raise AssertionError("Exception was not expected: ", e)
+
+
 with DAG(
     DAG_ID,
     schedule="@once",
@@ -82,23 +98,23 @@ with DAG(
     catchup=False,
     tags=["example", "dataproc"],
 ) as dag:
-    create_cluster = DataprocCreateClusterOperator(
-        task_id="create_cluster",
-        project_id=PROJECT_ID,
-        cluster_config=CLUSTER_CONFIG,
-        region=REGION,
-        cluster_name=CLUSTER_NAME,
-        retry=Retry(maximum=100.0, initial=10.0, multiplier=1.0),
-    )
 
-    @task
-    def add_wait():
-        import time
+    @task_group(group_id="happy-path-create-delete-cluster")
+    def happy_path_create_delete_cluster():
+        create_cluster = DataprocCreateClusterOperator(
+            task_id="create_cluster",
+            project_id=PROJECT_ID,
+            cluster_config=CLUSTER_CONFIG,
+            region=REGION,
+            cluster_name=CLUSTER_NAME,
+            retry=Retry(maximum=100.0, initial=10.0, multiplier=1.0),
+            deferrable=True,
+        )
 
-        time.sleep(7 * 60)
+        create_cluster >> delete_cluster_when_exists()
 
     # TEST SETUP
-    create_cluster >> add_wait() >> delete_cluster()
+    happy_path_create_delete_cluster() >> delete_cluster_when_already_deleted()
 
     from tests_common.test_utils.watcher import watcher
 

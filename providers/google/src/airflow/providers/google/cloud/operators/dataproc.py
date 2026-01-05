@@ -25,7 +25,7 @@ import time
 import warnings
 from collections.abc import MutableSequence, Sequence
 from dataclasses import dataclass
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta
 from enum import Enum
 from functools import cached_property
 from typing import TYPE_CHECKING, Any
@@ -63,6 +63,7 @@ from airflow.providers.google.cloud.triggers.dataproc import (
 )
 from airflow.providers.google.cloud.utils.dataproc import DataprocOperationType
 from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID
+from airflow.sdk import timezone
 
 if TYPE_CHECKING:
     from google.api_core import operation
@@ -390,7 +391,7 @@ class ClusterGenerator:
             cluster_data[lifecycle_config]["idle_delete_ttl"] = {"seconds": self.idle_delete_ttl}
 
         if self.auto_delete_time:
-            utc_auto_delete_time = self.auto_delete_time.astimezone(timezone.utc)
+            utc_auto_delete_time = timezone.convert_to_utc(self.auto_delete_time)
             cluster_data[lifecycle_config]["auto_delete_time"] = utc_auto_delete_time.strftime(
                 "%Y-%m-%dT%H:%M:%S.%fZ"
             )
