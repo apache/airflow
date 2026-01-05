@@ -26,6 +26,10 @@ from collections.abc import Callable, Iterator
 from importlib import import_module
 from typing import TYPE_CHECKING
 
+from .file_discovery import (
+    find_path_from_directory as find_path_from_directory,
+)
+
 if sys.version_info >= (3, 12):
     from importlib import metadata
 else:
