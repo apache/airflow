@@ -20,9 +20,10 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
+from contextlib import suppress
+from functools import cache
 from typing import TYPE_CHECKING
 
-from airflow._shared.module_loading import qualname
 from airflow.task.weight_rule import WeightRule
 
 if TYPE_CHECKING:
@@ -92,21 +93,27 @@ class _UpstreamPriorityWeightStrategy(PriorityWeightStrategy):
         )
 
 
-airflow_priority_weight_strategies: dict[str, type[PriorityWeightStrategy]] = {
-    qualname(_AbsolutePriorityWeightStrategy): _AbsolutePriorityWeightStrategy,
-    qualname(_DownstreamPriorityWeightStrategy): _DownstreamPriorityWeightStrategy,
-    qualname(_UpstreamPriorityWeightStrategy): _UpstreamPriorityWeightStrategy,
-    WeightRule.ABSOLUTE: _AbsolutePriorityWeightStrategy,
-    WeightRule.DOWNSTREAM: _DownstreamPriorityWeightStrategy,
-    WeightRule.UPSTREAM: _UpstreamPriorityWeightStrategy,
-}
+@cache
+def get_airflow_priority_weight_strategies() -> dict[str, type[PriorityWeightStrategy]]:
+    from airflow._shared.module_loading import qualname
+
+    return {
+        qualname(_AbsolutePriorityWeightStrategy): _AbsolutePriorityWeightStrategy,
+        qualname(_DownstreamPriorityWeightStrategy): _DownstreamPriorityWeightStrategy,
+        qualname(_UpstreamPriorityWeightStrategy): _UpstreamPriorityWeightStrategy,
+        WeightRule.ABSOLUTE: _AbsolutePriorityWeightStrategy,
+        WeightRule.DOWNSTREAM: _DownstreamPriorityWeightStrategy,
+        WeightRule.UPSTREAM: _UpstreamPriorityWeightStrategy,
+    }
 
 
-airflow_priority_weight_strategies_classes = {
-    _AbsolutePriorityWeightStrategy: WeightRule.ABSOLUTE,
-    _DownstreamPriorityWeightStrategy: WeightRule.DOWNSTREAM,
-    _UpstreamPriorityWeightStrategy: WeightRule.UPSTREAM,
-}
+@cache
+def get_weight_rule_from_priority_weight_strategy(strategy: type[PriorityWeightStrategy]) -> WeightRule:
+    return {
+        _AbsolutePriorityWeightStrategy: WeightRule.ABSOLUTE,
+        _DownstreamPriorityWeightStrategy: WeightRule.DOWNSTREAM,
+        _UpstreamPriorityWeightStrategy: WeightRule.UPSTREAM,
+    }[strategy]
 
 
 def validate_and_load_priority_weight_strategy(
@@ -121,14 +128,15 @@ def validate_and_load_priority_weight_strategy(
 
     :meta private:
     """
+    from airflow._shared.module_loading import qualname
     from airflow.serialization.serialized_objects import _get_registered_priority_weight_strategy
 
     if priority_weight_strategy is None:
         return _AbsolutePriorityWeightStrategy()
 
     if isinstance(priority_weight_strategy, str):
-        if priority_weight_strategy in airflow_priority_weight_strategies:
-            return airflow_priority_weight_strategies[priority_weight_strategy]()
+        with suppress(KeyError):
+            return get_airflow_priority_weight_strategies()[priority_weight_strategy]()
         priority_weight_strategy_class = priority_weight_strategy
     else:
         priority_weight_strategy_class = qualname(priority_weight_strategy)

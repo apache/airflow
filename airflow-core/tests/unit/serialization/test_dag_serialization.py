@@ -87,7 +87,7 @@ from airflow.serialization.serialized_objects import (
 from airflow.task.priority_strategy import (
     PriorityWeightStrategy,
     _DownstreamPriorityWeightStrategy,
-    airflow_priority_weight_strategies,
+    get_airflow_priority_weight_strategies,
     validate_and_load_priority_weight_strategy,
 )
 from airflow.ti_deps.deps.ready_to_reschedule import ReadyToRescheduleDep
@@ -4485,7 +4485,7 @@ class TestWeightRule:
         serop = OperatorSerialization.deserialize(OperatorSerialization.serialize(sdkop))
         assert serop.weight_rule == _DownstreamPriorityWeightStrategy()
 
-    @pytest.mark.parametrize(("value", "expected"), list(airflow_priority_weight_strategies.items()))
+    @pytest.mark.parametrize(("value", "expected"), list(get_airflow_priority_weight_strategies().items()))
     def test_builtin(self, value, expected):
         sdkop = BaseOperator(task_id="should_fail", weight_rule=value)
         serop = OperatorSerialization.deserialize(OperatorSerialization.serialize(sdkop))
