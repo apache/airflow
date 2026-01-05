@@ -1060,6 +1060,182 @@ class TestWorker:
             jmespath.search("spec.volumeClaimTemplates[2].spec.resources.requests.storage", docs[0]) == "20Gi"
         )
 
+    def test_should_add_extra_volume_claim_templates_with_logs_persistence_enabled(self):
+        """
+        Test that custom volumeClaimTemplates are created even when logs.persistence.enabled is true.
+
+        This test verifies the fix for the bug where custom volumeClaimTemplates were ignored
+        when logs.persistence.enabled was true, because the volumeClaimTemplates section
+        was only rendered in the else block that executed when logs.persistence.enabled was false.
+        """
+        docs = render_chart(
+            values={
+                "executor": "CeleryExecutor",
+                "workers": {
+                    "persistence": {"enabled": True},
+                    "volumeClaimTemplates": [
+                        {
+                            "metadata": {"name": "data"},
+                            "spec": {
+                                "storageClassName": "longhorn",
+                                "accessModes": ["ReadWriteOnce"],
+                                "resources": {"requests": {"storage": "10Gi"}},
+                            },
+                        },
+                    ],
+                },
+                "logs": {
+                    "persistence": {"enabled": True},  # This is the key: logs persistence enabled
+                },
+            },
+            show_only=["templates/workers/worker-deployment.yaml"],
+        )
+
+        # Verify StatefulSet is created
+        assert jmespath.search("kind", docs[0]) == "StatefulSet"
+
+        # Verify logs volume is created as regular PVC (not as volumeClaimTemplate)
+        volumes = jmespath.search("spec.template.spec.volumes", docs[0])
+        logs_volume = next((v for v in volumes if v.get("name") == "logs"), None)
+        assert logs_volume is not None
+        assert "persistentVolumeClaim" in logs_volume
+        assert logs_volume["persistentVolumeClaim"]["claimName"] == "release-name-logs"
+
+        # Verify volumeClaimTemplates section exists (this was the bug - it was missing before)
+        volume_claim_templates = jmespath.search("spec.volumeClaimTemplates", docs[0])
+        assert volume_claim_templates is not None
+        assert len(volume_claim_templates) > 0
+
+        # Verify custom volumeClaimTemplate is present
+        data_template = next(
+            (t for t in volume_claim_templates if t.get("metadata", {}).get("name") == "data"),
+            None,
+        )
+        assert data_template is not None
+        assert data_template["spec"]["storageClassName"] == "longhorn"
+        assert data_template["spec"]["accessModes"] == ["ReadWriteOnce"]
+        assert data_template["spec"]["resources"]["requests"]["storage"] == "10Gi"
+
+        # Verify logs is NOT in volumeClaimTemplates (it should be a regular PVC)
+        logs_template = next(
+            (t for t in volume_claim_templates if t.get("metadata", {}).get("name") == "logs"),
+            None,
+        )
+        assert logs_template is None, (
+            "Logs should not be in volumeClaimTemplates when logs.persistence.enabled is true"
+        )
+
+    @pytest.mark.parametrize(
+        (
+            "logs_persistence_enabled",
+            "workers_persistence_enabled",
+            "custom_templates",
+            "should_have_volume_claim_templates",
+        ),
+        [
+            # Test case 1: logs.persistence=false, workers.persistence=true, no custom templates
+            # Should have volumeClaimTemplates with logs template
+            (False, True, [], True),
+            # Test case 2: logs.persistence=true, workers.persistence=true, custom templates provided
+            # Should have volumeClaimTemplates with custom templates (this is the fix!)
+            (
+                True,
+                True,
+                [
+                    {
+                        "metadata": {"name": "data"},
+                        "spec": {
+                            "accessModes": ["ReadWriteOnce"],
+                            "resources": {"requests": {"storage": "10Gi"}},
+                        },
+                    }
+                ],
+                True,
+            ),
+            # Test case 3: logs.persistence=true, workers.persistence=true, no custom templates
+            # Should NOT have volumeClaimTemplates
+            (True, True, [], False),
+            # Test case 4: logs.persistence=false, workers.persistence=false (Deployment)
+            # Should NOT have volumeClaimTemplates (Deployments don't support it)
+            (
+                False,
+                False,
+                [
+                    {
+                        "metadata": {"name": "data"},
+                        "spec": {
+                            "accessModes": ["ReadWriteOnce"],
+                            "resources": {"requests": {"storage": "10Gi"}},
+                        },
+                    }
+                ],
+                False,
+            ),
+        ],
+    )
+    def test_volume_claim_templates_conditional_logic(
+        self,
+        logs_persistence_enabled,
+        workers_persistence_enabled,
+        custom_templates,
+        should_have_volume_claim_templates,
+    ):
+        """
+        Test the conditional logic for volumeClaimTemplates creation.
+
+        This test verifies that volumeClaimTemplates are created correctly based on:
+        - workers.persistence.enabled (must be true for StatefulSet)
+        - logs.persistence.enabled (affects whether logs is a template or regular PVC)
+        - Custom volumeClaimTemplates provided (should always create section if provided)
+        """
+        docs = render_chart(
+            values={
+                "executor": "CeleryExecutor",
+                "workers": {
+                    "persistence": {"enabled": workers_persistence_enabled},
+                    "volumeClaimTemplates": custom_templates,
+                },
+                "logs": {
+                    "persistence": {"enabled": logs_persistence_enabled},
+                },
+            },
+            show_only=["templates/workers/worker-deployment.yaml"],
+        )
+
+        volume_claim_templates = jmespath.search("spec.volumeClaimTemplates", docs[0])
+
+        if should_have_volume_claim_templates:
+            assert volume_claim_templates is not None
+            assert len(volume_claim_templates) > 0
+
+            # If logs.persistence is false, logs should be in volumeClaimTemplates
+            if not logs_persistence_enabled:
+                logs_template = next(
+                    (t for t in volume_claim_templates if t.get("metadata", {}).get("name") == "logs"),
+                    None,
+                )
+                assert logs_template is not None, (
+                    "Logs should be in volumeClaimTemplates when logs.persistence.enabled is false"
+                )
+
+            # If custom templates provided, they should be in volumeClaimTemplates
+            if custom_templates:
+                for template in custom_templates:
+                    template_name = template["metadata"]["name"]
+                    found_template = next(
+                        (
+                            t
+                            for t in volume_claim_templates
+                            if t.get("metadata", {}).get("name") == template_name
+                        ),
+                        None,
+                    )
+                    assert found_template is not None, (
+                        f"Custom template '{template_name}' should be in volumeClaimTemplates"
+                    )
+        else:
+            assert volume_claim_templates is None or len(volume_claim_templates) == 0
+
     @pytest.mark.parametrize(
         ("globalScope", "localScope", "precedence"),
         [
