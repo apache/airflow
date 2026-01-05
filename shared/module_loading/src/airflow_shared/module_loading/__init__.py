@@ -26,7 +26,7 @@ from collections.abc import Callable, Iterator
 from importlib import import_module
 from typing import TYPE_CHECKING
 
-from airflow_shared.module_loading.file_discovery import (
+from .file_discovery import (
     find_path_from_directory as find_path_from_directory,
 )
 
