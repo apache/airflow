@@ -63,12 +63,15 @@ function datesMatch(date1: string, date2: string): boolean {
 }
 
 export class BackfillPage extends BasePage {
+  public readonly backfillBanner: Locator;
   public readonly backfillDateError: Locator;
   public readonly backfillFromDateInput: Locator;
   public readonly backfillModeRadio: Locator;
   public readonly backfillRunButton: Locator;
   public readonly backfillsTable: Locator;
   public readonly backfillToDateInput: Locator;
+  public readonly cancelButton: Locator;
+  public readonly pauseButton: Locator;
   public readonly triggerButton: Locator;
 
   public constructor(page: Page) {
@@ -80,6 +83,9 @@ export class BackfillPage extends BasePage {
     this.backfillRunButton = page.locator('button:has-text("Run Backfill")');
     this.backfillsTable = page.locator("table");
     this.backfillDateError = page.locator('text="Start Date must be before the End Date"');
+    this.backfillBanner = page.locator('div:has-text("Backfill in progress")');
+    this.cancelButton = page.locator('button[aria-label*="ancel"]');
+    this.pauseButton = page.locator('button[aria-label*="ause"]');
   }
 
   public static findColumnIndex(columnMap: Map<string, number>, possibleNames: Array<string>): number {
@@ -100,6 +106,18 @@ export class BackfillPage extends BasePage {
 
   public static getDagDetailUrl(dagName: string): string {
     return `/dags/${dagName}`;
+  }
+
+  public async clickCancelButton(): Promise<void> {
+    await expect(this.cancelButton).toBeVisible({ timeout: 10_000 });
+    await this.cancelButton.click();
+    await this.page.waitForTimeout(1000);
+  }
+
+  public async clickPauseButton(): Promise<void> {
+    await expect(this.pauseButton).toBeVisible({ timeout: 10_000 });
+    await this.pauseButton.click();
+    await this.page.waitForTimeout(1000);
   }
 
   public async createBackfill(dagName: string, options: CreateBackfillOptions): Promise<void> {
@@ -290,6 +308,17 @@ export class BackfillPage extends BasePage {
     return await headers.count();
   }
 
+  public async isBackfillDateErrorVisible(): Promise<boolean> {
+    return this.backfillDateError.isVisible();
+  }
+
+  public async isBackfillPaused(): Promise<boolean> {
+    await expect(this.pauseButton).toBeVisible({ timeout: 10_000 });
+    const ariaLabel = await this.pauseButton.getAttribute("aria-label");
+
+    return Boolean(ariaLabel?.toLowerCase().includes("unpause"));
+  }
+
   public async navigateToBackfillsTab(dagName: string): Promise<void> {
     await this.navigateTo(BackfillPage.getBackfillsUrl(dagName));
     await expect(this.backfillsTable).toBeVisible({ timeout: 20_000 });
@@ -338,6 +367,10 @@ export class BackfillPage extends BasePage {
     const menuItem = this.page.locator(`[role="menuitem"]:has-text("${columnName}")`);
 
     await menuItem.click();
+  }
+
+  public async waitForBackfillCompletion(timeout: number = 30_000): Promise<void> {
+    await expect(this.backfillBanner).toBeHidden({ timeout });
   }
 
   public async waitForNoActiveBackfill(): Promise<void> {
