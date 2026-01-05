@@ -75,7 +75,7 @@ test.describe("Dag Details Tab", () => {
   let dagsPage: DagsPage;
 
   const testDagId = testConfig.testDag.id;
-
+ 
   test.beforeEach(({ page }) => {
     dagsPage = new DagsPage(page);
   });

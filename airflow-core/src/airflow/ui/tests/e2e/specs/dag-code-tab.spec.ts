@@ -16,33 +16,25 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { test, expect } from "@playwright/test";
-import { DagsPage } from "tests/e2e/pages/DagsPage";
-import { LoginPage } from "tests/e2e/pages/LoginPage";
-import { testConfig } from "playwright.config";
+  import { test, expect } from "@playwright/test";
+  import { DagsPage } from "tests/e2e/pages/DagsPage";
 
-test.describe("DAG Code Tab", () => {
-  let loginPage: LoginPage;
-  let dagsPage: DagsPage;
-  const testCredentials = testConfig.credentials;
-  const testDagId = testConfig.testDag.id;
+  test.describe("Dag Code Tab", () => {
+    let dagsPage: DagsPage;
+    const testDagId = "example_simplest_dag";
 
-  test.beforeEach(({ page }) => {
-    loginPage = new LoginPage(page);
-    dagsPage = new DagsPage(page);
+    test.beforeEach(async ({ page }) => {
+      dagsPage = new DagsPage(page);
+    });
+
+    test("should display Dag code", async () => {
+      await dagsPage.navigateToDagDetail(testDagId);
+    
+      await dagsPage.openCodeTab();
+    
+      const codeText = await dagsPage.getDagCodeText();
+
+      expect(codeText).not.toBeNull();
+      expect(codeText?.trim().length).toBeGreaterThan(0);
+    });  
   });
-
-  test("should display DAG code", async () => {
-    await loginPage.navigateAndLogin(testCredentials.username, testCredentials.password);
-    await loginPage.expectLoginSuccess();
-
-    await dagsPage.navigateToDagDetail(testDagId);
-    await dagsPage.openCodeTab();
-
-    const codeContainer = dagsPage.getCodeContainer();
-    await expect(codeContainer).toBeVisible();
-
-    const codeText = await dagsPage.getDagCodeText();
-    console.log("DAG code snippet:", codeText?.slice(0, 100)); // optional debug
-  });
-});
