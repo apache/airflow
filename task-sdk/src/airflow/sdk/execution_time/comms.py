@@ -217,7 +217,7 @@ class CommsDecoder(Generic[ReceiveMsgType, SendMsgType]):
 
         return self._get_response()
 
-    async def asend(self, msg):
+    async def asend(self, msg: SendMsgType) -> ReceiveMsgType | None:
         """
         Asynchronous send.
 
