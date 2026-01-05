@@ -30,7 +30,7 @@ if TYPE_CHECKING:
     from airflow.timetables.base import Timetable as CoreTimetable
 
 
-def truncate_rendered_value(rendered: Union[str, bytes, Sequence], max_length: int) -> str:
+def truncate_rendered_value(rendered: Any, max_length: int) -> str:
     """
     Truncate rendered value with a reasonable minimum length to avoid edge cases.
     
@@ -48,13 +48,14 @@ def truncate_rendered_value(rendered: Union[str, bytes, Sequence], max_length: i
     prefix = "Truncated. You can change this behaviour in [core]max_templated_field_length. "
     suffix = "... "
     
+    # Apply repr() to the content first to account for quotes that will be added
+    content_repr = repr(rendered)
     available_length = max_length - len(prefix) - len(suffix)
     if available_length <= 0:
         return (prefix + suffix)[:max_length]
     
-    content_length = max(0, available_length)
-    content_part = rendered[:content_length]
-    return f"{prefix}{repr(content_part)}{suffix}"
+    content_part = content_repr[:available_length]
+    return f"{prefix}{content_part}{suffix}"
 
 
 def serialize_template_field(template_field: Any, name: str) -> str | dict | list | int | float:
