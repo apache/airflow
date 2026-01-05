@@ -329,7 +329,7 @@ class EdgeWorker:
                 used_concurrency += job.edge_job.concurrency_slots
 
             if (
-                conf.getboolean("edge", "push_logs",fallback = True)
+                conf.getboolean("edge", "push_logs", fallback=True)
                 and job.logfile.exists()
                 and job.logfile.stat().st_size > job.logsize
             ):
