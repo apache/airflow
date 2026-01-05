@@ -23,7 +23,7 @@ from starlette import status
 
 from airflow.api_fastapi.common.router import AirflowRouter
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
-from airflow.configuration import conf
+from airflow.providers.common.compat.sdk import conf
 from airflow.providers.keycloak.auth_manager.datamodels.token import TokenBody, TokenResponse
 from airflow.providers.keycloak.auth_manager.services.token import create_token_for
 
