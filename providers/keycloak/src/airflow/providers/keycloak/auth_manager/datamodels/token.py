@@ -49,7 +49,7 @@ class TokenPasswordBody(StrictBaseModel):
 
 
 class TokenClientCredentialsBody(StrictBaseModel):
-    """Client Credentials Grant Token serializer for post bodies."""
+    """Client credentials grant token serializer for post bodies."""
 
     grant_type: Literal["client_credentials"]
     client_id: str = Field()
