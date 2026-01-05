@@ -272,6 +272,26 @@ class SimpleAuthManager(BaseAuthManager[SimpleAuthManagerUser]):
     ) -> list[MenuItem]:
         return menu_items
 
+    def is_authorized_hitl_task(self, *, assigned_users: set[str], user: SimpleAuthManagerUser) -> bool:
+        """
+        Check if a user is allowed to approve/reject a HITL task.
+
+        When simple_auth_manager_all_admins=True, all authenticated users are allowed
+        to approve/reject any task. Otherwise, the user must be in the assigned_users set.
+        """
+        is_simple_auth_manager_all_admins = conf.getboolean("core", "simple_auth_manager_all_admins")
+
+        if is_simple_auth_manager_all_admins:
+            # In all-admin mode, everyone is allowed
+            return True
+
+        # If no assigned_users specified, allow access
+        if not assigned_users:
+            return True
+
+        # Delegate to parent class for the actual authorization check
+        return super().is_authorized_hitl_task(assigned_users=assigned_users, user=user)
+
     def get_fastapi_app(self) -> FastAPI | None:
         """
         Specify a sub FastAPI application specific to the auth manager.

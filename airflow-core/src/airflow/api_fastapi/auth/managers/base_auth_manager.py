@@ -318,6 +318,18 @@ class BaseAuthManager(Generic[T], LoggingMixin, metaclass=ABCMeta):
         :param user: the user
         """
 
+    def is_authorized_hitl_task(self, *, assigned_users: set[str], user: T) -> bool:
+        """
+        Check if a user is allowed to approve/reject a HITL task.
+
+        By default, checks if the user's ID is in the assigned_users set.
+        Auth managers can override this method to implement custom logic.
+
+        :param assigned_users: set of user IDs assigned to the task
+        :param user: the user to check authorization for
+        """
+        return user.get_id() in assigned_users
+
     def batch_is_authorized_connection(
         self,
         requests: Sequence[IsAuthorizedConnectionRequest],

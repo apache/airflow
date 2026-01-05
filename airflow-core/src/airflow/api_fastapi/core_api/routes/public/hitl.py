@@ -51,7 +51,12 @@ from airflow.api_fastapi.core_api.datamodels.hitl import (
     UpdateHITLDetailPayload,
 )
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
-from airflow.api_fastapi.core_api.security import GetUserDep, ReadableTIFilterDep, requires_access_dag
+from airflow.api_fastapi.core_api.security import (
+    GetUserDep,
+    ReadableTIFilterDep,
+    get_auth_manager,
+    requires_access_dag,
+)
 from airflow.api_fastapi.logging.decorators import action_logging
 from airflow.models.dag_version import DagVersion
 from airflow.models.dagrun import DagRun
@@ -155,7 +160,9 @@ def update_hitl_detail(
         user_id = str(user_id)
     hitl_user = HITLUser(id=user_id, name=user_name)
     if hitl_detail_model.assigned_users:
-        if hitl_user not in hitl_detail_model.assigned_users:
+        # Convert assigned_users list to set of user IDs for authorization check
+        assigned_user_ids = {assigned_user["id"] for assigned_user in hitl_detail_model.assigned_users}
+        if not get_auth_manager().is_authorized_hitl_task(assigned_users=assigned_user_ids, user=user):
             log.error("User=%s (id=%s) is not a respondent for the task", user_name, user_id)
             raise HTTPException(
                 status.HTTP_403_FORBIDDEN,
