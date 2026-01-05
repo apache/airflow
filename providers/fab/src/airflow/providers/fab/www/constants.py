@@ -18,7 +18,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from airflow.configuration import conf
+from airflow.providers.common.compat.sdk import conf
 
 WWW = Path(__file__).resolve().parent
 # There is a difference with configuring Swagger in Connexion 2.x and Connexion 3.x

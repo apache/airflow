@@ -21,7 +21,7 @@ from collections.abc import Callable
 from functools import wraps
 from typing import TYPE_CHECKING, Any, TypeVar, cast
 
-from airflow.configuration import conf
+from airflow.providers.common.compat.sdk import conf
 from airflow.providers.fab.www.api_connexion.exceptions import BadRequest
 
 if TYPE_CHECKING:

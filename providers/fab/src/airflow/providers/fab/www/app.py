@@ -28,9 +28,9 @@ from sqlalchemy.engine.url import make_url
 
 from airflow import settings
 from airflow.api_fastapi.app import get_auth_manager
-from airflow.configuration import conf
 from airflow.exceptions import AirflowConfigException
 from airflow.logging_config import configure_logging
+from airflow.providers.common.compat.sdk import conf
 from airflow.providers.fab.www.extensions.init_appbuilder import AirflowAppBuilder
 from airflow.providers.fab.www.extensions.init_jinja_globals import init_jinja_globals
 from airflow.providers.fab.www.extensions.init_manifest_files import configure_manifest_files
