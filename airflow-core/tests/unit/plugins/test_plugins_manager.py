@@ -28,6 +28,7 @@ from unittest import mock
 import pytest
 
 from airflow._shared.module_loading import qualname
+from airflow.configuration import conf
 from airflow.listeners.listener import get_listener_manager
 from airflow.plugins_manager import AirflowPlugin
 
@@ -88,7 +89,11 @@ class TestPluginsManager:
     def test_loads_filesystem_plugins(self, caplog):
         from airflow import plugins_manager
 
-        plugins, import_errors = plugins_manager._load_plugins_from_plugin_directory()
+        plugins, import_errors = plugins_manager._load_plugins_from_plugin_directory(
+            plugins_folder=conf.get("core", "plugins_folder"),
+            load_examples=conf.getboolean("core", "load_examples"),
+            example_plugins_module="airflow.example_dags.plugins",
+        )
 
         assert len(plugins) == 10
         assert not import_errors
@@ -311,7 +316,13 @@ class TestPluginsManager:
         from airflow import plugins_manager
 
         assert not get_listener_manager().has_listeners
-        with mock_plugin_manager(plugins=plugins_manager._load_plugins_from_plugin_directory()[0]):
+        with mock_plugin_manager(
+            plugins=plugins_manager._load_plugins_from_plugin_directory(
+                plugins_folder=conf.get("core", "plugins_folder"),
+                load_examples=conf.getboolean("core", "load_examples"),
+                example_plugins_module="airflow.example_dags.plugins",
+            )[0]
+        ):
             plugins_manager.integrate_listener_plugins(get_listener_manager())
 
             assert get_listener_manager().has_listeners

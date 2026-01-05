@@ -148,11 +148,22 @@ def is_valid_plugin(plugin_obj) -> bool:
     :return: Whether or not the obj is a valid subclass of
         AirflowPlugin
     """
-    if (
-        inspect.isclass(plugin_obj)
-        and issubclass(plugin_obj, AirflowPlugin)
-        and (plugin_obj is not AirflowPlugin)
-    ):
+    if not inspect.isclass(plugin_obj):
+        return False
+
+    # Temporarily here, we use a name base checking instead of issubclass() because the shared library
+    # is accessed via different symlink paths in core (airflow._shared) and task sdk (airflow.sdk._shared).
+    # Python treats these as different modules, so the AirflowPlugin class has different identities in each context.
+    # Providers will typically inherit from SDK AirflowPlugin, so using issubclass() would fail when core tries
+    # to validate those plugins and provider plugins won't work in airflow core.
+    # For now, by validating by class name, we allow plugins defined with either
+    # core's or SDK's AirflowPlugin to be loaded.
+    is_airflow_plugin = any(
+        base.__name__ == "AirflowPlugin" and "plugins_manager" in base.__module__
+        for base in plugin_obj.__mro__
+    )
+
+    if is_airflow_plugin and plugin_obj.__name__ != "AirflowPlugin":
         plugin_obj.validate()
         return True
     return False
