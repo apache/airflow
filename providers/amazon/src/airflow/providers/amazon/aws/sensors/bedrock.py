@@ -37,7 +37,7 @@ from airflow.providers.common.compat.sdk import AirflowException
 
 if TYPE_CHECKING:
     from airflow.providers.amazon.aws.triggers.bedrock import BedrockBaseBatchInferenceTrigger
-    from airflow.utils.context import Context
+    from airflow.sdk import Context
 
 
 _GenericBedrockHook = TypeVar("_GenericBedrockHook", BedrockAgentHook, BedrockHook)
