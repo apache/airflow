@@ -84,7 +84,6 @@ class TestHookMetaData:
         ]
         response = test_client.get("/connections/hook_meta")
         assert response.status_code == 200
-        print(response.json())
         body = response.json()
         assert body[0]["extra_fields"] == expected_response
 
