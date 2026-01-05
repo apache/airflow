@@ -40,10 +40,15 @@ except ImportError:
     from airflow.models.baseoperator import BaseOperatorLink  # type: ignore[no-redef]
 
 try:
+    from airflow.serialization.definitions.baseoperator import SerializedBaseOperator
     from airflow.serialization.definitions.dag import SerializedDAG
+    from airflow.serialization.definitions.mappedoperator import SerializedMappedOperator
     from airflow.serialization.serialized_objects import DagSerialization, OperatorSerialization
 except ImportError:
     # Compatibility for Airflow < 3.2.*
+    from airflow.models.mappedoperator import (  # type: ignore[no-redef]
+        MappedOperator as SerializedMappedOperator,
+    )
     from airflow.serialization.serialized_objects import (  # type: ignore[no-redef]
         SerializedBaseOperator,
         SerializedDAG,

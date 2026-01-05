@@ -23,8 +23,8 @@ from unittest import mock
 import pytest
 import sqlalchemy
 
-from airflow.configuration import conf
 from airflow.models import Connection
+from airflow.providers.common.compat.sdk import conf
 from airflow.providers.microsoft.mssql.dialects.mssql import MsSqlDialect
 
 from tests_common.test_utils.file_loading import load_file_from_resources

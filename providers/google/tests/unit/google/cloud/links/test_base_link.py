@@ -105,7 +105,7 @@ class MyOperator(GoogleCloudBaseOperator):
 
 class TestOperatorWithBaseGoogleLink:
     @pytest.mark.db_test
-    def test_get_link(self, create_task_instance_of_operator, session, mock_supervisor_comms):
+    def test_get_link(self, dag_maker, create_task_instance_of_operator, session, mock_supervisor_comms):
         expected_url = EXPECTED_GOOGLE_LINK
         link = GoogleLink()
         ti = create_task_instance_of_operator(
@@ -116,19 +116,18 @@ class TestOperatorWithBaseGoogleLink:
             cluster_id=TEST_CLUSTER_ID,
             project_id=TEST_PROJECT_ID,
         )
-        session.add(ti)
-        session.commit()
+        task = dag_maker.dag.get_task(ti.task_id)
 
         if AIRFLOW_V_3_0_PLUS and mock_supervisor_comms:
             mock_supervisor_comms.send.return_value = XComResult(
                 key="key",
                 value={
-                    "cluster_id": ti.task.cluster_id,
-                    "location": ti.task.location,
-                    "project_id": ti.task.project_id,
+                    "cluster_id": task.cluster_id,
+                    "location": task.location,
+                    "project_id": task.project_id,
                 },
             )
-        actual_url = link.get_link(operator=ti.task, ti_key=ti.key)
+        actual_url = link.get_link(operator=task, ti_key=ti.key)
         assert actual_url == expected_url
 
     @pytest.mark.db_test
@@ -136,6 +135,7 @@ class TestOperatorWithBaseGoogleLink:
     def test_get_link_uses_xcom_url_and_skips_get_config(
         self,
         mock_get_value,
+        dag_maker,
         create_task_instance_of_operator,
         session,
     ):
@@ -151,11 +151,9 @@ class TestOperatorWithBaseGoogleLink:
             cluster_id=TEST_CLUSTER_ID,
             project_id=TEST_PROJECT_ID,
         )
-        session.add(ti)
-        session.commit()
 
         with mock.patch.object(GoogleLink, "get_config", autospec=True) as m_get_config:
-            actual_url = link.get_link(operator=ti.task, ti_key=ti.key)
+            actual_url = link.get_link(operator=dag_maker.dag.get_task(ti.task_id), ti_key=ti.key)
 
         assert actual_url == xcom_url
         m_get_config.assert_not_called()
@@ -165,6 +163,7 @@ class TestOperatorWithBaseGoogleLink:
     def test_get_link_falls_back_to_get_config_when_xcom_not_http(
         self,
         mock_get_value,
+        dag_maker,
         create_task_instance_of_operator,
         session,
     ):
@@ -179,8 +178,7 @@ class TestOperatorWithBaseGoogleLink:
             cluster_id=TEST_CLUSTER_ID,
             project_id=TEST_PROJECT_ID,
         )
-        session.add(ti)
-        session.commit()
+        task = dag_maker.dag.get_task(ti.task_id)
 
         expected_formatted = "https://console.cloud.google.com/expected/link?project=test-proj"
         with (
@@ -188,14 +186,14 @@ class TestOperatorWithBaseGoogleLink:
                 GoogleLink,
                 "get_config",
                 return_value={
-                    "project_id": ti.task.project_id,
-                    "location": ti.task.location,
-                    "cluster_id": ti.task.cluster_id,
+                    "project_id": task.project_id,
+                    "location": task.location,
+                    "cluster_id": task.cluster_id,
                 },
             ) as m_get_config,
             mock.patch.object(GoogleLink, "_format_link", return_value=expected_formatted) as m_fmt,
         ):
-            actual_url = link.get_link(operator=ti.task, ti_key=ti.key)
+            actual_url = link.get_link(operator=task, ti_key=ti.key)
 
         assert actual_url == expected_formatted
         m_get_config.assert_called_once()

@@ -1,0 +1,1 @@
+Add ``is_authorized_hitl_task()`` method to check whether a user a is authorized to approve a HITL task
