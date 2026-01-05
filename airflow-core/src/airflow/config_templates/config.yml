@@ -977,6 +977,14 @@ logging:
       type: string
       example: "fastapi,sqlalchemy"
       default: ""
+    worker_log_server_host:
+      description: |
+        The interface address on which the worker should start the log server.
+        If not set, it will default to 0.0.0.0 (or [::] for IPv6).
+      version_added: ~
+      type: string
+      example: "127.0.0.1"
+      default: ~
     worker_log_server_port:
       description: |
         When you start an Airflow worker, Airflow starts a tiny web server
