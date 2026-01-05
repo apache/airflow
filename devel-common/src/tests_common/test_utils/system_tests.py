@@ -78,6 +78,7 @@ def get_test_run(dag, **test_kwargs):
             s = Session()
             bundle_name = "testing"
             d = DagModel(dag_id=dag.dag_id, bundle_name=bundle_name)
+            d.timetable_type = ""
             s.add(d)
             s.commit()
             SerializedDagModel.write_dag(LazyDeserializedDAG.from_dag(dag), bundle_name=bundle_name)

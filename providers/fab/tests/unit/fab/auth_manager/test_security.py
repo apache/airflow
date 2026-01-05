@@ -150,6 +150,7 @@ def _delete_dag_bundle(bundle_name, session):
 
 def _create_dag_model(dag_id, bundle_name, session, security_manager):
     dag_model = DagModel(dag_id=dag_id, bundle_name=bundle_name)
+    dag_model.timetable_type = ""
     session.add(dag_model)
     session.commit()
     security_manager.sync_perm_for_dag(dag_id, access_control=None)
@@ -545,6 +546,7 @@ def test_get_accessible_dag_ids(mock_is_logged_in, app, security_manager, sessio
                     bundle_name="testing",
                     fileloc="/tmp/dag_.py",
                     schedule_interval="2 2 * * *",
+                    timetable_type="",
                 )
             else:  # Airflow 3.
                 dag_model = DagModel(
@@ -552,6 +554,7 @@ def test_get_accessible_dag_ids(mock_is_logged_in, app, security_manager, sessio
                     bundle_name="testing",
                     fileloc="/tmp/dag_.py",
                     timetable_summary="2 2 * * *",
+                    timetable_type="",
                 )
             session.add(dag_model)
             session.commit()
@@ -587,6 +590,7 @@ def test_dont_get_inaccessible_dag_ids_for_dag_resource_permission(
                     bundle_name="testing",
                     fileloc="/tmp/dag_.py",
                     schedule_interval="2 2 * * *",
+                    timetable_type="",
                 )
             else:  # Airflow 3.
                 dag_model = DagModel(
@@ -594,6 +598,7 @@ def test_dont_get_inaccessible_dag_ids_for_dag_resource_permission(
                     bundle_name="testing",
                     fileloc="/tmp/dag_.py",
                     timetable_summary="2 2 * * *",
+                    timetable_type="",
                 )
             session.add(dag_model)
             session.commit()
@@ -1096,7 +1101,9 @@ def test_permissions_work_for_dags_with_dot_in_dagname(
             role_name=role_name,
         ) as user:
             dag1 = DagModel(dag_id=dag_id, bundle_name=bundle_name)
+            dag1.timetable_type = ""
             dag2 = DagModel(dag_id=dag_id_2, bundle_name=bundle_name)
+            dag2.timetable_type = ""
             session.add_all([dag1, dag2])
             session.commit()
             security_manager.bulk_sync_roles(mock_roles)
