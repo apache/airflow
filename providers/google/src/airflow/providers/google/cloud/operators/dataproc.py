@@ -65,9 +65,9 @@ from airflow.providers.google.cloud.utils.dataproc import DataprocOperationType
 from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID
 
 try:
-    from airflow.utils import timezone
-except ImportError:
     from airflow.sdk import timezone
+except ImportError:
+    from airflow.utils import timezone
 
 if TYPE_CHECKING:
     from google.api_core import operation
