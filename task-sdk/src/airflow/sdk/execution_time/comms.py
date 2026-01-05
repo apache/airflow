@@ -240,6 +240,8 @@ class CommsDecoder(Generic[ReceiveMsgType, SendMsgType]):
                     # Blocking read in a thread
                     frame, fds = await asyncio.to_thread(self._read_frame, maxfds=1)
                     resp = self._from_frame(frame)
+                    if TYPE_CHECKING:
+                        assert isinstance(resp, SentFDs)
                     resp.fds = fds
                     return resp  # type: ignore[return-value]
 
