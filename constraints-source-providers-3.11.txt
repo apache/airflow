@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2026-01-04T19:44:53.522179
+# This constraints file was automatically generated on 2026-01-05T02:25:08.080488
 # via `uv sync --resolution highest for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider distributions.
@@ -88,7 +88,6 @@ asgiref==3.11.0
 asn1crypto==1.5.1
 astroid==3.3.11
 asttokens==3.0.1
-async-property==0.2.2
 async-timeout==4.0.3
 asyncpg==0.31.0
 asyncssh==2.22.0
@@ -541,7 +540,7 @@ python-dateutil==2.9.0.post0
 python-dotenv==1.2.1
 python-http-client==3.3.7
 python-jenkins==1.8.3
-python-keycloak==6.0.0
+python-keycloak==7.0.0
 python-ldap==3.4.5
 python-multipart==0.0.21
 python-on-whales==0.79.0
