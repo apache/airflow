@@ -32,14 +32,17 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 from airflow import settings
-from airflow._shared.module_loading import import_string, qualname
+from airflow._shared.module_loading import (
+    entry_points_with_dist,
+    find_path_from_directory,
+    import_string,
+    qualname,
+)
 from airflow.configuration import conf
 from airflow.task.priority_strategy import (
     PriorityWeightStrategy,
     airflow_priority_weight_strategies,
 )
-from airflow.utils.entry_points import entry_points_with_dist
-from airflow.utils.file import find_path_from_directory
 
 if TYPE_CHECKING:
     from airflow.lineage.hook import HookLineageReader
@@ -206,7 +209,8 @@ def _load_plugins_from_plugin_directory() -> tuple[list[AirflowPlugin], dict[str
     if settings.PLUGINS_FOLDER is None:
         raise ValueError("Plugins folder is not set")
     log.debug("Loading plugins from directory: %s", settings.PLUGINS_FOLDER)
-    files = find_path_from_directory(settings.PLUGINS_FOLDER, ".airflowignore")
+    ignore_file_syntax = conf.get_mandatory_value("core", "DAG_IGNORE_FILE_SYNTAX", fallback="glob")
+    files = find_path_from_directory(settings.PLUGINS_FOLDER, ".airflowignore", ignore_file_syntax)
     plugin_search_locations: list[tuple[str, Generator[str, None, None]]] = [("", files)]
 
     if conf.getboolean("core", "LOAD_EXAMPLES"):
@@ -214,7 +218,7 @@ def _load_plugins_from_plugin_directory() -> tuple[list[AirflowPlugin], dict[str
         from airflow.example_dags import plugins as example_plugins
 
         example_plugins_folder = next(iter(example_plugins.__path__))
-        example_files = find_path_from_directory(example_plugins_folder, ".airflowignore")
+        example_files = find_path_from_directory(example_plugins_folder, ".airflowignore", ignore_file_syntax)
         plugin_search_locations.append((example_plugins.__name__, example_files))
 
     plugins: list[AirflowPlugin] = []

@@ -20,14 +20,10 @@ function make_mnt_writeable {
     echo "Investigating node disks"
     lsblk
     sudo blkid
-    echo "Check that we have expected /mnt to be a separate mount"
-    if ! lsblk | grep -q /mnt; then
-        echo "/mnt is missing as a separate mount, runner misconfigured!"
-        exit 42
-    fi
     echo "Checking free space!"
     df -H
     echo "Cleaning /mnt just in case it is not empty"
+    sudo mkdir -p /mnt
     sudo rm -rf /mnt/*
     echo "Checking free space!"
     df -H

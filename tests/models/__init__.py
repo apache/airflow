@@ -14,13 +14,3 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Re-export entry_points utilities from shared library for backward compatibility."""
-
-from __future__ import annotations
-
-from airflow._shared.module_loading import (
-    EPnD as EPnD,
-    _get_grouped_entry_points as _get_grouped_entry_points,
-    entry_points_with_dist as entry_points_with_dist,
-    metadata as metadata,
-)
