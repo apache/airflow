@@ -17,7 +17,7 @@
 # under the License.
 
 """
-Add ``next_trigger_id`` to ``task_instance`` table.
+Add ``next_trigger_id`` column to ``task_instance`` table.
 
 Revision ID: 658517c60c7f
 Revises: edc4f85a4619
@@ -38,10 +38,10 @@ airflow_version = "3.2.0"
 
 
 def upgrade():
-    """Apply Add ``next_trigger_id`` to ``task_instance`` table."""
+    """Add ``next_trigger_id`` column to ``task_instance`` table."""
     op.add_column("task_instance", sa.Column("next_trigger_id", sa.Integer(), nullable=True))
 
 
 def downgrade():
-    """Unapply Add ``next_trigger_id`` to ``task_instance`` table."""
+    """Remove ``next_trigger_id`` column from ``task_instance`` table."""
     op.drop_column("task_instance", "next_trigger_id")
