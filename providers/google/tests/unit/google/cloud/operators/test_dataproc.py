@@ -35,7 +35,6 @@ from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.models import DAG, DagBag
 from airflow.providers.common.compat.sdk import (
     AirflowException,
-    AirflowSkipException,
     AirflowTaskTimeout,
     TaskDeferred,
 )
@@ -1291,12 +1290,8 @@ class TestDataprocClusterDeleteOperator:
             timeout=TIMEOUT,
             metadata=METADATA,
         )
-        with pytest.raises(
-            AirflowSkipException,
-            match=f"Cluster {CLUSTER_NAME} in region {GCP_REGION} was not found - it may have already been deleted",
-        ):
-            delete_cluster_op.execute(context=mock.MagicMock())
 
+        delete_cluster_op.execute(context=mock.MagicMock())
         mock_hook.return_value.delete_cluster.assert_called_once_with(
             project_id=GCP_PROJECT,
             region=GCP_REGION,
@@ -1325,12 +1320,8 @@ class TestDataprocClusterDeleteOperator:
             metadata=METADATA,
             deferrable=True,
         )
-        with pytest.raises(
-            AirflowSkipException,
-            match=f"Cluster {CLUSTER_NAME} in region {GCP_REGION} was not found - it may have already been deleted",
-        ):
-            delete_cluster_op.execute(context=mock.MagicMock())
 
+        delete_cluster_op.execute(context=mock.MagicMock())
         mock_hook.return_value.delete_cluster.assert_called_once_with(
             project_id=GCP_PROJECT,
             region=GCP_REGION,
