@@ -277,8 +277,8 @@ def integrate_macros_plugins(
 
         if macros_module_instance:
             sys.modules[macros_module_instance.__name__] = macros_module_instance
-            # Register the newly created module on airflow.macros such that it
-            # can be accessed when rendering templates.
+            # Register the newly created module on the provided macros module
+            # so it can be accessed when rendering templates.
             setattr(macros_module, plugin.name, macros_module_instance)
 
 
