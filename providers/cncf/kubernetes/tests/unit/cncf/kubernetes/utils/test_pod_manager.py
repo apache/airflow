@@ -38,8 +38,7 @@ from airflow.providers.cncf.kubernetes.utils.pod_manager import (
     log_pod_event,
     parse_log_line,
 )
-from airflow.providers.common.compat.sdk import AirflowException
-from airflow.utils.timezone import utc
+from airflow.providers.common.compat.sdk import AirflowException, timezone
 
 from unit.cncf.kubernetes.test_callbacks import MockKubernetesPodOperatorCallback, MockWrapper
 
@@ -1422,43 +1421,43 @@ class TestPodLogsConsumer:
         [
             (
                 False,
-                datetime(2022, 1, 1, 0, 0, 0, 0, tzinfo=utc),
-                datetime(2022, 1, 1, 0, 1, 0, 0, tzinfo=utc),
+                datetime(2022, 1, 1, 0, 0, 0, 0, tzinfo=timezone.utc),
+                datetime(2022, 1, 1, 0, 1, 0, 0, tzinfo=timezone.utc),
                 120,
                 True,
             ),
             (
                 False,
-                datetime(2022, 1, 1, 0, 0, 0, 0, tzinfo=utc),
-                datetime(2022, 1, 1, 0, 2, 0, 0, tzinfo=utc),
+                datetime(2022, 1, 1, 0, 0, 0, 0, tzinfo=timezone.utc),
+                datetime(2022, 1, 1, 0, 2, 0, 0, tzinfo=timezone.utc),
                 120,
                 False,
             ),
             (
                 False,
-                datetime(2022, 1, 1, 0, 0, 0, 0, tzinfo=utc),
-                datetime(2022, 1, 1, 0, 5, 0, 0, tzinfo=utc),
+                datetime(2022, 1, 1, 0, 0, 0, 0, tzinfo=timezone.utc),
+                datetime(2022, 1, 1, 0, 5, 0, 0, tzinfo=timezone.utc),
                 120,
                 False,
             ),
             (
                 True,
-                datetime(2022, 1, 1, 0, 0, 0, 0, tzinfo=utc),
-                datetime(2022, 1, 1, 0, 1, 0, 0, tzinfo=utc),
+                datetime(2022, 1, 1, 0, 0, 0, 0, tzinfo=timezone.utc),
+                datetime(2022, 1, 1, 0, 1, 0, 0, tzinfo=timezone.utc),
                 120,
                 True,
             ),
             (
                 True,
-                datetime(2022, 1, 1, 0, 0, 0, 0, tzinfo=utc),
-                datetime(2022, 1, 1, 0, 2, 0, 0, tzinfo=utc),
+                datetime(2022, 1, 1, 0, 0, 0, 0, tzinfo=timezone.utc),
+                datetime(2022, 1, 1, 0, 2, 0, 0, tzinfo=timezone.utc),
                 120,
                 True,
             ),
             (
                 True,
-                datetime(2022, 1, 1, 0, 0, 0, 0, tzinfo=utc),
-                datetime(2022, 1, 1, 0, 5, 0, 0, tzinfo=utc),
+                datetime(2022, 1, 1, 0, 0, 0, 0, tzinfo=timezone.utc),
+                datetime(2022, 1, 1, 0, 5, 0, 0, tzinfo=timezone.utc),
                 120,
                 True,
             ),
@@ -1501,43 +1500,43 @@ class TestPodLogsConsumer:
         [
             (
                 120,
-                datetime(2023, 1, 1, 0, 0, 0, 0, tzinfo=utc),
-                datetime(2023, 1, 1, 0, 1, 0, 0, tzinfo=utc),
+                datetime(2023, 1, 1, 0, 0, 0, 0, tzinfo=timezone.utc),
+                datetime(2023, 1, 1, 0, 1, 0, 0, tzinfo=timezone.utc),
                 ["Read pod #0", "Read pod #1"],
                 ["Read pod #0", "Read pod #0"],
             ),
             (
                 120,
-                datetime(2023, 1, 1, 0, 0, 0, 0, tzinfo=utc),
-                datetime(2023, 1, 1, 0, 2, 0, 0, tzinfo=utc),
+                datetime(2023, 1, 1, 0, 0, 0, 0, tzinfo=timezone.utc),
+                datetime(2023, 1, 1, 0, 2, 0, 0, tzinfo=timezone.utc),
                 ["Read pod #0", "Read pod #1"],
                 ["Read pod #0", "Read pod #0"],
             ),
             (
                 120,
-                datetime(2023, 1, 1, 0, 0, 0, 0, tzinfo=utc),
-                datetime(2023, 1, 1, 0, 3, 0, 0, tzinfo=utc),
+                datetime(2023, 1, 1, 0, 0, 0, 0, tzinfo=timezone.utc),
+                datetime(2023, 1, 1, 0, 3, 0, 0, tzinfo=timezone.utc),
                 ["Read pod #0", "Read pod #1"],
                 ["Read pod #0", "Read pod #1"],
             ),
             (
                 2,
-                datetime(2023, 1, 1, 0, 0, 0, 0, tzinfo=utc),
-                datetime(2023, 1, 1, 0, 0, 1, 0, tzinfo=utc),
+                datetime(2023, 1, 1, 0, 0, 0, 0, tzinfo=timezone.utc),
+                datetime(2023, 1, 1, 0, 0, 1, 0, tzinfo=timezone.utc),
                 ["Read pod #0", "Read pod #1"],
                 ["Read pod #0", "Read pod #0"],
             ),
             (
                 2,
-                datetime(2023, 1, 1, 0, 0, 0, 0, tzinfo=utc),
-                datetime(2023, 1, 1, 0, 0, 2, 0, tzinfo=utc),
+                datetime(2023, 1, 1, 0, 0, 0, 0, tzinfo=timezone.utc),
+                datetime(2023, 1, 1, 0, 0, 2, 0, tzinfo=timezone.utc),
                 ["Read pod #0", "Read pod #1"],
                 ["Read pod #0", "Read pod #0"],
             ),
             (
                 2,
-                datetime(2023, 1, 1, 0, 0, 0, 0, tzinfo=utc),
-                datetime(2023, 1, 1, 0, 0, 3, 0, tzinfo=utc),
+                datetime(2023, 1, 1, 0, 0, 0, 0, tzinfo=timezone.utc),
+                datetime(2023, 1, 1, 0, 0, 3, 0, tzinfo=timezone.utc),
                 ["Read pod #0", "Read pod #1"],
                 ["Read pod #0", "Read pod #1"],
             ),

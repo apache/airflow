@@ -732,7 +732,7 @@ class TestGKEStartPodOperator:
     @mock.patch(GKE_OPERATORS_PATH.format("GKEClusterAuthDetails.fetch_cluster_info"))
     @mock.patch(GKE_OPERATORS_PATH.format("GKEHook"))
     @mock.patch(GKE_OPERATORS_PATH.format("GKEStartPodTrigger"))
-    @mock.patch(GKE_OPERATORS_PATH.format("utcnow"))
+    @mock.patch(GKE_OPERATORS_PATH.format("timezone.utcnow"))
     def test_invoke_defer_method(
         self, mock_utcnow, mock_trigger, mock_cluster_hook, mock_fetch_cluster_info, mock_defer
     ):
