@@ -17,7 +17,7 @@
 # under the License.
 
 """
-Add next trigger id to task instance table.
+Add ``next_trigger_id`` to ``task_instance`` table.
 
 Revision ID: 658517c60c7f
 Revises: edc4f85a4619
