@@ -641,6 +641,7 @@ workers:
   replicas: 1
 
   # Max number of old Airflow Celery workers ReplicaSets to retain
+  # (deprecated, use `workers.celery.revisionHistoryLimit` instead)
   revisionHistoryLimit: ~
 
   # Command to use when running Airflow Celery workers and using pod-template-file (templated)
@@ -1013,6 +1014,9 @@ workers:
   celery:
     # Number of Airflow Celery workers
     replicas: 1
+
+    # Max number of old Airflow Celery workers ReplicaSets to retain
+    revisionHistoryLimit: ~
 
     # Create ServiceAccount for Airflow Celery workers
     serviceAccount:

@@ -46,22 +46,65 @@ class TestWorker:
 
         assert kind == jmespath.search("kind", docs[0])
 
-    @pytest.mark.parametrize(
-        ("revision_history_limit", "global_revision_history_limit"),
-        [(8, 10), (10, 8), (8, None), (None, 10), (None, None)],
-    )
-    def test_revision_history_limit(self, revision_history_limit, global_revision_history_limit):
-        values = {"workers": {}}
-        if revision_history_limit:
-            values["workers"]["revisionHistoryLimit"] = revision_history_limit
-        if global_revision_history_limit:
-            values["revisionHistoryLimit"] = global_revision_history_limit
+    def test_revision_history_limit_default(self):
         docs = render_chart(
-            values=values,
             show_only=["templates/workers/worker-deployment.yaml"],
         )
-        expected_result = revision_history_limit or global_revision_history_limit
-        assert jmespath.search("spec.revisionHistoryLimit", docs[0]) == expected_result
+
+        assert jmespath.search("spec.revisionHistoryLimit", docs[0]) is None
+
+    def test_revision_history_limit_global_unset(self):
+        docs = render_chart(
+            values={"revisionHistoryLimit": None},
+            show_only=["templates/workers/worker-deployment.yaml"],
+        )
+
+        assert jmespath.search("spec.revisionHistoryLimit", docs[0]) is None
+
+    def test_revision_history_limit_global(self):
+        docs = render_chart(
+            values={"revisionHistoryLimit": 8},
+            show_only=["templates/workers/worker-deployment.yaml"],
+        )
+
+        assert jmespath.search("spec.revisionHistoryLimit", docs[0]) == 8
+
+    @pytest.mark.parametrize(
+        ("values", "expected"),
+        [
+            ({"revisionHistoryLimit": 8}, 8),
+            ({"celery": {"revisionHistoryLimit": 8}}, 8),
+        ],
+    )
+    def test_revision_history_limit(self, values, expected):
+        docs = render_chart(
+            values={"workers": values},
+            show_only=["templates/workers/worker-deployment.yaml"],
+        )
+
+        assert jmespath.search("spec.revisionHistoryLimit", docs[0]) == expected
+
+    @pytest.mark.parametrize(
+        ("worker_values", "global_limit", "expected"),
+        [
+            ({"revisionHistoryLimit": 8}, 10, 8),
+            ({"celery": {"revisionHistoryLimit": 8}}, 10, 8),
+            ({"revisionHistoryLimit": 8, "celery": {"revisionHistoryLimit": 6}}, 10, 6),
+            ({"revisionHistoryLimit": None, "celery": {"revisionHistoryLimit": 6}}, 10, 6),
+            ({"revisionHistoryLimit": 8, "celery": {"revisionHistoryLimit": None}}, 10, 8),
+            ({"revisionHistoryLimit": None, "celery": {"revisionHistoryLimit": None}}, 10, 10),
+        ],
+    )
+    def test_revision_history_limit_overwrite(self, worker_values, global_limit, expected):
+        docs = render_chart(
+            values={
+                "revisionHistoryLimit": global_limit,
+                "workers": worker_values,
+            },
+            show_only=["templates/workers/worker-deployment.yaml"],
+        )
+
+        assert jmespath.search("spec.revisionHistoryLimit", docs[0]) == expected
 
     def test_should_add_extra_containers(self):
         docs = render_chart(
