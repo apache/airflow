@@ -270,22 +270,21 @@ class TestVaultSecrets:
         Test that if the 'value' key is not present in Vault, _VaultClient.get_variable
         should log a warning and return None
         """
-        mock_client = mock.MagicMock()
-        mock_hvac.Client.return_value = mock_client
+        mock_hvac.Client.return_value = mock.MagicMock()
         mock_logger = mock.MagicMock()
         mock_get_logger.return_value = mock_logger
 
-        kwargs = {
-            "variables_path": "variables",
-            "mount_point": "airflow",
-            "auth_type": "token",
-            "url": "http://127.0.0.1:8200",
-            "token": "s.7AU0I51yv1Q1lxOIg1F3ZRAS",
-        }
-        test_client = VaultBackend(**kwargs)
+        test_client = VaultBackend(
+            **{
+                "variables_path": "variables",
+                "mount_point": "airflow",
+                "auth_type": "token",
+                "url": "http://127.0.0.1:8200",
+                "token": "s.7AU0I51yv1Q1lxOIg1F3ZRAS",
+            }
+        )
         test_client._log = mock_logger
-        response = {"test_key": "data"}
-        test_client.vault_client.get_secret = mock.MagicMock(return_value=response)
+        test_client.vault_client.get_secret = mock.MagicMock(return_value={"test_key": "data"})
         result = test_client.get_variable("hello")
         assert result is None
         mock_logger.warning.assert_called_with(
