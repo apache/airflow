@@ -41,8 +41,11 @@ def serve_logs(port=None):
         setproctitle("airflow serve-logs")
 
     port = port or conf.getint("logging", "WORKER_LOG_SERVER_PORT")
+    host = conf.get('logging', 'WORKER_LOG_SERVER_HOST', fallback=None)
 
-    if socket.has_dualstack_ipv6():
+    if host:
+        serve_log_uri = f"http://{host}:{port}"
+    elif socket.has_dualstack_ipv6():
         serve_log_uri = f"http://[::]:{port}"
     else:
         serve_log_uri = f"http://0.0.0.0:{port}"
