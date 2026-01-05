@@ -16,8 +16,8 @@
 # specific language governing permissions and limitations
 # under the License.
 """
-Example DAG demonstrating the usage of the TaskFlow API to execute Python functions natively and within a
-virtual environment.
+Example DAG demonstrating the usage of the TaskFlow API to execute Python functions
+natively and within a virtual environment.
 """
 
 from __future__ import annotations
@@ -41,6 +41,22 @@ PATH_TO_PYTHON_BINARY = sys.executable
     start_date=pendulum.datetime(2021, 1, 1, tz="UTC"),
     catchup=False,
     tags=["example"],
+    doc_md="""
+    ### Python Decorator Example
+
+    This example DAG demonstrates how to use the TaskFlow API
+    with the `@task` decorator to define Python tasks in a clean
+    and Pythonic way.
+
+    **What this DAG demonstrates:**
+    - Creating tasks using the `@task` decorator
+    - Passing data and context between tasks
+    - Using templated fields in Python tasks
+    - Running tasks in virtual environments and external Python interpreters
+
+    📖 Related documentation:
+    https://airflow.apache.org/docs/apache-airflow/stable/tutorial/taskflow.html
+    """
 )
 def example_python_decorator():
     # [START howto_operator_python]
@@ -63,31 +79,30 @@ def example_python_decorator():
     # [END howto_operator_python_render_sql]
 
     # [START howto_operator_python_kwargs]
-    # Generate 5 sleeping tasks, sleeping from 0.0 to 0.4 seconds respectively
     @task
     def my_sleeping_function(random_base):
-        """This is a function that will run within the DAG execution"""
+        """This is a function that will run within the DAG execution."""
         time.sleep(random_base)
 
     for i in range(5):
         sleeping_task = my_sleeping_function.override(task_id=f"sleep_for_{i}")(random_base=i / 10)
-
         run_this >> log_the_sql >> sleeping_task
     # [END howto_operator_python_kwargs]
 
     # [START howto_operator_python_venv]
     @task.virtualenv(
-        task_id="virtualenv_python", requirements=["colorama==0.4.0"], system_site_packages=False
+        task_id="virtualenv_python",
+        requirements=["colorama==0.4.0"],
+        system_site_packages=False,
     )
     def callable_virtualenv():
         """
         Example function that will be performed in a virtual environment.
 
-        Importing at the module level ensures that it will not attempt to import the
-        library before it is installed.
+        Importing at the module level ensures that it will not attempt
+        to import the library before it is installed.
         """
         from time import sleep
-
         from colorama import Back, Fore, Style
 
         print(Fore.RED + "some red text")
@@ -108,10 +123,8 @@ def example_python_decorator():
     @task.external_python(task_id="external_python", python=PATH_TO_PYTHON_BINARY)
     def callable_external_python():
         """
-        Example function that will be performed in a virtual environment.
-
-        Importing at the module level ensures that it will not attempt to import the
-        library before it is installed.
+        Example function that will be performed using an external
+        Python interpreter.
         """
         import sys
         from time import sleep
