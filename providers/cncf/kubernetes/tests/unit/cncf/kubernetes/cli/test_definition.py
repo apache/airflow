@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import importlib
 from datetime import datetime
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -27,15 +28,29 @@ from airflow.providers.cncf.kubernetes.cli.definition import (
     get_kubernetes_cli_commands,
 )
 
-from tests_common.test_utils.cli import skip_cli_test_marker
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V_3_2_PLUS
 
 
-@skip_cli_test_marker("airflow.providers.cncf.kubernetes.cli.definition", "Kubernetes")
 class TestKubernetesCliDefinition:
     @pytest.fixture(autouse=True)
     def setup_parser(self):
-        importlib.reload(cli_parser)
-        self.arg_parser = cli_parser.get_parser()
+        if AIRFLOW_V_3_2_PLUS:
+            importlib.reload(cli_parser)
+            cli_parser.get_parser.cache_clear()
+            self.arg_parser = cli_parser.get_parser()
+        else:
+            with patch(
+                "airflow.executors.executor_loader.ExecutorLoader.get_executor_names",
+            ) as mock_get_executor_names:
+                mock_get_executor_names.return_value = [
+                    MagicMock(
+                        name="KubernetesExecutor",
+                        module_path="airflow.providers.cncf.kubernetes.executors.kubernetes_executor.KubernetesExecutor",
+                    )
+                ]
+                importlib.reload(cli_parser)
+                cli_parser.get_parser.cache_clear()
+                self.arg_parser = cli_parser.get_parser()
 
     def test_kubernetes_cli_commands_count(self):
         """Test that get_kubernetes_cli_commands returns exactly 1 GroupCommand."""
@@ -85,29 +100,29 @@ class TestKubernetesCliDefinition:
 
     def test_generate_dag_yaml_command_args(self):
         """Test generate-dag-yaml command with various arguments."""
-        params = [
-            "kubernetes",
-            "generate-dag-yaml",
-            "--output-path",
-            "/tmp/output",
-            "my_dag",
-        ]
-        args = self.arg_parser.parse_args(params)
-        assert args.dag_id == "my_dag"
-        assert args.output_path == "/tmp/output"
+        if AIRFLOW_V_3_0_PLUS:
+            params = [
+                "kubernetes",
+                "generate-dag-yaml",
+                "my_dag",
+                "--logical-date",
+                "2024-01-01T00:00:00+00:00",
+                "--output-path",
+                "/tmp/output",
+            ]
+            args = self.arg_parser.parse_args(params)
+            assert args.logical_date == datetime.fromisoformat("2024-01-01T00:00:00+00:00")
+        else:
+            params = [
+                "kubernetes",
+                "generate-dag-yaml",
+                "--output-path",
+                "/tmp/output",
+                "my_dag",
+                "2024-01-01T00:00:00+00:00",
+            ]
+            args = self.arg_parser.parse_args(params)
+            assert args.execution_date == datetime.fromisoformat("2024-01-01T00:00:00+00:00")
 
-    def test_generate_dag_yaml_command_with_logical_date(self):
-        """Test generate-dag-yaml command with logical-date argument."""
-        params = [
-            "kubernetes",
-            "generate-dag-yaml",
-            "--logical-date",
-            "2024-01-01T00:00:00+00:00",
-            "--output-path",
-            "/tmp/output",
-            "my_dag",
-        ]
-        args = self.arg_parser.parse_args(params)
         assert args.dag_id == "my_dag"
-        assert args.logical_date == datetime.fromisoformat("2024-01-01T00:00:00+00:00")
         assert args.output_path == "/tmp/output"

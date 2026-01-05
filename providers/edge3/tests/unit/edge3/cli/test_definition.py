@@ -17,21 +17,35 @@
 from __future__ import annotations
 
 import importlib
+from unittest.mock import MagicMock, patch
 
 import pytest
 
 from airflow.cli import cli_parser
 from airflow.providers.edge3.cli.definition import EDGE_COMMANDS, get_edge_cli_commands
 
-from tests_common.test_utils.cli import skip_cli_test_marker
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_2_PLUS
 
 
-@skip_cli_test_marker("airflow.providers.edge3.cli.definition", "edge3")
 class TestEdgeCliDefinition:
     @pytest.fixture(autouse=True)
     def setup_parser(self):
-        importlib.reload(cli_parser)
-        self.arg_parser = cli_parser.get_parser()
+        if AIRFLOW_V_3_2_PLUS:
+            importlib.reload(cli_parser)
+            cli_parser.get_parser.cache_clear()
+            self.arg_parser = cli_parser.get_parser()
+        else:
+            with patch(
+                "airflow.executors.executor_loader.ExecutorLoader.get_executor_names",
+            ) as mock_get_executor_names:
+                mock_get_executor_names.return_value = [
+                    MagicMock(
+                        name="EdgeExecutor", module_path="airflow.providers.edge3.executors.EdgeExecutor"
+                    )
+                ]
+                importlib.reload(cli_parser)
+                cli_parser.get_parser.cache_clear()
+                self.arg_parser = cli_parser.get_parser()
 
     def test_edge_cli_commands_count(self):
         """Test that get_edge_cli_commands returns exactly 1 GroupCommand."""

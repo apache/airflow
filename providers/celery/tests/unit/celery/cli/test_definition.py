@@ -23,12 +23,29 @@ import pytest
 from airflow.cli import cli_parser
 from airflow.providers.celery.cli.definition import CELERY_CLI_COMMANDS, CELERY_COMMANDS
 
+from tests_common.test_utils.config import conf_vars
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_2_PLUS
+
 
 class TestCeleryCliDefinition:
     @pytest.fixture(autouse=True)
     def setup_parser(self):
-        importlib.reload(cli_parser)
-        self.arg_parser = cli_parser.get_parser()
+        if AIRFLOW_V_3_2_PLUS:
+            importlib.reload(cli_parser)
+            cli_parser.get_parser.cache_clear()
+            self.arg_parser = cli_parser.get_parser()
+        else:
+            with conf_vars(
+                {
+                    (
+                        "core",
+                        "executor",
+                    ): "CeleryExecutor",
+                }
+            ):
+                importlib.reload(cli_parser)
+                cli_parser.get_parser.cache_clear()
+                self.arg_parser = cli_parser.get_parser()
 
     def test_celery_cli_commands_count(self):
         """Test that CELERY_CLI_COMMANDS contains exactly 1 GroupCommand."""

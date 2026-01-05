@@ -23,7 +23,6 @@ import pytest
 
 from airflow.cli import cli_parser
 
-from tests_common.test_utils.cli import skip_cli_test_marker
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_2_PLUS
 
@@ -32,37 +31,23 @@ try:
     from airflow.providers.fab.auth_manager.cli_commands import db_command
     from airflow.providers.fab.auth_manager.models.db import FABDBManager
 
-    @skip_cli_test_marker("airflow.providers.fab.cli.definition", "FAB")
     class TestFABCLiDB:
         @pytest.fixture(autouse=True)
-        def setup_provider_manager(self):
-            if AIRFLOW_V_3_2_PLUS:
-                from airflow.providers.fab.cli.definition import get_fab_cli_commands
-
-                with mock.patch(
-                    "airflow.providers_manager.ProvidersManager.cli_command_functions",
-                    new_callable=mock.PropertyMock,
-                ) as mock_cli_command_functions:
-                    mock_cli_command_functions.return_value = [get_fab_cli_commands]
-                    yield
-            else:
-                yield
-
-        @pytest.fixture(autouse=True)
         def setup_parser(self):
-            with conf_vars(
-                {
-                    (
-                        "core",
-                        "auth_manager",
-                    ): "airflow.providers.fab.auth_manager.fab_auth_manager.FabAuthManager",
-                }
-            ):
-                # Reload the module to use FAB auth manager
+            if AIRFLOW_V_3_2_PLUS:
                 reload(cli_parser)
-                # Clearing the cache before calling it
-                cli_parser.get_parser.cache_clear()
                 self.parser = cli_parser.get_parser()
+            else:
+                with conf_vars(
+                    {
+                        (
+                            "core",
+                            "auth_manager",
+                        ): "airflow.providers.fab.auth_manager.fab_auth_manager.FabAuthManager",
+                    }
+                ):
+                    reload(cli_parser)
+                    self.parser = cli_parser.get_parser()
 
         @mock.patch.object(FABDBManager, "resetdb")
         def test_cli_resetdb(self, mock_resetdb):

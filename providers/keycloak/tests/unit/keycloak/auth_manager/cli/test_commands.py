@@ -33,25 +33,28 @@ from airflow.providers.keycloak.auth_manager.cli.commands import (
 )
 from airflow.providers.keycloak.auth_manager.resources import KeycloakResource
 
-from tests_common.test_utils.cli import skip_cli_test_marker
 from tests_common.test_utils.config import conf_vars
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_2_PLUS
 
 
-@skip_cli_test_marker("airflow.providers.keycloak.cli.definition", "Keycloak")
 @pytest.mark.db_test
 class TestCommands:
-    @classmethod
-    def setup_class(cls):
-        with conf_vars(
-            {
-                (
-                    "core",
-                    "auth_manager",
-                ): "airflow.providers.keycloak.auth_manager.keycloak_auth_manager.KeycloakAuthManager",
-            }
-        ):
+    @pytest.fixture(autouse=True)
+    def setup_parser(self):
+        if AIRFLOW_V_3_2_PLUS:
             importlib.reload(cli_parser)
-            cls.arg_parser = cli_parser.get_parser()
+            self.arg_parser = cli_parser.get_parser()
+        else:
+            with conf_vars(
+                {
+                    (
+                        "core",
+                        "auth_manager",
+                    ): "airflow.providers.keycloak.auth_manager.keycloak_auth_manager.KeycloakAuthManager",
+                }
+            ):
+                importlib.reload(cli_parser)
+                self.arg_parser = cli_parser.get_parser()
 
     @patch("airflow.providers.keycloak.auth_manager.cli.commands._get_client")
     def test_create_scopes(self, mock_get_client):
