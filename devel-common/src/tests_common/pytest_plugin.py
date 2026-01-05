@@ -1536,6 +1536,7 @@ def create_task_instance(
                     **op_kwargs,
                 )
             else:
+                task_id = task.task_id
                 task.dag = dag
             task.start_from_trigger = start_from_trigger
             task.start_trigger_args = start_trigger_args
