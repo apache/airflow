@@ -788,6 +788,30 @@ workers:
     # Scaling behavior of the target in both Up and Down directions
     behavior: {}
 
+  vpa:
+    enabled: false
+    # Update mode
+    updateMode: "Initial"
+
+    # Define minimum and maximum resource allocations for the Scheduler VPA
+    resourcePolicy: {}
+    # minAllowed:
+    #   cpu: "250m"
+    #   memory: "100Mi"
+    # maxAllowed:
+    #   cpu: "500m"
+    #   memory: "600Mi"
+
+    # Specify resource limits for additional containers
+    extraContainers: []
+    # - containerName: test
+    #   minAllowed:
+    #     cpu: "250m"
+    #     memory: "100Mi"
+    #   maxAllowed:
+    #     cpu: "500m"
+    #     memory: "600Mi"
+
   # Persistence volume configuration for Airflow Celery workers
   persistence:
     # Enable persistent volumes
@@ -1215,6 +1239,30 @@ scheduler:
 
   # Labels specific to scheduler objects and pods
   labels: {}
+
+  vpa:
+    enabled: false
+    # Update mode
+    updateMode: "Initial"
+
+    # Define minimum and maximum resource allocations for the Scheduler VPA
+    resourcePolicy: {}
+    # minAllowed:
+    #   cpu: "250m"
+    #   memory: "100Mi"
+    # maxAllowed:
+    #   cpu: "500m"
+    #   memory: "600Mi"
+
+    # Specify resource limits for additional containers
+    extraContainers: []
+    # - containerName: test
+    #   minAllowed:
+    #     cpu: "250m"
+    #     memory: "100Mi"
+    #   maxAllowed:
+    #     cpu: "500m"
+    #     memory: "600Mi"
 
   logGroomerSidecar:
     # Whether to deploy the Airflow scheduler log groomer sidecar.
@@ -1726,6 +1774,29 @@ webserver:
     # Scaling behavior of the target in both Up and Down directions
     behavior: {}
 
+  vpa:
+    enabled: false
+    # Update mode
+    updateMode: "Initial"
+
+    # Define minimum and maximum resource allocations for the Scheduler VPA
+    resourcePolicy: {}
+    # minAllowed:
+    #   cpu: "250m"
+    #   memory: "100Mi"
+    # maxAllowed:
+    #   cpu: "500m"
+    #   memory: "600Mi"
+
+    # Specify resource limits for additional containers
+    extraContainers: []
+    # - containerName: test
+    #   minAllowed:
+    #     cpu: "250m"
+    #     memory: "100Mi"
+    #   maxAllowed:
+    #     cpu: "500m"
+    #     memory: "600Mi"
 
   # Create ServiceAccount
   serviceAccount:
