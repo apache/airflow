@@ -1000,7 +1000,9 @@ class DataprocDeleteClusterOperator(GoogleCloudBaseOperator):
 
         except NotFound:
             self.log.info(
-                "Cluster %s not found in region %s. Skipping deletion.", self.cluster_name, self.region
+                "Cluster %s not found in region %s. might have been deleted already.",
+                self.cluster_name,
+                self.region,
             )
             return
 
