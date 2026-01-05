@@ -28,7 +28,7 @@ from pyexasol import ExaConnection, ExaStatement
 try:
     from sqlalchemy.engine import URL
 except ImportError:
-    URL = None
+    URL = None  # type: ignore[assignment,misc]
 
 from airflow.exceptions import AirflowOptionalProviderFeatureException, AirflowProviderDeprecationWarning
 from airflow.providers.common.sql.hooks.handlers import return_single_query_results

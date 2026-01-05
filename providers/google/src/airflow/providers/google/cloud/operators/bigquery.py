@@ -1486,7 +1486,7 @@ class BigQueryCreateEmptyDatasetOperator(GoogleCloudBaseOperator):
             create_new_dataset = BigQueryCreateEmptyDatasetOperator(
                 dataset_id='new-dataset',
                 project_id='my-project',
-                dataset_reference={"friendlyName": "New Dataset"}
+                dataset_reference={"friendlyName": "New Dataset"},
                 gcp_conn_id='_my_gcp_conn_',
                 task_id='newDatasetCreator',
                 dag=dag)
