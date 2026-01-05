@@ -21,7 +21,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 from airflow import settings
-from airflow.utils.file import find_path_from_directory
+from airflow._shared.module_loading import find_path_from_directory
 
 
 def populate_dir(root_path):

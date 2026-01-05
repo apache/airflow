@@ -367,14 +367,6 @@ core:
       type: boolean
       example: ~
       default: "False"
-    min_serialized_dag_fetch_interval:
-      description: |
-        Fetching serialized DAG can not be faster than a minimum interval to reduce database
-        read rate. This config controls when your DAGs are updated in the Webserver
-      version_added: 1.10.12
-      type: integer
-      example: ~
-      default: "10"
     max_num_rendered_ti_fields_per_task:
       description: |
         Maximum number of Rendered Task Instance Fields (Template Fields) per task to store
@@ -1451,9 +1443,9 @@ api:
       default: "{SECRET_KEY}"
     expose_config:
       description: |
-        Expose the configuration file in the web server. Set to ``non-sensitive-only`` to show all values
-        except those that have security implications. ``True`` shows all values. ``False`` hides the
-        configuration completely.
+        Expose the configuration file in the web server. Set to ``True`` to expose configuration with
+        sensitive values always masked. The deprecated value ``non-sensitive-only`` is treated the same as
+        ``True`` for backward compatibility. ``False`` hides the configuration completely.
       version_added: ~
       type: string
       example: ~
@@ -2403,6 +2395,15 @@ triggerer:
       type: integer
       example: ~
       default: "50"
+    queues_enabled:
+      description: |
+        When set to True, deferred tasks will register triggers with the task queue they originated from,
+        and triggerers can selectively run triggers based on their queue assignment. Only relevant when using
+        executors which support task queue assignment. For more details, refer to the trigger docs.
+      version_added: 3.2.0
+      type: boolean
+      example: ~
+      default: "False"
 kerberos:
   description: ~
   options:

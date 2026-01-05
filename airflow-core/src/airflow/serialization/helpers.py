@@ -116,10 +116,9 @@ def find_registered_custom_timetable(importable_string: str) -> type[CoreTimetab
     """Find a user-defined custom timetable class registered via a plugin."""
     from airflow import plugins_manager
 
-    plugins_manager.initialize_timetables_plugins()
-    if plugins_manager.timetable_classes is not None:
-        with contextlib.suppress(KeyError):
-            return plugins_manager.timetable_classes[importable_string]
+    timetable_classes = plugins_manager.get_timetables_plugins()
+    with contextlib.suppress(KeyError):
+        return timetable_classes[importable_string]
     raise TimetableNotRegistered(importable_string)
 
 

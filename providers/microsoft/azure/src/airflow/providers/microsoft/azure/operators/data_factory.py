@@ -22,13 +22,13 @@ from collections.abc import Sequence
 from functools import cached_property
 from typing import TYPE_CHECKING, Any
 
-from airflow.configuration import conf
 from airflow.providers.common.compat.sdk import (
     AirflowException,
     BaseHook,
     BaseOperator,
     BaseOperatorLink,
     XCom,
+    conf,
 )
 from airflow.providers.microsoft.azure.hooks.data_factory import (
     AzureDataFactoryHook,
@@ -41,7 +41,7 @@ from airflow.utils.log.logging_mixin import LoggingMixin
 
 if TYPE_CHECKING:
     from airflow.models.taskinstancekey import TaskInstanceKey
-    from airflow.utils.context import Context
+    from airflow.sdk import Context
 
 
 class AzureDataFactoryPipelineRunLink(LoggingMixin, BaseOperatorLink):

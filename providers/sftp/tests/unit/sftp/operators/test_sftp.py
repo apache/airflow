@@ -138,16 +138,16 @@ class TestSFTPOperator:
                 do_xcom_push=True,
             )
 
-        tis = {ti.task_id: ti for ti in dag_maker.create_dagrun().task_instances}
-        tis["put_test_task"].run()
-        tis["check_file_task"].run()
+        dr = dag_maker.create_dagrun()
+        dag_maker.run_ti("put_test_task", dr)
+        check_file_task_ti = dag_maker.run_ti("check_file_task", dr)
 
-        pulled = tis["check_file_task"].xcom_pull(task_ids="check_file_task", key="return_value")
+        pulled = check_file_task_ti.xcom_pull(task_ids="check_file_task", key="return_value")
         assert pulled.strip() == test_local_file_content
 
     @pytest.mark.skipif(AIRFLOW_V_3_0_PLUS, reason="Pickle support is removed in Airflow 3")
     @conf_vars({("core", "enable_xcom_pickling"): "True"})
-    def test_file_transfer_no_intermediate_dir_error_put(self, create_task_instance_of_operator):
+    def test_file_transfer_no_intermediate_dir_error_put(self, dag_maker):
         test_local_file_content = (
             b"This is local file content \n which is multiline "
             b"continuing....with other character\nanother line here \n this is last line"
@@ -158,20 +158,17 @@ class TestSFTPOperator:
 
         # Try to put test file to remote. This should raise an error with
         # "No such file" as the directory does not exist.
-        ti2 = create_task_instance_of_operator(
-            SFTPOperator,
-            dag_id="unit_tests_sftp_op_file_transfer_no_intermediate_dir_error_put",
-            task_id="test_sftp",
-            sftp_hook=self.sftp_hook,
-            local_filepath=self.test_local_filepath,
-            remote_filepath=self.test_remote_filepath_int_dir,
-            operation=SFTPOperation.PUT,
-            create_intermediate_dirs=False,
-        )
-        with (
-            pytest.raises(AirflowException) as ctx,
-        ):
-            ti2.run()
+        with dag_maker(dag_id="unit_tests_sftp_op_file_transfer_no_intermediate_dir_error_put"):
+            SFTPOperator(
+                task_id="test_sftp",
+                sftp_hook=self.sftp_hook,
+                local_filepath=self.test_local_filepath,
+                remote_filepath=self.test_remote_filepath_int_dir,
+                operation=SFTPOperation.PUT,
+                create_intermediate_dirs=False,
+            )
+        with pytest.raises(AirflowException) as ctx:
+            dag_maker.run_ti("test_sftp")
         assert "No such file" in str(ctx.value)
 
     @pytest.mark.skipif(AIRFLOW_V_3_0_PLUS, reason="Pickle support is removed in Airflow 3")
@@ -201,10 +198,9 @@ class TestSFTPOperator:
                 do_xcom_push=True,
             )
         dagrun = dag_maker.create_dagrun(logical_date=timezone.utcnow())
-        tis = {ti.task_id: ti for ti in dagrun.task_instances}
-        tis["test_sftp"].run()
-        tis["test_check_file"].run()
-        pulled = tis["test_check_file"].xcom_pull(task_ids="test_check_file", key="return_value")
+        dag_maker.run_ti("test_sftp", dagrun)
+        test_check_file_ti = dag_maker.run_ti("test_check_file", dagrun)
+        pulled = test_check_file_ti.xcom_pull(task_ids="test_check_file", key="return_value")
         assert pulled.strip() == test_local_file_content
 
     @conf_vars({("core", "enable_xcom_pickling"): "False"})
@@ -232,12 +228,10 @@ class TestSFTPOperator:
                 do_xcom_push=True,
             )
         dagrun = dag_maker.create_dagrun(logical_date=timezone.utcnow())
-        tis = {ti.task_id: ti for ti in dagrun.task_instances}
+        dag_maker.run_ti("put_test_task", dagrun)
+        check_file_task_ti = dag_maker.run_ti("check_file_task", dagrun)
 
-        tis["put_test_task"].run()
-        tis["check_file_task"].run()
-
-        pulled = tis["check_file_task"].xcom_pull(task_ids="check_file_task", key="return_value")
+        pulled = check_file_task_ti.xcom_pull(task_ids="check_file_task", key="return_value")
         assert pulled.strip() == b64encode(test_local_file_content).decode("utf-8")
 
     @pytest.fixture
@@ -258,8 +252,7 @@ class TestSFTPOperator:
                 remote_filepath=self.test_remote_filepath,
                 operation=SFTPOperation.GET,
             )
-        for ti in dag_maker.create_dagrun(logical_date=timezone.utcnow()).task_instances:
-            ti.run()
+        dag_maker.run_ti("test_sftp")
 
         # Test the received content.
         with open(self.test_local_filepath, "rb") as file:
@@ -276,8 +269,7 @@ class TestSFTPOperator:
                 remote_filepath=self.test_remote_filepath,
                 operation=SFTPOperation.GET,
             )
-        for ti in dag_maker.create_dagrun(logical_date=timezone.utcnow()).task_instances:
-            ti.run()
+        dag_maker.run_ti("test_sftp")
 
         # Test the received content.
         content_received = None
@@ -297,14 +289,11 @@ class TestSFTPOperator:
                 operation=SFTPOperation.GET,
             )
 
-        for ti in dag_maker.create_dagrun(logical_date=timezone.utcnow()).task_instances:
-            # This should raise an error with "No such file" as the directory
-            # does not exist.
-            with (
-                pytest.raises(AirflowException) as ctx,
-            ):
-                ti.run()
-            assert "No such file" in str(ctx.value)
+        # This should raise an error with "No such file" as the directory
+        # does not exist.
+        with pytest.raises(AirflowException) as ctx:
+            dag_maker.run_ti("test_sftp")
+        assert "No such file" in str(ctx.value)
 
     @pytest.mark.skipif(AIRFLOW_V_3_0_PLUS, reason="Pickle support is removed in Airflow 3")
     @conf_vars({("core", "enable_xcom_pickling"): "True"})
@@ -318,9 +307,7 @@ class TestSFTPOperator:
                 operation=SFTPOperation.GET,
                 create_intermediate_dirs=True,
             )
-
-        for ti in dag_maker.create_dagrun(logical_date=timezone.utcnow()).task_instances:
-            ti.run()
+        dag_maker.run_ti("test_sftp")
 
         # Test the received content.
         content_received = None

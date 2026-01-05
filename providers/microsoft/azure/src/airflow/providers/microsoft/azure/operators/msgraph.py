@@ -38,7 +38,7 @@ if TYPE_CHECKING:
 
     from msgraph_core import APIVersion
 
-    from airflow.utils.context import Context
+    from airflow.sdk import Context
 
 
 def default_event_handler(event: dict[Any, Any] | None = None, **context) -> Any:

@@ -49,7 +49,7 @@ if TYPE_CHECKING:
 
     from azure.identity import DefaultAzureCredential
 
-    from airflow.utils.context import Context
+    from airflow.sdk import Context
 
     MessageCallback = Callable[[ServiceBusMessage, Context], None]
 

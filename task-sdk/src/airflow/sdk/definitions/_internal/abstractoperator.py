@@ -66,7 +66,6 @@ DEFAULT_RETRIES: int = conf.getint("core", "default_task_retries", fallback=0)
 DEFAULT_RETRY_DELAY: datetime.timedelta = datetime.timedelta(
     seconds=conf.getint("core", "default_task_retry_delay", fallback=300)
 )
-DEFAULT_RETRY_DELAY_MULTIPLIER: float = 2.0
 MAX_RETRY_DELAY: int = conf.getint("core", "max_task_retry_delay", fallback=24 * 60 * 60)
 
 # TODO: Task-SDK -- these defaults should be overridable from the Airflow config
@@ -77,7 +76,8 @@ DEFAULT_WEIGHT_RULE: WeightRule = WeightRule(
 DEFAULT_TASK_EXECUTION_TIMEOUT: datetime.timedelta | None = conf.gettimedelta(
     "core", "default_task_execution_timeout"
 )
-
+DEFAULT_EMAIL_ON_FAILURE: bool = conf.getboolean("email", "default_email_on_failure", fallback=True)
+DEFAULT_EMAIL_ON_RETRY: bool = conf.getboolean("email", "default_email_on_retry", fallback=True)
 log = logging.getLogger(__name__)
 
 

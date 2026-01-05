@@ -24,6 +24,7 @@ from datetime import time, timedelta
 from unittest import mock
 
 import pytest
+from sqlalchemy import select
 
 from airflow import settings
 from airflow.models import DagRun, TaskInstance
@@ -364,7 +365,7 @@ class TestExternalTaskSensorV2:
 
         # then
         session = settings.Session()
-        task_instances: list[TI] = session.query(TI).filter(TI.task_id == op.task_id).all()
+        task_instances: list[TI] = session.scalars(select(TI).where(TI.task_id == op.task_id)).all()
         assert len(task_instances) == 1, "Unexpected number of task instances"
         assert task_instances[0].state == State.SKIPPED, "Unexpected external task state"
 
@@ -383,7 +384,7 @@ class TestExternalTaskSensorV2:
         op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
 
         # then
-        task_instances: list[TI] = session.query(TI).filter(TI.task_id == op.task_id).all()
+        task_instances: list[TI] = session.scalars(select(TI).where(TI.task_id == op.task_id)).all()
         assert len(task_instances) == 1, "Unexpected number of task instances"
         assert task_instances[0].state == State.SKIPPED, "Unexpected external task state"
 
@@ -490,7 +491,7 @@ class TestExternalTaskSensorV2:
         op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
 
         # then
-        task_instances: list[TI] = session.query(TI).filter(TI.task_id == op.task_id).all()
+        task_instances: list[TI] = session.scalars(select(TI).where(TI.task_id == op.task_id)).all()
         assert len(task_instances) == 1, "Unexpected number of task instances"
         assert task_instances[0].state == State.SKIPPED, "Unexpected external task state"
 
@@ -526,15 +527,13 @@ exit 0
             # once per minute (the run on the first second of
             # each minute).
         except Exception as e:
-            failed_tis = (
-                session.query(TI)
-                .filter(
+            failed_tis = session.scalars(
+                select(TI).where(
                     TI.dag_id == dag_external_id,
                     TI.state == State.FAILED,
                     TI.execution_date == DEFAULT_DATE + timedelta(seconds=1),
                 )
-                .all()
-            )
+            ).all()
             if len(failed_tis) == 1 and failed_tis[0].task_id == "task_external_with_failure":
                 pass
             else:
@@ -1579,13 +1578,13 @@ def test_external_task_sensor_extra_link(
         external_dag_id=external_dag_id,
         external_task_id=external_task_id,
     )
-    ti.render_templates()
+    task = ti.render_templates()
 
-    assert ti.task.external_dag_id == expected_external_dag_id
-    assert ti.task.external_task_id == expected_external_task_id
-    assert ti.task.external_task_ids == [expected_external_task_id]
+    assert task.external_dag_id == expected_external_dag_id
+    assert task.external_task_id == expected_external_task_id
+    assert task.external_task_ids == [expected_external_task_id]
 
-    url = ti.task.operator_extra_links[0].get_link(operator=ti.task, ti_key=ti.key)
+    url = task.operator_extra_links[0].get_link(operator=task, ti_key=ti.key)
 
     assert f"/dags/{expected_external_dag_id}/runs" in url
 

@@ -21,7 +21,6 @@ import abc
 from collections.abc import Sequence
 from typing import TYPE_CHECKING, Any, TypeVar
 
-from airflow.configuration import conf
 from airflow.providers.amazon.aws.hooks.bedrock import BedrockAgentHook, BedrockHook
 from airflow.providers.amazon.aws.sensors.base_aws import AwsBaseSensor
 from airflow.providers.amazon.aws.triggers.bedrock import (
@@ -33,11 +32,11 @@ from airflow.providers.amazon.aws.triggers.bedrock import (
     BedrockProvisionModelThroughputCompletedTrigger,
 )
 from airflow.providers.amazon.aws.utils.mixins import aws_template_fields
-from airflow.providers.common.compat.sdk import AirflowException
+from airflow.providers.common.compat.sdk import AirflowException, conf
 
 if TYPE_CHECKING:
     from airflow.providers.amazon.aws.triggers.bedrock import BedrockBaseBatchInferenceTrigger
-    from airflow.utils.context import Context
+    from airflow.sdk import Context
 
 
 _GenericBedrockHook = TypeVar("_GenericBedrockHook", BedrockAgentHook, BedrockHook)
