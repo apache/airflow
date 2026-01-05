@@ -70,6 +70,7 @@ from airflow_breeze.commands.common_options import (
     option_python_versions,
     option_run_in_parallel,
     option_skip_cleanup,
+    option_use_airflow_branch,
     option_use_airflow_version,
     option_use_uv,
     option_verbose,
@@ -181,6 +182,7 @@ from airflow_breeze.utils.run_utils import (
 )
 from airflow_breeze.utils.shared_options import get_dry_run, get_verbose, set_forced_answer
 from airflow_breeze.utils.version_utils import (
+    get_use_airflow_version_from_branch,
     is_local_package_version,
 )
 from airflow_breeze.utils.versions import is_pre_release
@@ -1367,6 +1369,7 @@ def tag_providers(
 @option_airflow_constraints_mode_ci
 @option_github_repository
 @option_use_uv
+@option_use_airflow_branch
 @option_verbose
 @option_dry_run
 @option_answer
@@ -1380,7 +1383,9 @@ def generate_constraints(
     run_in_parallel: bool,
     skip_cleanup: bool,
     use_uv: bool,
+    use_airflow_branch: str | None,
 ):
+    use_airflow_version = get_use_airflow_version_from_branch(use_airflow_branch)
     perform_environment_checks()
     check_remote_ghcr_io_commands()
     fix_ownership_using_docker()
@@ -1404,6 +1409,7 @@ def generate_constraints(
             shell_params = ShellParams(
                 python=python,
                 github_repository=github_repository,
+                use_airflow_version=use_airflow_version,
             )
             get_console().print("\n[info]Use this command to build the image:[/]\n")
             get_console().print(
@@ -1419,6 +1425,7 @@ def generate_constraints(
                 github_repository=github_repository,
                 python=python,
                 use_uv=use_uv,
+                use_airflow_version=use_airflow_version,
             )
             for python in python_version_list
         ]
@@ -1437,6 +1444,7 @@ def generate_constraints(
             github_repository=github_repository,
             python=python,
             use_uv=use_uv,
+            use_airflow_version=use_airflow_version,
         )
         return_code, info = run_generate_constraints(
             shell_params=shell_params,

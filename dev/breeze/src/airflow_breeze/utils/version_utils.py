@@ -38,3 +38,15 @@ def is_local_package_version(version_suffix: str) -> bool:
     if version_suffix and ("+" in version_suffix):
         return True
     return False
+
+
+def get_use_airflow_version_from_branch(test_branch: str | None) -> str | None:
+    """Get the Airflow version from the test branch name."""
+    if test_branch is None:
+        return None
+
+    allowed_use_airflow_branch_version_map = {
+        "v3-1-test": "3.1.5",
+        "main": "",
+    }
+    return allowed_use_airflow_branch_version_map[test_branch]

@@ -32,6 +32,7 @@ from airflow_breeze.global_constants import (
     ALLOWED_POSTGRES_VERSIONS,
     ALLOWED_PYTHON_MAJOR_MINOR_VERSIONS,
     ALLOWED_TTY,
+    ALLOWED_USE_AIRFLOW_BRANCHES,
     ALLOWED_USE_AIRFLOW_VERSIONS,
     APACHE_AIRFLOW_GITHUB_REPOSITORY,
     AUTOCOMPLETE_ALL_INTEGRATIONS,
@@ -454,6 +455,12 @@ option_use_airflow_version = click.option(
     "or `tests` can be specified for `--mount-sources` when `--use-airflow-version` is used.",
     type=UseAirflowVersionType(ALLOWED_USE_AIRFLOW_VERSIONS),
     envvar="USE_AIRFLOW_VERSION",
+)
+option_use_airflow_branch = click.option(
+    "--use-airflow-branch",
+    help="Use (reinstall at entry) Airflow from a specific GitHub branch.",
+    type=UseAirflowVersionType(ALLOWED_USE_AIRFLOW_BRANCHES),
+    envvar="USE_AIRFLOW_BRANCH",
 )
 option_allow_pre_releases = click.option(
     "--allow-pre-releases",
