@@ -289,7 +289,12 @@ def integrate_macros_plugins(
 
 
 def integrate_listener_plugins(listener_manager: ListenerManager, plugins: list[AirflowPlugin]) -> None:
-    """Add listeners from plugins."""
+    """
+    Register listeners from plugins with the listener manager.
+
+    For each plugin with listeners, registers them with the provided
+    ListenerManager.
+    """
     for plugin in plugins:
         if plugin.name is None:
             raise AirflowPluginException("Invalid plugin name")
