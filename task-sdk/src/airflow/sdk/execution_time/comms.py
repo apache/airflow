@@ -219,7 +219,7 @@ class CommsDecoder(Generic[ReceiveMsgType, SendMsgType]):
 
     async def asend(self, msg: SendMsgType) -> ReceiveMsgType | None:
         """
-        Asynchronous send.
+        Send a request to the parent without blocking.
 
         Uses async lock for coroutine safety and thread lock for socket safety.
         """
