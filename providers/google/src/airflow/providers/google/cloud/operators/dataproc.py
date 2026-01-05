@@ -36,7 +36,7 @@ from google.api_core.retry import Retry, exponential_sleep_generator
 from google.cloud.dataproc_v1 import Batch, Cluster, ClusterStatus, JobStatus
 
 from airflow.exceptions import AirflowProviderDeprecationWarning
-from airflow.providers.common.compat.sdk import AirflowException, AirflowSkipException, conf
+from airflow.providers.common.compat.sdk import AirflowException, conf
 from airflow.providers.google.cloud.hooks.dataproc import (
     DataprocHook,
     DataProcJobBuilder,
@@ -63,11 +63,7 @@ from airflow.providers.google.cloud.triggers.dataproc import (
 )
 from airflow.providers.google.cloud.utils.dataproc import DataprocOperationType
 from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID
-
-try:
-    from airflow.sdk import timezone
-except ModuleNotFoundError:
-    from airflow.utils import timezone
+from airflow.utils import timezone
 
 if TYPE_CHECKING:
     from google.api_core import operation
@@ -1001,33 +997,34 @@ class DataprocDeleteClusterOperator(GoogleCloudBaseOperator):
         hook = DataprocHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain)
         try:
             op: operation.Operation = self._delete_cluster(hook)
-            if not self.deferrable:
-                hook.wait_for_operation(timeout=self.timeout, result_retry=self.retry, operation=op)
-                self.log.info("Cluster deleted.")
-            else:
-                end_time: float = time.time() + self.timeout
-                self.defer(
-                    trigger=DataprocDeleteClusterTrigger(
-                        gcp_conn_id=self.gcp_conn_id,
-                        project_id=self.project_id,
-                        region=self.region,
-                        cluster_name=self.cluster_name,
-                        end_time=end_time,
-                        metadata=self.metadata,
-                        impersonation_chain=self.impersonation_chain,
-                        polling_interval_seconds=self.polling_interval_seconds,
-                    ),
-                    method_name="execute_complete",
-                )
+
         except NotFound:
             self.log.info(
                 "Cluster %s not found in region %s. Skipping deletion.", self.cluster_name, self.region
             )
-            raise AirflowSkipException(
-                f"Cluster {self.cluster_name} in region {self.region} was not found - it may have already been deleted"
-            )
+            return
+
         except Exception as e:
             raise AirflowException(str(e))
+
+        if not self.deferrable:
+            hook.wait_for_operation(timeout=self.timeout, result_retry=self.retry, operation=op)
+            self.log.info("Cluster deleted.")
+        else:
+            end_time: float = time.time() + self.timeout
+            self.defer(
+                trigger=DataprocDeleteClusterTrigger(
+                    gcp_conn_id=self.gcp_conn_id,
+                    project_id=self.project_id,
+                    region=self.region,
+                    cluster_name=self.cluster_name,
+                    end_time=end_time,
+                    metadata=self.metadata,
+                    impersonation_chain=self.impersonation_chain,
+                    polling_interval_seconds=self.polling_interval_seconds,
+                ),
+                method_name="execute_complete",
+            )
 
     def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> Any:
         """
