@@ -29,7 +29,6 @@ from airflow.providers.keycloak.auth_manager.datamodels.token import (
     TokenPasswordBody,
     TokenResponse,
 )
-from airflow.providers.keycloak.auth_manager.services.token import create_token_for
 
 log = logging.getLogger(__name__)
 token_router = AirflowRouter(tags=["KeycloakAuthManagerToken"])
