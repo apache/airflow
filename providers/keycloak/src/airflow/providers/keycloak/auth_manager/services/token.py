@@ -22,7 +22,7 @@ from keycloak import KeycloakAuthenticationError
 from starlette import status
 
 from airflow.api_fastapi.app import get_auth_manager
-from airflow.configuration import conf
+from airflow.providers.common.compat.sdk import conf
 from airflow.providers.keycloak.auth_manager.keycloak_auth_manager import KeycloakAuthManager
 from airflow.providers.keycloak.auth_manager.user import KeycloakAuthManagerUser
 

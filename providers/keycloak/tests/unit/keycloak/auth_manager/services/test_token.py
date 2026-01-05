@@ -22,7 +22,7 @@ import fastapi
 import pytest
 from keycloak import KeycloakAuthenticationError
 
-from airflow.configuration import conf
+from airflow.providers.common.compat.sdk import conf
 from airflow.providers.keycloak.auth_manager.services.token import (
     create_client_credentials_token,
     create_token_for,
