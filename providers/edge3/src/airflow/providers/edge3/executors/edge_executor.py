@@ -244,8 +244,8 @@ class EdgeExecutor(BaseExecutor):
     def _purge_jobs(self, session: Session) -> bool:
         """Clean finished jobs."""
         purged_marker = False
-        job_success_purge = conf.getint("edge", "job_success_purge")
-        job_fail_purge = conf.getint("edge", "job_fail_purge")
+        job_success_purge = conf.getint("edge", "job_success_purge", fallback=5)
+        job_fail_purge = conf.getint("edge", "job_fail_purge", fallback=60)
         jobs: Sequence[EdgeJobModel] = session.scalars(
             select(EdgeJobModel)
             .with_for_update(skip_locked=True)
