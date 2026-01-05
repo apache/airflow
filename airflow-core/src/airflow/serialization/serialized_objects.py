@@ -40,7 +40,6 @@ import pydantic
 from dateutil import relativedelta
 from pendulum.tz.timezone import FixedTimezone, Timezone
 
-from airflow import macros
 from airflow._shared.module_loading import import_string, qualname
 from airflow._shared.timezones.timezone import from_timestamp, parse_timezone, utcnow
 from airflow.callbacks.callback_requests import DagCallbackRequest, TaskCallbackRequest
@@ -100,7 +99,6 @@ from airflow.task.priority_strategy import (
 from airflow.timetables.base import DagRunInfo, Timetable
 from airflow.triggers.base import BaseTrigger, StartTriggerArgs
 from airflow.utils.code_utils import get_python_source
-from airflow.utils.context import ConnectionAccessor, Context, VariableAccessor
 from airflow.utils.db import LazySelectSequence
 
 if TYPE_CHECKING:
@@ -654,12 +652,6 @@ class BaseSerialization:
         elif isinstance(var, MappedArgument):
             data = {"input": encode_expand_input(var._input), "key": var._key}
             return cls._encode(data, type_=DAT.MAPPED_ARGUMENT)
-        elif var.__class__ == Context:
-            d = {}
-            for k, v in var.items():
-                obj = cls.serialize(v, strict=strict)
-                d[str(k)] = obj
-            return cls._encode(d, type_=DAT.TASK_CONTEXT)
         else:
             return cls.default_serialization(strict, var)
 
@@ -686,21 +678,7 @@ class BaseSerialization:
             raise ValueError(f"The encoded_var should be dict and is {type(encoded_var)}")
         var = encoded_var[Encoding.VAR]
         type_ = encoded_var[Encoding.TYPE]
-        if type_ == DAT.TASK_CONTEXT:
-            d = {}
-            for k, v in var.items():
-                if k == "task":  # todo: add `_encode` of Operator so we don't need this
-                    continue
-                d[k] = cls.deserialize(v)
-            d["task"] = d["task_instance"].task  # todo: add `_encode` of Operator so we don't need this
-            d["macros"] = macros
-            d["var"] = {
-                "json": VariableAccessor(deserialize_json=True),
-                "value": VariableAccessor(deserialize_json=False),
-            }
-            d["conn"] = ConnectionAccessor()
-            return Context(**d)
-        elif type_ == DAT.DICT:
+        if type_ == DAT.DICT:
             return {k: cls.deserialize(v) for k, v in var.items()}
         elif type_ == DAT.ASSET_EVENT_ACCESSORS:
             return decode_outlet_event_accessors(var)
