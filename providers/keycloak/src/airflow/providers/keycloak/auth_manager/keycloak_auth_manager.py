@@ -147,6 +147,13 @@ class KeycloakAuthManager(BaseAuthManager[KeycloakAuthManagerUser]):
         return urljoin(base_url, f"{AUTH_MANAGER_FASTAPI_APP_PREFIX}/logout")
 
     def refresh_user(self, *, user: KeycloakAuthManagerUser) -> KeycloakAuthManagerUser | None:
+        # According to RFC6749 section 4.4.3, a refresh token should not be included when using
+        # the Service accounts/client_credentials flow.
+        # We check whether the user has a refresh token; if not, we assume it's a service account
+        # and return None.
+        if not user.refresh_token:
+            return None
+
         if self._token_expired(user.access_token):
             tokens = self.refresh_tokens(user=user)
 
@@ -158,6 +165,10 @@ class KeycloakAuthManager(BaseAuthManager[KeycloakAuthManagerUser]):
         return None
 
     def refresh_tokens(self, *, user: KeycloakAuthManagerUser) -> dict[str, str]:
+        if not user.refresh_token:
+            # It is a service account. It used the client credentials flow and no refresh token is issued.
+            return {}
+
         try:
             log.debug("Refreshing the token")
             client = self.get_keycloak_client()
@@ -316,9 +327,22 @@ class KeycloakAuthManager(BaseAuthManager[KeycloakAuthManagerUser]):
         ]
 
     @staticmethod
-    def get_keycloak_client() -> KeycloakOpenID:
-        client_id = conf.get(CONF_SECTION_NAME, CONF_CLIENT_ID_KEY)
-        client_secret = conf.get(CONF_SECTION_NAME, CONF_CLIENT_SECRET_KEY)
+    def get_keycloak_client(client_id: str | None = None, client_secret: str | None = None) -> KeycloakOpenID:
+        """
+        Get a KeycloakOpenID client instance.
+
+        :param client_id: Optional client ID to override config. If provided, client_secret must also be provided.
+        :param client_secret: Optional client secret to override config. If provided, client_id must also be provided.
+        """
+        if (client_id is None) != (client_secret is None):
+            raise ValueError(
+                "Both `client_id` and `client_secret` must be provided together, or both must be None"
+            )
+
+        if client_id is None:
+            client_id = conf.get(CONF_SECTION_NAME, CONF_CLIENT_ID_KEY)
+            client_secret = conf.get(CONF_SECTION_NAME, CONF_CLIENT_SECRET_KEY)
+
         realm = conf.get(CONF_SECTION_NAME, CONF_REALM_KEY)
         server_url = conf.get(CONF_SECTION_NAME, CONF_SERVER_URL_KEY)
 
