@@ -249,8 +249,8 @@ spec:
           {{- if $containerLifecycleHooks  }}
           lifecycle: {{- tpl (toYaml $containerLifecycleHooks) . | nindent 12 }}
           {{- end }}
-          {{- if .Values.workers.command }}
-          command: {{ tpl (toYaml .Values.workers.command) . | nindent 12 }}
+          {{- if or .Values.workers.celery.command .Values.workers.command }}
+          command: {{ tpl (toYaml (.Values.workers.celery.command | default .Values.workers.command)) . | nindent 12 }}
           {{- end }}
           {{- if .Values.workers.args }}
           args: {{ tpl (toYaml .Values.workers.args) . | nindent 12 }}
