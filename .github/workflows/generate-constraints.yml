@@ -126,7 +126,7 @@ jobs:
         shell: bash
         timeout-minutes: 25
         run: |
-          breeze release-management generate-constraints --airflow-constraints-mode constraints \
+          breeze release-management generate-constraints --airflow-constraints-mode constraints
           --answer yes --python "${PYTHON_VERSION}"
         if: inputs.generate-pypi-constraints == 'true'
       - name: "Upload constraint artifacts"
