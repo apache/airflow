@@ -27,7 +27,7 @@ from airflow.api_fastapi.app import get_auth_manager
 from airflow.api_fastapi.auth.managers.base_auth_manager import COOKIE_NAME_JWT_TOKEN
 from airflow.api_fastapi.common.router import AirflowRouter
 from airflow.api_fastapi.core_api.security import get_user
-from airflow.configuration import conf
+from airflow.providers.common.compat.sdk import conf
 from airflow.providers.keycloak.auth_manager.keycloak_auth_manager import KeycloakAuthManager
 from airflow.providers.keycloak.auth_manager.user import KeycloakAuthManagerUser
 from airflow.providers.keycloak.version_compat import AIRFLOW_V_3_1_1_PLUS
