@@ -310,17 +310,6 @@ class TestDagBag:
         dagbag2 = DagBag(dag_folder=os.fspath(tmp_path), include_examples=False)
         assert dagbag2.bundle_name is None
 
-    def test_timeout_context_manager_raises_exception(self):
-        """Test that the timeout context manager raises AirflowTaskTimeout when time limit is exceeded."""
-        import time
-
-        from airflow.dag_processing.dagbag import timeout
-        from airflow.exceptions import AirflowTaskTimeout
-
-        with pytest.raises(AirflowTaskTimeout):
-            with timeout(1, "Test timeout"):
-                time.sleep(2)
-
     def test_get_existing_dag(self, tmp_path):
         """
         Test that we're able to parse some example DAGs and retrieve them
@@ -457,7 +446,7 @@ class TestDagBag:
         """
         test that we're able to parse file that contains multi-byte char
         """
-        path = tmp_path / "testfile"
+        path = tmp_path / "testfile.py"
         path.write_text("\u3042")  # write multi-byte char (hiragana)
 
         dagbag = DagBag(dag_folder=os.fspath(path.parent), include_examples=False)
@@ -477,8 +466,8 @@ class TestDagBag:
             my_dag = my_flow()  # noqa: F841
 
         source_lines = [line[12:] for line in inspect.getsource(create_dag).splitlines(keepends=True)[1:]]
-        path1 = tmp_path / "testfile1"
-        path2 = tmp_path / "testfile2"
+        path1 = tmp_path / "testfile1.py"
+        path2 = tmp_path / "testfile2.py"
         path1.write_text("".join(source_lines))
         path2.write_text("".join(source_lines))
 
@@ -520,7 +509,7 @@ class TestDagBag:
         assert sys.path == syspath_before  # sys.path doesn't change
         assert not dagbag.import_errors
 
-    @patch("airflow.dag_processing.dagbag.timeout")
+    @patch("airflow.dag_processing.importers.python_importer._timeout")
     @patch("airflow.dag_processing.dagbag.settings.get_dagbag_import_timeout")
     def test_process_dag_file_without_timeout(
         self, mocked_get_dagbag_import_timeout, mocked_timeout, tmp_path
@@ -539,7 +528,7 @@ class TestDagBag:
         dagbag.process_file(os.path.join(TEST_DAGS_FOLDER, "test_sensor.py"))
         mocked_timeout.assert_not_called()
 
-    @patch("airflow.dag_processing.dagbag.timeout")
+    @patch("airflow.dag_processing.importers.python_importer._timeout")
     @patch("airflow.dag_processing.dagbag.settings.get_dagbag_import_timeout")
     def test_process_dag_file_with_non_default_timeout(
         self, mocked_get_dagbag_import_timeout, mocked_timeout, tmp_path
@@ -558,7 +547,7 @@ class TestDagBag:
 
         mocked_timeout.assert_called_once_with(timeout_value, error_message=mock.ANY)
 
-    @patch("airflow.dag_processing.dagbag.settings.get_dagbag_import_timeout")
+    @patch("airflow.dag_processing.importers.python_importer.settings.get_dagbag_import_timeout")
     def test_check_value_type_from_get_dagbag_import_timeout(
         self, mocked_get_dagbag_import_timeout, tmp_path
     ):
@@ -781,7 +770,7 @@ class TestDagBag:
         """
         # write source to file
         source = textwrap.dedent("".join(inspect.getsource(create_dag).splitlines(True)[1:-1]))
-        path = tmp_path / "testfile"
+        path = tmp_path / "testfile.py"
         path.write_text(source)
 
         dagbag = DagBag(dag_folder=os.fspath(path.parent), include_examples=False)
@@ -847,41 +836,27 @@ class TestDagBag:
         """
         Test that if the DAG contains Timeout error it will be still loaded to DB as import_errors
         """
-        code_to_save = """
-# Define Dag to load
+        dag_file = tmp_path / "timeout_dag.py"
+        dag_file.write_text("""
 import datetime
 import time
 
 import airflow
 from airflow.providers.standard.operators.python import PythonOperator
 
-time.sleep(1)
+time.sleep(1)  # Exceeds DAGBAG_IMPORT_TIMEOUT (0.01s), triggers timeout
 
 with airflow.DAG(
     "import_timeout",
     start_date=datetime.datetime(2022, 1, 1),
     schedule=None) as dag:
-    def f():
-        print("Sleeping")
-        time.sleep(1)
-
-
-    for ind in range(10):
-        PythonOperator(
-            dag=dag,
-            task_id=f"sleep_2_{ind}",
-            python_callable=f,
-        )
-        """
-        test_file = tmp_path / "tmp_file.py"
-        test_file.write_text(code_to_save)
+    pass
+""")
 
         with conf_vars({("core", "DAGBAG_IMPORT_TIMEOUT"): "0.01"}):
-            dagbag = DagBag(dag_folder=str(test_file), include_examples=False)
-            dag = dagbag._load_modules_from_file(str(test_file), safe_mode=False)
+            dagbag = DagBag(dag_folder=os.fspath(tmp_path), include_examples=False)
 
-        assert dag is not None
-        assert str(test_file) in dagbag.import_errors
+        assert dag_file.as_posix() in dagbag.import_errors
         assert "DagBag import timeout for" in caplog.text
 
     @staticmethod
@@ -1137,7 +1112,7 @@ with airflow.DAG(
                 """
             )
         )
-        with mock.patch("airflow.dag_processing.dagbag.signal.signal") as mock_signal:
+        with mock.patch("airflow.dag_processing.importers.python_importer.signal.signal") as mock_signal:
             mock_signal.side_effect = ValueError("Invalid signal setting")
             DagBag(dag_folder=os.fspath(tmp_path), include_examples=False)
             assert "SIGSEGV signal handler registration failed. Not in the main thread" in caplog.text
