@@ -40,8 +40,7 @@ except ImportError:
 
 from airflow.api_fastapi.common.types import MenuItem
 from airflow.cli.cli_config import CLICommand, DefaultHelpParser, GroupCommand
-from airflow.configuration import conf
-from airflow.providers.common.compat.sdk import AirflowException
+from airflow.providers.common.compat.sdk import AirflowException, conf
 from airflow.providers.keycloak.auth_manager.cli.definition import KEYCLOAK_AUTH_MANAGER_COMMANDS
 from airflow.providers.keycloak.auth_manager.constants import (
     CONF_CLIENT_ID_KEY,
