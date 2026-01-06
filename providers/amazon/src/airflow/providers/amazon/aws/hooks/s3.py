@@ -22,6 +22,7 @@ from __future__ import annotations
 import asyncio
 import fnmatch
 import gzip as gz
+import hashlib
 import inspect
 import logging
 import os
@@ -1741,6 +1742,13 @@ class S3Hook(AwsBaseHook):
                     self.log.error("Error deleting stale item %s: %s", item, e)
                     raise e
 
+    def _compute_local_file_md5(self, file_path: Path) -> str:
+        hash_md5 = hashlib.md5(usedforsecurity=False)
+        with open(file_path, "rb") as f:
+            for chunk in iter(lambda: f.read(8192), b""):
+                hash_md5.update(chunk)
+        return f'"{hash_md5.hexdigest()}"'
+
     def _sync_to_local_dir_if_changed(self, s3_bucket, s3_object, local_target_path: Path):
         should_download = False
         download_msg = ""
@@ -1755,11 +1763,33 @@ class S3Hook(AwsBaseHook):
                 download_msg = (
                     f"S3 object size ({s3_object.size}) and local file size ({local_stats.st_size}) differ."
                 )
-
-            s3_last_modified = s3_object.last_modified
-            if local_stats.st_mtime < s3_last_modified.microsecond:
-                should_download = True
-                download_msg = f"S3 object last modified ({s3_last_modified.microsecond}) and local file last modified ({local_stats.st_mtime}) differ."
+            else:
+                s3_etag = s3_object.e_tag
+                if s3_etag:
+                    if "-" not in s3_etag:
+                        local_md5 = self._compute_local_file_md5(local_target_path)
+                        if local_md5 != s3_etag:
+                            should_download = True
+                            download_msg = (
+                                f"S3 object ETag ({s3_etag}) and local file MD5 ({local_md5}) differ "
+                                f"(content changed while size remained the same)."
+                            )
+                    else:
+                        s3_last_modified = s3_object.last_modified
+                        if s3_last_modified and local_stats.st_mtime < s3_last_modified.timestamp():
+                            should_download = True
+                            download_msg = (
+                                f"S3 object last modified ({s3_last_modified}) is newer than "
+                                f"local file last modified ({datetime.fromtimestamp(local_stats.st_mtime)})."
+                            )
+                else:
+                    s3_last_modified = s3_object.last_modified
+                    if s3_last_modified and local_stats.st_mtime < s3_last_modified.timestamp():
+                        should_download = True
+                        download_msg = (
+                            f"S3 object last modified ({s3_last_modified}) is newer than "
+                            f"local file last modified ({datetime.fromtimestamp(local_stats.st_mtime)})."
+                        )
 
         if should_download:
             s3_bucket.download_file(s3_object.key, local_target_path)

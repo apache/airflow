@@ -1840,6 +1840,40 @@ class TestAwsS3Hook:
         assert "S3 object size" in logs_string
         assert "differ. Downloaded dag_03.py to" in logs_string
 
+    def test_sync_to_local_dir_etag_content_change_same_size(self, s3_bucket, s3_client, tmp_path):
+        def get_logs_string(call_args_list):
+            return "".join([args[0][0] % args[0][1:] for args in call_args_list])
+
+        original_content = b"Hello World!"  # 12 bytes
+        s3_client.put_object(Bucket=s3_bucket, Key="dag_etag_test.py", Body=original_content)
+
+        sync_local_dir = tmp_path / "s3_sync_etag_dir"
+        hook = S3Hook()
+        hook.log.debug = MagicMock()
+
+        hook.sync_to_local_dir(
+            bucket_name=s3_bucket, local_dir=sync_local_dir, s3_prefix="", delete_stale=True
+        )
+        logs_string = get_logs_string(hook.log.debug.call_args_list)
+        assert "does not exist. Downloaded dag_etag_test.py" in logs_string
+        assert Path(sync_local_dir).joinpath("dag_etag_test.py").read_bytes() == original_content
+
+        new_content = b"Goodbye now!"  # 12 bytes - same size as original
+        assert len(new_content) == len(original_content)
+        s3_client.put_object(Bucket=s3_bucket, Key="dag_etag_test.py", Body=new_content)
+
+        hook.log.debug = MagicMock()
+        hook.sync_to_local_dir(
+            bucket_name=s3_bucket, local_dir=sync_local_dir, s3_prefix="", delete_stale=True
+        )
+        logs_string = get_logs_string(hook.log.debug.call_args_list)
+
+        assert "ETag" in logs_string
+        assert "content changed while size remained the same" in logs_string
+        assert "Downloaded dag_etag_test.py" in logs_string
+
+        assert Path(sync_local_dir).joinpath("dag_etag_test.py").read_bytes() == new_content
+
 
 @pytest.mark.parametrize(
     ("key_kind", "has_conn", "has_bucket", "precedence", "expected"),
