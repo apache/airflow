@@ -14,15 +14,3 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
-from __future__ import annotations
-
-from airflow.providers.apache.hive.macros.hive import closest_ds_partition, max_partition
-from airflow.providers.common.compat.sdk import AirflowPlugin
-
-
-class HivePlugin(AirflowPlugin):
-    """Hive plugin - delivering macros used by users that use the provider."""
-
-    name = "hive"
-    macros = [max_partition, closest_ds_partition]
