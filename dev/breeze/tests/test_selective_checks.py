@@ -651,6 +651,61 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
         ),
         (
             pytest.param(
+                ("airflow-ctl/src/airflowctl/random.py",),
+                {
+                    "all-python-versions": f"['{DEFAULT_PYTHON_MAJOR_MINOR_VERSION}']",
+                    "all-python-versions-list-as-string": DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
+                    "python-versions": f"['{DEFAULT_PYTHON_MAJOR_MINOR_VERSION}']",
+                    "python-versions-list-as-string": DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
+                    "ci-image-build": "true",
+                    "prod-image-build": "true",
+                    "run-api-tests": "false",
+                    "run-helm-tests": "false",
+                    "run-kubernetes-tests": "false",
+                    "run-unit-tests": "true",
+                    "run-airflow-ctl-tests": "true",
+                    "run-airflow-ctl-integration-tests": "true",
+                    "docs-build": "true",
+                    "full-tests-needed": "false",
+                    "skip-prek-hooks": ALL_SKIPPED_COMMITS_IF_NO_PROVIDERS_UI_AND_HELM_TESTS,
+                    "skip-providers-tests": "true",
+                    "upgrade-to-newer-dependencies": "false",
+                    "run-mypy": "true",
+                    "mypy-checks": "['mypy-airflow-ctl']",
+                },
+                id="Airflow CTL source file changed - Airflow CTL tests should run",
+            )
+        ),
+        (
+            pytest.param(
+                ("airflow-ctl-tests/tests/random.py",),
+                {
+                    "all-python-versions": f"['{DEFAULT_PYTHON_MAJOR_MINOR_VERSION}']",
+                    "all-python-versions-list-as-string": DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
+                    "python-versions": f"['{DEFAULT_PYTHON_MAJOR_MINOR_VERSION}']",
+                    "python-versions-list-as-string": DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
+                    "ci-image-build": "true",
+                    "prod-image-build": "true",
+                    "run-api-tests": "false",
+                    "run-helm-tests": "false",
+                    "run-kubernetes-tests": "false",
+                    "run-unit-tests": "false",
+                    "run-airflow-ctl-tests": "false",
+                    "run-airflow-ctl-integration-tests": "true",
+                    "docs-build": "false",
+                    "full-tests-needed": "false",
+                    "skip-prek-hooks": ALL_SKIPPED_COMMITS_IF_NO_PROVIDERS_UI_AND_HELM_TESTS,
+                    "skip-providers-tests": "true",
+                    "upgrade-to-newer-dependencies": "false",
+                    "run-mypy": "false",
+                    "mypy-checks": "[]",
+                },
+                id="Airflow CTL integration tests files changed - "
+                "Airflow CTL integration tests and prod image build should run but no other tests",
+            )
+        ),
+        (
+            pytest.param(
                 (
                     "chart/aaaa.txt",
                     "providers/postgres/tests/unit/postgres/file.py",
@@ -1809,12 +1864,26 @@ def test_expected_output_pull_request_v2_7(
         ),
     ],
 )
+@patch.dict("os.environ", {"GITHUB_TOKEN": "test_token"})
+@patch("requests.get")
 def test_expected_output_push(
+    mock_get,
     files: tuple[str, ...],
     pr_labels: tuple[str, ...],
     default_branch: str,
     expected_outputs: dict[str, str],
 ):
+    # Mock GitHub API calls for runner_type property (used in PUSH events)
+    workflow_response = Mock()
+    workflow_response.status_code = 200
+    workflow_response.json.return_value = {"workflow_runs": [{"jobs_url": "https://api.github.com/jobs/123"}]}
+    jobs_response = Mock()
+    jobs_response.status_code = 200
+    jobs_response.json.return_value = {
+        "jobs": [{"name": "Basic tests (ubuntu-22.04)", "labels": ["ubuntu-22.04"]}]
+    }
+    mock_get.side_effect = [workflow_response, jobs_response]
+
     stderr = SelectiveChecks(
         files=files,
         commit_ref=NEUTRAL_COMMIT,
@@ -2027,7 +2096,20 @@ def test_expected_output_pull_request_target(
         GithubEvents.SCHEDULE,
     ],
 )
-def test_no_commit_provided_trigger_full_build_for_any_event_type(github_event):
+@patch.dict("os.environ", {"GITHUB_TOKEN": "test_token"})
+@patch("requests.get")
+def test_no_commit_provided_trigger_full_build_for_any_event_type(mock_get, github_event):
+    # Mock GitHub API calls for runner_type property (used in PUSH/SCHEDULE events)
+    workflow_response = Mock()
+    workflow_response.status_code = 200
+    workflow_response.json.return_value = {"workflow_runs": [{"jobs_url": "https://api.github.com/jobs/123"}]}
+    jobs_response = Mock()
+    jobs_response.status_code = 200
+    jobs_response.json.return_value = {
+        "jobs": [{"name": "Basic tests (ubuntu-22.04)", "labels": ["ubuntu-22.04"]}]
+    }
+    mock_get.side_effect = [workflow_response, jobs_response]
+
     stderr = SelectiveChecks(
         files=(),
         commit_ref="",
@@ -2063,7 +2145,20 @@ def test_no_commit_provided_trigger_full_build_for_any_event_type(github_event):
         GithubEvents.SCHEDULE,
     ],
 )
-def test_files_provided_trigger_full_build_for_any_event_type(github_event):
+@patch.dict("os.environ", {"GITHUB_TOKEN": "test_token"})
+@patch("requests.get")
+def test_files_provided_trigger_full_build_for_any_event_type(mock_get, github_event):
+    # Mock GitHub API calls for runner_type property (used in PUSH/SCHEDULE events)
+    workflow_response = Mock()
+    workflow_response.status_code = 200
+    workflow_response.json.return_value = {"workflow_runs": [{"jobs_url": "https://api.github.com/jobs/123"}]}
+    jobs_response = Mock()
+    jobs_response.status_code = 200
+    jobs_response.json.return_value = {
+        "jobs": [{"name": "Basic tests (ubuntu-22.04)", "labels": ["ubuntu-22.04"]}]
+    }
+    mock_get.side_effect = [workflow_response, jobs_response]
+
     stderr = SelectiveChecks(
         files=(
             "airflow-core/src/airflow/ui/src/pages/Run/Details.tsx",
@@ -2526,6 +2621,7 @@ def test_get_job_label(mock_get):
     workflow_response.json.return_value = {"workflow_runs": [{"jobs_url": "https://api.github.com/jobs/123"}]}
 
     jobs_response = Mock()
+    jobs_response.status_code = 200
     jobs_response.json.return_value = {
         "jobs": [
             {"name": "Basic tests (ubuntu-22.04)", "labels": ["ubuntu-22.04"]},
@@ -2555,6 +2651,7 @@ def test_get_job_label_not_found(mock_get):
     workflow_response.json.return_value = {"workflow_runs": [{"jobs_url": "https://api.github.com/jobs/123"}]}
 
     jobs_response = Mock()
+    jobs_response.status_code = 200
     jobs_response.json.return_value = {
         "jobs": [
             {"name": "Basic tests (ubuntu-22.04)", "labels": []},
@@ -2567,6 +2664,57 @@ def test_get_job_label_not_found(mock_get):
     result = selective_checks.get_job_label("push", "main")
 
     assert result is None
+
+
+@pytest.mark.parametrize(
+    ("workflow_status", "jobs_status", "expected_result"),
+    [
+        pytest.param(504, 200, None, id="workflow_api_504_error"),
+        pytest.param(200, 503, None, id="jobs_api_503_error"),
+        pytest.param(200, 200, "ubuntu-22.04", id="both_apis_200_success"),
+    ],
+)
+@patch("requests.get")
+@patch.dict("os.environ", {"GITHUB_TOKEN": "test_token"})
+def test_get_job_label_api_status_codes(
+    mock_get, workflow_status, jobs_status, expected_result, json_decode_error
+):
+    """Test that get_job_label handles various HTTP status codes correctly."""
+    selective_checks = SelectiveChecks(
+        files=(),
+        github_event=GithubEvents.PULL_REQUEST,
+        github_repository="apache/airflow",
+        github_context_dict={},
+    )
+
+    workflow_response = Mock()
+    workflow_response.status_code = workflow_status
+    if workflow_status == 200:
+        workflow_response.json.return_value = {
+            "workflow_runs": [{"jobs_url": "https://api.github.com/jobs/123"}]
+        }
+    else:
+        workflow_response.json.side_effect = json_decode_error
+        workflow_response.text = "<html>Gateway Timeout</html>"
+
+    jobs_response = Mock()
+    jobs_response.status_code = jobs_status
+    if jobs_status == 200:
+        jobs_response.json.return_value = {
+            "jobs": [
+                {"name": "Basic tests (ubuntu-22.04)", "labels": ["ubuntu-22.04"]},
+                {"name": "Other job", "labels": ["ubuntu-22.04"]},
+            ]
+        }
+    else:
+        jobs_response.json.side_effect = json_decode_error
+        jobs_response.text = "<html>Service Unavailable</html>"
+
+    mock_get.side_effect = [workflow_response, jobs_response]
+
+    result = selective_checks.get_job_label("push", "main")
+
+    assert result == expected_result
 
 
 def test_runner_type_pr():
@@ -2592,6 +2740,7 @@ def test_runner_type_schedule(mock_get):
     workflow_response.json.return_value = {"workflow_runs": [{"jobs_url": "https://api.github.com/jobs/123"}]}
 
     jobs_response = Mock()
+    jobs_response.status_code = 200
     jobs_response.json.return_value = {
         "jobs": [
             {"name": "Basic tests / Test git clone on Windows", "labels": ["windows-2025"]},

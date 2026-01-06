@@ -120,6 +120,8 @@ from airflow.sdk.execution_time.sentry import Sentry
 from airflow.sdk.execution_time.xcom import XCom
 from airflow.sdk.observability.stats import Stats
 from airflow.sdk.timezone import coerce_datetime
+from airflow.triggers.base import BaseEventTrigger
+from airflow.triggers.callback import CallbackTrigger
 
 if TYPE_CHECKING:
     import jinja2
@@ -1004,13 +1006,30 @@ def _defer_task(
 
     log.info("Pausing task as DEFERRED. ", dag_id=ti.dag_id, task_id=ti.task_id, run_id=ti.run_id)
     classpath, trigger_kwargs = defer.trigger.serialize()
+    queue: str | None = None
+    # Currently, only task-associated BaseTrigger instances may have a non-None queue,
+    # and only when triggerer.queues_enabled is True.
+    if not isinstance(defer.trigger, (BaseEventTrigger, CallbackTrigger)) and conf.getboolean(
+        "triggerer", "queues_enabled", fallback=False
+    ):
+        queue = ti.task.queue
+
+    from airflow.sdk.serde import serialize as serde_serialize
+
+    trigger_kwargs = serde_serialize(trigger_kwargs)
+    next_kwargs = serde_serialize(defer.kwargs or {})
+
+    if TYPE_CHECKING:
+        assert isinstance(next_kwargs, dict)
+        assert isinstance(trigger_kwargs, dict)
 
     msg = DeferTask(
         classpath=classpath,
         trigger_kwargs=trigger_kwargs,
         trigger_timeout=defer.timeout,
+        queue=queue,
         next_method=defer.method_name,
-        next_kwargs=defer.kwargs or {},
+        next_kwargs=next_kwargs,
     )
     state = TaskInstanceState.DEFERRED
 
@@ -1206,6 +1225,16 @@ def _handle_current_task_failed(
 ) -> tuple[RetryTask, TaskInstanceState] | tuple[TaskState, TaskInstanceState]:
     end_date = datetime.now(tz=timezone.utc)
     ti.end_date = end_date
+
+    # Record operator and task instance failed metrics
+    operator = ti.task.__class__.__name__
+    stats_tags = {"dag_id": ti.dag_id, "task_id": ti.task_id}
+
+    Stats.incr(f"operator_failures_{operator}", tags=stats_tags)
+    # Same metric with tagging
+    Stats.incr("operator_failures", tags={**stats_tags, "operator": operator})
+    Stats.incr("ti_failures", tags=stats_tags)
+
     if ti._ti_context_from_server and ti._ti_context_from_server.should_retry:
         return RetryTask(end_date=end_date), TaskInstanceState.UP_FOR_RETRY
     return (
@@ -1418,10 +1447,20 @@ def _execute_task(context: Context, ti: RuntimeTaskInstance, log: Logger):
     execute = task.execute
 
     if ti._ti_context_from_server and (next_method := ti._ti_context_from_server.next_method):
-        from airflow.serialization.serialized_objects import BaseSerialization
+        from airflow.sdk.serde import deserialize
 
-        kwargs = BaseSerialization.deserialize(ti._ti_context_from_server.next_kwargs or {})
+        next_kwargs_data = ti._ti_context_from_server.next_kwargs or {}
+        try:
+            if TYPE_CHECKING:
+                assert isinstance(next_kwargs_data, dict)
+            kwargs = deserialize(next_kwargs_data)
+        except (ImportError, KeyError, AttributeError, TypeError):
+            from airflow.serialization.serialized_objects import BaseSerialization
 
+            kwargs = BaseSerialization.deserialize(next_kwargs_data)
+
+        if TYPE_CHECKING:
+            assert isinstance(kwargs, dict)
         execute = functools.partial(task.resume_execution, next_method=next_method, next_kwargs=kwargs)
 
     ctx = contextvars.copy_context()
@@ -1569,6 +1608,12 @@ def finalize(
             log.exception("error calling listener")
     elif state == TaskInstanceState.SKIPPED:
         _run_task_state_change_callbacks(task, "on_skipped_callback", context, log)
+        try:
+            get_listener_manager().hook.on_task_instance_skipped(
+                previous_state=TaskInstanceState.RUNNING, task_instance=ti
+            )
+        except Exception:
+            log.exception("error calling listener")
     elif state == TaskInstanceState.UP_FOR_RETRY:
         _run_task_state_change_callbacks(task, "on_retry_callback", context, log)
         try:

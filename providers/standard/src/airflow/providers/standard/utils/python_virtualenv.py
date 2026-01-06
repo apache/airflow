@@ -30,7 +30,7 @@ from pathlib import Path
 import jinja2
 from jinja2 import select_autoescape
 
-from airflow.configuration import conf
+from airflow.providers.common.compat.sdk import conf
 
 
 def _is_uv_installed() -> bool:

@@ -23,9 +23,12 @@ from starlette import status
 
 from airflow.api_fastapi.common.router import AirflowRouter
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
-from airflow.configuration import conf
-from airflow.providers.keycloak.auth_manager.datamodels.token import TokenBody, TokenResponse
-from airflow.providers.keycloak.auth_manager.services.token import create_token_for
+from airflow.providers.common.compat.sdk import conf
+from airflow.providers.keycloak.auth_manager.datamodels.token import (
+    TokenBody,
+    TokenPasswordBody,
+    TokenResponse,
+)
 
 log = logging.getLogger(__name__)
 token_router = AirflowRouter(tags=["KeycloakAuthManagerToken"])
@@ -37,7 +40,9 @@ token_router = AirflowRouter(tags=["KeycloakAuthManagerToken"])
     responses=create_openapi_http_exception_doc([status.HTTP_400_BAD_REQUEST, status.HTTP_401_UNAUTHORIZED]),
 )
 def create_token(body: TokenBody) -> TokenResponse:
-    token = create_token_for(body.username, body.password)
+    token = body.root.create_token(
+        expiration_time_in_seconds=int(conf.getint("api_auth", "jwt_expiration_time"))
+    )
     return TokenResponse(access_token=token)
 
 
@@ -46,10 +51,8 @@ def create_token(body: TokenBody) -> TokenResponse:
     status_code=status.HTTP_201_CREATED,
     responses=create_openapi_http_exception_doc([status.HTTP_400_BAD_REQUEST, status.HTTP_401_UNAUTHORIZED]),
 )
-def create_token_cli(body: TokenBody) -> TokenResponse:
-    token = create_token_for(
-        body.username,
-        body.password,
-        expiration_time_in_seconds=int(conf.getint("api_auth", "jwt_cli_expiration_time")),
+def create_token_cli(body: TokenPasswordBody) -> TokenResponse:
+    token = body.create_token(
+        expiration_time_in_seconds=int(conf.getint("api_auth", "jwt_cli_expiration_time"))
     )
     return TokenResponse(access_token=token)

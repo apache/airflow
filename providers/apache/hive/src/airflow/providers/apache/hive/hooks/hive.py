@@ -29,14 +29,15 @@ from tempfile import NamedTemporaryFile, TemporaryDirectory
 from typing import TYPE_CHECKING, Any, Literal
 
 from deprecated import deprecated
+from sqlalchemy.engine import URL
 from typing_extensions import overload
 
-from airflow.configuration import conf
 from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.common.compat.sdk import (
     AIRFLOW_VAR_NAME_FORMAT_MAPPING,
     AirflowException,
     BaseHook,
+    conf,
 )
 from airflow.providers.common.sql.hooks.sql import DbApiHook
 from airflow.security import utils
@@ -1131,3 +1132,25 @@ class HiveServer2Hook(DbApiHook):
         **kwargs,
     ) -> pd.DataFrame:
         return self._get_pandas_df(sql, schema=schema, hive_conf=hive_conf, **kwargs)
+
+    @property
+    def sqlalchemy_url(self) -> URL:
+        """Return a `sqlalchemy.engine.URL` object constructed from the connection."""
+        conn = self.get_connection(self.get_conn_id())
+        extra = conn.extra_dejson or {}
+
+        query = {k: str(v) for k, v in extra.items() if v is not None and k != "__extra__"}
+
+        return URL.create(
+            drivername="hive",
+            username=conn.login,
+            password=conn.password,
+            host=conn.host,
+            port=conn.port,
+            database=conn.schema,
+            query=query,
+        )
+
+    def get_uri(self) -> str:
+        """Return a SQLAlchemy engine URL as a string."""
+        return self.sqlalchemy_url.render_as_string(hide_password=False)

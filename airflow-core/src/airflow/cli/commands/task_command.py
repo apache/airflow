@@ -62,6 +62,8 @@ if TYPE_CHECKING:
 
     from sqlalchemy.orm.session import Session
 
+    from airflow.sdk import Context
+    from airflow.sdk.types import Operator as SdkOperator
     from airflow.serialization.definitions.mappedoperator import Operator
 
     CreateIfNecessary = Literal[False, "db", "memory"]
@@ -222,6 +224,24 @@ def _get_ti(
     ti.dag_model  # we must ensure dag model is loaded eagerly for bundle info
 
     return ti, dr_created
+
+
+def _get_template_context(ti: TaskInstance, task: SdkOperator) -> Context:
+    from airflow.api_fastapi.execution_api.datamodels.taskinstance import DagRun, TaskInstance, TIRunContext
+    from airflow.sdk.execution_time.task_runner import RuntimeTaskInstance
+
+    runtime_ti = RuntimeTaskInstance.model_construct(
+        **TaskInstance.model_validate(ti, from_attributes=True).model_dump(exclude_unset=True),
+        task=task,
+        _ti_context_from_server=TIRunContext(
+            dag_run=DagRun.model_validate(ti.dag_run, from_attributes=True),
+            max_tries=ti.max_tries,
+            variables=[],
+            connections=[],
+            xcom_keys_to_clear=[],
+        ),
+    )
+    return runtime_ti.get_template_context()
 
 
 class TaskCommandMarker:
@@ -441,34 +461,28 @@ def task_render(args, dag: DAG | None = None) -> None:
         create_if_necessary="memory",
     )
 
-    with create_session() as session:
-        context = ti.get_template_context(session=session)
-        task = sdk_dag.get_task(args.task_id)
-        # TODO (GH-52141): After sdk separation, ti.get_template_context() would
-        # contain serialized operators, but we need the real operators for
-        # rendering. This does not make sense and eventually we should rewrite
-        # this entire function so "ti" is a RuntimeTaskInstance instead, but for
-        # now we'll just manually fix it to contain the right objects.
-        context["task"] = context["ti"].task = task
-        task.render_template_fields(context)
-        for attr in context["task"].template_fields:
-            print(
-                textwrap.dedent(
-                    f"""\
-                    # ----------------------------------------------------------
-                    # property: {attr}
-                    # ----------------------------------------------------------
-                    """
-                )
-                + str(getattr(context["task"], attr))  # This shouldn't be dedented.
-            )
+    task = sdk_dag.get_task(args.task_id)
+    context = _get_template_context(ti, task)
+    task.render_template_fields(context)
+    for attr in task.template_fields:
+        print(
+            textwrap.dedent(
+                f"""\
+                # ----------------------------------------------------------
+                # property: {attr}
+                # ----------------------------------------------------------
+                """
+            ),
+            getattr(context["task"], attr),  # This shouldn't be dedented.
+            sep="",
+        )
 
 
 @cli_utils.action_cli(check_db=False)
 @providers_configuration_loaded
 def task_clear(args) -> None:
     """Clear all task instances or only those matched by regex for a DAG(s)."""
-    logging.basicConfig(level=settings.LOGGING_LEVEL, format=settings.SIMPLE_LOG_FORMAT)
+    logging.basicConfig(level=logging.INFO, format=settings.SIMPLE_LOG_FORMAT)
     if args.dag_id and not args.bundle_name and not args.dag_regex and not args.task_regex:
         dags = [get_dag_by_file_location(args.dag_id)]
     else:

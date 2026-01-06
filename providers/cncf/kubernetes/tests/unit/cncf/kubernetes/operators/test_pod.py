@@ -51,6 +51,7 @@ from airflow.utils.types import DagRunType
 
 from tests_common.test_utils import db
 from tests_common.test_utils.dag import sync_dag_to_db
+from tests_common.test_utils.taskinstance import create_task_instance, get_template_context
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V_3_1_PLUS
 
 if AIRFLOW_V_3_0_PLUS or AIRFLOW_V_3_1_PLUS:
@@ -140,7 +141,7 @@ def create_context(task, persist_to_db=False, map_index=None):
                 session.add(dag_version)
                 session.commit()
                 session.refresh(dag_version)
-        task_instance = TaskInstance(task=task, run_id=dag_run.run_id, dag_version_id=dag_version.id)
+        task_instance = create_task_instance(task=task, run_id=dag_run.run_id, dag_version_id=dag_version.id)
     else:
         task_instance = TaskInstance(task=task, run_id=dag_run.run_id)
     task_instance.dag_run = dag_run
@@ -234,19 +235,19 @@ class TestKubernetesPodOperator:
         assert dag_id == rendered.container_resources.requests["cpu"]
         assert dag_id == rendered.volume_mounts[0].name
         assert dag_id == rendered.volume_mounts[0].sub_path
-        assert dag_id == ti.task.image
-        assert dag_id == ti.task.cmds
-        assert dag_id == ti.task.name
-        assert dag_id == ti.task.hostname
-        assert dag_id == ti.task.base_container_name
-        assert dag_id == ti.task.namespace
-        assert dag_id == ti.task.config_file
-        assert dag_id == ti.task.labels
-        assert dag_id == ti.task.pod_template_file
-        assert dag_id == ti.task.arguments
-        assert dag_id == ti.task.env_vars[0]
+        assert dag_id == rendered.image
+        assert dag_id == rendered.cmds
+        assert dag_id == rendered.name
+        assert dag_id == rendered.hostname
+        assert dag_id == rendered.base_container_name
+        assert dag_id == rendered.namespace
+        assert dag_id == rendered.config_file
+        assert dag_id == rendered.labels
+        assert dag_id == rendered.pod_template_file
+        assert dag_id == rendered.arguments
+        assert dag_id == rendered.env_vars[0]
         assert dag_id == rendered.annotations["dag-id"]
-        assert dag_id == ti.task.env_from[0].config_map_ref.name
+        assert dag_id == rendered.env_from[0].config_map_ref.name
         assert dag_id == rendered.volumes[0].name
         assert dag_id == rendered.volumes[0].config_map.name
 
@@ -258,7 +259,7 @@ class TestKubernetesPodOperator:
         (ti,) = dr.task_instances
         ti.map_index = map_index
         self.dag_run = dr
-        context = ti.get_template_context(session=self.dag_maker.session)
+        context = get_template_context(ti, operator, session=self.dag_maker.session)
         self.dag_maker.session.commit()  # So 'execute' can read dr and ti.
 
         remote_pod_mock = MagicMock()
@@ -2370,7 +2371,7 @@ class TestKubernetesPodOperatorAsync:
         (ti,) = dr.task_instances
         ti.map_index = map_index
         self.dag_run = dr
-        context = ti.get_template_context(session=self.dag_maker.session)
+        context = get_template_context(ti, operator, session=self.dag_maker.session)
         self.dag_maker.session.commit()  # So 'execute' can read dr and ti.
 
         remote_pod_mock = MagicMock()

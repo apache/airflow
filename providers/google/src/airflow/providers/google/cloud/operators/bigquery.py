@@ -32,9 +32,8 @@ from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
 from google.cloud.bigquery import DEFAULT_RETRY, CopyJob, ExtractJob, LoadJob, QueryJob, Row
 from google.cloud.bigquery.table import RowIterator, Table, TableListItem, TableReference
 
-from airflow.configuration import conf
 from airflow.exceptions import AirflowProviderDeprecationWarning
-from airflow.providers.common.compat.sdk import AirflowException, AirflowSkipException
+from airflow.providers.common.compat.sdk import AirflowException, AirflowSkipException, conf
 from airflow.providers.common.sql.operators.sql import (  # for _parse_boolean
     SQLCheckOperator,
     SQLColumnCheckOperator,
@@ -60,6 +59,7 @@ from airflow.providers.google.cloud.triggers.bigquery import (
     BigQueryValueCheckTrigger,
 )
 from airflow.providers.google.cloud.utils.bigquery import convert_job_id
+from airflow.providers.google.common.deprecated import deprecated
 from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID
 from airflow.utils.helpers import exactly_one
 
@@ -1089,17 +1089,21 @@ class BigQueryGetDataOperator(GoogleCloudBaseOperator, _BigQueryOperatorsEncrypt
         )
         return query
 
-    def execute(self, context: Context):
-        if self.project_id:
-            self.log.warning(
-                "The project_id parameter is deprecated, and will be removed in a future release."
-                " Please use table_project_id instead.",
-            )
-            if not self.table_project_id:
-                self.table_project_id = self.project_id
-            else:
-                self.log.info("Ignoring 'project_id' parameter, as 'table_project_id' is found.")
+    """Deprecated method to assign project_id to table_project_id."""
 
+    @deprecated(
+        planned_removal_date="June 30, 2026",
+        use_instead="table_project_id",
+        category=AirflowProviderDeprecationWarning,
+    )
+    def _assign_project_id(self, project_id: str) -> str:
+        return project_id
+
+    def execute(self, context: Context):
+        if self.project_id != PROVIDE_PROJECT_ID and not self.table_project_id:
+            self.table_project_id = self._assign_project_id(self.project_id)
+        elif self.project_id != PROVIDE_PROJECT_ID and self.table_project_id:
+            self.log.info("Ignoring 'project_id' parameter, as 'table_project_id' is found.")
         if not exactly_one(self.job_id, self.table_id):
             raise AirflowException(
                 "'job_id' and 'table_id' parameters are mutually exclusive, "
@@ -1487,7 +1491,7 @@ class BigQueryCreateEmptyDatasetOperator(GoogleCloudBaseOperator):
             create_new_dataset = BigQueryCreateEmptyDatasetOperator(
                 dataset_id='new-dataset',
                 project_id='my-project',
-                dataset_reference={"friendlyName": "New Dataset"}
+                dataset_reference={"friendlyName": "New Dataset"},
                 gcp_conn_id='_my_gcp_conn_',
                 task_id='newDatasetCreator',
                 dag=dag)
