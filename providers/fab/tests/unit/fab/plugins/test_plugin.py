@@ -24,7 +24,7 @@ from flask_appbuilder import BaseView as AppBuilderBaseView, expose
 from starlette.middleware.base import BaseHTTPMiddleware
 
 # This is the class you derive to create a plugin
-from airflow.plugins_manager import AirflowPlugin
+from airflow.providers.common.compat.sdk import AirflowPlugin
 from airflow.task.priority_strategy import PriorityWeightStrategy
 from airflow.timetables.interval import CronDataIntervalTimetable
 
