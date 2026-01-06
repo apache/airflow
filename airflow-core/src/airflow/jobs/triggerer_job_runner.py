@@ -77,7 +77,7 @@ from airflow.sdk.execution_time.comms import (
     _RequestFrame, _new_encoder,
 )
 from airflow.sdk.execution_time.supervisor import WatchedSubprocess, make_buffered_socket_reader
-from airflow.triggers import base as events
+from airflow.triggers.base import BaseEventTrigger, BaseTrigger, DiscrimatedTriggerEvent, TriggerEvent
 from airflow.utils.helpers import log_filename_template_renderer
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.session import provide_session
@@ -90,7 +90,6 @@ if TYPE_CHECKING:
     from airflow.jobs.job import Job
     from airflow.sdk.api.client import Client
     from airflow.sdk.types import RuntimeTaskInstanceProtocol as RuntimeTI
-    from airflow.triggers.base import BaseTrigger
 
 logger = logging.getLogger(__name__)
 
@@ -208,7 +207,7 @@ class messages:
 
         type: Literal["TriggerStateChanges"] = "TriggerStateChanges"
         events: Annotated[
-            list[tuple[int, events.DiscrimatedTriggerEvent]] | None,
+            list[tuple[int, DiscrimatedTriggerEvent]] | None,
             # We have to specify a default here, as otherwise Pydantic struggles to deal with the discriminated
             # union :shrug:
             Field(default=None),
@@ -362,7 +361,7 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
     creating_triggers: deque[workloads.RunTrigger] = attrs.field(factory=deque, init=False)
 
     # Outbound queue of events
-    events: deque[tuple[int, events.TriggerEvent]] = attrs.field(factory=deque, init=False)
+    events: deque[tuple[int, TriggerEvent]] = attrs.field(factory=deque, init=False)
 
     # Outbound queue of failed triggers
     failed_triggers: deque[tuple[int, list[str] | None]] = attrs.field(factory=deque, init=False)
@@ -842,7 +841,7 @@ class TriggerRunner:
     to_cancel: deque[int]
 
     # Outbound queue of events
-    events: deque[tuple[int, events.TriggerEvent]]
+    events: deque[tuple[int, TriggerEvent]]
 
     # Outbound queue of failed triggers
     failed_triggers: deque[tuple[int, BaseException | None]]
@@ -987,7 +986,7 @@ class TriggerRunner:
                 "task": asyncio.create_task(
                     self.run_trigger(trigger_id, trigger_instance, workload.timeout_after), name=trigger_name
                 ),
-                "is_watcher": isinstance(trigger_instance, events.BaseEventTrigger),
+                "is_watcher": isinstance(trigger_instance, BaseEventTrigger),
                 "name": trigger_name,
                 "events": 0,
             }
@@ -1033,7 +1032,7 @@ class TriggerRunner:
                     saved_exc = e
                 else:
                     # See if they foolishly returned a TriggerEvent
-                    if isinstance(result, events.TriggerEvent):
+                    if isinstance(result, TriggerEvent):
                         self.log.error(
                             "Trigger returned a TriggerEvent rather than yielding it",
                             trigger=details["name"],
@@ -1108,8 +1107,8 @@ class TriggerRunner:
 
     def validate_events(
         self, msg: messages.TriggerStateChanges
-    ) -> list[tuple[int, events.DiscrimatedTriggerEvent]]:
-        validated_events: list[tuple[int, events.DiscrimatedTriggerEvent]] = []
+    ) -> list[tuple[int, DiscrimatedTriggerEvent]]:
+        validated_events: list[tuple[int, DiscrimatedTriggerEvent]] = []
 
         if msg.events:
             req_encoder = _new_encoder()
