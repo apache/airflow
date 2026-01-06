@@ -680,7 +680,7 @@ class TestS3DeleteObjectsOperator:
 
             sync_dag_to_db(dag)
             dag_version = DagVersion.get_latest_version(dag.dag_id)
-            ti = create_task_instance(task=op, dag_version_id=dag_version.id)
+            ti = create_task_instance(task=op, run_id="test", dag_version_id=dag_version.id)
         else:
             ti = TaskInstance(task=op)
         ti.dag_run = dag_run
