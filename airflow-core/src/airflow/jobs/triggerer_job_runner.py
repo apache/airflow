@@ -1107,7 +1107,9 @@ class TriggerRunner:
 
         return response
 
-    def validate_events(self, msg: messages.TriggerStateChanges) -> list[tuple[int, events.DiscrimatedTriggerEvent]]:
+    def validate_events(
+        self, msg: messages.TriggerStateChanges
+    ) -> list[tuple[int, events.DiscrimatedTriggerEvent]]:
         validated_events: list[tuple[int, events.DiscrimatedTriggerEvent]] = []
         req_encoder = _new_encoder()
 

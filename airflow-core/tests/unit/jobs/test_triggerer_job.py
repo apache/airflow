@@ -449,9 +449,7 @@ class TestTriggerRunner:
         )
         trigger_runner.events.append((1, TriggerEvent(payload={"status": "SUCCESS"})))
         trigger_runner.events.append((2, TriggerEvent(payload={"status": "FAILED"})))
-        trigger_runner.events.append(
-            (3, TriggerEvent(payload={"status": "SUCCESS", "data": object()}))
-        )
+        trigger_runner.events.append((3, TriggerEvent(payload={"status": "SUCCESS", "data": object()})))
 
         await trigger_runner.sync_state_to_supervisor(finished_ids=[])
 
