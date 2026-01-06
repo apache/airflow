@@ -57,6 +57,8 @@
   - [Announce about the release in social media](#announce-about-the-release-in-social-media)
   - [Bump chart version in Chart.yaml](#bump-chart-version-in-chartyaml)
   - [Remove old releases](#remove-old-releases)
+- [Additional processes](#additional-processes)
+  - [Fixing released documentation](#fixing-released-documentation)
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
 
@@ -749,12 +751,7 @@ you need to run several workflows to publish the documentation. More details abo
 [Docs README](../docs/README.md) showing the architecture and workflows including manual workflows for
 emergency cases.
 
-There are two ways to publish the documentation - using breeze command from your local machine or
-using breeze commands from GitHub Actions. Both are actually execute remote workflows in GitHub Actions.
-
-### Using breeze commands
-
-You can use the `breeze` command to publish the documentation.
+You should use the `breeze` command to publish the documentation.
 The command does the following:
 
 1. Triggers [Publish Docs to S3](https://github.com/apache/airflow/actions/workflows/publish-docs-to-s3.yml).
@@ -776,45 +773,6 @@ Other available parameters can be found with:
 ```shell script
 breeze workflow-run publish-docs --help
 ```
-
-One of the interesting features of publishing this way is that you can also rebuild historical version of
-the documentation with patches applied to the documentation (if they can be applied cleanly).
-
-Yoy should specify the `--apply-commits` parameter with the list of commits you want to apply
-separated by commas and the workflow will apply those commits to the documentation before
-building it. (don't forget to add --skip-write-to-stable-folder if you are publishing
-previous version of the distribution). Example:
-
-```shell script
-breeze workflow-run publish-docs --ref helm-chart/1.18.0 --site-env staging \
-  --apply-commits 4ae273cbedec66c87dc40218c7a94863390a380d,e61e9618bdd6be8213d277b1427f67079fcb1d9b \
-  --skip-write-to-stable-folder \
-  helm-chart
-```
-
-### Manually using GitHub Actions
-
-There are two steps to publish the documentation:
-
-1. Publish the documentation to the `staging` S3 bucket.
-
-The release manager publishes the documentation using GitHub Actions workflow
-[Publish Docs to S3](https://github.com/apache/airflow/actions/workflows/publish-docs-to-s3.yml). By default `auto` selection should publish to the `staging` bucket - based on
-the tag you use - pre-release tags go to staging. But you can also override it and specify the destination
-manually to be `live` or `staging`.
-
-You should specify 'helm-chart' passed as packages to be built.
-
-After that step, the provider documentation should be available under https://airflow.stage.apache.org//
-URL (RC PyPI packages are build with the staging urls) but stable links and drop-down boxes are not updated yet.
-
-2. Invalidate Fastly cache, update version drop-down and stable links with the new versions of the documentation.
-
-In order to do it, you need to run the [Build docs](https://github.com/apache/airflow-site/actions/workflows/build.yml)
-workflow in `airflow-site` repository - but make sure to use `staging` branch.
-
-After that workflow completes, the new version should be available in the drop-down list and stable links
-should be updated, also Fastly cache will be updated
 
 ## Update `index.yaml` in airflow-site
 
@@ -982,4 +940,35 @@ cd airflow-release/helm-chart
 export PREVIOUS_VERSION=1.0.0
 svn rm ${PREVIOUS_VERSION}
 svn commit -m "Remove old Helm Chart release: ${PREVIOUS_VERSION}"
+```
+
+# Additional processes
+
+## Fixing released documentation
+
+Sometimes we want to rebuild the documentation with some fixes that were merged in main
+branch, for example when there are html layout changes or typo fixes, or formatting issue fixes.
+
+In this case the process is as follows:
+
+* When you want to re-publish `helm-chart/X.Y.Z` docs, create (or pull if already created)
+  `helm-chart/X.Y.Z-docs` branch
+* Cherry-pick changes you want to add and push to the main `apache/airflow` repo
+* Run the publishing workflow.
+
+In case you are releasing latest released version of helm-chart (which should be most of the cases), run this:
+
+```bash
+breeze workflow-run publish-docs --site-env live --ref helm-chart/X.Y.Z-docs \
+   --skip-tag-validation \
+   helm-chart
+```
+
+In case you are releasing an older version of helm-chart, you should skip writing to the stable folder
+
+```bash
+breeze workflow-run publish-docs --site-env live --ref helm-chart/X.Y.Z-docs \
+   --skip-tag-validation \
+   --skip-write-to-stable-folder \
+   helm-chart
 ```

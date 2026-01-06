@@ -60,6 +60,8 @@
   - [Update default Airflow version in the helm chart](#update-default-airflow-version-in-the-helm-chart)
   - [Update airflow/config_templates/config.yml file](#update-airflowconfig_templatesconfigyml-file)
   - [API clients](#api-clients)
+- [Additional processes](#additional-processes)
+  - [Fixing released documentation](#fixing-released-documentation)
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
 
@@ -1458,3 +1460,35 @@ According to the policy above, if we have to release clients:
 
     - [Python client](https://github.com/apache/airflow/blob/main/dev/README_RELEASE_PYTHON_CLIENT.md)
     - [Go client](https://github.com/apache/airflow-client-go/blob/main/dev/README_RELEASE_CLIENT.md)
+
+# Additional processes
+
+Those processes are related to the release of Airflow but should be run in exceptional situations.
+
+## Fixing released documentation
+
+Sometimes we want to rebuild the documentation with some fixes that were merged in main or `v3-X-stable`
+branch, for example when there are html layout changes or typo fixes, or formatting issue fixes.
+
+In this case the process is as follows:
+
+* When you want to re-publish `3.X.Y` docs, create (or pull if already created) `3.X.Y-docs` branch
+* Cherry-pick changes you want to add and push to the main `apache/airflow` repo
+* Run the publishing workflow.
+
+In case you are releasing latest released version of Airflow (which should be most of the cases), run this:
+
+```bash
+breeze workflow-run publish-docs --site-env live --ref 3.X.Y-docs \
+   --skip-tag-validation --airflow-version 3.X.Y \
+   apache-airflow
+```
+
+In case you are releasing an older version of Airflow, you should skip writing to the stable folder
+
+```bash
+breeze workflow-run publish-docs --site-env live --ref 3.X.Y-docs \
+   --skip-tag-validation --airflow-version 3.X.Y \
+   --skip-write-to-stable-folder \
+   apache-airflow
+```
