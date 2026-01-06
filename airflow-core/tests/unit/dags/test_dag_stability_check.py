@@ -66,7 +66,7 @@ for i in range(1, 10):
 
     task1 = BashOperator(
         task_id=f"{str(random_task_id)}",
-        bash_command=f'echo "Hello from DAG {i}!"',
+        bash_command=f'echo "Hello from Dag {i}!"',
         dag=dag,
     )
 
@@ -90,7 +90,7 @@ for i in range(1, 10):
 
     task5 = BashOperator(
         task_id="final_task",
-        bash_command=f'echo "DAG {i} - All tasks completed!"',
+        bash_command=f'echo "Dag {i} - All tasks completed!"',
         dag=dag,
     )
 

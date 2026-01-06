@@ -2647,13 +2647,13 @@ dag_processor:
       default: "True"
     dag_stability_check_level:
       description: |
-        Controls the behavior of dag stability checker performed before DAG parsing in the dag-processor.
+        Controls the behavior of Dag stability checker performed before Dag parsing in the Dag processor.
         The check detects detect potential issues such as runtime-varying values in Dag/Task constructors
         that could cause Dag version inflation.
 
-        * ``off``: Disables dag stability checks entirely. No errors or warnings are generated.
+        * ``off``: Disables Dag stability checks entirely. No errors or warnings are generated.
         * ``warning``: Dags load normally but warnings are displayed in the UI when issues are detected.
-        * ``error``: Treats dag stability failures as DAG import errors, preventing the Dag from loading.
+        * ``error``: Treats Dag stability failures as Dag import errors, preventing the Dag from loading.
 
         Default is "warning" to alert users of potential issues without blocking Dag execution.
       version_added: 3.2.0

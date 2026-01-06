@@ -143,7 +143,7 @@ class TestRuntimeVaryingValueAnalyzer:
         call_node = ast.parse(code, mode="eval").body
         self.imports["datetime"] = "datetime"
 
-        result = self.analyzer._is_runtime_varying_call(call_node)
+        result = self.analyzer.is_runtime_varying_call(call_node)
 
         assert result is True
 
@@ -157,7 +157,7 @@ class TestRuntimeVaryingValueAnalyzer:
         call_node = ast.parse(code, mode="eval").body
         self.imports["datetime"] = "datetime"
 
-        result = self.analyzer._is_runtime_varying_call(call_node)
+        result = self.analyzer.is_runtime_varying_call(call_node)
 
         assert result is True
 
@@ -166,7 +166,7 @@ class TestRuntimeVaryingValueAnalyzer:
         code = 'print("hello")'
         call_node = ast.parse(code, mode="eval").body
 
-        result = self.analyzer._is_runtime_varying_call(call_node)
+        result = self.analyzer.is_runtime_varying_call(call_node)
 
         assert result is False
 
@@ -305,7 +305,7 @@ class TestDAGTaskDetector:
         assert result is True
 
     def test_is_dag_constructor__ignores_non_dag_functions(self):
-        """Regular function calls should not be detected as DAG constructors."""
+        """Regular function calls should not be detected as Dag constructors."""
         code = "my_function()"
         call_node = ast.parse(code, mode="eval").body
 
@@ -315,7 +315,7 @@ class TestDAGTaskDetector:
 
     def test_is_task_constructor__true_when_inside_dag_context(self):
         """
-        Any function call inside a DAG with-block is considered a task.
+        Any function call inside a Dag with-block is considered a task.
 
         Example:
             with DAG() as dag:
@@ -330,7 +330,7 @@ class TestDAGTaskDetector:
         assert result is True
 
     def test_is_task_constructor__false_when_outside_dag_context(self):
-        """Same call outside DAG context is NOT automatically a task."""
+        """Same call outside Dag context is NOT automatically a task."""
         code = "PythonOperator(task_id='my_task')"
         call_node = ast.parse(code, mode="eval").body
 
@@ -339,7 +339,7 @@ class TestDAGTaskDetector:
 
     def test_is_task_constructor__true_when_dag_passed_as_argument(self):
         """
-        Detect task when dag= parameter references a DAG instance.
+        Detect task when dag= parameter references a Dag instance.
 
         Example: my_dag = DAG(dag_id='dag); task = PythonOperator(dag=my_dag)
         """
@@ -352,7 +352,7 @@ class TestDAGTaskDetector:
 
     def test_is_task_constructor__true_when_dag_in_positional_args(self):
         """
-        Detect task even when DAG is passed as positional argument.
+        Detect task even when Dag is passed as positional argument.
 
         Example: my_dag = DAG(dag_id='dag); task = PythonOperator('task_id', my_dag)
         """
@@ -364,7 +364,7 @@ class TestDAGTaskDetector:
         assert result is True
 
     def test_enter_and_exit_dag_context(self):
-        """Properly track entering and exiting DAG with-blocks."""
+        """Properly track entering and exiting Dag with-blocks."""
         assert self.detector.is_in_dag_context is False
 
         self.detector.enter_dag_context()
@@ -374,7 +374,7 @@ class TestDAGTaskDetector:
         assert self.detector.is_in_dag_context is False
 
     def test_register_dag_instance(self):
-        """Remember variable names that hold DAG instances."""
+        """Remember variable names that hold Dag instances."""
         assert "my_dag" not in self.detector.dag_instances
 
         self.detector.register_dag_instance("my_dag")
@@ -456,7 +456,7 @@ current_time = datetime.now()
         assert "datetime.now()" in source
 
     def test_visit_assign__warns_on_dag_with_varying_value(self):
-        """Warn when DAG constructor uses runtime-varying values."""
+        """Warn when Dag constructor uses runtime-varying values."""
         code = """
 from airflow import DAG
 from datetime import datetime
@@ -470,7 +470,7 @@ dag = DAG(dag_id=f"dag_{datetime.now()}")
         assert any("Dag constructor" in w.message for w in self.checker.static_check_result.warnings)
 
     def test_visit_call__detects_task_in_dag_context(self):
-        """Detect task creation inside DAG with block."""
+        """Detect task creation inside Dag with block."""
         code = """
 from airflow import DAG
 from airflow.operators.python import PythonOperator
@@ -555,12 +555,12 @@ class TestIntegrationScenarios:
         return checker.static_check_result.warnings
 
     def test_antipattern__dynamic_dag_id_with_timestamp(self):
-        """ANTI-PATTERN: Using timestamps in DAG IDs."""
+        """ANTI-PATTERN: Using timestamps in Dag IDs."""
         code = """
 from airflow import DAG
 from datetime import datetime
 
-# BAD: DAG ID includes current timestamp
+# BAD: Dag ID includes current timestamp
 dag = DAG(dag_id=f"report_{datetime.now().strftime('%Y%m%d_%H%M%S')}")
 """
         warnings = self._check_code(code)
@@ -618,7 +618,6 @@ from mydule import test_function
 
 import time
 
-# time 모듈 동적 함수들
 current_timestamp = time.time()
 local_time = time.localtime()
 
