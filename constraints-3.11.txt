@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2026-01-06T09:11:50.372742
+# This constraints file was automatically generated on 2026-01-06T14:45:18.964955
 # via `uv pip install --resolution highest` for the "v3-1-test" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -92,7 +92,7 @@ aliyun-python-sdk-kms==2.16.5
 amqp==5.3.1
 annotated-types==0.7.0
 ansicolors==1.1.8
-anyio==4.12.0
+anyio==4.12.1
 apache-airflow-providers-airbyte==5.3.1
 apache-airflow-providers-alibaba==3.3.2
 apache-airflow-providers-amazon==9.19.0
@@ -394,7 +394,7 @@ httpcore==1.0.9
 httplib2==0.22.0
 httptools==0.7.1
 httpx==0.28.1
-huggingface_hub==1.2.3
+huggingface_hub==1.2.4
 humanize==4.15.0
 hvac==2.4.0
 hyperframe==6.1.0
@@ -515,7 +515,7 @@ pandocfilters==1.5.1
 papermill==2.6.0
 paramiko==3.5.1
 parso==0.8.5
-pathspec==1.0.0
+pathspec==1.0.1
 pbr==7.0.3
 pendulum==3.1.0
 pexpect==4.9.0
@@ -659,8 +659,8 @@ tornado==6.5.4
 tqdm==4.67.1
 traitlets==5.14.3
 trino==0.336.0
-typer-slim==0.21.0
-typer==0.21.0
+typer-slim==0.21.1
+typer==0.21.1
 types-protobuf==6.32.1.20251210
 types-pytz==2025.2.0.20251108
 types-requests==2.32.4.20250913
@@ -674,7 +674,7 @@ universal_pathlib==0.2.6
 uritemplate==4.2.0
 urllib3==2.6.2
 uuid6==2025.0.1
-uv==0.9.21
+uv==0.9.22
 uvicorn==0.40.0
 uvloop==0.22.1
 validators==0.35.0
