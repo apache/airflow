@@ -47,12 +47,15 @@ export const TaskInstanceSummary = ({ dagId, runId }: Props) => {
     );
   }
 
+  if (!data) {
+    return null;
+  }
+
   // Count task instances by state
   const stateCounts: Record<string, number> = {};
 
-  data?.task_instances?.forEach((ti) => {
+  data.task_instances.forEach((ti) => {
     const state = ti.state ?? "no_status";
-
     stateCounts[state] = (stateCounts[state] ?? 0) + 1;
   });
 
