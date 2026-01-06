@@ -14,7 +14,7 @@
   "xcom": {
     "add": {
       "error": "新增 XCom 失敗",
-      "errorTitle": "錯誤",
+      "errorTitle": "新增失敗",
       "success": "成功新增 XCom",
       "successTitle": "已新增 XCom",
       "title": "新增 XCom"
