@@ -128,9 +128,13 @@ def find_provider_distributions(extension: str, selected_providers: list[str]) -
     for candidate in candidates:
         # https://github.com/apache/airflow/pull/49339
         path_str = candidate.as_posix()
+        # Add optional extras that we test providers with
         if "apache_airflow_providers_common_sql" in path_str:
             console.print(f"[bright_blue]Adding [polars] extra to common.sql provider: {path_str}")
             path_str += "[polars]"
+        if "apache_airflow_providers_databricks" in path_str:
+            console.print(f"[bright_blue]Adding [sqlalchemy] extra to databricks provider: {path_str}")
+            path_str += "[sqlalchemy]"
         result.append(path_str)
     return result
 
