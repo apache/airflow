@@ -252,8 +252,8 @@ spec:
           {{- if or .Values.workers.celery.command .Values.workers.command }}
           command: {{ tpl (toYaml (.Values.workers.celery.command | default .Values.workers.command)) . | nindent 12 }}
           {{- end }}
-          {{- if .Values.workers.args }}
-          args: {{ tpl (toYaml .Values.workers.args) . | nindent 12 }}
+          {{- if or .Values.workers.celery.args .Values.workers.args }}
+          args: {{ tpl (toYaml (.Values.workers.celery.args | default .Values.workers.args)) . | nindent 12 }}
           {{- end }}
           resources: {{- toYaml .Values.workers.resources | nindent 12 }}
           {{- if .Values.workers.livenessProbe.enabled }}
