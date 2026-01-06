@@ -15,11 +15,13 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Example DAG demonstrating the usage of the branching TaskFlow API decorators.
+"""
+Example DAG demonstrating the usage of branching TaskFlow API decorators.
 
-It shows how to use standard Python ``@task.branch`` as well as the external Python
-version ``@task.branch_external_python`` which calls an external Python interpreter and
-the ``@task.branch_virtualenv`` which builds a temporary Python virtual environment.
+This example shows how to use standard Python `@task.branch`, as well as
+`@task.branch_external_python` and `@task.branch_virtualenv` for branching
+logic executed in external Python interpreters or isolated virtual
+environments.
 """
 
 from __future__ import annotations
@@ -36,18 +38,59 @@ from airflow.sdk import DAG, Label, task
 
 PATH_TO_PYTHON_BINARY = sys.executable
 
+
 with DAG(
     dag_id="example_branch_python_operator_decorator",
     start_date=pendulum.datetime(2021, 1, 1, tz="UTC"),
     catchup=False,
     schedule="@daily",
     tags=["example", "example2"],
+    doc_md="""
+    ### Branch Decorator: Runtime Path Selection
+
+    Branching enables conditional execution paths within a DAG by selecting
+    which downstream task(s) should run at runtime, while all other paths
+    are marked as skipped. This allows mutually exclusive workflows to be
+    expressed cleanly within a single DAG definition.
+
+    **How branching selects execution paths:**
+    - A branch task returns the `task_id` (or list of `task_id`s) corresponding
+      to the next task(s) that should execute
+    - Only the returned downstream task(s) are executed; all other immediate
+      downstream tasks are marked as skipped
+    - Skipped branches do not fail the DAG run and are treated as a normal
+      execution outcome
+
+    **Handling skipped branches downstream:**
+    - Tasks that follow a branching point must use trigger rules that account
+      for skipped upstream tasks (for example, `NONE_FAILED_MIN_ONE_SUCCESS`)
+    - Without appropriate trigger rules, downstream tasks may not execute
+      as expected due to skipped upstream states
+    - This behavior differs from short-circuiting, where all downstream
+      execution may be prevented entirely
+
+    **Common use cases:**
+    - Conditional data processing based on runtime characteristics
+      (for example, small vs. large datasets)
+    - Environment-driven workflows where different paths are selected
+      dynamically
+    - Optional enrichment or validation steps that should only run when needed
+    - Mutually exclusive downstream actions within a single DAG
+
+    **Branching vs. Python if/else:**
+    Branching is not equivalent to a Python `if/else` statement. All possible
+    branches exist in the DAG graph at parse time, and the branch task selects
+    which path is taken during execution.
+
+    📖 **Related documentation**  
+    https://airflow.apache.org/docs/apache-airflow/stable/howto/operator.html#branching
+    """,
 ) as dag:
     run_this_first = EmptyOperator(task_id="run_this_first")
 
     options = ["a", "b", "c", "d"]
 
-    # Example branching on standard Python tasks
+    # Example branching with standard Python tasks
 
     # [START howto_operator_branch_python]
     @task.branch()
@@ -74,7 +117,7 @@ with DAG(
         # Label is optional here, but it can help identify more complex branches
         random_choice_instance >> Label(option) >> t >> empty >> join
 
-    # Example the same with external Python calls
+    # Example branching with external Python execution
 
     # [START howto_operator_branch_ext_py]
     @task.branch_external_python(python=PATH_TO_PYTHON_BINARY)
@@ -89,7 +132,9 @@ with DAG(
 
     join >> random_choice_ext_py
 
-    join_ext_py = EmptyOperator(task_id="join_ext_py", trigger_rule=TriggerRule.NONE_FAILED_MIN_ONE_SUCCESS)
+    join_ext_py = EmptyOperator(
+        task_id="join_ext_py", trigger_rule=TriggerRule.NONE_FAILED_MIN_ONE_SUCCESS
+    )
 
     for option in options:
 
@@ -102,17 +147,18 @@ with DAG(
         # Label is optional here, but it can help identify more complex branches
         random_choice_ext_py >> Label(option) >> t >> join_ext_py
 
-    # Example the same with Python virtual environments
+    # Example branching with Python virtual environments
 
     # [START howto_operator_branch_virtualenv]
-    # Note: Passing a caching dir allows to keep the virtual environment over multiple runs
-    #       Run the example a second time and see that it reuses it and is faster.
+    # Passing a cache directory allows the virtual environment to be reused
+    # across runs, reducing setup overhead on subsequent executions.
     VENV_CACHE_PATH = tempfile.gettempdir()
 
-    @task.branch_virtualenv(requirements=["numpy~=1.26.0"], venv_cache_path=VENV_CACHE_PATH)
+    @task.branch_virtualenv(
+        requirements=["numpy~=1.26.0"], venv_cache_path=VENV_CACHE_PATH
+    )
     def branching_virtualenv(choices) -> str:
         import random
-
         import numpy as np
 
         print(f"Some numpy stuff: {np.arange(6)}")
@@ -124,12 +170,16 @@ with DAG(
 
     join_ext_py >> random_choice_venv
 
-    join_venv = EmptyOperator(task_id="join_venv", trigger_rule=TriggerRule.NONE_FAILED_MIN_ONE_SUCCESS)
+    join_venv = EmptyOperator(
+        task_id="join_venv", trigger_rule=TriggerRule.NONE_FAILED_MIN_ONE_SUCCESS
+    )
 
     for option in options:
 
         @task.virtualenv(
-            task_id=f"venv_{option}", requirements=["numpy~=1.26.0"], venv_cache_path=VENV_CACHE_PATH
+            task_id=f"venv_{option}",
+            requirements=["numpy~=1.26.0"],
+            venv_cache_path=VENV_CACHE_PATH,
         )
         def some_venv_task():
             import numpy as np
