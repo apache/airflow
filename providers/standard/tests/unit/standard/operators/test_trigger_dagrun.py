@@ -87,13 +87,9 @@ class TestDagRunOperator:
                 bundle_name = "test_bundle"
                 session.add(DagBundleModel(name=bundle_name))
                 session.flush()
-                dm = DagModel(dag_id=TRIGGERED_DAG_ID, bundle_name=bundle_name, fileloc=self._tmpfile)
-                dm.timetable_type = ""
-                session.add(dm)
+                session.add(DagModel(dag_id=TRIGGERED_DAG_ID, bundle_name=bundle_name, fileloc=self._tmpfile))
             else:
-                dm = DagModel(dag_id=TRIGGERED_DAG_ID, fileloc=self._tmpfile)
-                dm.timetable_type = ""
-                session.add(dm)
+                session.add(DagModel(dag_id=TRIGGERED_DAG_ID, fileloc=self._tmpfile))
             session.commit()
 
     def teardown_method(self):
