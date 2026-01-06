@@ -650,6 +650,7 @@ workers:
   command: ~
 
   # Args to use when running Airflow Celery workers (templated)
+  # (deprecated, use `workers.celery.args` instead)
   args:
     - "bash"
     - "-c"
@@ -1023,6 +1024,14 @@ workers:
 
     # Command to use when running Airflow Celery workers (templated)
     command: ~
+
+    # Args to use when running Airflow Celery workers (templated)
+    args:
+      - "bash"
+      - "-c"
+      - |-
+        exec \
+        airflow {{ semverCompare ">=2.0.0" .Values.airflowVersion | ternary "celery worker" "worker" }}
 
     # Create ServiceAccount for Airflow Celery workers
     serviceAccount:
