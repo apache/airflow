@@ -261,8 +261,8 @@ _IMPORT_MAP: dict[str, str | tuple[str, ...]] = {
     # ============================================================================
     # Listeners
     # ============================================================================
-    "hookimpl": ("airflow.sdk.listeners", "airflow.listeners"),
-    "get_listener_manager": ("airflow.sdk.listeners.listener", "airflow.listeners.listener"),
+    "hookimpl": ("airflow.sdk.listener", "airflow.listeners"),
+    "get_listener_manager": ("airflow.sdk.listener", "airflow.listeners.listener"),
     # Configuration
     # ============================================================================
     "conf": ("airflow.sdk.configuration", "airflow.configuration"),
