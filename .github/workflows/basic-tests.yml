@@ -219,21 +219,40 @@ jobs:
           python-version: ${{ steps.breeze.outputs.host-python-version }}
           platform: ${{ inputs.platform }}
           save-cache: true
-      - name: Fetch incoming commit ${{ github.sha }} with its parent
+      - name: Fetch incoming commit ${{ github.sha }} with history
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
         with:
           ref: ${{ github.sha }}
-          fetch-depth: 2
+          fetch-depth: 50
           persist-credentials: false
+      - name: Calculate merge-base for PR
+        id: merge-base
+        run: |
+          git fetch origin "$BASE_BRANCH" --depth=50
+
+          # Try to find merge-base, deepen if not found
+          MERGE_BASE=$(git merge-base "origin/$BASE_BRANCH" HEAD 2>/dev/null || echo "")
+
+          if [ -z "$MERGE_BASE" ]; then
+            echo "Merge-base not found with depth=50, fetching more history..."
+            git fetch --deepen=450
+            git fetch origin "$BASE_BRANCH" --deepen=450
+            MERGE_BASE=$(git merge-base "origin/$BASE_BRANCH" HEAD)
+          fi
+
+          echo "sha=${MERGE_BASE}" >> $GITHUB_OUTPUT
+        env:
+          BASE_BRANCH: ${{ github.base_ref || 'main' }}
       - name: "Static checks: basic checks only"
         run: >
           prek --show-diff-on-failure --color always
-          --from-ref "${{ github.sha }}" --to-ref "${{ github.sha }}"
+          --from-ref "${MERGE_BASE}" --to-ref "HEAD"
         env:
           VERBOSE: "false"
           SKIP_BREEZE_PREK_HOOKS: "true"
           SKIP: ${{ inputs.skip-prek-hooks }}
           COLUMNS: "202"
+          MERGE_BASE: ${{ steps.merge-base.outputs.sha }}
 
   test-git-clone-on-windows:
     timeout-minutes: 5
