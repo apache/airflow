@@ -27,7 +27,7 @@ from uuid import UUID
 
 from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, JsonValue, RootModel
 
-API_VERSION: Final[str] = "2025-12-08"
+API_VERSION: Final[str] = "2026-03-31"
 
 
 class AssetAliasReferenceAssetEventDagRun(BaseModel):
@@ -171,6 +171,23 @@ class PrevSuccessfulDagRunResponse(BaseModel):
     end_date: Annotated[AwareDatetime | None, Field(title="End Date")] = None
 
 
+class PreviousTIResponse(BaseModel):
+    """
+    Schema for response with previous TaskInstance information.
+    """
+
+    task_id: Annotated[str, Field(title="Task Id")]
+    dag_id: Annotated[str, Field(title="Dag Id")]
+    run_id: Annotated[str, Field(title="Run Id")]
+    logical_date: Annotated[AwareDatetime | None, Field(title="Logical Date")] = None
+    start_date: Annotated[AwareDatetime | None, Field(title="Start Date")] = None
+    end_date: Annotated[AwareDatetime | None, Field(title="End Date")] = None
+    state: Annotated[str | None, Field(title="State")] = None
+    try_number: Annotated[int, Field(title="Try Number")]
+    map_index: Annotated[int | None, Field(title="Map Index")] = -1
+    duration: Annotated[float | None, Field(title="Duration")] = None
+
+
 class TIDeferredStatePayload(BaseModel):
     """
     Schema for updating TaskInstance to a deferred state.
@@ -181,10 +198,11 @@ class TIDeferredStatePayload(BaseModel):
     )
     state: Annotated[Literal["deferred"] | None, Field(title="State")] = "deferred"
     classpath: Annotated[str, Field(title="Classpath")]
-    trigger_kwargs: Annotated[dict[str, Any] | str | None, Field(title="Trigger Kwargs")] = None
+    trigger_kwargs: Annotated[dict[str, JsonValue] | str | None, Field(title="Trigger Kwargs")] = None
     trigger_timeout: Annotated[timedelta | None, Field(title="Trigger Timeout")] = None
+    queue: Annotated[str | None, Field(title="Queue")] = None
     next_method: Annotated[str, Field(title="Next Method")]
-    next_kwargs: Annotated[dict[str, Any] | None, Field(title="Next Kwargs")] = None
+    next_kwargs: Annotated[dict[str, JsonValue] | None, Field(title="Next Kwargs")] = None
     rendered_map_index: Annotated[str | None, Field(title="Rendered Map Index")] = None
 
 
@@ -284,6 +302,27 @@ class TaskBreadcrumbsResponse(BaseModel):
     """
 
     breadcrumbs: Annotated[list[dict[str, Any]], Field(title="Breadcrumbs")]
+
+
+class TaskInstanceState(str, Enum):
+    """
+    All possible states that a Task Instance can be in.
+
+    Note that None is also allowed, so always use this in a type hint with Optional.
+    """
+
+    REMOVED = "removed"
+    SCHEDULED = "scheduled"
+    QUEUED = "queued"
+    RUNNING = "running"
+    SUCCESS = "success"
+    RESTARTING = "restarting"
+    FAILED = "failed"
+    UP_FOR_RETRY = "up_for_retry"
+    UP_FOR_RESCHEDULE = "up_for_reschedule"
+    UPSTREAM_FAILED = "upstream_failed"
+    SKIPPED = "skipped"
+    DEFERRED = "deferred"
 
 
 class TaskStatesResponse(BaseModel):
@@ -422,21 +461,6 @@ class TerminalTIState(str, Enum):
     SKIPPED = "skipped"
     UPSTREAM_FAILED = "upstream_failed"
     REMOVED = "removed"
-
-
-class TaskInstanceState(str, Enum):
-    REMOVED = "removed"
-    SCHEDULED = "scheduled"
-    QUEUED = "queued"
-    RUNNING = "running"
-    SUCCESS = "success"
-    RESTARTING = "restarting"
-    FAILED = "failed"
-    UP_FOR_RETRY = "up_for_retry"
-    UP_FOR_RESCHEDULE = "up_for_reschedule"
-    UPSTREAM_FAILED = "upstream_failed"
-    SKIPPED = "skipped"
-    DEFERRED = "deferred"
 
 
 class WeightRule(str, Enum):

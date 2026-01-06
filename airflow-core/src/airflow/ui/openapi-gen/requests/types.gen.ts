@@ -1246,6 +1246,7 @@ export type ProviderResponse = {
     package_name: string;
     description: string;
     version: string;
+    documentation_url: string | null;
 };
 
 /**
@@ -1565,6 +1566,7 @@ export type TriggerResponse = {
     classpath: string;
     kwargs: string;
     created_date: string;
+    queue: string | null;
     triggerer_id: number | null;
 };
 

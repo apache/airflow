@@ -1108,4 +1108,4 @@ class AsyncPodManager(LoggingMixin):
                     print(message_to_log)
                 else:
                     self.log.info("[%s] %s", container_name, message_to_log)
-            return now  # Return the current time as the last log time to ensure logs from the current second are read in the next fetch.
+        return now  # Return the current time as the last log time to ensure logs from the current second are read in the next fetch.

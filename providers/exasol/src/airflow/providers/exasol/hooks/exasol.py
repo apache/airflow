@@ -24,9 +24,13 @@ from typing import TYPE_CHECKING, Any, TypeVar, overload
 import pyexasol
 from deprecated import deprecated
 from pyexasol import ExaConnection, ExaStatement
-from sqlalchemy.engine import URL
 
-from airflow.exceptions import AirflowProviderDeprecationWarning
+try:
+    from sqlalchemy.engine import URL
+except ImportError:
+    URL = None  # type: ignore[assignment,misc]
+
+from airflow.exceptions import AirflowOptionalProviderFeatureException, AirflowProviderDeprecationWarning
 from airflow.providers.common.sql.hooks.handlers import return_single_query_results
 from airflow.providers.common.sql.hooks.sql import DbApiHook
 
@@ -96,6 +100,10 @@ class ExasolHook(DbApiHook):
 
         :return: the extracted sqlalchemy.engine.URL object.
         """
+        if URL is None:
+            raise AirflowOptionalProviderFeatureException(
+                "The 'sqlalchemy' library is required to use 'sqlalchemy_url'."
+            )
         connection = self.connection
         query = connection.extra_dejson
         query = {k: v for k, v in query.items() if k.lower() != "sqlalchemy_scheme"}
@@ -115,6 +123,10 @@ class ExasolHook(DbApiHook):
 
         :return: the extracted uri.
         """
+        if URL is None:
+            raise AirflowOptionalProviderFeatureException(
+                "The 'sqlalchemy' library is required to render the connection URI."
+            )
         return self.sqlalchemy_url.render_as_string(hide_password=False)
 
     def _get_pandas_df(
