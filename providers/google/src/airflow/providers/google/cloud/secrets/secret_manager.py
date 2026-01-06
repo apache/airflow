@@ -149,11 +149,12 @@ class CloudSecretManagerBackend(BaseSecretsBackend, LoggingMixin):
         prefix = self.connections_prefix + self.sep
         return _SecretManagerClient.is_valid_secret_name(prefix)
 
-    def get_conn_value(self, conn_id: str) -> str | None:
+    def get_conn_value(self, conn_id: str, team_name: str | None = None) -> str | None:
         """
         Get serialized representation of Connection.
 
         :param conn_id: connection id
+        :param team_name: Team name associated to the task trying to access the connection (if any)
         """
         if self.connections_prefix is None:
             return None
