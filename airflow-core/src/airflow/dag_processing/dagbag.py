@@ -235,6 +235,13 @@ class DagBag(LoggingMixin):
         self.bundle_path = bundle_path
         self.bundle_name = bundle_name
 
+        # Add bundle path to sys.path if provided.
+        # This allows DAG files to import modules from their bundle directory.
+        # No cleanup is performed - this is intentional for ephemeral processes
+        # (dag processor, task runner, CLI) where the process exits after use.
+        if bundle_path and str(bundle_path) not in sys.path:
+            sys.path.append(str(bundle_path))
+
         dag_folder = dag_folder or settings.DAGS_FOLDER
         self.dag_folder = dag_folder
         self.dags: dict[str, DAG] = {}
@@ -435,23 +442,12 @@ class DagBag(LoggingMixin):
 
         def parse(mod_name, filepath):
             try:
-                # Add bundle path to sys.path if we have one
-                bundle_path_added = False
-                if self.bundle_path and str(self.bundle_path) not in sys.path:
-                    sys.path.append(str(self.bundle_path))
-                    bundle_path_added = True
-
-                try:
-                    loader = importlib.machinery.SourceFileLoader(mod_name, filepath)
-                    spec = importlib.util.spec_from_loader(mod_name, loader)
-                    new_module = importlib.util.module_from_spec(spec)
-                    sys.modules[spec.name] = new_module
-                    loader.exec_module(new_module)
-                    return [new_module]
-                finally:
-                    # Clean up: remove bundle path from sys.path if we added it
-                    if bundle_path_added and str(self.bundle_path) in sys.path:
-                        sys.path.remove(str(self.bundle_path))
+                loader = importlib.machinery.SourceFileLoader(mod_name, filepath)
+                spec = importlib.util.spec_from_loader(mod_name, loader)
+                new_module = importlib.util.module_from_spec(spec)
+                sys.modules[spec.name] = new_module
+                loader.exec_module(new_module)
+                return [new_module]
             except KeyboardInterrupt:
                 # re-raise ctrl-c
                 raise

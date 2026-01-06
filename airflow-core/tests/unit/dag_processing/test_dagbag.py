@@ -1195,10 +1195,10 @@ class TestCaptureWithReraise:
 
 
 class TestBundlePathSysPath:
-    def test_bundle_path_is_in_syspath_during_parse(self, tmp_path):
-        """
-        Test that bundle_path is correctly added to and removed from sys.path during DAG import.
-        """
+    """Tests for bundle_path sys.path handling in DagBag."""
+
+    def test_bundle_path_added_to_syspath(self, tmp_path):
+        """Test that DagBag adds bundle_path to sys.path when provided."""
         util_file = tmp_path / "bundle_util.py"
         util_file.write_text('def get_message(): return "Hello from bundle!"')
 
@@ -1217,8 +1217,9 @@ class TestBundlePathSysPath:
                 """
             )
         )
-        syspath_before = deepcopy(sys.path)
-        assert str(tmp_path) not in sys.path  # bundle path is not in sys.path before bundle parse
+
+        assert str(tmp_path) not in sys.path
+
         dagbag = DagBag(dag_folder=str(dag_file), bundle_path=tmp_path, include_examples=False)
 
         # Check import was successful
@@ -1227,42 +1228,43 @@ class TestBundlePathSysPath:
 
         dag = dagbag.get_dag("test_import")
         assert dag is not None
-        assert str(tmp_path) in dag.description  # sys.path is enhanced during parse
+        assert str(tmp_path) in dag.description  # sys.path was enhanced during parse
 
-        assert str(tmp_path) not in sys.path  # bundle path is not preserved in sys.path
-        assert sys.path == syspath_before  # sys.path doesn't change
+        # Path remains in sys.path (no cleanup - intentional for ephemeral processes)
+        assert str(tmp_path) in sys.path
 
-    def test_bundle_path_syspath_is_cleanup_on_failure(self, tmp_path):
-        """
-        Test that bundle_path is correctly added to and removed from sys.path during DAG import.
-        """
-        util_file = tmp_path / "bundle_util.py"
-        util_file.write_text('def get_message(): return "Hello from bundle!"')
+        # Cleanup for other tests
+        sys.path.remove(str(tmp_path))
 
-        dag_file = tmp_path / "test_dag.py"
+    def test_bundle_path_not_duplicated(self, tmp_path):
+        """Test that bundle_path is not added to sys.path if already present."""
+        dag_file = tmp_path / "simple_dag.py"
         dag_file.write_text(
             textwrap.dedent(
                 """\
                 from airflow.sdk import DAG
                 from airflow.operators.empty import EmptyOperator
 
-                import bundle_utils # typo
-
-                with DAG('test_import'):
+                with DAG("simple_dag"):
                     EmptyOperator(task_id="mytask")
                 """
             )
         )
-        syspath_before = deepcopy(sys.path)
-        dagbag = DagBag(dag_folder=str(dag_file), bundle_path=tmp_path, include_examples=False)
 
-        assert dagbag.import_errors  # Check import failed
-        assert sys.path == syspath_before  # sys.path doesn't change
+        # Pre-add the path
+        sys.path.append(str(tmp_path))
+        count_before = sys.path.count(str(tmp_path))
 
-    def test_bundle_path_none_no_syspath_manipulation(self, tmp_path, caplog):
-        """
-        Test that no sys.path manipulation occurs when bundle_path is None.
-        """
+        DagBag(dag_folder=str(dag_file), bundle_path=tmp_path, include_examples=False)
+
+        # Should not add duplicate
+        assert sys.path.count(str(tmp_path)) == count_before
+
+        # Cleanup for other tests
+        sys.path.remove(str(tmp_path))
+
+    def test_bundle_path_none_no_syspath_modification(self, tmp_path):
+        """Test that no sys.path modification occurs when bundle_path is None."""
         dag_file = tmp_path / "simple_dag.py"
         dag_file.write_text(
             textwrap.dedent(
@@ -1281,5 +1283,5 @@ class TestBundlePathSysPath:
         dagbag = DagBag(dag_folder=str(dag_file), bundle_path=None, include_examples=False)
         dag = dagbag.get_dag("simple_dag")
 
-        assert str(tmp_path) not in dag.description  # path not updated during parse
-        assert sys.path == syspath_before  # sys.path doesn't change
+        assert str(tmp_path) not in dag.description
+        assert sys.path == syspath_before
