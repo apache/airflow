@@ -34,12 +34,12 @@ from typing import TYPE_CHECKING, Annotated, Any, ClassVar, Literal, TypedDict
 
 import attrs
 import structlog
-from airflow._shared.module_loading import import_string
-from airflow._shared.timezones import timezone
 from pydantic import BaseModel, Field, TypeAdapter
 from sqlalchemy import func, select
 from structlog.contextvars import bind_contextvars as bind_log_contextvars
 
+from airflow._shared.module_loading import import_string
+from airflow._shared.timezones import timezone
 from airflow.configuration import conf
 from airflow.executors import workloads
 from airflow.jobs.base_job_runner import BaseJobRunner
@@ -74,7 +74,8 @@ from airflow.sdk.execution_time.comms import (
     UpdateHITLDetail,
     VariableResult,
     XComResult,
-    _RequestFrame, _new_encoder,
+    _new_encoder,
+    _RequestFrame,
 )
 from airflow.sdk.execution_time.supervisor import WatchedSubprocess, make_buffered_socket_reader
 from airflow.triggers.base import BaseEventTrigger, BaseTrigger, DiscrimatedTriggerEvent, TriggerEvent
@@ -1105,9 +1106,7 @@ class TriggerRunner:
             msg.events = validated_events
             return await self.send_changes(msg)
 
-    def validate_events(
-        self, msg: messages.TriggerStateChanges
-    ) -> list[tuple[int, DiscrimatedTriggerEvent]]:
+    def validate_events(self, msg: messages.TriggerStateChanges) -> list[tuple[int, DiscrimatedTriggerEvent]]:
         validated_events: list[tuple[int, DiscrimatedTriggerEvent]] = []
 
         if msg.events:
