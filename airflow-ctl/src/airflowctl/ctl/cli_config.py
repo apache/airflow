@@ -503,7 +503,28 @@ class CommandFactory:
         arg_action: argparse.BooleanOptionalAction | None,
         arg_dest: str | None = None,
         arg_default: Any | None = None,
+        is_required: bool = False,  # NEW PARAMETER
     ) -> Arg:
+        # Boolean flags should always remain optional (with --)
+        # Required non-boolean fields should be positional
+        should_be_positional = is_required and arg_action is None
+
+        if should_be_positional:
+            # Make it positional - remove '--' prefix
+            clean_flags = tuple(flag.lstrip("-").replace("-", "_") for flag in arg_flags)
+            return Arg(
+                flags=clean_flags,
+                type=arg_type,
+                dest=_UNSET,  # Use _UNSET so dest is not added to kwargs
+                help=arg_help,
+                default=arg_default,
+                action=arg_action,
+            )
+        # Keep as optional - add dest parameter if not provided
+        if arg_dest is None and len(arg_flags) > 0:
+            # Generate dest from flag name
+            arg_dest = arg_flags[0].lstrip("-").replace("-", "_")
+
         return Arg(
             flags=arg_flags,
             type=arg_type,
@@ -526,6 +547,7 @@ class CommandFactory:
         for field, field_type in parameter_type_map.model_fields.items():
             if field in self.excluded_parameters:
                 continue
+            is_required = field_type.is_required()
             self.datamodels_extended_map[parameter_type].append(field)
             if type(field_type.annotation) is type:
                 commands.append(
@@ -535,6 +557,7 @@ class CommandFactory:
                         arg_action=argparse.BooleanOptionalAction if field_type.annotation is bool else None,  # type: ignore
                         arg_help=f"{field} for {parameter_key} operation",
                         arg_default=False if field_type.annotation is bool else None,
+                        is_required=is_required,
                     )
                 )
             else:
@@ -550,6 +573,7 @@ class CommandFactory:
                         arg_action=argparse.BooleanOptionalAction if annotation is bool else None,  # type: ignore
                         arg_help=f"{field} for {parameter_key} operation",
                         arg_default=False if annotation is bool else None,
+                        is_required=is_required,
                     )
                 )
         return commands
