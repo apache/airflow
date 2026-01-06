@@ -20,7 +20,7 @@ from __future__ import annotations
 from functools import cache
 
 from airflow.sdk._shared.listeners.listener import ListenerManager
-from airflow.sdk._shared.plugins_manager import integrate_listener_plugins
+from airflow.sdk.plugins_manager import integrate_listener_plugins
 
 
 @cache

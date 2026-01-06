@@ -2904,7 +2904,7 @@ def listener_manager():
     from airflow.listeners.listener import get_listener_manager as get_core_lm
 
     try:
-        from airflow.sdk.listeners.listener import get_listener_manager as get_sdk_lm
+        from airflow.sdk.listener import get_listener_manager as get_sdk_lm
     except ImportError:
         get_sdk_lm = None
 
