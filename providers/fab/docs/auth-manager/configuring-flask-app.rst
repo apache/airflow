@@ -33,6 +33,6 @@ as the `app context <https://flask.palletsprojects.com/en/2.3.x/appcontext/>`_ i
     from flask import current_app as app
 
 
-    @app.before_requestq
+    @app.before_request
     def print_custom_message() -> None:
         print("Executing before every request")

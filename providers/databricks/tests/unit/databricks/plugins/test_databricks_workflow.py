@@ -36,8 +36,7 @@ from flask import url_for
 
 from airflow.models.dagrun import DagRun
 from airflow.models.taskinstance import TaskInstanceKey
-from airflow.plugins_manager import AirflowPlugin
-from airflow.providers.common.compat.sdk import AirflowException
+from airflow.providers.common.compat.sdk import AirflowException, AirflowPlugin
 from airflow.providers.databricks.plugins.databricks_workflow import (
     DatabricksWorkflowPlugin,
     RepairDatabricksTasks,
