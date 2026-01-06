@@ -225,7 +225,9 @@ def _do_delete(
 
     while True:
         limited_statement = statement.limit(batch_size) if batch_size else statement
-        if (session.execute(select(func.count()).select_from(limited_statement.subquery())).scalar() or 0) == 0:
+        if (
+            session.execute(select(func.count()).select_from(limited_statement.subquery())).scalar() or 0
+        ) == 0:
             break
 
         batch_no = next(batch_counter)
