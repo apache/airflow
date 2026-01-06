@@ -18,8 +18,8 @@ from __future__ import annotations
 
 import warnings
 
-from airflow.configuration import conf
 from airflow.exceptions import AirflowConfigException, AirflowProviderDeprecationWarning
+from airflow.providers.common.compat.sdk import conf
 from airflow.settings import AIRFLOW_HOME
 
 

@@ -40,7 +40,6 @@ from kubernetes.client.exceptions import ApiException
 from kubernetes.stream import stream
 from urllib3.exceptions import HTTPError
 
-from airflow.configuration import conf
 from airflow.providers.cncf.kubernetes import pod_generator
 from airflow.providers.cncf.kubernetes.backcompat.backwards_compat_converters import (
     convert_affinity,
@@ -86,7 +85,7 @@ else:
     from airflow.hooks.base import BaseHook  # type: ignore[attr-defined, no-redef]
     from airflow.models import BaseOperator
 
-from airflow.providers.common.compat.sdk import AirflowException, AirflowNotFoundException
+from airflow.providers.common.compat.sdk import AirflowException, AirflowNotFoundException, conf
 from airflow.settings import pod_mutation_hook
 from airflow.utils import yaml
 from airflow.utils.helpers import prune_dict, validate_key

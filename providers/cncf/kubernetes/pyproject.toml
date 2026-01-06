@@ -60,7 +60,7 @@ requires-python = ">=3.10"
 dependencies = [
     "aiofiles>=23.2.0",
     "apache-airflow>=2.11.0",
-    "apache-airflow-providers-common-compat>=1.10.1",
+    "apache-airflow-providers-common-compat>=1.10.1", # use next version
     "asgiref>=3.5.2",
     # TODO(potiuk): We should bump cryptography to >=46.0.0 when sqlalchemy>=2.0 is required
     "cryptography>=41.0.0,<46.0.0",
