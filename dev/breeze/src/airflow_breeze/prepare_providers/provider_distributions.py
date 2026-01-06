@@ -17,6 +17,7 @@
 
 from __future__ import annotations
 
+import os
 import shutil
 import subprocess
 import sys
@@ -30,8 +31,10 @@ from airflow_breeze.utils.packages import (
     get_not_ready_provider_ids,
     get_provider_details,
     get_removed_provider_ids,
+    load_pyproject_toml,
     tag_exists_for_provider,
 )
+from airflow_breeze.utils.path_utils import AIRFLOW_DIST_PATH
 from airflow_breeze.utils.run_utils import run_command
 from airflow_breeze.utils.version_utils import is_local_package_version
 
@@ -97,37 +100,63 @@ def build_provider_distribution(
         f"\n[info]Building provider package: {provider_id} "
         f"in format {distribution_format} in {target_provider_root_sources_path}\n"
     )
-    command: list[str] = [sys.executable, "-m", "flit", "build", "--no-setup-py", "--use-vcs"]
-    get_console().print(
-        "[warning]Workaround wheel-only package bug in flit by building both and removing sdist."
-    )
-    # Workaround https://github.com/pypa/flit/issues/743 bug in flit that causes .gitignored files
-    # to be included in the package when --format wheel is used
-    remove_sdist = False
-    if distribution_format == "wheel":
-        distribution_format = "both"
-        remove_sdist = True
-    if distribution_format != "both":
-        command.extend(["--format", distribution_format])
-    try:
-        run_command(
-            command,
-            check=True,
-            cwd=target_provider_root_sources_path,
-            env={
-                "SOURCE_DATE_EPOCH": str(get_provider_details(provider_id).source_date_epoch),
-            },
+    pyproject_toml = load_pyproject_toml(target_provider_root_sources_path / "pyproject.toml")
+    build_backend = pyproject_toml["build-system"]["build-backend"]
+    if build_backend == "flit_core.buildapi":
+        command: list[str] = [sys.executable, "-m", "flit", "build", "--no-setup-py", "--use-vcs"]
+        get_console().print(
+            "[warning]Workaround wheel-only package bug in flit by building both and removing sdist."
         )
-    except subprocess.CalledProcessError as ex:
-        get_console().print("[error]The command returned an error %s", ex)
+        # Workaround https://github.com/pypa/flit/issues/743 bug in flit that causes .gitignored files
+        # to be included in the package when --format wheel is used
+        remove_sdist = False
+        if distribution_format == "wheel":
+            distribution_format = "both"
+            remove_sdist = True
+        if distribution_format != "both":
+            command.extend(["--format", distribution_format])
+        try:
+            run_command(
+                command,
+                check=True,
+                cwd=target_provider_root_sources_path,
+                env={
+                    "SOURCE_DATE_EPOCH": str(get_provider_details(provider_id).source_date_epoch),
+                },
+            )
+        except subprocess.CalledProcessError as ex:
+            get_console().print(f"[error]The command returned an error {ex}")
+            raise PrepareReleasePackageErrorBuildingPackageException()
+        if remove_sdist:
+            get_console().print("[warning]Removing sdist file to workaround flit bug on wheel-only packages")
+            # Remove the sdist file if it was created
+            package_prefix = "apache_airflow_providers_" + provider_id.replace(".", "_")
+            for file in (target_provider_root_sources_path / "dist").glob(f"{package_prefix}*.tar.gz"):
+                get_console().print(f"[info]Removing {file} to workaround flit bug on wheel-only packages")
+                file.unlink(missing_ok=True)
+    elif build_backend == "hatchling.build":
+        command = [
+            "hatch",
+            "build",
+            "-c",
+        ]
+        if distribution_format == "sdist" or distribution_format == "both":
+            command += ["-t", "sdist"]
+        if distribution_format == "wheel" or distribution_format == "both":
+            command += ["-t", "wheel"]
+        env_copy = os.environ.copy()
+        env_copy["SOURCE_DATE_EPOCH"] = str(get_provider_details(provider_id).source_date_epoch)
+        run_command(
+            cmd=command,
+            cwd=target_provider_root_sources_path,
+            env=env_copy,
+            check=True,
+        )
+        shutil.copytree(target_provider_root_sources_path, AIRFLOW_DIST_PATH, dirs_exist_ok=True)
+        sys.exit(55)
+    else:
+        get_console().print(f"[error]Unknown/unsupported build backend {build_backend}")
         raise PrepareReleasePackageErrorBuildingPackageException()
-    if remove_sdist:
-        get_console().print("[warning]Removing sdist file to workaround flit bug on wheel-only packages")
-        # Remove the sdist file if it was created
-        package_prefix = "apache_airflow_providers_" + provider_id.replace(".", "_")
-        for file in (target_provider_root_sources_path / "dist").glob(f"{package_prefix}*.tar.gz"):
-            get_console().print(f"[info]Removing {file} to workaround flit bug on wheel-only packages")
-            file.unlink(missing_ok=True)
     get_console().print(
         f"\n[info]Prepared provider package {provider_id} in format {distribution_format}[/]\n"
     )
