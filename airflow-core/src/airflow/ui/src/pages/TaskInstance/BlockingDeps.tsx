@@ -23,7 +23,7 @@ import { useTaskInstanceServiceGetTaskInstanceDependencies } from "openapi/queri
 import type { TaskInstanceResponse } from "openapi/requests/types.gen";
 
 type BlockingDepsProps = {
-  readonly refetchInterval: false | number;
+  readonly refetchInterval: number | false;
   readonly taskInstance: TaskInstanceResponse;
 };
 

@@ -23,7 +23,7 @@ import { useParams } from "react-router-dom";
 import { useTaskInstanceServiceGetExtraLinks } from "openapi/queries";
 
 type ExtraLinksProps = {
-  readonly refetchInterval: false | number;
+  readonly refetchInterval: number | false;
 };
 
 export const ExtraLinks = ({ refetchInterval }: ExtraLinksProps) => {
