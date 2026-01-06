@@ -1742,16 +1742,28 @@ class S3Hook(AwsBaseHook):
                     self.log.error("Error deleting stale item %s: %s", item, e)
                     raise e
 
-    def _compute_local_file_md5(self, file_path: Path) -> str:
+    def _compute_local_file_md5(self, file_path: Path) -> str | None:
         hash_md5 = hashlib.md5(usedforsecurity=False)
         try:
             with open(file_path, "rb") as f:
                 for chunk in iter(lambda: f.read(8192), b""):
                     hash_md5.update(chunk)
+            return f'"{hash_md5.hexdigest()}"'
         except (FileNotFoundError, PermissionError, OSError) as e:
-            self.log.error("Failed to compute MD5 for local file %s: %s", file_path, e)
-            raise AirflowException(f"Failed to compute MD5 for local file {file_path}: {e}") from e
-        return f'"{hash_md5.hexdigest()}"'
+            self.log.exception("Failed to compute MD5 for local file %s", file_path)
+            return
+
+    def _check_needs_download_by_timestamp(
+        self, s3_object, local_mtime: float
+    ) -> tuple[bool, str]:
+        s3_last_modified = s3_object.last_modified
+        if s3_last_modified and local_mtime < s3_last_modified.timestamp():
+            return (
+                True,
+                f"S3 object last modified ({s3_last_modified}) is newer than "
+                f"local file last modified ({datetime.fromtimestamp(local_mtime)}).",
+            )
+        return (False, "")
 
     def _sync_to_local_dir_if_changed(self, s3_bucket, s3_object, local_target_path: Path):
         should_download = False
@@ -1769,31 +1781,22 @@ class S3Hook(AwsBaseHook):
                 )
             else:
                 s3_etag = s3_object.e_tag
-                if s3_etag:
-                    if "-" not in s3_etag:
-                        local_md5 = self._compute_local_file_md5(local_target_path)
-                        if local_md5 != s3_etag:
-                            should_download = True
-                            download_msg = (
-                                f"S3 object ETag ({s3_etag}) and local file MD5 ({local_md5}) differ "
-                                f"(content changed while size remained the same)."
-                            )
-                    else:
-                        s3_last_modified = s3_object.last_modified
-                        if s3_last_modified and local_stats.st_mtime < s3_last_modified.timestamp():
-                            should_download = True
-                            download_msg = (
-                                f"S3 object last modified ({s3_last_modified}) is newer than "
-                                f"local file last modified ({datetime.fromtimestamp(local_stats.st_mtime)})."
-                            )
-                else:
-                    s3_last_modified = s3_object.last_modified
-                    if s3_last_modified and local_stats.st_mtime < s3_last_modified.timestamp():
+                if s3_etag and "-" not in s3_etag:
+                    local_md5 = self._compute_local_file_md5(local_target_path)
+                    if local_md5 is None:
+                        should_download, download_msg = self._check_needs_download_by_timestamp(
+                            s3_object, local_stats.st_mtime
+                        )
+                    elif local_md5 != s3_etag:
                         should_download = True
                         download_msg = (
-                            f"S3 object last modified ({s3_last_modified}) is newer than "
-                            f"local file last modified ({datetime.fromtimestamp(local_stats.st_mtime)})."
+                            f"S3 object ETag ({s3_etag}) and local file MD5 ({local_md5}) differ "
+                            f"(content changed while size remained the same)."
                         )
+                else:
+                    should_download, download_msg = self._check_needs_download_by_timestamp(
+                        s3_object, local_stats.st_mtime
+                    )
 
         if should_download:
             s3_bucket.download_file(s3_object.key, local_target_path)
