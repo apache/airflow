@@ -23,8 +23,6 @@ import os
 from pathlib import Path
 from typing import Any
 
-from airflow.utils.hashlib_wrapper import md5
-
 
 def get_python_source(x: Any) -> str | None:
     """Get Python source (or not), preventing exceptions."""
@@ -50,12 +48,6 @@ def get_python_source(x: Any) -> str | None:
     if source_code is None:
         source_code = f"No source code available for {type(x)}"
     return source_code
-
-
-def get_python_source_md5(x: Any) -> str:
-    """Get Python source MD5 hash/fingerprint."""
-    source_code: bytes = str(get_python_source(x)).encode("utf-8")
-    return md5(source_code).hexdigest()
 
 
 def prepare_code_snippet(file_path: Path, line_no: int, context_lines_count: int = 5) -> str:

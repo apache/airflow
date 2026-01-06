@@ -63,10 +63,13 @@ def import_string(dotted_path: str):
         raise ImportError(f'Module "{module_path}" does not define a "{class_name}" attribute/class')
 
 
-def qualname(o: object | Callable) -> str:
+def qualname(o: object | Callable, use_qualname: bool = False) -> str:
     """Convert an attribute/class/function to a string importable by ``import_string``."""
-    if callable(o) and hasattr(o, "__module__") and hasattr(o, "__name__"):
-        return f"{o.__module__}.{o.__name__}"
+    if callable(o) and hasattr(o, "__module__"):
+        if use_qualname and hasattr(o, "__qualname__"):
+            return f"{o.__module__}.{o.__qualname__}"
+        if hasattr(o, "__name__"):
+            return f"{o.__module__}.{o.__name__}"
 
     cls = o
 

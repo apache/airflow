@@ -1647,9 +1647,22 @@ class TestStringifiedDAGs:
         def fn_template_field_callable(context, jinja_env):
             pass
 
-        task = MockOperator(task_id="task1", arg1=fn_template_field_callable)
+        def fn_returns_callable():
+            def get_arg(context, jinja_env):
+                pass
+
+            return get_arg
+
+        task = MockOperator(task_id="task1", arg1=fn_template_field_callable, arg2=fn_returns_callable())
         serialized_task = OperatorSerialization.serialize_operator(task)
-        assert serialized_task.get("arg1") == "<function fingerprint(MD5) ffaa8387bbc3c49d825b30e42a9d0dc7>"
+        assert (
+            serialized_task.get("arg1")
+            == "<function unit.serialization.test_dag_serialization.TestStringifiedDAGs.test_template_field_via_callable_serialization.<locals>.fn_template_field_callable>"
+        )
+        assert (
+            serialized_task.get("arg2")
+            == "<function unit.serialization.test_dag_serialization.TestStringifiedDAGs.test_template_field_via_callable_serialization.<locals>.fn_returns_callable.<locals>.get_arg>"
+        )
 
     def test_task_group_serialization(self):
         """
