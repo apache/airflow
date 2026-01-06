@@ -81,6 +81,9 @@ dependencies = [
     'importlib_metadata>=6.5;python_version<"3.12"',
     "pathspec>=0.9.0",
     # End of shared module-loading dependencies
+    # Start of shared providers-discovery dependencies
+    "jsonschema",
+    # End of shared providers-discovery dependencies
 ]
 
 [project.optional-dependencies]
@@ -128,6 +131,7 @@ path = "src/airflow/sdk/__init__.py"
 "../shared/secrets_masker/src/airflow_shared/secrets_masker" = "src/airflow/sdk/_shared/secrets_masker"
 "../shared/timezones/src/airflow_shared/timezones" = "src/airflow/sdk/_shared/timezones"
 "../shared/plugins_manager/src/airflow_shared/plugins_manager" = "src/airflow/sdk/_shared/plugins_manager"
+"../shared/providers_discovery/src/airflow_shared/providers_discovery" = "src/airflow/sdk/_shared/providers_discovery"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/airflow"]
@@ -278,4 +282,5 @@ shared_distributions = [
     "apache-airflow-shared-timezones",
     "apache-airflow-shared-observability",
     "apache-airflow-shared-plugins-manager",
+    "apache-airflow-shared-providers-discovery",
 ]

@@ -1295,6 +1295,7 @@ dev = [
     "apache-airflow-shared-secrets-masker",
     "apache-airflow-shared-timezones",
     "apache-airflow-shared-observability",
+    "apache-airflow-shared-providers-discovery",
 ]
 
 # To build docs:
@@ -1352,6 +1353,7 @@ apache-airflow-shared-secrets-masker = { workspace = true }
 apache-airflow-shared-timezones = { workspace = true }
 apache-airflow-shared-observability = { workspace = true }
 apache-airflow-shared-plugins-manager = { workspace = true }
+apache-airflow-shared-providers-discovery = { workspace = true }
 # Automatically generated provider workspace items (update_airflow_pyproject_toml.py)
 apache-airflow-providers-airbyte = { workspace = true }
 apache-airflow-providers-alibaba = { workspace = true }
@@ -1477,6 +1479,7 @@ members = [
     "shared/timezones",
     "shared/observability",
     "shared/plugins_manager",
+    "shared/providers_discovery",
     # Automatically generated provider workspace members (update_airflow_pyproject_toml.py)
     "providers/airbyte",
     "providers/alibaba",
