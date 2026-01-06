@@ -1744,9 +1744,13 @@ class S3Hook(AwsBaseHook):
 
     def _compute_local_file_md5(self, file_path: Path) -> str:
         hash_md5 = hashlib.md5(usedforsecurity=False)
-        with open(file_path, "rb") as f:
-            for chunk in iter(lambda: f.read(8192), b""):
-                hash_md5.update(chunk)
+        try:
+            with open(file_path, "rb") as f:
+                for chunk in iter(lambda: f.read(8192), b""):
+                    hash_md5.update(chunk)
+        except (FileNotFoundError, PermissionError, OSError) as e:
+            self.log.error("Failed to compute MD5 for local file %s: %s", file_path, e)
+            raise AirflowException(f"Failed to compute MD5 for local file {file_path}: {e}") from e
         return f'"{hash_md5.hexdigest()}"'
 
     def _sync_to_local_dir_if_changed(self, s3_bucket, s3_object, local_target_path: Path):
