@@ -185,7 +185,7 @@ config_dict: dict[str, _TableConfig] = {x.orm_model.name: x for x in sorted(conf
 
 
 def _check_for_rows(*, statement: Select, print_rows: bool = False, session: Session) -> int:
-    num_entities = session.execute(select(func.count()).select_from(statement.subquery())).scalar()
+    num_entities = session.execute(select(func.count()).select_from(statement.subquery())).scalar() or 0
     print(f"Found {num_entities} rows meeting deletion criteria.")
     if not print_rows or num_entities == 0:
         return num_entities
@@ -225,7 +225,7 @@ def _do_delete(
 
     while True:
         limited_statement = statement.limit(batch_size) if batch_size else statement
-        if session.execute(select(func.count()).select_from(limited_statement.subquery())).scalar() == 0:
+        if (session.execute(select(func.count()).select_from(limited_statement.subquery())).scalar() or 0) == 0:
             break
 
         batch_no = next(batch_counter)
