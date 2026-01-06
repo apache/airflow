@@ -47,4 +47,10 @@ def get_provider_info():
                 "python-modules": ["airflow.providers.microsoft.winrm.hooks.winrm"],
             }
         ],
+        "connection-types": [
+            {
+                "hook-class-name": "airflow.providers.microsoft.winrm.hooks.winrm.WinRMHook",
+                "connection-type": "winrm",
+            }
+        ],
     }

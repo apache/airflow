@@ -645,8 +645,12 @@ workers:
   revisionHistoryLimit: ~
 
   # Command to use when running Airflow Celery workers and using pod-template-file (templated)
+  # Use workers.celery.command and/or workers.kubernetes.command to separate value between
+  # Celery workers and pod-template-file
   command: ~
+
   # Args to use when running Airflow Celery workers (templated)
+  # (deprecated, use `workers.celery.args` instead)
   args:
     - "bash"
     - "-c"
@@ -1018,6 +1022,17 @@ workers:
     # Max number of old Airflow Celery workers ReplicaSets to retain
     revisionHistoryLimit: ~
 
+    # Command to use when running Airflow Celery workers (templated)
+    command: ~
+
+    # Args to use when running Airflow Celery workers (templated)
+    args:
+      - "bash"
+      - "-c"
+      - |-
+        exec \
+        airflow {{ semverCompare ">=2.0.0" .Values.airflowVersion | ternary "celery worker" "worker" }}
+
     # Create ServiceAccount for Airflow Celery workers
     serviceAccount:
       # default value is true
@@ -1032,6 +1047,9 @@ workers:
       annotations: {}
 
   kubernetes:
+    # Command to use in pod-template-file (templated)
+    command: ~
+
     # Create ServiceAccount for pods created with pod-template-file
     serviceAccount:
       # Auto mount service account token into the pod. Default value is true.

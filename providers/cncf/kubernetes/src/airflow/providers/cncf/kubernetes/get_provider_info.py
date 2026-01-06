@@ -286,4 +286,5 @@ def get_provider_info():
             },
         },
         "executors": ["airflow.providers.cncf.kubernetes.executors.kubernetes_executor.KubernetesExecutor"],
+        "cli": ["airflow.providers.cncf.kubernetes.cli.definition.get_kubernetes_cli_commands"],
     }

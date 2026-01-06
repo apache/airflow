@@ -49,6 +49,12 @@
     "searchPlaceholder": "搜尋連線",
     "test": "測試連線",
     "testDisabled": "測試連線功能已停用。請聯繫管理員以啟用。",
+    "testError": {
+      "title": "連線測試失敗"
+    },
+    "testSuccess": {
+      "title": "連線測試成功"
+    },
     "typeMeta": {
       "error": "取得連線類型中繼資料失敗",
       "standardFields": {
