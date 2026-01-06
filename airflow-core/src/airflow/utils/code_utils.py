@@ -18,11 +18,12 @@ from __future__ import annotations
 
 import contextlib
 import functools
-import hashlib
 import inspect
 import os
 from pathlib import Path
 from typing import Any
+
+from airflow.utils.hashlib_wrapper import md5
 
 
 def get_python_source(x: Any) -> str | None:
@@ -53,8 +54,8 @@ def get_python_source(x: Any) -> str | None:
 
 def get_python_source_md5(x: Any) -> str:
     """Get Python source MD5 hash/fingerprint."""
-    source_code = str(get_python_source(x))
-    return hashlib.md5(source_code.encode()).hexdigest()
+    source_code: bytes = str(get_python_source(x)).encode("utf-8")
+    return md5(source_code).hexdigest()
 
 
 def prepare_code_snippet(file_path: Path, line_no: int, context_lines_count: int = 5) -> str:
