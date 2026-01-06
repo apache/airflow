@@ -4782,10 +4782,21 @@ export const $ProviderResponse = {
         version: {
             type: 'string',
             title: 'Version'
+        },
+        documentation_url: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Documentation Url'
         }
     },
     type: 'object',
-    required: ['package_name', 'description', 'version'],
+    required: ['package_name', 'description', 'version', 'documentation_url'],
     title: 'ProviderResponse',
     description: 'Provider serializer for responses.'
 } as const;
@@ -6488,6 +6499,17 @@ export const $TriggerResponse = {
             format: 'date-time',
             title: 'Created Date'
         },
+        queue: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Queue'
+        },
         triggerer_id: {
             anyOf: [
                 {
@@ -6501,7 +6523,7 @@ export const $TriggerResponse = {
         }
     },
     type: 'object',
-    required: ['id', 'classpath', 'kwargs', 'created_date', 'triggerer_id'],
+    required: ['id', 'classpath', 'kwargs', 'created_date', 'queue', 'triggerer_id'],
     title: 'TriggerResponse',
     description: 'Trigger serializer for responses.'
 } as const;

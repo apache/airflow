@@ -60,7 +60,7 @@ from uuid import UUID
 import attrs
 import msgspec
 import structlog
-from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, JsonValue, TypeAdapter, field_serializer
+from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, JsonValue, TypeAdapter
 
 from airflow.sdk.api.datamodels._generated import (
     AssetEventDagRunReference,
@@ -73,6 +73,7 @@ from airflow.sdk.api.datamodels._generated import (
     DagRunStateResponse,
     HITLDetailRequest,
     InactiveAssetsResponse,
+    PreviousTIResponse,
     PrevSuccessfulDagRunResponse,
     TaskBreadcrumbsResponse,
     TaskInstance,
@@ -542,6 +543,13 @@ class PreviousDagRunResult(BaseModel):
     type: Literal["PreviousDagRunResult"] = "PreviousDagRunResult"
 
 
+class PreviousTIResult(BaseModel):
+    """Response containing previous task instance data."""
+
+    task_instance: PreviousTIResponse | None = None
+    type: Literal["PreviousTIResult"] = "PreviousTIResult"
+
+
 class PrevSuccessfulDagRunResult(PrevSuccessfulDagRunResponse):
     type: Literal["PrevSuccessfulDagRunResult"] = "PrevSuccessfulDagRunResult"
 
@@ -655,6 +663,7 @@ ToTask = Annotated[
     | DRCount
     | ErrorResponse
     | PrevSuccessfulDagRunResult
+    | PreviousTIResult
     | SentFDs
     | StartupDetails
     | TaskRescheduleStartDate
@@ -704,19 +713,6 @@ class DeferTask(TIDeferredStatePayload):
     """Update a task instance state to deferred."""
 
     type: Literal["DeferTask"] = "DeferTask"
-
-    @field_serializer("trigger_kwargs", "next_kwargs", check_fields=True)
-    def _serde_kwarg_fields(self, val: str | dict[str, Any] | None, _info):
-        from airflow.serialization.serialized_objects import BaseSerialization
-
-        if not isinstance(val, dict):
-            # None, or an encrypted string
-            return val
-
-        if val.keys() == {"__type", "__var"}:
-            # Already encoded.
-            return val
-        return BaseSerialization.serialize(val or {})
 
 
 class RetryTask(TIRetryStatePayload):
@@ -873,6 +869,17 @@ class GetPreviousDagRun(BaseModel):
     type: Literal["GetPreviousDagRun"] = "GetPreviousDagRun"
 
 
+class GetPreviousTI(BaseModel):
+    """Request to get previous task instance."""
+
+    dag_id: str
+    task_id: str
+    logical_date: AwareDatetime | None = None
+    map_index: int = -1
+    state: TaskInstanceState | None = None
+    type: Literal["GetPreviousTI"] = "GetPreviousTI"
+
+
 class GetAssetByName(BaseModel):
     name: str
     type: Literal["GetAssetByName"] = "GetAssetByName"
@@ -991,6 +998,7 @@ ToSupervisor = Annotated[
     | GetDRCount
     | GetPrevSuccessfulDagRun
     | GetPreviousDagRun
+    | GetPreviousTI
     | GetTaskRescheduleStartDate
     | GetTICount
     | GetTaskBreadcrumbs

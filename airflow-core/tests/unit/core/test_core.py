@@ -22,11 +22,12 @@ from datetime import timedelta
 import pytest
 
 from airflow._shared.timezones.timezone import datetime
-from airflow.models.baseoperator import BaseOperator
 from airflow.providers.standard.operators.empty import EmptyOperator
+from airflow.sdk import BaseOperator
 from airflow.utils.types import DagRunType
 
 from tests_common.test_utils.db import clear_db_dags, clear_db_runs
+from tests_common.test_utils.taskinstance import get_template_context
 
 pytestmark = pytest.mark.db_test
 
@@ -87,14 +88,13 @@ class TestCore:
                 params={"key_2": "value_2_new", "key_3": "value_3"},
             )
             task2 = EmptyOperator(task_id="task2")
-        dr = dag_maker.create_dagrun(
-            run_type=DagRunType.SCHEDULED,
-        )
+        dr = dag_maker.create_dagrun(run_type=DagRunType.SCHEDULED)
         ti1 = dag_maker.run_ti(task1.task_id, dr)
         ti2 = dag_maker.run_ti(task2.task_id, dr)
+        ti1.dag_run = ti2.dag_run = dr
 
-        context1 = ti1.get_template_context()
-        context2 = ti2.get_template_context()
+        context1 = get_template_context(ti1, task1)
+        context2 = get_template_context(ti2, task2)
 
         assert context1["params"] == {"key_1": "value_1", "key_2": "value_2_new", "key_3": "value_3"}
         assert context2["params"] == {"key_1": "value_1", "key_2": "value_2_old"}

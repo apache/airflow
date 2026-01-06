@@ -25,7 +25,7 @@ from airflow.providers.common.compat.sdk import DAG, Param, XComArg
 if TYPE_CHECKING:
     from airflow.providers.common.compat.sdk import BaseOperator, MappedOperator
     from airflow.providers.openlineage.utils.utils import AnyOperator
-    from airflow.serialization.serialized_objects import SerializedDAG
+    from airflow.serialization.definitions.dag import SerializedDAG
 
     T = TypeVar("T", bound=DAG | BaseOperator | MappedOperator)
 

@@ -37,7 +37,8 @@ from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.providers.standard.operators.python import PythonOperator
 from airflow.sdk import DAG, Asset, AssetAlias, task as task_decorator
 from airflow.serialization.dag_dependency import DagDependency
-from airflow.serialization.serialized_objects import LazyDeserializedDAG, SerializedDAG
+from airflow.serialization.definitions.dag import SerializedDAG
+from airflow.serialization.serialized_objects import DagSerialization, LazyDeserializedDAG
 from airflow.settings import json
 from airflow.utils.hashlib_wrapper import md5
 from airflow.utils.session import create_session
@@ -45,7 +46,8 @@ from airflow.utils.state import DagRunState
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
 from tests_common.test_utils import db
-from tests_common.test_utils.dag import sync_dag_to_db
+from tests_common.test_utils.config import conf_vars
+from tests_common.test_utils.dag import create_scheduler_dag, sync_dag_to_db
 
 logger = logging.getLogger(__name__)
 
@@ -70,7 +72,7 @@ def make_example_dags(module):
 
     dagbag = DagBag(module.__path__[0])
 
-    dags = [LazyDeserializedDAG(data=SerializedDAG.to_dict(dag)) for dag in dagbag.dags.values()]
+    dags = [LazyDeserializedDAG(data=DagSerialization.to_dict(dag)) for dag in dagbag.dags.values()]
     SerializedDAG.bulk_write_to_db("testing", None, dags)
     return dagbag.dags
 
@@ -89,7 +91,7 @@ class TestSerializedDagModel:
         db.clear_db_dags()
         db.clear_db_runs()
         db.clear_db_serialized_dags()
-        with mock.patch("airflow.models.serialized_dag.COMPRESS_SERIALIZED_DAGS", request.param):
+        with conf_vars({("core", "compress_serialized_dags"): str(request.param)}):
             yield
         db.clear_db_serialized_dags()
 
@@ -110,7 +112,7 @@ class TestSerializedDagModel:
 
                 assert result.dag_version.dag_code.fileloc == dag.fileloc
                 # Verifies JSON schema.
-                SerializedDAG.validate_schema(result.data)
+                DagSerialization.validate_schema(result.data)
 
     def test_write_dag_when_python_callable_name_changes(self, dag_maker, session):
         def my_callable():
@@ -206,7 +208,7 @@ class TestSerializedDagModel:
         assert len(example_dags) == len(serialized_dags)
 
         dag = example_dags.get("example_bash_operator")
-        SerializedDAG.deserialize_dag(SerializedDAG.serialize_dag(dag=dag)).create_dagrun(
+        create_scheduler_dag(dag=dag).create_dagrun(
             run_id="test1",
             run_after=pendulum.datetime(2025, 1, 1, tz="UTC"),
             state=DagRunState.QUEUED,
@@ -268,13 +270,13 @@ class TestSerializedDagModel:
                     outlets=[Asset(uri="test://asset0", name="0*"), Asset(uri="test://asset6", name="6*")],
                     bash_command="sleep 5",
                 )
-            deps_order = [x["label"] for x in SerializedDAG.serialize_dag(dag6)["dag_dependencies"]]
+            deps_order = [x["label"] for x in DagSerialization.serialize_dag(dag6)["dag_dependencies"]]
             # in below assert, 0 and 6 both come at end because "source" is different for them and source
             # is the first field in DagDependency class
             assert deps_order == ["1", "2", "3", "4", "5", "0*", "6*"]
 
             # for good measure, let's check that the dag hash is consistent
-            dag_json = json.dumps(SerializedDAG.to_dict(dag6), sort_keys=True).encode("utf-8")
+            dag_json = json.dumps(DagSerialization.to_dict(dag6), sort_keys=True).encode("utf-8")
             this_dag_hash = md5(dag_json).hexdigest()
 
             # set first dag hash on first pass
@@ -573,7 +575,7 @@ class TestSerializedDagModel:
         with dag_maker("test_dag") as dag1:
             MyCustomOp(task_id="task1")
 
-        serialized_dag_1 = SerializedDAG.to_dict(dag1)
+        serialized_dag_1 = DagSerialization.to_dict(dag1)
 
         # Create second DAG with env_vars in different order
         with dag_maker("test_dag") as dag2:
@@ -581,7 +583,7 @@ class TestSerializedDagModel:
             # Recreate dict with different insertion order
             task.env_vars = {"KEY3": "value3", "KEY1": "value1", "KEY2": "value2"}
 
-        serialized_dag_2 = SerializedDAG.to_dict(dag2)
+        serialized_dag_2 = DagSerialization.to_dict(dag2)
 
         # Verify that the original env_vars have different ordering
         env_vars_1 = None

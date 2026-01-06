@@ -18,21 +18,13 @@
 from __future__ import annotations
 
 import datetime
+import importlib.util
 import inspect
 from unittest import mock
 from unittest.mock import MagicMock
 
 import pytest
 
-try:
-    import importlib.util
-
-    if not importlib.util.find_spec("airflow.sdk.bases.hook"):
-        raise ImportError
-
-    BASEHOOK_PATCH_PATH = "airflow.sdk.bases.hook.BaseHook"
-except ImportError:
-    BASEHOOK_PATCH_PATH = "airflow.hooks.base.BaseHook"
 from airflow import DAG
 from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.models import Connection
@@ -60,7 +52,18 @@ from tests_common.test_utils.dag import sync_dag_to_db
 from tests_common.test_utils.db import clear_db_dag_bundles, clear_db_dags, clear_db_runs, clear_db_xcom
 from tests_common.test_utils.markers import skip_if_force_lowest_dependencies_marker
 from tests_common.test_utils.providers import get_provider_min_airflow_version
+from tests_common.test_utils.taskinstance import TaskInstanceWrapper
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_1, AIRFLOW_V_3_0_PLUS
+
+try:
+    import importlib.util
+
+    if not importlib.util.find_spec("airflow.sdk.bases.hook"):
+        raise ImportError
+
+    BASEHOOK_PATCH_PATH = "airflow.sdk.bases.hook.BaseHook"
+except ImportError:
+    BASEHOOK_PATCH_PATH = "airflow.hooks.base.BaseHook"
 
 if AIRFLOW_V_3_0_PLUS:
     from airflow.utils.types import DagRunTriggeredByType
@@ -1151,7 +1154,13 @@ class TestSqlBranch:
             )
 
         ti = dr.get_task_instance(task_id)
-        ti.task = self.dag.get_task(ti.task_id)
+        task = self.dag.get_task(ti.task_id)
+
+        if AIRFLOW_V_3_0_PLUS:
+            ti.task = self.scheduler_dag.get_task(ti.task_id)
+            ti = TaskInstanceWrapper(ti, task)
+        else:
+            ti.task = task
 
         return ti
 

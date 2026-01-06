@@ -24,26 +24,22 @@ from typing import TYPE_CHECKING, Any
 from deprecated import deprecated
 
 from airflow.configuration import conf
-from airflow.exceptions import AirflowOptionalProviderFeatureException, AirflowProviderDeprecationWarning
+from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.executors.base_executor import BaseExecutor
 from airflow.providers.celery.executors.celery_executor import AIRFLOW_V_3_0_PLUS, CeleryExecutor
-
-try:
-    from airflow.providers.cncf.kubernetes.executors.kubernetes_executor import KubernetesExecutor
-except ImportError as e:
-    raise AirflowOptionalProviderFeatureException(e)
-
 from airflow.utils.providers_configuration_loader import providers_configuration_loaded
 
 if TYPE_CHECKING:
     from airflow.callbacks.base_callback_sink import BaseCallbackSink
     from airflow.callbacks.callback_requests import CallbackRequest
+    from airflow.cli.cli_config import GroupCommand
     from airflow.executors.base_executor import EventBufferValueType
     from airflow.models.taskinstance import (  # type: ignore[attr-defined]
         SimpleTaskInstance,
         TaskInstance,
     )
     from airflow.models.taskinstancekey import TaskInstanceKey
+    from airflow.providers.cncf.kubernetes.executors.kubernetes_executor import KubernetesExecutor
 
     CommandType = Sequence[str]
 
@@ -330,5 +326,8 @@ class CeleryKubernetesExecutor(BaseExecutor):
         self.callback_sink.send(request)
 
     @staticmethod
-    def get_cli_commands() -> list:
-        return CeleryExecutor.get_cli_commands() + KubernetesExecutor.get_cli_commands()
+    def get_cli_commands() -> list[GroupCommand]:
+        from airflow.providers.celery.cli.definition import get_celery_cli_commands
+        from airflow.providers.cncf.kubernetes.cli.definition import get_kubernetes_cli_commands
+
+        return get_celery_cli_commands() + get_kubernetes_cli_commands()

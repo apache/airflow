@@ -78,7 +78,7 @@ apache-airflow-providers-neo4j package
 `Neo4j <https://neo4j.com/>`__
 
 
-Release: 3.11.1
+Release: 3.11.2
 
 Provider package
 ----------------
@@ -131,5 +131,5 @@ Downloading official packages
 You can download officially released packages and verify their checksums and signatures from the
 `Official Apache Download site <https://downloads.apache.org/airflow/providers/>`_
 
-* `The apache-airflow-providers-neo4j 3.11.1 sdist package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_neo4j-3.11.1.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_neo4j-3.11.1.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_neo4j-3.11.1.tar.gz.sha512>`__)
-* `The apache-airflow-providers-neo4j 3.11.1 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_neo4j-3.11.1-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_neo4j-3.11.1-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_neo4j-3.11.1-py3-none-any.whl.sha512>`__)
+* `The apache-airflow-providers-neo4j 3.11.2 sdist package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_neo4j-3.11.2.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_neo4j-3.11.2.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_neo4j-3.11.2.tar.gz.sha512>`__)
+* `The apache-airflow-providers-neo4j 3.11.2 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_neo4j-3.11.2-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_neo4j-3.11.2-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_neo4j-3.11.2-py3-none-any.whl.sha512>`__)

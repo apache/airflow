@@ -128,6 +128,7 @@ class AirflowConfigParser(ConfigParser):
     # When reading new option, the old option will be checked to see if it exists. If it does a
     # DeprecationWarning will be issued and the old option will be used instead
     deprecated_options: dict[tuple[str, str], tuple[str, str, str]] = {
+        ("dag_processor", "dag_file_processor_timeout"): ("core", "dag_file_processor_timeout", "3.0"),
         ("dag_processor", "refresh_interval"): ("scheduler", "dag_dir_list_interval", "3.0"),
         ("api", "base_url"): ("webserver", "base_url", "3.0"),
         ("api", "host"): ("webserver", "web_server_host", "3.0"),
@@ -248,7 +249,7 @@ class AirflowConfigParser(ConfigParser):
         self.configuration_description = configuration_description
         self._default_values = _default_values
         self._suppress_future_warnings = False
-        self.upgraded_values = {}
+        self.upgraded_values: dict[tuple[str, str], str] = {}
 
     @functools.cached_property
     def inversed_deprecated_options(self):
@@ -281,12 +282,6 @@ class AirflowConfigParser(ConfigParser):
         }
         sensitive.update(depr_section, depr_option)
         return sensitive
-
-    @overload  # type: ignore[override]
-    def get(self, section: str, key: str, fallback: str = ..., **kwargs) -> str: ...
-
-    @overload
-    def get(self, section: str, key: str, **kwargs) -> str | None: ...
 
     def _update_defaults_from_string(self, config_string: str) -> None:
         """
@@ -1079,13 +1074,15 @@ class AirflowConfigParser(ConfigParser):
     def getlist(self, section: str, key: str, delimiter=",", **kwargs):
         """Get config value as list."""
         val = self.get(section, key, **kwargs)
-        if val is None:
-            if "fallback" in kwargs:
-                return kwargs["fallback"]
-            raise AirflowConfigException(
-                f"Failed to convert value None to list. "
-                f'Please check "{key}" key in "{section}" section is set.'
-            )
+
+        if isinstance(val, list) or val is None:
+            # `get` will always return a (possibly-empty) string, so the only way we can
+            # have these types is with `fallback=` was specified. So just return it.
+            return val
+
+        if val == "":
+            return []
+
         try:
             return [item.strip() for item in val.split(delimiter)]
         except Exception:
@@ -1119,7 +1116,9 @@ class AirflowConfigParser(ConfigParser):
 
     def getenumlist(self, section: str, key: str, enum_class: type[E], delimiter=",", **kwargs) -> list[E]:
         """Get config value as list of enums."""
+        kwargs.setdefault("fallback", [])
         string_list = self.getlist(section, key, delimiter, **kwargs)
+
         enum_names = [enum_item.name for enum_item in enum_class]
         enum_list = []
 
@@ -1128,8 +1127,9 @@ class AirflowConfigParser(ConfigParser):
                 enum_list.append(enum_class[val])
             except KeyError:
                 log.warning(
-                    "Failed to convert value. Please check %s key in %s section. "
+                    "Failed to convert value %r. Please check %s key in %s section. "
                     "it must be one of %s, if not the value is ignored",
+                    val,
                     key,
                     section,
                     ", ".join(enum_names),
@@ -1595,29 +1595,39 @@ class AirflowConfigParser(ConfigParser):
         needs_separation: bool,
         only_defaults: bool,
         section_to_write: str,
+        hide_sensitive: bool,
+        is_sensitive: bool,
+        show_values: bool = False,
     ):
         default_value = self.get_default_value(section_to_write, option, raw=True)
         if only_defaults:
             value = default_value
         else:
             value = self.get(section_to_write, option, fallback=default_value, raw=True)
-        if value is None:
+        if not show_values:
             file.write(f"# {option} = \n")
         else:
-            if comment_out_everything:
-                value_lines = value.splitlines()
-                value = "\n# ".join(value_lines)
-                file.write(f"# {option} = {value}\n")
+            if hide_sensitive and is_sensitive:
+                value = "< hidden >"
             else:
-                if "\n" in value:
-                    try:
-                        value = json.dumps(json.loads(value), indent=4)
-                        value = value.replace(
-                            "\n", "\n    "
-                        )  # indent multi-line JSON to satisfy configparser format
-                    except JSONDecodeError:
-                        pass
-                file.write(f"{option} = {value}\n")
+                pass
+            if value is None:
+                file.write(f"# {option} = \n")
+            else:
+                if comment_out_everything:
+                    value_lines = value.splitlines()
+                    value = "\n# ".join(value_lines)
+                    file.write(f"# {option} = {value}\n")
+                else:
+                    if "\n" in value:
+                        try:
+                            value = json.dumps(json.loads(value), indent=4)
+                            value = value.replace(
+                                "\n", "\n    "
+                            )  # indent multi-line JSON to satisfy configparser format
+                        except JSONDecodeError:
+                            pass
+                    file.write(f"{option} = {value}\n")
         if needs_separation:
             file.write("\n")
 
@@ -1631,9 +1641,10 @@ class AirflowConfigParser(ConfigParser):
         include_env_vars: bool = True,
         include_providers: bool = True,
         comment_out_everything: bool = False,
-        hide_sensitive_values: bool = False,
+        hide_sensitive: bool = False,
         extra_spacing: bool = True,
         only_defaults: bool = False,
+        show_values: bool = False,
         **kwargs: Any,
     ) -> None:
         """
@@ -1676,6 +1687,10 @@ class AirflowConfigParser(ConfigParser):
                             section_to_write=section_to_write,
                             sources_dict=sources_dict,
                         )
+                        is_sensitive = (
+                            section_to_write.lower(),
+                            option.lower(),
+                        ) in self.sensitive_config_values
                         self._write_value(
                             file=file,
                             option=option,
@@ -1683,6 +1698,9 @@ class AirflowConfigParser(ConfigParser):
                             needs_separation=needs_separation,
                             only_defaults=only_defaults,
                             section_to_write=section_to_write,
+                            hide_sensitive=hide_sensitive,
+                            is_sensitive=is_sensitive,
+                            show_values=show_values,
                         )
                     if include_descriptions and not needs_separation:
                         # extra separation between sections in case last option did not need it
