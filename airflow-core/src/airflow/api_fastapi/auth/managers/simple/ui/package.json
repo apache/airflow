@@ -13,12 +13,14 @@
     "lint:fix": "eslint --fix && tsc --p tsconfig.app.json",
     "format": "pnpm prettier --write .",
     "preview": "vite preview",
-    "codegen": "openapi-rq -i \"../openapi/v2-simple-auth-manager-generated.yaml\" -c axios --format prettier -o openapi-gen --operationId",
+    "codegen": "openapi-rq -i \"../openapi/v2-simple-auth-manager-generated.yaml\" -c @hey-api/client-axios --format prettier -o openapi-gen",
     "test": "vitest run",
     "coverage": "vitest run --coverage"
   },
   "dependencies": {
     "@chakra-ui/react": "^3.30.0",
+    "@hey-api/client-axios": "^0.9.1",
+    "@hey-api/openapi-ts": "^0.90.1",
     "@tanstack/react-query": "^5.90.16",
     "axios": "^1.13.2",
     "next-themes": "^0.4.6",
@@ -38,6 +40,9 @@
     "@trivago/prettier-plugin-sort-imports": "^6.0.1",
     "@types/react": "^19.2.7",
     "@types/react-dom": "^19.2.3",
+    "@typescript-eslint/eslint-plugin": "8.50.0",
+    "@typescript-eslint/parser": "8.50.0",
+    "@typescript-eslint/utils": "^8.50.0",
     "@vitejs/plugin-react-swc": "^4.2.2",
     "@vitest/coverage-v8": "^4.0.16",
     "eslint": "^9.39.2",
@@ -56,10 +61,7 @@
     "typescript-eslint": "^8.48.1",
     "vite": "^7.3.0",
     "vite-plugin-css-injected-by-js": "^3.5.2",
-    "vitest": "^4.0.4",
-    "@typescript-eslint/eslint-plugin": "8.50.0",
-    "@typescript-eslint/utils": "^8.50.0",
-    "@typescript-eslint/parser": "8.50.0"
+    "vitest": "^4.0.4"
   },
   "pnpm": {
     "onlyBuiltDependencies": [

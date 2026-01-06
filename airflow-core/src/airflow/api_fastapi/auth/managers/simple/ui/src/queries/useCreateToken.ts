@@ -18,7 +18,7 @@
  */
 import { useState } from "react";
 
-import { useSimpleAuthManagerLoginServiceCreateToken } from "openapi/queries";
+import { useCreateToken as useCreateTokenMutation } from "openapi/queries";
 import type { LoginResponse } from "openapi/requests/types.gen";
 import type { LoginBody } from "src/login/Login";
 
@@ -29,7 +29,7 @@ export const useCreateToken = ({ onSuccess }: { onSuccess: (data: LoginResponse)
     setError(_error);
   };
 
-  const { isPending, mutate } = useSimpleAuthManagerLoginServiceCreateToken({
+  const { isPending, mutate } = useCreateTokenMutation(undefined, {
     onError,
     onSuccess,
   });
