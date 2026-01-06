@@ -583,10 +583,29 @@ class TestWorker:
         )
         assert default_cmd in livenessprobe_cmd[-1]
 
-    def test_livenessprobe_values_are_configurable(self):
-        docs = render_chart(
-            values={
-                "workers": {
+    @pytest.mark.parametrize(
+        "workers_values",
+        [
+            {
+                "celery": {
+                    "livenessProbe": {
+                        "initialDelaySeconds": 111,
+                        "timeoutSeconds": 222,
+                        "failureThreshold": 333,
+                        "periodSeconds": 444,
+                        "command": ["sh", "-c", "echo", "wow such test"],
+                    }
+                }
+            },
+            {
+                "livenessProbe": {
+                    "initialDelaySeconds": 11,
+                    "timeoutSeconds": 22,
+                    "failureThreshold": 33,
+                    "periodSeconds": 44,
+                    "command": ["test"],
+                },
+                "celery": {
                     "livenessProbe": {
                         "initialDelaySeconds": 111,
                         "timeoutSeconds": 222,
@@ -596,6 +615,28 @@ class TestWorker:
                     }
                 },
             },
+            {
+                "livenessProbe": {
+                    "initialDelaySeconds": 111,
+                    "timeoutSeconds": 222,
+                    "failureThreshold": 333,
+                    "periodSeconds": 444,
+                    "command": ["sh", "-c", "echo", "wow such test"],
+                },
+                "celery": {
+                    "livenessProbe": {
+                        "initialDelaySeconds": None,
+                        "timeoutSeconds": None,
+                        "failureThreshold": None,
+                        "periodSeconds": None,
+                    }
+                },
+            },
+        ],
+    )
+    def test_livenessprobe_celery_values_overwrite(self, workers_values):
+        docs = render_chart(
+            values={"workers": workers_values},
             show_only=["templates/workers/worker-deployment.yaml"],
         )
 
@@ -610,11 +651,43 @@ class TestWorker:
             },
         }
 
-    def test_disable_livenessprobe(self):
+    def test_livenessprobe_values_overwrite(self):
         docs = render_chart(
             values={
-                "workers": {"livenessProbe": {"enabled": False}},
+                "workers": {
+                    "livenessProbe": {
+                        "initialDelaySeconds": 111,
+                        "timeoutSeconds": 222,
+                        "failureThreshold": 333,
+                        "periodSeconds": 444,
+                        "command": ["sh", "-c", "echo", "wow such test"],
+                    }
+                }
             },
+            show_only=["templates/workers/worker-deployment.yaml"],
+        )
+
+        livenessprobe = jmespath.search("spec.template.spec.containers[0].livenessProbe", docs[0])
+        assert livenessprobe == {
+            "initialDelaySeconds": 10,
+            "timeoutSeconds": 20,
+            "failureThreshold": 5,
+            "periodSeconds": 60,
+            "exec": {
+                "command": ["sh", "-c", "echo", "wow such test"],
+            },
+        }
+
+    @pytest.mark.parametrize(
+        "workers_values",
+        [
+            {"livenessProbe": {"enabled": False}, "celery": {"livenessProbe": {"enabled": None}}},
+            {"celery": {"livenessProbe": {"enabled": False}}},
+        ],
+    )
+    def test_disable_livenessprobe(self, workers_values):
+        docs = render_chart(
+            values={"workers": workers_values},
             show_only=["templates/workers/worker-deployment.yaml"],
         )
 
