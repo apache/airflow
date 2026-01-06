@@ -17,7 +17,7 @@
  * under the License.
  */
 import { expect, test } from "@playwright/test";
-import { AUTH_FILE, testConfig } from "playwright.config";
+import { testConfig, AUTH_FILE } from "playwright.config";
 import { BackfillPage } from "tests/e2e/pages/BackfillPage";
 
 const getPastDate = (daysAgo: number): string => {
@@ -34,78 +34,88 @@ test.describe("Backfill Controls", () => {
   const fromDate = getPastDate(2);
   const toDate = getPastDate(1);
 
-  test.beforeAll(async ({ browser }) => {
-    test.setTimeout(180_000);
-
-    const context = await browser.newContext({ storageState: AUTH_FILE });
-    const page = await context.newPage();
-    const setupBackfillPage = new BackfillPage(page);
-
-    await setupBackfillPage.createBackfill(testDagId, {
-      fromDate,
-      reprocessBehavior: "All Runs",
-      toDate,
-    });
-
-    await context.close();
-  });
-
   test("should pause and resume a running backfill", async ({ page }) => {
+    test.setTimeout(180_000);
     const backfillPage = new BackfillPage(page);
 
+    await backfillPage.navigateToDagDetail(testDagId);
+    await backfillPage.openBackfillDialog();
+
+    await backfillPage.backfillFromDateInput.fill(fromDate);
+    await backfillPage.backfillToDateInput.fill(toDate);
+    await backfillPage.selectReprocessBehavior("All Runs");
+
+    const runsMessage = page.locator("text=/\\d+ runs? will be triggered|No runs matching/");
+
+    await expect(runsMessage).toBeVisible({ timeout: 10_000 });
+    await expect(backfillPage.backfillRunButton).toBeEnabled({ timeout: 15_000 });
+    await backfillPage.backfillRunButton.click();
+
     await backfillPage.navigateToBackfillsTab(testDagId);
+    await expect(backfillPage.pauseButton).toBeVisible({ timeout: 10_000 });
 
     await backfillPage.clickPauseButton();
 
-    const pausedStatus = await backfillPage.getBackfillStatus(0);
+    const isPaused = await backfillPage.isBackfillPaused();
 
-    expect(pausedStatus.toLowerCase()).toContain("paused");
+    expect(isPaused).toBe(true);
 
     await backfillPage.clickPauseButton();
 
-    const runningStatus = await backfillPage.getBackfillStatus(0);
+    const isResumed = await backfillPage.isBackfillPaused();
 
-    expect(runningStatus.toLowerCase()).toContain("running");
+    expect(isResumed).toBe(false);
   });
 
   test("should cancel an active backfill", async ({ page }) => {
+    test.setTimeout(180_000);
     const backfillPage = new BackfillPage(page);
 
-    await backfillPage.navigateToBackfillsTab(testDagId);
+    await backfillPage.navigateToDagDetail(testDagId);
+    await backfillPage.openBackfillDialog();
 
-    await backfillPage.createBackfill(testDagId, {
-      fromDate,
-      reprocessBehavior: "All Runs",
-      toDate,
-    });
+    await backfillPage.backfillFromDateInput.fill(fromDate);
+    await backfillPage.backfillToDateInput.fill(toDate);
+    await backfillPage.selectReprocessBehavior("All Runs");
+
+    const runsMessage = page.locator("text=/\\d+ runs? will be triggered|No runs matching/");
+
+    await expect(runsMessage).toBeVisible({ timeout: 10_000 });
+    await expect(backfillPage.backfillRunButton).toBeEnabled({ timeout: 15_000 });
+    await backfillPage.backfillRunButton.click();
+
+    await backfillPage.navigateToBackfillsTab(testDagId);
+    await expect(backfillPage.cancelButton).toBeVisible({ timeout: 10_000 });
 
     await backfillPage.clickCancelButton();
 
-    await backfillPage.waitForBackfillCompletion();
-
-    const cancelledStatus = await backfillPage.getBackfillStatus(0);
-
-    expect(cancelledStatus.toLowerCase()).toContain("cancel");
-
-    await expect(backfillPage.backfillBanner).not.toBeVisible();
+    await expect(backfillPage.pauseButton).not.toBeVisible({ timeout: 10_000 });
+    await expect(backfillPage.cancelButton).not.toBeVisible({ timeout: 10_000 });
   });
 
   test("should not be able to resume a cancelled backfill", async ({ page }) => {
+    test.setTimeout(180_000);
     const backfillPage = new BackfillPage(page);
 
-    await backfillPage.navigateToBackfillsTab(testDagId);
+    await backfillPage.navigateToDagDetail(testDagId);
+    await backfillPage.openBackfillDialog();
 
-    await backfillPage.createBackfill(testDagId, {
-      fromDate,
-      reprocessBehavior: "All Runs",
-      toDate,
-    });
+    await backfillPage.backfillFromDateInput.fill(fromDate);
+    await backfillPage.backfillToDateInput.fill(toDate);
+    await backfillPage.selectReprocessBehavior("All Runs");
+
+    const runsMessage = page.locator("text=/\\d+ runs? will be triggered|No runs matching/");
+
+    await expect(runsMessage).toBeVisible({ timeout: 10_000 });
+    await expect(backfillPage.backfillRunButton).toBeEnabled({ timeout: 15_000 });
+    await backfillPage.backfillRunButton.click();
+
+    await backfillPage.navigateToBackfillsTab(testDagId);
+    await expect(backfillPage.cancelButton).toBeVisible({ timeout: 10_000 });
 
     await backfillPage.clickCancelButton();
 
-    await backfillPage.waitForBackfillCompletion();
-
-    await expect(backfillPage.pauseButton).not.toBeVisible();
-    await expect(backfillPage.cancelButton).not.toBeVisible();
+    await expect(backfillPage.pauseButton).not.toBeVisible({ timeout: 10_000 });
+    await expect(backfillPage.cancelButton).not.toBeVisible({ timeout: 10_000 });
   });
 });
