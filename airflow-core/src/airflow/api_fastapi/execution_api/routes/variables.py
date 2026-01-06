@@ -22,29 +22,35 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Path, Request, status
 
-from airflow.api_fastapi.execution_api.datamodels.variable import (
-    VariablePostBody,
-    VariableResponse,
-)
+from airflow.api_fastapi.common.db.common import AsyncSessionDep
+from airflow.api_fastapi.execution_api.datamodels.variable import VariableResponse, VariablePostBody
 from airflow.api_fastapi.execution_api.deps import JWTBearerDep, get_team_name_dep
+from airflow.configuration import conf
 from airflow.models.variable import Variable
 
 
 async def has_variable_access(
-    request: Request,
+    session: AsyncSessionDep,
     variable_key: str = Path(),
     token=JWTBearerDep,
-):
+) -> None:
     """Check if the task has access to the variable."""
-    write = request.method not in {"GET", "HEAD", "OPTIONS"}
-    # TODO: Placeholder for actual implementation
-    log.debug(
-        "Checking %s access for task instance with key '%s' to variable '%s'",
-        "write" if write else "read",
-        token.id,
-        variable_key,
-    )
-    return True
+    if not conf.getboolean("core", "multi_team"):
+        return
+
+    task_team_name = await get_team_name_dep(session, token)
+    if not task_team_name:
+        # Task doesn't belong to any team, can access any variable
+        # (or at least same rules as if multi-team was disabled)
+        return
+
+    variable_team_name = await session.run_sync(lambda session: Variable.get_team_name(variable_key, session))
+
+    if variable_team_name and variable_team_name != task_team_name:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=f"Task does not have access to variable {variable_key}",
+        )
 
 
 router = APIRouter(

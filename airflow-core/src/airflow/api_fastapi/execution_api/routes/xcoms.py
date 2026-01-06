@@ -22,10 +22,10 @@ from typing import Annotated
 
 from fastapi import APIRouter, Body, Depends, HTTPException, Path, Query, Request, Response, status
 from pydantic import JsonValue
-from sqlalchemy import delete
+from sqlalchemy import delete, select
 from sqlalchemy.sql.selectable import Select
 
-from airflow.api_fastapi.common.db.common import SessionDep
+from airflow.api_fastapi.common.db.common import AsyncSessionDep, SessionDep
 from airflow.api_fastapi.core_api.base import BaseModel
 from airflow.api_fastapi.execution_api.datamodels.xcom import (
     XComResponse,
@@ -33,31 +33,69 @@ from airflow.api_fastapi.execution_api.datamodels.xcom import (
     XComSequenceSliceResponse,
 )
 from airflow.api_fastapi.execution_api.deps import JWTBearerDep
+from airflow.models import TaskInstance
 from airflow.models.taskmap import TaskMap
 from airflow.models.xcom import XComModel
 from airflow.utils.db import get_query_count
 
 
 async def has_xcom_access(
+    session: AsyncSessionDep,
     dag_id: str,
     run_id: str,
     task_id: str,
     xcom_key: Annotated[str, Path(alias="key", min_length=1)],
     request: Request,
     token=JWTBearerDep,
-) -> bool:
+) -> None:
     """Check if the task has access to the XCom."""
-    # TODO: Placeholder for actual implementation
+    # We want to ensure that the task instance identified by the token
+    # is only accessing XComs from its own DAG and Run.
+    # Note: task_id might be different if pulling from an upstream task.
 
-    write = request.method not in {"GET", "HEAD", "OPTIONS"}
-
-    log.debug(
-        "Checking %s XCom access for xcom from TaskInstance with key '%s' to XCom '%s'",
-        "write" if write else "read",
-        token.id,
-        xcom_key,
+    stmt = select(TaskInstance.dag_id, TaskInstance.run_id, TaskInstance.task_id).where(
+        TaskInstance.id == str(token.id)
     )
-    return True
+    ti_context = await session.execute(stmt)
+    ti_row = ti_context.first()
+
+    if not ti_row:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Task instance not found",
+        )
+
+    ti_dag_id, ti_run_id, ti_task_id = ti_row
+
+    if ti_dag_id != dag_id or ti_run_id != run_id:
+        log.warning(
+            "Task instance %s (DAG: %s, Run: %s) attempted to access XCom for DAG: %s, Run: %s",
+            token.id,
+            ti_dag_id,
+            ti_run_id,
+            dag_id,
+            run_id,
+        )
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Task does not have access to this DAG run's XComs",
+        )
+
+    # For writing (setting or deleting), also ensure task_id matches.
+    # Reading (GET/HEAD) is allowed for any task in the same DAG run.
+    if request.method in {"POST", "DELETE"}:
+        if ti_task_id != task_id:
+            log.warning(
+                "Task instance %s (Task: %s) attempted to %s XCom for Task: %s",
+                token.id,
+                ti_task_id,
+                request.method,
+                task_id,
+            )
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=f"Task does not have access to {request.method} XCom for task {task_id}",
+            )
 
 
 router = APIRouter(

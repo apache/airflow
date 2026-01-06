@@ -21,25 +21,37 @@ import logging
 
 from fastapi import APIRouter, Depends, HTTPException, Path, status
 
+from airflow.api_fastapi.common.db.common import AsyncSessionDep
 from airflow.api_fastapi.execution_api.datamodels.connection import ConnectionResponse
-from airflow.api_fastapi.execution_api.deps import JWTBearerDep
+from airflow.api_fastapi.execution_api.deps import JWTBearerDep, get_team_name_dep
+from airflow.configuration import conf
 from airflow.exceptions import AirflowNotFoundException
 from airflow.models.connection import Connection
 
 
 async def has_connection_access(
+    session: AsyncSessionDep,
     connection_id: str = Path(),
     token=JWTBearerDep,
-) -> bool:
+) -> None:
     """Check if the task has access to the connection."""
-    # TODO: Placeholder for actual implementation
+    if not conf.getboolean("core", "multi_team"):
+        return
 
-    log.debug(
-        "Checking access for task instance with key '%s' to connection '%s'",
-        token.id,
-        connection_id,
+    task_team_name = await get_team_name_dep(session, token)
+    if not task_team_name:
+        # Task doesn't belong to any team, can access any connection
+        return
+
+    connection_team_name = await session.run_sync(
+        lambda session: Connection.get_team_name(connection_id, session)
     )
-    return True
+
+    if connection_team_name and connection_team_name != task_team_name:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=f"Task does not have access to connection {connection_id}",
+        )
 
 
 router = APIRouter(
