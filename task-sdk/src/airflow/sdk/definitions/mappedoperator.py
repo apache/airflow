@@ -752,19 +752,13 @@ class MappedOperator(AbstractOperator):
             "params": params,
         }
 
-    def unmap(self, resolve: None | Mapping[str, Any]) -> BaseOperator:
+    def unmap(self, resolve: Mapping[str, Any]) -> BaseOperator:
         """
         Get the "normal" Operator after applying the current mapping.
 
         :meta private:
         """
-        if isinstance(resolve, Mapping):
-            kwargs = resolve
-        elif resolve is not None:
-            kwargs, _ = self._expand_mapped_kwargs(*resolve)
-        else:
-            raise RuntimeError("cannot unmap a non-serialized operator without context")
-        kwargs = self._get_unmap_kwargs(kwargs, strict=self._disallow_kwargs_override)
+        kwargs = self._get_unmap_kwargs(resolve, strict=self._disallow_kwargs_override)
         is_setup = kwargs.pop("is_setup", False)
         is_teardown = kwargs.pop("is_teardown", False)
         on_failure_fail_dagrun = kwargs.pop("on_failure_fail_dagrun", False)

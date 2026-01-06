@@ -71,9 +71,8 @@ from airflow.providers.standard.operators.hitl import (
 )
 from airflow.providers.standard.operators.python import PythonOperator
 from airflow.providers.standard.sensors.python import PythonSensor
-from airflow.sdk import DAG, BaseOperator, BaseSensorOperator, Metadata, task, task_group
+from airflow.sdk import DAG, Asset, AssetAlias, BaseOperator, BaseSensorOperator, Metadata, task, task_group
 from airflow.sdk.api.datamodels._generated import AssetEventResponse, AssetResponse
-from airflow.sdk.definitions.asset import Asset, AssetAlias
 from airflow.sdk.definitions.param import process_params
 from airflow.sdk.definitions.taskgroup import TaskGroup
 from airflow.sdk.execution_time.comms import AssetEventsResult
@@ -444,6 +443,7 @@ class TestTaskInstance:
             start_date=timezone.datetime(2016, 2, 1, 0, 0, 0),
             dag=dag_maker.dag,
         )
+        dag_maker.sync_dag_to_db()
         ti2 = _create_task_instance(task=task2, run_id=ti.run_id, dag_version_id=ti.dag_version_id)
         session.add(ti2)
         session.flush()
@@ -552,18 +552,19 @@ class TestTaskInstance:
                 retry_delay=datetime.timedelta(seconds=0),
             )
 
-        def run_with_error(ti):
+        def run_with_error():
             with contextlib.suppress(AirflowException):
-                dag_maker.run_ti(ti.task_id, ti.dag_run)
-            ti.refresh_from_db(session)
+                dag_maker.run_ti(ti.task_id, dag_run)
+            return session.get(TaskInstance, ti.id)
 
-        ti = dag_maker.create_dagrun(logical_date=timezone.utcnow()).task_instances[0]
+        dag_run = dag_maker.create_dagrun(logical_date=timezone.utcnow())
+        ti = dag_run.task_instances[0]
         assert ti.try_number == 0
         session.get(TaskInstance, ti.id).try_number += 1
         session.commit()
 
         # first run -- up for retry
-        run_with_error(ti)
+        ti = run_with_error()
         assert ti.state == State.UP_FOR_RETRY
         assert ti.try_number == 1
 
@@ -571,7 +572,7 @@ class TestTaskInstance:
         session.commit()
 
         # second run -- fail
-        run_with_error(ti)
+        ti = run_with_error()
         assert ti.state == State.FAILED
         assert ti.try_number == 2
 
@@ -579,14 +580,13 @@ class TestTaskInstance:
         # clearing it first
         dag.clear()
 
-        ti.refresh_from_db(session)
+        ti.refresh_from_db()
         ti.try_number += 1
         session.add(ti)
         session.commit()
 
         # third run -- up for retry
-        run_with_error(ti)
-        ti.refresh_from_db()
+        ti = run_with_error()
         assert ti.state == State.UP_FOR_RETRY
         assert ti.try_number == 3
 
@@ -594,8 +594,7 @@ class TestTaskInstance:
         session.commit()
 
         # fourth run -- fail
-        run_with_error(ti)
-        ti.refresh_from_db()
+        ti = run_with_error()
         assert ti.state == State.FAILED
         assert ti.try_number == 4
         assert RenderedTaskInstanceFields.get_templated_fields(ti) == expected_rendered_ti_fields
@@ -2094,9 +2093,7 @@ class TestTaskInstance:
         Test that when a task that produces asset has ran, that changing the consumer
         dag asset will not cause primary key blank-out
         """
-        from airflow.sdk.definitions.asset import Asset
-
-        with dag_maker(schedule=None, serialized=True) as dag1:
+        with dag_maker(schedule=None, serialized=False) as dag1:
 
             @task(outlets=Asset("test/1"))
             def test_task1():
@@ -2107,7 +2104,7 @@ class TestTaskInstance:
         dr1 = dag_maker.create_dagrun()
         test_task1 = dag1.get_task("test_task1")
 
-        with dag_maker(dag_id="testdag", schedule=[Asset("test/1")], serialized=True):
+        with dag_maker(dag_id="testdag", schedule=[Asset("test/1")]):
 
             @task
             def test_task2():
@@ -2119,7 +2116,7 @@ class TestTaskInstance:
         run_task_instance(ti, dag1.get_task(ti.task_id))
 
         # Change the asset.
-        with dag_maker(dag_id="testdag", schedule=[Asset("test2/1")], serialized=True):
+        with dag_maker(dag_id="testdag", schedule=[Asset("test2/1")]):
 
             @task
             def test_task2():
@@ -2645,7 +2642,7 @@ class TestTaskInstanceRecordTaskMapXComPush:
     @pytest.mark.parametrize("xcom_value", [[1, 2, 3], {"a": 1, "b": 2}, "abc"])
     def test_not_recorded_if_leaf(self, dag_maker, xcom_value):
         """Return value should not be recorded if there are no downstreams."""
-        with dag_maker(dag_id="test_not_recorded_for_unused") as dag:
+        with dag_maker(dag_id="test_not_recorded_for_unused", serialized=False) as dag:
 
             @dag.task()
             def push_something():
@@ -2661,7 +2658,7 @@ class TestTaskInstanceRecordTaskMapXComPush:
     @pytest.mark.parametrize("xcom_value", [[1, 2, 3], {"a": 1, "b": 2}, "abc"])
     def test_not_recorded_if_not_used(self, dag_maker, xcom_value):
         """Return value should not be recorded if no downstreams are mapped."""
-        with dag_maker(dag_id="test_not_recorded_for_unused") as dag:
+        with dag_maker(dag_id="test_not_recorded_for_unused", serialized=False) as dag:
 
             @dag.task()
             def push_something():
