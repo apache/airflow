@@ -34,6 +34,9 @@ def serialize_template_field(template_field: Any, name: str) -> str | dict | lis
     """
     Return a serializable representation of the templated field.
 
+    If ``templated_field`` is provided via a callable, compute MD5 hash of source
+    and return following serialized value: ``<function fingerprint(MD5) hash_value``
+
     If ``templated_field`` contains a class or instance that requires recursive
     templating, store them as strings. Otherwise simply return the field as-is.
     """
