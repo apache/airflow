@@ -144,11 +144,12 @@ class AzureKeyVaultBackend(BaseSecretsBackend, LoggingMixin):
         client = SecretClient(vault_url=self.vault_url, credential=credential, **self.kwargs)
         return client
 
-    def get_conn_value(self, conn_id: str) -> str | None:
+    def get_conn_value(self, conn_id: str, team_name: str | None = None) -> str | None:
         """
         Get a serialized representation of Airflow Connection from an Azure Key Vault secret.
 
         :param conn_id: The Airflow connection id to retrieve
+        :param team_name: Team name associated to the task trying to access the connection (if any)
         """
         if self.connections_prefix is None:
             return None

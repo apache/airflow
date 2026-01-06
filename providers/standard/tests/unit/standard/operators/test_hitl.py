@@ -256,7 +256,7 @@ class TestHITLOperator:
 
         expected_params_in_trigger_kwargs: dict[str, dict[str, Any]]
         # trigger_kwargs are encoded via BaseSerialization in versions < 3.2
-        expected_ti_id = ti.id
+        expected_ti_id: str | UUID = ti.id
         if AIRFLOW_V_3_2_PLUS:
             expected_params_in_trigger_kwargs = expected_params
             # trigger_kwargs are encoded via serde from task sdk in versions >= 3.2

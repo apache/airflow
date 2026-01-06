@@ -82,6 +82,9 @@ dependencies = [
 "polars" = [
     "polars>=1.26.0"
 ]
+"sqlalchemy" = [
+    "sqlalchemy>=1.4.49",
+]
 
 [dependency-groups]
 dev = [

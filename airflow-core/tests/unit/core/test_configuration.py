@@ -696,7 +696,7 @@ class TestConf:
     def test_write_should_respect_env_variable(self):
         parser = AirflowConfigParser()
         with StringIO() as string_file:
-            parser.write(string_file)
+            parser.write(string_file, show_values=True)
             content = string_file.getvalue()
         assert "dags_folder = /tmp/test_folder" in content
 
@@ -1020,7 +1020,7 @@ class TestConf:
         test_conf.set("test_json", "my_json_config", json_string)
 
         with StringIO() as string_file:
-            test_conf.write(string_file, include_descriptions=False, include_env_vars=False)
+            test_conf.write(string_file, include_descriptions=False, include_env_vars=False, show_values=True)
             content = string_file.getvalue()
 
         expected_formatted_string = (
@@ -1047,7 +1047,7 @@ class TestConf:
         test_conf.set("test_multiline", "my_string_config", multiline_string)
 
         with StringIO() as string_file:
-            test_conf.write(string_file, include_descriptions=False, include_env_vars=False)
+            test_conf.write(string_file, include_descriptions=False, include_env_vars=False, show_values=True)
             content = string_file.getvalue()
 
         expected_raw_output = "my_string_config = This is the first line.\nThis is the second line.\n"

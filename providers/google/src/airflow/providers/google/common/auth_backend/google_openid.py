@@ -39,8 +39,8 @@ from google.auth import exceptions
 from google.auth.transport.requests import AuthorizedSession
 from google.oauth2 import service_account
 
-from airflow.configuration import conf
 from airflow.exceptions import AirflowProviderDeprecationWarning
+from airflow.providers.common.compat.sdk import conf
 from airflow.providers.google.common.deprecated import deprecated
 from airflow.providers.google.common.utils.id_token_credentials import get_default_id_token_credentials
 

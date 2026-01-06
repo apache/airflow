@@ -1398,6 +1398,8 @@ def _run_task(
     possible.  This function is only meant for the `dag.test` function as a helper function.
     """
     from airflow.sdk._shared.module_loading import import_string
+    from airflow.sdk.serde import deserialize, serialize
+    from airflow.utils.session import create_session
 
     taskrun_result: TaskRunResult | None
     log.info("[DAG TEST] starting task_id=%s map_index=%s", ti.task_id, ti.map_index)
@@ -1429,16 +1431,16 @@ def _run_task(
             ti.task = create_scheduler_operator(taskrun_result.ti.task)
 
             if ti.state == TaskInstanceState.DEFERRED and isinstance(msg, DeferTask) and run_triggerer:
-                from airflow.sdk.serde import deserialize, serialize
-                from airflow.utils.session import create_session
-
                 # API Server expects the task instance to be in QUEUED state before
                 # resuming from deferral.
                 ti.set_state(TaskInstanceState.QUEUED)
 
                 log.info("[DAG TEST] running trigger in line")
-                # trigger_kwargs need to be deserialized before passing to the trigger class since they are in serde encoded format
-                kwargs = deserialize(msg.trigger_kwargs)  # type: ignore[type-var]  # needed to convince mypy that trigger_kwargs is a dict or a str because its unable to infer JsonValue
+                # trigger_kwargs need to be deserialized before passing to the
+                # trigger class since they are in serde encoded format.
+                # Ignore needed to convince mypy that trigger_kwargs is a dict
+                # or a str because its unable to infer JsonValue.
+                kwargs = deserialize(msg.trigger_kwargs)  # type: ignore[type-var]
                 if TYPE_CHECKING:
                     assert isinstance(kwargs, dict)
                 trigger = import_string(msg.classpath)(**kwargs)

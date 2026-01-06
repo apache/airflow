@@ -426,6 +426,9 @@ repos:
             ^airflow-core/src/airflow/models/.*\.py$|
             ^airflow-core/src/airflow/api_fastapi/execution_api/routes/task_instances.py$|
             ^airflow-core/tests/unit/api_fastapi/core_api/routes/public/test_assets.py$|
+            ^airflow-core/tests/unit/api_fastapi/core_api/routes/public/test_backfills.py$|
+            ^airflow-core/tests/unit/api_fastapi/core_api/routes/public/test_connections.py$|
+            ^airflow-core/tests/unit/api_fastapi/core_api/routes/public/test_pools.py$|
             ^airflow-core/tests/unit/models/test_serialized_dag.py$|
             ^airflow-core/tests/unit/models/test_pool.py$|
             ^airflow-core/tests/unit/models/test_trigger.py$|
@@ -463,6 +466,7 @@ repos:
             ^airflow-core/tests/unit/utils/test_db_cleanup.py$|
             ^airflow-core/tests/unit/utils/test_state.py$|
             ^airflow-core/tests/unit/utils/test_log_handlers.py$|
+            ^airflow-core/tests/unit/ti_deps/deps/test_not_previously_skipped_dep.py$|
             ^airflow-core/tests/unit/utils/test_types.py$|
             ^airflow-core/tests/unit/dag_processing/test_manager.py$|
             ^airflow-core/tests/unit/dag_processing/test_processor.py$|
@@ -611,7 +615,7 @@ repos:
           ^providers/google/src/airflow/providers/google/cloud/operators/cloud_build\.py$|
           ^providers/google/src/airflow/providers/google/cloud/operators/dataproc\.py$|
           ^providers/google/src/airflow/providers/google/cloud/operators/mlengine\.py$|
-          ^providers/keycloak/src/airflow/providers/keycloak/auth_manager/cli/definition.py|
+          ^providers/keycloak/src/airflow/providers/keycloak/cli/definition.py|
           ^providers/microsoft/azure/docs/connections/azure_cosmos\.rst$|
           ^providers/microsoft/azure/src/airflow/providers/microsoft/azure/hooks/cosmos\.py$|
           ^providers/microsoft/winrm/src/airflow/providers/microsoft/winrm/hooks/winrm\.py$|

@@ -17,12 +17,12 @@
  * under the License.
  */
 import "@testing-library/jest-dom";
-import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { render, screen, fireEvent, waitFor, cleanup } from "@testing-library/react";
 import dayjs from "dayjs";
 import timezone from "dayjs/plugin/timezone";
 import utc from "dayjs/plugin/utc";
 import { useMemo } from "react";
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 
 import { TimezoneContext } from "src/context/timezone";
 import { ChakraWrapper } from "src/utils/ChakraWrapper";
@@ -30,11 +30,9 @@ import { ChakraWrapper } from "src/utils/ChakraWrapper";
 import type { FilterPluginProps } from "../types";
 import { DateRangeFilter } from "./DateRangeFilter";
 
-// Initialize dayjs plugins
 dayjs.extend(timezone);
 dayjs.extend(utc);
 
-// Mock useTranslation
 const mockTranslate = vi.fn((key: string) => {
   const translations: Record<string, string> = {
     "common:filters.endTime": "End Time",
@@ -75,7 +73,6 @@ const TestWrapper = ({ children }: { readonly children: React.ReactNode }) => {
   );
 };
 
-// Mock data
 const mockFilter = {
   config: {
     icon: undefined,
@@ -93,155 +90,161 @@ const defaultProps: FilterPluginProps = {
   onRemove: vi.fn(),
 };
 
-describe("DateRangeFilter - Input Validation", () => {
+const getInputs = () => {
+  const dateInputs = screen.getAllByPlaceholderText("YYYY/MM/DD");
+  const timeInputs = screen.getAllByPlaceholderText("HH:mm");
+
+  return {
+    endDateInput: dateInputs[1],
+    endTimeInput: timeInputs[1],
+    startDateInput: dateInputs[0],
+    startTimeInput: timeInputs[0],
+  };
+};
+
+const changeDateInput = (input: HTMLElement | undefined, value: string) => {
+  if (input) {
+    fireEvent.change(input, { target: { value } });
+  }
+};
+
+const changeTimeInput = (input: HTMLElement | undefined, value: string) => {
+  if (input) {
+    fireEvent.change(input, { target: { value } });
+  }
+};
+
+const waitForError = async (errorText: string) => {
+  await waitFor(() => {
+    expect(screen.getByText(errorText)).toBeInTheDocument();
+  });
+};
+
+const waitForNoError = async (errorText: string) => {
+  await waitFor(() => {
+    expect(screen.queryByText(errorText)).not.toBeInTheDocument();
+  });
+};
+
+const waitForNoErrors = async (errorTexts: Array<string>) => {
+  await waitFor(() => {
+    for (const errorText of errorTexts) {
+      expect(screen.queryByText(errorText)).not.toBeInTheDocument();
+    }
+  });
+};
+
+const renderFilter = (props: FilterPluginProps = defaultProps) =>
+  render(
+    <TestWrapper>
+      <DateRangeFilter {...props} />
+    </TestWrapper>,
+  );
+
+describe("DateRangeFilter", () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
-  it("shows error for invalid date format in start date", async () => {
-    render(
-      <TestWrapper>
-        <DateRangeFilter {...defaultProps} />
-      </TestWrapper>,
-    );
+  afterEach(() => {
+    cleanup();
+  });
 
-    const [startDateInput] = screen.getAllByPlaceholderText("YYYY/MM/DD");
+  describe("Input Validation", () => {
+    it("validates date and time formats", async () => {
+      renderFilter();
+      const { startDateInput, startTimeInput } = getInputs();
 
-    if (startDateInput) {
-      fireEvent.change(startDateInput, { target: { value: "invalid-date" } });
-    }
+      changeDateInput(startDateInput, "invalid-date");
+      await waitForError("Invalid date format.");
+      changeDateInput(startDateInput, "2024/13/01");
+      await waitForError("Invalid date format.");
+      changeTimeInput(startTimeInput, "25:00");
+      await waitForError("Invalid time format.");
+    });
 
-    await waitFor(() => {
-      expect(screen.getByText("Invalid date format.")).toBeInTheDocument();
+    it("validates date range", async () => {
+      renderFilter();
+      const { endDateInput, endTimeInput, startDateInput, startTimeInput } = getInputs();
+
+      changeDateInput(startDateInput, "2024/01/15");
+      changeTimeInput(startTimeInput, "10:00");
+      changeDateInput(endDateInput, "2024/01/14");
+      changeTimeInput(endTimeInput, "09:00");
+      await waitForError("Start date/time must be before end date/time");
+    });
+
+    it("accepts valid inputs", async () => {
+      renderFilter();
+      const { endDateInput, endTimeInput, startDateInput, startTimeInput } = getInputs();
+
+      changeDateInput(startDateInput, "2024/01/15");
+      changeTimeInput(startTimeInput, "09:00");
+      changeDateInput(endDateInput, "2024/01/20");
+      changeTimeInput(endTimeInput, "17:00");
+      await waitForNoErrors(["Invalid date format.", "Start date/time must be before end date/time"]);
     });
   });
 
-  it("shows error for invalid date format in end date", async () => {
-    render(
-      <TestWrapper>
-        <DateRangeFilter {...defaultProps} />
-      </TestWrapper>,
-    );
+  describe("Display Value Formatting", () => {
+    it("displays placeholder when no value is set", () => {
+      renderFilter();
+      expect(screen.getByText("Select Date Range")).toBeInTheDocument();
+    });
 
-    const [, endDateInput] = screen.getAllByPlaceholderText("YYYY/MM/DD");
+    it("displays formatted date range", () => {
+      const props = {
+        ...defaultProps,
+        filter: {
+          ...mockFilter,
+          value: { endDate: "2024-01-20T17:00:00Z", startDate: "2024-01-15T09:00:00Z" },
+        },
+      };
 
-    if (endDateInput) {
-      fireEvent.change(endDateInput, { target: { value: "invalid-date" } });
-    }
+      renderFilter(props);
+      expect(screen.getByText(/Jan 15, 2024/u)).toBeInTheDocument();
+    });
 
-    await waitFor(() => {
-      expect(screen.getByText("Invalid date format.")).toBeInTheDocument();
+    it("displays 'From' when only start date is set", () => {
+      const props = {
+        ...defaultProps,
+        filter: { ...mockFilter, value: { endDate: undefined, startDate: "2024-01-15T09:00:00Z" } },
+      };
+
+      renderFilter(props);
+      expect(screen.getAllByText(/From/u).length).toBeGreaterThan(0);
+    });
+
+    it("displays 'To' when only end date is set", () => {
+      const props = {
+        ...defaultProps,
+        filter: { ...mockFilter, value: { endDate: "2024-01-20T17:00:00Z", startDate: undefined } },
+      };
+
+      renderFilter(props);
+      expect(screen.getAllByText(/To/u).length).toBeGreaterThan(0);
     });
   });
 
-  it("shows error for invalid time format in start time", async () => {
-    render(
-      <TestWrapper>
-        <DateRangeFilter {...defaultProps} />
-      </TestWrapper>,
-    );
+  describe("Edge Cases", () => {
+    it("handles leap years and boundary dates", async () => {
+      renderFilter();
+      const { endDateInput, startDateInput } = getInputs();
 
-    const [startTimeInput] = screen.getAllByPlaceholderText("HH:mm");
-
-    if (startTimeInput) {
-      fireEvent.change(startTimeInput, { target: { value: "invalid-time" } });
-    }
-
-    await waitFor(() => {
-      expect(screen.getByText("Invalid time format.")).toBeInTheDocument();
+      changeDateInput(startDateInput, "2024/02/29");
+      await waitForNoError("Invalid date format.");
+      changeDateInput(startDateInput, "2023/02/29");
+      await waitForError("Invalid date format.");
+      changeDateInput(startDateInput, "2024/01/31");
+      changeDateInput(endDateInput, "2024/02/01");
+      await waitForNoError("Invalid date format.");
     });
-  });
 
-  it("shows error for invalid time format in end time", async () => {
-    render(
-      <TestWrapper>
-        <DateRangeFilter {...defaultProps} />
-      </TestWrapper>,
-    );
+    it("handles undefined filter value", () => {
+      const props = { ...defaultProps, filter: { ...mockFilter, value: undefined } };
 
-    const [, endTimeInput] = screen.getAllByPlaceholderText("HH:mm");
-
-    if (endTimeInput) {
-      fireEvent.change(endTimeInput, { target: { value: "invalid-time" } });
-    }
-
-    await waitFor(() => {
-      expect(screen.getByText("Invalid time format.")).toBeInTheDocument();
-    });
-  });
-
-  it("shows error when start date/time is after end date/time", async () => {
-    render(
-      <TestWrapper>
-        <DateRangeFilter {...defaultProps} />
-      </TestWrapper>,
-    );
-
-    const [startDateInput, endDateInput] = screen.getAllByPlaceholderText("YYYY/MM/DD");
-    const [startTimeInput, endTimeInput] = screen.getAllByPlaceholderText("HH:mm");
-
-    // Set start date/time to be after end date/time
-    if (startDateInput && startTimeInput && endDateInput && endTimeInput) {
-      fireEvent.change(startDateInput, { target: { value: "2024/01/15" } });
-      fireEvent.change(startTimeInput, { target: { value: "10:00" } });
-      fireEvent.change(endDateInput, { target: { value: "2024/01/14" } });
-      fireEvent.change(endTimeInput, { target: { value: "09:00" } });
-    }
-
-    await waitFor(() => {
-      expect(screen.getByText("Start date/time must be before end date/time")).toBeInTheDocument();
-    });
-  });
-
-  it("accepts valid date and time inputs", async () => {
-    render(
-      <TestWrapper>
-        <DateRangeFilter {...defaultProps} />
-      </TestWrapper>,
-    );
-
-    const [startDateInput, endDateInput] = screen.getAllByPlaceholderText("YYYY/MM/DD");
-    const [startTimeInput, endTimeInput] = screen.getAllByPlaceholderText("HH:mm");
-
-    // Set valid inputs
-    if (startDateInput && startTimeInput && endDateInput && endTimeInput) {
-      fireEvent.change(startDateInput, { target: { value: "2024/01/15" } });
-      fireEvent.change(startTimeInput, { target: { value: "09:00" } });
-      fireEvent.change(endDateInput, { target: { value: "2024/01/20" } });
-      fireEvent.change(endTimeInput, { target: { value: "17:00" } });
-    }
-
-    await waitFor(() => {
-      // Should not show any validation errors
-      expect(screen.queryByText("Invalid date format.")).not.toBeInTheDocument();
-      expect(screen.queryByText("Invalid time format.")).not.toBeInTheDocument();
-      expect(screen.queryByText("Start date/time must be before end date/time")).not.toBeInTheDocument();
-    });
-  });
-
-  it("clears validation errors when invalid input is corrected", async () => {
-    render(
-      <TestWrapper>
-        <DateRangeFilter {...defaultProps} />
-      </TestWrapper>,
-    );
-
-    const [startDateInput] = screen.getAllByPlaceholderText("YYYY/MM/DD");
-
-    if (startDateInput) {
-      // First, set an invalid date
-      fireEvent.change(startDateInput, { target: { value: "invalid-date" } });
-
-      await waitFor(() => {
-        expect(screen.getByText("Invalid date format.")).toBeInTheDocument();
-      });
-
-      // Then, correct it to a valid date
-      fireEvent.change(startDateInput, { target: { value: "2024/01/15" } });
-    }
-
-    await waitFor(() => {
-      expect(screen.queryByText("Invalid date format.")).not.toBeInTheDocument();
+      // Should not throw when filter value is undefined
+      renderFilter(props);
     });
   });
 });

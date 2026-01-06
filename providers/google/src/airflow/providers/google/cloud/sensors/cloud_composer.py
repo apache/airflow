@@ -29,8 +29,12 @@ from dateutil import parser
 from google.api_core.exceptions import NotFound
 from google.cloud.orchestration.airflow.service_v1.types import Environment, ExecuteAirflowCommandResponse
 
-from airflow.configuration import conf
-from airflow.providers.common.compat.sdk import AirflowException, AirflowSkipException, BaseSensorOperator
+from airflow.providers.common.compat.sdk import (
+    AirflowException,
+    AirflowSkipException,
+    BaseSensorOperator,
+    conf,
+)
 from airflow.providers.google.cloud.hooks.cloud_composer import CloudComposerHook
 from airflow.providers.google.cloud.triggers.cloud_composer import (
     CloudComposerDAGRunTrigger,

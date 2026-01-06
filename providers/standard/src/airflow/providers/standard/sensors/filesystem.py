@@ -25,8 +25,7 @@ from functools import cached_property
 from glob import glob
 from typing import TYPE_CHECKING, Any
 
-from airflow.configuration import conf
-from airflow.providers.common.compat.sdk import AirflowException, BaseSensorOperator
+from airflow.providers.common.compat.sdk import AirflowException, BaseSensorOperator, conf
 from airflow.providers.standard.hooks.filesystem import FSHook
 from airflow.providers.standard.triggers.file import FileTrigger
 

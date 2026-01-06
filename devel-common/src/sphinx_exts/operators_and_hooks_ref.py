@@ -532,6 +532,22 @@ class AuthManagersDirective(BaseJinjaReferenceDirective):
         )
 
 
+class CliCommandsDirective(BaseJinjaReferenceDirective):
+    """Generate list of CLI commands"""
+
+    def render_content(
+        self, *, tags: set[str] | None, header_separator: str = DEFAULT_HEADER_SEPARATOR
+    ) -> str:
+        tabular_data = [
+            (provider["name"], provider["package-name"])
+            for provider in load_package_data()
+            if provider.get("cli") is not None
+        ]
+        return _render_template(
+            "configuration.rst.jinja2", items=tabular_data, header_separator=header_separator
+        )
+
+
 def setup(app):
     """Setup plugin"""
     app.add_directive("operators-hooks-ref", OperatorsHooksReferenceDirective)
@@ -548,6 +564,7 @@ def setup(app):
     app.add_directive("airflow-deprecations", DeprecationsDirective)
     app.add_directive("airflow-dataset-schemes", AssetSchemeDirective)
     app.add_directive("airflow-auth-managers", AuthManagersDirective)
+    app.add_directive("airflow-cli-commands", CliCommandsDirective)
 
     return {"parallel_read_safe": True, "parallel_write_safe": True}
 
