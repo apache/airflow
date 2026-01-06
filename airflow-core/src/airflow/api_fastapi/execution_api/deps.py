@@ -103,7 +103,7 @@ JWTBearerDep: TIToken = Depends(JWTBearer())
 JWTBearerTIPathDep = Depends(JWTBearer(path_param_name="task_instance_id"))
 
 
-async def get_team_name_dep(session: AsyncSessionDep, token=JWTBearerDep) -> str | None:
+async def get_team_name_dep(session: AsyncSessionDep, token: TIToken = JWTBearerDep) -> str | None:
     """Return the team name associated to the task (if any)."""
     if not conf.getboolean("core", "multi_team"):
         return None
