@@ -17,15 +17,15 @@
 # under the License.
 from __future__ import annotations
 
-import logging
 from typing import TYPE_CHECKING
 
 import pluggy
+import structlog
 
 if TYPE_CHECKING:
     from pluggy._hooks import _HookRelay
 
-log = logging.getLogger(__name__)
+log = structlog.get_logger(__name__)
 
 
 def _before_hookcall(hook_name, hook_impls, kwargs):

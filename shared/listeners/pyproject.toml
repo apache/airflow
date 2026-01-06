@@ -25,6 +25,7 @@ classifiers = [
 
 dependencies = [
     "pluggy>=1.5.0",
+    "structlog>=25.4.0",
 ]
 
 [dependency-groups]
