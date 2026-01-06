@@ -20,7 +20,7 @@
 Add ``next_trigger_id`` column to ``task_instance`` table.
 
 Revision ID: 658517c60c7f
-Revises: edc4f85a4619
+Revises: c47f2e1ab9d4
 Create Date: 2025-12-26 12:07:05.849152
 
 """
