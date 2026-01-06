@@ -18,18 +18,21 @@ from __future__ import annotations
 
 import datetime
 import logging
-import os
 import random
 import warnings
 from collections.abc import Callable
 from typing import TYPE_CHECKING
 
 from opentelemetry import metrics
-from opentelemetry.exporter.otlp.proto.http.metric_exporter import OTLPMetricExporter
 from opentelemetry.sdk.metrics import MeterProvider
-from opentelemetry.sdk.metrics._internal.export import ConsoleMetricExporter, PeriodicExportingMetricReader
+from opentelemetry.sdk.metrics._internal.export import (
+    ConsoleMetricExporter,
+    MetricExporter,
+    PeriodicExportingMetricReader,
+)
 from opentelemetry.sdk.resources import SERVICE_NAME, Resource
 
+from ..otel_env_config import OtelEnvConfig, load_metrics_env_config
 from .protocols import Timer
 from .validators import (
     OTEL_NAME_MAX_LENGTH,
@@ -373,6 +376,45 @@ class MetricsMap:
         self.map[key].set_value(value, delta)
 
 
+def get_metric_exporter(
+    *,
+    otel_env_config: OtelEnvConfig,
+    host: str | None = None,
+    port: int | None = None,
+    ssl_active: bool = False,
+) -> MetricExporter:
+    protocol = "https" if ssl_active else "http"
+
+    # According to the OpenTelemetry Spec, specific config options like 'OTEL_EXPORTER_OTLP_TRACES_ENDPOINT'
+    # take precedence over generic ones like 'OTEL_EXPORTER_OTLP_ENDPOINT'.
+    env_exporter_protocol = (
+        otel_env_config.type_specific_exporter_protocol or otel_env_config.exporter_protocol
+    )
+    env_endpoint = otel_env_config.type_specific_endpoint or otel_env_config.base_endpoint
+
+    # If the protocol env var isn't set, then it will be None,
+    # and it will default to an http/protobuf exporter.
+    if env_endpoint and env_exporter_protocol == "grpc":
+        from opentelemetry.exporter.otlp.proto.grpc.metric_exporter import OTLPMetricExporter
+    else:
+        from opentelemetry.exporter.otlp.proto.http.metric_exporter import OTLPMetricExporter
+
+    if env_endpoint:
+        metrics_endpoint = env_endpoint
+        # The SDK will pick up all the values from the environment.
+        exporter = OTLPMetricExporter()
+    else:
+        # If the environment endpoint isn't set, then assume that the airflow config is used
+        # where protocol isn't specified, and it's always http/protobuf.
+        # In that case it should default to the full 'url_path' and set it directly.
+        metrics_endpoint = f"{protocol}://{host}:{port}/v1/metrics"
+        exporter = OTLPMetricExporter(endpoint=metrics_endpoint)
+
+    log.info("[Metric Exporter] Connecting to OpenTelemetry Collector at %s", metrics_endpoint)
+
+    return exporter
+
+
 def get_otel_logger(
     *,
     host: str | None = None,
@@ -387,27 +429,31 @@ def get_otel_logger(
     stat_name_handler: Callable[[str], str] | None = None,
     statsd_influxdb_enabled: bool = False,
 ) -> SafeOtelLogger:
-    effective_service_name: str = service_name or "airflow"
+    otel_env_config = load_metrics_env_config()
+
+    effective_service_name: str = otel_env_config.service_name or service_name
     effective_prefix: str = prefix or DEFAULT_METRIC_NAME_PREFIX
     resource = Resource.create(attributes={SERVICE_NAME: effective_service_name})
-    protocol = "https" if ssl_active else "http"
-    # Allow transparent support for standard OpenTelemetry SDK environment variables.
-    # https://opentelemetry.io/docs/specs/otel/protocol/exporter/#configuration-options
-    endpoint = os.environ.get("OTEL_EXPORTER_OTLP_ENDPOINT", f"{protocol}://{host}:{port}")
-    metrics_endpoint = os.environ.get("OTEL_EXPORTER_OTLP_METRICS_ENDPOINT", f"{endpoint}/v1/metrics")
+
     # https://opentelemetry.io/docs/specs/otel/configuration/sdk-environment-variables/#periodic-exporting-metricreader
-    if interval := os.environ.get("OTEL_METRIC_EXPORT_INTERVAL", conf_interval):
-        interval = float(interval)
-    else:
-        # If the env variable is an empty string.
-        interval = None
-    log.info("[Metric Exporter] Connecting to OpenTelemetry Collector at %s", endpoint)
+    interval = otel_env_config.interval_ms or conf_interval
+
+    metric_exporter = get_metric_exporter(
+        otel_env_config=otel_env_config,
+        host=host,
+        port=port,
+        ssl_active=ssl_active,
+    )
+
     readers = [
         PeriodicExportingMetricReader(
-            OTLPMetricExporter(endpoint=metrics_endpoint),
+            exporter=metric_exporter,
             export_interval_millis=interval,  # type: ignore[arg-type]
         )
     ]
+
+    if otel_env_config.exporter:
+        debug = otel_env_config.exporter == "console"
 
     if debug:
         export_to_console = PeriodicExportingMetricReader(
