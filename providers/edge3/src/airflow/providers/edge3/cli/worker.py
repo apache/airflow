@@ -21,8 +21,7 @@ import os
 import signal
 import sys
 import traceback
-from asyncio import Task, create_task, get_running_loop, run, sleep
-from concurrent.futures import ThreadPoolExecutor
+from asyncio import Task, create_task, get_running_loop, sleep
 from datetime import datetime
 from functools import cache
 from http import HTTPStatus
@@ -79,6 +78,18 @@ def _edge_hostname() -> str:
     return os.environ.get("HOSTNAME", getfqdn())
 
 
+@cache
+def _execution_api_server_url() -> str:
+    """Get the execution api server url from config or environment."""
+    api_url = conf.get("edge", "api_url")
+    execution_api_server_url = conf.get("core", "execution_api_server_url", fallback="")
+    if not execution_api_server_url and api_url:
+        # Derive execution api url from edge api url as fallback
+        execution_api_server_url = api_url.replace("edge_worker/v1/rpcapi", "execution")
+    logger.info("Using execution api server url: %s", execution_api_server_url)
+    return execution_api_server_url
+
+
 class EdgeWorker:
     """Runner instance which executes the Edge Worker."""
 
@@ -108,7 +119,6 @@ class EdgeWorker:
         self.hostname = hostname
         self.queues = queues
         self.concurrency = concurrency
-        self.thread_pool = ThreadPoolExecutor(max_workers=concurrency)
         self.daemon = daemon
 
     @property
@@ -127,7 +137,10 @@ class EdgeWorker:
                 logger.info("Comments: %s", request.comments)
                 self.maintenance_comments = request.comments
             marker_path.unlink()
-            run(self.heartbeat(self.maintenance_comments))  # send heartbeat immediately to update state
+            # send heartbeat immediately to update state
+            task = get_running_loop().create_task(self.heartbeat(self.maintenance_comments))
+            self.background_tasks.add(task)
+            task.add_done_callback(self.background_tasks.discard)
         else:
             logger.info("Request to get status of Edge Worker received.")
         status_path = Path(status_file_path(None))
@@ -182,22 +195,7 @@ class EdgeWorker:
             return EdgeWorkerState.MAINTENANCE_MODE
         return EdgeWorkerState.IDLE
 
-    @staticmethod
-    @cache
-    def _execution_api_server_url() -> str:
-        """Get the execution api server url from config or environment."""
-        api_url = conf.get("edge", "api_url")
-        execution_api_server_url = conf.get("core", "execution_api_server_url", fallback="")
-        if not execution_api_server_url and api_url:
-            # Derive execution api url from edge api url as fallback
-            execution_api_server_url = api_url.replace("edge_worker/v1/rpcapi", "execution")
-        logger.info("Using execution api server url: %s", execution_api_server_url)
-        return execution_api_server_url
-
-    @staticmethod
-    def _run_job_via_supervisor(
-        workload: ExecuteTask, execution_api_server_url: str, results_queue: Queue
-    ) -> int:
+    def _run_job_via_supervisor(self, workload: ExecuteTask, results_queue: Queue) -> int:
         from airflow.sdk.execution_time.supervisor import supervise
 
         # Ignore ctrl-c in this process -- we don't want to kill _this_ one. we let tasks run to completion
@@ -219,7 +217,7 @@ class EdgeWorker:
                 dag_rel_path=workload.dag_rel_path,
                 bundle_info=workload.bundle_info,
                 token=workload.token,
-                server=execution_api_server_url,
+                server=_execution_api_server_url(),
                 log_path=workload.log_path,
             )
             return 0
@@ -233,12 +231,8 @@ class EdgeWorker:
         # See _spawn_workers_with_gc_freeze() in airflow-core/src/airflow/executors/local_executor.py
         results_queue: Queue[Exception] = Queue()
         process = Process(
-            target=EdgeWorker._run_job_via_supervisor,
-            kwargs={
-                "workload": workload,
-                "execution_api_server_url": EdgeWorker._execution_api_server_url(),
-                "results_queue": results_queue,
-            },
+            target=self._run_job_via_supervisor,
+            kwargs={"workload": workload, "results_queue": results_queue},
         )
         process.start()
         return process, results_queue

@@ -35,7 +35,7 @@ from airflow.cli import cli_parser
 from airflow.providers.common.compat.sdk import timezone
 from airflow.providers.edge3.cli import edge_command, worker as worker_module
 from airflow.providers.edge3.cli.dataclasses import Job
-from airflow.providers.edge3.cli.worker import EdgeWorker
+from airflow.providers.edge3.cli.worker import EdgeWorker, _execution_api_server_url
 from airflow.providers.edge3.models.edge_worker import (
     EdgeWorkerModel,
     EdgeWorkerState,
@@ -168,8 +168,8 @@ class TestEdgeWorker:
         expected_url,
     ):
         with conf_vars(configs):
-            EdgeWorker._execution_api_server_url.cache_clear()
-            url = EdgeWorker._execution_api_server_url()
+            _execution_api_server_url.cache_clear()
+            url = _execution_api_server_url()
             assert url == expected_url
 
     @patch("airflow.sdk.execution_time.supervisor.supervise")
@@ -181,7 +181,7 @@ class TestEdgeWorker:
     ):
         edge_job = worker_with_job.jobs.pop().edge_job
         q = mock.MagicMock()
-        result = EdgeWorker._run_job_via_supervisor(edge_job.command, "http://mock-url", q)
+        result = worker_with_job._run_job_via_supervisor(edge_job.command, q)
 
         assert result == 0
         q.put.assert_not_called()
@@ -196,7 +196,7 @@ class TestEdgeWorker:
         mock_supervise.side_effect = Exception("Supervise failed")
         edge_job = worker_with_job.jobs.pop().edge_job
         q = mock.MagicMock()
-        result = EdgeWorker._run_job_via_supervisor(edge_job.command, "http://mock-url", q)
+        result = worker_with_job._run_job_via_supervisor(edge_job.command, q)
 
         assert result == 1
         q.put.assert_called_once()
