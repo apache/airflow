@@ -47,7 +47,7 @@ dependencies = [
     "black>=23.11.0",
     # TODO: Click 8.2.0 is Python 3.10+ only by mistake (should be ~3.8) so we should limit it
     #       until this is fixed https://github.com/pallets/click/issues/2896
-    "click>=8.1.8, <8.2.0",
+    "click>=8.1.8, <8.4.0",
     "filelock>=3.13.0",
     #
     # We pin flit in order to make sure reproducibility of provider packages is maintained
@@ -61,7 +61,7 @@ dependencies = [
     "google-auth-httplib2>=0.2.0",
     "google-auth-oauthlib>=1.2.0",
     "gitpython>=3.1.40",
-    "hatch==1.14.1",
+    "hatch==1.16.2",
     "inputimeout>=1.0.4",
     "jinja2>=3.1.0",
     "jsonschema>=4.19.1",
@@ -70,7 +70,7 @@ dependencies = [
     "psutil>=5.9.6",
     "pygithub>=2.1.1",
     "pytest-xdist>=3.3.1",
-    "pytest>=8.2,<9",
+    "pytest>=8.2,<10",
     "pyyaml>=6.0.1",
     "requests>=2.31.0",
     "rich-click>=1.7.1",
