@@ -98,7 +98,7 @@ class TestEdgeWorker:
                 "airflow.executors.executor_loader.ExecutorLoader.get_executor_names",
             ) as mock_get_executor_names:
                 mock_get_executor_names.return_value = [
-                    MagicMock(
+                    mock.MagicMock(
                         name="EdgeExecutor", module_path="airflow.providers.edge3.executors.EdgeExecutor"
                     )
                 ]
