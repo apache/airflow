@@ -1086,7 +1086,7 @@ class TriggerRunner:
             self.to_create.extend(resp.to_create)
             self.to_cancel.extend(resp.to_cancel)
 
-    async def send_changes(self, msg: messages.TriggerStateChanges) -> ToTriggerRunner | None:
+    async def send_changes(self, msg: messages.TriggerStateChanges) -> messages.TriggerStateSync | None:
         try:
             response = await self.comms_decoder.asend(msg)
 
