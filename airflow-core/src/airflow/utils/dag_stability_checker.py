@@ -99,7 +99,7 @@ class DagStabilityCheckerResult:
 
         return "\n".join(lines)
 
-    def get_warning_dag_format_dict(self, dag_ids: list[str]) -> list[dict[str, str]]:
+    def get_warning_dag_format_dict(self, dag_ids: list[str]) -> list[dict[str, str | None]]:
         """Convert warning statement to Dag warning format."""
         from airflow.models.dagwarning import DagWarningType
 
@@ -149,7 +149,7 @@ class RuntimeVaryingValueAnalyzer:
 
     def __init__(
         self,
-        varying_vars: dict[str, tuple[str, str]],
+        varying_vars: dict[str, tuple[int, str]],
         imports: dict[str, str],
         from_imports: dict[str, tuple[str, str]],
     ):
