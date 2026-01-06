@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import contextlib
 import functools
+import hashlib
 import inspect
 import os
 from pathlib import Path
@@ -48,6 +49,12 @@ def get_python_source(x: Any) -> str | None:
     if source_code is None:
         source_code = f"No source code available for {type(x)}"
     return source_code
+
+
+def get_python_source_md5(x: Any) -> str:
+    """Get Python source MD5 hash/fingerprint."""
+    source_code = str(get_python_source(x))
+    return hashlib.md5(source_code.encode()).hexdigest()
 
 
 def prepare_code_snippet(file_path: Path, line_no: int, context_lines_count: int = 5) -> str:

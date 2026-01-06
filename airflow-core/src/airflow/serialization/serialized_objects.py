@@ -1101,10 +1101,7 @@ class OperatorSerialization(DAGNode, BaseSerialization):
                     )
                 value = getattr(op, template_field, None)
                 if not cls._is_excluded(value, template_field, op):
-                    if callable(value):
-                        serialize_op[template_field] = cls.serialize(value)
-                    else:
-                        serialize_op[template_field] = serialize_template_field(value, template_field)
+                    serialize_op[template_field] = serialize_template_field(value, template_field)
 
         if op.params:
             serialize_op["params"] = cls._serialize_params_dict(op.params)

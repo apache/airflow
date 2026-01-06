@@ -1649,10 +1649,7 @@ class TestStringifiedDAGs:
 
         task = MockOperator(task_id="task1", arg1=fn_template_field_callable)
         serialized_task = OperatorSerialization.serialize_operator(task)
-        assert (
-            serialized_task.get("arg1")
-            == "        def fn_template_field_callable(context, jinja_env):\n            pass\n"
-        )
+        assert serialized_task.get("arg1") == "<function fingerprint(MD5) ffaa8387bbc3c49d825b30e42a9d0dc7>"
 
     def test_task_group_serialization(self):
         """

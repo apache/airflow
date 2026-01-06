@@ -24,6 +24,7 @@ from typing import TYPE_CHECKING, Any
 from airflow._shared.secrets_masker import redact
 from airflow.configuration import conf
 from airflow.settings import json
+from airflow.utils.code_utils import get_python_source_md5
 
 if TYPE_CHECKING:
     from airflow.timetables.base import Timetable as CoreTimetable
@@ -71,7 +72,11 @@ def serialize_template_field(template_field: Any, name: str) -> str | dict | lis
         try:
             serialized = template_field.serialize()
         except AttributeError:
-            serialized = str(template_field)
+            if callable(template_field):
+                fingerprint = get_python_source_md5(template_field)
+                serialized = f"<function fingerprint(MD5) {fingerprint}>"
+            else:
+                serialized = str(template_field)
         if len(serialized) > max_length:
             rendered = redact(serialized, name)
             return (
