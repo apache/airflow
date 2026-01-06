@@ -16,7 +16,9 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, Flex, VStack } from "@chakra-ui/react";
+
+/* eslint-disable i18next/no-literal-string */
+import { Box, Button, Flex, VStack } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 import { FiDatabase, FiHome } from "react-icons/fi";
 import { Link } from "react-router-dom";
@@ -29,6 +31,7 @@ import {
 import type { ExternalViewResponse } from "openapi/requests/types.gen";
 import { AirflowPin } from "src/assets/AirflowPin";
 import { DagIcon } from "src/assets/DagIcon";
+import { toaster } from "src/components/ui";
 import type { NavItemResponse } from "src/utils/types";
 
 import { AdminButton } from "./AdminButton";
@@ -38,6 +41,16 @@ import { NavButton } from "./NavButton";
 import { PluginMenus } from "./PluginMenus";
 import { SecurityButton } from "./SecurityButton";
 import { UserSettingsButton } from "./UserSettingsButton";
+
+const onToasterTestClick = () => {
+  console.log("Nav onToasterTestClick");
+  toaster.create({
+    description: `Toaster from Nav via imported toaster.`,
+    title: "Test Toaster Imported",
+    type: "success",
+  });
+  console.log("Nav onToasterTestClick DONE");
+};
 
 // Define existing button categories to filter out
 const existingCategories = ["user", "docs", "admin", "browse"];
@@ -183,7 +196,8 @@ export const Nav = () => {
         <SecurityButton />
         <PluginMenus navItems={navItemsWithLegacy} />
       </Flex>
-      <Flex flexDir="column" gap={1}>
+      <Flex flexDir="column">
+        <Button onClick={onToasterTestClick}>Toaster</Button>
         <DocsButton
           externalViews={docsItems}
           showAPI={authLinks?.authorized_menu_items.includes("Docs")}

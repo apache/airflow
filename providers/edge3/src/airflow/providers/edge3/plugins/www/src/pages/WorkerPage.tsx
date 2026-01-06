@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, Code, HStack, Link, List, Table, Text, type SelectValueChangeDetails } from "@chakra-ui/react";
+import { Box, Button, Code, HStack, Link, List, Table, Text, type SelectValueChangeDetails } from "@chakra-ui/react";
 import { useState, useCallback } from "react";
 import { useUiServiceWorker } from "openapi/queries";
 import { LuExternalLink } from "react-icons/lu";
@@ -26,7 +26,7 @@ import { ErrorAlert } from "src/components/ErrorAlert";
 import { SearchBar } from "src/components/SearchBar";
 import { WorkerOperations } from "src/components/WorkerOperations";
 import { WorkerStateBadge } from "src/components/WorkerStateBadge";
-import { ScrollToAnchor, Select } from "src/components/ui";
+import { ScrollToAnchor, Select, toaster } from "src/components/ui";
 import { workerStateOptions } from "src/constants";
 import { autoRefreshInterval } from "src/utils";
 import type { EdgeWorkerState } from "openapi/requests/types.gen";
@@ -50,6 +50,15 @@ export const WorkerPage = () => {
       refetchInterval: autoRefreshInterval,
     },
   );
+  const onToasterTestClick = () => {
+    console.log("Nav onToasterTestClick");
+    toaster.create({
+      description: `Toaster from Plugin.`,
+      title: "Test Toaster",
+      type: "success",
+    });
+    console.log("Nav onToasterTestClick DONE");
+  };
 
   const handleWorkerSearchChange = (value: string) => {
     setWorkerNamePattern(value);
@@ -76,7 +85,6 @@ export const WorkerPage = () => {
   // Add links with filter to see jobs on worker
   // Add time zone support for time display
   // Translation?
-
   return (
     <Box p={2}>
       <HStack gap={4} mb={4}>
@@ -204,6 +212,7 @@ export const WorkerPage = () => {
             </Table.Body>
           </Table.Root>
           <ScrollToAnchor />
+          <Button onClick={onToasterTestClick}>Open a Toaster in Plugin</Button>
         </>
       ) : (
         <Text as="div" pl={2} pt={1}>
