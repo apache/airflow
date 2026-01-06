@@ -17,7 +17,7 @@
  * under the License.
  */
 
-import { HStack, Spinner, Text } from "@chakra-ui/react";
+import { HStack, Spinner } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 
 import { useTaskInstanceServiceGetTaskInstances } from "openapi/queries";
@@ -59,13 +59,7 @@ export const TaskInstanceSummary = ({ dagId, runId }: Props) => {
   const stateEntries = Object.entries(stateCounts);
 
   if (stateEntries.length === 0) {
-    return (
-      <Stat label={translate("taskInstanceSummary")}>
-        <Text color="fg.muted" fontSize="sm">
-          —
-        </Text>
-      </Stat>
-    );
+    return null;
   }
 
   return (
