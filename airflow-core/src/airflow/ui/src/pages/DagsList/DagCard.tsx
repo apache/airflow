@@ -90,6 +90,15 @@ export const DagCard = ({ dag }: Props) => {
           />
         </Stat>
 
+        <Stat data-testid="next-run" label={translate("dagDetails.nextRun")}>
+          {Boolean(dag.next_dagrun_run_after) ? (
+            <DagRunInfo
+              logicalDate={dag.next_dagrun_logical_date}
+              runAfter={dag.next_dagrun_run_after as string}
+            />
+          ) : undefined}
+        </Stat>
+
         <Stat data-testid="latest-run" label={translate("dagDetails.latestRun")}>
           {latestRun ? (
             <Link asChild color="fg.info">
