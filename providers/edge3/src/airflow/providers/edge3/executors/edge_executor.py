@@ -27,13 +27,11 @@ from sqlalchemy import delete, inspect, select, text
 from sqlalchemy.exc import NoSuchTableError
 from sqlalchemy.orm import Session
 
-from airflow.cli.cli_config import GroupCommand
 from airflow.configuration import conf
 from airflow.executors import workloads
 from airflow.executors.base_executor import BaseExecutor
 from airflow.models.taskinstance import TaskInstance
 from airflow.providers.common.compat.sdk import Stats, timezone
-from airflow.providers.edge3.cli.edge_command import EDGE_COMMANDS
 from airflow.providers.edge3.models.edge_job import EdgeJobModel
 from airflow.providers.edge3.models.edge_logs import EdgeLogsModel
 from airflow.providers.edge3.models.edge_worker import EdgeWorkerModel, EdgeWorkerState, reset_metrics
@@ -42,10 +40,9 @@ from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.state import TaskInstanceState
 
 if TYPE_CHECKING:
-    import argparse
-
     from sqlalchemy.engine.base import Engine
 
+    from airflow.cli.cli_config import GroupCommand
     from airflow.models.taskinstancekey import TaskInstanceKey
 
     # TODO: Airflow 2 type hints; remove when Airflow 2 support is removed
@@ -383,23 +380,6 @@ class EdgeExecutor(BaseExecutor):
 
     @staticmethod
     def get_cli_commands() -> list[GroupCommand]:
-        return [
-            GroupCommand(
-                name="edge",
-                help="Edge Worker components",
-                description=(
-                    "Start and manage Edge Worker. Works only when using EdgeExecutor. For more information, "
-                    "see https://airflow.apache.org/docs/apache-airflow-providers-edge3/stable/edge_executor.html"
-                ),
-                subcommands=EDGE_COMMANDS,
-            ),
-        ]
+        from airflow.providers.edge3.cli.definition import get_edge_cli_commands
 
-
-def _get_parser() -> argparse.ArgumentParser:
-    """
-    Generate documentation; used by Sphinx.
-
-    :meta private:
-    """
-    return EdgeExecutor._get_parser()
+        return get_edge_cli_commands()
