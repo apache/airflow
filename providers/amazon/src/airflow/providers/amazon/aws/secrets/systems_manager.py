@@ -132,11 +132,12 @@ class SystemsManagerParameterStoreBackend(BaseSecretsBackend, LoggingMixin):
         session = SessionFactory(conn=conn_config).create_session()
         return session.client(service_name="ssm", **client_kwargs)
 
-    def get_conn_value(self, conn_id: str) -> str | None:
+    def get_conn_value(self, conn_id: str, team_name: str | None = None) -> str | None:
         """
         Get param value.
 
         :param conn_id: connection id
+        :param team_name: Team name associated to the task trying to access the connection (if any)
         """
         if self.connections_prefix is None:
             return None

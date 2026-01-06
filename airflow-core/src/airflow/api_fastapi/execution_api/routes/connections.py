@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 import logging
+from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Path, status
 
@@ -69,10 +70,12 @@ log = logging.getLogger(__name__)
         status.HTTP_403_FORBIDDEN: {"description": "Task does not have access to the connection"},
     },
 )
-def get_connection(connection_id: str) -> ConnectionResponse:
+def get_connection(
+    connection_id: str, team_name: Annotated[str | None, Depends(get_team_name_dep)]
+) -> ConnectionResponse:
     """Get an Airflow connection."""
     try:
-        connection = Connection.get_connection_from_secrets(connection_id)
+        connection = Connection.get_connection_from_secrets(connection_id, team_name=team_name)
     except AirflowNotFoundException:
         raise HTTPException(
             status.HTTP_404_NOT_FOUND,
