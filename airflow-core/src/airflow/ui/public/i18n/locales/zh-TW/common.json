@@ -90,6 +90,7 @@
     "back": "返回",
     "defaultMessage": "發生未預期的錯誤",
     "home": "首頁",
+    "invalidUrl": "找不到頁面。請檢查 URL 並重試。",
     "notFound": "找不到頁面",
     "title": "錯誤"
   },
