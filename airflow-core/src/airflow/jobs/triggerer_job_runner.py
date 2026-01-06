@@ -1082,19 +1082,23 @@ class TriggerRunner:
         # Tell the monitor that we've finished triggers so it can update things
         resp = await self.send_changes(msg)
 
-        self.to_create.extend(resp.to_create)
-        self.to_cancel.extend(resp.to_cancel)
+        if resp:
+            self.to_create.extend(resp.to_create)
+            self.to_cancel.extend(resp.to_cancel)
 
-    async def send_changes(self, msg: messages.TriggerStateChanges) -> messages.TriggerStateSync:
-        response: messages.TriggerStateSync | None = None
-
+    async def send_changes(self, msg: messages.TriggerStateChanges) -> ToTriggerRunner | None:
         try:
             response = await self.comms_decoder.asend(msg)
+
+            if not isinstance(response, messages.TriggerStateSync):
+                raise RuntimeError(f"Expected to get a TriggerStateSync message, instead we got {type(msg)}")
+
+            return response
         except asyncio.IncompleteReadError:
             if task := asyncio.current_task():
                 task.cancel("EOF - shutting down")
-            else:
-                raise
+                return None
+            raise
         except NotImplementedError:
             validated_events = self.validate_events(msg)
             if not validated_events:
@@ -1102,28 +1106,25 @@ class TriggerRunner:
             msg.events = validated_events
             return await self.send_changes(msg)
 
-        if not isinstance(response, messages.TriggerStateSync):
-            raise RuntimeError(f"Expected to get a TriggerStateSync message, instead we got {type(msg)}")
-
-        return response
-
     def validate_events(
         self, msg: messages.TriggerStateChanges
     ) -> list[tuple[int, events.DiscrimatedTriggerEvent]]:
         validated_events: list[tuple[int, events.DiscrimatedTriggerEvent]] = []
-        req_encoder = _new_encoder()
 
-        for trigger_id, trigger_event in msg.events:
-            try:
-                req_encoder.encode(trigger_event)
-                validated_events.append((trigger_id, trigger_event))
-            except NotImplementedError:
-                logger.error(
-                    "Trigger %s returned non-serializable result %r. Cancelling trigger.",
-                    trigger_id,
-                    trigger_event,
-                )
-                self.to_cancel.append(trigger_id)
+        if msg.events:
+            req_encoder = _new_encoder()
+
+            for trigger_id, trigger_event in msg.events:
+                try:
+                    req_encoder.encode(trigger_event)
+                    validated_events.append((trigger_id, trigger_event))
+                except NotImplementedError:
+                    logger.error(
+                        "Trigger %s returned non-serializable result %r. Cancelling trigger.",
+                        trigger_id,
+                        trigger_event,
+                    )
+                    self.to_cancel.append(trigger_id)
 
         return validated_events
 
