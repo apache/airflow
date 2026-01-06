@@ -19,16 +19,14 @@ from __future__ import annotations
 
 from functools import cache
 
-from airflow.plugins_manager import integrate_listener_plugins
 from airflow.sdk._shared.listeners.listener import ListenerManager
+from airflow.sdk._shared.plugins_manager import integrate_listener_plugins
 
 
 @cache
 def get_listener_manager() -> ListenerManager:
     """Get singleton listener manager."""
     _listener_manager = ListenerManager()
-    # TODO: For the time being, task sdk will use airflow's plugin mechanism to discover listeners and load them.
-    # We need to work out a better way to do this in the future.
     integrate_listener_plugins(_listener_manager)  # type: ignore[arg-type]
     return _listener_manager
 
