@@ -84,8 +84,8 @@ export class BackfillPage extends BasePage {
     this.backfillsTable = page.locator("table");
     this.backfillDateError = page.locator('text="Start Date must be before the End Date"');
     this.backfillBanner = page.locator('div:has-text("Backfill in progress")');
-    this.cancelButton = page.locator('button[aria-label*="ancel"]');
-    this.pauseButton = page.locator('button[aria-label*="ause"]');
+    this.cancelButton = page.locator('button[aria-label="Cancel backfill"]');
+    this.pauseButton = page.locator('button[aria-label="Pause backfill"], button[aria-label="Unpause backfill"]');
   }
 
   public static findColumnIndex(columnMap: Map<string, number>, possibleNames: Array<string>): number {
