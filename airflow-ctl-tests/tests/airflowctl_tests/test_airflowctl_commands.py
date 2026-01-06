@@ -121,7 +121,7 @@ TEST_COMMANDS = [
 ]
 
 
-@pytest.mark.flaky(reruns=2)
+@pytest.mark.flaky(reruns=3, reruns_delay=1)
 @pytest.mark.parametrize(
     "command", TEST_COMMANDS, ids=[" ".join(command.split(" ", 2)[:2]) for command in TEST_COMMANDS]
 )
