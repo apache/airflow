@@ -23,24 +23,29 @@ from unittest.mock import patch
 import pytest
 
 from airflow.cli import cli_parser
-from airflow.providers.keycloak.auth_manager.cli.definition import KEYCLOAK_AUTH_MANAGER_COMMANDS, Password
+from airflow.providers.keycloak.cli.definition import KEYCLOAK_AUTH_MANAGER_COMMANDS, Password
 
 from tests_common.test_utils.config import conf_vars
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_2_PLUS
 
 
 class TestKeycloakCliDefinition:
-    @classmethod
-    def setup_class(cls):
-        with conf_vars(
-            {
-                (
-                    "core",
-                    "auth_manager",
-                ): "airflow.providers.keycloak.auth_manager.keycloak_auth_manager.KeycloakAuthManager",
-            }
-        ):
+    @pytest.fixture(autouse=True)
+    def setup_parser(self):
+        if AIRFLOW_V_3_2_PLUS:
             importlib.reload(cli_parser)
-            cls.arg_parser = cli_parser.get_parser()
+            self.arg_parser = cli_parser.get_parser()
+        else:
+            with conf_vars(
+                {
+                    (
+                        "core",
+                        "auth_manager",
+                    ): "airflow.providers.keycloak.auth_manager.keycloak_auth_manager.KeycloakAuthManager",
+                }
+            ):
+                importlib.reload(cli_parser)
+                self.arg_parser = cli_parser.get_parser()
 
     def test_keycloak_auth_manager_cli_commands(self):
         assert len(KEYCLOAK_AUTH_MANAGER_COMMANDS) == 4

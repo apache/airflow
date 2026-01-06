@@ -29,6 +29,7 @@ from airflow.models import Connection
 from airflow.sdk.exceptions import AirflowRuntimeError, ErrorType
 from airflow.sdk.execution_time.comms import ErrorResponse
 
+from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.db import clear_db_connections
 
 if TYPE_CHECKING:
@@ -409,8 +410,37 @@ class TestConnection:
         mock_task_sdk_connection.get.assert_not_called()
 
         # Verify the backends were called
-        mock_env_backend.assert_called_once_with(conn_id="test_conn")
-        mock_db_backend.assert_called_once_with(conn_id="test_conn")
+        mock_env_backend.assert_called_once_with(conn_id="test_conn", team_name=None)
+        mock_db_backend.assert_called_once_with(conn_id="test_conn", team_name=None)
+
+    @pytest.mark.db_test
+    @conf_vars({("core", "multi_team"): "True"})
+    @mock.patch.dict(sys.modules, {"airflow.sdk.execution_time.task_runner": None})
+    @mock.patch("airflow.sdk.Connection")
+    @mock.patch("airflow.secrets.environment_variables.EnvironmentVariablesBackend.get_connection")
+    @mock.patch("airflow.secrets.metastore.MetastoreBackend.get_connection")
+    def test_get_connection_from_secrets_metastore_backend_with_team(
+        self, mock_db_backend, mock_env_backend, mock_task_sdk_connection, testing_team
+    ):
+        """Test the get_connection_from_secrets should call all the backends."""
+
+        mock_env_backend.return_value = None
+        mock_db_backend.return_value = Connection(conn_id="test_conn", conn_type="test", password="pass")
+
+        # Mock TaskSDK Connection to verify it is never imported
+        mock_task_sdk_connection.get.side_effect = Exception("TaskSDKConnection should not be used")
+
+        result = Connection.get_connection_from_secrets("test_conn", team_name=testing_team.name)
+
+        expected_connection = Connection(conn_id="test_conn", conn_type="test", password="pass")
+
+        # Verify the result is from MetastoreBackend
+        assert result.conn_id == expected_connection.conn_id
+        assert result.conn_type == expected_connection.conn_type
+
+        # Verify the backends were called
+        mock_env_backend.assert_called_once_with(conn_id="test_conn", team_name=testing_team.name)
+        mock_db_backend.assert_called_once_with(conn_id="test_conn", team_name=testing_team.name)
 
     @pytest.mark.db_test
     def test_get_team_name(self, testing_team: Team, session: Session):
