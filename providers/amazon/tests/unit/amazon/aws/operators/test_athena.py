@@ -41,15 +41,11 @@ from airflow.providers.openlineage.extractors import OperatorLineage
 from airflow.utils.state import DagRunState
 from airflow.utils.types import DagRunType
 
+from tests_common.test_utils.compat import timezone
 from tests_common.test_utils.dag import sync_dag_to_db
-from tests_common.test_utils.taskinstance import create_task_instance
+from tests_common.test_utils.taskinstance import create_task_instance, get_template_context
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 from unit.amazon.aws.utils.test_template_fields import validate_template_fields
-
-try:
-    from airflow.sdk import timezone
-except ImportError:
-    from airflow.utils import timezone  # type: ignore[attr-defined,no-redef]
 
 TEST_DAG_ID = "unit_tests"
 DEFAULT_DATE = timezone.datetime(2018, 1, 1)
@@ -272,7 +268,7 @@ class TestAthenaOperator:
         ti.dag_run = dag_run
         session.add(ti)
         session.commit()
-        assert self.athena.execute(ti.get_template_context()) == ATHENA_QUERY_ID
+        assert self.athena.execute(get_template_context(ti, self.athena)) == ATHENA_QUERY_ID
 
     @mock.patch.object(AthenaHook, "check_query_status", side_effect=("SUCCEEDED",))
     @mock.patch.object(AthenaHook, "run_query", return_value=ATHENA_QUERY_ID)

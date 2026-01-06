@@ -63,7 +63,7 @@ from airflow.models.asset import (
     PartitionedAssetKeyLog,
 )
 from airflow.models.backfill import Backfill, _create_backfill
-from airflow.models.dag import DagModel, get_last_dagrun, infer_automated_data_interval
+from airflow.models.dag import DagModel, get_last_dagrun, get_run_data_interval, infer_automated_data_interval
 from airflow.models.dag_version import DagVersion
 from airflow.models.dagbundle import DagBundleModel
 from airflow.models.dagrun import DagRun
@@ -4422,8 +4422,9 @@ class TestSchedulerJob:
             EmptyOperator(task_id="dummy")
 
         index = 0
+        dr: DagRun
         for index in range(other_runs):
-            dag_maker.create_dagrun(
+            dr = dag_maker.create_dagrun(
                 run_id=f"run_{index}",
                 logical_date=(DEFAULT_DATE + timedelta(days=index)),
                 start_date=timezone.utcnow(),
@@ -4445,13 +4446,15 @@ class TestSchedulerJob:
         scheduler_job = Job(executor=self.null_exec)
         self.job_runner = SchedulerJobRunner(job=scheduler_job)
 
-        actual = self.job_runner._should_update_dag_next_dagruns(
-            dag=dag,
-            dag_model=dag_maker.dag_model,
-            active_non_backfill_runs=other_runs if provide_run_count else None,  # exclude backfill here
-            session=session,
-        )
-        assert actual == should_update
+        with patch("airflow.models.dag.DagModel.calculate_dagrun_date_fields") as mock_calc:
+            self.job_runner._update_next_dagrun_fields(
+                serdag=dag,
+                dag_model=dag_maker.dag_model,
+                active_non_backfill_runs=other_runs if provide_run_count else None,  # exclude backfill here
+                session=session,
+                data_interval=get_run_data_interval(dag.timetable, dr),
+            )
+        assert mock_calc.called == should_update
 
     @pytest.mark.parametrize(
         ("run_type", "expected"),
@@ -4473,10 +4476,8 @@ class TestSchedulerJob:
         with dag_maker(
             schedule="*/1 * * * *",
             max_active_runs=3,
-        ) as dag:
+        ):
             EmptyOperator(task_id="dummy")
-
-        dag_model = dag_maker.dag_model
 
         run = dag_maker.create_dagrun(
             run_id="run",
@@ -4491,13 +4492,19 @@ class TestSchedulerJob:
         scheduler_job = Job(executor=self.null_exec)
         self.job_runner = SchedulerJobRunner(job=scheduler_job)
 
-        actual = self.job_runner._should_update_dag_next_dagruns(
-            dag=dag,
-            dag_model=dag_model,
-            last_dag_run=run,
-            session=session,
-        )
-        assert actual == expected
+        # ensure terminal state; otherwise the run type is moot
+        run.state = DagRunState.FAILED
+        for ti in run.get_task_instances(session=session):
+            ti.state = "failed"
+        session.flush()
+
+        with patch("airflow.models.dag.DagModel.calculate_dagrun_date_fields") as mock_calc:
+            self.job_runner._schedule_dag_run(
+                dag_run=run,
+                session=session,
+            )
+
+        assert mock_calc.called == expected
 
     def test_create_dag_runs(self, dag_maker):
         """

@@ -76,10 +76,12 @@ if TYPE_CHECKING:
         task_decorator_factory as task_decorator_factory,
     )
     from airflow.sdk.bases.sensor import poke_mode_only as poke_mode_only
+    from airflow.sdk.configuration import conf as conf
     from airflow.sdk.definitions.context import context_merge as context_merge
     from airflow.sdk.definitions.mappedoperator import MappedOperator as MappedOperator
     from airflow.sdk.definitions.template import literal as literal
     from airflow.sdk.exceptions import (
+        AirflowConfigException as AirflowConfigException,
         AirflowException as AirflowException,
         AirflowFailException as AirflowFailException,
         AirflowNotFoundException as AirflowNotFoundException,
@@ -94,6 +96,7 @@ if TYPE_CHECKING:
     from airflow.sdk.listeners.listener import get_listener_manager as get_listener_manager
     from airflow.sdk.log import redact as redact
     from airflow.sdk.observability.stats import Stats as Stats
+    from airflow.sdk.plugins_manager import AirflowPlugin as AirflowPlugin
 
     # Airflow 3-only exceptions (conditionally imported)
     if AIRFLOW_V_3_0_PLUS:
@@ -173,6 +176,10 @@ _IMPORT_MAP: dict[str, str | tuple[str, ...]] = {
     # Notifiers
     # ============================================================================
     "BaseNotifier": ("airflow.sdk", "airflow.notifications.basenotifier"),
+    # ============================================================================
+    # Plugins
+    # ============================================================================
+    "AirflowPlugin": ("airflow.sdk.plugins_manager", "airflow.plugins_manager"),
     # ============================================================================
     # Operator Links & Task Groups
     # ============================================================================
@@ -256,6 +263,10 @@ _IMPORT_MAP: dict[str, str | tuple[str, ...]] = {
     # ============================================================================
     "hookimpl": ("airflow.sdk.listeners", "airflow.listeners"),
     "get_listener_manager": ("airflow.sdk.listeners.listener", "airflow.listeners.listener"),
+    # Configuration
+    # ============================================================================
+    "conf": ("airflow.sdk.configuration", "airflow.configuration"),
+    "AirflowConfigException": ("airflow.sdk.exceptions", "airflow.exceptions"),
 }
 
 # Airflow 3-only exceptions (not available in Airflow 2)

@@ -534,7 +534,7 @@ packages = []
     "apache-airflow-providers-amazon[s3fs]",
 ]
 "uv" = [
-    "uv>=0.9.18",
+    "uv>=0.9.21",
 ]
 
 [project.urls]
@@ -771,6 +771,7 @@ testing = ["dev", "providers.tests", "tests_common", "tests", "system", "unit", 
 "dev/breeze/tests/*" = ["TID253", "S101", "TRY002"]
 "devel-common/tests/*" = ["S101"]
 "airflow-core/tests/*" = ["D", "TID253", "S101", "TRY002"]
+"airflow-ctl-tests/tests/*" = ["D", "TID253", "S101", "TRY002"]
 "airflow-e2e-tests/tests/*" = ["D", "TID253", "S101", "TRY002"]
 "docker-tests/*" = ["D", "TID253", "S101", "TRY002"]
 "task-sdk-integration-tests/*" = ["D", "TID253", "S101", "TRY002"]
@@ -844,10 +845,8 @@ banned-module-level-imports = ["numpy", "pandas", "polars"]
 
 # Direct import from the airflow package modules and constraints
 "airflow.AirflowException".msg = "Use airflow.exceptions.AirflowException instead."
-"airflow.Dataset".msg = "Use airflow.datasets.Dataset instead."
 
 # Deprecated imports
-"airflow.models.baseoperator.BaseOperatorLink".msg = "Use airflow.models.baseoperatorlink.BaseOperatorLink"
 "airflow.models.errors.ImportError".msg = "Use airflow.models.errors.ParseImportError"
 "airflow.models.ImportError".msg = "Use airflow.models.errors.ParseImportError"
 
@@ -863,11 +862,8 @@ banned-module-level-imports = ["numpy", "pandas", "polars"]
 # Deprecated in Python 3.12: https://github.com/python/cpython/issues/103857
 "datetime.datetime.utcnow".msg = "Use airflow.sdk.timezone.utcnow or datetime.datetime.now(tz=datetime.timezone.utc)"
 "datetime.datetime.utcfromtimestamp".msg = "Use airflow.sdk.timezone.from_timestamp or datetime.datetime.fromtimestamp(tz=datetime.timezone.utc)"
-# Deprecated in Python 3.12: https://github.com/python/cpython/issues/94309
-"typing.Hashable".msg = "Use collections.abc.Hashable"
-"typing.Sized".msg = "Use collections.abc.Sized"
 # Uses deprecated in Python 3.12 `datetime.datetime.utcfromtimestamp`
-"pendulum.from_timestamp".msg = "Use airflow.utils.timezone.from_timestamp"
+"pendulum.from_timestamp".msg = "Use airflow.sdk.timezone.from_timestamp"
 # Flask deprecations, worthwhile to keep it until we migrate to Flask 3.0+
 "flask._app_ctx_stack".msg = "Deprecated in Flask 2.2, removed in Flask 3.0"
 "flask._request_ctx_stack".msg = "Deprecated in Flask 2.2, removed in Flask 3.0"
@@ -876,14 +872,14 @@ banned-module-level-imports = ["numpy", "pandas", "polars"]
 "flask.signals_available".msg = "Signals are always available. Deprecated in Flask 2.3, removed in Flask 3.0"
 # Use root logger by a mistake / IDE autosuggestion
 # If for some reason root logger required it could obtained by logging.getLogger("root")
-"logging.debug".msg = "Instantiate new `logger = logging.getLogger(__name__)` and use it instead of root logger"
-"logging.info".msg = "Instantiate new `logger = logging.getLogger(__name__)` and use it instead of root logger"
-"logging.warning".msg = "Instantiate new `logger = logging.getLogger(__name__)` and use it instead of root logger"
-"logging.error".msg = "Instantiate new `logger = logging.getLogger(__name__)` and use it instead of root logger"
-"logging.exception".msg = "Instantiate new `logger = logging.getLogger(__name__)` and use it instead of root logger"
-"logging.fatal".msg = "Instantiate new `logger = logging.getLogger(__name__)` and use it instead of root logger"
-"logging.critical".msg = "Instantiate new `logger = logging.getLogger(__name__)` and use it instead of root logger"
-"logging.log".msg = "Instantiate new `logger = logging.getLogger(__name__)` and use it instead of root logger"
+"logging.debug".msg = "Use structlog instead"
+"logging.info".msg = "Use structlog instead"
+"logging.warning".msg = "Use structlog instead"
+"logging.error".msg = "Use structlog instead"
+"logging.exception".msg = "Use structlog instead"
+"logging.fatal".msg = "Use structlog instead"
+"logging.critical".msg = "Use structlog instead"
+"logging.log".msg = "Use structlog instead"
 # unittest related restrictions
 "unittest.TestCase".msg = "Use pytest compatible classes: https://docs.pytest.org/en/stable/getting-started.html#group-multiple-tests-in-a-class"
 "unittest.skip".msg = "Use `pytest.mark.skip` instead: https://docs.pytest.org/en/stable/reference/reference.html#marks"
@@ -1358,6 +1354,7 @@ apache-airflow-shared-secrets-backend = { workspace = true }
 apache-airflow-shared-secrets-masker = { workspace = true }
 apache-airflow-shared-timezones = { workspace = true }
 apache-airflow-shared-observability = { workspace = true }
+apache-airflow-shared-plugins-manager = { workspace = true }
 # Automatically generated provider workspace items (update_airflow_pyproject_toml.py)
 apache-airflow-providers-airbyte = { workspace = true }
 apache-airflow-providers-alibaba = { workspace = true }
@@ -1484,6 +1481,7 @@ members = [
     "shared/secrets_masker",
     "shared/timezones",
     "shared/observability",
+    "shared/plugins_manager",
     # Automatically generated provider workspace members (update_airflow_pyproject_toml.py)
     "providers/airbyte",
     "providers/alibaba",

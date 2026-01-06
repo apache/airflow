@@ -175,16 +175,17 @@ Macros are a way to expose objects to your templates and live under the
 
 A few commonly used libraries and methods are made available.
 
-=================================   ==============================================
+=================================   ========================================================================================================================================================================
 Variable                            Description
-=================================   ==============================================
-``macros.datetime``                 The standard lib's :class:`datetime.datetime`
+=================================   ========================================================================================================================================================================
+``macros.datetime``                 The standard lib's :class:`datetime.datetime`.
+                                    Note: ``utcnow()`` is deprecated in Python 3.12+; use ``now(macros.dateutil.tz.UTC)`` instead.
 ``macros.timedelta``                The standard lib's :class:`datetime.timedelta`
 ``macros.dateutil``                 A reference to the ``dateutil`` package
 ``macros.time``                     The standard lib's :mod:`time`
 ``macros.uuid``                     The standard lib's :mod:`uuid`
 ``macros.random``                   The standard lib's :class:`random.random`
-=================================   ==============================================
+=================================   ========================================================================================================================================================================
 
 Some Airflow specific macros are also defined:
 
