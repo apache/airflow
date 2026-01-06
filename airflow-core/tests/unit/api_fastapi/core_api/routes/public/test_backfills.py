@@ -205,7 +205,7 @@ class TestCreateBackfill(TestBackfillEndpoint):
     def test_create_backfill(self, repro_act, repro_exp, session, dag_maker, test_client):
         with dag_maker(session=session, dag_id="TEST_DAG_1", schedule="0 * * * *") as dag:
             EmptyOperator(task_id="mytask")
-        session.query(DagModel).all()
+        session.scalars(select(DagModel)).all()
         session.commit()
         from_date = pendulum.parse("2024-01-01")
         from_date_iso = to_iso(from_date)
@@ -244,7 +244,7 @@ class TestCreateBackfill(TestBackfillEndpoint):
         check_last_log(session, dag_id="TEST_DAG_1", event="create_backfill", logical_date=None)
 
     def test_dag_not_exist(self, session, test_client):
-        session.query(DagModel).all()
+        session.scalars(select(DagModel)).all()
         session.commit()
         from_date = pendulum.parse("2024-01-01")
         from_date_iso = to_iso(from_date)
@@ -270,7 +270,7 @@ class TestCreateBackfill(TestBackfillEndpoint):
     def test_no_schedule_dag(self, session, dag_maker, test_client):
         with dag_maker(session=session, dag_id="TEST_DAG_1", schedule="None") as dag:
             EmptyOperator(task_id="mytask")
-        session.query(DagModel).all()
+        session.scalars(select(DagModel)).all()
         session.commit()
         from_date = pendulum.parse("2024-01-01")
         from_date_iso = to_iso(from_date)
@@ -306,7 +306,7 @@ class TestCreateBackfill(TestBackfillEndpoint):
     ):
         with dag_maker(session=session, dag_id="TEST_DAG_1", schedule="0 * * * *") as dag:
             EmptyOperator(task_id="mytask", depends_on_past=True)
-        session.query(DagModel).all()
+        session.scalars(select(DagModel)).all()
         session.commit()
         from_date = pendulum.parse("2024-01-01")
         from_date_iso = to_iso(from_date)
@@ -350,7 +350,7 @@ class TestCreateBackfill(TestBackfillEndpoint):
     def test_create_backfill_future_dates(self, session, dag_maker, test_client, run_backwards):
         with dag_maker(session=session, dag_id="TEST_DAG_1", schedule="0 * * * *") as dag:
             EmptyOperator(task_id="mytask")
-        session.query(DagModel).all()
+        session.scalars(select(DagModel)).all()
         session.commit()
         from_date = timezone.utcnow() + timedelta(days=1)
         to_date = timezone.utcnow() + timedelta(days=1)
@@ -381,7 +381,7 @@ class TestCreateBackfill(TestBackfillEndpoint):
     def test_create_backfill_past_future_dates(self, session, dag_maker, test_client, run_backwards):
         with dag_maker(session=session, dag_id="TEST_DAG_1", schedule="@daily") as dag:
             EmptyOperator(task_id="mytask")
-        session.query(DagModel).all()
+        session.scalars(select(DagModel)).all()
         session.commit()
         from_date = timezone.utcnow() - timedelta(days=2)
         to_date = timezone.utcnow() + timedelta(days=1)
@@ -543,7 +543,7 @@ class TestCreateBackfill(TestBackfillEndpoint):
     def test_should_respond_401(self, unauthenticated_test_client, dag_maker, session):
         with dag_maker(session=session, dag_id="TEST_DAG_1", schedule="0 * * * *") as dag:
             EmptyOperator(task_id="mytask")
-        session.query(DagModel).all()
+        session.scalars(select(DagModel)).all()
         session.commit()
         from_date = pendulum.parse("2024-01-01")
         from_date_iso = to_iso(from_date)
@@ -564,7 +564,7 @@ class TestCreateBackfill(TestBackfillEndpoint):
     def test_should_respond_403(self, unauthorized_test_client, dag_maker, session):
         with dag_maker(session=session, dag_id="TEST_DAG_1", schedule="0 * * * *") as dag:
             EmptyOperator(task_id="mytask")
-        session.query(DagModel).all()
+        session.scalars(select(DagModel)).all()
         session.commit()
         from_date = pendulum.parse("2024-01-01")
         from_date_iso = to_iso(from_date)
@@ -682,7 +682,7 @@ class TestCreateBackfillDryRun(TestBackfillEndpoint):
     ):
         with dag_maker(session=session, dag_id="TEST_DAG_1", schedule="0 * * * *") as dag:
             EmptyOperator(task_id="mytask", depends_on_past=True)
-        session.query(DagModel).all()
+        session.scalars(select(DagModel)).all()
         session.commit()
         from_date = pendulum.parse("2024-01-01")
         from_date_iso = to_iso(from_date)

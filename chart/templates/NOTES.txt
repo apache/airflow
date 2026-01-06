@@ -188,6 +188,22 @@ DEPRECATION WARNING:
 
 {{- end }}
 
+{{- if ne (int .Values.workers.replicas) 1 }}
+
+ DEPRECATION WARNING:
+    `workers.replicas` has been renamed to `workers.celery.replicas`.
+    Please change your values as support for the old name will be dropped in a future release.
+
+{{- end }}
+
+{{- if not (empty .Values.workers.revisionHistoryLimit) }}
+
+ DEPRECATION WARNING:
+    `workers.revisionHistoryLimit` has been renamed to `workers.celery.revisionHistoryLimit`.
+    Please change your values as support for the old name will be dropped in a future release.
+
+{{- end }}
+
 {{ if (semverCompare ">=3.0.0" .Values.airflowVersion) }}
 #####################################################
 #  WARNING: You should set a static API secret key  #

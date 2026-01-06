@@ -19,6 +19,6 @@ Amazon CLI Commands
 ===================
 
 .. argparse::
-   :module: airflow.providers.amazon.aws.auth_manager.aws_auth_manager
+   :module: airflow.providers.amazon.aws.cli.definition
    :func: get_parser
    :prog: airflow

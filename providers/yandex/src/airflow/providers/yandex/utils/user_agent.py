@@ -24,7 +24,7 @@ from airflow.providers.yandex.utils.defaults import conn_type, hook_name
 def provider_user_agent() -> str | None:
     """Construct User-Agent from Airflow core & provider package versions."""
     from airflow import __version__ as airflow_version
-    from airflow.configuration import conf
+    from airflow.providers.common.compat.sdk import conf
     from airflow.providers_manager import ProvidersManager
 
     try:

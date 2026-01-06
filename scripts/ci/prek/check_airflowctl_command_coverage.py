@@ -37,7 +37,9 @@ sys.path.insert(0, str(Path(__file__).parent.resolve()))
 from common_prek_utils import AIRFLOW_ROOT_PATH, console
 
 OPERATIONS_FILE = AIRFLOW_ROOT_PATH / "airflow-ctl" / "src" / "airflowctl" / "api" / "operations.py"
-CONFTEST_FILE = AIRFLOW_ROOT_PATH / "airflow-ctl-tests" / "tests" / "airflowctl_tests" / "conftest.py"
+CTL_TESTS_FILE = (
+    AIRFLOW_ROOT_PATH / "airflow-ctl-tests" / "tests" / "airflowctl_tests" / "test_airflowctl_commands.py"
+)
 
 # Operations excluded from CLI (see cli_config.py)
 EXCLUDED_OPERATION_CLASSES = {"BaseOperations", "LoginOperations", "VersionOperations"}
@@ -47,6 +49,7 @@ EXCLUDED_METHODS = {
     "error",
     "_check_flag_and_exit_if_server_response_error",
     "bulk",
+    "export",
 }
 
 EXCLUDED_COMMANDS = {
@@ -101,7 +104,7 @@ def parse_operations() -> dict[str, list[str]]:
 def parse_tested_commands() -> set[str]:
     tested: set[str] = set()
 
-    with open(CONFTEST_FILE) as f:
+    with open(CTL_TESTS_FILE) as f:
         content = f.read()
 
     # Match command patterns like "assets list", "dags list-import-errors", etc.
@@ -132,8 +135,8 @@ def main():
             console.print(f"  [red]- {cmd}[/]")
         console.print()
         console.print("[yellow]Fix by either:[/]")
-        console.print("1. Add test to airflow-ctl-tests/tests/airflowctl_tests/conftest.py")
-        console.print("2. Add to EXCLUDED_COMMANDS in scripts/ci/prek/check_airflowctl_command_coverage.py")
+        console.print(f"1. Add test to {CTL_TESTS_FILE}")
+        console.print(f"2. Add to EXCLUDED_COMMANDS in {__file__}")
         sys.exit(1)
 
     total = sum(len(cmds) for cmds in available.values())

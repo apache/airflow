@@ -26,7 +26,7 @@ from tests_common.test_utils.api_client_helpers import make_authenticated_rest_a
 
 def create_connection_request(connection_id: str, connection: dict[str, Any], is_composer: bool = False):
     if is_composer:
-        from airflow.configuration import conf
+        from airflow.providers.common.compat.sdk import conf
         from airflow.providers.google.cloud.hooks.cloud_composer import CloudComposerHook
 
         hook = CloudComposerHook()
@@ -59,7 +59,7 @@ def create_connection_request(connection_id: str, connection: dict[str, Any], is
 
 def delete_connection_request(connection_id: str, is_composer: bool = False):
     if is_composer:
-        from airflow.configuration import conf
+        from airflow.providers.common.compat.sdk import conf
         from airflow.providers.google.cloud.hooks.cloud_composer import CloudComposerHook
 
         hook = CloudComposerHook()

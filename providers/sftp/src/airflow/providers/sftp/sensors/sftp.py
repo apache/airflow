@@ -26,8 +26,7 @@ from typing import TYPE_CHECKING, Any
 
 from paramiko.sftp import SFTP_NO_SUCH_FILE
 
-from airflow.configuration import conf
-from airflow.providers.common.compat.sdk import AirflowException, BaseSensorOperator, PokeReturnValue
+from airflow.providers.common.compat.sdk import AirflowException, BaseSensorOperator, PokeReturnValue, conf
 from airflow.providers.sftp.hooks.sftp import SFTPHook
 from airflow.providers.sftp.triggers.sftp import SFTPTrigger
 from airflow.utils.timezone import convert_to_utc, parse

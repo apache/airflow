@@ -24,7 +24,6 @@ from datetime import timedelta
 from typing import TYPE_CHECKING, Any
 from uuid import uuid4
 
-from airflow.configuration import conf
 from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.amazon.aws.hooks.emr import EmrContainerHook, EmrHook, EmrServerlessHook
 from airflow.providers.amazon.aws.links.emr import (
@@ -58,7 +57,7 @@ from airflow.providers.amazon.aws.utils.waiter import (
 )
 from airflow.providers.amazon.aws.utils.waiter_with_logging import wait
 from airflow.providers.amazon.version_compat import NOTSET, ArgNotSet
-from airflow.providers.common.compat.sdk import AirflowException
+from airflow.providers.common.compat.sdk import AirflowException, conf
 from airflow.utils.helpers import exactly_one, prune_dict
 
 if TYPE_CHECKING:

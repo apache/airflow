@@ -64,6 +64,18 @@ Providers can have their own configuration options which allow you to configure 
 You can see all community-managed providers with their own configuration in
 :doc:`/core-extensions/configurations`
 
+Command Line Interface
+''''''''''''''''''''''
+
+.. note::
+   The Airflow Core version must be ``3.2.0`` or newer to be able to use CLI commands provided by providers.
+
+Providers can add their own custom CLI commands to Airflow CLI. Those commands will be available
+once you install the provider package.
+
+You can see all community-managed providers with their own CLI commands in
+:doc:`/core-extensions/cli-commands`.
+
 Custom connections
 ''''''''''''''''''
 

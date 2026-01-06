@@ -419,6 +419,13 @@
                 "type": "string"
             }
         },
+        "cli": {
+            "type": "array",
+            "description": "CLI command functions exposed by the provider",
+            "items": {
+                "type": "string"
+            }
+        },
         "config": {
             "type": "object",
             "additionalProperties": {

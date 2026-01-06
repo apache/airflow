@@ -84,7 +84,7 @@ def regenerate_help_images_for_all_airflowctl_commands(commands: list[str], skip
     os.makedirs(AIRFLOWCTL_IMAGES_PATH, exist_ok=True)
     env = os.environ.copy()
     env["TERM"] = "xterm-256color"
-    env["COLUMNS"] = "65"
+    env["COLUMNS"] = "75"
     old_hash_dict = {}
     new_hash_dict = {}
 

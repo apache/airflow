@@ -21,12 +21,13 @@ name: Standard
 description: |
     Airflow Standard Provider
 state: ready
-source-date-epoch: 1765299461
+source-date-epoch: 1767125067
 # Note that those versions are maintained by release manager - do not update them manually
 # with the exception of case where other provider in sources has >= new provider version.
 # In such case adding >= NEW_VERSION and bumping to NEW_VERSION in a provider have
 # to be done in the same PR
 versions:
+  - 1.10.2
   - 1.10.1
   - 1.10.0
   - 1.9.2

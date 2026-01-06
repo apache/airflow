@@ -40,6 +40,7 @@ from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.sdk import Asset, TaskGroup, TriggerRule, task, task_group
 from airflow.utils.state import DagRunState, State, TaskInstanceState, TerminalTIState
 
+from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.db import (
     clear_db_assets,
     clear_db_dags,
@@ -1131,43 +1132,78 @@ class TestTIUpdateState:
             assert response.status_code == 500
             assert response.json()["detail"] == "Database error occurred"
 
-    def test_ti_update_state_to_deferred(self, client, session, create_task_instance, time_machine):
+    @pytest.mark.parametrize("queues_enabled", [False, True])
+    def test_ti_update_state_to_deferred(
+        self, client, session, create_task_instance, time_machine, queues_enabled: bool
+    ):
         """
         Test that tests if the transition to deferred state is handled correctly.
         """
-        ti = create_task_instance(
-            task_id="test_ti_update_state_to_deferred",
-            state=State.RUNNING,
-            session=session,
-        )
-        session.commit()
+        with conf_vars({("triggerer", "queues_enabled"): str(queues_enabled)}):
+            ti = create_task_instance(
+                task_id="test_ti_update_state_to_deferred",
+                state=State.RUNNING,
+                session=session,
+            )
+            session.commit()
 
-        instant = timezone.datetime(2024, 11, 22)
-        time_machine.move_to(instant, tick=False)
+            instant = timezone.datetime(2024, 11, 22)
+            time_machine.move_to(instant, tick=False)
 
-        payload = {
-            "state": "deferred",
-            # expected format is now in serde serialized format
-            "trigger_kwargs": {
-                "key": "value",
-                "moment": {
-                    "__classname__": "datetime.datetime",
-                    "__version__": 2,
-                    "__data__": {
-                        "timestamp": 1734480001.0,
-                        "tz": {
-                            "__classname__": "builtins.tuple",
-                            "__version__": 1,
-                            "__data__": ["UTC", "pendulum.tz.timezone.Timezone", 1, True],
+            payload = {
+                "state": "deferred",
+                # expected format is now in serde serialized format
+                "trigger_kwargs": {
+                    "key": "value",
+                    "moment": {
+                        "__classname__": "datetime.datetime",
+                        "__version__": 2,
+                        "__data__": {
+                            "timestamp": 1734480001.0,
+                            "tz": {
+                                "__classname__": "builtins.tuple",
+                                "__version__": 1,
+                                "__data__": ["UTC", "pendulum.tz.timezone.Timezone", 1, True],
+                            },
                         },
                     },
                 },
-            },
-            "trigger_timeout": "P1D",  # 1 day
-            "classpath": "my-classpath",
-            "next_method": "execute_callback",
-            # expected format is now in serde serialized format
-            "next_kwargs": {
+                "trigger_timeout": "P1D",  # 1 day
+                "queue": "default" if queues_enabled else None,
+                "classpath": "my-classpath",
+                "next_method": "execute_callback",
+                # expected format is now in serde serialized format
+                "next_kwargs": {
+                    "foo": {
+                        "__classname__": "datetime.datetime",
+                        "__version__": 2,
+                        "__data__": {
+                            "timestamp": 1734480000.0,
+                            "tz": {
+                                "__classname__": "builtins.tuple",
+                                "__version__": 1,
+                                "__data__": ["UTC", "pendulum.tz.timezone.Timezone", 1, True],
+                            },
+                        },
+                    },
+                    "bar": "abc",
+                },
+            }
+
+            response = client.patch(f"/execution/task-instances/{ti.id}/state", json=payload)
+
+            assert response.status_code == 204
+            assert response.text == ""
+
+            session.expire_all()
+
+            tis = session.scalars(select(TaskInstance)).all()
+            assert len(tis) == 1
+
+            assert tis[0].state == TaskInstanceState.DEFERRED
+            assert tis[0].next_method == "execute_callback"
+
+            assert tis[0].next_kwargs == {
                 "foo": {
                     "__classname__": "datetime.datetime",
                     "__version__": 2,
@@ -1181,47 +1217,23 @@ class TestTIUpdateState:
                     },
                 },
                 "bar": "abc",
-            },
-        }
+            }
+            assert tis[0].trigger_timeout == timezone.make_aware(
+                datetime(2024, 11, 23), timezone=timezone.utc
+            )
 
-        response = client.patch(f"/execution/task-instances/{ti.id}/state", json=payload)
-
-        assert response.status_code == 204
-        assert response.text == ""
-
-        session.expire_all()
-
-        tis = session.scalars(select(TaskInstance)).all()
-        assert len(tis) == 1
-
-        assert tis[0].state == TaskInstanceState.DEFERRED
-        assert tis[0].next_method == "execute_callback"
-
-        assert tis[0].next_kwargs == {
-            "foo": {
-                "__classname__": "datetime.datetime",
-                "__version__": 2,
-                "__data__": {
-                    "timestamp": 1734480000.0,
-                    "tz": {
-                        "__classname__": "builtins.tuple",
-                        "__version__": 1,
-                        "__data__": ["UTC", "pendulum.tz.timezone.Timezone", 1, True],
-                    },
-                },
-            },
-            "bar": "abc",
-        }
-        assert tis[0].trigger_timeout == timezone.make_aware(datetime(2024, 11, 23), timezone=timezone.utc)
-
-        t = session.scalars(select(Trigger)).all()
-        assert len(t) == 1
-        assert t[0].created_date == instant
-        assert t[0].classpath == "my-classpath"
-        assert t[0].kwargs == {
-            "key": "value",
-            "moment": datetime(2024, 12, 18, 00, 00, 1, tzinfo=timezone.utc),
-        }
+            t = session.scalars(select(Trigger)).all()
+            assert len(t) == 1
+            assert t[0].created_date == instant
+            assert t[0].classpath == "my-classpath"
+            assert t[0].kwargs == {
+                "key": "value",
+                "moment": datetime(2024, 12, 18, 00, 00, 1, tzinfo=timezone.utc),
+            }
+            if queues_enabled:
+                assert t[0].queue == "default"
+            else:
+                assert t[0].queue is None
 
     def test_ti_update_state_to_reschedule(self, client, session, create_task_instance, time_machine):
         """

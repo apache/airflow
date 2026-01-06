@@ -25,6 +25,24 @@
 Changelog
 ---------
 
+1.30.2
+......
+
+Misc
+~~~~
+
+* ``Remove top-level SDK reference in Core (#59817)``
+* ``Extract shared "module_loading" distribution (#59139)``
+
+Doc-only
+~~~~~~~~
+
+* ``Add missing fields to SQLValueCheckOperator docstring (#59409)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``TaskInstance unused method cleanup (#59835)``
+
 1.30.1
 ......
 

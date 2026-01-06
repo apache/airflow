@@ -74,8 +74,8 @@ ENV_VAR_PREFIX = "AIRFLOW__"
 class _SecretKeys:
     """Holds the secret keys used in Airflow during runtime."""
 
-    fernet_key: str | None = None
-    jwt_secret_key: str | None = None
+    fernet_key: str = ""  # Set only if needed when generating a new file
+    jwt_secret_key: str = ""
 
 
 class ConfigModifications:
@@ -743,7 +743,7 @@ def write_default_airflow_configuration_if_needed() -> AirflowConfigParser:
                 raise FileNotFoundError(msg) from None
             log.debug("Create directory %r for Airflow config", config_directory.__fspath__())
             config_directory.mkdir(parents=True, exist_ok=True)
-        if conf.get("core", "fernet_key", fallback=None) in (None, ""):
+        if not conf.get("core", "fernet_key"):
             # We know that fernet_key is not set, so we can generate it, set as global key
             # and also write it to the config file so that same key will be used next time
             _SecretKeys.fernet_key = _generate_fernet_key()
@@ -765,6 +765,7 @@ def write_default_airflow_configuration_if_needed() -> AirflowConfigParser:
                 include_providers=True,
                 extra_spacing=True,
                 only_defaults=True,
+                show_values=True,
             )
     return conf
 

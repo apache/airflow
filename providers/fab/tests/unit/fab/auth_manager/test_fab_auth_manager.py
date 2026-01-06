@@ -888,20 +888,26 @@ class TestFabAuthManager:
 @mock.patch("airflow.utils.db.drop_airflow_models")
 @mock.patch("airflow.utils.db.drop_airflow_moved_tables")
 @mock.patch("airflow.utils.db.initdb")
-@mock.patch("airflow.settings.engine.connect")
+@mock.patch("airflow.settings.engine")
 def test_resetdb(
-    mock_connect,
+    mock_engine,
     mock_init,
     mock_drop_moved,
     mock_drop_airflow,
     mock_fabdb_manager,
     skip_init,
 ):
+    # Mock as non-MySQL to use the simpler PostgreSQL/SQLite path
+    mock_engine.dialect.name = "postgresql"
+    mock_connect = mock_engine.connect.return_value
+
     session_mock = MagicMock()
     resetdb(session_mock, skip_init=skip_init)
-    mock_drop_airflow.assert_called_once_with(mock_connect.return_value)
-    mock_drop_moved.assert_called_once_with(mock_connect.return_value)
+
+    # In the non-MySQL path, drop functions are called with the raw connection
+    mock_drop_airflow.assert_called_once_with(mock_connect)
+    mock_drop_moved.assert_called_once_with(mock_connect)
     if skip_init:
         mock_init.assert_not_called()
     else:
-        mock_init.assert_called_once_with(session=session_mock)
+        mock_init.assert_called_once()

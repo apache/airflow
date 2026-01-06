@@ -87,6 +87,7 @@ airflow-core/src/airflow/ui/public/i18n/locales/zh-TW/ @Lee-W @jason810496 @guan
 
 # Providers
 /providers/amazon/ @o-nikolas
+/providers/apache/iceberg/ @Fokko
 /providers/celery/ @hussein-awala
 /providers/cncf/kubernetes @jedcunningham @hussein-awala
 /providers/common/messaging/ @vincbeck
@@ -95,10 +96,10 @@ airflow-core/src/airflow/ui/public/i18n/locales/zh-TW/ @Lee-W @jason810496 @guan
 /providers/fab/ @vincbeck
 /providers/hashicorp/ @hussein-awala
 /providers/keycloak/ @vincbeck @bugraoz93
+/providers/microsoft/azure/ @dabla
 /providers/openlineage/ @mobuchowski
 /providers/smtp/ @hussein-awala
 /providers/snowflake/ @potiuk
-/providers/apache/iceberg/ @Fokko
 
 # Dev tools
 /.github/workflows/ @potiuk @ashb @gopidesupavan @amoghrajesh @jscheffl @bugraoz93 @kaxil @jason810496

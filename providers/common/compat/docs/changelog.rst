@@ -25,6 +25,27 @@
 Changelog
 ---------
 
+1.11.0
+......
+
+Features
+~~~~~~~~
+
+* ``Extract shared "module_loading" distribution (#59139)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix circular import errors when CeleryExecutor is used with sentry (#59745)``
+
+Misc
+~~~~
+
+* ``Prevent client secrets and proxy credentials from being logged in Microsoft Graph hook logs (#59688)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 1.10.1
 ......
 

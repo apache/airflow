@@ -24,6 +24,7 @@ import pytest
 from airflow.cli import cli_parser
 
 from tests_common.test_utils.config import conf_vars
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_2_PLUS
 
 pytestmark = [pytest.mark.db_test]
 try:
@@ -31,21 +32,22 @@ try:
     from airflow.providers.fab.auth_manager.models.db import FABDBManager
 
     class TestFABCLiDB:
-        @classmethod
-        def setup_class(cls):
-            with conf_vars(
-                {
-                    (
-                        "core",
-                        "auth_manager",
-                    ): "airflow.providers.fab.auth_manager.fab_auth_manager.FabAuthManager",
-                }
-            ):
-                # Reload the module to use FAB auth manager
+        @pytest.fixture(autouse=True)
+        def setup_parser(self):
+            if AIRFLOW_V_3_2_PLUS:
                 reload(cli_parser)
-                # Clearing the cache before calling it
-                cli_parser.get_parser.cache_clear()
-                cls.parser = cli_parser.get_parser()
+                self.parser = cli_parser.get_parser()
+            else:
+                with conf_vars(
+                    {
+                        (
+                            "core",
+                            "auth_manager",
+                        ): "airflow.providers.fab.auth_manager.fab_auth_manager.FabAuthManager",
+                    }
+                ):
+                    reload(cli_parser)
+                    self.parser = cli_parser.get_parser()
 
         @mock.patch.object(FABDBManager, "resetdb")
         def test_cli_resetdb(self, mock_resetdb):

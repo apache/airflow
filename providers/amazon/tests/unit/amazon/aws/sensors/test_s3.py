@@ -32,14 +32,10 @@ from airflow.providers.common.compat.sdk import AirflowException
 from airflow.utils.state import DagRunState
 from airflow.utils.types import DagRunType
 
+from tests_common.test_utils.compat import timezone
 from tests_common.test_utils.dag import sync_dag_to_db
 from tests_common.test_utils.taskinstance import create_task_instance, render_template_fields
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
-
-try:
-    from airflow.sdk import timezone
-except ImportError:
-    from airflow.utils import timezone  # type: ignore[attr-defined,no-redef]
 
 DEFAULT_DATE = datetime(2015, 1, 1)
 
@@ -149,7 +145,7 @@ class TestS3KeySensor:
                 state=DagRunState.RUNNING,
                 run_after=timezone.utcnow(),
             )
-            ti = create_task_instance(task=op, dag_version_id=dag_version.id)
+            ti = create_task_instance(task=op, run_id="test", dag_version_id=dag_version.id)
         else:
             dag_run = DagRun(
                 dag_id=dag.dag_id,
@@ -206,7 +202,7 @@ class TestS3KeySensor:
                 state=DagRunState.RUNNING,
                 run_after=timezone.utcnow(),
             )
-            ti = create_task_instance(task=op, dag_version_id=dag_version.id)
+            ti = create_task_instance(task=op, run_id="test", dag_version_id=dag_version.id)
         ti.dag_run = dag_run
         rendered = render_template_fields(ti, op)
         rendered.poke(None)
