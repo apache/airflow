@@ -69,12 +69,12 @@ export class DagDetailPage extends BasePage {
     // Task instances in grid - links with id="grid-{runId}-{taskId}"
     this.taskInstances = page.locator('a[id^="grid-"]');
     // Grid cells are Badge components inside the task instance links
-    this.gridCells = page.locator('a[id^="grid-"] span[role="status"]');
+    this.gridCells = page.locator('a[id^="grid-"] span, a[id^="grid-"] [class*="badge"], a[id^="grid-"]');
 
     // Task details panel - rendered in the right panel via Outlet
     this.taskDetailsPanel = page.locator('div[id="details-panel"]');
-    this.taskIdLabel = page.locator('text="Task ID"').locator('..');
-    this.taskStateLabel = page.locator('text="State"').locator('..');
+    this.taskIdLabel = page.getByText('Task ID');
+    this.taskStateLabel = page.getByText('State');
     this.taskDetailsCloseButton = page.locator('button[aria-label*="close" i]');
 
     // DAG info
@@ -112,11 +112,11 @@ export class DagDetailPage extends BasePage {
       return null;
     }
 
-    // Extract task ID from URL: /dags/{dagId}/task/{taskId}
+    // Extract task ID from URL: /dags/{dagId}/runs/{runId}/tasks/{taskId}
     const url = this.page.url();
-    const taskMatch = /\/task\/([^/?]+)/.exec(url);
+    const taskMatch = /\/tasks\/([^/?]+)/.exec(url);
 
-    if (taskMatch) {
+    if (taskMatch?.[1]) {
       return decodeURIComponent(taskMatch[1]);
     }
 
@@ -142,13 +142,17 @@ export class DagDetailPage extends BasePage {
     const badges = this.gridCells;
     const count = await badges.count();
 
-    // Collect colorPalette attributes from Badge components (max 20)
+    // Collect color/state information from Badge components (max 20)
     for (let i = 0; i < Math.min(count, 20); i++) {
       const badge = badges.nth(i);
-      const colorPalette = await badge.dataset.colorPalette.catch(() => null);
+      // Try multiple ways to get color/state info
+      const colorPalette = await badge.getAttribute('data-color-palette');
+      const className = await badge.getAttribute('class');
+      const bgColor = await badge.evaluate((el) => window.getComputedStyle(el).backgroundColor);
 
-      if (colorPalette) {
-        colors.push(colorPalette);
+      const colorInfo = colorPalette || className || bgColor;
+      if (colorInfo) {
+        colors.push(colorInfo);
       }
     }
 
@@ -165,14 +169,15 @@ export class DagDetailPage extends BasePage {
       return null;
     }
 
-    // Look for state badge in the details panel
-    const stateBadge = this.page.locator('div[id="details-panel"] span[role="status"]').first();
+    // Look for state badge or text in the details panel
+    const stateBadge = this.page.locator('[class*="badge"], span[role="status"], [class*="state"]').first();
     const isVisible = await stateBadge.isVisible().catch(() => false);
 
     if (isVisible) {
-      const colorPalette = await stateBadge.dataset.colorPalette.catch(() => null);
+      const colorPalette = await stateBadge.getAttribute('data-color-palette');
+      const text = await stateBadge.textContent();
 
-      return colorPalette;
+      return colorPalette || text;
     }
 
     return null;
@@ -185,7 +190,7 @@ export class DagDetailPage extends BasePage {
     // Check if the URL has changed to include task selection
     const url = this.page.url();
 
-    return url.includes("/task/") || url.includes("/taskInstance/");
+    return url.includes("/runs/") && url.includes("/tasks/");
   }
 
   /**
@@ -213,7 +218,7 @@ export class DagDetailPage extends BasePage {
 
     await tab.waitFor({ state: "visible", timeout: 100_000 });
     await tab.click();
-    await this.waitForPageLoad();
+    await this.page.waitForLoadState("networkidle");
   }
 
   /**
