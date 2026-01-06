@@ -25,18 +25,7 @@ from airflow.providers.common.sql.hooks.sql import DbApiHook
 
 if TYPE_CHECKING:
     from impala.interface import Connection
-
-
-def _get_sqlalchemy_url_class():
-    try:
-        from sqlalchemy.engine import URL
-
-        return URL
-    except ImportError:
-        raise AirflowOptionalProviderFeatureException(
-            "The 'sqlalchemy' library is required to use this feature. "
-            "Please install it with: pip install 'apache-airflow-providers-apache-impala[sqlalchemy]'"
-        )
+    from sqlalchemy.engine import URL
 
 
 class ImpalaHook(DbApiHook):
@@ -60,9 +49,15 @@ class ImpalaHook(DbApiHook):
         )
 
     @property
-    def sqlalchemy_url(self):
+    def sqlalchemy_url(self) -> URL:
         """Return a `sqlalchemy.engine.URL` object constructed from the connection."""
-        URL = _get_sqlalchemy_url_class()
+        try:
+            from sqlalchemy.engine import URL
+        except (ImportError, ModuleNotFoundError) as err:
+            raise AirflowOptionalProviderFeatureException(
+                "The 'sqlalchemy' library is required to use this feature. "
+                "Please install it with: pip install 'apache-airflow-providers-apache-impala[sqlalchemy]'"
+            ) from err
 
         conn = self.get_connection(self.get_conn_id())
         extra = conn.extra_dejson or {}
