@@ -16,7 +16,6 @@
 # under the License.
 from __future__ import annotations
 
-import argparse
 import contextlib
 import importlib
 import json
@@ -31,7 +30,6 @@ import time_machine
 from requests import HTTPError, Response
 
 from airflow.cli import cli_parser
-from airflow.executors import executor_loader
 from airflow.providers.common.compat.sdk import timezone
 from airflow.providers.edge3.cli import edge_command
 from airflow.providers.edge3.cli.dataclasses import Job
@@ -49,6 +47,7 @@ from airflow.providers.edge3.worker_api.datamodels import (
 from airflow.utils.state import TaskInstanceState
 
 from tests_common.test_utils.config import conf_vars
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_2_PLUS
 
 pytest.importorskip("pydantic", minversion="2.0.0")
 
@@ -87,16 +86,22 @@ class _MockPopen(Popen):
 
 
 class TestEdgeWorker:
-    parser: argparse.ArgumentParser
-
-    @classmethod
-    def setup_class(cls):
-        with conf_vars(
-            {("core", "executor"): "airflow.providers.edge3.executors.edge_executor.EdgeExecutor"}
-        ):
-            importlib.reload(executor_loader)
+    @pytest.fixture(autouse=True)
+    def setup_parser(self):
+        if AIRFLOW_V_3_2_PLUS:
             importlib.reload(cli_parser)
-            cls.parser = cli_parser.get_parser()
+            self.parser = cli_parser.get_parser()
+        else:
+            with patch(
+                "airflow.executors.executor_loader.ExecutorLoader.get_executor_names",
+            ) as mock_get_executor_names:
+                mock_get_executor_names.return_value = [
+                    MagicMock(
+                        name="EdgeExecutor", module_path="airflow.providers.edge3.executors.EdgeExecutor"
+                    )
+                ]
+                importlib.reload(cli_parser)
+                self.parser = cli_parser.get_parser()
 
     @pytest.fixture
     def mock_joblist(self, tmp_path: Path) -> list[Job]:

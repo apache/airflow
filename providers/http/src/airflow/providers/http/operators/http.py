@@ -25,8 +25,7 @@ from typing import TYPE_CHECKING, Any
 from aiohttp import BasicAuth
 from requests import Response
 
-from airflow.configuration import conf
-from airflow.providers.common.compat.sdk import AirflowException, BaseHook, BaseOperator
+from airflow.providers.common.compat.sdk import AirflowException, BaseHook, BaseOperator, conf
 from airflow.providers.http.triggers.http import HttpTrigger, serialize_auth_type
 from airflow.utils.helpers import merge_dicts
 

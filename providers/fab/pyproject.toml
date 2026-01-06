@@ -58,7 +58,7 @@ requires-python = ">=3.10,!=3.13"
 # After you modify the dependencies, and rebuild your Breeze CI image with ``breeze ci-image build``
 dependencies = [
     "apache-airflow>=3.0.2",
-    "apache-airflow-providers-common-compat>=1.10.1",
+    "apache-airflow-providers-common-compat>=1.10.1",  # use next version
     # Blinker use for signals in Flask, this is an optional dependency in Flask 2.2 and lower.
     # In Flask 2.3 it becomes a mandatory dependency, and flask signals are always available.
     "blinker>=1.6.2; python_version < '3.13'",
@@ -73,12 +73,9 @@ dependencies = [
     # In particular, make sure any breaking changes, for example any new methods, are accounted for.
     "flask-appbuilder==5.0.1; python_version < '3.13'",
     "flask-login>=0.6.2; python_version < '3.13'",
-    # Flask-Session 0.6 add new arguments into the SqlAlchemySessionInterface constructor as well as
-    # all parameters now are mandatory which make AirflowDatabaseSessionInterface incompatible with this version.
     "flask-session>=0.8.0; python_version < '3.13'",
     "msgpack>=1.0.0; python_version < '3.13'",
     "flask-sqlalchemy>=3.0.5; python_version < '3.13'",
-    "sqlalchemy>=1.4.36,<2; python_version < '3.13'",
     "flask-wtf>=1.1.0; python_version < '3.13'",
     "connexion[flask]>=2.14.2,<3.0; python_version < '3.13'",
     "jmespath>=0.7.0; python_version < '3.13'",

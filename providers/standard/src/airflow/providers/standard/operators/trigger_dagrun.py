@@ -28,7 +28,6 @@ from sqlalchemy import select
 from sqlalchemy.orm.exc import NoResultFound
 
 from airflow.api.common.trigger_dag import trigger_dag
-from airflow.configuration import conf
 from airflow.exceptions import DagNotFound, DagRunAlreadyExists
 from airflow.models.dag import DagModel
 from airflow.models.dagrun import DagRun
@@ -38,6 +37,7 @@ from airflow.providers.common.compat.sdk import (
     AirflowSkipException,
     BaseOperatorLink,
     XCom,
+    conf,
     timezone,
 )
 from airflow.providers.standard.triggers.external_task import DagStateTrigger

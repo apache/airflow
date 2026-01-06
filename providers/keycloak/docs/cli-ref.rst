@@ -15,12 +15,12 @@
     specific language governing permissions and limitations
     under the License.
 
-Command Line Interface (CLI)
-============================
+Keycloak Command Line Interface
+===============================
 
 Provider CLI has been integrated with Apache Airflow CLI ``airflow`` command.
 
 .. argparse::
-   :module: airflow.providers.keycloak.auth_manager.keycloak_auth_manager
+   :module: airflow.providers.keycloak.cli.definition
    :func: get_parser
    :prog: airflow

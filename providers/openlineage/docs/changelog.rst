@@ -36,7 +36,7 @@ Misc
 * ``Split SerializedBaseOperator from serde logic (#59627)``
 * ``Minor cleanups removing SDK references from Core (#59491)``
 * ``Refactor deprecated SQLA query openlineage provider (#59448)``
-* ``nit: bump OL client dependency to 1.41 (#59321)``
+* ``Bump OpenLineage client dependency to 1.41 (#59321)``
 * ``Extract shared "module_loading" distribution (#59139)``
 
 .. Below changes are excluded from the changelog. Move them to
