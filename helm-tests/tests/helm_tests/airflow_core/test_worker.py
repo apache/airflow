@@ -817,10 +817,6 @@ class TestWorker:
             ({"celery": {"command": ["custom", "command"]}}, ["custom", "command"]),
             ({"celery": {"command": ["custom", "{{ .Release.Name }}"]}}, ["custom", "release-name"]),
             ({"command": ["test"], "celery": {"command": ["custom", "command"]}}, ["custom", "command"]),
-            (
-                {"command": ["test"], "celery": {"command": ["custom", "{{ .Release.Name }}"]}},
-                ["custom", "release-name"],
-            ),
         ],
     )
     def test_should_add_command(self, workers_values, expected):
