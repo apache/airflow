@@ -969,6 +969,15 @@ def _build_skaffold_config(
                 ]
             }
         },
+        "portForward": [
+            {
+                "resourceType": "deployment",
+                "resourceName": "airflow-api-server",
+                "namespace": HELM_AIRFLOW_NAMESPACE,
+                "port": 8080,
+                "localPort": api_server_port,
+            }
+        ],
     }
 
 
