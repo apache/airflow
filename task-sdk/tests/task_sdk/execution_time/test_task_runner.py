@@ -35,7 +35,6 @@ import pytest
 from task_sdk import FAKE_BUNDLE
 from uuid6 import uuid7
 
-from airflow.listeners import hookimpl
 from airflow.providers.standard.operators.python import PythonOperator
 from airflow.sdk import (
     DAG,
@@ -47,6 +46,7 @@ from airflow.sdk import (
     task as task_decorator,
     timezone,
 )
+from airflow.sdk._shared.listeners import hookimpl
 from airflow.sdk.api.datamodels._generated import (
     AssetProfile,
     AssetResponse,

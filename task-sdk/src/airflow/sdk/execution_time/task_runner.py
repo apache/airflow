@@ -117,7 +117,7 @@ from airflow.sdk.execution_time.context import (
 )
 from airflow.sdk.execution_time.sentry import Sentry
 from airflow.sdk.execution_time.xcom import XCom
-from airflow.sdk.listeners.listener import get_listener_manager
+from airflow.sdk.listener import get_listener_manager
 from airflow.sdk.observability.stats import Stats
 from airflow.sdk.timezone import coerce_datetime
 from airflow.triggers.base import BaseEventTrigger
