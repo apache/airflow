@@ -256,16 +256,16 @@ spec:
           args: {{ tpl (toYaml (.Values.workers.celery.args | default .Values.workers.args)) . | nindent 12 }}
           {{- end }}
           resources: {{- toYaml .Values.workers.resources | nindent 12 }}
-          {{- if .Values.workers.livenessProbe.enabled }}
+          {{- if or .Values.workers.celery.livenessProbe.enabled (and (not (has .Values.workers.celery.livenessProbe.enabled (list true false))) .Values.workers.livenessProbe.enabled) }}
           livenessProbe:
-            initialDelaySeconds: {{ .Values.workers.livenessProbe.initialDelaySeconds }}
-            timeoutSeconds: {{ .Values.workers.livenessProbe.timeoutSeconds }}
-            failureThreshold: {{ .Values.workers.livenessProbe.failureThreshold }}
-            periodSeconds: {{ .Values.workers.livenessProbe.periodSeconds }}
+            initialDelaySeconds: {{ .Values.workers.celery.livenessProbe.initialDelaySeconds | default .Values.workers.livenessProbe.initialDelaySeconds }}
+            timeoutSeconds: {{ .Values.workers.celery.livenessProbe.timeoutSeconds | default .Values.workers.livenessProbe.timeoutSeconds }}
+            failureThreshold: {{ .Values.workers.celery.livenessProbe.failureThreshold | default .Values.workers.livenessProbe.failureThreshold }}
+            periodSeconds: {{ .Values.workers.celery.livenessProbe.periodSeconds | default .Values.workers.livenessProbe.periodSeconds }}
             exec:
               command:
-                {{- if .Values.workers.livenessProbe.command }}
-                  {{- toYaml .Values.workers.livenessProbe.command  | nindent 16 }}
+                {{- if or .Values.workers.celery.livenessProbe.command .Values.workers.livenessProbe.command }}
+                  {{- toYaml (.Values.workers.celery.livenessProbe.command | default .Values.workers.livenessProbe.command)  | nindent 16 }}
                 {{- else }}
                 - sh
                 - -c
