@@ -1,5 +1,6 @@
 {
   "consumingDags": "消費者 Dags",
+  "consumingTasks": "消費者任務",
   "createEvent": {
     "button": "建立事件",
     "manual": {
@@ -21,6 +22,7 @@
     },
     "title": "為 {{name}} 建立資源事件"
   },
+  "extra": "資源額外資訊",
   "group": "群組",
   "lastAssetEvent": "最後資源事件",
   "name": "名稱",
