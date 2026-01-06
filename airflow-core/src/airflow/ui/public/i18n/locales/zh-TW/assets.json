@@ -25,7 +25,7 @@
     },
     "title": "為 {{name}} 建立資源事件"
   },
-  "extra": "資源額外資訊",
+  "extra": "額外資源資訊",
   "group": "群組",
   "lastAssetEvent": "最後資源事件",
   "name": "名稱",
