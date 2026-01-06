@@ -760,7 +760,7 @@ class TestCliDags:
         mock_render_dag.assert_has_calls([mock.call(mock_get_dag.return_value, tis=[])])
         assert "SOURCE" in output
 
-    @mock.patch("airflow.dag_processing.dagbag.DagBag")
+    @mock.patch("airflow.dag_processing.dagbag.BundleDagBag")
     def test_dag_test_with_bundle_name(self, mock_dagbag, configure_dag_bundles):
         """Test that DAG can be tested using bundle name."""
         mock_dagbag.return_value.get_dag.return_value.test.return_value = DagRun(
@@ -788,7 +788,7 @@ class TestCliDags:
             include_examples=False,
         )
 
-    @mock.patch("airflow.dag_processing.dagbag.DagBag")
+    @mock.patch("airflow.dag_processing.dagbag.BundleDagBag")
     def test_dag_test_with_dagfile_path(self, mock_dagbag, configure_dag_bundles):
         """Test that DAG can be tested using dagfile path."""
         mock_dagbag.return_value.get_dag.return_value.test.return_value = DagRun(
@@ -810,7 +810,7 @@ class TestCliDags:
             include_examples=False,
         )
 
-    @mock.patch("airflow.dag_processing.dagbag.DagBag")
+    @mock.patch("airflow.dag_processing.dagbag.BundleDagBag")
     def test_dag_test_with_both_bundle_and_dagfile_path(self, mock_dagbag, configure_dag_bundles):
         """Test that DAG can be tested using both bundle name and dagfile path."""
         mock_dagbag.return_value.get_dag.return_value.test.return_value = DagRun(

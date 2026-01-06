@@ -34,7 +34,7 @@ from airflow.callbacks.callback_requests import (
     TaskCallbackRequest,
 )
 from airflow.configuration import conf
-from airflow.dag_processing.dagbag import DagBag
+from airflow.dag_processing.dagbag import BundleDagBag, DagBag
 from airflow.observability.stats import Stats
 from airflow.sdk.exceptions import TaskNotFound
 from airflow.sdk.execution_time.comms import (
@@ -205,7 +205,7 @@ def _parse_file_entrypoint():
 def _parse_file(msg: DagFileParseRequest, log: FilteringBoundLogger) -> DagFileParsingResult | None:
     # TODO: Set known_pool names on DagBag!
 
-    bag = DagBag(
+    bag = BundleDagBag(
         dag_folder=msg.file,
         bundle_path=msg.bundle_path,
         bundle_name=msg.bundle_name,

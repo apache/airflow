@@ -671,8 +671,8 @@ def _xcom_push_to_db(ti: RuntimeTaskInstance, key: str, value: Any) -> None:
 
 def parse(what: StartupDetails, log: Logger) -> RuntimeTaskInstance:
     # TODO: Task-SDK:
-    # Using DagBag here is about 98% wrong, but it'll do for now
-    from airflow.dag_processing.dagbag import DagBag
+    # Using BundleDagBag here is about 98% wrong, but it'll do for now
+    from airflow.dag_processing.dagbag import BundleDagBag
 
     bundle_info = what.bundle_info
     bundle_instance = DagBundlesManager().get_bundle(
@@ -682,7 +682,7 @@ def parse(what: StartupDetails, log: Logger) -> RuntimeTaskInstance:
     bundle_instance.initialize()
 
     dag_absolute_path = os.fspath(Path(bundle_instance.path, what.dag_rel_path))
-    bag = DagBag(
+    bag = BundleDagBag(
         dag_folder=dag_absolute_path,
         include_examples=False,
         safe_mode=False,

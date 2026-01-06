@@ -197,9 +197,9 @@ def test_parse(test_dags_dir: Path, make_ti_context):
     assert ti.task.dag
 
 
-@mock.patch("airflow.dag_processing.dagbag.DagBag")
+@mock.patch("airflow.dag_processing.dagbag.BundleDagBag")
 def test_parse_dag_bag(mock_dagbag, test_dags_dir: Path, make_ti_context):
-    """Test that checks that the dagbag is constructed as expected during parsing"""
+    """Test that checks that the BundleDagBag is constructed as expected during parsing"""
     mock_bag_instance = mock.Mock()
     mock_dagbag.return_value = mock_bag_instance
     mock_dag = mock.Mock(spec=DAG)

@@ -272,14 +272,14 @@ def get_bagged_dag(bundle_names: list | None, dag_id: str, dagfile_path: str | N
     find the correct path (assuming it's a file) and failing that, use the configured
     dags folder.
     """
-    from airflow.dag_processing.dagbag import DagBag, sync_bag_to_db
+    from airflow.dag_processing.dagbag import BundleDagBag, sync_bag_to_db
     from airflow.sdk.definitions._internal.dag_parsing_context import _airflow_parsing_context_manager
 
     manager = DagBundlesManager()
     for bundle_name in bundle_names or ():
         bundle = manager.get_bundle(bundle_name)
         with _airflow_parsing_context_manager(dag_id=dag_id):
-            dagbag = DagBag(
+            dagbag = BundleDagBag(
                 dag_folder=dagfile_path or bundle.path,
                 bundle_path=bundle.path,
                 bundle_name=bundle.name,
@@ -292,7 +292,7 @@ def get_bagged_dag(bundle_names: list | None, dag_id: str, dagfile_path: str | N
     for bundle in manager.get_all_dag_bundles():
         bundle.initialize()
         with _airflow_parsing_context_manager(dag_id=dag_id):
-            dagbag = DagBag(
+            dagbag = BundleDagBag(
                 dag_folder=dagfile_path or bundle.path,
                 bundle_path=bundle.path,
                 bundle_name=bundle.name,
@@ -323,7 +323,7 @@ def get_db_dag(bundle_names: list | None, dag_id: str, dagfile_path: str | None 
 
 def get_dags(bundle_names: list | None, dag_id: str, use_regex: bool = False, from_db: bool = False):
     """Return DAG(s) matching a given regex or dag_id."""
-    from airflow.dag_processing.dagbag import DagBag
+    from airflow.dag_processing.dagbag import BundleDagBag
 
     bundle_names = bundle_names or []
 
@@ -333,7 +333,7 @@ def get_dags(bundle_names: list | None, dag_id: str, use_regex: bool = False, fr
         return [get_bagged_dag(bundle_names=bundle_names, dag_id=dag_id)]
 
     def _find_dag(bundle):
-        dagbag = DagBag(dag_folder=bundle.path, bundle_path=bundle.path, bundle_name=bundle.name)
+        dagbag = BundleDagBag(dag_folder=bundle.path, bundle_path=bundle.path, bundle_name=bundle.name)
         matched_dags = [dag for dag in dagbag.dags.values() if re.search(dag_id, dag.dag_id)]
         return matched_dags
 

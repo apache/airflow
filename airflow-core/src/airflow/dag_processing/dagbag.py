@@ -235,13 +235,6 @@ class DagBag(LoggingMixin):
         self.bundle_path = bundle_path
         self.bundle_name = bundle_name
 
-        # Add bundle path to sys.path if provided.
-        # This allows DAG files to import modules from their bundle directory.
-        # No cleanup is performed - this is intentional for ephemeral processes
-        # (dag processor, task runner, CLI) where the process exits after use.
-        if bundle_path and str(bundle_path) not in sys.path:
-            sys.path.append(str(bundle_path))
-
         dag_folder = dag_folder or settings.DAGS_FOLDER
         self.dag_folder = dag_folder
         self.dags: dict[str, DAG] = {}
@@ -700,6 +693,30 @@ class DagBag(LoggingMixin):
         """
         )
         return report
+
+
+class BundleDagBag(DagBag):
+    """
+    Bundle-aware DagBag that permanently modifies sys.path.
+
+    This class adds the bundle_path to sys.path permanently to allow DAG files
+    to import modules from their bundle directory. No cleanup is performed.
+
+    WARNING: Only use for one-off usages like CLI commands. Using this in long-running
+    processes will cause sys.path to accumulate entries.
+
+    Same parameters as DagBag, but bundle_path is required.
+    """
+
+    def __init__(self, *args, bundle_path: Path | None = None, **kwargs):
+        if not bundle_path:
+            raise ValueError("bundle_path is required for BundleDagBag")
+
+        if str(bundle_path) not in sys.path:
+            sys.path.append(str(bundle_path))
+
+        kwargs["bundle_path"] = bundle_path
+        super().__init__(*args, **kwargs)
 
 
 @provide_session

@@ -35,7 +35,12 @@ import pytest
 from sqlalchemy import select
 
 from airflow import settings
-from airflow.dag_processing.dagbag import DagBag, _capture_with_reraise, _validate_executor_fields
+from airflow.dag_processing.dagbag import (
+    BundleDagBag,
+    DagBag,
+    _capture_with_reraise,
+    _validate_executor_fields,
+)
 from airflow.exceptions import UnknownExecutorException
 from airflow.executors.executor_loader import ExecutorLoader
 from airflow.models.dag import DagModel
@@ -1195,10 +1200,10 @@ class TestCaptureWithReraise:
 
 
 class TestBundlePathSysPath:
-    """Tests for bundle_path sys.path handling in DagBag."""
+    """Tests for bundle_path sys.path handling in BundleDagBag."""
 
     def test_bundle_path_added_to_syspath(self, tmp_path):
-        """Test that DagBag adds bundle_path to sys.path when provided."""
+        """Test that BundleDagBag adds bundle_path to sys.path when provided."""
         util_file = tmp_path / "bundle_util.py"
         util_file.write_text('def get_message(): return "Hello from bundle!"')
 
@@ -1220,7 +1225,9 @@ class TestBundlePathSysPath:
 
         assert str(tmp_path) not in sys.path
 
-        dagbag = DagBag(dag_folder=str(dag_file), bundle_path=tmp_path, include_examples=False)
+        dagbag = BundleDagBag(
+            dag_folder=str(dag_file), bundle_path=tmp_path, bundle_name="test-bundle", include_examples=False
+        )
 
         # Check import was successful
         assert len(dagbag.dags) == 1
@@ -1255,7 +1262,9 @@ class TestBundlePathSysPath:
         sys.path.append(str(tmp_path))
         count_before = sys.path.count(str(tmp_path))
 
-        DagBag(dag_folder=str(dag_file), bundle_path=tmp_path, include_examples=False)
+        BundleDagBag(
+            dag_folder=str(dag_file), bundle_path=tmp_path, bundle_name="test-bundle", include_examples=False
+        )
 
         # Should not add duplicate
         assert sys.path.count(str(tmp_path)) == count_before
@@ -1263,8 +1272,8 @@ class TestBundlePathSysPath:
         # Cleanup for other tests
         sys.path.remove(str(tmp_path))
 
-    def test_bundle_path_none_no_syspath_modification(self, tmp_path):
-        """Test that no sys.path modification occurs when bundle_path is None."""
+    def test_dagbag_no_bundle_path_no_syspath_modification(self, tmp_path):
+        """Test that no sys.path modification occurs when DagBag is used without bundle_path."""
         dag_file = tmp_path / "simple_dag.py"
         dag_file.write_text(
             textwrap.dedent(
@@ -1280,7 +1289,7 @@ class TestBundlePathSysPath:
             )
         )
         syspath_before = deepcopy(sys.path)
-        dagbag = DagBag(dag_folder=str(dag_file), bundle_path=None, include_examples=False)
+        dagbag = DagBag(dag_folder=str(dag_file), include_examples=False)
         dag = dagbag.get_dag("simple_dag")
 
         assert str(tmp_path) not in dag.description
