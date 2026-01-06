@@ -845,28 +845,29 @@ class TestWorker:
         assert jmespath.search("spec.template.spec.containers[0].command", docs[0]) is None
 
     @pytest.mark.parametrize(
-        ("args", "expected"),
+        ("workers_values", "expected"),
         [
-            (["custom", "args"], ["custom", "args"]),
-            (["custom", "{{ .Release.Service }}"], ["custom", "Helm"]),
+            ({"args": None}, ["bash", "-c", "exec \\\nairflow celery worker"]),
+            ({"args": []}, ["bash", "-c", "exec \\\nairflow celery worker"]),
+            ({"celery": {"args": None}}, ["bash", "-c", "exec \\\nairflow celery worker"]),
+            ({"celery": {"args": []}}, ["bash", "-c", "exec \\\nairflow celery worker"]),
+            ({"args": ["custom", "args"]}, ["bash", "-c", "exec \\\nairflow celery worker"]),
+            (
+                {"args": ["custom", "{{ .Release.Service }}"]},
+                ["bash", "-c", "exec \\\nairflow celery worker"],
+            ),
+            ({"celery": {"args": ["custom", "args"]}}, ["custom", "args"]),
+            ({"celery": {"args": ["custom", "{{ .Release.Service }}"]}}, ["custom", "Helm"]),
+            ({"args": ["test"], "celery": {"args": ["custom", "args"]}}, ["custom", "args"]),
         ],
     )
-    def test_should_add_args(self, args, expected):
+    def test_should_add_args(self, workers_values, expected):
         docs = render_chart(
-            values={"workers": {"args": args}},
+            values={"workers": workers_values},
             show_only=["templates/workers/worker-deployment.yaml"],
         )
 
         assert expected == jmespath.search("spec.template.spec.containers[0].args", docs[0])
-
-    @pytest.mark.parametrize("args", [None, []])
-    def test_should_not_add_args(self, args):
-        docs = render_chart(
-            values={"workers": {"args": args}},
-            show_only=["templates/workers/worker-deployment.yaml"],
-        )
-
-        assert jmespath.search("spec.template.spec.containers[0].args", docs[0]) is None
 
     def test_dags_gitsync_sidecar_and_init_container(self):
         docs = render_chart(
