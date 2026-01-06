@@ -82,7 +82,7 @@ with DAG(
     branches exist in the DAG graph at parse time, and the branch task selects
     which path is taken during execution.
 
-    📖 **Related documentation**  
+    📖 **Related documentation**
     https://airflow.apache.org/docs/apache-airflow/stable/howto/operator.html#branching
     """,
 ) as dag:
@@ -159,6 +159,7 @@ with DAG(
     )
     def branching_virtualenv(choices) -> str:
         import random
+
         import numpy as np
 
         print(f"Some numpy stuff: {np.arange(6)}")

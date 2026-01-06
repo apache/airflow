@@ -67,7 +67,7 @@ from airflow.sdk import PokeReturnValue, dag, task
       tasks to consume metadata discovered during sensing without re-querying
       the external system
 
-    📖 **Related documentation**  
+    📖 **Related documentation**
     https://airflow.apache.org/docs/apache-airflow/stable/howto/operator.html#sensors
     """,
 )

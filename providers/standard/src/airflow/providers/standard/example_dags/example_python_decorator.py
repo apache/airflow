@@ -42,20 +42,26 @@ PATH_TO_PYTHON_BINARY = sys.executable
     catchup=False,
     tags=["example"],
     doc_md="""
-    ### Python Decorator Example
+    ### TaskFlow API: Python Task Execution and Isolation
 
-    This example DAG demonstrates how to use the TaskFlow API
-    with the `@task` decorator to define Python tasks in a clean
-    and Pythonic way.
+    The TaskFlow API (`@task` decorator) provides a Pythonic alternative to PythonOperator, with key advantages: automatic dependency inference from return values, simplified XCom handling, and improved code readability. Functions decorated with `@task` are tasks in your DAG graph, not Python functions called during parsing—this distinction enables proper task isolation, testing, and dynamic task generation.
 
-    **What this DAG demonstrates:**
-    - Creating tasks using the `@task` decorator
-    - Passing data and context between tasks
-    - Using templated fields in Python tasks
-    - Running tasks in virtual environments and external Python interpreters
+    **When to use TaskFlow over PythonOperator:**
+    - Complex data pipelines where tasks pass structured data (dicts, objects); TaskFlow's implicit XCom handling reduces boilerplate
+    - Workflows requiring high code readability and maintainability; Python functions are easier to test and understand than operator instantiation
+    - Dynamic task generation and conditional task creation; decorator syntax integrates seamlessly with Python control flow
 
-    📖 Related documentation:
-    https://airflow.apache.org/docs/apache-airflow/stable/tutorial/taskflow.html
+    **Dependency isolation with virtualenv and external Python:**
+    - `@task.virtualenv`: Creates isolated Python environments per task, essential when tasks require conflicting libraries (e.g., TensorFlow 1.x vs. 2.x in the same DAG) or strict reproducibility requirements
+    - `@task.external_python`: Delegates execution to a pre-installed Python interpreter, reducing overhead when isolation is needed but virtualenv creation is too expensive
+    - Both patterns prevent DAG-level package conflicts and enable using multiple Python versions in a single workflow
+
+    **Important behavior:**
+    - TaskFlow functions execute at task runtime in the chosen environment, not during DAG parsing; heavy imports inside functions avoid DAG initialization overhead
+    - Return values are automatically serialized to XCom; XCom limits and serialization backends apply
+    - Virtualenv and external_python tasks consume additional executor resources and network bandwidth for environment setup
+
+    📖 [TaskFlow API Documentation](https://airflow.apache.org/docs/apache-airflow/stable/tutorial/taskflow.html)
     """
 )
 def example_python_decorator():
@@ -103,6 +109,7 @@ def example_python_decorator():
         to import the library before it is installed.
         """
         from time import sleep
+
         from colorama import Back, Fore, Style
 
         print(Fore.RED + "some red text")
