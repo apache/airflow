@@ -94,6 +94,7 @@ if TYPE_CHECKING:
     )
     from airflow.sdk.log import redact as redact
     from airflow.sdk.observability.stats import Stats as Stats
+    from airflow.sdk.plugins_manager import AirflowPlugin as AirflowPlugin
 
     # Airflow 3-only exceptions (conditionally imported)
     if AIRFLOW_V_3_0_PLUS:
@@ -173,6 +174,10 @@ _IMPORT_MAP: dict[str, str | tuple[str, ...]] = {
     # Notifiers
     # ============================================================================
     "BaseNotifier": ("airflow.sdk", "airflow.notifications.basenotifier"),
+    # ============================================================================
+    # Plugins
+    # ============================================================================
+    "AirflowPlugin": ("airflow.sdk.plugins_manager", "airflow.plugins_manager"),
     # ============================================================================
     # Operator Links & Task Groups
     # ============================================================================

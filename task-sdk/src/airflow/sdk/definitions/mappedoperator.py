@@ -51,7 +51,6 @@ from airflow.sdk.definitions._internal.expandinput import (
 )
 from airflow.sdk.definitions._internal.types import NOTSET
 from airflow.serialization.enums import DagAttributeTypes
-from airflow.task.priority_strategy import PriorityWeightStrategy, validate_and_load_priority_weight_strategy
 
 if TYPE_CHECKING:
     import datetime
@@ -67,6 +66,7 @@ if TYPE_CHECKING:
     )
     from airflow.sdk.definitions.operator_resources import Resources
     from airflow.sdk.definitions.param import ParamsDict
+    from airflow.task.priority_strategy import PriorityWeightStrategy
     from airflow.triggers.base import StartTriggerArgs
 
 ValidationSource = Literal["expand"] | Literal["partial"]
@@ -563,13 +563,11 @@ class MappedOperator(AbstractOperator):
 
     @property
     def weight_rule(self) -> PriorityWeightStrategy:
-        return validate_and_load_priority_weight_strategy(
-            self.partial_kwargs.get("weight_rule", DEFAULT_WEIGHT_RULE)
-        )
+        return self.partial_kwargs.get("weight_rule", DEFAULT_WEIGHT_RULE)
 
     @weight_rule.setter
     def weight_rule(self, value: str | PriorityWeightStrategy) -> None:
-        self.partial_kwargs["weight_rule"] = validate_and_load_priority_weight_strategy(value)
+        self.partial_kwargs["weight_rule"] = value
 
     @property
     def max_active_tis_per_dag(self) -> int | None:
@@ -759,19 +757,13 @@ class MappedOperator(AbstractOperator):
             "params": params,
         }
 
-    def unmap(self, resolve: None | Mapping[str, Any]) -> BaseOperator:
+    def unmap(self, resolve: Mapping[str, Any]) -> BaseOperator:
         """
         Get the "normal" Operator after applying the current mapping.
 
         :meta private:
         """
-        if isinstance(resolve, Mapping):
-            kwargs = resolve
-        elif resolve is not None:
-            kwargs, _ = self._expand_mapped_kwargs(*resolve)
-        else:
-            raise RuntimeError("cannot unmap a non-serialized operator without context")
-        kwargs = self._get_unmap_kwargs(kwargs, strict=self._disallow_kwargs_override)
+        kwargs = self._get_unmap_kwargs(resolve, strict=self._disallow_kwargs_override)
         is_setup = kwargs.pop("is_setup", False)
         is_teardown = kwargs.pop("is_teardown", False)
         on_failure_fail_dagrun = kwargs.pop("on_failure_fail_dagrun", False)

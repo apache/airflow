@@ -808,6 +808,8 @@ class DagMaker(Generic[Dag], Protocol):
 
     def get_serialized_data(self) -> dict[str, Any]: ...
 
+    def sync_dag_to_db(self) -> None: ...
+
     def create_dagrun(
         self,
         run_id: str = ...,
@@ -818,6 +820,15 @@ class DagMaker(Generic[Dag], Protocol):
     ) -> DagRun: ...
 
     def create_dagrun_after(self, dagrun: DagRun, **kwargs) -> DagRun: ...
+
+    def create_ti(
+        self,
+        task_id: str,
+        dag_run: DagRun | None = ...,
+        dag_run_kwargs: dict | None = ...,
+        map_index: int = ...,
+        **kwargs,
+    ) -> TaskInstance: ...
 
     def run_ti(
         self,
@@ -1048,6 +1059,9 @@ def dag_maker(request) -> Generator[DagMaker, None, None]:
             self._bag_dag_compat(dag)
             self.session.flush()
 
+        def sync_dag_to_db(self):
+            self._make_serdag(self.dag)
+
         def create_dagrun(self, *, logical_date=NOTSET, **kwargs):
             from airflow.utils.state import DagRunState
             from airflow.utils.types import DagRunType
@@ -1156,15 +1170,15 @@ def dag_maker(request) -> Generator[DagMaker, None, None]:
                 **kwargs,
             )
 
-        def run_ti(self, task_id, dag_run=None, dag_run_kwargs=None, map_index=-1, **kwargs):
+        def create_ti(self, task_id, dag_run=None, dag_run_kwargs=None, map_index=-1):
             """
-            Create a dagrun and run a specific task instance with proper task refresh.
+            Create a specific task instance with proper task refresh.
 
-            This is a convenience method for running a single task instance:
+            This is a convenience method for creating a single task instance:
+
             1. Create a dagrun if it does not exist
             2. Get the specific task instance by task_id
             3. Refresh the task instance from the DAG task
-            4. Run the task instance
 
             Returns the created TaskInstance.
             """
@@ -1179,7 +1193,23 @@ def dag_maker(request) -> Generator[DagMaker, None, None]:
                     f"Task instance with task_id '{task_id}' not found in dag run. "
                     f"Available task_ids: {available_task_ids}"
                 )
+            if AIRFLOW_V_3_2_PLUS:
+                ti.refresh_from_task(self.serialized_dag.get_task(task_id))
+            else:
+                ti.refresh_from_task(self.dag.get_task(task_id))
+            return ti
 
+        def run_ti(self, task_id, dag_run=None, dag_run_kwargs=None, map_index=-1, **kwargs):
+            """
+            Run a specific task instance with proper task refresh.
+
+            This is a convenience method for running a single task instance:
+
+            1. Call ``create_ti()`` to obtain the task instance
+            2. Run the task instance
+
+            Returns the created and run TaskInstance.
+            """
             task = self.dag.get_task(task_id)
             if not AIRFLOW_V_3_1_PLUS:
                 # Airflow <3.1 has a bug for DecoratedOperator has an unused signature for
@@ -1193,13 +1223,13 @@ def dag_maker(request) -> Generator[DagMaker, None, None]:
                 #                                                                                      ^^^^^^^^^^^^^^
                 # E   AttributeError: '_PythonDecoratedOperator' object has no attribute 'xcom_push'
                 task.xcom_push = lambda *args, **kwargs: None
+
+            ti = self.create_ti(task_id, dag_run=dag_run, dag_run_kwargs=dag_run_kwargs, map_index=map_index)
             if AIRFLOW_V_3_2_PLUS:
                 from tests_common.test_utils.taskinstance import run_task_instance
 
-                ti.refresh_from_task(self.serialized_dag.get_task(task_id))
                 run_task_instance(ti, task, **kwargs)
             else:
-                ti.refresh_from_task(task)
                 ti.run(**kwargs)
             return ti
 

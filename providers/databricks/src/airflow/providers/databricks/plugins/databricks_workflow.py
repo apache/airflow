@@ -25,8 +25,13 @@ from sqlalchemy import select
 from airflow.exceptions import TaskInstanceNotFound
 from airflow.models.dagrun import DagRun
 from airflow.models.taskinstance import TaskInstance, TaskInstanceKey, clear_task_instances
-from airflow.plugins_manager import AirflowPlugin
-from airflow.providers.common.compat.sdk import AirflowException, BaseOperatorLink, TaskGroup, XCom
+from airflow.providers.common.compat.sdk import (
+    AirflowException,
+    AirflowPlugin,
+    BaseOperatorLink,
+    TaskGroup,
+    XCom,
+)
 from airflow.providers.databricks.hooks.databricks import DatabricksHook
 from airflow.providers.databricks.version_compat import AIRFLOW_V_3_0_PLUS
 from airflow.utils.log.logging_mixin import LoggingMixin

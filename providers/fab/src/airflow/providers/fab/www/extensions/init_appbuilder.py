@@ -49,6 +49,7 @@ if TYPE_CHECKING:
     from flask_appbuilder import BaseView
     from flask_appbuilder.security.manager import BaseSecurityManager
     from sqlalchemy.orm import Session
+    from sqlalchemy.orm.scoping import scoped_session
 
 
 # This product contains a modified portion of 'Flask App Builder' developed by Daniel Vaz Gaspar.
@@ -102,7 +103,7 @@ class AirflowAppBuilder:
     def __init__(
         self,
         app=None,
-        session: Session | None = None,
+        session: scoped_session | None = None,
         menu=None,
         indexview=None,
         base_template="airflow/main.html",
@@ -597,7 +598,7 @@ def init_appbuilder(app: Flask, enable_plugins: bool) -> AirflowAppBuilder:
         raise RuntimeError("Session not configured. Call configure_orm() first.")
     return AirflowAppBuilder(
         app=app,
-        session=settings.Session(),
+        session=settings.Session,
         base_template="airflow/main.html",
         enable_plugins=enable_plugins,
     )
