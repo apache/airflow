@@ -194,3 +194,47 @@ test.describe("validate date range", () => {
     await expect(backfillPage.backfillDateError).toBeVisible();
   });
 });
+
+test.describe("Backfill pause, resume, and cancel controls", () => {
+  test.describe.configure({ mode: "serial" });
+  test.setTimeout(180_000);
+
+  const testDagId = testConfig.testDag.id;
+  const controlFromDate = getPastDate(15);
+  const controlToDate = getPastDate(14);
+
+  let backfillPage: BackfillPage;
+
+  test.beforeEach(async ({ page }) => {
+    backfillPage = new BackfillPage(page);
+
+    await backfillPage.createBackfill(testDagId, {
+      fromDate: controlFromDate,
+      reprocessBehavior: "All Runs",
+      toDate: controlToDate,
+    });
+
+    await backfillPage.navigateToBackfillsTab(testDagId);
+  });
+
+  test.afterEach(async () => {
+    try {
+      await backfillPage.clickCancelButton();
+    } catch {
+    }
+  });
+
+  test("verify pause and resume backfill", async () => {
+    await backfillPage.clickPauseButton();
+    expect(await backfillPage.isBackfillPaused()).toBe(true);
+
+    await backfillPage.clickPauseButton();
+    expect(await backfillPage.isBackfillPaused()).toBe(false);
+  });
+
+  test("verify cancel backfill", async () => {
+    await backfillPage.clickCancelButton();
+    await expect(backfillPage.pauseButton).not.toBeVisible();
+    await expect(backfillPage.cancelButton).not.toBeVisible();
+  });
+});

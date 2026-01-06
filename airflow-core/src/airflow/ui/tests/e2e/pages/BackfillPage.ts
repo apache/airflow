@@ -111,13 +111,12 @@ export class BackfillPage extends BasePage {
   public async clickCancelButton(): Promise<void> {
     await expect(this.cancelButton).toBeVisible({ timeout: 10_000 });
     await this.cancelButton.click();
-    await this.page.waitForTimeout(1000);
+    await expect(this.cancelButton).not.toBeVisible({ timeout: 10_000 });
   }
 
   public async clickPauseButton(): Promise<void> {
     await expect(this.pauseButton).toBeVisible({ timeout: 10_000 });
     await this.pauseButton.click();
-    await this.page.waitForTimeout(1000);
   }
 
   public async createBackfill(dagName: string, options: CreateBackfillOptions): Promise<void> {
@@ -308,10 +307,6 @@ export class BackfillPage extends BasePage {
     return await headers.count();
   }
 
-  public async isBackfillDateErrorVisible(): Promise<boolean> {
-    return this.backfillDateError.isVisible();
-  }
-
   public async isBackfillPaused(): Promise<boolean> {
     await expect(this.pauseButton).toBeVisible({ timeout: 10_000 });
     const ariaLabel = await this.pauseButton.getAttribute("aria-label");
@@ -367,10 +362,6 @@ export class BackfillPage extends BasePage {
     const menuItem = this.page.locator(`[role="menuitem"]:has-text("${columnName}")`);
 
     await menuItem.click();
-  }
-
-  public async waitForBackfillCompletion(timeout: number = 30_000): Promise<void> {
-    await expect(this.backfillBanner).toBeHidden({ timeout });
   }
 
   public async waitForNoActiveBackfill(): Promise<void> {
