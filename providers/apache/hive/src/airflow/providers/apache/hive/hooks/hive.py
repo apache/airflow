@@ -16,6 +16,12 @@
 # specific language governing permissions and limitations
 # under the License.
 from __future__ import annotations
+try:
+    from sqlalchemy.engine import URL
+    SQLALCHEMY_INSTALLED = True
+except ImportError:
+    SQLALCHEMY_INSTALLED = False
+    URL = None
 
 import contextlib
 import csv
@@ -29,7 +35,6 @@ from tempfile import NamedTemporaryFile, TemporaryDirectory
 from typing import TYPE_CHECKING, Any, Literal
 
 from deprecated import deprecated
-from sqlalchemy.engine import URL
 from typing_extensions import overload
 
 from airflow.exceptions import AirflowProviderDeprecationWarning
@@ -1154,3 +1159,22 @@ class HiveServer2Hook(DbApiHook):
     def get_uri(self) -> str:
         """Return a SQLAlchemy engine URL as a string."""
         return self.sqlalchemy_url.render_as_string(hide_password=False)
+    def get_sqlalchemy_engine(self, engine_kwargs: dict[str, Any] | None = None):
+        """
+        Get a SQLAlchemy connection object.
+
+        :param engine_kwargs: Kwargs used in :func:`~sqlalchemy.create_engine`.
+        """
+        if not SQLALCHEMY_INSTALLED:
+            from airflow.exceptions import AirflowOptionalProviderFeatureException
+
+            raise AirflowOptionalProviderFeatureException(
+                "The 'apache-airflow-providers-apache-hive' provider "
+                "requires 'sqlalchemy' to be installed to use 'get_sqlalchemy_engine'. "
+                "You can install it by running: "
+                "pip install 'apache-airflow-providers-apache-hive[sqlalchemy]'"
+            )
+
+        from sqlalchemy import create_engine
+
+        return create_engine(self.get_uri(), **(engine_kwargs or {}))
