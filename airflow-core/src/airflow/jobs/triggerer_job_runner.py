@@ -34,12 +34,12 @@ from typing import TYPE_CHECKING, Annotated, Any, ClassVar, Literal, TypedDict
 
 import attrs
 import structlog
+from airflow._shared.module_loading import import_string
+from airflow._shared.timezones import timezone
 from pydantic import BaseModel, Field, TypeAdapter
 from sqlalchemy import func, select
 from structlog.contextvars import bind_contextvars as bind_log_contextvars
 
-from airflow._shared.module_loading import import_string
-from airflow._shared.timezones import timezone
 from airflow.configuration import conf
 from airflow.executors import workloads
 from airflow.jobs.base_job_runner import BaseJobRunner
@@ -74,7 +74,7 @@ from airflow.sdk.execution_time.comms import (
     UpdateHITLDetail,
     VariableResult,
     XComResult,
-    _RequestFrame,
+    _RequestFrame, _new_encoder,
 )
 from airflow.sdk.execution_time.supervisor import WatchedSubprocess, make_buffered_socket_reader
 from airflow.triggers import base as events
@@ -1080,18 +1080,50 @@ class TriggerRunner:
             msg.finished = None
 
         # Tell the monitor that we've finished triggers so it can update things
+        resp = await self.send_changes(msg)
+
+        self.to_create.extend(resp.to_create)
+        self.to_cancel.extend(resp.to_cancel)
+
+    async def send_changes(self, msg: messages.TriggerStateChanges) -> messages.TriggerStateSync:
+        response: messages.TriggerStateSync | None = None
+
         try:
-            resp = await self.comms_decoder.asend(msg)
+            response = await self.comms_decoder.asend(msg)
         except asyncio.IncompleteReadError:
             if task := asyncio.current_task():
                 task.cancel("EOF - shutting down")
-                return
-            raise
+            else:
+                raise
+        except NotImplementedError:
+            validated_events = self.validate_events(msg)
+            if not validated_events:
+                raise
+            msg.events = validated_events
+            return await self.send_changes(msg)
 
-        if not isinstance(resp, messages.TriggerStateSync):
+        if not isinstance(response, messages.TriggerStateSync):
             raise RuntimeError(f"Expected to get a TriggerStateSync message, instead we got {type(msg)}")
-        self.to_create.extend(resp.to_create)
-        self.to_cancel.extend(resp.to_cancel)
+
+        return response
+
+    def validate_events(self, msg: messages.TriggerStateChanges) -> list[tuple[int, events.DiscrimatedTriggerEvent]]:
+        validated_events: list[tuple[int, events.DiscrimatedTriggerEvent]] = []
+        req_encoder = _new_encoder()
+
+        for trigger_id, trigger_event in msg.events:
+            try:
+                req_encoder.encode(trigger_event)
+                validated_events.append((trigger_id, trigger_event))
+            except NotImplementedError:
+                logger.error(
+                    "Trigger %s returned non-serializable result %r. Cancelling trigger.",
+                    trigger_id,
+                    trigger_event,
+                )
+                self.to_cancel.append(trigger_id)
+
+        return validated_events
 
     async def block_watchdog(self):
         """

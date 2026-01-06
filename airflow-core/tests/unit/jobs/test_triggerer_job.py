@@ -438,6 +438,27 @@ class TestTriggerRunner:
         trigger_instance.cancel()
         await runner.cleanup_finished_triggers()
 
+    @pytest.mark.asyncio
+    async def test_sync_state_to_supervisor(self):
+        trigger_runner = TriggerRunner()
+        trigger_runner.comms_decoder.asend = AsyncMock(
+            side_effect=[
+                NotImplementedError(),
+                messages.TriggerStateSync(to_create=[], to_cancel=[]),
+            ]
+        )
+        trigger_runner.events.append((1, TriggerEvent(payload={"status": "SUCCESS"})))
+        trigger_runner.events.append((2, TriggerEvent(payload={"status": "FAILED"})))
+        trigger_runner.events.append(
+            (3, TriggerEvent(payload={"status": "SUCCESS", "data": object()}))
+        )
+
+        await trigger_runner.sync_state_to_supervisor(finished_ids=[])
+
+        assert trigger_runner.comms_decoder.asend.call_count == 2
+        assert len(trigger_runner.comms_decoder.asend.call_args_list[0].args[0].events) == 3
+        assert len(trigger_runner.comms_decoder.asend.call_args_list[1].args[0].events) == 2
+
 
 @pytest.mark.asyncio
 async def test_trigger_create_race_condition_38599(session, supervisor_builder, testing_dag_bundle):
