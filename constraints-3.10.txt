@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2026-01-07T02:28:37.769513
+# This constraints file was automatically generated on 2026-01-07T07:55:20.010255
 # via `uv pip install --resolution highest` for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -663,7 +663,7 @@ typer-slim==0.21.1
 typer==0.21.1
 types-protobuf==6.32.1.20251210
 types-pytz==2025.2.0.20251108
-types-requests==2.32.4.20250913
+types-requests==2.32.4.20260107
 typing-inspect==0.9.0
 typing-inspection==0.4.2
 typing_extensions==4.15.0
