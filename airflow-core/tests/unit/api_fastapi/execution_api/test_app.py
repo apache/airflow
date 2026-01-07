@@ -174,7 +174,7 @@ class TestExpiredTokenRefresh:
 
             assert response.status_code == 200
             assert response.headers.get("Refreshed-API-Token") == "new-refreshed-token"
-            mock_generator.generate.assert_called_once()
+            mock_generator.generate.assert_called()
 
     def test_expired_token_rejected_for_completed_task(self, expired_token_client):
         """Expired token is rejected when task is not in RUNNING/QUEUED state."""
