@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2026-01-06T19:50:10.396868
+# This constraints file was automatically generated on 2026-01-07T02:28:59.510205
 # via `uv pip install --resolution highest` for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -222,9 +222,9 @@ azure-mgmt-resource==24.0.0
 azure-mgmt-storage==24.0.0
 azure-nspkg==3.0.2
 azure-servicebus==7.14.3
-azure-storage-blob==12.27.1
-azure-storage-file-datalake==12.22.0
-azure-storage-file-share==12.23.1
+azure-storage-blob==12.28.0
+azure-storage-file-datalake==12.23.0
+azure-storage-file-share==12.24.0
 azure-synapse-artifacts==0.21.0
 azure-synapse-spark==0.7.0
 babel==2.17.0
@@ -322,7 +322,7 @@ google-api-core==2.28.1
 google-api-python-client==2.187.0
 google-auth-httplib2==0.3.0
 google-auth-oauthlib==1.2.2
-google-auth==2.45.0
+google-auth==2.47.0
 google-cloud-aiplatform==1.132.0
 google-cloud-alloydb==0.6.0
 google-cloud-appengine-logging==1.7.0
@@ -607,7 +607,7 @@ s3transfer==0.15.0
 sagemaker_studio==1.0.23
 scikit-learn==1.8.0
 scipy==1.16.3
-scramp==1.4.7
+scramp==1.4.8
 scrapbook==0.5.0
 segment-analytics-python==2.3.5
 sendgrid==6.12.4
