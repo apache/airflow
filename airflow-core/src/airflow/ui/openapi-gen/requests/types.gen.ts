@@ -2985,10 +2985,14 @@ export type GetTaskInstancesResponse = TaskInstanceCollectionResponse;
 export type BulkTaskInstancesData = {
     dagId: string;
     dagRunId: string;
+    /**
+     * If True, return affected task instances without making changes
+     */
+    dryRun?: boolean;
     requestBody: BulkBody_BulkTaskInstanceBody_;
 };
 
-export type BulkTaskInstancesResponse = BulkResponse;
+export type BulkTaskInstancesResponse = BulkResponse | TaskInstanceCollectionResponse;
 
 export type GetTaskInstancesBatchData = {
     dagId: "~";
@@ -5435,7 +5439,7 @@ export type $OpenApiTs = {
                 /**
                  * Successful Response
                  */
-                200: BulkResponse;
+                200: BulkResponse | TaskInstanceCollectionResponse;
                 /**
                  * Unauthorized
                  */

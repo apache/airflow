@@ -2426,7 +2426,8 @@ export class TaskInstanceService {
      * @param data.dagId
      * @param data.dagRunId
      * @param data.requestBody
-     * @returns BulkResponse Successful Response
+     * @param data.dryRun If True, return affected task instances without making changes
+     * @returns unknown Successful Response
      * @throws ApiError
      */
     public static bulkTaskInstances(data: BulkTaskInstancesData): CancelablePromise<BulkTaskInstancesResponse> {
@@ -2436,6 +2437,9 @@ export class TaskInstanceService {
             path: {
                 dag_id: data.dagId,
                 dag_run_id: data.dagRunId
+            },
+            query: {
+                dry_run: data.dryRun
             },
             body: data.requestBody,
             mediaType: 'application/json',

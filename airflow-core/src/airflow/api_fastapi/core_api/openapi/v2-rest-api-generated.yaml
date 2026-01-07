@@ -6967,6 +6967,15 @@ paths:
         schema:
           type: string
           title: Dag Run Id
+      - name: dry_run
+        in: query
+        required: false
+        schema:
+          type: boolean
+          description: If True, return affected task instances without making changes
+          default: false
+          title: Dry Run
+        description: If True, return affected task instances without making changes
       requestBody:
         required: true
         content:
@@ -6979,7 +6988,10 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/BulkResponse'
+                anyOf:
+                - $ref: '#/components/schemas/BulkResponse'
+                - $ref: '#/components/schemas/TaskInstanceCollectionResponse'
+                title: Response Bulk Task Instances
         '401':
           content:
             application/json:
