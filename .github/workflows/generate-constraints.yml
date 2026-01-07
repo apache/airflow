@@ -126,17 +126,9 @@ jobs:
         shell: bash
         timeout-minutes: 25
         run: |
-          breeze release-management generate-constraints --airflow-constraints-mode constraints
-          --answer yes --python "${PYTHON_VERSION}"
+          breeze release-management generate-constraints --airflow-constraints-mode constraints \
+            --answer yes --python "${PYTHON_VERSION}"
         if: inputs.generate-pypi-constraints == 'true'
-      - name: "Upload constraint artifacts"
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4.6.2
-        with:
-          name: constraints-${{ matrix.python-version }}
-          path: ./files/constraints-${{ matrix.python-version }}/constraints-*.txt
-          retention-days: 7
-          if-no-files-found: error
-        if: inputs.branch == 'main'
       - name: "Upload constraint artifacts non-default branches"
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4.6.2
         with:
@@ -144,7 +136,6 @@ jobs:
           path: ./files/constraints-${{ matrix.python-version }}-${{ inputs.branch }}/constraints-*.txt
           retention-days: 7
           if-no-files-found: error
-        if: inputs.branch != 'main'
       - name: "Dependency upgrade summary"
         shell: bash
         env:

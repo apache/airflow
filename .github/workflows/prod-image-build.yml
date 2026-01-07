@@ -239,7 +239,7 @@ jobs:
       - name: "Download constraints"
         uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093  # v4.3.0
         with:
-          pattern: constraints-${{ matrix.python-version }}-*
+          pattern: constraints-${{ matrix.python-version }}-${{ inputs.branch }}-*
           path: ./docker-context-files
         if: inputs.branch == 'main'
       - name: "Download constraints non-default branches"
@@ -302,8 +302,8 @@ jobs:
         uses: apache/infrastructure-actions/stash/save@1c35b5ccf8fba5d4c3fdf25a045ca91aa0cbc468
         with:
           # yamllint disable rule:line-length
-          key: >
-            prod-image-save-v3-${{ inputs.platform }}-${{ env.PYTHON_MAJOR_MINOR_VERSION }}-${{ inputs.branch }}
+          key: prod-image-save-v3-${{ inputs.platform }}-${{ env.PYTHON_MAJOR_MINOR_VERSION }}-${{ inputs.branch }}
+          # yamllint enable rule:line-length
           path: "/mnt/prod-image-save-*-${{ env.PYTHON_MAJOR_MINOR_VERSION }}.tar"
           if-no-files-found: 'error'
           retention-days: '2'
