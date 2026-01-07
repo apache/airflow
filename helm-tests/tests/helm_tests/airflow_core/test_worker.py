@@ -33,7 +33,7 @@ class TestWorker:
             ("CeleryExecutor", {"celery": {"persistence": {"enabled": True}}}, "StatefulSet"),
             ("CeleryKubernetesExecutor", {"celery": {"persistence": {"enabled": False}}}, "Deployment"),
             ("CeleryKubernetesExecutor", {"celery": {"persistence": {"enabled": True}}}, "StatefulSet"),
-            # Test workers.persistence.enabled flag when celery one is default (expected no impact on type)
+            # Test workers.persistence.enabled flag when celery one is default (expected no impact on kind)
             ("CeleryExecutor", {"persistence": {"enabled": False}}, "StatefulSet"),
             ("CeleryExecutor", {"persistence": {"enabled": True}}, "StatefulSet"),
             ("CeleryKubernetesExecutor", {"persistence": {"enabled": False}}, "StatefulSet"),

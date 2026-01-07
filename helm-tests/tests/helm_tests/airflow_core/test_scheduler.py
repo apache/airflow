@@ -47,7 +47,7 @@ class TestScheduler:
                 "StatefulSet",
             ),
             ("LocalExecutor", {"celery": {"persistence": {"enabled": False}}}, "Deployment"),
-            # Test workers.persistence.enabled flag when celery one is default (expected no impact on type)
+            # Test workers.persistence.enabled flag when celery one is default (expected no impact on kind)
             ("CeleryExecutor", {"persistence": {"enabled": False}}, "Deployment"),
             ("CeleryExecutor", {"persistence": {"enabled": True}}, "Deployment"),
             ("CeleryKubernetesExecutor", {"persistence": {"enabled": True}}, "Deployment"),

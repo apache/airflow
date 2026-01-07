@@ -308,7 +308,7 @@ DEPRECATION WARNING:
 
 {{- end }}
 
-{{- if .Values.workers.persistence.securityContexts.containers }}
+{{- if .Values.workers.persistence.securityContexts.container }}
 
  DEPRECATION WARNING:
     `workers.persistence.securityContexts` has been renamed to `workers.celery.persistence.securityContexts`.
