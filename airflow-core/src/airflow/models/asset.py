@@ -113,6 +113,9 @@ def remove_references_to_deleted_dags(session: Session):
         TaskOutletAssetReference,
     ]
 
+# The queries need to be done in separate steps, because in case of multiple dag processors on
+# MySQL there could be a deadlock caused by acquiring both exclusive lock for deletion and
+# shared lock for query in reverse sequence
     if stale_dag_ids := session.scalars(select(DagModel.dag_id).where(DagModel.is_stale)).all():
         for model in models_to_check:
             session.execute(
