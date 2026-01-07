@@ -58,7 +58,7 @@ or the :class:`~airflow.providers.amazon.aws.triggers.ssm.SsmRunCommandTrigger` 
     :start-after: [START howto_operator_run_command]
     :end-before: [END howto_operator_run_command]
 
-Exit Code Handling
+Exit code handling
 ^^^^^^^^^^^^^^^^^^
 
 By default, both :class:`~airflow.providers.amazon.aws.operators.ssm.SsmRunCommandOperator` and
