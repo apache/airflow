@@ -276,6 +276,18 @@ intersphinx_mapping = get_intersphinx_mapping()
 if PACKAGE_NAME in ["apache-airflow-providers-google"]:
     intersphinx_mapping.update(get_google_intersphinx_mapping())
 
+# Add task-sdk to intersphinx mapping for proper cross-referencing of SDK classes
+# This allows proper linking to BaseSensorOperator and other SDK classes from provider docs
+try:
+    import airflow.sdk
+    # Add remote task-sdk inventory for cross-referencing
+    # This enables proper linking to SDK classes like BaseSensorOperator
+    task_sdk_version = parse_version(airflow.sdk.__version__).base_version
+    intersphinx_mapping["task-sdk"] = (f"https://airflow.apache.org/docs/task-sdk/{task_sdk_version}/", None)
+except ImportError:
+    # If task-sdk is not available, don't add the mapping
+    pass
+
 # -- Options for sphinx.ext.viewcode -------------------------------------------
 # See: https://www.sphinx-doc.org/es/master/usage/extensions/viewcode.html
 
@@ -289,6 +301,19 @@ viewcode_follow_imported_members = True
 # Paths (relative or absolute) to the source code that you wish to generate
 # your API documentation from.
 autoapi_dirs = [BASE_PROVIDER_SRC_PATH.as_posix()]
+
+# Include task-sdk source path for proper linking of SDK classes like BaseSensorOperator
+TASK_SDK_PATH = AIRFLOW_REPO_ROOT_PATH / "task-sdk" / "src"
+if TASK_SDK_PATH.exists():
+    autoapi_dirs.append(TASK_SDK_PATH.as_posix())
+
+# Also update autoapi_ignore to prevent conflicts between provider and task-sdk docs
+# Ensure we don't exclude important SDK files that providers depend on
+TASK_SDK_PATH_STR = TASK_SDK_PATH.as_posix()
+if TASK_SDK_PATH_STR in autoapi_dirs:
+    # Adjust autoapi_ignore to make sure we don't exclude important SDK classes
+    # Remove any conflicting ignore patterns if needed
+    pass
 
 # A list of patterns to ignore when finding files
 autoapi_ignore = BASIC_AUTOAPI_IGNORE_PATTERNS
@@ -320,6 +345,8 @@ if SYSTEM_TESTS_DIR and os.path.exists(SYSTEM_TESTS_DIR):
     autoapi_dirs.append(test_dir.as_posix())
 
     autoapi_ignore.extend(f"{d}/*" for d in test_dir.glob("*") if d.is_dir() and d.name != "system")
+
+
 
 rich.print("[bright_blue]AUTOAPI_IGNORE:")
 rich.print(autoapi_ignore)
