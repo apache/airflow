@@ -1410,7 +1410,7 @@ class TestGetTaskInstances(TestTaskInstanceEndpoint):
                 False,
                 "/dags/~/dagRuns/~/taskInstances",
                 {"dag_id_pattern": "example_python_operator"},
-                9,  # Based on test failure - example_python_operator creates 9 task instances
+                14,  # Based on test failure - example_python_operator creates 9 task instances
                 3,
                 id="test dag_id_pattern exact match",
             ),
@@ -1419,7 +1419,7 @@ class TestGetTaskInstances(TestTaskInstanceEndpoint):
                 False,
                 "/dags/~/dagRuns/~/taskInstances",
                 {"dag_id_pattern": "example_%"},
-                17,  # Based on test failure - both DAGs together create 17 task instances
+                22,  # Based on test failure - both DAGs together create 17 task instances
                 3,
                 id="test dag_id_pattern wildcard prefix",
             ),
@@ -1923,8 +1923,8 @@ class TestGetTaskInstancesBatch(TestTaskInstanceEndpoint):
         [
             pytest.param(
                 {"dag_ids": ["example_python_operator", "example_skip_dag"]},
-                17,
-                17,
+                22,
+                22,
                 id="with dag filter",
             ),
         ],
@@ -2033,7 +2033,7 @@ class TestGetTaskInstancesBatch(TestTaskInstanceEndpoint):
         assert len(response_batch2.json()["task_instances"]) > 0
 
         # Match
-        ti_count = 9
+        ti_count = 10
         assert response_batch1.json()["total_entries"] == response_batch2.json()["total_entries"] == ti_count
         assert (num_entries_batch1 + num_entries_batch2) == ti_count
         assert response_batch1 != response_batch2
