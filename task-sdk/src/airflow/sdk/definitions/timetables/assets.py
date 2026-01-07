@@ -17,14 +17,14 @@
 
 from __future__ import annotations
 
-import typing
+from typing import TYPE_CHECKING
 
 import attrs
 
 from airflow.sdk.bases.timetable import BaseTimetable
 from airflow.sdk.definitions.asset import AssetAll, BaseAsset
 
-if typing.TYPE_CHECKING:
+if TYPE_CHECKING:
     from collections.abc import Collection
 
     from airflow.sdk import Asset
@@ -41,6 +41,26 @@ class AssetTriggeredTimetable(BaseTimetable):
     """
 
     asset_condition: BaseAsset = attrs.field(alias="assets")
+
+
+class PartitionMapper:
+    """
+    Base partition mapper class.
+
+    Maps keys from asset events to target dag run partitions.
+    """
+
+
+class IdentityMapper(PartitionMapper):
+    """Partition mapper that does not change the key."""
+
+
+@attrs.define
+class PartitionedAssetTimetable(AssetTriggeredTimetable):
+    """Asset-driven timetable that listens for partitioned assets."""
+
+    asset_condition: BaseAsset = attrs.field(alias="assets")
+    partition_mapper: PartitionMapper
 
 
 def _coerce_assets(o: Collection[Asset] | BaseAsset) -> BaseAsset:
