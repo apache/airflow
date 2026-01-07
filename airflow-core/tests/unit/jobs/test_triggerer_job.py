@@ -369,7 +369,7 @@ class TestTriggerRunner:
         trigger_runner = TriggerRunner()
         trigger_runner.comms_decoder = AsyncMock(spec=TriggerCommsDecoder)
         trigger_runner.comms_decoder.asend.return_value = messages.TriggerStateSync(
-            to_create=[], to_cancel=[]
+            to_create=[], to_cancel=set()
         )
 
         trigger_runner.to_create.append(workload)
@@ -437,14 +437,14 @@ class TestTriggerRunner:
         await runner.cleanup_finished_triggers()
 
     @pytest.mark.asyncio
+    @patch("airflow.sdk.execution_time.task_runner.SUPERVISOR_COMMS", create=True)
     async def test_sync_state_to_supervisor(self):
         trigger_runner = TriggerRunner()
-        trigger_runner.comms_decoder.asend = AsyncMock(
-            side_effect=[
-                NotImplementedError(),
-                messages.TriggerStateSync(to_create=[], to_cancel=[]),
-            ]
-        )
+        trigger_runner.comms_decoder = AsyncMock(spec=TriggerCommsDecoder)
+        trigger_runner.comms_decoder.asend.side_effect = [
+            NotImplementedError(),
+            messages.TriggerStateSync(to_create=[], to_cancel=set()),
+        ]
         trigger_runner.events.append((1, TriggerEvent(payload={"status": "SUCCESS"})))
         trigger_runner.events.append((2, TriggerEvent(payload={"status": "FAILED"})))
         trigger_runner.events.append((3, TriggerEvent(payload={"status": "SUCCESS", "data": object()})))
