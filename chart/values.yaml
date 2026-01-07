@@ -637,10 +637,11 @@ kerberos:
 
 # Airflow Worker Config
 workers:
-  # Number of Airflow Celery workers
+  # Number of Airflow Celery workers (deprecated, use `workers.celery.replicas` instead)
   replicas: 1
 
   # Max number of old Airflow Celery workers ReplicaSets to retain
+  # (deprecated, use `workers.celery.revisionHistoryLimit` instead)
   revisionHistoryLimit: ~
 
   # Command to use when running Airflow Celery workers and using pod-template-file (templated)
@@ -1011,6 +1012,12 @@ workers:
   useWorkerDedicatedServiceAccounts: false
 
   celery:
+    # Number of Airflow Celery workers
+    replicas: 1
+
+    # Max number of old Airflow Celery workers ReplicaSets to retain
+    revisionHistoryLimit: ~
+
     # Create ServiceAccount for Airflow Celery workers
     serviceAccount:
       # default value is true
@@ -2742,6 +2749,11 @@ redis:
     annotations: {}
     # the name of an existing PVC to use
     existingClaim:
+
+    persistentVolumeClaimRetentionPolicy: ~
+    # persistentVolumeClaimRetentionPolicy:
+    #   whenDeleted: Delete
+    #   whenScaled: Delete
 
   # Configuration for empty dir volume (if redis.persistence.enabled == false)
   # emptyDirConfig:

@@ -383,7 +383,7 @@ def setup_logging(filename):
     formatter = logging.Formatter(settings.SIMPLE_LOG_FORMAT)
     handler.setFormatter(formatter)
     root.addHandler(handler)
-    root.setLevel(settings.LOGGING_LEVEL)
+    root.setLevel(logging.INFO)
 
     return handler.stream
 

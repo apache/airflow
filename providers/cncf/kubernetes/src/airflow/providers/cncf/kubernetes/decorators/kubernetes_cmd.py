@@ -79,7 +79,7 @@ class _KubernetesCmdDecoratedOperator(DecoratedOperator, KubernetesPodOperator):
         else:
             self.cmds = generated
             self.arguments = []
-        context["ti"].render_templates()  # type: ignore[attr-defined]
+        self.render_template_fields(context)
         return super().execute(context)
 
     def _generate_cmds(self, context: Context) -> list[str]:
