@@ -305,7 +305,7 @@ class JWTValidator:
             raise jwt.InvalidTokenError("Missing 'kid' in token header")
         return header["kid"]
 
-    async def _get_validation_key(self, unvalidated: str) -> str | jwt.PyJWK:
+    async def get_validation_key(self, unvalidated: str) -> str | jwt.PyJWK:
         if self.secret_key:
             return self.secret_key
 
@@ -324,7 +324,7 @@ class JWTValidator:
         self, unvalidated: str, required_claims: dict[str, Any] | None = None
     ) -> dict[str, Any]:
         """Decode the JWT token, returning the validated claims or raising an exception."""
-        key = await self._get_validation_key(unvalidated)
+        key = await self.get_validation_key(unvalidated)
         claims = jwt.decode(
             unvalidated,
             key,

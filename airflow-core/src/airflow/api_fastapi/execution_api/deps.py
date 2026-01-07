@@ -20,21 +20,40 @@
 
 from typing import Any
 
+import jwt
 import structlog
 import svcs
 from fastapi import Depends, HTTPException, Request, status
 from fastapi.security import HTTPBearer
 from sqlalchemy import select
 
-from airflow.api_fastapi.auth.tokens import JWTValidator
+from airflow.api_fastapi.auth.tokens import JWTGenerator, JWTValidator
 from airflow.api_fastapi.common.db.common import AsyncSessionDep
 from airflow.api_fastapi.execution_api.datamodels.token import TIToken
 from airflow.configuration import conf
 from airflow.models import DagModel, TaskInstance
 from airflow.models.dagbundle import DagBundleModel
 from airflow.models.team import Team
+from airflow.utils.session import create_session_async
+from airflow.utils.state import TaskInstanceState
 
 log = structlog.get_logger(logger_name=__name__)
+
+# Valid states for token refresh - task must be queued or running
+REFRESHABLE_TASK_STATES = frozenset({TaskInstanceState.QUEUED, TaskInstanceState.RUNNING})
+
+
+async def _is_task_in_refreshable_state(task_instance_id: str) -> bool:
+    """
+    Check if a task instance is in a state that allows token refresh.
+
+    Only tasks in QUEUED or RUNNING state can have their tokens refreshed.
+    This prevents refreshing tokens for completed/failed tasks.
+    """
+    async with create_session_async() as session:
+        stmt = select(TaskInstance.state).where(TaskInstance.id == task_instance_id)
+        state = await session.scalar(stmt)
+        return state in REFRESHABLE_TASK_STATES
 
 
 # See https://github.com/fastapi/fastapi/issues/13056
@@ -48,12 +67,10 @@ DepContainer: svcs.Container = Depends(_container)
 
 class JWTBearer(HTTPBearer):
     """
-    A FastAPI security dependency that validates JWT tokens using for the Execution API.
+    FastAPI security dependency that validates JWT tokens for the Execution API.
 
-    This will validate the tokens are signed and that the ``sub`` is a UUID, but nothing deeper than that.
-
-    The dependency result will be an `TIToken` object containing the ``id`` UUID (from the ``sub``) and other
-    validated claims.
+    Returns a `TIToken` with the validated claims. Expired tokens can be refreshed
+    if the task is still in QUEUED or RUNNING state.
     """
 
     def __init__(
@@ -88,13 +105,86 @@ class JWTBearer(HTTPBearer):
                 validators = self.required_claims
             claims = await validator.avalidated_claims(creds.credentials, validators)
             return TIToken(id=claims["sub"], claims=claims)
+        except jwt.ExpiredSignatureError:
+            # Token expired - try to refresh if task is still in a valid state
+            log.debug("JWT token expired, attempting to refresh")
+            return await self._handle_expired_token(request, creds.credentials, validator, services)
         except Exception as err:
             log.warning(
                 "Failed to validate JWT",
                 exc_info=True,
-                token=creds.credentials,
             )
             raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=f"Invalid auth token: {err}")
+
+    async def _handle_expired_token(
+        self,
+        request: Request,
+        token: str,
+        validator: JWTValidator,
+        services,
+    ) -> TIToken:
+        """Handle an expired JWT by refreshing if task is still active."""
+        try:
+            key = await validator.get_validation_key(token)
+            claims = jwt.decode(
+                token,
+                key,
+                audience=validator.audience,
+                issuer=validator.issuer,
+                algorithms=validator.algorithm,
+                options={"verify_exp": False},
+                leeway=validator.leeway,
+            )
+
+            task_instance_id = claims.get("sub")
+            if not task_instance_id:
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail="Invalid auth token: missing subject claim",
+                )
+
+            if self.required_claims:
+                for claim, expected_value in self.required_claims.items():
+                    if expected_value.get("essential") and (
+                        claim not in claims or claims[claim] != expected_value.get("value")
+                    ):
+                        raise HTTPException(
+                            status_code=status.HTTP_403_FORBIDDEN,
+                            detail=f"Invalid auth token: invalid claim '{claim}'",
+                        )
+
+            if self.path_param_name:
+                path_id = request.path_params.get(self.path_param_name)
+                if path_id != task_instance_id:
+                    raise HTTPException(
+                        status_code=status.HTTP_403_FORBIDDEN,
+                        detail="Invalid auth token: subject mismatch",
+                    )
+
+            if not await _is_task_in_refreshable_state(task_instance_id):
+                log.warning(
+                    "Token refresh rejected: task not in refreshable state", task_instance_id=task_instance_id
+                )
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail="Token expired and task is not in a refreshable state",
+                )
+
+            generator: JWTGenerator = await services.aget(JWTGenerator)
+            refreshed_token = generator.generate(claims)
+            request.state.refreshed_token = refreshed_token
+
+            log.info("Refreshed expired JWT token", task_instance_id=task_instance_id)
+            return TIToken(id=claims["sub"], claims=claims)
+
+        except HTTPException:
+            raise
+        except Exception as err:
+            log.warning("Failed to refresh expired JWT token", exc_info=True, error=str(err))
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=f"Token expired and refresh failed: {err}",
+            )
 
 
 JWTBearerDep: TIToken = Depends(JWTBearer())

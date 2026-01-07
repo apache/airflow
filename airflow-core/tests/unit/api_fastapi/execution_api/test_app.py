@@ -16,8 +16,17 @@
 # under the License.
 from __future__ import annotations
 
-import pytest
+import time
+from unittest.mock import AsyncMock, patch
+from uuid import uuid4
 
+import jwt
+import pytest
+from fastapi.testclient import TestClient
+
+from airflow.api_fastapi.app import cached_app
+from airflow.api_fastapi.auth.tokens import JWTGenerator, JWTValidator
+from airflow.api_fastapi.execution_api.app import lifespan
 from airflow.api_fastapi.execution_api.datamodels.taskinstance import TaskInstance
 from airflow.api_fastapi.execution_api.versions import bundle
 
@@ -94,3 +103,115 @@ class TestCorrelationIdMiddleware:
 
         # Verify they didn't interfere with each other
         assert correlation_id_1 != correlation_id_2
+
+
+class TestExpiredTokenRefresh:
+    """Tests for expired JWT token refresh functionality."""
+
+    @pytest.fixture
+    def expired_token_client(self):
+        import svcs
+
+        app = cached_app(apps="execution")
+        original_registry = lifespan.registry
+        lifespan.registry = svcs.Registry()
+
+        with TestClient(app) as client:
+            yield client
+
+        lifespan.registry = original_registry
+
+    @pytest.fixture
+    def setup_variable(self):
+        from airflow.models.variable import Variable
+
+        Variable.set(key="test_var", value="test_value")
+        yield
+        try:
+            Variable.delete(key="test_var")
+        except Exception:
+            pass
+
+    def test_expired_token_refreshed_for_running_task(self, expired_token_client, setup_variable):
+        """Expired token is refreshed when task is in RUNNING state."""
+        task_id = str(uuid4())
+
+        mock_validator = AsyncMock(spec=JWTValidator)
+        mock_validator.avalidated_claims.side_effect = jwt.ExpiredSignatureError("Token has expired")
+        mock_validator.audience = "test-audience"
+        mock_validator.issuer = None
+        mock_validator.algorithm = ["HS256"]
+        mock_validator.leeway = 0
+        mock_validator.get_validation_key = AsyncMock(return_value="test-secret-key")
+
+        mock_generator = AsyncMock(spec=JWTGenerator)
+        mock_generator.generate.return_value = "new-refreshed-token"
+
+        lifespan.registry.register_value(JWTValidator, mock_validator)
+        lifespan.registry.register_value(JWTGenerator, mock_generator)
+
+        expired_token = jwt.encode(
+            {
+                "sub": task_id,
+                "exp": int(time.time()) - 3600,
+                "iat": int(time.time()) - 7200,
+                "nbf": int(time.time()) - 7200,
+                "aud": "test-audience",
+            },
+            "test-secret-key",
+            algorithm="HS256",
+        )
+
+        with patch(
+            "airflow.api_fastapi.execution_api.deps._is_task_in_refreshable_state",
+            new_callable=AsyncMock,
+            return_value=True,
+        ):
+            response = expired_token_client.get(
+                "/execution/variables/test_var",
+                headers={"Authorization": f"Bearer {expired_token}"},
+            )
+
+            assert response.status_code == 200
+            assert response.headers.get("Refreshed-API-Token") == "new-refreshed-token"
+            mock_generator.generate.assert_called_once()
+
+    def test_expired_token_rejected_for_completed_task(self, expired_token_client):
+        """Expired token is rejected when task is not in RUNNING/QUEUED state."""
+        task_id = str(uuid4())
+
+        mock_validator = AsyncMock(spec=JWTValidator)
+        mock_validator.avalidated_claims.side_effect = jwt.ExpiredSignatureError("Token has expired")
+        mock_validator.audience = "test-audience"
+        mock_validator.issuer = None
+        mock_validator.algorithm = ["HS256"]
+        mock_validator.leeway = 0
+        mock_validator.get_validation_key = AsyncMock(return_value="test-secret-key")
+
+        lifespan.registry.register_value(JWTValidator, mock_validator)
+
+        expired_token = jwt.encode(
+            {
+                "sub": task_id,
+                "exp": int(time.time()) - 3600,
+                "iat": int(time.time()) - 7200,
+                "nbf": int(time.time()) - 7200,
+                "aud": "test-audience",
+            },
+            "test-secret-key",
+            algorithm="HS256",
+        )
+
+        with patch(
+            "airflow.api_fastapi.execution_api.deps._is_task_in_refreshable_state",
+            new_callable=AsyncMock,
+            return_value=False,
+        ):
+            response = expired_token_client.get(
+                "/execution/variables/test_var",
+                headers={"Authorization": f"Bearer {expired_token}"},
+            )
+
+            assert response.status_code == 403
+            assert "not in a refreshable state" in response.json()["detail"]
+            assert "Refreshed-API-Token" not in response.headers
