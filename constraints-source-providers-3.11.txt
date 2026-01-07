@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2026-01-07T18:11:16.448316
+# This constraints file was automatically generated on 2026-01-07T22:54:30.504531
 # via `uv sync --resolution highest for the "v3-1-test" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider distributions.
@@ -57,7 +57,7 @@ aioitertools==0.13.0
 aiomysql==0.3.2
 aioresponses==0.7.8
 aiosignal==1.4.0
-aiosqlite==0.22.1
+aiosqlite==0.21.0
 airbyte-api==0.53.0
 alabaster==1.0.0
 alembic==1.17.2
@@ -271,7 +271,7 @@ google-cloud-videointelligence==2.17.0
 google-cloud-vision==3.11.0
 google-cloud-workflows==1.19.0
 google-crc32c==1.8.0
-google-genai==1.56.0
+google-genai==1.57.0
 google-resumable-media==2.8.0
 googleapis-common-protos==1.72.0
 graphql-core==3.2.7
@@ -503,7 +503,7 @@ pyexasol==1.1.0
 pygtrie==2.5.0
 pyiceberg==0.10.0
 pykerberos==1.2.4
-pymongo==4.15.5
+pymongo==4.16.0
 pymssql==2.3.11
 pyodbc==5.3.0
 pyodps==0.12.5.1
