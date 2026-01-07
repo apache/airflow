@@ -2467,15 +2467,16 @@ class TestShortCircuitWithTeardown:
         assert set(actual_skipped) == {op3}
 
 
-@pytest.mark.skipif(not AIRFLOW_V_3_2_PLUS, reason="Test requires Airflow 3.2+")
 class TestPythonAsyncOperator(TestPythonOperator):
-    def test_run_async_task(self):
+    def test_run_async_task(self, caplog):
+        caplog.set_level(logging.INFO, logger=LOGGER_NAME)
+
         async def say_hello(name: str) -> str:
             await asyncio.sleep(1)
             return f"Hello {name}!"
 
-        ti = self.run_as_task(say_hello, return_ti=True, op_kwargs={"name": "world"})
-        assert ti.xcom_pull() == "Hello world!"
+        self.run_as_task(say_hello, op_kwargs={"name": "world"}, show_return_value_in_logs=True)
+        assert "Done. Returned value was: Hello world!" in caplog.messages
 
 
 @pytest.mark.parametrize(
