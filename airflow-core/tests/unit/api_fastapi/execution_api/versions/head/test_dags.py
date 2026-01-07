@@ -35,14 +35,14 @@ class TestDagState:
         clear_db_runs()
 
     @pytest.mark.parametrize(
-        "state, expected",
+        ("state", "expected"),
         [
-            (True, True),
-            (False, False),
-            (None, False),
+            pytest.param(True, True),
+            pytest.param(False, False),
+            pytest.param(None, False),
         ],
     )
-    def test_dag_is_paused(self, state, expected, client, session, dag_maker):
+    def test_dag_is_paused(self, client, session, dag_maker, state, expected):
         """Test DagState is active or paused"""
 
         dag_id = "test_dag_is_paused"

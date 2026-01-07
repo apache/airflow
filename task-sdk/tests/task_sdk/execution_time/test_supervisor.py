@@ -1431,8 +1431,7 @@ REQUEST_TEST_CASES = [
         client_mock=ClientMock(
             method_path="connections.get",
             args=("test_conn",),
-            response=ConnectionResult(conn_id="test_conn", conn_type="mysql", schema="mysql"),
-            # type: ignore[call-arg]
+            response=ConnectionResult(conn_id="test_conn", conn_type="mysql", schema="mysql"),  # type: ignore[call-arg]
         ),
         expected_body={
             "conn_id": "test_conn",
