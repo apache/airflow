@@ -69,6 +69,11 @@ dependencies = [
 # The optional dependencies should be modified in place in the generated file
 # Any change in the dependencies is preserved when the file is regenerated
 [project.optional-dependencies]
+sqlalchemy = [
+    "sqlalchemy>=1.4.49"git status
+git status
+
+]
 "amazon" = [
     "apache-airflow-providers-amazon>=2.6.0",
 ]

@@ -27,7 +27,6 @@ import psycopg2
 import psycopg2.extras
 from more_itertools import chunked
 from psycopg2.extras import DictCursor, NamedTupleCursor, RealDictCursor, execute_batch
-from sqlalchemy.engine import URL
 
 from airflow.exceptions import AirflowOptionalProviderFeatureException
 from airflow.providers.common.compat.sdk import AirflowException, Connection, conf
@@ -166,7 +165,14 @@ class PostgresHook(DbApiHook):
         return dst_type(value) if value is not None else None
 
     @property
-    def sqlalchemy_url(self) -> URL:
+    def sqlalchemy_url(self):
+        try:
+            from sqlalchemy.engine import URL
+        except (ImportError, ModuleNotFoundError) as err:
+            raise AirflowOptionalProviderFeatureException(
+                "SQLAlchemy is not installed. Please install it with "
+                "`pip install apache-airflow-providers-postgres[sqlalchemy]`."
+            ) from err
         conn = self.connection
         query = conn.extra_dejson.get("sqlalchemy_query", {})
         if not isinstance(query, dict):
