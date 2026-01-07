@@ -42,7 +42,7 @@
 # Note: Non committer engaged translators are listed in comments prevent making file syntax invalid
 # See: https://github.com/apache/airflow/blob/main/airflow-core/src/airflow/ui/public/i18n/README.md#43-engaged-translator
 airflow-core/src/airflow/ui/public/i18n/locales/ar/ @shahar1 @hussein-awala # + @ahmadtfarhan
-airflow-core/src/airflow/ui/public/i18n/locales/ca/ @jscheffl @bugraoz93 # + @ecodina
+airflow-core/src/airflow/ui/public/i18n/locales/ca/ @jscheffl @bugraoz93 # + @ecodina @oscarhernandezrodriguez
 airflow-core/src/airflow/ui/public/i18n/locales/de/ @jscheffl # + @TJaniF @m1racoli
 airflow-core/src/airflow/ui/public/i18n/locales/el/ @ashb # + @PApostol
 airflow-core/src/airflow/ui/public/i18n/locales/es/ @bbovenzi # + @aoelvp94
