@@ -34,7 +34,7 @@ const handleMouseEnter =
     const tasks = document.querySelectorAll<HTMLDivElement>(`#${event.currentTarget.id}`);
 
     tasks.forEach((task) => {
-      task.style.backgroundColor = "var(--chakra-colors-info-subtle)";
+      task.style.backgroundColor = "var(--chakra-colors-brand-muted)";
     });
 
     setHoveredTaskId(event.currentTarget.id.replaceAll("-", "."));
@@ -94,7 +94,7 @@ const Instance = ({ dagId, instance, isGroup, isMapped, onClick, runId, taskId }
   return (
     <Flex
       alignItems="center"
-      bg={selectedTaskId === taskId || selectedGroupId === taskId ? "info.muted" : undefined}
+      bg={selectedTaskId === taskId || selectedGroupId === taskId ? "brand.emphasized" : undefined}
       height="20px"
       id={`task-${taskId.replaceAll(".", "-")}`}
       justifyContent="center"
