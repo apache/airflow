@@ -718,7 +718,9 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
                     )
                     continue
 
-                if workload := self.create_workload(trigger=new_trigger_orm, dag_bag=dag_bag, session=session):
+                if workload := self.create_workload(
+                    trigger=new_trigger_orm, dag_bag=dag_bag, session=session
+                ):
                     to_create.append(workload)
 
             self.creating_triggers.extend(to_create)
