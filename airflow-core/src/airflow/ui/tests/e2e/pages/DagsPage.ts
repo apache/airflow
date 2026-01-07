@@ -36,7 +36,6 @@ export class DagsPage extends BasePage {
   // Pagination elements
   public readonly paginationNextButton: Locator;
   public readonly paginationPrevButton: Locator;
-
   public readonly stateElement: Locator;
   public readonly triggerButton: Locator;
 
