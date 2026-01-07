@@ -150,7 +150,7 @@ const MarkGroupTaskInstanceAsDialog = ({ groupTaskInstance, onClose, open, state
   };
 
   return (
-    <Dialog.Root lazyMount onOpenChange={onClose} open={open} size="xl">
+    <Dialog.Root lazyMount onOpenChange={onClose} open={open} size="xl" unmountOnExit>
       <Dialog.Content backdrop>
         <Dialog.Header>
           <VStack align="start" gap={4}>
