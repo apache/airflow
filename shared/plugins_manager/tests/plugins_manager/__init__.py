@@ -14,21 +14,3 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from __future__ import annotations
-
-from airflow.providers.fab.auth_manager.cli_commands.definition import (
-    ROLES_COMMANDS,
-    SYNC_PERM_COMMAND,
-    USERS_COMMANDS,
-)
-
-
-class TestCliDefinition:
-    def test_users_commands(self):
-        assert len(USERS_COMMANDS) == 8
-
-    def test_roles_commands(self):
-        assert len(ROLES_COMMANDS) == 7
-
-    def test_sync_perm_command(self):
-        assert SYNC_PERM_COMMAND.name == "sync-perm"

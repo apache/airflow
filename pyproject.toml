@@ -534,7 +534,7 @@ packages = []
     "apache-airflow-providers-amazon[s3fs]",
 ]
 "uv" = [
-    "uv>=0.9.21",
+    "uv>=0.9.22",
 ]
 
 [project.urls]
@@ -1351,6 +1351,7 @@ apache-airflow-shared-secrets-backend = { workspace = true }
 apache-airflow-shared-secrets-masker = { workspace = true }
 apache-airflow-shared-timezones = { workspace = true }
 apache-airflow-shared-observability = { workspace = true }
+apache-airflow-shared-plugins-manager = { workspace = true }
 # Automatically generated provider workspace items (update_airflow_pyproject_toml.py)
 apache-airflow-providers-airbyte = { workspace = true }
 apache-airflow-providers-alibaba = { workspace = true }
@@ -1475,6 +1476,7 @@ members = [
     "shared/secrets_masker",
     "shared/timezones",
     "shared/observability",
+    "shared/plugins_manager",
     # Automatically generated provider workspace members (update_airflow_pyproject_toml.py)
     "providers/airbyte",
     "providers/alibaba",
