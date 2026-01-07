@@ -174,7 +174,7 @@ def set_metrics(
     )
 
     try:
-        from airflow.observability.metrics.dual_stats_manager import DualStatsManager
+        from airflow.sdk._shared.observability.metrics.dual_stats_manager import DualStatsManager
 
         DualStatsManager.gauge(
             "edge_worker.connected",

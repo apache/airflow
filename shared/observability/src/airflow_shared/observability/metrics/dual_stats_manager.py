@@ -18,14 +18,13 @@
 from __future__ import annotations
 
 from contextlib import AbstractContextManager, ExitStack, nullcontext
-from typing import TYPE_CHECKING, Any, cast
+from typing import TYPE_CHECKING, Any, ClassVar, cast
 
-from airflow._shared.observability.metrics.metrics_registry import MetricsRegistry
-from airflow.configuration import conf
-from airflow.observability.stats import Stats
+from .metrics_registry import MetricsRegistry
+from .stats import Stats
 
 if TYPE_CHECKING:
-    from airflow._shared.observability.metrics.protocols import DeltaType
+    from .protocols import DeltaType
 
 
 def _value_is_provided(value: Any):
@@ -108,8 +107,14 @@ def _get_tags_with_extra(
 class DualStatsManager:
     """Helper class to abstract enabling/disabling the export of metrics with legacy names."""
 
-    export_legacy_names = conf.getboolean("metrics", "legacy_names_on")
     metrics_dict = MetricsRegistry()
+
+    # 'True' is also the default on the config.
+    export_legacy_names: ClassVar[bool] = True
+
+    @classmethod
+    def initialize(cls, export_legacy_names: bool):
+        cls.export_legacy_names = export_legacy_names
 
     @classmethod
     def get_legacy_stat(cls, stat: str, variables: dict[str, Any]) -> str | None:

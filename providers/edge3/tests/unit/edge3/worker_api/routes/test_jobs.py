@@ -31,9 +31,9 @@ if TYPE_CHECKING:
     from sqlalchemy.orm import Session
 
 try:
-    from airflow.observability.metrics.dual_stats_manager import DualStatsManager  # noqa: F401
+    from airflow.sdk._shared.observability.metrics.dual_stats_manager import DualStatsManager  # noqa: F401
 
-    stats_reference = "airflow.observability.metrics.dual_stats_manager.DualStatsManager"
+    stats_reference = "airflow.sdk._shared.observability.metrics.dual_stats_manager.DualStatsManager"
     expected_call_count = 1
 except ImportError:
     from airflow.providers.common.compat.sdk import Stats

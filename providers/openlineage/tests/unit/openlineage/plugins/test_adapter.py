@@ -61,9 +61,9 @@ from tests_common.test_utils.taskinstance import create_task_instance
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V_3_2_PLUS
 
 try:
-    from airflow.observability.metrics.dual_stats_manager import DualStatsManager  # noqa: F401
+    from airflow.sdk._shared.observability.metrics.dual_stats_manager import DualStatsManager  # noqa: F401
 
-    stats_reference = "airflow.observability.metrics.dual_stats_manager.DualStatsManager"
+    stats_reference = "airflow.sdk._shared.observability.metrics.dual_stats_manager.DualStatsManager"
 except ImportError:
     stats_reference = "airflow.providers.openlineage.plugins.adapter.Stats"
 
