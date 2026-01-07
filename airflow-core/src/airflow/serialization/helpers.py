@@ -35,7 +35,7 @@ def serialize_template_field(template_field: Any, name: str) -> str | dict | lis
     Return a serializable representation of the templated field.
 
     If ``templated_field`` is provided via a callable, compute MD5 hash of source
-    and return following serialized value: ``<function fingerprint(MD5) hash_value``
+    and return following serialized value: ``<callable fingerprint(MD5) hash_value``
 
     If ``templated_field`` contains a class or instance that requires recursive
     templating, store them as strings. Otherwise simply return the field as-is.
@@ -77,7 +77,7 @@ def serialize_template_field(template_field: Any, name: str) -> str | dict | lis
         except AttributeError:
             if callable(template_field):
                 full_qualified_name = qualname(template_field, True)
-                serialized = f"<function {full_qualified_name}>"
+                serialized = f"<callable {full_qualified_name}>"
             else:
                 serialized = str(template_field)
         if len(serialized) > max_length:

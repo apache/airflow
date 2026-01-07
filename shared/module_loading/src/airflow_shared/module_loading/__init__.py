@@ -64,7 +64,7 @@ def import_string(dotted_path: str):
 
 
 def qualname(o: object | Callable, use_qualname: bool = False) -> str:
-    """Convert an attribute/class/function to a string importable by ``import_string``."""
+    """Convert an attribute/class/callable to a string importable by ``import_string``."""
     if callable(o) and hasattr(o, "__module__"):
         if use_qualname and hasattr(o, "__qualname__"):
             return f"{o.__module__}.{o.__qualname__}"

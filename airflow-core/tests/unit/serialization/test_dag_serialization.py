@@ -1657,11 +1657,11 @@ class TestStringifiedDAGs:
         serialized_task = OperatorSerialization.serialize_operator(task)
         assert (
             serialized_task.get("arg1")
-            == "<function unit.serialization.test_dag_serialization.TestStringifiedDAGs.test_template_field_via_callable_serialization.<locals>.fn_template_field_callable>"
+            == "<callable unit.serialization.test_dag_serialization.TestStringifiedDAGs.test_template_field_via_callable_serialization.<locals>.fn_template_field_callable>"
         )
         assert (
             serialized_task.get("arg2")
-            == "<function unit.serialization.test_dag_serialization.TestStringifiedDAGs.test_template_field_via_callable_serialization.<locals>.fn_returns_callable.<locals>.get_arg>"
+            == "<callable unit.serialization.test_dag_serialization.TestStringifiedDAGs.test_template_field_via_callable_serialization.<locals>.fn_returns_callable.<locals>.get_arg>"
         )
 
     def test_task_group_serialization(self):
