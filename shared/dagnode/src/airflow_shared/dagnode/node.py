@@ -163,7 +163,7 @@ class GenericDAGNode(Generic[Dag, Task, TaskGroup]):
                 levels_remaining -= 1
 
         return relatives
-    
+
     def get_flat_relatives(self, upstream: bool = False, depth: int | None = None) -> Collection[Task]:
         """
         Get a flat list of relatives, either upstream or downstream.
