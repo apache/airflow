@@ -103,23 +103,19 @@ export class DagsPage extends BasePage {
   /**
  * Open the Code tab on a DAG detail page
  */
-  public async openCodeTab(): Promise<void> {
-    const codeTab = this.page
-      .getByRole("tab", { name: "Code" });
-
-    await codeTab.waitFor({ state: "visible", timeout: 10_000 });
-    await codeTab.click();
-  }
+  public async openCodeTab(dagId: string): Promise<void> {
+    await this.page.goto(`/dags/${dagId}/code`);
+    await this.page.waitForLoadState("networkidle");
+  }  
 
   /**
    * Get the DAG code text displayed in the Code tab
    */
   public async getDagCodeText(): Promise<string | null> {
-    const codeBlock = this.page.locator("pre").first();
-
-    await codeBlock.waitFor({ state: "visible", timeout: 10_000 });
+    const codeBlock = this.page.getByTestId("dag-code-content");
+    await codeBlock.waitFor({ state: "visible" });
     return codeBlock.textContent();
-  }
+  }  
   
   /**
    * Trigger a Dag run

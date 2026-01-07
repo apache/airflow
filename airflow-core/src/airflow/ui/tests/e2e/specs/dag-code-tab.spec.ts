@@ -18,23 +18,50 @@
  */
   import { test, expect } from "@playwright/test";
   import { DagsPage } from "tests/e2e/pages/DagsPage";
+  import { testConfig } from "playwright.config";
 
   test.describe("Dag Code Tab", () => {
     let dagsPage: DagsPage;
-    const testDagId = "example_simplest_dag";
+    const testDagId = testConfig.testDag.id;
 
     test.beforeEach(async ({ page }) => {
       dagsPage = new DagsPage(page);
     });
 
-    test("should display Dag code", async () => {
-      await dagsPage.navigateToDagDetail(testDagId);
-    
-      await dagsPage.openCodeTab();
+    test("verify DAG code displays", async () => {
+      await dagsPage.openCodeTab(testDagId);
     
       const codeText = await dagsPage.getDagCodeText();
 
       expect(codeText).not.toBeNull();
       expect(codeText?.trim().length).toBeGreaterThan(0);
     });  
+
+    test("verify syntax highlighting is applied", async ({ page }) => {
+      await dagsPage.openCodeTab(testDagId);
+      const highlightedTokens = page
+      .getByTestId("dag-code-content")
+      .locator(".token, .hljs");    
+      await expect(highlightedTokens.first()).toBeVisible();
+    });
+
+    test("verify line numbers are displayed", async ({ page }) => {
+      await dagsPage.openCodeTab(testDagId);
+      await expect(page
+        .getByTestId("dag-code-content")
+        .locator("[class*=line]")
+        .first()).toBeVisible();
+    });
+
+    test("verify code is scrollable for long files", async ({ page }) => {
+      await dagsPage.openCodeTab(testDagId);
+      const codeContainer = page.getByTestId("dag-code-content");
+      await expect(codeContainer).toHaveCSS("overflow", /auto|scroll/);
+    });
+
+    test("verify code wrapping works", async ({ page }) => {
+      await dagsPage.openCodeTab(testDagId);
+      const codeContainer = page.getByTestId("dag-code-content");
+      await expect(codeContainer).toHaveCSS("white-space", /pre-wrap|break-spaces/);
+    }); 
   });
