@@ -203,6 +203,7 @@ PRODUCTION_IMAGE_TOOLS_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] =
                 "--from-run",
                 "--from-pr",
                 "--skip-image-file-deletion",
+                "--action-branch",
             ],
         },
     ],

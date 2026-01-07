@@ -71,6 +71,8 @@ runs:
         PLATFORM: ${{ inputs.platform }}
         PYTHON: ${{ inputs.python }}
         IMAGE_TYPE: ${{ inputs.image-type }}
-      run: >
-        breeze ${IMAGE_TYPE}-image load --platform "${PLATFORM}" --python "${PYTHON}" --image-file-dir "/mnt"
+        ACTION_BRANCH: ${{ inputs.branch }}
+      run: |
+        breeze ${IMAGE_TYPE}-image load --platform "${PLATFORM}" --python "${PYTHON}" \
+        --image-file-dir "/mnt" --action-branch "${ACTION_BRANCH}"
       shell: bash

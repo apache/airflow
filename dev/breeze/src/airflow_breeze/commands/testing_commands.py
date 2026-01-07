@@ -29,9 +29,9 @@ from time import sleep
 import click
 from click import IntRange
 
-from airflow_breeze.branch_defaults import AIRFLOW_BRANCH
 from airflow_breeze.commands.ci_image_commands import rebuild_or_pull_ci_image_if_needed
 from airflow_breeze.commands.common_options import (
+    option_action_branch,
     option_airflow_ui_base_url,
     option_allow_pre_releases,
     option_backend,
@@ -895,11 +895,7 @@ def task_sdk_integration_tests(
     show_default=True,
     envvar="AIRFLOW_CTL_VERSION",
 )
-@click.option(
-    "--action-branch",
-    help="GitHub Action branch to use to build the image when running tests from a GitHub Action",
-    default=AIRFLOW_BRANCH,
-)
+@option_action_branch
 @click.argument("extra_pytest_args", nargs=-1, type=click.Path(path_type=str))
 def airflowctl_integration_tests(
     python: str,

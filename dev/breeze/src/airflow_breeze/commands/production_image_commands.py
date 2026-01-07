@@ -56,6 +56,7 @@ from airflow_breeze.commands.common_image_options import (
     option_wait_for_image,
 )
 from airflow_breeze.commands.common_options import (
+    option_action_branch,
     option_answer,
     option_builder,
     option_commit_sha,
@@ -745,6 +746,7 @@ def save(
 @option_prod_image_file_to_save
 @option_python
 @option_skip_image_file_deletion
+@option_action_branch
 @option_verbose
 def load(
     from_run: str | None,
@@ -756,6 +758,7 @@ def load(
     platform: str,
     python: str,
     skip_image_file_deletion: bool,
+    action_branch: str | None,
 ):
     """Load PROD image from a file."""
     perform_environment_checks()
@@ -768,8 +771,9 @@ def load(
         )
         sys.exit(1)
 
+    path_suffix = f"{python}-{action_branch}"
     if not image_file:
-        image_file_to_load = image_file_dir / f"prod-image-save-{escaped_platform}-{python}.tar"
+        image_file_to_load = image_file_dir / f"prod-image-save-{escaped_platform}-{path_suffix}.tar"
     elif image_file.is_absolute() or image_file.exists():
         image_file_to_load = image_file
     else:
@@ -782,9 +786,9 @@ def load(
     if not image_file_to_load.exists():
         get_console().print(f"[error]The image {image_file_to_load} does not exist.[/]")
         sys.exit(1)
-    if not image_file_to_load.name.endswith(f"-{python}.tar"):
+    if not image_file_to_load.name.endswith(f"-{path_suffix}.tar"):
         get_console().print(
-            f"[error]The image file {image_file_to_load} does not end with '-{python}.tar'. Exiting.[/]"
+            f"[error]The image file {image_file_to_load} does not end with '-{path_suffix}.tar'. Exiting.[/]"
         )
         sys.exit(1)
     if not image_file_to_load.name.startswith(f"prod-image-save-{escaped_platform}"):
@@ -793,7 +797,7 @@ def load(
             f". Exiting.[/]"
         )
         sys.exit(1)
-    get_console().print(f"[info]Loading Python PROD image from {image_file_to_load}[/]")
+    get_console().print(f"[info]Loading Python PROD image from {image_file_to_load} for {action_branch}[/]")
     result = run_command(["docker", "image", "load", "-i", image_file_to_load.as_posix()], check=False)
     if result.returncode != 0:
         get_console().print(f"[error]Error when loading image: {result.stdout}[/]")
