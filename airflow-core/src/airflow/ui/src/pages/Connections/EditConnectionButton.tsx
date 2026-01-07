@@ -46,6 +46,7 @@ const EditConnectionButton = ({ connection, disabled }: Props) => {
     password: connection.password ?? "",
     port: connection.port?.toString() ?? "",
     schema: connection.schema ?? "",
+    team_name: connection.team_name ?? "",
   };
   const { editConnection, error, isPending, setError } = useEditConnection(initialConnectionValue, {
     onSuccessConfirm: onClose,

@@ -26,6 +26,7 @@ export const handlers: Array<HttpHandler> = [
       enable_swagger_ui: true,
       hide_paused_dags_by_default: false,
       instance_name: "Airflow",
+      multi_team: false,
       page_size: 15,
       require_confirmation_dag_change: false,
       test_connection: "Disabled",

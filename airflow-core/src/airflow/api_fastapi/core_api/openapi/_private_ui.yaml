@@ -1355,6 +1355,9 @@ components:
           anyOf:
           - $ref: '#/components/schemas/Theme'
           - type: 'null'
+        multi_team:
+          type: boolean
+          title: Multi Team
       type: object
       required:
       - page_size
@@ -1368,6 +1371,7 @@ components:
       - dashboard_alert
       - show_external_log_redirect
       - theme
+      - multi_team
       title: ConfigResponse
       description: configuration serializer.
     ConnectionHookFieldBehavior:
