@@ -21,7 +21,6 @@ from typing import TYPE_CHECKING, Any
 
 from botocore.exceptions import WaiterError
 
-from airflow.configuration import conf
 from airflow.providers.amazon.aws.hooks.ssm import SsmHook
 from airflow.providers.amazon.aws.operators.base_aws import AwsBaseOperator
 from airflow.providers.amazon.aws.triggers.ssm import SsmRunCommandTrigger
