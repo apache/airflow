@@ -226,7 +226,7 @@ export class DagsPage extends BasePage {
    */
   public async triggerDag(dagName: string): Promise<string | null> {
     await this.navigateToDagDetail(dagName);
-    await this.triggerButton.waitFor({ state: "visible", timeout: 30000 });
+    await this.triggerButton.waitFor({ state: "visible", timeout: 30_000 });
     await this.triggerButton.click();
     const dagRunId = await this.handleTriggerDialog();
 
@@ -309,7 +309,7 @@ export class DagsPage extends BasePage {
     await this.page.waitForLoadState("networkidle");
 
     // Verify URL contains the run ID
-    await expect(this.page).toHaveURL(new RegExp(`/runs/${runId.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}`));
+    await expect(this.page).toHaveURL(new RegExp(`/runs/${runId.replaceAll(/[$()*+.?[\\\]^{|}]/g, "\\$&")}`));
   }
 
   /**
