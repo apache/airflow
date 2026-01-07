@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2026-01-07T08:24:55.645286
+# This constraints file was automatically generated on 2026-01-07T14:11:17.435082
 # via `uv pip install --resolution highest` for the "v3-1-test" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -423,7 +423,7 @@ jsonpath-ng==1.7.0
 jsonpath-python==1.1.4
 jsonpickle==3.4.2
 jsonschema-specifications==2025.9.1
-jsonschema==4.25.1
+jsonschema==4.26.0
 jupyter_client==8.7.0
 jupyter_core==5.9.1
 jupyterlab_pygments==0.3.0
