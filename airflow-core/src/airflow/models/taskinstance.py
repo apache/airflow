@@ -111,6 +111,7 @@ if TYPE_CHECKING:
     from airflow.api_fastapi.execution_api.datamodels.asset import AssetProfile
     from airflow.models.dag import DagModel
     from airflow.models.dagrun import DagRun
+    from airflow.sdk.execution_time.task_runner import RuntimeTaskInstance
     from airflow.serialization.definitions.dag import SerializedDAG
     from airflow.serialization.definitions.mappedoperator import Operator
     from airflow.serialization.definitions.taskgroup import SerializedTaskGroup
@@ -1429,11 +1430,31 @@ class TaskInstance(Base, LoggingMixin):
                 .values(last_heartbeat_at=timezone.utcnow())
             )
 
+    def to_runtime(self) -> RuntimeTaskInstance:
+        from airflow.sdk.execution_time.task_runner import RuntimeTaskInstance
+
+        return RuntimeTaskInstance.model_construct(
+            id=self.id,
+            task_id=self.task_id,
+            dag_id=self.dag_id,
+            run_id=self.run_id,
+            try_number=self.try_number,
+            dag_version_id=self.dag_version_id,
+            map_index=self.map_index,
+            hostname=self.hostname,
+            task=self.task,
+            max_tries=self.max_tries,
+            start_date=self.start_date,
+            end_date=self.end_date,
+            state=self.state,
+            rendered_map_index=self.rendered_map_index,
+        )
+
     @property
     def start_trigger_args(self) -> StartTriggerArgs | None:
         if self.task:
             if self.task.is_mapped:
-                context = self.get_template_context()
+                context = self.to_runtime().get_template_context()
                 if self.task.expand_start_from_trigger(context=context):
                     return self.task.expand_start_trigger_args(context=context)
             elif self.task.start_from_trigger is True:
