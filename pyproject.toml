@@ -534,7 +534,7 @@ packages = []
     "apache-airflow-providers-amazon[s3fs]",
 ]
 "uv" = [
-    "uv>=0.9.21",
+    "uv>=0.9.22",
 ]
 
 [project.urls]
@@ -1289,12 +1289,14 @@ dev = [
     "apache-airflow-ctl",
     "apache-airflow-ctl-tests",
     "apache-airflow-shared-configuration",
+    "apache-airflow-shared-dagnode",
     "apache-airflow-shared-logging",
     "apache-airflow-shared-module-loading",
+    "apache-airflow-shared-observability",
+    "apache-airflow-shared-plugins-manager",
     "apache-airflow-shared-secrets-backend",
     "apache-airflow-shared-secrets-masker",
     "apache-airflow-shared-timezones",
-    "apache-airflow-shared-observability",
 ]
 
 # To build docs:
@@ -1347,10 +1349,11 @@ apache-airflow-shared-configuration = { workspace = true }
 apache-airflow-shared-dagnode = { workspace = true }
 apache-airflow-shared-logging = { workspace = true }
 apache-airflow-shared-module-loading = { workspace = true }
+apache-airflow-shared-observability = { workspace = true }
+apache-airflow-shared-plugins-manager = { workspace = true }
 apache-airflow-shared-secrets-backend = { workspace = true }
 apache-airflow-shared-secrets-masker = { workspace = true }
 apache-airflow-shared-timezones = { workspace = true }
-apache-airflow-shared-observability = { workspace = true }
 # Automatically generated provider workspace items (update_airflow_pyproject_toml.py)
 apache-airflow-providers-airbyte = { workspace = true }
 apache-airflow-providers-alibaba = { workspace = true }
@@ -1469,12 +1472,14 @@ members = [
     "providers-summary-docs",
     "docker-stack-docs",
     "shared/configuration",
-    "shared/module_loading",
+    "shared/dagnode",
     "shared/logging",
+    "shared/module_loading",
+    "shared/observability",
+    "shared/plugins_manager",
     "shared/secrets_backend",
     "shared/secrets_masker",
     "shared/timezones",
-    "shared/observability",
     # Automatically generated provider workspace members (update_airflow_pyproject_toml.py)
     "providers/airbyte",
     "providers/alibaba",
