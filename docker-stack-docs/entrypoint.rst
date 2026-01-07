@@ -132,7 +132,7 @@ if you specify extra arguments. For example:
 
 .. code-block:: bash
 
-  docker run -it apache/airflow:3.1.5-python3.10 bash -c "ls -la"
+  docker run -it apache/airflow:3.1.6-python3.10 bash -c "ls -la"
   total 16
   drwxr-xr-x 4 airflow root 4096 Jun  5 18:12 .
   drwxr-xr-x 1 root    root 4096 Jun  5 18:12 ..
@@ -144,7 +144,7 @@ you pass extra parameters. For example:
 
 .. code-block:: bash
 
-  > docker run -it apache/airflow:3.1.5-python3.10 python -c "print('test')"
+  > docker run -it apache/airflow:3.1.6-python3.10 python -c "print('test')"
   test
 
 If first argument equals to ``airflow`` - the rest of the arguments is treated as an Airflow command
@@ -152,13 +152,13 @@ to execute. Example:
 
 .. code-block:: bash
 
-   docker run -it apache/airflow:3.1.5-python3.10 airflow webserver
+   docker run -it apache/airflow:3.1.6-python3.10 airflow webserver
 
 If there are any other arguments - they are simply passed to the "airflow" command
 
 .. code-block:: bash
 
-  > docker run -it apache/airflow:3.1.5-python3.10 help
+  > docker run -it apache/airflow:3.1.6-python3.10 help
     usage: airflow [-h] GROUP_OR_COMMAND ...
 
     Positional Arguments:
@@ -366,7 +366,7 @@ database and creating an ``admin/admin`` Admin user with the following command:
     --env "_AIRFLOW_DB_MIGRATE=true" \
     --env "_AIRFLOW_WWW_USER_CREATE=true" \
     --env "_AIRFLOW_WWW_USER_PASSWORD=admin" \
-      apache/airflow:3.1.5-python3.10 webserver
+      apache/airflow:3.1.6-python3.10 webserver
 
 
 .. code-block:: bash
@@ -375,7 +375,7 @@ database and creating an ``admin/admin`` Admin user with the following command:
     --env "_AIRFLOW_DB_MIGRATE=true" \
     --env "_AIRFLOW_WWW_USER_CREATE=true" \
     --env "_AIRFLOW_WWW_USER_PASSWORD_CMD=echo admin" \
-      apache/airflow:3.1.5-python3.10 webserver
+      apache/airflow:3.1.6-python3.10 webserver
 
 The commands above perform initialization of the SQLite database, create admin user with admin password
 and Admin role. They also forward local port ``8080`` to the webserver port and finally start the webserver.
@@ -415,6 +415,6 @@ Example:
     --env "_AIRFLOW_DB_MIGRATE=true" \
     --env "_AIRFLOW_WWW_USER_CREATE=true" \
     --env "_AIRFLOW_WWW_USER_PASSWORD_CMD=echo admin" \
-      apache/airflow:3.1.5-python3.10 webserver
+      apache/airflow:3.1.6-python3.10 webserver
 
 This method is only available starting from Docker image of Airflow 2.1.1 and above.
