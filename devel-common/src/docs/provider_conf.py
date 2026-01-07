@@ -278,15 +278,11 @@ if PACKAGE_NAME in ["apache-airflow-providers-google"]:
 
 # Add task-sdk to intersphinx mapping for proper cross-referencing of SDK classes
 # This allows proper linking to BaseSensorOperator and other SDK classes from provider docs
-try:
-    import airflow.sdk
-    # Add remote task-sdk inventory for cross-referencing
-    # This enables proper linking to SDK classes like BaseSensorOperator
-    task_sdk_version = parse_version(airflow.sdk.__version__).base_version
-    intersphinx_mapping["task-sdk"] = (f"https://airflow.apache.org/docs/task-sdk/{task_sdk_version}/", None)
-except ImportError:
-    # If task-sdk is not available, don't add the mapping
-    pass
+import airflow.sdk
+# Add remote task-sdk inventory for cross-referencing
+# This enables proper linking to SDK classes like BaseSensorOperator
+task_sdk_version = parse_version(airflow.sdk.__version__).base_version
+intersphinx_mapping["task-sdk"] = (f"https://airflow.apache.org/docs/task-sdk/{task_sdk_version}/", None)
 
 # -- Options for sphinx.ext.viewcode -------------------------------------------
 # See: https://www.sphinx-doc.org/es/master/usage/extensions/viewcode.html
