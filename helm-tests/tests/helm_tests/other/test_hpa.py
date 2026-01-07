@@ -33,14 +33,14 @@ class TestHPA:
         assert docs == []
 
     @pytest.mark.parametrize(
-        ("executor", "is_created"),
+        "executor",
         [
-            ("CeleryExecutor", True),
-            ("CeleryKubernetesExecutor", True),
-            ("CeleryExecutor,KubernetesExecutor", True),
+            "CeleryExecutor",
+            "CeleryKubernetesExecutor",
+            "CeleryExecutor,KubernetesExecutor",
         ],
     )
-    def test_hpa_enabled(self, executor, is_created):
+    def test_hpa_enabled(self, executor):
         """HPA should only be created when enabled and executor is Celery or CeleryKubernetes."""
         docs = render_chart(
             values={
@@ -49,10 +49,8 @@ class TestHPA:
             },
             show_only=["templates/workers/worker-hpa.yaml"],
         )
-        if is_created:
-            assert jmespath.search("metadata.name", docs[0]) == "release-name-worker"
-        else:
-            assert docs == []
+
+        assert jmespath.search("metadata.name", docs[0]) == "release-name-worker"
 
     @pytest.mark.parametrize(
         ("min_replicas", "max_replicas"),
@@ -106,16 +104,15 @@ class TestHPA:
     @pytest.mark.parametrize(
         ("enabled", "kind"),
         [
-            ("enabled", "StatefulSet"),
-            ("not_enabled", "Deployment"),
+            (True, "StatefulSet"),
+            (False, "Deployment"),
         ],
     )
     def test_persistence(self, enabled, kind):
         """If worker persistence is enabled, scaleTargetRef should be StatefulSet else Deployment."""
-        is_enabled = enabled == "enabled"
         docs = render_chart(
             values={
-                "workers": {"hpa": {"enabled": True}, "persistence": {"enabled": is_enabled}},
+                "workers": {"hpa": {"enabled": True}, "persistence": {"enabled": enabled}},
                 "executor": "CeleryExecutor",
             },
             show_only=["templates/workers/worker-hpa.yaml"],
