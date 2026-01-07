@@ -966,18 +966,24 @@ def _build_skaffold_config(
                         },
                         "setValues": set_values,
                     }
-                ]
-            }
+                ],
+            },
+            # include test sources (the `breeze k8s configure-cluster` command ) like nodeport for apiServer, volume for Dag, etc
+            # https://skaffold.dev/docs/references/yaml/?version=v4beta13#deploy-kubectl
+            "kubectl": {
+                "defaultNamespace": HELM_AIRFLOW_NAMESPACE,
+                "hooks": {
+                    "before": [
+                        {
+                            "host": {
+                                "command": ["kubectl", "apply", "-f", "nodeport.yaml,volumes.yaml"],
+                                "dir": (AIRFLOW_ROOT_PATH / "scripts" / "ci" / "kubernetes").as_posix(),
+                            }
+                        }
+                    ]
+                },
+            },
         },
-        "portForward": [
-            {
-                "resourceType": "deployment",
-                "resourceName": "airflow-api-server",
-                "namespace": HELM_AIRFLOW_NAMESPACE,
-                "port": 8080,
-                "localPort": api_server_port,
-            }
-        ],
     }
 
 
