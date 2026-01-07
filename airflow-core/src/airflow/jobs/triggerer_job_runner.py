@@ -1059,40 +1059,49 @@ class TriggerRunner:
             await asyncio.sleep(0)
         return finished_ids
 
-    async def sync_state_to_supervisor(self, finished_ids: list[int]):
+    def validate_state_changes(self, finished_ids: list[int]) -> messages.TriggerStateChanges:
         # Copy out of our dequeues in threadsafe manner to sync state with parent
-        events_to_send = []
+
+        req_encoder = _new_encoder()
+        events_to_send: list[tuple[int, DiscrimatedTriggerEvent]] = []
+        failures_to_send: list[tuple[int, list[str] | None]] = []
+
         while self.events:
-            data = self.events.popleft()
-            events_to_send.append(data)
+            trigger_id, trigger_event = self.events.popleft()
 
-        failures_to_send = []
+            try:
+                req_encoder.encode(trigger_event)
+                events_to_send.append((trigger_id, trigger_event))
+            except NotImplementedError as exc:
+                logger.error(
+                    "Trigger %s returned non-serializable result %r. Cancelling trigger.",
+                    trigger_id,
+                    trigger_event,
+                )
+                self.failed_triggers.append((trigger_id, exc))
+
         while self.failed_triggers:
-            id, exc = self.failed_triggers.popleft()
+            trigger_id, exc = self.failed_triggers.popleft()
             tb = format_exception(type(exc), exc, exc.__traceback__) if exc else None
-            failures_to_send.append((id, tb))
+            failures_to_send.append((trigger_id, tb))
 
-        msg = messages.TriggerStateChanges(
-            events=events_to_send, finished=finished_ids, failures=failures_to_send
+        return messages.TriggerStateChanges(
+            events=events_to_send if events_to_send else None,
+            finished=finished_ids if finished_ids else None,
+            failures=failures_to_send if failures_to_send else None,
         )
 
-        if not events_to_send:
-            msg.events = None
-
-        if not failures_to_send:
-            msg.failures = None
-
-        if not finished_ids:
-            msg.finished = None
+    async def sync_state_to_supervisor(self, finished_ids: list[int]):
+        msg = self.validate_state_changes(finished_ids=finished_ids)
 
         # Tell the monitor that we've finished triggers so it can update things
-        resp = await self.send_changes(msg)
+        resp = await self.send_state_changes(msg)
 
         if resp:
             self.to_create.extend(resp.to_create)
             self.to_cancel.extend(resp.to_cancel)
 
-    async def send_changes(self, msg: messages.TriggerStateChanges) -> messages.TriggerStateSync | None:
+    async def send_state_changes(self, msg: messages.TriggerStateChanges) -> messages.TriggerStateSync | None:
         try:
             response = await self.comms_decoder.asend(msg)
 
@@ -1105,34 +1114,6 @@ class TriggerRunner:
                 task.cancel("EOF - shutting down")
                 return None
             raise
-        except NotImplementedError:
-            msg = self.validate_state_changes(msg)
-            return await self.send_changes(msg)
-
-    @staticmethod
-    def validate_state_changes(msg: messages.TriggerStateChanges) -> messages.TriggerStateChanges:
-        events_to_send: list[tuple[int, DiscrimatedTriggerEvent]] = []
-        failures_to_send: list[tuple[int, list[str] | None]] = list(msg.failures or [])
-
-        if msg.events:
-            req_encoder = _new_encoder()
-
-            for trigger_id, trigger_event in msg.events:
-                try:
-                    req_encoder.encode(trigger_event)
-                    events_to_send.append((trigger_id, trigger_event))
-                except NotImplementedError as exc:
-                    logger.error(
-                        "Trigger %s returned non-serializable result %r. Cancelling trigger.",
-                        trigger_id,
-                        trigger_event,
-                    )
-                    tb = format_exception(type(exc), exc, exc.__traceback__) if exc else None
-                    failures_to_send.append((trigger_id, tb))
-
-        return messages.TriggerStateChanges(
-            events=events_to_send, finished=msg.finished, failures=failures_to_send
-        )
 
     async def block_watchdog(self):
         """

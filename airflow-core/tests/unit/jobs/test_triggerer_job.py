@@ -442,7 +442,6 @@ class TestTriggerRunner:
         trigger_runner = TriggerRunner()
         trigger_runner.comms_decoder = AsyncMock(spec=TriggerCommsDecoder)
         trigger_runner.comms_decoder.asend.side_effect = [
-            NotImplementedError(),
             messages.TriggerStateSync(to_create=[], to_cancel=set()),
         ]
         trigger_runner.events.append((1, TriggerEvent(payload={"status": "SUCCESS"})))
@@ -451,9 +450,8 @@ class TestTriggerRunner:
 
         await trigger_runner.sync_state_to_supervisor(finished_ids=[])
 
-        assert trigger_runner.comms_decoder.asend.call_count == 2
+        assert trigger_runner.comms_decoder.asend.call_count == 1
         assert len(trigger_runner.comms_decoder.asend.call_args_list[0].args[0].events) == 2
-        assert len(trigger_runner.comms_decoder.asend.call_args_list[1].args[0].events) == 3
 
 
 @pytest.mark.asyncio
