@@ -1761,7 +1761,7 @@ def main():
                     end_date=datetime.now(tz=timezone.utc),
                 )
             )
-            exit(0)
+            sys.exit(0)
         with BundleVersionLock(
             bundle_name=ti.bundle_instance.name,
             bundle_version=ti.bundle_instance.version,
@@ -1771,10 +1771,10 @@ def main():
             finalize(ti, state, context, log, error)
     except KeyboardInterrupt:
         log.exception("Ctrl-c hit")
-        exit(2)
+        sys.exit(2)
     except Exception:
         log.exception("Top level error")
-        exit(1)
+        sys.exit(1)
     finally:
         # Ensure the request socket is closed on the child side in all circumstances
         # before the process fully terminates.
