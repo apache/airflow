@@ -84,7 +84,7 @@ jobs:
         with:
           persist-credentials: false
           ref: ${{ inputs.branch }}
-      - name: "Prepare breeze & CI image: ${{ matrix.python-version }}"
+      - name: "Prepare breeze & CI image: ${{ matrix.python-version }}:${{ inputs.branch }}"
         uses: ./.github/actions/prepare_breeze_and_image
         with:
           platform: ${{ inputs.platform }}
@@ -127,7 +127,7 @@ jobs:
         timeout-minutes: 25
         run: |
           breeze release-management generate-constraints --airflow-constraints-mode constraints
-          --answer yes --python "${PYTHON_VERSION}" --use-airflow-branch "${GITHUB_TARGET_BRANCH}"
+          --answer yes --python "${PYTHON_VERSION}"
         if: inputs.generate-pypi-constraints == 'true'
       - name: "Upload constraint artifacts"
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4.6.2

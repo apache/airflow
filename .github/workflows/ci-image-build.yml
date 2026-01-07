@@ -121,6 +121,7 @@ jobs:
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
         with:
           persist-credentials: false
+          ref: ${{ inputs.branch }}
       - name: "Make /mnt writeable"
         run: ./scripts/ci/make_mnt_writeable.sh
       - name: "Move docker to /mnt"
@@ -183,10 +184,11 @@ jobs:
           PLATFORM: ${{ inputs.platform }}
         run: breeze ci-image save --platform "${PLATFORM}" --image-file-dir "/mnt"
         if: inputs.upload-image-artifact == 'true'
-      - name: "Stash CI docker image ${{ env.PYTHON_MAJOR_MINOR_VERSION }}"
+      - name: "Stash CI docker image ${{ env.PYTHON_MAJOR_MINOR_VERSION }} for branch ${{ inputs.branch }}"
         uses: apache/infrastructure-actions/stash/save@1c35b5ccf8fba5d4c3fdf25a045ca91aa0cbc468
         with:
-          key: ci-image-save-v3-${{ inputs.platform }}-${{ env.PYTHON_MAJOR_MINOR_VERSION }}
+          key: >
+            ci-image-save-v3-${{ inputs.platform }}-${{ env.PYTHON_MAJOR_MINOR_VERSION }}-${{ inputs.branch }}
           path: "/mnt/ci-image-save-*-${{ env.PYTHON_MAJOR_MINOR_VERSION }}.tar"
           if-no-files-found: 'error'
           retention-days: '2'
