@@ -281,7 +281,7 @@ import airflow.sdk
 # Add remote task-sdk inventory for cross-referencing
 # This enables proper linking to SDK classes like BaseSensorOperator
 task_sdk_version = parse_version(airflow.sdk.__version__).base_version
-intersphinx_mapping["task-sdk"] = (f"https://airflow.apache.org/docs/task-sdk/{task_sdk_version}/", (None,))
+intersphinx_mapping["task-sdk"] = (f"https://airflow.apache.org/docs/task-sdk/{task_sdk_version}/", (f"https://airflow.apache.org/docs/task-sdk/{task_sdk_version}/objects.inv",))
 
 # -- Options for sphinx.ext.viewcode -------------------------------------------
 # See: https://www.sphinx-doc.org/es/master/usage/extensions/viewcode.html
