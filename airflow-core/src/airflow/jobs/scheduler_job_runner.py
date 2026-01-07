@@ -2055,56 +2055,58 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         session: Session,
     ) -> bool:
         """Check if the dag's next_dagruns_create_after should be updated."""
-        # If last_dag_run is defined, the update was triggered by a scheduling decision in this DAG run.
-        # In such case, schedule next only if last_dag_run is finished and was an automated run.
-        if dag_model.next_dagrun > last_dag_run.run_after:
-            # "last_dag_run" might not actually be *last*
-            # do not use it to infer next run
-            # TODO: AIP-76 BUT we MUST revert this exit to verify scheduler *still* doesn't break
-            #  when next_dagrun is bad -- i.e. check the "check existing" logic to work for partitioned dags
-            self.log.info(
-                "not updating",
-                last_run_after=last_dag_run.run_after,
-                next_dagrun=dag_model.next_dagrun,
-                dag_id=dag.dag_id,
-            )
-            return False
+        # # If last_dag_run is defined, the update was triggered by a scheduling decision in this DAG run.
+        # # In such case, schedule next only if last_dag_run is finished and was an automated run.
+        # if dag_model.next_dagrun > last_dag_run.run_after:
+        #     # "last_dag_run" might not actually be *last*
+        #     # do not use it to infer next run
+        #     # TODO: AIP-76 BUT we MUST revert this exit to verify scheduler *still* doesn't break
+        #     #  when next_dagrun is bad -- i.e. check the "check existing" logic to work for partitioned dags
+        #     self.log.info(
+        #         "not updating",
+        #         last_run_after=last_dag_run.run_after,
+        #         next_dagrun=dag_model.next_dagrun,
+        #         dag_id=dag.dag_id,
+        #     )
+        #     return False
+
         if last_dag_run.partition_key:
             # todo: AIP-76 proxy for "is partition-driven"; improve.
             return True
-        if last_dag_run and not (
-            last_dag_run.state in State.finished_dr_states and last_dag_run.run_type == DagRunType.SCHEDULED
-        ):
-            self.log.info(
-                "don't update dag 'next run'",
-                where="if last_dag_run and not",
-                dr_state=last_dag_run.state,
-                dr_type=last_dag_run.run_type,
-            )
-            return False
+        # if last_dag_run and not (
+        #     last_dag_run.state in State.finished_dr_states and last_dag_run.run_type == DagRunType.SCHEDULED
+        # ):
+        #     self.log.info(
+        #         "don't update dag 'next run'",
+        #         where="if last_dag_run and not",
+        #         dr_state=last_dag_run.state,
+        #         dr_type=last_dag_run.run_type,
+        #     )
+        #     return False
         # If the DAG never schedules skip save runtime
-        if not dag.timetable.can_be_scheduled:
-            self.log.info("don't update dag 'next run'", where="not dag.timetable.can_be_scheduled")
-            return False
+        # if not dag.timetable.can_be_scheduled:
+        #     self.log.info("don't update dag 'next run'", where="not dag.timetable.can_be_scheduled")
+        #     return False
 
-        if active_non_backfill_runs is None:
-            runs_dict = DagRun.active_runs_of_dags(
-                dag_ids=[dag.dag_id],
-                exclude_backfill=True,
-                session=session,
-            )
-            active_non_backfill_runs = runs_dict.get(dag.dag_id, 0)
+        # if active_non_backfill_runs is None:
+        #     runs_dict = DagRun.active_runs_of_dags(
+        #         dag_ids=[dag.dag_id],
+        #         exclude_backfill=True,
+        #         session=session,
+        #     )
+        #     active_non_backfill_runs = runs_dict.get(dag.dag_id, 0)
+        #
+        # if active_non_backfill_runs >= dag.max_active_runs:
+        #     self.log.info(
+        #         "DAG %s is at (or above) max_active_runs (%d of %d), not creating any more runs",
+        #         dag_model.dag_id,
+        #         active_non_backfill_runs,
+        #         dag.max_active_runs,
+        #     )
+        #     dag_model.next_dagrun_create_after = None
+        #     return False
+        # return True
 
-        if active_non_backfill_runs >= dag.max_active_runs:
-            self.log.info(
-                "DAG %s is at (or above) max_active_runs (%d of %d), not creating any more runs",
-                dag_model.dag_id,
-                active_non_backfill_runs,
-                dag.max_active_runs,
-            )
-            dag_model.next_dagrun_create_after = None
-            return False
-        return True
 
     def _lock_backfills(self, dag_runs: Collection[DagRun], session: Session) -> dict[int, Backfill]:
         """
