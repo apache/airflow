@@ -917,11 +917,17 @@ def bulk_task_instances(
     dag_bag: DagBagDep,
     dag_run_id: str,
     user: GetUserDep,
-) -> BulkResponse:
+    dry_run: bool = Query(
+        False, description="If True, return affected task instances without making changes"
+    ),
+) -> BulkResponse | TaskInstanceCollectionResponse:
     """Bulk update, and delete task instances."""
-    return BulkTaskInstanceService(
+    service = BulkTaskInstanceService(
         session=session, request=request, dag_id=dag_id, dag_run_id=dag_run_id, dag_bag=dag_bag, user=user
-    ).handle_request()
+    )
+    if dry_run:
+        return service.handle_request_dry_run()
+    return service.handle_request()
 
 
 @task_instances_router.patch(
