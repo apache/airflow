@@ -18,7 +18,6 @@ from __future__ import annotations
 
 import json
 import logging
-from typing import get_args
 
 from keycloak import KeycloakAdmin, KeycloakError
 
@@ -119,7 +118,7 @@ def _get_client_uuid(args):
 
 def _get_scopes_to_create() -> list[dict]:
     """Get the list of scopes to be created."""
-    scopes = [{"name": method} for method in get_args(ResourceMethod)]
+    scopes = [{"name": method.value} for method in ResourceMethod]
     scopes.extend([{"name": "MENU"}, {"name": "LIST"}])
     return scopes
 
@@ -231,7 +230,7 @@ def _get_permissions_to_create(client: KeycloakAdmin, client_uuid: str) -> list[
         {
             "name": "Admin",
             "type": "scope-based",
-            "scope_names": list(get_args(ExtendedResourceMethod)) + ["LIST"],
+            "scope_names": [method.value for method in ExtendedResourceMethod] + ["LIST"],
         },
         {
             "name": "User",

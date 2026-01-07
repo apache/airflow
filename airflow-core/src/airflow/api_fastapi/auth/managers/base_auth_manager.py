@@ -20,8 +20,9 @@ from __future__ import annotations
 import logging
 from abc import ABCMeta, abstractmethod
 from collections import defaultdict
+from enum import Enum
 from functools import cache
-from typing import TYPE_CHECKING, Any, Generic, Literal, TypeVar
+from typing import TYPE_CHECKING, Any, Generic, TypeVar
 
 from jwt import InvalidTokenError
 from sqlalchemy import select
@@ -72,10 +73,32 @@ if TYPE_CHECKING:
 
 # This cannot be in the TYPE_CHECKING block since some providers import it globally.
 # TODO: Move this inside once all providers drop Airflow 2.x support.
-# List of methods (or actions) a user can do against a resource
-ResourceMethod = Literal["GET", "POST", "PUT", "DELETE"]
-# Extends ``ResourceMethod`` to include "MENU". The method "MENU" is only supported with specific resources (menu items)
-ExtendedResourceMethod = Literal["GET", "POST", "PUT", "DELETE", "MENU"]
+
+
+class ResourceMethod(str, Enum):
+    """HTTP methods (actions) a user can perform against a resource."""
+
+    GET = "GET"
+    POST = "POST"
+    PUT = "PUT"
+    DELETE = "DELETE"
+
+    def __str__(self) -> str:
+        return self.value
+
+
+class ExtendedResourceMethod(str, Enum):
+    """Extended HTTP methods including MENU for UI resource authorization. Extends ResourceMethod to include 'MENU'."""
+
+    GET = "GET"
+    POST = "POST"
+    PUT = "PUT"
+    DELETE = "DELETE"
+    MENU = "MENU"
+
+    def __str__(self) -> str:
+        return self.value
+
 
 log = logging.getLogger(__name__)
 T = TypeVar("T", bound=BaseUser)

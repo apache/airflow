@@ -17,7 +17,6 @@
 from __future__ import annotations
 
 import importlib
-from typing import get_args
 from unittest.mock import Mock, call, patch
 
 import pytest
@@ -82,7 +81,7 @@ class TestCommands:
             create_scopes_command(self.arg_parser.parse_args(params))
 
         client.get_clients.assert_called_once_with()
-        scopes = [{"name": method} for method in get_args(ResourceMethod)]
+        scopes = [{"name": method.value} for method in ResourceMethod]
         calls = [call(client_id="test-id", payload=scope) for scope in scopes]
         client.create_client_authz_scopes.assert_has_calls(calls)
 
