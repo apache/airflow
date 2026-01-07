@@ -78,7 +78,7 @@ apache-airflow-providers-databricks package
 `Databricks <https://databricks.com/>`__
 
 
-Release: 7.8.0
+Release: 7.8.2
 
 Provider package
 ----------------
@@ -102,11 +102,10 @@ The minimum Apache Airflow version supported by this provider distribution is ``
 PIP package                                 Version required
 ==========================================  ======================================
 ``apache-airflow``                          ``>=2.11.0``
-``apache-airflow-providers-common-compat``  ``>=1.8.0``
+``apache-airflow-providers-common-compat``  ``>=1.10.1``
 ``apache-airflow-providers-common-sql``     ``>=1.27.0``
 ``requests``                                ``>=2.32.0,<3``
 ``databricks-sql-connector``                ``>=4.0.0``
-``databricks-sqlalchemy``                   ``>=1.0.2``
 ``aiohttp``                                 ``>=3.9.2,<4``
 ``mergedeep``                               ``>=1.3.4``
 ``pandas``                                  ``>=2.1.2; python_version < "3.13"``
@@ -142,5 +141,5 @@ Downloading official packages
 You can download officially released packages and verify their checksums and signatures from the
 `Official Apache Download site <https://downloads.apache.org/airflow/providers/>`_
 
-* `The apache-airflow-providers-databricks 7.8.0 sdist package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_databricks-7.8.0.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_databricks-7.8.0.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_databricks-7.8.0.tar.gz.sha512>`__)
-* `The apache-airflow-providers-databricks 7.8.0 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_databricks-7.8.0-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_databricks-7.8.0-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_databricks-7.8.0-py3-none-any.whl.sha512>`__)
+* `The apache-airflow-providers-databricks 7.8.2 sdist package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_databricks-7.8.2.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_databricks-7.8.2.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_databricks-7.8.2.tar.gz.sha512>`__)
+* `The apache-airflow-providers-databricks 7.8.2 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_databricks-7.8.2-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_databricks-7.8.2-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_databricks-7.8.2-py3-none-any.whl.sha512>`__)

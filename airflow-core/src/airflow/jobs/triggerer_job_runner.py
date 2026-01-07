@@ -38,6 +38,7 @@ from pydantic import BaseModel, Field, TypeAdapter
 from sqlalchemy import func, select
 from structlog.contextvars import bind_contextvars as bind_log_contextvars
 
+from airflow._shared.module_loading import import_string
 from airflow._shared.timezones import timezone
 from airflow.configuration import conf
 from airflow.executors import workloads
@@ -59,6 +60,7 @@ from airflow.sdk.execution_time.comms import (
     GetDagRunState,
     GetDRCount,
     GetHITLDetailResponse,
+    GetPreviousTI,
     GetTaskStates,
     GetTICount,
     GetVariable,
@@ -78,7 +80,6 @@ from airflow.sdk.execution_time.supervisor import WatchedSubprocess, make_buffer
 from airflow.triggers import base as events
 from airflow.utils.helpers import log_filename_template_renderer
 from airflow.utils.log.logging_mixin import LoggingMixin
-from airflow.utils.module_loading import import_string
 from airflow.utils.session import provide_session
 
 if TYPE_CHECKING:
@@ -115,6 +116,7 @@ class TriggererJobRunner(BaseJobRunner, LoggingMixin):
         self,
         job: Job,
         capacity=None,
+        queues: set[str] | None = None,
     ):
         super().__init__(job)
         if capacity is None:
@@ -123,6 +125,7 @@ class TriggererJobRunner(BaseJobRunner, LoggingMixin):
             self.capacity = capacity
         else:
             raise ValueError(f"Capacity number {capacity!r} is invalid")
+        self.queues = queues
 
     def register_signals(self) -> None:
         """Register signals that stop child processes."""
@@ -155,16 +158,20 @@ class TriggererJobRunner(BaseJobRunner, LoggingMixin):
             self.trigger_runner.stop = True
         else:
             self.log.warning("Forcing exit due to second exit signal %s", signum)
-
-            self.trigger_runner.kill(signal.SIGKILL)
+            if self.trigger_runner:
+                self.trigger_runner.kill(signal.SIGKILL)
             sys.exit(os.EX_SOFTWARE)
 
     def _execute(self) -> int | None:
         self.log.info("Starting the triggerer")
+        self.register_signals()
         try:
             # Kick off runner sub-process without DB access
             self.trigger_runner = TriggerRunnerSupervisor.start(
-                job=self.job, capacity=self.capacity, logger=log
+                job=self.job,
+                capacity=self.capacity,
+                logger=log,
+                queues=self.queues,
             )
 
             # Run the main DB comms loop in this process
@@ -269,6 +276,7 @@ ToTriggerSupervisor = Annotated[
     | GetTaskStates
     | GetDagRunState
     | GetDRCount
+    | GetPreviousTI
     | GetHITLDetailResponse
     | UpdateHITLDetail
     | MaskSecret,
@@ -332,6 +340,7 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
 
     job: Job
     capacity: int
+    queues: set[str] | None = None
 
     health_check_threshold = conf.getint("triggerer", "triggerer_health_check_threshold")
 
@@ -498,6 +507,14 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
                 resp = TaskStatesResult.from_api_response(run_id_task_state_map)
             else:
                 resp = run_id_task_state_map
+        elif isinstance(msg, GetPreviousTI):
+            resp = self.client.task_instances.get_previous(
+                dag_id=msg.dag_id,
+                task_id=msg.task_id,
+                logical_date=msg.logical_date,
+                map_index=msg.map_index,
+                state=msg.state,
+            )
         elif isinstance(msg, UpdateHITLDetail):
             api_resp = self.client.hitl.update_response(
                 ti_id=msg.ti_id,
@@ -545,8 +562,13 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
     @add_debug_span
     def load_triggers(self):
         """Query the database for the triggers we're supposed to be running and update the runner."""
-        Trigger.assign_unassigned(self.job.id, self.capacity, self.health_check_threshold)
-        ids = Trigger.ids_for_triggerer(self.job.id)
+        Trigger.assign_unassigned(
+            self.job.id,
+            self.capacity,
+            self.health_check_threshold,
+            queues=self.queues,
+        )
+        ids = Trigger.ids_for_triggerer(self.job.id, queues=self.queues)
         self.update_triggers(set(ids))
 
     @add_debug_span
@@ -744,6 +766,7 @@ class TriggerDetails(TypedDict):
     """Type class for the trigger details dictionary."""
 
     task: asyncio.Task
+    is_watcher: bool
     name: str
     events: int
 
@@ -826,7 +849,6 @@ class TriggerRunner:
     failed_triggers: deque[tuple[int, BaseException | None]]
 
     # Should-we-stop flag
-    # TODO: set this in a sig-int handler
     stop: bool = False
 
     # TODO: connect this to the parent process
@@ -844,8 +866,14 @@ class TriggerRunner:
         self.failed_triggers = deque()
         self.job_id = None
 
+    def _handle_signal(self, signum, frame) -> None:
+        """Handle termination signals gracefully."""
+        self.stop = True
+
     def run(self):
-        """Sync entrypoint - just run a run in an async loop."""
+        """Sync entrypoint - just run arun in an async loop."""
+        signal.signal(signal.SIGINT, self._handle_signal)
+        signal.signal(signal.SIGTERM, self._handle_signal)
         asyncio.run(self.arun())
 
     async def arun(self):

@@ -23,7 +23,7 @@
 
 Package ``apache-airflow-providers-fab``
 
-Release: ``3.0.3``
+Release: ``3.1.1``
 
 
 `Flask App Builder <https://flask-appbuilder.readthedocs.io/>`__
@@ -36,7 +36,7 @@ This is a provider package for ``fab`` provider. All classes for this provider p
 are in ``airflow.providers.fab`` python package.
 
 You can find package information and changelog for the provider
-in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-fab/3.0.3/>`_.
+in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-fab/3.1.1/>`_.
 
 Installation
 ------------
@@ -54,7 +54,7 @@ Requirements
 PIP package                                 Version required
 ==========================================  ==========================================
 ``apache-airflow``                          ``>=3.0.2``
-``apache-airflow-providers-common-compat``  ``>=1.8.0``
+``apache-airflow-providers-common-compat``  ``>=1.10.1``
 ``blinker``                                 ``>=1.6.2; python_version < "3.13"``
 ``flask``                                   ``>=2.2.1,<2.3; python_version < "3.13"``
 ``flask-appbuilder``                        ``==5.0.1; python_version < "3.13"``
@@ -100,4 +100,4 @@ Extra         Dependencies
 ============  ============================================
 
 The changelog for the provider package can be found in the
-`changelog <https://airflow.apache.org/docs/apache-airflow-providers-fab/3.0.3/changelog.html>`_.
+`changelog <https://airflow.apache.org/docs/apache-airflow-providers-fab/3.1.1/changelog.html>`_.

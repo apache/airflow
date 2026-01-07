@@ -27,6 +27,41 @@
 Changelog
 ---------
 
+3.15.0
+......
+
+Features
+~~~~~~~~
+
+* ``Add result_backend_transport_options for Redis Sentinel support in Celery (#59498)``
+
+Misc
+~~~~
+
+* ``Cleanup of variables in settings.py (#59875)``
+* ``Remove top-level SDK reference in Core (#59817)``
+* ``Add and fix SIM107 and B012 Ruff rule (#59770)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``TaskInstance unused method cleanup (#59835)``
+   * ``Revert "Remove PriorityWeightStrategy reference in SDK" (#59828)``
+   * ``Remove PriorityWeightStrategy reference in SDK (#59780)``
+   * ``Refactor/sqla2 providers(celery, kubernetes, databricks, mysql) to remove SQLA query usage (#59537)``
+
+3.14.1
+......
+
+Misc
+~~~~
+
+* ``Add backcompat for exceptions in providers (#58727)``
+* ``Move the traces and metrics code under a common observability package (#56187)``
+* ``Remove global from celery provider (#58869)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 3.14.0
 ......
 

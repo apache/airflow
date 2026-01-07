@@ -27,6 +27,28 @@
 Changelog
 ---------
 
+9.2.2
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix apache hive server2 hook for sqlalchemy URL (#59878)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+9.2.1
+.....
+
+Misc
+~~~~
+
+* ``Add backcompat for exceptions in providers (#58727)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 9.2.0
 .....
 

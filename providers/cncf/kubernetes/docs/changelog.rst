@@ -28,6 +28,55 @@ Changelog
 ---------
 
 
+10.12.0
+.......
+
+Features
+~~~~~~~~
+
+* ``Add 'delete_active_pod' cleanup option and corresponding unit tests (#59160)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix '@task.kubernetes_cmd' TaskGroup.expand mappings by templating TaskFlow args (#59292)``
+* ``Fix 'KubernetesPodOperator' deferrable mode with env-defined connection (#41706) (#58841)``
+* ``Fix deferred mode KubernetesPodOperator:  fast-fail pod start errors (ErrImagePull/ImagePullBackOff) (#59010)``
+* ``Fix XCom directory creation logic in Kubernetes decorator (#56545) (#59347)``
+
+Misc
+~~~~
+
+* ``TaskInstance unused method cleanup (#59835)``
+* ``Remove top-level SDK reference in Core (#59817)``
+* ``Add and fix SIM107 and B012 Ruff rule (#59770)``
+* ``Refactor/sqla2 providers(celery, kubernetes, databricks, mysql) to remove SQLA query usage (#59537)``
+* ``Optimize Kubernetes API usage for watching events (#59080)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Revert "Remove PriorityWeightStrategy reference in SDK" (#59828)``
+   * ``Remove PriorityWeightStrategy reference in SDK (#59780)``
+
+10.11.1
+.......
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix finally return handling (#58998)``
+
+Misc
+~~~~
+
+* ``Convert the exclusion on urllib3 to != for 2.6.0 (#59203)``
+* ``Add backcompat for exceptions in providers (#58727)``
+* ``Limit urllib3 to < 2.6.0 to handle kubernetes client breaking with it (#59108)``
+* ``Move the traces and metrics code under a common observability package (#56187)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 10.11.0
 .......
 

@@ -68,13 +68,13 @@ airflowHome: /opt/airflow
 defaultAirflowRepository: apache/airflow
 
 # Default airflow tag to deploy
-defaultAirflowTag: "3.1.3"
+defaultAirflowTag: "3.1.5"
 
 # Default airflow digest. If specified, it takes precedence over tag
 defaultAirflowDigest: ~
 
 # Airflow version (Used to make some decisions based on Airflow Version being deployed)
-airflowVersion: "3.1.3"
+airflowVersion: "3.1.5"
 
 # Images
 images:
@@ -637,15 +637,20 @@ kerberos:
 
 # Airflow Worker Config
 workers:
-  # Number of Airflow Celery workers
+  # Number of Airflow Celery workers (deprecated, use `workers.celery.replicas` instead)
   replicas: 1
 
   # Max number of old Airflow Celery workers ReplicaSets to retain
+  # (deprecated, use `workers.celery.revisionHistoryLimit` instead)
   revisionHistoryLimit: ~
 
   # Command to use when running Airflow Celery workers and using pod-template-file (templated)
+  # Use workers.celery.command and/or workers.kubernetes.command to separate value between
+  # Celery workers and pod-template-file
   command: ~
+
   # Args to use when running Airflow Celery workers (templated)
+  # (deprecated, use `workers.celery.args` instead)
   args:
     - "bash"
     - "-c"
@@ -656,12 +661,19 @@ workers:
 
   # If the Airflow Celery worker stops responding for 5 minutes (5*60s)
   # kill the worker and let Kubernetes restart it
+  # (deprecated, use `workers.celery.livenessProbe` section instead)
   livenessProbe:
+    # (deprecated, use `workers.celery.livenessProbe.enabled` instead)
     enabled: true
+    # (deprecated, use `workers.celery.livenessProbe.initialDelaySeconds` instead)
     initialDelaySeconds: 10
+    # (deprecated, use `workers.celery.livenessProbe.timeoutSeconds` instead)
     timeoutSeconds: 20
+    # (deprecated, use `workers.celery.livenessProbe.failureThreshold` instead)
     failureThreshold: 5
+    # (deprecated, use `workers.celery.livenessProbe.periodSeconds` instead)
     periodSeconds: 60
+    # (deprecated, use `workers.celery.livenessProbe.command` instead)
     command: ~
 
   # Update Strategy when Airflow Celery worker is deployed as a StatefulSet
@@ -691,6 +703,16 @@ workers:
   # Container level Lifecycle Hooks definition for
   # Airflow Celery workers and pods created with pod-template-file
   containerLifecycleHooks: {}
+
+  # Worker pod disruption budget
+  podDisruptionBudget:
+    enabled: false
+
+    # PDB configuration
+    config:
+      # minAvailable and maxUnavailable are mutually exclusive
+      maxUnavailable: 1
+      # minAvailable: 1
 
   # Create ServiceAccount for Airflow Celery workers and pods created with pod-template-file
   serviceAccount:
@@ -1001,6 +1023,33 @@ workers:
   useWorkerDedicatedServiceAccounts: false
 
   celery:
+    # Number of Airflow Celery workers
+    replicas: 1
+
+    # Max number of old Airflow Celery workers ReplicaSets to retain
+    revisionHistoryLimit: ~
+
+    # Command to use when running Airflow Celery workers (templated)
+    command: ~
+
+    # Args to use when running Airflow Celery workers (templated)
+    args:
+      - "bash"
+      - "-c"
+      - |-
+        exec \
+        airflow {{ semverCompare ">=2.0.0" .Values.airflowVersion | ternary "celery worker" "worker" }}
+
+    # If the Airflow Celery worker stops responding for 5 minutes (5*60s)
+    # kill the worker and let Kubernetes restart it
+    livenessProbe:
+      enabled: true
+      initialDelaySeconds: 10
+      timeoutSeconds: 20
+      failureThreshold: 5
+      periodSeconds: 60
+      command: ~
+
     # Create ServiceAccount for Airflow Celery workers
     serviceAccount:
       # default value is true
@@ -1015,6 +1064,9 @@ workers:
       annotations: {}
 
   kubernetes:
+    # Command to use in pod-template-file (templated)
+    command: ~
+
     # Create ServiceAccount for pods created with pod-template-file
     serviceAccount:
       # Auto mount service account token into the pod. Default value is true.
@@ -1096,7 +1148,7 @@ scheduler:
 
   # Create ServiceAccount
   serviceAccount:
-    # only affect CeleryExecutor, default value is true
+    # affects all executors that launch pods, default value is true
     # ref: https://kubernetes.io/docs/tasks/configure-pod-container/configure-service-account/
     automountServiceAccountToken: true
     # Specifies whether a ServiceAccount should be created
@@ -1107,6 +1159,21 @@ scheduler:
 
     # Annotations to add to scheduler kubernetes service account.
     annotations: {}
+
+    # Service Account Token Volume configuration
+    # This is only used when automountServiceAccountToken is false
+    # and allows manual configuration of the service account token volume
+    serviceAccountTokenVolume:
+      # Enable manual service account token volume configuration
+      enabled: false
+      # Path where the service account token should be mounted
+      mountPath: /var/run/secrets/kubernetes.io/serviceaccount
+      # Name of the volume
+      volumeName: kube-api-access
+      # Token expiration in seconds (default: 1 hour)
+      expirationSeconds: 3600
+      # Audience for the token
+      audience: ~
 
   # Scheduler pod disruption budget
   podDisruptionBudget:
@@ -1214,6 +1281,16 @@ scheduler:
 createUserJob:
   # Whether the create user job should be created
   enabled: true
+
+  # Create initial user.
+  defaultUser:
+    role: Admin
+    username: admin
+    email: admin@example.com
+    firstName: admin
+    lastName: user
+    password: admin
+
   # Limit the lifetime of the job object after it finished execution.
   ttlSecondsAfterFinished: 300
   # Command to use when running the create user job (templated).
@@ -1228,17 +1305,17 @@ createUserJob:
       airflow {{ semverCompare ">=2.0.0" .Values.airflowVersion | ternary "users create" "create_user" }} "$@"
     - --
     - "-r"
-    - "{{ .Values.webserver.defaultUser.role }}"
+    - "{{ .Values.createUserJob.defaultUser.role }}"
     - "-u"
-    - "{{ .Values.webserver.defaultUser.username }}"
+    - "{{ .Values.createUserJob.defaultUser.username }}"
     - "-e"
-    - "{{ .Values.webserver.defaultUser.email }}"
+    - "{{ .Values.createUserJob.defaultUser.email }}"
     - "-f"
-    - "{{ .Values.webserver.defaultUser.firstName }}"
+    - "{{ .Values.createUserJob.defaultUser.firstName }}"
     - "-l"
-    - "{{ .Values.webserver.defaultUser.lastName }}"
+    - "{{ .Values.createUserJob.defaultUser.lastName }}"
     - "-p"
-    - "{{ .Values.webserver.defaultUser.password }}"
+    - "{{ .Values.createUserJob.defaultUser.password }}"
 
   # Annotations on the create user job pod
   annotations: {}
@@ -1736,16 +1813,6 @@ webserver:
   #     cpu: 100m
   #     memory: 128Mi
 
-  # Create initial user.
-  defaultUser:
-    enabled: true
-    role: Admin
-    username: admin
-    email: admin@example.com
-    firstName: admin
-    lastName: user
-    password: admin
-
   # Launch additional containers into webserver (templated).
   extraContainers: []
   # Add additional init containers into webserver (templated).
@@ -1918,6 +1985,16 @@ triggerer:
     fixPermissions: false
     # Annotations to add to triggerer volumes
     annotations: {}
+
+  # Triggerer pod disruption budget
+  podDisruptionBudget:
+    enabled: false
+
+    # PDB configuration
+    config:
+      # minAvailable and maxUnavailable are mutually exclusive
+      maxUnavailable: 1
+      # minAvailable: 1
 
   resources: {}
   #  limits:
@@ -2708,6 +2785,11 @@ redis:
     # the name of an existing PVC to use
     existingClaim:
 
+    persistentVolumeClaimRetentionPolicy: ~
+    # persistentVolumeClaimRetentionPolicy:
+    #   whenDeleted: Delete
+    #   whenScaled: Delete
+
   # Configuration for empty dir volume (if redis.persistence.enabled == false)
   # emptyDirConfig:
   #   sizeLimit: 1Gi
@@ -2908,6 +2990,7 @@ cleanup:
 # This runs as a CronJob to cleanup database for old entries.
 databaseCleanup:
   enabled: false
+  applyCustomEnv: true
   # Run every week on Sunday at midnight (templated).
   schedule: "0 0 * * 0"
   # Command to use when running the database cleanup cronjob (templated).

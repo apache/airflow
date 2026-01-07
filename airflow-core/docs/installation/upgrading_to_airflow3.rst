@@ -118,7 +118,7 @@ To trigger these fixes, run the following command:
 
 .. note::
 
-    In AIR rules, unsafe fixes involve changing import paths while keeping the name of the imported member the same. For instance, changing the import from ``from airflow.sensors.base_sensor_operator import BaseSensorOperator`` to ``from airflow.sdk.bases.sensor import BaseSensorOperator`` requires ruff to remove the original import before adding the new one. In contrast, safe fixes include changes to both the member name and the import path, such as changing ``from airflow.datasets import Dataset`` to `from airflow.sdk import Asset``. These adjustments do not require ruff to remove the old import. To remove unused legacy imports, it is necessary to enable the `unused-import` rule (F401) <https://docs.astral.sh/ruff/rules/unused-import/#unused-import-f401>.
+    In AIR rules, unsafe fixes involve changing import paths while keeping the name of the imported member the same. For instance, changing the import from ``from airflow.sensors.base_sensor_operator import BaseSensorOperator`` to ``from airflow.sdk.bases.sensor import BaseSensorOperator`` requires ruff to remove the original import before adding the new one. In contrast, safe fixes include changes to both the member name and the import path, such as changing ``from airflow.datasets import Dataset`` to ``from airflow.sdk import Asset``. These adjustments do not require ruff to remove the old import. To remove unused legacy imports, it is necessary to enable the `unused-import` rule (F401) <https://docs.astral.sh/ruff/rules/unused-import/#unused-import-f401>.
 
 You can also configure these flags through configuration files. See `Configuring Ruff <https://docs.astral.sh/ruff/configuration/>`_ for details.
 
@@ -162,6 +162,8 @@ code import Airflow components correctly in Airflow 3. The older paths are depre
      - ``airflow.sdk.BaseNotifier``
    * - ``airflow.utils.task_group.TaskGroup``
      - ``airflow.sdk.TaskGroup``
+   * - ``airflow.utils.context.Context``
+     - ``airflow.sdk.Context``
    * - ``airflow.datasets.Dataset``
      - ``airflow.sdk.Asset``
    * - ``airflow.datasets.DatasetAlias``
@@ -172,8 +174,6 @@ code import Airflow components correctly in Airflow 3. The older paths are depre
      - ``airflow.sdk.AssetAny``
    * - ``airflow.models.connection.Connection``
      - ``airflow.sdk.Connection``
-   * - ``airflow.models.context.Context``
-     - ``airflow.sdk.Context``
    * - ``airflow.models.variable.Variable``
      - ``airflow.sdk.Variable``
    * - ``airflow.io.*``

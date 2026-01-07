@@ -24,6 +24,91 @@
 
 .. towncrier release notes start
 
+Airflow 3.1.5 (2025-12-12)
+--------------------------
+
+Significant Changes
+^^^^^^^^^^^^^^^^^^^
+
+No significant changes.
+
+Bug Fixes
+^^^^^^^^^
+
+- Handle invalid token in JWTRefreshMiddleware (#56904)
+- Fix inconsistent Dag hashes when template fields contain unordered dicts (#59091) (#59175)
+- Fix assets used only as inlets being incorrectly orphaned (#58986)
+- Fix exception when logging stdout with a custom %-format string (#58963)
+- Fix backfill max_active_runs race condition with concurrent schedulers (#58935)
+- Fix LocalExecutor memory spike by applying ``gc.freeze`` (#58934)
+- Fix string to datetime pydantic conversion (#58916)
+- Fix deadlines being incorrectly pruned for DAG runs with the same run_id (#58910)
+- Fix handling of ``pre-AIP-39`` DAG runs (#58773)
+- Mask secrets properly when using deprecated import path (#58726)
+- Preserve Asset.extra when using AssetAlias (#58712)
+- Fix timeout_after in run_trigger method of TriggerRunner (#58703)
+- Fix connection retrieval from secrets backend without conn_type (#58664)
+- Fix task retry logic to respect retries for all exit codes (#58478)
+- Respect default_args in DAG when set to a "falsy" value (#58396)
+- Fix airflow config list output for multi-line values (#58378)
+- Fix TriggerDagRunOperator stuck in deferred state with reset_dag_run=True (#58333)
+- Fix HITLTrigger params serialization (#58297)
+- Fix atomicity issue in SerializedDagModel.write_dag preventing orphaned DAG versions (#58281)
+- Mask kwargs when illegal arguments are passed (#58283)
+- Fix supervisor communications not reconnecting when using ``dag.test()`` (#58266)
+- Fix supervisor communications and logs not reconnecting in task subprocesses (#58263)
+- Make pool description optional when patching pools (#58169)
+- Fix check_files.py script after source tarball was renamed (#58192)
+- Fix db cleanup logging behavior and docstrings (#58523)
+- Fix Asset URI normalization for user info without password (#58485)
+- UI: Fix object rendering in Human-in-the-Loop (HITL) interface (#58611)
+- UI: Fix "Consuming Tasks" section not in asset header (#58060)
+- UI: Fix timezone string parsing to use ``dayjs`` correctly (#57880)
+- UI: Ensure task instance ``endDate`` is not null (#58435)
+- UI: Fix trigger parameter field showing as dict when param.value is null (#58899)
+- UI: Remove unnecessary refresh state consumption for DAG header (#58692)
+- UI: Fix mobile responsiveness of Dashboard sections (#58853)
+- UI: Fix incorrect backfill duration calculation in Grid view (#58816)
+- UI: Redact secrets in rendered templates to not expose them in UI (#58772)
+- UI: Add fallback value of 1 for number of DAG runs in Grid view (#58735)
+- UI: Update refresh token flow (#58649)
+- UI: Fix 404 handling with fallback route for invalid URLs (#58629)
+- UI: Fix excessive database queries in UI grid endpoint by adding query count guard (#57977, #58632)
+- UI: Fix DAG documentation markdown display issue (#58627)
+- UI: Fix duration chart duration format (#58564)
+- UI: Fix TaskGroup nodes not being properly highlighted when selected in Graph view (#58559)
+- UI: Fix tag filter with special characters (#58558)
+- UI: Fix group task instance tab memory leak (#58557)
+- UI: Fix popup automatically closing when DAG run completes (#58538)
+- UI: Fix operator extra links not appearing on failed tasks (#58508)
+- UI: Fix TypeError in ``parseStreamingLogContent`` for non-string data (#58399)
+- UI: Fix Dag tag order (#58904)
+
+Miscellaneous
+^^^^^^^^^^^^^
+- Do not remove ``.pyc`` and ``.pyo`` files after building Python (#58947)
+- Improve cross-distribution dependency management (#58472)
+- Bump glob from 10.4.5 to 10.5.0 in simple auth manager UI (#58463)
+- Bump glob in React core UI (#58461)
+
+Doc Only Changes
+^^^^^^^^^^^^^^^^
+- Fix Chinese (Traditional) translations for trigger-related terminology (#58989)
+- Close translation gaps in German (#58971)
+- Add missing Polish translations (#58939)
+- Clarify that Connection extra JSON masking is keyword-dependent (#58587)
+- Add migration guide for Airflow 2 users accessing database in tasks (#57479)
+- Update UIAlert import path and usage for v3 (#58891)
+- Add clarifying documentation for TaskGroup parameters (#58880)
+- Enhance asset extra field documentation (#58830)
+- Update mask_secret documentation to use the latest import path (#58534)
+- Improve disable_bundle_versioning configuration documentation (#58405)
+- Fix documentation for installing from sources (#58373)
+- Fix broken link on installing-from-sources page (#58324)
+- Add missing DAG run table translations (#58572)
+
+
+
 Airflow 3.1.3 (2025-11-13)
 --------------------------
 
@@ -459,8 +544,9 @@ This enables use cases like:
 New Trigger Rule: ``ALL_DONE_MIN_ONE_SUCCESS``
 """"""""""""""""""""""""""""""""""""""""""""""
 
-``ALL_DONE_MIN_ONE_SUCCESS``: This rule triggers when all upstream tasks are done (success, failed, or skipped) and
+``ALL_DONE_MIN_ONE_SUCCESS``: This rule triggers when all upstream tasks are done (success, failed) and
 at least one has succeeded, filling a gap between existing trigger rules for complex workflow patterns.
+Skipped upstream tasks work as usually - they skip downstream task.
 
 Enhanced DAG Processing Visibility
 """""""""""""""""""""""""""""""""""

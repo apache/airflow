@@ -23,7 +23,7 @@ from unittest import mock
 
 import pytest
 import time_machine
-from sqlalchemy import select
+from sqlalchemy import func, select
 
 from airflow._shared.timezones import timezone
 from airflow.api_fastapi.core_api.datamodels.dag_versions import DagVersionResponse
@@ -77,16 +77,15 @@ class CustomTimetable(CronDataIntervalTimetable):
 def custom_timetable_plugin(monkeypatch):
     """Fixture to register CustomTimetable for serialization."""
     from airflow import plugins_manager
-    from airflow.utils.module_loading import qualname
+    from airflow._shared.module_loading import qualname
 
     timetable_class_name = qualname(CustomTimetable)
     existing_timetables = getattr(plugins_manager, "timetable_classes", None) or {}
 
-    monkeypatch.setattr(plugins_manager, "initialize_timetables_plugins", lambda: None)
     monkeypatch.setattr(
         plugins_manager,
-        "timetable_classes",
-        {**existing_timetables, timetable_class_name: CustomTimetable},
+        "get_timetables_plugins",
+        lambda: {**existing_timetables, timetable_class_name: CustomTimetable},
     )
 
 
@@ -340,11 +339,9 @@ class TestGetDagRuns:
         body = response.json()
         assert body["total_entries"] == total_entries
         for each in body["dag_runs"]:
-            run = (
-                session.query(DagRun)
-                .where(DagRun.dag_id == each["dag_id"], DagRun.run_id == each["dag_run_id"])
-                .one()
-            )
+            run = session.scalars(
+                select(DagRun).where(DagRun.dag_id == each["dag_id"], DagRun.run_id == each["dag_run_id"])
+            ).one()
             assert each == get_dag_run_dict(run)
 
     @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
@@ -821,7 +818,7 @@ class TestListDagRunsBatch:
         body = response.json()
         assert body["total_entries"] == 4
         for each in body["dag_runs"]:
-            run = session.query(DagRun).where(DagRun.run_id == each["dag_run_id"]).one()
+            run = session.scalars(select(DagRun).where(DagRun.run_id == each["dag_run_id"])).one()
             expected = get_dag_run_dict(run)
             assert each == expected
 
@@ -1325,6 +1322,23 @@ class TestDeleteDagRun:
         body = response.json()
         assert body["detail"] == "The DagRun with dag_id: `test_dag1` and run_id: `invalid` was not found"
 
+    def test_delete_dag_run_in_running_state(self, test_client, dag_maker, session):
+        with dag_maker(dag_id="test_running_dag"):
+            EmptyOperator(task_id="t1")
+
+        dag_maker.create_dagrun(
+            run_id="test_running",
+            state=DagRunState.RUNNING,
+        )
+        session.commit()
+        response = test_client.delete("/dags/test_running_dag/dagRuns/test_running")
+        assert response.status_code == 409
+        body = response.json()
+        assert body["detail"] == (
+            "The DagRun with dag_id: `test_running_dag` and run_id: `test_running` "
+            "cannot be deleted in running state"
+        )
+
     def test_should_respond_401(self, unauthenticated_test_client):
         response = unauthenticated_test_client.delete(f"/dags/{DAG1_ID}/dagRuns/invalid")
         assert response.status_code == 401
@@ -1344,7 +1358,7 @@ class TestGetDagRunAssetTriggerEvents:
         dr = dag_maker.create_dagrun()
         ti = dr.task_instances[0]
 
-        asset1_id = session.query(AssetModel.id).filter_by(uri=asset1.uri).scalar()
+        asset1_id = session.scalar(select(AssetModel.id).where(AssetModel.uri == asset1.uri))
         event = AssetEvent(
             asset_id=asset1_id,
             source_task_id=ti.task_id,
@@ -1473,13 +1487,15 @@ class TestClearDagRun:
         assert body["total_entries"] == len(expected_state)
         for index, each in enumerate(sorted(body["task_instances"], key=lambda x: x["task_id"])):
             assert each["state"] == expected_state[index]
-        dag_run = session.scalar(select(DagRun).filter_by(dag_id=DAG1_ID, run_id=DAG1_RUN1_ID))
+        dag_run = session.scalar(
+            select(DagRun).where(DagRun.dag_id == DAG1_ID, DagRun.run_id == DAG1_RUN1_ID)
+        )
         assert dag_run.state == DAG1_RUN1_STATE
 
-        logs = (
-            session.query(Log)
-            .filter(Log.dag_id == DAG1_ID, Log.run_id == dag_run_id, Log.event == "clear_dag_run")
-            .count()
+        logs = session.scalar(
+            select(func.count())
+            .select_from(Log)
+            .where(Log.dag_id == DAG1_ID, Log.run_id == dag_run_id, Log.event == "clear_dag_run")
         )
         assert logs == 0
 
@@ -1572,9 +1588,9 @@ class TestTriggerDagRun:
             expected_data_interval_end = data_interval_end.replace("+00:00", "Z")
         expected_logical_date = fixed_now.replace("+00:00", "Z")
 
-        run = (
-            session.query(DagRun).where(DagRun.dag_id == DAG1_ID, DagRun.run_id == expected_dag_run_id).one()
-        )
+        run = session.scalars(
+            select(DagRun).where(DagRun.dag_id == DAG1_ID, DagRun.run_id == expected_dag_run_id)
+        ).one()
 
         expected_response_json = {
             "bundle_version": None,
@@ -1725,7 +1741,7 @@ class TestTriggerDagRun:
             },
         ]
 
-    @mock.patch("airflow.serialization.serialized_objects.SerializedDAG.create_dagrun")
+    @mock.patch("airflow.serialization.definitions.dag.SerializedDAG.create_dagrun")
     def test_dagrun_creation_exception_is_handled(self, mock_create_dagrun, test_client):
         now = timezone.utcnow().isoformat()
         error_message = "Encountered Error"
@@ -1907,7 +1923,7 @@ class TestTriggerDagRun:
         run_id_with_logical_date = response.json()["dag_run_id"]
         assert run_id_with_logical_date.startswith("custom_")
 
-        run = session.query(DagRun).filter(DagRun.run_id == run_id_with_logical_date).one()
+        run = session.scalars(select(DagRun).where(DagRun.run_id == run_id_with_logical_date)).one()
         assert run.dag_id == custom_dag_id
 
         response = test_client.post(
@@ -1918,7 +1934,7 @@ class TestTriggerDagRun:
         run_id_without_logical_date = response.json()["dag_run_id"]
         assert run_id_without_logical_date.startswith("custom_manual_")
 
-        run = session.query(DagRun).filter(DagRun.run_id == run_id_without_logical_date).one()
+        run = session.scalars(select(DagRun).where(DagRun.run_id == run_id_without_logical_date)).one()
         assert run.dag_id == custom_dag_id
 
 

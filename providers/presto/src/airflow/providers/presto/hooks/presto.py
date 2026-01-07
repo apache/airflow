@@ -25,14 +25,9 @@ import prestodb
 from deprecated import deprecated
 from prestodb.exceptions import DatabaseError
 from prestodb.transaction import IsolationLevel
-from sqlalchemy.engine import URL
 
-from airflow.configuration import conf
-from airflow.exceptions import (
-    AirflowException,
-    AirflowOptionalProviderFeatureException,
-    AirflowProviderDeprecationWarning,
-)
+from airflow.exceptions import AirflowOptionalProviderFeatureException, AirflowProviderDeprecationWarning
+from airflow.providers.common.compat.sdk import AirflowException, conf
 from airflow.providers.common.sql.hooks.sql import DbApiHook
 from airflow.providers.presto.version_compat import AIRFLOW_V_3_0_PLUS
 
@@ -45,6 +40,8 @@ else:
     )
 
 if TYPE_CHECKING:
+    from sqlalchemy.engine import URL
+
     from airflow.models import Connection
 
 T = TypeVar("T")
@@ -153,6 +150,14 @@ class PrestoHook(DbApiHook):
     @property
     def sqlalchemy_url(self) -> URL:
         """Return a `sqlalchemy.engine.URL` object constructed from the connection."""
+        try:
+            from sqlalchemy.engine import URL
+        except (ImportError, ModuleNotFoundError) as err:
+            raise AirflowOptionalProviderFeatureException(
+                "SQLAlchemy is not installed. Please install it with "
+                "`pip install 'apache-airflow-providers-presto[sqlalchemy]'`."
+            ) from err
+
         conn = self.get_connection(self.get_conn_id())
         extra = conn.extra_dejson or {}
 

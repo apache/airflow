@@ -31,6 +31,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 import structlog
 from pydantic import TypeAdapter
+from sqlalchemy import select
 from structlog.typing import FilteringBoundLogger
 
 from airflow._shared.timezones import timezone
@@ -247,7 +248,7 @@ class TestDagFileProcessor:
             assert result.import_errors == {}
             assert result.serialized_dags[0].dag_id == "test_myvalue"
 
-            all_vars = session.query(VariableORM).all()
+            all_vars = session.scalars(select(VariableORM)).all()
             assert len(all_vars) == 1
             assert all_vars[0].key == "mykey"
 
@@ -291,7 +292,7 @@ class TestDagFileProcessor:
             assert result.import_errors == {}
             assert result.serialized_dags[0].dag_id == "not-found"
 
-            all_vars = session.query(VariableORM).all()
+            all_vars = session.scalars(select(VariableORM)).all()
             assert len(all_vars) == 0
 
     def test_top_level_connection_access(
@@ -1844,6 +1845,7 @@ class TestDagProcessingMessageTypes:
             "GetAssetByUri",
             "GetAssetEventByAsset",
             "GetAssetEventByAssetAlias",
+            "GetDagRun",
             "GetDagRunState",
             "GetDRCount",
             "GetTaskBreadcrumbs",
@@ -1869,6 +1871,7 @@ class TestDagProcessingMessageTypes:
         in_task_runner_but_not_in_dag_processing_process = {
             "AssetResult",
             "AssetEventsResult",
+            "DagRunResult",
             "DagRunStateResult",
             "DRCount",
             "SentFDs",

@@ -142,6 +142,8 @@ AUTOCOMPLETE_ALL_INTEGRATIONS = sorted(
 )
 ALLOWED_TTY = ["auto", "enabled", "disabled"]
 ALLOWED_DOCKER_COMPOSE_PROJECTS = ["breeze", "prek", "docker-compose"]
+ALLOWED_LOG_LEVELS = ["INFO", "DEBUG", "WARNING", "ERROR", "CRITICAL"]
+DEFAULT_LOG_LEVEL = ALLOWED_LOG_LEVELS[0]
 
 # Unlike everything else, k8s versions are supported as long as 2 major cloud providers support them.
 # See:
@@ -216,7 +218,7 @@ if MYSQL_INNOVATION_RELEASE:
 ALLOWED_INSTALL_MYSQL_CLIENT_TYPES = ["mariadb"]
 
 PIP_VERSION = "25.3"
-UV_VERSION = "0.9.16"
+UV_VERSION = "0.9.22"
 
 DEFAULT_UV_HTTP_TIMEOUT = 300
 DEFAULT_WSL2_HTTP_TIMEOUT = 900
@@ -679,6 +681,7 @@ DEFAULT_EXECUTOR = CURRENT_EXECUTORS[0]
 
 KIND_VERSION = "v0.30.0"
 HELM_VERSION = "v3.17.3"
+SKAFFOLD_VERSION = "v2.17.0"
 
 # Initialize image build variables - Have to check if this has to go to ci dataclass
 USE_AIRFLOW_VERSION = None
@@ -747,7 +750,7 @@ PROVIDERS_COMPATIBILITY_TESTS_MATRIX: list[dict[str, str | list[str]]] = [
     },
     {
         "python-version": "3.10",
-        "airflow-version": "3.1.3",
+        "airflow-version": "3.1.5",
         "remove-providers": "",
         "run-unit-tests": "true",
     },

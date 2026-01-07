@@ -50,6 +50,13 @@
     "warning_one": "1 Uyarı",
     "warning_other": "{{count}} Uyarı"
   },
+  "dateRangeFilter": {
+    "validation": {
+      "invalidDateFormat": "Yanlış tarih formatı.",
+      "invalidTimeFormat": "Yanlış saat formatı.",
+      "startBeforeEnd": "Başlangıç tarihi, bitiş tarihinden önce olmalıdır."
+    }
+  },
   "durationChart": {
     "duration": "Süre (saniye)",
     "lastDagRun_one": "Son Dag Çalıştırması",
@@ -105,10 +112,16 @@
   "sortedDescending": "azalan sıralı",
   "sortedUnsorted": "sıralanmamış",
   "taskTries": "Görev Denemeleri",
+  "taskTryPlaceholder": "Görev denemesi",
   "toggleCardView": "Kart görünümünü göster",
   "toggleTableView": "Tablo görünümünü göster",
   "triggerDag": {
     "button": "Tetikle",
+    "dataInterval": "Veri Aralığı",
+    "dataIntervalAuto": "Mantıksal ve Zaman Tablosu Temelli",
+    "dataIntervalManual": "Manuel",
+    "intervalEnd": "Bitiş",
+    "intervalStart": "Başlangıç",
     "loading": "Dag bilgisi yükleniyor...",
     "loadingFailed": "Dag bilgisi yüklenemedi. Lütfen tekrar deneyin.",
     "runIdHelp": "İsteğe bağlı - sağlanmazsa oluşturulacaktır",
@@ -116,6 +129,9 @@
     "selectLabel": "Tek Çalıştırma",
     "title": "Dag Tetikle",
     "toaster": {
+      "error": {
+        "title": "Dag Çalıştırması Tetiklenemedi"
+      },
       "success": {
         "description": "Dag çalıştırması başarıyla tetiklendi.",
         "title": "Dag Çalıştırması Tetiklendi"
@@ -136,6 +152,7 @@
     "versionId": "Versiyon Kimliği"
   },
   "versionSelect": {
+    "allVersions": "Bütün Versiyonlar",
     "dagVersion": "Dag Versiyonu",
     "versionCode": "v{{versionCode}}"
   }

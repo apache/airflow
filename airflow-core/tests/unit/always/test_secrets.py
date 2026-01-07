@@ -40,15 +40,15 @@ class TestConnectionsFromSecrets:
     def test_get_connection_second_try(self, mock_env_get, mock_meta_get):
         mock_env_get.side_effect = [None]  # return None
         Connection.get_connection_from_secrets("fake_conn_id")
-        mock_meta_get.assert_called_once_with(conn_id="fake_conn_id")
-        mock_env_get.assert_called_once_with(conn_id="fake_conn_id")
+        mock_meta_get.assert_called_once_with(conn_id="fake_conn_id", team_name=None)
+        mock_env_get.assert_called_once_with(conn_id="fake_conn_id", team_name=None)
 
     @mock.patch("airflow.secrets.metastore.MetastoreBackend.get_connection")
     @mock.patch("airflow.secrets.environment_variables.EnvironmentVariablesBackend.get_connection")
     def test_get_connection_first_try(self, mock_env_get, mock_meta_get):
         mock_env_get.return_value = Connection("something")  # returns something
         Connection.get_connection_from_secrets("fake_conn_id")
-        mock_env_get.assert_called_once_with(conn_id="fake_conn_id")
+        mock_env_get.assert_called_once_with(conn_id="fake_conn_id", team_name=None)
         mock_meta_get.assert_not_called()
 
     @conf_vars(
@@ -115,7 +115,7 @@ class TestConnectionsFromSecrets:
         conn = Connection.get_connection_from_secrets(conn_id="test_mysql")
 
         # Assert that SystemsManagerParameterStoreBackend.get_conn_uri was called
-        mock_get_connection.assert_called_once_with(conn_id="test_mysql")
+        mock_get_connection.assert_called_once_with(conn_id="test_mysql", team_name=None)
 
         assert conn.get_uri() == "mysql://airflow:airflow@host:5432/airflow"
 
@@ -142,8 +142,8 @@ class TestVariableFromSecrets:
 
         Variable.get_variable_from_secrets("fake_var_key")
 
-        mock_meta_get.assert_called_once_with(key="fake_var_key")
-        mock_env_get.assert_called_once_with(key="fake_var_key")
+        mock_meta_get.assert_called_once_with(key="fake_var_key", team_name=None)
+        mock_env_get.assert_called_once_with(key="fake_var_key", team_name=None)
 
     @mock.patch("airflow.secrets.metastore.MetastoreBackend.get_variable")
     @mock.patch("airflow.secrets.environment_variables.EnvironmentVariablesBackend.get_variable")
@@ -154,7 +154,7 @@ class TestVariableFromSecrets:
         """
         mock_env_get.return_value = "something"
         Variable.get_variable_from_secrets("fake_var_key")
-        mock_env_get.assert_called_once_with(key="fake_var_key")
+        mock_env_get.assert_called_once_with(key="fake_var_key", team_name=None)
         mock_meta_get.assert_not_called()
 
     def test_backend_fallback_to_default_var(self):
@@ -194,13 +194,13 @@ class TestVariableFromSecrets:
         mock_meta_get.return_value = None
 
         assert Variable.get(key="MYVAR") == "a_venv_value"
-        mock_secret_get.assert_called_with(key="MYVAR")
+        mock_secret_get.assert_called_with(key="MYVAR", team_name=None)
         mock_meta_get.assert_not_called()
 
         mock_secret_get.return_value = None
         mock_meta_get.return_value = "a_metastore_value"
         assert Variable.get(key="not_myvar") == "a_metastore_value"
-        mock_meta_get.assert_called_once_with(key="not_myvar")
+        mock_meta_get.assert_called_once_with(key="not_myvar", team_name=None)
 
         mock_secret_get.return_value = "a_secret_value"
         assert Variable.get(key="not_myvar") == "a_secret_value"

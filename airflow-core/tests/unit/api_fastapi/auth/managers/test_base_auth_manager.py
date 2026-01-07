@@ -454,13 +454,13 @@ class TestBaseAuthManager:
             # No access to any team
             (
                 {},
-                [("1", "team1"), ("2", "team2")],
+                ["team1", "team2"],
                 set(),
             ),
             # Access to specific teams
             (
                 {"team1": True},
-                [("1", "team1"), ("2", "team2")],
+                ["team1", "team2"],
                 {"team1"},
             ),
         ],
@@ -479,7 +479,7 @@ class TestBaseAuthManager:
         auth_manager.is_authorized_team = MagicMock(side_effect=side_effect_func)
         user = Mock()
         session = Mock()
-        session.execute.return_value.all.return_value = rows
+        session.scalars.return_value.all.return_value = rows
         result = auth_manager.get_authorized_teams(user=user, session=session)
         assert result == expected
 
@@ -593,4 +593,24 @@ class TestBaseAuthManager:
         session = Mock()
         session.execute.return_value.all.return_value = rows
         result = auth_manager.get_authorized_pools(user=user, session=session)
+        assert result == expected
+
+    @pytest.mark.parametrize(
+        ("user_id", "assigned_users", "expected"),
+        [
+            # User in assigned_users
+            ("user1", {"user1", "user2"}, True),
+            ("user2", {"user1", "user2"}, True),
+            # User not in assigned_users
+            ("user3", {"user1", "user2"}, False),
+            # Empty assigned_users
+            ("user1", set(), False),
+        ],
+    )
+    def test_is_authorized_hitl_task(
+        self, auth_manager, user_id: str, assigned_users: set[str], expected: bool
+    ):
+        """Test is_authorized_hitl_task method with the new signature."""
+        user = BaseAuthManagerUserTest(name=user_id)
+        result = auth_manager.is_authorized_hitl_task(assigned_users=assigned_users, user=user)
         assert result == expected

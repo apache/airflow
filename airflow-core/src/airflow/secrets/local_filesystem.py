@@ -344,12 +344,12 @@ class LocalFilesystemBackend(BaseSecretsBackend, LoggingMixin):
             return {}
         return load_configs_dict(self.configs_file)
 
-    def get_connection(self, conn_id: str) -> Connection | None:
+    def get_connection(self, conn_id: str, team_name: str | None = None) -> Connection | None:
         if conn_id in self._local_connections:
             return self._local_connections[conn_id]
         return None
 
-    def get_variable(self, key: str) -> str | None:
+    def get_variable(self, key: str, team_name: str | None = None) -> str | None:
         return self._local_variables.get(key)
 
     def get_config(self, key: str) -> str | None:

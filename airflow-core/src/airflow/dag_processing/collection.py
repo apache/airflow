@@ -54,10 +54,15 @@ from airflow.models.dagrun import DagRun
 from airflow.models.dagwarning import DagWarningType
 from airflow.models.errors import ParseImportError
 from airflow.models.trigger import Trigger
-from airflow.sdk import Asset, AssetAlias
-from airflow.sdk.definitions.asset import AssetNameRef, AssetUriRef, BaseAsset
+from airflow.serialization.definitions.assets import (
+    SerializedAsset,
+    SerializedAssetAlias,
+    SerializedAssetNameRef,
+    SerializedAssetUriRef,
+)
+from airflow.serialization.definitions.dag import SerializedDAG
 from airflow.serialization.enums import Encoding
-from airflow.serialization.serialized_objects import BaseSerialization, LazyDeserializedDAG, SerializedDAG
+from airflow.serialization.serialized_objects import BaseSerialization, LazyDeserializedDAG
 from airflow.triggers.base import BaseEventTrigger
 from airflow.utils.retries import MAX_DB_RETRIES, run_with_db_retries
 from airflow.utils.sqlalchemy import get_dialect_name, with_row_locks
@@ -67,12 +72,12 @@ if TYPE_CHECKING:
     from collections.abc import Collection, Iterable, Iterator
 
     from sqlalchemy.orm import Session
-    from sqlalchemy.sql import Select, Subquery
+    from sqlalchemy.sql import Select
 
     from airflow.models.dagwarning import DagWarning
     from airflow.typing_compat import Self
 
-AssetT = TypeVar("AssetT", bound=BaseAsset)
+    AssetT = TypeVar("AssetT", SerializedAsset, SerializedAssetAlias)
 
 log = structlog.get_logger(__name__)
 
@@ -92,69 +97,60 @@ def _create_orm_dags(
         yield orm_dag
 
 
-def _get_latest_runs_stmt(dag_ids: Collection[str]) -> Select:
+def _get_latest_runs_stmt(dag_id: str) -> Select:
     """Build a select statement to retrieve the last automated run for each dag."""
-    if len(dag_ids) == 1:  # Index optimized fast path to avoid more complicated & slower groupby queryplan.
-        (dag_id,) = dag_ids
-        last_automated_runs_subq_scalar: Any = (
-            select(func.max(DagRun.logical_date).label("max_logical_date"))
-            .where(
-                DagRun.dag_id == dag_id,
-                DagRun.run_type.in_((DagRunType.BACKFILL_JOB, DagRunType.SCHEDULED)),
-            )
-            .scalar_subquery()
-        )
-        query = select(DagRun).where(
+    max_logical_date = (
+        select(func.max(DagRun.logical_date).label("max_logical_date"))
+        .where(
             DagRun.dag_id == dag_id,
-            DagRun.logical_date == last_automated_runs_subq_scalar,
+            DagRun.run_type.in_(
+                (
+                    DagRunType.BACKFILL_JOB,
+                    DagRunType.SCHEDULED,
+                )
+            ),
         )
-    else:
-        last_automated_runs_subq_table: Subquery = (
-            select(DagRun.dag_id, func.max(DagRun.logical_date).label("max_logical_date"))
-            .where(
-                DagRun.dag_id.in_(dag_ids),
-                DagRun.run_type.in_((DagRunType.BACKFILL_JOB, DagRunType.SCHEDULED)),
+        .scalar_subquery()
+    )
+    return (
+        select(DagRun)
+        .where(
+            DagRun.dag_id == dag_id,
+            DagRun.logical_date == max_logical_date,
+        )
+        .options(
+            load_only(
+                DagRun.dag_id,
+                DagRun.logical_date,
+                DagRun.data_interval_start,
+                DagRun.data_interval_end,
             )
-            .group_by(DagRun.dag_id)
-            .subquery()
-        )
-        query = select(DagRun).where(
-            DagRun.dag_id == last_automated_runs_subq_table.c.dag_id,
-            DagRun.logical_date == last_automated_runs_subq_table.c.max_logical_date,
-        )
-    return query.options(
-        load_only(
-            DagRun.dag_id,
-            DagRun.logical_date,
-            DagRun.data_interval_start,
-            DagRun.data_interval_end,
         )
     )
 
 
 class _RunInfo(NamedTuple):
-    latest_runs: dict[str, DagRun]
-    num_active_runs: dict[str, int]
+    latest_run: DagRun | None
+    num_active_runs: int
 
     @classmethod
-    def calculate(cls, dags: dict[str, LazyDeserializedDAG], *, session: Session) -> Self:
+    def calculate(cls, dag: LazyDeserializedDAG, *, session: Session) -> Self:
         """
         Query the run counts from the db.
 
         :param dags: dict of dags to query
         """
         # Skip these queries entirely if no DAGs can be scheduled to save time.
-        if not any(dag.timetable.can_be_scheduled for dag in dags.values()):
-            return cls({}, {})
+        if not dag.timetable.can_be_scheduled:
+            return cls(None, 0)
 
-        latest_runs = {run.dag_id: run for run in session.scalars(_get_latest_runs_stmt(dag_ids=dags.keys()))}
+        latest_run = session.scalar(_get_latest_runs_stmt(dag_id=dag.dag_id))
         active_run_counts = DagRun.active_runs_of_dags(
-            dag_ids=dags.keys(),
+            dag_ids=[dag.dag_id],
             exclude_backfill=True,
             session=session,
         )
-
-        return cls(latest_runs, active_run_counts)
+        return cls(latest_run, active_run_counts.get(dag.dag_id, 0))
 
 
 def _update_dag_tags(tag_names: set[str], dm: DagModel, *, session: Session) -> None:
@@ -212,9 +208,13 @@ def _serialize_dag_capturing_errors(
 
     We can't place them directly in import_errors, as this may be retried, and work the next time
     """
-    from airflow import settings
     from airflow.models.dagcode import DagCode
     from airflow.models.serialized_dag import SerializedDagModel
+
+    # Updating serialized DAG can not be faster than a minimum interval to reduce database write rate.
+    MIN_SERIALIZED_DAG_UPDATE_INTERVAL = conf.getint(
+        "core", "min_serialized_dag_update_interval", fallback=30
+    )
 
     try:
         # We can't use bulk_write_to_db as we want to capture each error individually
@@ -222,7 +222,7 @@ def _serialize_dag_capturing_errors(
             dag,
             bundle_name=bundle_name,
             bundle_version=bundle_version,
-            min_update_interval=settings.MIN_SERIALIZED_DAG_UPDATE_INTERVAL,
+            min_update_interval=MIN_SERIALIZED_DAG_UPDATE_INTERVAL,
             session=session,
         )
         if not dag_was_updated:
@@ -487,8 +487,8 @@ class DagModelOperation(NamedTuple):
         session: Session,
     ) -> None:
         # we exclude backfill from active run counts since their concurrency is separate
-        run_info = _RunInfo.calculate(dags=self.dags, session=session)
         for dag_id, dm in sorted(orm_dags.items()):
+            run_info = _RunInfo.calculate(dag=self.dags[dag_id], session=session)
             dag = self.dags[dag_id]
             dm.fileloc = dag.fileloc
             dm.relative_fileloc = dag.relative_fileloc
@@ -543,12 +543,12 @@ class DagModelOperation(NamedTuple):
             dm.bundle_name = self.bundle_name
             dm.bundle_version = self.bundle_version
 
-            last_automated_run: DagRun | None = run_info.latest_runs.get(dag.dag_id)
+            last_automated_run: DagRun | None = run_info.latest_run
             if last_automated_run is None:
                 last_automated_data_interval = None
             else:
                 last_automated_data_interval = get_run_data_interval(dag.timetable, last_automated_run)
-            if run_info.num_active_runs.get(dag.dag_id, 0) >= dm.max_active_runs:
+            if run_info.num_active_runs >= dm.max_active_runs:
                 dm.next_dagrun_create_after = None
             else:
                 dm.calculate_dagrun_date_fields(dag, last_automated_data_interval)  # type: ignore[arg-type]
@@ -643,19 +643,19 @@ def _get_dag_assets(
                 yield task["task_id"], obj
 
 
-def _find_all_assets(dags: Iterable[LazyDeserializedDAG]) -> Iterator[Asset]:
+def _find_all_assets(dags: Iterable[LazyDeserializedDAG]) -> Iterator[SerializedAsset]:
     for dag in dags:
         for _, asset in dag.timetable.asset_condition.iter_assets():
             yield asset
-        for _, asset in _get_dag_assets(dag, of=Asset):
+        for _, asset in _get_dag_assets(dag, of=SerializedAsset):
             yield asset
 
 
-def _find_all_asset_aliases(dags: Iterable[LazyDeserializedDAG]) -> Iterator[AssetAlias]:
+def _find_all_asset_aliases(dags: Iterable[LazyDeserializedDAG]) -> Iterator[SerializedAssetAlias]:
     for dag in dags:
         for _, alias in dag.timetable.asset_condition.iter_asset_aliases():
             yield alias
-        for _, alias in _get_dag_assets(dag, of=AssetAlias):
+        for _, alias in _get_dag_assets(dag, of=SerializedAssetAlias):
             yield alias
 
 
@@ -677,14 +677,14 @@ def _find_active_assets(name_uri_assets: Iterable[tuple[str, str]], session: Ses
 class AssetModelOperation(NamedTuple):
     """Collect asset/alias objects from DAGs and perform database operations for them."""
 
-    schedule_asset_references: dict[str, list[Asset]]
-    schedule_asset_alias_references: dict[str, list[AssetAlias]]
+    schedule_asset_references: dict[str, list[SerializedAsset]]
+    schedule_asset_alias_references: dict[str, list[SerializedAssetAlias]]
     schedule_asset_name_references: set[tuple[str, str]]  # dag_id, ref_name.
     schedule_asset_uri_references: set[tuple[str, str]]  # dag_id, ref_uri.
-    inlet_references: dict[str, list[tuple[str, Asset]]]
-    outlet_references: dict[str, list[tuple[str, Asset]]]
-    assets: dict[tuple[str, str], Asset]
-    asset_aliases: dict[str, AssetAlias]
+    inlet_references: dict[str, list[tuple[str, SerializedAsset]]]
+    outlet_references: dict[str, list[tuple[str, SerializedAsset]]]
+    assets: dict[tuple[str, str], SerializedAsset]
+    asset_aliases: dict[str, SerializedAssetAlias]
 
     @classmethod
     def collect(cls, dags: dict[str, LazyDeserializedDAG]) -> Self:
@@ -701,20 +701,20 @@ class AssetModelOperation(NamedTuple):
                 (dag_id, ref.name)
                 for dag_id, dag in dags.items()
                 for ref in dag.timetable.asset_condition.iter_asset_refs()
-                if isinstance(ref, AssetNameRef)
+                if isinstance(ref, SerializedAssetNameRef)
             },
             schedule_asset_uri_references={
                 (dag_id, ref.uri)
                 for dag_id, dag in dags.items()
                 for ref in dag.timetable.asset_condition.iter_asset_refs()
-                if isinstance(ref, AssetUriRef)
+                if isinstance(ref, SerializedAssetUriRef)
             },
             inlet_references={
-                dag_id: list(_get_dag_assets(dag, Asset, inlets=True, outlets=False))
+                dag_id: list(_get_dag_assets(dag, SerializedAsset, inlets=True, outlets=False))
                 for dag_id, dag in dags.items()
             },
             outlet_references={
-                dag_id: list(_get_dag_assets(dag, Asset, inlets=False, outlets=True))
+                dag_id: list(_get_dag_assets(dag, SerializedAsset, inlets=False, outlets=True))
                 for dag_id, dag in dags.items()
             },
             assets={(asset.name, asset.uri): asset for asset in _find_all_assets(dags.values())},

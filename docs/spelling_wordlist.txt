@@ -1045,6 +1045,7 @@ kwargs
 KYLIN
 Kylin
 kylin
+Kyverno
 Lakehouse
 LanguageServiceClient
 lastname
@@ -1254,6 +1255,7 @@ od
 odbc
 odps
 ok
+oklch
 Okta
 okta
 onboarded
@@ -1826,6 +1828,7 @@ tblproperties
 tbuild
 TCP
 tcp
+tdload
 teardown
 teardowns
 templatable

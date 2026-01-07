@@ -35,6 +35,47 @@
 Changelog
 ---------
 
+1.10.2
+......
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix DAG bundle imports in subprocess operators (#57631)``
+
+Misc
+~~~~
+
+* ``TaskInstance unused method cleanup (#59835)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Use SDK serde for trigger and next kwargs serialization (#59711)``
+   * ``Remove top-level SDK reference in Core (#59817)``
+   * ``Clean up SDK references in airflow.models.expandinput (#59815)``
+   * ``Move MappedOperator to serialization (#59628)``
+   * ``Split SerializedBaseOperator from serde logic (#59627)``
+   * ``Minor cleanups removing SDK references from Core (#59491)``
+   * ``Split SDK and serialized asset classes (#58993)``
+
+1.10.1
+......
+
+Bug Fixes
+~~~~~~~~~
+
+* ``fix uv venv fail without direct internet access (#59046)``
+
+Misc
+~~~~
+
+* ``Add backcompat for exceptions in providers (#58727)``
+* ``Implement timetables in SDK (#58669)``
+* ``nit: rename TriggerDagRunOperator._defer to deferrable (#58925)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 1.10.0
 ......
 

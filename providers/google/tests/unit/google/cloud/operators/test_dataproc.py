@@ -31,13 +31,9 @@ from google.cloud.dataproc_v1 import Batch, Cluster, JobStatus
 from openlineage.client.transport import HttpConfig, HttpTransport, KafkaConfig, KafkaTransport
 
 from airflow import __version__ as AIRFLOW_VERSION
-from airflow.exceptions import (
-    AirflowException,
-    AirflowProviderDeprecationWarning,
-    AirflowTaskTimeout,
-    TaskDeferred,
-)
+from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.models import DAG, DagBag
+from airflow.providers.common.compat.sdk import AirflowException, AirflowTaskTimeout, TaskDeferred
 from airflow.providers.google.cloud.links.dataproc import (
     DATAPROC_BATCH_LINK,
     DATAPROC_CLUSTER_LINK_DEPRECATED,
@@ -70,9 +66,8 @@ from airflow.providers.google.cloud.triggers.dataproc import (
     DataprocSubmitTrigger,
 )
 from airflow.providers.google.common.consts import GOOGLE_DEFAULT_DEFERRABLE_METHOD_NAME
-from airflow.serialization.serialized_objects import SerializedDAG
-from airflow.utils.timezone import datetime
 
+from tests_common.test_utils.compat import DagSerialization, timezone
 from tests_common.test_utils.db import clear_db_runs, clear_db_xcom
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
@@ -351,7 +346,7 @@ WORKFLOW_TEMPLATE = {
     "jobs": [{"step_id": "pig_job_1", "pig_job": {}}],
 }
 TEST_DAG_ID = "test-dataproc-operators"
-DEFAULT_DATE = datetime(2020, 1, 1)
+DEFAULT_DATE = timezone.datetime(2020, 1, 1)
 TEST_JOB_ID = "test-job"
 TEST_WORKFLOW_ID = "test-workflow"
 
@@ -596,7 +591,7 @@ class TestsClusterGenerator:
             service_account="service_account",
             service_account_scopes=["service_account_scopes"],
             idle_delete_ttl=60,
-            auto_delete_time=datetime(2019, 9, 12),
+            auto_delete_time=timezone.datetime(2019, 9, 12),
             auto_delete_ttl=250,
             customer_managed_key="customer_managed_key",
             driver_pool_id="cluster_driver_pool",
@@ -637,7 +632,7 @@ class TestsClusterGenerator:
             service_account="service_account",
             service_account_scopes=["service_account_scopes"],
             idle_delete_ttl=60,
-            auto_delete_time=datetime(2019, 9, 12),
+            auto_delete_time=timezone.datetime(2019, 9, 12),
             auto_delete_ttl=250,
             customer_managed_key="customer_managed_key",
             enable_component_gateway=True,
@@ -676,7 +671,7 @@ class TestsClusterGenerator:
             service_account="service_account",
             service_account_scopes=["service_account_scopes"],
             idle_delete_ttl=60,
-            auto_delete_time=datetime(2019, 9, 12),
+            auto_delete_time=timezone.datetime(2019, 9, 12),
             auto_delete_ttl=250,
             customer_managed_key="customer_managed_key",
             secondary_worker_instance_flexibility_policy=InstanceFlexibilityPolicy(
@@ -733,7 +728,7 @@ class TestsClusterGenerator:
             service_account="service_account",
             service_account_scopes=["service_account_scopes"],
             idle_delete_ttl=60,
-            auto_delete_time=datetime(2019, 9, 12),
+            auto_delete_time=timezone.datetime(2019, 9, 12),
             auto_delete_ttl=250,
             customer_managed_key="customer_managed_key",
         )
@@ -1138,10 +1133,10 @@ def test_create_cluster_operator_extra_links(
         delete_on_error=True,
         gcp_conn_id=GCP_CONN_ID,
     )
-
+    task = dag_maker.dag.get_task(ti.task_id)
     serialized_dag = dag_maker.get_serialized_data()
     # Assert operator links for serialized DAG
-    deserialized_dag = SerializedDAG.deserialize_dag(serialized_dag["dag"])
+    deserialized_dag = DagSerialization.deserialize_dag(serialized_dag["dag"])
     operator_extra_link = deserialized_dag.tasks[0].operator_extra_links[0]
     assert operator_extra_link.name == "Dataproc Cluster"
 
@@ -1151,7 +1146,7 @@ def test_create_cluster_operator_extra_links(
             value="",
         )
     # Assert operator link is empty when no XCom push occurred
-    assert ti.task.operator_extra_links[0].get_link(operator=ti.task, ti_key=ti.key) == ""
+    assert task.operator_extra_links[0].get_link(operator=task, ti_key=ti.key) == ""
 
     ti.xcom_push(key="dataproc_cluster", value=DATAPROC_CLUSTER_EXPECTED)
 
@@ -1162,8 +1157,7 @@ def test_create_cluster_operator_extra_links(
         )
     # Assert operator links after execution
     assert (
-        ti.task.operator_extra_links[0].get_link(operator=ti.task, ti_key=ti.key)
-        == DATAPROC_CLUSTER_LINK_EXPECTED
+        task.operator_extra_links[0].get_link(operator=task, ti_key=ti.key) == DATAPROC_CLUSTER_LINK_EXPECTED
     )
 
 
@@ -2020,11 +2014,11 @@ def test_submit_job_operator_extra_links(
         job={},
         gcp_conn_id=GCP_CONN_ID,
     )
-
+    task = dag_maker.dag.get_task(ti.task_id)
     serialized_dag = dag_maker.get_serialized_data()
 
     # Assert operator links for serialized DAG
-    deserialized_dag = SerializedDAG.deserialize_dag(serialized_dag["dag"])
+    deserialized_dag = DagSerialization.deserialize_dag(serialized_dag["dag"])
     operator_extra_link = deserialized_dag.tasks[0].operator_extra_links[0]
     assert operator_extra_link.name == "Dataproc Job"
 
@@ -2035,7 +2029,7 @@ def test_submit_job_operator_extra_links(
         )
 
     # Assert operator link is empty when no XCom push occurred
-    assert ti.task.operator_extra_links[0].get_link(operator=ti.task, ti_key=ti.key) == ""
+    assert task.operator_extra_links[0].get_link(operator=task, ti_key=ti.key) == ""
 
     ti.xcom_push(key="dataproc_job", value=DATAPROC_JOB_EXPECTED)
 
@@ -2046,10 +2040,7 @@ def test_submit_job_operator_extra_links(
         )
 
     # Assert operator links after execution
-    assert (
-        ti.task.operator_extra_links[0].get_link(operator=ti.task, ti_key=ti.key)
-        == DATAPROC_JOB_LINK_EXPECTED
-    )
+    assert task.operator_extra_links[0].get_link(operator=task, ti_key=ti.key) == DATAPROC_JOB_LINK_EXPECTED
 
 
 class TestDataprocUpdateClusterOperator(DataprocClusterTestBase):
@@ -2229,11 +2220,11 @@ def test_update_cluster_operator_extra_links(
         project_id=GCP_PROJECT,
         gcp_conn_id=GCP_CONN_ID,
     )
-
+    task = dag_maker.dag.get_task(ti.task_id)
     serialized_dag = dag_maker.get_serialized_data()
 
     # Assert operator links for serialized DAG
-    deserialized_dag = SerializedDAG.deserialize_dag(serialized_dag["dag"])
+    deserialized_dag = DagSerialization.deserialize_dag(serialized_dag["dag"])
     operator_extra_link = deserialized_dag.tasks[0].operator_extra_links[0]
     assert operator_extra_link.name == "Dataproc Cluster"
 
@@ -2243,7 +2234,7 @@ def test_update_cluster_operator_extra_links(
             value="",
         )
     # Assert operator link is empty when no XCom push occurred
-    assert ti.task.operator_extra_links[0].get_link(operator=ti.task, ti_key=ti.key) == ""
+    assert task.operator_extra_links[0].get_link(operator=task, ti_key=ti.key) == ""
 
     ti.xcom_push(key="dataproc_cluster", value=DATAPROC_CLUSTER_EXPECTED)
 
@@ -2255,8 +2246,7 @@ def test_update_cluster_operator_extra_links(
 
     # Assert operator links after execution
     assert (
-        ti.task.operator_extra_links[0].get_link(operator=ti.task, ti_key=ti.key)
-        == DATAPROC_CLUSTER_LINK_EXPECTED
+        task.operator_extra_links[0].get_link(operator=task, ti_key=ti.key) == DATAPROC_CLUSTER_LINK_EXPECTED
     )
 
 
@@ -2456,10 +2446,11 @@ def test_instantiate_workflow_operator_extra_links(
         template_id=TEMPLATE_ID,
         gcp_conn_id=GCP_CONN_ID,
     )
+    task = dag_maker.dag.get_task(ti.task_id)
     serialized_dag = dag_maker.get_serialized_data()
 
     # Assert operator links for serialized DAG
-    deserialized_dag = SerializedDAG.deserialize_dag(serialized_dag["dag"])
+    deserialized_dag = DagSerialization.deserialize_dag(serialized_dag["dag"])
     operator_extra_link = deserialized_dag.tasks[0].operator_extra_links[0]
     assert operator_extra_link.name == "Dataproc Workflow"
 
@@ -2469,7 +2460,7 @@ def test_instantiate_workflow_operator_extra_links(
             value="",
         )
     # Assert operator link is empty when no XCom push occurred
-    assert ti.task.operator_extra_links[0].get_link(operator=ti.task, ti_key=ti.key) == ""
+    assert task.operator_extra_links[0].get_link(operator=task, ti_key=ti.key) == ""
 
     ti.xcom_push(key="dataproc_workflow", value=DATAPROC_WORKFLOW_EXPECTED)
     if AIRFLOW_V_3_0_PLUS:
@@ -2479,8 +2470,7 @@ def test_instantiate_workflow_operator_extra_links(
         )
     # Assert operator links after execution
     assert (
-        ti.task.operator_extra_links[0].get_link(operator=ti.task, ti_key=ti.key)
-        == DATAPROC_WORKFLOW_LINK_EXPECTED
+        task.operator_extra_links[0].get_link(operator=task, ti_key=ti.key) == DATAPROC_WORKFLOW_LINK_EXPECTED
     )
 
 
@@ -3150,10 +3140,11 @@ def test_instantiate_inline_workflow_operator_extra_links(
         template={},
         gcp_conn_id=GCP_CONN_ID,
     )
+    task = dag_maker.dag.get_task(ti.task_id)
     serialized_dag = dag_maker.get_serialized_data()
 
     # Assert operator links for serialized DAG
-    deserialized_dag = SerializedDAG.deserialize_dag(serialized_dag["dag"])
+    deserialized_dag = DagSerialization.deserialize_dag(serialized_dag["dag"])
     operator_extra_link = deserialized_dag.tasks[0].operator_extra_links[0]
     assert operator_extra_link.name == "Dataproc Workflow"
     if AIRFLOW_V_3_0_PLUS:
@@ -3162,7 +3153,7 @@ def test_instantiate_inline_workflow_operator_extra_links(
             value="",
         )
     # Assert operator link is empty when no XCom push occurred
-    assert ti.task.operator_extra_links[0].get_link(operator=ti.task, ti_key=ti.key) == ""
+    assert task.operator_extra_links[0].get_link(operator=task, ti_key=ti.key) == ""
 
     ti.xcom_push(key="dataproc_workflow", value=DATAPROC_WORKFLOW_EXPECTED)
     if AIRFLOW_V_3_0_PLUS:
@@ -3172,8 +3163,7 @@ def test_instantiate_inline_workflow_operator_extra_links(
 
     # Assert operator links after execution
     assert (
-        ti.task.operator_extra_links[0].get_link(operator=ti.task, ti_key=ti.key)
-        == DATAPROC_WORKFLOW_LINK_EXPECTED
+        task.operator_extra_links[0].get_link(operator=task, ti_key=ti.key) == DATAPROC_WORKFLOW_LINK_EXPECTED
     )
 
 

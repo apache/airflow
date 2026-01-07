@@ -24,13 +24,19 @@ from datetime import time, timedelta
 from unittest import mock
 
 import pytest
+from sqlalchemy import select
 
 from airflow import settings
-from airflow.exceptions import AirflowException, AirflowSensorTimeout, AirflowSkipException, TaskDeferred
 from airflow.models import DagRun, TaskInstance
 from airflow.models.dag import DAG
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.xcom_arg import XComArg
+from airflow.providers.common.compat.sdk import (
+    AirflowException,
+    AirflowSensorTimeout,
+    AirflowSkipException,
+    TaskDeferred,
+)
 from airflow.providers.standard.exceptions import (
     DuplicateStateError,
     ExternalDagDeletedError,
@@ -47,12 +53,12 @@ from airflow.providers.standard.operators.python import PythonOperator
 from airflow.providers.standard.sensors.external_task import ExternalTaskMarker, ExternalTaskSensor
 from airflow.providers.standard.sensors.time import TimeSensor
 from airflow.providers.standard.triggers.external_task import WorkflowTrigger
-from airflow.serialization.serialized_objects import SerializedBaseOperator
 from airflow.timetables.base import DataInterval
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.state import DagRunState, State
 from airflow.utils.types import DagRunType
 
+from tests_common.test_utils.compat import OperatorSerialization
 from tests_common.test_utils.dag import create_scheduler_dag, sync_dag_to_db, sync_dags_to_db
 from tests_common.test_utils.db import clear_db_runs
 from tests_common.test_utils.mock_operators import MockOperator
@@ -359,7 +365,7 @@ class TestExternalTaskSensorV2:
 
         # then
         session = settings.Session()
-        task_instances: list[TI] = session.query(TI).filter(TI.task_id == op.task_id).all()
+        task_instances: list[TI] = session.scalars(select(TI).where(TI.task_id == op.task_id)).all()
         assert len(task_instances) == 1, "Unexpected number of task instances"
         assert task_instances[0].state == State.SKIPPED, "Unexpected external task state"
 
@@ -378,7 +384,7 @@ class TestExternalTaskSensorV2:
         op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
 
         # then
-        task_instances: list[TI] = session.query(TI).filter(TI.task_id == op.task_id).all()
+        task_instances: list[TI] = session.scalars(select(TI).where(TI.task_id == op.task_id)).all()
         assert len(task_instances) == 1, "Unexpected number of task instances"
         assert task_instances[0].state == State.SKIPPED, "Unexpected external task state"
 
@@ -485,7 +491,7 @@ class TestExternalTaskSensorV2:
         op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
 
         # then
-        task_instances: list[TI] = session.query(TI).filter(TI.task_id == op.task_id).all()
+        task_instances: list[TI] = session.scalars(select(TI).where(TI.task_id == op.task_id)).all()
         assert len(task_instances) == 1, "Unexpected number of task instances"
         assert task_instances[0].state == State.SKIPPED, "Unexpected external task state"
 
@@ -521,15 +527,13 @@ exit 0
             # once per minute (the run on the first second of
             # each minute).
         except Exception as e:
-            failed_tis = (
-                session.query(TI)
-                .filter(
+            failed_tis = session.scalars(
+                select(TI).where(
                     TI.dag_id == dag_external_id,
                     TI.state == State.FAILED,
                     TI.execution_date == DEFAULT_DATE + timedelta(seconds=1),
                 )
-                .all()
-            )
+            ).all()
             if len(failed_tis) == 1 and failed_tis[0].task_id == "task_external_with_failure":
                 pass
             else:
@@ -1574,13 +1578,13 @@ def test_external_task_sensor_extra_link(
         external_dag_id=external_dag_id,
         external_task_id=external_task_id,
     )
-    ti.render_templates()
+    task = ti.render_templates()
 
-    assert ti.task.external_dag_id == expected_external_dag_id
-    assert ti.task.external_task_id == expected_external_task_id
-    assert ti.task.external_task_ids == [expected_external_task_id]
+    assert task.external_dag_id == expected_external_dag_id
+    assert task.external_task_id == expected_external_task_id
+    assert task.external_task_ids == [expected_external_task_id]
 
-    url = ti.task.operator_extra_links[0].get_link(operator=ti.task, ti_key=ti.key)
+    url = task.operator_extra_links[0].get_link(operator=task, ti_key=ti.key)
 
     assert f"/dags/{expected_external_dag_id}/runs" in url
 
@@ -1598,8 +1602,8 @@ class TestExternalTaskMarker:
             dag=dag,
         )
 
-        serialized_op = SerializedBaseOperator.serialize_operator(task)
-        deserialized_op = SerializedBaseOperator.deserialize_operator(serialized_op)
+        serialized_op = OperatorSerialization.serialize_operator(task)
+        deserialized_op = OperatorSerialization.deserialize_operator(serialized_op)
         assert deserialized_op.task_type == "ExternalTaskMarker"
         assert getattr(deserialized_op, "external_dag_id") == "external_task_marker_child"
         assert getattr(deserialized_op, "external_task_id") == "child_task1"

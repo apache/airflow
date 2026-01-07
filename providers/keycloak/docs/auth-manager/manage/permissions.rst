@@ -37,11 +37,15 @@ There are two options to create the permissions:
 CLI commands take the following parameters:
 
 * ``--username``: Keycloak admin username
-* ``--password``: Keycloak admin password
+* ``--password``: Keycloak admin password. Specifying the parameter without a value will prompt for the password securely.
 * ``--user-realm``: Keycloak user realm
 * ``--client-id``: Keycloak client id (default: admin-cli)
 
-Please check the `Keycloak auth manager CLI </cli-refs.html>`_ documentation for more information about accepted parameters.
+They also take the following optional parameters:
+
+* ``--dry-run``: If set, the command will check the connection to Keycloak and print the actions that would be performed, without actually executing them.
+
+Please check the `Keycloak auth manager CLI </cli-ref.html>`_ documentation for more information about accepted parameters.
 
 One-go creation of permissions
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^

@@ -27,6 +27,42 @@
 Changelog
 ---------
 
+12.10.1
+.......
+
+Misc
+~~~~
+
+* ``Remove top-level SDK reference in Core (#59817)``
+* ``Prevent client secrets and proxy credentials from being logged in Microsoft Graph hook logs (#59688)``
+* ``Check team boundaries in variables (#58905)``
+* ``Extract shared "module_loading" distribution (#59139)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``TaskInstance unused method cleanup (#59835)``
+
+12.10.0
+.......
+
+Features
+~~~~~~~~
+
+* ``Added paginated_run method to KiotaRequestAdapterHook in MSGraph (#57536)``
+
+Misc
+~~~~
+
+* ``Add backcompat for exceptions in providers (#58727)``
+
+Doc-only
+~~~~~~~~
+
+* ``Update logging documentation for Azure Blob Storage (#59016)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 12.9.0
 ......
 

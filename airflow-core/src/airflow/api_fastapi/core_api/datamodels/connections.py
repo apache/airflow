@@ -41,6 +41,7 @@ class ConnectionResponse(BaseModel):
     port: int | None
     password: str | None
     extra: str | None
+    team_name: str | None
 
     @field_validator("password", mode="after")
     @classmethod
@@ -122,6 +123,14 @@ class ConnectionHookMetaData(BaseModel):
     standard_fields: StandardHookFields | None
     extra_fields: Mapping | None
 
+    @field_validator("extra_fields", mode="after")
+    @classmethod
+    def redact_extra_fields(cls, v: Mapping | None):
+        if v is None:
+            return None
+
+        return redact(v)
+
 
 # Request Models
 class ConnectionBody(StrictBaseModel):
@@ -136,6 +145,7 @@ class ConnectionBody(StrictBaseModel):
     port: int | None = Field(default=None)
     password: str | None = Field(default=None)
     extra: str | None = Field(default=None)
+    team_name: str | None = Field(max_length=50, default=None)
 
     @field_validator("extra")
     @classmethod

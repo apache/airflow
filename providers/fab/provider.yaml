@@ -28,13 +28,15 @@ description: |
 # For providers until we think it should be released.
 state: ready
 
-source-date-epoch: 1764110130
+source-date-epoch: 1767124601
 
 # Note that those versions are maintained by release manager - do not update them manually
 # with the exception of case where other provider in sources has >= new provider version.
 # In such case adding >= NEW_VERSION and bumping to NEW_VERSION in a provider have
 # to be done in the same PR
 versions:
+  - 3.1.1
+  - 3.1.0
   - 3.0.3
   - 3.0.2
   - 3.0.1
@@ -250,3 +252,6 @@ config:
 
 auth-managers:
   - airflow.providers.fab.auth_manager.fab_auth_manager.FabAuthManager
+
+cli:
+  - airflow.providers.fab.cli.definition.get_fab_cli_commands

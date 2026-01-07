@@ -46,7 +46,7 @@ ARG AIRFLOW_UID="50000"
 ARG AIRFLOW_USER_HOME_DIR=/home/airflow
 
 # latest released version here
-ARG AIRFLOW_VERSION="3.1.3"
+ARG AIRFLOW_VERSION="3.1.5"
 
 ARG BASE_IMAGE="debian:bookworm-slim"
 ARG AIRFLOW_PYTHON_VERSION="3.12.12"
@@ -71,7 +71,7 @@ ARG PYTHON_LTO="true"
 # Also use `force pip` label on your PR to swap all places we use `uv` to `pip`
 ARG AIRFLOW_PIP_VERSION=25.3
 # ARG AIRFLOW_PIP_VERSION="git+https://github.com/pypa/pip.git@main"
-ARG AIRFLOW_UV_VERSION=0.9.16
+ARG AIRFLOW_UV_VERSION=0.9.22
 ARG AIRFLOW_USE_UV="false"
 ARG UV_HTTP_TIMEOUT="300"
 ARG AIRFLOW_IMAGE_REPOSITORY="https://github.com/apache/airflow"
@@ -997,6 +997,7 @@ function install_airflow_and_providers_from_docker_context_files(){
         "${install_airflow_distribution[@]}" "${install_airflow_core_distribution[@]}" "${airflow_distributions[@]}"
     set +x
     common::install_packaging_tools
+    # We use pip check here to make sure that whatever `uv` installs, is also "correct" according to `pip`
     pip check
 }
 
@@ -1237,6 +1238,7 @@ function install_airflow_when_building_images() {
     echo
     echo "${COLOR_BLUE}Running 'pip check'${COLOR_RESET}"
     echo
+    # We use pip check here to make sure that whatever `uv` installs, is also "correct" according to `pip`
     pip check
 }
 
@@ -1272,6 +1274,7 @@ function install_additional_dependencies() {
         echo
         echo "${COLOR_BLUE}Running 'pip check'${COLOR_RESET}"
         echo
+        # We use pip check here to make sure that whatever `uv` installs, is also "correct" according to `pip`
         pip check
     else
         echo
@@ -1286,6 +1289,7 @@ function install_additional_dependencies() {
         echo
         echo "${COLOR_BLUE}Running 'pip check'${COLOR_RESET}"
         echo
+        # We use pip check here to make sure that whatever `uv` installs, is also "correct" according to `pip`
         pip check
     fi
 }

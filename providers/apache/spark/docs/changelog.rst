@@ -29,6 +29,29 @@
 Changelog
 ---------
 
+5.4.2
+.....
+
+Misc
+~~~~
+
+* ``Cleanup of variables in settings.py (#59875)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``TaskInstance unused method cleanup (#59835)``
+
+5.4.1
+.....
+
+Misc
+~~~~
+
+* ``Add backcompat for exceptions in providers (#58727)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 5.4.0
 .....
 

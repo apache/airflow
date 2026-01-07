@@ -21,11 +21,15 @@ from functools import cached_property
 from typing import TYPE_CHECKING, Any
 
 import pyathena
-from sqlalchemy.engine.url import URL
 
-from airflow.exceptions import AirflowException, AirflowNotFoundException
+try:
+    from sqlalchemy.engine.url import URL
+except ImportError:
+    URL = None  # type: ignore[assignment,misc]
+
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 from airflow.providers.amazon.aws.utils.connection_wrapper import AwsConnectionWrapper
+from airflow.providers.common.compat.sdk import AirflowException, AirflowNotFoundException
 from airflow.providers.common.sql.hooks.sql import DbApiHook
 
 if TYPE_CHECKING:
@@ -152,9 +156,15 @@ class AthenaSQLHook(AwsBaseHook, DbApiHook):
 
     def get_uri(self) -> str:
         """Overridden to use the Athena dialect as driver name."""
+        from airflow.exceptions import AirflowOptionalProviderFeatureException
+
+        if URL is None:
+            raise AirflowOptionalProviderFeatureException(
+                "sqlalchemy is required to generate the connection URI. "
+                "Install it with: pip install 'apache-airflow-providers-amazon[sqlalchemy]'"
+            )
         conn_params = self._get_conn_params()
         creds = self.get_credentials(region_name=conn_params["region_name"])
-
         return URL.create(
             f"awsathena+{conn_params['driver']}",
             username=creds.access_key,

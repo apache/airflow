@@ -27,8 +27,8 @@ import pytest
 from requests import exceptions as requests_exceptions
 from requests.models import Response
 
-from airflow.exceptions import AirflowException
 from airflow.models.connection import Connection
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.dbt.cloud.hooks.dbt import (
     DBT_CAUSE_MAX_LENGTH,
     DbtCloudHook,
@@ -39,10 +39,7 @@ from airflow.providers.dbt.cloud.hooks.dbt import (
     fallback_to_default_account,
 )
 
-try:
-    from airflow.sdk import timezone
-except ImportError:
-    from airflow.utils import timezone  # type: ignore[attr-defined,no-redef]
+from tests_common.test_utils.compat import timezone
 
 ACCOUNT_ID_CONN = "account_id_conn"
 NO_ACCOUNT_ID_CONN = "no_account_id_conn"

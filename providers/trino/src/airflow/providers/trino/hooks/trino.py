@@ -29,12 +29,8 @@ from deprecated import deprecated
 from trino.exceptions import DatabaseError
 from trino.transaction import IsolationLevel
 
-from airflow.configuration import conf
-from airflow.exceptions import (
-    AirflowException,
-    AirflowOptionalProviderFeatureException,
-    AirflowProviderDeprecationWarning,
-)
+from airflow.exceptions import AirflowOptionalProviderFeatureException, AirflowProviderDeprecationWarning
+from airflow.providers.common.compat.sdk import AirflowException, conf
 from airflow.providers.common.sql.hooks.sql import DbApiHook
 from airflow.providers.trino.version_compat import AIRFLOW_V_3_0_PLUS
 from airflow.utils.helpers import exactly_one

@@ -20,11 +20,16 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any
 from urllib.parse import unquote
 
-from airflow.exceptions import AirflowException, TaskInstanceNotFound
+from airflow.exceptions import AirflowOptionalProviderFeatureException, TaskInstanceNotFound
 from airflow.models.dagrun import DagRun
 from airflow.models.taskinstance import TaskInstance, TaskInstanceKey, clear_task_instances
-from airflow.plugins_manager import AirflowPlugin
-from airflow.providers.common.compat.sdk import BaseOperatorLink, TaskGroup, XCom
+from airflow.providers.common.compat.sdk import (
+    AirflowException,
+    AirflowPlugin,
+    BaseOperatorLink,
+    TaskGroup,
+    XCom,
+)
 from airflow.providers.databricks.hooks.databricks import DatabricksHook
 from airflow.providers.databricks.version_compat import AIRFLOW_V_3_0_PLUS
 from airflow.utils.log.logging_mixin import LoggingMixin
@@ -68,6 +73,10 @@ if not AIRFLOW_V_3_0_PLUS:
     from flask_appbuilder import BaseView
     from flask_appbuilder.api import expose
 
+    try:
+        from sqlalchemy import select
+    except ImportError:
+        select = None  # type: ignore[assignment,misc]
     from airflow.utils.session import NEW_SESSION, provide_session
     from airflow.www import auth
 
@@ -140,10 +149,17 @@ if not AIRFLOW_V_3_0_PLUS:
         :param session: The SQLAlchemy session to use for the query. If None, uses the default session.
         :return: The DagRun object associated with the specified DAG and run_id.
         """
+        if select is None:
+            raise AirflowOptionalProviderFeatureException(
+                "sqlalchemy is required for workflow repair functionality. "
+                "Install it with: pip install 'apache-airflow-providers-databricks[sqlalchemy]'"
+            )
         if not session:
             raise AirflowException("Session not provided.")
 
-        return session.query(DagRun).filter(DagRun.dag_id == dag.dag_id, DagRun.run_id == run_id).one()
+        return session.scalars(
+            select(DagRun).where(DagRun.dag_id == dag.dag_id, DagRun.run_id == run_id)
+        ).one()
 
     @provide_session
     def _clear_task_instances(
@@ -157,20 +173,23 @@ if not AIRFLOW_V_3_0_PLUS:
 
     @provide_session
     def get_task_instance(operator: BaseOperator, dttm, session: Session = NEW_SESSION) -> TaskInstance:
+        if select is None:
+            raise AirflowOptionalProviderFeatureException(
+                "sqlalchemy is required to get task instance. "
+                "Install it with: pip install 'apache-airflow-providers-databricks[sqlalchemy]'"
+            )
         dag_id = operator.dag.dag_id
         if hasattr(DagRun, "execution_date"):  # Airflow 2.x.
             dag_run = DagRun.find(dag_id, execution_date=dttm)[0]  # type: ignore[call-arg]
         else:
             dag_run = DagRun.find(dag_id, logical_date=dttm)[0]
-        ti = (
-            session.query(TaskInstance)
-            .filter(
+        ti = session.scalars(
+            select(TaskInstance).where(
                 TaskInstance.dag_id == dag_id,
                 TaskInstance.run_id == dag_run.run_id,
                 TaskInstance.task_id == operator.task_id,
             )
-            .one_or_none()
-        )
+        ).one_or_none()
         if not ti:
             raise TaskInstanceNotFound("Task instance not found")
         return ti

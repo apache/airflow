@@ -25,8 +25,7 @@ from contextlib import suppress
 from winrm.exceptions import WinRMOperationTimeoutError
 from winrm.protocol import Protocol
 
-from airflow.exceptions import AirflowException
-from airflow.providers.common.compat.sdk import BaseHook
+from airflow.providers.common.compat.sdk import AirflowException, BaseHook
 from airflow.utils.platform import getuser
 
 # TODO: FIXME please - I have too complex implementation
@@ -72,6 +71,11 @@ class WinRMHook(BaseHook):
         protocols like TLSv1.0, default is False
     :param send_cbt: Will send the channel bindings over a HTTPS channel (Default: True)
     """
+
+    conn_name_attr = "ssh_conn_id"
+    default_conn_name = "winrm_default"
+    conn_type = "winrm"
+    hook_name = "WinRM"
 
     def __init__(
         self,

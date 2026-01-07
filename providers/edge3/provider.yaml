@@ -33,13 +33,15 @@ description: |
   are provided by the API server.
 
 state: ready
-source-date-epoch: 1764110065
+source-date-epoch: 1767124483
 
 # Note that those versions are maintained by release manager - do not update them manually
 # with the exception of case where other provider in sources has >= new provider version.
 # In such case adding >= NEW_VERSION and bumping to NEW_VERSION in a provider have
 # to be done in the same PR
 versions:
+  - 2.0.1
+  - 2.0.0
   - 1.6.0
   - 1.5.0
   - 1.4.1
@@ -56,6 +58,9 @@ versions:
 plugins:
   - name: edge_executor
     plugin-class: airflow.providers.edge3.plugins.edge_executor_plugin.EdgeExecutorPlugin
+
+cli:
+  - airflow.providers.edge3.cli.definition.get_edge_cli_commands
 
 executors:
   - airflow.providers.edge3.executors.EdgeExecutor

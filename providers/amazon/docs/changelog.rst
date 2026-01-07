@@ -26,6 +26,59 @@
 Changelog
 ---------
 
+9.19.0
+......
+
+Features
+~~~~~~~~
+
+* ``Check team boundaries in variables (#58905)``
+
+Misc
+~~~~
+
+* ``Upgrade fallback instance type to ml.m6i.xlarge (#59827)``
+* ``Remove top-level SDK reference in Core (#59817)``
+
+Doc-only
+~~~~~~~~
+
+* ``Remove redundant InvokeModel calls (#59527)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``TaskInstance unused method cleanup (#59835)``
+   * ``Remove global from logging_config (#59763)``
+   * ``Split serde logic from SerializedDAG (#59596)``
+   * ``Add sqs hook tests (#59586)``
+   * ``Fix various Airflow 2 import issues revealed by previous fixes (#59341)``
+   * ``A few more missing compat imports in example dags (#59283)``
+
+9.18.1
+......
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix CloudwatchTaskHandler display error (#54054)``
+* ``Retry on 'RedshiftSQLHook.get_conn' (#59017)``
+
+Misc
+~~~~
+
+* ``Add backcompat for exceptions in providers (#58727)``
+* ``Move the traces and metrics code under a common observability package (#56187)``
+* ``Add pandas as an optional dependency to the AMPP (#58984)``
+* ``Fix remaining mypy issues in amazon provider (#58950)``
+* ``Fix mypy errors in sql_to_s3 due to pandas stub bump (#58923)``
+* ``Conditionally import from task sdk (#59254)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Import empty operator from compat module for AF2/AF3 support (#59222)``
+   * ``Remove tags from AWS system tests (#59206)``
+   * ``Remove global from providers amazon tests (#59178)``
+
 9.18.0
 ......
 

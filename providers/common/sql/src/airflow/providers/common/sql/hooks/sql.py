@@ -29,20 +29,24 @@ import sqlparse
 from deprecated import deprecated
 from methodtools import lru_cache
 from more_itertools import chunked
-from sqlalchemy import create_engine, inspect
-from sqlalchemy.engine import make_url
-from sqlalchemy.exc import ArgumentError, NoSuchModuleError
 
-from airflow.configuration import conf
-from airflow.exceptions import (
-    AirflowException,
-    AirflowOptionalProviderFeatureException,
-    AirflowProviderDeprecationWarning,
-)
-from airflow.providers.common.compat.sdk import BaseHook
+try:
+    from sqlalchemy import create_engine, inspect
+    from sqlalchemy.engine import make_url
+    from sqlalchemy.exc import ArgumentError, NoSuchModuleError
+except ImportError:
+    create_engine = None  # type: ignore[assignment]
+    inspect = None  # type: ignore[assignment]
+    make_url = None  # type: ignore[assignment]
+    ArgumentError = Exception  # type: ignore[misc,assignment]
+    NoSuchModuleError = Exception  # type: ignore[misc,assignment]
+
+
+from airflow.exceptions import AirflowOptionalProviderFeatureException, AirflowProviderDeprecationWarning
+from airflow.providers.common.compat.module_loading import import_string
+from airflow.providers.common.compat.sdk import AirflowException, BaseHook, conf
 from airflow.providers.common.sql.dialects.dialect import Dialect
 from airflow.providers.common.sql.hooks import handlers
-from airflow.utils.module_loading import import_string
 
 if TYPE_CHECKING:
     from pandas import DataFrame as PandasDataFrame
@@ -308,6 +312,12 @@ class DbApiHook(BaseHook):
         :param engine_kwargs: Kwargs used in :func:`~sqlalchemy.create_engine`.
         :return: the created engine.
         """
+        if create_engine is None:
+            raise AirflowOptionalProviderFeatureException(
+                "SQLAlchemy is required to generate the connection URI. "
+                "Install it with: pip install 'apache-airflow-providers-common-sql[sqlalchemy]'"
+            )
+
         if engine_kwargs is None:
             engine_kwargs = {}
 
@@ -322,22 +332,30 @@ class DbApiHook(BaseHook):
 
     @property
     def inspector(self) -> Inspector:
+        if inspect is None:
+            raise AirflowOptionalProviderFeatureException(
+                "SQLAlchemy is required for database inspection. "
+                "Install it with: pip install 'apache-airflow-providers-common-sql[sqlalchemy]'"
+            )
         return inspect(self.get_sqlalchemy_engine())
 
     @cached_property
     def dialect_name(self) -> str:
-        try:
-            return make_url(self.get_uri()).get_dialect().name
-        except (ArgumentError, NoSuchModuleError, ValueError):
-            config = self.connection_extra
-            sqlalchemy_scheme = config.get("sqlalchemy_scheme")
-            if sqlalchemy_scheme:
-                return sqlalchemy_scheme.split("+")[0] if "+" in sqlalchemy_scheme else sqlalchemy_scheme
-            return config.get("dialect", "default")
+        if make_url is not None:
+            try:
+                return make_url(self.get_uri()).get_dialect().name
+            except (ArgumentError, NoSuchModuleError, ValueError):
+                pass
+
+        config = self.connection_extra
+        sqlalchemy_scheme = config.get("sqlalchemy_scheme")
+        if sqlalchemy_scheme:
+            return sqlalchemy_scheme.split("+")[0] if "+" in sqlalchemy_scheme else sqlalchemy_scheme
+        return config.get("dialect", "default")
 
     @cached_property
     def dialect(self) -> Dialect:
-        from airflow.utils.module_loading import import_string
+        from airflow.providers.common.compat.module_loading import import_string
 
         dialect_info = self._dialects.get(self.dialect_name)
 

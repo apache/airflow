@@ -1,9 +1,5 @@
 {
   "auditLog": {
-    "actions": {
-      "collapseAllExtra": "收合所有額外 JSON",
-      "expandAllExtra": "展開所有額外 JSON"
-    },
     "columns": {
       "event": "事件",
       "extra": "額外資訊",
@@ -16,11 +12,35 @@
     "title": "審計日誌事件"
   },
   "xcom": {
+    "add": {
+      "error": "新增 XCom 失敗",
+      "errorTitle": "新增失敗",
+      "success": "成功新增 XCom",
+      "successTitle": "已新增 XCom",
+      "title": "新增 XCom"
+    },
     "columns": {
       "dag": "Dag",
       "key": "鍵",
       "value": "值"
     },
-    "title": "XCom"
+    "delete": {
+      "error": "刪除 XCom 失敗",
+      "errorTitle": "Error",
+      "success": "成功刪除 XCom",
+      "successTitle": "已刪除 XCom",
+      "title": "刪除 XCom",
+      "warning": "你確定要刪除這個 XCom 嗎？此動作無法復原。"
+    },
+    "edit": {
+      "error": "更新 XCom 失敗",
+      "errorTitle": "錯誤",
+      "success": "XCom 更新成功",
+      "successTitle": "XCom 已更新",
+      "title": "編輯 XCom"
+    },
+    "key": "鍵",
+    "title": "XCom",
+    "value": "值"
   }
 }

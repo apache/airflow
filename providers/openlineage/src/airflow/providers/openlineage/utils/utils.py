@@ -31,11 +31,12 @@ from openlineage.client.facet_v2 import parent_run
 from openlineage.client.utils import RedactMixin
 
 from airflow import __version__ as AIRFLOW_VERSION
+from airflow.exceptions import AirflowOptionalProviderFeatureException
 
 # TODO: move this maybe to Airflow's logic?
 from airflow.models import DagRun, TaskInstance, TaskReschedule
-from airflow.models.mappedoperator import MappedOperator as SerializedMappedOperator
 from airflow.providers.common.compat.assets import Asset
+from airflow.providers.common.compat.module_loading import import_string
 from airflow.providers.common.compat.sdk import DAG, BaseOperator, BaseSensorOperator, MappedOperator
 from airflow.providers.openlineage import (
     __version__ as OPENLINEAGE_PROVIDER_VERSION,
@@ -57,7 +58,13 @@ from airflow.providers.openlineage.utils.selective_enable import (
 )
 from airflow.providers.openlineage.version_compat import AIRFLOW_V_3_0_PLUS, get_base_airflow_version_tuple
 from airflow.serialization.serialized_objects import SerializedBaseOperator, SerializedDAG
-from airflow.utils.module_loading import import_string
+
+try:
+    from airflow.serialization.definitions.mappedoperator import SerializedMappedOperator
+except ImportError:
+    from airflow.models.mappedoperator import (  # type: ignore[attr-defined,no-redef]
+        MappedOperator as SerializedMappedOperator,
+    )
 
 if not AIRFLOW_V_3_0_PLUS:
     from airflow.utils.session import NEW_SESSION, provide_session
@@ -531,30 +538,31 @@ if not AIRFLOW_V_3_0_PLUS:
 
     @provide_session
     def is_ti_rescheduled_already(ti: TaskInstance, session=NEW_SESSION):
-        from sqlalchemy import exists
+        try:
+            from sqlalchemy import exists, select
+        except ImportError:
+            raise AirflowOptionalProviderFeatureException(
+                "sqlalchemy is required for checking task instance reschedule status. "
+                "Install it with: pip install 'apache-airflow-providers-openlineage[sqlalchemy]'"
+            )
 
         if not isinstance(ti.task, BaseSensorOperator):
             return False
 
         if not ti.task.reschedule:
             return False
-        if AIRFLOW_V_3_0_PLUS:
-            return (
-                session.query(
-                    exists().where(TaskReschedule.ti_id == ti.id, TaskReschedule.try_number == ti.try_number)
-                ).scalar()
-                is True
-            )
         return (
-            session.query(
-                exists().where(
-                    TaskReschedule.dag_id == ti.dag_id,
-                    TaskReschedule.task_id == ti.task_id,
-                    TaskReschedule.run_id == ti.run_id,
-                    TaskReschedule.map_index == ti.map_index,
-                    TaskReschedule.try_number == ti.try_number,
+            session.scalar(
+                select(
+                    exists().where(
+                        TaskReschedule.dag_id == ti.dag_id,
+                        TaskReschedule.task_id == ti.task_id,
+                        TaskReschedule.run_id == ti.run_id,
+                        TaskReschedule.map_index == ti.map_index,
+                        TaskReschedule.try_number == ti.try_number,
+                    )
                 )
-            ).scalar()
+            )
             is True
         )
 
