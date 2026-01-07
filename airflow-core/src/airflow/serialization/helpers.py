@@ -21,6 +21,7 @@ from __future__ import annotations
 import contextlib
 from typing import TYPE_CHECKING, Any
 
+from airflow._shared.module_loading import qualname
 from airflow._shared.secrets_masker import redact
 from airflow.configuration import conf
 from airflow.settings import json
@@ -32,6 +33,9 @@ if TYPE_CHECKING:
 def serialize_template_field(template_field: Any, name: str) -> str | dict | list | int | float:
     """
     Return a serializable representation of the templated field.
+
+    If ``templated_field`` is provided via a callable, compute MD5 hash of source
+    and return following serialized value: ``<callable fingerprint(MD5) hash_value``
 
     If ``templated_field`` contains a class or instance that requires recursive
     templating, store them as strings. Otherwise simply return the field as-is.
@@ -71,7 +75,11 @@ def serialize_template_field(template_field: Any, name: str) -> str | dict | lis
         try:
             serialized = template_field.serialize()
         except AttributeError:
-            serialized = str(template_field)
+            if callable(template_field):
+                full_qualified_name = qualname(template_field, True)
+                serialized = f"<callable {full_qualified_name}>"
+            else:
+                serialized = str(template_field)
         if len(serialized) > max_length:
             rendered = redact(serialized, name)
             return (
