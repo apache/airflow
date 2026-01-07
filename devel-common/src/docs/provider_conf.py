@@ -265,7 +265,6 @@ autodoc_typehints = "description"
 autodoc_typehints_description_target = "documented"
 autodoc_typehints_format = "short"
 
-
 # -- Options for sphinx.ext.intersphinx ----------------------------------------
 # See: https://www.sphinx-doc.org/en/master/usage/extensions/intersphinx.html
 
@@ -303,14 +302,6 @@ TASK_SDK_PATH = AIRFLOW_REPO_ROOT_PATH / "task-sdk" / "src"
 if TASK_SDK_PATH.exists():
     autoapi_dirs.append(TASK_SDK_PATH.as_posix())
 
-# Also update autoapi_ignore to prevent conflicts between provider and task-sdk docs
-# Ensure we don't exclude important SDK files that providers depend on
-TASK_SDK_PATH_STR = TASK_SDK_PATH.as_posix()
-if TASK_SDK_PATH_STR in autoapi_dirs:
-    # Adjust autoapi_ignore to make sure we don't exclude important SDK classes
-    # Remove any conflicting ignore patterns if needed
-    pass
-
 # A list of patterns to ignore when finding files
 autoapi_ignore = BASIC_AUTOAPI_IGNORE_PATTERNS
 
@@ -341,8 +332,6 @@ if SYSTEM_TESTS_DIR and os.path.exists(SYSTEM_TESTS_DIR):
     autoapi_dirs.append(test_dir.as_posix())
 
     autoapi_ignore.extend(f"{d}/*" for d in test_dir.glob("*") if d.is_dir() and d.name != "system")
-
-
 
 rich.print("[bright_blue]AUTOAPI_IGNORE:")
 rich.print(autoapi_ignore)
