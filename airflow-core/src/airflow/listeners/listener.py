@@ -20,13 +20,31 @@ from __future__ import annotations
 from functools import cache
 
 from airflow._shared.listeners.listener import ListenerManager
+from airflow._shared.listeners.spec import lifecycle, taskinstance
+from airflow.listeners.spec import asset, dagrun, importerrors
 from airflow.plugins_manager import integrate_listener_plugins
 
 
 @cache
 def get_listener_manager() -> ListenerManager:
-    """Get singleton listener manager."""
+    """
+    Get a listener manager for Airflow core.
+
+    Registers the following listeners:
+    - lifecycle: on_starting, before_stopping
+    - dagrun: on_dag_run_running, on_dag_run_success, on_dag_run_failed
+    - taskinstance: on_task_instance_running, on_task_instance_success, etc.
+    - asset: on_asset_created, on_asset_changed, etc.
+    - importerrors: on_new_dag_import_error, on_existing_dag_import_error
+    """
     _listener_manager = ListenerManager()
+
+    _listener_manager.add_hookspecs(lifecycle)
+    _listener_manager.add_hookspecs(dagrun)
+    _listener_manager.add_hookspecs(taskinstance)
+    _listener_manager.add_hookspecs(asset)
+    _listener_manager.add_hookspecs(importerrors)
+
     integrate_listener_plugins(_listener_manager)
     return _listener_manager
 

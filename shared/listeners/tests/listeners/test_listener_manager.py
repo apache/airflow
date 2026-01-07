@@ -19,9 +19,35 @@ from __future__ import annotations
 
 from airflow_shared.listeners import hookimpl
 from airflow_shared.listeners.listener import ListenerManager
+from airflow_shared.listeners.spec import lifecycle, taskinstance
 
 
 class TestListenerManager:
+    def test_initial_state_has_no_listeners(self):
+        """Test that a new ListenerManager has no listeners."""
+        lm = ListenerManager()
+        assert not lm.has_listeners
+        assert len(lm.pm.get_plugins()) == 0
+
+    def test_add_hookspecs_registers_hooks(self):
+        """Test that add_hookspecs makes hooks available."""
+        lm = ListenerManager()
+        lm.add_hookspecs(lifecycle)
+
+        # Verify lifecycle hooks are now available
+        assert hasattr(lm.hook, "on_starting")
+        assert hasattr(lm.hook, "before_stopping")
+
+    def test_add_multiple_hookspecs(self):
+        """Test that multiple hookspecs can be registered."""
+        lm = ListenerManager()
+        lm.add_hookspecs(lifecycle)
+        lm.add_hookspecs(taskinstance)
+
+        # Verify hooks from both specs are available
+        assert hasattr(lm.hook, "on_starting")
+        assert hasattr(lm.hook, "on_task_instance_running")
+
     def test_add_listener(self):
         """Test listener registration."""
 
@@ -34,6 +60,7 @@ class TestListenerManager:
                 self.called = True
 
         lm = ListenerManager()
+        lm.add_hookspecs(lifecycle)
         listener = TestListener()
         lm.add_listener(listener)
 
@@ -49,6 +76,7 @@ class TestListenerManager:
                 pass
 
         lm = ListenerManager()
+        lm.add_hookspecs(lifecycle)
         listener = TestListener()
         lm.add_listener(listener)
         lm.add_listener(listener)
@@ -65,6 +93,7 @@ class TestListenerManager:
                 pass
 
         lm = ListenerManager()
+        lm.add_hookspecs(lifecycle)
         listener1 = TestListener()
         listener2 = TestListener()
         lm.add_listener(listener1)
@@ -90,6 +119,7 @@ class TestListenerManager:
                 self.component_received = component
 
         lm = ListenerManager()
+        lm.add_hookspecs(lifecycle)
         listener = TestListener()
         lm.add_listener(listener)
 
@@ -98,36 +128,37 @@ class TestListenerManager:
 
         assert listener.component_received == test_component
 
-    def test_multiple_listeners_receive_hooks(self):
-        """Test multiple listeners all receive hook calls."""
+    def test_taskinstance_hooks(self):
+        """Test taskinstance hook specs work correctly."""
 
-        class TestListener:
+        class TaskInstanceListener:
             def __init__(self):
-                self.calls = []
+                self.events = []
 
             @hookimpl
-            def on_starting(self, component):
-                self.calls.append(component)
+            def on_task_instance_running(self, previous_state, task_instance):
+                self.events.append(("running", task_instance))
+
+            @hookimpl
+            def on_task_instance_success(self, previous_state, task_instance):
+                self.events.append(("success", task_instance))
+
+            @hookimpl
+            def on_task_instance_failed(self, previous_state, task_instance, error):
+                self.events.append(("failed", task_instance, error))
 
         lm = ListenerManager()
-        listener1 = TestListener()
-        listener2 = TestListener()
-        lm.add_listener(listener1)
-        lm.add_listener(listener2)
+        lm.add_hookspecs(taskinstance)
+        listener = TaskInstanceListener()
+        lm.add_listener(listener)
 
-        test_component = "test"
-        lm.hook.on_starting(component=test_component)
+        mock_ti = "mock_task_instance"
+        lm.hook.on_task_instance_running(previous_state=None, task_instance=mock_ti)
+        lm.hook.on_task_instance_success(previous_state=None, task_instance=mock_ti)
+        lm.hook.on_task_instance_failed(previous_state=None, task_instance=mock_ti, error="test error")
 
-        assert listener1.calls == [test_component]
-        assert listener2.calls == [test_component]
-
-    def test_hookimpl_marker(self):
-        """Test hookimpl marker is available and works."""
-
-        class TestListener:
-            @hookimpl
-            def on_starting(self, component):
-                pass
-
-        # Verify the hookimpl decorator was applied
-        assert hasattr(TestListener.on_starting, "airflow_impl")
+        assert listener.events == [
+            ("running", mock_ti),
+            ("success", mock_ti),
+            ("failed", mock_ti, "test error"),
+        ]

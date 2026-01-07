@@ -38,24 +38,25 @@ def _after_hookcall(outcome, hook_name, hook_impls, kwargs):
 
 
 class ListenerManager:
-    """Manage listener registration and provides hook property for calling them."""
+    """
+    Manage listener registration and provides hook property for calling them.
+
+    This class provides base infra for listener system. The consumers / components
+    wanting to register listeners should initialise its own ListenerManager and
+    register the hook specs relevant to that component using add_hookspecs.
+    """
 
     def __init__(self):
-        from .spec import (
-            asset,
-            dagrun,
-            importerrors,
-            lifecycle,
-            taskinstance,
-        )
-
         self.pm = pluggy.PluginManager("airflow")
         self.pm.add_hookcall_monitoring(_before_hookcall, _after_hookcall)
-        self.pm.add_hookspecs(lifecycle)
-        self.pm.add_hookspecs(dagrun)
-        self.pm.add_hookspecs(asset)
-        self.pm.add_hookspecs(taskinstance)
-        self.pm.add_hookspecs(importerrors)
+
+    def add_hookspecs(self, spec_module) -> None:
+        """
+        Register hook specs from a module.
+
+        :param spec_module: A module containing functions decorated with @hookspec.
+        """
+        self.pm.add_hookspecs(spec_module)
 
     @property
     def has_listeners(self) -> bool:
