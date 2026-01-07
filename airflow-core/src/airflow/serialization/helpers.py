@@ -20,10 +20,10 @@ from __future__ import annotations
 
 from typing import Any
 
-from airflow._shared.module_loading import qualname
 from airflow._shared.secrets_masker import redact
 from airflow.configuration import conf
 from airflow.settings import json
+from airflow.utils.module_loading import qualname
 
 
 def serialize_template_field(template_field: Any, name: str) -> str | dict | list | int | float:
