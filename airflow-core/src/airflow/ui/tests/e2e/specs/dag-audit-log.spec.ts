@@ -128,21 +128,21 @@ test.describe("DAG Audit Log", () => {
     expect(hasNext).toBe(true);
 
     const [firstRowPage1] = await eventsPage.getEventLogRows();
-    const runIdPage1 = await firstRowPage1?.locator("td").nth(4).textContent();
+    const rowDataPage1 = await firstRowPage1?.textContent();
 
     await eventsPage.clickNextPage();
 
     const [firstRowPage2] = await eventsPage.getEventLogRows();
-    const runIdPage2 = await firstRowPage2?.locator("td").nth(4).textContent();
+    const rowDataPage2 = await firstRowPage2?.textContent();
 
-    expect(runIdPage2).not.toBe(runIdPage1);
+    expect(rowDataPage2).not.toBe(rowDataPage1);
 
     await eventsPage.clickPrevPage();
 
     const [firstRowBackToPage1] = await eventsPage.getEventLogRows();
-    const runIdBackToPage1 = await firstRowBackToPage1?.locator("td").nth(4).textContent();
+    const rowDataBackToPage1 = await firstRowBackToPage1?.textContent();
 
-    expect(runIdBackToPage1).toBe(runIdPage1);
+    expect(rowDataBackToPage1).toBe(rowDataPage1);
   });
 
   test("should sort audit log entries when clicking column header", async () => {
