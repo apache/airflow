@@ -72,7 +72,6 @@ from tests_common.test_utils.version_compat import (
     AIRFLOW_V_3_0_1,
     AIRFLOW_V_3_0_PLUS,
     AIRFLOW_V_3_1_PLUS,
-    AIRFLOW_V_3_2_PLUS,
     NOTSET,
 )
 
