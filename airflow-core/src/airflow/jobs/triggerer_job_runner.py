@@ -625,7 +625,7 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
     def create_workload(
         self,
         trigger: Trigger,
-        dag_bag=DBDagBag(),
+        dag_bag: DBDagBag,
         render_log_fname=log_filename_template_renderer(),
         session: Session = NEW_SESSION,
     ) -> workloads.RunTrigger | None:
@@ -674,6 +674,7 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
         adds them to the dequeues so the subprocess can actually mutate the running
         trigger set.
         """
+        dag_bag = DBDagBag()
         known_trigger_ids = (
             self.running_triggers.union(x[0] for x in self.events)
             .union(self.cancelling_triggers)
@@ -717,7 +718,7 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
                     )
                     continue
 
-                if workload := self.create_workload(trigger=new_trigger_orm, session=session):
+                if workload := self.create_workload(trigger=new_trigger_orm, dag_bag=dag_bag, session=session):
                     to_create.append(workload)
 
             self.creating_triggers.extend(to_create)
