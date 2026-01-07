@@ -701,6 +701,7 @@ def verify(
 @option_image_file_dir
 @option_platform_single
 @option_prod_image_file_to_save
+@option_action_branch
 @option_python
 @option_verbose
 @option_dry_run
@@ -710,6 +711,7 @@ def save(
     github_repository: str,
     image_file: Path | None,
     image_file_dir: Path,
+    action_branch: str | None,
 ):
     """Save PROD image to a file."""
     perform_environment_checks()
@@ -720,8 +722,9 @@ def save(
     with ci_group("Buildx disk usage"):
         run_command(["docker", "buildx", "du", "--verbose"], check=False)
     escaped_platform = platform.replace("/", "_")
+    path_suffix = f"{python}-{action_branch}"
     if not image_file:
-        image_file_to_store = image_file_dir / f"prod-image-save-{escaped_platform}-{python}.tar"
+        image_file_to_store = image_file_dir / f"prod-image-save-{escaped_platform}-{path_suffix}.tar"
     elif image_file.is_absolute():
         image_file_to_store = image_file
     else:
