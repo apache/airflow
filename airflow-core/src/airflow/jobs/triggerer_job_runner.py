@@ -645,7 +645,7 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
             return None
 
         log_path = render_log_fname(ti=trigger.task_instance)
-        serialized_dag = dag_bag.get_dag_model(
+        serialized_dag_model = dag_bag.get_dag_model(
             version_id=trigger.task_instance.dag_version_id,
             session=session,
         )
@@ -663,7 +663,7 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
             encrypted_kwargs=trigger.encrypted_kwargs,
             ti=ser_ti,
             timeout_after=trigger.task_instance.trigger_timeout,
-            dag_data=serialized_dag.data if serialized_dag else None,
+            dag_data=serialized_dag_model.data if serialized_dag_model else None,
         )
 
     def update_triggers(self, requested_trigger_ids: set[int]):
