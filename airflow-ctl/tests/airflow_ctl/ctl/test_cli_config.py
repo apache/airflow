@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 from argparse import BooleanOptionalAction
+from datetime import datetime
 from textwrap import dedent
 
 import pytest
@@ -41,7 +42,7 @@ def no_op_method():
 def test_args_create():
     return [
         (
-            "--dag-id",
+            "dag-id",
             {
                 "help": "dag_id for backfill operation",
                 "action": None,
@@ -51,22 +52,22 @@ def test_args_create():
             },
         ),
         (
-            "--from-date",
+            "from-date",
             {
                 "help": "from_date for backfill operation",
                 "action": None,
                 "default": None,
-                "type": str,
+                "type": datetime,
                 "dest": None,
             },
         ),
         (
-            "--to-date",
+            "to-date",
             {
                 "help": "to_date for backfill operation",
                 "action": None,
                 "default": None,
-                "type": str,
+                "type": datetime,
                 "dest": None,
             },
         ),
@@ -355,3 +356,23 @@ class TestCliConfigMethods:
                 assert "subcommand2" in sub_command_names
                 assert "subcommand3" in sub_command_names
                 assert "subcommand4" in sub_command_names
+
+    def test_positional_args(self):
+        """Test that required parameters are created as positional arguments."""
+        command_factory = CommandFactory(file_path="")
+
+        positional_arg = command_factory._create_arg(
+            arg_flags=("connection_id",),
+            arg_type=str,
+            arg_help="Connection ID",
+            arg_action=None,
+        )
+        assert positional_arg.flags[0] == "connection_id"
+
+        optional_arg = command_factory._create_arg(
+            arg_flags=("--description",),
+            arg_type=str,
+            arg_help="Description",
+            arg_action=None,
+        )
+        assert optional_arg.flags[0] == "--description"

@@ -500,29 +500,20 @@ class CommandFactory:
         arg_flags: tuple,
         arg_type: type | Callable,
         arg_help: str,
-        arg_action: argparse.BooleanOptionalAction | None,
+        arg_action: type[argparse.BooleanOptionalAction] | None,
         arg_dest: str | None = None,
         arg_default: Any | None = None,
-        is_required: bool = False,  # NEW PARAMETER
     ) -> Arg:
-        # Boolean flags should always remain optional (with --)
-        # Required non-boolean fields should be positional
-        should_be_positional = is_required and arg_action is None
-
-        if should_be_positional:
-            # Make it positional - remove '--' prefix
-            clean_flags = tuple(flag.lstrip("-").replace("-", "_") for flag in arg_flags)
+        if not any(flag.startswith("-") for flag in arg_flags):
             return Arg(
-                flags=clean_flags,
+                flags=arg_flags,
                 type=arg_type,
-                dest=_UNSET,  # Use _UNSET so dest is not added to kwargs
+                dest=_UNSET,
                 help=arg_help,
                 default=arg_default,
                 action=arg_action,
             )
-        # Keep as optional - add dest parameter if not provided
         if arg_dest is None and len(arg_flags) > 0:
-            # Generate dest from flag name
             arg_dest = arg_flags[0].lstrip("-").replace("-", "_")
 
         return Arg(
@@ -547,17 +538,22 @@ class CommandFactory:
         for field, field_type in parameter_type_map.model_fields.items():
             if field in self.excluded_parameters:
                 continue
+
             is_required = field_type.is_required()
+            sanitized_field = self._sanitize_arg_parameter_key(field)
             self.datamodels_extended_map[parameter_type].append(field)
+
             if type(field_type.annotation) is type:
+                is_bool = field_type.annotation is bool
+                arg_flags = (sanitized_field,) if is_required and not is_bool else ("--" + sanitized_field,)
+
                 commands.append(
                     self._create_arg(
-                        arg_flags=("--" + self._sanitize_arg_parameter_key(field),),
+                        arg_flags=arg_flags,
                         arg_type=self._python_type_from_string(field_type.annotation),
-                        arg_action=argparse.BooleanOptionalAction if field_type.annotation is bool else None,  # type: ignore
+                        arg_action=argparse.BooleanOptionalAction if is_bool else None,
                         arg_help=f"{field} for {parameter_key} operation",
-                        arg_default=False if field_type.annotation is bool else None,
-                        is_required=is_required,
+                        arg_default=False if is_bool else None,
                     )
                 )
             else:
@@ -566,14 +562,16 @@ class CommandFactory:
                 except AttributeError:
                     annotation = field_type.annotation
 
+                is_bool = annotation is bool
+                arg_flags = (sanitized_field,) if is_required and not is_bool else ("--" + sanitized_field,)
+
                 commands.append(
                     self._create_arg(
-                        arg_flags=("--" + self._sanitize_arg_parameter_key(field),),
+                        arg_flags=arg_flags,
                         arg_type=self._python_type_from_string(annotation),
-                        arg_action=argparse.BooleanOptionalAction if annotation is bool else None,  # type: ignore
+                        arg_action=argparse.BooleanOptionalAction if is_bool else None,
                         arg_help=f"{field} for {parameter_key} operation",
-                        arg_default=False if annotation is bool else None,
-                        is_required=is_required,
+                        arg_default=False if is_bool else None,
                     )
                 )
         return commands
