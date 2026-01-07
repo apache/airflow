@@ -27,7 +27,6 @@ from airflow.models.base import Base, StringID
 from airflow.utils.sqlalchemy import UtcDateTime
 
 if TYPE_CHECKING:
-
     from airflow.models.taskinstance import TaskInstance
     from airflow.models.taskinstancekey import TaskInstanceKey
 
