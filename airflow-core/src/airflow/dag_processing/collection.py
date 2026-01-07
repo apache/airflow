@@ -598,12 +598,8 @@ class DagModelOperation(NamedTuple):
             dm.bundle_version = self.bundle_version
 
             last_automated_run: DagRun | None = run_info.latest_run
-            if last_automated_run is None:
-                last_automated_data_interval = None
-            else:
-                last_automated_data_interval = get_run_data_interval(dag.timetable, last_automated_run)
             dm.exceeds_max_non_backfill = run_info.num_active_runs >= dm.max_active_runs
-            dm.calculate_dagrun_date_fields(dag, last_automated_data_interval)
+            dm.calculate_dagrun_date_fields(dag, last_automated_run=last_automated_run)
             if not dag.timetable.asset_condition:
                 dm.schedule_asset_references = []
                 dm.schedule_asset_alias_references = []

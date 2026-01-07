@@ -735,16 +735,17 @@ class DagModel(Base):
             # todo: AIP-76 also! why is this not tz-aware????!?!?!?!
             #  oh perhaps it wasn't roundtripped through orm-db yet.
             last_run_after = last_automated_run and timezone.coerce_datetime(last_automated_run.run_after)
-            log.info(
-                "setting next dagrun for partitioned dag",
-                dag_id=dag.dag_id,
-                last_partition_key=last_automated_run.partition_key if last_automated_run else None,
-                last_run_after=str(last_run_after),
-            )
+            # log.info(
+            #     "setting next dagrun for partitioned dag",
+            #     dag_id=dag.dag_id,
+            #     last_partition_key=last_automated_run.partition_key if last_automated_run else None,
+            #     last_run_after=str(last_run_after),
+            # )
 
-            # TODO: AIP-76 we should generalize this to not pretend it's an "interval"
+            # TODO: AIP-76 we should generalize `next_dagrun_info` to not pretend it's an "interval"
             #  this is basically a hack to avoid dealing with next_dagrun_info
             #  we sorta need to change the next_dagrun_info interface
+            #  perhaps add a DagModel.next_dagrun_info_v2
             last_interval = DataInterval.exact(last_run_after) if last_run_after else None
             next_dagrun_info = dag.next_dagrun_info(last_interval)
 
@@ -765,11 +766,11 @@ class DagModel(Base):
             last_data_interval = get_run_data_interval(dag.timetable, last_automated_run)
 
         next_dagrun_info = dag.next_dagrun_info(last_data_interval)
-        log.info(
-            "evaluating next dag run",
-            next_dagrun_info=next_dagrun_info,
-            last_data_interval=last_data_interval,
-        )
+        # log.info(
+        #     "evaluating next dag run",
+        #     next_dagrun_info=next_dagrun_info,
+        #     last_data_interval=last_data_interval,
+        # )
 
         if next_dagrun_info is None:
             log.info("setting next dagrun to None")
