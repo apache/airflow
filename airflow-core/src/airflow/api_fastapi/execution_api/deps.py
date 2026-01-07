@@ -67,10 +67,12 @@ DepContainer: svcs.Container = Depends(_container)
 
 class JWTBearer(HTTPBearer):
     """
-    FastAPI security dependency that validates JWT tokens for the Execution API.
+    A FastAPI security dependency that validates JWT tokens using for the Execution API.
 
-    Returns a `TIToken` with the validated claims. Expired tokens can be refreshed
-    if the task is still in QUEUED or RUNNING state.
+    This will validate the tokens are signed and that the ``sub`` is a UUID, but nothing deeper than that.
+
+    The dependency result will be an `TIToken` object containing the ``id`` UUID (from the ``sub``) and other
+    validated claims.
     """
 
     def __init__(
