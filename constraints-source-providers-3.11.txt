@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2026-01-07T07:53:06.307108
+# This constraints file was automatically generated on 2026-01-07T13:57:57.690236
 # via `uv sync --resolution highest for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider distributions.
@@ -347,7 +347,7 @@ jsonpickle==3.4.2
 jsonpointer==3.0.0
 jsonschema-path==0.3.4
 jsonschema-specifications==2025.9.1
-jsonschema==4.25.1
+jsonschema==4.26.0
 jupyter_client==8.7.0
 jupyter_core==5.9.1
 jupyterlab_pygments==0.3.0
@@ -477,7 +477,7 @@ polars==1.36.1
 portalocker==3.2.0
 pprintpp==0.4.0
 pre_commit==4.5.1
-prek==0.2.25
+prek==0.2.26
 presto-python-client==0.8.4
 prison==0.2.1
 prometheus_client==0.23.1
