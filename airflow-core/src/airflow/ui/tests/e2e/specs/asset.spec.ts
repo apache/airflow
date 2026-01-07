@@ -17,11 +17,47 @@
  * under the License.
  */
 import { test, expect } from "@playwright/test";
+import { AUTH_FILE } from "playwright.config";
 
 import { AssetListPage } from "../pages/AssetListPage";
+import { DagsPage } from "../pages/DagsPage";
 
 test.describe("Assets Page", () => {
   let assets: AssetListPage;
+
+  test.beforeAll(async ({ browser }) => {
+    test.setTimeout(3 * 60 * 1000);
+    const context = await browser.newContext({ storageState: AUTH_FILE });
+    const page = await context.newPage();
+    const dagsPage = new DagsPage(page);
+
+    await dagsPage.triggerDag("asset_produces_1");
+    await expect
+      .poll(
+        async () => {
+          const response = await page.request.get(
+            `/api/v2/dags/asset_produces_1/dagRuns?order_by=-start_date&limit=1`,
+          );
+          const data = (await response.json()) as { dag_runs: Array<{ state: string }> };
+
+          return data.dag_runs[0]?.state ?? "pending";
+        },
+        { intervals: [2000], timeout: 120_000 },
+      )
+      .toBe("success");
+    await context.close();
+  });
+
+  test("verify clicking an asset navigates to detail page", async ({ page }) => {
+    await assets.navigate();
+    await assets.waitForLoad();
+
+    const name = await assets.openFirstAsset();
+
+    await expect(page).toHaveURL(/\/assets\/.+/);
+
+    await expect(page.getByRole("heading", { name: new RegExp(name, "i") })).toBeVisible();
+  });
 
   test.beforeEach(async ({ page }) => {
     assets = new AssetListPage(page);
@@ -29,21 +65,21 @@ test.describe("Assets Page", () => {
     await assets.waitForLoad();
   });
 
-  test("renders assets page heading", async () => {
+  test("verify assets page heading", async () => {
     await expect(assets.heading).toBeVisible();
   });
 
-  test("renders assets table", async () => {
+  test("verify assets table", async () => {
     await expect(assets.table).toBeVisible();
   });
 
-  test("shows asset rows when data exists", async () => {
+  test("verify asset rows when data exists", async () => {
     const count = await assets.assetCount();
 
     expect(count).toBeGreaterThanOrEqual(0);
   });
 
-  test("each asset has a visible name link", async () => {
+  test("verify asset has a visible name link", async () => {
     const names = await assets.assetNames();
 
     for (const name of names) {
@@ -51,28 +87,39 @@ test.describe("Assets Page", () => {
     }
   });
 
-  test("filters assets using search", async () => {
+  test("verify assets using search", async () => {
     const initialCount = await assets.assetCount();
 
-    await assets.search("dag");
-    await expect.poll(() => assets.assetCount(), { timeout: 20_000 }).toBeLessThanOrEqual(initialCount);
+    expect(initialCount).toBeGreaterThan(0);
 
-    if ((await assets.assetCount()) === 0) {
-      await expect(assets.emptyState).toBeVisible();
+    await assets.search("s3://dag1/output_1.txt");
+
+    await expect.poll(() => assets.assetCount(), { timeout: 20_000 }).toBeLessThan(initialCount);
+    const names = await assets.assetNames();
+
+    expect(names.length).toBeGreaterThan(0);
+    for (const name of names) {
+      expect(name.toLowerCase()).toContain("s3://dag1/output_1.txt");
     }
   });
 
-  test("supports pagination when multiple pages exist", async () => {
-    const firstRowText = await assets.rows.first().textContent();
+  test("verify pagination controls navigate between pages", async () => {
+    await assets.navigateTo("/assets?limit=5&offset=0");
+    await assets.waitForLoad();
 
-    const didNavigate = await assets.goNext();
+    const page1Initial = await assets.assetNames();
 
-    if (!didNavigate) {
-      test.skip(true, "Pagination not rendered");
-    }
+    expect(page1Initial.length).toBeGreaterThan(0);
 
-    await expect
-      .poll(async () => assets.rows.first().textContent(), { timeout: 20_000 })
-      .not.toEqual(firstRowText);
+    const pagination = assets.page.locator('[data-scope="pagination"]');
+
+    await pagination.getByRole("button", { name: /page 2/i }).click();
+    await expect.poll(() => assets.assetNames(), { timeout: 30_000 }).not.toEqual(page1Initial);
+
+    const page2Assets = await assets.assetNames();
+
+    await pagination.getByRole("button", { name: /page 1/i }).click();
+
+    await expect.poll(() => assets.assetNames(), { timeout: 30_000 }).not.toEqual(page2Assets);
   });
 });

@@ -23,8 +23,6 @@ import { BasePage } from "./BasePage";
 export class AssetListPage extends BasePage {
   public readonly emptyState: Locator;
   public readonly heading: Locator;
-  public readonly nextButton: Locator;
-  public readonly prevButton: Locator;
   public readonly rows: Locator;
   public readonly searchInput: Locator;
   public readonly table: Locator;
@@ -32,16 +30,15 @@ export class AssetListPage extends BasePage {
   public constructor(page: Page) {
     super(page);
 
-    this.heading = page.getByRole("heading", { level: 2 });
+    this.heading = page.getByRole("heading", {
+      name: /\d+\s+asset/i,
+    });
     this.table = page.getByTestId("table-list");
     this.rows = this.table.locator("tbody tr").filter({
       has: page.locator("td"),
     });
 
-    this.nextButton = page.getByTestId("next");
-    this.prevButton = page.getByTestId("prev");
-
-    this.searchInput = page.getByRole("textbox");
+    this.searchInput = page.getByTestId("search-dags");
     this.emptyState = page.getByText(/no items/i);
   }
 
@@ -53,28 +50,17 @@ export class AssetListPage extends BasePage {
     return this.rows.locator("td a").allTextContents();
   }
 
-  public async goNext(): Promise<boolean> {
-    const next = this.page.locator('[data-testid="next"]');
-
-    if ((await next.count()) === 0) {
-      return false;
-    }
-
-    await next.click();
-
-    return true;
-  }
-
-  public async hasPagination(): Promise<boolean> {
-    return (await this.page.locator('[data-testid="next"]').count()) > 0;
-  }
-
-  public async isEmpty(): Promise<boolean> {
-    return this.emptyState.isVisible();
-  }
-
   public async navigate(): Promise<void> {
     await this.navigateTo("/assets");
+  }
+
+  public async openFirstAsset(): Promise<string> {
+    const link = this.rows.nth(0).locator("a").first();
+    const name = await link.textContent();
+
+    await link.click();
+
+    return name?.trim() ?? "";
   }
 
   public async search(value: string): Promise<void> {
