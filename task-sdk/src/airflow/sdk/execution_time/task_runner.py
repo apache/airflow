@@ -327,9 +327,9 @@ class RuntimeTaskInstance(TaskInstance):
             keys will be returned. The default key is ``'return_value'``, also
             available as constant ``XCOM_RETURN_KEY``. This key is automatically
             given to XComs returned by tasks (as opposed to being pushed
-            manually). To remove the filter, pass *None*.
+            manually).
         :param task_ids: Only XComs from tasks with matching ids will be
-            pulled. Pass *None* to remove the filter.
+            pulled. If *None* (default), the task_id of the calling task is used.
         :param dag_id: If provided, only pulls XComs from this Dag. If *None*
             (default), the Dag of the calling task is used.
         :param map_indexes: If provided, only pull XComs with matching indexes.
