@@ -1939,35 +1939,6 @@
                                 "type": "string"
                             }
                         },
-                        "containerLifecycleHooks": {
-                            "description": "Container Lifecycle Hooks definition for the persistence. If not set, the values from global `containerLifecycleHooks` will be used.",
-                            "type": "object",
-                            "$ref": "#/definitions/io.k8s.api.core.v1.Lifecycle",
-                            "default": {},
-                            "x-docsSection": "Kubernetes",
-                            "examples": [
-                                {
-                                    "postStart": {
-                                        "exec": {
-                                            "command": [
-                                                "/bin/sh",
-                                                "-c",
-                                                "echo postStart handler > /usr/share/message"
-                                            ]
-                                        }
-                                    },
-                                    "preStop": {
-                                        "exec": {
-                                            "command": [
-                                                "/bin/sh",
-                                                "-c",
-                                                "echo preStop handler > /usr/share/message"
-                                            ]
-                                        }
-                                    }
-                                }
-                            ]
-                        },
                         "securityContexts": {
                             "description": "Security context definition for the persistence. If not set, the values from global `securityContexts` will be used (deprecated, use `workers.celery.persistence.securityContexts` instead).",
                             "type": "object",
