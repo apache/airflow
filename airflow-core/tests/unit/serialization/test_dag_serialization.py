@@ -1608,7 +1608,7 @@ class TestStringifiedDAGs:
             return get_arg
 
         task = MockOperator(task_id="task1", arg1=fn_template_field_callable, arg2=fn_returns_callable())
-        serialized_task = OperatorSerialization.serialize_operator(task)
+        serialized_task = SerializedBaseOperator.serialize_operator(task)
         assert (
             serialized_task.get("arg1")
             == "<callable unit.serialization.test_dag_serialization.TestStringifiedDAGs.test_template_field_via_callable_serialization.<locals>.fn_template_field_callable>"
