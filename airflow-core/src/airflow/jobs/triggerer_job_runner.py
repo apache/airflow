@@ -1106,14 +1106,13 @@ class TriggerRunner:
                 return None
             raise
         except NotImplementedError:
-            validated_events = self.validate_events(msg)
-            if not validated_events:
-                raise
-            msg.events = validated_events
+            msg = self.validate_state_changes(msg)
             return await self.send_changes(msg)
 
-    def validate_events(self, msg: messages.TriggerStateChanges) -> list[tuple[int, DiscrimatedTriggerEvent]]:
-        validated_events: list[tuple[int, DiscrimatedTriggerEvent]] = []
+    @staticmethod
+    def validate_state_changes(msg: messages.TriggerStateChanges) -> messages.TriggerStateChanges:
+        events_to_send: list[tuple[int, DiscrimatedTriggerEvent]] = []
+        failures_to_send: list[tuple[int, list[str] | None]] = list(msg.failures or [])
 
         if msg.events:
             req_encoder = _new_encoder()
@@ -1121,16 +1120,19 @@ class TriggerRunner:
             for trigger_id, trigger_event in msg.events:
                 try:
                     req_encoder.encode(trigger_event)
-                    validated_events.append((trigger_id, trigger_event))
-                except NotImplementedError:
+                    events_to_send.append((trigger_id, trigger_event))
+                except NotImplementedError as exc:
                     logger.error(
                         "Trigger %s returned non-serializable result %r. Cancelling trigger.",
                         trigger_id,
                         trigger_event,
                     )
-                    self.to_cancel.append(trigger_id)
+                    tb = format_exception(type(exc), exc, exc.__traceback__) if exc else None
+                    failures_to_send.append((trigger_id, tb))
 
-        return validated_events
+        return messages.TriggerStateChanges(
+            events=events_to_send, finished=msg.finished, failures=failures_to_send
+        )
 
     async def block_watchdog(self):
         """
