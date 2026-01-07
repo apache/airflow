@@ -99,6 +99,7 @@ Committers
 - Shahar Epstein (@shahar1)
 - Shubham Raj (@shubhamraj-git)
 - Siddharth "Sid" Anand (@r39132)
+- Sriraj Dheeraj Turaga (@dheerajturaga)
 - Sumit Maheshwari (@msumit)
 - Tao Feng (@feng-tao)
 - Tomasz Urbaszek (@turbaszek)

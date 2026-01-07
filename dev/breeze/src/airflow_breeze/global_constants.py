@@ -534,6 +534,7 @@ COMMITTERS = [
     "bolkedebruin",
     "bugraoz93",
     "criccomini",
+    "dheerajturaga",
     "dimberman",
     "dirrao",
     "dstandish",
