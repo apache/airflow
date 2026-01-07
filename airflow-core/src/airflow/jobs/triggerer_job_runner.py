@@ -1072,13 +1072,13 @@ class TriggerRunner:
             try:
                 req_encoder.encode(trigger_event)
                 events_to_send.append((trigger_id, trigger_event))
-            except NotImplementedError as exc:
+            except NotImplementedError as e:
                 logger.error(
                     "Trigger %s returned non-serializable result %r. Cancelling trigger.",
                     trigger_id,
                     trigger_event,
                 )
-                self.failed_triggers.append((trigger_id, exc))
+                self.failed_triggers.append((trigger_id, e))
 
         while self.failed_triggers:
             trigger_id, exc = self.failed_triggers.popleft()
