@@ -1462,6 +1462,69 @@ class TestWorker:
 
         assert expected == jmespath.search("spec.replicas", docs[0])
 
+    @pytest.mark.parametrize(
+        "workers_values",
+        [
+            {"persistence": {"size": "50Gi"}, "celery": {"persistence": {"size": None}}},
+            {"celery": {"persistence": {"size": "50Gi"}}},
+            {"persistence": {"size": "10Gi"}, "celery": {"persistence": {"size": "50Gi"}}},
+        ],
+    )
+    def test_template_storage_size(self, workers_values):
+        docs = render_chart(
+            values={
+                "workers": workers_values,
+                "logs": {"persistence": {"enabled": False}},
+            },
+            show_only=["templates/workers/worker-deployment.yaml"],
+        )
+
+        assert (
+            jmespath.search("spec.volumeClaimTemplates[0].spec.resources.requests.storage", docs[0]) == "50Gi"
+        )
+
+    @pytest.mark.parametrize(
+        "workers_values",
+        [
+            {"persistence": {"fixPermissions": True}, "celery": {"persistence": {"fixPermissions": None}}},
+            {"celery": {"persistence": {"fixPermissions": True}}},
+            {"persistence": {"fixPermissions": False}, "celery": {"persistence": {"fixPermissions": True}}},
+        ],
+    )
+    def test_init_container_volume_permissions_exist(self, workers_values):
+        docs = render_chart(
+            values={
+                "workers": workers_values,
+            },
+            show_only=["templates/workers/worker-deployment.yaml"],
+        )
+
+        assert (
+            len(jmespath.search("spec.template.spec.initContainers[?name=='volume-permissions']", docs[0]))
+            == 1
+        )
+
+    @pytest.mark.parametrize(
+        "workers_values",
+        [
+            {"persistence": {"fixPermissions": False}, "celery": {"persistence": {"fixPermissions": None}}},
+            {"celery": {"persistence": {"fixPermissions": False}}},
+            {"persistence": {"fixPermissions": True}, "celery": {"persistence": {"fixPermissions": False}}},
+        ],
+    )
+    def test_init_container_volume_permissions_not_exist(self, workers_values):
+        docs = render_chart(
+            values={
+                "workers": workers_values,
+            },
+            show_only=["templates/workers/worker-deployment.yaml"],
+        )
+
+        assert (
+            len(jmespath.search("spec.template.spec.initContainers[?name=='volume-permissions']", docs[0]))
+            == 0
+        )
+
 
 class TestWorkerLogGroomer(LogGroomerTestBase):
     """Worker groomer."""
