@@ -17,55 +17,40 @@
  * under the License.
  */
 import { Flex, Box } from "@chakra-ui/react";
-import type { VirtualItem } from "@tanstack/react-virtual";
-import { memo } from "react";
+import { useCallback } from "react";
 import { useParams, useSearchParams } from "react-router-dom";
 
 import type { GridRunsResponse } from "openapi/requests";
 import { RunTypeIcon } from "src/components/RunTypeIcon";
-import { useGridTiSummaries } from "src/queries/useGridTISummaries.ts";
+import { useHover } from "src/context/hover";
 
 import { GridButton } from "./GridButton";
-import { TaskInstancesColumn } from "./TaskInstancesColumn";
-import type { GridTask } from "./utils";
 
 const BAR_HEIGHT = 100;
 
-type BarHeaderProps = {
-  readonly max: number;
-  readonly onColumnClick?: () => void;
-  readonly run: GridRunsResponse;
-};
-
-type BarColumnProps = {
-  readonly nodes: Array<GridTask>;
-  readonly onCellClick?: () => void;
-  readonly run: GridRunsResponse;
-  readonly virtualItems?: Array<VirtualItem>;
-};
-
 type Props = {
   readonly max: number;
-  readonly nodes?: Array<GridTask>;
-  readonly onCellClick?: () => void;
-  readonly onColumnClick?: () => void;
+  readonly onClick?: () => void;
   readonly run: GridRunsResponse;
-  readonly showHeader?: boolean;
-  readonly virtualItems?: Array<VirtualItem>;
 };
 
-// Header-only component for the duration bar
-const BarHeader = ({ max, onColumnClick, run }: BarHeaderProps) => {
+export const Bar = ({ max, onClick, run }: Props) => {
   const { dagId = "", runId } = useParams();
   const [searchParams] = useSearchParams();
+  const { hoveredRunId, setHoveredRunId } = useHover();
 
   const isSelected = runId === run.run_id;
+  const isHovered = hoveredRunId === run.run_id;
   const search = searchParams.toString();
+
+  const handleMouseEnter = useCallback(() => setHoveredRunId(run.run_id), [setHoveredRunId, run.run_id]);
+  const handleMouseLeave = useCallback(() => setHoveredRunId(undefined), [setHoveredRunId]);
 
   return (
     <Box
-      _hover={{ bg: "brand.muted" }}
-      bg={isSelected ? "brand.emphasized" : undefined}
+      bg={isSelected ? "brand.emphasized" : isHovered ? "brand.muted" : undefined}
+      onMouseEnter={handleMouseEnter}
+      onMouseLeave={handleMouseLeave}
       position="relative"
       transition="background-color 0.2s"
     >
@@ -73,7 +58,7 @@ const BarHeader = ({ max, onColumnClick, run }: BarHeaderProps) => {
         alignItems="flex-end"
         height={BAR_HEIGHT}
         justifyContent="center"
-        onClick={onColumnClick}
+        onClick={onClick}
         pb="2px"
         px="5px"
         width="18px"
@@ -98,44 +83,4 @@ const BarHeader = ({ max, onColumnClick, run }: BarHeaderProps) => {
       </Flex>
     </Box>
   );
-};
-
-// Column component for the task instances grid
-const BarColumnInner = ({ nodes, onCellClick, run, virtualItems }: BarColumnProps) => {
-  const { dagId = "", runId } = useParams();
-  const { data: gridTISummaries } = useGridTiSummaries({ dagId, runId: run.run_id, state: run.state });
-
-  const isSelected = runId === run.run_id;
-
-  return (
-    <Box
-      _hover={{ bg: "brand.muted" }}
-      bg={isSelected ? "brand.emphasized" : undefined}
-      position="relative"
-      transition="background-color 0.2s"
-      width="18px"
-    >
-      <TaskInstancesColumn
-        nodes={nodes}
-        onCellClick={onCellClick}
-        runId={run.run_id}
-        taskInstances={gridTISummaries?.task_instances ?? []}
-        virtualItems={virtualItems}
-      />
-    </Box>
-  );
-};
-
-const BarColumn = memo(BarColumnInner);
-
-export const Bar = ({ max, nodes, onCellClick, onColumnClick, run, showHeader, virtualItems }: Props) => {
-  if (showHeader) {
-    return <BarHeader max={max} onColumnClick={onColumnClick} run={run} />;
-  }
-
-  if (nodes) {
-    return <BarColumn nodes={nodes} onCellClick={onCellClick} run={run} virtualItems={virtualItems} />;
-  }
-
-  return undefined;
 };

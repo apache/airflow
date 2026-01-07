@@ -27,7 +27,7 @@ import { Link, useParams, useSearchParams } from "react-router-dom";
 
 import type { DagRunState, DagRunType, GridRunsResponse } from "openapi/requests";
 import { useOpenGroups } from "src/context/openGroups";
-import { useNavigation } from "src/hooks/navigation";
+import { NavigationModes, useNavigation } from "src/hooks/navigation";
 import { useGridRuns } from "src/queries/useGridRuns.ts";
 import { useGridStructure } from "src/queries/useGridStructure.ts";
 import { isStatePending } from "src/utils";
@@ -35,6 +35,7 @@ import { isStatePending } from "src/utils";
 import { Bar } from "./Bar";
 import { DurationAxis } from "./DurationAxis";
 import { DurationTick } from "./DurationTick";
+import { TaskInstancesColumn } from "./TaskInstancesColumn";
 import { TaskNames } from "./TaskNames";
 import { GridVirtualizationContext } from "./VirtualizationContext";
 import { flattenNodes } from "./utils";
@@ -108,9 +109,9 @@ export const Grid = ({ dagRunState, limit, runType, showGantt, triggeringUser }:
     tasks: flatNodes,
   });
 
-  const handleRowClick = useCallback(() => setMode("task"), [setMode]);
-  const handleCellClick = useCallback(() => setMode("TI"), [setMode]);
-  const handleColumnClick = useCallback(() => setMode("run"), [setMode]);
+  const handleRowClick = useCallback(() => setMode(NavigationModes.TASK), [setMode]);
+  const handleCellClick = useCallback(() => setMode(NavigationModes.TI), [setMode]);
+  const handleColumnClick = useCallback(() => setMode(NavigationModes.RUN), [setMode]);
 
   const rowVirtualizer = useVirtualizer({
     count: flatNodes.length,
@@ -153,7 +154,7 @@ export const Grid = ({ dagRunState, limit, runType, showGantt, triggeringUser }:
             </Flex>
             <Flex flexDirection="row-reverse">
               {gridRuns?.map((dr: GridRunsResponse) => (
-                <Bar key={dr.run_id} max={max} onColumnClick={handleColumnClick} run={dr} showHeader />
+                <Bar key={dr.run_id} max={max} onClick={handleColumnClick} run={dr} />
               ))}
             </Flex>
             {selectedIsVisible === undefined || !selectedIsVisible ? undefined : (
@@ -189,12 +190,10 @@ export const Grid = ({ dagRunState, limit, runType, showGantt, triggeringUser }:
             </Box>
             <Flex flexDirection="row-reverse" flexShrink={0} position="relative">
               {gridRuns?.map((dr: GridRunsResponse) => (
-                <Bar
+                <TaskInstancesColumn
                   key={dr.run_id}
-                  max={max}
                   nodes={flatNodes}
                   onCellClick={handleCellClick}
-                  onColumnClick={handleColumnClick}
                   run={dr}
                   virtualItems={virtualItems}
                 />
