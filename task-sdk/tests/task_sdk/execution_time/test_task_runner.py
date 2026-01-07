@@ -1643,7 +1643,7 @@ class TestRuntimeTaskInstance:
         """
         map_indexes_kwarg = {} if map_indexes is NOTSET else {"map_indexes": map_indexes}
         task_ids_kwarg = {} if task_ids is NOTSET else {"task_ids": task_ids}
-        from airflow.serialization.serde import deserialize
+        from airflow.sdk.serde import deserialize
 
         spy_agency.spy_on(deserialize)
 
