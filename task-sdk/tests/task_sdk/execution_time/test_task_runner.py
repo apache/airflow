@@ -338,8 +338,8 @@ def test_parse_not_found_does_not_reschedule_when_max_attempts_reached(test_dags
     with (
         conf_vars(
             {
-                ("workers", "startup_dagbag_reschedule_max_attempts"): "3",
-                ("workers", "startup_dagbag_reschedule_delay"): "60",
+                ("workers", "task_startup_timeout_retries"): "3",
+                ("workers", "task_startup_timeout"): "60",
             }
         ),
         patch.dict(

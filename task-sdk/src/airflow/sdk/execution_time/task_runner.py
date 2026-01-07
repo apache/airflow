@@ -708,8 +708,8 @@ def _maybe_reschedule_startup_failure(
     This does not count as a retry. If the reschedule limit is exceeded, this function
     returns and the caller should fail the task.
     """
-    max_reschedules = conf.getint("workers", "startup_dagbag_reschedule_max_attempts", fallback=3)
-    reschedule_delay = conf.getint("workers", "startup_dagbag_reschedule_delay", fallback=60)
+    max_reschedules = conf.getint("workers", "task_startup_timeout_retries", fallback=3)
+    reschedule_delay = conf.getint("workers", "task_startup_timeout", fallback=60)
 
     reschedule_count = int(getattr(ti_context, "task_reschedule_count", 0) or 0)
     if max_reschedules > 0 and reschedule_count < max_reschedules:
