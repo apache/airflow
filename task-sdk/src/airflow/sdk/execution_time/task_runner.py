@@ -1343,6 +1343,14 @@ def _handle_trigger_dag_run(
                 dag_id=drte.trigger_dag_id,
                 state=comms_msg.state,
             )
+    else:
+        # Fire-and-forget mode: wait_for_completion=False
+        if drte.deferrable:
+            log.info(
+                "Ignoring deferrable=True because wait_for_completion=False. "
+                "Task will complete immediately without waiting for the triggered DAG run.",
+                trigger_dag_id=drte.trigger_dag_id,
+            )
 
     return _handle_current_task_success(context, ti)
 
