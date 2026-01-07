@@ -27,6 +27,7 @@ from airflow.models.base import Base, StringID
 from airflow.utils.sqlalchemy import UtcDateTime
 
 if TYPE_CHECKING:
+    from airflow.models.dag import DagModel
     from airflow.models.taskinstance import TaskInstance
     from airflow.models.taskinstancekey import TaskInstanceKey
 
@@ -49,18 +50,18 @@ class Log(Base):
     extra = Column(Text)
     try_number = Column(Integer)
 
-    dag_model = relationship(
+    dag_model: Mapped[DagModel | None] = relationship(
         "DagModel",
         viewonly=True,
         foreign_keys=[dag_id],
         primaryjoin="Log.dag_id == DagModel.dag_id",
     )
 
-    task_instance = relationship(
+    task_instance: Mapped[TaskInstance | None] = relationship(
         "TaskInstance",
         viewonly=True,
-        foreign_keys=[task_id],
-        primaryjoin="Log.task_id == TaskInstance.task_id",
+        foreign_keys=[dag_id, task_id, run_id, map_index],
+        primaryjoin="and_(Log.dag_id == TaskInstance.dag_id, Log.task_id == TaskInstance.task_id, Log.run_id == TaskInstance.run_id, Log.map_index == TaskInstance.map_index)",
         lazy="noload",
     )
 
