@@ -97,7 +97,7 @@ class OdbcHook(DbApiHook):
     def driver(self) -> str | None:
         """Driver from init param if given; else try to find one in connection extra."""
         extra_driver = self.connection_extra_lower.get("driver")
-        from airflow.configuration import conf
+        from airflow.providers.common.compat.sdk import conf
 
         if extra_driver and conf.getboolean("providers.odbc", "allow_driver_in_extra", fallback=False):
             self._driver = extra_driver

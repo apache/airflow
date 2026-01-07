@@ -167,8 +167,24 @@ ARG_BUNDLE_NAME = Arg(
     default=None,
     action="append",
 )
-ARG_START_DATE = Arg(("-s", "--start-date"), help="Override start_date YYYY-MM-DD", type=parsedate)
-ARG_END_DATE = Arg(("-e", "--end-date"), help="Override end_date YYYY-MM-DD", type=parsedate)
+ARG_START_DATE = Arg(
+    ("-s", "--start-date"),
+    help=(
+        "Override start_date. Accepts multiple datetime formats including: "
+        "YYYY-MM-DD, YYYY-MM-DDTHH:MM:SS, YYYY-MM-DDTHH:MM:SS±HH:MM (ISO 8601), "
+        "and other formats supported by pendulum.parse()"
+    ),
+    type=parsedate,
+)
+ARG_END_DATE = Arg(
+    ("-e", "--end-date"),
+    help=(
+        "Override end_date. Accepts multiple datetime formats including: "
+        "YYYY-MM-DD, YYYY-MM-DDTHH:MM:SS, YYYY-MM-DDTHH:MM:SS±HH:MM (ISO 8601), "
+        "and other formats supported by pendulum.parse()"
+    ),
+    type=parsedate,
+)
 ARG_OUTPUT_PATH = Arg(
     (
         "-o",
@@ -504,6 +520,18 @@ ARG_DB_BATCH_SIZE = Arg(
         "Lower values reduce long-running locks but increase the number of batches."
     ),
 )
+ARG_DAG_IDS = Arg(
+    ("--dag-ids",),
+    default=None,
+    help="Only cleanup data related to the given dag_id",
+    type=string_list_type,
+)
+ARG_EXCLUDE_DAG_IDS = Arg(
+    ("--exclude-dag-ids",),
+    default=None,
+    help="Avoid cleaning up data related to the given dag_ids",
+    type=string_list_type,
+)
 
 # pool
 ARG_POOL_NAME = Arg(("pool",), metavar="NAME", help="Pool name")
@@ -705,9 +733,6 @@ ARG_ENV_VARS = Arg(
 
 # connections
 ARG_CONN_ID = Arg(("conn_id",), help="Connection id, required to get/add/delete/test a connection", type=str)
-ARG_CONN_ID_FILTER = Arg(
-    ("--conn-id",), help="If passed, only items with the specified connection ID will be displayed", type=str
-)
 ARG_CONN_URI = Arg(
     ("--conn-uri",), help="Connection URI, required to add a connection without conn_type", type=str
 )
@@ -789,6 +814,20 @@ ARG_SECTION = Arg(
 ARG_OPTION = Arg(
     ("option",),
     help="The option name",
+)
+ARG_HIDE_SENSITIVE = Arg(
+    ("--hide-sensitive",),
+    action="store_true",
+    help="When used with --show-values, hide sensitive values (passwords, keys, tokens, etc.) and only show non-sensitive configuration values.",
+)
+ARG_CONFIG_SHOW_VALUES = Arg(
+    ("--show-values",),
+    action="store_true",
+    help=(
+        "Show configuration values. "
+        "By default only option names are shown and values (including potentially "
+        "sensitive ones) are hidden."
+    ),
 )
 
 # lint
@@ -891,6 +930,11 @@ ARG_CAPACITY = Arg(
     ("--capacity",),
     type=positive_int(allow_zero=False),
     help="The maximum number of triggers that a Triggerer will run at one time.",
+)
+ARG_QUEUES = Arg(
+    ("--queues",),
+    type=string_list_type,
+    help="Optional comma-separated list of task queues which the triggerer should consume from.",
 )
 
 ARG_DAG_LIST_COLUMNS = Arg(
@@ -1495,6 +1539,8 @@ DB_COMMANDS = (
             ARG_YES,
             ARG_DB_SKIP_ARCHIVE,
             ARG_DB_BATCH_SIZE,
+            ARG_DAG_IDS,
+            ARG_EXCLUDE_DAG_IDS,
         ),
     ),
     ActionCommand(
@@ -1527,7 +1573,7 @@ CONNECTIONS_COMMANDS = (
         name="list",
         help="List connections",
         func=lazy_load_command("airflow.cli.commands.connection_command.connections_list"),
-        args=(ARG_OUTPUT, ARG_VERBOSE, ARG_CONN_ID_FILTER),
+        args=(ARG_OUTPUT, ARG_VERBOSE),
     ),
     ActionCommand(
         name="add",
@@ -1718,6 +1764,8 @@ CONFIG_COMMANDS = (
             ARG_EXCLUDE_PROVIDERS,
             ARG_DEFAULTS,
             ARG_VERBOSE,
+            ARG_HIDE_SENSITIVE,
+            ARG_CONFIG_SHOW_VALUES,
         ),
     ),
     ActionCommand(
@@ -1949,6 +1997,7 @@ core_commands: list[CLICommand] = [
             ARG_VERBOSE,
             ARG_SKIP_SERVE_LOGS,
             ARG_DEV,
+            ARG_QUEUES,
         ),
     ),
     ActionCommand(

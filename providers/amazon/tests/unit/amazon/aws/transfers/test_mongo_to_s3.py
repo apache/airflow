@@ -26,13 +26,10 @@ from airflow.providers.amazon.aws.transfers.mongo_to_s3 import MongoToS3Operator
 from airflow.utils.state import DagRunState
 from airflow.utils.types import DagRunType
 
+from tests_common.test_utils.compat import timezone
 from tests_common.test_utils.dag import sync_dag_to_db
+from tests_common.test_utils.taskinstance import create_task_instance, render_template_fields
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
-
-try:
-    from airflow.sdk import timezone
-except ImportError:
-    from airflow.utils import timezone  # type: ignore[attr-defined,no-redef]
 
 TASK_ID = "test_mongo_to_s3_operator"
 MONGO_CONN_ID = "default_mongo"
@@ -93,14 +90,15 @@ class TestMongoToS3Operator:
 
             sync_dag_to_db(self.dag)
             dag_version = DagVersion.get_latest_version(self.mock_operator.dag_id)
-            ti = TaskInstance(self.mock_operator, dag_version_id=dag_version.id)
             dag_run = DagRun(
                 dag_id=self.mock_operator.dag_id,
                 logical_date=DEFAULT_DATE,
                 run_id="test",
                 run_type=DagRunType.MANUAL,
                 state=DagRunState.RUNNING,
+                run_after=timezone.utcnow(),
             )
+            ti = create_task_instance(self.mock_operator, run_id="test", dag_version_id=dag_version.id)
         else:
             dag_run = DagRun(
                 dag_id=self.mock_operator.dag_id,
@@ -111,12 +109,8 @@ class TestMongoToS3Operator:
             )
             ti = TaskInstance(task=self.mock_operator)
         ti.dag_run = dag_run
-        session.add(ti)
-        session.commit()
-        ti.render_templates()
-
+        render_template_fields(ti, self.mock_operator)
         expected_rendered_template = {"$lt": "2017-01-01T00:00:00+00:00Z"}
-
         assert expected_rendered_template == getattr(self.mock_operator, "mongo_query")
 
     @mock.patch("airflow.providers.amazon.aws.transfers.mongo_to_s3.MongoHook")

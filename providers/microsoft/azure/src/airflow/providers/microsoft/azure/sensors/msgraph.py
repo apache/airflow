@@ -32,7 +32,7 @@ if TYPE_CHECKING:
 
     from msgraph_core import APIVersion
 
-    from airflow.utils.context import Context
+    from airflow.sdk import Context
 
 
 class MSGraphSensor(BaseSensorOperator):
