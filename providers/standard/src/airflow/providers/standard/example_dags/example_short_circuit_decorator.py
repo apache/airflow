@@ -55,7 +55,7 @@ from airflow.sdk import chain, dag, task
     - Future DAG runs are scheduled normally without modification to the DAG definition
     - Useful for backfills and reprocessing scenarios without code changes
 
-    📖 **Related documentation**
+    📖 **Related documentation** 
     https://airflow.apache.org/docs/apache-airflow/stable/howto/operator.html#short-circuiting
     """,
 )
