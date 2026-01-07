@@ -131,12 +131,22 @@ def get_dag_run(dag_id: str, dag_run_id: str, session: SessionDep) -> DAGRunResp
 def delete_dag_run(dag_id: str, dag_run_id: str, session: SessionDep):
     """Delete a DAG Run entry."""
     dag_run = session.scalar(select(DagRun).filter_by(dag_id=dag_id, run_id=dag_run_id))
+    deletable_states = {s.value for s in DAGRunPatchStates}
 
     if dag_run is None:
         raise HTTPException(
             status.HTTP_404_NOT_FOUND,
             f"The DagRun with dag_id: `{dag_id}` and run_id: `{dag_run_id}` was not found",
         )
+    if dag_run.state not in deletable_states:
+        raise HTTPException(
+            status.HTTP_409_CONFLICT,
+            (
+                f"The DagRun with dag_id: `{dag_id}` and run_id: `{dag_run_id}` "
+                f"cannot be deleted in {dag_run.state} state"
+            ),
+        )
+
     session.delete(dag_run)
 
 
