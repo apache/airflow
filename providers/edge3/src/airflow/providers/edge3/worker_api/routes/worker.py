@@ -213,7 +213,7 @@ def set_state(
     worker.last_update = timezone.utcnow()
     session.commit()
     try:
-        from airflow.observability.metrics.dual_stats_manager import DualStatsManager
+        from airflow.sdk._shared.observability.metrics.dual_stats_manager import DualStatsManager
 
         DualStatsManager.incr(
             "edge_worker.heartbeat_count",

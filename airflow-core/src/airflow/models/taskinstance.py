@@ -65,6 +65,8 @@ from sqlalchemy.orm.attributes import NO_VALUE, set_committed_value
 from sqlalchemy_utils import UUIDType
 
 from airflow import settings
+from airflow._shared.observability.metrics.dual_stats_manager import DualStatsManager
+from airflow._shared.observability.metrics.stats import Stats
 from airflow._shared.timezones import timezone
 from airflow.assets.manager import asset_manager
 from airflow.configuration import conf
@@ -80,8 +82,6 @@ from airflow.models.taskinstancekey import TaskInstanceKey
 from airflow.models.taskmap import TaskMap
 from airflow.models.taskreschedule import TaskReschedule
 from airflow.models.xcom import XCOM_RETURN_KEY, LazyXComSelectSequence, XComModel
-from airflow.observability.metrics.dual_stats_manager import DualStatsManager
-from airflow.observability.stats import Stats
 from airflow.settings import task_instance_mutation_hook
 from airflow.ti_deps.dep_context import DepContext
 from airflow.ti_deps.dependencies_deps import REQUEUEABLE_DEPS, RUNNING_DEPS

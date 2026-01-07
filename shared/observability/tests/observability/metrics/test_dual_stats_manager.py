@@ -21,7 +21,7 @@ from typing import Any
 
 import pytest
 
-from airflow.observability.metrics import dual_stats_manager
+from airflow_shared.observability.metrics import dual_stats_manager
 
 
 class TestDualStatsManager:
@@ -272,7 +272,7 @@ class TestDualStatsManager:
         raises_value_error: bool,
         expected_error_msg: str,
     ):
-        from airflow.observability.metrics.dual_stats_manager import DualStatsManager
+        from airflow_shared.observability.metrics.dual_stats_manager import DualStatsManager
 
         manager = DualStatsManager()
 
