@@ -228,7 +228,7 @@ jobs:
       - name: "Static checks: basic checks only"
         run: >
           prek --show-diff-on-failure --color always
-          --from-ref "${{ github.sha }}" --to-ref "${{ github.sha }}"
+          --from-ref "${{ github.sha }}"^ --to-ref "${{ github.sha }}"
         env:
           VERBOSE: "false"
           SKIP_BREEZE_PREK_HOOKS: "true"
