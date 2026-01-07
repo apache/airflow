@@ -29,6 +29,7 @@ from time import sleep
 import click
 from click import IntRange
 
+from airflow_breeze.branch_defaults import AIRFLOW_BRANCH
 from airflow_breeze.commands.ci_image_commands import rebuild_or_pull_ci_image_if_needed
 from airflow_breeze.commands.common_options import (
     option_airflow_ui_base_url,
@@ -894,6 +895,11 @@ def task_sdk_integration_tests(
     show_default=True,
     envvar="AIRFLOW_CTL_VERSION",
 )
+@click.option(
+    "--action-branch",
+    help="GitHub Action branch to use to build the image when running tests from a GitHub Action",
+    default=AIRFLOW_BRANCH,
+)
 @click.argument("extra_pytest_args", nargs=-1, type=click.Path(path_type=str))
 def airflowctl_integration_tests(
     python: str,
@@ -902,6 +908,7 @@ def airflowctl_integration_tests(
     github_repository: str,
     include_success_outputs: bool,
     airflow_ctl_version: str | None,
+    action_branch: str | None,
     extra_pytest_args: tuple,
 ):
     """Run airflowctl integration tests."""
@@ -914,7 +921,12 @@ def airflowctl_integration_tests(
     image_name = image_name or os.environ.get("DOCKER_IMAGE")
 
     if image_name is None:
-        build_params = BuildProdParams(python=python, github_repository=github_repository)
+        build_params = BuildProdParams(
+            python=python,
+            github_repository=github_repository,
+            use_image_from_action_branch=True,
+            action_branch=action_branch,
+        )
         image_name = build_params.airflow_image_name
 
     get_console().print(f"[info]Running airflowctl integration tests with PROD image: {image_name}[/]")
