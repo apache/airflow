@@ -126,7 +126,6 @@ const BarColumnInner = ({ nodes, onCellClick, run, virtualItems }: BarColumnProp
   );
 };
 
-// FIX: Memoize to prevent unnecessary re-renders
 const BarColumn = memo(BarColumnInner);
 
 export const Bar = ({ max, nodes, onCellClick, onColumnClick, run, showHeader, virtualItems }: Props) => {

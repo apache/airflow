@@ -19,12 +19,13 @@
 import { Box, chakra, Flex, Link } from "@chakra-ui/react";
 import type { VirtualItem } from "@tanstack/react-virtual";
 import type { MouseEvent } from "react";
+import { useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import { FiChevronUp } from "react-icons/fi";
 import { Link as RouterLink, useParams, useSearchParams } from "react-router-dom";
 
 import { TaskName } from "src/components/TaskName";
-import { type HoverContextType, useHover } from "src/context/hover";
+import { useHover } from "src/context/hover";
 import { useOpenGroups } from "src/context/openGroups";
 
 import type { GridTask } from "./utils";
@@ -40,38 +41,42 @@ const ROW_HEIGHT = 20;
 
 const indent = (depth: number) => `${depth * 0.75 + 0.5}rem`;
 
-const onMouseEnter = (
-  event: MouseEvent<HTMLDivElement>,
-  nodeId: string,
-  setHoveredTaskId: HoverContextType["setHoveredTaskId"],
-) => {
-  const tasks = document.querySelectorAll<HTMLDivElement>(`#${event.currentTarget.id}`);
-
-  tasks.forEach((task) => {
-    task.style.backgroundColor = "var(--chakra-colors-brand-muted)";
-  });
-
-  setHoveredTaskId(nodeId);
-};
-
-const onMouseLeave = (nodeId: string, setHoveredTaskId: HoverContextType["setHoveredTaskId"]) => {
-  const tasks = document.querySelectorAll<HTMLDivElement>(`#task-${nodeId.replaceAll(".", "-")}`);
-
-  tasks.forEach((task) => {
-    task.style.backgroundColor = "";
-  });
-
-  setHoveredTaskId(undefined);
-};
-
 export const TaskNames = ({ nodes, onRowClick, virtualItems }: Props) => {
   const { t: translate } = useTranslation("dag");
-  const { setHoveredTaskId } = useHover();
+  const { hoveredTaskId, setHoveredTaskId } = useHover();
   const { toggleGroupId } = useOpenGroups();
   const { dagId = "", groupId, taskId } = useParams();
   const [searchParams] = useSearchParams();
 
-  // If virtualItems is provided, use virtualization; otherwise render all items
+  const handleMouseEnter = useCallback(
+    (event: MouseEvent<HTMLDivElement>) => {
+      const { nodeId } = event.currentTarget.dataset;
+
+      if (nodeId !== undefined) {
+        setHoveredTaskId(nodeId);
+      }
+    },
+    [setHoveredTaskId],
+  );
+
+  const handleMouseLeave = useCallback(() => setHoveredTaskId(undefined), [setHoveredTaskId]);
+
+  const handleToggleGroup = useCallback(
+    (event: MouseEvent<HTMLSpanElement>) => {
+      event.preventDefault();
+      event.stopPropagation();
+      const groupNodeId = event.currentTarget.dataset.groupId;
+
+      if (groupNodeId !== undefined) {
+        toggleGroupId(groupNodeId);
+      }
+    },
+    [toggleGroupId],
+  );
+
+  const search = searchParams.toString();
+
+  // If virtualItems is provided, use virtualization; otherwise render all ite
   const itemsToRender =
     virtualItems ?? nodes.map((_, index) => ({ index, size: ROW_HEIGHT, start: index * ROW_HEIGHT }));
 
@@ -81,22 +86,26 @@ export const TaskNames = ({ nodes, onRowClick, virtualItems }: Props) => {
         const node = nodes[virtualItem.index];
 
         if (!node) {
-          return null;
+          return undefined;
         }
+
+        const isSelected = node.id === taskId || node.id === groupId;
+        const isHovered = hoveredTaskId === node.id;
 
         return (
           <Box
-            bg={node.id === taskId || node.id === groupId ? "brand.emphasized" : undefined}
+            bg={isSelected ? "brand.emphasized" : isHovered ? "brand.muted" : undefined}
             borderBottomWidth={1}
             borderColor={node.isGroup ? "border.emphasized" : "border"}
             borderTopWidth={virtualItem.index === 0 ? 1 : 0}
             cursor="pointer"
+            data-node-id={node.id}
             height={`${ROW_HEIGHT}px`}
             id={`task-${node.id.replaceAll(".", "-")}`}
             key={node.id}
             left={0}
-            onMouseEnter={(event) => onMouseEnter(event, node.id, setHoveredTaskId)}
-            onMouseLeave={() => onMouseLeave(node.id, setHoveredTaskId)}
+            onMouseEnter={handleMouseEnter}
+            onMouseLeave={handleMouseLeave}
             position="absolute"
             right={0}
             top={0}
@@ -111,7 +120,7 @@ export const TaskNames = ({ nodes, onRowClick, virtualItems }: Props) => {
                   style={{ outline: "none" }}
                   to={{
                     pathname: `/dags/${dagId}/tasks/group/${node.id}`,
-                    search: searchParams.toString(),
+                    search,
                   }}
                 >
                   <Flex alignItems="center" width="100%">
@@ -129,13 +138,10 @@ export const TaskNames = ({ nodes, onRowClick, virtualItems }: Props) => {
                       alignItems="center"
                       aria-label={translate("grid.buttons.toggleGroup")}
                       cursor="pointer"
+                      data-group-id={node.id}
                       display="inline-flex"
                       ml={1}
-                      onClick={(event) => {
-                        event.preventDefault();
-                        event.stopPropagation();
-                        toggleGroupId(node.id);
-                      }}
+                      onClick={handleToggleGroup}
                       px={1}
                     >
                       <FiChevronUp
@@ -156,7 +162,7 @@ export const TaskNames = ({ nodes, onRowClick, virtualItems }: Props) => {
                   replace
                   to={{
                     pathname: `/dags/${dagId}/tasks/${node.id}`,
-                    search: searchParams.toString(),
+                    search,
                   }}
                 >
                   <TaskName

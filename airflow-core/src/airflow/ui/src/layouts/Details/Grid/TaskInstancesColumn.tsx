@@ -40,11 +40,9 @@ const ROW_HEIGHT = 20;
 const TaskInstancesColumnInner = ({ nodes, onCellClick, runId, taskInstances, virtualItems }: Props) => {
   const { dagId = "" } = useParams();
 
-  // If virtualItems is provided, use virtualization; otherwise render all items
   const itemsToRender =
     virtualItems ?? nodes.map((_, index) => ({ index, size: ROW_HEIGHT, start: index * ROW_HEIGHT }));
 
-  // Pre-build a Map for O(1) lookups instead of O(n) find() calls
   const taskInstanceMap = useMemo(() => {
     const map = new Map<string, LightGridTaskInstanceSummary>();
 
@@ -55,56 +53,50 @@ const TaskInstancesColumnInner = ({ nodes, onCellClick, runId, taskInstances, vi
     return map;
   }, [taskInstances]);
 
-  return (
-    <>
-      {itemsToRender.map((virtualItem) => {
-        const node = nodes[virtualItem.index];
+  return itemsToRender.map((virtualItem) => {
+    const node = nodes[virtualItem.index];
 
-        if (!node) {
-          return null;
-        }
+    if (!node) {
+      return undefined;
+    }
 
-        // FIX: O(1) Map lookup instead of O(n) find()
-        const taskInstance = taskInstanceMap.get(node.id);
+    const taskInstance = taskInstanceMap.get(node.id);
 
-        if (!taskInstance) {
-          return (
-            <Box
-              height={`${ROW_HEIGHT}px`}
-              key={`${node.id}-${runId}`}
-              left={0}
-              position="absolute"
-              top={0}
-              transform={`translateY(${virtualItem.start}px)`}
-              width="18px"
-            />
-          );
-        }
+    if (!taskInstance) {
+      return (
+        <Box
+          height={`${ROW_HEIGHT}px`}
+          key={`${node.id}-${runId}`}
+          left={0}
+          position="absolute"
+          top={0}
+          transform={`translateY(${virtualItem.start}px)`}
+          width="18px"
+        />
+      );
+    }
 
-        return (
-          <Box
-            key={node.id}
-            left={0}
-            position="absolute"
-            top={0}
-            transform={`translateY(${virtualItem.start}px)`}
-          >
-            <GridTI
-              dagId={dagId}
-              instance={taskInstance}
-              isGroup={node.isGroup}
-              isMapped={node.is_mapped}
-              label={node.label}
-              onClick={onCellClick}
-              runId={runId}
-              taskId={node.id}
-            />
-          </Box>
-        );
-      })}
-    </>
-  );
+    return (
+      <Box
+        key={node.id}
+        left={0}
+        position="absolute"
+        top={0}
+        transform={`translateY(${virtualItem.start}px)`}
+      >
+        <GridTI
+          dagId={dagId}
+          instance={taskInstance}
+          isGroup={node.isGroup}
+          isMapped={node.is_mapped}
+          label={node.label}
+          onClick={onCellClick}
+          runId={runId}
+          taskId={node.id}
+        />
+      </Box>
+    );
+  });
 };
 
-// FIX: Memoize to prevent unnecessary re-renders when parent re-renders
 export const TaskInstancesColumn = memo(TaskInstancesColumnInner);

@@ -108,12 +108,10 @@ export const Grid = ({ dagRunState, limit, runType, showGantt, triggeringUser }:
     tasks: flatNodes,
   });
 
-  // FIX: Memoize callbacks to prevent child re-renders
   const handleRowClick = useCallback(() => setMode("task"), [setMode]);
   const handleCellClick = useCallback(() => setMode("TI"), [setMode]);
   const handleColumnClick = useCallback(() => setMode("run"), [setMode]);
 
-  // Virtualization for rows
   const rowVirtualizer = useVirtualizer({
     count: flatNodes.length,
     estimateSize: () => ROW_HEIGHT,
@@ -121,7 +119,6 @@ export const Grid = ({ dagRunState, limit, runType, showGantt, triggeringUser }:
     overscan: 5,
   });
 
-  // FIX: Get virtualItems once and pass to all children to avoid new array refs per component
   const virtualItems = rowVirtualizer.getVirtualItems();
 
   const virtualizationContextValue = useMemo(() => ({ rowVirtualizer }), [rowVirtualizer]);
@@ -138,11 +135,9 @@ export const Grid = ({ dagRunState, limit, runType, showGantt, triggeringUser }:
         tabIndex={0}
         width={showGantt ? "1/2" : "full"}
       >
-        {/* Header row - fixed at top */}
         <Flex paddingRight={4} position="relative" width="100%">
           {/* Task names header spacer - fills available space to match task names column below */}
           <Box flexGrow={1} flexShrink={0} height="100px" minWidth="200px" />
-          {/* Duration axis and run headers - aligned to the right */}
           <Flex flexShrink={0} position="relative">
             <DurationAxis top="100px" />
             <DurationAxis top="50px" />
@@ -158,7 +153,7 @@ export const Grid = ({ dagRunState, limit, runType, showGantt, triggeringUser }:
             </Flex>
             <Flex flexDirection="row-reverse">
               {gridRuns?.map((dr: GridRunsResponse) => (
-                <Bar key={dr.run_id} max={max} onColumnClick={() => setMode("run")} run={dr} showHeader />
+                <Bar key={dr.run_id} max={max} onColumnClick={handleColumnClick} run={dr} showHeader />
               ))}
             </Flex>
             {selectedIsVisible === undefined || !selectedIsVisible ? undefined : (
@@ -179,8 +174,6 @@ export const Grid = ({ dagRunState, limit, runType, showGantt, triggeringUser }:
             )}
           </Flex>
         </Flex>
-
-        {/* Unified scroll container for task names + grid columns */}
         {/* Height accounts for: navbar, tabs, header bar chart (100px), and padding */}
         <Box height="calc(100vh - 250px)" overflow="auto" position="relative" ref={scrollContainerRef}>
           <Box
@@ -194,7 +187,6 @@ export const Grid = ({ dagRunState, limit, runType, showGantt, triggeringUser }:
             <Box bg="bg" flexGrow={1} flexShrink={0} left={0} minWidth="200px" position="sticky" zIndex={1}>
               <TaskNames nodes={flatNodes} onRowClick={handleRowClick} virtualItems={virtualItems} />
             </Box>
-            {/* Grid columns - aligned to the right */}
             <Flex flexDirection="row-reverse" flexShrink={0} position="relative">
               {gridRuns?.map((dr: GridRunsResponse) => (
                 <Bar
