@@ -1,0 +1,3 @@
+``workers.livenessProbe`` section is now deprecated in favor of ``workers.celery.livenessProbe``.
+
+Along the upgrade of Helm Chart version, change the configuration of values in section ``workers.livenessProbe`` to ``workers.celery.livenessProbe`` section or unset all values under ``workers.celery.livenessProbe`` to preserve previous behaviour of the Helm Chart.
