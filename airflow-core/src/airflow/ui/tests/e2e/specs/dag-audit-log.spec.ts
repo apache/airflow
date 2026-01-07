@@ -25,21 +25,38 @@ test.describe("DAG Audit Log", () => {
   let eventsPage: EventsPage;
 
   const testDagId = testConfig.testDag.id;
+  const triggerCount = 3;
+  const expectedEventCount = triggerCount + 1;
 
   test.setTimeout(60_000);
 
   test.beforeAll(async ({ browser }) => {
-    test.setTimeout(7 * 60 * 1000);
+    test.setTimeout(3 * 60 * 1000);
     const context = await browser.newContext({ storageState: AUTH_FILE });
     const page = await context.newPage();
     const setupDagsPage = new DagsPage(page);
     const setupEventsPage = new EventsPage(page);
 
-    for (let i = 0; i < 10; i++) {
+    for (let i = 0; i < triggerCount; i++) {
       await setupDagsPage.triggerDag(testDagId);
     }
 
     await setupEventsPage.navigateToAuditLog(testDagId);
+    await page.waitForFunction(
+      (minCount) => {
+        const table = document.querySelector('[data-testid="table-list"]');
+
+        if (!table) {
+          return false;
+        }
+        const rows = table.querySelectorAll("tbody tr");
+
+        return rows.length >= minCount;
+      },
+      expectedEventCount,
+      { timeout: 60_000 },
+    );
+
     await context.close();
   });
 
@@ -50,14 +67,11 @@ test.describe("DAG Audit Log", () => {
   test("should navigate to audit log tab and display table", async () => {
     await eventsPage.navigateToAuditLog(testDagId);
 
-    const rowCount = await eventsPage.getEventLogCount();
-
     await expect(eventsPage.eventsTable).toBeVisible();
 
-    const isTableVisible = await eventsPage.isAuditLogTableVisible();
+    const rowCount = await eventsPage.tableRows.count();
 
-    expect(isTableVisible).toBe(true);
-    expect(rowCount).toBeGreaterThanOrEqual(0);
+    expect(rowCount).toBeGreaterThan(0);
   });
 
   test("should display all expected columns in audit log table", async () => {
@@ -78,56 +92,67 @@ test.describe("DAG Audit Log", () => {
 
     const rows = await eventsPage.getEventLogRows();
 
-    if (rows.length > 0) {
-      const [firstRow] = rows;
+    expect(rows.length).toBeGreaterThan(0);
 
-      if (firstRow) {
-        const cells = firstRow.locator("td");
-        const cellCount = await cells.count();
+    const [firstRow] = rows;
 
-        expect(cellCount).toBeGreaterThan(0);
-
-        const allTextContents = await cells.allTextContents();
-        const hasContent = allTextContents.some((text) => text.trim().length > 0);
-
-        expect(hasContent).toBe(true);
-      }
+    if (!firstRow) {
+      throw new Error("No rows found");
     }
+
+    const cells = firstRow.locator("td");
+
+    const whenCell = cells.nth(0);
+    const eventCell = cells.nth(1);
+    const userCell = cells.nth(2);
+
+    const whenText = await whenCell.textContent();
+    const eventText = await eventCell.textContent();
+    const userText = await userCell.textContent();
+
+    expect(whenText).toBeTruthy();
+    expect(whenText?.trim()).not.toBe("");
+
+    expect(eventText).toBeTruthy();
+    expect(eventText?.trim()).not.toBe("");
+
+    expect(userText).toBeTruthy();
+    expect(userText?.trim()).not.toBe("");
   });
 
   test("should paginate through audit log entries", async () => {
-    await eventsPage.navigateToAuditLog(testDagId);
+    await eventsPage.navigateToAuditLog(testDagId, 3);
 
     const hasNext = await eventsPage.hasNextPage();
 
-    if (hasNext) {
-      const initialEvents = await eventsPage.getEventTypes();
+    expect(hasNext).toBe(true);
 
-      await eventsPage.clickNextPage();
+    const initialEvents = await eventsPage.getEventTypes();
 
-      const nextPageEvents = await eventsPage.getEventTypes();
+    await eventsPage.clickNextPage();
 
-      expect(nextPageEvents).not.toEqual(initialEvents);
+    const nextPageEvents = await eventsPage.getEventTypes();
 
-      await eventsPage.clickPrevPage();
+    expect(nextPageEvents).not.toEqual(initialEvents);
 
-      const backToFirstEvents = await eventsPage.getEventTypes();
+    await eventsPage.clickPrevPage();
 
-      expect(backToFirstEvents).toEqual(initialEvents);
-    }
+    const backToFirstEvents = await eventsPage.getEventTypes();
+
+    expect(backToFirstEvents).toEqual(initialEvents);
   });
 
   test("should sort audit log entries when clicking column header", async () => {
     await eventsPage.navigateToAuditLog(testDagId);
 
-    const initialEvents = await eventsPage.getEventTypes();
+    const initialEvents = await eventsPage.getEventTypes(true);
 
     await eventsPage.clickColumnToSort("Event");
 
-    const sortedEvents = await eventsPage.getEventTypes();
+    const sortedEvents = await eventsPage.getEventTypes(true);
 
-    const orderChanged = JSON.stringify(initialEvents) !== JSON.stringify(sortedEvents);
+    const expectedSorted = [...initialEvents].sort();
 
-    expect(orderChanged).toBe(true);
+    expect(sortedEvents).toEqual(expectedSorted);
   });
 });

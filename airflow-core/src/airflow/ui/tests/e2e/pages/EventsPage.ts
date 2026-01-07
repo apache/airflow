@@ -24,162 +24,125 @@ import { BasePage } from "tests/e2e/pages/BasePage";
  */
 export class EventsPage extends BasePage {
   // Locators
-  public readonly auditLogTab: Locator;
   public readonly eventColumn: Locator;
   public readonly eventsTable: Locator;
   public readonly extraColumn: Locator;
   public readonly ownerColumn: Locator;
   public readonly paginationNextButton: Locator;
   public readonly paginationPrevButton: Locator;
-  public readonly skeletonLoader: Locator;
   public readonly tableRows: Locator;
   public readonly whenColumn: Locator;
 
+  private currentDagId?: string;
+  private currentLimit?: number;
+
   public constructor(page: Page) {
     super(page);
-    this.auditLogTab = page.locator('a[href$="/events"]');
     this.eventsTable = page.locator('[data-testid="table-list"]');
     this.eventColumn = this.eventsTable.locator('th:has-text("Event")');
     this.extraColumn = this.eventsTable.locator('th:has-text("Extra")');
     this.ownerColumn = this.eventsTable.locator('th:has-text("User")');
     this.paginationNextButton = page.locator('[data-testid="next"]');
     this.paginationPrevButton = page.locator('[data-testid="prev"]');
-    this.skeletonLoader = page.locator('[data-testid="skeleton"]');
     this.tableRows = this.eventsTable.locator("tbody tr");
     this.whenColumn = this.eventsTable.locator('th:has-text("When")');
   }
 
-  /**
-   * Build URL for DAG-specific events page
-   */
   public static getEventsUrl(dagId: string): string {
     return `/dags/${dagId}/events`;
   }
 
-  /**
-   * Click a column header to sort
-   */
   public async clickColumnToSort(columnName: "Event" | "User" | "When"): Promise<void> {
     const columnHeader = this.eventsTable.locator(`th:has-text("${columnName}")`);
     const sortButton = columnHeader.locator('button[aria-label="sort"]');
 
     await sortButton.click();
-    await this.page.waitForTimeout(2000);
+    await this.waitForTableLoad();
+    await this.ensureUrlParams();
   }
 
-  /**
-   * Click next page button
-   */
   public async clickNextPage(): Promise<void> {
     await this.paginationNextButton.click();
     await this.waitForTableLoad();
+    await this.ensureUrlParams();
   }
 
-  /**
-   * Click previous page button
-   */
   public async clickPrevPage(): Promise<void> {
     await this.paginationPrevButton.click();
     await this.waitForTableLoad();
+    await this.ensureUrlParams();
   }
 
-  /**
-   * Get count of event log rows
-   */
-  public async getEventLogCount(): Promise<number> {
-    try {
-      return await this.tableRows.count();
-    } catch {
-      return 0;
-    }
-  }
-
-  /**
-   * Get all event log rows
-   */
   public async getEventLogRows(): Promise<Array<Locator>> {
-    try {
-      const count = await this.tableRows.count();
+    const count = await this.tableRows.count();
 
-      if (count === 0) {
-        return [];
-      }
-
-      return this.tableRows.all();
-    } catch {
+    if (count === 0) {
       return [];
     }
+
+    return this.tableRows.all();
   }
 
   /**
-   * Get all event types from the current page
+   * Get event types from the current page or all pages
    */
-  public async getEventTypes(): Promise<Array<string>> {
-    try {
-      const rows = await this.getEventLogRows();
+  public async getEventTypes(allPages: boolean = false): Promise<Array<string>> {
+    const rows = await this.getEventLogRows();
 
-      if (rows.length === 0) {
-        return [];
+    if (rows.length === 0) {
+      return [];
+    }
+
+    const eventTypes: Array<string> = [];
+
+    for (const row of rows) {
+      const cells = row.locator("td");
+      const eventCell = cells.nth(1);
+      const text = await eventCell.textContent();
+
+      if (text !== null) {
+        eventTypes.push(text.trim());
       }
+    }
 
-      const eventTypes: Array<string> = [];
-
-      for (const row of rows) {
-        const cells = row.locator("td");
-        const eventCell = cells.nth(1);
-        const text = await eventCell.textContent();
-
-        if (text !== null) {
-          eventTypes.push(text.trim());
-        }
-      }
-
+    if (!allPages) {
       return eventTypes;
-    } catch {
-      return [];
     }
+
+    const allEventTypes = [...eventTypes];
+
+    while (await this.hasNextPage()) {
+      await this.clickNextPage();
+      const pageEvents = await this.getEventTypes(false);
+
+      allEventTypes.push(...pageEvents);
+    }
+
+    while ((await this.paginationPrevButton.count()) > 0 && (await this.paginationPrevButton.isEnabled())) {
+      await this.clickPrevPage();
+    }
+
+    return allEventTypes;
   }
 
-  /**
-   * Check if next page is available
-   */
   public async hasNextPage(): Promise<boolean> {
-    try {
-      return await this.paginationNextButton.isEnabled();
-    } catch {
+    const count = await this.paginationNextButton.count();
+
+    if (count === 0) {
       return false;
     }
+
+    return await this.paginationNextButton.isEnabled();
   }
 
-  /**
-   * Check if previous page is available
-   */
-  public async hasPreviousPage(): Promise<boolean> {
-    try {
-      return await this.paginationPrevButton.isEnabled();
-    } catch {
-      return false;
-    }
-  }
+  public async navigateToAuditLog(dagId: string, limit?: number): Promise<void> {
+    this.currentDagId = dagId;
+    this.currentLimit = limit;
 
-  /**
-   * Check if audit log table is visible
-   */
-  public async isAuditLogTableVisible(): Promise<boolean> {
-    try {
-      await this.eventsTable.waitFor({ state: "visible", timeout: 5000 });
+    const baseUrl = EventsPage.getEventsUrl(dagId);
+    const url = limit === undefined ? baseUrl : `${baseUrl}?offset=0&limit=${limit}`;
 
-      return true;
-    } catch {
-      return false;
-    }
-  }
-
-  /**
-   * Navigate to audit log tab for a specific DAG
-   */
-  public async navigateToAuditLog(dagId: string): Promise<void> {
-    await this.page.goto(EventsPage.getEventsUrl(dagId), {
+    await this.page.goto(url, {
       timeout: 30_000,
       waitUntil: "domcontentloaded",
     });
@@ -190,12 +153,75 @@ export class EventsPage extends BasePage {
    * Wait for table to finish loading
    */
   public async waitForTableLoad(): Promise<void> {
-    await this.eventsTable.waitFor({ state: "visible", timeout: 30_000 });
+    await this.eventsTable.waitFor({ state: "visible", timeout: 60_000 });
 
-    const cellWithContent = this.eventsTable.locator("tbody tr td").filter({
-      hasText: /.+/,
-    });
+    await this.page.waitForFunction(
+      () => {
+        const table = document.querySelector('[data-testid="table-list"]');
 
-    await cellWithContent.first().waitFor({ state: "visible", timeout: 60_000 });
+        if (!table) {
+          return false;
+        }
+
+        const skeletons = table.querySelectorAll('[data-scope="skeleton"]');
+
+        if (skeletons.length > 0) {
+          return false;
+        }
+
+        const rows = table.querySelectorAll("tbody tr");
+
+        for (const row of rows) {
+          const cells = row.querySelectorAll("td");
+          let hasContent = false;
+
+          for (const cell of cells) {
+            if (cell.textContent && cell.textContent.trim().length > 0) {
+              hasContent = true;
+              break;
+            }
+          }
+
+          if (!hasContent) {
+            return false;
+          }
+        }
+
+        return true;
+      },
+      undefined,
+      { timeout: 60_000 },
+    );
+  }
+
+  /**
+   * Ensure offset=0 is present when limit is set to prevent limit from being ignored
+   */
+  private async ensureUrlParams(): Promise<void> {
+    if (this.currentLimit === undefined || this.currentDagId === undefined) {
+      return;
+    }
+
+    const currentUrl = this.page.url();
+    const url = new URL(currentUrl);
+    const hasLimit = url.searchParams.has("limit");
+    const hasOffset = url.searchParams.has("offset");
+
+    if (hasLimit && !hasOffset) {
+      url.searchParams.set("offset", "0");
+      await this.page.goto(url.toString(), {
+        timeout: 30_000,
+        waitUntil: "domcontentloaded",
+      });
+      await this.waitForTableLoad();
+    } else if (!hasLimit && !hasOffset) {
+      url.searchParams.set("offset", "0");
+      url.searchParams.set("limit", String(this.currentLimit));
+      await this.page.goto(url.toString(), {
+        timeout: 30_000,
+        waitUntil: "domcontentloaded",
+      });
+      await this.waitForTableLoad();
+    }
   }
 }
