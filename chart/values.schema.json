@@ -1900,26 +1900,26 @@
                     }
                 },
                 "persistence": {
-                    "description": "Persistence configuration for Airflow Celery workers.",
+                    "description": "Persistence configuration for Airflow Celery workers (deprecated, use `workers.celery.persistence` instead).",
                     "type": "object",
                     "additionalProperties": false,
                     "properties": {
                         "enabled": {
-                            "description": "Enable persistent volumes.",
+                            "description": "Enable persistent volumes (deprecated, use `workers.celery.persistence.enabled` instead).",
                             "type": "boolean",
                             "default": true
                         },
                         "persistentVolumeClaimRetentionPolicy": {
                             "$ref": "#/definitions/persistentVolumeClaimRetentionPolicy",
-                            "description": "PersistentVolumeClaim retention policy to be used in the lifecycle of a StatefulSet."
+                            "description": "PersistentVolumeClaim retention policy to be used in the lifecycle of a StatefulSet (deprecated, use `workers.celery.persistence.persistentVolumeClaimRetentionPolicy` instead)."
                         },
                         "size": {
-                            "description": "Volume size for Airflow Celery worker StatefulSet.",
+                            "description": "Volume size for Airflow Celery worker StatefulSet (deprecated, use `workers.celery.persistence.size` instead).",
                             "type": "string",
                             "default": "100Gi"
                         },
                         "storageClassName": {
-                            "description": "If using a custom StorageClass, pass name ref to all StatefulSets here (templated).",
+                            "description": "If using a custom StorageClass, pass name ref to all StatefulSets here (templated) (deprecated, use `workers.celery.persistence.storageClassName` instead).",
                             "type": [
                                 "string",
                                 "null"
@@ -1927,12 +1927,12 @@
                             "default": null
                         },
                         "fixPermissions": {
-                            "description": "Execute init container to chown log directory. This is currently only needed in kind, due to usage of local-path provisioner.",
+                            "description": "Execute init container to chown log directory. This is currently only needed in kind, due to usage of local-path provisioner (deprecated, use `workers.celery.persistence.fixPermissions` instead).",
                             "type": "boolean",
                             "default": false
                         },
                         "annotations": {
-                            "description": "Annotations to add to Airflow Celery worker volumes.",
+                            "description": "Annotations to add to Airflow Celery worker volumes (deprecated, use `workers.celery.persistence.annotations` instead).",
                             "type": "object",
                             "default": {},
                             "additionalProperties": {
@@ -1969,7 +1969,7 @@
                             ]
                         },
                         "securityContexts": {
-                            "description": "Security context definition for the persistence. If not set, the values from global `securityContexts` will be used.",
+                            "description": "Security context definition for the persistence. If not set, the values from global `securityContexts` will be used (deprecated, use `workers.celery.persistence.securityContexts` instead).",
                             "type": "object",
                             "x-docsSection": "Kubernetes",
                             "properties": {
@@ -2718,6 +2718,72 @@
                                     "default": {},
                                     "additionalProperties": {
                                         "type": "string"
+                                    }
+                                }
+                            }
+                        },
+                        "persistence": {
+                            "description": "Persistence configuration for Airflow Celery workers.",
+                            "type": "object",
+                            "additionalProperties": false,
+                            "properties": {
+                                "enabled": {
+                                    "description": "Enable persistent volumes.",
+                                    "type": "boolean",
+                                    "default": true
+                                },
+                                "persistentVolumeClaimRetentionPolicy": {
+                                    "$ref": "#/definitions/persistentVolumeClaimRetentionPolicy",
+                                    "description": "PersistentVolumeClaim retention policy to be used in the lifecycle of a StatefulSet."
+                                },
+                                "size": {
+                                    "description": "Volume size for Airflow Celery worker StatefulSet.",
+                                    "type": "string",
+                                    "default": "100Gi"
+                                },
+                                "storageClassName": {
+                                    "description": "If using a custom StorageClass, pass name ref to all StatefulSets here (templated).",
+                                    "type": [
+                                        "string",
+                                        "null"
+                                    ],
+                                    "default": null
+                                },
+                                "fixPermissions": {
+                                    "description": "Execute init container to chown log directory. This is currently only needed in kind, due to usage of local-path provisioner.",
+                                    "type": "boolean",
+                                    "default": false
+                                },
+                                "annotations": {
+                                    "description": "Annotations to add to Airflow Celery worker volumes.",
+                                    "type": "object",
+                                    "default": {},
+                                    "additionalProperties": {
+                                        "type": "string"
+                                    }
+                                },
+                                "securityContexts": {
+                                    "description": "Security context definition for the persistence. If not set, the values from global `securityContexts` will be used.",
+                                    "type": "object",
+                                    "x-docsSection": "Kubernetes",
+                                    "properties": {
+                                        "container": {
+                                            "description": "Container security context definition for the persistence.",
+                                            "type": "object",
+                                            "$ref": "#/definitions/io.k8s.api.core.v1.SecurityContext",
+                                            "default": {},
+                                            "x-docsSection": "Kubernetes",
+                                            "examples": [
+                                                {
+                                                    "allowPrivilegeEscalation": false,
+                                                    "capabilities": {
+                                                        "drop": [
+                                                            "ALL"
+                                                        ]
+                                                    }
+                                                }
+                                            ]
+                                        }
                                     }
                                 }
                             }

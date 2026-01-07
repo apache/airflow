@@ -797,32 +797,40 @@ workers:
     behavior: {}
 
   # Persistence volume configuration for Airflow Celery workers
+  # (deprecated, use `workers.celery.persistence` instead)
   persistence:
-    # Enable persistent volumes
+    # Enable persistent volumes (deprecated, use `workers.celery.persistence.enabled` instead)
     enabled: true
 
     # This policy determines whether PVCs should be deleted when StatefulSet is scaled down or removed
+    # (deprecated, use `workers.celery.persistence.persistentVolumeClaimRetentionPolicy` instead)
     persistentVolumeClaimRetentionPolicy: ~
     # persistentVolumeClaimRetentionPolicy:
     #   whenDeleted: Delete
     #   whenScaled: Delete
 
     # Volume size for Airflow Celery worker StatefulSet
+    # (deprecated, use `workers.celery.persistence.size` instead)
     size: 100Gi
 
     # If using a custom storageClass, pass name ref to all StatefulSets here
+    # (deprecated, use `workers.celery.persistence.storageClassName` instead)
     storageClassName:
 
     # Execute init container to chown log directory.
     # This is currently only needed in kind, due to usage
     # of local-path provisioner.
+    # (deprecated, use `workers.celery.persistence.fixPermissions` instead)
     fixPermissions: false
 
     # Annotations to add to Airflow Celery worker volumes
+    # (deprecated, use `workers.celery.persistence.annotations` instead)
     annotations: {}
 
     # Detailed default security context for persistence on container level
+    # (deprecated, use `workers.celery.persistence.securityContexts` instead)
     securityContexts:
+      # (deprecated, use `workers.celery.persistence.securityContexts.container` instead)
       container: {}
 
     # Container level lifecycle hooks
@@ -1062,6 +1070,35 @@ workers:
       name: ~
       # Annotations to add to worker kubernetes service account.
       annotations: {}
+
+    # Persistence volume configuration for Airflow Celery workers
+    persistence:
+      # Enable persistent volumes
+      enabled: true
+
+      # This policy determines whether PVCs should be deleted when StatefulSet is scaled down or removed
+      persistentVolumeClaimRetentionPolicy: ~
+      # persistentVolumeClaimRetentionPolicy:
+      #   whenDeleted: Delete
+      #   whenScaled: Delete
+
+      # Volume size for Airflow Celery worker StatefulSet
+      size: 100Gi
+
+      # If using a custom storageClass, pass name ref to all StatefulSets here
+      storageClassName:
+
+      # Execute init container to chown log directory.
+      # This is currently only needed in kind, due to usage
+      # of local-path provisioner.
+      fixPermissions: false
+
+      # Annotations to add to Airflow Celery worker volumes
+      annotations: {}
+
+      # Detailed default security context for persistence on container level
+      securityContexts:
+        container: {}
 
   kubernetes:
     # Command to use in pod-template-file (templated)

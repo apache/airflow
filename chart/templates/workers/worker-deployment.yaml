@@ -20,7 +20,7 @@
 ################################
 ## Airflow Worker Deployment
 #################################
-{{- $persistence := .Values.workers.persistence.enabled }}
+{{- $persistence := or .Values.workers.celery.persistence.enabled (and (not (has .Values.workers.celery.persistence.enabled (list true false))) .Values.workers.persistence.enabled) }}
 {{- $keda := .Values.workers.keda.enabled }}
 {{- $hpa := and .Values.workers.hpa.enabled (not .Values.workers.keda.enabled) }}
 {{- if or (contains "CeleryExecutor" .Values.executor) (contains "CeleryKubernetesExecutor" .Values.executor) }}
@@ -32,6 +32,7 @@
 {{- $securityContext := include "airflowPodSecurityContext" (list . .Values.workers) }}
 {{- $containerSecurityContext := include "containerSecurityContext" (list . .Values.workers) }}
 {{- $containerSecurityContextPersistence := include "containerSecurityContext" (list . .Values.workers.persistence) }}
+{{- $containerSecurityContextCeleryPersistence := include "containerSecurityContext" (list . .Values.workers.celery.persistence) }}
 {{- $containerSecurityContextWaitForMigrations := include "containerSecurityContext" (list . .Values.workers.waitForMigrations) }}
 {{- $containerSecurityContextLogGroomerSidecar := include "containerSecurityContext" (list . .Values.workers.logGroomerSidecar) }}
 {{- $containerSecurityContextKerberosSidecar := include "containerSecurityContext" (list . .Values.workers.kerberosSidecar) }}
@@ -67,8 +68,8 @@ spec:
   {{- if $revisionHistoryLimit }}
   revisionHistoryLimit: {{ $revisionHistoryLimit }}
   {{- end }}
-  {{- if and $persistence .Values.workers.persistence.persistentVolumeClaimRetentionPolicy }}
-  persistentVolumeClaimRetentionPolicy: {{- toYaml .Values.workers.persistence.persistentVolumeClaimRetentionPolicy  | nindent 4 }}
+  {{- if and $persistence (or .Values.workers.celery.persistence.persistentVolumeClaimRetentionPolicy .Values.workers.persistence.persistentVolumeClaimRetentionPolicy) }}
+  persistentVolumeClaimRetentionPolicy: {{- toYaml (.Values.workers.celery.persistence.persistentVolumeClaimRetentionPolicy | default .Values.workers.persistence.persistentVolumeClaimRetentionPolicy) | nindent 4 }}
   {{- end }}
   selector:
     matchLabels:
@@ -144,7 +145,7 @@ spec:
       securityContext: {{ $securityContext | nindent 8 }}
       imagePullSecrets: {{ include "image_pull_secrets" . | nindent 8 }}
       initContainers:
-        {{- if and $persistence .Values.workers.persistence.fixPermissions }}
+        {{- if and $persistence (or .Values.workers.celery.persistence.fixPermissions (and (not (has .Values.workers.celery.persistence.fixPermissions (list true false))) .Values.workers.persistence.fixPermissions)) }}
         - name: volume-permissions
           resources: {{- toYaml .Values.workers.resources | nindent 12 }}
           image: {{ template "airflow_image" . }}
@@ -154,7 +155,11 @@ spec:
             - -R
             - "{{ include "airflowPodSecurityContextsIds" (list . .Values.workers) }}"
             - {{ template "airflow_logs" . }}
+          {{- if .Values.workers.celery.persistence.securityContexts.container }}
+          securityContext: {{ $containerSecurityContextCeleryPersistence | nindent 12 }}
+          {{- else }}
           securityContext: {{ $containerSecurityContextPersistence | nindent 12 }}
+          {{- end }}
           volumeMounts:
             - name: logs
               mountPath: {{ template "airflow_logs" . }}
@@ -469,17 +474,17 @@ spec:
       kind: PersistentVolumeClaim
       metadata:
         name: logs
-        {{- if .Values.workers.persistence.annotations }}
-        annotations: {{- toYaml .Values.workers.persistence.annotations | nindent 10 }}
+        {{- if or .Values.workers.celery.persistence.annotations .Values.workers.persistence.annotations }}
+        annotations: {{- toYaml (.Values.workers.celery.persistence.annotations | default .Values.workers.persistence.annotations) | nindent 10 }}
         {{- end }}
       spec:
-        {{- if .Values.workers.persistence.storageClassName }}
-        storageClassName: {{ tpl .Values.workers.persistence.storageClassName . | quote }}
+        {{- if or .Values.workers.celery.persistence.storageClassName .Values.workers.persistence.storageClassName }}
+        storageClassName: {{ tpl (.Values.workers.celery.persistence.storageClassName | default .Values.workers.persistence.storageClassName) . | quote }}
         {{- end }}
         accessModes: ["ReadWriteOnce"]
         resources:
           requests:
-            storage: {{ .Values.workers.persistence.size }}
+            storage: {{ .Values.workers.celery.persistence.size | default .Values.workers.persistence.size }}
     {{- end }}
     {{- with .Values.workers.volumeClaimTemplates }}
       {{- toYaml . | nindent 4 }}

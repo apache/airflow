@@ -44,7 +44,7 @@ class TestKeda:
         """ScaledObject should only be created when enabled and executor is Celery or CeleryKubernetes."""
         docs = render_chart(
             values={
-                "workers": {"keda": {"enabled": True}, "persistence": {"enabled": False}},
+                "workers": {"keda": {"enabled": True}, "celery": {"persistence": {"enabled": False}}},
                 "executor": executor,
             },
             show_only=["templates/workers/worker-kedaautoscaler.yaml"],
@@ -58,7 +58,7 @@ class TestKeda:
     def test_include_event_source_container_name_in_scaled_object(self, executor):
         docs = render_chart(
             values={
-                "workers": {"keda": {"enabled": True}, "persistence": {"enabled": False}},
+                "workers": {"keda": {"enabled": True}, "celery": {"persistence": {"enabled": False}}},
                 "executor": executor,
             },
             show_only=["templates/workers/worker-kedaautoscaler.yaml"],
@@ -127,7 +127,7 @@ class TestKeda:
         """Verify keda sql query uses configured concurrency."""
         docs = render_chart(
             values={
-                "workers": {"keda": {"enabled": True}, "persistence": {"enabled": False}},
+                "workers": {"keda": {"enabled": True}, "celery": {"persistence": {"enabled": False}}},
                 "executor": executor,
                 "config": {"celery": {"worker_concurrency": concurrency}},
             },
@@ -155,7 +155,7 @@ class TestKeda:
         and we also verify here that we use the configured queue name in that case.
         """
         values = {
-            "workers": {"keda": {"enabled": True}, "persistence": {"enabled": False}},
+            "workers": {"keda": {"enabled": True}, "celery": {"persistence": {"enabled": False}}},
             "executor": executor,
         }
         if queue:
@@ -170,17 +170,21 @@ class TestKeda:
         assert jmespath.search("spec.triggers[0].metadata.query", docs[0]) == expected_query
 
     @pytest.mark.parametrize(
-        ("enabled", "kind"),
+        ("workers_persistence_values", "kind"),
         [
-            (True, "StatefulSet"),
-            (False, "Deployment"),
+            ({"celery": {"persistence": {"enabled": True}}}, "StatefulSet"),
+            ({"celery": {"persistence": {"enabled": False}}}, "Deployment"),
+            ({"persistence": {"enabled": True}, "celery": {"persistence": {"enabled": None}}}, "StatefulSet"),
+            ({"persistence": {"enabled": False}, "celery": {"persistence": {"enabled": None}}}, "Deployment"),
+            ({"persistence": {"enabled": True}}, "StatefulSet"),
+            ({"persistence": {"enabled": False}}, "StatefulSet"),
         ],
     )
-    def test_persistence(self, enabled, kind):
+    def test_persistence(self, workers_persistence_values, kind):
         """If worker persistence is enabled, scaleTargetRef should be StatefulSet else Deployment."""
         docs = render_chart(
             values={
-                "workers": {"keda": {"enabled": True}, "persistence": {"enabled": enabled}},
+                "workers": {"keda": {"enabled": True}, **workers_persistence_values},
                 "executor": "CeleryExecutor",
             },
             show_only=["templates/workers/worker-kedaautoscaler.yaml"],
