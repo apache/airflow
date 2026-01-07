@@ -28,29 +28,13 @@ import psycopg2.extras
 from more_itertools import chunked
 from psycopg2.extras import DictCursor, NamedTupleCursor, RealDictCursor, execute_batch
 
-try:
-    from sqlalchemy.engine import URL
-except ImportError:
-    URL = Any
-
-
 from airflow.exceptions import AirflowOptionalProviderFeatureException
 from airflow.providers.common.compat.sdk import AirflowException, Connection, conf
 from airflow.providers.common.sql.hooks.sql import DbApiHook
 from airflow.providers.postgres.dialects.postgres import PostgresDialect
 
-USE_PSYCOPG3: bool
-try:
-    import psycopg as psycopg  # needed for patching in unit tests
-    import sqlalchemy
-    from packaging.version import Version
+USE_PSYCOPG3: bool = False
 
-    sqlalchemy_version = Version(sqlalchemy.__version__)
-    is_sqla2 = (sqlalchemy_version.major, sqlalchemy_version.minor, sqlalchemy_version.micro) >= (2, 0, 0)
-
-    USE_PSYCOPG3 = is_sqla2  # implicitly includes `and bool(psycopg)` since the import above succeeded
-except (ImportError, ModuleNotFoundError):
-    USE_PSYCOPG3 = False
 
 if USE_PSYCOPG3:
     from psycopg.rows import dict_row, namedtuple_row
@@ -59,6 +43,7 @@ if USE_PSYCOPG3:
 if TYPE_CHECKING:
     from pandas import DataFrame as PandasDataFrame
     from polars import DataFrame as PolarsDataFrame
+    from sqlalchemy.engine import URL
 
     from airflow.providers.common.sql.dialects.dialect import Dialect
     from airflow.providers.openlineage.sqlparser import DatabaseInfo
@@ -172,11 +157,14 @@ class PostgresHook(DbApiHook):
 
     @property
     def sqlalchemy_url(self) -> URL:
-        if URL is None:
+        try:
+            from sqlalchemy.engine import URL
+        except ImportError:
             raise AirflowOptionalProviderFeatureException(
-                "SQLAlchemy is required. Install with "
-                "pip install 'apache-airflow-providers-postgres[sqlalchemy]'."
+                "SQLAlchemy is required for Postgres provider. "
+                "Install with pip install 'apache-airflow-providers-postgres[sqlalchemy]'."
             )
+
         conn = self.connection
         query = conn.extra_dejson.get("sqlalchemy_query", {})
         if not isinstance(query, dict):
@@ -185,7 +173,7 @@ class PostgresHook(DbApiHook):
             conn.login, conn.password, conn.port = self.get_iam_token(conn)
 
         return URL.create(
-            drivername="postgresql+psycopg" if USE_PSYCOPG3 else "postgresql",
+            drivername="postgresql",
             username=self.__cast_nullable(conn.login, str),
             password=self.__cast_nullable(conn.password, str),
             host=self.__cast_nullable(conn.host, str),
@@ -193,7 +181,6 @@ class PostgresHook(DbApiHook):
             database=self.__cast_nullable(self.database, str) or self.__cast_nullable(conn.schema, str),
             query=query,
         )
-
 
     @property
     def dialect_name(self) -> str:
@@ -400,15 +387,7 @@ class PostgresHook(DbApiHook):
 
         :return: the extracted URI in Sqlalchemy URI format.
         """
-        if URL is None:
-            raise AirflowOptionalProviderFeatureException(
-              "The 'sqlalchemy' library is required to render the connection URI."
-         )
-
-
-
         return self.sqlalchemy_url.render_as_string(hide_password=False)
-
 
     def bulk_load(self, table: str, tmp_file: str) -> None:
         """Load a tab-delimited file into a database table."""
