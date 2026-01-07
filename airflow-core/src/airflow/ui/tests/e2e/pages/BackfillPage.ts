@@ -116,7 +116,15 @@ export class BackfillPage extends BasePage {
 
   public async clickPauseButton(): Promise<void> {
     await expect(this.pauseButton).toBeVisible({ timeout: 10_000 });
+    const wasPaused = await this.isBackfillPaused();
     await this.pauseButton.click();
+
+    // Wait for aria-label to change
+    if (wasPaused) {
+      await expect(this.page.locator('button[aria-label="Pause backfill"]')).toBeVisible({ timeout: 10_000 });
+    } else {
+      await expect(this.page.locator('button[aria-label="Unpause backfill"]')).toBeVisible({ timeout: 10_000 });
+    }
   }
 
   public async createBackfill(dagName: string, options: CreateBackfillOptions): Promise<void> {
