@@ -208,6 +208,14 @@ test.describe("Backfill pause, resume, and cancel controls", () => {
   test.beforeEach(async ({ page }) => {
     backfillPage = new BackfillPage(page);
 
+    // Cancel any existing backfill before creating a new one
+    await backfillPage.navigateToDagDetail(testDagId);
+    try {
+      await backfillPage.clickCancelButton();
+    } catch {
+      // No active backfill to cancel
+    }
+
     await backfillPage.createBackfill(testDagId, {
       fromDate: controlFromDate,
       reprocessBehavior: "All Runs",
