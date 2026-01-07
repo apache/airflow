@@ -2150,18 +2150,21 @@ export const useTaskInstanceServicePatchTaskInstanceByMapIndex = <TData = Common
 * @param data.dagId
 * @param data.dagRunId
 * @param data.requestBody
-* @returns BulkResponse Successful Response
+* @param data.dryRun If True, return affected task instances without making changes
+* @returns unknown Successful Response
 * @throws ApiError
 */
 export const useTaskInstanceServiceBulkTaskInstances = <TData = Common.TaskInstanceServiceBulkTaskInstancesMutationResult, TError = unknown, TContext = unknown>(options?: Omit<UseMutationOptions<TData, TError, {
   dagId: string;
   dagRunId: string;
+  dryRun?: boolean;
   requestBody: BulkBody_BulkTaskInstanceBody_;
 }, TContext>, "mutationFn">) => useMutation<TData, TError, {
   dagId: string;
   dagRunId: string;
+  dryRun?: boolean;
   requestBody: BulkBody_BulkTaskInstanceBody_;
-}, TContext>({ mutationFn: ({ dagId, dagRunId, requestBody }) => TaskInstanceService.bulkTaskInstances({ dagId, dagRunId, requestBody }) as unknown as Promise<TData>, ...options });
+}, TContext>({ mutationFn: ({ dagId, dagRunId, dryRun, requestBody }) => TaskInstanceService.bulkTaskInstances({ dagId, dagRunId, dryRun, requestBody }) as unknown as Promise<TData>, ...options });
 /**
 * Patch Task Instance Dry Run
 * Update a task instance dry_run mode.
