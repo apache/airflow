@@ -275,6 +275,7 @@ class BulkTaskInstanceService(BulkService[BulkTaskInstanceBody]):
             dag_bag=self.dag_bag,
             body=entity,
             session=self.session,
+            map_index=map_index,
             update_mask=update_mask,
         )
 
