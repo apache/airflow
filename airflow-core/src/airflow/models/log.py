@@ -50,14 +50,14 @@ class Log(Base):
     extra = Column(Text)
     try_number = Column(Integer)
 
-    dag_model: Mapped[DagModel | None] = relationship(
+    dag_model = relationship(
         "DagModel",
         viewonly=True,
         foreign_keys=[dag_id],
         primaryjoin="Log.dag_id == DagModel.dag_id",
     )
 
-    task_instance: Mapped[TaskInstance | None] = relationship(
+    task_instance = relationship(
         "TaskInstance",
         viewonly=True,
         foreign_keys=[dag_id, task_id, run_id, map_index],
