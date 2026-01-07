@@ -182,7 +182,7 @@ describe("MarkGroupTaskInstanceAsDialog", () => {
     } as ReturnType<typeof useTaskInstanceServiceGetTaskInstances>);
   });
 
-  it("should render dialog when open is true and not when false", () => {
+  it("should render dialog when open is true and not when false", async () => {
     const { rerender } = render(
       <MarkGroupTaskInstanceAsDialog
         groupTaskInstance={mockGroupTaskInstance}
@@ -204,7 +204,9 @@ describe("MarkGroupTaskInstanceAsDialog", () => {
       />,
     );
 
-    expect(screen.queryByText(/test-task-group/iu)).not.toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.queryByText(/test-task-group/iu)).not.toBeInTheDocument();
+    });
   });
 
   it("should call dry run hook with correct parameters", async () => {
