@@ -22,6 +22,19 @@ import { DagsPage } from "tests/e2e/pages/DagsPage";
 const DAG_ID = "example_bash_operator";
 
 test.describe("Dag Tasks Tab", () => {
+  const testDagId = testConfig.testDag.id;
+  
+  test.beforeAll(async ({ browser }) => {
+    test.setTimeout(5 * 60 * 1000);
+    
+    const context = await browser.newContext({ storageState: AUTH_FILE });
+    const page = await context.newPage();
+    const dagPage = new DagsPage(page);
+    await dagPage.triggerDag(testDagId);
+    await dagPage.verifyDagRunStatus(testDagId, "success");
+    
+    await context.close();
+  });
   test("should navigate to tasks tab and show list", async ({ page }) => {
     const dagPage = new DagsPage(page);
 
