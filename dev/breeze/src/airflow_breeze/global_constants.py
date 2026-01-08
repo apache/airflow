@@ -596,6 +596,7 @@ COMMITTERS = [
     "xinbinhuang",
     "yuqian90",
     "zhongjiajie",
+    "choo121600",
 ]
 
 
