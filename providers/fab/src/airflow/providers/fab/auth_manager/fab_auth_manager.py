@@ -176,6 +176,7 @@ class FabAuthManager(BaseAuthManager[User]):
     This auth manager is responsible for providing a backward compatible user management experience to users.
     """
 
+    user_cache: dict[int, User] = {}
     appbuilder: AirflowAppBuilder | None = None
 
     def init_flask_resources(self) -> None:
@@ -254,8 +255,15 @@ class FabAuthManager(BaseAuthManager[User]):
         return current_user
 
     def deserialize_user(self, token: dict[str, Any]) -> User:
-        with create_session() as session:
-            return session.scalars(select(User).where(User.id == int(token["sub"]))).one()
+        id = int(token["sub"])
+        user = self.user_cache.get(id)
+
+        if not user:
+            with create_session() as session:
+                user = session.scalars(select(User).where(User.id == id)).one()
+                self.user_cache[id] = user
+
+        return user
 
     def serialize_user(self, user: User) -> dict[str, Any]:
         return {"sub": str(user.id)}
