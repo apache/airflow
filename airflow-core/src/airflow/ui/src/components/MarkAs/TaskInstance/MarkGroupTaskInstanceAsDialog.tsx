@@ -205,7 +205,7 @@ const MarkGroupTaskInstanceAsDialog = ({ groupTaskInstance, onClose, open, state
           <Flex justifyContent="end" mt={3}>
             <Button
               colorPalette="brand"
-              disabled={groupTaskIds.length === 0}
+              disabled={groupTaskIds.length === 0 || affectedTasks.total_entries === 0}
               loading={isPending || isPendingDryRun}
               onClick={() => {
                 void handleConfirm();
