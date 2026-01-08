@@ -208,8 +208,8 @@ export const PanelButtons = ({
   );
 
   return (
-    <Box position="absolute" px={2} ref={containerRef} top={1} width="100%" zIndex={1}>
-      <Flex justifyContent="space-between" pl={2}>
+    <Box position="absolute" pr={4} ref={containerRef} top={1} width="100%" zIndex={1}>
+      <Flex justifyContent="space-between">
         <ButtonGroup attached size="sm" variant="outline">
           <IconButton
             aria-label={translate("dag:panel.buttons.showGridShortcut")}
@@ -242,7 +242,7 @@ export const PanelButtons = ({
             <MdOutlineAccountTree />
           </IconButton>
         </ButtonGroup>
-        <Flex alignItems="center" gap={1} justifyContent="space-between" pl={2} pr={6}>
+        <Flex alignItems="center" gap={1} justifyContent="space-between">
           <ToggleGroups />
           {/* eslint-disable-next-line jsx-a11y/no-autofocus */}
           <Popover.Root autoFocus={false} positioning={{ placement: "bottom-end" }}>
