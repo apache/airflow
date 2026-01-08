@@ -283,7 +283,6 @@ def get_bagged_dag(bundle_names: list | None, dag_id: str, dagfile_path: str | N
                 dag_folder=dagfile_path or bundle.path,
                 bundle_path=bundle.path,
                 bundle_name=bundle.name,
-                include_examples=False,
             )
         if dag := dagbag.dags.get(dag_id):
             return dag
@@ -296,7 +295,6 @@ def get_bagged_dag(bundle_names: list | None, dag_id: str, dagfile_path: str | N
                 dag_folder=dagfile_path or bundle.path,
                 bundle_path=bundle.path,
                 bundle_name=bundle.name,
-                include_examples=False,
             )
             sync_bag_to_db(dagbag, bundle.name, bundle.version)
         if dag := dagbag.dags.get(dag_id):

@@ -209,7 +209,6 @@ def _parse_file(msg: DagFileParseRequest, log: FilteringBoundLogger) -> DagFileP
         dag_folder=msg.file,
         bundle_path=msg.bundle_path,
         bundle_name=msg.bundle_name,
-        include_examples=False,
         load_op_links=False,
     )
     if msg.callback_requests:

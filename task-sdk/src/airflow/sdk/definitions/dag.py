@@ -1262,7 +1262,6 @@ class DAG:
                             dag_folder=bundle.path,
                             bundle_path=bundle.path,
                             bundle_name=bundle.name,
-                            include_examples=False,
                         )
                         sync_bag_to_db(dagbag, bundle.name, bundle.version)
                     version = DagVersion.get_version(self.dag_id)

@@ -1225,9 +1225,7 @@ class TestBundlePathSysPath:
 
         assert str(tmp_path) not in sys.path
 
-        dagbag = BundleDagBag(
-            dag_folder=str(dag_file), bundle_path=tmp_path, bundle_name="test-bundle", include_examples=False
-        )
+        dagbag = BundleDagBag(dag_folder=str(dag_file), bundle_path=tmp_path, bundle_name="test-bundle")
 
         # Check import was successful
         assert len(dagbag.dags) == 1
@@ -1262,9 +1260,7 @@ class TestBundlePathSysPath:
         sys.path.append(str(tmp_path))
         count_before = sys.path.count(str(tmp_path))
 
-        BundleDagBag(
-            dag_folder=str(dag_file), bundle_path=tmp_path, bundle_name="test-bundle", include_examples=False
-        )
+        BundleDagBag(dag_folder=str(dag_file), bundle_path=tmp_path, bundle_name="test-bundle")
 
         # Should not add duplicate
         assert sys.path.count(str(tmp_path)) == count_before

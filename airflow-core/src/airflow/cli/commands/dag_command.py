@@ -530,9 +530,7 @@ def dag_report(args) -> None:
         if bundle.name not in bundles_to_reserialize:
             continue
         bundle.initialize()
-        dagbag = BundleDagBag(
-            bundle.path, bundle_path=bundle.path, bundle_name=bundle.name, include_examples=False
-        )
+        dagbag = BundleDagBag(bundle.path, bundle_path=bundle.path, bundle_name=bundle.name)
         all_dagbag_stats.extend(dagbag.dagbag_stats)
 
     AirflowConsole().print_as(
@@ -696,7 +694,5 @@ def dag_reserialize(args, session: Session = NEW_SESSION) -> None:
         if bundle.name not in bundles_to_reserialize:
             continue
         bundle.initialize()
-        dag_bag = BundleDagBag(
-            bundle.path, bundle_path=bundle.path, bundle_name=bundle.name, include_examples=False
-        )
+        dag_bag = BundleDagBag(bundle.path, bundle_path=bundle.path, bundle_name=bundle.name)
         sync_bag_to_db(dag_bag, bundle.name, bundle_version=bundle.get_current_version(), session=session)

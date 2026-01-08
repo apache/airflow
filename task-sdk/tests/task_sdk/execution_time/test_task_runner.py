@@ -242,7 +242,6 @@ def test_parse_dag_bag(mock_dagbag, test_dags_dir: Path, make_ti_context):
 
     mock_dagbag.assert_called_once_with(
         dag_folder=mock.ANY,
-        include_examples=False,
         safe_mode=False,
         load_op_links=False,
         bundle_path=test_dags_dir,
