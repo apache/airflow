@@ -62,8 +62,6 @@ Task Decorators:
 
 Bases
 -----
-.. autoapiclass:: airflow.sdk.BaseAsyncOperator
-
 .. autoapiclass:: airflow.sdk.BaseOperator
 
 .. autoapiclass:: airflow.sdk.BaseSensorOperator
@@ -178,7 +176,7 @@ Everything else
 .. autoapimodule:: airflow.sdk
   :members:
   :special-members: __version__
-  :exclude-members: BaseAsyncOperator, BaseOperator, DAG, dag, asset, Asset, AssetAlias, AssetAll, AssetAny, AssetWatcher, TaskGroup, XComArg, get_current_context, get_parsing_context
+  :exclude-members: BaseOperator, DAG, dag, asset, Asset, AssetAlias, AssetAll, AssetAny, AssetWatcher, TaskGroup, XComArg, get_current_context, get_parsing_context
   :undoc-members:
   :imported-members:
   :no-index:
