@@ -288,8 +288,9 @@ jobs:
         env:
           PLATFORM: ${{ inputs.platform }}
           ACTION_BRANCH: ${{ inputs.branch }}
-        run: >
-          breeze prod-image save --platform "${PLATFORM}" --image-file-dir "/mnt" --action-branch ${ACTION_BRANCH}
+        # yamllint disable rule:line-length
+        run: breeze prod-image save --platform "${PLATFORM}" --image-file-dir "/mnt" --action-branch ${ACTION_BRANCH}
+        # yamllint enable rule:line-length
         if: inputs.upload-image-artifact == 'true'
       - name: "Stash PROD docker image ${{ env.PYTHON_MAJOR_MINOR_VERSION }} for branch ${{ inputs.branch }}"
         uses: apache/infrastructure-actions/stash/save@1c35b5ccf8fba5d4c3fdf25a045ca91aa0cbc468
