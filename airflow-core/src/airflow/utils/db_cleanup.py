@@ -297,7 +297,7 @@ def _subquery_keep_last(
 
     if keep_last_filters is not None:
         for entry in keep_last_filters:
-            subquery = subquery.filter(entry)
+            subquery = subquery.where(entry)
 
     if group_by_columns is not None:
         subquery = subquery.group_by(*group_by_columns)
@@ -336,7 +336,7 @@ def _build_query(
 ) -> Select:
     base_table_alias = "base"
     base_table = aliased(orm_model, name=base_table_alias)
-    query = select(text(f"{base_table_alias}.*")).select_from(base_table)
+    statement = select(text(f"{base_table_alias}.*")).select_from(base_table)
     base_table_recency_col = base_table.c[recency_column.name]
     conditions = [base_table_recency_col < clean_before_timestamp]
 
@@ -358,7 +358,7 @@ def _build_query(
             max_date_colname=max_date_col_name,
             session=session,
         )
-        query = query.outerjoin(
+        statement = statement.outerjoin(
             subquery,
             and_(
                 *[base_table.c[x] == subquery.c[x] for x in keep_last_group_by],  # type: ignore[attr-defined]
@@ -366,8 +366,8 @@ def _build_query(
             ),
         )
         conditions.append(column(max_date_col_name).is_(None))
-    query = query.filter(and_(*conditions))
-    return query
+    statement = statement.where(and_(*conditions))
+    return statement
 
 
 def _cleanup_table(
