@@ -16,7 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 import { expect, test } from "@playwright/test";
 import { AUTH_FILE, testConfig } from "playwright.config";
 import { DagsPage } from "tests/e2e/pages/DagsPage";
@@ -37,12 +36,12 @@ test.describe("Dag Run Tests", () => {
     await setupPage.triggerDag(testDagId);
 
     const response = await page.request.get(`/api/v2/dags/${testDagId}/dagRuns?limit=1`);
+
     expect(response.ok()).toBeTruthy();
-    const data = await response.json();
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+    const data = (await response.json()) as { dag_runs?: Array<{ dag_run_id?: string }> };
     const runId = data.dag_runs?.[0]?.dag_run_id;
 
-    if (runId) {
+    if (runId !== undefined && runId !== "") {
       await page.request.patch(`/api/v2/dags/${testDagId}/dagRuns/${runId}`, {
         data: { state: "failed" },
       });
@@ -61,8 +60,6 @@ test.describe("Dag Run Tests", () => {
     await loginPage.navigateAndLogin(testCredentials.username, testCredentials.password);
     await loginPage.expectLoginSuccess();
   });
-
-
 
   test("verify runs table displays with valid data", async () => {
     await dagsPage.navigateToRunsTab(testDagId);
@@ -83,9 +80,9 @@ test.describe("Dag Run Tests", () => {
 
     expect(runs.length).toBeGreaterThan(0);
 
-    const firstRun = runs[0];
+    const [firstRun] = runs;
 
-    if (!firstRun) {
+    if (firstRun === undefined) {
       throw new Error("No runs found");
     }
 

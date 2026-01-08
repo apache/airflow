@@ -73,27 +73,11 @@ export class DagsPage extends BasePage {
   }
 
   /**
-   * Click next page button for runs
-   */
-  public async clickRunPaginationNext(): Promise<void> {
-    await this.paginationNextButton.click();
-    await this.waitForRunList();
-  }
-
-  /**
    * Click previous page button
    */
   public async clickPrevPage(): Promise<void> {
     await this.paginationPrevButton.click();
     await this.waitForDagList();
-  }
-
-  /**
-   * Click previous page button for runs
-   */
-  public async clickRunPaginationPrev(): Promise<void> {
-    await this.paginationPrevButton.click();
-    await this.waitForRunList();
   }
 
   /**
@@ -108,6 +92,22 @@ export class DagsPage extends BasePage {
   }
 
   /**
+   * Click next page button for runs
+   */
+  public async clickRunPaginationNext(): Promise<void> {
+    await this.paginationNextButton.click();
+    await this.waitForRunList();
+  }
+
+  /**
+   * Click previous page button for runs
+   */
+  public async clickRunPaginationPrev(): Promise<void> {
+    await this.paginationPrevButton.click();
+    await this.waitForRunList();
+  }
+
+  /**
    * Filter runs by state
    */
   public async filterByState(state: string): Promise<void> {
@@ -115,21 +115,21 @@ export class DagsPage extends BasePage {
     // The FilterBar component uses search params, so we can navigate directly
     const currentUrl = this.page.url();
     const url = new URL(currentUrl);
-    
+
     // Set the state parameter (convert to lowercase as API expects lowercase)
     url.searchParams.set("state", state.toLowerCase());
-    
+
     // Navigate to the URL with the filter applied
     await this.page.goto(url.toString(), { waitUntil: "networkidle" });
-    
+
     // Wait for the table to update with filtered results
     await this.runsTable.waitFor({ state: "visible" });
-    
+
     // Wait for data to load - check for either rows or "no data" message
     const runRows = this.page.locator('[data-testid="dag-runs-table"] table tbody tr');
 
     try {
-      await runRows.first().waitFor({ state: "visible", timeout: 15000 });
+      await runRows.first().waitFor({ state: "visible", timeout: 15_000 });
     } catch {
       // If no rows appear, that's okay - might be no matching results
       // The test will handle this
@@ -196,7 +196,7 @@ export class DagsPage extends BasePage {
     await this.navigateToDagDetail(dagName);
     await this.runsTab.waitFor({ state: "visible" });
     await this.runsTab.click();
-    await this.runsTable.waitFor({ state: "visible", timeout: 30000 });
+    await this.runsTable.waitFor({ state: "visible", timeout: 30_000 });
   }
 
   /**
@@ -204,9 +204,9 @@ export class DagsPage extends BasePage {
    */
   public async searchRun(searchTerm: string): Promise<void> {
     // Find the run ID pattern input field
-    const searchInput = this.page.locator('input[placeholder*="Run ID"]').or(
-      this.page.locator('input[name="runIdPattern"]'),
-    );
+    const searchInput = this.page
+      .locator('input[placeholder*="Run ID"]')
+      .or(this.page.locator('input[name="runIdPattern"]'));
 
     await searchInput.waitFor({ state: "visible" });
     await searchInput.fill(searchTerm);
