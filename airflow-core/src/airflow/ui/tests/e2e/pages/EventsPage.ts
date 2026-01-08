@@ -24,7 +24,7 @@ import { BasePage } from "tests/e2e/pages/BasePage";
  */
 export class EventsPage extends BasePage {
   public static get eventsListPaginatedURL(): string {
-    return "events?limit=1&offset=1";
+    return "events?limit=5&offset=1";
   }
 
   // Page URLs
@@ -52,25 +52,24 @@ export class EventsPage extends BasePage {
     this.eventsPageTitle = page.locator('h2:has-text("Audit Log")');
     this.eventsTable = page.getByRole("table");
     this.filterBar = page.locator('div:has(button:has-text("Filter"))').first();
-    // Use table header selectors - will check for presence of key columns
-    this.timestampColumn = page.locator("thead th").first();
-    this.eventTypeColumn = page.locator("thead th").nth(1);
-    this.userColumn = page.locator("thead th").nth(2);
-    this.extraColumn = page.locator("thead th").nth(3);
-    this.dagIdColumn = page.locator("thead th").nth(4);
-    this.runIdColumn = page.locator("thead th").nth(5);
-    this.taskIdColumn = page.locator("thead th").nth(6);
-    this.mapIndexColumn = page.locator("thead th").nth(7);
-    this.tryNumberColumn = page.locator("thead th").nth(8);
+    this.timestampColumn = page.getByTestId("table-list").locator('th:has-text("when")');
+    this.eventTypeColumn = page.getByTestId("table-list").locator('th:has-text("event")');
+    this.userColumn = page.getByTestId("table-list").locator('th:has-text("user")');
+    this.extraColumn = page.getByTestId("table-list").locator('th:has-text("extra")');
+    this.dagIdColumn = page.getByTestId("table-list").locator('th:has-text("dag id")');
+    this.runIdColumn = page.getByTestId("table-list").locator('th:has-text("run id")');
+    this.taskIdColumn = page.getByTestId("table-list").locator('th:has-text("task id")');
+    this.mapIndexColumn = page.getByTestId("table-list").locator('th:has-text("map index")');
+    this.tryNumberColumn = page.getByTestId("table-list").locator('th:has-text("try number")');
     this.paginationNextButton = page.locator('[data-testid="next"]');
     this.paginationPrevButton = page.locator('[data-testid="prev"]');
   }
 
   /**
-   * Click on a column header to sort
+   * Click on a column header to sort by column name
    */
-  public async clickColumnHeader(columnIndex: number): Promise<void> {
-    const header = this.eventsTable.locator(`thead th:nth-child(${columnIndex + 1})`);
+  public async clickColumnHeader(columnName: string): Promise<void> {
+    const header = this.getColumnLocator(columnName);
 
     await header.click();
     await this.waitForEventsTable();
@@ -119,7 +118,6 @@ export class EventsPage extends BasePage {
 
     await expect(cell).toBeVisible();
 
-    // Try multiple methods to get cell content, as WebKit might behave differently
     let content = (await cell.textContent()) ?? "";
 
     if (content.trim() === "") {
@@ -137,23 +135,23 @@ export class EventsPage extends BasePage {
   }
 
   /**
-   * Get sort indicator from column header
+   * Get sort indicator from column header by column name
    */
-  public async getColumnSortIndicator(columnIndex: number): Promise<string> {
-    const header = this.eventsTable.locator(`thead th:nth-child(${columnIndex + 1})`);
+  public async getColumnSortIndicator(columnName: string): Promise<string> {
+    const header = this.getColumnLocator(columnName);
 
     // Check for SVG elements with sort-related aria-label
     const sortSvg = header.locator('svg[aria-label*="sorted"]');
     const svgCount = await sortSvg.count();
 
-    if (svgCount && svgCount > 0) {
-      const svgAriaLabel = (await sortSvg.first().getAttribute("aria-label")) ?? "";
+    if (svgCount > 0) {
+      const ariaLabel = (await sortSvg.first().getAttribute("aria-label")) ?? "";
 
-      if (svgAriaLabel) {
-        if (svgAriaLabel.includes("ascending")) {
+      if (ariaLabel) {
+        if (ariaLabel.includes("sorted-ascending") || ariaLabel.includes("ascending")) {
           return "ascending";
         }
-        if (svgAriaLabel.includes("descending")) {
+        if (ariaLabel.includes("sorted-descending") || ariaLabel.includes("descending")) {
           return "descending";
         }
       }
@@ -234,5 +232,30 @@ export class EventsPage extends BasePage {
 
   public async waitForTimeout(timeoutMs: number = 2000): Promise<void> {
     await this.page.waitForTimeout(timeoutMs);
+  }
+
+  /**
+   * Get column locator by column name
+   */
+  private getColumnLocator(columnName: string): Locator {
+    const columnMap: Record<string, Locator> = {
+      "dag id": this.dagIdColumn,
+      event: this.eventTypeColumn,
+      extra: this.extraColumn,
+      "map index": this.mapIndexColumn,
+      "run id": this.runIdColumn,
+      "task id": this.taskIdColumn,
+      "try number": this.tryNumberColumn,
+      user: this.userColumn,
+      when: this.timestampColumn,
+    };
+
+    const header = columnMap[columnName.toLowerCase()];
+
+    if (!header) {
+      throw new Error(`Column "${columnName}" not found in column map`);
+    }
+
+    return header;
   }
 }

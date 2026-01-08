@@ -17,7 +17,7 @@
  * under the License.
  */
 import { expect, test } from "@playwright/test";
-import { testConfig } from "playwright.config";
+import { testConfig, AUTH_FILE } from "playwright.config";
 import { DagsPage } from "tests/e2e/pages/DagsPage";
 import { EventsPage } from "tests/e2e/pages/EventsPage";
 
@@ -28,7 +28,7 @@ test.describe("Events Page", () => {
     eventsPage = new EventsPage(page);
   });
 
-  test("should verify search input is visible", async () => {
+  test("verify search input is visible", async () => {
     await eventsPage.navigate();
     await eventsPage.waitForEventsTable();
 
@@ -60,19 +60,16 @@ test.describe("Events Page", () => {
 
     // Close the menu by pressing Escape
     await eventsPage.page.keyboard.press("Escape");
-
-    // Wait a moment for menu to close
-    await eventsPage.page.waitForTimeout(500);
   });
 
-  test("should verify events page", async () => {
+  test("verify events page", async () => {
     await eventsPage.navigate();
 
     await expect(async () => {
       // To avoid flakiness, we use a promise to wait for the elements to be visible
-      await expect(eventsPage.eventsPageTitle).toBeVisible({ timeout: 10_000 });
+      await expect(eventsPage.eventsPageTitle).toBeVisible();
       await eventsPage.waitForEventsTable();
-      await expect(eventsPage.eventsTable).toBeVisible({ timeout: 10_000 });
+      await expect(eventsPage.eventsTable).toBeVisible();
       await eventsPage.verifyTableColumns();
     }).toPass({ timeout: 30_000 });
   });
@@ -80,22 +77,28 @@ test.describe("Events Page", () => {
 
 test.describe("Events with Generated Data", () => {
   let eventsPage: EventsPage;
-  let dagsPage: DagsPage;
   const testDagId = testConfig.testDag.id;
+
+  test.beforeAll(async ({ browser }) => {
+    test.setTimeout(5 * 60 * 1000); // 5 minutes timeout
+
+    // First, trigger a DAG to generate audit log entries
+    const context = await browser.newContext({ storageState: AUTH_FILE });
+    const page = await context.newPage();
+    const dagsPage = new DagsPage(page);
+
+    await dagsPage.triggerDag(testDagId);
+    await context.close();
+  });
 
   test.beforeEach(({ page }) => {
     eventsPage = new EventsPage(page);
-    dagsPage = new DagsPage(page);
   });
 
-  test("should show audit log entries after triggering a DAG", async () => {
-    test.setTimeout(3 * 60 * 1000); // 3 minutes timeout
+  test("verify audit log entries are shown correctly", async () => {
+    await eventsPage.navigate();
 
-    // First, trigger a DAG to generate audit log entries
-    await dagsPage.triggerDag(testDagId);
     await expect(async () => {
-      // Navigate to events page
-      await eventsPage.navigate();
       // Wait for table to load
       await eventsPage.waitForEventsTable();
       // Verify the log entries contain actual data
@@ -103,7 +106,7 @@ test.describe("Events with Generated Data", () => {
     }).toPass({ timeout: 30_000 });
   });
 
-  test("should verify pagination works with small page size", async () => {
+  test("verify pagination works with small page size", async () => {
     // Navigate to events page with small page size to force pagination
     await eventsPage.navigateToPaginatedEventsPage();
 
@@ -126,21 +129,63 @@ test.describe("Events with Generated Data", () => {
     await expect(eventsPage.eventsTable).toBeVisible({ timeout: 10_000 });
   });
 
-  test("should verify column sorting works", async () => {
+  test("verify column sorting works", async () => {
     await eventsPage.navigate();
-    await eventsPage.waitForEventsTable();
+    await expect(async () => {
+      await eventsPage.waitForEventsTable();
+      await eventsPage.verifyLogEntriesWithData();
+    }).toPass({ timeout: 20_000 });
 
-    await eventsPage.waitForTimeout(5000);
+    // Get initial timestamps before sorting (first 3 rows)
+    const initialTimestamps = [];
+    const rowCount = await eventsPage.getTableRowCount();
 
-    // Click first column header (Timestamp) to sort
-    await eventsPage.clickColumnHeader(0);
-    await expect(eventsPage.eventsTable).toBeVisible({ timeout: 10_000 });
+    for (let i = 0; i < rowCount; i++) {
+      const timestamp = await eventsPage.getCellContent(i, 0);
 
-    await eventsPage.waitForTimeout(5000);
+      initialTimestamps.push(timestamp);
+    }
 
-    // Verify sort indicator shows ascending
-    const sortIndicator = await eventsPage.getColumnSortIndicator(0);
+    // Click timestamp column header until we get ascending sort.
+    let maxIterations = 5;
 
-    expect(sortIndicator).not.toBe("none");
+    while (maxIterations > 0) {
+      await expect(eventsPage.eventsTable).toBeVisible({ timeout: 5000 });
+      const sortIndicator = await eventsPage.getColumnSortIndicator("when");
+
+      if (sortIndicator !== "none") {
+        break;
+      }
+      await eventsPage.clickColumnHeader("when");
+      maxIterations--;
+    }
+
+    await expect(async () => {
+      await eventsPage.waitForEventsTable();
+      await eventsPage.verifyLogEntriesWithData();
+    }).toPass({ timeout: 20_000 });
+
+    // Get timestamps after sorting
+    const sortedTimestamps = [];
+
+    for (let i = 0; i < rowCount; i++) {
+      const timestamp = await eventsPage.getCellContent(i, 0);
+
+      sortedTimestamps.push(timestamp);
+    }
+
+    let initialSortedTimestamps = [...initialTimestamps].sort(
+      (a, b) => new Date(a).getTime() - new Date(b).getTime(),
+    );
+    // Verify that the order matches either ascending or descending sorted timestamps
+    const initialSortedDescending = [...initialSortedTimestamps].reverse();
+    const isAscending = sortedTimestamps.every(
+      (timestamp, index) => timestamp === initialSortedTimestamps[index],
+    );
+    const isDescending = sortedTimestamps.every(
+      (timestamp, index) => timestamp === initialSortedDescending[index],
+    );
+
+    expect(isAscending || isDescending).toBe(true);
   });
 });
