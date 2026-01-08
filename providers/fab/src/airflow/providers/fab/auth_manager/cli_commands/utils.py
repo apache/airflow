@@ -56,6 +56,7 @@ def get_application_builder() -> Generator[AirflowAppBuilder, None, None]:
     with flask_app.app_context():
         # Enable customizations in webserver_config.py to be applied via Flask.current_app.
         flask_app.config.from_pyfile(webserver_config, silent=True)
+        flask_app.config.from_prefixed_env(prefix="AIRFLOW__FAB__CONFIG__")
         flask_app.config["SQLALCHEMY_DATABASE_URI"] = conf.get("database", "SQL_ALCHEMY_CONN")
         url = make_url(flask_app.config["SQLALCHEMY_DATABASE_URI"])
         if url.drivername == "sqlite" and url.database and not isabs(url.database):
