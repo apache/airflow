@@ -367,7 +367,7 @@ jobs:
           --task-sdk-version 1.0.0rc1 --sync-branch v3-1-test --answer yes --dry-run
       - name: "Check Airflow release process command"
         run: >
-          breeze release-management start-release --version 3.1.1
+          breeze release-management start-release --version 3.1.5
           --answer yes --dry-run
       - name: "Test providers metadata generation"
         run: |
