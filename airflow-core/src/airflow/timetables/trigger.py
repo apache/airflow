@@ -570,7 +570,6 @@ class CronPartitionTimetable(CronMixin, _TriggerTimetable):
         run_type: DagRunType,
         run_after: DateTime,
         data_interval: DataInterval | None,
-        partition_key: str,
         **extra,
     ) -> str:
         partition_key = extra.get("partition_key")
