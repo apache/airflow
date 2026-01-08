@@ -56,6 +56,8 @@ if TYPE_CHECKING:
 
     from airflow.providers.common.sql.dialects.dialect import Dialect
     from airflow.providers.openlineage.sqlparser import DatabaseInfo
+    from sqlalchemy.engine import URL
+
 
     if USE_PSYCOPG3:
         from psycopg.errors import Diagnostic
@@ -165,7 +167,7 @@ class PostgresHook(DbApiHook):
         return dst_type(value) if value is not None else None
 
     @property
-    def sqlalchemy_url(self):
+    def sqlalchemy_url(self) -> URL:
         try:
             from sqlalchemy.engine import URL
         except (ImportError, ModuleNotFoundError) as err:
