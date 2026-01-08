@@ -661,12 +661,19 @@ workers:
 
   # If the Airflow Celery worker stops responding for 5 minutes (5*60s)
   # kill the worker and let Kubernetes restart it
+  # (deprecated, use `workers.celery.livenessProbe` section instead)
   livenessProbe:
+    # (deprecated, use `workers.celery.livenessProbe.enabled` instead)
     enabled: true
+    # (deprecated, use `workers.celery.livenessProbe.initialDelaySeconds` instead)
     initialDelaySeconds: 10
+    # (deprecated, use `workers.celery.livenessProbe.timeoutSeconds` instead)
     timeoutSeconds: 20
+    # (deprecated, use `workers.celery.livenessProbe.failureThreshold` instead)
     failureThreshold: 5
+    # (deprecated, use `workers.celery.livenessProbe.periodSeconds` instead)
     periodSeconds: 60
+    # (deprecated, use `workers.celery.livenessProbe.command` instead)
     command: ~
 
   # Update Strategy when Airflow Celery worker is deployed as a StatefulSet
@@ -817,9 +824,6 @@ workers:
     # Detailed default security context for persistence on container level
     securityContexts:
       container: {}
-
-    # Container level lifecycle hooks
-    containerLifecycleHooks: {}
 
   # Kerberos sidecar configuration for Airflow Celery workers and pods created with pod-template-file
   kerberosSidecar:
@@ -1032,6 +1036,16 @@ workers:
       - |-
         exec \
         airflow {{ semverCompare ">=2.0.0" .Values.airflowVersion | ternary "celery worker" "worker" }}
+
+    # If the Airflow Celery worker stops responding for 5 minutes (5*60s)
+    # kill the worker and let Kubernetes restart it
+    livenessProbe:
+      enabled: true
+      initialDelaySeconds: 10
+      timeoutSeconds: 20
+      failureThreshold: 5
+      periodSeconds: 60
+      command: ~
 
     # Create ServiceAccount for Airflow Celery workers
     serviceAccount:
