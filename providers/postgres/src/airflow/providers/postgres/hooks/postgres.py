@@ -53,11 +53,10 @@ if USE_PSYCOPG3:
 if TYPE_CHECKING:
     from pandas import DataFrame as PandasDataFrame
     from polars import DataFrame as PolarsDataFrame
+    from sqlalchemy.engine import URL
 
     from airflow.providers.common.sql.dialects.dialect import Dialect
     from airflow.providers.openlineage.sqlparser import DatabaseInfo
-    from sqlalchemy.engine import URL
-
 
     if USE_PSYCOPG3:
         from psycopg.errors import Diagnostic
