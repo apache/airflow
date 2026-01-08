@@ -15,19 +15,31 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 from __future__ import annotations
 
-from pluggy import HookspecMarker
+from functools import cache
 
-hookspec = HookspecMarker("airflow")
-
-
-@hookspec
-def on_new_dag_import_error(filename, stacktrace):
-    """Execute when new dag import error appears."""
+from airflow.sdk._shared.listeners.listener import ListenerManager
+from airflow.sdk._shared.listeners.spec import lifecycle, taskinstance
+from airflow.sdk.plugins_manager import integrate_listener_plugins
 
 
-@hookspec
-def on_existing_dag_import_error(filename, stacktrace):
-    """Execute when existing dag import error appears."""
+@cache
+def get_listener_manager() -> ListenerManager:
+    """
+    Get a listener manager for task sdk.
+
+    Registers the following listeners:
+    - lifecycle: on_starting, before_stopping
+    - taskinstance: on_task_instance_running, on_task_instance_success, etc.
+    """
+    _listener_manager = ListenerManager()
+
+    _listener_manager.add_hookspecs(lifecycle)
+    _listener_manager.add_hookspecs(taskinstance)
+
+    integrate_listener_plugins(_listener_manager)  # type: ignore[arg-type]
+    return _listener_manager
+
+
+__all__ = ["get_listener_manager", "ListenerManager"]
