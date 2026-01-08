@@ -1409,7 +1409,7 @@ class TestGetTaskInstances(TestTaskInstanceEndpoint):
                 False,
                 "/dags/~/dagRuns/~/taskInstances",
                 {"dag_id_pattern": "example_python_operator"},
-                14,  # Based on test failure - example_python_operator creates 9 task instances
+                14,  # Based on test failure - example_python_operator creates 14 task instances
                 3,
                 id="test dag_id_pattern exact match",
             ),
@@ -1418,7 +1418,7 @@ class TestGetTaskInstances(TestTaskInstanceEndpoint):
                 False,
                 "/dags/~/dagRuns/~/taskInstances",
                 {"dag_id_pattern": "example_%"},
-                22,  # Based on test failure - both DAGs together create 17 task instances
+                22,  # Based on test failure - both DAGs together create 22 task instances
                 3,
                 id="test dag_id_pattern wildcard prefix",
             ),
