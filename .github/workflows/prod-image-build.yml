@@ -287,8 +287,9 @@ jobs:
       - name: "Export PROD docker image ${{ env.PYTHON_MAJOR_MINOR_VERSION }}"
         env:
           PLATFORM: ${{ inputs.platform }}
+          ACTION_BRANCH: ${{ inputs.branch }}
         run: >
-          breeze prod-image save --platform "${PLATFORM}" --image-file-dir "/mnt"
+          breeze prod-image save --platform "${PLATFORM}" --image-file-dir "/mnt" --action-branch ${ACTION_BRANCH}
         if: inputs.upload-image-artifact == 'true'
       - name: "Stash PROD docker image ${{ env.PYTHON_MAJOR_MINOR_VERSION }} for branch ${{ inputs.branch }}"
         uses: apache/infrastructure-actions/stash/save@1c35b5ccf8fba5d4c3fdf25a045ca91aa0cbc468
@@ -296,6 +297,6 @@ jobs:
           # yamllint disable rule:line-length
           key: prod-image-save-v3-${{ inputs.platform }}-${{ env.PYTHON_MAJOR_MINOR_VERSION }}-${{ inputs.branch }}
           # yamllint enable rule:line-length
-          path: "/mnt/prod-image-save-*-${{ env.PYTHON_MAJOR_MINOR_VERSION }}.tar"
+          path: "/mnt/prod-image-save-*-${{ env.PYTHON_MAJOR_MINOR_VERSION }}-${{ inputs.branch }}.tar"
           if-no-files-found: 'error'
           retention-days: '2'
