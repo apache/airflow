@@ -87,6 +87,9 @@ spec:
         checksum/airflow-config: {{ include (print $.Template.BasePath "/configmaps/configmap.yaml") . | sha256sum }}
         checksum/extra-configmaps: {{ include (print $.Template.BasePath "/configmaps/extra-configmaps.yaml") . | sha256sum }}
         checksum/extra-secrets: {{ include (print $.Template.BasePath "/secrets/extra-secrets.yaml") . | sha256sum }}
+        {{- if not .Values.jwtSecretName }}
+        checksum/jwt-secret: {{ include (print $.Template.BasePath "/secrets/jwt-secret.yaml") . | sha256sum }}
+        {{- end }}
         {{- if .Values.airflowPodAnnotations }}
           {{- toYaml .Values.airflowPodAnnotations | nindent 8 }}
         {{- end }}
@@ -218,9 +221,6 @@ spec:
             {{- include "custom_airflow_environment" . | indent 10 }}
             {{- include "standard_airflow_environment" . | indent 10 }}
             {{- include "container_extra_envs" (list . .Values.apiServer.env) | indent 10 }}
-        {{- if and (.Values.dags.gitSync.enabled) (not .Values.dags.persistence.enabled) (semverCompare "<2.0.0" .Values.airflowVersion) }}
-          {{- include "git_sync_container" . | nindent 8 }}
-        {{- end }}
         {{- if .Values.apiServer.extraContainers }}
           {{- tpl (toYaml .Values.apiServer.extraContainers) . | nindent 8 }}
         {{- end }}
@@ -232,8 +232,6 @@ spec:
         - name: api-server-config
           configMap:
             name: {{ template "airflow_api_server_config_configmap_name" . }}
-        {{- end }}
-        {{- if (semverCompare "<2.0.0" .Values.airflowVersion) }}
         {{- end }}
         {{- if .Values.logs.persistence.enabled }}
         - name: logs

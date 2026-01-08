@@ -629,6 +629,28 @@ paths:
         schema:
           type: string
           title: Dag Id
+      - name: include_upstream
+        in: query
+        required: false
+        schema:
+          type: boolean
+          default: false
+          title: Include Upstream
+      - name: include_downstream
+        in: query
+        required: false
+        schema:
+          type: boolean
+          default: false
+          title: Include Downstream
+      - name: root
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Root
       - name: offset
         in: query
         required: false
@@ -2707,6 +2729,11 @@ components:
           type: string
           format: date-time
           title: Created Date
+        queue:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Queue
         triggerer_id:
           anyOf:
           - type: integer
@@ -2718,6 +2745,7 @@ components:
       - classpath
       - kwargs
       - created_date
+      - queue
       - triggerer_id
       title: TriggerResponse
       description: Trigger serializer for responses.

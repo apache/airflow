@@ -25,12 +25,12 @@ from deprecated import deprecated
 from airflow.configuration import conf
 from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.executors.base_executor import BaseExecutor
-from airflow.providers.cncf.kubernetes.executors.kubernetes_executor import KubernetesExecutor
 from airflow.providers.cncf.kubernetes.version_compat import AIRFLOW_V_3_0_PLUS
 
 if TYPE_CHECKING:
     from airflow.callbacks.base_callback_sink import BaseCallbackSink
     from airflow.callbacks.callback_requests import CallbackRequest
+    from airflow.cli.cli_config import GroupCommand
     from airflow.executors.base_executor import EventBufferValueType
     from airflow.executors.local_executor import LocalExecutor
     from airflow.models.taskinstance import (  # type: ignore[attr-defined]
@@ -38,6 +38,7 @@ if TYPE_CHECKING:
         TaskInstance,
         TaskInstanceKey,
     )
+    from airflow.providers.cncf.kubernetes.executors.kubernetes_executor import KubernetesExecutor
 
     CommandType = Sequence[str]
 
@@ -302,5 +303,7 @@ class LocalKubernetesExecutor(BaseExecutor):
         self.callback_sink.send(request)
 
     @staticmethod
-    def get_cli_commands() -> list:
-        return KubernetesExecutor.get_cli_commands()
+    def get_cli_commands() -> list[GroupCommand]:
+        from airflow.providers.cncf.kubernetes.cli.definition import get_kubernetes_cli_commands
+
+        return get_kubernetes_cli_commands()

@@ -55,6 +55,12 @@
     "searchPlaceholder": "Szukaj połączeń",
     "test": "Test połączenia",
     "testDisabled": "Testowanie połączeń wyłączone. Skontaktuj się z administratorem, aby je włączyć.",
+    "testError": {
+      "title": "Test połączenia nieudany"
+    },
+    "testSuccess": {
+      "title": "Test połączenia udany"
+    },
     "typeMeta": {
       "error": "Nie udało się pobrać metadanych typu połączenia",
       "standardFields": {

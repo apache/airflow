@@ -42,7 +42,6 @@ from airflow.sdk.definitions._internal.abstractoperator import (
     DEFAULT_WAIT_FOR_PAST_DEPENDS_BEFORE_SKIPPING,
     DEFAULT_WEIGHT_RULE,
     AbstractOperator,
-    NotMapped,
     TaskStateChangeCallbackAttrType,
 )
 from airflow.sdk.definitions._internal.expandinput import (
@@ -52,7 +51,6 @@ from airflow.sdk.definitions._internal.expandinput import (
 )
 from airflow.sdk.definitions._internal.types import NOTSET
 from airflow.serialization.enums import DagAttributeTypes
-from airflow.task.priority_strategy import PriorityWeightStrategy, validate_and_load_priority_weight_strategy
 
 if TYPE_CHECKING:
     import datetime
@@ -60,14 +58,15 @@ if TYPE_CHECKING:
     import jinja2  # Slow import.
     import pendulum
 
-    from airflow.models.expandinput import (
+    from airflow.sdk import DAG, BaseOperator, BaseOperatorLink, Context, TaskGroup, TriggerRule, XComArg
+    from airflow.sdk.definitions._internal.expandinput import (
+        ExpandInput,
         OperatorExpandArgument,
         OperatorExpandKwargsArgument,
     )
-    from airflow.sdk import DAG, BaseOperator, BaseOperatorLink, Context, TaskGroup, TriggerRule, XComArg
-    from airflow.sdk.definitions._internal.expandinput import ExpandInput
     from airflow.sdk.definitions.operator_resources import Resources
     from airflow.sdk.definitions.param import ParamsDict
+    from airflow.task.priority_strategy import PriorityWeightStrategy
     from airflow.triggers.base import StartTriggerArgs
 
 ValidationSource = Literal["expand"] | Literal["partial"]
@@ -557,13 +556,11 @@ class MappedOperator(AbstractOperator):
 
     @property
     def weight_rule(self) -> PriorityWeightStrategy:
-        return validate_and_load_priority_weight_strategy(
-            self.partial_kwargs.get("weight_rule", DEFAULT_WEIGHT_RULE)
-        )
+        return self.partial_kwargs.get("weight_rule", DEFAULT_WEIGHT_RULE)
 
     @weight_rule.setter
     def weight_rule(self, value: str | PriorityWeightStrategy) -> None:
-        self.partial_kwargs["weight_rule"] = validate_and_load_priority_weight_strategy(value)
+        self.partial_kwargs["weight_rule"] = value
 
     @property
     def max_active_tis_per_dag(self) -> int | None:
@@ -753,19 +750,13 @@ class MappedOperator(AbstractOperator):
             "params": params,
         }
 
-    def unmap(self, resolve: None | Mapping[str, Any]) -> BaseOperator:
+    def unmap(self, resolve: Mapping[str, Any]) -> BaseOperator:
         """
         Get the "normal" Operator after applying the current mapping.
 
         :meta private:
         """
-        if isinstance(resolve, Mapping):
-            kwargs = resolve
-        elif resolve is not None:
-            kwargs, _ = self._expand_mapped_kwargs(*resolve)
-        else:
-            raise RuntimeError("cannot unmap a non-serialized operator without context")
-        kwargs = self._get_unmap_kwargs(kwargs, strict=self._disallow_kwargs_override)
+        kwargs = self._get_unmap_kwargs(resolve, strict=self._disallow_kwargs_override)
         is_setup = kwargs.pop("is_setup", False)
         is_teardown = kwargs.pop("is_teardown", False)
         on_failure_fail_dagrun = kwargs.pop("on_failure_fail_dagrun", False)
@@ -795,16 +786,6 @@ class MappedOperator(AbstractOperator):
 
         for operator, _ in XComArg.iter_xcom_references(self._get_specified_expand_input()):
             yield operator
-
-    @methodtools.lru_cache(maxsize=None)
-    def get_parse_time_mapped_ti_count(self) -> int:
-        current_count = self._get_specified_expand_input().get_parse_time_mapped_ti_count()
-        try:
-            # The use of `methodtools` interferes with the zero-arg super
-            parent_count = super(MappedOperator, self).get_parse_time_mapped_ti_count()  # noqa: UP008
-        except NotMapped:
-            return current_count
-        return parent_count * current_count
 
     def render_template_fields(
         self,

@@ -885,6 +885,27 @@ class TestHiveServer2Hook:
         assert f"test_{date_key}" in output
         assert "test_dag_run_id" in output
 
+    def test_sqlalchemy_uri(self):
+        """Test sqlalchemy_url with connection parameters"""
+
+        with mock.patch.object(HiveServer2Hook, "get_connection") as mock_get_conn:
+            mock_get_conn.return_value = Connection(
+                conn_id="test_hive_conn",
+                conn_type="hive_cli",
+                host="localhost",
+                port=10000,
+                schema="default",
+                login="admin",
+                password="admin",
+            )
+            hook = HiveServer2Hook()
+            uri = hook.sqlalchemy_url
+            assert uri.host == "localhost"
+            assert uri.port == 10000
+            assert uri.database == "default"
+            assert uri.username == "admin"
+            assert uri.password == "admin"
+
 
 @pytest.mark.db_test
 @mock.patch.dict("os.environ", AIRFLOW__CORE__SECURITY="kerberos")

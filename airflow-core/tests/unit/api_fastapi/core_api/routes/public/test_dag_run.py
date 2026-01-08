@@ -82,11 +82,10 @@ def custom_timetable_plugin(monkeypatch):
     timetable_class_name = qualname(CustomTimetable)
     existing_timetables = getattr(plugins_manager, "timetable_classes", None) or {}
 
-    monkeypatch.setattr(plugins_manager, "initialize_timetables_plugins", lambda: None)
     monkeypatch.setattr(
         plugins_manager,
-        "timetable_classes",
-        {**existing_timetables, timetable_class_name: CustomTimetable},
+        "get_timetables_plugins",
+        lambda: {**existing_timetables, timetable_class_name: CustomTimetable},
     )
 
 
@@ -1323,6 +1322,23 @@ class TestDeleteDagRun:
         body = response.json()
         assert body["detail"] == "The DagRun with dag_id: `test_dag1` and run_id: `invalid` was not found"
 
+    def test_delete_dag_run_in_running_state(self, test_client, dag_maker, session):
+        with dag_maker(dag_id="test_running_dag"):
+            EmptyOperator(task_id="t1")
+
+        dag_maker.create_dagrun(
+            run_id="test_running",
+            state=DagRunState.RUNNING,
+        )
+        session.commit()
+        response = test_client.delete("/dags/test_running_dag/dagRuns/test_running")
+        assert response.status_code == 409
+        body = response.json()
+        assert body["detail"] == (
+            "The DagRun with dag_id: `test_running_dag` and run_id: `test_running` "
+            "cannot be deleted in running state"
+        )
+
     def test_should_respond_401(self, unauthenticated_test_client):
         response = unauthenticated_test_client.delete(f"/dags/{DAG1_ID}/dagRuns/invalid")
         assert response.status_code == 401
@@ -1725,7 +1741,7 @@ class TestTriggerDagRun:
             },
         ]
 
-    @mock.patch("airflow.serialization.serialized_objects.SerializedDAG.create_dagrun")
+    @mock.patch("airflow.serialization.definitions.dag.SerializedDAG.create_dagrun")
     def test_dagrun_creation_exception_is_handled(self, mock_create_dagrun, test_client):
         now = timezone.utcnow().isoformat()
         error_message = "Encountered Error"

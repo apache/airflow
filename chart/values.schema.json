@@ -1635,12 +1635,12 @@
             "additionalProperties": false,
             "properties": {
                 "replicas": {
-                    "description": "Number of Airflow Celery workers.",
+                    "description": "Number of Airflow Celery workers (deprecated, use `workers.celery.replicas` instead).",
                     "type": "integer",
                     "default": 1
                 },
                 "revisionHistoryLimit": {
-                    "description": "Max number of old Airflow Celery workers ReplicaSets to retain.",
+                    "description": "Max number of old Airflow Celery workers ReplicaSets to retain (deprecated, use `workers.celery.revisionHistoryLimit` instead).",
                     "type": [
                         "integer",
                         "null"
@@ -1649,7 +1649,7 @@
                     "x-docsSection": null
                 },
                 "command": {
-                    "description": "Command to use when running Airflow Celery workers and using pod-template-file (templated).",
+                    "description": "Command to use when running Airflow Celery workers and using pod-template-file (templated). Use workers.celery.command and/or workers.kubernetes.command to separate value between Celery workers and pod-template-file.",
                     "type": [
                         "array",
                         "null"
@@ -1660,7 +1660,7 @@
                     "default": null
                 },
                 "args": {
-                    "description": "Args to use when running Airflow Celery workers (templated).",
+                    "description": "Args to use when running Airflow Celery workers (templated) (deprecated, use `workers.celery.args` instead).",
                     "type": [
                         "array",
                         "null"
@@ -1675,37 +1675,37 @@
                     ]
                 },
                 "livenessProbe": {
-                    "description": "Liveness probe configuration for Airflow Celery worker containers.",
+                    "description": "Liveness probe configuration for Airflow Celery worker containers (deprecated, use `workers.celery.livenessProbe` section instead).",
                     "type": "object",
                     "additionalProperties": false,
                     "properties": {
                         "enabled": {
-                            "description": "Enable liveness probe for Airflow Celery workers.",
+                            "description": "Enable liveness probe for Airflow Celery workers (deprecated, use `workers.celery.livenessProbe.enabled` instead).",
                             "type": "boolean",
                             "default": true
                         },
                         "initialDelaySeconds": {
-                            "description": "Number of seconds after the container has started before liveness probes are initiated.",
+                            "description": "Number of seconds after the container has started before liveness probes are initiated (deprecated, use `workers.celery.livenessProbe.initialDelaySeconds` instead).",
                             "type": "integer",
                             "default": 10
                         },
                         "timeoutSeconds": {
-                            "description": "Number of seconds after which the probe times out. Minimum value is 1 seconds.",
+                            "description": "Number of seconds after which the probe times out. Minimum value is 1 seconds (deprecated, use `workers.celery.livenessProbe.timeoutSeconds` instead).",
                             "type": "integer",
                             "default": 20
                         },
                         "failureThreshold": {
-                            "description": "Minimum consecutive failures for the probe to be considered failed after having succeeded. Minimum value is 1.",
+                            "description": "Minimum consecutive failures for the probe to be considered failed after having succeeded. Minimum value is 1 (deprecated, use `workers.celery.livenessProbe.failureThreshold` instead).",
                             "type": "integer",
                             "default": 5
                         },
                         "periodSeconds": {
-                            "description": "How often (in seconds) to perform the probe. Minimum value is 1.",
+                            "description": "How often (in seconds) to perform the probe. Minimum value is 1 (deprecated, use `workers.celery.livenessProbe.periodSeconds` instead).",
                             "type": "integer",
                             "default": 60
                         },
                         "command": {
-                            "description": "Command for livenessProbe",
+                            "description": "Command for livenessProbe (deprecated, use `workers.celery.livenessProbe.command` instead)",
                             "type": [
                                 "array",
                                 "null"
@@ -1938,35 +1938,6 @@
                             "additionalProperties": {
                                 "type": "string"
                             }
-                        },
-                        "containerLifecycleHooks": {
-                            "description": "Container Lifecycle Hooks definition for the persistence. If not set, the values from global `containerLifecycleHooks` will be used.",
-                            "type": "object",
-                            "$ref": "#/definitions/io.k8s.api.core.v1.Lifecycle",
-                            "default": {},
-                            "x-docsSection": "Kubernetes",
-                            "examples": [
-                                {
-                                    "postStart": {
-                                        "exec": {
-                                            "command": [
-                                                "/bin/sh",
-                                                "-c",
-                                                "echo postStart handler > /usr/share/message"
-                                            ]
-                                        }
-                                    },
-                                    "preStop": {
-                                        "exec": {
-                                            "command": [
-                                                "/bin/sh",
-                                                "-c",
-                                                "echo preStop handler > /usr/share/message"
-                                            ]
-                                        }
-                                    }
-                                }
-                            ]
                         },
                         "securityContexts": {
                             "description": "Security context definition for the persistence. If not set, the values from global `securityContexts` will be used.",
@@ -2608,6 +2579,88 @@
                     "type": "object",
                     "x-docsSection": "Workers",
                     "properties": {
+                        "replicas": {
+                            "description": "Number of Airflow Celery workers.",
+                            "type": "integer",
+                            "default": 1
+                        },
+                        "revisionHistoryLimit": {
+                            "description": "Max number of old Airflow Celery workers ReplicaSets to retain.",
+                            "type": [
+                                "integer",
+                                "null"
+                            ],
+                            "default": null,
+                            "x-docsSection": null
+                        },
+                        "command": {
+                            "description": "Command to use when running Airflow Celery workers (templated).",
+                            "type": [
+                                "array",
+                                "null"
+                            ],
+                            "items": {
+                                "type": "string"
+                            },
+                            "default": null
+                        },
+                        "args": {
+                            "description": "Args to use when running Airflow Celery workers (templated).",
+                            "type": [
+                                "array",
+                                "null"
+                            ],
+                            "items": {
+                                "type": "string"
+                            },
+                            "default": [
+                                "bash",
+                                "-c",
+                                "exec \\\nairflow {{ semverCompare \">=2.0.0\" .Values.airflowVersion | ternary \"celery worker\" \"worker\" }}"
+                            ]
+                        },
+                        "livenessProbe": {
+                            "description": "Liveness probe configuration for Airflow Celery worker containers.",
+                            "type": "object",
+                            "additionalProperties": false,
+                            "properties": {
+                                "enabled": {
+                                    "description": "Enable liveness probe for Airflow Celery workers.",
+                                    "type": "boolean",
+                                    "default": true
+                                },
+                                "initialDelaySeconds": {
+                                    "description": "Number of seconds after the container has started before liveness probes are initiated.",
+                                    "type": "integer",
+                                    "default": 10
+                                },
+                                "timeoutSeconds": {
+                                    "description": "Number of seconds after which the probe times out. Minimum value is 1 seconds.",
+                                    "type": "integer",
+                                    "default": 20
+                                },
+                                "failureThreshold": {
+                                    "description": "Minimum consecutive failures for the probe to be considered failed after having succeeded. Minimum value is 1.",
+                                    "type": "integer",
+                                    "default": 5
+                                },
+                                "periodSeconds": {
+                                    "description": "How often (in seconds) to perform the probe. Minimum value is 1.",
+                                    "type": "integer",
+                                    "default": 60
+                                },
+                                "command": {
+                                    "description": "Command for livenessProbe",
+                                    "type": [
+                                        "array",
+                                        "null"
+                                    ],
+                                    "items": {
+                                        "type": "string"
+                                    }
+                                }
+                            }
+                        },
                         "serviceAccount": {
                             "description": "Create ServiceAccount.",
                             "type": "object",
@@ -2647,6 +2700,17 @@
                     "type": "object",
                     "x-docsSection": "Workers",
                     "properties": {
+                        "command": {
+                            "description": "Command to use in pod-template-file (templated).",
+                            "type": [
+                                "array",
+                                "null"
+                            ],
+                            "items": {
+                                "type": "string"
+                            },
+                            "default": null
+                        },
                         "serviceAccount": {
                             "description": "Create ServiceAccount.",
                             "type": "object",
@@ -4394,6 +4458,49 @@
                     "type": "boolean",
                     "default": true
                 },
+                "defaultUser": {
+                    "description": "Optional default Airflow user information",
+                    "type": "object",
+                    "additionalProperties": false,
+                    "properties": {
+                        "enabled": {
+                            "description": "Enable default user creation.",
+                            "type": "boolean",
+                            "x-docsSection": "Common",
+                            "default": true
+                        },
+                        "role": {
+                            "description": "Default user role.",
+                            "type": "string",
+                            "default": "Admin"
+                        },
+                        "username": {
+                            "description": "Default user username.",
+                            "type": "string",
+                            "default": "admin"
+                        },
+                        "email": {
+                            "description": "Default user email address.",
+                            "type": "string",
+                            "default": "admin@example.com"
+                        },
+                        "firstName": {
+                            "description": "Default user firstname.",
+                            "type": "string",
+                            "default": "admin"
+                        },
+                        "lastName": {
+                            "description": "Default user lastname.",
+                            "type": "string",
+                            "default": "user"
+                        },
+                        "password": {
+                            "description": "Default user password.",
+                            "type": "string",
+                            "default": "admin"
+                        }
+                    }
+                },
                 "command": {
                     "description": "Command to use when running create user job (templated).",
                     "type": [
@@ -4420,17 +4527,17 @@
                         "exec \\\nairflow {{ semverCompare \">=2.0.0\" .Values.airflowVersion | ternary \"users create\" \"create_user\" }} \"$@\"",
                         "--",
                         "-r",
-                        "{{ .Values.webserver.defaultUser.role }}",
+                        "{{ .Values.createUserJob.defaultUser.role }}",
                         "-u",
-                        "{{ .Values.webserver.defaultUser.username }}",
+                        "{{ .Values.createUserJob.defaultUser.username }}",
                         "-e",
-                        "{{ .Values.webserver.defaultUser.email }}",
+                        "{{ .Values.createUserJob.defaultUser.email }}",
                         "-f",
-                        "{{ .Values.webserver.defaultUser.firstName }}",
+                        "{{ .Values.createUserJob.defaultUser.firstName }}",
                         "-l",
-                        "{{ .Values.webserver.defaultUser.lastName }}",
+                        "{{ .Values.createUserJob.defaultUser.lastName }}",
                         "-p",
-                        "{{ .Values.webserver.defaultUser.password }}"
+                        "{{ .Values.createUserJob.defaultUser.password }}"
                     ]
                 },
                 "annotations": {
@@ -5498,49 +5605,6 @@
                         "my-api-server-configmap"
                     ]
                 },
-                "defaultUser": {
-                    "description": "Optional default Airflow user information",
-                    "type": "object",
-                    "additionalProperties": false,
-                    "properties": {
-                        "enabled": {
-                            "description": "Enable default user creation.",
-                            "type": "boolean",
-                            "x-docsSection": "Common",
-                            "default": true
-                        },
-                        "role": {
-                            "description": "Default user role.",
-                            "type": "string",
-                            "default": "Admin"
-                        },
-                        "username": {
-                            "description": "Default user username.",
-                            "type": "string",
-                            "default": "admin"
-                        },
-                        "email": {
-                            "description": "Default user email address.",
-                            "type": "string",
-                            "default": "admin@example.com"
-                        },
-                        "firstName": {
-                            "description": "Default user firstname.",
-                            "type": "string",
-                            "default": "admin"
-                        },
-                        "lastName": {
-                            "description": "Default user lastname.",
-                            "type": "string",
-                            "default": "user"
-                        },
-                        "password": {
-                            "description": "Default user password.",
-                            "type": "string",
-                            "default": "admin"
-                        }
-                    }
-                },
                 "extraContainers": {
                     "description": "Launch additional containers into API server.",
                     "type": "array",
@@ -6299,49 +6363,6 @@
                         }
                     ],
                     "$ref": "#/definitions/io.k8s.api.core.v1.ResourceRequirements"
-                },
-                "defaultUser": {
-                    "description": "Optional default Airflow user information",
-                    "type": "object",
-                    "additionalProperties": false,
-                    "properties": {
-                        "enabled": {
-                            "description": "Enable default user creation.",
-                            "type": "boolean",
-                            "x-docsSection": "Common",
-                            "default": true
-                        },
-                        "role": {
-                            "description": "Default user role.",
-                            "type": "string",
-                            "default": "Admin"
-                        },
-                        "username": {
-                            "description": "Default user username.",
-                            "type": "string",
-                            "default": "admin"
-                        },
-                        "email": {
-                            "description": "Default user email address.",
-                            "type": "string",
-                            "default": "admin@example.com"
-                        },
-                        "firstName": {
-                            "description": "Default user firstname.",
-                            "type": "string",
-                            "default": "admin"
-                        },
-                        "lastName": {
-                            "description": "Default user lastname.",
-                            "type": "string",
-                            "default": "user"
-                        },
-                        "password": {
-                            "description": "Default user password.",
-                            "type": "string",
-                            "default": "admin"
-                        }
-                    }
                 },
                 "extraContainers": {
                     "description": "Launch additional containers into webserver (templated).",
@@ -8295,6 +8316,10 @@
                                 "null"
                             ],
                             "default": null
+                        },
+                        "persistentVolumeClaimRetentionPolicy": {
+                            "$ref": "#/definitions/persistentVolumeClaimRetentionPolicy",
+                            "description": "PersistentVolumeClaim retention policy to be used in the lifecycle of a StatefulSet."
                         }
                     }
                 },
@@ -9126,6 +9151,11 @@
                     "description": "Enable database cleanup.",
                     "type": "boolean",
                     "default": false
+                },
+                "applyCustomEnv": {
+                    "description": "Specify if you want additional configured env vars applied to database cleanup job",
+                    "type": "boolean",
+                    "default": true
                 },
                 "schedule": {
                     "description": "Database cleanup schedule (templated).",

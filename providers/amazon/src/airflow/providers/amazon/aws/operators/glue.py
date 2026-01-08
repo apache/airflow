@@ -24,7 +24,6 @@ from typing import TYPE_CHECKING, Any
 
 from botocore.exceptions import ClientError
 
-from airflow.configuration import conf
 from airflow.providers.amazon.aws.hooks.glue import GlueDataQualityHook, GlueJobHook
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
 from airflow.providers.amazon.aws.links.glue import GlueJobRunDetailsLink
@@ -36,10 +35,10 @@ from airflow.providers.amazon.aws.triggers.glue import (
 )
 from airflow.providers.amazon.aws.utils import validate_execute_complete_event
 from airflow.providers.amazon.aws.utils.mixins import aws_template_fields
-from airflow.providers.common.compat.sdk import AirflowException
+from airflow.providers.common.compat.sdk import AirflowException, conf
 
 if TYPE_CHECKING:
-    from airflow.utils.context import Context
+    from airflow.sdk import Context
 
 
 class GlueJobOperator(AwsBaseOperator[GlueJobHook]):

@@ -42,7 +42,7 @@
 # Note: Non committer engaged translators are listed in comments prevent making file syntax invalid
 # See: https://github.com/apache/airflow/blob/main/airflow-core/src/airflow/ui/public/i18n/README.md#43-engaged-translator
 airflow-core/src/airflow/ui/public/i18n/locales/ar/ @shahar1 @hussein-awala # + @ahmadtfarhan
-airflow-core/src/airflow/ui/public/i18n/locales/ca/ @jscheffl @bugraoz93 # + @ecodina
+airflow-core/src/airflow/ui/public/i18n/locales/ca/ @jscheffl @bugraoz93 # + @ecodina @oscarhernandezrodriguez
 airflow-core/src/airflow/ui/public/i18n/locales/de/ @jscheffl # + @TJaniF @m1racoli
 airflow-core/src/airflow/ui/public/i18n/locales/el/ @ashb # + @PApostol @xBis7
 airflow-core/src/airflow/ui/public/i18n/locales/es/ @bbovenzi # + @aoelvp94
@@ -87,18 +87,19 @@ airflow-core/src/airflow/ui/public/i18n/locales/zh-TW/ @Lee-W @jason810496 @guan
 
 # Providers
 /providers/amazon/ @o-nikolas
-/providers/celery/ @hussein-awala
+/providers/apache/iceberg/ @Fokko
+/providers/celery/ @hussein-awala @dheerajturaga
 /providers/cncf/kubernetes @jedcunningham @hussein-awala
 /providers/common/messaging/ @vincbeck
 /providers/dbt/cloud/ @josh-fell
-/providers/edge3/ @jscheffl
+/providers/edge3/ @jscheffl @dheerajturaga
 /providers/fab/ @vincbeck
 /providers/hashicorp/ @hussein-awala
 /providers/keycloak/ @vincbeck @bugraoz93
+/providers/microsoft/azure/ @dabla
 /providers/openlineage/ @mobuchowski
 /providers/smtp/ @hussein-awala
 /providers/snowflake/ @potiuk
-/providers/apache/iceberg/ @Fokko
 
 # Dev tools
 /.github/workflows/ @potiuk @ashb @gopidesupavan @amoghrajesh @jscheffl @bugraoz93 @kaxil @jason810496

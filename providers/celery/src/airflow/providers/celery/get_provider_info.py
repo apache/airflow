@@ -44,6 +44,7 @@ def get_provider_info():
             "airflow.providers.celery.executors.celery_executor.CeleryExecutor",
             "airflow.providers.celery.executors.celery_kubernetes_executor.CeleryKubernetesExecutor",
         ],
+        "cli": ["airflow.providers.celery.cli.definition.get_celery_cli_commands"],
         "config": {
             "celery_kubernetes_executor": {
                 "description": "This section only applies if you are using the ``CeleryKubernetesExecutor`` in\n``[core]`` section above\n",
@@ -252,6 +253,26 @@ def get_provider_info():
                     },
                     "sentinel_kwargs": {
                         "description": "The sentinel_kwargs parameter allows passing additional options to the Sentinel client.\nIn a typical scenario where Redis Sentinel is used as the broker and Redis servers are\npassword-protected, the password needs to be passed through this parameter. Although its\ntype is string, it is required to pass a string that conforms to the dictionary format.\nSee:\nhttps://docs.celeryq.dev/en/stable/getting-started/backends-and-brokers/redis.html#configuration\n",
+                        "version_added": None,
+                        "type": "string",
+                        "sensitive": True,
+                        "example": '{"password": "password_for_redis_server"}',
+                        "default": None,
+                    },
+                },
+            },
+            "celery_result_backend_transport_options": {
+                "description": "This section is for specifying options which can be passed to the\nunderlying celery result backend transport. This is particularly useful when using\nRedis Sentinel as the result backend. See:\nhttps://docs.celeryq.dev/en/latest/userguide/configuration.html#std:setting-result_backend_transport_options\n",
+                "options": {
+                    "master_name": {
+                        "description": "The name of the Redis Sentinel primary node to connect to.\nRequired when using Redis Sentinel as the result backend.\n",
+                        "version_added": None,
+                        "type": "string",
+                        "example": "mymaster",
+                        "default": None,
+                    },
+                    "sentinel_kwargs": {
+                        "description": "The sentinel_kwargs parameter allows passing additional options to the Sentinel client\nfor the result backend. In a typical scenario where Redis Sentinel is used as the\nresult backend and Redis servers are password-protected, the password needs to be\npassed through this parameter. Although its type is string, it is required to pass\na string that conforms to the dictionary format.\nSee:\nhttps://docs.celeryq.dev/en/stable/getting-started/backends-and-brokers/redis.html#configuration\n",
                         "version_added": None,
                         "type": "string",
                         "sensitive": True,

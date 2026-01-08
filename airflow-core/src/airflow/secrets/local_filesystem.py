@@ -344,7 +344,7 @@ class LocalFilesystemBackend(BaseSecretsBackend, LoggingMixin):
             return {}
         return load_configs_dict(self.configs_file)
 
-    def get_connection(self, conn_id: str) -> Connection | None:
+    def get_connection(self, conn_id: str, team_name: str | None = None) -> Connection | None:
         if conn_id in self._local_connections:
             return self._local_connections[conn_id]
         return None

@@ -66,7 +66,7 @@ on:  # yamllint disable-line rule:truthy
         type: string
       uv-version:
         description: 'uv version to use'
-        default: "0.9.17"  # Keep this comment to allow automatic replacement of uv version
+        default: "0.9.22"  # Keep this comment to allow automatic replacement of uv version
         type: string
       platform:
         description: 'Platform for the build - linux/amd64 or linux/arm64'
@@ -228,7 +228,7 @@ jobs:
       - name: "Static checks: basic checks only"
         run: >
           prek --show-diff-on-failure --color always
-          --from-ref "${{ github.sha }}" --to-ref "${{ github.sha }}"
+          --from-ref "${{ github.sha }}"^ --to-ref "${{ github.sha }}"
         env:
           VERBOSE: "false"
           SKIP_BREEZE_PREK_HOOKS: "true"
@@ -301,20 +301,16 @@ jobs:
           --hook-stage manual upgrade-important-versions || true
         if: always()
         env:
-          UPGRADE_UV: "true"
           UPGRADE_PIP: "false"
           UPGRADE_PYTHON: "false"
           UPGRADE_GOLANG: "false"
-          UPGRADE_PREK: "true"
           UPGRADE_NODE_LTS: "false"
           UPGRADE_HATCH: "false"
           UPGRADE_PYYAML: "false"
           UPGRADE_GITPYTHON: "false"
           UPGRADE_RICH: "false"
           UPGRADE_RUFF: "false"
-          UPGRADE_MPROCS: "true"
           UPGRADE_MYPY: "false"
-          UPGRADE_PROTOC: "false"
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: "Run automated upgrade for important versions minus uv (failing if needed)"
         run: |
@@ -328,19 +324,10 @@ jobs:
         if: always()
         env:
           UPGRADE_UV: "false"
-          UPGRADE_PIP: "true"
-          UPGRADE_PYTHON: "true"
-          UPGRADE_GOLANG: "true"
           UPGRADE_PREK: "false"
-          UPGRADE_NODE_LTS: "true"
-          UPGRADE_HATCH: "true"
-          UPGRADE_PYYAML: "true"
-          UPGRADE_GITPYTHON: "true"
-          UPGRADE_RICH: "true"
-          UPGRADE_RUFF: "true"
-          UPGRADE_MYPY: "true"
           UPGRADE_MPROCS: "false"
           UPGRADE_PROTOC: "false"
+          UPGRADE_OPENAPI_GENERATOR: "false"
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   test-airflow-release-commands:

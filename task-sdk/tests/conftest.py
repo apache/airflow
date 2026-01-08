@@ -23,6 +23,8 @@ from typing import TYPE_CHECKING, Any, NoReturn, Protocol
 
 import pytest
 
+from tests_common.test_utils.config import conf_vars
+
 pytest_plugins = "tests_common.pytest_plugin"
 
 # Task SDK does not need access to the Airflow database
@@ -164,15 +166,12 @@ def _disable_ol_plugin():
     # And we load plugins when setting the priority_weight field
     import airflow.plugins_manager
 
-    old = airflow.plugins_manager.plugins
-
-    assert old is None, "Plugins already loaded, too late to stop them being loaded!"
-
-    airflow.plugins_manager.plugins = []
+    old = airflow.plugins_manager._get_plugins
+    airflow.plugins_manager._get_plugins = lambda: ([], {})
 
     yield
 
-    airflow.plugins_manager.plugins = None
+    airflow.plugins_manager._get_plugins = old
 
 
 @pytest.fixture(autouse=True)
@@ -335,3 +334,14 @@ def make_ti_context_dict(make_ti_context: MakeTIContextCallable) -> MakeTIContex
         return context.model_dump(exclude_unset=True, mode="json")
 
     return _make_context_dict
+
+
+@pytest.fixture(scope="class", autouse=True)
+def allow_test_classes_deserialization():
+    """
+    Allow test classes and airflow SDK classes to be deserialized. In airflow-core tests, this is provided by
+    unit_tests.cfg which sets allowed_deserialization_classes = airflow.* tests.*
+    SDK tests may not inherit that configuration, so we explicitly allow airflow.sdk.* and tests.* here.
+    """
+    with conf_vars({("core", "allowed_deserialization_classes"): "airflow.sdk.* tests.*"}):
+        yield

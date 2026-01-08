@@ -46,7 +46,8 @@ from tests_common.test_utils.compat import EmptyOperator
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.dag import sync_dag_to_db
 from tests_common.test_utils.db import clear_db_dag_bundles, clear_db_dags, clear_db_runs
-from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
+from tests_common.test_utils.taskinstance import create_task_instance
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V_3_2_PLUS
 
 
 def get_time_str(time_in_milliseconds):
@@ -106,7 +107,12 @@ class TestCloudRemoteLogIO:
             # loggers.
 
             # Set up the right chain of processors so the event looks like we want for our full test
-            monkeypatch.setattr(airflow.logging_config, "REMOTE_TASK_LOG", self.subject)
+            if AIRFLOW_V_3_2_PLUS:
+                monkeypatch.setattr(
+                    airflow.logging_config._ActiveLoggingConfig, "remote_task_log", self.subject
+                )
+            else:
+                monkeypatch.setattr(airflow.logging_config, "REMOTE_TASK_LOG", self.subject)
             try:
                 procs = airflow.sdk.log.logging_processors(colors=False, json_output=False)
             except TypeError:
@@ -216,7 +222,7 @@ class TestCloudwatchTaskHandler:
             from airflow.models.dag_version import DagVersion
 
             dag_version = DagVersion.get_latest_version(self.dag.dag_id, session=session)
-            self.ti = TaskInstance(task=task, run_id=dag_run.run_id, dag_version_id=dag_version.id)
+            self.ti = create_task_instance(task=task, run_id=dag_run.run_id, dag_version_id=dag_version.id)
         else:
             self.ti = TaskInstance(task=task, run_id=dag_run.run_id)
         self.ti.dag_run = dag_run

@@ -25,6 +25,7 @@
     "requiredActions": "Gerekli Eylemler",
     "xcoms": "XCom'lar"
   },
+  "collapseAllExtra": "Tüm ek JSON'ları daralt",
   "collapseDetailsPanel": "Detay Panelini Daralt",
   "createdAssetEvent_one": "Oluşturulan Varlık Etkinliği",
   "createdAssetEvent_other": "Oluşturulan Varlık Etkinlikleri",
@@ -73,6 +74,11 @@
   "dagWarnings": "Dag Uyarıları/Hataları",
   "defaultToGraphView": "Varsayılan olarak grafik görünümü",
   "defaultToGridView": "Varsayılan olarak ızgara görünümü",
+  "delete": "Sil",
+  "diff": "Fark modu",
+  "diffCompareWith": "ile karşılaştır",
+  "diffExit": "Fark modundan çık",
+  "diffSelectVersionToCompare": "Karşılaştırmak için bir versiyon seçin",
   "direction": "Yön",
   "docs": {
     "documentation": "Dokümantasyon",
@@ -85,6 +91,7 @@
     "tooltip": "{{hotkey}} tuşuna basarak indir"
   },
   "duration": "Süre",
+  "edit": "Güncelle",
   "endDate": "Bitiş Tarihi",
   "error": {
     "back": "Geri",
@@ -100,6 +107,7 @@
     "hotkey": "e",
     "tooltip": "{{hotkey}} tuşuna basarak genişletmeyi değiştir"
   },
+  "expandAllExtra": "Tüm ek JSON'ları genişlet",
   "expression": {
     "all": "Tümü",
     "and": "VE",
@@ -123,12 +131,14 @@
   "logoutConfirmation": "Uygulamadan çıkış yapmak üzeresiniz.",
   "mapIndex": "Harita İndeksi",
   "modal": {
+    "add": "Ekle",
     "cancel": "İptal",
     "confirm": "Onayla",
     "delete": {
       "button": "Sil",
       "confirmation": "{{resourceName}} öğesini silmek istediğinizden emin misiniz? Bu işlem geri alınamaz."
-    }
+    },
+    "save": "Kaydet"
   },
   "nav": {
     "admin": "Yönetici",
@@ -182,6 +192,7 @@
   },
   "selectLanguage": "Dil Seçin",
   "showDetailsPanel": "Detay Panelini Göster",
+  "signedInAs": "olarak giriş yapıldı",
   "source": {
     "hide": "Kaynağı Gizle",
     "hotkey": "s",

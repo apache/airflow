@@ -73,7 +73,7 @@ def users_create(args):
             raise SystemExit(f"{args.role} is not a valid role. Valid roles are: {valid_roles}")
         password = _create_password(args)
         if appbuilder.sm.find_user(args.username):
-            print(f"{args.username} already exist in the db")
+            print(f"{args.username} already exists in the db")
             return
         user = appbuilder.sm.add_user(
             args.username, args.firstname, args.lastname, args.email, role, password
@@ -101,7 +101,7 @@ def _find_user(args):
 @cli_utils.action_cli
 @providers_configuration_loaded
 def user_reset_password(args):
-    """Reset user password user from DB."""
+    """Reset user password from DB."""
     user = _find_user(args)
     password = _create_password(args)
     with get_application_builder() as appbuilder:
@@ -143,7 +143,7 @@ def users_delete(args):
 @cli_utils.action_cli
 @providers_configuration_loaded
 def users_manage_role(args, remove=False):
-    """Delete or appends user roles."""
+    """Delete or append user roles."""
     with get_application_builder() as appbuilder:
         user = _find_user(args)
         role = appbuilder.sm.find_role(args.role)
