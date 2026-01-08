@@ -2465,6 +2465,36 @@ dag_processor:
       example: "/tmp/some-place"
       default: ~
 
+    dag_bundle_new_folder_permissions:
+      description: |
+        Permissions to set on new DAG bundle directories. When using user impersonation
+        (``run_as_user``), these should be group-writable (e.g., ``0o775``) so that
+        impersonated users can access the bundle files.
+
+        The value should be an octal string (e.g., ``0o775``). The default allows
+        owner read/write/execute and group read/write/execute.
+
+        This is similar to ``[logging] file_task_handler_new_folder_permissions``.
+      version_added: 3.2.0
+      type: string
+      example: "0o775"
+      default: "0o775"
+
+    dag_bundle_new_file_permissions:
+      description: |
+        Permissions to set on new DAG bundle files (lock files, tracking files, etc.).
+        When using user impersonation (``run_as_user``), these should be group-writable
+        (e.g., ``0o664``) so that impersonated users can access the files.
+
+        The value should be an octal string (e.g., ``0o664``). The default allows
+        owner read/write and group read/write.
+
+        This is similar to ``[logging] file_task_handler_new_file_permissions``.
+      version_added: 3.2.0
+      type: string
+      example: "0o664"
+      default: "0o664"
+
     dag_bundle_config_list:
       description: |
         List of backend configs.  Must supply name, classpath, and kwargs for each backend.
