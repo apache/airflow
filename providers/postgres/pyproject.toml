@@ -102,7 +102,6 @@ dev = [
     "apache-airflow-providers-common-sql",
     "apache-airflow-providers-microsoft-azure",
     "apache-airflow-providers-openlineage",
-    "apache-airflow-providers-postgres[sqlalchemy]",
     # Additional devel dependencies (do not remove this line and add extra development dependencies)
     "apache-airflow-providers-common-sql[pandas]",
     "apache-airflow-providers-common-sql[polars]",
