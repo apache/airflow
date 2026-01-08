@@ -580,11 +580,11 @@ class TestDag:
 
         session = settings.Session()
         model = session.get(DagModel, dag.dag_id)
+        current_time = timezone.utcnow()
 
         if expected_next_dagrun is None:
             # For catchup=False, next_dagrun will be around the current date (not DEFAULT_DATE)
             # Instead of comparing exact dates, verify it's relatively recent and not the old start date
-            current_time = timezone.utcnow()
 
             # Verify it's not using the old DEFAULT_DATE from 2016 and is after
             # that since we are picking up present date.
@@ -605,6 +605,8 @@ class TestDag:
             assert model.next_dagrun == expected_next_dagrun
             assert model.next_dagrun_create_after == expected_next_dagrun + timedelta(days=1)
 
+        assert model.exceeds_max_non_backfill is False
+
         dr = scheduler_dag.create_dagrun(
             run_id="test",
             state=state,
@@ -617,14 +619,18 @@ class TestDag:
         )
         assert dr is not None
         SerializedDAG.bulk_write_to_db("testing", None, [dag])
-
         model = session.get(DagModel, dag.dag_id)
-        # We signal "at max active runs" by saying this run is never eligible to be created
-        assert model.next_dagrun_create_after is None
-        # test that bulk_write_to_db again doesn't update next_dagrun_create_after
+        # Check that exceeds_max_non_backfill is set correctly
+        assert model.exceeds_max_non_backfill is True
+        # Check that running bulk_write_to_db again doesn't change exceeds_max_non_backfill
         SerializedDAG.bulk_write_to_db("testing", None, [dag])
         model = session.get(DagModel, dag.dag_id)
-        assert model.next_dagrun_create_after is None
+        assert model.exceeds_max_non_backfill is True
+
+        if catchup is True:
+            assert model.next_dagrun_create_after == DEFAULT_DATE + timedelta(days=1)
+        else:
+            assert model.next_dagrun_create_after > current_time + timedelta(days=-2)  # allow for fuzz
 
     def test_bulk_write_to_db_has_import_error(self, testing_dag_bundle):
         """
