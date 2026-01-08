@@ -47,7 +47,6 @@ from airflow.sdk import (
     task as task_decorator,
     timezone,
 )
-from airflow.sdk._shared.listeners import hookimpl
 from airflow.sdk.api.datamodels._generated import (
     AssetProfile,
     AssetResponse,

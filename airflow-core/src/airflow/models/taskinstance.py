@@ -899,12 +899,7 @@ class TaskInstance(Base, LoggingMixin):
             # ReadyToRescheduleDep is the only dependency that enforces this time-based gating.
             # We therefore extend the normal scheduling dependency set with it, instead of
             # modifying the global scheduler dependencies.
-            dep_context = DepContext(
-                deps=dep_context.deps | {ReadyToRescheduleDep()},
-                flag_upstream_failed=dep_context.flag_upstream_failed,
-                ignore_unmapped_tasks=dep_context.ignore_unmapped_tasks,
-                finished_tis=dep_context.finished_tis,
-            )
+            dep_context.deps.add(ReadyToRescheduleDep())
         failed = False
         verbose_aware_logger = self.log.info if verbose else self.log.debug
         for dep_status in self.get_failed_dep_statuses(dep_context=dep_context, session=session):
