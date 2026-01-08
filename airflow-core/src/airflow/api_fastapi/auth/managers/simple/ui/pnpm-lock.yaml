@@ -13,10 +13,10 @@ importers:
         version: 3.30.0(@emotion/react@11.14.0(@types/react@19.2.7)(react@19.2.3))(react-dom@19.2.3(react@19.2.3))(react@19.2.3)
       '@hey-api/client-axios':
         specifier: ^0.9.1
-        version: 0.9.1(@hey-api/openapi-ts@0.90.0(magicast@0.3.5)(typescript@5.9.3))(axios@1.13.2)
+        version: 0.9.1(@hey-api/openapi-ts@0.90.1(magicast@0.3.5)(typescript@5.9.3))(axios@1.13.2)
       '@hey-api/openapi-ts':
-        specifier: ^0.90.0
-        version: 0.90.0(magicast@0.3.5)(typescript@5.9.3)
+        specifier: ^0.90.1
+        version: 0.90.1(magicast@0.3.5)(typescript@5.9.3)
       '@tanstack/react-query':
         specifier: ^5.90.16
         version: 5.90.16(react@19.2.3)
@@ -544,8 +544,8 @@ packages:
     peerDependencies:
       typescript: ^5.x
 
-  '@hey-api/openapi-ts@0.90.0':
-    resolution: {integrity: sha512-0Fujk+3q/tEZeXRLRs/Y/lTQ9b4m1MHBsW5uGAI+tbscVDwqlkFc23MBoDcbysWyuG/aF95F39nmHdAoTCtP0Q==}
+  '@hey-api/openapi-ts@0.90.1':
+    resolution: {integrity: sha512-wsURTl5k5J/JQR3gU8N7MOZYpsx/xnZHwixzXzs77hQGzibLXuGbTmBMJEu90r8zBcabzp9rt7kv1HMkmEb9cw==}
     engines: {node: '>=20.19.0'}
     hasBin: true
     peerDependencies:
@@ -3443,9 +3443,9 @@ snapshots:
 
   '@floating-ui/utils@0.2.10': {}
 
-  '@hey-api/client-axios@0.9.1(@hey-api/openapi-ts@0.90.0(magicast@0.3.5)(typescript@5.9.3))(axios@1.13.2)':
+  '@hey-api/client-axios@0.9.1(@hey-api/openapi-ts@0.90.1(magicast@0.3.5)(typescript@5.9.3))(axios@1.13.2)':
     dependencies:
-      '@hey-api/openapi-ts': 0.90.0(magicast@0.3.5)(typescript@5.9.3)
+      '@hey-api/openapi-ts': 0.90.1(magicast@0.3.5)(typescript@5.9.3)
       axios: 1.13.2
 
   '@hey-api/client-fetch@0.4.0': {}
@@ -3473,7 +3473,7 @@ snapshots:
     transitivePeerDependencies:
       - magicast
 
-  '@hey-api/openapi-ts@0.90.0(magicast@0.3.5)(typescript@5.9.3)':
+  '@hey-api/openapi-ts@0.90.1(magicast@0.3.5)(typescript@5.9.3)':
     dependencies:
       '@hey-api/codegen-core': 0.5.2(typescript@5.9.3)
       '@hey-api/json-schema-ref-parser': 1.2.2

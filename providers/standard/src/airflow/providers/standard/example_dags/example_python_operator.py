@@ -22,7 +22,6 @@ within a virtual environment.
 
 from __future__ import annotations
 
-import asyncio
 import logging
 import sys
 import time
@@ -77,7 +76,6 @@ with DAG(
 
     # [START howto_operator_python_kwargs]
     # Generate 5 sleeping tasks, sleeping from 0.0 to 0.4 seconds respectively
-    # Asynchronous callables are natively supported since Airflow 3.2+
     def my_sleeping_function(random_base):
         """This is a function that will run within the DAG execution"""
         time.sleep(random_base)
@@ -89,23 +87,6 @@ with DAG(
 
         run_this >> log_the_sql >> sleeping_task
     # [END howto_operator_python_kwargs]
-
-    # [START howto_async_operator_python_kwargs]
-    # Generate 5 sleeping tasks, sleeping from 0.0 to 0.4 seconds respectively
-    # Asynchronous callables are natively supported since Airflow 3.2+
-    async def my_async_sleeping_function(random_base):
-        """This is a function that will run within the DAG execution"""
-        await asyncio.sleep(random_base)
-
-    for i in range(5):
-        async_sleeping_task = PythonOperator(
-            task_id=f"async_sleep_for_{i}",
-            python_callable=my_async_sleeping_function,
-            op_kwargs={"random_base": i / 10},
-        )
-
-        run_this >> log_the_sql >> async_sleeping_task
-    # [END howto_async_operator_python_kwargs]
 
     # [START howto_operator_python_venv]
     def callable_virtualenv():

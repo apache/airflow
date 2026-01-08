@@ -21,6 +21,7 @@ import base64
 import json
 import sys
 from copy import deepcopy
+from datetime import datetime, timedelta
 from typing import TYPE_CHECKING, Any
 from unittest import mock
 from unittest.mock import Mock, PropertyMock
@@ -33,6 +34,7 @@ from cryptography.hazmat.primitives.asymmetric import rsa
 from airflow.exceptions import AirflowOptionalProviderFeatureException
 from airflow.models import Connection
 from airflow.providers.snowflake.hooks.snowflake import SnowflakeHook
+from airflow.utils import timezone
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -367,7 +369,7 @@ class TestPytestSnowflakeHook:
     ):
         with mock.patch.dict("os.environ", AIRFLOW_CONN_TEST_CONN=Connection(**connection_kwargs).get_uri()):
             assert SnowflakeHook(snowflake_conn_id="test_conn").get_uri() == expected_uri
-            assert SnowflakeHook(snowflake_conn_id="test_conn")._get_conn_params == expected_conn_params
+            assert SnowflakeHook(snowflake_conn_id="test_conn")._get_conn_params() == expected_conn_params
 
     def test_get_conn_params_should_support_private_auth_in_connection(
         self, base64_encoded_encrypted_private_key: Path
@@ -385,7 +387,7 @@ class TestPytestSnowflakeHook:
             },
         }
         with mock.patch.dict("os.environ", AIRFLOW_CONN_TEST_CONN=Connection(**connection_kwargs).get_uri()):
-            assert "private_key" in SnowflakeHook(snowflake_conn_id="test_conn")._get_conn_params
+            assert "private_key" in SnowflakeHook(snowflake_conn_id="test_conn")._get_conn_params()
 
     @pytest.mark.parametrize("include_params", [True, False])
     def test_hook_param_beats_extra(self, include_params):
@@ -408,7 +410,7 @@ class TestPytestSnowflakeHook:
             assert hook_params != extras
             assert SnowflakeHook(
                 snowflake_conn_id="test_conn", **(hook_params if include_params else {})
-            )._get_conn_params == {
+            )._get_conn_params() == {
                 "user": None,
                 "password": "",
                 "application": "AIRFLOW",
@@ -437,7 +439,7 @@ class TestPytestSnowflakeHook:
             ).get_uri(),
         ):
             assert list(extras.values()) != list(extras_prefixed.values())
-            assert SnowflakeHook(snowflake_conn_id="test_conn")._get_conn_params == {
+            assert SnowflakeHook(snowflake_conn_id="test_conn")._get_conn_params() == {
                 "user": None,
                 "password": "",
                 "application": "AIRFLOW",
@@ -463,7 +465,7 @@ class TestPytestSnowflakeHook:
             },
         }
         with mock.patch.dict("os.environ", AIRFLOW_CONN_TEST_CONN=Connection(**connection_kwargs).get_uri()):
-            assert "private_key" in SnowflakeHook(snowflake_conn_id="test_conn")._get_conn_params
+            assert "private_key" in SnowflakeHook(snowflake_conn_id="test_conn")._get_conn_params()
 
     def test_get_conn_params_should_support_private_auth_with_unencrypted_key(
         self, unencrypted_temporary_private_key
@@ -481,16 +483,16 @@ class TestPytestSnowflakeHook:
             },
         }
         with mock.patch.dict("os.environ", AIRFLOW_CONN_TEST_CONN=Connection(**connection_kwargs).get_uri()):
-            assert "private_key" in SnowflakeHook(snowflake_conn_id="test_conn")._get_conn_params
+            assert "private_key" in SnowflakeHook(snowflake_conn_id="test_conn")._get_conn_params()
         connection_kwargs["password"] = ""
         with mock.patch.dict("os.environ", AIRFLOW_CONN_TEST_CONN=Connection(**connection_kwargs).get_uri()):
-            assert "private_key" in SnowflakeHook(snowflake_conn_id="test_conn")._get_conn_params
+            assert "private_key" in SnowflakeHook(snowflake_conn_id="test_conn")._get_conn_params()
         connection_kwargs["password"] = _PASSWORD
         with (
             mock.patch.dict("os.environ", AIRFLOW_CONN_TEST_CONN=Connection(**connection_kwargs).get_uri()),
             pytest.raises(TypeError, match="Password was given but private key is not encrypted."),
         ):
-            SnowflakeHook(snowflake_conn_id="test_conn")._get_conn_params
+            SnowflakeHook(snowflake_conn_id="test_conn")._get_conn_params()
 
     def test_get_conn_params_should_fail_on_invalid_key(self):
         connection_kwargs = {
@@ -512,10 +514,7 @@ class TestPytestSnowflakeHook:
             SnowflakeHook(snowflake_conn_id="test_conn").get_conn()
 
     @mock.patch("requests.post")
-    @mock.patch(
-        "airflow.providers.snowflake.hooks.snowflake.SnowflakeHook._get_conn_params",
-        new_callable=PropertyMock,
-    )
+    @mock.patch("airflow.providers.snowflake.hooks.snowflake.SnowflakeHook._get_conn_params")
     def test_get_conn_params_should_support_oauth(self, mock_get_conn_params, requests_post):
         requests_post.return_value = Mock(
             status_code=200,
@@ -544,7 +543,7 @@ class TestPytestSnowflakeHook:
         mock_get_conn_params.return_value = connection_kwargs
         with mock.patch.dict("os.environ", AIRFLOW_CONN_TEST_CONN=Connection(**connection_kwargs).get_uri()):
             hook = SnowflakeHook(snowflake_conn_id="test_conn")
-            conn_params = hook._get_conn_params
+            conn_params = hook._get_conn_params()
 
         conn_params_keys = conn_params.keys()
         conn_params_extra = conn_params.get("extra", {})
@@ -563,7 +562,6 @@ class TestPytestSnowflakeHook:
     @mock.patch("requests.post")
     @mock.patch(
         "airflow.providers.snowflake.hooks.snowflake.SnowflakeHook._get_conn_params",
-        new_callable=PropertyMock,
     )
     def test_get_conn_params_should_support_oauth_with_token_endpoint(
         self, mock_get_conn_params, requests_post
@@ -596,7 +594,7 @@ class TestPytestSnowflakeHook:
         mock_get_conn_params.return_value = connection_kwargs
         with mock.patch.dict("os.environ", AIRFLOW_CONN_TEST_CONN=Connection(**connection_kwargs).get_uri()):
             hook = SnowflakeHook(snowflake_conn_id="test_conn")
-            conn_params = hook._get_conn_params
+            conn_params = hook._get_conn_params()
 
         conn_params_keys = conn_params.keys()
         conn_params_extra = conn_params.get("extra", {})
@@ -616,7 +614,6 @@ class TestPytestSnowflakeHook:
     @mock.patch("requests.post")
     @mock.patch(
         "airflow.providers.snowflake.hooks.snowflake.SnowflakeHook._get_conn_params",
-        new_callable=PropertyMock,
     )
     def test_get_conn_params_should_support_oauth_with_client_credentials(
         self, mock_get_conn_params, requests_post
@@ -649,7 +646,7 @@ class TestPytestSnowflakeHook:
         mock_get_conn_params.return_value = connection_kwargs
         with mock.patch.dict("os.environ", AIRFLOW_CONN_TEST_CONN=Connection(**connection_kwargs).get_uri()):
             hook = SnowflakeHook(snowflake_conn_id="test_conn")
-            conn_params = hook._get_conn_params
+            conn_params = hook._get_conn_params()
 
         conn_params_keys = conn_params.keys()
         conn_params_extra = conn_params.get("extra", {})
@@ -686,7 +683,7 @@ class TestPytestSnowflakeHook:
 
         with mock.patch.dict("os.environ", AIRFLOW_CONN_TEST_CONN=Connection(**connection_kwargs).get_uri()):
             hook = SnowflakeHook(snowflake_conn_id="test_conn")
-            conn_params = hook._get_conn_params
+            conn_params = hook._get_conn_params()
 
         # Check AzureBaseHook initialization and get_token call args
         mock_connection_class.get.assert_called_once_with(azure_conn_id)
@@ -737,7 +734,7 @@ class TestPytestSnowflakeHook:
             {"AIRFLOW_CONN_TEST_CONN": Connection(**connection_kwargs).get_uri()},
         ):
             hook = SnowflakeHook(snowflake_conn_id="test_conn")
-            params = hook._get_conn_params
+            params = hook._get_conn_params()
         mock_requests_post.assert_called_once()
         assert "scope" in params
         assert params["scope"] == "default"
@@ -749,7 +746,8 @@ class TestPytestSnowflakeHook:
             AIRFLOW_SNOWFLAKE_PARTNER="PARTNER_NAME",
         ):
             assert (
-                SnowflakeHook(snowflake_conn_id="test_conn")._get_conn_params["application"] == "PARTNER_NAME"
+                SnowflakeHook(snowflake_conn_id="test_conn")._get_conn_params()["application"]
+                == "PARTNER_NAME"
             )
 
     def test_get_conn_should_call_connect(self):
@@ -761,7 +759,7 @@ class TestPytestSnowflakeHook:
         ):
             hook = SnowflakeHook(snowflake_conn_id="test_conn")
             conn = hook.get_conn()
-            mock_connector.connect.assert_called_once_with(**hook._get_conn_params)
+            mock_connector.connect.assert_called_once_with(**hook._get_conn_params())
             assert mock_connector.connect.return_value == conn
 
     def test_get_sqlalchemy_engine_should_support_pass_auth(self):
@@ -876,7 +874,7 @@ class TestPytestSnowflakeHook:
                 authenticator="TEST_AUTH",
                 session_parameters={"AA": "AAA"},
             )
-            assert hook._get_conn_params == {
+            assert hook._get_conn_params() == {
                 "account": "TEST_ACCOUNT",
                 "application": "AIRFLOW",
                 "authenticator": "TEST_AUTH",
@@ -1068,7 +1066,7 @@ class TestPytestSnowflakeHook:
             session = hook.get_snowpark_session()
             assert session == mock_session
 
-            mock_session_builder.configs.assert_called_once_with(hook._get_conn_params)
+            mock_session_builder.configs.assert_called_once_with(hook._get_conn_params())
 
             # Verify that update_query_tag was called with the expected tag dictionary
             mock_session.update_query_tag.assert_called_once_with(
@@ -1101,6 +1099,7 @@ class TestPytestSnowflakeHook:
             },
             headers={"Content-Type": "application/x-www-form-urlencoded"},
             auth=basic_auth,
+            timeout=30,
         )
 
     @mock.patch("airflow.providers.snowflake.hooks.snowflake.HTTPBasicAuth")
@@ -1129,6 +1128,7 @@ class TestPytestSnowflakeHook:
             },
             headers={"Content-Type": "application/x-www-form-urlencoded"},
             auth=basic_auth,
+            timeout=30,
         )
 
     def test_get_azure_oauth_token(self, mocker):
@@ -1181,7 +1181,7 @@ class TestPytestSnowflakeHook:
 
         mock_requests_post.return_value = Mock(
             status_code=200,
-            json=lambda: {"access_token": "dummy_token"},
+            json=lambda: {"access_token": "dummy_token", "expires_in": 600},
         )
 
         connection_kwargs = {
@@ -1213,12 +1213,12 @@ class TestPytestSnowflakeHook:
     @mock.patch("requests.post")
     def test_get_oauth_token_without_scope(self, mock_requests_post):
         """
-        Verify that `get_oauth_token` returns an access token and sends `scope=None`
+        Verify that `get_oauth_token` returns an access token`
         when no scope is defined in the connection extras.
         """
         mock_requests_post.return_value = Mock(
             status_code=200,
-            json=lambda: {"access_token": "dummy_token"},
+            json=lambda: {"access_token": "dummy_token", "expires_in": 600},
         )
 
         connection_kwargs = {
@@ -1241,3 +1241,71 @@ class TestPytestSnowflakeHook:
 
         assert "scope" not in called_data
         assert called_data["grant_type"] == "client_credentials"
+
+    @mock.patch("requests.post")
+    @mock.patch("airflow.providers.snowflake.hooks.snowflake.timezone.utcnow")
+    def test_oauth_token_refresh_after_expiry(self, mock_timezone_utcnow, mock_requests_post):
+        """
+        Ensure OAuth tokens are refreshed after expiry for a reused SnowflakeHook,
+        without mutating static connection parameters.
+        """
+
+        t0 = datetime(2025, 1, 1, 12, 0, tzinfo=timezone.utc)
+
+        # _get_valid_oauth_token calls utcnow twice per refresh:
+        #   1) validity check
+        #   2) issued_at
+        mock_timezone_utcnow.side_effect = [
+            t0,
+            t0,
+            t0 + timedelta(minutes=11),
+            t0 + timedelta(minutes=11),
+        ]
+
+        mock_requests_post.side_effect = [
+            Mock(
+                status_code=200,
+                json=lambda: {"access_token": "token1", "expires_in": 600},
+                raise_for_status=lambda: None,
+            ),
+            Mock(
+                status_code=200,
+                json=lambda: {"access_token": "token2", "expires_in": 600},
+                raise_for_status=lambda: None,
+            ),
+        ]
+
+        connection_kwargs = {
+            **BASE_CONNECTION_KWARGS,
+            "login": "client_id",
+            "password": "client_secret",
+            "extra": {
+                "account": "airflow",
+                "authenticator": "oauth",
+                "grant_type": "refresh_token",
+                "refresh_token": "secret_token",
+            },
+        }
+
+        with mock.patch.dict(
+            "os.environ",
+            {"AIRFLOW_CONN_TEST_CONN": Connection(**connection_kwargs).get_uri()},
+        ):
+            hook = SnowflakeHook(snowflake_conn_id="test_conn")
+            # First resolution (initial token)
+            conn_params_1 = hook._get_conn_params()
+
+            # Second resolution (after token expiry)
+            conn_params_2 = hook._get_conn_params()
+
+        # Token must be refreshed
+        assert conn_params_1["token"] == "token1"
+        assert conn_params_2["token"] == "token2"
+
+        # Static params must not change
+        assert {k: v for k, v in conn_params_1.items() if k != "token"} == {
+            k: v for k, v in conn_params_2.items() if k != "token"
+        }
+
+        # Ensure refresh actually happened
+        assert mock_requests_post.call_count == 2

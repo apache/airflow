@@ -17,9 +17,7 @@
 # under the License.
 from __future__ import annotations
 
-import asyncio
 import copy
-import functools
 import logging
 import os
 import pickle
@@ -45,8 +43,7 @@ from slugify import slugify
 from airflow.exceptions import AirflowProviderDeprecationWarning, DeserializingResultError
 from airflow.models.connection import Connection
 from airflow.models.taskinstance import TaskInstance, clear_task_instances
-from airflow.providers.common.compat.sdk import AirflowException, BaseOperator, task
-from airflow.providers.common.compat.standard.operators import is_async_callable
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.providers.standard.operators.python import (
     BranchExternalPythonOperator,
@@ -76,9 +73,11 @@ from tests_common.test_utils.version_compat import (
 )
 
 if AIRFLOW_V_3_0_PLUS:
+    from airflow.sdk import BaseOperator
     from airflow.sdk.execution_time.context import set_current_context
     from airflow.serialization.serialized_objects import LazyDeserializedDAG
 else:
+    from airflow.models.baseoperator import BaseOperator  # type: ignore[no-redef]
     from airflow.models.taskinstance import set_current_context  # type: ignore[attr-defined,no-redef]
 
 if TYPE_CHECKING:
@@ -2466,18 +2465,6 @@ class TestShortCircuitWithTeardown:
         assert set(actual_skipped) == {op3}
 
 
-class TestPythonAsyncOperator(TestPythonOperator):
-    def test_run_async_task(self, caplog):
-        caplog.set_level(logging.INFO, logger=LOGGER_NAME)
-
-        async def say_hello(name: str) -> str:
-            await asyncio.sleep(1)
-            return f"Hello {name}!"
-
-        self.run_as_task(say_hello, op_kwargs={"name": "world"}, show_return_value_in_logs=True)
-        assert "Done. Returned value was: Hello world!" in caplog.messages
-
-
 @pytest.mark.parametrize(
     ("text_input", "expected_tuple"),
     [
@@ -2534,141 +2521,3 @@ def test_python_version_info(mocker):
     assert result.releaselevel == sys.version_info.releaselevel
     assert result.serial == sys.version_info.serial
     assert list(result) == list(sys.version_info)
-
-
-def simple_decorator(fn):
-    @functools.wraps(fn)
-    def wrapper(*args, **kwargs):
-        return fn(*args, **kwargs)
-
-    return wrapper
-
-
-def decorator_without_wraps(fn):
-    def wrapper(*args, **kwargs):
-        return fn(*args, **kwargs)
-
-    return wrapper
-
-
-async def async_fn():
-    return 42
-
-
-def sync_fn():
-    return 42
-
-
-@simple_decorator
-async def wrapped_async_fn():
-    return 42
-
-
-@simple_decorator
-def wrapped_sync_fn():
-    return 42
-
-
-@decorator_without_wraps
-async def wrapped_async_fn_no_wraps():
-    return 42
-
-
-@simple_decorator
-@simple_decorator
-async def multi_wrapped_async_fn():
-    return 42
-
-
-async def async_with_args(x, y):
-    return x + y
-
-
-def sync_with_args(x, y):
-    return x + y
-
-
-class AsyncCallable:
-    async def __call__(self):
-        return 42
-
-
-class SyncCallable:
-    def __call__(self):
-        return 42
-
-
-class WrappedAsyncCallable:
-    @simple_decorator
-    async def __call__(self):
-        return 42
-
-
-class TestAsyncCallable:
-    def test_plain_async_function(self):
-        assert is_async_callable(async_fn)
-
-    def test_plain_sync_function(self):
-        assert not is_async_callable(sync_fn)
-
-    def test_wrapped_async_function_with_wraps(self):
-        assert is_async_callable(wrapped_async_fn)
-
-    def test_wrapped_sync_function_with_wraps(self):
-        assert not is_async_callable(wrapped_sync_fn)
-
-    def test_wrapped_async_function_without_wraps(self):
-        """
-        Without functools.wraps, inspect.unwrap cannot recover the coroutine.
-        This documents expected behavior.
-        """
-        assert not is_async_callable(wrapped_async_fn_no_wraps)
-
-    def test_multi_wrapped_async_function(self):
-        assert is_async_callable(multi_wrapped_async_fn)
-
-    def test_partial_async_function(self):
-        fn = functools.partial(async_with_args, 1)
-        assert is_async_callable(fn)
-
-    def test_partial_sync_function(self):
-        fn = functools.partial(sync_with_args, 1)
-        assert not is_async_callable(fn)
-
-    def test_nested_partial_async_function(self):
-        fn = functools.partial(
-            functools.partial(async_with_args, 1),
-            2,
-        )
-        assert is_async_callable(fn)
-
-    def test_async_callable_class(self):
-        assert is_async_callable(AsyncCallable())
-
-    def test_sync_callable_class(self):
-        assert not is_async_callable(SyncCallable())
-
-    def test_wrapped_async_callable_class(self):
-        assert is_async_callable(WrappedAsyncCallable())
-
-    def test_partial_callable_class(self):
-        fn = functools.partial(AsyncCallable())
-        assert is_async_callable(fn)
-
-    @pytest.mark.parametrize("value", [None, 42, "string", object()])
-    def test_non_callable(self, value):
-        assert not is_async_callable(value)
-
-    def test_task_decorator_async_function(self):
-        @task
-        async def async_task_fn():
-            return 42
-
-        assert is_async_callable(async_task_fn)
-
-    def test_task_decorator_sync_function(self):
-        @task
-        def sync_task_fn():
-            return 42
-
-        assert not is_async_callable(sync_task_fn)
