@@ -171,7 +171,7 @@ describe("MarkGroupTaskInstanceAsDialog", () => {
     } as ReturnType<typeof useBulkUpdateTaskInstances>);
 
     vi.mocked(useBulkUpdateTaskInstancesDryRun).mockReturnValue({
-      data: { task_instances: [], total_entries: 0 },
+      data: { task_instances: [{ state: "running", task_id: "test-task-1" }], total_entries: 1 },
       isPending: false,
       isSuccess: true,
     } as ReturnType<typeof useBulkUpdateTaskInstancesDryRun>);
@@ -214,7 +214,7 @@ describe("MarkGroupTaskInstanceAsDialog", () => {
 
     type DryRunProps = Parameters<typeof useBulkUpdateTaskInstancesDryRun>[0];
     const mockDryRunHook = vi.fn().mockReturnValue({
-      data: { task_instances: [], total_entries: 0 },
+      data: { task_instances: [{ state: "running", task_id: "test-task-1" }], total_entries: 1 },
       isPending: false,
       isSuccess: true,
     } as ReturnType<typeof useBulkUpdateTaskInstancesDryRun>);
