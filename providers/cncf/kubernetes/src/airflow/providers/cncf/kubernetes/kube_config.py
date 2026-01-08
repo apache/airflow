@@ -16,10 +16,8 @@
 # under the License.
 from __future__ import annotations
 
-import warnings
-
 from airflow.configuration import conf
-from airflow.exceptions import AirflowConfigException, AirflowProviderDeprecationWarning
+from airflow.exceptions import AirflowConfigException
 from airflow.settings import AIRFLOW_HOME
 
 
@@ -55,21 +53,8 @@ class KubeConfig:
             self.kubernetes_section, "worker_pods_creation_batch_size"
         )
         self.worker_container_repository = conf.get(self.kubernetes_section, "worker_container_repository")
-        if self.worker_container_repository:
-            warnings.warn(
-                "Configuration 'worker_container_repository' is deprecated. "
-                "Use 'pod_template_file' to specify the container image repository instead.",
-                AirflowProviderDeprecationWarning,
-                stacklevel=2,
-            )
         self.worker_container_tag = conf.get(self.kubernetes_section, "worker_container_tag")
-        if self.worker_container_tag:
-            warnings.warn(
-                "Configuration 'worker_container_tag' is deprecated. "
-                "Use 'pod_template_file' to specify the container image tag instead.",
-                AirflowProviderDeprecationWarning,
-                stacklevel=2,
-            )
+
         if self.worker_container_repository and self.worker_container_tag:
             self.kube_image = f"{self.worker_container_repository}:{self.worker_container_tag}"
         else:
@@ -80,13 +65,6 @@ class KubeConfig:
         # cluster has RBAC enabled, your scheduler may need service account permissions to
         # create, watch, get, and delete pods in this namespace.
         self.kube_namespace = conf.get(self.kubernetes_section, "namespace")
-        if self.kube_namespace and self.kube_namespace != "default":
-            warnings.warn(
-                "Configuration 'namespace' is deprecated. "
-                "Use 'pod_template_file' to specify the namespace instead.",
-                AirflowProviderDeprecationWarning,
-                stacklevel=2,
-            )
         self.multi_namespace_mode = conf.getboolean(self.kubernetes_section, "multi_namespace_mode")
         if self.multi_namespace_mode and conf.get(
             self.kubernetes_section, "multi_namespace_mode_namespace_list"
