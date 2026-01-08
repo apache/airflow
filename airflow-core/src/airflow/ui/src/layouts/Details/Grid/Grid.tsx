@@ -37,7 +37,6 @@ import { DurationAxis } from "./DurationAxis";
 import { DurationTick } from "./DurationTick";
 import { TaskInstancesColumn } from "./TaskInstancesColumn";
 import { TaskNames } from "./TaskNames";
-import { GridVirtualizationContext } from "./VirtualizationContext";
 import { flattenNodes } from "./utils";
 
 dayjs.extend(dayjsDuration);
@@ -122,86 +121,79 @@ export const Grid = ({ dagRunState, limit, runType, showGantt, triggeringUser }:
 
   const virtualItems = rowVirtualizer.getVirtualItems();
 
-  const virtualizationContextValue = useMemo(() => ({ rowVirtualizer }), [rowVirtualizer]);
-
   return (
-    <GridVirtualizationContext.Provider value={virtualizationContextValue}>
-      <Flex
-        flexDirection="column"
-        justifyContent="flex-start"
-        outline="none"
-        position="relative"
-        pt={20}
-        ref={gridRef}
-        tabIndex={0}
-        width={showGantt ? "1/2" : "full"}
-      >
-        <Flex paddingRight={4} position="relative" width="100%">
-          {/* Task names header spacer - fills available space to match task names column below */}
-          <Box flexGrow={1} flexShrink={0} height="100px" minWidth="200px" />
-          <Flex flexShrink={0} position="relative">
-            <DurationAxis top="100px" />
-            <DurationAxis top="50px" />
-            <DurationAxis top="4px" />
-            <Flex flexDirection="column-reverse" height="100px" position="relative">
-              {Boolean(gridRuns?.length) && (
-                <>
-                  <DurationTick bottom="92px" duration={max} />
-                  <DurationTick bottom="46px" duration={max / 2} />
-                  <DurationTick bottom="-4px" duration={0} />
-                </>
-              )}
-            </Flex>
-            <Flex flexDirection="row-reverse">
-              {gridRuns?.map((dr: GridRunsResponse) => (
-                <Bar key={dr.run_id} max={max} onClick={handleColumnClick} run={dr} />
-              ))}
-            </Flex>
-            {selectedIsVisible === undefined || !selectedIsVisible ? undefined : (
-              <Link to={`/dags/${dagId}`}>
-                <IconButton
-                  aria-label={translate("grid.buttons.resetToLatest")}
-                  height="98px"
-                  loading={isLoading}
-                  minW={0}
-                  ml={1}
-                  title={translate("grid.buttons.resetToLatest")}
-                  variant="surface"
-                  zIndex={1}
-                >
-                  <FiChevronsRight />
-                </IconButton>
-              </Link>
+    <Flex
+      flexDirection="column"
+      justifyContent="flex-start"
+      outline="none"
+      position="relative"
+      pt={20}
+      ref={gridRef}
+      tabIndex={0}
+      width={showGantt ? "1/2" : "full"}
+    >
+      <Flex justifyContent="flex-end" paddingRight={4} position="relative" width="100%">
+        <Flex flexShrink={0} position="relative">
+          <DurationAxis top="100px" />
+          <DurationAxis top="50px" />
+          <DurationAxis top="4px" />
+          <Flex flexDirection="column-reverse" height="100px" position="relative">
+            {Boolean(gridRuns?.length) && (
+              <>
+                <DurationTick bottom="92px" duration={max} />
+                <DurationTick bottom="46px" duration={max / 2} />
+                <DurationTick bottom="-4px" duration={0} />
+              </>
             )}
           </Flex>
+          <Flex flexDirection="row-reverse">
+            {gridRuns?.map((dr: GridRunsResponse) => (
+              <Bar key={dr.run_id} max={max} onClick={handleColumnClick} run={dr} />
+            ))}
+          </Flex>
+          {selectedIsVisible === undefined || !selectedIsVisible ? undefined : (
+            <Link to={`/dags/${dagId}`}>
+              <IconButton
+                aria-label={translate("grid.buttons.resetToLatest")}
+                height="98px"
+                loading={isLoading}
+                minW={0}
+                ml={1}
+                title={translate("grid.buttons.resetToLatest")}
+                variant="surface"
+                zIndex={1}
+              >
+                <FiChevronsRight />
+              </IconButton>
+            </Link>
+          )}
         </Flex>
-        {/* Height accounts for: navbar, tabs, header bar chart (100px), and padding */}
-        <Box height="calc(100vh - 250px)" overflow="auto" position="relative" ref={scrollContainerRef}>
-          <Box
-            display="flex"
-            height={`${rowVirtualizer.getTotalSize()}px`}
-            paddingRight={4}
-            position="relative"
-            width="100%"
-          >
-            {/* Task names column - fills available space so selection background spans full width */}
-            <Box bg="bg" flexGrow={1} flexShrink={0} left={0} minWidth="200px" position="sticky" zIndex={1}>
-              <TaskNames nodes={flatNodes} onRowClick={handleRowClick} virtualItems={virtualItems} />
-            </Box>
-            <Flex flexDirection="row-reverse" flexShrink={0} position="relative">
-              {gridRuns?.map((dr: GridRunsResponse) => (
-                <TaskInstancesColumn
-                  key={dr.run_id}
-                  nodes={flatNodes}
-                  onCellClick={handleCellClick}
-                  run={dr}
-                  virtualItems={virtualItems}
-                />
-              ))}
-            </Flex>
-          </Box>
-        </Box>
       </Flex>
-    </GridVirtualizationContext.Provider>
+      <Box height="calc(100vh - 250px)" overflow="auto" position="relative" ref={scrollContainerRef}>
+        <Box
+          display="flex"
+          height={`${rowVirtualizer.getTotalSize()}px`}
+          paddingRight={4}
+          position="relative"
+          width="100%"
+        >
+          {/* Task names column - fills available space so selection background spans full width */}
+          <Box bg="bg" flexGrow={1} flexShrink={0} left={0} minWidth="200px" position="sticky" zIndex={1}>
+            <TaskNames nodes={flatNodes} onRowClick={handleRowClick} virtualItems={virtualItems} />
+          </Box>
+          <Flex flexDirection="row-reverse" flexShrink={0} position="relative">
+            {gridRuns?.map((dr: GridRunsResponse) => (
+              <TaskInstancesColumn
+                key={dr.run_id}
+                nodes={flatNodes}
+                onCellClick={handleCellClick}
+                run={dr}
+                virtualItems={virtualItems}
+              />
+            ))}
+          </Flex>
+        </Box>
+      </Box>
+    </Flex>
   );
 };
