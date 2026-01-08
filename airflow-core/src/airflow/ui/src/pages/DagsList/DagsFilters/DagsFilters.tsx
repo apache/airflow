@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, HStack } from "@chakra-ui/react";
+import { Box, Flex } from "@chakra-ui/react";
 import type { MultiValue } from "chakra-react-select";
 import { useCallback, useState } from "react";
 import { useSearchParams } from "react-router-dom";
@@ -72,14 +72,12 @@ export const DagsFilters = () => {
   const { setTableURLState, tableURLState } = useTableURLState();
   const { pagination, sorting } = tableURLState;
 
-  const handlePausedChange = useCallback(
-    ({ value }: { value: Array<string> }) => {
-      const [val] = value;
-
-      if (val === undefined) {
+  const handlePausedChange: React.MouseEventHandler<HTMLButtonElement> = useCallback(
+    ({ currentTarget: { value } }) => {
+      if (value === "all") {
         searchParams.delete(PAUSED_PARAM);
       } else {
-        searchParams.set(PAUSED_PARAM, val);
+        searchParams.set(PAUSED_PARAM, value);
       }
       setTableURLState({
         pagination: { ...pagination, pageIndex: 0 },
@@ -91,14 +89,12 @@ export const DagsFilters = () => {
     [pagination, searchParams, setSearchParams, setTableURLState, sorting],
   );
 
-  const handleFavoriteChange = useCallback(
-    ({ value }: { value: Array<string> }) => {
-      const [val] = value;
-
-      if (val === undefined || val === "all") {
+  const handleFavoriteChange: React.MouseEventHandler<HTMLButtonElement> = useCallback(
+    ({ currentTarget: { value } }) => {
+      if (value === "all") {
         searchParams.delete(FAVORITE_PARAM);
       } else {
-        searchParams.set(FAVORITE_PARAM, val);
+        searchParams.set(FAVORITE_PARAM, value);
       }
       setTableURLState({
         pagination: { ...pagination, pageIndex: 0 },
@@ -189,8 +185,8 @@ export const DagsFilters = () => {
   });
 
   return (
-    <HStack justifyContent="space-between">
-      <HStack gap={4}>
+    <Flex flexWrap="wrap" gap={4} justifyContent="space-between">
+      <Flex alignItems="center" flexWrap="wrap" gap={4}>
         <StateFilters
           isAll={isAll}
           isFailed={isFailed}
@@ -205,25 +201,27 @@ export const DagsFilters = () => {
           onPausedChange={handlePausedChange}
           showPaused={showPaused}
         />
-        <TagFilter
-          onMenuScrollToBottom={() => {
-            void fetchNextPage();
-          }}
-          onMenuScrollToTop={() => {
-            void fetchPreviousPage();
-          }}
-          onSelectTagsChange={handleSelectTagsChange}
-          onTagModeChange={handleTagModeChange}
-          onUpdate={setPattern}
-          selectedTags={selectedTags}
-          tagFilterMode={tagFilterMode}
-          tags={data?.pages.flatMap((dagResponse) => dagResponse.tags) ?? []}
-        />
+        <Box maxWidth="300px">
+          <TagFilter
+            onMenuScrollToBottom={() => {
+              void fetchNextPage();
+            }}
+            onMenuScrollToTop={() => {
+              void fetchPreviousPage();
+            }}
+            onSelectTagsChange={handleSelectTagsChange}
+            onTagModeChange={handleTagModeChange}
+            onUpdate={setPattern}
+            selectedTags={selectedTags}
+            tagFilterMode={tagFilterMode}
+            tags={data?.pages.flatMap((dagResponse) => dagResponse.tags) ?? []}
+          />
+        </Box>
         <FavoriteFilter onFavoriteChange={handleFavoriteChange} showFavorites={showFavorites} />
-      </HStack>
+      </Flex>
       <Box>
         <ResetButton filterCount={filterCount} onClearFilters={onClearFilters} />
       </Box>
-    </HStack>
+    </Flex>
   );
 };

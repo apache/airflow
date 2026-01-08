@@ -57,6 +57,7 @@ export const TagFilter = ({
             }),
             container: (provided) => ({
               ...provided,
+              maxWidth: 300,
               minWidth: 64,
             }),
             control: (provided) => ({
