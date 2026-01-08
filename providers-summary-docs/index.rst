@@ -39,7 +39,7 @@ If you want to learn how to build your own custom provider, you can find all the
 .. note::
 
   The full list of all the community managed providers is available at
-  `Providers Index <https://airflow.apache.org/docs/#active-providers>`_.
+  `Providers Index <https://airflow.apache.org/docs/#providers-packages>`_.
 
   You can also see index of all the community provider's operators and hooks in
   :doc:`/operators-and-hooks-ref/index`
