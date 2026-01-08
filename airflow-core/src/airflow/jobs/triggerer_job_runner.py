@@ -694,13 +694,13 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
             )
             to_create: list[workloads.RunTrigger] = []
             # Add in new triggers
-            for new_id in new_trigger_ids:
+            for new_trigger_id in new_trigger_ids:
                 # Check it didn't vanish in the meantime
-                if new_id not in new_triggers:
-                    log.warning("Trigger disappeared before we could start it", id=new_id)
+                if new_trigger_id not in new_triggers:
+                    log.warning("Trigger disappeared before we could start it", id=new_trigger_id)
                     continue
 
-                new_trigger_orm = new_triggers[new_id]
+                new_trigger_orm = new_triggers[new_trigger_id]
 
                 # If the trigger is not associated to a task, an asset, or a callback, this means the TaskInstance
                 # row was updated by either Trigger.submit_event or Trigger.submit_failure
@@ -708,14 +708,14 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
                 # in a High-Availability setup.
                 if (
                     new_trigger_orm.task_instance is None
-                    and new_id not in trigger_ids_with_non_task_associations
+                    and new_trigger_id not in trigger_ids_with_non_task_associations
                 ):
                     log.info(
                         (
-                            "TaskInstance Trigger is None. It was likely updated by another trigger job. "
+                            "TaskInstance of Trigger is None. It was likely updated by another trigger job. "
                             "Skipping trigger instantiation."
                         ),
-                        id=new_id,
+                        id=new_trigger_id,
                     )
                     continue
 
