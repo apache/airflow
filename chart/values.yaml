@@ -825,9 +825,6 @@ workers:
     securityContexts:
       container: {}
 
-    # Container level lifecycle hooks
-    containerLifecycleHooks: {}
-
   # Kerberos sidecar configuration for Airflow Celery workers and pods created with pod-template-file
   kerberosSidecar:
     # Enable kerberos sidecar
