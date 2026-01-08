@@ -148,16 +148,7 @@ def upgrade():
         conn.execute(
             text("""
                 UPDATE xcom
-                SET value = CONVERT(
-                    REGEXP_REPLACE(
-                        CONVERT(value USING utf8mb4),
-                        '(:|,|\\\\[)[ ]*NaN[ ]*([,}\\]])',
-                        '\\\\1"nan"\\\\2',
-                        1,
-                        0,
-                        'c'
-                    ) USING BINARY
-                )
+                SET value = CONVERT(REGEXP_REPLACE(CONVERT(value USING utf8mb4), '[[:<:]]NaN[[:>:]]', '"nan"') USING BINARY)
                 WHERE value IS NOT NULL AND HEX(SUBSTRING(value, 1, 1)) != '80'
             """)
         )
