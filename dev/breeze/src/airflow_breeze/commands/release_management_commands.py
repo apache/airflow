@@ -1387,7 +1387,8 @@ def generate_constraints(
     action_branch: str,
     target_branch: str,
 ):
-    checkout_target_branch(target_branch=target_branch)
+    IF action_branch != target_branch:
+        checkout_target_branch(target_branch=target_branch)
     perform_environment_checks()
     check_remote_ghcr_io_commands()
     fix_ownership_using_docker()
