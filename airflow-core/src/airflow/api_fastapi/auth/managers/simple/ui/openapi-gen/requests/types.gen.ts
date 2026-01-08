@@ -37,98 +37,27 @@ export type ValidationError = {
 };
 
 export type CreateTokenData = {
-  /**
-   * Content-Type of the request body
-   */
-  contentType?: "application/json" | "application/x-www-form-urlencoded";
-  requestBody: LoginBody;
+  body: LoginBody;
+  headers?: {
+    /**
+     * Content-Type of the request body
+     */
+    "Content-Type"?: "application/json" | "application/x-www-form-urlencoded";
+  };
 };
 
 export type CreateTokenResponse = LoginResponse;
 
+export type CreateTokenError = HTTPExceptionResponse | HTTPValidationError;
+
 export type CreateTokenAllAdminsResponse = LoginResponse;
 
+export type CreateTokenAllAdminsError = HTTPExceptionResponse;
+
 export type CreateTokenCliData = {
-  requestBody: LoginBody;
+  body: LoginBody;
 };
 
 export type CreateTokenCliResponse = LoginResponse;
 
-export type $OpenApiTs = {
-  "/auth/token": {
-    post: {
-      req: CreateTokenData;
-      res: {
-        /**
-         * Successful Response
-         */
-        201: LoginResponse;
-        /**
-         * Bad Request
-         */
-        400: HTTPExceptionResponse;
-        /**
-         * Unauthorized
-         */
-        401: HTTPExceptionResponse;
-        /**
-         * Unsupported Media Type
-         */
-        415: HTTPExceptionResponse;
-        /**
-         * Validation Error
-         */
-        422: HTTPValidationError;
-      };
-    };
-    get: {
-      res: {
-        /**
-         * Successful Response
-         */
-        201: LoginResponse;
-        /**
-         * Forbidden
-         */
-        403: HTTPExceptionResponse;
-      };
-    };
-  };
-  "/auth/token/login": {
-    get: {
-      res: {
-        /**
-         * Successful Response
-         */
-        307: unknown;
-        /**
-         * Forbidden
-         */
-        403: HTTPExceptionResponse;
-      };
-    };
-  };
-  "/auth/token/cli": {
-    post: {
-      req: CreateTokenCliData;
-      res: {
-        /**
-         * Successful Response
-         */
-        201: LoginResponse;
-        /**
-         * Bad Request
-         */
-        400: HTTPExceptionResponse;
-        /**
-         * Unauthorized
-         */
-        401: HTTPExceptionResponse;
-        /**
-         * Validation Error
-         */
-        422: HTTPValidationError;
-      };
-    };
-  };
-};
+export type CreateTokenCliError = HTTPExceptionResponse | HTTPValidationError;

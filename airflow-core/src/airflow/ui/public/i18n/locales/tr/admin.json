@@ -49,6 +49,12 @@
     "searchPlaceholder": "Bağlantıları Ara",
     "test": "Bağlantıyı Test Et",
     "testDisabled": "Bağlantı test özelliği devre dışı. Etkinleştirmek için lütfen bir yönetici ile iletişime geçin.",
+    "testError": {
+      "title": "Bağlantı Testi Başarısız"
+    },
+    "testSuccess": {
+      "title": "Bağlantı Testi Başarılı"
+    },
     "typeMeta": {
       "error": "Bağlantı Tipi Meta verileri alınamadı",
       "standardFields": {

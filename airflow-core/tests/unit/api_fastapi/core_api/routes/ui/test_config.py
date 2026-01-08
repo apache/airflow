@@ -16,6 +16,8 @@
 # under the License.
 from __future__ import annotations
 
+import json
+
 import pytest
 
 from tests_common.test_utils.asserts import assert_queries_count
@@ -43,7 +45,7 @@ THEME = {
     }
 }
 
-mock_config_response = {
+expected_config_response = {
     "page_size": 100,
     "auto_refresh_interval": 3,
     "hide_paused_dags_by_default": True,
@@ -73,6 +75,7 @@ def mock_config_data():
             ("api", "default_wrap"): "false",
             ("api", "auto_refresh_interval"): "3",
             ("api", "require_confirmation_dag_change"): "false",
+            ("api", "theme"): json.dumps(THEME),
         }
     ):
         yield
@@ -81,13 +84,13 @@ def mock_config_data():
 class TestGetConfig:
     def test_should_response_200(self, mock_config_data, test_client):
         """
-        Test the /config endpoint to verify response matches mock data.
+        Test the /config endpoint to verify response matches the expected data.
         """
         with assert_queries_count(0):
             response = test_client.get("/config")
 
         assert response.status_code == 200
-        assert response.json() == mock_config_response
+        assert response.json() == expected_config_response
 
     def test_get_config_should_response_401(self, unauthenticated_test_client):
         response = unauthenticated_test_client.get("/config")
@@ -97,4 +100,4 @@ class TestGetConfig:
         """Just being authenticated is enough to access the endpoint."""
         response = unauthorized_test_client.get("/config")
         assert response.status_code == 200
-        assert response.json() == mock_config_response
+        assert response.json() == expected_config_response
