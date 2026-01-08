@@ -549,6 +549,14 @@ class SerializedDAG:
         """
         from airflow.models.dagrun import RUN_ID_REGEX
 
+        log.info(
+            "creating dag run",
+            run_after=run_after,
+            run_id=run_id,
+            logical_date=logical_date,
+            partition_key=partition_key,
+        )
+
         logical_date = coerce_datetime(logical_date)
         # For manual runs where logical_date is None, ensure no data_interval is set.
         if logical_date is None and data_interval is not None:

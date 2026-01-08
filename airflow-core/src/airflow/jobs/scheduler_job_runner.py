@@ -87,6 +87,7 @@ from airflow.observability.trace import DebugTrace, Trace, add_debug_span
 from airflow.serialization.definitions.assets import SerializedAssetUniqueKey
 from airflow.serialization.definitions.notset import NOTSET
 from airflow.ti_deps.dependencies_states import EXECUTION_STATES
+from airflow.timetables.base import DataInterval
 from airflow.timetables.simple import AssetTriggeredTimetable
 from airflow.timetables.trigger import CronPartitionTimetable
 from airflow.utils.dates import datetime_to_nano
@@ -1802,6 +1803,86 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         for b in backfills:
             b.completed_at = now
 
+    def _should_create(self, dag_model: DagModel, active_runs_of_dags, serdags, existing_dagruns):
+        self.log.info(
+            "evaluating dag for dagrun creation",
+            dag_id=dag_model.dag_id,
+            next_dagrun=str(dag_model.next_dagrun),
+        )
+        if dag_model.exceeds_max_non_backfill:
+            self.log.warning(
+                "Dag run cannot be created; max active runs exceeded.",
+                dag_id=dag_model.dag_id,
+                max_active_runs=dag_model.max_active_runs,
+                active_runs=active_runs_of_dags.get(dag_model.dag_id),
+            )
+            return False
+        if dag_model.next_dagrun is None:
+            self.log.error(
+                "dag_model.next_dagrun is None; expected datetime",
+                dag_id=dag_model.dag_id,
+            )
+            return False
+        if dag_model.next_dagrun_create_after is None:
+            self.log.error(
+                "dag_model.next_dagrun_create_after is None; expected datetime",
+                dag_id=dag_model.dag_id,
+            )
+            return False
+
+        serdag = serdags.get(dag_model.dag_id)
+        if not serdag:
+            self.log.error("Dag not found in serialized_dag table", dag_id=dag_model.dag_id)
+            return False
+
+        # Explicitly check if the DagRun already exists. This is an edge case
+        # where a Dag Run is created but `DagModel.next_dagrun` and `DagModel.next_dagrun_create_after`
+        # are not updated.
+        # We opted to check DagRun existence instead
+        # of catching an Integrity error and rolling back the session i.e
+        # todo: AIP-76 given that there is not constraint on partition date,
+        #   how do we ensure that two schedulers don't create more than one
+        #   run for the same partition at the same time?
+        #   it will have to be governed by dag_next.dagrun; if this value
+        #   gets updated in the same commit as the dagrun creation, then,
+        #   given that dagrun creation always locks the dag model, then it
+        #   should not be possible.
+        # TODO: AIP-76 May need to simply update the existing dagruns logic!
+        #  but why is it trying to create these?
+        if dr := existing_dagruns.get((dag_model.dag_id, dag_model.next_dagrun)):
+            self.log.warning(
+                "run already exists; skipping dagrun creation",
+                dag_id=dag_model.dag_id,
+                logical_date=dag_model.next_dagrun,
+            )
+            dag_model.calculate_dagrun_date_fields(dag=serdag, last_automated_run=dr)
+            return False
+
+        return True
+
+    def _get_existing_dagruns(self, session: Session, dags):
+        # Bulk Fetch DagRuns with dag_id and logical_date same
+        # as DagModel.dag_id and DagModel.next_dagrun
+        # This list is used to verify if the DagRun already exist so that we don't attempt to create
+        # duplicate DagRuns
+        expect_to_create = {(dm.dag_id, dm.next_dagrun) for dm in non_partitioned_dags}
+        existing_dagrun_objects = (
+            session.scalars(
+                select(DagRun)
+                .where(tuple_(DagRun.dag_id, DagRun.logical_date).in_(expect_to_create))
+                .options(load_only(DagRun.dag_id, DagRun.logical_date))
+            )
+            .unique()
+            .all()
+        )
+        existing_dagruns = {(x.dag_id, x.logical_date): x for x in existing_dagrun_objects}
+        self.log.info("existing_dagruns", existing_dagruns=existing_dagruns.keys())
+        # todo: AIP-76 we may want to update this to handle partitions
+        #  but the thing is, there is not actually a restriction that
+        #  we don't create new runs with the same partition key
+        #  so it's unclear whether we should / need to.
+        return existing_dagruns
+
     @add_debug_span
     def _create_dag_runs(self, dag_models: Collection[DagModel], session: Session) -> None:
         """Create a DAG run and update the dag_model to control if/when the next DAGRun should be created."""
@@ -1825,156 +1906,93 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         dag_run_create_num += 1
         self.log.info("starting dag_run create", dag_run_create_num=dag_run_create_num, dag_models=dag_models)
 
-        # Bulk Fetch DagRuns with dag_id and logical_date same
-        # as DagModel.dag_id and DagModel.next_dagrun
-        # This list is used to verify if the DagRun already exist so that we don't attempt to create
-        # duplicate DagRuns
-        expect_to_create = {(dm.dag_id, dm.next_dagrun) for dm in non_partitioned_dags}
-        existing_dagrun_objects = (
-            session.scalars(
-                select(DagRun)
-                .where(tuple_(DagRun.dag_id, DagRun.logical_date).in_(expect_to_create))
-                .options(load_only(DagRun.dag_id, DagRun.logical_date))
-            )
-            .unique()
-            .all()
-        )
-        existing_dagruns = {(x.dag_id, x.logical_date) for x in existing_dagrun_objects}
-        self.log.info("existing_dagruns", existing_dagruns=existing_dagruns)
-        # todo: AIP-76 we may want to update this to handle partitions
-        #  but the thing is, there is not actually a restriction that
-        #  we don't create new runs with the same partition key
-        #  so it's unclear whether we should / need to.
-
         # backfill runs are not created by scheduler and their concurrency is separate
         # so we exclude them here
-        dag_ids = (dm.dag_id for dm in dag_models)
         active_runs_of_dags = Counter(
             DagRun.active_runs_of_dags(
-                dag_ids=dag_ids,
+                dag_ids=(dm.dag_id for dm in dag_models),
                 exclude_backfill=True,
                 session=session,
             )
         )
-        runs_created: dict[str, DagRun] = {}
+        existing_dagruns = self._get_existing_dagruns(session=session, dags=non_partitioned_dags)
+
         for dag_model in dag_models:
-            self.log.info(
-                "evaluating dag for dagrun creation",
-                dag_id=dag_model.dag_id,
-                next_dagrun=str(dag_model.next_dagrun),
-            )
-            if dag_model.exceeds_max_non_backfill:
-                self.log.warning(
-                    "Dag run cannot be created; max active runs exceeded.",
-                    dag_id=dag_model.dag_id,
-                    max_active_runs=dag_model.max_active_runs,
-                    active_runs=active_runs_of_dags.get(dag_model.dag_id),
-                )
-                continue
-            if dag_model.next_dagrun is None:
-                self.log.error(
-                    "dag_model.next_dagrun is None; expected datetime",
-                    dag_id=dag_model.dag_id,
-                )
-                continue
-            if dag_model.next_dagrun_create_after is None:
-                self.log.error(
-                    "dag_model.next_dagrun_create_after is None; expected datetime",
-                    dag_id=dag_model.dag_id,
-                )
-                continue
-
-            serdag = serdags.get(dag_model.dag_id)
-            if not serdag:
-                self.log.error("Dag not found in serialized_dag table", dag_id=dag_model.dag_id)
-                continue
-
-            # Explicitly check if the DagRun already exists. This is an edge case
-            # where a Dag Run is created but `DagModel.next_dagrun` and `DagModel.next_dagrun_create_after`
-            # are not updated.
-            # We opted to check DagRun existence instead
-            # of catching an Integrity error and rolling back the session i.e
-            data_interval = None
-            if (dag_model.dag_id, dag_model.next_dagrun) not in existing_dagruns:
-                # todo: AIP-76 given that there is not constraint on partition date,
-                #   how do we ensure that two schedulers don't create more than one
-                #   run for the same partition at the same time?
-                #   it will have to be governed by dag_next.dagrun; if this value
-                #   gets updated in the same commit as the dagrun creation, then,
-                #   given that dagrun creation always locks the dag model, then it
-                #   should not be possible.
-
-                # TODO: AIP-76 May need to simply update the existing dagruns logic!
-                #  but why is it trying to create these?
-                partition_key = None
-                if serdag.dag_id in partitioned_dags:
-                    # todo: AIP-76 how will this work with segment-driven partition schemes?
-                    #  will we still use next_dagrun?
-                    #  maybe we will need `next_partition_key` instead?
-                    info = serdag.timetable.get_partition_dagrun_info(partition_date=dag_model.next_dagrun)
-                    partition_key = info.partition_key
-                    data_interval = info.data_interval
-                    logical_date = info.logical_date
-                else:
-                    data_interval = get_next_data_interval(serdag.timetable, dag_model)
-                    logical_date = None if partition_key else dag_model.next_dagrun
-                try:
-                    self.log.info(
-                        "trying to create",
-                        data_interval=data_interval,
-                        next_dagrun=dag_model.next_dagrun,
-                    )
-                    run_after = timezone.coerce_datetime(dag_model.next_dagrun)
-                    run_id = serdag.timetable.generate_run_id(
-                        run_type=DagRunType.SCHEDULED,
-                        run_after=run_after,
-                        data_interval=data_interval,
-                        partition_key=partition_key,
-                    )
-                    self.log.info(
-                        "creating dag run",
-                        run_after=run_after,
-                        run_id=run_id,
-                        logical_date=logical_date,
-                        partition_key=partition_key,
-                    )
-                    dr = serdag.create_dagrun(
-                        run_id=run_id,
-                        logical_date=logical_date,
-                        data_interval=data_interval,
-                        run_after=dag_model.next_dagrun_create_after,
-                        run_type=DagRunType.SCHEDULED,
-                        triggered_by=DagRunTriggeredByType.TIMETABLE,
-                        state=DagRunState.QUEUED,
-                        creating_job_id=self.job.id,
-                        session=session,
-                        partition_key=partition_key,
-                    )
-                    runs_created[dr.dag_id] = dr
-                    active_runs_of_dags[serdag.dag_id] += 1
-
-                # Exceptions like ValueError, ParamValidationError, etc. are raised by
-                # DagModel.create_dagrun() when dag is misconfigured. The scheduler should not
-                # crash due to misconfigured dags. We should log any exception encountered
-                # and continue to the next serdag.
-                except Exception:
-                    self.log.exception("Failed creating DagRun for %s", serdag.dag_id)
-                    # todo: if you get a database error here, continuing does not work because
-                    #  session needs rollback. you need either to make smaller transactions and
-                    #  commit after every dag run or use savepoints.
-                    #  https://github.com/apache/airflow/issues/59120
+            try:
+                if not self._should_create(
+                    dag_model=dag_model,
+                    active_runs_of_dags=active_runs_of_dags,
+                    serdags=serdags,
+                    existing_dagruns=existing_dagruns,
+                ):
                     continue
 
-            self._set_exceeds_max_active_runs(
-                dag_model=dag_model,
-                session=session,
-                active_non_backfill_runs=active_runs_of_dags[serdag.dag_id],
-            )
-            dag_model.calculate_dagrun_date_fields(dag=serdag, last_automated_dag_run=data_interval)
+                data_interval, partition_key, logical_date = self._next_run_info(
+                    dag_model=dag_model,
+                    partitioned_dags=partitioned_dags,
+                    serdag=serdag,
+                )
+                run_after = timezone.coerce_datetime(dag_model.next_dagrun)
+                if TYPE_CHECKING:
+                    assert isinstance(dag_model.next_dagrun, DateTime)
+                    assert isinstance(run_after, DateTime)
+                dr = serdag.create_dagrun(
+                    run_id=serdag.timetable.generate_run_id(
+                        run_type=DagRunType.SCHEDULED,
+                        run_after=run_after,
+                        data_interval=data_interval,
+                        partition_key=partition_key,
+                    ),
+                    logical_date=logical_date,
+                    data_interval=data_interval,
+                    run_after=dag_model.next_dagrun_create_after,  # todo: AIP-76 why is this different from L1907
+                    run_type=DagRunType.SCHEDULED,
+                    triggered_by=DagRunTriggeredByType.TIMETABLE,
+                    state=DagRunState.QUEUED,
+                    creating_job_id=self.job.id,
+                    session=session,
+                    partition_key=partition_key,
+                )
+                active_runs_of_dags[serdag.dag_id] += 1
+                dag_model.calculate_dagrun_date_fields(dag=serdag, last_automated_run=dr)
+                self._set_exceeds_max_active_runs(
+                    dag_model=dag_model,
+                    session=session,
+                    active_non_backfill_runs=active_runs_of_dags[serdag.dag_id],
+                )
+            # Exceptions like ValueError, ParamValidationError, etc. are raised by
+            # DagModel.create_dagrun() when dag is misconfigured. The scheduler should not
+            # crash due to misconfigured dags. We should log any exception encountered
+            # and continue to the next serdag.
+            except Exception:
+                self.log.exception("Failed creating DagRun for %s", serdag.dag_id)
+                # todo: if you get a database error here, continuing does not work because
+                #  session needs rollback. you need either to make smaller transactions and
+                #  commit after every dag run or use savepoints.
+                #  https://github.com/apache/airflow/issues/59120
 
-        # TODO[HA]: Should we do a session.flush() so we don't have to keep lots of state/object in
-        #  memory for larger dags? or expunge_all()
-        self.log.info("end dagrun_create", dag_run_create_num=dag_run_create_num)
+            # TODO[HA]: Should we do a session.flush() so we don't have to keep lots of state/object in
+            #  memory for larger dags? or expunge_all()
+
+    def _next_run_info(
+        self,
+        dag_model: DagModel,
+        partitioned_dags: set[Any],
+        serdag: SerializedDagModel,
+    ) -> tuple[DataInterval | None, str | None, DateTime | None]:
+        partition_key = None
+        if serdag.dag_id in partitioned_dags:
+            # todo: AIP-76 how will this work with segment-driven partition schemes?
+            #  will we still use next_dagrun?
+            #  maybe we will need `next_partition_key` instead?
+            info = serdag.timetable.get_partition_dagrun_info(partition_date=dag_model.next_dagrun)
+            partition_key = info.partition_key
+            data_interval = info.data_interval
+            logical_date = info.logical_date
+        else:
+            data_interval = get_next_data_interval(serdag.timetable, dag_model)
+            logical_date = dag_model.next_dagrun
+        return data_interval, partition_key, logical_date
 
     def _create_dag_runs_asset_triggered(
         self,
@@ -2113,7 +2131,6 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         #     dag_model.next_dagrun_create_after = None
         #     return False
         # return True
-
 
     def _lock_backfills(self, dag_runs: Collection[DagRun], session: Session) -> dict[int, Backfill]:
         """
