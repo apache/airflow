@@ -52,8 +52,12 @@ on:  # yamllint disable-line rule:truthy
         description: "Whether to use uvloop (true/false)"
         required: true
         type: string
-      branch:
+      action-branch:
         description: "Branch used to run the CI jobs in (main/v*_*_test)."
+        required: true
+        type: string
+      target-branch:
+        description: "Branch used to construct constraints URL from."
         required: true
         type: string
 jobs:
@@ -82,14 +86,14 @@ jobs:
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
         with:
           persist-credentials: false
-      - name: "Prepare breeze & CI image: ${{ matrix.python-version }}:${{ inputs.branch }}"
+      - name: "Prepare breeze & CI image: ${{ matrix.python-version }}:${{ inputs.action-branch }}"
         uses: ./.github/actions/prepare_breeze_and_image
         with:
           platform: ${{ inputs.platform }}
           python: ${{ matrix.python-version }}
           use-uv: ${{ inputs.use-uv }}
           make-mnt-writeable-and-cleanup: true
-          branch: ${{ inputs.branch }}
+          branch: ${{ inputs.action-branch }}
       - name: "Source constraints"
         shell: bash
         run: >
@@ -97,8 +101,8 @@ jobs:
           --airflow-constraints-mode constraints-source-providers --answer yes --python "${PYTHON_VERSION}"
           --target-branch "${{ TARGET_BRANCH }}" --action-branch "${{ ACTION_BRANCH }}"
         env:
-          TARGET_BRANCH: ${{ github.base_ref }}
-          ACTION_BRANCH: ${{ inputs.branch }}
+          TARGET_BRANCH: ${{ inputs.target-branch }}
+          ACTION_BRANCH: ${{ inputs.action-branch }}
       - name: "No providers constraints"
         shell: bash
         timeout-minutes: 25
@@ -108,7 +112,7 @@ jobs:
           --target-branch "${{ TARGET_BRANCH }}" --action-branch "${{ ACTION_BRANCH }}"
         env:
           TARGET_BRANCH: ${{ github.base_ref }}
-          ACTION_BRANCH: ${{ inputs.branch }}
+          ACTION_BRANCH: ${{ inputs.action-branch }}
         if: inputs.generate-no-providers-constraints == 'true'
       - name: "Prepare updated provider distributions"
         shell: bash
@@ -138,12 +142,12 @@ jobs:
           --action-branch "${{ ACTION_BRANCH }}"
         env:
           TARGET_BRANCH: ${{ github.base_ref }}
-          ACTION_BRANCH: ${{ inputs.branch }}
+          ACTION_BRANCH: ${{ inputs.action-branch }}
         if: inputs.generate-pypi-constraints == 'true'
       - name: "Upload constraint artifacts non-default branches"
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4.6.2
         with:
-          name: constraints-${{ matrix.python-version }}-${{ inputs.branch }}
+          name: constraints-${{ matrix.python-version }}-${{ inputs.action-branch }}
           path: ./files/constraints-${{ matrix.python-version }}/constraints-*.txt
           retention-days: 7
           if-no-files-found: error
