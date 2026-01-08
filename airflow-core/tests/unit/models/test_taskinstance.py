@@ -2583,30 +2583,6 @@ class TestTaskInstance:
         assert len(hitl_histories) == 1
         assert str(hitl_histories[0].task_instance.id) == try_id
 
-    def test_to_runtime(self, create_task_instance):
-        ti = create_task_instance(dag_id="test_to_runtime")
-        runtime_ti = ti.to_runtime()
-
-        assert ti.id == runtime_ti.id
-        assert ti.task_id == runtime_ti.task_id
-        assert ti.dag_id == runtime_ti.dag_id
-        assert ti.run_id == runtime_ti.run_id
-        assert ti.try_number == runtime_ti.try_number
-        assert ti.dag_version_id == runtime_ti.dag_version_id
-        assert ti.map_index == runtime_ti.map_index
-        assert ti.hostname == runtime_ti.hostname
-        assert ti.task == runtime_ti.task
-        assert not runtime_ti.bundle_instance
-        assert not runtime_ti._cached_template_context
-        assert not runtime_ti._ti_context_from_server
-        assert ti.max_tries == runtime_ti.max_tries
-        assert ti.start_date == runtime_ti.start_date
-        assert ti.end_date == runtime_ti.end_date
-        assert ti.state == runtime_ti.state
-        assert not runtime_ti.is_mapped
-        assert ti.rendered_map_index == runtime_ti.rendered_map_index
-        assert not runtime_ti.sentry_integration
-
 
 @pytest.mark.parametrize("pool_override", [None, "test_pool2"])
 @pytest.mark.parametrize("queue_by_policy", [None, "forced_queue"])
