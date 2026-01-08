@@ -168,7 +168,6 @@ CI_IMAGE_TOOLS_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--github-repository",
                 "--image-file",
                 "--image-file-dir",
-                "--action-branch",
             ],
         },
     ],

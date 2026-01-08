@@ -81,5 +81,17 @@ runs:
         ACTION_BRANCH: ${{ inputs.branch }}
       run: |
         breeze ${IMAGE_TYPE}-image load --platform "${PLATFORM}" --python "${PYTHON}" \
+        --image-file-dir "/mnt"
+      if: inputs.branch != 'main' || (inputs.branch == 'main' && inputs.image-type == 'ci')
+      shell: bash
+    - name: "Load ${{ inputs.image-type }} image ${{ inputs.platform }}:${{ inputs.python }}"
+      env:
+        PLATFORM: ${{ inputs.platform }}
+        PYTHON: ${{ inputs.python }}
+        IMAGE_TYPE: ${{ inputs.image-type }}
+        ACTION_BRANCH: ${{ inputs.branch }}
+      run: |
+        breeze ${IMAGE_TYPE}-image load --platform "${PLATFORM}" --python "${PYTHON}" \
         --image-file-dir "/mnt" --action-branch "${ACTION_BRANCH}"
+      if: inputs.branch == 'main' && inputs.image-type == 'prod'
       shell: bash

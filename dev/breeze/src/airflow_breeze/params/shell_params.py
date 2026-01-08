@@ -249,6 +249,8 @@ class ShellParams:
     verbose_commands: bool = False
     version_suffix: str = ""
     warn_image_upgrade_needed: bool = False
+    use_image_from_action_branch: bool = False
+    action_branch: str = os.environ.get("GITHUB_REF_NAME", "main")
 
     def clone_with_test(self, test_type: str) -> ShellParams:
         new_params = deepcopy(self)
@@ -286,7 +288,7 @@ class ShellParams:
     @cached_property
     def airflow_image_name(self) -> str:
         """Construct CI image link"""
-        image = f"{self.airflow_base_image_name}/{self.airflow_branch}/ci/python{self.python}"
+        image = f"{self.airflow_base_image_name}/{self.action_branch if self.use_image_from_action_branch else self.airflow_branch}/ci/python{self.python}"
         return image
 
     @cached_property

@@ -47,6 +47,7 @@ from airflow_breeze.branch_defaults import AIRFLOW_BRANCH
 from airflow_breeze.commands.ci_image_commands import rebuild_or_pull_ci_image_if_needed
 from airflow_breeze.commands.common_options import (
     argument_doc_packages,
+    option_action_branch,
     option_airflow_extras,
     option_allow_pre_releases,
     option_answer,
@@ -1367,6 +1368,7 @@ def tag_providers(
 @option_airflow_constraints_mode_ci
 @option_github_repository
 @option_use_uv
+@option_action_branch
 @option_verbose
 @option_dry_run
 @option_answer
@@ -1380,6 +1382,7 @@ def generate_constraints(
     run_in_parallel: bool,
     skip_cleanup: bool,
     use_uv: bool,
+    action_branch: str,
 ):
     perform_environment_checks()
     check_remote_ghcr_io_commands()
