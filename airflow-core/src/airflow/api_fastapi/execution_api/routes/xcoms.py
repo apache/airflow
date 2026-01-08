@@ -32,7 +32,6 @@ from airflow.api_fastapi.execution_api.datamodels.xcom import (
     XComSequenceIndexResponse,
     XComSequenceSliceResponse,
 )
-from airflow.api_fastapi.execution_api.datamodels.token import TIToken
 from airflow.api_fastapi.execution_api.deps import JWTBearerDep
 from airflow.models import TaskInstance
 from airflow.models.taskmap import TaskMap
@@ -49,7 +48,7 @@ async def has_xcom_access(
     task_id: str,
     xcom_key: Annotated[str, Path(alias="key", min_length=1)],
     request: Request,
-    token: TIToken = JWTBearerDep,
+    token=JWTBearerDep,
 ) -> None:
     """Check if the task has access to the XCom."""
     # We want to ensure that the task instance identified by the token

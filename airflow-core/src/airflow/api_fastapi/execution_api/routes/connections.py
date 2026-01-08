@@ -24,7 +24,6 @@ from fastapi import APIRouter, Depends, HTTPException, Path, status
 
 from airflow.api_fastapi.common.db.common import AsyncSessionDep
 from airflow.api_fastapi.execution_api.datamodels.connection import ConnectionResponse
-from airflow.api_fastapi.execution_api.datamodels.token import TIToken
 from airflow.api_fastapi.execution_api.deps import JWTBearerDep, get_team_name_dep
 from airflow.configuration import conf
 from airflow.exceptions import AirflowNotFoundException
@@ -36,7 +35,7 @@ log = logging.getLogger(__name__)
 async def has_connection_access(
     session: AsyncSessionDep,
     connection_id: str = Path(),
-    token: TIToken = JWTBearerDep,
+    token=JWTBearerDep,
 ) -> None:
     """Check if the task has access to the connection."""
     if not conf.getboolean("core", "multi_team"):

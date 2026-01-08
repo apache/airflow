@@ -24,7 +24,6 @@ from fastapi import APIRouter, Depends, HTTPException, Path, Request, status
 
 from airflow.api_fastapi.common.db.common import AsyncSessionDep
 from airflow.api_fastapi.execution_api.datamodels.variable import VariableResponse, VariablePostBody
-from airflow.api_fastapi.execution_api.datamodels.token import TIToken
 from airflow.api_fastapi.execution_api.deps import JWTBearerDep, get_team_name_dep
 from airflow.configuration import conf
 from airflow.models.variable import Variable
@@ -35,7 +34,7 @@ log = logging.getLogger(__name__)
 async def has_variable_access(
     session: AsyncSessionDep,
     variable_key: str = Path(),
-    token: TIToken = JWTBearerDep,
+    token=JWTBearerDep,
 ) -> None:
     """Check if the task has access to the variable."""
     if not conf.getboolean("core", "multi_team"):
