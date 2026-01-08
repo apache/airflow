@@ -26,20 +26,47 @@ class TestWorker:
     """Tests worker."""
 
     @pytest.mark.parametrize(
-        ("executor", "persistence", "kind"),
+        ("executor", "workers_values", "kind"),
         [
-            ("CeleryExecutor", False, "Deployment"),
-            ("CeleryExecutor", True, "StatefulSet"),
-            ("CeleryKubernetesExecutor", False, "Deployment"),
-            ("CeleryKubernetesExecutor", True, "StatefulSet"),
+            # Test workers.celery.persistence.enabled flag
+            ("CeleryExecutor", {"celery": {"persistence": {"enabled": False}}}, "Deployment"),
+            ("CeleryExecutor", {"celery": {"persistence": {"enabled": True}}}, "StatefulSet"),
+            ("CeleryKubernetesExecutor", {"celery": {"persistence": {"enabled": False}}}, "Deployment"),
+            ("CeleryKubernetesExecutor", {"celery": {"persistence": {"enabled": True}}}, "StatefulSet"),
+            # Test workers.persistence.enabled flag when celery one is default (expected no impact on kind)
+            ("CeleryExecutor", {"persistence": {"enabled": False}}, "StatefulSet"),
+            ("CeleryExecutor", {"persistence": {"enabled": True}}, "StatefulSet"),
+            ("CeleryKubernetesExecutor", {"persistence": {"enabled": False}}, "StatefulSet"),
+            ("CeleryKubernetesExecutor", {"persistence": {"enabled": True}}, "StatefulSet"),
+            # Test workers.persistence.enabled flag when celery one is unset
+            (
+                "CeleryExecutor",
+                {"persistence": {"enabled": False}, "celery": {"persistence": {"enabled": None}}},
+                "Deployment",
+            ),
+            (
+                "CeleryExecutor",
+                {"persistence": {"enabled": True}, "celery": {"persistence": {"enabled": None}}},
+                "StatefulSet",
+            ),
+            (
+                "CeleryKubernetesExecutor",
+                {"persistence": {"enabled": False}, "celery": {"persistence": {"enabled": None}}},
+                "Deployment",
+            ),
+            (
+                "CeleryKubernetesExecutor",
+                {"persistence": {"enabled": True}, "celery": {"persistence": {"enabled": None}}},
+                "StatefulSet",
+            ),
         ],
     )
-    def test_worker_kind(self, executor, persistence, kind):
+    def test_worker_kind(self, executor, workers_values, kind):
         """Test worker kind is StatefulSet when worker persistence is enabled."""
         docs = render_chart(
             values={
                 "executor": executor,
-                "workers": {"persistence": {"enabled": persistence}},
+                "workers": workers_values,
             },
             show_only=["templates/workers/worker-deployment.yaml"],
         )
@@ -124,16 +151,33 @@ class TestWorker:
             "image": "test-registry/test-repo:test-tag",
         }
 
-    def test_persistent_volume_claim_retention_policy(self):
+    @pytest.mark.parametrize(
+        "workers_values",
+        [
+            {
+                "persistence": {"persistentVolumeClaimRetentionPolicy": {"whenDeleted": "Delete"}},
+                "celery": {"enabled": True},
+            },
+            {
+                "celery": {
+                    "enabled": True,
+                    "persistence": {"persistentVolumeClaimRetentionPolicy": {"whenDeleted": "Delete"}},
+                }
+            },
+            {
+                "persistence": {"persistentVolumeClaimRetentionPolicy": {"whenDeleted": "Retain"}},
+                "celery": {
+                    "enabled": True,
+                    "persistence": {"persistentVolumeClaimRetentionPolicy": {"whenDeleted": "Delete"}},
+                },
+            },
+        ],
+    )
+    def test_persistent_volume_claim_retention_policy(self, workers_values):
         docs = render_chart(
             values={
                 "executor": "CeleryExecutor",
-                "workers": {
-                    "persistence": {
-                        "enabled": True,
-                        "persistentVolumeClaimRetentionPolicy": {"whenDeleted": "Delete"},
-                    }
-                },
+                "workers": workers_values,
             },
             show_only=["templates/workers/worker-deployment.yaml"],
         )
@@ -359,7 +403,7 @@ class TestWorker:
             values={
                 "executor": "CeleryExecutor",
                 "workers": {
-                    "persistence": {"enabled": persistence},
+                    "celery": {"persistence": {"enabled": persistence}},
                     "updateStrategy": update_strategy,
                 },
             },
@@ -384,7 +428,7 @@ class TestWorker:
         docs = render_chart(
             values={
                 "executor": "CeleryExecutor",
-                "workers": {"persistence": {"enabled": persistence}, "strategy": strategy},
+                "workers": {"celery": {"persistence": {"enabled": persistence}}, "strategy": strategy},
             },
             show_only=["templates/workers/worker-deployment.yaml"],
         )
@@ -734,7 +778,7 @@ class TestWorker:
         docs = render_chart(
             values={
                 "executor": "CeleryExecutor",
-                "workers": {"persistence": {"enabled": False}},
+                "workers": {"celery": {"persistence": {"enabled": False}}},
                 "logs": log_values,
             },
             show_only=["templates/workers/worker-deployment.yaml"],
@@ -845,7 +889,7 @@ class TestWorker:
                 "airflowVersion": airflow_version,
                 "workers": {
                     "kerberosInitContainer": {"enabled": init_container_enabled},
-                    "persistence": {"fixPermissions": True},
+                    "celery": {"persistence": {"fixPermissions": True}},
                 },
             },
             show_only=["templates/workers/worker-deployment.yaml"],
@@ -967,9 +1011,20 @@ class TestWorker:
             c["name"] for c in jmespath.search("spec.template.spec.initContainers", docs[0])
         ]
 
-    def test_persistence_volume_annotations(self):
+    @pytest.mark.parametrize(
+        "workers_values",
+        [
+            {"persistence": {"annotations": {"foo": "bar"}}},
+            {"celery": {"persistence": {"annotations": {"foo": "bar"}}}},
+            {
+                "persistence": {"annotations": {"a": "b"}},
+                "celery": {"persistence": {"annotations": {"foo": "bar"}}},
+            },
+        ],
+    )
+    def test_persistence_volume_annotations(self, workers_values):
         docs = render_chart(
-            values={"workers": {"persistence": {"annotations": {"foo": "bar"}}}},
+            values={"workers": workers_values},
             show_only=["templates/workers/worker-deployment.yaml"],
         )
         assert jmespath.search("spec.volumeClaimTemplates[0].metadata.annotations", docs[0]) == {"foo": "bar"}
@@ -1185,7 +1240,7 @@ class TestWorker:
             values={
                 "executor": "CeleryExecutor",
                 "workers": {
-                    "persistence": {"enabled": True},
+                    "celery": {"persistence": {"enabled": True}},
                     "volumeClaimTemplates": [
                         {
                             "metadata": {"name": "data"},
@@ -1297,7 +1352,7 @@ class TestWorker:
         Test the conditional logic for volumeClaimTemplates creation.
 
         This test verifies that volumeClaimTemplates are created correctly based on:
-        - workers.persistence.enabled (must be true for StatefulSet)
+        - workers.celery.persistence.enabled (must be true for StatefulSet)
         - logs.persistence.enabled (affects whether logs is a template or regular PVC)
         - Custom volumeClaimTemplates provided (should always create section if provided)
         """
@@ -1305,7 +1360,7 @@ class TestWorker:
             values={
                 "executor": "CeleryExecutor",
                 "workers": {
-                    "persistence": {"enabled": workers_persistence_enabled},
+                    "celery": {"persistence": {"enabled": workers_persistence_enabled}},
                     "volumeClaimTemplates": custom_templates,
                 },
                 "logs": {
@@ -1368,9 +1423,20 @@ class TestWorker:
         else:
             assert jmespath.search("spec.template.metadata.annotations.scope", docs[0]) is None
 
-    def test_worker_template_storage_class_name(self):
+    @pytest.mark.parametrize(
+        "workers_values",
+        [
+            {"persistence": {"storageClassName": "{{ .Release.Name }}-storage-class"}},
+            {"celery": {"persistence": {"storageClassName": "{{ .Release.Name }}-storage-class"}}},
+            {
+                "persistence": {"storageClassName": "{{ .Release.Name }}"},
+                "celery": {"persistence": {"storageClassName": "{{ .Release.Name }}-storage-class"}},
+            },
+        ],
+    )
+    def test_worker_template_storage_class_name(self, workers_values):
         docs = render_chart(
-            values={"workers": {"persistence": {"storageClassName": "{{ .Release.Name }}-storage-class"}}},
+            values={"workers": workers_values},
             show_only=["templates/workers/worker-deployment.yaml"],
         )
         assert (
@@ -1395,6 +1461,69 @@ class TestWorker:
         )
 
         assert expected == jmespath.search("spec.replicas", docs[0])
+
+    @pytest.mark.parametrize(
+        "workers_values",
+        [
+            {"persistence": {"size": "50Gi"}, "celery": {"persistence": {"size": None}}},
+            {"celery": {"persistence": {"size": "50Gi"}}},
+            {"persistence": {"size": "10Gi"}, "celery": {"persistence": {"size": "50Gi"}}},
+        ],
+    )
+    def test_template_storage_size(self, workers_values):
+        docs = render_chart(
+            values={
+                "workers": workers_values,
+                "logs": {"persistence": {"enabled": False}},
+            },
+            show_only=["templates/workers/worker-deployment.yaml"],
+        )
+
+        assert (
+            jmespath.search("spec.volumeClaimTemplates[0].spec.resources.requests.storage", docs[0]) == "50Gi"
+        )
+
+    @pytest.mark.parametrize(
+        "workers_values",
+        [
+            {"persistence": {"fixPermissions": True}, "celery": {"persistence": {"fixPermissions": None}}},
+            {"celery": {"persistence": {"fixPermissions": True}}},
+            {"persistence": {"fixPermissions": False}, "celery": {"persistence": {"fixPermissions": True}}},
+        ],
+    )
+    def test_init_container_volume_permissions_exist(self, workers_values):
+        docs = render_chart(
+            values={
+                "workers": workers_values,
+            },
+            show_only=["templates/workers/worker-deployment.yaml"],
+        )
+
+        assert (
+            len(jmespath.search("spec.template.spec.initContainers[?name=='volume-permissions']", docs[0]))
+            == 1
+        )
+
+    @pytest.mark.parametrize(
+        "workers_values",
+        [
+            {"persistence": {"fixPermissions": False}, "celery": {"persistence": {"fixPermissions": None}}},
+            {"celery": {"persistence": {"fixPermissions": False}}},
+            {"persistence": {"fixPermissions": True}, "celery": {"persistence": {"fixPermissions": False}}},
+        ],
+    )
+    def test_init_container_volume_permissions_not_exist(self, workers_values):
+        docs = render_chart(
+            values={
+                "workers": workers_values,
+            },
+            show_only=["templates/workers/worker-deployment.yaml"],
+        )
+
+        assert (
+            len(jmespath.search("spec.template.spec.initContainers[?name=='volume-permissions']", docs[0]))
+            == 0
+        )
 
 
 class TestWorkerLogGroomer(LogGroomerTestBase):
