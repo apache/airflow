@@ -18,7 +18,6 @@ from __future__ import annotations
 
 import pytest
 
-from airflow.listeners.listener import get_listener_manager
 from airflow.models.asset import AssetModel
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.sdk.definitions.asset import Asset
@@ -28,19 +27,18 @@ from unit.listeners import asset_listener
 
 
 @pytest.fixture(autouse=True)
-def clean_listener_manager():
-    lm = get_listener_manager()
-    lm.clear()
-    lm.add_listener(asset_listener)
+def clean_listener_state():
+    """Clear listener state after each test."""
     yield
-    lm = get_listener_manager()
-    lm.clear()
     asset_listener.clear()
 
 
 @pytest.mark.db_test
 @provide_session
-def test_asset_listener_on_asset_changed_gets_calls(create_task_instance_of_operator, session):
+def test_asset_listener_on_asset_changed_gets_calls(
+    create_task_instance_of_operator, session, listener_manager
+):
+    listener_manager(asset_listener)
     asset_uri = "test://asset/"
     asset_name = "test_asset_uri"
     asset_group = "test-group"
