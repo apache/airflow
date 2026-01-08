@@ -76,6 +76,35 @@ def get_bundle_version_path(bundle_name: str, version: str) -> Path:
     return base_folder / version
 
 
+def get_bundle_permissions() -> tuple[int, int]:
+    """
+    Return configured permissions for bundle directories and files.
+
+    When using user impersonation (run_as_user), bundle directories and files
+    should be group-writable so that impersonated users can access them.
+
+    :return: Tuple of (folder_permissions, file_permissions) as integers
+    """
+    # Fallback needed for backward compatibility with old config files
+    folder_perms = int(conf.get("dag_processor", "dag_bundle_new_folder_permissions", fallback="0o775"), 8)
+    file_perms = int(conf.get("dag_processor", "dag_bundle_new_file_permissions", fallback="0o664"), 8)
+    return folder_perms, file_perms
+
+
+def apply_bundle_permissions(path: Path, is_directory: bool = True) -> None:
+    """
+    Apply configured bundle permissions to a path.
+
+    :param path: The path to apply permissions to
+    :param is_directory: Whether the path is a directory (True) or file (False)
+    """
+    folder_perms, file_perms = get_bundle_permissions()
+    try:
+        path.chmod(folder_perms if is_directory else file_perms)
+    except OSError:
+        log.debug("Could not set permissions on %s", path)
+
+
 @dataclass(frozen=True)
 class TrackedBundleVersionInfo:
     """
@@ -377,9 +406,11 @@ class BaseDagBundle(ABC):
 
         lock_dir_path = get_bundle_storage_root_path() / "_locks"
         lock_dir_path.mkdir(parents=True, exist_ok=True)
+        apply_bundle_permissions(lock_dir_path, is_directory=True)
         lock_file_path = lock_dir_path / f"{self.name}.lock"
 
         with open(lock_file_path, "w") as lock_file:
+            apply_bundle_permissions(lock_file_path, is_directory=False)
             # Exclusive lock - blocks until it is available
             fcntl.flock(lock_file, fcntl.LOCK_EX)
             try:
@@ -426,12 +457,17 @@ class BundleVersionLock:
         if TYPE_CHECKING:
             assert self.lock_file_path
         self.lock_file_path.parent.mkdir(parents=True, exist_ok=True)
+        tracking_root = STALE_BUNDLE_TRACKING_FOLDER
+        if tracking_root.exists():
+            apply_bundle_permissions(tracking_root, is_directory=True)
+        apply_bundle_permissions(self.lock_file_path.parent, is_directory=True)
 
         with tempfile.TemporaryDirectory() as td:
             temp_file = Path(td, self.lock_file_path)
             now = pendulum.now(tz=pendulum.UTC)
             temp_file.write_text(now.isoformat())
             os.replace(temp_file, self.lock_file_path)
+        apply_bundle_permissions(self.lock_file_path, is_directory=False)
 
     def acquire(self):
         if not self.version:

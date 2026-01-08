@@ -122,6 +122,32 @@ Starting Airflow 3.0.2 git is pre installed in the base image. However, if you a
   ENV GIT_PYTHON_REFRESH=quiet
 
 
+Using DAG Bundles with User Impersonation
+-----------------------------------------
+
+When using ``run_as_user`` (user impersonation) with DAG bundles, ensure proper file permissions
+are configured so that impersonated users can access bundle files created by the main Airflow process.
+
+1. All impersonated users and the Airflow user should be in the same group
+2. Configure appropriate umask settings (e.g., ``umask 0002``)
+3. Set :ref:`config:dag_processor__dag_bundle_new_folder_permissions` to ``0o775`` (default)
+4. Set :ref:`config:dag_processor__dag_bundle_new_file_permissions` to ``0o664`` (default)
+
+Example configuration:
+
+.. code-block:: ini
+
+    [dag_processor]
+    dag_bundle_new_folder_permissions = 0o775
+    dag_bundle_new_file_permissions = 0o664
+
+.. note::
+
+    This permission-based approach is a temporary solution. Future versions of Airflow
+    will handle multi-user access through supervisor-based bundle operations, eliminating
+    the need for shared group permissions.
+
+
 Writing custom Dag bundles
 --------------------------
 

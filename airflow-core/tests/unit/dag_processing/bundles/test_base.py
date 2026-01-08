@@ -24,6 +24,7 @@ import threading
 import time
 from datetime import timedelta
 from pathlib import Path
+from stat import S_IMODE
 from unittest.mock import patch
 
 import pytest
@@ -34,6 +35,8 @@ from airflow.dag_processing.bundles.base import (
     BaseDagBundle,
     BundleUsageTrackingManager,
     BundleVersionLock,
+    apply_bundle_permissions,
+    get_bundle_permissions,
     get_bundle_storage_root_path,
 )
 
@@ -268,3 +271,110 @@ class TestBundleUsageTrackingManager:
                 assert len(lock_files) == expected_remaining
                 bundle_folders = list(b.versions_dir.iterdir())
                 assert len(bundle_folders) == expected_remaining
+
+
+class TestBundlePermissions:
+    """Tests for bundle permission helper functions."""
+
+    def test_get_bundle_permissions_default(self):
+        """Test that default permissions are returned when not configured."""
+        with conf_vars(
+            {
+                ("dag_processor", "dag_bundle_new_folder_permissions"): None,
+                ("dag_processor", "dag_bundle_new_file_permissions"): None,
+            }
+        ):
+            folder_perms, file_perms = get_bundle_permissions()
+            assert folder_perms == 0o775
+            assert file_perms == 0o664
+
+    def test_get_bundle_permissions_custom(self):
+        """Test that custom permissions are read from config."""
+        with conf_vars(
+            {
+                ("dag_processor", "dag_bundle_new_folder_permissions"): "0o755",
+                ("dag_processor", "dag_bundle_new_file_permissions"): "0o644",
+            }
+        ):
+            folder_perms, file_perms = get_bundle_permissions()
+            assert folder_perms == 0o755
+            assert file_perms == 0o644
+
+    def test_apply_bundle_permissions_directory(self, tmp_path: Path):
+        """Test that permissions are applied to directories."""
+        test_dir = tmp_path / "test_dir"
+        test_dir.mkdir()
+        # Set restrictive permissions first
+        test_dir.chmod(0o700)
+
+        with conf_vars(
+            {
+                ("dag_processor", "dag_bundle_new_folder_permissions"): "0o775",
+            }
+        ):
+            apply_bundle_permissions(test_dir, is_directory=True)
+            mode = S_IMODE(test_dir.stat().st_mode)
+            assert mode == 0o775
+
+    def test_apply_bundle_permissions_file(self, tmp_path: Path):
+        """Test that permissions are applied to files."""
+        test_file = tmp_path / "test_file"
+        test_file.touch()
+        # Set restrictive permissions first
+        test_file.chmod(0o600)
+
+        with conf_vars(
+            {
+                ("dag_processor", "dag_bundle_new_file_permissions"): "0o664",
+            }
+        ):
+            apply_bundle_permissions(test_file, is_directory=False)
+            mode = S_IMODE(test_file.stat().st_mode)
+            assert mode == 0o664
+
+    def test_lock_applies_permissions(self, bundle_temp_dir):
+        """Test that lock() applies configured permissions to lock directory and file."""
+        with conf_vars(
+            {
+                ("dag_processor", "dag_bundle_new_folder_permissions"): "0o775",
+                ("dag_processor", "dag_bundle_new_file_permissions"): "0o664",
+            }
+        ):
+            bundle = BasicBundle(name="permtest")
+            lock_dir = get_bundle_storage_root_path() / "_locks"
+            lock_file = lock_dir / f"{bundle.name}.lock"
+
+            with bundle.lock():
+                # Verify lock directory has correct permissions
+                dir_mode = S_IMODE(lock_dir.stat().st_mode)
+                assert dir_mode == 0o775
+
+                # Verify lock file has correct permissions
+                file_mode = S_IMODE(lock_file.stat().st_mode)
+                assert file_mode == 0o664
+
+    def test_bundle_version_lock_applies_permissions(self, bundle_temp_dir):
+        """Test that BundleVersionLock applies permissions to tracking directories."""
+        from airflow.dag_processing.bundles.base import STALE_BUNDLE_TRACKING_FOLDER
+
+        with conf_vars(
+            {
+                ("dag_processor", "dag_bundle_new_folder_permissions"): "0o775",
+                ("dag_processor", "dag_bundle_new_file_permissions"): "0o664",
+            }
+        ):
+            bundle_name = "permtest"
+            version = "v1"
+
+            with BundleVersionLock(bundle_name=bundle_name, bundle_version=version):
+                # Verify tracking directory has correct permissions
+                tracking_dir = STALE_BUNDLE_TRACKING_FOLDER / bundle_name
+                if tracking_dir.exists():
+                    dir_mode = S_IMODE(tracking_dir.stat().st_mode)
+                    assert dir_mode == 0o775
+
+                # Verify tracking file has correct permissions
+                tracking_file = tracking_dir / version
+                if tracking_file.exists():
+                    file_mode = S_IMODE(tracking_file.stat().st_mode)
+                    assert file_mode == 0o664
