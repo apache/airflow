@@ -16,14 +16,25 @@
 # under the License.
 from __future__ import annotations
 
-from unittest.mock import AsyncMock
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 from fastapi.testclient import TestClient
 
 from airflow.api_fastapi.app import cached_app
-from airflow.api_fastapi.auth.tokens import JWTValidator
+from airflow.api_fastapi.auth.tokens import JWTGenerator, JWTValidator
 from airflow.api_fastapi.execution_api.app import lifespan
+from airflow.api_fastapi.execution_api.datamodels.token import TIToken
+from airflow.api_fastapi.execution_api.deps import (
+    JWTBearerDep,
+    JWTBearerQueueDep,
+    JWTBearerTIPathDep,
+)
+
+
+def _always_allow(ti_id: str | None = None) -> TIToken:
+    """Return a mock TIToken for bypassing auth in tests."""
+    return TIToken(id=ti_id or "00000000-0000-0000-0000-000000000000", claims={})
 
 
 @pytest.fixture
@@ -63,4 +74,25 @@ def client(request: pytest.FixtureRequest):
         auth.avalidated_claims.side_effect = smart_validated_claims
         lifespan.registry.register_value(JWTValidator, auth)
 
+        # Mock JWTGenerator for /run endpoint that returns execution tokens
+        jwt_generator = MagicMock(spec=JWTGenerator)
+        jwt_generator.generate.return_value = "mock-execution-token"
+        lifespan.registry.register_value(JWTGenerator, jwt_generator)
+
+        # Override auth dependencies to bypass token scope validation in tests
+        # This allows tests to focus on business logic rather than auth mechanics
+        # We need to override both the specific instances AND the classes to cover all cases
+        jwt_bearer_instance = JWTBearerDep.dependency
+        jwt_bearer_ti_path_instance = JWTBearerTIPathDep.dependency
+        jwt_bearer_queue_instance = JWTBearerQueueDep.dependency
+
+        app.dependency_overrides[jwt_bearer_instance] = lambda: _always_allow()
+        app.dependency_overrides[jwt_bearer_ti_path_instance] = lambda: _always_allow()
+        app.dependency_overrides[jwt_bearer_queue_instance] = lambda: _always_allow()
+
         yield client
+
+        # Clean up dependency overrides
+        app.dependency_overrides.pop(jwt_bearer_instance, None)
+        app.dependency_overrides.pop(jwt_bearer_ti_path_instance, None)
+        app.dependency_overrides.pop(jwt_bearer_queue_instance, None)

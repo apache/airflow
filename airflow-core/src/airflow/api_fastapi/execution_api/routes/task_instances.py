@@ -28,7 +28,7 @@ from uuid import UUID
 import attrs
 import structlog
 from cadwyn import VersionedAPIRouter
-from fastapi import Body, HTTPException, Query, status
+from fastapi import Body, HTTPException, Query, Response, status
 from pydantic import JsonValue
 from sqlalchemy import func, or_, tuple_, update
 from sqlalchemy.engine import CursorResult
@@ -38,6 +38,7 @@ from sqlalchemy.sql import select
 from structlog.contextvars import bind_contextvars
 
 from airflow._shared.timezones import timezone
+from airflow.api_fastapi.auth.tokens import JWTGenerator
 from airflow.api_fastapi.common.dagbag import DagBagDep, get_latest_version_of_dag
 from airflow.api_fastapi.common.db.common import SessionDep
 from airflow.api_fastapi.common.types import UtcDateTime
@@ -59,7 +60,7 @@ from airflow.api_fastapi.execution_api.datamodels.taskinstance import (
     TISuccessStatePayload,
     TITerminalStatePayload,
 )
-from airflow.api_fastapi.execution_api.deps import JWTBearerTIPathDep
+from airflow.api_fastapi.execution_api.deps import DepContainer, JWTBearerQueueDep, JWTBearerTIPathDep
 from airflow.exceptions import TaskNotFound
 from airflow.models.asset import AssetActive
 from airflow.models.dag import DagModel
@@ -84,11 +85,10 @@ ti_id_router = VersionedAPIRouter(
     ]
 )
 
-
 log = structlog.get_logger(__name__)
 
 
-@ti_id_router.patch(
+@router.patch(
     "/{task_instance_id}/run",
     status_code=status.HTTP_200_OK,
     responses={
@@ -97,12 +97,15 @@ log = structlog.get_logger(__name__)
         HTTP_422_UNPROCESSABLE_CONTENT: {"description": "Invalid payload for the state transition"},
     },
     response_model_exclude_unset=True,
+    dependencies=[JWTBearerQueueDep],
 )
-def ti_run(
+async def ti_run(
     task_instance_id: UUID,
     ti_run_payload: Annotated[TIEnterRunningPayload, Body()],
     session: SessionDep,
     dag_bag: DagBagDep,
+    response: Response,
+    services=DepContainer,
 ) -> TIRunContext:
     """
     Run a TaskInstance.
@@ -263,6 +266,11 @@ def ti_run(
         if ti.next_method:
             context.next_method = ti.next_method
             context.next_kwargs = ti.next_kwargs
+
+        # Generate short-lived execution token for subsequent API calls
+        generator: JWTGenerator = await services.aget(JWTGenerator)
+        execution_token = generator.generate(extras={"sub": ti_id_str})
+        response.headers["X-Execution-Token"] = execution_token
 
         return context
     except SQLAlchemyError:

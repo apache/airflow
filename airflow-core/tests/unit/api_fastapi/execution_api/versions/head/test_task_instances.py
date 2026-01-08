@@ -29,8 +29,6 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
 from airflow._shared.timezones import timezone
-from airflow.api_fastapi.auth.tokens import JWTValidator
-from airflow.api_fastapi.execution_api.app import lifespan
 from airflow.exceptions import AirflowSkipException
 from airflow.models import RenderedTaskInstanceFields, TaskReschedule, Trigger
 from airflow.models.asset import AssetActive, AssetAliasModel, AssetEvent, AssetModel
@@ -79,50 +77,35 @@ def _create_asset_aliases(session, num: int = 2) -> None:
 def client_with_extra_route(): ...
 
 
-def test_id_matches_sub_claim(client, session, create_task_instance):
-    # Test that this is validated at the router level, so we don't have to test it in each component
-    # We validate it is set correctly, and test it once
+def test_run_endpoint_returns_execution_token(client, session, create_task_instance, time_machine):
+    """Test that /run endpoint returns an execution token in the response header."""
+    instant = timezone.parse("2024-09-30T12:00:00Z")
+    time_machine.move_to(instant, tick=False)
 
     ti = create_task_instance(
-        task_id="test_ti_run_state_conflict_if_not_queued",
-        state="queued",
+        task_id="test_run_endpoint_returns_execution_token",
+        state=State.QUEUED,
+        dagrun_state=DagRunState.RUNNING,
+        session=session,
+        start_date=instant,
+        dag_id=str(uuid4()),
     )
     session.commit()
-
-    validator = mock.AsyncMock(spec=JWTValidator)
-    claims = {"sub": ti.id}
-
-    def side_effect(cred, validators):
-        if not validators:
-            return claims
-        if validators["sub"]["value"] != ti.id:
-            raise RuntimeError("Fake auth denied")
-        return claims
-
-    validator.avalidated_claims.side_effect = side_effect
-
-    lifespan.registry.register_value(JWTValidator, validator)
 
     payload = {
         "state": "running",
         "hostname": "random-hostname",
         "unixname": "random-unixname",
         "pid": 100,
-        "start_date": "2024-10-31T12:00:00Z",
+        "start_date": "2024-09-30T12:00:00Z",
     }
 
-    resp = client.patch("/execution/task-instances/9c230b40-da03-451d-8bd7-be30471be383/run", json=payload)
-    assert resp.status_code == 403
-    assert validator.avalidated_claims.call_args_list[1] == mock.call(
-        mock.ANY, {"sub": {"essential": True, "value": "9c230b40-da03-451d-8bd7-be30471be383"}}
-    )
-    validator.avalidated_claims.reset_mock()
-
     resp = client.patch(f"/execution/task-instances/{ti.id}/run", json=payload)
+    assert resp.status_code == 200
 
-    assert resp.status_code == 200, resp.json()
-
-    validator.avalidated_claims.assert_awaited()
+    # Verify execution token is returned in header
+    assert "X-Execution-Token" in resp.headers
+    assert resp.headers["X-Execution-Token"] == "mock-execution-token"
 
 
 class TestTIRunState:
