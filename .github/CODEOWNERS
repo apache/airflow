@@ -88,11 +88,11 @@ airflow-core/src/airflow/ui/public/i18n/locales/zh-TW/ @Lee-W @jason810496 @guan
 # Providers
 /providers/amazon/ @o-nikolas
 /providers/apache/iceberg/ @Fokko
-/providers/celery/ @hussein-awala
+/providers/celery/ @hussein-awala @dheerajturaga
 /providers/cncf/kubernetes @jedcunningham @hussein-awala
 /providers/common/messaging/ @vincbeck
 /providers/dbt/cloud/ @josh-fell
-/providers/edge3/ @jscheffl
+/providers/edge3/ @jscheffl @dheerajturaga
 /providers/fab/ @vincbeck
 /providers/hashicorp/ @hussein-awala
 /providers/keycloak/ @vincbeck @bugraoz93
