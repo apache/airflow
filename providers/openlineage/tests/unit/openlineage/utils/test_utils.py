@@ -42,14 +42,19 @@ from airflow.providers.openlineage.utils.utils import (
     TaskInfo,
     TaskInfoComplete,
     TaskInstanceInfo,
+    _extract_ol_info_from_asset_event,
+    _get_ol_job_dependencies_from_asset_events,
     _get_openlineage_data_from_dagrun_conf,
     _get_task_groups_details,
     _get_tasks_details,
     _truncate_string_to_byte_size,
+    build_dag_run_ol_run_id,
+    build_task_instance_ol_run_id,
     get_airflow_dag_run_facet,
     get_airflow_job_facet,
     get_airflow_state_run_facet,
     get_dag_documentation,
+    get_dag_job_dependency_facet,
     get_dag_parent_run_facet,
     get_fully_qualified_class_name,
     get_job_name,
@@ -60,6 +65,8 @@ from airflow.providers.openlineage.utils.utils import (
     get_task_documentation,
     get_task_parent_run_facet,
     get_user_provided_run_facets,
+    is_dag_run_asset_triggered,
+    is_valid_uuid,
 )
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.timetables.events import EventsTimetable
@@ -168,6 +175,8 @@ def test_get_airflow_dag_run_facet():
     dagrun_mock.run_after = datetime.datetime(2024, 6, 1, 1, 2, 4, tzinfo=datetime.timezone.utc)
     dagrun_mock.start_date = datetime.datetime(2024, 6, 1, 1, 2, 4, tzinfo=datetime.timezone.utc)
     dagrun_mock.end_date = datetime.datetime(2024, 6, 1, 1, 2, 14, 34172, tzinfo=datetime.timezone.utc)
+    dagrun_mock.triggering_user_name = "user1"
+    dagrun_mock.triggered_by = "something"
     dagrun_mock.dag_versions = [
         MagicMock(
             bundle_name="bundle_name",
@@ -197,6 +206,7 @@ def test_get_airflow_dag_run_facet():
             dag=expected_dag_info,
             dagRun={
                 "conf": {},
+                "clear_number": 0,
                 "dag_id": "dag",
                 "data_interval_start": "2024-06-01T01:02:03+00:00",
                 "data_interval_end": "2024-06-01T02:03:04+00:00",
@@ -213,6 +223,8 @@ def test_get_airflow_dag_run_facet():
                 "dag_bundle_version": "bundle_version",
                 "dag_version_id": "version_id",
                 "dag_version_number": "version_number",
+                "triggering_user_name": "user1",
+                "triggered_by": "something",
             },
         )
     }
@@ -1908,7 +1920,7 @@ class TestDagInfoAirflow2:
         }
 
 
-@pytest.mark.skipif(AIRFLOW_V_3_0_PLUS, reason="Airflow < 3.0 tests")
+@pytest.mark.skipif(AIRFLOW_V_3_0_PLUS, reason="Airflow 2 tests")
 class TestDagInfoAirflow210:
     def test_dag_info_schedule_single_dataset_directly(self):
         dag = DAG(
@@ -2294,10 +2306,12 @@ def test_dagrun_info_af3(mocked_dag_versions):
     )
     assert dagrun.dag_versions == [dv1, dv2]
     dagrun.end_date = date + datetime.timedelta(seconds=74, microseconds=546)
+    dagrun.triggering_user_name = "my_user"
 
     result = DagRunInfo(dagrun)
     assert dict(result) == {
         "conf": {"a": 1},
+        "clear_number": 0,
         "dag_id": "dag_id",
         "data_interval_end": "2024-06-01T00:00:00+00:00",
         "data_interval_start": "2024-06-01T00:00:00+00:00",
@@ -2312,6 +2326,8 @@ def test_dagrun_info_af3(mocked_dag_versions):
         "dag_bundle_version": "bundle_version",
         "dag_version_id": "version_id",
         "dag_version_number": "version_number",
+        "triggered_by": DagRunTriggeredByType.UI,
+        "triggering_user_name": "my_user",
     }
 
 
@@ -2338,6 +2354,7 @@ def test_dagrun_info_af2():
     result = DagRunInfo(dagrun)
     assert dict(result) == {
         "conf": {"a": 1},
+        "clear_number": 0,
         "dag_id": "dag_id",
         "data_interval_end": "2024-06-01T00:00:00+00:00",
         "data_interval_start": "2024-06-01T00:00:00+00:00",
@@ -2824,3 +2841,708 @@ class TestGetAirflowStateRunFacet:
         )
 
         assert result["airflowState"].tasksDuration["terminated_task"] == 0.0
+
+
+@pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="Airflow 3 specific test")
+def test_is_dag_run_asset_triggered_af3():
+    """Test is_dag_run_asset_triggered for Airflow 3."""
+    from airflow.models.dagrun import DagRunTriggeredByType
+
+    dag_run = MagicMock(triggered_by=DagRunTriggeredByType.ASSET)
+
+    assert is_dag_run_asset_triggered(dag_run) is True
+
+    dag_run.triggered_by = DagRunTriggeredByType.TIMETABLE
+    assert is_dag_run_asset_triggered(dag_run) is False
+
+
+@pytest.mark.skipif(AIRFLOW_V_3_0_PLUS, reason="Airflow 2 specific test")
+def test_is_dag_run_asset_triggered_af2():
+    """Test is_dag_run_asset_triggered for Airflow 2."""
+    from airflow.models.dagrun import DagRunType
+
+    dag_run = MagicMock(run_type=DagRunType.DATASET_TRIGGERED)
+
+    assert is_dag_run_asset_triggered(dag_run) is True
+
+    dag_run.run_type = DagRunType.MANUAL
+    assert is_dag_run_asset_triggered(dag_run) is False
+
+
+def test_build_task_instance_ol_run_id():
+    """Test deterministic UUID generation for task instance."""
+    logical_date = datetime.datetime(2024, 1, 1, 12, 0, 0, tzinfo=datetime.timezone.utc)
+    run_id = build_task_instance_ol_run_id(
+        dag_id="test_dag",
+        task_id="test_task",
+        try_number=1,
+        logical_date=logical_date,
+        map_index=0,
+    )
+
+    assert run_id == "018cc4e5-2200-7b27-b511-a7a14aa0662a"
+
+    # Should be deterministic - same inputs produce same output
+    run_id2 = build_task_instance_ol_run_id(
+        dag_id="test_dag",
+        task_id="test_task",
+        try_number=1,
+        logical_date=logical_date,
+        map_index=0,
+    )
+    assert run_id == run_id2
+
+    # Different inputs should produce different outputs
+    run_id3 = build_task_instance_ol_run_id(
+        dag_id="test_dag",
+        task_id="test_task",
+        try_number=2,  # Different try_number
+        logical_date=logical_date,
+        map_index=0,
+    )
+    assert run_id != run_id3
+
+
+def test_build_dag_run_ol_run_id():
+    """Test deterministic UUID generation for DAG run."""
+    logical_date = datetime.datetime(2024, 1, 1, 12, 0, 0, tzinfo=datetime.timezone.utc)
+    run_id = build_dag_run_ol_run_id(
+        dag_id="test_dag",
+        logical_date=logical_date,
+        clear_number=0,
+    )
+    assert run_id == "018cc4e5-2200-725f-8091-596ad71712b2"
+
+    # Should be deterministic - same inputs produce same output
+    run_id2 = build_dag_run_ol_run_id(
+        dag_id="test_dag",
+        logical_date=logical_date,
+        clear_number=0,
+    )
+    assert run_id == run_id2
+
+    # Different inputs should produce different outputs
+    run_id3 = build_dag_run_ol_run_id(
+        dag_id="test_dag",
+        logical_date=logical_date,
+        clear_number=1,  # Different clear_number
+    )
+    assert run_id != run_id3
+
+
+def test_validate_uuid_valid():
+    """Test validation of valid UUID strings."""
+    valid_uuids = [
+        "550e8400-e29b-41d4-a716-446655440000",
+        "6ba7b810-9dad-11d1-80b4-00c04fd430c8",
+        "00000000-0000-0000-0000-000000000000",
+    ]
+    for uuid_str in valid_uuids:
+        assert is_valid_uuid(uuid_str) is True
+
+
+def test_validate_uuid_invalid():
+    """Test validation of invalid UUID strings."""
+    invalid_uuids = [
+        "not-a-uuid",
+        "550e8400-e29b-41d4-a716",  # Too short
+        "550e8400-e29b-41d4-a716-446655440000-extra",  # Too long
+        "550e8400-e29b-41d4-a716-44665544000g",  # Invalid character
+        "",
+        "123",
+        None,
+    ]
+    for uuid_str in invalid_uuids:
+        assert is_valid_uuid(uuid_str) is False
+
+
+class TestExtractOlInfoFromAssetEvent:
+    """Tests for _extract_ol_info_from_asset_event function."""
+
+    def test_extract_ol_info_from_task_instance(self):
+        """Test extraction from TaskInstance (priority 1)."""
+        logical_date = datetime.datetime(2024, 1, 1, 12, 0, 0, tzinfo=datetime.timezone.utc)
+
+        # Mock TaskInstance - using MagicMock without spec to avoid SQLAlchemy mapper inspection
+        ti = MagicMock()
+        ti.dag_id = "source_dag"
+        ti.task_id = "source_task"
+        ti.try_number = 1
+        ti.map_index = 0
+
+        # Mock DagRun
+        source_dr = MagicMock()
+        source_dr.logical_date = logical_date
+        source_dr.run_after = None
+
+        # Mock AssetEvent
+        asset_event = MagicMock()
+        asset_event.source_task_instance = ti
+        asset_event.source_dag_run = source_dr
+        asset_event.source_dag_id = None
+        asset_event.source_task_id = None
+        asset_event.extra = {}
+
+        result = _extract_ol_info_from_asset_event(asset_event)
+
+        expected_run_id = build_task_instance_ol_run_id(
+            dag_id="source_dag",
+            task_id="source_task",
+            try_number=1,
+            logical_date=logical_date,
+            map_index=0,
+        )
+        assert result == {
+            "job_name": "source_dag.source_task",
+            "job_namespace": namespace(),
+            "run_id": expected_run_id,
+        }
+
+    def test_extract_ol_info_from_task_instance_no_logical_date(self):
+        """Test extraction from TaskInstance without logical_date."""
+        # Mock TaskInstance
+        ti = MagicMock()
+        ti.dag_id = "source_dag"
+        ti.task_id = "source_task"
+        ti.try_number = 1
+        ti.map_index = 0
+
+        # Mock DagRun with None logical_date
+        source_dr = MagicMock()
+        source_dr.logical_date = None
+        source_dr.run_after = None
+
+        # Mock AssetEvent
+        asset_event = MagicMock()
+        asset_event.source_task_instance = ti
+        asset_event.source_dag_run = source_dr
+        asset_event.source_dag_id = None
+        asset_event.source_task_id = None
+        asset_event.extra = {}
+
+        result = _extract_ol_info_from_asset_event(asset_event)
+
+        # run_id should not be included if logical_date is None
+        assert result == {
+            "job_name": "source_dag.source_task",
+            "job_namespace": namespace(),
+        }
+
+    @pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="Airflow 3 specific test")
+    def test_extract_ol_info_from_task_instance_run_after_fallback(self):
+        """Test extraction from TaskInstance with run_after fallback (AF3)."""
+        run_after = datetime.datetime(2024, 1, 1, 12, 0, 0, tzinfo=datetime.timezone.utc)
+
+        # Mock TaskInstance
+        ti = MagicMock()
+        ti.dag_id = "source_dag"
+        ti.task_id = "source_task"
+        ti.try_number = 1
+        ti.map_index = 0
+
+        # Mock DagRun with None logical_date but run_after set
+        source_dr = MagicMock()
+        source_dr.logical_date = None
+        source_dr.run_after = run_after
+
+        # Mock AssetEvent
+        asset_event = MagicMock()
+        asset_event.source_task_instance = ti
+        asset_event.source_dag_run = source_dr
+        asset_event.source_dag_id = None
+        asset_event.source_task_id = None
+        asset_event.extra = {}
+
+        result = _extract_ol_info_from_asset_event(asset_event)
+
+        # Should use run_after as fallback for logical_date
+        expected_run_id = build_task_instance_ol_run_id(
+            dag_id="source_dag",
+            task_id="source_task",
+            try_number=1,
+            logical_date=run_after,
+            map_index=0,
+        )
+        assert result == {
+            "job_name": "source_dag.source_task",
+            "job_namespace": namespace(),
+            "run_id": expected_run_id,
+        }
+
+    def test_extract_ol_info_from_source_fields(self):
+        """Test extraction from AssetEvent source fields (priority 2)."""
+        # Mock AssetEvent without TaskInstance
+        asset_event = MagicMock()
+        asset_event.source_task_instance = None
+        asset_event.source_dag_run = None
+        asset_event.source_dag_id = "source_dag"
+        asset_event.source_task_id = "source_task"
+        asset_event.extra = {}
+
+        result = _extract_ol_info_from_asset_event(asset_event)
+
+        # run_id cannot be constructed from source fields alone
+        assert result == {
+            "job_name": "source_dag.source_task",
+            "job_namespace": namespace(),
+        }
+
+    def test_extract_ol_info_from_extra(self):
+        """Test extraction from asset_event.extra (priority 3)."""
+        # Mock AssetEvent
+        asset_event = MagicMock()
+        asset_event.source_task_instance = None
+        asset_event.source_dag_run = None
+        asset_event.source_dag_id = None
+        asset_event.source_task_id = None
+        asset_event.extra = {
+            "openlineage": {
+                "parentJobName": "extra_job",
+                "parentJobNamespace": "extra_namespace",
+                "parentRunId": "550e8400-e29b-41d4-a716-446655440000",
+            }
+        }
+
+        result = _extract_ol_info_from_asset_event(asset_event)
+
+        assert result == {
+            "job_name": "extra_job",
+            "job_namespace": "extra_namespace",
+            "run_id": "550e8400-e29b-41d4-a716-446655440000",
+        }
+
+    def test_extract_ol_info_from_extra_no_run_id(self):
+        """Test extraction from asset_event.extra without run_id."""
+        # Mock AssetEvent
+        asset_event = MagicMock()
+        asset_event.source_task_instance = None
+        asset_event.source_dag_run = None
+        asset_event.source_dag_id = None
+        asset_event.source_task_id = None
+        asset_event.extra = {
+            "openlineage": {
+                "parentJobName": "extra_job",
+                "parentJobNamespace": "extra_namespace",
+            }
+        }
+
+        result = _extract_ol_info_from_asset_event(asset_event)
+
+        assert result == {
+            "job_name": "extra_job",
+            "job_namespace": "extra_namespace",
+        }
+
+    def test_extract_ol_info_from_extra_no_job_name(self):
+        """Test extraction from asset_event.extra without job_name."""
+        # Mock AssetEvent
+        asset_event = MagicMock()
+        asset_event.source_task_instance = None
+        asset_event.source_dag_run = None
+        asset_event.source_dag_id = None
+        asset_event.source_task_id = None
+        asset_event.extra = {
+            "openlineage": {
+                "parentRunId": "550e8400-e29b-41d4-a716-446655440000",
+                "parentJobNamespace": "extra_namespace",
+            }
+        }
+
+        result = _extract_ol_info_from_asset_event(asset_event)
+
+        assert result is None
+
+    def test_extract_ol_info_insufficient_info(self):
+        """Test extraction when no information is available."""
+        # Mock AssetEvent with no information
+        asset_event = MagicMock()
+        asset_event.source_task_instance = None
+        asset_event.source_dag_run = None
+        asset_event.source_dag_id = None
+        asset_event.source_task_id = None
+        asset_event.extra = {}
+
+        result = _extract_ol_info_from_asset_event(asset_event)
+
+        assert result is None
+
+
+class TestGetOlJobDependenciesFromAssetEvents:
+    """Tests for _get_ol_job_dependencies_from_asset_events function."""
+
+    def test_get_ol_job_dependencies_no_events(self):
+        """Test when no events are provided."""
+        result = _get_ol_job_dependencies_from_asset_events([])
+
+        assert result == []
+
+    @patch("airflow.providers.openlineage.utils.utils._extract_ol_info_from_asset_event")
+    def test_get_ol_job_dependencies_with_events(self, mock_extract):
+        """Test extraction and deduplication of asset events."""
+        # Mock asset events
+        asset_event1 = MagicMock()
+        asset_event1.id = 1
+        asset_event1.source_run_id = "run1"
+        asset_event1.asset_id = 101
+        asset_event1.dataset_id = 101
+        asset_event1.uri = "s3://bucket/file1"
+        asset_event1.extra = {}
+        asset_event1.partition_key = None
+
+        asset_event2 = MagicMock()
+        asset_event2.id = 2
+        asset_event2.source_run_id = "run2"
+        asset_event2.asset_id = 102
+        asset_event2.dataset_id = 102
+        asset_event2.uri = "s3://bucket/file2"
+        asset_event2.extra = {}
+        asset_event2.partition_key = None
+
+        # Mock extraction results
+        mock_extract.side_effect = [
+            {
+                "job_name": "dag1.task1",
+                "job_namespace": "namespace",
+                "run_id": "550e8400-e29b-41d4-a716-446655440000",
+            },
+            {
+                "job_name": "dag2.task2",
+                "job_namespace": "namespace",
+                "run_id": "550e8400-e29b-41d4-a716-446655440001",
+            },
+        ]
+
+        result = _get_ol_job_dependencies_from_asset_events([asset_event1, asset_event2])
+
+        assert result == [
+            {
+                "job_name": "dag1.task1",
+                "job_namespace": "namespace",
+                "run_id": "550e8400-e29b-41d4-a716-446655440000",
+                "asset_events": [
+                    {
+                        "dag_run_id": "run1",
+                        "asset_event_id": 1,
+                        "asset_event_extra": None,
+                        "asset_id": 101,
+                        "asset_uri": "s3://bucket/file1",
+                        "partition_key": None,
+                    }
+                ],
+            },
+            {
+                "job_name": "dag2.task2",
+                "job_namespace": "namespace",
+                "run_id": "550e8400-e29b-41d4-a716-446655440001",
+                "asset_events": [
+                    {
+                        "dag_run_id": "run2",
+                        "asset_event_id": 2,
+                        "asset_event_extra": None,
+                        "asset_id": 102,
+                        "asset_uri": "s3://bucket/file2",
+                        "partition_key": None,
+                    }
+                ],
+            },
+        ]
+
+    @patch("airflow.providers.openlineage.utils.utils._extract_ol_info_from_asset_event")
+    def test_get_ol_job_dependencies_deduplication(self, mock_extract):
+        """Test deduplication of duplicate asset events."""
+        # Mock asset events
+        asset_event1 = MagicMock()
+        asset_event1.id = 1
+        asset_event1.source_run_id = "run1"
+        asset_event1.asset_id = 101
+        asset_event1.dataset_id = 101
+        asset_event1.uri = "s3://bucket/file1"
+        asset_event1.extra = {}
+        asset_event1.partition_key = None
+
+        asset_event2 = MagicMock()
+        asset_event2.id = 2
+        asset_event2.source_run_id = "run2"
+        asset_event2.asset_id = 102
+        asset_event2.dataset_id = 102
+        asset_event2.uri = "s3://bucket/file2"
+        asset_event2.extra = {}
+        asset_event2.partition_key = None
+
+        # Mock extraction results - same job/run (should be deduplicated)
+        same_info = {
+            "job_name": "dag1.task1",
+            "job_namespace": "namespace",
+        }
+        mock_extract.side_effect = [same_info, same_info]
+
+        result = _get_ol_job_dependencies_from_asset_events([asset_event1, asset_event2])
+
+        # Should be deduplicated to one entry with both events aggregated
+        assert result == [
+            {
+                "job_name": "dag1.task1",
+                "job_namespace": "namespace",
+                "asset_events": [
+                    {
+                        "dag_run_id": "run1",
+                        "asset_event_id": 1,
+                        "asset_event_extra": None,
+                        "asset_id": 101,
+                        "asset_uri": "s3://bucket/file1",
+                        "partition_key": None,
+                    },
+                    {
+                        "dag_run_id": "run2",
+                        "asset_event_id": 2,
+                        "asset_event_extra": None,
+                        "asset_id": 102,
+                        "asset_uri": "s3://bucket/file2",
+                        "partition_key": None,
+                    },
+                ],
+            }
+        ]
+
+    @patch("airflow.providers.openlineage.utils.utils._extract_ol_info_from_asset_event")
+    def test_get_ol_job_dependencies_insufficient_info(self, mock_extract):
+        """Test handling when extraction returns None."""
+        # Mock asset event
+        asset_event = MagicMock()
+        asset_event.id = 1
+
+        # Mock extraction returning None
+        mock_extract.return_value = None
+
+        result = _get_ol_job_dependencies_from_asset_events([asset_event])
+
+        assert result == []
+
+
+class TestGetDagJobDependencyFacet:
+    """Tests for get_dag_job_dependency_facet function.
+
+    These tests mock only the DB-accessing function (_get_eagerly_loaded_dagrun_consumed_asset_events)
+    to test the full flow of facet generation including event processing and facet building.
+    """
+
+    @patch("airflow.providers.openlineage.utils.utils._get_eagerly_loaded_dagrun_consumed_asset_events")
+    def test_get_dag_job_dependency_facet_no_events(self, mock_get_events):
+        """Test when no asset events are found."""
+        mock_get_events.return_value = []
+
+        result = get_dag_job_dependency_facet("test_dag", "test_run_id")
+
+        assert result == {}
+        mock_get_events.assert_called_once_with("test_dag", "test_run_id")
+
+    @patch("airflow.providers.openlineage.utils.utils._get_eagerly_loaded_dagrun_consumed_asset_events")
+    def test_get_dag_job_dependency_facet_exception_handling(self, mock_get_events):
+        """Test exception handling in get_dag_job_dependency_facet."""
+        mock_get_events.side_effect = Exception("Database error")
+
+        result = get_dag_job_dependency_facet("test_dag", "test_run_id")
+
+        assert result == {}
+
+    @patch("airflow.providers.openlineage.utils.utils._get_eagerly_loaded_dagrun_consumed_asset_events")
+    def test_get_dag_job_dependency_facet_insufficient_info_skipped(self, mock_get_events):
+        """Test that events with insufficient info are skipped."""
+        # Create an event with no usable information
+        asset_event = MagicMock()
+        asset_event.source_task_instance = None
+        asset_event.source_dag_run = None
+        asset_event.source_dag_id = None
+        asset_event.source_task_id = None
+        asset_event.extra = {}
+        asset_event.id = 1
+        asset_event.source_run_id = None
+        asset_event.asset_id = 101
+        asset_event.dataset_id = 101
+        asset_event.uri = "s3://bucket/file"
+        asset_event.partition_key = None
+
+        mock_get_events.return_value = [asset_event]
+
+        result = get_dag_job_dependency_facet("test_dag", "test_run_id")
+
+        assert result == {}
+
+    @patch("airflow.providers.openlineage.utils.utils._get_eagerly_loaded_dagrun_consumed_asset_events")
+    def test_get_dag_job_dependency_facet_with_events(self, mock_get_events):
+        """Test facet generation with asset events - tests full flow."""
+        logical_date = datetime.datetime(2024, 1, 1, 12, 0, 0, tzinfo=datetime.timezone.utc)
+
+        # Create mock asset events with source TaskInstance (priority 1 source)
+        ti1 = MagicMock()
+        ti1.dag_id = "source_dag1"
+        ti1.task_id = "source_task1"
+        ti1.try_number = 1
+        ti1.map_index = 0
+
+        source_dr1 = MagicMock()
+        source_dr1.logical_date = logical_date
+        source_dr1.run_after = None
+
+        asset_event1 = MagicMock()
+        asset_event1.source_task_instance = ti1
+        asset_event1.source_dag_run = source_dr1
+        asset_event1.source_dag_id = None
+        asset_event1.source_task_id = None
+        asset_event1.extra = {}
+        asset_event1.id = 1
+        asset_event1.source_run_id = "run1"
+        asset_event1.asset_id = 101
+        asset_event1.dataset_id = 101
+        asset_event1.uri = "s3://bucket/file1"
+        asset_event1.partition_key = None
+
+        # Second event with source fields (priority 2 source, no run_id)
+        asset_event2 = MagicMock()
+        asset_event2.source_task_instance = None
+        asset_event2.source_dag_run = None
+        asset_event2.source_dag_id = "source_dag2"
+        asset_event2.source_task_id = "source_task2"
+        asset_event2.extra = {}
+        asset_event2.id = 2
+        asset_event2.source_run_id = "run2"
+        asset_event2.asset_id = 102
+        asset_event2.dataset_id = 102
+        asset_event2.uri = "s3://bucket/file2"
+        asset_event2.partition_key = None
+
+        mock_get_events.return_value = [asset_event1, asset_event2]
+
+        result = get_dag_job_dependency_facet("test_dag", "test_run_id")
+
+        # Verify result structure
+        assert len(result) == 1
+        facet = result["jobDependencies"]
+        assert len(facet.upstream) == 2
+        assert len(facet.downstream) == 0
+
+        # Verify first dependency (from TaskInstance source, has run_id)
+        dep1 = facet.upstream[0]
+        assert dep1.job.namespace == namespace()
+        assert dep1.job.name == "source_dag1.source_task1"
+        expected_run_id = build_task_instance_ol_run_id(
+            dag_id="source_dag1",
+            task_id="source_task1",
+            try_number=1,
+            logical_date=logical_date,
+            map_index=0,
+        )
+        assert dep1.run.runId == expected_run_id
+        assert dep1.dependency_type == "IMPLICIT_ASSET_DEPENDENCY"
+        assert dep1.airflow["asset_events"] == [
+            {
+                "dag_run_id": "run1",
+                "asset_event_id": 1,
+                "asset_event_extra": None,
+                "asset_id": 101,
+                "asset_uri": "s3://bucket/file1",
+                "partition_key": None,
+            }
+        ]
+
+        # Verify second dependency (from source fields, no run_id)
+        dep2 = facet.upstream[1]
+        assert dep2.job.namespace == namespace()
+        assert dep2.job.name == "source_dag2.source_task2"
+        assert dep2.run is None
+        assert dep2.dependency_type == "IMPLICIT_ASSET_DEPENDENCY"
+        assert dep2.airflow["asset_events"] == [
+            {
+                "dag_run_id": "run2",
+                "asset_event_id": 2,
+                "asset_event_extra": None,
+                "asset_id": 102,
+                "asset_uri": "s3://bucket/file2",
+                "partition_key": None,
+            }
+        ]
+
+    @patch("airflow.providers.openlineage.utils.utils._get_eagerly_loaded_dagrun_consumed_asset_events")
+    def test_get_dag_job_dependency_facet_deduplication(self, mock_get_events):
+        """Test that duplicate asset events from same job/run are deduplicated."""
+        logical_date = datetime.datetime(2024, 1, 1, 12, 0, 0, tzinfo=datetime.timezone.utc)
+
+        # Create two events from the same source TI (should be deduplicated)
+        ti = MagicMock()
+        ti.dag_id = "source_dag"
+        ti.task_id = "source_task"
+        ti.try_number = 1
+        ti.map_index = 0
+
+        source_dr = MagicMock()
+        source_dr.logical_date = logical_date
+        source_dr.run_after = None
+
+        asset_event1 = MagicMock()
+        asset_event1.source_task_instance = ti
+        asset_event1.source_dag_run = source_dr
+        asset_event1.source_dag_id = None
+        asset_event1.source_task_id = None
+        asset_event1.extra = {}
+        asset_event1.id = 1
+        asset_event1.source_run_id = "run1"
+        asset_event1.asset_id = 101
+        asset_event1.dataset_id = 101
+        asset_event1.uri = "s3://bucket/file1"
+        asset_event1.partition_key = None
+
+        asset_event2 = MagicMock()
+        asset_event2.source_task_instance = ti  # Same TI
+        asset_event2.source_dag_run = source_dr  # Same DR
+        asset_event2.source_dag_id = None
+        asset_event2.source_task_id = None
+        asset_event2.extra = {}
+        asset_event2.id = 2
+        asset_event2.source_run_id = "run1"
+        asset_event2.asset_id = 102  # Different asset
+        asset_event2.dataset_id = 102  # Different asset
+        asset_event2.uri = "s3://bucket/file2"
+        asset_event2.partition_key = None
+
+        mock_get_events.return_value = [asset_event1, asset_event2]
+
+        result = get_dag_job_dependency_facet("test_dag", "test_run_id")
+
+        assert len(result) == 1
+        facet = result["jobDependencies"]
+        assert len(facet.upstream) == 1
+        assert len(facet.downstream) == 0
+
+        # Verify the single deduplicated dependency
+        dep = facet.upstream[0]
+        assert dep.job.namespace == namespace()
+        assert dep.job.name == "source_dag.source_task"
+        expected_run_id = build_task_instance_ol_run_id(
+            dag_id="source_dag",
+            task_id="source_task",
+            try_number=1,
+            logical_date=logical_date,
+            map_index=0,
+        )
+        assert dep.run.runId == expected_run_id
+        assert dep.dependency_type == "IMPLICIT_ASSET_DEPENDENCY"
+
+        # Both asset events should be aggregated into single dependency
+        assert dep.airflow["asset_events"] == [
+            {
+                "dag_run_id": "run1",
+                "asset_event_id": 1,
+                "asset_event_extra": None,
+                "asset_id": 101,
+                "asset_uri": "s3://bucket/file1",
+                "partition_key": None,
+            },
+            {
+                "dag_run_id": "run1",
+                "asset_event_id": 2,
+                "asset_event_extra": None,
+                "asset_id": 102,
+                "asset_uri": "s3://bucket/file2",
+                "partition_key": None,
+            },
+        ]
