@@ -16,28 +16,9 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { ChakraProvider } from "@chakra-ui/react";
-import { useMemo, type PropsWithChildren } from "react";
 
-import type { Theme } from "openapi/requests/types.gen";
-import { useConfig } from "src/queries/useConfig";
-import { createTheme } from "src/theme";
+export interface global {}
 
-export const ChakraCustomProvider = ({ children }: PropsWithChildren) => {
-  const theme = useConfig("theme");
-
-  const system = useMemo(() => {
-    if (typeof theme === "undefined") {
-      return undefined;
-    }
-
-    const syst = createTheme(theme as Theme);
-
-    // Once the system is created, make it globally available to dynamically imported React plugins.
-    Reflect.set(globalThis, "ChakraUISystem", syst);
-
-    return syst;
-  }, [theme]);
-
-  return system && <ChakraProvider value={system}>{children}</ChakraProvider>;
-};
+declare global {
+  var ChakraUISystem: SystemContext | undefined
+}
