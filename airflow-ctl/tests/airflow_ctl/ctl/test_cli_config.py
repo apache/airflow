@@ -18,7 +18,6 @@
 from __future__ import annotations
 
 from argparse import BooleanOptionalAction
-from datetime import datetime
 from textwrap import dedent
 
 import pytest
@@ -57,7 +56,7 @@ def test_args_create():
                 "help": "from_date for backfill operation",
                 "action": None,
                 "default": None,
-                "type": datetime,
+                "type": str,
                 "dest": None,
             },
         ),
@@ -67,7 +66,7 @@ def test_args_create():
                 "help": "to_date for backfill operation",
                 "action": None,
                 "default": None,
-                "type": datetime,
+                "type": str,
                 "dest": None,
             },
         ),
