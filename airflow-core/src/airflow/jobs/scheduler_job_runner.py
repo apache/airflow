@@ -1841,6 +1841,10 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         )
         existing_dagruns = {(x.dag_id, x.logical_date) for x in existing_dagrun_objects}
         self.log.info("existing_dagruns", existing_dagruns=existing_dagruns)
+        # todo: AIP-76 we may want to update this to handle partitions
+        #  but the thing is, there is not actually a restriction that
+        #  we don't create new runs with the same partition key
+        #  so it's unclear whether we should / need to.
 
         # backfill runs are not created by scheduler and their concurrency is separate
         # so we exclude them here
@@ -1904,6 +1908,9 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 #  but why is it trying to create these?
                 partition_key = None
                 if serdag.dag_id in partitioned_dags:
+                    # todo: AIP-76 how will this work with segment-driven partition schemes?
+                    #  will we still use next_dagrun?
+                    #  maybe we will need `next_partition_key` instead?
                     info = serdag.timetable.get_partition_dagrun_info(partition_date=dag_model.next_dagrun)
                     partition_key = info.partition_key
                     data_interval = info.data_interval

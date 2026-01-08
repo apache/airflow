@@ -384,7 +384,7 @@ class SerializedDAG:
 
     def next_dagrun_info(
         self,
-        last_automated_dagrun: None | DagRunInfo,  # TODO: AIP-76 just change this since internal
+        last_automated_dagrun: DagRunInfo | None,  # TODO: AIP-76 just change this since internal
         *,
         restricted: bool = True,
     ) -> DagRunInfo | None:
