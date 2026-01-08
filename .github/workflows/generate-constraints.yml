@@ -78,6 +78,8 @@ jobs:
       INCLUDE_SUCCESS_OUTPUTS: "true"
       PYTHON_VERSION: ${{ matrix.python-version }}
       VERBOSE: "true"
+      TARGET_BRANCH: ${{ inputs.target-branch }}
+      ACTION_BRANCH: ${{ inputs.action-branch }}
     steps:
       - name: "Cleanup repo"
         shell: bash
@@ -99,20 +101,14 @@ jobs:
         run: >
           breeze release-management generate-constraints
           --airflow-constraints-mode constraints-source-providers --answer yes --python "${PYTHON_VERSION}"
-          --target-branch "${{ TARGET_BRANCH }}" --action-branch "${{ ACTION_BRANCH }}"
-        env:
-          TARGET_BRANCH: ${{ inputs.target-branch }}
-          ACTION_BRANCH: ${{ inputs.action-branch }}
+          --target-branch "${TARGET_BRANCH}" --action-branch "${ACTION_BRANCH}"
       - name: "No providers constraints"
         shell: bash
         timeout-minutes: 25
         run: >
           breeze release-management generate-constraints
           --airflow-constraints-mode constraints-no-providers --answer yes --python "${PYTHON_VERSION}"
-          --target-branch "${{ TARGET_BRANCH }}" --action-branch "${{ ACTION_BRANCH }}"
-        env:
-          TARGET_BRANCH: ${{ github.base_ref }}
-          ACTION_BRANCH: ${{ inputs.action-branch }}
+          --target-branch "${TARGET_BRANCH}" --action-branch "${ACTION_BRANCH}"
         if: inputs.generate-no-providers-constraints == 'true'
       - name: "Prepare updated provider distributions"
         shell: bash
@@ -138,11 +134,8 @@ jobs:
           --airflow-constraints-mode constraints
           --answer yes
           --python "${PYTHON_VERSION}"
-          --target-branch "${{ TARGET_BRANCH }}"
-          --action-branch "${{ ACTION_BRANCH }}"
-        env:
-          TARGET_BRANCH: ${{ github.base_ref }}
-          ACTION_BRANCH: ${{ inputs.action-branch }}
+          --target-branch "${TARGET_BRANCH}"
+          --action-branch "${ACTION_BRANCH}"
         if: inputs.generate-pypi-constraints == 'true'
       - name: "Upload constraint artifacts non-default branches"
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4.6.2
