@@ -1,4 +1,3 @@
-#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -15,19 +14,3 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
-from __future__ import annotations
-
-from pluggy import HookspecMarker
-
-hookspec = HookspecMarker("airflow")
-
-
-@hookspec
-def on_new_dag_import_error(filename, stacktrace):
-    """Execute when new dag import error appears."""
-
-
-@hookspec
-def on_existing_dag_import_error(filename, stacktrace):
-    """Execute when existing dag import error appears."""

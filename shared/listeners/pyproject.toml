@@ -1,4 +1,3 @@
-#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -16,18 +15,39 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from __future__ import annotations
+[project]
+name = "apache-airflow-shared-listeners"
+description = "Shared listeners code for Airflow distributions"
+version = "0.0"
+classifiers = [
+    "Private :: Do Not Upload",
+]
 
-from pluggy import HookspecMarker
+dependencies = [
+    "pluggy>=1.5.0",
+    "structlog>=25.4.0",
+]
 
-hookspec = HookspecMarker("airflow")
+[dependency-groups]
+dev = [
+    "apache-airflow-devel-common",
+]
 
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
 
-@hookspec
-def on_new_dag_import_error(filename, stacktrace):
-    """Execute when new dag import error appears."""
+[tool.hatch.build.targets.wheel]
+packages = ["src/airflow_shared"]
 
+[tool.ruff]
+extend = "../../pyproject.toml"
+src = ["src"]
 
-@hookspec
-def on_existing_dag_import_error(filename, stacktrace):
-    """Execute when existing dag import error appears."""
+[tool.ruff.lint.per-file-ignores]
+# Ignore Doc rules et al for anything outside of tests
+"!src/*" = ["D", "S101", "TRY002"]
+
+[tool.ruff.lint.flake8-tidy-imports]
+# Override the workspace level default
+ban-relative-imports = "parents"
