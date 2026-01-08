@@ -37,7 +37,6 @@ inputs:
   branch:
     description: "Branch used to run the CI jobs in (main/v*_*_test)."
     required: false
-    default: "main"
 outputs:
   host-python-version:
     description: Python version used in host
@@ -60,12 +59,20 @@ runs:
     - name: "Restore ${{ inputs.image-type }} docker image ${{ inputs.platform }}:${{ inputs.python }}"
       uses: apache/infrastructure-actions/stash/restore@1c35b5ccf8fba5d4c3fdf25a045ca91aa0cbc468
       with:
+        key: ${{ inputs.image-type }}-image-save-v3-${{ inputs.platform }}-${{ inputs.python }}
+        path: "/mnt/"
+        only-current-branch: 'true'
+      if: inputs.branch != 'main' || (inputs.branch == 'main' && inputs.image-type == 'ci')
+    - name: "Restore ${{ inputs.image-type }} docker image ${{ inputs.platform }}:${{ inputs.python }}"
+      uses: apache/infrastructure-actions/stash/restore@1c35b5ccf8fba5d4c3fdf25a045ca91aa0cbc468
+      with:
         # yamllint disable rule:line-length
         key: >
           ${{ inputs.image-type }}-image-save-v3-${{ inputs.platform }}-${{ inputs.python }}-${{ inputs.branch }}
         # yamllint enable rule:line-length
         path: "/mnt/"
         only-current-branch: 'true'
+      if: inputs.branch == 'main' && inputs.image-type == 'prod'
     - name: "Load ${{ inputs.image-type }} image ${{ inputs.platform }}:${{ inputs.python }}"
       env:
         PLATFORM: ${{ inputs.platform }}

@@ -185,7 +185,6 @@ CI_IMAGE_TOOLS_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--from-pr",
                 "--from-run",
                 "--skip-image-file-deletion",
-                "--action-branch",
             ],
         },
     ],

@@ -257,11 +257,6 @@ jobs:
     name: Build CI images
     needs: [build-info]
     uses: ./.github/workflows/ci-image-build.yml
-    strategy:
-      fail-fast: false
-      matrix:
-        # yamllint disable rule: line-length
-        airflow-core-branch: ${{ fromJSON(needs.build-info.outputs.prod-image-build-matrix) }}
     permissions:
       contents: read
       # This write is only given here for `push` events from "apache/airflow" repo. It is not given for PRs
@@ -274,7 +269,7 @@ jobs:
       upload-image-artifact: "true"
       upload-mount-cache-artifact: ${{ needs.build-info.outputs.canary-run }}
       python-versions: ${{ needs.build-info.outputs.python-versions }}
-      branch: ${{ matrix.airflow-core-branch }}
+      branch: ${{ needs.build-info.outputs.default-branch }}
       constraints-branch: ${{ needs.build-info.outputs.default-constraints-branch }}
       use-uv: ${{ needs.build-info.outputs.use-uv }}
       upgrade-to-newer-dependencies: ${{ needs.build-info.outputs.upgrade-to-newer-dependencies }}

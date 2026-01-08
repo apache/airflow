@@ -56,7 +56,6 @@ from airflow_breeze.commands.common_image_options import (
     option_wait_for_image,
 )
 from airflow_breeze.commands.common_options import (
-    option_action_branch,
     option_answer,
     option_builder,
     option_commit_sha,
@@ -517,7 +516,6 @@ def run_verify_in_parallel(
 @option_ci_image_file_to_save
 @option_github_repository
 @option_image_file_dir
-@option_action_branch
 @option_platform_single
 @option_python
 @option_verbose
@@ -528,7 +526,6 @@ def save(
     github_repository: str,
     image_file: Path | None,
     image_file_dir: Path,
-    action_branch: str | None,
 ):
     """Save CI image to a file."""
     perform_environment_checks()
@@ -539,9 +536,8 @@ def save(
     with ci_group("Buildx disk usage"):
         run_command(["docker", "buildx", "du", "--verbose"], check=False)
     escaped_platform = platform.replace("/", "_")
-    path_suffix = f"{python}-{action_branch}"
     if not image_file:
-        image_file_to_store = image_file_dir / f"ci-image-save-v3-{escaped_platform}-{path_suffix}.tar"
+        image_file_to_store = image_file_dir / f"ci-image-save-v3-{escaped_platform}-{python}.tar"
     elif image_file.is_absolute():
         image_file_to_store = image_file
     else:
@@ -566,7 +562,6 @@ def save(
 @option_platform_single
 @option_python
 @option_skip_image_file_deletion
-@option_action_branch
 @option_verbose
 def load(
     from_run: str | None,
@@ -578,7 +573,6 @@ def load(
     platform: str,
     python: str,
     skip_image_file_deletion: bool,
-    action_branch: str | None,
 ):
     """Load CI image from a file."""
     perform_environment_checks()
@@ -587,17 +581,17 @@ def load(
         github_repository=github_repository,
     )
     escaped_platform = platform.replace("/", "_")
-    path_suffix = f"{python}-{action_branch}"
+
     if not image_file:
-        image_file_to_load = image_file_dir / f"ci-image-save-v3-{escaped_platform}-{path_suffix}.tar"
+        image_file_to_load = image_file_dir / f"ci-image-save-v3-{escaped_platform}-{python}.tar"
     elif image_file.is_absolute() or image_file.exists():
         image_file_to_load = image_file
     else:
         image_file_to_load = image_file_dir / image_file
 
-    if not image_file_to_load.name.endswith(f"-{path_suffix}.tar"):
+    if not image_file_to_load.name.endswith(f"-{python}.tar"):
         get_console().print(
-            f"[error]The image file {image_file_to_load} does not end with '-{path_suffix}.tar'. Exiting.[/]"
+            f"[error]The image file {image_file_to_load} does not end with '-{python}.tar'. Exiting.[/]"
         )
         sys.exit(1)
     if not image_file_to_load.name.startswith(f"ci-image-save-v3-{escaped_platform}"):
@@ -623,7 +617,7 @@ def load(
         get_console().print(f"[error]The image {image_file_to_load} does not exist.[/]")
         sys.exit(1)
 
-    get_console().print(f"[info]Loading Python CI image from {image_file_to_load} for {action_branch}[/]")
+    get_console().print(f"[info]Loading Python CI image from {image_file_to_load}[/]")
     result = run_command(["docker", "image", "load", "-i", image_file_to_load.as_posix()], check=False)
     if result.returncode != 0:
         get_console().print(f"[error]Error when loading image: {result.stdout}[/]")
