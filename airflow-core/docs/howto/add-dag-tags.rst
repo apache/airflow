@@ -23,8 +23,8 @@ Add tags to Dags and use it for filtering in the UI
 
 .. versionadded:: 1.10.8
 
-In order to filter Dags (e.g by team), you can add tags in each Dag.
-The filter is saved in a cookie and can be reset by the reset button.
+In order to filter DAGs (for example, by team) in the Airflow UI, you can add tags to each DAG.
+The selected filter is stored in the browser as a cookie and can be cleared using the reset button in the UI.
 
 For example:
 
