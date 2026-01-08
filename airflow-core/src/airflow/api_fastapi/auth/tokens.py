@@ -46,6 +46,7 @@ __all__ = [
     "JWKS",
     "JWTGenerator",
     "JWTValidator",
+    "TOKEN_SCOPE_QUEUE",
     "generate_private_key",
     "get_sig_validation_args",
     "get_signing_args",
@@ -53,6 +54,8 @@ __all__ = [
     "key_to_pem",
     "key_to_jwk_dict",
 ]
+
+TOKEN_SCOPE_QUEUE = "queue"
 
 
 class InvalidClaimError(ValueError):
@@ -454,6 +457,39 @@ class JWTGenerator:
         if extras is not None:
             claims = extras | claims
         headers = {"alg": self.algorithm, **(headers or {})}
+        if self._private_key:
+            headers["kid"] = self.kid
+        return jwt.encode(claims, self.signing_arg, algorithm=self.algorithm, headers=headers)
+
+    def generate_queue_token(self, sub: str) -> str:
+        """
+        Generate a long-lived queue token for task workloads.
+
+        Queue tokens have a special 'scope' claim that restricts them to the /run endpoint only.
+        They are valid for longer (default 24h) to survive queue wait times.
+        """
+        from airflow.configuration import conf
+
+        queue_expiry = conf.getint("execution_api", "jwt_queue_token_expiration_time", fallback=86400)
+        now = int(datetime.now(tz=timezone.utc).timestamp())
+
+        claims = {
+            "jti": uuid.uuid4().hex,
+            "iss": self.issuer,
+            "aud": self.audience,
+            "nbf": now,
+            "exp": now + queue_expiry,
+            "iat": now,
+            "sub": sub,
+            "scope": TOKEN_SCOPE_QUEUE,
+        }
+
+        if claims["iss"] is None:
+            del claims["iss"]
+        if claims["aud"] is None:
+            del claims["aud"]
+
+        headers = {"alg": self.algorithm}
         if self._private_key:
             headers["kid"] = self.kid
         return jwt.encode(claims, self.signing_arg, algorithm=self.algorithm, headers=headers)
