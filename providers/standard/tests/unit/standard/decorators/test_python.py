@@ -15,6 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+
 import sys
 import typing
 from collections import namedtuple
@@ -22,11 +23,10 @@ from datetime import date
 
 import pytest
 
-from airflow.models.taskinstance import TaskInstance
 from airflow.models.taskmap import TaskMap
 from airflow.providers.common.compat.sdk import AirflowException, XComNotFound
 
-from tests_common.test_utils.taskinstance import create_task_instance, render_template_fields
+from tests_common.test_utils.taskinstance import get_template_context, render_template_fields
 from tests_common.test_utils.version_compat import (
     AIRFLOW_V_3_0_1,
     AIRFLOW_V_3_0_PLUS,
@@ -37,8 +37,16 @@ from tests_common.test_utils.version_compat import (
 from unit.standard.operators.test_python import BasePythonTest
 
 if AIRFLOW_V_3_0_PLUS:
-    from airflow.sdk import DAG, BaseOperator, TaskGroup, XComArg, setup, task as task_decorator, teardown
-    from airflow.sdk.bases.decorator import DecoratedMappedOperator
+    from airflow.sdk import (
+        DAG,
+        BaseOperator,
+        TaskGroup,
+        XComArg,
+        setup,
+        task as task_decorator,
+        teardown,
+    )
+    from airflow.sdk.bases.decorator import DecoratedMappedOperator, _TaskDecorator
     from airflow.sdk.definitions._internal.expandinput import DictOfListsExpandInput
 else:
     from airflow.decorators import (  # type: ignore[attr-defined,no-redef]
@@ -46,7 +54,7 @@ else:
         task as task_decorator,
         teardown,
     )
-    from airflow.decorators.base import DecoratedMappedOperator  # type: ignore[no-redef]
+    from airflow.decorators.base import DecoratedMappedOperator, _TaskDecorator  # type: ignore[no-redef]
     from airflow.models.baseoperator import BaseOperator  # type: ignore[no-redef]
     from airflow.models.dag import DAG  # type: ignore[assignment,no-redef]
     from airflow.models.expandinput import DictOfListsExpandInput  # type: ignore[attr-defined,no-redef]
@@ -68,12 +76,22 @@ else:
 
 if typing.TYPE_CHECKING:
     from airflow.models.dagrun import DagRun
+    from airflow.models.taskinstance import TaskInstance
 
 pytestmark = pytest.mark.db_test
 
 DEFAULT_DATE = timezone.datetime(2016, 1, 1)
 PY38 = sys.version_info >= (3, 8)
 PY311 = sys.version_info >= (3, 11)
+
+
+@pytest.fixture(autouse=True)
+def clear_current_task_session():
+    try:
+        import airflow.utils.task_instance_session
+    except ModuleNotFoundError:
+        return
+    airflow.utils.task_instance_session.__current_task_instance_session = None
 
 
 class TestAirflowTaskDecorator(BasePythonTest):
@@ -399,20 +417,13 @@ class TestAirflowTaskDecorator(BasePythonTest):
             ret = arg_task(4, date(2019, 1, 1), "dag {{dag.dag_id}} ran on {{ds}}.", named_tuple)
 
         dr = self.create_dag_run()
-        if AIRFLOW_V_3_0_PLUS:
-            ti = create_task_instance(
-                task=ret.operator,
-                run_id=dr.run_id,
-                dag_version_id=dr.created_dag_version_id,
-            )
-        else:
-            ti = TaskInstance(task=ret.operator, run_id=dr.run_id)
-        rendered_op_args = render_template_fields(ti, ret.operator).op_args
-        assert len(rendered_op_args) == 4
-        assert rendered_op_args[0] == 4
-        assert rendered_op_args[1] == date(2019, 1, 1)
-        assert rendered_op_args[2] == f"dag {self.dag_id} ran on {self.ds_templated}."
-        assert rendered_op_args[3] == Named(self.ds_templated, "unchanged")
+        ti = dr.get_task_instance("arg_task", session=self.dag_maker.session)
+        assert render_template_fields(ti, ret.operator).op_args == (
+            4,
+            date(2019, 1, 1),
+            f"dag {self.dag_id} ran on {self.ds_templated}.",
+            Named(self.ds_templated, "unchanged"),
+        )
 
     def test_python_callable_keyword_arguments_are_templatized(self):
         """Test PythonOperator op_kwargs are templatized"""
@@ -427,18 +438,12 @@ class TestAirflowTaskDecorator(BasePythonTest):
             )
 
         dr = self.create_dag_run()
-        if AIRFLOW_V_3_0_PLUS:
-            ti = create_task_instance(
-                task=ret.operator,
-                run_id=dr.run_id,
-                dag_version_id=dr.created_dag_version_id,
-            )
-        else:
-            ti = TaskInstance(task=ret.operator, run_id=dr.run_id)
-        rendered_op_kwargs = render_template_fields(ti, ret.operator).op_kwargs
-        assert rendered_op_kwargs["an_int"] == 4
-        assert rendered_op_kwargs["a_date"] == date(2019, 1, 1)
-        assert rendered_op_kwargs["a_templated_string"] == f"dag {self.dag_id} ran on {self.ds_templated}."
+        ti = dr.get_task_instance("kwargs_task", session=self.dag_maker.session)
+        assert render_template_fields(ti, ret.operator).op_kwargs == {
+            "an_int": 4,
+            "a_date": date(2019, 1, 1),
+            "a_templated_string": f"dag {self.dag_id} ran on {self.ds_templated}.",
+        }
 
     def test_manual_task_id(self):
         """Test manually setting task_id"""
@@ -661,9 +666,9 @@ class TestAirflowTaskDecorator(BasePythonTest):
                 hello.override(pool="my_pool", priority_weight=i)()
 
         weights = []
-        for task in self.dag_non_serialized.tasks:
-            assert task.pool == "my_pool"
-            weights.append(task.priority_weight)
+        for _task in self.dag_non_serialized.tasks:
+            assert _task.pool == "my_pool"
+            weights.append(_task.priority_weight)
         assert weights == [0, 1, 2]
 
     def test_python_callable_args_work_as_well_as_baseoperator_args(self, dag_maker):
@@ -821,14 +826,10 @@ def test_mapped_decorator_unmap_merge_op_kwargs(dag_maker, session):
     assert [ti.task_id for ti in dec.schedulable_tis] == ["task2"]
     ti = dec.schedulable_tis[0]
 
-    # Use the real task for unmapping to mimic actual execution path
-    ti.task = dag_maker.dag.task_dict[ti.task_id]
-
-    if AIRFLOW_V_3_0_PLUS:
-        unmapped = ti.task.unmap((ti.get_template_context(session),))
-    else:
-        unmapped = ti.task.unmap((ti.get_template_context(session), session))
-    assert set(unmapped.op_kwargs) == {"arg1", "arg2"}
+    task = dag_maker.dag.task_dict[ti.task_id]
+    context = get_template_context(ti, task, session=session)
+    render_template_fields(ti, task, context=context, session=session)
+    assert set(context["task"].op_kwargs) == {"arg1", "arg2"}
 
 
 @pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="Different test for AF 2")
@@ -863,11 +864,12 @@ def test_mapped_render_template_fields(dag_maker, session):
     mapped_ti.map_index = 0
     mapped_ti.task = mapped.operator
     assert isinstance(mapped_ti.task, MappedOperator)
-    mapped.operator.render_template_fields(context=mapped_ti.get_template_context(session=session))
-    assert isinstance(mapped_ti.task, BaseOperator)
+    context = get_template_context(mapped_ti, mapped.operator, session=session)
+    mapped.operator.render_template_fields(context)
+    assert isinstance(context["task"], BaseOperator)
 
-    assert mapped_ti.task.op_kwargs["arg1"] == "{{ ds }}"
-    assert mapped_ti.task.op_kwargs["arg2"] == "fn"
+    assert context["task"].op_kwargs["arg1"] == "{{ ds }}"
+    assert context["task"].op_kwargs["arg2"] == "fn"
 
 
 @pytest.mark.skipif(AIRFLOW_V_3_0_PLUS, reason="Different test for AF 2")
@@ -1148,3 +1150,19 @@ def test_teardown_trigger_rule_override_behavior(dag_maker, session):
         my_teardown()
     assert work_task.operator.trigger_rule == TriggerRule.ONE_SUCCESS
     assert setup_task.operator.trigger_rule == TriggerRule.ONE_SUCCESS
+
+
+async def async_fn():
+    return 42
+
+
+def test_python_task():
+    from airflow.providers.standard.decorators.python import _PythonDecoratedOperator, python_task
+
+    decorator = python_task(async_fn)
+
+    assert isinstance(decorator, _TaskDecorator)
+    assert decorator.function == async_fn
+    assert decorator.operator_class == _PythonDecoratedOperator
+    assert not decorator.multiple_outputs
+    assert decorator.kwargs == {"task_id": "async_fn"}
