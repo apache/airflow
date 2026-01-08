@@ -76,7 +76,7 @@ export const TaskNames = ({ nodes, onRowClick, virtualItems }: Props) => {
 
   const search = searchParams.toString();
 
-  // If virtualItems is provided, use virtualization; otherwise render all ite
+  // If virtualItems is provided, use virtualization; otherwise render all items
   const itemsToRender =
     virtualItems ?? nodes.map((_, index) => ({ index, size: ROW_HEIGHT, start: index * ROW_HEIGHT }));
 
