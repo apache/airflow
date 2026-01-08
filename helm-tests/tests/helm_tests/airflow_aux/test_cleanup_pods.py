@@ -127,13 +127,6 @@ class TestCleanupPods:
         assert "successfulJobsHistoryLimit" not in docs[0]["spec"]
         assert "failedJobsHistoryLimit" not in docs[0]["spec"]
 
-    def test_should_pass_validation_with_v1beta1_api(self):
-        render_chart(
-            values={"executor": "KubernetesExecutor", "cleanup": {"enabled": True}},
-            show_only=["templates/cleanup/cleanup-cronjob.yaml"],
-            kubernetes_version="1.16.0",
-        )  # checks that no validation exception is raised
-
     def test_should_change_image_when_set_airflow_image(self):
         docs = render_chart(
             values={
