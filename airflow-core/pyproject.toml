@@ -69,7 +69,11 @@ dependencies = [
     "a2wsgi>=1.10.8",
     # aiosqlite 0.22.0 has a problem with hanging pytest sessions and we excluded it
     # See https://github.com/omnilib/aiosqlite/issues/369
-    "aiosqlite>=0.20.0,!=0.22.0",
+    # It seems that while our test issues are fixed in 0.22.1, sqlalchemy 2 itself
+    # is not compatible with it and leaves thread hanging This is already fixed in main of sqlalchemy
+    # But not released yet - and we will likely have to add >=2.0.46+ for sqlalchemy when released to
+    # protect against it https://github.com/sqlalchemy/sqlalchemy/issues/13039
+    "aiosqlite>=0.20.0,<0.22.0",
     # Alembic is important to handle our migrations in predictable and performant way. It is developed
     # together with SQLAlchemy. Our experience with Alembic is that it very stable in minor version
     # The 1.13.0 of alembic marked some migration code as SQLAlchemy 2+ only so we limit it to 1.13.1
@@ -231,6 +235,7 @@ exclude = [
 "../shared/secrets_backend/src/airflow_shared/secrets_backend" = "src/airflow/_shared/secrets_backend"
 "../shared/secrets_masker/src/airflow_shared/secrets_masker" = "src/airflow/_shared/secrets_masker"
 "../shared/timezones/src/airflow_shared/timezones" = "src/airflow/_shared/timezones"
+"../shared/plugins_manager/src/airflow_shared/plugins_manager" = "src/airflow/_shared/plugins_manager"
 
 [tool.hatch.build.targets.custom]
 path = "./hatch_build.py"
@@ -306,4 +311,5 @@ shared_distributions = [
     "apache-airflow-shared-secrets-backend",
     "apache-airflow-shared-secrets-masker",
     "apache-airflow-shared-timezones",
+    "apache-airflow-shared-plugins-manager",
 ]
