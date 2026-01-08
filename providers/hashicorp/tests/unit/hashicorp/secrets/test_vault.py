@@ -264,7 +264,7 @@ class TestVaultSecrets:
         assert test_client.get_variable("hello") is None
 
     @mock.patch("airflow.providers.hashicorp._internal_client.vault_client.hvac")
-    @mock.patch("airflow.utils.log.logging_mixin.structlog.get_logger")
+    @mock.patch("airflow.utils.log.logging_mixin.structlog")
     def test_get_variable_does_not_contain_value_key(self, mock_hvac, mock_get_logger):
         """
         Test that if the 'value' key is not present in Vault, _VaultClient.get_variable
@@ -272,7 +272,7 @@ class TestVaultSecrets:
         """
         mock_hvac.Client.return_value = mock.MagicMock()
         mock_logger = mock.MagicMock()
-        mock_get_logger.return_value = mock_logger
+        mock_get_logger.get_logger.return_value = mock_logger
 
         test_client = VaultBackend(
             **{
@@ -292,7 +292,7 @@ class TestVaultSecrets:
         )
 
     @mock.patch("airflow.providers.hashicorp._internal_client.vault_client.hvac")
-    @mock.patch("airflow.utils.log.logging_mixin.structlog.get_logger")
+    @mock.patch("airflow.utils.log.logging_mixin.structlog")
     def test_get_config_does_not_contain_value_key(self, mock_hvac, mock_get_logger):
         """
         Test that if the 'value' key is not present in Vault, _VaultClient.get_config
@@ -301,7 +301,7 @@ class TestVaultSecrets:
         mock_client = mock.MagicMock()
         mock_hvac.Client.return_value = mock_client
         mock_logger = mock.MagicMock()
-        mock_get_logger.return_value = mock_logger
+        mock_get_logger.get_logger.return_value = mock_logger
 
         kwargs = {
             "variables_path": "variables",
