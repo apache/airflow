@@ -63,9 +63,17 @@ class SageMakerNotebookOperator(BaseOperator):
     :param output_config:  Configuration for the output format. It should include an output_format parameter to control
         the format of the notebook execution output.
         Example: {"output_formats": ["NOTEBOOK"]}
-    :param compute: compute configuration to use for the artifact execution. This is a required attribute
+    :param compute: compute configuration to use for the notebook execution. This is a required attribute
         if the execution is on a remote compute.
-        Example: { "InstanceType": "ml.m5.large", "VolumeSizeInGB": 30, "VolumeKmsKeyId": "", "ImageUri": "string", "ContainerEntrypoint": [ "string" ]}
+        Example: {
+            "instance_type": "ml.m5.large",
+            "volume_size_in_gb": 30,
+            "volume_kms_key_id": "",
+            "image_details": {
+                "ecr_uri": "123456789012.dkr.ecr.us-west-2.amazonaws.com/my-image:latest"
+            },
+            "container_entrypoint": ["string"]
+        }
     :param termination_condition: conditions to match to terminate the remote execution.
         Example: { "MaxRuntimeInSeconds": 3600 }
     :param tags: tags to be associated with the remote execution runs.
