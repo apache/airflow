@@ -28,7 +28,6 @@ from sqlalchemy.exc import OperationalError
 from airflow._shared.timezones import timezone
 from airflow.executors.local_executor import LocalExecutor
 from airflow.jobs.job import Job, health_check_threshold, most_recent_job, perform_heartbeat, run_job
-from airflow.listeners.listener import get_listener_manager
 from airflow.utils.session import create_session
 from airflow.utils.state import State
 
@@ -68,11 +67,11 @@ class TestJob:
         assert job.state == State.SUCCESS
         assert job.end_date is not None
 
-    def test_base_job_respects_plugin_lifecycle(self, dag_maker):
+    def test_base_job_respects_plugin_lifecycle(self, dag_maker, listener_manager):
         """
         Test if DagRun is successful, and if Success callbacks is defined, it is sent to DagFileProcessor.
         """
-        get_listener_manager().add_listener(lifecycle_listener)
+        listener_manager(lifecycle_listener)
 
         job = Job()
         job_runner = MockJobRunner(job=job, func=lambda: sys.exit(0))

@@ -32,6 +32,7 @@ from __future__ import annotations
 import os
 import re
 import sys
+from collections.abc import Callable
 from pathlib import Path
 
 try:
@@ -182,7 +183,7 @@ def check_force_include(pyproject: Path, shared_distributions: list[str], shared
             updated = True
             console.print(f"[yellow]Added missing force-include entry for {dist} in {pyproject}[/yellow]")
         else:
-            console.print("[green]OK[/green]")
+            console.print(f"{dist}: [green]OK[/green]")
     if updated:
         # Reload data for next checks if needed
         pass
@@ -329,6 +330,303 @@ def filter_duplicate_dependencies(shared_deps: list[str], existing_deps: set[str
     return filtered_deps
 
 
+def get_all_shared_modules(shared_dir: Path) -> list[str]:
+    """
+    Get all shared module names from the shared/ directory.
+    Returns list of package names like 'apache-airflow-shared-configuration'.
+    """
+    shared_modules = []
+    if not shared_dir.exists():
+        return shared_modules
+
+    for item in shared_dir.iterdir():
+        if item.is_dir() and not item.name.startswith(".") and item.name != "__pycache__":
+            # Check if it has a pyproject.toml to confirm it's a valid package
+            if (item / "pyproject.toml").exists():
+                # Convert directory name to package name
+                # e.g., 'secrets_masker' -> 'apache-airflow-shared-secrets-masker'
+                package_name = f"apache-airflow-shared-{item.name.replace('_', '-')}"
+                shared_modules.append(package_name)
+
+    return sorted(shared_modules)
+
+
+def find_and_sort_entries(
+    file_text: str, section_marker: str, entry_prefix: str, stop_marker: str | None = None
+) -> tuple[list[str], list[int], int]:
+    """
+    Find entries matching a prefix in a TOML section and return them with their indices.
+
+    Args:
+        file_text: The content of the file
+        section_marker: The marker to identify the section (e.g., "members = [", "[tool.uv.sources]")
+        entry_prefix: The prefix to match entries (e.g., '"shared/', 'apache-airflow-shared-')
+        stop_marker: Optional marker to stop searching (e.g., "# Automatically generated provider")
+
+    Returns:
+        Tuple of (entries, indices, section_start_line)
+    """
+    lines = file_text.splitlines(keepends=True)
+    entries = []
+    indices = []
+    section_start = -1
+
+    for i, line in enumerate(lines):
+        if section_marker in line:
+            if section_marker.startswith("["):
+                # For section headers like [tool.uv.sources]
+                section_start = i
+            elif "members = [" in section_marker:
+                # Check if this is the workspace members section
+                if "[tool.uv.workspace]" in "".join(lines[max(0, i - 5) : i + 1]):
+                    section_start = i
+            else:
+                section_start = i
+
+            if section_start >= 0:
+                for j in range(section_start + 1, len(lines)):
+                    if stop_marker and stop_marker in lines[j]:
+                        break
+                    if entry_prefix in lines[j]:
+                        entries.append(lines[j])
+                        indices.append(j)
+                break
+
+    return entries, indices, section_start
+
+
+def sort_entries_in_section(file_text: str, entries: list[str], indices: list[int]) -> str:
+    """
+    Sort entries in place within a TOML section.
+
+    Args:
+        file_text: The content of the file
+        entries: The list of entry lines to sort
+        indices: The indices where these entries appear
+
+    Returns:
+        Updated file content with sorted entries
+    """
+    if not entries or entries == sorted(entries):
+        return file_text
+
+    lines = file_text.splitlines(keepends=True)
+    sorted_entries = sorted(entries)
+    for idx, new_entry in zip(indices, sorted_entries):
+        lines[idx] = new_entry
+
+    return "".join(lines)
+
+
+def add_missing_entries_to_section(
+    file_text: str,
+    section_marker: str,
+    missing_entries: list[str],
+    entry_formatter: Callable[[str], str],
+    insert_before_marker: str | None = None,
+    find_last_prefix: str | None = None,
+) -> tuple[str, bool]:
+    """
+    Add missing entries to a TOML section.
+
+    Args:
+        file_text: The content of the file
+        section_marker: The marker to identify the section
+        missing_entries: List of entries to add (sorted)
+        entry_formatter: Function to format each entry as a line
+        insert_before_marker: Optional marker to insert before
+        find_last_prefix: Optional prefix to find last occurrence and insert after
+
+    Returns:
+        Tuple of (updated file content, was_updated)
+    """
+    if not missing_entries:
+        return file_text, False
+
+    lines = file_text.splitlines(keepends=True)
+    insert_line = None
+
+    for i, line in enumerate(lines):
+        section_found = False
+        if section_marker in line:
+            if section_marker.startswith("["):
+                section_found = True
+            elif "members = [" in section_marker:
+                if "[tool.uv.workspace]" in "".join(lines[max(0, i - 5) : i + 1]):
+                    section_found = True
+            elif "dev = [" in section_marker:
+                section_found = True
+
+            if section_found:
+                # Find insertion point
+                for j in range(i + 1, len(lines)):
+                    if insert_before_marker and insert_before_marker in lines[j]:
+                        insert_line = j
+                        break
+                    if find_last_prefix and find_last_prefix in lines[j]:
+                        insert_line = j + 1
+                break
+
+    if insert_line is not None:
+        for entry in sorted(missing_entries):
+            lines.insert(insert_line, entry_formatter(entry))
+            insert_line += 1
+        return "".join(lines), True
+
+    return file_text, False
+
+
+def ensure_shared_in_workspace_and_dev(main_pyproject_path: Path, shared_dir: Path) -> list[str]:
+    """
+    Ensures all shared modules are in workspace members, [tool.uv.sources], and dev dependencies.
+    Also ensures they are sorted alphabetically.
+    Returns list of errors if any.
+    """
+    errors = []
+    shared_modules = get_all_shared_modules(shared_dir)
+
+    if not shared_modules:
+        console.print("[yellow]No shared modules found in shared/ directory[/yellow]")
+        return errors
+
+    console.print(
+        f"\n[bold blue]Found {len(shared_modules)} shared modules in shared/ directory:[/bold blue]"
+    )
+    for module in shared_modules:
+        console.print(f"  - {module}")
+
+    try:
+        with open(main_pyproject_path, "rb") as f:
+            data = tomllib.load(f)
+    except Exception as e:
+        return [f"Error reading main pyproject.toml: {e}"]
+
+    # Check workspace members
+    workspace_members = data.get("tool", {}).get("uv", {}).get("workspace", {}).get("members", [])
+    missing_in_workspace = []
+    for module in shared_modules:
+        # Convert package name to directory path
+        # e.g., 'apache-airflow-shared-secrets-masker' -> 'shared/secrets_masker'
+        dir_name = module.replace("apache-airflow-shared-", "").replace("-", "_")
+        workspace_path = f"shared/{dir_name}"
+        if workspace_path not in workspace_members:
+            missing_in_workspace.append(workspace_path)
+
+    # Check [tool.uv.sources]
+    uv_sources = data.get("tool", {}).get("uv", {}).get("sources", {})
+    missing_in_sources = [module for module in shared_modules if module not in uv_sources]
+
+    # Check dev dependencies
+    dev_deps = data.get("dependency-groups", {}).get("dev", [])
+    missing_in_dev = [module for module in shared_modules if module not in dev_deps]
+
+    # Report and fix missing/unsorted entries
+    file_text = main_pyproject_path.read_text()
+    updated = False
+
+    # Handle workspace members
+    if missing_in_workspace:
+        console.print(
+            f"\n[yellow]Missing {len(missing_in_workspace)} shared modules in workspace members:[/yellow]"
+        )
+        for path in missing_in_workspace:
+            console.print(f"  - {path}")
+
+        file_text, was_updated = add_missing_entries_to_section(
+            file_text,
+            "members = [",
+            missing_in_workspace,
+            lambda p: f'    "{p}",\n',
+            insert_before_marker="# Automatically generated provider workspace members",
+            find_last_prefix="shared/",
+        )
+        if was_updated:
+            updated = True
+            console.print("[green]Added missing workspace members[/green]")
+
+    # Sort workspace members
+    entries, indices, _ = find_and_sort_entries(
+        file_text,
+        "members = [",
+        '"shared/',
+        "# Automatically generated provider workspace members",
+    )
+    if entries and entries != sorted(entries):
+        console.print("\n[yellow]Shared workspace members are not sorted, sorting them...[/yellow]")
+        file_text = sort_entries_in_section(file_text, entries, indices)
+        updated = True
+        console.print("[green]Sorted shared workspace members[/green]")
+
+    # Handle [tool.uv.sources]
+    if missing_in_sources:
+        console.print(
+            f"\n[yellow]Missing {len(missing_in_sources)} shared modules in [tool.uv.sources]:[/yellow]"
+        )
+        for module in missing_in_sources:
+            console.print(f"  - {module}")
+
+        file_text, was_updated = add_missing_entries_to_section(
+            file_text,
+            "[tool.uv.sources]",
+            missing_in_sources,
+            lambda m: f"{m} = {{ workspace = true }}\n",
+            insert_before_marker="# Automatically generated provider workspace items",
+            find_last_prefix="apache-airflow-shared-",
+        )
+        if was_updated:
+            updated = True
+            console.print("[green]Added missing [tool.uv.sources] entries[/green]")
+
+    # Sort [tool.uv.sources]
+    entries, indices, _ = find_and_sort_entries(
+        file_text,
+        "[tool.uv.sources]",
+        "apache-airflow-shared-",
+        "# Automatically generated provider workspace items",
+    )
+    if entries and entries != sorted(entries):
+        console.print("\n[yellow]Shared [tool.uv.sources] entries are not sorted, sorting them...[/yellow]")
+        file_text = sort_entries_in_section(file_text, entries, indices)
+        updated = True
+        console.print("[green]Sorted shared [tool.uv.sources] entries[/green]")
+
+    # Handle dev dependencies
+    if missing_in_dev:
+        console.print(f"\n[yellow]Missing {len(missing_in_dev)} shared modules in dev dependencies:[/yellow]")
+        for module in missing_in_dev:
+            console.print(f"  - {module}")
+
+        file_text, was_updated = add_missing_entries_to_section(
+            file_text,
+            "dev = [",
+            missing_in_dev,
+            lambda m: f'    "{m}",\n',
+            insert_before_marker=None,
+            find_last_prefix="apache-airflow-shared-",
+        )
+        if was_updated:
+            updated = True
+            console.print("[green]Added missing dev dependencies[/green]")
+
+    # Sort dev dependencies
+    entries, indices, _ = find_and_sort_entries(file_text, "dev = [", '"apache-airflow-shared-', None)
+    if entries and entries != sorted(entries):
+        console.print("\n[yellow]Shared dev dependencies are not sorted, sorting them...[/yellow]")
+        file_text = sort_entries_in_section(file_text, entries, indices)
+        updated = True
+        console.print("[green]Sorted shared dev dependencies[/green]")
+
+    if updated:
+        main_pyproject_path.write_text(file_text)
+        console.print(f"\n[bold green]Updated {main_pyproject_path}[/bold green]")
+    else:
+        console.print(
+            "\n[bold green]All shared modules are properly configured in main pyproject.toml[/bold green]"
+        )
+
+    return errors
+
+
 def sync_shared_dependencies(project_pyproject_path: Path, shared_distributions: list[str]) -> None:
     """
     Synchronize dependencies from shared distributions into the project's pyproject.toml.
@@ -384,9 +682,17 @@ def sync_shared_dependencies(project_pyproject_path: Path, shared_distributions:
 
 def main() -> None:
     errors: dict[str, list[str]] = {}
-    pyproject_files = get_workspace_pyproject_toml_files(AIRFLOW_ROOT_PATH / "pyproject.toml")
+
+    # First, ensure all shared modules are in the main pyproject.toml workspace and dev dependencies
+    console.print("\n[bold blue]Step 1: Checking main pyproject.toml for all shared modules[/bold blue]")
+    main_pyproject_path = AIRFLOW_ROOT_PATH / "pyproject.toml"
+    workspace_errors = ensure_shared_in_workspace_and_dev(main_pyproject_path, SHARED_DIR)
+    if workspace_errors:
+        errors["main_pyproject.toml"] = workspace_errors
+
+    pyproject_files = get_workspace_pyproject_toml_files(main_pyproject_path)
     console.print(
-        "\n[bold blue]Checking for shared distributions for projects in airflow workspace.[/bold blue]\n"
+        "\n[bold blue]Step 2: Checking for shared distributions for projects in airflow workspace.[/bold blue]\n"
     )
     if not pyproject_files:
         console.print("[red]No pyproject.toml files found in workspace projects.[/red]")

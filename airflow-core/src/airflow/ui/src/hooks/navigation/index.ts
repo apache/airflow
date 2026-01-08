@@ -20,6 +20,8 @@
 export { useNavigation } from "./useNavigation";
 export { useKeyboardNavigation } from "./useKeyboardNavigation";
 
+export { NavigationModes } from "./types";
+
 export type {
   ArrowKey,
   NavigationDirection,

@@ -12,11 +12,35 @@
     "title": "Registre d'auditoria"
   },
   "xcom": {
+    "add": {
+      "error": "No s'ha pogut afegir l'XCom",
+      "errorTitle": "Error",
+      "success": "XCom afegit correctament",
+      "successTitle": "XCom afegit",
+      "title": "Afegir XCom"
+    },
     "columns": {
       "dag": "Dag",
       "key": "Clau",
       "value": "Valor"
     },
-    "title": "XCom"
+    "delete": {
+      "error": "No s'ha pogut eliminar l'XCom",
+      "errorTitle": "Error",
+      "success": "XCom eliminat correctament",
+      "successTitle": "XCom eliminat",
+      "title": "Eliminar XCom",
+      "warning": "Estàs segur que vols eliminar aquest XCom? Aquesta acció no es pot desfer."
+    },
+    "edit": {
+      "error": "No s'ha pogut actualitzar l'XCom",
+      "errorTitle": "Error",
+      "success": "XCom actualitzat correctament",
+      "successTitle": "XCom actualitzat",
+      "title": "Editar XCom"
+    },
+    "key": "Clau",
+    "title": "XCom",
+    "value": "Valor"
   }
 }

@@ -31,7 +31,12 @@ export const ChakraCustomProvider = ({ children }: PropsWithChildren) => {
       return undefined;
     }
 
-    return createTheme(theme as Theme);
+    const syst = createTheme(theme as Theme);
+
+    // Once the system is created, make it globally available to dynamically imported React plugins.
+    Reflect.set(globalThis, "ChakraUISystem", syst);
+
+    return syst;
   }, [theme]);
 
   return system && <ChakraProvider value={system}>{children}</ChakraProvider>;

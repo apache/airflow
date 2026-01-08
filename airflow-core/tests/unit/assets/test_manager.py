@@ -30,7 +30,6 @@ from sqlalchemy.orm import Session
 
 from airflow import settings
 from airflow.assets.manager import AssetManager
-from airflow.listeners.listener import get_listener_manager
 from airflow.models.asset import (
     AssetAliasModel,
     AssetDagRunQueue,
@@ -183,11 +182,11 @@ class TestAssetManager:
         assert session.scalar(select(func.count()).select_from(AssetDagRunQueue)) == 0
 
     def test_register_asset_change_notifies_asset_listener(
-        self, session, mock_task_instance, testing_dag_bundle
+        self, session, mock_task_instance, testing_dag_bundle, listener_manager
     ):
         asset_manager = AssetManager()
         asset_listener.clear()
-        get_listener_manager().add_listener(asset_listener)
+        listener_manager(asset_listener)
 
         bundle_name = "testing"
 
@@ -207,10 +206,10 @@ class TestAssetManager:
         assert len(asset_listener.changed) == 1
         assert asset_listener.changed[0].uri == asset.uri
 
-    def test_create_assets_notifies_asset_listener(self, session):
+    def test_create_assets_notifies_asset_listener(self, session, listener_manager):
         asset_manager = AssetManager()
         asset_listener.clear()
-        get_listener_manager().add_listener(asset_listener)
+        listener_manager(asset_listener)
 
         asset = Asset(uri="test://asset1", name="test_asset_1")
 

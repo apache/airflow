@@ -147,7 +147,7 @@ USERS_COMMANDS = (
         ),
         epilog=(
             "examples:\n"
-            'To create an user with "Admin" role and username equals to "admin", run:\n'
+            'To create a user with "Admin" role and username equals to "admin", run:\n'
             "\n"
             "    $ airflow users create \\\n"
             "          --username admin \\\n"
@@ -172,7 +172,7 @@ USERS_COMMANDS = (
         ),
         epilog=(
             "examples:\n"
-            'To reset an user with username equals to "admin", run:\n'
+            'To reset a user with username equals to "admin", run:\n'
             "\n"
             "    $ airflow users reset-password \\\n"
             "          --username admin"

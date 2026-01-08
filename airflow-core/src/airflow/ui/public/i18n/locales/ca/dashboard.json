@@ -29,7 +29,8 @@
   "poolSlots": "Slots de Pool",
   "sortBy": {
     "newestFirst": "Més recent primer",
-    "oldestFirst": "Més antic primer"
+    "oldestFirst": "Més antic primer",
+    "placeholder": "Ordenar per"
   },
   "source": "Font",
   "stats": {

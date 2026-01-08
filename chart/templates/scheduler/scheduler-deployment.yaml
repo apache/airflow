@@ -25,7 +25,7 @@
 {{- $local := contains "Local" .Values.executor }}
 # Is persistence enabled on the _workers_?
 # This is important because in $local mode, the scheduler assumes the role of the worker
-{{- $persistence := .Values.workers.persistence.enabled }}
+{{- $persistence := or .Values.workers.celery.persistence.enabled (and (not (has .Values.workers.celery.persistence.enabled (list true false))) .Values.workers.persistence.enabled) }}
 # If we're using a StatefulSet
 {{- $stateful := and $local $persistence }}
 # We can skip DAGs mounts on scheduler if dagProcessor is enabled, except with $local mode
@@ -75,8 +75,8 @@ spec:
   {{- if and $stateful .Values.scheduler.updateStrategy }}
   updateStrategy: {{- toYaml .Values.scheduler.updateStrategy | nindent 4 }}
   {{- end }}
-  {{- if and $stateful .Values.workers.persistence.persistentVolumeClaimRetentionPolicy }}
-  persistentVolumeClaimRetentionPolicy: {{- toYaml .Values.workers.persistence.persistentVolumeClaimRetentionPolicy  | nindent 4 }}
+  {{- if and $stateful (or .Values.workers.celery.persistence.persistentVolumeClaimRetentionPolicy .Values.workers.persistence.persistentVolumeClaimRetentionPolicy) }}
+  persistentVolumeClaimRetentionPolicy: {{- toYaml (.Values.workers.celery.persistence.persistentVolumeClaimRetentionPolicy | default .Values.workers.persistence.persistentVolumeClaimRetentionPolicy) | nindent 4 }}
   {{- end }}
   {{- if and (not $stateful) .Values.scheduler.strategy }}
   strategy: {{- toYaml .Values.scheduler.strategy | nindent 4 }}
@@ -382,16 +382,16 @@ spec:
       kind: PersistentVolumeClaim
       metadata:
         name: logs
-        {{- if .Values.workers.persistence.annotations }}
-        annotations: {{- toYaml .Values.workers.persistence.annotations | nindent 10 }}
+        {{- if or .Values.workers.celery.persistence.annotations .Values.workers.persistence.annotations }}
+        annotations: {{- toYaml (.Values.workers.celery.persistence.annotations | default .Values.workers.persistence.annotations) | nindent 10 }}
         {{- end }}
       spec:
-      {{- if .Values.workers.persistence.storageClassName }}
-        storageClassName: {{ tpl .Values.workers.persistence.storageClassName . | quote }}
+      {{- if or .Values.workers.celery.persistence.storageClassName .Values.workers.persistence.storageClassName }}
+        storageClassName: {{ tpl (.Values.workers.celery.persistence.storageClassName | default .Values.workers.persistence.storageClassName) . | quote }}
       {{- end }}
         accessModes: ["ReadWriteOnce"]
         resources:
           requests:
-            storage: {{ .Values.workers.persistence.size }}
+            storage: {{ .Values.workers.celery.persistence.size | default .Values.workers.persistence.size }}
   {{- end }}
   {{- end }}

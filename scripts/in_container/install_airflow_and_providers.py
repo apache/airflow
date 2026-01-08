@@ -128,9 +128,13 @@ def find_provider_distributions(extension: str, selected_providers: list[str]) -
     for candidate in candidates:
         # https://github.com/apache/airflow/pull/49339
         path_str = candidate.as_posix()
+        # Add optional extras that we test providers with
         if "apache_airflow_providers_common_sql" in path_str:
             console.print(f"[bright_blue]Adding [polars] extra to common.sql provider: {path_str}")
             path_str += "[polars]"
+        if "apache_airflow_providers_databricks" in path_str:
+            console.print(f"[bright_blue]Adding [sqlalchemy] extra to databricks provider: {path_str}")
+            path_str += "[sqlalchemy]"
         result.append(path_str)
     return result
 
@@ -397,6 +401,11 @@ def find_installation_spec(
                     github_repository=github_repository,
                     python_version=python_version,
                 )
+            if airflow_version.startswith("2."):
+                # We need to make sure that pydantic is added as extra for Airflow 2.x
+                # because it's not in extras by default, and pydantic incompatible version is
+                # installed by default in the container and breaks serialization import
+                airflow_extras = _add_pydantic_to_extras(airflow_extras)
             if airflow_extras:
                 airflow_distribution_spec += airflow_extras
         # We always install latest task-sdk - it's independent from Airflow
@@ -495,6 +504,8 @@ def find_installation_spec(
         sys.exit(1)
     else:
         compile_ui_assets = False
+        if use_airflow_version.startswith("2"):
+            airflow_extras = _add_pydantic_to_extras(airflow_extras)
         console.print(f"\nInstalling airflow via apache-airflow=={use_airflow_version}")
         airflow_distribution_spec = f"apache-airflow{airflow_extras}=={use_airflow_version}"
         airflow_core_distribution_spec = (
@@ -563,6 +574,16 @@ def find_installation_spec(
     )
     console.print("[bright_blue]Installation specification:[/]", installation_spec)
     return installation_spec
+
+
+def _add_pydantic_to_extras(airflow_extras: str) -> str:
+    console.print("[yellow]Adding pydantic to airflow extras for Airflow 2.x")
+    if airflow_extras:
+        airflow_extras = "[" + airflow_extras.strip("[]") + ",pydantic]"
+    else:
+        airflow_extras = "[pydantic]"
+    console.print(f"[yellow]New extras: {airflow_extras.strip('[]')}")
+    return airflow_extras
 
 
 def download_airflow_source_tarball(installation_spec: InstallationSpec):

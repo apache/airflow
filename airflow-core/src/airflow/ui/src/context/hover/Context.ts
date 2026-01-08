@@ -19,7 +19,9 @@
 import { createContext } from "react";
 
 export type HoverContextType = {
+  hoveredRunId: string | undefined;
   hoveredTaskId: string | undefined;
+  setHoveredRunId: (runId: string | undefined) => void;
   setHoveredTaskId: (taskId: string | undefined) => void;
 };
 

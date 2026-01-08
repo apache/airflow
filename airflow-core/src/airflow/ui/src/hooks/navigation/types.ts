@@ -19,7 +19,13 @@
 import type { GridRunsResponse } from "openapi/requests";
 import type { GridTask } from "src/layouts/Details/Grid/utils";
 
-export type NavigationMode = "run" | "task" | "TI";
+export const NavigationModes = {
+  RUN: "run",
+  TASK: "task",
+  TI: "TI",
+} as const;
+
+export type NavigationMode = (typeof NavigationModes)[keyof typeof NavigationModes];
 
 export type ArrowKey = "ArrowDown" | "ArrowLeft" | "ArrowRight" | "ArrowUp";
 
