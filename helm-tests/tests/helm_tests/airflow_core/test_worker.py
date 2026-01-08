@@ -583,10 +583,29 @@ class TestWorker:
         )
         assert default_cmd in livenessprobe_cmd[-1]
 
-    def test_livenessprobe_values_are_configurable(self):
-        docs = render_chart(
-            values={
-                "workers": {
+    @pytest.mark.parametrize(
+        "workers_values",
+        [
+            {
+                "celery": {
+                    "livenessProbe": {
+                        "initialDelaySeconds": 111,
+                        "timeoutSeconds": 222,
+                        "failureThreshold": 333,
+                        "periodSeconds": 444,
+                        "command": ["sh", "-c", "echo", "wow such test"],
+                    }
+                }
+            },
+            {
+                "livenessProbe": {
+                    "initialDelaySeconds": 11,
+                    "timeoutSeconds": 22,
+                    "failureThreshold": 33,
+                    "periodSeconds": 44,
+                    "command": ["test"],
+                },
+                "celery": {
                     "livenessProbe": {
                         "initialDelaySeconds": 111,
                         "timeoutSeconds": 222,
@@ -596,6 +615,28 @@ class TestWorker:
                     }
                 },
             },
+            {
+                "livenessProbe": {
+                    "initialDelaySeconds": 111,
+                    "timeoutSeconds": 222,
+                    "failureThreshold": 333,
+                    "periodSeconds": 444,
+                    "command": ["sh", "-c", "echo", "wow such test"],
+                },
+                "celery": {
+                    "livenessProbe": {
+                        "initialDelaySeconds": None,
+                        "timeoutSeconds": None,
+                        "failureThreshold": None,
+                        "periodSeconds": None,
+                    }
+                },
+            },
+        ],
+    )
+    def test_livenessprobe_celery_values_overwrite(self, workers_values):
+        docs = render_chart(
+            values={"workers": workers_values},
             show_only=["templates/workers/worker-deployment.yaml"],
         )
 
@@ -610,11 +651,43 @@ class TestWorker:
             },
         }
 
-    def test_disable_livenessprobe(self):
+    def test_livenessprobe_values_overwrite(self):
         docs = render_chart(
             values={
-                "workers": {"livenessProbe": {"enabled": False}},
+                "workers": {
+                    "livenessProbe": {
+                        "initialDelaySeconds": 111,
+                        "timeoutSeconds": 222,
+                        "failureThreshold": 333,
+                        "periodSeconds": 444,
+                        "command": ["sh", "-c", "echo", "wow such test"],
+                    }
+                }
             },
+            show_only=["templates/workers/worker-deployment.yaml"],
+        )
+
+        livenessprobe = jmespath.search("spec.template.spec.containers[0].livenessProbe", docs[0])
+        assert livenessprobe == {
+            "initialDelaySeconds": 10,
+            "timeoutSeconds": 20,
+            "failureThreshold": 5,
+            "periodSeconds": 60,
+            "exec": {
+                "command": ["sh", "-c", "echo", "wow such test"],
+            },
+        }
+
+    @pytest.mark.parametrize(
+        "workers_values",
+        [
+            {"livenessProbe": {"enabled": False}, "celery": {"livenessProbe": {"enabled": None}}},
+            {"celery": {"livenessProbe": {"enabled": False}}},
+        ],
+    )
+    def test_disable_livenessprobe(self, workers_values):
+        docs = render_chart(
+            values={"workers": workers_values},
             show_only=["templates/workers/worker-deployment.yaml"],
         )
 
@@ -817,10 +890,6 @@ class TestWorker:
             ({"celery": {"command": ["custom", "command"]}}, ["custom", "command"]),
             ({"celery": {"command": ["custom", "{{ .Release.Name }}"]}}, ["custom", "release-name"]),
             ({"command": ["test"], "celery": {"command": ["custom", "command"]}}, ["custom", "command"]),
-            (
-                {"command": ["test"], "celery": {"command": ["custom", "{{ .Release.Name }}"]}},
-                ["custom", "release-name"],
-            ),
         ],
     )
     def test_should_add_command(self, workers_values, expected):
@@ -849,28 +918,29 @@ class TestWorker:
         assert jmespath.search("spec.template.spec.containers[0].command", docs[0]) is None
 
     @pytest.mark.parametrize(
-        ("args", "expected"),
+        ("workers_values", "expected"),
         [
-            (["custom", "args"], ["custom", "args"]),
-            (["custom", "{{ .Release.Service }}"], ["custom", "Helm"]),
+            ({"args": None}, ["bash", "-c", "exec \\\nairflow celery worker"]),
+            ({"args": []}, ["bash", "-c", "exec \\\nairflow celery worker"]),
+            ({"celery": {"args": None}}, ["bash", "-c", "exec \\\nairflow celery worker"]),
+            ({"celery": {"args": []}}, ["bash", "-c", "exec \\\nairflow celery worker"]),
+            ({"args": ["custom", "args"]}, ["bash", "-c", "exec \\\nairflow celery worker"]),
+            (
+                {"args": ["custom", "{{ .Release.Service }}"]},
+                ["bash", "-c", "exec \\\nairflow celery worker"],
+            ),
+            ({"celery": {"args": ["custom", "args"]}}, ["custom", "args"]),
+            ({"celery": {"args": ["custom", "{{ .Release.Service }}"]}}, ["custom", "Helm"]),
+            ({"args": ["test"], "celery": {"args": ["custom", "args"]}}, ["custom", "args"]),
         ],
     )
-    def test_should_add_args(self, args, expected):
+    def test_should_add_args(self, workers_values, expected):
         docs = render_chart(
-            values={"workers": {"args": args}},
+            values={"workers": workers_values},
             show_only=["templates/workers/worker-deployment.yaml"],
         )
 
         assert expected == jmespath.search("spec.template.spec.containers[0].args", docs[0])
-
-    @pytest.mark.parametrize("args", [None, []])
-    def test_should_not_add_args(self, args):
-        docs = render_chart(
-            values={"workers": {"args": args}},
-            show_only=["templates/workers/worker-deployment.yaml"],
-        )
-
-        assert jmespath.search("spec.template.spec.containers[0].args", docs[0]) is None
 
     def test_dags_gitsync_sidecar_and_init_container(self):
         docs = render_chart(

@@ -65,7 +65,7 @@ class TestCliDb:
         db_command.run_db_migrate_command(Args(), fake_command, heads)
         out = capsys.readouterr().out
         assert "Performing upgrade" in out
-        assert "Database migrating done!" in out
+        assert "Database migration done!" in out
         assert called == {"to_revision": None, "from_revision": None, "show_sql_only": False}
 
     def test_run_db_migrate_command_offline_generation(self, capsys):

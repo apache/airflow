@@ -424,11 +424,13 @@ repos:
             (?x)
             ^airflow-ctl.*\.py$|
             ^airflow-core/src/airflow/models/.*\.py$|
+            ^airflow-core/src/airflow/migrations/versions/0015_2_9_0_update_trigger_kwargs_type.py$|
             ^airflow-core/src/airflow/api_fastapi/execution_api/routes/task_instances.py$|
             ^airflow-core/tests/unit/api_fastapi/core_api/routes/public/test_assets.py$|
             ^airflow-core/tests/unit/api_fastapi/core_api/routes/public/test_backfills.py$|
             ^airflow-core/tests/unit/api_fastapi/core_api/routes/public/test_connections.py$|
             ^airflow-core/tests/unit/api_fastapi/core_api/routes/public/test_pools.py$|
+            ^airflow-core/tests/unit/api_fastapi/core_api/routes/public/test_task_instances.py$|
             ^airflow-core/tests/unit/models/test_serialized_dag.py$|
             ^airflow-core/tests/unit/models/test_pool.py$|
             ^airflow-core/tests/unit/models/test_trigger.py$|

@@ -1,0 +1,3 @@
+``workers.args`` command is now deprecated in favor of ``workers.celery.args``.
+
+Along the upgrade of Helm Chart version, change the configuration of ``workers.args`` to ``workers.celery.args`` or unset ``workers.celery.args`` to preserve previous behaviour of the Helm Chart.

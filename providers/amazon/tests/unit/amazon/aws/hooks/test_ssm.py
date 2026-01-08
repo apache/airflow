@@ -137,3 +137,26 @@ class TestSsmHook:
 
         mock_conn.return_value.list_command_invocations.assert_called_once_with(CommandId=command_id)
         assert result == expected_response
+
+    @pytest.mark.parametrize(
+        ("status", "expected_result"),
+        [
+            pytest.param("Cancelled", True, id="cancelled_is_aws_level"),
+            pytest.param("TimedOut", True, id="timedout_is_aws_level"),
+            pytest.param("Cancelling", True, id="cancelling_is_aws_level"),
+            pytest.param("Failed", False, id="failed_is_command_level"),
+            pytest.param("Success", False, id="success_is_not_failure"),
+            pytest.param("Pending", False, id="pending_is_not_failure"),
+            pytest.param("InProgress", False, id="inprogress_is_not_failure"),
+            pytest.param("Delayed", False, id="delayed_is_not_failure"),
+        ],
+    )
+    def test_is_aws_level_failure(self, status, expected_result):
+        """
+        Test that is_aws_level_failure correctly identifies AWS-level failures.
+
+        AWS-level failures (Cancelled, TimedOut, Cancelling) represent service-level issues
+        that should always raise exceptions, while command-level failures (Failed) and
+        other statuses should not be considered AWS-level failures.
+        """
+        assert SsmHook.is_aws_level_failure(status) == expected_result

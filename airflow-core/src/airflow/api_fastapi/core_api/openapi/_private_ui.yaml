@@ -1360,7 +1360,9 @@ components:
           - type: 'null'
           title: External Log Name
         theme:
-          $ref: '#/components/schemas/Theme'
+          anyOf:
+          - $ref: '#/components/schemas/Theme'
+          - type: 'null'
       type: object
       required:
       - page_size

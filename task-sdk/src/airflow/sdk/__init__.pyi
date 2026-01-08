@@ -24,6 +24,7 @@ from airflow.sdk.api.datamodels._generated import (
 from airflow.sdk.bases.hook import BaseHook as BaseHook
 from airflow.sdk.bases.notifier import BaseNotifier as BaseNotifier
 from airflow.sdk.bases.operator import (
+    BaseAsyncOperator as BaseAsyncOperator,
     BaseOperator as BaseOperator,
     chain as chain,
     chain_linear as chain_linear,
@@ -83,6 +84,7 @@ __all__ = [
     "AssetAny",
     "AssetOrTimeSchedule",
     "AssetWatcher",
+    "BaseAsyncOperator",
     "BaseHook",
     "BaseNotifier",
     "BaseOperator",

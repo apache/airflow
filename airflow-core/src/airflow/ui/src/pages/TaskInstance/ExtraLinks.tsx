@@ -22,16 +22,26 @@ import { useParams } from "react-router-dom";
 
 import { useTaskInstanceServiceGetExtraLinks } from "openapi/queries";
 
-export const ExtraLinks = () => {
+type ExtraLinksProps = {
+  readonly refetchInterval: number | false;
+};
+
+export const ExtraLinks = ({ refetchInterval }: ExtraLinksProps) => {
   const { t: translate } = useTranslation("dag");
   const { dagId = "", mapIndex = "-1", runId = "", taskId = "" } = useParams();
 
-  const { data } = useTaskInstanceServiceGetExtraLinks({
-    dagId,
-    dagRunId: runId,
-    mapIndex: parseInt(mapIndex, 10),
-    taskId,
-  });
+  const { data } = useTaskInstanceServiceGetExtraLinks(
+    {
+      dagId,
+      dagRunId: runId,
+      mapIndex: parseInt(mapIndex, 10),
+      taskId,
+    },
+    undefined,
+    {
+      refetchInterval,
+    },
+  );
 
   return data && Object.keys(data.extra_links).length > 0 ? (
     <Box py={1}>
