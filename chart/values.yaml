@@ -2216,6 +2216,16 @@ dagProcessor:
     # Annotations to add to dag processor kubernetes service account.
     annotations: {}
 
+  # Dag processor pod disruption budget
+  podDisruptionBudget:
+    enabled: false
+
+    # PDB configuration
+    config:
+      # minAvailable and maxUnavailable are mutually exclusive
+      maxUnavailable: 1
+      # minAvailable: 1
+
   # When not set, the values defined in the global securityContext will be used
   securityContext: {}
   #  runAsUser: 50000
