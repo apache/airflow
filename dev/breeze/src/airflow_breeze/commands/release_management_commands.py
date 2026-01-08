@@ -1407,6 +1407,8 @@ def generate_constraints(
             shell_params = ShellParams(
                 python=python,
                 github_repository=github_repository,
+                use_image_from_action_branch=True,
+                action_branch=action_branch,
             )
             get_console().print("\n[info]Use this command to build the image:[/]\n")
             get_console().print(
@@ -1422,6 +1424,8 @@ def generate_constraints(
                 github_repository=github_repository,
                 python=python,
                 use_uv=use_uv,
+                use_image_from_action_branch=True,
+                action_branch=action_branch,
             )
             for python in python_version_list
         ]
@@ -1440,6 +1444,8 @@ def generate_constraints(
             github_repository=github_repository,
             python=python,
             use_uv=use_uv,
+            use_image_from_action_branch=True,
+            action_branch=action_branch,
         )
         return_code, info = run_generate_constraints(
             shell_params=shell_params,
