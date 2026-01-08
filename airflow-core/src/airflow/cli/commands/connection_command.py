@@ -29,6 +29,7 @@ from urllib.parse import urlsplit, urlunsplit
 from sqlalchemy import select
 from sqlalchemy.orm import exc
 
+from airflow._shared.secrets_masker import redact
 from airflow.cli.simple_table import AirflowConsole
 from airflow.cli.utils import is_stdout, print_export_output
 from airflow.configuration import conf
@@ -43,8 +44,9 @@ from airflow.utils.providers_configuration_loader import providers_configuration
 from airflow.utils.session import create_session
 
 
-def _connection_mapper(conn: Connection) -> dict[str, Any]:
-    return {
+def _connection_mapper(conn: Connection, mask_sensitive: bool = True) -> dict[str, Any]:
+    """Map a Connection object to a dictionary, optionally masking sensitive values."""
+    result = {
         "id": conn.id,
         "conn_id": conn.conn_id,
         "conn_type": conn.conn_type,
@@ -59,6 +61,9 @@ def _connection_mapper(conn: Connection) -> dict[str, Any]:
         "extra_dejson": conn.extra_dejson,
         "get_uri": conn.get_uri(),
     }
+    if mask_sensitive:
+        result = redact(result)
+    return result
 
 
 @suppress_logs_and_warning
@@ -74,7 +79,7 @@ def connections_get(args):
     AirflowConsole().print_as(
         data=[conn],
         output=args.output,
-        mapper=_connection_mapper,
+        mapper=lambda c: _connection_mapper(c, mask_sensitive=False),
     )
 
 
@@ -85,11 +90,12 @@ def connections_list(args):
     with create_session() as session:
         query = select(Connection)
         conns = session.scalars(query).all()
+        show_values = getattr(args, "show_values", False)
 
         AirflowConsole().print_as(
             data=conns,
             output=args.output,
-            mapper=_connection_mapper,
+            mapper=lambda c: _connection_mapper(c, mask_sensitive=not show_values),
         )
 
 
