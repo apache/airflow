@@ -20,7 +20,7 @@
 add timetable_type to dag table for filtering.
 
 Revision ID: e79fc784f145
-Revises: c47f2e1ab9d4
+Revises: 0b112f49112d
 Create Date: 2026-01-04 14:36:04.648869
 
 """
@@ -32,7 +32,7 @@ from alembic import op
 
 # revision identifiers, used by Alembic.
 revision = "e79fc784f145"
-down_revision = "c47f2e1ab9d4"
+down_revision = "0b112f49112d"
 branch_labels = None
 depends_on = None
 airflow_version = "3.2.0"
