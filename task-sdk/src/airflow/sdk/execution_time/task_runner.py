@@ -755,6 +755,46 @@ SUPERVISOR_COMMS: CommsDecoder[ToTask, ToSupervisor]
 # 3. Shutdown and report status
 
 
+def _check_bundle_permissions_for_impersonation(
+    bundle_instance: BaseDagBundle, run_as_user: str, log: structlog.stdlib.BoundLogger
+) -> None:
+    """
+    Check if bundle directories have appropriate permissions for user impersonation.
+
+    When tasks run as a different user via run_as_user, the bundle directories and
+    files need to be accessible by that user. This function warns if the permissions
+    don't appear to allow group access, which is typically needed for impersonation.
+
+    :param bundle_instance: The bundle instance to check
+    :param run_as_user: The user that the task will run as
+    :param log: Logger instance for warnings
+    """
+    import stat
+
+    try:
+        bundle_path = bundle_instance.path
+        if not bundle_path.exists():
+            return
+
+        st = bundle_path.stat()
+        mode = st.st_mode
+
+        # Check if group-readable and group-executable (for directories)
+        if not (mode & stat.S_IRGRP) or (bundle_path.is_dir() and not (mode & stat.S_IXGRP)):
+            log.warning(
+                "Bundle path may not be accessible to impersonated user",
+                bundle_path=str(bundle_path),
+                run_as_user=run_as_user,
+                current_permissions=oct(mode),
+                hint="Consider setting dag_bundle_new_folder_permissions to 0o775 in "
+                "[dag_processor] config, or ensure both users share a common group "
+                "with appropriate umask settings (e.g., umask 0002).",
+            )
+    except Exception:
+        # Don't let permission checking failures block task execution
+        pass
+
+
 def startup() -> tuple[RuntimeTaskInstance, Context, Logger]:
     # The parent sends us a StartupDetails message un-prompted. After this, every single message is only sent
     # in response to us sending a request.
@@ -803,6 +843,7 @@ def startup() -> tuple[RuntimeTaskInstance, Context, Logger]:
     )
 
     if os.environ.get("_AIRFLOW__REEXECUTED_PROCESS") != "1" and run_as_user and run_as_user != getuser():
+        _check_bundle_permissions_for_impersonation(ti.bundle_instance, run_as_user, log)
         # enters here for re-exec process
         os.environ["_AIRFLOW__REEXECUTED_PROCESS"] = "1"
         # store startup message in environment for re-exec process
