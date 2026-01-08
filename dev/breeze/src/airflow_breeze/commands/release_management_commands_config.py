@@ -305,6 +305,7 @@ RELEASE_MANAGEMENT_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--python",
                 "--use-uv",
                 "--action-branch",
+                "--target-branch",
             ],
         },
         {

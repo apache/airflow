@@ -74,7 +74,7 @@ from airflow_breeze.commands.common_options import (
     option_use_airflow_version,
     option_use_uv,
     option_verbose,
-    option_version_suffix,
+    option_version_suffix, option_target_branch,
 )
 from airflow_breeze.commands.common_package_installation_options import (
     option_airflow_constraints_location,
@@ -134,6 +134,7 @@ from airflow_breeze.utils.docker_command_utils import (
     fix_ownership_using_docker,
     perform_environment_checks,
 )
+from airflow_breeze.utils.github import checkout_target_branch
 from airflow_breeze.utils.packages import (
     PackageSuspendedException,
     apply_version_suffix_to_non_provider_pyproject_tomls,
@@ -1369,6 +1370,7 @@ def tag_providers(
 @option_github_repository
 @option_use_uv
 @option_action_branch
+@option_target_branch
 @option_verbose
 @option_dry_run
 @option_answer
@@ -1383,7 +1385,9 @@ def generate_constraints(
     skip_cleanup: bool,
     use_uv: bool,
     action_branch: str,
+    target_branch: str,
 ):
+    checkout_target_branch(target_branch=target_branch)
     perform_environment_checks()
     check_remote_ghcr_io_commands()
     fix_ownership_using_docker()

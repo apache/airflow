@@ -517,8 +517,14 @@ option_debugger = click.option(
     show_default=True,
     envvar="DEBUGGER",
 )
+# Used when we need to code from another branch such as v3-1-test to build some resources in main
 option_action_branch = click.option(
     "--action-branch",
+    help="GitHub Action branch to use to build the image when running tests from a GitHub Action",
+    default=AIRFLOW_BRANCH,
+)
+option_target_branch = click.option(
+    "--target-branch",
     help="GitHub Action branch to use to build the image when running tests from a GitHub Action",
     default=AIRFLOW_BRANCH,
 )

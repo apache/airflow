@@ -355,3 +355,21 @@ def download_artifact_from_pr(pr: str, output_file: Path, github_repository: str
     get_console().print(f"[info]Found run id {run_id} for PR {pr}")
 
     download_artifact_from_run_id(str(run_id), output_file, github_repository, github_token)
+
+def checkout_target_branch(target_branch: str) -> None:
+    """
+    Checks out the target branch in the given repository.
+    Only use when you are trying to run commands that require being on a specific branch.
+    This would require to take an action branch too to make difference between which branch we are on.
+    For example, we first need this to generate constraints to run integration tests with multiple versions of Airflow.
+
+    :param target_branch: Target branch name
+    """
+    from git import GitCommandError, Repo
+    repo = Repo(AIRFLOW_ROOT_PATH)
+
+    try:
+        repo.git.checkout(target_branch)
+    except GitCommandError as e:
+        get_console().print(f"[error]Failed to checkout branch {target_branch}: {e}")
+        sys.exit(1)

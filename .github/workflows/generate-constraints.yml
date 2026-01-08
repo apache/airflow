@@ -75,6 +75,8 @@ jobs:
       PYTHON_VERSION: ${{ matrix.python-version }}
       VERBOSE: "true"
       GITHUB_TARGET_BRANCH: ${{ inputs.branch }}`
+      TARGET_BRANCH: ${{ github.base_ref }}
+      ACTION_BRANCH: ${{ inputs.branch }}
     steps:
       - name: "Cleanup repo"
         shell: bash
@@ -83,7 +85,6 @@ jobs:
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
         with:
           persist-credentials: false
-          ref: ${{ inputs.branch }}
       - name: "Prepare breeze & CI image: ${{ matrix.python-version }}:${{ inputs.branch }}"
         uses: ./.github/actions/prepare_breeze_and_image
         with:
@@ -96,15 +97,15 @@ jobs:
         shell: bash
         run: >
           breeze release-management generate-constraints
-          --airflow-constraints-mode constraints-source-providers --answer yes
-          --python "${PYTHON_VERSION}"
+          --airflow-constraints-mode constraints-source-providers --answer yes --python "${PYTHON_VERSION}"
+          --target-branch "${{ TARGET_BRANCH }}" --action-branch "${{ ACTION_BRANCH }}"
       - name: "No providers constraints"
         shell: bash
         timeout-minutes: 25
         run: >
           breeze release-management generate-constraints
-          --airflow-constraints-mode constraints-no-providers --answer yes
-          --python "${PYTHON_VERSION}"
+          --airflow-constraints-mode constraints-no-providers --answer yes --python "${PYTHON_VERSION}"
+          --target-branch "${{ TARGET_BRANCH }}" --action-branch "${{ ACTION_BRANCH }}"
         if: inputs.generate-no-providers-constraints == 'true'
       - name: "Prepare updated provider distributions"
         shell: bash
@@ -126,8 +127,12 @@ jobs:
         shell: bash
         timeout-minutes: 25
         run: |
-          breeze release-management generate-constraints --airflow-constraints-mode constraints \
-            --answer yes --python "${PYTHON_VERSION}"
+          breeze release-management generate-constraints
+          --airflow-constraints-mode constraints
+          --answer yes
+          --python "${PYTHON_VERSION}"
+          --target-branch "${{ TARGET_BRANCH }}"
+          --action-branch "${{ ACTION_BRANCH }}"
         if: inputs.generate-pypi-constraints == 'true'
       - name: "Upload constraint artifacts non-default branches"
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4.6.2

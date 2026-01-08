@@ -287,7 +287,7 @@ jobs:
       - name: "Export PROD docker image ${{ env.PYTHON_MAJOR_MINOR_VERSION }}"
         env:
           PLATFORM: ${{ inputs.platform }}
-          ACTION_BRANCH: ${{ inputs.branch }}
+          ACTION_BRANCH: ${{ github.base_ref }}
         # yamllint disable rule:line-length
         run: breeze prod-image save --platform "${PLATFORM}" --image-file-dir "/mnt" --action-branch ${ACTION_BRANCH}
         # yamllint enable rule:line-length
