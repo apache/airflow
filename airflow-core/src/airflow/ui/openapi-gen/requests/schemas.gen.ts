@@ -7154,7 +7154,14 @@ export const $ConfigResponse = {
             title: 'External Log Name'
         },
         theme: {
-            '$ref': '#/components/schemas/Theme'
+            anyOf: [
+                {
+                    '$ref': '#/components/schemas/Theme'
+                },
+                {
+                    type: 'null'
+                }
+            ]
         }
     },
     type: 'object',
