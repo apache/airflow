@@ -89,7 +89,6 @@ const MarkGroupTaskInstanceAsDialog = ({ groupTaskInstance, onClose, open, state
                 include_upstream: upstream,
                 map_index: ti.map_index,
                 new_state: state,
-                note,
                 task_id: ti.task_id,
               })),
             },
