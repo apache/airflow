@@ -2896,3 +2896,43 @@ def mock_task_instance():
         return mock_ti
 
     return _create_mock_task_instance
+
+
+@pytest.fixture
+def listener_manager():
+    """
+    Fixture that provides a listener manager for tests.
+
+    This fixture registers listeners with both the core listener manager
+    (used by Jobs, DAG runs, etc.) and the SDK listener manager (used by
+    task execution). This ensures listeners work correctly regardless of
+    which code path calls them.
+
+    Usage:
+        def test_something(listener_manager):
+            listener_manager(full_listener)
+    """
+    from airflow.listeners.listener import get_listener_manager as get_core_lm
+
+    try:
+        from airflow.sdk.listener import get_listener_manager as get_sdk_lm
+    except ImportError:
+        get_sdk_lm = None
+
+    core_lm = get_core_lm()
+    sdk_lm = get_sdk_lm() if get_sdk_lm else None
+
+    core_lm.clear()
+    if sdk_lm:
+        sdk_lm.clear()
+
+    def add_listener(listener):
+        core_lm.add_listener(listener)
+        if sdk_lm:
+            sdk_lm.add_listener(listener)
+
+    yield add_listener
+
+    core_lm.clear()
+    if sdk_lm:
+        sdk_lm.clear()
