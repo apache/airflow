@@ -34,6 +34,7 @@ from airflow.providers.fab.www.utils import get_fab_auth_manager
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.utils.db import resetdb
 
+from tests_common.test_utils.asserts import assert_queries_count
 from tests_common.test_utils.config import conf_vars
 from unit.fab.auth_manager.api_endpoints.api_connexion_utils import create_user, delete_user
 
@@ -199,7 +200,16 @@ class TestFabAuthManager:
 
     def test_deserialize_user(self, flask_app, auth_manager_with_appbuilder):
         user = create_user(flask_app, "test")
-        result = auth_manager_with_appbuilder.deserialize_user({"sub": str(user.id)})
+        assert not auth_manager_with_appbuilder.user_cache
+        with assert_queries_count(2):
+            result = auth_manager_with_appbuilder.deserialize_user({"sub": str(user.id)})
+
+        assert user.get_id() == result.get_id()
+        assert auth_manager_with_appbuilder.user_cache[user.id] == user
+
+        with assert_queries_count(0):
+            result = auth_manager_with_appbuilder.deserialize_user({"sub": str(user.id)})
+
         assert user.get_id() == result.get_id()
 
     def test_serialize_user(self, flask_app, auth_manager_with_appbuilder):
