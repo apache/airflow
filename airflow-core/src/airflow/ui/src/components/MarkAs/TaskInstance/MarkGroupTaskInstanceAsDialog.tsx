@@ -56,7 +56,8 @@ const MarkGroupTaskInstanceAsDialog = ({ groupTaskInstance, onClose, open, state
   const upstream = selectedOptions.includes("upstream");
   const downstream = selectedOptions.includes("downstream");
 
-  const [note, setNote] = useState<string | undefined>(undefined);
+  // eslint-disable-next-line unicorn/no-null -- DAGRunResponse["note"] type requires null, not undefined
+  const [note, setNote] = useState<string | null>(null);
 
   const { data: groupTaskInstances } = useTaskInstanceServiceGetTaskInstances(
     {
@@ -80,6 +81,8 @@ const MarkGroupTaskInstanceAsDialog = ({ groupTaskInstance, onClose, open, state
             {
               action: "update",
               entities: groupTaskInstances.task_instances.map((ti) => ({
+                dag_id: dagId,
+                dag_run_id: runId,
                 include_downstream: downstream,
                 include_future: future,
                 include_past: past,
@@ -123,6 +126,8 @@ const MarkGroupTaskInstanceAsDialog = ({ groupTaskInstance, onClose, open, state
 
     // Create bulk update action with all tasks in the group
     const entities: Array<BulkTaskInstanceBody> = groupTaskInstances.task_instances.map((ti) => ({
+      dag_id: dagId,
+      dag_run_id: runId,
       include_downstream: downstream,
       include_future: future,
       include_past: past,
@@ -197,7 +202,7 @@ const MarkGroupTaskInstanceAsDialog = ({ groupTaskInstance, onClose, open, state
               ]}
             />
           </Flex>
-          <ActionAccordion affectedTasks={affectedTasks} note={note ?? null} setNote={setNote} />
+          <ActionAccordion affectedTasks={affectedTasks} note={note} setNote={setNote} />
           <Flex justifyContent="end" mt={3}>
             <Button
               colorPalette="brand"
