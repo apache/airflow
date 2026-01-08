@@ -30,6 +30,8 @@ from airflow.configuration import conf
 from airflow.exceptions import AirflowNotFoundException
 from airflow.models.connection import Connection
 
+log = logging.getLogger(__name__)
+
 
 async def has_connection_access(
     session: AsyncSessionDep,
@@ -60,8 +62,6 @@ router = APIRouter(
     responses={status.HTTP_404_NOT_FOUND: {"description": "Connection not found"}},
     dependencies=[Depends(has_connection_access)],
 )
-
-log = logging.getLogger(__name__)
 
 
 @router.get(

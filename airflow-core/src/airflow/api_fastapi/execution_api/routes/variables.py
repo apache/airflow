@@ -29,6 +29,8 @@ from airflow.api_fastapi.execution_api.deps import JWTBearerDep, get_team_name_d
 from airflow.configuration import conf
 from airflow.models.variable import Variable
 
+log = logging.getLogger(__name__)
+
 
 async def has_variable_access(
     session: AsyncSessionDep,
@@ -58,8 +60,6 @@ router = APIRouter(
     responses={status.HTTP_404_NOT_FOUND: {"description": "Variable not found"}},
     dependencies=[Depends(has_variable_access)],
 )
-
-log = logging.getLogger(__name__)
 
 
 @router.get(

@@ -39,6 +39,8 @@ from airflow.models.taskmap import TaskMap
 from airflow.models.xcom import XComModel
 from airflow.utils.db import get_query_count
 
+log = logging.getLogger(__name__)
+
 
 async def has_xcom_access(
     session: AsyncSessionDep,
@@ -107,8 +109,6 @@ router = APIRouter(
     },
     dependencies=[Depends(has_xcom_access)],
 )
-
-log = logging.getLogger(__name__)
 
 
 async def xcom_query(
