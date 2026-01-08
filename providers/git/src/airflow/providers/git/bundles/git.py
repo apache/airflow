@@ -18,7 +18,8 @@ from __future__ import annotations
 
 import os
 import shutil
-from contextlib import nullcontext
+import subprocess
+from contextlib import nullcontext, suppress
 from pathlib import Path
 from urllib.parse import urlparse
 
@@ -28,10 +29,62 @@ from git.exc import BadName, GitCommandError, InvalidGitRepositoryError, NoSuchP
 from tenacity import retry, retry_if_exception_type, stop_after_attempt
 
 from airflow.dag_processing.bundles.base import BaseDagBundle
+from airflow.providers.common.compat.bundles import get_bundle_permissions
 from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.git.hooks.git import GitHook
 
 log = structlog.get_logger(__name__)
+
+
+def _apply_permissions_recursively(path: Path) -> None:
+    """
+    Apply configured bundle permissions to a directory tree.
+
+    This ensures that when user impersonation is used, the impersonated user
+    can access the cloned repository files. Permissions are applied at clone
+    time regardless of whether all or only some tasks use run_as_user, because:
+    1. DAG parsing needs access before task execution
+    2. Bundles may serve multiple DAGs with different impersonation settings
+    3. Applying permissions upfront provides a consistent security model
+
+    :param path: The root path to apply permissions to recursively
+    """
+    folder_perms, file_perms = get_bundle_permissions()
+    # While individual chmod failures are suppressed, os.walk errors are more serious - so they're raised.
+    for root, dirs, files in os.walk(path):
+        root_path = Path(root)
+        with suppress(OSError):
+            root_path.chmod(folder_perms)
+        for d in dirs:
+            with suppress(OSError):
+                (root_path / d).chmod(folder_perms)
+        for f in files:
+            with suppress(OSError):
+                (root_path / f).chmod(file_perms)
+
+
+def _configure_git_safe_directory(path: Path) -> None:
+    """
+    Add path to git safe.directory to allow cross-user access.
+
+    Git 2.35.2+ refuses to operate on repositories owned by different users without explicit safe directory
+    configuration. This is needed when using user impersonation (run_as_user) where the repository is created by one
+    user but accessed by another.
+
+    Note: This modifies the global git config (~/.gitconfig) because git's `safe.directory` setting must be in global
+    or system config to take effect. Repo-local config is ignored for security reasons.
+
+    :param path: The repository path to add as a safe directory
+    """
+    try:
+        subprocess.run(
+            ["git", "config", "--global", "--add", "safe.directory", str(path)],
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+    except Exception as e:
+        log.debug("Could not configure git safe.directory for %s: %s", path, e)
 
 
 class GitDagBundle(BaseDagBundle):
@@ -170,8 +223,13 @@ class GitDagBundle(BaseDagBundle):
                     url=self.bare_repo_path,
                     to_path=self.repo_path,
                 )
+                # Apply permissions for multi-user access (e.g., impersonation)
+                _apply_permissions_recursively(self.repo_path)
             else:
                 self._log.debug("repo exists", repo_path=self.repo_path)
+
+            # Configure git safe.directory for cross-user access (git 2.35.2+)
+            _configure_git_safe_directory(self.repo_path)
             self.repo = Repo(self.repo_path)
         except NoSuchPathError as e:
             # Protection should the bare repo be removed manually
@@ -204,6 +262,11 @@ class GitDagBundle(BaseDagBundle):
                     bare=True,
                     env=self.hook.env if self.hook else None,
                 )
+                # Apply permissions for multi-user access (e.g., impersonation)
+                _apply_permissions_recursively(self.bare_repo_path)
+
+            # Configure git safe.directory for cross-user access (git 2.35.2+)
+            _configure_git_safe_directory(self.bare_repo_path)
             self.bare_repo = Repo(self.bare_repo_path)
 
             # Fetch to ensure we have latest refs and validate repo integrity

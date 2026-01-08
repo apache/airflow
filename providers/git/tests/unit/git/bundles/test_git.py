@@ -976,3 +976,49 @@ class TestGitDagBundle:
             bundle.initialize()
 
         mock_rmtree.assert_not_called()
+
+    @mock.patch("airflow.providers.git.bundles.git.get_bundle_permissions")
+    @mock.patch("airflow.providers.git.bundles.git.GitHook")
+    def test_clone_applies_permissions(self, mock_githook, mock_get_perms, git_repo, bundle_temp_dir):
+        """Test that cloning applies configured permissions to repository directories."""
+        import stat
+
+        repo_path, repo = git_repo
+        mock_githook.return_value.repo_url = repo_path
+        # Mock get_bundle_permissions to return the desired test values
+        mock_get_perms.return_value = (0o775, 0o664)
+
+        bundle = GitDagBundle(
+            name="test_perms",
+            git_conn_id=CONN_HTTPS,
+            tracking_ref=GIT_DEFAULT_BRANCH,
+        )
+        bundle.initialize()
+
+        # Check bare repo permissions
+        bare_mode = stat.S_IMODE(bundle.bare_repo_path.stat().st_mode)
+        assert bare_mode == 0o775
+
+        # Check tracking repo permissions
+        repo_mode = stat.S_IMODE(bundle.repo_path.stat().st_mode)
+        assert repo_mode == 0o775
+
+    @mock.patch("airflow.providers.git.bundles.git.GitHook")
+    @mock.patch("airflow.providers.git.bundles.git._configure_git_safe_directory")
+    def test_safe_directory_configured(self, mock_safe_dir, mock_githook, git_repo):
+        """Test that git safe.directory is configured for cross-user access."""
+        repo_path, repo = git_repo
+        mock_githook.return_value.repo_url = repo_path
+
+        bundle = GitDagBundle(
+            name="test_safe",
+            git_conn_id=CONN_HTTPS,
+            tracking_ref=GIT_DEFAULT_BRANCH,
+        )
+        bundle.initialize()
+
+        # Verify safe.directory was called for both repos
+        calls = mock_safe_dir.call_args_list
+        assert len(calls) >= 2  # At least once for bare and once for version repo
+        paths_called = [str(call[0][0]) for call in calls]
+        assert any("bare" in p for p in paths_called)
