@@ -1387,7 +1387,7 @@ def generate_constraints(
     action_branch: str,
     target_branch: str,
 ):
-    IF action_branch != target_branch:
+    if action_branch != target_branch:
         checkout_target_branch(target_branch=target_branch)
     perform_environment_checks()
     check_remote_ghcr_io_commands()
