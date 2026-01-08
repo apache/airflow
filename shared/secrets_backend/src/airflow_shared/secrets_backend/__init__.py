@@ -18,10 +18,4 @@ from __future__ import annotations
 
 from .base import BaseSecretsBackend
 
-__all__ = ["BaseSecretsBackend", "DEFAULT_SECRETS_SEARCH_PATH"]
-
-# Server side default secrets backend search path which is the default lookup chain used by server components (scheduler, API server)
-DEFAULT_SECRETS_SEARCH_PATH = [
-    "airflow.secrets.environment_variables.EnvironmentVariablesBackend",
-    "airflow.secrets.metastore.MetastoreBackend",
-]
+__all__ = ["BaseSecretsBackend"]

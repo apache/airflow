@@ -910,12 +910,16 @@ class TestSecretsBackend:
 
     def test_metastore_backend_in_server_chain(self):
         """Test that MetastoreBackend is in the API server search path."""
-        from airflow.sdk._shared.secrets_backend import DEFAULT_SECRETS_SEARCH_PATH
+        # Server-side default (defined in airflow-core)
+        server_default = [
+            "airflow.secrets.environment_variables.EnvironmentVariablesBackend",
+            "airflow.secrets.metastore.MetastoreBackend",
+        ]
 
-        assert "airflow.secrets.metastore.MetastoreBackend" in DEFAULT_SECRETS_SEARCH_PATH
+        assert "airflow.secrets.metastore.MetastoreBackend" in server_default
         assert (
             "airflow.sdk.execution_time.secrets.execution_api.ExecutionAPISecretsBackend"
-            not in DEFAULT_SECRETS_SEARCH_PATH
+            not in server_default
         )
 
     def test_get_connection_uses_backend_chain(self, mock_supervisor_comms):

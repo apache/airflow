@@ -28,9 +28,15 @@ from typing import Any
 
 from airflow.sdk import yaml
 from airflow.sdk._shared.configuration.parser import AirflowConfigParser as _SharedAirflowConfigParser
-from airflow.sdk._shared.secrets_backend import DEFAULT_SECRETS_SEARCH_PATH
 
 log = logging.getLogger(__name__)
+
+# Server-side default secrets search path (for comparison/detection only)
+# This matches what airflow-core uses but is defined here to avoid importing from core
+_SERVER_DEFAULT_SECRETS_SEARCH_PATH = [
+    "airflow.secrets.environment_variables.EnvironmentVariablesBackend",
+    "airflow.secrets.metastore.MetastoreBackend",
+]
 
 
 def _default_config_file_path(file_name: str) -> str:
@@ -185,7 +191,7 @@ def get_custom_secret_backend(worker_mode: bool = False):
 
 
 def initialize_secrets_backends(
-    default_backends: list[str] = DEFAULT_SECRETS_SEARCH_PATH,
+    default_backends: list[str] = _SERVER_DEFAULT_SECRETS_SEARCH_PATH,
 ):
     """
     Initialize secrets backend.
@@ -201,10 +207,7 @@ def initialize_secrets_backends(
     worker_mode = False
     # Determine worker mode - if default_backends is not the server default, it's worker mode
     # This is a simplified check; in practice, worker mode is determined by the caller
-    if default_backends != [
-        "airflow.secrets.environment_variables.EnvironmentVariablesBackend",
-        "airflow.secrets.metastore.MetastoreBackend",
-    ]:
+    if default_backends != _SERVER_DEFAULT_SECRETS_SEARCH_PATH:
         worker_mode = True
 
     custom_secret_backend = get_custom_secret_backend(worker_mode)
@@ -220,7 +223,7 @@ def initialize_secrets_backends(
 
 
 def ensure_secrets_loaded(
-    default_backends: list[str] = DEFAULT_SECRETS_SEARCH_PATH,
+    default_backends: list[str] = _SERVER_DEFAULT_SECRETS_SEARCH_PATH,
 ) -> list:
     """
     Ensure that all secrets backends are loaded.
@@ -230,9 +233,9 @@ def ensure_secrets_loaded(
     # Check if the secrets_backend_list contains only 2 default backends.
 
     # Check if we are loading the backends for worker too by checking if the default_backends is equal
-    # to DEFAULT_SECRETS_SEARCH_PATH.
+    # to _SERVER_DEFAULT_SECRETS_SEARCH_PATH.
     secrets_backend_list = initialize_secrets_backends()
-    if len(secrets_backend_list) == 2 or default_backends != DEFAULT_SECRETS_SEARCH_PATH:
+    if len(secrets_backend_list) == 2 or default_backends != _SERVER_DEFAULT_SECRETS_SEARCH_PATH:
         return initialize_secrets_backends(default_backends=default_backends)
     return secrets_backend_list
 
