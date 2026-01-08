@@ -40,6 +40,7 @@ import rich
 from packaging.version import parse as parse_version
 
 import airflow
+import airflow.sdk
 from airflow.configuration import retrieve_configuration_description
 from docs.utils.conf_constants import (
     AIRFLOW_FAVICON_PATH,
@@ -277,7 +278,7 @@ if PACKAGE_NAME in ["apache-airflow-providers-google"]:
 
 # Add task-sdk to intersphinx mapping for proper cross-referencing of SDK classes
 # This allows proper linking to BaseSensorOperator and other SDK classes from provider docs
-import airflow.sdk
+
 # Add remote task-sdk inventory for cross-referencing
 # This enables proper linking to SDK classes like BaseSensorOperator
 task_sdk_version = parse_version(airflow.sdk.__version__).base_version
