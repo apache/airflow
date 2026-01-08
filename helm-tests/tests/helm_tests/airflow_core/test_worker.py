@@ -46,22 +46,65 @@ class TestWorker:
 
         assert kind == jmespath.search("kind", docs[0])
 
-    @pytest.mark.parametrize(
-        ("revision_history_limit", "global_revision_history_limit"),
-        [(8, 10), (10, 8), (8, None), (None, 10), (None, None)],
-    )
-    def test_revision_history_limit(self, revision_history_limit, global_revision_history_limit):
-        values = {"workers": {}}
-        if revision_history_limit:
-            values["workers"]["revisionHistoryLimit"] = revision_history_limit
-        if global_revision_history_limit:
-            values["revisionHistoryLimit"] = global_revision_history_limit
+    def test_revision_history_limit_default(self):
         docs = render_chart(
-            values=values,
             show_only=["templates/workers/worker-deployment.yaml"],
         )
-        expected_result = revision_history_limit or global_revision_history_limit
-        assert jmespath.search("spec.revisionHistoryLimit", docs[0]) == expected_result
+
+        assert jmespath.search("spec.revisionHistoryLimit", docs[0]) is None
+
+    def test_revision_history_limit_global_unset(self):
+        docs = render_chart(
+            values={"revisionHistoryLimit": None},
+            show_only=["templates/workers/worker-deployment.yaml"],
+        )
+
+        assert jmespath.search("spec.revisionHistoryLimit", docs[0]) is None
+
+    def test_revision_history_limit_global(self):
+        docs = render_chart(
+            values={"revisionHistoryLimit": 8},
+            show_only=["templates/workers/worker-deployment.yaml"],
+        )
+
+        assert jmespath.search("spec.revisionHistoryLimit", docs[0]) == 8
+
+    @pytest.mark.parametrize(
+        ("values", "expected"),
+        [
+            ({"revisionHistoryLimit": 8}, 8),
+            ({"celery": {"revisionHistoryLimit": 8}}, 8),
+        ],
+    )
+    def test_revision_history_limit(self, values, expected):
+        docs = render_chart(
+            values={"workers": values},
+            show_only=["templates/workers/worker-deployment.yaml"],
+        )
+
+        assert jmespath.search("spec.revisionHistoryLimit", docs[0]) == expected
+
+    @pytest.mark.parametrize(
+        ("worker_values", "global_limit", "expected"),
+        [
+            ({"revisionHistoryLimit": 8}, 10, 8),
+            ({"celery": {"revisionHistoryLimit": 8}}, 10, 8),
+            ({"revisionHistoryLimit": 8, "celery": {"revisionHistoryLimit": 6}}, 10, 6),
+            ({"revisionHistoryLimit": None, "celery": {"revisionHistoryLimit": 6}}, 10, 6),
+            ({"revisionHistoryLimit": 8, "celery": {"revisionHistoryLimit": None}}, 10, 8),
+            ({"revisionHistoryLimit": None, "celery": {"revisionHistoryLimit": None}}, 10, 10),
+        ],
+    )
+    def test_revision_history_limit_overwrite(self, worker_values, global_limit, expected):
+        docs = render_chart(
+            values={
+                "revisionHistoryLimit": global_limit,
+                "workers": worker_values,
+            },
+            show_only=["templates/workers/worker-deployment.yaml"],
+        )
+
+        assert jmespath.search("spec.revisionHistoryLimit", docs[0]) == expected
 
     def test_should_add_extra_containers(self):
         docs = render_chart(
@@ -540,10 +583,29 @@ class TestWorker:
         )
         assert default_cmd in livenessprobe_cmd[-1]
 
-    def test_livenessprobe_values_are_configurable(self):
-        docs = render_chart(
-            values={
-                "workers": {
+    @pytest.mark.parametrize(
+        "workers_values",
+        [
+            {
+                "celery": {
+                    "livenessProbe": {
+                        "initialDelaySeconds": 111,
+                        "timeoutSeconds": 222,
+                        "failureThreshold": 333,
+                        "periodSeconds": 444,
+                        "command": ["sh", "-c", "echo", "wow such test"],
+                    }
+                }
+            },
+            {
+                "livenessProbe": {
+                    "initialDelaySeconds": 11,
+                    "timeoutSeconds": 22,
+                    "failureThreshold": 33,
+                    "periodSeconds": 44,
+                    "command": ["test"],
+                },
+                "celery": {
                     "livenessProbe": {
                         "initialDelaySeconds": 111,
                         "timeoutSeconds": 222,
@@ -553,6 +615,28 @@ class TestWorker:
                     }
                 },
             },
+            {
+                "livenessProbe": {
+                    "initialDelaySeconds": 111,
+                    "timeoutSeconds": 222,
+                    "failureThreshold": 333,
+                    "periodSeconds": 444,
+                    "command": ["sh", "-c", "echo", "wow such test"],
+                },
+                "celery": {
+                    "livenessProbe": {
+                        "initialDelaySeconds": None,
+                        "timeoutSeconds": None,
+                        "failureThreshold": None,
+                        "periodSeconds": None,
+                    }
+                },
+            },
+        ],
+    )
+    def test_livenessprobe_celery_values_overwrite(self, workers_values):
+        docs = render_chart(
+            values={"workers": workers_values},
             show_only=["templates/workers/worker-deployment.yaml"],
         )
 
@@ -567,11 +651,43 @@ class TestWorker:
             },
         }
 
-    def test_disable_livenessprobe(self):
+    def test_livenessprobe_values_overwrite(self):
         docs = render_chart(
             values={
-                "workers": {"livenessProbe": {"enabled": False}},
+                "workers": {
+                    "livenessProbe": {
+                        "initialDelaySeconds": 111,
+                        "timeoutSeconds": 222,
+                        "failureThreshold": 333,
+                        "periodSeconds": 444,
+                        "command": ["sh", "-c", "echo", "wow such test"],
+                    }
+                }
             },
+            show_only=["templates/workers/worker-deployment.yaml"],
+        )
+
+        livenessprobe = jmespath.search("spec.template.spec.containers[0].livenessProbe", docs[0])
+        assert livenessprobe == {
+            "initialDelaySeconds": 10,
+            "timeoutSeconds": 20,
+            "failureThreshold": 5,
+            "periodSeconds": 60,
+            "exec": {
+                "command": ["sh", "-c", "echo", "wow such test"],
+            },
+        }
+
+    @pytest.mark.parametrize(
+        "workers_values",
+        [
+            {"livenessProbe": {"enabled": False}, "celery": {"livenessProbe": {"enabled": None}}},
+            {"celery": {"livenessProbe": {"enabled": False}}},
+        ],
+    )
+    def test_disable_livenessprobe(self, workers_values):
+        docs = render_chart(
+            values={"workers": workers_values},
             show_only=["templates/workers/worker-deployment.yaml"],
         )
 
@@ -766,25 +882,65 @@ class TestWorker:
             f"exec \\\n{expected_arg}",
         ] == jmespath.search("spec.template.spec.containers[0].args", docs[0])
 
-    @pytest.mark.parametrize("command", [None, ["custom", "command"]])
-    @pytest.mark.parametrize("args", [None, ["custom", "args"]])
-    def test_command_and_args_overrides(self, command, args):
+    @pytest.mark.parametrize(
+        ("workers_values", "expected"),
+        [
+            ({"command": ["custom", "command"]}, ["custom", "command"]),
+            ({"command": ["custom", "{{ .Release.Name }}"]}, ["custom", "release-name"]),
+            ({"celery": {"command": ["custom", "command"]}}, ["custom", "command"]),
+            ({"celery": {"command": ["custom", "{{ .Release.Name }}"]}}, ["custom", "release-name"]),
+            ({"command": ["test"], "celery": {"command": ["custom", "command"]}}, ["custom", "command"]),
+        ],
+    )
+    def test_should_add_command(self, workers_values, expected):
         docs = render_chart(
-            values={"workers": {"command": command, "args": args}},
+            values={"workers": workers_values},
             show_only=["templates/workers/worker-deployment.yaml"],
         )
 
-        assert command == jmespath.search("spec.template.spec.containers[0].command", docs[0])
-        assert args == jmespath.search("spec.template.spec.containers[0].args", docs[0])
+        assert expected == jmespath.search("spec.template.spec.containers[0].command", docs[0])
 
-    def test_command_and_args_overrides_are_templated(self):
+    @pytest.mark.parametrize(
+        "workers_values",
+        [
+            {"command": None},
+            {"command": []},
+            {"celery": {"command": None}},
+            {"celery": {"command": []}},
+        ],
+    )
+    def test_should_not_add_command(self, workers_values):
         docs = render_chart(
-            values={"workers": {"command": ["{{ .Release.Name }}"], "args": ["{{ .Release.Service }}"]}},
+            values={"workers": workers_values},
             show_only=["templates/workers/worker-deployment.yaml"],
         )
 
-        assert jmespath.search("spec.template.spec.containers[0].command", docs[0]) == ["release-name"]
-        assert jmespath.search("spec.template.spec.containers[0].args", docs[0]) == ["Helm"]
+        assert jmespath.search("spec.template.spec.containers[0].command", docs[0]) is None
+
+    @pytest.mark.parametrize(
+        ("workers_values", "expected"),
+        [
+            ({"args": None}, ["bash", "-c", "exec \\\nairflow celery worker"]),
+            ({"args": []}, ["bash", "-c", "exec \\\nairflow celery worker"]),
+            ({"celery": {"args": None}}, ["bash", "-c", "exec \\\nairflow celery worker"]),
+            ({"celery": {"args": []}}, ["bash", "-c", "exec \\\nairflow celery worker"]),
+            ({"args": ["custom", "args"]}, ["bash", "-c", "exec \\\nairflow celery worker"]),
+            (
+                {"args": ["custom", "{{ .Release.Service }}"]},
+                ["bash", "-c", "exec \\\nairflow celery worker"],
+            ),
+            ({"celery": {"args": ["custom", "args"]}}, ["custom", "args"]),
+            ({"celery": {"args": ["custom", "{{ .Release.Service }}"]}}, ["custom", "Helm"]),
+            ({"args": ["test"], "celery": {"args": ["custom", "args"]}}, ["custom", "args"]),
+        ],
+    )
+    def test_should_add_args(self, workers_values, expected):
+        docs = render_chart(
+            values={"workers": workers_values},
+            show_only=["templates/workers/worker-deployment.yaml"],
+        )
+
+        assert expected == jmespath.search("spec.template.spec.containers[0].args", docs[0])
 
     def test_dags_gitsync_sidecar_and_init_container(self):
         docs = render_chart(
@@ -1016,6 +1172,182 @@ class TestWorker:
         assert (
             jmespath.search("spec.volumeClaimTemplates[2].spec.resources.requests.storage", docs[0]) == "20Gi"
         )
+
+    def test_should_add_extra_volume_claim_templates_with_logs_persistence_enabled(self):
+        """
+        Test that custom volumeClaimTemplates are created even when logs.persistence.enabled is true.
+
+        This test verifies the fix for the bug where custom volumeClaimTemplates were ignored
+        when logs.persistence.enabled was true, because the volumeClaimTemplates section
+        was only rendered in the else block that executed when logs.persistence.enabled was false.
+        """
+        docs = render_chart(
+            values={
+                "executor": "CeleryExecutor",
+                "workers": {
+                    "persistence": {"enabled": True},
+                    "volumeClaimTemplates": [
+                        {
+                            "metadata": {"name": "data"},
+                            "spec": {
+                                "storageClassName": "longhorn",
+                                "accessModes": ["ReadWriteOnce"],
+                                "resources": {"requests": {"storage": "10Gi"}},
+                            },
+                        },
+                    ],
+                },
+                "logs": {
+                    "persistence": {"enabled": True},  # This is the key: logs persistence enabled
+                },
+            },
+            show_only=["templates/workers/worker-deployment.yaml"],
+        )
+
+        # Verify StatefulSet is created
+        assert jmespath.search("kind", docs[0]) == "StatefulSet"
+
+        # Verify logs volume is created as regular PVC (not as volumeClaimTemplate)
+        volumes = jmespath.search("spec.template.spec.volumes", docs[0])
+        logs_volume = next((v for v in volumes if v.get("name") == "logs"), None)
+        assert logs_volume is not None
+        assert "persistentVolumeClaim" in logs_volume
+        assert logs_volume["persistentVolumeClaim"]["claimName"] == "release-name-logs"
+
+        # Verify volumeClaimTemplates section exists (this was the bug - it was missing before)
+        volume_claim_templates = jmespath.search("spec.volumeClaimTemplates", docs[0])
+        assert volume_claim_templates is not None
+        assert len(volume_claim_templates) > 0
+
+        # Verify custom volumeClaimTemplate is present
+        data_template = next(
+            (t for t in volume_claim_templates if t.get("metadata", {}).get("name") == "data"),
+            None,
+        )
+        assert data_template is not None
+        assert data_template["spec"]["storageClassName"] == "longhorn"
+        assert data_template["spec"]["accessModes"] == ["ReadWriteOnce"]
+        assert data_template["spec"]["resources"]["requests"]["storage"] == "10Gi"
+
+        # Verify logs is NOT in volumeClaimTemplates (it should be a regular PVC)
+        logs_template = next(
+            (t for t in volume_claim_templates if t.get("metadata", {}).get("name") == "logs"),
+            None,
+        )
+        assert logs_template is None, (
+            "Logs should not be in volumeClaimTemplates when logs.persistence.enabled is true"
+        )
+
+    @pytest.mark.parametrize(
+        (
+            "logs_persistence_enabled",
+            "workers_persistence_enabled",
+            "custom_templates",
+            "should_have_volume_claim_templates",
+        ),
+        [
+            # Test case 1: logs.persistence=false, workers.persistence=true, no custom templates
+            # Should have volumeClaimTemplates with logs template
+            (False, True, [], True),
+            # Test case 2: logs.persistence=true, workers.persistence=true, custom templates provided
+            # Should have volumeClaimTemplates with custom templates (this is the fix!)
+            (
+                True,
+                True,
+                [
+                    {
+                        "metadata": {"name": "data"},
+                        "spec": {
+                            "accessModes": ["ReadWriteOnce"],
+                            "resources": {"requests": {"storage": "10Gi"}},
+                        },
+                    }
+                ],
+                True,
+            ),
+            # Test case 3: logs.persistence=true, workers.persistence=true, no custom templates
+            # Should NOT have volumeClaimTemplates
+            (True, True, [], False),
+            # Test case 4: logs.persistence=false, workers.persistence=false (Deployment)
+            # Should NOT have volumeClaimTemplates (Deployments don't support it)
+            (
+                False,
+                False,
+                [
+                    {
+                        "metadata": {"name": "data"},
+                        "spec": {
+                            "accessModes": ["ReadWriteOnce"],
+                            "resources": {"requests": {"storage": "10Gi"}},
+                        },
+                    }
+                ],
+                False,
+            ),
+        ],
+    )
+    def test_volume_claim_templates_conditional_logic(
+        self,
+        logs_persistence_enabled,
+        workers_persistence_enabled,
+        custom_templates,
+        should_have_volume_claim_templates,
+    ):
+        """
+        Test the conditional logic for volumeClaimTemplates creation.
+
+        This test verifies that volumeClaimTemplates are created correctly based on:
+        - workers.persistence.enabled (must be true for StatefulSet)
+        - logs.persistence.enabled (affects whether logs is a template or regular PVC)
+        - Custom volumeClaimTemplates provided (should always create section if provided)
+        """
+        docs = render_chart(
+            values={
+                "executor": "CeleryExecutor",
+                "workers": {
+                    "persistence": {"enabled": workers_persistence_enabled},
+                    "volumeClaimTemplates": custom_templates,
+                },
+                "logs": {
+                    "persistence": {"enabled": logs_persistence_enabled},
+                },
+            },
+            show_only=["templates/workers/worker-deployment.yaml"],
+        )
+
+        volume_claim_templates = jmespath.search("spec.volumeClaimTemplates", docs[0])
+
+        if should_have_volume_claim_templates:
+            assert volume_claim_templates is not None
+            assert len(volume_claim_templates) > 0
+
+            # If logs.persistence is false, logs should be in volumeClaimTemplates
+            if not logs_persistence_enabled:
+                logs_template = next(
+                    (t for t in volume_claim_templates if t.get("metadata", {}).get("name") == "logs"),
+                    None,
+                )
+                assert logs_template is not None, (
+                    "Logs should be in volumeClaimTemplates when logs.persistence.enabled is false"
+                )
+
+            # If custom templates provided, they should be in volumeClaimTemplates
+            if custom_templates:
+                for template in custom_templates:
+                    template_name = template["metadata"]["name"]
+                    found_template = next(
+                        (
+                            t
+                            for t in volume_claim_templates
+                            if t.get("metadata", {}).get("name") == template_name
+                        ),
+                        None,
+                    )
+                    assert found_template is not None, (
+                        f"Custom template '{template_name}' should be in volumeClaimTemplates"
+                    )
+        else:
+            assert volume_claim_templates is None or len(volume_claim_templates) == 0
 
     @pytest.mark.parametrize(
         ("globalScope", "localScope", "precedence"),

@@ -196,6 +196,70 @@ DEPRECATION WARNING:
 
 {{- end }}
 
+{{- if not (empty .Values.workers.revisionHistoryLimit) }}
+
+ DEPRECATION WARNING:
+    `workers.revisionHistoryLimit` has been renamed to `workers.celery.revisionHistoryLimit`.
+    Please change your values as support for the old name will be dropped in a future release.
+
+{{- end }}
+
+{{- if ne (.Values.workers.args | toJson) (list "bash" "-c" "exec \\\nairflow {{ semverCompare \">=2.0.0\" .Values.airflowVersion | ternary \"celery worker\" \"worker\" }}" | toJson) }}
+
+ DEPRECATION WARNING:
+    `workers.args` has been renamed to `workers.celery.args`.
+    Please change your values as support for the old name will be dropped in a future release.
+
+{{- end }}
+
+{{- if not .Values.workers.livenessProbe.enabled }}
+
+ DEPRECATION WARNING:
+    `workers.livenessProbe.enabled` has been renamed to `workers.celery.livenessProbe.enabled`.
+    Please change your values as support for the old name will be dropped in a future release.
+
+{{- end }}
+
+{{- if ne (int .Values.workers.livenessProbe.initialDelaySeconds) 10 }}
+
+ DEPRECATION WARNING:
+    `workers.livenessProbe.initialDelaySeconds` has been renamed to `workers.celery.livenessProbe.initialDelaySeconds`.
+    Please change your values as support for the old name will be dropped in a future release.
+
+{{- end }}
+
+{{- if ne (int .Values.workers.livenessProbe.timeoutSeconds) 20 }}
+
+ DEPRECATION WARNING:
+    `workers.livenessProbe.timeoutSeconds` has been renamed to `workers.celery.livenessProbe.timeoutSeconds`.
+    Please change your values as support for the old name will be dropped in a future release.
+
+{{- end }}
+
+{{- if ne (int .Values.workers.livenessProbe.failureThreshold) 5 }}
+
+ DEPRECATION WARNING:
+    `workers.livenessProbe.failureThreshold` has been renamed to `workers.celery.livenessProbe.failureThreshold`.
+    Please change your values as support for the old name will be dropped in a future release.
+
+{{- end }}
+
+{{- if ne (int .Values.workers.livenessProbe.periodSeconds) 60 }}
+
+ DEPRECATION WARNING:
+    `workers.livenessProbe.periodSeconds` has been renamed to `workers.celery.livenessProbe.periodSeconds`.
+    Please change your values as support for the old name will be dropped in a future release.
+
+{{- end }}
+
+{{- if not (empty .Values.workers.livenessProbe.command) }}
+
+ DEPRECATION WARNING:
+    `workers.livenessProbe.command` has been renamed to `workers.celery.livenessProbe.command`.
+    Please change your values as support for the old name will be dropped in a future release.
+
+{{- end }}
+
 {{ if (semverCompare ">=3.0.0" .Values.airflowVersion) }}
 #####################################################
 #  WARNING: You should set a static API secret key  #

@@ -22,14 +22,25 @@ import { useTranslation } from "react-i18next";
 import { useTaskInstanceServiceGetTaskInstanceDependencies } from "openapi/queries";
 import type { TaskInstanceResponse } from "openapi/requests/types.gen";
 
-export const BlockingDeps = ({ taskInstance }: { readonly taskInstance: TaskInstanceResponse }) => {
+type BlockingDepsProps = {
+  readonly refetchInterval: number | false;
+  readonly taskInstance: TaskInstanceResponse;
+};
+
+export const BlockingDeps = ({ refetchInterval, taskInstance }: BlockingDepsProps) => {
   const { t: translate } = useTranslation();
-  const { data } = useTaskInstanceServiceGetTaskInstanceDependencies({
-    dagId: taskInstance.dag_id,
-    dagRunId: taskInstance.dag_run_id,
-    mapIndex: taskInstance.map_index,
-    taskId: taskInstance.task_id,
-  });
+  const { data } = useTaskInstanceServiceGetTaskInstanceDependencies(
+    {
+      dagId: taskInstance.dag_id,
+      dagRunId: taskInstance.dag_run_id,
+      mapIndex: taskInstance.map_index,
+      taskId: taskInstance.task_id,
+    },
+    undefined,
+    {
+      refetchInterval,
+    },
+  );
 
   if (data === undefined || data.dependencies.length < 1) {
     return undefined;

@@ -65,7 +65,7 @@ class TestCliDb:
         db_command.run_db_migrate_command(Args(), fake_command, heads)
         out = capsys.readouterr().out
         assert "Performing upgrade" in out
-        assert "Database migrating done!" in out
+        assert "Database migration done!" in out
         assert called == {"to_revision": None, "from_revision": None, "show_sql_only": False}
 
     def test_run_db_migrate_command_offline_generation(self, capsys):
@@ -701,6 +701,8 @@ class TestCLIDBClean:
             db_command.cleanup_tables(args)
         run_cleanup_mock.assert_called_once_with(
             table_names=None,
+            dag_ids=None,
+            exclude_dag_ids=None,
             dry_run=False,
             clean_before_timestamp=pendulum.parse(timestamp, tz=timezone),
             verbose=False,
@@ -722,6 +724,8 @@ class TestCLIDBClean:
 
         run_cleanup_mock.assert_called_once_with(
             table_names=None,
+            dag_ids=None,
+            exclude_dag_ids=None,
             dry_run=False,
             clean_before_timestamp=pendulum.parse(timestamp),
             verbose=False,
@@ -749,6 +753,8 @@ class TestCLIDBClean:
 
         run_cleanup_mock.assert_called_once_with(
             table_names=None,
+            dag_ids=None,
+            exclude_dag_ids=None,
             dry_run=False,
             clean_before_timestamp=pendulum.parse("2021-01-01 00:00:00Z"),
             verbose=False,
@@ -776,6 +782,8 @@ class TestCLIDBClean:
 
         run_cleanup_mock.assert_called_once_with(
             table_names=None,
+            dag_ids=None,
+            exclude_dag_ids=None,
             dry_run=False,
             clean_before_timestamp=pendulum.parse("2021-01-01 00:00:00Z"),
             verbose=False,
@@ -803,6 +811,8 @@ class TestCLIDBClean:
 
         run_cleanup_mock.assert_called_once_with(
             table_names=None,
+            dag_ids=None,
+            exclude_dag_ids=None,
             dry_run=expected,
             clean_before_timestamp=pendulum.parse("2021-01-01 00:00:00Z"),
             verbose=False,
@@ -832,6 +842,8 @@ class TestCLIDBClean:
 
         run_cleanup_mock.assert_called_once_with(
             table_names=expected,
+            dag_ids=None,
+            exclude_dag_ids=None,
             dry_run=False,
             clean_before_timestamp=pendulum.parse("2021-01-01 00:00:00Z"),
             verbose=False,
@@ -859,6 +871,8 @@ class TestCLIDBClean:
 
         run_cleanup_mock.assert_called_once_with(
             table_names=None,
+            dag_ids=None,
+            exclude_dag_ids=None,
             dry_run=False,
             clean_before_timestamp=pendulum.parse("2021-01-01 00:00:00Z"),
             verbose=expected,
@@ -886,12 +900,76 @@ class TestCLIDBClean:
 
         run_cleanup_mock.assert_called_once_with(
             table_names=None,
+            dag_ids=None,
+            exclude_dag_ids=None,
             dry_run=False,
             clean_before_timestamp=pendulum.parse("2021-01-01 00:00:00Z"),
             verbose=False,
             confirm=True,
             skip_archive=False,
             batch_size=expected,
+        )
+
+    @pytest.mark.parametrize(
+        ("extra_args", "expected"), [(["--dag-ids", "dag1, dag2"], ["dag1", "dag2"]), ([], None)]
+    )
+    @patch("airflow.cli.commands.db_command.run_cleanup")
+    def test_dag_ids(self, run_cleanup_mock, extra_args, expected):
+        """
+        When dag_ids are included in the args then dag_ids should be passed in, or None otherwise
+        """
+        args = self.parser.parse_args(
+            [
+                "db",
+                "clean",
+                "--clean-before-timestamp",
+                "2021-01-01",
+                *extra_args,
+            ]
+        )
+        db_command.cleanup_tables(args)
+
+        run_cleanup_mock.assert_called_once_with(
+            table_names=None,
+            dry_run=False,
+            dag_ids=expected,
+            exclude_dag_ids=None,
+            clean_before_timestamp=pendulum.parse("2021-01-01 00:00:00Z"),
+            verbose=False,
+            confirm=True,
+            skip_archive=False,
+            batch_size=None,
+        )
+
+    @pytest.mark.parametrize(
+        ("extra_args", "expected"), [(["--exclude-dag-ids", "dag1, dag2"], ["dag1", "dag2"]), ([], None)]
+    )
+    @patch("airflow.cli.commands.db_command.run_cleanup")
+    def test_exclude_dag_ids(self, run_cleanup_mock, extra_args, expected):
+        """
+        When exclude_dag_ids are included in the args then exclude_dag_ids should be passed in, or None otherwise
+        """
+        args = self.parser.parse_args(
+            [
+                "db",
+                "clean",
+                "--clean-before-timestamp",
+                "2021-01-01",
+                *extra_args,
+            ]
+        )
+        db_command.cleanup_tables(args)
+
+        run_cleanup_mock.assert_called_once_with(
+            table_names=None,
+            dry_run=False,
+            dag_ids=None,
+            exclude_dag_ids=expected,
+            clean_before_timestamp=pendulum.parse("2021-01-01 00:00:00Z"),
+            verbose=False,
+            confirm=True,
+            skip_archive=False,
+            batch_size=None,
         )
 
     @patch("airflow.cli.commands.db_command.export_archived_records")

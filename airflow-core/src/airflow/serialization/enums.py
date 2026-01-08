@@ -63,7 +63,6 @@ class DagAttributeTypes(str, Enum):
     ASSET_UNIQUE_KEY = "asset_unique_key"
     ASSET_ALIAS_UNIQUE_KEY = "asset_alias_unique_key"
     CONNECTION = "connection"
-    TASK_CONTEXT = "task_context"
     ARG_NOT_SET = "arg_not_set"
     TASK_CALLBACK_REQUEST = "task_callback_request"
     DAG_CALLBACK_REQUEST = "dag_callback_request"

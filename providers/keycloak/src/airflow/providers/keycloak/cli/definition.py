@@ -18,7 +18,6 @@
 from __future__ import annotations
 
 import argparse
-import getpass
 
 from airflow.cli.cli_config import (
     ActionCommand,
@@ -32,6 +31,8 @@ class Password(argparse.Action):
 
     def __call__(self, parser, namespace, values, option_string=None):
         if values is None:
+            import getpass
+
             values = getpass.getpass(prompt="Password: ")
         setattr(namespace, self.dest, values)
 
@@ -97,3 +98,31 @@ KEYCLOAK_AUTH_MANAGER_COMMANDS = (
         args=(ARG_USERNAME, ARG_PASSWORD, ARG_USER_REALM, ARG_CLIENT_ID, ARG_DRY_RUN),
     ),
 )
+
+
+def get_keycloak_cli_commands():
+    """Return CLI commands for Keycloak auth manager."""
+    from airflow.cli.cli_config import GroupCommand
+
+    return [
+        GroupCommand(
+            name="keycloak-auth-manager",
+            help="Manage resources used by Keycloak auth manager",
+            subcommands=KEYCLOAK_AUTH_MANAGER_COMMANDS,
+        ),
+    ]
+
+
+def get_parser() -> argparse.ArgumentParser:
+    """
+    Generate documentation; used by Sphinx argparse.
+
+    :meta private:
+    """
+    from airflow.cli.cli_parser import AirflowHelpFormatter, DefaultHelpParser, _add_command
+
+    parser = DefaultHelpParser(prog="airflow", formatter_class=AirflowHelpFormatter)
+    subparsers = parser.add_subparsers(dest="subcommand", metavar="GROUP_OR_COMMAND")
+    for group_command in get_keycloak_cli_commands():
+        _add_command(subparsers, group_command)
+    return parser
