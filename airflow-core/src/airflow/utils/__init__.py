@@ -53,6 +53,9 @@ __deprecated_classes = {
         "DB_SAFE_MAXIMUM": "airflow.sdk.bases.operator.DB_SAFE_MAXIMUM",
         "db_safe_priority": "airflow.sdk.bases.operator.db_safe_priority",
     },
+    "yaml": {
+        "*": "airflow.sdk.yaml",
+    },
 }
 
 add_deprecated_classes(__deprecated_classes, __name__)
