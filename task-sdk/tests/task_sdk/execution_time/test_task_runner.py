@@ -4072,7 +4072,7 @@ class TestTriggerDagRunOperator:
     @pytest.mark.parametrize(
         ("allowed_states", "failed_states", "intermediate_state"),
         [
-            ([DagRunState.SUCCESS], None, TaskInstanceState.DEFERRED),
+            ([DagRunState.SUCCESS], None, TaskInstanceState.SUCCESS),
         ],
     )
     def test_handle_trigger_dag_run_deferred(
@@ -4084,7 +4084,7 @@ class TestTriggerDagRunOperator:
         mock_supervisor_comms,
     ):
         """
-        Test that TriggerDagRunOperator defers when the deferrable flag is set to True
+        Test that TriggerDagRunOperator does not defer when wait_for_completion=False
         """
         from airflow.providers.standard.operators.trigger_dagrun import TriggerDagRunOperator
 
