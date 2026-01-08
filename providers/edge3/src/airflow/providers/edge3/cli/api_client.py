@@ -16,7 +16,6 @@
 # under the License.
 from __future__ import annotations
 
-import json
 import logging
 import os
 from datetime import datetime
@@ -109,7 +108,7 @@ async def _make_generic_request(method: str, rest_path: str, data: str | None = 
         response.raise_for_status()
         if response.status == HTTPStatus.NO_CONTENT:
             return None
-        return json.loads(await response.read())
+        return await response.json()
 
 
 async def worker_register(
