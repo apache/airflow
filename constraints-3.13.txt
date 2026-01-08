@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2026-01-07T14:00:46.224579
+# This constraints file was automatically generated on 2026-01-08T07:56:03.622095
 # via `uv pip install --resolution highest` for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -66,7 +66,7 @@ aioitertools==0.13.0
 aiomysql==0.3.2
 aiosignal==1.4.0
 aiosmtplib==5.0.0
-aiosqlite==0.22.1
+aiosqlite==0.21.0
 airbyte-api==0.53.0
 alembic==1.17.2
 alibabacloud-adb20211201==3.7.1
@@ -303,7 +303,7 @@ google-cloud-audit-log==0.4.0
 google-cloud-automl==2.17.0
 google-cloud-batch==0.19.0
 google-cloud-bigquery-datatransfer==3.20.0
-google-cloud-bigquery==3.39.0
+google-cloud-bigquery==3.40.0
 google-cloud-bigtable==2.35.0
 google-cloud-build==3.34.0
 google-cloud-compute==1.40.0
@@ -341,7 +341,7 @@ google-cloud-videointelligence==2.17.0
 google-cloud-vision==3.11.0
 google-cloud-workflows==1.19.0
 google-crc32c==1.8.0
-google-genai==1.56.0
+google-genai==1.57.0
 google-resumable-media==2.8.0
 googleapis-common-protos==1.72.0
 graphviz==0.21
@@ -408,7 +408,7 @@ kylinpy==2.8.4
 lazy-object-proxy==1.12.0
 libcst==1.8.6
 linkify-it-py==2.0.3
-litellm==1.80.5
+litellm==1.80.12
 lockfile==0.12.2
 looker_sdk==25.20.0
 lxml==5.4.0
@@ -480,7 +480,7 @@ pandocfilters==1.5.1
 papermill==2.6.0
 paramiko==3.5.1
 parso==0.8.5
-pathspec==1.0.1
+pathspec==1.0.2
 pbr==7.0.3
 pendulum==3.1.0
 pexpect==4.9.0
@@ -524,7 +524,7 @@ pydynamodb==0.8.0
 pyexasol==1.1.0
 pygtrie==2.5.0
 pykerberos==1.2.4
-pymongo==4.15.5
+pymongo==4.16.0
 pymssql==2.3.11
 pyodbc==5.3.0
 pyodps==0.12.5.1
@@ -587,7 +587,7 @@ slack_sdk==3.39.0
 smbprotocol==1.15.0
 smmap==5.0.2
 sniffio==1.3.1
-snowflake-connector-python==4.1.1
+snowflake-connector-python==4.2.0
 snowflake-sqlalchemy==1.8.2
 sortedcontainers==2.4.0
 soupsieve==2.8.1
@@ -636,7 +636,7 @@ tzlocal==5.3.1
 uc-micro-py==1.0.3
 universal_pathlib==0.2.6
 uritemplate==4.2.0
-urllib3==2.6.2
+urllib3==2.6.3
 uuid6==2025.0.1
 uv==0.9.22
 uvicorn==0.40.0

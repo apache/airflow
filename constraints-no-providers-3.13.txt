@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2026-01-07T13:57:51.723729
+# This constraints file was automatically generated on 2026-01-08T07:52:43.118116
 # via `uv sync --resolution highest` for the "main" branch of Airflow.
 # This variant of constraints install just the 'bare' 'apache-airflow' package build from the HEAD of
 # the branch, without installing any of the providers.
@@ -21,7 +21,7 @@ SQLAlchemy-Utils==0.42.1
 SQLAlchemy==2.0.45
 a2wsgi==1.10.10
 aiosmtplib==5.0.0
-aiosqlite==0.22.1
+aiosqlite==0.21.0
 alembic==1.17.2
 annotated-doc==0.0.4
 annotated-types==0.7.0
@@ -78,7 +78,7 @@ opentelemetry-sdk==1.39.1
 opentelemetry-semantic-conventions==0.60b1
 outcome==1.3.0.post0
 packaging==25.0
-pathspec==1.0.1
+pathspec==1.0.2
 pendulum==3.1.0
 pluggy==1.6.0
 protobuf==6.33.2
@@ -119,7 +119,7 @@ typing_extensions==4.15.0
 tzdata==2025.3
 uc-micro-py==1.0.3
 universal_pathlib==0.2.6
-urllib3==2.6.2
+urllib3==2.6.3
 uuid6==2025.0.1
 uv==0.9.22
 uvicorn==0.40.0
