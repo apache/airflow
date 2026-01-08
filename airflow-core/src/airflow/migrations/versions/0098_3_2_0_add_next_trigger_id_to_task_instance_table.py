@@ -20,7 +20,7 @@
 Add ``next_trigger_id`` column to ``task_instance`` table.
 
 Revision ID: 658517c60c7f
-Revises: c47f2e1ab9d4
+Revises: 0b112f49112d
 Create Date: 2025-12-26 12:07:05.849152
 
 """
@@ -31,7 +31,7 @@ import sqlalchemy as sa
 from alembic import op
 
 revision = "658517c60c7f"
-down_revision = "c47f2e1ab9d4"
+down_revision = "0b112f49112d"
 branch_labels = None
 depends_on = None
 airflow_version = "3.2.0"
