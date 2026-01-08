@@ -1911,6 +1911,7 @@ class TestDagProcessingMessageTypes:
             "GetAssetEventByAssetAlias",
             "GetDagRun",
             "GetDagRunState",
+            "GetDagState",
             "GetDRCount",
             "GetTaskBreadcrumbs",
             "GetTaskRescheduleStartDate",
