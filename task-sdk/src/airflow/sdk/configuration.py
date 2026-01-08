@@ -28,15 +28,9 @@ from typing import Any
 
 from airflow.sdk import yaml
 from airflow.sdk._shared.configuration.parser import AirflowConfigParser as _SharedAirflowConfigParser
+from airflow.sdk.execution_time.secrets import _SERVER_DEFAULT_SECRETS_SEARCH_PATH
 
 log = logging.getLogger(__name__)
-
-# Server-side default secrets search path (for comparison/detection only)
-# This matches what airflow-core uses but is defined here to avoid importing from core
-_SERVER_DEFAULT_SECRETS_SEARCH_PATH = [
-    "airflow.secrets.environment_variables.EnvironmentVariablesBackend",
-    "airflow.secrets.metastore.MetastoreBackend",
-]
 
 
 def _default_config_file_path(file_name: str) -> str:

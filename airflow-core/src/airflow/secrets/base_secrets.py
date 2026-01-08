@@ -16,7 +16,7 @@
 # under the License.
 from __future__ import annotations
 
-# Re-export from _shared for the base class only
+# Re export for compat
 from airflow._shared.secrets_backend.base import BaseSecretsBackend as BaseSecretsBackend
 
 # Server side default secrets backend search path used by server components (scheduler, API server)
