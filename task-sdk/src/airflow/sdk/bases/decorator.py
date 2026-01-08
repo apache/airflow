@@ -22,7 +22,8 @@ import re
 import textwrap
 import warnings
 from collections.abc import Callable, Collection, Iterator, Mapping, Sequence
-from functools import cached_property, update_wrapper
+from contextlib import suppress
+from functools import cached_property, partial, update_wrapper
 from typing import TYPE_CHECKING, Any, ClassVar, Generic, ParamSpec, Protocol, TypeVar, cast, overload
 
 import attr
@@ -149,6 +150,52 @@ def get_unique_task_id(
     return f"{core}__{max(_find_id_suffixes(dag)) + 1}"
 
 
+def unwrap_partial(fn):
+    while isinstance(fn, partial):
+        fn = fn.func
+    return fn
+
+
+def unwrap_callable(func):
+    from airflow.sdk.bases.decorator import _TaskDecorator
+    from airflow.sdk.definitions.mappedoperator import OperatorPartial
+
+    # Airflow-specific unwrap
+    if isinstance(func, (_TaskDecorator, OperatorPartial)):
+        func = getattr(func, "function", getattr(func, "_func", func))
+
+    # Unwrap functools.partial
+    func = unwrap_partial(func)
+
+    # Unwrap @functools.wraps chains
+    with suppress(Exception):
+        func = inspect.unwrap(func)
+
+    return func
+
+
+def is_async_callable(func):
+    """Detect if a callable (possibly wrapped) is an async function."""
+    func = unwrap_callable(func)
+
+    if not callable(func):
+        return False
+
+    # Direct async function
+    if inspect.iscoroutinefunction(func):
+        return True
+
+    # Callable object with async __call__
+    if not inspect.isfunction(func):
+        call = type(func).__call__  # Bandit-safe
+        with suppress(Exception):
+            call = inspect.unwrap(call)
+        if inspect.iscoroutinefunction(call):
+            return True
+
+    return False
+
+
 class DecoratedOperator(BaseOperator):
     """
     Wraps a Python callable and captures args/kwargs when called for execution.
@@ -242,6 +289,10 @@ class DecoratedOperator(BaseOperator):
         self.op_args = op_args
         self.op_kwargs = op_kwargs
         super().__init__(task_id=task_id, **kwargs_to_upstream, **kwargs)
+
+    @property
+    def is_async(self) -> bool:
+        return is_async_callable(self.python_callable)
 
     def execute(self, context: Context):
         # todo make this more generic (move to prepare_lineage) so it deals with non taskflow operators
