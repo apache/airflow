@@ -22,7 +22,7 @@
 # The dependencies can be automatically upgraded by running:
 # pre-commit run --hook-stage manual update-build-dependencies --all-files
 requires = [
-    "GitPython==3.1.45",
+    "GitPython==3.1.46",
     "gitdb==4.0.12",
     "hatchling==1.27.0",
     "packaging==25.0",
@@ -30,7 +30,7 @@ requires = [
     "pluggy==1.6.0",
     "smmap==5.0.2",
     "tomli==2.2.1; python_version < '3.11'",
-    "trove-classifiers==2025.9.9.12",
+    "trove-classifiers==2025.12.1.14",
 ]
 build-backend = "hatchling.build"
 
