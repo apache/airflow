@@ -26,10 +26,12 @@ from kubernetes_asyncio.client.exceptions import ApiException as AsyncApiExcepti
 from urllib3.exceptions import HTTPError
 
 from airflow.providers.cncf.kubernetes.kubernetes_helper_functions import (
+    API_TIMEOUT,
     KubernetesApiException,
     WaitRetryAfterOrExponential,
     _should_retry_api,
     create_unique_id,
+    with_timeout,
 )
 
 pod_name_regex = r"^[a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*$"
@@ -40,6 +42,25 @@ class DummyRetryState:
         self.outcome = mock.Mock() if exception is not None else None
         if self.outcome:
             self.outcome.exception = mock.Mock(return_value=exception)
+
+
+def test_with_timeout():
+    # default value
+    timeout_kwargs = with_timeout()
+    assert "_request_timeout" in timeout_kwargs
+    assert timeout_kwargs["_request_timeout"] == API_TIMEOUT
+
+    # check override
+    timeout_kwargs = with_timeout({"_request_timeout": 5})
+    assert "_request_timeout" in timeout_kwargs
+    assert timeout_kwargs["_request_timeout"] == 5
+
+    # check additional params
+    timeout_kwargs = with_timeout({"some_param": 123})
+    assert "some_param" in timeout_kwargs
+    assert timeout_kwargs["some_param"] == 123
+    assert "_request_timeout" in timeout_kwargs
+    assert timeout_kwargs["_request_timeout"] == API_TIMEOUT
 
 
 def test_should_retry_api():

@@ -30,6 +30,7 @@ from kubernetes.client.rest import ApiException
 from urllib3.exceptions import HTTPError as BaseHTTPError
 
 from airflow.providers.cncf.kubernetes.exceptions import KubernetesApiError
+from airflow.providers.cncf.kubernetes.kubernetes_helper_functions import with_timeout
 from airflow.providers.cncf.kubernetes.utils.pod_manager import (
     AsyncPodManager,
     PodLogsConsumer,
@@ -178,6 +179,7 @@ class TestPodManager:
                     timestamps=False,
                     name=mock.sentinel.metadata.name,
                     namespace=mock.sentinel.metadata.namespace,
+                    **with_timeout(),
                 ),
                 mock.call(
                     _preload_content=False,
@@ -186,6 +188,7 @@ class TestPodManager:
                     timestamps=False,
                     name=mock.sentinel.metadata.name,
                     namespace=mock.sentinel.metadata.namespace,
+                    **with_timeout(),
                 ),
             ]
         )
@@ -234,6 +237,7 @@ class TestPodManager:
                     name=mock.sentinel.metadata.name,
                     namespace=mock.sentinel.metadata.namespace,
                     tail_lines=100,
+                    **with_timeout(),
                 ),
             ]
         )
@@ -254,6 +258,7 @@ class TestPodManager:
                     name=mock.sentinel.metadata.name,
                     namespace=mock.sentinel.metadata.namespace,
                     since_seconds=2,
+                    **with_timeout(),
                 ),
             ]
         )
@@ -313,6 +318,7 @@ class TestPodManager:
             field_selector="involvedObject.name=test-pod",
             resource_version="12345",
             resource_version_match="NotOlderThan",
+            **with_timeout(),
         )
 
     def test_read_pod_events_without_resource_version(self):
@@ -331,6 +337,7 @@ class TestPodManager:
             field_selector="involvedObject.name=test-pod",
             resource_version=None,
             resource_version_match=None,
+            **with_timeout(),
         )
 
     @pytest.mark.asyncio
@@ -436,12 +443,14 @@ class TestPodManager:
                     field_selector=f"involvedObject.name={mock.sentinel.metadata.name}",
                     resource_version=None,
                     resource_version_match=None,
+                    **with_timeout(),
                 ),
                 mock.call(
                     namespace=mock.sentinel.metadata.namespace,
                     field_selector=f"involvedObject.name={mock.sentinel.metadata.name}",
                     resource_version=None,
                     resource_version_match=None,
+                    **with_timeout(),
                 ),
             ]
         )
@@ -474,8 +483,8 @@ class TestPodManager:
         assert mock.sentinel.pod_info == pod_info
         self.mock_kube_client.read_namespaced_pod.assert_has_calls(
             [
-                mock.call(mock.sentinel.metadata.name, mock.sentinel.metadata.namespace),
-                mock.call(mock.sentinel.metadata.name, mock.sentinel.metadata.namespace),
+                mock.call(mock.sentinel.metadata.name, mock.sentinel.metadata.namespace, **with_timeout()),
+                mock.call(mock.sentinel.metadata.name, mock.sentinel.metadata.namespace, **with_timeout()),
             ]
         )
 
