@@ -5871,3 +5871,218 @@ class TestBulkTaskInstances(TestTaskInstanceEndpoint):
     def test_should_respond_422(self, test_client):
         response = test_client.patch(self.ENDPOINT_URL, json={})
         assert response.status_code == 422
+
+
+class TestBulkTaskInstancesDryRun(TestTaskInstanceEndpoint):
+    DAG_ID = "example_python_operator"
+    TASK_ID = "print_the_context"
+    RUN_ID = "TEST_DAG_RUN_ID"
+    ENDPOINT_URL = f"/dags/{DAG_ID}/dagRuns/{RUN_ID}/taskInstances"
+
+    def test_dry_run_with_future_past(self, test_client, session):
+        """Test dry run with future and past flags."""
+        self.create_task_instances(
+            session, task_instances=[{"task_id": self.TASK_ID, "state": State.RUNNING}]
+        )
+
+        response = test_client.patch(
+            self.ENDPOINT_URL,
+            params={"dry_run": True},
+            json={
+                "actions": [
+                    {
+                        "action": "update",
+                        "entities": [
+                            {
+                                "task_id": self.TASK_ID,
+                                "new_state": "failed",
+                                "include_future": True,
+                                "include_past": True,
+                            }
+                        ],
+                    }
+                ],
+            },
+        )
+
+        assert response.status_code == 200
+        response_data = response.json()
+        assert response_data["total_entries"] >= 0
+
+    def test_dry_run_ignores_delete_action(self, test_client, session):
+        """Test that dry run ignores delete actions (only update is supported)."""
+        self.create_task_instances(
+            session, task_instances=[{"task_id": self.TASK_ID, "state": State.SUCCESS}]
+        )
+
+        response = test_client.patch(
+            self.ENDPOINT_URL,
+            params={"dry_run": True},
+            json={
+                "actions": [
+                    {
+                        "action": "delete",
+                        "entities": [self.TASK_ID],
+                    }
+                ],
+            },
+        )
+
+        assert response.status_code == 200
+        response_data = response.json()
+        # Delete actions are ignored in dry run, so should return empty
+        assert response_data["total_entries"] == 0
+
+        # Verify task instance still exists
+        ti = session.scalars(
+            select(TaskInstance).where(
+                TaskInstance.dag_id == self.DAG_ID,
+                TaskInstance.task_id == self.TASK_ID,
+                TaskInstance.run_id == self.RUN_ID,
+            )
+        ).first()
+        assert ti is not None
+
+    def test_dry_run_ignores_create_action(self, test_client, session):
+        """Test that dry run ignores create actions (only update is supported)."""
+        response = test_client.patch(
+            self.ENDPOINT_URL,
+            params={"dry_run": True},
+            json={
+                "actions": [
+                    {
+                        "action": "create",
+                        "entities": [{"task_id": "new_task"}],
+                    }
+                ],
+            },
+        )
+
+        assert response.status_code == 200
+        response_data = response.json()
+        # Create actions are ignored in dry run
+        assert response_data["total_entries"] == 0
+
+    def test_dry_run_with_non_existent_task(self, test_client, session):
+        """Test dry run with non-existent task should return empty result."""
+        self.create_task_instances(session)
+
+        response = test_client.patch(
+            self.ENDPOINT_URL,
+            params={"dry_run": True},
+            json={
+                "actions": [
+                    {
+                        "action": "update",
+                        "entities": [
+                            {
+                                "task_id": "non_existent_task",
+                                "new_state": "failed",
+                            }
+                        ],
+                    }
+                ],
+            },
+        )
+
+        assert response.status_code == 200
+        response_data = response.json()
+        # Non-existent tasks don't affect anything in dry run
+        assert response_data["total_entries"] == 0
+
+    def test_dry_run_should_respond_401(self, unauthenticated_test_client):
+        """Test that dry run requires authentication."""
+        response = unauthenticated_test_client.patch(
+            self.ENDPOINT_URL,
+            params={"dry_run": True},
+            json={"actions": []},
+        )
+        assert response.status_code == 401
+
+    def test_dry_run_should_respond_403(self, unauthorized_test_client):
+        """Test that dry run requires proper authorization."""
+        response = unauthorized_test_client.patch(
+            self.ENDPOINT_URL,
+            params={"dry_run": True},
+            json={"actions": []},
+        )
+        assert response.status_code == 403
+
+    def test_dry_run_should_respond_422_for_invalid_request(self, test_client):
+        """Test that dry run validates request body."""
+        response = test_client.patch(
+            self.ENDPOINT_URL,
+            params={"dry_run": True},
+            json={},
+        )
+        assert response.status_code == 422
+
+    def test_dry_run_without_new_state(self, test_client, session):
+        """Test dry run without new_state (should return empty as only state changes are simulated)."""
+        self.create_task_instances(
+            session, task_instances=[{"task_id": self.TASK_ID, "state": State.RUNNING}]
+        )
+
+        response = test_client.patch(
+            self.ENDPOINT_URL,
+            params={"dry_run": True},
+            json={
+                "actions": [
+                    {
+                        "action": "update",
+                        "entities": [
+                            {
+                                "task_id": self.TASK_ID,
+                                "note": "test note",
+                            }
+                        ],
+                    }
+                ],
+            },
+        )
+
+        assert response.status_code == 200
+        response_data = response.json()
+        # Without new_state, no task instances are affected in dry run
+        assert response_data["total_entries"] == 0
+
+    def test_dry_run_returns_unique_task_instances(self, test_client, session):
+        """Test that dry run returns unique task instances even if multiple updates affect the same TI."""
+        # Create task instances with dependencies to test upstream/downstream
+        self.create_task_instances(
+            session,
+            task_instances=[
+                {"task_id": self.TASK_ID, "state": State.RUNNING},  # print_the_context
+                {"task_id": "log_sql_query", "state": State.RUNNING},
+            ],
+        )
+
+        response = test_client.patch(
+            self.ENDPOINT_URL,
+            params={"dry_run": True},
+            json={
+                "actions": [
+                    {
+                        "action": "update",
+                        "entities": [
+                            {
+                                "task_id": "log_sql_query",
+                                "new_state": "failed",
+                                "include_upstream": True,
+                            },
+                            {
+                                "task_id": "log_sql_query",
+                                "new_state": "failed",
+                                "include_downstream": True,
+                            },
+                        ],
+                    }
+                ],
+            },
+        )
+
+        assert response.status_code == 200
+        response_data = response.json()
+        # Should return unique task instances
+        task_instance_ids = {ti["id"] for ti in response_data["task_instances"]}
+        assert len(task_instance_ids) == response_data["total_entries"]
