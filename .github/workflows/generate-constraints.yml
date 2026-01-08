@@ -74,9 +74,6 @@ jobs:
       INCLUDE_SUCCESS_OUTPUTS: "true"
       PYTHON_VERSION: ${{ matrix.python-version }}
       VERBOSE: "true"
-      GITHUB_TARGET_BRANCH: ${{ inputs.branch }}`
-      TARGET_BRANCH: ${{ github.base_ref }}
-      ACTION_BRANCH: ${{ inputs.branch }}
     steps:
       - name: "Cleanup repo"
         shell: bash
@@ -99,6 +96,9 @@ jobs:
           breeze release-management generate-constraints
           --airflow-constraints-mode constraints-source-providers --answer yes --python "${PYTHON_VERSION}"
           --target-branch "${{ TARGET_BRANCH }}" --action-branch "${{ ACTION_BRANCH }}"
+        env:
+          TARGET_BRANCH: ${{ github.base_ref }}
+          ACTION_BRANCH: ${{ inputs.branch }}
       - name: "No providers constraints"
         shell: bash
         timeout-minutes: 25
@@ -106,6 +106,9 @@ jobs:
           breeze release-management generate-constraints
           --airflow-constraints-mode constraints-no-providers --answer yes --python "${PYTHON_VERSION}"
           --target-branch "${{ TARGET_BRANCH }}" --action-branch "${{ ACTION_BRANCH }}"
+        env:
+          TARGET_BRANCH: ${{ github.base_ref }}
+          ACTION_BRANCH: ${{ inputs.branch }}
         if: inputs.generate-no-providers-constraints == 'true'
       - name: "Prepare updated provider distributions"
         shell: bash
@@ -133,6 +136,9 @@ jobs:
           --python "${PYTHON_VERSION}"
           --target-branch "${{ TARGET_BRANCH }}"
           --action-branch "${{ ACTION_BRANCH }}"
+        env:
+          TARGET_BRANCH: ${{ github.base_ref }}
+          ACTION_BRANCH: ${{ inputs.branch }}
         if: inputs.generate-pypi-constraints == 'true'
       - name: "Upload constraint artifacts non-default branches"
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4.6.2
