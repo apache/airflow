@@ -1803,7 +1803,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         for b in backfills:
             b.completed_at = now
 
-    def _should_create(self, dag_model: DagModel, active_runs_of_dags, serdags, existing_dagruns):
+    def _should_create(self, dag_model: DagModel, serdag: SerializedDAG, existing_dagruns):
         self.log.info(
             "evaluating dag for dagrun creation",
             dag_id=dag_model.dag_id,
@@ -1814,7 +1814,6 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 "Dag run cannot be created; max active runs exceeded.",
                 dag_id=dag_model.dag_id,
                 max_active_runs=dag_model.max_active_runs,
-                active_runs=active_runs_of_dags.get(dag_model.dag_id),
             )
             return False
         if dag_model.next_dagrun is None:
@@ -1828,11 +1827,6 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 "dag_model.next_dagrun_create_after is None; expected datetime",
                 dag_id=dag_model.dag_id,
             )
-            return False
-
-        serdag = serdags.get(dag_model.dag_id)
-        if not serdag:
-            self.log.error("Dag not found in serialized_dag table", dag_id=dag_model.dag_id)
             return False
 
         # Explicitly check if the DagRun already exists. This is an edge case
@@ -1902,6 +1896,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     non_partitioned_dags.append(serdag)
             else:
                 missing_dags.add(serdag.dag_id)
+        del serdag
         global dag_run_create_num
         dag_run_create_num += 1
         self.log.info("starting dag_run create", dag_run_create_num=dag_run_create_num, dag_models=dag_models)
@@ -1918,11 +1913,18 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         existing_dagruns = self._get_existing_dagruns(session=session, dags=non_partitioned_dags)
 
         for dag_model in dag_models:
+            if TYPE_CHECKING:
+                assert isinstance(dag_model.dag_id, str)
+            dag_id = dag_model.dag_id
+
             try:
+                if not (serdag := serdags.get(dag_id)):
+                    self.log.error("Dag not found in serialized_dag table", dag_id=dag_model.dag_id)
+                    continue
+
                 if not self._should_create(
                     dag_model=dag_model,
-                    active_runs_of_dags=active_runs_of_dags,
-                    serdags=serdags,
+                    serdag=serdag,
                     existing_dagruns=existing_dagruns,
                 ):
                     continue
@@ -1932,20 +1934,18 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     partitioned_dags=partitioned_dags,
                     serdag=serdag,
                 )
-                run_after = timezone.coerce_datetime(dag_model.next_dagrun)
                 if TYPE_CHECKING:
-                    assert isinstance(dag_model.next_dagrun, DateTime)
-                    assert isinstance(run_after, DateTime)
-                dr = serdag.create_dagrun(
+                    assert isinstance(dag_model.next_dagrun_create_after, DateTime)
+                created_run = serdag.create_dagrun(
                     run_id=serdag.timetable.generate_run_id(
                         run_type=DagRunType.SCHEDULED,
-                        run_after=run_after,
+                        run_after=dag_model.next_dagrun_create_after,
                         data_interval=data_interval,
                         partition_key=partition_key,
                     ),
                     logical_date=logical_date,
                     data_interval=data_interval,
-                    run_after=dag_model.next_dagrun_create_after,  # todo: AIP-76 why is this different from L1907
+                    run_after=dag_model.next_dagrun_create_after,
                     run_type=DagRunType.SCHEDULED,
                     triggered_by=DagRunTriggeredByType.TIMETABLE,
                     state=DagRunState.QUEUED,
@@ -1953,19 +1953,20 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     session=session,
                     partition_key=partition_key,
                 )
-                active_runs_of_dags[serdag.dag_id] += 1
-                dag_model.calculate_dagrun_date_fields(dag=serdag, last_automated_run=dr)
+                active_runs_of_dags[dag_model.dag_id] += 1
+                dag_model.calculate_dagrun_date_fields(dag=serdag, last_automated_run=created_run)
                 self._set_exceeds_max_active_runs(
                     dag_model=dag_model,
                     session=session,
-                    active_non_backfill_runs=active_runs_of_dags[serdag.dag_id],
+                    active_non_backfill_runs=active_runs_of_dags[dag_id],
                 )
+
             # Exceptions like ValueError, ParamValidationError, etc. are raised by
             # DagModel.create_dagrun() when dag is misconfigured. The scheduler should not
             # crash due to misconfigured dags. We should log any exception encountered
             # and continue to the next serdag.
             except Exception:
-                self.log.exception("Failed creating DagRun for %s", serdag.dag_id)
+                self.log.exception("Failed creating DagRun", dag_id=dag_id)
                 # todo: if you get a database error here, continuing does not work because
                 #  session needs rollback. you need either to make smaller transactions and
                 #  commit after every dag run or use savepoints.
@@ -1978,7 +1979,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         self,
         dag_model: DagModel,
         partitioned_dags: set[Any],
-        serdag: SerializedDagModel,
+        serdag: SerializedDAG,
     ) -> tuple[DataInterval | None, str | None, DateTime | None]:
         partition_key = None
         if serdag.dag_id in partitioned_dags:
