@@ -37,7 +37,10 @@ from airflow.api_fastapi.core_api.datamodels.common import (
     BulkDeleteAction,
     BulkUpdateAction,
 )
-from airflow.api_fastapi.core_api.datamodels.task_instances import BulkTaskInstanceBody, PatchTaskInstanceBody
+from airflow.api_fastapi.core_api.datamodels.task_instances import (
+    BulkTaskInstanceBody,
+    PatchTaskInstanceBody,
+)
 from airflow.api_fastapi.core_api.security import GetUserDep
 from airflow.api_fastapi.core_api.services.public.common import BulkService
 from airflow.listeners.listener import get_listener_manager
@@ -100,6 +103,7 @@ def _patch_task_instance_state(
     task_instance_body: BulkTaskInstanceBody | PatchTaskInstanceBody,
     data: dict,
     session: Session,
+    commit: bool,
 ) -> None:
     map_index = getattr(task_instance_body, "map_index", None)
     map_indexes = None if map_index is None else [map_index]
@@ -113,7 +117,7 @@ def _patch_task_instance_state(
         downstream=task_instance_body.include_downstream,
         future=task_instance_body.include_future,
         past=task_instance_body.include_past,
-        commit=True,
+        commit=commit,
         session=session,
     )
     if not updated_tis:
@@ -121,6 +125,8 @@ def _patch_task_instance_state(
             status.HTTP_409_CONFLICT,
             f"Task id {task_id} is already in {data['new_state']} state",
         )
+    if not commit:
+        return
 
     for ti in updated_tis:
         try:
@@ -162,6 +168,7 @@ class BulkTaskInstanceService(BulkService[BulkTaskInstanceBody]):
         dag_run_id: str,
         dag_bag: DagBagDep,
         user: GetUserDep,
+        commit: bool = False,
     ):
         super().__init__(session, request)
         self.dag_id = dag_id
