@@ -22,7 +22,7 @@ from abc import ABCMeta, abstractmethod
 from collections import defaultdict
 from enum import Enum
 from functools import cache
-from typing import TYPE_CHECKING, Any, Generic, TypeVar
+from typing import TYPE_CHECKING, Any, Generic, Literal, TypeVar
 
 from jwt import InvalidTokenError
 from sqlalchemy import select
@@ -71,33 +71,35 @@ if TYPE_CHECKING:
     )
     from airflow.cli.cli_config import CLICommand
 
-# This cannot be in the TYPE_CHECKING block since some providers import it globally.
-# TODO: Move this inside once all providers drop Airflow 2.x support.
+if TYPE_CHECKING:
+    # For static type checking - accepts string literals
+    ResourceMethod = Literal["GET", "POST", "PUT", "DELETE"]
+    ExtendedResourceMethod = Literal["GET", "POST", "PUT", "DELETE", "MENU"]
+else:
+    # For runtime - provides iteration and validation
 
+    class ResourceMethod(str, Enum):
+        """HTTP methods (actions) a user can perform against a resource."""
 
-class ResourceMethod(str, Enum):
-    """HTTP methods (actions) a user can perform against a resource."""
+        GET = "GET"
+        POST = "POST"
+        PUT = "PUT"
+        DELETE = "DELETE"
 
-    GET = "GET"
-    POST = "POST"
-    PUT = "PUT"
-    DELETE = "DELETE"
+        def __str__(self) -> str:
+            return self.value
 
-    def __str__(self) -> str:
-        return self.value
+    class ExtendedResourceMethod(str, Enum):
+        """Extended HTTP methods including MENU for UI resource authorization."""
 
+        GET = "GET"
+        POST = "POST"
+        PUT = "PUT"
+        DELETE = "DELETE"
+        MENU = "MENU"
 
-class ExtendedResourceMethod(str, Enum):
-    """Extended HTTP methods including MENU for UI resource authorization. Extends ResourceMethod to include 'MENU'."""
-
-    GET = "GET"
-    POST = "POST"
-    PUT = "PUT"
-    DELETE = "DELETE"
-    MENU = "MENU"
-
-    def __str__(self) -> str:
-        return self.value
+        def __str__(self) -> str:
+            return self.value
 
 
 log = logging.getLogger(__name__)
@@ -345,7 +347,7 @@ class BaseAuthManager(Generic[T], LoggingMixin, metaclass=ABCMeta):
         """
 
     @abstractmethod
-    def is_authorized_custom_view(self, *, method: ResourceMethod | str, resource_name: str, user: T) -> bool:
+    def is_authorized_custom_view(self, *, method: ResourceMethod, resource_name: str, user: T) -> bool:
         """
         Return whether the user is authorized to perform a given action on a custom view.
 
@@ -488,7 +490,7 @@ class BaseAuthManager(Generic[T], LoggingMixin, metaclass=ABCMeta):
         self,
         *,
         user: T,
-        method: ResourceMethod = ResourceMethod.GET,
+        method: ResourceMethod = "GET",
         session: Session = NEW_SESSION,
     ) -> set[str]:
         """
@@ -519,7 +521,7 @@ class BaseAuthManager(Generic[T], LoggingMixin, metaclass=ABCMeta):
         *,
         conn_ids: set[str],
         user: T,
-        method: ResourceMethod = ResourceMethod.GET,
+        method: ResourceMethod = "GET",
         team_name: str | None = None,
     ) -> set[str]:
         """
@@ -548,7 +550,7 @@ class BaseAuthManager(Generic[T], LoggingMixin, metaclass=ABCMeta):
         self,
         *,
         user: T,
-        method: ResourceMethod = ResourceMethod.GET,
+        method: ResourceMethod = "GET",
         session: Session = NEW_SESSION,
     ) -> set[str]:
         """
@@ -587,7 +589,7 @@ class BaseAuthManager(Generic[T], LoggingMixin, metaclass=ABCMeta):
         *,
         dag_ids: set[str],
         user: T,
-        method: ResourceMethod = ResourceMethod.GET,
+        method: ResourceMethod = "GET",
         team_name: str | None = None,
     ) -> set[str]:
         """
@@ -616,7 +618,7 @@ class BaseAuthManager(Generic[T], LoggingMixin, metaclass=ABCMeta):
         self,
         *,
         user: T,
-        method: ResourceMethod = ResourceMethod.GET,
+        method: ResourceMethod = "GET",
         session: Session = NEW_SESSION,
     ) -> set[str]:
         """
@@ -647,7 +649,7 @@ class BaseAuthManager(Generic[T], LoggingMixin, metaclass=ABCMeta):
         *,
         pool_names: set[str],
         user: T,
-        method: ResourceMethod = ResourceMethod.GET,
+        method: ResourceMethod = "GET",
         team_name: str | None = None,
     ) -> set[str]:
         """
@@ -676,7 +678,7 @@ class BaseAuthManager(Generic[T], LoggingMixin, metaclass=ABCMeta):
         self,
         *,
         user: T,
-        method: ResourceMethod = ResourceMethod.GET,
+        method: ResourceMethod = "GET",
         session: Session = NEW_SESSION,
     ) -> set[str]:
         """
@@ -694,7 +696,7 @@ class BaseAuthManager(Generic[T], LoggingMixin, metaclass=ABCMeta):
         *,
         teams_names: set[str],
         user: T,
-        method: ResourceMethod = ResourceMethod.GET,
+        method: ResourceMethod = "GET",
     ) -> set[str]:
         """
         Filter teams the user belongs to.
@@ -718,7 +720,7 @@ class BaseAuthManager(Generic[T], LoggingMixin, metaclass=ABCMeta):
         self,
         *,
         user: T,
-        method: ResourceMethod = ResourceMethod.GET,
+        method: ResourceMethod = "GET",
         session: Session = NEW_SESSION,
     ) -> set[str]:
         """
@@ -749,7 +751,7 @@ class BaseAuthManager(Generic[T], LoggingMixin, metaclass=ABCMeta):
         *,
         variable_keys: set[str],
         user: T,
-        method: ResourceMethod = ResourceMethod.GET,
+        method: ResourceMethod = "GET",
         team_name: str | None = None,
     ) -> set[str]:
         """
