@@ -39,6 +39,22 @@ The purpose of these tests is to:
 - serve both as examples and test files.
 - the excerpts from these system tests are used to generate documentation
 
+
+Usage options
+-------------
+
+The System tests allow for two ways of execution: invoking an Airflow Executor of the developer's choice, or to simulate
+the executor's actions (based on base, generic executor behavior) rather focusing on the Dags execution only.
+
+The former behavior can be particularly useful:
+ - to test custom Airflow Executors against a "real-life" environment
+ - to test custom Airflow Operators (Decorators, etc.) against a "real-life" environment
+
+The latter can be useful in attempt to concentrate on the Dag execution within the tests, avoiding interference coming
+from additional layers of complexity.
+
+The Airflow System tests can be very useful as much for automated pipelines as for manual executions.
+
 Configuration
 -------------
 
@@ -53,6 +69,41 @@ set it before running test command.
 .. code-block:: bash
 
   SYSTEM_TESTS_ENV_ID=SOME_RANDOM_VALUE
+
+Executor
+........
+
+Regarding the usage of Executors: by default Airflow System tests are not using an Airflow executor. But instead
+simulate the core behavior of a simple, generic one (like ``LocalExecutor``).
+
+In case you would like to have an actual Executor involved, you need to set the following variable:
+
+.. code-block:: bash
+
+  export _AIRFLOW__SYSTEM_TEST_USE_EXECUTOR = 1
+
+
+Custom configuration file
+.........................
+
+.. note:: This section mostly corresponds when developing custom providers, outside of the Apache Airflow codebase
+
+The Airflow configuration system works in a way, that for test environments specific test configuration file locations
+are enforced to avoid accidentally loading configuration of valid Airflow installations. There are pytest fixtures
+available for Airflow Unit tests, however those are not possible to be used for Airflow System tests.
+
+An option to load a custom configuration file for your System Tests may be to add something similar to `conftest.py`, to
+an early stage of pytest session initialization (for example in the ``pytest_configure`` function):
+
+.. code-block:: python
+
+  from airflow.configuration import conf
+
+  conf.read_file(open(f"{YOUR_TEST_CONFIG_FILE}"))
+
+Custom configuraion allows an easy way to load numerous custom options at once (typically ones that may correspond
+to custom providers).
+
 
 Running the System Tests
 ------------------------
@@ -72,11 +123,16 @@ your Airflow instance as Dags and they will be automatically triggered. If the s
 how to set up the environment is documented in each provider's system tests directory. Make sure that all resource
 required by the tests are also imported.
 
-Running via Pytest
-..................
+Running via Pytest + Breezee
+............................
 
-Running system tests with pytest is the easiest with Breeze. Thanks to it, you don't need to bother about setting up
-the correct environment, that is able to execute the tests.
+Running system tests with pytest is the easiest with `Breeze <https://github.com/apache/airflow/blob/main/dev/breeze/doc/README.rst>`_.
+Breeze makes sure that the environment is pre-configured, and all additional required services are started,
+off-loading the developer from the overhead of test environment setup.
+
+Running manually via Pytest
+...........................
+
 You can either run them using your IDE (if you have installed plugin/widget supporting pytest) or using the following
 example of command:
 
@@ -91,6 +147,42 @@ For providers:
 .. code-block:: bash
 
   pytest --system providers/google/tests/system/google/cloud/bigquery/example_bigquery_queries.py
+
+NOTE: If using an actual Executor, you may need to make sure that the Airflow API server is running as well.
+(In order to benefit from default configuration, it should be a run locally.)
+
+.. code-block:: bash
+
+   uv run airflow api-server
+
+Running manually via Pytest outside of the Airflow codebase
+...........................................................
+
+.. note:: This section mostly corresponds when developing custom providers, outside of the Apache Airflow codebase
+
+1. Airflow Plugin
+
+  You will need to use the Airflow pytest plugin, which is available as part of the ``apache-airflow-devel-common``
+  package. It's a good choice to install the package (as it makes the plugin and related dependences easily available).
+  However the plugin  it is generally used within the Airflow codebase (not as a package), so you may be facing issues
+  using it on its own, outside of the Airflow codebase. In this case you could clone the Airflow git repository, and set
+  the following environment variables to point to this location. This should ensure a safe and stable use of the pytest
+  plugin.
+
+.. code-block:: bash
+
+  export AIRFLOW_SOURCES=<CLONE_OF_THE_AIRFLOW_GIT_REPO>
+
+2. Airflow API server
+
+  In case you want to run tests agasint an Airflow Executor, you will need to have the Airflow API server available.
+
+  NOTE: You have to make sure that the API server is sharing certain configuration as the test environment. This is
+  paricularly important so that the Airflow Task SDK may be able to communicate to the API Server.
+
+  (For example, the same JWT secret must be used on both sides for token encryption/decription. By default the Airflow
+  test environment is using temporary JWT secrets generated on-the-fly. If you want to keep control over these settings,
+  the best solution is to follow instructions from the :ref:`Custom configuration file` section.
 
 
 Running via Breeze

@@ -870,3 +870,42 @@ Here's a simple example using the existing email Notifier:
 This example will send an email notification if the Dag hasn't finished 30 minutes after it was queued.
 
 For more information on implementing and configuring Deadline Alerts, see :doc:`/howto/deadline-alerts`.
+
+
+Testing a Dag
+-------------
+
+In order to verify the syntax/functionality of Dag code, there is a handy option available.
+
+`dag` objects have a `test()` function, which can be invoked either directly or within a testsuite.
+
+
+Simulated dag run
+.................
+
+A simplest way to check validity of a `dag` is to use the following snippet at the end of the dag definition module:
+
+.. code:: python
+
+  if __name__ == "__main__":
+      dag.test()
+
+and execute the module as a Python script (assuming sufficient environment such as ``AIRFLOW_HOME`` is provided).
+
+The ``dag.test()`` call will invoke a simulated execuion flow, similar to a ``LocalExecutor`` execution session,
+and run the Dag contents as in an Ariflow submission.
+
+
+Real execution flow
+...................
+
+In case you would like to test the Dag against a real Airflow Executor, the same mechanisme can be used. Addressing the
+call with the `use_executor` flag, the Airflow Executor of currently applied Airflow Configuration will be invoked, and
+run the workloads of the Dag.
+
+.. code:: python
+
+  dag.test(use_executor=1)
+
+Using the call within a pytest testsuite, you may benefit of the Airflow pytest plugin's `conf_vars` fixture, that
+allows easy alternation of pre-defined configuration values.
