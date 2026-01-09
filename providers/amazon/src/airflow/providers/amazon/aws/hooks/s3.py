@@ -1798,6 +1798,11 @@ class S3Hook(AwsBaseHook):
                         s3_object, local_stats.st_mtime
                     )
 
+            s3_last_modified = s3_object.last_modified
+            if local_stats.st_mtime < s3_last_modified.timestamp():
+                should_download = True
+                download_msg = f"S3 object last modified ({s3_last_modified.microsecond}) and local file last modified ({local_stats.st_mtime}) differ."
+
         if should_download:
             s3_bucket.download_file(s3_object.key, local_target_path)
             self.log.debug(

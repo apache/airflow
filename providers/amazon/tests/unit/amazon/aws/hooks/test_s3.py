@@ -1861,6 +1861,13 @@ class TestAwsS3Hook:
         new_content = b"Goodbye now!"  # 12 bytes - same size as original
         assert len(new_content) == len(original_content)
         s3_client.put_object(Bucket=s3_bucket, Key="dag_etag_test.py", Body=new_content)
+        local_file_same_size = Path(sync_local_dir).joinpath("dag_04.py")
+        local_file_same_size.write_text("same size")
+
+        s3_client.put_object(Bucket=s3_bucket, Key="dag_04.py", Body=b"same size")
+
+        prev_ts = local_file_same_size.stat().st_mtime - 5
+        os.utime(local_file_same_size, (prev_ts, prev_ts))
 
         hook.log.debug = MagicMock()
         hook.sync_to_local_dir(
@@ -1873,6 +1880,9 @@ class TestAwsS3Hook:
         assert "Downloaded dag_etag_test.py" in logs_string
 
         assert Path(sync_local_dir).joinpath("dag_etag_test.py").read_bytes() == new_content
+        assert "S3 object last modified" in logs_string
+        assert "local file last modified" in logs_string
+        assert "differ. Downloaded dag_04.py to" in logs_string
 
 
 @pytest.mark.parametrize(

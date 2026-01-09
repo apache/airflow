@@ -32,8 +32,8 @@ from typing import (
 
 from databricks import sql
 from databricks.sql.types import Row
-from sqlalchemy.engine import URL
 
+from airflow.exceptions import AirflowOptionalProviderFeatureException
 from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.common.sql.hooks.handlers import return_single_query_results
 from airflow.providers.common.sql.hooks.sql import DbApiHook
@@ -43,6 +43,7 @@ from airflow.providers.databricks.hooks.databricks_base import BaseDatabricksHoo
 
 if TYPE_CHECKING:
     from databricks.sql.client import Connection
+    from sqlalchemy.engine import URL
 
     from airflow.models.connection import Connection as AirflowConnection
     from airflow.providers.openlineage.extractors import OperatorLineage
@@ -179,6 +180,14 @@ class DatabricksSqlHook(BaseDatabricksHook, DbApiHook):
 
         :return: the extracted sqlalchemy.engine.URL object.
         """
+        try:
+            from sqlalchemy.engine import URL
+        except ImportError:
+            raise AirflowOptionalProviderFeatureException(
+                "sqlalchemy is required to generate the connection URL. "
+                "Install it with: pip install 'apache-airflow-providers-databricks[sqlalchemy]'"
+            )
+
         url_query = {
             "http_path": self._http_path,
             "catalog": self.catalog,
