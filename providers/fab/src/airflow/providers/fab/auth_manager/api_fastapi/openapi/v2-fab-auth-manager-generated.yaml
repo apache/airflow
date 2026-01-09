@@ -400,19 +400,7 @@ paths:
                 $ref: '#/components/schemas/HTTPValidationError'
 components:
   schemas:
-    ActionResourceResponse:
-      properties:
-        action:
-          $ref: '#/components/schemas/ActionResponse'
-        resource:
-          $ref: '#/components/schemas/ResourceResponse'
-      type: object
-      required:
-      - action
-      - resource
-      title: ActionResourceResponse
-      description: Pairing of an action with a resource.
-    ActionResponse:
+    Action:
       properties:
         name:
           type: string
@@ -420,8 +408,20 @@ components:
       type: object
       required:
       - name
-      title: ActionResponse
+      title: Action
       description: Outgoing representation of an action (permission name).
+    ActionResource:
+      properties:
+        action:
+          $ref: '#/components/schemas/Action'
+        resource:
+          $ref: '#/components/schemas/Resource'
+      type: object
+      required:
+      - action
+      - resource
+      title: ActionResource
+      description: Pairing of an action with a resource.
     HTTPExceptionResponse:
       properties:
         detail:
@@ -454,7 +454,7 @@ components:
       - access_token
       title: LoginResponse
       description: API Token serializer for responses.
-    ResourceResponse:
+    Resource:
       properties:
         name:
           type: string
@@ -462,7 +462,7 @@ components:
       type: object
       required:
       - name
-      title: ResourceResponse
+      title: Resource
       description: Outgoing representation of a resource.
     RoleBody:
       properties:
@@ -472,7 +472,7 @@ components:
           title: Name
         actions:
           items:
-            $ref: '#/components/schemas/ActionResourceResponse'
+            $ref: '#/components/schemas/ActionResource'
           type: array
           title: Actions
       additionalProperties: false
@@ -504,7 +504,7 @@ components:
           title: Name
         actions:
           items:
-            $ref: '#/components/schemas/ActionResourceResponse'
+            $ref: '#/components/schemas/ActionResource'
           type: array
           title: Actions
       type: object
