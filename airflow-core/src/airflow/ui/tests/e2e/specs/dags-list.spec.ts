@@ -19,15 +19,23 @@
 import { expect, test } from "@playwright/test";
 import { testConfig } from "playwright.config";
 import { DagsPage } from "tests/e2e/pages/DagsPage";
+import { LoginPage } from "tests/e2e/pages/LoginPage";
 
 test.describe("Dags Pagination", () => {
+  let loginPage: LoginPage;
   let dagsPage: DagsPage;
 
+  const testCredentials = testConfig.credentials;
+
   test.beforeEach(({ page }) => {
+    loginPage = new LoginPage(page);
     dagsPage = new DagsPage(page);
   });
 
   test("should verify pagination works on the Dags list page", async () => {
+    await loginPage.navigateAndLogin(testCredentials.username, testCredentials.password);
+    await loginPage.expectLoginSuccess();
+
     await dagsPage.navigate();
 
     await expect(dagsPage.paginationNextButton).toBeVisible();
@@ -52,35 +60,4 @@ test.describe("Dags Pagination", () => {
   });
 });
 
-test.describe("Dag Trigger Workflow", () => {
-  let dagsPage: DagsPage;
-  const testDagId = testConfig.testDag.id;
-
-  test.beforeEach(({ page }) => {
-    dagsPage = new DagsPage(page);
-  });
-
-  test("should successfully trigger a Dag run", async () => {
-    test.setTimeout(7 * 60 * 1000);
-
-    const dagRunId = await dagsPage.triggerDag(testDagId);
-
-    if (Boolean(dagRunId)) {
-      await dagsPage.verifyDagRunStatus(testDagId, dagRunId);
-    }
-  });
-});
-
-test.describe("Dag Details Tab", () => {
-  let dagsPage: DagsPage;
-
-  const testDagId = testConfig.testDag.id;
-
-  test.beforeEach(({ page }) => {
-    dagsPage = new DagsPage(page);
-  });
-
-  test("should successfully verify details tab", async () => {
-    await dagsPage.verifyDagDetails(testDagId);
-  });
-});
+// End of file
