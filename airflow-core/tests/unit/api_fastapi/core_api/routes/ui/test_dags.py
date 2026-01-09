@@ -384,3 +384,178 @@ class TestGetDagRuns(TestPublicDagEndpoint):
         # Verify that DAG1 is not marked as favorite for the test user
         dag1_data = next(dag for dag in body["dags"] if dag["dag_id"] == DAG1_ID)
         assert dag1_data["is_favorite"] is False
+
+    def test_task_instance_summary_returns_aggregated_counts(
+        self, test_client, create_task_instance, session
+    ):
+        """Test that task_instance_summary returns aggregated task instance counts by state."""
+        dag_id = "test_dag_ti_summary"
+
+        # Create a DAG
+        dag_model = DagModel(
+            dag_id=dag_id,
+            bundle_name="dag_maker",
+            fileloc=f"/tmp/{dag_id}.py",
+            is_stale=False,
+        )
+        session.add(dag_model)
+        session.flush()
+
+        # Create a DAG run
+        start_date = pendulum.datetime(2024, 1, 1, 0, 0, 0, tz="UTC")
+        dag_run = DagRun(
+            dag_id=dag_id,
+            run_id="test_run_1",
+            run_type=DagRunType.MANUAL,
+            start_date=start_date,
+            logical_date=start_date,
+            run_after=start_date,
+            state=DagRunState.RUNNING,
+            triggered_by=DagRunTriggeredByType.TEST,
+        )
+        session.add(dag_run)
+        session.flush()
+
+        # Create task instances with different states
+        states = [
+            TaskInstanceState.SUCCESS,
+            TaskInstanceState.SUCCESS,
+            TaskInstanceState.SUCCESS,
+            TaskInstanceState.FAILED,
+            TaskInstanceState.FAILED,
+            TaskInstanceState.RUNNING,
+        ]
+        for i, state in enumerate(states):
+            ti = create_task_instance(
+                dag_id=dag_id,
+                run_id="test_run_1",
+                task_id=f"task_{i}",
+                session=session,
+                state=state,
+            )
+            session.add(ti)
+
+        session.commit()
+
+        # Make request
+        response = test_client.get("/dags", params={"dag_ids": [dag_id]})
+        assert response.status_code == 200
+        body = response.json()
+
+        # Verify task_instance_summary is present and correct
+        assert body["total_entries"] == 1
+        dag_data = body["dags"][0]
+        assert "task_instance_summary" in dag_data
+
+        summary = dag_data["task_instance_summary"]
+        assert summary.get("success") == 3
+        assert summary.get("failed") == 2
+        assert summary.get("running") == 1
+
+    def test_task_instance_summary_only_includes_latest_run(
+        self, test_client, create_task_instance, session
+    ):
+        """Test that task_instance_summary only includes task instances from the latest DAG run."""
+        dag_id = "test_dag_ti_summary_latest"
+
+        # Create a DAG
+        dag_model = DagModel(
+            dag_id=dag_id,
+            bundle_name="dag_maker",
+            fileloc=f"/tmp/{dag_id}.py",
+            is_stale=False,
+        )
+        session.add(dag_model)
+        session.flush()
+
+        # Create an older DAG run
+        older_date = pendulum.datetime(2024, 1, 1, 0, 0, 0, tz="UTC")
+        older_run = DagRun(
+            dag_id=dag_id,
+            run_id="older_run",
+            run_type=DagRunType.MANUAL,
+            start_date=older_date,
+            logical_date=older_date,
+            run_after=older_date,
+            state=DagRunState.SUCCESS,
+            triggered_by=DagRunTriggeredByType.TEST,
+        )
+        session.add(older_run)
+        session.flush()
+
+        # Create task instances for older run (all failed)
+        for i in range(3):
+            ti = create_task_instance(
+                dag_id=dag_id,
+                run_id="older_run",
+                task_id=f"old_task_{i}",
+                session=session,
+                state=TaskInstanceState.FAILED,
+            )
+            session.add(ti)
+
+        # Create a newer DAG run
+        newer_date = pendulum.datetime(2024, 2, 1, 0, 0, 0, tz="UTC")
+        newer_run = DagRun(
+            dag_id=dag_id,
+            run_id="newer_run",
+            run_type=DagRunType.MANUAL,
+            start_date=newer_date,
+            logical_date=newer_date,
+            run_after=newer_date,
+            state=DagRunState.RUNNING,
+            triggered_by=DagRunTriggeredByType.TEST,
+        )
+        session.add(newer_run)
+        session.flush()
+
+        # Create task instances for newer run (all success)
+        for i in range(2):
+            ti = create_task_instance(
+                dag_id=dag_id,
+                run_id="newer_run",
+                task_id=f"new_task_{i}",
+                session=session,
+                state=TaskInstanceState.SUCCESS,
+            )
+            session.add(ti)
+
+        session.commit()
+
+        # Make request
+        response = test_client.get("/dags", params={"dag_ids": [dag_id]})
+        assert response.status_code == 200
+        body = response.json()
+
+        # Verify task_instance_summary only reflects the latest run
+        dag_data = body["dags"][0]
+        summary = dag_data["task_instance_summary"]
+
+        # Should only have success states from the newer run
+        assert summary.get("success") == 2
+        # Should NOT include failed states from older run
+        assert summary.get("failed") is None
+
+    def test_task_instance_summary_empty_when_no_task_instances(self, test_client, session):
+        """Test that task_instance_summary is empty when DAG has no task instances."""
+        dag_id = "test_dag_no_ti"
+
+        # Create a DAG without any task instances
+        dag_model = DagModel(
+            dag_id=dag_id,
+            bundle_name="dag_maker",
+            fileloc=f"/tmp/{dag_id}.py",
+            is_stale=False,
+        )
+        session.add(dag_model)
+        session.commit()
+
+        # Make request
+        response = test_client.get("/dags", params={"dag_ids": [dag_id]})
+        assert response.status_code == 200
+        body = response.json()
+
+        # Verify task_instance_summary is empty
+        dag_data = body["dags"][0]
+        assert dag_data["task_instance_summary"] == {}
+
