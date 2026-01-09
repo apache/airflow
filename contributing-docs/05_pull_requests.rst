@@ -122,7 +122,7 @@ adhere to the following guidelines:
 * Blindly copy & pasting code from Gen-AI tools is detrimental as it might introduce security and
 stability risks to the project. Maintainers that spot such behaviours will have no choice but to
 close the related PRs. It adds extra burden on the maintainers and doesn't help the project.
-The contributor reputation is also impacted as maintainers will lose confidence and  might block
+The contributor reputation is also impacted as maintainers will lose confidence and might block
 the user from making further contributions.
 
 Requirement to resolve all conversations
