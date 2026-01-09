@@ -1737,7 +1737,7 @@
                     ]
                 },
                 "strategy": {
-                    "description": "Specifies the strategy used to replace old Airflow Celery worker pods by new ones when deployed as a Deployment.",
+                    "description": "Specifies the strategy used to replace old Airflow Celery worker pods by new ones when deployed as a Deployment (deprecated, use `workers.celery.strategy` instead).",
                     "type": [
                         "null",
                         "object"
@@ -2668,6 +2668,19 @@
                                 "object"
                             ],
                             "default": null
+                        },
+                        "strategy": {
+                            "description": "Specifies the strategy used to replace old Airflow Celery worker pods by new ones when deployed as a Deployment.",
+                            "type": [
+                                "null",
+                                "object"
+                            ],
+                            "default": {
+                                "rollingUpdate": {
+                                    "maxSurge": "100%",
+                                    "maxUnavailable": "50%"
+                                }
+                            }
                         },
                         "serviceAccount": {
                             "description": "Create ServiceAccount.",

@@ -680,6 +680,7 @@ workers:
   # (deprecated, use `workers.celery.updateStrategy` instead)
   updateStrategy: ~
   # Update Strategy when Airflow Celery worker is deployed as a Deployment
+  # (deprecated, use `workers.celery.strategy` instead)
   strategy:
     rollingUpdate:
       maxSurge: "100%"
@@ -1058,6 +1059,11 @@ workers:
 
     # Update Strategy when Airflow Celery worker is deployed as a StatefulSet
     updateStrategy: ~
+    # Update Strategy when Airflow Celery worker is deployed as a Deployment
+    strategy:
+      rollingUpdate:
+        maxSurge: "100%"
+        maxUnavailable: "50%"
 
     # Create ServiceAccount for Airflow Celery workers
     serviceAccount:
