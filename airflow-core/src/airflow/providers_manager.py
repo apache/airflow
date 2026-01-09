@@ -38,7 +38,6 @@ from packaging.utils import canonicalize_name
 from airflow._shared.module_loading import entry_points_with_dist, import_string
 from airflow.exceptions import AirflowOptionalProviderFeatureException
 from airflow.utils.log.logging_mixin import LoggingMixin
-from airflow.utils.singleton import Singleton
 
 if TYPE_CHECKING:
     from airflow.cli.cli_config import CLICommand
@@ -366,7 +365,7 @@ def provider_info_cache(cache_name: str) -> Callable[[Callable[PS, None]], Calla
     return provider_info_cache_decorator
 
 
-class ProvidersManager(LoggingMixin, metaclass=Singleton):
+class ProvidersManager(LoggingMixin):
     """
     Manages all provider distributions.
 
@@ -377,6 +376,12 @@ class ProvidersManager(LoggingMixin, metaclass=Singleton):
     resource_version = "0"
     _initialized: bool = False
     _initialization_stack_trace = None
+    _instance: ProvidersManager | None = None
+
+    def __new__(cls):
+        if cls._instance is None:
+            cls._instance = super().__new__(cls)
+        return cls._instance
 
     @staticmethod
     def initialized() -> bool:
