@@ -103,7 +103,7 @@ export const FilterBar = ({
           return accumulator;
         }
 
-        const {key} = filter.config;
+        const { key } = filter.config;
         const existing = accumulator[key];
 
         if (existing === undefined) {
