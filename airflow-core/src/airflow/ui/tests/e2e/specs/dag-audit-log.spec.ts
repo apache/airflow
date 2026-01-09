@@ -64,7 +64,7 @@ test.describe("DAG Audit Log", () => {
     eventsPage = new EventsPage(page);
   });
 
-  test("should navigate to audit log tab and display table", async () => {
+  test("verify audit log table displays", async () => {
     await eventsPage.navigateToAuditLog(testDagId);
 
     await expect(eventsPage.eventsTable).toBeVisible();
@@ -74,7 +74,7 @@ test.describe("DAG Audit Log", () => {
     expect(rowCount).toBeGreaterThan(0);
   });
 
-  test("should display all expected columns in audit log table", async () => {
+  test("verify expected columns are visible", async () => {
     await eventsPage.navigateToAuditLog(testDagId);
 
     await expect(eventsPage.whenColumn).toBeVisible();
