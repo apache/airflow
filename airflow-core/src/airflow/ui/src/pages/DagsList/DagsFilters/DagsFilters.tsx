@@ -28,6 +28,7 @@ import { useDagTagsInfinite } from "src/queries/useDagTagsInfinite";
 
 import { FavoriteFilter } from "./FavoriteFilter";
 import { PausedFilter } from "./PausedFilter";
+import { RequiredActionFilter } from "./RequiredActionFilter";
 import { StateFilters } from "./StateFilters";
 import { TagFilter } from "./TagFilter";
 
@@ -41,6 +42,21 @@ const {
   TAGS_MATCH_MODE: TAGS_MATCH_MODE_PARAM,
 }: SearchParamsKeysType = SearchParamsKeys;
 
+type StateValue = "all" | "failed" | "queued" | "running" | "success";
+type BooleanFilterValue = "all" | "false" | "true";
+
+const stateValues: ReadonlyArray<StateValue> = ["failed", "queued", "running", "success"];
+const booleanFilterValues: ReadonlyArray<BooleanFilterValue> = ["all", "true", "false"];
+
+const toStateValue = (value: string | null): StateValue =>
+  stateValues.includes(value as StateValue) ? (value as StateValue) : "all";
+
+const toBooleanFilterValue = (
+  value: string | null,
+  defaultValue: BooleanFilterValue = "all",
+): BooleanFilterValue =>
+  booleanFilterValues.includes(value as BooleanFilterValue) ? (value as BooleanFilterValue) : defaultValue;
+
 export const DagsFilters = () => {
   const [searchParams, setSearchParams] = useSearchParams();
 
@@ -50,11 +66,6 @@ export const DagsFilters = () => {
   const state = searchParams.get(LAST_DAG_RUN_STATE_PARAM);
   const selectedTags = searchParams.getAll(TAGS_PARAM);
   const tagFilterMode = searchParams.get(TAGS_MATCH_MODE_PARAM) ?? "any";
-  const isAll = state === null;
-  const isRunning = state === "running";
-  const isFailed = state === "failed";
-  const isQueued = state === "queued";
-  const isSuccess = state === "success";
 
   const [pattern, setPattern] = useState("");
 
@@ -65,61 +76,56 @@ export const DagsFilters = () => {
   });
 
   const hidePausedDagsByDefault = Boolean(useConfig("hide_paused_dags_by_default"));
-  const defaultShowPaused = hidePausedDagsByDefault ? "false" : "all";
+  const defaultShowPaused: BooleanFilterValue = hidePausedDagsByDefault ? "false" : "all";
 
   const { setTableURLState, tableURLState } = useTableURLState();
   const { pagination, sorting } = tableURLState;
 
-  const handlePausedChange: React.MouseEventHandler<HTMLButtonElement> = ({ currentTarget: { value } }) => {
+  const resetPagination = () => {
+    setTableURLState({
+      pagination: { ...pagination, pageIndex: 0 },
+      sorting,
+    });
+    searchParams.delete(OFFSET_PARAM);
+  };
+
+  const handlePausedChange = (value: BooleanFilterValue) => {
     if (value === "all") {
       searchParams.delete(PAUSED_PARAM);
     } else {
       searchParams.set(PAUSED_PARAM, value);
     }
-    setTableURLState({
-      pagination: { ...pagination, pageIndex: 0 },
-      sorting,
-    });
-    searchParams.delete(OFFSET_PARAM);
+    resetPagination();
     setSearchParams(searchParams);
   };
 
-  const handleFavoriteChange: React.MouseEventHandler<HTMLButtonElement> = ({ currentTarget: { value } }) => {
+  const handleFavoriteChange = (value: BooleanFilterValue) => {
     if (value === "all") {
       searchParams.delete(FAVORITE_PARAM);
     } else {
       searchParams.set(FAVORITE_PARAM, value);
     }
-    setTableURLState({
-      pagination: { ...pagination, pageIndex: 0 },
-      sorting,
-    });
-    searchParams.delete(OFFSET_PARAM);
+    resetPagination();
     setSearchParams(searchParams);
   };
 
-  const handleStateChange: React.MouseEventHandler<HTMLButtonElement> = ({ currentTarget: { value } }) => {
+  const handleStateChange = (value: StateValue) => {
     if (value === "all") {
       searchParams.delete(LAST_DAG_RUN_STATE_PARAM);
-      searchParams.delete(NEEDS_REVIEW_PARAM);
-    } else if (value === "needs_review") {
-      if (needsReview === "true") {
-        searchParams.delete(NEEDS_REVIEW_PARAM);
-      } else {
-        searchParams.set(NEEDS_REVIEW_PARAM, "true");
-      }
     } else {
-      if (state === value) {
-        searchParams.delete(LAST_DAG_RUN_STATE_PARAM);
-      } else {
-        searchParams.set(LAST_DAG_RUN_STATE_PARAM, value);
-      }
+      searchParams.set(LAST_DAG_RUN_STATE_PARAM, value);
     }
-    setTableURLState({
-      pagination: { ...pagination, pageIndex: 0 },
-      sorting,
-    });
-    searchParams.delete(OFFSET_PARAM);
+    resetPagination();
+    setSearchParams(searchParams);
+  };
+
+  const handleNeedsReviewToggle = () => {
+    if (needsReview === "true") {
+      searchParams.delete(NEEDS_REVIEW_PARAM);
+    } else {
+      searchParams.set(NEEDS_REVIEW_PARAM, "true");
+    }
+    resetPagination();
     setSearchParams(searchParams);
   };
 
@@ -147,22 +153,15 @@ export const DagsFilters = () => {
     setSearchParams(searchParams);
   };
 
+  const stateValue = toStateValue(state);
+  const pausedValue = toBooleanFilterValue(showPaused, defaultShowPaused);
+  const favoriteValue = toBooleanFilterValue(showFavorites);
+
   return (
     <HStack flexWrap="wrap" gap={2} justifyContent="space-between">
-      <StateFilters
-        isAll={isAll}
-        isFailed={isFailed}
-        isQueued={isQueued}
-        isRunning={isRunning}
-        isSuccess={isSuccess}
-        needsReview={needsReview === "true"}
-        onStateChange={handleStateChange}
-      />
-      <PausedFilter
-        defaultShowPaused={defaultShowPaused}
-        onPausedChange={handlePausedChange}
-        showPaused={showPaused}
-      />
+      <StateFilters onChange={handleStateChange} value={stateValue} />
+      <RequiredActionFilter needsReview={needsReview === "true"} onToggle={handleNeedsReviewToggle} />
+      <PausedFilter onChange={handlePausedChange} value={pausedValue} />
       <TagFilter
         onMenuScrollToBottom={() => {
           void fetchNextPage();
@@ -177,7 +176,7 @@ export const DagsFilters = () => {
         tagFilterMode={tagFilterMode}
         tags={data?.pages.flatMap((dagResponse) => dagResponse.tags) ?? []}
       />
-      <FavoriteFilter onFavoriteChange={handleFavoriteChange} showFavorites={showFavorites} />
+      <FavoriteFilter onChange={handleFavoriteChange} value={favoriteValue} />
     </HStack>
   );
 };
