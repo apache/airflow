@@ -190,9 +190,9 @@ class PrevDagrunDep(BaseTIDep):
                     )
                     return
 
-            depends_on_previous_task_ids:list[str] = ti.task.depends_on_previous_task_ids or []
+            depends_on_previous_task_ids: list[str] = ti.task.depends_on_previous_task_ids or []
             if depends_on_previous_task_ids:
-                task_instances:list[TI] | None = last_dagrun.fetch_task_instances(
+                task_instances: list[TI] | None = last_dagrun.fetch_task_instances(
                     last_dagrun.dag_id,
                     last_dagrun.run_id,
                     depends_on_previous_task_ids,
@@ -201,9 +201,10 @@ class PrevDagrunDep(BaseTIDep):
                 )
 
                 if len(task_instances) == 0 or len(task_instances) != len(depends_on_previous_task_ids):
-                    yield self._failing_status(reason=f"depends_on_previous_task_ids is set to {depends_on_previous_task_ids}, and {len(depends_on_previous_task_ids) - len(task_instances)} of the task instance(s) have not succeeded")
+                    yield self._failing_status(
+                        reason=f"depends_on_previous_task_ids is set to {depends_on_previous_task_ids}, and {len(depends_on_previous_task_ids) - len(task_instances)} of the task instance(s) have not succeeded"
+                    )
                     return
-
 
             yield self._failing_status(
                 reason="depends_on_past is true for this task's DAG, but the previous "
