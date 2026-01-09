@@ -23,6 +23,13 @@ from airflow.sdk.execution_time.secrets.execution_api import ExecutionAPISecrets
 
 __all__ = ["ExecutionAPISecretsBackend", "DEFAULT_SECRETS_SEARCH_PATH_WORKERS"]
 
+# Server-side default secrets search path (for comparison/detection only)
+# This matches what airflow-core uses but is defined here to avoid importing from core
+_SERVER_DEFAULT_SECRETS_SEARCH_PATH = [
+    "airflow.secrets.environment_variables.EnvironmentVariablesBackend",
+    "airflow.secrets.metastore.MetastoreBackend",
+]
+
 DEFAULT_SECRETS_SEARCH_PATH_WORKERS = [
     "airflow.secrets.environment_variables.EnvironmentVariablesBackend",
     "airflow.sdk.execution_time.secrets.execution_api.ExecutionAPISecretsBackend",
