@@ -1290,7 +1290,13 @@ class EmrServerlessStartJobOperator(AwsBaseOperator[EmrServerlessHook]):
                         self.log.info(
                             "Cancelling EMR Serverless job %s due to max waiter attempts reached", self.job_id
                         )
-                        self.hook.conn.cancel_job_run(applicationId=self.application_id, jobRunId=self.job_id)
+                        try:
+                            self.hook.conn.cancel_job_run(applicationId=self.application_id, jobRunId=self.job_id)
+                        except Exception:
+                            self.log.exception(
+                                "Failed to cancel EMR Serverless job %s after waiter timeout",
+                                self.job_id,
+                            )
                     raise
 
         return self.job_id
