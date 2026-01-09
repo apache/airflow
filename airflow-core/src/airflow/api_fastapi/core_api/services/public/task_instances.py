@@ -159,6 +159,42 @@ def _patch_task_instance_note(
                 ti.task_instance_note.user_id = user.get_id()
 
 
+def _get_task_group_task_instances(
+    dag_id: str,
+    dag_run_id: str,
+    task_group_id: str,
+    dag: SerializedDAG,
+    session: Session,
+) -> list[TI]:
+    """Get all task instances in a task group for a specific DAG run."""
+    task_group = dag.task_group_dict.get(task_group_id)
+    if not task_group:
+        raise HTTPException(
+            status.HTTP_404_NOT_FOUND, f"Task group '{task_group_id}' not found in DAG '{dag_id}'"
+        )
+
+    # Get all task IDs in the task group
+    task_ids = [task.task_id for task in task_group.iter_tasks()]
+
+    if not task_ids:
+        return []
+
+    # Query all task instances for these task IDs in the given DAG run
+    query = (
+        select(TI)
+        .where(
+            TI.dag_id == dag_id,
+            TI.run_id == dag_run_id,
+            TI.task_id.in_(task_ids),
+        )
+        .join(TI.dag_run)
+        .options(joinedload(TI.rendered_task_instance_fields))
+        .order_by(TI.task_id, TI.map_index)
+    )
+
+    return list(session.scalars(query).all())
+
+
 class BulkTaskInstanceService(BulkService[BulkTaskInstanceBody]):
     """Service for handling bulk operations on task instances."""
 

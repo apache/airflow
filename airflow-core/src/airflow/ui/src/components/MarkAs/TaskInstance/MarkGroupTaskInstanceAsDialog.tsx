@@ -21,21 +21,14 @@ import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useParams } from "react-router-dom";
 
-import { useTaskInstanceServiceGetTaskInstances } from "openapi/queries";
-import type {
-  BulkBody_BulkTaskInstanceBody_,
-  BulkUpdateAction_BulkTaskInstanceBody_,
-  BulkTaskInstanceBody,
-  LightGridTaskInstanceSummary,
-  TaskInstanceState,
-} from "openapi/requests/types.gen";
+import type { LightGridTaskInstanceSummary, TaskInstanceState } from "openapi/requests/types.gen";
 import { ActionAccordion } from "src/components/ActionAccordion";
 import { StateBadge } from "src/components/StateBadge";
 import Time from "src/components/Time";
 import { Dialog } from "src/components/ui";
 import SegmentedControl from "src/components/ui/SegmentedControl";
-import { useBulkUpdateTaskInstances } from "src/queries/useBulkUpdateTaskInstances";
-import { useBulkUpdateTaskInstancesDryRun } from "src/queries/useBulkUpdateTaskInstancesDryRun";
+import { usePatchTaskGroup } from "src/queries/usePatchTaskGroup";
+import { usePatchTaskGroupDryRun } from "src/queries/usePatchTaskGroupDryRun";
 
 type Props = {
   readonly groupTaskInstance: LightGridTaskInstanceSummary;
@@ -59,51 +52,22 @@ const MarkGroupTaskInstanceAsDialog = ({ groupTaskInstance, onClose, open, state
   // eslint-disable-next-line unicorn/no-null -- DAGRunResponse["note"] type requires null, not undefined
   const [note, setNote] = useState<string | null>(null);
 
-  const { data: groupTaskInstances } = useTaskInstanceServiceGetTaskInstances(
-    {
-      dagId,
-      dagRunId: runId,
-      taskGroupId: groupId,
-    },
-    undefined,
-    {
-      enabled: open,
-    },
-  );
-
-  const groupTaskIds = groupTaskInstances?.task_instances.map((ti) => ti.task_id) ?? [];
-
-  // Create bulk update action with all tasks in the group for dry run
-  const bulkBodyForDryRun: BulkBody_BulkTaskInstanceBody_ | undefined =
-    groupTaskInstances && groupTaskIds.length > 0
-      ? {
-          actions: [
-            {
-              action: "update",
-              entities: groupTaskInstances.task_instances.map((ti) => ({
-                dag_id: dagId,
-                dag_run_id: runId,
-                include_downstream: downstream,
-                include_future: future,
-                include_past: past,
-                include_upstream: upstream,
-                map_index: ti.map_index,
-                new_state: state,
-                task_id: ti.task_id,
-              })),
-            },
-          ],
-        }
-      : undefined;
-
-  const { data, isPending: isPendingDryRun } = useBulkUpdateTaskInstancesDryRun({
+  const { data, isPending: isPendingDryRun } = usePatchTaskGroupDryRun({
     dagId,
     dagRunId: runId,
     options: {
-      enabled: open && groupTaskIds.length > 0,
+      enabled: open,
       refetchOnMount: "always",
     },
-    requestBody: bulkBodyForDryRun,
+    requestBody: {
+      include_downstream: downstream,
+      include_future: future,
+      include_past: past,
+      include_upstream: upstream,
+      new_state: state,
+      note,
+    },
+    taskGroupId: groupId,
   });
 
   const affectedTasks = data ?? {
@@ -111,45 +75,26 @@ const MarkGroupTaskInstanceAsDialog = ({ groupTaskInstance, onClose, open, state
     total_entries: 0,
   };
 
-  const { isPending, mutateAsync } = useBulkUpdateTaskInstances({
-    affectsMultipleRuns: future || past,
+  const { isPending, mutateAsync } = usePatchTaskGroup({
     dagId,
     dagRunId: runId,
     onSuccess: onClose,
+    taskGroupId: groupId,
   });
 
   const handleConfirm = async () => {
-    if (groupTaskIds.length === 0 || !groupTaskInstances) {
-      return;
-    }
-
-    // Create bulk update action with all tasks in the group
-    const entities: Array<BulkTaskInstanceBody> = groupTaskInstances.task_instances.map((ti) => ({
-      dag_id: dagId,
-      dag_run_id: runId,
-      include_downstream: downstream,
-      include_future: future,
-      include_past: past,
-      include_upstream: upstream,
-      map_index: ti.map_index,
-      new_state: state,
-      note,
-      task_id: ti.task_id,
-    }));
-
-    const updateAction: BulkUpdateAction_BulkTaskInstanceBody_ = {
-      action: "update",
-      entities,
-    };
-
-    const bulkBody: BulkBody_BulkTaskInstanceBody_ = {
-      actions: [updateAction],
-    };
-
     await mutateAsync({
       dagId,
       dagRunId: runId,
-      requestBody: bulkBody,
+      requestBody: {
+        include_downstream: downstream,
+        include_future: future,
+        include_past: past,
+        include_upstream: upstream,
+        new_state: state,
+        note,
+      },
+      taskGroupId: groupId,
     });
   };
 
@@ -205,7 +150,7 @@ const MarkGroupTaskInstanceAsDialog = ({ groupTaskInstance, onClose, open, state
           <Flex justifyContent="end" mt={3}>
             <Button
               colorPalette="brand"
-              disabled={groupTaskIds.length === 0 || affectedTasks.total_entries === 0}
+              disabled={affectedTasks.total_entries === 0}
               loading={isPending || isPendingDryRun}
               onClick={() => {
                 void handleConfirm();
