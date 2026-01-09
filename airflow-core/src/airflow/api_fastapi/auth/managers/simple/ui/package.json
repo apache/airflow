@@ -28,7 +28,7 @@
     "react-cookie": "^8.0.1",
     "react-dom": "^19.2.3",
     "react-hook-form": "^7.69.0",
-    "react-router-dom": "^7.11.0"
+    "react-router-dom": "^7.12.0"
   },
   "devDependencies": {
     "@7nohe/openapi-react-query-codegen": "^2.0.0",

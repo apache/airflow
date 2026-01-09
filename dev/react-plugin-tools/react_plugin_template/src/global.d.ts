@@ -17,16 +17,8 @@
  * under the License.
  */
 
-export { useNavigation } from "./useNavigation";
-export { useKeyboardNavigation } from "./useKeyboardNavigation";
+export interface global {}
 
-export { NavigationModes } from "./types";
-
-export type {
-  ArrowKey,
-  NavigationDirection,
-  NavigationIndices,
-  NavigationMode,
-  UseNavigationProps,
-  UseNavigationReturn,
-} from "./types";
+declare global {
+  var ChakraUISystem: SystemContext | undefined
+}
