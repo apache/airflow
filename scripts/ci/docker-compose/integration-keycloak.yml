@@ -17,7 +17,7 @@
 ---
 services:
   keycloak:
-    image: quay.io/keycloak/keycloak:23.0.6
+    image: quay.io/keycloak/keycloak:26.2.5
     labels:
       breeze.description: "Integration for manual testing of multi-team Airflow."
     entrypoint: /opt/keycloak/keycloak-entrypoint.sh
@@ -30,6 +30,7 @@ services:
 
       KEYCLOAK_ADMIN: admin
       KEYCLOAK_ADMIN_PASSWORD: admin
+      KC_FEATURES: scripts
 
       KC_DB: postgres
       KC_DB_URL: jdbc:postgresql://postgres/keycloak
@@ -43,6 +44,8 @@ services:
         condition: service_healthy
     volumes:
       - ./keycloak/keycloak-entrypoint.sh:/opt/keycloak/keycloak-entrypoint.sh
+      - keycloak-policy-provider:/opt/keycloak/providers
+      - ../../../providers/keycloak/src/airflow/providers/keycloak/auth_manager/policies:/opt/keycloak/script-src:ro
 
   postgres:
     volumes:
@@ -61,3 +64,6 @@ services:
   airflow:
     depends_on:
       - keycloak
+
+volumes:
+  keycloak-policy-provider:
