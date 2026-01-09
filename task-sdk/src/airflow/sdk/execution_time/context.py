@@ -141,6 +141,14 @@ def _convert_variable_result_to_variable(var_result: VariableResult, deserialize
 
 
 def _get_connection(conn_id: str) -> Connection:
+    if conn_id.startswith("__"):
+        # Debuggers and other tooling probe dunder methods (e.g. __iter__) via getattr().
+        # Never treat those probes as real connection IDs, and crucially never turn them into
+        # supervisor/API calls.
+        from airflow.sdk.exceptions import AirflowNotFoundException
+
+        raise AirflowNotFoundException(f"The conn_id `{conn_id}` isn't defined")
+
     from airflow.sdk.execution_time.cache import SecretCache
     from airflow.sdk.execution_time.supervisor import ensure_secrets_backend_loaded
 
@@ -178,6 +186,12 @@ def _get_connection(conn_id: str) -> Connection:
 
 
 async def _async_get_connection(conn_id: str) -> Connection:
+    if conn_id.startswith("__"):
+        # See comment in _get_connection.
+        from airflow.sdk.exceptions import AirflowNotFoundException
+
+        raise AirflowNotFoundException(f"The conn_id `{conn_id}` isn't defined")
+
     from asgiref.sync import sync_to_async
 
     from airflow.sdk.execution_time.cache import SecretCache
@@ -226,6 +240,12 @@ async def _async_get_connection(conn_id: str) -> Connection:
 
 
 def _get_variable(key: str, deserialize_json: bool) -> Any:
+    if key.startswith("__"):
+        from airflow.sdk.exceptions import AirflowRuntimeError, ErrorType
+        from airflow.sdk.execution_time.comms import ErrorResponse
+
+        raise AirflowRuntimeError(ErrorResponse(error=ErrorType.VARIABLE_NOT_FOUND, detail={"key": key}))
+
     from airflow.sdk.execution_time.cache import SecretCache
     from airflow.sdk.execution_time.supervisor import ensure_secrets_backend_loaded
 
@@ -345,12 +365,29 @@ class ConnectionAccessor:
     """Wrapper to access Connection entries in template."""
 
     def __getattr__(self, conn_id: str) -> Any:
+        # Prevent debugger introspection from triggering infinite loops by guarding against dunder methods
+        # Debuggers probe various dunder methods like __iter__, __len__, __contains__, etc.
+        # during introspection, which would otherwise trigger connection lookups.
+        if conn_id.startswith("__"):
+            raise AttributeError(f"'{self.__class__.__name__}' object has no attribute '{conn_id}'")
+
         from airflow.sdk.definitions.connection import Connection
 
         return Connection.get(conn_id)
 
     def __repr__(self) -> str:
         return "<ConnectionAccessor (dynamic access)>"
+
+    def __iter__(self):
+        """
+        Prevent debugger introspection from triggering infinite loops.
+
+        While __getattr__ now guards against all dunder methods, this explicit __iter__
+        provides a clearer error message for iteration attempts.
+
+        See #51861 for more details.
+        """
+        raise TypeError(f"'{self.__class__.__name__}' object is not iterable")
 
     def __eq__(self, other):
         if not isinstance(other, ConnectionAccessor):
@@ -390,7 +427,24 @@ class VariableAccessor:
     def __repr__(self) -> str:
         return "<VariableAccessor (dynamic access)>"
 
+    def __iter__(self):
+        """
+        Prevent debugger introspection from triggering infinite loops.
+
+        While __getattr__ now guards against all dunder methods, this explicit __iter__
+        provides a clearer error message for iteration attempts.
+
+        See #51861 for more details.
+        """
+        raise TypeError(f"'{self.__class__.__name__}' object is not iterable")
+
     def __getattr__(self, key: str) -> Any:
+        # Prevent debugger introspection from triggering infinite loops by guarding against dunder methods
+        # Debuggers probe various dunder methods like __iter__, __len__, __contains__, etc.
+        # during introspection, which would otherwise trigger variable lookups.
+        if key.startswith("__"):
+            raise AttributeError(f"'{self.__class__.__name__}' object has no attribute '{key}'")
+
         return _get_variable(key, self._deserialize_json)
 
     def get(self, key, default: Any = NOTSET) -> Any:
@@ -408,6 +462,12 @@ class MacrosAccessor:
     _macros_module = None
 
     def __getattr__(self, item: str) -> Any:
+        # Prevent debugger introspection from triggering infinite loops by guarding against dunder methods
+        # Debuggers probe various dunder methods like __iter__, __len__, __contains__, etc.
+        # during introspection, which would otherwise trigger macro lookups.
+        if item.startswith("__"):
+            raise AttributeError(f"'{self.__class__.__name__}' object has no attribute '{item}'")
+
         # Lazily load Macros module
         if not self._macros_module:
             import airflow.sdk.execution_time.macros
@@ -417,6 +477,17 @@ class MacrosAccessor:
 
     def __repr__(self) -> str:
         return "<MacrosAccessor (dynamic access to macros)>"
+
+    def __iter__(self):
+        """
+        Prevent debugger introspection from triggering infinite loops.
+
+        While __getattr__ now guards against all dunder methods, this explicit __iter__
+        provides a clearer error message for iteration attempts.
+
+        See #51861 for more details.
+        """
+        raise TypeError(f"'{self.__class__.__name__}' object is not iterable")
 
     def __eq__(self, other: object) -> bool:
         if not isinstance(other, MacrosAccessor):
@@ -451,6 +522,12 @@ class _AssetRefResolutionMixin:
     # TODO: This is temporary to avoid code duplication between here & airflow/models/taskinstance.py
     @staticmethod
     def _get_asset_from_db(name: str | None = None, uri: str | None = None) -> Asset:
+        if name and name.startswith("__"):
+            from airflow.sdk.exceptions import AirflowRuntimeError, ErrorType
+            from airflow.sdk.execution_time.comms import ErrorResponse
+
+            raise AirflowRuntimeError(ErrorResponse(error=ErrorType.ASSET_NOT_FOUND, detail={"name": name}))
+
         from airflow.sdk.definitions.asset import Asset
         from airflow.sdk.execution_time.comms import (
             ErrorResponse,
