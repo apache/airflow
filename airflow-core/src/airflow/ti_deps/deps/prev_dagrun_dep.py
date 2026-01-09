@@ -192,7 +192,7 @@ class PrevDagrunDep(BaseTIDep):
 
             depends_on_previous_task_ids: list[str] = ti.task.depends_on_previous_task_ids or []
             if depends_on_previous_task_ids:
-                task_instances: list[TI] | None = last_dagrun.fetch_task_instances(
+                task_instances: list[TI] = last_dagrun.fetch_task_instances(
                     last_dagrun.dag_id,
                     last_dagrun.run_id,
                     depends_on_previous_task_ids,
