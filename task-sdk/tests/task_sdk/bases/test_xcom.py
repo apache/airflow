@@ -22,7 +22,7 @@ from unittest import mock
 import pytest
 
 from airflow.sdk.bases.xcom import BaseXCom
-from airflow.sdk.execution_time.comms import DeleteXCom, XComResult
+from airflow.sdk.execution_time.comms import DeleteXCom, XComResult, XComSequenceSliceResult
 
 
 class TestBaseXCom:
@@ -70,3 +70,17 @@ class TestBaseXCom:
             assert sent_message.task_id == "test_task"
             assert sent_message.run_id == "test_run"
             assert sent_message.map_index == map_index
+
+    def test_get_all_returns_empty_list_when_no_values_found(self, mock_supervisor_comms):
+        """Test that BaseXCom.get_all returns an empty list instead of None when no values are found."""
+        mock_supervisor_comms.send.return_value = XComSequenceSliceResult(root=[])
+
+        result = BaseXCom.get_all(
+            key="test_key",
+            dag_id="test_dag",
+            task_id="test_task",
+            run_id="test_run",
+        )
+
+        assert result == []
+        assert isinstance(result, list)
