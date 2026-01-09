@@ -53,6 +53,7 @@ export type ConnectionBody = {
   password: string;
   port: string;
   schema: string;
+  team_name: string;
 };
 
 const getColumns = ({

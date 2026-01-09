@@ -26,7 +26,9 @@ import { FiSave } from "react-icons/fi";
 import { ErrorAlert } from "src/components/ErrorAlert";
 import { FlexibleForm } from "src/components/FlexibleForm";
 import { JsonEditor } from "src/components/JsonEditor";
+import { TeamSelector } from "src/components/TeamSelector.tsx";
 import { Accordion } from "src/components/ui";
+import { useConfig } from "src/queries/useConfig.tsx";
 import { useConnectionTypeMeta } from "src/queries/useConnectionTypeMeta";
 import type { ParamsSpec } from "src/queries/useDagParams";
 import { useParamStore } from "src/queries/useParamStore";
@@ -61,7 +63,7 @@ const ConnectionForm = ({
     control,
     formState: { isDirty, isValid },
     handleSubmit,
-    reset,
+    setValue,
     watch,
   } = useForm<ConnectionBody>({
     defaultValues: initialConnection,
@@ -74,23 +76,21 @@ const ConnectionForm = ({
   const paramsDic = { paramsDict: connectionTypeMeta[selectedConnType]?.extra_fields ?? ({} as ParamsSpec) };
 
   const [formErrors, setFormErrors] = useState(false);
+  const multiTeamEnabled = Boolean(useConfig("multi_team"));
 
   useEffect(() => {
-    reset((prevValues) => ({
-      ...initialConnection,
-      conn_type: selectedConnType,
-      connection_id: prevValues.connection_id,
-    }));
+    setValue("conn_type", selectedConnType, {
+      shouldDirty: true,
+    });
     setConf(JSON.stringify(JSON.parse(initialConnection.extra), undefined, 2));
-  }, [selectedConnType, reset, initialConnection, setConf]);
+  }, [selectedConnType, initialConnection, setConf, setValue]);
 
   // Automatically reset form when conf is fetched
   useEffect(() => {
-    reset((prevValues) => ({
-      ...prevValues, // Retain existing form values
-      extra,
-    }));
-  }, [extra, reset, setConf]);
+    setValue("extra", extra, {
+      shouldDirty: true,
+    });
+  }, [extra, setValue]);
 
   const onSubmit = (data: ConnectionBody) => {
     mutateConnection(data);
@@ -257,6 +257,8 @@ const ConnectionForm = ({
             </Accordion.Item>
           </Accordion.Root>
         ) : undefined}
+
+        {multiTeamEnabled ? <TeamSelector control={control} /> : undefined}
       </VStack>
       <ErrorAlert error={error} />
       <Box as="footer" display="flex" justifyContent="flex-end" mr={3} mt={4}>
