@@ -55,7 +55,7 @@ PIP package                                 Version required
 ==========================================  ==================
 ``apache-airflow``                          ``>=2.11.0``
 ``apache-airflow-providers-common-compat``  ``>=1.10.1``
-``pyspark``                                 ``>=3.5.2``
+``pyspark-client``                          ``>=4.0.0``
 ``grpcio-status``                           ``>=1.59.0``
 ==========================================  ==================
 
@@ -87,6 +87,7 @@ Extra                Dependencies
 ===================  ===================================================
 ``cncf.kubernetes``  ``apache-airflow-providers-cncf-kubernetes>=7.4.0``
 ``openlineage``      ``apache-airflow-providers-openlineage``
+``pyspark``          ``pyspark>=4.0.0``
 ===================  ===================================================
 
 The changelog for the provider package can be found in the
