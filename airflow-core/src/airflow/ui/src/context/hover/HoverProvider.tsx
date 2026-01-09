@@ -22,14 +22,17 @@ import { useState, useMemo } from "react";
 import { HoverContext } from "./Context";
 
 export const HoverProvider = ({ children }: PropsWithChildren) => {
+  const [hoveredRunId, setHoveredRunId] = useState<string | undefined>(undefined);
   const [hoveredTaskId, setHoveredTaskId] = useState<string | undefined>(undefined);
 
   const value = useMemo(
     () => ({
+      hoveredRunId,
       hoveredTaskId,
+      setHoveredRunId,
       setHoveredTaskId,
     }),
-    [hoveredTaskId],
+    [hoveredRunId, hoveredTaskId],
   );
 
   return <HoverContext.Provider value={value}>{children}</HoverContext.Provider>;

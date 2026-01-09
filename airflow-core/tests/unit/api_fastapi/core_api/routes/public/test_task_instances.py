@@ -33,7 +33,6 @@ from airflow.dag_processing.bundles.manager import DagBundlesManager
 from airflow.dag_processing.dagbag import DagBag, sync_bag_to_db
 from airflow.jobs.job import Job
 from airflow.jobs.triggerer_job_runner import TriggererJobRunner
-from airflow.listeners.listener import get_listener_manager
 from airflow.models import DagRun, Log, TaskInstance
 from airflow.models.dag_version import DagVersion
 from airflow.models.hitl import HITLDetail
@@ -219,7 +218,7 @@ class TestGetTaskInstance(TestTaskInstanceEndpoint):
             "pid": 100,
             "pool": "default_pool",
             "pool_slots": 1,
-            "priority_weight": 14,
+            "priority_weight": 9,
             "queue": "default_queue",
             "queued_when": None,
             "scheduled_when": None,
@@ -377,7 +376,7 @@ class TestGetTaskInstance(TestTaskInstanceEndpoint):
             "pid": 100,
             "pool": "default_pool",
             "pool_slots": 1,
-            "priority_weight": 14,
+            "priority_weight": 9,
             "queue": "default_queue",
             "queued_when": None,
             "scheduled_when": None,
@@ -441,7 +440,7 @@ class TestGetTaskInstance(TestTaskInstanceEndpoint):
             "pid": 100,
             "pool": "default_pool",
             "pool_slots": 1,
-            "priority_weight": 14,
+            "priority_weight": 9,
             "queue": "default_queue",
             "queued_when": None,
             "scheduled_when": None,
@@ -497,7 +496,7 @@ class TestGetTaskInstance(TestTaskInstanceEndpoint):
             "pid": 100,
             "pool": "default_pool",
             "pool_slots": 1,
-            "priority_weight": 14,
+            "priority_weight": 9,
             "queue": "default_queue",
             "queued_when": None,
             "scheduled_when": None,
@@ -617,7 +616,7 @@ class TestGetMappedTaskInstance(TestTaskInstanceEndpoint):
                 "pid": 100,
                 "pool": "default_pool",
                 "pool_slots": 1,
-                "priority_weight": 14,
+                "priority_weight": 9,
                 "queue": "default_queue",
                 "queued_when": None,
                 "scheduled_when": None,
@@ -1409,7 +1408,7 @@ class TestGetTaskInstances(TestTaskInstanceEndpoint):
                 False,
                 "/dags/~/dagRuns/~/taskInstances",
                 {"dag_id_pattern": "example_python_operator"},
-                14,  # Based on test failure - example_python_operator creates 14 task instances
+                9,  # Based on test failure - example_python_operator creates 9 task instances
                 3,
                 id="test dag_id_pattern exact match",
             ),
@@ -1418,7 +1417,7 @@ class TestGetTaskInstances(TestTaskInstanceEndpoint):
                 False,
                 "/dags/~/dagRuns/~/taskInstances",
                 {"dag_id_pattern": "example_%"},
-                22,  # Based on test failure - both DAGs together create 22 task instances
+                17,  # Based on test failure - both DAGs together create 17 task instances
                 3,
                 id="test dag_id_pattern wildcard prefix",
             ),
@@ -1932,8 +1931,8 @@ class TestGetTaskInstancesBatch(TestTaskInstanceEndpoint):
         [
             pytest.param(
                 {"dag_ids": ["example_python_operator", "example_skip_dag"]},
-                22,
-                22,
+                17,
+                17,
                 id="with dag filter",
             ),
         ],
@@ -2042,7 +2041,7 @@ class TestGetTaskInstancesBatch(TestTaskInstanceEndpoint):
         assert len(response_batch2.json()["task_instances"]) > 0
 
         # Match
-        ti_count = 10
+        ti_count = 9
         assert response_batch1.json()["total_entries"] == response_batch2.json()["total_entries"] == ti_count
         assert (num_entries_batch1 + num_entries_batch2) == ti_count
         assert response_batch1 != response_batch2
@@ -2081,7 +2080,7 @@ class TestGetTaskInstanceTry(TestTaskInstanceEndpoint):
             "pid": 100,
             "pool": "default_pool",
             "pool_slots": 1,
-            "priority_weight": 14,
+            "priority_weight": 9,
             "queue": "default_queue",
             "queued_when": None,
             "scheduled_when": None,
@@ -2128,7 +2127,7 @@ class TestGetTaskInstanceTry(TestTaskInstanceEndpoint):
             "pid": 100,
             "pool": "default_pool",
             "pool_slots": 1,
-            "priority_weight": 14,
+            "priority_weight": 9,
             "queue": "default_queue",
             "queued_when": None,
             "scheduled_when": None,
@@ -2206,7 +2205,7 @@ class TestGetTaskInstanceTry(TestTaskInstanceEndpoint):
                 "pid": 100,
                 "pool": "default_pool",
                 "pool_slots": 1,
-                "priority_weight": 14,
+                "priority_weight": 9,
                 "queue": "default_queue",
                 "queued_when": None,
                 "scheduled_when": None,
@@ -2279,7 +2278,7 @@ class TestGetTaskInstanceTry(TestTaskInstanceEndpoint):
             "pid": 100,
             "pool": "default_pool",
             "pool_slots": 1,
-            "priority_weight": 14,
+            "priority_weight": 9,
             "queue": "default_queue",
             "queued_when": None,
             "scheduled_when": None,
@@ -2327,7 +2326,7 @@ class TestGetTaskInstanceTry(TestTaskInstanceEndpoint):
             "pid": 100,
             "pool": "default_pool",
             "pool_slots": 1,
-            "priority_weight": 14,
+            "priority_weight": 9,
             "queue": "default_queue",
             "queued_when": None,
             "scheduled_when": None,
@@ -3244,7 +3243,7 @@ class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
                 "pid": 100,
                 "pool": "default_pool",
                 "pool_slots": 1,
-                "priority_weight": 14,
+                "priority_weight": 9,
                 "queue": "default_queue",
                 "queued_when": None,
                 "scheduled_when": None,
@@ -3616,7 +3615,7 @@ class TestGetTaskInstanceTries(TestTaskInstanceEndpoint):
                     "pid": 100,
                     "pool": "default_pool",
                     "pool_slots": 1,
-                    "priority_weight": 14,
+                    "priority_weight": 9,
                     "queue": "default_queue",
                     "queued_when": None,
                     "scheduled_when": None,
@@ -3654,7 +3653,7 @@ class TestGetTaskInstanceTries(TestTaskInstanceEndpoint):
                     "pid": 100,
                     "pool": "default_pool",
                     "pool_slots": 1,
-                    "priority_weight": 14,
+                    "priority_weight": 9,
                     "queue": "default_queue",
                     "queued_when": None,
                     "scheduled_when": None,
@@ -3802,7 +3801,7 @@ class TestGetTaskInstanceTries(TestTaskInstanceEndpoint):
                     "pid": 100,
                     "pool": "default_pool",
                     "pool_slots": 1,
-                    "priority_weight": 14,
+                    "priority_weight": 9,
                     "queue": "default_queue",
                     "queued_when": None,
                     "scheduled_when": None,
@@ -3886,7 +3885,7 @@ class TestGetTaskInstanceTries(TestTaskInstanceEndpoint):
                         "pid": 100,
                         "pool": "default_pool",
                         "pool_slots": 1,
-                        "priority_weight": 14,
+                        "priority_weight": 9,
                         "queue": "default_queue",
                         "queued_when": None,
                         "scheduled_when": None,
@@ -3924,7 +3923,7 @@ class TestGetTaskInstanceTries(TestTaskInstanceEndpoint):
                         "pid": 100,
                         "pool": "default_pool",
                         "pool_slots": 1,
-                        "priority_weight": 14,
+                        "priority_weight": 9,
                         "queue": "default_queue",
                         "queued_when": None,
                         "scheduled_when": None,
@@ -4084,12 +4083,6 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
     TASK_ID = "print_the_context"
     RUN_ID = "TEST_DAG_RUN_ID"
 
-    @pytest.fixture(autouse=True)
-    def clean_listener_manager(self):
-        get_listener_manager().clear()
-        yield
-        get_listener_manager().clear()
-
     @pytest.mark.parametrize(
         ("state", "listener_state"),
         [
@@ -4098,13 +4091,15 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
             ("skipped", []),
         ],
     )
-    def test_patch_task_instance_notifies_listeners(self, test_client, session, state, listener_state):
+    def test_patch_task_instance_notifies_listeners(
+        self, test_client, session, state, listener_state, listener_manager
+    ):
         from unit.listeners.class_listener import ClassBasedListener
 
         self.create_task_instances(session)
 
         listener = ClassBasedListener()
-        get_listener_manager().add_listener(listener)
+        listener_manager(listener)
         test_client.patch(
             self.ENDPOINT_URL,
             json={
@@ -4170,7 +4165,7 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
                     "pid": 100,
                     "pool": "default_pool",
                     "pool_slots": 1,
-                    "priority_weight": 14,
+                    "priority_weight": 9,
                     "queue": "default_queue",
                     "queued_when": None,
                     "scheduled_when": None,
@@ -4444,7 +4439,7 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
                             "pid": 100,
                             "pool": "default_pool",
                             "pool_slots": 1,
-                            "priority_weight": 14,
+                            "priority_weight": 9,
                             "queue": "default_queue",
                             "queued_when": None,
                             "scheduled_when": None,
@@ -4578,7 +4573,7 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
                     "pid": 100,
                     "pool": "default_pool",
                     "pool_slots": 1,
-                    "priority_weight": 14,
+                    "priority_weight": 9,
                     "queue": "default_queue",
                     "queued_when": None,
                     "scheduled_when": None,
@@ -4639,7 +4634,7 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
                     "pid": 100,
                     "pool": "default_pool",
                     "pool_slots": 1,
-                    "priority_weight": 14,
+                    "priority_weight": 9,
                     "queue": "default_queue",
                     "queued_when": None,
                     "scheduled_when": None,
@@ -4718,7 +4713,7 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
                         "pid": 100,
                         "pool": "default_pool",
                         "pool_slots": 1,
-                        "priority_weight": 14,
+                        "priority_weight": 9,
                         "queue": "default_queue",
                         "queued_when": None,
                         "scheduled_when": None,
@@ -4799,7 +4794,7 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
                 "pid": 100,
                 "pool": "default_pool",
                 "pool_slots": 1,
-                "priority_weight": 14,
+                "priority_weight": 9,
                 "queue": "default_queue",
                 "queued_when": None,
                 "scheduled_when": None,
@@ -4917,7 +4912,7 @@ class TestPatchTaskInstanceDryRun(TestTaskInstanceEndpoint):
                     "pid": 100,
                     "pool": "default_pool",
                     "pool_slots": 1,
-                    "priority_weight": 14,
+                    "priority_weight": 9,
                     "queue": "default_queue",
                     "queued_when": None,
                     "scheduled_when": None,
@@ -5203,7 +5198,7 @@ class TestPatchTaskInstanceDryRun(TestTaskInstanceEndpoint):
                             "pid": 100,
                             "pool": "default_pool",
                             "pool_slots": 1,
-                            "priority_weight": 14,
+                            "priority_weight": 9,
                             "queue": "default_queue",
                             "queued_when": None,
                             "scheduled_when": None,
