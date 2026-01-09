@@ -933,3 +933,78 @@ class TestGetGridDataEndpoint:
         # Should return intermediate, its upstream path, and downstream path
         # upstream: branch_a, start; downstream: merge, end
         assert task_ids == ["branch_a", "end", "intermediate", "merge", "start"]
+
+    # Tests for depth parameter
+    def test_structure_with_depth_downstream_1(self, test_client):
+        """Test depth=1 with include_downstream returns only immediate downstream tasks."""
+        response = test_client.get(f"/grid/structure/{DAG_ID_5}?root=task_a&include_downstream=true&depth=1")
+        assert response.status_code == 200
+        nodes = response.json()
+        task_ids = sorted([node["id"] for node in nodes])
+        # Should return task_a and only task_b (depth 1 downstream)
+        assert task_ids == ["task_a", "task_b"]
+
+    def test_structure_with_depth_downstream_2(self, test_client):
+        """Test depth=2 with include_downstream returns tasks within 2 levels downstream."""
+        response = test_client.get(f"/grid/structure/{DAG_ID_5}?root=task_a&include_downstream=true&depth=2")
+        assert response.status_code == 200
+        nodes = response.json()
+        task_ids = sorted([node["id"] for node in nodes])
+        # Should return task_a, task_b, and task_c (depth 2 downstream)
+        assert task_ids == ["task_a", "task_b", "task_c"]
+
+    def test_structure_with_depth_upstream_1(self, test_client):
+        """Test depth=1 with include_upstream returns only immediate upstream tasks."""
+        response = test_client.get(f"/grid/structure/{DAG_ID_5}?root=task_d&include_upstream=true&depth=1")
+        assert response.status_code == 200
+        nodes = response.json()
+        task_ids = sorted([node["id"] for node in nodes])
+        # Should return task_d and only task_c (depth 1 upstream)
+        assert task_ids == ["task_c", "task_d"]
+
+    def test_structure_with_depth_upstream_2(self, test_client):
+        """Test depth=2 with include_upstream returns tasks within 2 levels upstream."""
+        response = test_client.get(f"/grid/structure/{DAG_ID_5}?root=task_d&include_upstream=true&depth=2")
+        assert response.status_code == 200
+        nodes = response.json()
+        task_ids = sorted([node["id"] for node in nodes])
+        # Should return task_d, task_c, and task_b (depth 2 upstream)
+        assert task_ids == ["task_b", "task_c", "task_d"]
+
+    def test_structure_with_depth_both_directions(self, test_client):
+        """Test depth parameter with both upstream and downstream."""
+        response = test_client.get(
+            f"/grid/structure/{DAG_ID_5}?root=task_c&include_upstream=true&include_downstream=true&depth=1"
+        )
+        assert response.status_code == 200
+        nodes = response.json()
+        task_ids = sorted([node["id"] for node in nodes])
+        # Should return task_c with depth 1 in both directions: task_b, task_c, task_d
+        assert task_ids == ["task_b", "task_c", "task_d"]
+
+    def test_structure_with_depth_nonlinear_downstream(self, test_client):
+        """Test depth parameter with non-linear DAG structure downstream."""
+        response = test_client.get(f"/grid/structure/{DAG_ID_6}?root=start&include_downstream=true&depth=1")
+        assert response.status_code == 200
+        nodes = response.json()
+        task_ids = sorted([node["id"] for node in nodes])
+        # Should return start and only branch_a, branch_b (depth 1 downstream from start)
+        assert task_ids == ["branch_a", "branch_b", "start"]
+
+    def test_structure_with_depth_nonlinear_upstream(self, test_client):
+        """Test depth parameter with non-linear DAG structure upstream."""
+        response = test_client.get(f"/grid/structure/{DAG_ID_6}?root=merge&include_upstream=true&depth=1")
+        assert response.status_code == 200
+        nodes = response.json()
+        task_ids = sorted([node["id"] for node in nodes])
+        # Should return merge and its immediate upstream: branch_b and intermediate
+        assert task_ids == ["branch_b", "intermediate", "merge"]
+
+    def test_structure_with_depth_zero(self, test_client):
+        """Test depth=0 returns only the root task."""
+        response = test_client.get(f"/grid/structure/{DAG_ID_5}?root=task_c&include_downstream=true&depth=0")
+        assert response.status_code == 200
+        nodes = response.json()
+        task_ids = sorted([node["id"] for node in nodes])
+        # depth=0 should behave like no upstream/downstream filtering
+        assert task_ids == ["task_c"]
