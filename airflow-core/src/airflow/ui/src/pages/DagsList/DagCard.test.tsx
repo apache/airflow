@@ -54,11 +54,7 @@ vi.mock("openapi/queries", async () => {
     ...actual,
     useTaskInstanceServiceGetTaskInstances: () => ({
       data: {
-        task_instances: [
-          { state: "success" },
-          { state: "success" },
-          { state: "failed" },
-        ],
+        task_instances: [{ state: "success" }, { state: "success" }, { state: "failed" }],
       },
       isLoading: false,
     }),

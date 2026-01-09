@@ -16,14 +16,13 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 import { HStack, Spinner } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 
 import { useTaskInstanceServiceGetTaskInstances } from "openapi/queries";
 import type { TaskInstanceState } from "openapi/requests/types.gen";
-import { StateBadge } from "src/components/StateBadge";
 import { Stat } from "src/components/Stat";
+import { StateBadge } from "src/components/StateBadge";
 
 type Props = {
   readonly dagId: string;
@@ -56,6 +55,7 @@ export const TaskInstanceSummary = ({ dagId, runId }: Props) => {
 
   data.task_instances.forEach((ti) => {
     const state = ti.state ?? "no_status";
+
     stateCounts[state] = (stateCounts[state] ?? 0) + 1;
   });
 
