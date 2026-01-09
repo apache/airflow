@@ -16,43 +16,55 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { createListCollection, type SelectValueChangeDetails } from "@chakra-ui/react";
+import { Button, ButtonGroup, Icon } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
-
-import { Select } from "src/components/ui";
+import { FiStar } from "react-icons/fi";
 
 type Props = {
-  readonly onFavoriteChange: (details: SelectValueChangeDetails<string>) => void;
+  readonly onFavoriteChange: React.MouseEventHandler<HTMLButtonElement>;
   readonly showFavorites: string | null;
 };
 
 export const FavoriteFilter = ({ onFavoriteChange, showFavorites }: Props) => {
   const { t: translate } = useTranslation("dags");
 
-  const enabledOptions = createListCollection({
-    items: [
-      { label: translate("filters.favorite.all"), value: "all" },
-      { label: translate("filters.favorite.favorite"), value: "true" },
-      { label: translate("filters.favorite.unfavorite"), value: "false" },
-    ],
-  });
+  const currentValue = showFavorites ?? "all";
 
   return (
-    <Select.Root
-      collection={enabledOptions}
-      onValueChange={onFavoriteChange}
-      value={[showFavorites ?? "all"]}
-    >
-      <Select.Trigger colorPalette="brand" isActive={Boolean(showFavorites)}>
-        <Select.ValueText width={20} />
-      </Select.Trigger>
-      <Select.Content>
-        {enabledOptions.items.map((option) => (
-          <Select.Item item={option} key={option.label}>
-            {option.label}
-          </Select.Item>
-        ))}
-      </Select.Content>
-    </Select.Root>
+    <ButtonGroup attached size="sm" variant="outline">
+      <Button
+        bg={currentValue === "all" ? "colorPalette.muted" : undefined}
+        colorPalette="brand"
+        onClick={onFavoriteChange}
+        value="all"
+        variant={currentValue === "all" ? "solid" : "outline"}
+      >
+        {translate("filters.favorite.all")}
+      </Button>
+      <Button
+        bg={currentValue === "true" ? "colorPalette.muted" : undefined}
+        colorPalette="brand"
+        onClick={onFavoriteChange}
+        value="true"
+        variant={currentValue === "true" ? "solid" : "outline"}
+      >
+        <Icon asChild color="brand.solid">
+          <FiStar style={{ fill: "currentColor" }} />
+        </Icon>
+        {translate("filters.favorite.favorite")}
+      </Button>
+      <Button
+        bg={currentValue === "false" ? "colorPalette.muted" : undefined}
+        colorPalette="brand"
+        onClick={onFavoriteChange}
+        value="false"
+        variant={currentValue === "false" ? "solid" : "outline"}
+      >
+        <Icon asChild color="fg.muted">
+          <FiStar />
+        </Icon>
+        {translate("filters.favorite.unfavorite")}
+      </Button>
+    </ButtonGroup>
   );
 };
