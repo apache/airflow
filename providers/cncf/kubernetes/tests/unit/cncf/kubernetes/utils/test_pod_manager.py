@@ -920,7 +920,7 @@ class TestPodManager:
         "airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.container_is_running",
         return_value=False,
     )
-    def test_extract_xcom_where_sidecar_terminated(self, mock_container_is_running):
+    def test_extract_xcom_sidecar_terminated(self, mock_container_is_running):
         """test when None is retrieved from xcom sidecar container."""
         mock_pod = MagicMock()
         with pytest.raises(
