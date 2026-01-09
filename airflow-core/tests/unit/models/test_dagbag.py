@@ -602,15 +602,15 @@ with airflow.DAG(
             python_callable=f,
         )
         """
-        with open("tmp_file.py", "w") as f:
-            f.write(code_to_save)
+        test_file = tmp_path / "tmp_file.py"
+        test_file.write_text(code_to_save)
 
         with conf_vars({("core", "DAGBAG_IMPORT_TIMEOUT"): "0.01"}):
-            dagbag = DagBag(dag_folder=os.fspath("tmp_file.py"), include_examples=False)
-            dag = dagbag._load_modules_from_file("tmp_file.py", safe_mode=False)
+            dagbag = DagBag(dag_folder=str(test_file), include_examples=False)
+            dag = dagbag._load_modules_from_file(str(test_file), safe_mode=False)
 
         assert dag is not None
-        assert "tmp_file.py" in dagbag.import_errors
+        assert str(test_file) in dagbag.import_errors
         assert "DagBag import timeout for" in caplog.text
 
     @staticmethod
