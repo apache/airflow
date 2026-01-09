@@ -609,6 +609,41 @@ def test_parse_file_with_task_callbacks(spy_agency):
     assert called is True
 
 
+@conf_vars({("dag_processor", "dag_version_inflation_check_level"): "error"})
+def test_parse_file_static_check_with_error():
+    result = _parse_file(
+        DagFileParseRequest(
+            file=f"{TEST_DAG_FOLDER}/test_dag_version_inflation_check.py",
+            bundle_path=TEST_DAG_FOLDER,
+            bundle_name="testing",
+        ),
+        log=structlog.get_logger(),
+    )
+
+    assert result.serialized_dags == []
+    assert list(result.import_errors.keys()) == ["test_dag_version_inflation_check.py"]
+    assert result.warnings is None
+    assert "Don't use the variables as arguments" in next(iter(result.import_errors.values()))
+
+
+def test_parse_file_static_check_with_default_warning():
+    result = _parse_file(
+        DagFileParseRequest(
+            file=f"{TEST_DAG_FOLDER}/test_dag_version_inflation_check.py",
+            bundle_path=TEST_DAG_FOLDER,
+            bundle_name="testing",
+        ),
+        log=structlog.get_logger(),
+    )
+
+    assert len(result.serialized_dags) > 0
+    assert len(result.warnings) == len(result.serialized_dags)
+    assert all(
+        warning.get("dag_id") and warning.get("warning_type") and warning.get("message")
+        for warning in result.warnings
+    )
+
+
 def test_callback_processing_does_not_update_timestamps(session):
     """Callback processing should not update last_finish_time to prevent stale DAG detection."""
     stat = process_parse_results(

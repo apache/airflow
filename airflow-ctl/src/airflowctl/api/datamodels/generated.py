@@ -453,6 +453,7 @@ class DagWarningType(str, Enum):
 
     ASSET_CONFLICT = "asset conflict"
     NON_EXISTENT_POOL = "non-existent pool"
+    RUNTIME_VARYING_VALUE = "runtime varying value"
 
 
 class DryRunBackfillResponse(BaseModel):
