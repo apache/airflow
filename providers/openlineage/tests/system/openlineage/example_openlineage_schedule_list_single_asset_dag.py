@@ -27,10 +27,11 @@ from datetime import datetime
 
 from airflow import DAG
 from airflow.providers.common.compat.assets import Asset
+from airflow.providers.openlineage.tests.system.openlineage.expected_events import (
+    get_expected_event_file_path,
+)
+from airflow.providers.openlineage.tests.system.openlineage.operator import OpenLineageTestOperator
 from airflow.providers.standard.operators.bash import BashOperator
-
-from system.openlineage.expected_events import get_expected_event_file_path
-from system.openlineage.operator import OpenLineageTestOperator
 
 DAG_ID = "openlineage_schedule_list_single_asset_dag"
 

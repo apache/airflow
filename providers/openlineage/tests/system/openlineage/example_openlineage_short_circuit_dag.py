@@ -28,10 +28,11 @@ from datetime import datetime
 
 from airflow import DAG
 from airflow.models import Variable
+from airflow.providers.openlineage.tests.system.openlineage.expected_events import (
+    get_expected_event_file_path,
+)
+from airflow.providers.openlineage.tests.system.openlineage.operator import OpenLineageTestOperator
 from airflow.providers.standard.operators.python import PythonOperator, ShortCircuitOperator
-
-from system.openlineage.expected_events import get_expected_event_file_path
-from system.openlineage.operator import OpenLineageTestOperator
 
 
 def do_nothing():
