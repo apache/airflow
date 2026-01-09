@@ -1,44 +1,37 @@
 <!--
- Licensed to the Apache Software Foundation (ASF) under one
- or more contributor license agreements.  See the NOTICE file
- distributed with this work for additional information
- regarding copyright ownership.  The ASF licenses this file
- to you under the Apache License, Version 2.0 (the
- "License"); you may not use this file except in compliance
- with the License.  You may obtain a copy of the License at
+Thank you for contributing!
 
-   http://www.apache.org/licenses/LICENSE-2.0
+Please provide above a brief description of the changes made in this pull request.
+Write a good git commit message following this guide: http://chris.beams.io/posts/git-commit/
 
- Unless required by applicable law or agreed to in writing,
- software distributed under the License is distributed on an
- "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
- KIND, either express or implied.  See the License for the
- specific language governing permissions and limitations
- under the License.
- -->
+Please make sure that your code changes are covered with tests.
+And in case of new features or big changes remember to adjust the documentation.
 
-<!--
-Thank you for contributing! Please make sure that your code changes
-are covered with tests. And in case of new features or big changes
-remember to adjust the documentation.
-
-Feel free to ping committers for the review!
+Feel free to ping (in general) for the review if you do not see reaction for a few days
+(72 Hours is the minimum reaction time you can expect from volunteers) - we sometimes miss notifications.
 
 In case of an existing issue, reference it using one of the following:
 
-closes: #ISSUE
-related: #ISSUE
-
-How to write a good git commit message:
-http://chris.beams.io/posts/git-commit/
+* closes: #ISSUE
+* related: #ISSUE
 -->
 
+## Was generative AI tooling used to co-author this PR?
 
+<!--
+If generative AI tooling has been used in the process of authoring this PR, please
+change below checkbox to `[X]` followed by the name of the tool, uncomment the "Generated-by".
+-->
 
-<!-- Please keep an empty line above the dashes. -->
+- [ ] Yes (please specify the tool below)
+
+<!--
+Generated-by: [Tool Name] following [the guidelines](https://github.com/apache/airflow/blob/main/contributing-docs/05_pull_requests.rst#gen-ai-assisted-contributions)
+-->
+
 ---
-**^ Add meaningful description above**
-Read the **[Pull Request Guidelines](https://github.com/apache/airflow/blob/main/contributing-docs/05_pull_requests.rst#pull-request-guidelines)** for more information.
-In case of fundamental code changes, an Airflow Improvement Proposal ([AIP](https://cwiki.apache.org/confluence/display/AIRFLOW/Airflow+Improvement+Proposals)) is needed.
-In case of a new dependency, check compliance with the [ASF 3rd Party License Policy](https://www.apache.org/legal/resolved.html#category-x).
-In case of backwards incompatible changes please leave a note in a newsfragment file, named `{pr_number}.significant.rst` or `{issue_number}.significant.rst`, in [airflow-core/newsfragments](https://github.com/apache/airflow/tree/main/airflow-core/newsfragments).
+
+* Read the **[Pull Request Guidelines](https://github.com/apache/airflow/blob/main/contributing-docs/05_pull_requests.rst#pull-request-guidelines)** for more information.
+* For fundamental code changes, an Airflow Improvement Proposal ([AIP](https://cwiki.apache.org/confluence/display/AIRFLOW/Airflow+Improvement+Proposals)) is needed.
+* When adding dependency, check compliance with the [ASF 3rd Party License Policy](https://www.apache.org/legal/resolved.html#category-x).
+* For significant user-facing changes create newsfragment: `{pr_number}.significant.rst` or `{issue_number}.significant.rst`, in [airflow-core/newsfragments](https://github.com/apache/airflow/tree/main/airflow-core/newsfragments).

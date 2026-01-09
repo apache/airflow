@@ -54,6 +54,9 @@ repos:
           ^docs/README\.md$|
           ^\.github/.*\.md$|
           ^airflow-core/tests/system/README\.md$
+        exclude:
+            (?x)
+            .github/PULL_REQUEST_TEMPLATE\.md$
         args:
           - "--maxlevel"
           - "2"
@@ -155,13 +158,15 @@ repos:
       - id: insert-license
         name: Add license for all Markdown files
         files: \.md$
-        exclude: PROVIDER_CHANGES.*\.md$
         args:
           - --comment-style
           - "<!--|| -->"
           - --license-filepath
           - scripts/ci/license-templates/LICENSE.txt
           - --fuzzy-match-generates-todo
+        exclude:
+          (?x)
+          .github/PULL_REQUEST_TEMPLATE\.md$
       - id: insert-license
         name: Add license for all other files
         exclude: ^\.github/.*$
