@@ -35,7 +35,11 @@ export type FilterableSearchParamsKeys =
   | SearchParamsKeys.LOGICAL_DATE_GTE
   | SearchParamsKeys.LOGICAL_DATE_LTE
   | SearchParamsKeys.MAP_INDEX
+  | SearchParamsKeys.MAPPED
+  | SearchParamsKeys.NAME_PATTERN
+  | SearchParamsKeys.OPERATOR
   | SearchParamsKeys.RESPONSE_RECEIVED
+  | SearchParamsKeys.RETRIES
   | SearchParamsKeys.RUN_AFTER_GTE
   | SearchParamsKeys.RUN_AFTER_LTE
   | SearchParamsKeys.RUN_ID
@@ -43,39 +47,95 @@ export type FilterableSearchParamsKeys =
   | SearchParamsKeys.START_DATE
   | SearchParamsKeys.TASK_ID
   | SearchParamsKeys.TASK_ID_PATTERN
+  | SearchParamsKeys.TRIGGER_RULE
   | SearchParamsKeys.TRY_NUMBER
   | SearchParamsKeys.USER;
+
+const isEmptyFilterValue = (value: FilterValue): boolean => {
+  if (value === null || value === undefined || value === "") {
+    return true;
+  }
+
+  if (Array.isArray(value)) {
+    return value.length === 0;
+  }
+
+  return false;
+};
+
+const toRepeatedQueryValues = (value: FilterValue): Array<string> => {
+  if (isEmptyFilterValue(value)) {
+    return [];
+  }
+
+  if (Array.isArray(value)) {
+    return value.filter((item): item is string => typeof item === "string" && item !== "");
+  }
+
+  if (value instanceof Date) {
+    return [value.toISOString()];
+  }
+
+  if (typeof value === "number") {
+    return [String(value)];
+  }
+
+  if (typeof value === "string") {
+    return value.trim() === "" ? [] : [value];
+  }
+
+  return [];
+};
 
 export const useFiltersHandler = (searchParamKeys: Array<FilterableSearchParamsKeys>) => {
   const { getFilterConfig } = useFilterConfigs();
 
-  const filterConfigs = useMemo(
-    () => searchParamKeys.map((key) => getFilterConfig(key)),
-    [searchParamKeys, getFilterConfig],
-  );
+  // For pages that use built-in filterConfigs (XCom etc).
+  // If a key is not supported by getFilterConfig, it will throw — so only call it
+  // for keys that are actually defined in constants/filterConfigs.
+  //
+  // IMPORTANT: TaskFilters uses dynamic configs and does not rely on filterConfigs from this hook.
+  const filterConfigs = useMemo(() => {
+    const configs = [];
+
+    for (const key of searchParamKeys) {
+      try {
+        configs.push(getFilterConfig(key as never));
+      } catch {
+        // ignore keys not available in useFilterConfigs (e.g. task dynamic keys)
+      }
+    }
+
+    return configs;
+  }, [getFilterConfig, searchParamKeys]);
+
   const [searchParams, setSearchParams] = useSearchParams();
   const { setTableURLState, tableURLState } = useTableURLState();
   const { pagination, sorting } = tableURLState;
 
   const handleFiltersChange = useCallback(
     (filters: Record<string, FilterValue>) => {
-      filterConfigs.forEach((config) => {
-        const value = filters[config.key];
+      const nextSearchParams = new URLSearchParams(searchParams);
 
-        if (value === null || value === undefined || value === "") {
-          searchParams.delete(config.key);
-        } else {
-          searchParams.set(config.key, String(value));
-        }
+      searchParamKeys.forEach((key) => {
+        nextSearchParams.delete(key);
+
+        const value = filters[key];
+        const values = toRepeatedQueryValues(value);
+
+        values.forEach((item) => {
+          nextSearchParams.append(key, item);
+        });
       });
 
       setTableURLState({
         pagination: { ...pagination, pageIndex: 0 },
         sorting,
       });
-      setSearchParams(searchParams);
+
+      setSearchParams(nextSearchParams);
     },
-    [filterConfigs, pagination, searchParams, setSearchParams, setTableURLState, sorting],
+    [pagination, searchParamKeys, searchParams, setSearchParams, setTableURLState, sorting],
   );
 
   return {

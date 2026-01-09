@@ -16,12 +16,12 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { createListCollection, Box, Text } from "@chakra-ui/react";
+import { Box, Text, createListCollection } from "@chakra-ui/react";
 
 import { Select } from "src/components/ui";
 
 import { FilterPill } from "../FilterPill";
-import type { FilterPluginProps, FilterConfig } from "../types";
+import type { FilterConfig, FilterPluginProps } from "../types";
 
 type SelectOption = {
   label: string;
@@ -34,13 +34,26 @@ type SelectFilterConfig = {
 
 export const SelectFilter = ({ filter, onChange, onRemove }: FilterPluginProps) => {
   const config = filter.config as FilterConfig & SelectFilterConfig;
+  const isMultiple = config.multiple === true;
+
+  const selectedValues: Array<string> = Array.isArray(filter.value)
+    ? filter.value.filter((item): item is string => typeof item === "string" && item !== "")
+    : filter.value !== null && filter.value !== undefined && filter.value !== ""
+      ? [String(filter.value)]
+      : [];
 
   const handleValueChange = ({ value }: { value: Array<string> }) => {
+    if (isMultiple) {
+      onChange(value);
+
+      return;
+    }
+
     const [newValue] = value;
 
-    onChange(newValue);
+    onChange(newValue ?? "");
 
-    // Trigger blur to close the editing mode after selection
+    // Trigger blur to close the editing mode after selection (single select only)
     setTimeout(() => {
       const activeElement = document.activeElement as HTMLElement;
 
@@ -48,8 +61,13 @@ export const SelectFilter = ({ filter, onChange, onRemove }: FilterPluginProps) 
     }, 0);
   };
 
-  const hasValue = filter.value !== null && filter.value !== undefined && filter.value !== "";
-  const displayValue = config.options.find((option) => option.value === String(filter.value))?.label;
+  const hasValue = selectedValues.length > 0;
+
+  const selectedLabels = selectedValues
+    .map((val) => config.options.find((option) => option.value === val)?.label)
+    .filter((label): label is string => typeof label === "string" && label !== "");
+
+  const displayValue = isMultiple ? selectedLabels.join(", ") : selectedLabels[0];
 
   return (
     <FilterPill
@@ -84,16 +102,20 @@ export const SelectFilter = ({ filter, onChange, onRemove }: FilterPluginProps) 
         >
           {filter.config.label}:
         </Text>
+
         <Select.Root
           border="none"
+          closeOnSelect={!isMultiple}
           collection={createListCollection({ items: config.options })}
           h="full"
+          multiple={isMultiple}
           onValueChange={handleValueChange}
-          value={hasValue ? [String(filter.value)] : []}
+          value={selectedValues}
         >
           <Select.Trigger triggerProps={{ border: "none" }}>
             <Select.ValueText placeholder={filter.config.placeholder} />
           </Select.Trigger>
+
           <Select.Content>
             {config.options.map((option) => (
               <Select.Item item={option} key={option.value}>

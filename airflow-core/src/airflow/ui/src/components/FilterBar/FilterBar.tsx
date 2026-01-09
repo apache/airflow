@@ -17,7 +17,7 @@
  * under the License.
  */
 import { Button, HStack } from "@chakra-ui/react";
-import { useState, useCallback } from "react";
+import { useCallback, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { MdAdd, MdClear } from "react-icons/md";
 import { useDebouncedCallback } from "use-debounce";
@@ -35,6 +35,38 @@ const defaultInitialValues: Record<string, FilterValue> = {};
 
 const getFilterIcon = (config: FilterConfig) => config.icon ?? getDefaultFilterIcon(config.type);
 
+const isNonEmptyValue = (value: FilterValue): boolean => {
+  if (value === null || value === undefined || value === "") {
+    return false;
+  }
+
+  if (Array.isArray(value)) {
+    return value.length > 0;
+  }
+
+  return true;
+};
+
+const toStringArray = (value: FilterValue): Array<string> => {
+  if (value === null || value === undefined || value === "") {
+    return [];
+  }
+
+  if (Array.isArray(value)) {
+    return value.filter((item): item is string => typeof item === "string" && item !== "");
+  }
+
+  if (typeof value === "string") {
+    return value === "" ? [] : [value];
+  }
+
+  if (typeof value === "number") {
+    return [String(value)];
+  }
+
+  return [];
+};
+
 export const FilterBar = ({
   configs,
   initialValues = defaultInitialValues,
@@ -44,7 +76,7 @@ export const FilterBar = ({
   const { t: translate } = useTranslation(["admin", "common"]);
   const [filters, setFilters] = useState<Array<FilterState>>(() =>
     Object.entries(initialValues)
-      .filter(([, value]) => value !== null && value !== undefined && value !== "")
+      .filter(([, value]) => isNonEmptyValue(value))
       .map(([key, value]) => {
         const config = configs.find((con) => con.key === key);
 
@@ -67,9 +99,22 @@ export const FilterBar = ({
   const updateFiltersRecord = useCallback(
     (updatedFilters: Array<FilterState>) => {
       const filtersRecord = updatedFilters.reduce<Record<string, FilterValue>>((accumulator, filter) => {
-        if (filter.value !== null && filter.value !== undefined && filter.value !== "") {
-          accumulator[filter.config.key] = filter.value;
+        if (!isNonEmptyValue(filter.value)) {
+          return accumulator;
         }
+
+        const {key} = filter.config;
+        const existing = accumulator[key];
+
+        if (existing === undefined) {
+          accumulator[key] = filter.value;
+
+          return accumulator;
+        }
+
+        const merged = [...new Set([...toStringArray(existing), ...toStringArray(filter.value)])];
+
+        accumulator[key] = merged.length <= 1 ? (merged[0] ?? "") : merged;
 
         return accumulator;
       }, {});
@@ -111,9 +156,15 @@ export const FilterBar = ({
     onFiltersChange({});
   };
 
-  const availableConfigs = configs.filter(
-    (config) => !filters.some((filter) => filter.config.key === config.key),
-  );
+  // If config.multiple is true, allow adding the same filter key again.
+  // Otherwise keep original behavior (hide config once added).
+  const availableConfigs = configs.filter((config) => {
+    if (config.multiple === true) {
+      return true;
+    }
+
+    return !filters.some((filter) => filter.config.key === config.key);
+  });
 
   const renderFilter = (filter: FilterState) => {
     const props = {
