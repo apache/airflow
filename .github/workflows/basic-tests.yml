@@ -66,7 +66,7 @@ on:  # yamllint disable-line rule:truthy
         type: string
       uv-version:
         description: 'uv version to use'
-        default: "0.9.21"  # Keep this comment to allow automatic replacement of uv version
+        default: "0.9.22"  # Keep this comment to allow automatic replacement of uv version
         type: string
       platform:
         description: 'Platform for the build - linux/amd64 or linux/arm64'
@@ -228,7 +228,7 @@ jobs:
       - name: "Static checks: basic checks only"
         run: >
           prek --show-diff-on-failure --color always
-          --from-ref "${{ github.sha }}" --to-ref "${{ github.sha }}"
+          --from-ref "${{ github.sha }}"^ --to-ref "${{ github.sha }}"
         env:
           VERBOSE: "false"
           SKIP_BREEZE_PREK_HOOKS: "true"
@@ -367,7 +367,7 @@ jobs:
           --task-sdk-version 1.0.0rc1 --sync-branch v3-1-test --answer yes --dry-run
       - name: "Check Airflow release process command"
         run: >
-          breeze release-management start-release --version 3.1.1
+          breeze release-management start-release --version 3.1.6
           --answer yes --dry-run
       - name: "Test providers metadata generation"
         run: |
