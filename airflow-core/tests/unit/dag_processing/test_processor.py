@@ -1836,3 +1836,27 @@ class TestDagProcessingMessageTypes:
 
         with pytest.raises(ValueError, match=expected_error):
             _execute_email_callbacks(dagbag, request, log)
+
+    def test_parse_file_passes_bundle_name_to_dagbag(self):
+        """Test that _parse_file() creates BundleDagBag with correct bundle_name parameter"""
+        # Mock the BundleDagBag constructor to capture its arguments
+        with patch("airflow.models.dagbag.BundleDagBag") as mock_dagbag_class:
+            # Create a mock instance with proper attributes for Pydantic validation
+            mock_dagbag_instance = MagicMock()
+            mock_dagbag_instance.dags = {}
+            mock_dagbag_instance.import_errors = {}  # Must be a dict, not MagicMock for Pydantic validation
+            mock_dagbag_class.return_value = mock_dagbag_instance
+
+            request = DagFileParseRequest(
+                file="/test/dag.py",
+                bundle_path=pathlib.Path("/test"),
+                bundle_name="test_bundle",
+                callback_requests=[],
+            )
+
+            _parse_file(request, log=structlog.get_logger())
+
+            # Verify BundleDagBag was called with correct bundle_name
+            mock_dagbag_class.assert_called_once()
+            call_kwargs = mock_dagbag_class.call_args.kwargs
+            assert call_kwargs["bundle_name"] == "test_bundle"

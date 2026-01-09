@@ -38,7 +38,7 @@ from airflow._shared.timezones import timezone
 from airflow._shared.timezones.timezone import datetime as datetime_tz
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException, ParamValidationError
-from airflow.models import DagBag
+from airflow.models import BundleDagBag, DagBag
 from airflow.models.asset import (
     AssetAliasModel,
     AssetDagRunQueue,
@@ -2147,7 +2147,7 @@ class TestDagModel:
         rel_path = "test_assets.py"
         bundle_path = TEST_DAGS_FOLDER
         file_path = bundle_path / rel_path
-        bag = DagBag(dag_folder=file_path, bundle_path=bundle_path)
+        bag = BundleDagBag(dag_folder=file_path, bundle_path=bundle_path, bundle_name="testing")
 
         dag = bag.get_dag("dag_with_skip_task")
 
