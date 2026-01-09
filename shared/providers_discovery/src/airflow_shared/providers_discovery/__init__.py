@@ -20,6 +20,7 @@ from __future__ import annotations
 
 from airflow_shared.providers_discovery.providers_discovery import (
     HookClassProvider as HookClassProvider,
+    HookInfo as HookInfo,
     LazyDictWithCache as LazyDictWithCache,
     ProviderInfo as ProviderInfo,
     _check_builtin_provider_prefix as _check_builtin_provider_prefix,
