@@ -97,32 +97,27 @@ const ConnectionForm = ({
   };
 
   // Check if extra fields have changed by comparing with initial connection
-  const isExtraFieldsDirty = (() => {
-    try {
-      const initialParsed = JSON.parse(initialConnection.extra) as Record<string, unknown>;
-      const currentParsed = JSON.parse(extra) as Record<string, unknown>;
+  let isExtraFieldsDirty: boolean;
 
-      return JSON.stringify(initialParsed) !== JSON.stringify(currentParsed);
-    } catch {
-      // If parsing fails, fall back to string comparison
-      return extra !== initialConnection.extra;
-    }
-  })();
+  try {
+    const initialParsed = JSON.parse(initialConnection.extra) as Record<string, unknown>;
+    const currentParsed = JSON.parse(extra) as Record<string, unknown>;
+
+    isExtraFieldsDirty = JSON.stringify(initialParsed) !== JSON.stringify(currentParsed);
+  } catch {
+    // If parsing fails, fall back to string comparison
+    isExtraFieldsDirty = extra !== initialConnection.extra;
+  }
 
   const validateAndPrettifyJson = (value: string) => {
     try {
-      if (value.trim() === "") {
-        setErrors((prev) => ({ ...prev, conf: undefined }));
+      setErrors((prev) => ({ ...prev, conf: undefined }));
 
+      if (value.trim() === "") {
         return value;
       }
+
       const parsedJson = JSON.parse(value) as Record<string, unknown>;
-
-      if (typeof parsedJson !== "object" || Array.isArray(parsedJson)) {
-        throw new TypeError('extra fields must be a valid JSON object (e.g., {"key": "value"})');
-      }
-
-      setErrors((prev) => ({ ...prev, conf: undefined }));
       const formattedJson = JSON.stringify(parsedJson, undefined, 2);
 
       if (formattedJson !== extra) {

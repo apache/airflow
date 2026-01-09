@@ -17,22 +17,20 @@
  * under the License.
  */
 import type { Dayjs } from "dayjs";
-import { useMemo } from "react";
 
-export const useCalendarSelect = (currentMonth: Dayjs) =>
-  useMemo(() => {
-    const monthStart = currentMonth.startOf("month");
-    const monthEnd = currentMonth.endOf("month");
-    const startDate = monthStart.startOf("week");
-    const endDate = monthEnd.endOf("week");
+export const useCalendarSelect = (currentMonth: Dayjs) => {
+  const monthStart = currentMonth.startOf("month");
+  const monthEnd = currentMonth.endOf("month");
+  const startDate = monthStart.startOf("week");
+  const endDate = monthEnd.endOf("week");
 
-    const days = [];
-    let day = startDate;
+  const days = [];
+  let day = startDate;
 
-    while (day.isSame(endDate, "day") || day.isBefore(endDate, "day")) {
-      days.push(day);
-      day = day.add(1, "day");
-    }
+  while (day.isSame(endDate, "day") || day.isBefore(endDate, "day")) {
+    days.push(day);
+    day = day.add(1, "day");
+  }
 
-    return { days, monthEnd, monthStart };
-  }, [currentMonth]);
+  return { days, monthEnd, monthStart };
+};

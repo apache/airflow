@@ -17,7 +17,6 @@
  * under the License.
  */
 import { Badge, Flex } from "@chakra-ui/react";
-import React, { useCallback, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { Link, useLocation, useParams, useSearchParams } from "react-router-dom";
 
@@ -39,7 +38,7 @@ type Props = {
   readonly taskId: string;
 };
 
-const Instance = ({ dagId, instance, isGroup, isMapped, onClick, runId, taskId }: Props) => {
+export const GridTI = ({ dagId, instance, isGroup, isMapped, onClick, runId, taskId }: Props) => {
   const { hoveredTaskId, setHoveredTaskId } = useHover();
   const { groupId: selectedGroupId, taskId: selectedTaskId } = useParams();
   const { t: translate } = useTranslation();
@@ -47,21 +46,17 @@ const Instance = ({ dagId, instance, isGroup, isMapped, onClick, runId, taskId }
 
   const [searchParams] = useSearchParams();
 
-  const taskUrl = useMemo(
-    () =>
-      buildTaskInstanceUrl({
-        currentPathname: location.pathname,
-        dagId,
-        isGroup,
-        isMapped: Boolean(isMapped),
-        runId,
-        taskId,
-      }),
-    [dagId, isGroup, isMapped, location.pathname, runId, taskId],
-  );
+  const taskUrl = buildTaskInstanceUrl({
+    currentPathname: location.pathname,
+    dagId,
+    isGroup,
+    isMapped: Boolean(isMapped),
+    runId,
+    taskId,
+  });
 
-  const handleMouseEnter = useCallback(() => setHoveredTaskId(taskId), [setHoveredTaskId, taskId]);
-  const handleMouseLeave = useCallback(() => setHoveredTaskId(undefined), [setHoveredTaskId]);
+  const handleMouseEnter = () => setHoveredTaskId(taskId);
+  const handleMouseLeave = () => setHoveredTaskId(undefined);
 
   // Remove try_number query param when navigating to reset to the
   // latest try of the task instance and avoid issues with invalid try numbers:
@@ -140,5 +135,3 @@ const Instance = ({ dagId, instance, isGroup, isMapped, onClick, runId, taskId }
     </Flex>
   );
 };
-
-export const GridTI = React.memo(Instance);

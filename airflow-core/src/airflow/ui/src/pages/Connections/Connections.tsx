@@ -19,7 +19,7 @@
 import { Box, Flex, HStack, Spacer, VStack } from "@chakra-ui/react";
 import type { ColumnDef } from "@tanstack/react-table";
 import type { TFunction } from "i18next";
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useSearchParams } from "react-router-dom";
 
@@ -150,17 +150,13 @@ export const Connections = () => {
       getKey: (connection) => connection.connection_id,
     });
 
-  const columns = useMemo(
-    () =>
-      getColumns({
-        allRowsSelected,
-        onRowSelect: handleRowSelect,
-        onSelectAll: handleSelectAll,
-        selectedRows,
-        translate,
-      }),
-    [allRowsSelected, handleRowSelect, handleSelectAll, selectedRows, translate],
-  );
+  const columns = getColumns({
+    allRowsSelected,
+    onRowSelect: handleRowSelect,
+    onSelectAll: handleSelectAll,
+    selectedRows,
+    translate,
+  });
 
   const handleSearchChange = (value: string) => {
     if (value) {
