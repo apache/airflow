@@ -348,6 +348,12 @@ repos:
         language: python
         pass_filenames: false
         files: ^shared/.*$|^.*/pyproject.toml$|^.*/_shared/.*$
+      - id: check-secrets-search-path-sync
+        name: Check sync between sdk and core
+        entry: ./scripts/ci/prek/check_secrets_search_path_sync.py
+        language: python
+        pass_filenames: false
+        files: ^airflow-core/src/airflow/secrets/base_secrets\.py$|^task-sdk/src/airflow/sdk/execution_time/secrets/__init__\.py$
       - id: ruff
         name: Run 'ruff' for extremely fast Python linting
         description: "Run 'ruff' for extremely fast Python linting"
