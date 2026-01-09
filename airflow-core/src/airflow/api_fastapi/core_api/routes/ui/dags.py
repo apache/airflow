@@ -211,6 +211,45 @@ def get_dags(
 
     recent_dag_runs = session.execute(recent_dag_runs_select)
 
+    # Fetch task instance summary stats for the latest DagRun per DAG
+    latest_run_per_dag_subquery = (
+        select(
+            DagRun.dag_id,
+            DagRun.id.label("dag_run_id"),
+            func.rank()
+            .over(
+                partition_by=DagRun.dag_id,
+                order_by=DagRun.run_after.desc(),
+            )
+            .label("rank"),
+        )
+        .where(DagRun.dag_id.in_([dag.dag_id for dag in dags]))
+        .subquery()
+    )
+
+    task_instance_stats_select = (
+        select(
+            latest_run_per_dag_subquery.c.dag_id,
+            TaskInstance.state,
+            func.count(TaskInstance.task_id).label("count"),
+        )
+        .join(
+            TaskInstance,
+            TaskInstance.dag_run_id == latest_run_per_dag_subquery.c.dag_run_id,
+        )
+        .where(latest_run_per_dag_subquery.c.rank == 1)
+        .group_by(latest_run_per_dag_subquery.c.dag_id, TaskInstance.state)
+    )
+
+    task_instance_stats_rows = session.execute(task_instance_stats_select)
+
+    # Normalize task instance stats by dag_id
+    task_instance_summary_by_dag: dict[str, dict[str, int]] = {dag.dag_id: {} for dag in dags}
+
+    for dag_id, state, count in task_instance_stats_rows:
+        if state is not None:
+            task_instance_summary_by_dag[dag_id][state] = count
+
     # Fetch pending HITL actions for each Dag if we are not certain whether some of the Dag might contain HITL actions
     pending_actions_by_dag_id: dict[str, list[HITLDetail]] = {dag.dag_id: [] for dag in dags}
     if has_pending_actions.value:
@@ -241,6 +280,7 @@ def get_dags(
                 **DAGResponse.model_validate(dag).model_dump(),
                 "asset_expression": dag.asset_expression,
                 "latest_dag_runs": [],
+                "task_instance_summary": task_instance_summary_by_dag.get(dag.dag_id, {}),
                 "pending_actions": pending_actions_by_dag_id[dag.dag_id],
                 "is_favorite": dag.dag_id in favorite_dag_ids,
             }

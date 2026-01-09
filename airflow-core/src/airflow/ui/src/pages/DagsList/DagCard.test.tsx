@@ -46,21 +46,6 @@ vi.mock("src/context/timezone", async () => {
   };
 });
 
-// Mock the task instances API to return sample data
-vi.mock("openapi/queries", async () => {
-  const actual = await vi.importActual("openapi/queries");
-
-  return {
-    ...actual,
-    useTaskInstanceServiceGetTaskInstances: () => ({
-      data: {
-        task_instances: [{ state: "success" }, { state: "success" }, { state: "failed" }],
-      },
-      isLoading: false,
-    }),
-  };
-});
-
 // Custom wrapper that uses GMT timezone
 const GMTWrapper = ({ children }: PropsWithChildren) => (
   <BaseWrapper>
@@ -122,6 +107,7 @@ const mockDag = {
   pending_actions: [],
   relative_fileloc: "nested_task_groups.py",
   tags: [],
+  task_instance_summary: { success: 2, failed: 1 },
   timetable_description: "Every minute",
   timetable_summary: "* * * * *",
 } satisfies DAGWithLatestDagRunsResponse;
@@ -249,20 +235,20 @@ describe("DagCard", () => {
     expect(stateBadges[0]).toHaveAttribute("aria-label", "failed");
   });
 
-  it("DagCard should render TaskInstanceSummary when DAG has a latest run", () => {
+  it("DagCard should render TaskInstanceSummary when DAG has task_instance_summary", () => {
     render(<DagCard dag={mockDag} />, { wrapper: GMTWrapper });
     const taskInstanceSummary = screen.getByTestId("task-instance-summary");
 
     expect(taskInstanceSummary).toBeInTheDocument();
   });
 
-  it("DagCard should not render TaskInstanceSummary when DAG has no latest run", () => {
-    const mockDagWithNoRuns = {
+  it("DagCard should not render TaskInstanceSummary when DAG has no task_instance_summary", () => {
+    const mockDagWithNoSummary = {
       ...mockDag,
-      latest_dag_runs: [],
+      task_instance_summary: null,
     } satisfies DAGWithLatestDagRunsResponse;
 
-    render(<DagCard dag={mockDagWithNoRuns} />, { wrapper: GMTWrapper });
+    render(<DagCard dag={mockDagWithNoSummary} />, { wrapper: GMTWrapper });
     const taskInstanceSummary = screen.queryByTestId("task-instance-summary");
 
     expect(taskInstanceSummary).toBeNull();
