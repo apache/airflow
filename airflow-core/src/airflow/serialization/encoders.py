@@ -37,11 +37,15 @@ from airflow.sdk import (
     DeltaDataIntervalTimetable,
     DeltaTriggerTimetable,
     EventsTimetable,
+    IdentityMapper,
     MultipleCronTriggerTimetable,
 )
 from airflow.sdk.bases.timetable import BaseTimetable
 from airflow.sdk.definitions.asset import AssetRef
-from airflow.sdk.definitions.timetables.assets import AssetTriggeredTimetable
+from airflow.sdk.definitions.timetables.assets import (
+    AssetTriggeredTimetable,
+    PartitionedAssetTimetable,
+)
 from airflow.sdk.definitions.timetables.simple import ContinuousTimetable, NullTimetable, OnceTimetable
 from airflow.serialization.definitions.assets import (
     SerializedAsset,
@@ -52,7 +56,11 @@ from airflow.serialization.definitions.assets import (
     SerializedAssetRef,
 )
 from airflow.serialization.enums import DagAttributeTypes as DAT, Encoding
-from airflow.serialization.helpers import find_registered_custom_timetable, is_core_timetable_import_path
+from airflow.serialization.helpers import (
+    find_registered_custom_timetable,
+    is_core_partition_mapper_import_path,
+    is_core_timetable_import_path,
+)
 from airflow.timetables.base import Timetable as CoreTimetable
 from airflow.utils.docs import get_docs_url
 
@@ -211,6 +219,7 @@ class _TimetableSerializer:
         MultipleCronTriggerTimetable: "airflow.timetables.trigger.MultipleCronTriggerTimetable",
         NullTimetable: "airflow.timetables.simple.NullTimetable",
         OnceTimetable: "airflow.timetables.simple.OnceTimetable",
+        PartitionedAssetTimetable: "airflow.timetables.simple.PartitionedAssetTimetable",
     }
 
     @functools.singledispatchmethod
@@ -297,6 +306,13 @@ class _TimetableSerializer:
     def _(self, timetable: CoreTimetable) -> dict[str, Any]:
         return timetable.serialize()
 
+    @serialize.register
+    def _(self, timetable: PartitionedAssetTimetable) -> dict[str, Any]:
+        return {
+            "asset_condition": encode_asset_like(timetable.asset_condition),
+            "partition_mapper": encode_partition_mapper(timetable.partition_mapper),
+        }
+
 
 _serializer = _TimetableSerializer()
 
@@ -347,3 +363,41 @@ def ensure_serialized_asset(obj: BaseAsset | SerializedAssetBase) -> SerializedA
     from airflow.serialization.decoders import decode_asset_like
 
     return decode_asset_like(encode_asset_like(obj))
+
+
+class _PartitionMapperSerializer:
+    BUILTIN_PARTITION_MAPPERS: dict[type, str] = {
+        IdentityMapper: "airflow.timetables.simple.IdentityMapper",
+    }
+
+    @functools.singledispatchmethod
+    def serialize(self, partition_mapper: PartitionMapper) -> dict[str, Any]:
+        raise NotImplementedError
+
+    @serialize.register
+    def _(self, partition_mapper: IdentityMapper) -> dict[str, Any]:
+        return {}
+
+
+_partition_mapper_serializer = _PartitionMapperSerializer()
+
+
+def encode_partition_mapper(var: PartitionMapper) -> dict[str, Any]:
+    """
+    Encode a PartitionMapper instance.
+
+    This delegates most of the serialization work to the type, so the behavior
+    can be completely controlled by a custom subclass.
+
+    :meta private:
+    """
+    var_type = qualname(type(var))
+    if not is_core_partition_mapper_import_path(var_type):
+        var_type = _partition_mapper_serializer.BUILTIN_PARTITION_MAPPERS[type(var)]
+
+    # TODO: (AIP-76) handle airflow plugins cases (not part of 3.2)
+
+    return {
+        Encoding.TYPE: var_type,
+        Encoding.VAR: _partition_mapper_serializer.serialize(var),
+    }
