@@ -31,13 +31,18 @@ from openlineage.client.facet_v2 import parent_run
 from openlineage.client.utils import RedactMixin
 
 from airflow import __version__ as AIRFLOW_VERSION
-from airflow.exceptions import AirflowOptionalProviderFeatureException
 
 # TODO: move this maybe to Airflow's logic?
 from airflow.models import DagRun, TaskInstance, TaskReschedule
 from airflow.providers.common.compat.assets import Asset
 from airflow.providers.common.compat.module_loading import import_string
-from airflow.providers.common.compat.sdk import DAG, BaseOperator, BaseSensorOperator, MappedOperator
+from airflow.providers.common.compat.sdk import (
+    DAG,
+    AirflowOptionalProviderFeatureException,
+    BaseOperator,
+    BaseSensorOperator,
+    MappedOperator,
+)
 from airflow.providers.openlineage import (
     __version__ as OPENLINEAGE_PROVIDER_VERSION,
     conf,
