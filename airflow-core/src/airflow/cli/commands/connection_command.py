@@ -23,7 +23,7 @@ import os
 import warnings
 from functools import cache
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 from urllib.parse import urlsplit, urlunsplit
 
 from sqlalchemy import select
@@ -62,7 +62,7 @@ def _connection_mapper(conn: Connection, mask_sensitive: bool = True) -> dict[st
         "get_uri": conn.get_uri(),
     }
     if mask_sensitive:
-        result = redact(result)
+        result = cast(dict[str, Any], redact(result))
     return result
 
 

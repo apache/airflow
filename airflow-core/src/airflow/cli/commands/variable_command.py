@@ -21,6 +21,7 @@ from __future__ import annotations
 
 import json
 import os
+from typing import Any, cast
 
 from sqlalchemy import select
 
@@ -40,11 +41,11 @@ from airflow.utils.providers_configuration_loader import providers_configuration
 from airflow.utils.session import create_session, provide_session
 
 
-def _variable_mapper(var: Variable, show_values: bool = False) -> dict:
+def _variable_mapper(var: Variable, show_values: bool = False) -> dict[str, Any]:
     """Map a Variable object to a dictionary, optionally showing masked values."""
     if show_values:
-        result = {"key": var.key, "value": var.val}
-        return redact(result)
+        result: dict[str, Any] = {"key": var.key, "value": var.val}
+        return cast(dict[str, Any], redact(result))
     return {"key": var.key}
 
 
