@@ -28,6 +28,11 @@ dependencies = [
     "jsonschema",
 ]
 
+[dependency-groups]
+dev = [
+    "apache-airflow-devel-common",
+]
+
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
