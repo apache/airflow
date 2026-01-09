@@ -232,6 +232,7 @@ export const DagsList = () => {
     } else {
       searchParams.delete(NAME_PATTERN);
     }
+    searchParams.delete("offset");
     setSearchParams(searchParams);
   };
 
