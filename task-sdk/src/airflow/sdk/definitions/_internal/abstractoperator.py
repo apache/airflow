@@ -138,10 +138,6 @@ class AbstractOperator(Templater, DAGNode):
     )
 
     @property
-    def is_async(self) -> bool:
-        return False
-
-    @property
     def task_type(self) -> str:
         raise NotImplementedError()
 
