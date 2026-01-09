@@ -28,7 +28,7 @@
 {{- $affinity := or .Values.workers.affinity .Values.affinity }}
 {{- $tolerations := or .Values.workers.tolerations .Values.tolerations }}
 {{- $topologySpreadConstraints := or .Values.workers.topologySpreadConstraints .Values.topologySpreadConstraints }}
-{{- $revisionHistoryLimit := or .Values.workers.celery.revisionHistoryLimit .Values.workers.revisionHistoryLimit .Values.revisionHistoryLimit }}
+{{- $revisionHistoryLimit := include "airflow.revisionHistoryLimit" (list .Values.workers.celery.revisionHistoryLimit .Values.workers.revisionHistoryLimit .Values.revisionHistoryLimit) }}
 {{- $securityContext := include "airflowPodSecurityContext" (list . .Values.workers) }}
 {{- $containerSecurityContext := include "containerSecurityContext" (list . .Values.workers) }}
 {{- $containerSecurityContextPersistence := include "containerSecurityContext" (list . .Values.workers.persistence) }}
@@ -65,7 +65,7 @@ spec:
   {{- if and (not $keda) (not $hpa) }}
   replicas: {{ .Values.workers.celery.replicas | default .Values.workers.replicas }}
   {{- end }}
-  {{- if $revisionHistoryLimit }}
+  {{- if ne $revisionHistoryLimit "" }}
   revisionHistoryLimit: {{ $revisionHistoryLimit }}
   {{- end }}
   {{- if and $persistence (or .Values.workers.celery.persistence.persistentVolumeClaimRetentionPolicy .Values.workers.persistence.persistentVolumeClaimRetentionPolicy) }}

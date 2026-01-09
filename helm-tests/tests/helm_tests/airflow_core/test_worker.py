@@ -133,6 +133,29 @@ class TestWorker:
 
         assert jmespath.search("spec.revisionHistoryLimit", docs[0]) == expected
 
+    @pytest.mark.parametrize(
+        ("worker_values", "global_limit", "expected"),
+        [
+            ({}, 0, 0),
+            ({"revisionHistoryLimit": 0}, None, 0),
+            ({"celery": {"revisionHistoryLimit": 0}}, None, 0),
+            ({"revisionHistoryLimit": 0}, 10, 0),
+            ({"celery": {"revisionHistoryLimit": 0}}, 10, 0),
+            ({"revisionHistoryLimit": 0, "celery": {"revisionHistoryLimit": 0}}, 10, 0),
+        ],
+    )
+    def test_revision_history_limit_zero(self, worker_values, global_limit, expected):
+        """Test that revisionHistoryLimit can be set to 0."""
+        values = {"workers": worker_values}
+        if global_limit is not None:
+            values["revisionHistoryLimit"] = global_limit
+        docs = render_chart(
+            values=values,
+            show_only=["templates/workers/worker-deployment.yaml"],
+        )
+
+        assert jmespath.search("spec.revisionHistoryLimit", docs[0]) == expected
+
     def test_should_add_extra_containers(self):
         docs = render_chart(
             values={
