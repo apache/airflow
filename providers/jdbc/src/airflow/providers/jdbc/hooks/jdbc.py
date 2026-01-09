@@ -132,6 +132,7 @@ class JdbcHook(DbApiHook):
     @property
     def driver_class(self) -> str | None:
         from airflow.providers.common.compat.sdk import conf
+
         extra_driver_class = self.connection_extra_lower.get("driver_class")
         if extra_driver_class:
             if conf.getboolean("providers.jdbc", "allow_driver_class_in_extra", fallback=False):
