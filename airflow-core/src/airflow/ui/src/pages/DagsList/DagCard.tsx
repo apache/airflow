@@ -16,7 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 import { Box, Flex, HStack, SimpleGrid, Link, Spinner } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 import { Link as RouterLink } from "react-router-dom";
@@ -118,9 +117,7 @@ export const DagCard = ({ dag }: Props) => {
           ) : undefined}
         </Stat>
 
-        {latestRun ? (
-          <TaskInstanceSummary dagId={dag.dag_id} runId={latestRun.run_id} />
-        ) : undefined}
+        {latestRun ? <TaskInstanceSummary dagId={dag.dag_id} runId={latestRun.run_id} /> : undefined}
 
         <RecentRuns latestRuns={dag.latest_dag_runs} />
       </SimpleGrid>
