@@ -22,7 +22,6 @@ import asyncio
 import datetime
 import json
 import logging
-import math
 import os
 import re
 import shlex
@@ -38,7 +37,6 @@ import tenacity
 from kubernetes.client import CoreV1Api, V1Pod, models as k8s
 from kubernetes.client.exceptions import ApiException
 from kubernetes.stream import stream
-from urllib3.exceptions import HTTPError
 
 from airflow.configuration import conf
 from airflow.providers.cncf.kubernetes import pod_generator
@@ -948,7 +946,6 @@ class KubernetesPodOperator(BaseOperator):
             if not self.pod:
                 raise PodNotFoundException("Could not find pod after resuming from deferral")
 
-            follow = self.logging_interval is None
             last_log_time = event.get("last_log_time")
 
             if event["status"] in ("error", "failed", "timeout", "success"):
@@ -1021,33 +1018,6 @@ class KubernetesPodOperator(BaseOperator):
                 remote_pod=self.pod,
                 context=context,
                 result=result,
-            )
-
-    def _write_logs(self, pod: k8s.V1Pod, follow: bool = False, since_time: DateTime | None = None) -> None:
-        try:
-            since_seconds = (
-                math.ceil((datetime.datetime.now(tz=datetime.timezone.utc) - since_time).total_seconds())
-                if since_time
-                else None
-            )
-            logs = self.client.read_namespaced_pod_log(
-                name=pod.metadata.name,
-                namespace=pod.metadata.namespace,
-                container=self.base_container_name,
-                follow=follow,
-                timestamps=False,
-                since_seconds=since_seconds,
-                _preload_content=False,
-            )
-            for raw_line in logs:
-                line = raw_line.decode("utf-8", errors="backslashreplace").rstrip("\n")
-                if line:
-                    self.log.info("[%s] logs: %s", self.base_container_name, line)
-        except (HTTPError, ApiException) as e:
-            self.log.warning(
-                "Reading of logs interrupted with error %r; will retry. "
-                "Set log level to DEBUG for traceback.",
-                e if not isinstance(e, ApiException) else e.reason,
             )
 
     def post_complete_action(
