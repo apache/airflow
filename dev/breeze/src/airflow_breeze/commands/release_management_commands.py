@@ -71,10 +71,11 @@ from airflow_breeze.commands.common_options import (
     option_python_versions,
     option_run_in_parallel,
     option_skip_cleanup,
+    option_target_branch,
     option_use_airflow_version,
     option_use_uv,
     option_verbose,
-    option_version_suffix, option_target_branch,
+    option_version_suffix,
 )
 from airflow_breeze.commands.common_package_installation_options import (
     option_airflow_constraints_location,
@@ -1388,7 +1389,7 @@ def generate_constraints(
     target_branch: str,
 ):
     if action_branch != target_branch:
-        checkout_target_branch(target_branch=target_branch)
+        checkout_target_branch(target_branch=action_branch)
     perform_environment_checks()
     check_remote_ghcr_io_commands()
     fix_ownership_using_docker()
@@ -1413,7 +1414,7 @@ def generate_constraints(
                 python=python,
                 github_repository=github_repository,
                 use_image_from_action_branch=True,
-                action_branch=action_branch,
+                action_branch=target_branch,
             )
             get_console().print("\n[info]Use this command to build the image:[/]\n")
             get_console().print(
@@ -1430,7 +1431,7 @@ def generate_constraints(
                 python=python,
                 use_uv=use_uv,
                 use_image_from_action_branch=True,
-                action_branch=action_branch,
+                action_branch=target_branch,
             )
             for python in python_version_list
         ]
@@ -1450,7 +1451,7 @@ def generate_constraints(
             python=python,
             use_uv=use_uv,
             use_image_from_action_branch=True,
-            action_branch=action_branch,
+            action_branch=target_branch,
         )
         return_code, info = run_generate_constraints(
             shell_params=shell_params,

@@ -356,6 +356,7 @@ def download_artifact_from_pr(pr: str, output_file: Path, github_repository: str
 
     download_artifact_from_run_id(str(run_id), output_file, github_repository, github_token)
 
+
 def checkout_target_branch(target_branch: str) -> None:
     """
     Checks out the target branch in the given repository.
@@ -366,11 +367,12 @@ def checkout_target_branch(target_branch: str) -> None:
     :param target_branch: Target branch name
     """
     from git import GitCommandError, Repo
+
     repo = Repo(AIRFLOW_ROOT_PATH)
     try:
         get_console().print(f"[info]Fetching branch {target_branch} from remote")
-        repo.git.fetch('origin', target_branch)
-        repo.git.checkout(f'origin/{target_branch}')
+        repo.git.fetch("origin", target_branch)
+        repo.git.checkout(f"origin/{target_branch}")
     except GitCommandError as e:
         get_console().print(f"[error]Failed to checkout branch {target_branch}: {e}")
         sys.exit(1)
