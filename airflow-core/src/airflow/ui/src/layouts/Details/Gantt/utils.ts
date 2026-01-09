@@ -243,7 +243,14 @@ export const createChartOptions = ({
             : formatDate(effectiveEndDate, selectedTimezone),
         min:
           data.length > 0
-            ? Math.min(...data.map((item) => new Date(item.x[0] ?? "").getTime()))
+            ? (() => {
+                const maxTime = Math.max(...data.map((item) => new Date(item.x[1] ?? "").getTime()));
+                const minTime = Math.min(...data.map((item) => new Date(item.x[0] ?? "").getTime()));
+                const totalDuration = maxTime - minTime;
+
+                // subtract 2% from min time so background color shows before data
+                return minTime - totalDuration * 0.02;
+              })()
             : formatDate(selectedRun?.start_date, selectedTimezone),
         position: "top" as const,
         stacked: true,
