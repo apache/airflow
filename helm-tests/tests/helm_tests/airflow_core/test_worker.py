@@ -18,7 +18,7 @@ from __future__ import annotations
 
 import jmespath
 import pytest
-from chart_utils.helm_template_generator import render_chart
+from chart_utils.helm_template_generator import HelmFailedError, render_chart
 from chart_utils.log_groomer import LogGroomerTestBase
 
 
@@ -1592,6 +1592,43 @@ class TestWorker:
             len(jmespath.search("spec.template.spec.initContainers[?name=='volume-permissions']", docs[0]))
             == 0
         )
+
+    def test_pod_management_policy_default(self):
+        docs = render_chart(show_only=["templates/workers/worker-deployment.yaml"])
+        assert jmespath.search("spec.podManagementPolicy", docs[0]) is None
+
+    @pytest.mark.parametrize(
+        ("workers_values", "expected"),
+        [
+            ({"podManagementPolicy": "Parallel"}, "Parallel"),
+            ({"podManagementPolicy": "OrderedReady"}, "OrderedReady"),
+            ({"celery": {"podManagementPolicy": "Parallel"}}, "Parallel"),
+            ({"celery": {"podManagementPolicy": "OrderedReady"}}, "OrderedReady"),
+            (
+                {"podManagementPolicy": "OrderedReady", "celery": {"podManagementPolicy": "Parallel"}},
+                "Parallel",
+            ),
+            (
+                {"podManagementPolicy": "Parallel", "celery": {"podManagementPolicy": "OrderedReady"}},
+                "OrderedReady",
+            ),
+        ],
+    )
+    def test_pod_management_policy(self, workers_values, expected):
+        docs = render_chart(
+            values={"workers": workers_values}, show_only=["templates/workers/worker-deployment.yaml"]
+        )
+
+        assert jmespath.search("spec.podManagementPolicy", docs[0]) == expected
+
+    @pytest.mark.parametrize(
+        "workers_values", [{"podManagementPolicy": "Test"}, {"celery": {"podManagementPolicy": "Test"}}]
+    )
+    def test_pod_management_policy_not_valid_value(self, workers_values):
+        with pytest.raises(HelmFailedError):
+            render_chart(
+                values={"workers": workers_values}, show_only=["templates/workers/worker-deployment.yaml"]
+            )
 
 
 class TestWorkerLogGroomer(LogGroomerTestBase):
