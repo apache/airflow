@@ -27,9 +27,9 @@ from airflow.api_fastapi.execution_api.app import lifespan
 from airflow.api_fastapi.execution_api.datamodels.token import TIToken
 from airflow.api_fastapi.execution_api.deps import (
     JWTBearerDep,
-    JWTBearerQueueDep,
     JWTBearerTIPathDep,
 )
+from airflow.api_fastapi.execution_api.routes.task_instances import JWTBearerWorkloadDep
 
 
 def _always_allow(ti_id: str | None = None) -> TIToken:
@@ -84,15 +84,15 @@ def client(request: pytest.FixtureRequest):
         # We need to override both the specific instances AND the classes to cover all cases
         jwt_bearer_instance = JWTBearerDep.dependency
         jwt_bearer_ti_path_instance = JWTBearerTIPathDep.dependency
-        jwt_bearer_queue_instance = JWTBearerQueueDep.dependency
+        jwt_bearer_workload_instance = JWTBearerWorkloadDep.dependency
 
         app.dependency_overrides[jwt_bearer_instance] = lambda: _always_allow()
         app.dependency_overrides[jwt_bearer_ti_path_instance] = lambda: _always_allow()
-        app.dependency_overrides[jwt_bearer_queue_instance] = lambda: _always_allow()
+        app.dependency_overrides[jwt_bearer_workload_instance] = lambda: _always_allow()
 
         yield client
 
         # Clean up dependency overrides
         app.dependency_overrides.pop(jwt_bearer_instance, None)
         app.dependency_overrides.pop(jwt_bearer_ti_path_instance, None)
-        app.dependency_overrides.pop(jwt_bearer_queue_instance, None)
+        app.dependency_overrides.pop(jwt_bearer_workload_instance, None)

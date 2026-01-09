@@ -1858,14 +1858,14 @@ execution_api:
       type: integer
       example: ~
       default: "600"
-    jwt_queue_token_expiration_time:
+    jwt_workload_token_expiration_time:
       description: |
-        Number in seconds until the queue JWT token expires. Queue tokens are long-lived tokens
+        Number in seconds until the workload JWT token expires. Workload tokens are long-lived tokens
         sent with task workloads to executors (e.g., Celery). They can only be used to call
         the /run endpoint, which then issues a short-lived execution token.
 
         This should be set long enough to cover the maximum expected queue wait time.
-      version_added: 3.1.0
+      version_added: 3.1.7
       type: integer
       example: ~
       default: "86400"

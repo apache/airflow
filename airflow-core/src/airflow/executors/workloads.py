@@ -46,12 +46,12 @@ class BaseWorkload(BaseModel):
     @staticmethod
     def generate_token(sub_id: str, generator: JWTGenerator | None = None) -> str:
         """
-        Generate a queue-scoped token for this workload.
+        Generate a workload-scoped token for this workload.
 
-        Queue tokens are long-lived and can only be used on the /run endpoint,
+        Workload tokens are long-lived and can only be used on the /run endpoint,
         which exchanges them for short-lived execution tokens.
         """
-        return generator.generate_queue_token(sub_id) if generator else ""
+        return generator.generate_workload_token(sub_id) if generator else ""
 
 
 class BundleInfo(BaseModel):

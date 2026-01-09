@@ -46,7 +46,7 @@ __all__ = [
     "JWKS",
     "JWTGenerator",
     "JWTValidator",
-    "TOKEN_SCOPE_QUEUE",
+    "TOKEN_SCOPE_WORKLOAD",
     "generate_private_key",
     "get_sig_validation_args",
     "get_signing_args",
@@ -55,7 +55,7 @@ __all__ = [
     "key_to_jwk_dict",
 ]
 
-TOKEN_SCOPE_QUEUE = "queue"
+TOKEN_SCOPE_WORKLOAD = "ExecuteTaskWorkload"
 
 
 class InvalidClaimError(ValueError):
@@ -437,15 +437,28 @@ class JWTGenerator:
             assert self._secret_key
         return self._secret_key
 
-    def generate(self, extras: dict[str, Any] | None = None, headers: dict[str, Any] | None = None) -> str:
-        """Generate a signed JWT for the subject."""
+    def generate(
+        self,
+        extras: dict[str, Any] | None = None,
+        headers: dict[str, Any] | None = None,
+        expiry: int | None = None,
+    ) -> str:
+        """
+        Generate a signed JWT.
+
+        Args:
+            extras: Additional claims to include in the token. These are merged with default claims.
+            headers: Additional headers to include in the JWT.
+            expiry: Optional custom expiry time in seconds. If not provided, uses self.valid_for.
+        """
         now = int(datetime.now(tz=timezone.utc).timestamp())
+        valid_for = expiry if expiry is not None else self.valid_for
         claims = {
             "jti": uuid.uuid4().hex,
             "iss": self.issuer,
             "aud": self.audience,
             "nbf": now,
-            "exp": int(now + self.valid_for),
+            "exp": int(now + valid_for),
             "iat": now,
         }
 
@@ -461,38 +474,20 @@ class JWTGenerator:
             headers["kid"] = self.kid
         return jwt.encode(claims, self.signing_arg, algorithm=self.algorithm, headers=headers)
 
-    def generate_queue_token(self, sub: str) -> str:
+    def generate_workload_token(self, sub: str) -> str:
         """
-        Generate a long-lived queue token for task workloads.
+        Generate a long-lived workload token for task execution.
 
-        Queue tokens have a special 'scope' claim that restricts them to the /run endpoint only.
-        They are valid for longer (default 24h) to survive queue wait times.
+        Workload tokens have a special 'scope' claim that restricts them to the /run endpoint only.
+        They are valid for longer (default 24h) to survive executor queue wait times.
         """
         from airflow.configuration import conf
 
-        queue_expiry = conf.getint("execution_api", "jwt_queue_token_expiration_time", fallback=86400)
-        now = int(datetime.now(tz=timezone.utc).timestamp())
-
-        claims = {
-            "jti": uuid.uuid4().hex,
-            "iss": self.issuer,
-            "aud": self.audience,
-            "nbf": now,
-            "exp": now + queue_expiry,
-            "iat": now,
-            "sub": sub,
-            "scope": TOKEN_SCOPE_QUEUE,
-        }
-
-        if claims["iss"] is None:
-            del claims["iss"]
-        if claims["aud"] is None:
-            del claims["aud"]
-
-        headers = {"alg": self.algorithm}
-        if self._private_key:
-            headers["kid"] = self.kid
-        return jwt.encode(claims, self.signing_arg, algorithm=self.algorithm, headers=headers)
+        workload_expiry = conf.getint("execution_api", "jwt_workload_token_expiration_time", fallback=86400)
+        return self.generate(
+            extras={"sub": sub, "scope": TOKEN_SCOPE_WORKLOAD},
+            expiry=workload_expiry,
+        )
 
 
 def generate_private_key(key_type: str = "RSA", key_size: int = 2048):

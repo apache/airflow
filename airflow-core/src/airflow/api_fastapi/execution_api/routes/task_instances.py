@@ -28,7 +28,7 @@ from uuid import UUID
 import attrs
 import structlog
 from cadwyn import VersionedAPIRouter
-from fastapi import Body, HTTPException, Query, Response, status
+from fastapi import Body, Depends, HTTPException, Query, Response, status
 from pydantic import JsonValue
 from sqlalchemy import func, or_, tuple_, update
 from sqlalchemy.engine import CursorResult
@@ -60,7 +60,7 @@ from airflow.api_fastapi.execution_api.datamodels.taskinstance import (
     TISuccessStatePayload,
     TITerminalStatePayload,
 )
-from airflow.api_fastapi.execution_api.deps import DepContainer, JWTBearerQueueDep, JWTBearerTIPathDep
+from airflow.api_fastapi.execution_api.deps import DepContainer, JWTBearerTIPathDep, JWTBearerWorkloadScope
 from airflow.exceptions import TaskNotFound
 from airflow.models.asset import AssetActive
 from airflow.models.dag import DagModel
@@ -87,6 +87,9 @@ ti_id_router = VersionedAPIRouter(
 
 log = structlog.get_logger(__name__)
 
+# For /run endpoint only - accepts workload-scoped tokens and validates task_instance_id
+JWTBearerWorkloadDep = Depends(JWTBearerWorkloadScope(path_param_name="task_instance_id"))
+
 
 @router.patch(
     "/{task_instance_id}/run",
@@ -97,7 +100,7 @@ log = structlog.get_logger(__name__)
         HTTP_422_UNPROCESSABLE_CONTENT: {"description": "Invalid payload for the state transition"},
     },
     response_model_exclude_unset=True,
-    dependencies=[JWTBearerQueueDep],
+    dependencies=[JWTBearerWorkloadDep],
 )
 async def ti_run(
     task_instance_id: UUID,
