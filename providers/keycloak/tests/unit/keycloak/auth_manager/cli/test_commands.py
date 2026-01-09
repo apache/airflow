@@ -21,10 +21,10 @@ from unittest.mock import Mock, call, patch
 
 import pytest
 
-from airflow.api_fastapi.auth.managers.base_auth_manager import ResourceMethod
 from airflow.api_fastapi.common.types import MenuItem
 from airflow.cli import cli_parser
 from airflow.providers.keycloak.auth_manager.cli.commands import (
+    _get_resource_methods,
     create_all_command,
     create_permissions_command,
     create_resources_command,
@@ -81,7 +81,7 @@ class TestCommands:
             create_scopes_command(self.arg_parser.parse_args(params))
 
         client.get_clients.assert_called_once_with()
-        scopes = [{"name": method.value} for method in ResourceMethod]
+        scopes = [{"name": method} for method in _get_resource_methods()]
         calls = [call(client_id="test-id", payload=scope) for scope in scopes]
         client.create_client_authz_scopes.assert_has_calls(calls)
 

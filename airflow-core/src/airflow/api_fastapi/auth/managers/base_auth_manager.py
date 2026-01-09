@@ -488,7 +488,7 @@ class BaseAuthManager(Generic[T], LoggingMixin, metaclass=ABCMeta):
         self,
         *,
         user: T,
-        method: ResourceMethod = "GET",
+        method: ResourceMethod = ResourceMethod.GET,
         session: Session = NEW_SESSION,
     ) -> set[str]:
         """
@@ -519,7 +519,7 @@ class BaseAuthManager(Generic[T], LoggingMixin, metaclass=ABCMeta):
         *,
         conn_ids: set[str],
         user: T,
-        method: ResourceMethod = "GET",
+        method: ResourceMethod = ResourceMethod.GET,
         team_name: str | None = None,
     ) -> set[str]:
         """
@@ -548,7 +548,7 @@ class BaseAuthManager(Generic[T], LoggingMixin, metaclass=ABCMeta):
         self,
         *,
         user: T,
-        method: ResourceMethod = "GET",
+        method: ResourceMethod = ResourceMethod.GET,
         session: Session = NEW_SESSION,
     ) -> set[str]:
         """
@@ -587,7 +587,7 @@ class BaseAuthManager(Generic[T], LoggingMixin, metaclass=ABCMeta):
         *,
         dag_ids: set[str],
         user: T,
-        method: ResourceMethod = "GET",
+        method: ResourceMethod = ResourceMethod.GET,
         team_name: str | None = None,
     ) -> set[str]:
         """
@@ -616,7 +616,7 @@ class BaseAuthManager(Generic[T], LoggingMixin, metaclass=ABCMeta):
         self,
         *,
         user: T,
-        method: ResourceMethod = "GET",
+        method: ResourceMethod = ResourceMethod.GET,
         session: Session = NEW_SESSION,
     ) -> set[str]:
         """
@@ -647,7 +647,7 @@ class BaseAuthManager(Generic[T], LoggingMixin, metaclass=ABCMeta):
         *,
         pool_names: set[str],
         user: T,
-        method: ResourceMethod = "GET",
+        method: ResourceMethod = ResourceMethod.GET,
         team_name: str | None = None,
     ) -> set[str]:
         """
@@ -676,7 +676,7 @@ class BaseAuthManager(Generic[T], LoggingMixin, metaclass=ABCMeta):
         self,
         *,
         user: T,
-        method: ResourceMethod = "GET",
+        method: ResourceMethod = ResourceMethod.GET,
         session: Session = NEW_SESSION,
     ) -> set[str]:
         """
@@ -694,7 +694,7 @@ class BaseAuthManager(Generic[T], LoggingMixin, metaclass=ABCMeta):
         *,
         teams_names: set[str],
         user: T,
-        method: ResourceMethod = "GET",
+        method: ResourceMethod = ResourceMethod.GET,
     ) -> set[str]:
         """
         Filter teams the user belongs to.
@@ -718,7 +718,7 @@ class BaseAuthManager(Generic[T], LoggingMixin, metaclass=ABCMeta):
         self,
         *,
         user: T,
-        method: ResourceMethod = "GET",
+        method: ResourceMethod = ResourceMethod.GET,
         session: Session = NEW_SESSION,
     ) -> set[str]:
         """
@@ -749,7 +749,7 @@ class BaseAuthManager(Generic[T], LoggingMixin, metaclass=ABCMeta):
         *,
         variable_keys: set[str],
         user: T,
-        method: ResourceMethod = "GET",
+        method: ResourceMethod = ResourceMethod.GET,
         team_name: str | None = None,
     ) -> set[str]:
         """
