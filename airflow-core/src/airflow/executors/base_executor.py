@@ -275,6 +275,10 @@ class BaseExecutor(LoggingMixin):
         self.log.debug("Calling the %s sync method", self.__class__)
         self.sync()
 
+    @staticmethod
+    def _get_metric_name(metric_base_name: str, metric_suffix: str | None = None) -> str:
+        return f"{metric_base_name}.{metric_suffix}" if metric_suffix else metric_base_name
+
     def _emit_metrics(self, open_slots, num_running_tasks, num_queued_tasks):
         """
         Emit metrics relevant to the Executor.
@@ -286,22 +290,12 @@ class BaseExecutor(LoggingMixin):
         """
         name = self.__class__.__name__
         multiple_executors_configured = len(ExecutorLoader.get_executor_names()) > 1
-        if multiple_executors_configured:
-            metric_suffix = name
 
-        open_slots_metric_name = (
-            f"executor.open_slots.{metric_suffix}" if multiple_executors_configured else "executor.open_slots"
-        )
-        queued_tasks_metric_name = (
-            f"executor.queued_tasks.{metric_suffix}"
-            if multiple_executors_configured
-            else "executor.queued_tasks"
-        )
-        running_tasks_metric_name = (
-            f"executor.running_tasks.{metric_suffix}"
-            if multiple_executors_configured
-            else "executor.running_tasks"
-        )
+        metric_suffix = name if multiple_executors_configured else None
+
+        open_slots_metric_name = self._get_metric_name("executor.open_slots", metric_suffix)
+        queued_tasks_metric_name = self._get_metric_name("executor.queued_tasks", metric_suffix)
+        running_tasks_metric_name = self._get_metric_name("executor.running_tasks", metric_suffix)
 
         span = Trace.get_current_span()
         if span.is_recording():
