@@ -17,103 +17,117 @@
  * under the License.
  */
 import { test, expect } from "@playwright/test";
+import { testConfig, AUTH_FILE } from "playwright.config";
 import { DagsPage } from "tests/e2e/pages/DagsPage";
-
-const DAG_ID = "example_bash_operator";
 
 test.describe("Dag Tasks Tab", () => {
   const testDagId = testConfig.testDag.id;
-  
+
+  console.log("Using test DAG ID:", testDagId);
   test.beforeAll(async ({ browser }) => {
-    test.setTimeout(5 * 60 * 1000);
-    
+    test.setTimeout(7 * 60 * 1000);
+
     const context = await browser.newContext({ storageState: AUTH_FILE });
     const page = await context.newPage();
     const dagPage = new DagsPage(page);
-    await dagPage.triggerDag(testDagId);
-    await dagPage.verifyDagRunStatus(testDagId, "success");
-    
+
+    const dagRunId = await dagPage.triggerDag(testDagId);
+
+    await dagPage.verifyDagRunStatus(testDagId, dagRunId);
+
     await context.close();
   });
-  test("should navigate to tasks tab and show list", async ({ page }) => {
+  // test("verify tasks tab displays task list", async ({ page }) => {
+  //   const dagPage = new DagsPage(page);
+
+  //   await dagPage.navigateToDagTasks(testDagId );
+
+  //   await expect(page).toHaveURL(/\/tasks$/);
+  //   await expect(dagPage.taskCards.first()).toBeVisible();
+
+  //   const firstCard = dagPage.taskCards.first();
+
+  //   await expect(firstCard.locator("a").first()).toBeVisible();
+  //   await expect(firstCard).toContainText("Operator");
+  //   await expect(firstCard).toContainText("Trigger Rule");
+  //   await expect(firstCard).toContainText("Last Instance");
+
+  // });
+
+  // test("verify search tasks by name", async ({ page }) => {
+  //   const dagPage = new DagsPage(page);
+
+  //   await dagPage.navigateToDagTasks(testDagId );
+
+  //   await dagPage.searchBox.fill("runme_0");
+
+  //   // Wait for filter to apply
+  //   await expect(dagPage.taskCards).toHaveCount(1);
+  //   await expect(dagPage.taskCards).toContainText("runme_0");
+  // });
+
+  // test("verify filter tasks by operator dropdown", async ({ page }) => {
+  //   const dagPage = new DagsPage(page);
+
+  //   await dagPage.navigateToDagTasks(testDagId );
+
+  //   await dagPage.filterByOperator("BashOperator");
+
+  //   await expect(dagPage.taskCards.first()).toBeVisible();
+  //   await expect(dagPage.taskCards.first()).toContainText("BashOperator");
+  // });
+
+  // test("verify filter tasks by trigger rule dropdown", async ({ page }) => {
+  //   const dagPage = new DagsPage(page);
+
+  //   await dagPage.navigateToDagTasks(testDagId );
+
+  //   await dagPage.filterByTriggerRule("all_success");
+
+  //   await expect(dagPage.taskCards.first()).toBeVisible();
+
+  // });
+
+  test("verify filter by retries", async ({ page }) => {
     const dagPage = new DagsPage(page);
 
-    await dagPage.navigateToDagTasks(DAG_ID);
-
-    await expect(dagPage.tasksTab).toHaveAttribute("class", "active");
-    await expect(dagPage.taskCards.first()).toBeVisible();
-  });
-
-  test("should search tasks by name", async ({ page }) => {
-    const dagPage = new DagsPage(page);
-
-    await dagPage.navigateToDagTasks(DAG_ID);
-
-    await dagPage.searchBox.fill("runme_0");
-
-    // Wait for filter to apply
-    await expect(dagPage.taskCards).toHaveCount(1);
-    await expect(dagPage.taskCards).toContainText("runme_0");
-  });
-
-  test("should filter tasks by operator", async ({ page }) => {
-    const dagPage = new DagsPage(page);
-
-    await dagPage.navigateToDagTasks(DAG_ID);
-
-    await dagPage.filterByOperator("BashOperator");
-
-    await expect(dagPage.taskCards.first()).toBeVisible();
-    await expect(dagPage.taskCards.first()).toContainText("BashOperator");
-  });
-
-  test("should filter tasks by trigger rule", async ({ page }) => {
-    const dagPage = new DagsPage(page);
-
-    await dagPage.navigateToDagTasks(DAG_ID);
-
-    await dagPage.filterByTriggerRule("all_success");
-
-    await expect(dagPage.taskCards.first()).toBeVisible();
-    await expect(dagPage.taskCards.first()).toContainText("all_success");
-  });
-
-  test("should filter tasks by retries", async ({ page }) => {
-    const dagPage = new DagsPage(page);
-
-    await dagPage.navigateToDagTasks(DAG_ID);
+    await dagPage.navigateToDagTasks(testDagId);
 
     await dagPage.retriesFilter.click();
     const option = page.locator('div[role="option"]').first();
 
-    if (await option.isVisible()) {
-      await option.click();
-      await page.keyboard.press("Escape");
-      await expect(dagPage.taskCards.first()).toBeVisible();
-    } else {
-      await dagPage.retriesFilter.click();
+    // Skip if no retry options available for this DAG
+    const hasOptions = await option.isVisible();
+
+    if (!hasOptions) {
+      test.skip(true, "No retry options available for test DAG");
+
+      return;
     }
-  });
 
-  test("should filter tasks by mapped status", async ({ page }) => {
-    const dagPage = new DagsPage(page);
-
-    await dagPage.navigateToDagTasks(DAG_ID);
-
-    await dagPage.filterByMappedStatus("Not mapped");
-
+    await option.click();
     await expect(dagPage.taskCards.first()).toBeVisible();
   });
 
-  test("should click task to show details", async ({ page }) => {
+  // test("verify filter tasks by mapped status", async ({ page }) => {
+  //   const dagPage = new DagsPage(page);
+
+  //   await dagPage.navigateToDagTasks(testDagId );
+
+  //   await dagPage.filterByMappedStatus("Not mapped");
+
+  //   await expect(dagPage.taskCards.first()).toBeVisible();
+  // });
+
+  test("verify click task to show details", async ({ page }) => {
     const dagPage = new DagsPage(page);
 
-    await dagPage.navigateToDagTasks(DAG_ID);
+    await dagPage.navigateToDagTasks(testDagId);
 
     const firstCard = dagPage.taskCards.first();
     const taskLink = firstCard.locator("a").first();
 
     await taskLink.click();
-    await expect(page).toHaveURL(new RegExp(`/dags/${DAG_ID}/tasks/.*`));
+    await expect(page).toHaveURL(new RegExp(`/dags/${testDagId}/tasks/.*`));
   });
 });

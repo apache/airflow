@@ -142,8 +142,9 @@ export class DagsPage extends BasePage {
     await this.navigateTo(DagsPage.getDagDetailUrl(dagName));
   }
 
-  public async navigateToDagTasks(dagId: string = "example_bash_operator") {
+  public async navigateToDagTasks(dagId: string): Promise<void> {
     await this.page.goto(`/dags/${dagId}/tasks`);
+    await this.taskCards.first().waitFor({ state: "visible", timeout: 10_000 });
   }
 
   /**
