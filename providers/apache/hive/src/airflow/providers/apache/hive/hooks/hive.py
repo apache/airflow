@@ -16,12 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 from __future__ import annotations
-try:
-    from sqlalchemy.engine import URL
-    SQLALCHEMY_INSTALLED = True
-except ImportError:
-    SQLALCHEMY_INSTALLED = False
-    URL = None
+
 
 import contextlib
 import csv
@@ -52,7 +47,6 @@ if TYPE_CHECKING:
     import pandas as pd
     import polars as pl
     from sqlalchemy.engine import URL
-
 
 HIVE_QUEUE_PRIORITIES = ["VERY_HIGH", "HIGH", "NORMAL", "LOW", "VERY_LOW"]
 
@@ -1140,13 +1134,17 @@ class HiveServer2Hook(DbApiHook):
         return self._get_pandas_df(sql, schema=schema, hive_conf=hive_conf, **kwargs)
 
     @property
+<<<<<<< HEAD
     def sqlalchemy_url(self) -> "URL":
+=======
+    def sqlalchemy_url(self):
+>>>>>>> 99f9f2d721 (Fix optional SQLAlchemy dependency handling in Hive hooks)
         """Return a `sqlalchemy.engine.URL` object constructed from the connection."""
         conn = self.get_connection(self.get_conn_id())
         extra = conn.extra_dejson or {}
 
         query = {k: str(v) for k, v in extra.items() if v is not None and k != "__extra__"}
-
+        URL = _get_sqlalchemy_url_class()
         return URL.create(
             drivername="hive",
             username=conn.login,
