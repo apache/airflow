@@ -38,7 +38,7 @@ import logging
 import os
 from datetime import datetime
 
-from airflow.providers.google.cloud.exceptions import NotFound
+from google.cloud.exceptions import NotFound
 
 try:
     from airflow.sdk import task
