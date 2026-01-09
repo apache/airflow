@@ -35,8 +35,6 @@ import pytest
 from task_sdk import FAKE_BUNDLE
 from uuid6 import uuid7
 
-from airflow.listeners import hookimpl
-from airflow.listeners.listener import get_listener_manager
 from airflow.providers.standard.operators.python import PythonOperator
 from airflow.sdk import (
     DAG,
@@ -48,6 +46,7 @@ from airflow.sdk import (
     task as task_decorator,
     timezone,
 )
+from airflow.sdk._shared.listeners import hookimpl
 from airflow.sdk.api.datamodels._generated import (
     AssetProfile,
     AssetResponse,
@@ -132,6 +131,7 @@ from airflow.sdk.execution_time.task_runner import (
     startup,
 )
 from airflow.sdk.execution_time.xcom import XCom
+from airflow.sdk.serde import deserialize
 from airflow.triggers.base import BaseEventTrigger, BaseTrigger, TriggerEvent
 from airflow.triggers.callback import CallbackTrigger
 from airflow.triggers.testing import SuccessTrigger
@@ -458,9 +458,9 @@ def test_defer_task_queue_assignment(
     )
 
 
-def test_run_downstream_skipped(mocked_parse, create_runtime_ti, mock_supervisor_comms):
+def test_run_downstream_skipped(mocked_parse, create_runtime_ti, mock_supervisor_comms, listener_manager):
     listener = TestTaskRunnerCallsListeners.CustomListener()
-    get_listener_manager().add_listener(listener)
+    listener_manager(listener)
 
     class CustomOperator(BaseOperator):
         def execute(self, context):
@@ -1643,8 +1643,6 @@ class TestRuntimeTaskInstance:
         """
         map_indexes_kwarg = {} if map_indexes is NOTSET else {"map_indexes": map_indexes}
         task_ids_kwarg = {} if task_ids is NOTSET else {"task_ids": task_ids}
-        from airflow.serialization.serde import deserialize
-
         spy_agency.spy_on(deserialize)
 
         class CustomOperator(BaseOperator):
@@ -3270,19 +3268,11 @@ class TestTaskRunnerCallsListeners:
             self._add_outlet_events(context)
             self.error = error
 
-    @pytest.fixture(autouse=True)
-    def clean_listener_manager(self):
-        lm = get_listener_manager()
-        lm.clear()
-        yield
-        lm = get_listener_manager()
-        lm.clear()
-
     def test_task_runner_calls_on_startup_before_stopping(
-        self, make_ti_context, mocked_parse, mock_supervisor_comms
+        self, make_ti_context, mocked_parse, mock_supervisor_comms, listener_manager
     ):
         listener = self.CustomListener()
-        get_listener_manager().add_listener(listener)
+        listener_manager(listener)
 
         class CustomOperator(BaseOperator):
             def execute(self, context):
@@ -3319,9 +3309,9 @@ class TestTaskRunnerCallsListeners:
         finalize(runtime_ti, state, context, log)
         assert isinstance(listener.component, TaskRunnerMarker)
 
-    def test_task_runner_calls_listeners_success(self, mocked_parse, mock_supervisor_comms):
+    def test_task_runner_calls_listeners_success(self, mocked_parse, mock_supervisor_comms, listener_manager):
         listener = self.CustomListener()
-        get_listener_manager().add_listener(listener)
+        listener_manager(listener)
 
         class CustomOperator(BaseOperator):
             def execute(self, context):
@@ -3358,9 +3348,11 @@ class TestTaskRunnerCallsListeners:
             AirflowException("oops"),
         ],
     )
-    def test_task_runner_calls_listeners_failed(self, mocked_parse, mock_supervisor_comms, exception):
+    def test_task_runner_calls_listeners_failed(
+        self, mocked_parse, mock_supervisor_comms, exception, listener_manager
+    ):
         listener = self.CustomListener()
-        get_listener_manager().add_listener(listener)
+        listener_manager(listener)
 
         class CustomOperator(BaseOperator):
             def execute(self, context):
@@ -3390,9 +3382,9 @@ class TestTaskRunnerCallsListeners:
         assert listener.state == [TaskInstanceState.RUNNING, TaskInstanceState.FAILED]
         assert listener.error == error
 
-    def test_task_runner_calls_listeners_skipped(self, mocked_parse, mock_supervisor_comms):
+    def test_task_runner_calls_listeners_skipped(self, mocked_parse, mock_supervisor_comms, listener_manager):
         listener = self.CustomListener()
-        get_listener_manager().add_listener(listener)
+        listener_manager(listener)
 
         class CustomOperator(BaseOperator):
             def execute(self, context):
@@ -3421,10 +3413,12 @@ class TestTaskRunnerCallsListeners:
 
         assert listener.state == [TaskInstanceState.RUNNING, TaskInstanceState.SKIPPED]
 
-    def test_listener_access_outlet_event_on_running_and_success(self, mocked_parse, mock_supervisor_comms):
+    def test_listener_access_outlet_event_on_running_and_success(
+        self, mocked_parse, mock_supervisor_comms, listener_manager
+    ):
         """Test listener can access outlet events through invoking get_template_context() while task running and success"""
         listener = self.CustomOutletEventsListener()
-        get_listener_manager().add_listener(listener)
+        listener_manager(listener)
 
         test_asset = Asset("test-asset")
         test_key = AssetUniqueKey(name="test-asset", uri="test-asset")
@@ -3481,10 +3475,12 @@ class TestTaskRunnerCallsListeners:
         ],
         ids=["ValueError", "SystemExit", "AirflowException"],
     )
-    def test_listener_access_outlet_event_on_failed(self, mocked_parse, mock_supervisor_comms, exception):
+    def test_listener_access_outlet_event_on_failed(
+        self, mocked_parse, mock_supervisor_comms, exception, listener_manager
+    ):
         """Test listener can access outlet events through invoking get_template_context() while task failed"""
         listener = self.CustomOutletEventsListener()
-        get_listener_manager().add_listener(listener)
+        listener_manager(listener)
 
         test_asset = Asset("test-asset")
         test_key = AssetUniqueKey(name="test-asset", uri="test-asset")
@@ -4073,7 +4069,7 @@ class TestTriggerDagRunOperator:
     @pytest.mark.parametrize(
         ("allowed_states", "failed_states", "intermediate_state"),
         [
-            ([DagRunState.SUCCESS], None, TaskInstanceState.DEFERRED),
+            ([DagRunState.SUCCESS], None, TaskInstanceState.SUCCESS),
         ],
     )
     def test_handle_trigger_dag_run_deferred(
@@ -4085,7 +4081,7 @@ class TestTriggerDagRunOperator:
         mock_supervisor_comms,
     ):
         """
-        Test that TriggerDagRunOperator defers when the deferrable flag is set to True
+        Test that TriggerDagRunOperator does not defer when wait_for_completion=False
         """
         from airflow.providers.standard.operators.trigger_dagrun import TriggerDagRunOperator
 

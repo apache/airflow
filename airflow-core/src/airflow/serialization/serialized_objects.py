@@ -21,6 +21,7 @@
 from __future__ import annotations
 
 import collections.abc
+import contextlib
 import datetime
 import enum
 import itertools
@@ -93,8 +94,9 @@ from airflow.serialization.json_schema import load_dag_schema
 from airflow.settings import DAGS_FOLDER, json
 from airflow.task.priority_strategy import (
     PriorityWeightStrategy,
-    airflow_priority_weight_strategies,
-    airflow_priority_weight_strategies_classes,
+    get_airflow_priority_weight_strategies,
+    get_weight_rule_from_priority_weight_strategy,
+    validate_and_load_priority_weight_strategy,
 )
 from airflow.timetables.base import DagRunInfo, Timetable
 from airflow.triggers.base import BaseTrigger, StartTriggerArgs
@@ -127,8 +129,8 @@ def _get_registered_priority_weight_strategy(
 ) -> type[PriorityWeightStrategy] | None:
     from airflow import plugins_manager
 
-    if importable_string in airflow_priority_weight_strategies:
-        return airflow_priority_weight_strategies[importable_string]
+    with contextlib.suppress(KeyError):
+        return get_airflow_priority_weight_strategies()[importable_string]
     return plugins_manager.get_priority_weight_strategy_plugins().get(importable_string)
 
 
@@ -243,7 +245,7 @@ def decode_partition_mapper(var: dict[str, Any]) -> PartitionMapper:
     return partition_mapper_class.deserialize(var[Encoding.VAR])
 
 
-def encode_priority_weight_strategy(var: PriorityWeightStrategy) -> str:
+def encode_priority_weight_strategy(var: PriorityWeightStrategy | str) -> str:
     """
     Encode a priority weight strategy instance.
 
@@ -251,9 +253,9 @@ def encode_priority_weight_strategy(var: PriorityWeightStrategy) -> str:
     for any parameters to be passed to it. If you need to store the parameters, you
     should store them in the class itself.
     """
-    priority_weight_strategy_class = type(var)
-    if priority_weight_strategy_class in airflow_priority_weight_strategies_classes:
-        return airflow_priority_weight_strategies_classes[priority_weight_strategy_class]
+    priority_weight_strategy_class = type(validate_and_load_priority_weight_strategy(var))
+    with contextlib.suppress(KeyError):
+        return get_weight_rule_from_priority_weight_strategy(priority_weight_strategy_class)
     importable_string = qualname(priority_weight_strategy_class)
     if _get_registered_priority_weight_strategy(importable_string) is None:
         raise _PriorityWeightStrategyNotRegistered(importable_string)

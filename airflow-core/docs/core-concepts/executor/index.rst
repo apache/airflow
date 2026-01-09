@@ -317,6 +317,10 @@ The ``BaseExecutor`` class interface contains a set of attributes that Airflow c
 CLI
 ^^^
 
+.. important::
+  Starting in Airflow ``3.2.0``, provider-level CLI commands are available to manage core extensions such as auth managers and executors. Implementing provider-level CLI commands can reduce CLI startup time by avoiding heavy imports when they are not required.
+  See :doc:`provider-level CLI <apache-airflow-providers:core-extensions/cli-commands>` for implementation guidance.
+
 Executors may vend CLI commands which will be included in the ``airflow`` command line tool by implementing the ``get_cli_commands`` method. Executors such as ``CeleryExecutor`` and ``KubernetesExecutor`` for example, make use of this mechanism. The commands can be used to setup required workers, initialize environment or set other configuration. Commands are only vended for the currently configured executor. A pseudo-code example of implementing CLI command vending from an executor can be seen below:
 
 .. code-block:: python
