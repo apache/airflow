@@ -616,6 +616,67 @@ class TestPodManager:
         assert "message3 line1" in caplog.text
         assert "ERROR" not in caplog.text
 
+    @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.container_is_running")
+    @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.read_pod_logs")
+    def test_container_log_times_tracks_last_timestamp(
+        self, mock_read_pod_logs, mock_container_is_running
+    ):
+        """Test that container_log_times dictionary tracks the last log timestamp for each container."""
+        timestamp_string = "2020-10-08T14:16:17.793417674Z"
+        mock_read_pod_logs.return_value = [bytes(f"{timestamp_string} message", "utf-8")]
+        mock_container_is_running.return_value = False
+
+        # Create a mock pod with namespace and name
+        mock_pod = mock.MagicMock()
+        mock_pod.metadata.namespace = "test-namespace"
+        mock_pod.metadata.name = "test-pod"
+        container_name = "test-container"
+
+        # Ensure container_log_times is empty initially
+        assert not self.pod_manager.container_log_times
+
+        # Fetch logs which should populate container_log_times
+        self.pod_manager.fetch_container_logs(mock_pod, container_name, follow=True)
+
+        # Verify the timestamp was stored in container_log_times
+        key = ("test-namespace", "test-pod", "test-container")
+        assert key in self.pod_manager.container_log_times
+        assert self.pod_manager.container_log_times[key] == cast("DateTime", pendulum.parse(timestamp_string))
+
+    @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.container_is_running")
+    @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.read_pod_logs")
+    def test_fetch_requested_container_logs_uses_since_time(
+        self, mock_read_pod_logs, mock_container_is_running
+    ):
+        """Test that fetch_requested_container_logs passes since_time from container_log_times."""
+        timestamp_string = "2020-10-08T14:16:17.793417674Z"
+        mock_read_pod_logs.return_value = [bytes(f"{timestamp_string} message", "utf-8")]
+        mock_container_is_running.return_value = False
+
+        # Create a mock pod
+        mock_pod = mock.MagicMock()
+        mock_pod.metadata.namespace = "test-namespace"
+        mock_pod.metadata.name = "test-pod"
+        mock_pod.spec.containers = [mock.MagicMock(name="test-container")]
+        container_name = "test-container"
+
+        # Pre-populate container_log_times with an earlier timestamp
+        earlier_timestamp = pendulum.parse("2020-10-08T14:15:00.000000000Z")
+        self.pod_manager.container_log_times[("test-namespace", "test-pod", "test-container")] = (
+            earlier_timestamp
+        )
+
+        # Fetch logs - this should pass the earlier timestamp as since_time
+        with mock.patch.object(
+            self.pod_manager, "fetch_container_logs", wraps=self.pod_manager.fetch_container_logs
+        ) as mock_fetch:
+            self.pod_manager.fetch_requested_container_logs(mock_pod, containers=container_name)
+
+            # Verify fetch_container_logs was called with since_time set to the earlier timestamp
+            mock_fetch.assert_called_once()
+            call_kwargs = mock_fetch.call_args[1]
+            assert call_kwargs["since_time"] == earlier_timestamp
+
     @pytest.mark.parametrize("status", [409, 429])
     @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.run_pod_async")
     def test_start_pod_retries_on_409_or_429_error(self, mock_run_pod_async, status):

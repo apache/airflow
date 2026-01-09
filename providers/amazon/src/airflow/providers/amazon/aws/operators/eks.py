@@ -1197,7 +1197,7 @@ class EksPodOperator(KubernetesPodOperator):
                     credentials.token,
                 )
                 self.log.info("Successfully refreshed AWS credentials for EKS")
-            except Exception as e:
-                self.log.error("Failed to refresh AWS credentials: %s", e)
+            except Exception:
+                self.log.exception("Failed to refresh AWS credentials.")
                 raise
         super()._refresh_cached_properties()
