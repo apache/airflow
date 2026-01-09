@@ -17,17 +17,31 @@
  * under the License.
  */
 import { expect, test } from "@playwright/test";
+import { AUTH_FILE } from "playwright.config";
 
 import { BrowsePage } from "../pages/BrowsePage";
 
-test.describe("Verify Required Action page", () => {
-  let browsePage: BrowsePage;
+const hitlDagId = "example_hitl_operator";
 
-  test.beforeEach(({ page }) => {
-    browsePage = new BrowsePage(page);
+test.describe("Verify Required Action page", () => {
+  test.describe.configure({ mode: "serial" });
+
+  test.beforeAll(async ({ browser }) => {
+    test.setTimeout(120_000);
+
+    const context = await browser.newContext({ storageState: AUTH_FILE });
+
+    const page = await context.newPage();
+    const browsePage = new BrowsePage(page);
+
+    await browsePage.triggerAndMarkDagRun(hitlDagId, "success");
+    await browsePage.triggerAndMarkDagRun(hitlDagId, "failed");
+    await context.close();
   });
 
-  test("Verify the actions list/table is displayed (or empty state if none)", async () => {
+  test("Verify the actions list/table is displayed (or empty state if none)", async ({ page }) => {
+    const browsePage = new BrowsePage(page);
+
     await browsePage.navigateToRequiredActionsPage();
 
     const isTableVisible = await browsePage.isTableDisplayed();
@@ -35,8 +49,60 @@ test.describe("Verify Required Action page", () => {
 
     expect(isTableVisible || isEmptyStateVisible).toBe(true);
 
-    await (isEmptyStateVisible
-      ? expect(browsePage.emptyStateMessage).toBeVisible()
-      : expect(browsePage.actionsTable).toBeVisible());
+    if (isTableVisible) {
+      await expect(browsePage.actionsTable).toBeVisible();
+
+      const dagIdHeader = page.locator('th:has-text("Dag ID")');
+      const taskIdHeader = page.locator('th:has-text("Task ID")');
+      const dagRunIdHeader = page.locator('th:has-text("Dag Run ID")');
+      const responseCreatedHeader = page.locator('th:has-text("Response created at")');
+      const responseReceivedHeader = page.locator('th:has-text("Response received at")');
+
+      await expect(dagIdHeader).toBeVisible();
+      await expect(taskIdHeader).toBeVisible();
+      await expect(dagRunIdHeader).toBeVisible();
+      await expect(responseCreatedHeader).toBeVisible();
+      await expect(responseReceivedHeader).toBeVisible();
+    } else {
+      await expect(browsePage.emptyStateMessage).toBeVisible();
+    }
+  });
+
+  test("Verify Pagination", async ({ page }) => {
+    const browsePage = new BrowsePage(page);
+
+    await browsePage.navigateToRequiredActionsPage();
+
+    const isTableVisible = await browsePage.isTableDisplayed();
+
+    if (!isTableVisible) {
+      return;
+    }
+
+    const isPaginationVisible = await browsePage.isPaginationVisible();
+
+    if (!isPaginationVisible) {
+      return;
+    }
+
+    await expect(browsePage.paginationNextButton).toBeVisible();
+    await expect(browsePage.paginationPrevButton).toBeVisible();
+
+    const initialSubjects = await browsePage.getActionSubjects();
+
+    expect(initialSubjects.length).toBeGreaterThan(0);
+
+    await browsePage.clickNextPage();
+
+    const subjectsAfterNext = await browsePage.getActionSubjects();
+
+    expect(subjectsAfterNext.length).toBeGreaterThan(0);
+    expect(subjectsAfterNext).not.toEqual(initialSubjects);
+
+    await browsePage.clickPrevPage();
+
+    const subjectsAfterPrev = await browsePage.getActionSubjects();
+
+    expect(subjectsAfterPrev).toEqual(initialSubjects);
   });
 });

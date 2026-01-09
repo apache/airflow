@@ -76,6 +76,7 @@ with DAG(
     dag_id="example_hitl_operator",
     start_date=pendulum.datetime(2021, 1, 1, tz="UTC"),
     catchup=False,
+    is_paused_upon_creation=False,
     tags=["example", "HITL"],
 ):
     # [START howto_hitl_entry_operator]

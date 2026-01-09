@@ -65,6 +65,7 @@ const MarkRunAsButton = ({ dagRun, isHotkeyEnabled = false, withText = true }: P
         <Menu.Trigger asChild>
           <ActionButton
             actionName={translate("dags:runAndTaskActions.markAs.button", { type: translate("dagRun_one") })}
+            data-testid="mark-run-as-button"
             flexDirection="row-reverse"
             icon={<MdArrowDropDown />}
             text={translate("dags:runAndTaskActions.markAs.button", { type: translate("dagRun_one") })}
@@ -87,6 +88,7 @@ const MarkRunAsButton = ({ dagRun, isHotkeyEnabled = false, withText = true }: P
               >
                 <Menu.Item
                   asChild
+                  data-testid={`mark-run-as-${menuState}`}
                   disabled={dagRun.state === menuState}
                   key={menuState}
                   onClick={() => {
