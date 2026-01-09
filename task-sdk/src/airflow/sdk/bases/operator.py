@@ -832,6 +832,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
     start_date: datetime | None = None
     end_date: datetime | None = None
     depends_on_past: bool = False
+    depends_on_previous_task_ids: list[str] | None = None
     ignore_first_depends_on_past: bool = DEFAULT_IGNORE_FIRST_DEPENDS_ON_PAST
     wait_for_past_depends_before_skipping: bool = DEFAULT_WAIT_FOR_PAST_DEPENDS_BEFORE_SKIPPING
     wait_for_downstream: bool = False
@@ -913,6 +914,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         "start_date",
         "end_date",
         "depends_on_past",
+        "depends_on_previous_task_ids",
         "wait_for_downstream",
         "priority_weight",
         "execution_timeout",
@@ -988,6 +990,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         start_date: datetime | None = None,
         end_date: datetime | None = None,
         depends_on_past: bool = False,
+        depends_on_previous_task_ids: list[str] | None = None,
         ignore_first_depends_on_past: bool = DEFAULT_IGNORE_FIRST_DEPENDS_ON_PAST,
         wait_for_past_depends_before_skipping: bool = DEFAULT_WAIT_FOR_PAST_DEPENDS_BEFORE_SKIPPING,
         wait_for_downstream: bool = False,
@@ -1121,6 +1124,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         self.trigger_rule: TriggerRule = TriggerRule(trigger_rule)
 
         self.depends_on_past: bool = depends_on_past
+        self.depends_on_previous_task_ids: list[str] | None = depends_on_previous_task_ids
         self.ignore_first_depends_on_past: bool = ignore_first_depends_on_past
         self.wait_for_past_depends_before_skipping: bool = wait_for_past_depends_before_skipping
         self.wait_for_downstream: bool = wait_for_downstream

@@ -254,12 +254,73 @@ class TestPrevDagrunDep:
             ),
             id="all_met_with_wait",
         ),
+        # All the conditions for the dep are met.
+        # wait_for_past_depends_before_skipping is False, past_depends_met xcom should not be sent
+        # Multiple previous task instances are met
+        pytest.param(
+            dict(
+                depends_on_past=True,
+                depends_on_previous_task_ids=["a", "b", "c"],
+                wait_for_past_depends_before_skipping=False,
+                wait_for_downstream=True,
+                prev_tis=[
+                    Mock(
+                        state=TaskInstanceState.SUCCESS,
+                        **{"are_dependents_done.return_value": True},
+                        task_id="a",
+                    ),
+                    Mock(
+                        state=TaskInstanceState.SUCCESS,
+                        **{"are_dependents_done.return_value": True},
+                        task_id="b",
+                    ),
+                    Mock(
+                        state=TaskInstanceState.SUCCESS,
+                        **{"are_dependents_done.return_value": True},
+                        task_id="c",
+                    ),
+                ],
+                context_ignore_depends_on_past=False,
+                expected_dep_met=True,
+                past_depends_met_xcom_sent=False,
+            ),
+            id="all_met",
+        ),
+        # All but one task has succeeded
+        pytest.param(
+            dict(
+                depends_on_past=True,
+                depends_on_previous_task_ids=["a", "b", "c"],
+                wait_for_past_depends_before_skipping=False,
+                wait_for_downstream=True,
+                prev_tis=[
+                    Mock(
+                        state=TaskInstanceState.SUCCESS,
+                        **{"are_dependents_done.return_value": True},
+                        task_id="a",
+                    ),
+                    Mock(
+                        state=TaskInstanceState.SUCCESS,
+                        **{"are_dependents_done.return_value": True},
+                        task_id="c",
+                    ),
+                ],
+                context_ignore_depends_on_past=False,
+                expected_dep_met=False,
+                past_depends_met_xcom_sent=False,
+            ),
+            id="prev_ti_bad_state",
+        ),
     ],
 )
 @patch("airflow.models.dagrun.DagRun.get_previous_scheduled_dagrun")
 @patch("airflow.models.dagrun.DagRun.get_previous_dagrun")
-def test_dagrun_dep(mock_get_previous_dagrun, mock_get_previous_scheduled_dagrun, kwargs):
+@patch("airflow.models.dagrun.DagRun.fetch_task_instances")
+def test_dagrun_dep(
+    mock_get_previous_dagrun, mock_get_previous_scheduled_dagrun, mock_fetch_task_instances, kwargs
+):
     depends_on_past = kwargs["depends_on_past"]
+    depends_on_previous_task_ids = kwargs["depends_on_previous_task_ids"]
     wait_for_past_depends_before_skipping = kwargs["wait_for_past_depends_before_skipping"]
     wait_for_downstream = kwargs["wait_for_downstream"]
     prev_tis = kwargs["prev_tis"]
@@ -275,6 +336,7 @@ def test_dagrun_dep(mock_get_previous_dagrun, mock_get_previous_scheduled_dagrun
     )
     if prev_tis:
         prev_dagrun = Mock(logical_date=datetime(2016, 1, 2))
+        mock_fetch_task_instances.return_value = prev_tis
     else:
         prev_dagrun = None
     mock_get_previous_scheduled_dagrun.return_value = prev_dagrun
@@ -320,6 +382,14 @@ def test_dagrun_dep(mock_get_previous_dagrun, mock_get_previous_scheduled_dagrun
         if depends_on_past and not context_ignore_depends_on_past and prev_tis:
             mock_has_tis.assert_called_once_with(prev_dagrun, "test_task", session=ANY)
             mock_count_unsuccessful_tis.assert_called_once_with(prev_dagrun, "test_task", session=ANY)
+            if depends_on_previous_task_ids:
+                mock_fetch_task_instances.assert_called_once_with(
+                    prev_dagrun.dag_id,
+                    prev_dagrun.run_id,
+                    depends_on_previous_task_ids,
+                    [TaskInstanceState.SUCCESS],
+                    session=ANY,
+                )
         else:
             mock_has_tis.assert_not_called()
             mock_count_unsuccessful_tis.assert_not_called()
