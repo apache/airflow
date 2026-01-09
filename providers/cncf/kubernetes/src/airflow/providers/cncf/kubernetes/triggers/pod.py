@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import asyncio
 import datetime
+import importlib
 import traceback
 from collections.abc import AsyncIterator
 from enum import Enum
@@ -39,6 +40,8 @@ from airflow.triggers.base import BaseTrigger, TriggerEvent
 if TYPE_CHECKING:
     from kubernetes_asyncio.client.models import V1Pod
     from pendulum import DateTime
+
+    from airflow.providers.cncf.kubernetes.callbacks import KubernetesPodOperatorCallback
 
 
 class ContainerState(str, Enum):
@@ -101,6 +104,7 @@ class KubernetesPodTrigger(BaseTrigger):
         last_log_time: DateTime | None = None,
         logging_interval: int | None = None,
         trigger_kwargs: dict | None = None,
+        callbacks: list[type[KubernetesPodOperatorCallback]] | str = None,
     ):
         super().__init__()
         self.pod_name = pod_name
@@ -122,6 +126,14 @@ class KubernetesPodTrigger(BaseTrigger):
         self.on_finish_action = OnFinishAction(on_finish_action)
         self.trigger_kwargs = trigger_kwargs or {}
         self._since_time = None
+
+        if isinstance(callbacks, str):
+            self._callbacks = [
+                (lambda m, c: getattr(importlib.import_module(m), c))(*x.rsplit(".", 1))
+                for x in callbacks.split(",")
+            ]
+        else:
+            self._callbacks = callbacks or []
 
     def serialize(self) -> tuple[str, dict[str, Any]]:
         """Serialize KubernetesCreatePodTrigger arguments and classpath."""
@@ -146,6 +158,12 @@ class KubernetesPodTrigger(BaseTrigger):
                 "last_log_time": self.last_log_time,
                 "logging_interval": self.logging_interval,
                 "trigger_kwargs": self.trigger_kwargs,
+                "callbacks": ",".join(
+                    [
+                        f"{x.__module__.split('_', 3)[3] if x.__module__.startswith('unusual_prefix_') else x.__module__}.{x.__name__}"
+                        for x in self._callbacks
+                    ]
+                ),
             },
         )
 
@@ -332,7 +350,7 @@ class KubernetesPodTrigger(BaseTrigger):
 
     @cached_property
     def pod_manager(self) -> AsyncPodManager:
-        return AsyncPodManager(async_hook=self.hook)
+        return AsyncPodManager(async_hook=self.hook, callbacks=self._callbacks)
 
     def define_container_state(self, pod: V1Pod) -> ContainerState:
         if pod.status is None or pod.status.container_statuses is None:

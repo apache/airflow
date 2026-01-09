@@ -16,10 +16,11 @@
 # under the License.
 from __future__ import annotations
 
+import asyncio
 import logging
 import secrets
 import string
-from functools import cache
+from functools import cache, wraps
 from typing import TYPE_CHECKING
 
 import pendulum
@@ -32,6 +33,7 @@ from urllib3.exceptions import HTTPError
 
 from airflow.configuration import conf
 from airflow.providers.cncf.kubernetes.backcompat import get_logical_date_key
+from airflow.providers.cncf.kubernetes.callbacks import ExecutionMode
 from airflow.providers.common.compat.sdk import AirflowException
 
 if TYPE_CHECKING:
@@ -210,3 +212,15 @@ def annotations_for_logging_task_metadata(annotation_set):
     else:
         annotations_for_logging = "<omitted>"
     return annotations_for_logging
+
+
+def serializable_callback(f):
+    """Convert async callback so it runs using asyncio.run when in sync mode."""
+
+    @wraps(f)
+    def wrapper(*args, mode: str, **kwargs):
+        if mode == ExecutionMode.ASYNC:
+            return f(*args, mode=mode, **kwargs)
+        return asyncio.run(f(*args, mode=mode, **kwargs))
+
+    return wrapper
