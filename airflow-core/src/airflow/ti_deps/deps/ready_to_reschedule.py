@@ -17,11 +17,22 @@
 # under the License.
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 from airflow._shared.timezones import timezone
 from airflow.models.taskreschedule import TaskReschedule
 from airflow.ti_deps.deps.base_ti_dep import BaseTIDep
 from airflow.utils.session import provide_session
 from airflow.utils.state import TaskInstanceState
+
+if TYPE_CHECKING:
+    from collections.abc import Iterator
+
+    from sqlalchemy.orm import Session
+
+    from airflow.models.taskinstance import TaskInstance
+    from airflow.ti_deps.dep_context import DepContext
+    from airflow.ti_deps.deps.base_ti_dep import TIDepStatus
 
 
 class ReadyToRescheduleDep(BaseTIDep):
@@ -33,32 +44,20 @@ class ReadyToRescheduleDep(BaseTIDep):
     RESCHEDULEABLE_STATES = {TaskInstanceState.UP_FOR_RESCHEDULE, None}
 
     @provide_session
-    def _get_dep_statuses(self, ti, session, dep_context):
+    def _get_dep_statuses(
+        self,
+        ti: TaskInstance,
+        session: Session,
+        dep_context: DepContext,
+    ) -> Iterator[TIDepStatus]:
         """
         Determine whether a task is ready to be rescheduled.
 
-        Only tasks in NONE state with at least one row in task_reschedule table are
+        Only tasks in NONE or UP_FOR_RESCHEDULE state with at least one row in task_reschedule table are
         handled by this dependency class, otherwise this dependency is considered as passed.
         This dependency fails if the latest reschedule request's reschedule date is still
         in the future.
         """
-        if (
-            # Exclude infrastructure-triggered reschedules.
-            # When a task is rescheduled due to a startup failure (e.g. the task runner
-            # cannot load the Dag or task), the task instance will be set
-            # in UP_FOR_RESCHEDULE state. In this case, we'll ignore the task's
-            # "reschedule" attribute check, since the reschedule was not initiated by the
-            # operator itself.
-            ti.state != TaskInstanceState.UP_FOR_RESCHEDULE
-            and
-            # Mapped sensors don't have the reschedule property (it can only be calculated after unmapping),
-            # so we don't check them here. They are handled below by checking TaskReschedule instead.
-            ti.map_index < 0
-            and not getattr(ti.task, "reschedule", False)
-        ):
-            yield self._passing_status(reason="Task is not in reschedule mode.")
-            return
-
         if dep_context.ignore_in_reschedule_period:
             yield self._passing_status(
                 reason="The context specified that being in a reschedule period was permitted."
