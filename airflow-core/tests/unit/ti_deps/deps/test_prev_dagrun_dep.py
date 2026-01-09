@@ -320,7 +320,7 @@ def test_dagrun_dep(
     mock_get_previous_dagrun, mock_get_previous_scheduled_dagrun, mock_fetch_task_instances, kwargs
 ):
     depends_on_past = kwargs["depends_on_past"]
-    depends_on_previous_task_ids = kwargs["depends_on_previous_task_ids"]
+    depends_on_previous_task_ids = kwargs.get("depends_on_previous_task_ids")
     wait_for_past_depends_before_skipping = kwargs["wait_for_past_depends_before_skipping"]
     wait_for_downstream = kwargs["wait_for_downstream"]
     prev_tis = kwargs["prev_tis"]
