@@ -55,7 +55,7 @@ export const PoolBar = ({
 
     return {
       ...config,
-      label: translate(`common:pools.${slotType}`),
+      label: translate(`common:states.${slotType}`),
       slotType,
       slotValue: (pool[config.key] as number | undefined) ?? 0,
     };
@@ -70,19 +70,7 @@ export const PoolBar = ({
             const flexValue = slot.slotValue / totalSlots || 0;
 
             const poolContent = (
-              <Tooltip
-                content={slot.label}
-                contentProps={{
-                  _dark: {
-                    bg: "gray.700",
-                    color: `${slot.color}.solid`,
-                  },
-                  bg: "white",
-                  color: `${slot.color}.solid`,
-                }}
-                key={slot.key}
-                showArrow={false}
-              >
+              <Tooltip content={slot.label} key={slot.key} showArrow={true}>
                 <Flex
                   alignItems="center"
                   bg={`${slot.color}.solid`}
