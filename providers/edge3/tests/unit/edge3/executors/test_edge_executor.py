@@ -23,9 +23,8 @@ import pytest
 import time_machine
 from sqlalchemy import delete, select
 
-from airflow.configuration import conf
 from airflow.models.taskinstancekey import TaskInstanceKey
-from airflow.providers.common.compat.sdk import Stats, timezone
+from airflow.providers.common.compat.sdk import Stats, conf, timezone
 from airflow.providers.edge3.executors.edge_executor import EdgeExecutor
 from airflow.providers.edge3.models.edge_job import EdgeJobModel
 from airflow.providers.edge3.models.edge_worker import EdgeWorkerModel, EdgeWorkerState
