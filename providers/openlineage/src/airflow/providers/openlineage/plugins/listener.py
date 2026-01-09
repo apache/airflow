@@ -46,6 +46,7 @@ from airflow.providers.openlineage.utils.utils import (
     get_task_documentation,
     get_task_parent_run_facet,
     get_user_provided_run_facets,
+    is_dag_run_asset_triggered,
     is_operator_disabled,
     is_selective_lineage_enabled,
     print_warning,
@@ -668,6 +669,7 @@ class OpenLineageListener:
             self.submit_callable(
                 self.adapter.dag_started,
                 dag_id=dag_run.dag_id,
+                run_id=dag_run.run_id,
                 logical_date=date,
                 start_date=dag_run.start_date,
                 nominal_start_time=data_interval_start,
@@ -684,6 +686,7 @@ class OpenLineageListener:
                     **get_airflow_dag_run_facet(dag_run),
                     **get_dag_parent_run_facet(getattr(dag_run, "conf", {})),
                 },
+                is_asset_triggered=is_dag_run_asset_triggered(dag_run),
             )
         except BaseException as e:
             self.log.warning("OpenLineage received exception in method on_dag_run_running", exc_info=e)
@@ -735,6 +738,7 @@ class OpenLineageListener:
                     **get_airflow_dag_run_facet(dag_run),
                     **get_dag_parent_run_facet(getattr(dag_run, "conf", {})),
                 },
+                is_asset_triggered=is_dag_run_asset_triggered(dag_run),
             )
         except BaseException as e:
             self.log.warning("OpenLineage received exception in method on_dag_run_success", exc_info=e)
@@ -787,6 +791,7 @@ class OpenLineageListener:
                     **get_airflow_dag_run_facet(dag_run),
                     **get_dag_parent_run_facet(getattr(dag_run, "conf", {})),
                 },
+                is_asset_triggered=is_dag_run_asset_triggered(dag_run),
             )
         except BaseException as e:
             self.log.warning("OpenLineage received exception in method on_dag_run_failed", exc_info=e)
