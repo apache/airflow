@@ -498,6 +498,42 @@ class TestKubernetesJobOperator:
         job = k.build_job_request_obj({})
         assert re.match(r"job-a-very-reasonable-task-name-[a-z0-9-]+", job.metadata.name) is not None
 
+    @pytest.mark.parametrize("randomize", [True, False])
+    @pytest.mark.non_db_test_override
+    @patch(JOB_OPERATORS_PATH.format("KubernetesJobOperator.get_or_create_pod"))
+    @patch(JOB_OPERATORS_PATH.format("KubernetesJobOperator.build_job_request_obj"))
+    @patch(JOB_OPERATORS_PATH.format("KubernetesJobOperator.create_job"))
+    @patch(HOOK_CLASS)
+    def test_name_normalized_on_execution(
+        self, mock_hook, mock_create_job, mock_build_job_request_obj, mock_get_or_create_pod, randomize
+    ):
+        """Test that names with underscores are normalized to hyphens on execution."""
+        name_base = "test_extra-123"
+        normalized_name = "test-extra-123"
+
+        mock_hook.return_value.is_job_failed.return_value = False
+        mock_job = mock.MagicMock()
+        mock_job.metadata.name = f"job-{normalized_name}"
+        mock_job.metadata.namespace = "default"
+        mock_create_job.return_value = mock_job
+        mock_ti = mock.MagicMock()
+        context = dict(ti=mock_ti)
+
+        op = KubernetesJobOperator(
+            name=name_base,
+            random_name_suffix=randomize,
+            task_id="task",
+        )
+
+        with pytest.warns(AirflowProviderDeprecationWarning):
+            op.execute(context=context)
+
+        # Verify the name was normalized (underscore replaced with hyphen)
+        if randomize:
+            assert op.name.startswith(normalized_name)
+        else:
+            assert op.name == normalized_name
+
     @pytest.mark.non_db_test_override
     @patch(JOB_OPERATORS_PATH.format("KubernetesJobOperator.get_or_create_pod"))
     @patch(JOB_OPERATORS_PATH.format("KubernetesJobOperator.build_job_request_obj"))

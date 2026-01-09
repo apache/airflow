@@ -36,12 +36,12 @@ Documentation in separate distributions:
 
 Documentation for general overview and summaries not connected with any specific distribution:
 
-* ``docker-stack-docs`` - documentation for Docker Stack'
+* ``docker-stack-docs`` - documentation for Docker Stack
 * ``providers-summary-docs`` - documentation for provider summary page
 
 Each of the distributions have a ``conf.py`` file in the root of the documentation and there
 are various configuration parameters for sphinx configured in the ``conf.py`` files. A number of common
-functions in those ``conf.py`` files are imported from ``deve-common`` distribution, from ``doc`` package,
+functions in those ``conf.py`` files are imported from ``devel-common`` distribution, from ``doc`` package,
 you can also find ``sphinx_ext`` folder there that keeps extensions used during our documentation build.
 
 Building documentation with uv in local venv

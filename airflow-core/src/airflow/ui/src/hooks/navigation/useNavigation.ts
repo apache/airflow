@@ -23,36 +23,37 @@ import type { GridRunsResponse } from "openapi/requests";
 import type { GridTask } from "src/layouts/Details/Grid/utils";
 import { buildTaskInstanceUrl } from "src/utils/links";
 
-import type {
-  NavigationDirection,
-  NavigationIndices,
-  NavigationMode,
-  UseNavigationProps,
-  UseNavigationReturn,
+import {
+  NavigationModes,
+  type NavigationDirection,
+  type NavigationIndices,
+  type NavigationMode,
+  type UseNavigationProps,
+  type UseNavigationReturn,
 } from "./types";
 import { useKeyboardNavigation } from "./useKeyboardNavigation";
 
 const detectModeFromUrl = (pathname: string): NavigationMode => {
   if (pathname.includes("/runs/") && pathname.includes("/tasks/")) {
-    return "TI";
+    return NavigationModes.TI;
   }
   if (pathname.includes("/runs/") && !pathname.includes("/tasks/")) {
-    return "run";
+    return NavigationModes.RUN;
   }
   if (pathname.includes("/tasks/") && !pathname.includes("/runs/")) {
-    return "task";
+    return NavigationModes.TASK;
   }
 
-  return "TI";
+  return NavigationModes.TI;
 };
 
 const isValidDirection = (direction: NavigationDirection, mode: NavigationMode): boolean => {
   switch (mode) {
-    case "run":
+    case NavigationModes.RUN:
       return direction === "left" || direction === "right";
-    case "task":
+    case NavigationModes.TASK:
       return direction === "down" || direction === "up";
-    case "TI":
+    case NavigationModes.TI:
       return true;
     default:
       return false;
@@ -74,11 +75,11 @@ const buildPath = (params: {
   const groupPath = task.isGroup ? "group/" : "";
 
   switch (mode) {
-    case "run":
+    case NavigationModes.RUN:
       return `/dags/${dagId}/runs/${run.run_id}`;
-    case "task":
+    case NavigationModes.TASK:
       return `/dags/${dagId}/tasks/${groupPath}${task.id}`;
-    case "TI":
+    case NavigationModes.TI:
       return buildTaskInstanceUrl({
         currentPathname: pathname,
         dagId,
@@ -98,7 +99,7 @@ export const useNavigation = ({ onToggleGroup, runs, tasks }: UseNavigationProps
   const enabled = Boolean(dagId) && (Boolean(runId) || Boolean(taskId) || Boolean(groupId));
   const navigate = useNavigate();
   const location = useLocation();
-  const [mode, setMode] = useState<NavigationMode>("TI");
+  const [mode, setMode] = useState<NavigationMode>(NavigationModes.TI);
 
   useEffect(() => {
     const detectedMode = detectModeFromUrl(globalThis.location.pathname);
