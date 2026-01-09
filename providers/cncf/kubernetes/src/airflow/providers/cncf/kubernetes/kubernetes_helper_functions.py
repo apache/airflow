@@ -24,7 +24,9 @@ from typing import TYPE_CHECKING
 
 import pendulum
 import tenacity
+from kubernetes import client as sync_k8s_client
 from kubernetes.client.rest import ApiException as SyncApiException
+from kubernetes_asyncio import client as async_k8s_client
 from kubernetes_asyncio.client.exceptions import ApiException as AsyncApiException
 from slugify import slugify
 from sqlalchemy import select
@@ -60,6 +62,22 @@ API_RETRY_WAIT_MAX = conf.getfloat("workers", "api_retry_wait_max", fallback=15)
 _default_wait = tenacity.wait_exponential(min=API_RETRY_WAIT_MIN, max=API_RETRY_WAIT_MAX)
 
 TRANSIENT_STATUS_CODES = {409, 429, 500, 502, 503, 504}
+
+
+class TimeoutK8sApiClient(sync_k8s_client.ApiClient):
+    """Wrapper around kubernetes sync ApiClient to set default timeout."""
+
+    def call_api(self, *args, **kwargs):
+        kwargs.setdefault("_request_timeout", API_TIMEOUT)
+        return super().call_api(*args, **kwargs)
+
+
+class TimeoutAsyncK8sApiClient(async_k8s_client.ApiClient):
+    """Wrapper around kubernetes async ApiClient to set default timeout."""
+
+    async def call_api(self, *args, **kwargs):
+        kwargs.setdefault("_request_timeout", API_TIMEOUT)
+        return await super().call_api(*args, **kwargs)
 
 
 def _should_retry_api(exc: BaseException) -> bool:
@@ -99,13 +117,6 @@ def generic_api_retry(func):
         reraise=True,
         before_sleep=tenacity.before_sleep_log(log, logging.WARNING),
     )(func)
-
-
-def with_timeout(kwargs: dict | None = None) -> dict:
-    """Attach a total request timeout unless explicitly provided."""
-    out = dict(kwargs or {})
-    out.setdefault("_request_timeout", API_TIMEOUT)
-    return out
 
 
 def rand_str(num):

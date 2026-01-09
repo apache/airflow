@@ -36,7 +36,11 @@ from urllib3.exceptions import HTTPError
 from airflow.models import Connection
 from airflow.providers.cncf.kubernetes.exceptions import KubernetesApiError, KubernetesApiPermissionError
 from airflow.providers.cncf.kubernetes.kube_client import _disable_verify_ssl, _enable_tcp_keepalive
-from airflow.providers.cncf.kubernetes.kubernetes_helper_functions import generic_api_retry, with_timeout
+from airflow.providers.cncf.kubernetes.kubernetes_helper_functions import (
+    TimeoutAsyncK8sApiClient,
+    TimeoutK8sApiClient,
+    generic_api_retry,
+)
 from airflow.providers.cncf.kubernetes.utils.container import (
     container_is_completed,
     container_is_running,
@@ -239,7 +243,7 @@ class KubernetesHook(BaseHook, PodOperatorHookProtocol):
         prefixed_name = f"extra__kubernetes__{field_name}"
         return self.conn_extras.get(prefixed_name) or None
 
-    def get_conn(self) -> client.ApiClient:
+    def get_conn(self) -> TimeoutK8sApiClient:
         """Return kubernetes api session for use with requests."""
         in_cluster = self._coalesce_param(self.in_cluster, self._get_field("in_cluster"))
         cluster_context = self._coalesce_param(self.cluster_context, self._get_field("cluster_context"))
@@ -272,7 +276,7 @@ class KubernetesHook(BaseHook, PodOperatorHookProtocol):
             self.log.debug("loading kube_config from: in_cluster configuration")
             self._is_in_cluster = True
             config.load_incluster_config()
-            return client.ApiClient()
+            return TimeoutK8sApiClient()
 
         if kubeconfig_path is not None:
             self.log.debug("loading kube_config from: %s", kubeconfig_path)
@@ -282,7 +286,7 @@ class KubernetesHook(BaseHook, PodOperatorHookProtocol):
                 client_configuration=self.client_configuration,
                 context=cluster_context,
             )
-            return client.ApiClient()
+            return TimeoutK8sApiClient()
 
         if kubeconfig is not None:
             with tempfile.NamedTemporaryFile() as temp_config:
@@ -297,7 +301,7 @@ class KubernetesHook(BaseHook, PodOperatorHookProtocol):
                     client_configuration=self.client_configuration,
                     context=cluster_context,
                 )
-            return client.ApiClient()
+            return TimeoutK8sApiClient()
 
         if self.config_dict:
             self.log.debug(LOADING_KUBE_CONFIG_FILE_RESOURCE.format("config dictionary"))
@@ -307,11 +311,11 @@ class KubernetesHook(BaseHook, PodOperatorHookProtocol):
                 client_configuration=self.client_configuration,
                 context=cluster_context,
             )
-            return client.ApiClient()
+            return TimeoutK8sApiClient()
 
         return self._get_default_client(cluster_context=cluster_context)
 
-    def _get_default_client(self, *, cluster_context: str | None = None) -> client.ApiClient:
+    def _get_default_client(self, *, cluster_context: str | None = None) -> TimeoutK8sApiClient:
         # if we get here, then no configuration has been supplied
         # we should try in_cluster since that's most likely
         # but failing that just load assuming a kubeconfig file
@@ -326,7 +330,7 @@ class KubernetesHook(BaseHook, PodOperatorHookProtocol):
                 client_configuration=self.client_configuration,
                 context=cluster_context,
             )
-        return client.ApiClient()
+        return TimeoutK8sApiClient()
 
     @property
     def is_in_cluster(self) -> bool:
@@ -409,7 +413,6 @@ class KubernetesHook(BaseHook, PodOperatorHookProtocol):
             namespace=namespace or self.get_namespace() or self.DEFAULT_NAMESPACE,
             plural=plural,
             name=name,
-            **with_timeout(),
         )
         return response
 
@@ -433,7 +436,7 @@ class KubernetesHook(BaseHook, PodOperatorHookProtocol):
             namespace=namespace or self.get_namespace() or self.DEFAULT_NAMESPACE,
             plural=plural,
             name=name,
-            **with_timeout(kwargs),
+            **kwargs,
         )
 
     def get_namespace(self) -> str | None:
@@ -474,7 +477,6 @@ class KubernetesHook(BaseHook, PodOperatorHookProtocol):
                 name=pod_name,
                 container=container,
                 namespace=namespace or self.get_namespace() or self.DEFAULT_NAMESPACE,
-                **with_timeout(),
             ),
         )
 
@@ -496,7 +498,6 @@ class KubernetesHook(BaseHook, PodOperatorHookProtocol):
             container=container,
             _preload_content=False,
             namespace=namespace or self.get_namespace() or self.DEFAULT_NAMESPACE,
-            **with_timeout(),
         )
 
     def get_pod(self, name: str, namespace: str) -> V1Pod:
@@ -504,7 +505,6 @@ class KubernetesHook(BaseHook, PodOperatorHookProtocol):
         return self.core_v1_client.read_namespaced_pod(
             name=name,
             namespace=namespace,
-            **with_timeout(),
         )
 
     def get_namespaced_pod_list(
@@ -526,7 +526,7 @@ class KubernetesHook(BaseHook, PodOperatorHookProtocol):
             watch=watch,
             label_selector=label_selector,
             _preload_content=False,
-            **with_timeout(kwargs),
+            **kwargs,
         )
 
     def get_deployment_status(
@@ -562,7 +562,7 @@ class KubernetesHook(BaseHook, PodOperatorHookProtocol):
         self.log.debug("Job Creation Request: \n%s", json_job)
         try:
             resp = self.batch_v1_client.create_namespaced_job(
-                body=sanitized_job, namespace=job.metadata.namespace, **with_timeout(kwargs)
+                body=sanitized_job, namespace=job.metadata.namespace, **kwargs
             )
             self.log.debug("Job Creation Response: %s", resp)
         except Exception as e:
@@ -581,9 +581,7 @@ class KubernetesHook(BaseHook, PodOperatorHookProtocol):
         :param namespace: Namespace of the Job.
         :return: Job object
         """
-        return self.batch_v1_client.read_namespaced_job(
-            name=job_name, namespace=namespace, pretty=True, **with_timeout()
-        )
+        return self.batch_v1_client.read_namespaced_job(name=job_name, namespace=namespace, pretty=True)
 
     @generic_api_retry
     def get_job_status(self, job_name: str, namespace: str) -> V1Job:
@@ -595,7 +593,7 @@ class KubernetesHook(BaseHook, PodOperatorHookProtocol):
         :return: Job object
         """
         return self.batch_v1_client.read_namespaced_job_status(
-            name=job_name, namespace=namespace, pretty=True, **with_timeout()
+            name=job_name, namespace=namespace, pretty=True
         )
 
     def wait_until_job_complete(self, job_name: str, namespace: str, job_poll_interval: float = 10) -> V1Job:
@@ -622,7 +620,7 @@ class KubernetesHook(BaseHook, PodOperatorHookProtocol):
 
         :return: V1JobList object
         """
-        return self.batch_v1_client.list_job_for_all_namespaces(pretty=True, **with_timeout())
+        return self.batch_v1_client.list_job_for_all_namespaces(pretty=True)
 
     @generic_api_retry
     def list_jobs_from_namespace(self, namespace: str) -> V1JobList:
@@ -632,7 +630,7 @@ class KubernetesHook(BaseHook, PodOperatorHookProtocol):
         :param namespace: Namespace of the Job.
         :return: V1JobList object
         """
-        return self.batch_v1_client.list_namespaced_job(namespace=namespace, pretty=True, **with_timeout())
+        return self.batch_v1_client.list_namespaced_job(namespace=namespace, pretty=True)
 
     def is_job_complete(self, job: V1Job) -> bool:
         """
@@ -693,7 +691,6 @@ class KubernetesHook(BaseHook, PodOperatorHookProtocol):
             name=job_name,
             namespace=namespace,
             body=body,
-            **with_timeout(),
         )
 
     def apply_from_yaml_file(
@@ -810,7 +807,7 @@ class AsyncKubernetesHook(KubernetesHook):
                 client_configuration=self.client_configuration,
                 context=cluster_context,
             )
-            return async_client.ApiClient()
+            return TimeoutAsyncK8sApiClient()
 
         if num_selected_configuration > 1:
             raise AirflowException(
@@ -823,13 +820,13 @@ class AsyncKubernetesHook(KubernetesHook):
             self.log.debug(LOADING_KUBE_CONFIG_FILE_RESOURCE.format("within a pod"))
             self._is_in_cluster = True
             async_config.load_incluster_config()
-            return async_client.ApiClient()
+            return TimeoutAsyncK8sApiClient()
 
         if self.config_dict:
             self.log.debug(LOADING_KUBE_CONFIG_FILE_RESOURCE.format("config dictionary"))
             self._is_in_cluster = False
             await async_config.load_kube_config_from_dict(self.config_dict, context=cluster_context)
-            return async_client.ApiClient()
+            return TimeoutAsyncK8sApiClient()
 
         if kubeconfig_path is not None:
             self.log.debug("loading kube_config from: %s", kubeconfig_path)
@@ -881,10 +878,10 @@ class AsyncKubernetesHook(KubernetesHook):
         return extras.get(prefixed_name)
 
     @contextlib.asynccontextmanager
-    async def get_conn(self) -> async_client.ApiClient:
+    async def get_conn(self) -> TimeoutAsyncK8sApiClient:
         kube_client = None
         try:
-            kube_client = await self._load_config() or async_client.ApiClient()
+            kube_client = await self._load_config() or TimeoutAsyncK8sApiClient()
             yield kube_client
         finally:
             if kube_client is not None:
@@ -904,7 +901,6 @@ class AsyncKubernetesHook(KubernetesHook):
                 pod: V1Pod = await v1_api.read_namespaced_pod(
                     name=name,
                     namespace=namespace,
-                    **with_timeout(),
                 )
                 return pod
             except HTTPError as e:
@@ -924,7 +920,7 @@ class AsyncKubernetesHook(KubernetesHook):
             try:
                 v1_api = async_client.CoreV1Api(connection)
                 await v1_api.delete_namespaced_pod(
-                    name=name, namespace=namespace, body=client.V1DeleteOptions(), **with_timeout()
+                    name=name, namespace=namespace, body=client.V1DeleteOptions()
                 )
             except async_client.ApiException as e:
                 # If the pod is already deleted
@@ -958,7 +954,6 @@ class AsyncKubernetesHook(KubernetesHook):
                     follow=False,
                     timestamps=True,
                     since_seconds=since_seconds,
-                    **with_timeout(),
                 )
                 logs = logs.splitlines()
                 return logs
@@ -984,7 +979,6 @@ class AsyncKubernetesHook(KubernetesHook):
                     namespace=namespace,
                     resource_version=resource_version,
                     resource_version_match="NotOlderThan" if resource_version else None,
-                    **with_timeout(),
                 )
                 return events
             except HTTPError as e:
@@ -1025,7 +1019,6 @@ class AsyncKubernetesHook(KubernetesHook):
                     field_selector=f"involvedObject.name={name}",
                     resource_version=resource_version,
                     timeout_seconds=timeout_seconds,
-                    **with_timeout(),
                 ):
                     event: CoreV1Event = event_watched.get("object")
                     yield event
@@ -1080,7 +1073,6 @@ class AsyncKubernetesHook(KubernetesHook):
             job: V1Job = await v1_api.read_namespaced_job_status(
                 name=name,
                 namespace=namespace,
-                **with_timeout(),
             )
         return job
 

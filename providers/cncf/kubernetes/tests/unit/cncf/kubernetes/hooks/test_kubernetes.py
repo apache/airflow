@@ -36,7 +36,6 @@ from kubernetes_asyncio import client as async_client
 
 from airflow.models import Connection
 from airflow.providers.cncf.kubernetes.hooks.kubernetes import AsyncKubernetesHook, KubernetesHook
-from airflow.providers.cncf.kubernetes.kubernetes_helper_functions import with_timeout
 from airflow.providers.common.compat.sdk import AirflowException, AirflowNotFoundException
 
 from tests_common.test_utils.db import clear_test_connections
@@ -476,7 +475,6 @@ class TestKubernetesHook:
             name="name",
             namespace="namespace",
             _preload_content="_preload_content",
-            **with_timeout(),
         )
 
     @patch("kubernetes.config.kube_config.KubeConfigLoader")
@@ -489,7 +487,7 @@ class TestKubernetesHook:
         job_actual = hook.get_job_status(job_name=JOB_NAME, namespace=NAMESPACE)
 
         mock_client.read_namespaced_job_status.assert_called_once_with(
-            name=JOB_NAME, namespace=NAMESPACE, pretty=True, **with_timeout()
+            name=JOB_NAME, namespace=NAMESPACE, pretty=True
         )
         assert job_actual == job_expected
 
@@ -1040,7 +1038,6 @@ class TestAsyncKubernetesHook:
             namespace=NAMESPACE,
             resource_version="12345",
             resource_version_match="NotOlderThan",
-            **with_timeout(),
         )
         assert result == mock_events
 
@@ -1070,7 +1067,6 @@ class TestAsyncKubernetesHook:
             namespace=NAMESPACE,
             resource_version=None,
             resource_version_match=None,
-            **with_timeout(),
         )
         assert result == mock_events
 
@@ -1190,7 +1186,6 @@ class TestAsyncKubernetesHook:
             namespace=NAMESPACE,
             resource_version="12345",
             resource_version_match="NotOlderThan",
-            **with_timeout(),
         )
         mock_sleep.assert_called_once_with(10)
 
@@ -1247,7 +1242,6 @@ class TestAsyncKubernetesHook:
         lib_method.assert_called_with(
             name=POD_NAME,
             namespace=NAMESPACE,
-            **with_timeout(),
         )
 
     @pytest.mark.asyncio
@@ -1294,7 +1288,6 @@ class TestAsyncKubernetesHook:
             follow=False,
             timestamps=True,
             since_seconds=10,
-            **with_timeout(),
         )
         assert len(logs) == 1
         assert "2023-01-11 Some string logs..." in logs

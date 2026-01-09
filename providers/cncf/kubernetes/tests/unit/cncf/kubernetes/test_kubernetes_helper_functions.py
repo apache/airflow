@@ -28,13 +28,63 @@ from urllib3.exceptions import HTTPError
 from airflow.providers.cncf.kubernetes.kubernetes_helper_functions import (
     API_TIMEOUT,
     KubernetesApiException,
+    TimeoutAsyncK8sApiClient,
+    TimeoutK8sApiClient,
     WaitRetryAfterOrExponential,
     _should_retry_api,
     create_unique_id,
-    with_timeout,
 )
 
 pod_name_regex = r"^[a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*$"
+
+
+class TestTimeoutK8sApiClient:
+    @pytest.mark.parametrize(
+        ("kwargs", "expected_timeout"),
+        [
+            pytest.param({}, API_TIMEOUT, id="default-timeout"),
+            pytest.param({"_request_timeout": 1234}, 1234, id="explicit-timeout"),
+        ],
+    )
+    def test_call_api_timeout_inject(self, kwargs, expected_timeout):
+        with mock.patch("kubernetes.client.ApiClient.call_api") as mocked_call_api:
+            mocked_call_api.return_value = "ok"
+            cli = TimeoutK8sApiClient()
+
+            out = cli.call_api("arg1", kwargs_arg1="fake", **kwargs)
+
+            mocked_call_api.assert_called_once()
+            call_args, call_kwargs = mocked_call_api.call_args
+            assert call_args[0] == "arg1"
+            assert call_kwargs["kwargs_arg1"] == "fake"
+            assert call_kwargs["_request_timeout"] == expected_timeout
+            assert out == "ok"
+
+
+class TestTimeoutAsyncK8sApiClient:
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        ("kwargs", "expected_timeout"),
+        [
+            pytest.param({}, API_TIMEOUT, id="default-timeout"),
+            pytest.param({"_request_timeout": 1234}, 1234, id="explicit-timeout"),
+        ],
+    )
+    async def test_call_api_timeout_inject(self, kwargs, expected_timeout):
+        with mock.patch(
+            "kubernetes_asyncio.client.ApiClient.call_api", new_callable=mock.AsyncMock
+        ) as mocked_call_api:
+            mocked_call_api.return_value = "ok"
+            cli = TimeoutAsyncK8sApiClient()
+
+            out = await cli.call_api("arg1", kwargs_arg1="fake", **kwargs)
+
+            mocked_call_api.assert_called_once()
+            call_args, call_kwargs = mocked_call_api.call_args
+            assert call_args[0] == "arg1"
+            assert call_kwargs["kwargs_arg1"] == "fake"
+            assert call_kwargs["_request_timeout"] == expected_timeout
+            assert out == "ok"
 
 
 class DummyRetryState:
@@ -42,25 +92,6 @@ class DummyRetryState:
         self.outcome = mock.Mock() if exception is not None else None
         if self.outcome:
             self.outcome.exception = mock.Mock(return_value=exception)
-
-
-def test_with_timeout():
-    # default value
-    timeout_kwargs = with_timeout()
-    assert "_request_timeout" in timeout_kwargs
-    assert timeout_kwargs["_request_timeout"] == API_TIMEOUT
-
-    # check override
-    timeout_kwargs = with_timeout({"_request_timeout": 5})
-    assert "_request_timeout" in timeout_kwargs
-    assert timeout_kwargs["_request_timeout"] == 5
-
-    # check additional params
-    timeout_kwargs = with_timeout({"some_param": 123})
-    assert "some_param" in timeout_kwargs
-    assert timeout_kwargs["some_param"] == 123
-    assert "_request_timeout" in timeout_kwargs
-    assert timeout_kwargs["_request_timeout"] == API_TIMEOUT
 
 
 def test_should_retry_api():

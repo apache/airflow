@@ -42,7 +42,6 @@ from airflow.providers.cncf.kubernetes.kubernetes_helper_functions import (
     KubernetesApiException,
     PodLaunchFailedException,
     generic_api_retry,
-    with_timeout,
 )
 from airflow.providers.cncf.kubernetes.utils.container import (
     container_is_completed,
@@ -332,7 +331,7 @@ class PodManager(LoggingMixin):
         self.log.debug("Pod Creation Request: \n%s", json_pod)
         try:
             resp = self._client.create_namespaced_pod(
-                body=sanitized_pod, namespace=pod.metadata.namespace, **with_timeout(kwargs)
+                body=sanitized_pod, namespace=pod.metadata.namespace, **kwargs
             )
             self.log.debug("Pod Creation Response: %s", resp)
         except Exception as e:
@@ -347,7 +346,7 @@ class PodManager(LoggingMixin):
         """Delete POD."""
         try:
             self._client.delete_namespaced_pod(
-                pod.metadata.name, pod.metadata.namespace, body=client.V1DeleteOptions(), **with_timeout()
+                pod.metadata.name, pod.metadata.namespace, body=client.V1DeleteOptions()
             )
         except ApiException as e:
             # If the pod is already deleted
@@ -751,7 +750,7 @@ class PodManager(LoggingMixin):
                 follow=follow,
                 timestamps=timestamps,
                 _preload_content=False,
-                **with_timeout(additional_kwargs),
+                **additional_kwargs,
             )
         except HTTPError:
             self.log.exception("There was an error reading the kubernetes API.")
@@ -801,7 +800,6 @@ class PodManager(LoggingMixin):
                 field_selector=f"involvedObject.name={pod.metadata.name}",
                 resource_version=resource_version,
                 resource_version_match="NotOlderThan" if resource_version else None,
-                **with_timeout(),
             )
         except HTTPError as e:
             raise KubernetesApiException(f"There was an error reading the kubernetes API: {e}")
@@ -810,9 +808,7 @@ class PodManager(LoggingMixin):
     def read_pod(self, pod: V1Pod) -> V1Pod:
         """Read POD information."""
         try:
-            return self._client.read_namespaced_pod(
-                pod.metadata.name, pod.metadata.namespace, **with_timeout()
-            )
+            return self._client.read_namespaced_pod(pod.metadata.name, pod.metadata.namespace)
         except HTTPError as e:
             raise KubernetesApiException(f"There was an error reading the kubernetes API: {e}")
 
@@ -877,7 +873,6 @@ class PodManager(LoggingMixin):
                 stderr=True,
                 tty=False,
                 _preload_content=False,
-                **with_timeout(),
             )
         ) as client:
             self.log.info("Running command... %s", command)
@@ -910,7 +905,6 @@ class PodManager(LoggingMixin):
                 stderr=True,
                 tty=False,
                 _preload_content=False,
-                **with_timeout(),
             )
         ) as resp:
             self._exec_pod_command(resp, "kill -2 $(pgrep -u $(id -u) -f 'sh')")
