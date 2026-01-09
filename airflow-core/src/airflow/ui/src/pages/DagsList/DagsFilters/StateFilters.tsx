@@ -46,7 +46,7 @@ export const StateFilters = ({
   return (
     <ButtonGroup attached size="sm" variant="outline">
       <Button
-        bg={isAll ? "colorPalette.muted" : undefined}
+        bg={isAll ? "colorPalette.solid" : undefined}
         colorPalette="brand"
         onClick={onStateChange}
         value="all"
@@ -55,7 +55,7 @@ export const StateFilters = ({
         {translate("dags:filters.paused.all")}
       </Button>
       <Button
-        bg={isFailed ? "colorPalette.muted" : undefined}
+        bg={isFailed ? "colorPalette.solid" : undefined}
         colorPalette="brand"
         data-testid="dags-failed-filter"
         onClick={onStateChange}
@@ -66,7 +66,7 @@ export const StateFilters = ({
         {translate("common:states.failed")}
       </Button>
       <Button
-        bg={isQueued ? "colorPalette.muted" : undefined}
+        bg={isQueued ? "colorPalette.solid" : undefined}
         colorPalette="brand"
         data-testid="dags-queued-filter"
         onClick={onStateChange}
@@ -77,7 +77,7 @@ export const StateFilters = ({
         {translate("common:states.queued")}
       </Button>
       <Button
-        bg={isRunning ? "colorPalette.muted" : undefined}
+        bg={isRunning ? "colorPalette.solid" : undefined}
         colorPalette="brand"
         data-testid="dags-running-filter"
         onClick={onStateChange}
@@ -88,7 +88,7 @@ export const StateFilters = ({
         {translate("common:states.running")}
       </Button>
       <Button
-        bg={isSuccess ? "colorPalette.muted" : undefined}
+        bg={isSuccess ? "colorPalette.solid" : undefined}
         colorPalette="brand"
         data-testid="dags-success-filter"
         onClick={onStateChange}
@@ -99,7 +99,7 @@ export const StateFilters = ({
         {translate("common:states.success")}
       </Button>
       <Button
-        bg={needsReview ? "colorPalette.muted" : undefined}
+        bg={needsReview ? "colorPalette.solid" : undefined}
         colorPalette="brand"
         data-testid="dags-needs-review-filter"
         onClick={onStateChange}

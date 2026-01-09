@@ -33,7 +33,7 @@ export const FavoriteFilter = ({ onFavoriteChange, showFavorites }: Props) => {
   return (
     <ButtonGroup attached size="sm" variant="outline">
       <Button
-        bg={currentValue === "all" ? "colorPalette.muted" : undefined}
+        bg={currentValue === "all" ? "colorPalette.solid" : undefined}
         colorPalette="brand"
         onClick={onFavoriteChange}
         value="all"
@@ -42,25 +42,25 @@ export const FavoriteFilter = ({ onFavoriteChange, showFavorites }: Props) => {
         {translate("filters.favorite.all")}
       </Button>
       <Button
-        bg={currentValue === "true" ? "colorPalette.muted" : undefined}
+        bg={currentValue === "true" ? "colorPalette.solid" : undefined}
         colorPalette="brand"
         onClick={onFavoriteChange}
         value="true"
         variant={currentValue === "true" ? "solid" : "outline"}
       >
-        <Icon asChild color="brand.solid">
+        <Icon asChild color={currentValue === "true" ? "brand.contrast" : "brand.solid"}>
           <FiStar style={{ fill: "currentColor" }} />
         </Icon>
         {translate("filters.favorite.favorite")}
       </Button>
       <Button
-        bg={currentValue === "false" ? "colorPalette.muted" : undefined}
+        bg={currentValue === "false" ? "colorPalette.solid" : undefined}
         colorPalette="brand"
         onClick={onFavoriteChange}
         value="false"
         variant={currentValue === "false" ? "solid" : "outline"}
       >
-        <Icon asChild color="fg.muted">
+        <Icon asChild color={currentValue === "false" ? "brand.contrast" : "brand.solid"}>
           <FiStar />
         </Icon>
         {translate("filters.favorite.unfavorite")}

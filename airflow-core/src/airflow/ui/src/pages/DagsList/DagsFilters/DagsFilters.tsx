@@ -16,17 +16,15 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, Flex } from "@chakra-ui/react";
+import { HStack } from "@chakra-ui/react";
 import type { MultiValue } from "chakra-react-select";
 import { useState } from "react";
 import { useSearchParams } from "react-router-dom";
 
 import { useTableURLState } from "src/components/DataTable/useTableUrlState";
-import { ResetButton } from "src/components/ui";
 import { SearchParamsKeys, type SearchParamsKeysType } from "src/constants/searchParams";
 import { useConfig } from "src/queries/useConfig";
 import { useDagTagsInfinite } from "src/queries/useDagTagsInfinite";
-import { getFilterCount } from "src/utils/filterUtils";
 
 import { FavoriteFilter } from "./FavoriteFilter";
 import { PausedFilter } from "./PausedFilter";
@@ -142,18 +140,6 @@ export const DagsFilters = () => {
     setSearchParams(searchParams);
   };
 
-  const onClearFilters = () => {
-    searchParams.delete(PAUSED_PARAM);
-    searchParams.delete(FAVORITE_PARAM);
-    searchParams.delete(NEEDS_REVIEW_PARAM);
-    searchParams.delete(LAST_DAG_RUN_STATE_PARAM);
-    searchParams.delete(TAGS_PARAM);
-    searchParams.delete(TAGS_MATCH_MODE_PARAM);
-
-    setSearchParams(searchParams);
-    setPattern("");
-  };
-
   const handleTagModeChange = ({ checked }: { checked: boolean }) => {
     const mode = checked ? "all" : "any";
 
@@ -161,52 +147,37 @@ export const DagsFilters = () => {
     setSearchParams(searchParams);
   };
 
-  const filterCount = getFilterCount({
-    needsReview,
-    selectedTags,
-    showFavorites,
-    showPaused,
-    state,
-  });
-
   return (
-    <Flex flexWrap="wrap" gap={4} justifyContent="space-between">
-      <Flex alignItems="center" flexWrap="wrap" gap={4}>
-        <StateFilters
-          isAll={isAll}
-          isFailed={isFailed}
-          isQueued={isQueued}
-          isRunning={isRunning}
-          isSuccess={isSuccess}
-          needsReview={needsReview === "true"}
-          onStateChange={handleStateChange}
-        />
-        <PausedFilter
-          defaultShowPaused={defaultShowPaused}
-          onPausedChange={handlePausedChange}
-          showPaused={showPaused}
-        />
-        <Box maxWidth="300px">
-          <TagFilter
-            onMenuScrollToBottom={() => {
-              void fetchNextPage();
-            }}
-            onMenuScrollToTop={() => {
-              void fetchPreviousPage();
-            }}
-            onSelectTagsChange={handleSelectTagsChange}
-            onTagModeChange={handleTagModeChange}
-            onUpdate={setPattern}
-            selectedTags={selectedTags}
-            tagFilterMode={tagFilterMode}
-            tags={data?.pages.flatMap((dagResponse) => dagResponse.tags) ?? []}
-          />
-        </Box>
-        <FavoriteFilter onFavoriteChange={handleFavoriteChange} showFavorites={showFavorites} />
-      </Flex>
-      <Box>
-        <ResetButton filterCount={filterCount} onClearFilters={onClearFilters} />
-      </Box>
-    </Flex>
+    <HStack flexWrap="wrap" gap={2} justifyContent="space-between">
+      <StateFilters
+        isAll={isAll}
+        isFailed={isFailed}
+        isQueued={isQueued}
+        isRunning={isRunning}
+        isSuccess={isSuccess}
+        needsReview={needsReview === "true"}
+        onStateChange={handleStateChange}
+      />
+      <PausedFilter
+        defaultShowPaused={defaultShowPaused}
+        onPausedChange={handlePausedChange}
+        showPaused={showPaused}
+      />
+      <TagFilter
+        onMenuScrollToBottom={() => {
+          void fetchNextPage();
+        }}
+        onMenuScrollToTop={() => {
+          void fetchPreviousPage();
+        }}
+        onSelectTagsChange={handleSelectTagsChange}
+        onTagModeChange={handleTagModeChange}
+        onUpdate={setPattern}
+        selectedTags={selectedTags}
+        tagFilterMode={tagFilterMode}
+        tags={data?.pages.flatMap((dagResponse) => dagResponse.tags) ?? []}
+      />
+      <FavoriteFilter onFavoriteChange={handleFavoriteChange} showFavorites={showFavorites} />
+    </HStack>
   );
 };
