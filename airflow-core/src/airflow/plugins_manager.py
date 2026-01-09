@@ -26,10 +26,7 @@ from functools import cache
 from typing import TYPE_CHECKING, Any
 
 from airflow import settings
-from airflow._shared.module_loading import (
-    import_string,
-    qualname,
-)
+from airflow._shared.module_loading import import_string, qualname
 from airflow._shared.plugins_manager import (
     AirflowPlugin,
     AirflowPluginSource as AirflowPluginSource,
@@ -39,14 +36,11 @@ from airflow._shared.plugins_manager import (
     is_valid_plugin,
 )
 from airflow.configuration import conf
-from airflow.task.priority_strategy import (
-    PriorityWeightStrategy,
-    airflow_priority_weight_strategies,
-)
 
 if TYPE_CHECKING:
     from airflow.lineage.hook import HookLineageReader
     from airflow.listeners.listener import ListenerManager
+    from airflow.task.priority_strategy import PriorityWeightStrategy
     from airflow.timetables.base import Timetable
 
 log = logging.getLogger(__name__)
@@ -395,10 +389,7 @@ def get_priority_weight_strategy_plugins() -> dict[str, type[PriorityWeightStrat
         for plugin in _get_plugins()[0]
         for priority_weight_strategy_class in plugin.priority_weight_strategies
     }
-    return {
-        **airflow_priority_weight_strategies,
-        **plugins_priority_weight_strategy_classes,
-    }
+    return plugins_priority_weight_strategy_classes
 
 
 def get_import_errors() -> dict[str, str]:

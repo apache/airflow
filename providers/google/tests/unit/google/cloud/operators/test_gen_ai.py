@@ -31,6 +31,16 @@ from google.genai.types import (
 from airflow.providers.google.cloud.operators.gen_ai import (
     GenAICountTokensOperator,
     GenAICreateCachedContentOperator,
+    GenAIGeminiCancelBatchJobOperator,
+    GenAIGeminiCreateBatchJobOperator,
+    GenAIGeminiCreateEmbeddingsBatchJobOperator,
+    GenAIGeminiDeleteBatchJobOperator,
+    GenAIGeminiDeleteFileOperator,
+    GenAIGeminiGetBatchJobOperator,
+    GenAIGeminiGetFileOperator,
+    GenAIGeminiListBatchJobsOperator,
+    GenAIGeminiListFilesOperator,
+    GenAIGeminiUploadFileOperator,
     GenAIGenerateContentOperator,
     GenAIGenerateEmbeddingsOperator,
     GenAISupervisedFineTuningTrainOperator,
@@ -83,6 +93,20 @@ TUNING_TRAINING_DATASET = "gs://cloud-samples-data/ai-platform/generative_ai/sft
 GENERATE_FROM_CACHED_MODEL_CONFIG = {
     "cached_content": "cached_name",
 }
+
+TEST_BATCH_JOB_INLINED_REQUESTS = [
+    {"contents": [{"parts": [{"text": "Tell me a one-sentence joke."}], "role": "user"}]},
+    {"contents": [{"parts": [{"text": "Why is the sky blue?"}], "role": "user"}]},
+]
+
+TEST_EMBEDDINGS_JOB_INLINED_REQUESTS = {
+    "contents": [{"parts": [{"text": "Why is the sky blue?"}], "role": "user"}]
+}
+TEST_GEMINI_API_KEY = "test-key"
+TEST_GEMINI_MODEL = "test-gemini-model"
+TEST_BATCH_JOB_NAME = "test-name"
+TEST_FILE_NAME = "test-file"
+TEST_FILE_PATH = "test/path/to/file"
 
 
 def assert_warning(msg: str, warnings):
@@ -247,4 +271,239 @@ class TestGenAIGenerateFromCachedContentOperator:
             model=GEMINI_MODEL,
             contents=CONTENTS,
             generation_config=GENERATE_FROM_CACHED_MODEL_CONFIG,
+        )
+
+
+class TestGenAIGeminiCreateBatchJobOperator:
+    @mock.patch(GEN_AI_PATH.format("GenAIGeminiAPIHook"))
+    def test_execute(self, mock_hook):
+        op = GenAIGeminiCreateBatchJobOperator(
+            task_id=TASK_ID,
+            project_id=GCP_PROJECT,
+            location=GCP_LOCATION,
+            model=TEST_GEMINI_MODEL,
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
+            input_source=TEST_BATCH_JOB_INLINED_REQUESTS,
+            gemini_api_key=TEST_GEMINI_API_KEY,
+            wait_until_complete=False,
+            retrieve_result=False,
+        )
+        op.execute(context={"ti": mock.MagicMock()})
+        mock_hook.assert_called_once_with(
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
+            gemini_api_key=TEST_GEMINI_API_KEY,
+        )
+        mock_hook.return_value.create_batch_job.assert_called_once_with(
+            source=TEST_BATCH_JOB_INLINED_REQUESTS,
+            model=TEST_GEMINI_MODEL,
+            create_batch_job_config=None,
+        )
+
+
+class TestGenAIGeminiGetBatchJobOperator:
+    @mock.patch(GEN_AI_PATH.format("GenAIGeminiAPIHook"))
+    def test_execute(self, mock_hook):
+        op = GenAIGeminiGetBatchJobOperator(
+            task_id=TASK_ID,
+            project_id=GCP_PROJECT,
+            location=GCP_LOCATION,
+            job_name=TEST_BATCH_JOB_NAME,
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
+            gemini_api_key=TEST_GEMINI_API_KEY,
+        )
+        op.execute(context={"ti": mock.MagicMock()})
+        mock_hook.assert_called_once_with(
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
+            gemini_api_key=TEST_GEMINI_API_KEY,
+        )
+        mock_hook.return_value.get_batch_job.assert_called_once_with(
+            job_name=TEST_BATCH_JOB_NAME,
+        )
+
+
+class TestGenAIGeminiListBatchJobsOperator:
+    @mock.patch(GEN_AI_PATH.format("GenAIGeminiAPIHook"))
+    def test_execute(self, mock_hook):
+        op = GenAIGeminiListBatchJobsOperator(
+            task_id=TASK_ID,
+            project_id=GCP_PROJECT,
+            location=GCP_LOCATION,
+            gemini_api_key=TEST_GEMINI_API_KEY,
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
+        )
+        op.execute(context={"ti": mock.MagicMock()})
+        mock_hook.assert_called_once_with(
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
+            gemini_api_key=TEST_GEMINI_API_KEY,
+        )
+        mock_hook.return_value.list_batch_jobs.assert_called_once_with(list_batch_jobs_config=None)
+
+
+class TestGenAIGeminiDeleteBatchJobOperator:
+    @mock.patch(GEN_AI_PATH.format("GenAIGeminiAPIHook"))
+    def test_execute(self, mock_hook):
+        mock_hook.return_value.delete_batch_job.return_value = mock.MagicMock(error=False)
+        op = GenAIGeminiDeleteBatchJobOperator(
+            task_id=TASK_ID,
+            project_id=GCP_PROJECT,
+            location=GCP_LOCATION,
+            job_name=TEST_BATCH_JOB_NAME,
+            gemini_api_key=TEST_GEMINI_API_KEY,
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
+        )
+        op.execute(context={"ti": mock.MagicMock()})
+        mock_hook.assert_called_once_with(
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
+            gemini_api_key=TEST_GEMINI_API_KEY,
+        )
+        mock_hook.return_value.delete_batch_job.assert_called_once_with(
+            job_name=TEST_BATCH_JOB_NAME,
+        )
+
+
+class TestGenAIGeminiCancelBatchJobOperator:
+    @mock.patch(GEN_AI_PATH.format("GenAIGeminiAPIHook"))
+    def test_execute(self, mock_hook):
+        op = GenAIGeminiCancelBatchJobOperator(
+            task_id=TASK_ID,
+            project_id=GCP_PROJECT,
+            location=GCP_LOCATION,
+            job_name=TEST_BATCH_JOB_NAME,
+            gemini_api_key=TEST_GEMINI_API_KEY,
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
+        )
+        op.execute(context={"ti": mock.MagicMock()})
+        mock_hook.assert_called_once_with(
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
+            gemini_api_key=TEST_GEMINI_API_KEY,
+        )
+        mock_hook.return_value.cancel_batch_job.assert_called_once_with(
+            job_name=TEST_BATCH_JOB_NAME,
+        )
+
+
+class TestGenAIGeminiCreateEmbeddingsBatchJobOperator:
+    @mock.patch(GEN_AI_PATH.format("GenAIGeminiAPIHook"))
+    def test_execute(self, mock_hook):
+        op = GenAIGeminiCreateEmbeddingsBatchJobOperator(
+            task_id=TASK_ID,
+            project_id=GCP_PROJECT,
+            location=GCP_LOCATION,
+            input_source=TEST_EMBEDDINGS_JOB_INLINED_REQUESTS,
+            model=EMBEDDING_MODEL,
+            gemini_api_key=TEST_GEMINI_API_KEY,
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
+            wait_until_complete=False,
+        )
+        op.execute(context={"ti": mock.MagicMock()})
+        mock_hook.assert_called_once_with(
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
+            gemini_api_key=TEST_GEMINI_API_KEY,
+        )
+        mock_hook.return_value.create_embeddings.assert_called_once_with(
+            source=TEST_EMBEDDINGS_JOB_INLINED_REQUESTS,
+            model=EMBEDDING_MODEL,
+            create_embeddings_config=None,
+        )
+
+
+class TestGenAIGeminiGetFileOperator:
+    @mock.patch(GEN_AI_PATH.format("GenAIGeminiAPIHook"))
+    def test_execute(self, mock_hook):
+        op = GenAIGeminiGetFileOperator(
+            task_id=TASK_ID,
+            project_id=GCP_PROJECT,
+            location=GCP_LOCATION,
+            gemini_api_key=TEST_GEMINI_API_KEY,
+            file_name=TEST_FILE_NAME,
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
+        )
+        op.execute(context={"ti": mock.MagicMock()})
+        mock_hook.assert_called_once_with(
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
+            gemini_api_key=TEST_GEMINI_API_KEY,
+        )
+        mock_hook.return_value.get_file.assert_called_once_with(
+            file_name=TEST_FILE_NAME,
+        )
+
+
+class TestGenAIGeminiUploadFileOperator:
+    @mock.patch(GEN_AI_PATH.format("GenAIGeminiAPIHook"))
+    def test_execute(self, mock_hook):
+        op = GenAIGeminiUploadFileOperator(
+            task_id=TASK_ID,
+            project_id=GCP_PROJECT,
+            location=GCP_LOCATION,
+            file_path=TEST_FILE_PATH,
+            gemini_api_key=TEST_GEMINI_API_KEY,
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
+        )
+        op.execute(context={"ti": mock.MagicMock()})
+        mock_hook.assert_called_once_with(
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
+            gemini_api_key=TEST_GEMINI_API_KEY,
+        )
+        mock_hook.return_value.upload_file.assert_called_once_with(
+            path_to_file=TEST_FILE_PATH,
+            upload_file_config=None,
+        )
+
+
+class TestGenAIGeminiListFilesOperator:
+    @mock.patch(GEN_AI_PATH.format("GenAIGeminiAPIHook"))
+    def test_execute(self, mock_hook):
+        op = GenAIGeminiListFilesOperator(
+            task_id=TASK_ID,
+            project_id=GCP_PROJECT,
+            location=GCP_LOCATION,
+            gemini_api_key=TEST_GEMINI_API_KEY,
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
+        )
+        op.execute(context={"ti": mock.MagicMock()})
+        mock_hook.assert_called_once_with(
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
+            gemini_api_key=TEST_GEMINI_API_KEY,
+        )
+        mock_hook.return_value.list_files.assert_called_once_with()
+
+
+class TestGenAIGeminiDeleteFileOperator:
+    @mock.patch(GEN_AI_PATH.format("GenAIGeminiAPIHook"))
+    def test_execute(self, mock_hook):
+        op = GenAIGeminiDeleteFileOperator(
+            task_id=TASK_ID,
+            project_id=GCP_PROJECT,
+            location=GCP_LOCATION,
+            file_name=TEST_FILE_NAME,
+            gemini_api_key=TEST_GEMINI_API_KEY,
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
+        )
+        op.execute(context={"ti": mock.MagicMock()})
+        mock_hook.assert_called_once_with(
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
+            gemini_api_key=TEST_GEMINI_API_KEY,
+        )
+        mock_hook.return_value.delete_file.assert_called_once_with(
+            file_name=TEST_FILE_NAME,
         )

@@ -15,6 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
@@ -22,6 +23,7 @@ from typing import TYPE_CHECKING
 from pluggy import HookspecMarker
 
 if TYPE_CHECKING:
+    # These imports are for type checking only - no runtime dependency
     from airflow.models.taskinstance import TaskInstance
     from airflow.sdk.execution_time.task_runner import RuntimeTaskInstance
     from airflow.utils.state import TaskInstanceState
@@ -30,13 +32,17 @@ hookspec = HookspecMarker("airflow")
 
 
 @hookspec
-def on_task_instance_running(previous_state: TaskInstanceState | None, task_instance: RuntimeTaskInstance):
+def on_task_instance_running(
+    previous_state: TaskInstanceState | None,
+    task_instance: RuntimeTaskInstance | TaskInstance,
+):
     """Execute when task state changes to RUNNING. previous_state can be None."""
 
 
 @hookspec
 def on_task_instance_success(
-    previous_state: TaskInstanceState | None, task_instance: RuntimeTaskInstance | TaskInstance
+    previous_state: TaskInstanceState | None,
+    task_instance: RuntimeTaskInstance | TaskInstance,
 ):
     """Execute when task state changes to SUCCESS. previous_state can be None."""
 
