@@ -953,7 +953,14 @@ class KubernetesPodOperator(BaseOperator):
 
             if event["status"] in ("error", "failed", "timeout", "success"):
                 if self.get_logs:
-                    self._write_logs(self.pod, follow=follow, since_time=last_log_time)
+                    self.pod_manager.fetch_requested_container_logs(
+                        pod=self.pod,
+                        containers=self.container_logs,
+                        follow_logs=True,
+                        container_name_log_prefix_enabled=self.container_name_log_prefix_enabled,
+                        log_formatter=self.log_formatter,
+                        since_time=last_log_time,
+                    )
 
                 for callback in self.callbacks:
                     callback.on_pod_completion(

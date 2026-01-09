@@ -651,6 +651,7 @@ class PodManager(LoggingMixin):
         follow_logs=False,
         container_name_log_prefix_enabled: bool = True,
         log_formatter: Callable[[str, str], str] | None = None,
+        since_time: DateTime | None = None,
     ) -> list[PodLoggingStatus]:
         """
         Follow the logs of containers in the specified pod and publish it to airflow logging.
@@ -673,6 +674,7 @@ class PodManager(LoggingMixin):
                 follow=follow_logs,
                 container_name_log_prefix_enabled=container_name_log_prefix_enabled,
                 log_formatter=log_formatter,
+                since_time=since_time,
             )
             pod_logging_statuses.append(status)
         return pod_logging_statuses
