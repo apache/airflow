@@ -108,7 +108,7 @@ PIP package                                 Version required
 ``apache-airflow-providers-common-compat``  ``>=1.10.1``
 ``apache-airflow-providers-http``
 ``asgiref``                                 ``>=2.3.0``
-``aiohttp``                                 ``>=3.9.2``
+``aiohttp``                                 ``>=3.13.3``
 ``tenacity``                                ``>=8.3.0``
 ==========================================  ==================
 
