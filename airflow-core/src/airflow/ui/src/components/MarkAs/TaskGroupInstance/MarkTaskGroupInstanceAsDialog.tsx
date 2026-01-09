@@ -25,14 +25,13 @@ import { useTaskInstanceServiceGetTaskInstances } from "openapi/queries";
 import type {
   LightGridTaskInstanceSummary,
   TaskInstanceState,
-  BulkBody_BulkTaskInstanceBody_,
 } from "openapi/requests/types.gen";
 import { ActionAccordion } from "src/components/ActionAccordion";
 import { StateBadge } from "src/components/StateBadge";
 import { Dialog } from "src/components/ui";
 import SegmentedControl from "src/components/ui/SegmentedControl";
-import { useBulkTaskInstances } from "src/queries/useBulkTaskInstances";
-import { useBulkTaskInstancesDryRun } from "src/queries/useBulkTaskInstancesDryRun";
+import { usePatchTaskInstance } from "src/queries/usePatchTaskInstance";
+import { usePatchTaskInstanceDryRun } from "src/queries/usePatchTaskInstanceDryRun";
 
 type Props = {
   readonly groupTaskInstance: LightGridTaskInstanceSummary;
@@ -70,67 +69,32 @@ const MarkTaskGroupInstanceAsDialog = ({ groupTaskInstance, onClose, open, state
 
   const groupTaskIds = groupTaskInstances?.task_instances.map((ti) => ti.task_id) ?? [];
 
-  // Build bulk update request
-  const { isPending, mutate } = useBulkTaskInstances({
+  const { isPending, mutate } = usePatchTaskInstance({
     dagId,
+    dagRunId: runId,
     onSuccess: onClose,
-    runId,
   });
-  const { data, isPending: isPendingDryRun } = useBulkTaskInstancesDryRun({
+  const { data, isPending: isPendingDryRun } = usePatchTaskInstanceDryRun({
     dagId,
     dagRunId: runId,
     options: {
-      enabled: open,
+      enabled: open && groupTaskIds.length > 0,
       refetchOnMount: "always",
     },
     requestBody: {
-      actions: [
-        {
-          action: "update",
-          entities: groupTaskIds.map((taskId) => ({
-            include_downstream: downstream,
-            include_future: future,
-            include_past: past,
-            include_upstream: upstream,
-            map_index: undefined,
-            new_state: state,
-            note: note || undefined,
-            task_id: taskId,
-          })),
-        },
-      ],
+      include_downstream: downstream,
+      include_future: future,
+      include_past: past,
+      include_upstream: upstream,
+      new_state: state,
+      note: note || undefined,
+      task_ids: groupTaskIds,
     },
   });
 
   const affectedTasks = data ?? {
     task_instances: [],
     total_entries: 0,
-  };
-
-  const handleConfirm = () => {
-    const bulkBody: BulkBody_BulkTaskInstanceBody_ = {
-      actions: [
-        {
-          action: "update",
-          entities: groupTaskIds.map((taskId) => ({
-            include_downstream: downstream,
-            include_future: future,
-            include_past: past,
-            include_upstream: upstream,
-            map_index: undefined,
-            new_state: state,
-            note: note || undefined,
-            task_id: taskId,
-          })),
-        },
-      ],
-    };
-
-    mutate({
-      dagId,
-      dagRunId: runId,
-      requestBody: bulkBody,
-    });
   };
 
   return (
@@ -185,7 +149,22 @@ const MarkTaskGroupInstanceAsDialog = ({ groupTaskInstance, onClose, open, state
               colorPalette="brand"
               disabled={affectedTasks.total_entries === 0}
               loading={isPending || isPendingDryRun}
-              onClick={handleConfirm}
+              onClick={() => {
+                mutate({
+                  dagId,
+                  dagRunId: runId,
+                  requestBody: {
+                    dry_run: false,
+                    include_downstream: downstream,
+                    include_future: future,
+                    include_past: past,
+                    include_upstream: upstream,
+                    new_state: state,
+                    note: note || undefined,
+                    task_ids: groupTaskIds,
+                  },
+                });
+              }}
             >
               {translate("modal.confirm")}
             </Button>

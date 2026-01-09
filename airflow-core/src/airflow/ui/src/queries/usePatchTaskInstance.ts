@@ -16,18 +16,20 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+import { useMutation } from "@tanstack/react-query";
 import { useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 
 import {
   UseTaskInstanceServiceGetMappedTaskInstanceKeyFn,
-  UseTaskInstanceServiceGetTaskInstanceKeyFn,
   useTaskInstanceServiceGetTaskInstancesKey,
-  useTaskInstanceServicePatchTaskInstance,
   UseGridServiceGetGridRunsKeyFn,
   UseGridServiceGetGridTiSummariesKeyFn,
   useGridServiceGetGridTiSummariesKey,
+  useTaskInstanceServicePatchTaskInstances,
 } from "openapi/queries";
+import { TaskInstanceService } from "openapi/requests/services.gen";
+import type { PatchTaskInstancesBody, TaskInstanceCollectionResponse } from "openapi/requests/types.gen";
 import { toaster } from "src/components/ui";
 
 import { useClearTaskInstancesDryRunKey } from "./useClearTaskInstancesDryRun";
@@ -36,15 +38,11 @@ import { usePatchTaskInstanceDryRunKey } from "./usePatchTaskInstanceDryRun";
 export const usePatchTaskInstance = ({
   dagId,
   dagRunId,
-  mapIndex,
   onSuccess,
-  taskId,
 }: {
   dagId: string;
   dagRunId: string;
-  mapIndex: number;
   onSuccess?: () => void;
-  taskId: string;
 }) => {
   const queryClient = useQueryClient();
   const { t: translate } = useTranslation();
@@ -60,23 +58,34 @@ export const usePatchTaskInstance = ({
   };
 
   const onSuccessFn = async (
-    _: unknown,
+    _: TaskInstanceCollectionResponse,
     variables: {
       dagId: string;
       dagRunId: string;
-      requestBody: { include_future?: boolean; include_past?: boolean };
-      taskId: string;
+      requestBody: PatchTaskInstancesBody;
     },
   ) => {
+    // Deduplication using set as user can patch multiple map index of the same task_id.
+    const taskInstanceKeys = [
+      ...new Set(
+        variables.requestBody.task_ids
+          .filter((taskId) => typeof taskId === "string" || Array.isArray(taskId))
+          .map((taskId) => {
+            const [actualTaskId, mapIndex] = Array.isArray(taskId) ? taskId : [taskId, undefined];
+            const params = { dagId, dagRunId, mapIndex: mapIndex ?? -1, taskId: actualTaskId };
+            return UseTaskInstanceServiceGetMappedTaskInstanceKeyFn(params);
+          }),
+      ),
+    ];
+
     // Check if this patch operation affects multiple DAG runs
     const { include_future: includeFuture, include_past: includePast } = variables.requestBody;
     const affectsMultipleRuns = includeFuture === true || includePast === true;
 
     const queryKeys = [
-      UseTaskInstanceServiceGetTaskInstanceKeyFn({ dagId, dagRunId, taskId }),
-      UseTaskInstanceServiceGetMappedTaskInstanceKeyFn({ dagId, dagRunId, mapIndex, taskId }),
+      ...taskInstanceKeys,
       [useTaskInstanceServiceGetTaskInstancesKey],
-      [usePatchTaskInstanceDryRunKey, dagId, dagRunId, { mapIndex, taskId }],
+      [usePatchTaskInstanceDryRunKey, dagId, dagRunId],
       [useClearTaskInstancesDryRunKey, dagId],
       UseGridServiceGetGridRunsKeyFn({ dagId }, [{ dagId }]),
       affectsMultipleRuns
@@ -91,7 +100,7 @@ export const usePatchTaskInstance = ({
     }
   };
 
-  return useTaskInstanceServicePatchTaskInstance({
+  return useTaskInstanceServicePatchTaskInstances({
     onError,
     onSuccess: onSuccessFn,
   });

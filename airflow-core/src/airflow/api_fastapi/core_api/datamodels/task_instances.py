@@ -214,6 +214,45 @@ class PatchTaskInstanceBody(StrictBaseModel):
         return ns
 
 
+class PatchTaskInstancesBody(StrictBaseModel):
+    """Request body for Patch Task Instances endpoint."""
+
+    dry_run: bool = True
+    task_ids: list[str | tuple[str, int]] = Field(
+        description="A list of `task_id` or [`task_id`, `map_index`]. "
+        "If only the `task_id` is provided for a mapped task, all of its map indices will be targeted.",
+    )
+    new_state: TaskInstanceState | None = None
+    note: Annotated[str, StringConstraints(max_length=1000)] | None = None
+    include_upstream: bool = False
+    include_downstream: bool = False
+    include_future: bool = False
+    include_past: bool = False
+
+    @field_validator("new_state", mode="before")
+    @classmethod
+    def validate_new_state(cls, ns: str | None) -> str:
+        """Validate new_state."""
+        valid_states = [
+            vs.name.lower()
+            for vs in (TaskInstanceState.SUCCESS, TaskInstanceState.FAILED, TaskInstanceState.SKIPPED)
+        ]
+        if ns is None:
+            raise ValueError("'new_state' should not be empty")
+        ns = ns.lower()
+        if ns not in valid_states:
+            raise ValueError(f"'{ns}' is not one of {valid_states}")
+        return ns
+
+    @model_validator(mode="before")
+    @classmethod
+    def validate_model(cls, data: Any) -> Any:
+        """Validate patch task instances form."""
+        if isinstance(data.get("task_ids"), list) and len(data.get("task_ids")) < 1:
+            raise ValidationError("task_ids list should have at least 1 element.")
+        return data
+
+
 class BulkTaskInstanceBody(PatchTaskInstanceBody, StrictBaseModel):
     """Request body for bulk update, and delete task instances."""
 

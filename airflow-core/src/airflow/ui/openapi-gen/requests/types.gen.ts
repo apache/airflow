@@ -2993,6 +2993,33 @@ export type PostClearTaskInstancesData = {
 
 export type PostClearTaskInstancesResponse = TaskInstanceCollectionResponse;
 
+export type PatchTaskInstancesBody = {
+    dry_run?: boolean;
+    task_ids: Array<string | [string, number]>;
+    new_state: string;
+    note?: string | null;
+    include_upstream?: boolean;
+    include_downstream?: boolean;
+    include_future?: boolean;
+    include_past?: boolean;
+};
+
+export type PostPatchTaskInstancesData = {
+    dagId: string;
+    dagRunId: string;
+    requestBody: PatchTaskInstancesBody;
+};
+
+export type PostPatchTaskInstancesResponse = TaskInstanceCollectionResponse;
+
+export type PostPatchTaskInstancesDryRunData = {
+    dagId: string;
+    dagRunId: string;
+    requestBody: PatchTaskInstancesBody;
+};
+
+export type PostPatchTaskInstancesDryRunResponse = TaskInstanceCollectionResponse;
+
 export type PatchTaskInstanceDryRunByMapIndexData = {
     dagId: string;
     dagRunId: string;

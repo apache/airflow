@@ -55,14 +55,11 @@ const MarkTaskInstanceAsDialog = ({ onClose, open, state, taskInstance }: Props)
   const { isPending, mutate } = usePatchTaskInstance({
     dagId,
     dagRunId,
-    mapIndex,
     onSuccess: onClose,
-    taskId,
   });
   const { data, isPending: isPendingDryRun } = usePatchTaskInstanceDryRun({
     dagId,
     dagRunId,
-    mapIndex,
     options: {
       enabled: open,
       refetchOnMount: "always",
@@ -74,8 +71,8 @@ const MarkTaskInstanceAsDialog = ({ onClose, open, state, taskInstance }: Props)
       include_upstream: upstream,
       new_state: state,
       note,
+      task_ids: [[taskId, mapIndex]],
     },
-    taskId,
   });
 
   const affectedTasks = data ?? {
@@ -141,16 +138,16 @@ const MarkTaskInstanceAsDialog = ({ onClose, open, state, taskInstance }: Props)
                 mutate({
                   dagId,
                   dagRunId,
-                  mapIndex,
                   requestBody: {
+                    dry_run: false,
                     include_downstream: downstream,
                     include_future: future,
                     include_past: past,
                     include_upstream: upstream,
                     new_state: state,
                     note,
+                    task_ids: [[taskId, mapIndex]],
                   },
-                  taskId,
                 });
               }}
             >

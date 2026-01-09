@@ -19,37 +19,34 @@
 import { useQuery, type UseQueryOptions } from "@tanstack/react-query";
 
 import { TaskInstanceService } from "openapi/requests/services.gen";
-import type { PatchTaskInstanceBody, PatchTaskInstanceDryRunResponse } from "openapi/requests/types.gen";
+import type { PatchTaskInstancesBody, TaskInstanceCollectionResponse } from "openapi/requests/types.gen";
 
 type Props<TData, TError> = {
   dagId: string;
   dagRunId: string;
-  mapIndex: number;
   options?: Omit<UseQueryOptions<TData, TError>, "queryFn" | "queryKey">;
-  requestBody: PatchTaskInstanceBody;
-  taskId: string;
+  requestBody: PatchTaskInstancesBody;
 };
 
 export const usePatchTaskInstanceDryRunKey = "patchTaskInstanceDryRun";
 
-export const usePatchTaskInstanceDryRun = <TData = PatchTaskInstanceDryRunResponse, TError = unknown>({
+export const usePatchTaskInstanceDryRun = <TData = TaskInstanceCollectionResponse, TError = unknown>({
   dagId,
   dagRunId,
-  mapIndex,
   options,
   requestBody,
-  taskId,
 }: Props<TData, TError>) =>
   useQuery<TData, TError>({
     ...options,
     queryFn: () =>
-      TaskInstanceService.patchTaskInstanceDryRun({
+      TaskInstanceService.postPatchTaskInstancesDryRun({
         dagId,
         dagRunId,
-        mapIndex,
-        requestBody,
-        taskId,
-      }) as TData,
+        requestBody: {
+          dry_run: true,
+          ...requestBody,
+        },
+      }) as unknown as Promise<TData>,
     queryKey: [
       usePatchTaskInstanceDryRunKey,
       dagId,
@@ -59,9 +56,8 @@ export const usePatchTaskInstanceDryRun = <TData = PatchTaskInstanceDryRunRespon
         include_future: requestBody.include_future,
         include_past: requestBody.include_past,
         include_upstream: requestBody.include_upstream,
-        mapIndex,
         new_state: requestBody.new_state,
-        taskId,
+        task_ids: requestBody.task_ids,
       },
     ],
   });

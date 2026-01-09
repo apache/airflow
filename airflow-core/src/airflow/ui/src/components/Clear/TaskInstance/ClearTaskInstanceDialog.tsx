@@ -69,8 +69,6 @@ const ClearTaskInstanceDialog = ({ onClose: onCloseDialog, open: openDialog, tas
   const { isPending: isPendingPatchDagRun, mutate: mutatePatchTaskInstance } = usePatchTaskInstance({
     dagId,
     dagRunId,
-    mapIndex,
-    taskId,
   });
 
   // Get current DAG's bundle version to compare with task instance's DAG version bundle version
@@ -235,9 +233,16 @@ const ClearTaskInstanceDialog = ({ onClose: onCloseDialog, open: openDialog, tas
               mutatePatchTaskInstance({
                 dagId,
                 dagRunId,
-                mapIndex,
-                requestBody: { note },
-                taskId,
+                requestBody: {
+                  dry_run: false,
+                  task_ids: [[taskId, mapIndex]],
+                  new_state: taskInstance.state || "success",
+                  note,
+                  include_upstream: false,
+                  include_downstream: false,
+                  include_future: false,
+                  include_past: false,
+                },
               });
             }
             onCloseDialog();

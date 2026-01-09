@@ -40,7 +40,6 @@ from airflow.api_fastapi.core_api.datamodels.common import (
 from airflow.api_fastapi.core_api.datamodels.task_instances import (
     BulkTaskInstanceBody,
     PatchTaskInstanceBody,
-    TaskInstanceCollectionResponse,
 )
 from airflow.api_fastapi.core_api.security import GetUserDep
 from airflow.api_fastapi.core_api.services.public.common import BulkService
@@ -105,7 +104,7 @@ def _patch_task_instance_state(
     data: dict,
     session: Session,
     commit: bool,
-) -> list[TI]:
+) -> None:
     map_index = getattr(task_instance_body, "map_index", None)
     map_indexes = None if map_index is None else [map_index]
 
@@ -127,7 +126,7 @@ def _patch_task_instance_state(
             f"Task id {task_id} is already in {data['new_state']} state",
         )
     if not commit:
-        return updated_tis
+        return
 
     if commit:
         for ti in updated_tis:
@@ -144,8 +143,6 @@ def _patch_task_instance_state(
                     get_listener_manager().hook.on_task_instance_skipped(previous_state=None, task_instance=ti)
             except Exception:
                 log.exception("error calling listener")
-
-    return updated_tis
 
 
 def _patch_task_instance_note(
@@ -320,7 +317,7 @@ class BulkTaskInstanceService(BulkService[BulkTaskInstanceBody]):
 
     def handle_bulk_update(
         self, action: BulkUpdateAction[BulkTaskInstanceBody], results: BulkActionResponse
-    ) -> TaskInstanceCollectionResponse:
+    ) -> None:
         """Bulk Update Task Instances."""
         # Validate and categorize entities into specific and all map index update sets
         update_specific_map_index_task_keys, update_all_map_index_task_keys = self._categorize_entities(
@@ -400,7 +397,6 @@ class BulkTaskInstanceService(BulkService[BulkTaskInstanceBody]):
                             status_code=status.HTTP_404_NOT_FOUND,
                             detail=f"No task instances found for dag_id: {dag_id}, run_id: {run_id}, task_id: {task_id}",
                         )
-                        # all_updated_tis.extend(tis)
 
                     entity = all_map_entity_map.get((dag_id, run_id, task_id))
 
