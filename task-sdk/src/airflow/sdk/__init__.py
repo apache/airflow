@@ -18,6 +18,8 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+from airflow.sdk.definitions.timetables.assets import IdentityMapper
+
 __all__ = [
     "__version__",
     "Asset",
@@ -42,12 +44,15 @@ __all__ = [
     "DeltaTriggerTimetable",
     "EdgeModifier",
     "EventsTimetable",
+    "IdentityMapper",
     "Label",
     "Metadata",
     "MultipleCronTriggerTimetable",
     "ObjectStoragePath",
     "Param",
     "ParamsDict",
+    "PartitionedAssetTimetable",
+    "PartitionMapper",
     "PokeReturnValue",
     "TaskGroup",
     "TaskInstanceState",
@@ -100,7 +105,12 @@ if TYPE_CHECKING:
     from airflow.sdk.definitions.param import Param, ParamsDict
     from airflow.sdk.definitions.taskgroup import TaskGroup
     from airflow.sdk.definitions.template import literal
-    from airflow.sdk.definitions.timetables.assets import AssetOrTimeSchedule
+    from airflow.sdk.definitions.timetables.assets import (
+        AssetOrTimeSchedule,
+        IdentityMapper,
+        PartitionedAssetTimetable,
+        PartitionMapper,
+    )
     from airflow.sdk.definitions.timetables.events import EventsTimetable
     from airflow.sdk.definitions.timetables.interval import (
         CronDataIntervalTimetable,
@@ -142,12 +152,15 @@ __lazy_imports: dict[str, str] = {
     "DeltaTriggerTimetable": ".definitions.timetables.trigger",
     "EdgeModifier": ".definitions.edges",
     "EventsTimetable": ".definitions.timetables.events",
+    "IdentityMapper": ".definitions.timetables.assets",
     "Label": ".definitions.edges",
     "Metadata": ".definitions.asset.metadata",
     "MultipleCronTriggerTimetable": ".definitions.timetables.trigger",
     "ObjectStoragePath": ".io.path",
     "Param": ".definitions.param",
     "ParamsDict": ".definitions.param",
+    "PartitionedAssetTimetable": ".definitions.timetables.assets",
+    "PartitionMapper": ".definitions.timetables.assets",
     "PokeReturnValue": ".bases.sensor",
     "SecretCache": ".execution_time.cache",
     "TaskGroup": ".definitions.taskgroup",

@@ -58,7 +58,10 @@ from airflow.sdk.definitions.edges import EdgeModifier as EdgeModifier, Label as
 from airflow.sdk.definitions.param import Param as Param
 from airflow.sdk.definitions.taskgroup import TaskGroup as TaskGroup
 from airflow.sdk.definitions.template import literal as literal
-from airflow.sdk.definitions.timetables.assets import AssetOrTimeSchedule
+from airflow.sdk.definitions.timetables.assets import (
+    AssetOrTimeSchedule,
+    PartitionedAssetTimetable,
+)
 from airflow.sdk.definitions.timetables.events import EventsTimetable
 from airflow.sdk.definitions.timetables.interval import (
     CronDataIntervalTimetable,
@@ -101,12 +104,15 @@ __all__ = [
     "DeltaTriggerTimetable",
     "EdgeModifier",
     "EventsTimetable",
+    "IdentityMapper",
     "Label",
     "Metadata",
     "MultipleCronTriggerTimetable",
     "ObjectStoragePath",
     "Param",
     "PokeReturnValue",
+    "PartitionedAssetTimetable",
+    "PartitionMapper",
     "SecretCache",
     "TaskGroup",
     "TaskInstanceState",
