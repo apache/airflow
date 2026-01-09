@@ -1840,6 +1840,23 @@ class TestAwsS3Hook:
         assert "S3 object size" in logs_string
         assert "differ. Downloaded dag_03.py to" in logs_string
 
+        local_file_same_size = Path(sync_local_dir).joinpath("dag_04.py")
+        local_file_same_size.write_text("same size")
+
+        s3_client.put_object(Bucket=s3_bucket, Key="dag_04.py", Body=b"same size")
+
+        prev_ts = local_file_same_size.stat().st_mtime - 5
+        os.utime(local_file_same_size, (prev_ts, prev_ts))
+
+        hook.log.debug = MagicMock()
+        hook.sync_to_local_dir(
+            bucket_name=s3_bucket, local_dir=sync_local_dir, s3_prefix="", delete_stale=True
+        )
+        logs_string = get_logs_string(hook.log.debug.call_args_list)
+        assert "S3 object last modified" in logs_string
+        assert "local file last modified" in logs_string
+        assert "differ. Downloaded dag_04.py to" in logs_string
+
 
 @pytest.mark.parametrize(
     ("key_kind", "has_conn", "has_bucket", "precedence", "expected"),
