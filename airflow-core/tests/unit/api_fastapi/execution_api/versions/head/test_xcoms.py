@@ -690,14 +690,14 @@ class TestXComsDeleteEndpoint:
         ).all()
         assert len(xcoms) == expected_remaining
 
-        if task_id == "t1" and key == "~":
+        if task_id == "t1" and key is None:
             assert not any(xcom.task_id == "t1" for xcom in xcoms)
             assert all(xcom.task_id == "t2" for xcom in xcoms)
 
             remaining_keys = {xcom.key for xcom in xcoms}
             assert remaining_keys == {"xcom_1", "xcom_3"}
 
-        elif task_id == "~" and key == "xcom_3":
+        elif task_id is None and key == "xcom_3":
             assert not any(xcom.key == "xcom_3" for xcom in xcoms)
             assert all(xcom.key != "xcom_3" for xcom in xcoms)
 
