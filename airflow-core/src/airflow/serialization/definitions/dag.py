@@ -381,7 +381,7 @@ class SerializedDAG:
 
     def next_dagrun_info(
         self,
-        last_automated_dagrun: None | DataInterval,
+        last_automated_dagrun: DagRunInfo | None,  # TODO: AIP-76 just change this since internal
         *,
         restricted: bool = True,
     ) -> DagRunInfo | None:
@@ -545,6 +545,14 @@ class SerializedDAG:
         :meta private:
         """
         from airflow.models.dagrun import RUN_ID_REGEX
+
+        log.info(
+            "creating dag run",
+            run_after=run_after,
+            run_id=run_id,
+            logical_date=logical_date,
+            partition_key=partition_key,
+        )
 
         logical_date = coerce_datetime(logical_date)
         # For manual runs where logical_date is None, ensure no data_interval is set.
