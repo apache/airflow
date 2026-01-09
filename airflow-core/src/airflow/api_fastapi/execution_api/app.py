@@ -296,24 +296,16 @@ class InProcessExecutionAPI:
     @cached_property
     def app(self):
         if not self._app:
-            from unittest.mock import AsyncMock, MagicMock
-
-            from airflow.api_fastapi.auth.tokens import JWTValidator
             from airflow.api_fastapi.common.dagbag import create_dag_bag
+            from airflow.api_fastapi.execution_api.app import create_task_execution_api_app
             from airflow.api_fastapi.execution_api.deps import (
-                DepContainer,
                 JWTBearerDep,
-                JWTBearerQueueDep,
                 JWTBearerTIPathDep,
             )
             from airflow.api_fastapi.execution_api.routes.connections import has_connection_access
+            from airflow.api_fastapi.execution_api.routes.task_instances import JWTBearerWorkloadDep
             from airflow.api_fastapi.execution_api.routes.variables import has_variable_access
             from airflow.api_fastapi.execution_api.routes.xcoms import has_xcom_access
-            from airflow.configuration import conf
-
-            # Set a dummy JWT secret so the lifespan can create JWT services without failing.
-            if not conf.get("api_auth", "jwt_secret", fallback=None):
-                conf.set("api_auth", "jwt_secret", "in-process-test-secret-key")
 
             self._app = create_task_execution_api_app()
 
@@ -324,32 +316,10 @@ class InProcessExecutionAPI:
 
             self._app.dependency_overrides[JWTBearerDep.dependency] = always_allow
             self._app.dependency_overrides[JWTBearerTIPathDep.dependency] = always_allow
-            self._app.dependency_overrides[JWTBearerQueueDep.dependency] = always_allow
+            self._app.dependency_overrides[JWTBearerWorkloadDep.dependency] = always_allow
             self._app.dependency_overrides[has_connection_access] = always_allow
             self._app.dependency_overrides[has_variable_access] = always_allow
             self._app.dependency_overrides[has_xcom_access] = always_allow
-
-            # Create a mock container that provides mock JWT services
-            mock_jwt_generator = MagicMock(spec=JWTGenerator)
-            mock_jwt_generator.generate.return_value = "mock-execution-token"
-
-            mock_jwt_validator = AsyncMock(spec=JWTValidator)
-            mock_jwt_validator.avalidated_claims.return_value = {"sub": "test", "exp": 9999999999}
-
-            class MockContainer:
-                """A mock svcs container that returns mock services."""
-
-                async def aget(self, svc_type):
-                    if svc_type is JWTGenerator:
-                        return mock_jwt_generator
-                    if svc_type is JWTValidator:
-                        return mock_jwt_validator
-                    raise ValueError(f"Unknown service type: {svc_type}")
-
-            async def mock_container_dep():
-                return MockContainer()
-
-            self._app.dependency_overrides[DepContainer.dependency] = mock_container_dep
 
         return self._app
 
