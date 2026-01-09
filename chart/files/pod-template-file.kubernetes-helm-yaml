@@ -122,8 +122,8 @@ spec:
       lifecycle: {{- tpl (toYaml $containerLifecycleHooks) . | nindent 8 }}
       {{- end }}
       name: base
-      {{- if .Values.workers.command }}
-      command: {{ tpl (toYaml .Values.workers.command) . | nindent 8 }}
+      {{- if or .Values.workers.kubernetes.command .Values.workers.command }}
+      command: {{ tpl (toYaml (.Values.workers.kubernetes.command | default .Values.workers.command)) . | nindent 8 }}
       {{- end }}
       resources: {{- toYaml .Values.workers.resources | nindent 8 }}
       volumeMounts:

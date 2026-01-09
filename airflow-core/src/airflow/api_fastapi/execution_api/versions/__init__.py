@@ -33,9 +33,11 @@ from airflow.api_fastapi.execution_api.versions.v2025_12_08 import (
     AddDagRunDetailEndpoint,
     MovePreviousRunEndpoint,
 )
+from airflow.api_fastapi.execution_api.versions.v2026_03_31 import ModifyDeferredTaskKwargsToJsonValue
 
 bundle = VersionBundle(
     HeadVersion(),
+    Version("2026-03-31", ModifyDeferredTaskKwargsToJsonValue),
     Version("2025-12-08", MovePreviousRunEndpoint, AddDagRunDetailEndpoint),
     Version("2025-11-07", AddPartitionKeyField),
     Version("2025-11-05", AddTriggeringUserNameField),

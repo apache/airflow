@@ -121,6 +121,7 @@ def test_python_client():
 
         # Get current configuration. Note, this is disabled by default with most installation.
         # You need to set `expose_config = True` in Airflow configuration in order to retrieve configuration.
+        # Sensitive configuration values are always masked in the response.
         conf_api_instance = config_api.ConfigApi(api_client)
         try:
             api_response = conf_api_instance.get_config()

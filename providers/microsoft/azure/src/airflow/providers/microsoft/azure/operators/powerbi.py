@@ -32,7 +32,7 @@ if TYPE_CHECKING:
     from msgraph_core import APIVersion
 
     from airflow.models.taskinstancekey import TaskInstanceKey
-    from airflow.utils.context import Context
+    from airflow.sdk import Context
 
 
 class PowerBILink(BaseOperatorLink):

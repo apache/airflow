@@ -60,6 +60,7 @@ repos:
         additional_dependencies: [github.com/incu6us/goimports-reviser/v3@v3.10.0]
         types: [go]
         language: golang
+        require_serial: true
       - id: gofmt
         name: Format go code
         entry: golines --base-formatter=gofumpt --write-output --max-len=100 --chain-split-dots

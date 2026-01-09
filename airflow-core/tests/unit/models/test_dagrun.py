@@ -48,7 +48,7 @@ from airflow.providers.standard.operators.python import PythonOperator, ShortCir
 from airflow.sdk import DAG, BaseOperator, get_current_context, setup, task, task_group, teardown
 from airflow.sdk.definitions.callback import AsyncCallback
 from airflow.sdk.definitions.deadline import DeadlineAlert, DeadlineReference
-from airflow.serialization.serialized_objects import LazyDeserializedDAG, SerializedDAG
+from airflow.serialization.serialized_objects import LazyDeserializedDAG
 from airflow.task.trigger_rule import TriggerRule
 from airflow.triggers.base import StartTriggerArgs
 from airflow.utils.span_status import SpanStatus
@@ -60,6 +60,7 @@ from tests_common.test_utils import db
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.dag import sync_dag_to_db
 from tests_common.test_utils.mock_operators import MockOperator
+from tests_common.test_utils.taskinstance import create_task_instance, run_task_instance
 from unit.models import DEFAULT_DATE as _DEFAULT_DATE
 
 pytestmark = [pytest.mark.db_test, pytest.mark.need_serialized_dag]
@@ -67,6 +68,8 @@ pytestmark = [pytest.mark.db_test, pytest.mark.need_serialized_dag]
 
 if TYPE_CHECKING:
     from sqlalchemy.orm.session import Session
+
+    from airflow.serialization.definitions.dag import SerializedDAG
 
 TI = TaskInstance
 DEFAULT_DATE = pendulum.instance(_DEFAULT_DATE)
@@ -1140,7 +1143,7 @@ class TestDagRun:
             metric_name = f"dagrun.{dag.dag_id}.first_task_scheduling_delay"
 
             if expected:
-                true_delay = ti.start_date - dag_run.data_interval_end
+                true_delay = ti.start_date - dag_run.run_after
                 sched_delay_stat_call = call(metric_name, true_delay, tags=expected_stat_tags)
                 sched_delay_stat_call_with_tags = call(
                     "dagrun.first_task_scheduling_delay", true_delay, tags=expected_stat_tags
@@ -1454,7 +1457,7 @@ def test_mapped_literal_verify_integrity(dag_maker, session):
         task_2.expand(arg2=[1, 2])
 
     # Update it to use the new serialized DAG
-    dr.dag = dag_maker.dag
+    dr.dag = dag_maker.serialized_dag
     dag_version_id = DagVersion.get_latest_version(dag_id=dr.dag_id, session=session).id
     dr.verify_integrity(dag_version_id=dag_version_id, session=session)
 
@@ -1477,7 +1480,7 @@ def test_mapped_literal_to_xcom_arg_verify_integrity(dag_maker, session):
         t1 = BaseOperator(task_id="task_1")
         task_2.expand(arg2=t1.output)
 
-    dr.dag = dag_maker.dag
+    dr.dag = dag_maker.serialized_dag
     dag_version_id = DagVersion.get_latest_version(dag_id=dr.dag_id, session=session).id
     dr.verify_integrity(dag_version_id=dag_version_id, session=session)
 
@@ -1520,10 +1523,10 @@ def test_mapped_literal_length_increase_adds_additional_ti(dag_maker, session):
     ]
 
     # Now "increase" the length of literal
-    with dag_maker(session=session, serialized=True) as dag:
+    with dag_maker(session=session, serialized=True):
         task_2.expand(arg2=[1, 2, 3, 4, 5])
 
-    dr.dag = dag
+    dr.dag = dag_maker.serialized_dag
     # Every mapped task is revised at task_instance_scheduling_decision
     dr.task_instance_scheduling_decisions()
 
@@ -1563,7 +1566,7 @@ def test_mapped_literal_length_reduction_adds_removed_state(dag_maker, session):
     with dag_maker(session=session):
         task_2.expand(arg2=[1, 2])
 
-    dr.dag = dag_maker.dag
+    dr.dag = dag_maker.serialized_dag
     # Since we change the literal on the dag file itself, the dag_hash will
     # change which will have the scheduler verify the dr integrity
     dag_version_id = DagVersion.get_latest_version(dag_id=dr.dag_id, session=session).id
@@ -1703,12 +1706,14 @@ def test_mapped_literal_faulty_state_in_db(dag_maker, session):
 
     dr = dag_maker.create_dagrun()
     ti = dr.get_task_instance(task_id="task_1")
-    ti.run()
+    run_task_instance(ti, dag_maker.dag.get_task("task_1"))
     decision = dr.task_instance_scheduling_decisions()
     assert len(decision.schedulable_tis) == 2
 
     # We insert a faulty record
-    session.add(TaskInstance(task=dag.get_task("task_2"), run_id=dr.run_id, dag_version_id=ti.dag_version_id))
+    session.add(
+        create_task_instance(task=dag.get_task("task_2"), run_id=dr.run_id, dag_version_id=ti.dag_version_id)
+    )
     session.flush()
 
     decision = dr.task_instance_scheduling_decisions()
@@ -2007,15 +2012,21 @@ def test_schedule_tis_map_index(dag_maker, session):
 
     dr = DagRun(dag_id="test", run_id="test", run_type=DagRunType.MANUAL)
     dag_version = DagVersion.get_latest_version(dag_id=dr.dag_id)
-    ti0 = TI(
+    ti0 = create_task_instance(
         task=task,
         run_id=dr.run_id,
         map_index=0,
         state=TaskInstanceState.SUCCESS,
         dag_version_id=dag_version.id,
     )
-    ti1 = TI(task=task, run_id=dr.run_id, map_index=1, state=None, dag_version_id=dag_version.id)
-    ti2 = TI(
+    ti1 = create_task_instance(
+        task=task,
+        run_id=dr.run_id,
+        map_index=1,
+        state=None,
+        dag_version_id=dag_version.id,
+    )
+    ti2 = create_task_instance(
         task=task,
         run_id=dr.run_id,
         map_index=2,
@@ -2155,8 +2166,8 @@ def test_mapped_expand_kwargs(dag_maker):
     assert sorted(map_index for (task_id, map_index) in tis if task_id == "task_3") == [0, 1, 2]
     assert sorted(map_index for (task_id, map_index) in tis if task_id == "task_4") == [0, 1, 2]
 
-    tis[("task_0", -1)].run()
-    tis[("task_1", -1)].run()
+    run_task_instance(tis[("task_0", -1)], args_0.operator)
+    run_task_instance(tis[("task_1", -1)], args_list.operator)
 
     # With the upstreams available, everything should get expanded now.
     decision = dr.task_instance_scheduling_decisions()
@@ -2227,12 +2238,17 @@ def test_schedulable_task_exist_when_rerun_removed_upstream_mapped_task(session,
             ti.map_index = 0
             task = ti.task
             for map_index in range(1, 5):
-                ti_new = TI(task, run_id=dr.run_id, map_index=map_index, dag_version_id=ti.dag_version_id)
+                ti_new = create_task_instance(
+                    task,
+                    run_id=dr.run_id,
+                    map_index=map_index,
+                    dag_version_id=ti.dag_version_id,
+                )
                 session.add(ti_new)
                 ti_new.dag_run = dr
         else:
             # run tasks "do_something" to get XCOMs for correct downstream length
-            ti.run()
+            run_task_instance(ti, dag_maker.dag.get_task(ti.task_id))
     session.flush()
 
     tis = dr.get_task_instances()

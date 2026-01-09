@@ -21,6 +21,7 @@ from importlib.metadata import PackageNotFoundError, metadata
 from unittest import mock
 
 import pytest
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from airflow.models import Connection
@@ -104,11 +105,11 @@ class TestConnectionEndpoint:
 class TestDeleteConnection(TestConnectionEndpoint):
     def test_delete_should_respond_204(self, test_client, session):
         self.create_connection()
-        conns = session.query(Connection).all()
+        conns = session.scalars(select(Connection)).all()
         assert len(conns) == 1
         response = test_client.delete(f"/connections/{TEST_CONN_ID}")
         assert response.status_code == 204
-        connection = session.query(Connection).all()
+        connection = session.scalars(select(Connection)).all()
         assert len(connection) == 0
         _check_last_log(session, dag_id=None, event="delete_connection", logical_date=None)
 
@@ -153,7 +154,7 @@ class TestGetConnection(TestConnectionEndpoint):
 
     def test_get_should_respond_200_with_extra(self, test_client, session):
         self.create_connection()
-        connection = session.query(Connection).first()
+        connection = session.scalars(select(Connection)).first()
         connection.extra = '{"extra_key": "extra_value"}'
         session.commit()
         response = test_client.get(f"/connections/{TEST_CONN_ID}")
@@ -166,7 +167,7 @@ class TestGetConnection(TestConnectionEndpoint):
     @pytest.mark.enable_redact
     def test_get_should_respond_200_with_extra_redacted(self, test_client, session):
         self.create_connection()
-        connection = session.query(Connection).first()
+        connection = session.scalars(select(Connection)).first()
         connection.extra = '{"password": "test-password"}'
         session.commit()
         response = test_client.get(f"/connections/{TEST_CONN_ID}")
@@ -277,7 +278,7 @@ class TestPostConnection(TestConnectionEndpoint):
     def test_post_should_respond_201(self, test_client, session, body):
         response = test_client.post("/connections", json=body)
         assert response.status_code == 201
-        connection = session.query(Connection).all()
+        connection = session.scalars(select(Connection)).all()
         assert len(connection) == 1
         _check_last_log(session, dag_id=None, event="post_connection", logical_date=None)
 
@@ -780,7 +781,7 @@ class TestPatchConnection(TestConnectionEndpoint):
         self.create_connection()
         response = test_client.patch(f"/connections/{TEST_CONN_ID}", json=body, params=update_mask)
         assert response.status_code == 200
-        connection = session.query(Connection).filter_by(conn_id=TEST_CONN_ID).first()
+        connection = session.scalars(select(Connection).where(Connection.conn_id == TEST_CONN_ID)).first()
         assert connection.password is None
         assert response.json() == updated_connection
 
@@ -1399,7 +1400,7 @@ class TestPostConnectionExtraBackwardCompatibility(TestConnectionEndpoint):
         response = test_client.post("/connections", json=body)
         assert response.status_code == 201
 
-        connection = session.query(Connection).filter_by(conn_id=TEST_CONN_ID).first()
+        connection = session.scalars(select(Connection).where(Connection.conn_id == TEST_CONN_ID)).first()
         assert connection is not None
         assert connection.extra == "{}"  # Backward compatibility: treat "" as empty JSON object
 

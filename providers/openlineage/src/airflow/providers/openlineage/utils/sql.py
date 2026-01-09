@@ -25,9 +25,11 @@ from typing import TYPE_CHECKING
 from attrs import define
 from openlineage.client.event_v2 import Dataset
 from openlineage.client.facet_v2 import schema_dataset
-from sqlalchemy import Column, MetaData, Table, and_, or_, union_all
+
+from airflow.exceptions import AirflowOptionalProviderFeatureException
 
 if TYPE_CHECKING:
+    from sqlalchemy import Table
     from sqlalchemy.engine import Engine
     from sqlalchemy.sql.elements import ColumnElement
 
@@ -157,6 +159,13 @@ def create_information_schema_query(
     sqlalchemy_engine: Engine | None = None,
 ) -> str:
     """Create query for getting table schemas from information schema."""
+    try:
+        from sqlalchemy import Column, MetaData, Table, union_all
+    except ImportError:
+        raise AirflowOptionalProviderFeatureException(
+            "sqlalchemy is required for SQL schema query generation. "
+            "Install it with: pip install 'apache-airflow-providers-openlineage[sqlalchemy]'"
+        )
     metadata = MetaData()
     select_statements = []
     # Don't iterate over tables hierarchy, just pass it to query single information schema table
@@ -217,6 +226,13 @@ def create_filter_clauses(
         therefore it is expected the table has them defined.
     :param uppercase_names: if True use schema and table names uppercase
     """
+    try:
+        from sqlalchemy import and_, or_
+    except ImportError:
+        raise AirflowOptionalProviderFeatureException(
+            "sqlalchemy is required for SQL filter clause generation. "
+            "Install it with: pip install 'apache-airflow-providers-openlineage[sqlalchemy]'"
+        )
     table_schema_column_name = information_schema_table.columns[ColumnIndex.SCHEMA].name
     table_name_column_name = information_schema_table.columns[ColumnIndex.TABLE_NAME].name
     try:

@@ -41,7 +41,7 @@ def test_provider_user_agent():
     user_agent_provider = f"{provider_name}/{provider.version}"
     assert user_agent_provider in user_agent
 
-    from airflow.configuration import conf
+    from airflow.providers.common.compat.sdk import conf
 
     user_agent_prefix = conf.get("yandex", "sdk_user_agent_prefix", fallback="")
     assert user_agent_prefix in user_agent

@@ -19,6 +19,6 @@ FAB CLI Commands
 ================
 
 .. argparse::
-   :module: airflow.providers.fab.auth_manager.fab_auth_manager
+   :module: airflow.providers.fab.cli.definition
    :func: get_parser
    :prog: airflow

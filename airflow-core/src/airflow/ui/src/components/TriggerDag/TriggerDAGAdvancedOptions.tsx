@@ -20,9 +20,8 @@ import { Input, Field, Stack } from "@chakra-ui/react";
 import { Controller, type Control } from "react-hook-form";
 import { useTranslation } from "react-i18next";
 
-import type { DagRunTriggerParams } from "src/utils/trigger";
-
 import EditableMarkdown from "./EditableMarkdown";
+import type { DagRunTriggerParams } from "./TriggerDAGForm";
 
 type TriggerDAGAdvancedOptionsProps = {
   readonly control: Control<DagRunTriggerParams>;

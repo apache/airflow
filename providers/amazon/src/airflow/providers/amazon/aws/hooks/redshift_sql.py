@@ -22,9 +22,14 @@ from typing import TYPE_CHECKING
 import redshift_connector
 import tenacity
 from redshift_connector import Connection as RedshiftConnection, InterfaceError, OperationalError
-from sqlalchemy import create_engine
-from sqlalchemy.engine.url import URL
 
+try:
+    from sqlalchemy import create_engine
+    from sqlalchemy.engine.url import URL
+except ImportError:
+    URL = create_engine = None  # type: ignore[assignment,misc]
+
+from airflow.exceptions import AirflowOptionalProviderFeatureException
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.common.sql.hooks.sql import DbApiHook
@@ -151,6 +156,11 @@ class RedshiftSQLHook(DbApiHook):
 
     def get_uri(self) -> str:
         """Overridden to use the Redshift dialect as driver name."""
+        if URL is None:
+            raise AirflowOptionalProviderFeatureException(
+                "sqlalchemy is required to generate the connection URI. "
+                "Install it with: pip install 'apache-airflow-providers-amazon[sqlalchemy]'"
+            )
         conn_params = self._get_conn_params()
 
         if "user" in conn_params:
@@ -174,6 +184,11 @@ class RedshiftSQLHook(DbApiHook):
 
     def get_sqlalchemy_engine(self, engine_kwargs=None):
         """Overridden to pass Redshift-specific arguments."""
+        if create_engine is None:
+            raise AirflowOptionalProviderFeatureException(
+                "sqlalchemy is required for creating the engine. Install it with"
+                ": pip install 'apache-airflow-providers-amazon[sqlalchemy]'"
+            )
         conn_kwargs = self.conn.extra_dejson
         if engine_kwargs is None:
             engine_kwargs = {}

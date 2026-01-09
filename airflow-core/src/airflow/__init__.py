@@ -84,7 +84,7 @@ if not os.environ.get("_AIRFLOW__AS_LIBRARY", None):
 __lazy_imports: dict[str, tuple[str, str, bool]] = {
     "DAG": (".sdk", "DAG", False),
     "Asset": (".sdk", "Asset", False),
-    "XComArg": (".models.xcom_arg", "XComArg", False),
+    "XComArg": (".sdk", "XComArg", False),
     "version": (".version", "", False),
     # Deprecated lazy imports
     "AirflowException": (".exceptions", "AirflowException", True),

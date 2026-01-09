@@ -33,13 +33,13 @@ import json
 from json import JSONDecodeError
 from typing import TYPE_CHECKING
 
-from airflow.configuration import conf
 from airflow.providers.amazon.aws.executors.batch.utils import (
     CONFIG_GROUP_NAME,
     AllBatchConfigKeys,
     BatchSubmitJobKwargsConfigKeys,
 )
 from airflow.providers.amazon.aws.executors.ecs.utils import camelize_dict_keys
+from airflow.providers.common.compat.sdk import conf
 from airflow.utils.helpers import prune_dict
 
 

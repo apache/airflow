@@ -42,7 +42,7 @@ from airflow.api_fastapi.core_api.security import GetUserDep
 from airflow.api_fastapi.core_api.services.public.common import BulkService
 from airflow.listeners.listener import get_listener_manager
 from airflow.models.taskinstance import TaskInstance as TI
-from airflow.serialization.serialized_objects import SerializedDAG
+from airflow.serialization.definitions.dag import SerializedDAG
 from airflow.utils.state import TaskInstanceState
 
 log = structlog.get_logger(__name__)

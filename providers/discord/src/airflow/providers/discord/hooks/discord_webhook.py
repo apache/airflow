@@ -28,6 +28,7 @@ from airflow.providers.http.hooks.http import HttpAsyncHook, HttpHook
 
 if TYPE_CHECKING:
     from airflow.providers.common.compat.sdk import Connection
+    from airflow.providers.discord.notifications.embed import Embed
 
 
 class DiscordCommonHandler:
@@ -59,8 +60,53 @@ class DiscordCommonHandler:
 
         return endpoint
 
+    def validate_embed(
+        self,
+        *,
+        embed: Embed,
+    ) -> Embed:
+        """
+        Validate Discord Embed JSON payload.
+
+        Validates the embed object against Discord limits. See:
+            https://discord.com/developers/docs/resources/message#embed-object-embed-limits
+
+        :param embed: Discord embed object.
+        :return: Discord embed object.
+        """
+        # Validate title
+        if "title" in embed and len(embed["title"]) > 256:
+            raise ValueError("Discord embed title must be 256 or fewer characters")
+        # Validate description
+        if "description" in embed and len(embed["description"]) > 4096:
+            raise ValueError("Discord embed description must be 4096 or fewer characters")
+        # Validate footer
+        if "footer" in embed:
+            if len(embed["footer"]["text"]) > 2048:
+                raise ValueError("Discord embed footer text must be 2048 or fewer characters")
+        # Validate author
+        if "author" in embed:
+            if len(embed["author"]["name"]) > 2048:
+                raise ValueError("Discord embed author name must be 256 or fewer characters")
+        # Validate fields
+        if "fields" in embed:
+            if len(embed["fields"]) > 25:
+                raise ValueError("Discord embed fields must be 25 or fewer items")
+            for field in embed["fields"]:
+                if len(field["name"]) > 256:
+                    raise ValueError("Discord embed field name must be 256 or fewer characters")
+                if len(field["value"]) > 1024:
+                    raise ValueError("Discord embed field value must be 1024 or fewer characters")
+        return embed
+
     def build_discord_payload(
-        self, *, tts: bool, message: str, username: str | None, avatar_url: str | None
+        self,
+        *,
+        tts: bool,
+        message: str,
+        username: str | None,
+        avatar_url: str | None,
+        embed: Embed | None = None,
     ) -> str:
         """
         Build a valid Discord JSON payload.
@@ -70,6 +116,7 @@ class DiscordCommonHandler:
                         (max 2000 characters)
         :param username: Override the default username of the webhook
         :param avatar_url: Override the default avatar of the webhook
+        :param embed: Discord embed object.
         :return: Discord payload (str) to send
         """
         if len(message) > 2000:
@@ -82,6 +129,8 @@ class DiscordCommonHandler:
             payload["username"] = username
         if avatar_url:
             payload["avatar_url"] = avatar_url
+        if embed:
+            payload["embeds"] = [self.validate_embed(embed=embed)]
         return json.dumps(payload)
 
 
@@ -107,6 +156,7 @@ class DiscordWebhookHook(HttpHook):
     :param avatar_url: Override the default avatar of the webhook
     :param tts: Is a text-to-speech message
     :param proxy: Proxy to use to make the Discord webhook call
+    :param embed: Discord embed object.
     """
 
     conn_name_attr = "http_conn_id"
@@ -140,6 +190,7 @@ class DiscordWebhookHook(HttpHook):
         avatar_url: str | None = None,
         tts: bool = False,
         proxy: str | None = None,
+        embed: Embed | None = None,
         *args: Any,
         **kwargs: Any,
     ) -> None:
@@ -152,6 +203,7 @@ class DiscordWebhookHook(HttpHook):
         self.avatar_url = avatar_url
         self.tts = tts
         self.proxy = proxy
+        self.embed = embed
 
     def _get_webhook_endpoint(self, http_conn_id: str | None, webhook_endpoint: str | None) -> str:
         """
@@ -174,7 +226,11 @@ class DiscordWebhookHook(HttpHook):
             proxies = {"https": self.proxy}
 
         discord_payload = self.handler.build_discord_payload(
-            tts=self.tts, message=self.message, username=self.username, avatar_url=self.avatar_url
+            tts=self.tts,
+            message=self.message,
+            username=self.username,
+            avatar_url=self.avatar_url,
+            embed=self.embed,
         )
 
         self.run(
@@ -207,6 +263,7 @@ class DiscordWebhookAsyncHook(HttpAsyncHook):
     :param avatar_url: Override the default avatar of the webhook
     :param tts: Is a text-to-speech message
     :param proxy: Proxy to use to make the Discord webhook call
+    :param embed: Discord embed object.
     """
 
     default_headers = {
@@ -227,6 +284,7 @@ class DiscordWebhookAsyncHook(HttpAsyncHook):
         avatar_url: str | None = None,
         tts: bool = False,
         proxy: str | None = None,
+        embed: Embed | None = None,
         **kwargs: Any,
     ) -> None:
         super().__init__(**kwargs)
@@ -237,6 +295,7 @@ class DiscordWebhookAsyncHook(HttpAsyncHook):
         self.avatar_url = avatar_url
         self.tts = tts
         self.proxy = proxy
+        self.embed = embed
         self.handler = DiscordCommonHandler()
 
     async def _get_webhook_endpoint(self) -> str:
@@ -256,9 +315,12 @@ class DiscordWebhookAsyncHook(HttpAsyncHook):
         """Execute the Discord webhook call."""
         webhook_endpoint = await self._get_webhook_endpoint()
         discord_payload = self.handler.build_discord_payload(
-            tts=self.tts, message=self.message, username=self.username, avatar_url=self.avatar_url
+            tts=self.tts,
+            message=self.message,
+            username=self.username,
+            avatar_url=self.avatar_url,
+            embed=self.embed,
         )
-
         async with aiohttp.ClientSession(proxy=self.proxy) as session:
             await super().run(
                 session=session,

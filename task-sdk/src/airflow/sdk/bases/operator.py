@@ -38,6 +38,8 @@ import attrs
 from airflow.sdk import TriggerRule, timezone
 from airflow.sdk._shared.secrets_masker import redact
 from airflow.sdk.definitions._internal.abstractoperator import (
+    DEFAULT_EMAIL_ON_FAILURE,
+    DEFAULT_EMAIL_ON_RETRY,
     DEFAULT_IGNORE_FIRST_DEPENDS_ON_PAST,
     DEFAULT_OWNER,
     DEFAULT_POOL_NAME,
@@ -62,11 +64,6 @@ from airflow.sdk.definitions.edges import EdgeModifier
 from airflow.sdk.definitions.mappedoperator import OperatorPartial, validate_mapping_kwargs
 from airflow.sdk.definitions.param import ParamsDict
 from airflow.sdk.exceptions import RemovedInAirflow4Warning
-from airflow.task.priority_strategy import (
-    PriorityWeightStrategy,
-    airflow_priority_weight_strategies,
-    validate_and_load_priority_weight_strategy,
-)
 
 # Databases do not support arbitrary precision integers, so we need to limit the range of priority weights.
 # postgres: -2147483648 to +2147483647 (see https://www.postgresql.org/docs/current/datatype-numeric.html)
@@ -219,8 +216,8 @@ class _PartialDescriptor:
 OPERATOR_DEFAULTS: dict[str, Any] = {
     "allow_nested_operators": True,
     "depends_on_past": False,
-    "email_on_failure": True,
-    "email_on_retry": True,
+    "email_on_failure": DEFAULT_EMAIL_ON_FAILURE,
+    "email_on_retry": DEFAULT_EMAIL_ON_RETRY,
     "execution_timeout": DEFAULT_TASK_EXECUTION_TIMEOUT,
     # "executor": DEFAULT_EXECUTOR,
     "executor_config": {},
@@ -758,13 +755,9 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
     :param pre_execute: a function to be called immediately before task
         execution, receiving a context dictionary; raising an exception will
         prevent the task from being executed.
-
-        |experimental|
     :param post_execute: a function to be called immediately after task
         execution, receiving a context dictionary and task result; raising an
         exception will prevent the task from succeeding.
-
-        |experimental|
     :param trigger_rule: defines the rule by which dependencies are applied
         for the task to get triggered. Options are:
         ``{ all_success | all_failed | all_done | all_skipped | one_success | one_done |
@@ -830,8 +823,8 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
     task_id: str
     owner: str = DEFAULT_OWNER
     email: str | Sequence[str] | None = None
-    email_on_retry: bool = True
-    email_on_failure: bool = True
+    email_on_retry: bool = DEFAULT_EMAIL_ON_RETRY
+    email_on_failure: bool = DEFAULT_EMAIL_ON_FAILURE
     retries: int | None = DEFAULT_RETRIES
     retry_delay: timedelta = DEFAULT_RETRY_DELAY
     retry_exponential_backoff: float = 0
@@ -847,9 +840,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
     params: ParamsDict | dict = field(default_factory=ParamsDict)
     default_args: dict | None = None
     priority_weight: int = DEFAULT_PRIORITY_WEIGHT
-    weight_rule: PriorityWeightStrategy = field(
-        default_factory=airflow_priority_weight_strategies[DEFAULT_WEIGHT_RULE]
-    )
+    weight_rule: PriorityWeightStrategy | str = field(default=DEFAULT_WEIGHT_RULE)
     queue: str = DEFAULT_QUEUE
     pool: str = DEFAULT_POOL_NAME
     pool_slots: int = DEFAULT_POOL_SLOTS
@@ -988,8 +979,8 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         task_id: str,
         owner: str = DEFAULT_OWNER,
         email: str | Sequence[str] | None = None,
-        email_on_retry: bool = True,
-        email_on_failure: bool = True,
+        email_on_retry: bool = DEFAULT_EMAIL_ON_RETRY,
+        email_on_failure: bool = DEFAULT_EMAIL_ON_FAILURE,
         retries: int | None = DEFAULT_RETRIES,
         retry_delay: timedelta | float = DEFAULT_RETRY_DELAY,
         retry_exponential_backoff: float = 0,
@@ -1147,7 +1138,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         self.params = ParamsDict(params)
 
         self.priority_weight = priority_weight
-        self.weight_rule = validate_and_load_priority_weight_strategy(weight_rule)
+        self.weight_rule = weight_rule
 
         self.max_active_tis_per_dag: int | None = max_active_tis_per_dag
         self.max_active_tis_per_dagrun: int | None = max_active_tis_per_dagrun

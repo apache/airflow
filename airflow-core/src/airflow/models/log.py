@@ -28,6 +28,7 @@ from airflow.models.base import Base, StringID
 from airflow.utils.sqlalchemy import UtcDateTime, mapped_column
 
 if TYPE_CHECKING:
+    from airflow.models.dag import DagModel
     from airflow.models.taskinstance import TaskInstance
     from airflow.models.taskinstancekey import TaskInstanceKey
 
@@ -42,7 +43,7 @@ class Log(Base):
     dag_id: Mapped[str | None] = mapped_column(StringID(), nullable=True)
     task_id: Mapped[str | None] = mapped_column(StringID(), nullable=True)
     map_index: Mapped[int | None] = mapped_column(Integer, nullable=True)
-    event: Mapped[str] = mapped_column(String(60))
+    event: Mapped[str] = mapped_column(String(60), nullable=False)
     logical_date: Mapped[datetime | None] = mapped_column(UtcDateTime, nullable=True)
     run_id: Mapped[str | None] = mapped_column(StringID(), nullable=True)
     owner: Mapped[str | None] = mapped_column(String(500), nullable=True)
@@ -50,18 +51,18 @@ class Log(Base):
     extra: Mapped[str | None] = mapped_column(Text, nullable=True)
     try_number: Mapped[int | None] = mapped_column(Integer, nullable=True)
 
-    dag_model = relationship(
+    dag_model: Mapped[DagModel | None] = relationship(
         "DagModel",
         viewonly=True,
         foreign_keys=[dag_id],
         primaryjoin="Log.dag_id == DagModel.dag_id",
     )
 
-    task_instance = relationship(
+    task_instance: Mapped[TaskInstance | None] = relationship(
         "TaskInstance",
         viewonly=True,
-        foreign_keys=[task_id],
-        primaryjoin="Log.task_id == TaskInstance.task_id",
+        foreign_keys=[dag_id, task_id, run_id, map_index],
+        primaryjoin="and_(Log.dag_id == TaskInstance.dag_id, Log.task_id == TaskInstance.task_id, Log.run_id == TaskInstance.run_id, Log.map_index == TaskInstance.map_index)",
         lazy="noload",
     )
 

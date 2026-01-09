@@ -204,9 +204,14 @@ The following methods aren't required to override to have a functional Airflow a
 * ``filter_authorized_dag_ids``: Given a list of Dag IDs, return the list of Dag IDs the user has access to.  If not overridden, it calls ``is_authorized_dag`` for every single Dag passes as parameter.
 * ``filter_authorized_pools``: Given a list of pool names, return the list of pool names the user has access to.  If not overridden, it calls ``is_authorized_pool`` for every single pool passed as parameter.
 * ``filter_authorized_variables``: Given a list of variable keys, return the list of variable keys the user has access to.  If not overridden, it calls ``is_authorized_variable`` for every single variable passed as parameter.
+* ``is_authorized_hitl_task``: Return whether the user is authorized to approve or reject a Human-in-the-loop (HITL) task. Override this method to implement custom authorization logic for HITL tasks. If not overridden, it checks if the user's ID is in the assigned users list.
 
 CLI
 ^^^
+
+.. important::
+  Starting in Airflow ``3.2.0``, provider-level CLI commands are available to manage core extensions such as auth managers and executors. Implementing provider-level CLI commands can reduce CLI startup time by avoiding heavy imports when they are not required.
+  See :doc:`provider-level CLI <apache-airflow-providers:core-extensions/cli-commands>` for implementation guidance.
 
 Auth managers may vend CLI commands which will be included in the ``airflow`` command line tool by implementing the ``get_cli_commands`` method. The commands can be used to setup required resources. Commands are only vended for the currently configured auth manager. A pseudo-code example of implementing CLI command vending from an auth manager can be seen below:
 

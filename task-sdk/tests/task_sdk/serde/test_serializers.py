@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import datetime
 import decimal
+import uuid
 from importlib import metadata
 from typing import ClassVar
 from unittest.mock import patch
@@ -661,3 +662,16 @@ class TestSerializers:
         bad = {CLASSNAME: "", VERSION: 1, DATA: {}}
         with pytest.raises(TypeError, match="classname cannot be empty"):
             deserialize(bad)
+
+    @pytest.mark.parametrize(
+        "uuid_value",
+        [
+            pytest.param(uuid.uuid4(), id="uuid4"),
+            pytest.param(uuid.uuid1(), id="uuid1"),
+        ],
+    )
+    def test_uuid_roundtrip(self, uuid_value):
+        serialized = serialize(uuid_value)
+        deserialized = deserialize(serialized)
+        assert isinstance(deserialized, uuid.UUID)
+        assert uuid_value == deserialized

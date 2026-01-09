@@ -230,6 +230,7 @@ callsite
 camelCase
 Cancelled
 cancelled
+Cancelling
 carbonite
 cas
 Cassanda
@@ -753,6 +754,7 @@ gdbm
 gdrive
 Gelf
 gelf
+gemini
 generateUploadUrl
 Gentner
 geq
@@ -1523,7 +1525,6 @@ replicaSet
 repo
 repos
 repr
-reprocessed
 req
 reqs
 requeue

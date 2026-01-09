@@ -59,6 +59,7 @@ from airflow.sdk.api.datamodels._generated import (
     DagRun,
     DagRunState,
     DagRunType,
+    PreviousTIResponse,
     TaskInstance,
     TaskInstanceState,
 )
@@ -87,6 +88,7 @@ from airflow.sdk.execution_time.comms import (
     GetDRCount,
     GetHITLDetailResponse,
     GetPreviousDagRun,
+    GetPreviousTI,
     GetPrevSuccessfulDagRun,
     GetTaskBreadcrumbs,
     GetTaskRescheduleStartDate,
@@ -102,6 +104,7 @@ from airflow.sdk.execution_time.comms import (
     MaskSecret,
     OKResponse,
     PreviousDagRunResult,
+    PreviousTIResult,
     PrevSuccessfulDagRunResult,
     PutVariable,
     RescheduleTask,
@@ -245,12 +248,21 @@ class TestWatchedSubprocess:
         This fixture ensures test isolation when running in parallel with pytest-xdist,
         regardless of what other tests patch.
         """
-        from airflow.sdk.execution_time.secrets import ExecutionAPISecretsBackend
+        import importlib
+
+        import airflow.sdk.execution_time.secrets.execution_api as execution_api_module
         from airflow.secrets.environment_variables import EnvironmentVariablesBackend
+
+        fresh_execution_backend = importlib.reload(execution_api_module).ExecutionAPISecretsBackend
+
+        # Ensure downstream imports see the restored class instead of any AsyncMock left by other tests
+        import airflow.sdk.execution_time.secrets as secrets_package
+
+        monkeypatch.setattr(secrets_package, "ExecutionAPISecretsBackend", fresh_execution_backend)
 
         monkeypatch.setattr(
             "airflow.sdk.execution_time.supervisor.ensure_secrets_backend_loaded",
-            lambda: [EnvironmentVariablesBackend(), ExecutionAPISecretsBackend()],
+            lambda: [EnvironmentVariablesBackend(), fresh_execution_backend()],
         )
 
     def test_reading_from_pipes(self, captured_logs, time_machine, client_with_ti_start):
@@ -674,13 +686,22 @@ class TestWatchedSubprocess:
                 classpath="airflow.providers.standard.triggers.temporal.DateTimeTrigger",
                 next_method="execute_complete",
                 trigger_kwargs={
-                    "__type": "dict",
-                    "__var": {
-                        "moment": {"__type": "datetime", "__var": 1730982899.0},
-                        "end_from_trigger": False,
+                    "moment": {
+                        "__classname__": "pendulum.datetime.DateTime",
+                        "__version__": 2,
+                        "__data__": {
+                            "timestamp": 1730982899.0,
+                            "tz": {
+                                "__classname__": "builtins.tuple",
+                                "__version__": 1,
+                                "__data__": ["UTC", "pendulum.tz.timezone.Timezone", 1, True],
+                            },
+                        },
                     },
+                    "end_from_trigger": False,
                 },
-                next_kwargs={"__type": "dict", "__var": {}},
+                trigger_timeout=None,
+                next_kwargs={},
             ),
         )
 
@@ -2166,6 +2187,55 @@ REQUEST_TEST_CASES = [
             response=PreviousDagRunResult(dag_run=None),
         ),
         test_id="get_previous_dagrun_with_state",
+    ),
+    RequestTestCase(
+        message=GetPreviousTI(
+            dag_id="test_dag",
+            task_id="test_task",
+            logical_date=timezone.parse("2024-01-15T12:00:00Z"),
+            map_index=0,
+            state=TaskInstanceState.SUCCESS,
+        ),
+        expected_body={
+            "task_instance": {
+                "task_id": "test_task",
+                "dag_id": "test_dag",
+                "run_id": "prev_run",
+                "logical_date": timezone.parse("2024-01-14T12:00:00Z"),
+                "start_date": timezone.parse("2024-01-14T12:05:00Z"),
+                "end_date": timezone.parse("2024-01-14T12:10:00Z"),
+                "state": "success",
+                "try_number": 1,
+                "map_index": 0,
+                "duration": 300.0,
+            },
+            "type": "PreviousTIResult",
+        },
+        client_mock=ClientMock(
+            method_path="task_instances.get_previous",
+            kwargs={
+                "dag_id": "test_dag",
+                "task_id": "test_task",
+                "logical_date": timezone.parse("2024-01-15T12:00:00Z"),
+                "map_index": 0,
+                "state": TaskInstanceState.SUCCESS,
+            },
+            response=PreviousTIResult(
+                task_instance=PreviousTIResponse(
+                    task_id="test_task",
+                    dag_id="test_dag",
+                    run_id="prev_run",
+                    logical_date=timezone.parse("2024-01-14T12:00:00Z"),
+                    start_date=timezone.parse("2024-01-14T12:05:00Z"),
+                    end_date=timezone.parse("2024-01-14T12:10:00Z"),
+                    state="success",
+                    try_number=1,
+                    map_index=0,
+                    duration=300.0,
+                )
+            ),
+        ),
+        test_id="get_previous_ti",
     ),
     RequestTestCase(
         message=GetTaskRescheduleStartDate(ti_id=TI_ID),

@@ -151,7 +151,7 @@ class TestHttpSensor:
         assert prep_request.method, received_request.method
 
     @patch("airflow.providers.http.hooks.http.Session.send")
-    def test_poke_context(self, mock_session_send, create_task_instance_of_operator):
+    def test_poke_context(self, mock_session_send, dag_maker, create_task_instance_of_operator):
         response = requests.Response()
         response.status_code = 200
         mock_session_send.return_value = response
@@ -172,7 +172,7 @@ class TestHttpSensor:
             poke_interval=1,
         )
 
-        task_instance.task.execute(task_instance.get_template_context())
+        dag_maker.dag.get_task(task_instance.task_id).execute(task_instance.get_template_context())
 
     @patch("airflow.providers.http.hooks.http.Session.send")
     def test_logging_head_error_request(self, mock_session_send, create_task_of_operator):

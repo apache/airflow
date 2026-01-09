@@ -27,10 +27,7 @@ from airflow.providers.pinecone.hooks.pinecone import PineconeHook
 if TYPE_CHECKING:
     from pinecone import Vector
 
-    try:
-        from airflow.sdk.definitions.context import Context
-    except ImportError:
-        from airflow.utils.context import Context
+    from airflow.sdk import Context
 
 
 class PineconeIngestOperator(BaseOperator):

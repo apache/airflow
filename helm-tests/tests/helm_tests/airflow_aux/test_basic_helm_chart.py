@@ -300,19 +300,6 @@ class TestBaseChartTest:
                 f"Missing label test-label on {k8s_name}. Current labels: {labels}"
             )
 
-    @pytest.mark.parametrize("version", ["2.3.2", "2.4.0", "3.0.0", "default"])
-    def test_basic_deployment_without_default_users(self, version):
-        k8s_objects = render_chart(
-            "test-basic",
-            values=self._get_values_with_version(
-                values={"webserver": {"defaultUser": {"enabled": False}}}, version=version
-            ),
-        )
-        list_of_kind_names_tuples = [
-            (k8s_object["kind"], k8s_object["metadata"]["name"]) for k8s_object in k8s_objects
-        ]
-        assert ("Job", "test-basic-create-user") not in list_of_kind_names_tuples
-
     @pytest.mark.parametrize("version", ["2.3.2", "2.4.0", "3.0.0"])
     def test_basic_deployment_without_statsd(self, version):
         k8s_objects = render_chart(

@@ -38,7 +38,6 @@ class TestSCBackwardsCompatibility:
             values={
                 "uid": 3000,
                 "gid": 30,
-                "webserver": {"defaultUser": {"enabled": True}},
                 "flower": {"enabled": True},
                 "airflowVersion": "2.2.0",
                 "executor": executor,
@@ -135,7 +134,6 @@ class TestSecurityContext:
         docs = render_chart(
             values={
                 "securityContext": {"runAsUser": 6000, "fsGroup": 60},
-                "webserver": {"defaultUser": {"enabled": True}},
                 "flower": {"enabled": True},
                 "statsd": {"enabled": False},
                 "airflowVersion": "2.2.0",
@@ -165,7 +163,7 @@ class TestSecurityContext:
                 "uid": 3000,
                 "gid": 30,
                 "securityContext": {"runAsUser": 6000, "fsGroup": 60},
-                "webserver": {"defaultUser": {"enabled": True}, **component_contexts},
+                "webserver": {**component_contexts},
                 "workers": {**component_contexts},
                 "flower": {"enabled": True, **component_contexts},
                 "scheduler": {**component_contexts},
@@ -422,22 +420,43 @@ class TestSecurityContext:
             assert ctx_value == jmespath.search("spec.template.spec.initContainers[0].securityContext", doc)
 
     # Test securityContexts for volume-permissions init container
-    def test_volume_permissions_init_container_setting(self):
-        ctx_value = {"allowPrivilegeEscalation": False}
-        docs = render_chart(
-            values={
-                "workers": {
+    @pytest.mark.parametrize(
+        "workers_values",
+        [
+            {
+                "persistence": {"securityContexts": {"container": {"allowPrivilegeEscalation": False}}},
+                "celery": {"persistence": {"enabled": True, "fixPermissions": True}},
+            },
+            {
+                "celery": {
                     "persistence": {
                         "enabled": True,
                         "fixPermissions": True,
-                        "securityContexts": {"container": ctx_value},
+                        "securityContexts": {"container": {"allowPrivilegeEscalation": False}},
                     }
                 }
             },
+            {
+                "persistence": {"securityContexts": {"container": {"allowPrivilegeEscalation": True}}},
+                "celery": {
+                    "persistence": {
+                        "enabled": True,
+                        "fixPermissions": True,
+                        "securityContexts": {"container": {"allowPrivilegeEscalation": False}},
+                    }
+                },
+            },
+        ],
+    )
+    def test_volume_permissions_init_container_setting(self, workers_values):
+        docs = render_chart(
+            values={"workers": workers_values},
             show_only=["templates/workers/worker-deployment.yaml"],
         )
 
-        assert ctx_value == jmespath.search("spec.template.spec.initContainers[0].securityContext", docs[0])
+        assert jmespath.search("spec.template.spec.initContainers[0].securityContext", docs[0]) == {
+            "allowPrivilegeEscalation": False
+        }
 
     # Test securityContexts for main pods
     def test_main_pod_setting(self):

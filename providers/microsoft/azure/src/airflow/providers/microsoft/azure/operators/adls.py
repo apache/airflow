@@ -23,7 +23,7 @@ from airflow.providers.common.compat.sdk import BaseOperator
 from airflow.providers.microsoft.azure.hooks.data_lake import AzureDataLakeHook, AzureDataLakeStorageV2Hook
 
 if TYPE_CHECKING:
-    from airflow.utils.context import Context
+    from airflow.sdk import Context
 
 DEFAULT_AZURE_DATA_LAKE_CONN_ID = "azure_data_lake_default"
 

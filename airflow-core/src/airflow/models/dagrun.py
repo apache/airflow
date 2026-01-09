@@ -104,16 +104,15 @@ if TYPE_CHECKING:
 
     from airflow._shared.observability.traces.base_tracer import EmptySpan
     from airflow.models.dag_version import DagVersion
-    from airflow.models.mappedoperator import MappedOperator
     from airflow.models.taskinstancekey import TaskInstanceKey
     from airflow.sdk import DAG as SDKDAG
-    from airflow.serialization.serialized_objects import SerializedBaseOperator, SerializedDAG
+    from airflow.serialization.definitions.dag import SerializedDAG
+    from airflow.serialization.definitions.mappedoperator import Operator
 
     CreatedTasks = TypeVar("CreatedTasks", Iterator["dict[str, Any]"], Iterator[TI])
     AttributeValueType: TypeAlias = (
         str | bool | int | float | Sequence[str] | Sequence[bool] | Sequence[int] | Sequence[float]
     )
-    Operator: TypeAlias = MappedOperator | SerializedBaseOperator
 
 RUN_ID_REGEX = r"^(?:manual|scheduled|asset_triggered)__(?:\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\+00:00)$"
 
@@ -1528,7 +1527,7 @@ class DagRun(Base, LoggingMixin):
             If the ti does not need expansion, either because the task is not
             mapped, or has already been expanded, *None* is returned.
             """
-            from airflow.models.mappedoperator import is_mapped
+            from airflow.serialization.definitions.mappedoperator import is_mapped
 
             if TYPE_CHECKING:
                 assert ti.task
@@ -1636,8 +1635,6 @@ class DagRun(Base, LoggingMixin):
         Note that the stat will only be emitted for scheduler-triggered DAG runs
         (i.e. when ``run_type`` is *SCHEDULED* and ``clear_number`` is equal to 0).
         """
-        from airflow.models.dag import get_run_data_interval
-
         if self.state == TaskInstanceState.RUNNING:
             return
         if self.run_type != DagRunType.SCHEDULED:
@@ -1659,13 +1656,7 @@ class DagRun(Base, LoggingMixin):
             except ValueError:  # No start dates at all.
                 pass
             else:
-                # TODO: Logically, this should be DagRunInfo.run_after, but the
-                # information is not stored on a DagRun, only before the actual
-                # execution on DagModel.next_dagrun_create_after. We should add
-                # a field on DagRun for this instead of relying on the run
-                # always happening immediately after the data interval.
-                data_interval_end = get_run_data_interval(dag.timetable, self).end
-                true_delay = first_start_date - data_interval_end
+                true_delay = first_start_date - self.run_after
                 if true_delay.total_seconds() > 0:
                     Stats.timing(
                         f"dagrun.{dag.dag_id}.first_task_scheduling_delay", true_delay, tags=self.stats_tags
@@ -1748,7 +1739,7 @@ class DagRun(Base, LoggingMixin):
 
         """
         from airflow.models.expandinput import NotFullyPopulated
-        from airflow.models.mappedoperator import get_mapped_ti_count
+        from airflow.serialization.definitions.mappedoperator import get_mapped_ti_count
 
         tis = self.get_task_instances(session=session)
 
@@ -1890,7 +1881,7 @@ class DagRun(Base, LoggingMixin):
         :param task_creator: Function to create task instances
         """
         from airflow.models.expandinput import NotFullyPopulated
-        from airflow.models.mappedoperator import get_mapped_ti_count
+        from airflow.serialization.definitions.mappedoperator import get_mapped_ti_count
 
         map_indexes: Iterable[int]
         for task in tasks:
@@ -1964,7 +1955,7 @@ class DagRun(Base, LoggingMixin):
         for more details.
         """
         from airflow.models.expandinput import NotFullyPopulated
-        from airflow.models.mappedoperator import get_mapped_ti_count
+        from airflow.serialization.definitions.mappedoperator import get_mapped_ti_count
         from airflow.settings import task_instance_mutation_hook
 
         try:

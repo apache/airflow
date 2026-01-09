@@ -922,9 +922,9 @@ class FileTaskHandler(logging.Handler):
         """
         remote_io = None
         try:
-            from airflow.logging_config import REMOTE_TASK_LOG
+            from airflow.logging_config import get_remote_task_log
 
-            remote_io = REMOTE_TASK_LOG
+            remote_io = get_remote_task_log()
         except Exception:
             pass
 

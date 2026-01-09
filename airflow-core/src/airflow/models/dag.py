@@ -21,11 +21,10 @@ import logging
 from collections import defaultdict
 from collections.abc import Callable, Collection
 from datetime import datetime, timedelta
-from typing import TYPE_CHECKING, Any, Union, cast
+from typing import TYPE_CHECKING, Any, cast
 
 import pendulum
 import sqlalchemy_jsonfield
-from dateutil.relativedelta import relativedelta
 from sqlalchemy import (
     Boolean,
     Float,
@@ -61,7 +60,6 @@ from airflow.settings import json
 from airflow.timetables.base import DataInterval, Timetable
 from airflow.timetables.interval import CronDataIntervalTimetable, DeltaDataIntervalTimetable
 from airflow.timetables.simple import AssetTriggeredTimetable, NullTimetable, OnceTimetable
-from airflow.utils.context import Context
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.sqlalchemy import UtcDateTime, mapped_column, with_row_locks
 from airflow.utils.state import DagRunState
@@ -70,30 +68,31 @@ from airflow.utils.types import DagRunType
 if TYPE_CHECKING:
     from typing import TypeAlias
 
-    from airflow.models.mappedoperator import MappedOperator
+    from dateutil.relativedelta import relativedelta
+
+    from airflow.sdk import Context
     from airflow.serialization.definitions.assets import (
         SerializedAsset,
         SerializedAssetAlias,
         SerializedAssetBase,
     )
-    from airflow.serialization.serialized_objects import SerializedBaseOperator, SerializedDAG
+    from airflow.serialization.definitions.dag import SerializedDAG
+    from airflow.serialization.serialized_objects import LazyDeserializedDAG
 
-    Operator: TypeAlias = MappedOperator | SerializedBaseOperator
     UKey: TypeAlias = SerializedAssetUniqueKey
+    DagStateChangeCallback = Callable[[Context], None]
+    ScheduleInterval = None | str | timedelta | relativedelta
+
+    ScheduleArg = (
+        ScheduleInterval
+        | Timetable
+        | "SerializedAssetBase"
+        | Collection["SerializedAsset" | "SerializedAssetAlias"]
+    )
 
 log = logging.getLogger(__name__)
 
 TAG_MAX_LEN = 100
-
-DagStateChangeCallback = Callable[[Context], None]
-ScheduleInterval = None | str | timedelta | relativedelta
-
-ScheduleArg = Union[
-    ScheduleInterval,
-    Timetable,
-    "SerializedAssetBase",
-    Collection[Union["SerializedAsset", "SerializedAssetAlias"]],
-]
 
 
 def infer_automated_data_interval(timetable: Timetable, logical_date: datetime) -> DataInterval:
@@ -336,7 +335,8 @@ class DagModel(Base):
     is_paused_at_creation = airflow_conf.getboolean("core", "dags_are_paused_at_creation")
     is_paused: Mapped[bool] = mapped_column(Boolean, default=is_paused_at_creation)
     # Whether that DAG was seen on the last DagBag load
-    is_stale: Mapped[bool] = mapped_column(Boolean, default=True)
+    is_stale: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    exceeds_max_non_backfill: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     # Last time the scheduler started
     last_parsed_time: Mapped[datetime | None] = mapped_column(UtcDateTime, nullable=True)
     # How long it took to parse this file
@@ -685,6 +685,7 @@ class DagModel(Base):
                 cls.is_paused == expression.false(),
                 cls.is_stale == expression.false(),
                 cls.has_import_errors == expression.false(),
+                cls.exceeds_max_non_backfill == expression.false(),
                 or_(
                     cls.next_dagrun_create_after <= func.now(),
                     cls.dag_id.in_(asset_triggered_dag_ids),
@@ -701,24 +702,22 @@ class DagModel(Base):
 
     def calculate_dagrun_date_fields(
         self,
-        dag: SerializedDAG,
+        dag: SerializedDAG | LazyDeserializedDAG,
         last_automated_dag_run: None | DataInterval,
     ) -> None:
         """
         Calculate ``next_dagrun`` and `next_dagrun_create_after``.
 
         :param dag: The DAG object
-        :param last_automated_dag_run: DataInterval (or datetime) of most recent run of this dag, or none
+        :param last_automated_dag_run: DataInterval of most recent run of this dag, or none
             if not yet scheduled.
         """
-        last_automated_data_interval: DataInterval | None
         if isinstance(last_automated_dag_run, datetime):
             raise ValueError(
                 "Passing a datetime to `DagModel.calculate_dagrun_date_fields` is not supported. "
                 "Provide a data interval instead."
             )
-        last_automated_data_interval = last_automated_dag_run
-        next_dagrun_info = dag.next_dagrun_info(last_automated_data_interval)
+        next_dagrun_info = dag.next_dagrun_info(last_automated_dagrun=last_automated_dag_run)
         if next_dagrun_info is None:
             self.next_dagrun_data_interval = self.next_dagrun = self.next_dagrun_create_after = None
         else:

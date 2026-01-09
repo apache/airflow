@@ -29,7 +29,7 @@ if TYPE_CHECKING:
     from azure.servicebus import ServiceBusMessage
     from azure.servicebus.management import AuthorizationRule, CorrelationRuleFilter, SqlRuleFilter
 
-    from airflow.utils.context import Context
+    from airflow.sdk import Context
 
     MessageCallback = Callable[[ServiceBusMessage, Context], None]
 

@@ -27,6 +27,17 @@
 Changelog
 ---------
 
+6.4.2
+.....
+
+Misc
+~~~~
+
+* ``Extract shared "module_loading" distribution (#59139)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 6.4.1
 .....
 

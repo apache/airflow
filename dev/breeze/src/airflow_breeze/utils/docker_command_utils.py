@@ -230,7 +230,7 @@ You can find installation instructions here: https://docs.docker.com/engine/inst
                 sys.exit(1)
 
 
-def check_container_engine(quiet: bool = False):
+def check_container_engine_is_docker(quiet: bool = False) -> bool:
     """Checks if the container engine is Docker or podman."""
     response = run_command(
         ["docker", "version"],
@@ -254,10 +254,12 @@ def check_container_engine(quiet: bool = False):
     )
     if podman_engine_enabled:
         get_console().print(
-            "[error]Podman is not yet supported as a container engine in breeze.[/]\n"
-            "[warning]Please switch to Docker.[/]"
+            "[warning]Podman container engine detected.[/]\n"
+            "[warning]Podman container engine has not become fully supported in breeze yet.[/]"
         )
-        sys.exit(1)
+        return False
+    get_console().print("[success]Docker container engine detected.[/]")
+    return True
 
 
 def check_remote_ghcr_io_commands():
@@ -538,10 +540,15 @@ def check_executable_entrypoint_permissions(quiet: bool = False):
 @lru_cache
 def perform_environment_checks(quiet: bool = False):
     check_docker_is_running()
-    check_container_engine(quiet)
-    check_docker_version(quiet)
-    check_docker_compose_version(quiet)
-    check_executable_entrypoint_permissions(quiet)
+    container_engine_is_docker = check_container_engine_is_docker(quiet)
+    if not container_engine_is_docker:
+        get_console().print("[error]Unsupported container engine detected.[/]")
+        get_console().print("[error]Install and enable Docker to continue.[/]")
+        sys.exit(1)
+    else:
+        check_docker_version(quiet)
+        check_docker_compose_version(quiet)
+        check_executable_entrypoint_permissions(quiet)
     if not quiet:
         get_console().print(f"[success]Host python version is {sys.version}[/]")
 

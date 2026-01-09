@@ -19,12 +19,13 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from impala.dbapi import connect
-from sqlalchemy.engine import URL
 
+from airflow.exceptions import AirflowOptionalProviderFeatureException
 from airflow.providers.common.sql.hooks.sql import DbApiHook
 
 if TYPE_CHECKING:
     from impala.interface import Connection
+    from sqlalchemy.engine import URL
 
 
 class ImpalaHook(DbApiHook):
@@ -50,6 +51,14 @@ class ImpalaHook(DbApiHook):
     @property
     def sqlalchemy_url(self) -> URL:
         """Return a `sqlalchemy.engine.URL` object constructed from the connection."""
+        try:
+            from sqlalchemy.engine import URL
+        except (ImportError, ModuleNotFoundError) as err:
+            raise AirflowOptionalProviderFeatureException(
+                "The 'sqlalchemy' library is required to use this feature. "
+                "Please install it with: pip install 'apache-airflow-providers-apache-impala[sqlalchemy]'"
+            ) from err
+
         conn = self.get_connection(self.get_conn_id())
         extra = conn.extra_dejson or {}
 

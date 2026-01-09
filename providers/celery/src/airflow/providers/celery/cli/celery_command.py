@@ -132,10 +132,9 @@ def _run_stale_bundle_cleanup():
         )
     if not check_interval or check_interval <= 0 or not AIRFLOW_V_3_0_PLUS:
         # do not start bundle cleanup process
-        try:
+        with suppress(BaseException):
             yield
-        finally:
-            return
+        return
     from airflow.dag_processing.bundles.base import BundleUsageTrackingManager
 
     log.info("starting stale bundle cleanup process")

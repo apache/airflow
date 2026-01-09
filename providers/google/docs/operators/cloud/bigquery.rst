@@ -198,6 +198,10 @@ To fetch data from a BigQuery table you can use
 Alternatively you can fetch data for selected columns if you pass fields to
 ``selected_fields``.
 
+.. note::
+   The ``project_id`` parameter is **deprecated** and will be removed in a future
+   release. Please use ``table_project_id`` instead.
+
 The result of this operator can be retrieved in two different formats based on the value of the ``as_dict`` parameter:
 ``False`` (default) - A Python list of lists, where the number of elements in the nesting list will be equal to the number of rows fetched. Each element in the
 nesting will a nested list where elements would represent the column values for

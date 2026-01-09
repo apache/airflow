@@ -125,6 +125,7 @@ def base_app(region_name, avp_policy_store_id):
                 "core",
                 "auth_manager",
             ): "airflow.providers.amazon.aws.auth_manager.aws_auth_manager.AwsAuthManager",
+            ("aws_auth_manager", "conn_id"): "aws_default",
             ("aws_auth_manager", "region_name"): region_name,
             ("aws_auth_manager", "saml_metadata_url"): SAML_METADATA_URL,
             ("aws_auth_manager", "avp_policy_store_id"): avp_policy_store_id,
@@ -203,7 +204,7 @@ class TestAwsAuthManager:
         token = response.cookies.get(COOKIE_NAME_JWT_TOKEN)
         assert response.status_code == 303
         assert "location" in response.headers
-        assert response.headers["location"] == "/"
+        assert response.headers["location"] == "http://localhost:28080"
         assert token is not None
 
     def test_login_admin_token(self, client_admin_permissions):

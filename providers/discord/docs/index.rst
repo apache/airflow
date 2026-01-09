@@ -35,6 +35,7 @@
     :caption: Guides
 
     Connection types <connections/discord-webhook>
+    Discord Notifications <notifications/index>
 
 .. toctree::
     :hidden:

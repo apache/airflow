@@ -32,10 +32,7 @@ from airflow.providers.amazon.aws.operators.appflow import (
     AppflowRunOperator,
 )
 
-try:
-    from airflow.sdk import timezone
-except ImportError:
-    from airflow.utils import timezone  # type: ignore[attr-defined,no-redef]
+from tests_common.test_utils.compat import timezone
 
 CONN_ID = "aws_default"
 DAG_ID = "dag_id"

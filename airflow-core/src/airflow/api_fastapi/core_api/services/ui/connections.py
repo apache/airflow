@@ -27,7 +27,7 @@ from airflow.api_fastapi.core_api.datamodels.connections import (
     ConnectionHookMetaData,
     StandardHookFields,
 )
-from airflow.sdk import Param
+from airflow.serialization.definitions.param import SerializedParam
 
 if TYPE_CHECKING:
     from airflow.providers_manager import ConnectionFormWidgetInfo, HookInfo
@@ -79,7 +79,7 @@ class HookMetaService:
                 for v in validators:
                     if isinstance(v, HookMetaService.MockEnum):
                         enum = {"enum": v.allowed_values}
-            self.param = Param(
+            self.param = SerializedParam(
                 default=default,
                 title=label,
                 description=description or None,

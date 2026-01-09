@@ -27,6 +27,10 @@ import sqlalchemy
 
 from airflow.models.dag import DAG
 from airflow.providers.common.compat.sdk import Connection
+from airflow.providers.mysql.hooks.mysql import MySqlHook
+
+from tests_common.test_utils.asserts import assert_equal_ignore_multiple_spaces
+from tests_common.test_utils.compat import timezone
 
 try:
     import MySQLdb.cursors
@@ -34,15 +38,6 @@ try:
     MYSQL_AVAILABLE = True
 except ImportError:
     MYSQL_AVAILABLE = False
-
-from airflow.providers.mysql.hooks.mysql import MySqlHook
-
-try:
-    from airflow.sdk import timezone
-except ImportError:
-    from airflow.utils import timezone  # type: ignore[attr-defined,no-redef]
-
-from tests_common.test_utils.asserts import assert_equal_ignore_multiple_spaces
 
 SSL_DICT = {"cert": "/tmp/client-cert.pem", "ca": "/tmp/server-ca.pem", "key": "/tmp/client-key.pem"}
 INSERT_SQL_STATEMENT = "INSERT INTO connection (id, conn_id, conn_type, description, host, `schema`, login, password, port, is_encrypted, is_extra_encrypted, extra) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)"

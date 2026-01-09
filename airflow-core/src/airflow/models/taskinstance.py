@@ -17,7 +17,6 @@
 # under the License.
 from __future__ import annotations
 
-import contextlib
 import hashlib
 import itertools
 import json
@@ -27,15 +26,14 @@ import uuid
 from collections import defaultdict
 from collections.abc import Collection, Iterable
 from datetime import datetime, timedelta
-from functools import cache
-from typing import TYPE_CHECKING, Any, cast
+from typing import TYPE_CHECKING, Any
 from urllib.parse import quote
 
 import attrs
 import dill
-import lazy_object_proxy
 import uuid6
 from sqlalchemy import (
+    JSON,
     Float,
     ForeignKey,
     ForeignKeyConstraint,
@@ -71,7 +69,7 @@ from airflow._shared.timezones import timezone
 from airflow.assets.manager import asset_manager
 from airflow.configuration import conf
 from airflow.listeners.listener import get_listener_manager
-from airflow.models.asset import AssetEvent, AssetModel
+from airflow.models.asset import AssetModel
 from airflow.models.base import Base, StringID, TaskInstanceDependencies
 from airflow.models.dag_version import DagVersion
 
@@ -103,9 +101,8 @@ log = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
     from datetime import datetime
-    from typing import Literal, TypeAlias
+    from typing import Literal
 
-    import pendulum
     from sqlalchemy.engine import Connection as SAConnection, Engine
     from sqlalchemy.orm.session import Session
     from sqlalchemy.sql import Update
@@ -114,12 +111,9 @@ if TYPE_CHECKING:
     from airflow.api_fastapi.execution_api.datamodels.asset import AssetProfile
     from airflow.models.dag import DagModel
     from airflow.models.dagrun import DagRun
-    from airflow.models.mappedoperator import MappedOperator
+    from airflow.serialization.definitions.dag import SerializedDAG
+    from airflow.serialization.definitions.mappedoperator import Operator
     from airflow.serialization.definitions.taskgroup import SerializedTaskGroup
-    from airflow.serialization.serialized_objects import SerializedBaseOperator, SerializedDAG
-    from airflow.utils.context import Context
-
-    Operator: TypeAlias = MappedOperator | SerializedBaseOperator
 
 
 PAST_DEPENDS_MET = "past_depends_met"
@@ -435,7 +429,9 @@ class TaskInstance(Base, LoggingMixin):
     # The method to call next, and any extra arguments to pass to it.
     # Usually used when resuming from DEFERRED.
     next_method: Mapped[str | None] = mapped_column(String(1000), nullable=True)
-    next_kwargs: Mapped[dict | None] = mapped_column(MutableDict.as_mutable(ExtendedJSON), nullable=True)
+    next_kwargs: Mapped[dict | None] = mapped_column(
+        MutableDict.as_mutable(JSON().with_variant(postgresql.JSONB, "postgresql")), nullable=True
+    )
 
     _task_display_property_value: Mapped[str | None] = mapped_column(
         "task_display_name", String(2000), nullable=True
@@ -735,9 +731,7 @@ class TaskInstance(Base, LoggingMixin):
         self.queue = task.queue
         self.pool = pool_override or task.pool
         self.pool_slots = task.pool_slots
-        with contextlib.suppress(Exception):
-            # This method is called from the different places, and sometimes the TI is not fully initialized
-            self.priority_weight = self.task.weight_rule.get_weight(self)
+        self.priority_weight = self.task.weight_rule.get_weight(self)
         self.run_as_user = task.run_as_user
         # Do not set max_tries to task.retries here because max_tries is a cumulative
         # value that needs to be stored in the db.
@@ -1255,33 +1249,6 @@ class TaskInstance(Base, LoggingMixin):
         self.next_method = None
         self.next_kwargs = None
 
-    @provide_session
-    def _run_raw_task(
-        self,
-        mark_success: bool = False,
-        session: Session = NEW_SESSION,
-        **kwargs: Any,
-    ) -> None:
-        """Only kept for tests."""
-        from airflow.sdk.definitions.dag import _run_task
-
-        if mark_success:
-            self.set_state(TaskInstanceState.SUCCESS)
-            log.info("[DAG TEST] Marking success for %s ", self.task_id)
-            return None
-
-        # TODO (TaskSDK): This is the old ti execution path. The only usage is
-        # in TI.run(...), someone needs to analyse if it's still actually used
-        # somewhere and fix it, likely by rewriting TI.run(...) to use the same
-        # mechanism as Operator.test().
-        taskrun_result = _run_task(ti=self, task=self.task)  # type: ignore[arg-type]
-        if taskrun_result is None:
-            return None
-        if taskrun_result.error:
-            raise taskrun_result.error
-        self.task = taskrun_result.ti.task  # type: ignore[assignment]
-        return None
-
     @staticmethod
     @provide_session
     def register_asset_changes_in_db(
@@ -1462,54 +1429,6 @@ class TaskInstance(Base, LoggingMixin):
                 .values(last_heartbeat_at=timezone.utcnow())
             )
 
-    @provide_session
-    def run(
-        self,
-        verbose: bool = True,
-        ignore_all_deps: bool = False,
-        ignore_depends_on_past: bool = False,
-        wait_for_past_depends_before_skipping: bool = False,
-        ignore_task_deps: bool = False,
-        ignore_ti_state: bool = False,
-        mark_success: bool = False,
-        test_mode: bool = False,
-        pool: str | None = None,
-        session: Session = NEW_SESSION,
-        raise_on_defer: bool = False,
-    ) -> None:
-        """Run TaskInstance (only kept for tests)."""
-        # This method is only used in ti.run and dag.test and task.test.
-        # So doing the s10n/de-s10n dance to operator on Serialized task for the scheduler dep check part.
-        from airflow.serialization.serialized_objects import SerializedDAG
-
-        original_task = self.task
-        if TYPE_CHECKING:
-            assert original_task is not None
-            assert original_task.dag is not None
-
-        # We don't set up all tests well...
-        if not isinstance(original_task.dag, SerializedDAG):
-            serialized_dag = SerializedDAG.deserialize_dag(SerializedDAG.serialize_dag(original_task.dag))
-            self.task = serialized_dag.get_task(original_task.task_id)
-
-        res = self.check_and_change_state_before_execution(
-            verbose=verbose,
-            ignore_all_deps=ignore_all_deps,
-            ignore_depends_on_past=ignore_depends_on_past,
-            wait_for_past_depends_before_skipping=wait_for_past_depends_before_skipping,
-            ignore_task_deps=ignore_task_deps,
-            ignore_ti_state=ignore_ti_state,
-            mark_success=mark_success,
-            test_mode=test_mode,
-            pool=pool,
-            session=session,
-        )
-        self.task = original_task
-        if not res:
-            return
-
-        self._run_raw_task(mark_success=mark_success)
-
     @classmethod
     def fetch_handle_failure_context(
         cls,
@@ -1640,186 +1559,6 @@ class TaskInstance(Base, LoggingMixin):
             assert self.task.retries
 
         return bool(self.task.retries and self.try_number <= self.max_tries)
-
-    # TODO (GH-52141): We should remove this entire function (only makes sense at runtime).
-    def get_template_context(
-        self,
-        session: Session | None = None,
-        ignore_param_exceptions: bool = True,
-    ) -> Context:
-        """
-        Return TI Context.
-
-        :param session: SQLAlchemy ORM Session
-        :param ignore_param_exceptions: flag to suppress value exceptions while initializing the ParamsDict
-        """
-        # Do not use provide_session here -- it expunges everything on exit!
-        if not session:
-            session = settings.get_session()()
-
-        from airflow.exceptions import NotMapped
-        from airflow.models.mappedoperator import get_mapped_ti_count
-        from airflow.sdk.api.datamodels._generated import (
-            DagRun as DagRunSDK,
-            PrevSuccessfulDagRunResponse,
-            TIRunContext,
-        )
-        from airflow.sdk.definitions.param import process_params
-        from airflow.sdk.execution_time.context import InletEventsAccessors
-        from airflow.sdk.execution_time.task_runner import RuntimeTaskInstance
-        from airflow.utils.context import (
-            ConnectionAccessor,
-            OutletEventAccessors,
-            VariableAccessor,
-        )
-
-        if TYPE_CHECKING:
-            assert session
-
-        def _get_dagrun(session: Session) -> DagRun:
-            dag_run = self.get_dagrun(session)
-            if dag_run in session:
-                return dag_run
-            # The dag_run may not be attached to the session anymore since the
-            # code base is over-zealous with use of session.expunge_all().
-            # Re-attach it if the relation is not loaded so we can load it when needed.
-            info: Any = inspect(dag_run)
-            if info.attrs.consumed_asset_events.loaded_value is not NO_VALUE:
-                return dag_run
-            # If dag_run is not flushed to db at all (e.g. CLI commands using
-            # in-memory objects for ad-hoc operations), just set the value manually.
-            if not info.has_identity:
-                dag_run.consumed_asset_events = []
-                return dag_run
-            return session.merge(dag_run, load=False)
-
-        task: Any = self.task
-        dag = task.dag
-        dag_run = _get_dagrun(session)
-
-        validated_params = process_params(dag, task, dag_run.conf, suppress_exception=ignore_param_exceptions)
-        runtime_ti = RuntimeTaskInstance.model_construct(
-            id=self.id,
-            task_id=self.task_id,
-            dag_id=self.dag_id,
-            run_id=self.run_id,
-            try_numer=self.try_number,
-            map_index=self.map_index,
-            task=self.task,
-            max_tries=self.max_tries,
-            hostname=self.hostname,
-            _ti_context_from_server=TIRunContext(
-                dag_run=DagRunSDK.model_validate(dag_run, from_attributes=True),
-                max_tries=self.max_tries,
-                should_retry=self.is_eligible_to_retry(),
-            ),
-            start_date=self.start_date,
-            dag_version_id=self.dag_version_id,
-        )
-
-        context: Context = runtime_ti.get_template_context()
-
-        @cache  # Prevent multiple database access.
-        def _get_previous_dagrun_success() -> PrevSuccessfulDagRunResponse:
-            dr_from_db = self.get_previous_dagrun(state=DagRunState.SUCCESS, session=session)
-            if dr_from_db:
-                return PrevSuccessfulDagRunResponse.model_validate(dr_from_db, from_attributes=True)
-            return PrevSuccessfulDagRunResponse()
-
-        def get_prev_data_interval_start_success() -> pendulum.DateTime | None:
-            return timezone.coerce_datetime(_get_previous_dagrun_success().data_interval_start)
-
-        def get_prev_data_interval_end_success() -> pendulum.DateTime | None:
-            return timezone.coerce_datetime(_get_previous_dagrun_success().data_interval_end)
-
-        def get_prev_start_date_success() -> pendulum.DateTime | None:
-            return timezone.coerce_datetime(_get_previous_dagrun_success().start_date)
-
-        def get_prev_end_date_success() -> pendulum.DateTime | None:
-            return timezone.coerce_datetime(_get_previous_dagrun_success().end_date)
-
-        def get_triggering_events() -> dict[str, list[AssetEvent]]:
-            asset_events = dag_run.consumed_asset_events
-            triggering_events: dict[str, list[AssetEvent]] = defaultdict(list)
-            for event in asset_events:
-                if event.asset:
-                    triggering_events[event.asset.uri].append(event)
-
-            return triggering_events
-
-        # NOTE: If you add to this dict, make sure to also update the following:
-        # * Context in task-sdk/src/airflow/sdk/definitions/context.py
-        # * KNOWN_CONTEXT_KEYS in airflow/utils/context.py
-        # * Table in docs/apache-airflow/templates-ref.rst
-
-        context.update(
-            {
-                "outlet_events": OutletEventAccessors(),
-                "inlet_events": InletEventsAccessors(task.inlets),
-                "params": validated_params,
-                "prev_data_interval_start_success": get_prev_data_interval_start_success(),
-                "prev_data_interval_end_success": get_prev_data_interval_end_success(),
-                "prev_start_date_success": get_prev_start_date_success(),
-                "prev_end_date_success": get_prev_end_date_success(),
-                "test_mode": self.test_mode,
-                # ti/task_instance are added here for ti.xcom_{push,pull}
-                "task_instance": self,
-                "ti": self,
-                "triggering_asset_events": lazy_object_proxy.Proxy(get_triggering_events),
-                "var": {
-                    "json": VariableAccessor(deserialize_json=True),
-                    "value": VariableAccessor(deserialize_json=False),
-                },
-                "conn": ConnectionAccessor(),
-            }
-        )
-
-        try:
-            expanded_ti_count: int | None = get_mapped_ti_count(task, self.run_id, session=session)
-            context["expanded_ti_count"] = expanded_ti_count
-            if expanded_ti_count:
-                setattr(
-                    self,
-                    "_upstream_map_indexes",
-                    {
-                        upstream.task_id: self.get_relevant_upstream_map_indexes(
-                            upstream,
-                            expanded_ti_count,
-                            session=session,
-                        )
-                        for upstream in task.upstream_list
-                    },
-                )
-        except NotMapped:
-            pass
-
-        return context
-
-    # TODO (GH-52141): We should remove this entire function (only makes sense at runtime).
-    # This is intentionally left untyped so Mypy complains less about this dead code.
-    def render_templates(self, context=None, jinja_env=None):
-        """
-        Render templates in the operator fields.
-
-        If the task was originally mapped, this may replace ``self.task`` with
-        the unmapped, fully rendered BaseOperator. The original ``self.task``
-        before replacement is returned.
-        """
-        from airflow.sdk.definitions.mappedoperator import MappedOperator
-
-        if not context:
-            context = self.get_template_context()
-        original_task = self.task
-
-        # If self.task is mapped, this call replaces self.task to point to the
-        # unmapped BaseOperator created by this function! This is because the
-        # MappedOperator is useless for template rendering, and we need to be
-        # able to access the unmapped task instead.
-        original_task.render_template_fields(context, jinja_env)
-        if isinstance(self.task, MappedOperator):
-            self.task = context["ti"].task
-
-        return original_task
 
     def set_duration(self) -> None:
         """Set task instance duration."""
@@ -2191,7 +1930,7 @@ def _find_common_ancestor_mapped_group(node1: Operator, node2: Operator) -> Seri
 
 def _is_further_mapped_inside(operator: Operator, container: SerializedTaskGroup) -> bool:
     """Whether given operator is *further* mapped inside a task group."""
-    from airflow.models.mappedoperator import is_mapped
+    from airflow.serialization.definitions.mappedoperator import is_mapped
 
     if is_mapped(operator):
         return True
@@ -2258,7 +1997,7 @@ def _get_relevant_map_indexes(
     :return: Specific map index or map indexes to pull, or ``None`` if we
         want to "whole" return value (i.e. no mapped task groups involved).
     """
-    from airflow.models.mappedoperator import get_mapped_ti_count
+    from airflow.serialization.definitions.mappedoperator import get_mapped_ti_count
 
     # This value should never be None since we already know the current task
     # is in a mapped task group, and should have been expanded, despite that,
@@ -2305,7 +2044,7 @@ def find_relevant_relatives(
     run_id: str,
     session: Session,
 ) -> Collection[str | tuple[str, int]]:
-    from airflow.models.mappedoperator import get_mapped_ti_count
+    from airflow.serialization.definitions.mappedoperator import get_mapped_ti_count
 
     visited: set[str | tuple[str, int]] = set()
 
@@ -2330,10 +2069,7 @@ def find_relevant_relatives(
                 # Treat it as a normal task instead.
                 _visit_relevant_relatives_for_normal([task_id])
                 continue
-            # TODO (GH-52141): This should return scheduler operator types, but
-            # currently get_flat_relatives is inherited from SDK DAGNode.
-            relatives = cast("Iterable[Operator]", task.get_flat_relatives(upstream=direction == "upstream"))
-            for relative in relatives:
+            for relative in task.get_flat_relatives(upstream=direction == "upstream"):
                 if relative.task_id in visited:
                     continue
                 relative_map_indexes = _get_relevant_map_indexes(

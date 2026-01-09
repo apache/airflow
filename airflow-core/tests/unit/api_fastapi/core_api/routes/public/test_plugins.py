@@ -162,8 +162,8 @@ class TestGetPlugins:
 @skip_if_force_lowest_dependencies_marker
 class TestGetPluginImportErrors:
     @patch(
-        "airflow.plugins_manager.import_errors",
-        new={"plugins/test_plugin.py": "something went wrong"},
+        "airflow.plugins_manager.get_import_errors",
+        new=lambda: {"plugins/test_plugin.py": "something went wrong"},
     )
     def test_should_respond_200(self, test_client, session):
         with assert_queries_count(2):

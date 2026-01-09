@@ -6499,6 +6499,17 @@ export const $TriggerResponse = {
             format: 'date-time',
             title: 'Created Date'
         },
+        queue: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Queue'
+        },
         triggerer_id: {
             anyOf: [
                 {
@@ -6512,7 +6523,7 @@ export const $TriggerResponse = {
         }
     },
     type: 'object',
-    required: ['id', 'classpath', 'kwargs', 'created_date', 'triggerer_id'],
+    required: ['id', 'classpath', 'kwargs', 'created_date', 'queue', 'triggerer_id'],
     title: 'TriggerResponse',
     description: 'Trigger serializer for responses.'
 } as const;
@@ -7143,7 +7154,14 @@ export const $ConfigResponse = {
             title: 'External Log Name'
         },
         theme: {
-            '$ref': '#/components/schemas/Theme'
+            anyOf: [
+                {
+                    '$ref': '#/components/schemas/Theme'
+                },
+                {
+                    type: 'null'
+                }
+            ]
         }
     },
     type: 'object',

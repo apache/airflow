@@ -59,6 +59,7 @@ from airflow_breeze.commands.common_options import (
     option_keep_env_variables,
     option_max_time,
     option_mount_sources,
+    option_mount_ui_dist,
     option_mysql_version,
     option_no_db_cleanup,
     option_platform_single,
@@ -328,6 +329,7 @@ option_load_default_connections = click.option(
 @option_keep_env_variables
 @option_max_time
 @option_mount_sources
+@option_mount_ui_dist
 @option_mysql_version
 @option_no_db_cleanup
 @option_platform_single
@@ -386,6 +388,7 @@ def shell(
     load_default_connections: bool,
     max_time: int | None,
     mount_sources: str,
+    mount_ui_dist: bool,
     mysql_version: str,
     no_db_cleanup: bool,
     distribution_format: str,
@@ -460,6 +463,7 @@ def shell(
         load_example_dags=load_example_dags,
         load_default_connections=load_default_connections,
         mount_sources=mount_sources,
+        mount_ui_dist=mount_ui_dist,
         mysql_version=mysql_version,
         no_db_cleanup=no_db_cleanup,
         distribution_format=distribution_format,
@@ -552,6 +556,7 @@ option_executor_start_airflow = click.option(
 @option_load_default_connections
 @option_load_example_dags
 @option_mount_sources
+@option_mount_ui_dist
 @option_mysql_version
 @option_platform_single
 @option_postgres_version
@@ -599,6 +604,7 @@ def start_airflow(
     load_default_connections: bool,
     load_example_dags: bool,
     mount_sources: str,
+    mount_ui_dist: bool,
     mysql_version: str,
     distribution_format: str,
     platform: str | None,
@@ -692,6 +698,7 @@ def start_airflow(
         load_default_connections=load_default_connections,
         load_example_dags=load_example_dags,
         mount_sources=mount_sources,
+        mount_ui_dist=mount_ui_dist,
         mysql_version=mysql_version,
         distribution_format=distribution_format,
         platform=platform,

@@ -27,8 +27,8 @@ from urllib.parse import urlsplit
 
 import attrs
 
-from airflow.configuration import conf
 from airflow.providers.apache.hdfs.hooks.webhdfs import WebHDFSHook
+from airflow.providers.common.compat.sdk import conf
 from airflow.utils.log.file_task_handler import FileTaskHandler
 from airflow.utils.log.logging_mixin import LoggingMixin
 

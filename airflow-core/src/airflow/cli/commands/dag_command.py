@@ -60,6 +60,7 @@ if TYPE_CHECKING:
     from sqlalchemy.orm import Session
 
     from airflow import DAG
+    from airflow.serialization.definitions.dag import SerializedDAG
     from airflow.timetables.base import DataInterval
 
 DAG_DETAIL_FIELDS = {*DAGResponse.model_fields, *DAGResponse.model_computed_fields}
@@ -656,7 +657,7 @@ def dag_test(args, dag: DAG | None = None, session: Session = NEW_SESSION) -> No
             )
         ).all()
 
-        dot_graph = render_dag(dag, tis=list(tis))
+        dot_graph = render_dag(cast("SerializedDAG", dag), tis=list(tis))
         print()
         if filename:
             _save_dot_to_file(dot_graph, filename)

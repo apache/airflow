@@ -16,7 +16,7 @@
 # under the License.
 from __future__ import annotations
 
-from airflow.plugins_manager import AirflowPlugin
+from airflow.providers.common.compat.sdk import AirflowPlugin
 from airflow.providers.openlineage import conf
 
 # Conditional imports - only load expensive dependencies when plugin is enabled
