@@ -677,6 +677,7 @@ workers:
     command: ~
 
   # Update Strategy when Airflow Celery worker is deployed as a StatefulSet
+  # (deprecated, use `workers.celery.updateStrategy` instead)
   updateStrategy: ~
   # Update Strategy when Airflow Celery worker is deployed as a Deployment
   strategy:
@@ -1054,6 +1055,9 @@ workers:
       failureThreshold: 5
       periodSeconds: 60
       command: ~
+
+    # Update Strategy when Airflow Celery worker is deployed as a StatefulSet
+    updateStrategy: ~
 
     # Create ServiceAccount for Airflow Celery workers
     serviceAccount:
