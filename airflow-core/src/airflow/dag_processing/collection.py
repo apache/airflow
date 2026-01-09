@@ -526,8 +526,8 @@ class DagModelOperation(NamedTuple):
             else:
                 dm.max_consecutive_failed_dag_runs = dag.max_consecutive_failed_dag_runs
 
-            if dag.deadline is not None:
-                dm.deadline = dag.deadline
+            if (deadline_uuids := dag.data.get("dag", {}).get("deadline")) is not None:
+                dm.deadline = deadline_uuids
 
             if hasattr(dag, "has_task_concurrency_limits"):
                 dm.has_task_concurrency_limits = dag.has_task_concurrency_limits
