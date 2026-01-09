@@ -39,16 +39,12 @@ vi.mock("react-router-dom", async () => {
 });
 
 // Mock the hooks
-vi.mock("src/queries/useBulkUpdateTaskInstances", () => ({
-  useBulkUpdateTaskInstances: vi.fn(),
+vi.mock("src/queries/usePatchTaskGroup", () => ({
+  usePatchTaskGroup: vi.fn(),
 }));
 
-vi.mock("src/queries/useBulkUpdateTaskInstancesDryRun", () => ({
-  useBulkUpdateTaskInstancesDryRun: vi.fn(),
-}));
-
-vi.mock("openapi/queries", () => ({
-  useTaskInstanceServiceGetTaskInstances: vi.fn(),
+vi.mock("src/queries/usePatchTaskGroupDryRun", () => ({
+  usePatchTaskGroupDryRun: vi.fn(),
 }));
 
 const DEFAULT_INITIAL_ENTRIES = ["/dags/test-dag/grid/test-run"];
@@ -73,39 +69,31 @@ type MockGroupTaskInstance = {
   readonly task_id: string;
 };
 
-type MockTaskInstance = {
-  readonly map_index: number;
-  readonly state: string;
-  readonly task_id: string;
-};
-
-type MockTaskInstances = {
-  readonly task_instances: Array<MockTaskInstance>;
-  readonly total_entries: number;
-};
-
 const setupMockMutation = async () => {
-  const { useBulkUpdateTaskInstances } = await import("src/queries/useBulkUpdateTaskInstances");
+  const { usePatchTaskGroup: usePatchTaskGroupHook } = await import("src/queries/usePatchTaskGroup");
 
-  type HookOptions = Parameters<typeof useBulkUpdateTaskInstances>[0];
-  let capturedOnSuccess: (() => Promise<void> | void) | undefined;
+  type HookOptions = Parameters<typeof usePatchTaskGroupHook>[0];
+  let capturedOnSuccess: (() => Promise<void> | void) | null;
   const testMockMutateAsync = vi.fn().mockImplementation(async () => {
     await Promise.resolve();
     if (capturedOnSuccess) {
       await capturedOnSuccess();
     }
 
-    return {};
+    return {
+      task_instances: [],
+      total_entries: 0,
+    };
   });
 
-  vi.mocked(useBulkUpdateTaskInstances).mockImplementation((options: HookOptions) => {
+  vi.mocked(usePatchTaskGroupHook).mockImplementation((options: HookOptions) => {
     if (options.onSuccess) {
       capturedOnSuccess = options.onSuccess;
     }
 
     return {
-      context: undefined,
-      data: undefined,
+      context: null,
+      data: null,
       error: null,
       failureCount: 0,
       failureReason: null,
@@ -119,8 +107,8 @@ const setupMockMutation = async () => {
       reset: vi.fn(),
       status: "idle",
       submittedAt: 0,
-      variables: undefined,
-    } as ReturnType<typeof useBulkUpdateTaskInstances>;
+      variables: null,
+    } as unknown as ReturnType<typeof usePatchTaskGroupHook>;
   });
 
   return testMockMutateAsync;
@@ -137,23 +125,14 @@ describe("MarkGroupTaskInstanceAsDialog", () => {
     task_id: "test-task-group",
   };
 
-  const mockTaskInstances: MockTaskInstances = {
-    task_instances: [
-      { map_index: -1, state: "running", task_id: "test-task-1" },
-      { map_index: 0, state: "running", task_id: "test-task-2" },
-    ],
-    total_entries: 2,
-  };
-
   beforeEach(async () => {
     vi.clearAllMocks();
-    const { useBulkUpdateTaskInstances } = await import("src/queries/useBulkUpdateTaskInstances");
-    const { useBulkUpdateTaskInstancesDryRun } = await import("src/queries/useBulkUpdateTaskInstancesDryRun");
-    const { useTaskInstanceServiceGetTaskInstances } = await import("openapi/queries");
+    const { usePatchTaskGroup: usePatchTaskGroupHook } = await import("src/queries/usePatchTaskGroup");
+    const { usePatchTaskGroupDryRun } = await import("src/queries/usePatchTaskGroupDryRun");
 
-    vi.mocked(useBulkUpdateTaskInstances).mockReturnValue({
-      context: undefined,
-      data: undefined,
+    vi.mocked(usePatchTaskGroupHook).mockReturnValue({
+      context: null,
+      data: null,
       error: null,
       failureCount: 0,
       failureReason: null,
@@ -167,19 +146,14 @@ describe("MarkGroupTaskInstanceAsDialog", () => {
       reset: vi.fn(),
       status: "idle",
       submittedAt: 0,
-      variables: undefined,
-    } as ReturnType<typeof useBulkUpdateTaskInstances>);
+      variables: null,
+    } as unknown as ReturnType<typeof usePatchTaskGroupHook>);
 
-    vi.mocked(useBulkUpdateTaskInstancesDryRun).mockReturnValue({
+    vi.mocked(usePatchTaskGroupDryRun).mockReturnValue({
       data: { task_instances: [{ state: "running", task_id: "test-task-1" }], total_entries: 1 },
       isPending: false,
       isSuccess: true,
-    } as ReturnType<typeof useBulkUpdateTaskInstancesDryRun>);
-
-    vi.mocked(useTaskInstanceServiceGetTaskInstances).mockReturnValue({
-      data: mockTaskInstances,
-      isPending: false,
-    } as ReturnType<typeof useTaskInstanceServiceGetTaskInstances>);
+    } as ReturnType<typeof usePatchTaskGroupDryRun>);
   });
 
   it("should render dialog when open is true and not when false", async () => {
@@ -210,16 +184,16 @@ describe("MarkGroupTaskInstanceAsDialog", () => {
   });
 
   it("should call dry run hook with correct parameters", async () => {
-    const { useBulkUpdateTaskInstancesDryRun } = await import("src/queries/useBulkUpdateTaskInstancesDryRun");
+    const { usePatchTaskGroupDryRun } = await import("src/queries/usePatchTaskGroupDryRun");
 
-    type DryRunProps = Parameters<typeof useBulkUpdateTaskInstancesDryRun>[0];
+    type DryRunProps = Parameters<typeof usePatchTaskGroupDryRun>[0];
     const mockDryRunHook = vi.fn().mockReturnValue({
       data: { task_instances: [{ state: "running", task_id: "test-task-1" }], total_entries: 1 },
       isPending: false,
       isSuccess: true,
-    } as ReturnType<typeof useBulkUpdateTaskInstancesDryRun>);
+    } as ReturnType<typeof usePatchTaskGroupDryRun>);
 
-    vi.mocked(useBulkUpdateTaskInstancesDryRun).mockImplementation(mockDryRunHook);
+    vi.mocked(usePatchTaskGroupDryRun).mockImplementation(mockDryRunHook);
 
     render(
       <MarkGroupTaskInstanceAsDialog
@@ -236,15 +210,17 @@ describe("MarkGroupTaskInstanceAsDialog", () => {
 
       expect(callArgs.dagId).toBe("test-dag");
       expect(callArgs.dagRunId).toBe("test-run");
+      expect(callArgs.taskGroupId).toBe("test-task-group");
       expect(callArgs.options?.enabled).toBe(true);
+      expect(callArgs.requestBody.new_state).toBe("success");
     });
   });
 
-  it("should call mutateAsync with correct bulk body including map_index", async () => {
-    const { useBulkUpdateTaskInstances } = await import("src/queries/useBulkUpdateTaskInstances");
+  it("should call mutateAsync with correct request body", async () => {
+    const { usePatchTaskGroup: usePatchTaskGroupHook } = await import("src/queries/usePatchTaskGroup");
 
-    type MutateAsyncParams = Parameters<ReturnType<typeof useBulkUpdateTaskInstances>["mutateAsync"]>[0];
-    const testMockMutateAsync = await setupMockMutation();
+    type MutateAsyncParams = Parameters<ReturnType<typeof usePatchTaskGroupHook>["mutateAsync"]>[0];
+    const mockMutateAsyncFromSetup = await setupMockMutation();
 
     render(
       <MarkGroupTaskInstanceAsDialog
@@ -263,26 +239,16 @@ describe("MarkGroupTaskInstanceAsDialog", () => {
     fireEvent.click(screen.getByText(/modal.confirm/iu));
 
     await waitFor(() => {
-      const [callArgs] = testMockMutateAsync.mock.calls[0] as [MutateAsyncParams];
-      const [action] = callArgs.requestBody.actions;
-
-      if (action?.action !== "update") {
-        throw new Error("Expected update action");
-      }
-      const [entity1, entity2] = action.entities;
-
-      if (!entity1 || !entity2 || typeof entity1 === "string" || typeof entity2 === "string") {
-        throw new Error("Expected entity objects");
-      }
+      const [callArgs] = mockMutateAsyncFromSetup.mock.calls[0] as [MutateAsyncParams];
 
       expect(callArgs.dagId).toBe("test-dag");
       expect(callArgs.dagRunId).toBe("test-run");
-      expect(action.action).toBe("update");
-      expect(action.entities).toHaveLength(2);
-      expect(entity1.task_id).toBe("test-task-1");
-      expect(entity1.map_index).toBe(-1);
-      expect(entity2.task_id).toBe("test-task-2");
-      expect(entity2.map_index).toBe(0);
+      expect(callArgs.taskGroupId).toBe("test-task-group");
+      expect(callArgs.requestBody.new_state).toBe("success");
+      expect(callArgs.requestBody.include_downstream).toBe(false);
+      expect(callArgs.requestBody.include_future).toBe(false);
+      expect(callArgs.requestBody.include_past).toBe(false);
+      expect(callArgs.requestBody.include_upstream).toBe(false);
     });
   });
 
