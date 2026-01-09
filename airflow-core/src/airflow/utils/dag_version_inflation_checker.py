@@ -41,15 +41,15 @@ RUNTIME_VARYING_CALLS = [
 ]
 
 
-class DagStabilityCheckLevel(Enum):
-    """enum class for Dag stability check level."""
+class DagVersionInflationCheckLevel(Enum):
+    """enum class for Dag version inflation check level."""
 
     off = "off"
     warning = "warning"
     error = "error"
 
 
-class DagStabilityCheckerResult:
+class DagVersionInflationCheckResult:
     """
     Represents the result of stability analysis on a Dag file.
 
@@ -57,8 +57,8 @@ class DagStabilityCheckerResult:
     (warning or error).
     """
 
-    def __init__(self, check_level: DagStabilityCheckLevel):
-        self.check_level: DagStabilityCheckLevel = check_level
+    def __init__(self, check_level: DagVersionInflationCheckLevel):
+        self.check_level: DagVersionInflationCheckLevel = check_level
         self.warnings: list[RuntimeVaryingValueWarning] = []
         self.runtime_varying_values: dict = {}
 
@@ -99,11 +99,11 @@ class DagStabilityCheckerResult:
 
         return "\n".join(lines)
 
-    def get_warning_dag_format_dict(self, dag_ids: list[str]) -> list[dict[str, str | None]]:
+    def get_formatted_warnings(self, dag_ids: list[str]) -> list[dict[str, str | None]]:
         """Convert warning statement to Dag warning format."""
         from airflow.models.dagwarning import DagWarningType
 
-        if not self.warnings or self.check_level != DagStabilityCheckLevel.warning:
+        if not self.warnings or self.check_level != DagVersionInflationCheckLevel.warning:
             return []
         return [
             {
@@ -115,7 +115,7 @@ class DagStabilityCheckerResult:
         ]
 
     def get_error_format_dict(self, file_path, bundle_path):
-        if not self.warnings or self.check_level != DagStabilityCheckLevel.error:
+        if not self.warnings or self.check_level != DagVersionInflationCheckLevel.error:
             return None
 
         relative_file_path = str(Path(file_path).relative_to(bundle_path)) if bundle_path else file_path
@@ -167,38 +167,39 @@ class RuntimeVaryingValueAnalyzer:
         - Runtime-varying values in f-strings
         - Runtime-varying values in expressions/collections
         """
-        # 1. Direct runtime-varying call
-        if isinstance(node, ast.Call) and self.is_runtime_varying_call(node):
-            return ast.unparse(node)
+        if isinstance(node, ast.Call):
+            # 1. Direct runtime-varying call
+            if self.is_runtime_varying_call(node):
+                return ast.unparse(node)
 
-        # 2. Runtime-varying variable reference
+            # 2. Method call chain
+            if isinstance(node.func, ast.Attribute):
+                return self.get_varying_source(node.func.value)
+
+        # 3. Runtime-varying variable reference
         if isinstance(node, ast.Name) and node.id in self.varying_vars:
             _, source = self.varying_vars[node.id]
             return source
 
-        # 3. f-string
+        # 4. f-string
         if isinstance(node, ast.JoinedStr):
             return self.get_varying_fstring(node)
 
-        # 4. Binary operation
+        # 5. Binary operation
         if isinstance(node, ast.BinOp):
             return self.get_varying_source(node.left) or self.get_varying_source(node.right)
 
-        # 5. Collections (list/tuple/set)
+        # 6. Collections (list/tuple/set)
         if isinstance(node, (ast.List, ast.Tuple, ast.Set)):
             return self.get_varying_collection(node.elts)
 
-        # 6. List comprehension
+        # 7. List comprehension
         if isinstance(node, ast.ListComp):
             return self.get_varying_source(node.elt)
 
-        # 7. Dictionary
+        # 8. Dictionary
         if isinstance(node, ast.Dict):
             return self.get_varying_dict(node)
-
-        # 8. Method call chain
-        if isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute):
-            return self.get_varying_source(node.func.value)
 
         return None
 
@@ -213,8 +214,7 @@ class RuntimeVaryingValueAnalyzer:
     def get_varying_collection(self, elements: list) -> str | None:
         """Check for runtime-varying values in collection elements."""
         for elt in elements:
-            source = self.get_varying_source(elt)
-            if source:
+            if source := self.get_varying_source(elt):
                 return source
         return None
 
@@ -222,12 +222,10 @@ class RuntimeVaryingValueAnalyzer:
         """Check for runtime-varying values in dictionary keys/values."""
         for key, value in zip(node.keys, node.values):
             if key:
-                source = self.get_varying_source(key)
-                if source:
+                if source := self.get_varying_source(key):
                     return source
             if value:
-                source = self.get_varying_source(value)
-                if source:
+                if source := self.get_varying_source(value):
                     return source
         return None
 
@@ -239,17 +237,16 @@ class RuntimeVaryingValueAnalyzer:
         2. Do the arguments contain runtime-varying values?
         """
         # Check if the function itself is runtime-varying
-        if isinstance(node.func, ast.Attribute):
-            if self._is_runtime_varying_attribute_call(node.func):
-                return True
-        elif isinstance(node.func, ast.Name):
-            if self._is_runtime_varying_name_call(node.func):
-                return True
+        if isinstance(node.func, ast.Attribute) and self.is_runtime_varying_attribute_call(node.func):
+            return True
+
+        if isinstance(node.func, ast.Name) and self.is_runtime_varying_name_call(node.func):
+            return True
 
         # Check if arguments contain runtime-varying values
-        return self._has_varying_arguments(node)
+        return self.has_varying_arguments(node)
 
-    def _has_varying_arguments(self, node: ast.Call) -> bool:
+    def has_varying_arguments(self, node: ast.Call) -> bool:
         """Check if function arguments contain runtime-varying values."""
         for arg in node.args:
             if self.get_varying_source(arg):
@@ -261,7 +258,7 @@ class RuntimeVaryingValueAnalyzer:
 
         return False
 
-    def _is_runtime_varying_attribute_call(self, attr: ast.Attribute) -> bool:
+    def is_runtime_varying_attribute_call(self, attr: ast.Attribute) -> bool:
         """Check for runtime-varying calls like datetime.now()."""
         method_name = attr.attr
 
@@ -284,7 +281,7 @@ class RuntimeVaryingValueAnalyzer:
 
         return False
 
-    def _is_runtime_varying_name_call(self, func: ast.Name) -> bool:
+    def is_runtime_varying_name_call(self, func: ast.Name) -> bool:
         """Check for runtime-varying calls like now() (when imported via 'from import')."""
         func_name = func.id
 
@@ -307,8 +304,8 @@ class DagTaskDetector:
     in Airflow. It needs to handle both traditional class instantiation and decorator styles.
     """
 
-    def __init__(self, from_imports: dict):
-        self.from_imports = from_imports
+    def __init__(self, from_imports: dict[str, tuple[str, str]]):
+        self.from_imports: dict[str, tuple[str, str]] = from_imports
         self.dag_instances: set[str] = set()
         self.is_in_dag_context: bool = False
 
@@ -374,8 +371,8 @@ class AirflowRuntimeVaryingValueChecker(ast.NodeVisitor):
     - Track runtime-varying values and generate warnings
     """
 
-    def __init__(self, check_level: DagStabilityCheckLevel = DagStabilityCheckLevel.warning):
-        self.static_check_result: DagStabilityCheckerResult = DagStabilityCheckerResult(
+    def __init__(self, check_level: DagVersionInflationCheckLevel = DagVersionInflationCheckLevel.warning):
+        self.static_check_result: DagVersionInflationCheckResult = DagVersionInflationCheckResult(
             check_level=check_level
         )
         self.imports: dict[str, str] = {}
@@ -444,8 +441,7 @@ class AirflowRuntimeVaryingValueChecker(ast.NodeVisitor):
         """
         # check the iterator value is runtime-varying
         # iter is runtime-varying : for iter in [datetime.now(), 3]
-        varying_source = self.value_analyzer.get_varying_source(node.iter)
-        if varying_source:
+        if varying_source := self.value_analyzer.get_varying_source(node.iter):
             if isinstance(node.target, ast.Name):
                 self.varying_vars[node.target.id] = (node.lineno, varying_source)
 
@@ -488,8 +484,7 @@ class AirflowRuntimeVaryingValueChecker(ast.NodeVisitor):
 
     def _track_varying_assignment(self, node: ast.Assign):
         """Track variable assignments with runtime-varying values."""
-        varying_source = self.value_analyzer.get_varying_source(node.value)
-        if varying_source:
+        if varying_source := self.value_analyzer.get_varying_source(node.value):
             for target in node.targets:
                 if isinstance(target, ast.Name):
                     self.varying_vars[target.id] = (node.lineno, varying_source)
@@ -507,25 +502,30 @@ class AirflowRuntimeVaryingValueChecker(ast.NodeVisitor):
                 )
             )
 
-    def _get_warning_message(self, context: WarningContext):
+    def _get_warning_message(self, context: WarningContext) -> str:
         """Get appropriate warning message based on context."""
         if self.dag_detector.is_in_dag_context and context == WarningContext.TASK_CONSTRUCTOR:
             return "Don't use runtime-varying values as function arguments within with Dag block"
         return f"Don't use runtime-varying value as argument in {context.value}"
 
 
-def check_dag_file_stability(file_path) -> DagStabilityCheckerResult:
+def check_dag_file_stability(file_path) -> DagVersionInflationCheckResult:
     from airflow.configuration import conf
 
-    check_level = conf.getenum("dag_processor", "dag_stability_check_level", DagStabilityCheckLevel)
+    try:
+        check_level = DagVersionInflationCheckLevel(
+            conf.get("dag_processor", "dag_version_inflation_check_level")
+        )
+    except ValueError:
+        check_level = DagVersionInflationCheckLevel.warning
 
-    if check_level == DagStabilityCheckLevel.off:
-        return DagStabilityCheckerResult(check_level=check_level)
+    if check_level == DagVersionInflationCheckLevel.off:
+        return DagVersionInflationCheckResult(check_level=check_level)
 
     try:
         parsed = ast.parse(Path(file_path).read_bytes())
-    except Exception:
-        return DagStabilityCheckerResult(check_level=check_level)
+    except (SyntaxError, ValueError, TypeError, FileNotFoundError):
+        return DagVersionInflationCheckResult(check_level=check_level)
 
     checker = AirflowRuntimeVaryingValueChecker(check_level)
     checker.visit(parsed)

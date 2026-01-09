@@ -609,11 +609,11 @@ def test_parse_file_with_task_callbacks(spy_agency):
     assert called is True
 
 
-@conf_vars({("dag_processor", "dag_stability_check_level"): "error"})
+@conf_vars({("dag_processor", "dag_version_inflation_check_level"): "error"})
 def test_parse_file_static_check_with_error():
     result = _parse_file(
         DagFileParseRequest(
-            file=f"{TEST_DAG_FOLDER}/test_dag_stability_check.py",
+            file=f"{TEST_DAG_FOLDER}/test_dag_version_inflation_check.py",
             bundle_path=TEST_DAG_FOLDER,
             bundle_name="testing",
         ),
@@ -621,7 +621,7 @@ def test_parse_file_static_check_with_error():
     )
 
     assert result.serialized_dags == []
-    assert list(result.import_errors.keys()) == ["test_dag_stability_check.py"]
+    assert list(result.import_errors.keys()) == ["test_dag_version_inflation_check.py"]
     assert result.warnings is None
     assert "Don't use the variables as arguments" in next(iter(result.import_errors.values()))
 
@@ -629,7 +629,7 @@ def test_parse_file_static_check_with_error():
 def test_parse_file_static_check_with_default_warning():
     result = _parse_file(
         DagFileParseRequest(
-            file=f"{TEST_DAG_FOLDER}/test_dag_stability_check.py",
+            file=f"{TEST_DAG_FOLDER}/test_dag_version_inflation_check.py",
             bundle_path=TEST_DAG_FOLDER,
             bundle_name="testing",
         ),

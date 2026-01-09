@@ -18,7 +18,7 @@ from __future__ import annotations
 
 import ast
 
-from airflow.utils.dag_stability_checker import (
+from airflow.utils.dag_version_inflation_checker import (
     AirflowRuntimeVaryingValueChecker,
     DagTaskDetector,
     RuntimeVaryingValueAnalyzer,
@@ -43,7 +43,7 @@ class TestRuntimeVaryingValueAnalyzer:
 
         # The func is an Attribute node: datetime.now
         assert isinstance(call_node.func, ast.Attribute)
-        result = self.analyzer._is_runtime_varying_attribute_call(call_node.func)
+        result = self.analyzer.is_runtime_varying_attribute_call(call_node.func)
 
         assert result is True
 
@@ -53,7 +53,7 @@ class TestRuntimeVaryingValueAnalyzer:
         call_node = ast.parse(code, mode="eval").body
 
         assert isinstance(call_node.func, ast.Attribute)
-        result = self.analyzer._is_runtime_varying_attribute_call(call_node.func)
+        result = self.analyzer.is_runtime_varying_attribute_call(call_node.func)
 
         assert result is False
 
@@ -68,7 +68,7 @@ class TestRuntimeVaryingValueAnalyzer:
         self.imports["dt"] = "datetime"  # dt is alias for datetime
 
         assert isinstance(call_node.func, ast.Attribute)
-        result = self.analyzer._is_runtime_varying_attribute_call(call_node.func)
+        result = self.analyzer.is_runtime_varying_attribute_call(call_node.func)
 
         assert result is True
 
@@ -79,7 +79,7 @@ class TestRuntimeVaryingValueAnalyzer:
         self.from_imports["uuid4"] = ("uuid", "uuid4")
 
         assert isinstance(call_node.func, ast.Name)
-        result = self.analyzer._is_runtime_varying_name_call(call_node.func)
+        result = self.analyzer.is_runtime_varying_name_call(call_node.func)
 
         assert result is True
 
@@ -88,7 +88,7 @@ class TestRuntimeVaryingValueAnalyzer:
         call_node = ast.parse(code, mode="eval").body
 
         assert isinstance(call_node.func, ast.Name)
-        result = self.analyzer._is_runtime_varying_name_call(call_node.func)
+        result = self.analyzer.is_runtime_varying_name_call(call_node.func)
 
         assert result is False
 
@@ -102,7 +102,7 @@ class TestRuntimeVaryingValueAnalyzer:
         call_node = ast.parse(code, mode="eval").body
         self.imports["datetime"] = "datetime"
 
-        result = self.analyzer._has_varying_arguments(call_node)
+        result = self.analyzer.has_varying_arguments(call_node)
 
         assert result is True
 
@@ -116,7 +116,7 @@ class TestRuntimeVaryingValueAnalyzer:
         call_node = ast.parse(code, mode="eval").body
         self.imports["random"] = "random"
 
-        result = self.analyzer._has_varying_arguments(call_node)
+        result = self.analyzer.has_varying_arguments(call_node)
 
         assert result is True
 
@@ -129,7 +129,7 @@ class TestRuntimeVaryingValueAnalyzer:
         code = 'print("hello", 123)'
         call_node = ast.parse(code, mode="eval").body
 
-        result = self.analyzer._has_varying_arguments(call_node)
+        result = self.analyzer.has_varying_arguments(call_node)
 
         assert result is False
 

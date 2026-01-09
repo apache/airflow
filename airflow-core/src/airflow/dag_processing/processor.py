@@ -68,7 +68,7 @@ from airflow.sdk.execution_time.comms import (
 from airflow.sdk.execution_time.supervisor import WatchedSubprocess
 from airflow.sdk.execution_time.task_runner import RuntimeTaskInstance, _send_error_email_notification
 from airflow.serialization.serialized_objects import DagSerialization, LazyDeserializedDAG
-from airflow.utils.dag_stability_checker import check_dag_file_stability
+from airflow.utils.dag_version_inflation_checker import check_dag_file_stability
 from airflow.utils.file import iter_airflow_imports
 from airflow.utils.state import TaskInstanceState
 
@@ -235,7 +235,7 @@ def _parse_file(msg: DagFileParseRequest, log: FilteringBoundLogger) -> DagFileP
         fileloc=msg.file,
         serialized_dags=serialized_dags,
         import_errors=bag.import_errors,
-        warnings=stability_check_result.get_warning_dag_format_dict(bag.dag_ids),
+        warnings=stability_check_result.get_formatted_warnings(bag.dag_ids),
     )
     return result
 

@@ -2645,7 +2645,7 @@ dag_processor:
       type: boolean
       example: ~
       default: "True"
-    dag_stability_check_level:
+    dag_version_inflation_check_level:
       description: |
         Controls the behavior of Dag stability checker performed before Dag parsing in the Dag processor.
         The check detects detect potential issues such as runtime-varying values in Dag/Task constructors
