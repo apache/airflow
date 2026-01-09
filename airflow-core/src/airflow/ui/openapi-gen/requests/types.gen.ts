@@ -3399,6 +3399,7 @@ export type DagStatsResponse2 = DashboardDagStatsResponse;
 
 export type StructureDataData = {
     dagId: string;
+    depth?: number | null;
     externalDependencies?: boolean;
     includeDownstream?: boolean;
     includeUpstream?: boolean;
@@ -3410,6 +3411,7 @@ export type StructureDataResponse2 = StructureDataResponse;
 
 export type GetDagStructureData = {
     dagId: string;
+    depth?: number | null;
     includeDownstream?: boolean;
     includeUpstream?: boolean;
     limit?: number;
