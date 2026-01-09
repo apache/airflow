@@ -216,6 +216,16 @@ class Timetable(Protocol):
         """
         return {}
 
+    def __repr__(self) -> str:
+        """
+        Represent the timetable as a string.
+
+        This is useful for Dag hashing. Custom subclasses can also implement
+        their own logic. (See also :func:`~airflow.sdk.DAG.__hash__`.)
+        """
+        attrs = [f"{k}={v}" for k, v in self.serialize().items()]
+        return f"{self.__class__.__name__}({', '.join(attrs)})"
+
     def validate(self) -> None:
         """
         Validate the timetable is correctly specified.
