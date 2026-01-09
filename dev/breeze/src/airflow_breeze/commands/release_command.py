@@ -29,7 +29,6 @@ from airflow_breeze.utils.confirm import confirm_action
 from airflow_breeze.utils.console import console_print
 from airflow_breeze.utils.path_utils import AIRFLOW_ROOT_PATH
 from airflow_breeze.utils.run_utils import run_command
-from airflow_breeze.utils.shared_options import get_dry_run
 
 # Pattern to match Airflow release versions (e.g., "3.0.5")
 RELEASE_PATTERN = re.compile(r"^(?P<major>\d+)\.(?P<minor>\d+)\.(?P<patch>\d+)$")
@@ -426,34 +425,26 @@ def airflow_release(version, task_sdk_version):
     # Clone the asf repo
     os.chdir("..")
     working_dir = os.getcwd()
+    clone_asf_repo(working_dir)
     svn_dev_repo = f"{working_dir}/asf-dist/dev/airflow"
     svn_release_repo = f"{working_dir}/asf-dist/release/airflow"
+    console_print("SVN dev repo root:", svn_dev_repo)
+    console_print("SVN release repo root:", svn_release_repo)
 
-    if get_dry_run():
-        # Skip SVN clone in dry-run mode - use placeholder RCs for testing the workflow
-        console_print("[info]Skipping SVN operations in dry-run mode")
-        release_candidate = f"{version}rc1"
-        task_sdk_release_candidate = f"{task_sdk_version}rc1" if task_sdk_version else None
-    else:
-        clone_asf_repo(working_dir)
-        console_print("SVN dev repo root:", svn_dev_repo)
-        console_print("SVN release repo root:", svn_release_repo)
+    # Find the latest release candidate for the given version
+    console_print()
+    console_print("Finding latest release candidate from SVN dev directory...")
+    release_candidate = find_latest_release_candidate(version, svn_dev_repo, component="airflow")
+    if not release_candidate:
+        exit(f"No release candidate found for version {version} in SVN dev directory")
 
-        console_print()
-        console_print("Finding latest release candidate from SVN dev directory...")
-        release_candidate = find_latest_release_candidate(version, svn_dev_repo, component="airflow")
-        if not release_candidate:
-            exit(f"No release candidate found for version {version} in SVN dev directory")
-
-        task_sdk_release_candidate = None
-        if task_sdk_version:
-            task_sdk_release_candidate = find_latest_release_candidate(
-                task_sdk_version, svn_dev_repo, component="task-sdk"
-            )
-            if not task_sdk_release_candidate:
-                exit(
-                    f"No Task SDK release candidate found for version {task_sdk_version} in SVN dev directory"
-                )
+    task_sdk_release_candidate = None
+    if task_sdk_version:
+        task_sdk_release_candidate = find_latest_release_candidate(
+            task_sdk_version, svn_dev_repo, component="task-sdk"
+        )
+        if not task_sdk_release_candidate:
+            exit(f"No Task SDK release candidate found for version {task_sdk_version} in SVN dev directory")
 
     console_print()
     console_print("Airflow Release candidate:", release_candidate)
