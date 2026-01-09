@@ -383,6 +383,8 @@ def find_installation_spec(
             airflow_version = get_airflow_version_from_package(airflow_distribution_spec)
             if airflow_version:
                 console.print(f"[bright_blue]Using airflow version retrieved from package: {airflow_version}")
+                console.print("[yellow]Constraints mode is forced to 'constraints': installation from dist")
+                airflow_constraints_mode = "constraints"
                 airflow_constraints_location = get_airflow_constraints_location(
                     install_airflow_with_constraints=install_airflow_with_constraints,
                     airflow_constraints_mode=airflow_constraints_mode,
@@ -494,6 +496,7 @@ def find_installation_spec(
         )
         sys.exit(1)
     else:
+        # Install specific airflow version
         compile_ui_assets = False
         if use_airflow_version.startswith("2"):
             airflow_extras = _add_pydantic_to_extras(airflow_extras)
@@ -502,6 +505,8 @@ def find_installation_spec(
         airflow_core_distribution_spec = (
             f"apache-airflow-core=={use_airflow_version}" if not use_airflow_version.startswith("2") else None
         )
+        console.print("[yellow]Constraints mode is forced to 'constraints': installation from PyPI")
+        airflow_constraints_mode = "constraints"
         airflow_constraints_location = get_airflow_constraints_location(
             install_airflow_with_constraints=install_airflow_with_constraints,
             airflow_constraints_mode=airflow_constraints_mode,
