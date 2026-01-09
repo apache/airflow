@@ -37,7 +37,7 @@ metadata:
     {{- end }}
 spec:
   scaleTargetRef:
-    kind: {{ ternary "StatefulSet" "Deployment" .Values.workers.persistence.enabled }}
+    kind: {{ ternary "StatefulSet" "Deployment" (or .Values.workers.celery.persistence.enabled (and (not (has .Values.workers.celery.persistence.enabled (list true false))) .Values.workers.persistence.enabled)) }}
     name: {{ include "airflow.fullname" . }}-worker
     envSourceContainerName: worker
   pollingInterval:  {{ .Values.workers.keda.pollingInterval }}

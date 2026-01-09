@@ -26,6 +26,7 @@
     },
     "title": "{{name}} için kaynak olayı oluştur"
   },
+  "extra": "Ekstra",
   "group": "Grup",
   "lastAssetEvent": "Son kaynak olayı",
   "name": "Ad",

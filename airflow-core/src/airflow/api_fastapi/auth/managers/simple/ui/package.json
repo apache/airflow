@@ -28,7 +28,7 @@
     "react-cookie": "^8.0.1",
     "react-dom": "^19.2.3",
     "react-hook-form": "^7.69.0",
-    "react-router-dom": "^7.11.0"
+    "react-router-dom": "^7.12.0"
   },
   "devDependencies": {
     "@7nohe/openapi-react-query-codegen": "^2.0.0",
@@ -40,8 +40,8 @@
     "@trivago/prettier-plugin-sort-imports": "^6.0.1",
     "@types/react": "^19.2.7",
     "@types/react-dom": "^19.2.3",
-    "@typescript-eslint/eslint-plugin": "8.50.0",
-    "@typescript-eslint/parser": "8.50.0",
+    "@typescript-eslint/eslint-plugin": "8.51.0",
+    "@typescript-eslint/parser": "8.51.0",
     "@typescript-eslint/utils": "^8.50.0",
     "@vitejs/plugin-react-swc": "^4.2.2",
     "@vitest/coverage-v8": "^4.0.16",

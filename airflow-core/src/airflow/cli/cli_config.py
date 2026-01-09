@@ -598,7 +598,7 @@ ARG_MAP_INDEX = Arg(("--map-index",), type=int, default=-1, help="Mapped task in
 # database
 ARG_MIGRATION_TIMEOUT = Arg(
     ("-t", "--migration-wait-timeout"),
-    help="timeout to wait for db to migrate ",
+    help="timeout to wait for db to migrate",
     type=int,
     default=60,
 )
@@ -1461,8 +1461,8 @@ TEAMS_COMMANDS = (
 DB_COMMANDS = (
     ActionCommand(
         name="check-migrations",
-        help="Check if migration have finished",
-        description="Check if migration have finished (or continually check until timeout)",
+        help="Check if migrations have finished",
+        description="Check if migrations have finished (or continually check until timeout)",
         func=lazy_load_command("airflow.cli.commands.db_command.check_migrations"),
         args=(ARG_MIGRATION_TIMEOUT, ARG_VERBOSE),
     ),

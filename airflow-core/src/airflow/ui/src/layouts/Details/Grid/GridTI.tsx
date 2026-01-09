@@ -17,8 +17,7 @@
  * under the License.
  */
 import { Badge, Flex } from "@chakra-ui/react";
-import type { MouseEvent } from "react";
-import React, { useCallback } from "react";
+import React, { useCallback, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { Link, useLocation, useParams, useSearchParams } from "react-router-dom";
 
@@ -26,29 +25,8 @@ import type { LightGridTaskInstanceSummary } from "openapi/requests/types.gen";
 import { BasicTooltip } from "src/components/BasicTooltip";
 import { StateIcon } from "src/components/StateIcon";
 import Time from "src/components/Time";
-import { type HoverContextType, useHover } from "src/context/hover";
+import { useHover } from "src/context/hover";
 import { buildTaskInstanceUrl } from "src/utils/links";
-
-const handleMouseEnter =
-  (setHoveredTaskId: HoverContextType["setHoveredTaskId"]) => (event: MouseEvent<HTMLDivElement>) => {
-    const tasks = document.querySelectorAll<HTMLDivElement>(`#${event.currentTarget.id}`);
-
-    tasks.forEach((task) => {
-      task.style.backgroundColor = "var(--chakra-colors-info-subtle)";
-    });
-
-    setHoveredTaskId(event.currentTarget.id.replaceAll("-", "."));
-  };
-
-const handleMouseLeave = (taskId: string, setHoveredTaskId: HoverContextType["setHoveredTaskId"]) => () => {
-  const tasks = document.querySelectorAll<HTMLDivElement>(`#task-${taskId.replaceAll(".", "-")}`);
-
-  tasks.forEach((task) => {
-    task.style.backgroundColor = "";
-  });
-
-  setHoveredTaskId(undefined);
-};
 
 type Props = {
   readonly dagId: string;
@@ -62,17 +40,14 @@ type Props = {
 };
 
 const Instance = ({ dagId, instance, isGroup, isMapped, onClick, runId, taskId }: Props) => {
-  const { setHoveredTaskId } = useHover();
+  const { hoveredTaskId, setHoveredTaskId } = useHover();
   const { groupId: selectedGroupId, taskId: selectedTaskId } = useParams();
   const { t: translate } = useTranslation();
   const location = useLocation();
 
   const [searchParams] = useSearchParams();
 
-  const onMouseEnter = handleMouseEnter(setHoveredTaskId);
-  const onMouseLeave = handleMouseLeave(taskId, setHoveredTaskId);
-
-  const getTaskUrl = useCallback(
+  const taskUrl = useMemo(
     () =>
       buildTaskInstanceUrl({
         currentPathname: location.pathname,
@@ -85,22 +60,29 @@ const Instance = ({ dagId, instance, isGroup, isMapped, onClick, runId, taskId }
     [dagId, isGroup, isMapped, location.pathname, runId, taskId],
   );
 
+  const handleMouseEnter = useCallback(() => setHoveredTaskId(taskId), [setHoveredTaskId, taskId]);
+  const handleMouseLeave = useCallback(() => setHoveredTaskId(undefined), [setHoveredTaskId]);
+
   // Remove try_number query param when navigating to reset to the
   // latest try of the task instance and avoid issues with invalid try numbers:
   // https://github.com/apache/airflow/issues/56977
   searchParams.delete("try_number");
   const redirectionSearch = searchParams.toString();
 
+  // Determine background: selected takes priority over hovered
+  const isSelected = selectedTaskId === taskId || selectedGroupId === taskId;
+  const isHovered = hoveredTaskId === taskId;
+
   return (
     <Flex
       alignItems="center"
-      bg={selectedTaskId === taskId || selectedGroupId === taskId ? "info.muted" : undefined}
+      bg={isSelected ? "brand.emphasized" : isHovered ? "brand.muted" : undefined}
       height="20px"
       id={`task-${taskId.replaceAll(".", "-")}`}
       justifyContent="center"
       key={taskId}
-      onMouseEnter={onMouseEnter}
-      onMouseLeave={onMouseLeave}
+      onMouseEnter={handleMouseEnter}
+      onMouseLeave={handleMouseLeave}
       position="relative"
       px="2px"
       py={0}
@@ -135,7 +117,7 @@ const Instance = ({ dagId, instance, isGroup, isMapped, onClick, runId, taskId }
           onClick={onClick}
           replace
           to={{
-            pathname: getTaskUrl(),
+            pathname: taskUrl,
             search: redirectionSearch,
           }}
         >

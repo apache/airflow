@@ -28,7 +28,7 @@ from unittest.mock import MagicMock
 import pendulum
 import pytest
 import time_machine
-from sqlalchemy import select
+from sqlalchemy import func, select
 
 from airflow import settings
 from airflow._shared.timezones import timezone
@@ -513,7 +513,7 @@ class TestCliDags:
             ),
         )
         with create_session() as session:
-            dagrun = session.query(DagRun).filter(DagRun.run_id == "test_trigger_dag").one()
+            dagrun = session.scalars(select(DagRun).where(DagRun.run_id == "test_trigger_dag")).one()
 
         assert dagrun, "DagRun not created"
         assert dagrun.run_type == DagRunType.MANUAL
@@ -541,7 +541,9 @@ class TestCliDags:
         )
 
         with create_session() as session:
-            dagrun = session.query(DagRun).filter(DagRun.run_id == "test_trigger_dag_with_micro").one()
+            dagrun = session.scalars(
+                select(DagRun).where(DagRun.run_id == "test_trigger_dag_with_micro")
+            ).one()
 
         assert dagrun, "DagRun not created"
         assert dagrun.run_type == DagRunType.MANUAL
@@ -594,7 +596,7 @@ class TestCliDags:
         session.add(DM(dag_id=key, bundle_name="dags-folder"))
         session.commit()
         dag_command.dag_delete(self.parser.parse_args(["dags", "delete", key, "--yes"]))
-        assert session.query(DM).filter_by(dag_id=key).count() == 0
+        assert session.scalar(select(func.count()).select_from(DM).where(DM.dag_id == key)) == 0
         with pytest.raises(AirflowException):
             dag_command.dag_delete(
                 self.parser.parse_args(["dags", "delete", "does_not_exist_dag", "--yes"]),
@@ -624,7 +626,7 @@ class TestCliDags:
         )
         session.commit()
         dag_command.dag_delete(self.parser.parse_args(["dags", "delete", key, "--yes"]))
-        assert session.query(DM).filter_by(dag_id=key).count() == 0
+        assert session.scalar(select(func.count()).select_from(DM).where(DM.dag_id == key)) == 0
         with pytest.raises(AirflowException):
             dag_command.dag_delete(
                 self.parser.parse_args(["dags", "delete", "does_not_exist_dag", "--yes"]),
@@ -640,7 +642,7 @@ class TestCliDags:
         session.add(DM(dag_id=key, bundle_name="dags-folder", fileloc=os.fspath(path)))
         session.commit()
         dag_command.dag_delete(self.parser.parse_args(["dags", "delete", key, "--yes"]))
-        assert session.query(DM).filter_by(dag_id=key).count() == 0
+        assert session.scalar(select(func.count()).select_from(DM).where(DM.dag_id == key)) == 0
 
     def test_cli_list_jobs(self):
         args = self.parser.parse_args(["dags", "list-jobs"])
@@ -995,7 +997,7 @@ class TestCliDagsReserialize:
         assert serialized_dag_ids == {"test_example_bash_operator", "test_dag_with_no_tags", "test_sensor"}
 
         example_bash_op = session.execute(
-            select(DagModel).filter(DagModel.dag_id == "test_example_bash_operator")
+            select(DagModel).where(DagModel.dag_id == "test_example_bash_operator")
         ).scalar()
         assert example_bash_op.relative_fileloc == "."  # the file _is_ the bundle path
         assert example_bash_op.fileloc == str(TEST_DAGS_FOLDER / "test_example_bash_operator.py")

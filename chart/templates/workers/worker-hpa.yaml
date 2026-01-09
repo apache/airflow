@@ -38,7 +38,7 @@ metadata:
 spec:
   scaleTargetRef:
     apiVersion: apps/v1
-    kind: {{ ternary "StatefulSet" "Deployment" .Values.workers.persistence.enabled }}
+    kind: {{ ternary "StatefulSet" "Deployment" (or .Values.workers.celery.persistence.enabled (and (not (has .Values.workers.celery.persistence.enabled (list true false))) .Values.workers.persistence.enabled)) }}
     name: {{ include "airflow.fullname" . }}-worker
   minReplicas: {{ .Values.workers.hpa.minReplicaCount }}
   maxReplicas: {{ .Values.workers.hpa.maxReplicaCount }}

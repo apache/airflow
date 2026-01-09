@@ -163,7 +163,7 @@ class SnowflakeSqlApiHook(SnowflakeHook):
             the statement with these specified values.
         """
         self.query_ids = []
-        conn_config = self._get_conn_params
+        conn_config = self._get_conn_params()
 
         req_id = uuid.uuid4()
         url = f"{self.account_identifier}.snowflakecomputing.com/api/v2/statements"
@@ -206,7 +206,7 @@ class SnowflakeSqlApiHook(SnowflakeHook):
 
     def get_headers(self) -> dict[str, Any]:
         """Form auth headers based on either OAuth token or JWT token from private key."""
-        conn_config = self._get_conn_params
+        conn_config = self._get_conn_params()
 
         # Use OAuth if refresh_token and client_id and client_secret are provided
         if all(
