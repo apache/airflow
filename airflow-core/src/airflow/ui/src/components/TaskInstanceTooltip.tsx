@@ -20,16 +20,16 @@ import { Box, Text } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 
 import type {
+  LightGridTaskInstanceSummary,
   TaskInstanceHistoryResponse,
   TaskInstanceResponse,
-  GridTaskInstanceSummary,
 } from "openapi/requests/types.gen";
 import Time from "src/components/Time";
 import { Tooltip, type TooltipProps } from "src/components/ui";
-import { getDuration } from "src/utils";
+import { renderDuration } from "src/utils";
 
 type Props = {
-  readonly taskInstance?: GridTaskInstanceSummary | TaskInstanceHistoryResponse | TaskInstanceResponse;
+  readonly taskInstance?: LightGridTaskInstanceSummary | TaskInstanceHistoryResponse | TaskInstanceResponse;
 } & Omit<TooltipProps, "content">;
 
 const TaskInstanceTooltip = ({ children, positioning, taskInstance, ...rest }: Props) => {
@@ -43,28 +43,33 @@ const TaskInstanceTooltip = ({ children, positioning, taskInstance, ...rest }: P
       content={
         <Box>
           <Text>
-            {translate("state")}: {taskInstance.state}
+            {translate("state")}:{" "}
+            {taskInstance.state
+              ? translate(`common:states.${taskInstance.state}`)
+              : translate("common:states.no_status")}
           </Text>
           {"dag_run_id" in taskInstance ? (
             <Text>
               {translate("runId")}: {taskInstance.dag_run_id}
             </Text>
           ) : undefined}
-          <Text>
-            {translate("startDate")}: <Time datetime={taskInstance.start_date} />
-          </Text>
-          <Text>
-            {translate("endDate")}: <Time datetime={taskInstance.end_date} />
-          </Text>
-          {taskInstance.try_number > 1 && (
-            <Text>
-              {translate("tryNumber")}: {taskInstance.try_number}
-            </Text>
-          )}
           {"start_date" in taskInstance ? (
-            <Text>
-              {translate("duration")}: {getDuration(taskInstance.start_date, taskInstance.end_date)}
-            </Text>
+            <>
+              {taskInstance.try_number > 1 && (
+                <Text>
+                  {translate("tryNumber")}: {taskInstance.try_number}
+                </Text>
+              )}
+              <Text>
+                {translate("startDate")}: <Time datetime={taskInstance.start_date} />
+              </Text>
+              <Text>
+                {translate("endDate")}: <Time datetime={taskInstance.end_date} />
+              </Text>
+              <Text>
+                {translate("duration")}: {renderDuration(taskInstance.duration)}
+              </Text>
+            </>
           ) : undefined}
         </Box>
       }

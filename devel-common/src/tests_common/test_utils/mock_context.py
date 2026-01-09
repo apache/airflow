@@ -18,8 +18,10 @@ from __future__ import annotations
 
 from collections.abc import Iterable
 from typing import TYPE_CHECKING, Any
+from unittest import mock
 
-from airflow.utils.context import Context
+from tests_common.test_utils.compat import Context
+from tests_common.test_utils.taskinstance import create_task_instance
 
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
@@ -28,20 +30,14 @@ if TYPE_CHECKING:
 def mock_context(task) -> Context:
     from airflow.models import TaskInstance
     from airflow.utils.session import NEW_SESSION
-    from airflow.utils.state import TaskInstanceState
-    from airflow.utils.xcom import XCOM_RETURN_KEY
+
+    from tests_common.test_utils.compat import XCOM_RETURN_KEY
 
     values: dict[str, Any] = {}
 
     class MockedTaskInstance(TaskInstance):
-        def __init__(
-            self,
-            task,
-            run_id: str | None = "run_id",
-            state: str | None = TaskInstanceState.RUNNING,
-            map_index: int = -1,
-        ):
-            super().__init__(task=task, run_id=run_id, state=state, map_index=map_index)
+        def __init__(self, *args, **kwargs):
+            super().__init__(*args, **kwargs)
             self.values: dict[str, Any] = {}
 
         def xcom_pull(
@@ -67,7 +63,7 @@ def mock_context(task) -> Context:
                 key += f"_{self.map_index}"
             values[key] = value
 
-    values["ti"] = MockedTaskInstance(task=task)
+    values["ti"] = create_task_instance(task, dag_version_id=mock.MagicMock(), ti_type=MockedTaskInstance)
 
     # See https://github.com/python/mypy/issues/8890 - mypy does not support passing typed dict to TypedDict
     return Context(values)  # type: ignore[misc]

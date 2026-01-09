@@ -19,10 +19,10 @@ from __future__ import annotations
 import logging
 import os
 import shutil
-from collections.abc import Iterable
+from collections.abc import Callable, Iterable
 from pathlib import Path
 from subprocess import run
-from typing import Any, Callable
+from typing import Any
 
 from hatchling.builders.config import BuilderConfig
 from hatchling.builders.plugin.interface import BuilderInterface
@@ -65,7 +65,7 @@ class CustomBuild(BuilderInterface[BuilderConfig, PluginManager]):
         self.write_git_version()
         # run this in the parent directory of the airflow-core (i.e. airflow repo root)
         work_dir = Path(self.root).parent.resolve()
-        cmd = ["pre-commit", "run", "--hook-stage", "manual", "compile-ui-assets", "--all-files"]
+        cmd = ["prek", "run", "--hook-stage", "manual", "compile-ui-assets", "--all-files"]
         log.warning("Running command: %s", " ".join(cmd))
         run(cmd, cwd=work_dir.as_posix(), check=True)
         dist_path = Path(self.root) / "src" / "airflow" / "ui" / "dist"

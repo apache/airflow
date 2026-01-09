@@ -33,12 +33,13 @@ import pendulum
 from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID
 
 if TYPE_CHECKING:
-    from airflow.utils.context import Context
+    from airflow.providers.common.compat.sdk import Context
 
 from google.api_core.exceptions import Conflict
 from google.cloud.exceptions import GoogleCloudError
 
-from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
+from airflow.exceptions import AirflowProviderDeprecationWarning
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.google.cloud.hooks.gcs import GCSHook
 from airflow.providers.google.cloud.operators.cloud_base import GoogleCloudBaseOperator
 from airflow.providers.google.common.links.storage import FileDetailsLink, StorageLink
@@ -110,6 +111,7 @@ class GCSCreateBucketOperator(GoogleCloudBaseOperator):
         "storage_class",
         "location",
         "project_id",
+        "gcp_conn_id",
         "impersonation_chain",
     )
     ui_color = "#f0eee4"
@@ -145,7 +147,6 @@ class GCSCreateBucketOperator(GoogleCloudBaseOperator):
         )
         StorageLink.persist(
             context=context,
-            task_instance=self,
             uri=self.bucket_name,
             project_id=self.project_id or hook.project_id,
         )
@@ -205,6 +206,7 @@ class GCSListObjectsOperator(GoogleCloudBaseOperator):
         "prefix",
         "delimiter",
         "match_glob",
+        "gcp_conn_id",
         "impersonation_chain",
     )
 
@@ -260,7 +262,6 @@ class GCSListObjectsOperator(GoogleCloudBaseOperator):
 
         StorageLink.persist(
             context=context,
-            task_instance=self,
             uri=self.bucket,
             project_id=hook.project_id,
         )
@@ -293,6 +294,7 @@ class GCSDeleteObjectsOperator(GoogleCloudBaseOperator):
         "bucket_name",
         "prefix",
         "objects",
+        "gcp_conn_id",
         "impersonation_chain",
     )
 
@@ -408,6 +410,7 @@ class GCSBucketCreateAclEntryOperator(GoogleCloudBaseOperator):
         "entity",
         "role",
         "user_project",
+        "gcp_conn_id",
         "impersonation_chain",
     )
     # [END gcs_bucket_create_acl_template_fields]
@@ -439,7 +442,6 @@ class GCSBucketCreateAclEntryOperator(GoogleCloudBaseOperator):
         )
         StorageLink.persist(
             context=context,
-            task_instance=self,
             uri=self.bucket,
             project_id=hook.project_id,
         )
@@ -487,6 +489,7 @@ class GCSObjectCreateAclEntryOperator(GoogleCloudBaseOperator):
         "generation",
         "role",
         "user_project",
+        "gcp_conn_id",
         "impersonation_chain",
     )
     # [END gcs_object_create_acl_template_fields]
@@ -522,7 +525,6 @@ class GCSObjectCreateAclEntryOperator(GoogleCloudBaseOperator):
         )
         FileDetailsLink.persist(
             context=context,
-            task_instance=self,
             uri=f"{self.bucket}/{self.object_name}",
             project_id=hook.project_id,
         )
@@ -575,6 +577,7 @@ class GCSFileTransformOperator(GoogleCloudBaseOperator):
         "destination_bucket",
         "destination_object",
         "transform_script",
+        "gcp_conn_id",
         "impersonation_chain",
     )
     operator_extra_links = (FileDetailsLink(),)
@@ -631,7 +634,6 @@ class GCSFileTransformOperator(GoogleCloudBaseOperator):
             self.log.info("Uploading file to %s as %s", self.destination_bucket, self.destination_object)
             FileDetailsLink.persist(
                 context=context,
-                task_instance=self,
                 uri=f"{self.destination_bucket}/{self.destination_object}",
                 project_id=hook.project_id,
             )
@@ -728,7 +730,9 @@ class GCSTimeSpanFileTransformOperator(GoogleCloudBaseOperator):
         "destination_bucket",
         "destination_prefix",
         "transform_script",
+        "source_gcp_conn_id",
         "source_impersonation_chain",
+        "destination_gcp_conn_id",
         "destination_impersonation_chain",
     )
     operator_extra_links = (StorageLink(),)
@@ -829,7 +833,6 @@ class GCSTimeSpanFileTransformOperator(GoogleCloudBaseOperator):
         )
         StorageLink.persist(
             context=context,
-            task_instance=self,
             uri=self.destination_bucket,
             project_id=destination_hook.project_id,
         )
@@ -1080,7 +1083,6 @@ class GCSSynchronizeBucketsOperator(GoogleCloudBaseOperator):
         )
         StorageLink.persist(
             context=context,
-            task_instance=self,
             uri=self._get_uri(self.destination_bucket, self.destination_object),
             project_id=hook.project_id,
         )

@@ -23,11 +23,15 @@ from airflow.models.taskmap import TaskMap
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
 
-    from airflow.sdk.definitions.mappedoperator import MappedOperator
+    from airflow.serialization.definitions.mappedoperator import Operator
 
 
 def expand_mapped_task(
-    mapped: MappedOperator, run_id: str, upstream_task_id: str, length: int, session: Session
+    mapped: Operator,
+    run_id: str,
+    upstream_task_id: str,
+    length: int,
+    session: Session,
 ):
     session.add(
         TaskMap(

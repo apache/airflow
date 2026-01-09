@@ -48,7 +48,7 @@ class TestConfigmap:
         assert annotations.get("key-two") == "value-two"
 
     @pytest.mark.parametrize(
-        "af_version, secret_key, secret_key_name, expected",
+        ("af_version", "secret_key", "secret_key_name", "expected"),
         [
             ("3.0.0", None, None, False),
             ("2.2.0", None, None, True),
@@ -98,7 +98,7 @@ class TestConfigmap:
         assert jmespath.search('data."krb5.conf"', docs[0]) == "krb5\ncontent"
 
     @pytest.mark.parametrize(
-        "executor, af_version, should_be_created",
+        ("executor", "af_version", "should_be_created"),
         [
             ("KubernetesExecutor", "1.10.11", False),
             ("KubernetesExecutor", "1.10.12", True),
@@ -166,7 +166,7 @@ metadata:
         assert expected in cfg.splitlines()
 
     @pytest.mark.parametrize(
-        "dag_values, expected_default_dag_folder",
+        ("dag_values", "expected_default_dag_folder"),
         [
             (
                 {"gitSync": {"enabled": True}},
@@ -203,7 +203,7 @@ metadata:
         assert expected_folder_config in cfg.splitlines()
 
     @pytest.mark.parametrize(
-        "airflow_version, enabled",
+        ("airflow_version", "enabled"),
         [
             ("2.10.4", False),
             ("3.0.0", True),
@@ -220,7 +220,7 @@ metadata:
         assert expected_line in cfg.splitlines()
 
     @pytest.mark.parametrize(
-        "airflow_version, enabled",
+        ("airflow_version", "enabled"),
         [
             ("2.10.4", False),
             ("2.10.4", True),
@@ -240,3 +240,137 @@ metadata:
         cfg = jmespath.search('data."airflow.cfg"', docs[0])
         expected_line = f"standalone_dag_processor = {str(enabled).lower()}"
         assert expected_line in cfg.splitlines()
+
+    @pytest.mark.parametrize(
+        ("airflow_version", "base_url", "execution_api_server_url", "expected_execution_url"),
+        [
+            (
+                "3.0.0",
+                None,
+                None,
+                "http://release-name-api-server:8080/execution/",
+            ),
+            (
+                "2.9.0",
+                None,
+                None,
+                None,
+            ),
+            (
+                "3.0.0",
+                "http://example.com",
+                None,
+                "http://release-name-api-server:8080/execution/",
+            ),
+            (
+                "3.0.0",
+                "http://example.com/airflow",
+                None,
+                "http://release-name-api-server:8080/airflow/execution/",
+            ),
+            (
+                "3.0.0",
+                "http://example.com/airflow",
+                "http://service:9090/execution/",
+                "http://service:9090/execution/",
+            ),
+        ],
+    )
+    def test_execution_api_server_url(
+        self, airflow_version, base_url, execution_api_server_url, expected_execution_url
+    ):
+        config_overrides = {}
+        if base_url:
+            config_overrides["api"] = {"base_url": base_url}
+
+        if execution_api_server_url:
+            config_overrides["core"] = {"execution_api_server_url": execution_api_server_url}
+
+        configmap = render_chart(
+            values={"airflowVersion": airflow_version, "config": config_overrides},
+            show_only=["templates/configmaps/configmap.yaml"],
+        )
+
+        config = jmespath.search('data."airflow.cfg"', configmap[0])
+        assert config is not None, "Configmap data for airflow.cfg should not be None"
+        assert len(config) > 0, "Configmap data for airflow.cfg should not be empty"
+
+        if expected_execution_url is not None:
+            assert f"\nexecution_api_server_url = {expected_execution_url}\n" in config
+        else:
+            assert "execution_api_server_url" not in config, (
+                "execution_api_server_url should not be set for Airflow 2.x versions"
+            )
+
+    @pytest.mark.parametrize(
+        ("git_sync_enabled", "ssh_key_secret", "expected_volume"),
+        [
+            (True, "my-secret", True),
+            (True, None, False),
+            (False, "my-secret", False),
+        ],
+    )
+    def test_pod_template_git_sync_ssh_key_volume_with_ssh_key_secret_name(
+        self, git_sync_enabled, ssh_key_secret, expected_volume
+    ):
+        dag_values = {"gitSync": {"enabled": git_sync_enabled, "sshKeySecret": ssh_key_secret}}
+        docs = render_chart(
+            values={
+                "executor": "KubernetesExecutor",
+                "dags": dag_values,
+            },
+            show_only=["templates/configmaps/configmap.yaml"],
+        )
+
+        pod_template_file = jmespath.search('data."pod_template_file.yaml"', docs[0])
+        assert ("git-sync-ssh-key" in pod_template_file) == expected_volume
+
+    @pytest.mark.parametrize(
+        ("git_sync_enabled", "ssh_key", "expected_volume"),
+        [
+            (True, "my-key", True),
+            (True, None, False),
+            (False, "my-key", False),
+        ],
+    )
+    def test_pod_template_git_sync_ssh_key_volume_with_ssh_key(
+        self, git_sync_enabled, ssh_key, expected_volume
+    ):
+        dag_values = {"gitSync": {"enabled": git_sync_enabled, "sshKey": ssh_key}}
+        docs = render_chart(
+            values={
+                "executor": "KubernetesExecutor",
+                "dags": dag_values,
+            },
+            show_only=["templates/configmaps/configmap.yaml"],
+        )
+
+        pod_template_file = jmespath.search('data."pod_template_file.yaml"', docs[0])
+        assert ("git-sync-ssh-key" in pod_template_file) == expected_volume
+
+    @pytest.mark.parametrize(
+        ("scheduler_cpu_limit", "expected_sync_parallelism"),
+        [
+            ("1m", "1"),
+            ("1000m", "1"),
+            ("1001m", "2"),
+            ("0.1", "1"),
+            ("1", "1"),
+            ("1.01", "2"),
+            (None, 0),
+            (0, 0),
+        ],
+    )
+    def test_expected_celery_sync_parallelism(self, scheduler_cpu_limit, expected_sync_parallelism):
+        scheduler_resources_cpu_limit = {}
+        if scheduler_cpu_limit is not None:
+            scheduler_resources_cpu_limit = {
+                "scheduler": {"resources": {"limits": {"cpu": scheduler_cpu_limit}}}
+            }
+
+        configmap = render_chart(
+            values=scheduler_resources_cpu_limit,
+            show_only=["templates/configmaps/configmap.yaml"],
+        )
+        config = jmespath.search('data."airflow.cfg"', configmap[0])
+        assert f"\nsync_parallelism = {expected_sync_parallelism}\n" in config

@@ -48,6 +48,7 @@ files_not_fully_covered = [
     "airflow-core/src/airflow/models/backfill.py",
     "airflow-core/src/airflow/models/base.py",
     "airflow-core/src/airflow/models/baseoperator.py",
+    "airflow-core/src/airflow/models/callback.py",
     "airflow-core/src/airflow/models/connection.py",
     "airflow-core/src/airflow/models/crypto.py",
     "airflow-core/src/airflow/models/dag.py",
@@ -143,7 +144,6 @@ files_not_fully_covered = [
     "airflow-core/src/airflow/utils/task_group.py",
     "airflow-core/src/airflow/utils/task_instance_session.py",
     "airflow-core/src/airflow/utils/timeout.py",
-    "airflow-core/src/airflow/utils/timezone.py",
     "airflow-core/src/airflow/utils/weight_rule.py",
     "airflow-core/src/airflow/utils/yaml.py",
 ]

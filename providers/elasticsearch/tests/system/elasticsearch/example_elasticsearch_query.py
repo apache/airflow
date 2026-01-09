@@ -24,7 +24,7 @@ import os
 from datetime import datetime
 
 from airflow import models
-from airflow.decorators import task
+from airflow.providers.common.compat.sdk import task
 from airflow.providers.elasticsearch.hooks.elasticsearch import ElasticsearchPythonHook, ElasticsearchSQLHook
 from airflow.providers.standard.operators.python import PythonOperator
 
@@ -63,7 +63,6 @@ def use_elasticsearch_hook():
 
 
 # [END howto_elasticsearch_python_hook]
-
 
 with models.DAG(
     DAG_ID,

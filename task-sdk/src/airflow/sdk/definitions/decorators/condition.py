@@ -16,21 +16,22 @@
 # under the License.
 from __future__ import annotations
 
+from collections.abc import Callable
 from functools import wraps
-from typing import TYPE_CHECKING, Any, Callable, TypeVar
+from typing import TYPE_CHECKING, Any, TypeVar
 
-from airflow.exceptions import AirflowSkipException
 from airflow.sdk.bases.decorator import Task, _TaskDecorator
+from airflow.sdk.exceptions import AirflowSkipException
 
 if TYPE_CHECKING:
-    from typing_extensions import TypeAlias
+    from typing import TypeAlias
 
     from airflow.sdk.bases.operator import TaskPreExecuteHook
     from airflow.sdk.definitions.context import Context
 
     BoolConditionFunc: TypeAlias = Callable[[Context], bool]
-    MsgConditionFunc: TypeAlias = "Callable[[Context], tuple[bool, str | None]]"
-    AnyConditionFunc: TypeAlias = "BoolConditionFunc | MsgConditionFunc"
+    MsgConditionFunc: TypeAlias = Callable[[Context], tuple[bool, str | None]]
+    AnyConditionFunc: TypeAlias = BoolConditionFunc | MsgConditionFunc
 
 __all__ = ["run_if", "skip_if"]
 

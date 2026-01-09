@@ -17,10 +17,8 @@
 from __future__ import annotations
 
 import os
-from time import monotonic, sleep
 
 from python_on_whales import docker
-from python_on_whales.exceptions import NoSuchContainer
 
 from docker_tests.constants import DEFAULT_DOCKER_IMAGE
 
@@ -72,7 +70,7 @@ in the image.
 It can mean one of those:
 
 1) The main is currently broken (other PRs will fail with the same error)
-2) You changed some dependencies in pyproject.toml (either manually or automatically by pre-commit)
+2) You changed some dependencies in pyproject.toml (either manually or automatically by prek)
    and they are conflicting.
 
 
@@ -87,49 +85,12 @@ In case 2) - Follow the steps below:
 
 CI image:
 
-     breeze ci-image build --upgrade-to-newer-dependencies --python 3.9
+     breeze ci-image build --upgrade-to-newer-dependencies --python 3.10
 
 Production image:
 
-     breeze ci-image build --production-image --upgrade-to-newer-dependencies --python 3.9
+     breeze ci-image build --production-image --upgrade-to-newer-dependencies --python 3.10
 
 ***** End of the instructions ****
 """
     )
-
-
-def wait_for_container(container_id: str, timeout: int = 300):
-    print(f"Waiting for container: [{container_id}] for {timeout} more seconds.")
-    start_time = monotonic()
-    while True:
-        if timeout != 0 and monotonic() - start_time > timeout:
-            err_msg = f"Timeout. The operation takes longer than the maximum waiting time ({timeout}s)"
-            raise TimeoutError(err_msg)
-
-        try:
-            container = docker.container.inspect(container_id)
-        except NoSuchContainer:
-            msg = f"Container ID {container_id!r} not found."
-            if timeout != 0:
-                msg += f"\nWaiting for {int(timeout - (monotonic() - start_time))} more seconds"
-            print(msg)
-            sleep(5)
-            continue
-
-        container_msg = f"Container {container.name}[{container_id}]"
-        if (state := container.state).status in ("running", "restarting"):
-            if state.health is None or state.health.status == "healthy":
-                print(
-                    f"{container_msg}. Status: {state.status!r}. "
-                    f"Healthcheck: {state.health.status if state.health else 'not set'!r}"
-                )
-                break
-        elif state.status == "exited":
-            print(f"{container_msg}. Status: {state.status!r}. Exit Code: {state.exit_code}")
-            break
-
-        msg = f"{container_msg} has state:\n {state}"
-        if timeout != 0:
-            msg += f"\nWaiting for {int(timeout - (monotonic() - start_time))} more seconds"
-        print(msg)
-        sleep(1)

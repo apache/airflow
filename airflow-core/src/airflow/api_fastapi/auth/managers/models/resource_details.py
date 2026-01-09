@@ -35,6 +35,7 @@ class ConnectionDetails:
     """Represents the details of a connection."""
 
     conn_id: str | None = None
+    team_name: str | None = None
 
 
 @dataclass
@@ -42,6 +43,7 @@ class DagDetails:
     """Represents the details of a DAG."""
 
     id: str | None = None
+    team_name: str | None = None
 
 
 @dataclass
@@ -70,6 +72,14 @@ class PoolDetails:
     """Represents the details of a pool."""
 
     name: str | None = None
+    team_name: str | None = None
+
+
+@dataclass
+class TeamDetails:
+    """Represents the details of a team."""
+
+    name: str | None = None
 
 
 @dataclass
@@ -77,6 +87,7 @@ class VariableDetails:
     """Represents the details of a variable."""
 
     key: str | None = None
+    team_name: str | None = None
 
 
 class AccessView(Enum):
@@ -98,6 +109,7 @@ class DagAccessEntity(Enum):
     AUDIT_LOG = "AUDIT_LOG"
     CODE = "CODE"
     DEPENDENCIES = "DEPENDENCIES"
+    HITL_DETAIL = "HITL_DETAIL"
     RUN = "RUN"
     TASK = "TASK"
     TASK_INSTANCE = "TASK_INSTANCE"

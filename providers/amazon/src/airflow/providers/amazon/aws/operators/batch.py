@@ -30,8 +30,6 @@ from collections.abc import Sequence
 from datetime import timedelta
 from typing import TYPE_CHECKING, Any
 
-from airflow.configuration import conf
-from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.batch_client import BatchClientHook
 from airflow.providers.amazon.aws.links.batch import (
     BatchJobDefinitionLink,
@@ -47,9 +45,10 @@ from airflow.providers.amazon.aws.triggers.batch import (
 from airflow.providers.amazon.aws.utils import trim_none_values, validate_execute_complete_event
 from airflow.providers.amazon.aws.utils.mixins import aws_template_fields
 from airflow.providers.amazon.aws.utils.task_log_fetcher import AwsTaskLogFetcher
+from airflow.providers.common.compat.sdk import AirflowException, conf
 
 if TYPE_CHECKING:
-    from airflow.utils.context import Context
+    from airflow.sdk import Context
 
 
 class BatchOperator(AwsBaseOperator[BatchClientHook]):
@@ -140,28 +139,12 @@ class BatchOperator(AwsBaseOperator[BatchClientHook]):
         "retry_strategy": "json",
     }
 
-    @property
-    def operator_extra_links(self):
-        op_extra_links = [BatchJobDetailsLink()]
-
-        if self.is_mapped:
-            wait_for_completion = self.partial_kwargs.get(
-                "wait_for_completion"
-            ) or self.expand_input.value.get("wait_for_completion")
-            array_properties = self.partial_kwargs.get("array_properties") or self.expand_input.value.get(
-                "array_properties"
-            )
-        else:
-            wait_for_completion = self.wait_for_completion
-            array_properties = self.array_properties
-
-        if wait_for_completion:
-            op_extra_links.extend([BatchJobDefinitionLink(), BatchJobQueueLink()])
-        if not array_properties:
-            # There is no CloudWatch Link to the parent Batch Job available.
-            op_extra_links.append(CloudWatchEventsLink())
-
-        return tuple(op_extra_links)
+    operator_extra_links = (
+        BatchJobDetailsLink(),
+        BatchJobDefinitionLink(),
+        BatchJobQueueLink(),
+        CloudWatchEventsLink(),
+    )
 
     def __init__(
         self,
@@ -272,8 +255,14 @@ class BatchOperator(AwsBaseOperator[BatchClientHook]):
         if validated_event["status"] != "success":
             raise AirflowException(f"Error while running job: {validated_event}")
 
-        self.log.info("Job completed.")
-        return validated_event["job_id"]
+        self.job_id = validated_event["job_id"]
+
+        # Fetch logs if awslogs_enabled
+        if self.awslogs_enabled:
+            self.monitor_job(context)  # fetch logs, no need to return
+
+        self.log.info("Job completed successfully for job_id: %s", self.job_id)
+        return self.job_id
 
     def on_kill(self):
         response = self.hook.client.terminate_job(jobId=self.job_id, reason="Task killed by the user")

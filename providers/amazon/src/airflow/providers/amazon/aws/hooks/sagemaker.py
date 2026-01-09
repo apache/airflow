@@ -23,20 +23,19 @@ import tarfile
 import tempfile
 import time
 from collections import Counter, namedtuple
-from collections.abc import AsyncGenerator, Generator
+from collections.abc import AsyncGenerator, Callable, Generator
 from datetime import datetime
 from functools import partial
-from typing import Any, Callable, cast
+from typing import Any, cast
 
 from asgiref.sync import sync_to_async
 from botocore.exceptions import ClientError
 
-from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 from airflow.providers.amazon.aws.hooks.logs import AwsLogsHook
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
 from airflow.providers.amazon.aws.utils.tags import format_tags
-from airflow.utils import timezone
+from airflow.providers.common.compat.sdk import AirflowException, timezone
 
 
 class LogState:

@@ -34,9 +34,9 @@ const labelLookup = (key: string, valuesDisplay: Record<string, string> | undefi
 };
 const enumTypes = ["string", "number", "integer"];
 
-export const FieldDropdown = ({ name, onUpdate }: FlexibleFormElementProps) => {
+export const FieldDropdown = ({ name, namespace = "default", onUpdate }: FlexibleFormElementProps) => {
   const { t: translate } = useTranslation("components");
-  const { paramsDict, setParamsDict } = useParamStore();
+  const { disabled, paramsDict, setParamsDict } = useParamStore(namespace);
   const param = paramsDict[name] ?? paramPlaceholder;
 
   const selectOptions = createListCollection({
@@ -47,7 +47,7 @@ export const FieldDropdown = ({ name, onUpdate }: FlexibleFormElementProps) => {
       })) ?? [],
   });
 
-  const contentRef = useRef<HTMLDivElement>(null);
+  const contentRef = useRef<HTMLDivElement | null>(null);
 
   const handleChange = ([value]: Array<string>) => {
     if (paramsDict[name]) {
@@ -63,6 +63,7 @@ export const FieldDropdown = ({ name, onUpdate }: FlexibleFormElementProps) => {
   return (
     <Select.Root
       collection={selectOptions}
+      disabled={disabled}
       id={`element_${name}`}
       name={`element_${name}`}
       onValueChange={(event) => handleChange(event.value)}

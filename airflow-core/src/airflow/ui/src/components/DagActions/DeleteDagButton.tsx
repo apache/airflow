@@ -16,10 +16,10 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { useDisclosure } from "@chakra-ui/react";
+import { Box, type ButtonProps, useDisclosure } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 import { FiTrash2 } from "react-icons/fi";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 
 import DeleteDialog from "src/components/DeleteDialog";
 import ActionButton from "src/components/ui/ActionButton";
@@ -29,29 +29,35 @@ type DeleteDagButtonProps = {
   readonly dagDisplayName: string;
   readonly dagId: string;
   readonly withText?: boolean;
-};
+} & ButtonProps;
 
-const DeleteDagButton = ({ dagDisplayName, dagId, withText = true }: DeleteDagButtonProps) => {
+const DeleteDagButton = ({ dagDisplayName, dagId, width, withText = true }: DeleteDagButtonProps) => {
   const { onClose, onOpen, open } = useDisclosure();
   const navigate = useNavigate();
+  const location = useLocation();
   const { t: translate } = useTranslation("dags");
+
+  const isOnDagDetailPage = location.pathname.includes(`/dags/${dagId}`);
+
   const { isPending, mutate: deleteDag } = useDeleteDag({
     dagId,
     onSuccessConfirm: () => {
       onClose();
-      navigate("/dags");
+      if (isOnDagDetailPage) {
+        navigate("/dags");
+      }
     },
   });
 
   return (
-    <>
+    <Box width={width}>
       <ActionButton
         actionName={translate("dagActions.delete.button")}
-        colorPalette="red"
+        colorPalette="danger"
         icon={<FiTrash2 />}
         onClick={onOpen}
         text={translate("dagActions.delete.button")}
-        variant="solid"
+        width={width}
         withText={withText}
       />
 
@@ -64,7 +70,7 @@ const DeleteDagButton = ({ dagDisplayName, dagId, withText = true }: DeleteDagBu
         title={translate("dagActions.delete.button")}
         warningText={translate("dagActions.delete.warning")}
       />
-    </>
+    </Box>
   );
 };
 

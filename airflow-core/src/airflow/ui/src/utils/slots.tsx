@@ -35,27 +35,27 @@ export const slotConfigs: Array<SlotConfig> = [
   {
     key: "open_slots",
     color: "success",
-    icon: <StateIcon color="white" state="success" />,
+    icon: <StateIcon color="fg" state="success" />,
   },
   {
     key: "running_slots",
     color: "running",
-    icon: <StateIcon color="white" state="running" />,
+    icon: <StateIcon color="fg" state="running" />,
   },
   {
     key: "queued_slots",
     color: "queued",
-    icon: <StateIcon color="white" state="queued" />,
+    icon: <StateIcon color="fg" state="queued" />,
   },
   {
     key: "scheduled_slots",
     color: "scheduled",
-    icon: <StateIcon color="white" state="scheduled" />,
+    icon: <StateIcon color="fg" state="scheduled" />,
   },
   {
     key: "deferred_slots",
     color: "deferred",
-    icon: <StateIcon color="white" state="deferred" />,
+    icon: <StateIcon color="fg" state="deferred" />,
   },
 ];
 

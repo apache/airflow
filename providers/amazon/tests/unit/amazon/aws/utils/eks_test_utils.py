@@ -20,7 +20,7 @@ from __future__ import annotations
 import re
 from copy import deepcopy
 from re import Pattern
-from typing import TYPE_CHECKING, Union
+from typing import TYPE_CHECKING
 
 from unit.amazon.aws.utils.eks_test_constants import (
     STATUS,
@@ -38,7 +38,7 @@ if TYPE_CHECKING:
 
     from airflow.providers.amazon.aws.hooks.eks import EksHook
 
-InputTypes = Union[type[ClusterInputs], type[NodegroupInputs], type[FargateProfileInputs]]
+InputTypes = type[ClusterInputs] | type[NodegroupInputs] | type[FargateProfileInputs]
 
 
 def attributes_to_test(
@@ -58,7 +58,7 @@ def attributes_to_test(
     :param nodegroup_name: The name of the nodegroup under test if applicable.
     :return: Returns a list of tuples containing the keys and values to be validated in testing.
     """
-    result: list[tuple] = deepcopy(inputs.REQUIRED + inputs.OPTIONAL + [STATUS])  # type: ignore
+    result: list[tuple] = deepcopy(inputs.REQUIRED + inputs.OPTIONAL + [STATUS])
     if inputs == ClusterInputs:
         result += [(ClusterAttributes.NAME, cluster_name)]
     elif inputs == FargateProfileInputs:
@@ -178,10 +178,10 @@ def _input_builder(options: InputTypes, minimal: bool) -> dict:
     :param minimal: If True, only the required values are generated; if False all values are generated.
     :return: Returns a dict containing the keys and values to be validated in testing.
     """
-    values: list[tuple] = deepcopy(options.REQUIRED)  # type: ignore
+    values: list[tuple] = deepcopy(options.REQUIRED)
     if not minimal:
         values.extend(deepcopy(options.OPTIONAL))
-    return dict(values)  # type: ignore
+    return dict(values)
 
 
 def string_to_regex(value: str) -> Pattern[str]:

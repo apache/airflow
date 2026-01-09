@@ -27,10 +27,6 @@ import pytest
 from airflow.models import Connection
 from airflow.providers.common.sql.hooks.handlers import fetch_all_handler
 from airflow.providers.exasol.hooks.exasol import ExasolHook
-from airflow.utils.session import provide_session
-
-pytestmark = pytest.mark.db_test
-
 
 TASK_ID = "sql-operator"
 HOST = "host"
@@ -43,17 +39,18 @@ class ExasolHookForTests(ExasolHook):
     get_conn = MagicMock(name="conn")
 
 
-@provide_session
 @pytest.fixture(autouse=True)
-def create_connection(session):
-    conn = session.query(Connection).filter(Connection.conn_id == DEFAULT_CONN_ID).first()
-    if conn is None:
-        conn = Connection(conn_id=DEFAULT_CONN_ID)
-    conn.host = HOST
-    conn.login = None
-    conn.password = PASSWORD
-    conn.extra = None
-    session.commit()
+def create_connection(create_connection_without_db):
+    create_connection_without_db(
+        Connection(
+            conn_id=DEFAULT_CONN_ID,
+            conn_type="exasol",
+            host=HOST,
+            login=None,
+            password=PASSWORD,
+            extra=None,
+        )
+    )
 
 
 @pytest.fixture
@@ -72,8 +69,16 @@ index = 0
 
 
 @pytest.mark.parametrize(
-    "return_last, split_statements, sql, cursor_calls,"
-    "cursor_descriptions, cursor_results, hook_descriptions, hook_results, ",
+    (
+        "return_last",
+        "split_statements",
+        "sql",
+        "cursor_calls",
+        "cursor_descriptions",
+        "cursor_results",
+        "hook_descriptions",
+        "hook_results",
+    ),
     [
         pytest.param(
             True,
@@ -288,6 +293,5 @@ def test_query(
 def test_no_query(empty_statement):
     dbapi_hook = ExasolHookForTests()
     dbapi_hook.get_conn.return_value.cursor.rowcount = lambda: 0
-    with pytest.raises(ValueError) as err:
+    with pytest.raises(ValueError, match="List of SQL statements is empty"):
         dbapi_hook.run(sql=empty_statement)
-    assert err.value.args[0] == "List of SQL statements is empty"

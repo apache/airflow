@@ -16,8 +16,13 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { useCallback, useMemo, type PropsWithChildren } from "react";
+import { useEffect, useRef, type PropsWithChildren } from "react";
+import { useDebouncedCallback } from "use-debounce";
 import { useLocalStorage } from "usehooks-ts";
+
+import { useStructureServiceStructureData } from "openapi/queries";
+import useSelectedVersion from "src/hooks/useSelectedVersion";
+import { flattenGraphNodes } from "src/layouts/Details/Grid/utils";
 
 import { OpenGroupsContext, type OpenGroupsContextType } from "./Context";
 
@@ -27,23 +32,68 @@ type Props = {
 
 export const OpenGroupsProvider = ({ children, dagId }: Props) => {
   const openGroupsKey = `${dagId}/open-groups`;
+  const allGroupsKey = `${dagId}/all-groups`;
   const [openGroupIds, setOpenGroupIds] = useLocalStorage<Array<string>>(openGroupsKey, []);
+  const [allGroupIds, setAllGroupIds] = useLocalStorage<Array<string>>(allGroupsKey, []);
 
-  const toggleGroupId = useCallback(
-    (groupId: string) => {
-      if (openGroupIds.includes(groupId)) {
-        setOpenGroupIds(openGroupIds.filter((id) => id !== groupId));
-      } else {
-        setOpenGroupIds([...openGroupIds, groupId]);
-      }
+  // use a ref to track the current allGroupIds without causing re-renders
+  const allGroupIdsRef = useRef(allGroupIds);
+
+  useEffect(() => {
+    allGroupIdsRef.current = allGroupIds;
+  }, [allGroupIds]);
+
+  // For Graph view support: dependencies + selected version
+  const selectedVersion = useSelectedVersion();
+  const [dependencies] = useLocalStorage<"all" | "immediate" | "tasks">(`dependencies-${dagId}`, "tasks");
+
+  // Fetch structure (minimal params if you want it lightweight for Grid)
+  const { data: structure = { edges: [], nodes: [] } } = useStructureServiceStructureData(
+    {
+      dagId,
+      externalDependencies: dependencies === "immediate",
+      versionNumber: selectedVersion,
     },
-    [openGroupIds, setOpenGroupIds],
+    undefined,
+    { enabled: Boolean(dagId) && selectedVersion !== undefined },
   );
 
-  const value = useMemo<OpenGroupsContextType>(
-    () => ({ openGroupIds, setOpenGroupIds, toggleGroupId }),
-    [openGroupIds, setOpenGroupIds, toggleGroupId],
+  // Update allGroupIds whenever structure changes
+  useEffect(() => {
+    const observedGroupIds = flattenGraphNodes(structure.nodes).allGroupIds;
+
+    if (JSON.stringify(observedGroupIds) !== JSON.stringify(allGroupIdsRef.current)) {
+      setAllGroupIds(observedGroupIds);
+    }
+  }, [structure.nodes, setAllGroupIds]);
+
+  const debouncedSetOpenGroupIds = useDebouncedCallback(
+    (newGroupIds: Array<string>) => {
+      setOpenGroupIds(newGroupIds);
+    },
+    100, // 100ms debounce for batch operations
   );
+
+  const toggleGroupId = (groupId: string) => {
+    if (openGroupIds.includes(groupId)) {
+      debouncedSetOpenGroupIds(openGroupIds.filter((id) => id !== groupId));
+    } else {
+      debouncedSetOpenGroupIds([...openGroupIds, groupId]);
+    }
+  };
+
+  const setOpenGroupIdsImmediate = (newGroupIds: Array<string>) => {
+    debouncedSetOpenGroupIds.cancel();
+    setOpenGroupIds(newGroupIds);
+  };
+
+  const value: OpenGroupsContextType = {
+    allGroupIds,
+    openGroupIds,
+    setAllGroupIds,
+    setOpenGroupIds: setOpenGroupIdsImmediate,
+    toggleGroupId,
+  };
 
   return <OpenGroupsContext.Provider value={value}>{children}</OpenGroupsContext.Provider>;
 };

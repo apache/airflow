@@ -48,7 +48,7 @@ class TestWebserverHPA:
         assert jmespath.search("metadata.labels", docs[0])["test_label"] == "test_label_value"
 
     @pytest.mark.parametrize(
-        "min_replicas, max_replicas",
+        ("min_replicas", "max_replicas"),
         [
             (None, None),
             (2, 8),
@@ -95,7 +95,7 @@ class TestWebserverHPA:
         assert jmespath.search("spec.behavior", docs[0]) == expected_behavior
 
     @pytest.mark.parametrize(
-        "metrics, expected_metrics",
+        ("metrics", "expected_metrics"),
         [
             # default metrics
             (

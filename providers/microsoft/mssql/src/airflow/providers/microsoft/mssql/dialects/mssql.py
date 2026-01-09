@@ -40,7 +40,7 @@ class MsSqlDialect(Dialect):
                 """,
             handler=fetch_all_handler,
         )
-        primary_keys = [pk[0] for pk in primary_keys] if primary_keys else []  # type: ignore
+        primary_keys = [pk[0] for pk in primary_keys] if primary_keys else []
         self.log.debug("Primary keys for table '%s': %s", table, primary_keys)
         return primary_keys  # type: ignore
 

@@ -23,7 +23,15 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from airflow.exceptions import AirflowException, TaskDeferred
+try:
+    import importlib.util
+
+    if not importlib.util.find_spec("airflow.sdk.bases.hook"):
+        raise ImportError
+
+    BASEHOOK_PATCH_PATH = "airflow.sdk.bases.hook.BaseHook"
+except ImportError:
+    BASEHOOK_PATCH_PATH = "airflow.hooks.base.BaseHook"
 from airflow.models import Connection
 from airflow.providers.common.compat.openlineage.facet import (
     Dataset,
@@ -31,6 +39,7 @@ from airflow.providers.common.compat.openlineage.facet import (
     SchemaDatasetFacetFields,
     SQLJobFacet,
 )
+from airflow.providers.common.compat.sdk import AirflowException, TaskDeferred
 from airflow.providers.common.sql.hooks.sql import DbApiHook
 from airflow.providers.google.cloud.operators.cloud_sql import (
     CloudSQLCloneInstanceOperator,
@@ -736,7 +745,16 @@ class TestCloudSqlQueryValidation:
         get_connection.side_effect = [gcp_connection, cloudsql_connection, cloudsql_connection2]
 
     @pytest.mark.parametrize(
-        "project_id, location, instance_name, database_type, use_proxy, use_ssl, sql, message",
+        (
+            "project_id",
+            "location",
+            "instance_name",
+            "database_type",
+            "use_proxy",
+            "use_ssl",
+            "sql",
+            "message",
+        ),
         [
             (
                 "project_id",
@@ -791,7 +809,7 @@ class TestCloudSqlQueryValidation:
             ),
         ],
     )
-    @mock.patch("airflow.hooks.base.BaseHook.get_connection")
+    @mock.patch(f"{BASEHOOK_PATCH_PATH}.get_connection")
     def test_create_operator_with_wrong_parameters(
         self,
         get_connection,
@@ -816,7 +834,7 @@ class TestCloudSqlQueryValidation:
         err = ctx.value
         assert message in str(err)
 
-    @mock.patch("airflow.hooks.base.BaseHook.get_connection")
+    @mock.patch(f"{BASEHOOK_PATCH_PATH}.get_connection")
     def test_create_operator_with_too_long_unix_socket_path(self, get_connection):
         uri = (
             "gcpcloudsql://user:password@127.0.0.1:3200/testdb?database_type=postgres&"
@@ -832,7 +850,7 @@ class TestCloudSqlQueryValidation:
         assert "The UNIX socket path length cannot exceed" in str(err)
 
     @pytest.mark.parametrize(
-        "connection_port, default_port, expected_port",
+        ("connection_port", "default_port", "expected_port"),
         [(None, 4321, 4321), (1234, None, 1234), (1234, 4321, 1234)],
     )
     def test_execute_openlineage_events(self, connection_port, default_port, expected_port):

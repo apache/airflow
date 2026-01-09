@@ -20,7 +20,12 @@ import os
 from datetime import datetime
 
 from airflow import DAG, settings
-from airflow.decorators import task
+
+try:
+    from airflow.sdk import task
+except ImportError:
+    # Airflow 2 path
+    from airflow.decorators import task  # type: ignore[attr-defined,no-redef]
 from airflow.models import Connection
 from airflow.models.baseoperator import chain
 from airflow.providers.microsoft.azure.operators.powerbi import PowerBIDatasetRefreshOperator
@@ -45,6 +50,8 @@ def create_connection(conn_id_name: str):
         password=CLIENT_SECRET,
         extra={"tenant_id": TENANT_ID},
     )
+    if settings.Session is None:
+        raise RuntimeError("Session not configured. Call configure_orm() first.")
     session = settings.Session()
     session.add(conn)
     session.commit()
@@ -66,6 +73,12 @@ with DAG(
         group_id=GROUP_ID,
         check_interval=30,
         timeout=120,
+        request_body={
+            "type": "full",
+            "retryCount": 3,
+            "commitMode": "transactional",
+            "notifyOption": "MailOnFailure",
+        },
     )
     # [END howto_operator_powerbi_refresh_async]
 

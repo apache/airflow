@@ -25,14 +25,25 @@ from unittest import mock
 import pytest
 from paramiko.client import SSHClient
 
-from airflow.exceptions import AirflowException, AirflowSkipException, AirflowTaskTimeout
 from airflow.models import TaskInstance
+from airflow.providers.common.compat.sdk import (
+    AirflowException,
+    AirflowSkipException,
+    AirflowTaskTimeout,
+    timezone,
+)
 from airflow.providers.ssh.hooks.ssh import SSHHook
 from airflow.providers.ssh.operators.ssh import SSHOperator
-from airflow.utils.timezone import datetime
-from airflow.utils.types import NOTSET
 
 from tests_common.test_utils.config import conf_vars
+from tests_common.test_utils.dag import sync_dag_to_db
+from tests_common.test_utils.taskinstance import create_task_instance
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS, NOTSET
+
+datetime = timezone.datetime
+
+if AIRFLOW_V_3_0_PLUS:
+    from airflow.models.dag_version import DagVersion
 
 pytestmark = pytest.mark.db_test
 
@@ -73,7 +84,7 @@ class TestSSHOperator:
             yield exec_ssh_client_command
 
     @pytest.mark.parametrize(
-        "cmd_timeout, cmd_timeout_expected",
+        ("cmd_timeout", "cmd_timeout_expected"),
         [(45, 45), ("Not Set", 10), (None, None)],
     )
     def test_hook_created_correctly(self, cmd_timeout, cmd_timeout_expected):
@@ -176,7 +187,7 @@ class TestSSHOperator:
             ).execute(None)
 
     @pytest.mark.parametrize(
-        "command, get_pty_in, get_pty_out",
+        ("command", "get_pty_in", "get_pty_out"),
         [
             (COMMAND, False, False),
             (COMMAND, True, True),
@@ -207,7 +218,7 @@ class TestSSHOperator:
         self.hook.get_conn.return_value.__exit__.assert_called_once()
 
     @pytest.mark.parametrize(
-        "extra_kwargs, actual_exit_code, expected_exc",
+        ("extra_kwargs", "actual_exit_code", "expected_exc"),
         [
             ({}, 0, None),
             ({}, 100, AirflowException),
@@ -263,12 +274,17 @@ class TestSSHOperator:
         ssh_exit_code = random.randrange(1, 100)
         self.exec_ssh_client_command.return_value = (ssh_exit_code, b"", b"ssh output")
 
-        with dag_maker(dag_id=f"dag_{request.node.name}"):
+        with dag_maker(dag_id=f"dag_{request.node.name}") as dag:
             task = SSHOperator(task_id="push_xcom", ssh_hook=self.hook, command=command)
         dr = dag_maker.create_dagrun(run_id="push_xcom")
-        ti = TaskInstance(task=task, run_id=dr.run_id)
+        if AIRFLOW_V_3_0_PLUS:
+            sync_dag_to_db(dag)
+            dag_version = DagVersion.get_latest_version(dag.dag_id)
+            ti = create_task_instance(task=task, run_id=dr.run_id, dag_version_id=dag_version.id)
+        else:
+            ti = TaskInstance(task=task, run_id=dr.run_id)
         with pytest.raises(AirflowException, match=f"SSH operator error: exit status = {ssh_exit_code}"):
-            ti.run()
+            dag_maker.run_ti("push_xcom", dr)
         assert ti.xcom_pull(task_ids=task.task_id, key="ssh_exit") == ssh_exit_code
 
     def test_timeout_triggers_on_kill(self, request, dag_maker):
@@ -278,20 +294,29 @@ class TestSSHOperator:
         self.exec_ssh_client_command.side_effect = command_sleep_forever
 
         with dag_maker(dag_id=f"dag_{request.node.name}"):
-            task = SSHOperator(
+            _ = SSHOperator(
                 task_id="test_timeout",
                 ssh_hook=self.hook,
                 command="sleep 100",
                 execution_timeout=timedelta(seconds=1),
             )
         dr = dag_maker.create_dagrun(run_id="test_timeout")
-        ti = TaskInstance(task=task, run_id=dr.run_id)
 
         with mock.patch.object(SSHOperator, "on_kill") as mock_on_kill:
             with pytest.raises(AirflowTaskTimeout):
-                ti.run()
+                dag_maker.run_ti("test_timeout", dr)
 
             # Wait a bit to ensure on_kill has time to be called
             time.sleep(1)
 
             mock_on_kill.assert_called_once()
+
+    def test_remote_host_passed_at_hook_init(self):
+        remote_host = "test_host.internal"
+        task = SSHOperator(
+            task_id="test_remote_host_passed",
+            ssh_conn_id="ssh_default",
+            remote_host=remote_host,
+            command=COMMAND,
+        )
+        assert task.hook.remote_host == remote_host

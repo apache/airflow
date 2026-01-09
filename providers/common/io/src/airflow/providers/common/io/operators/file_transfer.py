@@ -27,11 +27,10 @@ if TYPE_CHECKING:
     from airflow.sdk import Context
 
 if AIRFLOW_V_3_0_PLUS:
-    from airflow.sdk import ObjectStoragePath
-    from airflow.sdk.bases.operator import BaseOperator
+    from airflow.sdk import BaseOperator, ObjectStoragePath
 else:
     from airflow.io.path import ObjectStoragePath  # type: ignore[no-redef]
-    from airflow.models import BaseOperator  # type: ignore[no-redef]
+    from airflow.models import BaseOperator
 
 
 class FileTransferOperator(BaseOperator):

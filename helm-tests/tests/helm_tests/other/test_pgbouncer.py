@@ -109,7 +109,7 @@ class TestPgbouncer:
         assert jmespath.search("spec.clusterIP", docs[0]) == "10.10.10.10"
 
     @pytest.mark.parametrize(
-        "revision_history_limit, global_revision_history_limit",
+        ("revision_history_limit", "global_revision_history_limit"),
         [(8, 10), (10, 8), (8, None), (None, 10), (None, None)],
     )
     def test_revision_history_limit(self, revision_history_limit, global_revision_history_limit):
@@ -751,7 +751,7 @@ class TestPgbouncerExporter:
                     "enabled": True,
                     "metricsExporterSidecar": {
                         "statsSecretName": "existing-stats-secret",
-                        "statsSecretKey": "exisiting-stats-secret-key",
+                        "statsSecretKey": "existing-stats-secret-key",
                     },
                 },
             },
@@ -760,7 +760,7 @@ class TestPgbouncerExporter:
 
         assert jmespath.search("spec.template.spec.containers[1].env[0].valueFrom.secretKeyRef", docs[0]) == {
             "name": "existing-stats-secret",
-            "key": "exisiting-stats-secret-key",
+            "key": "existing-stats-secret-key",
         }
 
     def test_unused_secret_key(self):
@@ -850,7 +850,7 @@ class TestPgbouncerNetworkPolicy:
         assert jmespath.search("metadata.name", docs[0]) == "release-name-pgbouncer-policy"
 
     @pytest.mark.parametrize(
-        "conf, expected_selector",
+        ("conf", "expected_selector"),
         [
             # test with workers.keda enabled without namespace labels
             (

@@ -35,43 +35,33 @@ class KafkaMessageQueueProvider(BaseMessageQueueProvider):
     """
     Configuration for Apache Kafka integration with common-messaging.
 
-    It uses the ``kafka://`` URI scheme for identifying Kafka queues.
+    [START kafka_message_queue_provider_description]
 
-    **URI Format**:
-
-    .. code-block:: text
-
-        kafka://<broker>/<topic_list>
-
-    Where:
-
-    * ``broker``: Kafka brokers (hostname:port)
-    * ``topic_list``: Comma-separated list of Kafka topics to consume messages from
-
-    **Examples**:
-
-    .. code-block:: text
-
-        kafka://localhost:9092/my_topic
-
-    **Required kwargs**:
-
-    * ``apply_function``: Function to process each Kafka message
-
-    You can also provide ``topics`` directly in kwargs instead of in the URI.
+    * It uses ``kafka`` as scheme for identifying Kafka queues.
+    * For parameter definitions take a look at :class:`~airflow.providers.apache.kafka.triggers.await_message.AwaitMessageTrigger`.
 
     .. code-block:: python
 
         from airflow.providers.common.messaging.triggers.msg_queue import MessageQueueTrigger
+        from airflow.sdk import Asset, AssetWatcher
 
         trigger = MessageQueueTrigger(
-            queue="kafka://localhost:9092/test",
+            scheme="kafka",
+            # Additional Kafka AwaitMessageTrigger parameters as needed
+            topics=["my_topic"],
             apply_function="module.apply_function",
+            bootstrap_servers="localhost:9092",
         )
+
+        asset = Asset("kafka_queue_asset", watchers=[AssetWatcher(name="kafka_watcher", trigger=trigger)])
 
     For a complete example, see:
     :mod:`tests.system.common.messaging.kafka_message_queue_trigger`
+
+    [END kafka_message_queue_provider_description]
     """
+
+    scheme = "kafka"
 
     def queue_matches(self, queue: str) -> bool:
         return bool(re.match(QUEUE_REGEXP, queue))

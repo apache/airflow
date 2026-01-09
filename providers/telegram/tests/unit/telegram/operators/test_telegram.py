@@ -25,23 +25,21 @@ import telegram
 import airflow
 from airflow.models import Connection
 from airflow.providers.telegram.operators.telegram import TelegramOperator
-from airflow.utils import db
-
-pytestmark = pytest.mark.db_test
 
 TELEGRAM_TOKEN = "xxx:xxx"
 
 
 class TestTelegramOperator:
-    def setup_method(self):
-        db.merge_conn(
+    @pytest.fixture(autouse=True)
+    def setup_connections(self, create_connection_without_db):
+        create_connection_without_db(
             Connection(
                 conn_id="telegram_default",
                 conn_type="http",
                 password=TELEGRAM_TOKEN,
             )
         )
-        db.merge_conn(
+        create_connection_without_db(
             Connection(
                 conn_id="telegram_default-with-chat-id",
                 conn_type="http",

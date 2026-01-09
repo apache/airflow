@@ -22,7 +22,7 @@ Managing Connections
 
   For an overview of hooks and connections, see :doc:`/authoring-and-scheduling/connections`.
 
-Airflow's :class:`~airflow.models.connection.Connection` object is used for storing credentials and other information necessary for connecting to external services.
+Airflow's :class:`~airflow.sdk.Connection` object is used for storing credentials and other information necessary for connecting to external services.
 
 Connections may be defined in the following ways:
 
@@ -77,7 +77,7 @@ convenience property :py:meth:`~airflow.models.connection.Connection.as_json`. I
 
 .. code-block:: pycon
 
-    >>> from airflow.models.connection import Connection
+    >>> from airflow.sdk import Connection
     >>> c = Connection(
     ...     conn_id="some_conn",
     ...     conn_type="mysql",
@@ -94,7 +94,7 @@ In addition, same approach could be used to convert Connection from URI format t
 
 .. code-block:: pycon
 
-    >>> from airflow.models.connection import Connection
+    >>> from airflow.sdk import Connection
     >>> c = Connection(
     ...     conn_id="awesome_conn",
     ...     description="Example Connection",
@@ -115,9 +115,16 @@ If serializing with Airflow URI:
 
 See :ref:`Connection URI format <connection-uri-format>` for more details on how to generate the a valid URI.
 
-.. note::
+Visibility in UI and CLI
+^^^^^^^^^^^^^^^^^^^^^^^^^
 
-    Connections defined in environment variables will not show up in the Airflow UI or using ``airflow connections list``.
+Connections defined through environment variables are **not displayed** in the Airflow UI or listed using ``airflow connections list``.
+
+This is because these connections are **resolved dynamically at runtime**, typically on the **worker** process executing your task. They are not stored in the metadata database or loaded in the webserver or scheduler environment.
+
+This supports secure deployment patterns where environment-based secrets (e.g. via ``.env`` files, Docker, or Kubernetes secrets) are injected only into runtime components like workers — and not into components exposed to users, like the webserver.
+
+If you need connections to appear in the UI for visibility or editing, define them using the metadata database instead.
 
 
 Storing connections in a Secrets Backend

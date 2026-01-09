@@ -24,20 +24,31 @@ Setting up the sandbox in the :doc:`/start` section was easy;
 building a production-grade environment requires a bit more work!
 
 These how-to guides will step you through common tasks in using and
-configuring an Airflow CTL environment.
+configuring an airflowctl environment.
 
 
-How to use Airflow CTL
-----------------------
+How to use airflowctl
+---------------------
 
 **Important Note**
 ''''''''''''''''''
-Airflow CTL needs the Airflow API running to be able to work. Please, see the login section below before use.
+airflowctl needs the Airflow API running to be able to work. Please, see the login section below before use.
 Otherwise, you may get errors.
+
+Datetime Usage
+''''''''''''''
+For datetime parameters, date should be timezone aware and in ISO format.
+For example: ``2025-10-10T10:00:00+00:00``
+Let's take example of triggering a DAG run with a logical date, run after and a note.
+
+.. code-block:: bash
+
+  airflowctl dagrun trigger --dag-id="example_bash_operator" --logical-date="2025-09-06T00:00:00+00:00" --run-after="2025-09-06T00:00:00+00:00" --note="Triggered from airflowctl"
+
 
 Login
 '''''
-Airflow CTL needs to be able to connect to the Airflow API. You should pass API URL as a parameter to the command
+airflowctl needs to be able to connect to the Airflow API. You should pass API URL as a parameter to the command
 ``--api-url``. The URL should be in the form of ``http(s)://<host>:<port>``.
 You can also set the environment variable ``AIRFLOW_CLI_TOKEN`` to the token to use for authentication.
 
@@ -66,7 +77,39 @@ In both cases token is securely stored in the keyring backend. Only configuratio
 is the API URL and the environment name. The token is stored in the keyring backend and is not persisted in the
 configuration file. The keyring backend is used to securely store the token and is not accessible to the user.
 
+What is authentication for ``airflowctl``?
+``````````````````````````````````````````
+For ``airflowctl`` to be able to communicate with the Airflow API, it needs to authenticate itself and acquire token.
+This is done using either a token or a username and password.
+The token can be acquired from the Airflow API or generated using a username and password.
 
+.. image:: ../images/diagrams/airflowctl_api_network_architecture_diagram.png
+  :target: https://raw.githubusercontent.com/apache/airflow/main/airflow-ctl/docs/images/diagrams/airflowctl_api_network_architecture_diagram.png
+  :width: 100%
+  :alt: airflowctl Auth Login Help
+
+Parameter Details for airflowctl auth login
+```````````````````````````````````````````
+
+**--api-url**: This parameter is required. (e.g. ``http://localhost:8080``)
+The default value is ``http://localhost:8080``. Full URL of the Airflow API. Without any ``/api/*`` suffixes.
+If you are running the ``airflowctl`` in ``breeze`` container, it is optional.
+
+**--api-token**: This parameter is optional.
+If you are setting the token via the environment variable ``AIRFLOW_CLI_TOKEN``, you can skip using this parameter.
+
+**--username**: This parameter is optional.
+If you are not using ``--api-token`` or the environment variable ``AIRFLOW_CLI_TOKEN``, you must provide a username to authentication along with ``--password``.
+
+**--password**: This parameter is optional.
+If you provide a username via ``--username`` this is the required password to authenticate.
+
+**--env**: This parameter is optional.
+The name of the environment to create or update. The default value is ``production``.
+This parameter is useful when you want to manage multiple Airflow environments.
+
+More Usage and Help Pictures
+''''''''''''''''''''''''''''
 For more information use
 
 .. code-block:: bash
@@ -76,9 +119,9 @@ For more information use
 .. image:: ../images/output_auth_login.svg
   :target: https://raw.githubusercontent.com/apache/airflow/main/airflow-ctl/docs/images/output_auth_login.svg
   :width: 60%
-  :alt: Airflow CTL Auth Login Help
+  :alt: airflowctl Auth Login Help
 
-You are ready to use Airflow CTL now.
+You are ready to use airflowctl now.
 Please, also see :doc:`/cli-and-env-variables-ref` for the list of available commands and options.
 
 You can use the command ``airflowctl --help`` to see the list of available commands.
@@ -86,13 +129,12 @@ You can use the command ``airflowctl --help`` to see the list of available comma
 .. image:: ../images/output_main.svg
   :target: https://raw.githubusercontent.com/apache/airflow/main/airflow-ctl/docs/images/output_main.svg
   :width: 60%
-  :alt: Airflow CTL Help
-
+  :alt: airflowctl Help
 
 All Available Group Command References
 --------------------------------------
 
-Below are the command reference diagrams for all available commands in Airflow CTL.
+Below are the command reference diagrams for all available commands in airflowctl.
 These visual references show the full command syntax, options, and parameters for each command.
 
 **Assets**
@@ -100,81 +142,81 @@ These visual references show the full command syntax, options, and parameters fo
 .. image:: ../images/output_assets.svg
   :target: https://raw.githubusercontent.com/apache/airflow/main/airflow-ctl/docs/images/output_assets.svg
   :width: 60%
-  :alt: Airflow CTL Assets Command
+  :alt: airflowctl Assets Command
 
 **Auth**
 ''''''''
 .. image:: ../images/output_auth.svg
   :target: https://raw.githubusercontent.com/apache/airflow/main/airflow-ctl/docs/images/output_auth.svg
   :width: 60%
-  :alt: Airflow CTL Auth Command
+  :alt: airflowctl Auth Command
 
-**Backfills**
+**Backfill**
 '''''''''''''
-.. image:: ../images/output_backfills.svg
-  :target: https://raw.githubusercontent.com/apache/airflow/main/airflow-ctl/docs/images/output_backfills.svg
+.. image:: ../images/output_backfill.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/airflow-ctl/docs/images/output_backfill.svg
   :width: 60%
-  :alt: Airflow CTL Backfills Command
+  :alt: airflowctl Backfills Command
 
 **Config**
 ''''''''''
 .. image:: ../images/output_config.svg
   :target: https://raw.githubusercontent.com/apache/airflow/main/airflow-ctl/docs/images/output_config.svg
   :width: 60%
-  :alt: Airflow CTL Config Command
+  :alt: airflowctl Config Command
 
 **Connections**
 '''''''''''''''
 .. image:: ../images/output_connections.svg
   :target: https://raw.githubusercontent.com/apache/airflow/main/airflow-ctl/docs/images/output_connections.svg
   :width: 60%
-  :alt: Airflow CTL Connections Command
+  :alt: airflowctl Connections Command
 
-**DAGs**
+**Dags**
 ''''''''
-.. image:: ../images/output_dag.svg
-  :target: https://raw.githubusercontent.com/apache/airflow/main/airflow-ctl/docs/images/output_dag.svg
+.. image:: ../images/output_dags.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/airflow-ctl/docs/images/output_dags.svg
   :width: 60%
-  :alt: Airflow CTL DAG Command
+  :alt: airflowctl Dag Command
 
-**DAG Runs**
+**Dag Runs**
 ''''''''''''
 .. image:: ../images/output_dagrun.svg
   :target: https://raw.githubusercontent.com/apache/airflow/main/airflow-ctl/docs/images/output_dagrun.svg
   :width: 60%
-  :alt: Airflow CTL DAG Run Command
+  :alt: airflowctl Dag Run Command
 
 **Jobs**
 ''''''''
 .. image:: ../images/output_jobs.svg
   :target: https://raw.githubusercontent.com/apache/airflow/main/airflow-ctl/docs/images/output_jobs.svg
   :width: 60%
-  :alt: Airflow CTL Jobs Command
+  :alt: airflowctl Jobs Command
 
 **Pools**
 '''''''''
 .. image:: ../images/output_pools.svg
   :target: https://raw.githubusercontent.com/apache/airflow/main/airflow-ctl/docs/images/output_pools.svg
   :width: 60%
-  :alt: Airflow CTL Pools Command
+  :alt: airflowctl Pools Command
 
 **Providers**
 '''''''''''''
 .. image:: ../images/output_providers.svg
   :target: https://raw.githubusercontent.com/apache/airflow/main/airflow-ctl/docs/images/output_providers.svg
   :width: 60%
-  :alt: Airflow CTL Providers Command
+  :alt: airflowctl Providers Command
 
 **Variables**
 '''''''''''''
 .. image:: ../images/output_variables.svg
   :target: https://raw.githubusercontent.com/apache/airflow/main/airflow-ctl/docs/images/output_variables.svg
   :width: 60%
-  :alt: Airflow CTL Variables Command
+  :alt: airflowctl Variables Command
 
 **Version**
 '''''''''''
 .. image:: ../images/output_version.svg
   :target: https://raw.githubusercontent.com/apache/airflow/main/airflow-ctl/docs/images/output_version.svg
   :width: 60%
-  :alt: Airflow CTL Version Command
+  :alt: airflowctl Version Command

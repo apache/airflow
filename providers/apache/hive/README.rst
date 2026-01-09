@@ -23,7 +23,7 @@
 
 Package ``apache-airflow-providers-apache-hive``
 
-Release: ``9.1.0``
+Release: ``9.2.2``
 
 
 `Apache Hive <https://hive.apache.org/>`__
@@ -36,30 +36,32 @@ This is a provider package for ``apache.hive`` provider. All classes for this pr
 are in ``airflow.providers.apache.hive`` python package.
 
 You can find package information and changelog for the provider
-in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-apache-hive/9.1.0/>`_.
+in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-apache-hive/9.2.2/>`_.
 
 Installation
 ------------
 
-You can install this package on top of an existing Airflow 2 installation (see ``Requirements`` below
+You can install this package on top of an existing Airflow installation (see ``Requirements`` below
 for the minimum Airflow version supported) via
 ``pip install apache-airflow-providers-apache-hive``
 
-The package supports the following python versions: 3.9,3.10,3.11,3.12
+The package supports the following python versions: 3.10,3.11,3.12,3.13
 
 Requirements
 ------------
 
-=======================================  ==================
-PIP package                              Version required
-=======================================  ==================
-``apache-airflow``                       ``>=2.10.0``
-``apache-airflow-providers-common-sql``  ``>=1.26.0``
-``hmsclient``                            ``>=0.1.0``
-``pyhive[hive_pure_sasl]``               ``>=0.7.0``
-``thrift``                               ``>=0.11.0``
-``jmespath``                             ``>=0.7.0``
-=======================================  ==================
+==========================================  =====================================
+PIP package                                 Version required
+==========================================  =====================================
+``apache-airflow``                          ``>=2.11.0``
+``apache-airflow-providers-common-compat``  ``>=1.10.1``
+``apache-airflow-providers-common-sql``     ``>=1.26.0``
+``hmsclient``                               ``>=0.1.0``
+``pandas``                                  ``>=2.1.2; python_version < "3.13"``
+``pandas``                                  ``>=2.2.3; python_version >= "3.13"``
+``pyhive[hive_pure_sasl]``                  ``>=0.7.0``
+``jmespath``                                ``>=0.7.0``
+==========================================  =====================================
 
 Cross provider package dependencies
 -----------------------------------
@@ -87,5 +89,21 @@ Dependent package                                                               
 `apache-airflow-providers-vertica <https://airflow.apache.org/docs/apache-airflow-providers-vertica>`_                  ``vertica``
 ======================================================================================================================  ===================
 
+Optional dependencies
+----------------------
+
+===================  =============================================================================================
+Extra                Dependencies
+===================  =============================================================================================
+``amazon``           ``apache-airflow-providers-amazon``
+``microsoft.mssql``  ``apache-airflow-providers-microsoft-mssql``
+``mysql``            ``apache-airflow-providers-mysql``
+``presto``           ``apache-airflow-providers-presto``
+``samba``            ``apache-airflow-providers-samba``
+``vertica``          ``apache-airflow-providers-vertica``
+``GSSAPI``           ``winkerberos>=0.7.0; sys_platform == "win32"``, ``kerberos>=1.3.0; sys_platform != "win32"``
+``common.compat``    ``apache-airflow-providers-common-compat``
+===================  =============================================================================================
+
 The changelog for the provider package can be found in the
-`changelog <https://airflow.apache.org/docs/apache-airflow-providers-apache-hive/9.1.0/changelog.html>`_.
+`changelog <https://airflow.apache.org/docs/apache-airflow-providers-apache-hive/9.2.2/changelog.html>`_.

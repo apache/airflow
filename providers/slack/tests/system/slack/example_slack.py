@@ -76,7 +76,6 @@ with DAG(
         task_id="slack_file_upload_1",
         channels=SLACK_CHANNEL,
         filename="/files/dags/test.txt",
-        filetype="txt",
     )
     # [END slack_api_file_operator_howto_guide]
 

@@ -22,22 +22,33 @@ import subprocess
 import sys
 from functools import cached_property
 
-import awswrangler as wr
 import boto3
 
+from airflow_breeze.global_constants import PACKAGES_METADATA_EXCLUDE_NAMES
 from airflow_breeze.utils.console import get_console
 from airflow_breeze.utils.parallel import check_async_run_results, run_with_pool
 
 PROVIDER_NAME_FORMAT = "apache-airflow-providers-{}"
 
-NON_SHORT_NAME_PACKAGES = ["docker-stack", "helm-chart", "apache-airflow"]
+NON_SHORT_NAME_PACKAGES = ["apache-airflow", "apache-airflow-ctl", "docker-stack", "helm-chart", "task-sdk"]
 
-PACKAGES_METADATA_EXCLUDE_NAMES = ["docker-stack", "apache-airflow-providers"]
 
 s3_client = boto3.client("s3")
 cloudfront_client = boto3.client("cloudfront")
 
-version_error = False
+
+class VersionError:
+    """Class to track version errors during processing."""
+
+    version_error: bool = False
+
+    @staticmethod
+    def has_any_error() -> bool:
+        return VersionError.version_error
+
+    @staticmethod
+    def set_version_error(value: bool):
+        VersionError.version_error = value
 
 
 def get_cloudfront_distribution(destination_location):
@@ -80,7 +91,7 @@ class S3DocsPublish:
     def get_all_excluded_docs(self):
         if not self.exclude_docs:
             return []
-        excluded_docs = self.exclude_docs.split(",")
+        excluded_docs = self.exclude_docs.split(" ")
 
         # We remove `no-docs-excluded` string, this will be send from github workflows input as default value.
         if "no-docs-excluded" in excluded_docs:
@@ -124,7 +135,10 @@ class S3DocsPublish:
             return (0, "")
         get_console().print(f"[info]Syncing {source} to {destination}\n")
         result = subprocess.run(
-            ["aws", "s3", "sync", "--delete", source, destination], capture_output=True, text=True
+            ["aws", "s3", "sync", "--delete", source, destination],
+            check=False,
+            capture_output=True,
+            text=True,
         )
         return (result.returncode, result.stderr)
 
@@ -219,7 +233,7 @@ class S3DocsPublish:
 
         check_async_run_results(
             results=results,
-            success="All docs published successfully",
+            success_message="All docs published successfully",
             outputs=outputs,
             include_success_outputs=False,
         )
@@ -234,6 +248,18 @@ class S3DocsPublish:
             if destination.endswith("stable/")
         ]
 
+    def list_s3_directories(self, s3_path: str) -> list[str]:
+        """
+        List 'directories' (prefixes) in an S3 path using boto3.
+        """
+        bucket, prefix = self.get_bucket_key(s3_path.rstrip("/"))
+        paginator = s3_client.get_paginator("list_objects_v2")
+        result = []
+        for page in paginator.paginate(Bucket=bucket, Prefix=prefix + "/", Delimiter="/"):
+            for cp in page.get("CommonPrefixes", []):
+                result.append(f"s3://{bucket}/" + cp["Prefix"])
+        return result
+
     def generate_packages_metadata(self):
         get_console().print("[info]Generating packages-metadata.json file\n")
 
@@ -243,20 +269,17 @@ class S3DocsPublish:
 
         package_versions_map = {}
         s3_docs_path = self.destination_location.rstrip("/") + "/"
-        resp = wr.s3.list_directories(s3_docs_path)
+        resp = self.list_s3_directories(s3_docs_path)
 
-        # package_path: s3://staging-docs-airflow-apache-org/docs/apache-airflow-providers-apache-cassandra/
         for package_path in resp:
             package_name = package_path.replace(s3_docs_path, "").rstrip("/")
 
             if package_name in PACKAGES_METADATA_EXCLUDE_NAMES:
                 continue
 
-            # version_path: s3://staging-docs-airflow-apache-org/docs/apache-airflow-providers-apache-cassandra/1.0.0/
-
             versions = [
                 version_path.replace(package_path, "").rstrip("/")
-                for version_path in wr.s3.list_directories(package_path)
+                for version_path in self.list_s3_directories(package_path)
                 if version_path.replace(package_path, "").rstrip("/") != "stable"
             ]
             package_versions_map[package_name] = versions
@@ -265,9 +288,6 @@ class S3DocsPublish:
 
         bucket, _ = self.get_bucket_key(self.destination_location)
 
-        # We keep metadata in the same location with constant file name so that
-        # its easy to reference in airflow-site with url
-        # ex: https://staging-docs-airflow-apache-org.s3.us-east-2.amazonaws.com/manifest/packages-metadata.json
         get_console().print("[info]Uploading packages-metadata.json to S3\n")
         s3_client.put_object(
             Bucket=bucket,
@@ -280,7 +300,6 @@ class S3DocsPublish:
         get_console().print(
             f"[info]Invalidating CloudFront cache for the uploaded files: distribution id {distribution_id}\n"
         )
-        # We invalidate all CloudFront caches so that all uploaded files are available immediately
         cloudfront_client.create_invalidation(
             DistributionId=distribution_id,
             InvalidationBatch={
@@ -288,7 +307,7 @@ class S3DocsPublish:
                     "Quantity": 1,
                     "Items": ["/*"],
                 },
-                "CallerReference": str(int(os.environ.get("GITHUB_RUN_ID", 0))),
+                "CallerReference": str(int(os.environ.get("GITHUB_RUN_ID", str(0)))),
             },
         )
         get_console().print(
@@ -299,7 +318,7 @@ class S3DocsPublish:
         all_packages_infos = [
             {
                 "package-name": package_name,
-                "all-versions": (all_versions := self.get_all_versions(package_name, versions)),
+                "all-versions": (all_versions := self.get_latest_minor_versions(package_name, versions)),
                 "stable-version": all_versions[-1],
             }
             for package_name, versions in package_versions.items()
@@ -308,22 +327,34 @@ class S3DocsPublish:
         return all_packages_infos
 
     @staticmethod
-    def get_all_versions(package_name: str, versions: list[str]) -> list[str]:
+    def get_latest_minor_versions(package_name: str, versions: list[str]) -> list[str]:
         from packaging.version import Version
 
-        good_versions = []
-        for version in versions:
+        get_console().print(f"[info]Getting package versions for {package_name} from:\n")
+        get_console().print(versions)
+        all_versions: list[Version] = []
+        for v in versions:
             try:
-                Version(version)
-                good_versions.append(version)
+                all_versions.append(Version(v))
             except ValueError as e:
-                get_console().print(f"[error]Invalid version {version}: {e}\n")
-                global version_error
-                version_error = True
-        return sorted(
-            good_versions,
-            key=lambda d: Version(d),
-        )
+                get_console().print(f"[error]Invalid version {v}: {e}\n")
+                VersionError.set_version_error(True)
+        all_versions.sort(reverse=True)
+        minor_versions: list[str] = []
+        good_versions = []
+        for version in all_versions:
+            minor_version = str(version.major) + "." + str(version.minor)
+            if minor_version not in minor_versions:
+                get_console().print(f"[info]Latest minor version added: {version}\n")
+                minor_versions.append(minor_version)
+                good_versions.append(str(version))
+            else:
+                get_console().print(f"[info]Not latest minor version skipped: {version}\n")
+        MAX_VERSIONS = 20
+        selected_versions = good_versions[:MAX_VERSIONS][::-1]
+        get_console().print(f"[info]Selected {MAX_VERSIONS} versions for {package_name}:\n")
+        get_console().print(selected_versions)
+        return selected_versions
 
     @staticmethod
     def get_bucket_key(bucket_path: str) -> tuple[str, str]:

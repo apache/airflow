@@ -21,18 +21,23 @@ import datetime
 
 import pytest
 import time_machine
+from sqlalchemy import delete
 
-from airflow.exceptions import AirflowException
 from airflow.models.dagrun import DagRun
 from airflow.models.taskinstance import TaskInstance as TI
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.standard.operators.datetime import BranchDateTimeOperator
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.timetables.base import DataInterval
-from airflow.utils import timezone
 from airflow.utils.session import create_session
 from airflow.utils.state import State
 
-from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_1, AIRFLOW_V_3_0_PLUS
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_1, AIRFLOW_V_3_0_PLUS, AIRFLOW_V_3_1_PLUS
+
+if AIRFLOW_V_3_1_PLUS:
+    from airflow.sdk import timezone
+else:
+    from airflow.utils import timezone  # type: ignore[attr-defined,no-redef]
 
 pytestmark = pytest.mark.db_test
 
@@ -44,8 +49,8 @@ class TestBranchDateTimeOperator:
     @classmethod
     def setup_class(cls):
         with create_session() as session:
-            session.query(DagRun).delete()
-            session.query(TI).delete()
+            session.execute(delete(DagRun))
+            session.execute(delete(TI))
 
     targets = [
         (datetime.datetime(2020, 7, 7, 10, 0, 0), datetime.datetime(2020, 7, 7, 11, 0, 0)),
@@ -56,6 +61,7 @@ class TestBranchDateTimeOperator:
 
     @pytest.fixture(autouse=True)
     def base_tests_setup(self, dag_maker):
+        self.dag_maker = dag_maker  # Store dag_maker for use in test methods
         with dag_maker(
             "branch_datetime_operator_test",
             default_args={"owner": "airflow", "start_date": DEFAULT_DATE},
@@ -87,8 +93,8 @@ class TestBranchDateTimeOperator:
 
     def teardown_method(self):
         with create_session() as session:
-            session.query(DagRun).delete()
-            session.query(TI).delete()
+            session.execute(delete(DagRun))
+            session.execute(delete(TI))
 
     def _assert_task_ids_match_states(self, task_ids_to_states):
         """Helper that asserts task instances with a given id are in a given state"""
@@ -112,11 +118,11 @@ class TestBranchDateTimeOperator:
                 follow_task_ids_if_false="branch_2",
                 target_upper=None,
                 target_lower=None,
-                dag=self.dag,
+                dag=self.dag_maker.dag,
             )
 
     @pytest.mark.parametrize(
-        "target_lower,target_upper",
+        ("target_lower", "target_upper"),
         targets,
     )
     @time_machine.travel("2020-07-07 10:54:05")
@@ -125,13 +131,13 @@ class TestBranchDateTimeOperator:
         self.branch_op.target_lower = target_lower
         self.branch_op.target_upper = target_upper
         if AIRFLOW_V_3_0_1:
-            from airflow.exceptions import DownstreamTasksSkipped
+            from airflow.providers.common.compat.sdk import DownstreamTasksSkipped
 
             with pytest.raises(DownstreamTasksSkipped) as exc_info:
-                self.branch_op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
+                self.dag_maker.run_ti("datetime_branch", self.dr)
             assert exc_info.value.tasks == [("branch_2", -1)]
         else:
-            self.branch_op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
+            self.dag_maker.run_ti("datetime_branch", self.dr)
 
             self._assert_task_ids_match_states(
                 {
@@ -142,7 +148,7 @@ class TestBranchDateTimeOperator:
             )
 
     @pytest.mark.parametrize(
-        "target_lower,target_upper",
+        ("target_lower", "target_upper"),
         targets,
     )
     @pytest.mark.parametrize(
@@ -158,15 +164,15 @@ class TestBranchDateTimeOperator:
         self.branch_op.target_upper = target_upper
 
         if AIRFLOW_V_3_0_1:
-            from airflow.exceptions import DownstreamTasksSkipped
+            from airflow.providers.common.compat.sdk import DownstreamTasksSkipped
 
             with pytest.raises(DownstreamTasksSkipped) as exc_info, time_machine.travel(date):
-                self.branch_op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
+                self.dag_maker.run_ti("datetime_branch", self.dr)
 
             assert exc_info.value.tasks == [("branch_1", -1)]
         else:
             with time_machine.travel(date):
-                self.branch_op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
+                self.dag_maker.run_ti("datetime_branch", self.dr)
 
                 self._assert_task_ids_match_states(
                     {
@@ -184,14 +190,14 @@ class TestBranchDateTimeOperator:
         self.branch_op.target_lower = None
 
         if AIRFLOW_V_3_0_1:
-            from airflow.exceptions import DownstreamTasksSkipped
+            from airflow.providers.common.compat.sdk import DownstreamTasksSkipped
 
             with pytest.raises(DownstreamTasksSkipped) as exc_info:
-                self.branch_op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
+                self.dag_maker.run_ti("datetime_branch", self.dr)
 
             assert exc_info.value.tasks == [("branch_2", -1)]
         else:
-            self.branch_op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
+            self.dag_maker.run_ti("datetime_branch", self.dr)
 
             self._assert_task_ids_match_states(
                 {
@@ -209,14 +215,14 @@ class TestBranchDateTimeOperator:
         self.branch_op.target_upper = None
 
         if AIRFLOW_V_3_0_1:
-            from airflow.exceptions import DownstreamTasksSkipped
+            from airflow.providers.common.compat.sdk import DownstreamTasksSkipped
 
             with pytest.raises(DownstreamTasksSkipped) as exc_info:
-                self.branch_op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
+                self.dag_maker.run_ti("datetime_branch", self.dr)
 
             assert exc_info.value.tasks == [("branch_2", -1)]
         else:
-            self.branch_op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
+            self.dag_maker.run_ti("datetime_branch", self.dr)
 
             self._assert_task_ids_match_states(
                 {
@@ -234,14 +240,14 @@ class TestBranchDateTimeOperator:
         self.branch_op.target_lower = None
 
         if AIRFLOW_V_3_0_1:
-            from airflow.exceptions import DownstreamTasksSkipped
+            from airflow.providers.common.compat.sdk import DownstreamTasksSkipped
 
             with pytest.raises(DownstreamTasksSkipped) as exc_info:
-                self.branch_op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
+                self.dag_maker.run_ti("datetime_branch", self.dr)
 
             assert exc_info.value.tasks == [("branch_1", -1)]
         else:
-            self.branch_op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
+            self.dag_maker.run_ti("datetime_branch", self.dr)
 
             self._assert_task_ids_match_states(
                 {
@@ -259,14 +265,14 @@ class TestBranchDateTimeOperator:
         self.branch_op.target_upper = None
 
         if AIRFLOW_V_3_0_1:
-            from airflow.exceptions import DownstreamTasksSkipped
+            from airflow.providers.common.compat.sdk import DownstreamTasksSkipped
 
             with pytest.raises(DownstreamTasksSkipped) as exc_info:
-                self.branch_op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
+                self.dag_maker.run_ti("datetime_branch", self.dr)
 
             assert exc_info.value.tasks == [("branch_1", -1)]
         else:
-            self.branch_op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
+            self.dag_maker.run_ti("datetime_branch", self.dr)
 
             self._assert_task_ids_match_states(
                 {
@@ -277,7 +283,7 @@ class TestBranchDateTimeOperator:
             )
 
     @pytest.mark.parametrize(
-        "target_lower,target_upper",
+        ("target_lower", "target_upper"),
         targets,
     )
     @time_machine.travel("2020-12-01 09:00:00")
@@ -296,14 +302,14 @@ class TestBranchDateTimeOperator:
         self.branch_op.target_lower = target_lower
         self.branch_op.target_upper = target_upper
         if AIRFLOW_V_3_0_1:
-            from airflow.exceptions import DownstreamTasksSkipped
+            from airflow.providers.common.compat.sdk import DownstreamTasksSkipped
 
             with pytest.raises(DownstreamTasksSkipped) as exc_info:
-                self.branch_op.run(start_date=in_between_date, end_date=in_between_date)
+                self.dag_maker.run_ti("datetime_branch", self.dr)
 
             assert exc_info.value.tasks == [("branch_2", -1)]
         else:
-            self.branch_op.run(start_date=in_between_date, end_date=in_between_date)
+            self.dag_maker.run_ti("datetime_branch", self.dr)
 
             self._assert_task_ids_match_states(
                 {

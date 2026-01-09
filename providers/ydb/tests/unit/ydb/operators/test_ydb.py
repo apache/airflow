@@ -20,12 +20,23 @@ from datetime import datetime, timedelta
 from unittest.mock import MagicMock, PropertyMock, patch
 
 import pytest
-import ydb
+
+ydb = pytest.importorskip("ydb")
 
 from airflow.models import Connection
 from airflow.models.dag import DAG
 from airflow.providers.common.sql.hooks.handlers import fetch_all_handler, fetch_one_handler
 from airflow.providers.ydb.operators.ydb import YDBExecuteQueryOperator
+
+try:
+    import importlib.util
+
+    if not importlib.util.find_spec("airflow.sdk.bases.hook"):
+        raise ImportError
+
+    BASEHOOK_PATCH_PATH = "airflow.sdk.bases.hook.BaseHook"
+except ImportError:
+    BASEHOOK_PATCH_PATH = "airflow.hooks.base.BaseHook"
 
 
 @pytest.mark.db_test
@@ -38,8 +49,7 @@ def test_sql_templating(create_task_instance_of_operator):
         dag_id="test_template_body_templating_dag",
         task_id="test_template_body_templating_task",
     )
-    ti.render_templates()
-    task: YDBExecuteQueryOperator = ti.task
+    task = ti.render_templates()
     assert task.sql == "SELECT * FROM pet WHERE birth_date BETWEEN '2020-01-01' AND '2020-12-31'"
 
 
@@ -98,7 +108,7 @@ class TestYDBExecuteQueryOperator:
             schedule="@once",
         )
 
-    @patch("airflow.hooks.base.BaseHook.get_connection")
+    @patch(f"{BASEHOOK_PATCH_PATH}.get_connection")
     @patch("ydb.Driver")
     @patch("ydb.QuerySessionPool")
     @patch("ydb_dbapi.Connection._cursor_cls", new_callable=PropertyMock)

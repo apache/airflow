@@ -18,10 +18,9 @@
 from __future__ import annotations
 
 import inspect
-from collections import abc
-from collections.abc import Iterable
+from collections.abc import Iterable, Mapping
 from datetime import datetime, timedelta
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from itsdangerous import URLSafeSerializer
 from pendulum.tz.timezone import FixedTimezone, Timezone
@@ -29,15 +28,18 @@ from pydantic import (
     AliasGenerator,
     ConfigDict,
     computed_field,
+    field_serializer,
     field_validator,
 )
 
 from airflow.api_fastapi.core_api.base import BaseModel, StrictBaseModel
 from airflow.api_fastapi.core_api.datamodels.dag_tags import DagTagResponse
 from airflow.api_fastapi.core_api.datamodels.dag_versions import DagVersionResponse
-from airflow.api_fastapi.core_api.datamodels.deadline import DeadlineAlertResponse
 from airflow.configuration import conf
 from airflow.models.dag_version import DagVersion
+
+if TYPE_CHECKING:
+    from airflow.serialization.definitions.param import SerializedParamsDict
 
 DAG_ALIAS_MAPPING: dict[str, str] = {
     # The keys are the names in the response, the values are the original names in the model
@@ -62,13 +64,13 @@ class DAGResponse(BaseModel):
     is_paused: bool
     is_stale: bool
     last_parsed_time: datetime | None
+    last_parse_duration: float | None
     last_expired: datetime | None
     bundle_name: str | None
     bundle_version: str | None
     relative_fileloc: str | None
     fileloc: str
     description: str | None
-    deadline: list[DeadlineAlertResponse] | None
     timetable_summary: str | None
     timetable_description: str | None
     tags: list[DagTagResponse]
@@ -83,6 +85,11 @@ class DAGResponse(BaseModel):
     next_dagrun_run_after: datetime | None
     owners: list[str]
 
+    @field_serializer("tags")
+    def serialize_tags(self, tags: list[DagTagResponse]) -> list[DagTagResponse]:
+        """Sort tags alphabetically by name."""
+        return sorted(tags, key=lambda tag: tag.name)
+
     @field_validator("owners", mode="before")
     @classmethod
     def get_owners(cls, v: Any) -> list[str] | None:
@@ -93,7 +100,7 @@ class DAGResponse(BaseModel):
         if v is None:
             return []
         if isinstance(v, str):
-            return v.split(",")
+            return [x.strip() for x in v.split(",")]
         return v
 
     @field_validator("timetable_summary", mode="before")
@@ -105,7 +112,7 @@ class DAGResponse(BaseModel):
         return str(tts)
 
     # Mypy issue https://github.com/python/mypy/issues/1362
-    @computed_field  # type: ignore[misc]
+    @computed_field  # type: ignore[prop-decorator]
     @property
     def file_token(self) -> str:
         """Return file token."""
@@ -126,7 +133,7 @@ class DAGPatchBody(StrictBaseModel):
 class DAGCollectionResponse(BaseModel):
     """DAG Collection serializer for responses."""
 
-    dags: list[DAGResponse]
+    dags: Iterable[DAGResponse]
     total_entries: int
 
 
@@ -152,13 +159,15 @@ class DAGDetailsResponse(DAGResponse):
     start_date: datetime | None
     end_date: datetime | None
     is_paused_upon_creation: bool | None
-    params: abc.MutableMapping | None
+    params: Mapping | None
     render_template_as_native_obj: bool
-    template_search_path: Iterable[str] | None
+    template_search_path: list[str] | None
     timezone: str | None
     last_parsed: datetime | None
-    default_args: abc.Mapping | None
+    default_args: Mapping | None
     owner_links: dict[str, str] | None = None
+    is_favorite: bool = False
+    active_runs_count: int = 0
 
     @field_validator("timezone", mode="before")
     @classmethod
@@ -178,25 +187,31 @@ class DAGDetailsResponse(DAGResponse):
 
     @field_validator("params", mode="before")
     @classmethod
-    def get_params(cls, params: abc.MutableMapping | None) -> dict | None:
+    def get_params(cls, params: SerializedParamsDict | None) -> dict | None:
         """Convert params attribute to dict representation."""
         if params is None:
             return None
         return {k: v.dump() for k, v in params.items()}
 
     # Mypy issue https://github.com/python/mypy/issues/1362
-    @computed_field  # type: ignore[misc]
+    @computed_field(deprecated=True)  # type: ignore[prop-decorator]
     @property
     def concurrency(self) -> int:
-        """Return max_active_tasks as concurrency."""
+        """
+        Return max_active_tasks as concurrency.
+
+        Deprecated: Use max_active_tasks instead.
+        """
         return self.max_active_tasks
 
     # Mypy issue https://github.com/python/mypy/issues/1362
-    @computed_field  # type: ignore[misc]
+    @computed_field  # type: ignore[prop-decorator]
     @property
     def latest_dag_version(self) -> DagVersionResponse | None:
         """Return the latest DagVersion."""
-        latest_dag_version = DagVersion.get_latest_version(self.dag_id, load_dag_model=True)
+        latest_dag_version = DagVersion.get_latest_version(
+            self.dag_id, load_dag_model=True, load_bundle_model=True
+        )
         if latest_dag_version is None:
             return latest_dag_version
         return DagVersionResponse.model_validate(latest_dag_version)

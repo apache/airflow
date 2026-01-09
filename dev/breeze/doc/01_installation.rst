@@ -78,7 +78,7 @@ Here is an example configuration with more than 200GB disk space for Docker:
         </div>
 
 Note: If you use Colima, please follow instructions at:
-`Contributors Quick Start Guide </contributing-docs/03_contributors_quick_start.rst>`__
+`Contributors Quick Start Guide </contributing-docs/03b_contributors_quick_start_seasoned_developers.rst>`__
 
 Docker Compose
 --------------
@@ -125,7 +125,7 @@ Docker in WSL 2
     If you're experiencing errors such as ``ERROR: for docker-compose_airflow_run
     Cannot create container for service airflow: not a directory`` when starting Breeze
     after the first time or an error like ``docker: Error response from daemon: not a directory.
-    See 'docker run --help'.`` when running the pre-commit tests, you may need to consider
+    See 'docker run --help'.`` when running the prek tests, you may need to consider
     `installing Docker directly in WSL 2 <https://dev.to/bowmanjd/install-docker-on-windows-wsl-without-docker-desktop-34m9>`_
     instead of using Docker Desktop for Windows.
 
@@ -154,7 +154,7 @@ installing packages, managing workspaces and running development tools.).
 
 Installing ``uv`` is described in the `uv documentation <https://docs.astral.sh/uv/getting-started/installation/>`_.
 We highly recommend using ``uv`` to manage your Python environments, as it is very comprehensive,
-easy to use, it is faster than any of the other tools availables (way faster!) and has a lot of features
+easy to use, it is faster than any of the other tools available (way faster!) and has a lot of features
 that make it easier to work with Python.
 
 The ``gh`` cli needed for release managers
@@ -332,7 +332,7 @@ that Breeze works on
 
 .. warning:: Upgrading from earlier Python version
 
-    If you used Breeze with Python 3.8 and when running it, it will complain that it needs Python 3.9. In this
+    If you used Breeze with Python 3.8 and when running it, it will complain that it needs Python 3.10. In this
     case you should force-reinstall Breeze with ``uv`` (or ``pipx``):
 
         .. code-block:: bash
@@ -373,13 +373,13 @@ that Breeze works on
 
         .. code-block:: bash
 
-            uv tool install  --python 3.9.16 ./dev/breeze --force
+            uv tool install  --python 3.10.16 ./dev/breeze --force
 
         or
 
         .. code-block:: bash
 
-            pipx install -e ./dev/breeze --python /Users/airflow/.pyenv/versions/3.9.16/bin/python --force
+            pipx install -e ./dev/breeze --python /Users/airflow/.pyenv/versions/3.10.16/bin/python --force
 
 
 Running Breeze for the first time
@@ -430,7 +430,7 @@ also force reinstalling the autocomplete via:
 
    breeze setup autocomplete --force
 
-These are all available flags of ``setup-autocomplete`` command:
+These are all available flags of ``setup autocomplete`` command:
 
 .. image:: ./images/output_setup_autocomplete.svg
   :target: https://raw.githubusercontent.com/apache/airflow/main/dev/breeze/images/output_setup_autocomplete.svg

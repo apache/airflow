@@ -25,7 +25,12 @@ from unittest import mock
 import pytest
 
 from airflow.configuration import ensure_secrets_loaded
-from airflow.exceptions import AirflowException, AirflowFileParseException, ConnectionNotUnique
+from airflow.exceptions import (
+    AirflowException,
+    AirflowFileParseException,
+    ConnectionNotUnique,
+    VariableNotUnique,
+)
 from airflow.models import Variable
 from airflow.secrets import local_filesystem
 from airflow.secrets.local_filesystem import LocalFilesystemBackend
@@ -37,17 +42,17 @@ from tests_common.test_utils.config import conf_vars
 def mock_local_file(content):
     with (
         mock.patch("airflow.secrets.local_filesystem.open", mock.mock_open(read_data=content)) as file_mock,
-        mock.patch("airflow.secrets.local_filesystem.os.path.exists", return_value=True),
     ):
         yield file_mock
 
 
 class TestFileParsers:
     @pytest.mark.parametrize(
-        "content, expected_message",
+        ("content", "expected_message"),
         [
             ("AA", 'Invalid line format. The line should contain at least one equal sign ("=")'),
             ("=", "Invalid line format. Key is empty."),
+            ("KEY=", "Invalid line format. Value is empty."),
         ],
     )
     def test_env_file_invalid_format(self, content, expected_message):
@@ -56,7 +61,7 @@ class TestFileParsers:
                 local_filesystem.load_variables("a.env")
 
     @pytest.mark.parametrize(
-        "content, expected_message",
+        ("content", "expected_message"),
         [
             ("[]", "The file should contain the object."),
             ("{AAAAA}", "Expecting property name enclosed in double quotes"),
@@ -68,16 +73,30 @@ class TestFileParsers:
             with pytest.raises(AirflowFileParseException, match=re.escape(expected_message)):
                 local_filesystem.load_variables("a.json")
 
+    @pytest.mark.parametrize(
+        ("content", "expected_message"),
+        [
+            ("[]", "The file should contain the object."),
+            ("key:\n  - item1\n  - item2\ninvalid_yaml: }", "did not find expected"),
+            ("", "The file is empty."),
+        ],
+    )
+    def test_yaml_file_invalid_format(self, content, expected_message):
+        with mock_local_file(content):
+            with pytest.raises(AirflowFileParseException, match=re.escape(expected_message)):
+                local_filesystem.load_variables("a.yaml")
+
 
 class TestLoadVariables:
     @pytest.mark.parametrize(
-        "file_content, expected_variables",
+        ("file_content", "expected_variables"),
         [
             ("", {}),
             ("KEY=AAA", {"KEY": "AAA"}),
             ("KEY_A=AAA\nKEY_B=BBB", {"KEY_A": "AAA", "KEY_B": "BBB"}),
             ("KEY_A=AAA\n # AAAA\nKEY_B=BBB", {"KEY_A": "AAA", "KEY_B": "BBB"}),
             ("\n\n\n\nKEY_A=AAA\n\n\n\n\nKEY_B=BBB\n\n\n", {"KEY_A": "AAA", "KEY_B": "BBB"}),
+            ('KEY_DICT=\'{"k1": "val1", "k2": "val2"}\'', {"KEY_DICT": '\'{"k1": "val1", "k2": "val2"}\''}),
         ],
     )
     def test_env_file_should_load_variables(self, file_content, expected_variables):
@@ -86,18 +105,18 @@ class TestLoadVariables:
             assert expected_variables == variables
 
     @pytest.mark.parametrize(
-        "content, expected_message",
+        ("content", "expected_message"),
         [
             ("AA=A\nAA=B", "The \"a.env\" file contains multiple values for keys: ['AA']"),
         ],
     )
     def test_env_file_invalid_logic(self, content, expected_message):
         with mock_local_file(content):
-            with pytest.raises(AirflowException, match=re.escape(expected_message)):
+            with pytest.raises(VariableNotUnique, match=re.escape(expected_message)):
                 local_filesystem.load_variables("a.env")
 
     @pytest.mark.parametrize(
-        "file_content, expected_variables",
+        ("file_content", "expected_variables"),
         [
             ({}, {}),
             ({"KEY": "AAA"}, {"KEY": "AAA"}),
@@ -109,18 +128,23 @@ class TestLoadVariables:
             variables = local_filesystem.load_variables("a.json")
             assert expected_variables == variables
 
-    @mock.patch("airflow.secrets.local_filesystem.os.path.exists", return_value=False)
-    def test_missing_file(self, mock_exists):
-        with pytest.raises(
-            AirflowException,
-            match=re.escape("File a.json was not found. Check the configuration of your Secrets backend."),
-        ):
+    def test_missing_file(self):
+        with pytest.raises(FileNotFoundError):
             local_filesystem.load_variables("a.json")
 
     @pytest.mark.parametrize(
-        "file_content, expected_variables",
+        ("file_content", "expected_variables"),
         [
             ("KEY: AAA", {"KEY": "AAA"}),
+            (
+                """
+            KEY:
+                KEY_1:
+                    - item1
+                    - item2
+            """,
+                {"KEY": {"KEY_1": ["item1", "item2"]}},
+            ),
             (
                 """
             KEY_A: AAA
@@ -139,7 +163,7 @@ class TestLoadVariables:
 
 class TestLoadConnection:
     @pytest.mark.parametrize(
-        "file_content, expected_connection_uris",
+        ("file_content", "expected_connection_uris"),
         [
             ("CONN_ID=mysql://host_1/", {"CONN_ID": "mysql://host_1"}),
             (
@@ -166,7 +190,7 @@ class TestLoadConnection:
             assert expected_connection_uris == connection_uris_by_conn_id
 
     @pytest.mark.parametrize(
-        "content, expected_connection_uris",
+        ("content", "expected_connection_uris"),
         [
             (
                 "CONN_ID=mysql://host_1/?param1=val1&param2=val2",
@@ -184,10 +208,11 @@ class TestLoadConnection:
             assert expected_connection_uris == connection_uris_by_conn_id
 
     @pytest.mark.parametrize(
-        "content, expected_message",
+        ("content", "expected_message"),
         [
             ("AA", 'Invalid line format. The line should contain at least one equal sign ("=")'),
             ("=", "Invalid line format. Key is empty."),
+            ("CONN_ID=", "Invalid line format. Value is empty."),
         ],
     )
     def test_env_file_invalid_format(self, content, expected_message):
@@ -196,7 +221,7 @@ class TestLoadConnection:
                 local_filesystem.load_connections_dict("a.env")
 
     @pytest.mark.parametrize(
-        "file_content, expected_connection_uris",
+        ("file_content", "expected_connection_uris"),
         [
             ({"CONN_ID": "mysql://host_1"}, {"CONN_ID": "mysql://host_1"}),
             ({"CONN_ID": ["mysql://host_1"]}, {"CONN_ID": "mysql://host_1"}),
@@ -214,7 +239,7 @@ class TestLoadConnection:
             assert expected_connection_uris == connection_uris_by_conn_id
 
     @pytest.mark.parametrize(
-        "file_content, expected_connection_uris",
+        ("file_content", "expected_connection_uris"),
         [
             ({"CONN_ID": None}, "Unexpected value type: <class 'NoneType'>."),
             ({"CONN_ID": 1}, "Unexpected value type: <class 'int'>."),
@@ -230,16 +255,12 @@ class TestLoadConnection:
             with pytest.raises(AirflowException, match=re.escape(expected_connection_uris)):
                 local_filesystem.load_connections_dict("a.json")
 
-    @mock.patch("airflow.secrets.local_filesystem.os.path.exists", return_value=False)
-    def test_missing_file(self, mock_exists):
-        with pytest.raises(
-            AirflowException,
-            match=re.escape("File a.json was not found. Check the configuration of your Secrets backend."),
-        ):
+    def test_missing_file(self):
+        with pytest.raises(FileNotFoundError):
             local_filesystem.load_connections_dict("a.json")
 
     @pytest.mark.parametrize(
-        "file_content, expected_attrs_dict",
+        ("file_content", "expected_attrs_dict"),
         [
             (
                 """CONN_A: 'mysql://host_a'""",
@@ -288,7 +309,7 @@ class TestLoadConnection:
                 assert actual_attrs == expected_attrs
 
     @pytest.mark.parametrize(
-        "file_content, expected_extras",
+        ("file_content", "expected_extras"),
         [
             (
                 """
@@ -350,7 +371,7 @@ class TestLoadConnection:
             assert expected_extras == connection_uris_by_conn_id
 
     @pytest.mark.parametrize(
-        "file_content, expected_message",
+        ("file_content", "expected_message"),
         [
             (
                 """conn_c:
@@ -421,6 +442,80 @@ class TestLoadConnection:
             assert conn_uri_by_conn_id_yaml == conn_uri_by_conn_id_yml
 
 
+class TestLoadConfigs:
+    @pytest.mark.parametrize(
+        ("file_content", "expected_configs"),
+        [
+            ("", {}),
+            ("KEY=AAA", {"KEY": "AAA"}),
+            ("KEY_A=AAA\nKEY_B=BBB", {"KEY_A": "AAA", "KEY_B": "BBB"}),
+            ("KEY_A=AAA\n # AAAA\nKEY_B=BBB", {"KEY_A": "AAA", "KEY_B": "BBB"}),
+            ("\n\n\n\nKEY_A=AAA\n\n\n\n\nKEY_B=BBB\n\n\n", {"KEY_A": "AAA", "KEY_B": "BBB"}),
+            ('KEY_DICT=\'{"k1": "val1", "k2": "val2"}\'', {"KEY_DICT": '\'{"k1": "val1", "k2": "val2"}\''}),
+        ],
+    )
+    def test_env_file_should_load_configs(self, file_content, expected_configs):
+        with mock_local_file(file_content):
+            configs = local_filesystem.load_configs_dict("a.env")
+            assert expected_configs == configs
+
+    @pytest.mark.parametrize(
+        ("content", "expected_message"),
+        [
+            ("AA=A\nAA=B", "The \"a.env\" file contains multiple values for keys: ['AA']"),
+        ],
+    )
+    def test_env_file_invalid_logic(self, content, expected_message):
+        with mock_local_file(content):
+            with pytest.raises(VariableNotUnique, match=re.escape(expected_message)):
+                local_filesystem.load_configs_dict("a.env")
+
+    @pytest.mark.parametrize(
+        ("file_content", "expected_configs"),
+        [
+            ({}, {}),
+            ({"KEY": "AAA"}, {"KEY": "AAA"}),
+            ({"KEY_A": "AAA", "KEY_B": "BBB"}, {"KEY_A": "AAA", "KEY_B": "BBB"}),
+        ],
+    )
+    def test_json_file_should_load_configs(self, file_content, expected_configs):
+        with mock_local_file(json.dumps(file_content)):
+            configs = local_filesystem.load_configs_dict("a.json")
+            assert expected_configs == configs
+
+    def test_missing_file(self):
+        with pytest.raises(FileNotFoundError):
+            local_filesystem.load_configs_dict("a.json")
+
+    @pytest.mark.parametrize(
+        ("file_content", "expected_configs"),
+        [
+            ("KEY: AAA", {"KEY": "AAA"}),
+            (
+                """
+            KEY:
+                KEY_1:
+                    - item1
+                    - item2
+            """,
+                {"KEY": {"KEY_1": ["item1", "item2"]}},
+            ),
+            (
+                """
+            KEY_A: AAA
+            KEY_B: BBB
+            """,
+                {"KEY_A": "AAA", "KEY_B": "BBB"},
+            ),
+        ],
+    )
+    def test_yaml_file_should_load_configs(self, file_content, expected_configs):
+        with mock_local_file(file_content):
+            configs_yaml = local_filesystem.load_configs_dict("a.yaml")
+            configs_yml = local_filesystem.load_configs_dict("a.yml")
+            assert expected_configs == configs_yaml == configs_yml
+
+
 class TestLocalFileBackend:
     def test_should_read_variable(self, tmp_path):
         path = tmp_path / "testfile.var.env"
@@ -457,3 +552,4 @@ class TestLocalFileBackend:
         backend = LocalFilesystemBackend()
         assert backend.get_connection("CONN_A") is None
         assert backend.get_variable("VAR_A") is None
+        assert backend.get_config("CONF_A") is None

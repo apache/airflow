@@ -18,24 +18,25 @@
 from __future__ import annotations
 
 import inspect
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 
 import attrs
 
 from airflow.providers.standard.operators.python import PythonOperator
-from airflow.sdk.definitions.asset import Asset, AssetRef, BaseAsset
+from airflow.sdk.definitions.asset import Asset, AssetAll, BaseAsset
 from airflow.sdk.exceptions import AirflowRuntimeError
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Collection, Iterator, Mapping
 
-    from airflow.sdk import DAG, AssetAlias, ObjectStoragePath
-    from airflow.sdk.definitions.asset import AssetUniqueKey
+    from pydantic.types import JsonValue
+    from typing_extensions import Self
+
+    from airflow.sdk import DAG, ObjectStoragePath
+    from airflow.sdk.bases.decorator import _TaskDecorator
     from airflow.sdk.definitions.dag import DagStateChangeCallback, ScheduleArg
     from airflow.sdk.definitions.param import ParamsDict
-    from airflow.serialization.dag_dependency import DagDependency
     from airflow.triggers.base import BaseTrigger
-    from airflow.typing_compat import Self
 
 
 def _validate_asset_function_arguments(f: Callable) -> None:
@@ -63,24 +64,22 @@ class _AssetMainOperator(PythonOperator):
                 for inlet_asset_name, param in inspect.signature(definition._function).parameters.items()
                 if inlet_asset_name not in ("self", "context") and param.default is inspect.Parameter.empty
             ],
-            outlets=[v for _, v in definition.iter_assets()],
+            outlets=list(definition.iter_outlets()),
             python_callable=definition._function,
-            definition_name=definition._function.__name__,
+            definition_name=definition.name,
         )
 
     def _iter_kwargs(self, context: Mapping[str, Any]) -> Iterator[tuple[str, Any]]:
-        import structlog
-
         from airflow.sdk.execution_time.comms import ErrorResponse, GetAssetByName
         from airflow.sdk.execution_time.task_runner import SUPERVISOR_COMMS
 
-        log = structlog.get_logger(logger_name=self.__class__.__qualname__)
-
         def _fetch_asset(name: str) -> Asset:
-            SUPERVISOR_COMMS.send_request(log, GetAssetByName(name=name))
-            if isinstance(msg := SUPERVISOR_COMMS.get_message(), ErrorResponse):
-                raise AirflowRuntimeError(msg)
-            return Asset(**msg.model_dump(exclude={"type"}))
+            resp = SUPERVISOR_COMMS.send(GetAssetByName(name=name))
+            if resp is None:
+                raise RuntimeError("Empty non-error response received")
+            if isinstance(resp, ErrorResponse):
+                raise AirflowRuntimeError(resp)
+            return Asset(**resp.model_dump(exclude={"type"}))
 
         value: Any
         for key, param in inspect.signature(self.python_callable).parameters.items():
@@ -98,6 +97,18 @@ class _AssetMainOperator(PythonOperator):
         return dict(self._iter_kwargs(context))
 
 
+def _instantiate_task(definition: AssetDefinition | MultiAssetDefinition) -> None:
+    decorated_operator = cast("_TaskDecorator", definition._function)
+    if getattr(decorated_operator, "_airflow_is_task_decorator", False):
+        if "outlets" in decorated_operator.kwargs:
+            raise TypeError("@task decorator with 'outlets' argument is not supported in @asset")
+
+        decorated_operator.kwargs["outlets"] = list(definition.iter_outlets())
+        decorated_operator()
+    else:
+        _AssetMainOperator.from_definition(definition)
+
+
 @attrs.define(kw_only=True)
 class AssetDefinition(Asset):
     """
@@ -111,11 +122,14 @@ class AssetDefinition(Asset):
 
     def __attrs_post_init__(self) -> None:
         with self._source.create_dag(default_dag_id=self.name):
-            _AssetMainOperator.from_definition(self)
+            _instantiate_task(self)
+
+    def iter_outlets(self) -> Iterator[BaseAsset]:
+        yield self
 
 
 @attrs.define(kw_only=True)
-class MultiAssetDefinition(BaseAsset):
+class MultiAssetDefinition(AssetAll):
     """
     Representation from decorating a function with ``@asset.multi``.
 
@@ -126,38 +140,23 @@ class MultiAssetDefinition(BaseAsset):
     :meta private:
     """
 
+    name: str
     _function: Callable
     _source: asset.multi
 
     def __attrs_post_init__(self) -> None:
+        self.objects = self._source.outlets
         with self._source.create_dag(default_dag_id=self._function.__name__):
-            _AssetMainOperator.from_definition(self)
-
-    def iter_assets(self) -> Iterator[tuple[AssetUniqueKey, Asset]]:
-        for o in self._source.outlets:
-            yield from o.iter_assets()
-
-    def iter_asset_aliases(self) -> Iterator[tuple[str, AssetAlias]]:
-        for o in self._source.outlets:
-            yield from o.iter_asset_aliases()
-
-    def iter_asset_refs(self) -> Iterator[AssetRef]:
-        for o in self._source.outlets:
-            yield from o.iter_asset_refs()
-
-    def iter_dag_dependencies(self, *, source: str, target: str) -> Iterator[DagDependency]:
-        for obj in self._source.outlets:
-            yield from obj.iter_dag_dependencies(source=source, target=target)
+            _instantiate_task(self)
 
     def iter_outlets(self) -> Iterator[BaseAsset]:
-        """For asset evaluation in the scheduler."""
-        return iter(self._source.outlets)
+        yield from self.objects
 
 
 @attrs.define(kw_only=True)
 class _DAGFactory:
     """
-    Common class for things that take DAG-like arguments.
+    Common class for things that take Dag-like arguments.
 
     This exists so we don't need to define these arguments separately for
     ``@asset`` and ``@asset.multi``.
@@ -206,12 +205,12 @@ class asset(_DAGFactory):
     name: str | None = None
     uri: str | ObjectStoragePath | None = None
     group: str = Asset.asset_type
-    extra: dict[str, Any] = attrs.field(factory=dict)
+    extra: dict[str, JsonValue] = attrs.field(factory=dict)
     watchers: list[BaseTrigger] = attrs.field(factory=list)
 
     @attrs.define(kw_only=True)
     class multi(_DAGFactory):
-        """Create a one-task DAG that emits multiple assets."""
+        """Create a one-task Dag that emits multiple assets."""
 
         outlets: Collection[BaseAsset]  # TODO: Support non-asset outlets?
 
@@ -220,7 +219,7 @@ class asset(_DAGFactory):
                 raise ValueError("nested function not supported")
             if not self.outlets:
                 raise ValueError("no outlets provided")
-            return MultiAssetDefinition(function=f, source=self)
+            return MultiAssetDefinition(function=f, source=self, name=f.__name__)
 
     def __call__(self, f: Callable) -> AssetDefinition:
         if f.__name__ != f.__qualname__:

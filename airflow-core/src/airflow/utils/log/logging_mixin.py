@@ -20,14 +20,17 @@ from __future__ import annotations
 import abc
 import enum
 import logging
+import os
 import re
 import sys
 from io import TextIOBase, UnsupportedOperation
 from logging import Handler, StreamHandler
-from typing import IO, TYPE_CHECKING, Any, Optional, TypeVar, cast
+from typing import IO, TYPE_CHECKING, Any, TypeVar, cast
+
+import structlog
 
 if TYPE_CHECKING:
-    from logging import Logger
+    from airflow._shared.logging.types import Logger
 
 # 7-bit C1 ANSI escape sequences
 ANSI_ESCAPE = re.compile(r"\x1B[@-_][0-?]*[ -/]*[@-~]")
@@ -67,14 +70,14 @@ _T = TypeVar("_T")
 class LoggingMixin:
     """Convenience super-class to have a logger configured with the class name."""
 
-    _log: logging.Logger | None = None
+    _log: Logger | None = None
 
     # Parent logger used by this class. It should match one of the loggers defined in the
     # `logging_config_class`. By default, this attribute is used to create the final name of the logger, and
     # will prefix the `_logger_name` with a separating dot.
-    _log_config_logger_name: Optional[str] = None  # noqa: UP007
+    _log_config_logger_name: str | None = None
 
-    _logger_name: Optional[str] = None  # noqa: UP007
+    _logger_name: str | None = None
 
     def __init__(self, context=None):
         self._set_context(context)
@@ -111,7 +114,7 @@ class LoggingMixin:
                 log_config_logger_name=obj._log_config_logger_name,
                 class_logger_name=obj._logger_name,
             )
-            obj._log = logging.getLogger(logger_name)
+            obj._log = structlog.get_logger(logger_name)
         return obj._log
 
     @classmethod
@@ -124,12 +127,10 @@ class LoggingMixin:
         """Return a logger."""
         return LoggingMixin._get_log(self, self.__class__)
 
-    def _set_context(self, context):
-        if context is not None:
-            set_context(self.log, context)
+    def _set_context(self, context): ...
 
 
-class ExternalLoggingMixin:
+class ExternalLoggingMixin(metaclass=abc.ABCMeta):
     """Define a log handler based on an external service (e.g. ELK, StackDriver)."""
 
     @property
@@ -153,7 +154,7 @@ class ExternalLoggingMixin:
 # base implementation for IO-implementing classes, it's impossible to make them work with
 # IO generics (and apparently it has not even been intended)
 # See more: https://giters.com/python/typeshed/issues/6077
-class StreamLogWriter(TextIOBase, IO[str]):  # type: ignore[misc]
+class StreamLogWriter(TextIOBase, IO[str]):
     """
     Allows to redirect stdout and stderr to logger.
 
@@ -269,7 +270,11 @@ class RedirectStdHandler(StreamHandler):
     @property
     def stream(self):
         """Returns current stream."""
-        from airflow.settings import IS_EXECUTOR_CONTAINER, IS_K8S_EXECUTOR_POD
+        # Executors can set this to true to configure logging correctly for
+        # containerized executors.
+        IS_EXECUTOR_CONTAINER = bool(os.environ.get("AIRFLOW_IS_EXECUTOR_CONTAINER", ""))
+        IS_K8S_EXECUTOR_POD = bool(os.environ.get("AIRFLOW_IS_K8S_EXECUTOR_POD", ""))
+        """Will be True if running in kubernetes executor pod."""
 
         if IS_K8S_EXECUTOR_POD or IS_EXECUTOR_CONTAINER:
             return self._orig_stream
@@ -286,6 +291,10 @@ def set_context(logger, value):
     :param logger: logger
     :param value: value to set
     """
+    if not isinstance(logger, logging.Logger):
+        # This fn doesn't make sense for structlog based handlers
+        return
+
     while logger:
         orig_propagate = logger.propagate
         for handler in logger.handlers:

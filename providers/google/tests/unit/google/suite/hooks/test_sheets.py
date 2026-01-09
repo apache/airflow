@@ -25,7 +25,7 @@ from unittest import mock
 
 import pytest
 
-from airflow.exceptions import AirflowException
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.google.suite.hooks.sheets import GSheetsHook
 
 from unit.google.cloud.utils.base_gcp_mock import mock_base_gcp_hook_default_project_id
@@ -58,10 +58,26 @@ class TestGSheetsHook:
     @mock.patch("airflow.providers.google.suite.hooks.sheets.build")
     def test_gsheets_client_creation(self, mock_build, mock_authorize):
         result = self.hook.get_conn()
-        mock_build.assert_called_once_with(
-            "sheets", "v4", http=mock_authorize.return_value, cache_discovery=False
-        )
+        mock_build.assert_called_once()
+        args, kwargs = mock_build.call_args
+        assert kwargs["http"] == mock_authorize.return_value
+        assert kwargs["cache_discovery"] is False
         assert mock_build.return_value == result
+
+    @mock.patch("airflow.providers.google.suite.hooks.sheets.GSheetsHook._authorize")
+    @mock.patch("airflow.providers.google.suite.hooks.sheets.build")
+    def test_gsheets_hook_custom_endpoint(self, mock_build, mock_authorize):
+        self.hook.api_endpoint = "https://private.googleapis.com"
+        self.hook.get_conn()
+        mock_build.assert_called_once()
+        _, kwargs = mock_build.call_args
+        client_options = kwargs.get("client_options")
+        if client_options is None:
+            api_endpoint = None
+        else:
+            api_endpoint = getattr(client_options, "api_endpoint", None)
+
+        assert api_endpoint == "https://private.googleapis.com"
 
     @mock.patch("airflow.providers.google.suite.hooks.sheets.GSheetsHook.get_conn")
     def test_get_values(self, get_conn):

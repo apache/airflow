@@ -25,13 +25,13 @@ from unittest.mock import patch
 import pytest
 from trino.transaction import IsolationLevel
 
-from airflow.exceptions import AirflowException
 from airflow.models import Connection
 from airflow.providers.common.compat.openlineage.facet import (
     Dataset,
     SchemaDatasetFacet,
     SchemaDatasetFacetFields,
 )
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.common.sql.operators.sql import SQLExecuteQueryOperator
 from airflow.providers.trino.hooks.trino import TrinoHook
 
@@ -109,7 +109,10 @@ class TestTrinoHookConn:
             extra=json.dumps(extras),
         )
         with pytest.raises(
-            AirflowException, match=re.escape("The 'kerberos' authorization type doesn't support password.")
+            AirflowException,
+            match=re.escape(
+                "Multiple authentication methods specified: password, kerberos. Only one is allowed."
+            ),
         ):
             TrinoHook().get_conn()
 
@@ -144,7 +147,7 @@ class TestTrinoHookConn:
         self.assert_connection_called_with(mock_connect, auth=mock_jwt_auth)
 
     @pytest.mark.parametrize(
-        "jwt_file, jwt_token, error_suffix",
+        ("jwt_file", "jwt_token", "error_suffix"),
         [
             pytest.param(True, True, "provided both", id="provided-both-params"),
             pytest.param(False, False, "none of them provided", id="no-jwt-provided"),
@@ -233,7 +236,7 @@ class TestTrinoHookConn:
         self.assert_connection_called_with(mock_connect, client_tags=extras["client_tags"])
 
     @pytest.mark.parametrize(
-        "current_verify, expected_verify",
+        ("current_verify", "expected_verify"),
         [
             ("False", False),
             ("false", False),
@@ -398,6 +401,38 @@ class TestTrinoHook:
         self.db_hook.run(sql, autocommit, parameters, list)
         mock_run.assert_called_once_with(sql, autocommit, parameters, handler)
 
+    @patch("airflow.providers.common.sql.hooks.sql.DbApiHook.run")
+    def test_run_defaults_no_handler(self, super_run):
+        super_run.return_value = None
+        sql = "SELECT 1"
+        result = self.db_hook.run(sql)
+        assert result is None
+        super_run.assert_called_once_with(sql, False, None, None, True, True)
+
+    @patch("airflow.providers.common.sql.hooks.sql.DbApiHook.run")
+    def test_run_with_handler_and_params(self, super_run):
+        super_run.return_value = [("ok",)]
+        sql = "SELECT 1"
+        autocommit = True
+        parameters = ("hello", "world")
+        handler = list
+        res = self.db_hook.run(
+            sql,
+            autocommit=autocommit,
+            parameters=parameters,
+            handler=handler,
+            split_statements=False,
+            return_last=False,
+        )
+        assert res == [("ok",)]
+        super_run.assert_called_once_with(sql, True, parameters, handler, False, False)
+
+    @patch("airflow.providers.common.sql.hooks.sql.DbApiHook.run")
+    def test_run_multistatement_defaults_to_split(self, super_run):
+        sql = "SELECT 1; SELECT 2"
+        self.db_hook.run(sql)
+        super_run.assert_called_once_with(sql, False, None, None, True, True)
+
     def test_connection_success(self):
         status, msg = self.db_hook.test_connection()
         assert status is True
@@ -470,7 +505,7 @@ def test_execute_openlineage_events():
 
 
 @pytest.mark.parametrize(
-    "conn_params, expected_uri",
+    ("conn_params", "expected_uri"),
     [
         (
             {"login": "user", "password": "pass", "host": "localhost", "port": 8080, "schema": "hive"},

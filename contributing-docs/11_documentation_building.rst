@@ -36,12 +36,12 @@ Documentation in separate distributions:
 
 Documentation for general overview and summaries not connected with any specific distribution:
 
-* ``docker-stack-docs`` - documentation for Docker Stack'
+* ``docker-stack-docs`` - documentation for Docker Stack
 * ``providers-summary-docs`` - documentation for provider summary page
 
 Each of the distributions have a ``conf.py`` file in the root of the documentation and there
 are various configuration parameters for sphinx configured in the ``conf.py`` files. A number of common
-functions in those ``conf.py`` files are imported from ``deve-common`` distribution, from ``doc`` package,
+functions in those ``conf.py`` files are imported from ``devel-common`` distribution, from ``doc`` package,
 you can also find ``sphinx_ext`` folder there that keeps extensions used during our documentation build.
 
 Building documentation with uv in local venv
@@ -117,14 +117,14 @@ Building the documentation
 
 In Airflow 3 the documentation is placed closely to where source code is placed (in most distribution
 packages it is in the ``doc`` subfolder of a distribution you want to build the documentation for.
-Some distributions do not have ``docs``subfolder - when they are ``doc-only``. The ``build-doc`` script
-is installed automatically from ``devel-common` distribution and available to run using ``uv run``
+Some distributions do not have ``docs`` subfolder - when they are ``doc-only``. The ``build-doc`` script
+is installed automatically from ``devel-common`` distribution and available to run using ``uv run``
 command (or directly ``build-docs`` inside the ``breeze`` container). This script will automatically
 detect which distribution you are in and build the documentation for it.
 
 .. note::
 
-    You can also run all those commands directly (without ``uv run --group-doc``) inside ``breeze``
+    You can also run all those commands directly (without ``uv run --group docs``) inside ``breeze``
     container, because there all dependencies are already installed and there is no need to
     sync dependencies.
 

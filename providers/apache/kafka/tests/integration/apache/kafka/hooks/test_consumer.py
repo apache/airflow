@@ -26,7 +26,6 @@ from airflow.models import Connection
 # Import Hook
 from airflow.providers.apache.kafka.hooks.client import KafkaAdminClientHook
 from airflow.providers.apache.kafka.hooks.consume import KafkaConsumerHook
-from airflow.utils import db
 
 TOPIC = "consumer_hook_test_1"
 
@@ -44,8 +43,9 @@ class TestConsumerHook:
     Test consumer hook.
     """
 
-    def setup_method(self):
-        db.merge_conn(
+    @pytest.fixture(autouse=True)
+    def setup_connections(self, create_connection_without_db):
+        create_connection_without_db(
             Connection(
                 conn_id="kafka_d",
                 conn_type="kafka",

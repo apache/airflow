@@ -27,8 +27,8 @@ from airflow.providers.amazon.aws.operators.cloud_formation import (
     CloudFormationCreateStackOperator,
     CloudFormationDeleteStackOperator,
 )
-from airflow.utils import timezone
 
+from tests_common.test_utils.compat import timezone
 from unit.amazon.aws.utils.test_template_fields import validate_template_fields
 
 DEFAULT_DATE = timezone.datetime(2019, 1, 1)

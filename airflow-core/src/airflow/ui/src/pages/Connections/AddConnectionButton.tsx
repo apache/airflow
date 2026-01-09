@@ -42,13 +42,14 @@ const AddConnectionButton = () => {
     password: "",
     port: "",
     schema: "",
+    team_name: "",
   };
 
   return (
     <Box>
       <ActionButton
         actionName={translate("connections.add")}
-        colorPalette="blue"
+        colorPalette="brand"
         icon={<FiPlusCircle />}
         onClick={onOpen}
         text={translate("connections.add")}

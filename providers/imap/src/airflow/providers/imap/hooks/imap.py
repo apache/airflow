@@ -31,8 +31,7 @@ import ssl
 from collections.abc import Iterable
 from typing import TYPE_CHECKING, Any
 
-from airflow.exceptions import AirflowException
-from airflow.hooks.base import BaseHook
+from airflow.providers.common.compat.sdk import AirflowException, BaseHook
 from airflow.utils.log.logging_mixin import LoggingMixin
 
 if TYPE_CHECKING:
@@ -77,16 +76,18 @@ class ImapHook(BaseHook):
         """
         if not self.mail_client:
             conn = self.get_connection(self.imap_conn_id)
-            self.mail_client = self._build_client(conn)
-            self.mail_client.login(conn.login, conn.password)
+            self.mail_client = self._build_client(conn)  # type: ignore[arg-type]
+            if conn.login and conn.password:
+                self.mail_client.login(conn.login, conn.password)
 
         return self
 
     def _build_client(self, conn: Connection) -> imaplib.IMAP4_SSL | imaplib.IMAP4:
         mail_client: imaplib.IMAP4_SSL | imaplib.IMAP4
+        host = conn.host or ""
         use_ssl = conn.extra_dejson.get("use_ssl", True)
         if use_ssl:
-            from airflow.configuration import conf
+            from airflow.providers.common.compat.sdk import conf
 
             extra_ssl_context = conn.extra_dejson.get("ssl_context", None)
             if extra_ssl_context:
@@ -107,14 +108,14 @@ class ImapHook(BaseHook):
                     f"be set to 'default' or 'none' and is '{ssl_context_string}'."
                 )
             if conn.port:
-                mail_client = imaplib.IMAP4_SSL(conn.host, conn.port, ssl_context=ssl_context)
+                mail_client = imaplib.IMAP4_SSL(host, conn.port, ssl_context=ssl_context)
             else:
-                mail_client = imaplib.IMAP4_SSL(conn.host, ssl_context=ssl_context)
+                mail_client = imaplib.IMAP4_SSL(host, ssl_context=ssl_context)
         else:
             if conn.port:
-                mail_client = imaplib.IMAP4(conn.host, conn.port)
+                mail_client = imaplib.IMAP4(host, conn.port)
             else:
-                mail_client = imaplib.IMAP4(conn.host)
+                mail_client = imaplib.IMAP4(host)
 
         return mail_client
 

@@ -19,13 +19,7 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
-
 from airflow.providers.google.cloud.links.base import BaseGoogleLink
-
-if TYPE_CHECKING:
-    from airflow.models import BaseOperator
-    from airflow.utils.context import Context
 
 ALLOY_DB_BASE_LINK = "/alloydb"
 ALLOY_DB_CLUSTER_LINK = (
@@ -44,20 +38,6 @@ class AlloyDBClusterLink(BaseGoogleLink):
     key = "alloy_db_cluster"
     format_str = ALLOY_DB_CLUSTER_LINK
 
-    @staticmethod
-    def persist(
-        context: Context,
-        task_instance: BaseOperator,
-        location_id: str,
-        cluster_id: str,
-        project_id: str | None,
-    ):
-        task_instance.xcom_push(
-            context,
-            key=AlloyDBClusterLink.key,
-            value={"location_id": location_id, "cluster_id": cluster_id, "project_id": project_id},
-        )
-
 
 class AlloyDBUsersLink(BaseGoogleLink):
     """Helper class for constructing AlloyDB users Link."""
@@ -66,20 +46,6 @@ class AlloyDBUsersLink(BaseGoogleLink):
     key = "alloy_db_users"
     format_str = ALLOY_DB_USERS_LINK
 
-    @staticmethod
-    def persist(
-        context: Context,
-        task_instance: BaseOperator,
-        location_id: str,
-        cluster_id: str,
-        project_id: str | None,
-    ):
-        task_instance.xcom_push(
-            context,
-            key=AlloyDBUsersLink.key,
-            value={"location_id": location_id, "cluster_id": cluster_id, "project_id": project_id},
-        )
-
 
 class AlloyDBBackupsLink(BaseGoogleLink):
     """Helper class for constructing AlloyDB backups Link."""
@@ -87,15 +53,3 @@ class AlloyDBBackupsLink(BaseGoogleLink):
     name = "AlloyDB Backups"
     key = "alloy_db_backups"
     format_str = ALLOY_DB_BACKUPS_LINK
-
-    @staticmethod
-    def persist(
-        context: Context,
-        task_instance: BaseOperator,
-        project_id: str | None,
-    ):
-        task_instance.xcom_push(
-            context,
-            key=AlloyDBBackupsLink.key,
-            value={"project_id": project_id},
-        )

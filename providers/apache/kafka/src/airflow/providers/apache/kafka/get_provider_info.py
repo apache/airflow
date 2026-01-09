@@ -30,6 +30,7 @@ def get_provider_info():
             {
                 "integration-name": "Apache Kafka",
                 "external-doc-url": "https://kafka.apache.org/",
+                "how-to-guide": ["/docs/apache-airflow-providers-apache-kafka/sensors.rst"],
                 "logo": "/docs/integration-logos/kafka.svg",
                 "tags": ["apache"],
             }
@@ -63,7 +64,10 @@ def get_provider_info():
         "triggers": [
             {
                 "integration-name": "Apache Kafka",
-                "python-modules": ["airflow.providers.apache.kafka.triggers.await_message"],
+                "python-modules": [
+                    "airflow.providers.apache.kafka.triggers.await_message",
+                    "airflow.providers.apache.kafka.triggers.msg_queue",
+                ],
             }
         ],
         "connection-types": [

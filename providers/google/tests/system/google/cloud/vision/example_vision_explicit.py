@@ -38,14 +38,19 @@ from airflow.providers.google.cloud.operators.vision import (
     CloudVisionUpdateProductSetOperator,
 )
 from airflow.providers.google.cloud.transfers.gcs_to_gcs import GCSToGCSOperator
-from airflow.utils.trigger_rule import TriggerRule
+
+try:
+    from airflow.sdk import TriggerRule
+except ImportError:
+    # Compatibility for Airflow < 3.1
+    from airflow.utils.trigger_rule import TriggerRule  # type: ignore[no-redef,attr-defined]
 
 # [START howto_operator_vision_retry_import]
-from google.api_core.retry import Retry  # isort:skip
+from google.api_core.retry import Retry
 
 # [END howto_operator_vision_retry_import]
 # [START howto_operator_vision_product_set_import_2]
-from google.cloud.vision_v1.types import ProductSet  # isort:skip
+from google.cloud.vision_v1.types import ProductSet
 
 # [END howto_operator_vision_product_set_import_2]
 # [START howto_operator_vision_product_import_2]

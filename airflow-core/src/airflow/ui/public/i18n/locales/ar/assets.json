@@ -1,0 +1,30 @@
+{
+  "consumingDags": "Dags المستهلكة",
+  "createEvent": {
+    "button": "إنشاء حدث",
+    "manual": {
+      "description": "إنشاء الحدث لأصل مباشرةً",
+      "extra": "اضافات حدث الأصل",
+      "label": "يدوياً"
+    },
+    "materialize": {
+      "description": "قم بتشغيل ال Dag السابقة  من هذا الأصل",
+      "descriptionWithDag": "قم بتشغيل ال Dag السابقة من هذا الأصل: {{dagName}}",
+      "label": "تجسيد",
+      "unpauseDag": "إلغاء إيقاف {{dagName}} عند التشغيل"
+    },
+    "success": {
+      "manualDescription": "تم إنشاء حدث الأصل يدوياً بنجاح.",
+      "manualTitle": "تم إنشاء حدث الأصل",
+      "materializeDescription": "تم تشغيل ال Dag السابقة {{dagId}} بنجاح.",
+      "materializeTitle": "تجسيد الأصل"
+    },
+    "title": "إنشاء حدث أصل لـ {{name}}"
+  },
+  "group": "المجموعة",
+  "lastAssetEvent": "آخر حدث أصل",
+  "name": "الاسم",
+  "producingTasks": "المهام المنتجة",
+  "scheduledDags": "Dags المجدولة",
+  "searchPlaceholder": "البحث عن الأصول"
+}

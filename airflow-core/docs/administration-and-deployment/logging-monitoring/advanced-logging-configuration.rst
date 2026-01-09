@@ -34,7 +34,7 @@ Some configuration options require that the logging config class be overwritten.
 configuration of Airflow and modifying it to suit your needs.
 
 The default configuration can be seen in the
-`airflow_local_settings.py template <https://github.com/apache/airflow/blob/|airflow-version|/airflow/config_templates/airflow_local_settings.py>`_
+`airflow_local_settings.py template <https://github.com/apache/airflow/blob/|airflow-version|/airflow-core/src/airflow/config_templates/airflow_local_settings.py>`_
 and you can see the loggers and handlers used there.
 
 See :ref:`Configuring local settings <set-config:configuring-local-settings>` for details on how to

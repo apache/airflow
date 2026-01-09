@@ -25,12 +25,9 @@ from unittest.mock import call, mock_open, patch
 
 import pytest
 
-from airflow.exceptions import AirflowException
 from airflow.models import Connection
 from airflow.providers.apache.spark.hooks.spark_submit import SparkSubmitHook
-from airflow.utils import db
-
-pytestmark = pytest.mark.db_test
+from airflow.providers.common.compat.sdk import AirflowException
 
 
 class TestSparkSubmitHook:
@@ -76,8 +73,9 @@ class TestSparkSubmitHook:
                 return_dict[arg1] = arg2
         return return_dict
 
-    def setup_method(self):
-        db.merge_conn(
+    @pytest.fixture(autouse=True)
+    def setup_connections(self, create_connection_without_db):
+        create_connection_without_db(
             Connection(
                 conn_id="spark_yarn_cluster",
                 conn_type="spark",
@@ -85,7 +83,7 @@ class TestSparkSubmitHook:
                 extra='{"queue": "root.etl", "deploy-mode": "cluster"}',
             )
         )
-        db.merge_conn(
+        create_connection_without_db(
             Connection(
                 conn_id="spark_k8s_cluster",
                 conn_type="spark",
@@ -93,7 +91,7 @@ class TestSparkSubmitHook:
                 extra='{"deploy-mode": "cluster", "namespace": "mynamespace"}',
             )
         )
-        db.merge_conn(
+        create_connection_without_db(
             Connection(
                 conn_id="spark_k8s_client",
                 conn_type="spark",
@@ -101,11 +99,11 @@ class TestSparkSubmitHook:
                 extra='{"deploy-mode": "client", "namespace": "mynamespace"}',
             )
         )
-        db.merge_conn(
+        create_connection_without_db(
             Connection(conn_id="spark_default_mesos", conn_type="spark", host="mesos://host", port=5050)
         )
 
-        db.merge_conn(
+        create_connection_without_db(
             Connection(
                 conn_id="spark_binary_set",
                 conn_type="spark",
@@ -113,7 +111,7 @@ class TestSparkSubmitHook:
                 extra='{"spark-binary": "spark2-submit"}',
             )
         )
-        db.merge_conn(
+        create_connection_without_db(
             Connection(
                 conn_id="spark_binary_set_spark3_submit",
                 conn_type="spark",
@@ -121,7 +119,7 @@ class TestSparkSubmitHook:
                 extra='{"spark-binary": "spark3-submit"}',
             )
         )
-        db.merge_conn(
+        create_connection_without_db(
             Connection(
                 conn_id="spark_custom_binary_set",
                 conn_type="spark",
@@ -129,7 +127,7 @@ class TestSparkSubmitHook:
                 extra='{"spark-binary": "spark-other-submit"}',
             )
         )
-        db.merge_conn(
+        create_connection_without_db(
             Connection(
                 conn_id="spark_home_set",
                 conn_type="spark",
@@ -137,7 +135,7 @@ class TestSparkSubmitHook:
                 extra='{"spark-home": "/custom/spark-home/path"}',
             )
         )
-        db.merge_conn(
+        create_connection_without_db(
             Connection(
                 conn_id="spark_standalone_cluster",
                 conn_type="spark",
@@ -145,7 +143,7 @@ class TestSparkSubmitHook:
                 extra='{"deploy-mode": "cluster"}',
             )
         )
-        db.merge_conn(
+        create_connection_without_db(
             Connection(
                 conn_id="spark_standalone_cluster_client_mode",
                 conn_type="spark",
@@ -153,7 +151,7 @@ class TestSparkSubmitHook:
                 extra='{"deploy-mode": "client"}',
             )
         )
-        db.merge_conn(
+        create_connection_without_db(
             Connection(
                 conn_id="spark_principal_set",
                 conn_type="spark",
@@ -161,7 +159,7 @@ class TestSparkSubmitHook:
                 extra='{"principal": "user/spark@airflow.org"}',
             )
         )
-        db.merge_conn(
+        create_connection_without_db(
             Connection(
                 conn_id="spark_keytab_set",
                 conn_type="spark",
@@ -170,10 +168,11 @@ class TestSparkSubmitHook:
             )
         )
 
+    @pytest.mark.db_test
     @patch(
         "airflow.providers.apache.spark.hooks.spark_submit.os.getenv", return_value="/tmp/airflow_krb5_ccache"
     )
-    def test_build_spark_submit_command(self, mock_get_env):
+    def test_build_spark_submit_command(self, mock_get_env, sdk_connection_not_found):
         # Given
         hook = SparkSubmitHook(**self._config)
 
@@ -290,14 +289,16 @@ class TestSparkSubmitHook:
         assert expected_spark_standalone_cluster == build_track_driver_status_spark_standalone_cluster
         assert expected_spark_yarn_cluster == build_track_driver_status_spark_yarn_cluster
 
+    @pytest.mark.db_test
     @patch("airflow.providers.apache.spark.hooks.spark_submit.subprocess.Popen")
-    def test_spark_process_runcmd(self, mock_popen):
+    def test_spark_process_runcmd(self, mock_popen, sdk_connection_not_found):
         # Given
         mock_popen.return_value.stdout = StringIO("stdout")
         mock_popen.return_value.stderr = StringIO("stderr")
         mock_popen.return_value.wait.return_value = 0
 
         # When
+
         hook = SparkSubmitHook(conn_id="")
         hook.submit()
 
@@ -310,7 +311,8 @@ class TestSparkSubmitHook:
             bufsize=-1,
         )
 
-    def test_resolve_should_track_driver_status(self):
+    @pytest.mark.db_test
+    def test_resolve_should_track_driver_status(self, sdk_connection_not_found):
         # Given
         hook_default = SparkSubmitHook(conn_id="")
         hook_spark_yarn_cluster = SparkSubmitHook(conn_id="spark_yarn_cluster")
@@ -345,7 +347,8 @@ class TestSparkSubmitHook:
         assert should_track_driver_status_spark_binary_set is False
         assert should_track_driver_status_spark_standalone_cluster is True
 
-    def test_resolve_connection_yarn_default(self):
+    @pytest.mark.db_test
+    def test_resolve_connection_yarn_default(self, sdk_connection_not_found):
         # Given
         hook = SparkSubmitHook(conn_id="")
 
@@ -367,6 +370,7 @@ class TestSparkSubmitHook:
         assert connection == expected_spark_connection
         assert dict_cmd["--master"] == "yarn"
 
+    @pytest.mark.db_test
     def test_resolve_connection_yarn_default_connection(self):
         # Given
         hook = SparkSubmitHook(conn_id="spark_default")
@@ -532,11 +536,14 @@ class TestSparkSubmitHook:
         SparkSubmitHook(conn_id="spark_binary_set", spark_binary="another-custom-spark-submit")
 
     def test_resolve_connection_spark_binary_extra_not_allowed_runtime_error(self):
-        with pytest.raises(RuntimeError):
+        with pytest.raises(
+            ValueError,
+            match="Please make sure your spark binary is one of the allowed ones and that it is available on the PATH",
+        ):
             SparkSubmitHook(conn_id="spark_custom_binary_set")
 
     def test_resolve_connection_spark_home_not_allowed_runtime_error(self):
-        with pytest.raises(RuntimeError):
+        with pytest.raises(ValueError, match="The `spark-home` extra is not allowed any more"):
             SparkSubmitHook(conn_id="spark_home_set")
 
     def test_resolve_connection_spark_binary_default_value_override(self):
@@ -560,6 +567,7 @@ class TestSparkSubmitHook:
         assert connection == expected_spark_connection
         assert cmd[0] == "spark3-submit"
 
+    @pytest.mark.db_test
     def test_resolve_connection_spark_binary_default_value(self):
         # Given
         hook = SparkSubmitHook(conn_id="spark_default")
@@ -1008,7 +1016,7 @@ class TestSparkSubmitHook:
         )
 
     @pytest.mark.parametrize(
-        "command, expected",
+        ("command", "expected"),
         [
             (
                 ("spark-submit", "foo", "--bar", "baz", "--password='secret'", "--foo", "bar"),
@@ -1044,6 +1052,7 @@ class TestSparkSubmitHook:
             ),
         ],
     )
+    @pytest.mark.db_test
     def test_masks_passwords(self, command: str, expected: str) -> None:
         # Given
         hook = SparkSubmitHook()
@@ -1054,6 +1063,7 @@ class TestSparkSubmitHook:
         # Then
         assert command_masked == expected
 
+    @pytest.mark.db_test
     def test_create_keytab_path_from_base64_keytab_with_decode_exception(self):
         hook = SparkSubmitHook()
         invalid_base64 = "invalid_base64"
@@ -1061,6 +1071,7 @@ class TestSparkSubmitHook:
         with pytest.raises(AirflowException, match="Failed to decode base64 keytab"):
             hook._create_keytab_path_from_base64_keytab(invalid_base64, None)
 
+    @pytest.mark.db_test
     @patch("pathlib.Path.exists")
     @patch("builtins.open", new_callable=mock_open)
     def test_create_keytab_path_from_base64_keytab_with_write_exception(
@@ -1084,6 +1095,7 @@ class TestSparkSubmitHook:
         # Then
         assert mock_exists.call_count == 2  # called twice (before write, after write)
 
+    @pytest.mark.db_test
     @patch("airflow.providers.apache.spark.hooks.spark_submit.shutil.move")
     @patch("pathlib.Path.exists")
     @patch("builtins.open", new_callable=mock_open)
@@ -1110,6 +1122,7 @@ class TestSparkSubmitHook:
         mock_move.assert_called_once()
         assert mock_exists.call_count == 2  # called twice (before write, after write)
 
+    @pytest.mark.db_test
     @patch("airflow.providers.apache.spark.hooks.spark_submit.uuid.uuid4")
     @patch("pathlib.Path.resolve")
     @patch("airflow.providers.apache.spark.hooks.spark_submit.shutil.move")
@@ -1140,6 +1153,7 @@ class TestSparkSubmitHook:
         mock_open().write.assert_called_once_with(keytab_value)
         mock_move.assert_called_once()
 
+    @pytest.mark.db_test
     @patch("pathlib.Path.resolve")
     @patch("airflow.providers.apache.spark.hooks.spark_submit.shutil.move")
     @patch("pathlib.Path.exists")
@@ -1168,6 +1182,7 @@ class TestSparkSubmitHook:
         mock_open().write.assert_called_once_with(keytab_value)
         mock_move.assert_called_once()
 
+    @pytest.mark.db_test
     @patch("pathlib.Path.resolve")
     @patch("pathlib.Path.exists")
     @patch("builtins.open", new_callable=mock_open)

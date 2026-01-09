@@ -22,10 +22,10 @@ import subprocess
 import sys
 from typing import TYPE_CHECKING, Any
 
-from airflow_breeze.commands.ci_image_commands import ci_image
 from airflow_breeze.commands.common_options import (
     option_all_integration,
     option_answer,
+    option_auth_manager,
     option_backend,
     option_builder,
     option_db_reset,
@@ -43,15 +43,13 @@ from airflow_breeze.commands.common_options import (
     option_uv_http_timeout,
     option_verbose,
 )
-from airflow_breeze.commands.production_image_commands import prod_image
-from airflow_breeze.commands.testing_commands import group_for_testing
 from airflow_breeze.configure_rich_click import click
-from airflow_breeze.global_constants import generate_provider_dependencies_if_needed
 from airflow_breeze.utils.click_utils import BreezeGroup
 from airflow_breeze.utils.confirm import Answer, user_confirm
 from airflow_breeze.utils.console import get_console
 from airflow_breeze.utils.docker_command_utils import remove_docker_networks, remove_docker_volumes
 from airflow_breeze.utils.path_utils import AIRFLOW_HOME_PATH, BUILD_CACHE_PATH
+from airflow_breeze.utils.provider_dependencies import generate_provider_dependencies_if_needed
 from airflow_breeze.utils.run_utils import run_command
 from airflow_breeze.utils.shared_options import get_dry_run
 
@@ -60,43 +58,39 @@ if TYPE_CHECKING:
 
 
 def print_deprecated(deprecated_command: str, command_to_use: str):
-    get_console().print("[yellow]" + ("#" * 80) + "\n")
-    get_console().print(f"[yellow]The command '{deprecated_command}' is deprecated!\n")
+    get_console().print("\n[warning]" + ("#" * 80) + "\n")
+    get_console().print(f"[warning]The command '{deprecated_command}' is deprecated!\n")
     get_console().print(f"Use 'breeze {command_to_use}' instead\n")
-    get_console().print("[yellow]" + ("#" * 80) + "\n")
+    get_console().print("[warning]" + ("#" * 80) + "\n")
+
+
+def print_removed(deprecated_command: str, non_breeze_command_to_use: str, installation_notes: str | None):
+    get_console().print("\n[warning]" + ("#" * 80) + "\n")
+    get_console().print(f"[warning]The command '{deprecated_command}' is removed!\n")
+    get_console().print(f"Use '{non_breeze_command_to_use}' instead.\n")
+    if installation_notes:
+        get_console().print(installation_notes)
+    get_console().print("[warning]" + ("#" * 80) + "\n")
 
 
 class MainGroupWithAliases(BreezeGroup):
     def get_command(self, ctx: Context, cmd_name: str):
         # Aliases for important commands moved to sub-commands or deprecated commands
-        from airflow_breeze.commands.setup_commands import setup
-
-        if cmd_name == "stop":
-            print_deprecated("stop", "down")
-            cmd_name = "down"
-
         rv = click.Group.get_command(self, ctx, cmd_name)
         if rv is not None:
             return rv
-        if cmd_name == "build-image":
-            print_deprecated("build-image", "ci-image build")
-            return ci_image.get_command(ctx, "build")
-        if cmd_name == "build-prod-image":
-            print_deprecated("build-prod-image", "prod-image build")
-            return prod_image.get_command(ctx, "build")
-        if cmd_name == "tests":
-            print_deprecated("tests", "testing tests")
-            return group_for_testing.get_command(ctx, "tests")
-        if cmd_name == "config":
-            print_deprecated("config", "setup config")
-            return setup.get_command(ctx, "config")
-        if cmd_name == "setup-autocomplete":
-            print_deprecated("setup-autocomplete", "setup autocomplete")
-            return setup.get_command(ctx, "autocomplete")
-        if cmd_name == "version":
+        if cmd_name == "static-checks":
             # version alias does not need to be deprecated. It's ok to keep it also at top level
             # even if it is not displayed in help
-            return setup.get_command(ctx, "version")
+            print_removed(
+                "static-checks",
+                "prek",
+                "\nYou can install prek with:\n"
+                "\n[special]uv tool install prek[/]\n\n"
+                "Followed by (in airflow repo):\n\n"
+                "[special]prek install -f[/]\n",
+            )
+            sys.exit(1)
         return None
 
 
@@ -106,6 +100,7 @@ class MainGroupWithAliases(BreezeGroup):
     context_settings={"help_option_names": ["-h", "--help"]},
 )
 @option_answer
+@option_auth_manager
 @option_backend
 @option_builder
 @option_db_reset

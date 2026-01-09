@@ -28,6 +28,139 @@ Changelog
 ---------
 
 
+4.5.1
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Handle mid line chunking when writing docker stream to logs (#59071)``
+
+Misc
+~~~~
+
+* ``Add backcompat for exceptions in providers (#58727)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+4.5.0
+.....
+
+.. note::
+    This release of provider is only available for Airflow 2.11+ as explained in the
+    Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/PROVIDERS.rst#minimum-supported-version-of-airflow-for-community-managed-providers>_.
+
+Misc
+~~~~
+
+* ``Move out some exceptions to TaskSDK (#54505)``
+* ``Bump minimum Airflow version in providers to Airflow 2.11.0 (#58612)``
+* ``Fix lower bound dependency to common-compat provider (#58833)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Updates to release process of providers (#58316)``
+   * ``Prepare release for 2025-11-27 wave of providers (#58697)``
+
+4.4.5
+.....
+
+Misc
+~~~~
+
+* ``Convert all airflow distributions to be compliant with ASF requirements (#58138)``
+* ``Migrate Docker provider to 'common.compat' (#57117)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Delete all unnecessary LICENSE Files (#58191)``
+   * ``Enable ruff PLW2101,PLW2901,PLW3301 rule (#57700)``
+   * ``Enable PT006 rule to 14 files in providers (databricks,dbt,docker) (#57994)``
+
+4.4.4
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``DockerSwarmOperator: Use inspect_service() instead of inspect_container() (#56043)``
+
+Doc-only
+~~~~~~~~
+
+* ``Remove placeholder Release Date in changelog and index files (#56056)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+4.4.3
+.....
+
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix 'version_compat' for Docker decorator with Airflow 3.0.X (#55447)``
+
+Misc
+~~~~
+
+* ``Switch all airflow logging to structlog (#52651)``
+
+Doc-only
+~~~~~~~~
+
+* ``Make term Dag consistent in providers docs (#55101)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Prepare release for Sep 2025 1st wave of providers (#55203)``
+   * ``Fix Airflow 2 reference in README/index of providers (#55240)``
+   * ``Remove airflow.models.DAG (#54383)``
+   * ``Switch pre-commit to prek (#54258)``
+
+4.4.2
+.....
+
+Misc
+~~~~
+
+* ``Add Python 3.13 support for Airflow. (#46891)``
+* ``Remove type ignore across codebase after mypy upgrade (#53243)``
+* ``Remove upper-binding for "python-requires" (#52980)``
+* ``Temporarily switch to use >=,< pattern instead of '~=' (#52967)``
+* ``Move all BaseHook usages to version_compat in Docker (#52802)``
+
+Doc-only
+~~~~~~~~
+
+* ``docs: Correct TaskFlow capitalization in documentation (#51794)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Deprecate decorators from Core (#53629)``
+   * ``Cleanup mypy ignore in docker provider where possible (#53273)``
+   * ``Make dag_version_id in TI non-nullable (#50825)``
+
+4.4.1
+.....
+
+Misc
+~~~~
+
+* ``Move 'BaseHook' implementation to task SDK (#51873)``
+* ``Allow templating of mounts parameter in DockerOperator   (#52451)``
+* ``Provider Migration: Update docker for Airflow 3.0 compatibility (#52465)``
+* ``Drop support for Python 3.9 (#52072)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Make sure all test version imports come from test_common (#52425)``
+   * ``Removed pytest.mark_db_test from the docker provider completely (#52027)``
+   * ``Always create serdag in dagmaker fixture (#50359)``
+   * ``Prepare release for June 2025 provider wave (#51724)``
+
 4.4.0
 .....
 
@@ -165,8 +298,6 @@ Misc
    appropriate section above if needed. Do not delete the lines(!):
    * ``Correct new changelog breaking changes header (#44659)``
    * ``Use Python 3.9 as target version for Ruff & Black rules (#44298)``
-
-.. Review and move the new changes to one of the sections above:
    * ``Update path of example dags in docs (#45069)``
 
 3.14.1
@@ -786,7 +917,7 @@ Other
 Features
 ~~~~~~~~
 
-* ``Add a Docker Taskflow decorator (#15330)``
+* ``Add a Docker TaskFlow decorator (#15330)``
 
 This version of Docker Provider has a new feature - TaskFlow decorator that only works in Airflow 2.2.
 If you try to use the decorator in pre-Airflow 2.2 version you will get an error:
@@ -882,7 +1013,7 @@ Features
 ~~~~~~~~
 
 * ``Entrypoint support in docker operator (#14642)``
-* ``Add PythonVirtualenvDecorator to Taskflow API (#14761)``
+* ``Add PythonVirtualenvDecorator to TaskFlow API (#14761)``
 * ``Support all terminus task states in Docker Swarm Operator (#14960)``
 
 

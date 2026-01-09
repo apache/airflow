@@ -27,6 +27,109 @@
 Changelog
 ---------
 
+4.3.0
+.....
+
+.. note::
+    This release of provider is only available for Airflow 2.11+ as explained in the
+    Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/PROVIDERS.rst#minimum-supported-version-of-airflow-for-community-managed-providers>_.
+
+Features
+~~~~~~~~
+
+* ``Add wallet, SSL, and connection class support to OracleHook (#58225)``
+
+Misc
+~~~~
+
+* ``Bump minimum Airflow version in providers to Airflow 2.11.0 (#58612)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Updates to release process of providers (#58316)``
+
+4.2.1
+.....
+
+Misc
+~~~~
+
+* ``Convert all airflow distributions to be compliant with ASF requirements (#58138)``
+* ``Migrate Oracle providers to 'common.compat' compatibility layer (#57133)``
+
+Doc-only
+~~~~~~~~
+
+* ``Update Oracle provider URL in description (#57478)``
+* ``[Doc] Fixing 404 errors for OpenLineage & Oracle providers (#57469)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Delete all unnecessary LICENSE Files (#58191)``
+   * ``Enable PT006 rule to oracle Provider test (#57941)``
+   * ``Fix documentation/provider.yaml consistencies (#57283)``
+   * ``Prepare release for Oct 2025 wave of providers (#57029)``
+   * ``Remove placeholder Release Date in changelog and index files (#56056)``
+   * ``Enable PT011 rule to prvoider tests (#55980)``
+   * ``Prepare release for Sep 2025 2nd wave of providers (#55688)``
+   * ``Move 'example_oracle_fetch.py' to its provider (#55676)``
+   * ``examples(oracle): add tutorial DAG using OracleHook to fetch/sample rows (#54617)``
+
+4.2.0
+.....
+
+Features
+~~~~~~~~
+
+* ``feature: Add OpenLineage support for OracleToGCSOperator (#54953)``
+
+Misc
+~~~~
+
+* ``Update OracleHook code to meet mypy and ruff guidelines (#54529)``
+
+Doc-only
+~~~~~~~~
+
+* ``Make term Dag consistent in providers docs (#55101)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Switch pre-commit to prek (#54258)``
+   * ``Fix Airflow 2 reference in README/index of providers (#55240)``
+
+4.1.3
+.....
+
+Misc
+~~~~
+
+* ``Add Python 3.13 support for Airflow. (#46891)``
+* ``Cleanup type ignores in oracle provider where possible (#53280)``
+* ``Remove type ignore across codebase after mypy upgrade (#53243)``
+* ``Remove upper-binding for "python-requires" (#52980)``
+* ``Temporarily switch to use >=,< pattern instead of '~=' (#52967)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+4.1.2
+.....
+
+Misc
+~~~~
+
+* ``Move 'BaseHook' implementation to task SDK (#51873)``
+* ``Disable UP038 ruff rule and revert mandatory 'X | Y' in insintance checks (#52644)``
+* ``Provider Migration: Update Oracle for Airflow 3.0 compatibility (#52382)``
+* ``Drop support for Python 3.9 (#52072)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Fix failing static check for Oracle provider (#52436)``
+   * ``Fixes part of #52020 (#52038)``
+   * ``Replacing older 'np.NaN' with 'np.nan' in tests (#52100)``
+
 4.1.1
 .....
 

@@ -36,7 +36,27 @@ def get_provider_info():
                 ],
                 "logo": "/docs/integration-logos/Teradata.png",
                 "tags": ["software"],
-            }
+            },
+            {
+                "integration-name": "Bteq",
+                "external-doc-url": "https://www.teradata.com/",
+                "how-to-guide": ["/docs/apache-airflow-providers-teradata/operators/bteq.rst"],
+                "logo": "/docs/integration-logos/Teradata.png",
+                "tags": ["software"],
+            },
+            {
+                "integration-name": "Ttu",
+                "external-doc-url": "https://www.teradata.com/",
+                "logo": "/docs/integration-logos/Teradata.png",
+                "tags": ["software"],
+            },
+            {
+                "integration-name": "Tpt",
+                "external-doc-url": "https://www.teradata.com/",
+                "how-to-guide": ["/docs/apache-airflow-providers-teradata/operators/tpt.rst"],
+                "logo": "/docs/integration-logos/Teradata.png",
+                "tags": ["software"],
+            },
         ],
         "operators": [
             {
@@ -45,10 +65,15 @@ def get_provider_info():
                     "airflow.providers.teradata.operators.teradata",
                     "airflow.providers.teradata.operators.teradata_compute_cluster",
                 ],
-            }
+            },
+            {"integration-name": "Bteq", "python-modules": ["airflow.providers.teradata.operators.bteq"]},
+            {"integration-name": "Tpt", "python-modules": ["airflow.providers.teradata.operators.tpt"]},
         ],
         "hooks": [
-            {"integration-name": "Teradata", "python-modules": ["airflow.providers.teradata.hooks.teradata"]}
+            {"integration-name": "Teradata", "python-modules": ["airflow.providers.teradata.hooks.teradata"]},
+            {"integration-name": "Ttu", "python-modules": ["airflow.providers.teradata.hooks.ttu"]},
+            {"integration-name": "Bteq", "python-modules": ["airflow.providers.teradata.hooks.bteq"]},
+            {"integration-name": "Tpt", "python-modules": ["airflow.providers.teradata.hooks.tpt"]},
         ],
         "transfers": [
             {

@@ -45,7 +45,7 @@ def app():
 
 
 @pytest.mark.parametrize(
-    "decorator_name, is_authorized_method_name",
+    ("decorator_name", "is_authorized_method_name"),
     [
         ("has_access_configuration", "is_authorized_configuration"),
         ("has_access_asset", "is_authorized_asset"),
@@ -131,15 +131,15 @@ def get_variable():
 
 
 @pytest.mark.parametrize(
-    "decorator_name, is_authorized_method_name, items",
+    ("decorator_name", "is_authorized_method_name", "items"),
     [
         (
             "has_access_connection",
-            "batch_is_authorized_connection",
+            "is_authorized_connection",
             "get_connection",
         ),
-        ("has_access_pool", "batch_is_authorized_pool", "get_pool"),
-        ("has_access_variable", "batch_is_authorized_variable", "get_variable"),
+        ("has_access_pool", "is_authorized_pool", "get_pool"),
+        ("has_access_variable", "is_authorized_variable", "get_variable"),
     ],
 )
 class TestHasAccessWithDetails:

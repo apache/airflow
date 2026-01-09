@@ -19,7 +19,7 @@
 import { Box, Flex, HStack, Spacer, VStack } from "@chakra-ui/react";
 import type { ColumnDef } from "@tanstack/react-table";
 import type { TFunction } from "i18next";
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useSearchParams } from "react-router-dom";
 
@@ -40,6 +40,7 @@ import AddConnectionButton from "./AddConnectionButton";
 import DeleteConnectionButton from "./DeleteConnectionButton";
 import DeleteConnectionsButton from "./DeleteConnectionsButton";
 import EditConnectionButton from "./EditConnectionButton";
+import { NothingFoundInfo } from "./NothingFoundInfo";
 import TestConnectionButton from "./TestConnectionButton";
 
 export type ConnectionBody = {
@@ -52,6 +53,7 @@ export type ConnectionBody = {
   password: string;
   port: string;
   schema: string;
+  team_name: string;
 };
 
 const getColumns = ({
@@ -67,7 +69,7 @@ const getColumns = ({
       <Checkbox
         borderWidth={1}
         checked={selectedRows.get(row.original.connection_id)}
-        colorPalette="blue"
+        colorPalette="brand"
         onCheckedChange={(event) => onRowSelect(row.original.connection_id, Boolean(event.checked))}
       />
     ),
@@ -77,7 +79,7 @@ const getColumns = ({
       <Checkbox
         borderWidth={1}
         checked={allRowsSelected}
-        colorPalette="blue"
+        colorPalette="brand"
         onCheckedChange={(event) => onSelectAll(Boolean(event.checked))}
       />
     ),
@@ -134,7 +136,7 @@ export const Connections = () => {
   useConnectionTypeMeta(); // Pre-fetch connection type metadata
   const { pagination, sorting } = tableURLState;
   const [sort] = sorting;
-  const orderBy = sort ? `${sort.desc ? "-" : ""}${sort.id}` : "connection_id";
+  const orderBy = sort ? [`${sort.desc ? "-" : ""}${sort.id}`] : ["connection_id"];
   const { data, error, isFetching, isLoading } = useConnectionServiceGetConnections({
     connectionIdPattern: connectionIdPattern ?? undefined,
     limit: pagination.pageSize,
@@ -148,17 +150,13 @@ export const Connections = () => {
       getKey: (connection) => connection.connection_id,
     });
 
-  const columns = useMemo(
-    () =>
-      getColumns({
-        allRowsSelected,
-        onRowSelect: handleRowSelect,
-        onSelectAll: handleSelectAll,
-        selectedRows,
-        translate,
-      }),
-    [allRowsSelected, handleRowSelect, handleSelectAll, selectedRows, translate],
-  );
+  const columns = getColumns({
+    allRowsSelected,
+    onRowSelect: handleRowSelect,
+    onSelectAll: handleSelectAll,
+    selectedRows,
+    translate,
+  });
 
   const handleSearchChange = (value: string) => {
     if (value) {
@@ -178,10 +176,9 @@ export const Connections = () => {
     <>
       <VStack alignItems="none">
         <SearchBar
-          buttonProps={{ disabled: true }}
           defaultValue={connectionIdPattern ?? ""}
           onChange={handleSearchChange}
-          placeHolder={translate("connections.searchPlaceholder")}
+          placeholder={translate("connections.searchPlaceholder")}
         />
         <HStack gap={4} mt={2}>
           <Spacer />
@@ -198,6 +195,7 @@ export const Connections = () => {
           isFetching={isFetching}
           isLoading={isLoading}
           modelName={translate("common:admin.Connections")}
+          noRowsMessage={<NothingFoundInfo />}
           onStateChange={setTableURLState}
           total={data?.total_entries ?? 0}
         />

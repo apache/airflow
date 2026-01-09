@@ -22,6 +22,8 @@ import json
 from unittest import mock
 
 import pandas as pd
+import polars as pl
+import pytest
 from moto import mock_aws
 
 import airflow.providers.amazon.aws.transfers.hive_to_dynamodb
@@ -110,3 +112,43 @@ class TestHiveToDynamoDBOperator:
         table = self.hook.get_conn().Table("test_airflow")
         table.meta.client.get_waiter("table_exists").wait(TableName="test_airflow")
         assert table.item_count == 1
+
+    @pytest.mark.parametrize("df_type", ["pandas", "polars"])
+    @mock_aws
+    def test_df_type_parameter(self, df_type):
+        if df_type == "polars" and pl is None:
+            pytest.skip("Polars not installed")
+
+        if df_type == "pandas":
+            test_df = pd.DataFrame(data=[("1", "sid")], columns=["id", "name"])
+        else:
+            test_df = pl.DataFrame({"id": ["1"], "name": ["sid"]})
+
+        with mock.patch(
+            "airflow.providers.apache.hive.hooks.hive.HiveServer2Hook.get_df",
+            return_value=test_df,
+        ) as mock_get_df:
+            self.hook.get_conn().create_table(
+                TableName="test_airflow",
+                KeySchema=[
+                    {"AttributeName": "id", "KeyType": "HASH"},
+                ],
+                AttributeDefinitions=[{"AttributeName": "id", "AttributeType": "S"}],
+                ProvisionedThroughput={"ReadCapacityUnits": 10, "WriteCapacityUnits": 10},
+            )
+
+            operator = airflow.providers.amazon.aws.transfers.hive_to_dynamodb.HiveToDynamoDBOperator(
+                sql=self.sql,
+                table_name="test_airflow",
+                task_id="hive_to_dynamodb_check",
+                table_keys=["id"],
+                df_type=df_type,
+                dag=self.dag,
+            )
+
+            operator.execute(None)
+            mock_get_df.assert_called_once_with(self.sql, schema="default", df_type=df_type)
+
+            table = self.hook.get_conn().Table("test_airflow")
+            table.meta.client.get_waiter("table_exists").wait(TableName="test_airflow")
+            assert table.item_count == 1

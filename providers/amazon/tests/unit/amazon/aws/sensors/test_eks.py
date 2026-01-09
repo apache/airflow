@@ -20,7 +20,7 @@ from unittest import mock
 
 import pytest
 
-from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
+from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.amazon.aws.hooks.eks import (
     ClusterStates,
     EksHook,
@@ -35,6 +35,7 @@ from airflow.providers.amazon.aws.sensors.eks import (
     EksFargateProfileStateSensor,
     EksNodegroupStateSensor,
 )
+from airflow.providers.common.compat.sdk import AirflowException
 
 CLUSTER_NAME = "test_cluster"
 FARGATE_PROFILE_NAME = "test_profile"
@@ -106,7 +107,7 @@ class TestEksClusterStateSensor:
         mock_get_cluster_state.assert_called_once_with(clusterName=CLUSTER_NAME)
 
     @pytest.mark.db_test
-    def test_region_argument(self):
+    def test_region_argument(self, sdk_connection_not_found):
         with pytest.warns(AirflowProviderDeprecationWarning) as w:
             w.sensor = EksClusterStateSensor(
                 task_id=TASK_ID,

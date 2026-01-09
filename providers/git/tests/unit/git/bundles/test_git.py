@@ -20,24 +20,22 @@ from __future__ import annotations
 import json
 import os
 import re
+import types
 from unittest import mock
 from unittest.mock import patch
 
 import pytest
 from git import Repo
-from git.exc import GitCommandError, NoSuchPathError
+from git.exc import GitCommandError, InvalidGitRepositoryError, NoSuchPathError
 
 from airflow.dag_processing.bundles.base import get_bundle_storage_root_path
-from airflow.exceptions import AirflowException
 from airflow.models import Connection
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.git.bundles.git import GitDagBundle
 from airflow.providers.git.hooks.git import GitHook
-from airflow.utils import db
 
 from tests_common.test_utils.config import conf_vars
-from tests_common.test_utils.db import clear_db_connections
-
-pytestmark = pytest.mark.db_test
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_1_PLUS
 
 
 @pytest.fixture(autouse=True)
@@ -68,21 +66,34 @@ def git_repo(tmp_path_factory):
     return (directory, repo)
 
 
+def assert_repo_is_closed(bundle: GitDagBundle):
+    # cat-file processes get left around if the repo is not closed, so check it was
+    assert bundle.repo.git.cat_file_all is None
+    assert bundle.bare_repo.git.cat_file_all is None
+    assert bundle.repo.git.cat_file_header is None
+    assert bundle.bare_repo.git.cat_file_header is None
+
+
 class TestGitDagBundle:
     @classmethod
     def teardown_class(cls) -> None:
-        clear_db_connections()
+        return
 
-    @classmethod
-    def setup_class(cls) -> None:
-        db.merge_conn(
+    # TODO: Potential performance issue, converted setup_class to a setup_connections function level fixture
+    @pytest.fixture(autouse=True)
+    def setup_connections(self, create_connection_without_db, request):
+        # Skip setup for tests that need to create their own connections
+        if request.function.__name__ in ["test_view_url", "test_view_url_subdir"]:
+            return
+
+        create_connection_without_db(
             Connection(
                 conn_id="git_default",
                 host="git@github.com:apache/airflow.git",
                 conn_type="git",
             )
         )
-        db.merge_conn(
+        create_connection_without_db(
             Connection(
                 conn_id=CONN_HTTPS,
                 host=AIRFLOW_HTTPS_URL,
@@ -90,7 +101,7 @@ class TestGitDagBundle:
                 conn_type="git",
             )
         )
-        db.merge_conn(
+        create_connection_without_db(
             Connection(
                 conn_id=CONN_NO_REPO_URL,
                 conn_type="git",
@@ -116,7 +127,7 @@ class TestGitDagBundle:
             tracking_ref=GIT_DEFAULT_BRANCH,
             repo_url="https://github.com/apache/zzzairflow",
         )
-        assert bundle.repo_url == "https://github.com/apache/zzzairflow"
+        assert bundle.repo_url == f"https://user:{ACCESS_TOKEN}@github.com/apache/zzzairflow"
 
     def test_falls_back_to_connection_host_when_no_repo_url_provided(self):
         bundle = GitDagBundle(name="test", git_conn_id=CONN_HTTPS, tracking_ref=GIT_DEFAULT_BRANCH)
@@ -131,6 +142,8 @@ class TestGitDagBundle:
         bundle.initialize()
 
         assert bundle.get_current_version() == repo.head.commit.hexsha
+
+        assert_repo_is_closed(bundle)
 
     @mock.patch("airflow.providers.git.bundles.git.GitHook")
     def test_get_specific_version(self, mock_githook, git_repo):
@@ -150,6 +163,7 @@ class TestGitDagBundle:
             git_conn_id=CONN_HTTPS,
             version=starting_commit.hexsha,
             tracking_ref=GIT_DEFAULT_BRANCH,
+            prune_dotgit_folder=False,
         )
         bundle.initialize()
 
@@ -157,6 +171,8 @@ class TestGitDagBundle:
 
         files_in_repo = {f.name for f in bundle.path.iterdir() if f.is_file()}
         assert {"test_dag.py"} == files_in_repo
+
+        assert_repo_is_closed(bundle)
 
     @mock.patch("airflow.providers.git.bundles.git.GitHook")
     def test_get_tag_version(self, mock_githook, git_repo):
@@ -179,6 +195,7 @@ class TestGitDagBundle:
             git_conn_id=CONN_HTTPS,
             version="test",
             tracking_ref=GIT_DEFAULT_BRANCH,
+            prune_dotgit_folder=False,
         )
         bundle.initialize()
         assert bundle.get_current_version() == starting_commit.hexsha
@@ -205,6 +222,49 @@ class TestGitDagBundle:
 
         files_in_repo = {f.name for f in bundle.path.iterdir() if f.is_file()}
         assert {"test_dag.py", "new_test.py"} == files_in_repo
+
+        assert_repo_is_closed(bundle)
+
+    @mock.patch("airflow.providers.git.bundles.git.GitHook")
+    def test_removes_git_dir_for_versioned_bundle_by_default(self, mock_githook, git_repo):
+        repo_path, repo = git_repo
+        mock_githook.return_value.repo_url = repo_path
+        starting_commit = repo.head.commit
+
+        bundle = GitDagBundle(
+            name="test",
+            git_conn_id=CONN_HTTPS,
+            version=starting_commit.hexsha,
+            tracking_ref=GIT_DEFAULT_BRANCH,
+        )
+        bundle.initialize()
+
+        assert not (bundle.repo_path / ".git").exists()
+
+        files_in_repo = {f.name for f in bundle.path.iterdir() if f.is_file()}
+        assert {"test_dag.py"} == files_in_repo
+
+        assert_repo_is_closed(bundle)
+
+    @mock.patch("airflow.providers.git.bundles.git.GitHook")
+    def test_keeps_git_dir_when_disabled(self, mock_githook, git_repo):
+        repo_path, repo = git_repo
+        mock_githook.return_value.repo_url = repo_path
+        starting_commit = repo.head.commit
+
+        bundle = GitDagBundle(
+            name="test",
+            git_conn_id=CONN_HTTPS,
+            version=starting_commit.hexsha,
+            tracking_ref=GIT_DEFAULT_BRANCH,
+            prune_dotgit_folder=False,
+        )
+        bundle.initialize()
+
+        assert (bundle.repo_path / ".git").exists()
+        assert bundle.get_current_version() == starting_commit.hexsha
+
+        assert_repo_is_closed(bundle)
 
     @pytest.mark.parametrize(
         "amend",
@@ -244,6 +304,8 @@ class TestGitDagBundle:
 
         files_in_repo = {f.name for f in bundle.path.iterdir() if f.is_file()}
         assert {"test_dag.py", "new_test.py"} == files_in_repo
+
+        assert_repo_is_closed(bundle)
 
     @mock.patch("airflow.providers.git.bundles.git.GitHook")
     def test_refresh_tag(self, mock_githook, git_repo):
@@ -356,13 +418,14 @@ class TestGitDagBundle:
             tracking_ref=GIT_DEFAULT_BRANCH,
         )
         bundle.initialize()
-        assert mock_gitRepo.return_value.remotes.origin.fetch.call_count == 2  # 1 in bare, 1 in main repo
+        # 1 in _clone_bare_repo_if_required, 1 in refresh() for bare repo, 1 in refresh() for working repo
+        assert mock_gitRepo.return_value.remotes.origin.fetch.call_count == 3
         mock_gitRepo.return_value.remotes.origin.fetch.reset_mock()
         bundle.refresh()
         assert mock_gitRepo.return_value.remotes.origin.fetch.call_count == 2
 
     @pytest.mark.parametrize(
-        "repo_url, extra_conn_kwargs, expected_url",
+        ("repo_url", "extra_conn_kwargs", "expected_url"),
         [
             ("git@github.com:apache/airflow.git", None, "https://github.com/apache/airflow/tree/0f0f0f"),
             ("git@github.com:apache/airflow", None, "https://github.com/apache/airflow/tree/0f0f0f"),
@@ -410,16 +473,17 @@ class TestGitDagBundle:
         ],
     )
     @mock.patch("airflow.providers.git.bundles.git.Repo")
-    def test_view_url(self, mock_gitrepo, repo_url, extra_conn_kwargs, expected_url, session):
-        session.query(Connection).delete()
-        conn = Connection(
-            conn_id="my_git_connection",
-            host=repo_url,
-            conn_type="git",
-            **(extra_conn_kwargs or {}),
+    def test_view_url(
+        self, mock_gitrepo, repo_url, extra_conn_kwargs, expected_url, create_connection_without_db
+    ):
+        create_connection_without_db(
+            Connection(
+                conn_id="my_git_connection",
+                host=repo_url,
+                conn_type="git",
+                **(extra_conn_kwargs or {}),
+            )
         )
-        session.add(conn)
-        session.commit()
         bundle = GitDagBundle(
             name="test",
             git_conn_id="my_git_connection",
@@ -431,7 +495,7 @@ class TestGitDagBundle:
         bundle.initialize.assert_not_called()
 
     @pytest.mark.parametrize(
-        "repo_url, extra_conn_kwargs, expected_url",
+        ("repo_url", "extra_conn_kwargs", "expected_url"),
         [
             (
                 "git@github.com:apache/airflow.git",
@@ -497,16 +561,17 @@ class TestGitDagBundle:
         ],
     )
     @mock.patch("airflow.providers.git.bundles.git.Repo")
-    def test_view_url_subdir(self, mock_gitrepo, repo_url, extra_conn_kwargs, expected_url, session):
-        session.query(Connection).delete()
-        conn = Connection(
-            conn_id="git_default",
-            host=repo_url,
-            conn_type="git",
-            **(extra_conn_kwargs or {}),
+    def test_view_url_subdir(
+        self, mock_gitrepo, repo_url, extra_conn_kwargs, expected_url, create_connection_without_db
+    ):
+        create_connection_without_db(
+            Connection(
+                conn_id="git_default",
+                host=repo_url,
+                conn_type="git",
+                **(extra_conn_kwargs or {}),
+            )
         )
-        session.add(conn)
-        session.commit()
         bundle = GitDagBundle(
             name="test",
             tracking_ref="main",
@@ -516,6 +581,100 @@ class TestGitDagBundle:
         bundle.initialize = mock.MagicMock()
         view_url = bundle.view_url("0f0f0f")
         assert view_url == expected_url
+        bundle.initialize.assert_not_called()
+
+    @pytest.mark.skipif(not AIRFLOW_V_3_1_PLUS, reason="Airflow 3.0 does not support view_url_template")
+    @pytest.mark.parametrize(
+        ("repo_url", "extra_conn_kwargs", "expected_url"),
+        [
+            (
+                "git@github.com:apache/airflow.git",
+                None,
+                "https://github.com/apache/airflow/tree/{version}/subdir",
+            ),
+            (
+                "git@github.com:apache/airflow",
+                None,
+                "https://github.com/apache/airflow/tree/{version}/subdir",
+            ),
+            (
+                "https://github.com/apache/airflow",
+                None,
+                "https://github.com/apache/airflow/tree/{version}/subdir",
+            ),
+            (
+                "https://github.com/apache/airflow.git",
+                None,
+                "https://github.com/apache/airflow/tree/{version}/subdir",
+            ),
+            (
+                "git@gitlab.com:apache/airflow.git",
+                None,
+                "https://gitlab.com/apache/airflow/-/tree/{version}/subdir",
+            ),
+            (
+                "git@bitbucket.org:apache/airflow.git",
+                None,
+                "https://bitbucket.org/apache/airflow/src/{version}/subdir",
+            ),
+            (
+                "git@myorg.github.com:apache/airflow.git",
+                None,
+                "https://myorg.github.com/apache/airflow/tree/{version}/subdir",
+            ),
+            (
+                "https://myorg.github.com/apache/airflow.git",
+                None,
+                "https://myorg.github.com/apache/airflow/tree/{version}/subdir",
+            ),
+            (
+                "https://github.com/apache/airflow",
+                {"password": "abc123"},
+                "https://github.com/apache/airflow/tree/{version}/subdir",
+            ),
+            (
+                "https://github.com/apache/airflow",
+                {"login": "abc123"},
+                "https://github.com/apache/airflow/tree/{version}/subdir",
+            ),
+            (
+                "https://github.com/apache/airflow",
+                {"login": "abc123", "password": "def456"},
+                "https://github.com/apache/airflow/tree/{version}/subdir",
+            ),
+            (
+                "https://github.com:443/apache/airflow",
+                None,
+                "https://github.com:443/apache/airflow/tree/{version}/subdir",
+            ),
+            (
+                "https://github.com:443/apache/airflow",
+                {"password": "abc123"},
+                "https://github.com:443/apache/airflow/tree/{version}/subdir",
+            ),
+        ],
+    )
+    @mock.patch("airflow.providers.git.bundles.git.Repo")
+    def test_view_url_template_subdir(
+        self, mock_gitrepo, repo_url, extra_conn_kwargs, expected_url, create_connection_without_db
+    ):
+        create_connection_without_db(
+            Connection(
+                conn_id="git_default",
+                host=repo_url,
+                conn_type="git",
+                **(extra_conn_kwargs or {}),
+            )
+        )
+        bundle = GitDagBundle(
+            name="test",
+            tracking_ref="main",
+            subdir="subdir",
+            git_conn_id="git_default",
+        )
+        bundle.initialize = mock.MagicMock()
+        view_url_template = bundle.view_url_template()
+        assert view_url_template == expected_url
         bundle.initialize.assert_not_called()
 
     @mock.patch("airflow.providers.git.bundles.git.Repo")
@@ -536,7 +695,7 @@ class TestGitDagBundle:
             mock_clone.side_effect = GitCommandError("clone", "Simulated error")
             bundle = GitDagBundle(name="test", git_conn_id=CONN_HTTPS, tracking_ref="main")
             with pytest.raises(
-                AirflowException,
+                RuntimeError,
                 match=re.escape("Error cloning repository"),
             ):
                 bundle.initialize()
@@ -554,18 +713,31 @@ class TestGitDagBundle:
 
                 assert "Repository path: %s not found" in str(exc_info.value)
 
-    @patch.dict(os.environ, {"AIRFLOW_CONN_MY_TEST_GIT": '{"host": "something"}'})
+    @patch.dict(os.environ, {"AIRFLOW_CONN_MY_TEST_GIT": '{"host": "something", "conn_type": "git"}'})
     @pytest.mark.parametrize(
-        "conn_id, expected_hook_type",
-        [("my_test_git", GitHook), ("something-else", type(None))],
+        ("conn_id", "expected_hook_type", "exception_expected"),
+        [
+            ("my_test_git", GitHook, False),
+            ("something-else", None, True),
+        ],
     )
-    def test_repo_url_access_missing_connection_doesnt_error(self, conn_id, expected_hook_type):
-        bundle = GitDagBundle(
-            name="testa",
-            tracking_ref="main",
-            git_conn_id=conn_id,
-        )
-        assert isinstance(bundle.hook, expected_hook_type)
+    def test_repo_url_access_missing_connection_raises_exception(
+        self, conn_id, expected_hook_type, exception_expected
+    ):
+        if exception_expected:
+            with pytest.raises(Exception, match="The conn_id `something-else` isn't defined"):
+                GitDagBundle(
+                    name="testa",
+                    tracking_ref="main",
+                    git_conn_id=conn_id,
+                )
+        else:
+            bundle = GitDagBundle(
+                name="testa",
+                tracking_ref="main",
+                git_conn_id=conn_id,
+            )
+            assert isinstance(bundle.hook, expected_hook_type)
 
     @mock.patch("airflow.providers.git.bundles.git.GitHook")
     def test_lock_used(self, mock_githook, git_repo):
@@ -577,7 +749,7 @@ class TestGitDagBundle:
             assert mock_lock.call_count == 2  # both initialize and refresh
 
     @pytest.mark.parametrize(
-        "conn_json, repo_url, expected",
+        ("conn_json", "repo_url", "expected"),
         [
             (
                 {"host": "git@github.com:apache/airflow.git"},
@@ -598,3 +770,209 @@ class TestGitDagBundle:
                 repo_url=repo_url,
             )
             assert bundle.repo_url == expected
+
+    @mock.patch("airflow.providers.git.bundles.git.Repo")
+    def test_clone_passes_env_from_githook(self, mock_gitRepo):
+        def _fake_clone_from(*_, **kwargs):
+            if "env" not in kwargs:
+                raise GitCommandError("git", 128, "Permission denied")
+            return types.SimpleNamespace()
+
+        EXPECTED_ENV = {"GIT_SSH_COMMAND": "ssh -i /id_rsa -o StrictHostKeyChecking=no"}
+
+        mock_gitRepo.clone_from.side_effect = _fake_clone_from
+        # Mock needs to support the fetch operation called in _clone_bare_repo_if_required
+        mock_repo_instance = mock.MagicMock()
+        mock_gitRepo.return_value = mock_repo_instance
+
+        with mock.patch("airflow.providers.git.bundles.git.GitHook") as mock_githook:
+            mock_githook.return_value.repo_url = "git@github.com:apache/airflow.git"
+            mock_githook.return_value.env = EXPECTED_ENV
+
+            bundle = GitDagBundle(
+                name="my_repo",
+                git_conn_id="git_default",
+                repo_url="git@github.com:apache/airflow.git",
+                tracking_ref="main",
+            )
+            bundle._clone_bare_repo_if_required()
+            _, kwargs = mock_gitRepo.clone_from.call_args
+            assert kwargs["env"] == EXPECTED_ENV
+
+    @mock.patch("airflow.providers.git.bundles.git.GitHook")
+    @mock.patch("airflow.providers.git.bundles.git.shutil.rmtree")
+    @mock.patch("airflow.providers.git.bundles.git.os.path.exists")
+    def test_clone_bare_repo_invalid_repository_error_retry(self, mock_exists, mock_rmtree, mock_githook):
+        """Test that InvalidGitRepositoryError triggers cleanup and retry."""
+        mock_githook.return_value.repo_url = "git@github.com:apache/airflow.git"
+        mock_githook.return_value.env = {}
+
+        # Set up exists to return True for the bare repo path (simulating corrupted repo exists)
+        mock_exists.return_value = True
+
+        with mock.patch("airflow.providers.git.bundles.git.Repo") as mock_repo_class:
+            # First call to Repo() raises InvalidGitRepositoryError, second call succeeds
+            mock_repo_class.side_effect = [
+                InvalidGitRepositoryError("Invalid git repository"),
+                mock.MagicMock(),  # Second attempt succeeds
+            ]
+
+            # Mock successful clone_from for the retry attempt
+            mock_repo_class.clone_from = mock.MagicMock()
+
+            bundle = GitDagBundle(name="test", git_conn_id=CONN_HTTPS, tracking_ref="main")
+
+            # This should not raise an exception due to retry logic
+            bundle._clone_bare_repo_if_required()
+
+            # Verify cleanup was called
+            mock_rmtree.assert_called_once_with(bundle.bare_repo_path)
+
+            # Verify Repo was called twice (failed attempt + retry)
+            assert mock_repo_class.call_count == 2
+
+    @mock.patch("airflow.providers.git.bundles.git.GitHook")
+    @mock.patch("airflow.providers.git.bundles.git.shutil.rmtree")
+    @mock.patch("airflow.providers.git.bundles.git.os.path.exists")
+    def test_clone_bare_repo_invalid_repository_error_retry_fails(
+        self, mock_exists, mock_rmtree, mock_githook
+    ):
+        """Test that InvalidGitRepositoryError after retry is re-raised (wrapped in AirflowException by caller)."""
+        mock_githook.return_value.repo_url = "git@github.com:apache/airflow.git"
+        mock_githook.return_value.env = {}
+
+        # Set up exists to return True for the bare repo path
+        mock_exists.return_value = True
+
+        with mock.patch("airflow.providers.git.bundles.git.Repo") as mock_repo_class:
+            # Both calls to Repo() raise InvalidGitRepositoryError
+            mock_repo_class.side_effect = InvalidGitRepositoryError("Invalid git repository")
+
+            bundle = GitDagBundle(name="test", git_conn_id=CONN_HTTPS, tracking_ref="main")
+
+            # The raw exception is raised by the method itself, but wrapped by _initialize
+            with pytest.raises(InvalidGitRepositoryError, match="Invalid git repository"):
+                bundle._clone_bare_repo_if_required()
+
+            # Verify cleanup was called twice (once for each failed attempt)
+            assert mock_rmtree.call_count == 2
+            mock_rmtree.assert_called_with(bundle.bare_repo_path)
+
+            # Verify Repo was called twice (failed attempt + failed retry)
+            assert mock_repo_class.call_count == 2
+
+    @mock.patch("airflow.providers.git.bundles.git.shutil.rmtree")
+    @mock.patch("airflow.providers.git.bundles.git.os.path.exists")
+    @mock.patch("airflow.providers.git.bundles.git.GitHook")
+    @mock.patch("airflow.providers.git.bundles.git.Repo")
+    def test_initialize_fetches_submodules_when_enabled(
+        self, mock_repo_class, mock_githook, mock_exists, mock_rmtree
+    ):
+        """Test that submodules are synced and updated when submodules=True during initialization."""
+        mock_githook.return_value.repo_url = "git@github.com:apache/airflow.git"
+
+        # Mock exists to return True so we skip the clone logic and go straight to initialization
+        mock_exists.return_value = True
+
+        mock_repo_instance = mock_repo_class.return_value
+        # Ensure _has_version returns True so we don't try to fetch origin
+        mock_repo_instance.commit.return_value = mock.MagicMock()
+
+        bundle = GitDagBundle(
+            name="test",
+            git_conn_id="git_default",
+            tracking_ref="main",
+            version="123456",
+            submodules=True,
+        )
+
+        bundle.initialize()
+
+        # Verify submodule commands were called
+        mock_repo_instance.git.submodule.assert_has_calls(
+            [mock.call("sync", "--recursive"), mock.call("update", "--init", "--recursive", "--jobs", "1")]
+        )
+        mock_rmtree.assert_not_called()
+
+    @mock.patch("airflow.providers.git.bundles.git.shutil.rmtree")
+    @mock.patch("airflow.providers.git.bundles.git.os.path.exists")
+    @mock.patch("airflow.providers.git.bundles.git.GitHook")
+    @mock.patch("airflow.providers.git.bundles.git.Repo")
+    def test_refresh_fetches_submodules_when_enabled(
+        self, mock_repo_class, mock_githook, mock_exists, mock_rmtree
+    ):
+        """Test that submodules are synced and updated when submodules=True during refresh."""
+        mock_githook.return_value.repo_url = "git@github.com:apache/airflow.git"
+        mock_exists.return_value = True
+
+        mock_repo_instance = mock_repo_class.return_value
+
+        bundle = GitDagBundle(
+            name="test",
+            git_conn_id="git_default",
+            tracking_ref="main",
+            submodules=True,
+        )
+
+        # Calling initialize without a specific version triggers refresh()
+        bundle.initialize()
+
+        # Verify submodule commands were called
+        mock_repo_instance.git.submodule.assert_has_calls(
+            [mock.call("sync", "--recursive"), mock.call("update", "--init", "--recursive", "--jobs", "1")]
+        )
+        mock_rmtree.assert_not_called()
+
+    @mock.patch("airflow.providers.git.bundles.git.shutil.rmtree")
+    @mock.patch("airflow.providers.git.bundles.git.os.path.exists")
+    @mock.patch("airflow.providers.git.bundles.git.GitHook")
+    @mock.patch("airflow.providers.git.bundles.git.Repo")
+    def test_submodules_disabled_by_default(self, mock_repo_class, mock_githook, mock_exists, mock_rmtree):
+        """Test that submodules are NOT fetched by default."""
+        mock_githook.return_value.repo_url = "git@github.com:apache/airflow.git"
+        mock_exists.return_value = True
+
+        mock_repo_instance = mock_repo_class.return_value
+
+        bundle = GitDagBundle(
+            name="test",
+            git_conn_id="git_default",
+            tracking_ref="main",
+            version="123456",
+            # submodules defaults to False
+        )
+
+        bundle.initialize()
+
+        # Ensure submodule commands were NOT called
+        mock_repo_instance.git.submodule.assert_not_called()
+
+    @mock.patch("airflow.providers.git.bundles.git.shutil.rmtree")
+    @mock.patch("airflow.providers.git.bundles.git.os.path.exists")
+    @mock.patch("airflow.providers.git.bundles.git.GitHook")
+    @mock.patch("airflow.providers.git.bundles.git.Repo")
+    def test_submodule_fetch_error_raises_runtime_error(
+        self, mock_repo_class, mock_githook, mock_exists, mock_rmtree
+    ):
+        """Test that a GitCommandError during submodule update is raised as a RuntimeError."""
+        mock_githook.return_value.repo_url = "git@github.com:apache/airflow.git"
+        mock_exists.return_value = True
+
+        mock_repo_instance = mock_repo_class.return_value
+        mock_repo_instance.commit.return_value = mock.MagicMock()
+
+        # Simulate a git error when running submodule update
+        mock_repo_instance.git.submodule.side_effect = GitCommandError("submodule update", "failed")
+
+        bundle = GitDagBundle(
+            name="test",
+            git_conn_id="git_default",
+            tracking_ref="main",
+            version="123456",
+            submodules=True,
+        )
+
+        with pytest.raises(RuntimeError, match="Error pulling submodule from repository"):
+            bundle.initialize()
+
+        mock_rmtree.assert_not_called()

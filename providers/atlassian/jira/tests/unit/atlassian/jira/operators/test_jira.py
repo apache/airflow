@@ -61,9 +61,11 @@ class TestJiraOperator:
                 )
             ),
         )
-        with mock.patch("airflow.models.baseoperator.BaseOperator.xcom_push", return_value=None) as m:
-            self.mocked_xcom_push = m
-            yield
+        # Mock task instance for xcom_push
+        mock_ti = mock.Mock()
+        mock_ti.xcom_push = mock.Mock(return_value=None)
+        self.mock_ti = mock_ti
+        self.mock_context = {"task_instance": mock_ti}
 
     def test_operator_init_with_optional_args(self):
         jira_operator = JiraOperator(task_id="jira_list_issue_types", jira_method="issue_types")
@@ -80,11 +82,11 @@ class TestJiraOperator:
             jira_method_args={"project": "ABC"},
         )
 
-        op.execute({})
+        op.execute(self.mock_context)
 
         assert mocked_jira_client.called
         assert mocked_jira_client.return_value.get_project_issues_count.called
-        self.mocked_xcom_push.assert_called_once_with(mock.ANY, key="id", value=None)
+        self.mock_ti.xcom_push.assert_called_once_with(key="id", value=None)
 
     def test_issue_search(self, mocked_jira_client):
         jql_str = "issuekey=TEST-1226"
@@ -95,11 +97,11 @@ class TestJiraOperator:
             jira_method_args={"jql": jql_str, "limit": "1"},
         )
 
-        op.execute({})
+        op.execute(self.mock_context)
 
         assert mocked_jira_client.called
         assert mocked_jira_client.return_value.jql_get_list_of_tickets.called
-        self.mocked_xcom_push.assert_called_once_with(mock.ANY, key="id", value="911539")
+        self.mock_ti.xcom_push.assert_called_once_with(key="id", value="911539")
 
     def test_update_issue(self, mocked_jira_client):
         mocked_jira_client.return_value.issue_add_comment.return_value = MINIMAL_TEST_TICKET
@@ -110,8 +112,8 @@ class TestJiraOperator:
             jira_method_args={"issue_key": MINIMAL_TEST_TICKET.get("key"), "comment": "this is test comment"},
         )
 
-        op.execute({})
+        op.execute(self.mock_context)
 
         assert mocked_jira_client.called
         assert mocked_jira_client.return_value.issue_add_comment.called
-        self.mocked_xcom_push.assert_called_once_with(mock.ANY, key="id", value="911539")
+        self.mock_ti.xcom_push.assert_called_once_with(key="id", value="911539")

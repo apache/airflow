@@ -20,9 +20,6 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from airflow.decorators import task
-from airflow.models.baseoperator import chain
-from airflow.models.dag import DAG
 from airflow.providers.amazon.aws.hooks.redshift_cluster import RedshiftHook
 from airflow.providers.amazon.aws.operators.redshift_cluster import (
     RedshiftCreateClusterOperator,
@@ -32,7 +29,22 @@ from airflow.providers.amazon.aws.operators.redshift_data import RedshiftDataOpe
 from airflow.providers.amazon.aws.operators.s3 import S3CreateBucketOperator, S3DeleteBucketOperator
 from airflow.providers.amazon.aws.sensors.redshift_cluster import RedshiftClusterSensor
 from airflow.providers.amazon.aws.transfers.sql_to_s3 import SqlToS3Operator
-from airflow.utils.trigger_rule import TriggerRule
+
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
+
+if AIRFLOW_V_3_0_PLUS:
+    from airflow.sdk import DAG, chain, task
+else:
+    # Airflow 2 path
+    from airflow.decorators import task  # type: ignore[attr-defined,no-redef]
+    from airflow.models.baseoperator import chain  # type: ignore[attr-defined,no-redef]
+    from airflow.models.dag import DAG  # type: ignore[attr-defined,no-redef,assignment]
+
+try:
+    from airflow.sdk import TriggerRule
+except ImportError:
+    # Compatibility for Airflow < 3.1
+    from airflow.utils.trigger_rule import TriggerRule  # type: ignore[no-redef,attr-defined]
 
 from system.amazon.aws.utils import ENV_ID_KEY, SystemTestContextBuilder
 from tests_common.test_utils.api_client_helpers import make_authenticated_rest_api_request
@@ -46,7 +58,6 @@ CLUSTER_SUBNET_GROUP_KEY = "CLUSTER_SUBNET_GROUP"
 sys_test_context_task = (
     SystemTestContextBuilder().add_variable(SECURITY_GROUP_KEY).add_variable(CLUSTER_SUBNET_GROUP_KEY).build()
 )
-
 
 DB_LOGIN = "adminuser"
 DB_PASS = "MyAmazonPassword1"
@@ -90,7 +101,6 @@ with DAG(
     start_date=datetime(2021, 1, 1),
     schedule="@once",
     catchup=False,
-    tags=["example"],
 ) as dag:
     test_context = sys_test_context_task()
     env_id = test_context[ENV_ID_KEY]
@@ -113,7 +123,7 @@ with DAG(
         vpc_security_group_ids=[security_group_id],
         cluster_subnet_group_name=cluster_subnet_group_name,
         cluster_type="single-node",
-        node_type="dc2.large",
+        node_type="ra3.large",
         master_username=DB_LOGIN,
         master_user_password=DB_PASS,
     )
@@ -122,7 +132,7 @@ with DAG(
         task_id="wait_cluster_available",
         cluster_identifier=redshift_cluster_identifier,
         target_status="available",
-        poke_interval=15,
+        poke_interval=100,
         timeout=60 * 30,
     )
 
@@ -144,6 +154,14 @@ with DAG(
         db_user=DB_LOGIN,
         sql=SQL_INSERT_DATA,
         wait_for_completion=True,
+    )
+
+    wait_cluster_available_before_transfer = RedshiftClusterSensor(
+        task_id="wait_cluster_available_before_transfer",
+        cluster_identifier=redshift_cluster_identifier,
+        target_status="available",
+        poke_interval=100,
+        timeout=60 * 30,
     )
 
     # [START howto_transfer_sql_to_s3]
@@ -192,6 +210,7 @@ with DAG(
         create_table_redshift_data,
         insert_data,
         # TEST BODY
+        wait_cluster_available_before_transfer,
         sql_to_s3_task,
         sql_to_s3_task_with_groupby,
         # TEST TEARDOWN
@@ -204,7 +223,6 @@ with DAG(
     # This test needs watcher in order to properly mark success/failure
     # when "tearDown" task with trigger rule is part of the DAG
     list(dag.tasks) >> watcher()
-
 
 from tests_common.test_utils.system_tests import get_test_run  # noqa: E402
 

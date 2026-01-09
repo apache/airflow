@@ -16,29 +16,15 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { type ButtonGroupProps, IconButton, ButtonGroup } from "@chakra-ui/react";
-import { useMemo } from "react";
+import type { ButtonGroupProps } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
-import { MdExpand, MdCompress } from "react-icons/md";
-import { useParams } from "react-router-dom";
 
-import { useStructureServiceStructureData } from "openapi/queries";
+import { ExpandCollapseButtons } from "src/components/ExpandCollapseButtons";
 import { useOpenGroups } from "src/context/openGroups";
-
-import { flattenNodes } from "./Grid/utils";
 
 export const ToggleGroups = (props: ButtonGroupProps) => {
   const { t: translate } = useTranslation();
-  const { dagId = "" } = useParams();
-  const { data: structure } = useStructureServiceStructureData({
-    dagId,
-  });
-  const { openGroupIds, setOpenGroupIds } = useOpenGroups();
-
-  const { allGroupIds } = useMemo(
-    () => flattenNodes(structure?.nodes ?? [], openGroupIds),
-    [structure?.nodes, openGroupIds],
-  );
+  const { allGroupIds, openGroupIds, setOpenGroupIds } = useOpenGroups();
 
   // Don't show button if the DAG has no task groups
   if (!allGroupIds.length) {
@@ -60,27 +46,14 @@ export const ToggleGroups = (props: ButtonGroupProps) => {
   const collapseLabel = translate("dag:taskGroups.collapseAll");
 
   return (
-    <ButtonGroup attached size="sm" variant="surface" {...props}>
-      <IconButton
-        aria-label={expandLabel}
-        disabled={isExpandDisabled}
-        onClick={onExpand}
-        size="sm"
-        title={expandLabel}
-        variant="surface"
-      >
-        <MdExpand />
-      </IconButton>
-      <IconButton
-        aria-label={collapseLabel}
-        disabled={isCollapseDisabled}
-        onClick={onCollapse}
-        size="sm"
-        title={collapseLabel}
-        variant="surface"
-      >
-        <MdCompress />
-      </IconButton>
-    </ButtonGroup>
+    <ExpandCollapseButtons
+      collapseLabel={collapseLabel}
+      expandLabel={expandLabel}
+      isCollapseDisabled={isCollapseDisabled}
+      isExpandDisabled={isExpandDisabled}
+      onCollapse={onCollapse}
+      onExpand={onExpand}
+      {...props}
+    />
   );
 };

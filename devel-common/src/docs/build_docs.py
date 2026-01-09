@@ -15,11 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""
-Builds documentation and runs spell checking
-
-# isort:skip_file (needed to workaround isort bug)
-"""
+"""Builds documentation and runs spell checking."""
 
 from __future__ import annotations
 
@@ -29,9 +25,9 @@ import os
 import shutil
 import sys
 from collections import defaultdict
-from collections.abc import Iterable, Sequence
+from collections.abc import Callable, Iterable, Sequence
 from pathlib import Path
-from typing import Any, Callable, NamedTuple, TypeVar
+from typing import Any, NamedTuple, TypeVar
 
 import rich_click as click
 from click import Choice

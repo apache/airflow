@@ -21,14 +21,15 @@ from typing import TYPE_CHECKING
 
 from celery.app import control
 
-from airflow.sensors.base import BaseSensorOperator
+from airflow.providers.celery.version_compat import AIRFLOW_V_3_0_PLUS
+
+if AIRFLOW_V_3_0_PLUS:
+    from airflow.sdk import BaseSensorOperator
+else:
+    from airflow.sensors.base import BaseSensorOperator  # type: ignore[no-redef]
 
 if TYPE_CHECKING:
-    try:
-        from airflow.sdk.definitions.context import Context
-    except ImportError:
-        # TODO: Remove once provider drops support for Airflow 2
-        from airflow.utils.context import Context
+    from airflow.sdk import Context
 
 
 class CeleryQueueSensor(BaseSensorOperator):

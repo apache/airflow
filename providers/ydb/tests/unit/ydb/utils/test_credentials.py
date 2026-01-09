@@ -16,6 +16,10 @@
 # under the License.
 from __future__ import annotations
 
+import pytest
+
+ydb = pytest.importorskip("ydb")
+
 from unittest.mock import patch
 
 from airflow.models.connection import Connection

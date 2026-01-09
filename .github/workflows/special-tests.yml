@@ -110,6 +110,7 @@ jobs:
       debug-resources: ${{ inputs.debug-resources }}
       skip-providers-tests: ${{ inputs.skip-providers-tests }}
       use-uv: ${{ inputs.use-uv }}
+      default-branch: ${{ inputs.default-branch }}
 
   tests-min-sqlalchemy-providers:
     name: "Min SQLAlchemy test: providers"
@@ -134,6 +135,65 @@ jobs:
       debug-resources: ${{ inputs.debug-resources }}
       skip-providers-tests: ${{ inputs.skip-providers-tests }}
       use-uv: ${{ inputs.use-uv }}
+      default-branch: ${{ inputs.default-branch }}
+
+  tests-latest-sqlalchemy:
+    name: "Latest SQLAlchemy test: core"
+    uses: ./.github/workflows/run-unit-tests.yml
+    permissions:
+      contents: read
+      packages: read
+    with:
+      runners: ${{ inputs.runners }}
+      platform: ${{ inputs.platform }}
+      upgrade-sqlalchemy: "true"
+      test-name: "LatestSQLAlchemy-Postgres"
+      test-scope: "DB"
+      test-group: "core"
+      backend: "postgres"
+      # The python version constraint is a TEMPORARY WORKAROUND to exclude all FAB tests. It should be
+      # removed after upgrading FAB to v5 (PR #50960). The setting below should be:
+      #   "['${{ inputs.default-python-version }}']"
+      python-versions: "['3.13']"
+      backend-versions: "['${{ inputs.default-postgres-version }}']"
+      excluded-providers-as-string: ${{ inputs.excluded-providers-as-string }}
+      excludes: "[]"
+      test-types-as-strings-in-json: ${{ inputs.core-test-types-list-as-strings-in-json }}
+      run-coverage: ${{ inputs.run-coverage }}
+      debug-resources: ${{ inputs.debug-resources }}
+      skip-providers-tests: ${{ inputs.skip-providers-tests }}
+      use-uv: ${{ inputs.use-uv }}
+      default-branch: ${{ inputs.default-branch }}
+    if: contains(fromJSON(inputs.python-versions), '3.13')  # Remove this line after upgrading FAB to v5
+
+  tests-latest-sqlalchemy-providers:
+    name: "Latest SQLAlchemy test: providers"
+    uses: ./.github/workflows/run-unit-tests.yml
+    permissions:
+      contents: read
+      packages: read
+    with:
+      runners: ${{ inputs.runners }}
+      platform: ${{ inputs.platform }}
+      upgrade-sqlalchemy: "true"
+      test-name: "LatestSQLAlchemy-Postgres"
+      test-scope: "DB"
+      test-group: "providers"
+      backend: "postgres"
+      # The python version constraint is a TEMPORARY WORKAROUND to exclude all FAB tests. It should be
+      # removed after upgrading FAB to v5 (PR #50960). The setting below should be:
+      #   "['${{ inputs.default-python-version }}']"
+      python-versions: "['3.13']"
+      backend-versions: "['${{ inputs.default-postgres-version }}']"
+      excluded-providers-as-string: ${{ inputs.excluded-providers-as-string }}
+      excludes: "[]"
+      test-types-as-strings-in-json: ${{ inputs.providers-test-types-list-as-strings-in-json }}
+      run-coverage: ${{ inputs.run-coverage }}
+      debug-resources: ${{ inputs.debug-resources }}
+      skip-providers-tests: ${{ inputs.skip-providers-tests }}
+      use-uv: ${{ inputs.use-uv }}
+      default-branch: ${{ inputs.default-branch }}
+    if: contains(fromJSON(inputs.python-versions), '3.13')  # Remove this line after upgrading FAB to v5
 
   tests-boto-core:
     name: "Latest Boto test: core"
@@ -159,6 +219,7 @@ jobs:
       debug-resources: ${{ inputs.debug-resources }}
       skip-providers-tests: ${{ inputs.skip-providers-tests }}
       use-uv: ${{ inputs.use-uv }}
+      default-branch: ${{ inputs.default-branch }}
 
   tests-boto-providers:
     name: "Latest Boto test: providers"
@@ -184,7 +245,7 @@ jobs:
       debug-resources: ${{ inputs.debug-resources }}
       skip-providers-tests: ${{ inputs.skip-providers-tests }}
       use-uv: ${{ inputs.use-uv }}
-
+      default-branch: ${{ inputs.default-branch }}
 
   tests-pendulum-2-core:
     name: "Pendulum2 test: core"
@@ -210,6 +271,7 @@ jobs:
       debug-resources: ${{ inputs.debug-resources }}
       skip-providers-tests: ${{ inputs.skip-providers-tests }}
       use-uv: ${{ inputs.use-uv }}
+      default-branch: ${{ inputs.default-branch }}
 
   tests-pendulum-2-providers:
     name: "Pendulum2 test: providers"
@@ -235,6 +297,7 @@ jobs:
       debug-resources: ${{ inputs.debug-resources }}
       skip-providers-tests: ${{ inputs.skip-providers-tests }}
       use-uv: ${{ inputs.use-uv }}
+      default-branch: ${{ inputs.default-branch }}
 
   tests-quarantined-core:
     name: "Quarantined test: core"
@@ -259,6 +322,7 @@ jobs:
       debug-resources: ${{ inputs.debug-resources }}
       skip-providers-tests: ${{ inputs.skip-providers-tests }}
       use-uv: ${{ inputs.use-uv }}
+      default-branch: ${{ inputs.default-branch }}
 
   tests-quarantined-providers:
     name: "Quarantined test: providers"
@@ -283,6 +347,7 @@ jobs:
       debug-resources: ${{ inputs.debug-resources }}
       skip-providers-tests: ${{ inputs.skip-providers-tests }}
       use-uv: ${{ inputs.use-uv }}
+      default-branch: ${{ inputs.default-branch }}
 
   tests-system-core:
     name: "System test: ${{ matrix.test-group }}"
@@ -307,3 +372,4 @@ jobs:
       debug-resources: ${{ inputs.debug-resources }}
       skip-providers-tests: ${{ inputs.skip-providers-tests }}
       use-uv: ${{ inputs.use-uv }}
+      default-branch: ${{ inputs.default-branch }}

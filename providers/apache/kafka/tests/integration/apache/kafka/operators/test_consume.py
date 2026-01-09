@@ -18,18 +18,15 @@
 
 from __future__ import annotations
 
-import json
 import logging
 from typing import Any
 
 import pytest
 from confluent_kafka import Producer
 
-from airflow.models import Connection
-
 # Import Operator
+from airflow.models.connection import Connection
 from airflow.providers.apache.kafka.operators.consume import ConsumeFromTopicOperator
-from airflow.utils import db
 
 log = logging.getLogger(__name__)
 
@@ -51,29 +48,33 @@ def _basic_message_tester(message, test=None) -> Any:
     assert message.value().decode(encoding="utf-8") == test
 
 
+@pytest.fixture(autouse=True)
+def kafka_consumer_connections(create_connection_without_db):
+    """Create Kafka consumer connections for testing purpose."""
+    connections = [
+        Connection(
+            conn_id="operator.consumer.test.integration.test_1",
+            uri="kafka://broker:29092?socket.timeout.ms=10&bootstrap.servers=broker:29092&group.id=operator.consumer.test.integration.test_1&enable.auto.commit=False&auto.offset.reset=beginning",
+        ),
+        Connection(
+            conn_id="operator.consumer.test.integration.test_2",
+            uri="kafka://broker:29092?socket.timeout.ms=10&bootstrap.servers=broker:29092&group.id=operator.consumer.test.integration.test_2&enable.auto.commit=False&auto.offset.reset=beginning",
+        ),
+        Connection(
+            conn_id="operator.consumer.test.integration.test_3",
+            uri="kafka://broker:29092?socket.timeout.ms=10&bootstrap.servers=broker:29092&group.id=operator.consumer.test.integration.test_3&enable.auto.commit=False&auto.offset.reset=beginning",
+        ),
+    ]
+
+    for conn in connections:
+        create_connection_without_db(conn)
+
+
 @pytest.mark.integration("kafka")
 class TestConsumeFromTopic:
     """
     test ConsumeFromTopicOperator
     """
-
-    def setup_method(self):
-        for num in (1, 2, 3):
-            db.merge_conn(
-                Connection(
-                    conn_id=f"operator.consumer.test.integration.test_{num}",
-                    conn_type="kafka",
-                    extra=json.dumps(
-                        {
-                            "socket.timeout.ms": 10,
-                            "bootstrap.servers": "broker:29092",
-                            "group.id": f"operator.consumer.test.integration.test_{num}",
-                            "enable.auto.commit": False,
-                            "auto.offset.reset": "beginning",
-                        }
-                    ),
-                )
-            )
 
     def test_consumer_operator_test_1(self):
         """test consumer works with string import"""

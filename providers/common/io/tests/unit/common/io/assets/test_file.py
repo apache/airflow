@@ -44,7 +44,7 @@ def test_sanitize_uri_valid(uri, expected):
 
 @pytest.mark.parametrize("uri", ("file://",))
 def test_sanitize_uri_invalid(uri):
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match="URI format file:// must contain a non-empty path."):
         sanitize_uri(urlsplit(uri))
 
 

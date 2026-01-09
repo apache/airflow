@@ -20,11 +20,11 @@ import time
 from datetime import datetime, timedelta
 from typing import TYPE_CHECKING, cast
 
-from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.appflow import AppflowHook
 from airflow.providers.amazon.aws.operators.base_aws import AwsBaseOperator
 from airflow.providers.amazon.aws.utils import datetime_to_epoch_ms
 from airflow.providers.amazon.aws.utils.mixins import AwsBaseHookMixin, AwsHookParams, aws_template_fields
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.common.compat.standard.operators import ShortCircuitOperator
 
 if TYPE_CHECKING:
@@ -34,7 +34,7 @@ if TYPE_CHECKING:
         TaskTypeDef,
     )
 
-    from airflow.utils.context import Context
+    from airflow.sdk import Context
 
 SUPPORTED_SOURCES = {"salesforce", "zendesk"}
 MANDATORY_FILTER_DATE_MSG = "The filter_date argument is mandatory for {entity}!"
@@ -468,7 +468,7 @@ class AppflowRecordsShortCircuitOperator(ShortCircuitOperator, AwsBaseHookMixin[
         self.log.info("flow_name: %s", flow_name)
         af_client = self.hook.conn
         task_instance = kwargs["task_instance"]
-        execution_id = task_instance.xcom_pull(task_ids=appflow_task_id, key="execution_id")  # type: ignore
+        execution_id = task_instance.xcom_pull(task_ids=appflow_task_id, key="execution_id")
         if not execution_id:
             raise AirflowException(f"No execution_id found from task_id {appflow_task_id}!")
         self.log.info("execution_id: %s", execution_id)
@@ -494,5 +494,5 @@ class AppflowRecordsShortCircuitOperator(ShortCircuitOperator, AwsBaseHookMixin[
             raise AirflowException(f"Flow ({execution_id}) without recordsProcessed info!")
         records_processed = execution["recordsProcessed"]
         self.log.info("records_processed: %d", records_processed)
-        task_instance.xcom_push("records_processed", records_processed)  # type: ignore
+        task_instance.xcom_push("records_processed", records_processed)
         return records_processed > 0

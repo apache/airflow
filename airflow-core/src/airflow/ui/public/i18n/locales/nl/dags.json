@@ -1,0 +1,96 @@
+{
+  "assetSchedule": "{{count}} van {{total}} assets geupdatet",
+  "dagActions": {
+    "delete": {
+      "button": "Verwijder Dag",
+      "warning": "Dit zal alle metadata gerelateerd aan de Dag verwijderen, inclusief Runs en Tasks."
+    }
+  },
+  "favoriteDag": "Favoriete Dag",
+  "filters": {
+    "allRunTypes": "Alle Run types",
+    "allStates": "Alle statussen",
+    "favorite": {
+      "all": "Alle",
+      "favorite": "Favoriet",
+      "unfavorite": "Verwijder Favoriet"
+    },
+    "paused": {
+      "active": "Actief",
+      "all": "Alles",
+      "paused": "Gepauzeerd"
+    },
+    "runIdPatternFilter": "Zoek Dag Runs"
+  },
+  "ownerLink": "Eigenaarslink voor {{owner}}",
+  "runAndTaskActions": {
+    "affectedTasks": {
+      "noItemsFound": "Geen Tasks gevonden.",
+      "title": "Affected Tasks: {{count}}"
+    },
+    "clear": {
+      "button": "Wis {{type}}",
+      "buttonTooltip": "Druk op Shift+C om te wissen",
+      "error": "Mislukt om {{type}} te wissen",
+      "title": "Wis {{type}}"
+    },
+    "delete": {
+      "button": "Verwijder {{type}}",
+      "dialog": {
+        "resourceName": "{{type}} {{id}}",
+        "title": "Verwijder {{type}}",
+        "warning": "Dit zal alle metadata gerelateerd aan {{type}} verwijderen."
+      },
+      "error": "Fout bij het verwijderen van {{type}}",
+      "success": {
+        "description": "Het verzoek om {{type}} te verwijderen was succesvol.",
+        "title": "{{type}} succesvol verwijderd"
+      }
+    },
+    "markAs": {
+      "button": "Makeer {{type}} als ...",
+      "buttonTooltip": {
+        "failed": "Druk op Shift+F om te markeren als mislukt",
+        "success": "Druk op Shift+S om te markeren als succesvol"
+      },
+      "title": "Markeer {{type}} als {{state}}"
+    },
+    "options": {
+      "downstream": "Downstream",
+      "existingTasks": "Wis bestaande Tasks",
+      "future": "Toekomst",
+      "onlyFailed": "Wis enkel mislukte Tasks",
+      "past": "Verleden",
+      "queueNew": "Zet nieuwe Tasks in de wachtrij",
+      "runOnLatestVersion": "Voer uit met de nieuwste bundelversie",
+      "upstream": "Upstream"
+    }
+  },
+  "search": {
+    "advanced": "Geavanceerd zoeken",
+    "clear": "Zoekopdracht wissen",
+    "dags": "Zoek Dags",
+    "hotkey": "+K",
+    "tasks": "Zoek Tasks"
+  },
+  "sort": {
+    "displayName": {
+      "asc": "Sorteer op weergavenaam (A-Z)",
+      "desc": "Sorteer op weergavenaam (Z-A)"
+    },
+    "lastRunStartDate": {
+      "asc": "Sorteer op laatste Run startdatum (Eerste-Laatste)",
+      "desc": "Sorteer op laatste Run startdatum (Laatste-Eerste)"
+    },
+    "lastRunState": {
+      "asc": "Sorteer op laatste Run status (A-Z)",
+      "desc": "Sorteer op laatste Run status (Z-A)"
+    },
+    "nextDagRun": {
+      "asc": "Sorteer op volgende Dag Run (Eerste-Laatste)",
+      "desc": "Sorteer op volgende Dag Run (Laatste-Eerste)"
+    },
+    "placeholder": "Sorteer op"
+  },
+  "unfavoriteDag": "Verwijder Favoriete Dag"
+}

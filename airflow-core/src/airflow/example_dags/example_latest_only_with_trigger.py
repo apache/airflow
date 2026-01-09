@@ -28,8 +28,7 @@ import pendulum
 
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.providers.standard.operators.latest_only import LatestOnlyOperator
-from airflow.sdk import DAG
-from airflow.utils.trigger_rule import TriggerRule
+from airflow.sdk import DAG, TriggerRule
 
 with DAG(
     dag_id="latest_only_with_trigger",

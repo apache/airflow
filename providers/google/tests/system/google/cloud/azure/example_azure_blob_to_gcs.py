@@ -35,7 +35,7 @@ DAG_ID = "example_azure_blob_to_gcs"
 
 with DAG(
     DAG_ID,
-    schedule=None,
+    schedule="@once",
     start_date=datetime(2021, 1, 1),  # Override to match your needs
 ) as dag:
     wait_for_blob = WasbBlobSensor(

@@ -88,9 +88,11 @@ python dependencies for the provided package. The same extras are available as `
 +=====================+=====================================================+============================================================================+
 | async               | ``pip install 'apache-airflow[async]'``             | Async worker classes for Gunicorn                                          |
 +---------------------+-----------------------------------------------------+----------------------------------------------------------------------------+
-| graphviz            | ``pip install 'apache-airflow[graphviz]'``          | Graphviz renderer for converting DAG to graphical output                   |
+| graphviz            | ``pip install 'apache-airflow[graphviz]'``          | Graphviz renderer for converting Dag to graphical output                   |
 +---------------------+-----------------------------------------------------+----------------------------------------------------------------------------+
 | kerberos            | ``pip install 'apache-airflow[kerberos]'``          | Kerberos integration for Kerberized services (Hadoop, Presto, Trino)       |
++---------------------+-----------------------------------------------------+----------------------------------------------------------------------------+
+| memray              | ``pip install 'apache-airflow[memray]'``            | Required for memory profiling with memray                                  |
 +---------------------+-----------------------------------------------------+----------------------------------------------------------------------------+
 | otel                | ``pip install 'apache-airflow[otel]'``              | Required for OpenTelemetry metrics                                         |
 +---------------------+-----------------------------------------------------+----------------------------------------------------------------------------+
@@ -122,7 +124,7 @@ other packages that can be used by airflow or some of its providers.
 +---------------------+-----------------------------------------------------+----------------------------------------------------------------------------+
 | google-auth         | ``pip install 'apache-airflow[google-auth]'``       | Google auth backend                                                        |
 +---------------------+-----------------------------------------------------+----------------------------------------------------------------------------+
-| graphviz            | ``pip install 'apache-airflow[graphviz]'``          | Graphviz renderer for converting DAG to graphical output                   |
+| graphviz            | ``pip install 'apache-airflow[graphviz]'``          | Graphviz renderer for converting Dag to graphical output                   |
 +---------------------+-----------------------------------------------------+----------------------------------------------------------------------------+
 | ldap                | ``pip install 'apache-airflow[ldap]'``              | LDAP authentication for users                                              |
 +---------------------+-----------------------------------------------------+----------------------------------------------------------------------------+
@@ -164,7 +166,7 @@ with a consistent set of dependencies based on constraint files provided by Airf
     :substitutions:
 
     pip install apache-airflow[google,amazon,apache-spark]==|version| \
-      --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-|version|/constraints-3.9.txt"
+      --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-|version|/constraints-3.10.txt"
 
 Note, that this will install providers in the versions that were released at the time of Airflow |version| release. You can later
 upgrade those providers manually if you want to use latest versions of the providers.
@@ -424,10 +426,12 @@ Group extras
 The group extras are convenience extras. Such extra installs many optional dependencies together.
 It is not recommended to use it in production, but it is useful for CI, development and testing purposes.
 
-+-----------+------------------------------------------+---------------------------------------------------+
-| extra     | install command                          | enables                                           |
-+===========+==========================================+===================================================+
-| all       | ``pip install apache-airflow[all]``      | All optional dependencies including all providers |
-+-----------+------------------------------------------+---------------------------------------------------+
-| all-core  | ``pip install apache-airflow[all-core]`` | All optional core dependencies                    |
-+-----------+------------------------------------------+---------------------------------------------------+
++--------------+----------------------------------------------+---------------------------------------------------+
+| extra        | install command                              | enables                                           |
++==============+==============================================+===================================================+
+| all          | ``pip install apache-airflow[all]``          | All optional dependencies including all providers |
++--------------+----------------------------------------------+---------------------------------------------------+
+| all-core     | ``pip install apache-airflow[all-core]``     | All optional core dependencies                    |
++--------------+----------------------------------------------+---------------------------------------------------+
+| all-task-sdk | ``pip install apache-airflow[all-task-sdk]`` | All optional task SDK dependencies                |
++--------------+----------------------------------------------+---------------------------------------------------+

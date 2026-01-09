@@ -23,10 +23,7 @@ import tz from "dayjs/plugin/timezone";
 import utc from "dayjs/plugin/utc";
 
 import { useTimezone } from "src/context/timezone";
-
-export const defaultFormat = "YYYY-MM-DD, HH:mm:ss";
-export const defaultFormatWithTZ = `${defaultFormat} z`;
-export const defaultTZFormat = "z (Z)";
+import { DEFAULT_DATETIME_FORMAT, DEFAULT_DATETIME_FORMAT_WITH_TZ } from "src/utils/datetimeUtils";
 
 dayjs.extend(utc);
 dayjs.extend(tz);
@@ -38,7 +35,7 @@ type Props = {
   readonly showTooltip?: boolean;
 } & SpanProps;
 
-const Time = ({ datetime, format = defaultFormat, showTooltip = true, ...rest }: Props) => {
+const Time = ({ datetime, format = DEFAULT_DATETIME_FORMAT, showTooltip = true, ...rest }: Props) => {
   const { selectedTimezone } = useTimezone();
   const time = dayjs(datetime);
 
@@ -47,7 +44,7 @@ const Time = ({ datetime, format = defaultFormat, showTooltip = true, ...rest }:
   }
 
   const formattedTime = time.tz(selectedTimezone).format(format);
-  const utcTime = time.tz("UTC").format(defaultFormatWithTZ);
+  const utcTime = time.tz("UTC").format(DEFAULT_DATETIME_FORMAT_WITH_TZ);
 
   return (
     <chakra.span dir="ltr" {...rest}>

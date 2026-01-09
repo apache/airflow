@@ -26,11 +26,8 @@ import pytest
 import requests
 from python_on_whales import docker
 
-# isort:off (needed to workaround isort bug)
 from docker_tests.command_utils import run_command
 from docker_tests.constants import AIRFLOW_ROOT_PATH
-
-# isort:on (needed to workaround isort bug)
 
 DOCKER_EXAMPLES_DIR = AIRFLOW_ROOT_PATH / "docker-stack-docs" / "docker-examples"
 QUARANTINED_DOCKER_EXAMPLES: dict[str, str] = {
@@ -72,7 +69,7 @@ def docker_examples(directory: Path, xfails: dict[str, str] | None = None):
 
 
 @pytest.mark.parametrize(
-    "dockerfile, relative_path",
+    ("dockerfile", "relative_path"),
     docker_examples(DOCKER_EXAMPLES_DIR, xfails=QUARANTINED_DOCKER_EXAMPLES),
 )
 def test_dockerfile_example(dockerfile, relative_path, tmp_path):

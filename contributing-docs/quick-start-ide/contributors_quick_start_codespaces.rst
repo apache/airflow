@@ -19,7 +19,7 @@
 Setup and develop using GitHub Codespaces
 #########################################
 
-1. Goto |airflow_github| and fork the project.
+1. Go to |airflow_github| and fork the project.
 
    .. |airflow_github| raw:: html
 
@@ -46,4 +46,4 @@ Setup and develop using GitHub Codespaces
    as Codespaces use Visual Studio Code as interface.
 
 
-Follow the `Quick start <../03_contributors_quick_start.rst>`_ for typical development tasks.
+Follow the `Quick start <../03b_contributors_quick_start_seasoned_developers.rst>`_ for typical development tasks.

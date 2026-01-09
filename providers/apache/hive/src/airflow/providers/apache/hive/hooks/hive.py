@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 import contextlib
+import csv
 import os
 import re
 import socket
@@ -25,31 +26,27 @@ import subprocess
 import time
 from collections.abc import Iterable, Mapping
 from tempfile import NamedTemporaryFile, TemporaryDirectory
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Literal
 
 from deprecated import deprecated
-from typing_extensions import Literal, overload
+from sqlalchemy.engine import URL
+from typing_extensions import overload
+
+from airflow.exceptions import AirflowProviderDeprecationWarning
+from airflow.providers.common.compat.sdk import (
+    AIRFLOW_VAR_NAME_FORMAT_MAPPING,
+    AirflowException,
+    BaseHook,
+    conf,
+)
+from airflow.providers.common.sql.hooks.sql import DbApiHook
+from airflow.security import utils
+from airflow.utils.helpers import as_flattened_list
 
 if TYPE_CHECKING:
     import pandas as pd
     import polars as pl
 
-import csv
-
-from airflow.configuration import conf
-from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
-from airflow.hooks.base import BaseHook
-from airflow.providers.common.compat.version_compat import AIRFLOW_V_3_0_PLUS
-from airflow.providers.common.sql.hooks.sql import DbApiHook
-from airflow.security import utils
-from airflow.utils.helpers import as_flattened_list
-
-if AIRFLOW_V_3_0_PLUS:
-    from airflow.sdk.execution_time.context import AIRFLOW_VAR_NAME_FORMAT_MAPPING
-else:
-    from airflow.utils.operator_helpers import (  # type: ignore[no-redef, attr-defined]
-        AIRFLOW_VAR_NAME_FORMAT_MAPPING,
-    )
 
 HIVE_QUEUE_PRIORITIES = ["VERY_HIGH", "HIGH", "NORMAL", "LOW", "VERY_LOW"]
 
@@ -277,7 +274,7 @@ class HiveCliHook(BaseHook):
         True
         """
         conn = self.conn
-        schema = schema or conn.schema
+        schema = schema or conn.schema or ""
 
         invalid_chars_list = re.findall(r"[^a-z0-9_]", schema)
         if invalid_chars_list:
@@ -325,8 +322,8 @@ class HiveCliHook(BaseHook):
             )
             self.sub_process = sub_process
             stdout = ""
-            for line in iter(sub_process.stdout.readline, b""):
-                line = line.decode()
+            for line_raw in iter(sub_process.stdout.readline, b""):
+                line = line_raw.decode()
                 stdout += line
                 if verbose:
                     self.log.info(line.strip())
@@ -341,24 +338,23 @@ class HiveCliHook(BaseHook):
         """Test an hql statement using the hive cli and EXPLAIN."""
         create, insert, other = [], [], []
         for query in hql.split(";"):  # naive
-            query_original = query
-            query = query.lower().strip()
+            query_lower = query.lower().strip()
 
-            if query.startswith("create table"):
-                create.append(query_original)
-            elif query.startswith(("set ", "add jar ", "create temporary function")):
-                other.append(query_original)
-            elif query.startswith("insert"):
-                insert.append(query_original)
+            if query_lower.startswith("create table"):
+                create.append(query)
+            elif query_lower.startswith(("set ", "add jar ", "create temporary function")):
+                other.append(query)
+            elif query_lower.startswith("insert"):
+                insert.append(query)
         other_ = ";".join(other)
         for query_set in [create, insert]:
-            for query in query_set:
-                query_preview = " ".join(query.split())[:50]
+            for query_item in query_set:
+                query_preview = " ".join(query_item.split())[:50]
                 self.log.info("Testing HQL [%s (...)]", query_preview)
                 if query_set == insert:
-                    query = other_ + "; explain " + query
+                    query = other_ + "; explain " + query_item
                 else:
-                    query = "explain " + query
+                    query = "explain " + query_item
                 try:
                     self.run_cli(query, verbose=False)
                 except AirflowException as e:
@@ -581,21 +577,15 @@ class HiveMetastoreHook(BaseHook):
         conn_socket = TSocket.TSocket(host, conn.port)
 
         if conf.get("core", "security") == "kerberos" and auth_mechanism == "GSSAPI":
-            try:
-                import saslwrapper as sasl
-            except ImportError:
-                import sasl
-
-            def sasl_factory() -> sasl.Client:
-                sasl_client = sasl.Client()
-                sasl_client.setAttr("host", host)
-                sasl_client.setAttr("service", kerberos_service_name)
-                sasl_client.init()
-                return sasl_client
-
+            from pyhive.hive import get_installed_sasl
             from thrift_sasl import TSaslClientTransport
 
-            transport = TSaslClientTransport(sasl_factory, "GSSAPI", conn_socket)
+            sasl_auth = "GSSAPI"
+            transport = TSaslClientTransport(
+                lambda: get_installed_sasl(host=host, sasl_auth=sasl_auth, service=kerberos_service_name),
+                sasl_auth,
+                conn_socket,
+            )
         else:
             transport = TTransport.TBufferedTransport(conn_socket)
 
@@ -605,7 +595,9 @@ class HiveMetastoreHook(BaseHook):
 
     def _find_valid_host(self) -> Any:
         conn = self.conn
-        hosts = conn.host.split(",")
+        hosts = []
+        if conn.host:
+            hosts = conn.host.split(",")
         for host in hosts:
             host_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             self.log.info("Trying to connect to %s:%s", host, conn.port)
@@ -871,7 +863,7 @@ class HiveServer2Hook(DbApiHook):
         username: str | None = None
         password: str | None = None
 
-        db = self.get_connection(self.hiveserver2_conn_id)  # type: ignore
+        db = self.get_connection(self.get_conn_id())
 
         auth_mechanism = db.extra_dejson.get("auth_mechanism", "NONE")
         if auth_mechanism == "NONE" and db.login is None:
@@ -913,7 +905,7 @@ class HiveServer2Hook(DbApiHook):
         with contextlib.closing(self.get_conn(schema)) as conn, contextlib.closing(conn.cursor()) as cur:
             cur.arraysize = fetch_size or 1000
 
-            db = self.get_connection(self.hiveserver2_conn_id)  # type: ignore
+            db = self.get_connection(self.get_conn_id())
             # Not all query services (e.g. impala) support the set command
             if db.extra_dejson.get("run_set_variable_statements", True):
                 env_context = get_context_from_env_var()
@@ -1035,9 +1027,10 @@ class HiveServer2Hook(DbApiHook):
         schema = kwargs["schema"] if "schema" in kwargs else "default"
         return self.get_results(sql, schema=schema, hive_conf=parameters)["data"]
 
-    def _get_pandas_df(  # type: ignore
+    def _get_pandas_df(
         self,
-        sql: str,
+        sql,
+        parameters: list[Any] | tuple[Any, ...] | Mapping[str, Any] | None = None,
         schema: str = "default",
         hive_conf: dict[Any, Any] | None = None,
         **kwargs,
@@ -1053,9 +1046,10 @@ class HiveServer2Hook(DbApiHook):
         df = pd.DataFrame(res["data"], columns=[c[0] for c in res["header"]], **kwargs)
         return df
 
-    def _get_polars_df(  # type: ignore
+    def _get_polars_df(
         self,
-        sql: str,
+        sql,
+        parameters: list[Any] | tuple[Any, ...] | Mapping[str, Any] | None = None,
         schema: str = "default",
         hive_conf: dict[Any, Any] | None = None,
         **kwargs,
@@ -1082,7 +1076,7 @@ class HiveServer2Hook(DbApiHook):
         **kwargs: Any,
     ) -> pd.DataFrame: ...
 
-    @overload  # type: ignore[override]
+    @overload
     def get_df(
         self,
         sql: str,
@@ -1093,7 +1087,7 @@ class HiveServer2Hook(DbApiHook):
         **kwargs: Any,
     ) -> pl.DataFrame: ...
 
-    def get_df(  # type: ignore
+    def get_df(
         self,
         sql: str,
         schema: str = "default",
@@ -1138,3 +1132,25 @@ class HiveServer2Hook(DbApiHook):
         **kwargs,
     ) -> pd.DataFrame:
         return self._get_pandas_df(sql, schema=schema, hive_conf=hive_conf, **kwargs)
+
+    @property
+    def sqlalchemy_url(self) -> URL:
+        """Return a `sqlalchemy.engine.URL` object constructed from the connection."""
+        conn = self.get_connection(self.get_conn_id())
+        extra = conn.extra_dejson or {}
+
+        query = {k: str(v) for k, v in extra.items() if v is not None and k != "__extra__"}
+
+        return URL.create(
+            drivername="hive",
+            username=conn.login,
+            password=conn.password,
+            host=conn.host,
+            port=conn.port,
+            database=conn.schema,
+            query=query,
+        )
+
+    def get_uri(self) -> str:
+        """Return a SQLAlchemy engine URL as a string."""
+        return self.sqlalchemy_url.render_as_string(hide_password=False)

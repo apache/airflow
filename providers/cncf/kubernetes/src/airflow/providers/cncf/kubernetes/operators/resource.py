@@ -23,16 +23,20 @@ from collections.abc import Sequence
 from functools import cached_property
 from typing import TYPE_CHECKING
 
-import tenacity
 import yaml
 from kubernetes.utils import create_from_yaml
 
-from airflow.exceptions import AirflowException
-from airflow.models import BaseOperator
 from airflow.providers.cncf.kubernetes.hooks.kubernetes import KubernetesHook
-from airflow.providers.cncf.kubernetes.kubernetes_helper_functions import should_retry_creation
+from airflow.providers.cncf.kubernetes.kubernetes_helper_functions import generic_api_retry
 from airflow.providers.cncf.kubernetes.utils.delete_from import delete_from_yaml
 from airflow.providers.cncf.kubernetes.utils.k8s_resource_iterator import k8s_resource_iterator
+from airflow.providers.cncf.kubernetes.version_compat import AIRFLOW_V_3_1_PLUS
+from airflow.providers.common.compat.sdk import AirflowException
+
+if AIRFLOW_V_3_1_PLUS:
+    from airflow.sdk import BaseOperator
+else:
+    from airflow.models import BaseOperator
 
 if TYPE_CHECKING:
     from kubernetes.client import ApiClient, CustomObjectsApi
@@ -106,10 +110,9 @@ class KubernetesResourceBaseOperator(BaseOperator):
         group = api_version[0 : api_version.find("/")]
         version = api_version[api_version.find("/") + 1 :]
 
-        namespace = None
-        if body.get("metadata"):
-            metadata: dict = body.get("metadata", None)
-            namespace = metadata.get("namespace", None)
+        metadata = body.get("metadata", {}) if body else None
+        namespace = metadata.get("namespace") if metadata else None
+
         if namespace is None:
             namespace = self.get_namespace()
 
@@ -128,12 +131,7 @@ class KubernetesCreateResourceOperator(KubernetesResourceBaseOperator):
         else:
             self.custom_object_client.create_cluster_custom_object(group, version, plural, body)
 
-    @tenacity.retry(
-        stop=tenacity.stop_after_attempt(3),
-        wait=tenacity.wait_random_exponential(),
-        reraise=True,
-        retry=tenacity.retry_if_exception(should_retry_creation),
-    )
+    @generic_api_retry
     def _create_objects(self, objects):
         self.log.info("Starting resource creation")
         if not self.custom_resource_definition:

@@ -31,13 +31,13 @@ from cassandra.policies import (
 
 from airflow.models import Connection
 from airflow.providers.apache.cassandra.hooks.cassandra import CassandraHook
-from airflow.utils import db
 
 
 @pytest.mark.integration("cassandra")
 class TestCassandraHook:
-    def setup_method(self):
-        db.merge_conn(
+    @pytest.fixture(autouse=True)
+    def setup_connections(self, create_connection_without_db):
+        create_connection_without_db(
             Connection(
                 conn_id="cassandra_test",
                 conn_type="cassandra",
@@ -47,7 +47,7 @@ class TestCassandraHook:
                 extra='{"load_balancing_policy":"TokenAwarePolicy","protocol_version":4}',
             )
         )
-        db.merge_conn(
+        create_connection_without_db(
             Connection(
                 conn_id="cassandra_default_with_schema",
                 conn_type="cassandra",

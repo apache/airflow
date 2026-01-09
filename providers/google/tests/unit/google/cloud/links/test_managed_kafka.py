@@ -17,8 +17,6 @@
 # under the License.
 from __future__ import annotations
 
-from unittest import mock
-
 from airflow.providers.google.cloud.links.managed_kafka import (
     ApacheKafkaClusterLink,
     ApacheKafkaClusterListLink,
@@ -57,50 +55,12 @@ class TestApacheKafkaClusterLink:
         assert ApacheKafkaClusterLink.name == EXPECTED_MANAGED_KAFKA_CLUSTER_LINK_NAME
         assert ApacheKafkaClusterLink.format_str == EXPECTED_MANAGED_KAFKA_CLUSTER_LINK_FORMAT_STR
 
-    def test_persist(self):
-        mock_context, mock_task_instance = (
-            mock.MagicMock(),
-            mock.MagicMock(location=TEST_LOCATION, project_id=TEST_PROJECT_ID),
-        )
-
-        ApacheKafkaClusterLink.persist(
-            context=mock_context,
-            task_instance=mock_task_instance,
-            cluster_id=TEST_CLUSTER_ID,
-        )
-
-        mock_task_instance.xcom_push.assert_called_once_with(
-            context=mock_context,
-            key=EXPECTED_MANAGED_KAFKA_CLUSTER_LINK_KEY,
-            value={
-                "location": TEST_LOCATION,
-                "cluster_id": TEST_CLUSTER_ID,
-                "project_id": TEST_PROJECT_ID,
-            },
-        )
-
 
 class TestApacheKafkaClusterListLink:
     def test_class_attributes(self):
         assert ApacheKafkaClusterListLink.key == EXPECTED_MANAGED_KAFKA_CLUSTER_LIST_LINK_KEY
         assert ApacheKafkaClusterListLink.name == EXPECTED_MANAGED_KAFKA_CLUSTER_LIST_LINK_NAME
         assert ApacheKafkaClusterListLink.format_str == EXPECTED_MANAGED_KAFKA_CLUSTER_LIST_LINK_FORMAT_STR
-
-    def test_persist(self):
-        mock_context, mock_task_instance = mock.MagicMock(), mock.MagicMock(project_id=TEST_PROJECT_ID)
-
-        ApacheKafkaClusterListLink.persist(
-            context=mock_context,
-            task_instance=mock_task_instance,
-        )
-
-        mock_task_instance.xcom_push.assert_called_once_with(
-            context=mock_context,
-            key=EXPECTED_MANAGED_KAFKA_CLUSTER_LIST_LINK_KEY,
-            value={
-                "project_id": TEST_PROJECT_ID,
-            },
-        )
 
 
 class TestApacheKafkaTopicLink:
@@ -109,30 +69,6 @@ class TestApacheKafkaTopicLink:
         assert ApacheKafkaTopicLink.name == EXPECTED_MANAGED_KAFKA_TOPIC_LINK_NAME
         assert ApacheKafkaTopicLink.format_str == EXPECTED_MANAGED_KAFKA_TOPIC_LINK_FORMAT_STR
 
-    def test_persist(self):
-        mock_context, mock_task_instance = (
-            mock.MagicMock(),
-            mock.MagicMock(location=TEST_LOCATION, project_id=TEST_PROJECT_ID),
-        )
-
-        ApacheKafkaTopicLink.persist(
-            context=mock_context,
-            task_instance=mock_task_instance,
-            cluster_id=TEST_CLUSTER_ID,
-            topic_id=TEST_TOPIC_ID,
-        )
-
-        mock_task_instance.xcom_push.assert_called_once_with(
-            context=mock_context,
-            key=EXPECTED_MANAGED_KAFKA_TOPIC_LINK_KEY,
-            value={
-                "location": TEST_LOCATION,
-                "cluster_id": TEST_CLUSTER_ID,
-                "topic_id": TEST_TOPIC_ID,
-                "project_id": TEST_PROJECT_ID,
-            },
-        )
-
 
 class TestApacheKafkaConsumerGroupLink:
     def test_class_attributes(self):
@@ -140,28 +76,4 @@ class TestApacheKafkaConsumerGroupLink:
         assert ApacheKafkaConsumerGroupLink.name == EXPECTED_MANAGED_KAFKA_CONSUMER_GROUP_LINK_NAME
         assert (
             ApacheKafkaConsumerGroupLink.format_str == EXPECTED_MANAGED_KAFKA_CONSUMER_GROUP_LINK_FORMAT_STR
-        )
-
-    def test_persist(self):
-        mock_context, mock_task_instance = (
-            mock.MagicMock(),
-            mock.MagicMock(location=TEST_LOCATION, project_id=TEST_PROJECT_ID),
-        )
-
-        ApacheKafkaConsumerGroupLink.persist(
-            context=mock_context,
-            task_instance=mock_task_instance,
-            cluster_id=TEST_CLUSTER_ID,
-            consumer_group_id=TEST_CONSUMER_GROUP_ID,
-        )
-
-        mock_task_instance.xcom_push.assert_called_once_with(
-            context=mock_context,
-            key=EXPECTED_MANAGED_KAFKA_CONSUMER_GROUP_LINK_KEY,
-            value={
-                "location": TEST_LOCATION,
-                "cluster_id": TEST_CLUSTER_ID,
-                "consumer_group_id": TEST_CONSUMER_GROUP_ID,
-                "project_id": TEST_PROJECT_ID,
-            },
         )

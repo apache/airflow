@@ -114,8 +114,10 @@ try:
         def test_drop_tables(self, mock__get_flask_db, mock_metadata, mock_inspect, session):
             manager = FABDBManager(session)
             connection = mock.MagicMock()
+            db = mock.MagicMock()
+            mock__get_flask_db.return_value = db, mock.MagicMock()
             manager.drop_tables(connection)
-            mock__get_flask_db.return_value.drop_all.assert_called_once_with()
+            db.drop_all.assert_called_once_with()
             mock_metadata.drop_all.assert_called_once_with(connection)
 
         @pytest.mark.parametrize("skip_init", [True, False])

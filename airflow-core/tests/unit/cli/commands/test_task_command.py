@@ -21,7 +21,6 @@ import contextlib
 import io
 import json
 import logging
-import logging.config
 import os
 import shutil
 from argparse import ArgumentParser
@@ -29,32 +28,35 @@ from contextlib import contextmanager, redirect_stdout
 from pathlib import Path
 from typing import TYPE_CHECKING
 from unittest import mock
-from unittest.mock import sentinel
 
 import pytest
+from sqlalchemy import delete
 
+from airflow._shared.timezones import timezone
 from airflow.cli import cli_parser
 from airflow.cli.commands import task_command
-from airflow.cli.commands.task_command import LoggerMutationHelper
-from airflow.config_templates.airflow_local_settings import DEFAULT_LOGGING_CONFIG
 from airflow.configuration import conf
+from airflow.dag_processing.dagbag import DagBag
 from airflow.exceptions import DagRunNotFound
-from airflow.models import DagBag, DagRun, TaskInstance
+from airflow.models import DagModel, DagRun, TaskInstance
+from airflow.models.dag_version import DagVersion
+from airflow.models.dagbag import DBDagBag
+from airflow.models.serialized_dag import SerializedDagModel
 from airflow.providers.standard.operators.bash import BashOperator
-from airflow.serialization.serialized_objects import SerializedDAG
-from airflow.utils import timezone
+from airflow.serialization.serialized_objects import DagSerialization, LazyDeserializedDAG
 from airflow.utils.session import create_session
 from airflow.utils.state import State, TaskInstanceState
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
 from tests_common.test_utils.config import conf_vars
+from tests_common.test_utils.dag import sync_dag_to_db
 from tests_common.test_utils.db import clear_db_runs, parse_and_sync_to_db
-
-pytestmark = pytest.mark.db_test
-
 
 if TYPE_CHECKING:
     from airflow.models.dag import DAG
+
+pytestmark = pytest.mark.db_test
+
 
 DEFAULT_DATE = timezone.datetime(2022, 1, 1)
 ROOT_FOLDER = Path(__file__).parents[4].resolve()
@@ -62,10 +64,10 @@ ROOT_FOLDER = Path(__file__).parents[4].resolve()
 
 def reset(dag_id):
     with create_session() as session:
-        tis = session.query(TaskInstance).filter_by(dag_id=dag_id)
-        tis.delete()
-        runs = session.query(DagRun).filter_by(dag_id=dag_id)
-        runs.delete()
+        session.execute(delete(TaskInstance).where(TaskInstance.dag_id == dag_id))
+        session.execute(delete(DagRun).where(DagRun.dag_id == dag_id))
+        session.execute(delete(DagModel).where(DagModel.dag_id == dag_id))
+        session.execute(delete(SerializedDagModel).where(SerializedDagModel.dag_id == dag_id))
 
 
 @contextmanager
@@ -79,20 +81,19 @@ class TestCliTasks:
     run_id = "TEST_RUN_ID"
     dag_id = "example_python_operator"
     parser: ArgumentParser
-    dagbag: DagBag
+    dagbag: DBDagBag
     dag: DAG
     dag_run: DagRun
 
     @classmethod
-    @pytest.fixture(autouse=True)
     def setup_class(cls):
-        logging.config.dictConfig(DEFAULT_LOGGING_CONFIG)
         parse_and_sync_to_db(os.devnull, include_examples=True)
         cls.parser = cli_parser.get_parser()
         clear_db_runs()
 
-        cls.dagbag = DagBag(read_dags_from_db=True, include_examples=True)
-        cls.dag = cls.dagbag.get_dag(cls.dag_id)
+        cls.dagbag = DBDagBag()
+        with create_session() as session:
+            cls.dag = cls.dagbag.get_latest_version_of_dag(cls.dag_id, session=session)
         data_interval = cls.dag.timetable.infer_manual_data_interval(run_after=DEFAULT_DATE)
         cls.dag_run = cls.dag.create_dagrun(
             state=State.RUNNING,
@@ -110,9 +111,9 @@ class TestCliTasks:
 
     @conf_vars({("core", "load_examples"): "true"})
     @pytest.mark.execution_timeout(120)
-    def test_cli_list_tasks(self):
-        for dag_id in self.dagbag.dags:
-            args = self.parser.parse_args(["tasks", "list", dag_id])
+    def test_cli_list_tasks(self, session):
+        for dag in self.dagbag.iter_all_latest_version_dags(session=session):
+            args = self.parser.parse_args(["tasks", "list", dag.dag_id])
             task_command.task_list(args)
 
     def test_test(self):
@@ -170,8 +171,12 @@ class TestCliTasks:
 
         Output should be filtered by SecretsMasker.
         """
+        # TODO: revisit during https://github.com/apache/airflow/issues/54658
+        from airflow.sdk.log import mask_secret
+
         password = "somepassword1234!"
-        logging.getLogger("airflow.task").filters[0].add_mask(password)
+        mask_secret(password)
+
         args = self.parser.parse_args(
             ["tasks", "test", "example_python_operator", "print_the_context", "2018-01-01"],
         )
@@ -273,6 +278,7 @@ class TestCliTasks:
         assert 'echo "2016-01-01"' in output
         assert 'echo "2016-01-08"' in output
 
+    @pytest.mark.usefixtures("testing_dag_bundle")
     def test_mapped_task_render(self):
         """
         tasks render should render and displays templated fields for a given mapping task
@@ -311,8 +317,8 @@ class TestCliTasks:
             {% endfor %}
             """
             commands = [templated_command, "echo 1"]
-
             BashOperator.partial(task_id="some_command").expand(bash_command=commands)
+        sync_dag_to_db(dag)
 
         with redirect_stdout(io.StringIO()) as stdout:
             task_command.task_render(
@@ -343,9 +349,12 @@ class TestCliTasks:
 
     def test_task_states_for_dag_run(self):
         dag2 = DagBag().dags["example_python_operator"]
-        task2 = dag2.get_task(task_id="print_the_context")
+        lazy_deserialized_dag2 = LazyDeserializedDAG.from_dag(dag2)
 
-        dag2 = SerializedDAG.deserialize_dag(SerializedDAG.serialize_dag(dag2))
+        SerializedDagModel.write_dag(lazy_deserialized_dag2, bundle_name="testing")
+
+        dag2 = DagSerialization.from_dict(lazy_deserialized_dag2.data)
+        task2 = dag2.get_task(task_id="print_the_context")
 
         default_date2 = timezone.datetime(2016, 1, 9)
         dag2.clear()
@@ -359,7 +368,8 @@ class TestCliTasks:
             run_type=DagRunType.MANUAL,
             triggered_by=DagRunTriggeredByType.CLI,
         )
-        ti2 = TaskInstance(task2, run_id=dagrun.run_id)
+        dag_version = DagVersion.get_latest_version(dag2.dag_id)
+        ti2 = TaskInstance(task2, run_id=dagrun.run_id, dag_version_id=dag_version.id)
         ti2.set_state(State.SUCCESS)
         ti_start = ti2.start_date
         ti_end = ti2.end_date
@@ -406,6 +416,19 @@ class TestCliTasks:
                     ]
                 )
             )
+
+    def test_task_render_for_multi_line_properties(self, dag_maker):
+        """
+        tasks render should render and displays templated fields for a given task
+        """
+        with redirect_stdout(io.StringIO()) as stdout:
+            task_command.task_render(
+                self.parser.parse_args(["tasks", "render", "tutorial", "templated", "2016-01-01"])
+            )
+
+        output = stdout.getvalue()
+        # no indentation before property name
+        assert "# property: bash_command" in output.split("\n")
 
 
 def _set_state_and_try_num(ti, session):
@@ -480,70 +503,3 @@ class TestLogsfromTaskRunCommand:
             # Example: [2020-06-24 17:07:00,482] {logging_mixin.py:91} INFO - Log from Print statement
             assert "logging_mixin.py" not in log_line
         return log_line
-
-
-class TestLoggerMutationHelper:
-    @pytest.mark.parametrize("target_name", ["test_apply_target", None])
-    def test_apply(self, target_name):
-        """
-        Handlers, level and propagate should be applied on target.
-        """
-        src = logging.getLogger(f"test_apply_source_{target_name}")
-        src.propagate = False
-        src.addHandler(sentinel.handler)
-        src.setLevel(-1)
-        obj = LoggerMutationHelper(src)
-        tgt = logging.getLogger("test_apply_target")
-        obj.apply(tgt)
-        assert tgt.handlers == [sentinel.handler]
-        assert tgt.propagate is False if target_name else True  # root propagate unchanged
-        assert tgt.level == -1
-
-    def test_apply_no_replace(self, clear_all_logger_handlers):
-        """
-        Handlers, level and propagate should be applied on target.
-        """
-        src = logging.getLogger("test_apply_source_no_repl")
-        tgt = logging.getLogger("test_apply_target_no_repl")
-        h1 = logging.Handler()
-        h1.name = "h1"
-        h2 = logging.Handler()
-        h2.name = "h2"
-        h3 = logging.Handler()
-        h3.name = "h3"
-        src.handlers[:] = [h1, h2]
-        tgt.handlers[:] = [h2, h3]
-        LoggerMutationHelper(src).apply(tgt, replace=False)
-        assert tgt.handlers == [h2, h3, h1]
-
-    def test_move(self):
-        """Move should apply plus remove source handler, set propagate to True"""
-        src = logging.getLogger("test_move_source")
-        src.propagate = False
-        src.addHandler(sentinel.handler)
-        src.setLevel(-1)
-        obj = LoggerMutationHelper(src)
-        tgt = logging.getLogger("test_apply_target")
-        obj.move(tgt)
-        assert tgt.handlers == [sentinel.handler]
-        assert tgt.propagate is False
-        assert tgt.level == -1
-        assert src.propagate is True
-        assert obj.propagate is False
-        assert src.level == obj.level
-        assert src.handlers == []
-        assert obj.handlers == tgt.handlers
-
-    def test_reset(self):
-        src = logging.getLogger("test_move_reset")
-        src.propagate = True
-        src.addHandler(sentinel.h1)
-        src.setLevel(-1)
-        obj = LoggerMutationHelper(src)
-        src.propagate = False
-        src.addHandler(sentinel.h2)
-        src.setLevel(-2)
-        obj.reset()
-        assert src.propagate is True
-        assert src.handlers == [sentinel.h1]
-        assert src.level == -1

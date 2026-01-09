@@ -21,12 +21,12 @@ from unittest import mock
 
 import pytest
 
-from airflow.exceptions import AirflowException
 from airflow.providers.common.compat.openlineage.facet import (
     Dataset,
     ExternalQueryRunFacet,
     SQLJobFacet,
 )
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.databricks.operators.databricks_sql import DatabricksCopyIntoOperator
 from airflow.providers.openlineage.extractors import OperatorLineage
 
@@ -37,6 +37,8 @@ COPY_FILE_LOCATION = "s3://my-bucket/jsonData"
 
 
 def test_copy_with_files():
+    import re
+
     op = DatabricksCopyIntoOperator(
         file_location=COPY_FILE_LOCATION,
         file_format="JSON",
@@ -45,15 +47,15 @@ def test_copy_with_files():
         format_options={"dateFormat": "yyyy-MM-dd"},
         task_id=TASK_ID,
     )
-    assert (
-        op._create_sql_query()
-        == f"""COPY INTO test
-FROM '{COPY_FILE_LOCATION}'
-FILEFORMAT = JSON
-FILES = ('file1','file2','file3')
-FORMAT_OPTIONS ('dateFormat' = 'yyyy-MM-dd')
-""".strip()
+    sql = op._create_sql_query()
+    expected_pattern = (
+        rf"COPY INTO test\s+FROM '{COPY_FILE_LOCATION}'\s+"
+        r"FILEFORMAT = JSON\s+"
+        r"(FILES = (ARRAY\(|\())'file1','file2','file3'\)?\s+"
+        r"FORMAT_OPTIONS \('dateFormat' = 'yyyy-MM-dd'\)"
     )
+
+    assert re.fullmatch(expected_pattern, sql.strip(), flags=re.MULTILINE)
 
 
 def test_copy_with_expression():
@@ -255,8 +257,7 @@ def test_templating(create_task_instance_of_operator, session):
     )
     session.add(ti)
     session.commit()
-    ti.render_templates()
-    task: DatabricksCopyIntoOperator = ti.task
+    task = ti.render_templates()
     assert task.file_location == "file-location"
     assert task.files == "files"
     assert task.table_name == "table-name"

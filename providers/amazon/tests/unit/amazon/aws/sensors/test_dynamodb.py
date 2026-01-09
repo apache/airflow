@@ -17,13 +17,10 @@
 
 from __future__ import annotations
 
-import pytest
 from moto import mock_aws
 
 from airflow.providers.amazon.aws.hooks.dynamodb import DynamoDBHook
 from airflow.providers.amazon.aws.sensors.dynamodb import DynamoDBValueSensor
-
-pytestmark = pytest.mark.db_test
 
 
 class TestDynamoDBValueSensor:

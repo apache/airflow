@@ -34,20 +34,27 @@ database schema that you have made. To generate a new migration file, run the fo
     $ alembic revision -m "add new field to db" --autogenerate
 
        Generating
-    ~/airflow/airflow/migrations/versions/a1e23c41f123_add_new_field_to_db.py
+    ~/airflow-core/src/airflow/migrations/versions/a1e23c41f123_add_new_field_to_db.py
 
-Note that migration file names are standardized by pre-commit hook ``update-migration-references``, so that they sort alphabetically and indicate
-the Airflow version in which they first appear (the alembic revision ID is removed). As a result you should expect to see a pre-commit failure
+Note that migration file names are standardized by prek hook ``update-migration-references``, so that they sort alphabetically and indicate
+the Airflow version in which they first appear (the alembic revision ID is removed). As a result you should expect to see a prek failure
 on the first attempt.  Just stage the modified file and commit again
 (or run the hook manually before committing).
 
-After your new migration file is run through pre-commit it will look like this:
+After your new migration file is run through prek hook it will look like this:
 
 .. code-block::
 
     1234_A_B_C_add_new_field_to_db.py
 
 This represents that your migration is the 1234th migration and expected for release in Airflow version A.B.C.
+
+.. warning::
+
+   In rare cases, you may need to manually modify the migration logic of your auto-generated migration script.
+   If you must make manual changes to your migration script, **you must ensure you're not referencing any ORM classes
+   within your migration script**. Directly referring to an ORM class definition within a migration script can lead to
+   unexpected and / or broken downgrade pathways in the future, `as described here <https://github.com/apache/airflow/issues/59871>`_.
 
 How to Resolve Conflicts When Rebasing
 --------------------------------------
@@ -70,10 +77,20 @@ To resolve these conflicts:
 
 .. code-block:: bash
 
-    pre-commit run update-migration-references --all
-    pre-commit run update-er-diagram --all
+    prek update-migration-references --all-files
+    prek update-er-diagram --all-files
 
 3. Add the updated files to the staging area and continue with the rebase.
+
+Running migration CI tests locally
+----------------------------------
+
+The various CI migration tests are defined in ``.github/actions/migration_tests/action.yml``. These tests ensure the
+database upgrades and downgrades are still functional from the lowest supported source migration version, to the latest version,
+and back down to the former. To run any of those CI tests on your machine, you can:
+
+1. Copy the relevant command (specified by the ``run`` key for the relevant CI job), and replace the environment variable references with their literal values defined in the sibling ``env`` section.
+2. Run the command you created from step 1, troubleshooting errors as needed.
 
 How to hook your application into Airflow's migration process
 -------------------------------------------------------------
@@ -83,12 +100,12 @@ This feature is useful if you have a custom database schema that you want to mig
 This guide will show you how to hook your application into Airflow's migration process.
 
 Subclass the BaseDBManager
-==========================
+~~~~~~~~~~~~~~~~~~~~~~~~~~
 To hook your application into Airflow's migration process, you need to subclass the ``BaseDBManager`` class from the
 ``airflow.utils.db_manager`` module. This class provides methods for running Alembic migrations.
 
-Create Alembic migration scripts
-================================
+Create Alembic migration scripts for your application
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 At the root of your application, run "alembic init migrations" to create a new migrations directory. Set the
 ``version_table`` variable in the ``env.py`` file to the name of the table that stores the migration history. Specify this
 version_table in the ``version_table`` argument of the alembic's ``context.configure`` method of the ``run_migration_online``

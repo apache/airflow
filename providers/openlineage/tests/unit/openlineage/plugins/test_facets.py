@@ -95,7 +95,11 @@ def test_airflow_dag_run_facet():
             id="AirflowJobFacet",
         ),
         pytest.param(
-            AirflowStateRunFacet(dagRunState="SUCCESS", tasksState={"task_0": "SKIPPED"}),
+            AirflowStateRunFacet(
+                dagRunState="SUCCESS",
+                tasksState={"task_0": "SKIPPED"},
+                tasksDuration={"task_0": 123},
+            ),
             id="AirflowStateRunFacet",
         ),
         pytest.param(

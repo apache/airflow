@@ -34,8 +34,8 @@ The way the tests work:
 
 1. They first build the Airflow production image
 2. Then they take the Docker Compose file of ours and use the image to start it
-3. Then they perform some simple DAG trigger tests which checks whether Airflow is up and can process
-   an example DAG
+3. Then they perform some simple Dag trigger tests which checks whether Airflow is up and can process
+   an example Dag
 
 This is done in a local environment, not in the Breeze CI image. It uses ``COMPOSE_PROJECT_NAME`` set to
 ``quick-start`` to avoid conflicts with other docker compose deployments you might have.
@@ -48,7 +48,7 @@ Running complete test with breeze:
 
 .. code-block:: bash
 
-    breeze prod-image build --python 3.9
+    breeze prod-image build --python 3.10
     breeze testing docker-compose-tests
 
 In case the test fails, it will dump the logs from the running containers to the console and it
@@ -65,8 +65,8 @@ to see the output of the test as it happens (it can be also set via
 The test can be also run manually with ``pytest docker_tests/test_docker_compose_quick_start.py``
 command, provided that you have a local Airflow venv with ``dev`` extra set and the
 ``DOCKER_IMAGE`` environment variable is set to the image you want to test. The variable defaults
-to ``ghcr.io/apache/airflow/main/prod/python3.9:latest`` which is built by default
-when you run ``breeze prod-image build --python 3.9``. also the switches ``--skip-docker-compose-deletion``
+to ``ghcr.io/apache/airflow/main/prod/python3.10:latest`` which is built by default
+when you run ``breeze prod-image build --python 3.10``. also the switches ``--skip-docker-compose-deletion``
 and ``--wait-for-containers-timeout`` can only be passed via environment variables.
 
 If you want to debug the deployment using ``docker compose`` commands after ``SKIP_DOCKER_COMPOSE_DELETION``
@@ -87,7 +87,7 @@ the prod image build command above.
 
 .. code-block:: bash
 
-    export AIRFLOW_IMAGE_NAME=ghcr.io/apache/airflow/main/prod/python3.9:latest
+    export AIRFLOW_IMAGE_NAME=ghcr.io/apache/airflow/main/prod/python3.10:latest
 
 and follow the instructions in the
 `Running Airflow in Docker <https://airflow.apache.org/docs/apache-airflow/stable/howto/docker-compose/index.html>`_
@@ -95,7 +95,7 @@ but make sure to use the docker-compose file from the sources in
 ``docs/apache-airflow/stable/howto/docker-compose/`` folder.
 
 Then, the usual ``docker compose`` and ``docker`` commands can be used to debug such running instances.
-The test performs a simple API call to trigger a DAG and wait for it, but you can follow our
+The test performs a simple API call to trigger a Dag and wait for it, but you can follow our
 documentation to connect to such running docker compose instances and test it manually.
 
 -----

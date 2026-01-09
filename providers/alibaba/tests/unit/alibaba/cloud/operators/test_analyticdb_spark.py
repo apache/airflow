@@ -21,12 +21,12 @@ from unittest import mock
 
 import pytest
 
-from airflow.exceptions import AirflowException
 from airflow.providers.alibaba.cloud.operators.analyticdb_spark import (
     AnalyticDBSparkBaseOperator,
     AnalyticDBSparkBatchOperator,
     AnalyticDBSparkSQLOperator,
 )
+from airflow.providers.common.compat.sdk import AirflowException
 
 ADB_SPARK_OPERATOR_STRING = "airflow.providers.alibaba.cloud.operators.analyticdb_spark.{}"
 

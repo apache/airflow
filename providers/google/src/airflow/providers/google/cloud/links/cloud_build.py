@@ -16,12 +16,7 @@
 # under the License.
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
-
 from airflow.providers.google.cloud.links.base import BaseGoogleLink
-
-if TYPE_CHECKING:
-    from airflow.utils.context import Context
 
 BUILD_BASE_LINK = "/cloud-build"
 
@@ -43,24 +38,6 @@ class CloudBuildLink(BaseGoogleLink):
     key = "cloud_build_key"
     format_str = BUILD_LINK
 
-    @staticmethod
-    def persist(
-        context: Context,
-        task_instance,
-        build_id: str,
-        project_id: str,
-        region: str,
-    ):
-        task_instance.xcom_push(
-            context=context,
-            key=CloudBuildLink.key,
-            value={
-                "project_id": project_id,
-                "region": region,
-                "build_id": build_id,
-            },
-        )
-
 
 class CloudBuildListLink(BaseGoogleLink):
     """Helper class for constructing Cloud Build List link."""
@@ -68,22 +45,6 @@ class CloudBuildListLink(BaseGoogleLink):
     name = "Cloud Builds List"
     key = "cloud_build_list_key"
     format_str = BUILD_LIST_LINK
-
-    @staticmethod
-    def persist(
-        context: Context,
-        task_instance,
-        project_id: str,
-        region: str,
-    ):
-        task_instance.xcom_push(
-            context=context,
-            key=CloudBuildListLink.key,
-            value={
-                "project_id": project_id,
-                "region": region,
-            },
-        )
 
 
 class CloudBuildTriggersListLink(BaseGoogleLink):
@@ -93,22 +54,6 @@ class CloudBuildTriggersListLink(BaseGoogleLink):
     key = "cloud_build_triggers_list_key"
     format_str = BUILD_TRIGGERS_LIST_LINK
 
-    @staticmethod
-    def persist(
-        context: Context,
-        task_instance,
-        project_id: str,
-        region: str,
-    ):
-        task_instance.xcom_push(
-            context=context,
-            key=CloudBuildTriggersListLink.key,
-            value={
-                "project_id": project_id,
-                "region": region,
-            },
-        )
-
 
 class CloudBuildTriggerDetailsLink(BaseGoogleLink):
     """Helper class for constructing Cloud Build Trigger Details link."""
@@ -116,21 +61,3 @@ class CloudBuildTriggerDetailsLink(BaseGoogleLink):
     name = "Cloud Build Triggers Details"
     key = "cloud_build_triggers_details_key"
     format_str = BUILD_TRIGGER_DETAILS_LINK
-
-    @staticmethod
-    def persist(
-        context: Context,
-        task_instance,
-        project_id: str,
-        region: str,
-        trigger_id: str,
-    ):
-        task_instance.xcom_push(
-            context=context,
-            key=CloudBuildTriggerDetailsLink.key,
-            value={
-                "project_id": project_id,
-                "region": region,
-                "trigger_id": trigger_id,
-            },
-        )

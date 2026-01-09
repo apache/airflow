@@ -21,9 +21,9 @@ import os
 import time
 import uuid
 from base64 import urlsafe_b64encode
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 from datetime import datetime
-from typing import TYPE_CHECKING, Any, Callable, Literal, overload
+from typing import TYPE_CHECKING, Any, Literal, overload
 
 import attrs
 import httpx
@@ -34,7 +34,7 @@ from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.serialization import load_pem_private_key
 
-from airflow.utils import timezone
+from airflow._shared.timezones import timezone
 
 if TYPE_CHECKING:
     from jwt.algorithms import AllowedKeys, AllowedPrivateKeys
@@ -226,7 +226,7 @@ def _conf_factory(section, key, **kwargs):
     def factory() -> str:
         from airflow.configuration import conf
 
-        return conf.get(section, key, **kwargs, suppress_warnings=True)  # type: ignore[return-value]
+        return conf.get(section, key, **kwargs, suppress_warnings=True)
 
     return factory
 
@@ -371,6 +371,18 @@ def _load_key_from_configured_file() -> AllowedPrivateKeys | None:
         return _pem_to_key(fh.read())
 
 
+def _generate_kid(gen) -> str:
+    if not gen._private_key:
+        return "not-used"
+
+    if kid := _conf_factory("api_auth", "jwt_kid", fallback=None)():
+        return kid
+
+    # Generate it from the thumbprint of the private key
+    info = key_to_jwk_dict(gen._private_key)
+    return info["kid"]
+
+
 @attrs.define(repr=False, kw_only=True)
 class JWTGenerator:
     """Generate JWT tokens."""
@@ -391,7 +403,7 @@ class JWTGenerator:
     )
     """A pre-shared secret key to sign tokens with symmetric encryption"""
 
-    kid: str = attrs.field()
+    kid: str = attrs.field(default=attrs.Factory(_generate_kid, takes_self=True))
     valid_for: float
     audience: str
     issuer: str | list[str] | None = attrs.field(
@@ -400,18 +412,6 @@ class JWTGenerator:
     algorithm: str = attrs.field(
         factory=_conf_list_factory("api_auth", "jwt_algorithm", first_only=True, fallback="GUESS")
     )
-
-    @kid.default
-    def _generate_kid(self):
-        if not self._private_key:
-            return "not-used"
-
-        if kid := _conf_factory("api_auth", "jwt_kid", fallback=None)():
-            return kid
-
-        # Generate it from the thumbprint of the private key
-        info = key_to_jwk_dict(self._private_key)
-        return info["kid"]
 
     def __attrs_post_init__(self):
         if not (self._private_key is None) ^ (self._secret_key is None):
@@ -538,7 +538,7 @@ def get_signing_key(section: str, key: str, make_secret_key_if_needed: bool = Tr
             raise ValueError(f"The value {section}/{key} must be set!")
 
     # Mypy can't grock the `if not secret_key`
-    return secret_key  # type: ignore[return-value]
+    return secret_key
 
 
 def get_signing_args(make_secret_key_if_needed: bool = True) -> dict[str, Any]:

@@ -20,7 +20,12 @@ import os
 from datetime import datetime
 
 from airflow import DAG, settings
-from airflow.decorators import task
+
+try:
+    from airflow.sdk import task
+except ImportError:
+    # Airflow 2 path
+    from airflow.decorators import task  # type: ignore[attr-defined,no-redef]
 from airflow.models import Connection
 from airflow.models.baseoperator import chain
 from airflow.providers.microsoft.azure.operators.powerbi import PowerBIWorkspaceListOperator
@@ -43,6 +48,8 @@ def create_connection(conn_id_name: str):
         password=CLIENT_SECRET,
         extra={"tenant_id": TENANT_ID},
     )
+    if settings.Session is None:
+        raise RuntimeError("Session not configured. Call configure_orm() first.")
     session = settings.Session()
     session.add(conn)
     session.commit()

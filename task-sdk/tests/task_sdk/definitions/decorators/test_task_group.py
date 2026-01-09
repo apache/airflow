@@ -23,7 +23,7 @@ import pendulum
 import pytest
 
 from airflow.providers.standard.operators.empty import EmptyOperator
-from airflow.sdk import dag, task_group
+from airflow.sdk import dag, task, task_group
 from airflow.sdk.definitions._internal.expandinput import (
     DictOfListsExpandInput,
     ListOfDictsExpandInput,
@@ -158,6 +158,29 @@ def test_expand_create_mapped():
     assert saved == {"a": 1, "b": MappedArgument(input=tg._expand_input, key="b")}
 
 
+def test_expand_invalid_xcomarg_return_value():
+    saved = {}
+
+    @dag(schedule=None, start_date=pendulum.datetime(2022, 1, 1))
+    def pipeline():
+        @task
+        def t():
+            return {"values": ["value_1", "value_2"]}
+
+        @task_group()
+        def tg(a, b):
+            saved["a"] = a
+            saved["b"] = b
+
+        tg.partial(a=1).expand(b=t()["values"])
+
+    with pytest.raises(
+        ValueError,
+        match=r"cannot map over XCom with custom key 'values' from <Task\(_PythonDecoratedOperator\): t>",
+    ):
+        pipeline()
+
+
 def test_expand_kwargs_no_wildcard():
     @dag(schedule=None, start_date=pendulum.datetime(2022, 1, 1))
     def pipeline():
@@ -192,6 +215,29 @@ def test_expand_kwargs_create_mapped():
     assert tg._expand_input == ListOfDictsExpandInput([{"b": "x"}, {"b": None}])
 
     assert saved == {"a": 1, "b": MappedArgument(input=tg._expand_input, key="b")}
+
+
+def test_expand_kwargs_invalid_xcomarg_return_value():
+    saved = {}
+
+    @dag(schedule=None, start_date=pendulum.datetime(2022, 1, 1))
+    def pipeline():
+        @task
+        def t():
+            return {"values": [{"b": 2}, {"b": 3}]}
+
+        @task_group()
+        def tg(a, b):
+            saved["a"] = a
+            saved["b"] = b
+
+        tg.partial(a=1).expand_kwargs(t()["values"])
+
+    with pytest.raises(
+        ValueError,
+        match=r"cannot map over XCom with custom key 'values' from <Task\(_PythonDecoratedOperator\): t>",
+    ):
+        pipeline()
 
 
 def test_override_dag_default_args():

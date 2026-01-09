@@ -22,15 +22,21 @@ import operator
 
 import pytest
 import time_machine
+from sqlalchemy import select
 
 from airflow import settings
 from airflow.models import DagRun, TaskInstance
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.providers.standard.operators.latest_only import LatestOnlyOperator
+
+try:
+    from airflow.sdk import TriggerRule
+except ImportError:
+    # Compatibility for Airflow < 3.1
+    from airflow.utils.trigger_rule import TriggerRule  # type: ignore[no-redef,attr-defined]
 from airflow.timetables.base import DataInterval
 from airflow.utils import timezone
 from airflow.utils.state import State
-from airflow.utils.trigger_rule import TriggerRule
 from airflow.utils.types import DagRunType
 
 from tests_common.test_utils.db import clear_db_runs, clear_db_xcom
@@ -53,13 +59,12 @@ FROZEN_NOW = timezone.datetime(2016, 1, 2, 12, 1, 1)
 def get_task_instances(task_id):
     session = settings.Session()
     logical_date = DagRun.logical_date if AIRFLOW_V_3_0_PLUS else DagRun.execution_date
-    return (
-        session.query(TaskInstance)
+    return session.scalars(
+        select(TaskInstance)
         .join(TaskInstance.dag_run)
-        .filter(TaskInstance.task_id == task_id)
+        .where(TaskInstance.task_id == task_id)
         .order_by(logical_date)
-        .all()
-    )
+    ).all()
 
 
 class TestLatestOnlyOperator:
@@ -83,9 +88,9 @@ class TestLatestOnlyOperator:
         with dag_maker(
             default_args={"owner": "airflow", "start_date": DEFAULT_DATE}, schedule=INTERVAL, serialized=True
         ):
-            task = LatestOnlyOperator(task_id="latest")
-        dag_maker.create_dagrun()
-        task.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
+            LatestOnlyOperator(task_id="latest")
+        dr = dag_maker.create_dagrun()
+        dag_maker.run_ti("latest", dr)
 
     def test_skipping_non_latest(self, dag_maker):
         with dag_maker(
@@ -130,7 +135,7 @@ class TestLatestOnlyOperator:
         )
 
         if AIRFLOW_V_3_0_1:
-            from airflow.exceptions import DownstreamTasksSkipped
+            from airflow.providers.common.compat.sdk import DownstreamTasksSkipped
 
             # AIP-72
             # Running the "latest" task for each of the DAG runs to test the skipping of downstream tasks
@@ -166,7 +171,8 @@ class TestLatestOnlyOperator:
             latest_ti2.task = latest_task
             latest_ti2.run()
         else:
-            latest_task.run(start_date=DEFAULT_DATE, end_date=END_DATE)
+            for dr in [dr0, dr1, dr2]:
+                dag_maker.run_ti("latest", dr)
 
         if AIRFLOW_V_3_0_PLUS:
             date_getter = operator.attrgetter("logical_date")
@@ -182,9 +188,10 @@ class TestLatestOnlyOperator:
         }
 
         # Verify the state of the other downstream tasks
-        downstream_task.run(start_date=DEFAULT_DATE, end_date=END_DATE)
-        downstream_task2.run(start_date=DEFAULT_DATE, end_date=END_DATE)
-        downstream_task3.run(start_date=DEFAULT_DATE, end_date=END_DATE)
+        for dr in [dr0, dr1, dr2]:
+            dag_maker.run_ti("downstream", dr)
+            dag_maker.run_ti("downstream_2", dr)
+            dag_maker.run_ti("downstream_3", dr)
 
         downstream_instances = get_task_instances("downstream")
         exec_date_to_downstream_state = {date_getter(ti): ti.state for ti in downstream_instances}
@@ -251,9 +258,12 @@ class TestLatestOnlyOperator:
             **triggered_by_kwargs,
         )
 
-        latest_task.run(start_date=DEFAULT_DATE, end_date=END_DATE)
-        downstream_task.run(start_date=DEFAULT_DATE, end_date=END_DATE)
-        downstream_task2.run(start_date=DEFAULT_DATE, end_date=END_DATE)
+        # Get all created dag runs and run tasks for each
+        all_drs = dag_maker.session.scalars(select(DagRun).where(DagRun.dag_id == dag_maker.dag.dag_id)).all()
+        for dr in all_drs:
+            dag_maker.run_ti("latest", dr)
+            dag_maker.run_ti("downstream", dr)
+            dag_maker.run_ti("downstream_2", dr)
 
         latest_instances = get_task_instances("latest")
         if AIRFLOW_V_3_0_PLUS:
@@ -307,3 +317,21 @@ class TestLatestOnlyOperator:
 
         # The task will raise DownstreamTasksSkipped exception if it is not the latest run
         assert run_task.state == State.SUCCESS
+
+    def test_regular_latest_only_run(self, dag_maker):
+        """Test latest_only running in normal mode."""
+        with dag_maker(
+            "test_dag",
+            start_date=DEFAULT_DATE,
+            schedule="* * * * *",
+            catchup=False,
+        ):
+            latest_task = LatestOnlyOperator(task_id="latest")
+            downstream_task = EmptyOperator(task_id="downstream")
+            latest_task >> downstream_task
+
+        dr = dag_maker.create_dagrun(
+            run_type=DagRunType.SCHEDULED,
+        )
+
+        dag_maker.run_ti("latest", dr)

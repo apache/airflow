@@ -1,0 +1,30 @@
+{
+  "consumingDags": "Fogyasztó Dag-ek",
+  "createEvent": {
+    "button": "Esemény létrehozása",
+    "manual": {
+      "description": "Adatkészlet (asset) esemény kézi létrehozása",
+      "extra": "Adatkészlet (asset) esemény kiegészítő",
+      "label": "Kézi"
+    },
+    "materialize": {
+      "description": "Dag elindítása az adatkészlet (asset) előtt",
+      "descriptionWithDag": "{{dagName}} elindítása az adatkészlet (asset) előtt",
+      "label": "Előállítás",
+      "unpauseDag": "{{dagName}} újraengedélyezése indításkor."
+    },
+    "success": {
+      "manualDescription": "Az adatkészlet (asset) esemény kézi létrehozása sikeres volt.",
+      "manualTitle": "Adatkészlet (asset) esemény létrehozva",
+      "materializeDescription": "Az előző Dag {{dagId}} sikeresen elindult.",
+      "materializeTitle": "Adatkészlet (asset) előállítása"
+    },
+    "title": "Adatkészlet (asset) esemény létrehozása {{name}} számára"
+  },
+  "group": "Csoport",
+  "lastAssetEvent": "Utolsó Adatkészlet (asset) esemény",
+  "name": "Név",
+  "producingTasks": "Előállító feladatok",
+  "scheduledDags": "Ütemezett Dag-ek",
+  "searchPlaceholder": "Adatkészlet (asset) keresése"
+}

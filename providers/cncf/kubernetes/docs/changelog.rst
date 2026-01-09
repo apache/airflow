@@ -28,6 +28,312 @@ Changelog
 ---------
 
 
+10.12.0
+.......
+
+Features
+~~~~~~~~
+
+* ``Add 'delete_active_pod' cleanup option and corresponding unit tests (#59160)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix '@task.kubernetes_cmd' TaskGroup.expand mappings by templating TaskFlow args (#59292)``
+* ``Fix 'KubernetesPodOperator' deferrable mode with env-defined connection (#41706) (#58841)``
+* ``Fix deferred mode KubernetesPodOperator:  fast-fail pod start errors (ErrImagePull/ImagePullBackOff) (#59010)``
+* ``Fix XCom directory creation logic in Kubernetes decorator (#56545) (#59347)``
+
+Misc
+~~~~
+
+* ``TaskInstance unused method cleanup (#59835)``
+* ``Remove top-level SDK reference in Core (#59817)``
+* ``Add and fix SIM107 and B012 Ruff rule (#59770)``
+* ``Refactor/sqla2 providers(celery, kubernetes, databricks, mysql) to remove SQLA query usage (#59537)``
+* ``Optimize Kubernetes API usage for watching events (#59080)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Revert "Remove PriorityWeightStrategy reference in SDK" (#59828)``
+   * ``Remove PriorityWeightStrategy reference in SDK (#59780)``
+
+10.11.1
+.......
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix finally return handling (#58998)``
+
+Misc
+~~~~
+
+* ``Convert the exclusion on urllib3 to != for 2.6.0 (#59203)``
+* ``Add backcompat for exceptions in providers (#58727)``
+* ``Limit urllib3 to < 2.6.0 to handle kubernetes client breaking with it (#59108)``
+* ``Move the traces and metrics code under a common observability package (#56187)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+10.11.0
+.......
+
+.. note::
+    This release of provider is only available for Airflow 2.11+ as explained in the
+    Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/PROVIDERS.rst#minimum-supported-version-of-airflow-for-community-managed-providers>_.
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix Account for job- prefix when truncating job names (#58391)``
+* ``KubernetesPodOperator: Rework of Kubernetes API retry behavior (#58397)``
+* ``Fix KuberetesPodTriggerer use correct parameter name to read pod logs. (#58489)``
+* ``KubernetesPodOperator pushes XCom on successful execution. (#58488)``
+* ``KubernetesPodOperator PodManager retries during create pod on too many requests error (#58033)``
+* ``Add JSON serialization for kubeconfig in AsyncKubernetesHook (#57169)``
+* ``Make the launcher a cached_property and minor change to improve how pod name is retrieved (#58646)``
+* ``Add retry handling for Kubernetes API client operations in KubernetesPodOperator (#58778)``
+
+Misc
+~~~~
+
+* ``Move out some exceptions to TaskSDK (#54505)``
+* ``Bump minimum Airflow version in providers to Airflow 2.11.0 (#58612)``
+* ``Fix lower bound dependency to common-compat provider (#58833)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Updates to release process of providers (#58316)``
+   * ``Send executor integration info in workload (#57800)``
+   * ``Fixes #57515 - Fix test_async_write_logs_should_execute_successfully test (#58276)``
+   * ``Prepare release for 2025-11-27 wave of providers (#58697)``
+
+10.10.0
+.......
+
+Features
+~~~~~~~~
+
+* ``KubernetesPodTriggerer reads pod logs instead of KubernetesPodOperator (#57531)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix 'KubernetesPodOperator' fails to delete pods with None value labels (#53477)``
+* ``Fix KubernetesExecutor open slots metric (#55797)``
+* ``improve deferrable KPO handling of deleted pods in between polls (#56976)``
+* ``KubernetesExecutor: retry pod creation on Kubernetes API 500 errors (#57054)``
+
+Misc
+~~~~
+
+* ``Convert all airflow distributions to be compliant with ASF requirements (#58138)``
+* ``Unify Pod Startup Tracking: KubernetesPodTriggerer and KubernetesPodOperator Now Share Common Startup Logic (#56875)``
+* ``Relax Kubernetes client version support to <35.0.0 (#57413)``
+* ``Identify duplicate kubernetes section airflow configuration and mark them as deprecated (#57028)``
+
+Doc-only
+~~~~~~~~
+
+* ``CHG: image (#56593)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Fix main failing on cross-merged PR (#58270)``
+   * ``Delete all unnecessary LICENSE Files (#58191)``
+   * ``Enable PT006 rule to 19 files in providers (cncf,common) (#57995)``
+   * ``Fix docstring typos (#57840)``
+   * ``Fix MyPy type errors in providers in cncf/kubernetes provider  (#57563)``
+   * ``Fix mypy static errors in main (#57755)``
+   * ``Attempt to resolve pip "ResolutionTooDeep" on cffi conflict (#57697)``
+   * ``Enable ruff PLW1641 rule (#57679)``
+   * ``Fix code formatting via ruff preview (#57641)``
+   * ``Enable ruff PLW0129 rule (#57516)``
+
+
+10.9.0
+......
+
+Features
+~~~~~~~~
+
+* ``Move container-related functions from PodManager to a separate file (#56700)``
+* ``Add KubernetesPodOperator deferred callbacks (#47108)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix KubernetesPodOperator termination_grace_period parameter not being applied to pod spec (#56402)``
+* ``SparkKubernetesOperator: preserve existing metadata labels in SparkApplication manifest (#56063)``
+
+Misc
+~~~~
+
+* ``Migrate cncf/kubernetes provider to ''common.compat'' (#57023)``
+
+Doc-only
+~~~~~~~~
+
+* ``Correct 'Dag' to 'DAG' for code snippets in provider docs (#56727)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Remove placeholder Release Date in changelog and index files (#56056)``
+   * ``Enable PT011 rule to provider tests (#56578)``
+
+10.8.2
+......
+
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Don't check db migration needlessly for 'airflow celery' cli commands. (#55878)``
+* ``Relax Kubernetes client version support to <34.0.0 (#55932)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+10.8.1
+......
+
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix: Add task context labels to driver and executor pods for SparkKubernetesOperator reattach_on_restart functionality (#50803)``
+* ``Add more error handling in pod_manager consume_logs (#55479)``
+* ``Add more robust check of the container statuses (#55371)``
+* ``Fix circular import in version_compat (#55809)``
+
+Misc
+~~~~
+
+* ``Move the KubernetesPodOperator 'convert_config_file_to_dict' call (#55064)``
+* ``Fix kpo log_events_on_failure logs warnings at warning level (#54967)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Switch all airflow logging to structlog (#52651)``
+
+10.8.0
+......
+
+
+Features
+~~~~~~~~
+
+* ``Add customizable log prefix and formatter to KubernetesPodOperator (#53598)``
+* ``Enhanced Pod Failure Logging in KubernetesExecutor  (#54115)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``fix: Handle Kubernetes API responses with non-JSON bodies (#55107)``
+* ``Fix KubernetesExecutor retry on 409 conflict (#54777)``
+* ``KubernetesPodOperator logs pod and container state after error occurred (#54828)``
+* ``Throttle HTTPError during consume pod logs (#54761)``
+
+Misc
+~~~~
+
+* ``Remove airflow.models.DAG (#54383)``
+* ``Refactor Kubernetes Executor Types to NamedTuples (#54858)``
+* ``Move some items in 'airflow.utils.context' to appropriate places (#53600)``
+
+Doc-only
+~~~~~~~~
+
+* ``Make term Dag consistent in providers docs (#55101)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Remove Legacy Query Object Usage from airflow-models (#52325)``
+   * ``Fix k8s pod yaml test to expect redacted sensitive data (#54883)``
+   * ``Move secrets_masker over to airflow_shared distribution (#54449)``
+   * ``Replace API server's direct Connection access workaround in BaseHook (#54083)``
+   * ``Switch pre-commit to prek (#54258)``
+   * ``make bundle_name not nullable (#47592)``
+   * ``Bump pytest-asyncio to 1.1.0 (#54123)``
+   * ``Fix Airflow 2 reference in README/index of providers (#55240)``
+
+10.7.0
+......
+
+Features
+~~~~~~~~
+
+* ``Add support for taking the config file as a dict for KubernetesHook (#53126)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Kill kube watcher instance if it doesnt terminate gracefully in 60 seconds (#52662)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+10.6.2
+......
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Pass cluster context to AsyncKubernetesHook (#53504)``
+* ``Handle multiple pods to prevent KubernetesJobOperator falls with parallelism option (#49899)``
+* ``(fix): Handle pod evictions correctly during retry in KubernetesPodOperator (#53059)``
+
+Misc
+~~~~
+
+* ``Deprecate decorators from Core (#53629)``
+* ``Use asyncio.run instead of loop.run_until_complete. (#53475)``
+* ``Add Python 3.13 support for Airflow. (#46891)``
+* ``Remove 'airflow.utils.xcom' module and add backcompat shim (#53187)``
+* ``Cleanup mypy ignores cncf provider where possible (#53264)``
+* ``Remove type ignore across codebase after mypy upgrade (#53243)``
+* ``Replace usages of XCOM_RETURN_KEY in providers to not be from utils (#53170)``
+* ``Make cncf provider compatible with mypy 1.16.1 (#53121)``
+* ``Remove upper-binding for "python-requires" (#52980)``
+* ``Temporarily switch to use >=,< pattern instead of '~=' (#52967)``
+* ``Move all BaseHook usages to version_compat in cncf (#52798)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Making some brittle tests related to log assertion more robust (#53743)``
+   * ``Make dag_version_id in TI non-nullable (#50825)``
+
+10.6.1
+......
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix deferrable mode for SparkKubernetesOperator (#51956)``
+* ``Reduce log noise from K8s Pod Operator for XCom (#51812)``
+* ``Prevent legacy static hybrid executors to be running in Airflow 3 (#51760)``
+
+Misc
+~~~~
+
+* ``Move 'BaseHook' implementation to task SDK (#51873)``
+* ``Update Kubernetes provider for Airflow 3.0 compatibility (#52664)``
+* ``Upgrade ruff to latest version (0.12.1) (#52562)``
+* ``Drop support for Python 3.9 (#52072)``
+* ``Use BaseSensorOperator from task sdk in providers (#52296)``
+* ``Move type-ignores up one line (#52195)``
+* ``Ignore mypy errors for deprecated executors (#52187)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Make sure all test version imports come from test_common (#52425)``
+   * ``Separate out creation of default Connections for tests and non-tests (#52129)``
+   * ``Remove @pytest.mark.db_test for cncf (#52153)``
+   * ``Remove residual occurences of 'merge_conn' from cncf tests (#52064)``
+   * ``Introducing fixture to create 'Connections' without DB in provider tests (#51930)``
+
 10.6.0
 ......
 
@@ -279,8 +585,6 @@ Misc
 
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):
-
-.. Review and move the new changes to one of the sections above:
    * ``fix: Get the pid of xcom command dynamically (#45053)``
 
 10.0.1
@@ -683,7 +987,8 @@ Misc
 * ``Add GKEStartKueueInsideClusterOperator (#37072)``
 * ``Convert Kubernetes ApiException status code to string to ensure it's correctly checked (#37405)``
 
-.. Review and move the new changes to one of the sections above:
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
    * ``Add d401 support to kubernetes provider (#37301)``
    * ``Revert "KPO Maintain backward compatibility for execute_complete and trigger run method (#37363)" (#37446)``
    * ``KPO Maintain backward compatibility for execute_complete and trigger run method (#37363)``
@@ -1190,7 +1495,8 @@ Features
 
 * ``Allow to set limits for XCOM container (#28125)``
 
-.. Review and move the new changes to one of the sections above:
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
    * ``Add mechanism to suspend providers (#30422)``
 
 5.3.0
@@ -1290,8 +1596,6 @@ Misc
    appropriate section above if needed. Do not delete the lines(!):
    * ``Updated docs for RC3 wave of providers (#27937)``
    * ``Prepare for follow-up relase for November providers (#27774)``
-
-.. Review and move the new changes to one of the sections above:
 
 5.0.0
 .....

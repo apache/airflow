@@ -16,7 +16,7 @@
     under the License.
 
 
-Installation of Airflow CTL®
+Installation of airflowctl
 ----------------------------
 
 .. contents:: :local:
@@ -27,8 +27,6 @@ Installation of Airflow CTL®
     :hidden:
 
     Prerequisites <prerequisites>
-    Dependencies <dependencies>
-    Supported versions <supported-versions>
     Installing from sources <installing-from-sources>
     Installing from PyPI <installing-from-pypi>
 
@@ -108,8 +106,8 @@ More details:  :doc:`/installation/installing-from-pypi`
 
 **What are you expected to handle**
 
-* You are expected to install Airflow CTL.
-* You should running Airflow API server.
+* You are expected to install airflowctl.
+* You should run the Airflow API server.
 * You need to setup monitoring of your system allowing you to observe resources and react to problems.
 
 **What Apache Airflow Community provides for that method**

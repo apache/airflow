@@ -23,7 +23,7 @@ import subprocess
 from typing import Any
 from urllib.parse import quote, urlparse
 
-from airflow.hooks.base import BaseHook
+from airflow.providers.common.compat.sdk import BaseHook
 
 
 class PackageIndexHook(BaseHook):

@@ -34,17 +34,18 @@ from openlineage.client.facet_v2 import (
     ownership_job,
     tags_job,
 )
-from openlineage.client.uuid import generate_static_uuid
 
-from airflow.configuration import conf as airflow_conf
+from airflow.providers.common.compat.sdk import Stats, conf as airflow_conf
 from airflow.providers.openlineage import __version__ as OPENLINEAGE_PROVIDER_VERSION, conf
 from airflow.providers.openlineage.utils.utils import (
     OpenLineageRedactor,
+    build_dag_run_ol_run_id,
+    build_task_instance_ol_run_id,
     get_airflow_debug_facet,
     get_airflow_state_run_facet,
+    get_dag_job_dependency_facet,
     get_processing_engine_facet,
 )
-from airflow.stats import Stats
 from airflow.utils.log.logging_mixin import LoggingMixin
 
 if TYPE_CHECKING:
@@ -55,9 +56,12 @@ if TYPE_CHECKING:
     from airflow.utils.state import DagRunState
 else:
     try:
-        from airflow.sdk.execution_time.secrets_masker import SecretsMasker, _secrets_masker
+        from airflow.sdk._shared.secrets_masker import SecretsMasker, _secrets_masker
     except ImportError:
-        from airflow.utils.log.secrets_masker import SecretsMasker, _secrets_masker
+        try:
+            from airflow.sdk.execution_time.secrets_masker import SecretsMasker, _secrets_masker
+        except ImportError:
+            from airflow.utils.log.secrets_masker import SecretsMasker, _secrets_masker
 
 _PRODUCER = f"https://github.com/apache/airflow/tree/providers-openlineage/{OPENLINEAGE_PROVIDER_VERSION}"
 
@@ -90,7 +94,7 @@ class OpenLineageAdapter(LoggingMixin):
                     "OpenLineage configuration found. Transport type: `%s`",
                     config.get("transport", {}).get("type", "no type provided"),
                 )
-                self._client = OpenLineageClient(config=config)  # type: ignore[call-arg]
+                self._client = OpenLineageClient(config=config)
             else:
                 self.log.debug(
                     "OpenLineage configuration not found directly in Airflow. "
@@ -121,12 +125,7 @@ class OpenLineageAdapter(LoggingMixin):
 
     @staticmethod
     def build_dag_run_id(dag_id: str, logical_date: datetime, clear_number: int) -> str:
-        return str(
-            generate_static_uuid(
-                instant=logical_date,
-                data=f"{conf.namespace()}.{dag_id}.{clear_number}".encode(),
-            )
-        )
+        return build_dag_run_ol_run_id(dag_id=dag_id, logical_date=logical_date, clear_number=clear_number)
 
     @staticmethod
     def build_task_instance_run_id(
@@ -136,11 +135,12 @@ class OpenLineageAdapter(LoggingMixin):
         logical_date: datetime,
         map_index: int,
     ):
-        return str(
-            generate_static_uuid(
-                instant=logical_date,
-                data=f"{conf.namespace()}.{dag_id}.{task_id}.{try_number}.{map_index}".encode(),
-            )
+        return build_task_instance_ol_run_id(
+            dag_id=dag_id,
+            task_id=task_id,
+            try_number=try_number,
+            logical_date=logical_date,
+            map_index=map_index,
         )
 
     def emit(self, event: RunEvent):
@@ -182,13 +182,14 @@ class OpenLineageAdapter(LoggingMixin):
         self,
         run_id: str,
         job_name: str,
-        job_description: str,
         event_time: str,
+        job_description: str | None,
         nominal_start_time: str | None,
         nominal_end_time: str | None,
         owners: list[str] | None,
         tags: list[str] | None,
         task: OperatorLineage | None,
+        job_description_type: str | None = None,
         run_facets: dict[str, RunFacet] | None = None,
     ) -> RunEvent:
         """
@@ -196,7 +197,8 @@ class OpenLineageAdapter(LoggingMixin):
 
         :param run_id: globally unique identifier of task in dag run
         :param job_name: globally unique identifier of task in dag
-        :param job_description: user provided description of job
+        :param job_description: description of the job
+        :param job_description_type: MIME type of the description arg content
         :param event_time:
         :param nominal_start_time: scheduled time of dag run
         :param nominal_end_time: following schedule of dag run
@@ -221,6 +223,7 @@ class OpenLineageAdapter(LoggingMixin):
                 job_name=job_name,
                 job_type=_JOB_TYPE_TASK,
                 job_description=job_description,
+                job_description_type=job_description_type,
                 job_owners=owners,
                 job_tags=tags,
                 job_facets=task.job_facets if task else None,
@@ -241,6 +244,8 @@ class OpenLineageAdapter(LoggingMixin):
         nominal_end_time: str | None,
         owners: list[str] | None,
         tags: list[str] | None,
+        job_description: str | None,
+        job_description_type: str | None = None,
         run_facets: dict[str, RunFacet] | None = None,
     ) -> RunEvent:
         """
@@ -249,6 +254,8 @@ class OpenLineageAdapter(LoggingMixin):
         :param run_id: globally unique identifier of task in dag run
         :param job_name: globally unique identifier of task between dags
         :param end_time: time of task completion
+        :param job_description: description of the job
+        :param job_description_type: MIME type of the description arg content
         :param tags: list of tags
         :param nominal_start_time: scheduled time of dag run
         :param nominal_end_time: following schedule of dag run
@@ -274,6 +281,8 @@ class OpenLineageAdapter(LoggingMixin):
                 job_facets=task.job_facets,
                 job_owners=owners,
                 job_tags=tags,
+                job_description=job_description,
+                job_description_type=job_description_type,
             ),
             inputs=task.inputs,
             outputs=task.outputs,
@@ -291,6 +300,8 @@ class OpenLineageAdapter(LoggingMixin):
         nominal_end_time: str | None,
         owners: list[str] | None,
         tags: list[str] | None,
+        job_description: str | None,
+        job_description_type: str | None = None,
         error: str | BaseException | None = None,
         run_facets: dict[str, RunFacet] | None = None,
     ) -> RunEvent:
@@ -301,6 +312,8 @@ class OpenLineageAdapter(LoggingMixin):
         :param job_name: globally unique identifier of task between dags
         :param end_time: time of task completion
         :param task: metadata container with information extracted from operator
+        :param job_description: description of the job
+        :param job_description_type: MIME type of the description arg content
         :param run_facets: custom run facets
         :param tags: list of tags
         :param nominal_start_time: scheduled time of dag run
@@ -338,6 +351,8 @@ class OpenLineageAdapter(LoggingMixin):
                 job_facets=task.job_facets,
                 job_owners=owners,
                 job_tags=tags,
+                job_description=job_description,
+                job_description_type=job_description_type,
             ),
             inputs=task.inputs,
             outputs=task.outputs,
@@ -348,6 +363,7 @@ class OpenLineageAdapter(LoggingMixin):
     def dag_started(
         self,
         dag_id: str,
+        run_id: str,
         logical_date: datetime,
         start_date: datetime,
         nominal_start_time: str | None,
@@ -356,17 +372,23 @@ class OpenLineageAdapter(LoggingMixin):
         tags: list[str],
         run_facets: dict[str, RunFacet],
         clear_number: int,
-        description: str | None = None,
+        job_description: str | None,
+        is_asset_triggered: bool,
+        job_description_type: str | None = None,
         job_facets: dict[str, JobFacet] | None = None,  # Custom job facets
     ):
         try:
+            job_dependency_facet = {}
+            if is_asset_triggered:
+                job_dependency_facet = get_dag_job_dependency_facet(dag_id=dag_id, dag_run_id=run_id)
             event = RunEvent(
                 eventType=RunState.START,
                 eventTime=start_date.isoformat(),
                 job=self._build_job(
                     job_name=dag_id,
                     job_type=_JOB_TYPE_DAG,
-                    job_description=description,
+                    job_description=job_description,
+                    job_description_type=job_description_type,
                     job_owners=owners,
                     job_facets=job_facets,
                     job_tags=tags,
@@ -377,7 +399,7 @@ class OpenLineageAdapter(LoggingMixin):
                     ),
                     nominal_start_time=nominal_start_time,
                     nominal_end_time=nominal_end_time,
-                    run_facets={**run_facets, **get_airflow_debug_facet()},
+                    run_facets={**run_facets, **get_airflow_debug_facet(), **job_dependency_facet},
                 ),
                 inputs=[],
                 outputs=[],
@@ -404,8 +426,14 @@ class OpenLineageAdapter(LoggingMixin):
         task_ids: list[str],
         owners: list[str] | None,
         run_facets: dict[str, RunFacet],
+        job_description: str | None,
+        is_asset_triggered: bool,
+        job_description_type: str | None = None,
     ):
         try:
+            job_dependency_facet = {}
+            if is_asset_triggered:
+                job_dependency_facet = get_dag_job_dependency_facet(dag_id=dag_id, dag_run_id=run_id)
             event = RunEvent(
                 eventType=RunState.COMPLETE,
                 eventTime=end_date.isoformat(),
@@ -414,6 +442,8 @@ class OpenLineageAdapter(LoggingMixin):
                     job_type=_JOB_TYPE_DAG,
                     job_owners=owners,
                     job_tags=tags,
+                    job_description=job_description,
+                    job_description_type=job_description_type,
                 ),
                 run=self._build_run(
                     run_id=self.build_dag_run_id(
@@ -423,6 +453,7 @@ class OpenLineageAdapter(LoggingMixin):
                     nominal_end_time=nominal_end_time,
                     run_facets={
                         **get_airflow_state_run_facet(dag_id, run_id, task_ids, dag_run_state),
+                        **job_dependency_facet,
                         **get_airflow_debug_facet(),
                         **run_facets,
                     },
@@ -453,8 +484,14 @@ class OpenLineageAdapter(LoggingMixin):
         owners: list[str] | None,
         msg: str,
         run_facets: dict[str, RunFacet],
+        job_description: str | None,
+        is_asset_triggered: bool,
+        job_description_type: str | None = None,
     ):
         try:
+            job_dependency_facet = {}
+            if is_asset_triggered:
+                job_dependency_facet = get_dag_job_dependency_facet(dag_id=dag_id, dag_run_id=run_id)
             event = RunEvent(
                 eventType=RunState.FAIL,
                 eventTime=end_date.isoformat(),
@@ -463,6 +500,8 @@ class OpenLineageAdapter(LoggingMixin):
                     job_type=_JOB_TYPE_DAG,
                     job_owners=owners,
                     job_tags=tags,
+                    job_description=job_description,
+                    job_description_type=job_description_type,
                 ),
                 run=self._build_run(
                     run_id=self.build_dag_run_id(
@@ -475,6 +514,7 @@ class OpenLineageAdapter(LoggingMixin):
                             message=msg, programmingLanguage="python"
                         ),
                         **get_airflow_state_run_facet(dag_id, run_id, task_ids, dag_run_state),
+                        **job_dependency_facet,
                         **get_airflow_debug_facet(),
                         **run_facets,
                     },
@@ -519,6 +559,7 @@ class OpenLineageAdapter(LoggingMixin):
         job_name: str,
         job_type: Literal["DAG", "TASK"],
         job_description: str | None = None,
+        job_description_type: str | None = None,
         job_owners: list[str] | None = None,
         job_tags: list[str] | None = None,
         job_facets: dict[str, JobFacet] | None = None,
@@ -530,7 +571,7 @@ class OpenLineageAdapter(LoggingMixin):
             facets.update(
                 {
                     "documentation": documentation_job.DocumentationJobFacet(
-                        description=job_description, producer=_PRODUCER
+                        description=job_description, contentType=job_description_type, producer=_PRODUCER
                     )
                 }
             )

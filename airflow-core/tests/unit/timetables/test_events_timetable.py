@@ -21,9 +21,9 @@ import pendulum
 import pytest
 import time_machine
 
+from airflow._shared.timezones.timezone import utc
 from airflow.timetables.base import DagRunInfo, DataInterval, TimeRestriction, Timetable
 from airflow.timetables.events import EventsTimetable
-from airflow.utils.timezone import utc
 
 BEFORE_DATE = pendulum.DateTime(2021, 9, 4, tzinfo=utc)  # Precedes all events
 START_DATE = pendulum.DateTime(2021, 9, 7, tzinfo=utc)
@@ -65,7 +65,7 @@ def restricted_timetable():
 
 
 @pytest.mark.parametrize(
-    "start, end",
+    ("start", "end"),
     list(zip(EVENT_DATES, EVENT_DATES)),
 )
 def test_dag_run_info_interval(start: pendulum.DateTime, end: pendulum.DateTime):
@@ -101,7 +101,7 @@ def test_manual_with_restricted_before(restricted_timetable: Timetable, restrict
 
 
 @pytest.mark.parametrize(
-    "last_automated_data_interval, expected_next_info",
+    ("last_automated_data_interval", "expected_next_info"),
     [
         pytest.param(None, DagRunInfo.interval(START_DATE, START_DATE)),
         pytest.param(
@@ -190,4 +190,33 @@ def test_serialize(unrestricted_timetable: Timetable):
             "2021-10-09T00:00:00+00:00",
         ],
         "restrict_to_events": False,
+        "_summary": "6 events",
+        "description": "6 events between 2021-09-06T00:00:00+00:00 and 2021-10-09T00:00:00+00:00",
     }
+
+
+def test_timetable_after_serialization_is_the_same():
+    description = "Example description"
+    timetable = EventsTimetable(
+        event_dates=EVENT_DATES, restrict_to_events=True, description=description, presorted=True
+    )
+    assert timetable.summary == description
+    assert timetable.description == description
+    assert timetable.event_dates == EVENT_DATES
+
+    deserialized: EventsTimetable = timetable.deserialize(timetable.serialize())
+    assert deserialized.summary == description
+    assert deserialized.description == description
+    assert deserialized.event_dates == EVENT_DATES
+
+
+def test_timetable_without_description_after_serialization_is_the_same():
+    timetable = EventsTimetable(event_dates=EVENT_DATES, presorted=True)
+    summary = timetable.summary
+    description = timetable.description
+    assert timetable.event_dates == EVENT_DATES
+
+    deserialized: EventsTimetable = timetable.deserialize(timetable.serialize())
+    assert deserialized.summary == summary
+    assert deserialized.description == description
+    assert deserialized.event_dates == EVENT_DATES

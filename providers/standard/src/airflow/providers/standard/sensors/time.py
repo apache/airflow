@@ -19,37 +19,15 @@ from __future__ import annotations
 
 import datetime
 import warnings
-from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
-from airflow.configuration import conf
 from airflow.exceptions import AirflowProviderDeprecationWarning
+from airflow.providers.common.compat.sdk import BaseSensorOperator, conf, timezone
 from airflow.providers.standard.triggers.temporal import DateTimeTrigger
-from airflow.sensors.base import BaseSensorOperator
-
-try:
-    from airflow.triggers.base import StartTriggerArgs
-except ImportError:
-    # TODO: Remove this when min airflow version is 2.10.0 for standard provider
-    @dataclass
-    class StartTriggerArgs:  # type: ignore[no-redef]
-        """Arguments required for start task execution from triggerer."""
-
-        trigger_cls: str
-        next_method: str
-        trigger_kwargs: dict[str, Any] | None = None
-        next_kwargs: dict[str, Any] | None = None
-        timeout: datetime.timedelta | None = None
-
-
-from airflow.utils import timezone
+from airflow.triggers.base import StartTriggerArgs
 
 if TYPE_CHECKING:
-    try:
-        from airflow.sdk.definitions.context import Context
-    except ImportError:
-        # TODO: Remove once provider drops support for Airflow 2
-        from airflow.utils.context import Context
+    from airflow.sdk import Context
 
 
 class TimeSensor(BaseSensorOperator):
@@ -116,9 +94,11 @@ class TimeSensor(BaseSensorOperator):
                 ),
                 method_name="execute_complete",
             )
+        else:
+            super().execute(context)
 
-    def execute_complete(self, context: Context) -> None:
-        return
+    def execute_complete(self, context: Context, event: Any = None) -> None:
+        return None
 
     def poke(self, context: Context) -> bool:
         self.log.info("Checking if the time (%s) has come", self.target_datetime)

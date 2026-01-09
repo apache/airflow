@@ -18,7 +18,7 @@
 Operators
 =========
 
-An Operator is conceptually a template for a predefined :doc:`Task <tasks>`, that you can just define declaratively inside your DAG::
+An Operator is conceptually a template for a predefined :doc:`Task <tasks>`, that you can just define declaratively inside your Dag::
 
     with DAG("my-dag") as dag:
         ping = HttpOperator(endpoint="http://example.com/update/")
@@ -57,7 +57,7 @@ and transfers in our
 
     Inside Airflow's code, we often mix the concepts of :doc:`tasks` and Operators, and they are mostly
     interchangeable. However, when we talk about a *Task*, we mean the generic "unit of execution" of a
-    DAG; when we talk about an *Operator*, we mean a reusable, pre-made Task template whose logic
+    Dag; when we talk about an *Operator*, we mean a reusable, pre-made Task template whose logic
     is all done for you and that just needs some arguments.
 
 
@@ -84,11 +84,25 @@ Here, ``{{ ds }}`` is a templated variable, and because the ``env`` parameter of
 
 You can also pass in a callable instead when Python is more readable than a Jinja template. The callable must accept two named arguments ``context`` and ``jinja_env``:
 
+The ``context`` parameter is an Airflow's ``Context`` object that provides runtime information for the current task execution. Its contents can be accessed with Python's standard `dict syntax <https://docs.python.org/3/library/stdtypes.html#mapping-types-dict>`_. It includes all variables available in Jinja templates and is read-only from the perspective of template rendering - while you can access and use its values, modifications won't affect the task execution environment.
+
+For a complete list of available context variables see :ref:`Templates reference <templates:variables>`.
+
 .. code-block:: python
 
-    def build_complex_command(context, jinja_env):
+    from typing import TYPE_CHECKING
+
+    if TYPE_CHECKING:
+        import jinja2
+        from airflow.sdk import Context
+
+
+    def build_complex_command(context: Context, jinja_env: jinja2.Environment) -> str:
+        # Access runtime information from the context dictionary
+        task_id = context["ti"].task_id
+        execution_date = context["ds"]
         with open("file.csv") as f:
-            return do_complex_things(f)
+            return do_complex_things(f, task_id, execution_date)
 
 
     t = BashOperator(
@@ -101,7 +115,7 @@ Since each template field is only rendered once, the callable's return value wil
 
 .. code-block:: python
 
-    def build_complex_command(context, jinja_env):
+    def build_complex_command(context: Context, jinja_env: jinja2.Environment) -> str:
         with open("file.csv") as f:
             data = do_complex_things(f)
         return context["task"].render_template(data, context, jinja_env)
@@ -162,7 +176,7 @@ Deep nested fields can also be substituted, as long as all intermediate fields a
     )
 
 
-You can pass custom options to the Jinja ``Environment`` when creating your DAG. One common usage is to avoid Jinja from dropping a trailing newline from a template string:
+You can pass custom options to the Jinja ``Environment`` when creating your Dag. One common usage is to avoid Jinja from dropping a trailing newline from a template string:
 
 .. code-block:: python
 
@@ -176,7 +190,7 @@ You can pass custom options to the Jinja ``Environment`` when creating your DAG.
 
 See the `Jinja documentation <https://jinja.palletsprojects.com/en/2.11.x/api/#jinja2.Environment>`_ to find all available options.
 
-Some operators will also consider strings ending in specific suffixes (defined in ``template_ext``) to be references to files when rendering fields. This can be useful for loading scripts or queries directly from files rather than including them into DAG code.
+Some operators will also consider strings ending in specific suffixes (defined in ``template_ext``) to be references to files when rendering fields. This can be useful for loading scripts or queries directly from files rather than including them into Dag code.
 
 For example, consider a BashOperator which runs a multi-line bash script, this will load the file at ``script.sh`` and use its contents as the value for ``bash_command``:
 
@@ -187,7 +201,7 @@ For example, consider a BashOperator which runs a multi-line bash script, this w
         bash_command="script.sh",
     )
 
-By default, paths provided in this way should be provided relative to the DAG's folder (as this is the default Jinja template search path), but additional paths can be added by setting the ``template_searchpath`` arg on the DAG.
+By default, paths provided in this way should be provided relative to the Dag's folder (as this is the default Jinja template search path), but additional paths can be added by setting the ``template_searchpath`` arg on the Dag.
 
 In some cases, you may want to exclude a string from templating and use it directly. Consider the following task:
 
@@ -273,7 +287,7 @@ There are two solutions if we want to get the actual dict instead. The first is 
         python_callable=transform,
     )
 
-Alternatively, Jinja can also be instructed to render a native Python object. This is done by passing ``render_template_as_native_obj=True`` to the DAG. This makes Airflow use `NativeEnvironment <https://jinja.palletsprojects.com/en/2.11.x/nativetypes/>`_ instead of the default ``SandboxedEnvironment``:
+Alternatively, Jinja can also be instructed to render a native Python object. This is done by passing ``render_template_as_native_obj=True`` to the Dag. This makes Airflow use `NativeEnvironment <https://jinja.palletsprojects.com/en/2.11.x/nativetypes/>`_ instead of the default ``SandboxedEnvironment``:
 
 .. code-block:: python
 
@@ -296,7 +310,7 @@ Alternatively, Jinja can also be instructed to render a native Python object. Th
 Reserved params keyword
 -----------------------
 
-In Apache Airflow 2.2.0 ``params`` variable is used during DAG serialization. Please do not use that name in third party operators.
+In Apache Airflow 2.2.0 ``params`` variable is used during Dag serialization. Please do not use that name in third party operators.
 If you upgrade your environment and get the following error:
 
 .. code-block::
@@ -331,3 +345,37 @@ If you need to include a Jinja template expression (e.g., ``{{ ds }}``) literall
   )
 
 This ensures the f-string processing results in a string containing the literal double braces required by Jinja, which Airflow can then template correctly before execution. Failure to do this is a common issue for beginners and can lead to errors during DAG parsing or unexpected behavior at runtime when the templating does not occur as expected.
+
+Pre- and post-execute methods
+-----------------------------
+
+The ``pre_execute`` and ``post_execute`` methods are called before and after the operator is executed, respectively.
+
+For example, you can use the ``pre_execute`` method to elegantly determine if a task should be executed or not:
+
+.. code-block:: python
+
+    def _check_skipped(context: Any) -> None:
+        """
+        Check if a given task instance should be skipped if the `tasks_to_skip` Airflow Variable is a list that contains the task id.
+        """
+        tasks_to_skip = Variable.get("tasks_to_skip", deserialize_json=True)
+        if context["task"].task_id in on_ice:
+            raise AirflowSkipException("Task instance configured to be skipped by `tasks_to_skip` variable.")
+
+
+    @task(pre_execute=_check_skipped)
+    def test():
+        """
+        This task will be skipped if the `tasks_to_skip` Airflow Variable is set and contains the task id.
+        """
+        ...
+
+``post_execute`` can be used to clean up a temporary file or directory that was created by the operator.
+
+The ``pre_execute`` and ``post_execute`` methods include the task instance's context as a parameter.
+
+Difference between pre-/post-execute and setup/teardown
+-------------------------------------------------------
+
+The ``pre_execute`` and ``post_execute`` methods are called before and after the operator is executed at the individual task instance level. Setup and teardown are special tasks that are used to before setup or cleanup operations before and after multiple task instances are executed within a Dag run.

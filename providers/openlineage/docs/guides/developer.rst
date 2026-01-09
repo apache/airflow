@@ -180,7 +180,7 @@ Custom Extractors
 This approach is recommended when dealing with Operators that you can not modify (f.e. third party providers), but still want the lineage to be extracted from them.
 If you want to extract lineage from your own Operators, you may prefer directly implementing OpenLineage methods as described in :ref:`openlineage_methods:openlineage`.
 
-This approach works by detecting which Airflow Operators your DAG is using, and extracting lineage data from them using corresponding Extractors class.
+This approach works by detecting which Airflow Operators your Dag is using, and extracting lineage data from them using corresponding Extractors class.
 
 Interface
 ^^^^^^^^^
@@ -288,7 +288,7 @@ To learn more about how Operators and Extractors work together under the hood, c
 When testing an Extractor, we want to firstly verify if ``OperatorLineage`` object is being created,
 specifically verifying that the object is being built with the correct input and output datasets and relevant facets.
 This is done in OpenLineage via pytest, with appropriate mocking and patching for connections and objects.
-Check out `example tests <https://github.com/apache/airflow/blob/main/providers/openlineage/tests/openlineage/extractors/test_base.py>`_.
+Check out `example tests <https://github.com/apache/airflow/blob/main/providers/openlineage/tests/unit/openlineage/extractors/test_base.py>`_.
 
 Testing each facet is also important, as data or graphs in the UI can render incorrectly if the facets are wrong.
 For example, if the facet name is created incorrectly in the Extractor, then the Operator's task will not show up in the lineage graph,
@@ -370,15 +370,15 @@ like extracting column level lineage and inputs/outputs from SQL query with SQL 
             return lineage_metadata
 
 For more examples of OpenLineage Extractors, check out the source code of
-`BashExtractor <https://github.com/apache/airflow/blob/main/providers/amazon/aws/src/airflow/providers/openlineage/extractors/bash.py>`_ or
-`PythonExtractor <https://github.com/apache/airflow/blob/main/providers/amazon/aws/src/airflow/providers/openlineage/extractors/python.py>`_.
+`BashExtractor <https://github.com/apache/airflow/blob/main/providers/openlineage/src/airflow/providers/openlineage/extractors/bash.py>`_ or
+`PythonExtractor <https://github.com/apache/airflow/blob/main/providers/openlineage/src/airflow/providers/openlineage/extractors/python.py>`_.
 
 .. _custom_facets:openlineage:
 
 Custom Facets
 =============
 To learn more about facets in OpenLineage, please refer to `facet documentation <https://openlineage.io/docs/spec/facets/>`_.
-Also check out `available facets <https://github.com/OpenLineage/OpenLineage/blob/main/client/python/openlineage/client/facet.py>`_
+Also check out `available facets <https://github.com/OpenLineage/OpenLineage/blob/main/client/python/src/openlineage/client/facet.py>`_
 and a blog post about `extending with facets <https://openlineage.io/blog/extending-with-facets/>`_.
 
 The OpenLineage spec might not contain all the facets you need to write your extractor,
@@ -476,19 +476,19 @@ a string of semicolon separated full import path to the functions.
 Job Hierarchy
 =============
 
-Apache Airflow features an inherent job hierarchy: DAGs, large and independently schedulable units, comprise smaller, executable tasks.
+Apache Airflow features an inherent job hierarchy: Dags, large and independently schedulable units, comprise smaller, executable tasks.
 
 OpenLineage reflects this structure in its Job Hierarchy model.
 
-- Upon DAG scheduling, a START event is emitted.
+- Upon Dag scheduling, a START event is emitted.
 - Subsequently, following Airflow's task order, each task triggers:
 
   - START events at TaskInstance start.
   - COMPLETE/FAILED events upon completion.
 
-- Finally, upon DAG termination, a completion event (COMPLETE or FAILED) is emitted.
+- Finally, upon Dag termination, a completion event (COMPLETE or FAILED) is emitted.
 
-TaskInstance events' ParentRunFacet references the originating DAG run.
+TaskInstance events' ParentRunFacet references the originating Dag run.
 
 .. _troubleshooting:openlineage:
 

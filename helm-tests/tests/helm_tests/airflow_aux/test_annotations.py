@@ -38,10 +38,11 @@ class TestServiceAccountAnnotations:
     """Tests Service Account Annotations."""
 
     @pytest.mark.parametrize(
-        "values,show_only,expected_annotations",
+        ("values", "show_only", "expected_annotations"),
         [
             (
                 {
+                    "executor": "KubernetesExecutor",
                     "cleanup": {
                         "enabled": True,
                         "serviceAccount": {
@@ -54,6 +55,22 @@ class TestServiceAccountAnnotations:
                 "templates/cleanup/cleanup-serviceaccount.yaml",
                 {
                     "example": "cleanup",
+                },
+            ),
+            (
+                {
+                    "databaseCleanup": {
+                        "enabled": True,
+                        "serviceAccount": {
+                            "annotations": {
+                                "example": "database-cleanup",
+                            },
+                        },
+                    },
+                },
+                "templates/database-cleanup/database-cleanup-serviceaccount.yaml",
+                {
+                    "example": "database-cleanup",
                 },
             ),
             (
@@ -97,6 +114,90 @@ class TestServiceAccountAnnotations:
                     },
                 },
                 "templates/workers/worker-serviceaccount.yaml",
+                {
+                    "example": "worker",
+                },
+            ),
+            (
+                {
+                    "workers": {
+                        "useWorkerDedicatedServiceAccounts": True,
+                        "celery": {
+                            "serviceAccount": {
+                                "annotations": {
+                                    "example": "worker",
+                                },
+                            },
+                        },
+                    },
+                },
+                "templates/workers/worker-celery-serviceaccount.yaml",
+                {
+                    "example": "worker",
+                },
+            ),
+            (
+                {
+                    "workers": {
+                        "useWorkerDedicatedServiceAccounts": True,
+                        "serviceAccount": {
+                            "annotations": {
+                                "example": "missing",
+                            },
+                        },
+                        "celery": {
+                            "serviceAccount": {
+                                "annotations": {
+                                    "example": "worker",
+                                },
+                            },
+                        },
+                    },
+                },
+                "templates/workers/worker-celery-serviceaccount.yaml",
+                {
+                    "example": "worker",
+                },
+            ),
+            (
+                {
+                    "executor": "KubernetesExecutor",
+                    "workers": {
+                        "useWorkerDedicatedServiceAccounts": True,
+                        "kubernetes": {
+                            "serviceAccount": {
+                                "annotations": {
+                                    "example": "worker",
+                                },
+                            },
+                        },
+                    },
+                },
+                "templates/workers/worker-kubernetes-serviceaccount.yaml",
+                {
+                    "example": "worker",
+                },
+            ),
+            (
+                {
+                    "executor": "KubernetesExecutor",
+                    "workers": {
+                        "useWorkerDedicatedServiceAccounts": True,
+                        "serviceAccount": {
+                            "annotations": {
+                                "example": "missing",
+                            },
+                        },
+                        "kubernetes": {
+                            "serviceAccount": {
+                                "annotations": {
+                                    "example": "worker",
+                                },
+                            },
+                        },
+                    },
+                },
+                "templates/workers/worker-kubernetes-serviceaccount.yaml",
                 {
                     "example": "worker",
                 },
@@ -266,7 +367,7 @@ class TestServiceAccountAnnotations:
 
 
 @pytest.mark.parametrize(
-    "values,show_only,expected_annotations",
+    ("values", "show_only", "expected_annotations"),
     [
         (
             {
@@ -350,16 +451,31 @@ class TestServiceAccountAnnotations:
         ),
         (
             {
+                "executor": "KubernetesExecutor",
                 "cleanup": {
                     "enabled": True,
                     "podAnnotations": {
                         "example": "cleanup",
                     },
-                }
+                },
             },
             "templates/cleanup/cleanup-cronjob.yaml",
             {
                 "example": "cleanup",
+            },
+        ),
+        (
+            {
+                "databaseCleanup": {
+                    "enabled": True,
+                    "podAnnotations": {
+                        "example": "database-cleanup",
+                    },
+                }
+            },
+            "templates/database-cleanup/database-cleanup-cronjob.yaml",
+            {
+                "example": "database-cleanup",
             },
         ),
         (

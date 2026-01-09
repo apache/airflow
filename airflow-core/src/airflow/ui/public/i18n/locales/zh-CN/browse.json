@@ -1,0 +1,22 @@
+{
+  "auditLog": {
+    "columns": {
+      "event": "事件",
+      "extra": "额外信息",
+      "user": "用户",
+      "when": "时间"
+    },
+    "filters": {
+      "eventType": "事件类型"
+    },
+    "title": "审计日志"
+  },
+  "xcom": {
+    "columns": {
+      "dag": "Dag",
+      "key": "键",
+      "value": "值"
+    },
+    "title": "XCom"
+  }
+}

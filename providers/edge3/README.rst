@@ -23,7 +23,7 @@
 
 Package ``apache-airflow-providers-edge3``
 
-Release: ``1.1.1``
+Release: ``2.0.1``
 
 
 Handle edge workers on remote sites via HTTP(s) connection and orchestrates work over distributed sites.
@@ -48,28 +48,28 @@ This is a provider package for ``edge3`` provider. All classes for this provider
 are in ``airflow.providers.edge3`` python package.
 
 You can find package information and changelog for the provider
-in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-edge3/1.1.1/>`_.
+in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-edge3/2.0.1/>`_.
 
 Installation
 ------------
 
-You can install this package on top of an existing Airflow 2 installation (see ``Requirements`` below
+You can install this package on top of an existing Airflow installation (see ``Requirements`` below
 for the minimum Airflow version supported) via
 ``pip install apache-airflow-providers-edge3``
 
-The package supports the following python versions: 3.9,3.10,3.11,3.12
+The package supports the following python versions: 3.10,3.11,3.12,3.13
 
 Requirements
 ------------
 
-================================  ===================
-PIP package                       Version required
-================================  ===================
-``apache-airflow``                ``>=2.10.0``
-``apache-airflow-providers-fab``  ``>=1.5.3``
-``pydantic``                      ``>=2.11.0``
-``retryhttp``                     ``>=1.2.0,!=1.3.0``
-================================  ===================
+==========================================  ===================
+PIP package                                 Version required
+==========================================  ===================
+``apache-airflow``                          ``>=3.0.0,!=3.1.0``
+``apache-airflow-providers-common-compat``  ``>=1.10.1``
+``pydantic``                                ``>=2.11.0``
+``retryhttp``                               ``>=1.2.0,!=1.3.0``
+==========================================  ===================
 
 Cross provider package dependencies
 -----------------------------------
@@ -81,14 +81,14 @@ You can install such cross-provider dependencies when installing from PyPI. For 
 
 .. code-block:: bash
 
-    pip install apache-airflow-providers-edge3[fab]
+    pip install apache-airflow-providers-edge3[common.compat]
 
 
-==============================================================================================  =======
-Dependent package                                                                               Extra
-==============================================================================================  =======
-`apache-airflow-providers-fab <https://airflow.apache.org/docs/apache-airflow-providers-fab>`_  ``fab``
-==============================================================================================  =======
+==================================================================================================================  =================
+Dependent package                                                                                                   Extra
+==================================================================================================================  =================
+`apache-airflow-providers-common-compat <https://airflow.apache.org/docs/apache-airflow-providers-common-compat>`_  ``common.compat``
+==================================================================================================================  =================
 
 The changelog for the provider package can be found in the
-`changelog <https://airflow.apache.org/docs/apache-airflow-providers-edge3/1.1.1/changelog.html>`_.
+`changelog <https://airflow.apache.org/docs/apache-airflow-providers-edge3/2.0.1/changelog.html>`_.

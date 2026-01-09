@@ -41,7 +41,7 @@ if TYPE_CHECKING:
     from google.api_core.retry import Retry
     from google.protobuf.field_mask_pb2 import FieldMask
 
-    from airflow.utils.context import Context
+    from airflow.providers.common.compat.sdk import Context
 
 
 MetaData = Sequence[tuple[str, str]]
@@ -693,7 +693,7 @@ class CloudVisionUpdateProductOperator(GoogleCloudBaseOperator):
             location=self.location,
             product_id=self.product_id,
             project_id=self.project_id,
-            update_mask=self.update_mask,  # type: ignore
+            update_mask=self.update_mask,
             retry=self.retry,
             timeout=self.timeout,
             metadata=self.metadata,

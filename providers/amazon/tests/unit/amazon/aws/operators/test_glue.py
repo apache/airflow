@@ -25,7 +25,6 @@ import pytest
 from boto3 import client
 from moto import mock_aws
 
-from airflow.exceptions import AirflowException, TaskDeferred
 from airflow.providers.amazon.aws.hooks.glue import GlueDataQualityHook, GlueJobHook
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
 from airflow.providers.amazon.aws.links.glue import GlueJobRunDetailsLink
@@ -35,6 +34,7 @@ from airflow.providers.amazon.aws.operators.glue import (
     GlueDataQualityRuleSetEvaluationRunOperator,
     GlueJobOperator,
 )
+from airflow.providers.common.compat.sdk import AirflowException, TaskDeferred
 
 from unit.amazon.aws.utils.test_template_fields import validate_template_fields
 
@@ -155,6 +155,11 @@ class TestGlueJobOperator:
 
         assert defer.value.trigger.job_name == JOB_NAME
         assert defer.value.trigger.run_id == JOB_RUN_ID
+        assert defer.value.trigger.region_name == "us-west-2"
+        assert not defer.value.trigger.verbose
+        assert defer.value.trigger.waiter_delay == 60
+        assert defer.value.trigger.attempts == 75
+        assert defer.value.trigger.aws_conn_id == "aws_default"
 
     @mock.patch.object(GlueJobHook, "print_job_logs")
     @mock.patch.object(GlueJobHook, "get_job_state")
@@ -660,7 +665,7 @@ class TestGlueDataQualityRuleSetEvaluationRunOperator:
             self.operator.validate_inputs()
 
     @pytest.mark.parametrize(
-        "wait_for_completion, deferrable",
+        ("wait_for_completion", "deferrable"),
         [
             pytest.param(False, False, id="no_wait"),
             pytest.param(True, False, id="wait"),
@@ -793,7 +798,7 @@ class TestGlueDataQualityRuleRecommendationRunOperator:
             operator.execute({})
 
     @pytest.mark.parametrize(
-        "wait_for_completion, deferrable",
+        ("wait_for_completion", "deferrable"),
         [
             pytest.param(False, False, id="no_wait"),
             pytest.param(True, False, id="wait"),

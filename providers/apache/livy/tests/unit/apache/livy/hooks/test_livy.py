@@ -26,12 +26,11 @@ import requests
 from aiohttp import ClientResponseError, RequestInfo
 from requests.exceptions import RequestException
 
-from airflow.exceptions import AirflowException
 from airflow.models import Connection
 from airflow.providers.apache.livy.hooks.livy import BatchState, LivyAsyncHook, LivyHook
-from airflow.utils import db
+from airflow.providers.common.compat.sdk import AirflowException
 
-from tests_common.test_utils.db import clear_db_connections
+from tests_common.test_utils.db import clear_test_connections
 
 LIVY_CONN_ID = LivyHook.default_conn_name
 DEFAULT_CONN_ID = LivyHook.default_conn_name
@@ -52,13 +51,25 @@ INVALID_SESSION_ID_TEST_CASES = [
     pytest.param({"a": "b"}, id="dictionary"),
 ]
 
+INVALID_JAVA_SIZE_STRINGS = "Invalid java size format for string"
+CONF_MUST_BE_DICT = "'conf' argument must be a dict"
+CONF_VALUES_MUST_BE_STR_OR_INT = "'conf' values must be either strings or ints"
+
 
 @pytest.mark.db_test
 class TestLivyDbHook:
     @classmethod
     def setup_class(cls):
-        clear_db_connections(add_default_connections_back=False)
-        db.merge_conn(
+        clear_test_connections(add_default_connections_back=False)
+
+    @classmethod
+    def teardown_class(cls):
+        clear_test_connections(add_default_connections_back=True)
+
+    # TODO: Potential performance issue, converted setup_class to a setup_connections function level fixture
+    @pytest.fixture(autouse=True)
+    def setup_connections(self, create_connection_without_db):
+        create_connection_without_db(
             Connection(
                 conn_id=DEFAULT_CONN_ID,
                 conn_type="http",
@@ -67,28 +78,25 @@ class TestLivyDbHook:
                 port=DEFAULT_PORT,
             )
         )
-        db.merge_conn(Connection(conn_id="default_port", conn_type="http", host="http://host"))
-        db.merge_conn(Connection(conn_id="default_protocol", conn_type="http", host="host"))
-        db.merge_conn(Connection(conn_id="port_set", host="host", conn_type="http", port=1234))
-        db.merge_conn(Connection(conn_id="schema_set", host="host", conn_type="http", schema="https"))
-        db.merge_conn(
+        create_connection_without_db(Connection(conn_id="default_port", conn_type="http", host="http://host"))
+        create_connection_without_db(Connection(conn_id="default_protocol", conn_type="http", host="host"))
+        create_connection_without_db(Connection(conn_id="port_set", host="host", conn_type="http", port=1234))
+        create_connection_without_db(
+            Connection(conn_id="schema_set", host="host", conn_type="http", schema="https")
+        )
+        create_connection_without_db(
             Connection(conn_id="dont_override_schema", conn_type="http", host="http://host", schema="https")
         )
-        db.merge_conn(Connection(conn_id="missing_host", conn_type="http", port=1234))
-        db.merge_conn(Connection(conn_id="invalid_uri", uri="http://invalid_uri:4321"))
-        db.merge_conn(
+        create_connection_without_db(Connection(conn_id="missing_host", conn_type="http", port=1234))
+        create_connection_without_db(Connection(conn_id="invalid_uri", uri="http://invalid_uri:4321"))
+        create_connection_without_db(
             Connection(
                 conn_id="with_credentials", login="login", password="secret", conn_type="http", host="host"
             )
         )
 
-    @classmethod
-    def teardown_class(cls):
-        clear_db_connections(add_default_connections_back=True)
-
-    @pytest.mark.db_test
     @pytest.mark.parametrize(
-        "conn_id, expected",
+        ("conn_id", "expected"),
         [
             pytest.param("default_port", "http://host", id="default-port"),
             pytest.param("default_protocol", "http://host", id="default-protocol"),
@@ -150,7 +158,7 @@ class TestLivyDbHook:
         }
 
     def test_parameters_validation(self):
-        with pytest.raises(ValueError):
+        with pytest.raises(ValueError, match=INVALID_JAVA_SIZE_STRINGS):
             LivyHook.build_post_batch_body(file="appname", executor_memory="xxx")
 
         assert LivyHook.build_post_batch_body(file="appname", args=["a", 1, 0.1])["args"] == ["a", "1", "0.1"]
@@ -222,13 +230,22 @@ class TestLivyDbHook:
         [
             pytest.param("k1=v1", id="string"),
             pytest.param([("k1", "v1"), ("k2", 0)], id="list of tuples"),
+        ],
+    )
+    def test_validate_extra_conf_failed_non_dict(self, config):
+        with pytest.raises(ValueError, match=CONF_MUST_BE_DICT):
+            LivyHook._validate_extra_conf(config)
+
+    @pytest.mark.parametrize(
+        "config",
+        [
             pytest.param({"outer": {"inner": "val"}}, id="nested dictionary"),
             pytest.param({"has_val": "val", "no_val": None}, id="none values in dictionary"),
             pytest.param({"has_val": "val", "no_val": ""}, id="empty values in dictionary"),
         ],
     )
-    def test_validate_extra_conf_failed(self, config):
-        with pytest.raises(ValueError):
+    def test_validate_extra_conf_failed_dict(self, config):
+        with pytest.raises(ValueError, match=CONF_VALUES_MUST_BE_STR_OR_INT):
             LivyHook._validate_extra_conf(config)
 
     @patch("airflow.providers.apache.livy.hooks.livy.LivyHook.run_method")
@@ -730,23 +747,24 @@ class TestLivyAsyncHook:
         response = await hook._do_api_call_async(GET_RUN_ENDPOINT)
         assert response["status"] == "error"
 
-    def set_conn(self):
-        db.merge_conn(
+    @pytest.fixture
+    def setup_livy_conn(self, create_connection_without_db):
+        create_connection_without_db(
             Connection(conn_id=LIVY_CONN_ID, conn_type="http", host="host", schema="http", port=8998)
         )
-        db.merge_conn(Connection(conn_id="default_port", conn_type="http", host="http://host"))
-        db.merge_conn(Connection(conn_id="default_protocol", conn_type="http", host="host"))
-        db.merge_conn(Connection(conn_id="port_set", host="host", conn_type="http", port=1234))
-        db.merge_conn(Connection(conn_id="schema_set", host="host", conn_type="http", schema="zzz"))
-        db.merge_conn(
+        create_connection_without_db(Connection(conn_id="default_port", conn_type="http", host="http://host"))
+        create_connection_without_db(Connection(conn_id="default_protocol", conn_type="http", host="host"))
+        create_connection_without_db(Connection(conn_id="port_set", host="host", conn_type="http", port=1234))
+        create_connection_without_db(
+            Connection(conn_id="schema_set", host="host", conn_type="http", schema="zzz")
+        )
+        create_connection_without_db(
             Connection(conn_id="dont_override_schema", conn_type="http", host="http://host", schema="zzz")
         )
-        db.merge_conn(Connection(conn_id="missing_host", conn_type="http", port=1234))
-        db.merge_conn(Connection(conn_id="invalid_uri", uri="http://invalid_uri:4321"))
+        create_connection_without_db(Connection(conn_id="missing_host", conn_type="http", port=1234))
+        create_connection_without_db(Connection(conn_id="invalid_uri", uri="http://invalid_uri:4321"))
 
-    @pytest.mark.db_test
-    def test_build_get_hook(self):
-        self.set_conn()
+    def test_build_get_hook(self, setup_livy_conn):
         connection_url_mapping = {
             # id, expected
             "default_port": "http://host",
@@ -808,7 +826,7 @@ class TestLivyAsyncHook:
         }
 
     def test_parameters_validation(self):
-        with pytest.raises(ValueError):
+        with pytest.raises(ValueError, match=INVALID_JAVA_SIZE_STRINGS):
             LivyAsyncHook.build_post_batch_body(file="appname", executor_memory="xxx")
 
         assert LivyAsyncHook.build_post_batch_body(file="appname", args=["a", 1, 0.1])["args"] == [
@@ -828,7 +846,7 @@ class TestLivyAsyncHook:
 
     @pytest.mark.parametrize("invalid_size", ["1Gb foo", "10", 1])
     def test_validate_size_format_failure(self, invalid_size):
-        with pytest.raises(ValueError):
+        with pytest.raises(ValueError, match=INVALID_JAVA_SIZE_STRINGS):
             assert LivyAsyncHook._validate_size_format(invalid_size)
 
     @pytest.mark.parametrize(
@@ -844,7 +862,7 @@ class TestLivyAsyncHook:
 
     @pytest.mark.parametrize("invalid_string", [{"a": "a"}, [1, {}], [1, None], None, 1, "string"])
     def test_validate_list_of_stringables_failure(self, invalid_string):
-        with pytest.raises(ValueError):
+        with pytest.raises(ValueError, match="List of strings expected"):
             LivyAsyncHook._validate_list_of_stringables(invalid_string)
 
     @pytest.mark.parametrize(
@@ -863,13 +881,22 @@ class TestLivyAsyncHook:
         [
             "k1=v1",
             [("k1", "v1"), ("k2", 0)],
+        ],
+    )
+    def test_validate_extra_conf_failure_non_dict(self, conf):
+        with pytest.raises(ValueError, match=CONF_MUST_BE_DICT):
+            LivyAsyncHook._validate_extra_conf(conf)
+
+    @pytest.mark.parametrize(
+        "conf",
+        [
             {"outer": {"inner": "val"}},
             {"has_val": "val", "no_val": None},
             {"has_val": "val", "no_val": ""},
         ],
     )
-    def test_validate_extra_conf_failure(self, conf):
-        with pytest.raises(ValueError):
+    def test_validate_extra_conf_failure_dict(self, conf):
+        with pytest.raises(ValueError, match=CONF_VALUES_MUST_BE_STR_OR_INT):
             LivyAsyncHook._validate_extra_conf(conf)
 
     def test_parse_request_response(self):
@@ -900,6 +927,24 @@ class TestLivyAsyncHook:
         }
         mock_run_method.assert_called_once_with(
             endpoint=f"/livy/batches/{BATCH_ID}/state",
+            headers={},
+        )
+
+    @pytest.mark.asyncio
+    @mock.patch("airflow.providers.apache.livy.hooks.livy.LivyAsyncHook.run_method")
+    async def test_get_batch_state_with_extra_headers(self, mock_run_method):
+        headers = {"X-Requested-By": "user"}
+        mock_run_method.return_value = {"status": "success", "response": {"state": BatchState.RUNNING}}
+        hook = LivyAsyncHook(livy_conn_id=LIVY_CONN_ID, extra_headers=headers)
+        state = await hook.get_batch_state(BATCH_ID)
+        assert state == {
+            "batch_state": BatchState.RUNNING,
+            "response": "successfully fetched the batch state.",
+            "status": "success",
+        }
+        mock_run_method.assert_called_once_with(
+            endpoint=f"/batches/{BATCH_ID}/state",
+            headers=headers,
         )
 
     @pytest.mark.asyncio
@@ -913,4 +958,20 @@ class TestLivyAsyncHook:
         mock_run_method.assert_called_once_with(
             endpoint=f"/livy/batches/{BATCH_ID}/log",
             data={"from": 0, "size": 100},
+            headers={},
+        )
+
+    @pytest.mark.asyncio
+    @mock.patch("airflow.providers.apache.livy.hooks.livy.LivyAsyncHook.run_method")
+    async def test_get_batch_logs_with_extra_headers(self, mock_run_method):
+        headers = {"X-Requested-By": "user"}
+        mock_run_method.return_value = {"status": "success", "response": {}}
+        hook = LivyAsyncHook(livy_conn_id=LIVY_CONN_ID, extra_headers=headers)
+        state = await hook.get_batch_logs(BATCH_ID, 0, 100)
+        assert state["status"] == "success"
+
+        mock_run_method.assert_called_once_with(
+            endpoint=f"/batches/{BATCH_ID}/log",
+            data={"from": 0, "size": 100},
+            headers=headers,
         )

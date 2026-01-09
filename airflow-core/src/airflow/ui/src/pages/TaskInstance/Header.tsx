@@ -17,35 +17,28 @@
  * under the License.
  */
 import { Box } from "@chakra-ui/react";
-import { useCallback, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { FiMessageSquare } from "react-icons/fi";
 import { MdOutlineTask } from "react-icons/md";
 
 import type { TaskInstanceResponse } from "openapi/requests/types.gen";
 import { ClearTaskInstanceButton } from "src/components/Clear";
+import ClearTaskInstanceDialog from "src/components/Clear/TaskInstance/ClearTaskInstanceDialog";
 import { DagVersion } from "src/components/DagVersion";
-import EditableMarkdownArea from "src/components/EditableMarkdownArea";
 import EditableMarkdownButton from "src/components/EditableMarkdownButton";
 import { HeaderCard } from "src/components/HeaderCard";
 import { MarkTaskInstanceAsButton } from "src/components/MarkAs";
 import Time from "src/components/Time";
 import { usePatchTaskInstance } from "src/queries/usePatchTaskInstance";
-import { getDuration, useContainerWidth } from "src/utils";
+import { renderDuration, useContainerWidth } from "src/utils";
 
-export const Header = ({
-  isRefreshing,
-  taskInstance,
-}: {
-  readonly isRefreshing?: boolean;
-  readonly taskInstance: TaskInstanceResponse;
-}) => {
+export const Header = ({ taskInstance }: { readonly taskInstance: TaskInstanceResponse }) => {
   const { t: translate } = useTranslation();
-  const containerRef = useRef<HTMLDivElement>();
+  const containerRef = useRef<HTMLDivElement | null>(null);
   const containerWidth = useContainerWidth(containerRef);
 
   const stats = [
-    { label: translate("task.operator"), value: taskInstance.operator },
+    { label: translate("task.operator"), value: taskInstance.operator_name },
     ...(taskInstance.map_index > -1
       ? [{ label: translate("mapIndex"), value: taskInstance.rendered_map_index }]
       : []),
@@ -55,7 +48,7 @@ export const Header = ({
     { label: translate("startDate"), value: <Time datetime={taskInstance.start_date} /> },
     { label: translate("endDate"), value: <Time datetime={taskInstance.end_date} /> },
     ...(Boolean(taskInstance.start_date)
-      ? [{ label: translate("duration"), value: getDuration(taskInstance.start_date, taskInstance.end_date) }]
+      ? [{ label: translate("duration"), value: renderDuration(taskInstance.duration) }]
       : []),
     {
       label: translate("taskInstance.dagVersion"),
@@ -64,6 +57,8 @@ export const Header = ({
   ];
 
   const [note, setNote] = useState<string | null>(taskInstance.note);
+
+  const hasContent = Boolean(taskInstance.note?.trim());
 
   const dagId = taskInstance.dag_id;
   const dagRunId = taskInstance.dag_run_id;
@@ -77,7 +72,7 @@ export const Header = ({
     taskId,
   });
 
-  const onConfirm = useCallback(() => {
+  const onConfirm = () => {
     if (note !== taskInstance.note) {
       mutate({
         dagId,
@@ -87,28 +82,34 @@ export const Header = ({
         taskId,
       });
     }
-  }, [dagId, dagRunId, mapIndex, mutate, note, taskId, taskInstance.note]);
+  };
+
+  const onOpen = () => {
+    setNote(taskInstance.note ?? "");
+  };
+
+  // Stable dialog state at header/page level
+  const [clearOpen, setClearOpen] = useState(false);
 
   return (
     <Box ref={containerRef}>
       <HeaderCard
         actions={
           <>
-            {!Boolean(taskInstance.note) && (
-              <EditableMarkdownButton
-                header={translate("note.taskInstance")}
-                icon={<FiMessageSquare />}
-                isPending={isPending}
-                mdContent={note}
-                onConfirm={onConfirm}
-                placeholder={translate("note.placeholder")}
-                setMdContent={setNote}
-                text={translate("note.add")}
-                withText={containerWidth > 700}
-              />
-            )}
+            <EditableMarkdownButton
+              header={translate("note.taskInstance")}
+              isPending={isPending}
+              mdContent={taskInstance.note}
+              onConfirm={onConfirm}
+              onOpen={onOpen}
+              placeholder={translate("note.placeholder")}
+              setMdContent={setNote}
+              text={hasContent ? translate("note.label") : translate("note.add")}
+              withText={containerWidth > 700}
+            />
             <ClearTaskInstanceButton
               isHotkeyEnabled
+              onOpen={() => setClearOpen(true)}
               taskInstance={taskInstance}
               withText={containerWidth > 700}
             />
@@ -120,15 +121,17 @@ export const Header = ({
           </>
         }
         icon={<MdOutlineTask />}
-        isRefreshing={isRefreshing}
         state={taskInstance.state}
         stats={stats}
-        subTitle={<Time datetime={taskInstance.start_date} />}
         title={`${taskInstance.task_display_name}${taskInstance.map_index > -1 ? ` [${taskInstance.rendered_map_index ?? taskInstance.map_index}]` : ""}`}
       />
-      {Boolean(taskInstance.note) && (
-        <EditableMarkdownArea mdContent={note} onBlur={onConfirm} setMdContent={setNote} />
-      )}
+      {clearOpen ? (
+        <ClearTaskInstanceDialog
+          onClose={() => setClearOpen(false)}
+          open={clearOpen}
+          taskInstance={taskInstance}
+        />
+      ) : undefined}
     </Box>
   );
 };

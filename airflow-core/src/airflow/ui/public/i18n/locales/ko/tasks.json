@@ -1,0 +1,10 @@
+{
+  "mapped": "매핑됨",
+  "notMapped": "매핑되지 않음",
+  "retries": "재시도",
+  "searchTasks": "작업 검색",
+  "selectMapped": "매핑된 항목 선택",
+  "selectOperator": "오퍼레이터 선택",
+  "selectRetryValues": "재시도 값 선택",
+  "selectTriggerRules": "트리거 규칙 선택"
+}

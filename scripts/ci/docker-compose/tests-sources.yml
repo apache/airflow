@@ -37,7 +37,7 @@ services:
       - ../../../empty:/opt/airflow/providers/standard/src
       # but keep tests and provider tests tests
       - ../../../core-airflow/tests/:/opt/airflow/core-airflow/tests:cached
-      # START automatically generated volumes by generate-volumes-for-sources pre-commit
+      # START automatically generated volumes by generate-volumes-for-sources prek hook
       - ../../../providers/airbyte/tests:/opt/airflow/providers/airbyte/tests
       - ../../../providers/alibaba/tests:/opt/airflow/providers/alibaba/tests
       - ../../../providers/amazon/tests:/opt/airflow/providers/amazon/tests
@@ -135,7 +135,7 @@ services:
       - ../../../providers/yandex/tests:/opt/airflow/providers/yandex/tests
       - ../../../providers/ydb/tests:/opt/airflow/providers/ydb/tests
       - ../../../providers/zendesk/tests:/opt/airflow/providers/zendesk/tests
-      # END automatically generated volumes by generate-volumes-for-sources pre-commit
+      # END automatically generated volumes by generate-volumes-for-sources prek hook
       # and entrypoint and in_container scripts for testing
       - ../../../scripts/docker/entrypoint_ci.sh:/entrypoint
       - ../../../scripts/in_container/:/opt/airflow/scripts/in_container

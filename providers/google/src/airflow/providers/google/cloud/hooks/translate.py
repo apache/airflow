@@ -32,7 +32,7 @@ from google.cloud.translate_v2 import Client
 from google.cloud.translate_v3 import TranslationServiceClient
 from google.cloud.translate_v3.types.translation_service import GlossaryInputConfig
 
-from airflow.exceptions import AirflowException
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.google.common.consts import CLIENT_INFO
 from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID, GoogleBaseHook
 from airflow.providers.google.common.hooks.operation_helpers import OperationHelper
@@ -429,7 +429,7 @@ class TranslateHook(GoogleBaseHook, OperationHelper):
         project_id: str,
         location: str,
         retry: Retry | _MethodDefault = DEFAULT,
-        timeout: float | _MethodDefault = DEFAULT,
+        timeout: float | None | _MethodDefault = DEFAULT,
         metadata: Sequence[tuple[str, str]] = (),
     ) -> automl_translation.Dataset:
         """

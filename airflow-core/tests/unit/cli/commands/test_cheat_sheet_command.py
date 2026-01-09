@@ -16,8 +16,6 @@
 # under the License.
 from __future__ import annotations
 
-import contextlib
-from io import StringIO
 from unittest import mock
 
 from airflow.cli import cli_parser
@@ -94,8 +92,8 @@ class TestCheatSheetCommand:
         cls.parser = cli_parser.get_parser()
 
     @mock.patch("airflow.cli.cli_parser.airflow_commands", MOCK_COMMANDS)
-    def test_should_display_index(self):
-        with contextlib.redirect_stdout(StringIO()) as temp_stdout:
+    def test_should_display_index(self, stdout_capture):
+        with stdout_capture as temp_stdout:
             args = self.parser.parse_args(["cheat-sheet"])
             args.func(args)
         output = temp_stdout.getvalue()

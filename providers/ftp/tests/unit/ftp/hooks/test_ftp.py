@@ -141,21 +141,20 @@ class TestFTPHook:
             assert msg == "Test"
 
 
-@pytest.mark.db_test
 class TestIntegrationFTPHook:
-    def setup_method(self):
+    @pytest.fixture(autouse=True)
+    def setup_connections(self, create_connection_without_db):
         from airflow.models import Connection
-        from airflow.utils import db
 
-        db.merge_conn(
+        create_connection_without_db(
             Connection(conn_id="ftp_passive", conn_type="ftp", host="localhost", extra='{"passive": true}')
         )
 
-        db.merge_conn(
+        create_connection_without_db(
             Connection(conn_id="ftp_active", conn_type="ftp", host="localhost", extra='{"passive": false}')
         )
 
-        db.merge_conn(
+        create_connection_without_db(
             Connection(
                 conn_id="ftp_custom_port",
                 conn_type="ftp",
@@ -165,7 +164,7 @@ class TestIntegrationFTPHook:
             )
         )
 
-        db.merge_conn(
+        create_connection_without_db(
             Connection(
                 conn_id="ftp_custom_port_and_login",
                 conn_type="ftp",
@@ -174,6 +173,15 @@ class TestIntegrationFTPHook:
                 login="user",
                 password="pass123",
                 extra='{"passive": true}',
+            )
+        )
+
+        create_connection_without_db(
+            Connection(
+                conn_id="ftp_encoding",
+                conn_type="ftp",
+                host="localhost",
+                extra='{"encoding": "cp1251"}',
             )
         )
 
@@ -225,3 +233,19 @@ class TestIntegrationFTPHook:
         from airflow.providers.ftp.hooks.ftp import FTPSHook
 
         self._test_mode(FTPSHook, "ftp_active", False)
+
+    @mock.patch("ftplib.FTP")
+    def test_ftp_encoding_extra(self, mock_ftp):
+        from airflow.providers.ftp.hooks.ftp import FTPHook
+
+        hook = FTPHook("ftp_encoding")
+        hook.get_conn()
+        assert mock_ftp.mock_calls[0] == mock.call(encoding="cp1251")
+
+    @mock.patch("ftplib.FTP_TLS")
+    def test_ftps_encoding_extra(self, mock_ftp_tls):
+        from airflow.providers.ftp.hooks.ftp import FTPSHook
+
+        hook = FTPSHook("ftp_encoding")
+        hook.get_conn()
+        assert any(call.kwargs.get("encoding") == "cp1251" for call in mock_ftp_tls.mock_calls)

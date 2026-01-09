@@ -17,15 +17,20 @@
 # under the License.
 from __future__ import annotations
 
-from collections.abc import Iterable, Mapping, Sequence
+from collections.abc import Callable, Iterable, Mapping, Sequence
 from contextlib import closing
-from typing import TYPE_CHECKING, Any, Callable, TypeVar, overload
+from typing import TYPE_CHECKING, Any, TypeVar, overload
 
 import pyexasol
 from deprecated import deprecated
 from pyexasol import ExaConnection, ExaStatement
 
-from airflow.exceptions import AirflowProviderDeprecationWarning
+try:
+    from sqlalchemy.engine import URL
+except ImportError:
+    URL = None  # type: ignore[assignment,misc]
+
+from airflow.exceptions import AirflowOptionalProviderFeatureException, AirflowProviderDeprecationWarning
 from airflow.providers.common.sql.hooks.handlers import return_single_query_results
 from airflow.providers.common.sql.hooks.sql import DbApiHook
 
@@ -53,14 +58,15 @@ class ExasolHook(DbApiHook):
     conn_type = "exasol"
     hook_name = "Exasol"
     supports_autocommit = True
+    DEFAULT_SQLALCHEMY_SCHEME = "exa+websocket"  # sqlalchemy-exasol dialect
 
-    def __init__(self, *args, **kwargs) -> None:
+    def __init__(self, *args, sqlalchemy_scheme: str | None = None, **kwargs) -> None:
         super().__init__(*args, **kwargs)
         self.schema = kwargs.pop("schema", None)
+        self._sqlalchemy_scheme = sqlalchemy_scheme
 
     def get_conn(self) -> ExaConnection:
-        conn_id = self.get_conn_id()
-        conn = self.get_connection(conn_id)
+        conn = self.get_connection(self.get_conn_id())
         conn_args = {
             "dsn": f"{conn.host}:{conn.port}",
             "user": conn.login,
@@ -74,6 +80,54 @@ class ExasolHook(DbApiHook):
 
         conn = pyexasol.connect(**conn_args)
         return conn
+
+    @property
+    def sqlalchemy_scheme(self) -> str:
+        """Sqlalchemy scheme either from constructor, connection extras or default."""
+        extra_scheme = self.connection is not None and self.connection_extra_lower.get("sqlalchemy_scheme")
+        sqlalchemy_scheme = self._sqlalchemy_scheme or extra_scheme or self.DEFAULT_SQLALCHEMY_SCHEME
+        if sqlalchemy_scheme not in ["exa+websocket", "exa+pyodbc", "exa+turbodbc"]:
+            raise ValueError(
+                f"sqlalchemy_scheme in connection extra should be one of 'exa+websocket', 'exa+pyodbc' or 'exa+turbodbc', "
+                f"but got '{sqlalchemy_scheme}'. See https://github.com/exasol/sqlalchemy-exasol?tab=readme-ov-file#using-sqlalchemy-with-exasol-db for more details."
+            )
+        return sqlalchemy_scheme
+
+    @property
+    def sqlalchemy_url(self) -> URL:
+        """
+        Return a Sqlalchemy.engine.URL object from the connection.
+
+        :return: the extracted sqlalchemy.engine.URL object.
+        """
+        if URL is None:
+            raise AirflowOptionalProviderFeatureException(
+                "The 'sqlalchemy' library is required to use 'sqlalchemy_url'."
+            )
+        connection = self.connection
+        query = connection.extra_dejson
+        query = {k: v for k, v in query.items() if k.lower() != "sqlalchemy_scheme"}
+        return URL.create(
+            drivername=self.sqlalchemy_scheme,
+            username=connection.login,
+            password=connection.password,
+            host=connection.host,
+            port=connection.port,
+            database=self.schema or connection.schema,
+            query=query,
+        )
+
+    def get_uri(self) -> str:
+        """
+        Extract the URI from the connection.
+
+        :return: the extracted uri.
+        """
+        if URL is None:
+            raise AirflowOptionalProviderFeatureException(
+                "The 'sqlalchemy' library is required to render the connection URI."
+            )
+        return self.sqlalchemy_url.render_as_string(hide_password=False)
 
     def _get_pandas_df(
         self, sql, parameters: Iterable | Mapping[str, Any] | None = None, **kwargs
@@ -199,7 +253,7 @@ class ExasolHook(DbApiHook):
             )
         return cols
 
-    @overload  # type: ignore[override]
+    @overload
     def run(
         self,
         sql: str | Iterable[str],
@@ -268,9 +322,8 @@ class ExasolHook(DbApiHook):
                 self.log.info("Running statement: %s, parameters: %s", sql_statement, parameters)
                 with closing(conn.execute(sql_statement, parameters)) as exa_statement:
                     if handler is not None:
-                        result = self._make_common_data_structure(  # type: ignore[attr-defined]
-                            handler(exa_statement)
-                        )
+                        result = self._make_common_data_structure(handler(exa_statement))
+
                         if return_single_query_results(sql, return_last, split_statements):
                             _last_result = result
                             _last_columns = self.get_description(exa_statement)

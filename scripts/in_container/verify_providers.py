@@ -462,8 +462,8 @@ def get_package_class_summary(
     :return: dictionary of objects usable as context for JINJA2 templates, or
         None if there are some errors
     """
-    from airflow.hooks.base import BaseHook
     from airflow.models.baseoperator import BaseOperator
+    from airflow.sdk import BaseHook
     from airflow.secrets import BaseSecretsBackend
     from airflow.sensors.base import BaseSensorOperator
     from airflow.triggers.base import BaseTrigger

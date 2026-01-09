@@ -34,12 +34,19 @@ from airflow_breeze.global_constants import (
     ALLOWED_DOCKER_COMPOSE_PROJECTS,
     ALLOWED_INSTALLATION_DISTRIBUTION_FORMATS,
     ALLOWED_MYSQL_VERSIONS,
-    ALLOWED_POSTGRES_VERSIONS,
     ALLOWED_PYTHON_MAJOR_MINOR_VERSIONS,
     APACHE_AIRFLOW_GITHUB_REPOSITORY,
+    BREEZE_DEBUG_APISERVER_PORT,
+    BREEZE_DEBUG_CELERY_WORKER_PORT,
+    BREEZE_DEBUG_DAG_PROCESSOR_PORT,
+    BREEZE_DEBUG_EDGE_PORT,
+    BREEZE_DEBUG_SCHEDULER_PORT,
+    BREEZE_DEBUG_TRIGGERER_PORT,
+    BREEZE_DEBUG_WEBSERVER_PORT,
     CELERY_BROKER_URLS_MAP,
     CELERY_EXECUTOR,
     DEFAULT_CELERY_BROKER,
+    DEFAULT_POSTGRES_VERSION,
     DEFAULT_UV_HTTP_TIMEOUT,
     DOCKER_DEFAULT_PLATFORM,
     DRILL_HOST_PORT,
@@ -57,6 +64,7 @@ from airflow_breeze.global_constants import (
     MYSQL_HOST_PORT,
     POSTGRES_BACKEND,
     POSTGRES_HOST_PORT,
+    RABBITMQ_HOST_PORT,
     REDIS_HOST_PORT,
     SIMPLE_AUTH_MANAGER,
     SSH_PORT,
@@ -78,12 +86,27 @@ from airflow_breeze.utils.path_utils import (
     GENERATED_DOCKER_COMPOSE_ENV_PATH,
     GENERATED_DOCKER_ENV_PATH,
     GENERATED_DOCKER_LOCK_PATH,
-    SCRIPTS_CI_PATH,
+    SCRIPTS_CI_DOCKER_COMPOSE_BASE_PATH,
+    SCRIPTS_CI_DOCKER_COMPOSE_BASE_PORTS_PATH,
+    SCRIPTS_CI_DOCKER_COMPOSE_CI_TESTS_PATH,
+    SCRIPTS_CI_DOCKER_COMPOSE_DEBUG_PORTS_PATH,
+    SCRIPTS_CI_DOCKER_COMPOSE_DOCKER_SOCKET_PATH,
+    SCRIPTS_CI_DOCKER_COMPOSE_ENABLE_TTY_PATH,
+    SCRIPTS_CI_DOCKER_COMPOSE_FILES_PATH,
+    SCRIPTS_CI_DOCKER_COMPOSE_FORWARD_CREDENTIALS_PATH,
+    SCRIPTS_CI_DOCKER_COMPOSE_INTEGRATION_CELERY_PATH,
+    SCRIPTS_CI_DOCKER_COMPOSE_INTEGRATION_KERBEROS_PATH,
+    SCRIPTS_CI_DOCKER_COMPOSE_LOCAL_ALL_SOURCES_PATH,
+    SCRIPTS_CI_DOCKER_COMPOSE_LOCAL_YAML_PATH,
+    SCRIPTS_CI_DOCKER_COMPOSE_MOUNT_UI_DIST_PATH,
+    SCRIPTS_CI_DOCKER_COMPOSE_MYPY_PATH,
+    SCRIPTS_CI_DOCKER_COMPOSE_PATH,
+    SCRIPTS_CI_DOCKER_COMPOSE_PROVIDERS_AND_TESTS_SOURCES_PATH,
+    SCRIPTS_CI_DOCKER_COMPOSE_REMOVE_SOURCES_PATH,
+    SCRIPTS_CI_DOCKER_COMPOSE_TESTS_SOURCES_PATH,
 )
 from airflow_breeze.utils.run_utils import commit_sha, run_command
 from airflow_breeze.utils.shared_options import get_forced_answer, get_verbose
-
-DOCKER_COMPOSE_DIR = SCRIPTS_CI_PATH / "docker-compose"
 
 
 def generated_socket_compose_file(local_socket_path: str) -> str:
@@ -140,7 +163,6 @@ class ShellParams:
     airflow_constraints_mode: str = ALLOWED_CONSTRAINTS_MODES_CI[0]
     airflow_constraints_reference: str = ""
     airflow_extras: str = ""
-    airflow_skip_constraints: bool = False
     allow_pre_releases: bool = False
     auth_manager: str = ALLOWED_AUTH_MANAGERS[0]
     backend: str = ALLOWED_BACKENDS[0]
@@ -150,6 +172,9 @@ class ShellParams:
     celery_flower: bool = False
     clean_airflow_installation: bool = False
     collect_only: bool = False
+    create_all_roles: bool = False
+    debug_components: tuple[str, ...] = ()
+    debugger: str = "debugpy"
     db_reset: bool = False
     default_constraints_branch: str = DEFAULT_AIRFLOW_CONSTRAINTS_BRANCH
     dev_mode: bool = False
@@ -180,6 +205,7 @@ class ShellParams:
     load_default_connections: bool = False
     load_example_dags: bool = False
     mount_sources: str = MOUNT_SELECTED
+    mount_ui_dist: bool = False
     mysql_version: str = ALLOWED_MYSQL_VERSIONS[0]
     no_db_cleanup: bool = False
     num_runs: str = ""
@@ -188,7 +214,7 @@ class ShellParams:
     parallel_test_types_list: list[str] = field(default_factory=list)
     parallelism: int = 0
     platform: str = DOCKER_DEFAULT_PLATFORM
-    postgres_version: str = ALLOWED_POSTGRES_VERSIONS[0]
+    postgres_version: str = DEFAULT_POSTGRES_VERSION
     project_name: str = ALLOWED_DOCKER_COMPOSE_PROJECTS[0]
     providers_constraints_location: str = ""
     providers_constraints_mode: str = ALLOWED_CONSTRAINTS_MODES_CI[0]
@@ -212,8 +238,10 @@ class ShellParams:
     test_group: GroupOfTests | None = None
     tty: str = "auto"
     upgrade_boto: bool = False
+    upgrade_sqlalchemy: bool = False
     use_airflow_version: str | None = None
     use_distributions_from_dist: bool = False
+    use_mprocs: bool = False
     use_uv: bool = False
     use_xdist: bool = False
     uv_http_timeout: int = DEFAULT_UV_HTTP_TIMEOUT
@@ -315,16 +343,15 @@ class ShellParams:
             # When running scripts, we do not want to mount the volume to make sure that the
             # sqlite database is not persisted between runs of the script and that the
             # breeze database is not cleaned accidentally
-            backend_docker_compose_file = DOCKER_COMPOSE_DIR / f"backend-{backend}-no-volume.yml"
+            backend_docker_compose_file = SCRIPTS_CI_DOCKER_COMPOSE_PATH / f"backend-{backend}-no-volume.yml"
         else:
-            backend_docker_compose_file = DOCKER_COMPOSE_DIR / f"backend-{backend}.yml"
+            backend_docker_compose_file = SCRIPTS_CI_DOCKER_COMPOSE_PATH / f"backend-{backend}.yml"
         if backend in ("sqlite", "none") or not self.forward_ports:
             return [backend_docker_compose_file]
-        if self.project_name == "pre-commit":
-            # do not forward ports for pre-commit runs - to not clash with running containers from
-            # breeze
+        if self.project_name == "prek":
+            # do not forward ports for prek - to not clash with running containers from breeze
             return [backend_docker_compose_file]
-        return [backend_docker_compose_file, DOCKER_COMPOSE_DIR / f"backend-{backend}-port.yml"]
+        return [backend_docker_compose_file, SCRIPTS_CI_DOCKER_COMPOSE_PATH / f"backend-{backend}-port.yml"]
 
     @cached_property
     def compose_file(self) -> str:
@@ -337,7 +364,7 @@ class ShellParams:
                 backend_files.extend(self.get_backend_compose_files(backend))
 
         if self.executor == CELERY_EXECUTOR:
-            compose_file_list.append(DOCKER_COMPOSE_DIR / "integration-celery.yml")
+            compose_file_list.append(SCRIPTS_CI_DOCKER_COMPOSE_INTEGRATION_CELERY_PATH)
             if self.use_airflow_version:
                 current_extras = self.airflow_extras
                 if "celery" not in current_extras.split(","):
@@ -347,13 +374,23 @@ class ShellParams:
                     self.airflow_extras = (
                         ",".join(current_extras.split(",") + ["celery"]) if current_extras else "celery"
                     )
+        if self.auth_manager == FAB_AUTH_MANAGER:
+            if self.use_airflow_version:
+                current_extras = self.airflow_extras
+                if "fab" not in current_extras.split(","):
+                    get_console().print(
+                        "[warning]Adding `fab` extras as it is implicitly needed by FAB auth manager"
+                    )
+                    self.airflow_extras = (
+                        ",".join(current_extras.split(",") + ["fab"]) if current_extras else "fab"
+                    )
 
-        compose_file_list.append(DOCKER_COMPOSE_DIR / "base.yml")
+        compose_file_list.append(SCRIPTS_CI_DOCKER_COMPOSE_BASE_PATH)
         self.add_docker_in_docker(compose_file_list)
         compose_file_list.extend(backend_files)
-        compose_file_list.append(DOCKER_COMPOSE_DIR / "files.yml")
+        compose_file_list.append(SCRIPTS_CI_DOCKER_COMPOSE_FILES_PATH)
         if os.environ.get("CI", "false") == "true":
-            compose_file_list.append(DOCKER_COMPOSE_DIR / "ci-tests.yml")
+            compose_file_list.append(SCRIPTS_CI_DOCKER_COMPOSE_CI_TESTS_PATH)
 
         if self.use_airflow_version is not None and self.mount_sources not in USE_AIRFLOW_MOUNT_SOURCES:
             get_console().print(
@@ -369,22 +406,28 @@ class ShellParams:
                 f"{USE_AIRFLOW_MOUNT_SOURCES} mount sources[/]"
             )
             sys.exit(1)
-        if self.forward_ports and not self.project_name == "pre-commit":
-            compose_file_list.append(DOCKER_COMPOSE_DIR / "base-ports.yml")
+        if self.forward_ports and not self.project_name == "prek":
+            compose_file_list.append(SCRIPTS_CI_DOCKER_COMPOSE_BASE_PORTS_PATH)
+        if self.debug_components and not self.project_name == "prek":
+            compose_file_list.append(SCRIPTS_CI_DOCKER_COMPOSE_DEBUG_PORTS_PATH)
         if self.mount_sources == MOUNT_SELECTED:
-            compose_file_list.append(DOCKER_COMPOSE_DIR / "local.yml")
+            compose_file_list.append(SCRIPTS_CI_DOCKER_COMPOSE_LOCAL_YAML_PATH)
         elif self.mount_sources == MOUNT_ALL:
-            compose_file_list.append(DOCKER_COMPOSE_DIR / "local-all-sources.yml")
+            compose_file_list.append(SCRIPTS_CI_DOCKER_COMPOSE_LOCAL_ALL_SOURCES_PATH)
         elif self.mount_sources == MOUNT_TESTS:
-            compose_file_list.append(DOCKER_COMPOSE_DIR / "tests-sources.yml")
+            compose_file_list.append(SCRIPTS_CI_DOCKER_COMPOSE_TESTS_SOURCES_PATH)
         elif self.mount_sources == MOUNT_PROVIDERS_AND_TESTS:
-            compose_file_list.append(DOCKER_COMPOSE_DIR / "providers-and-tests-sources.yml")
+            compose_file_list.append(SCRIPTS_CI_DOCKER_COMPOSE_PROVIDERS_AND_TESTS_SOURCES_PATH)
         elif self.mount_sources == MOUNT_REMOVE:
-            compose_file_list.append(DOCKER_COMPOSE_DIR / "remove-sources.yml")
+            compose_file_list.append(SCRIPTS_CI_DOCKER_COMPOSE_REMOVE_SOURCES_PATH)
+        if self.mount_ui_dist:
+            compose_file_list.append(SCRIPTS_CI_DOCKER_COMPOSE_MOUNT_UI_DIST_PATH)
         if self.forward_credentials:
-            compose_file_list.append(DOCKER_COMPOSE_DIR / "forward-credentials.yml")
+            compose_file_list.append(SCRIPTS_CI_DOCKER_COMPOSE_FORWARD_CREDENTIALS_PATH)
         if self.include_mypy_volume:
-            compose_file_list.append(DOCKER_COMPOSE_DIR / "mypy.yml")
+            compose_file_list.append(SCRIPTS_CI_DOCKER_COMPOSE_MYPY_PATH)
+        if self.tty == "enabled":
+            compose_file_list.append(SCRIPTS_CI_DOCKER_COMPOSE_ENABLE_TTY_PATH)
         if "all-testable" in self.integration:
             if self.test_group == GroupOfTests.INTEGRATION_CORE:
                 integrations = TESTABLE_CORE_INTEGRATIONS
@@ -409,12 +452,13 @@ class ShellParams:
         else:
             integrations = self.integration
         for integration in integrations:
-            compose_file_list.append(DOCKER_COMPOSE_DIR / f"integration-{integration}.yml")
+            get_console().print(f"[info]Adding integration compose file for {integration}[/]")
+            compose_file_list.append(SCRIPTS_CI_DOCKER_COMPOSE_PATH / f"integration-{integration}.yml")
         if "trino" in integrations and "kerberos" not in integrations:
             get_console().print(
                 "[warning]Adding `kerberos` integration as it is implicitly needed by trino",
             )
-            compose_file_list.append(DOCKER_COMPOSE_DIR / "integration-kerberos.yml")
+            compose_file_list.append(SCRIPTS_CI_DOCKER_COMPOSE_INTEGRATION_KERBEROS_PATH)
         return os.pathsep.join([os.fspath(f) for f in compose_file_list])
 
     @cached_property
@@ -441,7 +485,7 @@ class ShellParams:
         return " ".join(get_suspended_provider_folders()).strip()
 
     def add_docker_in_docker(self, compose_file_list: list[Path]):
-        generated_compose_file = DOCKER_COMPOSE_DIR / "_generated_docker_in_docker.yml"
+        generated_compose_file = SCRIPTS_CI_DOCKER_COMPOSE_PATH / "_generated_docker_in_docker.yml"
         unix_prefix = "unix://"
         if self.docker_host:
             if self.docker_host.startswith(unix_prefix):
@@ -454,7 +498,7 @@ class ShellParams:
                     # We are running on MacOS and the socket is the default "user" bound one
                     # We need to pretend that we are running on Linux and use the default socket
                     # in the VM instead - see https://github.com/docker/for-mac/issues/6545
-                    compose_file_list.append(DOCKER_COMPOSE_DIR / "docker-socket.yml")
+                    compose_file_list.append(SCRIPTS_CI_DOCKER_COMPOSE_DOCKER_SOCKET_PATH)
                     return
                 if socket_path.is_socket():
                     generated_compose_file.write_text(generated_socket_compose_file(socket_path.as_posix()))
@@ -488,7 +532,7 @@ class ShellParams:
             # NOTE! Even if we are using "desktop-linux" context where "/var/run/docker.sock" is not used,
             # Docker engine works fine because "/var/run/docker.sock" is mounted at the VM and there
             # the /var/run/docker.sock is available. See https://github.com/docker/for-mac/issues/6545
-            compose_file_list.append(DOCKER_COMPOSE_DIR / "docker-socket.yml")
+            compose_file_list.append(SCRIPTS_CI_DOCKER_COMPOSE_DOCKER_SOCKET_PATH)
 
     @cached_property
     def rootless_docker(self) -> bool:
@@ -515,7 +559,6 @@ class ShellParams:
         _set_var(_env, "AIRFLOW_CONSTRAINTS_REFERENCE", self.airflow_constraints_reference)
         _set_var(_env, "AIRFLOW_ENV", "development")
         _set_var(_env, "AIRFLOW_EXTRAS", self.airflow_extras)
-        _set_var(_env, "AIRFLOW_SKIP_CONSTRAINTS", self.airflow_skip_constraints)
         _set_var(_env, "AIRFLOW_IMAGE_KUBERNETES", self.airflow_image_kubernetes)
         _set_var(_env, "AIRFLOW_VERSION", self.airflow_version)
         _set_var(_env, "AIRFLOW__API_AUTH__JWT_SECRET", b64encode(os.urandom(16)).decode("utf-8"))
@@ -523,7 +566,9 @@ class ShellParams:
         _set_var(_env, "AIRFLOW__CORE__AUTH_MANAGER", self.auth_manager_path)
         _set_var(_env, "AIRFLOW__CORE__EXECUTOR", self.executor)
         if self.auth_manager == SIMPLE_AUTH_MANAGER:
-            _set_var(_env, "AIRFLOW__CORE__SIMPLE_AUTH_MANAGER_USERS", "admin:admin,viewer:viewer")
+            _set_var(
+                _env, "AIRFLOW__CORE__SIMPLE_AUTH_MANAGER_USERS", "admin:admin,viewer:viewer,user:user,op:op"
+            )
         _set_var(
             _env,
             "AIRFLOW__CORE__SIMPLE_AUTH_MANAGER_PASSWORDS_FILE",
@@ -569,6 +614,7 @@ class ShellParams:
         _set_var(_env, "CI_TARGET_BRANCH", self.airflow_branch)
         _set_var(_env, "CI_TARGET_REPO", self.github_repository)
         _set_var(_env, "COLLECT_ONLY", self.collect_only)
+        _set_var(_env, "CREATE_ALL_ROLES", self.create_all_roles)
         _set_var(_env, "COMMIT_SHA", None, commit_sha())
         _set_var(_env, "COMPOSE_FILE", self.compose_file)
         _set_var(_env, "DB_RESET", self.db_reset)
@@ -602,6 +648,7 @@ class ShellParams:
         _set_var(_env, "MYSQL_HOST_PORT", None, MYSQL_HOST_PORT)
         _set_var(_env, "MYSQL_VERSION", self.mysql_version)
         _set_var(_env, "MOUNT_SOURCES", self.mount_sources)
+        _set_var(_env, "MOUNT_UI_DIST", self.mount_ui_dist)
         _set_var(_env, "NUM_RUNS", self.num_runs)
         _set_var(_env, "ONLY_MIN_VERSION_UPDATE", self.only_min_version_update)
         _set_var(_env, "DISTRIBUTION_FORMAT", self.distribution_format)
@@ -616,6 +663,7 @@ class ShellParams:
         _set_var(_env, "PYTHON_MAJOR_MINOR_VERSION", self.python)
         _set_var(_env, "QUIET", self.quiet)
         _set_var(_env, "REDIS_HOST_PORT", None, REDIS_HOST_PORT)
+        _set_var(_env, "RABBITMQ_HOST_PORT", None, RABBITMQ_HOST_PORT)
         _set_var(_env, "REGENERATE_MISSING_DOCS", self.regenerate_missing_docs)
         _set_var(_env, "RUN_TESTS", self.run_tests)
         _set_var(_env, "SKIP_ENVIRONMENT_INITIALIZATION", self.skip_environment_initialization)
@@ -624,6 +672,7 @@ class ShellParams:
         _set_var(_env, "SSH_PORT", None, SSH_PORT)
         _set_var(_env, "STANDALONE_DAG_PROCESSOR", self.standalone_dag_processor)
         _set_var(_env, "START_AIRFLOW", self.start_airflow)
+        _set_var(_env, "USE_MPROCS", self.use_mprocs)
         _set_var(_env, "SUSPENDED_PROVIDERS_FOLDERS", self.suspended_providers_folders)
         _set_var(
             _env,
@@ -634,6 +683,7 @@ class ShellParams:
         _set_var(_env, "TEST_TYPE", self.test_type, "")
         _set_var(_env, "TEST_GROUP", str(self.test_group.value) if self.test_group else "")
         _set_var(_env, "UPGRADE_BOTO", self.upgrade_boto)
+        _set_var(_env, "UPGRADE_SQLALCHEMY", self.upgrade_sqlalchemy)
         _set_var(_env, "USE_AIRFLOW_VERSION", self.use_airflow_version, "")
         _set_var(_env, "USE_DISTRIBUTIONS_FROM_DIST", self.use_distributions_from_dist)
         _set_var(_env, "USE_UV", self.use_uv)
@@ -644,11 +694,44 @@ class ShellParams:
         _set_var(_env, "WEB_HOST_PORT", None, WEB_HOST_PORT)
         _set_var(_env, "_AIRFLOW_RUN_DB_TESTS_ONLY", self.run_db_tests_only)
         _set_var(_env, "_AIRFLOW_SKIP_DB_TESTS", self.skip_db_tests)
+
+        self._set_debug_variables(_env)
         self._generate_env_for_docker_compose_file_if_needed(_env)
 
         _target_env: dict[str, str] = os.environ.copy()
         _target_env.update(_env)
         return _target_env
+
+    def _set_debug_variables(self, env) -> None:
+        """Set debug environment variables based on selected debug components."""
+        if self.debugger == "pydevd-pycharm":
+            print("Pycharm-pydevd debugger is under development and not yet supported in Breeze.")
+            return
+        if not self.debug_components:
+            return
+
+        _set_var(env, "BREEZE_DEBUG_SCHEDULER_PORT", None, BREEZE_DEBUG_SCHEDULER_PORT)
+        _set_var(env, "BREEZE_DEBUG_DAG_PROCESSOR_PORT", None, BREEZE_DEBUG_DAG_PROCESSOR_PORT)
+        _set_var(env, "BREEZE_DEBUG_TRIGGERER_PORT", None, BREEZE_DEBUG_TRIGGERER_PORT)
+        _set_var(env, "BREEZE_DEBUG_APISERVER_PORT", None, BREEZE_DEBUG_APISERVER_PORT)
+        _set_var(env, "BREEZE_DEBUG_CELERY_WORKER_PORT", None, BREEZE_DEBUG_CELERY_WORKER_PORT)
+        _set_var(env, "BREEZE_DEBUG_EDGE_PORT", None, BREEZE_DEBUG_EDGE_PORT)
+        _set_var(env, "BREEZE_DEBUG_WEBSERVER_PORT", None, BREEZE_DEBUG_WEBSERVER_PORT)
+
+        _set_var(env, "BREEZE_DEBUGGER", None, self.debugger)
+
+        component_mappings = {
+            "scheduler": "BREEZE_DEBUG_SCHEDULER",
+            "triggerer": "BREEZE_DEBUG_TRIGGERER",
+            "api-server": "BREEZE_DEBUG_APISERVER",
+            "dag-processor": "BREEZE_DEBUG_DAG_PROCESSOR",
+            "edge-worker": "BREEZE_DEBUG_EDGE",
+            "celery-worker": "BREEZE_DEBUG_CELERY_WORKER",
+        }
+
+        for component in self.debug_components:
+            env_var = component_mappings[component]
+            _set_var(env, env_var, None, "true")
 
     @staticmethod
     def _generate_env_for_docker_compose_file_if_needed(env: dict[str, str]):
@@ -734,3 +817,11 @@ class ShellParams:
                 "[error]When using the Keycloak integration the backend must be Postgres![/]\n"
             )
             sys.exit(2)
+
+    def __eq__(self, other) -> bool:
+        if not isinstance(other, ShellParams):
+            return False
+        return self.__dict__ == other.__dict__
+
+    def __hash__(self) -> int:
+        return hash(str(self.__dict__))

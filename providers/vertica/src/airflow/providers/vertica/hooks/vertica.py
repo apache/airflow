@@ -1,4 +1,3 @@
-#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -17,13 +16,17 @@
 # under the License.
 from __future__ import annotations
 
-from collections.abc import Iterable, Mapping
-from typing import Any, Callable, overload
+from collections.abc import Callable, Iterable, Mapping
+from typing import TYPE_CHECKING, Any, overload
 
 from vertica_python import connect
 
+from airflow.exceptions import AirflowOptionalProviderFeatureException
 from airflow.providers.common.sql.hooks.handlers import fetch_all_handler
 from airflow.providers.common.sql.hooks.sql import DbApiHook
+
+if TYPE_CHECKING:
+    from sqlalchemy.engine import URL
 
 
 def vertica_fetch_all_handler(cursor) -> list[tuple] | None:
@@ -67,8 +70,8 @@ class VerticaHook(DbApiHook):
 
     def get_conn(self) -> connect:
         """Return vertica connection object."""
-        conn = self.get_connection(self.vertica_conn_id)  # type: ignore
-        conn_config = {
+        conn = self.get_connection(self.get_conn_id())
+        conn_config: dict[str, Any] = {
             "user": conn.login,
             "password": conn.password or "",
             "database": conn.schema,
@@ -134,7 +137,41 @@ class VerticaHook(DbApiHook):
         conn = connect(**conn_config)
         return conn
 
-    @overload  # type: ignore[override]
+    @property
+    def sqlalchemy_url(self) -> URL:
+        """Return a SQLAlchemy URL object with properly formatted query parameters."""
+        try:
+            from sqlalchemy.engine import URL
+        except (ImportError, ModuleNotFoundError) as err:
+            raise AirflowOptionalProviderFeatureException(
+                "The 'sqlalchemy' library is required to use this feature. "
+                "Please install it with: pip install 'apache-airflow-providers-vertica[sqlalchemy]'"
+            ) from err
+        conn = self.get_connection(self.get_conn_id())
+        extra = conn.extra_dejson or {}
+
+        # Normalize query dictionary
+        query = {
+            k: ([str(x) for x in v] if isinstance(v, (list, tuple)) else str(v))
+            for k, v in extra.items()
+            if v is not None
+        }
+
+        return URL.create(
+            drivername="vertica-python",
+            username=conn.login,
+            password=conn.password or "",
+            host=conn.host or "localhost",
+            port=conn.port or 5433,
+            database=conn.schema,
+            query=query,
+        )
+
+    def get_uri(self) -> str:
+        """Return a URI string with password visible."""
+        return self.sqlalchemy_url.render_as_string(hide_password=False)
+
+    @overload
     def run(
         self,
         sql: str | Iterable[str],

@@ -17,8 +17,8 @@
 # under the License.
 from __future__ import annotations
 
+from collections.abc import Callable
 from sched import scheduler
-from typing import Callable
 
 from airflow.utils.log.logging_mixin import LoggingMixin
 

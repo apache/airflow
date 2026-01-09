@@ -68,7 +68,7 @@ class TestSnsPublishOperator:
 
     @mock.patch.object(SnsPublishOperator, "hook")
     @pytest.mark.parametrize(
-        "message_deduplication_id_,message_group_id_",
+        ("message_deduplication_id_", "message_group_id_"),
         [
             ("abc", "a"),
             (None, None),

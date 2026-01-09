@@ -17,53 +17,55 @@
  * under the License.
  */
 
-/* eslint-disable unicorn/no-null */
+/* eslint-disable unicorn/no-null,max-lines */
 import { http, HttpResponse, type HttpHandler } from "msw";
+
+const ti = {
+  dag_id: "log_grouping",
+  dag_run_id: "<OVERRIDE_BELOW>",
+  dag_version: {
+    bundle_name: "dags-folder",
+    bundle_url: null,
+    bundle_version: null,
+    created_at: "2025-02-18T12:06:45.723238Z",
+    dag_id: "log_grouping",
+    id: "019518f4-1adb-7223-a917-45fe08b78947",
+    version_number: 1,
+  },
+  duration: 0.203_977,
+  end_date: "2025-02-18T12:19:56.467235Z",
+  executor: null,
+  executor_config: "{}",
+  hostname: "laptop",
+  id: "01951900-16f6-7c1c-ae66-91bdfe9e0cfd",
+  logical_date: null,
+  map_index: -1,
+  max_tries: 0,
+  note: null,
+  operator: "_PythonDecoratedOperator",
+  pid: 20_703,
+  pool: "default_pool",
+  pool_slots: 1,
+  priority_weight: 1,
+  queue: "default",
+  queued_when: "2025-02-18T12:19:52.311873Z",
+  rendered_fields: { op_args: "()", op_kwargs: {}, templates_dict: null },
+  rendered_map_index: null,
+  run_after: "2025-02-18T12:19:51.120210Z",
+  scheduled_when: "2025-02-18T12:19:52.289327Z",
+  start_date: "2025-02-18T12:19:56.263258Z",
+  state: "success",
+  task_display_name: "generate",
+  task_id: "generate",
+  trigger: null,
+  triggerer_job: null,
+  try_number: 1,
+  unixname: "testname",
+};
 
 export const handlers: Array<HttpHandler> = [
   http.get("/api/v2/dags/log_grouping/dagRuns/manual__2025-02-18T12:19/taskInstances/generate/-1", () =>
-    HttpResponse.json({
-      dag_id: "log_grouping",
-      dag_run_id: "manual__2025-02-18T12:19",
-      dag_version: {
-        bundle_name: "dags-folder",
-        bundle_url: null,
-        bundle_version: null,
-        created_at: "2025-02-18T12:06:45.723238Z",
-        dag_id: "log_grouping",
-        id: "019518f4-1adb-7223-a917-45fe08b78947",
-        version_number: 1,
-      },
-      duration: 0.203_977,
-      end_date: "2025-02-18T12:19:56.467235Z",
-      executor: null,
-      executor_config: "{}",
-      hostname: "laptop",
-      id: "01951900-16f6-7c1c-ae66-91bdfe9e0cfd",
-      logical_date: null,
-      map_index: -1,
-      max_tries: 0,
-      note: null,
-      operator: "_PythonDecoratedOperator",
-      pid: 20_703,
-      pool: "default_pool",
-      pool_slots: 1,
-      priority_weight: 1,
-      queue: "default",
-      queued_when: "2025-02-18T12:19:52.311873Z",
-      rendered_fields: { op_args: "()", op_kwargs: {}, templates_dict: null },
-      rendered_map_index: null,
-      run_after: "2025-02-18T12:19:51.120210Z",
-      scheduled_when: "2025-02-18T12:19:52.289327Z",
-      start_date: "2025-02-18T12:19:56.263258Z",
-      state: "success",
-      task_display_name: "generate",
-      task_id: "generate",
-      trigger: null,
-      triggerer_job: null,
-      try_number: 1,
-      unixname: "testname",
-    }),
+    HttpResponse.json({ ...ti, dag_run_id: "manual__2025-02-18T12:19" }),
   ),
   http.get("/api/v2/dags/log_grouping/dagRuns/manual__2025-02-18T12:19/taskInstances/generate/logs/1", () =>
     HttpResponse.json({
@@ -186,6 +188,106 @@ export const handlers: Array<HttpHandler> = [
         {
           event: "[2025-02-28T10:49:09.920+0530] {local_task_job_runner.py:241} INFO - ::endgroup::",
           timestamp: "2025-02-28T10:49:09.920000+05:30",
+        },
+      ],
+      continuation_token: null,
+    }),
+  ),
+  http.get("/api/v2/dags/log_grouping/dagRuns/manual__2025-02-18T12:19/taskInstances/log_source/-1", () =>
+    HttpResponse.json({
+      ...ti,
+      dag_run_id: "manual__2025-02-18T12:19",
+      task_display_name: "log_source",
+      task_id: "log_source",
+    }),
+  ),
+  http.get("/api/v2/dags/log_grouping/dagRuns/manual__2025-02-18T12:19/taskInstances/log_source/logs/1", () =>
+    HttpResponse.json({
+      content: [
+        {
+          event: "::group::Log message source details",
+          sources: [
+            "/root/airflow/logs/dag_id=log_grouping/run_id=manual__2025-02-18T12:19/task_id=log_source/attempt=1.log",
+          ],
+          timestamp: null,
+        },
+        { event: "::endgroup::", timestamp: null },
+        {
+          event: "DAG bundles loaded: dags-folder, example_dags",
+          filename: "manager.py",
+          level: "info",
+          lineno: 179,
+          logger: "airflow.dag_processing.bundles.manager.DagBundlesManager",
+          timestamp: "2025-09-11T17:44:52.567095Z",
+        },
+        {
+          event:
+            "Filling up the DagBag from /opt/airflow/airflow-core/src/airflow/example_dags/standard/example_python_decorator.py",
+          filename: "dagbag.py",
+          level: "info",
+          lineno: 593,
+          logger: "airflow.models.dagbag.DagBag",
+          timestamp: "2025-09-11T17:44:52.567407Z",
+        },
+        {
+          event: "Task instance is in running state",
+          level: "info",
+          logger: "task.stdout",
+          timestamp: "2025-09-11T17:44:52.597476Z",
+        },
+        {
+          event: " Previous state of the Task instance: TaskInstanceState.QUEUED",
+          level: "info",
+          logger: "task.stdout",
+          timestamp: "2025-09-11T17:44:52.597589Z",
+        },
+        {
+          event: "Current task name:log_sql_query",
+          level: "info",
+          logger: "task.stdout",
+          timestamp: "2025-09-11T17:44:52.597626Z",
+        },
+        {
+          event: "Dag name:example_python_decorator",
+          level: "info",
+          logger: "task.stdout",
+          timestamp: "2025-09-11T17:44:52.597657Z",
+        },
+        {
+          event:
+            "Python task decorator query: CREATE TABLE Orders (\n    order_id INT PRIMARY KEY,\n    name TEXT,\n    description TEXT\n)",
+          filename: "example_python_decorator.py",
+          level: "info",
+          lineno: 60,
+          logger: "unusual_prefix_7bb6f64024e819254594fca018f7123719f205f5_example_python_decorator",
+          timestamp: "2025-09-11T17:44:52.598196Z",
+        },
+        {
+          event: "Done. Returned value was: None",
+          filename: "python.py",
+          level: "info",
+          lineno: 218,
+          logger:
+            "airflow.task.operators.airflow.providers.standard.decorators.python._PythonDecoratedOperator",
+          timestamp: "2025-09-11T17:44:52.598300Z",
+        },
+        {
+          event: "Task instance in success state",
+          level: "info",
+          logger: "task.stdout",
+          timestamp: "2025-09-11T17:44:52.607859Z",
+        },
+        {
+          event: " Previous state of the Task instance: TaskInstanceState.RUNNING",
+          level: "info",
+          logger: "task.stdout",
+          timestamp: "2025-09-11T17:44:52.607929Z",
+        },
+        {
+          event: "Task operator:<Task(_PythonDecoratedOperator): log_sql_query>",
+          level: "info",
+          logger: "task.stdout",
+          timestamp: "2025-09-11T17:44:52.607985Z",
         },
       ],
       continuation_token: null,

@@ -1,0 +1,22 @@
+{
+  "auditLog": {
+    "columns": {
+      "event": "اصل",
+      "extra": "إضافي",
+      "user": "مستخدم",
+      "when": "متى"
+    },
+    "filters": {
+      "eventType": "نوع الأصل"
+    },
+    "title": "سجل المراجعة"
+  },
+  "xcom": {
+    "columns": {
+      "dag": "Dag",
+      "key": "مفتاح",
+      "value": "قيمة"
+    },
+    "title": "(XCom) إكس كوم"
+  }
+}

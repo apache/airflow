@@ -17,6 +17,7 @@
 
 from __future__ import annotations
 
+import collections
 from typing import Any, Protocol
 
 import structlog
@@ -30,6 +31,9 @@ from airflow.sdk.execution_time.comms import (
     XComSequenceSliceResult,
 )
 
+# Lightweight wrapper for XCom values
+_XComValueWrapper = collections.namedtuple("_XComValueWrapper", "value")
+
 log = structlog.get_logger(logger_name="task")
 
 
@@ -42,6 +46,8 @@ class TIKeyProtocol(Protocol):
 
 class BaseXCom:
     """BaseXcom is an interface now to interact with XCom backends."""
+
+    XCOM_RETURN_KEY = "return_value"
 
     @classmethod
     def set(
@@ -60,9 +66,9 @@ class BaseXCom:
 
         :param key: Key to store the XCom.
         :param value: XCom value to store.
-        :param dag_id: DAG ID.
+        :param dag_id: Dag ID.
         :param task_id: Task ID.
-        :param run_id: DAG run ID for the task.
+        :param run_id: Dag run ID for the task.
         :param map_index: Optional map index to assign XCom for a mapped task.
             The default is ``-1`` (set for a non-mapped task).
         """
@@ -77,9 +83,8 @@ class BaseXCom:
             map_index=map_index,
         )
 
-        SUPERVISOR_COMMS.send_request(
-            log=log,
-            msg=SetXCom(
+        SUPERVISOR_COMMS.send(
+            SetXCom(
                 key=key,
                 value=value,
                 dag_id=dag_id,
@@ -106,17 +111,16 @@ class BaseXCom:
 
         :param key: Key to store the XCom.
         :param value: XCom value to store.
-        :param dag_id: DAG ID.
+        :param dag_id: Dag ID.
         :param task_id: Task ID.
-        :param run_id: DAG run ID for the task.
+        :param run_id: Dag run ID for the task.
         :param map_index: Optional map index to assign XCom for a mapped task.
             The default is ``-1`` (set for a non-mapped task).
         """
         from airflow.sdk.execution_time.task_runner import SUPERVISOR_COMMS
 
-        SUPERVISOR_COMMS.send_request(
-            log=log,
-            msg=SetXCom(
+        SUPERVISOR_COMMS.send(
+            SetXCom(
                 key=key,
                 value=value,
                 dag_id=dag_id,
@@ -176,8 +180,8 @@ class BaseXCom:
         .. seealso:: ``get_value()`` is a convenience function if you already
             have a structured TaskInstance or TaskInstanceKey object available.
 
-        :param run_id: DAG run ID for the task.
-        :param dag_id: Only pull XCom from this DAG. Pass *None* (default) to
+        :param run_id: Dag run ID for the task.
+        :param dag_id: Only pull XCom from this Dag. Pass *None* (default) to
             remove the filter.
         :param task_id: Only XCom from task with matching ID will be pulled.
             Pass *None* (default) to remove the filter.
@@ -188,23 +192,16 @@ class BaseXCom:
         """
         from airflow.sdk.execution_time.task_runner import SUPERVISOR_COMMS
 
-        # Since Triggers can hit this code path via `sync_to_async` (which uses threads internally)
-        # we need to make sure that we "atomically" send a request and get the response to that
-        # back so that two triggers don't end up interleaving requests and create a possible
-        # race condition where the wrong trigger reads the response.
-        with SUPERVISOR_COMMS.lock:
-            SUPERVISOR_COMMS.send_request(
-                log=log,
-                msg=GetXCom(
-                    key=key,
-                    dag_id=dag_id,
-                    task_id=task_id,
-                    run_id=run_id,
-                    map_index=map_index,
-                ),
-            )
+        msg = SUPERVISOR_COMMS.send(
+            GetXCom(
+                key=key,
+                dag_id=dag_id,
+                task_id=task_id,
+                run_id=run_id,
+                map_index=map_index,
+            ),
+        )
 
-            msg = SUPERVISOR_COMMS.get_message()
         if not isinstance(msg, XComResult):
             raise TypeError(f"Expected XComResult, received: {type(msg)} {msg}")
 
@@ -233,8 +230,8 @@ class BaseXCom:
         .. seealso:: ``get_value()`` is a convenience function if you already
             have a structured TaskInstance or TaskInstanceKey object available.
 
-        :param run_id: DAG run ID for the task.
-        :param dag_id: Only pull XCom from this DAG. Pass *None* (default) to
+        :param run_id: Dag run ID for the task.
+        :param dag_id: Only pull XCom from this Dag. Pass *None* (default) to
             remove the filter.
         :param task_id: Only XCom from task with matching ID will be pulled.
             Pass *None* (default) to remove the filter.
@@ -243,28 +240,21 @@ class BaseXCom:
         :param key: A key for the XCom. If provided, only XCom with matching
             keys will be returned. Pass *None* (default) to remove the filter.
         :param include_prior_dates: If *False* (default), only XCom from the
-            specified DAG run is returned. If *True*, the latest matching XCom is
+            specified Dag run is returned. If *True*, the latest matching XCom is
             returned regardless of the run it belongs to.
         """
         from airflow.sdk.execution_time.task_runner import SUPERVISOR_COMMS
 
-        # Since Triggers can hit this code path via `sync_to_async` (which uses threads internally)
-        # we need to make sure that we "atomically" send a request and get the response to that
-        # back so that two triggers don't end up interleaving requests and create a possible
-        # race condition where the wrong trigger reads the response.
-        with SUPERVISOR_COMMS.lock:
-            SUPERVISOR_COMMS.send_request(
-                log=log,
-                msg=GetXCom(
-                    key=key,
-                    dag_id=dag_id,
-                    task_id=task_id,
-                    run_id=run_id,
-                    map_index=map_index,
-                    include_prior_dates=include_prior_dates,
-                ),
-            )
-            msg = SUPERVISOR_COMMS.get_message()
+        msg = SUPERVISOR_COMMS.send(
+            GetXCom(
+                key=key,
+                dag_id=dag_id,
+                task_id=task_id,
+                run_id=run_id,
+                map_index=map_index,
+                include_prior_dates=include_prior_dates,
+            ),
+        )
 
         if not isinstance(msg, XComResult):
             raise TypeError(f"Expected XComResult, received: {type(msg)} {msg}")
@@ -289,6 +279,7 @@ class BaseXCom:
         dag_id: str,
         task_id: str,
         run_id: str,
+        include_prior_dates: bool = False,
     ) -> Any:
         """
         Retrieve all XCom values for a task, typically from all map indexes.
@@ -300,36 +291,36 @@ class BaseXCom:
         indexes of a mapped task at once.
 
         :param key: A key for the XCom. Only XComs with this key will be returned.
-        :param run_id: DAG run ID for the task.
-        :param dag_id: DAG ID to pull XComs from.
+        :param run_id: Dag run ID for the task.
+        :param dag_id: Dag ID to pull XComs from.
         :param task_id: Task ID to pull XComs from.
+        :param include_prior_dates: If *False* (default), only XComs from the
+            specified Dag run are returned. If *True*, the latest matching XComs are
+            returned regardless of the run they belong to.
         :return: List of all XCom values if found.
         """
         from airflow.sdk.execution_time.task_runner import SUPERVISOR_COMMS
 
-        # Since Triggers can hit this code path via `sync_to_async` (which uses threads internally)
-        # we need to make sure that we "atomically" send a request and get the response to that
-        # back so that two triggers don't end up interleaving requests and create a possible
-        # race condition where the wrong trigger reads the response.
-        with SUPERVISOR_COMMS.lock:
-            SUPERVISOR_COMMS.send_request(
-                log=log,
-                msg=GetXComSequenceSlice(
-                    key=key,
-                    dag_id=dag_id,
-                    task_id=task_id,
-                    run_id=run_id,
-                    start=None,
-                    stop=None,
-                    step=None,
-                ),
-            )
-            msg = SUPERVISOR_COMMS.get_message()
+        msg = SUPERVISOR_COMMS.send(
+            msg=GetXComSequenceSlice(
+                key=key,
+                dag_id=dag_id,
+                task_id=task_id,
+                run_id=run_id,
+                start=None,
+                stop=None,
+                step=None,
+                include_prior_dates=include_prior_dates,
+            ),
+        )
 
         if not isinstance(msg, XComSequenceSliceResult):
             raise TypeError(f"Expected XComSequenceSliceResult, received: {type(msg)} {msg}")
 
-        return msg.root
+        if not msg.root:
+            return None
+
+        return [cls.deserialize_value(_XComValueWrapper(value)) for value in msg.root]
 
     @staticmethod
     def serialize_value(
@@ -342,7 +333,7 @@ class BaseXCom:
         map_index: int | None = None,
     ) -> str:
         """Serialize XCom value to JSON str."""
-        from airflow.serialization.serde import serialize
+        from airflow.sdk.serde import serialize
 
         # return back the value for BaseXCom, custom backends will implement this
         return serialize(value)  # type: ignore[return-value]
@@ -350,7 +341,7 @@ class BaseXCom:
     @staticmethod
     def deserialize_value(result) -> Any:
         """Deserialize XCom value from str objects."""
-        from airflow.serialization.serde import deserialize
+        from airflow.sdk.serde import deserialize
 
         return deserialize(result.value)
 
@@ -378,13 +369,13 @@ class BaseXCom:
             run_id=run_id,
             map_index=map_index,
         )
-        cls.purge(xcom_result)  # type: ignore[call-arg]
-        SUPERVISOR_COMMS.send_request(
-            log=log,
-            msg=DeleteXCom(
+        cls.purge(xcom_result)
+        SUPERVISOR_COMMS.send(
+            DeleteXCom(
                 key=key,
                 dag_id=dag_id,
                 task_id=task_id,
                 run_id=run_id,
+                map_index=map_index,
             ),
         )

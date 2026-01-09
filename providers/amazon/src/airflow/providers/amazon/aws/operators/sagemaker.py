@@ -20,13 +20,11 @@ import datetime
 import json
 import time
 import urllib
-from collections.abc import Sequence
-from typing import TYPE_CHECKING, Any, Callable, ClassVar
+from collections.abc import Callable, Sequence
+from typing import TYPE_CHECKING, Any, ClassVar
 
 from botocore.exceptions import ClientError
 
-from airflow.configuration import conf
-from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 from airflow.providers.amazon.aws.hooks.sagemaker import (
     LogState,
@@ -43,12 +41,13 @@ from airflow.providers.amazon.aws.utils import trim_none_values, validate_execut
 from airflow.providers.amazon.aws.utils.mixins import aws_template_fields
 from airflow.providers.amazon.aws.utils.sagemaker import ApprovalStatus
 from airflow.providers.amazon.aws.utils.tags import format_tags
+from airflow.providers.common.compat.sdk import AirflowException, conf
 from airflow.utils.helpers import prune_dict
 
 if TYPE_CHECKING:
     from airflow.providers.common.compat.openlineage.facet import Dataset
     from airflow.providers.openlineage.extractors.base import OperatorLineage
-    from airflow.utils.context import Context
+    from airflow.sdk import Context
 
 # DEFAULT_CONN_ID: str = "aws_default"
 CHECK_INTERVAL_SECOND: int = 30
@@ -86,7 +85,7 @@ class SageMakerBaseOperator(AwsBaseOperator[SageMakerHook]):
         super().__init__(**kwargs)
         self.config = config
 
-    def parse_integer(self, config: dict, field: list[str] | str) -> None:
+    def parse_integer(self, config: dict | list, field: list[str] | str) -> None:
         """Recursive method for parsing string fields holding integer values to integers."""
         if len(field) == 1:
             if isinstance(config, list):
@@ -993,7 +992,7 @@ class SageMakerTuningOperator(SageMakerBaseOperator):
         )
         if response["ResponseMetadata"]["HTTPStatusCode"] != 200:
             raise AirflowException(f"Sagemaker Tuning Job creation failed: {response}")
-
+        description: dict = {}
         if self.deferrable:
             self.defer(
                 trigger=SageMakerTrigger(
@@ -1009,7 +1008,6 @@ class SageMakerTuningOperator(SageMakerBaseOperator):
                     else None
                 ),
             )
-            description = {}  # never executed but makes static checkers happy
         elif self.wait_for_completion:
             description = self.hook.check_status(
                 self.config["HyperParameterTuningJobName"],

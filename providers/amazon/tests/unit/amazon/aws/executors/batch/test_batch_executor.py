@@ -27,7 +27,6 @@ import yaml
 from botocore.exceptions import ClientError, NoCredentialsError
 from semver import VersionInfo
 
-from airflow.exceptions import AirflowException
 from airflow.executors.base_executor import BaseExecutor
 from airflow.models import TaskInstance
 from airflow.models.taskinstancekey import TaskInstanceKey
@@ -42,12 +41,14 @@ from airflow.providers.amazon.aws.executors.batch.utils import (
     CONFIG_GROUP_NAME,
     AllBatchConfigKeys,
 )
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.utils.helpers import convert_camel_to_snake
 from airflow.utils.state import State
 from airflow.version import version as airflow_version_str
 
 from tests_common import RUNNING_TESTS_AGAINST_AIRFLOW_PACKAGES
 from tests_common.test_utils.config import conf_vars
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
 airflow_version = VersionInfo(*map(int, airflow_version_str.split(".")[:3]))
 ARN1 = "arn1"
@@ -198,6 +199,74 @@ class TestAwsBatchExecutor:
         mock_executor.attempt_submit_jobs()
         mock_executor.batch.submit_job.assert_called_once()
         assert len(mock_executor.active_workers) == 1
+
+    @pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="Test requires Airflow 3+")
+    @mock.patch("airflow.providers.amazon.aws.executors.batch.batch_executor.AwsBatchExecutor.running_state")
+    def test_task_sdk(self, running_state_mock, mock_airflow_key, mock_executor, mock_cmd):
+        """Test task sdk execution from end-to-end."""
+        from airflow.executors.workloads import ExecuteTask
+
+        workload = mock.Mock(spec=ExecuteTask)
+        workload.ti = mock.Mock(spec=TaskInstance)
+        workload.ti.key = mock_airflow_key()
+        tags_exec_config = [{"key": "FOO", "value": "BAR"}]
+        workload.ti.executor_config = {"tags": tags_exec_config}
+        ser_workload = json.dumps({"test_key": "test_value"})
+        workload.model_dump_json.return_value = ser_workload
+
+        mock_executor.queue_workload(workload, mock.Mock())
+
+        mock_executor.batch.submit_job.return_value = {"jobId": ARN1, "jobName": "some-job-name"}
+
+        assert mock_executor.queued_tasks[workload.ti.key] == workload
+        assert len(mock_executor.pending_jobs) == 0
+        assert len(mock_executor.running) == 0
+        mock_executor._process_workloads([workload])
+        assert len(mock_executor.queued_tasks) == 0
+        assert len(mock_executor.running) == 1
+        assert workload.ti.key in mock_executor.running
+        assert len(mock_executor.pending_jobs) == 1
+        assert mock_executor.pending_jobs[0].command == [
+            "python",
+            "-m",
+            "airflow.sdk.execution_time.execute_workload",
+            "--json-string",
+            '{"test_key": "test_value"}',
+        ]
+
+        mock_executor.attempt_submit_jobs()
+        mock_executor.batch.submit_job.assert_called_once()
+        assert len(mock_executor.pending_jobs) == 0
+        mock_executor.batch.submit_job.assert_called_once_with(
+            jobDefinition="some-job-def",
+            jobName="some-job-name",
+            jobQueue="some-job-queue",
+            tags=tags_exec_config,
+            containerOverrides={
+                "command": [
+                    "python",
+                    "-m",
+                    "airflow.sdk.execution_time.execute_workload",
+                    "--json-string",
+                    ser_workload,
+                ],
+                "environment": [
+                    {
+                        "name": "AIRFLOW_IS_EXECUTOR_CONTAINER",
+                        "value": "true",
+                    },
+                ],
+            },
+        )
+
+        # Task is stored in active worker.
+        assert len(mock_executor.active_workers) == 1
+        # Get the job_id for this task key
+        job_id = next(
+            job_id for job_id, key in mock_executor.active_workers.id_to_key.items() if key == workload.ti.key
+        )
+        assert job_id == ARN1
+        running_state_mock.assert_called_once_with(workload.ti.key, ARN1)
 
     @mock.patch.object(batch_executor, "calculate_next_attempt_delay", return_value=dt.timedelta(seconds=0))
     def test_attempt_all_jobs_when_some_jobs_fail(self, _, mock_executor):
@@ -392,7 +461,10 @@ class TestAwsBatchExecutor:
         mock_executor.attempt_submit_jobs()
         mock_executor.sync_running_jobs()
         for i in range(2):
-            assert f"Airflow task {airflow_keys[i]} has failed a maximum of {mock_executor.MAX_SUBMIT_JOB_ATTEMPTS} times. Marking as failed"
+            assert (
+                f"Airflow task {airflow_keys[i]} has failed a maximum of {mock_executor.MAX_SUBMIT_JOB_ATTEMPTS} times. Marking as failed"
+                in caplog.text
+            )
 
     @mock.patch("airflow.providers.amazon.aws.executors.batch.batch_executor.exponential_backoff_retry")
     def test_sync_unhealthy_boto_connection(self, mock_exponentional_backoff_retry, mock_executor):
@@ -675,10 +747,8 @@ class TestBatchExecutorConfig:
         ],
     )
     def test_executor_config_exceptions(self, bad_config, mock_executor):
-        with pytest.raises(ValueError) as raised:
+        with pytest.raises(ValueError, match='Executor Config should never override "command'):
             mock_executor.execute_async(mock_airflow_key, mock_cmd, executor_config=bad_config)
-
-        assert raised.match('Executor Config should never override "command')
 
     def test_config_defaults_are_applied(self):
         submit_kwargs = batch_executor_config.build_submit_kwargs()
@@ -717,7 +787,7 @@ class TestBatchExecutorConfig:
         assert submit_kwargs["tags"] == templated_tags
 
     @pytest.mark.parametrize(
-        "submit_job_kwargs, exec_config, expected_result",
+        ("submit_job_kwargs", "exec_config", "expected_result"),
         [
             # No input submit_job_kwargs or executor overrides
             (

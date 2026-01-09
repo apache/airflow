@@ -250,6 +250,7 @@ def get_provider_info():
                 "integration-name": "Amazon Systems Manager (SSM)",
                 "external-doc-url": "https://aws.amazon.com/systems-manager/",
                 "logo": "/docs/integration-logos/AWS-Systems-Manager_light-bg@4x.png",
+                "how-to-guide": ["/docs/apache-airflow-providers-amazon/operators/ssm.rst"],
                 "tags": ["aws"],
             },
             {
@@ -337,6 +338,20 @@ def get_provider_info():
                 "external-doc-url": "https://aws.amazon.com/neptune/",
                 "logo": "/docs/integration-logos/Amazon-Neptune_64.png",
                 "how-to-guide": ["/docs/apache-airflow-providers-amazon/operators/neptune.rst"],
+                "tags": ["aws"],
+            },
+            {
+                "integration-name": "Amazon Kinesis Data Stream",
+                "external-doc-url": "https://aws.amazon.com/kinesis/",
+                "logo": "/docs/integration-logos/Amazon-Kinesis-Data-Firehose_light-bg@4x.png",
+                "how-to-guide": ["/docs/apache-airflow-providers-amazon/operators/kinesis_analytics.rst"],
+                "tags": ["aws"],
+            },
+            {
+                "integration-name": "Amazon Managed Workflows for Apache Airflow (MWAA)",
+                "external-doc-url": "https://aws.amazon.com/managed-workflows-for-apache-airflow/",
+                "logo": "/docs/integration-logos/Amazon-MWAA.png",
+                "how-to-guide": ["/docs/apache-airflow-providers-amazon/operators/mwaa.rst"],
                 "tags": ["aws"],
             },
         ],
@@ -443,6 +458,10 @@ def get_provider_info():
             {
                 "integration-name": "AWS Step Functions",
                 "python-modules": ["airflow.providers.amazon.aws.operators.step_function"],
+            },
+            {
+                "integration-name": "Amazon Systems Manager (SSM)",
+                "python-modules": ["airflow.providers.amazon.aws.operators.ssm"],
             },
             {
                 "integration-name": "Amazon RDS",
@@ -582,6 +601,10 @@ def get_provider_info():
                 "python-modules": ["airflow.providers.amazon.aws.sensors.step_function"],
             },
             {
+                "integration-name": "Amazon Systems Manager (SSM)",
+                "python-modules": ["airflow.providers.amazon.aws.sensors.ssm"],
+            },
+            {
                 "integration-name": "Amazon QuickSight",
                 "python-modules": ["airflow.providers.amazon.aws.sensors.quicksight"],
             },
@@ -686,8 +709,12 @@ def get_provider_info():
                 ],
             },
             {
-                "integration-name": "Amazon Kinesis Data Firehose",
+                "integration-name": "Amazon Kinesis Data Stream",
                 "python-modules": ["airflow.providers.amazon.aws.hooks.kinesis"],
+            },
+            {
+                "integration-name": "Amazon Kinesis Data Firehose",
+                "python-modules": ["airflow.providers.amazon.aws.hooks.firehose"],
             },
             {
                 "integration-name": "AWS Lambda",
@@ -845,6 +872,10 @@ def get_provider_info():
             {
                 "integration-name": "Amazon Simple Storage Service (S3)",
                 "python-modules": ["airflow.providers.amazon.aws.triggers.s3"],
+            },
+            {
+                "integration-name": "Amazon Systems Manager (SSM)",
+                "python-modules": ["airflow.providers.amazon.aws.triggers.ssm"],
             },
             {
                 "integration-name": "Amazon EMR",
@@ -1359,5 +1390,6 @@ def get_provider_info():
         },
         "executors": ["airflow.providers.amazon.aws.executors.ecs.ecs_executor.AwsEcsExecutor"],
         "auth-managers": ["airflow.providers.amazon.aws.auth_manager.aws_auth_manager.AwsAuthManager"],
+        "cli": ["airflow.providers.amazon.aws.cli.definition.get_aws_cli_commands"],
         "queues": ["airflow.providers.amazon.aws.queues.sqs.SqsMessageQueueProvider"],
     }

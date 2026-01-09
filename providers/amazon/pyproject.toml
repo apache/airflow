@@ -25,9 +25,11 @@ build-backend = "flit_core.buildapi"
 
 [project]
 name = "apache-airflow-providers-amazon"
-version = "9.9.0"
+version = "9.19.0"
 description = "Provider package apache-airflow-providers-amazon for Apache Airflow"
 readme = "README.rst"
+license = "Apache-2.0"
+license-files = ['LICENSE', 'NOTICE']
 authors = [
     {name="Apache Software Foundation", email="dev@airflow.apache.org"},
 ]
@@ -43,22 +45,21 @@ classifiers = [
     "Intended Audience :: System Administrators",
     "Framework :: Apache Airflow",
     "Framework :: Apache Airflow :: Provider",
-    "License :: OSI Approved :: Apache Software License",
-    "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
     "Topic :: System :: Monitoring",
 ]
-requires-python = "~=3.9"
+requires-python = ">=3.10"
 
 # The dependencies should be modified in place in the generated file.
 # Any change in the dependencies is preserved when the file is regenerated
-# Make sure to run ``breeze static-checks --type update-providers-dependencies --all-files``
+# Make sure to run ``prek update-providers-dependencies --all-files``
 # After you modify the dependencies, and rebuild your Breeze CI image with ``breeze ci-image build``
 dependencies = [
-    "apache-airflow>=2.10.0",
-    "apache-airflow-providers-common-compat>=1.6.1",
+    "apache-airflow>=2.11.0",
+    "apache-airflow-providers-common-compat>=1.10.1",  # use next version
     "apache-airflow-providers-common-sql>=1.27.0",
     "apache-airflow-providers-http",
     # We should update minimum version of boto3 and here regularly to avoid `pip` backtracking with the number
@@ -77,6 +78,10 @@ dependencies = [
     "PyAthena>=3.10.0",
     "jmespath>=0.7.0",
     "sagemaker-studio>=1.0.9",
+    # Sagemaker studio in Python 3.13 requires version >=1.1.0 and Pydynamodb >=0.7.5
+    # Because of sqlean pinning (https://github.com/passren/PyDynamoDB/issues/72)
+    "pydynamodb>=0.7.5; python_version >= '3.13'",
+    "sqlean.py>=3.47.0; python_version >= '3.13'",
     "marshmallow>=3",
 ]
 
@@ -96,11 +101,12 @@ dependencies = [
     "s3fs>=2023.10.0",
 ]
 "python3-saml" = [
-    "python3-saml>=1.16.0",
+    # Python 3 saml is not compatible with Python 3.13 yet, so we pin it to < 3.13
+    "python3-saml>=1.16.0; python_version < '3.13'",
     # python3-saml is dependent on xmlsec and seems they do not pin it, pinning here would be needed
     # We can remove it after https://github.com/xmlsec/python-xmlsec/issues/344 is fixed
-    "xmlsec!=1.3.15,>=1.3.14",
-    "lxml<5.4.0,>=5.3.2",
+    "xmlsec>=1.3.14; python_version < '3.13'",
+    "lxml>=6.0.0; python_version < '3.13'",
 ]
 "apache.hive" = [
     "apache-airflow-providers-apache-hive"
@@ -109,7 +115,7 @@ dependencies = [
     "apache-airflow-providers-exasol"
 ]
 "fab" = [
-    "apache-airflow-providers-fab"
+    "apache-airflow-providers-fab>=2.2.0; python_version < '3.13'"
 ]
 "ftp" = [
     "apache-airflow-providers-ftp"
@@ -126,6 +132,10 @@ dependencies = [
 "mongo" = [
     "apache-airflow-providers-mongo"
 ]
+"pandas" = [
+    'pandas>=2.1.2; python_version <"3.13"',
+    'pandas>=2.2.3; python_version >="3.13"',
+]
 "openlineage" = [
     "apache-airflow-providers-openlineage>=2.3.0"
 ]
@@ -139,7 +149,10 @@ dependencies = [
     "apache-airflow-providers-standard"
 ]
 "common.messaging" = [
-    "apache-airflow-providers-common-messaging>=1.0.1"
+    "apache-airflow-providers-common-messaging>=2.0.0"
+]
+"sqlalchemy" = [
+    "sqlalchemy>=1.4.49",
 ]
 
 [dependency-groups]
@@ -205,8 +218,8 @@ apache-airflow-providers-common-sql = {workspace = true}
 apache-airflow-providers-standard = {workspace = true}
 
 [project.urls]
-"Documentation" = "https://airflow.apache.org/docs/apache-airflow-providers-amazon/9.9.0"
-"Changelog" = "https://airflow.apache.org/docs/apache-airflow-providers-amazon/9.9.0/changelog.html"
+"Documentation" = "https://airflow.apache.org/docs/apache-airflow-providers-amazon/9.19.0"
+"Changelog" = "https://airflow.apache.org/docs/apache-airflow-providers-amazon/9.19.0/changelog.html"
 "Bug Tracker" = "https://github.com/apache/airflow/issues"
 "Source Code" = "https://github.com/apache/airflow"
 "Slack Chat" = "https://s.apache.org/airflow-slack"

@@ -20,7 +20,7 @@ from typing import Any
 
 import yandexcloud
 
-from airflow.hooks.base import BaseHook
+from airflow.providers.common.compat.sdk import BaseHook
 from airflow.providers.yandex.utils.credentials import (
     CredentialsType,
     get_credentials,

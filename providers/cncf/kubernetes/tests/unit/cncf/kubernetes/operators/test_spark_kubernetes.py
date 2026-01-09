@@ -23,11 +23,12 @@ import json
 from datetime import date
 from functools import cached_property
 from unittest import mock
-from unittest.mock import patch
+from unittest.mock import mock_open, patch
 from uuid import uuid4
 
 import pendulum
 import pytest
+import pytest_asyncio
 import yaml
 from kubernetes.client import models as k8s
 
@@ -35,16 +36,19 @@ from airflow import DAG
 from airflow.models import Connection, DagRun, TaskInstance
 from airflow.providers.cncf.kubernetes.operators.spark_kubernetes import SparkKubernetesOperator
 from airflow.providers.cncf.kubernetes.pod_generator import MAX_LABEL_LEN
-from airflow.utils import db, timezone
+from airflow.providers.cncf.kubernetes.triggers.pod import KubernetesPodTrigger
+from airflow.providers.common.compat.sdk import TaskDeferred
+from airflow.utils import timezone
 from airflow.utils.types import DagRunType
 
+from tests_common.test_utils.taskinstance import create_task_instance
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
 POD_MANAGER_CLASS = "airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager"
 
 
-@pytest.fixture(autouse=True, scope="module")
-def patch_pod_manager_methods():
+@pytest_asyncio.fixture(autouse=True, scope="function")
+async def patch_pod_manager_methods():
     # Patch watch_pod_events
     patch_watch_pod_events = mock.patch(f"{POD_MANAGER_CLASS}.watch_pod_events", new_callable=mock.AsyncMock)
     mock_watch_pod_events = patch_watch_pod_events.start()
@@ -60,6 +64,144 @@ def patch_pod_manager_methods():
     yield
 
     mock.patch.stopall()
+
+
+def _get_expected_k8s_dict():
+    """Create expected K8S dict on-demand."""
+    return {
+        "apiVersion": "sparkoperator.k8s.io/v1beta2",
+        "kind": "SparkApplication",
+        "metadata": {"name": "default_yaml_template", "namespace": "default"},
+        "spec": {
+            "type": "Python",
+            "mode": "cluster",
+            "image": "gcr.io/spark-operator/spark:v2.4.5",
+            "imagePullPolicy": "Always",
+            "mainApplicationFile": "local:///opt/test.py",
+            "sparkVersion": "3.0.0",
+            "restartPolicy": {"type": "Never"},
+            "successfulRunHistoryLimit": 1,
+            "pythonVersion": "3",
+            "volumes": [],
+            "labels": {},
+            "imagePullSecrets": "",
+            "hadoopConf": {},
+            "dynamicAllocation": {
+                "enabled": False,
+                "initialExecutors": 1,
+                "maxExecutors": 1,
+                "minExecutors": 1,
+            },
+            "driver": {
+                "cores": 1,
+                "coreLimit": "1200m",
+                "memory": "365m",
+                "labels": {},
+                "nodeSelector": {},
+                "serviceAccount": "default",
+                "volumeMounts": [],
+                "env": [],
+                "envFrom": [],
+                "tolerations": [],
+                "affinity": {"nodeAffinity": {}, "podAffinity": {}, "podAntiAffinity": {}},
+            },
+            "executor": {
+                "cores": 1,
+                "instances": 1,
+                "memory": "365m",
+                "labels": {},
+                "env": [],
+                "envFrom": [],
+                "nodeSelector": {},
+                "volumeMounts": [],
+                "tolerations": [],
+                "affinity": {"nodeAffinity": {}, "podAffinity": {}, "podAntiAffinity": {}},
+            },
+        },
+    }
+
+
+def _get_expected_application_dict_with_labels(task_name="default_yaml"):
+    """Create expected application dict with task context labels on-demand."""
+    task_context_labels = {
+        "dag_id": "dag",
+        "task_id": task_name,
+        "run_id": "manual__2016-01-01T0100000100-da4d1ce7b",
+        "spark_kubernetes_operator": "True",
+        "try_number": "0",
+        "version": "2.4.5",
+    }
+
+    return {
+        "apiVersion": "sparkoperator.k8s.io/v1beta2",
+        "kind": "SparkApplication",
+        "metadata": {"name": task_name, "namespace": "default"},
+        "spec": {
+            "type": "Scala",
+            "mode": "cluster",
+            "image": "gcr.io/spark-operator/spark:v2.4.5",
+            "imagePullPolicy": "Always",
+            "mainClass": "org.apache.spark.examples.SparkPi",
+            "mainApplicationFile": "local:///opt/spark/examples/jars/spark-examples_2.11-2.4.5.jar",
+            "sparkVersion": "2.4.5",
+            "restartPolicy": {"type": "Never"},
+            "volumes": [{"name": "test-volume", "hostPath": {"path": "/tmp", "type": "Directory"}}],
+            "driver": {
+                "cores": 1,
+                "coreLimit": "1200m",
+                "memory": "512m",
+                "labels": task_context_labels.copy(),
+                "serviceAccount": "spark",
+                "volumeMounts": [{"name": "test-volume", "mountPath": "/tmp"}],
+            },
+            "executor": {
+                "cores": 1,
+                "instances": 1,
+                "memory": "512m",
+                "labels": task_context_labels.copy(),
+                "volumeMounts": [{"name": "test-volume", "mountPath": "/tmp"}],
+            },
+        },
+    }
+
+
+def _get_expected_application_dict_without_task_context_labels(task_name="default_yaml"):
+    """Create expected application dict without task context labels (only original file labels)."""
+    original_file_labels = {
+        "version": "2.4.5",
+    }
+
+    return {
+        "apiVersion": "sparkoperator.k8s.io/v1beta2",
+        "kind": "SparkApplication",
+        "metadata": {"name": task_name, "namespace": "default"},
+        "spec": {
+            "type": "Scala",
+            "mode": "cluster",
+            "image": "gcr.io/spark-operator/spark:v2.4.5",
+            "imagePullPolicy": "Always",
+            "mainClass": "org.apache.spark.examples.SparkPi",
+            "mainApplicationFile": "local:///opt/spark/examples/jars/spark-examples_2.11-2.4.5.jar",
+            "sparkVersion": "2.4.5",
+            "restartPolicy": {"type": "Never"},
+            "volumes": [{"name": "test-volume", "hostPath": {"path": "/tmp", "type": "Directory"}}],
+            "driver": {
+                "cores": 1,
+                "coreLimit": "1200m",
+                "memory": "512m",
+                "labels": original_file_labels.copy(),
+                "serviceAccount": "spark",
+                "volumeMounts": [{"name": "test-volume", "mountPath": "/tmp"}],
+            },
+            "executor": {
+                "cores": 1,
+                "instances": 1,
+                "memory": "512m",
+                "labels": original_file_labels.copy(),
+                "volumeMounts": [{"name": "test-volume", "mountPath": "/tmp"}],
+            },
+        },
+    }
 
 
 @patch("airflow.providers.cncf.kubernetes.operators.spark_kubernetes.KubernetesHook")
@@ -111,86 +253,6 @@ def test_spark_kubernetes_operator_hook(mock_kubernetes_hook, data_file):
     )
 
 
-TEST_K8S_DICT = {
-    "apiVersion": "sparkoperator.k8s.io/v1beta2",
-    "kind": "SparkApplication",
-    "metadata": {"name": "default_yaml_template", "namespace": "default"},
-    "spec": {
-        "driver": {
-            "coreLimit": "1200m",
-            "cores": 1,
-            "labels": {},
-            "memory": "365m",
-            "nodeSelector": {},
-            "serviceAccount": "default",
-            "volumeMounts": [],
-            "env": [],
-            "envFrom": [],
-            "tolerations": [],
-            "affinity": {"nodeAffinity": {}, "podAffinity": {}, "podAntiAffinity": {}},
-        },
-        "executor": {
-            "cores": 1,
-            "instances": 1,
-            "labels": {},
-            "env": [],
-            "envFrom": [],
-            "memory": "365m",
-            "nodeSelector": {},
-            "volumeMounts": [],
-            "tolerations": [],
-            "affinity": {"nodeAffinity": {}, "podAffinity": {}, "podAntiAffinity": {}},
-        },
-        "hadoopConf": {},
-        "dynamicAllocation": {"enabled": False, "initialExecutors": 1, "maxExecutors": 1, "minExecutors": 1},
-        "image": "gcr.io/spark-operator/spark:v2.4.5",
-        "imagePullPolicy": "Always",
-        "mainApplicationFile": "local:///opt/test.py",
-        "mode": "cluster",
-        "restartPolicy": {"type": "Never"},
-        "sparkVersion": "3.0.0",
-        "successfulRunHistoryLimit": 1,
-        "pythonVersion": "3",
-        "type": "Python",
-        "imagePullSecrets": "",
-        "labels": {},
-        "volumes": [],
-    },
-}
-
-TEST_APPLICATION_DICT = {
-    "apiVersion": "sparkoperator.k8s.io/v1beta2",
-    "kind": "SparkApplication",
-    "metadata": {"name": "default_yaml", "namespace": "default"},
-    "spec": {
-        "driver": {
-            "coreLimit": "1200m",
-            "cores": 1,
-            "labels": {"version": "2.4.5"},
-            "memory": "512m",
-            "serviceAccount": "spark",
-            "volumeMounts": [{"mountPath": "/tmp", "name": "test-volume"}],
-        },
-        "executor": {
-            "cores": 1,
-            "instances": 1,
-            "labels": {"version": "2.4.5"},
-            "memory": "512m",
-            "volumeMounts": [{"mountPath": "/tmp", "name": "test-volume"}],
-        },
-        "image": "gcr.io/spark-operator/spark:v2.4.5",
-        "imagePullPolicy": "Always",
-        "mainApplicationFile": "local:///opt/spark/examples/jars/spark-examples_2.11-2.4.5.jar",
-        "mainClass": "org.apache.spark.examples.SparkPi",
-        "mode": "cluster",
-        "restartPolicy": {"type": "Never"},
-        "sparkVersion": "2.4.5",
-        "type": "Scala",
-        "volumes": [{"hostPath": {"path": "/tmp", "type": "Directory"}, "name": "test-volume"}],
-    },
-}
-
-
 def create_context(task):
     dag = DAG(dag_id="dag", schedule=None)
     tzinfo = pendulum.timezone("Europe/Amsterdam")
@@ -209,7 +271,12 @@ def create_context(task):
             execution_date=logical_date,
             run_id=DagRun.generate_run_id(DagRunType.MANUAL, logical_date),
         )
-    task_instance = TaskInstance(task=task)
+    if AIRFLOW_V_3_0_PLUS:
+        from uuid6 import uuid7
+
+        task_instance = create_task_instance(task=task, dag_version_id=uuid7())
+    else:
+        task_instance = TaskInstance(task=task)
     task_instance.dag_run = dag_run
     task_instance.dag_id = dag.dag_id
     task_instance.xcom_push = mock.Mock()
@@ -222,7 +289,6 @@ def create_context(task):
     }
 
 
-@pytest.mark.db_test
 @patch("airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.fetch_requested_container_logs")
 @patch("airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.await_pod_completion")
 @patch("airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.create_pod")
@@ -231,11 +297,12 @@ def create_context(task):
 @patch("kubernetes.client.api.custom_objects_api.CustomObjectsApi.get_namespaced_custom_object_status")
 @patch("kubernetes.client.api.custom_objects_api.CustomObjectsApi.create_namespaced_custom_object")
 class TestSparkKubernetesOperatorCreateApplication:
-    def setup_method(self):
-        db.merge_conn(
+    @pytest.fixture(autouse=True)
+    def setup_connections(self, create_connection_without_db):
+        create_connection_without_db(
             Connection(conn_id="kubernetes_default_kube_config", conn_type="kubernetes", extra=json.dumps({}))
         )
-        db.merge_conn(
+        create_connection_without_db(
             Connection(
                 conn_id="kubernetes_with_namespace",
                 conn_type="kubernetes",
@@ -261,6 +328,7 @@ class TestSparkKubernetesOperatorCreateApplication:
             application_file=application_file,
             template_spec=job_spec,
             kubernetes_conn_id="kubernetes_default_kube_config",
+            reattach_on_restart=False,  # Disable reattach for application creation tests
         )
         context = create_context(op)
         op.execute(context)
@@ -277,7 +345,7 @@ class TestSparkKubernetesOperatorCreateApplication:
 
     @pytest.mark.asyncio
     @pytest.mark.parametrize(
-        "task_name, application_file_path",
+        ("task_name", "application_file_path"),
         [
             ("default_yaml", "spark/application_test.yaml"),
             ("default_json", "spark/application_test.json"),
@@ -309,15 +377,16 @@ class TestSparkKubernetesOperatorCreateApplication:
         assert isinstance(done_op.name, str)
         assert done_op.name != ""
 
-        TEST_APPLICATION_DICT["metadata"]["name"] = done_op.name
+        expected_dict = _get_expected_application_dict_without_task_context_labels(task_name)
+        expected_dict["metadata"]["name"] = done_op.name
         mock_create_namespaced_crd.assert_called_with(
-            body=TEST_APPLICATION_DICT,
+            body=expected_dict,
             **self.call_commons,
         )
 
     @pytest.mark.asyncio
     @pytest.mark.parametrize(
-        "task_name, application_file_path",
+        ("task_name", "application_file_path"),
         [
             ("default_yaml", "spark/application_test.yaml"),
             ("default_json", "spark/application_test.json"),
@@ -354,15 +423,16 @@ class TestSparkKubernetesOperatorCreateApplication:
         else:
             assert done_op.name == name_normalized
 
-        TEST_APPLICATION_DICT["metadata"]["name"] = done_op.name
+        expected_dict = _get_expected_application_dict_without_task_context_labels(task_name)
+        expected_dict["metadata"]["name"] = done_op.name
         mock_create_namespaced_crd.assert_called_with(
-            body=TEST_APPLICATION_DICT,
+            body=expected_dict,
             **self.call_commons,
         )
 
     @pytest.mark.asyncio
     @pytest.mark.parametrize(
-        "task_name, application_file_path",
+        ("task_name", "application_file_path"),
         [
             ("task_id_yml", "spark/application_test_with_no_name_from_config.yaml"),
             ("task_id_json", "spark/application_test_with_no_name_from_config.json"),
@@ -396,9 +466,10 @@ class TestSparkKubernetesOperatorCreateApplication:
         else:
             assert done_op.name == name_normalized
 
-        TEST_APPLICATION_DICT["metadata"]["name"] = done_op.name
+        expected_dict = _get_expected_application_dict_without_task_context_labels(task_name)
+        expected_dict["metadata"]["name"] = done_op.name
         mock_create_namespaced_crd.assert_called_with(
-            body=TEST_APPLICATION_DICT,
+            body=expected_dict,
             **self.call_commons,
         )
 
@@ -430,9 +501,10 @@ class TestSparkKubernetesOperatorCreateApplication:
         else:
             assert done_op.name == name_normalized
 
-        TEST_K8S_DICT["metadata"]["name"] = done_op.name
+        expected_dict = _get_expected_k8s_dict()
+        expected_dict["metadata"]["name"] = done_op.name
         mock_create_namespaced_crd.assert_called_with(
-            body=TEST_K8S_DICT,
+            body=expected_dict,
             **self.call_commons,
         )
 
@@ -465,14 +537,14 @@ class TestSparkKubernetesOperatorCreateApplication:
         else:
             assert done_op.name == name_normalized
 
-        TEST_K8S_DICT["metadata"]["name"] = done_op.name
+        expected_dict = _get_expected_k8s_dict()
+        expected_dict["metadata"]["name"] = done_op.name
         mock_create_namespaced_crd.assert_called_with(
-            body=TEST_K8S_DICT,
+            body=expected_dict,
             **self.call_commons,
         )
 
 
-@pytest.mark.db_test
 @patch("airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.fetch_requested_container_logs")
 @patch("airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.await_pod_completion")
 @patch("airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.create_pod")
@@ -481,12 +553,19 @@ class TestSparkKubernetesOperatorCreateApplication:
 @patch("airflow.providers.cncf.kubernetes.operators.pod.KubernetesPodOperator.cleanup")
 @patch("kubernetes.client.api.custom_objects_api.CustomObjectsApi.get_namespaced_custom_object_status")
 @patch("kubernetes.client.api.custom_objects_api.CustomObjectsApi.create_namespaced_custom_object")
+@patch("airflow.providers.cncf.kubernetes.operators.pod.KubernetesPodOperator.execute", return_value=None)
+@patch(
+    "airflow.providers.cncf.kubernetes.hooks.kubernetes.KubernetesHook.is_in_cluster",
+    new_callable=mock.PropertyMock,
+    return_value=False,
+)
 class TestSparkKubernetesOperator:
-    def setup_method(self):
-        db.merge_conn(
+    @pytest.fixture(autouse=True)
+    def setup_connections(self, create_connection_without_db):
+        create_connection_without_db(
             Connection(conn_id="kubernetes_default_kube_config", conn_type="kubernetes", extra=json.dumps({}))
         )
-        db.merge_conn(
+        create_connection_without_db(
             Connection(
                 conn_id="kubernetes_with_namespace",
                 conn_type="kubernetes",
@@ -496,21 +575,27 @@ class TestSparkKubernetesOperator:
         args = {"owner": "airflow", "start_date": timezone.datetime(2020, 2, 1)}
         self.dag = DAG("test_dag_id", schedule=None, default_args=args)
 
-    def execute_operator(self, task_name, mock_create_job_name, job_spec):
+    def execute_operator(self, task_name, mock_create_job_name, job_spec, mock_get_kube_client=None):
         mock_create_job_name.return_value = task_name
+
+        if mock_get_kube_client:
+            mock_get_kube_client.list_namespaced_pod.return_value.items = []
+
         op = SparkKubernetesOperator(
             template_spec=job_spec,
             kubernetes_conn_id="kubernetes_default_kube_config",
             task_id=task_name,
             get_logs=True,
+            reattach_on_restart=False,  # Disable reattach for basic tests
         )
         context = create_context(op)
         op.execute(context)
         return op
 
-    @pytest.mark.asyncio
     def test_env(
         self,
+        mock_is_in_cluster,
+        mock_parent_execute,
         mock_create_namespaced_crd,
         mock_get_namespaced_custom_object_status,
         mock_cleanup,
@@ -526,18 +611,18 @@ class TestSparkKubernetesOperator:
         # test env vars
         job_spec["kubernetes"]["env_vars"] = {"TEST_ENV_1": "VALUE1"}
 
-        # test env from
         env_from = [
             k8s.V1EnvFromSource(config_map_ref=k8s.V1ConfigMapEnvSource(name="env-direct-configmap")),
             k8s.V1EnvFromSource(secret_ref=k8s.V1SecretEnvSource(name="env-direct-secret")),
         ]
         job_spec["kubernetes"]["env_from"] = copy.deepcopy(env_from)
 
-        # test from_env_config_map
         job_spec["kubernetes"]["from_env_config_map"] = ["env-from-configmap"]
         job_spec["kubernetes"]["from_env_secret"] = ["env-from-secret"]
 
-        op = self.execute_operator(task_name, mock_create_job_name, job_spec=job_spec)
+        op = self.execute_operator(
+            task_name, mock_create_job_name, job_spec=job_spec, mock_get_kube_client=mock_get_kube_client
+        )
         assert op.launcher.body["spec"]["driver"]["env"] == [
             k8s.V1EnvVar(name="TEST_ENV_1", value="VALUE1"),
         ]
@@ -555,6 +640,8 @@ class TestSparkKubernetesOperator:
     @pytest.mark.asyncio
     def test_volume(
         self,
+        mock_is_in_cluster,
+        mock_parent_execute,
         mock_create_namespaced_crd,
         mock_get_namespaced_custom_object_status,
         mock_cleanup,
@@ -601,6 +688,8 @@ class TestSparkKubernetesOperator:
     @pytest.mark.asyncio
     def test_pull_secret(
         self,
+        mock_is_in_cluster,
+        mock_parent_execute,
         mock_create_namespaced_crd,
         mock_get_namespaced_custom_object_status,
         mock_cleanup,
@@ -622,6 +711,8 @@ class TestSparkKubernetesOperator:
     @pytest.mark.asyncio
     def test_affinity(
         self,
+        mock_is_in_cluster,
+        mock_parent_execute,
         mock_create_namespaced_crd,
         mock_get_namespaced_custom_object_status,
         mock_cleanup,
@@ -676,6 +767,8 @@ class TestSparkKubernetesOperator:
     @pytest.mark.asyncio
     def test_toleration(
         self,
+        mock_is_in_cluster,
+        mock_parent_execute,
         mock_create_namespaced_crd,
         mock_get_namespaced_custom_object_status,
         mock_cleanup,
@@ -703,6 +796,8 @@ class TestSparkKubernetesOperator:
     @pytest.mark.asyncio
     def test_get_logs_from_driver(
         self,
+        mock_is_in_cluster,
+        mock_parent_execute,
         mock_create_namespaced_crd,
         mock_get_namespaced_custom_object_status,
         mock_cleanup,
@@ -715,17 +810,34 @@ class TestSparkKubernetesOperator:
     ):
         task_name = "test_get_logs_from_driver"
         job_spec = yaml.safe_load(data_file("spark/application_template.yaml").read_text())
-        op = self.execute_operator(task_name, mock_create_job_name, job_spec=job_spec)
+
+        def mock_parent_execute_side_effect(context):
+            mock_fetch_requested_container_logs(
+                pod=mock_create_pod.return_value,
+                containers="spark-kubernetes-driver",
+                follow_logs=True,
+                container_name_log_prefix_enabled=True,
+                log_formatter=None,
+            )
+            return None
+
+        mock_parent_execute.side_effect = mock_parent_execute_side_effect
+
+        self.execute_operator(task_name, mock_create_job_name, job_spec=job_spec)
 
         mock_fetch_requested_container_logs.assert_called_once_with(
-            pod=op.pod,
+            pod=mock_create_pod.return_value,
             containers="spark-kubernetes-driver",
             follow_logs=True,
+            container_name_log_prefix_enabled=True,
+            log_formatter=None,
         )
 
     @pytest.mark.asyncio
     def test_find_custom_pod_labels(
         self,
+        mock_is_in_cluster,
+        mock_parent_execute,
         mock_create_namespaced_crd,
         mock_get_namespaced_custom_object_status,
         mock_cleanup,
@@ -752,6 +864,123 @@ class TestSparkKubernetesOperator:
         op.find_spark_job(context)
         mock_get_kube_client.list_namespaced_pod.assert_called_with("default", label_selector=label_selector)
 
+    @patch("airflow.providers.cncf.kubernetes.hooks.kubernetes.KubernetesHook")
+    def test_adds_task_context_labels_to_driver_and_executor(
+        self,
+        mock_kubernetes_hook,
+        mock_is_in_cluster,
+        mock_parent_execute,
+        mock_create_namespaced_crd,
+        mock_get_namespaced_custom_object_status,
+        mock_cleanup,
+        mock_create_job_name,
+        mock_get_kube_client,
+        mock_create_pod,
+        mock_await_pod_completion,
+        mock_fetch_requested_container_logs,
+        data_file,
+    ):
+        task_name = "test_adds_task_context_labels"
+        job_spec = yaml.safe_load(data_file("spark/application_template.yaml").read_text())
+
+        mock_create_job_name.return_value = task_name
+        op = SparkKubernetesOperator(
+            template_spec=job_spec,
+            kubernetes_conn_id="kubernetes_default_kube_config",
+            task_id=task_name,
+            get_logs=True,
+            reattach_on_restart=True,
+        )
+        context = create_context(op)
+        op.execute(context)
+
+        task_context_labels = op._get_ti_pod_labels(context)
+
+        # Check that labels were added to the template body structure
+        created_body = mock_create_namespaced_crd.call_args[1]["body"]
+        for component in ["driver", "executor"]:
+            for label_key, label_value in task_context_labels.items():
+                assert label_key in created_body["spec"][component]["labels"]
+                assert created_body["spec"][component]["labels"][label_key] == label_value
+
+    def test_reattach_on_restart_with_task_context_labels(
+        self,
+        mock_is_in_cluster,
+        mock_parent_execute,
+        mock_create_namespaced_crd,
+        mock_get_namespaced_custom_object_status,
+        mock_cleanup,
+        mock_create_job_name,
+        mock_get_kube_client,
+        mock_create_pod,
+        mock_await_pod_completion,
+        mock_fetch_requested_container_logs,
+        data_file,
+    ):
+        task_name = "test_reattach_on_restart"
+        job_spec = yaml.safe_load(data_file("spark/application_template.yaml").read_text())
+
+        mock_create_job_name.return_value = task_name
+        op = SparkKubernetesOperator(
+            template_spec=job_spec,
+            kubernetes_conn_id="kubernetes_default_kube_config",
+            task_id=task_name,
+            get_logs=True,
+            reattach_on_restart=True,
+        )
+        context = create_context(op)
+
+        mock_pod = mock.MagicMock()
+        mock_pod.metadata.name = f"{task_name}-driver"
+        mock_pod.metadata.labels = op._get_ti_pod_labels(context)
+        mock_pod.metadata.labels["spark-role"] = "driver"
+        mock_pod.metadata.labels["try_number"] = str(context["ti"].try_number)
+        mock_get_kube_client.list_namespaced_pod.return_value.items = [mock_pod]
+
+        op.execute(context)
+
+        label_selector = op._build_find_pod_label_selector(context) + ",spark-role=driver"
+        mock_get_kube_client.list_namespaced_pod.assert_called_with("default", label_selector=label_selector)
+
+        mock_create_namespaced_crd.assert_not_called()
+
+    @pytest.mark.asyncio
+    def test_execute_deferrable(
+        self,
+        mock_is_in_cluster,
+        mock_parent_execute,
+        mock_create_namespaced_crd,
+        mock_get_namespaced_custom_object_status,
+        mock_cleanup,
+        mock_create_job_name,
+        mock_get_kube_client,
+        mock_create_pod,
+        mock_await_pod_completion,
+        mock_fetch_requested_container_logs,
+        data_file,
+        mocker,
+    ):
+        task_name = "test_execute_deferrable"
+        job_spec = yaml.safe_load(data_file("spark/application_template.yaml").read_text())
+
+        mock_create_job_name.return_value = task_name
+        op = SparkKubernetesOperator(
+            template_spec=job_spec,
+            kubernetes_conn_id="kubernetes_default_kube_config",
+            task_id=task_name,
+            get_logs=True,
+            deferrable=True,
+        )
+        context = create_context(op)
+
+        mock_file = mock_open(read_data='{"a": "b"}')
+        mocker.patch("builtins.open", mock_file)
+
+        with pytest.raises(TaskDeferred) as exc:
+            op.execute(context)
+
+        assert isinstance(exc.value.trigger, KubernetesPodTrigger)
+
 
 @pytest.mark.db_test
 def test_template_body_templating(create_task_instance_of_operator, session):
@@ -765,32 +994,26 @@ def test_template_body_templating(create_task_instance_of_operator, session):
     )
     session.add(ti)
     session.commit()
-    ti.render_templates()
-    task: SparkKubernetesOperator = ti.task
+    task = ti.render_templates()
     assert task.template_body == {"spark": {"foo": "2016-01-01", "bar": "test_template_body_templating_dag"}}
 
 
 @pytest.mark.db_test
-def test_resolve_application_file_template_file(dag_maker, tmp_path, session):
-    logical_date = timezone.datetime(2024, 2, 1, tzinfo=timezone.utc)
+def test_resolve_application_file_template_file(create_task_instance_of_operator, tmp_path, session):
     filename = "test-application-file.yml"
     (tmp_path / filename).write_text("foo: {{ ds }}\nbar: {{ dag_run.dag_id }}\nspam: egg")
 
-    with dag_maker(
+    ti = create_task_instance_of_operator(
+        SparkKubernetesOperator,
         dag_id="test_resolve_application_file_template_file",
         template_searchpath=tmp_path.as_posix(),
+        task_id="test_template_body_templating_task",
+        application_file=filename,
+        kubernetes_conn_id="kubernetes_default_kube_config",
+        logical_date=timezone.datetime(2024, 2, 1, tzinfo=timezone.utc),
         session=session,
-    ):
-        SparkKubernetesOperator(
-            application_file=filename,
-            kubernetes_conn_id="kubernetes_default_kube_config",
-            task_id="test_template_body_templating_task",
-        )
-    ti = dag_maker.create_dagrun(logical_date=logical_date).task_instances[0]
-    session.add(ti)
-    session.commit()
-    ti.render_templates()
-    task: SparkKubernetesOperator = ti.task
+    )
+    task = ti.render_templates()
     assert task.template_body == {
         "spark": {
             "foo": date(2024, 2, 1),
@@ -810,27 +1033,28 @@ def test_resolve_application_file_template_file(dag_maker, tmp_path, session):
         pytest.param(None, id="none"),
     ],
 )
-def test_resolve_application_file_template_non_dictionary(dag_maker, tmp_path, body, session):
+def test_resolve_application_file_template_non_dictionary(
+    create_task_instance_of_operator,
+    tmp_path,
+    body,
+    session,
+):
     logical_date = timezone.datetime(2024, 2, 1, tzinfo=timezone.utc)
     filename = "test-application-file.yml"
     with open((tmp_path / filename), "w") as fp:
         yaml.safe_dump(body, fp)
 
-    with dag_maker(
+    ti = create_task_instance_of_operator(
+        SparkKubernetesOperator,
         dag_id="test_resolve_application_file_template_nondictionary",
         template_searchpath=tmp_path.as_posix(),
+        task_id="test_template_body_templating_task",
+        application_file=filename,
+        kubernetes_conn_id="kubernetes_default_kube_config",
+        logical_date=logical_date,
         session=session,
-    ):
-        SparkKubernetesOperator(
-            application_file=filename,
-            kubernetes_conn_id="kubernetes_default_kube_config",
-            task_id="test_template_body_templating_task",
-        )
-    ti = dag_maker.create_dagrun(logical_date=logical_date).task_instances[0]
-    session.add(ti)
-    session.commit()
-    ti.render_templates()
-    task: SparkKubernetesOperator = ti.task
+    )
+    task = ti.render_templates()
     with pytest.raises(TypeError, match="application_file body can't transformed into the dictionary"):
         _ = task.template_body
 
@@ -866,11 +1090,7 @@ def test_resolve_application_file_real_file(
         task_id="test_template_body_templating_task",
         session=session,
     )
-    session.add(ti)
-    session.commit()
-    ti.render_templates()
-    task: SparkKubernetesOperator = ti.task
-
+    task = ti.render_templates()
     assert task.template_body == {"spark": {"foo": "bar", "spam": "egg"}}
 
 
@@ -891,10 +1111,7 @@ def test_resolve_application_file_real_file_not_exists(create_task_instance_of_o
         task_id="test_template_body_templating_task",
         session=session,
     )
-    session.add(ti)
-    session.commit()
-    ti.render_templates()
-    task: SparkKubernetesOperator = ti.task
+    task = ti.render_templates()
     with pytest.raises(TypeError, match="application_file body can't transformed into the dictionary"):
         _ = task.template_body
 
@@ -921,3 +1138,102 @@ def test_create_job_name_should_truncate_long_names():
     pod_name = op.create_job_name()
 
     assert pod_name == long_name[:MAX_LABEL_LEN]
+
+
+class TestSparkKubernetesLifecycle:
+    @mock.patch("airflow.providers.cncf.kubernetes.operators.spark_kubernetes.CustomObjectLauncher")
+    @mock.patch("airflow.providers.cncf.kubernetes.operators.spark_kubernetes.KubernetesHook")
+    def test_launcher_access_without_execute(self, mock_hook, mock_launcher_cls):
+        """Test that launcher is accessible even if execute is not called (e.g. after deferral)."""
+        op = SparkKubernetesOperator(
+            task_id="test_task",
+            namespace="default",
+            application_file="example.yaml",
+            kubernetes_conn_id="kubernetes_default",
+        )
+
+        # Mock the template body loading since we don't have a real file
+        with mock.patch.object(SparkKubernetesOperator, "manage_template_specs") as mock_manage:
+            mock_manage.return_value = {"spark": {"spec": {}}}
+
+            # Access launcher
+            launcher = op.launcher
+
+            assert launcher is not None
+            assert mock_launcher_cls.called
+
+    @mock.patch("airflow.providers.cncf.kubernetes.operators.spark_kubernetes.CustomObjectLauncher")
+    @mock.patch("airflow.providers.cncf.kubernetes.operators.spark_kubernetes.KubernetesHook")
+    def test_on_kill_works_without_execute(self, mock_hook, mock_launcher_cls):
+        """Test that on_kill works without execute being called."""
+        op = SparkKubernetesOperator(
+            task_id="test_task",
+            namespace="default",
+            application_file="example.yaml",
+            name="test-job",
+        )
+
+        mock_launcher_instance = mock_launcher_cls.return_value
+
+        with mock.patch.object(SparkKubernetesOperator, "manage_template_specs") as mock_manage:
+            mock_manage.return_value = {"spark": {"spec": {}}}
+
+            op.on_kill()
+
+            # Should call delete_spark_job on the launcher
+            mock_launcher_instance.delete_spark_job.assert_called_once()
+
+            # Check arguments
+            call_args = mock_launcher_instance.delete_spark_job.call_args
+            # We expect spark_job_name="test-job"
+            assert call_args.kwargs.get("spark_job_name") == "test-job"
+
+    @mock.patch("airflow.providers.cncf.kubernetes.operators.spark_kubernetes.CustomObjectLauncher")
+    @mock.patch("airflow.providers.cncf.kubernetes.operators.spark_kubernetes.KubernetesHook")
+    @mock.patch("airflow.providers.cncf.kubernetes.operators.spark_kubernetes.KubernetesPodOperator.execute")
+    def test_reattach_skips_launcher_creation_in_execute(
+        self, mock_super_execute, mock_hook, mock_launcher_cls
+    ):
+        """Test that reattach logic skips explicit launcher creation but property still works."""
+        op = SparkKubernetesOperator(
+            task_id="test_task",
+            namespace="default",
+            application_file="example.yaml",
+            reattach_on_restart=True,
+        )
+
+        # Mock finding an existing pod
+        mock_pod = k8s.V1Pod(metadata=k8s.V1ObjectMeta(name="existing-pod"))
+
+        with (
+            mock.patch.object(SparkKubernetesOperator, "find_spark_job", return_value=mock_pod),
+            mock.patch.object(
+                SparkKubernetesOperator, "manage_template_specs", return_value={"spark": {"spec": {}}}
+            ),
+            mock.patch.object(SparkKubernetesOperator, "_get_ti_pod_labels", return_value={}),
+        ):
+            context = {"ti": mock.MagicMock(), "run_id": "test_run"}
+
+            # Run execute
+            op.execute(context)
+
+            # Verify super().execute was called
+            mock_super_execute.assert_called_once()
+
+            # Verify launcher was NOT instantiated during execute (because we returned early)
+            # We can check if the mock_launcher_cls was instantiated.
+            # It should NOT be instantiated during execute because _setup_spark_configuration returns early.
+            # However, accessing op.launcher later WILL instantiate it.
+
+            # Reset mock to clear any previous calls (though there shouldn't be any)
+            mock_launcher_cls.reset_mock()
+
+            # Access launcher now
+            assert op.launcher is not None
+
+            # Now it should have been instantiated
+            mock_launcher_cls.assert_called_once()
+
+            # And verify delete works
+            op.on_kill()
+            mock_launcher_cls.return_value.delete_spark_job.assert_called()

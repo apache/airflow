@@ -31,7 +31,7 @@ class TestMigrateDatabaseJob:
         assert jmespath.search("spec.template.spec.securityContext.runAsUser", docs[0]) == 50000
 
     @pytest.mark.parametrize(
-        "migrate_database_job_enabled,created",
+        ("migrate_database_job_enabled", "created"),
         [
             (False, False),
             (True, True),
@@ -160,7 +160,7 @@ class TestMigrateDatabaseJob:
         )
 
     @pytest.mark.parametrize(
-        "use_default_image,expected_image",
+        ("use_default_image", "expected_image"),
         [
             (True, "apache/airflow:2.1.0"),
             (False, "apache/airflow:user-image"),
@@ -352,7 +352,7 @@ class TestMigrateDatabaseJob:
         assert "ttlSecondsAfterFinished" not in spec
 
     @pytest.mark.parametrize(
-        "airflow_version, expected_arg",
+        ("airflow_version", "expected_arg"),
         [
             ("1.10.14", "airflow upgradedb"),
             ("2.0.2", "airflow db upgrade"),
@@ -414,6 +414,20 @@ class TestMigrateDatabaseJob:
             "subPath": "airflow_local_settings.py",
             "readOnly": True,
         } in jmespath.search("spec.template.spec.containers[0].volumeMounts", docs[0])
+
+    @pytest.mark.parametrize(
+        "restart_policy",
+        [
+            "OnFailure",
+            "Never",
+        ],
+    )
+    def test_restart_policy(self, restart_policy):
+        docs = render_chart(
+            values={"migrateDatabaseJob": {"restartPolicy": restart_policy}},
+            show_only=["templates/jobs/migrate-database-job.yaml"],
+        )
+        assert restart_policy == jmespath.search("spec.template.spec.restartPolicy", docs[0])
 
 
 class TestMigrateDatabaseJobServiceAccount:

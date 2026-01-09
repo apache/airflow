@@ -26,17 +26,21 @@ from uuid import uuid4
 
 import pendulum
 import pytest
-from sqlalchemy import text
+from sqlalchemy import func, inspect, select, text
 from sqlalchemy.exc import OperationalError, SQLAlchemyError
 from sqlalchemy.ext.declarative import DeclarativeMeta
 
+from airflow import DAG
+from airflow._shared.timezones import timezone
 from airflow.exceptions import AirflowException
 from airflow.models import DagModel, DagRun, TaskInstance
+from airflow.models.dag_version import DagVersion
+from airflow.models.dagbundle import DagBundleModel
+from airflow.models.serialized_dag import SerializedDagModel
 from airflow.providers.standard.operators.python import PythonOperator
-from airflow.utils import timezone
+from airflow.serialization.serialized_objects import LazyDeserializedDAG
 from airflow.utils.db_cleanup import (
     ARCHIVE_TABLE_PREFIX,
-    ARCHIVED_TABLES_FROM_DB_MIGRATIONS,
     CreateTableAs,
     _build_query,
     _cleanup_table,
@@ -53,10 +57,12 @@ from airflow.utils.types import DagRunType
 
 from tests_common.test_utils.db import (
     clear_db_assets,
+    clear_db_dag_bundles,
     clear_db_dags,
     clear_db_runs,
     drop_tables_with_prefix,
 )
+from tests_common.test_utils.taskinstance import create_task_instance
 
 pytestmark = pytest.mark.db_test
 
@@ -67,10 +73,12 @@ def clean_database():
     clear_db_runs()
     clear_db_assets()
     clear_db_dags()
+    clear_db_dag_bundles()
     yield  # Test runs here
     clear_db_dags()
     clear_db_assets()
     clear_db_runs()
+    clear_db_dag_bundles()
 
 
 class TestDBCleanup:
@@ -79,7 +87,7 @@ class TestDBCleanup:
         drop_tables_with_prefix("_airflow_")
 
     @pytest.mark.parametrize(
-        "kwargs, called",
+        ("kwargs", "called"),
         [
             pytest.param(dict(confirm=True), True, id="true"),
             pytest.param(dict(), True, id="not supplied"),
@@ -103,7 +111,7 @@ class TestDBCleanup:
             confirm_delete_mock.assert_not_called()
 
     @pytest.mark.parametrize(
-        "kwargs, should_skip",
+        ("kwargs", "should_skip"),
         [
             pytest.param(dict(skip_archive=True), True, id="true"),
             pytest.param(dict(), False, id="not supplied"),
@@ -199,7 +207,7 @@ class TestDBCleanup:
             do_delete.assert_called()
 
     @pytest.mark.parametrize(
-        "table_name, date_add_kwargs, expected_to_delete, run_type",
+        ("table_name", "date_add_kwargs", "expected_to_delete", "run_type"),
         [
             pytest.param("task_instance", dict(days=0), 0, DagRunType.SCHEDULED, id="beginning"),
             pytest.param("task_instance", dict(days=4), 4, DagRunType.SCHEDULED, id="middle"),
@@ -247,7 +255,7 @@ class TestDBCleanup:
                 assert row[0] == expected_to_delete
 
     @pytest.mark.parametrize(
-        "table_name, date_add_kwargs, expected_to_delete, run_type",
+        ("table_name", "date_add_kwargs", "expected_to_delete", "run_type"),
         [
             pytest.param("task_instance", dict(days=0), 0, DagRunType.SCHEDULED, id="beginning"),
             pytest.param("task_instance", dict(days=4), 4, DagRunType.SCHEDULED, id="middle"),
@@ -295,17 +303,128 @@ class TestDBCleanup:
             )
             model = config_dict[table_name].orm_model
             expected_remaining = num_tis - expected_to_delete
-            assert len(session.query(model).all()) == expected_remaining
+            assert session.scalar(select(func.count()).select_from(model)) == expected_remaining
             if model.name == "task_instance":
-                assert len(session.query(DagRun).all()) == num_tis
+                assert session.scalar(select(func.count()).select_from(DagRun)) == num_tis
             elif model.name == "dag_run":
-                assert len(session.query(TaskInstance).all()) == expected_remaining
+                assert session.scalar(select(func.count()).select_from(TaskInstance)) == expected_remaining
             else:
                 raise Exception("unexpected")
 
     @pytest.mark.parametrize(
-        "skip_archive, expected_archives",
-        [pytest.param(True, 1, id="skip_archive"), pytest.param(False, 2, id="do_archive")],
+        ("table_name", "expected_archived"),
+        [
+            (
+                "dag_run",
+                {"dag_run", "task_instance"},  # Only these are populated
+            ),
+        ],
+    )
+    def test_run_cleanup_archival_integration(self, table_name, expected_archived):
+        """
+        Integration test that verifies:
+        1. Recursive FK-dependent tables are resolved via _effective_table_names().
+        2. run_cleanup() archives only tables with data.
+        3. Archive tables are not created for empty dependent tables.
+        """
+        base_date = pendulum.datetime(2022, 1, 1, tz="UTC")
+        num_tis = 5
+
+        # Create test data for DAG Run and TIs
+        if table_name in {"dag_run", "task_instance"}:
+            create_tis(base_date=base_date, num_tis=num_tis, run_type=DagRunType.MANUAL)
+
+        clean_before_date = base_date.add(days=10)
+
+        with create_session() as session:
+            run_cleanup(
+                clean_before_timestamp=clean_before_date,
+                table_names=[table_name],
+                dry_run=False,
+                confirm=False,
+                session=session,
+            )
+
+            # Inspect archive tables created
+            inspector = inspect(session.bind)
+            archive_tables = {
+                name for name in inspector.get_table_names() if name.startswith(ARCHIVE_TABLE_PREFIX)
+            }
+            actual_archived = {t.split("__", 1)[-1].split("__")[0] for t in archive_tables}
+
+            assert expected_archived <= actual_archived, (
+                f"Expected archive tables not found: {expected_archived - actual_archived}"
+            )
+
+    @pytest.mark.parametrize(
+        ("dag_ids", "exclude_dag_ids", "expected_remaining_dag_ids"),
+        [
+            pytest.param(["dag1"], None, {"dag2", "dag3"}, id="include_single_dag"),
+            pytest.param(["dag1", "dag2"], None, {"dag3"}, id="include_multiple_dags"),
+            pytest.param(None, ["dag3"], {"dag3"}, id="exclude_single_dag"),
+            pytest.param(None, ["dag2", "dag3"], {"dag2", "dag3"}, id="exclude_multiple_dags"),
+            pytest.param(["dag1", "dag2"], ["dag2"], {"dag2", "dag3"}, id="include_and_exclude"),
+            pytest.param(None, None, set(), id="no_filtering_all_deleted"),
+        ],
+    )
+    def test_cleanup_with_dag_id_filtering(self, dag_ids, exclude_dag_ids, expected_remaining_dag_ids):
+        """
+        Verify that dag_ids and exclude_dag_ids parameters correctly include/exclude
+        specific DAGs during cleanup
+        """
+        base_date = pendulum.DateTime(2022, 1, 1, tzinfo=pendulum.timezone("UTC"))
+
+        with create_session() as session:
+            bundle_name = "testing"
+            session.add(DagBundleModel(name=bundle_name))
+            session.flush()
+
+            for dag_id in ["dag1", "dag2", "dag3"]:
+                dag = DAG(dag_id=dag_id)
+                dm = DagModel(dag_id=dag_id, bundle_name=bundle_name)
+                session.add(dm)
+                SerializedDagModel.write_dag(LazyDeserializedDAG.from_dag(dag), bundle_name=bundle_name)
+                dag_version = DagVersion.get_latest_version(dag.dag_id)
+
+                start_date = base_date
+                dag_run = DagRun(
+                    dag.dag_id,
+                    run_id=f"{dag_id}_run",
+                    run_type=DagRunType.MANUAL,
+                    start_date=start_date,
+                )
+                ti = create_task_instance(
+                    PythonOperator(task_id="dummy-task", python_callable=print),
+                    run_id=dag_run.run_id,
+                    dag_version_id=dag_version.id,
+                )
+                ti.dag_id = dag.dag_id
+                ti.start_date = start_date
+                session.add(dag_run)
+                session.add(ti)
+            session.commit()
+
+            clean_before_date = base_date.add(days=10)
+            run_cleanup(
+                clean_before_timestamp=clean_before_date,
+                table_names=["task_instance"],
+                dag_ids=dag_ids,
+                exclude_dag_ids=exclude_dag_ids,
+                dry_run=False,
+                confirm=False,
+                session=session,
+            )
+
+            remaining_tis = session.scalars(select(TaskInstance)).all()
+            remaining_dag_ids = {ti.dag_id for ti in remaining_tis}
+
+            assert remaining_dag_ids == expected_remaining_dag_ids, (
+                f"Expected {expected_remaining_dag_ids} to remain, but got {remaining_dag_ids}"
+            )
+
+    @pytest.mark.parametrize(
+        ("skip_archive", "expected_archives"),
+        [pytest.param(True, 0, id="skip_archive"), pytest.param(False, 1, id="do_archive")],
     )
     def test__skip_archive(self, skip_archive, expected_archives):
         """
@@ -320,6 +439,9 @@ class TestDBCleanup:
             num_tis=num_tis,
         )
         with create_session() as session:
+            # cleanup any existing archived tables
+            for name in _get_archived_table_names(["dag_run"], session):
+                session.execute(text(f"DROP TABLE IF EXISTS {name}"))
             clean_before_date = base_date.add(days=5)
             _cleanup_table(
                 **config_dict["dag_run"].__dict__,
@@ -330,7 +452,7 @@ class TestDBCleanup:
                 skip_archive=skip_archive,
             )
             model = config_dict["dag_run"].orm_model
-            assert len(session.query(model).all()) == 5
+            assert session.scalar(select(func.count()).select_from(model)) == 5
             assert len(_get_archived_table_names(["dag_run"], session)) == expected_archives
 
     @patch("airflow.utils.db.reflect_tables")
@@ -349,6 +471,9 @@ class TestDBCleanup:
         )
         try:
             with create_session() as session:
+                # cleanup any existing archived tables
+                for name in _get_archived_table_names(["dag_run"], session):
+                    session.execute(text(f"DROP TABLE IF EXISTS {name}"))
                 clean_before_date = base_date.add(days=5)
                 _cleanup_table(
                     **config_dict["dag_run"].__dict__,
@@ -361,8 +486,7 @@ class TestDBCleanup:
         except SQLAlchemyError:
             pass
         archived_table_names = _get_archived_table_names(["dag_run"], session)
-        assert len(archived_table_names) == 1
-        assert archived_table_names[0] in ARCHIVED_TABLES_FROM_DB_MIGRATIONS
+        assert len(archived_table_names) == 0
 
     def test_no_models_missing(self):
         """
@@ -619,9 +743,19 @@ class TestDBCleanup:
 
 
 def create_tis(base_date, num_tis, run_type=DagRunType.SCHEDULED):
+    from tests_common.test_utils.taskinstance import create_task_instance
+
     with create_session() as session:
-        dag = DagModel(dag_id=f"test-dag_{uuid4()}")
-        session.add(dag)
+        bundle_name = "testing"
+        session.add(DagBundleModel(name=bundle_name))
+        session.flush()
+
+        dag_id = f"test-dag_{uuid4()}"
+        dag = DAG(dag_id=dag_id)
+        dm = DagModel(dag_id=dag_id, bundle_name=bundle_name)
+        session.add(dm)
+        SerializedDagModel.write_dag(LazyDeserializedDAG.from_dag(dag), bundle_name=bundle_name)
+        dag_version = DagVersion.get_latest_version(dag.dag_id)
         for num in range(num_tis):
             start_date = base_date.add(days=num)
             dag_run = DagRun(
@@ -630,8 +764,10 @@ def create_tis(base_date, num_tis, run_type=DagRunType.SCHEDULED):
                 run_type=run_type,
                 start_date=start_date,
             )
-            ti = TaskInstance(
-                PythonOperator(task_id="dummy-task", python_callable=print), run_id=dag_run.run_id
+            ti = create_task_instance(
+                PythonOperator(task_id="dummy-task", python_callable=print),
+                run_id=dag_run.run_id,
+                dag_version_id=dag_version.id,
             )
             ti.dag_id = dag.dag_id
             ti.start_date = start_date

@@ -22,25 +22,25 @@ import enum
 import json
 import os
 import sys
+from collections.abc import Callable
 from functools import wraps
-from typing import TYPE_CHECKING, Any, Callable, Literal, TypeVar, cast
+from typing import TYPE_CHECKING, Any, Literal, ParamSpec, TypeVar, cast
 
 import httpx
 import keyring
 import structlog
 from httpx import URL
 from keyring.errors import NoKeyringError
-from platformdirs import user_config_path
 from uuid6 import uuid7
 
 from airflowctl import __version__ as version
 from airflowctl.api.operations import (
     AssetsOperations,
-    BackfillsOperations,
+    BackfillOperations,
     ConfigOperations,
     ConnectionsOperations,
-    DagOperations,
     DagRunOperations,
+    DagsOperations,
     JobsOperations,
     LoginOperations,
     PoolsOperations,
@@ -54,7 +54,6 @@ from airflowctl.exceptions import (
     AirflowCtlException,
     AirflowCtlNotFoundException,
 )
-from airflowctl.typing_compat import ParamSpec
 
 if TYPE_CHECKING:
     # # methodtools doesn't have typestubs, so give a stub
@@ -74,6 +73,7 @@ __all__ = [
     "provide_api_client",
     "NEW_API_CLIENT",
     "ClientKind",
+    "ServerResponseError",
 ]
 
 PS = ParamSpec("PS")
@@ -95,6 +95,8 @@ def get_json_error(response: httpx.Response):
     """Raise a ServerResponseError if we can extract error info from the error."""
     err = ServerResponseError.from_response(response)
     if err:
+        # This part is used in integration tests to verify the error message
+        # If you are updating here don't forget to update the airflow-ctl-tests
         log.warning("Server error ", extra=dict(err.response.json()))
         raise err
 
@@ -130,13 +132,19 @@ class Credentials:
 
     def save(self):
         """Save the credentials to keyring and URL to disk as a file."""
-        default_config_dir = user_config_path("airflow", "Apache Software Foundation")
-        if not os.path.exists(default_config_dir):
-            os.makedirs(default_config_dir)
+        default_config_dir = os.environ.get("AIRFLOW_HOME", os.path.expanduser("~/airflow"))
+        os.makedirs(default_config_dir, exist_ok=True)
         with open(os.path.join(default_config_dir, self.input_cli_config_file), "w") as f:
             json.dump({"api_url": self.api_url}, f)
+
         try:
-            keyring.set_password("airflowctl", f"api_token-{self.api_environment}", self.api_token)
+            if os.getenv("AIRFLOW_CLI_DEBUG_MODE") == "true":
+                with open(
+                    os.path.join(default_config_dir, f"debug_creds_{self.input_cli_config_file}"), "w"
+                ) as f:
+                    json.dump({f"api_token_{self.api_environment}": self.api_token}, f)
+            else:
+                keyring.set_password("airflowctl", f"api_token_{self.api_environment}", self.api_token)
         except NoKeyringError as e:
             log.error(e)
         except TypeError as e:
@@ -146,19 +154,29 @@ class Credentials:
 
     def load(self) -> Credentials:
         """Load the credentials from keyring and URL from disk file."""
-        default_config_dir = user_config_path("airflow", "Apache Software Foundation")
-        credential_path = os.path.join(default_config_dir, self.input_cli_config_file)
+        default_config_dir = os.environ.get("AIRFLOW_HOME", os.path.expanduser("~/airflow"))
+        config_path = os.path.join(default_config_dir, self.input_cli_config_file)
         try:
-            with open(credential_path) as f:
+            with open(config_path) as f:
                 credentials = json.load(f)
                 self.api_url = credentials["api_url"]
-                self.api_token = keyring.get_password("airflowctl", f"api_token-{self.api_environment}")
+                if os.getenv("AIRFLOW_CLI_DEBUG_MODE") == "true":
+                    debug_creds_path = os.path.join(
+                        default_config_dir, f"debug_creds_{self.input_cli_config_file}"
+                    )
+                    with open(debug_creds_path) as df:
+                        debug_credentials = json.load(df)
+                        self.api_token = debug_credentials.get(f"api_token_{self.api_environment}")
+                else:
+                    self.api_token = keyring.get_password("airflowctl", f"api_token_{self.api_environment}")
         except FileNotFoundError:
             if self.client_kind == ClientKind.AUTH:
                 # Saving the URL set from the Auth Commands if Kind is AUTH
                 self.save()
             elif self.client_kind == ClientKind.CLI:
-                raise AirflowCtlCredentialNotFoundException(f"No credentials found in {default_config_dir}")
+                raise AirflowCtlCredentialNotFoundException(
+                    f"No credentials found in {default_config_dir} for environment {self.api_environment}."
+                )
             else:
                 raise AirflowCtlException(f"Unknown client kind: {self.client_kind}")
 
@@ -211,73 +229,73 @@ class Client(httpx.Client):
             return f"{base_url}/auth"
         return f"{base_url}/api/v2"
 
-    @lru_cache()  # type: ignore[misc]
+    @lru_cache()  # type: ignore[prop-decorator]
     @property
     def login(self):
         """Operations related to authentication."""
         return LoginOperations(self)
 
-    @lru_cache()  # type: ignore[misc]
+    @lru_cache()  # type: ignore[prop-decorator]
     @property
     def assets(self):
         """Operations related to assets."""
         return AssetsOperations(self)
 
-    @lru_cache()  # type: ignore[misc]
+    @lru_cache()  # type: ignore[prop-decorator]
     @property
     def backfills(self):
         """Operations related to backfills."""
-        return BackfillsOperations(self)
+        return BackfillOperations(self)
 
-    @lru_cache()  # type: ignore[misc]
+    @lru_cache()  # type: ignore[prop-decorator]
     @property
     def configs(self):
         """Operations related to configs."""
         return ConfigOperations(self)
 
-    @lru_cache()  # type: ignore[misc]
+    @lru_cache()  # type: ignore[prop-decorator]
     @property
     def connections(self):
         """Operations related to connections."""
         return ConnectionsOperations(self)
 
-    @lru_cache()  # type: ignore[misc]
+    @lru_cache()  # type: ignore[prop-decorator]
     @property
     def dags(self):
         """Operations related to DAGs."""
-        return DagOperations(self)
+        return DagsOperations(self)
 
-    @lru_cache()  # type: ignore[misc]
+    @lru_cache()  # type: ignore[prop-decorator]
     @property
     def dag_runs(self):
         """Operations related to DAG runs."""
         return DagRunOperations(self)
 
-    @lru_cache()  # type: ignore[misc]
+    @lru_cache()  # type: ignore[prop-decorator]
     @property
     def jobs(self):
         """Operations related to jobs."""
         return JobsOperations(self)
 
-    @lru_cache()  # type: ignore[misc]
+    @lru_cache()  # type: ignore[prop-decorator]
     @property
     def pools(self):
         """Operations related to pools."""
         return PoolsOperations(self)
 
-    @lru_cache()  # type: ignore[misc]
+    @lru_cache()  # type: ignore[prop-decorator]
     @property
     def providers(self):
         """Operations related to providers."""
         return ProvidersOperations(self)
 
-    @lru_cache()  # type: ignore[misc]
+    @lru_cache()  # type: ignore[prop-decorator]
     @property
     def variables(self):
         """Operations related to variables."""
         return VariablesOperations(self)
 
-    @lru_cache()  # type: ignore[misc]
+    @lru_cache()  # type: ignore[prop-decorator]
     @property
     def version(self):
         """Get the version of the server."""
@@ -295,12 +313,11 @@ def get_client(kind: Literal[ClientKind.CLI, ClientKind.AUTH] = ClientKind.CLI):
     api_client = None
     try:
         # API URL always loaded from the config file, please save with it if you are using other than ClientKind.CLI
-
         credentials = Credentials(client_kind=kind).load()
         api_client = Client(
             base_url=credentials.api_url or "http://localhost:8080",
             limits=httpx.Limits(max_keepalive_connections=1, max_connections=1),
-            token=credentials.api_token or "",
+            token=credentials.api_token or str(os.getenv("AIRFLOW_CLI_TOKEN", "")),
             kind=kind,
         )
         yield api_client

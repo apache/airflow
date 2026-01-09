@@ -34,7 +34,11 @@ export const getColumns = (translate: TFunction): Array<MetaColumn<TaskInstanceR
       row: {
         original: { state },
       },
-    }) => <StateBadge state={state}>{translate(`common:states.${state}`)}</StateBadge>,
+    }) => (
+      <StateBadge state={state}>
+        {state ? translate(`common:states.${state}`) : translate("common:states.no_status")}
+      </StateBadge>
+    ),
     header: translate("state"),
   },
   {

@@ -16,58 +16,54 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, HStack } from "@chakra-ui/react";
+import { Box, Flex } from "@chakra-ui/react";
 import type { MultiValue } from "chakra-react-select";
-import { useCallback } from "react";
+import { useState } from "react";
 import { useSearchParams } from "react-router-dom";
 
-import { useDagServiceGetDagTags } from "openapi/queries";
 import { useTableURLState } from "src/components/DataTable/useTableUrlState";
+import { ResetButton } from "src/components/ui";
 import { SearchParamsKeys, type SearchParamsKeysType } from "src/constants/searchParams";
 import { useConfig } from "src/queries/useConfig";
+import { useDagTagsInfinite } from "src/queries/useDagTagsInfinite";
+import { getFilterCount } from "src/utils/filterUtils";
 
+import { FavoriteFilter } from "./FavoriteFilter";
 import { PausedFilter } from "./PausedFilter";
-import { ResetButton } from "./ResetButton";
 import { StateFilters } from "./StateFilters";
 import { TagFilter } from "./TagFilter";
 
 const {
+  FAVORITE: FAVORITE_PARAM,
   LAST_DAG_RUN_STATE: LAST_DAG_RUN_STATE_PARAM,
+  NEEDS_REVIEW: NEEDS_REVIEW_PARAM,
+  OFFSET: OFFSET_PARAM,
   PAUSED: PAUSED_PARAM,
   TAGS: TAGS_PARAM,
   TAGS_MATCH_MODE: TAGS_MATCH_MODE_PARAM,
 }: SearchParamsKeysType = SearchParamsKeys;
 
-const getFilterCount = (state: string | null, showPaused: string | null, selectedTags: Array<string>) => {
-  let count = 0;
-
-  if (state !== null) {
-    count += 1;
-  }
-  if (showPaused !== null) {
-    count += 1;
-  }
-  if (selectedTags.length > 0) {
-    count += 1;
-  }
-
-  return count;
-};
-
 export const DagsFilters = () => {
   const [searchParams, setSearchParams] = useSearchParams();
 
   const showPaused = searchParams.get(PAUSED_PARAM);
+  const showFavorites = searchParams.get(FAVORITE_PARAM);
+  const needsReview = searchParams.get(NEEDS_REVIEW_PARAM);
   const state = searchParams.get(LAST_DAG_RUN_STATE_PARAM);
   const selectedTags = searchParams.getAll(TAGS_PARAM);
   const tagFilterMode = searchParams.get(TAGS_MATCH_MODE_PARAM) ?? "any";
   const isAll = state === null;
   const isRunning = state === "running";
   const isFailed = state === "failed";
+  const isQueued = state === "queued";
   const isSuccess = state === "success";
 
-  const { data } = useDagServiceGetDagTags({
-    orderBy: "name",
+  const [pattern, setPattern] = useState("");
+
+  const { data, fetchNextPage, fetchPreviousPage } = useDagTagsInfinite({
+    limit: 10,
+    orderBy: ["name"],
+    tagNamePattern: pattern,
   });
 
   const hidePausedDagsByDefault = Boolean(useConfig("hide_paused_dags_by_default"));
@@ -76,91 +72,113 @@ export const DagsFilters = () => {
   const { setTableURLState, tableURLState } = useTableURLState();
   const { pagination, sorting } = tableURLState;
 
-  const handlePausedChange = useCallback(
-    ({ value }: { value: Array<string> }) => {
-      const [val] = value;
+  const handlePausedChange: React.MouseEventHandler<HTMLButtonElement> = ({ currentTarget: { value } }) => {
+    if (value === "all") {
+      searchParams.delete(PAUSED_PARAM);
+    } else {
+      searchParams.set(PAUSED_PARAM, value);
+    }
+    setTableURLState({
+      pagination: { ...pagination, pageIndex: 0 },
+      sorting,
+    });
+    searchParams.delete(OFFSET_PARAM);
+    setSearchParams(searchParams);
+  };
 
-      if (val === undefined || val === "all") {
-        searchParams.delete(PAUSED_PARAM);
+  const handleFavoriteChange: React.MouseEventHandler<HTMLButtonElement> = ({ currentTarget: { value } }) => {
+    if (value === "all") {
+      searchParams.delete(FAVORITE_PARAM);
+    } else {
+      searchParams.set(FAVORITE_PARAM, value);
+    }
+    setTableURLState({
+      pagination: { ...pagination, pageIndex: 0 },
+      sorting,
+    });
+    searchParams.delete(OFFSET_PARAM);
+    setSearchParams(searchParams);
+  };
+
+  const handleStateChange: React.MouseEventHandler<HTMLButtonElement> = ({ currentTarget: { value } }) => {
+    if (value === "all") {
+      searchParams.delete(LAST_DAG_RUN_STATE_PARAM);
+      searchParams.delete(NEEDS_REVIEW_PARAM);
+    } else if (value === "needs_review") {
+      if (needsReview === "true") {
+        searchParams.delete(NEEDS_REVIEW_PARAM);
       } else {
-        searchParams.set(PAUSED_PARAM, val);
+        searchParams.set(NEEDS_REVIEW_PARAM, "true");
       }
-      setTableURLState({
-        pagination: { ...pagination, pageIndex: 0 },
-        sorting,
-      });
-      searchParams.delete("offset");
-      setSearchParams(searchParams);
-    },
-    [pagination, searchParams, setSearchParams, setTableURLState, sorting],
-  );
-
-  const handleStateChange: React.MouseEventHandler<HTMLButtonElement> = useCallback(
-    ({ currentTarget: { value } }) => {
-      if (value === "all") {
+    } else {
+      if (state === value) {
         searchParams.delete(LAST_DAG_RUN_STATE_PARAM);
       } else {
         searchParams.set(LAST_DAG_RUN_STATE_PARAM, value);
       }
-      setTableURLState({
-        pagination: { ...pagination, pageIndex: 0 },
-        sorting,
-      });
-      searchParams.delete("offset");
-      setSearchParams(searchParams);
-    },
-    [pagination, searchParams, setSearchParams, setTableURLState, sorting],
-  );
+    }
+    setTableURLState({
+      pagination: { ...pagination, pageIndex: 0 },
+      sorting,
+    });
+    searchParams.delete(OFFSET_PARAM);
+    setSearchParams(searchParams);
+  };
 
-  const handleSelectTagsChange = useCallback(
-    (
-      tags: MultiValue<{
-        label: string;
-        value: string;
-      }>,
-    ) => {
-      searchParams.delete(TAGS_PARAM);
-      tags.forEach(({ value }) => {
-        searchParams.append(TAGS_PARAM, value);
-      });
-      if (tags.length < 2) {
-        searchParams.delete(TAGS_MATCH_MODE_PARAM);
-      }
-      searchParams.delete("offset");
-      setSearchParams(searchParams);
-    },
-    [searchParams, setSearchParams],
-  );
+  const handleSelectTagsChange = (
+    tags: MultiValue<{
+      label: string;
+      value: string;
+    }>,
+  ) => {
+    searchParams.delete(TAGS_PARAM);
+    tags.forEach(({ value }) => {
+      searchParams.append(TAGS_PARAM, value);
+    });
+    if (tags.length < 2) {
+      searchParams.delete(TAGS_MATCH_MODE_PARAM);
+    }
+    searchParams.delete(OFFSET_PARAM);
+    setSearchParams(searchParams);
+  };
 
   const onClearFilters = () => {
     searchParams.delete(PAUSED_PARAM);
+    searchParams.delete(FAVORITE_PARAM);
+    searchParams.delete(NEEDS_REVIEW_PARAM);
     searchParams.delete(LAST_DAG_RUN_STATE_PARAM);
     searchParams.delete(TAGS_PARAM);
     searchParams.delete(TAGS_MATCH_MODE_PARAM);
 
     setSearchParams(searchParams);
+    setPattern("");
   };
 
-  const handleTagModeChange = useCallback(
-    ({ checked }: { checked: boolean }) => {
-      const mode = checked ? "all" : "any";
+  const handleTagModeChange = ({ checked }: { checked: boolean }) => {
+    const mode = checked ? "all" : "any";
 
-      searchParams.set(TAGS_MATCH_MODE_PARAM, mode);
-      setSearchParams(searchParams);
-    },
-    [searchParams, setSearchParams],
-  );
+    searchParams.set(TAGS_MATCH_MODE_PARAM, mode);
+    setSearchParams(searchParams);
+  };
 
-  const filterCount = getFilterCount(state, showPaused, selectedTags);
+  const filterCount = getFilterCount({
+    needsReview,
+    selectedTags,
+    showFavorites,
+    showPaused,
+    state,
+  });
 
   return (
-    <HStack justifyContent="space-between">
-      <HStack gap={4}>
+    <Flex flexWrap="wrap" gap={4} justifyContent="space-between">
+      <Flex alignItems="center" flexWrap="wrap" gap={4}>
         <StateFilters
           isAll={isAll}
           isFailed={isFailed}
+          isQueued={isQueued}
           isRunning={isRunning}
           isSuccess={isSuccess}
+          needsReview={needsReview === "true"}
           onStateChange={handleStateChange}
         />
         <PausedFilter
@@ -168,17 +186,27 @@ export const DagsFilters = () => {
           onPausedChange={handlePausedChange}
           showPaused={showPaused}
         />
-        <TagFilter
-          onSelectTagsChange={handleSelectTagsChange}
-          onTagModeChange={handleTagModeChange}
-          selectedTags={selectedTags}
-          tagFilterMode={tagFilterMode}
-          tags={data?.tags ?? []}
-        />
-      </HStack>
+        <Box maxWidth="300px">
+          <TagFilter
+            onMenuScrollToBottom={() => {
+              void fetchNextPage();
+            }}
+            onMenuScrollToTop={() => {
+              void fetchPreviousPage();
+            }}
+            onSelectTagsChange={handleSelectTagsChange}
+            onTagModeChange={handleTagModeChange}
+            onUpdate={setPattern}
+            selectedTags={selectedTags}
+            tagFilterMode={tagFilterMode}
+            tags={data?.pages.flatMap((dagResponse) => dagResponse.tags) ?? []}
+          />
+        </Box>
+        <FavoriteFilter onFavoriteChange={handleFavoriteChange} showFavorites={showFavorites} />
+      </Flex>
       <Box>
         <ResetButton filterCount={filterCount} onClearFilters={onClearFilters} />
       </Box>
-    </HStack>
+    </Flex>
   );
 };

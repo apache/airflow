@@ -20,8 +20,7 @@ from __future__ import annotations
 import warnings
 from datetime import datetime
 
-from airflow.models.baseoperator import BaseOperator
-from airflow.models.dag import DAG
+from airflow.sdk import DAG, BaseOperator
 
 DAG_ID = "test_dag_warnings"
 

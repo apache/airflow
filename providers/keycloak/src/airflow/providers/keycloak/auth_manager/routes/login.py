@@ -18,23 +18,19 @@
 from __future__ import annotations
 
 import logging
+from typing import Annotated, cast
 
-from fastapi import Request  # noqa: TC002
-from keycloak import KeycloakOpenID
+from fastapi import Depends, Request
 from starlette.responses import HTMLResponse, RedirectResponse
 
 from airflow.api_fastapi.app import get_auth_manager
 from airflow.api_fastapi.auth.managers.base_auth_manager import COOKIE_NAME_JWT_TOKEN
 from airflow.api_fastapi.common.router import AirflowRouter
-from airflow.configuration import conf
-from airflow.providers.keycloak.auth_manager.constants import (
-    CONF_CLIENT_ID_KEY,
-    CONF_CLIENT_SECRET_KEY,
-    CONF_REALM_KEY,
-    CONF_SECTION_NAME,
-    CONF_SERVER_URL_KEY,
-)
+from airflow.api_fastapi.core_api.security import get_user
+from airflow.providers.common.compat.sdk import conf
+from airflow.providers.keycloak.auth_manager.keycloak_auth_manager import KeycloakAuthManager
 from airflow.providers.keycloak.auth_manager.user import KeycloakAuthManagerUser
+from airflow.providers.keycloak.version_compat import AIRFLOW_V_3_1_1_PLUS
 
 log = logging.getLogger(__name__)
 login_router = AirflowRouter(tags=["KeycloakAuthManagerLogin"])
@@ -43,7 +39,7 @@ login_router = AirflowRouter(tags=["KeycloakAuthManagerLogin"])
 @login_router.get("/login")
 def login(request: Request) -> RedirectResponse:
     """Initiate the authentication."""
-    client = _get_keycloak_client()
+    client = KeycloakAuthManager.get_keycloak_client()
     redirect_uri = request.url_for("login_callback")
     auth_url = client.auth_url(redirect_uri=str(redirect_uri), scope="openid")
     return RedirectResponse(auth_url)
@@ -56,7 +52,7 @@ def login_callback(request: Request):
     if not code:
         return HTMLResponse("Missing code", status_code=400)
 
-    client = _get_keycloak_client()
+    client = KeycloakAuthManager.get_keycloak_client()
     redirect_uri = request.url_for("login_callback")
 
     tokens = client.token(
@@ -75,19 +71,65 @@ def login_callback(request: Request):
 
     response = RedirectResponse(url=conf.get("api", "base_url", fallback="/"), status_code=303)
     secure = bool(conf.get("api", "ssl_cert", fallback=""))
-    response.set_cookie(COOKIE_NAME_JWT_TOKEN, token, secure=secure)
+    # In Airflow 3.1.1 authentication changes, front-end no longer handle the token
+    # See https://github.com/apache/airflow/pull/55506
+    if AIRFLOW_V_3_1_1_PLUS:
+        response.set_cookie(COOKIE_NAME_JWT_TOKEN, token, secure=secure, httponly=True)
+    else:
+        response.set_cookie(COOKIE_NAME_JWT_TOKEN, token, secure=secure)
     return response
 
 
-def _get_keycloak_client() -> KeycloakOpenID:
-    client_id = conf.get(CONF_SECTION_NAME, CONF_CLIENT_ID_KEY)
-    client_secret = conf.get(CONF_SECTION_NAME, CONF_CLIENT_SECRET_KEY)
-    realm = conf.get(CONF_SECTION_NAME, CONF_REALM_KEY)
-    server_url = conf.get(CONF_SECTION_NAME, CONF_SERVER_URL_KEY)
+@login_router.get("/logout")
+def logout(request: Request, user: Annotated[KeycloakAuthManagerUser, Depends(get_user)]):
+    """Log out the user from Keycloak."""
+    auth_manager = cast("KeycloakAuthManager", get_auth_manager())
+    keycloak_config = auth_manager.get_keycloak_client().well_known()
+    end_session_endpoint = keycloak_config["end_session_endpoint"]
 
-    return KeycloakOpenID(
-        server_url=server_url,
-        client_id=client_id,
-        client_secret_key=client_secret,
-        realm_name=realm,
+    # Use the refresh flow to get the id token, it avoids us to save the id token
+    token_id = auth_manager.refresh_tokens(user=user).get("id_token")
+    post_logout_redirect_uri = request.url_for("logout_callback")
+
+    if token_id:
+        logout_url = f"{end_session_endpoint}?post_logout_redirect_uri={post_logout_redirect_uri}&id_token_hint={token_id}"
+    else:
+        logout_url = f"{end_session_endpoint}?post_logout_redirect_uri={post_logout_redirect_uri}"
+
+    return RedirectResponse(logout_url)
+
+
+@login_router.get("/logout_callback")
+def logout_callback(request: Request):
+    """
+    Complete the log-out.
+
+    This callback is redirected by Keycloak after the user has been logged out from Keycloak.
+    """
+    login_url = get_auth_manager().get_url_login()
+    secure = request.base_url.scheme == "https" or bool(conf.get("api", "ssl_cert", fallback=""))
+    response = RedirectResponse(login_url)
+    response.delete_cookie(
+        key=COOKIE_NAME_JWT_TOKEN,
+        secure=secure,
+        httponly=True,
     )
+    return response
+
+
+@login_router.get("/refresh")
+def refresh(
+    request: Request, user: Annotated[KeycloakAuthManagerUser, Depends(get_user)]
+) -> RedirectResponse:
+    """Refresh the token."""
+    auth_manager = cast("KeycloakAuthManager", get_auth_manager())
+    refreshed_user = auth_manager.refresh_user(user=user)
+    redirect_url = request.query_params.get("next", conf.get("api", "base_url", fallback="/"))
+    response = RedirectResponse(url=redirect_url, status_code=303)
+
+    if refreshed_user:
+        token = auth_manager.generate_jwt(refreshed_user)
+        secure = bool(conf.get("api", "ssl_cert", fallback=""))
+        response.set_cookie(COOKIE_NAME_JWT_TOKEN, token, secure=secure)
+
+    return response

@@ -16,7 +16,7 @@ These are providers that require testing as there were some substantial changes 
    {%- if pr.number in linked_issues %}
      Linked issues:
      {%- for linked_issue in linked_issues[pr.number] %}
-       - [ ] [Linked Issue #{{ linked_issue.number }}]({{ linked_issue.html_url }}): @{{ linked_issue.user.login }}
+       - [Linked Issue #{{ linked_issue.number }}]({{ linked_issue.html_url }}): @{{ linked_issue.user.login }}
      {%- endfor %}
    {%- endif %}
 {%- endfor %}

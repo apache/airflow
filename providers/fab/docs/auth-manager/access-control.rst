@@ -82,12 +82,12 @@ other users. ``Admin`` users have ``Op`` permission plus additional permissions:
 Custom Roles
 '''''''''''''
 
-DAG Level Role
+Dag Level Role
 ^^^^^^^^^^^^^^
-``Admin`` can create a set of roles which are only allowed to view a certain set of DAGs. This is called DAG level access. Each DAG defined in the DAG model table
+``Admin`` can create a set of roles which are only allowed to view a certain set of Dags. This is called Dag level access. Each Dag defined in the Dag model table
 is treated as a ``View`` which has two permissions associated with it (``can_read`` and ``can_edit``. ``can_dag_read`` and ``can_dag_edit`` are deprecated since 2.0.0).
-There is a special view called ``DAGs`` (it was called ``all_dags`` in versions 1.10.*) which
-allows the role to access all the DAGs. The default ``Admin``, ``Viewer``, ``User``, ``Op`` roles can all access ``DAGs`` view.
+There is a special view called ``Dags`` (it was called ``all_dags`` in versions 1.10.*) which
+allows the role to access all the Dags. The default ``Admin``, ``Viewer``, ``User``, ``Op`` roles can all access ``Dags`` view.
 
 .. image:: /img/add-role.png
 .. image:: /img/new-role.png
@@ -135,15 +135,15 @@ Permissions (each consistent of a resource + action pair) are then added to role
 
 There are five default roles: Public, Viewer, User, Op, and Admin. Each one has the permissions of the preceding role, as well as additional permissions.
 
-DAG-level permissions
+Dag-level permissions
 ^^^^^^^^^^^^^^^^^^^^^
 
-For DAG-level permissions exclusively, access can be controlled at the level of all DAGs or individual DAG objects.
-This includes ``DAGs.can_read``, ``DAGs.can_edit``, ``DAGs.can_delete``, ``DAG Runs.can_read``, ``DAG Runs.can_create``, ``DAG Runs.can_delete``, and ``DAG Runs.menu_access``.
-When these permissions are listed, access is granted to users who either have the listed permission or the same permission for the specific DAG being acted upon.
-For individual DAGs, the resource name is ``DAG:`` + the DAG ID, or for the DAG Runs resource the resource name is ``DAG Run:``.
+For Dag-level permissions exclusively, access can be controlled at the level of all Dags or individual Dag objects.
+This includes ``DAGs.can_read``, ``DAGs.can_edit`` and ``DAGs.can_delete``.
+When these permissions are listed, access is granted to users who either have the listed permission or the same permission for the specific Dag being acted upon.
+For individual Dags, the resource name is ``Dag:`` + the Dag ID.
 
-For example, if a user is trying to view DAG information for the ``example_dag_id``, and the endpoint requires ``DAGs.can_read`` access, access will be granted if the user has either ``DAGs.can_read`` or ``DAG:example_dag_id.can_read`` access.
+For example, if a user is trying to view Dag information for the ``example_dag_id``, and the endpoint requires ``DAGs.can_read`` access, access will be granted if the user has either ``DAGs.can_read`` or ``DAG:example_dag_id.can_read`` access.
 
 ================================================================================== ====== ================================================================= ============
 Stable API Permissions
@@ -156,19 +156,19 @@ Endpoint                                                                        
 /connections/{connection_id}                                                       DELETE Connections.can_delete                                            Op
 /connections/{connection_id}                                                       PATCH  Connections.can_edit                                              Op
 /connections/{connection_id}                                                       GET    Connections.can_read                                              Op
-/dagSources/{file_token}                                                           GET    DAG Code.can_read                                                 Viewer
-/dags                                                                              GET    DAGs.can_read                                                     Viewer
-/dags/{dag_id}                                                                     GET    DAGs.can_read                                                     Viewer
-/dags/{dag_id}                                                                     PATCH  DAGs.can_edit                                                     User
-/dags/{dag_id}/clearTaskInstances                                                  PUT    DAGs.can_edit, DAG Runs.can_edit, Task Instances.can_edit         User
-/dags/{dag_id}/details                                                             GET    DAGs.can_read                                                     Viewer
-/dags/{dag_id}/tasks                                                               GET    DAGs.can_read, Task Instances.can_read                            Viewer
-/dags/{dag_id}/tasks/{task_id}                                                     GET    DAGs.can_read, Task Instances.can_read                            Viewer
-/dags/{dag_id}/dagRuns                                                             GET    DAGs.can_read, DAG Runs.can_read                                  Viewer
-/dags/{dag_id}/dagRuns                                                             POST   DAGs.can_edit, DAG Runs.can_create                                User
-/dags/{dag_id}/dagRuns/{dag_run_id}                                                DELETE DAGs.can_edit, DAG Runs.can_delete                                User
-/dags/{dag_id}/dagRuns/{dag_run_id}                                                GET    DAGs.can_read, DAG Runs.can_read                                  Viewer
-/dags/~/dagRuns/list                                                               POST   DAGs.can_edit, DAG Runs.can_read                                  User
+/dagSources/{file_token}                                                           GET    Dag Code.can_read                                                 Viewer
+/dags                                                                              GET    Dags.can_read                                                     Viewer
+/dags/{dag_id}                                                                     GET    Dags.can_read                                                     Viewer
+/dags/{dag_id}                                                                     PATCH  Dags.can_edit                                                     User
+/dags/{dag_id}/clearTaskInstances                                                  PUT    Dags.can_edit, Dag Runs.can_edit, Task Instances.can_edit         User
+/dags/{dag_id}/details                                                             GET    Dags.can_read                                                     Viewer
+/dags/{dag_id}/tasks                                                               GET    Dags.can_read, Task Instances.can_read                            Viewer
+/dags/{dag_id}/tasks/{task_id}                                                     GET    Dags.can_read, Task Instances.can_read                            Viewer
+/dags/{dag_id}/dagRuns                                                             GET    Dags.can_read, Dag Runs.can_read                                  Viewer
+/dags/{dag_id}/dagRuns                                                             POST   Dags.can_edit, Dag Runs.can_create                                User
+/dags/{dag_id}/dagRuns/{dag_run_id}                                                DELETE Dags.can_edit, Dag Runs.can_delete                                User
+/dags/{dag_id}/dagRuns/{dag_run_id}                                                GET    Dags.can_read, Dag Runs.can_read                                  Viewer
+/dags/~/dagRuns/list                                                               POST   Dags.can_edit, Dag Runs.can_read                                  User
 /assets                                                                            GET    Assets.can_read                                                   Viewer
 /assets/{uri}                                                                      GET    Assets.can_read                                                   Viewer
 /assets/events                                                                     GET    Assets.can_read                                                   Viewer
@@ -184,19 +184,19 @@ Endpoint                                                                        
 /pools/{pool_name}                                                                 GET    Pools.can_read                                                     Op
 /pools/{pool_name}                                                                 PATCH  Pools.can_edit                                                     Op
 /providers                                                                         GET    Providers.can_read                                                 Op
-/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances                                  GET    DAGs.can_read, DAG Runs.can_read, Task Instances.can_read         Viewer
-/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}                        GET    DAGs.can_read, DAG Runs.can_read, Task Instances.can_read         Viewer
-/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/links                  GET    DAGs.can_read, DAG Runs.can_read, Task Instances.can_read         Viewer
-/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/logs/{task_try_number} GET    DAGs.can_read, DAG Runs.can_read, Task Instances.can_read         Viewer
-/dags/~/dagRuns/~/taskInstances/list                                               POST   DAGs.can_edit, DAG Runs.can_read, Task Instances.can_read         User
+/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances                                  GET    Dags.can_read, Dag Runs.can_read, Task Instances.can_read         Viewer
+/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}                        GET    Dags.can_read, Dag Runs.can_read, Task Instances.can_read         Viewer
+/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/links                  GET    Dags.can_read, Dag Runs.can_read, Task Instances.can_read         Viewer
+/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/logs/{task_try_number} GET    Dags.can_read, Dag Runs.can_read, Task Instances.can_read         Viewer
+/dags/~/dagRuns/~/taskInstances/list                                               POST   Dags.can_edit, Dag Runs.can_read, Task Instances.can_read         User
 /variables                                                                         GET    Variables.can_read                                                Op
 /variables                                                                         POST   Variables.can_create                                              Op
 /variables/{variable_key}                                                          DELETE Variables.can_delete                                              Op
 /variables/{variable_key}                                                          GET    Variables.can_read                                                Op
 /variables/{variable_key}                                                          PATCH  Variables.can_edit                                                Op
-/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/xcomEntries            GET    DAGs.can_read, DAG Runs.can_read,                                 Viewer
+/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/xcomEntries            GET    Dags.can_read, Dag Runs.can_read,                                 Viewer
                                                                                           Task Instances.can_read, XComs.can_read
-/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/xcomEntries/{xcom_key} GET    DAGs.can_read, DAG Runs.can_read,                                 Viewer
+/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/xcomEntries/{xcom_key} GET    Dags.can_read, Dag Runs.can_read,                                 Viewer
                                                                                           Task Instances.can_read, XComs.can_read
 /users                                                                             GET    Users.can_read                                                    Admin
 /users                                                                             POST   Users.can_create                                                  Admin
@@ -219,54 +219,54 @@ Action                                 Permissions                              
 ====================================== ======================================================================= ============
 Access homepage                        Website.can_read                                                        Viewer
 Show Browse menu                       Browse.menu_access                                                      Viewer
-Show DAGs menu                         DAGs.menu_access                                                        Viewer
-Get DAG stats                          DAGs.can_read, DAG Runs.can_read                                        Viewer
+Show Dags menu                         Dags.menu_access                                                        Viewer
+Get Dag stats                          Dags.can_read, Dag Runs.can_read                                        Viewer
 Show Task Instances menu               Task Instances.menu_access                                              Viewer
-Get Task stats                         DAGs.can_read, DAG Runs.can_read, Task Instances.can_read               Viewer
-Get last DAG runs                      DAGs.can_read, DAG Runs.can_read                                        Viewer
-Get DAG code                           DAGs.can_read, DAG Code.can_read                                        Viewer
-Get DAG details                        DAGs.can_read, DAG Runs.can_read                                        Viewer
-Show DAG Dependencies menu             DAG Dependencies.menu_access                                            Viewer
-Get DAG Dependencies                   DAG Dependencies.can_read                                               Viewer
-Get rendered DAG                       DAGs.can_read, Task Instances.can_read                                  Viewer
-Get Logs with metadata                 DAGs.can_read, Task Instances.can_read, Task Logs.can_read              Viewer
-Get Log                                DAGs.can_read, Task Instances.can_read, Task Logs.can_read              Viewer
-Redirect to external Log               DAGs.can_read, Task Instances.can_read, Task Logs.can_read              Viewer
-Get Task                               DAGs.can_read, Task Instances.can_read                                  Viewer
+Get Task stats                         Dags.can_read, Dag Runs.can_read, Task Instances.can_read               Viewer
+Get last Dag runs                      Dags.can_read, Dag Runs.can_read                                        Viewer
+Get Dag code                           Dags.can_read, Dag Code.can_read                                        Viewer
+Get Dag details                        Dags.can_read, Dag Runs.can_read                                        Viewer
+Show Dag Dependencies menu             Dag Dependencies.menu_access                                            Viewer
+Get Dag Dependencies                   Dag Dependencies.can_read                                               Viewer
+Get rendered Dag                       Dags.can_read, Task Instances.can_read                                  Viewer
+Get Logs with metadata                 Dags.can_read, Task Instances.can_read, Task Logs.can_read              Viewer
+Get Log                                Dags.can_read, Task Instances.can_read, Task Logs.can_read              Viewer
+Redirect to external Log               Dags.can_read, Task Instances.can_read, Task Logs.can_read              Viewer
+Get Task                               Dags.can_read, Task Instances.can_read                                  Viewer
 Show XCom menu                         XComs.menu_access                                                       Op
-Get XCom                               DAGs.can_read, Task Instances.can_read, XComs.can_read                  Viewer
+Get XCom                               Dags.can_read, Task Instances.can_read, XComs.can_read                  Viewer
 Create XCom                            XComs.can_create                                                        Op
 Delete XCom                            XComs.can_delete                                                        Op
-Triggers Task Instance                 DAGs.can_edit, Task Instances.can_create                                User
-Delete DAG                             DAGs.can_delete                                                         User
-Show DAG Runs menu                     DAG Runs.menu_access                                                    Viewer
-Trigger DAG run                        DAGs.can_edit, DAG Runs.can_create                                      User
-Clear DAG                              DAGs.can_edit, Task Instances.can_delete                                User
-Clear DAG Run                          DAGs.can_edit, Task Instances.can_delete                                User
-Mark DAG as blocked                    DAGS.can_edit, DAG Runs.can_read                                        User
-Mark DAG Run as failed                 DAGS.can_edit, DAG Runs.can_edit                                        User
-Mark DAG Run as success                DAGS.can_edit, DAG Runs.can_edit                                        User
-Mark Task as failed                    DAGs.can_edit, Task Instances.can_edit                                  User
-Mark Task as success                   DAGs.can_edit, Task Instances.can_edit                                  User
-Get DAG as tree                        DAGs.can_read, Task Instances.can_read,                                 Viewer
+Triggers Task Instance                 Dags.can_edit, Task Instances.can_create                                User
+Delete Dag                             Dags.can_delete                                                         User
+Show Dag Runs menu                     Dag Runs.menu_access                                                    Viewer
+Trigger Dag run                        Dags.can_edit, Dag Runs.can_create                                      User
+Clear Dag                              Dags.can_edit, Task Instances.can_delete                                User
+Clear Dag Run                          Dags.can_edit, Task Instances.can_delete                                User
+Mark Dag as blocked                    DAGS.can_edit, Dag Runs.can_read                                        User
+Mark Dag Run as failed                 DAGS.can_edit, Dag Runs.can_edit                                        User
+Mark Dag Run as success                DAGS.can_edit, Dag Runs.can_edit                                        User
+Mark Task as failed                    Dags.can_edit, Task Instances.can_edit                                  User
+Mark Task as success                   Dags.can_edit, Task Instances.can_edit                                  User
+Get Dag as tree                        Dags.can_read, Task Instances.can_read,                                 Viewer
                                        Task Logs.can_read
-Get DAG as graph                       DAGs.can_read, Task Instances.can_read,                                 Viewer
+Get Dag as graph                       Dags.can_read, Task Instances.can_read,                                 Viewer
                                        Task Logs.can_read
-Get DAG as duration graph              DAGs.can_read, Task Instances.can_read                                  Viewer
-Show all tries                         DAGs.can_read, Task Instances.can_read                                  Viewer
-Show landing times                     DAGs.can_read, Task Instances.can_read                                  Viewer
-Toggle DAG paused status               DAGs.can_edit                                                           User
-Show Gantt Chart                       DAGs.can_read, Task Instances.can_read                                  Viewer
-Get external links                     DAGs.can_read, Task Instances.can_read                                  Viewer
-Show Task Instances                    DAGs.can_read, Task Instances.can_read                                  Viewer
+Get Dag as duration graph              Dags.can_read, Task Instances.can_read                                  Viewer
+Show all tries                         Dags.can_read, Task Instances.can_read                                  Viewer
+Show landing times                     Dags.can_read, Task Instances.can_read                                  Viewer
+Toggle Dag paused status               Dags.can_edit                                                           User
+Show Gantt Chart                       Dags.can_read, Task Instances.can_read                                  Viewer
+Get external links                     Dags.can_read, Task Instances.can_read                                  Viewer
+Show Task Instances                    Dags.can_read, Task Instances.can_read                                  Viewer
 Show Configurations menu               Configurations.menu_access                                              Op
 Show Configs                           Configurations.can_read                                                 Viewer
-Delete multiple records                DAGs.can_edit                                                           User
-Set Task Instance as running           DAGs.can_edit                                                           User
-Set Task Instance as failed            DAGs.can_edit                                                           User
-Set Task Instance as success           DAGs.can_edit                                                           User
-Set Task Instance as up_for_retry      DAGs.can_edit                                                           User
-Autocomplete                           DAGs.can_read                                                           Viewer
+Delete multiple records                Dags.can_edit                                                           User
+Set Task Instance as running           Dags.can_edit                                                           User
+Set Task Instance as failed            Dags.can_edit                                                           User
+Set Task Instance as success           Dags.can_edit                                                           User
+Set Task Instance as up_for_retry      Dags.can_edit                                                           User
+Autocomplete                           Dags.can_read                                                           Viewer
 Show Asset menu                        Assets.menu_access                                                      Viewer
 Show Assets                            Assets.can_read                                                         Viewer
 Show Docs menu                         Docs.menu_access                                                        Viewer
@@ -305,19 +305,19 @@ Delete Users                           Users.can_delete                         
 Reset user Passwords                   Passwords.can_edit, Passwords.can_read                                  Admin
 ====================================== ======================================================================= ============
 
-These DAG-level controls can be set directly through the UI / CLI, or encoded in the dags themselves through the access_control arg.
+These Dag-level controls can be set directly through the UI / CLI, or encoded in the dags themselves through the access_control arg.
 
-Order of precedence for DAG-level permissions
+Order of precedence for Dag-level permissions
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Since DAG-level access control can be configured in multiple places, conflicts are inevitable and a clear resolution strategy is required. As a result,
-Airflow considers the ``access_control`` argument supplied on a DAG itself to be completely authoritative if present, which has a few effects:
+Since Dag-level access control can be configured in multiple places, conflicts are inevitable and a clear resolution strategy is required. As a result,
+Airflow considers the ``access_control`` argument supplied on a Dag itself to be completely authoritative if present, which has a few effects:
 
-Setting ``access_control`` on a DAG will overwrite any previously existing DAG-level permissions if it is any value other than ``None``:
+Setting ``access_control`` on a Dag will overwrite any previously existing Dag-level permissions if it is any value other than ``None``:
 
 .. code-block:: python
 
-    DAG(
+    Dag(
         dag_id="example_fine_grained_access",
         start_date=pendulum.datetime(2021, 1, 1, tz="UTC"),
         access_control={
@@ -325,11 +325,11 @@ Setting ``access_control`` on a DAG will overwrite any previously existing DAG-l
         },
     )
 
-It's also possible to add DAG Runs resource permissions in a similar way, but explicit adding the resource name to identify which resource the permissions are for:
+It's also possible to add Dag Runs resource permissions in a similar way, but explicit adding the resource name to identify which resource the permissions are for:
 
 .. code-block:: python
 
-    DAG(
+    Dag(
         dag_id="example_fine_grained_access",
         start_date=pendulum.datetime(2021, 1, 1, tz="UTC"),
         access_control={
@@ -337,26 +337,26 @@ It's also possible to add DAG Runs resource permissions in a similar way, but ex
         },
     )
 
-This also means that setting ``access_control={}`` will wipe any existing DAG-level permissions for a given DAG from the DB:
+This also means that setting ``access_control={}`` will wipe any existing Dag-level permissions for a given Dag from the DB:
 
 .. code-block:: python
 
-    DAG(
+    Dag(
         dag_id="example_no_fine_grained_access",
         start_date=pendulum.datetime(2021, 1, 1, tz="UTC"),
         access_control={},
     )
 
-Conversely, removing the access_control block from a DAG altogether (or setting it to ``None``) won't make any changes and can leave dangling permissions.
+Conversely, removing the access_control block from a Dag altogether (or setting it to ``None``) won't make any changes and can leave dangling permissions.
 
 .. code-block:: python
 
-    DAG(
+    Dag(
         dag_id="example_indifferent_to_fine_grained_access",
         start_date=pendulum.datetime(2021, 1, 1, tz="UTC"),
     )
 
-In the case that there is no ``access_control`` defined on the DAG itself, Airflow will defer to existing permissions defined in the DB, which
-may have been set through the UI, CLI or by previous access_control args on the DAG in question.
+In the case that there is no ``access_control`` defined on the Dag itself, Airflow will defer to existing permissions defined in the DB, which
+may have been set through the UI, CLI or by previous access_control args on the Dag in question.
 
 In all cases, system-wide roles such as ``Can edit on DAG`` take precedence over dag-level access controls, such that they can be considered ``Can edit on DAG: *``

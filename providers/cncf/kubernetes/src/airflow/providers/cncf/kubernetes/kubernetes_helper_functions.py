@@ -23,11 +23,16 @@ from functools import cache
 from typing import TYPE_CHECKING
 
 import pendulum
-from kubernetes.client.rest import ApiException
+import tenacity
+from kubernetes.client.rest import ApiException as SyncApiException
+from kubernetes_asyncio.client.exceptions import ApiException as AsyncApiException
 from slugify import slugify
+from sqlalchemy import select
+from urllib3.exceptions import HTTPError
 
 from airflow.configuration import conf
 from airflow.providers.cncf.kubernetes.backcompat import get_logical_date_key
+from airflow.providers.common.compat.sdk import AirflowException
 
 if TYPE_CHECKING:
     from airflow.models.taskinstancekey import TaskInstanceKey
@@ -37,6 +42,62 @@ log = logging.getLogger(__name__)
 alphanum_lower = string.ascii_lowercase + string.digits
 
 POD_NAME_MAX_LENGTH = 63  # Matches Linux kernel's HOST_NAME_MAX default value minus 1.
+
+
+class PodLaunchFailedException(AirflowException):
+    """When pod launching fails in KubernetesPodOperator."""
+
+
+class KubernetesApiException(AirflowException):
+    """When communication with kubernetes API fails."""
+
+
+API_RETRIES = conf.getint("workers", "api_retries", fallback=5)
+API_RETRY_WAIT_MIN = conf.getfloat("workers", "api_retry_wait_min", fallback=1)
+API_RETRY_WAIT_MAX = conf.getfloat("workers", "api_retry_wait_max", fallback=15)
+
+_default_wait = tenacity.wait_exponential(min=API_RETRY_WAIT_MIN, max=API_RETRY_WAIT_MAX)
+
+TRANSIENT_STATUS_CODES = {409, 429, 500, 502, 503, 504}
+
+
+def _should_retry_api(exc: BaseException) -> bool:
+    """Retry on selected ApiException status codes, plus plain HTTP/timeout errors."""
+    if isinstance(exc, (SyncApiException, AsyncApiException)):
+        return exc.status in TRANSIENT_STATUS_CODES
+    return isinstance(exc, (HTTPError, KubernetesApiException))
+
+
+class WaitRetryAfterOrExponential(tenacity.wait.wait_base):
+    """Wait strategy that honors Retry-After header on 429, else falls back to exponential backoff."""
+
+    def __call__(self, retry_state):
+        exc = retry_state.outcome.exception() if retry_state.outcome else None
+        if isinstance(exc, (SyncApiException, AsyncApiException)) and exc.status == 429:
+            retry_after = (exc.headers or {}).get("Retry-After")
+            if retry_after:
+                try:
+                    return float(int(retry_after))
+                except ValueError:
+                    pass
+        # Inline exponential fallback
+        return _default_wait(retry_state)
+
+
+def generic_api_retry(func):
+    """
+    Retry to Kubernetes API calls.
+
+    - Retries only transient ApiException status codes.
+    - Honors Retry-After on 429.
+    """
+    return tenacity.retry(
+        stop=tenacity.stop_after_attempt(API_RETRIES),
+        wait=WaitRetryAfterOrExponential(),
+        retry=tenacity.retry_if_exception(_should_retry_api),
+        reraise=True,
+        before_sleep=tenacity.before_sleep_log(log, logging.WARNING),
+    )(func)
 
 
 def rand_str(num):
@@ -111,17 +172,18 @@ def annotations_to_key(annotations: dict[str, str]) -> TaskInstanceKey:
     if not annotation_run_id and logical_date_key in annotations:
         logical_date = pendulum.parse(annotations[logical_date_key])
         # Do _not_ use create-session, we don't want to expunge
+        if Session is None:
+            raise RuntimeError("Session not configured. Call configure_orm() first.")
         session = Session()
 
-        task_instance_run_id = (
-            session.query(TaskInstance.run_id)
+        task_instance_run_id = session.scalar(
+            select(TaskInstance.run_id)
             .join(TaskInstance.dag_run)
-            .filter(
+            .where(
                 TaskInstance.dag_id == dag_id,
                 TaskInstance.task_id == task_id,
                 getattr(DagRun, logical_date_key) == logical_date,
             )
-            .scalar()
         )
     else:
         task_instance_run_id = annotation_run_id
@@ -146,18 +208,3 @@ def annotations_for_logging_task_metadata(annotation_set):
     else:
         annotations_for_logging = "<omitted>"
     return annotations_for_logging
-
-
-def should_retry_creation(exception: BaseException) -> bool:
-    """
-    Check if an Exception indicates a transient error and warrants retrying.
-
-    This function is needed for preventing 'No agent available' error. The error appears time to time
-    when users try to create a Resource or Job. This issue is inside kubernetes and in the current moment
-    has no solution. Like a temporary solution we decided to retry Job or Resource creation request each
-    time when this error appears.
-    More about this issue here: https://github.com/cert-manager/cert-manager/issues/6457
-    """
-    if isinstance(exception, ApiException):
-        return str(exception.status) == "500"
-    return False

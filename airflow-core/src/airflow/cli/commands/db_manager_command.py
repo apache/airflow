@@ -17,10 +17,10 @@
 from __future__ import annotations
 
 from airflow import settings
+from airflow._shared.module_loading import import_string
 from airflow.cli.commands.db_command import run_db_downgrade_command, run_db_migrate_command
 from airflow.configuration import conf
 from airflow.utils import cli as cli_utils
-from airflow.utils.module_loading import import_string
 from airflow.utils.providers_configuration_loader import providers_configuration_loaded
 
 

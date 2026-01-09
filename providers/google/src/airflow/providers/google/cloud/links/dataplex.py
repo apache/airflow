@@ -19,12 +19,7 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
-
 from airflow.providers.google.cloud.links.base import BaseGoogleLink
-
-if TYPE_CHECKING:
-    from airflow.utils.context import Context
 
 DATAPLEX_BASE_LINK = "/dataplex/process/tasks"
 DATAPLEX_TASK_LINK = DATAPLEX_BASE_LINK + "/{lake_id}.{task_id};location={region}/jobs?project={project_id}"
@@ -53,22 +48,6 @@ class DataplexTaskLink(BaseGoogleLink):
     key = "task_conf"
     format_str = DATAPLEX_TASK_LINK
 
-    @staticmethod
-    def persist(
-        context: Context,
-        task_instance,
-    ):
-        task_instance.xcom_push(
-            context=context,
-            key=DataplexTaskLink.key,
-            value={
-                "lake_id": task_instance.lake_id,
-                "task_id": task_instance.dataplex_task_id,
-                "region": task_instance.region,
-                "project_id": task_instance.project_id,
-            },
-        )
-
 
 class DataplexTasksLink(BaseGoogleLink):
     """Helper class for constructing Dataplex Tasks link."""
@@ -76,21 +55,6 @@ class DataplexTasksLink(BaseGoogleLink):
     name = "Dataplex Tasks"
     key = "tasks_conf"
     format_str = DATAPLEX_TASKS_LINK
-
-    @staticmethod
-    def persist(
-        context: Context,
-        task_instance,
-    ):
-        task_instance.xcom_push(
-            context=context,
-            key=DataplexTasksLink.key,
-            value={
-                "project_id": task_instance.project_id,
-                "lake_id": task_instance.lake_id,
-                "region": task_instance.region,
-            },
-        )
 
 
 class DataplexLakeLink(BaseGoogleLink):
@@ -100,21 +64,6 @@ class DataplexLakeLink(BaseGoogleLink):
     key = "dataplex_lake_key"
     format_str = DATAPLEX_LAKE_LINK
 
-    @staticmethod
-    def persist(
-        context: Context,
-        task_instance,
-    ):
-        task_instance.xcom_push(
-            context=context,
-            key=DataplexLakeLink.key,
-            value={
-                "lake_id": task_instance.lake_id,
-                "region": task_instance.region,
-                "project_id": task_instance.project_id,
-            },
-        )
-
 
 class DataplexCatalogEntryGroupLink(BaseGoogleLink):
     """Helper class for constructing Dataplex Catalog EntryGroup link."""
@@ -122,21 +71,6 @@ class DataplexCatalogEntryGroupLink(BaseGoogleLink):
     name = "Dataplex Catalog EntryGroup"
     key = "dataplex_catalog_entry_group_key"
     format_str = DATAPLEX_CATALOG_ENTRY_GROUP_LINK
-
-    @staticmethod
-    def persist(
-        context: Context,
-        task_instance,
-    ):
-        task_instance.xcom_push(
-            context=context,
-            key=DataplexCatalogEntryGroupLink.key,
-            value={
-                "entry_group_id": task_instance.entry_group_id,
-                "location": task_instance.location,
-                "project_id": task_instance.project_id,
-            },
-        )
 
 
 class DataplexCatalogEntryGroupsLink(BaseGoogleLink):
@@ -146,20 +80,6 @@ class DataplexCatalogEntryGroupsLink(BaseGoogleLink):
     key = "dataplex_catalog_entry_groups_key"
     format_str = DATAPLEX_CATALOG_ENTRY_GROUPS_LINK
 
-    @staticmethod
-    def persist(
-        context: Context,
-        task_instance,
-    ):
-        task_instance.xcom_push(
-            context=context,
-            key=DataplexCatalogEntryGroupsLink.key,
-            value={
-                "location": task_instance.location,
-                "project_id": task_instance.project_id,
-            },
-        )
-
 
 class DataplexCatalogEntryTypeLink(BaseGoogleLink):
     """Helper class for constructing Dataplex Catalog EntryType link."""
@@ -167,21 +87,6 @@ class DataplexCatalogEntryTypeLink(BaseGoogleLink):
     name = "Dataplex Catalog EntryType"
     key = "dataplex_catalog_entry_type_key"
     format_str = DATAPLEX_CATALOG_ENTRY_TYPE_LINK
-
-    @staticmethod
-    def persist(
-        context: Context,
-        task_instance,
-    ):
-        task_instance.xcom_push(
-            context=context,
-            key=DataplexCatalogEntryTypeLink.key,
-            value={
-                "entry_type_id": task_instance.entry_type_id,
-                "location": task_instance.location,
-                "project_id": task_instance.project_id,
-            },
-        )
 
 
 class DataplexCatalogEntryTypesLink(BaseGoogleLink):
@@ -191,20 +96,6 @@ class DataplexCatalogEntryTypesLink(BaseGoogleLink):
     key = "dataplex_catalog_entry_types_key"
     format_str = DATAPLEX_CATALOG_ENTRY_TYPES_LINK
 
-    @staticmethod
-    def persist(
-        context: Context,
-        task_instance,
-    ):
-        task_instance.xcom_push(
-            context=context,
-            key=DataplexCatalogEntryTypesLink.key,
-            value={
-                "location": task_instance.location,
-                "project_id": task_instance.project_id,
-            },
-        )
-
 
 class DataplexCatalogAspectTypeLink(BaseGoogleLink):
     """Helper class for constructing Dataplex Catalog AspectType link."""
@@ -212,21 +103,6 @@ class DataplexCatalogAspectTypeLink(BaseGoogleLink):
     name = "Dataplex Catalog AspectType"
     key = "dataplex_catalog_aspect_type_key"
     format_str = DATAPLEX_CATALOG_ASPECT_TYPE_LINK
-
-    @staticmethod
-    def persist(
-        context: Context,
-        task_instance,
-    ):
-        task_instance.xcom_push(
-            context=context,
-            key=DataplexCatalogAspectTypeLink.key,
-            value={
-                "aspect_type_id": task_instance.aspect_type_id,
-                "location": task_instance.location,
-                "project_id": task_instance.project_id,
-            },
-        )
 
 
 class DataplexCatalogAspectTypesLink(BaseGoogleLink):
@@ -236,20 +112,6 @@ class DataplexCatalogAspectTypesLink(BaseGoogleLink):
     key = "dataplex_catalog_aspect_types_key"
     format_str = DATAPLEX_CATALOG_ASPECT_TYPES_LINK
 
-    @staticmethod
-    def persist(
-        context: Context,
-        task_instance,
-    ):
-        task_instance.xcom_push(
-            context=context,
-            key=DataplexCatalogAspectTypesLink.key,
-            value={
-                "location": task_instance.location,
-                "project_id": task_instance.project_id,
-            },
-        )
-
 
 class DataplexCatalogEntryLink(BaseGoogleLink):
     """Helper class for constructing Dataplex Catalog Entry link."""
@@ -257,19 +119,3 @@ class DataplexCatalogEntryLink(BaseGoogleLink):
     name = "Dataplex Catalog Entry"
     key = "dataplex_catalog_entry_key"
     format_str = DATAPLEX_CATALOG_ENTRY_LINK
-
-    @staticmethod
-    def persist(
-        context: Context,
-        task_instance,
-    ):
-        task_instance.xcom_push(
-            context=context,
-            key=DataplexCatalogEntryLink.key,
-            value={
-                "entry_id": task_instance.entry_id,
-                "entry_group_id": task_instance.entry_group_id,
-                "location": task_instance.location,
-                "project_id": task_instance.project_id,
-            },
-        )

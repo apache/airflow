@@ -62,7 +62,7 @@ AUTOMATICALLY_GENERATED_CONTENT = (
     f"IT WILL BE OVERWRITTEN AT RELEASE TIME!"
 )
 
-# Taken from pygrep hooks we are using in pre-commit
+# Taken from pygrep hooks we are using in prek
 # https://github.com/pre-commit/pygrep-hooks/blob/main/.pre-commit-hooks.yaml
 BACKTICKS_CHECK = re.compile(r"^(?! {4}).*(^| )`[^`]+`([^_]|$)", re.MULTILINE)
 
@@ -195,6 +195,62 @@ TYPE_OF_CHANGE_DESCRIPTION = {
 }
 
 
+def classification_result(provider_id, changed_files):
+    provider_id = provider_id.replace(".", "/")
+    changed_files = list(filter(lambda f: provider_id in f, changed_files))
+
+    if not changed_files:
+        return "other"
+
+    def is_doc(f):
+        return re.match(r"^providers/.+/docs/", f) and f.endswith(".rst")
+
+    def is_test_or_example(f):
+        return re.match(r"^providers/.+/tests/", f) or re.match(
+            r"^providers/.+/src/airflow/providers/.+/example_dags/", f
+        )
+
+    all_docs = all(is_doc(f) for f in changed_files)
+    all_test_or_example = all(is_test_or_example(f) for f in changed_files)
+
+    has_docs = any(is_doc(f) for f in changed_files)
+    has_test_or_example = any(is_test_or_example(f) for f in changed_files)
+
+    has_real_code = any(not (is_doc(f) or is_test_or_example(f)) for f in changed_files)
+
+    if all_docs:
+        return "documentation"
+    if all_test_or_example:
+        return "test_or_example_only"
+    if not has_real_code and (has_docs or has_test_or_example):
+        return "documentation"
+    return "other"
+
+
+def classify_provider_pr_files(provider_id: str, commit_hash: str) -> str:
+    """
+    Classify a provider commit based on changed files.
+
+    - Returns 'documentation' if any provider doc files are present.
+    - Returns 'test_or_example_only' if only test/example DAGs changed.
+    - Returns 'other' otherwise.
+    """
+    try:
+        result = run_command(
+            ["git", "diff", "--name-only", f"{commit_hash}^", commit_hash],
+            cwd=AIRFLOW_ROOT_PATH,
+            capture_output=True,
+            text=True,
+            check=True,
+        )
+        changed_files = result.stdout.strip().splitlines()
+    except subprocess.CalledProcessError:
+        # safe to return other here
+        return "other"
+
+    return classification_result(provider_id, changed_files)
+
+
 def _get_git_log_command(
     folder_paths: list[Path] | None = None, from_commit: str | None = None, to_commit: str | None = None
 ) -> list[str]:
@@ -284,7 +340,12 @@ def _convert_git_changes_to_table(
     header = ""
     if not table_data:
         return header, []
-    table = tabulate(table_data, headers=headers, tablefmt="pipe" if markdown else "rst")
+    table = tabulate(
+        table_data,
+        headers=headers,
+        tablefmt="pipe" if markdown else "rst",
+        colalign=("left", "center", "left"),
+    )
     if not markdown:
         header += f"\n\n{version}\n" + "." * len(version) + "\n\n"
         release_date = table_data[0][1]
@@ -715,39 +776,6 @@ def _update_commits_rst(
     )
 
 
-def _is_test_or_example_dag_only_changes(commit_hash: str) -> bool:
-    """
-    Check if a commit contains only test-related or example DAG changes
-    by using the git diff command.
-
-    Considers files in airflow/providers/{provider}/tests/
-    and airflow/providers/{provider}/src/airflow/providers/{provider}/example_dags/
-    as test/example-only files.
-
-    :param commit_hash: The full commit hash to check
-    :return: True if changes are only in test/example files, False otherwise
-    """
-    try:
-        result = run_command(
-            ["git", "diff", "--name-only", f"{commit_hash}^", commit_hash],
-            cwd=AIRFLOW_ROOT_PATH,
-            capture_output=True,
-            text=True,
-            check=True,
-        )
-        changed_files = result.stdout.strip().splitlines()
-
-        for file_path in changed_files:
-            if not (
-                re.match(r"providers/[^/]+/tests/", file_path)
-                or re.match(r"providers/[^/]+/src/airflow/providers/[^/]+/example_dags/", file_path)
-            ):
-                return False
-        return True
-    except subprocess.CalledProcessError:
-        return False
-
-
 def update_release_notes(
     provider_id: str,
     reapply_templates_only: bool,
@@ -808,7 +836,6 @@ def update_release_notes(
                 return with_breaking_changes, maybe_with_new_features, False
             change_table_len = len(list_of_list_of_changes[0])
             table_iter = 0
-            global SHORT_HASH_TO_TYPE_DICT
             type_of_current_package_changes: list[TypeOfChange] = []
             while table_iter < change_table_len:
                 get_console().print()
@@ -817,9 +844,16 @@ def update_release_notes(
                 )
                 change = list_of_list_of_changes[0][table_iter]
 
-                if change.pr and _is_test_or_example_dag_only_changes(change.full_hash):
+                classification = classify_provider_pr_files(provider_id, change.full_hash)
+                if classification == "documentation":
                     get_console().print(
-                        f"[green]Automatically classifying change as SKIPPED since it only contains test changes:[/]\n"
+                        f"[green]Automatically classifying change as DOCUMENTATION since it contains only doc changes:[/]\n"
+                        f"[blue]{formatted_message}[/]"
+                    )
+                    type_of_change = TypeOfChange.DOCUMENTATION
+                elif classification == "test_or_example_only":
+                    get_console().print(
+                        f"[green]Automatically classifying change as SKIPPED since it only contains test/example changes:[/]\n"
                         f"[blue]{formatted_message}[/]"
                     )
                     type_of_change = TypeOfChange.SKIP
@@ -1085,15 +1119,22 @@ def _generate_new_changelog(
     provider_details.changelog_path.write_text("\n".join(new_changelog_lines) + "\n")
 
 
-def _update_index_rst(
-    context: dict[str, Any],
+def update_index_rst(
     provider_id: str,
-    target_path: Path,
+    with_breaking_changes: bool,
+    maybe_with_new_features: bool,
 ):
-    index_update = render_template(
-        template_name="PROVIDER_INDEX", context=context, extension=".rst", keep_trailing_newline=True
+    get_console().print(f"\n[info]Update index.rst for {provider_id}\n")
+    provider_details = get_provider_details(provider_id)
+    jinja_context = get_provider_documentation_jinja_context(
+        provider_id=provider_id,
+        with_breaking_changes=with_breaking_changes,
+        maybe_with_new_features=maybe_with_new_features,
     )
-    index_file_path = target_path / "index.rst"
+    index_update = render_template(
+        template_name="PROVIDER_INDEX", context=jinja_context, extension=".rst", keep_trailing_newline=True
+    )
+    index_file_path = provider_details.documentation_provider_distribution_path / "index.rst"
     old_text = ""
     if index_file_path.is_file():
         old_text = index_file_path.read_text()
@@ -1174,8 +1215,6 @@ def update_changelog(
             maybe_with_new_features=maybe_with_new_features,
             with_min_airflow_version_bump=with_min_airflow_version_bump,
         )
-    get_console().print(f"\n[info]Update index.rst for {package_id}\n")
-    _update_index_rst(jinja_context, package_id, provider_details.documentation_provider_distribution_path)
 
 
 def _generate_get_provider_info_py(context: dict[str, Any], provider_details: ProviderPackageDetails):
@@ -1243,7 +1282,7 @@ def _generate_build_files_for_provider(
     _generate_get_provider_info_py(context, provider_details)
     shutil.copy(
         BREEZE_SOURCES_PATH / "airflow_breeze" / "templates" / "PROVIDER_LICENSE.txt",
-        provider_details.base_provider_package_path / "LICENSE",
+        provider_details.root_provider_path / "LICENSE",
     )
 
 

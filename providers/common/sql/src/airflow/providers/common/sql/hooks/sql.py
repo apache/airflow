@@ -18,47 +18,42 @@ from __future__ import annotations
 
 import contextlib
 import warnings
-from collections.abc import Generator, Iterable, Mapping, MutableMapping, Sequence
+from collections.abc import Callable, Generator, Iterable, Mapping, MutableMapping, Sequence
 from contextlib import closing, contextmanager, suppress
 from datetime import datetime
 from functools import cached_property
-from typing import (
-    TYPE_CHECKING,
-    Any,
-    Callable,
-    Protocol,
-    TypeVar,
-    cast,
-    overload,
-)
+from typing import TYPE_CHECKING, Any, Literal, Protocol, TypeVar, cast, overload
 from urllib.parse import urlparse
 
 import sqlparse
 from deprecated import deprecated
 from methodtools import lru_cache
 from more_itertools import chunked
-from sqlalchemy import create_engine, inspect
-from sqlalchemy.engine import make_url
-from sqlalchemy.exc import ArgumentError, NoSuchModuleError
-from typing_extensions import Literal
 
-from airflow.configuration import conf
-from airflow.exceptions import (
-    AirflowException,
-    AirflowOptionalProviderFeatureException,
-    AirflowProviderDeprecationWarning,
-)
-from airflow.hooks.base import BaseHook
+try:
+    from sqlalchemy import create_engine, inspect
+    from sqlalchemy.engine import make_url
+    from sqlalchemy.exc import ArgumentError, NoSuchModuleError
+except ImportError:
+    create_engine = None  # type: ignore[assignment]
+    inspect = None  # type: ignore[assignment]
+    make_url = None  # type: ignore[assignment]
+    ArgumentError = Exception  # type: ignore[misc,assignment]
+    NoSuchModuleError = Exception  # type: ignore[misc,assignment]
+
+
+from airflow.exceptions import AirflowOptionalProviderFeatureException, AirflowProviderDeprecationWarning
+from airflow.providers.common.compat.module_loading import import_string
+from airflow.providers.common.compat.sdk import AirflowException, BaseHook, conf
 from airflow.providers.common.sql.dialects.dialect import Dialect
 from airflow.providers.common.sql.hooks import handlers
-from airflow.utils.module_loading import import_string
 
 if TYPE_CHECKING:
     from pandas import DataFrame as PandasDataFrame
     from polars import DataFrame as PolarsDataFrame
     from sqlalchemy.engine import URL, Engine, Inspector
 
-    from airflow.models import Connection
+    from airflow.providers.common.compat.sdk import Connection
     from airflow.providers.openlineage.extractors import OperatorLineage
     from airflow.providers.openlineage.sqlparser import DatabaseInfo
 
@@ -278,7 +273,10 @@ class DbApiHook(BaseHook):
         db = self.connection
         if self.connector is None:
             raise RuntimeError(f"{type(self).__name__} didn't have `self.connector` set!")
-        return self.connector.connect(host=db.host, port=db.port, username=db.login, schema=db.schema)
+        host = db.host or ""
+        login = db.login or ""
+        schema = db.schema or ""
+        return self.connector.connect(host=host, port=cast("int", db.port), username=login, schema=schema)
 
     def get_uri(self) -> str:
         """
@@ -314,11 +312,17 @@ class DbApiHook(BaseHook):
         :param engine_kwargs: Kwargs used in :func:`~sqlalchemy.create_engine`.
         :return: the created engine.
         """
+        if create_engine is None:
+            raise AirflowOptionalProviderFeatureException(
+                "SQLAlchemy is required to generate the connection URI. "
+                "Install it with: pip install 'apache-airflow-providers-common-sql[sqlalchemy]'"
+            )
+
         if engine_kwargs is None:
             engine_kwargs = {}
 
         try:
-            url = self.sqlalchemy_url
+            url: URL | str = self.sqlalchemy_url
         except NotImplementedError:
             url = self.get_uri()
 
@@ -328,22 +332,30 @@ class DbApiHook(BaseHook):
 
     @property
     def inspector(self) -> Inspector:
+        if inspect is None:
+            raise AirflowOptionalProviderFeatureException(
+                "SQLAlchemy is required for database inspection. "
+                "Install it with: pip install 'apache-airflow-providers-common-sql[sqlalchemy]'"
+            )
         return inspect(self.get_sqlalchemy_engine())
 
     @cached_property
     def dialect_name(self) -> str:
-        try:
-            return make_url(self.get_uri()).get_dialect().name
-        except (ArgumentError, NoSuchModuleError):
-            config = self.connection_extra
-            sqlalchemy_scheme = config.get("sqlalchemy_scheme")
-            if sqlalchemy_scheme:
-                return sqlalchemy_scheme.split("+")[0] if "+" in sqlalchemy_scheme else sqlalchemy_scheme
-            return config.get("dialect", "default")
+        if make_url is not None:
+            try:
+                return make_url(self.get_uri()).get_dialect().name
+            except (ArgumentError, NoSuchModuleError, ValueError):
+                pass
+
+        config = self.connection_extra
+        sqlalchemy_scheme = config.get("sqlalchemy_scheme")
+        if sqlalchemy_scheme:
+            return sqlalchemy_scheme.split("+")[0] if "+" in sqlalchemy_scheme else sqlalchemy_scheme
+        return config.get("dialect", "default")
 
     @cached_property
     def dialect(self) -> Dialect:
-        from airflow.utils.module_loading import import_string
+        from airflow.providers.common.compat.module_loading import import_string
 
         dialect_info = self._dialects.get(self.dialect_name)
 
@@ -425,7 +437,6 @@ class DbApiHook(BaseHook):
         df_type: Literal["pandas"] = "pandas",
         **kwargs: Any,
     ) -> PandasDataFrame: ...
-
     @overload
     def get_df(
         self,
@@ -522,7 +533,6 @@ class DbApiHook(BaseHook):
         df_type: Literal["pandas"] = "pandas",
         **kwargs,
     ) -> Generator[PandasDataFrame, None, None]: ...
-
     @overload
     def get_df_by_chunks(
         self,
@@ -684,7 +694,7 @@ class DbApiHook(BaseHook):
         handler: Callable[[Any], T] = ...,
         split_statements: bool = ...,
         return_last: bool = ...,
-    ) -> tuple | list[tuple] | list[list[tuple] | tuple] | None: ...
+    ) -> tuple | list | list[tuple] | list[list[tuple] | tuple] | None: ...
 
     def run(
         self,
@@ -694,7 +704,7 @@ class DbApiHook(BaseHook):
         handler: Callable[[Any], T] | None = None,
         split_statements: bool = False,
         return_last: bool = True,
-    ) -> tuple | list[tuple] | list[list[tuple] | tuple] | None:
+    ) -> tuple | list | list[tuple] | list[list[tuple] | tuple] | None:
         """
         Run a command or a list of commands.
 
@@ -814,6 +824,9 @@ class DbApiHook(BaseHook):
             self.log.info("Running statement: %s, parameters: %s", sql_statement, parameters)
 
         if parameters:
+            # If we're using psycopg3, we might need to handle parameters differently
+            if hasattr(cur, "__module__") and "psycopg" in cur.__module__ and isinstance(parameters, list):
+                parameters = tuple(parameters)
             cur.execute(sql_statement, parameters)
         else:
             cur.execute(sql_statement)

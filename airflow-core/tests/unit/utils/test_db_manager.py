@@ -19,87 +19,11 @@ from __future__ import annotations
 from unittest import mock
 
 import pytest
-from sqlalchemy import Table
 
-from airflow.exceptions import AirflowException
 from airflow.models import Base
-from airflow.utils.db import downgrade, initdb
-from airflow.utils.db_manager import BaseDBManager, RunDBManager
-
-from tests_common.test_utils.config import conf_vars
+from airflow.utils.db_manager import BaseDBManager
 
 pytestmark = [pytest.mark.db_test]
-
-
-class TestRunDBManager:
-    @conf_vars(
-        {("database", "external_db_managers"): "airflow.providers.fab.auth_manager.models.db.FABDBManager"}
-    )
-    def test_db_manager_uses_config(self):
-        from airflow.providers.fab.auth_manager.models.db import FABDBManager
-
-        run_db_manager = RunDBManager()
-        assert run_db_manager._managers == [FABDBManager]
-
-    @conf_vars(
-        {("database", "external_db_managers"): "airflow.providers.fab.auth_manager.models.db.FABDBManager"}
-    )
-    def test_defining_table_same_name_as_airflow_table_name_raises(self):
-        from sqlalchemy import Column, Integer, String
-
-        run_db_manager = RunDBManager()
-        metadata = run_db_manager._managers[0].metadata
-        # Add dag_run table to metadata
-        mytable = Table(
-            "dag_run", metadata, Column("id", Integer, primary_key=True), Column("name", String(50))
-        )
-        metadata._add_table("dag_run", None, mytable)
-        with pytest.raises(AirflowException, match="Table 'dag_run' already exists in the Airflow metadata"):
-            run_db_manager.validate()
-        metadata._remove_table("dag_run", None)
-
-    @mock.patch.object(RunDBManager, "downgrade")
-    @mock.patch.object(RunDBManager, "upgradedb")
-    @mock.patch.object(RunDBManager, "initdb")
-    def test_init_db_calls_rundbmanager(self, mock_initdb, mock_upgrade_db, mock_downgrade_db, session):
-        initdb(session=session)
-        mock_initdb.assert_called()
-        mock_initdb.assert_called_once_with(session)
-        mock_downgrade_db.assert_not_called()
-
-    @mock.patch.object(RunDBManager, "downgrade")
-    @mock.patch.object(RunDBManager, "upgradedb")
-    @mock.patch.object(RunDBManager, "initdb")
-    @mock.patch("alembic.command")
-    def test_downgrade_dont_call_rundbmanager(
-        self, mock_alembic_command, mock_initdb, mock_upgrade_db, mock_downgrade_db, session
-    ):
-        downgrade(to_revision="base")
-        mock_alembic_command.downgrade.assert_called_once_with(mock.ANY, revision="base", sql=False)
-        mock_upgrade_db.assert_not_called()
-        mock_initdb.assert_not_called()
-        mock_downgrade_db.assert_not_called()
-
-    @conf_vars(
-        {("database", "external_db_managers"): "airflow.providers.fab.auth_manager.models.db.FABDBManager"}
-    )
-    @mock.patch("airflow.providers.fab.auth_manager.models.db.FABDBManager")
-    def test_rundbmanager_calls_dbmanager_methods(self, mock_fabdb_manager, session):
-        mock_fabdb_manager.supports_table_dropping = True
-        fabdb_manager = mock_fabdb_manager.return_value
-        ext_db = RunDBManager()
-        # initdb
-        ext_db.initdb(session=session)
-        fabdb_manager.initdb.assert_called_once()
-        # upgradedb
-        ext_db.upgradedb(session=session)
-        fabdb_manager.upgradedb.assert_called_once()
-        # downgrade
-        ext_db.downgrade(session=session)
-        mock_fabdb_manager.return_value.downgrade.assert_called_once()
-        connection = mock.MagicMock()
-        ext_db.drop_tables(session, connection)
-        mock_fabdb_manager.return_value.drop_tables.assert_called_once_with(connection)
 
 
 class MockDBManager(BaseDBManager):
@@ -108,6 +32,19 @@ class MockDBManager(BaseDBManager):
     migration_dir = "mock_migration_dir"
     alembic_file = "mock_alembic.ini"
     supports_table_dropping = True
+
+
+class CustomDBManager(BaseDBManager):
+    metadata = Base.metadata
+    version_table_name = "custom_alembic_version"
+    migration_dir = "custom_migration_dir"
+    alembic_file = "custom_alembic.ini"
+
+    def downgrade(self, to_revision, from_revision=None, show_sql_only=False):
+        from alembic import command as alembic_command
+
+        config = self.get_alembic_config()
+        alembic_command.downgrade(config, revision=to_revision, sql=show_sql_only)
 
 
 class TestBaseDBManager:
@@ -136,3 +73,20 @@ class TestBaseDBManager:
     def test_check_migration(self, mock_script_obj, mock_current_revision, session):
         manager = MockDBManager(session)
         manager.check_migration()  # just ensure this can be called
+
+    def test_custom_db_manager_downgrade_uses_revision_kwarg(self, session):
+        manager = CustomDBManager(session)
+        with (
+            mock.patch.object(BaseDBManager, "get_alembic_config") as mock_config,
+            mock.patch("alembic.command.downgrade") as mock_alembic_downgrade,
+        ):
+            cfg = object()
+            mock_config.return_value = cfg
+            manager.downgrade(to_revision="abc123", show_sql_only=True)
+            mock_alembic_downgrade.assert_called_once_with(cfg, revision="abc123", sql=True)
+
+    def test_custom_db_manager_downgrade_rejects_to_version_kwarg(self, session):
+        manager = CustomDBManager(session)
+        with pytest.raises(TypeError):
+            # Ensure the old kwarg name is not accepted anymore
+            manager.downgrade(to_version="1.2.3")  # type: ignore[call-arg]

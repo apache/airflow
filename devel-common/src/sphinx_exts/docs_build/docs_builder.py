@@ -49,6 +49,7 @@ class AirflowDocsBuilder:
         self.is_airflow = False
         self.is_chart = False
         self.is_docker_stack = False
+        self.is_task_sdk = False
         self.is_providers_summary = False
         self.is_autobuild = False
         if self.package_name.startswith("apache-airflow-providers-"):
@@ -61,6 +62,8 @@ class AirflowDocsBuilder:
             self.is_airflow = True
         if self.package_name == "helm-chart":
             self.is_chart = True
+        if self.package_name == "task-sdk":
+            self.is_task_sdk = True
         if self.package_name == "docker-stack":
             self.is_docker_stack = True
         if self.package_name == "apache-airflow-providers":
@@ -189,6 +192,7 @@ class AirflowDocsBuilder:
         with open(self.log_spelling_filename, "w") as output:
             completed_proc = run(
                 build_cmd,
+                check=False,
                 cwd=AIRFLOW_CONTENT_ROOT_PATH,
                 env=env,
                 stdout=output if not verbose else None,
@@ -271,6 +275,7 @@ class AirflowDocsBuilder:
         with open(self.log_build_filename, "w") as output:
             completed_proc = run(
                 build_cmd,
+                check=False,
                 cwd=AIRFLOW_CONTENT_ROOT_PATH,
                 env=env,
                 stdout=output if not verbose else None,

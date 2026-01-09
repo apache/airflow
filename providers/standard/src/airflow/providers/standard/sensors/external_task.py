@@ -18,14 +18,18 @@ from __future__ import annotations
 
 import datetime
 import os
+import typing
 import warnings
-from collections.abc import Collection, Iterable
-from typing import TYPE_CHECKING, Any, Callable, ClassVar
+from collections.abc import Callable, Collection, Iterable, Sequence
+from typing import TYPE_CHECKING, ClassVar
 
-from airflow.configuration import conf
-from airflow.exceptions import AirflowSkipException
 from airflow.models.dag import DagModel
-from airflow.models.dagbag import DagBag
+from airflow.providers.common.compat.sdk import (
+    AirflowSkipException,
+    BaseOperatorLink,
+    BaseSensorOperator,
+    conf,
+)
 from airflow.providers.standard.exceptions import (
     DuplicateStateError,
     ExternalDagDeletedError,
@@ -39,34 +43,27 @@ from airflow.providers.standard.exceptions import (
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.providers.standard.triggers.external_task import WorkflowTrigger
 from airflow.providers.standard.utils.sensor_helper import _get_count, _get_external_task_group_task_ids
-from airflow.providers.standard.version_compat import AIRFLOW_V_3_0_PLUS
+from airflow.providers.standard.version_compat import (
+    AIRFLOW_V_3_0_PLUS,
+    AIRFLOW_V_3_2_PLUS,
+    BaseOperator,
+)
 from airflow.utils.file import correct_maybe_zipped
 from airflow.utils.state import State, TaskInstanceState
 
-if AIRFLOW_V_3_0_PLUS:
-    from airflow.sdk.bases.sensor import BaseSensorOperator
-else:
-    from airflow.sensors.base import BaseSensorOperator
+if not AIRFLOW_V_3_0_PLUS:
     from airflow.utils.session import NEW_SESSION, provide_session
+
+if AIRFLOW_V_3_2_PLUS:
+    from airflow.dag_processing.dagbag import DagBag
+else:
+    from airflow.models.dagbag import DagBag  # type: ignore[attr-defined, no-redef]
 
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
 
     from airflow.models.taskinstancekey import TaskInstanceKey
-
-    try:
-        from airflow.sdk import BaseOperator
-        from airflow.sdk.definitions.context import Context
-    except ImportError:
-        # TODO: Remove once provider drops support for Airflow 2
-        from airflow.models.baseoperator import BaseOperator
-        from airflow.utils.context import Context
-
-
-if AIRFLOW_V_3_0_PLUS:
-    from airflow.sdk import BaseOperatorLink
-else:
-    from airflow.models.baseoperatorlink import BaseOperatorLink  # type: ignore[no-redef]
+    from airflow.providers.common.compat.sdk import Context
 
 
 class ExternalDagLink(BaseOperatorLink):
@@ -257,23 +254,21 @@ class ExternalTaskSensor(BaseSensorOperator):
         self._has_checked_existence = False
         self.deferrable = deferrable
         self.poll_interval = poll_interval
+        self.external_dates_filter: str | None = None
 
-    def _get_dttm_filter(self, context):
-        logical_date = context.get("logical_date")
-        if AIRFLOW_V_3_0_PLUS:
-            if logical_date is None:
-                dag_run = context.get("dag_run")
-                if TYPE_CHECKING:
-                    assert dag_run
+    def _get_dttm_filter(self, context: Context) -> Sequence[datetime.datetime]:
+        logical_date = self._get_logical_date(context)
 
-                logical_date = dag_run.run_after
         if self.execution_delta:
-            dttm = logical_date - self.execution_delta
-        elif self.execution_date_fn:
-            dttm = self._handle_execution_date_fn(context=context)
-        else:
-            dttm = logical_date
-        return dttm if isinstance(dttm, list) else [dttm]
+            return [logical_date - self.execution_delta]
+        if self.execution_date_fn:
+            result = self._handle_execution_date_fn(context=context)
+            return result if isinstance(result, list) else [result]
+        return [logical_date]
+
+    @staticmethod
+    def _serialize_dttm_filter(dttm_filter: Sequence[datetime.datetime]) -> str:
+        return ",".join(dt.isoformat() for dt in dttm_filter)
 
     def poke(self, context: Context) -> bool:
         # delay check to poke rather than __init__ in case it was supplied as XComArgs
@@ -281,7 +276,9 @@ class ExternalTaskSensor(BaseSensorOperator):
             raise ValueError("Duplicate task_ids passed in external_task_ids parameter")
 
         dttm_filter = self._get_dttm_filter(context)
-        serialized_dttm_filter = ",".join(dt.isoformat() for dt in dttm_filter)
+        serialized_dttm_filter = self._serialize_dttm_filter(dttm_filter)
+        # Save as attribute - to be used by listeners
+        self.external_dates_filter = serialized_dttm_filter
 
         if self.external_task_ids:
             self.log.info(
@@ -310,7 +307,7 @@ class ExternalTaskSensor(BaseSensorOperator):
             return self._poke_af3(context, dttm_filter)
         return self._poke_af2(dttm_filter)
 
-    def _poke_af3(self, context: Context, dttm_filter: list[datetime.datetime]) -> bool:
+    def _poke_af3(self, context: Context, dttm_filter: Sequence[datetime.datetime]) -> bool:
         from airflow.providers.standard.utils.sensor_helper import _get_count_by_matched_states
 
         self._has_checked_existence = True
@@ -320,20 +317,20 @@ class ExternalTaskSensor(BaseSensorOperator):
             if self.external_task_ids:
                 return ti.get_ti_count(
                     dag_id=self.external_dag_id,
-                    task_ids=self.external_task_ids,  # type: ignore[arg-type]
-                    logical_dates=dttm_filter,
+                    task_ids=list(self.external_task_ids),
+                    logical_dates=list(dttm_filter),
                     states=states,
                 )
             if self.external_task_group_id:
                 run_id_task_state_map = ti.get_task_states(
                     dag_id=self.external_dag_id,
                     task_group_id=self.external_task_group_id,
-                    logical_dates=dttm_filter,
+                    logical_dates=list(dttm_filter),
                 )
                 return _get_count_by_matched_states(run_id_task_state_map, states)
             return ti.get_dr_count(
                 dag_id=self.external_dag_id,
-                logical_dates=dttm_filter,
+                logical_dates=list(dttm_filter),
                 states=states,
             )
 
@@ -351,7 +348,7 @@ class ExternalTaskSensor(BaseSensorOperator):
         count_allowed = self._calculate_count(count, dttm_filter)
         return count_allowed == len(dttm_filter)
 
-    def _calculate_count(self, count: int, dttm_filter: list[datetime.datetime]) -> float | int:
+    def _calculate_count(self, count: int, dttm_filter: Sequence[datetime.datetime]) -> float | int:
         """Calculate the normalized count based on the type of check."""
         if self.external_task_ids:
             return count / len(self.external_task_ids)
@@ -407,7 +404,7 @@ class ExternalTaskSensor(BaseSensorOperator):
     if not AIRFLOW_V_3_0_PLUS:
 
         @provide_session
-        def _poke_af2(self, dttm_filter: list[datetime.datetime], session: Session = NEW_SESSION) -> bool:
+        def _poke_af2(self, dttm_filter: Sequence[datetime.datetime], session: Session = NEW_SESSION) -> bool:
             if self.check_existence and not self._has_checked_existence:
                 self._check_for_existence(session=session)
 
@@ -428,27 +425,51 @@ class ExternalTaskSensor(BaseSensorOperator):
             super().execute(context)
         else:
             dttm_filter = self._get_dttm_filter(context)
-            logical_or_execution_dates = (
-                {"logical_dates": dttm_filter} if AIRFLOW_V_3_0_PLUS else {"execution_dates": dttm_filter}
-            )
-            self.defer(
-                timeout=self.execution_timeout,
-                trigger=WorkflowTrigger(
-                    external_dag_id=self.external_dag_id,
-                    external_task_group_id=self.external_task_group_id,
-                    external_task_ids=self.external_task_ids,
-                    allowed_states=self.allowed_states,
-                    failed_states=self.failed_states,
-                    skipped_states=self.skipped_states,
-                    poke_interval=self.poll_interval,
-                    soft_fail=self.soft_fail,
-                    **logical_or_execution_dates,
-                ),
-                method_name="execute_complete",
-            )
+            if AIRFLOW_V_3_0_PLUS:
+                self.defer(
+                    timeout=self.execution_timeout,
+                    trigger=WorkflowTrigger(
+                        external_dag_id=self.external_dag_id,
+                        external_task_group_id=self.external_task_group_id,
+                        external_task_ids=self.external_task_ids,
+                        allowed_states=self.allowed_states,
+                        failed_states=self.failed_states,
+                        skipped_states=self.skipped_states,
+                        poke_interval=self.poll_interval,
+                        soft_fail=self.soft_fail,
+                        logical_dates=list(dttm_filter),
+                        run_ids=None,
+                        execution_dates=None,
+                    ),
+                    method_name="execute_complete",
+                )
+            else:
+                self.defer(
+                    timeout=self.execution_timeout,
+                    trigger=WorkflowTrigger(
+                        external_dag_id=self.external_dag_id,
+                        external_task_group_id=self.external_task_group_id,
+                        external_task_ids=self.external_task_ids,
+                        allowed_states=self.allowed_states,
+                        failed_states=self.failed_states,
+                        skipped_states=self.skipped_states,
+                        poke_interval=self.poll_interval,
+                        soft_fail=self.soft_fail,
+                        execution_dates=list(dttm_filter),
+                        logical_dates=None,
+                        run_ids=None,
+                    ),
+                    method_name="execute_complete",
+                )
 
-    def execute_complete(self, context, event=None):
+    def execute_complete(self, context: Context, event: dict[str, typing.Any] | None = None) -> None:
         """Execute when the trigger fires - return immediately."""
+        if event is None:
+            raise ExternalTaskNotFoundError("No event received from trigger")
+
+        # Re-set as attribute after coming back from deferral - to be used by listeners
+        self.external_dates_filter = self._serialize_dttm_filter(self._get_dttm_filter(context))
+
         if event["status"] == "success":
             self.log.info("External tasks %s has executed successfully.", self.external_task_ids)
         elif event["status"] == "skipped":
@@ -465,13 +486,14 @@ class ExternalTaskSensor(BaseSensorOperator):
                 "name of executed task and Dag."
             )
 
-    def _check_for_existence(self, session) -> None:
+    def _check_for_existence(self, session: Session) -> None:
         dag_to_wait = DagModel.get_current(self.external_dag_id, session)
 
         if not dag_to_wait:
             raise ExternalDagNotFoundError(f"The external DAG {self.external_dag_id} does not exist.")
 
-        if not os.path.exists(correct_maybe_zipped(dag_to_wait.fileloc)):
+        path = correct_maybe_zipped(dag_to_wait.fileloc)
+        if not path or not os.path.exists(path):
             raise ExternalDagDeletedError(f"The external DAG {self.external_dag_id} was deleted.")
 
         if self.external_task_ids:
@@ -500,7 +522,7 @@ class ExternalTaskSensor(BaseSensorOperator):
 
         self._has_checked_existence = True
 
-    def get_count(self, dttm_filter, session, states) -> int:
+    def get_count(self, dttm_filter: Sequence[datetime.datetime], session: Session, states: list[str]) -> int:
         """
         Get the count of records against dttm filter and states.
 
@@ -521,15 +543,43 @@ class ExternalTaskSensor(BaseSensorOperator):
             session,
         )
 
-    def get_external_task_group_task_ids(self, session, dttm_filter):
+    def get_external_task_group_task_ids(
+        self, session: Session, dttm_filter: Sequence[datetime.datetime]
+    ) -> list[tuple[str, int]]:
         warnings.warn(
             "This method is deprecated and will be removed in future.", DeprecationWarning, stacklevel=2
         )
+        if self.external_task_group_id is None:
+            return []
         return _get_external_task_group_task_ids(
-            dttm_filter, self.external_task_group_id, self.external_dag_id, session
+            list(dttm_filter), self.external_task_group_id, self.external_dag_id, session
         )
 
-    def _handle_execution_date_fn(self, context) -> Any:
+    def _get_logical_date(self, context: Context) -> datetime.datetime:
+        """
+        Handle backwards- and forwards-compatible retrieval of the date.
+
+        to pass as the positional argument to execution_date_fn.
+        """
+        # Airflow 3.x: contexts define "logical_date" (or fall back to dag_run.run_after).
+        if AIRFLOW_V_3_0_PLUS:
+            logical_date = context.get("logical_date")
+            dag_run = context.get("dag_run")
+            if logical_date:
+                return logical_date
+            if dag_run and hasattr(dag_run, "run_after") and dag_run.run_after:
+                return dag_run.run_after
+            raise ValueError("Either `logical_date` or `dag_run.run_after` must be provided in the context")
+
+        # Airflow 2.x and earlier: contexts used "execution_date"
+        execution_date = context.get("execution_date")
+        if not execution_date:
+            raise ValueError("Either `execution_date` must be provided in the context`")
+        if not isinstance(execution_date, datetime.datetime):
+            raise ValueError("execution_date must be a datetime object")
+        return execution_date
+
+    def _handle_execution_date_fn(self, context: Context) -> datetime.datetime | list[datetime.datetime]:
         """
         Handle backward compatibility.
 
@@ -541,7 +591,7 @@ class ExternalTaskSensor(BaseSensorOperator):
         from airflow.utils.operator_helpers import make_kwargs_callable
 
         # Remove "logical_date" because it is already a mandatory positional argument
-        logical_date = context["logical_date"]
+        logical_date = self._get_logical_date(context)
         kwargs = {k: v for k, v in context.items() if k not in {"execution_date", "logical_date"}}
         # Add "context" in the kwargs for backward compatibility (because context used to be
         # an acceptable argument of execution_date_fn)

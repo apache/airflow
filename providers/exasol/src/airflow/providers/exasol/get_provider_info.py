@@ -30,6 +30,7 @@ def get_provider_info():
             {
                 "integration-name": "Exasol",
                 "external-doc-url": "https://docs.exasol.com/home.htm",
+                "how-to-guide": ["/docs/apache-airflow-providers-exasol/operators.rst"],
                 "logo": "/docs/integration-logos/Exasol.png",
                 "tags": ["software"],
             }

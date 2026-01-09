@@ -16,7 +16,8 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, Flex, Link } from "@chakra-ui/react";
+import { Box, Flex, Link, Button } from "@chakra-ui/react";
+import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Link as RouterLink } from "react-router-dom";
 
@@ -36,14 +37,22 @@ export const TaskLogPreview = ({
   readonly wrap: boolean;
 }) => {
   const { t: translate } = useTranslation("dag");
-  const { data, error, isLoading } = useLogs(
+  const [isExpanded, setIsExpanded] = useState(false);
+
+  const {
+    error,
+    isLoading,
+    parsedData: data,
+  } = useLogs(
     {
       dagId: taskInstance.dag_id,
+      limit: 100,
       logLevelFilters: ["error", "critical"],
       taskInstance,
       tryNumber: taskInstance.try_number,
     },
     {
+      enabled: isExpanded,
       refetchInterval: false,
       retry: false,
     },
@@ -51,13 +60,18 @@ export const TaskLogPreview = ({
 
   return (
     <Box borderRadius={4} borderStyle="solid" borderWidth={1} key={taskInstance.id} width="100%">
-      <Flex alignItems="center" justifyContent="space-between" px={2}>
+      <Flex alignItems="center" justifyContent="space-between" px={2} py={2}>
         <Box>
           <StateBadge mr={1} state={taskInstance.state} />
           {taskInstance.task_display_name}
           <Time datetime={taskInstance.run_after} ml={1} />
         </Box>
         <Flex gap={1}>
+          <Button fontSize="sm" onClick={() => setIsExpanded(!isExpanded)} size="sm" variant="ghost">
+            {isExpanded
+              ? translate("overview.failedLogs.hideLogs")
+              : translate("overview.failedLogs.showLogs")}
+          </Button>
           <ClearTaskInstanceButton taskInstance={taskInstance} withText={false} />
           <Link asChild color="fg.info" fontSize="sm">
             <RouterLink to={getTaskInstanceLink(taskInstance)}>
@@ -66,15 +80,17 @@ export const TaskLogPreview = ({
           </Link>
         </Flex>
       </Flex>
-      <Box maxHeight="100px" overflow="auto">
-        <TaskLogContent
-          error={error}
-          isLoading={isLoading}
-          logError={error}
-          parsedLogs={data.parsedLogs ?? []}
-          wrap={wrap}
-        />
-      </Box>
+      {isExpanded ? (
+        <Box borderTopStyle="solid" borderTopWidth={1} maxHeight="200px" overflow="auto">
+          <TaskLogContent
+            error={error}
+            isLoading={isLoading}
+            logError={error}
+            parsedLogs={data.parsedLogs ?? []}
+            wrap={wrap}
+          />
+        </Box>
+      ) : null}
     </Box>
   );
 };

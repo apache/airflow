@@ -16,22 +16,54 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Skeleton, HStack, Text } from "@chakra-ui/react";
+import { Skeleton, HStack, Text, Link } from "@chakra-ui/react";
 
 import { useXcomServiceGetXcomEntry } from "openapi/queries";
 import type { XComResponseNative } from "openapi/requests/types.gen";
 import RenderedJsonField from "src/components/RenderedJsonField";
 import { ClipboardIconButton, ClipboardRoot } from "src/components/ui";
+import { urlRegex } from "src/constants/urlRegex";
 
 type XComEntryProps = {
   readonly dagId: string;
   readonly mapIndex: number;
+  readonly open?: boolean;
   readonly runId: string;
   readonly taskId: string;
   readonly xcomKey: string;
 };
 
-export const XComEntry = ({ dagId, mapIndex, runId, taskId, xcomKey }: XComEntryProps) => {
+const renderTextWithLinks = (text: string) => {
+  const urls = text.match(urlRegex);
+  const parts = text.split(/\s+/u);
+
+  return (
+    <>
+      {parts.map((part, index) => {
+        const isLastPart = index === parts.length - 1;
+
+        if (urls?.includes(part)) {
+          return (
+            <Link
+              color="fg.info"
+              href={part}
+              key={part}
+              rel="noopener noreferrer"
+              target="_blank"
+              textDecoration="underline"
+            >
+              {part}
+            </Link>
+          );
+        }
+
+        return `${part}${isLastPart ? "" : " "}`;
+      })}
+    </>
+  );
+};
+
+export const XComEntry = ({ dagId, mapIndex, open = false, runId, taskId, xcomKey }: XComEntryProps) => {
   const { data, isLoading } = useXcomServiceGetXcomEntry<XComResponseNative>({
     dagId,
     dagRunId: runId,
@@ -43,8 +75,9 @@ export const XComEntry = ({ dagId, mapIndex, runId, taskId, xcomKey }: XComEntry
   });
   // When deserialize=true, the API returns a stringified representation
   // so we don't need to JSON.stringify it again
-  const valueFormatted =
-    typeof data?.value === "string" ? data.value : JSON.stringify(data?.value, undefined, 4);
+  const xcomValue = data?.value;
+  const isObjectOrArray = Array.isArray(xcomValue) || (xcomValue !== null && typeof xcomValue === "object");
+  const valueFormatted = typeof xcomValue === "string" ? xcomValue : JSON.stringify(xcomValue, undefined, 4);
 
   return isLoading ? (
     <Skeleton
@@ -55,15 +88,19 @@ export const XComEntry = ({ dagId, mapIndex, runId, taskId, xcomKey }: XComEntry
     />
   ) : (
     <HStack>
-      {Boolean(data?.value) ? (
+      {isObjectOrArray ? (
+        <RenderedJsonField
+          content={xcomValue as object}
+          enableClipboard={false}
+          jsonProps={{ collapsed: !open }}
+        />
+      ) : (
+        <Text>{renderTextWithLinks(valueFormatted)}</Text>
+      )}
+      {xcomValue === undefined || xcomValue === null ? undefined : (
         <ClipboardRoot value={valueFormatted}>
           <ClipboardIconButton />
         </ClipboardRoot>
-      ) : undefined}
-      {["array", "object"].includes(typeof data?.value) ? (
-        <RenderedJsonField content={data?.value as object} enableClipboard={false} />
-      ) : (
-        <Text>{valueFormatted}</Text>
       )}
     </HStack>
   );

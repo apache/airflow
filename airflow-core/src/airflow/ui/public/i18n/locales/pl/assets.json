@@ -1,0 +1,37 @@
+{
+  "additional_data": "Dodatkowe dane",
+  "asset_few": "Zasoby",
+  "asset_many": "Zasobów",
+  "asset_one": "Zasób",
+  "asset_other": "Zasoby",
+  "consumingDags": "Przetwarzanie Dagów",
+  "consumingTasks": "Przetwarzanie zadań",
+  "createEvent": {
+    "button": "Utwórz zdarzenie",
+    "manual": {
+      "description": "Utwórz ręcznie zdarzenie zasobu",
+      "extra": "Dodatkowe informacje o zdarzeniu zasobu",
+      "label": "Ręcznie"
+    },
+    "materialize": {
+      "description": "Wykonaj Dag zależny od tego zasobu",
+      "descriptionWithDag": "Wykonaj Dag zależny od tego zasobu: {{dagName}}",
+      "label": "Materializuj",
+      "unpauseDag": "Wznów {{dagName}} przy wywołaniu"
+    },
+    "success": {
+      "manualDescription": "Ręczne utworzenie zdarzenia zasobu zakończone sukcesem.",
+      "manualTitle": "Zdarzenie zasobu utworzone",
+      "materializeDescription": "Zależny Dag {{dagId}} został pomyślnie wywołany.",
+      "materializeTitle": "Materializowanie zasobu"
+    },
+    "title": "Utwórz zdarzenie zasobu dla {{name}}"
+  },
+  "extra": "Dodatkowe",
+  "group": "Grupa",
+  "lastAssetEvent": "Ostatnie zdarzenie zasobu",
+  "name": "Nazwa",
+  "producingTasks": "Zadania produkujące",
+  "scheduledDags": "Zaplanowane Dagi",
+  "searchPlaceholder": "Szukaj zasobów"
+}

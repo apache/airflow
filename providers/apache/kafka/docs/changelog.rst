@@ -27,6 +27,168 @@
 Changelog
 ---------
 
+1.11.2
+......
+
+Misc
+~~~~
+
+* ``Extract shared "module_loading" distribution (#59139)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+1.11.1
+......
+
+Misc
+~~~~
+
+* ``Add backcompat for exceptions in providers (#58727)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+1.11.0
+......
+
+.. note::
+    This release of provider is only available for Airflow 2.11+ as explained in the
+    Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/PROVIDERS.rst#minimum-supported-version-of-airflow-for-community-managed-providers>_.
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix AwaitMessageSensor to accept timeout and soft_fail parameters (#57863) (#58070)``
+
+Misc
+~~~~
+
+* ``Bump minimum Airflow version in providers to Airflow 2.11.0 (#58612)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Updates to release process of providers (#58316)``
+
+1.10.6
+......
+
+Misc
+~~~~
+
+* ``Convert all airflow distributions to be compliant with ASF requirements (#58138)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Delete all unnecessary LICENSE Files (#58191)``
+   * ``Enable PT006 rule to 13 files in providers (apache) (#57998)``
+   * ``Fix documentation/provider.yaml consistencies (#57283)``
+
+1.10.5
+......
+
+Misc
+~~~~
+
+* ``Make 'AwaitMessageTrigger' inherit 'BaseEventTrigger' (#56741)``
+* ``Migrate Apache providers & Elasticsearch to ''common.compat'' (#57016)``
+
+Doc-only
+~~~~~~~~
+
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Fix pytest collection failure for classes decorated with context managers (#55915)``
+   * ``Remove placeholder Release Date in changelog and index files (#56056)``
+
+1.10.4
+......
+
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Make 'apply_function' optional in 'AwaitMessageTrigger' (#55437)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+1.10.3
+......
+
+
+Misc
+~~~~
+
+* ``Refactor Common Queue Interface (#54651)``
+
+Doc-only
+~~~~~~~~
+
+* ``Make term Dag consistent in providers docs (#55101)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Switch pre-commit to prek (#54258)``
+   * ``Fix Airflow 2 reference in README/index of providers (#55240)``
+
+1.10.2
+......
+
+Misc
+~~~~
+
+* ``Set minimum version for common.messaging to 1.0.3 (#54160)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Fix 'importskip' statements in tests (#54135)``
+
+1.10.1
+......
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Add validation for commit_cadence in Kafka ConsumeFromTopicOperator (#52015)``
+
+Misc
+~~~~
+
+* ``Add Python 3.13 support for Airflow. (#46891)``
+* ``Cleanup type ignores (#53300)``
+* ``Remove type ignore across codebase after mypy upgrade (#53243)``
+* ``Make kafka provider compatible with mypy 1.16.1 (#53125)``
+* ``Remove upper-binding for "python-requires" (#52980)``
+* ``Temporarily switch to use >=,< pattern instead of '~=' (#52967)``
+* ``Replace BaseHook to Task SDK for apache/kafka (#52784)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+1.10.0
+......
+
+Features
+~~~~~~~~
+
+* ``Add 'KafkaMessageQueueTrigger' for enhanced message queue trigger usability on Kafka queue (#51718)``
+
+Misc
+~~~~
+
+* ``Move 'BaseHook' implementation to task SDK (#51873)``
+* ``Update BaseOperator imports for Airflow 3.0 compatibility (#52503)``
+* ``Drop support for Python 3.9 (#52072)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Remove pytest db marker apache kafka (#52098)``
+   * ``Updating kafka systests to setup connections using ENV (#52076)``
+   * ``Replace usage of os.environ with conf_vars in kafka IT (#52025)``
+   * ``Introducing fixture to create 'Connections' without DB in provider tests (#51930)``
+
 1.9.0
 .....
 
@@ -131,8 +293,6 @@ Misc
    * ``Use Python 3.9 as target version for Ruff & Black rules (#44298)``
    * ``Prepare docs for Nov 1st wave of providers (#44011)``
    * ``Split providers out of the main "airflow/" tree into a UV workspace project (#42505)``
-
-.. Review and move the new changes to one of the sections above:
    * ``Update path of example dags in docs (#45069)``
 
 1.6.1

@@ -27,8 +27,10 @@ import pytest
 from packaging.specifiers import SpecifierSet
 from packaging.version import Version
 
-from airflow.hooks.base import BaseHook
-from airflow.models import Connection, DagBag
+from airflow.configuration import conf
+from airflow.dag_processing.dagbag import DagBag
+from airflow.models import Connection
+from airflow.sdk import BaseHook
 from airflow.utils import yaml
 
 from tests_common.test_utils.asserts import assert_queries_count
@@ -51,19 +53,18 @@ IGNORE_AIRFLOW_PROVIDER_DEPRECATION_WARNING: tuple[str, ...] = (
     # Generally, these should be resolved as soon as a parameter or operator is deprecated.
     # If the deprecation is postponed, the item should be added to this tuple,
     # and a corresponding Issue should be created on GitHub.
-    "providers/google/tests/system/google/cloud/bigquery/example_bigquery_operations.py",
-    "providers/google/tests/system/google/cloud/dataflow/example_dataflow_sql.py",
     "providers/google/tests/system/google/cloud/dataproc/example_dataproc_gke.py",
-    "providers/google/tests/system/google/cloud/datapipelines/example_datapipeline.py",
-    "providers/google/tests/system/google/cloud/gcs/example_gcs_sensor.py",
     "providers/google/tests/system/google/cloud/kubernetes_engine/example_kubernetes_engine.py",
     "providers/google/tests/system/google/cloud/kubernetes_engine/example_kubernetes_engine_async.py",
     "providers/google/tests/system/google/cloud/kubernetes_engine/example_kubernetes_engine_job.py",
     "providers/google/tests/system/google/cloud/kubernetes_engine/example_kubernetes_engine_kueue.py",
     "providers/google/tests/system/google/cloud/kubernetes_engine/example_kubernetes_engine_resource.py",
-    "providers/google/tests/system/google/cloud/life_sciences/example_life_sciences.py",
     # Deprecated Operators/Hooks, which replaced by common.sql Operators/Hooks
 )
+
+LONGER_IMPORT_TIMEOUTS: dict[str, float] = {
+    "providers/google/tests/system/google/cloud/gen_ai/example_gen_ai_generative_model.py": 60
+}
 
 
 def match_optional_dependencies(distribution_name: str, specifier: str | None) -> tuple[bool, str]:
@@ -87,12 +88,7 @@ def get_suspended_providers_folders() -> list[str]:
     for provider_path in AIRFLOW_PROVIDERS_ROOT_PATH.rglob("provider.yaml"):
         provider_yaml = yaml.safe_load(provider_path.read_text())
         if provider_yaml["state"] == "suspended":
-            suspended_providers.append(
-                provider_path.parent.relative_to(AIRFLOW_ROOT_PATH)
-                .as_posix()
-                # TODO(potiuk): check
-                .replace("providers/src/airflow/providers/", "")
-            )
+            suspended_providers.append(provider_path.parent.resolve().as_posix())
     return suspended_providers
 
 
@@ -106,18 +102,13 @@ def get_python_excluded_providers_folders() -> list[str]:
         provider_yaml = yaml.safe_load(provider_path.read_text())
         excluded_python_versions = provider_yaml.get("excluded-python-versions", [])
         if CURRENT_PYTHON_VERSION in excluded_python_versions:
-            excluded_providers.append(
-                provider_path.parent.relative_to(AIRFLOW_ROOT_PATH)
-                .as_posix()
-                # TODO(potiuk): check
-                .replace("providers/src/airflow/providers/", "")
-            )
+            excluded_providers.append(provider_path.parent.resolve().as_posix())
     return excluded_providers
 
 
 def example_not_excluded_dags(xfail_db_exception: bool = False):
     example_dirs = [
-        "airflow/**/example_dags/example_*.py",
+        "airflow-core/**/example_dags/example_*.py",
         "tests/system/**/example_*.py",
         "providers/**/example_*.py",
     ]
@@ -127,16 +118,6 @@ def example_not_excluded_dags(xfail_db_exception: bool = False):
 
     suspended_providers_folders = get_suspended_providers_folders()
     current_python_excluded_providers_folders = get_python_excluded_providers_folders()
-    suspended_providers_folders = [
-        AIRFLOW_ROOT_PATH.joinpath(prefix, provider).as_posix()
-        for prefix in PROVIDERS_PREFIXES
-        for provider in suspended_providers_folders
-    ]
-    current_python_excluded_providers_folders = [
-        AIRFLOW_ROOT_PATH.joinpath(prefix, provider).as_posix()
-        for prefix in PROVIDERS_PREFIXES
-        for provider in current_python_excluded_providers_folders
-    ]
     providers_folders = tuple([AIRFLOW_ROOT_PATH.joinpath(pp).as_posix() for pp in PROVIDERS_PREFIXES])
     for example_dir in example_dirs:
         candidates = glob(f"{AIRFLOW_ROOT_PATH.as_posix()}/{example_dir}", recursive=True)
@@ -184,14 +165,45 @@ def relative_path(path):
     return os.path.relpath(path, AIRFLOW_ROOT_PATH.as_posix())
 
 
+def _get_dagbag_import_timeout_for_example(example_path: str) -> float:
+    """
+    Return the dagbag import timeout for the given example path.
+    If the example path ends with one of the keys in LONGER_IMPORT_TIMEOUTS, use that value.
+    Otherwise fall back to the configured default from [core] dagbag_import_timeout.
+    """
+    for key, val in LONGER_IMPORT_TIMEOUTS.items():
+        if example_path.endswith(key):
+            return val
+    return conf.getfloat("core", "dagbag_import_timeout")
+
+
+@pytest.fixture
+def patch_get_dagbag_import_timeout():
+    """Patch settings.get_dagbag_import_timeout to consult LONGER_IMPORT_TIMEOUTS or config.
+
+    The patched function accepts the dag file path argument and returns the timeout.
+    """
+    with patch(
+        "airflow.dag_processing.dagbag.settings.get_dagbag_import_timeout",
+        side_effect=_get_dagbag_import_timeout_for_example,
+    ):
+        yield
+
+
 @skip_if_force_lowest_dependencies_marker
 @pytest.mark.db_test
 @pytest.mark.parametrize("example", example_not_excluded_dags())
-def test_should_be_importable(example: str):
+def test_should_be_importable(example: str, patch_get_dagbag_import_timeout):
     dagbag = DagBag(
         dag_folder=example,
         include_examples=False,
     )
+    if len(dagbag.import_errors) == 1 and "AirflowOptionalProviderFeatureException" in str(
+        dagbag.import_errors
+    ):
+        pytest.skip(
+            f"Skipping {example} because it requires an optional provider feature that is not installed."
+        )
     assert len(dagbag.import_errors) == 0, f"import_errors={str(dagbag.import_errors)}"
     assert len(dagbag.dag_ids) >= 1
 
@@ -199,7 +211,7 @@ def test_should_be_importable(example: str):
 @skip_if_force_lowest_dependencies_marker
 @pytest.mark.db_test
 @pytest.mark.parametrize("example", example_not_excluded_dags(xfail_db_exception=True))
-def test_should_not_do_database_queries(example: str):
+def test_should_not_do_database_queries(example: str, patch_get_dagbag_import_timeout):
     with assert_queries_count(1, stacklevel_from_module=example.rsplit(os.sep, 1)[-1]):
         DagBag(
             dag_folder=example,
@@ -209,7 +221,7 @@ def test_should_not_do_database_queries(example: str):
 
 @pytest.mark.db_test
 @pytest.mark.parametrize("example", example_not_excluded_dags(xfail_db_exception=True))
-def test_should_not_run_hook_connections(example: str):
+def test_should_not_run_hook_connections(example: str, patch_get_dagbag_import_timeout):
     # Example dags should never run BaseHook.get_connection() class method when parsed
     with patch.object(BaseHook, "get_connection") as mock_get_connection:
         mock_get_connection.return_value = Connection()

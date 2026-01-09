@@ -40,7 +40,7 @@ try:
 except ImportError:
     pytest.skip("Azure Service Bus not available", allow_module_level=True)
 
-EXECUTION_TIMEOUT = int(os.getenv("EXECUTION_TIMEOUT", 6))
+EXECUTION_TIMEOUT = int(os.getenv("EXECUTION_TIMEOUT", str(6)))
 
 CLIENT_ID = os.getenv("CLIENT_ID", "")
 QUEUE_NAME = "sb_mgmt_queue_test"

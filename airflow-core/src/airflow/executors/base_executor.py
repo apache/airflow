@@ -23,19 +23,18 @@ from collections import defaultdict, deque
 from collections.abc import Sequence
 from dataclasses import dataclass, field
 from functools import cached_property
-from typing import TYPE_CHECKING, Any, Optional
+from typing import TYPE_CHECKING, Any
 
 import pendulum
 
+from airflow._shared.observability.traces import NO_TRACE_ID
 from airflow.cli.cli_config import DefaultHelpParser
 from airflow.configuration import conf
 from airflow.executors import workloads
 from airflow.executors.executor_loader import ExecutorLoader
 from airflow.models import Log
-from airflow.stats import Stats
-from airflow.traces import NO_TRACE_ID
-from airflow.traces.tracer import Trace, add_span, gen_context
-from airflow.traces.utils import gen_span_id_from_ti_key
+from airflow.observability.stats import Stats
+from airflow.observability.trace import DebugTrace, Trace, add_debug_span
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.state import TaskInstanceState
 from airflow.utils.thread_safe_dict import ThreadSafeDict
@@ -58,7 +57,7 @@ if TYPE_CHECKING:
 
     # Event_buffer dict value type
     # Tuple of: state, info
-    EventBufferValueType = tuple[Optional[str], Any]
+    EventBufferValueType = tuple[str | None, Any]
 
 
 log = logging.getLogger(__name__)
@@ -97,6 +96,43 @@ class RunningRetryAttemptType:
         return True
 
 
+class ExecutorConf:
+    """
+    This class is used to fetch configuration for an executor for a particular team_name.
+
+    It wraps the implementation of the configuration.get() to look for the particular section and key
+    prefixed with the team_name. This makes it easy for child classes (i.e. concrete executors) to fetch
+    configuration values for a particular team_name without having to worry about passing through the
+    team_name for every call to get configuration.
+
+    Currently config only supports environment variables for team specific configuration.
+    """
+
+    def __init__(self, team_name: str | None = None) -> None:
+        self.team_name: str | None = team_name
+
+    def get(self, *args, **kwargs) -> str | None:
+        return conf.get(*args, **kwargs, team_name=self.team_name)
+
+    def getboolean(self, *args, **kwargs) -> bool:
+        return conf.getboolean(*args, **kwargs, team_name=self.team_name)
+
+    def getjson(self, *args, **kwargs):
+        return conf.getjson(*args, **kwargs, team_name=self.team_name)
+
+    def getint(self, *args, **kwargs):
+        return conf.getint(*args, **kwargs, team_name=self.team_name)
+
+    def getsection(self, section: str) -> dict[str, str | int | float | bool] | None:
+        return conf.getsection(section, team_name=self.team_name)
+
+    def has_option(self, *args, **kwargs) -> bool:
+        return conf.has_option(*args, **kwargs, team_name=self.team_name)
+
+    def get_mandatory_value(self, *args, **kwargs) -> str:
+        return conf.get_mandatory_value(*args, **kwargs, team_name=self.team_name)
+
+
 class BaseExecutor(LoggingMixin):
     """
     Base class to inherit for concrete executors such as Celery, Kubernetes, Local, etc.
@@ -107,7 +143,7 @@ class BaseExecutor(LoggingMixin):
     active_spans = ThreadSafeDict()
 
     supports_ad_hoc_ti_run: bool = False
-    supports_sentry: bool = False
+    sentry_integration: str = ""
 
     is_local: bool = False
     is_production: bool = True
@@ -137,7 +173,7 @@ class BaseExecutor(LoggingMixin):
 
         return generator
 
-    def __init__(self, parallelism: int = PARALLELISM, team_id: str | None = None):
+    def __init__(self, parallelism: int = PARALLELISM, team_name: str | None = None):
         super().__init__()
         # Ensure we set this now, so that each subprocess gets the same value
         from airflow.api_fastapi.auth.tokens import get_signing_args
@@ -145,11 +181,12 @@ class BaseExecutor(LoggingMixin):
         get_signing_args()
 
         self.parallelism: int = parallelism
-        self.team_id: str | None = team_id
+        self.team_name: str | None = team_name
         self.queued_tasks: dict[TaskInstanceKey, workloads.ExecuteTask] = {}
         self.running: set[TaskInstanceKey] = set()
         self.event_buffer: dict[TaskInstanceKey, EventBufferValueType] = {}
         self._task_event_logs: deque[Log] = deque()
+        self.conf = ExecutorConf(team_name)
 
         if self.parallelism <= 0:
             raise ValueError("parallelism is set to 0 or lower")
@@ -218,7 +255,7 @@ class BaseExecutor(LoggingMixin):
         Executors should override this to perform gather statuses.
         """
 
-    @add_span
+    @add_debug_span
     def heartbeat(self) -> None:
         """Heartbeat sent to trigger new jobs."""
         open_slots = self.parallelism - len(self.running)
@@ -311,7 +348,7 @@ class BaseExecutor(LoggingMixin):
             reverse=True,
         )
 
-    @add_span
+    @add_debug_span
     def trigger_tasks(self, open_slots: int) -> None:
         """
         Initiate async execution of the queued tasks, up to the number of available slots.
@@ -340,11 +377,9 @@ class BaseExecutor(LoggingMixin):
             if isinstance(item, workloads.ExecuteTask) and hasattr(item, "ti"):
                 ti = item.ti
 
-                # If it's None, then the span for the current TaskInstanceKey hasn't been started.
-                if self.active_spans is not None and self.active_spans.get(key) is None:
-                    from airflow.models.taskinstance import SimpleTaskInstance
-
-                    if isinstance(ti, (SimpleTaskInstance, workloads.TaskInstance)):
+                # If it's None, then the span for the current id hasn't been started.
+                if self.active_spans is not None and self.active_spans.get("ti:" + str(ti.id)) is None:
+                    if isinstance(ti, workloads.TaskInstance):
                         parent_context = Trace.extract(ti.parent_context_carrier)
                     else:
                         parent_context = Trace.extract(ti.dag_run.context_carrier)
@@ -358,7 +393,7 @@ class BaseExecutor(LoggingMixin):
                         component="task",
                         start_as_current=False,
                     )
-                    self.active_spans.set(key, span)
+                    self.active_spans.set("ti:" + str(ti.id), span)
                     # Inject the current context into the carrier.
                     carrier = Trace.inject()
                     ti.context_carrier = carrier
@@ -398,11 +433,9 @@ class BaseExecutor(LoggingMixin):
         """
         trace_id = Trace.get_current_span().get_span_context().trace_id
         if trace_id != NO_TRACE_ID:
-            span_id = int(gen_span_id_from_ti_key(key, as_int=True))
-            with Trace.start_span(
+            with DebugTrace.start_child_span(
                 span_name="fail",
                 component="BaseExecutor",
-                parent_sc=gen_context(trace_id=trace_id, span_id=span_id),
             ) as span:
                 span.set_attributes(
                     {
@@ -425,11 +458,9 @@ class BaseExecutor(LoggingMixin):
         """
         trace_id = Trace.get_current_span().get_span_context().trace_id
         if trace_id != NO_TRACE_ID:
-            span_id = int(gen_span_id_from_ti_key(key, as_int=True))
-            with Trace.start_span(
+            with DebugTrace.start_child_span(
                 span_name="success",
                 component="BaseExecutor",
-                parent_sc=gen_context(trace_id=trace_id, span_id=span_id),
             ) as span:
                 span.set_attributes(
                     {

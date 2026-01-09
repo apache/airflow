@@ -19,6 +19,7 @@
 from __future__ import annotations
 
 import shutil
+import sys
 from dataclasses import dataclass
 from io import StringIO
 from typing import Any, NamedTuple
@@ -37,6 +38,11 @@ from airflow.utils.providers_configuration_loader import providers_configuration
 @providers_configuration_loaded
 def show_config(args):
     """Show current application configuration."""
+    if not args.show_values:
+        print(
+            "Values are hidden by default. Use `--show-values` to display them (may include sensitive data).",
+            file=sys.stderr,
+        )
     with StringIO() as output:
         conf.write(
             output,
@@ -48,6 +54,8 @@ def show_config(args):
             include_providers=not args.exclude_providers,
             comment_out_everything=args.comment_out_everything or args.defaults,
             only_defaults=args.defaults,
+            hide_sensitive=args.hide_sensitive,
+            show_values=args.show_values,
         )
         code = output.getvalue()
     if should_use_colors(args):
@@ -345,6 +353,8 @@ CONFIGS_CHANGES = [
     ),
     ConfigChange(
         config=ConfigParameter("webserver", "cookie_samesite"),
+        renamed_to=ConfigParameter("fab", "cookie_samesite"),
+        breaking=True,
     ),
     ConfigChange(
         config=ConfigParameter("webserver", "audit_view_included_events"),
@@ -570,6 +580,8 @@ CONFIGS_CHANGES = [
     ),
     ConfigChange(
         config=ConfigParameter("webserver", "cookie_secure"),
+        renamed_to=ConfigParameter("fab", "cookie_secure"),
+        breaking=True,
         was_deprecated=False,
     ),
     ConfigChange(
@@ -635,6 +647,9 @@ CONFIGS_CHANGES = [
     ),
     ConfigChange(
         config=ConfigParameter("scheduler", "allow_trigger_in_future"),
+    ),
+    ConfigChange(
+        config=ConfigParameter("scheduler", "dag_stale_not_seen_duration"),
     ),
     ConfigChange(
         config=ConfigParameter("scheduler", "catchup_by_default"),

@@ -1,0 +1,138 @@
+{
+  "backfill": {
+    "affected_one": "1 रन ट्रिगर किया जाएगा।",
+    "affected_other": "{{count}} रन्स ट्रिगर किए जाएंगे।",
+    "affectedNone": "चयनित मापदंड से मेल खाने वाले कोई रन्स नहीं।",
+    "allRuns": "सभी रन्स",
+    "backwards": "पीछे की ओर चलाएं",
+    "dateRange": "तिथि रेंज",
+    "errorStartDateBeforeEndDate": "प्रारंभ तिथि समाप्ति तिथि से पहले होनी चाहिए",
+    "maxRuns": "अधिकतम सक्रिय रन्स",
+    "missingAndErroredRuns": "गुम और त्रुटि वाले रन्स",
+    "missingRuns": "गुम रन्स",
+    "reprocessBehavior": "पुनः प्रक्रिया व्यवहार",
+    "run": "बैकफ़िल चलाएं",
+    "selectDescription": "तिथियों की रेंज के लिए इस डैग को चलाएं",
+    "selectLabel": "बैकफ़िल",
+    "title": "बैकफ़िल चलाएं",
+    "toaster": {
+      "success": {
+        "description": "बैकफ़िल जॉब्स सफलतापूर्वक ट्रिगर किए गए।",
+        "title": "बैकफ़िल जेनरेट किया गया"
+      }
+    },
+    "tooltip": "बैकफ़िल के लिए एक शेड्यूल आवश्यक है",
+    "unpause": "ट्रिगर पर {{dag_display_name}} को अनपॉज़ करें",
+    "validation": {
+      "datesRequired": "डेटा अंतराल प्रारंभ तिथि और समाप्ति तिथि दोनों प्रदान की जानी चाहिए।",
+      "startBeforeEnd": "डेटा अंतराल प्रारंभ तिथि समाप्ति तिथि से कम या उसके बराबर होनी चाहिए।"
+    }
+  },
+  "banner": {
+    "backfillInProgress": "बैकफ़िल प्रगति में है",
+    "cancel": "बैकफ़िल रद्द करें",
+    "pause": "बैकफ़िल को रोकें",
+    "unpause": "बैकफ़िल को अनपॉज़ करें"
+  },
+  "clipboard": {
+    "copy": "कॉपी करें"
+  },
+  "close": "बंद करें",
+  "configForm": {
+    "advancedOptions": "उन्नत विकल्प",
+    "configJson": "विन्यास JSON",
+    "invalidJson": "अमान्य JSON प्रारूप: {{errorMessage}}"
+  },
+  "dagWarnings": {
+    "error_one": "1 त्रुटि",
+    "error_other": "{{count}} त्रुटियां",
+    "errorAndWarning": "1 त्रुटि और {{warningText}}",
+    "warning_one": "1 चेतावनी",
+    "warning_other": "{{count}} चेतावनियां"
+  },
+  "durationChart": {
+    "duration": "अवधि (सेकंड)",
+    "lastDagRun_one": "अंतिम डैग रन",
+    "lastDagRun_other": "अंतिम {{count}} डैग रन्स",
+    "lastTaskInstance_one": "अंतिम टास्क इंस्टेंस",
+    "lastTaskInstance_other": "अंतिम {{count}} टास्क इंस्टेंसेज",
+    "queuedDuration": "कतार अवधि",
+    "runAfter": "के बाद चलाएं",
+    "runDuration": "रन अवधि"
+  },
+  "fileUpload": {
+    "files_one": "{{count}} फ़ाइल",
+    "files_other": "{{count}} फ़ाइलें"
+  },
+  "flexibleForm": {
+    "placeholder": "मान चुनें",
+    "placeholderArray": "प्रत्येक स्ट्रिंग को नई लाइन में दर्ज करें",
+    "placeholderExamples": "विकल्प देखने के लिए टाइप करना शुरू करें",
+    "placeholderMulti": "एक या एकाधिक मान चुनें",
+    "validationErrorArrayNotArray": "मान एक array होना चाहिए।",
+    "validationErrorArrayNotNumbers": "Array के सभी तत्व संख्या होने चाहिए।",
+    "validationErrorArrayNotObject": "Array के सभी तत्व ऑब्जेक्ट होने चाहिए।",
+    "validationErrorRequired": "यह फ़ील्ड आवश्यक है"
+  },
+  "graph": {
+    "directionDown": "ऊपर से नीचे",
+    "directionLeft": "दाएं से बाएं",
+    "directionRight": "बाएं से दाएं",
+    "directionUp": "नीचे से ऊपर",
+    "downloadImage": "ग्राफ़ इमेज डाउनलोड करें",
+    "downloadImageError": "ग्राफ़ इमेज डाउनलोड करने में विफल।",
+    "downloadImageErrorTitle": "डाउनलोड विफल",
+    "otherDagRuns": "+अन्य डैग रन्स",
+    "taskCount_one": "{{count}} टास्क",
+    "taskCount_other": "{{count}} टास्क्स",
+    "taskGroup": "टास्क ग्रुप"
+  },
+  "limitedList": "+{{count}} और",
+  "limitedList.allItems": "सभी {{count}} आइटम:",
+  "limitedList.clickToInteract": "टैग पर क्लिक करके Dags फ़िल्टर करें",
+  "limitedList.clickToOpenFull": "\"+{{count}} और\" पर क्लिक करके पूरी सूची खोलें",
+  "limitedList.copyPasteText": "आप ऊपर दिए गए पाठ को कॉपी और पेस्ट कर सकते हैं",
+  "logs": {
+    "file": "फ़ाइल",
+    "location": "{{name}} में लाइन {{line}}"
+  },
+  "reparseDag": "डैग को दोबारा पार्स करें",
+  "sortedAscending": "आरोही क्रम में सॉर्ट किया गया",
+  "sortedDescending": "अवरोही क्रम में सॉर्ट किया गया",
+  "sortedUnsorted": "अनसॉर्टेड",
+  "taskTries": "टास्क प्रयास",
+  "toggleCardView": "कार्ड व्यू दिखाएं",
+  "toggleTableView": "टेबल व्यू दिखाएं",
+  "triggerDag": {
+    "button": "ट्रिगर करें",
+    "loading": "डैग जानकारी लोड हो रही है...",
+    "loadingFailed": "डैग जानकारी लोड करने में विफल। कृपया पुनः प्रयास करें।",
+    "runIdHelp": "वैकल्पिक - प्रदान न किए जाने पर जेनरेट किया जाएगा",
+    "selectDescription": "इस डैग का एक रन ट्रिगर करें",
+    "selectLabel": "सिंगल रन",
+    "title": "डैग ट्रिगर करें",
+    "toaster": {
+      "success": {
+        "description": "डैग रन सफलतापूर्वक ट्रिगर किया गया।",
+        "title": "डैग रन ट्रिगर किया गया"
+      }
+    },
+    "unpause": "ट्रिगर पर {{dagDisplayName}} को अनपॉज़ करें"
+  },
+  "trimText": {
+    "details": "विवरण",
+    "empty": "खाली",
+    "noContent": "कोई सामग्री उपलब्ध नहीं।"
+  },
+  "versionDetails": {
+    "bundleLink": "बंडल लिंक",
+    "bundleName": "बंडल नाम",
+    "bundleVersion": "बंडल संस्करण",
+    "createdAt": "बनाया गया",
+    "versionId": "संस्करण ID"
+  },
+  "versionSelect": {
+    "dagVersion": "डैग संस्करण",
+    "versionCode": "v{{versionCode}}"
+  }
+}

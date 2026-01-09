@@ -24,8 +24,8 @@ from attrs import Factory, define, field
 from openlineage.client.event_v2 import Dataset
 from openlineage.client.facet_v2 import BaseFacet, JobFacet, parent_run, sql_job
 
-from airflow.models.baseoperator import BaseOperator
 from airflow.models.taskinstance import TaskInstanceState
+from airflow.providers.common.compat.sdk import BaseOperator
 from airflow.providers.openlineage.extractors.base import (
     BaseExtractor,
     DefaultExtractor,
@@ -38,7 +38,7 @@ from tests_common.test_utils.compat import PythonOperator
 
 if TYPE_CHECKING:
     from openlineage.client.facet_v2 import RunFacet
-pytestmark = pytest.mark.db_test
+
 
 INPUTS = [Dataset(namespace="database://host:port", name="inputtable")]
 OUTPUTS = [Dataset(namespace="database://host:port", name="inputtable")]
@@ -205,7 +205,7 @@ class OperatorDifferentOperatorLineageClass(BaseOperator):
             job_facets: dict[str, BaseFacet] = Factory(dict)
             some_other_param: dict = Factory(dict)
 
-        return DifferentOperatorLineage(  # type: ignore
+        return DifferentOperatorLineage(
             name="unused",
             inputs=INPUTS,
             outputs=OUTPUTS,
@@ -226,7 +226,7 @@ class OperatorWrongOperatorLineageClass(BaseOperator):
             outputs: list[Dataset] = Factory(list)
             some_other_param: dict = Factory(dict)
 
-        return WrongOperatorLineage(  # type: ignore
+        return WrongOperatorLineage(
             inputs=INPUTS,
             outputs=OUTPUTS,
             some_other_param={"asdf": "fdsa"},
@@ -314,7 +314,7 @@ def test_extraction_without_on_start():
 
 
 @pytest.mark.parametrize(
-    "operator_class, task_state, expected_job_facets",
+    ("operator_class", "task_state", "expected_job_facets"),
     (
         (OperatorWithAllOlMethods, TaskInstanceState.FAILED, FAILED_FACETS),
         (OperatorWithAllOlMethods, TaskInstanceState.RUNNING, JOB_FACETS),

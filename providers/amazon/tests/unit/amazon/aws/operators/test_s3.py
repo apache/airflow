@@ -31,7 +31,6 @@ import pytest
 from moto import mock_aws
 
 from airflow import DAG
-from airflow.exceptions import AirflowException
 from airflow.models.dagrun import DagRun
 from airflow.models.taskinstance import TaskInstance
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
@@ -54,12 +53,20 @@ from airflow.providers.common.compat.openlineage.facet import (
     LifecycleStateChangeDatasetFacet,
     PreviousIdentifier,
 )
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.openlineage.extractors import OperatorLineage
 from airflow.utils.state import DagRunState
-from airflow.utils.timezone import datetime, utcnow
 from airflow.utils.types import DagRunType
 
+from tests_common.test_utils.dag import sync_dag_to_db
+from tests_common.test_utils.taskinstance import create_task_instance, render_template_fields
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V_3_1_PLUS
 from unit.amazon.aws.utils.test_template_fields import validate_template_fields
+
+if AIRFLOW_V_3_1_PLUS:
+    from airflow.sdk.timezone import datetime, utcnow
+else:
+    from airflow.utils.timezone import datetime, utcnow  # type: ignore[attr-defined,no-redef]
 
 BUCKET_NAME = os.environ.get("BUCKET_NAME", "test-airflow-bucket")
 S3_KEY = "test-airflow-key"
@@ -629,7 +636,7 @@ class TestS3DeleteObjectsOperator:
         assert "Contents" not in conn.list_objects(Bucket=bucket, Prefix=key_pattern)
 
     @pytest.mark.db_test
-    def test_dates_from_template(self, session):
+    def test_dates_from_template(self, session, testing_dag_bundle):
         """Specifically test for dates passed from templating that could be strings"""
         bucket = "testbucket"
         key_pattern = "path/data"
@@ -666,15 +673,19 @@ class TestS3DeleteObjectsOperator:
                 run_id="test",
                 run_type=DagRunType.MANUAL,
                 state=DagRunState.RUNNING,
+                run_after=utcnow(),
             )
-        ti = TaskInstance(task=op)
-        ti.dag_run = dag_run
-        session.add(ti)
-        session.commit()
-        context = ti.get_template_context(session)
+        if AIRFLOW_V_3_0_PLUS:
+            from airflow.models.dag_version import DagVersion
 
-        ti.render_templates(context)
-        op.execute(None)
+            sync_dag_to_db(dag)
+            dag_version = DagVersion.get_latest_version(dag.dag_id)
+            ti = create_task_instance(task=op, run_id="test", dag_version_id=dag_version.id)
+        else:
+            ti = TaskInstance(task=op)
+        ti.dag_run = dag_run
+        rendered = render_template_fields(ti, op)
+        rendered.execute(None)
         assert "Contents" not in conn.list_objects(Bucket=bucket)
 
     def test_s3_delete_from_to_datetime(self):
@@ -775,7 +786,7 @@ class TestS3DeleteObjectsOperator:
         assert objects_in_dest_bucket["Contents"][0]["Key"] == key_of_test
 
     @pytest.mark.parametrize(
-        "keys, prefix, from_datetime, to_datetime",
+        ("keys", "prefix", "from_datetime", "to_datetime"),
         [
             pytest.param("path/data.txt", "path/data", None, None, id="single-key-and-prefix"),
             pytest.param(["path/data.txt"], "path/data", None, None, id="multiple-keys-and-prefix"),
@@ -811,7 +822,7 @@ class TestS3DeleteObjectsOperator:
             )
 
     @pytest.mark.parametrize(
-        "keys, prefix, from_datetime, to_datetime",
+        ("keys", "prefix", "from_datetime", "to_datetime"),
         [
             pytest.param("path/data.txt", "path/data", None, None, id="single-key-and-prefix"),
             pytest.param(["path/data.txt"], "path/data", None, None, id="multiple-keys-and-prefix"),

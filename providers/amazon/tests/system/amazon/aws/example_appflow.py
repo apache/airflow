@@ -18,8 +18,6 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from airflow.models.baseoperator import chain
-from airflow.models.dag import DAG
 from airflow.providers.amazon.aws.operators.appflow import (
     AppflowRecordsShortCircuitOperator,
     AppflowRunAfterOperator,
@@ -27,7 +25,13 @@ from airflow.providers.amazon.aws.operators.appflow import (
     AppflowRunDailyOperator,
     AppflowRunFullOperator,
 )
-from airflow.providers.standard.operators.bash import BashOperator
+from airflow.providers.common.compat.sdk import DAG, chain
+
+try:
+    from airflow.providers.standard.operators.bash import BashOperator
+except ImportError:
+    # Fallback for older Airflow versions
+    from airflow.operators.bash import BashOperator  # type: ignore[no-redef]
 
 from system.amazon.aws.utils import SystemTestContextBuilder
 
@@ -40,7 +44,6 @@ with DAG(
     schedule="@once",
     start_date=datetime(2022, 1, 1),
     catchup=False,
-    tags=["example"],
 ) as dag:
     test_context = sys_test_context_task()
     env_id = test_context["ENV_ID"]

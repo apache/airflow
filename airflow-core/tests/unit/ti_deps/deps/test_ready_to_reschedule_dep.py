@@ -24,10 +24,10 @@ import pytest
 import time_machine
 from slugify import slugify
 
+from airflow._shared.timezones import timezone
 from airflow.models.taskreschedule import TaskReschedule
 from airflow.ti_deps.dep_context import DepContext
 from airflow.ti_deps.deps.ready_to_reschedule import ReadyToRescheduleDep
-from airflow.utils import timezone
 from airflow.utils.session import create_session
 from airflow.utils.state import State
 
@@ -141,11 +141,6 @@ class TestNotInReschedulePeriodDep:
         ti = self._get_task_instance(State.UP_FOR_RESCHEDULE, map_index=42)
         dep_context = DepContext(ignore_in_reschedule_period=True)
         assert ReadyToRescheduleDep().is_met(ti=ti, dep_context=dep_context)
-
-    def test_mapped_task_should_pass_if_not_reschedule_mode(self, not_expected_tr_db_call):
-        ti = self._get_task_instance(State.UP_FOR_RESCHEDULE, map_index=42)
-        del ti.task.reschedule
-        assert ReadyToRescheduleDep().is_met(ti=ti)
 
     def test_mapped_task_should_pass_if_not_in_none_state(self, not_expected_tr_db_call):
         ti = self._get_task_instance(State.UP_FOR_RETRY, map_index=42)

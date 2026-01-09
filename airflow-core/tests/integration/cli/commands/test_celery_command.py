@@ -56,7 +56,7 @@ class TestWorkerServeLogs:
 
     @conf_vars({("core", "executor"): "CeleryExecutor"})
     @pytest.mark.parametrize(
-        "skip, expected",
+        ("skip", "expected"),
         [
             (True, ["bundle_cleanup_main"]),
             (False, ["serve_logs", "bundle_cleanup_main"]),

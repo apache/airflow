@@ -20,6 +20,7 @@ import json
 from unittest.mock import Mock, patch
 
 import pytest
+from keycloak import KeycloakPostError
 
 from airflow.api_fastapi.app import AUTH_MANAGER_FASTAPI_APP_PREFIX
 from airflow.api_fastapi.auth.managers.models.resource_details import (
@@ -34,9 +35,11 @@ from airflow.api_fastapi.auth.managers.models.resource_details import (
     PoolDetails,
     VariableDetails,
 )
-from airflow.exceptions import AirflowException
+from airflow.api_fastapi.common.types import MenuItem
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.keycloak.auth_manager.constants import (
     CONF_CLIENT_ID_KEY,
+    CONF_CLIENT_SECRET_KEY,
     CONF_REALM_KEY,
     CONF_SECTION_NAME,
     CONF_SERVER_URL_KEY,
@@ -55,6 +58,7 @@ def auth_manager():
     with conf_vars(
         {
             (CONF_SECTION_NAME, CONF_CLIENT_ID_KEY): "client_id",
+            (CONF_SECTION_NAME, CONF_CLIENT_SECRET_KEY): "client_secret",
             (CONF_SECTION_NAME, CONF_REALM_KEY): "realm",
             (CONF_SECTION_NAME, CONF_SERVER_URL_KEY): "server_url",
         }
@@ -66,6 +70,7 @@ def auth_manager():
 def user():
     user = Mock()
     user.access_token = "access_token"
+    user.refresh_token = "refresh_token"
     return user
 
 
@@ -101,8 +106,66 @@ class TestKeycloakAuthManager:
         result = auth_manager.get_url_login()
         assert result == f"{AUTH_MANAGER_FASTAPI_APP_PREFIX}/login"
 
+    def test_get_url_logout(self, auth_manager):
+        result = auth_manager.get_url_logout()
+        assert result == f"{AUTH_MANAGER_FASTAPI_APP_PREFIX}/logout"
+
+    @patch.object(KeycloakAuthManager, "_token_expired")
+    def test_refresh_user_not_expired(self, mock_token_expired, auth_manager):
+        mock_token_expired.return_value = False
+
+        result = auth_manager.refresh_user(user=Mock())
+
+        assert result is None
+
+    def test_refresh_user_no_refresh_token(self, auth_manager):
+        """Test that refresh_user returns None when refresh_token is empty (client_credentials case)."""
+        user_without_refresh = Mock()
+        user_without_refresh.refresh_token = None
+        user_without_refresh.access_token = "access_token"
+
+        result = auth_manager.refresh_user(user=user_without_refresh)
+
+        assert result is None
+
+    @patch.object(KeycloakAuthManager, "get_keycloak_client")
+    @patch.object(KeycloakAuthManager, "_token_expired")
+    def test_refresh_user_expired(self, mock_token_expired, mock_get_keycloak_client, auth_manager, user):
+        mock_token_expired.return_value = True
+        keycloak_client = Mock()
+        keycloak_client.refresh_token.return_value = {
+            "access_token": "new_access_token",
+            "refresh_token": "new_refresh_token",
+        }
+
+        mock_get_keycloak_client.return_value = keycloak_client
+
+        result = auth_manager.refresh_user(user=user)
+
+        keycloak_client.refresh_token.assert_called_with("refresh_token")
+        assert result.access_token == "new_access_token"
+        assert result.refresh_token == "new_refresh_token"
+
+    @patch.object(KeycloakAuthManager, "get_keycloak_client")
+    @patch.object(KeycloakAuthManager, "_token_expired")
+    def test_refresh_user_expired_with_invalid_token(
+        self, mock_token_expired, mock_get_keycloak_client, auth_manager, user
+    ):
+        mock_token_expired.return_value = True
+        keycloak_client = Mock()
+        keycloak_client.refresh_token.side_effect = KeycloakPostError(
+            response_code=400,
+            response_body=b'{"error":"invalid_grant","error_description":"Token is not active"}',
+        )
+
+        mock_get_keycloak_client.return_value = keycloak_client
+
+        assert auth_manager.refresh_user(user=user) is None
+
+        keycloak_client.refresh_token.assert_called_with("refresh_token")
+
     @pytest.mark.parametrize(
-        "function, method, details, permission, attributes",
+        ("function", "method", "details", "permission", "attributes"),
         [
             [
                 "is_authorized_configuration",
@@ -111,7 +174,7 @@ class TestKeycloakAuthManager:
                 "Configuration#GET",
                 {RESOURCE_ID_ATTRIBUTE_NAME: "test"},
             ],
-            ["is_authorized_configuration", "GET", None, "Configuration#GET", None],
+            ["is_authorized_configuration", "GET", None, "Configuration#LIST", None],
             [
                 "is_authorized_configuration",
                 "PUT",
@@ -126,7 +189,7 @@ class TestKeycloakAuthManager:
                 "Connection#DELETE",
                 {RESOURCE_ID_ATTRIBUTE_NAME: "test"},
             ],
-            ["is_authorized_connection", "GET", None, "Connection#GET", {}],
+            ["is_authorized_connection", "GET", None, "Connection#LIST", {}],
             [
                 "is_authorized_backfill",
                 "POST",
@@ -134,7 +197,7 @@ class TestKeycloakAuthManager:
                 "Backfill#POST",
                 {RESOURCE_ID_ATTRIBUTE_NAME: "1"},
             ],
-            ["is_authorized_backfill", "GET", None, "Backfill#GET", {}],
+            ["is_authorized_backfill", "GET", None, "Backfill#LIST", {}],
             [
                 "is_authorized_asset",
                 "GET",
@@ -142,7 +205,7 @@ class TestKeycloakAuthManager:
                 "Asset#GET",
                 {RESOURCE_ID_ATTRIBUTE_NAME: "test"},
             ],
-            ["is_authorized_asset", "GET", None, "Asset#GET", {}],
+            ["is_authorized_asset", "GET", None, "Asset#LIST", {}],
             [
                 "is_authorized_asset_alias",
                 "GET",
@@ -150,7 +213,7 @@ class TestKeycloakAuthManager:
                 "AssetAlias#GET",
                 {RESOURCE_ID_ATTRIBUTE_NAME: "test"},
             ],
-            ["is_authorized_asset_alias", "GET", None, "AssetAlias#GET", {}],
+            ["is_authorized_asset_alias", "GET", None, "AssetAlias#LIST", {}],
             [
                 "is_authorized_variable",
                 "PUT",
@@ -158,7 +221,7 @@ class TestKeycloakAuthManager:
                 "Variable#PUT",
                 {RESOURCE_ID_ATTRIBUTE_NAME: "test"},
             ],
-            ["is_authorized_variable", "GET", None, "Variable#GET", {}],
+            ["is_authorized_variable", "GET", None, "Variable#LIST", {}],
             [
                 "is_authorized_pool",
                 "POST",
@@ -166,20 +229,19 @@ class TestKeycloakAuthManager:
                 "Pool#POST",
                 {RESOURCE_ID_ATTRIBUTE_NAME: "test"},
             ],
-            ["is_authorized_pool", "GET", None, "Pool#GET", {}],
+            ["is_authorized_pool", "GET", None, "Pool#LIST", {}],
         ],
     )
     @pytest.mark.parametrize(
-        "status_code, expected",
+        ("status_code", "expected"),
         [
             [200, True],
+            [401, False],
             [403, False],
         ],
     )
-    @patch("airflow.providers.keycloak.auth_manager.keycloak_auth_manager.requests")
     def test_is_authorized(
         self,
-        mock_requests,
         function,
         method,
         details,
@@ -190,14 +252,18 @@ class TestKeycloakAuthManager:
         auth_manager,
         user,
     ):
-        mock_requests.post.return_value.status_code = status_code
+        mock_response = Mock()
+        mock_response.status_code = status_code
+        auth_manager.http_session.post = Mock(return_value=mock_response)
 
         result = getattr(auth_manager, function)(method=method, user=user, details=details)
 
         token_url = auth_manager._get_token_url("server_url", "realm")
         payload = auth_manager._get_payload("client_id", permission, attributes)
         headers = auth_manager._get_headers("access_token")
-        mock_requests.post.assert_called_once_with(token_url, data=payload, headers=headers)
+        auth_manager.http_session.post.assert_called_once_with(
+            token_url, data=payload, headers=headers, timeout=5
+        )
         assert result == expected
 
     @pytest.mark.parametrize(
@@ -213,11 +279,10 @@ class TestKeycloakAuthManager:
             "is_authorized_pool",
         ],
     )
-    @patch("airflow.providers.keycloak.auth_manager.keycloak_auth_manager.requests")
-    def test_is_authorized_failure(self, mock_requests, function, auth_manager, user):
+    def test_is_authorized_failure(self, function, auth_manager, user):
         resp = Mock()
         resp.status_code = 500
-        mock_requests.post.return_value = resp
+        auth_manager.http_session.post = Mock(return_value=resp)
 
         with pytest.raises(AirflowException) as e:
             getattr(auth_manager, function)(method="GET", user=user)
@@ -237,12 +302,11 @@ class TestKeycloakAuthManager:
             "is_authorized_pool",
         ],
     )
-    @patch("airflow.providers.keycloak.auth_manager.keycloak_auth_manager.requests")
-    def test_is_authorized_invalid_request(self, mock_requests, function, auth_manager, user):
+    def test_is_authorized_invalid_request(self, function, auth_manager, user):
         resp = Mock()
         resp.status_code = 400
         resp.text = json.dumps({"error": "invalid_scope", "error_description": "Invalid scopes: GET"})
-        mock_requests.post.return_value = resp
+        auth_manager.http_session.post = Mock(return_value=resp)
 
         with pytest.raises(AirflowException) as e:
             getattr(auth_manager, function)(method="GET", user=user)
@@ -250,13 +314,13 @@ class TestKeycloakAuthManager:
         assert "Request not recognized by Keycloak. invalid_scope. Invalid scopes: GET" in str(e.value)
 
     @pytest.mark.parametrize(
-        "method, access_entity, details, permission, attributes",
+        ("method", "access_entity", "details", "permission", "attributes"),
         [
             [
                 "GET",
                 None,
                 None,
-                "Dag#GET",
+                "Dag#LIST",
                 {},
             ],
             [
@@ -277,22 +341,20 @@ class TestKeycloakAuthManager:
                 "GET",
                 DagAccessEntity.TASK_INSTANCE,
                 None,
-                "Dag#GET",
+                "Dag#LIST",
                 {"dag_entity": "TASK_INSTANCE"},
             ],
         ],
     )
     @pytest.mark.parametrize(
-        "status_code, expected",
+        ("status_code", "expected"),
         [
             [200, True],
             [403, False],
         ],
     )
-    @patch("airflow.providers.keycloak.auth_manager.keycloak_auth_manager.requests")
     def test_is_authorized_dag(
         self,
-        mock_requests,
         method,
         access_entity,
         details,
@@ -303,7 +365,9 @@ class TestKeycloakAuthManager:
         auth_manager,
         user,
     ):
-        mock_requests.post.return_value.status_code = status_code
+        mock_response = Mock()
+        mock_response.status_code = status_code
+        auth_manager.http_session.post = Mock(return_value=mock_response)
 
         result = auth_manager.is_authorized_dag(
             method=method, user=user, access_entity=access_entity, details=details
@@ -312,26 +376,28 @@ class TestKeycloakAuthManager:
         token_url = auth_manager._get_token_url("server_url", "realm")
         payload = auth_manager._get_payload("client_id", permission, attributes)
         headers = auth_manager._get_headers("access_token")
-        mock_requests.post.assert_called_once_with(token_url, data=payload, headers=headers)
+        auth_manager.http_session.post.assert_called_once_with(
+            token_url, data=payload, headers=headers, timeout=5
+        )
         assert result == expected
 
     @pytest.mark.parametrize(
-        "status_code, expected",
+        ("status_code", "expected"),
         [
             [200, True],
             [403, False],
         ],
     )
-    @patch("airflow.providers.keycloak.auth_manager.keycloak_auth_manager.requests")
     def test_is_authorized_view(
         self,
-        mock_requests,
         status_code,
         expected,
         auth_manager,
         user,
     ):
-        mock_requests.post.return_value.status_code = status_code
+        mock_response = Mock()
+        mock_response.status_code = status_code
+        auth_manager.http_session.post = Mock(return_value=mock_response)
 
         result = auth_manager.is_authorized_view(access_view=AccessView.CLUSTER_ACTIVITY, user=user)
 
@@ -340,34 +406,148 @@ class TestKeycloakAuthManager:
             "client_id", "View#GET", {RESOURCE_ID_ATTRIBUTE_NAME: "CLUSTER_ACTIVITY"}
         )
         headers = auth_manager._get_headers("access_token")
-        mock_requests.post.assert_called_once_with(token_url, data=payload, headers=headers)
+        auth_manager.http_session.post.assert_called_once_with(
+            token_url, data=payload, headers=headers, timeout=5
+        )
         assert result == expected
 
     @pytest.mark.parametrize(
-        "status_code, expected",
+        ("status_code", "expected"),
         [
             [200, True],
             [403, False],
         ],
     )
-    @patch("airflow.providers.keycloak.auth_manager.keycloak_auth_manager.requests")
     def test_is_authorized_custom_view(
         self,
-        mock_requests,
         status_code,
         expected,
         auth_manager,
         user,
     ):
-        mock_requests.post.return_value.status_code = status_code
+        mock_response = Mock()
+        mock_response.status_code = status_code
+        auth_manager.http_session.post = Mock(return_value=mock_response)
 
         result = auth_manager.is_authorized_custom_view(method="GET", resource_name="test", user=user)
 
         token_url = auth_manager._get_token_url("server_url", "realm")
         payload = auth_manager._get_payload("client_id", "Custom#GET", {RESOURCE_ID_ATTRIBUTE_NAME: "test"})
         headers = auth_manager._get_headers("access_token")
-        mock_requests.post.assert_called_once_with(token_url, data=payload, headers=headers)
+        auth_manager.http_session.post.assert_called_once_with(
+            token_url, data=payload, headers=headers, timeout=5
+        )
         assert result == expected
+
+    @pytest.mark.parametrize(
+        ("status_code", "response", "expected"),
+        [
+            [
+                200,
+                [{"scopes": ["MENU"], "rsname": "Assets"}, {"scopes": ["MENU"], "rsname": "Connections"}],
+                {MenuItem.ASSETS, MenuItem.CONNECTIONS},
+            ],
+            [200, [{"scopes": ["MENU"], "rsname": "Assets"}], {MenuItem.ASSETS}],
+            [200, [], set()],
+            [403, [{"scopes": ["MENU"], "rsname": "Assets"}], set()],
+        ],
+    )
+    def test_filter_authorized_menu_items(self, status_code, response, expected, auth_manager, user):
+        mock_response = Mock()
+        mock_response.status_code = status_code
+        mock_response.json.return_value = response
+        auth_manager.http_session.post = Mock(return_value=mock_response)
+        menu_items = [MenuItem.ASSETS, MenuItem.CONNECTIONS]
+
+        result = auth_manager.filter_authorized_menu_items(menu_items, user=user)
+
+        token_url = auth_manager._get_token_url("server_url", "realm")
+        payload = auth_manager._get_batch_payload(
+            "client_id", [("MENU", MenuItem.ASSETS.value), ("MENU", MenuItem.CONNECTIONS.value)]
+        )
+        headers = auth_manager._get_headers("access_token")
+        auth_manager.http_session.post.assert_called_once_with(
+            token_url, data=payload, headers=headers, timeout=5
+        )
+        assert set(result) == expected
+
+    @pytest.mark.parametrize(
+        "status_code",
+        [400, 500],
+    )
+    def test_filter_authorized_menu_items_with_failure(self, status_code, auth_manager, user):
+        resp = Mock()
+        resp.status_code = status_code
+        resp.text = json.dumps({})
+        auth_manager.http_session.post = Mock(return_value=resp)
+
+        menu_items = [MenuItem.ASSETS, MenuItem.CONNECTIONS]
+
+        with pytest.raises(AirflowException):
+            auth_manager.filter_authorized_menu_items(menu_items, user=user)
+
+        token_url = auth_manager._get_token_url("server_url", "realm")
+        payload = auth_manager._get_batch_payload(
+            "client_id", [("MENU", MenuItem.ASSETS.value), ("MENU", MenuItem.CONNECTIONS.value)]
+        )
+        headers = auth_manager._get_headers("access_token")
+        auth_manager.http_session.post.assert_called_once_with(
+            token_url, data=payload, headers=headers, timeout=5
+        )
 
     def test_get_cli_commands_return_cli_commands(self, auth_manager):
         assert len(auth_manager.get_cli_commands()) == 1
+
+    @pytest.mark.parametrize(
+        ("expiration", "expected"),
+        [
+            (-30, True),
+            (30, False),
+        ],
+    )
+    def test_token_expired(self, auth_manager, expiration, expected):
+        token = auth_manager._get_token_signer(expiration_time_in_seconds=expiration).generate({})
+
+        assert KeycloakAuthManager._token_expired(token) is expected
+
+    @pytest.mark.parametrize(
+        ("client_id", "client_secret"),
+        [
+            ("test_client", None),
+            (None, "test_secret"),
+        ],
+    )
+    def test_get_keycloak_client_with_partial_credentials_raises_error(
+        self, auth_manager, client_id, client_secret
+    ):
+        """Test that providing only client_id or only client_secret raises ValueError."""
+        with pytest.raises(
+            ValueError, match="Both `client_id` and `client_secret` must be provided together"
+        ):
+            auth_manager.get_keycloak_client(client_id=client_id, client_secret=client_secret)
+
+    @patch("airflow.providers.keycloak.auth_manager.keycloak_auth_manager.KeycloakOpenID")
+    def test_get_keycloak_client_with_both_credentials(self, mock_keycloak_openid, auth_manager):
+        """Test that providing both client_id and client_secret works correctly."""
+        client = auth_manager.get_keycloak_client(client_id="test_client", client_secret="test_secret")
+
+        mock_keycloak_openid.assert_called_once_with(
+            server_url="server_url",
+            realm_name="realm",
+            client_id="test_client",
+            client_secret_key="test_secret",
+        )
+        assert client == mock_keycloak_openid.return_value
+
+    @patch("airflow.providers.keycloak.auth_manager.keycloak_auth_manager.KeycloakOpenID")
+    def test_get_keycloak_client_with_no_credentials(self, mock_keycloak_openid, auth_manager):
+        """Test that providing neither credential uses config defaults."""
+        client = auth_manager.get_keycloak_client()
+
+        mock_keycloak_openid.assert_called_once_with(
+            server_url="server_url",
+            realm_name="realm",
+            client_id="client_id",
+            client_secret_key="client_secret",
+        )
+        assert client == mock_keycloak_openid.return_value

@@ -401,6 +401,7 @@ class TestGCSTimeSpanFileTransformOperator:
             data_interval_start=timespan_start,
             data_interval_end=timespan_end,
             ti=mock_ti,
+            task=mock.MagicMock(),
         )
 
         mock_tempdir.return_value.__enter__.side_effect = [source, destination]
@@ -581,6 +582,7 @@ class TestGCSTimeSpanFileTransformOperator:
             data_interval_start=timespan_start,
             data_interval_end=timespan_end,
             ti=mock.Mock(),
+            task=mock.MagicMock(),
         )
 
         mock_tempdir.return_value.__enter__.side_effect = ["source", destination]

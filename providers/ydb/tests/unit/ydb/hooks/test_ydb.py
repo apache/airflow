@@ -16,10 +16,24 @@
 # under the License.
 from __future__ import annotations
 
+import pytest
+
+ydb = pytest.importorskip("ydb")
+
 from unittest.mock import PropertyMock, patch
 
 from airflow.models import Connection
 from airflow.providers.ydb.hooks.ydb import YDBHook
+
+try:
+    import importlib.util
+
+    if not importlib.util.find_spec("airflow.sdk.bases.hook"):
+        raise ImportError
+
+    BASEHOOK_PATCH_PATH = "airflow.sdk.bases.hook.BaseHook"
+except ImportError:
+    BASEHOOK_PATCH_PATH = "airflow.hooks.base.BaseHook"
 
 
 class FakeDriver:
@@ -56,7 +70,7 @@ class FakeYDBCursor:
         return 1
 
 
-@patch("airflow.hooks.base.BaseHook.get_connection")
+@patch(f"{BASEHOOK_PATCH_PATH}.get_connection")
 @patch("ydb.Driver")
 @patch("ydb.QuerySessionPool")
 @patch("ydb_dbapi.Connection._cursor_cls", new_callable=PropertyMock)

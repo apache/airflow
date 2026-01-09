@@ -16,13 +16,12 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, Field, HStack, Input, Spacer, Textarea } from "@chakra-ui/react";
+import { Box, Button, Field, HStack, Input, Spacer, Textarea } from "@chakra-ui/react";
 import { Controller, useForm } from "react-hook-form";
 import { useTranslation } from "react-i18next";
 import { FiSave } from "react-icons/fi";
 
 import { ErrorAlert } from "src/components/ErrorAlert";
-import { Button } from "src/components/ui";
 import { Checkbox } from "src/components/ui/Checkbox";
 
 export type PoolBody = {
@@ -41,7 +40,7 @@ type PoolFormProps = {
 };
 
 const PoolForm = ({ error, initialPool, isPending, manageMutate, setError }: PoolFormProps) => {
-  const { t: translate } = useTranslation("admin");
+  const { t: translate } = useTranslation(["admin", "common"]);
   const {
     control,
     formState: { isDirty, isValid },
@@ -87,7 +86,17 @@ const PoolForm = ({ error, initialPool, isPending, manageMutate, setError }: Poo
         render={({ field }) => (
           <Field.Root mt={4}>
             <Field.Label fontSize="md">{translate("pools.form.slots")}</Field.Label>
-            <Input {...field} min={initialPool.slots} size="sm" type="number" />
+            <Input
+              min={initialPool.slots}
+              onChange={(event) => {
+                const value = event.target.valueAsNumber;
+
+                field.onChange(isNaN(value) ? field.value : value);
+              }}
+              size="sm"
+              type="number"
+              value={field.value}
+            />
           </Field.Root>
         )}
       />
@@ -109,7 +118,7 @@ const PoolForm = ({ error, initialPool, isPending, manageMutate, setError }: Poo
         render={({ field }) => (
           <Field.Root mb={4} mt={4}>
             <Field.Label fontSize="md">{translate("pools.form.includeDeferred")}</Field.Label>
-            <Checkbox checked={field.value} colorPalette="blue" onChange={field.onChange} size="sm">
+            <Checkbox checked={field.value} colorPalette="brand" onChange={field.onChange} size="sm">
               {translate("pools.form.checkbox")}
             </Checkbox>
           </Field.Root>
@@ -122,13 +131,13 @@ const PoolForm = ({ error, initialPool, isPending, manageMutate, setError }: Poo
         <HStack w="full">
           {isDirty ? (
             <Button onClick={handleReset} variant="outline">
-              {translate("formActions.reset")}
+              {translate("common:reset")}
             </Button>
           ) : undefined}
           <Spacer />
           <Button
-            colorPalette="blue"
-            disabled={!isValid || isPending}
+            colorPalette="brand"
+            disabled={!isValid || isPending || !isDirty}
             onClick={() => void handleSubmit(onSubmit)()}
           >
             <FiSave /> {translate("formActions.save")}

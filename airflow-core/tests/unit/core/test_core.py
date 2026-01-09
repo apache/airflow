@@ -17,22 +17,17 @@
 # under the License.
 from __future__ import annotations
 
-import contextlib
 from datetime import timedelta
-from time import sleep
 
 import pytest
 
-from airflow.exceptions import AirflowTaskTimeout
-from airflow.models import TaskInstance
-from airflow.models.baseoperator import BaseOperator
-from airflow.providers.standard.operators.bash import BashOperator
+from airflow._shared.timezones.timezone import datetime
 from airflow.providers.standard.operators.empty import EmptyOperator
-from airflow.providers.standard.operators.python import PythonOperator
-from airflow.utils.timezone import datetime
+from airflow.sdk import BaseOperator
 from airflow.utils.types import DagRunType
 
 from tests_common.test_utils.db import clear_db_dags, clear_db_runs
+from tests_common.test_utils.taskinstance import get_template_context
 
 pytestmark = pytest.mark.db_test
 
@@ -49,8 +44,15 @@ class TestCore:
         self.clean_db()
 
     def test_dryrun(self, dag_maker):
+        class TemplateFieldOperator(BaseOperator):
+            template_fields = ["bash_command"]
+
+            def __init__(self, bash_command, **kwargs):
+                self.bash_command = bash_command
+                super().__init__(**kwargs)
+
         with dag_maker():
-            op = BashOperator(task_id="test_dryrun", bash_command="echo success")
+            op = TemplateFieldOperator(task_id="test_dryrun", bash_command="echo success")
         dag_maker.create_dagrun()
         op.dry_run()
 
@@ -69,29 +71,12 @@ class TestCore:
         with pytest.raises(AttributeError, match=error_message):
             op.dry_run()
 
-    def test_timeout(self, dag_maker):
-        def sleep_and_catch_other_exceptions():
-            with contextlib.suppress(Exception):
-                # Catching Exception should NOT catch AirflowTaskTimeout
-                sleep(5)
-
-        with dag_maker(serialized=True):
-            op = PythonOperator(
-                task_id="test_timeout",
-                execution_timeout=timedelta(seconds=1),
-                python_callable=sleep_and_catch_other_exceptions,
-            )
-        dag_maker.create_dagrun()
-        with pytest.raises(AirflowTaskTimeout):
-            op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
-
     def test_dag_params_and_task_params(self, dag_maker):
         # This test case guards how params of DAG and Operator work together.
         # - If any key exists in either DAG's or Operator's params,
         #   it is guaranteed to be available eventually.
         # - If any key exists in both DAG's params and Operator's params,
         #   the latter has precedence.
-        TI = TaskInstance
 
         with dag_maker(
             schedule=timedelta(weeks=1),
@@ -103,17 +88,13 @@ class TestCore:
                 params={"key_2": "value_2_new", "key_3": "value_3"},
             )
             task2 = EmptyOperator(task_id="task2")
-        dr = dag_maker.create_dagrun(
-            run_type=DagRunType.SCHEDULED,
-        )
-        task1.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
-        task2.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
-        ti1 = TI(task=task1, run_id=dr.run_id)
-        ti2 = TI(task=task2, run_id=dr.run_id)
-        ti1.refresh_from_db()
-        ti2.refresh_from_db()
-        context1 = ti1.get_template_context()
-        context2 = ti2.get_template_context()
+        dr = dag_maker.create_dagrun(run_type=DagRunType.SCHEDULED)
+        ti1 = dag_maker.run_ti(task1.task_id, dr)
+        ti2 = dag_maker.run_ti(task2.task_id, dr)
+        ti1.dag_run = ti2.dag_run = dr
+
+        context1 = get_template_context(ti1, task1)
+        context2 = get_template_context(ti2, task2)
 
         assert context1["params"] == {"key_1": "value_1", "key_2": "value_2_new", "key_3": "value_3"}
         assert context2["params"] == {"key_1": "value_1", "key_2": "value_2_old"}

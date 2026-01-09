@@ -98,7 +98,9 @@ def job_trigger():
         ssl_ca_cert=SSL_CA_CERT,
         job_name=JOB_NAME,
         job_namespace=NAMESPACE,
-        pod_name=POD_NAME,
+        pod_names=[
+            POD_NAME,
+        ],
         pod_namespace=NAMESPACE,
         base_container_name=BASE_CONTAINER_NAME,
         gcp_conn_id=GCP_CONN_ID,
@@ -198,14 +200,14 @@ class TestGKEStartPodTrigger:
         mock_hook.get_pod.return_value = self._mock_pod_result(mock.MagicMock())
         mock_method.return_value = ContainerState.WAITING
 
-        caplog.set_level(logging.INFO)
+        caplog.set_level(logging.DEBUG)
 
         task = asyncio.create_task(trigger.run().__anext__())
         await asyncio.sleep(0.5)
 
         assert not task.done()
-        assert "Container is not completed and still working."
-        assert f"Sleeping for {POLL_INTERVAL} seconds."
+        assert "Container is not completed and still working." in caplog.text
+        assert f"Sleeping for {POLL_INTERVAL} seconds." in caplog.text
 
     @pytest.mark.asyncio
     @mock.patch(f"{TRIGGER_KUB_POD_PATH}._wait_for_pod_start")
@@ -217,14 +219,14 @@ class TestGKEStartPodTrigger:
         mock_hook.get_pod.return_value = self._mock_pod_result(mock.MagicMock())
         mock_method.return_value = ContainerState.RUNNING
 
-        caplog.set_level(logging.INFO)
+        caplog.set_level(logging.DEBUG)
 
         task = asyncio.create_task(trigger.run().__anext__())
         await asyncio.sleep(0.5)
 
         assert not task.done()
-        assert "Container is not completed and still working."
-        assert f"Sleeping for {POLL_INTERVAL} seconds."
+        assert "Container is not completed and still working." in caplog.text
+        assert f"Sleeping for {POLL_INTERVAL} seconds." in caplog.text
 
     @pytest.mark.asyncio
     @mock.patch(f"{TRIGGER_KUB_POD_PATH}._wait_for_pod_start")
@@ -263,10 +265,10 @@ class TestGKEStartPodTrigger:
 
         generator = trigger.run()
         await generator.asend(None)
-        assert "Container logs:"
+        assert "Waiting until 120s to get the POD scheduled..." in caplog.text
 
     @pytest.mark.parametrize(
-        "container_state, expected_state",
+        ("container_state", "expected_state"),
         [
             (
                 {"running": k8s.V1ContainerStateRunning(), "terminated": None, "waiting": None},
@@ -328,7 +330,6 @@ def async_get_operation_result():
     return func
 
 
-@pytest.mark.db_test
 class TestGKEOperationTrigger:
     def test_serialize(self, operation_trigger):
         classpath, trigger_init_kwargs = operation_trigger.serialize()
@@ -446,8 +447,8 @@ class TestGKEOperationTrigger:
         await asyncio.sleep(0.5)
 
         assert not task.done()
-        assert "Operation is still running."
-        assert f"Sleeping for {POLL_INTERVAL}s..."
+        assert "Operation is still running." in caplog.text
+        assert f"Sleeping for {POLL_INTERVAL}s..." in caplog.text
 
     @pytest.mark.asyncio
     @mock.patch(f"{TRIGGER_PATH}._get_hook")
@@ -469,8 +470,8 @@ class TestGKEOperationTrigger:
         await asyncio.sleep(0.5)
 
         assert not task.done()
-        assert "Operation is still running."
-        assert f"Sleeping for {POLL_INTERVAL}s..."
+        assert "Operation is still running." in caplog.text
+        assert f"Sleeping for {POLL_INTERVAL}s..." in caplog.text
 
 
 class TestGKEStartJobTrigger:
@@ -483,7 +484,9 @@ class TestGKEStartJobTrigger:
             "ssl_ca_cert": SSL_CA_CERT,
             "job_name": JOB_NAME,
             "job_namespace": NAMESPACE,
-            "pod_name": POD_NAME,
+            "pod_names": [
+                POD_NAME,
+            ],
             "pod_namespace": NAMESPACE,
             "base_container_name": BASE_CONTAINER_NAME,
             "gcp_conn_id": GCP_CONN_ID,
@@ -522,7 +525,9 @@ class TestGKEStartJobTrigger:
             {
                 "name": JOB_NAME,
                 "namespace": NAMESPACE,
-                "pod_name": POD_NAME,
+                "pod_names": [
+                    POD_NAME,
+                ],
                 "pod_namespace": NAMESPACE,
                 "status": "success",
                 "message": "Job completed successfully",
@@ -560,7 +565,9 @@ class TestGKEStartJobTrigger:
             {
                 "name": JOB_NAME,
                 "namespace": NAMESPACE,
-                "pod_name": POD_NAME,
+                "pod_names": [
+                    POD_NAME,
+                ],
                 "pod_namespace": NAMESPACE,
                 "status": "error",
                 "message": "Job failed with error: Error",

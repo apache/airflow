@@ -17,22 +17,17 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
-
 from fastapi import Depends, HTTPException, status
 from sqlalchemy.sql import select
 
-from airflow.api_fastapi.common.dagbag import DagBagDep
+from airflow.api_fastapi.common.dagbag import DagBagDep, get_dag_for_run_or_latest_version
 from airflow.api_fastapi.common.db.common import SessionDep
 from airflow.api_fastapi.common.router import AirflowRouter
 from airflow.api_fastapi.core_api.datamodels.extra_links import ExtraLinkCollectionResponse
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
 from airflow.api_fastapi.core_api.security import DagAccessEntity, requires_access_dag
 from airflow.exceptions import TaskNotFound
-
-if TYPE_CHECKING:
-    from airflow.models import DAG
-
+from airflow.models import DagRun
 
 extra_links_router = AirflowRouter(
     tags=["Extra Links"], prefix="/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/links"
@@ -56,9 +51,9 @@ def get_extra_links(
     """Get extra links for task instance."""
     from airflow.models.taskinstance import TaskInstance
 
-    dag: DAG = dag_bag.get_dag(dag_id)
-    if not dag:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, f"DAG with ID = {dag_id} not found")
+    dag_run = session.scalar(select(DagRun).where(DagRun.dag_id == dag_id, DagRun.run_id == dag_run_id))
+
+    dag = get_dag_for_run_or_latest_version(dag_bag, dag_run, dag_id, session)
 
     try:
         task = dag.get_task(task_id)

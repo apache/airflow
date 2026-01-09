@@ -30,6 +30,8 @@ from airflow.providers.apache.spark.operators.spark_submit import SparkSubmitOpe
 from airflow.utils import timezone
 from airflow.utils.types import DagRunType
 
+from tests_common.test_utils.dag import sync_dag_to_db
+from tests_common.test_utils.taskinstance import create_task_instance, render_template_fields
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
 DEFAULT_DATE = timezone.datetime(2017, 1, 1)
@@ -194,11 +196,16 @@ class TestSparkSubmitOperator:
         assert operator2.queue == "default"  # airflow queue
 
     @pytest.mark.db_test
-    def test_render_template(self, session):
+    def test_render_template(self, session, testing_dag_bundle):
         # Given
         operator = SparkSubmitOperator(task_id="spark_submit_job", dag=self.dag, **self._config)
-        ti = TaskInstance(operator, run_id="spark_test")
+
         if AIRFLOW_V_3_0_PLUS:
+            from airflow.models.dag_version import DagVersion
+
+            sync_dag_to_db(self.dag)
+            dag_version = DagVersion.get_latest_version(operator.dag_id)
+            ti = create_task_instance(operator, run_id="spark_test", dag_version_id=dag_version.id)
             ti.dag_run = DagRun(
                 dag_id=self.dag.dag_id,
                 run_id="spark_test",
@@ -209,6 +216,7 @@ class TestSparkSubmitOperator:
                 state="running",
             )
         else:
+            ti = TaskInstance(operator, run_id="spark_test")
             ti.dag_run = DagRun(
                 dag_id=self.dag.dag_id,
                 run_id="spark_test",
@@ -220,7 +228,7 @@ class TestSparkSubmitOperator:
         session.add(ti)
         session.commit()
         # When
-        ti.render_templates()
+        render_template_fields(ti, operator)
 
         # Then
         expected_application_args = [
@@ -267,8 +275,7 @@ class TestSparkSubmitOperator:
         )
         session.add(ti)
         session.commit()
-        ti.render_templates()
-        task: SparkSubmitOperator = ti.task
+        task = ti.render_templates()
         assert task.application == "application"
         assert task.conf == "conf"
         assert task.files == "files"
@@ -460,7 +467,10 @@ class TestSparkSubmitOperator:
             )
             operator.execute(MagicMock())
 
-            assert "OpenLineage transport type `console` does not support automatic injection of OpenLineage transport information into Spark properties."
+            assert (
+                "OpenLineage transport type `console` does not support automatic injection of OpenLineage transport information into Spark properties."
+                in caplog.text
+            )
         assert operator.conf == {
             "parquet.compression": "SNAPPY",
         }

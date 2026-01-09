@@ -17,10 +17,14 @@
 
 from __future__ import annotations
 
+from typing import cast
+
 from fastapi import HTTPException, status
+from fastapi.exceptions import RequestValidationError
 from pydantic import ValidationError
 from sqlalchemy import select
 
+from airflow.api_fastapi.common.db.common import SessionDep
 from airflow.api_fastapi.core_api.datamodels.common import (
     BulkActionNotOnExistence,
     BulkActionOnExistence,
@@ -34,6 +38,55 @@ from airflow.api_fastapi.core_api.datamodels.variables import (
 )
 from airflow.api_fastapi.core_api.services.public.common import BulkService
 from airflow.models.variable import Variable
+
+
+def update_orm_from_pydantic(
+    variable_key: str, patch_body: VariableBody, update_mask: list[str] | None, session: SessionDep
+) -> Variable:
+    """
+    Update an existing Variable.
+
+    :param variable_key: The name of the existing Variable_key to update.
+    :param patch_body: The patch request body containing fields to update.
+    :param update_mask: List of fields to update. If None, all provided fields will be updated.
+    :param session: The database session dependency.
+    :return: The updated Variable object.
+    :raises HTTPException: If attempting to update restricted fields (e.g., ``key``).
+    """
+    # Key field is immutable → cannot be patched
+
+    if patch_body.key != variable_key:
+        raise HTTPException(
+            status.HTTP_400_BAD_REQUEST, "Invalid body, key from request body doesn't match uri parameter"
+        )
+    old_variable = session.scalar(select(Variable).filter_by(key=variable_key).limit(1))
+    if not old_variable:
+        raise HTTPException(
+            status.HTTP_404_NOT_FOUND, f"The Variable with key: `{variable_key}` was not found"
+        )
+
+    try:
+        VariableBody(**patch_body.model_dump())
+    except ValidationError as e:
+        raise RequestValidationError(errors=e.errors())
+    non_update_fields = {"key"}
+
+    if patch_body.key != old_variable.key:
+        raise HTTPException(
+            status.HTTP_400_BAD_REQUEST,
+            "Invalid body, key from request body doesn't match uri parameter",
+        )
+
+    # Apply patch via utility
+    return cast(
+        "Variable",
+        BulkService.apply_patch_with_update_mask(
+            model=old_variable,
+            patch_body=patch_body,
+            update_mask=update_mask,
+            non_update_fields=non_update_fields,
+        ),
+    )
 
 
 class BulkVariableService(BulkService[VariableBody]):
@@ -81,7 +134,6 @@ class BulkVariableService(BulkService[VariableBody]):
         """Bulk Update variables."""
         to_update_keys = {variable.key for variable in action.entities}
         matched_keys, not_found_keys = self.categorize_keys(to_update_keys)
-
         try:
             if action.action_on_non_existence == BulkActionNotOnExistence.FAIL and not_found_keys:
                 raise HTTPException(
@@ -94,14 +146,13 @@ class BulkVariableService(BulkService[VariableBody]):
                 update_keys = to_update_keys
 
             for variable in action.entities:
-                if variable.key in update_keys:
-                    old_variable = self.session.scalar(select(Variable).filter_by(key=variable.key).limit(1))
-                    VariableBody(**variable.model_dump())
-                    data = variable.model_dump(exclude={"key"}, by_alias=True)
+                if variable.key not in update_keys:
+                    continue
+                updated_variable = update_orm_from_pydantic(
+                    variable.key, variable, action.update_mask, self.session
+                )
 
-                    for key, val in data.items():
-                        setattr(old_variable, key, val)
-                    results.success.append(variable.key)
+                results.success.append(updated_variable.key)
 
         except HTTPException as e:
             results.errors.append({"error": f"{e.detail}", "status_code": e.status_code})

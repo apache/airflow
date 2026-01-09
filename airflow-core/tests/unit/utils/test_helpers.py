@@ -25,7 +25,8 @@ import pytest
 
 from airflow.exceptions import AirflowException
 from airflow.jobs.base_job_runner import BaseJobRunner
-from airflow.utils import helpers, timezone
+from airflow.serialization.definitions.notset import NOTSET
+from airflow.utils import helpers
 from airflow.utils.helpers import (
     at_most_one,
     build_airflow_dagrun_url,
@@ -34,12 +35,13 @@ from airflow.utils.helpers import (
     prune_dict,
     validate_key,
 )
-from airflow.utils.types import NOTSET
 
 from tests_common.test_utils.db import clear_db_dags, clear_db_runs
 
 if TYPE_CHECKING:
     from airflow.jobs.job import Job
+
+CHUNK_SIZE_POSITIVE_INT = "Chunk size must be a positive integer"
 
 
 @pytest.fixture
@@ -52,29 +54,11 @@ def clear_db():
 
 
 class TestHelpers:
-    @pytest.mark.db_test
-    @pytest.mark.usefixtures("clear_db")
-    def test_render_log_filename(self, create_task_instance):
-        try_number = 1
-        dag_id = "test_render_log_filename_dag"
-        task_id = "test_render_log_filename_task"
-        logical_date = timezone.datetime(2016, 1, 1)
-
-        ti = create_task_instance(dag_id=dag_id, task_id=task_id, logical_date=logical_date)
-        filename_template = "{{ ti.dag_id }}/{{ ti.task_id }}/{{ ts }}/{{ try_number }}.log"
-
-        ts = ti.get_template_context()["ts"]
-        expected_filename = f"{dag_id}/{task_id}/{ts}/{try_number}.log"
-
-        rendered_filename = helpers.render_log_filename(ti, try_number, filename_template)
-
-        assert rendered_filename == expected_filename
-
     def test_chunks(self):
-        with pytest.raises(ValueError):
+        with pytest.raises(ValueError, match=CHUNK_SIZE_POSITIVE_INT):
             list(helpers.chunks([1, 2, 3], 0))
 
-        with pytest.raises(ValueError):
+        with pytest.raises(ValueError, match=CHUNK_SIZE_POSITIVE_INT):
             list(helpers.chunks([1, 2, 3], -3))
 
         assert list(helpers.chunks([], 5)) == []
@@ -135,7 +119,7 @@ class TestHelpers:
         assert build_airflow_dagrun_url(dag_id="somedag", run_id="abc123") == expected_url
 
     @pytest.mark.parametrize(
-        "key_id, message, exception",
+        ("key_id", "message", "exception"),
         [
             (3, "The key has to be a string and is <class 'int'>:3", TypeError),
             (None, "The key has to be a string and is <class 'NoneType'>:None", TypeError),
@@ -187,7 +171,7 @@ class TestHelpers:
             assert_exactly_one(*row)
 
     def test_exactly_one_should_fail(self):
-        with pytest.raises(ValueError):
+        with pytest.raises(ValueError, match="Not supported for iterable args"):
             exactly_one([True, False])
 
     def test_at_most_one(self):
@@ -219,7 +203,7 @@ class TestHelpers:
             assert_at_most_one(*row)
 
     @pytest.mark.parametrize(
-        "mode, expected",
+        ("mode", "expected"),
         [
             (
                 "strict",

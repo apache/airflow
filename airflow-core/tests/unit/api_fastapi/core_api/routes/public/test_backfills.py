@@ -24,17 +24,21 @@ import pendulum
 import pytest
 from sqlalchemy import and_, func, select
 
-from airflow.models import DagBag, DagModel, DagRun
+from airflow._shared.timezones import timezone
+from airflow.dag_processing.dagbag import DagBag
+from airflow.models import DagModel, DagRun
 from airflow.models.backfill import Backfill, BackfillDagRun, ReprocessBehavior, _create_backfill
 from airflow.models.dag import DAG
+from airflow.models.dagbundle import DagBundleModel
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.providers.standard.operators.python import PythonOperator
-from airflow.utils import timezone
 from airflow.utils.session import provide_session
 from airflow.utils.state import DagRunState
 
+from tests_common.test_utils.asserts import assert_queries_count
 from tests_common.test_utils.db import (
     clear_db_backfills,
+    clear_db_dag_bundles,
     clear_db_dags,
     clear_db_logs,
     clear_db_runs,
@@ -55,6 +59,7 @@ def _clean_db():
     clear_db_backfills()
     clear_db_runs()
     clear_db_dags()
+    clear_db_dag_bundles()
     clear_db_serialized_dags()
     clear_db_logs()
 
@@ -92,10 +97,16 @@ def to_iso(val):
 class TestBackfillEndpoint:
     @provide_session
     def _create_dag_models(self, *, count=1, dag_id_prefix="TEST_DAG", is_paused=False, session=None):
+        bundle_name = "dags-folder"
+        orm_dag_bundle = DagBundleModel(name=bundle_name)
+        session.add(orm_dag_bundle)
+        session.flush()
+
         dags = []
         for num in range(1, count + 1):
             dag_model = DagModel(
                 dag_id=f"{dag_id_prefix}_{num}",
+                bundle_name=bundle_name,
                 fileloc=f"/tmp/dag_{num}.py",
                 is_stale=False,
                 timetable_summary="0 0 * * *",
@@ -114,7 +125,10 @@ class TestListBackfills(TestBackfillEndpoint):
         b = Backfill(dag_id=dag.dag_id, from_date=from_date, to_date=to_date)
         session.add(b)
         session.commit()
-        response = test_client.get(f"/backfills?dag_id={dag.dag_id}")
+
+        with assert_queries_count(2):
+            response = test_client.get(f"/backfills?dag_id={dag.dag_id}")
+
         assert response.status_code == 200
         assert response.json() == {
             "backfills": [
@@ -180,7 +194,7 @@ class TestGetBackfill(TestBackfillEndpoint):
 
 class TestCreateBackfill(TestBackfillEndpoint):
     @pytest.mark.parametrize(
-        "repro_act, repro_exp",
+        ("repro_act", "repro_exp"),
         [
             (None, ReprocessBehavior.NONE),
             ("none", ReprocessBehavior.NONE),
@@ -191,7 +205,7 @@ class TestCreateBackfill(TestBackfillEndpoint):
     def test_create_backfill(self, repro_act, repro_exp, session, dag_maker, test_client):
         with dag_maker(session=session, dag_id="TEST_DAG_1", schedule="0 * * * *") as dag:
             EmptyOperator(task_id="mytask")
-        session.query(DagModel).all()
+        session.scalars(select(DagModel)).all()
         session.commit()
         from_date = pendulum.parse("2024-01-01")
         from_date_iso = to_iso(from_date)
@@ -230,7 +244,7 @@ class TestCreateBackfill(TestBackfillEndpoint):
         check_last_log(session, dag_id="TEST_DAG_1", event="create_backfill", logical_date=None)
 
     def test_dag_not_exist(self, session, test_client):
-        session.query(DagModel).all()
+        session.scalars(select(DagModel)).all()
         session.commit()
         from_date = pendulum.parse("2024-01-01")
         from_date_iso = to_iso(from_date)
@@ -256,7 +270,7 @@ class TestCreateBackfill(TestBackfillEndpoint):
     def test_no_schedule_dag(self, session, dag_maker, test_client):
         with dag_maker(session=session, dag_id="TEST_DAG_1", schedule="None") as dag:
             EmptyOperator(task_id="mytask")
-        session.query(DagModel).all()
+        session.scalars(select(DagModel)).all()
         session.commit()
         from_date = pendulum.parse("2024-01-01")
         from_date_iso = to_iso(from_date)
@@ -280,7 +294,7 @@ class TestCreateBackfill(TestBackfillEndpoint):
         assert response.json().get("detail") == f"{dag.dag_id} has no schedule"
 
     @pytest.mark.parametrize(
-        "repro_act, repro_exp, run_backwards, status_code",
+        ("repro_act", "repro_exp", "run_backwards", "status_code"),
         [
             ("none", ReprocessBehavior.NONE, False, 422),
             ("completed", ReprocessBehavior.COMPLETED, False, 200),
@@ -292,7 +306,7 @@ class TestCreateBackfill(TestBackfillEndpoint):
     ):
         with dag_maker(session=session, dag_id="TEST_DAG_1", schedule="0 * * * *") as dag:
             EmptyOperator(task_id="mytask", depends_on_past=True)
-        session.query(DagModel).all()
+        session.scalars(select(DagModel)).all()
         session.commit()
         from_date = pendulum.parse("2024-01-01")
         from_date_iso = to_iso(from_date)
@@ -336,7 +350,7 @@ class TestCreateBackfill(TestBackfillEndpoint):
     def test_create_backfill_future_dates(self, session, dag_maker, test_client, run_backwards):
         with dag_maker(session=session, dag_id="TEST_DAG_1", schedule="0 * * * *") as dag:
             EmptyOperator(task_id="mytask")
-        session.query(DagModel).all()
+        session.scalars(select(DagModel)).all()
         session.commit()
         from_date = timezone.utcnow() + timedelta(days=1)
         to_date = timezone.utcnow() + timedelta(days=1)
@@ -367,7 +381,7 @@ class TestCreateBackfill(TestBackfillEndpoint):
     def test_create_backfill_past_future_dates(self, session, dag_maker, test_client, run_backwards):
         with dag_maker(session=session, dag_id="TEST_DAG_1", schedule="@daily") as dag:
             EmptyOperator(task_id="mytask")
-        session.query(DagModel).all()
+        session.scalars(select(DagModel)).all()
         session.commit()
         from_date = timezone.utcnow() - timedelta(days=2)
         to_date = timezone.utcnow() + timedelta(days=1)
@@ -394,7 +408,7 @@ class TestCreateBackfill(TestBackfillEndpoint):
 
     # todo: AIP-83 amendment must fix
     @pytest.mark.parametrize(
-        "reprocess_behavior, expected_dates",
+        ("reprocess_behavior", "expected_dates"),
         [
             (
                 "none",
@@ -529,7 +543,7 @@ class TestCreateBackfill(TestBackfillEndpoint):
     def test_should_respond_401(self, unauthenticated_test_client, dag_maker, session):
         with dag_maker(session=session, dag_id="TEST_DAG_1", schedule="0 * * * *") as dag:
             EmptyOperator(task_id="mytask")
-        session.query(DagModel).all()
+        session.scalars(select(DagModel)).all()
         session.commit()
         from_date = pendulum.parse("2024-01-01")
         from_date_iso = to_iso(from_date)
@@ -550,7 +564,7 @@ class TestCreateBackfill(TestBackfillEndpoint):
     def test_should_respond_403(self, unauthorized_test_client, dag_maker, session):
         with dag_maker(session=session, dag_id="TEST_DAG_1", schedule="0 * * * *") as dag:
             EmptyOperator(task_id="mytask")
-        session.query(DagModel).all()
+        session.scalars(select(DagModel)).all()
         session.commit()
         from_date = pendulum.parse("2024-01-01")
         from_date_iso = to_iso(from_date)
@@ -571,7 +585,7 @@ class TestCreateBackfill(TestBackfillEndpoint):
 
 class TestCreateBackfillDryRun(TestBackfillEndpoint):
     @pytest.mark.parametrize(
-        "reprocess_behavior, expected_dates",
+        ("reprocess_behavior", "expected_dates"),
         [
             (
                 "none",
@@ -656,7 +670,7 @@ class TestCreateBackfillDryRun(TestBackfillEndpoint):
         assert response_json["backfills"] == expected_dates
 
     @pytest.mark.parametrize(
-        "repro_act, repro_exp, run_backwards, status_code",
+        ("repro_act", "repro_exp", "run_backwards", "status_code"),
         [
             ("none", ReprocessBehavior.NONE, False, 422),
             ("completed", ReprocessBehavior.COMPLETED, False, 200),
@@ -668,7 +682,7 @@ class TestCreateBackfillDryRun(TestBackfillEndpoint):
     ):
         with dag_maker(session=session, dag_id="TEST_DAG_1", schedule="0 * * * *") as dag:
             EmptyOperator(task_id="mytask", depends_on_past=True)
-        session.query(DagModel).all()
+        session.scalars(select(DagModel)).all()
         session.commit()
         from_date = pendulum.parse("2024-01-01")
         from_date_iso = to_iso(from_date)
@@ -752,6 +766,7 @@ class TestCancelBackfill(TestBackfillEndpoint):
             max_active_runs=2,
             reverse=False,
             dag_run_conf={},
+            triggering_user_name="test_user",
         )
         query = (
             select(DagRun)

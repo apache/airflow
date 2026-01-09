@@ -39,26 +39,28 @@ class BeamPipelineBaseTrigger(BaseTrigger):
     @staticmethod
     async def provide_gcs_tempfile(gcs_file, gcp_conn_id):
         try:
-            from airflow.providers.google.cloud.hooks.gcs import GCSHook
+            from airflow.providers.google.cloud.hooks.gcs import GCSAsyncHook
         except ImportError:
             from airflow.exceptions import AirflowOptionalProviderFeatureException
 
             raise AirflowOptionalProviderFeatureException(
-                "Failed to import GCSHook. To use the GCSHook functionality, please install the "
+                "Failed to import GCSAsyncHook. To use the GCSAsyncHook functionality, please install the "
                 "apache-airflow-google-provider."
             )
 
-        gcs_hook = GCSHook(gcp_conn_id=gcp_conn_id)
+        async_gcs_hook = GCSAsyncHook(gcp_conn_id=gcp_conn_id)
+        sync_gcs_hook = await async_gcs_hook.get_sync_hook()
+
         loop = asyncio.get_running_loop()
 
         # Running synchronous `enter_context()` method in a separate
         # thread using the default executor `None`. The `run_in_executor()` function returns the
         # file object, which is created using gcs function `provide_file()`, asynchronously.
         # This means we can perform asynchronous operations with this file.
-        create_tmp_file_call = gcs_hook.provide_file(object_url=gcs_file)
+        create_tmp_file_call = sync_gcs_hook.provide_file(object_url=gcs_file)
         tmp_gcs_file: IO[str] = await loop.run_in_executor(
             None,
-            contextlib.ExitStack().enter_context,  # type: ignore[arg-type]
+            contextlib.ExitStack().enter_context,
             create_tmp_file_call,
         )
         return tmp_gcs_file
@@ -126,7 +128,7 @@ class BeamPythonPipelineTrigger(BeamPipelineBaseTrigger):
             },
         )
 
-    async def run(self) -> AsyncIterator[TriggerEvent]:  # type: ignore[override]
+    async def run(self) -> AsyncIterator[TriggerEvent]:
         """Get current pipeline status and yields a TriggerEvent."""
         hook = self._get_async_hook(runner=self.runner)
 
@@ -201,7 +203,7 @@ class BeamJavaPipelineTrigger(BeamPipelineBaseTrigger):
             },
         )
 
-    async def run(self) -> AsyncIterator[TriggerEvent]:  # type: ignore[override]
+    async def run(self) -> AsyncIterator[TriggerEvent]:
         """Get current Java pipeline status and yields a TriggerEvent."""
         hook = self._get_async_hook(runner=self.runner)
         return_code = 0

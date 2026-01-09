@@ -16,12 +16,13 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Flex, Link } from "@chakra-ui/react";
+import { Flex, Link, Box } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 import { Link as RouterLink } from "react-router-dom";
 
 import type { PoolResponse } from "openapi/requests/types.gen";
 import { Tooltip } from "src/components/ui";
+import { SearchParamsKeys } from "src/constants/searchParams";
 import { type Slots, slotConfigs } from "src/utils/slots";
 
 export const PoolBar = ({
@@ -53,14 +54,13 @@ export const PoolBar = ({
             <Flex
               alignItems="center"
               bg={`${color}.solid`}
-              color="white"
-              flex={flexValue}
+              color={`${color}.contrast`}
               gap={1}
               h="100%"
               justifyContent="center"
               px={1}
-              py={0.5}
               textAlign="center"
+              w="100%"
             >
               {icon}
               {slotValue}
@@ -69,11 +69,17 @@ export const PoolBar = ({
         );
 
         return color !== "success" && "name" in pool ? (
-          <Link asChild key={key}>
-            <RouterLink to={`/task_instances?state=${color}&pool=${pool.name}`}>{poolContent}</RouterLink>
+          <Link asChild display="flex" flex={flexValue} key={key}>
+            <RouterLink
+              to={`/task_instances?${SearchParamsKeys.STATE}=${color}&${SearchParamsKeys.POOL}=${pool.name}`}
+            >
+              {poolContent}
+            </RouterLink>
           </Link>
         ) : (
-          poolContent
+          <Box display="flex" flex={flexValue} key={key}>
+            {poolContent}
+          </Box>
         );
       })}
     </>

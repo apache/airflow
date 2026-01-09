@@ -17,14 +17,12 @@
 from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
-from typing import Any, Optional, Union
+from typing import Any
 
 from flask import Response
 
-APIResponse = Union[
-    Response,
-    tuple[object, int],  # For '(NoContent, 201)'.
-    Mapping[str, Any],  # JSON.
-]
+# tuple[object, int] For '(NoContent, 201)'.
+# Mapping[str, Any] for json
+APIResponse = Response | tuple[object, int] | Mapping[str, Any]
 
-UpdateMask = Optional[Sequence[str]]
+UpdateMask = Sequence[str] | None

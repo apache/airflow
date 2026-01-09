@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Accordion, Box, Field } from "@chakra-ui/react";
+import { Box, Field } from "@chakra-ui/react";
 import { type Control, type FieldValues, type Path, Controller } from "react-hook-form";
 import { useTranslation } from "react-i18next";
 
@@ -25,6 +25,7 @@ import { useParamStore } from "src/queries/useParamStore";
 
 import { FlexibleForm, flexibleFormDefaultSection } from "./FlexibleForm";
 import { JsonEditor } from "./JsonEditor";
+import { Accordion } from "./ui";
 
 type ConfigFormProps<T extends FieldValues = FieldValues> = {
   readonly children?: React.ReactNode;
@@ -84,6 +85,7 @@ const ConfigForm = <T extends FieldValues = FieldValues>({
       collapsible
       defaultValue={[flexibleFormDefaultSection]}
       mb={4}
+      overflow="visible"
       size="lg"
       variant="enclosed"
     >

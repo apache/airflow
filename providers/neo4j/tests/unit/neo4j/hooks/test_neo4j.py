@@ -26,7 +26,7 @@ from airflow.providers.neo4j.hooks.neo4j import Neo4jHook
 
 class TestNeo4jHookConn:
     @pytest.mark.parametrize(
-        "conn_extra, expected_uri",
+        ("conn_extra", "expected_uri"),
         [
             ({}, "bolt://host:7687"),
             ({"neo4j_scheme": False}, "bolt://host:7687"),
@@ -80,6 +80,32 @@ class TestNeo4jHookConn:
             assert op_result == session.run.return_value.data.return_value
 
     @mock.patch("airflow.providers.neo4j.hooks.neo4j.GraphDatabase")
+    def test_run_with_schema_and_params(self, mock_graph_database):
+        connection = Connection(
+            conn_type="neo4j", login="login", password="password", host="host", schema="schema"
+        )
+        mock_sql = mock.MagicMock(name="sql")
+        mock_parameters = mock.MagicMock(name="parameters")
+
+        # Use the environment variable mocking to test saving the configuration as a URI and
+        # to avoid mocking Airflow models class
+        with mock.patch.dict("os.environ", AIRFLOW_CONN_NEO4J_DEFAULT=connection.get_uri()):
+            neo4j_hook = Neo4jHook()
+            op_result = neo4j_hook.run(mock_sql, mock_parameters)
+            mock_graph_database.assert_has_calls(
+                [
+                    mock.call.driver("bolt://host:7687", auth=("login", "password"), encrypted=False),
+                    mock.call.driver().session(database="schema"),
+                    mock.call.driver().session().__enter__(),
+                    mock.call.driver().session().__enter__().run(mock_sql, mock_parameters),
+                    mock.call.driver().session().__enter__().run().data(),
+                    mock.call.driver().session().__exit__(None, None, None),
+                ]
+            )
+            session = mock_graph_database.driver.return_value.session.return_value.__enter__.return_value
+            assert op_result == session.run.return_value.data.return_value
+
+    @mock.patch("airflow.providers.neo4j.hooks.neo4j.GraphDatabase")
     def test_run_without_schema(self, mock_graph_database):
         connection = Connection(
             conn_type="neo4j", login="login", password="password", host="host", schema=None
@@ -104,8 +130,34 @@ class TestNeo4jHookConn:
             session = mock_graph_database.driver.return_value.session.return_value.__enter__.return_value
             assert op_result == session.run.return_value.data.return_value
 
+    @mock.patch("airflow.providers.neo4j.hooks.neo4j.GraphDatabase")
+    def test_run_without_schema_and_params(self, mock_graph_database):
+        connection = Connection(
+            conn_type="neo4j", login="login", password="password", host="host", schema=None
+        )
+        mock_sql = mock.MagicMock(name="sql")
+        mock_parameters = mock.MagicMock(name="parameters")
+
+        # Use the environment variable mocking to test saving the configuration as a URI and
+        # to avoid mocking Airflow models class
+        with mock.patch.dict("os.environ", AIRFLOW_CONN_NEO4J_DEFAULT=connection.get_uri()):
+            neo4j_hook = Neo4jHook()
+            op_result = neo4j_hook.run(mock_sql, mock_parameters)
+            mock_graph_database.assert_has_calls(
+                [
+                    mock.call.driver("bolt://host:7687", auth=("login", "password"), encrypted=False),
+                    mock.call.driver().session(),
+                    mock.call.driver().session().__enter__(),
+                    mock.call.driver().session().__enter__().run(mock_sql, mock_parameters),
+                    mock.call.driver().session().__enter__().run().data(),
+                    mock.call.driver().session().__exit__(None, None, None),
+                ]
+            )
+            session = mock_graph_database.driver.return_value.session.return_value.__enter__.return_value
+            assert op_result == session.run.return_value.data.return_value
+
     @pytest.mark.parametrize(
-        "conn_extra, should_provide_encrypted, expected_encrypted",
+        ("conn_extra", "should_provide_encrypted", "expected_encrypted"),
         [
             ({}, True, False),
             ({"neo4j_scheme": False, "encrypted": True}, True, True),

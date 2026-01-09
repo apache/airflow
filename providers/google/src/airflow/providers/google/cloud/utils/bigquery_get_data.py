@@ -23,9 +23,9 @@ from google.cloud.bigquery.table import Row, RowIterator
 
 if TYPE_CHECKING:
     from collections.abc import Iterator
-    from logging import Logger
 
     from airflow.providers.google.cloud.hooks.bigquery import BigQueryHook
+    from airflow.sdk.types import Logger
 
 
 def bigquery_get_data(

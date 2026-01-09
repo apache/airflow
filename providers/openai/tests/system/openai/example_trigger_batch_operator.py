@@ -18,7 +18,11 @@ from __future__ import annotations
 
 from typing import Any, Literal
 
-from airflow.decorators import dag, task
+try:
+    from airflow.sdk import dag, task
+except ImportError:
+    # Airflow 2 path
+    from airflow.decorators import dag, task  # type: ignore[attr-defined,no-redef]
 
 OPENAI_CONN_ID = "openai_default"
 

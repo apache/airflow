@@ -21,7 +21,11 @@ from __future__ import annotations
 import os
 from datetime import datetime
 
-from airflow.decorators import task
+try:
+    from airflow.sdk import task
+except ImportError:
+    # Airflow 2 path
+    from airflow.decorators import task  # type: ignore[attr-defined,no-redef]
 from airflow.models import DAG
 from airflow.providers.sftp.sensors.sftp import SFTPSensor
 from airflow.providers.ssh.operators.ssh import SSHOperator
@@ -46,8 +50,8 @@ with DAG(
     tags=["example", "sftp"],
 ) as dag:
     # [START howto_operator_sftp_sensor_decorator]
-    @task.sftp_sensor(  # type: ignore[attr-defined]
-        task_id="sftp_sensor",  # type: ignore[attr-defined]
+    @task.sftp_sensor(
+        task_id="sftp_sensor",
         path=FULL_FILE_PATH,
         poke_interval=10,
     )

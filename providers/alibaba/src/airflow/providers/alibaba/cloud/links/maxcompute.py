@@ -18,19 +18,12 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from airflow.providers.alibaba.version_compat import AIRFLOW_V_3_0_PLUS
+from airflow.providers.common.compat.sdk import BaseOperatorLink, XCom
 
 if TYPE_CHECKING:
-    from airflow.models import BaseOperator
     from airflow.models.taskinstancekey import TaskInstanceKey
-    from airflow.utils.context import Context
-
-if AIRFLOW_V_3_0_PLUS:
-    from airflow.sdk import BaseOperatorLink
-    from airflow.sdk.execution_time.xcom import XCom
-else:
-    from airflow.models.baseoperatorlink import BaseOperatorLink  # type: ignore[no-redef]
-    from airflow.models.xcom import XCom  # type: ignore[no-redef]
+    from airflow.providers.common.compat.sdk import BaseOperator
+    from airflow.sdk import Context
 
 
 class MaxComputeLogViewLink(BaseOperatorLink):
@@ -54,18 +47,15 @@ class MaxComputeLogViewLink(BaseOperatorLink):
     @staticmethod
     def persist(
         context: Context,
-        task_instance: BaseOperator,
         log_view_url: str,
     ):
         """
         Persist the log view URL to XCom for later retrieval.
 
         :param context: The context of the task instance.
-        :param task_instance: The task instance.
         :param log_view_url: The log view URL to persist.
         """
-        task_instance.xcom_push(
-            context,
+        context["task_instance"].xcom_push(
             key=MaxComputeLogViewLink.key,
             value=log_view_url,
         )

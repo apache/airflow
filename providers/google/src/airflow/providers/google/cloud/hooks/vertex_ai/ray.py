@@ -20,10 +20,10 @@
 from __future__ import annotations
 
 import dataclasses
+from collections.abc import MutableMapping
 from typing import Any
 
 import vertex_ray
-from google._upb._message import ScalarMapContainer  # type: ignore[attr-defined]
 from google.cloud import aiplatform
 from google.cloud.aiplatform.vertex_ray.util import resources
 from google.cloud.aiplatform_v1 import (
@@ -50,9 +50,9 @@ class RayHook(GoogleBaseHook):
         def __encode_value(value: Any) -> Any:
             if isinstance(value, (list, Repeated)):
                 return [__encode_value(nested_value) for nested_value in value]
-            if isinstance(value, ScalarMapContainer):
+            if not isinstance(value, dict) and isinstance(value, MutableMapping):
                 return {key: __encode_value(nested_value) for key, nested_value in dict(value).items()}
-            if dataclasses.is_dataclass(value):
+            if dataclasses.is_dataclass(value) and not isinstance(value, type):
                 return dataclasses.asdict(value)
             return value
 

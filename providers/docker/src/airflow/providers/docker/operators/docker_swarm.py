@@ -27,16 +27,12 @@ from typing import TYPE_CHECKING, Literal
 from docker import types
 from docker.errors import APIError
 
-from airflow.exceptions import AirflowException
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.docker.operators.docker import DockerOperator
 from airflow.utils.strings import get_random_string
 
 if TYPE_CHECKING:
-    try:
-        from airflow.sdk.definitions.context import Context
-    except ImportError:
-        # TODO: Remove once provider drops support for Airflow 2
-        from airflow.utils.context import Context
+    from airflow.providers.common.compat.sdk import Context
 
 
 class DockerSwarmOperator(DockerOperator):
@@ -218,9 +214,8 @@ class DockerSwarmOperator(DockerOperator):
         if self.service and self._service_status() == "complete":
             self.tasks = self.cli.tasks(filters={"service": self.service["ID"]})
             for task in self.tasks:
-                container_id = task["Status"]["ContainerStatus"]["ContainerID"]
-                container = self.cli.inspect_container(container_id)
-                self.containers.append(container)
+                docker_service = self.cli.inspect_service(task["ServiceID"])
+                self.containers.append(docker_service)
 
         if self.retrieve_output:
             return self._attempt_to_retrieve_results()

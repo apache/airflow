@@ -20,38 +20,17 @@ from __future__ import annotations
 import datetime
 import os
 from collections.abc import Sequence
-from dataclasses import dataclass
 from functools import cached_property
 from glob import glob
 from typing import TYPE_CHECKING, Any
 
-from airflow.configuration import conf
-from airflow.exceptions import AirflowException
+from airflow.providers.common.compat.sdk import AirflowException, BaseSensorOperator, conf
 from airflow.providers.standard.hooks.filesystem import FSHook
 from airflow.providers.standard.triggers.file import FileTrigger
-from airflow.sensors.base import BaseSensorOperator
-
-try:
-    from airflow.triggers.base import StartTriggerArgs
-except ImportError:
-    # TODO: Remove this when min airflow version is 2.10.0 for standard provider
-    @dataclass
-    class StartTriggerArgs:  # type: ignore[no-redef]
-        """Arguments required for start task execution from triggerer."""
-
-        trigger_cls: str
-        next_method: str
-        trigger_kwargs: dict[str, Any] | None = None
-        next_kwargs: dict[str, Any] | None = None
-        timeout: datetime.timedelta | None = None
-
+from airflow.triggers.base import StartTriggerArgs
 
 if TYPE_CHECKING:
-    try:
-        from airflow.sdk.definitions.context import Context
-    except ImportError:
-        # TODO: Remove once provider drops support for Airflow 2
-        from airflow.utils.context import Context
+    from airflow.sdk import Context
 
 
 class FileSensor(BaseSensorOperator):

@@ -28,7 +28,7 @@ from google.cloud.speech_v1 import (
     SpeechRecognitionResult,
 )
 
-from airflow.exceptions import AirflowException
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.google.cloud.operators.translate_speech import CloudTranslateSpeechOperator
 
 GCP_CONN_ID = "google_cloud_default"

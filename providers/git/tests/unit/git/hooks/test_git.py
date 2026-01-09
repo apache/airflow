@@ -22,15 +22,11 @@ import os
 import pytest
 from git import Repo
 
-from airflow.exceptions import AirflowException
 from airflow.models import Connection
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.git.hooks.git import GitHook
-from airflow.utils import db
 
 from tests_common.test_utils.config import conf_vars
-from tests_common.test_utils.db import clear_db_connections
-
-pytestmark = pytest.mark.db_test
 
 
 @pytest.fixture(autouse=True)
@@ -42,10 +38,13 @@ def bundle_temp_dir(tmp_path):
 GIT_DEFAULT_BRANCH = "main"
 
 AIRFLOW_HTTPS_URL = "https://github.com/apache/airflow.git"
+AIRFLOW_HTTP_URL = "http://github.com/apache/airflow.git"
 AIRFLOW_GIT = "git@github.com:apache/airflow.git"
 ACCESS_TOKEN = "my_access_token"
 CONN_DEFAULT = "git_default"
 CONN_HTTPS = "my_git_conn"
+CONN_HTTP = "my_git_conn_http"
+CONN_HTTP_NO_AUTH = "my_git_conn_http_no_auth"
 CONN_ONLY_PATH = "my_git_conn_only_path"
 CONN_ONLY_INLINE_KEY = "my_git_conn_only_inline_key"
 CONN_BOTH_PATH_INLINE = "my_git_conn_both_path_inline"
@@ -68,11 +67,12 @@ def git_repo(tmp_path_factory):
 class TestGitHook:
     @classmethod
     def teardown_class(cls) -> None:
-        clear_db_connections()
+        return
 
-    @classmethod
-    def setup_class(cls) -> None:
-        db.merge_conn(
+    # TODO: Potential performance issue, converted setup_class to a setup_connections function level fixture
+    @pytest.fixture(autouse=True)
+    def setup_connections(self, create_connection_without_db):
+        create_connection_without_db(
             Connection(
                 conn_id=CONN_DEFAULT,
                 host=AIRFLOW_GIT,
@@ -80,7 +80,7 @@ class TestGitHook:
                 extra='{"key_file": "/files/pkey.pem"}',
             )
         )
-        db.merge_conn(
+        create_connection_without_db(
             Connection(
                 conn_id=CONN_HTTPS,
                 host=AIRFLOW_HTTPS_URL,
@@ -88,14 +88,29 @@ class TestGitHook:
                 conn_type="git",
             )
         )
-        db.merge_conn(
+        create_connection_without_db(
+            Connection(
+                conn_id=CONN_HTTP,
+                host=AIRFLOW_HTTP_URL,
+                password=ACCESS_TOKEN,
+                conn_type="git",
+            )
+        )
+        create_connection_without_db(
+            Connection(
+                conn_id=CONN_HTTP_NO_AUTH,
+                host=AIRFLOW_HTTP_URL,
+                conn_type="git",
+            )
+        )
+        create_connection_without_db(
             Connection(
                 conn_id=CONN_ONLY_PATH,
                 host="path/to/repo",
                 conn_type="git",
             )
         )
-        db.merge_conn(
+        create_connection_without_db(
             Connection(
                 conn_id=CONN_ONLY_INLINE_KEY,
                 host="path/to/repo",
@@ -107,7 +122,7 @@ class TestGitHook:
         )
 
     @pytest.mark.parametrize(
-        "conn_id, hook_kwargs, expected_repo_url",
+        ("conn_id", "hook_kwargs", "expected_repo_url"),
         [
             (CONN_DEFAULT, {}, AIRFLOW_GIT),
             (CONN_HTTPS, {}, f"https://user:{ACCESS_TOKEN}@github.com/apache/airflow.git"),
@@ -116,6 +131,18 @@ class TestGitHook:
                 {"repo_url": "https://github.com/apache/zzzairflow"},
                 f"https://user:{ACCESS_TOKEN}@github.com/apache/zzzairflow",
             ),
+            (CONN_HTTP, {}, f"http://user:{ACCESS_TOKEN}@github.com/apache/airflow.git"),
+            (
+                CONN_HTTP,
+                {"repo_url": "http://github.com/apache/zzzairflow"},
+                f"http://user:{ACCESS_TOKEN}@github.com/apache/zzzairflow",
+            ),
+            (CONN_HTTP_NO_AUTH, {}, AIRFLOW_HTTP_URL),
+            (
+                CONN_HTTP_NO_AUTH,
+                {"repo_url": "http://github.com/apache/zzzairflow"},
+                "http://github.com/apache/zzzairflow",
+            ),
             (CONN_ONLY_PATH, {}, "path/to/repo"),
         ],
     )
@@ -123,13 +150,13 @@ class TestGitHook:
         hook = GitHook(git_conn_id=conn_id, **hook_kwargs)
         assert hook.repo_url == expected_repo_url
 
-    def test_env_var_with_configure_hook_env(self, session):
+    def test_env_var_with_configure_hook_env(self, create_connection_without_db):
         default_hook = GitHook(git_conn_id=CONN_DEFAULT)
         with default_hook.configure_hook_env():
             assert default_hook.env == {
                 "GIT_SSH_COMMAND": "ssh -i /files/pkey.pem -o IdentitiesOnly=yes -o StrictHostKeyChecking=no"
             }
-        db.merge_conn(
+        create_connection_without_db(
             Connection(
                 conn_id="my_git_conn_strict",
                 host=AIRFLOW_GIT,
@@ -144,8 +171,8 @@ class TestGitHook:
                 "GIT_SSH_COMMAND": "ssh -i /files/pkey.pem -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes"
             }
 
-    def test_given_both_private_key_and_key_file(self):
-        db.merge_conn(
+    def test_given_both_private_key_and_key_file(self, create_connection_without_db):
+        create_connection_without_db(
             Connection(
                 conn_id=CONN_BOTH_PATH_INLINE,
                 host="path/to/repo",

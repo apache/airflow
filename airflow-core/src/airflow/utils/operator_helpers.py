@@ -18,8 +18,8 @@
 from __future__ import annotations
 
 import inspect
-from collections.abc import Collection, Mapping
-from typing import Any, Callable, TypeVar
+from collections.abc import Callable, Collection, Mapping
+from typing import Any, TypeVar
 
 R = TypeVar("R")
 

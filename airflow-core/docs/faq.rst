@@ -20,7 +20,7 @@
 FAQ
 ========
 
-Scheduling / DAG file parsing
+Scheduling / Dag file parsing
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Why is task not getting scheduled?
@@ -29,25 +29,25 @@ Why is task not getting scheduled?
 There are very many reasons why your task might not be getting scheduled. Here are some of the common causes:
 
 - Does your script "compile", can the Airflow engine parse it and find your
-  DAG object? To test this, you can run ``airflow dags list`` and
-  confirm that your DAG shows up in the list. You can also run
+  Dag object? To test this, you can run ``airflow dags list`` and
+  confirm that your Dag shows up in the list. You can also run
   ``airflow dags show foo_dag_id`` and confirm that your task
   shows up in the graphviz format as expected. If you use the CeleryExecutor, you
   may want to confirm that this works both where the scheduler runs as well
   as where the worker runs.
 
-- Does the file containing your DAG contain the string "airflow" and "DAG" somewhere
-  in the contents? When searching the DAG directory, Airflow ignores files not containing
-  "airflow" and "DAG" in order to prevent the DagBag parsing from importing all python
-  files collocated with user's dags.
+- Does the file containing your Dag contain the string ``airflow`` and ``DAG`` somewhere
+  in the contents? When searching the Dag directory, Airflow ignores files not containing
+  ``airflow`` and ``DAG`` in order to prevent the DagBag parsing from importing all python
+  files collocated with user's Dags.
 
-- Is your ``start_date`` set properly? For time-based dags, the task won't be triggered until the
+- Is your ``start_date`` set properly? For time-based Dags, the task won't be triggered until the
   the first schedule interval following the start date has passed.
 
 - Is your ``schedule`` argument set properly? The default
   is one day (``datetime.timedelta(1)``). You must specify a different ``schedule``
-  directly to the DAG object you instantiate, not as a ``default_param``, as task instances
-  do not override their parent DAG's ``schedule``.
+  directly to the Dag object you instantiate, not as a ``default_param``, as task instances
+  do not override their parent Dag's ``schedule``.
 
 - Is your ``start_date`` beyond where you can see it in the UI? If you
   set your ``start_date`` to some time say 3 months ago, you won't be able to see
@@ -65,26 +65,26 @@ There are very many reasons why your task might not be getting scheduled. Here a
   page for your task.
 
 - Are the DagRuns you need created and active? A DagRun represents a specific
-  execution of an entire DAG and has a state (running, success, failed, ...).
+  execution of an entire Dag and has a state (running, success, failed, ...).
   The scheduler creates new DagRun as it moves forward, but never goes back
   in time to create new ones. The scheduler only evaluates ``running`` DagRuns
   to see what task instances it can trigger. Note that clearing tasks
   instances (from the UI or CLI) does set the state of a DagRun back to
   running. You can bulk view the list of DagRuns and alter states by clicking
-  on the schedule tag for a DAG.
+  on the schedule tag for a Dag.
 
-- Is the ``concurrency`` parameter of your DAG reached? ``concurrency`` defines
-  how many ``running`` task instances a DAG is allowed to have, beyond which
+- Is the ``concurrency`` parameter of your Dag reached? ``concurrency`` defines
+  how many ``running`` task instances a Dag is allowed to have, beyond which
   point things get queued.
 
-- Is the ``max_active_runs`` parameter of your DAG reached? ``max_active_runs`` defines
-  how many ``running`` concurrent instances of a DAG there are allowed to be.
+- Is the ``max_active_runs`` parameter of your Dag reached? ``max_active_runs`` defines
+  how many ``running`` concurrent instances of a Dag there are allowed to be.
 
 You may also want to read about the :ref:`scheduler` and make
 sure you fully understand how the scheduler cycle.
 
 
-How to improve DAG performance?
+How to improve Dag performance?
 -------------------------------
 
 There are some Airflow configuration to allow for a larger scheduling capacity and frequency:
@@ -107,10 +107,10 @@ Operators or tasks also have configurations that improves efficiency and schedul
 - ``queue``: See :ref:`apache-airflow-providers-celery:celery_executor:queue` for CeleryExecutor deployments only.
 
 
-How to reduce DAG scheduling latency / task delay?
+How to reduce Dag scheduling latency / task delay?
 --------------------------------------------------
 
-Airflow 2.0 has low DAG scheduling latency out of the box (particularly when compared with Airflow 1.10.x),
+Airflow 2.0 has low Dag scheduling latency out of the box (particularly when compared with Airflow 1.10.x),
 however, if you need more throughput you can :ref:`start multiple schedulers<scheduler:ha>`.
 
 
@@ -121,14 +121,14 @@ You can achieve this with :ref:`concepts:trigger-rules`.
 
 .. _faq:how-to-control-dag-file-parsing-timeout:
 
-How to control DAG file parsing timeout for different DAG files?
+How to control Dag file parsing timeout for different Dag files?
 ----------------------------------------------------------------
 
 (only valid for Airflow >= 2.3.0)
 
 You can add a ``get_dagbag_import_timeout`` function in your ``airflow_local_settings.py`` which gets
-called right before a DAG file is parsed. You can return different timeout value based on the DAG file.
-When the return value is less than or equal to 0, it means no timeout during the DAG parsing.
+called right before a Dag file is parsed. You can return different timeout value based on the Dag file.
+When the return value is less than or equal to 0, it means no timeout during the Dag parsing.
 
 .. code-block:: python
    :caption: airflow_local_settings.py
@@ -136,12 +136,12 @@ When the return value is less than or equal to 0, it means no timeout during the
 
     def get_dagbag_import_timeout(dag_file_path: str) -> Union[int, float]:
         """
-        This setting allows to dynamically control the DAG file parsing timeout.
+        This setting allows to dynamically control the Dag file parsing timeout.
 
-        It is useful when there are a few DAG files requiring longer parsing times, while others do not.
-        You can control them separately instead of having one value for all DAG files.
+        It is useful when there are a few Dag files requiring longer parsing times, while others do not.
+        You can control them separately instead of having one value for all Dag files.
 
-        If the return value is less than or equal to 0, it means no timeout during the DAG parsing.
+        If the return value is less than or equal to 0, it means no timeout during the Dag parsing.
         """
         if "slow" in dag_file_path:
             return 90
@@ -155,19 +155,19 @@ configure local settings.
 
 
 
-When there are a lot (>1000) of DAG files, how to speed up parsing of new files?
+When there are a lot (>1000) of Dag files, how to speed up parsing of new files?
 ---------------------------------------------------------------------------------
 
 Change the :ref:`config:dag_processor__file_parsing_sort_mode` to ``modified_time``, raise
 the :ref:`config:dag_processor__min_file_process_interval` to ``600`` (10 minutes), ``6000`` (100 minutes)
 or a higher value.
 
-The DAG parser will skip the ``min_file_process_interval`` check if a file is recently modified.
+The Dag parser will skip the ``min_file_process_interval`` check if a file is recently modified.
 
-This might not work for case where the DAG is imported/created from a separate file. Example:
-``dag_file.py`` that imports ``dag_loader.py`` where the actual logic of the DAG file is as shown below.
+This might not work for case where the Dag is imported/created from a separate file. Example:
+``dag_file.py`` that imports ``dag_loader.py`` where the actual logic of the Dag file is as shown below.
 In this case if ``dag_loader.py`` is updated but ``dag_file.py`` is not updated, the changes won't be reflected
-until ``min_file_process_interval`` is reached since DAG Parser will look for modified time for ``dag_file.py`` file.
+until ``min_file_process_interval`` is reached since Dag Parser will look for modified time for ``dag_file.py`` file.
 
 .. code-block:: python
    :caption: dag_file.py
@@ -200,34 +200,33 @@ until ``min_file_process_interval`` is reached since DAG Parser will look for mo
             @task()
             def hello_world():
                 print("Hello World")
-                print(f"This is DAG: {dag_number}")
+                print(f"This is Dag: {dag_number}")
 
             hello_world()
 
         return dag
 
-What to do if you see disappearing DAGs on UI?
+What to do if you see disappearing Dags on UI?
 ----------------------------------------------
-There are several reasons why DAGs might disappear from the UI. Common causes include:
+There are several reasons why Dags might disappear from the UI. Common causes include:
 
-* **Total parsing of all DAGs is too long** - If parsing takes longer than :ref:`config:core__dagbag_import_timeout`,
-  files may not be processed completely. This often occurs when DAGs don't follow
-  :ref:`DAG writing best practices<best_practice:writing_a_dag>` like:
+* **Total parsing of all Dags is too long** - If parsing takes longer than :ref:`config:core__dagbag_import_timeout`,
+  files may not be processed completely. This often occurs when Dags don't follow
+  :ref:`Dag writing best practices<best_practice:writing_a_dag>` like:
 
   * Excessive top-level code execution
   * External system calls during parsing
-  * Complex dynamic DAG generation
+  * Complex dynamic Dag generation
 
-* **Inconsistent dynamic DAG generation** - DAGs created through
-  :doc:`dynamic generation </howto/dynamic-dag-generation>` must produce stable DAG IDs across parses.
+* **Inconsistent dynamic Dag generation** - Dags created through
+  :doc:`dynamic generation </howto/dynamic-dag-generation>` must produce stable Dag IDs across parses.
   Verify consistency by running ``python your_dag_file.py`` repeatedly.
 
-* **File processing configuration issues** - A certain combination of parameters may lead to scenarios which certain DAGs are less likely to be processed at each loop. Check these parameters:
+* **File processing configuration issues** - A certain combination of parameters may lead to scenarios which certain Dags are less likely to be processed at each loop. Check these parameters:
 
   * :ref:`config:dag_processor__file_parsing_sort_mode` - Ensure sorting method matches your sync strategy
   * :ref:`config:dag_processor__parsing_processes` - Number of parallel parsers
-  * :ref:`config:scheduler__parsing_cleanup_interval` - Controls stale DAG cleanup frequency
-  * :ref:`config:scheduler__dag_stale_not_seen_duration` - Time threshold for marking DAGs as stale
+  * :ref:`config:scheduler__parsing_cleanup_interval` - Controls stale Dag cleanup frequency
 
 * **File synchronization problems** - Common with git-sync setups:
 
@@ -238,35 +237,35 @@ There are several reasons why DAGs might disappear from the UI. Common causes in
 * **Time synchronization issues** - Ensure all nodes (database, schedulers, workers) use NTP with <1s clock drift.
 
 
-DAG construction
+Dag construction
 ^^^^^^^^^^^^^^^^
 
 What's the deal with ``start_date``?
 ------------------------------------
 
 ``start_date`` is partly legacy from the pre-DagRun era, but it is still
-relevant in many ways. When creating a new DAG, you probably want to set
+relevant in many ways. When creating a new Dag, you probably want to set
 a global ``start_date`` for your tasks. This can be done by declaring your
-``start_date`` directly in the ``DAG()`` object. A DAG's first
+``start_date`` directly in the ``DAG()`` object. A Dag's first
 DagRun will be created based on the first complete ``data_interval``
-after ``start_date``. For example, for a DAG with
+after ``start_date``. For example, for a Dag with
 ``start_date=datetime(2024, 1, 1)`` and ``schedule="0 0 3 * *"``, the
-first DAG run will be triggered at midnight on 2024-02-03 with
+first Dag run will be triggered at midnight on 2024-02-03 with
 ``data_interval_start=datetime(2024, 1, 3)`` and
 ``data_interval_end=datetime(2024, 2, 3)``. From that point on, the scheduler
 creates new DagRuns based on your ``schedule`` and the corresponding task
 instances run as your dependencies are met. When introducing new tasks to
-your DAG, you need to pay special attention to ``start_date``, and may want
+your Dag, you need to pay special attention to ``start_date``, and may want
 to reactivate inactive DagRuns to get the new task onboarded properly.
 
 We recommend against using dynamic values as ``start_date``, especially
 ``datetime.now()`` as it can be quite confusing. The task is triggered
-once the period closes, and in theory an ``@hourly`` DAG would never get to
+once the period closes, and in theory an ``@hourly`` Dag would never get to
 an hour after now as ``now()`` moves along.
 
 
 Previously, we also recommended using rounded ``start_date`` in relation to your
-DAG's ``schedule``. This meant an ``@hourly`` would be at ``00:00``
+Dag's ``schedule``. This meant an ``@hourly`` would be at ``00:00``
 minutes:seconds, a ``@daily`` job at midnight, a ``@monthly`` job on the
 first of the month. This is no longer required. Airflow will now auto align
 the ``start_date`` and the ``schedule``, by using the ``start_date``
@@ -290,10 +289,10 @@ It is also important to note that the task's ``start_date`` is ignored in backfi
 Using time zones
 ----------------
 
-Creating a time zone aware datetime (e.g. DAG's ``start_date``) is quite simple. Just make sure to supply
+Creating a time zone aware datetime (e.g. Dag's ``start_date``) is quite simple. Just make sure to supply
 a time zone aware dates using ``pendulum``. Don't try to use standard library
 `timezone <https://docs.python.org/3/library/datetime.html#timezone-objects>`_ as they are known to
-have limitations and we deliberately disallow using them in dags.
+have limitations and we deliberately disallow using them in Dags.
 
 
 .. _faq:what-does-execution-date-mean:
@@ -303,7 +302,7 @@ What does ``execution_date`` mean?
 
 *Execution date* or ``execution_date`` is a historical name for what is called a
 *logical date*, and also usually the start of the data interval represented by a
-DAG run.
+Dag run.
 
 Airflow was developed as a solution for ETL needs. In the ETL world, you
 typically summarize data. So, if you want to summarize data for ``2016-02-19``,
@@ -311,7 +310,7 @@ you would do it at ``2016-02-20`` midnight UTC, which would be right after all
 data for ``2016-02-19`` becomes available. This interval between midnights of
 ``2016-02-19`` and ``2016-02-20`` is called the *data interval*, and since it
 represents data in the date of ``2016-02-19``, this date is also called the
-run's *logical date*, or the date that this DAG run is executed for, thus
+run's *logical date*, or the date that this Dag run is executed for, thus
 *execution date*.
 
 For backward compatibility, a datetime value ``execution_date`` is still
@@ -338,7 +337,7 @@ Note that ``ds`` (the YYYY-MM-DD form of ``data_interval_start``) refers to
     :ref:`concepts-dag-run`.
 
 
-How to create dags dynamically?
+How to create Dags dynamically?
 -------------------------------
 
 Airflow looks in your ``DAGS_FOLDER`` for modules that contain ``DAG`` objects
@@ -366,24 +365,24 @@ simple dictionary.
         other_dag_id = f"bar_{i}"
         globals()[other_dag_id] = create_dag(other_dag_id)
 
-Even though Airflow supports multiple DAG definition per python file, dynamically generated or otherwise, it is not
-recommended as Airflow would like better isolation between dags from a fault and deployment perspective and multiple
-dags in the same file goes against that.
+Even though Airflow supports multiple Dag definition per python file, dynamically generated or otherwise, it is not
+recommended as Airflow would like better isolation between Dags from a fault and deployment perspective and multiple
+Dags in the same file goes against that.
 
 
 Are top level Python code allowed?
 ----------------------------------
 
 While it is not recommended to write any code outside of defining Airflow constructs, Airflow does support any
-arbitrary python code as long as it does not break the DAG file processor or prolong file processing time past the
+arbitrary python code as long as it does not break the Dag file processor or prolong file processing time past the
 :ref:`config:core__dagbag_import_timeout` value.
 
-A common example is the violation of the time limit when building a dynamic DAG which usually requires querying data
-from another service like a database. At the same time, the requested service is being swamped with DAG file
+A common example is the violation of the time limit when building a dynamic Dag which usually requires querying data
+from another service like a database. At the same time, the requested service is being swamped with Dag file
 processors requests for data to process the file. These unintended interactions may cause the service to deteriorate
-and eventually cause DAG file processing to fail.
+and eventually cause Dag file processing to fail.
 
-Refer to :ref:`DAG writing best practices<best_practice:writing_a_dag>` for more information.
+Refer to :ref:`Dag writing best practices<best_practice:writing_a_dag>` for more information.
 
 
 Do Macros resolves in another Jinja template?
@@ -401,7 +400,7 @@ commonly attempted in ``user_defined_macros``.
 
         bo = BashOperator(task_id="my_task", bash_command="echo {{ my_custom_macro }}", dag=dag)
 
-This will echo "day={{ ds }}" instead of "day=2020-01-01" for a DAG run with a
+This will echo "day={{ ds }}" instead of "day=2020-01-01" for a Dag run with a
 ``data_interval_start`` of 2020-01-01 00:00:00.
 
 .. code-block:: python
@@ -414,10 +413,10 @@ By using the ds macros directly in the template_field, the rendered value result
 Why ``next_ds`` or ``prev_ds`` might not contain expected values?
 ------------------------------------------------------------------
 
-- When scheduling DAG, the ``next_ds`` ``next_ds_nodash`` ``prev_ds`` ``prev_ds_nodash`` are calculated using
-  ``logical_date`` and the DAG's schedule (if applicable). If you set ``schedule`` as ``None`` or ``@once``,
+- When scheduling Dag, the ``next_ds`` ``next_ds_nodash`` ``prev_ds`` ``prev_ds_nodash`` are calculated using
+  ``logical_date`` and the Dag's schedule (if applicable). If you set ``schedule`` as ``None`` or ``@once``,
   the ``next_ds``, ``next_ds_nodash``, ``prev_ds``, ``prev_ds_nodash`` values will be set to ``None``.
-- When manually triggering DAG, the schedule will be ignored, and ``prev_ds == next_ds == ds``.
+- When manually triggering Dag, the schedule will be ignored, and ``prev_ds == next_ds == ds``.
 
 
 Task execution interactions
@@ -430,7 +429,7 @@ What does ``TemplateNotFound`` mean?
 that trigger Jinja templating. A common occurrence is with :class:`~airflow.providers.standard.operators.BashOperator`.
 
 Another commonly missed fact is that the files are resolved relative to where the pipeline file lives. You can add
-other directories to the ``template_searchpath`` of the DAG object to allow for other non-relative location.
+other directories to the ``template_searchpath`` of the Dag object to allow for other non-relative location.
 
 
 How to trigger tasks based on another task's failure?
@@ -495,12 +494,12 @@ How do I stop the sync perms happening multiple times per webserver?
 Set the value of ``[fab] update_fab_perms`` configuration in ``airflow.cfg`` to ``False``.
 
 
-Why did the pause DAG toggle turn red?
+Why did the pause Dag toggle turn red?
 --------------------------------------
 
-If pausing or unpausing a DAG fails for any reason, the DAG toggle will
+If pausing or unpausing a Dag fails for any reason, the Dag toggle will
 revert to its previous state and turn red. If you observe this behavior,
-try pausing the DAG again, or check the console or server logs if the
+try pausing the Dag again, or check the console or server logs if the
 issue recurs.
 
 
@@ -540,3 +539,38 @@ This means ``explicit_defaults_for_timestamp`` is disabled in your mysql server 
 
 #. Set ``explicit_defaults_for_timestamp = 1`` under the ``mysqld`` section in your ``my.cnf`` file.
 #. Restart the Mysql server.
+
+Connections
+^^^^^^^^^^^
+
+How can I test a connection or use a Canary Dag?
+------------------------------------------------
+
+For security reasons, the test connection functionality is disabled by default across the Airflow UI,
+API and CLI. This can be modified by setting ref:`config:core__test_connection`.
+
+You can utilize a Dag to regularly test connections. This is referred to as a "Canary Dag" and can detect and
+alert on failures in external systems that your Dags depend on. You can create a simple Dag that tests connections
+such as the following Airflow 3 example:
+
+.. code-block:: python
+
+  from airflow import DAG
+  from airflow.sdk import task
+
+  with DAG(dag_id="canary", schedule="@daily", doc_md="Canary Dag to regularly test connections to systems."):
+
+      @task(doc_md="Test a connection by its Connection ID.")
+      def test_connection(conn_id):
+          from airflow.hooks.base import BaseHook
+
+          ok, status = BaseHook.get_hook(conn_id=conn_id).test_connection()
+          if ok:
+              return status
+          raise RuntimeError(status)
+
+      for conn_id in [
+          # Add more connections here to create tasks to test them.
+          "aws_default",
+      ]:
+          test_connection.override(task_id="test_" + conn_id)(conn_id)

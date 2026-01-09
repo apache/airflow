@@ -16,11 +16,9 @@
 # under the License.
 from __future__ import annotations
 
-import contextlib
 import os
 import re
 import shutil
-from io import StringIO
 from unittest import mock
 
 import pytest
@@ -53,6 +51,8 @@ class TestCliConfigList:
             include_env_vars=False,
             include_providers=True,
             comment_out_everything=False,
+            hide_sensitive=False,
+            show_values=False,
             only_defaults=False,
         )
 
@@ -71,26 +71,48 @@ class TestCliConfigList:
             include_env_vars=False,
             include_providers=True,
             comment_out_everything=False,
+            hide_sensitive=False,
+            show_values=False,
             only_defaults=False,
         )
 
     @conf_vars({("core", "testkey"): "test_value"})
-    def test_cli_show_config_should_display_key(self):
-        with contextlib.redirect_stdout(StringIO()) as temp_stdout:
-            config_command.show_config(self.parser.parse_args(["config", "list", "--color", "off"]))
+    def test_cli_show_config_should_display_key(self, stdout_capture):
+        with stdout_capture as temp_stdout:
+            config_command.show_config(
+                self.parser.parse_args(["config", "list", "--color", "off", "--show-values"])
+            )
         output = temp_stdout.getvalue()
         assert "[core]" in output
         assert "testkey = test_value" in temp_stdout.getvalue()
 
-    def test_cli_show_config_should_only_show_comments_when_no_defaults(self):
-        with contextlib.redirect_stdout(StringIO()) as temp_stdout:
+    def test_cli_show_config_should_not_show_sensitive_values(self, stdout_capture):
+        with stdout_capture as temp_stdout:
+            config_command.show_config(
+                self.parser.parse_args(
+                    ["config", "list", "--color", "off", "--show-values", "--hide-sensitive"]
+                )
+            )
+        output = temp_stdout.getvalue()
+        assert "sql_alchemy_conn = < hidden >" in output
+        assert "fernet_key = < hidden >" in output
+
+    def test_cli_show_config_should_not_show_values(self, stdout_capture):
+        with stdout_capture as temp_stdout:
+            config_command.show_config(self.parser.parse_args(["config", "list", "--color", "off"]))
+        output = temp_stdout.getvalue()
+        lines = output.splitlines()
+        assert all(not line.startswith("testkey =") for line in lines if line)
+
+    def test_cli_show_config_should_only_show_comments_when_no_defaults(self, stdout_capture):
+        with stdout_capture as temp_stdout:
             config_command.show_config(self.parser.parse_args(["config", "list", "--color", "off"]))
         output = temp_stdout.getvalue()
         lines = output.splitlines()
         assert all(not line.startswith("#") or line.endswith("= ") for line in lines if line)
 
-    def test_cli_show_config_shows_descriptions(self):
-        with contextlib.redirect_stdout(StringIO()) as temp_stdout:
+    def test_cli_show_config_shows_descriptions(self, stdout_capture):
+        with stdout_capture as temp_stdout:
             config_command.show_config(
                 self.parser.parse_args(["config", "list", "--color", "off", "--include-descriptions"])
             )
@@ -102,8 +124,8 @@ class TestCliConfigList:
         assert all(not line.startswith("# Example:") for line in lines if line)
         assert all(not line.startswith("# Variable:") for line in lines if line)
 
-    def test_cli_show_config_shows_examples(self):
-        with contextlib.redirect_stdout(StringIO()) as temp_stdout:
+    def test_cli_show_config_shows_examples(self, stdout_capture):
+        with stdout_capture as temp_stdout:
             config_command.show_config(
                 self.parser.parse_args(["config", "list", "--color", "off", "--include-examples"])
             )
@@ -114,8 +136,8 @@ class TestCliConfigList:
         assert any(line.startswith("# Example:") for line in lines if line)
         assert all(not line.startswith("# Variable:") for line in lines if line)
 
-    def test_cli_show_config_shows_variables(self):
-        with contextlib.redirect_stdout(StringIO()) as temp_stdout:
+    def test_cli_show_config_shows_variables(self, stdout_capture):
+        with stdout_capture as temp_stdout:
             config_command.show_config(
                 self.parser.parse_args(["config", "list", "--color", "off", "--include-env-vars"])
             )
@@ -126,8 +148,8 @@ class TestCliConfigList:
         assert all(not line.startswith("# Example:") for line in lines if line)
         assert any(line.startswith("# Variable:") for line in lines if line)
 
-    def test_cli_show_config_shows_sources(self):
-        with contextlib.redirect_stdout(StringIO()) as temp_stdout:
+    def test_cli_show_config_shows_sources(self, stdout_capture):
+        with stdout_capture as temp_stdout:
             config_command.show_config(
                 self.parser.parse_args(["config", "list", "--color", "off", "--include-sources"])
             )
@@ -138,10 +160,10 @@ class TestCliConfigList:
         assert all(not line.startswith("# Example:") for line in lines if line)
         assert all(not line.startswith("# Variable:") for line in lines if line)
 
-    def test_cli_show_config_defaults(self):
-        with contextlib.redirect_stdout(StringIO()) as temp_stdout:
+    def test_cli_show_config_defaults(self, stdout_capture):
+        with stdout_capture as temp_stdout:
             config_command.show_config(
-                self.parser.parse_args(["config", "list", "--color", "off", "--defaults"])
+                self.parser.parse_args(["config", "list", "--color", "off", "--defaults", "--show-values"])
             )
         output = temp_stdout.getvalue()
         lines = output.splitlines()
@@ -155,10 +177,10 @@ class TestCliConfigList:
         )
 
     @conf_vars({("core", "hostname_callable"): "testfn"})
-    def test_cli_show_config_defaults_not_show_conf_changes(self):
-        with contextlib.redirect_stdout(StringIO()) as temp_stdout:
+    def test_cli_show_config_defaults_not_show_conf_changes(self, stdout_capture):
+        with stdout_capture as temp_stdout:
             config_command.show_config(
-                self.parser.parse_args(["config", "list", "--color", "off", "--defaults"])
+                self.parser.parse_args(["config", "list", "--color", "off", "--defaults", "--show-values"])
             )
         output = temp_stdout.getvalue()
         lines = output.splitlines()
@@ -167,10 +189,10 @@ class TestCliConfigList:
         )
 
     @mock.patch("os.environ", {"AIRFLOW__CORE__HOSTNAME_CALLABLE": "test_env"})
-    def test_cli_show_config_defaults_do_not_show_env_changes(self):
-        with contextlib.redirect_stdout(StringIO()) as temp_stdout:
+    def test_cli_show_config_defaults_do_not_show_env_changes(self, stdout_capture):
+        with stdout_capture as temp_stdout:
             config_command.show_config(
-                self.parser.parse_args(["config", "list", "--color", "off", "--defaults"])
+                self.parser.parse_args(["config", "list", "--color", "off", "--defaults", "--show-values"])
             )
         output = temp_stdout.getvalue()
         lines = output.splitlines()
@@ -179,30 +201,36 @@ class TestCliConfigList:
         )
 
     @conf_vars({("core", "hostname_callable"): "testfn"})
-    def test_cli_show_changed_defaults_when_overridden_in_conf(self):
-        with contextlib.redirect_stdout(StringIO()) as temp_stdout:
-            config_command.show_config(self.parser.parse_args(["config", "list", "--color", "off"]))
+    def test_cli_show_changed_defaults_when_overridden_in_conf(self, stdout_capture):
+        with stdout_capture as temp_stdout:
+            config_command.show_config(
+                self.parser.parse_args(["config", "list", "--color", "off", "--show-values"])
+            )
         output = temp_stdout.getvalue()
         lines = output.splitlines()
         assert any(line.startswith("hostname_callable = testfn") for line in lines if line)
 
     @mock.patch("os.environ", {"AIRFLOW__CORE__HOSTNAME_CALLABLE": "test_env"})
-    def test_cli_show_changed_defaults_when_overridden_in_env(self):
-        with contextlib.redirect_stdout(StringIO()) as temp_stdout:
-            config_command.show_config(self.parser.parse_args(["config", "list", "--color", "off"]))
+    def test_cli_show_changed_defaults_when_overridden_in_env(self, stdout_capture):
+        with stdout_capture as temp_stdout:
+            config_command.show_config(
+                self.parser.parse_args(["config", "list", "--color", "off", "--show-values"])
+            )
         output = temp_stdout.getvalue()
         lines = output.splitlines()
         assert any(line.startswith("hostname_callable = test_env") for line in lines if line)
 
-    def test_cli_has_providers(self):
-        with contextlib.redirect_stdout(StringIO()) as temp_stdout:
-            config_command.show_config(self.parser.parse_args(["config", "list", "--color", "off"]))
+    def test_cli_has_providers(self, stdout_capture):
+        with stdout_capture as temp_stdout:
+            config_command.show_config(
+                self.parser.parse_args(["config", "list", "--color", "off", "--show-values"])
+            )
         output = temp_stdout.getvalue()
         lines = output.splitlines()
         assert any(line.startswith("celery_config_options") for line in lines if line)
 
-    def test_cli_comment_out_everything(self):
-        with contextlib.redirect_stdout(StringIO()) as temp_stdout:
+    def test_cli_comment_out_everything(self, stdout_capture):
+        with stdout_capture as temp_stdout:
             config_command.show_config(
                 self.parser.parse_args(["config", "list", "--color", "off", "--comment-out-everything"])
             )
@@ -218,8 +246,8 @@ class TestCliConfigGetValue:
         cls.parser = cli_parser.get_parser()
 
     @conf_vars({("core", "test_key"): "test_value"})
-    def test_should_display_value(self):
-        with contextlib.redirect_stdout(StringIO()) as temp_stdout:
+    def test_should_display_value(self, stdout_capture):
+        with stdout_capture as temp_stdout:
             config_command.get_value(self.parser.parse_args(["config", "get-value", "core", "test_key"]))
 
         assert temp_stdout.getvalue().strip() == "test_value"
@@ -246,9 +274,9 @@ class TestConfigLint:
     @pytest.mark.parametrize(
         "removed_config", [config for config in config_command.CONFIGS_CHANGES if config.was_removed]
     )
-    def test_lint_detects_removed_configs(self, removed_config):
+    def test_lint_detects_removed_configs(self, removed_config, stdout_capture):
         with mock.patch("airflow.configuration.conf.has_option", return_value=True):
-            with contextlib.redirect_stdout(StringIO()) as temp_stdout:
+            with stdout_capture as temp_stdout:
                 config_command.lint_config(cli_parser.get_parser().parse_args(["config", "lint"]))
 
             output = temp_stdout.getvalue()
@@ -264,9 +292,9 @@ class TestConfigLint:
         "default_changed_config",
         [config for config in config_command.CONFIGS_CHANGES if config.default_change],
     )
-    def test_lint_detects_default_changed_configs(self, default_changed_config):
+    def test_lint_detects_default_changed_configs(self, default_changed_config, stdout_capture):
         with mock.patch("airflow.configuration.conf.has_option", return_value=True):
-            with contextlib.redirect_stdout(StringIO()) as temp_stdout:
+            with stdout_capture as temp_stdout:
                 config_command.lint_config(cli_parser.get_parser().parse_args(["config", "lint"]))
 
             output = temp_stdout.getvalue()
@@ -278,7 +306,7 @@ class TestConfigLint:
             assert normalized_message in normalized_output
 
     @pytest.mark.parametrize(
-        "section, option, suggestion",
+        ("section", "option", "suggestion"),
         [
             (
                 "core",
@@ -297,9 +325,9 @@ class TestConfigLint:
             ),
         ],
     )
-    def test_lint_with_specific_removed_configs(self, section, option, suggestion):
+    def test_lint_with_specific_removed_configs(self, section, option, suggestion, stdout_capture):
         with mock.patch("airflow.configuration.conf.has_option", return_value=True):
-            with contextlib.redirect_stdout(StringIO()) as temp_stdout:
+            with stdout_capture as temp_stdout:
                 config_command.lint_config(cli_parser.get_parser().parse_args(["config", "lint"]))
 
             output = temp_stdout.getvalue()
@@ -311,9 +339,9 @@ class TestConfigLint:
 
         assert suggestion in normalized_output
 
-    def test_lint_specific_section_option(self):
+    def test_lint_specific_section_option(self, stdout_capture):
         with mock.patch("airflow.configuration.conf.has_option", return_value=True):
-            with contextlib.redirect_stdout(StringIO()) as temp_stdout:
+            with stdout_capture as temp_stdout:
                 config_command.lint_config(
                     cli_parser.get_parser().parse_args(
                         ["config", "lint", "--section", "core", "--option", "check_slas"]
@@ -329,9 +357,9 @@ class TestConfigLint:
             in normalized_output
         )
 
-    def test_lint_with_invalid_section_option(self):
+    def test_lint_with_invalid_section_option(self, stdout_capture):
         with mock.patch("airflow.configuration.conf.has_option", return_value=False):
-            with contextlib.redirect_stdout(StringIO()) as temp_stdout:
+            with stdout_capture as temp_stdout:
                 config_command.lint_config(
                     cli_parser.get_parser().parse_args(
                         ["config", "lint", "--section", "invalid_section", "--option", "invalid_option"]
@@ -344,13 +372,13 @@ class TestConfigLint:
 
         assert "No issues found in your airflow.cfg." in normalized_output
 
-    def test_lint_detects_multiple_issues(self):
+    def test_lint_detects_multiple_issues(self, stdout_capture):
         with mock.patch(
             "airflow.configuration.conf.has_option",
             side_effect=lambda section, option, lookup_from_deprecated: option
             in ["check_slas", "strict_dataset_uri_validation"],
         ):
-            with contextlib.redirect_stdout(StringIO()) as temp_stdout:
+            with stdout_capture as temp_stdout:
                 config_command.lint_config(cli_parser.get_parser().parse_args(["config", "lint"]))
 
             output = temp_stdout.getvalue()
@@ -388,9 +416,9 @@ class TestConfigLint:
             ],
         ],
     )
-    def test_lint_detects_multiple_removed_configs(self, removed_configs):
+    def test_lint_detects_multiple_removed_configs(self, removed_configs, stdout_capture):
         with mock.patch("airflow.configuration.conf.has_option", return_value=True):
-            with contextlib.redirect_stdout(StringIO()) as temp_stdout:
+            with stdout_capture as temp_stdout:
                 config_command.lint_config(cli_parser.get_parser().parse_args(["config", "lint"]))
 
             output = temp_stdout.getvalue()
@@ -421,9 +449,9 @@ class TestConfigLint:
             ],
         ],
     )
-    def test_lint_detects_renamed_configs(self, renamed_configs):
+    def test_lint_detects_renamed_configs(self, renamed_configs, stdout_capture):
         with mock.patch("airflow.configuration.conf.has_option", return_value=True):
-            with contextlib.redirect_stdout(StringIO()) as temp_stdout:
+            with stdout_capture as temp_stdout:
                 config_command.lint_config(cli_parser.get_parser().parse_args(["config", "lint"]))
 
             output = temp_stdout.getvalue()
@@ -438,7 +466,7 @@ class TestConfigLint:
             assert expected_message in normalized_output
 
     @pytest.mark.parametrize(
-        "env_var, config_change, expected_message",
+        ("env_var", "config_change", "expected_message"),
         [
             (
                 "AIRFLOW__CORE__CHECK_SLAS",
@@ -458,10 +486,16 @@ class TestConfigLint:
             ),
         ],
     )
-    def test_lint_detects_configs_with_env_vars(self, env_var, config_change, expected_message):
+    def test_lint_detects_configs_with_env_vars(
+        self,
+        env_var,
+        config_change,
+        expected_message,
+        stdout_capture,
+    ):
         with mock.patch.dict(os.environ, {env_var: "some_value"}):
             with mock.patch("airflow.configuration.conf.has_option", return_value=True):
-                with contextlib.redirect_stdout(StringIO()) as temp_stdout:
+                with stdout_capture as temp_stdout:
                     config_command.lint_config(cli_parser.get_parser().parse_args(["config", "lint"]))
 
                 output = temp_stdout.getvalue()
@@ -471,9 +505,9 @@ class TestConfigLint:
         assert expected_message in normalized_output
         assert config_change.suggestion in normalized_output
 
-    def test_lint_detects_invalid_config(self):
+    def test_lint_detects_invalid_config(self, stdout_capture):
         with mock.patch.dict(os.environ, {"AIRFLOW__CORE__PARALLELISM": "0"}):
-            with contextlib.redirect_stdout(StringIO()) as temp_stdout:
+            with stdout_capture as temp_stdout:
                 config_command.lint_config(cli_parser.get_parser().parse_args(["config", "lint"]))
 
             output = temp_stdout.getvalue()
@@ -485,9 +519,9 @@ class TestConfigLint:
             in normalized_output
         )
 
-    def test_lint_detects_invalid_config_negative(self):
+    def test_lint_detects_invalid_config_negative(self, stdout_capture):
         with mock.patch.dict(os.environ, {"AIRFLOW__CORE__PARALLELISM": "42"}):
-            with contextlib.redirect_stdout(StringIO()) as temp_stdout:
+            with stdout_capture as temp_stdout:
                 config_command.lint_config(cli_parser.get_parser().parse_args(["config", "lint"]))
 
             output = temp_stdout.getvalue()

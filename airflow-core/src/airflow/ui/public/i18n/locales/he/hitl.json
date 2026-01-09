@@ -1,0 +1,40 @@
+{
+  "filters": {
+    "body": "גוף",
+    "createdAt": "נוצר בתאריך",
+    "response": {
+      "all": "הכל",
+      "pending": "ממתין",
+      "received": "נבדק"
+    }
+  },
+  "requiredAction_one": "פעולה נדרשת",
+  "requiredAction_other": "פעולות נדרשות",
+  "requiredAction_two": "פעולות נדרשות",
+  "requiredActionCount_one": "פעולה נדרשת ({{count}})",
+  "requiredActionCount_other": "פעולות נדרשות ({{count}})",
+  "requiredActionCount_two": "פעולות נדרשות ({{count}})",
+  "requiredActionState": "מצב פעולה נדרשת",
+  "response": {
+    "created": "התגובה נוצרה ב",
+    "error": "התגובה נכשלה",
+    "optionsDescription": "בחר את האפשרויות למופע המשימה הזה",
+    "optionsLabel": "אפשרויות",
+    "received": "תגובה התקבלה ב",
+    "respond": "הגב",
+    "responded_by_user_name": "נענה על ידי (שם משתמש)",
+    "success": "התגובה של {{taskId}} הצליחה",
+    "title": "מופע משימה ידנית - {{taskId}}"
+  },
+  "state": {
+    "approvalReceived": "האישור התקבל",
+    "approvalRequired": "נדרש אישור",
+    "choiceReceived": "הבחירה התקבלה",
+    "choiceRequired": "נדרשת בחירה",
+    "noResponseReceived": "לא התקבלה תגובה",
+    "rejectionReceived": "הדחייה התקבלה",
+    "responseReceived": "התגובה התקבלה",
+    "responseRequired": "נדרשת תגובה"
+  },
+  "subject": "נושא"
+}

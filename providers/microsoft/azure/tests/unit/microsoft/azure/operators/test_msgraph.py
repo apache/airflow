@@ -25,32 +25,33 @@ from typing import Any
 
 import pytest
 
-from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
+from airflow.exceptions import AirflowProviderDeprecationWarning
+from airflow.providers.common.compat.sdk import AirflowException, Context
 from airflow.providers.microsoft.azure.operators.msgraph import MSGraphAsyncOperator, execute_callable
 from airflow.triggers.base import TriggerEvent
-from airflow.utils import timezone
 
 from tests_common.test_utils.file_loading import load_file_from_resources, load_json_from_resources
 from tests_common.test_utils.mock_context import mock_context
 from tests_common.test_utils.operators.run_deferrable import execute_operator
-from unit.microsoft.azure.base import Base
-from unit.microsoft.azure.test_utils import mock_json_response, mock_response
+from unit.microsoft.azure.test_utils import (
+    mock_json_response,
+    mock_response,
+    patch_hook_and_request_adapter,
+)
 
 try:
-    from airflow.sdk.definitions.context import Context
+    from airflow.sdk import timezone
 except ImportError:
-    # TODO: Remove once provider drops support for Airflow 2
-    from airflow.utils.context import Context
+    from airflow.utils import timezone  # type: ignore[no-redef]
 
 
-class TestMSGraphAsyncOperator(Base):
-    @pytest.mark.db_test
+class TestMSGraphAsyncOperator:
     def test_execute_with_old_result_processor_signature(self):
         users = load_json_from_resources(dirname(__file__), "..", "resources", "users.json")
         next_users = load_json_from_resources(dirname(__file__), "..", "resources", "next_users.json")
         response = mock_json_response(200, users, next_users)
 
-        with self.patch_hook_and_request_adapter(response):
+        with patch_hook_and_request_adapter(response):
             operator = MSGraphAsyncOperator(
                 task_id="users_delta",
                 conn_id="msgraph_api",
@@ -64,25 +65,24 @@ class TestMSGraphAsyncOperator(Base):
             ):
                 results, events = execute_operator(operator)
 
-                assert len(results) == 30
-                assert results == users.get("value") + next_users.get("value")
-                assert len(events) == 2
-                assert isinstance(events[0], TriggerEvent)
-                assert events[0].payload["status"] == "success"
-                assert events[0].payload["type"] == "builtins.dict"
-                assert events[0].payload["response"] == json.dumps(users)
-                assert isinstance(events[1], TriggerEvent)
-                assert events[1].payload["status"] == "success"
-                assert events[1].payload["type"] == "builtins.dict"
-                assert events[1].payload["response"] == json.dumps(next_users)
+            assert len(results) == 30
+            assert results == users.get("value") + next_users.get("value")
+            assert len(events) == 2
+            assert isinstance(events[0], TriggerEvent)
+            assert events[0].payload["status"] == "success"
+            assert events[0].payload["type"] == "builtins.dict"
+            assert events[0].payload["response"] == json.dumps(users)
+            assert isinstance(events[1], TriggerEvent)
+            assert events[1].payload["status"] == "success"
+            assert events[1].payload["type"] == "builtins.dict"
+            assert events[1].payload["response"] == json.dumps(next_users)
 
-    @pytest.mark.db_test
     def test_execute_with_new_result_processor_signature(self):
         users = load_json_from_resources(dirname(__file__), "..", "resources", "users.json")
         next_users = load_json_from_resources(dirname(__file__), "..", "resources", "next_users.json")
         response = mock_json_response(200, users, next_users)
 
-        with self.patch_hook_and_request_adapter(response):
+        with patch_hook_and_request_adapter(response):
             operator = MSGraphAsyncOperator(
                 task_id="users_delta",
                 conn_id="msgraph_api",
@@ -104,13 +104,12 @@ class TestMSGraphAsyncOperator(Base):
             assert events[1].payload["type"] == "builtins.dict"
             assert events[1].payload["response"] == json.dumps(next_users)
 
-    @pytest.mark.db_test
     def test_execute_with_old_paginate_function_signature(self):
         users = load_json_from_resources(dirname(__file__), "..", "resources", "users.json")
         next_users = load_json_from_resources(dirname(__file__), "..", "resources", "next_users.json")
         response = mock_json_response(200, users, next_users)
 
-        with self.patch_hook_and_request_adapter(response):
+        with patch_hook_and_request_adapter(response):
             operator = MSGraphAsyncOperator(
                 task_id="users_delta",
                 conn_id="msgraph_api",
@@ -127,25 +126,24 @@ class TestMSGraphAsyncOperator(Base):
             ):
                 results, events = execute_operator(operator)
 
-                assert len(results) == 30
-                assert results == users.get("value") + next_users.get("value")
-                assert len(events) == 2
-                assert isinstance(events[0], TriggerEvent)
-                assert events[0].payload["status"] == "success"
-                assert events[0].payload["type"] == "builtins.dict"
-                assert events[0].payload["response"] == json.dumps(users)
-                assert isinstance(events[1], TriggerEvent)
-                assert events[1].payload["status"] == "success"
-                assert events[1].payload["type"] == "builtins.dict"
-                assert events[1].payload["response"] == json.dumps(next_users)
+            assert len(results) == 30
+            assert results == users.get("value") + next_users.get("value")
+            assert len(events) == 2
+            assert isinstance(events[0], TriggerEvent)
+            assert events[0].payload["status"] == "success"
+            assert events[0].payload["type"] == "builtins.dict"
+            assert events[0].payload["response"] == json.dumps(users)
+            assert isinstance(events[1], TriggerEvent)
+            assert events[1].payload["status"] == "success"
+            assert events[1].payload["type"] == "builtins.dict"
+            assert events[1].payload["response"] == json.dumps(next_users)
 
-    @pytest.mark.db_test
     def test_execute_when_do_xcom_push_is_false(self):
         users = load_json_from_resources(dirname(__file__), "..", "resources", "users.json")
         users.pop("@odata.nextLink")
         response = mock_json_response(200, users)
 
-        with self.patch_hook_and_request_adapter(response):
+        with patch_hook_and_request_adapter(response):
             operator = MSGraphAsyncOperator(
                 task_id="users_delta",
                 conn_id="msgraph_api",
@@ -162,9 +160,8 @@ class TestMSGraphAsyncOperator(Base):
             assert events[0].payload["type"] == "builtins.dict"
             assert events[0].payload["response"] == json.dumps(users)
 
-    @pytest.mark.db_test
     def test_execute_when_an_exception_occurs(self):
-        with self.patch_hook_and_request_adapter(AirflowException()):
+        with patch_hook_and_request_adapter(AirflowException()):
             operator = MSGraphAsyncOperator(
                 task_id="users_delta",
                 conn_id="msgraph_api",
@@ -175,9 +172,8 @@ class TestMSGraphAsyncOperator(Base):
             with pytest.raises(AirflowException):
                 execute_operator(operator)
 
-    @pytest.mark.db_test
     def test_execute_when_an_exception_occurs_on_custom_event_handler_with_old_signature(self):
-        with self.patch_hook_and_request_adapter(AirflowException("An error occurred")):
+        with patch_hook_and_request_adapter(AirflowException("An error occurred")):
 
             def custom_event_handler(context: Context, event: dict[Any, Any] | None = None):
                 if event:
@@ -199,15 +195,14 @@ class TestMSGraphAsyncOperator(Base):
             ):
                 results, events = execute_operator(operator)
 
-                assert not results
-                assert len(events) == 1
-                assert isinstance(events[0], TriggerEvent)
-                assert events[0].payload["status"] == "failure"
-                assert events[0].payload["message"] == "An error occurred"
+            assert not results
+            assert len(events) == 1
+            assert isinstance(events[0], TriggerEvent)
+            assert events[0].payload["status"] == "failure"
+            assert events[0].payload["message"] == "An error occurred"
 
-    @pytest.mark.db_test
     def test_execute_when_an_exception_occurs_on_custom_event_handler_with_new_signature(self):
-        with self.patch_hook_and_request_adapter(AirflowException("An error occurred")):
+        with patch_hook_and_request_adapter(AirflowException("An error occurred")):
 
             def custom_event_handler(event: dict[Any, Any] | None = None, **context):
                 if event:
@@ -231,7 +226,6 @@ class TestMSGraphAsyncOperator(Base):
             assert events[0].payload["status"] == "failure"
             assert events[0].payload["message"] == "An error occurred"
 
-    @pytest.mark.db_test
     def test_execute_when_response_is_bytes(self):
         content = load_file_from_resources(
             dirname(__file__), "..", "resources", "dummy.pdf", mode="rb", encoding=None
@@ -240,7 +234,7 @@ class TestMSGraphAsyncOperator(Base):
         drive_id = "82f9d24d-6891-4790-8b6d-f1b2a1d0ca22"
         response = mock_response(200, content)
 
-        with self.patch_hook_and_request_adapter(response):
+        with patch_hook_and_request_adapter(response):
             operator = MSGraphAsyncOperator(
                 task_id="drive_item_content",
                 conn_id="msgraph_api",
@@ -259,7 +253,6 @@ class TestMSGraphAsyncOperator(Base):
             assert events[0].payload["type"] == "builtins.bytes"
             assert events[0].payload["response"] == base64_encoded_content
 
-    @pytest.mark.db_test
     def test_execute_with_lambda_parameter_when_response_is_bytes(self):
         content = load_file_from_resources(
             dirname(__file__), "..", "resources", "dummy.pdf", mode="rb", encoding=None
@@ -268,7 +261,7 @@ class TestMSGraphAsyncOperator(Base):
         drive_id = "82f9d24d-6891-4790-8b6d-f1b2a1d0ca22"
         response = mock_response(200, content)
 
-        with self.patch_hook_and_request_adapter(response):
+        with patch_hook_and_request_adapter(response):
             operator = MSGraphAsyncOperator(
                 task_id="drive_item_content",
                 conn_id="msgraph_api",

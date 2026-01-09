@@ -21,8 +21,6 @@ from collections.abc import Sequence
 from textwrap import dedent
 from typing import TYPE_CHECKING
 
-from airflow.models import BaseOperator
-
 try:
     from airflow.providers.microsoft.azure.hooks.wasb import WasbHook
 except ModuleNotFoundError as e:
@@ -30,10 +28,11 @@ except ModuleNotFoundError as e:
 
     raise AirflowOptionalProviderFeatureException(e)
 
+from airflow.providers.common.compat.sdk import BaseOperator
 from airflow.providers.teradata.hooks.teradata import TeradataHook
 
 if TYPE_CHECKING:
-    from airflow.utils.context import Context
+    from airflow.providers.common.compat.sdk import Context
 
 
 class AzureBlobStorageToTeradataOperator(BaseOperator):

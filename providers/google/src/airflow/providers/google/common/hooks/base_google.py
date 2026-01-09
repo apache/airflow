@@ -26,20 +26,19 @@ import json
 import logging
 import os
 import tempfile
-from collections.abc import Generator, Sequence
+from collections.abc import Callable, Generator, Sequence
 from contextlib import ExitStack, contextmanager
 from subprocess import check_output
-from typing import TYPE_CHECKING, Any, Callable, TypeVar, cast
+from typing import TYPE_CHECKING, Any, TypeVar, cast
 
 import google.auth
-import google.oauth2.service_account
 import google_auth_httplib2
 import requests
 import tenacity
 from asgiref.sync import sync_to_async
 from gcloud.aio.auth.token import Token, TokenResponse
 from google.api_core.exceptions import Forbidden, ResourceExhausted, TooManyRequests
-from google.auth import _cloud_sdk, compute_engine  # type: ignore[attr-defined]
+from google.auth import _cloud_sdk, compute_engine
 from google.auth.environment_vars import CLOUD_SDK_CONFIG_DIR, CREDENTIALS
 from google.auth.exceptions import RefreshError
 from google.auth.transport import _http_client
@@ -49,8 +48,7 @@ from googleapiclient.http import MediaIoBaseDownload, build_http, set_user_agent
 from requests import Session
 
 from airflow import version
-from airflow.exceptions import AirflowException
-from airflow.hooks.base import BaseHook
+from airflow.providers.common.compat.sdk import AirflowException, BaseHook
 from airflow.providers.google.cloud.utils.credentials_provider import (
     _get_scopes,
     _get_target_principal_and_delegates,
@@ -155,6 +153,9 @@ PROVIDE_PROJECT_ID: str = cast("str", None)
 T = TypeVar("T", bound=Callable)
 RT = TypeVar("RT")
 
+# Sentinel value to distinguish "parameter not provided" from "parameter explicitly set to a value"
+_UNSET = object()
+
 
 def get_field(extras: dict, field_name: str) -> str | None:
     """Get field from extra, first checking short name, then for backcompat we check for prefixed name."""
@@ -164,9 +165,11 @@ def get_field(extras: dict, field_name: str) -> str | None:
             "when using this method."
         )
     if field_name in extras:
-        return extras[field_name] or None
+        value = extras[field_name]
+        return None if value == "" else value
     prefixed_name = f"extra__google_cloud_platform__{field_name}"
-    return extras.get(prefixed_name) or None
+    value = extras.get(prefixed_name)
+    return None if value == "" else value
 
 
 class GoogleBaseHook(BaseHook):
@@ -406,7 +409,22 @@ class GoogleBaseHook(BaseHook):
         custom UI elements to the hook page, which allow admins to specify
         service_account, key_path, etc. They get formatted as shown below.
         """
-        return hasattr(self, "extras") and get_field(self.extras, f) or default
+        # New behavior: If default is _UNSET, parameter was not provided
+        # Check connection extras first, return None if not found (caller handles default)
+        if default is _UNSET:
+            if hasattr(self, "extras"):
+                value = get_field(self.extras, f)
+                if value is not None:
+                    return value
+            return None
+
+        # Old behavior (for backward compatibility):
+        # Check connection extras, but properly handle False values
+        if hasattr(self, "extras"):
+            value = get_field(self.extras, f)
+            if value is not None:
+                return value
+        return default
 
     @property
     def project_id(self) -> str:

@@ -22,21 +22,24 @@ from __future__ import annotations
 
 import argparse
 import ast
+import datetime
 import getpass
 import inspect
 import os
-import textwrap
 from argparse import Namespace
-from collections.abc import Iterable
+from collections.abc import Callable, Iterable
+from enum import Enum
 from functools import partial
 from pathlib import Path
-from typing import Any, Callable, NamedTuple, Union
+from typing import Any, NamedTuple
 
+import httpx
 import rich
 
 import airflowctl.api.datamodels.generated as generated_datamodels
 from airflowctl.api.client import NEW_API_CLIENT, Client, ClientKind, provide_api_client
 from airflowctl.api.operations import BaseOperations, ServerResponseError
+from airflowctl.ctl.console_formatting import AirflowConsole
 from airflowctl.exceptions import (
     AirflowCtlConnectionException,
     AirflowCtlCredentialNotFoundException,
@@ -61,14 +64,42 @@ def lazy_load_command(import_path: str) -> Callable:
 
 
 def safe_call_command(function: Callable, args: Iterable[Arg]) -> None:
+    import sys
+
+    if os.getenv("AIRFLOW_CLI_DEBUG_MODE") == "true":
+        rich.print(
+            "[yellow]Debug mode is enabled. Please be aware that your credentials are not secure.\n"
+            "Please unset AIRFLOW_CLI_DEBUG_MODE or set it to false.[/yellow]"
+        )
+
     try:
         function(args)
-    except AirflowCtlCredentialNotFoundException as e:
+    except (
+        AirflowCtlCredentialNotFoundException,
+        AirflowCtlConnectionException,
+        AirflowCtlNotFoundException,
+    ) as e:
         rich.print(f"command failed due to {e}")
-    except AirflowCtlConnectionException as e:
-        rich.print(f"command failed due to {e}")
-    except AirflowCtlNotFoundException as e:
-        rich.print(f"command failed due to {e}")
+        sys.exit(1)
+    except (httpx.RemoteProtocolError, httpx.ReadError) as e:
+        rich.print(f"[red]Remote protocol error: {e}[/red]")
+        if "Server disconnected without sending a response." in str(e):
+            rich.print(
+                f"[red]Server response error: {e}. "
+                "Please check if the server is running and the API URL is correct.[/red]"
+            )
+    except httpx.ReadTimeout as e:
+        rich.print(f"[red]Read timeout error: {e}[/red]")
+        if "timed out" in str(e):
+            rich.print("[red]Please check if the server is running and the API ready to accept calls.[/red]")
+    except ServerResponseError as e:
+        rich.print(f"Server response error: {e}")
+        if "Client error message:" in str(e):
+            rich.print(
+                "[red]Client error, [/red] "
+                "Please check the command and its parameters. "
+                "If you need help, run the command with --help."
+            )
 
 
 class DefaultHelpParser(argparse.ArgumentParser):
@@ -160,9 +191,28 @@ class Password(argparse.Action):
     """Custom action to prompt for password input."""
 
     def __call__(self, parser, namespace, values, option_string=None):
-        values = getpass.getpass()
+        if values is None:
+            values = getpass.getpass()
         setattr(namespace, self.dest, values)
 
+
+# Common Positional Arguments
+ARG_FILE = Arg(
+    flags=("file",),
+    metavar="FILEPATH",
+    help="File path to read from for import commands.",
+)
+ARG_OUTPUT = Arg(
+    (
+        "--output",
+        "-o",
+    ),
+    help="Output format. Allowed values: json, yaml, plain, table (default: json)",
+    metavar="(table, json, yaml, plain)",
+    choices=("table", "json", "yaml", "plain"),
+    default="json",
+    type=str,
+)
 
 # Authentication arguments
 ARG_AUTH_URL = Arg(
@@ -198,56 +248,21 @@ ARG_AUTH_PASSWORD = Arg(
     action=Password,
     nargs="?",
 )
-ARG_VARIABLE_IMPORT = Arg(
-    flags=("file",),
-    metavar="file",
-    help="Import variables from JSON file",
+
+# Dag Commands Args
+ARG_DAG_ID = Arg(
+    flags=("dag_id",),
+    type=str,
+    help="The DAG ID of the DAG to pause or unpause",
 )
+
+# Variable Commands Args
 ARG_VARIABLE_ACTION_ON_EXISTING_KEY = Arg(
     flags=("-a", "--action-on-existing-key"),
     type=str,
     default="overwrite",
     help="Action to take if we encounter a variable key that already exists.",
     choices=("overwrite", "fail", "skip"),
-)
-ARG_VARIABLE_EXPORT = Arg(
-    flags=("file",),
-    metavar="file",
-    help="Export all variables to JSON file",
-)
-
-ARG_OUTPUT = Arg(
-    flags=("-o", "--output"),
-    type=str,
-    default="json",
-    help="Output format. Only json format is supported (default: json)",
-)
-
-# Pool Commands Args
-ARG_POOL_FILE = Arg(
-    ("file",),
-    metavar="FILEPATH",
-    help="Pools JSON file. Example format::\n"
-    + textwrap.indent(
-        textwrap.dedent(
-            """
-            [
-                {
-                    "name": "pool_1",
-                    "slots": 5,
-                    "description": "",
-                    "include_deferred": true,
-                    "occupied_slots": 0,
-                    "running_slots": 0,
-                    "queued_slots": 0,
-                    "scheduled_slots": 0,
-                    "open_slots": 5,
-                    "deferred_slots": 0
-                }
-            ]"""
-        ),
-        " " * 4,
-    ),
 )
 
 # Config arguments
@@ -281,6 +296,14 @@ ARG_CONFIG_VERBOSE = Arg(
         "--verbose",
     ),
     help="Enables detailed output, including the list of ignored sections and options",
+    default=False,
+    action="store_true",
+)
+
+# Version Command Args
+ARG_REMOTE = Arg(
+    flags=("--remote",),
+    help="Fetch the Airflow version in remote server, otherwise only shows the local airflowctl version",
     default=False,
     action="store_true",
 )
@@ -330,7 +353,7 @@ class GroupCommandParser(NamedTuple):
         )
 
 
-CLICommand = Union[ActionCommand, GroupCommand, GroupCommandParser]
+CLICommand = ActionCommand | GroupCommand | GroupCommandParser
 
 
 class CommandFactory:
@@ -342,6 +365,9 @@ class CommandFactory:
     func_map: dict[tuple, Callable]
     commands_map: dict[str, list[ActionCommand]]
     group_commands_list: list[CLICommand]
+    output_command_list: list[str]
+    exclude_operation_names: list[str]
+    exclude_method_names: list[str]
 
     def __init__(self, file_path: str | Path | None = None):
         self.datamodels_extended_map = {}
@@ -351,8 +377,23 @@ class CommandFactory:
         self.commands_map = {}
         self.group_commands_list = []
         self.file_path = inspect.getfile(BaseOperations) if file_path is None else file_path
+        # Excluded Lists are in Class Level for further usage and avoid searching them
         # Exclude parameters that are not needed for CLI from datamodels
         self.excluded_parameters = ["schema_"]
+        # This list is used to determine if the command/operation needs to output data
+        self.output_command_list = ["list", "get", "create", "delete", "update", "trigger"]
+        self.exclude_operation_names = ["LoginOperations", "VersionOperations", "BaseOperations"]
+        self.exclude_method_names = [
+            "error",
+            "__init__",
+            "__init_subclass__",
+            "_check_flag_and_exit_if_server_response_error",
+            # Excluding bulk operation. Out of scope for CLI. Should use implemented commands.
+            "bulk",
+        ]
+        self.excluded_output_keys = [
+            "total_entries",
+        ]
 
     def _inspect_operations(self) -> None:
         """Parse file and return matching Operation Method with details."""
@@ -387,24 +428,15 @@ class CommandFactory:
         with open(self.file_path, encoding="utf-8") as file:
             tree = ast.parse(file.read(), filename=self.file_path)
 
-        exclude_operation_names = ["LoginOperations"]
-        exclude_method_names = [
-            "error",
-            "__init__",
-            "__init_subclass__",
-            "_check_flag_and_exit_if_server_response_error",
-            # Excluding bulk operation. Out of scope for CLI. Should use implemented commands.
-            "bulk",
-        ]
         for node in ast.walk(tree):
             if (
                 isinstance(node, ast.ClassDef)
                 and "Operations" in node.name
-                and node.name not in exclude_operation_names
+                and node.name not in self.exclude_operation_names
                 and node.body
             ):
                 for child in node.body:
-                    if isinstance(child, ast.FunctionDef) and child.name not in exclude_method_names:
+                    if isinstance(child, ast.FunctionDef) and child.name not in self.exclude_method_names:
                         self.operations.append(get_function_details(node=child, parent_node=node))
 
     @staticmethod
@@ -432,9 +464,41 @@ class CommandFactory:
         return type_name in primitive_types
 
     @staticmethod
+    def _python_type_from_string(type_name: str | type) -> type | Callable:
+        """
+        Return the corresponding Python *type* for a primitive type name string.
+
+        This helper is used when generating ``argparse`` CLI arguments from the
+        OpenAPI-derived operation signatures. Without this mapping the CLI would
+        incorrectly assume every primitive parameter is a *string*, potentially
+        leading to type errors or unexpected behaviour when invoking the REST
+        API.
+        """
+        if "|" in str(type_name):
+            type_name = [t.strip() for t in str(type_name).split("|") if t.strip() != "None"].pop()
+        mapping: dict[str, type | Callable] = {
+            "int": int,
+            "float": float,
+            "bool": bool,
+            "str": str,
+            "bytes": bytes,
+            "list": list,
+            "dict": dict,
+            "tuple": tuple,
+            "set": set,
+            "datetime.datetime": datetime.datetime,
+            "dict[str, typing.Any]": dict,
+        }
+        # Default to ``str`` to preserve previous behaviour for any unrecognised
+        # type names while still allowing the CLI to function.
+        if isinstance(type_name, type):
+            type_name = type_name.__name__
+        return mapping.get(str(type_name), str)
+
+    @staticmethod
     def _create_arg(
         arg_flags: tuple,
-        arg_type: type,
+        arg_type: type | Callable,
         arg_help: str,
         arg_action: argparse.BooleanOptionalAction | None,
         arg_dest: str | None = None,
@@ -467,7 +531,7 @@ class CommandFactory:
                 commands.append(
                     self._create_arg(
                         arg_flags=("--" + self._sanitize_arg_parameter_key(field),),
-                        arg_type=field_type.annotation,
+                        arg_type=self._python_type_from_string(field_type.annotation),
                         arg_action=argparse.BooleanOptionalAction if field_type.annotation is bool else None,  # type: ignore
                         arg_help=f"{field} for {parameter_key} operation",
                         arg_default=False if field_type.annotation is bool else None,
@@ -482,7 +546,7 @@ class CommandFactory:
                 commands.append(
                     self._create_arg(
                         arg_flags=("--" + self._sanitize_arg_parameter_key(field),),
-                        arg_type=annotation,
+                        arg_type=self._python_type_from_string(annotation),
                         arg_action=argparse.BooleanOptionalAction if annotation is bool else None,  # type: ignore
                         arg_help=f"{field} for {parameter_key} operation",
                         arg_default=False if annotation is bool else None,
@@ -497,15 +561,14 @@ class CommandFactory:
             for parameter in operation.get("parameters"):
                 for parameter_key, parameter_type in parameter.items():
                     if self._is_primitive_type(type_name=parameter_type):
+                        is_bool = parameter_type == "bool"
                         args.append(
                             self._create_arg(
                                 arg_flags=("--" + self._sanitize_arg_parameter_key(parameter_key),),
-                                arg_type=type(parameter_type),
-                                arg_action=argparse.BooleanOptionalAction
-                                if type(parameter_type) is bool
-                                else None,
+                                arg_type=self._python_type_from_string(parameter_type),
+                                arg_action=argparse.BooleanOptionalAction if is_bool else None,
                                 arg_help=f"{parameter_key} for {operation.get('name')} operation in {operation.get('parent').name}",
-                                arg_default=False if type(parameter_type) is bool else None,
+                                arg_default=False if is_bool else None,
                             )
                         )
                     else:
@@ -514,6 +577,10 @@ class CommandFactory:
                                 parameter_type=parameter_type, parameter_key=parameter_key
                             )
                         )
+
+            if any(operation.get("name").startswith(cmd) for cmd in self.output_command_list):
+                args.extend([ARG_OUTPUT, ARG_AUTH_ENVIRONMENT])
+
             self.args_map[(operation.get("name"), operation.get("parent").name)] = args
 
     def _create_func_map_from_operation(self):
@@ -531,6 +598,7 @@ class CommandFactory:
             # Walk through all args and create a dictionary such as args.abc -> {"abc": "value"}
             method_params = {}
             datamodel = None
+            datamodel_param_name = None
             args_dict = vars(args)
             for parameter in api_operation["parameters"]:
                 for parameter_key, parameter_type in parameter.items():
@@ -541,18 +609,69 @@ class CommandFactory:
                     else:
                         datamodel = getattr(generated_datamodels, parameter_type)
                         for expanded_parameter in self.datamodels_extended_map[parameter_type]:
+                            if parameter_key not in method_params:
+                                method_params[parameter_key] = {}
+                                datamodel_param_name = parameter_key
                             if expanded_parameter in self.excluded_parameters:
                                 continue
                             if expanded_parameter in args_dict.keys():
-                                method_params[self._sanitize_method_param_key(expanded_parameter)] = (
-                                    args_dict[expanded_parameter]
-                                )
+                                method_params[parameter_key][
+                                    self._sanitize_method_param_key(expanded_parameter)
+                                ] = args_dict[expanded_parameter]
 
             if datamodel:
-                method_params = datamodel.model_validate(method_params)
-                rich.print(operation_method_object(method_params))
+                if datamodel_param_name:
+                    method_params[datamodel_param_name] = datamodel.model_validate(
+                        method_params[datamodel_param_name]
+                    )
+                else:
+                    method_params = datamodel.model_validate(method_params)
+                method_output = operation_method_object(**method_params)
             else:
-                rich.print(operation_method_object(**method_params))
+                method_output = operation_method_object(**method_params)
+
+            def convert_to_dict(obj: Any, api_operation_name: str) -> dict | Any:
+                """Recursively convert an object to a dictionary or list of dictionaries."""
+                if hasattr(obj, "model_dump"):
+                    return obj.model_dump(mode="json")
+                # Handle delete operation which returns a string of the deleted entity name
+                if isinstance(obj, str):
+                    return {"operation": api_operation_name, "entity": obj}
+                return obj
+
+            def check_operation_and_collect_list_of_dict(dict_obj: dict) -> list:
+                """Check if the object is a nested dictionary and collect list of dictionaries."""
+
+                def is_dict_nested(obj: dict) -> bool:
+                    """Check if the object is a nested dictionary."""
+                    return any(isinstance(i, dict) or isinstance(i, list) for i in obj.values())
+
+                if is_dict_nested(dict_obj):
+                    iteration_dict = dict_obj.copy()
+                    for key, value in iteration_dict.items():
+                        if key in self.excluded_output_keys:
+                            del dict_obj[key]
+                            continue
+                        if isinstance(value, Enum):
+                            dict_obj[key] = value.value
+                        if isinstance(value, list):
+                            dict_obj[key] = value
+                        if isinstance(value, dict):
+                            dict_obj[key] = check_operation_and_collect_list_of_dict(value)
+
+                # If dict_obj only have single key return value instead of list
+                # This can happen since we are excluding some keys from user such as total_entries from list operations
+                if len(dict_obj) == 1:
+                    return dict_obj[next(iter(dict_obj.keys()))]
+                # If not nested, return the object as a list which the result should be already a dict
+                return [dict_obj]
+
+            AirflowConsole().print_as(
+                data=check_operation_and_collect_list_of_dict(
+                    convert_to_dict(method_output, api_operation["name"])
+                ),
+                output=args.output,
+            )
 
         for operation in self.operations:
             self.func_map[(operation.get("name"), operation.get("parent").name)] = partial(
@@ -609,10 +728,12 @@ def merge_commands(
         List of merged commands.
     """
     merge_command_map = {}
+    new_commands: list[CLICommand] = []
     for command in commands_will_be_merged:
+        if isinstance(command, ActionCommand):
+            new_commands.append(command)
         if isinstance(command, GroupCommand):
             merge_command_map[command.name] = command
-    new_commands: list[CLICommand] = []
     merged_commands = []
     # Common commands
     for command in base_commands:
@@ -660,24 +781,6 @@ AUTH_COMMANDS = (
     ),
 )
 
-POOL_COMMANDS = (
-    ActionCommand(
-        name="import",
-        help="Import pools",
-        func=lazy_load_command("airflowctl.ctl.commands.pool_command.import_"),
-        args=(ARG_POOL_FILE,),
-    ),
-    ActionCommand(
-        name="export",
-        help="Export all pools",
-        func=lazy_load_command("airflowctl.ctl.commands.pool_command.export"),
-        args=(
-            ARG_POOL_FILE,
-            ARG_OUTPUT,
-        ),
-    ),
-)
-
 CONFIG_COMMANDS = (
     ActionCommand(
         name="lint",
@@ -694,18 +797,60 @@ CONFIG_COMMANDS = (
     ),
 )
 
-VARIABLE_COMMANDS = (
+CONNECTION_COMMANDS = (
     ActionCommand(
         name="import",
-        help="Import variables",
-        func=lazy_load_command("airflowctl.ctl.commands.variable_command.import_"),
-        args=(ARG_VARIABLE_IMPORT, ARG_VARIABLE_ACTION_ON_EXISTING_KEY),
+        help="Import connections from a file exported with local CLI.",
+        func=lazy_load_command("airflowctl.ctl.commands.connection_command.import_"),
+        args=(Arg(flags=("file",), metavar="FILEPATH", help="Connections JSON file"),),
+    ),
+)
+
+DAG_COMMANDS = (
+    ActionCommand(
+        name="pause",
+        help="Pause a Dag",
+        func=lazy_load_command("airflowctl.ctl.commands.dag_command.pause"),
+        args=(
+            ARG_DAG_ID,
+            ARG_OUTPUT,
+        ),
+    ),
+    ActionCommand(
+        name="unpause",
+        help="Unpause a Dag",
+        func=lazy_load_command("airflowctl.ctl.commands.dag_command.unpause"),
+        args=(
+            ARG_DAG_ID,
+            ARG_OUTPUT,
+        ),
+    ),
+)
+
+POOL_COMMANDS = (
+    ActionCommand(
+        name="import",
+        help="Import pools",
+        func=lazy_load_command("airflowctl.ctl.commands.pool_command.import_"),
+        args=(ARG_FILE,),
     ),
     ActionCommand(
         name="export",
-        help="Export all variables",
-        func=lazy_load_command("airflowctl.ctl.commands.variable_command.export"),
-        args=(ARG_VARIABLE_EXPORT,),
+        help="Export all pools",
+        func=lazy_load_command("airflowctl.ctl.commands.pool_command.export"),
+        args=(
+            ARG_FILE,
+            ARG_OUTPUT,
+        ),
+    ),
+)
+
+VARIABLE_COMMANDS = (
+    ActionCommand(
+        name="import",
+        help="Import variables from a file exported with local CLI.",
+        func=lazy_load_command("airflowctl.ctl.commands.variable_command.import_"),
+        args=(ARG_FILE, ARG_VARIABLE_ACTION_ON_EXISTING_KEY),
     ),
 )
 
@@ -717,19 +862,39 @@ core_commands: list[CLICommand] = [
         subcommands=AUTH_COMMANDS,
     ),
     GroupCommand(
+        name="config",
+        help="View, lint and update configurations.",
+        subcommands=CONFIG_COMMANDS,
+    ),
+    GroupCommand(
+        name="connections",
+        help="Manage Airflow connections",
+        subcommands=CONNECTION_COMMANDS,
+    ),
+    GroupCommand(
+        name="dags",
+        help="Manage Airflow Dags",
+        subcommands=DAG_COMMANDS,
+    ),
+    GroupCommand(
         name="pools",
         help="Manage Airflow pools",
         subcommands=POOL_COMMANDS,
+    ),
+    ActionCommand(
+        name="version",
+        help="Show version information",
+        description="Show version information",
+        func=lazy_load_command("airflowctl.ctl.commands.version_command.version_info"),
+        args=(
+            ARG_AUTH_ENVIRONMENT,
+            ARG_REMOTE,
+        ),
     ),
     GroupCommand(
         name="variables",
         help="Manage Airflow variables",
         subcommands=VARIABLE_COMMANDS,
-    ),
-    GroupCommand(
-        name="config",
-        help="View, lint and update configurations.",
-        subcommands=CONFIG_COMMANDS,
     ),
 ]
 # Add generated group commands

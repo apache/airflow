@@ -1,0 +1,45 @@
+{
+  "favorite": {
+    "favoriteDags_one": "Eerste {{count}} favoriete Dags",
+    "favoriteDags_other": "Eerste {{count}} favoriete Dags",
+    "noDagRuns": "Er is nog geen Dag Run voor deze Dag.",
+    "noFavoriteDags": "Geen favorieten. Klik op het sterpictogram naast een Dag in de lijst om deze aan je favorieten toe te voegen."
+  },
+  "group": "Groep",
+  "health": {
+    "dagProcessor": "Dag Processor",
+    "health": "Status",
+    "healthy": "OK",
+    "lastHeartbeat": "Laatste hartslag",
+    "metaDatabase": "MetaDatabase",
+    "scheduler": "Scheduler",
+    "status": "Status",
+    "triggerer": "Triggerer",
+    "unhealthy": "Fout"
+  },
+  "history": "Geschiedenis",
+  "importErrors": {
+    "dagImportError_one": "Dag leesfout",
+    "dagImportError_other": "Dag leesfouten",
+    "searchByFile": "Zoek op bestand",
+    "timestamp": "Tijd"
+  },
+  "managePools": "Beheer Pools",
+  "noAssetEvents": "Geen Asset Events gevonden.",
+  "poolSlots": "Pool Slots",
+  "sortBy": {
+    "newestFirst": "Nieuwste eerst",
+    "oldestFirst": "Oudste eerst"
+  },
+  "source": "Bron",
+  "stats": {
+    "activeDags": "Actieve Dags",
+    "failedDags": "Mislukte Dags",
+    "queuedDags": "Dags in de wachtrij",
+    "requiredActions": "Vereiste acties",
+    "runningDags": "Lopende Dags",
+    "stats": "Statistieken"
+  },
+  "uri": "Uri",
+  "welcome": "Welkom"
+}

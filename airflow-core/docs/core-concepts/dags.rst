@@ -24,23 +24,23 @@ Dags
     :start-after: .. dag-definition-start
     :end-before: .. dag-definition-end
 
-Here's a basic example DAG:
+Here's a basic example Dag:
 
 .. image:: /img/ui-light/basic_dag.png
 
-It defines four Tasks - A, B, C, and D - and dictates the order in which they have to run, and which tasks depend on what others. It will also say how often to run the DAG - maybe "every 5 minutes starting tomorrow", or "every day since January 1st, 2020".
+It defines four Tasks - A, B, C, and D - and dictates the order in which they have to run, and which tasks depend on what others. It will also say how often to run the Dag - maybe "every 5 minutes starting tomorrow", or "every day since January 1st, 2020".
 
-The DAG itself doesn't care about *what* is happening inside the tasks; it is merely concerned with *how* to execute them - the order to run them in, how many times to retry them, if they have timeouts, and so on.
+The Dag itself doesn't care about *what* is happening inside the tasks; it is merely concerned with *how* to execute them - the order to run them in, how many times to retry them, if they have timeouts, and so on.
 
 .. include:: /../../devel-common/src/sphinx_exts/includes/dag-definition.rst
     :start-after: .. dag-etymology-start
     :end-before: .. dag-etymology-end
 
-Declaring a DAG
+Declaring a Dag
 ---------------
 
-There are three ways to declare a DAG - either you can use ``with`` statement (context manager),
-which will add anything inside it to the DAG implicitly:
+There are three ways to declare a Dag - either you can use ``with`` statement (context manager),
+which will add anything inside it to the Dag implicitly:
 
 .. code-block:: python
    :emphasize-lines: 6-10
@@ -58,7 +58,7 @@ which will add anything inside it to the DAG implicitly:
         EmptyOperator(task_id="task")
 
 
-Or, you can use a standard constructor, passing the DAG into any operators you use:
+Or, you can use a standard constructor, passing the Dag into any operators you use:
 
 .. code-block:: python
    :emphasize-lines: 6-11
@@ -76,7 +76,7 @@ Or, you can use a standard constructor, passing the DAG into any operators you u
     EmptyOperator(task_id="task", dag=my_dag)
 
 
-Or, you can use the ``@dag`` decorator to :ref:`turn a function into a DAG generator <concepts-dag-decorator>`:
+Or, you can use the ``@dag`` decorator to :ref:`turn a function into a Dag generator <concepts-dag-decorator>`:
 
 .. code-block:: python
     :emphasize-lines: 7,8,12
@@ -101,7 +101,7 @@ Dags are nothing without :doc:`tasks` to run, and those will usually come in the
 Task Dependencies
 ~~~~~~~~~~~~~~~~~
 
-A Task/Operator does not usually live alone; it has dependencies on other tasks (those *upstream* of it), and other tasks depend on it (those *downstream* of it). Declaring these dependencies between tasks is what makes up the DAG structure (the *edges* of the *directed acyclic graph*).
+A Task/Operator does not usually live alone; it has dependencies on other tasks (those *upstream* of it), and other tasks depend on it (those *downstream* of it). Declaring these dependencies between tasks is what makes up the Dag structure.
 
 There are two main ways to declare individual task dependencies. The recommended one is to use the ``>>`` and ``<<`` operators::
 
@@ -144,14 +144,14 @@ Chain can also do *pairwise* dependencies for lists the same size (this is diffe
 
 .. _concepts-dag-loading:
 
-Loading dags
+Loading Dags
 ------------
 
-Airflow loads dags from Python source files in dag bundles. It will take each file, execute it, and then load any DAG objects from that file.
+Airflow loads Dags from Python source files in Dag bundles. It will take each file, execute it, and then load any Dag objects from that file.
 
-This means you can define multiple dags per Python file, or even spread one very complex DAG across multiple Python files using imports.
+This means you can define multiple Dags per Python file, or even spread one very complex Dag across multiple Python files using imports.
 
-Note, though, that when Airflow comes to load dags from a Python file, it will only pull any objects at the *top level* that are a DAG instance. For example, take this DAG file::
+Note, though, that when Airflow comes to load Dags from a Python file, it will only pull any objects at the *top level* that are a Dag instance. For example, take this Dag file::
 
     dag_1 = DAG('this_dag_will_be_discovered')
 
@@ -160,15 +160,15 @@ Note, though, that when Airflow comes to load dags from a Python file, it will o
 
     my_function()
 
-While both DAG constructors get called when the file is accessed, only ``dag_1`` is at the top level (in the ``globals()``), and so only it is added to Airflow. ``dag_2`` is not loaded.
+While both Dag constructors get called when the file is accessed, only ``dag_1`` is at the top level (in the ``globals()``), and so only it is added to Airflow. ``dag_2`` is not loaded.
 
 .. note::
 
-    When searching for dags inside the dag bundle, Airflow only considers Python files that contain the strings ``airflow`` and ``dag`` (case-insensitively) as an optimization.
+    When searching for Dags inside the Dag bundle, Airflow only considers Python files that contain the strings ``airflow`` and ``dag`` (case-insensitively) as an optimization.
 
     To consider all Python files instead, disable the ``DAG_DISCOVERY_SAFE_MODE`` configuration flag.
 
-You can also provide an ``.airflowignore`` file inside your dag bundle, or any of its subfolders, which describes patterns of files for the loader to ignore. It covers the directory it's in plus all subfolders underneath it. See  :ref:`.airflowignore <concepts:airflowignore>` below for details of the file syntax.
+You can also provide an ``.airflowignore`` file inside your Dag bundle, or any of its subfolders, which describes patterns of files for the loader to ignore. It covers the directory it's in plus all subfolders underneath it. See  :ref:`.airflowignore <concepts:airflowignore>` below for details of the file syntax.
 
 In the case where the ``.airflowignore`` does not meet your needs and you want a more flexible way to control if a python file needs to be parsed by airflow, you can plug your callable by setting ``might_contain_dag_callable`` in the config file.
 Note, this callable will replace the default Airflow heuristic, i.e. checking if the strings ``airflow`` and ``dag`` (case-insensitively) are present in the python file.
@@ -176,19 +176,19 @@ Note, this callable will replace the default Airflow heuristic, i.e. checking if
 .. code-block::
 
     def might_contain_dag(file_path: str, zip_file: zipfile.ZipFile | None = None) -> bool:
-        # Your logic to check if there are dags defined in the file_path
+        # Your logic to check if there are Dags defined in the file_path
         # Return True if the file_path needs to be parsed, otherwise False
 
 
 .. _concepts-dag-run:
 
-Running dags
+Running Dags
 ------------
 
 Dags will run in one of two ways:
 
  - When they are *triggered* either manually or via the API
- - On a defined *schedule*, which is defined as part of the DAG
+ - On a defined *schedule*, which is defined as part of the Dag
 
 Dags do not *require* a schedule, but it's very common to define one. You define it via the ``schedule`` argument, like this::
 
@@ -210,38 +210,38 @@ There are various valid values for the ``schedule`` argument::
 
     For more information different types of scheduling, see :doc:`/authoring-and-scheduling/index`.
 
-Every time you run a DAG, you are creating a new instance of that DAG which
-Airflow calls a :doc:`DAG Run <dag-run>`. DAG Runs can run in parallel for the
-same DAG, and each has a defined data interval, which identifies the period of
+Every time you run a Dag, you are creating a new instance of that Dag which
+Airflow calls a :doc:`Dag Run <dag-run>`. Dag Runs can run in parallel for the
+same Dag, and each has a defined data interval, which identifies the period of
 data the tasks should operate on.
 
-As an example of why this is useful, consider writing a DAG that processes a
+As an example of why this is useful, consider writing a Dag that processes a
 daily set of experimental data. It's been rewritten, and you want to run it on
-the previous 3 months of data---no problem, since Airflow can *backfill* the DAG
+the previous 3 months of data---no problem, since Airflow can *backfill* the Dag
 and run copies of it for every day in those previous 3 months, all at once.
 
-Those DAG Runs will all have been started on the same actual day, but each DAG
-run will have one data interval covering a single day in that 3 month period,
-and that data interval is all the tasks, operators and sensors inside the DAG
+Those Dag Runs will all have been started on the same actual day, but each Dag
+Run will have one data interval covering a single day in that 3 month period,
+and that data interval is all the tasks, operators and sensors inside the Dag
 look at when they run.
 
-In much the same way a DAG instantiates into a DAG Run every time it's run,
-Tasks specified inside a DAG are also instantiated into
+In much the same way a Dag instantiates into a Dag Run every time it's run,
+Tasks specified inside a Dag are also instantiated into
 :ref:`Task Instances <concepts:task-instances>` along with it.
 
-A DAG run will have a start date when it starts, and end date when it ends.
-This period describes the time when the DAG actually 'ran.' Aside from the DAG
+A Dag run will have a start date when it starts, and end date when it ends.
+This period describes the time when the Dag actually 'ran.' Aside from the Dag
 run's start and end date, there is another date called *logical date*
 (formally known as execution date), which describes the intended time a
-DAG run is scheduled or triggered. The reason why this is called
+Dag run is scheduled or triggered. The reason why this is called
 *logical* is because of the abstract nature of it having multiple meanings,
-depending on the context of the DAG run itself.
+depending on the context of the Dag run itself.
 
-For example, if a DAG run is manually triggered by the user, its logical date would be the
-date and time of which the DAG run was triggered, and the value should be equal
-to DAG run's start date. However, when the DAG is being automatically scheduled, with certain
+For example, if a Dag run is manually triggered by the user, its logical date would be the
+date and time of which the Dag run was triggered, and the value should be equal
+to Dag run's start date. However, when the Dag is being automatically scheduled, with certain
 schedule interval put in place, the logical date is going to indicate the time
-at which it marks the start of the data interval, where the DAG run's start
+at which it marks the start of the data interval, where the Dag run's start
 date would then be the logical date + scheduled interval.
 
 .. tip::
@@ -249,14 +249,14 @@ date would then be the logical date + scheduled interval.
     For more information on ``logical date``, see :ref:`data-interval` and
     :ref:`faq:what-does-execution-date-mean`.
 
-DAG Assignment
+Dag Assignment
 --------------
 
-Note that every single Operator/Task must be assigned to a DAG in order to run. Airflow has several ways of calculating the DAG without you passing it explicitly:
+Note that every single Operator/Task must be assigned to a Dag in order to run. Airflow has several ways of calculating the Dag without you passing it explicitly:
 
 * If you declare your Operator inside a ``with DAG`` block
 * If you declare your Operator inside a ``@dag`` decorator
-* If you put your Operator upstream or downstream of an Operator that has a DAG
+* If you put your Operator upstream or downstream of an Operator that has a Dag
 
 Otherwise, you must pass it into each Operator with ``dag=``.
 
@@ -266,7 +266,7 @@ Otherwise, you must pass it into each Operator with ``dag=``.
 Default Arguments
 -----------------
 
-Often, many Operators inside a DAG need the same set of default arguments (such as their ``retries``). Rather than having to specify this individually for every Operator, you can instead pass ``default_args`` to the DAG when you create it, and it will auto-apply them to any operator tied to it:
+Often, many Operators inside a Dag need the same set of default arguments (such as their ``retries``). Rather than having to specify this individually for every Operator, you can instead pass ``default_args`` to the Dag when you create it, and it will auto-apply them to any operator tied to it:
 
 .. code-block:: python
     :emphasize-lines: 7
@@ -285,23 +285,23 @@ Often, many Operators inside a DAG need the same set of default arguments (such 
 
 .. _concepts-dag-decorator:
 
-The DAG decorator
+The Dag decorator
 -----------------
 
 .. versionadded:: 2.0
 
-As well as the more traditional ways of declaring a single DAG using a context manager or the ``DAG()`` constructor, you can also decorate a function with ``@dag`` to turn it into a DAG generator function:
+As well as the more traditional ways of declaring a single Dag using a context manager or the ``Dag()`` constructor, you can also decorate a function with ``@dag`` to turn it into a Dag generator function:
 
 .. exampleinclude:: /../src/airflow/example_dags/example_dag_decorator.py
     :language: python
     :start-after: [START dag_decorator_usage]
     :end-before: [END dag_decorator_usage]
 
-As well as being a new way of making dags cleanly, the decorator also sets up any parameters you have in your function as DAG parameters, letting you :ref:`set those parameters when triggering the DAG <dagrun:parameters>`. You can then access the parameters from Python code, or from ``{{ context.params }}`` inside a :ref:`Jinja template <concepts:jinja-templating>`.
+As well as being a new way of making Dags cleanly, the decorator also sets up any parameters you have in your function as Dag parameters, letting you :ref:`set those parameters when triggering the Dag <dagrun:parameters>`. You can then access the parameters from Python code, or from ``{{ context.params }}`` inside a :ref:`Jinja template <concepts:jinja-templating>`.
 
 .. note::
 
-    Airflow will only load dags that :ref:`appear in the top level <concepts-dag-loading>` of a DAG file. This means you cannot just declare a function with ``@dag`` - you must also call it at least once in your DAG file and assign it to a top-level object, as you can see in the example above.
+    Airflow will only load Dags that :ref:`appear in the top level <concepts-dag-loading>` of a Dag file. This means you cannot just declare a function with ``@dag`` - you must also call it at least once in your Dag file and assign it to a top-level object, as you can see in the example above.
 
 
 .. _concepts-control-flow:
@@ -309,12 +309,12 @@ As well as being a new way of making dags cleanly, the decorator also sets up an
 Control Flow
 ------------
 
-By default, a DAG will only run a Task when all the Tasks it depends on are successful. There are several ways of modifying this, however:
+By default, a Dag will only run a Task when all the Tasks it depends on are successful. There are several ways of modifying this, however:
 
 * :ref:`concepts:branching` - select which Task to move onto based on a condition
-* :ref:`concepts:trigger-rules` - set the conditions under which a DAG will run a task
+* :ref:`concepts:trigger-rules` - set the conditions under which a Dag will run a task
 * :doc:`/howto/setup-and-teardown` - define setup and teardown relationships
-* :ref:`concepts:latest-only` - a special form of branching that only runs on dags running against the present
+* :ref:`concepts:latest-only` - a special form of branching that only runs on Dags running against the present
 * :ref:`concepts:depends-on-past` - tasks can depend on themselves *from a previous run*
 
 .. _concepts:branching:
@@ -322,7 +322,7 @@ By default, a DAG will only run a Task when all the Tasks it depends on are succ
 Branching
 ~~~~~~~~~
 
-You can make use of branching in order to tell the DAG *not* to run all dependent tasks, but instead to pick and choose one or more paths to go down. This is where the ``@task.branch`` decorator come in.
+You can make use of branching in order to tell the Dag *not* to run all dependent tasks, but instead to pick and choose one or more paths to go down. This is where the ``@task.branch`` decorator come in.
 
 The ``@task.branch`` decorator is much like ``@task``, except that it expects the decorated function to return an ID to a task (or a list of IDs). The specified task is followed, while all other paths are skipped. It can also return *None* to skip all downstream tasks.
 
@@ -367,7 +367,7 @@ The ``@task.branch`` can also be used with XComs allowing branching context to d
 If you wish to implement your own operators with branching functionality, you can inherit from :class:`~airflow.operators.branch.BaseBranchOperator`, which behaves similarly to ``@task.branch`` decorator but expects you to provide an implementation of the method ``choose_branch``.
 
 .. note::
-    The ``@task.branch`` decorator is recommended over directly instantiating :class:`~airflow.providers.standard.operators.python.BranchPythonOperator` in a DAG. The latter should generally only be subclassed to implement a custom operator.
+    The ``@task.branch`` decorator is recommended over directly instantiating :class:`~airflow.providers.standard.operators.python.BranchPythonOperator` in a Dag. The latter should generally only be subclassed to implement a custom operator.
 
 As with the callable for ``@task.branch``, this method can return the ID of a downstream task, or a list of task IDs, which will be run, and all others will be skipped. It can also return None to skip all downstream task::
 
@@ -391,11 +391,11 @@ Similar like ``@task.branch`` decorator for regular Python code there are also b
 Latest Only
 ~~~~~~~~~~~
 
-Airflow's DAG Runs are often run for a date that is not the same as the current date - for example, running one copy of a DAG for every day in the last month to backfill some data.
+Airflow's Dag Runs are often run for a date that is not the same as the current date - for example, running one copy of a Dag for every day in the last month to backfill some data.
 
-There are situations, though, where you *don't* want to let some (or all) parts of a DAG run for a previous date; in this case, you can use the ``LatestOnlyOperator``.
+There are situations, though, where you *don't* want to let some (or all) parts of a Dag run for a previous date; in this case, you can use the ``LatestOnlyOperator``.
 
-This special Operator skips all tasks downstream of itself if you are not on the "latest" DAG run (if the wall-clock time right now is between its execution_time and the next scheduled execution_time, and it was not an externally-triggered run).
+This special Operator skips all tasks downstream of itself if you are not on the "latest" Dag run (if the wall-clock time right now is between its execution_time and the next scheduled execution_time, and it was not an externally-triggered run).
 
 Here's an example:
 
@@ -404,7 +404,7 @@ Here's an example:
     :start-after: [START example]
     :end-before: [END example]
 
-In the case of this DAG:
+In the case of this Dag:
 
 * ``task1`` is directly downstream of ``latest_only`` and will be skipped for all runs except the latest.
 * ``task2`` is entirely independent of ``latest_only`` and will run in all scheduled periods
@@ -418,9 +418,9 @@ In the case of this DAG:
 Depends On Past
 ~~~~~~~~~~~~~~~
 
-You can also say a task can only run if the *previous* run of the task in the previous DAG Run succeeded. To use this, you just need to set the ``depends_on_past`` argument on your Task to ``True``.
+You can also say a task can only run if the *previous* run of the task in the previous Dag Run succeeded. To use this, you just need to set the ``depends_on_past`` argument on your Task to ``True``.
 
-Note that if you are running the DAG at the very start of its life---specifically, its first ever *automated* run---then the Task will still run, as there is no previous run to depend on.
+Note that if you are running the Dag at the very start of its life---specifically, its first ever *automated* run---then the Task will still run, as there is no previous run to depend on.
 
 
 .. _concepts:trigger-rules:
@@ -435,6 +435,7 @@ However, this is just the default behaviour, and you can control it using the ``
 * ``all_success`` (default): All upstream tasks have succeeded
 * ``all_failed``: All upstream tasks are in a ``failed`` or ``upstream_failed`` state
 * ``all_done``: All upstream tasks are done with their execution
+* ``all_done_min_one_success``: All non-skipped upstream tasks are done with their execution and at least one upstream task has succeeded
 * ``all_skipped``: All upstream tasks are in a ``skipped`` state
 * ``one_failed``: At least one upstream task has failed (does not wait for all upstream tasks to be done)
 * ``one_success``: At least one upstream task has succeeded (does not wait for all upstream tasks to be done)
@@ -451,7 +452,7 @@ You can also combine this with the :ref:`concepts:depends-on-past` functionality
 
     It's important to be aware of the interaction between trigger rules and skipped tasks, especially tasks that are skipped as part of a branching operation. *You almost never want to use all_success or all_failed downstream of a branching operation*.
 
-    Skipped tasks will cascade through trigger rules ``all_success`` and ``all_failed``, and cause them to skip as well. Consider the following DAG:
+    Skipped tasks will cascade through trigger rules ``all_success`` and ``all_failed``, and cause them to skip as well. Consider the following Dag:
 
     .. code-block:: python
 
@@ -506,12 +507,12 @@ In data workflows it's common to create a resource (such as a compute resource),
 Please see main article :doc:`/howto/setup-and-teardown` for details on how to use this feature.
 
 
-Dynamic dags
+Dynamic Dags
 ------------
 
-Since a DAG is defined by Python code, there is no need for it to be purely declarative; you are free to use loops, functions, and more to define your DAG.
+Since a Dag is defined by Python code, there is no need for it to be purely declarative; you are free to use loops, functions, and more to define your Dag.
 
-For example, here is a DAG that uses a ``for`` loop to define some tasks:
+For example, here is a Dag that uses a ``for`` loop to define some tasks:
 
 .. code-block:: python
    :emphasize-lines: 7
@@ -525,20 +526,20 @@ For example, here is a DAG that uses a ``for`` loop to define some tasks:
             t = EmptyOperator(task_id=option)
             first >> t >> last
 
-In general, we advise you to try and keep the *topology* (the layout) of your DAG tasks relatively stable; dynamic dags are usually better used for dynamically loading configuration options or changing operator options.
+In general, we advise you to try and keep the *topology* (the layout) of your Dag tasks relatively stable; dynamic Dags are usually better used for dynamically loading configuration options or changing operator options.
 
 
-DAG Visualization
+Dag Visualization
 -----------------
 
-If you want to see a visual representation of a DAG, you have two options:
+If you want to see a visual representation of a Dag, you have two options:
 
-* You can load up the Airflow UI, navigate to your DAG, and select "Graph"
+* You can load up the Airflow UI, navigate to your Dag, and select "Graph"
 * You can run ``airflow dags show``, which renders it out as an image file
 
-We generally recommend you use the Graph view, as it will also show you the state of all the :ref:`Task Instances <concepts:task-instances>` within any DAG Run you select.
+We generally recommend you use the Graph view, as it will also show you the state of all the :ref:`Task Instances <concepts:task-instances>` within any Dag Run you select.
 
-Of course, as you develop out your dags they are going to get increasingly complex, so we provide a few ways to modify these DAG views to make them easier to understand.
+Of course, as you develop out your Dags they are going to get increasingly complex, so we provide a few ways to modify these Dag views to make them easier to understand.
 
 
 .. _concepts:taskgroups:
@@ -548,7 +549,10 @@ TaskGroups
 
 A TaskGroup can be used to organize tasks into hierarchical groups in Graph view. It is useful for creating repeating patterns and cutting down visual clutter.
 
-Tasks in TaskGroups live on the same original DAG, and honor all the DAG settings and pool configurations.
+Tasks in TaskGroups live on the same original Dag, and honor all the Dag settings and pool configurations.
+
+.. seealso::
+   API reference for :class:`~airflow.sdk.TaskGroup` and :class:`~airflow.sdk.task_group`
 
 .. image:: /img/ui-light/task_group.gif
 
@@ -570,7 +574,7 @@ Dependency relationships can be applied across all tasks in a TaskGroup with the
 
     group1() >> task3
 
-TaskGroup also supports ``default_args`` like DAG, it will overwrite the ``default_args`` in DAG level:
+TaskGroup also supports ``default_args`` like Dag, it will overwrite the ``default_args`` in Dag level:
 
 .. code-block:: python
     :emphasize-lines: 15
@@ -597,11 +601,11 @@ TaskGroup also supports ``default_args`` like DAG, it will overwrite the ``defau
             print(task1.retries)  # 3
             print(task2.retries)  # 2
 
-If you want to see a more advanced use of TaskGroup, you can look at the ``example_task_group_decorator.py`` example DAG that comes with Airflow.
+If you want to see a more advanced use of TaskGroup, you can look at the ``example_task_group_decorator.py`` example Dag that comes with Airflow.
 
 .. note::
 
-    By default, child tasks/TaskGroups have their IDs prefixed with the group_id of their parent TaskGroup. This helps to ensure uniqueness of group_id and task_id throughout the DAG.
+    By default, child tasks/TaskGroups have their IDs prefixed with the group_id of their parent TaskGroup. This helps to ensure uniqueness of group_id and task_id throughout the Dag.
 
     To disable the prefixing, pass ``prefix_group_id=False`` when creating the TaskGroup, but note that you will now be responsible for ensuring every single task and group has a unique ID of its own.
 
@@ -614,7 +618,7 @@ If you want to see a more advanced use of TaskGroup, you can look at the ``examp
 Edge Labels
 ~~~~~~~~~~~
 
-As well as grouping tasks into groups, you can also label the *dependency edges* between different tasks in the Graph view - this can be especially useful for branching areas of your DAG, so you can label the conditions under which certain branches might run.
+As well as grouping tasks into groups, you can also label the *dependency edges* between different tasks in the Graph view - this can be especially useful for branching areas of your Dag, so you can label the conditions under which certain branches might run.
 
 To add labels, you can use them directly inline with the ``>>`` and ``<<`` operators:
 
@@ -632,7 +636,7 @@ Or, you can pass a Label object to ``set_upstream``/``set_downstream``:
 
     my_task.set_downstream(other_task, Label("When empty"))
 
-Here's an example DAG which illustrates labeling different branches:
+Here's an example Dag which illustrates labeling different branches:
 
 .. image:: /img/ui-light/edge_label_example.png
 
@@ -641,10 +645,10 @@ Here's an example DAG which illustrates labeling different branches:
     :start-after: from airflow.sdk import DAG, Label
 
 
-DAG & Task Documentation
+Dag & Task Documentation
 ------------------------
 
-It's possible to add documentation or notes to your dags & task objects that are visible in the web interface ("Graph" & "Tree" for dags, "Task Instance Details" for tasks).
+It's possible to add documentation or notes to your Dags & task objects that are visible in the web interface ("Graph" & "Tree" for Dags, "Task Instance Details" for tasks).
 
 There are a set of special task attributes that get rendered as rich content if defined:
 
@@ -658,15 +662,15 @@ doc_md      markdown
 doc_rst     reStructuredText
 ==========  ================
 
-Please note that for dags, ``doc_md`` is the only attribute interpreted. For dags it can contain a string or the reference to a markdown file. Markdown files are recognized by str ending in ``.md``.
-If a relative path is supplied it will be loaded from the path relative to which the Airflow Scheduler or DAG parser was started. If the markdown file does not exist, the passed filename will be used as text, no exception will be displayed. Note that the markdown file is loaded during DAG parsing, changes to the markdown content take one DAG parsing cycle to have changes be displayed.
+Please note that for Dags, ``doc_md`` is the only attribute interpreted. For Dags it can contain a string or the reference to a markdown file. Markdown files are recognized by str ending in ``.md``.
+If a relative path is supplied it will be loaded from the path relative to which the Airflow Scheduler or Dag parser was started. If the markdown file does not exist, the passed filename will be used as text, no exception will be displayed. Note that the markdown file is loaded during Dag parsing, changes to the markdown content take one Dag parsing cycle to have changes be displayed.
 
 This is especially useful if your tasks are built dynamically from configuration files, as it allows you to expose the configuration that led to the related tasks in Airflow:
 
 .. code-block:: python
 
     """
-    ### My great DAG
+    ### My great Dag
     """
 
     import pendulum
@@ -686,19 +690,19 @@ This is especially useful if your tasks are built dynamically from configuration
     """
 
 
-Packaging dags
+Packaging Dags
 --------------
 
-While simpler dags are usually only in a single Python file, it is not uncommon that more complex dags might be spread across multiple files and have dependencies that should be shipped with them ("vendored").
+While simpler Dags are usually only in a single Python file, it is not uncommon that more complex Dags might be spread across multiple files and have dependencies that should be shipped with them ("vendored").
 
-You can either do this all inside of the dag bundle, with a standard filesystem layout, or you can package the DAG and all of its Python files up as a single zip file. For instance, you could ship two dags along with a dependency they need as a zip file with the following contents::
+You can either do this all inside of the Dag bundle, with a standard filesystem layout, or you can package the Dag and all of its Python files up as a single zip file. For instance, you could ship two Dags along with a dependency they need as a zip file with the following contents::
 
     my_dag1.py
     my_dag2.py
     package1/__init__.py
     package1/functions.py
 
-Note that packaged dags come with some caveats:
+Note that packaged Dags come with some caveats:
 
 * They cannot be used if you have pickling enabled for serialization
 * They cannot contain compiled libraries (e.g. ``libz.so``), only pure Python
@@ -711,7 +715,7 @@ In general, if you have a complex set of compiled dependencies and modules, you 
 ``.airflowignore``
 ------------------
 
-An ``.airflowignore`` file specifies the directories or files in the dag bundle
+An ``.airflowignore`` file specifies the directories or files in the Dag bundle
 or ``PLUGINS_FOLDER`` that Airflow should intentionally ignore. Airflow supports
 two syntax flavors for patterns in the file, as specified by the ``DAG_IGNORE_FILE_SYNTAX``
 configuration parameter (*added in Airflow 2.3*): ``regexp`` and ``glob``.
@@ -735,12 +739,12 @@ With the ``glob`` syntax (the default), the patterns work just like those in a `
   pattern may also match at any level below the .airflowignore level.
 
 For the ``regexp`` pattern syntax, each line in ``.airflowignore``
-specifies a regular expression pattern, and directories or files whose names (not DAG id)
+specifies a regular expression pattern, and directories or files whose names (not Dag id)
 match any of the patterns would be ignored (under the hood, ``Pattern.search()`` is used
 to match the pattern). Use the ``#`` character to indicate a comment; all characters
 on lines starting with ``#`` will be ignored.
 
-The ``.airflowignore`` file should be put in your dag bundle. For example, you can prepare
+The ``.airflowignore`` file should be put in your Dag bundle. For example, you can prepare
 a ``.airflowignore`` file with the ``glob`` syntax
 
 .. code-block::
@@ -749,83 +753,120 @@ a ``.airflowignore`` file with the ``glob`` syntax
     tenant_[0-9]*
 
 Then files like ``project_a_dag_1.py``, ``TESTING_project_a.py``, ``tenant_1.py``,
-``project_a/dag_1.py``, and ``tenant_1/dag_1.py`` in your dag bundle would be ignored
+``project_a/dag_1.py``, and ``tenant_1/dag_1.py`` in your Dag bundle would be ignored
 (If a directory's name matches any of the patterns, this directory and all its subfolders
-would not be scanned by Airflow at all. This improves efficiency of DAG finding).
+would not be scanned by Airflow at all. This improves efficiency of Dag finding).
 
 The scope of a ``.airflowignore`` file is the directory it is in plus all its subfolders.
-You can also prepare ``.airflowignore`` file for a subfolder in your dag bundle and it
+You can also prepare ``.airflowignore`` file for a subfolder in your Dag bundle and it
 would only be applicable for that subfolder.
 
-DAG Dependencies
+Dag Dependencies
 ----------------
 
 *Added in Airflow 2.1*
 
-While dependencies between tasks in a DAG are explicitly defined through upstream and downstream
-relationships, dependencies between dags are a bit more complex. In general, there are two ways
-in which one DAG can depend on another:
+While dependencies between tasks in a Dag are explicitly defined through upstream and downstream
+relationships, dependencies between Dags are a bit more complex. In general, there are two ways
+in which one Dag can depend on another:
 
 - triggering - :class:`~airflow.providers.standard.operators.trigger_dagrun.TriggerDagRunOperator`
 - waiting - :class:`~airflow.providers.standard.sensors.external_task_sensor.ExternalTaskSensor`
 
-Additional difficulty is that one DAG could wait for or trigger several runs of the other DAG
+Additional difficulty is that one Dag could wait for or trigger several runs of the other Dag
 with different data intervals. The **Dag Dependencies** view
-``Menu -> Browse -> DAG Dependencies`` helps visualize dependencies between dags. The dependencies
-are calculated by the scheduler during DAG serialization and the webserver uses them to build
+``Menu -> Browse -> Dag Dependencies`` helps visualize dependencies between Dags. The dependencies
+are calculated by the scheduler during Dag serialization and the webserver uses them to build
 the dependency graph.
 
 The dependency detector is configurable, so you can implement your own logic different than the defaults in
 :class:`~airflow.serialization.serialized_objects.DependencyDetector`
 
-DAG pausing, deactivation and deletion
+Dag pausing, deactivation and deletion
 --------------------------------------
 
-The dags have several states when it comes to being "not running". Dags can be paused, deactivated
-and finally all metadata for the DAG can be deleted.
+The Dags have several states when it comes to being "not running". Dags can be paused, deactivated
+and finally all metadata for the Dag can be deleted.
 
 Dag can be paused via UI when it is present in the ``DAGS_FOLDER``, and scheduler stored it in
 the database, but the user chose to disable it via the UI. The "pause" and "unpause" actions are available
-via UI and API. Paused DAG is not scheduled by the Scheduler, but you can trigger them via UI for
-manual runs. In the UI, you can see paused dags (in ``Paused`` tab). The dags that are un-paused
-can be found in the ``Active`` tab. When a DAG is paused, any running tasks are allowed to complete and all
-downstream tasks are put in to a state of "Scheduled". When the DAG is unpaused, any "scheduled" tasks will
-begin running according to the DAG logic. Dags with no "scheduled" tasks will begin running according to
+via UI and API. Paused Dags are not scheduled by the Scheduler, but you can trigger them via UI for
+manual runs. In the UI, you can see paused Dags (in ``Paused`` tab). The Dags that are un-paused
+can be found in the ``Active`` tab. When a Dag is paused, any running tasks are allowed to complete and all
+downstream tasks are put in to a state of "Scheduled". When the Dag is unpaused, any "scheduled" tasks will
+begin running according to the Dag logic. Dags with no "scheduled" tasks will begin running according to
 their schedule.
 
 Dags can be deactivated (do not confuse it with ``Active`` tag in the UI) by removing them from the
-``DAGS_FOLDER``. When scheduler parses the ``DAGS_FOLDER`` and misses the DAG that it had seen
+``DAGS_FOLDER``. When scheduler parses the ``DAGS_FOLDER`` and misses the Dag that it had seen
 before and stored in the database it will set is as deactivated. The metadata and history of the
-DAG` is kept for deactivated dags and when the dag is re-added to the ``DAGS_FOLDER`` it will be again
-activated and history will be visible. You cannot activate/deactivate DAG via UI or API, this
+Dag is kept for deactivated Dags and when the Dag is re-added to the ``DAGS_FOLDER`` it will be again
+activated and history will be visible. You cannot activate/deactivate Dag via UI or API, this
 can only be done by removing files from the ``DAGS_FOLDER``. Once again - no data for historical runs of the
-DAG are lost when it is deactivated by the scheduler. Note that the ``Active`` tab in Airflow UI
-refers to dags that are not both ``Activated`` and ``Not paused`` so this might initially be a
+Dag are lost when it is deactivated by the scheduler. Note that the ``Active`` tab in Airflow UI
+refers to Dags that are not both ``Activated`` and ``Not paused`` so this might initially be a
 little confusing.
 
-You can't see the deactivated dags in the UI - you can sometimes see the historical runs, but when you try to
-see the information about those you will see the error that the DAG is missing.
+You can't see the deactivated Dags in the UI - you can sometimes see the historical runs, but when you try to
+see the information about those you will see the error that the Dag is missing.
 
-You can also delete the DAG metadata from the metadata database using UI or API, but it does not
-always result in disappearing of the DAG from the UI - which might be also initially a bit confusing.
-If the DAG is still in ``DAGS_FOLDER`` when you delete the metadata, the DAG will re-appear as
-Scheduler will parse the folder, only historical runs information for the DAG will be removed.
+You can also delete the Dag metadata from the metadata database using UI or API, but it does not
+always result in disappearing of the Dag from the UI - which might be also initially a bit confusing.
+If the Dag is still in ``DAGS_FOLDER`` when you delete the metadata, the Dag will re-appear as
+Scheduler will parse the folder, only historical runs information for the Dag will be removed.
 
-This all means that if you want to actually delete a DAG and its all historical metadata, you need to do
+This all means that if you want to actually delete a Dag and its all historical metadata, you need to do
 it in three steps:
 
-* pause the DAG
+* pause the Dag
 * delete the historical metadata from the database, via UI or API
-* delete the DAG file from the ``DAGS_FOLDER`` and wait until it becomes inactive
+* delete the Dag file from the ``DAGS_FOLDER`` and wait until it becomes inactive
 
-DAG Auto-pausing (Experimental)
+Dag Auto-pausing (Experimental)
 -------------------------------
 Dags can be configured to be auto-paused as well.
-There is a Airflow configuration which allows for automatically disabling of a dag
+There is a Airflow configuration which allows for automatically disabling of a Dag
 if it fails for ``N`` number of times consecutively.
 
 - :ref:`config:core__max_consecutive_failed_dag_runs_per_dag`
 
-we can also provide and override these configuration from DAG argument:
+we can also provide and override these configuration from Dag argument:
 
 - ``max_consecutive_failed_dag_runs``: Overrides :ref:`config:core__max_consecutive_failed_dag_runs_per_dag`.
+
+Deadline Alerts
+---------------
+
+.. versionadded:: 3.1
+
+Deadline Alerts allow you to set time thresholds for your Dag runs and automatically respond when those
+thresholds are exceeded. You can set deadlines relative to a fixed datetime, use one of the available
+calculated references (like Dag queue time or start time), or implement your own custom reference.
+When a deadline is exceeded, it triggers a callback which can notify you or take other actions.
+
+Here's a simple example using the existing email Notifier:
+
+.. code-block:: python
+
+    from datetime import timedelta
+    from airflow import DAG
+    from airflow.providers.smtp.notifications.smtp import SmtpNotifier
+    from airflow.sdk.definitions.deadline import DeadlineAlert, DeadlineReference
+
+    with DAG(
+        dag_id="email_deadline",
+        deadline=DeadlineAlert(
+            reference=DeadlineReference.DAGRUN_QUEUED_AT,
+            interval=timedelta(minutes=30),
+            callback=SmtpNotifier(
+                to="team@example.com",
+                subject="🚨 Dag {{ dag_run.dag_id }} missed deadline at {{ deadline.deadline_time }}",
+                html_content="The Dag Run {{ dag_run.dag_run_id }} has been running for more than 30 minutes since being queued.",
+            ),
+        ),
+    ):
+        EmptyOperator(task_id="task1")
+
+This example will send an email notification if the Dag hasn't finished 30 minutes after it was queued.
+
+For more information on implementing and configuring Deadline Alerts, see :doc:`/howto/deadline-alerts`.

@@ -24,8 +24,7 @@ from datetime import timedelta
 from typing import TYPE_CHECKING, Any
 from uuid import uuid4
 
-from airflow.configuration import conf
-from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
+from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.amazon.aws.hooks.emr import EmrContainerHook, EmrHook, EmrServerlessHook
 from airflow.providers.amazon.aws.links.emr import (
     EmrClusterLink,
@@ -57,11 +56,12 @@ from airflow.providers.amazon.aws.utils.waiter import (
     waiter,
 )
 from airflow.providers.amazon.aws.utils.waiter_with_logging import wait
+from airflow.providers.amazon.version_compat import NOTSET, ArgNotSet
+from airflow.providers.common.compat.sdk import AirflowException, conf
 from airflow.utils.helpers import exactly_one, prune_dict
-from airflow.utils.types import NOTSET, ArgNotSet
 
 if TYPE_CHECKING:
-    from airflow.utils.context import Context
+    from airflow.sdk import Context
 
 
 class EmrAddStepsOperator(AwsBaseOperator[EmrHook]):
@@ -89,9 +89,9 @@ class EmrAddStepsOperator(AwsBaseOperator[EmrHook]):
     :param steps: boto3 style steps or reference to a steps file (must be '.json') to
         be added to the jobflow. (templated)
     :param wait_for_completion: If True, the operator will wait for all the steps to be completed.
+        Defaults to False. Note: When deferrable=True, this parameter will not take effect.
     :param execution_role_arn: The ARN of the runtime role for a step on the cluster.
     :param do_xcom_push: if True, job_flow_id is pushed to XCom with key job_flow_id.
-    :param wait_for_completion: Whether to wait for job run completion. (default: True)
     :param deferrable: If True, the operator will wait asynchronously for the job to complete.
         This implies waiting for completion. This mode requires aiobotocore module to be installed.
         (default: False)
@@ -654,11 +654,10 @@ class EmrCreateJobFlowOperator(AwsBaseOperator[EmrHook]):
     :param region_name: AWS region_name. If not specified then the default boto3 behaviour is used.
     :param verify: Whether or not to verify SSL certificates. See:
         https://boto3.amazonaws.com/v1/documentation/api/latest/reference/core/session.html
-    :param wait_for_completion: Deprecated - use `wait_policy` instead.
-        Whether to finish task immediately after creation (False) or wait for jobflow
+    :param wait_for_completion: Whether to finish task immediately after creation (False) or wait for jobflow
         completion (True)
         (default: None)
-    :param wait_policy: Whether to finish the task immediately after creation (None) or:
+    :param wait_policy: Deprecated. Use `wait_for_completion` instead. Whether to finish the task immediately after creation (None) or:
         - wait for the jobflow completion (WaitPolicy.WAIT_FOR_COMPLETION)
         - wait for the jobflow completion and cluster to terminate (WaitPolicy.WAIT_FOR_STEPS_COMPLETION)
         (default: None)
@@ -698,19 +697,29 @@ class EmrCreateJobFlowOperator(AwsBaseOperator[EmrHook]):
         super().__init__(**kwargs)
         self.emr_conn_id = emr_conn_id
         self.job_flow_overrides = job_flow_overrides or {}
-        self.wait_policy = wait_policy
+        self.wait_for_completion = wait_for_completion
         self.waiter_max_attempts = waiter_max_attempts or 60
         self.waiter_delay = waiter_delay or 60
         self.deferrable = deferrable
 
-        if wait_for_completion is not None:
+        if wait_policy is not None:
             warnings.warn(
-                "`wait_for_completion` parameter is deprecated, please use `wait_policy` instead.",
+                "`wait_policy` parameter is deprecated and will be removed in a future release; "
+                "please use `wait_for_completion` (bool) instead.",
                 AirflowProviderDeprecationWarning,
                 stacklevel=2,
             )
-            # preserve previous behaviour
-            self.wait_policy = WaitPolicy.WAIT_FOR_COMPLETION if wait_for_completion else None
+
+            if wait_for_completion is not None:
+                raise ValueError(
+                    "Cannot specify both `wait_for_completion` and deprecated `wait_policy`. "
+                    "Please use `wait_for_completion` (bool)."
+                )
+
+            self.wait_for_completion = wait_policy in (
+                WaitPolicy.WAIT_FOR_COMPLETION,
+                WaitPolicy.WAIT_FOR_STEPS_COMPLETION,
+            )
 
     @property
     def _hook_parameters(self):
@@ -748,30 +757,32 @@ class EmrCreateJobFlowOperator(AwsBaseOperator[EmrHook]):
                 job_flow_id=self._job_flow_id,
                 log_uri=get_log_uri(emr_client=self.hook.conn, job_flow_id=self._job_flow_id),
             )
-        if self.deferrable:
-            self.defer(
-                trigger=EmrCreateJobFlowTrigger(
-                    job_flow_id=self._job_flow_id,
-                    aws_conn_id=self.aws_conn_id,
-                    waiter_delay=self.waiter_delay,
-                    waiter_max_attempts=self.waiter_max_attempts,
-                ),
-                method_name="execute_complete",
-                # timeout is set to ensure that if a trigger dies, the timeout does not restart
-                # 60 seconds is added to allow the trigger to exit gracefully (i.e. yield TriggerEvent)
-                timeout=timedelta(seconds=self.waiter_max_attempts * self.waiter_delay + 60),
-            )
-        if self.wait_policy:
-            waiter_name = WAITER_POLICY_NAME_MAPPING[self.wait_policy]
-            self.hook.get_waiter(waiter_name).wait(
-                ClusterId=self._job_flow_id,
-                WaiterConfig=prune_dict(
-                    {
-                        "Delay": self.waiter_delay,
-                        "MaxAttempts": self.waiter_max_attempts,
-                    }
-                ),
-            )
+        if self.wait_for_completion:
+            waiter_name = WAITER_POLICY_NAME_MAPPING[WaitPolicy.WAIT_FOR_COMPLETION]
+
+            if self.deferrable:
+                self.defer(
+                    trigger=EmrCreateJobFlowTrigger(
+                        job_flow_id=self._job_flow_id,
+                        aws_conn_id=self.aws_conn_id,
+                        waiter_delay=self.waiter_delay,
+                        waiter_max_attempts=self.waiter_max_attempts,
+                    ),
+                    method_name="execute_complete",
+                    # timeout is set to ensure that if a trigger dies, the timeout does not restart
+                    # 60 seconds is added to allow the trigger to exit gracefully (i.e. yield TriggerEvent)
+                    timeout=timedelta(seconds=self.waiter_max_attempts * self.waiter_delay + 60),
+                )
+            else:
+                self.hook.get_waiter(waiter_name).wait(
+                    ClusterId=self._job_flow_id,
+                    WaiterConfig=prune_dict(
+                        {
+                            "Delay": self.waiter_delay,
+                            "MaxAttempts": self.waiter_max_attempts,
+                        }
+                    ),
+                )
         return self._job_flow_id
 
     def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> str:
@@ -970,7 +981,7 @@ class EmrServerlessCreateApplicationOperator(AwsBaseOperator[EmrServerlessHook])
 
     :param release_label: The EMR release version associated with the application.
     :param job_type: The type of application you want to start, such as Spark or Hive.
-    :param wait_for_completion: If true, wait for the Application to start before returning. Default to True.
+    :param wait_for_completion: If true, wait for the Application to start before returning. Defaults to True.
         If set to False, ``waiter_max_attempts`` and ``waiter_delay`` will only be applied when
         waiting for the application to be in the ``CREATED`` state.
     :param client_request_token: The client idempotency token of the application to create.
@@ -985,8 +996,9 @@ class EmrServerlessCreateApplicationOperator(AwsBaseOperator[EmrServerlessHook])
     :param verify: Whether or not to verify SSL certificates. See:
         https://boto3.amazonaws.com/v1/documentation/api/latest/reference/core/session.html
     :param waiter_max_attempts: Number of times the waiter should poll the application to check the state.
-        If not set, the waiter will use its default value.
+        Defaults to 25 if not set.
     :param waiter_delay: Number of seconds between polling the state of the application.
+        Defaults to 60 seconds if not set.
     :param deferrable: If True, the operator will wait asynchronously for application to be created.
         This implies waiting for completion. This mode requires aiobotocore module to be installed.
         (default: False, but can be overridden in config file by setting default_deferrable to True)
@@ -1117,8 +1129,8 @@ class EmrServerlessStartJobOperator(AwsBaseOperator[EmrServerlessHook]):
       Its value must be unique for each request.
     :param config: Optional dictionary for arbitrary parameters to the boto API start_job_run call.
     :param wait_for_completion: If true, waits for the job to start before returning. Defaults to True.
-        If set to False, ``waiter_countdown`` and ``waiter_check_interval_seconds`` will only be applied
-        when waiting for the application be to in the ``STARTED`` state.
+        If set to False, ``waiter_max_attempts`` and ``waiter_delay`` will only be applied
+        when waiting for the application to be in the ``STARTED`` state.
     :param aws_conn_id: The Airflow connection used for AWS credentials.
         If this is ``None`` or empty then the default boto3 behaviour is used. If
         running Airflow in a distributed manner and aws_conn_id is None or
@@ -1129,8 +1141,9 @@ class EmrServerlessStartJobOperator(AwsBaseOperator[EmrServerlessHook]):
         https://boto3.amazonaws.com/v1/documentation/api/latest/reference/core/session.html
     :param name: Name for the EMR Serverless job. If not provided, a default name will be assigned.
     :param waiter_max_attempts: Number of times the waiter should poll the application to check the state.
-        If not set, the waiter will use its default value.
+        Defaults to 25 if not set.
     :param waiter_delay: Number of seconds between polling the state of the job run.
+        Defaults to 60 seconds if not set.
     :param deferrable: If True, the operator will wait asynchronously for the crawl to complete.
         This implies waiting for completion. This mode requires aiobotocore module to be installed.
         (default: False, but can be overridden in config file by setting default_deferrable to True)
@@ -1453,9 +1466,9 @@ class EmrServerlessStopApplicationOperator(AwsBaseOperator[EmrServerlessHook]):
         If you want to wait for the jobs to finish gracefully, use
         :class:`airflow.providers.amazon.aws.sensors.emr.EmrServerlessJobSensor`
     :param waiter_max_attempts: Number of times the waiter should poll the application to check the state.
-        Default is 25.
+        Defaults to 25 if not set.
     :param waiter_delay: Number of seconds between polling the state of the application.
-        Default is 60 seconds.
+        Defaults to 60 seconds if not set.
     :param deferrable: If True, the operator will wait asynchronously for the application to stop.
         This implies waiting for completion. This mode requires aiobotocore module to be installed.
         (default: False, but can be overridden in config file by setting default_deferrable to True)
@@ -1588,9 +1601,9 @@ class EmrServerlessDeleteApplicationOperator(EmrServerlessStopApplicationOperato
     :param verify: Whether or not to verify SSL certificates. See:
         https://boto3.amazonaws.com/v1/documentation/api/latest/reference/core/session.html
     :param waiter_max_attempts: Number of times the waiter should poll the application to check the state.
-        Defaults to 25.
+        Defaults to 25 if not set.
     :param waiter_delay: Number of seconds between polling the state of the application.
-        Defaults to 60 seconds.
+        Defaults to 60 seconds if not set.
     :param deferrable: If True, the operator will wait asynchronously for application to be deleted.
         This implies waiting for completion. This mode requires aiobotocore module to be installed.
         (default: False, but can be overridden in config file by setting default_deferrable to True)

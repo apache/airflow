@@ -50,6 +50,16 @@ for all the supported Python versions.
 
 The images we release are multi-platform AMD/ARM images.
 
+The default Python version for the reference image - one that you get when you do not specify version -
+is the newest supported Python version at the time of the Airflow release that supports
+all providers released in the regular reference image.
+
+For example, even when we release Airflow 3.0 with Python 3.13 support, but some of the providers that
+are installed by default in the regular reference image do not support Python 3.13,
+the "default" Python version for the image should be Python 3.12.
+
+The same applies to the "slim" images.
+
 You can find the following images there (Assuming Airflow version :subst-code:`|airflow-version|`):
 
 * :subst-code:`apache/airflow:latest`              - the latest released Airflow image with default Python version (3.12 currently)

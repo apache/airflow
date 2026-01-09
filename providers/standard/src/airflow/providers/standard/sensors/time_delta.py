@@ -20,24 +20,18 @@ from __future__ import annotations
 import warnings
 from datetime import datetime, timedelta
 from time import sleep
-from typing import TYPE_CHECKING, Any, NoReturn
+from typing import TYPE_CHECKING, Any
 
 from deprecated.classic import deprecated
 from packaging.version import Version
 
-from airflow.configuration import conf
-from airflow.exceptions import AirflowProviderDeprecationWarning, AirflowSkipException
+from airflow.exceptions import AirflowProviderDeprecationWarning
+from airflow.providers.common.compat.sdk import AirflowSkipException, BaseSensorOperator, conf, timezone
 from airflow.providers.standard.triggers.temporal import DateTimeTrigger, TimeDeltaTrigger
 from airflow.providers.standard.version_compat import AIRFLOW_V_3_0_PLUS
-from airflow.sensors.base import BaseSensorOperator
-from airflow.utils import timezone
 
 if TYPE_CHECKING:
-    try:
-        from airflow.sdk.definitions.context import Context
-    except ImportError:
-        # TODO: Remove once provider drops support for Airflow 2
-        from airflow.utils.context import Context
+    from airflow.providers.common.compat.sdk import Context
 
 
 def _get_airflow_version():
@@ -106,7 +100,7 @@ class TimeDeltaSensor(BaseSensorOperator):
     Asynchronous execution
     """
 
-    def execute(self, context: Context) -> bool | NoReturn:
+    def execute(self, context: Context) -> Any:
         """
         Depending on the deferrable flag, either execute the sensor in a blocking way or defer it.
 
@@ -199,9 +193,11 @@ class WaitSensor(BaseSensorOperator):
     def execute(self, context: Context) -> None:
         if self.deferrable:
             self.defer(
-                trigger=TimeDeltaTrigger(self.time_to_wait, end_from_trigger=True)
-                if AIRFLOW_V_3_0_PLUS
-                else TimeDeltaTrigger(self.time_to_wait),
+                trigger=(
+                    TimeDeltaTrigger(self.time_to_wait, end_from_trigger=True)
+                    if AIRFLOW_V_3_0_PLUS
+                    else TimeDeltaTrigger(self.time_to_wait)
+                ),
                 method_name="execute_complete",
             )
         else:

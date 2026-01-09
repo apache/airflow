@@ -89,12 +89,13 @@ class SQLToGoogleSheetsOperator(BaseSQLOperator):
             item_list = []
             for item in row:
                 if isinstance(item, (datetime.date, datetime.datetime)):
-                    item = item.isoformat()
+                    item_list.append(item.isoformat())
                 elif isinstance(item, int):  # To exclude int from the number check.
-                    pass
+                    item_list.append(item)
                 elif isinstance(item, numbers.Number):
-                    item = float(item)
-                item_list.append(item)
+                    item_list.append(float(item))
+                else:
+                    item_list.append(item)
             yield item_list
 
     def _get_data(self):

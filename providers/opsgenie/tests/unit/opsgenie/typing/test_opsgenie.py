@@ -17,11 +17,7 @@
 # under the License.
 from __future__ import annotations
 
-import pytest
-
 from airflow.providers.opsgenie.typing.opsgenie import CreateAlertPayload
-
-pytestmark = pytest.mark.db_test
 
 
 class TestCreateAlertPayload:

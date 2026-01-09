@@ -180,11 +180,11 @@ Here is the detailed set of options for the ``breeze testing task-sdk-tests`` co
 Using ``breeze testing airflow-ctl-tests`` command
 ...............................................
 
-The ``breeze testing airflow-ctl-tests`` command allows you to run tests for Airflow CTL without
-initializing database. Airflow CTL should not require a database to start, so this acts as a
-good check to see if the Airflow CTL tests are working properly.
+The ``breeze testing airflow-ctl-tests`` command allows you to run tests for airflowctl without
+initializing database. airflowctl should not require a database to start, so this acts as a
+good check to see if the airflowctl tests are working properly.
 
-Run all Airflow CTL tests:
+Run all airflowctl tests:
 
 .. code-block:: bash
 
@@ -196,6 +196,25 @@ Here is the detailed set of options for the ``breeze testing airflow-ctl-tests``
   :target: https://raw.githubusercontent.com/apache/airflow/main/dev/breeze/images/output_testing_airflow-ctl-tests.svg
   :width: 100%
   :alt: Breeze testing airflow-ctl-tests
+
+Running airflowctl integration tests
+..................................
+
+You can use Breeze to run the airflowctl integration tests. Those tests are run using Production image by default
+and the tests are running with the docker-compose we have for airflowctl tests.
+
+.. image:: ./images/output_testing_airflow-ctl-integration-tests.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/dev/breeze/images/output_testing_airflow-ctl-integration-tests.svg
+  :width: 100%
+  :alt: Breeze testing airflow-ctl-integration-tests
+
+You can also iterate over those tests with pytest command but unlike regular unit tests, they need to be run in
+a local venv. You can build the prod image with breeze and that will be used by default if present to run the tests.
+
+You can override the ``DOCKER_IMAGE`` environment variable to point to the image to test using the
+``breeze testing airflow-ctl-integration-tests`` command.
+
+The airflowctl tests are in ``airflow-ctl-tests/`` folder in the main repo.
 
 Running integration core tests
 ...............................
@@ -317,6 +336,80 @@ through ``breeze testing docker-compose-tests`` command.
 
 The docker-compose tests are in ``docker-tests/`` folder in the main repo.
 
+Running task-sdk integration tests
+..................................
+
+You can use Breeze to run the task sdk integration tests. Those tests are run using Production image by default
+and the tests are running with the docker-compose we have for task-sdk tests.
+
+.. image:: ./images/output_testing_task-sdk-integration-tests.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/dev/breeze/images/output_testing_task-sdk-integration-tests.svg
+  :width: 100%
+  :alt: Breeze testing task-sdk-integration-tests
+
+You can also iterate over those tests with pytest command but unlike regular unit tests, they need to be run in
+a local venv. You can build the prod image with breeze and that will be used by default if present to run the tests.
+
+You can override the ``DOCKER_IMAGE`` environment variable to point to the image to test using the
+``breeze testing task-sdk-integration-tests`` command.
+
+The task-sdk integration tests are in ``task-sdk-integration-tests/`` folder in the main repo.
+
+Running Airflow E2E tests
+.........................
+
+You can use Breeze to run the Airflow E2E tests. Those tests are run using Production image by default.
+
+.. image:: ./images/output_testing_airflow-e2e-tests.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/dev/breeze/images/output_testing_airflow-e2e-tests.svg
+  :width: 100%
+  :alt: Breeze testing airflow-e2e-tests
+
+You can also iterate over those tests with pytest command but unlike regular unit tests, they need to be run in
+a local venv. You can build the prod image with breeze and that will be used by default if present to run the tests.
+
+You can override the ``DOCKER_IMAGE`` environment variable to point to the image to test using the
+``breeze testing airflow-e2e-tests`` command.
+
+The Airflow E2E tests are in ``airflow-e2e-tests/`` folder in the main repo.
+
+Running Airflow UI E2E tests
+.............................
+
+You can use Breeze to run the Airflow UI End-to-End tests using Playwright. These tests validate
+critical user workflows in the Airflow web interface across multiple browsers (Chromium, Firefox, WebKit).
+
+.. code-block:: bash
+
+   breeze testing ui-e2e-tests
+
+For example, to run a specific test pattern in headed mode:
+
+.. code-block:: bash
+
+   breeze testing ui-e2e-tests --test-pattern "dag-trigger.spec.ts" --headed
+
+You can also run tests in different browsers:
+
+.. code-block:: bash
+
+   breeze testing ui-e2e-tests --browser firefox --headed
+
+Or run tests in Playwright's UI mode for debugging:
+
+.. code-block:: bash
+
+   breeze testing ui-e2e-tests --ui-mode
+
+.. image:: ./images/output_testing_ui-e2e-tests.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/dev/breeze/images/output_testing_ui-e2e-tests.svg
+  :width: 100%
+  :alt: Breeze testing ui-e2e-tests
+
+The tests use Page Object Model pattern and are located in ``airflow-core/src/airflow/ui/tests/e2e/`` folder.
+The tests require a running Airflow instance (typically ``http://localhost:28080``) and will install
+Playwright browsers automatically if needed.
+
 Running Kubernetes tests
 ------------------------
 
@@ -331,6 +424,7 @@ You can:
 * Manage KinD Kubernetes cluster and upload image and deploy Airflow to KinD cluster via
   ``breeze k8s create-cluster``, ``breeze k8s configure-cluster``, ``breeze k8s deploy-airflow``, ``breeze k8s status``,
   ``breeze k8s upload-k8s-image``, ``breeze k8s delete-cluster`` commands
+* Hot-reload DAGs and core sources (scheduler/triggerer/dag-processor) with ``breeze k8s dev`` (skaffold sync)
 * Run Kubernetes tests  specified with ``breeze k8s tests`` command
 * Run complete test run with ``breeze k8s run-complete-tests`` - performing the full cycle of creating
   cluster, uploading the image, deploying airflow, running tests and deleting the cluster
@@ -454,6 +548,32 @@ All parameters of the command are here:
   :width: 100%
   :alt: Breeze k8s deploy-airflow
 
+Hot-reloading DAGs and core sources
+...................................
+
+After deploying Airflow you can run ``breeze k8s dev`` to sync local ``dags/`` and
+``airflow-core/src/airflow`` changes into running pods without rebuilding images. Scheduler,
+triggerer, and dag-processor run in dev hot-reload mode; the API server and webserver UI are not
+hot-reloaded by default.
+
+.. code-block:: bash
+
+    breeze k8s dev
+
+If skaffold cannot find the pods (for example if the release was deployed outside skaffold), rerun with
+``--deploy`` so it upgrades the Helm release and manages the resources:
+
+.. code-block:: bash
+
+    breeze k8s dev --deploy
+
+All parameters of the command are here:
+
+.. image:: ./images/output_k8s_dev.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/dev/breeze/images/output_k8s_dev.svg
+  :width: 100%
+  :alt: Breeze k8s dev
+
 Checking status of the K8S cluster
 ..................................
 
@@ -570,7 +690,7 @@ as executor you use, similar to:
 
 .. code-block:: bash
 
-    (kind-airflow-python-3.9-v1.24.0:KubernetesExecutor)>
+    (kind-airflow-python-3.10-v1.24.0:KubernetesExecutor)>
 
 
 The shell automatically activates the virtual environment that has all appropriate dependencies
@@ -579,7 +699,7 @@ be created and Airflow deployed to it before running the tests):
 
 .. code-block:: bash
 
-    (kind-airflow-python-3.9-v1.24.0:KubernetesExecutor)> pytest test_kubernetes_executor.py
+    (kind-airflow-python-3.10-v1.24.0:KubernetesExecutor)> pytest test_kubernetes_executor.py
     ================================================= test session starts =================================================
     platform linux -- Python 3.10.6, pytest-6.2.5, py-1.11.0, pluggy-1.0.0 -- /home/jarek/code/airflow/kubernetes-tests/.venv/bin/python
     cachedir: .pytest_cache
@@ -598,7 +718,7 @@ be created and Airflow deployed to it before running the tests):
 
     -- Docs: https://docs.pytest.org/en/stable/warnings.html
     ============================================ 2 passed, 1 warning in 38.62s ============================================
-    (kind-airflow-python-3.9-v1.24.0:KubernetesExecutor)>
+    (kind-airflow-python-3.10-v1.24.0:KubernetesExecutor)>
 
 
 All parameters of the command are here:

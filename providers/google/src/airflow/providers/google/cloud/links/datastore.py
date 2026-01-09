@@ -16,12 +16,7 @@
 # under the License.
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
-
 from airflow.providers.google.cloud.links.base import BaseGoogleLink
-
-if TYPE_CHECKING:
-    from airflow.utils.context import Context
 
 DATASTORE_BASE_LINK = "/datastore"
 DATASTORE_IMPORT_EXPORT_LINK = DATASTORE_BASE_LINK + "/import-export?project={project_id}"
@@ -36,19 +31,6 @@ class CloudDatastoreImportExportLink(BaseGoogleLink):
     key = "import_export_conf"
     format_str = DATASTORE_IMPORT_EXPORT_LINK
 
-    @staticmethod
-    def persist(
-        context: Context,
-        task_instance,
-    ):
-        task_instance.xcom_push(
-            context=context,
-            key=CloudDatastoreImportExportLink.key,
-            value={
-                "project_id": task_instance.project_id,
-            },
-        )
-
 
 class CloudDatastoreEntitiesLink(BaseGoogleLink):
     """Helper class for constructing Cloud Datastore Entities Link."""
@@ -56,16 +38,3 @@ class CloudDatastoreEntitiesLink(BaseGoogleLink):
     name = "Entities"
     key = "entities_conf"
     format_str = DATASTORE_ENTITIES_LINK
-
-    @staticmethod
-    def persist(
-        context: Context,
-        task_instance,
-    ):
-        task_instance.xcom_push(
-            context=context,
-            key=CloudDatastoreEntitiesLink.key,
-            value={
-                "project_id": task_instance.project_id,
-            },
-        )

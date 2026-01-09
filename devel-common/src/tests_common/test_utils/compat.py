@@ -37,7 +37,25 @@ try:
     from airflow.sdk import BaseOperatorLink
 except ImportError:
     # Compatibility for Airflow 2.7.*
-    from airflow.models.baseoperator import BaseOperatorLink
+    from airflow.models.baseoperator import BaseOperatorLink  # type: ignore[no-redef]
+
+try:
+    from airflow.serialization.definitions.baseoperator import SerializedBaseOperator
+    from airflow.serialization.definitions.dag import SerializedDAG
+    from airflow.serialization.definitions.mappedoperator import SerializedMappedOperator
+    from airflow.serialization.serialized_objects import DagSerialization, OperatorSerialization
+except ImportError:
+    # Compatibility for Airflow < 3.2.*
+    from airflow.models.mappedoperator import (  # type: ignore[no-redef]
+        MappedOperator as SerializedMappedOperator,
+    )
+    from airflow.serialization.serialized_objects import (  # type: ignore[no-redef]
+        SerializedBaseOperator,
+        SerializedDAG,
+    )
+
+    DagSerialization = SerializedDAG  # type: ignore[assignment,misc,no-redef]
+    OperatorSerialization = SerializedBaseOperator  # type: ignore[assignment,misc,no-redef]
 
 try:
     from airflow.providers.common.sql.operators.generic_transfer import GenericTransfer
@@ -49,13 +67,35 @@ try:
     from airflow.providers.standard.utils.python_virtualenv import write_python_script
 except ImportError:
     # Compatibility for Airflow < 2.10.*
-    from airflow.operators.bash import BashOperator  # type: ignore[no-redef,attr-defined]
-    from airflow.operators.empty import EmptyOperator  # type: ignore[no-redef,attr-defined]
-    from airflow.operators.generic_transfer import GenericTransfer  # type: ignore[no-redef,attr-defined]
-    from airflow.operators.python import PythonOperator  # type: ignore[no-redef,attr-defined]
-    from airflow.sensors.bash import BashSensor  # type: ignore[no-redef,attr-defined]
-    from airflow.sensors.date_time import DateTimeSensor  # type: ignore[no-redef,attr-defined]
-    from airflow.utils.python_virtualenv import write_python_script  # type: ignore[no-redef,attr-defined]
+    from airflow.operators.bash import BashOperator  # type: ignore[no-redef]
+    from airflow.operators.empty import EmptyOperator  # type: ignore[no-redef]
+    from airflow.operators.generic_transfer import GenericTransfer  # type: ignore[no-redef]
+    from airflow.operators.python import PythonOperator  # type: ignore[no-redef]
+    from airflow.sensors.bash import BashSensor  # type: ignore[no-redef]
+    from airflow.sensors.date_time import DateTimeSensor  # type: ignore[no-redef]
+    from airflow.utils.python_virtualenv import write_python_script  # type: ignore[no-redef]
+
+try:
+    from airflow.models.xcom import XCOM_RETURN_KEY
+except ImportError:
+    # Compatibility for Airflow < 3.1
+    from airflow.utils.xcom import XCOM_RETURN_KEY  # type: ignore[no-redef,attr-defined]
+
+try:
+    from airflow.sdk import timezone
+except ImportError:
+    from airflow.utils import timezone  # type: ignore[no-redef,attr-defined]
+
+try:
+    from airflow.sdk import Context
+except ImportError:
+    from airflow.utils.context import Context  # type: ignore[no-redef,attr-defined]
+
+try:
+    from airflow.sdk import TriggerRule
+except ImportError:
+    # Compatibility for Airflow < 3.1
+    from airflow.utils.trigger_rule import TriggerRule  # type: ignore[no-redef,attr-defined]
 
 
 if TYPE_CHECKING:

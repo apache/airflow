@@ -29,10 +29,10 @@ import sys
 import textwrap
 import warnings
 from collections import Counter
-from collections.abc import Iterable
+from collections.abc import Callable, Iterable
 from enum import Enum
 from functools import cache
-from typing import Any, Callable
+from typing import Any
 
 import jsonschema
 import yaml
@@ -41,13 +41,12 @@ from rich.console import Console
 from tabulate import tabulate
 
 from airflow.cli.commands.info_command import Architecture
-from airflow.exceptions import AirflowProviderDeprecationWarning
+from airflow.exceptions import AirflowOptionalProviderFeatureException, AirflowProviderDeprecationWarning
 from airflow.providers_manager import ProvidersManager
 
 sys.path.insert(0, str(pathlib.Path(__file__).parent.resolve()))
 from in_container_utils import (
     AIRFLOW_CORE_SOURCES_PATH,
-    AIRFLOW_DOCS_PATH,
     AIRFLOW_PROVIDERS_PATH,
     AIRFLOW_ROOT_PATH,
 )
@@ -61,6 +60,9 @@ DEPRECATED_MODULES = [
     "airflow.providers.tabular.hooks.tabular",
     "airflow.providers.yandex.hooks.yandexcloud_dataproc",
     "airflow.providers.yandex.operators.yandexcloud_dataproc",
+    "airflow.providers.google.cloud.hooks.datacatalog",
+    "airflow.providers.google.cloud.operators.datacatalog",
+    "airflow.providers.google.cloud.links.datacatalog",
 ]
 
 KNOWN_DEPRECATED_CLASSES = [
@@ -69,6 +71,7 @@ KNOWN_DEPRECATED_CLASSES = [
     "airflow.providers.google.cloud.operators.automl.AutoMLTablesListTableSpecsOperator",
     "airflow.providers.google.cloud.operators.automl.AutoMLTablesUpdateDatasetOperator",
     "airflow.providers.google.cloud.operators.automl.AutoMLDeployModelOperator",
+    "airflow.providers.amazon.aws.hooks.kinesis.FirehoseHook",
 ]
 
 if __name__ != "__main__":
@@ -243,6 +246,8 @@ def check_if_object_exist(
                 return num_errors
         else:
             raise RuntimeError(f"Wrong enum {object_type}???")
+    except AirflowOptionalProviderFeatureException as e:
+        console.print(f"[yellow]Skipping {object_name} check as it is optional feature[/]:", e)
     except Exception as e:
         errors.append(
             f"The `{object_name}` object in {resource_type} list in {yaml_file_path} does not exist "
@@ -584,32 +589,37 @@ def check_doc_files(yaml_files: dict[str, dict]) -> tuple[int, int]:
         console.print(suspended_providers)
 
     expected_doc_files = itertools.chain(
-        AIRFLOW_DOCS_PATH.glob("apache-airflow-providers-*/operators/**/*.rst"),
-        AIRFLOW_DOCS_PATH.glob("apache-airflow-providers-*/transfer/**/*.rst"),
+        AIRFLOW_PROVIDERS_PATH.glob("**/docs/operators/**/*.rst"),
+        AIRFLOW_PROVIDERS_PATH.glob("**/docs/operators.rst"),
+        AIRFLOW_PROVIDERS_PATH.glob("**/docs/sensors/**/*.rst"),
+        AIRFLOW_PROVIDERS_PATH.glob("**/docs/sensors.rst"),
+        AIRFLOW_PROVIDERS_PATH.glob("**/docs/transfer/**/*.rst"),
+        AIRFLOW_PROVIDERS_PATH.glob("**/docs/transfer.rst"),
     )
-
+    expected_relative_doc_files = sorted([f.relative_to(AIRFLOW_PROVIDERS_PATH) for f in expected_doc_files])
+    console.print("Expected relative doc files:")
+    console.print(expected_relative_doc_files)
     expected_doc_urls = {
-        f"/docs/{f.relative_to(AIRFLOW_DOCS_PATH).as_posix()}"
-        for f in expected_doc_files
-        if f.name != "index.rst"
-        and "_partials" not in f.parts
-        and not f.relative_to(AIRFLOW_DOCS_PATH).as_posix().startswith(tuple(suspended_providers))
+        f"/docs/apache-airflow-providers-{f.parts[0]}/{'/'.join(f.parts[2:])}"
+        for f in expected_relative_doc_files
+        if f.name != "index.rst" and "_partials" not in f.parts and f.parts[1] == "docs"
     } | {
-        f"/docs/{f.relative_to(AIRFLOW_DOCS_PATH).as_posix()}"
-        for f in AIRFLOW_DOCS_PATH.glob("apache-airflow-providers-*/operators.rst")
-        if not f.relative_to(AIRFLOW_DOCS_PATH).as_posix().startswith(tuple(suspended_providers))
+        f"/docs/apache-airflow-providers-{f.parts[0]}-{f.parts[1]}/{'/'.join(f.parts[3:])}"
+        for f in expected_relative_doc_files
+        if f.name != "index.rst" and "_partials" not in f.parts and f.parts[2] == "docs"
     }
     if suspended_logos:
         console.print("[yellow]Suspended logos:[/]")
         console.print(suspended_logos)
         console.print()
-    expected_logo_urls = {
-        f"/{f.relative_to(AIRFLOW_DOCS_PATH).as_posix()}"
-        for f in (AIRFLOW_DOCS_PATH / "integration-logos").rglob("*")
-        if f.is_file()
-        and not f"/{f.relative_to(AIRFLOW_DOCS_PATH).as_posix()}".startswith(tuple(suspended_logos))
-    }
-
+    found_logos = itertools.chain(
+        AIRFLOW_PROVIDERS_PATH.glob("**/integration-logos/*.png"),
+        AIRFLOW_PROVIDERS_PATH.glob("**/integration-logos/*.svg"),
+    )
+    expected_logo_urls = list({f"/docs/integration-logos/{f.name}" for f in found_logos if f.is_file()})
+    expected_logo_urls = sorted(set(expected_logo_urls) - suspended_logos)
+    console.print("Expected logo urls:")
+    console.print(expected_logo_urls)
     try:
         console.print("Checking document urls")
         assert_sets_equal(
@@ -711,18 +721,20 @@ if __name__ == "__main__":
     ProvidersManager().initialize_providers_configuration()
     architecture = Architecture.get_current()
     console.print(f"Verifying packages on {architecture} architecture. Platform: {platform.machine()}.")
-    provider_files_pattern = [
+    provider_files_found = [
         path
-        for path in pathlib.Path(AIRFLOW_ROOT_PATH, "providers", "src", "airflow", "providers").rglob(
-            "provider.yaml"
-        )
+        for path in pathlib.Path(AIRFLOW_ROOT_PATH, "providers").rglob("provider.yaml")
         if "/.venv/" not in path.as_posix()
     ]
-    all_provider_files = sorted(str(path) for path in provider_files_pattern)
+    console.print(f"Found {len(provider_files_found)} provider.yaml files:")
+    all_provider_files = sorted(str(path) for path in provider_files_found)
     if len(sys.argv) > 1:
-        paths = [os.fspath(AIRFLOW_ROOT_PATH / f) for f in sorted(sys.argv[1:])]
+        paths = [os.fspath(AIRFLOW_ROOT_PATH / "providers" / f) for f in sorted(sys.argv[1:])]
+        console.print("Provider.yaml files were specified explicitly")
     else:
         paths = all_provider_files
+        console.print("Provider.yaml files were found in all providers")
+    console.print(paths)
 
     all_parsed_yaml_files: dict[str, dict] = _load_package_data(paths)
 

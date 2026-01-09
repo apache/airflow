@@ -21,13 +21,11 @@ import re
 from collections.abc import Sequence
 from datetime import timedelta
 from functools import cached_property
+from time import sleep
 from typing import TYPE_CHECKING, Any
 
-from airflow.configuration import conf
-from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.exceptions import EcsOperatorError, EcsTaskFailToStart
-from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
-from airflow.providers.amazon.aws.hooks.ecs import EcsClusterStates, EcsHook, should_retry_eni
+from airflow.providers.amazon.aws.hooks.ecs import EcsClusterStates, EcsHook
 from airflow.providers.amazon.aws.hooks.logs import AwsLogsHook
 from airflow.providers.amazon.aws.operators.base_aws import AwsBaseOperator
 from airflow.providers.amazon.aws.triggers.ecs import (
@@ -39,13 +37,14 @@ from airflow.providers.amazon.aws.utils import validate_execute_complete_event
 from airflow.providers.amazon.aws.utils.identifiers import generate_uuid
 from airflow.providers.amazon.aws.utils.mixins import aws_template_fields
 from airflow.providers.amazon.aws.utils.task_log_fetcher import AwsTaskLogFetcher
+from airflow.providers.common.compat.sdk import AirflowException, conf
 from airflow.utils.helpers import prune_dict
 
 if TYPE_CHECKING:
     import boto3
 
     from airflow.models import TaskInstance
-    from airflow.utils.context import Context
+    from airflow.sdk import Context
 
 
 class EcsBaseOperator(AwsBaseOperator[EcsHook]):
@@ -526,7 +525,7 @@ class EcsRunTaskOperator(EcsBaseOperator):
             self._start_task()
 
         if self.do_xcom_push:
-            self.xcom_push(context, key="ecs_task_arn", value=self.arn)
+            context["ti"].xcom_push(key="ecs_task_arn", value=self.arn)
 
         if self.deferrable:
             self.defer(
@@ -630,9 +629,21 @@ class EcsRunTaskOperator(EcsBaseOperator):
         self.log.info("ECS Task started: %s", response)
 
         self.arn = response["tasks"][0]["taskArn"]
-        if not self.container_name:
-            self.container_name = response["tasks"][0]["containers"][0]["name"]
         self.log.info("ECS task ID is: %s", self._get_ecs_task_id(self.arn))
+
+        if not self.container_name and (self.awslogs_group and self.awslogs_stream_prefix):
+            backoff_schedule = [10, 30]
+            for delay in backoff_schedule:
+                sleep(delay)
+                response = self.client.describe_tasks(cluster=self.cluster, tasks=[self.arn])
+                containers = response["tasks"][0].get("containers", [])
+                if containers:
+                    self.container_name = containers[0]["name"]
+                if self.container_name:
+                    break
+
+            if not self.container_name:
+                self.log.info("Could not find container name, required for the log stream after 2 tries")
 
     def _try_reattach_task(self, started_by: str):
         if not started_by:
@@ -667,7 +678,13 @@ class EcsRunTaskOperator(EcsBaseOperator):
         return self.awslogs_group and self.awslogs_stream_prefix
 
     def _get_logs_stream_name(self) -> str:
-        if (
+        if not self.container_name and self.awslogs_stream_prefix and "/" not in self.awslogs_stream_prefix:
+            self.log.warning(
+                "Container name could not be inferred and awslogs_stream_prefix '%s' does not contain '/'. "
+                "This may cause issues when extracting logs from Cloudwatch.",
+                self.awslogs_stream_prefix,
+            )
+        elif (
             self.awslogs_stream_prefix
             and self.container_name
             and not self.awslogs_stream_prefix.endswith(f"/{self.container_name}")
@@ -688,7 +705,6 @@ class EcsRunTaskOperator(EcsBaseOperator):
             logger=self.log,
         )
 
-    @AwsBaseHook.retry(should_retry_eni)
     def _check_success_task(self) -> None:
         if not self.client or not self.arn:
             return
@@ -701,11 +717,6 @@ class EcsRunTaskOperator(EcsBaseOperator):
 
         for task in response["tasks"]:
             if task.get("stopCode", "") == "TaskFailedToStart":
-                # Reset task arn here otherwise the retry run will not start
-                # a new task but keep polling the old dead one
-                # I'm not resetting it for other exceptions here because
-                # EcsTaskFailToStart is the only exception that's being retried at the moment
-                self.arn = None
                 raise EcsTaskFailToStart(f"The task failed to start due to: {task.get('stoppedReason', '')}")
 
             # This is a `stoppedReason` that indicates a task has not

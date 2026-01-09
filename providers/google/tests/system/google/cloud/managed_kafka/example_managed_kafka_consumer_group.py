@@ -16,9 +16,17 @@
 # specific language governing permissions and limitations
 # under the License.
 
-
 """
 Example Airflow DAG for Google Cloud Managed Service for Apache Kafka testing Topic operations.
+
+Requirements:
+    Operator to create a cluster requires GOOGLE_PROVIDER_NETWORK environmental variable
+    that will contain the name of the network that will be used for cluster creation.
+
+    Please, note that if you are running this operator in Google Cloud Composer, this value will be set
+    automatically and will not require any additional configuration.
+    In other cases, the network in which the cluster will be created should be the same as your machine
+    is running in.
 """
 
 from __future__ import annotations
@@ -30,7 +38,13 @@ import random
 from datetime import datetime
 from typing import Any
 
-from airflow.decorators import task
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
+
+if AIRFLOW_V_3_0_PLUS:
+    from airflow.sdk import task
+else:
+    # Airflow 2 path
+    from airflow.decorators import task  # type: ignore[attr-defined,no-redef]
 from airflow.models.dag import DAG
 from airflow.providers.apache.kafka.operators.consume import ConsumeFromTopicOperator
 from airflow.providers.apache.kafka.operators.produce import ProduceToTopicOperator
@@ -43,12 +57,19 @@ from airflow.providers.google.cloud.operators.managed_kafka import (
     ManagedKafkaListConsumerGroupsOperator,
     ManagedKafkaUpdateConsumerGroupOperator,
 )
-from airflow.utils.trigger_rule import TriggerRule
 
-from tests_common.test_utils.api_client_helpers import create_airflow_connection
+try:
+    from airflow.sdk import TriggerRule
+except ImportError:
+    # Compatibility for Airflow < 3.1
+    from airflow.utils.trigger_rule import TriggerRule  # type: ignore[no-redef,attr-defined]
+
+from system.google.gcp_api_client_helpers import create_airflow_connection
 
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID", "default")
 PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT", "default")
+IS_COMPOSER = bool(os.environ.get("COMPOSER_ENVIRONMENT", ""))
+NETWORK = os.environ.get("GOOGLE_PROVIDER_NETWORK") if not IS_COMPOSER else "default"
 DAG_ID = "managed_kafka_consumer_group_operations"
 LOCATION = "us-central1"
 
@@ -57,7 +78,7 @@ CLUSTER_CONF = {
     "gcp_config": {
         "access_config": {
             "network_configs": [
-                {"subnet": f"projects/{PROJECT_ID}/regions/{LOCATION}/subnetworks/default"},
+                {"subnet": f"projects/{PROJECT_ID}/regions/{LOCATION}/subnetworks/{NETWORK}"},
             ],
         },
     },
@@ -75,7 +96,6 @@ CONSUMER_GROUP_ID = f"consumer_group_{DAG_ID}_{ENV_ID}".replace("_", "-")
 CONNECTION_ID = f"connection_{DAG_ID}_{ENV_ID}"
 PORT = "9092"
 BOOTSTRAP_URL = f"bootstrap.{CLUSTER_ID}.{LOCATION}.managedkafka.{PROJECT_ID}.cloud.goog:{PORT}"
-
 
 log = logging.getLogger(__name__)
 
@@ -141,6 +161,7 @@ with DAG(
         create_airflow_connection(
             connection_id=connection_id,
             connection_conf=connection,
+            is_composer=IS_COMPOSER,
         )
 
     create_connection_task = create_connection(connection_id=CONNECTION_ID)

@@ -67,7 +67,7 @@ class CommonBuildParams:
     prepare_buildx_cache: bool = False
     python_image: str | None = None
     push: bool = False
-    python: str = "3.9"
+    python: str = "3.10"
     uv_http_timeout: int = DEFAULT_UV_HTTP_TIMEOUT
     dry_run: bool = False
     version_suffix: str | None = None
@@ -116,7 +116,7 @@ class CommonBuildParams:
         """Construct Python Base Image"""
         if self.python_image is not None:
             return self.python_image
-        return f"python:{self.python}-slim-{self.debian_version}"
+        return f"debian:{self.debian_version}-slim"
 
     @property
     def airflow_image_repository(self):

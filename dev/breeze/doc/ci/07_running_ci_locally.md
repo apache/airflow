@@ -36,7 +36,7 @@
 The main goal of the CI philosophy we have that no matter how complex
 the test and integration infrastructure, as a developer you should be
 able to reproduce and re-run any of the failed checks locally. One part
-of it are pre-commit checks, that allow you to run the same static
+of it are prek checks, that allow you to run the same static
 checks in CI and locally, but another part is the CI environment which
 is replicated locally with Breeze.
 
@@ -76,14 +76,14 @@ this will change soon.
 To load the image from specific PR, you can use the following command:
 
 ```bash
-breeze ci-image load --from-pr 12345 --python 3.9 --github-token <your_github_token>
+breeze ci-image load --from-pr 12345 --python 3.10 --github-token <your_github_token>
 ```
 
 To load the image from specific run (for example 12538475388),
 you can use the following command, find the run id from GitHub action runs.
 
 ```bash
-breeze ci-image load --from-run 12538475388 --python 3.9 --github-token <your_github_token>
+breeze ci-image load --from-run 12538475388 --python 3.10 --github-token <your_github_token>
 ```
 
 After you load the image, you can reproduce the very exact environment that was used in the CI run by
@@ -163,8 +163,8 @@ Those variables are used to control the initialization of the environment in the
 | Variable                        | Option                             | Local dev | CI        | Comment                                                                     |
 |---------------------------------|------------------------------------|-----------|-----------|-----------------------------------------------------------------------------|
 | MOUNT_SOURCES                   | --mount-sources                    |           | skip      | Whether to mount the local sources into the container.                      |
-| SKIP_ENVIRONMENT_INITIALIZATION | --skip-environment-initialization  | false (*) | false (*) | Skip initialization of test environment (*) set to true in pre-commits.     |
-| SKIP_IMAGE_UPGRADE_CHECK        | --skip-image-upgrade-check         | false (*) | false (*) | Skip checking if image should be upgraded (*) set to true in pre-commits.   |
+| SKIP_ENVIRONMENT_INITIALIZATION | --skip-environment-initialization  | false (*) | false (*) | Skip initialization of test environment (*) set to true in prek hooks.      |
+| SKIP_IMAGE_UPGRADE_CHECK        | --skip-image-upgrade-check         | false (*) | false (*) | Skip checking if image should be upgraded (*) set to true in prek hooks.    |
 | SKIP_PROVIDERS_TESTS            |                                    | false     | false     | Skip running provider integration tests (in non-main branch).               |
 | SKIP_SSH_SETUP                  |                                    | false     | false (*) | Skip setting up SSH server for tests. (*) set to true in GitHub CodeSpaces. |
 | VERBOSE_COMMANDS                |                                    | false     | false     | Whether every command executed in docker should be printed.                 |

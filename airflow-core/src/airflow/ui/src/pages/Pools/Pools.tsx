@@ -59,7 +59,7 @@ export const Pools = () => {
   const { setTableURLState, tableURLState } = useTableURLState();
   const { pagination, sorting } = tableURLState;
   const [sort] = sorting;
-  const orderBy = sort ? `${sort.desc ? "-" : ""}${sort.id}` : "name";
+  const orderBy = sort ? [`${sort.desc ? "-" : ""}${sort.id}`] : ["name"];
 
   const { data, error, isLoading } = usePoolServiceGetPools({
     limit: pagination.pageSize,
@@ -93,10 +93,9 @@ export const Pools = () => {
     <>
       <ErrorAlert error={error} />
       <SearchBar
-        buttonProps={{ disabled: true }}
         defaultValue={poolNamePattern ?? ""}
         onChange={handleSearchChange}
-        placeHolder={translate("pools.searchPlaceholder")}
+        placeholder={translate("pools.searchPlaceholder")}
       />
       <HStack gap={4} mt={4}>
         <Select.Root

@@ -19,7 +19,7 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 
-import { useDagServiceDeleteDag } from "openapi/queries";
+import { useDagServiceDeleteDag, useDagServiceGetDagsUiKey } from "openapi/queries";
 import { useDagServiceGetDagKey } from "openapi/queries";
 import { toaster } from "src/components/ui";
 
@@ -44,7 +44,7 @@ export const useDeleteDag = ({
   };
 
   const onSuccess = async () => {
-    const queryKeys = [[useDagServiceGetDagKey, { dagId }]];
+    const queryKeys = [[useDagServiceGetDagKey, { dagId }], [useDagServiceGetDagsUiKey]];
 
     await Promise.all(queryKeys.map((key) => queryClient.invalidateQueries({ queryKey: key })));
 

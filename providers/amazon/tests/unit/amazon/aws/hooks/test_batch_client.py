@@ -24,9 +24,9 @@ from unittest import mock
 import botocore.exceptions
 import pytest
 
-from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.batch_client import BatchClientHook
 from airflow.providers.amazon.aws.utils.task_log_fetcher import AwsTaskLogFetcher
+from airflow.providers.common.compat.sdk import AirflowException
 
 # Use dummy AWS credentials
 AWS_REGION = "eu-west-1"
@@ -458,7 +458,7 @@ class TestBatchClientDelays:
         mock_sleep.assert_called_once_with(mock_uniform.return_value)
 
     @pytest.mark.parametrize(
-        "tries, lower, upper",
+        ("tries", "lower", "upper"),
         [
             (0, 0, 1),
             (1, 0, 2),

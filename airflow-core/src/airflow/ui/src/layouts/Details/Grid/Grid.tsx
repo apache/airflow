@@ -17,101 +17,188 @@
  * under the License.
  */
 import { Box, Flex, IconButton } from "@chakra-ui/react";
+import { useVirtualizer } from "@tanstack/react-virtual";
 import dayjs from "dayjs";
 import dayjsDuration from "dayjs/plugin/duration";
-import { useMemo } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { FiChevronsRight } from "react-icons/fi";
-import { Link, useParams } from "react-router-dom";
+import { Link, useParams, useSearchParams } from "react-router-dom";
 
+import type { DagRunState, DagRunType, GridRunsResponse } from "openapi/requests";
 import { useOpenGroups } from "src/context/openGroups";
-import { useGrid } from "src/queries/useGrid";
+import { NavigationModes, useNavigation } from "src/hooks/navigation";
+import { useGridRuns } from "src/queries/useGridRuns.ts";
+import { useGridStructure } from "src/queries/useGridStructure.ts";
+import { isStatePending } from "src/utils";
 
 import { Bar } from "./Bar";
 import { DurationAxis } from "./DurationAxis";
 import { DurationTick } from "./DurationTick";
+import { TaskInstancesColumn } from "./TaskInstancesColumn";
 import { TaskNames } from "./TaskNames";
-import { flattenNodes, type RunWithDuration } from "./utils";
+import { flattenNodes } from "./utils";
 
 dayjs.extend(dayjsDuration);
 
+const ROW_HEIGHT = 20;
+
 type Props = {
+  readonly dagRunState?: DagRunState | undefined;
   readonly limit: number;
+  readonly runType?: DagRunType | undefined;
+  readonly showGantt?: boolean;
+  readonly triggeringUser?: string | undefined;
 };
 
-export const Grid = ({ limit }: Props) => {
+export const Grid = ({ dagRunState, limit, runType, showGantt, triggeringUser }: Props) => {
   const { t: translate } = useTranslation("dag");
-  const { openGroupIds } = useOpenGroups();
-  const { dagId = "" } = useParams();
+  const gridRef = useRef<HTMLDivElement>(null);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
 
-  const { data: gridData, isLoading, runAfter } = useGrid(limit);
+  const [selectedIsVisible, setSelectedIsVisible] = useState<boolean | undefined>();
+  const { openGroupIds, toggleGroupId } = useOpenGroups();
+  const { dagId = "", runId = "" } = useParams();
+  const [searchParams] = useSearchParams();
 
-  const runs: Array<RunWithDuration> = useMemo(
-    () =>
-      (gridData?.dag_runs ?? []).map((run) => {
-        const duration = dayjs
-          .duration(dayjs(run.end_date ?? undefined).diff(run.start_date ?? undefined))
-          .asSeconds();
+  const filterRoot = searchParams.get("root") ?? undefined;
+  const includeUpstream = searchParams.get("upstream") === "true";
+  const includeDownstream = searchParams.get("downstream") === "true";
 
-        return {
-          ...run,
-          duration,
-        };
-      }),
-    [gridData?.dag_runs],
-  );
+  const { data: gridRuns, isLoading } = useGridRuns({ dagRunState, limit, runType, triggeringUser });
+
+  // Check if the selected dag run is inside of the grid response, if not, we'll update the grid filters
+  // Eventually we should redo the api endpoint to make this work better
+  useEffect(() => {
+    if (gridRuns && runId) {
+      const run = gridRuns.find((dr: GridRunsResponse) => dr.run_id === runId);
+
+      if (!run) {
+        setSelectedIsVisible(false);
+      }
+    }
+  }, [runId, gridRuns, selectedIsVisible, setSelectedIsVisible]);
+
+  const { data: dagStructure } = useGridStructure({
+    dagRunState,
+    hasActiveRun: gridRuns?.some((dr) => isStatePending(dr.state)),
+    includeDownstream,
+    includeUpstream,
+    limit,
+    root: filterRoot,
+    runType,
+    triggeringUser,
+  });
 
   // calculate dag run bar heights relative to max
   const max = Math.max.apply(
     undefined,
-    runs.map((dr) => dr.duration),
+    gridRuns === undefined
+      ? []
+      : gridRuns
+          .map((dr: GridRunsResponse) => dr.duration)
+          .filter((duration: number | null): duration is number => duration !== null),
   );
 
-  const { flatNodes } = useMemo(
-    () => flattenNodes(gridData === undefined ? [] : gridData.structure.nodes, openGroupIds),
-    [gridData, openGroupIds],
-  );
+  const { flatNodes } = flattenNodes(dagStructure, openGroupIds);
+
+  const { setMode } = useNavigation({
+    onToggleGroup: toggleGroupId,
+    runs: gridRuns ?? [],
+    tasks: flatNodes,
+  });
+
+  const handleRowClick = () => setMode(NavigationModes.TASK);
+  const handleCellClick = () => setMode(NavigationModes.TI);
+  const handleColumnClick = () => setMode(NavigationModes.RUN);
+
+  const rowVirtualizer = useVirtualizer({
+    count: flatNodes.length,
+    estimateSize: () => ROW_HEIGHT,
+    getScrollElement: () => scrollContainerRef.current,
+    overscan: 5,
+  });
+
+  const virtualItems = rowVirtualizer.getVirtualItems();
 
   return (
-    <Flex justifyContent="flex-start" position="relative" pt={50} width="100%">
-      <Box flexGrow={1} minWidth={7} position="relative" top="100px">
-        <TaskNames nodes={flatNodes} />
-      </Box>
-      <Box position="relative">
-        <Flex position="relative">
-          <DurationAxis top="100px" />
-          <DurationAxis top="50px" />
-          <DurationAxis top="4px" />
-          <Flex flexDirection="column-reverse" height="100px" position="relative" width="100%">
-            {Boolean(runs.length) && (
-              <>
-                <DurationTick bottom="92px" duration={max} />
-                <DurationTick bottom="46px" duration={max / 2} />
-                <DurationTick bottom="-4px" duration={0} />
-              </>
-            )}
+    <Flex
+      flexDirection="column"
+      justifyContent="flex-start"
+      position="relative"
+      pt={16}
+      ref={gridRef}
+      tabIndex={0}
+      width={showGantt ? "1/2" : "full"}
+    >
+      {/* Grid scroll container */}
+      <Box
+        height="calc(100vh - 140px)"
+        marginRight={1}
+        overflow="auto"
+        paddingRight={4}
+        position="relative"
+        ref={scrollContainerRef}
+      >
+        {/* Grid header, both bgs are needed to hide elements during horizontal and vertical scroll */}
+        <Flex bg="bg" display="flex" position="sticky" pt={2} top={0} zIndex={2}>
+          <Box bg="bg" flexGrow={1} left={0} minWidth="200px" position="sticky" zIndex={1}>
+            <Flex flexDirection="column-reverse" height="100px" position="relative">
+              {Boolean(gridRuns?.length) && (
+                <>
+                  <DurationTick bottom="92px" duration={max} />
+                  <DurationTick bottom="46px" duration={max / 2} />
+                </>
+              )}
+            </Flex>
+          </Box>
+          {/* Duration bars */}
+          <Flex flexDirection="row-reverse" flexShrink={0}>
+            <Flex flexShrink={0} position="relative">
+              <DurationAxis top="100px" />
+              <DurationAxis top="50px" />
+              <DurationAxis top="4px" />
+              <Flex flexDirection="row-reverse">
+                {gridRuns?.map((dr: GridRunsResponse) => (
+                  <Bar key={dr.run_id} max={max} onClick={handleColumnClick} run={dr} />
+                ))}
+              </Flex>
+              {selectedIsVisible === undefined || !selectedIsVisible ? undefined : (
+                <Link to={`/dags/${dagId}`}>
+                  <IconButton
+                    aria-label={translate("grid.buttons.resetToLatest")}
+                    height="98px"
+                    loading={isLoading}
+                    minW={0}
+                    ml={1}
+                    title={translate("grid.buttons.resetToLatest")}
+                    variant="surface"
+                    zIndex={1}
+                  >
+                    <FiChevronsRight />
+                  </IconButton>
+                </Link>
+              )}
+            </Flex>
           </Flex>
-          <Flex flexDirection="row-reverse">
-            {runs.map((dr) => (
-              <Bar key={dr.dag_run_id} max={max} nodes={flatNodes} run={dr} />
+        </Flex>
+
+        {/* Grid body */}
+        <Flex height={`${rowVirtualizer.getTotalSize()}px`} position="relative">
+          <Box bg="bg" flexGrow={1} flexShrink={0} left={0} minWidth="200px" position="sticky" zIndex={1}>
+            <TaskNames nodes={flatNodes} onRowClick={handleRowClick} virtualItems={virtualItems} />
+          </Box>
+          <Flex flexDirection="row-reverse" flexShrink={0}>
+            {gridRuns?.map((dr: GridRunsResponse) => (
+              <TaskInstancesColumn
+                key={dr.run_id}
+                nodes={flatNodes}
+                onCellClick={handleCellClick}
+                run={dr}
+                virtualItems={virtualItems}
+              />
             ))}
           </Flex>
-          {runAfter === undefined ? undefined : (
-            <Link to={`/dags/${dagId}`}>
-              <IconButton
-                aria-label={translate("grid.buttons.resetToLatest")}
-                height="98px"
-                loading={isLoading}
-                minW={0}
-                ml={1}
-                title={translate("grid.buttons.resetToLatest")}
-                variant="surface"
-                zIndex={1}
-              >
-                <FiChevronsRight />
-              </IconButton>
-            </Link>
-          )}
         </Flex>
       </Box>
     </Flex>

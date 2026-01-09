@@ -213,8 +213,8 @@ if __name__ == "__main__":
         raise RuntimeError("GitHub Repository must be defined!")
     user, repo = github_repository.split("/")
     print(f"User: {user}, Repo: {repo}")
-    issue_id = int(os.environ.get("ISSUE_ID", 0))
-    num_runs = int(os.environ.get("NUM_RUNS", 10))
+    issue_id = int(os.environ.get("ISSUE_ID", str(0)))
+    num_runs = int(os.environ.get("NUM_RUNS", str(10)))
 
     if issue_id == 0:
         raise RuntimeError("You need to define ISSUE_ID as environment variable")

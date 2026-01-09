@@ -19,32 +19,26 @@ from __future__ import annotations
 import base64
 import os
 import pickle
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 from shlex import quote
 from tempfile import TemporaryDirectory
-from typing import TYPE_CHECKING, Callable
+from typing import TYPE_CHECKING
 
 import dill
 from kubernetes.client import models as k8s
-
-from airflow.providers.cncf.kubernetes.version_compat import AIRFLOW_V_3_0_PLUS
-
-if AIRFLOW_V_3_0_PLUS:
-    from airflow.sdk.bases.decorator import DecoratedOperator, TaskDecorator, task_decorator_factory
-else:
-    from airflow.decorators.base import (  # type: ignore[no-redef]
-        DecoratedOperator,
-        TaskDecorator,
-        task_decorator_factory,
-    )
 
 from airflow.providers.cncf.kubernetes.operators.pod import KubernetesPodOperator
 from airflow.providers.cncf.kubernetes.python_kubernetes_script import (
     write_python_script,
 )
+from airflow.providers.common.compat.sdk import (
+    DecoratedOperator,
+    TaskDecorator,
+    task_decorator_factory,
+)
 
 if TYPE_CHECKING:
-    from airflow.utils.context import Context
+    from airflow.sdk import Context
 
 _PYTHON_SCRIPT_ENV = "__PYTHON_SCRIPT"
 _PYTHON_INPUT_ENV = "__PYTHON_INPUT"
@@ -93,7 +87,13 @@ class _KubernetesDecoratedOperator(DecoratedOperator, KubernetesPodOperator):
     def _generate_cmds(self) -> list[str]:
         script_filename = "/tmp/script.py"
         input_filename = "/tmp/script.in"
-        output_filename = "/airflow/xcom/return.json"
+
+        if getattr(self, "do_xcom_push", False):
+            output_filename = "/airflow/xcom/return.json"
+            make_xcom_dir_cmd = "mkdir -p /airflow/xcom"
+        else:
+            output_filename = "/dev/null"
+            make_xcom_dir_cmd = ":"  # shell no-op
 
         write_local_script_file_cmd = (
             f"{_generate_decoded_command(quote(_PYTHON_SCRIPT_ENV), quote(script_filename))}"
@@ -101,7 +101,6 @@ class _KubernetesDecoratedOperator(DecoratedOperator, KubernetesPodOperator):
         write_local_input_file_cmd = (
             f"{_generate_decoded_command(quote(_PYTHON_INPUT_ENV), quote(input_filename))}"
         )
-        make_xcom_dir_cmd = "mkdir -p /airflow/xcom"
         exec_python_cmd = f"python {script_filename} {input_filename} {output_filename}"
         return [
             "bash",

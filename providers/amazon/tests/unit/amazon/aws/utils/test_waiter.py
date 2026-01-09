@@ -23,8 +23,8 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.utils.waiter import waiter
+from airflow.providers.common.compat.sdk import AirflowException
 
 SUCCESS_STATES = {"Created"}
 FAILURE_STATES = {"Failed"}
@@ -54,7 +54,7 @@ def assert_expected_waiter_type(waiter: mock.MagicMock, expected: str):
 
 class TestWaiter:
     @pytest.mark.parametrize(
-        "get_state_responses, fails, expected_exception, expected_num_calls",
+        ("get_state_responses", "fails", "expected_exception", "expected_num_calls"),
         [
             ([generate_response("Created")], False, None, 1),
             ([generate_response("Failed")], True, AirflowException, 1),

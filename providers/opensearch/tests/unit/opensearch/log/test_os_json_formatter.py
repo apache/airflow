@@ -29,7 +29,6 @@ from airflow.providers.opensearch.log.os_task_handler import (
 )
 
 opensearchpy = pytest.importorskip("opensearchpy")
-pytestmark = pytest.mark.db_test
 
 
 class TestOpensearchJSONFormatter:

@@ -1,0 +1,77 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+#
+---
+name: "CI Notification"
+on:  # yamllint disable-line rule:truthy
+  schedule:
+    - cron: '0 6,17 * * *'
+  workflow_dispatch:
+permissions:
+  # All other permissions are set to none by default
+  contents: read
+env:
+  GITHUB_REPOSITORY: ${{ github.repository }}
+  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+  GITHUB_USERNAME: ${{ github.actor }}
+  SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
+  VERBOSE: "true"
+
+jobs:
+
+  workflow-status:
+    strategy:
+      matrix:
+        branch: ["v3-1-test"]
+        workflow-id: ["ci-amd-arm.yml"]
+    runs-on: ubuntu-latest
+    steps:
+      - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
+        with:
+          persist-credentials: false
+
+      - name: "Find workflow run status"
+        id: find-workflow-run-status
+        run: |
+          python3 -m pip install uv
+          uv run ./dev/breeze/src/airflow_breeze/utils/workflow_status.py
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          workflow_branch: ${{ matrix.branch }}
+          workflow_id: ${{ matrix.workflow-id }}
+
+      - name: "Send Slack notification"
+        if: steps.find-workflow-run-status.outputs.conclusion == 'failure'
+        id: slack
+        uses: slackapi/slack-github-action@485a9d42d3a73031f12ec201c457e2162c45d02d  # v2.0.0
+        with:
+          method: chat.postMessage
+          token: ${{ env.SLACK_BOT_TOKEN }}
+          # yamllint disable rule:line-length
+          payload: |
+            channel: "internal-airflow-ci-cd"
+            text: "🚨🕒 Failure Alert: ${{ env.workflow_id }} on branch *${{ env.branch }}* 🕒🚨\n\n*Details:* <${{ env.run_url }}|View the failure log>"
+            blocks:
+              - type: "section"
+                text:
+                  type: "mrkdwn"
+                  text: "🚨🕒 Failure Alert: ${{ env.workflow_id }} ${{ env.branch }} 🕒🚨\n\n*Details:* <${{ env.run_url }}|View the failure log>"
+        env:
+          run_url: ${{ steps.find-workflow-run-status.outputs.run-url }}
+          branch: ${{ matrix.branch }}
+          workflow_id: ${{ matrix.workflow-id }}

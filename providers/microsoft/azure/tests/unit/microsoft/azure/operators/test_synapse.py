@@ -21,8 +21,8 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from airflow.exceptions import AirflowException
 from airflow.models import Connection
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.microsoft.azure.hooks.synapse import (
     AzureSynapsePipelineHook,
     AzureSynapsePipelineRunException,
@@ -33,8 +33,9 @@ from airflow.providers.microsoft.azure.operators.synapse import (
     AzureSynapseRunPipelineOperator,
     AzureSynapseRunSparkBatchOperator,
 )
-from airflow.providers.microsoft.azure.version_compat import AIRFLOW_V_3_0_PLUS
 from airflow.utils import timezone
+
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
 if AIRFLOW_V_3_0_PLUS:
     from airflow.sdk.execution_time.comms import XComResult
@@ -163,7 +164,7 @@ class TestAzureSynapseRunPipelineOperator:
 
     @patch.object(AzureSynapsePipelineHook, "run_pipeline", return_value=MagicMock(**PIPELINE_RUN_RESPONSE))
     @pytest.mark.parametrize(
-        "pipeline_run_status,expected_output",
+        ("pipeline_run_status", "expected_output"),
         [
             (AzureSynapsePipelineRunStatus.SUCCEEDED, None),
             (AzureSynapsePipelineRunStatus.FAILED, "exception"),
@@ -280,7 +281,12 @@ class TestAzureSynapseRunPipelineOperator:
             mock_get_pipeline_run.assert_not_called()
 
     @pytest.mark.db_test
-    def test_run_pipeline_operator_link(self, create_task_instance_of_operator, mock_supervisor_comms):
+    def test_run_pipeline_operator_link(
+        self,
+        dag_maker,
+        create_task_instance_of_operator,
+        mock_supervisor_comms,
+    ):
         ti = create_task_instance_of_operator(
             AzureSynapseRunPipelineOperator,
             dag_id="test_synapse_run_pipeline_op_link",
@@ -292,12 +298,13 @@ class TestAzureSynapseRunPipelineOperator:
 
         ti.xcom_push(key="run_id", value=PIPELINE_RUN_RESPONSE["run_id"])
         if AIRFLOW_V_3_0_PLUS and mock_supervisor_comms:
-            mock_supervisor_comms.get_message.return_value = XComResult(
+            mock_supervisor_comms.send.return_value = XComResult(
                 key="run_id",
                 value=PIPELINE_RUN_RESPONSE["run_id"],
             )
 
-        url = ti.task.operator_extra_links[0].get_link(operator=ti.task, ti_key=ti.key)
+        task = dag_maker.dag.get_task(ti.task_id)
+        url = task.operator_extra_links[0].get_link(operator=task, ti_key=ti.key)
 
         EXPECTED_PIPELINE_RUN_OP_EXTRA_LINK = (
             "https://ms.web.azuresynapse.net/en/monitoring/pipelineruns/{run_id}"

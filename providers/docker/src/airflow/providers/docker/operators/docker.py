@@ -27,32 +27,26 @@ from collections.abc import Container, Iterable, Sequence
 from functools import cached_property
 from io import BytesIO, StringIO
 from tempfile import TemporaryDirectory
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Literal
 
 from docker.constants import DEFAULT_TIMEOUT_SECONDS
 from docker.errors import APIError
 from docker.types import LogConfig, Mount, Ulimit
 from dotenv import dotenv_values
-from typing_extensions import Literal
 
-from airflow.models import BaseOperator
 from airflow.providers.docker.exceptions import (
     DockerContainerFailedException,
     DockerContainerFailedSkipException,
 )
 from airflow.providers.docker.hooks.docker import DockerHook
+from airflow.providers.docker.version_compat import BaseOperator
 
 if TYPE_CHECKING:
-    from logging import Logger
-
     from docker import APIClient
     from docker.types import DeviceRequest
 
-    try:
-        from airflow.sdk.definitions.context import Context
-    except ImportError:
-        # TODO: Remove once provider drops support for Airflow 2
-        from airflow.utils.context import Context
+    from airflow.providers.common.compat.sdk import Context
+    from airflow.sdk.types import Logger
 
 
 def stringify(line: str | bytes):
@@ -64,12 +58,24 @@ def stringify(line: str | bytes):
 
 
 def fetch_logs(log_stream, log: Logger):
-    log_lines = []
-    for log_chunk in log_stream:
-        log_chunk = stringify(log_chunk).rstrip()
-        log_lines.append(log_chunk)
-        for log_chunk_line in log_chunk.split("\n"):
-            log.info("%s", log_chunk_line)
+    log_lines: list[str] = []
+    buffer = ""
+
+    for log_chunk_raw in log_stream:
+        buffer += stringify(log_chunk_raw)
+        lines = buffer.split("\n")
+        buffer = lines.pop()  # Keep incomplete line for next iteration
+
+        for line in lines:
+            stripped_line = line.rstrip()
+            log.info("%s", stripped_line)
+            log_lines.append(stripped_line)
+
+    if buffer:
+        buffer = buffer.rstrip()
+        log.info("%s", buffer)
+        log_lines.append(buffer)
+
     return log_lines
 
 
@@ -146,7 +152,7 @@ class DockerOperator(BaseOperator):
         ``AIRFLOW_TMP_DIR`` inside the container.
     :param user: Default user inside the docker container.
     :param mounts: List of volumes to mount into the container. Each item should
-        be a :py:class:`docker.types.Mount` instance.
+        be a :py:class:`docker.types.Mount` instance. (templated)
     :param entrypoint: Overwrite the default ENTRYPOINT of the image
     :param working_dir: Working directory to
         set on the container (equivalent to the -w switch the docker client)
@@ -199,7 +205,14 @@ class DockerOperator(BaseOperator):
     #  - docs/apache-airflow-providers-docker/decorators/docker.rst
     #  - airflow/decorators/__init__.pyi  (by a separate PR)
 
-    template_fields: Sequence[str] = ("image", "command", "environment", "env_file", "container_name")
+    template_fields: Sequence[str] = (
+        "image",
+        "command",
+        "environment",
+        "env_file",
+        "container_name",
+        "mounts",
+    )
     template_fields_renderers = {"env_file": "yaml"}
     template_ext: Sequence[str] = (
         ".sh",
@@ -292,6 +305,8 @@ class DockerOperator(BaseOperator):
         self.tmp_dir = tmp_dir
         self.user = user
         self.mounts = mounts or []
+        for mount in self.mounts:
+            mount.template_fields = ("Source", "Target", "Type")
         self.entrypoint = entrypoint
         self.working_dir = working_dir
         self.xcom_all = xcom_all

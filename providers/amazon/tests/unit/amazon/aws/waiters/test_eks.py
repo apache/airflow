@@ -19,6 +19,7 @@ from __future__ import annotations
 import json
 
 import boto3
+import pytest
 from moto import mock_aws
 
 from airflow.providers.amazon.aws.hooks.eks import EksHook
@@ -36,6 +37,7 @@ class TestCustomEKSServiceWaiters:
             assert waiter in hook.list_waiters()
             assert waiter in hook._list_custom_waiters()
 
+    @pytest.mark.db_test
     @mock_aws
     def test_existing_waiter_inherited(self):
         """

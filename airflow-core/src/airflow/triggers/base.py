@@ -21,7 +21,7 @@ import json
 from collections.abc import AsyncIterator
 from dataclasses import dataclass
 from datetime import timedelta
-from typing import Annotated, Any, Union
+from typing import Annotated, Any
 
 import structlog
 from pydantic import (
@@ -229,11 +229,9 @@ def trigger_event_discriminator(v):
 
 
 DiscrimatedTriggerEvent = Annotated[
-    Union[
-        Annotated[TriggerEvent, Tag("_event_")],
-        Annotated[TaskSuccessEvent, Tag(TaskInstanceState.SUCCESS)],
-        Annotated[TaskFailedEvent, Tag(TaskInstanceState.FAILED)],
-        Annotated[TaskSkippedEvent, Tag(TaskInstanceState.SKIPPED)],
-    ],
+    Annotated[TriggerEvent, Tag("_event_")]
+    | Annotated[TaskSuccessEvent, Tag(TaskInstanceState.SUCCESS)]
+    | Annotated[TaskFailedEvent, Tag(TaskInstanceState.FAILED)]
+    | Annotated[TaskSkippedEvent, Tag(TaskInstanceState.SKIPPED)],
     Discriminator(trigger_event_discriminator),
 ]

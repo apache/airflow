@@ -16,14 +16,16 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Link } from "@chakra-ui/react";
+import { Box, Icon, Link } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
-import { FiBookOpen } from "react-icons/fi";
+import { FiBookOpen, FiExternalLink } from "react-icons/fi";
 
 import { Menu } from "src/components/ui";
 import { useConfig } from "src/queries/useConfig";
+import type { NavItemResponse } from "src/utils/types";
 
 import { NavButton } from "./NavButton";
+import { PluginMenuItem } from "./PluginMenuItem";
 
 const baseUrl = document.querySelector("base")?.href ?? "http://localhost:8080/";
 
@@ -43,9 +45,11 @@ const links = [
 ];
 
 export const DocsButton = ({
+  externalViews,
   showAPI,
   version,
 }: {
+  readonly externalViews: Array<NavItemResponse>;
   readonly showAPI?: boolean;
   readonly version?: string;
 }) => {
@@ -57,7 +61,7 @@ export const DocsButton = ({
   return (
     <Menu.Root positioning={{ placement: "right" }}>
       <Menu.Trigger asChild>
-        <NavButton icon={<FiBookOpen size="1.75rem" />} title={translate("nav.docs")} />
+        <NavButton icon={FiBookOpen} title={translate("nav.docs")} />
       </Menu.Trigger>
       <Menu.Content>
         {links
@@ -69,18 +73,24 @@ export const DocsButton = ({
                 href={link.href}
                 rel="noopener noreferrer"
                 target="_blank"
+                textDecoration="none"
               >
-                {translate(`docs.${link.key}`)}
+                <Box flex="1">{translate(`docs.${link.key}`)}</Box>
+                <Icon as={FiExternalLink} boxSize={4} color="fg.muted" />
               </Link>
             </Menu.Item>
           ))}
         {version === undefined ? undefined : (
           <Menu.Item asChild key={version} value={version}>
             <Link aria-label={version} href={versionLink} rel="noopener noreferrer" target="_blank">
-              {version}
+              <Box flex="1">{version}</Box>
+              <Icon as={FiExternalLink} boxSize={4} color="fg.muted" />
             </Link>
           </Menu.Item>
         )}
+        {externalViews.map((view) => (
+          <PluginMenuItem {...view} key={view.name} />
+        ))}
       </Menu.Content>
     </Menu.Root>
   );

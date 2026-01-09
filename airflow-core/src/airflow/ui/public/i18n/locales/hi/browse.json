@@ -1,0 +1,22 @@
+{
+  "auditLog": {
+    "columns": {
+      "event": "इवेंट",
+      "extra": "अतिरिक्त",
+      "user": "उपयोगकर्ता",
+      "when": "कब"
+    },
+    "filters": {
+      "eventType": "इवेंट प्रकार"
+    },
+    "title": "ऑडिट लॉग"
+  },
+  "xcom": {
+    "columns": {
+      "dag": "डैग",
+      "key": "कुंजी",
+      "value": "मान"
+    },
+    "title": "XCom"
+  }
+}

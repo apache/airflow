@@ -16,29 +16,32 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+import { Heading } from "@chakra-ui/react";
 import { ReactFlowProvider } from "@xyflow/react";
 import { useTranslation } from "react-i18next";
-import { FiCode, FiDatabase } from "react-icons/fi";
+import { FiCode, FiDatabase, FiUser } from "react-icons/fi";
 import { MdDetails, MdOutlineEventNote, MdOutlineTask, MdReorder, MdSyncAlt } from "react-icons/md";
 import { PiBracketsCurlyBold } from "react-icons/pi";
 import { useParams } from "react-router-dom";
 
-import {
-  useDagServiceGetDagDetails,
-  useGridServiceGridData,
-  useTaskInstanceServiceGetMappedTaskInstance,
-} from "openapi/queries";
+import { useTaskInstanceServiceGetMappedTaskInstance } from "openapi/queries";
+import { usePluginTabs } from "src/hooks/usePluginTabs";
+import { useRequiredActionTabs } from "src/hooks/useRequiredActionTabs";
 import { DetailsLayout } from "src/layouts/Details/DetailsLayout";
+import { useGridTiSummaries } from "src/queries/useGridTISummaries.ts";
 import { isStatePending, useAutoRefresh } from "src/utils";
 
 import { Header } from "./Header";
 
 export const TaskInstance = () => {
-  const { t: translate } = useTranslation("dag");
+  const { t: translate } = useTranslation(["dag", "common", "hitl"]);
   const { dagId = "", mapIndex = "-1", runId = "", taskId = "" } = useParams();
+  // Get external views with task_instance destination
+  const externalTabs = usePluginTabs("task_instance");
 
   const tabs = [
     { icon: <MdReorder />, label: translate("tabs.logs"), value: "" },
+    { icon: <FiUser />, label: translate("tabs.requiredActions"), value: "required_actions" },
     {
       icon: <PiBracketsCurlyBold />,
       label: translate("tabs.renderedTemplates"),
@@ -49,17 +52,11 @@ export const TaskInstance = () => {
     { icon: <MdOutlineEventNote />, label: translate("tabs.auditLog"), value: "events" },
     { icon: <FiCode />, label: translate("tabs.code"), value: "code" },
     { icon: <MdDetails />, label: translate("tabs.details"), value: "details" },
+    ...externalTabs,
   ];
 
   const refetchInterval = useAutoRefresh({ dagId });
-
-  const {
-    data: dag,
-    error: dagError,
-    isLoading: isDagLoading,
-  } = useDagServiceGetDagDetails({
-    dagId,
-  });
+  const parsedMapIndex = parseInt(mapIndex, 10);
 
   const {
     data: taskInstance,
@@ -69,34 +66,22 @@ export const TaskInstance = () => {
     {
       dagId,
       dagRunId: runId,
-      mapIndex: parseInt(mapIndex, 10),
+      mapIndex: parsedMapIndex,
       taskId,
     },
     undefined,
     {
+      enabled: !isNaN(parsedMapIndex),
       refetchInterval: (query) => (isStatePending(query.state.data?.state) ? refetchInterval : false),
     },
   );
 
-  // Filter grid data to get only a single dag run
-  const { data } = useGridServiceGridData(
-    {
-      dagId,
-      limit: 1,
-      offset: 0,
-      runAfterGte: taskInstance?.run_after,
-      runAfterLte: taskInstance?.run_after,
-    },
-    undefined,
-    {
-      enabled: taskInstance !== undefined,
-    },
-  );
+  const { data: gridTISummaries } = useGridTiSummaries({ dagId, runId });
 
-  const mappedTaskInstance = data?.dag_runs
-    .find((dr) => dr.dag_run_id === runId)
-    ?.task_instances.find((ti) => ti.task_id === taskId);
-
+  const taskInstanceSummary = gridTISummaries?.task_instances.find((ti) => ti.task_id === taskId);
+  const taskCount = Object.entries(taskInstanceSummary?.child_states ?? {})
+    .map(([_state, count]) => count)
+    .reduce((sum, val) => sum + val, 0);
   let newTabs = tabs;
 
   if (taskInstance && taskInstance.map_index > -1) {
@@ -105,7 +90,7 @@ export const TaskInstance = () => {
       {
         icon: <MdOutlineTask />,
         label: translate("tabs.mappedTaskInstances_other", {
-          count: Number(mappedTaskInstance?.task_count ?? 0),
+          count: Number(taskCount),
         }),
         value: "task_instances",
       },
@@ -113,14 +98,20 @@ export const TaskInstance = () => {
     ];
   }
 
+  const { tabs: displayTabs } = useRequiredActionTabs({ dagId, dagRunId: runId, taskId }, newTabs, {
+    autoRedirect: true,
+    refetchInterval: isStatePending(taskInstance?.state) ? refetchInterval : false,
+  });
+
   return (
     <ReactFlowProvider>
-      <DetailsLayout dag={dag} error={error ?? dagError} isLoading={isLoading || isDagLoading} tabs={newTabs}>
-        {taskInstance === undefined ? undefined : (
-          <Header
-            isRefreshing={Boolean(isStatePending(taskInstance.state) && Boolean(refetchInterval))}
-            taskInstance={taskInstance}
-          />
+      <DetailsLayout error={error} isLoading={isLoading} tabs={displayTabs}>
+        {taskInstance === undefined ? (
+          <Heading p={2} size="lg">
+            {translate("common:noItemsFound", { modelName: translate("common:taskInstance_one") })}
+          </Heading>
+        ) : (
+          <Header taskInstance={taskInstance} />
         )}
       </DetailsLayout>
     </ReactFlowProvider>

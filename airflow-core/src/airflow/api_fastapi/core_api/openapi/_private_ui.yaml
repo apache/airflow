@@ -22,6 +22,24 @@ paths:
                 $ref: '#/components/schemas/MenuItemCollectionResponse'
       security:
       - OAuth2PasswordBearer: []
+      - HTTPBearer: []
+  /ui/auth/me:
+    get:
+      tags:
+      - Auth Links
+      summary: Get Current User Info
+      description: Convienently get the current authenticated user information.
+      operationId: get_current_user_info
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthenticatedMeResponse'
+      security:
+      - OAuth2PasswordBearer: []
+      - HTTPBearer: []
   /ui/next_run_assets/{dag_id}:
     get:
       tags:
@@ -30,6 +48,7 @@ paths:
       operationId: next_run_assets
       security:
       - OAuth2PasswordBearer: []
+      - HTTPBearer: []
       parameters:
       - name: dag_id
         in: path
@@ -74,6 +93,7 @@ paths:
                 $ref: '#/components/schemas/HTTPExceptionResponse'
       security:
       - OAuth2PasswordBearer: []
+      - HTTPBearer: []
   /ui/connections/hook_meta:
     get:
       tags:
@@ -94,6 +114,7 @@ paths:
                 title: Response Hook Meta Data
       security:
       - OAuth2PasswordBearer: []
+      - HTTPBearer: []
   /ui/dags:
     get:
       tags:
@@ -103,6 +124,7 @@ paths:
       operationId: get_dags_ui
       security:
       - OAuth2PasswordBearer: []
+      - HTTPBearer: []
       parameters:
       - name: dag_runs_limit
         in: query
@@ -203,6 +225,18 @@ paths:
           - type: boolean
           - type: 'null'
           title: Paused
+      - name: has_import_errors
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: boolean
+          - type: 'null'
+          description: Filter Dags by having import errors. Only Dags that have been
+            successfully loaded before will be returned.
+          title: Has Import Errors
+        description: Filter Dags by having import errors. Only Dags that have been
+          successfully loaded before will be returned.
       - name: last_dag_run_state
         in: query
         required: false
@@ -211,13 +245,74 @@ paths:
           - $ref: '#/components/schemas/DagRunState'
           - type: 'null'
           title: Last Dag Run State
+      - name: bundle_name
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Bundle Name
+      - name: bundle_version
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Bundle Version
       - name: order_by
         in: query
         required: false
         schema:
-          type: string
-          default: dag_id
+          type: array
+          items:
+            type: string
+          description: 'Attributes to order by, multi criteria sort is supported.
+            Prefix with `-` for descending order. Supported attributes: `dag_id, dag_display_name,
+            next_dagrun, state, start_date, last_run_state, last_run_start_date`'
+          default:
+          - dag_id
           title: Order By
+        description: 'Attributes to order by, multi criteria sort is supported. Prefix
+          with `-` for descending order. Supported attributes: `dag_id, dag_display_name,
+          next_dagrun, state, start_date, last_run_state, last_run_start_date`'
+      - name: is_favorite
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: boolean
+          - type: 'null'
+          title: Is Favorite
+      - name: has_asset_schedule
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: boolean
+          - type: 'null'
+          description: Filter Dags with asset-based scheduling
+          title: Has Asset Schedule
+        description: Filter Dags with asset-based scheduling
+      - name: asset_dependency
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: Filter Dags by asset dependency (name or URI)
+          title: Asset Dependency
+        description: Filter Dags by asset dependency (name or URI)
+      - name: has_pending_actions
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: boolean
+          - type: 'null'
+          title: Has Pending Actions
       responses:
         '200':
           description: Successful Response
@@ -225,6 +320,45 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/DAGWithLatestDagRunsCollectionResponse'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /ui/dags/{dag_id}/latest_run:
+    get:
+      tags:
+      - DAG
+      summary: Get Latest Run Info
+      description: Get latest run.
+      operationId: get_latest_run_info
+      security:
+      - OAuth2PasswordBearer: []
+      - HTTPBearer: []
+      parameters:
+      - name: dag_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Dag Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                anyOf:
+                - $ref: '#/components/schemas/DAGRunLightResponse'
+                - type: 'null'
+                title: Response Get Latest Run Info
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Not Found
         '422':
           description: Validation Error
           content:
@@ -240,6 +374,7 @@ paths:
       operationId: get_dependencies
       security:
       - OAuth2PasswordBearer: []
+      - HTTPBearer: []
       parameters:
       - name: node_id
         in: query
@@ -277,6 +412,7 @@ paths:
       operationId: historical_metrics
       security:
       - OAuth2PasswordBearer: []
+      - HTTPBearer: []
       parameters:
       - name: start_date
         in: query
@@ -327,6 +463,7 @@ paths:
                 $ref: '#/components/schemas/DashboardDagStatsResponse'
       security:
       - OAuth2PasswordBearer: []
+      - HTTPBearer: []
   /ui/structure/structure_data:
     get:
       tags:
@@ -336,6 +473,7 @@ paths:
       operationId: structure_data
       security:
       - OAuth2PasswordBearer: []
+      - HTTPBearer: []
       parameters:
       - name: dag_id
         in: query
@@ -407,6 +545,7 @@ paths:
       operationId: list_backfills_ui
       security:
       - OAuth2PasswordBearer: []
+      - HTTPBearer: []
       parameters:
       - name: limit
         in: query
@@ -428,9 +567,16 @@ paths:
         in: query
         required: false
         schema:
-          type: string
-          default: id
+          type: array
+          items:
+            type: string
+          description: 'Attributes to order by, multi criteria sort is supported.
+            Prefix with `-` for descending order. Supported attributes: `id`'
+          default:
+          - id
           title: Order By
+        description: 'Attributes to order by, multi criteria sort is supported. Prefix
+          with `-` for descending order. Supported attributes: `id`'
       - name: dag_id
         in: query
         required: false
@@ -466,15 +612,16 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
-  /ui/grid/{dag_id}:
+  /ui/grid/structure/{dag_id}:
     get:
       tags:
       - Grid
-      summary: Grid Data
-      description: Return grid data.
-      operationId: grid_data
+      summary: Get Dag Structure
+      description: Return dag structure for grid view.
+      operationId: get_dag_structure
       security:
       - OAuth2PasswordBearer: []
+      - HTTPBearer: []
       parameters:
       - name: dag_id
         in: path
@@ -512,6 +659,66 @@ paths:
           minimum: 0
           default: 0
           title: Offset
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 0
+          default: 50
+          title: Limit
+      - name: order_by
+        in: query
+        required: false
+        schema:
+          type: array
+          items:
+            type: string
+          description: 'Attributes to order by, multi criteria sort is supported.
+            Prefix with `-` for descending order. Supported attributes: `run_after,
+            logical_date, start_date, end_date`'
+          default:
+          - id
+          title: Order By
+        description: 'Attributes to order by, multi criteria sort is supported. Prefix
+          with `-` for descending order. Supported attributes: `run_after, logical_date,
+          start_date, end_date`'
+      - name: run_after_gte
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Run After Gte
+      - name: run_after_gt
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Run After Gt
+      - name: run_after_lte
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Run After Lte
+      - name: run_after_lt
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Run After Lt
       - name: run_type
         in: query
         required: false
@@ -528,64 +735,28 @@ paths:
           items:
             type: string
           title: State
-      - name: limit
-        in: query
-        required: false
-        schema:
-          type: integer
-          minimum: 0
-          default: 50
-          title: Limit
-      - name: order_by
-        in: query
-        required: false
-        schema:
-          type: string
-          default: id
-          title: Order By
-      - name: run_after_gte
+      - name: triggering_user
         in: query
         required: false
         schema:
           anyOf:
           - type: string
-            format: date-time
           - type: 'null'
-          title: Run After Gte
-      - name: run_after_lte
-        in: query
-        required: false
-        schema:
-          anyOf:
-          - type: string
-            format: date-time
-          - type: 'null'
-          title: Run After Lte
-      - name: logical_date_gte
-        in: query
-        required: false
-        schema:
-          anyOf:
-          - type: string
-            format: date-time
-          - type: 'null'
-          title: Logical Date Gte
-      - name: logical_date_lte
-        in: query
-        required: false
-        schema:
-          anyOf:
-          - type: string
-            format: date-time
-          - type: 'null'
-          title: Logical Date Lte
+          description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
+            \ Regular expressions are **not** supported."
+          title: Triggering User
+        description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
+          \ Regular expressions are **not** supported."
       responses:
         '200':
           description: Successful Response
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/GridResponse'
+                type: array
+                items:
+                  $ref: '#/components/schemas/GridNodeResponse'
+                title: Response Get Dag Structure
         '400':
           content:
             application/json:
@@ -604,8 +775,363 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
+  /ui/grid/runs/{dag_id}:
+    get:
+      tags:
+      - Grid
+      summary: Get Grid Runs
+      description: Get info about a run for the grid.
+      operationId: get_grid_runs
+      security:
+      - OAuth2PasswordBearer: []
+      - HTTPBearer: []
+      parameters:
+      - name: dag_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Dag Id
+      - name: offset
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 0
+          default: 0
+          title: Offset
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 0
+          default: 50
+          title: Limit
+      - name: order_by
+        in: query
+        required: false
+        schema:
+          type: array
+          items:
+            type: string
+          description: 'Attributes to order by, multi criteria sort is supported.
+            Prefix with `-` for descending order. Supported attributes: `run_after,
+            logical_date, start_date, end_date`'
+          default:
+          - id
+          title: Order By
+        description: 'Attributes to order by, multi criteria sort is supported. Prefix
+          with `-` for descending order. Supported attributes: `run_after, logical_date,
+          start_date, end_date`'
+      - name: run_after_gte
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Run After Gte
+      - name: run_after_gt
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Run After Gt
+      - name: run_after_lte
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Run After Lte
+      - name: run_after_lt
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Run After Lt
+      - name: run_type
+        in: query
+        required: false
+        schema:
+          type: array
+          items:
+            type: string
+          title: Run Type
+      - name: state
+        in: query
+        required: false
+        schema:
+          type: array
+          items:
+            type: string
+          title: State
+      - name: triggering_user
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
+            \ Regular expressions are **not** supported."
+          title: Triggering User
+        description: "SQL LIKE expression \u2014 use `%` / `_` wildcards (e.g. `%customer_%`).\
+          \ Regular expressions are **not** supported."
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/GridRunsResponse'
+                title: Response Get Grid Runs
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Bad Request
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Not Found
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /ui/grid/ti_summaries/{dag_id}/{run_id}:
+    get:
+      tags:
+      - Grid
+      summary: Get Grid Ti Summaries
+      description: 'Get states for TIs / "groups" of TIs.
+
+
+        Essentially this is to know what color to put in the squares in the grid.
+
+
+        The tricky part here is that we aggregate the state for groups and mapped
+        tasks.
+
+
+        We don''t add all the TIs for mapped TIs -- we only add one entry for the
+        mapped task and
+
+        its state is an aggregate of its TI states.
+
+
+        And for task groups, we add a "task" for that which is not really a task but
+        is just
+
+        an entry that represents the group (so that we can show a filled in box when
+        the group
+
+        is not expanded) and its state is an agg of those within it.'
+      operationId: get_grid_ti_summaries
+      security:
+      - OAuth2PasswordBearer: []
+      - HTTPBearer: []
+      parameters:
+      - name: dag_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Dag Id
+      - name: run_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Run Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GridTISummaries'
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Bad Request
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Not Found
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /ui/calendar/{dag_id}:
+    get:
+      tags:
+      - Calendar
+      summary: Get Calendar
+      description: Get calendar data for a DAG including historical and planned DAG
+        runs.
+      operationId: get_calendar
+      security:
+      - OAuth2PasswordBearer: []
+      - HTTPBearer: []
+      parameters:
+      - name: dag_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Dag Id
+      - name: granularity
+        in: query
+        required: false
+        schema:
+          enum:
+          - hourly
+          - daily
+          type: string
+          default: daily
+          title: Granularity
+      - name: logical_date_gte
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Logical Date Gte
+      - name: logical_date_gt
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Logical Date Gt
+      - name: logical_date_lte
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Logical Date Lte
+      - name: logical_date_lt
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Logical Date Lt
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CalendarTimeRangeCollectionResponse'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /ui/teams:
+    get:
+      tags:
+      - Teams
+      summary: List Teams
+      operationId: list_teams
+      security:
+      - OAuth2PasswordBearer: []
+      - HTTPBearer: []
+      parameters:
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 0
+          default: 50
+          title: Limit
+      - name: offset
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 0
+          default: 0
+          title: Offset
+      - name: order_by
+        in: query
+        required: false
+        schema:
+          type: array
+          items:
+            type: string
+          description: 'Attributes to order by, multi criteria sort is supported.
+            Prefix with `-` for descending order. Supported attributes: `name`'
+          default:
+          - name
+          title: Order By
+        description: 'Attributes to order by, multi criteria sort is supported. Prefix
+          with `-` for descending order. Supported attributes: `name`'
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TeamCollectionResponse'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
 components:
   schemas:
+    AuthenticatedMeResponse:
+      properties:
+        id:
+          type: string
+          title: Id
+        username:
+          type: string
+          title: Username
+      type: object
+      required:
+      - id
+      - username
+      title: AuthenticatedMeResponse
+      description: Authenticated user information serializer for responses.
     BackfillCollectionResponse:
       properties:
         backfills:
@@ -745,6 +1271,47 @@ components:
       - type
       title: BaseNodeResponse
       description: Base Node serializer for responses.
+    CalendarTimeRangeCollectionResponse:
+      properties:
+        total_entries:
+          type: integer
+          title: Total Entries
+        dag_runs:
+          items:
+            $ref: '#/components/schemas/CalendarTimeRangeResponse'
+          type: array
+          title: Dag Runs
+      type: object
+      required:
+      - total_entries
+      - dag_runs
+      title: CalendarTimeRangeCollectionResponse
+      description: Response model for calendar time range results.
+    CalendarTimeRangeResponse:
+      properties:
+        date:
+          type: string
+          format: date-time
+          title: Date
+        state:
+          type: string
+          enum:
+          - queued
+          - running
+          - success
+          - failed
+          - planned
+          title: State
+        count:
+          type: integer
+          title: Count
+      type: object
+      required:
+      - date
+      - state
+      - count
+      title: CalendarTimeRangeResponse
+      description: Represents a summary of DAG runs for a specific calendar time range.
     ConfigResponse:
       properties:
         page_size:
@@ -784,6 +1351,13 @@ components:
           - type: string
           - type: 'null'
           title: External Log Name
+        theme:
+          anyOf:
+          - $ref: '#/components/schemas/Theme'
+          - type: 'null'
+        multi_team:
+          type: boolean
+          title: Multi Team
       type: object
       required:
       - page_size
@@ -796,6 +1370,8 @@ components:
       - test_connection
       - dashboard_alert
       - show_external_log_redirect
+      - theme
+      - multi_team
       title: ConfigResponse
       description: configuration serializer.
     ConnectionHookFieldBehavior:
@@ -867,26 +1443,27 @@ components:
         that
 
         the API server/Web UI can use this data to render connection form UI.'
-    DAGRunResponse:
+    DAGRunLightResponse:
       properties:
-        dag_run_id:
-          type: string
-          title: Dag Run Id
+        id:
+          type: integer
+          title: Id
         dag_id:
           type: string
           title: Dag Id
+        run_id:
+          type: string
+          title: Run Id
         logical_date:
           anyOf:
           - type: string
             format: date-time
           - type: 'null'
           title: Logical Date
-        queued_at:
-          anyOf:
-          - type: string
-            format: date-time
-          - type: 'null'
-          title: Queued At
+        run_after:
+          type: string
+          format: date-time
+          title: Run After
         start_date:
           anyOf:
           - type: string
@@ -899,87 +1476,26 @@ components:
             format: date-time
           - type: 'null'
           title: End Date
+        state:
+          $ref: '#/components/schemas/DagRunState'
         duration:
           anyOf:
           - type: number
           - type: 'null'
           title: Duration
-        data_interval_start:
-          anyOf:
-          - type: string
-            format: date-time
-          - type: 'null'
-          title: Data Interval Start
-        data_interval_end:
-          anyOf:
-          - type: string
-            format: date-time
-          - type: 'null'
-          title: Data Interval End
-        run_after:
-          type: string
-          format: date-time
-          title: Run After
-        last_scheduling_decision:
-          anyOf:
-          - type: string
-            format: date-time
-          - type: 'null'
-          title: Last Scheduling Decision
-        run_type:
-          $ref: '#/components/schemas/DagRunType'
-        state:
-          $ref: '#/components/schemas/DagRunState'
-        triggered_by:
-          anyOf:
-          - $ref: '#/components/schemas/DagRunTriggeredByType'
-          - type: 'null'
-        conf:
-          anyOf:
-          - additionalProperties: true
-            type: object
-          - type: 'null'
-          title: Conf
-        note:
-          anyOf:
-          - type: string
-          - type: 'null'
-          title: Note
-        dag_versions:
-          items:
-            $ref: '#/components/schemas/DagVersionResponse'
-          type: array
-          title: Dag Versions
-        bundle_version:
-          anyOf:
-          - type: string
-          - type: 'null'
-          title: Bundle Version
-        dag_display_name:
-          type: string
-          title: Dag Display Name
+          readOnly: true
       type: object
       required:
-      - dag_run_id
+      - id
       - dag_id
+      - run_id
       - logical_date
-      - queued_at
+      - run_after
       - start_date
       - end_date
-      - duration
-      - data_interval_start
-      - data_interval_end
-      - run_after
-      - last_scheduling_decision
-      - run_type
       - state
-      - triggered_by
-      - conf
-      - note
-      - dag_versions
-      - bundle_version
-      - dag_display_name
-      title: DAGRunResponse
+      - duration
+      title: DAGRunLightResponse
       description: DAG Run serializer for responses.
     DAGRunStates:
       properties:
@@ -1061,6 +1577,11 @@ components:
             format: date-time
           - type: 'null'
           title: Last Parsed Time
+        last_parse_duration:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Last Parse Duration
         last_expired:
           anyOf:
           - type: string
@@ -1090,13 +1611,6 @@ components:
           - type: string
           - type: 'null'
           title: Description
-        deadline:
-          anyOf:
-          - items:
-              $ref: '#/components/schemas/DeadlineAlertResponse'
-            type: array
-          - type: 'null'
-          title: Deadline
         timetable_summary:
           anyOf:
           - type: string
@@ -1166,9 +1680,17 @@ components:
           title: Asset Expression
         latest_dag_runs:
           items:
-            $ref: '#/components/schemas/DAGRunResponse'
+            $ref: '#/components/schemas/DAGRunLightResponse'
           type: array
           title: Latest Dag Runs
+        pending_actions:
+          items:
+            $ref: '#/components/schemas/HITLDetail'
+          type: array
+          title: Pending Actions
+        is_favorite:
+          type: boolean
+          title: Is Favorite
         file_token:
           type: string
           title: File Token
@@ -1181,13 +1703,13 @@ components:
       - is_paused
       - is_stale
       - last_parsed_time
+      - last_parse_duration
       - last_expired
       - bundle_name
       - bundle_version
       - relative_fileloc
       - fileloc
       - description
-      - deadline
       - timetable_summary
       - timetable_description
       - tags
@@ -1203,6 +1725,8 @@ components:
       - owners
       - asset_expression
       - latest_dag_runs
+      - pending_actions
+      - is_favorite
       - file_token
       title: DAGWithLatestDagRunsResponse
       description: DAG with latest dag runs response serializer.
@@ -1222,19 +1746,6 @@ components:
         so please ensure that their values always match the ones with the
 
         same name in TaskInstanceState.'
-    DagRunTriggeredByType:
-      type: string
-      enum:
-      - cli
-      - operator
-      - rest_api
-      - ui
-      - test
-      - timetable
-      - asset
-      - backfill
-      title: DagRunTriggeredByType
-      description: Class with TriggeredBy types for DagRun.
     DagRunType:
       type: string
       enum:
@@ -1252,10 +1763,14 @@ components:
         dag_id:
           type: string
           title: Dag Id
+        dag_display_name:
+          type: string
+          title: Dag Display Name
       type: object
       required:
       - name
       - dag_id
+      - dag_display_name
       title: DagTagResponse
       description: DAG Tag serializer for responses.
     DagVersionResponse:
@@ -1292,7 +1807,6 @@ components:
           - type: string
           - type: 'null'
           title: Bundle Url
-          readOnly: true
       type: object
       required:
       - id
@@ -1327,31 +1841,6 @@ components:
       - queued_dag_count
       title: DashboardDagStatsResponse
       description: Dashboard DAG Stats serializer for responses.
-    DeadlineAlertResponse:
-      properties:
-        reference:
-          type: string
-          title: Reference
-        interval:
-          type: string
-          format: duration
-          title: Interval
-        callback:
-          type: string
-          title: Callback
-        callback_kwargs:
-          anyOf:
-          - additionalProperties: true
-            type: object
-          - type: 'null'
-          title: Callback Kwargs
-      type: object
-      required:
-      - reference
-      - interval
-      - callback
-      title: DeadlineAlertResponse
-      description: Deadline alert serializer for responses.
     EdgeResponse:
       properties:
         source_id:
@@ -1394,11 +1883,49 @@ components:
       - text
       - href
       title: ExtraMenuItem
-    GridDAGRunwithTIs:
+    GridNodeResponse:
       properties:
-        dag_run_id:
+        id:
           type: string
-          title: Dag Run Id
+          title: Id
+        label:
+          type: string
+          title: Label
+        children:
+          anyOf:
+          - items:
+              $ref: '#/components/schemas/GridNodeResponse'
+            type: array
+          - type: 'null'
+          title: Children
+        is_mapped:
+          anyOf:
+          - type: boolean
+          - type: 'null'
+          title: Is Mapped
+        setup_teardown_type:
+          anyOf:
+          - type: string
+            enum:
+            - setup
+            - teardown
+          - type: 'null'
+          title: Setup Teardown Type
+      type: object
+      required:
+      - id
+      - label
+      - is_mapped
+      title: GridNodeResponse
+      description: Base Node serializer for responses.
+    GridRunsResponse:
+      properties:
+        dag_id:
+          type: string
+          title: Dag Id
+        run_id:
+          type: string
+          title: Run Id
         queued_at:
           anyOf:
           - type: string
@@ -1422,126 +1949,137 @@ components:
           format: date-time
           title: Run After
         state:
-          $ref: '#/components/schemas/DagRunState'
+          anyOf:
+          - $ref: '#/components/schemas/DagRunState'
+          - type: 'null'
         run_type:
           $ref: '#/components/schemas/DagRunType'
-        logical_date:
-          anyOf:
-          - type: string
-            format: date-time
-          - type: 'null'
-          title: Logical Date
-        data_interval_start:
-          anyOf:
-          - type: string
-            format: date-time
-          - type: 'null'
-          title: Data Interval Start
-        data_interval_end:
-          anyOf:
-          - type: string
-            format: date-time
-          - type: 'null'
-          title: Data Interval End
-        note:
-          anyOf:
-          - type: string
-          - type: 'null'
-          title: Note
-        task_instances:
-          items:
-            $ref: '#/components/schemas/GridTaskInstanceSummary'
-          type: array
-          title: Task Instances
+        duration:
+          type: number
+          title: Duration
+          readOnly: true
       type: object
       required:
-      - dag_run_id
+      - dag_id
+      - run_id
       - queued_at
       - start_date
       - end_date
       - run_after
       - state
       - run_type
-      - logical_date
-      - data_interval_start
-      - data_interval_end
-      - note
-      - task_instances
-      title: GridDAGRunwithTIs
-      description: DAG Run model for the Grid UI.
-    GridResponse:
+      - duration
+      title: GridRunsResponse
+      description: Base Node serializer for responses.
+    GridTISummaries:
       properties:
-        dag_runs:
-          items:
-            $ref: '#/components/schemas/GridDAGRunwithTIs'
-          type: array
-          title: Dag Runs
-        structure:
-          $ref: '#/components/schemas/StructureDataResponse'
-      type: object
-      required:
-      - dag_runs
-      - structure
-      title: GridResponse
-      description: Response model for the Grid UI.
-    GridTaskInstanceSummary:
-      properties:
-        task_id:
+        run_id:
           type: string
-          title: Task Id
-        try_number:
-          type: integer
-          title: Try Number
-        start_date:
-          anyOf:
-          - type: string
-            format: date-time
-          - type: 'null'
-          title: Start Date
-        end_date:
-          anyOf:
-          - type: string
-            format: date-time
-          - type: 'null'
-          title: End Date
-        queued_dttm:
-          anyOf:
-          - type: string
-            format: date-time
-          - type: 'null'
-          title: Queued Dttm
-        child_states:
-          anyOf:
-          - additionalProperties:
-              type: integer
-            type: object
-          - type: 'null'
-          title: Child States
-        task_count:
-          type: integer
-          title: Task Count
-        state:
-          anyOf:
-          - $ref: '#/components/schemas/TaskInstanceState'
-          - type: 'null'
-        note:
-          anyOf:
-          - type: string
-          - type: 'null'
-          title: Note
+          title: Run Id
+        dag_id:
+          type: string
+          title: Dag Id
+        task_instances:
+          items:
+            $ref: '#/components/schemas/LightGridTaskInstanceSummary'
+          type: array
+          title: Task Instances
       type: object
       required:
-      - task_id
-      - try_number
-      - start_date
-      - end_date
-      - queued_dttm
-      - child_states
-      - task_count
-      - state
-      - note
-      title: GridTaskInstanceSummary
-      description: Task Instance Summary model for the Grid UI.
+      - run_id
+      - dag_id
+      - task_instances
+      title: GridTISummaries
+      description: DAG Run model for the Grid UI.
+    HITLDetail:
+      properties:
+        options:
+          items:
+            type: string
+          type: array
+          minItems: 1
+          title: Options
+        subject:
+          type: string
+          title: Subject
+        body:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Body
+        defaults:
+          anyOf:
+          - items:
+              type: string
+            type: array
+          - type: 'null'
+          title: Defaults
+        multiple:
+          type: boolean
+          title: Multiple
+          default: false
+        params:
+          additionalProperties: true
+          type: object
+          title: Params
+        assigned_users:
+          items:
+            $ref: '#/components/schemas/HITLUser'
+          type: array
+          title: Assigned Users
+        created_at:
+          type: string
+          format: date-time
+          title: Created At
+        responded_by_user:
+          anyOf:
+          - $ref: '#/components/schemas/HITLUser'
+          - type: 'null'
+        responded_at:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Responded At
+        chosen_options:
+          anyOf:
+          - items:
+              type: string
+            type: array
+          - type: 'null'
+          title: Chosen Options
+        params_input:
+          additionalProperties: true
+          type: object
+          title: Params Input
+        response_received:
+          type: boolean
+          title: Response Received
+          default: false
+        task_instance:
+          $ref: '#/components/schemas/TaskInstanceResponse'
+      type: object
+      required:
+      - options
+      - subject
+      - created_at
+      - task_instance
+      title: HITLDetail
+      description: Schema for Human-in-the-loop detail.
+    HITLUser:
+      properties:
+        id:
+          type: string
+          title: Id
+        name:
+          type: string
+          title: Name
+      type: object
+      required:
+      - id
+      - name
+      title: HITLUser
+      description: Schema for a Human-in-the-loop users.
     HTTPExceptionResponse:
       properties:
         detail:
@@ -1579,9 +2117,119 @@ components:
       - task_instance_states
       title: HistoricalMetricDataResponse
       description: Historical Metric Data serializer for responses.
+    JobResponse:
+      properties:
+        id:
+          type: integer
+          title: Id
+        dag_id:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Dag Id
+        state:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: State
+        job_type:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Job Type
+        start_date:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Start Date
+        end_date:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: End Date
+        latest_heartbeat:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Latest Heartbeat
+        executor_class:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Executor Class
+        hostname:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Hostname
+        unixname:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Unixname
+        dag_display_name:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Dag Display Name
+      type: object
+      required:
+      - id
+      - dag_id
+      - state
+      - job_type
+      - start_date
+      - end_date
+      - latest_heartbeat
+      - executor_class
+      - hostname
+      - unixname
+      title: JobResponse
+      description: Job serializer for responses.
+    LightGridTaskInstanceSummary:
+      properties:
+        task_id:
+          type: string
+          title: Task Id
+        state:
+          anyOf:
+          - $ref: '#/components/schemas/TaskInstanceState'
+          - type: 'null'
+        child_states:
+          anyOf:
+          - additionalProperties:
+              type: integer
+            type: object
+          - type: 'null'
+          title: Child States
+        min_start_date:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Min Start Date
+        max_end_date:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Max End Date
+      type: object
+      required:
+      - task_id
+      - state
+      - child_states
+      - min_start_date
+      - max_end_date
+      title: LightGridTaskInstanceSummary
+      description: Task Instance Summary model for the Grid UI.
     MenuItem:
       type: string
       enum:
+      - Required Actions
       - Assets
       - Audit Log
       - Config
@@ -1680,6 +2328,8 @@ components:
       - type
       title: NodeResponse
       description: Node serializer for responses.
+    OklchColor:
+      type: string
     ReprocessBehavior:
       type: string
       enum:
@@ -1745,6 +2395,190 @@ components:
       - nodes
       title: StructureDataResponse
       description: Structure Data serializer for responses.
+    TaskInstanceResponse:
+      properties:
+        id:
+          type: string
+          title: Id
+        task_id:
+          type: string
+          title: Task Id
+        dag_id:
+          type: string
+          title: Dag Id
+        dag_run_id:
+          type: string
+          title: Dag Run Id
+        map_index:
+          type: integer
+          title: Map Index
+        logical_date:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Logical Date
+        run_after:
+          type: string
+          format: date-time
+          title: Run After
+        start_date:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Start Date
+        end_date:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: End Date
+        duration:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Duration
+        state:
+          anyOf:
+          - $ref: '#/components/schemas/TaskInstanceState'
+          - type: 'null'
+        try_number:
+          type: integer
+          title: Try Number
+        max_tries:
+          type: integer
+          title: Max Tries
+        task_display_name:
+          type: string
+          title: Task Display Name
+        dag_display_name:
+          type: string
+          title: Dag Display Name
+        hostname:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Hostname
+        unixname:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Unixname
+        pool:
+          type: string
+          title: Pool
+        pool_slots:
+          type: integer
+          title: Pool Slots
+        queue:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Queue
+        priority_weight:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Priority Weight
+        operator:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Operator
+        operator_name:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Operator Name
+        queued_when:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Queued When
+        scheduled_when:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Scheduled When
+        pid:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Pid
+        executor:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Executor
+        executor_config:
+          type: string
+          title: Executor Config
+        note:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Note
+        rendered_map_index:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Rendered Map Index
+        rendered_fields:
+          additionalProperties: true
+          type: object
+          title: Rendered Fields
+        trigger:
+          anyOf:
+          - $ref: '#/components/schemas/TriggerResponse'
+          - type: 'null'
+        triggerer_job:
+          anyOf:
+          - $ref: '#/components/schemas/JobResponse'
+          - type: 'null'
+        dag_version:
+          anyOf:
+          - $ref: '#/components/schemas/DagVersionResponse'
+          - type: 'null'
+      type: object
+      required:
+      - id
+      - task_id
+      - dag_id
+      - dag_run_id
+      - map_index
+      - logical_date
+      - run_after
+      - start_date
+      - end_date
+      - duration
+      - state
+      - try_number
+      - max_tries
+      - task_display_name
+      - dag_display_name
+      - hostname
+      - unixname
+      - pool
+      - pool_slots
+      - queue
+      - priority_weight
+      - operator
+      - operator_name
+      - queued_when
+      - scheduled_when
+      - pid
+      - executor
+      - executor_config
+      - note
+      - rendered_map_index
+      - trigger
+      - triggerer_job
+      - dag_version
+      title: TaskInstanceResponse
+      description: TaskInstance serializer for responses.
     TaskInstanceState:
       type: string
       enum:
@@ -1823,6 +2657,104 @@ components:
       - deferred
       title: TaskInstanceStateCount
       description: TaskInstance serializer for responses.
+    TeamCollectionResponse:
+      properties:
+        teams:
+          items:
+            $ref: '#/components/schemas/TeamResponse'
+          type: array
+          title: Teams
+        total_entries:
+          type: integer
+          title: Total Entries
+      type: object
+      required:
+      - teams
+      - total_entries
+      title: TeamCollectionResponse
+      description: Team collection serializer for responses.
+    TeamResponse:
+      properties:
+        name:
+          type: string
+          title: Name
+      type: object
+      required:
+      - name
+      title: TeamResponse
+      description: Base serializer for Team.
+    Theme:
+      properties:
+        tokens:
+          additionalProperties:
+            additionalProperties:
+              additionalProperties:
+                additionalProperties:
+                  $ref: '#/components/schemas/OklchColor'
+                propertyNames:
+                  const: value
+                type: object
+              propertyNames:
+                enum:
+                - '50'
+                - '100'
+                - '200'
+                - '300'
+                - '400'
+                - '500'
+                - '600'
+                - '700'
+                - '800'
+                - '900'
+                - '950'
+              type: object
+            propertyNames:
+              const: brand
+            type: object
+          propertyNames:
+            const: colors
+          type: object
+          title: Tokens
+      type: object
+      required:
+      - tokens
+      title: Theme
+      description: JSON to modify Chakra's theme.
+    TriggerResponse:
+      properties:
+        id:
+          type: integer
+          title: Id
+        classpath:
+          type: string
+          title: Classpath
+        kwargs:
+          type: string
+          title: Kwargs
+        created_date:
+          type: string
+          format: date-time
+          title: Created Date
+        queue:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Queue
+        triggerer_id:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Triggerer Id
+      type: object
+      required:
+      - id
+      - classpath
+      - kwargs
+      - created_date
+      - queue
+      - triggerer_id
+      title: TriggerResponse
+      description: Trigger serializer for responses.
     UIAlert:
       properties:
         text:
@@ -1877,3 +2809,6 @@ components:
         password:
           scopes: {}
           tokenUrl: /auth/token
+    HTTPBearer:
+      type: http
+      scheme: bearer

@@ -24,17 +24,14 @@ from zenpy.lib.api_objects import Ticket
 
 from airflow.models import Connection
 from airflow.providers.zendesk.hooks.zendesk import ZendeskHook
-from airflow.utils import db
-
-pytestmark = pytest.mark.db_test
 
 
 class TestZendeskHook:
     conn_id = "zendesk_conn_id_test"
 
     @pytest.fixture(autouse=True)
-    def init_connection(self):
-        db.merge_conn(
+    def setup_connections(self, create_connection_without_db):
+        create_connection_without_db(
             Connection(
                 conn_id=self.conn_id,
                 conn_type="zendesk",

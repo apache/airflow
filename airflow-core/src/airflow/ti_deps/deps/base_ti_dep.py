@@ -120,33 +120,17 @@ class BaseTIDep:
         """
         Return whether a dependency is met for a given task instance.
 
-        A dependency is considered met if all the dependency statuses it reports are passing.
+        A dependency is considered met if all the dependency statuses it reports
+        are passing. This is only used in tests.
 
         :param ti: the task instance to see if this dependency is met for
         :param session: database session
         :param dep_context: The context this dependency is being checked under that stores
             state that can be used by this dependency.
+
+        :meta private:
         """
         return all(status.passed for status in self.get_dep_statuses(ti, session, dep_context))
-
-    @provide_session
-    def get_failure_reasons(
-        self,
-        ti: TaskInstance,
-        session: Session,
-        dep_context: DepContext | None = None,
-    ) -> Iterator[str]:
-        """
-        Return an iterable of strings that explain why this dependency wasn't met.
-
-        :param ti: the task instance to see if this dependency is met for
-        :param session: database session
-        :param dep_context: The context this dependency is being checked under that stores
-            state that can be used by this dependency.
-        """
-        for dep_status in self.get_dep_statuses(ti, session, dep_context):
-            if not dep_status.passed:
-                yield dep_status.reason
 
     def _failing_status(self, reason: str = "") -> TIDepStatus:
         return TIDepStatus(self.name, False, reason)

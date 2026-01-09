@@ -17,11 +17,13 @@
 from __future__ import annotations
 
 from contextlib import nullcontext
+from typing import Literal
 
 import pytest
 
-from airflow.exceptions import ParamValidationError
 from airflow.sdk.definitions.param import Param, ParamsDict
+from airflow.sdk.exceptions import ParamValidationError
+from airflow.serialization.definitions.param import SerializedParam
 from airflow.serialization.serialized_objects import BaseSerialization
 
 
@@ -206,10 +208,13 @@ class TestParam:
     def test_dump(self):
         p = Param("hello", description="world", type="string", minLength=2)
         dump = p.dump()
-        assert dump["__class"] == "airflow.sdk.definitions.param.Param"
-        assert dump["value"] == "hello"
-        assert dump["description"] == "world"
-        assert dump["schema"] == {"type": "string", "minLength": 2}
+        assert dump == {
+            "__class": "airflow.sdk.definitions.param.Param",
+            "value": "hello",
+            "description": "world",
+            "schema": {"type": "string", "minLength": 2},
+            "source": None,
+        }
 
     @pytest.mark.parametrize(
         "param",
@@ -231,12 +236,12 @@ class TestParam:
         restored_param: Param = serializer.deserialize(serialized_param)
 
         assert restored_param.value == param.value
-        assert isinstance(restored_param, Param)
+        assert isinstance(restored_param, SerializedParam)
         assert restored_param.description == param.description
         assert restored_param.schema == param.schema
 
     @pytest.mark.parametrize(
-        "default, should_raise",
+        ("default", "should_raise"),
         [
             pytest.param({0, 1, 2}, True, id="default-non-JSON-serializable"),
             pytest.param(None, False, id="default-None"),  # Param init should not warn
@@ -306,3 +311,47 @@ class TestParamsDict:
     def test_repr(self):
         pd = ParamsDict({"key": Param("value", type="string")})
         assert repr(pd) == "{'key': 'value'}"
+
+    @pytest.mark.parametrize("source", ("dag", "task"))
+    def test_fill_missing_param_source(self, source: Literal["dag", "task"]):
+        pd = ParamsDict(
+            {
+                "key": Param("value", type="string"),
+                "key2": "value2",
+            }
+        )
+        pd._fill_missing_param_source(source)
+        for param in pd.values():
+            assert param.source == source
+
+    def test_fill_missing_param_source_not_overwrite_existing(self):
+        pd = ParamsDict(
+            {
+                "key": Param("value", type="string", source="dag"),
+                "key2": "value2",
+                "key3": "value3",
+            }
+        )
+        pd._fill_missing_param_source("task")
+        for key, expected_source in (
+            ("key", "dag"),
+            ("key2", "task"),
+            ("key3", "task"),
+        ):
+            assert pd.get_param(key).source == expected_source
+
+    def test_filter_params_by_source(self):
+        pd = ParamsDict(
+            {
+                "key": Param("value", type="string", source="dag"),
+                "key2": Param("value", source="task"),
+            }
+        )
+        assert ParamsDict.filter_params_by_source(pd, "dag") == ParamsDict(
+            {"key": Param("value", type="string", source="dag")},
+        )
+        assert ParamsDict.filter_params_by_source(pd, "task") == ParamsDict(
+            {
+                "key2": Param("value", source="task"),
+            }
+        )

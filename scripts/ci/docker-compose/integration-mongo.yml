@@ -17,15 +17,16 @@
 ---
 services:
   mongo:
-    image: mongo:3
+    image: mongo:latest
     labels:
       breeze.description: "Integration required for MongoDB hooks."
     volumes:
       - mongo-db-volume:/data/db
     healthcheck:
-      test: echo 'db.runCommand("ping").ok' | mongo localhost:27017/test --quiet
+      test: echo 'db.runCommand("ping").ok' | mongosh localhost:27017/test --quiet
       interval: 5s
       timeout: 30s
+      start_period: 30s
       retries: 50
     restart: "on-failure"
 

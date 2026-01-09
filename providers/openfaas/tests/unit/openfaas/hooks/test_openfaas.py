@@ -21,10 +21,14 @@ from unittest import mock
 
 import pytest
 
-from airflow.exceptions import AirflowException
-from airflow.hooks.base import BaseHook
 from airflow.models import Connection
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.openfaas.hooks.openfaas import OpenFaasHook
+
+try:
+    from airflow.sdk import BaseHook
+except ImportError:
+    from airflow.hooks.base import BaseHook  # type: ignore[attr-defined,no-redef]
 
 FUNCTION_NAME = "function_name"
 
@@ -153,3 +157,10 @@ class TestOpenFaasHook:
         mock_connection = Connection(host="http://open-faas.io")
         mock_get_connection.return_value = mock_connection
         assert self.hook.deploy_function(False, {}) is None
+
+    def test_get_ui_field_behaviour(self):
+        expected = {
+            "hidden_fields": ["schema", "port", "login", "password", "extra"],
+            "relabeling": {},
+        }
+        assert self.hook.get_ui_field_behaviour() == expected

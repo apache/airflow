@@ -20,14 +20,14 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from airflow.utils.task_instance_session import set_current_task_instance_session
-
 pytest.importorskip("weaviate")
 
 from airflow.providers.weaviate.operators.weaviate import (
     WeaviateDocumentIngestOperator,
     WeaviateIngestOperator,
 )
+
+from tests_common.test_utils.taskinstance import render_template_fields
 
 
 class TestWeaviateIngestOperator:
@@ -71,14 +71,13 @@ class TestWeaviateIngestOperator:
             collection_name="my_collection",
             input_data="{{ dag.dag_id }}",
         )
-        ti.render_templates()
-
-        assert dag_id == ti.task.input_data
+        task = ti.render_templates()
+        assert dag_id == task.input_data
 
     @pytest.mark.db_test
     def test_partial_batch_hook_params(self, dag_maker, session):
         with dag_maker(dag_id="test_partial_batch_hook_params", session=session):
-            WeaviateIngestOperator.partial(
+            task = WeaviateIngestOperator.partial(
                 task_id="fake-task-id",
                 conn_id="weaviate_conn",
                 collection_name="FooBar",
@@ -87,10 +86,9 @@ class TestWeaviateIngestOperator:
 
         dr = dag_maker.create_dagrun()
         tis = dr.get_task_instances(session=session)
-        with set_current_task_instance_session(session=session):
-            for ti in tis:
-                ti.render_templates()
-                assert ti.task.hook_params == {"baz": "biz"}
+        for ti in tis:
+            rendered = render_template_fields(ti, task.unmap({"input_data": {}}))
+            assert rendered.hook_params == {"baz": "biz"}
 
 
 class TestWeaviateDocumentIngestOperator:
@@ -137,7 +135,7 @@ class TestWeaviateDocumentIngestOperator:
     @pytest.mark.db_test
     def test_partial_hook_params(self, dag_maker, session):
         with dag_maker(dag_id="test_partial_hook_params", session=session):
-            WeaviateDocumentIngestOperator.partial(
+            task = WeaviateDocumentIngestOperator.partial(
                 task_id="fake-task-id",
                 conn_id="weaviate_conn",
                 collection_name="FooBar",
@@ -147,7 +145,6 @@ class TestWeaviateDocumentIngestOperator:
 
         dr = dag_maker.create_dagrun()
         tis = dr.get_task_instances(session=session)
-        with set_current_task_instance_session(session=session):
-            for ti in tis:
-                ti.render_templates()
-                assert ti.task.hook_params == {"baz": "biz"}
+        for ti in tis:
+            rendered = render_template_fields(ti, task.unmap({"input_data": {}}))
+            assert rendered.hook_params == {"baz": "biz"}

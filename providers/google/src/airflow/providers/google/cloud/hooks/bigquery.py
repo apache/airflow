@@ -20,17 +20,18 @@
 
 from __future__ import annotations
 
-import asyncio
 import json
 import logging
 import re
 import time
 import uuid
+import warnings
 from collections.abc import Iterable, Mapping, Sequence
 from copy import deepcopy
 from datetime import datetime, timedelta
-from typing import TYPE_CHECKING, Any, NoReturn, Union, cast, overload
+from typing import TYPE_CHECKING, Any, Literal, NoReturn, cast, overload
 
+import pendulum
 from aiohttp import ClientSession as ClientSession
 from gcloud.aio.bigquery import Job, Table as Table_async
 from google.cloud.bigquery import (
@@ -57,28 +58,27 @@ from googleapiclient.discovery import build
 from pandas_gbq import read_gbq
 from pandas_gbq.gbq import GbqConnector  # noqa: F401 used in ``airflow.contrib.hooks.bigquery``
 from sqlalchemy import create_engine
-from typing_extensions import Literal
 
-from airflow.exceptions import (
-    AirflowException,
-    AirflowOptionalProviderFeatureException,
-    AirflowProviderDeprecationWarning,
-)
+from airflow.exceptions import AirflowOptionalProviderFeatureException, AirflowProviderDeprecationWarning
 from airflow.providers.common.compat.lineage.hook import get_hook_lineage_collector
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.common.sql.hooks.sql import DbApiHook
 from airflow.providers.google.cloud.utils.bigquery import bq_cast
 from airflow.providers.google.cloud.utils.credentials_provider import _get_scopes
 from airflow.providers.google.common.consts import CLIENT_INFO
 from airflow.providers.google.common.deprecated import deprecated
 from airflow.providers.google.common.hooks.base_google import (
+    _UNSET,
     PROVIDE_PROJECT_ID,
     GoogleBaseAsyncHook,
     GoogleBaseHook,
     get_field,
 )
+from airflow.providers.google.version_compat import AIRFLOW_V_3_0_PLUS
 from airflow.utils.hashlib_wrapper import md5
 from airflow.utils.helpers import convert_camel_to_snake
 from airflow.utils.log.logging_mixin import LoggingMixin
+from airflow.utils.types import DagRunType
 
 if TYPE_CHECKING:
     import pandas as pd
@@ -87,9 +87,11 @@ if TYPE_CHECKING:
     from google.api_core.retry import Retry
     from requests import Session
 
+    from airflow.sdk import Context
+
 log = logging.getLogger(__name__)
 
-BigQueryJob = Union[CopyJob, QueryJob, LoadJob, ExtractJob]
+BigQueryJob = CopyJob | QueryJob | LoadJob | ExtractJob
 
 
 class BigQueryHook(GoogleBaseHook, DbApiHook):
@@ -157,21 +159,47 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
 
     def __init__(
         self,
-        use_legacy_sql: bool = True,
-        location: str | None = None,
-        priority: str = "INTERACTIVE",
-        api_resource_configs: dict | None = None,
+        use_legacy_sql: bool | object = _UNSET,
+        location: str | None | object = _UNSET,
+        priority: str | object = _UNSET,
+        api_resource_configs: dict | None | object = _UNSET,
         impersonation_scopes: str | Sequence[str] | None = None,
-        labels: dict | None = None,
+        labels: dict | None | object = _UNSET,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
-        self.use_legacy_sql: bool = self._get_field("use_legacy_sql", use_legacy_sql)
-        self.location: str | None = self._get_field("location", location)
-        self.priority: str = self._get_field("priority", priority)
+        # Use sentinel pattern to distinguish "not provided" from "explicitly provided"
+        if use_legacy_sql is _UNSET:
+            value = self._get_field("use_legacy_sql", _UNSET)
+            self.use_legacy_sql: bool = value if value is not None else True
+        else:
+            self.use_legacy_sql = use_legacy_sql  # type: ignore[assignment]
+
+        if location is _UNSET:
+            self.location: str | None = self._get_field("location", _UNSET)
+        else:
+            self.location = location  # type: ignore[assignment]
+
+        if priority is _UNSET:
+            value = self._get_field("priority", _UNSET)
+            self.priority: str = value if value is not None else "INTERACTIVE"
+        else:
+            self.priority = priority  # type: ignore[assignment]
+
         self.running_job_id: str | None = None
-        self.api_resource_configs: dict = self._get_field("api_resource_configs", api_resource_configs or {})
-        self.labels = self._get_field("labels", labels or {})
+
+        if api_resource_configs is _UNSET:
+            value = self._get_field("api_resource_configs", _UNSET)
+            self.api_resource_configs: dict = value if value is not None else {}
+        else:
+            self.api_resource_configs = api_resource_configs or {}  # type: ignore[assignment]
+
+        if labels is _UNSET:
+            value = self._get_field("labels", _UNSET)
+            self.labels = value if value is not None else {}
+        else:
+            self.labels = labels or {}  # type: ignore[assignment]
+
         self.impersonation_scopes: str | Sequence[str] | None = impersonation_scopes
 
     def get_conn(self) -> BigQueryConnection:
@@ -400,135 +428,6 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
             return partition_id in self.get_client(project_id=project_id).list_partitions(table_reference)
         except NotFound:
             return False
-
-    @deprecated(
-        planned_removal_date="July 30, 2025",
-        use_instead="airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.create_table",
-        category=AirflowProviderDeprecationWarning,
-    )
-    @GoogleBaseHook.fallback_to_default_project_id
-    def create_empty_table(
-        self,
-        project_id: str = PROVIDE_PROJECT_ID,
-        dataset_id: str | None = None,
-        table_id: str | None = None,
-        table_resource: dict[str, Any] | None = None,
-        schema_fields: list | None = None,
-        time_partitioning: dict | None = None,
-        cluster_fields: list[str] | None = None,
-        labels: dict | None = None,
-        view: dict | None = None,
-        materialized_view: dict | None = None,
-        encryption_configuration: dict | None = None,
-        retry: Retry = DEFAULT_RETRY,
-        location: str | None = None,
-        exists_ok: bool = True,
-    ) -> Table:
-        """
-        Create a new, empty table in the dataset.
-
-        To create a view, which is defined by a SQL query, parse a dictionary to
-        the *view* argument.
-
-        :param project_id: The project to create the table into.
-        :param dataset_id: The dataset to create the table into.
-        :param table_id: The Name of the table to be created.
-        :param table_resource: Table resource as described in documentation:
-            https://cloud.google.com/bigquery/docs/reference/rest/v2/tables#Table
-            If provided all other parameters are ignored.
-        :param schema_fields: If set, the schema field list as defined here:
-            https://cloud.google.com/bigquery/docs/reference/rest/v2/jobs#configuration.load.schema
-
-            .. code-block:: python
-
-                schema_fields = [
-                    {"name": "emp_name", "type": "STRING", "mode": "REQUIRED"},
-                    {"name": "salary", "type": "INTEGER", "mode": "NULLABLE"},
-                ]
-
-        :param labels: a dictionary containing labels for the table, passed to BigQuery
-        :param retry: Optional. How to retry the RPC.
-        :param time_partitioning: configure optional time partitioning fields i.e.
-            partition by field, type and expiration as per API specifications.
-
-            .. seealso::
-                https://cloud.google.com/bigquery/docs/reference/rest/v2/tables#timePartitioning
-        :param cluster_fields: [Optional] The fields used for clustering.
-            BigQuery supports clustering for both partitioned and
-            non-partitioned tables.
-            https://cloud.google.com/bigquery/docs/reference/rest/v2/tables#clustering.fields
-        :param view: [Optional] A dictionary containing definition for the view.
-            If set, it will create a view instead of a table:
-            https://cloud.google.com/bigquery/docs/reference/rest/v2/tables#ViewDefinition
-
-            .. code-block:: python
-
-                view = {
-                    "query": "SELECT * FROM `test-project-id.test_dataset_id.test_table_prefix*` LIMIT 1000",
-                    "useLegacySql": False,
-                }
-
-        :param materialized_view: [Optional] The materialized view definition.
-        :param encryption_configuration: [Optional] Custom encryption configuration (e.g., Cloud KMS keys).
-
-            .. code-block:: python
-
-                encryption_configuration = {
-                    "kmsKeyName": "projects/testp/locations/us/keyRings/test-kr/cryptoKeys/test-key",
-                }
-
-        :param num_retries: Maximum number of retries in case of connection problems.
-        :param location: (Optional) The geographic location where the table should reside.
-        :param exists_ok: If ``True``, ignore "already exists" errors when creating the table.
-        :return: Created table
-        """
-        _table_resource: dict[str, Any] = {}
-
-        if self.location:
-            _table_resource["location"] = self.location
-
-        if schema_fields:
-            _table_resource["schema"] = {"fields": schema_fields}
-
-        if time_partitioning:
-            _table_resource["timePartitioning"] = time_partitioning
-
-        if cluster_fields:
-            _table_resource["clustering"] = {"fields": cluster_fields}
-
-        if labels:
-            _table_resource["labels"] = labels
-
-        if view:
-            _table_resource["view"] = view
-
-        if materialized_view:
-            _table_resource["materializedView"] = materialized_view
-
-        if encryption_configuration:
-            _table_resource["encryptionConfiguration"] = encryption_configuration
-
-        table_resource = table_resource or _table_resource
-        table_resource = self._resolve_table_reference(
-            table_resource=table_resource,
-            project_id=project_id,
-            dataset_id=dataset_id,
-            table_id=table_id,
-        )
-        table = Table.from_api_repr(table_resource)
-        result = self.get_client(project_id=project_id, location=location).create_table(
-            table=table, exists_ok=exists_ok, retry=retry
-        )
-        get_hook_lineage_collector().add_output_asset(
-            context=self,
-            scheme="bigquery",
-            asset_kwargs={
-                "project_id": result.project,
-                "dataset_id": result.dataset_id,
-                "table_id": result.table_id,
-            },
-        )
-        return result
 
     @GoogleBaseHook.fallback_to_default_project_id
     def create_table(
@@ -916,7 +815,7 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         if return_iterator:
             # The iterator returned by list_datasets() is a HTTPIterator but annotated
             # as Iterator
-            return iterator  #  type: ignore
+            return iterator  # type: ignore
 
         datasets_list = list(iterator)
         self.log.info("Datasets List: %s", len(datasets_list))
@@ -1404,7 +1303,16 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
             job_api_repr.result(timeout=timeout, retry=retry)
         return job_api_repr
 
-    def generate_job_id(self, job_id, dag_id, task_id, logical_date, configuration, force_rerun=False) -> str:
+    def generate_job_id(
+        self,
+        job_id: str | None,
+        dag_id: str,
+        task_id: str,
+        logical_date: datetime | None,
+        configuration: dict,
+        run_after: pendulum.DateTime | datetime | None = None,
+        force_rerun: bool = False,
+    ) -> str:
         if force_rerun:
             hash_base = str(uuid.uuid4())
         else:
@@ -1415,9 +1323,30 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         if job_id:
             return f"{job_id}_{uniqueness_suffix}"
 
-        exec_date = logical_date.isoformat()
-        job_id = f"airflow_{dag_id}_{task_id}_{exec_date}_{uniqueness_suffix}"
+        if logical_date is not None:
+            if AIRFLOW_V_3_0_PLUS:
+                warnings.warn(
+                    "The 'logical_date' parameter is deprecated. Please use 'run_after' instead.",
+                    AirflowProviderDeprecationWarning,
+                    stacklevel=1,
+                )
+            job_id_timestamp = logical_date
+        elif run_after is not None:
+            job_id_timestamp = run_after
+        else:
+            job_id_timestamp = pendulum.now("UTC")
+
+        job_id = f"airflow_{dag_id}_{task_id}_{job_id_timestamp.isoformat()}_{uniqueness_suffix}"
         return re.sub(r"[:\-+.]", "_", job_id)
+
+    def get_run_after_or_logical_date(self, context: Context) -> pendulum.DateTime | datetime | None:
+        dag_run = context.get("dag_run")
+        if not dag_run:
+            return pendulum.now("UTC")
+
+        if AIRFLOW_V_3_0_PLUS:
+            return dag_run.start_date
+        return dag_run.start_date if dag_run.run_type == DagRunType.SCHEDULED else context.get("logical_date")
 
     def split_tablename(
         self, table_input: str, default_project_id: str, var_name: str | None = None
@@ -1832,6 +1761,7 @@ class BigQueryCursor(BigQueryBaseCursor):
         schema_update_options: Iterable | None = None,
         priority: str | None = None,
         time_partitioning: dict | None = None,
+        range_partitioning: dict | None = None,
         api_resource_configs: dict | None = None,
         cluster_fields: list[str] | None = None,
         encryption_configuration: dict | None = None,
@@ -1844,6 +1774,10 @@ class BigQueryCursor(BigQueryBaseCursor):
 
         if time_partitioning is None:
             time_partitioning = {}
+        if range_partitioning is None:
+            range_partitioning = {}
+        if time_partitioning and range_partitioning:
+            raise ValueError("Only one of time_partitioning or range_partitioning can be set.")
 
         if not api_resource_configs:
             api_resource_configs = self.hook.api_resource_configs
@@ -1873,14 +1807,6 @@ class BigQueryCursor(BigQueryBaseCursor):
                 f" Please only use one or more of the following options: {allowed_schema_update_options}"
             )
 
-        if schema_update_options:
-            if write_disposition not in ["WRITE_APPEND", "WRITE_TRUNCATE"]:
-                raise ValueError(
-                    "schema_update_options is only "
-                    "allowed if write_disposition is "
-                    "'WRITE_APPEND' or 'WRITE_TRUNCATE'."
-                )
-
         if destination_dataset_table:
             destination_project, destination_dataset, destination_table = self.hook.split_tablename(
                 table_input=destination_dataset_table, default_project_id=self.project_id
@@ -1904,16 +1830,21 @@ class BigQueryCursor(BigQueryBaseCursor):
             (maximum_billing_tier, "maximumBillingTier", None, int),
             (maximum_bytes_billed, "maximumBytesBilled", None, float),
             (time_partitioning, "timePartitioning", {}, dict),
+            (range_partitioning, "rangePartitioning", {}, dict),
             (schema_update_options, "schemaUpdateOptions", None, list),
             (destination_dataset_table, "destinationTable", None, dict),
             (cluster_fields, "clustering", None, dict),
         ]
 
-        for param, param_name, param_default, param_type in query_param_list:
-            if param_name not in configuration["query"] and param in [None, {}, ()]:
+        for param_raw, param_name, param_default, param_type in query_param_list:
+            param: Any
+            if param_name not in configuration["query"] and param_raw in [None, {}, ()]:
                 if param_name == "timePartitioning":
-                    param_default = _cleanse_time_partitioning(destination_dataset_table, time_partitioning)
-                param = param_default
+                    param = _cleanse_time_partitioning(destination_dataset_table, time_partitioning)
+                else:
+                    param = param_default
+            else:
+                param = param_raw
 
             if param in [None, {}, ()]:
                 continue
@@ -1940,15 +1871,14 @@ class BigQueryCursor(BigQueryBaseCursor):
                             "must be a dict with {'projectId':'', "
                             "'datasetId':'', 'tableId':''}"
                         )
-                else:
-                    configuration["query"].update(
-                        {
-                            "allowLargeResults": allow_large_results,
-                            "flattenResults": flatten_results,
-                            "writeDisposition": write_disposition,
-                            "createDisposition": create_disposition,
-                        }
-                    )
+                configuration["query"].update(
+                    {
+                        "allowLargeResults": allow_large_results,
+                        "flattenResults": flatten_results,
+                        "writeDisposition": write_disposition,
+                        "createDisposition": create_disposition,
+                    }
+                )
 
         if (
             "useLegacySql" in configuration["query"]
@@ -2060,18 +1990,19 @@ def _format_schema_for_description(schema: dict) -> list:
     internal_size, precision, scale, null_ok.
     """
     description = []
-    for field in schema["fields"]:
-        mode = field.get("mode", "NULLABLE")
-        field_description = (
-            field["name"],
-            field["type"],
-            None,
-            None,
-            None,
-            None,
-            mode == "NULLABLE",
-        )
-        description.append(field_description)
+    if "fields" in schema:
+        for field in schema["fields"]:
+            mode = field.get("mode", "NULLABLE")
+            field_description = (
+                field["name"],
+                field["type"],
+                None,
+                None,
+                None,
+                None,
+                mode == "NULLABLE",
+            )
+            description.append(field_description)
     return description
 
 
@@ -2107,45 +2038,10 @@ class BigQueryAsyncHook(GoogleBaseAsyncHook):
     async def _get_job(
         self, job_id: str | None, project_id: str = PROVIDE_PROJECT_ID, location: str | None = None
     ) -> BigQueryJob | UnknownJob:
-        """
-        Get BigQuery job by its ID, project ID and location.
-
-        WARNING.
-        This is a temporary workaround  for issues below, and it's not intended to be used elsewhere!
-            https://github.com/apache/airflow/issues/35833
-            https://github.com/talkiq/gcloud-aio/issues/584
-
-        This method was developed, because neither the `google-cloud-bigquery` nor the `gcloud-aio-bigquery`
-        provides asynchronous access to a BigQuery jobs with location parameter. That's why this method wraps
-        synchronous client call with the event loop's run_in_executor() method.
-
-        This workaround must be deleted along with the method _get_job_sync() and replaced by more robust and
-        cleaner solution in one of two cases:
-            1. The `google-cloud-bigquery` library provides async client with get_job method, that supports
-            optional parameter `location`
-            2. The `gcloud-aio-bigquery` library supports the `location` parameter in get_job() method.
-        """
-        loop = asyncio.get_event_loop()
-        job = await loop.run_in_executor(None, self._get_job_sync, job_id, project_id, location)
+        """Get BigQuery job by its ID, project ID and location."""
+        sync_hook = await self.get_sync_hook()
+        job = sync_hook.get_job(job_id=job_id, project_id=project_id, location=location)
         return job
-
-    def _get_job_sync(self, job_id, project_id, location):
-        """
-        Get BigQuery job by its ID, project ID and location synchronously.
-
-        WARNING
-        This is a temporary workaround  for issues below, and it's not intended to be used elsewhere!
-            https://github.com/apache/airflow/issues/35833
-            https://github.com/talkiq/gcloud-aio/issues/584
-
-        This workaround must be deleted along with the method _get_job() and replaced by more robust and
-        cleaner solution in one of two cases:
-            1. The `google-cloud-bigquery` library provides async client with get_job method, that supports
-            optional parameter `location`
-            2. The `gcloud-aio-bigquery` library supports the `location` parameter in get_job() method.
-        """
-        hook = BigQueryHook(**self._hook_kwargs)
-        return hook.get_job(job_id=job_id, project_id=project_id, location=location)
 
     async def get_job_status(
         self, job_id: str | None, project_id: str = PROVIDE_PROJECT_ID, location: str | None = None
@@ -2249,7 +2145,7 @@ class BigQueryAsyncHook(GoogleBaseAsyncHook):
         self,
         sql: str,
         pass_value: Any,
-        records: list[Any],
+        records: list[Any] | None = None,
         tolerance: float | None = None,
     ) -> None:
         """

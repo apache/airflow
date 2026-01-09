@@ -19,7 +19,6 @@
 import { Box, Button, Flex, HStack, LinkOverlay, Text } from "@chakra-ui/react";
 import type { NodeProps, Node as NodeType } from "@xyflow/react";
 import { useTranslation } from "react-i18next";
-import { CgRedo } from "react-icons/cg";
 
 import { StateBadge } from "src/components/StateBadge";
 import TaskInstanceTooltip from "src/components/TaskInstanceTooltip";
@@ -54,6 +53,10 @@ export const TaskNode = ({
     }
   };
 
+  const thisChildCount = Object.entries(taskInstance?.child_states ?? {})
+    .map(([_state, count]) => count)
+    .reduce((sum, val) => sum + val, 0);
+
   return (
     <NodeWrapper>
       <Flex alignItems="center" cursor="default" flexDirection="column">
@@ -68,7 +71,7 @@ export const TaskNode = ({
             // Alternate background color for nested open groups
             bg={isOpen && depth !== undefined && depth % 2 === 0 ? "bg.muted" : "bg"}
             borderColor={
-              taskInstance?.state ? `${taskInstance.state}.solid` : isSelected ? "border.inverted" : "border"
+              isSelected ? "blue.500" : taskInstance?.state ? `${taskInstance.state}.solid` : "border"
             }
             borderRadius={5}
             borderWidth={isSelected ? 4 : 2}
@@ -82,7 +85,7 @@ export const TaskNode = ({
           >
             <LinkOverlay asChild>
               <TaskLink
-                childCount={taskInstance?.task_count}
+                childCount={thisChildCount}
                 id={id}
                 isGroup={isGroup}
                 isMapped={isMapped}
@@ -96,7 +99,6 @@ export const TaskNode = ({
               fontSize="sm"
               overflow="hidden"
               textOverflow="ellipsis"
-              textTransform="capitalize"
               whiteSpace="nowrap"
             >
               {isGroup ? translate("graph.taskGroup") : operator}
@@ -106,12 +108,11 @@ export const TaskNode = ({
                 <StateBadge fontSize="xs" state={taskInstance.state}>
                   {taskInstance.state}
                 </StateBadge>
-                {taskInstance.try_number > 1 ? <CgRedo /> : undefined}
               </HStack>
             )}
             {isGroup ? (
               <Button
-                colorPalette="blue"
+                colorPalette="brand"
                 cursor="pointer"
                 height={8}
                 onClick={onClick}
@@ -122,9 +123,7 @@ export const TaskNode = ({
                 variant="plain"
               >
                 {isOpen ? "- " : "+ "}
-                {childCount !== undefined && childCount > 1
-                  ? translate("graph.taskCount_other", { count: childCount })
-                  : translate("graph.taskCount_one", { count: childCount ?? 0 })}
+                {translate("graph.taskCount", { count: childCount ?? 0 })}
               </Button>
             ) : undefined}
           </Box>
@@ -132,22 +131,22 @@ export const TaskNode = ({
         {Boolean(isMapped) || Boolean(isGroup && !isOpen) ? (
           <>
             <Box
-              bg="bg.subtle"
+              bg={taskInstance?.state ? `${taskInstance.state}.solid` : "bg.subtle"}
               borderBottomLeftRadius={5}
               borderBottomRightRadius={5}
               borderBottomWidth={1}
-              borderColor="fg"
+              borderColor={taskInstance?.state ? `${taskInstance.state}.solid` : "border.emphasized"}
               borderLeftWidth={1}
               borderRightWidth={1}
               height={1}
               width={`${width - 10}px`}
             />
             <Box
-              bg="bg.subtle"
+              bg={taskInstance?.state ? `${taskInstance.state}.solid` : "bg.subtle"}
               borderBottomLeftRadius={5}
               borderBottomRightRadius={5}
               borderBottomWidth={1}
-              borderColor="fg"
+              borderColor={taskInstance?.state ? `${taskInstance.state}.solid` : "border.emphasized"}
               borderLeftWidth={1}
               borderRightWidth={1}
               height={1}

@@ -20,7 +20,8 @@ from __future__ import annotations
 
 import inspect
 import logging
-from typing import TYPE_CHECKING, Callable, Generic, Protocol, TypeVar, cast
+from collections.abc import Callable
+from typing import TYPE_CHECKING, Generic, Protocol, TypeVar, cast
 
 from typing_extensions import ParamSpec
 

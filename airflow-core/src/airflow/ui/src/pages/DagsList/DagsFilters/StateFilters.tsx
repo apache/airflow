@@ -16,55 +16,101 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { HStack } from "@chakra-ui/react";
+import { Button, ButtonGroup } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
+import { LuUserRoundPen } from "react-icons/lu";
 
-import { QuickFilterButton } from "src/components/QuickFilterButton";
 import { StateBadge } from "src/components/StateBadge";
 
 type Props = {
   readonly isAll: boolean;
   readonly isFailed: boolean;
+  readonly isQueued: boolean;
   readonly isRunning: boolean;
   readonly isSuccess: boolean;
+  readonly needsReview: boolean;
   readonly onStateChange: React.MouseEventHandler<HTMLButtonElement>;
 };
 
-export const StateFilters = ({ isAll, isFailed, isRunning, isSuccess, onStateChange }: Props) => {
-  const { t: translate } = useTranslation(["dags", "common"]);
+export const StateFilters = ({
+  isAll,
+  isFailed,
+  isQueued,
+  isRunning,
+  isSuccess,
+  needsReview,
+  onStateChange,
+}: Props) => {
+  const { t: translate } = useTranslation(["dags", "common", "hitl"]);
 
   return (
-    <HStack>
-      <QuickFilterButton isActive={isAll} onClick={onStateChange} value="all">
-        {translate("filters.paused.all")}
-      </QuickFilterButton>
-      <QuickFilterButton
+    <ButtonGroup attached size="sm" variant="outline">
+      <Button
+        bg={isAll ? "colorPalette.muted" : undefined}
+        colorPalette="brand"
+        onClick={onStateChange}
+        value="all"
+        variant={isAll ? "solid" : "outline"}
+      >
+        {translate("dags:filters.paused.all")}
+      </Button>
+      <Button
+        bg={isFailed ? "colorPalette.muted" : undefined}
+        colorPalette="brand"
         data-testid="dags-failed-filter"
-        isActive={isFailed}
         onClick={onStateChange}
         value="failed"
+        variant={isFailed ? "solid" : "outline"}
       >
         <StateBadge state="failed" />
         {translate("common:states.failed")}
-      </QuickFilterButton>
-      <QuickFilterButton
+      </Button>
+      <Button
+        bg={isQueued ? "colorPalette.muted" : undefined}
+        colorPalette="brand"
+        data-testid="dags-queued-filter"
+        onClick={onStateChange}
+        value="queued"
+        variant={isQueued ? "solid" : "outline"}
+      >
+        <StateBadge state="queued" />
+        {translate("common:states.queued")}
+      </Button>
+      <Button
+        bg={isRunning ? "colorPalette.muted" : undefined}
+        colorPalette="brand"
         data-testid="dags-running-filter"
-        isActive={isRunning}
         onClick={onStateChange}
         value="running"
+        variant={isRunning ? "solid" : "outline"}
       >
         <StateBadge state="running" />
         {translate("common:states.running")}
-      </QuickFilterButton>
-      <QuickFilterButton
+      </Button>
+      <Button
+        bg={isSuccess ? "colorPalette.muted" : undefined}
+        colorPalette="brand"
         data-testid="dags-success-filter"
-        isActive={isSuccess}
         onClick={onStateChange}
         value="success"
+        variant={isSuccess ? "solid" : "outline"}
       >
         <StateBadge state="success" />
         {translate("common:states.success")}
-      </QuickFilterButton>
-    </HStack>
+      </Button>
+      <Button
+        bg={needsReview ? "colorPalette.muted" : undefined}
+        colorPalette="brand"
+        data-testid="dags-needs-review-filter"
+        onClick={onStateChange}
+        value="needs_review"
+        variant={needsReview ? "solid" : "outline"}
+      >
+        <StateBadge colorPalette="deferred">
+          <LuUserRoundPen />
+        </StateBadge>
+        {translate("hitl:requiredAction_other")}
+      </Button>
+    </ButtonGroup>
   );
 };

@@ -17,10 +17,13 @@
 
 from __future__ import annotations
 
+import json
+
 from fastapi import HTTPException, status
 from pydantic import ValidationError
 from sqlalchemy import select
 
+from airflow._shared.secrets_masker import merge
 from airflow.api_fastapi.core_api.datamodels.common import (
     BulkActionNotOnExistence,
     BulkActionOnExistence,
@@ -56,11 +59,23 @@ def update_orm_from_pydantic(
     if (not update_mask and "password" in pydantic_conn.model_fields_set) or (
         update_mask and "password" in update_mask
     ):
-        orm_conn.set_password(pydantic_conn.password)
+        if pydantic_conn.password is None:
+            orm_conn.set_password(pydantic_conn.password)
+        else:
+            merged_password = merge(pydantic_conn.password, orm_conn.password, "password")
+            orm_conn.set_password(merged_password)
     if (not update_mask and "extra" in pydantic_conn.model_fields_set) or (
         update_mask and "extra" in update_mask
     ):
-        orm_conn.set_extra(pydantic_conn.extra)
+        if pydantic_conn.extra is None or orm_conn.extra is None:
+            orm_conn.set_extra(pydantic_conn.extra)
+            return
+        try:
+            merged_extra = merge(json.loads(pydantic_conn.extra), json.loads(orm_conn.extra))
+            orm_conn.set_extra(json.dumps(merged_extra))
+        except json.JSONDecodeError:
+            # We can't merge fields in an unstructured `extra`
+            orm_conn.set_extra(pydantic_conn.extra)
 
 
 class BulkConnectionService(BulkService[ConnectionBody]):
@@ -137,7 +152,7 @@ class BulkConnectionService(BulkService[ConnectionBody]):
 
             for connection in action.entities:
                 if connection.connection_id in update_connection_ids:
-                    old_connection: Connection = self.session.scalar(
+                    old_connection = self.session.scalar(
                         select(Connection).filter(Connection.conn_id == connection.connection_id).limit(1)
                     )
                     if old_connection is None:

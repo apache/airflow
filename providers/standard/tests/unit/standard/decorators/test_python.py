@@ -15,52 +15,75 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+
 import sys
 import typing
 from collections import namedtuple
 from datetime import date
-from typing import Union
 
 import pytest
 
-from airflow.exceptions import AirflowException, XComNotFound
-from airflow.models.taskinstance import TaskInstance
 from airflow.models.taskmap import TaskMap
-from airflow.utils import timezone
-from airflow.utils.state import State
-from airflow.utils.task_instance_session import set_current_task_instance_session
-from airflow.utils.trigger_rule import TriggerRule
-from airflow.utils.types import DagRunType
-from airflow.utils.xcom import XCOM_RETURN_KEY
+from airflow.providers.common.compat.sdk import AirflowException, XComNotFound
 
-from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_1, AIRFLOW_V_3_0_PLUS
+from tests_common.test_utils.taskinstance import get_template_context, render_template_fields
+from tests_common.test_utils.version_compat import (
+    AIRFLOW_V_3_0_1,
+    AIRFLOW_V_3_0_PLUS,
+    AIRFLOW_V_3_1_PLUS,
+    AIRFLOW_V_3_2_PLUS,
+    XCOM_RETURN_KEY,
+)
 from unit.standard.operators.test_python import BasePythonTest
 
 if AIRFLOW_V_3_0_PLUS:
     from airflow.sdk import DAG, BaseOperator, TaskGroup, XComArg, setup, task as task_decorator, teardown
     from airflow.sdk.bases.decorator import DecoratedMappedOperator
     from airflow.sdk.definitions._internal.expandinput import DictOfListsExpandInput
-    from airflow.sdk.definitions.mappedoperator import MappedOperator
-    from airflow.utils.types import DagRunTriggeredByType
 else:
-    from airflow.decorators import setup, task as task_decorator, teardown
+    from airflow.decorators import (  # type: ignore[attr-defined,no-redef]
+        setup,
+        task as task_decorator,
+        teardown,
+    )
     from airflow.decorators.base import DecoratedMappedOperator  # type: ignore[no-redef]
-    from airflow.models.baseoperator import BaseOperator
-    from airflow.models.dag import DAG  # type: ignore[assignment]
-    from airflow.models.expandinput import DictOfListsExpandInput
-    from airflow.models.mappedoperator import MappedOperator
-    from airflow.models.xcom_arg import XComArg
-    from airflow.utils.task_group import TaskGroup
+    from airflow.models.baseoperator import BaseOperator  # type: ignore[no-redef]
+    from airflow.models.dag import DAG  # type: ignore[assignment,no-redef]
+    from airflow.models.expandinput import DictOfListsExpandInput  # type: ignore[attr-defined,no-redef]
+    from airflow.models.xcom_arg import XComArg  # type: ignore[no-redef]
+    from airflow.utils.task_group import TaskGroup  # type: ignore[no-redef]
 
-pytestmark = pytest.mark.db_test
+if AIRFLOW_V_3_1_PLUS:
+    from airflow.sdk import TriggerRule, timezone
+else:
+    from airflow.utils import timezone  # type: ignore[attr-defined,no-redef]
+    from airflow.utils.trigger_rule import TriggerRule  # type: ignore[no-redef,attr-defined]
 
+if AIRFLOW_V_3_2_PLUS:
+    from airflow.serialization.definitions.mappedoperator import SerializedMappedOperator
+else:
+    from airflow.models.mappedoperator import (  # type: ignore[no-redef]
+        MappedOperator as SerializedMappedOperator,  # type: ignore[assignment,attr-defined]
+    )
 
 if typing.TYPE_CHECKING:
     from airflow.models.dagrun import DagRun
+    from airflow.models.taskinstance import TaskInstance
+
+pytestmark = pytest.mark.db_test
 
 DEFAULT_DATE = timezone.datetime(2016, 1, 1)
 PY38 = sys.version_info >= (3, 8)
 PY311 = sys.version_info >= (3, 11)
+
+
+@pytest.fixture(autouse=True)
+def clear_current_task_session():
+    try:
+        import airflow.utils.task_instance_session
+    except ModuleNotFoundError:
+        return
+    airflow.utils.task_instance_session.__current_task_instance_session = None
 
 
 class TestAirflowTaskDecorator(BasePythonTest):
@@ -131,7 +154,7 @@ class TestAirflowTaskDecorator(BasePythonTest):
 
     def test_infer_multiple_outputs_union_type(self):
         @task_decorator
-        def t1() -> Union[str, None]:
+        def t1() -> str | None:
             return "foo"
 
         assert t1().operator.multiple_outputs is False
@@ -158,18 +181,18 @@ class TestAirflowTaskDecorator(BasePythonTest):
 
         assert t2(5, 5).operator.multiple_outputs is True
 
+        @task_decorator
+        def t3(  # type: ignore[empty-body]
+            x: "FakeTypeCheckingOnlyClass",
+            y: int,
+        ) -> "UnresolveableName[int, int]": ...
+
         with pytest.warns(UserWarning, match="Cannot infer multiple_outputs.*t3") as recwarn:
-
-            @task_decorator
-            def t3(  # type: ignore[empty-body]
-                x: "FakeTypeCheckingOnlyClass",
-                y: int,
-            ) -> "UnresolveableName[int, int]": ...
-
             line = sys._getframe().f_lineno - 5 if PY38 else sys._getframe().f_lineno - 2
-            if PY311:
-                # extra line explaining the error location in Py311
-                line = line - 1
+
+        if PY311:
+            # extra line explaining the error location in Py311
+            line = line - 1
 
         warn = recwarn[0]
         assert warn.filename == __file__
@@ -317,56 +340,56 @@ class TestAirflowTaskDecorator(BasePythonTest):
                 def add_number(self, num: int) -> int:
                     return self.num + num
 
-    def test_fail_multiple_outputs_key_type(self):
+    def test_fail_multiple_outputs_key_type(self, dag_maker):
         @task_decorator(multiple_outputs=True)
         def add_number(num: int):
             return {2: num}
 
-        with self.dag_non_serialized:
-            ret = add_number(2)
+        with dag_maker():
+            add_number(2)
 
-        self.create_dag_run()
+        dr = dag_maker.create_dagrun()
 
         error_expected = AirflowException if (not AIRFLOW_V_3_0_PLUS or AIRFLOW_V_3_0_1) else TypeError
         with pytest.raises(error_expected):
-            ret.operator.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
+            dag_maker.run_ti("add_number", dr)
 
-    def test_fail_multiple_outputs_no_dict(self):
+    def test_fail_multiple_outputs_no_dict(self, dag_maker):
         @task_decorator(multiple_outputs=True)
         def add_number(num: int):
             return num
 
-        with self.dag_non_serialized:
-            ret = add_number(2)
+        with dag_maker():
+            add_number(2)
 
-        self.create_dag_run()
+        dr = dag_maker.create_dagrun()
         error_expected = AirflowException if (not AIRFLOW_V_3_0_PLUS or AIRFLOW_V_3_0_1) else TypeError
         with pytest.raises(error_expected):
-            ret.operator.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
+            dag_maker.run_ti("add_number", dr)
 
-    def test_multiple_outputs_empty_dict(self):
+    def test_multiple_outputs_empty_dict(self, dag_maker):
         @task_decorator(multiple_outputs=True)
         def empty_dict():
             return {}
 
-        with self.dag_non_serialized:
-            ret = empty_dict()
+        with dag_maker():
+            empty_dict()
 
-        dr = self.create_dag_run()
-        ret.operator.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
+        dr = dag_maker.create_dagrun()
+        dag_maker.run_ti("empty_dict", dr)
         ti = dr.get_task_instances()[0]
         assert ti.xcom_pull() == {}
 
-    def test_multiple_outputs_return_none(self):
+    def test_multiple_outputs_return_none(self, dag_maker):
         @task_decorator(multiple_outputs=True)
         def test_func():
             return
 
-        with self.dag_non_serialized:
-            ret = test_func()
+        with dag_maker():
+            test_func()
 
-        dr = self.create_dag_run()
-        ret.operator.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
+        dr = dag_maker.create_dagrun()
+        dag_maker.run_ti("test_func", dr)
         ti = dr.get_task_instances()[0]
         assert ti.xcom_pull() is None
 
@@ -386,13 +409,13 @@ class TestAirflowTaskDecorator(BasePythonTest):
             ret = arg_task(4, date(2019, 1, 1), "dag {{dag.dag_id}} ran on {{ds}}.", named_tuple)
 
         dr = self.create_dag_run()
-        ti = TaskInstance(task=ret.operator, run_id=dr.run_id)
-        rendered_op_args = ti.render_templates().op_args
-        assert len(rendered_op_args) == 4
-        assert rendered_op_args[0] == 4
-        assert rendered_op_args[1] == date(2019, 1, 1)
-        assert rendered_op_args[2] == f"dag {self.dag_id} ran on {self.ds_templated}."
-        assert rendered_op_args[3] == Named(self.ds_templated, "unchanged")
+        ti = dr.get_task_instance("arg_task", session=self.dag_maker.session)
+        assert render_template_fields(ti, ret.operator).op_args == (
+            4,
+            date(2019, 1, 1),
+            f"dag {self.dag_id} ran on {self.ds_templated}.",
+            Named(self.ds_templated, "unchanged"),
+        )
 
     def test_python_callable_keyword_arguments_are_templatized(self):
         """Test PythonOperator op_kwargs are templatized"""
@@ -407,11 +430,12 @@ class TestAirflowTaskDecorator(BasePythonTest):
             )
 
         dr = self.create_dag_run()
-        ti = TaskInstance(task=ret.operator, run_id=dr.run_id)
-        rendered_op_kwargs = ti.render_templates().op_kwargs
-        assert rendered_op_kwargs["an_int"] == 4
-        assert rendered_op_kwargs["a_date"] == date(2019, 1, 1)
-        assert rendered_op_kwargs["a_templated_string"] == f"dag {self.dag_id} ran on {self.ds_templated}."
+        ti = dr.get_task_instance("kwargs_task", session=self.dag_maker.session)
+        assert render_template_fields(ti, ret.operator).op_kwargs == {
+            "an_int": 4,
+            "a_date": date(2019, 1, 1),
+            "a_templated_string": f"dag {self.dag_id} ran on {self.ds_templated}.",
+        }
 
     def test_manual_task_id(self):
         """Test manually setting task_id"""
@@ -472,7 +496,7 @@ class TestAirflowTaskDecorator(BasePythonTest):
 
         assert self.dag_non_serialized.task_ids[-1] == "__do_run__20"
 
-    def test_multiple_outputs(self):
+    def test_multiple_outputs(self, dag_maker):
         """Tests pushing multiple outputs as a dictionary"""
 
         @task_decorator(multiple_outputs=True)
@@ -480,32 +504,11 @@ class TestAirflowTaskDecorator(BasePythonTest):
             return {"number": number + 1, "43": 43}
 
         test_number = 10
-        with self.dag_non_serialized:
-            ret = return_dict(test_number)
+        with dag_maker():
+            return_dict(test_number)
 
-        v3_kwargs = (
-            {
-                "run_after": DEFAULT_DATE,
-                "triggered_by": DagRunTriggeredByType.TEST,
-                "logical_date": DEFAULT_DATE,
-            }
-            if AIRFLOW_V_3_0_PLUS
-            else {
-                "execution_date": DEFAULT_DATE,
-            }
-        )
-        dr = self.dag_non_serialized.create_dagrun(
-            run_id="test",
-            run_type=DagRunType.MANUAL,
-            start_date=timezone.utcnow(),
-            state=State.RUNNING,
-            data_interval=self.dag_non_serialized.timetable.infer_manual_data_interval(
-                run_after=DEFAULT_DATE
-            ),
-            **v3_kwargs,
-        )
-
-        ret.operator.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
+        dr = dag_maker.create_dagrun()
+        dag_maker.run_ti("return_dict", dr)
 
         ti = dr.get_task_instances()[0]
         assert ti.xcom_pull(key="number") == test_number + 1
@@ -540,7 +543,7 @@ class TestAirflowTaskDecorator(BasePythonTest):
             ret = test_apply_default()
         assert "owner" in ret.operator.op_kwargs
 
-    def test_xcom_arg(self):
+    def test_xcom_arg(self, dag_maker):
         """Tests that returned key in XComArg is returned correctly"""
 
         @task_decorator
@@ -553,35 +556,15 @@ class TestAirflowTaskDecorator(BasePythonTest):
 
         test_number = 10
 
-        with self.dag_non_serialized:
+        with dag_maker():
             bigger_number = add_2(test_number)
             ret = add_num(bigger_number, XComArg(bigger_number.operator))
 
-        v3_kwargs = (
-            {
-                "run_after": DEFAULT_DATE,
-                "triggered_by": DagRunTriggeredByType.TEST,
-                "logical_date": DEFAULT_DATE,
-            }
-            if AIRFLOW_V_3_0_PLUS
-            else {
-                "execution_date": DEFAULT_DATE,
-            }
-        )
-        dr = self.dag_non_serialized.create_dagrun(
-            run_id="test",
-            run_type=DagRunType.MANUAL,
-            start_date=timezone.utcnow(),
-            state=State.RUNNING,
-            data_interval=self.dag_non_serialized.timetable.infer_manual_data_interval(
-                run_after=DEFAULT_DATE
-            ),
-            **v3_kwargs,
-        )
+        dr = dag_maker.create_dagrun()
 
-        bigger_number.operator.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
+        dag_maker.run_ti("add_2", dr)
+        dag_maker.run_ti("add_num", dr)
 
-        ret.operator.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
         ti_add_num = next(ti for ti in dr.get_task_instances() if ti.task_id == "add_num")
         assert ti_add_num.xcom_pull(key=ret.key) == (test_number + 2) * 2
 
@@ -612,7 +595,7 @@ class TestAirflowTaskDecorator(BasePythonTest):
         assert "add_2" in self.dag_non_serialized.task_ids
 
     @pytest.mark.parametrize(
-        argnames=["op_doc_attr", "op_doc_value", "expected_doc_md"],
+        argnames=("op_doc_attr", "op_doc_value", "expected_doc_md"),
         argvalues=[
             pytest.param("doc", "task docs.", None, id="set_doc"),
             pytest.param("doc_json", '{"task": "docs."}', None, id="set_doc_json"),
@@ -680,7 +663,7 @@ class TestAirflowTaskDecorator(BasePythonTest):
             weights.append(task.priority_weight)
         assert weights == [0, 1, 2]
 
-    def test_python_callable_args_work_as_well_as_baseoperator_args(self):
+    def test_python_callable_args_work_as_well_as_baseoperator_args(self, dag_maker):
         """Tests that when looping that user provided pool, priority_weight etc is used"""
 
         @task_decorator(task_id="hello_task")
@@ -691,14 +674,15 @@ class TestAirflowTaskDecorator(BasePythonTest):
             print("Hello world", x, y)
             return x, y
 
-        with self.dag_non_serialized:
+        with dag_maker():
             output = hello.override(task_id="mytask")(x=2, y=3)
             output2 = hello.override()(2, 3)  # nothing overridden but should work
 
+        dr = dag_maker.create_dagrun()
         assert output.operator.op_kwargs == {"x": 2, "y": 3}
         assert output2.operator.op_args == (2, 3)
-        output.operator.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
-        output2.operator.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
+        dag_maker.run_ti("mytask", dr)
+        dag_maker.run_ti("hello_task", dr)
 
 
 def test_mapped_decorator_shadow_context() -> None:
@@ -706,13 +690,11 @@ def test_mapped_decorator_shadow_context() -> None:
     def print_info(message: str, run_id: str = "") -> None:
         print(f"{run_id}: {message}")
 
-    with pytest.raises(ValueError) as ctx:
+    with pytest.raises(ValueError, match=r"cannot call partial\(\) on task context variable 'run_id'"):
         print_info.partial(run_id="hi")
-    assert str(ctx.value) == "cannot call partial() on task context variable 'run_id'"
 
-    with pytest.raises(ValueError) as ctx:
+    with pytest.raises(ValueError, match=r"cannot call expand\(\) on task context variable 'run_id'"):
         print_info.expand(run_id=["hi", "there"])
-    assert str(ctx.value) == "cannot call expand() on task context variable 'run_id'"
 
 
 def test_mapped_decorator_wrong_argument() -> None:
@@ -728,9 +710,10 @@ def test_mapped_decorator_wrong_argument() -> None:
         print_info.expand(wrong_name=["hi", "there"])
     assert str(ct.value) == "expand() got an unexpected keyword argument 'wrong_name'"
 
-    with pytest.raises(ValueError) as cv:
+    with pytest.raises(
+        ValueError, match=r"expand\(\) got an unexpected type 'str' for keyword argument 'message'"
+    ):
         print_info.expand(message="hi")
-    assert str(cv.value) == "expand() got an unexpected type 'str' for keyword argument 'message'"
 
 
 def test_mapped_decorator():
@@ -811,7 +794,7 @@ def test_partial_mapped_decorator() -> None:
 
 
 def test_mapped_decorator_unmap_merge_op_kwargs(dag_maker, session):
-    with dag_maker(session=session):
+    with dag_maker(session=session, serialized=True):
 
         @task_decorator
         def task1():
@@ -822,26 +805,69 @@ def test_mapped_decorator_unmap_merge_op_kwargs(dag_maker, session):
 
         task2.partial(arg1=1).expand(arg2=task1())
 
-    run = dag_maker.create_dagrun()
+    run = dag_maker.create_dagrun(session=session)
 
     # Run task1.
     dec = run.task_instance_scheduling_decisions(session=session)
     assert [ti.task_id for ti in dec.schedulable_tis] == ["task1"]
-    dec.schedulable_tis[0].run(session=session)
+    ti = dec.schedulable_tis[0]
+    dag_maker.run_ti(task_id=ti.task_id, dag_run=run, session=session)
 
     # Expand task2.
     dec = run.task_instance_scheduling_decisions(session=session)
     assert [ti.task_id for ti in dec.schedulable_tis] == ["task2"]
     ti = dec.schedulable_tis[0]
 
-    if AIRFLOW_V_3_0_PLUS:
-        unmapped = ti.task.unmap((ti.get_template_context(session),))
-    else:
-        unmapped = ti.task.unmap((ti.get_template_context(session), session))
-    assert set(unmapped.op_kwargs) == {"arg1", "arg2"}
+    task = dag_maker.dag.task_dict[ti.task_id]
+    context = get_template_context(ti, task, session=session)
+    render_template_fields(ti, task, context=context, session=session)
+    assert set(context["task"].op_kwargs) == {"arg1", "arg2"}
 
 
+@pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="Different test for AF 2")
 def test_mapped_render_template_fields(dag_maker, session):
+    from airflow.sdk.definitions.mappedoperator import MappedOperator
+
+    @task_decorator
+    def fn(arg1, arg2): ...
+
+    with dag_maker(session=session):
+        task1 = BaseOperator(task_id="op1")
+        mapped = fn.partial(arg2="{{ ti.task_id }}").expand(arg1=task1.output)
+
+    dr = dag_maker.create_dagrun()
+    ti: TaskInstance = dr.get_task_instance(task1.task_id, session=session)
+
+    ti.xcom_push(key=XCOM_RETURN_KEY, value=["{{ ds }}"], session=session)
+
+    session.add(
+        TaskMap(
+            dag_id=dr.dag_id,
+            task_id=task1.task_id,
+            run_id=dr.run_id,
+            map_index=-1,
+            length=1,
+            keys=None,
+        )
+    )
+    session.flush()
+
+    mapped_ti: TaskInstance = dr.get_task_instance(mapped.operator.task_id, session=session)
+    mapped_ti.map_index = 0
+    mapped_ti.task = mapped.operator
+    assert isinstance(mapped_ti.task, MappedOperator)
+    context = get_template_context(mapped_ti, mapped.operator, session=session)
+    mapped.operator.render_template_fields(context)
+    assert isinstance(context["task"], BaseOperator)
+
+    assert context["task"].op_kwargs["arg1"] == "{{ ds }}"
+    assert context["task"].op_kwargs["arg2"] == "fn"
+
+
+@pytest.mark.skipif(AIRFLOW_V_3_0_PLUS, reason="Different test for AF 2")
+def test_mapped_render_template_fields_af2(dag_maker, session):
+    from airflow.utils.task_instance_session import set_current_task_instance_session
+
     @task_decorator
     def fn(arg1, arg2): ...
 
@@ -869,7 +895,7 @@ def test_mapped_render_template_fields(dag_maker, session):
 
         mapped_ti: TaskInstance = dr.get_task_instance(mapped.operator.task_id, session=session)
         mapped_ti.map_index = 0
-        assert isinstance(mapped_ti.task, MappedOperator)
+        assert isinstance(mapped_ti.task, SerializedMappedOperator)
         mapped.operator.render_template_fields(context=mapped_ti.get_template_context(session=session))
         assert isinstance(mapped_ti.task, BaseOperator)
 
@@ -912,12 +938,17 @@ def test_task_decorator_has_doc_attr():
 
 
 def test_upstream_exception_produces_none_xcom(dag_maker, session):
-    from airflow.exceptions import AirflowSkipException
-    from airflow.utils.trigger_rule import TriggerRule
+    from airflow.providers.common.compat.sdk import AirflowSkipException
+
+    try:
+        from airflow.sdk import TriggerRule
+    except ImportError:
+        # Compatibility for Airflow < 3.1
+        from airflow.utils.trigger_rule import TriggerRule  # type: ignore[no-redef,attr-defined]
 
     result = None
 
-    with dag_maker(session=session) as dag:
+    with dag_maker(session=session, serialized=True) as dag:
 
         @dag.task()
         def up1() -> str:
@@ -939,29 +970,34 @@ def test_upstream_exception_produces_none_xcom(dag_maker, session):
     decision = dr.task_instance_scheduling_decisions(session=session)
     assert len(decision.schedulable_tis) == 2  # "up1" and "up2"
     for ti in decision.schedulable_tis:
-        ti.run(session=session)
+        dag_maker.run_ti(ti.task_id, dag_run=dr, session=session)
 
     decision = dr.task_instance_scheduling_decisions(session=session)
     assert len(decision.schedulable_tis) == 1  # "down"
-    decision.schedulable_tis[0].run(session=session)
+    dag_maker.run_ti(decision.schedulable_tis[0].task_id, dag_run=dr, session=session)
     assert result == "'example' None"
 
 
 @pytest.mark.parametrize("multiple_outputs", [True, False])
 def test_multiple_outputs_produces_none_xcom_when_task_is_skipped(dag_maker, session, multiple_outputs):
-    from airflow.exceptions import AirflowSkipException
-    from airflow.utils.trigger_rule import TriggerRule
+    from airflow.providers.common.compat.sdk import AirflowSkipException
+
+    try:
+        from airflow.sdk import TriggerRule
+    except ImportError:
+        # Compatibility for Airflow < 3.1
+        from airflow.utils.trigger_rule import TriggerRule  # type: ignore[no-redef,attr-defined]
 
     result = None
 
-    with dag_maker(session=session) as dag:
+    with dag_maker(session=session, serialized=True) as dag:
 
         @dag.task()
         def up1() -> str:
             return "example"
 
         @dag.task(multiple_outputs=multiple_outputs)
-        def up2(x) -> Union[dict, None]:
+        def up2(x) -> dict | None:
             if x == 2:
                 return {"x": "example"}
             raise AirflowSkipException()
@@ -978,16 +1014,16 @@ def test_multiple_outputs_produces_none_xcom_when_task_is_skipped(dag_maker, ses
     decision = dr.task_instance_scheduling_decisions(session=session)
     assert len(decision.schedulable_tis) == 2  # "up1" and "up2"
     for ti in decision.schedulable_tis:
-        ti.run(session=session)
+        dag_maker.run_ti(ti.task_id, dag_run=dr, session=session)
 
     decision = dr.task_instance_scheduling_decisions(session=session)
     assert len(decision.schedulable_tis) == 1  # "down"
     if multiple_outputs:
-        decision.schedulable_tis[0].run(session=session)
+        dag_maker.run_ti(decision.schedulable_tis[0].task_id, dag_run=dr, session=session)
         assert result == "'example' None"
     else:
         with pytest.raises(XComNotFound):
-            decision.schedulable_tis[0].run(session=session)
+            dag_maker.run_ti(decision.schedulable_tis[0].task_id, dag_run=dr, session=session)
 
 
 @pytest.mark.filterwarnings("error")
@@ -1004,25 +1040,20 @@ def test_no_warnings(reset_logging_config, caplog):
     assert caplog.messages == []
 
 
+@pytest.mark.need_serialized_dag
 def test_task_decorator_asset(dag_maker, session):
-    if AIRFLOW_V_3_0_PLUS:
-        from airflow.models.asset import AssetActive, AssetModel
-        from airflow.sdk.definitions.asset import Asset
-    else:
-        from airflow.datasets import Dataset as Asset
-        from airflow.models.dataset import DatasetModel as AssetModel
-
     result = None
     uri = "s3://bucket/name"
     asset_name = "test_asset"
 
     if AIRFLOW_V_3_0_PLUS:
+        from airflow.sdk import Asset
+
         asset = Asset(uri=uri, name=asset_name)
     else:
+        from airflow.datasets import Dataset as Asset
+
         asset = Asset(uri)
-    session.add(AssetModel.from_public(asset))
-    if AIRFLOW_V_3_0_PLUS:
-        session.add(AssetActive.for_asset(asset))
 
     with dag_maker(session=session) as dag:
 
@@ -1046,15 +1077,18 @@ def test_task_decorator_asset(dag_maker, session):
     dr: DagRun = dag_maker.create_dagrun()
     decision = dr.task_instance_scheduling_decisions(session=session)
     assert len(decision.schedulable_tis) == 1  # "up1"
-    decision.schedulable_tis[0].run(session=session)
+    ti = decision.schedulable_tis[0]
+    dag_maker.run_ti(ti.task_id, dag_run=dr, session=session)
 
     decision = dr.task_instance_scheduling_decisions(session=session)
     assert len(decision.schedulable_tis) == 1  # "up2"
-    decision.schedulable_tis[0].run(session=session)
+    ti = decision.schedulable_tis[0]
+    dag_maker.run_ti(ti.task_id, dag_run=dr, session=session)
 
     decision = dr.task_instance_scheduling_decisions(session=session)
     assert len(decision.schedulable_tis) == 1  # "down"
-    decision.schedulable_tis[0].run(session=session)
+    ti = decision.schedulable_tis[0]
+    dag_maker.run_ti(ti.task_id, dag_run=dr, session=session)
     assert result == uri
 
 

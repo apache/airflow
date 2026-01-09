@@ -35,6 +35,366 @@
 Changelog
 ---------
 
+1.10.2
+......
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix DAG bundle imports in subprocess operators (#57631)``
+
+Misc
+~~~~
+
+* ``TaskInstance unused method cleanup (#59835)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Use SDK serde for trigger and next kwargs serialization (#59711)``
+   * ``Remove top-level SDK reference in Core (#59817)``
+   * ``Clean up SDK references in airflow.models.expandinput (#59815)``
+   * ``Move MappedOperator to serialization (#59628)``
+   * ``Split SerializedBaseOperator from serde logic (#59627)``
+   * ``Minor cleanups removing SDK references from Core (#59491)``
+   * ``Split SDK and serialized asset classes (#58993)``
+
+1.10.1
+......
+
+Bug Fixes
+~~~~~~~~~
+
+* ``fix uv venv fail without direct internet access (#59046)``
+
+Misc
+~~~~
+
+* ``Add backcompat for exceptions in providers (#58727)``
+* ``Implement timetables in SDK (#58669)``
+* ``nit: rename TriggerDagRunOperator._defer to deferrable (#58925)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+1.10.0
+......
+
+.. note::
+    This release of provider is only available for Airflow 2.11+ as explained in the
+    Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/PROVIDERS.rst#minimum-supported-version-of-airflow-for-community-managed-providers>_.
+
+Features
+~~~~~~~~
+
+* ``Auto-inject OpenLineage parent info into TriggerDagRunOperator conf (#58672)``
+* ``Add few attrs from external_task sensor to OpenLineage events (#58719)``
+* ``Allow virtualenv code to access connections/variables and send logs (#58148)``
+* ``Add source to Param (#58615)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``TriggerDagRunOperator deferral mode not working for Airflow 3 (#58497)``
+
+Misc
+~~~~
+
+* ``Move out some exceptions to TaskSDK (#54505)``
+* ``Bump minimum Airflow version in providers to Airflow 2.11.0 (#58612)``
+* ``Remove SDK reference for NOTSET in Airflow Core (#58258)``
+* ``Fix lower bound dependency to common-compat provider (#58833)``
+* ``Remove global from task instance session (#58601)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Updates to release process of providers (#58316)``
+   * ``Prepare release for 2025-11-27 wave of providers (#58697)``
+
+1.9.2
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``fix: HITL params not validating (#57547)``
+* ``Fix: Handle string formatted conf param in TriggerDagRunOperator (#57214)``
+* ``Fix walking through wildcarded directory in FileTrigger (#57155)``
+
+Misc
+~~~~
+
+* ``Convert all airflow distributions to be compliant with ASF requirements (#58138)``
+* ``Move subprocess utility closer to usage in python venv operators (#57189)``
+
+Doc-only
+~~~~~~~~
+
+* ``Add caution on using Airflow packages in virtualenv operator (#57599)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Delete all unnecessary LICENSE Files (#58191)``
+   * ``Enable pt006 rule and fix new generate errors (#58238)``
+   * ``fix MyPy type errors in datamodels/hitl.py (#57808)``
+   * ``Enable PT006 rule to standard Provider test(ssensor, trigge, util) 9 files (#58022)``
+   * ``Enable PT006 rule to standard Provider test(decorator, hook) 8 files (#58019)``
+   * ``PT006 modify standard (operator) (#58020)``
+   * ``Enable ruff PLW1509 rule (#57659)``
+   * ``Fix mypy static errors in standard provider (#57762)``
+   * ``Fix mypy type errors in providers/standard/ in external_task.py for SQLAlchemy 2 migration (#57369)``
+   * ``Fix code formatting via ruff preview (#57641)``
+   * ``Enable ruff PLW0602 rule (#57588)``
+   * ``Revert virtualenv connections/variables access and logging as test are failing``
+   * ``Enable PT011 rule to prvoider tests (#56929)``
+   * ``Allow virtualenv code to access connections/variables and send logs (#57213)``
+   * ``Fix mypy error in main (#57351)``
+   * ``fix mypy errors in providers/standard/ (#57266)``
+
+
+1.9.1
+.....
+
+Misc
+~~~~
+
+* ``Simplify version-specific imports in the Standard provider (#56867)``
+* ``Throw NotImplementedError error when fail_when_dag_is_paused is used in TriggerDagRunOperator with Airflow 3.x (#56965)``
+
+Doc-only
+~~~~~~~~
+
+* ``Correct 'Dag' to 'DAG' for code snippets in provider docs (#56727)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+1.9.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add a '@task.stub' to allow tasks in other languages to be defined in dags (#56055)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix DagBag imports in Airflow 3.2+ (#56109)``
+
+Misc
+~~~~
+
+* ``Move DagBag to airflow/dag_processing (#55139)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Fix 'example_bash_decorator' DAG (#56020)``
+   * ``Enable pt011 rule 2 (#55749)``
+   * ``Remove placeholder Release Date in changelog and index files (#56056)``
+   * ``Prepare release for Sep 2025 3rd ad-hoc wave of providers (#56007)``
+
+1.8.0
+.....
+
+
+Features
+~~~~~~~~
+
+* ``feat(hitl): get rid off "Fallback to defaults" in HITL (#55536)``
+* ``feat(hitl): add fail_on_reject to ApprovalOperator (#55255)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``fix(hitl): make the user model in HITLDetail consistent with airflow user model (#55463)``
+* ``fix(hitl): Resolve Conflict 409 in API server when user actions at nearly timeout (#55243)``
+* ``fix(hitl): fix HITL timeout error handling (#55760)``
+
+Misc
+~~~~
+
+* ``refactor(hitl): rename response_at to responded_at (#55535)``
+* ``refactor(hitl): remove AirflowException from HITLTriggerEventError inheritance (#55763)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Remove SDK dependency from SerializedDAG (#55538)``
+   * ``Introduce e2e testing with testcontainers (#54072)``
+   * ``Switch all airflow logging to structlog (#52651)``
+
+1.7.0
+.....
+
+
+Features
+~~~~~~~~
+
+* ``Add options_mapping support to HITLBranchOperator (#55093)``
+* ``feat(hitl): update url generating utility (#55022)``
+* ``feat(hitl): add utility functions for generating the url to required actions page  (#54827)``
+* ``Display a more friendly error when invalid branches are provided to branch operators (#54273)``
+* ``Add owners/actors/respondents to HITLOperators (#54308)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix ''BranchPythonOperator'' failure when callable returns None (#54991)``
+* ``Fix external_python task failure when ''expect_airflow=False'' (#54809)``
+* ``Fix typos in HITL-related code and comments (#54670)``
+
+Misc
+~~~~
+
+* ``refactor(hitl): rename HITLDetail.user_id as HITLDetail.responded_user_id and add HITLDetail.responded_user_name (#55019)``
+* ``Revert "Fix rendering of template fields with start from trigger" (#55037)``
+* ``Change StartTriggerArgs imports (#54856)``
+* ``Do not use HITLDetailResponse from core in sdk (#54358)``
+* ``Move DagBag to SDK and make it return SDK DAG objects (#53918)``
+* ``Remove MappedOperator inheritance (#53696)``
+
+Doc-only
+~~~~~~~~
+
+* ``Make term Dag consistent in providers docs (#55101)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Remove airflow.models.DAG (#54383)``
+   * ``Fix test_external_python tests setup (#55145)``
+   * ``Move trigger_rule utils from 'airflow/utils'  to 'airflow.task'and integrate with Execution API spec (#53389)``
+   * ``Import documentation with screenshots for HITL (#54618)``
+   * ``Move filesystem sensor tests to standard provider (#54635)``
+   * ``Switch pre-commit to prek (#54258)``
+   * ``docs(hitl): fix typo in example_hitl_operator (#54537)``
+   * ``make bundle_name not nullable (#47592)``
+   * ``Remove SDK BaseOperator in TaskInstance (#53223)``
+   * ``Fix Airflow 2 reference in README/index of providers (#55240)``
+
+1.6.0
+.....
+
+Features
+~~~~~~~~
+
+* ``feat(HITL): add 'notifiers' to HITLOperator (#54128)``
+* ``feat(HITL): add HITLBranchOperator (#53960)``
+* ``feat(HITL): improve hitl trigger logging message (#53850)``
+* ``feat(HITL): add "timedout" column to HITLTriggerEventSuccessPayload (#53852)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Restore 'execute_complete' functionality 'TimeSensor' when 'deferrable=True' (#53669)``
+* ``Fix several deprecation warnings related to airflow.sdk (#53791)``
+* ``Fix pycache_cleanup path handling in PythonVirtualenvOperator (#54214)``
+* ``fix(HITL): guard empty options or chosen_options when writing response (#54355)``
+
+Misc
+~~~~
+
+* ``refactor(HITL): replace timezone usage with airflow.sdk.timezone (#53962)``
+* ``refactor(HITL): make default options class variables to avoid typo (#53849)``
+* ``Add a warning about python interpreter using with uv (#54262)``
+* ``Introduce 'StdoutCaptureManager' to isolate stdout from 'logging' logs (#54065)``
+* ``Move some items in 'airflow.utils.context' to appropriate places (#53600)``
+
+Doc-only
+~~~~~~~~
+
+* ``Fix BranchPythonOperator doc (#54205)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Documentation for Human-in-the-loop operator (#53694)``
+   * ``Correct HITL version warnings to avoid confusion (#53876)``
+   * ``Move functions in 'airflow.utils.decorator' to more appropriate places (#53420)``
+   * ``Prepare release for Aug 2025 1st wave of providers (#54193)``
+
+1.5.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add venv pycache clean up for the PythonVirtualenvOperator (#53390)``
+* ``Add Human-in-the-loop logic to core Airflow and implement 'HITLOperator', 'ApprovalOperator', 'HITLEntryOperator' in standard provider (#52868)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix key error in _handle_execution_date_fn for ExternalTaskSensor (#53728)``
+* ``fix: Type mismatch for DateInterval in latest only operator (#53541)``
+* ``fix(HITL): Fix HITLEntryOperator "options" and "defaults" handling (#53184)``
+* ``fix(HITL): handle hitl details when task instance is retried (#53824)``
+
+Misc
+~~~~
+
+* ``Fix unreachable code mypy warnings in standard provider (#53431)``
+* ``Align main branch after standard provider 1.4.1 release (#53511)``
+* ``Add Python 3.13 support for Airflow. (#46891)``
+* ``Cleanup mypy ignore in standard provider where possible (#53308)``
+* ``Remove type ignore across codebase after mypy upgrade (#53243)``
+* ``Remove direct scheduler BaseOperator refs (#52234)``
+* ``Remove upper-binding for "python-requires" (#52980)``
+* ``Temporarily switch to use >=,< pattern instead of '~=' (#52967)``
+* ``Move 'BaseHook' imports to version_compat for standard provider (#52766)``
+* ``Deprecate and move 'airflow.utils.task_group' to SDK (#53450)``
+* ``Deprecate decorators from Core (#53629)``
+* ``Replace usages of XCOM_RETURN_KEY in providers to not be from utils (#53170)``
+* ``Remove 'set_current_context' from 'airflow.models.taskinstance' (#53036)``
+* ``Replace direct BaseOperator import with version_compat import (#53847)``
+* ``Fix typo in serialized_params (#53848)``
+
+Doc-only
+~~~~~~~~
+
+* ``docs: Correct TaskFlow capitalization in documentation (#51794)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Set up process for sharing code between different components (#53149)``
+   * ``Replace 'mock.patch("utcnow")' with time_machine. (#53642)``
+   * ``Add run_on_latest_version support for backfill and clear operations (#52177)``
+   * ``docs(hitl): add example dag for all HITLOperator (#53360)``
+   * ``Prepare release for Standard Provider 1.4.1``
+   * ``Make dag_version_id in TI non-nullable (#50825)``
+   * ``Fix example dag example_external_task_parent_deferrable.py imports (#52956)``
+
+1.4.1
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix sensor skipping in Airflow 3.x branching operators (#53455)``
+
+1.4.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add support for 'PackageIndex' connections in 'PythonVirtualenvOperator' (#52288)``
+* ``Honor 'index_urls' when venv is created with 'uv' in 'PythonVirtualenvOperator' (#52287)``
+
+Misc
+~~~~
+
+* ``Move 'BaseHook' implementation to task SDK (#51873)``
+* ``Disable UP038 ruff rule and revert mandatory 'X | Y' in insintance checks (#52644)``
+* ``Upgrade ruff to latest version (0.12.1) (#52562)``
+* ``Move compat shim in Standard Provider to 'version_compat.py' (#52567)``
+* ``Add a bunch of no-redef ignores so Mypy is happy (#52507)``
+* ``Drop support for Python 3.9 (#52072)``
+* ``Replace 'models.BaseOperator' to Task SDK one for Standard Provider (#52292)``
+* ``Add deprecation to 'airflow/sensors/base.py' (#52249)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``One more redef needing ignore (#52525)``
+   * ``Make sure all test version imports come from test_common (#52425)``
+
 1.3.0
 .....
 
@@ -288,7 +648,7 @@ Misc
 * ``AIP-72: Move non-user facing code to '_internal' (#45515)``
 * ``AIP-72: Add support for 'get_current_context' in Task SDK (#45486)``
 * ``Move Literal alias into TYPE_CHECKING block (#45345)``
-* ``AIP-72: Add Taskflow API support & template rendering in Task SDK (#45444)``
+* ``AIP-72: Add TaskFlow API support & template rendering in Task SDK (#45444)``
 * ``Remove tuple_in_condition helpers (#45201)``
 
 .. Below changes are excluded from the changelog. Move them to

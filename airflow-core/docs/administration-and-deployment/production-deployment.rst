@@ -18,7 +18,7 @@
 Production Deployment
 ^^^^^^^^^^^^^^^^^^^^^
 
-It is time to deploy your DAG in production. To do this, first, you need to make sure that the Airflow
+It is time to deploy your Dag in production. To do this, first, you need to make sure that the Airflow
 is itself production-ready. Let's see what precautions you need to take.
 
 Database backend
@@ -62,9 +62,9 @@ the :doc:`Celery executor <apache-airflow-providers-celery:celery_executor>`.
 
 
 Once you have configured the executor, it is necessary to make sure that every node in the cluster contains
-the same configuration and dags. Airflow sends simple instructions such as "execute task X of DAG Y", but
-does not send any DAG files or configuration. You can use a simple cronjob or any other mechanism to sync
-dags and configs across your nodes, e.g., checkout dags from git repo every 5 minutes on all nodes.
+the same configuration and Dags. Airflow sends simple instructions such as "execute task X of Dag Y", but
+does not send any Dag files or configuration. You can use a simple cronjob or any other mechanism to sync
+Dags and configs across your nodes, e.g., checkout Dags from git repo every 5 minutes on all nodes.
 
 
 Logging
@@ -90,7 +90,7 @@ e.g. metadata DB, password, etc. You can accomplish this using the format :envva
 .. code-block:: bash
 
  AIRFLOW__DATABASE__SQL_ALCHEMY_CONN=my_conn_id
- AIRFLOW__WEBSERVER__BASE_URL=http://host:port
+ AIRFLOW__API__BASE_URL=http://host:port
 
 Some configurations such as the Airflow Backend connection URI can be derived from bash commands as well:
 
@@ -152,18 +152,18 @@ When it comes to live-upgrading the ``Webserver``, ``Triggerer`` components, if 
 environments and have more than one instances for each of them, you can rolling-restart them one by one,
 without any downtime. This should usually be done as the first step in your upgrade procedure.
 
-When you are running a deployment with separate ``DAG processor``, in a
-:ref:`Separate DAG processing deployment <overview-separate-dag-processing-airflow-architecture>`
-the ``DAG processor`` is not horizontally scaled - even if you have more of them there is usually one
-``DAG processor`` running at a time per specific folder, so you can just stop it and start the new one -
-but since the ``DAG processor`` is not a critical component, it's ok for it to experience a short downtime.
+When you are running a deployment with separate ``Dag processor``, in a
+:ref:`Separate Dag processing deployment <overview-separate-dag-processing-airflow-architecture>`
+the ``Dag processor`` is not horizontally scaled - even if you have more of them there is usually one
+``Dag processor`` running at a time per specific folder, so you can just stop it and start the new one -
+but since the ``Dag processor`` is not a critical component, it's ok for it to experience a short downtime.
 
 When it comes to upgrading the schedulers and workers, you can use the live upgrade capabilities
 of the executor you use:
 
 * For the :doc:`Local executor <../core-concepts/executor/local>` your tasks are running as subprocesses of
   scheduler and you cannot upgrade the Scheduler without killing the tasks run by it. You can either
-  pause all your dags and wait for the running tasks to complete or just stop the scheduler and kill all
+  pause all your Dags and wait for the running tasks to complete or just stop the scheduler and kill all
   the tasks it runs - then you will need to clear and restart those tasks manually after the upgrade
   is completed (or rely on ``retry`` being set for stopped tasks).
 

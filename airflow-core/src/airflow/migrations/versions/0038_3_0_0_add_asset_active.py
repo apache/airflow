@@ -39,7 +39,7 @@ airflow_version = "3.0.0"
 
 _STRING_COLUMN_TYPE = sa.String(length=1500).with_variant(
     sa.String(length=1500, collation="latin1_general_cs"),
-    dialect_name="mysql",
+    "mysql",
 )
 
 

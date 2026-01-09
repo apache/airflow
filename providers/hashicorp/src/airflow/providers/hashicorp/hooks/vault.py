@@ -23,7 +23,7 @@ from typing import TYPE_CHECKING, Any
 
 from hvac.exceptions import VaultError
 
-from airflow.hooks.base import BaseHook
+from airflow.providers.common.compat.sdk import BaseHook
 from airflow.providers.hashicorp._internal_client.vault_client import (
     DEFAULT_KUBERNETES_JWT_PATH,
     DEFAULT_KV_ENGINE_VERSION,

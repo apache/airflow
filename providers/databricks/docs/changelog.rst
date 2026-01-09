@@ -26,6 +26,220 @@
 Changelog
 ---------
 
+7.8.2
+.....
+
+Misc
+~~~~
+
+* ``'issue-59189:' Updating Databricks provider to point to '2.2/jobs/...' endpoint (#59217)``
+* ``Remove top-level SDK reference in Core (#59817)``
+* ``Refactor/sqla2 providers(celery, kubernetes, databricks, mysql) to remove SQLA query usage (#59537)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``TaskInstance unused method cleanup (#59835)``
+
+7.8.1
+.....
+
+Misc
+~~~~
+
+* ``chore: use OL macros instead of building OL ids from scratch (#59197)``
+* ``Add backcompat for exceptions in providers (#58727)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+7.8.0
+.....
+
+.. note::
+    This release of provider is only available for Airflow 2.11+ as explained in the
+    Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/PROVIDERS.rst#minimum-supported-version-of-airflow-for-community-managed-providers>_.
+
+Misc
+~~~~
+
+* ``Bump minimum Airflow version in providers to Airflow 2.11.0 (#58612)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Updates to release process of providers (#58316)``
+
+7.7.5
+.....
+
+Misc
+~~~~
+
+* ``Convert all airflow distributions to be compliant with ASF requirements (#58138)``
+
+Doc-only
+~~~~~~~~
+
+* ``Fix documentation/provider.yaml consistencies (#57283)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Delete all unnecessary LICENSE Files (#58191)``
+   * ``Enable ruff PLW2101,PLW2901,PLW3301 rule (#57700)``
+   * ``Enable PT006 rule to 14 files in providers (databricks,dbt,docker) (#57994)``
+   * ``Fix mypy static errors in databricks provider (#57768)``
+   * ``Enable ruff PLW1641 rule (#57679)``
+   * ``Enable ruff PLW1508 rule (#57653)``
+   * ``Fix code formatting via ruff preview (#57641)``
+
+7.7.4
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix Databricks provider import error without fab provider (#56702)``
+
+Misc
+~~~~
+
+* ``Migrate databricks provider to ''common.compat'' (#56993)``
+
+Doc-only
+~~~~~~~~
+
+* ``Remove placeholder Release Date in changelog and index files (#56056)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Remove 'pytest.importorskip("flask_appbuilder")' from tests (#56679)``
+   * ``Enable PT011 rule to prvoider tests (#56320)``
+
+7.7.3
+.....
+
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix metadata service check handle 429 (#55462)``
+
+Misc
+~~~~
+
+* ``Switch all airflow logging to structlog (#52651)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+7.7.2
+.....
+
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix Databricks sqlalchemy URL construction (#54478)``
+* ``Ensures DatabricksWorkflowOperator updates ACL (if available) when resetting a job. (#47827)``
+
+Misc
+~~~~
+
+* ``Remove airflow.models.DAG (#54383)``
+* ``chore: change openlineage to optional dependency (#54748)``
+* ``Move DagBag to SDK and make it return SDK DAG objects (#53918)``
+
+Doc-only
+~~~~~~~~
+
+* ``Make term Dag consistent in providers docs (#55101)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Switch pre-commit to prek (#54258)``
+   * ``Add CI support for SQLAlchemy 2.0 (#52233)``
+   * ``Fix Airflow 2 reference in README/index of providers (#55240)``
+
+7.7.1
+.....
+
+Misc
+~~~~
+
+* ``Bump deltalake to 1.1.3 (#54108)``
+* ``Move imports to version_compat in databricks workflow plugin (#53883)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+7.7.0
+.....
+
+Features
+~~~~~~~~
+
+* ``feat: Refactor Databricks error handling with utility functions (#52704)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``fix URI Construction in Databricks Hook (#53217)``
+* ``fix: Improve logging and timeouts in OL helpers (#53139)``
+* ``fix: Task Group Deprecation error from plugin (#53813)``
+* ``Remove 'api' prefix from update_job_permission in databricks hook (#53039)``
+
+Misc
+~~~~
+
+* ``Refactor: Consolidate API endpoints for improved security and maintainability (#53214)``
+* ``Exclude deltalake 1.1.1 (#53729)``
+* ``Add Python 3.13 support for Airflow. (#46891)``
+* ``Cleanup mypy ignores in databricks provider where possible (#53265)``
+* ``Remove type ignore across codebase after mypy upgrade (#53243)``
+* ``Remove upper-binding for "python-requires" (#52980)``
+* ``Temporarily switch to use >=,< pattern instead of '~=' (#52967)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Replace 'mock.patch("utcnow")' with time_machine. (#53642)``
+   * ``Added non-Azure DatabricksBaseHook tests (#53286)``
+   * ``Fix pandas FutureWarning (#53236)``
+   * ``Handle ruff PT028 changes (#53235)``
+
+7.6.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Refactor Databricks hook to use HTTP method constants and auto-prepend api/ to endpoint paths (#52385)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix: Unclosed aiohttp ClientSession and TCPConnector in DatabricksRunNowOperator (deferrable=True) (#52119)``
+
+Misc
+~~~~
+
+* ``Move 'BaseHook' implementation to task SDK (#51873)``
+* ``Disable UP038 ruff rule and revert mandatory 'X | Y' in insintance checks (#52644)``
+* ``Bump pyarrow to 16.1.0 minimum version for several providers (#52635)``
+* ``Upgrade ruff to latest version (0.12.1) (#52562)``
+* ``feat: Add explicit support for DatabricksHook to Openlineage helper (#52253)``
+* ``Replace 'models.BaseOperator' to Task SDK one for DBT & Databricks (#52377)``
+* ``Drop support for Python 3.9 (#52072)``
+* ``Use BaseSensorOperator from task sdk in providers (#52296)``
+* ``Enable DatabricksJobRunLink for Databricks plugin, skip provide_session usage in Airflow3 (#52228)``
+* ``Add deprecation to 'airflow/sensors/base.py' (#52249)``
+* ``Bump upper binding on pandas in all providers (#52060)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Make sure all test version imports come from test_common (#52425)``
+   * ``Clean up messy default connection overrides in provider tests (#52137)``
+   * ``Remove pytest.mark.db_test where possible from databricks provider. (#52033)``
+   * ``Relax databricks test a bit to support compatibility with older version of it (#51787)``
+
 7.5.0
 .....
 
@@ -228,8 +442,6 @@ Misc
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):
    * ``Use Python 3.9 as target version for Ruff & Black rules (#44298)``
-
-.. Review and move the new changes to one of the sections above:
    * ``Update path of example dags in docs (#45069)``
    * ``Revert "Added job_clusters as a templated parameter to CreateDatabricksWorkfl…" (#45035)``
 
@@ -530,11 +742,10 @@ Misc
 * ``fix typos in DatabricksSubmitRunOperator (#36248)``
 * ``Add code snippet formatting in docstrings via Ruff (#36262)``
 
-.. Review and move the new changes to one of the sections above:
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
    * ``Prepare docs 1st wave of Providers December 2023 (#36112)``
    * ``Prepare docs 1st wave of Providers December 2023 RC2 (#36190)``
-
-.. Review and move the new changes to one of the sections above:
    * ``Re-apply updated version numbers to 2nd wave of providers in December (#36380)``
    * ``Prepare 2nd wave of providers in December (#36373)``
 

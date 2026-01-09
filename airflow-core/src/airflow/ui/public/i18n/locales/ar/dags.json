@@ -1,0 +1,96 @@
+{
+  "assetSchedule": "تم تحديث {{count}} من أصل {{total}}",
+  "dagActions": {
+    "delete": {
+      "button": "حذف الDag",
+      "warning": "سيؤدي هذا إلى إزالة جميع البيانات الوصفية المرتبطة بالDag، بما في ذلك التشغيلات والمهام."
+    }
+  },
+  "favoriteDag": "تفضيل الDag",
+  "filters": {
+    "allRunTypes": "جميع أنواع التشغيلات",
+    "allStates": "جميع الحالات",
+    "favorite": {
+      "all": "الكل",
+      "favorite": "تفضيل",
+      "unfavorite": "إلغاء التفضيل"
+    },
+    "paused": {
+      "active": "مفعّل",
+      "all": "الكل",
+      "paused": "متوقف"
+    },
+    "runIdPatternFilter": "بحث تشغيلات الDag"
+  },
+  "ownerLink": "رابط المالك لـ{{owner}}",
+  "runAndTaskActions": {
+    "affectedTasks": {
+      "noItemsFound": "لم يتم العثور على مهام.",
+      "title": "المهام المتأثرة: {{count}}"
+    },
+    "clear": {
+      "button": "مسح {{type}}",
+      "buttonTooltip": "اضغط shift+c للمسح",
+      "error": "حدث خطأ أثناء المسح {{type}}",
+      "title": "مسح {{type}}"
+    },
+    "delete": {
+      "button": "حذف {{type}}",
+      "dialog": {
+        "resourceName": "{{type}} {{id}}",
+        "title": "حذف {{type}}",
+        "warning": "سيؤدي هذا إلى إزالة جميع البيانات الوصفية المرتبطة بـ{{type}}."
+      },
+      "error": "حدث خطأ اثناء الحذف {{type}}",
+      "success": {
+        "description": "تم تنفيذ طلب الحذف {{type}} بنجاح.",
+        "title": "{{type}} حُذف بنجاح"
+      }
+    },
+    "markAs": {
+      "button": "تمييز {{type}} كـ...",
+      "buttonTooltip": {
+        "failed": "اضغط shift+f لتمييز كفاشل",
+        "success": "اضغط shift+s لتمييز كناجح"
+      },
+      "title": "تمييز {{type}} كـ{{state}}"
+    },
+    "options": {
+      "downstream": "المهام اللاحقة",
+      "existingTasks": "مسح المهام الحالية",
+      "future": "المستقبل",
+      "onlyFailed": "مسح المهام الفاشلة فقط",
+      "past": "الماضي",
+      "queueNew": "إضافة مهام جديدة للانتظار",
+      "runOnLatestVersion": "تشغيل بآخر إصدار الحزمة",
+      "upstream": "المهام السابقة"
+    }
+  },
+  "search": {
+    "advanced": "بحث متقدم",
+    "clear": " مسح",
+    "dags": "ابحث عن Dags",
+    "hotkey": "+K",
+    "tasks": "ابحث عن مهام"
+  },
+  "sort": {
+    "displayName": {
+      "asc": "الترتيب حسب اسم العرض (A-Z)",
+      "desc": "الترتيب حسب اسم العرض (Z-A)"
+    },
+    "lastRunStartDate": {
+      "asc": "الترتيب حسب تاريخ بداية آخر تشغيل (الأقدم-الأحدث)",
+      "desc": "الترتيب حسب تاريخ بداية آخر تشغيل (الأحدث-الأقدم)"
+    },
+    "lastRunState": {
+      "asc": "الترتيب حسب حالة آخر تشغيل (أ-ي)",
+      "desc": "الترتيب حسب حالة آخر تشغيل (ي-أ)"
+    },
+    "nextDagRun": {
+      "asc": "الترتيب حسب التشغيل التالي (الأقدم-الأحدث)",
+      "desc": "الترتيب حسب التشغيل التالي (الأحدث-الأقدم)"
+    },
+    "placeholder": "الترتيب حسب"
+  },
+  "unfavoriteDag": "إلغاء تفضيل الDag"
+}

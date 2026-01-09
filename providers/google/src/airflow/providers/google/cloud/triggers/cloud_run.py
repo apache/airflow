@@ -21,12 +21,12 @@ from collections.abc import AsyncIterator, Sequence
 from enum import Enum
 from typing import TYPE_CHECKING, Any
 
-from airflow.exceptions import AirflowException
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.google.cloud.hooks.cloud_run import CloudRunAsyncHook
 from airflow.triggers.base import BaseTrigger, TriggerEvent
 
 if TYPE_CHECKING:
-    from google.longrunning import operations_pb2  # type: ignore[attr-defined]
+    from google.longrunning import operations_pb2
 
 DEFAULT_BATCH_LOCATION = "us-central1"
 
@@ -134,7 +134,7 @@ class CloudRunJobFinishedTrigger(BaseTrigger):
 
         yield TriggerEvent(
             {
-                "status": RunJobStatus.TIMEOUT,
+                "status": RunJobStatus.TIMEOUT.value,
                 "job_name": self.job_name,
             }
         )

@@ -22,7 +22,7 @@ import semver
 
 def object_exists(path: str):
     """Return true if importable python object is there."""
-    from airflow.utils.module_loading import import_string
+    from airflow_shared.module_loading import import_string
 
     try:
         import_string(path)

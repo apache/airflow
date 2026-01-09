@@ -22,11 +22,14 @@ from unittest import mock
 
 import pytest
 
+from airflow.api_fastapi.auth.managers.models.resource_details import DagDetails
 from airflow.models import DagModel
+from airflow.models.dagbundle import DagBundleModel
 from airflow.models.errors import ParseImportError
 from airflow.utils.session import NEW_SESSION, provide_session
 
-from tests_common.test_utils.db import clear_db_dags, clear_db_import_errors
+from tests_common.test_utils.asserts import assert_queries_count
+from tests_common.test_utils.db import clear_db_dag_bundles, clear_db_dags, clear_db_import_errors
 from tests_common.test_utils.format_datetime import from_datetime_to_zulu_without_ms
 
 if TYPE_CHECKING:
@@ -45,39 +48,53 @@ TIMESTAMP2 = datetime(2024, 6, 15, 5, 0, tzinfo=timezone.utc)
 TIMESTAMP3 = datetime(2024, 6, 15, 3, 0, tzinfo=timezone.utc)
 IMPORT_ERROR_NON_EXISTED_ID = 9999
 IMPORT_ERROR_NON_EXISTED_KEY = "non_existed_key"
-BUNDLE_NAME = "dag_maker"
+BUNDLE_NAME = "testing"
 
 
-@pytest.fixture(scope="class")
+@pytest.fixture
 @provide_session
-def permitted_dag_model(session: Session = NEW_SESSION) -> DagModel:
-    dag_model = DagModel(fileloc=FILENAME1, relative_fileloc=FILENAME1, dag_id="dag_id1", is_paused=False)
+def permitted_dag_model(testing_dag_bundle, session: Session = NEW_SESSION) -> DagModel:
+    dag_model = DagModel(
+        fileloc=FILENAME1,
+        relative_fileloc=FILENAME1,
+        dag_id="dag_id1",
+        is_paused=False,
+        bundle_name=BUNDLE_NAME,
+    )
     session.add(dag_model)
     session.commit()
     return dag_model
 
 
-@pytest.fixture(scope="class")
+@pytest.fixture
 @provide_session
-def not_permitted_dag_model(session: Session = NEW_SESSION) -> DagModel:
-    dag_model = DagModel(fileloc=FILENAME1, relative_fileloc=FILENAME1, dag_id="dag_id4", is_paused=False)
+def not_permitted_dag_model(testing_dag_bundle, session: Session = NEW_SESSION) -> DagModel:
+    dag_model = DagModel(
+        fileloc=FILENAME1,
+        bundle_name=BUNDLE_NAME,
+        relative_fileloc=FILENAME1,
+        dag_id="dag_id4",
+        is_paused=False,
+    )
     session.add(dag_model)
     session.commit()
     return dag_model
 
 
-@pytest.fixture(scope="class", autouse=True)
+@pytest.fixture(autouse=True)
 def clear_db():
     clear_db_import_errors()
     clear_db_dags()
+    clear_db_dag_bundles()
 
     yield
 
     clear_db_import_errors()
     clear_db_dags()
+    clear_db_dag_bundles()
 
 
-@pytest.fixture(autouse=True, scope="class")
+@pytest.fixture(autouse=True)
 @provide_session
 def import_errors(session: Session = NEW_SESSION) -> list[ParseImportError]:
     _import_errors = [
@@ -127,7 +144,7 @@ def set_mock_auth_manager__batch_is_authorized_dag(
 
 class TestGetImportError:
     @pytest.mark.parametrize(
-        "prepared_import_error_idx, expected_status_code, expected_body",
+        ("prepared_import_error_idx", "expected_status_code", "expected_body"),
         [
             (
                 0,
@@ -225,7 +242,7 @@ class TestGetImportError:
 
 class TestGetImportErrors:
     @pytest.mark.parametrize(
-        "query_params, expected_status_code, expected_total_entries, expected_filenames",
+        ("query_params", "expected_status_code", "expected_total_entries", "expected_filenames"),
         [
             (
                 {},
@@ -307,7 +324,8 @@ class TestGetImportErrors:
         expected_total_entries,
         expected_filenames,
     ):
-        response = test_client.get("/importErrors", params=query_params)
+        with assert_queries_count(2):
+            response = test_client.get("/importErrors", params=query_params)
 
         assert response.status_code == expected_status_code
         if expected_status_code != 200:
@@ -328,10 +346,19 @@ class TestGetImportErrors:
         assert response.status_code == 403
 
     @pytest.mark.parametrize(
-        "batch_is_authorized_dag_return_value, expected_stack_trace",
+        ("team", "batch_is_authorized_dag_return_value", "expected_stack_trace"),
         [
-            pytest.param(True, STACKTRACE1, id="user_has_read_access_to_all_dags_in_current_file"),
             pytest.param(
+                "test_team",
+                True,
+                STACKTRACE1,
+                id="user_has_read_access_to_all_dags_in_current_file_with_team",
+            ),
+            pytest.param(
+                None, True, STACKTRACE1, id="user_has_read_access_to_all_dags_in_current_file_without_team"
+            ),
+            pytest.param(
+                None,
                 False,
                 "REDACTED - you do not have read permission on all DAGs in the file",
                 id="user_does_not_have_read_access_to_all_dags_in_current_file",
@@ -339,25 +366,30 @@ class TestGetImportErrors:
         ],
     )
     @pytest.mark.usefixtures("permitted_dag_model")
+    @mock.patch.object(DagModel, "get_dag_id_to_team_name_mapping")
     @mock.patch("airflow.api_fastapi.core_api.routes.public.import_error.get_auth_manager")
     def test_user_can_not_read_all_dags_in_file(
         self,
         mock_get_auth_manager,
+        mock_get_dag_id_to_team_name_mapping,
         test_client,
+        team,
         batch_is_authorized_dag_return_value,
         expected_stack_trace,
         permitted_dag_model,
         import_errors,
     ):
+        mock_get_dag_id_to_team_name_mapping.return_value = {permitted_dag_model.dag_id: team}
         set_mock_auth_manager__is_authorized_dag(mock_get_auth_manager)
         mock_get_authorized_dag_ids = set_mock_auth_manager__get_authorized_dag_ids(
             mock_get_auth_manager, {permitted_dag_model.dag_id}
         )
-        set_mock_auth_manager__batch_is_authorized_dag(
+        mock_batch_is_authorized_dag = set_mock_auth_manager__batch_is_authorized_dag(
             mock_get_auth_manager, batch_is_authorized_dag_return_value
         )
         # Act
-        response = test_client.get("/importErrors")
+        with assert_queries_count(3):
+            response = test_client.get("/importErrors")
         # Assert
         mock_get_authorized_dag_ids.assert_called_once_with(method="GET", user=mock.ANY)
         assert response.status_code == 200
@@ -374,3 +406,51 @@ class TestGetImportErrors:
                 }
             ],
         }
+        mock_batch_is_authorized_dag.assert_called_once_with(
+            [
+                {
+                    "method": "GET",
+                    "details": DagDetails(id=permitted_dag_model.dag_id, team_name=team),
+                }
+            ],
+            user=mock.ANY,
+        )
+
+    @pytest.mark.usefixtures("permitted_dag_model")
+    @mock.patch("airflow.api_fastapi.core_api.routes.public.import_error.get_auth_manager")
+    def test_bundle_name_join_condition_for_import_errors(
+        self, mock_get_auth_manager, test_client, permitted_dag_model, import_errors, session
+    ):
+        """Test that the bundle_name join condition works correctly."""
+        set_mock_auth_manager__is_authorized_dag(mock_get_auth_manager)
+        mock_get_authorized_dag_ids = set_mock_auth_manager__get_authorized_dag_ids(
+            mock_get_auth_manager, {permitted_dag_model.dag_id}
+        )
+        set_mock_auth_manager__batch_is_authorized_dag(mock_get_auth_manager, True)
+
+        response = test_client.get("/importErrors")
+
+        # Assert
+        mock_get_authorized_dag_ids.assert_called_once_with(method="GET", user=mock.ANY)
+        assert response.status_code == 200
+        response_json = response.json()
+
+        # Should return the import error with matching bundle_name and filename
+        assert response_json["total_entries"] == 1
+        assert response_json["import_errors"][0]["bundle_name"] == BUNDLE_NAME
+        assert response_json["import_errors"][0]["filename"] == FILENAME1
+
+        # Now test that removing the bundle_name from the DagModel causes the import error to not be returned
+        permitted_dag_model.bundle_name = "another_bundle_name"
+        session.add(DagBundleModel(name="another_bundle_name"))
+        session.flush()
+        session.merge(permitted_dag_model)
+        session.commit()
+
+        response2 = test_client.get("/importErrors")
+
+        # Assert - should return 0 entries because bundle_name no longer matches
+        assert response2.status_code == 200
+        response_json2 = response2.json()
+        assert response_json2["total_entries"] == 0
+        assert response_json2["import_errors"] == []

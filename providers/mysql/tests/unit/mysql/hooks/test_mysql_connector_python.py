@@ -20,13 +20,15 @@ from __future__ import annotations
 import json
 from unittest import mock
 
-from airflow.models import Connection
+from airflow.providers.common.compat.sdk import Connection
 from airflow.providers.mysql.hooks.mysql import MySqlHook
 
 
 class TestMySqlHookConnMySqlConnectorPython:
     def setup_method(self):
         self.connection = Connection(
+            conn_id="test_conn_id",
+            conn_type="mysql",
             login="login",
             password="password",
             host="host",

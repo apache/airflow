@@ -17,13 +17,12 @@
 from __future__ import annotations
 
 import contextlib
-from collections.abc import Generator
+from collections.abc import Callable, Generator
 from functools import wraps
 from inspect import signature
-from typing import TYPE_CHECKING, Callable, TypeVar, cast
+from typing import TYPE_CHECKING, ParamSpec, TypeVar, cast
 
 from airflow import settings
-from airflow.typing_compat import ParamSpec
 
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session as SASession
@@ -98,7 +97,7 @@ def provide_session(func: Callable[PS, RT]) -> Callable[PS, RT]:
         if "session" in kwargs or session_args_idx < len(args):
             return func(*args, **kwargs)
         with create_session() as session:
-            return func(*args, session=session, **kwargs)
+            return func(*args, session=session, **kwargs)  # type: ignore[arg-type]
 
     return wrapper
 

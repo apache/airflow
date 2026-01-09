@@ -19,12 +19,13 @@ from __future__ import annotations
 
 import base64
 import os
-from collections.abc import Iterable, Mapping
+from collections.abc import Callable, Iterable, Mapping
 from contextlib import closing, contextmanager
+from datetime import datetime, timedelta
 from functools import cached_property
 from io import StringIO
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Callable, TypeVar, overload
+from typing import TYPE_CHECKING, Any, TypeVar, overload
 from urllib.parse import urlparse
 
 import requests
@@ -36,13 +37,19 @@ from snowflake.connector import DictCursor, SnowflakeConnection, util_text
 from snowflake.sqlalchemy import URL
 from sqlalchemy import create_engine
 
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowOptionalProviderFeatureException
+from airflow.providers.common.compat.sdk import AirflowException, Connection, conf
 from airflow.providers.common.sql.hooks.handlers import return_single_query_results
 from airflow.providers.common.sql.hooks.sql import DbApiHook
 from airflow.providers.snowflake.utils.openlineage import fix_snowflake_sqlalchemy_uri
+from airflow.utils import timezone
 from airflow.utils.strings import to_boolean
 
+OAUTH_REQUEST_TIMEOUT = 30  # seconds, avoid hanging tasks on token request
+OAUTH_EXPIRY_BUFFER = 30
 T = TypeVar("T")
+
+
 if TYPE_CHECKING:
     from airflow.providers.openlineage.extractors import OperatorLineage
     from airflow.providers.openlineage.sqlparser import DatabaseInfo
@@ -94,6 +101,7 @@ class SnowflakeHook(DbApiHook):
     hook_name = "Snowflake"
     supports_autocommit = True
     _test_connection_sql = "select 1"
+    default_azure_oauth_scope = "api://snowflake_oauth_server/.default"
 
     @classmethod
     def get_connection_form_widgets(cls) -> dict[str, Any]:
@@ -139,6 +147,7 @@ class SnowflakeHook(DbApiHook):
                         "grant_type": "refresh_token client_credentials",
                         "token_endpoint": "token endpoint",
                         "refresh_token": "refresh token",
+                        "scope": "scope",
                     },
                     indent=1,
                 ),
@@ -170,6 +179,11 @@ class SnowflakeHook(DbApiHook):
         self.client_store_temporary_credential = kwargs.pop("client_store_temporary_credential", None)
         self.query_ids: list[str] = []
 
+        # Access token and expiration timestamp persisted
+        # to handle premature expiry.
+        self._oauth_token: str | None = None
+        self._oauth_token_expires_at: datetime | None = None
+
     def _get_field(self, extra_dict, field_name):
         backcompat_prefix = "extra__snowflake__"
         backcompat_key = f"{backcompat_prefix}{field_name}"
@@ -195,7 +209,7 @@ class SnowflakeHook(DbApiHook):
     @property
     def account_identifier(self) -> str:
         """Get snowflake account identifier."""
-        conn_config = self._get_conn_params
+        conn_config = self._get_conn_params()
         account_identifier = f"https://{conn_config['account']}"
 
         if conn_config["region"]:
@@ -211,49 +225,85 @@ class SnowflakeHook(DbApiHook):
     ) -> str:
         """Generate temporary OAuth access token using refresh token in connection details."""
         if conn_config is None:
-            conn_config = self._get_conn_params
+            conn_config = self._get_static_conn_params
 
-        url = token_endpoint or f"https://{conn_config['account']}.snowflakecomputing.com/oauth/token-request"
+        if token_endpoint is None:
+            token_endpoint = conn_config.get("token_endpoint")
 
-        data = {
-            "grant_type": grant_type,
-            "redirect_uri": conn_config.get("redirect_uri", "https://localhost.com"),
-        }
-
-        if grant_type == "refresh_token":
-            data |= {
-                "refresh_token": conn_config["refresh_token"],
-            }
-        elif grant_type == "client_credentials":
-            pass  # no setup necessary for client credentials grant.
-        else:
-            raise ValueError(f"Unknown grant_type: {grant_type}")
-
-        response = requests.post(
-            url,
-            data=data,
-            headers={
-                "Content-Type": "application/x-www-form-urlencoded",
-            },
-            auth=HTTPBasicAuth(conn_config["client_id"], conn_config["client_secret"]),  # type: ignore[arg-type]
+        return self._get_valid_oauth_token(
+            conn_config=conn_config, token_endpoint=token_endpoint, grant_type=grant_type
         )
 
+    def get_azure_oauth_token(self, azure_conn_id: str) -> str:
+        """
+        Generate OAuth access token using Azure connection id.
+
+        This uses AzureBaseHook on the connection id to retrieve the token. Scope for the OAuth token can be
+        set in the config option ``azure_oauth_scope`` under the section ``[snowflake]``.
+
+        :param azure_conn_id: The connection id for the Azure connection that will be used to fetch the token.
+        :raises AttributeError: If AzureBaseHook does not have a get_token method which happens when
+            package apache-airflow-providers-microsoft-azure<12.8.0.
+        :returns: The OAuth access token string.
+        """
+        if TYPE_CHECKING:
+            from airflow.providers.microsoft.azure.hooks.azure_base import AzureBaseHook
+
         try:
-            response.raise_for_status()
-        except requests.exceptions.HTTPError as e:  # pragma: no cover
-            msg = f"Response: {e.response.content.decode()} Status Code: {e.response.status_code}"
-            raise AirflowException(msg)
-        token = response.json()["access_token"]
+            azure_conn = Connection.get(azure_conn_id)
+        except AttributeError:
+            azure_conn = Connection.get_connection_from_secrets(azure_conn_id)  # type: ignore[attr-defined]
+        try:
+            azure_base_hook: AzureBaseHook = azure_conn.get_hook()
+        except TypeError as e:
+            if "required positional argument: 'sdk_client'" in str(e):
+                raise AirflowOptionalProviderFeatureException(
+                    "Getting azure token is not supported by current version of 'AzureBaseHook'. "
+                    "Please upgrade apache-airflow-providers-microsoft-azure>=12.8.0"
+                ) from e
+            raise
+        scope = conf.get("snowflake", "azure_oauth_scope", fallback=self.default_azure_oauth_scope)
+        token = azure_base_hook.get_token(scope).token
         return token
 
-    @cached_property
     def _get_conn_params(self) -> dict[str, str | None]:
         """
         Fetch connection params as a dict.
 
-        This is used in ``get_uri()`` and ``get_connection()``.
+        This is used in ``get_uri()`` and ``get_conn()``.
         """
-        conn = self.get_connection(self.snowflake_conn_id)  # type: ignore[attr-defined]
+        static_config = self._get_static_conn_params
+        conn_config = dict(static_config)
+
+        if conn_config.get("authenticator") == "oauth":
+            azure_conn_id = conn_config.get("azure_conn_id")
+            if azure_conn_id:
+                conn_config["token"] = self.get_azure_oauth_token(azure_conn_id)
+            else:
+                grant_type = conn_config.get("grant_type")
+                if not grant_type:
+                    raise ValueError("Grant_type not provided")
+                conn_config["token"] = self._get_valid_oauth_token(
+                    conn_config=conn_config,
+                    token_endpoint=conn_config.get("token_endpoint"),
+                    grant_type=grant_type,
+                )
+
+            conn_config.pop("login", None)
+            conn_config.pop("user", None)
+            conn_config.pop("password", None)
+        return conn_config
+
+    @cached_property
+    def _get_static_conn_params(self) -> dict[str, str | None]:
+        """
+        Return static Snowflake connection parameters.
+
+        These parameters are cached for the lifetime of the hook and exclude
+        time-sensitive values such as OAuth access tokens. This is used in
+        ``_get_valid_oauth_token()`` and ``get_conn_params()``.
+        """
+        conn = self.get_connection(self.get_conn_id())
         extra_dict = conn.extra_dejson
         account = self._get_field(extra_dict, "account") or ""
         warehouse = self._get_field(extra_dict, "warehouse") or ""
@@ -348,19 +398,20 @@ class SnowflakeHook(DbApiHook):
             conn_config["refresh_token"] = refresh_token
             conn_config["authenticator"] = "oauth"
 
-        if conn_config.get("authenticator") == "oauth":
-            token_endpoint = self._get_field(extra_dict, "token_endpoint") or ""
-            conn_config["client_id"] = conn.login
-            conn_config["client_secret"] = conn.password
-            conn_config["token"] = self.get_oauth_token(
-                conn_config=conn_config,
-                token_endpoint=token_endpoint,
-                grant_type=extra_dict.get("grant_type", "refresh_token"),
-            )
+        grant_type = self._get_field(extra_dict, "grant_type") or ""
+        if grant_type:
+            conn_config["grant_type"] = grant_type
+        elif refresh_token:
+            conn_config["grant_type"] = "refresh_token"
 
-            conn_config.pop("login", None)
-            conn_config.pop("user", None)
-            conn_config.pop("password", None)
+        if conn_config.get("authenticator") == "oauth":
+            conn_config["azure_conn_id"] = extra_dict.get("azure_conn_id")
+
+            if not extra_dict.get("azure_conn_id"):
+                conn_config["token_endpoint"] = self._get_field(extra_dict, "token_endpoint") or ""
+                conn_config["scope"] = self._get_field(extra_dict, "scope")
+                conn_config["client_id"] = conn.login
+                conn_config["client_secret"] = conn.password
 
         # configure custom target hostname and port, if specified
         snowflake_host = extra_dict.get("host")
@@ -378,9 +429,80 @@ class SnowflakeHook(DbApiHook):
 
         return conn_config
 
+    def _get_valid_oauth_token(
+        self,
+        *,
+        conn_config: dict[str, Any],
+        token_endpoint: str | None,
+        grant_type: str,
+    ) -> str:
+        """
+        Return a valid OAuth access token.
+
+        This also updates the internal OAuth token cache and token expiry timestamp.
+        """
+        # Check validity using current timestamp.
+        now = timezone.utcnow()
+
+        if (
+            self._oauth_token is not None
+            and self._oauth_token_expires_at is not None
+            and now < self._oauth_token_expires_at
+        ):
+            return self._oauth_token
+
+        url = token_endpoint or f"https://{conn_config['account']}.snowflakecomputing.com/oauth/token-request"
+
+        data = {
+            "grant_type": grant_type,
+            "redirect_uri": conn_config.get("redirect_uri", "https://localhost.com"),
+        }
+
+        scope = conn_config.get("scope")
+
+        if scope:
+            data["scope"] = scope
+
+        if grant_type == "refresh_token":
+            data |= {
+                "refresh_token": conn_config["refresh_token"],
+            }
+        elif grant_type == "client_credentials":
+            pass  # no setup necessary for client credentials grant.
+        else:
+            raise ValueError(f"Unknown grant_type: {grant_type}")
+
+        response = requests.post(
+            url,
+            data=data,
+            headers={
+                "Content-Type": "application/x-www-form-urlencoded",
+            },
+            auth=HTTPBasicAuth(conn_config["client_id"], conn_config["client_secret"]),  # type: ignore[arg-type]
+            timeout=OAUTH_REQUEST_TIMEOUT,
+        )
+
+        try:
+            response.raise_for_status()
+        except requests.exceptions.HTTPError as e:  # pragma: no cover
+            msg = f"Response: {e.response.content.decode()} Status Code: {e.response.status_code}"
+            raise AirflowException(msg)
+
+        token = response.json()["access_token"]
+        expires_in = int(response.json()["expires_in"])
+
+        # Capture issue timestamp after access token is retrieved.
+        issued_at = timezone.utcnow()
+
+        # Persist retrieved access token and expiration timestamp.
+        self._oauth_token = token
+        self._oauth_token_expires_at = issued_at + timedelta(seconds=max(expires_in - OAUTH_EXPIRY_BUFFER, 0))
+
+        return token
+
     def get_uri(self) -> str:
         """Override DbApiHook get_uri method for get_sqlalchemy_engine()."""
-        conn_params = self._get_conn_params
+        conn_params = self._get_conn_params()
         return self._conn_params_to_sqlalchemy_uri(conn_params)
 
     def _conn_params_to_sqlalchemy_uri(self, conn_params: dict) -> str:
@@ -404,7 +526,7 @@ class SnowflakeHook(DbApiHook):
 
     def get_conn(self) -> SnowflakeConnection:
         """Return a snowflake.connection object."""
-        conn_config = self._get_conn_params
+        conn_config = self._get_conn_params()
         conn = connector.connect(**conn_config)
         return conn
 
@@ -416,7 +538,7 @@ class SnowflakeHook(DbApiHook):
         :return: the created engine.
         """
         engine_kwargs = engine_kwargs or {}
-        conn_params = self._get_conn_params
+        conn_params = self._get_conn_params()
         if "insecure_mode" in conn_params:
             engine_kwargs.setdefault("connect_args", {})
             engine_kwargs["connect_args"]["insecure_mode"] = True
@@ -443,7 +565,7 @@ class SnowflakeHook(DbApiHook):
         from airflow import __version__ as airflow_version
         from airflow.providers.snowflake import __version__ as provider_version
 
-        conn_config = self._get_conn_params
+        conn_config = self._get_conn_params()
         session = Session.builder.configs(conn_config).create()
         # add query tag for observability
         session.update_query_tag(
@@ -461,7 +583,7 @@ class SnowflakeHook(DbApiHook):
     def get_autocommit(self, conn):
         return getattr(conn, "autocommit_mode", False)
 
-    @overload  # type: ignore[override]
+    @overload
     def run(
         self,
         sql: str | Iterable[str],
@@ -544,16 +666,16 @@ class SnowflakeHook(DbApiHook):
                 results = []
                 for sql_statement in sql_list:
                     self.log.info("Running statement: %s, parameters: %s", sql_statement, parameters)
-                    self._run_command(cur, sql_statement, parameters)  # type: ignore[attr-defined]
+                    self._run_command(cur, sql_statement, parameters)
 
                     if handler is not None:
-                        result = self._make_common_data_structure(handler(cur))  # type: ignore[attr-defined]
+                        result = self._make_common_data_structure(handler(cur))
                         if return_single_query_results(sql, return_last, split_statements):
                             _last_result = result
                             _last_description = cur.description
                         else:
                             results.append(result)
-                            self.descriptions.append(cur.description)  # type: ignore[has-type]
+                            self.descriptions.append(cur.description)
 
                     query_id = cur.sfqid
                     self.log.info("Rows affected: %s", cur.rowcount)
@@ -609,7 +731,7 @@ class SnowflakeHook(DbApiHook):
         return "snowflake"
 
     def get_openlineage_default_schema(self) -> str | None:
-        return self._get_conn_params["schema"]
+        return self._get_conn_params()["schema"]
 
     def _get_openlineage_authority(self, _) -> str | None:
         uri = fix_snowflake_sqlalchemy_uri(self.get_uri())
@@ -617,10 +739,9 @@ class SnowflakeHook(DbApiHook):
 
     def get_openlineage_database_specific_lineage(self, task_instance) -> OperatorLineage | None:
         """
-        Generate OpenLineage metadata for a Snowflake task instance based on executed query IDs.
+        Emit separate OpenLineage events for each Snowflake query, based on executed query IDs.
 
-        If a single query ID is present, attach an `ExternalQueryRunFacet` to the lineage metadata.
-        If multiple query IDs are present, emits separate OpenLineage events for each query.
+        If a single query ID is present, also add an `ExternalQueryRunFacet` to the returned lineage metadata.
 
         Note that `get_openlineage_database_specific_lineage` is usually called after task's execution,
         so if multiple query IDs are present, both START and COMPLETE event for each query will be emitted
@@ -641,12 +762,21 @@ class SnowflakeHook(DbApiHook):
         )
 
         if not self.query_ids:
-            self.log.debug("openlineage: no snowflake query ids found.")
+            self.log.info("OpenLineage could not find snowflake query ids.")
             return None
 
         self.log.debug("openlineage: getting connection to get database info")
         connection = self.get_connection(self.get_conn_id())
         namespace = SQLParser.create_namespace(self.get_openlineage_database_info(connection))
+
+        self.log.info("Separate OpenLineage events will be emitted for each query_id.")
+        emit_openlineage_events_for_snowflake_queries(
+            task_instance=task_instance,
+            hook=self,
+            query_ids=self.query_ids,
+            query_for_extra_metadata=True,
+            query_source_namespace=namespace,
+        )
 
         if len(self.query_ids) == 1:
             self.log.debug("Attaching ExternalQueryRunFacet with single query_id to OpenLineage event.")
@@ -657,21 +787,5 @@ class SnowflakeHook(DbApiHook):
                     )
                 }
             )
-
-        self.log.info("Multiple query_ids found. Separate OpenLineage event will be emitted for each query.")
-        try:
-            from airflow.providers.openlineage.utils.utils import should_use_external_connection
-
-            use_external_connection = should_use_external_connection(self)
-        except ImportError:
-            # OpenLineage provider release < 1.8.0 - we always use connection
-            use_external_connection = True
-
-        emit_openlineage_events_for_snowflake_queries(
-            query_ids=self.query_ids,
-            query_source_namespace=namespace,
-            task_instance=task_instance,
-            hook=self if use_external_connection else None,
-        )
 
         return None

@@ -45,6 +45,7 @@ class SampleConn:
 
 class TestBaseSecretsBackend:
     def setup_method(self) -> None:
+        clear_db_connections()
         clear_db_variables()
 
     def teardown_method(self) -> None:
@@ -52,7 +53,7 @@ class TestBaseSecretsBackend:
         clear_db_variables()
 
     @pytest.mark.parametrize(
-        "kwargs, output",
+        ("kwargs", "output"),
         [
             ({"path_prefix": "PREFIX", "secret_id": "ID"}, "PREFIX/ID"),
             ({"path_prefix": "PREFIX", "secret_id": "ID", "sep": "-"}, "PREFIX-ID"),

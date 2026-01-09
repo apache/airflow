@@ -16,12 +16,7 @@
 # under the License.
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
-
 from airflow.providers.google.cloud.links.base import BaseGoogleLink
-
-if TYPE_CHECKING:
-    from airflow.utils.context import Context
 
 BIGTABLE_BASE_LINK = "/bigtable"
 BIGTABLE_INSTANCE_LINK = BIGTABLE_BASE_LINK + "/instances/{instance_id}/overview?project={project_id}"
@@ -38,20 +33,6 @@ class BigtableInstanceLink(BaseGoogleLink):
     key = "instance_key"
     format_str = BIGTABLE_INSTANCE_LINK
 
-    @staticmethod
-    def persist(
-        context: Context,
-        task_instance,
-    ):
-        task_instance.xcom_push(
-            context=context,
-            key=BigtableInstanceLink.key,
-            value={
-                "instance_id": task_instance.instance_id,
-                "project_id": task_instance.project_id,
-            },
-        )
-
 
 class BigtableClusterLink(BaseGoogleLink):
     """Helper class for constructing Bigtable Cluster link."""
@@ -60,21 +41,6 @@ class BigtableClusterLink(BaseGoogleLink):
     key = "cluster_key"
     format_str = BIGTABLE_CLUSTER_LINK
 
-    @staticmethod
-    def persist(
-        context: Context,
-        task_instance,
-    ):
-        task_instance.xcom_push(
-            context=context,
-            key=BigtableClusterLink.key,
-            value={
-                "instance_id": task_instance.instance_id,
-                "cluster_id": task_instance.cluster_id,
-                "project_id": task_instance.project_id,
-            },
-        )
-
 
 class BigtableTablesLink(BaseGoogleLink):
     """Helper class for constructing Bigtable Tables link."""
@@ -82,17 +48,3 @@ class BigtableTablesLink(BaseGoogleLink):
     name = "Bigtable Tables"
     key = "tables_key"
     format_str = BIGTABLE_TABLES_LINK
-
-    @staticmethod
-    def persist(
-        context: Context,
-        task_instance,
-    ):
-        task_instance.xcom_push(
-            context=context,
-            key=BigtableTablesLink.key,
-            value={
-                "instance_id": task_instance.instance_id,
-                "project_id": task_instance.project_id,
-            },
-        )

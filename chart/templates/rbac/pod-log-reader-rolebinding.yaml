@@ -20,7 +20,7 @@
 ################################
 ## Airflow Pod Reader Role Binding
 #################################
-{{- if and .Values.rbac.create (or (and .Values.webserver.allowPodLogReading (semverCompare "<3.0.0" .Values.airflowVersion)) (and .Values.apiServer.allowPodLogReading (semverCompare ">=3.0.0" .Values.airflowVersion)) .Values.triggerer.enabled) }}
+{{- if and .Values.rbac.create (or (and .Values.webserver.allowPodLogReading (semverCompare "<3.0.0" .Values.airflowVersion)) (and .Values.apiServer.allowPodLogReading (semverCompare ">=3.0.0" .Values.airflowVersion))) }}
 apiVersion: rbac.authorization.k8s.io/v1
 {{- if .Values.multiNamespaceMode }}
 kind: ClusterRoleBinding
@@ -63,11 +63,6 @@ subjects:
   {{- if and .Values.apiServer.allowPodLogReading (semverCompare ">=3.0.0" .Values.airflowVersion) }}
   - kind: ServiceAccount
     name: {{ include "apiServer.serviceAccountName" . }}
-    namespace: "{{ .Release.Namespace }}"
-  {{- end }}
-  {{- if .Values.triggerer.enabled }}
-  - kind: ServiceAccount
-    name: {{ include "triggerer.serviceAccountName" . }}
     namespace: "{{ .Release.Namespace }}"
   {{- end }}
 {{- end }}

@@ -22,13 +22,12 @@ from __future__ import annotations
 from collections.abc import Iterable, Sequence
 from typing import TYPE_CHECKING
 
-from airflow.exceptions import AirflowException, AirflowNotFoundException
+from airflow.providers.common.compat.sdk import AirflowException, AirflowNotFoundException, BaseSensorOperator
 from airflow.providers.google.cloud.hooks.datafusion import DataFusionHook
 from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID
-from airflow.sensors.base import BaseSensorOperator
 
 if TYPE_CHECKING:
-    from airflow.utils.context import Context
+    from airflow.providers.common.compat.sdk import Context
 
 
 class CloudDataFusionPipelineStateSensor(BaseSensorOperator):
@@ -110,7 +109,7 @@ class CloudDataFusionPipelineStateSensor(BaseSensorOperator):
                 pipeline_id=self.pipeline_id,
                 namespace=self.namespace,
             )
-            pipeline_status = pipeline_workflow["status"]
+            pipeline_status = pipeline_workflow.get("status")
         except AirflowNotFoundException:
             message = "Specified Pipeline ID was not found."
             raise AirflowException(message)
@@ -127,4 +126,4 @@ class CloudDataFusionPipelineStateSensor(BaseSensorOperator):
         self.log.debug(
             "Current status of the pipeline workflow for %s: %s.", self.pipeline_id, pipeline_status
         )
-        return pipeline_status in self.expected_statuses
+        return pipeline_status is not None and pipeline_status in self.expected_statuses

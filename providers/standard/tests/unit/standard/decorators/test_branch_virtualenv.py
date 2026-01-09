@@ -21,13 +21,17 @@ from unittest import mock
 
 import pytest
 
-from airflow.decorators import task
 from airflow.utils.state import State
 
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_1, AIRFLOW_V_3_0_PLUS
 
+if AIRFLOW_V_3_0_PLUS:
+    from airflow.sdk import task
+else:
+    from airflow.decorators import task  # type: ignore[attr-defined,no-redef]
+
 if AIRFLOW_V_3_0_1:
-    from airflow.exceptions import DownstreamTasksSkipped
+    from airflow.providers.common.compat.sdk import DownstreamTasksSkipped
 
 pytestmark = pytest.mark.db_test
 
@@ -42,7 +46,7 @@ class TestBranchPythonVirtualenvDecoratedOperator:
     # possibilities. So we are increasing the timeout for this test to 3x of the default timeout
     @pytest.mark.execution_timeout(180)
     @pytest.mark.parametrize(
-        ["branch_task_name", "skipped_task_name"], [("task_1", "task_2"), ("task_2", "task_1")]
+        ("branch_task_name", "skipped_task_name"), [("task_1", "task_2"), ("task_2", "task_1")]
     )
     def test_branch_one(self, dag_maker, branch_task_name, tmp_path, skipped_task_name):
         requirements_file = tmp_path / "requirements.txt"
@@ -95,19 +99,15 @@ class TestBranchPythonVirtualenvDecoratedOperator:
             branchoperator.set_downstream(task_2)
 
         dr = dag_maker.create_dagrun()
-        df.operator.run(start_date=dr.logical_date, end_date=dr.logical_date, ignore_ti_state=True)
+        dag_maker.run_ti("dummy_f", dr)
         if AIRFLOW_V_3_0_1:
             with pytest.raises(DownstreamTasksSkipped) as exc_info:
-                branchoperator.operator.run(
-                    start_date=dr.logical_date, end_date=dr.logical_date, ignore_ti_state=True
-                )
+                dag_maker.run_ti("branching", dr)
             assert exc_info.value.tasks == [(skipped_task_name, -1)]
         else:
-            branchoperator.operator.run(
-                start_date=dr.logical_date, end_date=dr.logical_date, ignore_ti_state=True
-            )
-            task_1.operator.run(start_date=dr.logical_date, end_date=dr.logical_date, ignore_ti_state=True)
-            task_2.operator.run(start_date=dr.logical_date, end_date=dr.logical_date, ignore_ti_state=True)
+            dag_maker.run_ti("branching", dr)
+            dag_maker.run_ti("task_1", dr)
+            dag_maker.run_ti("task_2", dr)
             tis = dr.get_task_instances()
 
             for ti in tis:

@@ -120,7 +120,7 @@ the BigQuery documentation.
 
 Airflow also has numerous operators that allow you to create the use of BigQuery.
 For example, if you want to create an external table that allows you to create queries that
-read data directly from GCS, then you can use :class:`~airflow.providers.google.cloud.operators.bigquery.BigQueryCreateExternalTableOperator`.
+read data directly from GCS, then you can use :class:`~airflow.providers.google.cloud.operators.bigquery.BigQueryCreateTableOperator`.
 Using this operator looks like this:
 
 .. exampleinclude:: /../../google/tests/system/google/cloud/gcs/example_trino_to_gcs.py

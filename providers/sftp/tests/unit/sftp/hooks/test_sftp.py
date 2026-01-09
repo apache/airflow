@@ -31,12 +31,9 @@ from asyncssh.sftp import SFTPName
 from paramiko.client import SSHClient
 from paramiko.sftp_client import SFTPClient
 
-from airflow.exceptions import AirflowException
 from airflow.models import Connection
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.sftp.hooks.sftp import SFTPHook, SFTPHookAsync
-from airflow.utils.session import provide_session
-
-pytestmark = pytest.mark.db_test
 
 
 def generate_host_key(pkey: paramiko.PKey):
@@ -62,13 +59,31 @@ TEST_KEY_FILE = "~/.ssh/id_rsa"
 
 
 class TestSFTPHook:
-    @provide_session
-    def update_connection(self, login, session=None):
-        connection = session.query(Connection).filter(Connection.conn_id == "sftp_default").first()
-        old_login = connection.login
-        connection.login = login
-        connection.extra = ""  # clear out extra so it doesn't look for a key file
-        session.commit()
+    def update_connection(self, login):
+        import os
+
+        # Get the current connection from environment variable to find the old login
+        old_connection = os.environ.get("AIRFLOW_CONN_SFTP_DEFAULT")
+        old_login = "airflow"  # default fallback
+
+        if old_connection:
+            try:
+                old_conn = Connection.from_json(old_connection)
+                old_login = old_conn.login
+            except Exception:
+                pass
+
+        # Set the connection as an environment variable
+        new_connection = Connection(
+            conn_id="sftp_default",
+            conn_type="sftp",
+            host="localhost",
+            login=login,
+            password="airflow",
+            extra="",  # clear out extra so it doesn't look for a key file
+        )
+        os.environ[f"AIRFLOW_CONN_{new_connection.conn_id.upper()}"] = new_connection.as_json()
+
         return old_login
 
     def _create_additional_test_file(self, file_name):
@@ -122,6 +137,48 @@ class TestSFTPHook:
             assert self.hook.get_conn_count() == 1
         assert self.hook.get_conn_count() == 0
         assert self.hook.conn is None
+
+    @patch("paramiko.SSHClient")
+    @patch("paramiko.ProxyCommand")
+    @patch("airflow.providers.sftp.hooks.sftp.SFTPHook.get_connection")
+    def test_proxy_command_cache_invalidated_after_connection_closed(
+        self, mock_get_connection, mock_proxy_command, mock_ssh_client
+    ):
+        """
+        Assert that the ProxyCommand gets invalidated after the connection is closed
+        """
+
+        mock_connection = MagicMock()
+        mock_connection.login = "user"
+        mock_connection.password = None
+        mock_connection.host = "example.com"
+        mock_connection.port = 22
+        mock_connection.extra = None
+        mock_get_connection.return_value = mock_connection
+
+        mock_sftp_client = MagicMock(spec=SFTPClient)
+        mock_ssh_client.open_sftp.return_value = mock_sftp_client
+
+        mock_transport = MagicMock()
+        mock_ssh_client.return_value.get_transport.return_value = mock_transport
+        mock_proxy_command.return_value = MagicMock()
+
+        host_proxy_cmd = "ncat --proxy-auth proxy_user:**** --proxy proxy_host:port %h %p"
+        prev_proxy_command = None
+
+        hook = SFTPHook(
+            remote_host="example.com",
+            username="user",
+            host_proxy_cmd=host_proxy_cmd,
+        )
+
+        with hook.get_managed_conn() as _:
+            assert hasattr(self.hook, "host_proxy")
+            prev_proxy_command = hook.host_proxy
+
+        mock_proxy_command.return_value = MagicMock()
+
+        assert prev_proxy_command != hook.host_proxy
 
     @patch("airflow.providers.ssh.hooks.ssh.SSHHook.get_conn")
     def test_get_close_conn(self, mock_get_conn):
@@ -385,7 +442,7 @@ class TestSFTPHook:
         assert hook.key_file == TEST_KEY_FILE
 
     @pytest.mark.parametrize(
-        "path, exists",
+        ("path", "exists"),
         [
             (TMP_DIR_FOR_TESTS, True),
             (TMP_FILE_FOR_TESTS, True),
@@ -399,7 +456,7 @@ class TestSFTPHook:
         assert result == exists
 
     @pytest.mark.parametrize(
-        "path, prefix, delimiter, match",
+        ("path", "prefix", "delimiter", "match"),
         [
             ("test/path/file.bin", None, None, True),
             ("test/path/file.bin", "test", None, True),
@@ -549,7 +606,17 @@ class TestSFTPHook:
 
     @patch("paramiko.SSHClient")
     @patch("paramiko.ProxyCommand")
-    def test_sftp_hook_with_proxy_command(self, mock_proxy_command, mock_ssh_client):
+    @patch("airflow.providers.sftp.hooks.sftp.SFTPHook.get_connection")
+    def test_sftp_hook_with_proxy_command(self, mock_get_connection, mock_proxy_command, mock_ssh_client):
+        # Mock the connection to not have a password
+        mock_connection = MagicMock()
+        mock_connection.login = "user"
+        mock_connection.password = None
+        mock_connection.host = "example.com"
+        mock_connection.port = 22
+        mock_connection.extra = None
+        mock_get_connection.return_value = mock_connection
+
         mock_sftp_client = MagicMock(spec=SFTPClient)
         mock_ssh_client.open_sftp.return_value = mock_sftp_client
 
@@ -637,7 +704,7 @@ class MockAirflowConnectionWithHostKey:
         self.login = "username"
         self.password = "password"
         self.extra = f'{{ "no_host_key_check": {no_host_key_check}, "host_key": {host_key} }}'
-        self.extra_dejson = {  # type: ignore
+        self.extra_dejson = {
             "no_host_key_check": no_host_key_check,
             "host_key": host_key,
             "key_file": "~/keys/my_key",
@@ -695,7 +762,7 @@ class TestSFTPHookAsync:
         mock_connect.assert_called_with(**expected_connection_details)
 
     @pytest.mark.parametrize(
-        "mock_port, mock_host_key",
+        ("mock_port", "mock_host_key"),
         [
             (22, "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIFe8P8lk5HFfL/rMlcCMHQhw1cg+uZtlK5rXQk2C4pOY"),
             (2222, "AAAAC3NzaC1lZDI1NTE5AAAAIFe8P8lk5HFfL/rMlcCMHQhw1cg+uZtlK5rXQk2C4pOY"),
@@ -747,10 +814,8 @@ class TestSFTPHookAsync:
         )
 
         hook = SFTPHookAsync()
-        with pytest.raises(ValueError) as exc:
+        with pytest.raises(ValueError, match="Host key check was skipped, but `host_key` value was given"):
             await hook._get_conn()
-
-        assert str(exc.value) == "Host key check was skipped, but `host_key` value was given"
 
     @patch("paramiko.SSHClient.connect")
     @patch("asyncssh.import_private_key")
@@ -787,7 +852,7 @@ class TestSFTPHookAsync:
             "username": "username",
             "password": "password",
             "client_keys": "~/keys/my_key",
-            "known_hosts": "~/.ssh/known_hosts",
+            "known_hosts": None,
             "passphrase": "mypassphrase",
         }
 
@@ -815,10 +880,72 @@ class TestSFTPHookAsync:
             "username": "username",
             "password": "password",
             "client_keys": ["test"],
+            "known_hosts": None,
             "passphrase": "mypassphrase",
         }
 
         mock_connect.assert_called_with(**expected_connection_details)
+
+    @pytest.mark.asyncio
+    @patch("asyncssh.connect", new_callable=AsyncMock)
+    @patch("airflow.providers.sftp.hooks.sftp.SFTPHookAsync.get_connection")
+    async def test_connection_port_default_to_22(self, mock_get_connection, mock_connect):
+        from unittest.mock import Mock, call
+
+        mock_get_connection.return_value = Mock(
+            host="localhost",
+            port=None,
+            login="username",
+            password="password",
+            extra="{}",
+            extra_dejson={},
+        )
+
+        hook = SFTPHookAsync()
+        await hook._get_conn()
+        assert mock_connect.mock_calls == [
+            call(
+                host="localhost",
+                # Even if the port is not specified in conn_config, it should still default to 22.
+                # This behavior is consistent with STPHook.
+                port=22,
+                username="username",
+                password="password",
+                known_hosts=None,
+            ),
+        ]
+
+    @pytest.mark.asyncio
+    @patch("asyncssh.connect", new_callable=AsyncMock)
+    @patch("airflow.providers.sftp.hooks.sftp.SFTPHookAsync.get_connection")
+    async def test_init_argument_not_ignored(self, mock_get_connection, mock_connect):
+        from unittest.mock import Mock, call
+
+        mock_get_connection.return_value = Mock(
+            host="localhost",
+            port=None,
+            login="username",
+            password="password",
+            extra="{}",
+            extra_dejson={},
+        )
+
+        hook = SFTPHookAsync(
+            host="localhost-from-init",
+            port=25,
+            username="username-from-init",
+            password="password-from-init",
+        )
+        await hook._get_conn()
+        assert mock_connect.mock_calls == [
+            call(
+                host="localhost-from-init",
+                port=25,
+                username="username-from-init",
+                password="password-from-init",
+                known_hosts=None,
+            ),
+        ]
 
     @patch("airflow.providers.sftp.hooks.sftp.SFTPHookAsync._get_conn")
     @pytest.mark.asyncio

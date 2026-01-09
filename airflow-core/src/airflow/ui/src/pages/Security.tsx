@@ -18,11 +18,18 @@
  */
 import { Box } from "@chakra-ui/react";
 import { useParams } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 
 import { useAuthLinksServiceGetAuthMenus } from "openapi/queries";
 import { ProgressBar } from "src/components/ui";
 
 import { ErrorPage } from "./Error";
+
+// The following iframe sandbox setting is intentionally less restrictive.
+// This is considered safe because the framed content originates from the Auth manager,
+// which is part of the deployment of Airflow and trusted as per our security policy.
+// https://airflow.apache.org/docs/apache-airflow/stable/security/security_model.html
+const SANDBOX = "allow-scripts allow-same-origin allow-forms";
 
 export const Security = () => {
   const { page } = useParams();
@@ -30,6 +37,16 @@ export const Security = () => {
   const { data: authLinks, isLoading } = useAuthLinksServiceGetAuthMenus();
 
   const link = authLinks?.extra_menu_items.find((mi) => mi.text.toLowerCase().replace(" ", "-") === page);
+
+  const navigate = useNavigate();
+
+  const onLoad = () => {
+    const iframe: HTMLIFrameElement | null = document.querySelector("#security-iframe");
+
+    if (iframe?.contentWindow && !iframe.contentWindow.location.pathname.startsWith("/auth/")) {
+      navigate("/");
+    }
+  };
 
   if (!link) {
     if (isLoading) {
@@ -45,12 +62,17 @@ export const Security = () => {
 
   return (
     <Box flexGrow={1} m={-3}>
-      <iframe
-        sandbox="allow-same-origin allow-forms"
-        src={link.href}
-        style={{ height: "100%", width: "100%" }}
-        title={link.text}
-      />
+      {
+        // eslint-disable-next-line jsx-a11y/no-noninteractive-element-interactions
+        <iframe
+          id="security-iframe"
+          onLoad={onLoad}
+          sandbox={SANDBOX}
+          src={link.href}
+          style={{ height: "100%", width: "100%" }}
+          title={link.text}
+        />
+      }
     </Box>
   );
 };

@@ -28,7 +28,8 @@ import os
 import re
 import shutil
 import time
-from collections.abc import AsyncIterator
+import warnings
+from collections.abc import AsyncIterator, Callable, Iterator
 from contextlib import suppress
 from copy import deepcopy
 from datetime import datetime
@@ -37,31 +38,30 @@ from inspect import signature
 from io import BytesIO
 from pathlib import Path
 from tempfile import NamedTemporaryFile, gettempdir
-from typing import TYPE_CHECKING, Any, Callable
+from typing import TYPE_CHECKING, Any
 from urllib.parse import urlsplit
 from uuid import uuid4
 
 if TYPE_CHECKING:
+    from aiobotocore.client import AioBaseClient
     from mypy_boto3_s3.service_resource import (
         Bucket as S3Bucket,
         Object as S3ResourceObject,
     )
 
-    from airflow.utils.types import ArgNotSet
-
-    with suppress(ImportError):
-        from aiobotocore.client import AioBaseClient
+    from airflow.providers.amazon.version_compat import ArgNotSet
 
 
 from asgiref.sync import sync_to_async
 from boto3.s3.transfer import S3Transfer, TransferConfig
 from botocore.exceptions import ClientError
 
-from airflow.exceptions import AirflowException, AirflowNotFoundException
+from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.amazon.aws.exceptions import S3HookUriParseFailure
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 from airflow.providers.amazon.aws.utils.tags import format_tags
 from airflow.providers.common.compat.lineage.hook import get_hook_lineage_collector
+from airflow.providers.common.compat.sdk import AirflowException, AirflowNotFoundException
 from airflow.utils.helpers import chunks
 
 logger = logging.getLogger(__name__)
@@ -635,6 +635,10 @@ class S3Hook(AwsBaseHook):
         delimiter: str | None = "/",
     ) -> list[Any]:
         """Get a list of files in the bucket."""
+        # Validate that bucket_keys is in fact a list, otherwise, the characters will be split
+        if isinstance(bucket_keys, str):
+            bucket_keys = [bucket_keys]
+
         keys: list[Any] = []
         for key in bucket_keys:
             prefix = key
@@ -652,7 +656,9 @@ class S3Hook(AwsBaseHook):
             response = paginator.paginate(**params)
             async for page in response:
                 if "Contents" in page:
-                    keys.extend(k for k in page["Contents"] if isinstance(k.get("Size"), (int, float)))
+                    keys.extend(
+                        k.get("Key") for k in page["Contents"] if isinstance(k.get("Size"), (int, float))
+                    )
         return keys
 
     async def _list_keys_async(
@@ -925,7 +931,38 @@ class S3Hook(AwsBaseHook):
         max_items: int | None = None,
     ) -> list:
         """
-        List metadata objects in a bucket under prefix.
+        .. deprecated:: <9.13.0> Use `iter_file_metadata` instead.
+
+        This method `get_file_metadata` is deprecated. Calling this method will result in all matching keys
+        being loaded into a single list, and can often result in out-of-memory exceptions.
+        """
+        warnings.warn(
+            "This method `get_file_metadata` is deprecated. Calling this method will result in all matching "
+            "keys being loaded into a single list, and can often result in out-of-memory exceptions. "
+            "Instead, use `iter_file_metadata`.",
+            AirflowProviderDeprecationWarning,
+            stacklevel=2,
+        )
+
+        return list(
+            self.iter_file_metadata(
+                prefix=prefix,
+                bucket_name=bucket_name,
+                page_size=page_size,
+                max_items=max_items,
+            )
+        )
+
+    @provide_bucket_name
+    def iter_file_metadata(
+        self,
+        prefix: str,
+        bucket_name: str | None = None,
+        page_size: int | None = None,
+        max_items: int | None = None,
+    ) -> Iterator:
+        """
+        Yield metadata objects from a bucket under a prefix.
 
         .. seealso::
             - :external+boto3:py:class:`S3.Paginator.ListObjectsV2`
@@ -934,7 +971,7 @@ class S3Hook(AwsBaseHook):
         :param bucket_name: the name of the bucket
         :param page_size: pagination size
         :param max_items: maximum items to return
-        :return: a list of metadata of objects
+        :return: an Iterator of metadata of objects
         """
         config = {
             "PageSize": page_size,
@@ -951,11 +988,9 @@ class S3Hook(AwsBaseHook):
             params["RequestPayer"] = "requester"
         response = paginator.paginate(**params)
 
-        files = []
         for page in response:
             if "Contents" in page:
-                files += page["Contents"]
-        return files
+                yield from page["Contents"]
 
     @unify_bucket_name_and_key
     @provide_bucket_name
@@ -1559,15 +1594,14 @@ class S3Hook(AwsBaseHook):
         else:
             file = NamedTemporaryFile(dir=local_path, prefix="airflow_tmp_", delete=False)  # type: ignore
 
-        with file:
-            extra_args = {**self.extra_args}
-            if self._requester_pays:
-                extra_args["RequestPayer"] = "requester"
-            s3_obj.download_fileobj(
-                file,
-                ExtraArgs=extra_args,
-                Config=self.transfer_config,
-            )
+        extra_args = {**self.extra_args}
+        if self._requester_pays:
+            extra_args["RequestPayer"] = "requester"
+        s3_obj.download_fileobj(
+            file,
+            ExtraArgs=extra_args,
+            Config=self.transfer_config,
+        )
         get_hook_lineage_collector().add_input_asset(
             context=self, scheme="s3", asset_kwargs={"bucket": bucket_name, "key": key}
         )
@@ -1683,3 +1717,82 @@ class S3Hook(AwsBaseHook):
         """
         s3_client = self.get_conn()
         s3_client.delete_bucket_tagging(Bucket=bucket_name)
+
+    def _sync_to_local_dir_delete_stale_local_files(self, current_s3_objects: list[Path], local_dir: Path):
+        current_s3_keys = {key for key in current_s3_objects}
+
+        for item in local_dir.iterdir():
+            item: Path  # type: ignore[no-redef]
+            absolute_item_path = item.resolve()
+
+            if absolute_item_path not in current_s3_keys:
+                try:
+                    if item.is_file():
+                        item.unlink(missing_ok=True)
+                        self.log.debug("Deleted stale local file: %s", item)
+                    elif item.is_dir():
+                        # delete only when the folder is empty
+                        if not os.listdir(item):
+                            item.rmdir()
+                            self.log.debug("Deleted stale empty directory: %s", item)
+                    else:
+                        self.log.debug("Skipping stale item of unknown type: %s", item)
+                except OSError as e:
+                    self.log.error("Error deleting stale item %s: %s", item, e)
+                    raise e
+
+    def _sync_to_local_dir_if_changed(self, s3_bucket, s3_object, local_target_path: Path):
+        should_download = False
+        download_msg = ""
+        if not local_target_path.exists():
+            should_download = True
+            download_msg = f"Local file {local_target_path} does not exist."
+        else:
+            local_stats = local_target_path.stat()
+
+            if s3_object.size != local_stats.st_size:
+                should_download = True
+                download_msg = (
+                    f"S3 object size ({s3_object.size}) and local file size ({local_stats.st_size}) differ."
+                )
+
+            s3_last_modified = s3_object.last_modified
+            if local_stats.st_mtime < s3_last_modified.timestamp():
+                should_download = True
+                download_msg = f"S3 object last modified ({s3_last_modified.microsecond}) and local file last modified ({local_stats.st_mtime}) differ."
+
+        if should_download:
+            s3_bucket.download_file(s3_object.key, local_target_path)
+            self.log.debug(
+                "%s Downloaded %s to %s", download_msg, s3_object.key, local_target_path.as_posix()
+            )
+        else:
+            self.log.debug(
+                "Local file %s is up-to-date with S3 object %s. Skipping download.",
+                local_target_path.as_posix(),
+                s3_object.key,
+            )
+
+    def sync_to_local_dir(self, bucket_name: str, local_dir: Path, s3_prefix="", delete_stale: bool = True):
+        """Download S3 files from the S3 bucket to the local directory."""
+        self.log.debug("Downloading data from s3://%s/%s to %s", bucket_name, s3_prefix, local_dir)
+
+        local_s3_objects = []
+        s3_bucket = self.get_bucket(bucket_name)
+        for obj in s3_bucket.objects.filter(Prefix=s3_prefix):
+            if obj.key.endswith("/"):
+                continue
+            obj_path = Path(obj.key)
+            local_target_path = local_dir.joinpath(obj_path.relative_to(s3_prefix))
+            if not local_target_path.parent.exists():
+                local_target_path.parent.mkdir(parents=True, exist_ok=True)
+                self.log.debug("Created local directory: %s", local_target_path.parent)
+            self._sync_to_local_dir_if_changed(
+                s3_bucket=s3_bucket, s3_object=obj, local_target_path=local_target_path
+            )
+            local_s3_objects.append(local_target_path)
+
+        if delete_stale:
+            self._sync_to_local_dir_delete_stale_local_files(
+                current_s3_objects=local_s3_objects, local_dir=local_dir
+            )

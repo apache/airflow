@@ -18,28 +18,35 @@
  */
 import { ReactFlowProvider } from "@xyflow/react";
 import { useTranslation } from "react-i18next";
+import { FiUser } from "react-icons/fi";
 import { LuChartColumn } from "react-icons/lu";
 import { MdOutlineEventNote, MdOutlineTask } from "react-icons/md";
 import { useParams } from "react-router-dom";
 
-import { useDagServiceGetDagDetails, useGridServiceGridData, useTaskServiceGetTask } from "openapi/queries";
+import { useTaskServiceGetTask } from "openapi/queries";
+import { usePluginTabs } from "src/hooks/usePluginTabs";
+import { useRequiredActionTabs } from "src/hooks/useRequiredActionTabs";
 import { DetailsLayout } from "src/layouts/Details/DetailsLayout";
+import { useGridStructure } from "src/queries/useGridStructure.ts";
 import { getGroupTask } from "src/utils/groupTask";
 
 import { GroupTaskHeader } from "./GroupTaskHeader";
 import { Header } from "./Header";
 
 export const Task = () => {
-  const { t: translate } = useTranslation("dag");
-  const { dagId = "", groupId, taskId } = useParams();
+  const { t: translate } = useTranslation(["dag", "hitl"]);
+  const { dagId = "", groupId, runId, taskId } = useParams();
+
+  // Get external views with task destination
+  const externalTabs = usePluginTabs("task");
 
   const tabs = [
     { icon: <LuChartColumn />, label: translate("tabs.overview"), value: "" },
     { icon: <MdOutlineTask />, label: translate("tabs.taskInstances"), value: "task_instances" },
+    { icon: <FiUser />, label: translate("tabs.requiredActions"), value: "required_actions" },
     { icon: <MdOutlineEventNote />, label: translate("tabs.auditLog"), value: "events" },
+    ...externalTabs,
   ];
-
-  const displayTabs = groupId === undefined ? tabs : tabs.filter((tab) => tab.value !== "events");
 
   const {
     data: task,
@@ -49,37 +56,30 @@ export const Task = () => {
     enabled: groupId === undefined,
   });
 
-  const { data: gridData } = useGridServiceGridData(
+  const { data: dagStructure } = useGridStructure({ limit: 1 });
+
+  const groupTask = getGroupTask(dagStructure, groupId);
+
+  // Handle required action tabs with shared utility
+  const { tabs: processedTabs } = useRequiredActionTabs(
     {
       dagId,
-      includeDownstream: true,
-      includeUpstream: true,
+      dagRunId: runId,
+      taskId: Boolean(groupId) ? undefined : taskId,
+      taskIdPattern: groupId,
     },
-    undefined,
-    { enabled: groupId !== undefined },
+    tabs,
   );
 
-  const groupTask =
-    groupId === undefined ? undefined : getGroupTask(gridData?.structure.nodes ?? [], groupId);
-
-  const {
-    data: dag,
-    error: dagError,
-    isLoading: isDagLoading,
-  } = useDagServiceGetDagDetails({
-    dagId,
-  });
+  // Filter out events tab for group tasks
+  const displayTabs =
+    groupId === undefined ? processedTabs : processedTabs.filter((tab) => tab.value !== "events");
 
   return (
     <ReactFlowProvider>
-      <DetailsLayout
-        dag={dag}
-        error={error ?? dagError}
-        isLoading={isLoading || isDagLoading}
-        tabs={displayTabs}
-      >
+      <DetailsLayout error={error} isLoading={isLoading} tabs={displayTabs}>
         {task === undefined ? undefined : <Header task={task} />}
-        {groupTask ? <GroupTaskHeader groupTask={groupTask} /> : undefined}
+        {groupTask ? <GroupTaskHeader title={groupTask.label} /> : undefined}
       </DetailsLayout>
     </ReactFlowProvider>
   );

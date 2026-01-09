@@ -33,7 +33,13 @@ import os
 from datetime import datetime
 from typing import Any
 
-from airflow.decorators import task
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
+
+if AIRFLOW_V_3_0_PLUS:
+    from airflow.sdk import task
+else:
+    # Airflow 2 path
+    from airflow.decorators import task  # type: ignore[attr-defined,no-redef]
 from airflow.models.dag import DAG
 from airflow.providers.common.sql.operators.sql import SQLExecuteQueryOperator
 from airflow.providers.google.cloud.hooks.compute import ComputeEngineHook
@@ -46,13 +52,20 @@ from airflow.providers.google.suite.operators.sheets import GoogleSheetsCreateSp
 from airflow.providers.google.suite.transfers.sql_to_sheets import SQLToGoogleSheetsOperator
 from airflow.providers.ssh.operators.ssh import SSHOperator
 from airflow.providers.standard.operators.bash import BashOperator
-from airflow.utils.trigger_rule import TriggerRule
 
-from tests_common.test_utils.api_client_helpers import create_airflow_connection, delete_airflow_connection
+try:
+    from airflow.sdk import TriggerRule
+except ImportError:
+    # Compatibility for Airflow < 3.1
+    from airflow.utils.trigger_rule import TriggerRule  # type: ignore[no-redef,attr-defined]
+
+from system.google.gcp_api_client_helpers import create_airflow_connection, delete_airflow_connection
 
 DAG_ID = "sql_to_sheets"
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID", "default")
 PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT", "example-project")
+
+IS_COMPOSER = bool(os.environ.get("COMPOSER_ENVIRONMENT", ""))
 
 REGION = "europe-west2"
 ZONE = REGION + "-a"
@@ -141,9 +154,7 @@ SPREADSHEET = {
     "sheets": [{"properties": {"title": "Sheet1"}}],
 }
 
-
 log = logging.getLogger(__name__)
-
 
 with DAG(
     dag_id=DAG_ID,
@@ -201,6 +212,7 @@ with DAG(
         create_airflow_connection(
             connection_id=connection_id,
             connection_conf=connection,
+            is_composer=IS_COMPOSER,
         )
 
     create_connection_task = create_connection(connection_id=CONNECTION_ID, ip_address=get_public_ip_task)
@@ -230,6 +242,7 @@ with DAG(
         create_airflow_connection(
             connection_id=SHEETS_CONNECTION_ID,
             connection_conf=connection,
+            is_composer=IS_COMPOSER,
         )
 
     setup_sheets_connection_task = setup_sheets_connection()
@@ -265,7 +278,7 @@ with DAG(
 
     @task(task_id="delete_connection")
     def delete_connection(connection_id: str) -> None:
-        delete_airflow_connection(connection_id=connection_id)
+        delete_airflow_connection(connection_id=connection_id, is_composer=IS_COMPOSER)
 
     delete_connection_task = delete_connection(connection_id=CONNECTION_ID)
     delete_connection_sheets_task = delete_connection(connection_id=SHEETS_CONNECTION_ID)

@@ -18,11 +18,11 @@
 Command Line Interface and Environment Variables Reference
 ==========================================================
 
-Command Line Interface
-''''''''''''''''''''''
+CLI
+'''
 
-Airflow CTL has a very rich command line interface that allows for
-many types of operation on a DAG, starting services, and supporting
+airflowctl has a very rich command line interface that allows for
+many types of operation on a Dag, starting services, and supporting
 development and testing.
 
 .. note::
@@ -53,3 +53,10 @@ Environment Variables
     required if you have multiple environments set up and want to
     specify which one to use. If not set, the default environment
     will be used which is production.
+
+.. envvar:: AIRFLOW_CLI_DEBUG_MODE
+
+    This variable can be used to enable debug mode for the CLI.
+    It disables some features such as keyring integration and save credentials to file.
+    It is only meant to use if either you are developing airflowctl or running API integration tests.
+    Please do not use this variable unless you know what you are doing.

@@ -34,7 +34,12 @@ from airflow.providers.google.cloud.operators.pubsub import (
     PubSubCreateTopicOperator,
     PubSubDeleteTopicOperator,
 )
-from airflow.utils.trigger_rule import TriggerRule
+
+try:
+    from airflow.sdk import TriggerRule
+except ImportError:
+    # Compatibility for Airflow < 3.1
+    from airflow.utils.trigger_rule import TriggerRule  # type: ignore[no-redef,attr-defined]
 
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID", "default")
 PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT", "default")
@@ -86,10 +91,14 @@ with DAG(
             "output_topic": f"projects/{PROJECT_ID}/topics/{TOPIC_ID}",
             "streaming": True,
         },
-        py_requirements=["apache-beam[gcp]==2.63.0"],
+        py_requirements=["apache-beam[gcp]==2.67.0"],
         py_interpreter="python3",
         py_system_site_packages=False,
-        dataflow_config={"location": LOCATION, "job_name": "start_python_job_streaming"},
+        dataflow_config={
+            "location": LOCATION,
+            "job_name": "start_python_job_streaming",
+            "max_num_workers": 1,
+        },
     )
     # [END howto_operator_start_streaming_python_job]
 
@@ -105,7 +114,7 @@ with DAG(
             "output_topic": f"projects/{PROJECT_ID}/topics/{TOPIC_ID_2}",
             "streaming": True,
         },
-        py_requirements=["apache-beam[gcp]==2.63.0"],
+        py_requirements=["apache-beam[gcp]==2.67.0"],
         py_interpreter="python3",
         py_system_site_packages=False,
         dataflow_config={"location": LOCATION, "job_name": "start_python_job_streaming"},

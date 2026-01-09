@@ -1,0 +1,160 @@
+{
+  "backfill": {
+    "affected_many": "{{count}} runs verranno attivati.",
+    "affected_one": "1 run verrà attivato.",
+    "affected_other": "{{count}} runs verranno attivati.",
+    "affected_zero": "Nessun run verrà attivato.",
+    "affectedNone": "Nessun run corrispondente ai criteri selezionati.",
+    "allRuns": "Tutti i Run",
+    "backwards": "Run all'indietro",
+    "dateRange": "Intervallo di Date",
+    "errorStartDateBeforeEndDate": "La Data di Inizio deve essere precedente alla Data di Fine",
+    "maxRuns": "Numero massimo di Runs attive",
+    "missingAndErroredRuns": "Run Mancanti ed Errati",
+    "missingRuns": "Run Mancanti",
+    "reprocessBehavior": "Comportamento di Reprocesso",
+    "run": "Correre Backfill",
+    "selectDescription": "Esegui questo Dag per un intervallo di date",
+    "selectLabel": "Backfill",
+    "title": "Correre Backfill",
+    "toaster": {
+      "success": {
+        "description": "Backfill jobs sono stati attivati con successo.",
+        "title": "Backfill generato"
+      }
+    },
+    "tooltip": "Backfill richiede un programma",
+    "unpause": "Sospendi {{dag_display_name}} al trigger",
+    "validation": {
+      "datesRequired": "Devi fornire sia la Data di Inizio che la Data di Fine.",
+      "startBeforeEnd": "La Data di Inizio deve essere precedente o uguale alla Data di Fine."
+    }
+  },
+  "banner": {
+    "backfillInProgress": "Backfill in corso",
+    "cancel": "Annulla backfill",
+    "pause": "Sospendi backfill",
+    "unpause": "Sospendi backfill"
+  },
+  "clipboard": {
+    "copy": "Copia"
+  },
+  "close": "Chiudi",
+  "configForm": {
+    "advancedOptions": "Opzioni Avanzate",
+    "configJson": "Configurazione JSON",
+    "invalidJson": "Formato JSON non valido: {{errorMessage}}"
+  },
+  "dagWarnings": {
+    "error_many": "{{count}} Errori",
+    "error_one": "1 Errore",
+    "error_other": "{{count}} Errori",
+    "error_zero": "Nessun errore",
+    "errorAndWarning": "1 Errore e {{warningText}}",
+    "warning_many": "{{count}} Avvisi",
+    "warning_one": "1 Avviso",
+    "warning_other": "{{count}} Avvisi",
+    "warning_zero": "Nessun avviso"
+  },
+  "durationChart": {
+    "duration": "Durata (secondi)",
+    "lastDagRun_many": "Ultimi {{count}} Runs del Dag",
+    "lastDagRun_one": "Ultimo Run del Dag",
+    "lastDagRun_other": "Ultimi {{count}} Runs del Dag",
+    "lastDagRun_zero": "Nessun run del Dag",
+    "lastTaskInstance_many": "Ultime {{count}} Istanze di Task",
+    "lastTaskInstance_one": "Ultima Istanza di Task",
+    "lastTaskInstance_other": "Ultime {{count}} Istanze di Task",
+    "lastTaskInstance_zero": "Nessuna istanza di task",
+    "queuedDuration": "Durata in coda",
+    "runAfter": "Esegui dopo",
+    "runDuration": "Durata del Run"
+  },
+  "fileUpload": {
+    "files_many": "{{count}} file",
+    "files_one": "1 file",
+    "files_other": "{{count}} file",
+    "files_zero": "Nessun file"
+  },
+  "flexibleForm": {
+    "placeholder": "Seleziona Valore",
+    "placeholderArray": "Inserisci ogni stringa su una nuova riga",
+    "placeholderExamples": "Inizia a digitare per vedere le opzioni",
+    "placeholderMulti": "Seleziona uno o più valori",
+    "validationErrorArrayNotArray": "Il valore deve essere un array.",
+    "validationErrorArrayNotNumbers": "Tutti gli elementi dell'array devono essere numeri.",
+    "validationErrorArrayNotObject": "Tutti gli elementi dell'array devono essere oggetti.",
+    "validationErrorRequired": "Questo campo è obbligatorio"
+  },
+  "graph": {
+    "directionDown": "Da Superiore a Inferiore",
+    "directionLeft": "Da Destra a Sinistra",
+    "directionRight": "Da Sinistra a Destra",
+    "directionUp": "Da Inferiore a Superiore",
+    "downloadImage": "Scarica l'immagine del grafico",
+    "downloadImageError": "Impossibile scaricare l'immagine del grafico.",
+    "downloadImageErrorTitle": "Scaricamento Fallito",
+    "otherDagRuns": "+Altri Runs del Dag",
+    "taskCount_many": "{{count}} Tasks",
+    "taskCount_one": "{{count}} Task",
+    "taskCount_other": "{{count}} Tasks",
+    "taskCount_zero": "Nessun task",
+    "taskGroup": "Task Group"
+  },
+  "limitedList": "+{{count}} altro",
+  "limitedList.allItems": "Tutti i {{count}} elementi:",
+  "limitedList.allTags_many": "Tutte le etichette ({{count}})",
+  "limitedList.allTags_one": "Tutte le etichette (1)",
+  "limitedList.allTags_other": "Tutte le etichette ({{count}})",
+  "limitedList.allTags_zero": "Tutte le etichette (0)",
+  "limitedList.clickToInteract": "Fai clic su un'etichetta per filtrare i Dag",
+  "limitedList.clickToOpenFull": "Fai clic su \"+{{count}} altro\" per visualizzare tutto",
+  "limitedList.copyPasteText": "Puoi copiare e incollare il testo sopra",
+  "limitedList.showingItems_many": "Mostrando {{count}} elementi",
+  "limitedList.showingItems_one": "Mostrando 1 elemento",
+  "limitedList.showingItems_other": "Mostrando {{count}} elementi",
+  "limitedList.showingItems_zero": "Mostrando 0 elementi",
+  "logs": {
+    "file": "File",
+    "location": "linea {{line}} in {{name}}"
+  },
+  "reparseDag": "Reparse Dag",
+  "sortedAscending": "ordinato in ordine crescente",
+  "sortedDescending": "ordinato in ordine decrescente",
+  "sortedUnsorted": "non ordinato",
+  "taskTries": "Tentativi di Task",
+  "toggleCardView": "Mostra la vista in card",
+  "toggleTableView": "Mostra la vista in tabella",
+  "triggerDag": {
+    "button": "Trigger",
+    "loading": "Caricamento informazioni del Dag...",
+    "loadingFailed": "Impossibile caricare le informazioni del Dag. Per favore, riprova.",
+    "runIdHelp": "Opzionale - verrà generato se non fornito",
+    "selectDescription": "Triggera un singolo run di questo Dag",
+    "selectLabel": "Singolo Run",
+    "title": "Trigger del Dag",
+    "toaster": {
+      "success": {
+        "description": "Il run del Dag è stato attivato con successo.",
+        "title": "Run del Dag attivato"
+      }
+    },
+    "unpause": "Sospendi {{dagDisplayName}} al trigger"
+  },
+  "trimText": {
+    "details": "Dettagli",
+    "empty": "Vuoto",
+    "noContent": "Nessun contenuto disponibile."
+  },
+  "versionDetails": {
+    "bundleLink": "Link del Bundle",
+    "bundleName": "Nome del Bundle",
+    "bundleVersion": "Versione del Bundle",
+    "createdAt": "Creato il",
+    "versionId": "ID della Versione"
+  },
+  "versionSelect": {
+    "dagVersion": "Versione del Dag",
+    "versionCode": "v{{versionCode}}"
+  }
+}

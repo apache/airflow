@@ -1,0 +1,154 @@
+{
+  "allRuns": "Alle Runs",
+  "blockingDeps": {
+    "dependency": "Afhankelijkheid",
+    "reason": "Reden",
+    "title": "Afhankelijkheden die de Task blokkeren om ingepland te worden"
+  },
+  "calendar": {
+    "daily": "Dagelijks",
+    "hourly": "Uurlijks",
+    "legend": {
+      "less": "Minder",
+      "mixed": "Gemengd",
+      "more": "Meer"
+    },
+    "navigation": {
+      "nextMonth": "Volgende maand",
+      "nextYear": "Volgend jaar",
+      "previousMonth": "Vorige maand",
+      "previousYear": "Vorig jaar"
+    },
+    "noData": "Geen gegevens beschikbaar",
+    "noFailedRuns": "Geen mislukte runs",
+    "noRuns": "Geen runs",
+    "totalRuns": "Totaal aantal runs",
+    "week": "Week {{weekNumber}}",
+    "weekdays": {
+      "friday": "Vr",
+      "monday": "Ma",
+      "saturday": "Za",
+      "sunday": "Zo",
+      "thursday": "Do",
+      "tuesday": "Di",
+      "wednesday": "Wo"
+    }
+  },
+  "code": {
+    "bundleUrl": "Bundle URL",
+    "noCode": "Geen code gevonden",
+    "parseDuration": "Parse duur:",
+    "parsedAt": "Geparsed op:"
+  },
+  "extraLinks": "Extra Links",
+  "grid": {
+    "buttons": {
+      "resetToLatest": "Reset naar laatste",
+      "toggleGroup": "Groepen omschakelen"
+    }
+  },
+  "header": {
+    "buttons": {
+      "advanced": "Geavanceerd",
+      "dagDocs": "Dag Docs"
+    }
+  },
+  "logs": {
+    "allLevels": "Alle log niveaus",
+    "allSources": "Alle bronnen",
+    "critical": "CRITICAL",
+    "debug": "DEBUG",
+    "error": "ERROR",
+    "fullscreen": {
+      "button": "Volledig scherm",
+      "tooltip": "Druk {{hotkey}} voor volledig scherm"
+    },
+    "info": "INFO",
+    "noTryNumber": "Geen poging nummer",
+    "settings": "Loginstellingen",
+    "viewInExternal": "Bekijk logs in {{name}} (attempt {{attempt}})",
+    "warning": "WARNING"
+  },
+  "navigation": {
+    "navigation": "Navigatie: {{arrow}}",
+    "toggleGroup": "Groep in-/uitklappen: Spatie"
+  },
+  "overview": {
+    "buttons": {
+      "failedRun_one": "Mislukte Run",
+      "failedRun_other": "Mislukte Runs",
+      "failedTask_one": "Mislukte Task",
+      "failedTask_other": "Mislukte Tasks",
+      "failedTaskInstance_one": "Mislukte Task Instance",
+      "failedTaskInstance_other": "Mislukte Task Instances"
+    },
+    "charts": {
+      "assetEvent_one": "Aangemaakte Asset Event",
+      "assetEvent_other": "Aangemaakte Asset Events"
+    },
+    "failedLogs": {
+      "hideLogs": "Verberg logs",
+      "showLogs": "Toon logs",
+      "title": "Recente mislukte Task logs",
+      "viewFullLogs": "Bekijk volledige logs"
+    }
+  },
+  "panel": {
+    "buttons": {
+      "options": "Opties",
+      "showGantt": "Toon Gantt",
+      "showGraphShortcut": "Toon grafiek (Druk op g)",
+      "showGridShortcut": "Toon raster (Druk op g)"
+    },
+    "dagRuns": {
+      "label": "Aantal Dag Runs"
+    },
+    "dependencies": {
+      "label": "Afhankelijkheden",
+      "options": {
+        "allDagDependencies": "Alle Dag afhankelijkheden",
+        "externalConditions": "Externe omstandigheden",
+        "onlyTasks": "Alleen Rasks"
+      },
+      "placeholder": "Afhankelijkheden"
+    },
+    "graphDirection": {
+      "label": "Richting van de grafiek"
+    }
+  },
+  "paramsFailed": "Mislukt om parameters te laden",
+  "parse": {
+    "toaster": {
+      "error": {
+        "description": "Dag parsing verzoek mislukt. Er kunnen nog wachtende parse verzoeken afgehandeld worden.",
+        "title": "Mislukt om de Dag te reparsen"
+      },
+      "success": {
+        "description": "Dag zal snel gereparsed worden.",
+        "title": "Reparse verzoek succesvol verzonden"
+      }
+    }
+  },
+  "tabs": {
+    "assetEvents": "Asset Events",
+    "auditLog": "Audit Log",
+    "backfills": "Backfills",
+    "calendar": "Kalender",
+    "code": "Code",
+    "details": "Details",
+    "logs": "Logs",
+    "mappedTaskInstances_one": "Task Instance [{{count}}]",
+    "mappedTaskInstances_other": "Task Instances [{{count}}]",
+    "overview": "Overzicht",
+    "renderedTemplates": "Gerenderde templates",
+    "requiredActions": "Vereiste acties",
+    "runs": "Runs",
+    "taskInstances": "Task Instances",
+    "tasks": "Tasks",
+    "xcom": "XCom"
+  },
+  "taskGroups": {
+    "collapseAll": "Alle Task Groups inklappen",
+    "expandAll": "Alle Task Groups uitklappen"
+  }
+}

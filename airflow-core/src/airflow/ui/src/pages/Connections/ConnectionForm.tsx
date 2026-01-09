@@ -26,7 +26,9 @@ import { FiSave } from "react-icons/fi";
 import { ErrorAlert } from "src/components/ErrorAlert";
 import { FlexibleForm } from "src/components/FlexibleForm";
 import { JsonEditor } from "src/components/JsonEditor";
+import { TeamSelector } from "src/components/TeamSelector.tsx";
 import { Accordion } from "src/components/ui";
+import { useConfig } from "src/queries/useConfig.tsx";
 import { useConnectionTypeMeta } from "src/queries/useConnectionTypeMeta";
 import type { ParamsSpec } from "src/queries/useDagParams";
 import { useParamStore } from "src/queries/useParamStore";
@@ -37,6 +39,7 @@ import type { ConnectionBody } from "./Connections";
 type AddConnectionFormProps = {
   readonly error: unknown;
   readonly initialConnection: ConnectionBody;
+  readonly isEditMode?: boolean;
   readonly isPending: boolean;
   readonly mutateConnection: (requestBody: ConnectionBody) => void;
 };
@@ -44,6 +47,7 @@ type AddConnectionFormProps = {
 const ConnectionForm = ({
   error,
   initialConnection,
+  isEditMode = false,
   isPending,
   mutateConnection,
 }: AddConnectionFormProps) => {
@@ -57,9 +61,9 @@ const ConnectionForm = ({
   const { conf: extra, setConf } = useParamStore();
   const {
     control,
-    formState: { isValid },
+    formState: { isDirty, isValid },
     handleSubmit,
-    reset,
+    setValue,
     watch,
   } = useForm<ConnectionBody>({
     defaultValues: initialConnection,
@@ -72,33 +76,48 @@ const ConnectionForm = ({
   const paramsDic = { paramsDict: connectionTypeMeta[selectedConnType]?.extra_fields ?? ({} as ParamsSpec) };
 
   const [formErrors, setFormErrors] = useState(false);
+  const multiTeamEnabled = Boolean(useConfig("multi_team"));
 
   useEffect(() => {
-    reset((prevValues) => ({
-      ...initialConnection,
-      conn_type: selectedConnType,
-      connection_id: prevValues.connection_id,
-    }));
+    setValue("conn_type", selectedConnType, {
+      shouldDirty: true,
+    });
     setConf(JSON.stringify(JSON.parse(initialConnection.extra), undefined, 2));
-  }, [selectedConnType, reset, initialConnection, setConf]);
+  }, [selectedConnType, initialConnection, setConf, setValue]);
 
   // Automatically reset form when conf is fetched
   useEffect(() => {
-    reset((prevValues) => ({
-      ...prevValues, // Retain existing form values
-      extra,
-    }));
-  }, [extra, reset, setConf]);
+    setValue("extra", extra, {
+      shouldDirty: true,
+    });
+  }, [extra, setValue]);
 
   const onSubmit = (data: ConnectionBody) => {
     mutateConnection(data);
   };
 
+  // Check if extra fields have changed by comparing with initial connection
+  let isExtraFieldsDirty: boolean;
+
+  try {
+    const initialParsed = JSON.parse(initialConnection.extra) as Record<string, unknown>;
+    const currentParsed = JSON.parse(extra) as Record<string, unknown>;
+
+    isExtraFieldsDirty = JSON.stringify(initialParsed) !== JSON.stringify(currentParsed);
+  } catch {
+    // If parsing fails, fall back to string comparison
+    isExtraFieldsDirty = extra !== initialConnection.extra;
+  }
+
   const validateAndPrettifyJson = (value: string) => {
     try {
-      const parsedJson = JSON.parse(value) as JSON;
-
       setErrors((prev) => ({ ...prev, conf: undefined }));
+
+      if (value.trim() === "") {
+        return value;
+      }
+
+      const parsedJson = JSON.parse(value) as Record<string, unknown>;
       const formattedJson = JSON.stringify(parsedJson, undefined, 2);
 
       if (formattedJson !== extra) {
@@ -202,6 +221,7 @@ const ConnectionForm = ({
               initialParamsDict={paramsDic}
               key={selectedConnType}
               setError={setFormErrors}
+              subHeader={isEditMode ? translate("connections.form.helperTextForRedactedFields") : undefined}
             />
             <Accordion.Item key="extraJson" value="extraJson">
               <Accordion.ItemTrigger cursor="button">
@@ -220,6 +240,11 @@ const ConnectionForm = ({
                         }}
                       />
                       {Boolean(errors.conf) ? <Field.ErrorText>{errors.conf}</Field.ErrorText> : undefined}
+                      {isEditMode ? (
+                        <Field.HelperText>
+                          {translate("connections.form.helperTextForRedactedFields")}
+                        </Field.HelperText>
+                      ) : undefined}
                     </Field.Root>
                   )}
                 />
@@ -227,14 +252,18 @@ const ConnectionForm = ({
             </Accordion.Item>
           </Accordion.Root>
         ) : undefined}
+
+        {multiTeamEnabled ? <TeamSelector control={control} /> : undefined}
       </VStack>
       <ErrorAlert error={error} />
       <Box as="footer" display="flex" justifyContent="flex-end" mr={3} mt={4}>
         <HStack w="full">
           <Spacer />
           <Button
-            colorPalette="blue"
-            disabled={Boolean(errors.conf) || formErrors || isPending || !isValid}
+            colorPalette="brand"
+            disabled={
+              Boolean(errors.conf) || formErrors || isPending || !isValid || (!isDirty && !isExtraFieldsDirty)
+            }
             onClick={() => void handleSubmit(onSubmit)()}
           >
             <FiSave /> {translate("formActions.save")}

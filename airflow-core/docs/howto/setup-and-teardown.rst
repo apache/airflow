@@ -23,10 +23,10 @@ In data workflows it's common to create a resource (such as a compute resource),
 Key features of setup and teardown tasks:
 
   * If you clear a task, its setups and teardowns will be cleared.
-  * By default, teardown tasks are ignored for the purpose of evaluating dag run state.
+  * By default, teardown tasks are ignored for the purpose of evaluating Dag run state.
   * A teardown task will run if its setup was successful, even if its work tasks failed. But it will skip if the setup was skipped.
   * Teardown tasks are ignored when setting dependencies against task groups.
-  * Teardown will also be carried out if the DAG run is manually set to "failed" or "success" to ensure resources will be cleaned-up.
+  * Teardown will also be carried out if the Dag run is manually set to "failed" or "success" to ensure resources will be cleaned-up.
 
 How setup and teardown works
 """"""""""""""""""""""""""""
@@ -34,7 +34,7 @@ How setup and teardown works
 Basic usage
 """""""""""
 
-Suppose you have a dag that creates a cluster, runs a query, and deletes the cluster. Without using setup and teardown tasks you might set these relationships:
+Suppose you have a Dag that creates a cluster, runs a query, and deletes the cluster. Without using setup and teardown tasks you might set these relationships:
 
 .. code-block:: python
 
@@ -53,7 +53,7 @@ For convenience we can do this in one line by passing ``create_cluster`` to the 
 
   create_cluster >> run_query >> delete_cluster.as_teardown(setups=create_cluster)
 
-Here's the graph for this dag:
+Here's the graph for this Dag:
 
 .. image:: ../img/ui-dark/setup-teardown-simple.png
 
@@ -61,7 +61,7 @@ Observations:
 
   * If you clear ``run_query`` to run it again, then both ``create_cluster`` and ``delete_cluster`` will be cleared.
   * If ``run_query`` fails, then ``delete_cluster`` will still run.
-  * The success of the dag run will depend *only* on the success of ``run_query``.
+  * The success of the Dag run will depend *only* on the success of ``run_query``.
 
 Additionally, if we have multiple tasks to wrap, we can use the teardown as a context manager:
 
@@ -135,10 +135,10 @@ wait for them to complete.  If a setup fails or is skipped, the work tasks which
 them will be marked ask failures or skips.  We also require that any non-teardown directly
 downstream of a setup must have trigger rule ALL_SUCCESS.
 
-Controlling dag run state
+Controlling Dag run state
 """""""""""""""""""""""""
 
-Another feature of setup / teardown tasks is you can choose whether or not the teardown task should have an impact on dag run state.  Perhaps you don't care if the "cleanup" work performed by your teardown task fails, and you only consider the dag run a failure if the "work" tasks fail.  By default, teardown tasks are not considered for dag run state.
+Another feature of setup / teardown tasks is you can choose whether or not the teardown task should have an impact on Dag run state.  Perhaps you don't care if the "cleanup" work performed by your teardown task fails, and you only consider the Dag run a failure if the "work" tasks fail.  By default, teardown tasks are not considered for Dag run state.
 
 Continuing with the example above, if you want the run's success to depend on ``delete_cluster``, then set ``on_failure_fail_dagrun=True`` when setting ``delete_cluster`` as teardown. For example:
 
@@ -149,7 +149,7 @@ Continuing with the example above, if you want the run's success to depend on ``
 Authoring with task groups
 """"""""""""""""""""""""""
 
-When adding dependency from task group to task group, or from task group to *task*, we ignore teardowns.  This allows teardowns to run in parallel, and allows dag execution to proceed even if teardown tasks fail.
+When adding dependency from task group to task group, or from task group to *task*, we ignore teardowns.  This allows teardowns to run in parallel, and allows Dag execution to proceed even if teardown tasks fail.
 
 Consider this example:
 
@@ -167,7 +167,7 @@ Graph:
 
 .. image:: ../img/ui-dark/setup-teardown-group.png
 
-If ``t1`` were not a teardown task, then this dag would effectively be ``s1 >> w1 >> t1 >> w2``.  But since we have marked ``t1`` as a teardown, it's ignored in ``tg >> w2``.  So the dag is equivalent to the following:
+If ``t1`` were not a teardown task, then this Dag would effectively be ``s1 >> w1 >> t1 >> w2``.  But since we have marked ``t1`` as a teardown, it's ignored in ``tg >> w2``.  So the Dag is equivalent to the following:
 
 .. code-block:: python
 
@@ -233,7 +233,7 @@ Trigger rule behavior for teardowns
 
 Teardowns use a (non-configurable) trigger rule called ALL_DONE_SETUP_SUCCESS.  With this rule, as long as all upstreams are done and at least one directly connected setup is successful, the teardown will run.  If all of a teardown's setups were skipped or failed, those states will propagate to the teardown.
 
-Side-effect on manual DAG state changes
+Side-effect on manual Dag state changes
 """""""""""""""""""""""""""""""""""""""
 
-As teardown tasks are often used to clean-up resources they need to run also if the DAG is manually terminated. For the purpose of early termination a user can manually mark the DAG run as "success" or "failed" which kills all tasks before completion. If the DAG contains teardown tasks, they will still be executed. Therefore as a side effect allowing teardown tasks to be scheduled, a DAG will not be immediately set to a terminal state if the user requests so.
+As teardown tasks are often used to clean-up resources they need to run also if the Dag is manually terminated. For the purpose of early termination a user can manually mark the Dag run as "success" or "failed" which kills all tasks before completion. If the Dag contains teardown tasks, they will still be executed. Therefore as a side effect allowing teardown tasks to be scheduled, a Dag will not be immediately set to a terminal state if the user requests so.

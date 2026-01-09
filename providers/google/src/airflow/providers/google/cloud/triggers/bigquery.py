@@ -24,16 +24,18 @@ from aiohttp import ClientSession
 from aiohttp.client_exceptions import ClientResponseError
 from asgiref.sync import sync_to_async
 
-from airflow.exceptions import AirflowException
-from airflow.models.taskinstance import TaskInstance
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.google.cloud.hooks.bigquery import BigQueryAsyncHook, BigQueryTableAsyncHook
 from airflow.providers.google.version_compat import AIRFLOW_V_3_0_PLUS
 from airflow.triggers.base import BaseTrigger, TriggerEvent
-from airflow.utils.session import provide_session
 from airflow.utils.state import TaskInstanceState
 
 if TYPE_CHECKING:
     from sqlalchemy.orm.session import Session
+
+if not AIRFLOW_V_3_0_PLUS:
+    from airflow.models.taskinstance import TaskInstance
+    from airflow.utils.session import provide_session
 
 
 class BigQueryInsertJobTrigger(BaseTrigger):
@@ -99,24 +101,26 @@ class BigQueryInsertJobTrigger(BaseTrigger):
             },
         )
 
-    @provide_session
-    def get_task_instance(self, session: Session) -> TaskInstance:
-        query = session.query(TaskInstance).filter(
-            TaskInstance.dag_id == self.task_instance.dag_id,
-            TaskInstance.task_id == self.task_instance.task_id,
-            TaskInstance.run_id == self.task_instance.run_id,
-            TaskInstance.map_index == self.task_instance.map_index,
-        )
-        task_instance = query.one_or_none()
-        if task_instance is None:
-            raise AirflowException(
-                "TaskInstance with dag_id: %s, task_id: %s, run_id: %s and map_index: %s is not found",
-                self.task_instance.dag_id,
-                self.task_instance.task_id,
-                self.task_instance.run_id,
-                self.task_instance.map_index,
+    if not AIRFLOW_V_3_0_PLUS:
+
+        @provide_session
+        def get_task_instance(self, session: Session) -> TaskInstance:
+            query = session.query(TaskInstance).filter(
+                TaskInstance.dag_id == self.task_instance.dag_id,
+                TaskInstance.task_id == self.task_instance.task_id,
+                TaskInstance.run_id == self.task_instance.run_id,
+                TaskInstance.map_index == self.task_instance.map_index,
             )
-        return task_instance
+            task_instance = query.one_or_none()
+            if task_instance is None:
+                raise AirflowException(
+                    "TaskInstance with dag_id: %s, task_id: %s, run_id: %s and map_index: %s is not found",
+                    self.task_instance.dag_id,
+                    self.task_instance.task_id,
+                    self.task_instance.run_id,
+                    self.task_instance.map_index,
+                )
+            return task_instance
 
     async def get_task_state(self):
         from airflow.sdk.execution_time.task_runner import RuntimeTaskInstance
@@ -154,7 +158,7 @@ class BigQueryInsertJobTrigger(BaseTrigger):
             task_state = task_instance.state
         return task_state != TaskInstanceState.DEFERRED
 
-    async def run(self) -> AsyncIterator[TriggerEvent]:  # type: ignore[override]
+    async def run(self) -> AsyncIterator[TriggerEvent]:
         """Get current job execution status and yields a TriggerEvent."""
         hook = self._get_async_hook()
         try:
@@ -163,6 +167,7 @@ class BigQueryInsertJobTrigger(BaseTrigger):
                     job_id=self.job_id, project_id=self.project_id, location=self.location
                 )
                 if job_status["status"] == "success":
+                    self.log.info("BigQuery Job succeeded")
                     yield TriggerEvent(
                         {
                             "job_id": self.job_id,
@@ -172,7 +177,13 @@ class BigQueryInsertJobTrigger(BaseTrigger):
                     )
                     return
                 elif job_status["status"] == "error":
-                    yield TriggerEvent(job_status)
+                    self.log.info("BigQuery Job failed: %s", job_status)
+                    yield TriggerEvent(
+                        {
+                            "status": job_status["status"],
+                            "message": job_status["message"],
+                        }
+                    )
                     return
                 else:
                     self.log.info(
@@ -192,9 +203,7 @@ class BigQueryInsertJobTrigger(BaseTrigger):
                     self.location,
                     self.job_id,
                 )
-                await hook.cancel_job(  # type: ignore[union-attr]
-                    job_id=self.job_id, project_id=self.project_id, location=self.location
-                )
+                await hook.cancel_job(job_id=self.job_id, project_id=self.project_id, location=self.location)
             else:
                 self.log.info(
                     "Trigger may have shutdown. Skipping to cancel job because the airflow "
@@ -231,7 +240,7 @@ class BigQueryCheckTrigger(BigQueryInsertJobTrigger):
             },
         )
 
-    async def run(self) -> AsyncIterator[TriggerEvent]:  # type: ignore[override]
+    async def run(self) -> AsyncIterator[TriggerEvent]:
         """Get current job execution status and yields a TriggerEvent."""
         hook = self._get_async_hook()
         try:
@@ -308,7 +317,7 @@ class BigQueryGetDataTrigger(BigQueryInsertJobTrigger):
             },
         )
 
-    async def run(self) -> AsyncIterator[TriggerEvent]:  # type: ignore[override]
+    async def run(self) -> AsyncIterator[TriggerEvent]:
         """Get current job execution status and yields a TriggerEvent with response data."""
         hook = self._get_async_hook()
         try:
@@ -332,7 +341,12 @@ class BigQueryGetDataTrigger(BigQueryInsertJobTrigger):
                     )
                     return
                 elif job_status["status"] == "error":
-                    yield TriggerEvent(job_status)
+                    yield TriggerEvent(
+                        {
+                            "status": job_status["status"],
+                            "message": job_status["message"],
+                        }
+                    )
                     return
                 else:
                     self.log.info(
@@ -433,7 +447,7 @@ class BigQueryIntervalCheckTrigger(BigQueryInsertJobTrigger):
             },
         )
 
-    async def run(self) -> AsyncIterator[TriggerEvent]:  # type: ignore[override]
+    async def run(self) -> AsyncIterator[TriggerEvent]:
         """Get current job execution status and yields a TriggerEvent."""
         hook = self._get_async_hook()
         try:
@@ -581,7 +595,7 @@ class BigQueryValueCheckTrigger(BigQueryInsertJobTrigger):
             },
         )
 
-    async def run(self) -> AsyncIterator[TriggerEvent]:  # type: ignore[override]
+    async def run(self) -> AsyncIterator[TriggerEvent]:
         """Get current job execution status and yields a TriggerEvent."""
         hook = self._get_async_hook()
         try:
@@ -591,9 +605,9 @@ class BigQueryValueCheckTrigger(BigQueryInsertJobTrigger):
                 if response_from_hook["status"] == "success":
                     query_results = await hook.get_job_output(job_id=self.job_id, project_id=self.project_id)
                     records = hook.get_records(query_results)
-                    records = records.pop(0) if records else None
-                    hook.value_check(self.sql, self.pass_value, records, self.tolerance)
-                    yield TriggerEvent({"status": "success", "message": "Job completed", "records": records})
+                    _records = records.pop(0) if records else None
+                    hook.value_check(self.sql, self.pass_value, _records, self.tolerance)
+                    yield TriggerEvent({"status": "success", "message": "Job completed", "records": _records})
                     return
                 elif response_from_hook["status"] == "pending":
                     self.log.info("Query is still running...")
@@ -667,7 +681,7 @@ class BigQueryTableExistenceTrigger(BaseTrigger):
             gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain
         )
 
-    async def run(self) -> AsyncIterator[TriggerEvent]:  # type: ignore[override]
+    async def run(self) -> AsyncIterator[TriggerEvent]:
         """Will run until the table exists in the Google Big Query."""
         try:
             while True:
@@ -750,7 +764,7 @@ class BigQueryTablePartitionExistenceTrigger(BigQueryTableExistenceTrigger):
             },
         )
 
-    async def run(self) -> AsyncIterator[TriggerEvent]:  # type: ignore[override]
+    async def run(self) -> AsyncIterator[TriggerEvent]:
         """Will run until the table exists in the Google Big Query."""
         hook = BigQueryAsyncHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain)
         job_id = None
@@ -771,7 +785,7 @@ class BigQueryTablePartitionExistenceTrigger(BigQueryTableExistenceTrigger):
                         return
                     job_id = None
                 elif job_status["status"] == "error":
-                    yield TriggerEvent(job_status)
+                    yield TriggerEvent({"status": job_status["status"]})
                     return
                 self.log.info("Sleeping for %s seconds.", self.poll_interval)
                 await asyncio.sleep(self.poll_interval)

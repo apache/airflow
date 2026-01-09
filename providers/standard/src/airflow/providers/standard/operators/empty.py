@@ -18,10 +18,10 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from airflow.models.baseoperator import BaseOperator
+from airflow.providers.standard.version_compat import BaseOperator
 
 if TYPE_CHECKING:
-    from airflow.sdk.definitions.context import Context
+    from airflow.providers.common.compat.sdk import Context
 
 
 class EmptyOperator(BaseOperator):

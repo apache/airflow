@@ -25,9 +25,6 @@ from opsgenie_sdk.exceptions import AuthenticationException
 
 from airflow.models import Connection
 from airflow.providers.opsgenie.hooks.opsgenie import OpsgenieAlertHook
-from airflow.utils import db
-
-pytestmark = pytest.mark.db_test
 
 
 class TestOpsgenieAlertHook:
@@ -68,8 +65,9 @@ class TestOpsgenieAlertHook:
         "request_id": "43a29c5c-3dbf-4fa4-9c26-f4f71023e120",
     }
 
-    def setup_method(self):
-        db.merge_conn(
+    @pytest.fixture(autouse=True)
+    def setup_connections(self, create_connection_without_db):
+        create_connection_without_db(
             Connection(
                 conn_id=self.conn_id,
                 conn_type="opsgenie",
@@ -84,12 +82,12 @@ class TestOpsgenieAlertHook:
         assert api_key == "eb243592-faa2-4ba2-a551q-1afdf565c889"
 
     def test_get_conn_defaults_host(self):
-        hook = OpsgenieAlertHook()
-        assert hook.get_conn().api_client.configuration.host == "https://api.opsgenie.com"
+        hook = OpsgenieAlertHook(opsgenie_conn_id=self.conn_id)
+        assert hook.get_conn().api_client.configuration.host == "https://api.opsgenie.com/"
 
-    def test_get_conn_custom_host(self):
+    def test_get_conn_custom_host(self, create_connection_without_db):
         conn_id = "custom_host_opsgenie_test"
-        db.merge_conn(
+        create_connection_without_db(
             Connection(
                 conn_id=conn_id,
                 conn_type="opsgenie",
@@ -108,8 +106,17 @@ class TestOpsgenieAlertHook:
             == "eb243592-faa2-4ba2-a551q-1afdf565c889"
         )
 
-    def test_create_alert_api_key_not_set(self):
-        hook = OpsgenieAlertHook()
+    @mock.patch.object(AlertApi, "create_alert")
+    def test_create_alert_api_key_not_set(self, mock_create_alert, create_connection_without_db):
+        create_connection_without_db(
+            Connection(
+                conn_id="opsgenie_without_api_key",
+                conn_type="opsgenie",
+                host="https://api.opsgenie.com/",
+            )
+        )
+        mock_create_alert.side_effect = AuthenticationException
+        hook = OpsgenieAlertHook(opsgenie_conn_id="opsgenie_without_api_key")
         with pytest.raises(AuthenticationException):
             hook.create_alert(payload=self._create_alert_payload)
 

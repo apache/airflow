@@ -17,14 +17,11 @@
 
 from __future__ import annotations
 
-import datetime
 from argparse import BooleanOptionalAction
 from textwrap import dedent
-from typing import Any
 
 import pytest
 
-from airflowctl.api.datamodels.generated import ReprocessBehavior
 from airflowctl.ctl.cli_config import ActionCommand, CommandFactory, GroupCommand, merge_commands
 
 
@@ -41,7 +38,7 @@ def no_op_method():
 
 
 @pytest.fixture(scope="module")
-def test_args():
+def test_args_create():
     return [
         (
             "--dag-id",
@@ -59,7 +56,7 @@ def test_args():
                 "help": "from_date for backfill operation",
                 "action": None,
                 "default": None,
-                "type": datetime.datetime,
+                "type": str,
                 "dest": None,
             },
         ),
@@ -69,7 +66,7 @@ def test_args():
                 "help": "to_date for backfill operation",
                 "action": None,
                 "default": None,
-                "type": datetime.datetime,
+                "type": str,
                 "dest": None,
             },
         ),
@@ -89,7 +86,7 @@ def test_args():
                 "help": "dag_run_conf for backfill operation",
                 "action": None,
                 "default": None,
-                "type": dict[str, Any],
+                "type": dict,
                 "dest": None,
             },
         ),
@@ -99,7 +96,7 @@ def test_args():
                 "help": "reprocess_behavior for backfill operation",
                 "action": None,
                 "default": None,
-                "type": ReprocessBehavior,
+                "type": str,
                 "dest": None,
             },
         ),
@@ -116,6 +113,77 @@ def test_args():
     ]
 
 
+"""
+    help="Output format. Allowed values: json, yaml, plain, table (default: json)",
+    metavar="(table, json, yaml, plain)",
+    choices=("table", "json", "yaml", "plain"),
+    default="json",
+"""
+
+
+@pytest.fixture(scope="module")
+def test_args_list():
+    return [
+        (
+            "--output",
+            {
+                "help": "Output format. Allowed values: json, yaml, plain, table (default: json)",
+                "default": "json",
+                "type": str,
+                "dest": None,
+            },
+        ),
+    ]
+
+
+@pytest.fixture(scope="module")
+def test_args_get():
+    return [
+        (
+            "--backfill-id",
+            {
+                "help": "backfill_id for get operation in BackfillsOperations",
+                "default": None,
+                "type": str,
+                "dest": None,
+            },
+        ),
+        (
+            "--output",
+            {
+                "help": "Output format. Allowed values: json, yaml, plain, table (default: json)",
+                "default": "json",
+                "type": str,
+                "dest": None,
+            },
+        ),
+    ]
+
+
+@pytest.fixture(scope="module")
+def test_args_delete():
+    return [
+        (
+            "--backfill-id",
+            {
+                "help": "backfill_id for delete operation in BackfillsOperations",
+                "default": None,
+                "type": str,
+                "dest": None,
+            },
+        ),
+        (
+            "--output",
+            {
+                "help": "Output format. Allowed values: json, yaml, plain, table (default: json)",
+                "default": "json",
+                "type": str,
+                "dest": None,
+            },
+        ),
+    ]
+
+
 class TestCommandFactory:
     @classmethod
     def _save_temp_operations_py(cls, temp_file: str, file_content) -> None:
@@ -125,7 +193,20 @@ class TestCommandFactory:
         with open(temp_file, "w") as f:
             f.write(dedent(file_content))
 
-    def test_command_factory(self, no_op_method, test_args):
+    def teardown_method(self):
+        """
+        Remove the temporary file after the test.
+        """
+        try:
+            import os
+
+            os.remove("test_command.py")
+        except FileNotFoundError:
+            pass
+
+    def test_command_factory(
+        self, no_op_method, test_args_create, test_args_list, test_args_get, test_args_delete
+    ):
         """
         Test the command factory.
         """
@@ -144,10 +225,20 @@ class TestCommandFactory:
                 class BackfillsOperations(BaseOperations):
                     def create(self, backfill: BackfillPostBody) -> BackfillResponse | ServerResponseError:
                         try:
-                            self.response = self.client.post("backfills", data=backfill.model_dump())
+                            self.response = self.client.post("backfills", json=backfill.model_dump(mode="json"))
                             return BackfillResponse.model_validate_json(self.response.content)
                         except ServerResponseError as e:
                             raise e
+                    def list(self) -> BackfillListResponse:
+                        params = {"dag_id": dag_id} if dag_id else {}
+                        self.response = self.client.get("backfills", params=params)
+                        return BackfillListResponse.model_validate_json(self.response.content)
+                    def get(self, backfill_id: str) -> BackfillResponse | ServerResponseError:
+                        self.response = self.client.get(f"backfills/{backfill_id}")
+                        return BackfillResponse.model_validate_json(self.response.content)
+                    def delete(self, backfill_id: str) -> ServerResponseError | None:
+                        self.response = self.client.delete(f"backfills/{backfill_id}")
+                        return None
             """,
         )
 
@@ -159,14 +250,33 @@ class TestCommandFactory:
             assert generated_group_command.name == "backfills"
             assert generated_group_command.help == "Perform Backfills operations"
             for sub_command in generated_group_command.subcommands:
-                assert sub_command.name == "create"
-                for arg, test_arg in zip(sub_command.args, test_args):
-                    assert arg.flags[0] == test_arg[0]
-                    assert arg.kwargs["help"] == test_arg[1]["help"]
-                    assert arg.kwargs["action"] == test_arg[1]["action"]
-                    assert arg.kwargs["default"] == test_arg[1]["default"]
-                    assert arg.kwargs["type"] == test_arg[1]["type"]
-                    assert arg.kwargs["dest"] == test_arg[1]["dest"]
+                if sub_command.name == "create":
+                    for arg, test_arg in zip(sub_command.args, test_args_create):
+                        assert arg.flags[0] == test_arg[0]
+                        assert arg.kwargs["help"] == test_arg[1]["help"]
+                        assert arg.kwargs["action"] == test_arg[1]["action"]
+                        assert arg.kwargs["default"] == test_arg[1]["default"]
+                        assert arg.kwargs["type"] == test_arg[1]["type"]
+                        assert arg.kwargs["dest"] == test_arg[1]["dest"]
+                        print(arg.flags)
+                elif sub_command.name == "list":
+                    for arg, test_arg in zip(sub_command.args, test_args_list):
+                        assert arg.flags[0] == test_arg[0]
+                        assert arg.kwargs["help"] == test_arg[1]["help"]
+                        assert arg.kwargs["default"] == test_arg[1]["default"]
+                        assert arg.kwargs["type"] == test_arg[1]["type"]
+                elif sub_command.name == "get":
+                    for arg, test_arg in zip(sub_command.args, test_args_get):
+                        assert arg.flags[0] == test_arg[0]
+                        assert arg.kwargs["help"] == test_arg[1]["help"]
+                        assert arg.kwargs["default"] == test_arg[1]["default"]
+                        assert arg.kwargs["type"] == test_arg[1]["type"]
+                elif sub_command.name == "delete":
+                    for arg, test_arg in zip(sub_command.args, test_args_delete):
+                        assert arg.flags[0] == test_arg[0]
+                        assert arg.kwargs["help"] == test_arg[1]["help"]
+                        assert arg.kwargs["default"] == test_arg[1]["default"]
+                        assert arg.kwargs["type"] == test_arg[1]["type"]
 
 
 class TestCliConfigMethods:

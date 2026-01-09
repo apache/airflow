@@ -29,7 +29,6 @@ from airflow.providers.databricks.triggers.databricks import (
     DatabricksSQLStatementExecutionTrigger,
 )
 from airflow.triggers.base import TriggerEvent
-from airflow.utils.session import provide_session
 
 pytestmark = pytest.mark.db_test
 
@@ -121,14 +120,18 @@ GET_RUN_RESPONSE_TERMINATED_WITH_FAILED = {
 
 
 class TestDatabricksExecutionTrigger:
-    @provide_session
-    def setup_method(self, method, session=None):
-        conn = session.query(Connection).filter(Connection.conn_id == DEFAULT_CONN_ID).first()
-        conn.host = HOST
-        conn.login = LOGIN
-        conn.password = PASSWORD
-        conn.extra = None
-        session.commit()
+    @pytest.fixture(autouse=True)
+    def setup_connections(self, create_connection_without_db):
+        create_connection_without_db(
+            Connection(
+                conn_id=DEFAULT_CONN_ID,
+                conn_type="databricks",
+                host=HOST,
+                login=LOGIN,
+                password=PASSWORD,
+                extra=None,
+            )
+        )
 
         self.trigger = DatabricksExecutionTrigger(
             run_id=RUN_ID,
@@ -258,15 +261,19 @@ class TestDatabricksExecutionTrigger:
 
 
 class TestDatabricksSQLStatementExecutionTrigger:
-    @provide_session
-    def setup_method(self, method, session=None):
+    @pytest.fixture(autouse=True)
+    def setup_connections(self, create_connection_without_db):
         self.end_time = time.time() + 60
-        conn = session.query(Connection).filter(Connection.conn_id == DEFAULT_CONN_ID).first()
-        conn.host = HOST
-        conn.login = LOGIN
-        conn.password = PASSWORD
-        conn.extra = None
-        session.commit()
+        create_connection_without_db(
+            Connection(
+                conn_id=DEFAULT_CONN_ID,
+                conn_type="databricks",
+                host=HOST,
+                login=LOGIN,
+                password=PASSWORD,
+                extra=None,
+            )
+        )
 
         self.trigger = DatabricksSQLStatementExecutionTrigger(
             statement_id=STATEMENT_ID,

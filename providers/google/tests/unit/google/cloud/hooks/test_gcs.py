@@ -28,21 +28,20 @@ from unittest import mock
 from unittest.mock import MagicMock
 
 import dateutil
+import google.cloud.storage as storage
 import pytest
 from google.api_core.exceptions import GoogleAPICallError
-
-# dynamic storage type in google.cloud needs to be type-ignored
-from google.cloud import exceptions, storage  # type: ignore[attr-defined]
+from google.cloud.exceptions import NotFound
 from google.cloud.storage.retry import DEFAULT_RETRY
 
-from airflow.exceptions import AirflowException
 from airflow.providers.common.compat.assets import Asset
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.google.cloud.hooks import gcs
 from airflow.providers.google.cloud.hooks.gcs import _fallback_object_url_to_object_name_and_bucket_name
 from airflow.providers.google.common.consts import CLIENT_INFO
-from airflow.utils import timezone
 from airflow.version import version
 
+from tests_common.test_utils.compat import timezone
 from unit.google.cloud.utils.base_gcp_mock import mock_base_gcp_hook_default_project_id
 
 BASE_STRING = "airflow.providers.google.common.hooks.base_google.{}"
@@ -93,7 +92,7 @@ class TestGCSHookHelperFunctions:
         assert gcs._parse_gcs_url("gs://bucket/") == ("bucket", "")
 
     @pytest.mark.parametrize(
-        "json_value, parsed_value",
+        ("json_value", "parsed_value"),
         [
             ("[1, 2, 3]", [1, 2, 3]),
             ('"string value"', "string value"),
@@ -365,18 +364,17 @@ class TestGCSHook:
         destination_bucket = "test-source-bucket"
         destination_object = "test-source-object"
 
-        with pytest.raises(ValueError) as ctx:
+        with pytest.raises(
+            ValueError,
+            match="Either source/destination bucket or source/destination object must be different, "
+            f"not both the same: bucket={source_bucket}, object={source_object}",
+        ):
             self.gcs_hook.copy(
                 source_bucket=source_bucket,
                 source_object=source_object,
                 destination_bucket=destination_bucket,
                 destination_object=destination_object,
             )
-
-        assert str(ctx.value) == (
-            "Either source/destination bucket or source/destination object must be different, "
-            f"not both the same: bucket={source_bucket}, object={source_object}"
-        )
 
     def test_copy_empty_source_bucket(self):
         source_bucket = None
@@ -384,15 +382,13 @@ class TestGCSHook:
         destination_bucket = "test-dest-bucket"
         destination_object = "test-dest-object"
 
-        with pytest.raises(ValueError) as ctx:
+        with pytest.raises(ValueError, match="source_bucket and source_object cannot be empty."):
             self.gcs_hook.copy(
                 source_bucket=source_bucket,
                 source_object=source_object,
                 destination_bucket=destination_bucket,
                 destination_object=destination_object,
             )
-
-        assert str(ctx.value) == "source_bucket and source_object cannot be empty."
 
     def test_copy_empty_source_object(self):
         source_bucket = "test-source-object"
@@ -400,15 +396,13 @@ class TestGCSHook:
         destination_bucket = "test-dest-bucket"
         destination_object = "test-dest-object"
 
-        with pytest.raises(ValueError) as ctx:
+        with pytest.raises(ValueError, match="source_bucket and source_object cannot be empty."):
             self.gcs_hook.copy(
                 source_bucket=source_bucket,
                 source_object=source_object,
                 destination_bucket=destination_bucket,
                 destination_object=destination_object,
             )
-
-        assert str(ctx.value) == "source_bucket and source_object cannot be empty."
 
     @mock.patch("google.cloud.storage.Bucket.copy_blob")
     @mock.patch(GCS_STRING.format("GCSHook.get_conn"))
@@ -479,15 +473,13 @@ class TestGCSHook:
         destination_bucket = "test-dest-bucket"
         destination_object = "test-dest-object"
 
-        with pytest.raises(ValueError) as ctx:
+        with pytest.raises(ValueError, match="source_bucket and source_object cannot be empty."):
             self.gcs_hook.rewrite(
                 source_bucket=source_bucket,
                 source_object=source_object,
                 destination_bucket=destination_bucket,
                 destination_object=destination_object,
             )
-
-        assert str(ctx.value) == "source_bucket and source_object cannot be empty."
 
     def test_rewrite_empty_source_object(self):
         source_bucket = "test-source-object"
@@ -495,15 +487,13 @@ class TestGCSHook:
         destination_bucket = "test-dest-bucket"
         destination_object = "test-dest-object"
 
-        with pytest.raises(ValueError) as ctx:
+        with pytest.raises(ValueError, match="source_bucket and source_object cannot be empty."):
             self.gcs_hook.rewrite(
                 source_bucket=source_bucket,
                 source_object=source_object,
                 destination_bucket=destination_bucket,
                 destination_object=destination_object,
             )
-
-        assert str(ctx.value) == "source_bucket and source_object cannot be empty."
 
     @mock.patch(GCS_STRING.format("GCSHook.get_conn"))
     def test_rewrite_exposes_lineage(self, mock_service, hook_lineage_collector):
@@ -559,9 +549,9 @@ class TestGCSHook:
         bucket_method = mock_service.return_value.bucket
         blob = bucket_method.return_value.blob
         delete_method = blob.return_value.delete
-        delete_method.side_effect = exceptions.NotFound(message="Not Found")
+        delete_method.side_effect = NotFound(message="Not Found")
 
-        with pytest.raises(exceptions.NotFound):
+        with pytest.raises(NotFound):
             self.gcs_hook.delete(bucket_name=test_bucket, object_name=test_object)
 
     @mock.patch(GCS_STRING.format("GCSHook.get_conn"))
@@ -596,12 +586,9 @@ class TestGCSHook:
         mock_service.return_value.bucket.assert_called_once_with(test_bucket, user_project=None)
         mock_service.return_value.bucket.return_value.delete.assert_called_once()
 
-    @pytest.mark.db_test
     @mock.patch(GCS_STRING.format("GCSHook.get_conn"))
     def test_delete_nonexisting_bucket(self, mock_service, caplog):
-        mock_service.return_value.bucket.return_value.delete.side_effect = exceptions.NotFound(
-            message="Not Found"
-        )
+        mock_service.return_value.bucket.return_value.delete.side_effect = NotFound(message="Not Found")
         test_bucket = "test bucket"
         with caplog.at_level(logging.INFO):
             self.gcs_hook.delete_bucket(bucket_name=test_bucket)
@@ -775,14 +762,12 @@ class TestGCSHook:
         test_source_objects = []
         test_destination_object = "test_object_composed"
 
-        with pytest.raises(ValueError) as ctx:
+        with pytest.raises(ValueError, match="source_objects cannot be empty."):
             self.gcs_hook.compose(
                 bucket_name=test_bucket,
                 source_objects=test_source_objects,
                 destination_object=test_destination_object,
             )
-
-        assert str(ctx.value) == "source_objects cannot be empty."
 
     @mock.patch(GCS_STRING.format("GCSHook.get_conn"))
     def test_compose_without_bucket(self, mock_service):
@@ -790,14 +775,12 @@ class TestGCSHook:
         test_source_objects = ["test_object_1", "test_object_2", "test_object_3"]
         test_destination_object = "test_object_composed"
 
-        with pytest.raises(ValueError) as ctx:
+        with pytest.raises(ValueError, match="bucket_name and destination_object cannot be empty."):
             self.gcs_hook.compose(
                 bucket_name=test_bucket,
                 source_objects=test_source_objects,
                 destination_object=test_destination_object,
             )
-
-        assert str(ctx.value) == "bucket_name and destination_object cannot be empty."
 
     @mock.patch(GCS_STRING.format("GCSHook.get_conn"))
     def test_compose_without_destination_object(self, mock_service):
@@ -805,14 +788,12 @@ class TestGCSHook:
         test_source_objects = ["test_object_1", "test_object_2", "test_object_3"]
         test_destination_object = None
 
-        with pytest.raises(ValueError) as ctx:
+        with pytest.raises(ValueError, match="bucket_name and destination_object cannot be empty."):
             self.gcs_hook.compose(
                 bucket_name=test_bucket,
                 source_objects=test_source_objects,
                 destination_object=test_destination_object,
             )
-
-        assert str(ctx.value) == "bucket_name and destination_object cannot be empty."
 
     @mock.patch(GCS_STRING.format("GCSHook.get_conn"))
     def test_compose_exposes_lineage(self, mock_service, hook_lineage_collector):
@@ -975,7 +956,7 @@ class TestGCSHook:
         )
 
     @pytest.mark.parametrize(
-        "prefix, blob_names, returned_prefixes, call_args, result",
+        ("prefix", "blob_names", "returned_prefixes", "call_args", "result"),
         (
             (
                 "prefix",
@@ -1751,6 +1732,8 @@ class TestSyncGcsHook:
         bucket: MagicMock | None = None,
         kms_key_name: str | None = None,
         generation: int = 0,
+        size: int = 9,
+        updated: datetime | None = None,
     ):
         blob = mock.MagicMock(name=f"BLOB:{name}")
         blob.name = name
@@ -1758,9 +1741,105 @@ class TestSyncGcsHook:
         blob.bucket = bucket
         blob.kms_key_name = kms_key_name
         blob.generation = generation
+        blob.size = size
+        blob.updated = updated or timezone.utcnow()
         return blob
 
     def _create_bucket(self, name: str):
         bucket = mock.MagicMock(name=f"BUCKET:{name}")
         bucket.name = name
         return bucket
+
+    @mock.patch(GCS_STRING.format("GCSHook.get_conn"))
+    def test_sync_to_local_dir_behaviour(self, mock_get_conn, tmp_path):
+        def get_logs_string(call_args_list):
+            return "".join([args[0][0] % args[0][1:] for args in call_args_list])
+
+        test_bucket = "test_bucket"
+        mock_bucket = self._create_bucket(name=test_bucket)
+        mock_get_conn.return_value.bucket.return_value = mock_bucket
+
+        blobs = [
+            self._create_blob("dag_01.py", "C1", mock_bucket),
+            self._create_blob("dag_02.py", "C1", mock_bucket),
+            self._create_blob("subproject1/dag_a.py", "C1", mock_bucket),
+            self._create_blob("subproject1/dag_b.py", "C1", mock_bucket),
+        ]
+        mock_bucket.list_blobs.return_value = blobs
+
+        sync_local_dir = tmp_path / "gcs_sync_dir"
+        self.gcs_hook.log.debug = MagicMock()
+        self.gcs_hook.download = MagicMock()
+
+        self.gcs_hook.sync_to_local_dir(
+            bucket_name=test_bucket, local_dir=sync_local_dir, prefix="", delete_stale=True
+        )
+        logs_string = get_logs_string(self.gcs_hook.log.debug.call_args_list)
+        assert f"Downloading data from gs://{test_bucket}/ to {sync_local_dir}" in logs_string
+        assert f"Local file {sync_local_dir}/dag_01.py does not exist." in logs_string
+        assert f"Downloading dag_01.py to {sync_local_dir}/dag_01.py" in logs_string
+        assert f"Local file {sync_local_dir}/subproject1/dag_a.py does not exist." in logs_string
+        assert f"Downloading subproject1/dag_a.py to {sync_local_dir}/subproject1/dag_a.py" in logs_string
+        assert self.gcs_hook.download.call_count == 4
+
+        # Create dummy local files to simulate download
+        for blob in blobs:
+            p = sync_local_dir / blob.name
+            p.parent.mkdir(parents=True, exist_ok=True)
+            p.write_text("test data")
+            os.utime(p, (blob.updated.timestamp(), blob.updated.timestamp()))
+
+        # add new file to bucket and sync
+        self.gcs_hook.log.debug = MagicMock()
+        self.gcs_hook.download.reset_mock()
+        new_blob = self._create_blob("dag_03.py", "C1", mock_bucket)
+        mock_bucket.list_blobs.return_value = blobs + [new_blob]
+        self.gcs_hook.sync_to_local_dir(
+            bucket_name=test_bucket, local_dir=sync_local_dir, prefix="", delete_stale=True
+        )
+        logs_string = get_logs_string(self.gcs_hook.log.debug.call_args_list)
+        assert (
+            f"Local file {sync_local_dir}/subproject1/dag_b.py is up-to-date with GCS object subproject1/dag_b.py. Skipping download."
+            in logs_string
+        )
+        assert f"Local file {sync_local_dir}/dag_03.py does not exist." in logs_string
+        assert f"Downloading dag_03.py to {sync_local_dir}/dag_03.py" in logs_string
+        self.gcs_hook.download.assert_called_once()
+        (sync_local_dir / "dag_03.py").write_text("test data")
+        os.utime(
+            sync_local_dir / "dag_03.py",
+            (new_blob.updated.timestamp(), new_blob.updated.timestamp()),
+        )
+
+        # Test deletion of stale files
+        local_file_that_should_be_deleted = sync_local_dir / "file_that_should_be_deleted.py"
+        local_file_that_should_be_deleted.write_text("test dag")
+        local_folder_should_be_deleted = sync_local_dir / "local_folder_should_be_deleted"
+        local_folder_should_be_deleted.mkdir(exist_ok=True)
+        self.gcs_hook.log.debug = MagicMock()
+        self.gcs_hook.download.reset_mock()
+        self.gcs_hook.sync_to_local_dir(
+            bucket_name=test_bucket, local_dir=sync_local_dir, prefix="", delete_stale=True
+        )
+        logs_string = get_logs_string(self.gcs_hook.log.debug.call_args_list)
+        assert f"Deleting stale local file: {local_file_that_should_be_deleted.as_posix()}" in logs_string
+        assert f"Deleting stale empty directory: {local_folder_should_be_deleted.as_posix()}" in logs_string
+        assert not self.gcs_hook.download.called
+
+        # Test update of existing file (size change)
+        self.gcs_hook.log.debug = MagicMock()
+        self.gcs_hook.download.reset_mock()
+        updated_blob = self._create_blob(
+            "dag_03.py",
+            "C2",
+            mock_bucket,
+            size=15,
+        )
+        mock_bucket.list_blobs.return_value = blobs + [updated_blob]
+        self.gcs_hook.sync_to_local_dir(
+            bucket_name=test_bucket, local_dir=sync_local_dir, prefix="", delete_stale=True
+        )
+        logs_string = get_logs_string(self.gcs_hook.log.debug.call_args_list)
+        assert "GCS object size (15) and local file size (9) differ." in logs_string
+        assert f"Downloading dag_03.py to {sync_local_dir}/dag_03.py" in logs_string
+        self.gcs_hook.download.assert_called_once()

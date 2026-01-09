@@ -27,10 +27,10 @@ import pytest
 from botocore.exceptions import ClientError
 from moto import mock_aws
 
-from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 from airflow.providers.amazon.aws.hooks.glue import GlueDataQualityHook, GlueJobHook
 from airflow.providers.amazon.aws.hooks.logs import AwsLogsHook
+from airflow.providers.common.compat.sdk import AirflowException
 
 if TYPE_CHECKING:
     from unittest.mock import MagicMock
@@ -479,6 +479,127 @@ class TestGlueJobHook:
 
         assert get_state_mock.call_count == 3
 
+    @mock.patch.object(GlueJobHook, "conn")
+    def test_get_job_state_success(self, mock_conn):
+        hook = GlueJobHook()
+        job_name = "test_job"
+        run_id = "test_run_id"
+        expected_state = "SUCCEEDED"
+
+        mock_conn.get_job_run.return_value = {"JobRun": {"JobRunState": expected_state}}
+
+        result = hook.get_job_state(job_name, run_id)
+
+        assert result == expected_state
+        mock_conn.get_job_run.assert_called_once_with(
+            JobName=job_name, RunId=run_id, PredecessorsIncluded=True
+        )
+
+    @mock.patch.object(GlueJobHook, "conn")
+    def test_get_job_state_retry_on_client_error(self, mock_conn):
+        hook = GlueJobHook()
+        job_name = "test_job"
+        run_id = "test_run_id"
+        expected_state = "SUCCEEDED"
+
+        mock_conn.get_job_run.side_effect = [
+            ClientError(
+                {"Error": {"Code": "ThrottlingException", "Message": "Rate exceeded"}}, "get_job_run"
+            ),
+            {"JobRun": {"JobRunState": expected_state}},
+        ]
+
+        result = hook.get_job_state(job_name, run_id)
+
+        assert result == expected_state
+        assert mock_conn.get_job_run.call_count == 2
+
+    @mock.patch.object(GlueJobHook, "conn")
+    def test_get_job_state_fails_after_all_retries(self, mock_conn):
+        """Test get_job_state raises exception when all retries are exhausted."""
+        hook = GlueJobHook()
+        job_name = "test_job"
+        run_id = "test_run_id"
+
+        mock_conn.get_job_run.side_effect = ClientError(
+            {"Error": {"Code": "ThrottlingException", "Message": "Rate exceeded"}}, "get_job_run"
+        )
+
+        with pytest.raises(ClientError) as exc_info:
+            hook.get_job_state(job_name, run_id)
+
+        assert exc_info.value.response["Error"]["Code"] == "ThrottlingException"
+        assert mock_conn.get_job_run.call_count == 5
+
+    @pytest.mark.asyncio
+    @mock.patch.object(GlueJobHook, "get_async_conn")
+    async def test_async_get_job_state_success(self, mock_get_async_conn):
+        hook = GlueJobHook()
+        job_name = "test_job"
+        run_id = "test_run_id"
+        expected_state = "RUNNING"
+
+        mock_client = mock.AsyncMock()
+        mock_client.get_job_run.return_value = {"JobRun": {"JobRunState": expected_state}}
+        mock_context = mock.AsyncMock()
+        mock_context.__aenter__.return_value = mock_client
+        mock_context.__aexit__.return_value = None
+        mock_get_async_conn.return_value = mock_context
+
+        result = await hook.async_get_job_state(job_name, run_id)
+
+        assert result == expected_state
+        mock_client.get_job_run.assert_called_once_with(JobName=job_name, RunId=run_id)
+
+    @pytest.mark.asyncio
+    @mock.patch.object(GlueJobHook, "get_async_conn")
+    async def test_async_get_job_state_retry_on_client_error(self, mock_get_async_conn):
+        hook = GlueJobHook()
+        job_name = "test_job"
+        run_id = "test_run_id"
+        expected_state = "FAILED"
+
+        mock_client = mock.AsyncMock()
+        mock_client.get_job_run.side_effect = [
+            ClientError(
+                {"Error": {"Code": "ServiceUnavailable", "Message": "Service temporarily unavailable"}},
+                "get_job_run",
+            ),
+            {"JobRun": {"JobRunState": expected_state}},
+        ]
+        mock_context = mock.AsyncMock()
+        mock_context.__aenter__.return_value = mock_client
+        mock_context.__aexit__.return_value = None
+        mock_get_async_conn.return_value = mock_context
+
+        result = await hook.async_get_job_state(job_name, run_id)
+
+        assert result == expected_state
+        assert mock_client.get_job_run.call_count == 2
+
+    @pytest.mark.asyncio
+    @mock.patch.object(GlueJobHook, "get_async_conn")
+    async def test_async_get_job_state_fails_after_all_retries(self, mock_get_async_conn):
+        hook = GlueJobHook()
+        job_name = "test_job"
+        run_id = "test_run_id"
+
+        mock_client = mock.AsyncMock()
+        mock_client.get_job_run.side_effect = ClientError(
+            {"Error": {"Code": "ServiceUnavailable", "Message": "Service temporarily unavailable"}},
+            "get_job_run",
+        )
+        mock_context = mock.AsyncMock()
+        mock_context.__aenter__.return_value = mock_client
+        mock_context.__aexit__.return_value = None
+        mock_get_async_conn.return_value = mock_context
+
+        with pytest.raises(ClientError) as exc_info:
+            await hook.async_get_job_state(job_name, run_id)
+
+        assert exc_info.value.response["Error"]["Code"] == "ServiceUnavailable"
+        assert mock_client.get_job_run.call_count == 5
+
 
 class TestGlueDataQualityHook:
     RUN_ID = "1234"
@@ -561,6 +682,90 @@ class TestGlueDataQualityHook:
 
         assert caplog.messages == [
             "AWS Glue data quality ruleset evaluation run, total number of rules failed: 0"
+        ]
+
+    @mock.patch.object(AwsBaseHook, "conn")
+    def test_validate_evaluation_results_show_results_True(self, mock_conn, caplog):
+        response_evaluation_run = {"RunId": self.RUN_ID, "ResultIds": ["resultId1"]}
+
+        response_batch_result = {
+            "RunId": self.RUN_ID,
+            "ResultIds": ["resultId1"],
+            "Results": [
+                {
+                    "ResultId": "resultId1",
+                    "RulesetName": "rulesetOne",
+                    "RuleResults": [
+                        {
+                            "Name": "Rule_1",
+                            "Description": "RowCount between 150000 and 600000",
+                            "EvaluatedMetrics": {"Dataset.*.RowCount": 300000.0},
+                            "Result": "PASS",
+                        }
+                    ],
+                }
+            ],
+        }
+        mock_conn.get_data_quality_ruleset_evaluation_run.return_value = response_evaluation_run
+
+        mock_conn.batch_get_data_quality_result.return_value = response_batch_result
+
+        with caplog.at_level(logging.INFO, logger=self.glue.log.name):
+            caplog.clear()
+            self.glue.validate_evaluation_run_results(evaluation_run_id=self.RUN_ID, show_results=True)
+
+        mock_conn.get_data_quality_ruleset_evaluation_run.assert_called_once_with(RunId=self.RUN_ID)
+        mock_conn.batch_get_data_quality_result.assert_called_once_with(
+            ResultIds=response_evaluation_run["ResultIds"]
+        )
+        # The messages have extra spaces to create spacing in the output, the number of consecutive spaces
+        # may vary. Remove any sequence of spaces greater than 1 before asserting.
+        messages = [" ".join(msg.split()) for msg in caplog.messages]
+        assert messages == [
+            "AWS Glue data quality ruleset evaluation result for RulesetName: rulesetOne RulesetEvaluationRunId: None Score: None",
+            "Name Description EvaluatedMetrics Result 0 Rule_1 RowCount between 150000 and 600000 {'Dataset.*.RowCount': 300000.0} PASS",
+            "AWS Glue data quality ruleset evaluation run, total number of rules failed: 0",
+        ]
+
+    @mock.patch.object(AwsBaseHook, "conn")
+    def test_validate_evaluation_results_show_results_True_no_pandas(self, mock_conn, caplog):
+        response_evaluation_run = {"RunId": self.RUN_ID, "ResultIds": ["resultId1"]}
+
+        response_batch_result = {
+            "RunId": self.RUN_ID,
+            "ResultIds": ["resultId1"],
+            "Results": [
+                {
+                    "ResultId": "resultId1",
+                    "RulesetName": "rulesetOne",
+                    "RuleResults": [
+                        {
+                            "Name": "Rule_1",
+                            "Description": "RowCount between 150000 and 600000",
+                            "EvaluatedMetrics": {"Dataset.*.RowCount": 300000.0},
+                            "Result": "PASS",
+                        }
+                    ],
+                }
+            ],
+        }
+        mock_conn.get_data_quality_ruleset_evaluation_run.return_value = response_evaluation_run
+
+        mock_conn.batch_get_data_quality_result.return_value = response_batch_result
+
+        # Emulate/mock the import of pandas failing with ModlueNotFoundError
+        with mock.patch.dict("sys.modules", {"pandas": None}):
+            with caplog.at_level(logging.INFO, logger=self.glue.log.name):
+                caplog.clear()
+                self.glue.validate_evaluation_run_results(evaluation_run_id=self.RUN_ID, show_results=True)
+
+        mock_conn.get_data_quality_ruleset_evaluation_run.assert_called_once_with(RunId=self.RUN_ID)
+        mock_conn.batch_get_data_quality_result.assert_called_once_with(
+            ResultIds=response_evaluation_run["ResultIds"]
+        )
+        assert caplog.messages == [
+            "Pandas is not installed. Please install pandas to see the detailed Data Quality results.",
+            "AWS Glue data quality ruleset evaluation run, total number of rules failed: 0",
         ]
 
     @mock.patch.object(AwsBaseHook, "conn")

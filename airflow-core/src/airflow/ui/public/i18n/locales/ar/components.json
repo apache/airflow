@@ -1,0 +1,178 @@
+{
+  "backfill": {
+    "affected_few": "{{count}} مهام ستُشغّل.",
+    "affected_many": "{{count}} مهمة ستُشغّل.",
+    "affected_one": "مهمة واحدة ستُشغّل.",
+    "affected_other": "{{count}} مهمة ستُشغل.",
+    "affected_two": "مهمتان ستُشغّلان.",
+    "affected_zero": "لا توجد أي مهمة ستُشغَّل.",
+    "affectedNone": "لا توجد مهام تطابق المعايير المحددة.",
+    "allRuns": "جميع التشغيلات",
+    "backwards": "تشغيل رجعي",
+    "dateRange": "نطاق التاريخ",
+    "errorStartDateBeforeEndDate": "يجب أن يكون تاريخ البدء قبل تاريخ الانتهاء",
+    "maxRuns": "الحد الأقصى للتشغيلات النشطة",
+    "missingAndErroredRuns": "تشغيلات مفقودة وخاطئة",
+    "missingRuns": "تشغيلات مفقودة",
+    "reprocessBehavior": "اعادة معالجة السلوك",
+    "run": "تشغيل التعبئة الرجعية",
+    "selectDescription": "تشغيل هذا Dag لنطاق من التواريخ",
+    "selectLabel": "تعبئة رجعية",
+    "title": "تشغيل التعبئة الرجعية",
+    "toaster": {
+      "success": {
+        "description": "تم تشغيل مهام التعبئة الرجعية بنجاح.",
+        "title": "تم إنشاء التعبئة الرجعية"
+      }
+    },
+    "tooltip": "التعبئة الرجعية تتطلب جدول زمني",
+    "unpause": "إلغاء إيقاف {{dag_display_name}} عند التشغيل",
+    "validation": {
+      "datesRequired": "يجب توفير بيانات كل من تاريخ بدء فترة وتاريخ الانتهاء.",
+      "startBeforeEnd": "بيانات فترة تاريخ البدء يجب ان تكون من او قبل تاريخ الانتهاء. "
+    }
+  },
+  "banner": {
+    "backfillInProgress": "التعبئة الرجعية قيد التنفيذ",
+    "cancel": "إلغاء التعبئة الرجعية",
+    "pause": "إيقاف التعبئة الرجعية",
+    "unpause": "إلغاء إيقاف التعبئة الرجعية"
+  },
+  "clipboard": {
+    "copy": "نسخ"
+  },
+  "close": "إغلاق",
+  "configForm": {
+    "advancedOptions": "خيارات متقدمة",
+    "configJson": "تكوين JSON",
+    "invalidJson": "تنسيق JSON غير صالح: {{errorMessage}}"
+  },
+  "dagWarnings": {
+    "error_few": "أخطاء",
+    "error_many": "أخطاء",
+    "error_one": "خطأ",
+    "error_other": "أخطاء",
+    "error_two": "خطآن",
+    "error_zero": "لا يوجد أي خطأ",
+    "errorAndWarning": "1 خطأ و{{warningText}}",
+    "warning_few": "{{count}} تحذيرات",
+    "warning_many": "{{count}} تحذير",
+    "warning_one": "1 تحذير",
+    "warning_other": "{{count}} تحذير",
+    "warning_two": "تحذيران",
+    "warning_zero": "لا يوجد أي تحذير"
+  },
+  "durationChart": {
+    "duration": "المدة (بالثواني)",
+    "lastDagRun_few": "آخر {{count}} تشغيلات Dag",
+    "lastDagRun_many": "آخر {{count}} تشغيل Dag",
+    "lastDagRun_one": "آخر تشغيل Dag",
+    "lastDagRun_other": "آخر {{count}} تشغيل Dag",
+    "lastDagRun_two": "آخر تشغيلين Dag",
+    "lastDagRun_zero": "لا يوجد أي تشغيل Dag",
+    "lastTaskInstance_few": "آخر {{count}} مثيلات مهمة",
+    "lastTaskInstance_many": "آخر {{count}} مثيل مهمة",
+    "lastTaskInstance_one": "آخر مثيل مهمة",
+    "lastTaskInstance_other": "آخر {{count}} مثيل مهمة",
+    "lastTaskInstance_two": "آخر مثيلين مهمة",
+    "lastTaskInstance_zero": "لا يوجد أي مثيل مهمة",
+    "queuedDuration": "مدة الانتظار في الطابور",
+    "runAfter": "تشغيل بعد",
+    "runDuration": "مدة التشغيل"
+  },
+  "fileUpload": {
+    "files_few": "{{count}} ملفات",
+    "files_many": "{{count}} ملف",
+    "files_one": "ملف",
+    "files_other": "{{count}} ملف",
+    "files_two": "ملفان",
+    "files_zero": "لا يوجد أي ملف"
+  },
+  "flexibleForm": {
+    "placeholder": "اختر قيمة",
+    "placeholderArray": "أدخل كل سلسلة في سطر جديد",
+    "placeholderExamples": "ابدأ الكتابة لرؤية الخيارات",
+    "placeholderMulti": "اختر قيمة أو أكثر",
+    "validationErrorArrayNotArray": "القيمة يجب أن تكون مصفوفة.",
+    "validationErrorArrayNotNumbers": "جميع العناصر في المصفوفة يجب أن تكون أرقامًا.",
+    "validationErrorArrayNotObject": "جميع العناصر في المصفوفة يجب أن تكون كائنات.",
+    "validationErrorRequired": "هذا الحقل مطلوب"
+  },
+  "graph": {
+    "directionDown": "من الأعلى إلى الأسفل",
+    "directionLeft": "من اليمين إلى اليسار",
+    "directionRight": "من اليسار إلى اليمين",
+    "directionUp": "من الأسفل إلى الأعلى",
+    "downloadImage": "تحميل صورة الرسم البياني",
+    "downloadImageError": "فشل تحميل صورة الرسم البياني.",
+    "downloadImageErrorTitle": "فشل التحميل",
+    "otherDagRuns": "+تشغيلات Dag أخرى",
+    "taskCount_few": "{{count}} مهام",
+    "taskCount_many": "{{count}} مهمة",
+    "taskCount_one": "{{count}} مهمة",
+    "taskCount_other": "{{count}} مهمة",
+    "taskCount_two": "مهمتان",
+    "taskCount_zero": "لا يوجد أي مهمة",
+    "taskGroup": "مجموعة المهام"
+  },
+  "limitedList": "+{{count}} المزيد",
+  "limitedList.allItems": "جميع العناصر {{count}}:",
+  "limitedList.allTags_few": "كل العلامات ({{count}})",
+  "limitedList.allTags_many": "كل العلامات ({{count}})",
+  "limitedList.allTags_one": "كل العلامات (1)",
+  "limitedList.allTags_other": "كل العلامات ({{count}})",
+  "limitedList.allTags_two": "كل العلامات (2)",
+  "limitedList.allTags_zero": "كل العلامات (0)",
+  "limitedList.clickToInteract": "انقر على علامة لتصفية Dags",
+  "limitedList.clickToOpenFull": "انقر \"+{{count}} المزيد\" لعرض القائمة الكاملة",
+  "limitedList.copyPasteText": "يمكنك نسخ ولصق النص أعلاه",
+  "limitedList.showingItems_few": "عرض {{count}} عناصر",
+  "limitedList.showingItems_many": "عرض {{count}} عنصر",
+  "limitedList.showingItems_one": "عرض عنصر واحد",
+  "limitedList.showingItems_other": "عرض {{count}} عنصر",
+  "limitedList.showingItems_two": "عرض عنصرين",
+  "limitedList.showingItems_zero": "عرض 0 عناصر",
+  "logs": {
+    "file": "ملف",
+    "location": "سطر {{line}} في {{name}}"
+  },
+  "reparseDag": "إعادة تحليل Dag",
+  "sortedAscending": "الترتيب تصاعدي",
+  "sortedDescending": "الترتيب تنازلي",
+  "sortedUnsorted": "غير مرتب",
+  "taskTries": "محاولات المهمة",
+  "toggleCardView": "عرض البطاقة",
+  "toggleTableView": "عرض الجدول",
+  "triggerDag": {
+    "button": "تشغيل",
+    "loading": "جارٍ تحميل معلومات Dag...",
+    "loadingFailed": "فشل تحميل معلومات Dag. يرجى المحاولة مرة أخرى.",
+    "runIdHelp": "اختياري - سيتم توليده تلقائيًا إذا لم يتم توفيره.",
+    "selectDescription": "تشغيل عملية واحدة من هذا Dag",
+    "selectLabel": "تشغيلة واحدة",
+    "title": "تشغيل Dag",
+    "toaster": {
+      "success": {
+        "description": "تم تشغيل عملية Dag بنجاح.",
+        "title": "تم تشغيل Dag"
+      }
+    },
+    "unpause": "إلغاء إيقاف {{dagDisplayName}} عند التشغيل"
+  },
+  "trimText": {
+    "details": "التفاصيل",
+    "empty": "فارغ",
+    "noContent": "لا توجد محتويات متاحة."
+  },
+  "versionDetails": {
+    "bundleLink": "رابط الحزمة",
+    "bundleName": "اسم الحزمة",
+    "bundleVersion": "إصدار الحزمة",
+    "createdAt": "تاريخ الإنشاء",
+    "versionId": "معرف الإصدار"
+  },
+  "versionSelect": {
+    "dagVersion": "إصدار Dag",
+    "versionCode": "v{{versionCode}}"
+  }
+}

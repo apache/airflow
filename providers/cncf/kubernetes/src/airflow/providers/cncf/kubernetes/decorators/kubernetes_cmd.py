@@ -17,31 +17,27 @@
 from __future__ import annotations
 
 import warnings
-from collections.abc import Sequence
-from typing import TYPE_CHECKING, Callable
+from collections.abc import Callable, Sequence
+from typing import TYPE_CHECKING
 
-from airflow.providers.cncf.kubernetes.version_compat import AIRFLOW_V_3_0_PLUS
-
-if AIRFLOW_V_3_0_PLUS:
-    from airflow.sdk.bases.decorator import DecoratedOperator, TaskDecorator, task_decorator_factory
-else:
-    from airflow.decorators.base import (  # type: ignore[no-redef]
-        DecoratedOperator,
-        TaskDecorator,
-        task_decorator_factory,
-    )
 from airflow.providers.cncf.kubernetes.operators.pod import KubernetesPodOperator
-from airflow.utils.context import context_merge
+from airflow.providers.common.compat.sdk import (
+    DecoratedOperator,
+    TaskDecorator,
+    context_merge,
+    task_decorator_factory,
+)
 from airflow.utils.operator_helpers import determine_kwargs
 
 if TYPE_CHECKING:
-    from airflow.utils.context import Context
+    from airflow.sdk import Context
 
 
 class _KubernetesCmdDecoratedOperator(DecoratedOperator, KubernetesPodOperator):
     custom_operator_name = "@task.kubernetes_cmd"
 
-    template_fields: Sequence[str] = KubernetesPodOperator.template_fields
+    template_fields: Sequence[str] = tuple({"op_args", "op_kwargs", *KubernetesPodOperator.template_fields})
+
     overwrite_rtif_after_execution: bool = True
 
     def __init__(self, *, python_callable: Callable, args_only: bool = False, **kwargs) -> None:
@@ -74,6 +70,8 @@ class _KubernetesCmdDecoratedOperator(DecoratedOperator, KubernetesPodOperator):
         )
 
     def execute(self, context: Context):
+        self.render_template_fields(context)
+
         generated = self._generate_cmds(context)
         if self.args_only:
             self.cmds = []
@@ -81,7 +79,7 @@ class _KubernetesCmdDecoratedOperator(DecoratedOperator, KubernetesPodOperator):
         else:
             self.cmds = generated
             self.arguments = []
-        context["ti"].render_templates()  # type: ignore[attr-defined]
+        self.render_template_fields(context)
         return super().execute(context)
 
     def _generate_cmds(self, context: Context) -> list[str]:

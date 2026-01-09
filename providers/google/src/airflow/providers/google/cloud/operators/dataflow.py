@@ -27,8 +27,7 @@ from typing import TYPE_CHECKING, Any
 
 from googleapiclient.errors import HttpError
 
-from airflow.configuration import conf
-from airflow.exceptions import AirflowException
+from airflow.providers.common.compat.sdk import AirflowException, conf
 from airflow.providers.google.cloud.hooks.dataflow import (
     DEFAULT_DATAFLOW_LOCATION,
     DataflowHook,
@@ -43,7 +42,7 @@ from airflow.providers.google.common.consts import GOOGLE_DEFAULT_DEFERRABLE_MET
 from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID
 
 if TYPE_CHECKING:
-    from airflow.utils.context import Context
+    from airflow.providers.common.compat.sdk import Context
 
 
 class CheckJobRunning(Enum):
@@ -132,6 +131,7 @@ class DataflowConfiguration:
         Supported only by:
         :class:`~airflow.providers.apache.beam.operators.beam.BeamRunJavaPipelineOperator`.
     :param service_account: Run the job as a specific service account, instead of the default GCE robot.
+    :param max_num_workers: Maximum amount of workers that will be used for Dataflow job execution.
     """
 
     template_fields: Sequence[str] = ("job_name", "location")
@@ -152,6 +152,7 @@ class DataflowConfiguration:
         multiple_jobs: bool | None = None,
         check_if_running: CheckJobRunning = CheckJobRunning.WaitForRun,
         service_account: str | None = None,
+        max_num_workers: int | None = None,
     ) -> None:
         self.job_name = job_name
         self.append_job_name = append_job_name
@@ -166,6 +167,7 @@ class DataflowConfiguration:
         self.multiple_jobs = multiple_jobs
         self.check_if_running = check_if_running
         self.service_account = service_account
+        self.max_num_workers = max_num_workers
 
 
 class DataflowTemplatedJobStartOperator(GoogleCloudBaseOperator):
@@ -383,7 +385,12 @@ class DataflowTemplatedJobStartOperator(GoogleCloudBaseOperator):
     def execute(self, context: Context):
         def set_current_job(current_job):
             self.job = current_job
-            DataflowJobLink.persist(self, context, self.project_id, self.location, self.job.get("id"))
+            DataflowJobLink.persist(
+                context=context,
+                project_id=self.project_id,
+                region=self.location,
+                job_id=self.job.get("id"),
+            )
 
         options = self.dataflow_default_options
         options.update(self.options)
@@ -404,7 +411,7 @@ class DataflowTemplatedJobStartOperator(GoogleCloudBaseOperator):
                 append_job_name=self.append_job_name,
             )
             job_id = self.hook.extract_job_id(self.job)
-            self.xcom_push(context, key="job_id", value=job_id)
+            context["task_instance"].xcom_push(key="job_id", value=job_id)
             return job_id
 
         self.job = self.hook.launch_job_with_template(
@@ -418,7 +425,9 @@ class DataflowTemplatedJobStartOperator(GoogleCloudBaseOperator):
             environment=self.environment,
         )
         job_id = self.hook.extract_job_id(self.job)
-        DataflowJobLink.persist(self, context, self.project_id, self.location, job_id)
+        DataflowJobLink.persist(
+            context=context, project_id=self.project_id, region=self.location, job_id=job_id
+        )
         self.defer(
             trigger=TemplateJobStartTrigger(
                 project_id=self.project_id,
@@ -439,7 +448,7 @@ class DataflowTemplatedJobStartOperator(GoogleCloudBaseOperator):
             raise AirflowException(event["message"])
 
         job_id = event["job_id"]
-        self.xcom_push(context, key="job_id", value=job_id)
+        context["task_instance"].xcom_push(key="job_id", value=job_id)
         self.log.info("Task %s completed with response %s", self.task_id, event["message"])
         return job_id
 
@@ -576,6 +585,7 @@ class DataflowStartFlexTemplateOperator(GoogleCloudBaseOperator):
     def hook(self) -> DataflowHook:
         hook = DataflowHook(
             gcp_conn_id=self.gcp_conn_id,
+            poll_sleep=self.poll_sleep,
             drain_pipeline=self.drain_pipeline,
             cancel_timeout=self.cancel_timeout,
             wait_until_finished=self.wait_until_finished,
@@ -590,7 +600,9 @@ class DataflowStartFlexTemplateOperator(GoogleCloudBaseOperator):
 
         def set_current_job(current_job):
             self.job = current_job
-            DataflowJobLink.persist(self, context, self.project_id, self.location, self.job.get("id"))
+            DataflowJobLink.persist(
+                context=context, project_id=self.project_id, region=self.location, job_id=self.job.get("id")
+            )
 
         if not self.deferrable:
             self.job = self.hook.start_flex_template(
@@ -600,7 +612,7 @@ class DataflowStartFlexTemplateOperator(GoogleCloudBaseOperator):
                 on_new_job_callback=set_current_job,
             )
             job_id = self.hook.extract_job_id(self.job)
-            self.xcom_push(context, key="job_id", value=job_id)
+            context["task_instance"].xcom_push(key="job_id", value=job_id)
             return self.job
 
         self.job = self.hook.launch_job_with_flex_template(
@@ -609,7 +621,9 @@ class DataflowStartFlexTemplateOperator(GoogleCloudBaseOperator):
             project_id=self.project_id,
         )
         job_id = self.hook.extract_job_id(self.job)
-        DataflowJobLink.persist(self, context, self.project_id, self.location, job_id)
+        DataflowJobLink.persist(
+            context=context, project_id=self.project_id, region=self.location, job_id=job_id
+        )
         self.defer(
             trigger=TemplateJobStartTrigger(
                 project_id=self.project_id,
@@ -639,7 +653,7 @@ class DataflowStartFlexTemplateOperator(GoogleCloudBaseOperator):
 
         job_id = event["job_id"]
         self.log.info("Task %s completed with response %s", job_id, event["message"])
-        self.xcom_push(context, key="job_id", value=job_id)
+        context["task_instance"].xcom_push(key="job_id", value=job_id)
         job = self.hook.get_job(job_id=job_id, project_id=self.project_id, location=self.location)
         return job
 
@@ -764,7 +778,9 @@ class DataflowStartYamlJobOperator(GoogleCloudBaseOperator):
             location=self.region,
         )
 
-        DataflowJobLink.persist(self, context, self.project_id, self.region, self.job_id)
+        DataflowJobLink.persist(
+            context=context, project_id=self.project_id, region=self.region, job_id=self.job_id
+        )
 
         if self.deferrable:
             self.defer(
@@ -794,7 +810,7 @@ class DataflowStartYamlJobOperator(GoogleCloudBaseOperator):
             raise AirflowException(event["message"])
         job = event["job"]
         self.log.info("Job %s completed with response %s", job["id"], event["message"])
-        self.xcom_push(context, key="job_id", value=job["id"])
+        context["task_instance"].xcom_push(key="job_id", value=job["id"])
 
         return job
 
@@ -971,6 +987,14 @@ class DataflowCreatePipelineOperator(GoogleCloudBaseOperator):
 
         self.pipeline_name = self.body["name"].split("/")[-1] if self.body else None
 
+    @property
+    def extra_links_params(self) -> dict[str, Any]:
+        return {
+            "project_id": self.project_id,
+            "location": self.location,
+            "pipeline_name": self.pipeline_name,
+        }
+
     def execute(self, context: Context):
         if self.body is None:
             raise AirflowException(
@@ -1003,8 +1027,8 @@ class DataflowCreatePipelineOperator(GoogleCloudBaseOperator):
                     pipeline_name=self.pipeline_name,
                     location=self.location,
                 )
-        DataflowPipelineLink.persist(self, context, self.project_id, self.location, self.pipeline_name)
-        self.xcom_push(context, key="pipeline_name", value=self.pipeline_name)
+        DataflowPipelineLink.persist(context=context)
+        context["task_instance"].xcom_push(key="pipeline_name", value=self.pipeline_name)
         if self.pipeline:
             if "error" in self.pipeline:
                 raise AirflowException(self.pipeline.get("error").get("message"))
@@ -1075,8 +1099,10 @@ class DataflowRunPipelineOperator(GoogleCloudBaseOperator):
                 location=self.location,
             )["job"]
             job_id = self.dataflow_hook.extract_job_id(self.job)
-            self.xcom_push(context, key="job_id", value=job_id)
-            DataflowJobLink.persist(self, context, self.project_id, self.location, job_id)
+            context["task_instance"].xcom_push(key="job_id", value=job_id)
+            DataflowJobLink.persist(
+                context=context, project_id=self.project_id, region=self.location, job_id=job_id
+            )
         except HttpError as e:
             if e.resp.status == 404:
                 raise AirflowException("Pipeline with given name was not found.")

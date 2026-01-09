@@ -26,6 +26,7 @@ from airflow.api.common.airflow_health import (
     UNHEALTHY,
     get_airflow_health,
 )
+from airflow.jobs.job import Job
 
 pytestmark = pytest.mark.db_test
 
@@ -69,7 +70,7 @@ def test_get_airflow_health_metadatabase_unhealthy(
     assert health_status == expected_status
 
 
-LATEST_SCHEDULER_JOB_MOCK = MagicMock()
+LATEST_SCHEDULER_JOB_MOCK = MagicMock(spec=Job)
 LATEST_SCHEDULER_JOB_MOCK.latest_heartbeat = datetime.now()
 LATEST_SCHEDULER_JOB_MOCK.is_alive = MagicMock(return_value=True)
 
@@ -100,11 +101,11 @@ def test_get_airflow_health_scheduler_healthy_no_triggerer(
     assert health_status == expected_status
 
 
-LATEST_TRIGGERER_JOB_MOCK = MagicMock()
+LATEST_TRIGGERER_JOB_MOCK = MagicMock(spec=Job)
 LATEST_TRIGGERER_JOB_MOCK.latest_heartbeat = datetime.now()
 LATEST_TRIGGERER_JOB_MOCK.is_alive = MagicMock(return_value=True)
 
-LATEST_DAG_PROCESSOR_JOB_MOCK = MagicMock()
+LATEST_DAG_PROCESSOR_JOB_MOCK = MagicMock(spec=Job)
 LATEST_DAG_PROCESSOR_JOB_MOCK.latest_heartbeat = datetime.now()
 LATEST_DAG_PROCESSOR_JOB_MOCK.is_alive = MagicMock(return_value=True)
 

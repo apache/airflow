@@ -28,8 +28,7 @@ from __future__ import annotations
 
 import logging
 import os
-from functools import cached_property
-from typing import TYPE_CHECKING, Any, Union
+from typing import TYPE_CHECKING, Any, cast
 
 from asgiref.sync import sync_to_async
 from azure.core.exceptions import HttpResponseError, ResourceExistsError, ResourceNotFoundError
@@ -45,8 +44,7 @@ from azure.storage.blob.aio import (
     ContainerClient as AsyncContainerClient,
 )
 
-from airflow.exceptions import AirflowException
-from airflow.hooks.base import BaseHook
+from airflow.providers.common.compat.sdk import AirflowException, BaseHook
 from airflow.providers.microsoft.azure.utils import (
     add_managed_identity_connection_widgets,
     get_async_default_azure_credential,
@@ -55,9 +53,12 @@ from airflow.providers.microsoft.azure.utils import (
 )
 
 if TYPE_CHECKING:
+    from azure.core.credentials import TokenCredential
+    from azure.core.credentials_async import AsyncTokenCredential
     from azure.storage.blob._models import BlobProperties
+    from azure.storage.blob.aio._list_blobs_helper import BlobPrefix
 
-AsyncCredentials = Union[AsyncClientSecretCredential, AsyncDefaultAzureCredential]
+AsyncCredentials = AsyncClientSecretCredential | AsyncDefaultAzureCredential
 
 
 class WasbHook(BaseHook):
@@ -67,8 +68,9 @@ class WasbHook(BaseHook):
     These parameters have to be passed in Airflow Data Base: account_name and account_key.
 
     Additional options passed in the 'extra' field of the connection will be
-    passed to the `BlockBlockService()` constructor. For example, authenticate
-    using a SAS token by adding {"sas_token": "YOUR_TOKEN"}.
+    passed to the `BlobServiceClient()` constructor. For example, authenticate
+    using a SAS token by adding {"sas_token": "YOUR_TOKEN"} or using an account key
+    by adding {"account_key": "YOUR_ACCOUNT_KEY"}.
 
     If no authentication configuration is provided, DefaultAzureCredential will be used (applicable
     when using Azure compute infrastructure).
@@ -121,7 +123,7 @@ class WasbHook(BaseHook):
                 "tenant_id": "tenant",
                 "shared_access_key": "shared access key",
                 "sas_token": "account url or token",
-                "extra": "additional options for use with ClientSecretCredential or DefaultAzureCredential",
+                "extra": "additional options for use with ClientSecretCredential, DefaultAzureCredential, or account_key authentication",
             },
         }
 
@@ -133,6 +135,7 @@ class WasbHook(BaseHook):
         super().__init__()
         self.conn_id = wasb_conn_id
         self.public_read = public_read
+        self._blob_service_client: AsyncBlobServiceClient | BlobServiceClient | None = None
 
         logger = logging.getLogger("azure.core.pipeline.policies.http_logging_policy")
         try:
@@ -150,10 +153,17 @@ class WasbHook(BaseHook):
             return extra_dict[field_name] or None
         return extra_dict.get(f"{prefix}{field_name}") or None
 
-    @cached_property
-    def blob_service_client(self) -> BlobServiceClient:
+    @property
+    def blob_service_client(self) -> AsyncBlobServiceClient | BlobServiceClient:
         """Return the BlobServiceClient object (cached)."""
-        return self.get_conn()
+        if self._blob_service_client is None:
+            self._blob_service_client = self.get_conn()
+        return self._blob_service_client
+
+    @blob_service_client.setter
+    def blob_service_client(self, client: AsyncBlobServiceClient) -> None:
+        """Set the cached BlobServiceClient object."""
+        self._blob_service_client = client
 
     def get_conn(self) -> BlobServiceClient:
         """Return the BlobServiceClient object."""
@@ -171,8 +181,8 @@ class WasbHook(BaseHook):
         tenant = self._get_field(extra, "tenant_id")
         if tenant:
             # use Active Directory auth
-            app_id = conn.login
-            app_secret = conn.password
+            app_id = cast("str", conn.login)
+            app_secret = cast("str", conn.password)
             token_credential = ClientSecretCredential(
                 tenant_id=tenant, client_id=app_id, client_secret=app_secret, **client_secret_auth_config
             )
@@ -196,28 +206,32 @@ class WasbHook(BaseHook):
             return BlobServiceClient(account_url=f"{account_url.rstrip('/')}/{sas_token}", **extra)
 
         # Fall back to old auth (password) or use managed identity if not provided.
-        credential = conn.password
+        credential: str | TokenCredential | None = conn.password
         if not credential:
-            managed_identity_client_id = self._get_field(extra, "managed_identity_client_id")
-            workload_identity_tenant_id = self._get_field(extra, "workload_identity_tenant_id")
-            credential = get_sync_default_azure_credential(
-                managed_identity_client_id=managed_identity_client_id,
-                workload_identity_tenant_id=workload_identity_tenant_id,
-            )
-            self.log.info("Using DefaultAzureCredential as credential")
+            # Check for account_key in extra fields before falling back to DefaultAzureCredential
+            account_key = self._get_field(extra, "account_key")
+            if account_key:
+                credential = account_key
+            else:
+                managed_identity_client_id = self._get_field(extra, "managed_identity_client_id")
+                workload_identity_tenant_id = self._get_field(extra, "workload_identity_tenant_id")
+                credential = get_sync_default_azure_credential(
+                    managed_identity_client_id=managed_identity_client_id,
+                    workload_identity_tenant_id=workload_identity_tenant_id,
+                )
+                self.log.info("Using DefaultAzureCredential as credential")
         return BlobServiceClient(
             account_url=account_url,
             credential=credential,
             **extra,
         )
 
-    # TODO: rework the interface as it might also return AsyncContainerClient
-    def _get_container_client(self, container_name: str) -> ContainerClient:  # type: ignore[override]
+    def _get_container_client(self, container_name: str) -> AsyncContainerClient | ContainerClient:
         """
         Instantiate a container client.
 
         :param container_name: The name of the container
-        :return: ContainerClient
+        :return: AsyncContainerClient | ContainerClient
         """
         return self.blob_service_client.get_container_client(container_name)
 
@@ -257,6 +271,12 @@ class WasbHook(BaseHook):
         blobs = self.get_blobs_list(container_name=container_name, prefix=prefix, **kwargs)
         return bool(blobs)
 
+    def check_for_variable_type(self, variable_name: str, container: Any, expected_type: type[Any]) -> None:
+        if not isinstance(container, expected_type):
+            raise TypeError(
+                f"{variable_name} for {self.__class__.__name__} must be {expected_type.__name__}, got {type(container).__name__}"
+            )
+
     def get_blobs_list(
         self,
         container_name: str,
@@ -277,6 +297,9 @@ class WasbHook(BaseHook):
         :param delimiter: filters objects based on the delimiter (for e.g '.csv')
         """
         container = self._get_container_client(container_name)
+        self.check_for_variable_type("container", container, ContainerClient)
+        container = cast("ContainerClient", container)
+
         blob_list = []
         blobs = container.walk_blobs(name_starts_with=prefix, include=include, delimiter=delimiter, **kwargs)
         for blob in blobs:
@@ -303,8 +326,12 @@ class WasbHook(BaseHook):
         :param delimiter: filters objects based on the delimiter (for e.g '.csv')
         """
         container = self._get_container_client(container_name)
+        self.check_for_variable_type("container", container, ContainerClient)
+        container = cast("ContainerClient", container)
+
         blob_list = []
         blobs = container.list_blobs(name_starts_with=prefix, include=include, **kwargs)
+
         for blob in blobs:
             if blob.name.endswith(endswith):
                 blob_list.append(blob.name)
@@ -582,12 +609,16 @@ class WasbAsyncHook(WasbHook):
         """Initialize the hook instance."""
         self.conn_id = wasb_conn_id
         self.public_read = public_read
-        self.blob_service_client: AsyncBlobServiceClient = None  # type: ignore
+        self._blob_service_client: AsyncBlobServiceClient | BlobServiceClient | None = None
 
     async def get_async_conn(self) -> AsyncBlobServiceClient:
         """Return the Async BlobServiceClient object."""
-        if self.blob_service_client is not None:
-            return self.blob_service_client
+        if self._blob_service_client is not None:
+            self.check_for_variable_type(
+                "self._blob_service_client", self._blob_service_client, AsyncBlobServiceClient
+            )
+            self._blob_service_client = cast("AsyncBlobServiceClient", self._blob_service_client)
+            return self._blob_service_client
 
         conn = await sync_to_async(self.get_connection)(self.conn_id)
         extra = conn.extra_dejson or {}
@@ -596,7 +627,7 @@ class WasbAsyncHook(WasbHook):
         connection_string = self._get_field(extra, "connection_string")
         if connection_string:
             # connection_string auth takes priority
-            self.blob_service_client = AsyncBlobServiceClient.from_connection_string(
+            self.blob_service_client: AsyncBlobServiceClient = AsyncBlobServiceClient.from_connection_string(
                 connection_string, **extra
             )
             return self.blob_service_client
@@ -606,15 +637,16 @@ class WasbAsyncHook(WasbHook):
         tenant = self._get_field(extra, "tenant_id")
         if tenant:
             # use Active Directory auth
-            app_id = conn.login
-            app_secret = conn.password
+            app_id = conn.login or ""
+            app_secret = conn.password or ""
+
             token_credential = AsyncClientSecretCredential(
                 tenant, app_id, app_secret, **client_secret_auth_config
             )
             self.blob_service_client = AsyncBlobServiceClient(
                 account_url=account_url,
                 credential=token_credential,
-                **extra,  # type:ignore[arg-type]
+                **extra,
             )
             return self.blob_service_client
 
@@ -644,15 +676,21 @@ class WasbAsyncHook(WasbHook):
             return self.blob_service_client
 
         # Fall back to old auth (password) or use managed identity if not provided.
+        credential: str | AsyncTokenCredential | None
         credential = conn.password
         if not credential:
-            managed_identity_client_id = self._get_field(extra, "managed_identity_client_id")
-            workload_identity_tenant_id = self._get_field(extra, "workload_identity_tenant_id")
-            credential = get_async_default_azure_credential(
-                managed_identity_client_id=managed_identity_client_id,
-                workload_identity_tenant_id=workload_identity_tenant_id,
-            )
-            self.log.info("Using DefaultAzureCredential as credential")
+            # Check for account_key in extra fields before falling back to DefaultAzureCredential
+            account_key = self._get_field(extra, "account_key")
+            if account_key:
+                credential = account_key
+            else:
+                managed_identity_client_id = self._get_field(extra, "managed_identity_client_id")
+                workload_identity_tenant_id = self._get_field(extra, "workload_identity_tenant_id")
+                credential = get_async_default_azure_credential(
+                    managed_identity_client_id=managed_identity_client_id,
+                    workload_identity_tenant_id=workload_identity_tenant_id,
+                )
+                self.log.info("Using DefaultAzureCredential as credential")
         self.blob_service_client = AsyncBlobServiceClient(
             account_url=account_url,
             credential=credential,
@@ -668,6 +706,9 @@ class WasbAsyncHook(WasbHook):
         :param container_name: the name of the blob container
         :param blob_name: the name of the blob. This needs not be existing
         """
+        if self.blob_service_client is None:
+            raise AirflowException("BlobServiceClient is not initialized")
+
         return self.blob_service_client.get_blob_client(container=container_name, blob=blob_name)
 
     async def check_for_blob_async(self, container_name: str, blob_name: str, **kwargs: Any) -> bool:
@@ -684,15 +725,6 @@ class WasbAsyncHook(WasbHook):
             return False
         return True
 
-    # TODO: rework the interface as in parent Hook it returns ContainerClient
-    def _get_container_client(self, container_name: str) -> AsyncContainerClient:  # type: ignore[override]
-        """
-        Instantiate a container client.
-
-        :param container_name: the name of the container
-        """
-        return self.blob_service_client.get_container_client(container_name)
-
     async def get_blobs_list_async(
         self,
         container_name: str,
@@ -700,7 +732,7 @@ class WasbAsyncHook(WasbHook):
         include: list[str] | None = None,
         delimiter: str = "/",
         **kwargs: Any,
-    ) -> list[BlobProperties]:
+    ) -> list[BlobProperties | BlobPrefix]:
         """
         List blobs in a given container.
 
@@ -713,7 +745,10 @@ class WasbAsyncHook(WasbHook):
         :param delimiter: filters objects based on the delimiter (for e.g '.csv')
         """
         container = self._get_container_client(container_name)
-        blob_list: list[BlobProperties] = []
+        container = cast("AsyncContainerClient", container)
+        self.check_for_variable_type("container", container, AsyncContainerClient)
+
+        blob_list: list[BlobProperties | BlobPrefix] = []
         blobs = container.walk_blobs(name_starts_with=prefix, include=include, delimiter=delimiter, **kwargs)
         async for blob in blobs:
             blob_list.append(blob)

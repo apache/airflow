@@ -17,19 +17,19 @@
 # under the License.
 from __future__ import annotations
 
+from collections.abc import Callable
 from functools import wraps
 from inspect import signature
-from typing import TYPE_CHECKING, Callable, TypeVar, cast
+from typing import TYPE_CHECKING, TypeVar, cast
 from urllib.parse import urlsplit
 
 import oss2
 from oss2.exceptions import ClientError
 
-from airflow.exceptions import AirflowException
-from airflow.hooks.base import BaseHook
+from airflow.providers.common.compat.sdk import AirflowException, BaseHook
 
 if TYPE_CHECKING:
-    from airflow.models.connection import Connection
+    from airflow.providers.common.compat.sdk import Connection
 
 T = TypeVar("T", bound=Callable)
 

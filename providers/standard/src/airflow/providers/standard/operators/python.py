@@ -29,12 +29,12 @@ import textwrap
 import types
 import warnings
 from abc import ABCMeta, abstractmethod
-from collections.abc import Collection, Container, Iterable, Mapping, Sequence
+from collections.abc import Callable, Collection, Container, Iterable, Mapping, Sequence
 from functools import cache
 from itertools import chain
 from pathlib import Path
 from tempfile import TemporaryDirectory
-from typing import TYPE_CHECKING, Any, Callable, NamedTuple, cast
+from typing import TYPE_CHECKING, Any, NamedTuple, cast
 
 import lazy_object_proxy
 from packaging.requirements import InvalidRequirement, Requirement
@@ -43,20 +43,21 @@ from packaging.version import InvalidVersion
 
 from airflow.exceptions import (
     AirflowConfigException,
-    AirflowException,
     AirflowProviderDeprecationWarning,
-    AirflowSkipException,
     DeserializingResultError,
 )
-from airflow.models.baseoperator import BaseOperator
 from airflow.models.variable import Variable
-from airflow.providers.standard.utils.python_virtualenv import prepare_virtualenv, write_python_script
-from airflow.providers.standard.version_compat import AIRFLOW_V_3_0_PLUS
+from airflow.providers.common.compat.sdk import AirflowException, AirflowSkipException, context_merge
+from airflow.providers.standard.hooks.package_index import PackageIndexHook
+from airflow.providers.standard.utils.python_virtualenv import (
+    _execute_in_subprocess,
+    prepare_virtualenv,
+    write_python_script,
+)
+from airflow.providers.standard.version_compat import AIRFLOW_V_3_0_PLUS, BaseOperator
 from airflow.utils import hashlib_wrapper
-from airflow.utils.context import context_copy_partial, context_merge
 from airflow.utils.file import get_unique_dag_module_name
 from airflow.utils.operator_helpers import KeywordParameters
-from airflow.utils.process_utils import execute_in_subprocess
 
 if AIRFLOW_V_3_0_PLUS:
     from airflow.providers.standard.operators.branch import BaseBranchOperator
@@ -73,13 +74,9 @@ if TYPE_CHECKING:
 
     from pendulum.datetime import DateTime
 
+    from airflow.providers.common.compat.sdk import Context
     from airflow.sdk.execution_time.callback_runner import ExecutionCallableRunner
     from airflow.sdk.execution_time.context import OutletEventAccessorsProtocol
-
-    try:
-        from airflow.sdk.definitions.context import Context
-    except ImportError:  # TODO: Remove once provider drops support for Airflow 2
-        from airflow.utils.context import Context
 
     _SerializerTypeDef = Literal["pickle", "cloudpickle", "dill"]
 
@@ -330,7 +327,7 @@ class ShortCircuitOperator(PythonOperator, SkipMixin):
                 self.skip(
                     dag_run=context["dag_run"],
                     tasks=to_skip,
-                    execution_date=cast("DateTime", dag_run.logical_date),  # type: ignore[call-arg, union-attr]
+                    execution_date=cast("DateTime", dag_run.logical_date),  # type: ignore[call-arg]
                     map_index=context["ti"].map_index,
                 )
 
@@ -487,8 +484,29 @@ class _BasePythonVirtualenvOperator(PythonOperator, metaclass=ABCMeta):
 
     def execute(self, context: Context) -> Any:
         serializable_keys = set(self._iter_serializable_context_keys())
-        serializable_context = context_copy_partial(context, serializable_keys)
+        new = {k: v for k, v in context.items() if k in serializable_keys}
+        serializable_context = cast("Context", new)
+        # Store bundle_path for subprocess execution
+        self._bundle_path = self._get_bundle_path_from_context(context)
         return super().execute(context=serializable_context)
+
+    def _get_bundle_path_from_context(self, context: Context) -> str | None:
+        """
+        Extract bundle_path from the task instance's bundle_instance.
+
+        :param context: The task execution context
+        :return: Path to the bundle root directory, or None if not in a bundle
+        """
+        if not AIRFLOW_V_3_0_PLUS:
+            return None
+
+        # In Airflow 3.x, the RuntimeTaskInstance has a bundle_instance attribute
+        # that contains the bundle information including its path
+        ti = context["ti"]
+        if bundle_instance := getattr(ti, "bundle_instance", None):
+            return bundle_instance.path
+
+        return None
 
     def get_python_source(self):
         """Return the source of self.python_callable."""
@@ -562,8 +580,20 @@ class _BasePythonVirtualenvOperator(PythonOperator, metaclass=ABCMeta):
             )
 
             env_vars = dict(os.environ) if self.inherit_env else {}
+            if fd := os.getenv("__AIRFLOW_SUPERVISOR_FD"):
+                env_vars["__AIRFLOW_SUPERVISOR_FD"] = fd
             if self.env_vars:
                 env_vars.update(self.env_vars)
+
+            # Add bundle_path to PYTHONPATH for subprocess to import Dag bundle modules
+            if self._bundle_path:
+                bundle_path = self._bundle_path
+                existing_pythonpath = env_vars.get("PYTHONPATH", "")
+                if existing_pythonpath:
+                    # Append bundle_path after existing PYTHONPATH
+                    env_vars["PYTHONPATH"] = f"{existing_pythonpath}{os.pathsep}{bundle_path}"
+                else:
+                    env_vars["PYTHONPATH"] = bundle_path
 
             try:
                 cmd: list[str] = [
@@ -575,7 +605,7 @@ class _BasePythonVirtualenvOperator(PythonOperator, metaclass=ABCMeta):
                     os.fspath(termination_log_path),
                     os.fspath(airflow_context_path),
                 ]
-                execute_in_subprocess(
+                _execute_in_subprocess(
                     cmd=cmd,
                     env=env_vars,
                 )
@@ -656,6 +686,8 @@ class PythonVirtualenvOperator(_BasePythonVirtualenvOperator):
         exit code will be treated as a failure.
     :param index_urls: an optional list of index urls to load Python packages from.
         If not provided the system pip conf will be used to source packages from.
+    :param index_urls_from_connection_ids: An optional list of ``PackageIndex`` connection IDs.
+        Will be appended to ``index_urls``.
     :param venv_cache_path: Optional path to the virtual environment parent folder in which the
         virtual environment will be cached, creates a sub-folder venv-{hash} whereas hash will be replaced
         with a checksum of requirements. If not provided the virtual environment will be created and deleted
@@ -669,7 +701,9 @@ class PythonVirtualenvOperator(_BasePythonVirtualenvOperator):
     """
 
     template_fields: Sequence[str] = tuple(
-        {"requirements", "index_urls", "venv_cache_path"}.union(PythonOperator.template_fields)
+        {"requirements", "index_urls", "index_urls_from_connection_ids", "venv_cache_path"}.union(
+            PythonOperator.template_fields
+        )
     )
     template_ext: Sequence[str] = (".txt",)
 
@@ -690,6 +724,7 @@ class PythonVirtualenvOperator(_BasePythonVirtualenvOperator):
         expect_airflow: bool = True,
         skip_on_exit_code: int | Container[int] | None = None,
         index_urls: None | Collection[str] | str = None,
+        index_urls_from_connection_ids: None | Collection[str] | str = None,
         venv_cache_path: None | os.PathLike[str] = None,
         env_vars: dict[str, str] | None = None,
         inherit_env: bool = True,
@@ -724,6 +759,12 @@ class PythonVirtualenvOperator(_BasePythonVirtualenvOperator):
             self.index_urls = list(index_urls)
         else:
             self.index_urls = None
+        if isinstance(index_urls_from_connection_ids, str):
+            self.index_urls_from_connection_ids: list[str] | None = [index_urls_from_connection_ids]
+        elif isinstance(index_urls_from_connection_ids, Collection):
+            self.index_urls_from_connection_ids = list(index_urls_from_connection_ids)
+        else:
+            self.index_urls_from_connection_ids = None
         self.venv_cache_path = venv_cache_path
         super().__init__(
             python_callable=python_callable,
@@ -850,7 +891,27 @@ class PythonVirtualenvOperator(_BasePythonVirtualenvOperator):
             self.log.info("New Python virtual environment created in %s", venv_path)
             return venv_path
 
+    def _cleanup_python_pycache_dir(self, cache_dir_path: Path) -> None:
+        try:
+            shutil.rmtree(cache_dir_path)
+            self.log.debug("The directory %s has been deleted.", cache_dir_path)
+        except FileNotFoundError:
+            self.log.warning("Fail to delete %s. The directory does not exist.", cache_dir_path)
+        except PermissionError:
+            self.log.warning("Permission denied to delete the directory %s.", cache_dir_path)
+
+    def _retrieve_index_urls_from_connection_ids(self):
+        """Retrieve index URLs from Package Index connections."""
+        if self.index_urls is None:
+            self.index_urls = []
+        for conn_id in self.index_urls_from_connection_ids:
+            conn_url = PackageIndexHook(conn_id).get_connection_url()
+            self.index_urls.append(conn_url)
+
     def execute_callable(self):
+        if self.index_urls_from_connection_ids:
+            self._retrieve_index_urls_from_connection_ids()
+
         if self.venv_cache_path:
             venv_path = self._ensure_venv_cache_exists(Path(self.venv_cache_path))
             python_path = venv_path / "bin" / "python"
@@ -858,9 +919,13 @@ class PythonVirtualenvOperator(_BasePythonVirtualenvOperator):
 
         with TemporaryDirectory(prefix="venv") as tmp_dir:
             tmp_path = Path(tmp_dir)
+            custom_pycache_prefix = Path(sys.pycache_prefix or "")
+            r_path = tmp_path.relative_to(tmp_path.anchor)
+            venv_python_cache_dir = Path.cwd() / custom_pycache_prefix / r_path
             self._prepare_venv(tmp_path)
             python_path = tmp_path / "bin" / "python"
             result = self._execute_python_callable_in_subprocess(python_path)
+            self._cleanup_python_pycache_dir(venv_python_cache_dir)
             return result
 
     def _iter_serializable_context_keys(self):
@@ -1041,7 +1106,7 @@ class ExternalPythonOperator(_BasePythonVirtualenvOperator):
 
     def _iter_serializable_context_keys(self):
         yield from self.BASE_SERIALIZABLE_CONTEXT_KEYS
-        if self._get_airflow_version_from_target_env():
+        if self.expect_airflow and self._get_airflow_version_from_target_env():
             yield from self.AIRFLOW_SERIALIZABLE_CONTEXT_KEYS
             yield from self.PENDULUM_SERIALIZABLE_CONTEXT_KEYS
         elif self._is_pendulum_installed_in_target_env():

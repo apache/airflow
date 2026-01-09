@@ -21,7 +21,7 @@ Using Operators
 ===============
 
 An operator represents a single, ideally idempotent, task. Operators
-determine what actually executes when your DAG runs.
+determine what actually executes when your Dag runs.
 
 .. note::
     See the :doc:`Operators Concepts </core-concepts/operators>` documentation.

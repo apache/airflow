@@ -32,7 +32,7 @@ def all_access_test_client():
     with conf_vars(
         {
             ("core", "simple_auth_manager_all_admins"): "true",
-            ("api", "expose_config"): "true",
+            ("webserver", "expose_config"): "true",
         }
     ):
         app = create_app()
@@ -40,7 +40,7 @@ def all_access_test_client():
 
 
 @pytest.mark.parametrize(
-    "method, path",
+    ("method", "path"),
     [
         ("GET", "/api/v2/assets"),
         ("POST", "/api/v2/backfills"),
@@ -56,7 +56,6 @@ def all_access_test_client():
 )
 def test_all_endpoints_without_auth_header(all_access_test_client, method, path):
     response = all_access_test_client.request(method, path)
-    assert response.status_code not in {
-        401,
-        403,
-    }, f"Unexpected status code {response.status_code} for {method} {path}"
+    assert response.status_code not in {401, 403}, (
+        f"Unexpected status code {response.status_code} for {method} {path}"
+    )

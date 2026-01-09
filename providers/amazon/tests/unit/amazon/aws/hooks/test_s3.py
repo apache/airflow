@@ -21,7 +21,9 @@ import gzip as gz
 import inspect
 import os
 import re
+from collections.abc import Iterator
 from datetime import datetime as std_datetime, timezone
+from pathlib import Path
 from unittest import mock, mock as async_mock
 from unittest.mock import AsyncMock, MagicMock, Mock, patch
 from urllib.parse import parse_qs
@@ -31,7 +33,6 @@ import pytest
 from botocore.exceptions import ClientError
 from moto import mock_aws
 
-from airflow.exceptions import AirflowException
 from airflow.models import Connection
 from airflow.providers.amazon.aws.assets.s3 import Asset
 from airflow.providers.amazon.aws.exceptions import S3HookUriParseFailure
@@ -41,7 +42,20 @@ from airflow.providers.amazon.aws.hooks.s3 import (
     provide_bucket_name,
     unify_bucket_name_and_key,
 )
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.utils.timezone import datetime
+
+try:
+    import importlib.util
+
+    if not importlib.util.find_spec("airflow.sdk.bases.hook"):
+        raise ImportError
+
+    BASEHOOK_PATCH_PATH = "airflow.sdk.bases.hook.BaseHook"
+except ImportError:
+    BASEHOOK_PATCH_PATH = "airflow.hooks.base.BaseHook"
+
+KEY_VALUE_SPECIFICATION_ERROR = "Key and Value must be specified as a pair. Only one of the two had a value"
 
 
 @pytest.fixture
@@ -51,23 +65,16 @@ def mocked_s3_res():
 
 
 @pytest.fixture
+def s3_client():
+    with mock_aws():
+        yield boto3.client("s3")
+
+
+@pytest.fixture
 def s3_bucket(mocked_s3_res):
     bucket = "airflow-test-s3-bucket"
     mocked_s3_res.create_bucket(Bucket=bucket)
     return bucket
-
-
-@pytest.fixture
-def hook_lineage_collector():
-    from airflow.lineage import hook
-    from airflow.providers.common.compat.lineage.hook import get_hook_lineage_collector
-
-    hook._hook_lineage_collector = None
-    hook._hook_lineage_collector = hook.HookLineageCollector()
-
-    yield get_hook_lineage_collector()
-
-    hook._hook_lineage_collector = None
 
 
 class TestAwsS3Hook:
@@ -94,7 +101,7 @@ class TestAwsS3Hook:
             S3Hook(transfer_config_args=transfer_config_args)
 
     @pytest.mark.parametrize(
-        "url, expected",
+        ("url", "expected"),
         [
             pytest.param(
                 "s3://test/this/is/not/a-real-key.txt", ("test", "this/is/not/a-real-key.txt"), id="s3 style"
@@ -372,22 +379,26 @@ class TestAwsS3Hook:
 
         assert sorted(keys) == sorted(hook.list_keys(s3_bucket, delimiter="/", page_size=1))
 
-    def test_get_file_metadata(self, s3_bucket):
+    def test_iter_file_metadata(self, s3_bucket):
         hook = S3Hook()
         bucket = hook.get_bucket(s3_bucket)
         bucket.put_object(Key="test", Body=b"a")
 
-        assert len(hook.get_file_metadata("t", s3_bucket)) == 1
-        assert hook.get_file_metadata("t", s3_bucket)[0]["Size"] is not None
-        assert len(hook.get_file_metadata("test", s3_bucket)) == 1
-        assert len(hook.get_file_metadata("a", s3_bucket)) == 0
+        assert isinstance(hook.iter_file_metadata("t", s3_bucket), Iterator)
 
-    def test_get_file_metadata_when_requester_pays(self, s3_bucket):
+        # Since iter_file_metadata now returns an Iterator, it will first be cast to a `list` before being
+        # able to determine its length
+        assert len(list(hook.iter_file_metadata("t", s3_bucket))) == 1
+        assert next(hook.iter_file_metadata("t", s3_bucket))["Size"] is not None
+        assert len(list(hook.iter_file_metadata("test", s3_bucket))) == 1
+        assert len(list(hook.iter_file_metadata("a", s3_bucket))) == 0
+
+    def test_iter_file_metadata_when_requester_pays(self, s3_bucket):
         hook = S3Hook(requester_pays=True)
         hook.get_conn = MagicMock()
         hook.get_conn.return_value.get_paginator.return_value.paginate.return_value = []
 
-        assert hook.get_file_metadata("test", s3_bucket) == []
+        assert not any(hook.iter_file_metadata("test", s3_bucket))  # Empty Iterator
 
         hook.get_conn.return_value.get_paginator.return_value.paginate.assert_called_with(
             Bucket="airflow-test-s3-bucket",
@@ -698,7 +709,7 @@ class TestAwsS3Hook:
         mock_paginator.paginate.assert_called_with(
             Bucket="test_bucket",
             Delimiter="/",
-            Prefix="t",
+            Prefix="test.txt",
             RequestPayer="requester",
         )
 
@@ -729,8 +740,53 @@ class TestAwsS3Hook:
         mock_paginator.paginate.assert_called_with(
             Bucket="test_bucket",
             Delimiter="/",
-            Prefix="t",
+            Prefix="test.txt",
         )
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        ("mock_bucket_keys", "mock_response_bucket_keys"),
+        [
+            (["test.txt"], ["test.txt"]),
+            (["test_key"], ["test_key", "test_key2"]),
+        ],
+    )
+    async def test_s3_key_hook_get_files_bucket_keys_list(self, mock_bucket_keys, mock_response_bucket_keys):
+        test_resp_iter = [
+            {
+                "Contents": [
+                    {
+                        "Key": mock_response_bucket_key,
+                        "Size": 0,
+                        "ETag": "etag1",
+                        "LastModified": datetime(2020, 8, 14, 17, 19, 34),
+                    }
+                    for mock_response_bucket_key in mock_response_bucket_keys
+                ]
+            }
+        ]
+
+        mock_paginator = mock.Mock()
+        mock_paginate = mock.MagicMock()
+        mock_paginate.__aiter__.return_value = test_resp_iter
+        mock_paginator.paginate.return_value = mock_paginate
+
+        s3_hook_async = S3Hook(client_type="S3", resource_type="S3", requester_pays=True)
+        mock_client = AsyncMock()
+        mock_client.get_paginator = mock.Mock(return_value=mock_paginator)
+        response = await s3_hook_async.get_files_async(
+            client=mock_client, bucket="test_bucket", bucket_keys=mock_bucket_keys, wildcard_match=False
+        )
+
+        assert response == mock_response_bucket_keys
+
+        for test_bucket_key in mock_bucket_keys:
+            mock_paginator.paginate.assert_called_with(
+                Bucket="test_bucket",
+                Delimiter="/",
+                Prefix=test_bucket_key,
+                RequestPayer="requester",
+            )
 
     @pytest.mark.asyncio
     async def test_s3_key_hook_list_keys_async(self):
@@ -759,7 +815,7 @@ class TestAwsS3Hook:
 
     @pytest.mark.asyncio
     @pytest.mark.parametrize(
-        "test_first_prefix, test_second_prefix, requester_pays",
+        ("test_first_prefix", "test_second_prefix", "requester_pays"),
         [
             ("async-prefix1/", "async-prefix2/", False),
             ("async-prefix1/", "async-prefix2/", True),
@@ -800,7 +856,7 @@ class TestAwsS3Hook:
 
     @pytest.mark.asyncio
     @pytest.mark.parametrize(
-        "mock_prefix, mock_bucket",
+        ("mock_prefix", "mock_bucket"),
         [
             ("async-prefix1", "test_bucket"),
         ],
@@ -862,7 +918,7 @@ class TestAwsS3Hook:
     # @async_mock.patch("airflow.providers.amazon.aws.hooks.s3.S3Hook.get_s3_bucket_key")
     @pytest.mark.asyncio
     @pytest.mark.parametrize(
-        "contents, result",
+        ("contents", "result"),
         [
             (
                 [
@@ -916,7 +972,7 @@ class TestAwsS3Hook:
         assert response is result
 
     @pytest.mark.parametrize(
-        "key, pattern, expected",
+        ("key", "pattern", "expected"),
         [
             ("test.csv", r"[a-z]+\.csv", True),
             ("test.txt", r"test/[a-z]+\.csv", False),
@@ -1272,7 +1328,6 @@ class TestAwsS3Hook:
             assert mock_hook.delete_bucket(bucket_name="not-exists-bucket-name", force_delete=True)
         assert ctx.value.response["Error"]["Code"] == "NoSuchBucket"
 
-    @pytest.mark.db_test
     def test_provide_bucket_name(self):
         with mock.patch.object(
             S3Hook,
@@ -1347,9 +1402,8 @@ class TestAwsS3Hook:
         test_bucket_name_with_key = fake_s3_hook.test_function_with_key("s3://foo/bar.csv")
         assert test_bucket_name_with_key == ("foo", "bar.csv")
 
-        with pytest.raises(ValueError) as ctx:
+        with pytest.raises(ValueError, match="Missing key parameter!"):
             fake_s3_hook.test_function_with_test_key("s3://foo/bar.csv")
-        assert isinstance(ctx.value, ValueError)
 
     @mock.patch("airflow.providers.amazon.aws.hooks.s3.NamedTemporaryFile")
     def test_download_file(self, mock_temp_file, tmp_path):
@@ -1535,7 +1589,7 @@ class TestAwsS3Hook:
         hook = S3Hook(extra_args={"unknown_s3_args": "value"})
         path = tmp_path / "testfile"
         path.write_text("Content")
-        with pytest.raises(ValueError):
+        with pytest.raises(ValueError, match="Invalid extra_args key 'unknown_s3_args'"):
             hook.load_file_obj(path.open("rb"), "my_key", s3_bucket, acl_policy="public-read")
 
     def test_should_pass_extra_args(self, s3_bucket, tmp_path):
@@ -1660,7 +1714,7 @@ class TestAwsS3Hook:
 
         hook.create_bucket(bucket_name="new_bucket")
         key = "Color"
-        with pytest.raises(ValueError):
+        with pytest.raises(ValueError, match=KEY_VALUE_SPECIFICATION_ERROR):
             hook.put_bucket_tagging(bucket_name="new_bucket", key=key)
 
     @mock_aws
@@ -1668,7 +1722,7 @@ class TestAwsS3Hook:
         hook = S3Hook()
         hook.create_bucket(bucket_name="new_bucket")
         value = "Color"
-        with pytest.raises(ValueError):
+        with pytest.raises(ValueError, match=KEY_VALUE_SPECIFICATION_ERROR):
             hook.put_bucket_tagging(bucket_name="new_bucket", value=value)
 
     @mock_aws
@@ -1677,7 +1731,7 @@ class TestAwsS3Hook:
         hook.create_bucket(bucket_name="new_bucket")
         tag_set = [{"Key": "Color", "Value": "Green"}]
         key = "Color"
-        with pytest.raises(ValueError):
+        with pytest.raises(ValueError, match=KEY_VALUE_SPECIFICATION_ERROR):
             hook.put_bucket_tagging(bucket_name="new_bucket", key=key, tag_set=tag_set)
 
     @mock_aws
@@ -1686,7 +1740,7 @@ class TestAwsS3Hook:
         hook.create_bucket(bucket_name="new_bucket")
         tag_set = [{"Key": "Color", "Value": "Green"}]
         value = "Green"
-        with pytest.raises(ValueError):
+        with pytest.raises(ValueError, match=KEY_VALUE_SPECIFICATION_ERROR):
             hook.put_bucket_tagging(bucket_name="new_bucket", value=value, tag_set=tag_set)
 
     @mock_aws
@@ -1727,10 +1781,85 @@ class TestAwsS3Hook:
         with pytest.raises(ClientError, match=r".*NoSuchTagSet.*"):
             hook.get_bucket_tagging(bucket_name="new_bucket")
 
+    def test_sync_to_local_dir_behaviour(self, s3_bucket, s3_client, tmp_path):
+        def get_logs_string(call_args_list):
+            return "".join([args[0][0] % args[0][1:] for args in call_args_list])
 
-@pytest.mark.db_test
+        s3_client.put_object(Bucket=s3_bucket, Key="dag_01.py", Body=b"test data")
+        s3_client.put_object(Bucket=s3_bucket, Key="dag_02.py", Body=b"test data")
+        s3_client.put_object(Bucket=s3_bucket, Key="subproject1/", Body=b"")
+        s3_client.put_object(Bucket=s3_bucket, Key="subproject1/dag_a.py", Body=b"test data")
+        s3_client.put_object(Bucket=s3_bucket, Key="subproject1/dag_b.py", Body=b"test data")
+
+        sync_local_dir = tmp_path / "s3_sync_dir"
+        hook = S3Hook()
+        hook.log.debug = MagicMock()
+        hook.sync_to_local_dir(
+            bucket_name=s3_bucket, local_dir=sync_local_dir, s3_prefix="", delete_stale=True
+        )
+        logs_string = get_logs_string(hook.log.debug.call_args_list)
+        assert f"Downloading data from s3://{s3_bucket}" in logs_string
+        assert f"does not exist. Downloaded dag_01.py to {sync_local_dir}/dag_01.py" in logs_string
+        assert "does not exist. Downloaded dag_01.py to" in logs_string
+        assert f"does not exist. Downloaded subproject1/dag_a.py to {sync_local_dir}" in logs_string
+
+        # add new file to bucket and sync
+        hook.log.debug = MagicMock()
+        s3_client.put_object(Bucket=s3_bucket, Key="dag_03.py", Body=b"test data")
+        hook.sync_to_local_dir(
+            bucket_name=s3_bucket, local_dir=sync_local_dir, s3_prefix="", delete_stale=True
+        )
+        logs_string = get_logs_string(hook.log.debug.call_args_list)
+        assert (
+            "subproject1/dag_b.py is up-to-date with S3 object subproject1/dag_b.py. Skipping download"
+            in logs_string
+        )
+        assert f"does not exist. Downloaded dag_03.py to {sync_local_dir}/dag_03.py" in logs_string
+        # read that file is donloaded and has same content
+        assert Path(sync_local_dir).joinpath("dag_03.py").read_text() == "test data"
+
+        local_file_that_should_be_deleted = Path(sync_local_dir).joinpath("file_that_should_be_deleted.py")
+        local_file_that_should_be_deleted.write_text("test dag")
+        local_folder_should_be_deleted = Path(sync_local_dir).joinpath("local_folder_should_be_deleted")
+        local_folder_should_be_deleted.mkdir(exist_ok=True)
+        hook.log.debug = MagicMock()
+        hook.sync_to_local_dir(
+            bucket_name=s3_bucket, local_dir=sync_local_dir, s3_prefix="", delete_stale=True
+        )
+        logs_string = get_logs_string(hook.log.debug.call_args_list)
+        assert f"Deleted stale local file: {local_file_that_should_be_deleted.as_posix()}" in logs_string
+
+        assert f"Deleted stale empty directory: {local_folder_should_be_deleted.as_posix()}" in logs_string
+
+        s3_client.put_object(Bucket=s3_bucket, Key="dag_03.py", Body=b"test data-changed")
+        hook.log.debug = MagicMock()
+        hook.sync_to_local_dir(
+            bucket_name=s3_bucket, local_dir=sync_local_dir, s3_prefix="", delete_stale=True
+        )
+        logs_string = get_logs_string(hook.log.debug.call_args_list)
+        assert "S3 object size" in logs_string
+        assert "differ. Downloaded dag_03.py to" in logs_string
+
+        local_file_same_size = Path(sync_local_dir).joinpath("dag_04.py")
+        local_file_same_size.write_text("same size")
+
+        s3_client.put_object(Bucket=s3_bucket, Key="dag_04.py", Body=b"same size")
+
+        prev_ts = local_file_same_size.stat().st_mtime - 5
+        os.utime(local_file_same_size, (prev_ts, prev_ts))
+
+        hook.log.debug = MagicMock()
+        hook.sync_to_local_dir(
+            bucket_name=s3_bucket, local_dir=sync_local_dir, s3_prefix="", delete_stale=True
+        )
+        logs_string = get_logs_string(hook.log.debug.call_args_list)
+        assert "S3 object last modified" in logs_string
+        assert "local file last modified" in logs_string
+        assert "differ. Downloaded dag_04.py to" in logs_string
+
+
 @pytest.mark.parametrize(
-    "key_kind, has_conn, has_bucket, precedence, expected",
+    ("key_kind", "has_conn", "has_bucket", "precedence", "expected"),
     [
         ("full_key", "no_conn", "no_bucket", "unify", ["key_bucket", "key.txt"]),
         ("full_key", "no_conn", "no_bucket", "provide", ["key_bucket", "key.txt"]),
@@ -1750,7 +1879,7 @@ class TestAwsS3Hook:
         ("rel_key", "with_conn", "with_bucket", "provide", ["kwargs_bucket", "key.txt"]),
     ],
 )
-@patch("airflow.hooks.base.BaseHook.get_connection")
+@patch(f"{BASEHOOK_PATCH_PATH}.get_connection")
 def test_unify_and_provide_bucket_name_combination(
     mock_base, key_kind, has_conn, has_bucket, precedence, expected, caplog
 ):
@@ -1801,7 +1930,7 @@ def test_unify_and_provide_bucket_name_combination(
 
 
 @pytest.mark.parametrize(
-    "key_kind, has_conn, has_bucket, expected",
+    ("key_kind", "has_conn", "has_bucket", "expected"),
     [
         ("full_key", "no_conn", "no_bucket", ["key_bucket", "key.txt"]),
         ("full_key", "no_conn", "with_bucket", ["kwargs_bucket", "s3://key_bucket/key.txt"]),
@@ -1813,7 +1942,7 @@ def test_unify_and_provide_bucket_name_combination(
         ("rel_key", "with_conn", "with_bucket", ["kwargs_bucket", "key.txt"]),
     ],
 )
-@patch("airflow.hooks.base.BaseHook.get_connection")
+@patch(f"{BASEHOOK_PATCH_PATH}.get_connection")
 def test_s3_head_object_decorated_behavior(mock_conn, has_conn, has_bucket, key_kind, expected):
     if has_conn == "with_conn":
         c = Connection(extra={"service_config": {"s3": {"bucket_name": "conn_bucket"}}})

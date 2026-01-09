@@ -17,7 +17,6 @@
  * under the License.
  */
 import { createListCollection, Flex, Select, type SelectValueChangeDetails, Text } from "@chakra-ui/react";
-import { useCallback, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { useParams, useSearchParams } from "react-router-dom";
 
@@ -36,26 +35,21 @@ type VersionSelected = {
 export const DagVersionSelect = ({ showLabel = true }: { readonly showLabel?: boolean }) => {
   const { t: translate } = useTranslation("components");
   const { dagId = "" } = useParams();
-  const { data, isLoading } = useDagVersionServiceGetDagVersions({ dagId, orderBy: "-version_number" });
+  const { data, isLoading } = useDagVersionServiceGetDagVersions({ dagId, orderBy: ["-version_number"] });
   const [searchParams, setSearchParams] = useSearchParams();
   const selectedVersionNumber = useSelectedVersion();
   const selectedVersion = data?.dag_versions.find((dv) => dv.version_number === selectedVersionNumber);
-  const versionOptions = useMemo(
-    () =>
-      createListCollection({
-        items: (data?.dag_versions ?? []).map((dv) => ({ value: dv.version_number, version: dv })),
-      }),
-    [data],
-  );
-  const handleStateChange = useCallback(
-    ({ items }: SelectValueChangeDetails<VersionSelected>) => {
-      if (items[0]) {
-        searchParams.set(SearchParamsKeys.VERSION_NUMBER, items[0].value.toString());
-        setSearchParams(searchParams);
-      }
-    },
-    [searchParams, setSearchParams],
-  );
+
+  const versionOptions = createListCollection({
+    items: (data?.dag_versions ?? []).map((dv) => ({ value: dv.version_number, version: dv })),
+  });
+
+  const handleStateChange = ({ items }: SelectValueChangeDetails<VersionSelected>) => {
+    if (items[0]) {
+      searchParams.set(SearchParamsKeys.VERSION_NUMBER, items[0].value.toString());
+      setSearchParams(searchParams);
+    }
+  };
 
   return (
     <Select.Root
@@ -72,7 +66,7 @@ export const DagVersionSelect = ({ showLabel = true }: { readonly showLabel?: bo
       ) : undefined}
       <Select.Control>
         <Select.Trigger>
-          <Select.ValueText placeholder="All Versions">
+          <Select.ValueText placeholder={translate("versionSelect.allVersions")}>
             {selectedVersion === undefined ? undefined : (
               <Flex justifyContent="space-between" width="175px">
                 <Text>

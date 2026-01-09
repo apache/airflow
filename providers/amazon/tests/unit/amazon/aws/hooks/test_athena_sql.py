@@ -61,7 +61,7 @@ class TestAthenaSQLHookConn:
 
         mock_get_credentials.assert_called_once_with(region_name=REGION_NAME)
 
-        assert str(athena_uri) == expected_athena_uri
+        assert athena_uri == expected_athena_uri
 
     @mock.patch("airflow.providers.amazon.aws.hooks.athena_sql.AthenaSQLHook._get_conn_params")
     def test_get_uri_change_driver(self, mock_get_conn_params):
@@ -71,7 +71,7 @@ class TestAthenaSQLHookConn:
 
         athena_uri = self.db_hook.get_uri()
 
-        assert str(athena_uri).startswith("awsathena+arrow://")
+        assert athena_uri.startswith("awsathena+arrow://")
 
     @mock.patch("airflow.providers.amazon.aws.hooks.athena_sql.pyathena.connect")
     @mock.patch("airflow.providers.amazon.aws.hooks.athena_sql.AthenaSQLHook.get_session")
@@ -102,7 +102,7 @@ class TestAthenaSQLHookConn:
         )
 
     @pytest.mark.parametrize(
-        "conn_params, conn_extra, expected_call_args",
+        ("conn_params", "conn_extra", "expected_call_args"),
         [
             (
                 {"schema": "athena_sql_schema1"},

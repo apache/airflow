@@ -16,9 +16,11 @@
 # under the License.
 from __future__ import annotations
 
+from collections.abc import Callable
+
 from methodtools import lru_cache
 
-from airflow.providers.common.sql.dialects.dialect import Dialect
+from airflow.providers.common.sql.dialects.dialect import Dialect, T
 
 
 class PostgresDialect(Dialect):
@@ -39,7 +41,9 @@ class PostgresDialect(Dialect):
         """
         if schema is None:
             table, schema = self.extract_schema_from_table(table)
-        sql = """
+        table = self.unescape_word(table) or table
+        schema = self.unescape_word(schema) if schema else None
+        query = """
             select kcu.column_name
             from information_schema.table_constraints tco
                     join information_schema.key_column_usage kcu
@@ -49,11 +53,51 @@ class PostgresDialect(Dialect):
             where tco.constraint_type = 'PRIMARY KEY'
             and kcu.table_schema = %s
             and kcu.table_name = %s
+            order by kcu.ordinal_position
         """
-        pk_columns = [
-            row[0] for row in self.get_records(sql, (self.unescape_word(schema), self.unescape_word(table)))
-        ]
+        pk_columns = [row[0] for row in self.get_records(query, (schema, table))]
         return pk_columns or None
+
+    @staticmethod
+    def _to_row(row):
+        return {
+            "name": row[0],
+            "type": row[1],
+            "nullable": row[2].casefold() == "yes",
+            "default": row[3],
+            "autoincrement": row[4].casefold() == "always",
+            "identity": row[5].casefold() == "yes",
+        }
+
+    @lru_cache(maxsize=None)
+    def get_column_names(
+        self, table: str, schema: str | None = None, predicate: Callable[[T], bool] = lambda column: True
+    ) -> list[str] | None:
+        if schema is None:
+            table, schema = self.extract_schema_from_table(table)
+        table = self.unescape_word(table) or table
+        schema = self.unescape_word(schema) if schema else None
+        query = """
+            select column_name,
+                    data_type,
+                    is_nullable,
+                    column_default,
+                    is_generated,
+                    is_identity
+            from information_schema.columns
+            where table_schema = %s
+                and table_name = %s
+            order by ordinal_position
+        """
+        column_names = []
+        for row in map(
+            self._to_row,
+            self.get_records(query, (schema, table)),
+        ):
+            if predicate(row):
+                column_names.append(row["name"])
+        self.log.debug("Column names for table '%s': %s", table, column_names)
+        return column_names
 
     def generate_replace_sql(self, table, values, target_fields, **kwargs) -> str:
         """

@@ -27,8 +27,9 @@ import shutil
 import sys
 import time
 from collections import defaultdict
+from collections.abc import Callable
 from operator import attrgetter
-from typing import TYPE_CHECKING, Any, Callable, Literal
+from typing import TYPE_CHECKING, Any, Literal, cast
 from urllib.parse import quote, urlparse
 
 # Using `from elasticsearch import *` would break elasticsearch mocking used in unit test.
@@ -37,33 +38,29 @@ import pendulum
 from elasticsearch import helpers
 from elasticsearch.exceptions import NotFoundError
 
-from airflow.configuration import conf
-from airflow.exceptions import AirflowException
 from airflow.models.dagrun import DagRun
-from airflow.providers.elasticsearch.log.es_json_formatter import (
-    ElasticsearchJSONFormatter,
-)
+from airflow.providers.common.compat.module_loading import import_string
+from airflow.providers.common.compat.sdk import AirflowException, conf, timezone
+from airflow.providers.elasticsearch.log.es_json_formatter import ElasticsearchJSONFormatter
 from airflow.providers.elasticsearch.log.es_response import ElasticSearchResponse, Hit
 from airflow.providers.elasticsearch.version_compat import AIRFLOW_V_3_0_PLUS
-from airflow.utils import timezone
 from airflow.utils.log.file_task_handler import FileTaskHandler
 from airflow.utils.log.logging_mixin import ExternalLoggingMixin, LoggingMixin
-from airflow.utils.module_loading import import_string
 from airflow.utils.session import create_session
 
 if TYPE_CHECKING:
     from datetime import datetime
 
     from airflow.models.taskinstance import TaskInstance, TaskInstanceKey
+    from airflow.utils.log.file_task_handler import LogMetadata
+
 
 if AIRFLOW_V_3_0_PLUS:
-    from typing import Union
-
     from airflow.utils.log.file_task_handler import StructuredLogMessage
 
-    EsLogMsgType = Union[list[StructuredLogMessage], str]
+    EsLogMsgType = list[StructuredLogMessage] | str
 else:
-    EsLogMsgType = list[tuple[str, str]]  # type: ignore[misc]
+    EsLogMsgType = list[tuple[str, str]]  # type: ignore[assignment,misc]
 
 
 LOG_LINE_DEFAULTS = {"exc_text": "", "stack_info": ""}
@@ -74,6 +71,7 @@ LOG_LINE_DEFAULTS = {"exc_text": "", "stack_info": ""}
 # not exist, the task handler should use the log_id_template attribute instead.
 USE_PER_RUN_LOG_ID = hasattr(DagRun, "get_log_template")
 
+TASK_LOG_FIELDS = ["timestamp", "event", "level", "chan", "logger"]
 
 VALID_ES_CONFIG_KEYS = set(inspect.signature(elasticsearch.Elasticsearch.__init__).parameters.keys())
 # Remove `self` from the valid set of kwargs
@@ -159,19 +157,25 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
         offset_field: str = "offset",
         host: str = "http://localhost:9200",
         frontend: str = "localhost:5601",
-        index_patterns: str = conf.get("elasticsearch", "index_patterns"),
+        index_patterns: str = conf.get("elasticsearch", "index_patterns", fallback="_all"),
         index_patterns_callable: str = conf.get("elasticsearch", "index_patterns_callable", fallback=""),
         es_kwargs: dict | None | Literal["default_es_kwargs"] = "default_es_kwargs",
+        max_bytes: int = 0,
+        backup_count: int = 0,
+        delay: bool = False,
         **kwargs,
-    ):
+    ) -> None:
         es_kwargs = es_kwargs or {}
         if es_kwargs == "default_es_kwargs":
             es_kwargs = get_es_kwargs_from_config()
-        host = self.format_url(host)
-        super().__init__(base_log_folder)
+        self.host = self.format_url(host)
+        # support log file size handling of FileTaskHandler
+        super().__init__(
+            base_log_folder=base_log_folder, max_bytes=max_bytes, backup_count=backup_count, delay=delay
+        )
         self.closed = False
 
-        self.client = elasticsearch.Elasticsearch(host, **es_kwargs)
+        self.client = elasticsearch.Elasticsearch(self.host, **es_kwargs)
         # in airflow.cfg, host of elasticsearch has to be http://dockerhostXxxx:9200
 
         self.frontend = frontend
@@ -192,7 +196,7 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
         )
 
         self.formatter: logging.Formatter
-        self.handler: logging.FileHandler | logging.StreamHandler  # type: ignore[assignment]
+        self.handler: logging.FileHandler | logging.StreamHandler | None = None
         self._doc_type_map: dict[Any, Any] = {}
         self._doc_type: list[Any] = []
 
@@ -241,32 +245,16 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
             if USE_PER_RUN_LOG_ID:
                 log_id_template = dag_run.get_log_template(session=session).elasticsearch_id
 
-        if TYPE_CHECKING:
-            assert ti.task
-        try:
-            dag = ti.task.dag
-        except AttributeError:  # ti.task is not always set.
-            data_interval = (dag_run.data_interval_start, dag_run.data_interval_end)
-        else:
-            if TYPE_CHECKING:
-                assert dag is not None
-            # TODO: Task-SDK: Where should this function be?
-            data_interval = dag.get_run_data_interval(dag_run)  # type: ignore[attr-defined]
-
         if self.json_format:
-            data_interval_start = self._clean_date(data_interval[0])
-            data_interval_end = self._clean_date(data_interval[1])
+            data_interval_start = self._clean_date(dag_run.data_interval_start)
+            data_interval_end = self._clean_date(dag_run.data_interval_end)
             logical_date = self._clean_date(dag_run.logical_date)
         else:
-            if data_interval[0]:
-                data_interval_start = data_interval[0].isoformat()
-            else:
-                data_interval_start = ""
-            if data_interval[1]:
-                data_interval_end = data_interval[1].isoformat()
-            else:
-                data_interval_end = ""
-            logical_date = dag_run.logical_date.isoformat()
+            data_interval_start = (
+                dag_run.data_interval_start.isoformat() if dag_run.data_interval_start else ""
+            )
+            data_interval_end = dag_run.data_interval_end.isoformat() if dag_run.data_interval_end else ""
+            logical_date = dag_run.logical_date.isoformat() if dag_run.logical_date else ""
 
         return log_id_template.format(
             dag_id=ti.dag_id,
@@ -294,7 +282,7 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
     def _group_logs_by_host(self, response: ElasticSearchResponse) -> dict[str, list[Hit]]:
         grouped_logs = defaultdict(list)
         for hit in response:
-            key = getattr_nested(hit, self.host_field, None) or "default_host"
+            key = getattr_nested(hit, self.host_field, None) or self.host
             grouped_logs[key].append(hit)
         return grouped_logs
 
@@ -302,8 +290,8 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
         return True
 
     def _read(
-        self, ti: TaskInstance, try_number: int, metadata: dict | None = None
-    ) -> tuple[EsLogMsgType, dict]:
+        self, ti: TaskInstance, try_number: int, metadata: LogMetadata | None = None
+    ) -> tuple[EsLogMsgType, LogMetadata]:
         """
         Endpoint for streaming log.
 
@@ -314,7 +302,9 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
         :return: a list of tuple with host and log documents, metadata.
         """
         if not metadata:
-            metadata = {"offset": 0}
+            # LogMetadata(TypedDict) is used as type annotation for log_reader; added ignore to suppress mypy error
+            metadata = {"offset": 0}  # type: ignore[assignment]
+        metadata = cast("LogMetadata", metadata)
         if "offset" not in metadata:
             metadata["offset"] = 0
 
@@ -354,7 +344,9 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
                     "Otherwise, the logs for this task instance may have been removed."
                 )
                 if AIRFLOW_V_3_0_PLUS:
-                    return missing_log_message, metadata
+                    from airflow.utils.log.file_task_handler import StructuredLogMessage
+
+                    return [StructuredLogMessage(event=missing_log_message)], metadata
                 return [("", missing_log_message)], metadata  # type: ignore[list-item]
             if (
                 # Assume end of log after not receiving new log for N min,
@@ -383,11 +375,16 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
                         sources=[host for host in logs_by_host.keys()],
                     ),  # type: ignore[call-arg]
                     StructuredLogMessage(event="::endgroup::"),
-                ]  # type: ignore[misc]
+                ]
 
+                # Flatten all hits, filter to only desired fields, and construct StructuredLogMessage objects
                 message = header + [
-                    StructuredLogMessage(event=concat_logs(hits)) for hits in logs_by_host.values()
-                ]  # type: ignore[misc]
+                    StructuredLogMessage(
+                        **{k: v for k, v in hit.to_dict().items() if k.lower() in TASK_LOG_FIELDS}
+                    )
+                    for hits in logs_by_host.values()
+                    for hit in hits
+                ]
             else:
                 message = [
                     (host, concat_logs(hits))  # type: ignore[misc]
@@ -429,7 +426,7 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
 
         index_patterns = self._get_index_patterns(ti)
         try:
-            max_log_line = self.client.count(index=index_patterns, query=query)["count"]  # type: ignore
+            max_log_line = self.client.count(index=index_patterns, query=query)["count"]
         except NotFoundError as e:
             self.log.exception("The target index pattern %s does not exist", index_patterns)
             raise e
@@ -516,7 +513,7 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
 
         # Reopen the file stream, because FileHandler.close() would be called
         # first in logging.shutdown() and the stream in it would be set to None.
-        if self.handler.stream is None or self.handler.stream.closed:  # type: ignore[attr-defined]
+        if self.handler.stream is None or self.handler.stream.closed:
             self.handler.stream = self.handler._open()  # type: ignore[union-attr]
 
         # Mark the end of file using end of log mark,

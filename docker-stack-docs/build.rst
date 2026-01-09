@@ -215,7 +215,7 @@ In the simplest case building your image consists of those steps:
 
 1) Create your own ``Dockerfile`` (name it ``Dockerfile``) where you add:
 
-* information what your image should be based on (for example ``FROM: apache/airflow:|airflow-version|-python3.9``
+* information what your image should be based on (for example ``FROM: apache/airflow:|airflow-version|-python3.10``
 
 * additional steps that should be executed in your image (typically in the form of ``RUN <command>``)
 
@@ -313,17 +313,17 @@ There are two types of images you can extend your image from:
 
 Naming conventions for the images:
 
-+----------------+-----------------------+---------------------------------+--------------------------------------+
-| Image          | Python                | Standard image                  | Slim image                           |
-+================+=======================+=================================+======================================+
-| Latest default | 3.9                   | apache/airflow:latest           | apache/airflow:slim-latest           |
-+----------------+-----------------------+---------------------------------+--------------------------------------+
-| Default        | 3.9                   | apache/airflow:X.Y.Z            | apache/airflow:slim-X.Y.Z            |
-+----------------+-----------------------+---------------------------------+--------------------------------------+
-| Latest         | 3.9,3.10,3.11,3.12    | apache/airflow:latest-pythonN.M | apache/airflow:slim-latest-pythonN.M |
-+----------------+-----------------------+---------------------------------+--------------------------------------+
-| Specific       | 3.9,3.10,3.11,3.12    | apache/airflow:X.Y.Z-pythonN.M  | apache/airflow:slim-X.Y.Z-pythonN.M  |
-+----------------+-----------------------+---------------------------------+--------------------------------------+
++----------------+---------------------+---------------------------------+--------------------------------------+
+| Image          | Python              | Standard image                  | Slim image                           |
++================+=====================+=================================+======================================+
+| Latest default | 3.12                | apache/airflow:latest           | apache/airflow:slim-latest           |
++----------------+---------------------+---------------------------------+--------------------------------------+
+| Default        | 3.12                | apache/airflow:X.Y.Z            | apache/airflow:slim-X.Y.Z            |
++----------------+---------------------+---------------------------------+--------------------------------------+
+| Latest         | 3.10,3.11,3.12,3.13 | apache/airflow:latest-pythonN.M | apache/airflow:slim-latest-pythonN.M |
++----------------+---------------------+---------------------------------+--------------------------------------+
+| Specific       | 3.10,3.11,3.12,3.13 | apache/airflow:X.Y.Z-pythonN.M  | apache/airflow:slim-X.Y.Z-pythonN.M  |
++----------------+---------------------+---------------------------------+--------------------------------------+
 
 * The "latest" image is always the latest released stable version available.
 
@@ -366,7 +366,7 @@ You should be aware, about a few things
   The dags in production image are in ``/opt/airflow/dags`` folder.
 
 * You can build your image without any need for Airflow sources. It is enough that you place the
-  ``Dockerfile`` and any files that are referred to (such as DAG files) in a separate directory and run
+  ``Dockerfile`` and any files that are referred to (such as Dag files) in a separate directory and run
   a command ``docker build . --pull --tag my-image:my-tag`` (where ``my-image`` is the name you want to name it
   and ``my-tag`` is the tag you want to tag the image with.
 
@@ -714,7 +714,7 @@ Building from PyPI packages
 
 This is the basic way of building the custom images from sources.
 
-The following example builds the production image in version ``3.9`` with latest PyPI-released Airflow,
+The following example builds the production image in version ``3.10`` with latest PyPI-released Airflow,
 with default set of Airflow extras and dependencies. The latest PyPI-released Airflow constraints are used automatically.
 
 .. exampleinclude:: docker-examples/customizing/stable-airflow.sh
@@ -722,7 +722,7 @@ with default set of Airflow extras and dependencies. The latest PyPI-released Ai
     :start-after: [START build]
     :end-before: [END build]
 
-The following example builds the production image in version ``3.9`` with default extras from ``2.3.0`` Airflow
+The following example builds the production image in version ``3.10`` with default extras from ``2.3.0`` Airflow
 package. The ``2.3.0`` constraints are used automatically.
 
 .. exampleinclude:: docker-examples/customizing/pypi-selected-version.sh
@@ -730,7 +730,7 @@ package. The ``2.3.0`` constraints are used automatically.
     :start-after: [START build]
     :end-before: [END build]
 
-The following example builds the production image in version ``3.9`` with additional Airflow extras
+The following example builds the production image in version ``3.10`` with additional Airflow extras
 (``mssql,hdfs``) from ``2.3.0`` PyPI package, and additional dependency (``oauth2client``).
 
 .. exampleinclude:: docker-examples/customizing/pypi-extras-and-deps.sh
@@ -757,7 +757,7 @@ have more complex dependencies to build.
 Building optimized images
 .........................
 
-The following example builds the production image in version ``3.9`` with additional Airflow extras from
+The following example builds the production image in version ``3.10`` with additional Airflow extras from
 PyPI package but it includes additional apt dev and runtime dependencies.
 
 The dev dependencies are those that require ``build-essential`` and usually need to involve recompiling
@@ -792,58 +792,13 @@ Building images with MySQL client
 
 .. warning::
 
-  By default Airflow images as of Airflow 2.8.0 use "MariaDB" client by default on both "X86_64" and "ARM64"
-  platforms. However, you can also build images with MySQL client. The following example builds the
-  production image in default Python version with "MySQL" client.
-
-.. exampleinclude:: docker-examples/customizing/mysql-client.sh
-    :language: bash
-    :start-after: [START build]
-    :end-before: [END build]
-
-
-.. _image-build-github:
-
-
-Building from GitHub
-....................
-
-This method is usually used for development purpose. But in case you have your own fork you can point
-it to your forked version of source code without having to release it to PyPI. It is enough to have
-a branch or tag in your repository and use the tag or branch in the URL that you point the installation to.
-
-In case of GitHub builds you need to pass the constraints reference manually in case you want to use
-specific constraints, otherwise the default ``constraints-main`` is used.
-
-The following example builds the production image in version ``3.9`` with default extras from the latest main version and
-constraints are taken from latest version of the constraints-main branch in GitHub.
-
-.. exampleinclude:: docker-examples/customizing/github-main.sh
-    :language: bash
-    :start-after: [START build]
-    :end-before: [END build]
-
-The following example builds the production image with default extras from the
-latest ``v2-*-test`` version and constraints are taken from the latest version of
-the ``constraints-2-*`` branch in GitHub (for example ``v2-2-test`` branch matches ``constraints-2-2``).
-Note that this command might fail occasionally as only the "released version" constraints when building a
-version and "main" constraints when building main are guaranteed to work.
-
-.. exampleinclude:: docker-examples/customizing/github-v2-2-test.sh
-    :language: bash
-    :start-after: [START build]
-    :end-before: [END build]
-
-You can also specify another repository to build from. If you also want to use different constraints
-repository source, you must specify it as additional ``CONSTRAINTS_GITHUB_REPOSITORY`` build arg.
-
-The following example builds the production image using ``potiuk/airflow`` fork of Airflow and constraints
-are also downloaded from that repository.
-
-.. exampleinclude:: docker-examples/customizing/github-different-repository.sh
-    :language: bash
-    :start-after: [START build]
-    :end-before: [END build]
+   As of Airflow 3.2.0 - our images only support installation of "MariaDB" client from default Debian
+   repositories. If you need to use "MySQL" client from Oracle, you need to extend the images and add
+   your own ways of installing the client. The main reason for that is that Oracle's
+   ``MySQL`` client installation is broken due to expiring GPG keys and every 2 years the old
+   packages stop installing unless you manually update the keys (but there is a period of time when the
+   packages are not installable at all). MariaDB client is a drop-in replacement for MySQL client
+   and it works perfectly well with MySQL server.
 
 .. _image-build-custom:
 
@@ -906,6 +861,30 @@ wheel files. This is often useful in Enterprise environments where the binary fi
 vetted by the security teams. It is also the most complex way of building the image. You should be an
 expert of building and using Dockerfiles in order to use it and have to have specific needs of security if
 you want to follow that route.
+
+.. _image-build-fips:
+
+Build images in FIPS-compliant environments
+...........................................
+
+If you are building images in a FIPS-compliant environment, you might encounter issues with the default
+build process. For example, the default build process uses ``--with-lto`` (Link Time Optimization) when
+building Python, which might fail in FIPS mode because LTO uses MD5 checksums to verify object files
+during compilation, and MD5 is blocked in FIPS mode.
+
+In order to build the image in FIPS-compliant environment, you can use ``PYTHON_LTO`` build argument
+and set it to ``false``.
+
+.. code-block:: bash
+
+    docker build . --build-arg PYTHON_LTO="false" --tag my-image:my-tag
+
+.. note::
+
+   While disabling LTO is necessary for FIPS compliance during the build process, it is not sufficient
+   to make the image fully FIPS compliant. There might be other reasons for FIPS incompatibility
+   (for example usage of non-FIPS compliant algorithms in the software installed in the image).
+   You should verify the compliance of the image yourself.
 
 This builds below builds the production image  with packages and constraints used from the local
 ``docker-context-files`` rather than installed from PyPI or GitHub. It also disables MySQL client

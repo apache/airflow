@@ -18,18 +18,19 @@
 Prerequisites
 -------------
 
-Airflow CTL is tested with:
+airflowctl is tested with:
 
 
-The minimum memory required we recommend Airflow CTL to run with is 4GB, but the actual requirements depend
+The minimum memory required we recommend airflowctl to run with is 200MB, but the actual requirements depend
 wildly on the deployment options you have.
 The Keyring backend needs to be installed separately into your operating system. This will enhance security. See :doc:`/security` for more information.
 
 Keyring Backend
 '''''''''''''''
-Airflow CTL uses keyring to store the API token securely. This ensures that the token is not stored in plain text and is only accessible to authorized users.
+airflowctl uses keyring to store the API token securely. This ensures that the token is not stored in plain text and is only accessible to authorized users.
 
 Recommended keyring backends are:
+
 * `macOS Keychain <https://en.wikipedia.org/wiki/Keychain_%28software%29>`_
 * `Freedesktop Secret Service <http://standards.freedesktop.org/secret-service/>`_ supports many DE including GNOME (requires `secretstorage <https://pypi.python.org/pypi/secretstorage>`_)
 * `KDE4 & KDE5 KWallet <https://en.wikipedia.org/wiki/KWallet>`_ (requires `dbus <https://pypi.python.org/pypi/dbus-python>`_)
@@ -61,3 +62,27 @@ use cases. Simply install them to make them available:
     - Password Store (pass) backend for python's keyring
 - `keyring_jeepney <https://pypi.org/project/keyring_jeepney>`__
     - a pure Python backend using the secret service ``DBus`` API for desktop Linux (requires ``keyring<24``).
+
+
+Python Version Compatibility
+----------------------------
+``airflowctl`` is compatible with versions of Python 3.10 through Python 3.14.
+Currently, Python 3.14 is not supported. Thanks for your understanding!
+We will work on adding support for Python 3.14.
+
+.. list-table::
+   :widths: 15 85
+   :header-rows: 1
+
+   * - Python Version
+     - Supported
+   * - 3.10
+     - Yes
+   * - 3.11
+     - Yes
+   * - 3.12
+     - Yes
+   * - 3.13
+     - Yes
+   * - 3.14
+     - No
