@@ -585,7 +585,6 @@ repos:
           ^docs/apache-airflow-providers-amazon/secrets-backends/aws-ssm-parameter-store\.rst$|
           git|
           ^helm-tests/tests/chart_utils/helm_template_generator\.py$|
-          ^helm-tests/tests/chart_utils/ingress-networking-v1beta1\.json$|
           package-lock\.json$|
           ^.*\.(png|gif|jp[e]?g|svg|tgz|lock)$|
           ^\.pre-commit-config\.yaml$|
