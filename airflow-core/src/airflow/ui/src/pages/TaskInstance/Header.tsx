@@ -68,8 +68,6 @@ export const Header = ({ taskInstance }: { readonly taskInstance: TaskInstanceRe
   const { isPending, mutate } = usePatchTaskInstance({
     dagId,
     dagRunId,
-    mapIndex,
-    taskId,
   });
 
   const onConfirm = useCallback(() => {
@@ -77,12 +75,19 @@ export const Header = ({ taskInstance }: { readonly taskInstance: TaskInstanceRe
       mutate({
         dagId,
         dagRunId,
-        mapIndex,
-        requestBody: { note },
-        taskId,
+        requestBody: {
+          dry_run: false,
+          task_ids: [[taskId, mapIndex]],
+          new_state: taskInstance.state || "success",
+          note,
+          include_upstream: false,
+          include_downstream: false,
+          include_future: false,
+          include_past: false,
+        },
       });
     }
-  }, [dagId, dagRunId, mapIndex, mutate, note, taskId, taskInstance.note]);
+  }, [dagId, dagRunId, mapIndex, mutate, note, taskId, taskInstance.note, taskInstance.state]);
 
   const onOpen = () => {
     setNote(taskInstance.note ?? "");
