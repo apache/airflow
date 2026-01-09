@@ -101,7 +101,7 @@ The minimum Apache Airflow version supported by this provider distribution is ``
 PIP package                                 Version required
 ==========================================  =====================================
 ``apache-airflow``                          ``>=2.11.0``
-``apache-airflow-providers-common-compat``  ``>=1.10.1``
+``apache-airflow-providers-common-compat``  ``>=1.8.0``
 ``apache-airflow-providers-common-sql``     ``>=1.20.0``
 ``mysqlclient``                             ``>=2.2.5; sys_platform != "darwin"``
 ``mysql-connector-python``                  ``>=9.1.0``
