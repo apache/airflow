@@ -16,50 +16,25 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { HStack, Spinner } from "@chakra-ui/react";
+import { HStack } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 
-import { useTaskInstanceServiceGetTaskInstances } from "openapi/queries";
 import type { TaskInstanceState } from "openapi/requests/types.gen";
 import { Stat } from "src/components/Stat";
 import { StateBadge } from "src/components/StateBadge";
 
 type Props = {
-  readonly dagId: string;
-  readonly runId: string;
+  readonly taskInstanceSummary: Record<string, number> | null | undefined;
 };
 
-export const TaskInstanceSummary = ({ dagId, runId }: Props) => {
+export const TaskInstanceSummary = ({ taskInstanceSummary }: Props) => {
   const { t: translate } = useTranslation("common");
 
-  const { data, isLoading } = useTaskInstanceServiceGetTaskInstances({
-    dagId,
-    dagRunId: runId,
-    limit: 1000,
-  });
-
-  if (isLoading) {
-    return (
-      <Stat label={translate("taskInstanceSummary")}>
-        <Spinner size="sm" />
-      </Stat>
-    );
-  }
-
-  if (!data) {
+  if (!taskInstanceSummary) {
     return null;
   }
 
-  // Count task instances by state
-  const stateCounts: Record<string, number> = {};
-
-  data.task_instances.forEach((ti) => {
-    const state = ti.state ?? "no_status";
-
-    stateCounts[state] = (stateCounts[state] ?? 0) + 1;
-  });
-
-  const stateEntries = Object.entries(stateCounts);
+  const stateEntries = Object.entries(taskInstanceSummary);
 
   if (stateEntries.length === 0) {
     return null;
