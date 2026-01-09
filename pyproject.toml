@@ -1294,10 +1294,10 @@ dev = [
     "apache-airflow-shared-module-loading",
     "apache-airflow-shared-observability",
     "apache-airflow-shared-plugins-manager",
+    "apache-airflow-shared-providers-discovery",
     "apache-airflow-shared-secrets-backend",
     "apache-airflow-shared-secrets-masker",
     "apache-airflow-shared-timezones",
-    "apache-airflow-shared-providers-discovery",
 ]
 
 # To build docs:
@@ -1352,10 +1352,10 @@ apache-airflow-shared-logging = { workspace = true }
 apache-airflow-shared-module-loading = { workspace = true }
 apache-airflow-shared-observability = { workspace = true }
 apache-airflow-shared-plugins-manager = { workspace = true }
+apache-airflow-shared-providers-discovery = { workspace = true }
 apache-airflow-shared-secrets-backend = { workspace = true }
 apache-airflow-shared-secrets-masker = { workspace = true }
 apache-airflow-shared-timezones = { workspace = true }
-apache-airflow-shared-providers-discovery = { workspace = true }
 # Automatically generated provider workspace items (update_airflow_pyproject_toml.py)
 apache-airflow-providers-airbyte = { workspace = true }
 apache-airflow-providers-alibaba = { workspace = true }
@@ -1478,12 +1478,12 @@ members = [
     "shared/logging",
     "shared/module_loading",
     "shared/observability",
+    "shared/observability",
     "shared/plugins_manager",
+    "shared/providers_discovery",
     "shared/secrets_backend",
     "shared/secrets_masker",
     "shared/timezones",
-    "shared/observability",
-    "shared/providers_discovery",
     # Automatically generated provider workspace members (update_airflow_pyproject_toml.py)
     "providers/airbyte",
     "providers/alibaba",
