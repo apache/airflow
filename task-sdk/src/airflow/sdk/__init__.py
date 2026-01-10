@@ -26,6 +26,7 @@ __all__ = [
     "AssetAny",
     "AssetOrTimeSchedule",
     "AssetWatcher",
+    "BaseAsyncOperator",
     "BaseHook",
     "BaseNotifier",
     "BaseOperator",
@@ -76,7 +77,13 @@ if TYPE_CHECKING:
     from airflow.sdk.api.datamodels._generated import DagRunState, TaskInstanceState, TriggerRule, WeightRule
     from airflow.sdk.bases.hook import BaseHook
     from airflow.sdk.bases.notifier import BaseNotifier
-    from airflow.sdk.bases.operator import BaseOperator, chain, chain_linear, cross_downstream
+    from airflow.sdk.bases.operator import (
+        BaseAsyncOperator,
+        BaseOperator,
+        chain,
+        chain_linear,
+        cross_downstream,
+    )
     from airflow.sdk.bases.operatorlink import BaseOperatorLink
     from airflow.sdk.bases.sensor import BaseSensorOperator, PokeReturnValue
     from airflow.sdk.configuration import AirflowSDKConfigParser
@@ -117,6 +124,7 @@ __lazy_imports: dict[str, str] = {
     "AssetAny": ".definitions.asset",
     "AssetOrTimeSchedule": ".definitions.timetables.assets",
     "AssetWatcher": ".definitions.asset",
+    "BaseAsyncOperator": ".bases.operator",
     "BaseHook": ".bases.hook",
     "BaseNotifier": ".bases.notifier",
     "BaseOperator": ".bases.operator",
