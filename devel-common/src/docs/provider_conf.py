@@ -40,6 +40,7 @@ import rich
 from packaging.version import parse as parse_version
 
 import airflow
+import airflow.sdk
 from airflow.configuration import retrieve_configuration_description
 from docs.utils.conf_constants import (
     AIRFLOW_FAVICON_PATH,
@@ -265,7 +266,6 @@ autodoc_typehints = "description"
 autodoc_typehints_description_target = "documented"
 autodoc_typehints_format = "short"
 
-
 # -- Options for sphinx.ext.intersphinx ----------------------------------------
 # See: https://www.sphinx-doc.org/en/master/usage/extensions/intersphinx.html
 
@@ -275,6 +275,17 @@ autodoc_typehints_format = "short"
 intersphinx_mapping = get_intersphinx_mapping()
 if PACKAGE_NAME in ["apache-airflow-providers-google"]:
     intersphinx_mapping.update(get_google_intersphinx_mapping())
+
+# Add task-sdk to intersphinx mapping for proper cross-referencing of SDK classes
+# This allows proper linking to BaseSensorOperator and other SDK classes from provider docs
+
+# Add remote task-sdk inventory for cross-referencing
+# This enables proper linking to SDK classes like BaseSensorOperator
+task_sdk_version = parse_version(airflow.sdk.__version__).base_version
+intersphinx_mapping["task-sdk"] = (
+    f"https://airflow.apache.org/docs/task-sdk/{task_sdk_version}/",
+    (f"https://airflow.apache.org/docs/task-sdk/{task_sdk_version}/objects.inv",),
+)
 
 # -- Options for sphinx.ext.viewcode -------------------------------------------
 # See: https://www.sphinx-doc.org/es/master/usage/extensions/viewcode.html
@@ -289,6 +300,11 @@ viewcode_follow_imported_members = True
 # Paths (relative or absolute) to the source code that you wish to generate
 # your API documentation from.
 autoapi_dirs = [BASE_PROVIDER_SRC_PATH.as_posix()]
+
+# Include task-sdk source path for proper linking of SDK classes like BaseSensorOperator
+TASK_SDK_PATH = AIRFLOW_REPO_ROOT_PATH / "task-sdk" / "src"
+if TASK_SDK_PATH.exists():
+    autoapi_dirs.append(TASK_SDK_PATH.as_posix())
 
 # A list of patterns to ignore when finding files
 autoapi_ignore = BASIC_AUTOAPI_IGNORE_PATTERNS
