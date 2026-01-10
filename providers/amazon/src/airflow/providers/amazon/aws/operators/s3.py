@@ -296,6 +296,10 @@ class S3CopyObjectOperator(AwsBaseOperator[S3Hook]):
         uploaded to the S3 bucket.
     :param meta_data_directive: Whether to `COPY` the metadata from the source object or `REPLACE` it with
         metadata that's provided in the request.
+    :param kms_key_id: The ARN or alias of the AWS KMS key to use for encrypting the destination object. 
+        Required if using KMS-based server-side encryption. Example: "arn:aws:kms:us-east-1:123456789012:key/abcd1234".
+    :param kms_encryption_type: Type of KMS encryption to use for the object.
+        Can be either "aws:kms" (standard KMS) or "aws:kms:dsse" (double-shielded KMS).
     """
 
     template_fields: Sequence[str] = aws_template_fields(
@@ -316,6 +320,8 @@ class S3CopyObjectOperator(AwsBaseOperator[S3Hook]):
         source_version_id: str | None = None,
         acl_policy: str | None = None,
         meta_data_directive: str | None = None,
+        kms_key_id: str | None = None,
+        kms_encryption_type: str | None = None,
         **kwargs,
     ):
         super().__init__(**kwargs)
@@ -327,8 +333,16 @@ class S3CopyObjectOperator(AwsBaseOperator[S3Hook]):
         self.source_version_id = source_version_id
         self.acl_policy = acl_policy
         self.meta_data_directive = meta_data_directive
+        self.kms_key_id = kms_key_id
+        self.kms_encryption_type = kms_encryption_type
 
     def execute(self, context: Context):
+        copy_args = {}
+        if self.kms_key_id:
+            copy_args["SSEKMSKeyId"] = self.kms_key_id
+        if self.kms_encryption_type:
+            copy_args["ServerSideEncryption"] = self.kms_encryption_type
+
         self.hook.copy_object(
             self.source_bucket_key,
             self.dest_bucket_key,
@@ -337,6 +351,7 @@ class S3CopyObjectOperator(AwsBaseOperator[S3Hook]):
             self.source_version_id,
             self.acl_policy,
             self.meta_data_directive,
+            **copy_args
         )
 
     def get_openlineage_facets_on_start(self):
