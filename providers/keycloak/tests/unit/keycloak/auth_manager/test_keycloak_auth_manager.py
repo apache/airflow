@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import json
+import logging
 from unittest.mock import Mock, patch
 
 import pytest
@@ -45,6 +46,7 @@ from airflow.providers.keycloak.auth_manager.constants import (
     CONF_SERVER_URL_KEY,
 )
 from airflow.providers.keycloak.auth_manager.keycloak_auth_manager import (
+    DAG_IDS_ATTRIBUTE_NAME,
     RESOURCE_ID_ATTRIBUTE_NAME,
     KeycloakAuthManager,
 )
@@ -71,6 +73,7 @@ def user():
     user = Mock()
     user.access_token = "access_token"
     user.refresh_token = "refresh_token"
+    user.get_id.return_value = "test-user"
     return user
 
 
@@ -314,36 +317,27 @@ class TestKeycloakAuthManager:
         assert "Request not recognized by Keycloak. invalid_scope. Invalid scopes: GET" in str(e.value)
 
     @pytest.mark.parametrize(
-        ("method", "access_entity", "details", "permission", "attributes"),
+        ("access_entity", "details", "permission", "attributes"),
         [
-            [
-                "GET",
-                None,
-                None,
-                "Dag#LIST",
-                {},
-            ],
-            [
-                "GET",
+            (
                 DagAccessEntity.TASK_INSTANCE,
                 DagDetails(id="test"),
                 "Dag#GET",
-                {RESOURCE_ID_ATTRIBUTE_NAME: "test", "dag_entity": "TASK_INSTANCE"},
-            ],
-            [
-                "GET",
+                {
+                    RESOURCE_ID_ATTRIBUTE_NAME: "test",
+                    "dag_entity": "TASK_INSTANCE",
+                    DAG_IDS_ATTRIBUTE_NAME: "test",
+                },
+            ),
+            (
                 None,
                 DagDetails(id="test"),
                 "Dag#GET",
-                {RESOURCE_ID_ATTRIBUTE_NAME: "test"},
-            ],
-            [
-                "GET",
-                DagAccessEntity.TASK_INSTANCE,
-                None,
-                "Dag#LIST",
-                {"dag_entity": "TASK_INSTANCE"},
-            ],
+                {
+                    RESOURCE_ID_ATTRIBUTE_NAME: "test",
+                    DAG_IDS_ATTRIBUTE_NAME: "test",
+                },
+            ),
         ],
     )
     @pytest.mark.parametrize(
@@ -355,7 +349,6 @@ class TestKeycloakAuthManager:
     )
     def test_is_authorized_dag(
         self,
-        method,
         access_entity,
         details,
         permission,
@@ -370,7 +363,7 @@ class TestKeycloakAuthManager:
         auth_manager.http_session.post = Mock(return_value=mock_response)
 
         result = auth_manager.is_authorized_dag(
-            method=method, user=user, access_entity=access_entity, details=details
+            method="GET", user=user, access_entity=access_entity, details=details
         )
 
         token_url = auth_manager._get_token_url("server_url", "realm")
@@ -380,6 +373,13 @@ class TestKeycloakAuthManager:
             token_url, data=payload, headers=headers, timeout=5
         )
         assert result == expected
+
+    def test_is_authorized_dag_list_is_short_circuit(self, auth_manager, user):
+        auth_manager.http_session.post = Mock()
+        result = auth_manager.is_authorized_dag(method="GET", user=user)
+
+        assert result is True
+        auth_manager.http_session.post.assert_not_called()
 
     @pytest.mark.parametrize(
         ("status_code", "expected"),
@@ -509,6 +509,89 @@ class TestKeycloakAuthManager:
         token = auth_manager._get_token_signer(expiration_time_in_seconds=expiration).generate({})
 
         assert KeycloakAuthManager._token_expired(token) is expected
+
+    def test_filter_authorized_dag_ids_uses_batch_permissions(self, auth_manager, user):
+        dag_ids = {"dag_a", "dag_b", "dag_c"}
+        batch_response = [
+            {"scopes": ["dag_a", "dag_c"]},
+            {"rsname": "unrelated"},
+        ]
+        with patch.object(
+            auth_manager,
+            "_is_batch_authorized",
+            return_value=batch_response,
+        ) as mock_batch:
+            result = auth_manager.filter_authorized_dag_ids(
+                dag_ids=dag_ids,
+                user=user,
+                method="GET",
+                team_name="team-blue",
+            )
+
+        assert result == {"dag_a", "dag_c"}
+        mock_batch.assert_called_once_with(
+            permissions=[("GET", "Dag")],
+            user=user,
+            attributes={
+                "dag_ids": "dag_a,dag_b,dag_c",
+                "team_name": "team-blue",
+            },
+        )
+
+    def test_filter_authorized_dag_ids_handles_multiple_sources(self, auth_manager, user):
+        dag_ids = {"dag_a", "dag_b", "dag_c"}
+        batch_response = [
+            {"scopes": ["dag_a"]},
+            {"rsname": "dag_b"},
+            {"rsid": "dag_c"},
+            {"scopes": ["dag_z"]},
+        ]
+        with patch.object(
+            auth_manager,
+            "_is_batch_authorized",
+            return_value=batch_response,
+        ):
+            result = auth_manager.filter_authorized_dag_ids(
+                dag_ids=dag_ids,
+                user=user,
+                method="GET",
+                team_name=None,
+            )
+
+        assert result == dag_ids
+
+    def test_filter_authorized_dag_ids_allows_all_when_policy_says_so(self, auth_manager, user):
+        dag_ids = {"dag_alpha", "dag_beta", "dag_gamma"}
+        with patch.object(
+            auth_manager,
+            "_is_batch_authorized",
+            return_value=[{"scopes": sorted(dag_ids)}],
+        ) as mock_batch:
+            result = auth_manager.filter_authorized_dag_ids(
+                dag_ids=dag_ids,
+                user=user,
+            )
+
+        assert result == dag_ids
+        mock_batch.assert_called_once()
+
+    def test_filter_authorized_dag_ids_returns_empty_on_denied(self, auth_manager, user):
+        dag_ids = {"dag_a", "dag_b"}
+        with patch.object(auth_manager, "_is_batch_authorized", return_value=[]):
+            result = auth_manager.filter_authorized_dag_ids(
+                dag_ids=dag_ids,
+                user=user,
+                method="GET",
+                team_name=None,
+            )
+
+        assert result == set()
+
+    def test_schedule_dag_permission_warmup_is_noop(self, auth_manager, user, caplog):
+        with caplog.at_level(logging.DEBUG):
+            auth_manager.schedule_dag_permission_warmup(user, method="POST")
+
+        assert "Skipping DAG permission warmup" in caplog.text
 
     @pytest.mark.parametrize(
         ("client_id", "client_secret"),

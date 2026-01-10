@@ -92,8 +92,24 @@ KEYCLOAK_AUTH_MANAGER_COMMANDS = (
         args=(ARG_USERNAME, ARG_PASSWORD, ARG_USER_REALM, ARG_CLIENT_ID, ARG_DRY_RUN),
     ),
     ActionCommand(
+        name="create-policies",
+        help="Create policies in Keycloak",
+        func=lazy_load_command(
+            "airflow.providers.keycloak.auth_manager.cli.commands.create_policies_command"
+        ),
+        args=(ARG_USERNAME, ARG_PASSWORD, ARG_USER_REALM, ARG_CLIENT_ID),
+    ),
+    ActionCommand(
+        name="create-policies",
+        help="Create policies in Keycloak",
+        func=lazy_load_command(
+            "airflow.providers.keycloak.auth_manager.cli.commands.create_policies_command"
+        ),
+        args=(ARG_USERNAME, ARG_PASSWORD, ARG_USER_REALM, ARG_CLIENT_ID),
+    ),
+    ActionCommand(
         name="create-all",
-        help="Create all entities (scopes, resources and permissions) in Keycloak",
+        help="Create all entities (scopes, resources, permissions and policies) in Keycloak",
         func=lazy_load_command("airflow.providers.keycloak.auth_manager.cli.commands.create_all_command"),
         args=(ARG_USERNAME, ARG_PASSWORD, ARG_USER_REALM, ARG_CLIENT_ID, ARG_DRY_RUN),
     ),
