@@ -21,9 +21,11 @@ from __future__ import annotations
 
 import json
 import os
+from typing import Any, cast
 
 from sqlalchemy import select
 
+from airflow._shared.secrets_masker import redact
 from airflow.cli.simple_table import AirflowConsole
 from airflow.cli.utils import print_export_output
 from airflow.exceptions import (
@@ -39,13 +41,26 @@ from airflow.utils.providers_configuration_loader import providers_configuration
 from airflow.utils.session import create_session, provide_session
 
 
+def _variable_mapper(var: Variable, show_values: bool = False) -> dict[str, Any]:
+    """Map a Variable object to a dictionary, optionally showing masked values."""
+    if show_values:
+        result: dict[str, Any] = {"key": var.key, "value": var.val}
+        return cast(dict[str, Any], redact(result))
+    return {"key": var.key}
+
+
 @suppress_logs_and_warning
 @providers_configuration_loaded
 def variables_list(args):
     """Display all the variables."""
     with create_session() as session:
         variables = session.scalars(select(Variable)).all()
-    AirflowConsole().print_as(data=variables, output=args.output, mapper=lambda x: {"key": x.key})
+    show_values = getattr(args, "show_values", False)
+    AirflowConsole().print_as(
+        data=variables,
+        output=args.output,
+        mapper=lambda x: _variable_mapper(x, show_values=show_values),
+    )
 
 
 @suppress_logs_and_warning
