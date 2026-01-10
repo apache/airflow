@@ -1519,7 +1519,7 @@ class TestWorker:
             ({"celery": {"replicas": 2}}, 2),
             ({"celery": {"replicas": None}}, 1),
             ({"replicas": 2, "celery": {"replicas": 3}}, 3),
-            ({"replicas": 2, "celery": {"replicas": None}}, 2),
+            ({"replicas": 2, "celery": {"replicas": 2}}, 2),
         ],
     )
     def test_workers_replicas(self, workers_values, expected):
@@ -2110,6 +2110,7 @@ class TestWorkerSets:
                     "replicas": 1,
                     "resources": {"requests": {"cpu": "100m"}},
                     "celery": {
+                        "replicas": 2,
                         "sets": [
                             {
                                 "name": "high-cpu",
@@ -2117,7 +2118,7 @@ class TestWorkerSets:
                                 "resources": {"requests": {"cpu": "2"}},
                                 "queue": "high-cpu-queue",
                             }
-                        ]
+                        ],
                     },
                 },
             },
@@ -2140,9 +2141,8 @@ class TestWorkerSets:
             values={
                 "executor": "CeleryExecutor",
                 "workers": {
-                    "replicas": 2,
                     "resources": {"requests": {"cpu": "500m"}},
-                    "celery": {"sets": [{"name": "default-set"}]},
+                    "celery": {"replicas": 2, "sets": [{"name": "default-set"}]},
                 },
             },
             show_only=["templates/workers/worker-deployment.yaml"],
@@ -2162,8 +2162,10 @@ class TestWorkerSets:
             values={
                 "executor": "CeleryExecutor",
                 "workers": {
-                    "persistence": {"enabled": False},
-                    "celery": {"sets": [{"name": "stateful-set", "persistence": {"enabled": True}}]},
+                    "celery": {
+                        "persistence": {"enabled": False},
+                        "sets": [{"name": "stateful-set", "persistence": {"enabled": True}}],
+                    },
                 },
             },
             show_only=["templates/workers/worker-deployment.yaml"],

@@ -1061,6 +1061,9 @@ workers:
       - |-
         exec \
         airflow {{ semverCompare ">=2.0.0" .Values.airflowVersion | ternary "celery worker" "worker" }}
+        {{- if and .Values.workers.queue (ne .Values.workers.queue "default") }}
+        {{- " -q " }}{{ .Values.workers.queue }}
+        {{- end }}
 
     # If the Airflow Celery worker stops responding for 5 minutes (5*60s)
     # kill the worker and let Kubernetes restart it
