@@ -20,6 +20,14 @@
 Changelog
 ---------
 
+3.1.2
+.....
+
+Features
+~~~~~~~~
+
+* ``Cache user object fetched per request in FAB auth manager for improved performance (#60274)``
+
 3.1.1
 .....
 

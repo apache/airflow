@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import time
 from contextlib import contextmanager, suppress
 from itertools import chain
 from typing import TYPE_CHECKING
@@ -34,6 +35,7 @@ from airflow.providers.fab.www.utils import get_fab_auth_manager
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.utils.db import resetdb
 
+from tests_common.test_utils.asserts import assert_queries_count
 from tests_common.test_utils.config import conf_vars
 from unit.fab.auth_manager.api_endpoints.api_connexion_utils import create_user, delete_user
 
@@ -197,9 +199,24 @@ class TestFabAuthManager:
             with user_set(minimal_app_for_auth_api, flask_g_user):
                 assert auth_manager.get_user() == flask_g_user
 
+    @conf_vars({("fab", "cache_ttl"): "1"})
     def test_deserialize_user(self, flask_app, auth_manager_with_appbuilder):
+        """Test user objects are cached and that the cache expires after configured TTL."""
         user = create_user(flask_app, "test")
-        result = auth_manager_with_appbuilder.deserialize_user({"sub": str(user.id)})
+        with assert_queries_count(2):
+            result = auth_manager_with_appbuilder.deserialize_user({"sub": str(user.id)})
+
+        assert user.get_id() == result.get_id()
+
+        with assert_queries_count(0):
+            result = auth_manager_with_appbuilder.deserialize_user({"sub": str(user.id)})
+
+        assert user.get_id() == result.get_id()
+
+        time.sleep(1)
+        with assert_queries_count(2):
+            result = auth_manager_with_appbuilder.deserialize_user({"sub": str(user.id)})
+
         assert user.get_id() == result.get_id()
 
     def test_serialize_user(self, flask_app, auth_manager_with_appbuilder):
