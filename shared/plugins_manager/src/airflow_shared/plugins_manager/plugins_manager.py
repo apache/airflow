@@ -19,6 +19,7 @@
 
 from __future__ import annotations
 
+import importlib
 import inspect
 import logging
 import os
@@ -214,7 +215,6 @@ def _load_plugins_from_plugin_directory(
 
     if load_examples:
         log.debug("Note: Loading plugins from examples as well: %s", plugins_folder)
-        import importlib
 
         example_plugins = importlib.import_module(example_plugins_module)
         example_plugins_folder = next(iter(example_plugins.__path__))
