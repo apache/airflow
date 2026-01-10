@@ -19,10 +19,55 @@
 Pull Requests
 =============
 
-This document describes how you can create Pull Requests and describes coding standards we use when
+This document describes how you can create Pull Requests (PRs) and describes coding standards we use when
 implementing them.
 
 **The outline for this document in GitHub is available at top-right corner button (with 3-dots and 3 lines).**
+
+Protect your commit identity
+----------------------------
+
+Once a PR is merged, the commit author's (and any co-author's) name and email address become
+**permanently public** as part of the commit history and **cannot be changed or removed afterward**.
+
+GitHub provides a **built-in option to anonymize your commit email address**
+(`Setting your commit email address <https://docs.github.com/en/account-and-profile/how-tos/email-preferences/setting-your-commit-email-address>`__)
+by using a GitHub-provided email; however, **this setting applies only to future commits and cannot be
+applied retrospectively**.
+
+On computers used with **multiple GitHub accounts** (for example, shared or work computers), the local Git
+configuration may be set to a different name or email than expected. This can result in unintended personal
+or work-related details being permanently published. If you are using the Git CLI, you can verify your
+current configuration by running the following commands in your terminal within your local Airflow repository:
+
+.. code-block:: bash
+
+   git config --get user.name
+   git config --get user.email
+
+To keep your email address private on GitHub, enable *Keep my email addresses private* in your GitHub
+settings and configure git to use your GitHub-provided ``noreply`` address (typically
+``<id>+<username>@users.noreply.github.com``) as ``user.email`` for future commits.
+
+If you use the Git CLI, you can set the appropriate configuration by running the following commands:
+
+.. code-block:: bash
+   # Replace <id> and <username> accordingly with your GitHub user ID and username (from the GitHub settings page)
+   git config user.email "<id>+<username>@users.noreply.github.com"
+
+   # Replace "Your Name" with your desired commit author name
+   git config user.name "Your Name"
+
+Notes:
+
+* GitHub's anonymization does **not** apply to co-author entries or to email addresses explicitly included
+  in the commit message.
+* GitHub Desktop and other third-party Git clients manage author and email settings separately; verify
+  them using the tool's own configuration or preferences.
+
+Before opening a pull request, please ensure you are comfortable with the author and co-author details that
+will be publicly visible. Maintainers might point out unexpected personal information before merging,
+but they are not obliged to do so.
 
 Pull Request guidelines
 -----------------------
