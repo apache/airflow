@@ -1000,8 +1000,6 @@ class TestPodTemplateFile:
     @pytest.mark.parametrize(
         ("airflow_version", "init_container_enabled", "expected_init_containers"),
         [
-            ("1.9.0", True, 0),
-            ("1.9.0", False, 0),
             ("1.10.14", True, 0),
             ("1.10.14", False, 0),
             ("2.0.2", True, 0),

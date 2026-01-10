@@ -745,7 +745,6 @@ class TestWebserverDeployment:
         [
             ("2.0.2", {"type": "RollingUpdate", "rollingUpdate": {"maxSurge": 1, "maxUnavailable": 0}}),
             ("1.10.14", {"type": "Recreate"}),
-            ("1.9.0", {"type": "Recreate"}),
             ("2.1.0", {"type": "RollingUpdate", "rollingUpdate": {"maxSurge": 1, "maxUnavailable": 0}}),
         ],
     )

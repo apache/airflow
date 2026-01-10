@@ -74,7 +74,6 @@ class TestFlowerDeployment:
         [
             ("2.0.2", "airflow celery flower"),
             ("1.10.14", "airflow flower"),
-            ("1.9.0", "airflow flower"),
             ("2.1.0", "airflow celery flower"),
         ],
     )
