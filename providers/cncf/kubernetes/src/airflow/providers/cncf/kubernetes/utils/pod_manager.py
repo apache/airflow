@@ -476,7 +476,6 @@ class PodManager(LoggingMixin):
                 )
                 message_to_log = None
                 message_timestamp = None
-                progress_callback_lines = []
                 try:
                     for raw_line in logs:
                         line = raw_line.decode("utf-8", errors="backslashreplace")
@@ -485,35 +484,39 @@ class PodManager(LoggingMixin):
                             if message_to_log is None:  # first line in the log
                                 message_to_log = message
                                 message_timestamp = line_timestamp
-                                progress_callback_lines.append(line)
                             else:  # previous log line is complete
-                                for line in progress_callback_lines:
-                                    for callback in self._callbacks:
-                                        callback.progress_callback(
-                                            line=line, client=self._client, mode=ExecutionMode.SYNC
-                                        )
-                                if message_to_log is not None:
-                                    self._log_message(
-                                        message_to_log,
-                                        container_name,
-                                        container_name_log_prefix_enabled,
-                                        log_formatter,
+                                for callback in self._callbacks:
+                                    callback.progress_callback(
+                                        line=message_to_log,
+                                        client=self._client,
+                                        mode=ExecutionMode.SYNC,
+                                        container_name=container_name,
+                                        timestamp=message_timestamp,
+                                        pod=pod,
                                     )
+                                self._log_message(
+                                    message_to_log,
+                                    container_name,
+                                    container_name_log_prefix_enabled,
+                                    log_formatter,
+                                )
                                 last_captured_timestamp = message_timestamp
                                 message_to_log = message
                                 message_timestamp = line_timestamp
-                                progress_callback_lines = [line]
                         else:  # continuation of the previous log line
                             message_to_log = f"{message_to_log}\n{message}"
-                            progress_callback_lines.append(line)
                 finally:
                     # log the last line and update the last_captured_timestamp
-                    for line in progress_callback_lines:
+                    if message_to_log is not None:
                         for callback in self._callbacks:
                             callback.progress_callback(
-                                line=line, client=self._client, mode=ExecutionMode.SYNC
+                                line=message_to_log,
+                                client=self._client,
+                                mode=ExecutionMode.SYNC,
+                                container_name=container_name,
+                                timestamp=message_timestamp,
+                                pod=pod,
                             )
-                    if message_to_log is not None:
                         self._log_message(
                             message_to_log, container_name, container_name_log_prefix_enabled, log_formatter
                         )

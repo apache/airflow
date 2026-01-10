@@ -35,3 +35,4 @@ class ConfigResponse(BaseModel):
     show_external_log_redirect: bool
     external_log_name: str | None = None
     theme: Theme | None
+    multi_team: bool

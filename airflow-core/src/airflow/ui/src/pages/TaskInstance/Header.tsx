@@ -17,7 +17,7 @@
  * under the License.
  */
 import { Box } from "@chakra-ui/react";
-import { useCallback, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { MdOutlineTask } from "react-icons/md";
 
@@ -72,7 +72,7 @@ export const Header = ({ taskInstance }: { readonly taskInstance: TaskInstanceRe
     taskId,
   });
 
-  const onConfirm = useCallback(() => {
+  const onConfirm = () => {
     if (note !== taskInstance.note) {
       mutate({
         dagId,
@@ -82,7 +82,7 @@ export const Header = ({ taskInstance }: { readonly taskInstance: TaskInstanceRe
         taskId,
       });
     }
-  }, [dagId, dagRunId, mapIndex, mutate, note, taskId, taskInstance.note]);
+  };
 
   const onOpen = () => {
     setNote(taskInstance.note ?? "");

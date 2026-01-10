@@ -111,6 +111,13 @@
   "sortedUnsorted": "unsorted",
   "taskTries": "Task Tries",
   "taskTryPlaceholder": "Task Try",
+  "team": {
+    "selector": {
+      "helperText": "Optional. Restrict usage to a specific team.",
+      "label": "Team",
+      "placeHolder": "Select a team"
+    }
+  },
   "toggleCardView": "Show card view",
   "toggleTableView": "Show table view",
   "triggerDag": {

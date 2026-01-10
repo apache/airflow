@@ -1172,3 +1172,23 @@ This helper function returns true if the executor can launch pods (Kubernetes-ba
     {{- print "true" -}}
   {{- end -}}
 {{- end -}}
+
+{{/*
+Get revisionHistoryLimit with nil-aware fallback.
+Unlike `or`, this properly handles 0 as a valid value.
+Pass a list of values to check in order of priority.
+
+Usage:
+  include "airflow.revisionHistoryLimit" (list .Values.scheduler.revisionHistoryLimit .Values.revisionHistoryLimit)
+*/}}
+{{- define "airflow.revisionHistoryLimit" -}}
+  {{- $result := "" -}}
+  {{- $found := false -}}
+  {{- range . -}}
+    {{- if and (not $found) (not (kindIs "invalid" .)) -}}
+      {{- $result = . -}}
+      {{- $found = true -}}
+    {{- end -}}
+  {{- end -}}
+  {{- $result -}}
+{{- end -}}

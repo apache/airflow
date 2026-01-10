@@ -17,7 +17,6 @@
  * under the License.
  */
 import { VStack } from "@chakra-ui/react";
-import { useMemo } from "react";
 
 import { FilterBar } from "src/components/FilterBar";
 import { SearchParamsKeys } from "src/constants/searchParams";
@@ -28,26 +27,22 @@ type DagRunsFiltersProps = {
 };
 
 export const DagRunsFilters = ({ dagId }: DagRunsFiltersProps) => {
-  const searchParamKeys = useMemo((): Array<FilterableSearchParamsKeys> => {
-    const keys: Array<FilterableSearchParamsKeys> = [
-      SearchParamsKeys.RUN_ID_PATTERN,
-      SearchParamsKeys.STATE,
-      SearchParamsKeys.RUN_TYPE,
-      SearchParamsKeys.LOGICAL_DATE_RANGE,
-      SearchParamsKeys.RUN_AFTER_RANGE,
-      SearchParamsKeys.DURATION_GTE,
-      SearchParamsKeys.DURATION_LTE,
-      SearchParamsKeys.CONF_CONTAINS,
-      SearchParamsKeys.TRIGGERING_USER_NAME_PATTERN,
-      SearchParamsKeys.DAG_VERSION,
-    ];
+  const searchParamKeys: Array<FilterableSearchParamsKeys> = [
+    SearchParamsKeys.RUN_ID_PATTERN,
+    SearchParamsKeys.STATE,
+    SearchParamsKeys.RUN_TYPE,
+    SearchParamsKeys.LOGICAL_DATE_RANGE,
+    SearchParamsKeys.RUN_AFTER_RANGE,
+    SearchParamsKeys.DURATION_GTE,
+    SearchParamsKeys.DURATION_LTE,
+    SearchParamsKeys.CONF_CONTAINS,
+    SearchParamsKeys.TRIGGERING_USER_NAME_PATTERN,
+    SearchParamsKeys.DAG_VERSION,
+  ];
 
-    if (dagId === undefined) {
-      keys.unshift(SearchParamsKeys.DAG_ID_PATTERN);
-    }
-
-    return keys;
-  }, [dagId]);
+  if (dagId === undefined) {
+    searchParamKeys.unshift(SearchParamsKeys.DAG_ID_PATTERN);
+  }
 
   const { filterConfigs, handleFiltersChange, initialValues } = useFiltersHandler(searchParamKeys);
 

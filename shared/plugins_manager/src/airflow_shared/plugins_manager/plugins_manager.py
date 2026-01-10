@@ -204,6 +204,8 @@ def _load_plugins_from_plugin_directory(
     ignore_file_syntax: str = "glob",
 ) -> tuple[list[AirflowPlugin], dict[str, str]]:
     """Load and register Airflow Plugins from plugins directory."""
+    import importlib
+
     from ..module_loading import find_path_from_directory
 
     if not plugins_folder:
@@ -214,8 +216,6 @@ def _load_plugins_from_plugin_directory(
 
     if load_examples:
         log.debug("Note: Loading plugins from examples as well: %s", plugins_folder)
-        import importlib
-
         example_plugins = importlib.import_module(example_plugins_module)
         example_plugins_folder = next(iter(example_plugins.__path__))
         example_files = find_path_from_directory(example_plugins_folder, ".airflowignore")

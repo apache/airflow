@@ -1717,7 +1717,7 @@
                     }
                 },
                 "updateStrategy": {
-                    "description": "Specifies the strategy used to replace old Airflow Celery worker pods by new ones when deployed as a StatefulSet.",
+                    "description": "Specifies the strategy used to replace old Airflow Celery worker pods by new ones when deployed as a StatefulSet (deprecated, use `workers.celery.updateStrategy` instead).",
                     "type": [
                         "null",
                         "object"
@@ -1737,7 +1737,7 @@
                     ]
                 },
                 "strategy": {
-                    "description": "Specifies the strategy used to replace old Airflow Celery worker pods by new ones when deployed as a Deployment.",
+                    "description": "Specifies the strategy used to replace old Airflow Celery worker pods by new ones when deployed as a Deployment (deprecated, use `workers.celery.strategy` instead).",
                     "type": [
                         "null",
                         "object"
@@ -2658,6 +2658,27 @@
                                     "items": {
                                         "type": "string"
                                     }
+                                }
+                            }
+                        },
+                        "updateStrategy": {
+                            "description": "Specifies the strategy used to replace old Airflow Celery worker pods by new ones when deployed as a StatefulSet.",
+                            "type": [
+                                "null",
+                                "object"
+                            ],
+                            "default": null
+                        },
+                        "strategy": {
+                            "description": "Specifies the strategy used to replace old Airflow Celery worker pods by new ones when deployed as a Deployment.",
+                            "type": [
+                                "null",
+                                "object"
+                            ],
+                            "default": {
+                                "rollingUpdate": {
+                                    "maxSurge": "100%",
+                                    "maxUnavailable": "50%"
                                 }
                             }
                         },

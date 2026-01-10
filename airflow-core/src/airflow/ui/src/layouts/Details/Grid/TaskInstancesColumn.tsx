@@ -18,7 +18,6 @@
  */
 import { Box } from "@chakra-ui/react";
 import type { VirtualItem } from "@tanstack/react-virtual";
-import { memo, useCallback, useMemo } from "react";
 import { useParams } from "react-router-dom";
 
 import type { GridRunsResponse } from "openapi/requests";
@@ -38,7 +37,7 @@ type Props = {
 
 const ROW_HEIGHT = 20;
 
-const TaskInstancesColumnInner = ({ nodes, onCellClick, run, virtualItems }: Props) => {
+export const TaskInstancesColumn = ({ nodes, onCellClick, run, virtualItems }: Props) => {
   const { dagId = "", runId } = useParams();
   const { data: gridTISummaries } = useGridTiSummaries({ dagId, runId: run.run_id, state: run.state });
   const { hoveredRunId, setHoveredRunId } = useHover();
@@ -46,22 +45,18 @@ const TaskInstancesColumnInner = ({ nodes, onCellClick, run, virtualItems }: Pro
   const itemsToRender =
     virtualItems ?? nodes.map((_, index) => ({ index, size: ROW_HEIGHT, start: index * ROW_HEIGHT }));
 
-  const taskInstanceMap = useMemo(() => {
-    const taskInstances = gridTISummaries?.task_instances ?? [];
-    const map = new Map<string, LightGridTaskInstanceSummary>();
+  const taskInstances = gridTISummaries?.task_instances ?? [];
+  const taskInstanceMap = new Map<string, LightGridTaskInstanceSummary>();
 
-    for (const ti of taskInstances) {
-      map.set(ti.task_id, ti);
-    }
-
-    return map;
-  }, [gridTISummaries?.task_instances]);
+  for (const ti of taskInstances) {
+    taskInstanceMap.set(ti.task_id, ti);
+  }
 
   const isSelected = runId === run.run_id;
   const isHovered = hoveredRunId === run.run_id;
 
-  const handleMouseEnter = useCallback(() => setHoveredRunId(run.run_id), [setHoveredRunId, run.run_id]);
-  const handleMouseLeave = useCallback(() => setHoveredRunId(undefined), [setHoveredRunId]);
+  const handleMouseEnter = () => setHoveredRunId(run.run_id);
+  const handleMouseLeave = () => setHoveredRunId(undefined);
 
   return (
     <Box
@@ -119,5 +114,3 @@ const TaskInstancesColumnInner = ({ nodes, onCellClick, run, virtualItems }: Pro
     </Box>
   );
 };
-
-export const TaskInstancesColumn = memo(TaskInstancesColumnInner);

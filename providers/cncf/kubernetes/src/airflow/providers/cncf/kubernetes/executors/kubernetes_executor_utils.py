@@ -47,17 +47,22 @@ from airflow.providers.cncf.kubernetes.kubernetes_helper_functions import (
 from airflow.providers.cncf.kubernetes.pod_generator import PodGenerator, workload_to_command_args
 from airflow.providers.common.compat.sdk import AirflowException
 from airflow.utils.log.logging_mixin import LoggingMixin
-from airflow.utils.singleton import Singleton
 from airflow.utils.state import TaskInstanceState
 
 if TYPE_CHECKING:
     from kubernetes.client import Configuration, models as k8s
 
 
-class ResourceVersion(metaclass=Singleton):
+class ResourceVersion:
     """Singleton for tracking resourceVersion from Kubernetes."""
 
+    _instance: ResourceVersion | None = None
     resource_version: dict[str, str] = {}
+
+    def __new__(cls):
+        if cls._instance is None:
+            cls._instance = super().__new__(cls)
+        return cls._instance
 
 
 class KubernetesJobWatcher(multiprocessing.Process, LoggingMixin):

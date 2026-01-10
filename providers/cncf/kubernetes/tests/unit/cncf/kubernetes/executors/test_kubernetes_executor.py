@@ -257,6 +257,18 @@ class TestKubernetesExecutor:
         self.kubernetes_executor = KubernetesExecutor()
         self.kubernetes_executor.job_id = 5
 
+    def test_resource_version_singleton(self):
+        """Test that ResourceVersion returns the same instance."""
+        rv1 = ResourceVersion()
+        rv2 = ResourceVersion()
+
+        assert rv1 is rv2
+
+        rv1.resource_version["ns"] = "123"
+        assert rv2.resource_version["ns"] == "123"
+
+        rv1.resource_version.clear()
+
     @pytest.mark.skipif(
         AirflowKubernetesScheduler is None, reason="kubernetes python package is not installed"
     )

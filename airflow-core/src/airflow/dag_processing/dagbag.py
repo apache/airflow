@@ -695,6 +695,40 @@ class DagBag(LoggingMixin):
         return report
 
 
+class BundleDagBag(DagBag):
+    """
+    Bundle-aware DagBag that permanently modifies sys.path.
+
+    This class adds the bundle_path to sys.path permanently to allow DAG files
+    to import modules from their bundle directory. No cleanup is performed.
+
+    WARNING: Only use for one-off usages like CLI commands. Using this in long-running
+    processes will cause sys.path to accumulate entries.
+
+    Same parameters as DagBag, but bundle_path is required and examples are not loaded.
+    """
+
+    def __init__(self, *args, bundle_path: Path | None = None, **kwargs):
+        if not bundle_path:
+            raise ValueError("bundle_path is required for BundleDagBag")
+
+        if str(bundle_path) not in sys.path:
+            sys.path.append(str(bundle_path))
+
+        # Warn if user explicitly set include_examples=True, since bundles never contain examples
+        if kwargs.get("include_examples") is True:
+            warnings.warn(
+                "include_examples=True is ignored for BundleDagBag. "
+                "Bundles do not contain example DAGs, so include_examples is always False.",
+                UserWarning,
+                stacklevel=2,
+            )
+
+        kwargs["bundle_path"] = bundle_path
+        kwargs["include_examples"] = False
+        super().__init__(*args, **kwargs)
+
+
 @provide_session
 def sync_bag_to_db(
     dagbag: DagBag,

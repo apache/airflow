@@ -34,7 +34,7 @@ import "chart.js/auto";
 import "chartjs-adapter-dayjs-4/dist/chartjs-adapter-dayjs-4.esm";
 import annotationPlugin from "chartjs-plugin-annotation";
 import dayjs from "dayjs";
-import { useMemo, useDeferredValue } from "react";
+import { useDeferredValue } from "react";
 import { Bar } from "react-chartjs-2";
 import { useTranslation } from "react-i18next";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
@@ -141,66 +141,60 @@ export const Gantt = ({ dagRunState, limit, runType, triggeringUser }: Props) =>
     },
   );
 
-  const { flatNodes } = useMemo(
-    () => flattenNodes(dagStructure, deferredOpenGroupIds),
-    [dagStructure, deferredOpenGroupIds],
-  );
+  const { flatNodes } = flattenNodes(dagStructure, deferredOpenGroupIds);
 
   const isLoading = runsLoading || structureLoading || summariesLoading || tiLoading;
 
   const currentTime = dayjs().tz(selectedTimezone).format(DEFAULT_DATETIME_FORMAT_WITH_TZ);
 
-  const data = useMemo(() => {
-    if (isLoading || runId === "") {
-      return [];
-    }
+  const gridSummaries = gridTiSummaries?.task_instances ?? [];
+  const taskInstances = taskInstancesData?.task_instances ?? [];
 
-    const gridSummaries = gridTiSummaries?.task_instances ?? [];
-    const taskInstances = taskInstancesData?.task_instances ?? [];
+  const data =
+    isLoading || runId === ""
+      ? []
+      : flatNodes
+          .map((node) => {
+            const gridSummary = gridSummaries.find((ti) => ti.task_id === node.id);
 
-    return flatNodes
-      .map((node) => {
-        const gridSummary = gridSummaries.find((ti) => ti.task_id === node.id);
+            if ((node.isGroup ?? node.is_mapped) && gridSummary) {
+              // Use min/max times from grid summary
+              return {
+                isGroup: node.isGroup,
+                isMapped: node.is_mapped,
+                state: gridSummary.state,
+                taskId: gridSummary.task_id,
+                x: [
+                  formatDate(gridSummary.min_start_date, selectedTimezone, DEFAULT_DATETIME_FORMAT_WITH_TZ),
+                  formatDate(gridSummary.max_end_date, selectedTimezone, DEFAULT_DATETIME_FORMAT_WITH_TZ),
+                ],
+                y: gridSummary.task_id,
+              };
+            } else if (!node.isGroup) {
+              // Individual task - use individual task instance data
+              const taskInstance = taskInstances.find((ti) => ti.task_id === node.id);
 
-        if ((node.isGroup ?? node.is_mapped) && gridSummary) {
-          // Use min/max times from grid summary
-          return {
-            isGroup: node.isGroup,
-            isMapped: node.is_mapped,
-            state: gridSummary.state,
-            taskId: gridSummary.task_id,
-            x: [
-              formatDate(gridSummary.min_start_date, selectedTimezone, DEFAULT_DATETIME_FORMAT_WITH_TZ),
-              formatDate(gridSummary.max_end_date, selectedTimezone, DEFAULT_DATETIME_FORMAT_WITH_TZ),
-            ],
-            y: gridSummary.task_id,
-          };
-        } else if (!node.isGroup) {
-          // Individual task - use individual task instance data
-          const taskInstance = taskInstances.find((ti) => ti.task_id === node.id);
+              if (taskInstance) {
+                const hasTaskRunning = isStatePending(taskInstance.state);
+                const endTime = hasTaskRunning ? currentTime : taskInstance.end_date;
 
-          if (taskInstance) {
-            const hasTaskRunning = isStatePending(taskInstance.state);
-            const endTime = hasTaskRunning ? currentTime : taskInstance.end_date;
+                return {
+                  isGroup: node.isGroup,
+                  isMapped: node.is_mapped,
+                  state: taskInstance.state,
+                  taskId: taskInstance.task_id,
+                  x: [
+                    formatDate(taskInstance.start_date, selectedTimezone, DEFAULT_DATETIME_FORMAT_WITH_TZ),
+                    formatDate(endTime, selectedTimezone, DEFAULT_DATETIME_FORMAT_WITH_TZ),
+                  ],
+                  y: taskInstance.task_id,
+                };
+              }
+            }
 
-            return {
-              isGroup: node.isGroup,
-              isMapped: node.is_mapped,
-              state: taskInstance.state,
-              taskId: taskInstance.task_id,
-              x: [
-                formatDate(taskInstance.start_date, selectedTimezone, DEFAULT_DATETIME_FORMAT_WITH_TZ),
-                formatDate(endTime, selectedTimezone, DEFAULT_DATETIME_FORMAT_WITH_TZ),
-              ],
-              y: taskInstance.task_id,
-            };
-          }
-        }
-
-        return undefined;
-      })
-      .filter((item) => item !== undefined);
-  }, [flatNodes, gridTiSummaries, taskInstancesData, selectedTimezone, isLoading, runId, currentTime]);
+            return undefined;
+          })
+          .filter((item) => item !== undefined);
 
   // Get all unique states and their colors
   const states = [...new Set(data.map((item) => item.state ?? "none"))];
@@ -215,63 +209,38 @@ export const Gantt = ({ dagRunState, limit, runType, triggeringUser }: Props) =>
     ]),
   );
 
-  const chartData = useMemo(
-    () => ({
-      datasets: [
-        {
-          backgroundColor: data.map((dataItem) => stateColorMap[dataItem.state ?? "none"]),
-          data: Boolean(selectedRun) ? data : [],
-          maxBarThickness: CHART_ROW_HEIGHT,
-          minBarLength: MIN_BAR_WIDTH,
-        },
-      ],
-      labels: flatNodes.map((node) => node.id),
-    }),
-    [data, flatNodes, stateColorMap, selectedRun],
-  );
+  const chartData = {
+    datasets: [
+      {
+        backgroundColor: data.map((dataItem) => stateColorMap[dataItem.state ?? "none"]),
+        data: Boolean(selectedRun) ? data : [],
+        maxBarThickness: CHART_ROW_HEIGHT,
+        minBarLength: MIN_BAR_WIDTH,
+      },
+    ],
+    labels: flatNodes.map((node) => node.id),
+  };
 
   const fixedHeight = flatNodes.length * CHART_ROW_HEIGHT + CHART_PADDING;
   const selectedId = selectedTaskId ?? selectedGroupId;
 
-  const handleBarClick = useMemo(
-    () => createHandleBarClick({ dagId, data, location, navigate, runId }),
-    [data, dagId, runId, navigate, location],
-  );
+  const handleBarClick = createHandleBarClick({ dagId, data, location, navigate, runId });
 
-  const handleBarHover = useMemo(
-    () => createHandleBarHover(data, setHoveredTaskId),
-    [data, setHoveredTaskId],
-  );
+  const handleBarHover = createHandleBarHover(data, setHoveredTaskId);
 
-  const chartOptions = useMemo(
-    () =>
-      createChartOptions({
-        data,
-        gridColor,
-        handleBarClick,
-        handleBarHover,
-        hoveredId: hoveredTaskId,
-        hoveredItemColor,
-        selectedId,
-        selectedItemColor,
-        selectedRun,
-        selectedTimezone,
-        translate,
-      }),
-    [
-      data,
-      hoveredTaskId,
-      hoveredItemColor,
-      selectedId,
-      selectedItemColor,
-      gridColor,
-      selectedRun,
-      selectedTimezone,
-      translate,
-      handleBarClick,
-      handleBarHover,
-    ],
-  );
+  const chartOptions = createChartOptions({
+    data,
+    gridColor,
+    handleBarClick,
+    handleBarHover,
+    hoveredId: hoveredTaskId,
+    hoveredItemColor,
+    selectedId,
+    selectedItemColor,
+    selectedRun,
+    selectedTimezone,
+    translate,
+  });
 
   if (runId === "") {
     return undefined;

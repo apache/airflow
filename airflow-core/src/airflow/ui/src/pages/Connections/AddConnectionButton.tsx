@@ -42,6 +42,7 @@ const AddConnectionButton = () => {
     password: "",
     port: "",
     schema: "",
+    team_name: "",
   };
 
   return (

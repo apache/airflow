@@ -17,7 +17,6 @@
  * under the License.
  */
 import { Flex, Box } from "@chakra-ui/react";
-import { useCallback } from "react";
 import { useParams, useSearchParams } from "react-router-dom";
 
 import type { GridRunsResponse } from "openapi/requests";
@@ -43,8 +42,8 @@ export const Bar = ({ max, onClick, run }: Props) => {
   const isHovered = hoveredRunId === run.run_id;
   const search = searchParams.toString();
 
-  const handleMouseEnter = useCallback(() => setHoveredRunId(run.run_id), [setHoveredRunId, run.run_id]);
-  const handleMouseLeave = useCallback(() => setHoveredRunId(undefined), [setHoveredRunId]);
+  const handleMouseEnter = () => setHoveredRunId(run.run_id);
+  const handleMouseLeave = () => setHoveredRunId(undefined);
 
   return (
     <Box

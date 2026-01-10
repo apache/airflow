@@ -19,7 +19,6 @@
 import { Box, chakra, Flex, Link } from "@chakra-ui/react";
 import type { VirtualItem } from "@tanstack/react-virtual";
 import type { MouseEvent } from "react";
-import { useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import { FiChevronUp } from "react-icons/fi";
 import { Link as RouterLink, useParams, useSearchParams } from "react-router-dom";
@@ -48,31 +47,25 @@ export const TaskNames = ({ nodes, onRowClick, virtualItems }: Props) => {
   const { dagId = "", groupId, taskId } = useParams();
   const [searchParams] = useSearchParams();
 
-  const handleMouseEnter = useCallback(
-    (event: MouseEvent<HTMLDivElement>) => {
-      const { nodeId } = event.currentTarget.dataset;
+  const handleMouseEnter = (event: MouseEvent<HTMLDivElement>) => {
+    const { nodeId } = event.currentTarget.dataset;
 
-      if (nodeId !== undefined) {
-        setHoveredTaskId(nodeId);
-      }
-    },
-    [setHoveredTaskId],
-  );
+    if (nodeId !== undefined) {
+      setHoveredTaskId(nodeId);
+    }
+  };
 
-  const handleMouseLeave = useCallback(() => setHoveredTaskId(undefined), [setHoveredTaskId]);
+  const handleMouseLeave = () => setHoveredTaskId(undefined);
 
-  const handleToggleGroup = useCallback(
-    (event: MouseEvent<HTMLSpanElement>) => {
-      event.preventDefault();
-      event.stopPropagation();
-      const groupNodeId = event.currentTarget.dataset.groupId;
+  const handleToggleGroup = (event: MouseEvent<HTMLSpanElement>) => {
+    event.preventDefault();
+    event.stopPropagation();
+    const groupNodeId = event.currentTarget.dataset.groupId;
 
-      if (groupNodeId !== undefined) {
-        toggleGroupId(groupNodeId);
-      }
-    },
-    [toggleGroupId],
-  );
+    if (groupNodeId !== undefined) {
+      toggleGroupId(groupNodeId);
+    }
+  };
 
   const search = searchParams.toString();
 

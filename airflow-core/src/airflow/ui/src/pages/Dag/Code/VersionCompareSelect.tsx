@@ -17,7 +17,6 @@
  * under the License.
  */
 import { createListCollection, Flex, Select, type SelectValueChangeDetails, Text } from "@chakra-ui/react";
-import { useCallback, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { useParams } from "react-router-dom";
 
@@ -49,22 +48,15 @@ export const VersionCompareSelect = ({
 
   const selectedVersion = data?.dag_versions.find((dv) => dv.version_number === selectedVersionNumber);
 
-  const versionOptions = useMemo(
-    () =>
-      createListCollection({
-        items: (data?.dag_versions ?? []).map((dv) => ({ value: dv.version_number, version: dv })),
-      }),
-    [data],
-  );
+  const versionOptions = createListCollection({
+    items: (data?.dag_versions ?? []).map((dv) => ({ value: dv.version_number, version: dv })),
+  });
 
-  const handleStateChange = useCallback(
-    ({ items }: SelectValueChangeDetails<VersionSelected>) => {
-      if (items[0]) {
-        onVersionChange(items[0].value);
-      }
-    },
-    [onVersionChange],
-  );
+  const handleStateChange = ({ items }: SelectValueChangeDetails<VersionSelected>) => {
+    if (items[0]) {
+      onVersionChange(items[0].value);
+    }
+  };
 
   return (
     <Select.Root

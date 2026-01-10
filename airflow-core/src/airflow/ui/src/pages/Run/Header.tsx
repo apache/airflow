@@ -17,7 +17,7 @@
  * under the License.
  */
 import { HStack, Text, Box, Link, Button, Menu, Portal } from "@chakra-ui/react";
-import { useCallback, useState, useRef } from "react";
+import { useState, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { FiBarChart } from "react-icons/fi";
 import { LuMenu } from "react-icons/lu";
@@ -51,7 +51,7 @@ export const Header = ({ dagRun }: { readonly dagRun: DAGRunResponse }) => {
     dagRunId,
   });
 
-  const onConfirm = useCallback(() => {
+  const onConfirm = () => {
     if (note !== dagRun.note) {
       mutate({
         dagId,
@@ -59,7 +59,7 @@ export const Header = ({ dagRun }: { readonly dagRun: DAGRunResponse }) => {
         requestBody: { note },
       });
     }
-  }, [dagId, dagRun.note, dagRunId, mutate, note]);
+  };
 
   const onOpen = () => {
     setNote(dagRun.note ?? "");

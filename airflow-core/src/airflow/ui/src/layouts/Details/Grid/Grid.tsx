@@ -20,7 +20,7 @@ import { Box, Flex, IconButton } from "@chakra-ui/react";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import dayjs from "dayjs";
 import dayjsDuration from "dayjs/plugin/duration";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { FiChevronsRight } from "react-icons/fi";
 import { Link, useParams, useSearchParams } from "react-router-dom";
@@ -100,7 +100,7 @@ export const Grid = ({ dagRunState, limit, runType, showGantt, triggeringUser }:
           .filter((duration: number | null): duration is number => duration !== null),
   );
 
-  const { flatNodes } = useMemo(() => flattenNodes(dagStructure, openGroupIds), [dagStructure, openGroupIds]);
+  const { flatNodes } = flattenNodes(dagStructure, openGroupIds);
 
   const { setMode } = useNavigation({
     onToggleGroup: toggleGroupId,
@@ -108,9 +108,9 @@ export const Grid = ({ dagRunState, limit, runType, showGantt, triggeringUser }:
     tasks: flatNodes,
   });
 
-  const handleRowClick = useCallback(() => setMode(NavigationModes.TASK), [setMode]);
-  const handleCellClick = useCallback(() => setMode(NavigationModes.TI), [setMode]);
-  const handleColumnClick = useCallback(() => setMode(NavigationModes.RUN), [setMode]);
+  const handleRowClick = () => setMode(NavigationModes.TASK);
+  const handleCellClick = () => setMode(NavigationModes.TI);
+  const handleColumnClick = () => setMode(NavigationModes.RUN);
 
   const rowVirtualizer = useVirtualizer({
     count: flatNodes.length,

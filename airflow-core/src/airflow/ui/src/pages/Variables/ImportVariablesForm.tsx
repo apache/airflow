@@ -65,8 +65,9 @@ const ImportVariablesForm = ({ onClose }: ImportVariablesFormProps) => {
     const reader = new FileReader();
 
     reader.addEventListener("load", (event) => {
+      const text = event.target?.result as string;
+
       try {
-        const text = event.target?.result as string;
         const parsedContent = JSON.parse(text) as Record<string, unknown>;
 
         setFileContent(parsedContent);
@@ -77,9 +78,9 @@ const ImportVariablesForm = ({ onClose }: ImportVariablesFormProps) => {
           },
         });
         setFileContent(undefined);
-      } finally {
-        setIsParsing(false);
       }
+
+      setIsParsing(false);
     });
 
     reader.readAsText(file);

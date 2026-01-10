@@ -40,7 +40,7 @@
 {{- $affinity := or .Values.scheduler.affinity .Values.affinity }}
 {{- $tolerations := or .Values.scheduler.tolerations .Values.tolerations }}
 {{- $topologySpreadConstraints := or .Values.scheduler.topologySpreadConstraints .Values.topologySpreadConstraints }}
-{{- $revisionHistoryLimit := or .Values.scheduler.revisionHistoryLimit .Values.revisionHistoryLimit }}
+{{- $revisionHistoryLimit := include "airflow.revisionHistoryLimit" (list .Values.scheduler.revisionHistoryLimit .Values.revisionHistoryLimit) }}
 {{- $securityContext := include "airflowPodSecurityContext" (list . .Values.scheduler) }}
 {{- $containerSecurityContext := include "containerSecurityContext" (list . .Values.scheduler) }}
 {{- $containerSecurityContextWaitForMigrations := include "containerSecurityContext" (list . .Values.scheduler.waitForMigrations) }}
@@ -69,7 +69,7 @@ spec:
   serviceName: {{ include "airflow.fullname" . }}-scheduler
   {{- end }}
   replicas: {{ .Values.scheduler.replicas }}
-  {{- if $revisionHistoryLimit }}
+  {{- if ne $revisionHistoryLimit "" }}
   revisionHistoryLimit: {{ $revisionHistoryLimit }}
   {{- end }}
   {{- if and $stateful .Values.scheduler.updateStrategy }}

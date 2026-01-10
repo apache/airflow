@@ -29,7 +29,7 @@ import {
   type Table as TanStackTable,
   type Updater,
 } from "@tanstack/react-table";
-import React, { type ReactNode, useCallback, useRef, useState } from "react";
+import React, { type ReactNode, useRef, useState, useCallback } from "react";
 import { useTranslation } from "react-i18next";
 
 import { CardList } from "src/components/DataTable/CardList";
@@ -76,10 +76,13 @@ export const DataTable = <TData,>({
   skeletonCount = 10,
   total = 0,
 }: DataTableProps<TData>) => {
+  "use no memo"; // remove if https://github.com/TanStack/table/issues/5567 is resolved
+
   const { t: translate } = useTranslation(["common"]);
   const ref = useRef<{ tableRef: TanStackTable<TData> | undefined }>({
     tableRef: undefined,
   });
+
   const handleStateChange = useCallback<OnChangeFn<ReactTableState>>(
     (updater: Updater<ReactTableState>) => {
       if (ref.current.tableRef && onStateChange) {
@@ -98,6 +101,7 @@ export const DataTable = <TData,>({
     },
     [onStateChange],
   );
+
   const [columnVisibility, setColumnVisibility] = useState<VisibilityState>(
     initialState?.columnVisibility ?? {},
   );
@@ -125,12 +129,15 @@ export const DataTable = <TData,>({
 
   const { rows } = table.getRowModel();
 
+  const rowCount = table.getRowCount();
+  const { setPageIndex } = table;
+
+  const { pagination } = table.getState();
+  const { pageIndex, pageSize } = pagination;
+
   const display = displayMode === "card" && Boolean(cardDef) ? "card" : "table";
   const hasRows = rows.length > 0;
-  const hasPagination =
-    initialState?.pagination !== undefined &&
-    (table.getState().pagination.pageIndex !== 0 ||
-      (table.getState().pagination.pageIndex === 0 && rows.length !== total));
+  const hasPagination = initialState?.pagination !== undefined && (pageIndex !== 0 || rows.length !== total);
 
   // Default to show columns filter only if there are actually many columns displayed
   const showColumnsFilter = allowFiltering ?? columns.length > 5;
@@ -144,7 +151,7 @@ export const DataTable = <TData,>({
         <TableList allowFiltering={showColumnsFilter} table={table} />
       ) : undefined}
       {hasRows && display === "card" && cardDef !== undefined ? (
-        <CardList cardDef={cardDef} isLoading={isLoading} table={table} />
+        <CardList cardDef={cardDef} isLoading={isLoading} rows={rows} />
       ) : undefined}
       {!hasRows && !Boolean(isLoading) && (
         <Text as="div" pl={4} pt={1}>
@@ -153,11 +160,11 @@ export const DataTable = <TData,>({
       )}
       {hasPagination ? (
         <Pagination.Root
-          count={table.getRowCount()}
+          count={rowCount}
           my={2}
-          onPageChange={(page) => table.setPageIndex(page.page - 1)}
-          page={table.getState().pagination.pageIndex + 1}
-          pageSize={table.getState().pagination.pageSize}
+          onPageChange={(page) => setPageIndex(page.page - 1)}
+          page={pageIndex + 1}
+          pageSize={pageSize}
           siblingCount={1}
         >
           <HStack>

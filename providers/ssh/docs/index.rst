@@ -35,6 +35,7 @@
     :caption: Guides
 
     Connection types <connections/ssh>
+    Operators <operators/ssh_remote_job>
 
 .. toctree::
     :hidden:
@@ -93,6 +94,7 @@ PIP package                                 Version required
 ==========================================  ==================
 ``apache-airflow``                          ``>=2.11.0``
 ``apache-airflow-providers-common-compat``  ``>=1.10.1``
+``asyncssh``                                ``>=2.12.0``
 ``paramiko``                                ``>=2.9.0,<4.0.0``
 ``sshtunnel``                               ``>=0.3.2``
 ==========================================  ==================
