@@ -40,6 +40,7 @@ from pydantic import AwareDatetime, ConfigDict, Field, JsonValue, TypeAdapter
 
 from airflow.dag_processing.bundles.base import BaseDagBundle, BundleVersionLock
 from airflow.dag_processing.bundles.manager import DagBundlesManager
+from airflow.sdk._shared.observability.metrics.stats import Stats
 from airflow.sdk.api.client import get_hostname, getuser
 from airflow.sdk.api.datamodels._generated import (
     AssetProfile,
@@ -118,7 +119,6 @@ from airflow.sdk.execution_time.context import (
 from airflow.sdk.execution_time.sentry import Sentry
 from airflow.sdk.execution_time.xcom import XCom
 from airflow.sdk.listener import get_listener_manager
-from airflow.sdk.observability.stats import Stats
 from airflow.sdk.timezone import coerce_datetime
 from airflow.triggers.base import BaseEventTrigger
 from airflow.triggers.callback import CallbackTrigger
@@ -1649,6 +1649,12 @@ def main():
 
     global SUPERVISOR_COMMS
     SUPERVISOR_COMMS = CommsDecoder[ToTask, ToSupervisor](log=log)
+
+    Stats.initialize(
+        is_statsd_datadog_enabled=conf.getboolean("metrics", "statsd_datadog_enabled"),
+        is_statsd_on=conf.getboolean("metrics", "statsd_on"),
+        is_otel_on=conf.getboolean("metrics", "otel_on"),
+    )
 
     try:
         ti, context, log = startup()

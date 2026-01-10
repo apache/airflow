@@ -158,8 +158,19 @@ class OpenLineageAdapter(LoggingMixin):
 
         try:
             with ExitStack() as stack:
-                stack.enter_context(Stats.timer(f"ol.emit.attempts.{event_type}.{transport_type}"))
-                stack.enter_context(Stats.timer("ol.emit.attempts"))
+                try:
+                    from airflow.sdk._shared.observability.metrics.dual_stats_manager import DualStatsManager
+
+                    stack.enter_context(
+                        DualStatsManager.timer(
+                            "ol.emit.attempts",
+                            extra_tags={"event_type": event_type, "transport_type": transport_type},
+                        )
+                    )
+                except ImportError:
+                    stack.enter_context(Stats.timer(f"ol.emit.attempts.{event_type}.{transport_type}"))
+                    stack.enter_context(Stats.timer("ol.emit.attempts"))
+
                 self._client.emit(redacted_event)
                 self.log.info(
                     "Successfully emitted OpenLineage `%s` event of id `%s`",
