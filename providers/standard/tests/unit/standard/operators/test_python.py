@@ -2480,7 +2480,8 @@ class TestPythonAsyncOperator(TestPythonOperator):
             assert "Done. Returned value was: Hello world!" in caplog.messages
         else:
             with pytest.raises(
-                NotImplementedError, match=r"Airflow 3\.2\+ is required to allow executing async operators!"
+                NotImplementedError,
+                match=r"Async operators require Airflow 3\.2\+\. Upgrade Airflow or use a synchronous callable\.",
             ):
                 self.run_as_task(say_hello, op_kwargs={"name": "world"}, show_return_value_in_logs=True)
 

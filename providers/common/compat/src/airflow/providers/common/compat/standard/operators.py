@@ -45,67 +45,22 @@ elif AIRFLOW_V_3_2_PLUS:
     from airflow.sdk.bases.decorator import is_async_callable
     from airflow.sdk.bases.operator import BaseAsyncOperator
 else:
-    import inspect
-    from collections.abc import Callable
-    from contextlib import suppress
-    from functools import partial
-
     if AIRFLOW_V_3_0_PLUS:
         from airflow.sdk import BaseOperator
-        from airflow.sdk.bases.decorator import _TaskDecorator
-        from airflow.sdk.definitions.mappedoperator import OperatorPartial
     else:
-        from airflow.decorators.base import _TaskDecorator
         from airflow.models import BaseOperator
-        from airflow.models.mappedoperator import OperatorPartial
 
-    def unwrap_partial(fn: Callable) -> Callable:
-        while isinstance(fn, partial):
-            fn = fn.func
-        return fn
+    def is_async_callable(func) -> bool:
+        """Detect async callables. """
+        import inspect
+        from functools import partial
 
-    def unwrap_callable(func):
-        # Airflow-specific unwrap
-        if isinstance(func, (_TaskDecorator, OperatorPartial)):
-            func = getattr(func, "function", getattr(func, "_func", func))
-
-        # Unwrap functools.partial
-        func = unwrap_partial(func)
-
-        # Unwrap @functools.wraps chains
-        with suppress(Exception):
-            func = inspect.unwrap(func)
-
-        return func
-
-    def is_async_callable(func):
-        """Detect if a callable (possibly wrapped) is an async function."""
-        func = unwrap_callable(func)
-
-        if not callable(func):
-            return False
-
-        # Direct async function
-        if inspect.iscoroutinefunction(func):
-            return True
-
-        # Callable object with async __call__
-        if not inspect.isfunction(func):
-            call = type(func).__call__  # Bandit-safe
-            with suppress(Exception):
-                call = inspect.unwrap(call)
-            if inspect.iscoroutinefunction(call):
-                return True
-
-        return False
+        while isinstance(func, partial):
+            func = func.func
+        return inspect.iscoroutinefunction(func)
 
     class BaseAsyncOperator(BaseOperator):
-        """
-        Base class for async-capable operators.
-
-        As opposed to deferred operators which are executed on the triggerer, async operators are executed
-        on the worker.
-        """
+        """Stub for Airflow < 3.2 that raises a clear error."""
 
         @property
         def is_async(self) -> bool:
@@ -122,12 +77,13 @@ else:
                 self.do_xcom_push = value
 
         async def aexecute(self, context):
-            """Async version of execute(). Subclasses should implement this."""
             raise NotImplementedError()
 
         def execute(self, context):
-            """Run `aexecute()` inside an event loop."""
-            raise NotImplementedError("Airflow 3.2+ is required to allow executing async operators!")
+            raise RuntimeError(
+                "Async operators require Airflow 3.2+. "
+                "Upgrade Airflow or use a synchronous callable."
+            )
 
 
 __getattr__ = create_module_getattr(import_map=_IMPORT_MAP)
