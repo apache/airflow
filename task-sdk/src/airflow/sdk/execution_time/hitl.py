@@ -46,9 +46,9 @@ def upsert_hitl_detail(
     params: dict[str, Any] | None = None,
     assigned_users: list[HITLUser] | None = None,
 ) -> None:
-    from airflow.sdk.execution_time.task_runner import SUPERVISOR_COMMS
+    from airflow.sdk.execution_time.task_runner import supervisor_send
 
-    SUPERVISOR_COMMS.send(
+    supervisor_send(
         msg=CreateHITLDetailPayload(
             ti_id=ti_id,
             options=options,
@@ -71,9 +71,9 @@ def update_hitl_detail_response(
     chosen_options: list[str],
     params_input: dict[str, Any],
 ) -> HITLDetailResponse:
-    from airflow.sdk.execution_time.task_runner import SUPERVISOR_COMMS
+    from airflow.sdk.execution_time.task_runner import supervisor_send
 
-    response = SUPERVISOR_COMMS.send(
+    response = supervisor_send(
         msg=UpdateHITLDetail(
             ti_id=ti_id,
             chosen_options=chosen_options,
@@ -86,9 +86,9 @@ def update_hitl_detail_response(
 
 
 def get_hitl_detail_content_detail(ti_id: UUID) -> HITLDetailResponse:
-    from airflow.sdk.execution_time.task_runner import SUPERVISOR_COMMS
+    from airflow.sdk.execution_time.task_runner import supervisor_send
 
-    response = SUPERVISOR_COMMS.send(msg=GetHITLDetailResponse(ti_id=ti_id))
+    response = supervisor_send(msg=GetHITLDetailResponse(ti_id=ti_id))
 
     if TYPE_CHECKING:
         assert isinstance(response, HITLDetailResponse)
