@@ -501,28 +501,28 @@ class CommandFactory:
         arg_type: type | Callable,
         arg_help: str,
         arg_action: type[argparse.BooleanOptionalAction] | None,
-        arg_dest: str | None = None,
+        arg_dest: str | Any | None = None,
         arg_default: Any | None = None,
     ) -> Arg:
-        if not any(flag.startswith("-") for flag in arg_flags):
-            return Arg(
-                flags=arg_flags,
-                type=arg_type,
-                dest=_UNSET,
-                help=arg_help,
-                default=arg_default,
-                action=arg_action,
-            )
-        if arg_dest is None and len(arg_flags) > 0:
-            arg_dest = arg_flags[0].lstrip("-").replace("-", "_")
+        kwargs: dict[str, Any] = {"help": arg_help}
+
+        if arg_action is not None:
+            kwargs["action"] = arg_action
+        else:
+            kwargs["type"] = arg_type
+
+        if arg_default is not None:
+            kwargs["default"] = arg_default
+
+        if arg_dest is None:
+            final_dest = arg_flags[0].lstrip("-").replace("-", "_")
+        else:
+            final_dest = arg_dest
 
         return Arg(
             flags=arg_flags,
-            type=arg_type,
-            dest=arg_dest,
-            help=arg_help,
-            default=arg_default,
-            action=arg_action,
+            dest=final_dest,
+            **kwargs,
         )
 
     def _create_arg_for_non_primitive_type(
@@ -546,7 +546,7 @@ class CommandFactory:
             if type(field_type.annotation) is type:
                 is_bool = field_type.annotation is bool
                 arg_flags = (sanitized_field,) if is_required and not is_bool else ("--" + sanitized_field,)
-
+                arg_dest = _UNSET if is_required and not is_bool else sanitized_field
                 commands.append(
                     self._create_arg(
                         arg_flags=arg_flags,
@@ -554,6 +554,7 @@ class CommandFactory:
                         arg_action=argparse.BooleanOptionalAction if is_bool else None,
                         arg_help=f"{field} for {parameter_key} operation",
                         arg_default=False if is_bool else None,
+                        arg_dest=arg_dest,
                     )
                 )
             else:
@@ -564,7 +565,7 @@ class CommandFactory:
 
                 is_bool = annotation is bool
                 arg_flags = (sanitized_field,) if is_required and not is_bool else ("--" + sanitized_field,)
-
+                arg_dest = _UNSET if is_required and not is_bool else sanitized_field
                 commands.append(
                     self._create_arg(
                         arg_flags=arg_flags,
@@ -572,6 +573,7 @@ class CommandFactory:
                         arg_action=argparse.BooleanOptionalAction if is_bool else None,
                         arg_help=f"{field} for {parameter_key} operation",
                         arg_default=False if is_bool else None,
+                        arg_dest=arg_dest,
                     )
                 )
         return commands
@@ -584,13 +586,15 @@ class CommandFactory:
                 for parameter_key, parameter_type in parameter.items():
                     if self._is_primitive_type(type_name=parameter_type):
                         is_bool = parameter_type == "bool"
+                        sanitized_key = self._sanitize_arg_parameter_key(parameter_key)
                         args.append(
                             self._create_arg(
-                                arg_flags=("--" + self._sanitize_arg_parameter_key(parameter_key),),
+                                arg_flags=("--" + sanitized_key,),
                                 arg_type=self._python_type_from_string(parameter_type),
                                 arg_action=argparse.BooleanOptionalAction if is_bool else None,
                                 arg_help=f"{parameter_key} for {operation.get('name')} operation in {operation.get('parent').name}",
                                 arg_default=False if is_bool else None,
+                                arg_dest=sanitized_key,
                             )
                         )
                     else:
