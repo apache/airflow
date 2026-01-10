@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2026-01-09T19:47:48.961082
+# This constraints file was automatically generated on 2026-01-10T13:53:22.579414
 # via `uv sync --resolution highest for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider distributions.
@@ -53,7 +53,7 @@ aiosmtplib==5.0.0
 aiosqlite==0.21.0
 airbyte-api==0.53.0
 alabaster==1.0.0
-alembic==1.17.2
+alembic==1.18.0
 alibabacloud-adb20211201==3.7.1
 alibabacloud-credentials-api==1.0.0
 alibabacloud-credentials==1.0.4
@@ -392,9 +392,9 @@ nest-asyncio==1.6.0
 networkx==3.6.1
 nh3==0.3.2
 nodeenv==1.10.0
-numpy==2.4.0
+numpy==2.4.1
 oauthlib==3.3.1
-openai==2.14.0
+openai==2.15.0
 openapi-schema-validator==0.6.3
 openapi-spec-validator==0.7.2
 openlineage-integration-common==1.42.1
@@ -445,8 +445,8 @@ platformdirs==4.5.1
 pluggy==1.6.0
 ply==3.11
 plyvel==1.5.1
-polars-runtime-32==1.36.1
-polars==1.36.1
+polars-runtime-32==1.37.0
+polars==1.37.0
 portalocker==3.2.0
 pprintpp==0.4.0
 pre_commit==4.5.1
@@ -456,7 +456,7 @@ prometheus_client==0.23.1
 prompt_toolkit==3.0.52
 propcache==0.4.1
 proto-plus==1.27.0
-protobuf==6.33.2
+protobuf==6.33.3
 psutil==7.2.1
 psycopg-binary==3.3.2
 psycopg2-binary==2.9.11
@@ -668,7 +668,7 @@ uritemplate==4.2.0
 urllib3==2.6.3
 userpath==1.9.2
 uuid6==2025.0.1
-uv==0.9.22
+uv==0.9.24
 uvicorn==0.40.0
 uvloop==0.22.1
 validators==0.35.0
