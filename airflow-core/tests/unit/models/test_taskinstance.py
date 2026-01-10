@@ -3058,6 +3058,7 @@ def test_find_relevant_relatives_downstream_same_group_siblings(dag_maker, sessi
     files = ["a", "b", "c"]
 
     with dag_maker(session=session) as dag:
+
         @task_group(group_id="etl")
         def etl_pipeline(file):
             e = EmptyOperator(task_id="e")
@@ -3096,6 +3097,7 @@ def test_find_relevant_relatives_upstream_same_group_siblings(dag_maker, session
     files = ["a", "b", "c"]
 
     with dag_maker(session=session) as dag:
+
         @task_group(group_id="etl")
         def etl_pipeline(file):
             e = EmptyOperator(task_id="e")
