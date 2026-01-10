@@ -601,14 +601,24 @@ class TestS3CopyObjectOperator:
         kms_key_id = "arn:aws:kms:us-east-1:123456789012:key/abcd1234"
         captured_kwargs = {}
 
-        def fake_copy_object(self_hook, source_bucket_key, dest_bucket_key, source_bucket_name=None,
-                            dest_bucket_name=None, source_version_id=None,
-                            acl_policy=None, meta_data_directive=None, **kwargs):
+        def fake_copy_object(
+            self_hook,
+            source_bucket_key,
+            dest_bucket_key,
+            source_bucket_name=None,
+            dest_bucket_name=None,
+            source_version_id=None,
+            acl_policy=None,
+            meta_data_directive=None,
+            **kwargs,
+        ):
             nonlocal captured_kwargs
             captured_kwargs = kwargs
-            copy_source = {'Bucket': source_bucket_name, 'Key': source_bucket_key}
-            self_hook.get_conn().copy_object(Bucket=dest_bucket_name, Key=dest_bucket_key,
-                                            CopySource=copy_source, **kwargs)
+            copy_source = {"Bucket": source_bucket_name, "Key": source_bucket_key}
+            self_hook.get_conn().copy_object(
+                Bucket=dest_bucket_name, Key=dest_bucket_key, CopySource=copy_source, **kwargs
+            )
+
         monkeypatch.setattr(S3Hook, "copy_object", fake_copy_object)
         op = S3CopyObjectOperator(
             task_id="test_task_s3_copy_object",
@@ -633,17 +643,25 @@ class TestS3CopyObjectOperator:
         conn.create_bucket(Bucket=self.dest_bucket)
         conn.upload_fileobj(Bucket=self.source_bucket, Key=self.source_key, Fileobj=BytesIO(b"input"))
 
-        def fake_copy_object(self_hook, source_bucket_key, dest_bucket_key, source_bucket_name=None,
-                            dest_bucket_name=None, source_version_id=None,
-                            acl_policy=None, meta_data_directive=None, **kwargs):
+        def fake_copy_object(
+            self_hook,
+            source_bucket_key,
+            dest_bucket_key,
+            source_bucket_name=None,
+            dest_bucket_name=None,
+            source_version_id=None,
+            acl_policy=None,
+            meta_data_directive=None,
+            **kwargs,
+        ):
             if "SSEKMSKeyId" not in kwargs:
                 raise boto3.client("s3").exceptions.ClientError(
-                    {"Error": {"Code": "AccessDenied", "Message": "Missing KMS key"}},
-                    "CopyObject"
+                    {"Error": {"Code": "AccessDenied", "Message": "Missing KMS key"}}, "CopyObject"
                 )
-            copy_source = {'Bucket': source_bucket_name, 'Key': source_bucket_key}
-            self_hook.get_conn().copy_object(Bucket=dest_bucket_name, Key=dest_bucket_key,
-                                            CopySource=copy_source, **kwargs)
+            copy_source = {"Bucket": source_bucket_name, "Key": source_bucket_key}
+            self_hook.get_conn().copy_object(
+                Bucket=dest_bucket_name, Key=dest_bucket_key, CopySource=copy_source, **kwargs
+            )
 
         monkeypatch.setattr(S3Hook, "copy_object", fake_copy_object)
         op = S3CopyObjectOperator(
@@ -657,6 +675,7 @@ class TestS3CopyObjectOperator:
         with pytest.raises(boto3.client("s3").exceptions.ClientError) as exc_info:
             op.execute(None)
         assert "Missing KMS key" in str(exc_info.value)
+
 
 @mock_aws
 class TestS3DeleteObjectsOperator:
