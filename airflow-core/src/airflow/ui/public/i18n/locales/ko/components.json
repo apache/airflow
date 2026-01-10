@@ -111,6 +111,13 @@
   "sortedUnsorted": "정렬되지 않음",
   "taskTries": "작업 시도 횟수",
   "taskTryPlaceholder": "작업 시도 선택",
+  "team": {
+    "selector": {
+      "helperText": "선택 사항. 특정 팀으로 사용을 제한합니다.",
+      "label": "팀",
+      "placeHolder": "팀을 선택하세요."
+    }
+  },
   "toggleCardView": "카드 보기 표시",
   "toggleTableView": "테이블 보기 표시",
   "triggerDag": {
