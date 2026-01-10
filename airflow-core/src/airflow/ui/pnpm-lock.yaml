@@ -4,6 +4,9 @@ settings:
   autoInstallPeers: true
   excludeLinksFromLockfile: false
 
+overrides:
+  '@remix-run/router@<=1.23.1': '>=1.23.2'
+
 importers:
 
   .:
@@ -956,8 +959,8 @@ packages:
     engines: {node: '>=18'}
     hasBin: true
 
-  '@remix-run/router@1.23.0':
-    resolution: {integrity: sha512-O3rHJzAQKamUz1fvE0Qaw0xSFqsA/yafi2iqeE0pvdFtCO1viYx8QL6f3Ln/aCCTLxs68SLf0KPM9eSeM8yBnA==}
+  '@remix-run/router@1.23.2':
+    resolution: {integrity: sha512-Ic6m2U/rMjTkhERIa/0ZtXJP17QUi2CbWE7cqx4J58M8aA3QTfW+2UlQ4psvTX9IO1RfNVhK3pcpdjej7L+t2w==}
     engines: {node: '>=14.0.0'}
 
   '@rolldown/pluginutils@1.0.0-beta.47':
@@ -5486,7 +5489,7 @@ snapshots:
     dependencies:
       playwright: 1.57.0
 
-  '@remix-run/router@1.23.0': {}
+  '@remix-run/router@1.23.2': {}
 
   '@rolldown/pluginutils@1.0.0-beta.47': {}
 
@@ -9478,14 +9481,14 @@ snapshots:
 
   react-router-dom@6.30.0(react-dom@19.2.1(react@19.2.1))(react@19.2.1):
     dependencies:
-      '@remix-run/router': 1.23.0
+      '@remix-run/router': 1.23.2
       react: 19.2.1
       react-dom: 19.2.1(react@19.2.1)
       react-router: 6.30.0(react@19.2.1)
 
   react-router@6.30.0(react@19.2.1):
     dependencies:
-      '@remix-run/router': 1.23.0
+      '@remix-run/router': 1.23.2
       react: 19.2.1
 
   react-select@5.10.1(@types/react@19.2.7)(react-dom@19.2.1(react@19.2.1))(react@19.2.1):
