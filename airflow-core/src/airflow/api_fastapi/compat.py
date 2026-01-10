@@ -16,11 +16,13 @@
 # under the License.
 from __future__ import annotations
 
+from fastapi import status
+
+# HTTP_422_UNPROCESSABLE_CONTENT was added in Starlette 0.29.0 (renamed from HTTP_422_UNPROCESSABLE_ENTITY)
+# We need to support older versions that only have HTTP_422_UNPROCESSABLE_ENTITY
 try:
-    from starlette.status import HTTP_422_UNPROCESSABLE_CONTENT
-except ImportError:
-    from starlette.status import (  # type: ignore[no-redef]
-        HTTP_422_UNPROCESSABLE_ENTITY as HTTP_422_UNPROCESSABLE_CONTENT,
-    )
+    HTTP_422_UNPROCESSABLE_CONTENT = status.HTTP_422_UNPROCESSABLE_CONTENT
+except AttributeError:
+    HTTP_422_UNPROCESSABLE_CONTENT = status.HTTP_422_UNPROCESSABLE_ENTITY  # type: ignore[attr-defined]
 
 __all__ = ["HTTP_422_UNPROCESSABLE_CONTENT"]
