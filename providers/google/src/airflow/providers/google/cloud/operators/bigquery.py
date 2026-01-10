@@ -33,6 +33,12 @@ from google.cloud.bigquery import DEFAULT_RETRY, CopyJob, ExtractJob, LoadJob, Q
 from google.cloud.bigquery.table import RowIterator, Table, TableListItem, TableReference
 
 from airflow.exceptions import AirflowProviderDeprecationWarning
+from airflow.providers.common.compat.openlineage.facet import (
+    Dataset,
+    LifecycleStateChange,
+    LifecycleStateChangeDatasetFacet,
+    PreviousIdentifier,
+)
 from airflow.providers.common.compat.sdk import AirflowException, AirflowSkipException, conf
 from airflow.providers.common.sql.operators.sql import (  # for _parse_boolean
     SQLCheckOperator,
@@ -50,6 +56,10 @@ from airflow.providers.google.cloud.links.bigquery import (
     BigQueryTableLink,
 )
 from airflow.providers.google.cloud.openlineage.mixins import _BigQueryInsertJobOperatorOpenLineageMixin
+from airflow.providers.google.cloud.openlineage.utils import (
+    BIGQUERY_NAMESPACE,
+    get_facets_from_bq_table,
+)
 from airflow.providers.google.cloud.operators.cloud_base import GoogleCloudBaseOperator
 from airflow.providers.google.cloud.triggers.bigquery import (
     BigQueryCheckTrigger,
@@ -61,6 +71,7 @@ from airflow.providers.google.cloud.triggers.bigquery import (
 from airflow.providers.google.cloud.utils.bigquery import convert_job_id
 from airflow.providers.google.common.deprecated import deprecated
 from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID
+from airflow.providers.openlineage.extractors import OperatorLineage
 from airflow.utils.helpers import exactly_one
 
 if TYPE_CHECKING:
@@ -1361,13 +1372,6 @@ class BigQueryCreateTableOperator(GoogleCloudBaseOperator):
 
     def get_openlineage_facets_on_complete(self, _):
         """Implement _on_complete as we will use table resource returned by create method."""
-        from airflow.providers.common.compat.openlineage.facet import Dataset
-        from airflow.providers.google.cloud.openlineage.utils import (
-            BIGQUERY_NAMESPACE,
-            get_facets_from_bq_table,
-        )
-        from airflow.providers.openlineage.extractors import OperatorLineage
-
         if not self._table:
             self.log.debug("OpenLineage did not find `self._table` attribute.")
             return OperatorLineage()
@@ -1799,13 +1803,6 @@ class BigQueryUpdateTableOperator(GoogleCloudBaseOperator):
 
     def get_openlineage_facets_on_complete(self, _):
         """Implement _on_complete as we will use table resource returned by update method."""
-        from airflow.providers.common.compat.openlineage.facet import Dataset
-        from airflow.providers.google.cloud.openlineage.utils import (
-            BIGQUERY_NAMESPACE,
-            get_facets_from_bq_table,
-        )
-        from airflow.providers.openlineage.extractors import OperatorLineage
-
         table = Table.from_api_repr(self._table)
         output_dataset = Dataset(
             namespace=BIGQUERY_NAMESPACE,
@@ -1962,15 +1959,6 @@ class BigQueryDeleteTableOperator(GoogleCloudBaseOperator):
 
     def get_openlineage_facets_on_complete(self, _):
         """Implement _on_complete as we need default project_id from hook."""
-        from airflow.providers.common.compat.openlineage.facet import (
-            Dataset,
-            LifecycleStateChange,
-            LifecycleStateChangeDatasetFacet,
-            PreviousIdentifier,
-        )
-        from airflow.providers.google.cloud.openlineage.utils import BIGQUERY_NAMESPACE
-        from airflow.providers.openlineage.extractors import OperatorLineage
-
         bq_table_id = str(
             TableReference.from_string(self.deletion_dataset_table, default_project=self.hook.project_id)
         )
@@ -2073,13 +2061,6 @@ class BigQueryUpsertTableOperator(GoogleCloudBaseOperator):
 
     def get_openlineage_facets_on_complete(self, _):
         """Implement _on_complete as we will use table resource returned by upsert method."""
-        from airflow.providers.common.compat.openlineage.facet import Dataset
-        from airflow.providers.google.cloud.openlineage.utils import (
-            BIGQUERY_NAMESPACE,
-            get_facets_from_bq_table,
-        )
-        from airflow.providers.openlineage.extractors import OperatorLineage
-
         table = Table.from_api_repr(self._table)
         output_dataset = Dataset(
             namespace=BIGQUERY_NAMESPACE,
@@ -2204,13 +2185,9 @@ class BigQueryUpdateTableSchemaOperator(GoogleCloudBaseOperator):
 
     def get_openlineage_facets_on_complete(self, _):
         """Implement _on_complete as we will use table resource returned by update method."""
-        from airflow.providers.common.compat.openlineage.facet import Dataset
-        from airflow.providers.google.cloud.openlineage.utils import (
-            BIGQUERY_NAMESPACE,
-            get_facets_from_bq_table,
-        )
-        from airflow.providers.openlineage.extractors import OperatorLineage
-
+        if self._table is None:
+            self.log.debug("Skipping OpenLineage emission because table metadata is unavailable.")
+            return OperatorLineage()
         table = Table.from_api_repr(self._table)
         output_dataset = Dataset(
             namespace=BIGQUERY_NAMESPACE,
