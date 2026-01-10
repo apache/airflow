@@ -205,16 +205,14 @@ test.describe("Backfill pause, resume, and cancel controls", () => {
 
   let backfillPage: BackfillPage;
 
-  test.beforeEach(async ({ page }) => {
-    backfillPage = new BackfillPage(page);
-
-    // Cancel any existing backfill before creating a new one
-    await backfillPage.navigateToDagDetail(testDagId);
-    try {
-      await backfillPage.clickCancelButton();
-    } catch {
-      // No active backfill to cancel
-    }
+test.beforeEach(async ({ page }) => {
+  backfillPage = new BackfillPage(page);
+  await backfillPage.navigateToDagDetail(testDagId);
+  
+  // Cancel any existing backfill if visible
+  if (await backfillPage.cancelButton.isVisible()) {
+    await backfillPage.clickCancelButton();
+  }
 
     await backfillPage.createBackfill(testDagId, {
       fromDate: controlFromDate,
