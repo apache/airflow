@@ -63,7 +63,6 @@ function datesMatch(date1: string, date2: string): boolean {
 }
 
 export class BackfillPage extends BasePage {
-  public readonly backfillBanner: Locator;
   public readonly backfillDateError: Locator;
   public readonly backfillFromDateInput: Locator;
   public readonly backfillModeRadio: Locator;
@@ -83,7 +82,6 @@ export class BackfillPage extends BasePage {
     this.backfillRunButton = page.locator('button:has-text("Run Backfill")');
     this.backfillsTable = page.locator("table");
     this.backfillDateError = page.locator('text="Start Date must be before the End Date"');
-    this.backfillBanner = page.locator('div:has-text("Backfill in progress")');
     this.cancelButton = page.locator('button[aria-label="Cancel backfill"]');
     this.pauseButton = page.locator('button[aria-label="Pause backfill"], button[aria-label="Unpause backfill"]');
   }
