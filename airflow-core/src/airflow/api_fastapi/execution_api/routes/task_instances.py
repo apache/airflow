@@ -65,6 +65,7 @@ from airflow.models.asset import AssetActive
 from airflow.models.dag import DagModel
 from airflow.models.dagrun import DagRun as DR
 from airflow.models.expandinput import NotFullyPopulated
+from airflow.models.log import Log
 from airflow.models.taskinstance import TaskInstance as TI, _stop_remaining_tasks
 from airflow.models.taskreschedule import TaskReschedule
 from airflow.models.trigger import Trigger
@@ -553,6 +554,8 @@ def _create_ti_state_update_query_and_update_state(
                 ti_patch_payload.reschedule_date,
             )
         )
+        if ti := session.get(TI, ti_id_str):
+            session.add(Log(event="reschedule", task_instance=ti.key))
 
         query = update(TI).where(TI.id == ti_id_str)
         # calculate the duration for TI table too
