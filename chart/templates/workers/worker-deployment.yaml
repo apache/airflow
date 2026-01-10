@@ -79,8 +79,8 @@ spec:
   {{- if and $persistence .Values.workers.podManagementPolicy }}
   podManagementPolicy: {{ .Values.workers.podManagementPolicy }}
   {{- end }}
-  {{- if and $persistence .Values.workers.updateStrategy }}
-  updateStrategy: {{- toYaml .Values.workers.updateStrategy | nindent 4 }}
+  {{- if and $persistence (or .Values.workers.celery.updateStrategy .Values.workers.updateStrategy) }}
+  updateStrategy: {{- toYaml (.Values.workers.celery.updateStrategy | default .Values.workers.updateStrategy) | nindent 4 }}
   {{- end }}
   {{- if and (not $persistence) (.Values.workers.strategy) }}
   strategy: {{- toYaml .Values.workers.strategy | nindent 4 }}
