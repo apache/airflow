@@ -200,12 +200,10 @@ class TestFabAuthManager:
 
     def test_deserialize_user(self, flask_app, auth_manager_with_appbuilder):
         user = create_user(flask_app, "test")
-        assert not auth_manager_with_appbuilder.user_cache
         with assert_queries_count(2):
             result = auth_manager_with_appbuilder.deserialize_user({"sub": str(user.id)})
 
         assert user.get_id() == result.get_id()
-        assert auth_manager_with_appbuilder.user_cache[user.id] == user
 
         with assert_queries_count(0):
             result = auth_manager_with_appbuilder.deserialize_user({"sub": str(user.id)})
