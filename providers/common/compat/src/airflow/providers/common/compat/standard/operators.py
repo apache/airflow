@@ -46,6 +46,7 @@ elif AIRFLOW_V_3_2_PLUS:
     from airflow.sdk.bases.operator import BaseAsyncOperator
 else:
     import inspect
+    from collections.abc import Callable
     from contextlib import suppress
     from functools import partial
 
@@ -58,7 +59,7 @@ else:
         from airflow.models import BaseOperator
         from airflow.models.mappedoperator import OperatorPartial
 
-    def unwrap_partial(fn):
+    def unwrap_partial(fn: Callable) -> Callable:
         while isinstance(fn, partial):
             fn = fn.func
         return fn

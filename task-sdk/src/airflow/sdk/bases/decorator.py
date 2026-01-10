@@ -150,24 +150,20 @@ def get_unique_task_id(
     return f"{core}__{max(_find_id_suffixes(dag)) + 1}"
 
 
-def unwrap_partial(fn):
+def unwrap_partial(fn: Callable) -> Callable:
     while isinstance(fn, partial):
         fn = fn.func
     return fn
 
 
 def unwrap_callable(func):
-    from airflow.sdk.bases.decorator import _TaskDecorator
     from airflow.sdk.definitions.mappedoperator import OperatorPartial
 
-    # Airflow-specific unwrap
     if isinstance(func, (_TaskDecorator, OperatorPartial)):
         func = getattr(func, "function", getattr(func, "_func", func))
 
-    # Unwrap functools.partial
     func = unwrap_partial(func)
 
-    # Unwrap @functools.wraps chains
     with suppress(Exception):
         func = inspect.unwrap(func)
 
