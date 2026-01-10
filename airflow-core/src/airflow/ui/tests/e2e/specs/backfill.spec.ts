@@ -225,12 +225,12 @@ test.describe("Backfill pause, resume, and cancel controls", () => {
     await backfillPage.navigateToBackfillsTab(testDagId);
   });
 
-  test.afterEach(async () => {
-    try {
-      await backfillPage.clickCancelButton();
-    } catch {
-    }
-  });
+test.afterEach(async () => {
+  // Cleanup: cancel backfill if still active
+  if (await backfillPage.cancelButton.isVisible()) {
+    await backfillPage.clickCancelButton();
+  }
+});
 
   test("verify pause and resume backfill", async () => {
     await backfillPage.clickPauseButton();
