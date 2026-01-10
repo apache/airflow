@@ -20,6 +20,7 @@ from collections.abc import Generator
 from unittest import mock
 
 import pytest
+from botocore.exceptions import WaiterError
 
 from airflow.providers.amazon.aws.hooks.ssm import SsmHook
 from airflow.providers.amazon.aws.operators.ssm import SsmGetCommandInvocationOperator, SsmRunCommandOperator
@@ -97,6 +98,144 @@ class TestSsmRunCommandOperator:
         assert trigger.verify is False
         assert trigger.botocore_config == {"retries": {"max_attempts": 5}}
         assert trigger.aws_conn_id == self.operator.aws_conn_id
+
+    def test_operator_default_fails_on_nonzero_exit(self, mock_conn):
+        """
+        Test traditional mode where fail_on_nonzero_exit=True (default).
+
+        Verifies that when fail_on_nonzero_exit is True (the default), the operator
+        raises an exception when the waiter encounters a command failure.
+        """
+        self.operator.wait_for_completion = True
+
+        # Mock waiter to raise WaiterError (simulating command failure)
+        mock_waiter = mock.MagicMock()
+        mock_waiter.wait.side_effect = WaiterError(
+            name="command_executed",
+            reason="Waiter encountered a terminal failure state",
+            last_response={"Status": "Failed"},
+        )
+
+        with mock.patch.object(SsmHook, "get_waiter", return_value=mock_waiter):
+            # Should raise WaiterError in traditional mode
+            with pytest.raises(WaiterError):
+                self.operator.execute({})
+
+    def test_operator_enhanced_mode_tolerates_failed_status(self, mock_conn):
+        """
+        Test enhanced mode where fail_on_nonzero_exit=False tolerates Failed status.
+
+        Verifies that when fail_on_nonzero_exit is False, the operator completes
+        successfully even when the command returns a Failed status with non-zero exit code.
+        """
+        self.operator.wait_for_completion = True
+        self.operator.fail_on_nonzero_exit = False
+
+        # Mock waiter to raise WaiterError
+        mock_waiter = mock.MagicMock()
+        mock_waiter.wait.side_effect = WaiterError(
+            name="command_executed",
+            reason="Waiter encountered a terminal failure state",
+            last_response={"Status": "Failed"},
+        )
+
+        # Mock get_command_invocation to return Failed status with exit code
+        with (
+            mock.patch.object(SsmHook, "get_waiter", return_value=mock_waiter),
+            mock.patch.object(
+                SsmHook, "get_command_invocation", return_value={"Status": "Failed", "ResponseCode": 1}
+            ),
+        ):
+            # Should NOT raise in enhanced mode for Failed status
+            command_id = self.operator.execute({})
+            assert command_id == COMMAND_ID
+
+    def test_operator_enhanced_mode_fails_on_timeout(self, mock_conn):
+        """
+        Test enhanced mode still fails on TimedOut status.
+
+        Verifies that even when fail_on_nonzero_exit is False, the operator
+        still raises an exception for AWS-level failures like TimedOut.
+        """
+        self.operator.wait_for_completion = True
+        self.operator.fail_on_nonzero_exit = False
+
+        # Mock waiter to raise WaiterError
+        mock_waiter = mock.MagicMock()
+        mock_waiter.wait.side_effect = WaiterError(
+            name="command_executed",
+            reason="Waiter encountered a terminal failure state",
+            last_response={"Status": "TimedOut"},
+        )
+
+        # Mock get_command_invocation to return TimedOut status
+        with (
+            mock.patch.object(SsmHook, "get_waiter", return_value=mock_waiter),
+            mock.patch.object(
+                SsmHook, "get_command_invocation", return_value={"Status": "TimedOut", "ResponseCode": -1}
+            ),
+        ):
+            # Should raise even in enhanced mode for TimedOut
+            with pytest.raises(WaiterError):
+                self.operator.execute({})
+
+    def test_operator_enhanced_mode_fails_on_cancelled(self, mock_conn):
+        """
+        Test enhanced mode still fails on Cancelled status.
+
+        Verifies that even when fail_on_nonzero_exit is False, the operator
+        still raises an exception for AWS-level failures like Cancelled.
+        """
+        self.operator.wait_for_completion = True
+        self.operator.fail_on_nonzero_exit = False
+
+        # Mock waiter to raise WaiterError
+        mock_waiter = mock.MagicMock()
+        mock_waiter.wait.side_effect = WaiterError(
+            name="command_executed",
+            reason="Waiter encountered a terminal failure state",
+            last_response={"Status": "Cancelled"},
+        )
+
+        # Mock get_command_invocation to return Cancelled status
+        with (
+            mock.patch.object(SsmHook, "get_waiter", return_value=mock_waiter),
+            mock.patch.object(
+                SsmHook, "get_command_invocation", return_value={"Status": "Cancelled", "ResponseCode": -1}
+            ),
+        ):
+            # Should raise even in enhanced mode for Cancelled
+            with pytest.raises(WaiterError):
+                self.operator.execute({})
+
+    @mock.patch("airflow.providers.amazon.aws.operators.ssm.SsmRunCommandTrigger")
+    def test_operator_passes_parameter_to_trigger(self, mock_trigger_class, mock_conn):
+        """
+        Test that fail_on_nonzero_exit parameter is passed to trigger in deferrable mode.
+
+        Verifies that when using deferrable mode, the fail_on_nonzero_exit parameter
+        is correctly passed to the SsmRunCommandTrigger.
+        """
+        self.operator.deferrable = True
+        self.operator.fail_on_nonzero_exit = False
+
+        with mock.patch.object(self.operator, "defer") as mock_defer:
+            command_id = self.operator.execute({})
+
+            assert command_id == COMMAND_ID
+            mock_conn.send_command.assert_called_once_with(
+                DocumentName=DOCUMENT_NAME, InstanceIds=INSTANCE_IDS
+            )
+
+            # Verify defer was called
+            mock_defer.assert_called_once()
+
+            # Verify the trigger was instantiated with correct parameters
+            mock_trigger_class.assert_called_once()
+            call_kwargs = mock_trigger_class.call_args[1]
+
+            assert call_kwargs["command_id"] == COMMAND_ID
+            assert call_kwargs["fail_on_nonzero_exit"] is False
 
 
 class TestSsmGetCommandInvocationOperator:
@@ -256,3 +395,104 @@ class TestSsmGetCommandInvocationOperator:
 
     def test_template_fields(self):
         validate_template_fields(self.operator)
+
+    def test_exit_code_routing_use_case(self, mock_hook):
+        """
+        Test that demonstrates the exit code routing use case.
+
+        This test verifies that SsmGetCommandInvocationOperator correctly retrieves
+        exit codes and status information that can be used for workflow routing,
+        particularly when used with SsmRunCommandOperator in enhanced mode
+        (fail_on_nonzero_exit=False).
+        """
+        # Mock response with various exit codes that might be used for routing
+        mock_invocation_details = {
+            "Status": "Failed",  # Command failed but we want to route based on exit code
+            "ResponseCode": 42,  # Custom exit code for specific routing logic
+            "StandardOutputContent": "Partial success - some items processed",
+            "StandardErrorContent": "Warning: 3 items skipped",
+            "ExecutionStartDateTime": "2023-01-01T12:00:00Z",
+            "ExecutionEndDateTime": "2023-01-01T12:00:05Z",
+            "DocumentName": "AWS-RunShellScript",
+            "Comment": "Data processing script",
+        }
+        mock_hook.get_command_invocation.return_value = mock_invocation_details
+
+        result = self.operator.execute({})
+
+        # Verify that response_code is available for routing decisions
+        assert result["invocations"][0]["response_code"] == 42
+        assert result["invocations"][0]["status"] == "Failed"
+
+        # Verify that output is available for additional context
+        assert "Partial success" in result["invocations"][0]["standard_output"]
+        assert "Warning" in result["invocations"][0]["standard_error"]
+
+        # This demonstrates that the operator provides all necessary information
+        # for downstream tasks to make routing decisions based on exit codes,
+        # which is the key use case for the enhanced mode feature.
+
+    def test_multiple_exit_codes_for_routing(self, mock_hook):
+        """
+        Test retrieving multiple instances with different exit codes for routing.
+
+        This demonstrates a common pattern where a command runs on multiple instances
+        and downstream tasks need to route based on the exit codes from each instance.
+        """
+        operator = SsmGetCommandInvocationOperator(
+            task_id="test_multi_instance_routing",
+            command_id=self.command_id,
+        )
+
+        # Mock list_command_invocations response
+        mock_invocations = [
+            {"InstanceId": "i-success"},
+            {"InstanceId": "i-partial"},
+            {"InstanceId": "i-failed"},
+        ]
+        mock_hook.list_command_invocations.return_value = {"CommandInvocations": mock_invocations}
+
+        # Mock different exit codes for routing scenarios
+        mock_hook.get_command_invocation.side_effect = [
+            {
+                "Status": "Success",
+                "ResponseCode": 0,  # Complete success
+                "StandardOutputContent": "All items processed",
+                "StandardErrorContent": "",
+                "ExecutionStartDateTime": "2023-01-01T12:00:00Z",
+                "ExecutionEndDateTime": "2023-01-01T12:00:05Z",
+                "DocumentName": "AWS-RunShellScript",
+                "Comment": "",
+            },
+            {
+                "Status": "Failed",
+                "ResponseCode": 2,  # Partial success - custom exit code
+                "StandardOutputContent": "Some items processed",
+                "StandardErrorContent": "Warning: partial completion",
+                "ExecutionStartDateTime": "2023-01-01T12:00:00Z",
+                "ExecutionEndDateTime": "2023-01-01T12:00:10Z",
+                "DocumentName": "AWS-RunShellScript",
+                "Comment": "",
+            },
+            {
+                "Status": "Failed",
+                "ResponseCode": 1,  # Complete failure
+                "StandardOutputContent": "",
+                "StandardErrorContent": "Error: operation failed",
+                "ExecutionStartDateTime": "2023-01-01T12:00:00Z",
+                "ExecutionEndDateTime": "2023-01-01T12:00:08Z",
+                "DocumentName": "AWS-RunShellScript",
+                "Comment": "",
+            },
+        ]
+
+        result = operator.execute({})
+
+        # Verify all exit codes are captured for routing logic
+        assert len(result["invocations"]) == 3
+        assert result["invocations"][0]["response_code"] == 0
+        assert result["invocations"][1]["response_code"] == 2
+        assert result["invocations"][2]["response_code"] == 1
+
+        # This demonstrates that the operator can retrieve exit codes from multiple
+        # instances, enabling complex routing logic based on the results from each instance.

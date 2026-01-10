@@ -77,6 +77,7 @@ if TYPE_CHECKING:
         SerializedAssetBase,
     )
     from airflow.serialization.definitions.dag import SerializedDAG
+    from airflow.serialization.serialized_objects import LazyDeserializedDAG
 
     UKey: TypeAlias = SerializedAssetUniqueKey
     DagStateChangeCallback = Callable[[Context], None]
@@ -335,6 +336,7 @@ class DagModel(Base):
     is_paused: Mapped[bool] = mapped_column(Boolean, default=is_paused_at_creation)
     # Whether that DAG was seen on the last DagBag load
     is_stale: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    exceeds_max_non_backfill: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     # Last time the scheduler started
     last_parsed_time: Mapped[datetime | None] = mapped_column(UtcDateTime, nullable=True)
     # How long it took to parse this file
@@ -683,6 +685,7 @@ class DagModel(Base):
                 cls.is_paused == expression.false(),
                 cls.is_stale == expression.false(),
                 cls.has_import_errors == expression.false(),
+                cls.exceeds_max_non_backfill == expression.false(),
                 or_(
                     cls.next_dagrun_create_after <= func.now(),
                     cls.dag_id.in_(asset_triggered_dag_ids),
@@ -699,24 +702,22 @@ class DagModel(Base):
 
     def calculate_dagrun_date_fields(
         self,
-        dag: SerializedDAG,
+        dag: SerializedDAG | LazyDeserializedDAG,
         last_automated_dag_run: None | DataInterval,
     ) -> None:
         """
         Calculate ``next_dagrun`` and `next_dagrun_create_after``.
 
         :param dag: The DAG object
-        :param last_automated_dag_run: DataInterval (or datetime) of most recent run of this dag, or none
+        :param last_automated_dag_run: DataInterval of most recent run of this dag, or none
             if not yet scheduled.
         """
-        last_automated_data_interval: DataInterval | None
         if isinstance(last_automated_dag_run, datetime):
             raise ValueError(
                 "Passing a datetime to `DagModel.calculate_dagrun_date_fields` is not supported. "
                 "Provide a data interval instead."
             )
-        last_automated_data_interval = last_automated_dag_run
-        next_dagrun_info = dag.next_dagrun_info(last_automated_data_interval)
+        next_dagrun_info = dag.next_dagrun_info(last_automated_dagrun=last_automated_dag_run)
         if next_dagrun_info is None:
             self.next_dagrun_data_interval = self.next_dagrun = self.next_dagrun_create_after = None
         else:

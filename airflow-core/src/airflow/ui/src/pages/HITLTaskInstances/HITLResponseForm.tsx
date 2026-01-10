@@ -88,9 +88,9 @@ export const HITLResponseForm = ({ hitlDetail }: HITLResponseFormProps) => {
       updateHITLResponse(formData);
     } catch {
       setErrors(true);
-    } finally {
-      setIsSubmitting(false);
     }
+
+    setIsSubmitting(false);
   };
 
   return (

@@ -17,7 +17,6 @@
  * under the License.
  */
 import { VStack } from "@chakra-ui/react";
-import { useMemo } from "react";
 import { useParams } from "react-router-dom";
 
 import { FilterBar } from "src/components/FilterBar";
@@ -27,28 +26,26 @@ import { useFiltersHandler, type FilterableSearchParamsKeys } from "src/utils";
 export const HITLFilters = ({ onResponseChange }: { readonly onResponseChange: () => void }) => {
   const { dagId = "~", taskId = "~" } = useParams();
 
-  const searchParamKeys = useMemo((): Array<FilterableSearchParamsKeys> => {
-    const fixedKeys: Array<FilterableSearchParamsKeys> = [
-      SearchParamsKeys.RESPONSE_RECEIVED,
-      SearchParamsKeys.RESPONDED_BY_USER_NAME,
-      SearchParamsKeys.MAP_INDEX,
-      SearchParamsKeys.SUBJECT_SEARCH,
-      SearchParamsKeys.BODY_SEARCH,
-      SearchParamsKeys.CREATED_AT_RANGE,
-    ];
+  const fixedKeys: Array<FilterableSearchParamsKeys> = [
+    SearchParamsKeys.RESPONSE_RECEIVED,
+    SearchParamsKeys.RESPONDED_BY_USER_NAME,
+    SearchParamsKeys.MAP_INDEX,
+    SearchParamsKeys.SUBJECT_SEARCH,
+    SearchParamsKeys.BODY_SEARCH,
+    SearchParamsKeys.CREATED_AT_RANGE,
+  ];
 
-    const keys: Array<FilterableSearchParamsKeys> = [];
+  const dynamicKeys: Array<FilterableSearchParamsKeys> = [];
 
-    if (dagId === "~") {
-      keys.push(SearchParamsKeys.DAG_DISPLAY_NAME_PATTERN);
-    }
+  if (dagId === "~") {
+    dynamicKeys.push(SearchParamsKeys.DAG_DISPLAY_NAME_PATTERN);
+  }
 
-    if (taskId === "~") {
-      keys.push(SearchParamsKeys.TASK_ID_PATTERN);
-    }
+  if (taskId === "~") {
+    dynamicKeys.push(SearchParamsKeys.TASK_ID_PATTERN);
+  }
 
-    return [...keys, ...fixedKeys];
-  }, [dagId, taskId]);
+  const searchParamKeys = [...dynamicKeys, ...fixedKeys];
 
   const { filterConfigs, handleFiltersChange, initialValues } = useFiltersHandler(searchParamKeys);
 
