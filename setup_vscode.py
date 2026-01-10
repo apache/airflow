@@ -23,6 +23,7 @@
 # ///
 from __future__ import annotations
 
+import argparse
 import json
 from pathlib import Path
 
@@ -52,6 +53,7 @@ COMPONENT_NAMES = {
 ROOT_AIRFLOW_FOLDER_PATH = Path(__file__).parent
 VSCODE_FOLDER_PATH = ROOT_AIRFLOW_FOLDER_PATH / ".vscode"
 LAUNCH_JSON_FILE = VSCODE_FOLDER_PATH / "launch.json"
+MCP_JSON_FILE = VSCODE_FOLDER_PATH / "mcp.json"
 
 
 def create_debug_configuration(component: str, port: int) -> dict:
@@ -77,6 +79,28 @@ def create_launch_json_content() -> dict:
     return {"version": "0.2.0", "configurations": configurations}
 
 
+def create_mcp_json_content() -> dict:
+    """Create the MCP configuration with Chakra UI server."""
+    return {"servers": {"chakra-ui": {"command": "npx", "args": ["-y", "@chakra-ui/react-mcp"]}}}
+
+
+def setup_mcp():
+    """Set up MCP configuration for Chakra UI."""
+    print("[green]Creating[/] MCP configuration for Chakra UI...")
+
+    # Create the mcp.json content
+    mcp_json_content = create_mcp_json_content()
+
+    # Ensure .vscode directory exists
+    VSCODE_FOLDER_PATH.mkdir(exist_ok=True)
+
+    # Write the mcp.json file
+    with open(MCP_JSON_FILE, "w") as f:
+        json.dump(mcp_json_content, f, indent=4)
+
+    print(f"[green]Successfully created[/] {MCP_JSON_FILE}")
+
+
 def setup_vscode():
     """Set up VSCode debug configurations for Airflow components."""
     print("[green]Creating[/] VSCode debug configurations for Airflow components...")
@@ -99,6 +123,18 @@ def setup_vscode():
 
 
 def main():
+    parser = argparse.ArgumentParser(
+        description="Set up VSCode debug configurations for Airflow components. Also comes with optional VSCode configurations such as chakra MCP sercer"
+        "such as Chakra UI MCP support.",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    parser.add_argument(
+        "--with-chakra-mcp",
+        action="store_true",
+        help="Also create a VSCode MCP configuration for enhanced Chakra UI development support",
+    )
+    args = parser.parse_args()
+
     print("\n[yellow]VSCode Airflow Debug Configuration Setup[/]\n")
     print("This script will create VSCode debug configurations for Airflow components:\n")
 
@@ -106,23 +142,39 @@ def main():
         print(f"* {COMPONENT_NAMES[component]}: port {port}")
 
     print(f"\nConfiguration will be written to: {LAUNCH_JSON_FILE}")
+    if args.with_chakra_mcp:
+        print(f"MCP configuration will be written to: {MCP_JSON_FILE}")
 
+    # Check if files exist and prompt for overwrite
+    files_exist = []
     if LAUNCH_JSON_FILE.exists():
-        print(f"\n[yellow]Warning:[/] {LAUNCH_JSON_FILE} already exists!")
-        should_overwrite = Confirm.ask("Overwrite the existing file?")
+        files_exist.append(str(LAUNCH_JSON_FILE))
+    if args.with_chakra_mcp and MCP_JSON_FILE.exists():
+        files_exist.append(str(MCP_JSON_FILE))
+
+    if files_exist:
+        print("\n[yellow]Warning:[/] The following files already exist:")
+        for file_path in files_exist:
+            print(f"  - {file_path}")
+        should_overwrite = Confirm.ask("Overwrite the existing files?")
         if not should_overwrite:
             print("[yellow]Skipped[/] - No changes made")
             return
     else:
-        should_continue = Confirm.ask("Create the debug configurations?")
+        should_continue = Confirm.ask("Create the configurations?")
         if not should_continue:
             print("[yellow]Skipped[/] - No changes made")
             return
 
     setup_vscode()
 
+    if args.with_chakra_mcp:
+        setup_mcp()
+
     print("\n[green]Setup complete![/]")
     print("\nFor more information, see: contributing-docs/20_debugging_airflow_components.rst")
+    if args.with_chakra_mcp:
+        print("MCP server for Chakra UI has been configured for enhanced development experience.")
 
 
 if __name__ == "__main__":
