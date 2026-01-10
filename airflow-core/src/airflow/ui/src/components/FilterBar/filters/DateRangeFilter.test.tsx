@@ -21,7 +21,6 @@ import { render, screen, fireEvent, waitFor, cleanup } from "@testing-library/re
 import dayjs from "dayjs";
 import timezone from "dayjs/plugin/timezone";
 import utc from "dayjs/plugin/utc";
-import { useMemo } from "react";
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 
 import { TimezoneContext } from "src/context/timezone";
@@ -57,14 +56,11 @@ vi.mock("react-i18next", () => ({
 }));
 
 const TestWrapper = ({ children }: { readonly children: React.ReactNode }) => {
-  const timezoneContextValue = useMemo(
-    () => ({
-      availableTimezones: ["UTC", "America/New_York"],
-      selectedTimezone: "UTC",
-      setSelectedTimezone: vi.fn(),
-    }),
-    [],
-  );
+  const timezoneContextValue = {
+    availableTimezones: ["UTC", "America/New_York"],
+    selectedTimezone: "UTC",
+    setSelectedTimezone: vi.fn(),
+  };
 
   return (
     <ChakraWrapper>

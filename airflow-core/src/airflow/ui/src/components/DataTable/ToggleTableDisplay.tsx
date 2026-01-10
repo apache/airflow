@@ -16,11 +16,9 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { HStack, IconButton } from "@chakra-ui/react";
+import { ButtonGroup, IconButton } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 import { FiAlignJustify, FiGrid } from "react-icons/fi";
-
-import { Tooltip } from "src/components/ui";
 
 type Display = "card" | "table";
 
@@ -33,39 +31,25 @@ export const ToggleTableDisplay = ({ display, setDisplay }: Props) => {
   const { t: translate } = useTranslation("components");
 
   return (
-    <HStack colorPalette="brand" gap={1} pb={2}>
-      <Tooltip content={translate("toggleCardView")}>
-        <IconButton
-          _hover={{ bg: "colorPalette.emphasized" }}
-          aria-label={translate("toggleCardView")}
-          bg={display === "card" ? "colorPalette.muted" : "bg"}
-          borderColor="border.emphasized"
-          borderWidth={1}
-          color="colorPalette.fg"
-          height={8}
-          minWidth={8}
-          onClick={() => setDisplay("card")}
-          width={8}
-        >
-          <FiGrid />
-        </IconButton>
-      </Tooltip>
-      <Tooltip content={translate("toggleTableView")}>
-        <IconButton
-          _hover={{ bg: "colorPalette.emphasized" }}
-          aria-label={translate("toggleTableView")}
-          bg={display === "table" ? "colorPalette.muted" : "bg"}
-          borderColor="border.emphasized"
-          borderWidth={1}
-          color="colorPalette.fg"
-          height={8}
-          minWidth={8}
-          onClick={() => setDisplay("table")}
-          width={8}
-        >
-          <FiAlignJustify />
-        </IconButton>
-      </Tooltip>
-    </HStack>
+    <ButtonGroup attached colorPalette="brand" pb={2} size="sm" variant="outline">
+      <IconButton
+        aria-label={translate("toggleCardView")}
+        bg={display === "card" ? "colorPalette.muted" : undefined}
+        onClick={() => setDisplay("card")}
+        title={translate("toggleCardView")}
+        variant={display === "card" ? "solid" : "outline"}
+      >
+        <FiGrid />
+      </IconButton>
+      <IconButton
+        aria-label={translate("toggleTableView")}
+        bg={display === "table" ? "colorPalette.muted" : undefined}
+        onClick={() => setDisplay("table")}
+        title={translate("toggleTableView")}
+        variant={display === "table" ? "solid" : "outline"}
+      >
+        <FiAlignJustify />
+      </IconButton>
+    </ButtonGroup>
   );
 };
