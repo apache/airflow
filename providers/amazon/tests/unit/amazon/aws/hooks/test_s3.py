@@ -1314,24 +1314,24 @@ class TestAwsS3Hook:
     @mock_aws
     def test_copy_object_with_kms_encryption(self, s3_bucket):
         mock_hook = S3Hook()
-        
+
         with mock.patch.object(S3Hook, "get_conn") as patched_get_conn:
             mock_hook.copy_object(
-                "my_key", 
-                "my_key_encrypted", 
-                s3_bucket, 
+                "my_key",
+                "my_key_encrypted",
+                s3_bucket,
                 s3_bucket,
                 SSEKMSKeyId="arn:aws:kms:us-east-1:123456789012:key/abcd1234",
-                ServerSideEncryption="aws:kms"
+                ServerSideEncryption="aws:kms",
             )
-            
+
             patched_get_conn.return_value.copy_object.assert_called_once_with(
                 Bucket=s3_bucket,
                 Key="my_key_encrypted",
                 CopySource={"Bucket": s3_bucket, "Key": "my_key", "VersionId": None},
                 ACL="private",
                 SSEKMSKeyId="arn:aws:kms:us-east-1:123456789012:key/abcd1234",
-                ServerSideEncryption="aws:kms"
+                ServerSideEncryption="aws:kms",
             )
 
     @mock_aws
