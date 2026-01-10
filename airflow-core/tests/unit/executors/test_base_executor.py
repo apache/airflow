@@ -168,6 +168,37 @@ def test_gauge_executor_metrics_with_multiple_executors(
     mock_stats_gauge.assert_has_calls(calls)
 
 
+@pytest.mark.parametrize(
+    ("executor_class", "executor_name", "metric_name", "executors", "expected_metric_name"),
+    [
+        (
+            LocalExecutor,
+            "LocalExecutor",
+            "executor.open_slots",
+            ["Exec1", "Exec2"],
+            "executor.open_slots.LocalExecutor",
+        ),
+        (LocalExecutor, "LocalExecutor", "executor.open_slots", ["Exec1"], "executor.open_slots"),
+    ],
+)
+@mock.patch("airflow.executors.base_executor.ExecutorLoader.get_executor_names")
+def test_get_metric_name(
+    mock_get_executor_names,
+    executor_class,
+    executor_name,
+    metric_name,
+    executors,
+    expected_metric_name,
+):
+    # The mocked executor name is not relevant for this test, so long as the list of executors is returned > 1.
+    # This forces the executor to use the executor name in the metric name.
+
+    mock_get_executor_names.return_value = executors
+    executor = executor_class()
+    actual_metric_name = executor._get_metric_name(metric_name)
+    assert actual_metric_name == expected_metric_name
+
+
 def setup_dagrun(dag_maker):
     date = timezone.utcnow()
     start_date = date - timedelta(days=2)
