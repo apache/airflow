@@ -19,27 +19,22 @@ from __future__ import annotations
 
 import inspect
 from collections.abc import Callable, Sequence
-from typing import TYPE_CHECKING, Any
 
 from airflow.providers.apache.spark.hooks.spark_connect import SparkConnectHook
 from airflow.providers.common.compat.sdk import BaseHook
 from airflow.providers.common.compat.standard.operators import PythonOperator
 
-if TYPE_CHECKING:
-    from airflow.providers.common.compat.sdk import Context
 SPARK_CONTEXT_KEYS = ["spark", "sc"]
 
 
 class PySparkOperator(PythonOperator):
     """Submit the run of a pyspark job to an external spark-connect service or directly run the pyspark job in a standalone mode."""
 
-    template_fields: Sequence[str] = ("op_args", "op_kwargs")
+    template_fields: Sequence[str] = ("conn_id", "config_kwargs", *PythonOperator.template_fields)
 
     def __init__(
         self,
         python_callable: Callable,
-        op_args: Sequence | None = None,
-        op_kwargs: dict | None = None,
         conn_id: str | None = None,
         config_kwargs: dict | None = None,
         **kwargs,
@@ -56,20 +51,12 @@ class PySparkOperator(PythonOperator):
         # see https://github.com/python/mypy/issues/12472
         python_callable.__signature__ = signature.replace(parameters=parameters)  # type: ignore[attr-defined]
 
-        kwargs_to_upstream = {
-            "python_callable": python_callable,
-            "op_args": op_args,
-            "op_kwargs": op_kwargs,
-        }
         super().__init__(
-            kwargs_to_upstream=kwargs_to_upstream,
             python_callable=python_callable,
-            op_args=op_args,
-            op_kwargs=op_kwargs,
             **kwargs,
         )
 
-    def execute(self, context: Context):
+    def execute_callable(self):
         from pyspark import SparkConf
         from pyspark.sql import SparkSession
 
@@ -101,16 +88,13 @@ class PySparkOperator(PythonOperator):
         if not conf.get("spark.remote") and not conf.get("spark.master"):
             conf.set("spark.master", url)
 
-        spark = SparkSession.builder.config(conf=conf).getOrCreate()
-
-        if not self.op_kwargs:
-            self.op_kwargs = {}
-
-        op_kwargs: dict[str, Any] = dict(self.op_kwargs)
-        op_kwargs["spark"] = spark
+        spark_session = SparkSession.builder.config(conf=conf).getOrCreate()
 
         # spark context is not available when using spark connect
-        op_kwargs["sc"] = spark.sparkContext if not conf.get("spark.remote") else None
+        spark_context = spark_session.sparkContext if not conf.get("spark.remote") else None
 
-        self.op_kwargs = op_kwargs
-        return super().execute(context)
+        try:
+            self.op_kwargs = {**self.op_kwargs, "spark": spark_session, "sc": spark_context}
+            return super().execute_callable()
+        finally:
+            spark_session.stop()

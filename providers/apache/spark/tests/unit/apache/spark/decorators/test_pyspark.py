@@ -129,7 +129,7 @@ class TestPysparkDecorator:
         e = 2
 
         @task.pyspark
-        def f():
+        def f(spark, sc):
             return e
 
         with dag_maker():

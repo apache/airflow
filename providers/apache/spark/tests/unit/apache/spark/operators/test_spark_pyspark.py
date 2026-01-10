@@ -34,7 +34,11 @@ class TestSparkPySparkOperator:
         self.dag = DAG("test_dag_id", schedule=None, default_args=args)
 
     def test_execute(self):
-        # Given / When
-        operator = PySparkOperator(task_id="spark_sql_job", dag=self.dag, **self._config)
+        def my_spark_fn(spark):
+            pass
 
-        assert self._config["conn_id"] == operator._conn_id
+        operator = PySparkOperator(
+            task_id="spark_pyspark_job", python_callable=my_spark_fn, dag=self.dag, **self._config
+        )
+
+        assert self._config["conn_id"] == operator.conn_id
