@@ -76,11 +76,18 @@ class AirbyteHook(BaseHook):
 
     def create_api_session(self) -> AirbyteAPI:
         """Create Airbyte API session."""
-        credentials = SchemeClientCredentials(
-            client_id=self.conn["client_id"],
-            client_secret=self.conn["client_secret"],
-            token_url=self.conn["token_url"],
-        )
+        has_credentials = bool(self.conn["client_id"] and self.conn["client_secret"])
+        if has_credentials:
+            self.log.debug("Creating authenticated API session...")
+            credentials = SchemeClientCredentials(
+                client_id=self.conn["client_id"],
+                client_secret=self.conn["client_secret"],
+                token_url=self.conn["token_url"]
+            )
+            security=Security(client_credentials=credentials)
+        else:
+            self.log.debug("Creating unauthenticated API session (no-auth mode)...")
+            security = None
 
         client = None
         if self.conn["proxies"]:
@@ -90,7 +97,7 @@ class AirbyteHook(BaseHook):
 
         return AirbyteAPI(
             server_url=self.conn["host"],
-            security=Security(client_credentials=credentials),
+            security=security,
             client=client,
         )
 
