@@ -138,8 +138,7 @@ brew install gnupg
 Linux (Debian/Ubuntu):
 
 ```shell script
-sudo apt-get install libassuan-dev
-sudo apt-get install gnupg
+sudo apt-get install libassuan-dev gnupg
 ```
 
 ## Build and sign the source and convenience packages
