@@ -69,6 +69,8 @@ export class BackfillPage extends BasePage {
   public readonly backfillRunButton: Locator;
   public readonly backfillsTable: Locator;
   public readonly backfillToDateInput: Locator;
+  public readonly cancelButton: Locator;
+  public readonly pauseButton: Locator;
   public readonly triggerButton: Locator;
 
   public constructor(page: Page) {
@@ -80,6 +82,8 @@ export class BackfillPage extends BasePage {
     this.backfillRunButton = page.locator('button:has-text("Run Backfill")');
     this.backfillsTable = page.locator("table");
     this.backfillDateError = page.locator('text="Start Date must be before the End Date"');
+    this.cancelButton = page.locator('button[aria-label="Cancel backfill"]');
+    this.pauseButton = page.locator('button[aria-label="Pause backfill"], button[aria-label="Unpause backfill"]');
   }
 
   public static findColumnIndex(columnMap: Map<string, number>, possibleNames: Array<string>): number {
@@ -100,6 +104,25 @@ export class BackfillPage extends BasePage {
 
   public static getDagDetailUrl(dagName: string): string {
     return `/dags/${dagName}`;
+  }
+
+  public async clickCancelButton(): Promise<void> {
+    await expect(this.cancelButton).toBeVisible({ timeout: 10_000 });
+    await this.cancelButton.click();
+    await expect(this.cancelButton).not.toBeVisible({ timeout: 10_000 });
+  }
+
+  public async clickPauseButton(): Promise<void> {
+    await expect(this.pauseButton).toBeVisible({ timeout: 10_000 });
+    const wasPaused = await this.isBackfillPaused();
+    await this.pauseButton.click();
+
+    // Wait for aria-label to change
+    if (wasPaused) {
+      await expect(this.page.locator('button[aria-label="Pause backfill"]')).toBeVisible({ timeout: 10_000 });
+    } else {
+      await expect(this.page.locator('button[aria-label="Unpause backfill"]')).toBeVisible({ timeout: 10_000 });
+    }
   }
 
   public async createBackfill(dagName: string, options: CreateBackfillOptions): Promise<void> {
@@ -288,6 +311,13 @@ export class BackfillPage extends BasePage {
     const headers = this.page.locator("table thead th");
 
     return await headers.count();
+  }
+
+  public async isBackfillPaused(): Promise<boolean> {
+    await expect(this.pauseButton).toBeVisible({ timeout: 10_000 });
+    const ariaLabel = await this.pauseButton.getAttribute("aria-label");
+
+    return Boolean(ariaLabel?.toLowerCase().includes("unpause"));
   }
 
   public async navigateToBackfillsTab(dagName: string): Promise<void> {
