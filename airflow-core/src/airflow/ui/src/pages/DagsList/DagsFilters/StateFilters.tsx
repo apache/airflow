@@ -45,17 +45,10 @@ export const StateFilters = ({
 
   return (
     <ButtonGroup attached size="sm" variant="outline">
-      <Button
-        bg={isAll ? "colorPalette.muted" : undefined}
-        colorPalette="brand"
-        onClick={onStateChange}
-        value="all"
-        variant={isAll ? "solid" : "outline"}
-      >
+      <Button colorPalette="brand" onClick={onStateChange} value="all" variant={isAll ? "solid" : "outline"}>
         {translate("dags:filters.paused.all")}
       </Button>
       <Button
-        bg={isFailed ? "colorPalette.muted" : undefined}
         colorPalette="brand"
         data-testid="dags-failed-filter"
         onClick={onStateChange}
@@ -66,7 +59,6 @@ export const StateFilters = ({
         {translate("common:states.failed")}
       </Button>
       <Button
-        bg={isQueued ? "colorPalette.muted" : undefined}
         colorPalette="brand"
         data-testid="dags-queued-filter"
         onClick={onStateChange}
@@ -77,7 +69,6 @@ export const StateFilters = ({
         {translate("common:states.queued")}
       </Button>
       <Button
-        bg={isRunning ? "colorPalette.muted" : undefined}
         colorPalette="brand"
         data-testid="dags-running-filter"
         onClick={onStateChange}
@@ -88,7 +79,6 @@ export const StateFilters = ({
         {translate("common:states.running")}
       </Button>
       <Button
-        bg={isSuccess ? "colorPalette.muted" : undefined}
         colorPalette="brand"
         data-testid="dags-success-filter"
         onClick={onStateChange}
@@ -99,7 +89,6 @@ export const StateFilters = ({
         {translate("common:states.success")}
       </Button>
       <Button
-        bg={needsReview ? "colorPalette.muted" : undefined}
         colorPalette="brand"
         data-testid="dags-needs-review-filter"
         onClick={onStateChange}

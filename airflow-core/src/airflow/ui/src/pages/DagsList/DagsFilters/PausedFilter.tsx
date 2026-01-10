@@ -33,7 +33,6 @@ export const PausedFilter = ({ defaultShowPaused, onPausedChange, showPaused }: 
   return (
     <ButtonGroup attached size="sm" variant="outline">
       <Button
-        bg={currentValue === "all" ? "colorPalette.muted" : undefined}
         colorPalette="brand"
         onClick={onPausedChange}
         value="all"
@@ -42,7 +41,6 @@ export const PausedFilter = ({ defaultShowPaused, onPausedChange, showPaused }: 
         {translate("filters.paused.all")}
       </Button>
       <Button
-        bg={currentValue === "false" ? "colorPalette.muted" : undefined}
         colorPalette="brand"
         onClick={onPausedChange}
         value="false"
@@ -51,7 +49,6 @@ export const PausedFilter = ({ defaultShowPaused, onPausedChange, showPaused }: 
         {translate("filters.paused.active")}
       </Button>
       <Button
-        bg={currentValue === "true" ? "colorPalette.muted" : undefined}
         colorPalette="brand"
         onClick={onPausedChange}
         value="true"
