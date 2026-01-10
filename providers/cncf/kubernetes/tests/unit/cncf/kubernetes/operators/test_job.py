@@ -500,12 +500,11 @@ class TestKubernetesJobOperator:
 
     @pytest.mark.parametrize("randomize", [True, False])
     @pytest.mark.non_db_test_override
-    @patch(JOB_OPERATORS_PATH.format("KubernetesJobOperator.get_pods"))
     @patch(JOB_OPERATORS_PATH.format("KubernetesJobOperator.build_job_request_obj"))
     @patch(JOB_OPERATORS_PATH.format("KubernetesJobOperator.create_job"))
     @patch(HOOK_CLASS)
     def test_name_normalized_on_execution(
-        self, mock_hook, mock_create_job, mock_build_job_request_obj, mock_get_pods, randomize
+        self, mock_hook, mock_create_job, mock_build_job_request_obj, randomize
     ):
         """Test that names with underscores are normalized to hyphens on execution."""
         name_base = "test_extra-123"
@@ -545,9 +544,7 @@ class TestKubernetesJobOperator:
         mock_ti = mock.MagicMock()
         context = dict(ti=mock_ti)
 
-        op = KubernetesJobOperator(
-            task_id="test_task_id",
-        )
+        op = KubernetesJobOperator(task_id="test_task_id", wait_until_job_complete=False)
         execute_result = op.execute(context=context)
 
         mock_build_job_request_obj.assert_called_once_with(context)
@@ -572,7 +569,7 @@ class TestKubernetesJobOperator:
     @patch(JOB_OPERATORS_PATH.format("KubernetesJobOperator.create_job"))
     @patch(HOOK_CLASS)
     def test_execute_with_parallelism(
-        self, mock_hook, mock_create_job, mock_build_job_request_obj, mock_get_pods
+        self, mock_hook, mock_create_job, mock_build_job_request_obj, mock_get_pods,
     ):
         mock_hook.return_value.is_job_failed.return_value = False
         mock_job_request_obj = mock_build_job_request_obj.return_value
@@ -583,8 +580,7 @@ class TestKubernetesJobOperator:
         context = dict(ti=mock_ti)
 
         op = KubernetesJobOperator(
-            task_id="test_task_id",
-            parallelism=2,
+            task_id="test_task_id", parallelism=2, wait_until_job_complete=False
         )
         execute_result = op.execute(context=context)
 
@@ -1033,6 +1029,31 @@ class TestKubernetesJobOperator:
 
         assert result == return_value
         assert mock_client.return_value.list_namespaced_pod.call_count == successful_try + 1
+    
+    @pytest.mark.parametrize("wait_until_job_complete", [True, False])
+    @patch(JOB_OPERATORS_PATH.format("KubernetesJobOperator.get_pods"))
+    @patch(JOB_OPERATORS_PATH.format("KubernetesJobOperator.build_job_request_obj"))
+    @patch(JOB_OPERATORS_PATH.format("KubernetesJobOperator.hook"), new_callable=mock.PropertyMock)
+    def test_zero_parallelism(
+        self, mock_hook, mock_build_job_request_obj, mock_get_pods, wait_until_job_complete
+    ):
+        mock_context = mock.MagicMock()
+        mock_job = mock.MagicMock()
+        mock_job.to_dict.return_value = {}
+        mock_hook.get_namespace.return_value = "fakenamespace"
+        mock_build_job_request_obj.return_value = mock_job
+        op = KubernetesJobOperator(
+            task_id="faketask", parallelism=0, wait_until_job_complete=wait_until_job_complete
+        )
+        
+        if wait_until_job_complete:
+            with pytest.raises(AirflowException):
+                op.execute(mock_context)
+            mock_hook.create_job.assert_not_called()
+        else:
+            op.execute(mock_context)
+            mock_hook.create_job.assert_called_once_with(mock_job)
+        mock_get_pods.assert_not_called()
 
 
 @pytest.mark.db_test
