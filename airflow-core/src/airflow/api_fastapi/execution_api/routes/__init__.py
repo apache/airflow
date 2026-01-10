@@ -52,4 +52,7 @@ authenticated_router.include_router(hitl.router, prefix="/hitlDetails", tags=["H
 
 execution_api_router.include_router(authenticated_router)
 
+# task_instances.router is NOT in authenticated_router because its /run endpoint requires
+# workload-scoped tokens (JWTBearerWorkloadDep), which are rejected by JWTBearerDep.
+# The router handles its own auth: /run uses JWTBearerWorkloadDep, others use JWTBearerTIPathDep.
 execution_api_router.include_router(task_instances.router, prefix="/task-instances", tags=["Task Instances"])
