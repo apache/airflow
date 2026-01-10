@@ -28,7 +28,6 @@ import {
   Box,
 } from "@chakra-ui/react";
 import type { ColumnDef } from "@tanstack/react-table";
-import { useCallback, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { Link as RouterLink, useSearchParams } from "react-router-dom";
 import { useLocalStorage } from "usehooks-ts";
@@ -220,7 +219,7 @@ export const DagsList = () => {
   const [sort] = sorting;
   const orderBy = sort ? `${sort.desc ? "-" : ""}${sort.id}` : "dag_display_name";
 
-  const columns = useMemo(() => createColumns(translate), [translate]);
+  const columns = createColumns(translate);
 
   const handleSearchChange = (value: string) => {
     setTableURLState({
@@ -275,18 +274,15 @@ export const DagsList = () => {
     tagsMatchMode: selectedMatchMode,
   });
 
-  const handleSortChange = useCallback(
-    ({ value }: SelectValueChangeDetails<Array<string>>) => {
-      setTableURLState({
-        pagination,
-        sorting: value.map((val) => ({
-          desc: val.startsWith("-"),
-          id: val.replace("-", ""),
-        })),
-      });
-    },
-    [pagination, setTableURLState],
-  );
+  const handleSortChange = ({ value }: SelectValueChangeDetails<Array<string>>) => {
+    setTableURLState({
+      pagination,
+      sorting: value.map((val) => ({
+        desc: val.startsWith("-"),
+        id: val.replace("-", ""),
+      })),
+    });
+  };
 
   return (
     <DagsLayout>
