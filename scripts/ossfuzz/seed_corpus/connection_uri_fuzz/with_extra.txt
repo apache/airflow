@@ -1,0 +1,1 @@
+mysql://root:secret@db.local:3306/app?__extra__={"ssl": true}
