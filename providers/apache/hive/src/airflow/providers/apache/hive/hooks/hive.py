@@ -28,6 +28,11 @@ import time
 from collections.abc import Iterable, Mapping
 from tempfile import NamedTemporaryFile, TemporaryDirectory
 from typing import TYPE_CHECKING, Any, Literal
+try:
+    import sqlalchemy  # noqa: F401
+    SQLALCHEMY_INSTALLED = True
+except ImportError:
+    SQLALCHEMY_INSTALLED = False
 
 from deprecated import deprecated
 from typing_extensions import overload
@@ -1142,7 +1147,7 @@ class HiveServer2Hook(DbApiHook):
         return self._get_pandas_df(sql, schema=schema, hive_conf=hive_conf, **kwargs)
 
     @property
-    def sqlalchemy_url(self):
+    def sqlalchemy_url(self) -> URL:
         """Return a `sqlalchemy.engine.URL` object constructed from the connection."""
         conn = self.get_connection(self.get_conn_id())
         extra = conn.extra_dejson or {}
