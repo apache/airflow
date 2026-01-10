@@ -359,7 +359,6 @@ class InProcessExecutionAPI:
         self._cm = AsyncExitStack()
 
         asyncio.run_coroutine_threadsafe(start_lifespan(self._cm, self.app), middleware.loop)
-
         return httpx.WSGITransport(app=middleware)  # type: ignore[arg-type]
 
     @cached_property
