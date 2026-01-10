@@ -22,7 +22,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any
 from urllib.parse import urljoin
 
-from cachetools import TTLCache, cached
+from cachetools import TTLCache, cachedmethod
 from connexion import FlaskApi
 from fastapi import FastAPI
 from fastapi.middleware.wsgi import WSGIMiddleware
@@ -162,7 +162,7 @@ _MAP_MENU_ITEM_TO_FAB_RESOURCE_TYPE = {
     MenuItem.XCOMS: RESOURCE_XCOM,
 }
 
-CACHE_TTL = conf.getint("fab", "cache_ttl", fallback=10)
+CACHE_TTL = conf.getint("fab", "cache_ttl", fallback=30)
 
 if AIRFLOW_V_3_1_PLUS:
     from airflow.providers.fab.www.security.permissions import RESOURCE_HITL_DETAIL
@@ -178,6 +178,7 @@ class FabAuthManager(BaseAuthManager[User]):
     This auth manager is responsible for providing a backward compatible user management experience to users.
     """
 
+    cache: TTLCache = TTLCache(maxsize=1024, ttl=CACHE_TTL)
     appbuilder: AirflowAppBuilder | None = None
 
     def init_flask_resources(self) -> None:
@@ -255,7 +256,7 @@ class FabAuthManager(BaseAuthManager[User]):
 
         return current_user
 
-    @cached(cache=TTLCache(maxsize=1024, ttl=CACHE_TTL), key=lambda _, token: int(token["sub"]))
+    @cachedmethod(lambda self: self.cache, key=lambda _, token: int(token["sub"]))
     def deserialize_user(self, token: dict[str, Any]) -> User:
         id = int(token["sub"])
 
