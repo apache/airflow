@@ -17,6 +17,7 @@
 # under the License.
 from __future__ import annotations
 
+
 import contextlib
 import csv
 import os
@@ -27,9 +28,13 @@ import time
 from collections.abc import Iterable, Mapping
 from tempfile import NamedTemporaryFile, TemporaryDirectory
 from typing import TYPE_CHECKING, Any, Literal
+try:
+    import sqlalchemy  # noqa: F401
+    SQLALCHEMY_INSTALLED = True
+except ImportError:
+    SQLALCHEMY_INSTALLED = False
 
 from deprecated import deprecated
-from sqlalchemy.engine import URL
 from typing_extensions import overload
 
 from airflow.exceptions import AirflowProviderDeprecationWarning
@@ -46,6 +51,14 @@ from airflow.utils.helpers import as_flattened_list
 if TYPE_CHECKING:
     import pandas as pd
     import polars as pl
+def _get_sqlalchemy_url_class():
+    try:
+        from sqlalchemy.engine import URL
+        return URL
+    except ImportError as e:
+        from airflow.exceptions import AirflowOptionalProviderFeatureException
+        raise AirflowOptionalProviderFeatureException(e)
+
 
 
 HIVE_QUEUE_PRIORITIES = ["VERY_HIGH", "HIGH", "NORMAL", "LOW", "VERY_LOW"]
@@ -1140,7 +1153,7 @@ class HiveServer2Hook(DbApiHook):
         extra = conn.extra_dejson or {}
 
         query = {k: str(v) for k, v in extra.items() if v is not None and k != "__extra__"}
-
+        URL = _get_sqlalchemy_url_class()
         return URL.create(
             drivername="hive",
             username=conn.login,
@@ -1154,3 +1167,22 @@ class HiveServer2Hook(DbApiHook):
     def get_uri(self) -> str:
         """Return a SQLAlchemy engine URL as a string."""
         return self.sqlalchemy_url.render_as_string(hide_password=False)
+    def get_sqlalchemy_engine(self, engine_kwargs: dict[str, Any] | None = None):
+        """
+        Get a SQLAlchemy connection object.
+
+        :param engine_kwargs: Kwargs used in :func:`~sqlalchemy.create_engine`.
+        """
+        if not SQLALCHEMY_INSTALLED:
+            from airflow.exceptions import AirflowOptionalProviderFeatureException
+
+            raise AirflowOptionalProviderFeatureException(
+                "The 'apache-airflow-providers-apache-hive' provider "
+                "requires 'sqlalchemy' to be installed to use 'get_sqlalchemy_engine'. "
+                "You can install it by running: "
+                "pip install 'apache-airflow-providers-apache-hive[sqlalchemy]'"
+            )
+
+        from sqlalchemy import create_engine
+
+        return create_engine(self.get_uri(), **(engine_kwargs or {}))
