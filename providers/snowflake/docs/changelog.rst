@@ -33,7 +33,7 @@ Changelog
 Misc
 ~~~~
 
-* ``'issue-59385': Removing unneeded call the 'SnowflakeSqlApiHook' (#59470)``
+* ``Remove unneeded call to SnowflakeSqlApiHook (#59470)``
 
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):

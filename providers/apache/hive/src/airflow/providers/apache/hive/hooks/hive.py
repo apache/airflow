@@ -32,12 +32,12 @@ from deprecated import deprecated
 from sqlalchemy.engine import URL
 from typing_extensions import overload
 
-from airflow.configuration import conf
 from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.common.compat.sdk import (
     AIRFLOW_VAR_NAME_FORMAT_MAPPING,
     AirflowException,
     BaseHook,
+    conf,
 )
 from airflow.providers.common.sql.hooks.sql import DbApiHook
 from airflow.security import utils

@@ -31,7 +31,7 @@ from airflow.api_fastapi.app import get_auth_manager
 from airflow.configuration import conf
 from airflow.exceptions import AirflowConfigException
 from airflow.logging_config import configure_logging
-from airflow.providers.fab.www.extensions.init_appbuilder import AirflowAppBuilder
+from airflow.providers.fab.www.extensions.init_appbuilder import init_appbuilder
 from airflow.providers.fab.www.extensions.init_jinja_globals import init_jinja_globals
 from airflow.providers.fab.www.extensions.init_manifest_files import configure_manifest_files
 from airflow.providers.fab.www.extensions.init_security import init_api_auth
@@ -93,12 +93,7 @@ def create_app(enable_plugins: bool):
     init_api_auth(flask_app)
 
     with flask_app.app_context():
-        AirflowAppBuilder(
-            app=flask_app,
-            session=db.session(),
-            base_template="airflow/main.html",
-            enable_plugins=enable_plugins,
-        )
+        init_appbuilder(flask_app, enable_plugins=enable_plugins)
         init_error_handlers(flask_app)
         # In two scenarios a Flask application can be created:
         # - To support Airflow 2 plugins relying on Flask (``enable_plugins`` is True)

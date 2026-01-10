@@ -16,9 +16,9 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, HStack } from "@chakra-ui/react";
+import { Box, Flex } from "@chakra-ui/react";
 import type { MultiValue } from "chakra-react-select";
-import { useCallback, useState } from "react";
+import { useState } from "react";
 import { useSearchParams } from "react-router-dom";
 
 import { useTableURLState } from "src/components/DataTable/useTableUrlState";
@@ -72,91 +72,75 @@ export const DagsFilters = () => {
   const { setTableURLState, tableURLState } = useTableURLState();
   const { pagination, sorting } = tableURLState;
 
-  const handlePausedChange = useCallback(
-    ({ value }: { value: Array<string> }) => {
-      const [val] = value;
+  const handlePausedChange: React.MouseEventHandler<HTMLButtonElement> = ({ currentTarget: { value } }) => {
+    if (value === "all") {
+      searchParams.delete(PAUSED_PARAM);
+    } else {
+      searchParams.set(PAUSED_PARAM, value);
+    }
+    setTableURLState({
+      pagination: { ...pagination, pageIndex: 0 },
+      sorting,
+    });
+    searchParams.delete(OFFSET_PARAM);
+    setSearchParams(searchParams);
+  };
 
-      if (val === undefined) {
-        searchParams.delete(PAUSED_PARAM);
-      } else {
-        searchParams.set(PAUSED_PARAM, val);
-      }
-      setTableURLState({
-        pagination: { ...pagination, pageIndex: 0 },
-        sorting,
-      });
-      searchParams.delete(OFFSET_PARAM);
-      setSearchParams(searchParams);
-    },
-    [pagination, searchParams, setSearchParams, setTableURLState, sorting],
-  );
+  const handleFavoriteChange: React.MouseEventHandler<HTMLButtonElement> = ({ currentTarget: { value } }) => {
+    if (value === "all") {
+      searchParams.delete(FAVORITE_PARAM);
+    } else {
+      searchParams.set(FAVORITE_PARAM, value);
+    }
+    setTableURLState({
+      pagination: { ...pagination, pageIndex: 0 },
+      sorting,
+    });
+    searchParams.delete(OFFSET_PARAM);
+    setSearchParams(searchParams);
+  };
 
-  const handleFavoriteChange = useCallback(
-    ({ value }: { value: Array<string> }) => {
-      const [val] = value;
-
-      if (val === undefined || val === "all") {
-        searchParams.delete(FAVORITE_PARAM);
-      } else {
-        searchParams.set(FAVORITE_PARAM, val);
-      }
-      setTableURLState({
-        pagination: { ...pagination, pageIndex: 0 },
-        sorting,
-      });
-      searchParams.delete(OFFSET_PARAM);
-      setSearchParams(searchParams);
-    },
-    [pagination, searchParams, setSearchParams, setTableURLState, sorting],
-  );
-
-  const handleStateChange: React.MouseEventHandler<HTMLButtonElement> = useCallback(
-    ({ currentTarget: { value } }) => {
-      if (value === "all") {
-        searchParams.delete(LAST_DAG_RUN_STATE_PARAM);
+  const handleStateChange: React.MouseEventHandler<HTMLButtonElement> = ({ currentTarget: { value } }) => {
+    if (value === "all") {
+      searchParams.delete(LAST_DAG_RUN_STATE_PARAM);
+      searchParams.delete(NEEDS_REVIEW_PARAM);
+    } else if (value === "needs_review") {
+      if (needsReview === "true") {
         searchParams.delete(NEEDS_REVIEW_PARAM);
-      } else if (value === "needs_review") {
-        if (needsReview === "true") {
-          searchParams.delete(NEEDS_REVIEW_PARAM);
-        } else {
-          searchParams.set(NEEDS_REVIEW_PARAM, "true");
-        }
       } else {
-        if (state === value) {
-          searchParams.delete(LAST_DAG_RUN_STATE_PARAM);
-        } else {
-          searchParams.set(LAST_DAG_RUN_STATE_PARAM, value);
-        }
+        searchParams.set(NEEDS_REVIEW_PARAM, "true");
       }
-      setTableURLState({
-        pagination: { ...pagination, pageIndex: 0 },
-        sorting,
-      });
-      searchParams.delete(OFFSET_PARAM);
-      setSearchParams(searchParams);
-    },
-    [pagination, searchParams, setSearchParams, setTableURLState, sorting, needsReview, state],
-  );
+    } else {
+      if (state === value) {
+        searchParams.delete(LAST_DAG_RUN_STATE_PARAM);
+      } else {
+        searchParams.set(LAST_DAG_RUN_STATE_PARAM, value);
+      }
+    }
+    setTableURLState({
+      pagination: { ...pagination, pageIndex: 0 },
+      sorting,
+    });
+    searchParams.delete(OFFSET_PARAM);
+    setSearchParams(searchParams);
+  };
 
-  const handleSelectTagsChange = useCallback(
-    (
-      tags: MultiValue<{
-        label: string;
-        value: string;
-      }>,
-    ) => {
-      searchParams.delete(TAGS_PARAM);
-      tags.forEach(({ value }) => {
-        searchParams.append(TAGS_PARAM, value);
-      });
-      if (tags.length < 2) {
-        searchParams.delete(TAGS_MATCH_MODE_PARAM);
-      }
-      searchParams.delete(OFFSET_PARAM);
-      setSearchParams(searchParams);
-    },
-    [searchParams, setSearchParams],
-  );
+  const handleSelectTagsChange = (
+    tags: MultiValue<{
+      label: string;
+      value: string;
+    }>,
+  ) => {
+    searchParams.delete(TAGS_PARAM);
+    tags.forEach(({ value }) => {
+      searchParams.append(TAGS_PARAM, value);
+    });
+    if (tags.length < 2) {
+      searchParams.delete(TAGS_MATCH_MODE_PARAM);
+    }
+    searchParams.delete(OFFSET_PARAM);
+    setSearchParams(searchParams);
+  };
 
   const onClearFilters = () => {
     searchParams.delete(PAUSED_PARAM);
@@ -170,15 +154,12 @@ export const DagsFilters = () => {
     setPattern("");
   };
 
-  const handleTagModeChange = useCallback(
-    ({ checked }: { checked: boolean }) => {
-      const mode = checked ? "all" : "any";
+  const handleTagModeChange = ({ checked }: { checked: boolean }) => {
+    const mode = checked ? "all" : "any";
 
-      searchParams.set(TAGS_MATCH_MODE_PARAM, mode);
-      setSearchParams(searchParams);
-    },
-    [searchParams, setSearchParams],
-  );
+    searchParams.set(TAGS_MATCH_MODE_PARAM, mode);
+    setSearchParams(searchParams);
+  };
 
   const filterCount = getFilterCount({
     needsReview,
@@ -189,8 +170,8 @@ export const DagsFilters = () => {
   });
 
   return (
-    <HStack justifyContent="space-between">
-      <HStack gap={4}>
+    <Flex flexWrap="wrap" gap={4} justifyContent="space-between">
+      <Flex alignItems="center" flexWrap="wrap" gap={4}>
         <StateFilters
           isAll={isAll}
           isFailed={isFailed}
@@ -205,25 +186,27 @@ export const DagsFilters = () => {
           onPausedChange={handlePausedChange}
           showPaused={showPaused}
         />
-        <TagFilter
-          onMenuScrollToBottom={() => {
-            void fetchNextPage();
-          }}
-          onMenuScrollToTop={() => {
-            void fetchPreviousPage();
-          }}
-          onSelectTagsChange={handleSelectTagsChange}
-          onTagModeChange={handleTagModeChange}
-          onUpdate={setPattern}
-          selectedTags={selectedTags}
-          tagFilterMode={tagFilterMode}
-          tags={data?.pages.flatMap((dagResponse) => dagResponse.tags) ?? []}
-        />
+        <Box maxWidth="300px">
+          <TagFilter
+            onMenuScrollToBottom={() => {
+              void fetchNextPage();
+            }}
+            onMenuScrollToTop={() => {
+              void fetchPreviousPage();
+            }}
+            onSelectTagsChange={handleSelectTagsChange}
+            onTagModeChange={handleTagModeChange}
+            onUpdate={setPattern}
+            selectedTags={selectedTags}
+            tagFilterMode={tagFilterMode}
+            tags={data?.pages.flatMap((dagResponse) => dagResponse.tags) ?? []}
+          />
+        </Box>
         <FavoriteFilter onFavoriteChange={handleFavoriteChange} showFavorites={showFavorites} />
-      </HStack>
+      </Flex>
       <Box>
         <ResetButton filterCount={filterCount} onClearFilters={onClearFilters} />
       </Box>
-    </HStack>
+    </Flex>
   );
 };

@@ -17,7 +17,7 @@
  * under the License.
  */
 import { test, expect } from "@playwright/test";
-import { testConfig } from "playwright.config";
+import { testConfig, AUTH_FILE } from "playwright.config";
 import { BackfillPage } from "tests/e2e/pages/BackfillPage";
 
 const getPastDate = (daysAgo: number): string => {
@@ -29,108 +29,168 @@ const getPastDate = (daysAgo: number): string => {
   return date.toISOString().slice(0, 16);
 };
 
-// Backfills E2E Tests
+test.describe("Backfill creation and validation", () => {
+  // Serial mode ensures all tests run on one worker, preventing parallel beforeAll conflicts
+  test.describe.configure({ mode: "serial" });
+  test.setTimeout(240_000);
 
-test.describe("Backfills List Display", () => {
-  let backfillPage: BackfillPage;
   const testDagId = testConfig.testDag.id;
-  let createdFromDate: string;
-  let createdToDate: string;
+
+  const backfillConfigs = [
+    { behavior: "All Runs" as const, fromDate: getPastDate(5), toDate: getPastDate(4) },
+    { behavior: "Missing Runs" as const, fromDate: getPastDate(8), toDate: getPastDate(6) },
+    { behavior: "Missing and Errored Runs" as const, fromDate: getPastDate(12), toDate: getPastDate(10) },
+  ];
 
   test.beforeAll(async ({ browser }) => {
-    test.setTimeout(60_000);
+    test.setTimeout(600_000);
 
-    const context = await browser.newContext();
+    const context = await browser.newContext({ storageState: AUTH_FILE });
     const page = await context.newPage();
+    const setupBackfillPage = new BackfillPage(page);
 
-    backfillPage = new BackfillPage(page);
+    for (const config of backfillConfigs) {
+      await setupBackfillPage.createBackfill(testDagId, {
+        fromDate: config.fromDate,
+        reprocessBehavior: config.behavior,
+        toDate: config.toDate,
+      });
 
-    createdFromDate = getPastDate(2);
-    createdToDate = getPastDate(1);
+      await setupBackfillPage.navigateToBackfillsTab(testDagId);
+      await setupBackfillPage.findBackfillRowByDateRange({
+        fromDate: config.fromDate,
+        toDate: config.toDate,
+      });
 
-    await backfillPage.createBackfill(testDagId, {
-      fromDate: createdFromDate,
-      reprocessBehavior: "All Runs",
-      toDate: createdToDate,
-    });
+      await setupBackfillPage.waitForNoActiveBackfill();
+    }
+
+    await context.close();
+  });
+
+  test("verify backfill with 'all runs' behavior", async ({ page }) => {
+    const backfillPage = new BackfillPage(page);
 
     await backfillPage.navigateToBackfillsTab(testDagId);
-  });
 
-  test("should verify backfills list display", async () => {
-    const rowsCount = await backfillPage.getBackfillsTableRows();
+    const config = backfillConfigs[0]!; // All Runs
 
-    await expect(backfillPage.backfillsTable).toBeVisible();
-    expect(rowsCount).toBeGreaterThanOrEqual(1);
-  });
+    const backfillDetails = await backfillPage.getBackfillDetailsByDateRange({
+      fromDate: config.fromDate,
+      toDate: config.toDate,
+    });
 
-  test("Verify backfill details display: date range, status, created time", async () => {
-    const backfillDetails = await backfillPage.getBackfillDetails(0);
+    expect(backfillDetails.fromDate.slice(0, 10)).toEqual(config.fromDate.slice(0, 10));
+    expect(backfillDetails.toDate.slice(0, 10)).toEqual(config.toDate.slice(0, 10));
 
-    // validate date range
-    expect(backfillDetails.fromDate.slice(0, 10)).toEqual(createdFromDate.slice(0, 10));
-    expect(backfillDetails.toDate.slice(0, 10)).toEqual(createdToDate.slice(0, 10));
-
-    // Validate backfill status
+    expect(backfillDetails.createdAt).not.toEqual("");
+    expect(backfillDetails.reprocessBehavior).toEqual("All Runs");
     const status = await backfillPage.getBackfillStatus();
 
     expect(status).not.toEqual("");
-
-    // Validate created time
-    expect(backfillDetails.createdAt).not.toEqual("");
   });
 
-  test("should verify Table filters", async () => {
+  test("verify backfill with 'missing runs' behavior", async ({ page }) => {
+    const backfillPage = new BackfillPage(page);
+
+    await backfillPage.navigateToBackfillsTab(testDagId);
+
+    const config = backfillConfigs[1]!;
+
+    const backfillDetails = await backfillPage.getBackfillDetailsByDateRange({
+      fromDate: config.fromDate,
+      toDate: config.toDate,
+    });
+
+    expect(backfillDetails.fromDate.slice(0, 10)).toEqual(config.fromDate.slice(0, 10));
+    expect(backfillDetails.toDate.slice(0, 10)).toEqual(config.toDate.slice(0, 10));
+
+    expect(backfillDetails.createdAt).not.toEqual("");
+    expect(backfillDetails.reprocessBehavior).toEqual("Missing Runs");
+    const status = await backfillPage.getBackfillStatus();
+
+    expect(status).not.toEqual("");
+  });
+
+  test("verify backfill with 'missing and errored runs' behavior", async ({ page }) => {
+    const backfillPage = new BackfillPage(page);
+
+    await backfillPage.navigateToBackfillsTab(testDagId);
+
+    const config = backfillConfigs[2]!;
+
+    const backfillDetails = await backfillPage.getBackfillDetailsByDateRange({
+      fromDate: config.fromDate,
+      toDate: config.toDate,
+    });
+
+    expect(backfillDetails.fromDate.slice(0, 10)).toEqual(config.fromDate.slice(0, 10));
+    expect(backfillDetails.toDate.slice(0, 10)).toEqual(config.toDate.slice(0, 10));
+
+    expect(backfillDetails.createdAt).not.toEqual("");
+    expect(backfillDetails.reprocessBehavior).toEqual("Missing and Errored Runs");
+    const status = await backfillPage.getBackfillStatus();
+
+    expect(status).not.toEqual("");
+  });
+
+  test("Verify backfill table filters", async ({ page }) => {
+    const backfillPage = new BackfillPage(page);
+
     await backfillPage.navigateToBackfillsTab(testDagId);
 
     const initialColumnCount = await backfillPage.getTableColumnCount();
 
     expect(initialColumnCount).toBeGreaterThan(0);
-
-    // Verify filter button is available
     await expect(backfillPage.getFilterButton()).toBeVisible();
 
-    // Open filter menu to see available columns
     await backfillPage.openFilterMenu();
 
-    // Get all filterable columns (those with checkboxes in the menu)
     const filterMenuItems = backfillPage.page.locator('[role="menuitem"]');
     const filterMenuCount = await filterMenuItems.count();
 
-    // Ensure there are filterable columns
     expect(filterMenuCount).toBeGreaterThan(0);
 
-    // Get the first filterable column that has a checkbox
     const firstMenuItem = filterMenuItems.first();
     const columnToToggle = (await firstMenuItem.textContent())?.trim() ?? "";
 
     expect(columnToToggle).not.toBe("");
 
-    // Toggle column off
     await backfillPage.toggleColumn(columnToToggle);
+    await backfillPage.backfillsTable.click({ position: { x: 5, y: 5 } });
 
-    await backfillPage.page.keyboard.press("Escape");
-    await backfillPage.page.locator('[role="menu"]').waitFor({ state: "hidden" });
-
-    // Verify column is hidden
     await expect(backfillPage.getColumnHeader(columnToToggle)).not.toBeVisible();
 
     const newColumnCount = await backfillPage.getTableColumnCount();
 
     expect(newColumnCount).toBeLessThan(initialColumnCount);
 
-    // Toggle column back on
     await backfillPage.openFilterMenu();
     await backfillPage.toggleColumn(columnToToggle);
+    await backfillPage.backfillsTable.click({ position: { x: 5, y: 5 } });
 
-    await backfillPage.page.keyboard.press("Escape");
-    await backfillPage.page.locator('[role="menu"]').waitFor({ state: "hidden" });
-
-    // Verify column is visible again
     await expect(backfillPage.getColumnHeader(columnToToggle)).toBeVisible();
 
     const finalColumnCount = await backfillPage.getTableColumnCount();
 
     expect(finalColumnCount).toBe(initialColumnCount);
+  });
+});
+
+test.describe("validate date range", () => {
+  test.setTimeout(60_000);
+
+  const testDagId = testConfig.testDag.id;
+
+  test("verify date range selection (start date, end date)", async ({ page }) => {
+    const fromDate = getPastDate(1);
+    const toDate = getPastDate(7);
+    const backfillPage = new BackfillPage(page);
+
+    await backfillPage.navigateToDagDetail(testDagId);
+    await backfillPage.openBackfillDialog();
+    await backfillPage.backfillFromDateInput.fill(fromDate);
+    await backfillPage.backfillToDateInput.fill(toDate);
+    await expect(backfillPage.backfillDateError).toBeVisible();
   });
 });

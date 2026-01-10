@@ -21,7 +21,7 @@ from unittest.mock import patch
 
 import pytest
 
-from airflow.plugins_manager import AirflowPlugin
+from airflow.providers.common.compat.sdk import AirflowPlugin
 from airflow.providers.edge3.plugins import edge_executor_plugin
 
 from tests_common.test_utils.config import conf_vars

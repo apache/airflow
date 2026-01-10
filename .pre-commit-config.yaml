@@ -54,6 +54,9 @@ repos:
           ^docs/README\.md$|
           ^\.github/.*\.md$|
           ^airflow-core/tests/system/README\.md$
+        exclude:
+            (?x)
+            .github/PULL_REQUEST_TEMPLATE\.md$
         args:
           - "--maxlevel"
           - "2"
@@ -155,13 +158,15 @@ repos:
       - id: insert-license
         name: Add license for all Markdown files
         files: \.md$
-        exclude: PROVIDER_CHANGES.*\.md$
         args:
           - --comment-style
           - "<!--|| -->"
           - --license-filepath
           - scripts/ci/license-templates/LICENSE.txt
           - --fuzzy-match-generates-todo
+        exclude:
+          (?x)
+          .github/PULL_REQUEST_TEMPLATE\.md$
       - id: insert-license
         name: Add license for all other files
         exclude: ^\.github/.*$
@@ -319,7 +324,7 @@ repos:
           - --skip=providers/.*/src/airflow/providers/*/*.rst,providers/*/docs/changelog.rst,docs/*/commits.rst,providers/*/docs/commits.rst,providers/*/*/docs/commits.rst,docs/apache-airflow/tutorial/pipeline_example.csv,*.min.js,*.lock,INTHEWILD.md,*.svg
           - --exclude-file=.codespellignorelines
   - repo: https://github.com/woodruffw/zizmor-pre-commit
-    rev: ea18690d7f8e44203c9efd7bc6229447d02e3951  # frozen: v1.19.0
+    rev: 7fc963270df722f37707d47ff41265fe8f460822  # frozen: v1.20.0
     hooks:
       - id: zizmor
         name: Run zizmor to check for github workflow syntax errors
@@ -348,6 +353,12 @@ repos:
         language: python
         pass_filenames: false
         files: ^shared/.*$|^.*/pyproject.toml$|^.*/_shared/.*$
+      - id: check-secrets-search-path-sync
+        name: Check sync between sdk and core
+        entry: ./scripts/ci/prek/check_secrets_search_path_sync.py
+        language: python
+        pass_filenames: false
+        files: ^airflow-core/src/airflow/secrets/base_secrets\.py$|^task-sdk/src/airflow/sdk/execution_time/secrets/__init__\.py$
       - id: ruff
         name: Run 'ruff' for extremely fast Python linting
         description: "Run 'ruff' for extremely fast Python linting"
@@ -356,7 +367,7 @@ repos:
         types_or: [python, pyi]
         args: [--fix]
         require_serial: true
-        additional_dependencies: ['ruff==0.14.10']
+        additional_dependencies: ['ruff==0.14.11']
         exclude: ^airflow-core/tests/unit/dags/test_imports\.py$|^performance/tests/test_.*\.py$
       - id: ruff-format
         name: Run 'ruff format'
@@ -424,8 +435,13 @@ repos:
             (?x)
             ^airflow-ctl.*\.py$|
             ^airflow-core/src/airflow/models/.*\.py$|
+            ^airflow-core/src/airflow/migrations/versions/0015_2_9_0_update_trigger_kwargs_type.py$|
             ^airflow-core/src/airflow/api_fastapi/execution_api/routes/task_instances.py$|
             ^airflow-core/tests/unit/api_fastapi/core_api/routes/public/test_assets.py$|
+            ^airflow-core/tests/unit/api_fastapi/core_api/routes/public/test_backfills.py$|
+            ^airflow-core/tests/unit/api_fastapi/core_api/routes/public/test_connections.py$|
+            ^airflow-core/tests/unit/api_fastapi/core_api/routes/public/test_pools.py$|
+            ^airflow-core/tests/unit/api_fastapi/core_api/routes/public/test_task_instances.py$|
             ^airflow-core/tests/unit/models/test_serialized_dag.py$|
             ^airflow-core/tests/unit/models/test_pool.py$|
             ^airflow-core/tests/unit/models/test_trigger.py$|
@@ -444,6 +460,11 @@ repos:
             ^airflow-core/tests/unit/api_fastapi/core_api/routes/ui/test_structure.py$|
             ^airflow-core/tests/unit/api_fastapi/core_api/routes/public/test_variables.py$|
             ^airflow-core/tests/unit/cli/commands/test_task_command.py$|
+            ^airflow-core/tests/unit/cli/commands/test_team_command.py$|
+            ^airflow-core/tests/unit/cli/commands/test_pool_command.py$|
+            ^airflow-core/tests/unit/cli/commands/test_connection_command.py$|
+            ^airflow-core/tests/unit/cli/commands/test_dag_command.py$|
+            ^airflow-core/tests/unit/cli/commands/test_rotate_fernet_key_command.py$|
             ^airflow-core/tests/unit/dag_processing/bundles/test_dag_bundle_manager.py$|
             ^airflow-core/tests/unit/api_fastapi/execution_api/versions/head/test_dag_runs.py$|
             ^airflow-core/tests/unit/api_fastapi/execution_api/versions/head/test_task_instances.py$|
@@ -463,6 +484,7 @@ repos:
             ^airflow-core/tests/unit/utils/test_db_cleanup.py$|
             ^airflow-core/tests/unit/utils/test_state.py$|
             ^airflow-core/tests/unit/utils/test_log_handlers.py$|
+            ^airflow-core/tests/unit/ti_deps/deps/test_not_previously_skipped_dep.py$|
             ^airflow-core/tests/unit/utils/test_types.py$|
             ^airflow-core/tests/unit/dag_processing/test_manager.py$|
             ^airflow-core/tests/unit/dag_processing/test_processor.py$|
@@ -474,6 +496,13 @@ repos:
             ^providers/edge3/.*\.py$|
             ^providers/mysql/.*\.py$|
             ^providers/openlineage/.*\.py$|
+            ^providers/standard/tests/unit/standard/operators/test_latest_only_operator\.py$|
+            ^providers/standard/tests/unit/standard/operators/test_trigger_dagrun\.py$|
+            ^providers/standard/tests/unit/standard/operators/test_weekday\.py$|
+            ^providers/standard/tests/unit/standard/operators/test_datetime\.py$|
+            ^providers/standard/tests/unit/standard/operators/test_branch_operator\.py$|
+            ^providers/standard/tests/unit/standard/sensors/test_external_task_sensor\.py$|
+            ^providers/standard/tests/unit/standard/utils/test_skipmixin\.py$|
             ^task_sdk.*\.py$|
             ^devel-common/src/tests_common/pytest_plugin\.py$|
             ^devel-common/src/tests_common/test_utils/.*\.py$
@@ -574,7 +603,6 @@ repos:
           ^docs/apache-airflow-providers-amazon/secrets-backends/aws-ssm-parameter-store\.rst$|
           git|
           ^helm-tests/tests/chart_utils/helm_template_generator\.py$|
-          ^helm-tests/tests/chart_utils/ingress-networking-v1beta1\.json$|
           package-lock\.json$|
           ^.*\.(png|gif|jp[e]?g|svg|tgz|lock)$|
           ^\.pre-commit-config\.yaml$|
@@ -604,7 +632,7 @@ repos:
           ^providers/google/src/airflow/providers/google/cloud/operators/cloud_build\.py$|
           ^providers/google/src/airflow/providers/google/cloud/operators/dataproc\.py$|
           ^providers/google/src/airflow/providers/google/cloud/operators/mlengine\.py$|
-          ^providers/keycloak/src/airflow/providers/keycloak/auth_manager/cli/definition.py|
+          ^providers/keycloak/src/airflow/providers/keycloak/cli/definition.py|
           ^providers/microsoft/azure/docs/connections/azure_cosmos\.rst$|
           ^providers/microsoft/azure/src/airflow/providers/microsoft/azure/hooks/cosmos\.py$|
           ^providers/microsoft/winrm/src/airflow/providers/microsoft/winrm/hooks/winrm\.py$|

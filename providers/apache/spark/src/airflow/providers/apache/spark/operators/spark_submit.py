@@ -20,13 +20,12 @@ from __future__ import annotations
 from collections.abc import Sequence
 from typing import TYPE_CHECKING, Any
 
-from airflow.configuration import conf
 from airflow.providers.apache.spark.hooks.spark_submit import SparkSubmitHook
 from airflow.providers.common.compat.openlineage.utils.spark import (
     inject_parent_job_information_into_spark_properties,
     inject_transport_information_into_spark_properties,
 )
-from airflow.providers.common.compat.sdk import BaseOperator
+from airflow.providers.common.compat.sdk import BaseOperator, conf
 
 if TYPE_CHECKING:
     from airflow.providers.common.compat.sdk import Context

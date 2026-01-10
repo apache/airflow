@@ -26,8 +26,7 @@ from collections.abc import Sequence
 from functools import cached_property
 from typing import TYPE_CHECKING, Any
 
-from airflow.configuration import conf
-from airflow.providers.common.compat.sdk import AirflowException, BaseOperator, BaseOperatorLink, XCom
+from airflow.providers.common.compat.sdk import AirflowException, BaseOperator, BaseOperatorLink, XCom, conf
 from airflow.providers.databricks.hooks.databricks import (
     DatabricksHook,
     RunLifeCycleState,

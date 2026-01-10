@@ -39,6 +39,7 @@ from __future__ import annotations
 
 import argparse
 import sys
+import time
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
@@ -87,15 +88,26 @@ class CalendarEntry:
 
 
 def fetch_confluence_page() -> str:
-    """Fetch the Confluence release plan page."""
+    """Fetch the Confluence release plan page with retry logic."""
     console.print(f"[cyan]Fetching Confluence page:[/cyan] {CONFLUENCE_URL}")
-    try:
-        response = requests.get(CONFLUENCE_URL, timeout=30)
-        response.raise_for_status()
-        return response.text
-    except requests.RequestException as e:
-        console.print(f"[red]Failed to fetch Confluence page:[/red] {e}")
-        sys.exit(1)
+
+    max_retries = 3
+    retry_delay = 10
+
+    for attempt in range(1, 1 + max_retries):
+        try:
+            response = requests.get(CONFLUENCE_URL, timeout=30)
+            response.raise_for_status()
+            return response.text
+        except requests.RequestException as e:
+            if attempt < max_retries:
+                console.print(f"[yellow]Attempt {attempt}/{max_retries} failed: {e}[/yellow]")
+                console.print(f"[yellow]Retrying in {retry_delay} seconds...[/yellow]")
+                time.sleep(retry_delay)
+            else:
+                console.print(f"[red]Failed to fetch Confluence page after {max_retries} attempts:[/red] {e}")
+                sys.exit(1)
+    return ""
 
 
 def print_confluence_debug_info(soup: BeautifulSoup) -> None:
@@ -364,15 +376,27 @@ def parse_calendar_component(component: Any) -> CalendarEntry | None:
 
 
 def fetch_calendar_entries() -> list[CalendarEntry]:
-    """Fetch and parse calendar entries from iCal feed."""
+    """Fetch and parse calendar entries from iCal feed with retry logic."""
     console.print(f"[cyan]Fetching calendar:[/cyan] {CALENDAR_ICAL_URL}")
-    try:
-        response = requests.get(CALENDAR_ICAL_URL, timeout=30)
-        response.raise_for_status()
-        calendar_data = response.content
-    except requests.RequestException as e:
-        console.print(f"[red]Failed to fetch calendar:[/red] {e}")
-        sys.exit(1)
+
+    max_retries = 3
+    retry_delay = 10
+    calendar_data = b""
+
+    for attempt in range(1, 1 + max_retries):
+        try:
+            response = requests.get(CALENDAR_ICAL_URL, timeout=30)
+            response.raise_for_status()
+            calendar_data = response.content
+            break
+        except requests.RequestException as e:
+            if attempt < max_retries - 1:
+                console.print(f"[yellow]Attempt {attempt}/{max_retries} failed: {e}[/yellow]")
+                console.print(f"[yellow]Retrying in {retry_delay} seconds...[/yellow]")
+                time.sleep(retry_delay)
+            else:
+                console.print(f"[red]Failed to fetch calendar after {max_retries} attempts:[/red] {e}")
+                sys.exit(1)
 
     console.print("[cyan]Parsing calendar entries...[/cyan]")
     calendar = Calendar.from_ical(calendar_data)

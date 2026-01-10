@@ -1365,7 +1365,8 @@ to figure out one of the problems:
         "apache-airflow-providers-common-sql",
         "apache-airflow-providers-fab",
         # Additional devel dependencies (do not remove this line and add extra development dependencies)
-        "deltalake>=0.12.0",
+        # Limit deltalake to avoid issue with missing linux ARM wheels: https://github.com/delta-io/delta-rs/issues/4041
+        "deltalake>=1.1.3,!=1.3.0",
         "apache-airflow-providers-microsoft-azure",
     ]
 

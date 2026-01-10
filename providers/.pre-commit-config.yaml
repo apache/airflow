@@ -221,6 +221,12 @@ repos:
         files: ^.*/provider\.yaml$
         exclude: ^.*/.venv/.*$
         require_serial: true
+      - id: check-cli-definition-imports
+        name: Check CLI definition files only import allowed modules
+        entry: ../scripts/ci/prek/check_cli_definition_imports.py
+        language: python
+        files: ^.*/cli/definition\.py$
+        require_serial: false
       - id: check-imports-in-providers
         name: Check imports in providers
         entry: ../scripts/ci/prek/check_imports_in_providers.py

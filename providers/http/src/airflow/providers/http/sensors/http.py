@@ -21,8 +21,7 @@ from collections.abc import Callable, Sequence
 from datetime import timedelta
 from typing import TYPE_CHECKING, Any
 
-from airflow.configuration import conf
-from airflow.providers.common.compat.sdk import AirflowException, BaseSensorOperator
+from airflow.providers.common.compat.sdk import AirflowException, BaseSensorOperator, conf
 from airflow.providers.http.hooks.http import HttpHook
 from airflow.providers.http.triggers.http import HttpSensorTrigger
 

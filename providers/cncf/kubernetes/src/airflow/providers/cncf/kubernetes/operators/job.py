@@ -188,6 +188,7 @@ class KubernetesJobOperator(KubernetesPodOperator):
         return job_request_obj
 
     def execute(self, context: Context):
+        self.name = self._set_name(self.name)
         if self.deferrable and not self.wait_until_job_complete:
             self.log.warning(
                 "Deferrable mode is available only with parameter `wait_until_job_complete=True`. "
