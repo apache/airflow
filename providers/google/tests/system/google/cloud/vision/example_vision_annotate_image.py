@@ -46,7 +46,7 @@ from google.api_core.retry import Retry
 
 # [START howto_operator_vision_enums_import]
 from google.cloud.vision_v1 import Feature  # isort:skip
-from system.google import DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
+from airflow.providers.google.tests.system.google import DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
 
 # [END howto_operator_vision_enums_import]
 

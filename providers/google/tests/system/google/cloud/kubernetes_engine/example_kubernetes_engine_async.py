@@ -38,7 +38,8 @@ except ImportError:
     # Compatibility for Airflow < 3.1
     from airflow.utils.trigger_rule import TriggerRule  # type: ignore[no-redef,attr-defined]
 
-from system.google import DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
+from airflow.providers.google.tests.system.google import DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
+
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID", "default")
