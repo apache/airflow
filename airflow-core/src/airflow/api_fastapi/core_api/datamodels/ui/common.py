@@ -79,6 +79,8 @@ class GridRunsResponse(BaseModel):
     run_after: datetime
     state: DagRunState | None
     run_type: DagRunType
+    bundle_version: str | None = None
+    dag_version_number: int | None = None
 
     @computed_field
     def duration(self) -> float:
