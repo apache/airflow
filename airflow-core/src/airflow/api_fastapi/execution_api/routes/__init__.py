@@ -43,6 +43,7 @@ authenticated_router.include_router(assets.router, prefix="/assets", tags=["Asse
 authenticated_router.include_router(asset_events.router, prefix="/asset-events", tags=["Asset Events"])
 authenticated_router.include_router(connections.router, prefix="/connections", tags=["Connections"])
 authenticated_router.include_router(dag_runs.router, prefix="/dag-runs", tags=["Dag Runs"])
+authenticated_router.include_router(task_instances.router, prefix="/task-instances", tags=["Task Instances"])
 authenticated_router.include_router(
     task_reschedules.router, prefix="/task-reschedules", tags=["Task Reschedules"]
 )
@@ -52,7 +53,7 @@ authenticated_router.include_router(hitl.router, prefix="/hitlDetails", tags=["H
 
 execution_api_router.include_router(authenticated_router)
 
-# task_instances.router is NOT in authenticated_router because its /run endpoint requires
-# workload-scoped tokens (JWTBearerWorkloadDep), which are rejected by JWTBearerDep.
-# The router handles its own auth: /run uses JWTBearerWorkloadDep, others use JWTBearerTIPathDep.
-execution_api_router.include_router(task_instances.router, prefix="/task-instances", tags=["Task Instances"])
+# ti_run_router: /run endpoint - requires workload-scoped tokens (JWTBearerWorkloadDep)
+execution_api_router.include_router(
+    task_instances.ti_run_router, prefix="/task-instances", tags=["Task Instances"]
+)
