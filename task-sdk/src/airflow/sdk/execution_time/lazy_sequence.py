@@ -19,11 +19,15 @@ from __future__ import annotations
 
 import collections
 import itertools
+from collections import deque
 from collections.abc import Iterator, Sequence
 from typing import TYPE_CHECKING, Any, Literal, TypeVar, overload
 
 import attrs
 import structlog
+
+from airflow.configuration import conf
+from airflow.sdk.definitions._internal.logging_mixin import LoggingMixin
 
 if TYPE_CHECKING:
     from airflow.sdk.definitions.xcom_arg import PlainXComArg
@@ -35,25 +39,40 @@ T = TypeVar("T")
 # ``XCom.deserialize_value``. We don't want to wrap the API values in a nested
 # {"value": value} dict since it wastes bandwidth.
 _XComWrapper = collections.namedtuple("_XComWrapper", "value")
-
 log = structlog.get_logger(logger_name=__name__)
 
 
+def _deque_factory() -> deque:
+    return deque(maxlen=conf.getint("core", "parallelism"))
+
+
 @attrs.define
-class LazyXComIterator(Iterator[T]):
+class LazyXComIterator(LoggingMixin, Iterator[T]):
     seq: LazyXComSequence[T]
     index: int = 0
     dir: Literal[1, -1] = 1
+    _buffer: deque[T] = attrs.field(factory=_deque_factory, init=False)
+
+    @property
+    def prefetch_size(self) -> int:
+        return self._buffer.maxlen or conf.getint("core", "parallelism")
 
     def __next__(self) -> T:
         if self.index < 0:
             # When iterating backwards, avoid extra HTTP request
             raise StopIteration()
-        try:
-            val = self.seq[self.index]
-        except IndexError:
-            raise StopIteration from None
+
+        # If the buffer is empty, fetch the next chunk
+        if not self._buffer:
+            chunk = list(self.seq[self.index : self.index + self.prefetch_size])
+            if not chunk:
+                raise StopIteration()
+            self._buffer.extend(chunk)
+            self.log.debug("Buffered %s XCom's", len(self._buffer))
+
+        val = self._buffer.popleft()
         self.index += self.dir
+        self.log.debug("Popped buffered XCom for index %s: %s", self.index, val)
         return val
 
     def __iter__(self) -> Iterator[T]:
