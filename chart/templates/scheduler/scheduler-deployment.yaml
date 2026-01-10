@@ -206,11 +206,25 @@ spec:
             {{- include "custom_airflow_environment" . | indent 10 }}
             {{- include "standard_airflow_environment" . | indent 10 }}
             {{- include "container_extra_envs" (list . .Values.scheduler.env) | indent 10 }}
+          {{- if or (not (hasKey .Values.scheduler.livenessProbe "enabled")) .Values.scheduler.livenessProbe.enabled }}
           livenessProbe:
             initialDelaySeconds: {{ .Values.scheduler.livenessProbe.initialDelaySeconds }}
             timeoutSeconds: {{ .Values.scheduler.livenessProbe.timeoutSeconds }}
             failureThreshold: {{ .Values.scheduler.livenessProbe.failureThreshold }}
             periodSeconds: {{ .Values.scheduler.livenessProbe.periodSeconds }}
+            {{- if .Values.scheduler.livenessProbe.successThreshold }}
+            successThreshold: {{ .Values.scheduler.livenessProbe.successThreshold }}
+            {{- end }}
+            {{- if .Values.scheduler.livenessProbe.terminationGracePeriodSeconds }}
+            terminationGracePeriodSeconds: {{ .Values.scheduler.livenessProbe.terminationGracePeriodSeconds }}
+            {{- end }}
+            {{- if .Values.scheduler.livenessProbe.httpGet }}
+            httpGet: {{- toYaml .Values.scheduler.livenessProbe.httpGet | nindent 14 }}
+            {{- else if .Values.scheduler.livenessProbe.tcpSocket }}
+            tcpSocket: {{- toYaml .Values.scheduler.livenessProbe.tcpSocket | nindent 14 }}
+            {{- else if .Values.scheduler.livenessProbe.grpc }}
+            grpc: {{- toYaml .Values.scheduler.livenessProbe.grpc | nindent 14 }}
+            {{- else }}
             exec:
               command:
                 {{- if .Values.scheduler.livenessProbe.command }}
@@ -218,11 +232,55 @@ spec:
                 {{- else }}
                   {{- include "scheduler_liveness_check_command" . | indent 14 }}
                 {{- end }}
+            {{- end }}
+          {{- end }}
+          {{- if and (hasKey .Values.scheduler "readinessProbe") .Values.scheduler.readinessProbe.enabled }}
+          readinessProbe:
+            initialDelaySeconds: {{ .Values.scheduler.readinessProbe.initialDelaySeconds }}
+            timeoutSeconds: {{ .Values.scheduler.readinessProbe.timeoutSeconds }}
+            failureThreshold: {{ .Values.scheduler.readinessProbe.failureThreshold }}
+            periodSeconds: {{ .Values.scheduler.readinessProbe.periodSeconds }}
+            {{- if .Values.scheduler.readinessProbe.successThreshold }}
+            successThreshold: {{ .Values.scheduler.readinessProbe.successThreshold }}
+            {{- end }}
+            {{- if .Values.scheduler.readinessProbe.terminationGracePeriodSeconds }}
+            terminationGracePeriodSeconds: {{ .Values.scheduler.readinessProbe.terminationGracePeriodSeconds }}
+            {{- end }}
+            {{- if .Values.scheduler.readinessProbe.httpGet }}
+            httpGet: {{- toYaml .Values.scheduler.readinessProbe.httpGet | nindent 14 }}
+            {{- else if .Values.scheduler.readinessProbe.tcpSocket }}
+            tcpSocket: {{- toYaml .Values.scheduler.readinessProbe.tcpSocket | nindent 14 }}
+            {{- else if .Values.scheduler.readinessProbe.grpc }}
+            grpc: {{- toYaml .Values.scheduler.readinessProbe.grpc | nindent 14 }}
+            {{- else }}
+            exec:
+              command:
+                {{- if .Values.scheduler.readinessProbe.command }}
+                  {{- toYaml .Values.scheduler.readinessProbe.command  | nindent 16 }}
+                {{- else }}
+                  {{- include "scheduler_liveness_check_command" . | indent 14 }}
+                {{- end }}
+            {{- end }}
+          {{- end }}
+          {{- if or (not (hasKey .Values.scheduler.startupProbe "enabled")) .Values.scheduler.startupProbe.enabled }}
           startupProbe:
             initialDelaySeconds: {{ .Values.scheduler.startupProbe.initialDelaySeconds }}
             timeoutSeconds: {{ .Values.scheduler.startupProbe.timeoutSeconds }}
             failureThreshold: {{ .Values.scheduler.startupProbe.failureThreshold }}
             periodSeconds: {{ .Values.scheduler.startupProbe.periodSeconds }}
+            {{- if .Values.scheduler.startupProbe.successThreshold }}
+            successThreshold: {{ .Values.scheduler.startupProbe.successThreshold }}
+            {{- end }}
+            {{- if .Values.scheduler.startupProbe.terminationGracePeriodSeconds }}
+            terminationGracePeriodSeconds: {{ .Values.scheduler.startupProbe.terminationGracePeriodSeconds }}
+            {{- end }}
+            {{- if .Values.scheduler.startupProbe.httpGet }}
+            httpGet: {{- toYaml .Values.scheduler.startupProbe.httpGet | nindent 14 }}
+            {{- else if .Values.scheduler.startupProbe.tcpSocket }}
+            tcpSocket: {{- toYaml .Values.scheduler.startupProbe.tcpSocket | nindent 14 }}
+            {{- else if .Values.scheduler.startupProbe.grpc }}
+            grpc: {{- toYaml .Values.scheduler.startupProbe.grpc | nindent 14 }}
+            {{- else }}
             exec:
               command:
                 {{- if .Values.scheduler.startupProbe.command }}
@@ -230,6 +288,8 @@ spec:
                 {{- else }}
                   {{- include "scheduler_startup_check_command" . | indent 14 }}
                 {{- end }}
+            {{- end }}
+          {{- end }}
           {{- if and $local (not $remoteLogging) }}
           # Serve logs if we're in local mode and we have neither elasticsearch nor opensearch enabled.
           ports:
