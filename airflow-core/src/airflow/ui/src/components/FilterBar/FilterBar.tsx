@@ -152,6 +152,7 @@ export const FilterBar = ({
               _hover={{ bg: "colorPalette.subtle" }}
               bg="gray.muted"
               borderRadius="full"
+              data-testid="filter-bar-add-button"
               variant="outline"
             >
               <MdAdd />
