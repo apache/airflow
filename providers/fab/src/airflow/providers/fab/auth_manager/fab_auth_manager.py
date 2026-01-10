@@ -22,6 +22,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any
 from urllib.parse import urljoin
 
+from cachetools import TTLCache, cached
 from connexion import FlaskApi
 from fastapi import FastAPI
 from fastapi.middleware.wsgi import WSGIMiddleware
@@ -161,6 +162,7 @@ _MAP_MENU_ITEM_TO_FAB_RESOURCE_TYPE = {
     MenuItem.XCOMS: RESOURCE_XCOM,
 }
 
+CACHE_TTL = conf.getint("fab", "cache_ttl", fallback=10)
 
 if AIRFLOW_V_3_1_PLUS:
     from airflow.providers.fab.www.security.permissions import RESOURCE_HITL_DETAIL
@@ -176,7 +178,6 @@ class FabAuthManager(BaseAuthManager[User]):
     This auth manager is responsible for providing a backward compatible user management experience to users.
     """
 
-    user_cache: dict[int, User] = {}
     appbuilder: AirflowAppBuilder | None = None
 
     def init_flask_resources(self) -> None:
@@ -254,16 +255,12 @@ class FabAuthManager(BaseAuthManager[User]):
 
         return current_user
 
+    @cached(cache=TTLCache(maxsize=1024, ttl=CACHE_TTL), key=lambda _, token: int(token["sub"]))
     def deserialize_user(self, token: dict[str, Any]) -> User:
         id = int(token["sub"])
-        user = self.user_cache.get(id)
 
-        if not user:
-            with create_session() as session:
-                user = session.scalars(select(User).where(User.id == id)).one()
-                self.user_cache[id] = user
-
-        return user
+        with create_session() as session:
+            return session.scalars(select(User).where(User.id == id)).one()
 
     def serialize_user(self, user: User) -> dict[str, Any]:
         return {"sub": str(user.id)}
