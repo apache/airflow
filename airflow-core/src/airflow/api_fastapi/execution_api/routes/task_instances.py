@@ -834,14 +834,12 @@ def get_task_instance_count(
         query = query.where(TI.run_id.in_(run_ids))
 
     if task_group_id:
-        group_tasks = _get_group_tasks(dag_id, task_group_id, session, dag_bag, logical_dates, run_ids)
+        group_tasks = _get_group_tasks(
+            dag_id, task_group_id, session, dag_bag, logical_dates, run_ids, map_index
+        )
 
         # Get unique (task_id, map_index) pairs
-
         task_map_pairs = [(ti.task_id, ti.map_index) for ti in group_tasks]
-
-        if map_index is not None:
-            task_map_pairs = [(ti.task_id, ti.map_index) for ti in group_tasks if ti.map_index == map_index]
 
         if not task_map_pairs:
             # If no task group tasks found, default to checking the task group ID itself
@@ -942,15 +940,18 @@ def get_task_instance_states(
     if run_ids:
         query = query.where(TI.run_id.in_(run_ids))
 
+    if map_index is not None:
+        query = query.where(TI.map_index == map_index)
+
     results = session.scalars(query).all()
 
     if task_group_id:
-        group_tasks = _get_group_tasks(dag_id, task_group_id, session, dag_bag, logical_dates, run_ids)
+        group_tasks = _get_group_tasks(
+            dag_id, task_group_id, session, dag_bag, logical_dates, run_ids, map_index
+        )
 
         results = results + group_tasks if task_ids else group_tasks
 
-    if map_index is not None:
-        results = [task for task in results if task.map_index == map_index]
     [
         run_id_task_state_map[task.run_id].update(
             {task.task_id: task.state}
@@ -991,7 +992,13 @@ def _is_eligible_to_retry(state: str, try_number: int, max_tries: int) -> bool:
 
 
 def _get_group_tasks(
-    dag_id: str, task_group_id: str, session: SessionDep, dag_bag: DagBagDep, logical_dates=None, run_ids=None
+    dag_id: str,
+    task_group_id: str,
+    session: SessionDep,
+    dag_bag: DagBagDep,
+    logical_dates=None,
+    run_ids=None,
+    map_index: int | None = None,
 ):
     # Get all tasks in the task group
     dag = get_latest_version_of_dag(dag_bag, dag_id, session, include_reason=True)
@@ -1012,6 +1019,7 @@ def _get_group_tasks(
             TI.task_id.in_(task.task_id for task in task_group.iter_tasks()),
             *([TI.logical_date.in_(logical_dates)] if logical_dates else []),
             *([TI.run_id.in_(run_ids)] if run_ids else []),
+            *([TI.map_index == map_index] if map_index is not None else []),
         )
     ).all()
 
