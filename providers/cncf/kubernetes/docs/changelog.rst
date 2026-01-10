@@ -28,9 +28,9 @@ Changelog
 ---------
 
 .. warning::
-   ``KubernetesJobOperator`` no longer supports setting ``parallelism = 0``.
+   ``KubernetesJobOperator`` no longer supports setting ``parallelism = 0`` with ``wait_until_job_complete=True``.
    Previously this would create a job that would never complete and always fail the task.
-   Executing a task with ``parallelism = 0`` will now raise a validation error.
+   Executing a task with ``parallelism = 0`` and ``wait_until_job_complete=True`` will now raise a validation error.
 
 10.12.0
 .......
