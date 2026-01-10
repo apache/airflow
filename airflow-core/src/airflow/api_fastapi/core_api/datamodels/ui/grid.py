@@ -31,6 +31,7 @@ class LightGridTaskInstanceSummary(BaseModel):
     child_states: dict[TaskInstanceState | None, int] | None
     min_start_date: datetime | None
     max_end_date: datetime | None
+    dag_version_number: int | None = None
 
 
 class GridTISummaries(BaseModel):

@@ -22,6 +22,7 @@ import {
   Box,
   Button,
   ButtonGroup,
+  Circle,
   createListCollection,
   Flex,
   IconButton,
@@ -36,7 +37,7 @@ import { useReactFlow } from "@xyflow/react";
 import { useEffect, useRef } from "react";
 import { useHotkeys } from "react-hotkeys-hook";
 import { useTranslation } from "react-i18next";
-import { FiChevronDown, FiGrid } from "react-icons/fi";
+import { FiChevronDown, FiGitCommit, FiGrid } from "react-icons/fi";
 import { LuKeyboard } from "react-icons/lu";
 import { MdOutlineAccountTree } from "react-icons/md";
 import type { ImperativePanelGroupHandle } from "react-resizable-panels";
@@ -51,6 +52,12 @@ import { SearchBar } from "src/components/SearchBar";
 import { StateBadge } from "src/components/StateBadge";
 import { Tooltip } from "src/components/ui";
 import { Checkbox } from "src/components/ui/Checkbox";
+import type { VersionIndicatorDisplayOption } from "src/constants/showVersionIndicatorOptions";
+import {
+  isVersionIndicatorDisplayOption,
+  showVersionIndicatorOptions,
+  VersionIndicatorDisplayOptions,
+} from "src/constants/showVersionIndicatorOptions";
 import { dagRunTypeOptions, dagRunStateOptions } from "src/constants/stateOptions";
 import { useContainerWidth } from "src/utils/useContainerWidth";
 
@@ -69,8 +76,10 @@ type Props = {
   readonly setLimit: React.Dispatch<React.SetStateAction<number>>;
   readonly setRunTypeFilter: React.Dispatch<React.SetStateAction<DagRunType | undefined>>;
   readonly setShowGantt: React.Dispatch<React.SetStateAction<boolean>>;
+  readonly setShowVersionIndicatorMode: React.Dispatch<React.SetStateAction<VersionIndicatorDisplayOption>>;
   readonly setTriggeringUserFilter: React.Dispatch<React.SetStateAction<string | undefined>>;
   readonly showGantt: boolean;
+  readonly showVersionIndicatorMode: VersionIndicatorDisplayOption;
   readonly triggeringUserFilter: string | undefined;
 };
 
@@ -118,8 +127,10 @@ export const PanelButtons = ({
   setLimit,
   setRunTypeFilter,
   setShowGantt,
+  setShowVersionIndicatorMode,
   setTriggeringUserFilter,
   showGantt,
+  showVersionIndicatorMode,
   triggeringUserFilter,
 }: Props) => {
   const { t: translate } = useTranslation(["components", "dag"]);
@@ -131,6 +142,7 @@ export const PanelButtons = ({
     "tasks",
   );
   const [direction, setDirection] = useLocalStorage<Direction>(`direction-${dagId}`, "RIGHT");
+
   const containerRef = useRef<HTMLDivElement>(null);
   const containerWidth = useContainerWidth(containerRef);
   const handleLimitChange = (event: SelectValueChangeDetails<{ label: string; value: Array<string> }>) => {
@@ -192,6 +204,16 @@ export const PanelButtons = ({
     const trimmedValue = value.trim();
 
     setTriggeringUserFilter(trimmedValue === "" ? undefined : trimmedValue);
+  };
+
+  const handleShowVersionIndicatorChange = (
+    event: SelectValueChangeDetails<{ label: string; value: Array<string> }>,
+  ) => {
+    const [selectedDisplayMode] = event.value;
+
+    if (isVersionIndicatorDisplayOption(selectedDisplayMode)) {
+      setShowVersionIndicatorMode(selectedDisplayMode);
+    }
   };
 
   const handleFocus = (view: string) => {
@@ -476,6 +498,64 @@ export const PanelButtons = ({
                         ) : undefined}
                       </>
                     )}
+                    {/* eslint-disable react/jsx-max-depth */}
+                    <VStack alignItems="flex-start" px={1}>
+                      <Select.Root
+                        // @ts-expect-error option type
+                        collection={showVersionIndicatorOptions}
+                        onValueChange={handleShowVersionIndicatorChange}
+                        size="sm"
+                        value={[showVersionIndicatorMode]}
+                      >
+                        <Select.Label fontSize="xs">
+                          {translate("dag:panel.showVersionIndicator.label")}
+                        </Select.Label>
+                        <Select.Control>
+                          <Select.Trigger>
+                            <Select.ValueText>
+                              <Flex alignItems="center" gap={1}>
+                                {(showVersionIndicatorMode === VersionIndicatorDisplayOptions.BUNDLE ||
+                                  showVersionIndicatorMode === VersionIndicatorDisplayOptions.ALL) && (
+                                  <FiGitCommit color="var(--chakra-colors-orange-focus-ring)" />
+                                )}
+                                {(showVersionIndicatorMode === VersionIndicatorDisplayOptions.DAG ||
+                                  showVersionIndicatorMode === VersionIndicatorDisplayOptions.ALL) && (
+                                  <Circle bg="orange.focusRing" size="8px" />
+                                )}
+                                {translate(
+                                  showVersionIndicatorOptions.items.find(
+                                    (item) => item.value === showVersionIndicatorMode,
+                                  )?.label ?? "",
+                                )}
+                              </Flex>
+                            </Select.ValueText>
+                          </Select.Trigger>
+                          <Select.IndicatorGroup>
+                            <Select.Indicator />
+                          </Select.IndicatorGroup>
+                        </Select.Control>
+                        <Select.Positioner>
+                          <Select.Content>
+                            {showVersionIndicatorOptions.items.map((option) => (
+                              <Select.Item item={option} key={option.value}>
+                                <Flex alignItems="center" gap={1}>
+                                  {(option.value === VersionIndicatorDisplayOptions.BUNDLE ||
+                                    option.value === VersionIndicatorDisplayOptions.ALL) && (
+                                    <FiGitCommit color="var(--chakra-colors-orange-focus-ring)" />
+                                  )}
+                                  {(option.value === VersionIndicatorDisplayOptions.DAG ||
+                                    option.value === VersionIndicatorDisplayOptions.ALL) && (
+                                    <Circle bg="orange.focusRing" size="8px" />
+                                  )}
+                                  {translate(option.label)}
+                                </Flex>
+                              </Select.Item>
+                            ))}
+                          </Select.Content>
+                        </Select.Positioner>
+                      </Select.Root>
+                    </VStack>
+                    {/* eslint-enable react/jsx-max-depth */}
                   </Popover.Body>
                 </Popover.Content>
               </Popover.Positioner>
