@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 import typing
+from abc import ABC
 
 import attrs
 
@@ -41,6 +42,26 @@ class AssetTriggeredTimetable(BaseTimetable):
     """
 
     asset_condition: BaseAsset = attrs.field(alias="assets")
+
+
+class PartitionMapper(ABC):
+    """
+    Base partition mapper class.
+
+    Maps keys from asset events to target dag run partitions.
+    """
+
+
+class IdentityMapper(PartitionMapper):
+    """Partition mapper that does not change the key."""
+
+
+@attrs.define
+class PartitionedAssetTimetable(AssetTriggeredTimetable):
+    """Asset-driven timetable that listens for partitioned assets."""
+
+    asset_condition: BaseAsset = attrs.field(alias="assets")
+    partition_mapper: PartitionMapper
 
 
 def _coerce_assets(o: Collection[Asset] | BaseAsset) -> BaseAsset:

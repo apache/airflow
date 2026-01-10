@@ -52,8 +52,14 @@ from airflow.serialization.definitions.assets import (
     SerializedAssetRef,
 )
 from airflow.serialization.enums import DagAttributeTypes as DAT, Encoding
-from airflow.serialization.helpers import find_registered_custom_timetable, is_core_timetable_import_path
+from airflow.serialization.helpers import (
+    PartitionMapperNotFound,
+    find_registered_custom_timetable,
+    is_core_timetable_import_path,
+    load_partition_mapper,
+)
 from airflow.timetables.base import Timetable as CoreTimetable
+from airflow.timetables.simple import PartitionedAssetTimetable
 from airflow.utils.docs import get_docs_url
 
 if TYPE_CHECKING:
@@ -61,6 +67,7 @@ if TYPE_CHECKING:
 
     from airflow.sdk.definitions._internal.expandinput import ExpandInput
     from airflow.sdk.definitions.asset import BaseAsset
+    from airflow.timetables.simple import PartitionMapper
     from airflow.triggers.base import BaseEventTrigger
 
     T = TypeVar("T")
@@ -211,6 +218,7 @@ class _TimetableSerializer:
         MultipleCronTriggerTimetable: "airflow.timetables.trigger.MultipleCronTriggerTimetable",
         NullTimetable: "airflow.timetables.simple.NullTimetable",
         OnceTimetable: "airflow.timetables.simple.OnceTimetable",
+        PartitionedAssetTimetable: "airflow.timetables.assets.PartitionedAssetTimetable",
     }
 
     @functools.singledispatchmethod
@@ -297,6 +305,13 @@ class _TimetableSerializer:
     def _(self, timetable: CoreTimetable) -> dict[str, Any]:
         return timetable.serialize()
 
+    @serialize.register
+    def _(self, timetable: PartitionedAssetTimetable) -> dict[str, Any]:
+        return {
+            "asset_condition": encode_asset_like(timetable.asset_condition),
+            "partition_mappper": encode_partition_mapper(timetable.partition_mapper),
+        }
+
 
 _serializer = _TimetableSerializer()
 
@@ -347,3 +362,19 @@ def ensure_serialized_asset(obj: BaseAsset | SerializedAssetBase) -> SerializedA
     from airflow.serialization.decoders import decode_asset_like
 
     return decode_asset_like(encode_asset_like(obj))
+
+
+def encode_partition_mapper(var: PartitionMapper) -> dict[str, Any]:
+    """
+    Encode a PartitionMapper instance.
+
+    This delegates most of the serialization work to the type, so the behavior
+    can be completely controlled by a custom subclass.
+
+    :meta private:
+    """
+    partition_mapper_class = type(var)
+    importable_string = qualname(partition_mapper_class)
+    if load_partition_mapper(importable_string) is None:
+        raise PartitionMapperNotFound(importable_string)
+    return {Encoding.TYPE: importable_string, Encoding.VAR: var.serialize()}

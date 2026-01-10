@@ -280,7 +280,8 @@ class PartitionedAssetTimetable(AssetTriggeredTimetable):
         self.partition_mapper = partition_mapper
 
     def serialize(self) -> dict[str, Any]:
-        from airflow.serialization.serialized_objects import encode_asset_like, encode_partition_mapper
+        from airflow.serialization.encoders import encode_partition_mapper
+        from airflow.serialization.serialized_objects import encode_asset_like
 
         return {
             "asset_condition": encode_asset_like(self.asset_condition),
@@ -289,7 +290,8 @@ class PartitionedAssetTimetable(AssetTriggeredTimetable):
 
     @classmethod
     def deserialize(cls, data: dict[str, Any]) -> Timetable:
-        from airflow.serialization.serialized_objects import decode_asset_like, decode_partition_mapper
+        from airflow.serialization.decoders import decode_partition_mapper
+        from airflow.serialization.serialized_objects import decode_asset_like
 
         return cls(
             assets=decode_asset_like(data["asset_condition"]),
