@@ -17,28 +17,24 @@
 # under the License.
 from __future__ import annotations
 
-from collections.abc import Callable
-
+from airflow.models.dag import DAG
 from airflow.providers.apache.spark.operators.spark_pyspark import PySparkOperator
-from airflow.providers.common.compat.sdk import (
-    DecoratedOperator,
-    TaskDecorator,
-    task_decorator_factory,
-)
+from airflow.utils import timezone
+
+DEFAULT_DATE = timezone.datetime(2024, 2, 1, tzinfo=timezone.utc)
 
 
-class _PySparkDecoratedOperator(DecoratedOperator, PySparkOperator):
-    custom_operator_name = "@task.pyspark"
+class TestSparkPySparkOperator:
+    _config = {
+        "conn_id": "spark_special_conn_id",
+    }
 
+    def setup_method(self):
+        args = {"owner": "airflow", "start_date": DEFAULT_DATE}
+        self.dag = DAG("test_dag_id", schedule=None, default_args=args)
 
-def pyspark_task(
-    python_callable: Callable | None = None,
-    multiple_outputs: bool | None = None,
-    **kwargs,
-) -> TaskDecorator:
-    return task_decorator_factory(
-        python_callable=python_callable,
-        multiple_outputs=multiple_outputs,
-        decorated_operator_class=_PySparkDecoratedOperator,
-        **kwargs,
-    )
+    def test_execute(self):
+        # Given / When
+        operator = PySparkOperator(task_id="spark_sql_job", dag=self.dag, **self._config)
+
+        assert self._config["conn_id"] == operator._conn_id
