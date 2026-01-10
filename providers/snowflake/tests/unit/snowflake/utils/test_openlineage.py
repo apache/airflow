@@ -24,12 +24,12 @@ import pytest
 from openlineage.client.event_v2 import Job, Run, RunEvent, RunState
 from openlineage.client.facet_v2 import job_type_job, parent_run
 
-from airflow.exceptions import AirflowOptionalProviderFeatureException
 from airflow.providers.common.compat.openlineage.facet import (
     ErrorMessageRunFacet,
     ExternalQueryRunFacet,
     SQLJobFacet,
 )
+from airflow.providers.common.compat.sdk import AirflowOptionalProviderFeatureException
 from airflow.providers.openlineage.conf import namespace
 from airflow.providers.snowflake.hooks.snowflake import SnowflakeHook
 from airflow.providers.snowflake.hooks.snowflake_sql_api import SnowflakeSqlApiHook

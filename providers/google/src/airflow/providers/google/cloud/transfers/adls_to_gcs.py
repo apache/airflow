@@ -30,7 +30,7 @@ try:
     from airflow.providers.microsoft.azure.hooks.data_lake import AzureDataLakeHook
     from airflow.providers.microsoft.azure.operators.adls import ADLSListOperator
 except ModuleNotFoundError as e:
-    from airflow.exceptions import AirflowOptionalProviderFeatureException
+    from airflow.providers.common.compat.sdk import AirflowOptionalProviderFeatureException
 
     raise AirflowOptionalProviderFeatureException(e)
 

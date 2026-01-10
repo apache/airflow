@@ -27,9 +27,8 @@ import polars as pl
 import pytest
 import sqlalchemy
 
-from airflow.exceptions import AirflowOptionalProviderFeatureException
 from airflow.models import Connection
-from airflow.providers.common.compat.sdk import AirflowException
+from airflow.providers.common.compat.sdk import AirflowException, AirflowOptionalProviderFeatureException
 from airflow.providers.postgres.dialects.postgres import PostgresDialect
 from airflow.providers.postgres.hooks.postgres import CompatConnection, PostgresHook
 
