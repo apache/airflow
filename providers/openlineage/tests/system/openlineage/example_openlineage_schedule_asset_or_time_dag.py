@@ -27,11 +27,13 @@ from datetime import datetime
 
 from airflow import DAG
 from airflow.providers.common.compat.assets import Asset
+from airflow.providers.openlineage.tests.system.openlineage.expected_events import (
+    AIRFLOW_VERSION,
+    get_expected_event_file_path,
+)
+from airflow.providers.openlineage.tests.system.openlineage.operator import OpenLineageTestOperator
 from airflow.providers.standard.operators.bash import BashOperator
 from airflow.timetables.trigger import CronTriggerTimetable
-
-from system.openlineage.expected_events import AIRFLOW_VERSION, get_expected_event_file_path
-from system.openlineage.operator import OpenLineageTestOperator
 
 DAG_ID = "openlineage_schedule_asset_or_time_dag"
 

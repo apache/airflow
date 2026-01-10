@@ -19,8 +19,7 @@ from __future__ import annotations
 import pytest
 
 from airflow.providers.openlineage.plugins.listener import OpenLineageListener
-
-from system.openlineage.transport.variable import VariableTransport
+from airflow.providers.openlineage.tests.system.openlineage.transport.variable import VariableTransport
 
 
 @pytest.fixture(autouse=True)
