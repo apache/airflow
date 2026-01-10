@@ -26,7 +26,7 @@ Changelog
 Features
 ~~~~~~~~
 
-* ``Cache user object fetching in FAB auth manager for improved performance (#60274)``
+* ``Cache user object fetched per request in FAB auth manager for improved performance (#60274)``
 
 3.1.1
 .....
