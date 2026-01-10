@@ -429,6 +429,33 @@ class ProvidersManager(LoggingMixin, metaclass=Singleton):
         self._plugins_set: set[PluginInfo] = set()
         self._init_airflow_core_hooks()
 
+        self._runtime_manager = None
+
+    def __getattribute__(self, name: str):
+        # Hacky but does the trick for now
+        runtime_properties = {
+            "hooks",
+            "taskflow_decorators",
+            "filesystem_module_names",
+            "asset_factories",
+            "asset_uri_handlers",
+            "asset_to_openlineage_converters",
+        }
+
+        if name in runtime_properties:
+            warnings.warn(
+                f"ProvidersManager.{name} is deprecated. Use ProvidersManagerRuntime.{name} from task-sdk instead.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+            if object.__getattribute__(self, "_runtime_manager") is None:
+                from airflow.sdk.providers_manager_runtime import ProvidersManagerRuntime
+
+                object.__setattr__(self, "_runtime_manager", ProvidersManagerRuntime())
+            return getattr(object.__getattribute__(self, "_runtime_manager"), name)
+
+        return object.__getattribute__(self, name)
+
     def _init_airflow_core_hooks(self):
         """Initialize the hooks dict with default hooks from Airflow core."""
         core_dummy_hooks = {
