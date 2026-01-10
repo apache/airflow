@@ -26,7 +26,7 @@ from fastapi import Depends, HTTPException, Request, status
 from fastapi.security import HTTPBearer
 from sqlalchemy import select
 
-from airflow.api_fastapi.auth.tokens import JWTValidator
+from airflow.api_fastapi.auth.tokens import TOKEN_SCOPE_WORKLOAD, JWTValidator
 from airflow.api_fastapi.common.db.common import AsyncSessionDep
 from airflow.api_fastapi.execution_api.datamodels.token import TIToken
 from airflow.configuration import conf
@@ -46,14 +46,12 @@ async def _container(request: Request):
 DepContainer: svcs.Container = Depends(_container)
 
 
-class JWTBearer(HTTPBearer):
+class _BaseJWTBearer(HTTPBearer):
     """
-    A FastAPI security dependency that validates JWT tokens using for the Execution API.
+    Base class for JWT validation in the Execution API.
 
-    This will validate the tokens are signed and that the ``sub`` is a UUID, but nothing deeper than that.
-
-    The dependency result will be an `TIToken` object containing the ``id`` UUID (from the ``sub``) and other
-    validated claims.
+    Validates JWT tokens are properly signed and extracts claims. Subclasses
+    handle scope-specific validation.
     """
 
     def __init__(
@@ -77,7 +75,6 @@ class JWTBearer(HTTPBearer):
         validator: JWTValidator = await services.aget(JWTValidator)
 
         try:
-            # Example: Validate "task_instance_id" component of the path matches the one in the token
             if self.path_param_name:
                 id = request.path_params[self.path_param_name]
                 validators: dict[str, Any] = {
@@ -87,14 +84,55 @@ class JWTBearer(HTTPBearer):
             else:
                 validators = self.required_claims
             claims = await validator.avalidated_claims(creds.credentials, validators)
+
+            # Let subclasses validate scope
+            self._check_scope(claims)
+
             return TIToken(id=claims["sub"], claims=claims)
+        except HTTPException:
+            raise
         except Exception as err:
-            log.warning(
-                "Failed to validate JWT",
-                exc_info=True,
-                token=creds.credentials,
-            )
+            log.warning("Failed to validate JWT", exc_info=True)
             raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=f"Invalid auth token: {err}")
+
+    def _check_scope(self, claims: dict[str, Any]) -> None:
+        """Override in subclasses to validate scope. Raise HTTPException if invalid."""
+        pass
+
+
+class JWTBearer(_BaseJWTBearer):
+    """
+    JWT validation that rejects workload-scoped tokens.
+
+    Used for most Execution API endpoints. Workload-scoped tokens can only be used
+    on the /run endpoint, which exchanges them for short-lived execution tokens.
+    """
+
+    def _check_scope(self, claims: dict[str, Any]) -> None:
+        if claims.get("scope") == TOKEN_SCOPE_WORKLOAD:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Workload tokens cannot access this endpoint. Use the token from /run response.",
+            )
+
+
+class JWTBearerWorkloadScope(_BaseJWTBearer):
+    """
+    JWT validation that ONLY accepts workload-scoped tokens.
+
+    Used exclusively by the /run endpoint. Workload tokens have scope="ExecuteTaskWorkload"
+    and are long-lived to survive executor queue wait times. The /run endpoint validates
+    the workload token and issues a short-lived execution token for subsequent API calls.
+    """
+
+    def _check_scope(self, claims: dict[str, Any]) -> None:
+        scope = claims.get("scope")
+        # Reject if scope is explicitly set to something other than workload scope
+        if scope is not None and scope != TOKEN_SCOPE_WORKLOAD:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="This endpoint requires a workload-scoped token",
+            )
 
 
 JWTBearerDep: TIToken = Depends(JWTBearer())

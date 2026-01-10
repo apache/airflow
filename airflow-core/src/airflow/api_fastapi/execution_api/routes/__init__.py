@@ -52,3 +52,8 @@ authenticated_router.include_router(xcoms.router, prefix="/xcoms", tags=["XComs"
 authenticated_router.include_router(hitl.router, prefix="/hitlDetails", tags=["Human in the Loop"])
 
 execution_api_router.include_router(authenticated_router)
+
+# ti_run_router: /run endpoint - requires workload-scoped tokens (JWTBearerWorkloadDep)
+execution_api_router.include_router(
+    task_instances.ti_run_router, prefix="/task-instances", tags=["Task Instances"]
+)

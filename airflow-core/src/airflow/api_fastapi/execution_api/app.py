@@ -296,6 +296,9 @@ class InProcessExecutionAPI:
     @cached_property
     def app(self):
         if not self._app:
+            import os
+            from base64 import urlsafe_b64encode
+
             from airflow.api_fastapi.common.dagbag import create_dag_bag
             from airflow.api_fastapi.execution_api.app import create_task_execution_api_app
             from airflow.api_fastapi.execution_api.deps import (
@@ -303,18 +306,37 @@ class InProcessExecutionAPI:
                 JWTBearerTIPathDep,
             )
             from airflow.api_fastapi.execution_api.routes.connections import has_connection_access
+            from airflow.api_fastapi.execution_api.routes.task_instances import JWTBearerWorkloadDep
             from airflow.api_fastapi.execution_api.routes.variables import has_variable_access
             from airflow.api_fastapi.execution_api.routes.xcoms import has_xcom_access
+            from airflow.configuration import conf
+
+            # Ensure JWT secret is available for in-process execution.
+            # The /run endpoint needs JWTGenerator to issue execution tokens.
+            # If the config option is empty, generate a random one for the duration of this process.
+            if not conf.get("api_auth", "jwt_secret", fallback=None):
+                logger.debug(
+                    "`api_auth/jwt_secret` is not set, generating a temporary one for in-process execution"
+                )
+                conf.set("api_auth", "jwt_secret", urlsafe_b64encode(os.urandom(16)).decode())
 
             self._app = create_task_execution_api_app()
 
             # Set up dag_bag in app state for dependency injection
             self._app.state.dag_bag = create_dag_bag()
 
+            self._app.state.jwt_generator = _jwt_generator()
+            self._app.state.jwt_validator = _jwt_validator()
+
+            self._app.state.svcs_registry = svcs.Registry()
+            self._app.state.svcs_registry.register_value(JWTGenerator, self._app.state.jwt_generator)
+            self._app.state.svcs_registry.register_value(JWTValidator, self._app.state.jwt_validator)
+
             async def always_allow(): ...
 
             self._app.dependency_overrides[JWTBearerDep.dependency] = always_allow
             self._app.dependency_overrides[JWTBearerTIPathDep.dependency] = always_allow
+            self._app.dependency_overrides[JWTBearerWorkloadDep.dependency] = always_allow
             self._app.dependency_overrides[has_connection_access] = always_allow
             self._app.dependency_overrides[has_variable_access] = always_allow
             self._app.dependency_overrides[has_xcom_access] = always_allow
