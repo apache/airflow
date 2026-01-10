@@ -79,6 +79,12 @@ from airflow.utils.state import DagRunState, TaskInstanceState, TerminalTIState
 if TYPE_CHECKING:
     from sqlalchemy.sql.dml import Update
 
+log = structlog.get_logger(__name__)
+
+JWTBearerWorkloadDep = Depends(JWTBearerWorkloadScope(path_param_name="task_instance_id"))
+
+ti_run_router = VersionedAPIRouter(dependencies=[JWTBearerWorkloadDep])
+
 router = VersionedAPIRouter()
 
 ti_id_router = VersionedAPIRouter(
@@ -88,13 +94,8 @@ ti_id_router = VersionedAPIRouter(
     ]
 )
 
-log = structlog.get_logger(__name__)
 
-# For /run endpoint only - accepts workload-scoped tokens and validates task_instance_id
-JWTBearerWorkloadDep = Depends(JWTBearerWorkloadScope(path_param_name="task_instance_id"))
-
-
-@router.patch(
+@ti_run_router.patch(
     "/{task_instance_id}/run",
     status_code=status.HTTP_200_OK,
     responses={
@@ -103,7 +104,6 @@ JWTBearerWorkloadDep = Depends(JWTBearerWorkloadScope(path_param_name="task_inst
         HTTP_422_UNPROCESSABLE_CONTENT: {"description": "Invalid payload for the state transition"},
     },
     response_model_exclude_unset=True,
-    dependencies=[JWTBearerWorkloadDep],
 )
 async def ti_run(
     task_instance_id: UUID,
