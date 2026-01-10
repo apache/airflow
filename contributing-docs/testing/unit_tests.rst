@@ -1418,7 +1418,7 @@ to figure out one of the problems:
         "apache-airflow-providers-fab",
         # Additional devel dependencies (do not remove this line and add extra development dependencies)
         # Limit deltalake to avoid issue with missing linux ARM wheels: https://github.com/delta-io/delta-rs/issues/4041
-        "deltalake>=1.1.3,!=1.3.0",
+        "deltalake>=1.1.3,!=1.3.0,!=1.3.1",
         "apache-airflow-providers-microsoft-azure",
     ]
 
