@@ -537,15 +537,22 @@ class XComOperations:
         self,
         dag_id: str,
         run_id: str,
-        task_id: str,
-        key: str,
+        task_id: str | None = None,
+        key: str | None = None,
         map_index: int | None = None,
     ) -> OKResponse:
-        """Delete a XCom with given key via the API server."""
-        params = {}
+        """Delete XCom entry(ies) via the API server."""
+        url = f"xcoms/{dag_id}/{run_id}"
+        params: dict[str, str | int] = {}
+
         if map_index is not None and map_index >= 0:
-            params = {"map_index": map_index}
-        self.client.delete(f"xcoms/{dag_id}/{run_id}/{task_id}/{key}", params=params)
+            params["map_index"] = map_index
+        if task_id is not None:
+            params["task_id"] = task_id
+        if key is not None:
+            params["key"] = key
+
+        self.client.delete(url=url, params=params)
         # Any error from the server will anyway be propagated down to the supervisor,
         # so we choose to send a generic response to the supervisor over the server response to
         # decouple from the server response string
