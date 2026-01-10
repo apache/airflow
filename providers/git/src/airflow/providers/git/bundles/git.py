@@ -18,7 +18,7 @@ from __future__ import annotations
 
 import os
 import shutil
-from contextlib import nullcontext
+from contextlib import nullcontext, suppress
 from pathlib import Path
 from urllib.parse import urlparse
 
@@ -27,11 +27,57 @@ from git import Repo
 from git.exc import BadName, GitCommandError, InvalidGitRepositoryError, NoSuchPathError
 from tenacity import retry, retry_if_exception_type, stop_after_attempt
 
-from airflow.dag_processing.bundles.base import BaseDagBundle
+from airflow.dag_processing.bundles.base import BaseDagBundle, get_bundle_permissions
 from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.git.hooks.git import GitHook
 
 log = structlog.get_logger(__name__)
+
+
+def _apply_permissions_recursively(path: Path) -> None:
+    """
+    Apply configured bundle permissions to a directory tree.
+
+    This ensures that when user impersonation is used, the impersonated user
+    can access the cloned repository files.
+
+    :param path: The root path to apply permissions to recursively
+    """
+    folder_perms, file_perms = get_bundle_permissions()
+    with suppress(OSError):
+        for root, dirs, files in os.walk(path):
+            root_path = Path(root)
+            with suppress(OSError):
+                root_path.chmod(folder_perms)
+            for d in dirs:
+                with suppress(OSError):
+                    (root_path / d).chmod(folder_perms)
+            for f in files:
+                with suppress(OSError):
+                    (root_path / f).chmod(file_perms)
+
+
+def _configure_git_safe_directory(path: Path) -> None:
+    """
+    Add path to git safe.directory to allow cross-user access.
+
+    Git 2.35.2+ refuses to operate on repositories owned by different users
+    without explicit safe directory configuration. This is needed when using
+    user impersonation (run_as_user) where the repository is created by one
+    user but accessed by another.
+
+    :param path: The repository path to add as a safe directory
+    """
+    import subprocess
+
+    try:
+        subprocess.run(
+            ["git", "config", "--global", "--add", "safe.directory", str(path)],
+            check=False,
+            capture_output=True,
+        )
+    except Exception:
+        log.debug("Could not configure git safe.directory for %s", path)
 
 
 class GitDagBundle(BaseDagBundle):
@@ -170,8 +216,13 @@ class GitDagBundle(BaseDagBundle):
                     url=self.bare_repo_path,
                     to_path=self.repo_path,
                 )
+                # Apply permissions for multi-user access (e.g., impersonation)
+                _apply_permissions_recursively(self.repo_path)
             else:
                 self._log.debug("repo exists", repo_path=self.repo_path)
+
+            # Configure git safe.directory for cross-user access (git 2.35.2+)
+            _configure_git_safe_directory(self.repo_path)
             self.repo = Repo(self.repo_path)
         except NoSuchPathError as e:
             # Protection should the bare repo be removed manually
@@ -204,6 +255,11 @@ class GitDagBundle(BaseDagBundle):
                     bare=True,
                     env=self.hook.env if self.hook else None,
                 )
+                # Apply permissions for multi-user access (e.g., impersonation)
+                _apply_permissions_recursively(self.bare_repo_path)
+
+            # Configure git safe.directory for cross-user access (git 2.35.2+)
+            _configure_git_safe_directory(self.bare_repo_path)
             self.bare_repo = Repo(self.bare_repo_path)
 
             # Fetch to ensure we have latest refs and validate repo integrity
