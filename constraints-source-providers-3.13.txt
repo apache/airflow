@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2026-01-09T13:56:35.499275
+# This constraints file was automatically generated on 2026-01-09T19:47:48.961082
 # via `uv sync --resolution highest for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider distributions.
@@ -41,7 +41,7 @@ a2wsgi==1.10.10
 adal==1.2.7
 adlfs==2025.8.0
 aenum==3.1.16
-aiobotocore==2.26.0
+aiobotocore==3.1.0
 aiofiles==24.1.0
 aiohappyeyeballs==2.6.1
 aiohttp==3.13.3
@@ -119,8 +119,8 @@ bitarray==3.8.0
 black==25.12.0
 bleach==6.3.0
 blinker==1.9.0
-boto3==1.41.5
-botocore==1.41.5
+boto3==1.42.19
+botocore==1.42.19
 build==1.4.0
 cachetools==6.2.4
 cadwyn==6.0.0
@@ -189,39 +189,39 @@ fastapi==0.128.0
 fastavro==1.12.1
 fastjsonschema==2.21.2
 fastuuid==0.14.0
-filelock==3.20.2
+filelock==3.20.3
 flit==3.12.0
 flit_core==3.12.0
 flower==2.0.1
 frozenlist==1.8.0
-fsspec==2025.12.0
+fsspec==2026.1.0
 future==1.0.0
 gcloud-aio-auth==5.4.2
 gcloud-aio-bigquery==7.1.0
 gcloud-aio-storage==9.6.1
-gcsfs==2025.12.0
+gcsfs==2026.1.0
 geomet==1.1.0
 gevent==25.9.1
 gitdb==4.0.12
 google-ads==28.4.1
-google-analytics-admin==0.26.0
+google-analytics-admin==0.27.0
 google-api-core==2.29.0
 google-api-python-client==2.187.0
 google-auth-httplib2==0.3.0
 google-auth-oauthlib==1.2.2
 google-auth==2.47.0
 google-cloud-aiplatform==1.133.0
-google-cloud-alloydb==0.6.0
-google-cloud-appengine-logging==1.7.0
+google-cloud-alloydb==0.7.0
+google-cloud-appengine-logging==1.8.0
 google-cloud-audit-log==0.4.0
-google-cloud-automl==2.17.0
-google-cloud-batch==0.19.0
-google-cloud-bigquery-datatransfer==3.20.0
+google-cloud-automl==2.18.0
+google-cloud-batch==0.20.0
+google-cloud-bigquery-datatransfer==3.21.0
 google-cloud-bigquery==3.40.0
 google-cloud-bigtable==2.35.0
-google-cloud-build==3.34.0
-google-cloud-compute==1.40.0
-google-cloud-container==2.61.0
+google-cloud-build==3.35.0
+google-cloud-compute==1.41.0
+google-cloud-container==2.62.0
 google-cloud-core==2.5.0
 google-cloud-datacatalog==3.28.0
 google-cloud-dataflow-client==0.10.0
@@ -281,7 +281,7 @@ httpcore==1.0.9
 httplib2==0.31.0
 httptools==0.7.1
 httpx==0.28.1
-huggingface_hub==1.3.0
+huggingface_hub==1.3.1
 humanize==4.15.0
 hvac==2.4.0
 hyperframe==6.1.0
@@ -431,7 +431,7 @@ papermill==2.6.0
 paramiko==3.5.1
 parso==0.8.5
 pathable==0.4.4
-pathspec==1.0.2
+pathspec==1.0.3
 pbr==7.0.3
 pdbr==0.9.7
 pendulum==3.1.0
@@ -552,8 +552,8 @@ rpds-py==0.30.0
 rsa==4.9.1
 ruamel.yaml==0.19.1
 ruff==0.14.11
-s3fs==2025.12.0
-s3transfer==0.15.0
+s3fs==2026.1.0
+s3transfer==0.16.0
 sagemaker_studio==1.0.23
 scikit-learn==1.8.0
 scipy==1.16.3
@@ -674,7 +674,7 @@ uvloop==0.22.1
 validators==0.35.0
 vertica-python==1.4.0
 vine==5.1.0
-virtualenv==20.36.0
+virtualenv==20.36.1
 watchfiles==1.1.1
 watchtower==3.4.0
 wcwidth==0.2.14
@@ -684,7 +684,7 @@ websocket-client==1.9.0
 websockets==15.0.1
 wheel==0.45.1
 wirerope==1.0.0
-wrapt==1.17.3
+wrapt==2.0.1
 xmltodict==1.0.2
 yamllint==1.37.1
 yarl==1.22.0
