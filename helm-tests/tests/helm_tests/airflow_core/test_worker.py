@@ -133,6 +133,29 @@ class TestWorker:
 
         assert jmespath.search("spec.revisionHistoryLimit", docs[0]) == expected
 
+    @pytest.mark.parametrize(
+        ("worker_values", "global_limit", "expected"),
+        [
+            ({}, 0, 0),
+            ({"revisionHistoryLimit": 0}, None, 0),
+            ({"celery": {"revisionHistoryLimit": 0}}, None, 0),
+            ({"revisionHistoryLimit": 0}, 10, 0),
+            ({"celery": {"revisionHistoryLimit": 0}}, 10, 0),
+            ({"revisionHistoryLimit": 0, "celery": {"revisionHistoryLimit": 0}}, 10, 0),
+        ],
+    )
+    def test_revision_history_limit_zero(self, worker_values, global_limit, expected):
+        """Test that revisionHistoryLimit can be set to 0."""
+        values = {"workers": worker_values}
+        if global_limit is not None:
+            values["revisionHistoryLimit"] = global_limit
+        docs = render_chart(
+            values=values,
+            show_only=["templates/workers/worker-deployment.yaml"],
+        )
+
+        assert jmespath.search("spec.revisionHistoryLimit", docs[0]) == expected
+
     def test_should_add_extra_containers(self):
         docs = render_chart(
             values={
@@ -438,22 +461,42 @@ class TestWorker:
         assert expected_update_strategy == jmespath.search("spec.updateStrategy", docs[0])
 
     @pytest.mark.parametrize(
-        ("persistence", "strategy", "expected_strategy"),
+        ("workers_values", "expected_strategy"),
         [
-            (True, None, None),
+            ({"celery": {"persistence": {"enabled": True}}}, None),
             (
-                False,
-                {"rollingUpdate": {"maxSurge": "100%", "maxUnavailable": "50%"}},
+                {"celery": {"persistence": {"enabled": False}}},
                 {"rollingUpdate": {"maxSurge": "100%", "maxUnavailable": "50%"}},
             ),
-            (False, None, None),
+            (
+                {"strategy": None, "celery": {"persistence": {"enabled": False}}},
+                {"rollingUpdate": {"maxSurge": "100%", "maxUnavailable": "50%"}},
+            ),
+            (
+                {
+                    "strategy": {"rollingUpdate": {"maxSurge": "50%", "maxUnavailable": "100%"}},
+                    "celery": {"persistence": {"enabled": False}},
+                },
+                {"rollingUpdate": {"maxSurge": "100%", "maxUnavailable": "50%"}},
+            ),
+            (
+                {"celery": {"strategy": None, "persistence": {"enabled": False}}},
+                {"rollingUpdate": {"maxSurge": "100%", "maxUnavailable": "50%"}},
+            ),
+            (
+                {
+                    "strategy": {"rollingUpdate": {"maxSurge": "50%", "maxUnavailable": "100%"}},
+                    "celery": {"strategy": None, "persistence": {"enabled": False}},
+                },
+                {"rollingUpdate": {"maxSurge": "50%", "maxUnavailable": "100%"}},
+            ),
         ],
     )
-    def test_workers_strategy(self, persistence, strategy, expected_strategy):
+    def test_workers_strategy(self, workers_values, expected_strategy):
         docs = render_chart(
             values={
                 "executor": "CeleryExecutor",
-                "workers": {"celery": {"persistence": {"enabled": persistence}}, "strategy": strategy},
+                "workers": workers_values,
             },
             show_only=["templates/workers/worker-deployment.yaml"],
         )
