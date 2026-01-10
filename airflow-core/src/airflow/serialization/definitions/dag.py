@@ -40,7 +40,9 @@ from airflow.models.dagrun import DagRun
 from airflow.models.deadline import Deadline
 from airflow.models.taskinstancekey import TaskInstanceKey
 from airflow.models.tasklog import LogTemplate
-from airflow.sdk.definitions.deadline import DeadlineReference
+from airflow.observability.stats import Stats
+from airflow.sdk.definitions.deadline import DeadlineReference, DeadlineAlertFields
+from airflow.serialization.enums import DagAttributeTypes as DAT, Encoding
 from airflow.serialization.definitions.param import SerializedParamsDict
 from airflow.timetables.base import DagRunInfo, DataInterval, TimeRestriction
 from airflow.utils.session import NEW_SESSION, provide_session
@@ -57,6 +59,7 @@ if TYPE_CHECKING:
     from sqlalchemy.orm import Session
     from typing_extensions import TypeIs
 
+    from airflow.models.deadline_alert import DeadlineAlert as DeadlineAlertModel
     from airflow.models.taskinstance import TaskInstance
     from airflow.sdk import DAG
     from airflow.sdk.definitions.deadline import DeadlineAlert
@@ -96,7 +99,7 @@ class SerializedDAG:
     access_control: dict[str, dict[str, Collection[str]]] | None = None
     catchup: bool = False
     dagrun_timeout: datetime.timedelta | None = None
-    deadline: list[DeadlineAlert] | DeadlineAlert | None = None
+    deadline: list[str] | None = None
     default_args: dict[str, Any] = attrs.field(factory=dict)
     description: str | None = None
     disable_bundle_versioning: bool = False
@@ -605,26 +608,77 @@ class SerializedDAG:
         )
 
         if self.deadline:
-            for deadline in cast("list", self.deadline):
-                if isinstance(deadline.reference, DeadlineReference.TYPES.DAGRUN):
-                    deadline_time = deadline.reference.evaluate_with(
-                        session=session,
-                        interval=deadline.interval,
-                        dag_id=self.dag_id,
-                        run_id=run_id,
-                    )
-                    if deadline_time is not None:
-                        session.add(
-                            Deadline(
-                                deadline_time=deadline_time,
-                                callback=deadline.callback,
-                                dagrun_id=orm_dagrun.id,
-                                dag_id=orm_dagrun.dag_id,
-                            )
-                        )
-                        Stats.incr("deadline_alerts.deadline_created", tags={"dag_id": self.dag_id})
+            self._process_dagrun_deadline_alerts(orm_dagrun, session)
 
         return orm_dagrun
+
+    def _process_dagrun_deadline_alerts(
+        self,
+        orm_dagrun: DagRun,
+        session: Session,
+    ) -> None:
+        """
+        Process deadline alerts for a newly created DagRun.
+
+        Creates Deadline records for any DeadlineAlerts that reference DAGRUN.
+
+        :param orm_dagrun: The newly created DagRun
+        :param session: Database session
+        """
+        # Import here to avoid circular dependency
+        from airflow.models.serialized_dag import SerializedDagModel
+
+        # Get the serialized_dag ID for this DAG
+        serialized_dag_id = session.scalar(
+            select(SerializedDagModel.id).where(
+                SerializedDagModel.dag_version_id == orm_dagrun.created_dag_version_id
+            )
+        )
+
+        if not serialized_dag_id:
+            return
+
+        # Query deadline alerts by serialized_dag_id
+        deadline_alert_records = (
+            session.query(DeadlineAlertModel)
+            .filter(DeadlineAlertModel.serialized_dag_id == serialized_dag_id)
+            .all()
+        )
+
+        for deadline_alert in deadline_alert_records:
+            if not deadline_alert:
+                continue
+            deserialized_deadline_alert = DeadlineAlert.deserialize_deadline_alert(
+                {
+                    Encoding.TYPE: DAT.DEADLINE_ALERT,
+                    Encoding.VAR: {
+                        DeadlineAlertFields.REFERENCE: deadline_alert.reference,
+                        DeadlineAlertFields.INTERVAL: deadline_alert.interval,
+                        DeadlineAlertFields.CALLBACK: deadline_alert.callback_def,
+                    },
+                }
+            )
+
+            if isinstance(deserialized_deadline_alert.reference, DeadlineReference.TYPES.DAGRUN):
+                deadline_time = deserialized_deadline_alert.reference.evaluate_with(
+                    session=session,
+                    interval=deserialized_deadline_alert.interval,
+                    # TODO : Pretty sure we can drop these last two; verify after testing is complete
+                    dag_id=self.dag_id,
+                    run_id=orm_dagrun.run_id,
+                )
+
+                if deadline_time is not None:
+                    session.add(
+                        Deadline(
+                            deadline_time=deadline_time,
+                            callback=deserialized_deadline_alert.callback,
+                            dagrun_id=orm_dagrun.id,
+                            deadline_alert_id=deadline_alert.id,
+                            dag_id=orm_dagrun.dag_id,
+                        )
+                    )
+                    Stats.incr("deadline_alerts.deadline_created", tags={"dag_id": self.dag_id})
 
     @provide_session
     def set_task_instance_state(
