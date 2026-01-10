@@ -207,6 +207,10 @@ class SerializedMappedOperator(DAGNode):
         return self._get_partial_kwargs_or_operator_default("depends_on_past")
 
     @property
+    def depends_on_previous_task_ids(self) -> list[str] | None:
+        return self._get_partial_kwargs_or_operator_default("depends_on_previous_task_ids")
+
+    @property
     def ignore_first_depends_on_past(self) -> bool:
         return self._get_partial_kwargs_or_operator_default("ignore_first_depends_on_past")
 
