@@ -45,7 +45,6 @@ export const ButtonGroupToggle = <T extends string = string>({
 
       return (
         <Button
-          bg={isSelected ? "colorPalette.solid" : undefined}
           disabled={option.disabled}
           key={option.value}
           onClick={() => onChange(option.value)}

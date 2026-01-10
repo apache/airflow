@@ -32,7 +32,6 @@ export const RequiredActionFilter = ({ needsReview, onToggle }: Props) => {
 
   return (
     <Button
-      bg={needsReview ? "colorPalette.solid" : undefined}
       colorPalette="brand"
       data-testid="dags-needs-review-filter"
       onClick={onToggle}
