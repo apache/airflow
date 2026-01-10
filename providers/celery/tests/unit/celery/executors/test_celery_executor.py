@@ -33,12 +33,12 @@ from celery import Celery
 from celery.result import AsyncResult
 from kombu.asynchronous import set_event_loop
 
-from airflow.configuration import conf
 from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.models.dag import DAG
 from airflow.models.taskinstance import TaskInstance, TaskInstanceKey
 from airflow.providers.celery.executors import celery_executor, celery_executor_utils, default_celery
 from airflow.providers.celery.executors.celery_executor import CeleryExecutor
+from airflow.providers.common.compat.sdk import conf
 from airflow.utils.state import State
 
 from tests_common.test_utils import db
