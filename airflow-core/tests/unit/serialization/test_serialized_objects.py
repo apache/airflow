@@ -61,9 +61,9 @@ from airflow.sdk.definitions.asset import (
 from airflow.sdk.definitions.deadline import (
     AsyncCallback,
     DeadlineAlert,
-    DeadlineAlertFields,
     DeadlineReference,
 )
+from airflow.serialization.definitions.deadline import DeadlineAlertFields
 from airflow.sdk.definitions.decorators import task
 from airflow.sdk.definitions.operator_resources import Resources
 from airflow.sdk.definitions.param import Param

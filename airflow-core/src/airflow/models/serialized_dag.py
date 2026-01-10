@@ -49,7 +49,7 @@ from airflow.serialization.dag_dependency import DagDependency
 from airflow.serialization.definitions.assets import SerializedAssetUniqueKey as UKey
 from airflow.serialization.enums import Encoding
 from airflow.serialization.serialized_objects import DagSerialization
-from airflow.sdk.definitions.deadline import DeadlineAlertFields  # TODO: move to airflow.serialization.deadline?
+from airflow.serialization.definitions.deadline import DeadlineAlertFields
 from airflow.settings import json
 from airflow.utils.hashlib_wrapper import md5
 from airflow.utils.session import NEW_SESSION, provide_session
