@@ -207,7 +207,6 @@ class TestAssetsOperations:
         producing_tasks=[],
         consuming_tasks=[],
         aliases=[],
-        watchers=[],
         group="group",
     )
     asset_alias_response = AssetAliasResponse(
