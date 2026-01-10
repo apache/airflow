@@ -1,0 +1,1 @@
+Re-enable emission of ``dag_processing.last_duration.<dag_file>`` metric that was accidentally disabled in Airflow 3.0.
