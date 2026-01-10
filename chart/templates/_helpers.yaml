@@ -1183,9 +1183,11 @@ Usage:
 */}}
 {{- define "airflow.revisionHistoryLimit" -}}
   {{- $result := "" -}}
+  {{- $found := false -}}
   {{- range . -}}
-    {{- if and (eq $result "") (not (kindIs "invalid" .)) -}}
+    {{- if and (not $found) (not (kindIs "invalid" .)) -}}
       {{- $result = . -}}
+      {{- $found = true -}}
     {{- end -}}
   {{- end -}}
   {{- $result -}}
