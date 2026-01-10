@@ -1772,7 +1772,8 @@ export type ConfigResponse = {
     dashboard_alert: Array<UIAlert>;
     show_external_log_redirect: boolean;
     external_log_name?: string | null;
-    theme: Theme;
+    theme: Theme | null;
+    multi_team: boolean;
 };
 
 /**

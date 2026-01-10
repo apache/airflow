@@ -27,7 +27,6 @@ from pathlib import Path
 import pytest
 
 from airflow.jobs.job import Job
-from airflow.listeners.listener import get_listener_manager
 from airflow.models import TaskInstance
 from airflow.providers.google.cloud.openlineage.utils import get_from_nullable_chain
 from airflow.providers.openlineage.plugins.listener import OpenLineageListener
@@ -75,22 +74,15 @@ with tempfile.TemporaryDirectory(prefix="venv") as tmp_dir:
         def teardown_method(self):
             clear_db_runs()
 
-        @pytest.fixture(autouse=True)
-        def clean_listener_manager(self):
-            get_listener_manager().clear()
-            yield
-            get_listener_manager().clear()
-
-        def setup_job(self, task_name, run_id):
+        def setup_job(self, task_name, run_id, listener_manager):
             from airflow.jobs.local_task_job_runner import LocalTaskJobRunner
 
             dirpath = Path(tmp_dir)
             if dirpath.exists():
                 shutil.rmtree(dirpath)
             dirpath.mkdir(exist_ok=True, parents=True)
-            lm = get_listener_manager()
             listener = OpenLineageListener()
-            lm.add_listener(listener)
+            listener_manager(listener)
 
             dagbag = DagBag(
                 dag_folder=TEST_DAG_FOLDER,
@@ -116,10 +108,10 @@ with tempfile.TemporaryDirectory(prefix="venv") as tmp_dir:
             return job_runner.task_runner.return_code(timeout=60)
 
         @conf_vars({("openlineage", "transport"): f'{{"type": "file", "log_file_path": "{listener_path}"}}'})
-        def test_not_stalled_task_emits_proper_lineage(self):
+        def test_not_stalled_task_emits_proper_lineage(self, listener_manager):
             task_name = "execute_no_stall"
             run_id = "test1"
-            self.setup_job(task_name, run_id)
+            self.setup_job(task_name, run_id, listener_manager)
 
             events = get_sorted_events(tmp_dir)
             log.info(json.dumps(events, indent=2, sort_keys=True))
@@ -127,10 +119,10 @@ with tempfile.TemporaryDirectory(prefix="venv") as tmp_dir:
             assert has_value_in_events(events, ["inputs", "name"], "on-complete")
 
         @conf_vars({("openlineage", "transport"): f'{{"type": "file", "log_file_path": "{listener_path}"}}'})
-        def test_not_stalled_failing_task_emits_proper_lineage(self):
+        def test_not_stalled_failing_task_emits_proper_lineage(self, listener_manager):
             task_name = "execute_fail"
             run_id = "test_failure"
-            self.setup_job(task_name, run_id)
+            self.setup_job(task_name, run_id, listener_manager)
 
             events = get_sorted_events(tmp_dir)
             assert has_value_in_events(events, ["inputs", "name"], "on-start")
@@ -142,8 +134,10 @@ with tempfile.TemporaryDirectory(prefix="venv") as tmp_dir:
                 ("openlineage", "execution_timeout"): "15",
             }
         )
-        def test_short_stalled_task_emits_proper_lineage(self):
-            self.setup_job("execute_short_stall", "test_short_stalled_task_emits_proper_lineage")
+        def test_short_stalled_task_emits_proper_lineage(self, listener_manager):
+            self.setup_job(
+                "execute_short_stall", "test_short_stalled_task_emits_proper_lineage", listener_manager
+            )
             events = get_sorted_events(tmp_dir)
             assert has_value_in_events(events, ["inputs", "name"], "on-start")
             assert has_value_in_events(events, ["inputs", "name"], "on-complete")
@@ -154,18 +148,23 @@ with tempfile.TemporaryDirectory(prefix="venv") as tmp_dir:
                 ("openlineage", "execution_timeout"): "3",
             }
         )
-        def test_short_stalled_task_extraction_with_low_execution_is_killed_by_ol_timeout(self):
+        def test_short_stalled_task_extraction_with_low_execution_is_killed_by_ol_timeout(
+            self, listener_manager
+        ):
             self.setup_job(
                 "execute_short_stall",
                 "test_short_stalled_task_extraction_with_low_execution_is_killed_by_ol_timeout",
+                listener_manager,
             )
             events = get_sorted_events(tmp_dir)
             assert has_value_in_events(events, ["inputs", "name"], "on-start")
             assert not has_value_in_events(events, ["inputs", "name"], "on-complete")
 
         @conf_vars({("openlineage", "transport"): f'{{"type": "file", "log_file_path": "{listener_path}"}}'})
-        def test_mid_stalled_task_is_killed_by_ol_timeout(self):
-            self.setup_job("execute_mid_stall", "test_mid_stalled_task_is_killed_by_openlineage")
+        def test_mid_stalled_task_is_killed_by_ol_timeout(self, listener_manager):
+            self.setup_job(
+                "execute_mid_stall", "test_mid_stalled_task_is_killed_by_openlineage", listener_manager
+            )
             events = get_sorted_events(tmp_dir)
             assert has_value_in_events(events, ["inputs", "name"], "on-start")
             assert not has_value_in_events(events, ["inputs", "name"], "on-complete")
@@ -177,7 +176,7 @@ with tempfile.TemporaryDirectory(prefix="venv") as tmp_dir:
                 ("core", "task_success_overtime"): "3",
             }
         )
-        def test_success_overtime_kills_tasks(self):
+        def test_success_overtime_kills_tasks(self, listener_manager):
             # This test checks whether LocalTaskJobRunner kills OL listener which take
             # longer time than permitted by core.task_success_overtime setting
             from airflow.jobs.local_task_job_runner import LocalTaskJobRunner
@@ -186,8 +185,7 @@ with tempfile.TemporaryDirectory(prefix="venv") as tmp_dir:
             if dirpath.exists():
                 shutil.rmtree(dirpath)
             dirpath.mkdir(exist_ok=True, parents=True)
-            lm = get_listener_manager()
-            lm.add_listener(OpenLineageListener())
+            listener_manager(OpenLineageListener())
 
             dagbag = DagBag(
                 dag_folder=TEST_DAG_FOLDER,
