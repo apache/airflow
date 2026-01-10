@@ -34,6 +34,9 @@ inputs:
   make-mnt-writeable-and-cleanup:
     description: 'Whether to cleanup /mnt'
     required: true
+  branch:
+    description: "Branch used to run the CI jobs in (main/v*_*_test)."
+    required: false
 outputs:
   host-python-version:
     description: Python version used in host
@@ -59,11 +62,36 @@ runs:
         key: ${{ inputs.image-type }}-image-save-v3-${{ inputs.platform }}-${{ inputs.python }}
         path: "/mnt/"
         only-current-branch: 'true'
+      if: inputs.branch != 'main' || (inputs.branch == 'main' && inputs.image-type == 'ci')
+    - name: "Restore ${{ inputs.image-type }} docker image ${{ inputs.platform }}:${{ inputs.python }}"
+      uses: apache/infrastructure-actions/stash/restore@1c35b5ccf8fba5d4c3fdf25a045ca91aa0cbc468
+      with:
+        # yamllint disable rule:line-length
+        key: >
+          ${{ inputs.image-type }}-image-save-v3-${{ inputs.platform }}-${{ inputs.python }}-${{ inputs.branch }}
+        # yamllint enable rule:line-length
+        path: "/mnt/"
+        only-current-branch: 'true'
+      if: inputs.branch == 'main' && inputs.image-type == 'prod'
     - name: "Load ${{ inputs.image-type }} image ${{ inputs.platform }}:${{ inputs.python }}"
       env:
         PLATFORM: ${{ inputs.platform }}
         PYTHON: ${{ inputs.python }}
         IMAGE_TYPE: ${{ inputs.image-type }}
-      run: >
-        breeze ${IMAGE_TYPE}-image load --platform "${PLATFORM}" --python "${PYTHON}" --image-file-dir "/mnt"
+        ACTION_BRANCH: ${{ inputs.branch }}
+      run: |
+        breeze ${IMAGE_TYPE}-image load --platform "${PLATFORM}" --python "${PYTHON}" \
+        --image-file-dir "/mnt"
+      if: inputs.branch != 'main' || (inputs.branch == 'main' && inputs.image-type == 'ci')
+      shell: bash
+    - name: "Load ${{ inputs.image-type }} image ${{ inputs.platform }}:${{ inputs.python }}"
+      env:
+        PLATFORM: ${{ inputs.platform }}
+        PYTHON: ${{ inputs.python }}
+        IMAGE_TYPE: ${{ inputs.image-type }}
+        ACTION_BRANCH: ${{ inputs.branch }}
+      run: |
+        breeze ${IMAGE_TYPE}-image load --platform "${PLATFORM}" --python "${PYTHON}" \
+        --image-file-dir "/mnt" --action-branch "${ACTION_BRANCH}"
+      if: inputs.branch == 'main' && inputs.image-type == 'prod'
       shell: bash
