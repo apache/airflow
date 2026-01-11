@@ -106,7 +106,7 @@ def _patch_task_instance_state(
     task_instance_body: BulkTaskInstanceBody | PatchTaskInstanceBody,
     data: dict,
     session: Session,
-) -> None:
+) -> list[TI]:
     map_index = getattr(task_instance_body, "map_index", None)
     map_indexes = None if map_index is None else [map_index]
 
@@ -142,6 +142,8 @@ def _patch_task_instance_state(
                 get_listener_manager().hook.on_task_instance_skipped(previous_state=None, task_instance=ti)
         except Exception:
             log.exception("error calling listener")
+
+    return updated_tis
 
 
 def _patch_task_instance_note(
