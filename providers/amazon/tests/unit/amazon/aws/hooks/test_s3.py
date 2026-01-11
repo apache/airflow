@@ -1838,6 +1838,7 @@ class TestAwsS3Hook:
         )
         logs_string = get_logs_string(hook.log.debug.call_args_list)
         assert "differ. Downloaded dag_03.py to" in logs_string
+        assert Path(sync_local_dir).joinpath("dag_03.py").read_text() == "test data-changed"
 
         local_file_same_size = Path(sync_local_dir).joinpath("dag_04.py")
         local_file_same_size.write_text("same size")
