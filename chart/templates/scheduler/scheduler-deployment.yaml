@@ -41,7 +41,7 @@
 {{- $tolerations := or .Values.scheduler.tolerations .Values.tolerations }}
 {{- $topologySpreadConstraints := or .Values.scheduler.topologySpreadConstraints .Values.topologySpreadConstraints }}
 {{- $revisionHistoryLimit := include "airflow.revisionHistoryLimit" (list .Values.scheduler.revisionHistoryLimit .Values.revisionHistoryLimit) }}
-{{- $securityContext := include "airflowPodSecurityContext" (list . .Values.scheduler) }}
+{{- $securityContext := include "airflowPodSecurityContext" (list .Values.scheduler .Values) }}
 {{- $containerSecurityContext := include "containerSecurityContext" (list . .Values.scheduler) }}
 {{- $containerSecurityContextWaitForMigrations := include "containerSecurityContext" (list . .Values.scheduler.waitForMigrations) }}
 {{- $containerSecurityContextLogGroomerSidecar := include "containerSecurityContext" (list . .Values.scheduler.logGroomerSidecar) }}

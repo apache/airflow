@@ -52,7 +52,7 @@
 {{- $tolerations := or .Values.workers.tolerations .Values.tolerations }}
 {{- $topologySpreadConstraints := or .Values.workers.topologySpreadConstraints .Values.topologySpreadConstraints }}
 {{- $revisionHistoryLimit := include "airflow.revisionHistoryLimit" (list .Values.workers.celery.revisionHistoryLimit .Values.workers.revisionHistoryLimit .Values.revisionHistoryLimit) }}
-{{- $securityContext := include "airflowPodSecurityContext" (list . .Values.workers) }}
+{{- $securityContext := include "airflowPodSecurityContext" (list .Values.workers .Values) }}
 {{- $containerSecurityContext := include "containerSecurityContext" (list . .Values.workers) }}
 {{- $containerSecurityContextPersistence := include "containerSecurityContext" (list . .Values.workers.persistence) }}
 {{- $containerSecurityContextCeleryPersistence := include "containerSecurityContext" (list . .Values.workers.celery.persistence) }}

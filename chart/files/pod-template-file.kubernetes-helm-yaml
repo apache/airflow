@@ -21,7 +21,7 @@
 {{- $affinity := or .Values.workers.affinity .Values.affinity }}
 {{- $tolerations := or .Values.workers.tolerations .Values.tolerations }}
 {{- $topologySpreadConstraints := or .Values.workers.topologySpreadConstraints .Values.topologySpreadConstraints }}
-{{- $securityContext := include "airflowPodSecurityContext" (list . .Values.workers) }}
+{{- $securityContext := include "airflowPodSecurityContext" (list .Values.workers .Values) }}
 {{- $containerSecurityContextKerberosSidecar := include "containerSecurityContext" (list . .Values.workers.kerberosSidecar) }}
 {{- $containerLifecycleHooksKerberosSidecar := or .Values.workers.kerberosSidecar.containerLifecycleHooks .Values.containerLifecycleHooks }}
 {{- $containerSecurityContext := include "containerSecurityContext" (list . .Values.workers) }}
