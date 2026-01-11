@@ -332,6 +332,26 @@ class InProcessExecutionAPI:
             self._app.state.svcs_registry.register_value(JWTGenerator, self._app.state.jwt_generator)
             self._app.state.svcs_registry.register_value(JWTValidator, self._app.state.jwt_validator)
 
+            from airflow.api_fastapi.execution_api.deps import _container
+
+            class InProcessContainer:
+                """A container-like object that provides services from app.state."""
+
+                def __init__(self, app_state):
+                    self._app_state = app_state
+
+                async def aget(self, svc_type):
+                    if svc_type is JWTGenerator:
+                        return self._app_state.jwt_generator
+                    if svc_type is JWTValidator:
+                        return self._app_state.jwt_validator
+                    raise KeyError(svc_type)
+
+            async def _inprocess_container():
+                yield InProcessContainer(self._app.state)
+
+            self._app.dependency_overrides[_container] = _inprocess_container
+
             async def always_allow(): ...
 
             self._app.dependency_overrides[JWTBearerDep.dependency] = always_allow
