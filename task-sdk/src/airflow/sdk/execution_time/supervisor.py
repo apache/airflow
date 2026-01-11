@@ -64,6 +64,7 @@ from airflow.sdk.execution_time import comms
 from airflow.sdk.execution_time.comms import (
     AssetEventsResult,
     AssetResult,
+    CommsDecoder,
     ConnectionResult,
     CreateHITLDetailPayload,
     DagRunResult,
@@ -134,6 +135,7 @@ if TYPE_CHECKING:
     from airflow.executors.workloads import BundleInfo
     from airflow.sdk.bases.secrets_backend import BaseSecretsBackend
     from airflow.sdk.definitions.connection import Connection
+    from airflow.sdk.execution_time.task_runner import ToTask
     from airflow.sdk.types import RuntimeTaskInstanceProtocol as RuntimeTI
 
 
@@ -1621,7 +1623,7 @@ class InProcessTestSupervisor(ActivitySubprocess):
         from airflow.sdk.execution_time.task_runner import RuntimeTaskInstance, finalize, run
 
         supervisor.comms = InProcessSupervisorComms(supervisor=supervisor)
-        with set_supervisor_comms(supervisor.comms):
+        with set_supervisor_comms(supervisor.comms):  # type: ignore[arg-type]
             supervisor.ti = what  # type: ignore[assignment]
 
             # We avoid calling `task_runner.startup()` because we are already inside a
@@ -1721,36 +1723,31 @@ class InProcessTestSupervisor(ActivitySubprocess):
 
 
 @contextmanager
-def set_supervisor_comms(temp_comms):
+def set_supervisor_comms(temp_comms: CommsDecoder[ToTask, ToSupervisor] | None):
     """
-    Temporarily override `supervisor_comms()` in the `task_runner` module.
+    Temporarily override `SupervisorComms()` in the `task_runner` module.
 
     This is used to simulate task-runner ↔ supervisor communication in-process,
     by injecting a test Comms implementation (e.g. `InProcessSupervisorComms`)
     in place of the real inter-process communication layer.
 
     Some parts of the code (e.g. models.Variable.get) check for the presence
-    of `task_runner.supervisor_comms()` to determine if the code is running in a Task SDK execution context.
+    of `task_runner.SupervisorComms()` to determine if the code is running in a Task SDK execution context.
     This override ensures those code paths behave correctly during in-process tests.
     """
-    from airflow.sdk.execution_time import task_runner
+    from airflow.sdk.execution_time.task_runner import SupervisorComms
 
-    sentinel = object()
-    old = getattr(task_runner._SupervisorCommsHolder, "comms", sentinel)
-
-    if temp_comms is not None:
-        task_runner._SupervisorCommsHolder.comms = temp_comms
-    elif old is not sentinel:
-        task_runner._SupervisorCommsHolder.comms = None
+    svcomms = SupervisorComms()
+    old = svcomms.get_comms()
+    if temp_comms:
+        svcomms.set_comms(temp_comms)
+    else:
+        svcomms.reset_comms()
 
     try:
         yield
     finally:
-        if old is sentinel:
-            if task_runner._SupervisorCommsHolder.comms is not None:
-                task_runner._SupervisorCommsHolder.comms = None
-        else:
-            task_runner._SupervisorCommsHolder.comms = old
+        svcomms.set_comms(old)
 
 
 def run_task_in_process(ti: TaskInstance, task) -> TaskRunResult:
@@ -1928,9 +1925,9 @@ def ensure_secrets_backend_loaded() -> list[BaseSecretsBackend]:
 
     # 1. Check for client context (supervisor-comms)
     try:
-        from airflow.sdk.execution_time import task_runner
+        from airflow.sdk.execution_time.task_runner import SupervisorComms
 
-        if task_runner.is_supervisor_comms_initialized():
+        if SupervisorComms().is_initialized():
             # Client context: task runner with supervisor-comms
             return ensure_secrets_loaded(default_backends=DEFAULT_SECRETS_SEARCH_PATH_WORKERS)
     except (ImportError, AttributeError):

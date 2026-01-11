@@ -2256,10 +2256,36 @@ def mock_supervisor_comms(monkeypatch):
         comms.send = comms.get_message
 
     if AIRFLOW_V_3_2_PLUS:
-        monkeypatch.setattr(task_runner._SupervisorCommsHolder, "comms", comms, raising=False)
+        svcomms = task_runner.SupervisorComms()
+        old = svcomms.get_comms()
+        svcomms.set_comms(comms)
+        yield comms
+        svcomms.set_comms(old)
     else:
         monkeypatch.setattr(task_runner, "SUPERVISOR_COMMS", comms, raising=False)
-    yield comms
+        yield comms
+
+
+@pytest.fixture
+def mock_unset_supervisor_comms(monkeypatch):
+    # for back-compat
+    from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V_3_2_PLUS
+
+    if not AIRFLOW_V_3_0_PLUS:
+        yield None
+        return
+
+    from airflow.sdk.execution_time import comms, task_runner
+
+    if AIRFLOW_V_3_2_PLUS:
+        svcomms = task_runner.SupervisorComms()
+        old = svcomms.get_comms()
+        svcomms.reset_comms()
+        yield comms
+        svcomms.set_comms(old)
+    else:
+        monkeypatch.setattr(task_runner, "SUPERVISOR_COMMS", None, raising=False)
+        yield comms
 
 
 @pytest.fixture

@@ -798,41 +798,59 @@ def parse(what: StartupDetails, log: Logger) -> RuntimeTaskInstance:
 # - By defining this as a static class with accessors, it ensures that this communication mechanism is readily
 #   accessible wherever needed during task execution without modifying every layer of the call stack.
 #   Not perfect but getter than a global variable.
-class _SupervisorCommsHolder:
-    comms: CommsDecoder[ToTask, ToSupervisor] | None = None
+class _UnsetComms(CommsDecoder[ToTask, ToSupervisor]):
+    def __init__(self):
+        self.id_counter = self.socket = None  # type: ignore[assignment]
+
+    def send(self, msg: ToSupervisor) -> None:
+        raise RuntimeError("Supervisor comms not initialized yet. Call set_supervisor_comms() before using.")
+
+    async def asend(self, msg: ToSupervisor) -> None:
+        raise RuntimeError("Supervisor comms not initialized yet. Call set_supervisor_comms() before using.")
+
+
+class SupervisorComms:
+    _instance = None
+
+    def __new__(cls, *args, **kwargs):
+        if not cls._instance:
+            cls._instance = super().__new__(cls)
+            cls._instance._comms = _UnsetComms()
+        return cls._instance
+
+    def get_comms(self) -> CommsDecoder[ToTask, ToSupervisor]:
+        """Get the global supervisor comms instance."""
+        return self._comms
+
+    def set_comms(self, comms: CommsDecoder[ToTask, ToSupervisor]) -> None:
+        """Set the global supervisor comms instance."""
+        self._comms = comms
+
+    def reset_comms(self) -> None:
+        """Reset the global supervisor comms instance to initial state."""
+        self._comms = _UnsetComms()
+
+    def is_initialized(self) -> bool:
+        """Check if the global supervisor comms instance is initialized."""
+        return type(self._comms) is not _UnsetComms
+
+    def send(self, msg: ToSupervisor) -> ToTask | None:
+        """Send a message to the supervisor."""
+        return self._comms.send(msg)
+
+    async def asend(self, msg: ToSupervisor) -> ToTask | None:
+        """Send a message to the supervisor asynchronously."""
+        return await self._comms.asend(msg)
 
 
 def supervisor_send(msg: ToSupervisor) -> ToTask | None:
-    """Send a message to the supervisor as convenience for get_supervisor_comms().send()."""
-    if _SupervisorCommsHolder.comms is None:
-        raise RuntimeError("Supervisor comms not initialized yet. Call set_supervisor_comms() instead.")
-    return _SupervisorCommsHolder.comms.send(msg)
+    """Send a message to the supervisor as convenience for SupervisorComms().send()."""
+    return SupervisorComms().send(msg)
 
 
 async def supervisor_asend(msg: ToSupervisor) -> ToTask | None:
-    """Send a message to the supervisor as convenience for get_supervisor_comms().asend()."""
-    if _SupervisorCommsHolder.comms is None:
-        raise RuntimeError("Supervisor comms not initialized yet. Call set_supervisor_comms() instead.")
-    return await _SupervisorCommsHolder.comms.asend(msg)
-
-
-def get_supervisor_comms() -> CommsDecoder[ToTask, ToSupervisor]:
-    """Get the global supervisor comms instance."""
-    if _SupervisorCommsHolder.comms is None:
-        raise RuntimeError("Supervisor comms not initialized yet. Call set_supervisor_comms() instead.")
-    return _SupervisorCommsHolder.comms
-
-
-def set_supervisor_comms(comms: CommsDecoder[ToTask, ToSupervisor]) -> None:
-    """Set the global supervisor comms instance."""
-    if _SupervisorCommsHolder.comms is not None:
-        raise RuntimeError("Supervisor comms already initialized")
-    _SupervisorCommsHolder.comms = comms
-
-
-def is_supervisor_comms_initialized() -> bool:
-    """Check if the global supervisor comms instance is initialized."""
-    return _SupervisorCommsHolder.comms is not None
+    """Send a message to the supervisor as convenience for SupervisorComms().asend()."""
+    return await SupervisorComms().asend(msg)
 
 
 # State machine!
@@ -897,7 +915,7 @@ def startup() -> tuple[RuntimeTaskInstance, Context, Logger]:
         log.debug("Using serialized startup message from environment", msg=msg)
     else:
         # normal entry point
-        msg = get_supervisor_comms()._get_response()  # type: ignore[assignment]
+        msg = SupervisorComms().get_comms()._get_response()  # type: ignore[assignment]
 
         if not isinstance(msg, StartupDetails):
             raise RuntimeError(f"Unhandled startup message {type(msg)} {msg}")
@@ -929,7 +947,7 @@ def startup() -> tuple[RuntimeTaskInstance, Context, Logger]:
         os.environ["_AIRFLOW__REEXECUTED_PROCESS"] = "1"
         # store startup message in environment for re-exec process
         os.environ["_AIRFLOW__STARTUP_MSG"] = msg.model_dump_json()
-        os.set_inheritable(get_supervisor_comms().socket.fileno(), True)
+        os.set_inheritable(SupervisorComms().get_comms().socket.fileno(), True)
 
         # Import main directly from the module instead of re-executing the file.
         # This ensures that when other parts modules import
@@ -1770,7 +1788,7 @@ def finalize(
 def main():
     log = structlog.get_logger(logger_name="task")
 
-    set_supervisor_comms(CommsDecoder[ToTask, ToSupervisor](log=log))
+    SupervisorComms().set_comms(CommsDecoder[ToTask, ToSupervisor](log=log))
 
     Stats.initialize(
         is_statsd_datadog_enabled=conf.getboolean("metrics", "statsd_datadog_enabled"),
@@ -1806,9 +1824,10 @@ def main():
     finally:
         # Ensure the request socket is closed on the child side in all circumstances
         # before the process fully terminates.
-        if is_supervisor_comms_initialized() and get_supervisor_comms().socket:
+        svcomms = SupervisorComms()
+        if svcomms.is_initialized() and svcomms.get_comms().socket:
             with suppress(Exception):
-                get_supervisor_comms().socket.close()
+                svcomms.get_comms().socket.close()
 
 
 def reinit_supervisor_comms() -> None:
@@ -1821,12 +1840,14 @@ def reinit_supervisor_comms() -> None:
     """
     import socket
 
-    if not is_supervisor_comms_initialized():
+    if not SupervisorComms().is_initialized():
         log = structlog.get_logger(logger_name="task")
 
         fd = int(os.environ.get("__AIRFLOW_SUPERVISOR_FD", "0"))
 
-        set_supervisor_comms(CommsDecoder[ToTask, ToSupervisor](log=log, socket=socket.socket(fileno=fd)))
+        SupervisorComms().set_comms(
+            CommsDecoder[ToTask, ToSupervisor](log=log, socket=socket.socket(fileno=fd))
+        )
 
     logs = supervisor_send(ResendLoggingFD())
     if isinstance(logs, SentFDs):

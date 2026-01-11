@@ -360,7 +360,7 @@ class TestTriggerRunner:
         assert "got an unexpected keyword argument 'not_exists_arg'" in str(err)
 
     @pytest.mark.asyncio
-    @patch("airflow.sdk.execution_time.task_runner._SupervisorCommsHolder.comms", create=True)
+    @patch("airflow.sdk.execution_time.task_runner.SupervisorComms._comms", create=True)
     async def test_invalid_trigger(self, supervisor_builder):
         """Test the behaviour when we try to run an invalid Trigger"""
         workload = workloads.RunTrigger.model_construct(
