@@ -708,6 +708,8 @@ workers:
 
   # Detailed default security context for the
   # Airflow Celery workers and pod-template-file on container and pod level
+  # Use workers.celery.securityContexts and/or workers.kubernetes.securityContexts to separate value between
+  # Celery workers and pod-template-file
   securityContexts:
     pod: {}
     container: {}
@@ -1112,6 +1114,7 @@ workers:
     # podManagementPolicy: Parallel
 
     # Detailed default security context for Airflow Celery workers for container and pod level
+    # If not set, the values from `workers.securityContexts` section will be used.
     securityContexts:
       pod: {}
       container: {}
@@ -1163,6 +1166,7 @@ workers:
     command: ~
 
     # Detailed default security context for pod-template-file for container and pod level
+    # If not set, the values from `workers.securityContexts` section will be used.
     securityContexts:
       pod: {}
       container: {}

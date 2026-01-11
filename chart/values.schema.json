@@ -2394,7 +2394,7 @@
                     ]
                 },
                 "securityContexts": {
-                    "description": "Security context definition for the Airflow Celery workers and pod-template-file. If not set, the values from global `securityContexts` will be used.",
+                    "description": "Security context definition for the Airflow Celery workers and pod-template-file. If not set, the values from global `securityContexts` will be used. Use workers.celery.securityContexts and/or workers.kubernetes.securityContexts to separate value between Celery workers and pod-template-file.",
                     "type": "object",
                     "x-docsSection": "Kubernetes",
                     "properties": {
@@ -2714,7 +2714,7 @@
                             }
                         },
                         "securityContexts": {
-                            "description": "Security context definition for the Airflow Celery workers. If not set, the values from global `securityContexts` will be used.",
+                            "description": "Security context definition for the Airflow Celery workers. If not set, the values from `workers.securityContexts` section will be used.",
                             "type": "object",
                             "properties": {
                                 "pod": {
@@ -2865,7 +2865,7 @@
                             "default": null
                         },
                         "securityContexts": {
-                            "description": "Security context definition for the pod-template-file. If not set, the values from global `securityContexts` will be used.",
+                            "description": "Security context definition for the pod-template-file. If not set, the values from `workers.securityContexts` section will be used.",
                             "type": "object",
                             "properties": {
                                 "pod": {
