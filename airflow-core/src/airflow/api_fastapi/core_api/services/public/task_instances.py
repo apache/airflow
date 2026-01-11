@@ -177,7 +177,10 @@ def _get_task_group_task_instances(
     task_ids = [task.task_id for task in task_group.iter_tasks()]
 
     if not task_ids:
-        return []
+        raise HTTPException(
+            status.HTTP_404_NOT_FOUND,
+            f"No task instances found for task group '{task_group_id}' in DAG '{dag_id}' and run '{dag_run_id}'",
+        )
 
     # Query all task instances for these task IDs in the given DAG run
     query = (
@@ -192,7 +195,15 @@ def _get_task_group_task_instances(
         .order_by(TI.task_id, TI.map_index)
     )
 
-    return list(session.scalars(query).all())
+    group_tis = list(session.scalars(query).all())
+
+    if not group_tis:
+        raise HTTPException(
+            status.HTTP_404_NOT_FOUND,
+            f"No task instances found for task group '{task_group_id}' in DAG '{dag_id}' and run '{dag_run_id}'",
+        )
+
+    return group_tis
 
 
 class BulkTaskInstanceService(BulkService[BulkTaskInstanceBody]):

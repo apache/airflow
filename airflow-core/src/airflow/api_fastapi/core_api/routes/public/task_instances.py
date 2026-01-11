@@ -1043,12 +1043,6 @@ def patch_task_group_dry_run(
         session=session,
     )
 
-    if not group_tis:
-        raise HTTPException(
-            status.HTTP_404_NOT_FOUND,
-            f"No task instances found for task group '{task_group_id}' in DAG '{dag_id}' and run '{dag_run_id}'",
-        )
-
     # Validate request body
     fields_to_update = body.model_fields_set
     if update_mask:
@@ -1137,12 +1131,6 @@ def patch_task_group(
         dag=dag,
         session=session,
     )
-
-    if not group_tis:
-        raise HTTPException(
-            status.HTTP_404_NOT_FOUND,
-            f"No task instances found for task group '{task_group_id}' in DAG '{dag_id}' and run '{dag_run_id}'",
-        )
 
     # Validate request body
     fields_to_update = body.model_fields_set
