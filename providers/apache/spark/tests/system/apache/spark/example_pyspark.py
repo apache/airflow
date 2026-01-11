@@ -46,7 +46,7 @@ def example_pyspark():
 
     # [START task_pyspark]
     @task.pyspark(conn_id="spark-local")
-    def spark_task(spark: SparkSession) -> pd.DataFrame:
+    def spark_task(spark: SparkSession, sc) -> pd.DataFrame:
         df = spark.createDataFrame(
             [
                 (1, "John Doe", 21),

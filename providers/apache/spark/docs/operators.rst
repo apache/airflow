@@ -31,6 +31,7 @@ Prerequisite
   gets all the configurations from operator parameters.
 * To use :class:`~airflow.providers.apache.spark.operators.spark_pyspark.PySparkOperator`
   you can configure :doc:`SparkConnect Connection <connections/spark-connect>`.
+
 .. _howto/operator:SparkJDBCOperator:
 
 SparkJDBCOperator
