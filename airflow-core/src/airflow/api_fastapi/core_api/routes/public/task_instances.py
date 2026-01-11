@@ -91,7 +91,6 @@ from airflow.api_fastapi.core_api.services.public.task_instances import (
 )
 from airflow.api_fastapi.logging.decorators import action_logging
 from airflow.exceptions import AirflowClearRunningTaskException, TaskNotFound
-from airflow.listeners.listener import get_listener_manager
 from airflow.models import Base, DagRun
 from airflow.models.taskinstance import TaskInstance as TI, clear_task_instances
 from airflow.models.taskinstancehistory import TaskInstanceHistory as TIH
@@ -1152,29 +1151,29 @@ def patch_task_group(
     for ti in group_tis:
         # Update state if requested
         if data.get("new_state"):
-            map_indexes = [ti.map_index] if ti.map_index is not None else None
+            # Create BulkTaskInstanceBody object with map_index field
+            bulk_ti_body = BulkTaskInstanceBody(
+                task_id=ti.task_id,
+                map_index=ti.map_index,
+                new_state=body.new_state,
+                note=body.note,
+                include_upstream=body.include_upstream,
+                include_downstream=body.include_downstream,
+                include_future=body.include_future,
+                include_past=body.include_past,
+            )
 
             # Update state and get all affected TIs (including upstream/downstream/future/past)
-            updated_tis = dag.set_task_instance_state(
+            updated_tis = _patch_task_instance_state(
                 task_id=ti.task_id,
-                run_id=dag_run_id,
-                map_indexes=map_indexes,
-                state=data["new_state"],
-                upstream=body.include_upstream or False,
-                downstream=body.include_downstream or False,
-                future=body.include_future or False,
-                past=body.include_past or False,
-                commit=True,
+                dag_run_id=dag_run_id,
+                dag=dag,
+                task_instance_body=bulk_ti_body,
+                data=data,
                 session=session,
             )
 
-            if not updated_tis:
-                raise HTTPException(
-                    status.HTTP_409_CONFLICT,
-                    f"Task id {ti.task_id} is already in {data['new_state']} state",
-                )
-
-            # Track unique affected TIs and trigger listeners
+            # Track unique affected TIs
             for updated_ti in updated_tis:
                 ti_key = (
                     updated_ti.dag_id,
@@ -1185,21 +1184,6 @@ def patch_task_group(
                 if ti_key not in seen_ti_keys:
                     seen_ti_keys.add(ti_key)
                     all_affected_tis.append(updated_ti)
-
-                    # Trigger listeners
-                    try:
-                        if data["new_state"] == TaskInstanceState.SUCCESS:
-                            get_listener_manager().hook.on_task_instance_success(
-                                previous_state=None, task_instance=updated_ti
-                            )
-                        elif data["new_state"] == TaskInstanceState.FAILED:
-                            get_listener_manager().hook.on_task_instance_failed(
-                                previous_state=None,
-                                task_instance=updated_ti,
-                                error=f"TaskInstance's state was manually set to `{TaskInstanceState.FAILED}`.",
-                            )
-                    except Exception:
-                        log.exception("error calling listener")
 
         # Update note if requested
         if data.get("note") is not None:
