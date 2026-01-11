@@ -688,6 +688,11 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         is forced to True wherever wait_for_downstream is used. Also note that
         only tasks *immediately* downstream of the previous task instance are waited
         for; the statuses of any tasks further downstream are ignored.
+    :param depends_on_previous_task_ids: when set, task instances will run
+        only if all task instances with the given task IDs in the previous
+        DAG run have succeeded. This can be used to create cross-task
+        dependencies on the previous DAG run. `depends_on_past` must be
+        set to `True` if this parameter is used.
     :param dag: a reference to the dag the task is attached to (if any)
     :param priority_weight: priority weight of this task against other task.
         This allows the executor to trigger higher priority tasks before
@@ -879,7 +884,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
     is_teardown: bool = False
 
     # TODO: Task-SDK: Make these ClassVar[]?
-    template_fields: Collection[str] = ()
+    template_fields: Collection[str] = ("depends_on_previous_task_ids",)
     template_ext: Sequence[str] = ()
 
     template_fields_renderers: ClassVar[dict[str, str]] = {}
@@ -890,10 +895,15 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
     ui_color: str = "#fff"
     ui_fgcolor: str = "#000"
 
+    def __post_init__(self):
+        if self.depends_on_previous_task_ids and not self.depends_on_past:
+            raise AirflowException(
+                "'depends_on_previous_task_ids' is only supported when 'depends_on_past' is True"
+            )
+
     partial: Callable[..., OperatorPartial] = _PartialDescriptor()  # type: ignore
 
     _dag: DAG | None = field(init=False, default=None)
-
     # Make this optional so the type matches the one define in LoggingMixin
     _log_config_logger_name: str | None = field(default="airflow.task.operators", init=False)
     _logger_name: str | None = None
@@ -991,6 +1001,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         ignore_first_depends_on_past: bool = DEFAULT_IGNORE_FIRST_DEPENDS_ON_PAST,
         wait_for_past_depends_before_skipping: bool = DEFAULT_WAIT_FOR_PAST_DEPENDS_BEFORE_SKIPPING,
         wait_for_downstream: bool = False,
+        depends_on_previous_task_ids: Iterable[str] | None = None,
         dag: DAG | None = None,
         params: collections.abc.MutableMapping[str, Any] | None = None,
         default_args: dict | None = None,
