@@ -47,6 +47,7 @@ from airflow_breeze.branch_defaults import AIRFLOW_BRANCH
 from airflow_breeze.commands.ci_image_commands import rebuild_or_pull_ci_image_if_needed
 from airflow_breeze.commands.common_options import (
     argument_doc_packages,
+    option_action_branch,
     option_airflow_extras,
     option_allow_pre_releases,
     option_answer,
@@ -70,6 +71,7 @@ from airflow_breeze.commands.common_options import (
     option_python_versions,
     option_run_in_parallel,
     option_skip_cleanup,
+    option_target_branch,
     option_use_airflow_version,
     option_use_uv,
     option_verbose,
@@ -133,6 +135,7 @@ from airflow_breeze.utils.docker_command_utils import (
     fix_ownership_using_docker,
     perform_environment_checks,
 )
+from airflow_breeze.utils.github import checkout_target_branch
 from airflow_breeze.utils.packages import (
     PackageSuspendedException,
     apply_version_suffix_to_non_provider_pyproject_tomls,
@@ -1367,6 +1370,8 @@ def tag_providers(
 @option_airflow_constraints_mode_ci
 @option_github_repository
 @option_use_uv
+@option_action_branch
+@option_target_branch
 @option_verbose
 @option_dry_run
 @option_answer
@@ -1380,7 +1385,11 @@ def generate_constraints(
     run_in_parallel: bool,
     skip_cleanup: bool,
     use_uv: bool,
+    action_branch: str,
+    target_branch: str,
 ):
+    if action_branch != target_branch:
+        checkout_target_branch(target_branch=action_branch)
     perform_environment_checks()
     check_remote_ghcr_io_commands()
     fix_ownership_using_docker()
@@ -1404,6 +1413,8 @@ def generate_constraints(
             shell_params = ShellParams(
                 python=python,
                 github_repository=github_repository,
+                use_image_from_action_branch=True,
+                action_branch=target_branch,
             )
             get_console().print("\n[info]Use this command to build the image:[/]\n")
             get_console().print(
@@ -1419,6 +1430,8 @@ def generate_constraints(
                 github_repository=github_repository,
                 python=python,
                 use_uv=use_uv,
+                use_image_from_action_branch=True,
+                action_branch=target_branch,
             )
             for python in python_version_list
         ]
@@ -1437,6 +1450,8 @@ def generate_constraints(
             github_repository=github_repository,
             python=python,
             use_uv=use_uv,
+            use_image_from_action_branch=True,
+            action_branch=target_branch,
         )
         return_code, info = run_generate_constraints(
             shell_params=shell_params,
