@@ -205,4 +205,3 @@ class TestAsyncCallable:
             return 42
 
         assert not is_async_callable(sync_task_fn)
-
