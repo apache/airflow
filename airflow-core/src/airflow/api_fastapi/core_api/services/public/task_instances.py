@@ -146,6 +146,23 @@ def _patch_task_instance_state(
     return updated_tis
 
 
+def _validate_patch_request_body(
+    body: PatchTaskInstanceBody,
+    update_mask: list[str] | None = None,
+) -> dict:
+    """Validate and extract data from patch request body."""
+    fields_to_update = body.model_fields_set
+    if update_mask:
+        fields_to_update = fields_to_update.intersection(update_mask)
+    else:
+        try:
+            PatchTaskInstanceBody.model_validate(body)
+        except ValidationError as e:
+            raise RequestValidationError(errors=e.errors())
+
+    return body.model_dump(include=fields_to_update, by_alias=True)
+
+
 def _patch_task_instance_note(
     task_instance_body: BulkTaskInstanceBody | PatchTaskInstanceBody,
     tis: list[TI],
