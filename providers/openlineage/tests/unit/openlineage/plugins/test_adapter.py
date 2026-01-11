@@ -702,7 +702,7 @@ def test_emit_failed_event_with_additional_information(mock_stats_incr, mock_sta
 @mock.patch("airflow.providers.openlineage.plugins.adapter.build_dag_run_ol_run_id")
 @mock.patch(f"{stats_reference}.timer")
 @mock.patch(f"{stats_reference}.incr")
-def test_emit_dag_started_event(mock_stats_incr, mock_stats_timer, generate_static_uuid, mock_debug_mode):
+def test_emit_dag_started_event(mock_stats_incr, mock_stats_timer, build_ol_id, mock_debug_mode):
     random_uuid = "9d3b14f7-de91-40b6-aeef-e887e2c7673e"
     client = MagicMock()
     adapter = OpenLineageAdapter(client)
