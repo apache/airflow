@@ -30,8 +30,7 @@ import attrs
 # Make mypy happy by importing as aliases
 import google.cloud.storage as storage
 
-from airflow.configuration import conf
-from airflow.providers.common.compat.sdk import AirflowNotFoundException
+from airflow.providers.common.compat.sdk import AirflowNotFoundException, conf
 from airflow.providers.google.cloud.hooks.gcs import GCSHook, _parse_gcs_url
 from airflow.providers.google.cloud.utils.credentials_provider import (
     get_credentials_and_project_id,

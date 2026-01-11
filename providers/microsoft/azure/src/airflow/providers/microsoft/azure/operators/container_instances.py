@@ -48,7 +48,7 @@ from airflow.providers.microsoft.azure.hooks.container_registry import AzureCont
 from airflow.providers.microsoft.azure.hooks.container_volume import AzureContainerVolumeHook
 
 if TYPE_CHECKING:
-    from airflow.utils.context import Context
+    from airflow.sdk import Context
 
 Volume = namedtuple(
     "Volume",

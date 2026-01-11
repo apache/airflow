@@ -34,7 +34,7 @@ if TYPE_CHECKING:
     import polars as pl
 
     from airflow.providers.common.sql.hooks.sql import DbApiHook
-    from airflow.utils.context import Context
+    from airflow.sdk import Context
 
 
 class FILE_FORMAT(enum.Enum):

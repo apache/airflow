@@ -497,6 +497,7 @@ def _create_ti_state_update_query_and_update_state(
         trigger_row = Trigger(
             classpath=ti_patch_payload.classpath,
             kwargs={},
+            queue=ti_patch_payload.queue,
         )
         trigger_row.encrypted_kwargs = trigger_kwargs
         session.add(trigger_row)
@@ -507,19 +508,12 @@ def _create_ti_state_update_query_and_update_state(
 
         query = update(TI).where(TI.id == ti_id_str)
 
-        # This is slightly inefficient as we deserialize it to then right again serialize it in the sqla
-        # TypeAdapter.
-        next_kwargs = None
-        if ti_patch_payload.next_kwargs:
-            from airflow.serialization.serialized_objects import BaseSerialization
-
-            next_kwargs = BaseSerialization.deserialize(ti_patch_payload.next_kwargs)
-
+        # Store next_kwargs directly (already serialized by worker)
         query = query.values(
             state=TaskInstanceState.DEFERRED,
             trigger_id=trigger_row.id,
             next_method=ti_patch_payload.next_method,
-            next_kwargs=next_kwargs,
+            next_kwargs=ti_patch_payload.next_kwargs,
             trigger_timeout=timeout,
         )
         updated_state = TaskInstanceState.DEFERRED

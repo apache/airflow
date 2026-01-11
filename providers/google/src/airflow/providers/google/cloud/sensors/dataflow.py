@@ -23,8 +23,7 @@ from collections.abc import Callable, Sequence
 from functools import cached_property
 from typing import TYPE_CHECKING, Any
 
-from airflow.configuration import conf
-from airflow.providers.common.compat.sdk import AirflowException, BaseSensorOperator, PokeReturnValue
+from airflow.providers.common.compat.sdk import AirflowException, BaseSensorOperator, PokeReturnValue, conf
 from airflow.providers.google.cloud.hooks.dataflow import (
     DEFAULT_DATAFLOW_LOCATION,
     DataflowHook,

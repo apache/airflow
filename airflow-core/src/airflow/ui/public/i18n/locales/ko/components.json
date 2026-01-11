@@ -110,10 +110,16 @@
   "sortedDescending": "내림차순 정렬됨",
   "sortedUnsorted": "정렬되지 않음",
   "taskTries": "작업 시도 횟수",
+  "taskTryPlaceholder": "작업 시도 선택",
   "toggleCardView": "카드 보기 표시",
   "toggleTableView": "테이블 보기 표시",
   "triggerDag": {
     "button": "트리거",
+    "dataInterval": "데이터 구간",
+    "dataIntervalAuto": "논리적 날짜와 시간표에서 자동 추론",
+    "dataIntervalManual": "수동 지정",
+    "intervalEnd": "종료",
+    "intervalStart": "시작",
     "loading": "Dag 정보 로드 중...",
     "loadingFailed": "Dag 정보를 로드하지 못했습니다. 다시 시도해주세요.",
     "runIdHelp": "선택 사항 - 제공되지 않으면 생성됩니다.",
@@ -144,6 +150,7 @@
     "versionId": "버전 ID"
   },
   "versionSelect": {
+    "allVersions": "전체 버전",
     "dagVersion": "Dag 버전",
     "versionCode": "v{{versionCode}}"
   }

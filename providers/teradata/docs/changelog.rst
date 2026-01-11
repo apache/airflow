@@ -25,6 +25,22 @@
 Changelog
 ---------
 
+3.4.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add TdLoadOperator to execute data transfers using Teradata Parallel Transporter (TPT) tdload utility (#58918)``
+
+Misc
+~~~~
+
+* ``Remove top-level SDK reference in Core (#59817)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 3.3.1
 .....
 

@@ -40,7 +40,7 @@ from airflow._shared.module_loading import qualname
 from airflow._shared.timezones import timezone
 from airflow._shared.timezones.timezone import datetime as datetime_tz
 from airflow.configuration import conf
-from airflow.dag_processing.dagbag import DagBag
+from airflow.dag_processing.dagbag import BundleDagBag, DagBag
 from airflow.exceptions import AirflowException
 from airflow.models.asset import (
     AssetAliasModel,
@@ -100,6 +100,7 @@ from tests_common.test_utils.db import (
 )
 from tests_common.test_utils.mapping import expand_mapped_task
 from tests_common.test_utils.mock_plugins import mock_plugin_manager
+from tests_common.test_utils.taskinstance import run_task_instance
 from tests_common.test_utils.timetables import cron_timetable, delta_timetable
 from unit.models import DEFAULT_DATE
 from unit.plugins.priority_weight_strategy import (
@@ -579,11 +580,11 @@ class TestDag:
 
         session = settings.Session()
         model = session.get(DagModel, dag.dag_id)
+        current_time = timezone.utcnow()
 
         if expected_next_dagrun is None:
             # For catchup=False, next_dagrun will be around the current date (not DEFAULT_DATE)
             # Instead of comparing exact dates, verify it's relatively recent and not the old start date
-            current_time = timezone.utcnow()
 
             # Verify it's not using the old DEFAULT_DATE from 2016 and is after
             # that since we are picking up present date.
@@ -604,6 +605,8 @@ class TestDag:
             assert model.next_dagrun == expected_next_dagrun
             assert model.next_dagrun_create_after == expected_next_dagrun + timedelta(days=1)
 
+        assert model.exceeds_max_non_backfill is False
+
         dr = scheduler_dag.create_dagrun(
             run_id="test",
             state=state,
@@ -616,14 +619,18 @@ class TestDag:
         )
         assert dr is not None
         SerializedDAG.bulk_write_to_db("testing", None, [dag])
-
         model = session.get(DagModel, dag.dag_id)
-        # We signal "at max active runs" by saying this run is never eligible to be created
-        assert model.next_dagrun_create_after is None
-        # test that bulk_write_to_db again doesn't update next_dagrun_create_after
+        # Check that exceeds_max_non_backfill is set correctly
+        assert model.exceeds_max_non_backfill is True
+        # Check that running bulk_write_to_db again doesn't change exceeds_max_non_backfill
         SerializedDAG.bulk_write_to_db("testing", None, [dag])
         model = session.get(DagModel, dag.dag_id)
-        assert model.next_dagrun_create_after is None
+        assert model.exceeds_max_non_backfill is True
+
+        if catchup is True:
+            assert model.next_dagrun_create_after == DEFAULT_DATE + timedelta(days=1)
+        else:
+            assert model.next_dagrun_create_after > current_time + timedelta(days=-2)  # allow for fuzz
 
     def test_bulk_write_to_db_has_import_error(self, testing_dag_bundle):
         """
@@ -2042,8 +2049,9 @@ class TestDagModel:
     def test_dags_needing_dagruns_asset_refs(self, dag_maker, session, ref):
         asset = Asset(name="1", uri="s3://bucket/assets/1")
 
-        with dag_maker(dag_id="producer", schedule=None, session=session):
+        with dag_maker(dag_id="producer", schedule=None, session=session) as dag:
             op = EmptyOperator(task_id="op", outlets=asset)
+        ser_op = dag.get_task(op.task_id)
 
         dr: DagRun = dag_maker.create_dagrun()
 
@@ -2057,8 +2065,8 @@ class TestDagModel:
 
         # Upstream triggered, now we need a run.
         ti = dr.get_task_instance("op")
-        ti.refresh_from_task(op)
-        ti.run()
+        ti.refresh_from_task(ser_op)
+        run_task_instance(ti, op)
 
         assert session.scalars(select(AssetDagRunQueue.target_dag_id)).all() == ["consumer"]
         query, _ = DagModel.dags_needing_dagruns(session)
@@ -2071,16 +2079,16 @@ class TestDagModel:
         dag_id_to_test = "test"
 
         # Dag 'test' depends on an outlet in 'producer'.
-        with dag_maker(dag_id="producer", schedule=None, session=session):
+        with dag_maker(dag_id="producer", schedule=None, session=session) as dag:
             op = EmptyOperator(task_id="op", outlets=asset)
         dr = dag_maker.create_dagrun()
         outlet_ti = dr.get_task_instance("op")
-        outlet_ti.refresh_from_task(op)
+        outlet_ti.refresh_from_task(dag.get_task(op.task_id))
         with dag_maker(dag_id=dag_id_to_test, schedule=asset, session=session):
             pass
 
         # An adrq should be created when the outlet task is run.
-        outlet_ti.run()
+        run_task_instance(outlet_ti, op)
         query, _ = DagModel.dags_needing_dagruns(session)
         assert [dm.dag_id for dm in query] == [dag_id_to_test]
         assert session.scalars(select(AssetDagRunQueue.target_dag_id)).all() == [dag_id_to_test]
@@ -2192,7 +2200,7 @@ class TestDagModel:
         rel_path = "test_assets.py"
         bundle_path = TEST_DAGS_FOLDER
         file_path = bundle_path / rel_path
-        bag = DagBag(dag_folder=file_path, bundle_path=bundle_path)
+        bag = BundleDagBag(dag_folder=file_path, bundle_path=bundle_path, bundle_name="testing")
 
         dag = bag.get_dag("dag_with_skip_task")
 

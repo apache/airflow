@@ -164,17 +164,14 @@ def _disable_ol_plugin():
     # 3.12+ issues a warning when os.fork happens. So for this plugin we disable it
 
     # And we load plugins when setting the priority_weight field
-    import airflow.plugins_manager
+    import airflow.sdk.plugins_manager
 
-    old = airflow.plugins_manager.plugins
-
-    assert old is None, "Plugins already loaded, too late to stop them being loaded!"
-
-    airflow.plugins_manager.plugins = []
+    old = airflow.sdk.plugins_manager._get_plugins
+    airflow.sdk.plugins_manager._get_plugins = lambda: ([], {})
 
     yield
 
-    airflow.plugins_manager.plugins = None
+    airflow.sdk.plugins_manager._get_plugins = old
 
 
 @pytest.fixture(autouse=True)

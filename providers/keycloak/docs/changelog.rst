@@ -25,6 +25,19 @@
 Changelog
 ---------
 
+0.4.1
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix logout route in Keycloak provider so a KeycloakostError doesn't  lead to Internal Server Error in API server (#59382)``
+* ``Fix Internal Server Error in API server due to KeycloakPostError when refreshing user in Keycloak provider (#59361)``
+* ``Return 403 when the Keycloak access token is expired (#59281)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 0.4.0
 .....
 

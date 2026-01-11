@@ -21,6 +21,7 @@
 from __future__ import annotations
 
 import collections.abc
+import contextlib
 import datetime
 import enum
 import itertools
@@ -40,7 +41,6 @@ import pydantic
 from dateutil import relativedelta
 from pendulum.tz.timezone import FixedTimezone, Timezone
 
-from airflow import macros
 from airflow._shared.module_loading import import_string, qualname
 from airflow._shared.timezones.timezone import from_timestamp, parse_timezone, utcnow
 from airflow.callbacks.callback_requests import DagCallbackRequest, TaskCallbackRequest
@@ -94,13 +94,13 @@ from airflow.serialization.json_schema import load_dag_schema
 from airflow.settings import DAGS_FOLDER, json
 from airflow.task.priority_strategy import (
     PriorityWeightStrategy,
-    airflow_priority_weight_strategies,
-    airflow_priority_weight_strategies_classes,
+    get_airflow_priority_weight_strategies,
+    get_weight_rule_from_priority_weight_strategy,
+    validate_and_load_priority_weight_strategy,
 )
 from airflow.timetables.base import DagRunInfo, Timetable
 from airflow.triggers.base import BaseTrigger, StartTriggerArgs
 from airflow.utils.code_utils import get_python_source
-from airflow.utils.context import ConnectionAccessor, Context, VariableAccessor
 from airflow.utils.db import LazySelectSequence
 
 if TYPE_CHECKING:
@@ -129,13 +129,9 @@ def _get_registered_priority_weight_strategy(
 ) -> type[PriorityWeightStrategy] | None:
     from airflow import plugins_manager
 
-    if importable_string in airflow_priority_weight_strategies:
-        return airflow_priority_weight_strategies[importable_string]
-    plugins_manager.initialize_priority_weight_strategy_plugins()
-    if plugins_manager.priority_weight_strategy_classes:
-        return plugins_manager.priority_weight_strategy_classes.get(importable_string)
-    else:
-        return None
+    with contextlib.suppress(KeyError):
+        return get_airflow_priority_weight_strategies()[importable_string]
+    return plugins_manager.get_priority_weight_strategy_plugins().get(importable_string)
 
 
 class _PartitionMapperNotFound(ValueError):
@@ -249,7 +245,7 @@ def decode_partition_mapper(var: dict[str, Any]) -> PartitionMapper:
     return partition_mapper_class.deserialize(var[Encoding.VAR])
 
 
-def encode_priority_weight_strategy(var: PriorityWeightStrategy) -> str:
+def encode_priority_weight_strategy(var: PriorityWeightStrategy | str) -> str:
     """
     Encode a priority weight strategy instance.
 
@@ -257,9 +253,9 @@ def encode_priority_weight_strategy(var: PriorityWeightStrategy) -> str:
     for any parameters to be passed to it. If you need to store the parameters, you
     should store them in the class itself.
     """
-    priority_weight_strategy_class = type(var)
-    if priority_weight_strategy_class in airflow_priority_weight_strategies_classes:
-        return airflow_priority_weight_strategies_classes[priority_weight_strategy_class]
+    priority_weight_strategy_class = type(validate_and_load_priority_weight_strategy(var))
+    with contextlib.suppress(KeyError):
+        return get_weight_rule_from_priority_weight_strategy(priority_weight_strategy_class)
     importable_string = qualname(priority_weight_strategy_class)
     if _get_registered_priority_weight_strategy(importable_string) is None:
         raise _PriorityWeightStrategyNotRegistered(importable_string)
@@ -658,12 +654,6 @@ class BaseSerialization:
         elif isinstance(var, MappedArgument):
             data = {"input": encode_expand_input(var._input), "key": var._key}
             return cls._encode(data, type_=DAT.MAPPED_ARGUMENT)
-        elif var.__class__ == Context:
-            d = {}
-            for k, v in var.items():
-                obj = cls.serialize(v, strict=strict)
-                d[str(k)] = obj
-            return cls._encode(d, type_=DAT.TASK_CONTEXT)
         else:
             return cls.default_serialization(strict, var)
 
@@ -690,21 +680,7 @@ class BaseSerialization:
             raise ValueError(f"The encoded_var should be dict and is {type(encoded_var)}")
         var = encoded_var[Encoding.VAR]
         type_ = encoded_var[Encoding.TYPE]
-        if type_ == DAT.TASK_CONTEXT:
-            d = {}
-            for k, v in var.items():
-                if k == "task":  # todo: add `_encode` of Operator so we don't need this
-                    continue
-                d[k] = cls.deserialize(v)
-            d["task"] = d["task_instance"].task  # todo: add `_encode` of Operator so we don't need this
-            d["macros"] = macros
-            d["var"] = {
-                "json": VariableAccessor(deserialize_json=True),
-                "value": VariableAccessor(deserialize_json=False),
-            }
-            d["conn"] = ConnectionAccessor()
-            return Context(**d)
-        elif type_ == DAT.DICT:
+        if type_ == DAT.DICT:
             return {k: cls.deserialize(v) for k, v in var.items()}
         elif type_ == DAT.ASSET_EVENT_ACCESSORS:
             return decode_outlet_event_accessors(var)
@@ -1159,12 +1135,7 @@ class OperatorSerialization(DAGNode, BaseSerialization):
         if cls._load_operator_extra_links:
             from airflow import plugins_manager
 
-            plugins_manager.initialize_extra_operators_links_plugins()
-
-            if plugins_manager.operator_extra_links is None:
-                raise AirflowException("Can not load plugins")
-
-            for ope in plugins_manager.operator_extra_links:
+            for ope in plugins_manager.get_operator_extra_links():
                 for operator in ope.operators:
                     if (
                         operator.__name__ == encoded_op["task_type"]
@@ -1545,10 +1516,7 @@ class OperatorSerialization(DAGNode, BaseSerialization):
         """
         from airflow import plugins_manager
 
-        plugins_manager.initialize_extra_operators_links_plugins()
-
-        if plugins_manager.registered_operator_link_classes is None:
-            raise AirflowException("Can't load plugins")
+        plugins_manager.get_operator_extra_links()
         op_predefined_extra_links = {}
 
         for name, xcom_key in encoded_op_links.items():

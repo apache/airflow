@@ -666,7 +666,7 @@ class TestBaseDatabricksHook:
     @pytest.mark.parametrize(
         ("schema", "port", "host", "endpoint", "expected_url"),
         [
-            ("https", 443, "example.com", "api/2.0/jobs/list", "https://example.com:443/api/2.0/jobs/list"),
+            ("https", 443, "example.com", "api/2.2/jobs/list", "https://example.com:443/api/2.2/jobs/list"),
             ("http", 8080, "localhost", "status", "http://localhost:8080/status"),
             (None, None, "my.db.net", "api", "https://my.db.net/api"),
             ("https", None, "myhost", "v1/info", "https://myhost/v1/info"),

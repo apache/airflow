@@ -51,6 +51,8 @@
   - [Add Blog post about the release](#add-blog-post-about-the-release)
   - [Add release data to Apache Committee Report Helper](#add-release-data-to-apache-committee-report-helper)
   - [Close the testing status issue](#close-the-testing-status-issue)
+- [Additional processes](#additional-processes)
+  - [Fixing released documentation](#fixing-released-documentation)
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
 
@@ -126,9 +128,17 @@ the "dev/sign.sh" script (assuming you have the right PGP key set-up for signing
 generates corresponding .asc and .sha512 files for each file to sign.
 note: sign script uses `libassuan` and `gnupg` if you don't have them installed run:
 
+MacOS:
+
 ```shell script
 brew install libassuan
 brew install gnupg
+```
+
+Linux (Debian/Ubuntu):
+
+```shell script
+sudo apt-get install libassuan-dev gnupg
 ```
 
 ## Build and sign the source and convenience packages
@@ -1013,4 +1023,35 @@ Don't forget to thank the folks who tested and close the issue tracking the test
 
 ```
 Thank you everyone. Airflow-ctl is released.
+```
+
+# Additional processes
+
+## Fixing released documentation
+
+Sometimes we want to rebuild the documentation with some fixes that were merged in main
+branch, for example when there are html layout changes or typo fixes, or formatting issue fixes.
+
+In this case the process is as follows:
+
+* When you want to re-publish `airflow-ctl/X.Y.Z` docs, create (or pull if already created)
+  `airflow-ctl/X.Y.Z-docs` branch
+* Cherry-pick changes you want to add and push to the main `apache/airflow` repo
+* Run the publishing workflow.
+
+In case you are releasing latest released version of airflow-ctl (which should be most of the cases), run this:
+
+```bash
+breeze workflow-run publish-docs --site-env live --ref airflow-ctl/X.Y.Z-docs \
+   --skip-tag-validation \
+   apache-airflow-ctl
+```
+
+In case you are releasing an older version of airflow-ctl, you should skip writing to the stable folder
+
+```bash
+breeze workflow-run publish-docs --site-env live --ref airflow-ctl/X.Y.Z-docs \
+   --skip-tag-validation \
+   --skip-write-to-stable-folder \
+   apache-airflow-ctl
 ```

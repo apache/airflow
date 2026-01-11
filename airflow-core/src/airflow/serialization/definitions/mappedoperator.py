@@ -28,9 +28,8 @@ import methodtools
 import structlog
 from sqlalchemy.orm import Session
 
-from airflow.exceptions import AirflowException, NotMapped
+from airflow.exceptions import NotMapped
 from airflow.sdk import BaseOperator as TaskSDKBaseOperator
-from airflow.sdk.definitions._internal.abstractoperator import DEFAULT_RETRY_DELAY_MULTIPLIER
 from airflow.sdk.definitions.mappedoperator import MappedOperator as TaskSDKMappedOperator
 from airflow.serialization.definitions.baseoperator import DEFAULT_OPERATOR_DEPS, SerializedBaseOperator
 from airflow.serialization.definitions.node import DAGNode
@@ -289,10 +288,6 @@ class SerializedMappedOperator(DAGNode):
         return self._get_partial_kwargs_or_operator_default("max_retry_delay")
 
     @property
-    def retry_delay_multiplier(self) -> float:
-        return float(self.partial_kwargs.get("retry_delay_multiplier", DEFAULT_RETRY_DELAY_MULTIPLIER))
-
-    @property
     def weight_rule(self) -> PriorityWeightStrategy:
         from airflow.serialization.definitions.baseoperator import SerializedBaseOperator
 
@@ -377,11 +372,9 @@ class SerializedMappedOperator(DAGNode):
         op_extra_links_from_plugin: dict[str, Any] = {}
         from airflow import plugins_manager
 
-        plugins_manager.initialize_extra_operators_links_plugins()
-        if plugins_manager.operator_extra_links is None:
-            raise AirflowException("Can't load operators")
+        operator_extra_links = plugins_manager.get_operator_extra_links()
         operator_class_type = self.operator_class["task_type"]  # type: ignore
-        for ope in plugins_manager.operator_extra_links:
+        for ope in operator_extra_links:
             if ope.operators and any(operator_class_type in cls.__name__ for cls in ope.operators):
                 op_extra_links_from_plugin.update({ope.name: ope})
 
@@ -396,10 +389,8 @@ class SerializedMappedOperator(DAGNode):
         """Returns dictionary of all global extra links."""
         from airflow import plugins_manager
 
-        plugins_manager.initialize_extra_operators_links_plugins()
-        if plugins_manager.global_operator_extra_links is None:
-            raise AirflowException("Can't load operators")
-        return {link.name: link for link in plugins_manager.global_operator_extra_links}
+        global_operator_extra_links = plugins_manager.get_global_operator_extra_links()
+        return {link.name: link for link in global_operator_extra_links}
 
     @functools.cached_property
     def extra_links(self) -> list[str]:

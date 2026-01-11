@@ -257,8 +257,7 @@ def test_templating(create_task_instance_of_operator, session):
     )
     session.add(ti)
     session.commit()
-    ti.render_templates()
-    task: DatabricksCopyIntoOperator = ti.task
+    task = ti.render_templates()
     assert task.file_location == "file-location"
     assert task.files == "files"
     assert task.table_name == "table-name"

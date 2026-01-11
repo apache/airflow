@@ -32,7 +32,7 @@ import elasticsearch
 import pendulum
 import pytest
 
-from airflow.configuration import conf
+from airflow.providers.common.compat.sdk import conf
 from airflow.providers.elasticsearch.log.es_response import ElasticSearchResponse
 from airflow.providers.elasticsearch.log.es_task_handler import (
     VALID_ES_CONFIG_KEYS,

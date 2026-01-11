@@ -23,7 +23,7 @@
 
 Package ``apache-airflow-providers-edge3``
 
-Release: ``2.0.0``
+Release: ``2.0.1``
 
 
 Handle edge workers on remote sites via HTTP(s) connection and orchestrates work over distributed sites.
@@ -48,7 +48,7 @@ This is a provider package for ``edge3`` provider. All classes for this provider
 are in ``airflow.providers.edge3`` python package.
 
 You can find package information and changelog for the provider
-in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-edge3/2.0.0/>`_.
+in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-edge3/2.0.1/>`_.
 
 Installation
 ------------
@@ -91,4 +91,4 @@ Dependent package                                                               
 ==================================================================================================================  =================
 
 The changelog for the provider package can be found in the
-`changelog <https://airflow.apache.org/docs/apache-airflow-providers-edge3/2.0.0/changelog.html>`_.
+`changelog <https://airflow.apache.org/docs/apache-airflow-providers-edge3/2.0.1/changelog.html>`_.

@@ -84,10 +84,7 @@ def connections_list(args):
     """List all connections at the command line."""
     with create_session() as session:
         query = select(Connection)
-        if args.conn_id:
-            query = query.where(Connection.conn_id == args.conn_id)
-        query = session.scalars(query)
-        conns = query.all()
+        conns = session.scalars(query).all()
 
         AirflowConsole().print_as(
             data=conns,

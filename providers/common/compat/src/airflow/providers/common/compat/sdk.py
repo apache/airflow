@@ -68,6 +68,7 @@ if TYPE_CHECKING:
         task_group as task_group,
         teardown as teardown,
     )
+    from airflow.sdk._shared.listeners import hookimpl as hookimpl
     from airflow.sdk.bases.decorator import (
         DecoratedMappedOperator as DecoratedMappedOperator,
         DecoratedOperator as DecoratedOperator,
@@ -76,10 +77,12 @@ if TYPE_CHECKING:
         task_decorator_factory as task_decorator_factory,
     )
     from airflow.sdk.bases.sensor import poke_mode_only as poke_mode_only
+    from airflow.sdk.configuration import conf as conf
     from airflow.sdk.definitions.context import context_merge as context_merge
     from airflow.sdk.definitions.mappedoperator import MappedOperator as MappedOperator
     from airflow.sdk.definitions.template import literal as literal
     from airflow.sdk.exceptions import (
+        AirflowConfigException as AirflowConfigException,
         AirflowException as AirflowException,
         AirflowFailException as AirflowFailException,
         AirflowNotFoundException as AirflowNotFoundException,
@@ -90,8 +93,10 @@ if TYPE_CHECKING:
         TaskDeferred as TaskDeferred,
         XComNotFound as XComNotFound,
     )
+    from airflow.sdk.listener import get_listener_manager as get_listener_manager
     from airflow.sdk.log import redact as redact
     from airflow.sdk.observability.stats import Stats as Stats
+    from airflow.sdk.plugins_manager import AirflowPlugin as AirflowPlugin
 
     # Airflow 3-only exceptions (conditionally imported)
     if AIRFLOW_V_3_0_PLUS:
@@ -172,6 +177,10 @@ _IMPORT_MAP: dict[str, str | tuple[str, ...]] = {
     # ============================================================================
     "BaseNotifier": ("airflow.sdk", "airflow.notifications.basenotifier"),
     # ============================================================================
+    # Plugins
+    # ============================================================================
+    "AirflowPlugin": ("airflow.sdk.plugins_manager", "airflow.plugins_manager"),
+    # ============================================================================
     # Operator Links & Task Groups
     # ============================================================================
     "BaseOperatorLink": ("airflow.sdk", "airflow.models.baseoperatorlink"),
@@ -249,6 +258,15 @@ _IMPORT_MAP: dict[str, str | tuple[str, ...]] = {
         "airflow.sdk.execution_time.secrets_masker",
         "airflow.utils.log.secrets_masker",
     ),
+    # ============================================================================
+    # Listeners
+    # ============================================================================
+    "hookimpl": ("airflow.sdk._shared.listeners", "airflow.listeners"),
+    "get_listener_manager": ("airflow.sdk.listener", "airflow.listeners.listener"),
+    # Configuration
+    # ============================================================================
+    "conf": ("airflow.sdk.configuration", "airflow.configuration"),
+    "AirflowConfigException": ("airflow.sdk.exceptions", "airflow.exceptions"),
 }
 
 # Airflow 3-only exceptions (not available in Airflow 2)

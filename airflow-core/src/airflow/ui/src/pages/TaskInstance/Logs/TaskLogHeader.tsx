@@ -25,7 +25,6 @@ import {
   IconButton,
   type SelectValueChangeDetails,
 } from "@chakra-ui/react";
-import { useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import {
   MdAccessTime,
@@ -103,39 +102,33 @@ export const TaskLogHeader = ({
     ],
   });
 
-  const handleLevelChange = useCallback(
-    ({ value }: SelectValueChangeDetails<string>) => {
-      const [val, ...rest] = value;
+  const handleLevelChange = ({ value }: SelectValueChangeDetails<string>) => {
+    const [val, ...rest] = value;
 
-      if (((val === undefined || val === "all") && rest.length === 0) || rest.includes("all")) {
-        searchParams.delete(SearchParamsKeys.LOG_LEVEL);
-      } else {
-        searchParams.delete(SearchParamsKeys.LOG_LEVEL);
-        value
-          .filter((state) => state !== "all")
-          .map((state) => searchParams.append(SearchParamsKeys.LOG_LEVEL, state));
-      }
-      setSearchParams(searchParams);
-    },
-    [searchParams, setSearchParams],
-  );
+    if (((val === undefined || val === "all") && rest.length === 0) || rest.includes("all")) {
+      searchParams.delete(SearchParamsKeys.LOG_LEVEL);
+    } else {
+      searchParams.delete(SearchParamsKeys.LOG_LEVEL);
+      value
+        .filter((state) => state !== "all")
+        .map((state) => searchParams.append(SearchParamsKeys.LOG_LEVEL, state));
+    }
+    setSearchParams(searchParams);
+  };
 
-  const handleSourceChange = useCallback(
-    ({ value }: SelectValueChangeDetails<string>) => {
-      const [val, ...rest] = value;
+  const handleSourceChange = ({ value }: SelectValueChangeDetails<string>) => {
+    const [val, ...rest] = value;
 
-      if (((val === undefined || val === "all") && rest.length === 0) || rest.includes("all")) {
-        searchParams.delete(SearchParamsKeys.SOURCE);
-      } else {
-        searchParams.delete(SearchParamsKeys.SOURCE);
-        value
-          .filter((state) => state !== "all")
-          .map((state) => searchParams.append(SearchParamsKeys.SOURCE, state));
-      }
-      setSearchParams(searchParams);
-    },
-    [searchParams, setSearchParams],
-  );
+    if (((val === undefined || val === "all") && rest.length === 0) || rest.includes("all")) {
+      searchParams.delete(SearchParamsKeys.SOURCE);
+    } else {
+      searchParams.delete(SearchParamsKeys.SOURCE);
+      value
+        .filter((state) => state !== "all")
+        .map((state) => searchParams.append(SearchParamsKeys.SOURCE, state));
+    }
+    setSearchParams(searchParams);
+  };
 
   return (
     <Box>

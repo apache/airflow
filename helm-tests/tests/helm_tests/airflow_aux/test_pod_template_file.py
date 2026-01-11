@@ -1035,27 +1035,43 @@ class TestPodTemplateFile:
             assert initContainers[0]["args"] == ["kerberos", "-o"]
 
     @pytest.mark.parametrize(
-        ("cmd", "expected"),
+        ("workers_values", "expected"),
         [
-            (["test", "command", "to", "run"], ["test", "command", "to", "run"]),
-            (["cmd", "{{ .Release.Name }}"], ["cmd", "release-name"]),
+            ({"command": ["test", "command", "to", "run"]}, ["test", "command", "to", "run"]),
+            ({"command": ["cmd", "{{ .Release.Name }}"]}, ["cmd", "release-name"]),
+            ({"kubernetes": {"command": ["test", "command", "to", "run"]}}, ["test", "command", "to", "run"]),
+            ({"kubernetes": {"command": ["cmd", "{{ .Release.Name }}"]}}, ["cmd", "release-name"]),
+            (
+                {"command": ["test"], "kubernetes": {"command": ["test", "command", "to", "run"]}},
+                ["test", "command", "to", "run"],
+            ),
+            (
+                {"command": ["test"], "kubernetes": {"command": ["cmd", "{{ .Release.Name }}"]}},
+                ["cmd", "release-name"],
+            ),
         ],
     )
-    def test_should_add_command(self, cmd, expected):
+    def test_should_add_command(self, workers_values, expected):
         docs = render_chart(
-            values={
-                "workers": {"command": cmd},
-            },
+            values={"workers": workers_values},
             show_only=["templates/pod-template-file.yaml"],
             chart_dir=self.temp_chart_dir,
         )
 
         assert expected == jmespath.search("spec.containers[0].command", docs[0])
 
-    @pytest.mark.parametrize("cmd", [None, []])
-    def test_should_not_add_command(self, cmd):
+    @pytest.mark.parametrize(
+        "workers_values",
+        [
+            {"command": None},
+            {"command": []},
+            {"kubernetes": {"command": None}},
+            {"kubernetes": {"command": []}},
+        ],
+    )
+    def test_should_not_add_command(self, workers_values):
         docs = render_chart(
-            values={"workers": {"command": cmd}},
+            values={"workers": workers_values},
             show_only=["templates/pod-template-file.yaml"],
             chart_dir=self.temp_chart_dir,
         )

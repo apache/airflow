@@ -44,6 +44,7 @@ def get_provider_info():
             "airflow.providers.celery.executors.celery_executor.CeleryExecutor",
             "airflow.providers.celery.executors.celery_kubernetes_executor.CeleryKubernetesExecutor",
         ],
+        "cli": ["airflow.providers.celery.cli.definition.get_celery_cli_commands"],
         "config": {
             "celery_kubernetes_executor": {
                 "description": "This section only applies if you are using the ``CeleryKubernetesExecutor`` in\n``[core]`` section above\n",

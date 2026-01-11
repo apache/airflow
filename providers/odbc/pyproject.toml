@@ -59,6 +59,7 @@ requires-python = ">=3.10"
 # After you modify the dependencies, and rebuild your Breeze CI image with ``breeze ci-image build``
 dependencies = [
     "apache-airflow>=2.11.0",
+    "apache-airflow-providers-common-compat>=1.10.1", # use next version
     "apache-airflow-providers-common-sql>=1.20.0",
     "pyodbc>=5.0.0; python_version < '3.13'",
     "pyodbc>=5.2.0; python_version >= '3.13'",
@@ -69,6 +70,7 @@ dev = [
     "apache-airflow",
     "apache-airflow-task-sdk",
     "apache-airflow-devel-common",
+    "apache-airflow-providers-common-compat",
     "apache-airflow-providers-common-sql",
     # Additional devel dependencies (do not remove this line and add extra development dependencies)
 ]

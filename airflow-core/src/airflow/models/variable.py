@@ -32,7 +32,6 @@ from airflow._shared.secrets_masker import mask_secret
 from airflow.configuration import conf, ensure_secrets_loaded
 from airflow.models.base import ID_LEN, Base
 from airflow.models.crypto import get_fernet
-from airflow.sdk import SecretCache
 from airflow.secrets.metastore import MetastoreBackend
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.session import NEW_SESSION, create_session, provide_session
@@ -238,6 +237,8 @@ class Variable(Base, LoggingMixin):
             )
 
         # check if the secret exists in the custom secrets' backend.
+        from airflow.sdk import SecretCache
+
         Variable.check_for_write_conflict(key=key)
         if serialize_json:
             stored_value = json.dumps(value, indent=2)
@@ -428,6 +429,8 @@ class Variable(Base, LoggingMixin):
                 "Multi-team mode is not configured in the Airflow environment but the task trying to delete the variable belongs to a team"
             )
 
+        from airflow.sdk import SecretCache
+
         ctx: contextlib.AbstractContextManager
         if session is not None:
             ctx = contextlib.nullcontext(session)
@@ -494,6 +497,8 @@ class Variable(Base, LoggingMixin):
         :param team_name: Team name associated to the task trying to access the variable (if any)
         :return: Variable Value
         """
+        from airflow.sdk import SecretCache
+
         # Disable cache if the variable belongs to a team. We might enable it later
         if not team_name:
             # check cache first

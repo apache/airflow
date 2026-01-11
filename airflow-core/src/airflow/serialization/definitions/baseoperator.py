@@ -24,7 +24,6 @@ from typing import TYPE_CHECKING, Any
 
 import methodtools
 
-from airflow.exceptions import AirflowException
 from airflow.serialization.definitions.node import DAGNode
 from airflow.serialization.definitions.param import SerializedParamsDict
 from airflow.serialization.enums import DagAttributeTypes
@@ -262,10 +261,7 @@ class SerializedBaseOperator(DAGNode):
         """All global extra links."""
         from airflow import plugins_manager
 
-        plugins_manager.initialize_extra_operators_links_plugins()
-        if plugins_manager.global_operator_extra_links is None:
-            raise AirflowException("Can't load operators")
-        return {link.name: link for link in plugins_manager.global_operator_extra_links}
+        return {link.name: link for link in plugins_manager.get_global_operator_extra_links()}
 
     @functools.cached_property
     def extra_links(self) -> list[str]:

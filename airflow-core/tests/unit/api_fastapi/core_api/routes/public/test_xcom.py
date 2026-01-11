@@ -26,7 +26,6 @@ from airflow.api_fastapi.core_api.datamodels.xcom import XComCreateBody
 from airflow.models.dag_version import DagVersion
 from airflow.models.dagbundle import DagBundleModel
 from airflow.models.dagrun import DagRun
-from airflow.models.taskinstance import TaskInstance
 from airflow.models.xcom import XComModel
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.sdk import DAG, AssetAlias
@@ -40,6 +39,8 @@ from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.dag import sync_dag_to_db
 from tests_common.test_utils.db import clear_db_dag_bundles, clear_db_dags, clear_db_runs, clear_db_xcom
 from tests_common.test_utils.logs import check_last_log
+from tests_common.test_utils.mock_operators import MockOperator
+from tests_common.test_utils.taskinstance import create_task_instance
 
 pytestmark = pytest.mark.db_test
 
@@ -436,7 +437,11 @@ class TestGetXComEntries(TestXComEndpoint):
         session.merge(orm_dag_bundle)
         session.flush()
 
-        dag = DAG(dag_id=dag_id)
+        with DAG(dag_id=dag_id) as dag:
+            if mapped_ti:
+                task = MockOperator.partial(task_id=task_id).expand(arg1=[0, 1])
+            else:
+                task = EmptyOperator(task_id=task_id)
         sync_dag_to_db(dag)
         dagrun = DagRun(
             dag_id=dag_id,
@@ -449,14 +454,10 @@ class TestGetXComEntries(TestXComEndpoint):
         dag_version = DagVersion.get_latest_version(dag.dag_id)
         if mapped_ti:
             for i in [0, 1]:
-                ti = TaskInstance(
-                    EmptyOperator(task_id=task_id), run_id=run_id, map_index=i, dag_version_id=dag_version.id
-                )
-                ti.dag_id = dag_id
+                ti = create_task_instance(task, run_id=run_id, map_index=i, dag_version_id=dag_version.id)
                 session.add(ti)
         else:
-            ti = TaskInstance(EmptyOperator(task_id=task_id), run_id=run_id, dag_version_id=dag_version.id)
-            ti.dag_id = dag_id
+            ti = create_task_instance(task, run_id=run_id, dag_version_id=dag_version.id)
             session.add(ti)
         session.commit()
 

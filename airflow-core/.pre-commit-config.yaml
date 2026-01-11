@@ -370,6 +370,7 @@ repos:
           ^src/airflow/models/taskmap\.py$|
           ^src/airflow/models/taskmixin\.py$|
           ^src/airflow/models/taskreschedule\.py$|
+          ^src/airflow/models/trigger\.py$|
           ^src/airflow/models/variable\.py$|
           ^src/airflow/models/xcom\.py$|
           ^src/airflow/models/xcom_arg\.py$|
