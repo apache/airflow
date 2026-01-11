@@ -829,3 +829,52 @@ class TestSecurityContext:
 
         for doc in docs[1:]:
             assert ctx_value == jmespath.search("spec.template.spec.securityContext", doc)
+
+    def test_deprecated_overwrite_global(self):
+        docs = render_chart(
+            values={
+                "securityContext": {"runAsUser": 6000, "fsGroup": 60},
+                "securityContexts": {"pod": {"runAsUser": 9000, "fsGroup": 90}},
+            },
+            show_only=[
+                "templates/flower/flower-deployment.yaml",
+                "templates/scheduler/scheduler-deployment.yaml",
+                "templates/triggerer/triggerer-deployment.yaml",
+                "templates/api-server/api-server-deployment.yaml",
+                "templates/workers/worker-deployment.yaml",
+                "templates/dag-processor/dag-processor-deployment.yaml",
+                "templates/jobs/create-user-job.yaml",
+                "templates/jobs/migrate-database-job.yaml",
+            ],
+        )
+
+        for doc in docs:
+            assert jmespath.search("spec.template.spec.securityContext.runAsUser", doc) == 9000
+            assert jmespath.search("spec.template.spec.securityContext.fsGroup", doc) == 90
+
+    def test_deprecated_overwrite_local(self):
+        context = {
+            "securityContext": {"runAsUser": 6000, "fsGroup": 60},
+            "securityContexts": {"pod": {"runAsUser": 9000, "fsGroup": 90}},
+        }
+
+        docs = render_chart(
+            values={
+                "flower": context,
+                "scheduler": context,
+                "triggerer": context,
+                "workers": context,
+                "dagProcessor": context,
+            },
+            show_only=[
+                "templates/flower/flower-deployment.yaml",
+                "templates/scheduler/scheduler-deployment.yaml",
+                "templates/triggerer/triggerer-deployment.yaml",
+                "templates/workers/worker-deployment.yaml",
+                "templates/dag-processor/dag-processor-deployment.yaml",
+            ],
+        )
+
+        for doc in docs:
+            assert jmespath.search("spec.template.spec.securityContext.runAsUser", doc) == 9000
+            assert jmespath.search("spec.template.spec.securityContext.fsGroup", doc) == 90
