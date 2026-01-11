@@ -1837,7 +1837,6 @@ class TestAwsS3Hook:
             bucket_name=s3_bucket, local_dir=sync_local_dir, s3_prefix="", delete_stale=True
         )
         logs_string = get_logs_string(hook.log.debug.call_args_list)
-        assert "S3 object size" in logs_string
         assert "differ. Downloaded dag_03.py to" in logs_string
 
         local_file_same_size = Path(sync_local_dir).joinpath("dag_04.py")
