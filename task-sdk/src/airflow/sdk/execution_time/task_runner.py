@@ -803,10 +803,14 @@ class _UnsetComms(CommsDecoder[ToTask, ToSupervisor]):
         self.id_counter = self.socket = None  # type: ignore[assignment]
 
     def send(self, msg: ToSupervisor) -> None:
-        raise RuntimeError("Supervisor comms not initialized yet. Call set_supervisor_comms() before using.")
+        raise RuntimeError(
+            "Supervisor comms not initialized yet. Call SupervisorComms().set_comms() before using."
+        )
 
     async def asend(self, msg: ToSupervisor) -> None:
-        raise RuntimeError("Supervisor comms not initialized yet. Call set_supervisor_comms() before using.")
+        raise RuntimeError(
+            "Supervisor comms not initialized yet. Call SupervisorComms().set_comms() before using."
+        )
 
 
 class SupervisorComms:
@@ -818,11 +822,11 @@ class SupervisorComms:
             cls._instance._comms = _UnsetComms()
         return cls._instance
 
-    def get_comms(self) -> CommsDecoder[ToTask, ToSupervisor]:
+    def get_comms(self) -> CommsDecoder:
         """Get the global supervisor comms instance."""
         return self._comms
 
-    def set_comms(self, comms: CommsDecoder[ToTask, ToSupervisor]) -> None:
+    def set_comms(self, comms: CommsDecoder) -> None:
         """Set the global supervisor comms instance."""
         self._comms = comms
 

@@ -184,10 +184,11 @@ def _parse_file_entrypoint():
 
     import structlog
 
-    from airflow.sdk.execution_time import comms, task_runner
+    from airflow.sdk.execution_time.comms import CommsDecoder
+    from airflow.sdk.execution_time.task_runner import SupervisorComms
 
     # Parse DAG file, send JSON back up!
-    comms_decoder = comms.CommsDecoder[ToDagProcessor, ToManager](
+    comms_decoder = CommsDecoder[ToDagProcessor, ToManager](
         body_decoder=TypeAdapter[ToDagProcessor](ToDagProcessor),
     )
 
@@ -195,7 +196,7 @@ def _parse_file_entrypoint():
     if not isinstance(msg, DagFileParseRequest):
         raise RuntimeError(f"Required first message to be a DagFileParseRequest, it was {msg}")
 
-    task_runner.set_supervisor_comms(comms_decoder)
+    SupervisorComms().set_comms(comms_decoder)
     log = structlog.get_logger(logger_name="task")
 
     result = _parse_file(msg, log)
