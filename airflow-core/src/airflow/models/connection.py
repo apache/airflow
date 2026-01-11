@@ -33,7 +33,7 @@ from airflow._shared.module_loading import import_string
 from airflow._shared.secrets_masker import mask_secret
 from airflow.configuration import conf, ensure_secrets_loaded
 from airflow.exceptions import AirflowException, AirflowNotFoundException
-from airflow.models.base import ID_LEN, Base, has_execution_context
+from airflow.models.base import ID_LEN, Base, is_client_process_context
 from airflow.models.crypto import get_fernet
 from airflow.utils.helpers import prune_dict
 from airflow.utils.log.logging_mixin import LoggingMixin
@@ -499,7 +499,7 @@ class Connection(Base, LoggingMixin):
         :param team_name: Team name associated to the task trying to access the connection (if any)
         :return: connection
         """
-        if has_execution_context():
+        if is_client_process_context():
             from airflow.sdk import Connection as TaskSDKConnection
             from airflow.sdk.exceptions import AirflowRuntimeError, ErrorType
 
@@ -583,7 +583,7 @@ class Connection(Base, LoggingMixin):
 
     @classmethod
     def from_json(cls, value, conn_id=None) -> Connection:
-        if has_execution_context():
+        if is_client_process_context():
             from airflow.sdk import Connection as TaskSDKConnection
 
             warnings.warn(
