@@ -688,7 +688,7 @@ workers:
 
   # Allow relaxing ordering guarantees for Airflow Celery worker while preserving its uniqueness and identity
   # (deprecated, use `workers.celery.podManagementPolicy` instead)
-  # podManagementPolicy: ~
+  # podManagementPolicy: Parallel
 
   # When not set, the values defined in the global securityContext will
   # be used in Airflow Celery workers and pod-template-file
@@ -1068,7 +1068,7 @@ workers:
 
     # Allow relaxing ordering guarantees for Airflow Celery worker
     # while preserving its uniqueness and identity
-    # podManagementPolicy: ~
+    # podManagementPolicy: Parallel
 
     # Create ServiceAccount for Airflow Celery workers
     serviceAccount:
