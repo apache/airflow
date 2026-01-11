@@ -275,7 +275,7 @@ spec:
           image: {{ template "airflow_image" . }}
           imagePullPolicy: {{ .Values.images.airflow.pullPolicy }}
           securityContext: {{ $containerSecurityContext | nindent 12 }}
-          {{- if $containerLifecycleHooks  }}
+          {{- if $containerLifecycleHooks }}
           lifecycle: {{- tpl (toYaml $containerLifecycleHooks) . | nindent 12 }}
           {{- end }}
           {{- if or .Values.workers.celery.command .Values.workers.command }}
