@@ -790,12 +790,12 @@ def parse(what: StartupDetails, log: Logger) -> RuntimeTaskInstance:
 # This global class will be used by Connection/Variable/XCom classes, or other parts of the task's execution,
 # to send requests back to the supervisor process.
 #
-# Why it needs to be a global:
+# Why it needs to be a global singleton class:
 # - Many parts of Airflow's codebase (e.g., connections, variables, and XComs) may rely on making dynamic requests
 #   to the parent process during task execution.
 # - These calls occur in various locations and cannot easily pass the `CommsDecoder` instance through the
 #   deeply nested execution stack.
-# - By defining this as a static class with accessors, it ensures that this communication mechanism is readily
+# - By defining this as a singleton class with accessors, it ensures that this communication mechanism is readily
 #   accessible wherever needed during task execution without modifying every layer of the call stack.
 #   Not perfect but getter than a global variable.
 class _UnsetComms(CommsDecoder[ToTask, ToSupervisor]):
