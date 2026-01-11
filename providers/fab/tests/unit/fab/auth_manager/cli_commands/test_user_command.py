@@ -27,13 +27,10 @@ from io import StringIO
 import pytest
 
 from airflow.cli import cli_parser
+from airflow.providers.fab.auth_manager.cli_commands import user_command
+from airflow.providers.fab.auth_manager.cli_commands.utils import get_application_builder
 
-from tests_common.test_utils.compat import ignore_provider_compatibility_error
 from tests_common.test_utils.config import conf_vars
-
-with ignore_provider_compatibility_error("2.9.0+", __file__):
-    from airflow.providers.fab.auth_manager.cli_commands import user_command
-    from airflow.providers.fab.auth_manager.cli_commands.utils import get_application_builder
 
 pytestmark = pytest.mark.db_test
 
@@ -74,7 +71,7 @@ class TestCliUsers:
                 self.clear_users()
 
     def clear_users(self):
-        session = self.appbuilder.get_session
+        session = self.appbuilder.session
         for user in self.appbuilder.sm.get_all_users():
             session.delete(user)
         session.commit()
@@ -183,7 +180,7 @@ class TestCliUsers:
         assert 'User "test4" deleted' in stdout.getvalue()
 
     @pytest.mark.parametrize(
-        "args,raise_match",
+        ("args", "raise_match"),
         [
             (
                 [
@@ -251,9 +248,9 @@ class TestCliUsers:
                 ]
             )
             user_command.users_create(args)
-        with redirect_stdout(StringIO()) as stdout:
+        with redirect_stdout(StringIO()) as stdout_io:
             user_command.users_list(self.parser.parse_args(["users", "list"]))
-            stdout = stdout.getvalue()
+            stdout = stdout_io.getvalue()
         for i in range(3):
             assert f"user{i}" in stdout
 
@@ -417,7 +414,7 @@ class TestCliUsers:
         ), "User should have been removed from role 'Viewer'"
 
     @pytest.mark.parametrize(
-        "role, message",
+        ("role", "message"),
         [
             ["Viewer", 'User "test4" is already a member of role "Viewer"'],
             ["Foo", '"Foo" is not a valid role. Valid roles are'],
@@ -429,7 +426,7 @@ class TestCliUsers:
             user_command.add_role(args)
 
     @pytest.mark.parametrize(
-        "role, message",
+        ("role", "message"),
         [
             ["Admin", 'User "test4" is not a member of role "Admin"'],
             ["Foo", '"Foo" is not a valid role. Valid roles are'],
@@ -441,7 +438,7 @@ class TestCliUsers:
             user_command.remove_role(args)
 
     @pytest.mark.parametrize(
-        "user, message",
+        ("user", "message"),
         [
             [
                 {

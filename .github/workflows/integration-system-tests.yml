@@ -106,6 +106,7 @@ jobs:
           platform: ${{ inputs.platform }}
           python: "${{ inputs.default-python-version }}"
           use-uv: ${{ inputs.use-uv }}
+          make-mnt-writeable-and-cleanup: true
       - name: "Integration: core ${{ matrix.integration }}"
         env:
           INTEGRATION: "${{ matrix.integration }}"
@@ -155,6 +156,7 @@ jobs:
           platform: ${{ inputs.platform }}
           python: "${{ inputs.default-python-version }}"
           use-uv: ${{ inputs.use-uv }}
+          make-mnt-writeable-and-cleanup: true
       - name: "Integration: providers ${{ matrix.integration }}"
         env:
           INTEGRATION: "${{ matrix.integration }}"
@@ -199,6 +201,7 @@ jobs:
           platform: ${{ inputs.platform }}
           python: "${{ inputs.default-python-version }}"
           use-uv: ${{ inputs.use-uv }}
+          make-mnt-writeable-and-cleanup: true
       - name: "System Tests"
         run: >
           ./scripts/ci/testing/run_system_tests.sh airflow-core/tests/system/example_empty.py

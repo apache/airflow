@@ -38,7 +38,7 @@ def test_sanitize_uri():
 
 
 def test_sanitize_uri_no_netloc():
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match="URI format s3:// must contain a bucket name"):
         sanitize_uri(urllib.parse.urlsplit("s3://"))
 
 

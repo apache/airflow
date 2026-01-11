@@ -26,20 +26,18 @@ import pytest
 from botocore.waiter import Waiter
 from jinja2 import StrictUndefined
 
-from airflow.exceptions import TaskDeferred
+from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.models import DAG, DagRun, TaskInstance
-from airflow.models.serialized_dag import SerializedDagModel
 from airflow.providers.amazon.aws.operators.emr import EmrCreateJobFlowOperator
 from airflow.providers.amazon.aws.triggers.emr import EmrCreateJobFlowTrigger
 from airflow.providers.amazon.aws.utils.waiter import WAITER_POLICY_NAME_MAPPING, WaitPolicy
-
-try:
-    from airflow.sdk import timezone
-except ImportError:
-    from airflow.utils import timezone  # type: ignore[attr-defined,no-redef]
+from airflow.providers.common.compat.sdk import TaskDeferred
 from airflow.utils.state import DagRunState
 from airflow.utils.types import DagRunType
 
+from tests_common.test_utils.compat import timezone
+from tests_common.test_utils.dag import sync_dag_to_db
+from tests_common.test_utils.taskinstance import create_task_instance, render_template_fields
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 from unit.amazon.aws.utils.test_template_fields import validate_template_fields
 from unit.amazon.aws.utils.test_waiter import assert_expected_waiter_type
@@ -107,18 +105,17 @@ class TestEmrCreateJobFlowOperator:
         if AIRFLOW_V_3_0_PLUS:
             from airflow.models.dag_version import DagVersion
 
-            bundle_name = "testing"
-            DAG.bulk_write_to_db(bundle_name, None, [self.operator.dag])
-            SerializedDagModel.write_dag(self.operator.dag, bundle_name=bundle_name)
+            sync_dag_to_db(self.operator.dag)
             dag_version = DagVersion.get_latest_version(self.operator.dag.dag_id)
-            ti = TaskInstance(task=self.operator, dag_version_id=dag_version.id)
             dag_run = DagRun(
                 dag_id=self.operator.dag_id,
                 logical_date=DEFAULT_DATE,
                 run_id="test",
                 run_type=DagRunType.MANUAL,
                 state=DagRunState.RUNNING,
+                run_after=timezone.utcnow(),
             )
+            ti = create_task_instance(task=self.operator, run_id="test", dag_version_id=dag_version.id)
         else:
             dag_run = DagRun(
                 dag_id=self.operator.dag_id,
@@ -129,9 +126,7 @@ class TestEmrCreateJobFlowOperator:
             )
             ti = TaskInstance(task=self.operator)
         ti.dag_run = dag_run
-        session.add(ti)
-        session.commit()
-        ti.render_templates()
+        render_template_fields(ti, self.operator)
 
         expected_args = {
             "Name": "test_job_flow",
@@ -164,18 +159,17 @@ class TestEmrCreateJobFlowOperator:
         if AIRFLOW_V_3_0_PLUS:
             from airflow.models.dag_version import DagVersion
 
-            bundle_name = "testing"
-            DAG.bulk_write_to_db(bundle_name, None, [self.operator.dag])
-            SerializedDagModel.write_dag(self.operator.dag, bundle_name=bundle_name)
+            sync_dag_to_db(self.operator.dag)
             dag_version = DagVersion.get_latest_version(self.operator.dag.dag_id)
-            ti = TaskInstance(task=self.operator, dag_version_id=dag_version.id)
             dag_run = DagRun(
                 dag_id=self.operator.dag_id,
                 logical_date=DEFAULT_DATE,
                 run_id="test",
                 run_type=DagRunType.MANUAL,
                 state=DagRunState.RUNNING,
+                run_after=timezone.utcnow(),
             )
+            ti = create_task_instance(task=self.operator, run_id="test", dag_version_id=dag_version.id)
         else:
             dag_run = DagRun(
                 dag_id=self.operator.dag_id,
@@ -186,9 +180,7 @@ class TestEmrCreateJobFlowOperator:
             )
             ti = TaskInstance(task=self.operator)
         ti.dag_run = dag_run
-        session.add(ti)
-        session.commit()
-        ti.render_templates()
+        render_template_fields(ti, self.operator)
 
         mocked_hook_client.run_job_flow.return_value = RUN_JOB_FLOW_SUCCESS_RETURN
 
@@ -220,33 +212,26 @@ class TestEmrCreateJobFlowOperator:
         mocked_hook_client.run_job_flow.return_value = RUN_JOB_FLOW_SUCCESS_RETURN
         assert self.operator.execute(self.mock_context) == JOB_FLOW_ID
 
-    @pytest.mark.parametrize(
-        "wait_policy",
-        [
-            pytest.param(WaitPolicy.WAIT_FOR_COMPLETION, id="with wait for completion"),
-            pytest.param(WaitPolicy.WAIT_FOR_STEPS_COMPLETION, id="with wait for steps completion policy"),
-        ],
-    )
     @mock.patch("botocore.waiter.get_service_module_name", return_value="emr")
     @mock.patch.object(Waiter, "wait")
-    def test_execute_with_wait_policy(self, mock_waiter, _, mocked_hook_client, wait_policy: WaitPolicy):
+    def test_execute_with_wait_for_completion(self, mock_waiter, _, mocked_hook_client):
         mocked_hook_client.run_job_flow.return_value = RUN_JOB_FLOW_SUCCESS_RETURN
 
-        # Mock out the emr_client creator
-        self.operator.wait_policy = wait_policy
+        self.operator.wait_for_completion = True
 
         assert self.operator.execute(self.mock_context) == JOB_FLOW_ID
         mock_waiter.assert_called_once_with(mock.ANY, ClusterId=JOB_FLOW_ID, WaiterConfig=mock.ANY)
-        assert_expected_waiter_type(mock_waiter, WAITER_POLICY_NAME_MAPPING[wait_policy])
+        assert_expected_waiter_type(mock_waiter, WAITER_POLICY_NAME_MAPPING[WaitPolicy.WAIT_FOR_COMPLETION])
 
     def test_create_job_flow_deferrable(self, mocked_hook_client):
         """
         Test to make sure that the operator raises a TaskDeferred exception
-        if run in deferrable mode.
+        if run in deferrable mode and wait_for_completion is set.
         """
         mocked_hook_client.run_job_flow.return_value = RUN_JOB_FLOW_SUCCESS_RETURN
 
         self.operator.deferrable = True
+        self.operator.wait_for_completion = True
         with pytest.raises(TaskDeferred) as exc:
             self.operator.execute(self.mock_context)
 
@@ -254,5 +239,25 @@ class TestEmrCreateJobFlowOperator:
             "Trigger is not a EmrCreateJobFlowTrigger"
         )
 
+    def test_create_job_flow_deferrable_no_wait(self, mocked_hook_client):
+        """
+        Test to make sure that the operator does NOT raise a TaskDeferred exception
+        if run in deferrable mode but wait_for_completion is not set.
+        """
+        mocked_hook_client.run_job_flow.return_value = RUN_JOB_FLOW_SUCCESS_RETURN
+
+        self.operator.deferrable = True
+        # wait_for_completion is None by default
+        result = self.operator.execute(self.mock_context)
+        assert result == JOB_FLOW_ID
+
     def test_template_fields(self):
         validate_template_fields(self.operator)
+
+    def test_wait_policy_deprecation_warning(self):
+        """Test that using wait_policy raises a deprecation warning."""
+        with pytest.warns(AirflowProviderDeprecationWarning, match="`wait_policy` parameter is deprecated"):
+            EmrCreateJobFlowOperator(
+                task_id=TASK_ID,
+                wait_policy=WaitPolicy.WAIT_FOR_COMPLETION,
+            )

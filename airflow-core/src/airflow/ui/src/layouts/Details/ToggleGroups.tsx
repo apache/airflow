@@ -16,10 +16,10 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { type ButtonGroupProps, IconButton, ButtonGroup } from "@chakra-ui/react";
+import type { ButtonGroupProps } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
-import { MdExpand, MdCompress } from "react-icons/md";
 
+import { ExpandCollapseButtons } from "src/components/ExpandCollapseButtons";
 import { useOpenGroups } from "src/context/openGroups";
 
 export const ToggleGroups = (props: ButtonGroupProps) => {
@@ -46,25 +46,14 @@ export const ToggleGroups = (props: ButtonGroupProps) => {
   const collapseLabel = translate("dag:taskGroups.collapseAll");
 
   return (
-    <ButtonGroup attached size="sm" variant="outline" {...props}>
-      <IconButton
-        aria-label={expandLabel}
-        disabled={isExpandDisabled}
-        onClick={onExpand}
-        size="sm"
-        title={expandLabel}
-      >
-        <MdExpand />
-      </IconButton>
-      <IconButton
-        aria-label={collapseLabel}
-        disabled={isCollapseDisabled}
-        onClick={onCollapse}
-        size="sm"
-        title={collapseLabel}
-      >
-        <MdCompress />
-      </IconButton>
-    </ButtonGroup>
+    <ExpandCollapseButtons
+      collapseLabel={collapseLabel}
+      expandLabel={expandLabel}
+      isCollapseDisabled={isCollapseDisabled}
+      isExpandDisabled={isExpandDisabled}
+      onCollapse={onCollapse}
+      onExpand={onExpand}
+      {...props}
+    />
   );
 };

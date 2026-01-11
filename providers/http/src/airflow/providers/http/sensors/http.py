@@ -23,25 +23,13 @@ from collections.abc import Callable, Sequence
 from datetime import timedelta
 from typing import TYPE_CHECKING, Any
 
-from airflow.configuration import conf
-from airflow.exceptions import AirflowException
+from airflow.providers.common.compat.sdk import AirflowException, BaseSensorOperator, conf
 from airflow.providers.http.hooks.http import HttpHook, _default_response_maker
 from airflow.providers.http.triggers.http import HttpSensorTrigger
-from airflow.providers.http.version_compat import AIRFLOW_V_3_0_PLUS, BaseSensorOperator
 
 if TYPE_CHECKING:
     from requests import Response
-
-    try:
-        from airflow.sdk.definitions.context import Context
-
-        if AIRFLOW_V_3_0_PLUS:
-            from airflow.sdk import PokeReturnValue
-        else:
-            from airflow.sensors.base import PokeReturnValue  # type: ignore[no-redef]
-    except ImportError:
-        # TODO: Remove once provider drops support for Airflow 2
-        from airflow.utils.context import Context
+    from airflow.sdk import Context, PokeReturnValue
 
 
 class HttpSensor(BaseSensorOperator):

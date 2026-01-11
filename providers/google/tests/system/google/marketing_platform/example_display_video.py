@@ -62,7 +62,7 @@ except ImportError:
     # Compatibility for Airflow < 3.1
     from airflow.utils.trigger_rule import TriggerRule  # type: ignore[no-redef,attr-defined]
 
-from tests_common.test_utils.api_client_helpers import create_airflow_connection, delete_airflow_connection
+from system.google.gcp_api_client_helpers import create_airflow_connection, delete_airflow_connection
 
 DAG_ID = "display_video"
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID", "default")
@@ -71,6 +71,8 @@ BUCKET_NAME = f"bucket_{DAG_ID}_{ENV_ID}"
 OBJECT_NAME = "files/report.csv"
 PATH_TO_UPLOAD_FILE = os.environ.get("GCP_GCS_PATH_TO_UPLOAD_FILE", "test-gcs-example.csv")
 BUCKET_FILE_LOCATION = PATH_TO_UPLOAD_FILE.rpartition("/")[-1]
+
+IS_COMPOSER = bool(os.environ.get("COMPOSER_ENVIRONMENT", ""))
 
 CONNECTION_TYPE = "google_cloud_platform"
 CONN_ID = "google_display_video_default"
@@ -83,7 +85,7 @@ DISPLAY_VIDEO_SERVICE_ACCOUNT_KEY = "google_display_video_service_account_key"
 ADVERTISER_ID = "{{ task_instance.xcom_pull('get_display_video_advertiser_id') }}"
 GMP_PARTNER_ID = "{{ task_instance.xcom_pull('get_display_video_gmp_partner_id') }}"
 SDF_VERSION = "SDF_VERSION_8_1"
-BQ_DATASET = f"bq_dataset_{DAG_ID}_{ENV_ID}"
+BQ_DATASET = f"bq_dataset_{DAG_ID}_{ENV_ID}".replace("-", "_")
 ENTITY_TYPE = "CAMPAIGN"
 ERF_SOURCE_OBJECT = GoogleDisplayVideo360Hook.erf_uri(GMP_PARTNER_ID, ENTITY_TYPE)
 
@@ -135,6 +137,7 @@ with DAG(
         create_airflow_connection(
             connection_id=connection_id,
             connection_conf={"conn_type": CONNECTION_TYPE, "extra": conn_extra_json},
+            is_composer=IS_COMPOSER,
         )
 
     create_connection_display_video_task = create_connection_display_video(
@@ -199,7 +202,7 @@ with DAG(
 
     @task(task_id="delete_connection_task")
     def delete_connection_display_video(connection_id: str) -> None:
-        delete_airflow_connection(connection_id=connection_id)
+        delete_airflow_connection(connection_id=connection_id, is_composer=IS_COMPOSER)
 
     delete_connection_task = delete_connection_display_video(connection_id=CONN_ID)
 

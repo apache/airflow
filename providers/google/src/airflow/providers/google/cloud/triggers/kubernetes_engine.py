@@ -26,10 +26,11 @@ from typing import TYPE_CHECKING, Any
 from google.cloud.container_v1.types import Operation
 from packaging.version import parse as parse_version
 
-from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
+from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.cncf.kubernetes.triggers.pod import KubernetesPodTrigger
 from airflow.providers.cncf.kubernetes.utils.pod_manager import OnFinishAction, PodManager
 from airflow.providers.cncf.kubernetes.utils.xcom_sidecar import PodDefaults
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.google.cloud.hooks.kubernetes_engine import (
     GKEAsyncHook,
     GKEKubernetesAsyncHook,

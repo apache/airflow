@@ -16,7 +16,7 @@
     under the License.
 
 .. dag-definition-start
-A DAG is a model that encapsulates everything needed to execute a workflow. Some DAG attributes include the following:
+A Dag is a model that encapsulates everything needed to execute a workflow. Some Dag attributes include the following:
 
 * **Schedule**: When the workflow should run.
 * **Tasks**: :doc:`tasks </core-concepts/tasks>` are discrete units of work that are run on workers.
@@ -28,5 +28,5 @@ A DAG is a model that encapsulates everything needed to execute a workflow. Some
 .. dag-etymology-start
 .. note::
 
-    The term "DAG" comes from the mathematical concept "directed acyclic graph", but the meaning in Airflow has evolved well beyond just the literal data structure associated with the mathematical DAG concept.
+    The term "DAG" comes from the mathematical concept "directed acyclic graph", but the meaning in Airflow has evolved well beyond just the literal data structure associated with the mathematical DAG concept. Therefore it was decided to use the term Dag in Airflow.
 .. dag-etymology-end

@@ -186,7 +186,7 @@ class VaultBackend(BaseSecretsBackend, LoggingMixin):
     if TYPE_CHECKING:
         from airflow.models.connection import Connection
 
-    def get_connection(self, conn_id: str) -> Connection | None:
+    def get_connection(self, conn_id: str, team_name: str | None = None) -> Connection | None:
         """
         Get connection from Vault as secret.
 
@@ -208,11 +208,12 @@ class VaultBackend(BaseSecretsBackend, LoggingMixin):
 
         return Connection(conn_id, **response)
 
-    def get_variable(self, key: str) -> str | None:
+    def get_variable(self, key: str, team_name: str | None = None) -> str | None:
         """
         Get Airflow Variable.
 
         :param key: Variable Key
+        :param team_name: Team name associated to the task trying to access the variable (if any)
         :return: Variable Value retrieved from the vault
         """
         mount_point, variable_key = self._parse_path(key)

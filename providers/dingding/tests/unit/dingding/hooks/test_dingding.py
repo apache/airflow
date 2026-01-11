@@ -215,5 +215,5 @@ class TestDingdingHook:
             "message": "Airflow dingding text message remind no one",
         }
         hook = DingdingHook(**config)
-        with pytest.raises(ValueError):
+        with pytest.raises(ValueError, match="receive not_support_type"):
             hook.send()

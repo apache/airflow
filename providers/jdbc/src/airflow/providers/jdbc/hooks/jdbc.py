@@ -27,15 +27,11 @@ from urllib.parse import quote_plus, urlencode
 import jaydebeapi
 from sqlalchemy.engine import URL
 
-from airflow.exceptions import AirflowException
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.common.sql.hooks.sql import DbApiHook
 
 if TYPE_CHECKING:
-    if TYPE_CHECKING:
-        try:
-            from airflow.sdk import Connection
-        except ImportError:
-            from airflow.models.connection import Connection  # type: ignore[assignment]
+    from airflow.providers.common.compat.sdk import Connection
 
 
 @contextmanager

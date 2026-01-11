@@ -44,12 +44,12 @@ from airflow_breeze.commands.common_options import (
     option_verbose,
 )
 from airflow_breeze.configure_rich_click import click
-from airflow_breeze.global_constants import generate_provider_dependencies_if_needed
 from airflow_breeze.utils.click_utils import BreezeGroup
 from airflow_breeze.utils.confirm import Answer, user_confirm
 from airflow_breeze.utils.console import get_console
 from airflow_breeze.utils.docker_command_utils import remove_docker_networks, remove_docker_volumes
 from airflow_breeze.utils.path_utils import AIRFLOW_HOME_PATH, BUILD_CACHE_PATH
+from airflow_breeze.utils.provider_dependencies import generate_provider_dependencies_if_needed
 from airflow_breeze.utils.run_utils import run_command
 from airflow_breeze.utils.shared_options import get_dry_run
 

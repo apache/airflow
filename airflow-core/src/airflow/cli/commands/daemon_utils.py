@@ -75,7 +75,7 @@ def run_command_with_daemon_option(
 
             with ctx:
                 # in daemon context stats client needs to be reinitialized.
-                from airflow.stats import Stats
+                from airflow.observability.stats import Stats
 
                 Stats.instance = None
                 callback()

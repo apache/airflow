@@ -21,8 +21,6 @@ from typing import TYPE_CHECKING, Any, ClassVar
 
 from botocore.exceptions import ClientError
 
-from airflow.configuration import conf
-from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.kinesis_analytics import KinesisAnalyticsV2Hook
 from airflow.providers.amazon.aws.operators.base_aws import AwsBaseOperator
 from airflow.providers.amazon.aws.triggers.kinesis_analytics import (
@@ -30,9 +28,10 @@ from airflow.providers.amazon.aws.triggers.kinesis_analytics import (
 )
 from airflow.providers.amazon.aws.utils import validate_execute_complete_event
 from airflow.providers.amazon.aws.utils.mixins import aws_template_fields
+from airflow.providers.common.compat.sdk import AirflowException, conf
 
 if TYPE_CHECKING:
-    from airflow.utils.context import Context
+    from airflow.sdk import Context
 
 
 class KinesisAnalyticsV2CreateApplicationOperator(AwsBaseOperator[KinesisAnalyticsV2Hook]):

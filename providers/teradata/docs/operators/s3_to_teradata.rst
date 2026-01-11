@@ -70,10 +70,10 @@ An example usage of the S3ToTeradataOperator to transfer PARQUET data format fro
     :start-after: [START s3_to_teradata_transfer_operator_howto_guide_transfer_data_s3_to_teradata_parquet]
     :end-before: [END s3_to_teradata_transfer_operator_howto_guide_transfer_data_s3_to_teradata_parquet]
 
-The complete ``S3ToTeradataOperator`` Operator DAG
+The complete ``S3ToTeradataOperator`` Operator Dag
 --------------------------------------------------
 
-When we put everything together, our DAG should look like this:
+When we put everything together, our Dag should look like this:
 
 .. exampleinclude:: /../../teradata/tests/system/teradata/example_s3_to_teradata_transfer.py
     :language: python

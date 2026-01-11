@@ -36,7 +36,7 @@ def gremlin_hook():
 
 class TestGremlinHook:
     @pytest.mark.parametrize(
-        "host, port, expected_uri",
+        ("host", "port", "expected_uri"),
         [
             ("host", None, "ws://host:443/gremlin"),
             ("myhost", 1234, "ws://myhost:1234/gremlin"),
@@ -81,7 +81,7 @@ class TestGremlinHook:
             )
 
     @pytest.mark.parametrize(
-        "serializer, should_include",
+        ("serializer", "should_include"),
         [
             (None, False),
             ("dummy_serializer", True),
@@ -112,7 +112,7 @@ class TestGremlinHook:
                 assert "message_serializer" not in call_args
 
     @pytest.mark.parametrize(
-        "side_effect, expected_exception, expected_result",
+        ("side_effect", "expected_exception", "expected_result"),
         [
             (None, None, ["dummy_result"]),
             (Exception("Test error"), Exception, None),

@@ -20,7 +20,7 @@ from __future__ import annotations
 import json
 import locale
 from base64 import b64encode
-from collections.abc import AsyncIterator, Sequence
+from collections.abc import AsyncIterator
 from contextlib import suppress
 from datetime import datetime
 from functools import cached_property
@@ -33,9 +33,9 @@ from uuid import UUID
 
 import pendulum
 
+from airflow.providers.common.compat.module_loading import import_string
 from airflow.providers.microsoft.azure.hooks.msgraph import KiotaRequestAdapterHook
 from airflow.triggers.base import BaseTrigger, TriggerEvent
-from airflow.utils.module_loading import import_string
 
 if TYPE_CHECKING:
     from io import BytesIO
@@ -96,17 +96,6 @@ class MSGraphTrigger(BaseTrigger):
     :param serializer: Class which handles response serialization (default is ResponseSerializer).
         Bytes will be base64 encoded into a string, so it can be stored as an XCom.
     """
-
-    template_fields: Sequence[str] = (
-        "url",
-        "response_type",
-        "path_parameters",
-        "url_template",
-        "query_parameters",
-        "headers",
-        "data",
-        "conn_id",
-    )
 
     def __init__(
         self,

@@ -22,9 +22,9 @@ from typing import TYPE_CHECKING
 
 import boto3
 
-from airflow.configuration import conf
 from airflow.exceptions import AirflowOptionalProviderFeatureException
 from airflow.providers.amazon.aws.auth_manager.constants import CONF_REGION_NAME_KEY, CONF_SECTION_NAME
+from airflow.providers.common.compat.sdk import conf
 from airflow.utils import cli as cli_utils
 
 try:

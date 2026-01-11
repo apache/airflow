@@ -22,6 +22,7 @@ import { Link as RouterLink } from "react-router-dom";
 
 import type { PoolResponse } from "openapi/requests/types.gen";
 import { Tooltip } from "src/components/ui";
+import { SearchParamsKeys } from "src/constants/searchParams";
 import { type Slots, slotConfigs } from "src/utils/slots";
 
 export const PoolBar = ({
@@ -53,7 +54,7 @@ export const PoolBar = ({
             <Flex
               alignItems="center"
               bg={`${color}.solid`}
-              color="white"
+              color={`${color}.contrast`}
               gap={1}
               h="100%"
               justifyContent="center"
@@ -69,7 +70,11 @@ export const PoolBar = ({
 
         return color !== "success" && "name" in pool ? (
           <Link asChild display="flex" flex={flexValue} key={key}>
-            <RouterLink to={`/task_instances?state=${color}&pool=${pool.name}`}>{poolContent}</RouterLink>
+            <RouterLink
+              to={`/task_instances?${SearchParamsKeys.STATE}=${color}&${SearchParamsKeys.POOL}=${pool.name}`}
+            >
+              {poolContent}
+            </RouterLink>
           </Link>
         ) : (
           <Box display="flex" flex={flexValue} key={key}>

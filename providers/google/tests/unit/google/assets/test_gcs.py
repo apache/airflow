@@ -33,7 +33,7 @@ def test_sanitize_uri():
 
 
 def test_sanitize_uri_no_netloc():
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match="URI format gs:// must contain"):
         sanitize_uri(urllib.parse.urlsplit("gs://"))
 
 

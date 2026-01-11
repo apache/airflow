@@ -72,6 +72,8 @@ For development and testing, use `pnpm dev` which will:
 - Start a development server on port 5173
 - Load the component using `src/dev.tsx` entry point
 - Enable hot module replacement
+- Chakra Theme provided for local development is the default one, but in production when the plugin is loaded into the Airflow Core UI,
+  it will inherit the main application theme for a consistent look and feel.
 
 ### Library Configuration
 
@@ -81,6 +83,11 @@ The template is configured with:
 - **TypeScript** with declaration file generation
 - **CSS injection** - styles are automatically injected into the JavaScript bundle
 - **External dependencies** - React and other common libraries are marked as external to reduce bundle size
+
+### Upgrading dependencies
+
+Be mindful when upgrading dependencies that are marked as external in `vite.config.ts`, those are shared dependencies with the host application
+(Airflow UI) and should remain in a compatible version range to avoid issues.
 
 ### Customization
 

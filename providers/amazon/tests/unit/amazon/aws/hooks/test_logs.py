@@ -29,7 +29,7 @@ from airflow.providers.amazon.aws.hooks.logs import AwsLogsHook
 @mock_aws
 class TestAwsLogsHook:
     @pytest.mark.parametrize(
-        "get_log_events_response, num_skip_events, expected_num_events, end_time",
+        ("get_log_events_response", "num_skip_events", "expected_num_events", "end_time"),
         [
             # 3 empty responses with different tokens
             (

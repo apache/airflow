@@ -27,11 +27,11 @@ from typing import TYPE_CHECKING
 import pymssql
 
 from airflow.providers.apache.hive.hooks.hive import HiveCliHook
-from airflow.providers.apache.hive.version_compat import BaseOperator
+from airflow.providers.common.compat.sdk import BaseOperator
 from airflow.providers.microsoft.mssql.hooks.mssql import MsSqlHook
 
 if TYPE_CHECKING:
-    from airflow.utils.context import Context
+    from airflow.providers.common.compat.sdk import Context
 
 
 class MsSqlToHiveOperator(BaseOperator):

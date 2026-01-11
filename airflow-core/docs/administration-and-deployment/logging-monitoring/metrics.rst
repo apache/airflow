@@ -63,7 +63,8 @@ To use OpenTelemetry you must first install the required packages:
 
    pip install 'apache-airflow[otel]'
 
-Add the following lines to your configuration file e.g. ``airflow.cfg``
+An OpenTelemetry `Collector <https://opentelemetry.io/docs/concepts/components/#collector>`_ (or compatible service) is required for connectivity to a metrics backend.
+Add the Collector details to your configuration file e.g. ``airflow.cfg``
 
 .. code-block:: ini
 
@@ -73,7 +74,19 @@ Add the following lines to your configuration file e.g. ``airflow.cfg``
     otel_port = 8889
     otel_prefix = airflow
     otel_interval_milliseconds = 30000  # The interval between exports, defaults to 60000
+    otel_service = Airflow
     otel_ssl_active = False
+
+.. note::
+
+    To support the OpenTelemetry exporter standard, the ``metrics`` configurations are transparently overridden by use of standard OpenTelemetry SDK environment variables.
+
+    - ``OTEL_EXPORTER_OTLP_ENDPOINT`` and ``OTEL_EXPORTER_OTLP_METRICS_ENDPOINT`` supersede ``otel_host``, ``otel_port`` and ``otel_ssl_active``
+    - ``OTEL_METRIC_EXPORT_INTERVAL`` supersedes ``otel_interval_milliseconds``
+
+    See the OpenTelemetry `exporter protocol specification <https://opentelemetry.io/docs/specs/otel/protocol/exporter/#configuration-options>`_  and
+    `SDK environment variable documentation <https://opentelemetry.io/docs/specs/otel/configuration/sdk-environment-variables/#periodic-exporting-metricreader>`_ for more information.
+
 
 Enable Https
 -----------------
@@ -146,9 +159,9 @@ Name                                                                   Descripti
 ``<job_name>_heartbeat_failure``                                       Number of failed Heartbeats for a ``<job_name>`` job, ex. ``SchedulerJob``,
                                                                        ``LocalTaskJob``
 ``local_task_job.task_exit.<job_id>.<dag_id>.<task_id>.<return_code>`` Number of ``LocalTaskJob`` terminations with a ``<return_code>``
-                                                                       while running a task ``<task_id>`` of a DAG  ``<dag_id>``.
+                                                                       while running a task ``<task_id>`` of a Dag  ``<dag_id>``.
 ``local_task_job.task_exit``                                           Number of ``LocalTaskJob`` terminations with a ``<return_code>``
-                                                                       while running a task ``<task_id>`` of a DAG  ``<dag_id>``.
+                                                                       while running a task ``<task_id>`` of a Dag  ``<dag_id>``.
                                                                        Metric with job_id, dag_id, task_id and return_code tagging.
 ``operator_failures_<operator_name>``                                  Operator ``<operator_name>`` failures
 ``operator_failures``                                                  Operator ``<operator_name>`` failures. Metric with operator_name tagging.
@@ -159,40 +172,40 @@ Name                                                                   Descripti
 ``previously_succeeded``                                               Number of previously succeeded task instances. Metric with dag_id and task_id tagging.
 ``task_instances_without_heartbeats_killed``                           Task instances without heartbeats killed. Metric with dag_id and task_id tagging.
 ``scheduler_heartbeat``                                                Scheduler heartbeats
-``dag_processor_heartbeat``                                            Standalone DAG processor heartbeats
-``dag_processing.processes``                                           Relative number of currently running DAG parsing processes (ie this delta
+``dag_processor_heartbeat``                                            Standalone Dag processor heartbeats
+``dag_processing.processes``                                           Relative number of currently running Dag parsing processes (ie this delta
                                                                        is negative when, since the last metric was sent, processes have completed).
                                                                        Metric with file_path and action tagging.
 ``dag_processing.processor_timeouts``                                  Number of file processors that have been killed due to taking too long.
                                                                        Metric with file_path tagging.
 ``dag_processing.other_callback_count``                                Number of non-SLA callbacks received
-``dag_processing.file_path_queue_update_count``                        Number of times we've scanned the filesystem and queued all existing dags
+``dag_processing.file_path_queue_update_count``                        Number of times we've scanned the filesystem and queued all existing Dags
 ``dag_file_processor_timeouts``                                        (DEPRECATED) same behavior as ``dag_processing.processor_timeouts``
 ``dag_processing.manager_stalls``                                      Number of stalled ``DagFileProcessorManager``
-``dag_file_refresh_error``                                             Number of failures loading any DAG files
+``dag_file_refresh_error``                                             Number of failures loading any Dag files
 ``scheduler.tasks.killed_externally``                                  Number of tasks killed externally. Metric with dag_id and task_id tagging.
 ``scheduler.orphaned_tasks.cleared``                                   Number of Orphaned tasks cleared by the Scheduler
 ``scheduler.orphaned_tasks.adopted``                                   Number of Orphaned tasks adopted by the Scheduler
 ``scheduler.critical_section_busy``                                    Count of times a scheduler process tried to get a lock on the critical
                                                                        section (needed to send tasks to the executor) and found it locked by
                                                                        another process.
-``ti.start.<dag_id>.<task_id>``                                        Number of started task in a given dag. Similar to <job_name>_start but for task
-``ti.start``                                                           Number of started task in a given dag. Similar to <job_name>_start but for task.
+``ti.start.<dag_id>.<task_id>``                                        Number of started task in a given Dag. Similar to <job_name>_start but for task
+``ti.start``                                                           Number of started task in a given Dag. Similar to <job_name>_start but for task.
                                                                        Metric with dag_id and task_id tagging.
-``ti.finish.<dag_id>.<task_id>.<state>``                               Number of completed task in a given dag. Similar to <job_name>_end but for task
-``ti.finish``                                                          Number of completed task in a given dag. Similar to <job_name>_end but for task
+``ti.finish.<dag_id>.<task_id>.<state>``                               Number of completed task in a given Dag. Similar to <job_name>_end but for task
+``ti.finish``                                                          Number of completed task in a given Dag. Similar to <job_name>_end but for task
                                                                        Metric with dag_id and task_id tagging.
-``dag.callback_exceptions``                                            Number of exceptions raised from DAG callbacks. When this happens, it
-                                                                       means DAG callback is not working. Metric with dag_id tagging
+``dag.callback_exceptions``                                            Number of exceptions raised from Dag callbacks. When this happens, it
+                                                                       means Dag callback is not working. Metric with dag_id tagging
 ``celery.task_timeout_error``                                          Number of ``AirflowTaskTimeout`` errors raised when publishing Task to Celery Broker.
 ``celery.execute_command.failure``                                     Number of non-zero exit code from Celery task.
-``task_removed_from_dag.<dag_id>``                                     Number of tasks removed for a given dag (i.e. task no longer exists in DAG).
-``task_removed_from_dag``                                              Number of tasks removed for a given dag (i.e. task no longer exists in DAG).
+``task_removed_from_dag.<dag_id>``                                     Number of tasks removed for a given Dag (i.e. task no longer exists in Dag).
+``task_removed_from_dag``                                              Number of tasks removed for a given Dag (i.e. task no longer exists in Dag).
                                                                        Metric with dag_id and run_type tagging.
-``task_restored_to_dag.<dag_id>``                                      Number of tasks restored for a given dag (i.e. task instance which was
-                                                                       previously in REMOVED state in the DB is added to DAG file)
-``task_restored_to_dag.<dag_id>``                                      Number of tasks restored for a given dag (i.e. task instance which was
-                                                                       previously in REMOVED state in the DB is added to DAG file).
+``task_restored_to_dag.<dag_id>``                                      Number of tasks restored for a given Dag (i.e. task instance which was
+                                                                       previously in REMOVED state in the DB is added to Dag file)
+``task_restored_to_dag.<dag_id>``                                      Number of tasks restored for a given Dag (i.e. task instance which was
+                                                                       previously in REMOVED state in the DB is added to Dag file).
                                                                        Metric with dag_id and run_type tagging.
 ``task_instance_created_<operator_name>``                              Number of tasks instances created for a given Operator
 ``task_instance_created``                                              Number of tasks instances created for a given Operator.
@@ -203,9 +216,9 @@ Name                                                                   Descripti
 ``triggers.failed``                                                    Number of triggers that errored before they could fire an event
 ``triggers.succeeded``                                                 Number of triggers that have fired at least one event
 ``asset.updates``                                                      Number of updated assets
-``asset.orphaned``                                                     Number of assets marked as orphans because they are no longer referenced in DAG
+``asset.orphaned``                                                     Number of assets marked as orphans because they are no longer referenced in Dag
                                                                        schedule parameters or task outlets
-``asset.triggered_dagruns``                                            Number of DAG runs triggered by an asset update
+``asset.triggered_dagruns``                                            Number of Dag runs triggered by an asset update
 ====================================================================== ================================================================
 
 Gauges
@@ -214,17 +227,18 @@ Gauges
 ==================================================== ========================================================================
 Name                                                 Description
 ==================================================== ========================================================================
-``dagbag_size``                                      Number of dags found when the scheduler ran a scan based on its
+``dagbag_size``                                      Number of Dags found when the scheduler ran a scan based on its
                                                      configuration
-``dag_processing.import_errors``                     Number of errors from trying to parse DAG files
-``dag_processing.total_parse_time``                  Seconds taken to scan and import ``dag_processing.file_path_queue_size`` DAG files
-``dag_processing.file_path_queue_size``              Number of DAG files to be considered for the next scan
+``dag_processing.import_errors``                     Number of errors from trying to parse Dag files
+``dag_processing.total_parse_time``                  Seconds taken to scan and import ``dag_processing.file_path_queue_size`` Dag files
+``dag_processing.file_path_queue_size``              Number of Dag files to be considered for the next scan
 ``dag_processing.last_run.seconds_ago.<dag_file>``   Seconds since ``<dag_file>`` was last processed
 ``dag_processing.last_num_of_db_queries.<dag_file>`` Number of queries to Airflow database during parsing per ``<dag_file>``
 ``scheduler.tasks.starving``                         Number of tasks that cannot be scheduled because of no open slot in pool
 ``scheduler.tasks.executable``                       Number of tasks that are ready for execution (set to queued)
-                                                     with respect to pool limits, DAG concurrency, executor state,
+                                                     with respect to pool limits, Dag concurrency, executor state,
                                                      and priority.
+``scheduler.dagruns.running``                           Number of DAGs whose latest DagRun is currently in the ``RUNNING`` state
 ``executor.open_slots.<executor_class_name>``        Number of open slots on a specific executor. Only emitted when multiple executors are configured.
 ``executor.open_slots``                              Number of open slots on executor
 ``executor.queued_tasks.<executor_class_name>``      Number of queued tasks on on a specific executor. Only emitted when multiple executors are configured.
@@ -249,8 +263,17 @@ Name                                                 Description
 ``triggerer.capacity_left.<hostname>``               Capacity left on a triggerer to run triggers (described by hostname)
 ``triggerer.capacity_left``                          Capacity left on a triggerer to run triggers (described by hostname).
                                                      Metric with hostname tagging.
-``ti.running.<queue>.<dag_id>.<task_id>``            Number of running tasks in a given dag. As ti.start and ti.finish can run out of sync this metric shows all running tis.
-``ti.running``                                       Number of running tasks in a given dag. As ti.start and ti.finish can run out of sync this metric shows all running tis.
+``ti.scheduled.<queue>.<dag_id>.<task_id>``          Number of scheduled tasks in a given Dag.
+``ti.scheduled``                                     Number of scheduled tasks in a given Dag.
+                                                     Metric with queue, dag_id and task_id tagging.
+``ti.queued.<queue>.<dag_id>.<task_id>``             Number of queued tasks in a given Dag.
+``ti.queued``                                        Number of queued tasks in a given Dag.
+                                                     Metric with queue, dag_id and task_id tagging.
+``ti.running.<queue>.<dag_id>.<task_id>``            Number of running tasks in a given Dag. As ti.start and ti.finish can run out of sync this metric shows all running tis.
+``ti.running``                                       Number of running tasks in a given Dag. As ti.start and ti.finish can run out of sync this metric shows all running tis.
+                                                     Metric with queue, dag_id and task_id tagging.
+``ti.deferred.<queue>.<dag_id>.<task_id>``           Number of deferred tasks in a given Dag.
+``ti.deferred``                                      Number of deferred tasks in a given Dag.
                                                      Metric with queue, dag_id and task_id tagging.
 ==================================================== ========================================================================
 
@@ -260,8 +283,8 @@ Timers
 ================================================================ ========================================================================
 Name                                                             Description
 ================================================================ ========================================================================
-``dagrun.dependency-check.<dag_id>``                             Milliseconds taken to check DAG dependencies
-``dagrun.dependency-check``                                      Milliseconds taken to check DAG dependencies. Metric with dag_id tagging.
+``dagrun.dependency-check.<dag_id>``                             Milliseconds taken to check Dag dependencies
+``dagrun.dependency-check``                                      Milliseconds taken to check Dag dependencies. Metric with dag_id tagging.
 ``dag.<dag_id>.<task_id>.duration``                              Milliseconds taken to run a task
 ``task.duration``                                                Milliseconds taken to run a task. Metric with dag_id and task-id tagging.
 ``dag.<dag_id>.<task_id>.scheduled_duration``                    Milliseconds a task spends in the Scheduled state, before being Queued
@@ -270,8 +293,8 @@ Name                                                             Description
 ``dag.<dag_id>.<task_id>.queued_duration``                       Milliseconds a task spends in the Queued state, before being Running
 ``task.queued_duration``                                         Milliseconds a task spends in the Queued state, before being Running.
                                                                  Metric with dag_id and task_id tagging.
-``dag_processing.last_duration.<dag_file>``                      Milliseconds taken to load the given DAG file
-``dag_processing.last_duration``                                 Milliseconds taken to load the given DAG file. Metric with file_name tagging.
+``dag_processing.last_duration.<dag_file>``                      Milliseconds taken to load the given Dag file
+``dag_processing.last_duration``                                 Milliseconds taken to load the given Dag file. Metric with file_name tagging.
 ``dagrun.duration.success.<dag_id>``                             Milliseconds taken for a DagRun to reach success state
 ``dagrun.duration.success``                                      Milliseconds taken for a DagRun to reach success state.
                                                                  Metric with dag_id and run_type tagging.

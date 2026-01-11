@@ -43,19 +43,26 @@ import { useTranslation } from "react-i18next";
 import type { CalendarTimeRangeResponse } from "openapi/requests/types.gen";
 
 import { CalendarCell } from "./CalendarCell";
-import { createTooltipContent, generateHourlyCalendarData, getCalendarCellColor } from "./calendarUtils";
-import type { CalendarColorMode } from "./types";
+import { generateHourlyCalendarData } from "./calendarUtils";
+import type { CalendarScale, CalendarColorMode } from "./types";
 
 dayjs.extend(isSameOrBefore);
 
 type Props = {
-  readonly colorMode: CalendarColorMode;
   readonly data: Array<CalendarTimeRangeResponse>;
+  readonly scale: CalendarScale;
   readonly selectedMonth: number;
   readonly selectedYear: number;
+  readonly viewMode?: CalendarColorMode;
 };
 
-export const HourlyCalendarView = ({ colorMode, data, selectedMonth, selectedYear }: Props) => {
+export const HourlyCalendarView = ({
+  data,
+  scale,
+  selectedMonth,
+  selectedYear,
+  viewMode = "total",
+}: Props) => {
   const { t: translate } = useTranslation("dag");
   const hourlyData = generateHourlyCalendarData(data, selectedYear, selectedMonth);
 
@@ -158,29 +165,36 @@ export const HourlyCalendarView = ({ colorMode, data, selectedMonth, selectedYea
                 const hourData = day.hours.find((hourItem) => hourItem.hour === hour);
 
                 if (!hourData) {
-                  const noRunsTooltip = `${dayjs(day.day).format("MMM DD")}, ${hour.toString().padStart(2, "0")}:00 - ${translate("calendar.noRuns")}`;
+                  const emptyCounts = { failed: 0, planned: 0, queued: 0, running: 0, success: 0, total: 0 };
+                  const emptyData = {
+                    counts: emptyCounts,
+                    date: `${dayjs(day.day).format("MMM DD")}, ${hour.toString().padStart(2, "0")}:00`,
+                    runs: [],
+                  };
 
                   return (
                     <CalendarCell
-                      backgroundColor={getCalendarCellColor([], colorMode)}
-                      content={noRunsTooltip}
+                      backgroundColor={scale.getColor(emptyCounts)}
+                      cellData={emptyData}
                       index={index}
                       key={`${day.day}-${hour}`}
+                      viewMode={viewMode}
                     />
                   );
                 }
 
-                const tooltipContent =
-                  hourData.counts.total > 0
-                    ? `${dayjs(day.day).format("MMM DD")}, ${hour.toString().padStart(2, "0")}:00 - ${createTooltipContent(hourData).split(": ")[1]}`
-                    : `${dayjs(day.day).format("MMM DD")}, ${hour.toString().padStart(2, "0")}:00 - ${translate("calendar.noRuns")}`;
+                const formattedHourData = {
+                  ...hourData,
+                  date: `${dayjs(day.day).format("MMM DD")}, ${hour.toString().padStart(2, "0")}:00`,
+                };
 
                 return (
                   <CalendarCell
-                    backgroundColor={getCalendarCellColor(hourData.runs, colorMode)}
-                    content={tooltipContent}
+                    backgroundColor={scale.getColor(hourData.counts)}
+                    cellData={formattedHourData}
                     index={index}
                     key={`${day.day}-${hour}`}
+                    viewMode={viewMode}
                   />
                 );
               })}

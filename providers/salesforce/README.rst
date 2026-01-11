@@ -23,9 +23,8 @@
 
 Package ``apache-airflow-providers-salesforce``
 
-Release: ``5.11.2``
+Release: ``5.12.1``
 
-Release Date: ``|PypiReleaseDate|``
 
 `Salesforce <https://www.salesforce.com/>`__
 
@@ -37,12 +36,12 @@ This is a provider package for ``salesforce`` provider. All classes for this pro
 are in ``airflow.providers.salesforce`` python package.
 
 You can find package information and changelog for the provider
-in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-salesforce/5.11.2/>`_.
+in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-salesforce/5.12.1/>`_.
 
 Installation
 ------------
 
-You can install this package on top of an existing Airflow 2 installation (see ``Requirements`` below
+You can install this package on top of an existing Airflow installation (see ``Requirements`` below
 for the minimum Airflow version supported) via
 ``pip install apache-airflow-providers-salesforce``
 
@@ -51,14 +50,34 @@ The package supports the following python versions: 3.10,3.11,3.12,3.13
 Requirements
 ------------
 
-=====================  =====================================
-PIP package            Version required
-=====================  =====================================
-``apache-airflow``     ``>=2.10.0``
-``simple-salesforce``  ``>=1.0.0``
-``pandas``             ``>=2.1.2; python_version < "3.13"``
-``pandas``             ``>=2.2.3; python_version >= "3.13"``
-=====================  =====================================
+==========================================  =====================================
+PIP package                                 Version required
+==========================================  =====================================
+``apache-airflow``                          ``>=2.11.0``
+``apache-airflow-providers-common-compat``  ``>=1.10.1``
+``simple-salesforce``                       ``>=1.0.0``
+``pandas``                                  ``>=2.1.2; python_version < "3.13"``
+``pandas``                                  ``>=2.2.3; python_version >= "3.13"``
+==========================================  =====================================
+
+Cross provider package dependencies
+-----------------------------------
+
+Those are dependencies that might be needed in order to use all the features of the package.
+You need to install the specified providers in order to use them.
+
+You can install such cross-provider dependencies when installing from PyPI. For example:
+
+.. code-block:: bash
+
+    pip install apache-airflow-providers-salesforce[common.compat]
+
+
+==================================================================================================================  =================
+Dependent package                                                                                                   Extra
+==================================================================================================================  =================
+`apache-airflow-providers-common-compat <https://airflow.apache.org/docs/apache-airflow-providers-common-compat>`_  ``common.compat``
+==================================================================================================================  =================
 
 The changelog for the provider package can be found in the
-`changelog <https://airflow.apache.org/docs/apache-airflow-providers-salesforce/5.11.2/changelog.html>`_.
+`changelog <https://airflow.apache.org/docs/apache-airflow-providers-salesforce/5.12.1/changelog.html>`_.

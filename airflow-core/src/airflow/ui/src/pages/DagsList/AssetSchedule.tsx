@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { HStack, Text, Link } from "@chakra-ui/react";
+import { Button, HStack, Link, Text } from "@chakra-ui/react";
 import dayjs from "dayjs";
 import { useTranslation } from "react-i18next";
 import { FiDatabase } from "react-icons/fi";
@@ -25,7 +25,8 @@ import { Link as RouterLink } from "react-router-dom";
 import { useAssetServiceNextRunAssets } from "openapi/queries";
 import { AssetExpression, type ExpressionType } from "src/components/AssetExpression";
 import type { NextRunEvent } from "src/components/AssetExpression/types";
-import { Button, Popover } from "src/components/ui";
+import { TruncatedText } from "src/components/TruncatedText";
+import { Popover } from "src/components/ui";
 
 type Props = {
   readonly assetExpression?: ExpressionType | null;
@@ -51,7 +52,7 @@ export const AssetSchedule = ({ assetExpression, dagId, latestRunAfter, timetabl
   if (!nextRunEvents.length) {
     return (
       <HStack>
-        <FiDatabase style={{ display: "inline" }} />
+        <FiDatabase style={{ display: "inline", flexShrink: 0 }} />
         <Text>{timetableSummary}</Text>
       </HStack>
     );
@@ -62,9 +63,11 @@ export const AssetSchedule = ({ assetExpression, dagId, latestRunAfter, timetabl
   if (nextRunEvents.length === 1 && asset !== undefined) {
     return (
       <HStack>
-        <FiDatabase style={{ display: "inline" }} />
+        <FiDatabase style={{ display: "inline", flexShrink: 0 }} />
         <Link asChild color="fg.info" display="block" fontSize="sm">
-          <RouterLink to={`/assets/${asset.id}`}>{asset.name ?? asset.uri}</RouterLink>
+          <RouterLink to={`/assets/${asset.id}`}>
+            <TruncatedText minWidth={0} text={asset.name ?? asset.uri} />
+          </RouterLink>
         </Link>
       </HStack>
     );

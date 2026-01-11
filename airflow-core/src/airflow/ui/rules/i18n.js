@@ -74,7 +74,7 @@ fs.readdirSync(defaultLanguageDir)
 export const i18nPlugin = {
   files: ["public/i18n/locales/**/*.json"],
   rules: {
-    "check-translation-completeness": {
+    "check-translations-completeness": {
       /** @param {import('@typescript-eslint/utils').TSESLint.RuleContext<'missingKeys' | 'fileError', []>} context */
       create(context) {
         return {
@@ -166,6 +166,6 @@ export const i18nRules = {
     [i18nNamespace]: i18nPlugin,
   },
   rules: {
-    [`${i18nNamespace}/check-translation-completeness`]: "warn",
+    [`${i18nNamespace}/check-translations-completeness`]: "warn",
   },
 };

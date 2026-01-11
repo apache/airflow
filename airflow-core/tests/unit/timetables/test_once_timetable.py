@@ -33,7 +33,7 @@ PREVIOUS_INFO = DagRunInfo.exact(FROZEN_NOW - datetime.timedelta(days=1))
 
 
 @pytest.mark.parametrize(
-    "prev_info, end_date, expected_next_info",
+    ("prev_info", "end_date", "expected_next_info"),
     [
         (None, None, DagRunInfo.exact(FROZEN_NOW)),
         (None, FROZEN_NOW + datetime.timedelta(days=1), DagRunInfo.exact(FROZEN_NOW)),

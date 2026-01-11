@@ -20,6 +20,7 @@ from typing import Annotated
 
 from fastapi import Depends, status
 from sqlalchemy import select
+from sqlalchemy.orm import joinedload
 
 from airflow.api_fastapi.common.db.common import SessionDep, paginated_select
 from airflow.api_fastapi.common.parameters import (
@@ -31,7 +32,7 @@ from airflow.api_fastapi.common.parameters import (
     filter_param_factory,
 )
 from airflow.api_fastapi.common.router import AirflowRouter
-from airflow.api_fastapi.core_api.datamodels.backfills import BackfillCollectionResponse
+from airflow.api_fastapi.core_api.datamodels.backfills import BackfillCollectionResponse, BackfillResponse
 from airflow.api_fastapi.core_api.openapi.exceptions import (
     create_openapi_http_exception_doc,
 )
@@ -64,14 +65,17 @@ def list_backfills_ui(
     ],
 ) -> BackfillCollectionResponse:
     select_stmt, total_entries = paginated_select(
-        statement=select(Backfill),
+        statement=select(Backfill).options(joinedload(Backfill.dag_model)),
         filters=[dag_id, active],
         order_by=order_by,
         offset=offset,
         limit=limit,
         session=session,
     )
-    backfills = session.scalars(select_stmt)
+    backfills = [
+        BackfillResponse(**row._mapping) if not isinstance(row, Backfill) else row
+        for row in session.scalars(select_stmt)
+    ]
     return BackfillCollectionResponse(
         backfills=backfills,
         total_entries=total_entries,

@@ -24,6 +24,8 @@ import pytest
 from airflow.cli import cli_parser
 from airflow.cli.commands import triggerer_command
 
+from tests_common.test_utils.config import conf_vars
+
 pytestmark = pytest.mark.db_test
 
 
@@ -49,17 +51,44 @@ class TestTriggererCommand:
         triggerer_command.triggerer(args)
         mock_serve.return_value.__enter__.assert_called_once()
         mock_serve.return_value.__exit__.assert_called_once()
-        mock_triggerer_job_runner.assert_called_once_with(job=mock.ANY, capacity=42)
+        mock_triggerer_job_runner.assert_called_once_with(job=mock.ANY, capacity=42, queues=None)
+
+    @conf_vars({("triggerer", "queues_enabled"): "True"})
+    @mock.patch("airflow.cli.commands.triggerer_command.TriggererJobRunner")
+    @mock.patch("airflow.cli.commands.triggerer_command._serve_logs")
+    def test_queues_argument(self, mock_serve, mock_triggerer_job_runner):
+        """Ensure that the queues argument is passed correctly"""
+        mock_triggerer_job_runner.return_value.job_type = "TriggererJob"
+        args = self.parser.parse_args(["triggerer", "--capacity=4", "--queues=my_queue,other_queue"])
+        triggerer_command.triggerer(args)
+        mock_serve.return_value.__enter__.assert_called_once()
+        mock_serve.return_value.__exit__.assert_called_once()
+        mock_triggerer_job_runner.assert_called_once_with(
+            job=mock.ANY, capacity=4, queues=set(["my_queue", "other_queue"])
+        )
 
     @mock.patch("airflow.cli.commands.triggerer_command.TriggererJobRunner")
     @mock.patch("airflow.cli.commands.triggerer_command.run_job")
     @mock.patch("airflow.cli.commands.triggerer_command.Process")
     def test_trigger_run_serve_logs(self, mock_process, mock_run_job, mock_trigger_job_runner):
         """Ensure that trigger runner and server log functions execute as intended"""
-        triggerer_command.triggerer_run(False, 1, 10.3)
+        triggerer_command.triggerer_run(
+            skip_serve_logs=False, capacity=1, triggerer_heartrate=10.3, queues=None
+        )
 
         mock_process.assert_called_once()
         mock_run_job.assert_called_once_with(
             job=mock_trigger_job_runner.return_value.job,
             execute_callable=mock_trigger_job_runner.return_value._execute,
         )
+
+    @mock.patch("airflow.cli.hot_reload.run_with_reloader")
+    def test_triggerer_with_dev_flag(self, mock_reloader):
+        """Ensure that triggerer with --dev flag uses hot-reload"""
+        args = self.parser.parse_args(["triggerer", "--dev"])
+        triggerer_command.triggerer(args)
+
+        # Verify that run_with_reloader was called
+        mock_reloader.assert_called_once()
+        # The callback function should be callable
+        assert callable(mock_reloader.call_args[0][0])

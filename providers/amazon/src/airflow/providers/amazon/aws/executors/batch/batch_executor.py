@@ -22,14 +22,11 @@ from __future__ import annotations
 import time
 from collections import deque
 from collections.abc import Sequence
-from contextlib import suppress
 from copy import deepcopy
 from typing import TYPE_CHECKING, Any
 
 from botocore.exceptions import ClientError, NoCredentialsError
 
-from airflow.configuration import conf
-from airflow.exceptions import AirflowException
 from airflow.executors.base_executor import BaseExecutor
 from airflow.providers.amazon.aws.executors.utils.exponential_backoff_retry import (
     calculate_next_attempt_delay,
@@ -37,12 +34,7 @@ from airflow.providers.amazon.aws.executors.utils.exponential_backoff_retry impo
 )
 from airflow.providers.amazon.aws.hooks.batch_client import BatchClientHook
 from airflow.providers.amazon.version_compat import AIRFLOW_V_3_0_PLUS
-from airflow.stats import Stats
-
-try:
-    from airflow.sdk import timezone
-except ImportError:
-    from airflow.utils import timezone  # type: ignore[attr-defined,no-redef]
+from airflow.providers.common.compat.sdk import AirflowException, Stats, conf, timezone
 from airflow.utils.helpers import merge_dicts
 
 if TYPE_CHECKING:
@@ -515,12 +507,3 @@ class AwsBatchExecutor(BaseExecutor):
 
             not_adopted_tis = [ti for ti in tis if ti not in adopted_tis]
             return not_adopted_tis
-
-    def log_task_event(self, *, event: str, extra: str, ti_key: TaskInstanceKey):
-        # TODO: remove this method when min_airflow_version is set to higher than 2.10.0
-        with suppress(AttributeError):
-            super().log_task_event(
-                event=event,
-                extra=extra,
-                ti_key=ti_key,
-            )

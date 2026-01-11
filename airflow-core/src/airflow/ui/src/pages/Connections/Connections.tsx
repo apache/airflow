@@ -19,7 +19,7 @@
 import { Box, Flex, HStack, Spacer, VStack } from "@chakra-ui/react";
 import type { ColumnDef } from "@tanstack/react-table";
 import type { TFunction } from "i18next";
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useSearchParams } from "react-router-dom";
 
@@ -53,6 +53,7 @@ export type ConnectionBody = {
   password: string;
   port: string;
   schema: string;
+  team_name: string;
 };
 
 const getColumns = ({
@@ -68,7 +69,7 @@ const getColumns = ({
       <Checkbox
         borderWidth={1}
         checked={selectedRows.get(row.original.connection_id)}
-        colorPalette="blue"
+        colorPalette="brand"
         onCheckedChange={(event) => onRowSelect(row.original.connection_id, Boolean(event.checked))}
       />
     ),
@@ -78,7 +79,7 @@ const getColumns = ({
       <Checkbox
         borderWidth={1}
         checked={allRowsSelected}
-        colorPalette="blue"
+        colorPalette="brand"
         onCheckedChange={(event) => onSelectAll(Boolean(event.checked))}
       />
     ),
@@ -149,17 +150,13 @@ export const Connections = () => {
       getKey: (connection) => connection.connection_id,
     });
 
-  const columns = useMemo(
-    () =>
-      getColumns({
-        allRowsSelected,
-        onRowSelect: handleRowSelect,
-        onSelectAll: handleSelectAll,
-        selectedRows,
-        translate,
-      }),
-    [allRowsSelected, handleRowSelect, handleSelectAll, selectedRows, translate],
-  );
+  const columns = getColumns({
+    allRowsSelected,
+    onRowSelect: handleRowSelect,
+    onSelectAll: handleSelectAll,
+    selectedRows,
+    translate,
+  });
 
   const handleSearchChange = (value: string) => {
     if (value) {
@@ -179,10 +176,9 @@ export const Connections = () => {
     <>
       <VStack alignItems="none">
         <SearchBar
-          buttonProps={{ disabled: true }}
           defaultValue={connectionIdPattern ?? ""}
           onChange={handleSearchChange}
-          placeHolder={translate("connections.searchPlaceholder")}
+          placeholder={translate("connections.searchPlaceholder")}
         />
         <HStack gap={4} mt={2}>
           <Spacer />

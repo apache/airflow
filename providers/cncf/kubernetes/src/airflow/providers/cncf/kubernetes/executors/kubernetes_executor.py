@@ -30,7 +30,6 @@ import logging
 import multiprocessing
 import time
 from collections import Counter, defaultdict
-from collections.abc import Sequence
 from contextlib import suppress
 from datetime import datetime
 from queue import Empty, Queue
@@ -40,25 +39,6 @@ from deprecated import deprecated
 from kubernetes.dynamic import DynamicClient
 from sqlalchemy import select
 
-from airflow.providers.cncf.kubernetes.pod_generator import PodGenerator
-from airflow.providers.cncf.kubernetes.version_compat import AIRFLOW_V_3_0_PLUS
-
-try:
-    from airflow.cli.cli_config import ARG_LOGICAL_DATE
-except ImportError:  # 2.x compatibility.
-    from airflow.cli.cli_config import (  # type: ignore[attr-defined, no-redef]
-        ARG_EXECUTION_DATE as ARG_LOGICAL_DATE,
-    )
-from airflow.cli.cli_config import (
-    ARG_DAG_ID,
-    ARG_OUTPUT_PATH,
-    ARG_VERBOSE,
-    ActionCommand,
-    Arg,
-    GroupCommand,
-    lazy_load_command,
-    positive_int,
-)
 from airflow.configuration import conf
 from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.executors.base_executor import BaseExecutor
@@ -71,73 +51,27 @@ from airflow.providers.cncf.kubernetes.executors.kubernetes_executor_types impor
 )
 from airflow.providers.cncf.kubernetes.kube_config import KubeConfig
 from airflow.providers.cncf.kubernetes.kubernetes_helper_functions import annotations_to_key
-from airflow.stats import Stats
+from airflow.providers.cncf.kubernetes.pod_generator import PodGenerator
+from airflow.providers.cncf.kubernetes.version_compat import AIRFLOW_V_3_0_PLUS
+from airflow.providers.common.compat.sdk import Stats
 from airflow.utils.log.logging_mixin import remove_escape_codes
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.state import TaskInstanceState
 
 if TYPE_CHECKING:
-    import argparse
     from collections.abc import Sequence
 
     from kubernetes import client
     from kubernetes.client import models as k8s
     from sqlalchemy.orm import Session
 
+    from airflow.cli.cli_config import GroupCommand
     from airflow.executors import workloads
     from airflow.models.taskinstance import TaskInstance
     from airflow.models.taskinstancekey import TaskInstanceKey
     from airflow.providers.cncf.kubernetes.executors.kubernetes_executor_utils import (
         AirflowKubernetesScheduler,
     )
-
-
-if AIRFLOW_V_3_0_PLUS:
-    from airflow.cli.cli_config import ARG_BUNDLE_NAME
-
-    ARG_COMPAT = ARG_BUNDLE_NAME
-else:
-    from airflow.cli.cli_config import ARG_SUBDIR  # type: ignore[attr-defined]
-
-    ARG_COMPAT = ARG_SUBDIR
-
-# CLI Args
-ARG_NAMESPACE = Arg(
-    ("--namespace",),
-    default=conf.get("kubernetes_executor", "namespace"),
-    help="Kubernetes Namespace. Default value is `[kubernetes] namespace` in configuration.",
-)
-
-ARG_MIN_PENDING_MINUTES = Arg(
-    ("--min-pending-minutes",),
-    default=30,
-    type=positive_int(allow_zero=False),
-    help=(
-        "Pending pods created before the time interval are to be cleaned up, "
-        "measured in minutes. Default value is 30(m). The minimum value is 5(m)."
-    ),
-)
-
-# CLI Commands
-KUBERNETES_COMMANDS = (
-    ActionCommand(
-        name="cleanup-pods",
-        help=(
-            "Clean up Kubernetes pods "
-            "(created by KubernetesExecutor/KubernetesPodOperator) "
-            "in evicted/failed/succeeded/pending states"
-        ),
-        func=lazy_load_command("airflow.providers.cncf.kubernetes.cli.kubernetes_command.cleanup_pods"),
-        args=(ARG_NAMESPACE, ARG_MIN_PENDING_MINUTES, ARG_VERBOSE),
-    ),
-    ActionCommand(
-        name="generate-dag-yaml",
-        help="Generate YAML files for all tasks in DAG. Useful for debugging tasks without "
-        "launching into a cluster",
-        func=lazy_load_command("airflow.providers.cncf.kubernetes.cli.kubernetes_command.generate_pod_yaml"),
-        args=(ARG_DAG_ID, ARG_LOGICAL_DATE, ARG_COMPAT, ARG_OUTPUT_PATH, ARG_VERBOSE),
-    ),
-)
 
 
 class KubernetesExecutor(BaseExecutor):
@@ -165,6 +99,7 @@ class KubernetesExecutor(BaseExecutor):
         self.task_publish_max_retries = conf.getint(
             "kubernetes_executor", "task_publish_max_retries", fallback=0
         )
+        self.completed: set[KubernetesResults] = set()
         super().__init__(parallelism=self.kube_config.parallelism)
 
     def _list_pods(self, query_kwargs):
@@ -343,6 +278,9 @@ class KubernetesExecutor(BaseExecutor):
                 finally:
                     self.result_queue.task_done()
 
+                for result in self.completed:
+                    self._change_state(result)
+
         from airflow.providers.cncf.kubernetes.executors.kubernetes_executor_utils import ResourceVersion
 
         resource_instance = ResourceVersion()
@@ -368,12 +306,24 @@ class KubernetesExecutor(BaseExecutor):
                     )
                     self.fail(task[0], e)
                 except ApiException as e:
-                    body = json.loads(e.body)
+                    try:
+                        if e.body:
+                            body = json.loads(e.body)
+                        else:
+                            # If no body content, use reason as the message
+                            body = {"message": e.reason}
+                    except (json.JSONDecodeError, ValueError, TypeError):
+                        # If the body is a string (e.g., in a 429 error), it can't be parsed as JSON.
+                        # Use the body directly as the message instead.
+                        body = {"message": e.body}
+
                     retries = self.task_publish_retries[key]
                     # In case of exceeded quota or conflict errors, requeue the task as per the task_publish_max_retries
+                    message = body.get("message", "")
                     if (
-                        (str(e.status) == "403" and "exceeded quota" in body["message"])
-                        or (str(e.status) == "409" and "object has been modified" in body["message"])
+                        (str(e.status) == "403" and "exceeded quota" in message)
+                        or (str(e.status) == "409" and "object has been modified" in message)
+                        or str(e.status) == "500"
                     ) and (self.task_publish_max_retries == -1 or retries < self.task_publish_max_retries):
                         self.log.warning(
                             "[Try %s of %s] Kube ApiException for Task: (%s). Reason: %r. Message: %s",
@@ -381,7 +331,7 @@ class KubernetesExecutor(BaseExecutor):
                             self.task_publish_max_retries,
                             key,
                             e.reason,
-                            body["message"],
+                            message,
                         )
                         self.task_queue.put(task)
                         self.task_publish_retries[key] = retries + 1
@@ -490,7 +440,11 @@ class KubernetesExecutor(BaseExecutor):
         if state is None:
             from airflow.models.taskinstance import TaskInstance
 
-            state = session.scalar(select(TaskInstance.state).where(TaskInstance.filter_for_tis([key])))
+            filter_for_tis = TaskInstance.filter_for_tis([key])
+            if filter_for_tis is not None:
+                state = session.scalar(select(TaskInstance.state).where(filter_for_tis))
+            else:
+                state = None
             state = TaskInstanceState(state) if state else None
 
         self.event_buffer[key] = state, None
@@ -500,7 +454,8 @@ class KubernetesExecutor(BaseExecutor):
         pod_override = ti.executor_config.get("pod_override")
         namespace = None
         with suppress(Exception):
-            namespace = pod_override.metadata.namespace
+            if pod_override is not None:
+                namespace = pod_override.metadata.namespace
         return namespace or conf.get("kubernetes_executor", "namespace")
 
     def get_task_log(self, ti: TaskInstance, try_number: int) -> tuple[list[str], list[str]]:
@@ -554,7 +509,7 @@ class KubernetesExecutor(BaseExecutor):
             tis_to_flush_by_key = {ti.key: ti for ti in tis if ti.queued_by_job_id}
             kube_client: client.CoreV1Api = self.kube_client
             for scheduler_job_id in scheduler_job_ids:
-                scheduler_job_id = self._make_safe_label_value(str(scheduler_job_id))
+                scheduler_job_id_safe_label = self._make_safe_label_value(str(scheduler_job_id))
                 # We will look for any pods owned by the no-longer-running scheduler,
                 # but will exclude only successful pods, as those TIs will have a terminal state
                 # and not be up for adoption!
@@ -564,7 +519,7 @@ class KubernetesExecutor(BaseExecutor):
                     "field_selector": "status.phase!=Succeeded",
                     "label_selector": (
                         "kubernetes_executor=True,"
-                        f"airflow-worker={scheduler_job_id},{POD_EXECUTOR_DONE_KEY}!=True"
+                        f"airflow-worker={scheduler_job_id_safe_label},{POD_EXECUTOR_DONE_KEY}!=True"
                     ),
                 }
                 pod_list = self._list_pods(query_kwargs)
@@ -709,7 +664,16 @@ class KubernetesExecutor(BaseExecutor):
                 continue
 
             ti_id = annotations_to_key(pod.metadata.annotations)
-            self.running.add(ti_id)
+            self.completed.add(
+                KubernetesResults(
+                    key=ti_id,
+                    state="completed",
+                    pod_name=pod.metadata.name,
+                    namespace=pod.metadata.namespace,
+                    resource_version=pod.metadata.resource_version,
+                    failure_details=None,
+                )
+            )
 
     def _flush_task_queue(self) -> None:
         if TYPE_CHECKING:
@@ -783,19 +747,6 @@ class KubernetesExecutor(BaseExecutor):
 
     @staticmethod
     def get_cli_commands() -> list[GroupCommand]:
-        return [
-            GroupCommand(
-                name="kubernetes",
-                help="Tools to help run the KubernetesExecutor",
-                subcommands=KUBERNETES_COMMANDS,
-            )
-        ]
+        from airflow.providers.cncf.kubernetes.cli.definition import get_kubernetes_cli_commands
 
-
-def _get_parser() -> argparse.ArgumentParser:
-    """
-    Generate documentation; used by Sphinx.
-
-    :meta private:
-    """
-    return KubernetesExecutor._get_parser()
+        return get_kubernetes_cli_commands()

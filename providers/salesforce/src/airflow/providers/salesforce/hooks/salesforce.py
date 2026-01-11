@@ -32,7 +32,7 @@ from typing import TYPE_CHECKING, Any, cast
 
 from simple_salesforce import Salesforce, api
 
-from airflow.providers.salesforce.version_compat import BaseHook
+from airflow.providers.common.compat.sdk import BaseHook
 
 if TYPE_CHECKING:
     import pandas as pd
@@ -343,9 +343,9 @@ class SalesforceHook(BaseHook):
             # write the dataframe
             df.to_csv(filename, index=False)
         elif fmt == "json":
-            df.to_json(filename, "records", date_unit="s")
+            df.to_json(filename, orient="records", date_unit="s")
         elif fmt == "ndjson":
-            df.to_json(filename, "records", lines=True, date_unit="s")
+            df.to_json(filename, orient="records", date_unit="s", lines=True)
 
         return df
 

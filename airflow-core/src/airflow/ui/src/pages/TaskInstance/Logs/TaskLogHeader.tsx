@@ -19,18 +19,19 @@
 import {
   Badge,
   Box,
+  Button,
   createListCollection,
   HStack,
   IconButton,
   type SelectValueChangeDetails,
 } from "@chakra-ui/react";
-import { useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import {
   MdAccessTime,
   MdCode,
   MdCompress,
   MdExpand,
+  MdOutlineFileDownload,
   MdOutlineOpenInFull,
   MdSettings,
   MdWrapText,
@@ -39,12 +40,13 @@ import { useSearchParams } from "react-router-dom";
 
 import type { TaskInstanceResponse } from "openapi/requests/types.gen";
 import { TaskTrySelect } from "src/components/TaskTrySelect";
-import { Button, Menu, Select, Tooltip } from "src/components/ui";
+import { Menu, Select, Tooltip } from "src/components/ui";
 import { SearchParamsKeys } from "src/constants/searchParams";
-import { system } from "src/theme";
+import { defaultSystem } from "src/theme";
 import { type LogLevel, logLevelColorMapping, logLevelOptions } from "src/utils/logs";
 
 type Props = {
+  readonly downloadLogs?: () => void;
   readonly expanded?: boolean;
   readonly isFullscreen?: boolean;
   readonly onSelectTryNumber: (tryNumber: number) => void;
@@ -62,6 +64,7 @@ type Props = {
 };
 
 export const TaskLogHeader = ({
+  downloadLogs,
   expanded,
   isFullscreen = false,
   onSelectTryNumber,
@@ -86,7 +89,7 @@ export const TaskLogHeader = ({
   // Have select zIndex greater than modal zIndex in fullscreen so that
   // select options are displayed.
   const zIndex = isFullscreen
-    ? Number(system.tokens.categoryMap.get("zIndex")?.get("modal")?.value ?? 1400) + 1
+    ? Number(defaultSystem.tokens.categoryMap.get("zIndex")?.get("modal")?.value ?? 1400) + 1
     : undefined;
 
   const sourceOptionList = createListCollection<{
@@ -99,39 +102,33 @@ export const TaskLogHeader = ({
     ],
   });
 
-  const handleLevelChange = useCallback(
-    ({ value }: SelectValueChangeDetails<string>) => {
-      const [val, ...rest] = value;
+  const handleLevelChange = ({ value }: SelectValueChangeDetails<string>) => {
+    const [val, ...rest] = value;
 
-      if ((val === undefined || val === "all") && rest.length === 0) {
-        searchParams.delete(SearchParamsKeys.LOG_LEVEL);
-      } else {
-        searchParams.delete(SearchParamsKeys.LOG_LEVEL);
-        value
-          .filter((state) => state !== "all")
-          .map((state) => searchParams.append(SearchParamsKeys.LOG_LEVEL, state));
-      }
-      setSearchParams(searchParams);
-    },
-    [searchParams, setSearchParams],
-  );
+    if (((val === undefined || val === "all") && rest.length === 0) || rest.includes("all")) {
+      searchParams.delete(SearchParamsKeys.LOG_LEVEL);
+    } else {
+      searchParams.delete(SearchParamsKeys.LOG_LEVEL);
+      value
+        .filter((state) => state !== "all")
+        .map((state) => searchParams.append(SearchParamsKeys.LOG_LEVEL, state));
+    }
+    setSearchParams(searchParams);
+  };
 
-  const handleSourceChange = useCallback(
-    ({ value }: SelectValueChangeDetails<string>) => {
-      const [val, ...rest] = value;
+  const handleSourceChange = ({ value }: SelectValueChangeDetails<string>) => {
+    const [val, ...rest] = value;
 
-      if ((val === undefined || val === "all") && rest.length === 0) {
-        searchParams.delete(SearchParamsKeys.SOURCE);
-      } else {
-        searchParams.delete(SearchParamsKeys.SOURCE);
-        value
-          .filter((state) => state !== "all")
-          .map((state) => searchParams.append(SearchParamsKeys.SOURCE, state));
-      }
-      setSearchParams(searchParams);
-    },
-    [searchParams, setSearchParams],
-  );
+    if (((val === undefined || val === "all") && rest.length === 0) || rest.includes("all")) {
+      searchParams.delete(SearchParamsKeys.SOURCE);
+    } else {
+      searchParams.delete(SearchParamsKeys.SOURCE);
+      value
+        .filter((state) => state !== "all")
+        .map((state) => searchParams.append(SearchParamsKeys.SOURCE, state));
+    }
+    setSearchParams(searchParams);
+  };
 
   return (
     <Box>
@@ -255,6 +252,20 @@ export const TaskLogHeader = ({
               </IconButton>
             </Tooltip>
           )}
+
+          <Tooltip closeDelay={100} content={translate("download.tooltip", { hotkey: "d" })} openDelay={100}>
+            <IconButton
+              aria-label={translate("download.download")}
+              bg="bg.panel"
+              m={0}
+              onClick={downloadLogs}
+              px={4}
+              py={2}
+              variant="outline"
+            >
+              <MdOutlineFileDownload />
+            </IconButton>
+          </Tooltip>
         </HStack>
       </HStack>
     </Box>

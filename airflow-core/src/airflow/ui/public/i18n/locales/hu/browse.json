@@ -1,0 +1,22 @@
+{
+  "auditLog": {
+    "columns": {
+      "event": "Esemény",
+      "extra": "Extra",
+      "user": "Felhasználó",
+      "when": "Időpont"
+    },
+    "filters": {
+      "eventType": "Esemény típusa"
+    },
+    "title": "Naplózás"
+  },
+  "xcom": {
+    "columns": {
+      "dag": "Dag",
+      "key": "Kulcs",
+      "value": "Érték"
+    },
+    "title": "XCom"
+  }
+}

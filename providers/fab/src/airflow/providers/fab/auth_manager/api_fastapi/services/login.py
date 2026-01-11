@@ -16,19 +16,14 @@
 # under the License.
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, cast
+from typing import Any
 
-from flask_appbuilder.const import AUTH_LDAP
 from starlette import status
 from starlette.exceptions import HTTPException
 
-from airflow.api_fastapi.app import get_auth_manager
 from airflow.configuration import conf
-from airflow.providers.fab.auth_manager.api_fastapi.datamodels.login import LoginBody, LoginResponse
-
-if TYPE_CHECKING:
-    from airflow.providers.fab.auth_manager.fab_auth_manager import FabAuthManager
-    from airflow.providers.fab.auth_manager.models import User
+from airflow.providers.fab.auth_manager.api_fastapi.datamodels.login import LoginResponse
+from airflow.providers.fab.www.utils import get_fab_auth_manager
 
 
 class FABAuthManagerLogin:
@@ -36,25 +31,17 @@ class FABAuthManagerLogin:
 
     @classmethod
     def create_token(
-        cls, body: LoginBody, expiration_time_in_seconds: int = conf.getint("api_auth", "jwt_expiration_time")
+        cls,
+        headers: dict[str, str],
+        body: dict[str, Any],
+        expiration_time_in_seconds: int = conf.getint("api_auth", "jwt_expiration_time"),
     ) -> LoginResponse:
         """Create a new token."""
-        if not body.username or not body.password:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST, detail="Username and password must be provided"
-            )
-
-        auth_manager = cast("FabAuthManager", get_auth_manager())
-        user: User | None = None
-
-        if auth_manager.security_manager.auth_type == AUTH_LDAP:
-            user = auth_manager.security_manager.auth_user_ldap(
-                body.username, body.password, rotate_session_id=False
-            )
-        if user is None:
-            user = auth_manager.security_manager.auth_user_db(
-                body.username, body.password, rotate_session_id=False
-            )
+        auth_manager = get_fab_auth_manager()
+        try:
+            user = auth_manager.create_token(headers=headers, body=body)
+        except ValueError as e:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
 
         if not user:
             raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials")

@@ -26,6 +26,7 @@ from typing import TYPE_CHECKING, Any
 import attrs
 from sqlalchemy import select
 
+from airflow.api_fastapi.common.db.common import SessionDep
 from airflow.models.dagrun import DagRun
 from airflow.models.xcom import XCOM_RETURN_KEY, XComModel
 from airflow.utils.session import create_session_async
@@ -43,6 +44,7 @@ class DagRunWaiter:
     run_id: str
     interval: float
     result_task_ids: list[str] | None
+    session: SessionDep
 
     async def _get_dag_run(self) -> DagRun:
         async with create_session_async() as session:
@@ -55,7 +57,7 @@ class DagRunWaiter:
             task_ids=self.result_task_ids,
             dag_ids=self.dag_id,
         )
-        xcom_query = xcom_query.order_by(XComModel.task_id, XComModel.map_index)
+        xcom_results = self.session.scalars(xcom_query.order_by(XComModel.task_id, XComModel.map_index))
 
         def _group_xcoms(g: Iterator[XComModel]) -> Any:
             entries = list(g)
@@ -65,7 +67,7 @@ class DagRunWaiter:
 
         return {
             task_id: _group_xcoms(g)
-            for task_id, g in itertools.groupby(xcom_query, key=operator.attrgetter("task_id"))
+            for task_id, g in itertools.groupby(xcom_results, key=operator.attrgetter("task_id"))
         }
 
     def _serialize_response(self, dag_run: DagRun) -> str:

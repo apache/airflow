@@ -16,43 +16,44 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useEffect, useState } from "react";
+import { useLocation, useNavigate, useParams } from "react-router-dom";
 
 import type { GridRunsResponse } from "openapi/requests";
 import type { GridTask } from "src/layouts/Details/Grid/utils";
-import { getTaskInstanceLinkFromObj } from "src/utils/links";
+import { buildTaskInstanceUrl } from "src/utils/links";
 
-import type {
-  NavigationDirection,
-  NavigationIndices,
-  NavigationMode,
-  UseNavigationProps,
-  UseNavigationReturn,
+import {
+  NavigationModes,
+  type NavigationDirection,
+  type NavigationIndices,
+  type NavigationMode,
+  type UseNavigationProps,
+  type UseNavigationReturn,
 } from "./types";
 import { useKeyboardNavigation } from "./useKeyboardNavigation";
 
 const detectModeFromUrl = (pathname: string): NavigationMode => {
   if (pathname.includes("/runs/") && pathname.includes("/tasks/")) {
-    return "TI";
+    return NavigationModes.TI;
   }
   if (pathname.includes("/runs/") && !pathname.includes("/tasks/")) {
-    return "run";
+    return NavigationModes.RUN;
   }
   if (pathname.includes("/tasks/") && !pathname.includes("/runs/")) {
-    return "task";
+    return NavigationModes.TASK;
   }
 
-  return "TI";
+  return NavigationModes.TI;
 };
 
 const isValidDirection = (direction: NavigationDirection, mode: NavigationMode): boolean => {
   switch (mode) {
-    case "run":
+    case NavigationModes.RUN:
       return direction === "left" || direction === "right";
-    case "task":
+    case NavigationModes.TASK:
       return direction === "down" || direction === "up";
-    case "TI":
+    case NavigationModes.TI:
       return true;
     default:
       return false;
@@ -66,32 +67,28 @@ const buildPath = (params: {
   dagId: string;
   mapIndex?: string;
   mode: NavigationMode;
+  pathname: string;
   run: GridRunsResponse;
   task: GridTask;
 }): string => {
-  const { dagId, mapIndex = "-1", mode, run, task } = params;
+  const { dagId, mapIndex = "-1", mode, pathname, run, task } = params;
   const groupPath = task.isGroup ? "group/" : "";
 
   switch (mode) {
-    case "run":
+    case NavigationModes.RUN:
       return `/dags/${dagId}/runs/${run.run_id}`;
-    case "task":
+    case NavigationModes.TASK:
       return `/dags/${dagId}/tasks/${groupPath}${task.id}`;
-    case "TI":
-      if (task.is_mapped ?? false) {
-        if (mapIndex !== "-1") {
-          return getTaskInstanceLinkFromObj({
-            dagId,
-            dagRunId: run.run_id,
-            mapIndex: parseInt(mapIndex, 10),
-            taskId: `${groupPath}${task.id}`,
-          });
-        }
-
-        return `/dags/${dagId}/runs/${run.run_id}/tasks/${groupPath}${task.id}/mapped`;
-      }
-
-      return `/dags/${dagId}/runs/${run.run_id}/tasks/${groupPath}${task.id}`;
+    case NavigationModes.TI:
+      return buildTaskInstanceUrl({
+        currentPathname: pathname,
+        dagId,
+        isGroup: task.isGroup,
+        isMapped: task.is_mapped ?? false,
+        mapIndex,
+        runId: run.run_id,
+        taskId: task.id,
+      });
     default:
       return `/dags/${dagId}`;
   }
@@ -101,7 +98,8 @@ export const useNavigation = ({ onToggleGroup, runs, tasks }: UseNavigationProps
   const { dagId = "", groupId = "", mapIndex = "-1", runId = "", taskId = "" } = useParams();
   const enabled = Boolean(dagId) && (Boolean(runId) || Boolean(taskId) || Boolean(groupId));
   const navigate = useNavigate();
-  const [mode, setMode] = useState<NavigationMode>("TI");
+  const location = useLocation();
+  const [mode, setMode] = useState<NavigationMode>(NavigationModes.TI);
 
   useEffect(() => {
     const detectedMode = detectModeFromUrl(globalThis.location.pathname);
@@ -109,84 +107,77 @@ export const useNavigation = ({ onToggleGroup, runs, tasks }: UseNavigationProps
     setMode(detectedMode);
   }, [dagId, groupId, runId, taskId]);
 
-  const currentIndices = useMemo((): NavigationIndices => {
-    const runMap = new Map(runs.map((run, index) => [run.run_id, index]));
-    const taskMap = new Map(tasks.map((task, index) => [task.id, index]));
+  const runMap = new Map(runs.map((run, index) => [run.run_id, index]));
+  const taskMap = new Map(tasks.map((task, index) => [task.id, index]));
+  const runIndex = runMap.get(runId) ?? 0;
+  const currentTaskId = groupId || taskId;
+  const taskIndex = taskMap.get(currentTaskId) ?? 0;
+  const currentIndices: NavigationIndices = { runIndex, taskIndex };
 
-    const runIndex = runMap.get(runId) ?? 0;
-    const currentTaskId = groupId || taskId;
-    const taskIndex = taskMap.get(currentTaskId) ?? 0;
+  const currentTask = tasks[currentIndices.taskIndex];
 
-    return { runIndex, taskIndex };
-  }, [groupId, runId, runs, taskId, tasks]);
+  const handleNavigation = (direction: NavigationDirection) => {
+    if (!enabled || !dagId || !isValidDirection(direction, mode)) {
+      return;
+    }
 
-  const currentTask = useMemo(() => tasks[currentIndices.taskIndex], [tasks, currentIndices.taskIndex]);
+    const boundaries = {
+      down: currentIndices.taskIndex >= tasks.length - 1,
+      left: currentIndices.runIndex >= runs.length - 1,
+      right: currentIndices.runIndex <= 0,
+      up: currentIndices.taskIndex <= 0,
+    };
 
-  const handleNavigation = useCallback(
-    (direction: NavigationDirection) => {
-      if (!enabled || !dagId || !isValidDirection(direction, mode)) {
-        return;
+    const isAtBoundary = boundaries[direction];
+
+    if (isAtBoundary) {
+      return;
+    }
+
+    const navigationMap: Record<
+      NavigationDirection,
+      { direction: number; index: "runIndex" | "taskIndex"; max: number }
+    > = {
+      down: { direction: 1, index: "taskIndex", max: tasks.length },
+      left: { direction: 1, index: "runIndex", max: runs.length },
+      right: { direction: -1, index: "runIndex", max: runs.length },
+      up: { direction: -1, index: "taskIndex", max: tasks.length },
+    };
+
+    const nav = navigationMap[direction];
+
+    const newIndices = { ...currentIndices };
+
+    if (nav.index === "taskIndex") {
+      newIndices.taskIndex = getNextIndex(currentIndices.taskIndex, nav.direction, {
+        max: nav.max,
+      });
+    } else {
+      newIndices.runIndex = getNextIndex(currentIndices.runIndex, nav.direction, { max: nav.max });
+    }
+
+    const { runIndex: newRunIndex, taskIndex: newTaskIndex } = newIndices;
+
+    if (newRunIndex === currentIndices.runIndex && newTaskIndex === currentIndices.taskIndex) {
+      return;
+    }
+
+    const run = runs[newRunIndex];
+    const task = tasks[newTaskIndex];
+
+    if (run && task) {
+      const path = buildPath({ dagId, mapIndex, mode, pathname: location.pathname, run, task });
+
+      navigate(path, { replace: true });
+
+      const grid = document.querySelector(`[id='grid-${run.run_id}-${task.id}']`);
+
+      // Set the focus to the grid link to allow a user to continue tabbing through with the keyboard
+      if (grid) {
+        (grid as HTMLLinkElement).focus();
       }
-
-      const boundaries = {
-        down: currentIndices.taskIndex >= tasks.length - 1,
-        left: currentIndices.runIndex >= runs.length - 1,
-        right: currentIndices.runIndex <= 0,
-        up: currentIndices.taskIndex <= 0,
-      };
-
-      const isAtBoundary = boundaries[direction];
-
-      if (isAtBoundary) {
-        return;
-      }
-
-      const navigationMap: Record<
-        NavigationDirection,
-        { direction: number; index: "runIndex" | "taskIndex"; max: number }
-      > = {
-        down: { direction: 1, index: "taskIndex", max: tasks.length },
-        left: { direction: 1, index: "runIndex", max: runs.length },
-        right: { direction: -1, index: "runIndex", max: runs.length },
-        up: { direction: -1, index: "taskIndex", max: tasks.length },
-      };
-
-      const nav = navigationMap[direction];
-
-      const newIndices = { ...currentIndices };
-
-      if (nav.index === "taskIndex") {
-        newIndices.taskIndex = getNextIndex(currentIndices.taskIndex, nav.direction, {
-          max: nav.max,
-        });
-      } else {
-        newIndices.runIndex = getNextIndex(currentIndices.runIndex, nav.direction, { max: nav.max });
-      }
-
-      const { runIndex: newRunIndex, taskIndex: newTaskIndex } = newIndices;
-
-      if (newRunIndex === currentIndices.runIndex && newTaskIndex === currentIndices.taskIndex) {
-        return;
-      }
-
-      const run = runs[newRunIndex];
-      const task = tasks[newTaskIndex];
-
-      if (run && task) {
-        const path = buildPath({ dagId, mapIndex, mode, run, task });
-
-        navigate(path, { replace: true });
-
-        const grid = document.querySelector(`[id='grid-${run.run_id}-${task.id}']`);
-
-        // Set the focus to the grid link to allow a user to continue tabbing through with the keyboard
-        if (grid) {
-          (grid as HTMLLinkElement).focus();
-        }
-      }
-    },
-    [currentIndices, dagId, enabled, mapIndex, mode, runs, tasks, navigate],
-  );
+    }
+  };
 
   useKeyboardNavigation({
     enabled,

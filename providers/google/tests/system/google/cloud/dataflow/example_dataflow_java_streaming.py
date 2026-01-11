@@ -129,7 +129,7 @@ with DAG(
             "streaming": True,
         },
         dataflow_config={
-            "job_name": f"java-streaming-job-{ENV_ID}",
+            "job_name": f"java-streaming-job-def-{ENV_ID}",
             "location": LOCATION,
         },
         deferrable=True,
@@ -164,13 +164,13 @@ with DAG(
         # TEST SETUP
         create_bucket
         >> download_file
-        >> create_output_pub_sub_topic
-        >> create_output_pub_sub_topic_2
+        >> [create_output_pub_sub_topic, create_output_pub_sub_topic_2]
         # TEST BODY
         >> start_java_streaming_job_dataflow
+        >> stop_dataflow_job
         >> start_java_streaming_job_dataflow_def
+        >> stop_dataflow_job_deferrable
         # TEST TEARDOWN
-        >> [stop_dataflow_job, stop_dataflow_job_deferrable]
         >> delete_topic
         >> delete_topic_2
         >> delete_bucket

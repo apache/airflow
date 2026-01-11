@@ -1,5 +1,11 @@
 {
+  "additional_data": "Dodatkowe dane",
+  "asset_few": "Zasoby",
+  "asset_many": "Zasobów",
+  "asset_one": "Zasób",
+  "asset_other": "Zasoby",
   "consumingDags": "Przetwarzanie Dagów",
+  "consumingTasks": "Przetwarzanie zadań",
   "createEvent": {
     "button": "Utwórz zdarzenie",
     "manual": {
@@ -21,6 +27,7 @@
     },
     "title": "Utwórz zdarzenie zasobu dla {{name}}"
   },
+  "extra": "Dodatkowe",
   "group": "Grupa",
   "lastAssetEvent": "Ostatnie zdarzenie zasobu",
   "name": "Nazwa",

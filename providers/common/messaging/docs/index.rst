@@ -77,9 +77,7 @@ apache-airflow-providers-common-messaging package
 ``Common Messaging Provider``
 
 
-Release: 1.0.5
-
-Release Date: ``|PypiReleaseDate|``
+Release: 2.0.1
 
 Provider package
 ----------------
@@ -90,7 +88,7 @@ All classes for this package are included in the ``airflow.providers.common.mess
 Installation
 ------------
 
-You can install this package on top of an existing Airflow 2 installation via
+You can install this package on top of an existing Airflow installation via
 ``pip install apache-airflow-providers-common-messaging``.
 For the minimum Airflow version supported, see ``Requirements`` below.
 

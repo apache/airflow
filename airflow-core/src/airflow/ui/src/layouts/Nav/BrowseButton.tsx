@@ -70,7 +70,7 @@ export const BrowseButton = ({
   return (
     <Menu.Root positioning={{ placement: "right" }}>
       <Menu.Trigger asChild>
-        <NavButton icon={<FiGlobe size="1.75rem" />} title={translate("nav.browse")} />
+        <NavButton icon={FiGlobe} title={translate("nav.browse")} />
       </Menu.Trigger>
       <Menu.Content>
         {menuItems}

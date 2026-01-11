@@ -24,7 +24,7 @@ import httplib2
 import pytest
 from googleapiclient.errors import HttpError
 
-from airflow.exceptions import AirflowException
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.google.cloud.operators.functions import (
     CloudFunctionDeleteFunctionOperator,
     CloudFunctionDeployFunctionOperator,
@@ -70,7 +70,7 @@ def _prepare_test_bodies():
 
 
 class TestGcfFunctionDeploy:
-    @pytest.mark.parametrize("body, message", _prepare_test_bodies())
+    @pytest.mark.parametrize(("body", "message"), _prepare_test_bodies())
     @mock.patch("airflow.providers.google.cloud.operators.functions.CloudFunctionsHook")
     def test_missing_fields(self, mock_hook, body, message):
         op = CloudFunctionDeployFunctionOperator(
@@ -264,7 +264,7 @@ class TestGcfFunctionDeploy:
         mock_hook.reset_mock()
 
     @pytest.mark.parametrize(
-        "key, value, message",
+        ("key", "value", "message"),
         [
             ("name", "", "The body field 'name' of value '' does not match"),
             ("description", "", "The body field 'description' of value '' does not match"),
@@ -299,7 +299,7 @@ class TestGcfFunctionDeploy:
 
     @pytest.mark.db_test
     @pytest.mark.parametrize(
-        "source_code, message",
+        ("source_code", "message"),
         [
             (
                 {"sourceArchiveUrl": ""},
@@ -345,7 +345,7 @@ class TestGcfFunctionDeploy:
             op.execute(None)
 
     @pytest.mark.parametrize(
-        "source_code, message",
+        ("source_code", "message"),
         [
             (
                 {"sourceArchiveUrl": "", "zip_path": "/path/to/file"},
@@ -397,7 +397,7 @@ class TestGcfFunctionDeploy:
             )
 
     @pytest.mark.parametrize(
-        "source_code, project_id",
+        ("source_code", "project_id"),
         [
             ({"sourceArchiveUrl": "gs://url"}, "test_project_id"),
             ({"zip_path": "/path/to/file", "sourceUploadUrl": None}, "test_project_id"),
@@ -465,7 +465,7 @@ class TestGcfFunctionDeploy:
         mock_hook.reset_mock()
 
     @pytest.mark.parametrize(
-        "trigger, message",
+        ("trigger", "message"),
         [
             ({"eventTrigger": {}}, "The required body field 'trigger.eventTrigger.eventType' is missing"),
             (

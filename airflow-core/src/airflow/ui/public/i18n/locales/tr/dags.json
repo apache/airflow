@@ -20,8 +20,7 @@
       "all": "Tümü",
       "paused": "Duraklatılmış"
     },
-    "runIdPatternFilter": "Dag Çalıştırmalarında Ara",
-    "triggeringUserNameFilter": "Tetikleyen Kullanıcıya Göre Ara"
+    "runIdPatternFilter": "Dag Çalıştırmalarında Ara"
   },
   "ownerLink": "{{owner}} için sahip bağlantısı",
   "runAndTaskActions": {
@@ -34,6 +33,10 @@
       "buttonTooltip": "Temizlemek için shift+c tuşuna basın",
       "error": "{{type}} temizlenemedi",
       "title": "{{type}} Temizle"
+    },
+    "confirmationDialog": {
+      "description": "Bu işlem, seçilen görev {{state}} ve {{user}} kullanıcısı tarafından {{time}} tarihinde başlatıldı. Görev çalışmayı tamamlayana kadar veya bir kullanıcı temizleme görev iletişim kutusundaki \"Çalışan görevlerin yeniden çalıştırılmasını önle\" seçeneğinin işaretini kaldırana kadar bu görevi temizleyemez.",
+      "title": "Görev Temizlenemiyor"
     },
     "delete": {
       "button": "{{type}} Sil",
@@ -62,6 +65,7 @@
       "future": "Gelecek",
       "onlyFailed": "Sadece başarısız görevleri temizle",
       "past": "Geçmiş",
+      "preventRunningTasks": "Çalışan görevlerin yeniden çalıştırılmasını önle",
       "queueNew": "Yeni görevleri kuyruğa al",
       "runOnLatestVersion": "En son paket sürümü ile çalıştır",
       "upstream": "Yukarı Akış"

@@ -17,6 +17,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Iterable
 from datetime import datetime
 
 from pydantic import AliasPath, Field, NonNegativeInt
@@ -35,6 +36,7 @@ class BackfillPostBody(StrictBaseModel):
     dag_run_conf: dict = {}
     reprocess_behavior: ReprocessBehavior = ReprocessBehavior.NONE
     max_active_runs: int = 10
+    run_on_latest_version: bool = True
 
 
 class BackfillResponse(BaseModel):
@@ -57,7 +59,7 @@ class BackfillResponse(BaseModel):
 class BackfillCollectionResponse(BaseModel):
     """Backfill Collection serializer for responses."""
 
-    backfills: list[BackfillResponse]
+    backfills: Iterable[BackfillResponse]
     total_entries: int
 
 

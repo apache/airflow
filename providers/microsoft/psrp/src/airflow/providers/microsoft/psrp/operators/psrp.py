@@ -24,16 +24,15 @@ from typing import TYPE_CHECKING, Any
 from jinja2.nativetypes import NativeEnvironment
 from pypsrp.serializer import TaggedValue
 
-from airflow.exceptions import AirflowException
+from airflow.providers.common.compat.sdk import AirflowException, BaseOperator
 from airflow.providers.microsoft.psrp.hooks.psrp import PsrpHook
-from airflow.providers.microsoft.psrp.version_compat import BaseOperator
 from airflow.settings import json
 from airflow.utils.helpers import exactly_one
 
 if TYPE_CHECKING:
     from pypsrp.powershell import Command
 
-    from airflow.utils.context import Context
+    from airflow.sdk import Context
 
 
 class PsrpOperator(BaseOperator):
@@ -110,10 +109,10 @@ class PsrpOperator(BaseOperator):
         args = {command, powershell, cmdlet}
         if not exactly_one(*args):
             raise ValueError("Must provide exactly one of 'command', 'powershell', or 'cmdlet'")
-        if arguments and not cmdlet:
-            raise ValueError("Arguments only allowed with 'cmdlet'")
-        if parameters and not cmdlet:
-            raise ValueError("Parameters only allowed with 'cmdlet'")
+        if arguments and not (powershell or cmdlet):
+            raise ValueError("Arguments only allowed with 'powershell' or 'cmdlet'")
+        if parameters and not (powershell or cmdlet):
+            raise ValueError("Parameters only allowed with 'powershell' or 'cmdlet'")
         if cmdlet:
             kwargs.setdefault("task_id", cmdlet)
         super().__init__(**kwargs)

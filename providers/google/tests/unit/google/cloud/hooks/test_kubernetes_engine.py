@@ -28,7 +28,7 @@ import pytest_asyncio
 from google.cloud.container_v1 import ClusterManagerAsyncClient
 from google.cloud.container_v1.types import Cluster
 
-from airflow.exceptions import AirflowException
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.google.cloud.hooks.kubernetes_engine import (
     GKEAsyncHook,
     GKEHook,
@@ -393,7 +393,7 @@ class TestGKEHook:
         assert operation_mock.call_count == 2
 
     @pytest.mark.parametrize(
-        "cluster_obj, expected_result",
+        ("cluster_obj", "expected_result"),
         [
             (CLUSTER_TEST_AUTOPROVISIONING, True),
             (CLUSTER_TEST_AUTOSCALED, True),
@@ -451,7 +451,7 @@ class TestGKEKubernetesHookDeployments:
         return self.credentials
 
     @pytest.mark.parametrize(
-        "api_client, expected_client",
+        ("api_client", "expected_client"),
         [
             (None, mock.MagicMock()),
             (mock_client := mock.MagicMock(), mock_client),  # type: ignore[name-defined]
@@ -531,7 +531,7 @@ class TestGKEKubernetesAsyncHook:
         caplog.set_level(logging.INFO)
         self.make_mock_awaitable(read_namespaced_pod_log, result="Test string #1\nTest string #2\n")
 
-        await async_hook.read_logs(name=POD_NAME, namespace=POD_NAMESPACE)
+        logs = await async_hook.read_logs(name=POD_NAME, namespace=POD_NAMESPACE)
 
         get_conn_mock.assert_called_once_with()
         read_namespaced_pod_log.assert_called_with(
@@ -539,9 +539,11 @@ class TestGKEKubernetesAsyncHook:
             namespace=POD_NAMESPACE,
             follow=False,
             timestamps=True,
+            container=None,
+            since_seconds=None,
         )
-        assert "Test string #1" in caplog.text
-        assert "Test string #2" in caplog.text
+        assert "Test string #1" in logs
+        assert "Test string #2" in logs
 
 
 @pytest_asyncio.fixture
@@ -629,7 +631,7 @@ class TestGKEKubernetesHookPod:
         return self.credentials
 
     @pytest.mark.parametrize(
-        "disable_tcp_keepalive, expected",
+        ("disable_tcp_keepalive", "expected"),
         (
             (True, False),
             (None, True),

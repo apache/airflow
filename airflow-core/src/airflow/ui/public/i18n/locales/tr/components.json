@@ -6,8 +6,6 @@
     "allRuns": "Bütün Dag Çalıştırmaları",
     "backwards": "Geriye Dönük Çalıştır",
     "dateRange": "Tarih Aralığı",
-    "dateRangeFrom": "Başlangıç",
-    "dateRangeTo": "Bitiş",
     "errorStartDateBeforeEndDate": "Başlangıç Tarihi, Bitiş Tarihinden önce olmalıdır",
     "maxRuns": "Maksimum Aktif Çalıştırma",
     "missingAndErroredRuns": "Eksik ve Hata Almış Dag Çalıştırmaları",
@@ -52,6 +50,13 @@
     "warning_one": "1 Uyarı",
     "warning_other": "{{count}} Uyarı"
   },
+  "dateRangeFilter": {
+    "validation": {
+      "invalidDateFormat": "Yanlış tarih formatı.",
+      "invalidTimeFormat": "Yanlış saat formatı.",
+      "startBeforeEnd": "Başlangıç tarihi, bitiş tarihinden önce olmalıdır."
+    }
+  },
   "durationChart": {
     "duration": "Süre (saniye)",
     "lastDagRun_one": "Son Dag Çalıştırması",
@@ -90,6 +95,14 @@
     "taskGroup": "Görev Grubu"
   },
   "limitedList": "+{{count}} daha",
+  "limitedList.allItems": "Tüm {{count}} öğeler:",
+  "limitedList.allTags_one": "Tüm Etiketler (1)",
+  "limitedList.allTags_other": "Tüm Etiketler ({{count}})",
+  "limitedList.clickToInteract": "Bir etikete tıklayarak Dag'leri filtreleyin",
+  "limitedList.clickToOpenFull": "\"+{{count}} daha\" tıklayarak tam görünümü açın",
+  "limitedList.copyPasteText": "Yukarıdaki metni kopyalayıp yapıştırabilirsiniz",
+  "limitedList.showingItems_one": "1 öğe gösteriliyor",
+  "limitedList.showingItems_other": "{{count}} öğeler gösteriliyor",
   "logs": {
     "file": "Dosya",
     "location": "{{name}} içinde satır {{line}}"
@@ -99,10 +112,16 @@
   "sortedDescending": "azalan sıralı",
   "sortedUnsorted": "sıralanmamış",
   "taskTries": "Görev Denemeleri",
+  "taskTryPlaceholder": "Görev denemesi",
   "toggleCardView": "Kart görünümünü göster",
   "toggleTableView": "Tablo görünümünü göster",
   "triggerDag": {
     "button": "Tetikle",
+    "dataInterval": "Veri Aralığı",
+    "dataIntervalAuto": "Mantıksal ve Zaman Tablosu Temelli",
+    "dataIntervalManual": "Manuel",
+    "intervalEnd": "Bitiş",
+    "intervalStart": "Başlangıç",
     "loading": "Dag bilgisi yükleniyor...",
     "loadingFailed": "Dag bilgisi yüklenemedi. Lütfen tekrar deneyin.",
     "runIdHelp": "İsteğe bağlı - sağlanmazsa oluşturulacaktır",
@@ -110,6 +129,9 @@
     "selectLabel": "Tek Çalıştırma",
     "title": "Dag Tetikle",
     "toaster": {
+      "error": {
+        "title": "Dag Çalıştırması Tetiklenemedi"
+      },
       "success": {
         "description": "Dag çalıştırması başarıyla tetiklendi.",
         "title": "Dag Çalıştırması Tetiklendi"
@@ -130,6 +152,7 @@
     "versionId": "Versiyon Kimliği"
   },
   "versionSelect": {
+    "allVersions": "Bütün Versiyonlar",
     "dagVersion": "Dag Versiyonu",
     "versionCode": "v{{versionCode}}"
   }

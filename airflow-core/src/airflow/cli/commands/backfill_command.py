@@ -17,6 +17,7 @@
 
 from __future__ import annotations
 
+import json
 import logging
 import signal
 
@@ -37,7 +38,7 @@ log = logging.getLogger(__name__)
 @providers_configuration_loaded
 def create_backfill(args) -> None:
     """Create backfill job or dry run for a DAG or list of DAGs using regex."""
-    logging.basicConfig(level=settings.LOGGING_LEVEL, format=settings.SIMPLE_LOG_FORMAT)
+    logging.basicConfig(level=logging.INFO, format=settings.SIMPLE_LOG_FORMAT)
     signal.signal(signal.SIGTERM, sigint_handler)
     console = AirflowConsole()
 
@@ -80,13 +81,22 @@ def create_backfill(args) -> None:
     except AirflowConfigException as e:
         log.warning("Failed to get user name from os: %s, not setting the triggering user", e)
         user = None
+
+    # Parse dag_run_conf if provided
+    dag_run_conf = None
+    if args.dag_run_conf:
+        try:
+            dag_run_conf = json.loads(args.dag_run_conf)
+        except json.JSONDecodeError as e:
+            raise ValueError(f"Invalid JSON in --dag-run-conf: {e}")
+
     _create_backfill(
         dag_id=args.dag_id,
         from_date=args.from_date,
         to_date=args.to_date,
         max_active_runs=args.max_active_runs,
         reverse=args.run_backwards,
-        dag_run_conf=args.dag_run_conf,
+        dag_run_conf=dag_run_conf,
         triggering_user_name=user,
         reprocess_behavior=reprocess_behavior,
         run_on_latest_version=args.run_on_latest_version,

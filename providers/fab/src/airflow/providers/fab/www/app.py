@@ -18,10 +18,11 @@
 from __future__ import annotations
 
 from datetime import timedelta
+from functools import cache
 from os.path import isabs
 
 from flask import Flask
-from flask_appbuilder import SQLA
+from flask_sqlalchemy import SQLAlchemy
 from flask_wtf.csrf import CSRFProtect
 from sqlalchemy.engine.url import make_url
 
@@ -43,8 +44,6 @@ from airflow.providers.fab.www.extensions.init_views import (
 )
 from airflow.providers.fab.www.extensions.init_wsgi_middlewares import init_wsgi_middleware
 from airflow.providers.fab.www.utils import get_session_lifetime_config
-
-app: Flask | None = None
 
 # Initializes at the module level, so plugins can access it.
 # See: /docs/plugins.rst
@@ -84,9 +83,10 @@ def create_app(enable_plugins: bool):
 
     csrf.init_app(flask_app)
 
-    db = SQLA()
+    db = SQLAlchemy(flask_app)
+    if settings.Session is None:
+        raise RuntimeError("Session not configured. Call configure_orm() first.")
     db.session = settings.Session
-    db.init_app(flask_app)
 
     configure_logging()
     configure_manifest_files(flask_app)
@@ -107,21 +107,18 @@ def create_app(enable_plugins: bool):
         elif isinstance(get_auth_manager(), FabAuthManager):
             init_api_auth_provider(flask_app)
             init_api_error_handlers(flask_app)
+            init_airflow_session_interface(flask_app, db)
         init_jinja_globals(flask_app, enable_plugins=enable_plugins)
-        init_airflow_session_interface(flask_app)
         init_wsgi_middleware(flask_app)
     return flask_app
 
 
+@cache
 def cached_app():
     """Return cached instance of Airflow WWW app."""
-    global app
-    if not app:
-        app = create_app()
-    return app
+    return create_app()
 
 
 def purge_cached_app():
     """Remove the cached version of the app in global state."""
-    global app
-    app = None
+    cached_app.cache_clear()

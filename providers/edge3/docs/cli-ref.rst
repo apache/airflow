@@ -19,6 +19,6 @@ Edge Executor Commands
 ----------------------
 
 .. argparse::
-   :module: airflow.providers.edge3.executors.edge_executor
-   :func: _get_parser
+   :module: airflow.providers.edge3.cli.definition
+   :func: get_parser
    :prog: airflow

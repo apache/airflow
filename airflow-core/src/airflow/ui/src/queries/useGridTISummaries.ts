@@ -22,10 +22,12 @@ import { isStatePending, useAutoRefresh } from "src/utils";
 
 export const useGridTiSummaries = ({
   dagId,
+  enabled,
   runId,
   state,
 }: {
   dagId: string;
+  enabled?: boolean;
   runId: string;
   state?: TaskInstanceState | null | undefined;
 }) => {
@@ -38,7 +40,7 @@ export const useGridTiSummaries = ({
     },
     undefined,
     {
-      enabled: Boolean(runId) && Boolean(dagId),
+      enabled: Boolean(runId) && Boolean(dagId) && enabled,
       placeholderData: (prev) => prev,
       refetchInterval: (query) =>
         ((state !== undefined && isStatePending(state)) ||

@@ -23,9 +23,8 @@
 
 Package ``apache-airflow-providers-exasol``
 
-Release: ``4.8.2``
+Release: ``4.9.0``
 
-Release Date: ``|PypiReleaseDate|``
 
 `Exasol <https://www.exasol.com/>`__
 
@@ -37,12 +36,12 @@ This is a provider package for ``exasol`` provider. All classes for this provide
 are in ``airflow.providers.exasol`` python package.
 
 You can find package information and changelog for the provider
-in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-exasol/4.8.2/>`_.
+in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-exasol/4.9.0/>`_.
 
 Installation
 ------------
 
-You can install this package on top of an existing Airflow 2 installation (see ``Requirements`` below
+You can install this package on top of an existing Airflow installation (see ``Requirements`` below
 for the minimum Airflow version supported) via
 ``pip install apache-airflow-providers-exasol``
 
@@ -54,7 +53,7 @@ Requirements
 =======================================  =====================================
 PIP package                              Version required
 =======================================  =====================================
-``apache-airflow``                       ``>=2.10.0``
+``apache-airflow``                       ``>=2.11.0``
 ``apache-airflow-providers-common-sql``  ``>=1.26.0``
 ``pyexasol``                             ``>=0.26.0``
 ``pandas``                               ``>=2.1.2; python_version < "3.13"``
@@ -81,4 +80,4 @@ Dependent package                                                               
 ============================================================================================================  ==============
 
 The changelog for the provider package can be found in the
-`changelog <https://airflow.apache.org/docs/apache-airflow-providers-exasol/4.8.2/changelog.html>`_.
+`changelog <https://airflow.apache.org/docs/apache-airflow-providers-exasol/4.9.0/changelog.html>`_.

@@ -21,14 +21,18 @@ from datetime import timedelta
 
 import pytest
 
-from airflow.exceptions import AirflowSensorTimeout
-from airflow.models import DagBag
 from airflow.models.dag import DAG
+from airflow.providers.common.compat.sdk import AirflowSensorTimeout
 from airflow.providers.standard.sensors.weekday import DayOfWeekSensor
 from airflow.providers.standard.utils.weekday import WeekDay
 
 from tests_common.test_utils import db
-from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS, timezone
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V_3_2_PLUS, timezone
+
+if AIRFLOW_V_3_2_PLUS:
+    from airflow.dag_processing.dagbag import DagBag
+else:
+    from airflow.models import DagBag  # type: ignore[attr-defined, no-redef]
 
 pytestmark = pytest.mark.db_test
 

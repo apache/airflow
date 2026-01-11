@@ -28,11 +28,11 @@ except ModuleNotFoundError as e:
 
     raise AirflowOptionalProviderFeatureException(e)
 
+from airflow.providers.common.compat.sdk import BaseOperator
 from airflow.providers.teradata.hooks.teradata import TeradataHook
-from airflow.providers.teradata.version_compat import BaseOperator
 
 if TYPE_CHECKING:
-    from airflow.utils.context import Context
+    from airflow.providers.common.compat.sdk import Context
 
 
 class AzureBlobStorageToTeradataOperator(BaseOperator):

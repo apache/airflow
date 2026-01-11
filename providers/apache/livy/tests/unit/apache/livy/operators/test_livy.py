@@ -21,11 +21,11 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from airflow.exceptions import AirflowException
 from airflow.models import Connection
 from airflow.models.dag import DAG
 from airflow.providers.apache.livy.hooks.livy import BatchState
 from airflow.providers.apache.livy.operators.livy import LivyOperator
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.utils import timezone
 
 DEFAULT_DATE = timezone.datetime(2017, 1, 1)
@@ -554,7 +554,10 @@ class TestLivyOperator:
             operator.hook.TERMINAL_STATES = [BatchState.SUCCESS]
             operator.execute(MagicMock())
 
-            assert "OpenLineage transport type `console` does not support automatic injection of OpenLineage transport information into Spark properties."
+            assert (
+                "OpenLineage transport type `console` does not support automatic injection of OpenLineage transport information into Spark properties."
+                in caplog.text
+            )
         assert operator.spark_params["conf"] == {}
 
 
@@ -585,8 +588,7 @@ def test_spark_params_templating(create_task_instance_of_operator, session):
     )
     session.add(ti)
     session.commit()
-    ti.render_templates()
-    task: LivyOperator = ti.task
+    task = ti.render_templates()
     assert task.spark_params == {
         "archives": "literal-archives",
         "args": "literal-args",

@@ -17,23 +17,18 @@
 from __future__ import annotations
 
 import copy
-import datetime
-import logging
 import os
 import sys
 import tempfile
-from typing import TYPE_CHECKING
+import types
 from unittest import mock
 
-import pendulum
 import pytest
 
 from airflow import settings
 from airflow._shared.timezones import timezone
 from airflow.config_templates.airflow_local_settings import DEFAULT_LOGGING_CONFIG
 from airflow.models.tasklog import LogTemplate
-from airflow.providers.standard.operators.python import PythonOperator
-from airflow.timetables.base import DataInterval
 from airflow.utils.log.log_reader import TaskLogReader
 from airflow.utils.log.logging_mixin import ExternalLoggingMixin
 from airflow.utils.state import TaskInstanceState
@@ -44,10 +39,6 @@ from tests_common.test_utils.db import clear_db_dags, clear_db_runs
 from tests_common.test_utils.file_task_handler import convert_list_to_stream
 
 pytestmark = pytest.mark.db_test
-
-
-if TYPE_CHECKING:
-    from airflow.models import DagRun
 
 
 class TestLogView:
@@ -79,16 +70,26 @@ class TestLogView:
 
     @pytest.fixture(autouse=True)
     def configure_loggers(self, log_dir, settings_folder):
-        logging_config = copy.deepcopy(DEFAULT_LOGGING_CONFIG)
-        logging_config["handlers"]["task"]["base_log_folder"] = log_dir
-        settings_file = os.path.join(settings_folder, "airflow_local_settings_test.py")
-        with open(settings_file, "w") as handle:
-            new_logging_file = f"LOGGING_CONFIG = {logging_config}"
-            handle.writelines(new_logging_file)
+        logging_config = {**DEFAULT_LOGGING_CONFIG}
+        logging_config["handlers"] = {**logging_config["handlers"]}
+        logging_config["handlers"]["task"] = {
+            **logging_config["handlers"]["task"],
+            "base_log_folder": log_dir,
+        }
+
+        mod = types.SimpleNamespace()
+        mod.LOGGING_CONFIG = logging_config
+
+        # "Inject" a fake module into sys so it loads it without needing to write valid python code
+        sys.modules["airflow_local_settings_test"] = mod
+
         with conf_vars({("logging", "logging_config_class"): "airflow_local_settings_test.LOGGING_CONFIG"}):
             settings.configure_logging()
-        yield
-        logging.config.dictConfig(DEFAULT_LOGGING_CONFIG)
+        try:
+            yield
+        finally:
+            del sys.modules["airflow_local_settings_test"]
+            settings.configure_logging()
 
     @pytest.fixture(autouse=True)
     def prepare_log_files(self, log_dir):
@@ -258,7 +259,7 @@ class TestLogView:
         log_stream = task_log_reader.read_log_stream(ti=self.ti, try_number=1, metadata={})
         assert list(log_stream) == [
             '{"timestamp":null,"event":"hello"}\n',
-            "(Log stream stopped - End of log marker not found; logs may be incomplete.)\n",
+            '{"event": "Log stream stopped - End of log marker not found; logs may be incomplete."}\n',
         ]
         assert mock_read.call_count == 11
 
@@ -282,50 +283,59 @@ class TestLogView:
         mock_prop.return_value = True
         assert task_log_reader.supports_external_link
 
-    def test_task_log_filename_unique(self, dag_maker):
-        """
-        Ensure the default log_filename_template produces a unique filename.
+    @pytest.mark.parametrize(
+        ("state", "try_number", "expected_event", "use_self_ti"),
+        [
+            (TaskInstanceState.SKIPPED, 0, "Task was skipped — no logs available.", False),
+            (
+                TaskInstanceState.UPSTREAM_FAILED,
+                0,
+                "Task did not run because upstream task(s) failed.",
+                False,
+            ),
+            (TaskInstanceState.SUCCESS, 1, "try_number=1.", True),
+        ],
+    )
+    def test_read_log_chunks_no_logs_and_normal(
+        self, create_task_instance, state, try_number, expected_event, use_self_ti
+    ):
+        task_log_reader = TaskLogReader()
 
-        See discussion in apache/airflow#19058 [1]_ for how uniqueness may
-        change in a future Airflow release. For now, the logical date is used
-        to distinguish DAG runs. This test should be modified when the logical
-        date is no longer used to ensure uniqueness.
+        if use_self_ti:
+            ti = copy.copy(self.ti)  # already prepared with log files
+        else:
+            ti = create_task_instance(dag_id="dag_no_logs", task_id="task_no_logs")
 
-        [1]: https://github.com/apache/airflow/issues/19058
-        """
-        dag_id = "test_task_log_filename_ts_corresponds_to_logical_date"
-        task_id = "echo_run_type"
+        ti.state = state
+        logs, _ = task_log_reader.read_log_chunks(ti=ti, try_number=try_number, metadata={})
+        events = [log.event for log in logs]
 
-        def echo_run_type(dag_run: DagRun, **kwargs):
-            print(dag_run.run_type)
+        assert any(expected_event in e for e in events)
 
-        with dag_maker(dag_id, start_date=self.DEFAULT_DATE, schedule="@daily") as dag:
-            PythonOperator(task_id=task_id, python_callable=echo_run_type)
+    @pytest.mark.parametrize(
+        ("state", "try_number", "expected_event", "use_self_ti"),
+        [
+            (TaskInstanceState.SKIPPED, 0, "Task was skipped — no logs available.", False),
+            (
+                TaskInstanceState.UPSTREAM_FAILED,
+                0,
+                "Task did not run because upstream task(s) failed.",
+                False,
+            ),
+            (TaskInstanceState.SUCCESS, 1, "try_number=1.", True),
+        ],
+    )
+    def test_read_log_stream_no_logs_and_normal(
+        self, create_task_instance, state, try_number, expected_event, use_self_ti
+    ):
+        task_log_reader = TaskLogReader()
 
-        start = pendulum.datetime(2021, 1, 1)
-        end = start + datetime.timedelta(days=1)
-        trigger_time = end + datetime.timedelta(hours=4, minutes=29)  # Arbitrary.
+        if use_self_ti:
+            ti = copy.copy(self.ti)  # session-bound TI with logs
+        else:
+            ti = create_task_instance(dag_id="dag_no_logs", task_id="task_no_logs")
 
-        # Create two DAG runs that have the same data interval, but not the same
-        # logical date, to check if they correctly use different log files.
-        scheduled_dagrun: DagRun = dag_maker.create_dagrun(
-            run_type=DagRunType.SCHEDULED,
-            logical_date=start,
-            data_interval=DataInterval(start, end),
-        )
-        manual_dagrun: DagRun = dag_maker.create_dagrun(
-            run_type=DagRunType.MANUAL,
-            logical_date=trigger_time,
-            data_interval=DataInterval(start, end),
-        )
+        ti.state = state
+        stream = task_log_reader.read_log_stream(ti=ti, try_number=try_number, metadata={})
 
-        scheduled_ti = scheduled_dagrun.get_task_instance(task_id)
-        manual_ti = manual_dagrun.get_task_instance(task_id)
-        assert scheduled_ti is not None
-        assert manual_ti is not None
-
-        scheduled_ti.refresh_from_task(dag.get_task(task_id))
-        manual_ti.refresh_from_task(dag.get_task(task_id))
-
-        reader = TaskLogReader()
-        assert reader.render_log_filename(scheduled_ti, 1) != reader.render_log_filename(manual_ti, 1)
+        assert any(expected_event in line for line in stream)

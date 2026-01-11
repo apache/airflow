@@ -23,7 +23,7 @@ from airflow.providers.google.cloud.utils.dataproc import DataprocOperationType
 
 class TestDataprocOperationType:
     @pytest.mark.parametrize(
-        "str_value, expected_item",
+        ("str_value", "expected_item"),
         [
             ("DIAGNOSE", DataprocOperationType.DIAGNOSE.value),
         ],

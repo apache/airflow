@@ -23,9 +23,8 @@
 
 Package ``apache-airflow-providers-pagerduty``
 
-Release: ``5.0.2``
+Release: ``5.2.1``
 
-Release Date: ``|PypiReleaseDate|``
 
 `Pagerduty <https://www.pagerduty.com/>`__
 
@@ -37,12 +36,12 @@ This is a provider package for ``pagerduty`` provider. All classes for this prov
 are in ``airflow.providers.pagerduty`` python package.
 
 You can find package information and changelog for the provider
-in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-pagerduty/5.0.2/>`_.
+in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-pagerduty/5.2.1/>`_.
 
 Installation
 ------------
 
-You can install this package on top of an existing Airflow 2 installation (see ``Requirements`` below
+You can install this package on top of an existing Airflow installation (see ``Requirements`` below
 for the minimum Airflow version supported) via
 ``pip install apache-airflow-providers-pagerduty``
 
@@ -54,8 +53,9 @@ Requirements
 ==========================================  ==================
 PIP package                                 Version required
 ==========================================  ==================
-``apache-airflow``                          ``>=2.10.0``
-``apache-airflow-providers-common-compat``  ``>=1.6.1``
+``apache-airflow``                          ``>=2.11.0``
+``apache-airflow-providers-common-compat``  ``>=1.10.1``
+``apache-airflow-providers-http``
 ``pagerduty``                               ``>=2.3.0``
 ==========================================  ==================
 
@@ -76,7 +76,8 @@ You can install such cross-provider dependencies when installing from PyPI. For 
 Dependent package                                                                                                   Extra
 ==================================================================================================================  =================
 `apache-airflow-providers-common-compat <https://airflow.apache.org/docs/apache-airflow-providers-common-compat>`_  ``common.compat``
+`apache-airflow-providers-http <https://airflow.apache.org/docs/apache-airflow-providers-http>`_                    ``http``
 ==================================================================================================================  =================
 
 The changelog for the provider package can be found in the
-`changelog <https://airflow.apache.org/docs/apache-airflow-providers-pagerduty/5.0.2/changelog.html>`_.
+`changelog <https://airflow.apache.org/docs/apache-airflow-providers-pagerduty/5.2.1/changelog.html>`_.

@@ -19,34 +19,12 @@ from __future__ import annotations
 
 import datetime
 from collections.abc import Sequence
-from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, NoReturn
 
+from airflow.providers.common.compat.sdk import BaseSensorOperator, timezone
 from airflow.providers.standard.triggers.temporal import DateTimeTrigger
-from airflow.providers.standard.version_compat import AIRFLOW_V_3_0_PLUS, BaseSensorOperator
-
-try:
-    from airflow.sdk import timezone
-except ImportError:  # TODO: Remove this when min airflow version is 3.1.0 for standard provider
-    from airflow.utils import timezone  # type: ignore[attr-defined,no-redef]
-
-try:
-    from airflow.sdk import StartTriggerArgs
-except ImportError:  # TODO: Remove this when min airflow version is 3.1.0 for standard provider
-    try:
-        from airflow.triggers.base import StartTriggerArgs  # type: ignore[no-redef]
-    except ImportError:  # TODO: Remove this when min airflow version is 2.10.0 for standard provider
-
-        @dataclass
-        class StartTriggerArgs:  # type: ignore[no-redef]
-            """Arguments required for start task execution from triggerer."""
-
-            trigger_cls: str
-            next_method: str
-            trigger_kwargs: dict[str, Any] | None = None
-            next_kwargs: dict[str, Any] | None = None
-            timeout: datetime.timedelta | None = None
-
+from airflow.providers.standard.version_compat import AIRFLOW_V_3_0_PLUS
+from airflow.triggers.base import StartTriggerArgs
 
 if TYPE_CHECKING:
     from airflow.sdk import Context

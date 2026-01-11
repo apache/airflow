@@ -102,10 +102,10 @@ To find the countries in Asian continent:
     :end-before: [END mssql_operator_howto_guide_params_passing_get_query]
 
 
-The complete SQLExecuteQueryOperator DAG to connect to MSSQL
+The complete SQLExecuteQueryOperator Dag to connect to MSSQL
 ------------------------------------------------------------
 
-When we put everything together, our DAG should look like this:
+When we put everything together, our Dag should look like this:
 
 .. exampleinclude:: /../tests/system/microsoft/mssql/example_mssql.py
     :language: python

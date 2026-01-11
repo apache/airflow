@@ -32,8 +32,8 @@ By default, Airflow uses **SQLite**, which is intended for development purposes 
 
 Airflow supports the following database engine versions, so make sure which version you have. Old versions may not support all SQL statements.
 
-* PostgreSQL: 12, 13, 14, 15, 16
-* MySQL: 8.0, `Innovation <https://dev.mysql.com/blog-archive/introducing-mysql-innovation-and-long-term-support-lts-versions>`_
+* PostgreSQL: 13, 14, 15, 16, 17
+* MySQL: 8.0, 8.4, `Innovation <https://dev.mysql.com/blog-archive/introducing-mysql-innovation-and-long-term-support-lts-versions>`_
 * SQLite: 3.15.0+
 
 If you plan on running more than one scheduler, you have to meet additional requirements.
@@ -93,7 +93,7 @@ You can make sure which version is used by the interpreter by running this check
 
 .. code-block:: bash
 
-    root@b8a8e73caa2c:/opt/airflow# python
+    [Breeze:3.10.19] root@b8a8e73caa2c:/opt/airflow# python
     Python 3.8.10 (default, Mar 15 2022, 12:22:08)
     [GCC 8.3.0] on linux
     Type "help", "copyright", "credits" or "license" for more information.
@@ -330,7 +330,7 @@ MsSQL Database
     the Airflow's PMC members and Committers have reached a resolution to no longer maintain MsSQL as a supported Database Backend.
 
     As of Airflow 2.9.0 support of MsSQL has been removed for Airflow Database Backend.
-    This does not affect the existing providers (operators and hooks), dags can still access and process data from MsSQL.
+    This does not affect the existing providers (operators and hooks), Dags can still access and process data from MsSQL.
     However, further usage may throw errors making Airflow's core functionality unusable.
 
 

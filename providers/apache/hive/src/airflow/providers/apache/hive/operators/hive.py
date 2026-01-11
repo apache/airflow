@@ -23,16 +23,16 @@ from collections.abc import Sequence
 from functools import cached_property
 from typing import TYPE_CHECKING, Any
 
-from airflow.configuration import conf
 from airflow.providers.apache.hive.hooks.hive import HiveCliHook
-from airflow.providers.apache.hive.version_compat import (
+from airflow.providers.common.compat.sdk import (
     AIRFLOW_VAR_NAME_FORMAT_MAPPING,
     BaseOperator,
+    conf,
     context_to_airflow_vars,
 )
 
 if TYPE_CHECKING:
-    from airflow.utils.context import Context
+    from airflow.providers.common.compat.sdk import Context
 
 
 class HiveOperator(BaseOperator):
@@ -143,9 +143,15 @@ class HiveOperator(BaseOperator):
         # set the mapred_job_name if it's not set with dag, task, execution time info
         if not self.mapred_job_name:
             ti = context["ti"]
-            logical_date = context["logical_date"]
+            logical_date = context.get("logical_date", None)
             if logical_date is None:
-                raise RuntimeError("logical_date is None")
+                raise RuntimeError(
+                    "logical_date is not available. Please make sure the task is not used in an asset-triggered Dag. "
+                    "HiveOperator was designed to work with timetable scheduled Dags, "
+                    "and an asset-triggered Dag run does not have a logical_date. "
+                    "If you need to use HiveOperator in an asset-triggered Dag,"
+                    "please open an issue on the Airflow project."
+                )
             hostname = ti.hostname or ""
             self.hook.mapred_job_name = self.mapred_job_name_template.format(
                 dag_id=ti.dag_id,

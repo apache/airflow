@@ -7,6 +7,13 @@
     "Providers": "Sağlayıcılar",
     "Variables": "Değişkenler"
   },
+  "allOperators": "Bütün Operatörler",
+  "appearance": {
+    "appearance": "Görünüm",
+    "darkMode": "Karanlık Mod",
+    "lightMode": "Aydınlık Mod",
+    "systemMode": "Sistem Ayarını Uygula"
+  },
   "asset_one": "Varlık",
   "asset_other": "Varlıklar",
   "assetEvent_one": "Varlık Etkinliği",
@@ -18,6 +25,7 @@
     "requiredActions": "Gerekli Eylemler",
     "xcoms": "XCom'lar"
   },
+  "collapseAllExtra": "Tüm ek JSON'ları daralt",
   "collapseDetailsPanel": "Detay Panelini Daralt",
   "createdAssetEvent_one": "Oluşturulan Varlık Etkinliği",
   "createdAssetEvent_other": "Oluşturulan Varlık Etkinlikleri",
@@ -32,6 +40,7 @@
     "fileLocation": "Dosya Konumu",
     "hasTaskConcurrencyLimits": "Görev Eş Zamanlılık Limitleri Var",
     "lastExpired": "Son Süresi Dolan",
+    "lastParseDuration": "Son Atrıştırma Süresi",
     "lastParsed": "Son Ayrıştırılan",
     "latestDagVersion": "En Son Dag Versiyonu",
     "latestRun": "En Son Çalışma",
@@ -51,6 +60,7 @@
     "dataIntervalEnd": "Veri Aralığı Sonu",
     "dataIntervalStart": "Veri Aralığı Başlangıcı",
     "lastSchedulingDecision": "Son Zamanlama Kararı",
+    "partitionKey": "Bölüm Anahtarı",
     "queuedAt": "Kuyruğa Alınma Zamanı",
     "runAfter": "Sonra Çalıştır",
     "runType": "Çalıştırma Tipi",
@@ -64,18 +74,30 @@
   "dagWarnings": "Dag Uyarıları/Hataları",
   "defaultToGraphView": "Varsayılan olarak grafik görünümü",
   "defaultToGridView": "Varsayılan olarak ızgara görünümü",
+  "delete": "Sil",
+  "diff": "Fark modu",
+  "diffCompareWith": "ile karşılaştır",
+  "diffExit": "Fark modundan çık",
+  "diffSelectVersionToCompare": "Karşılaştırmak için bir versiyon seçin",
   "direction": "Yön",
   "docs": {
     "documentation": "Dokümantasyon",
     "githubRepo": "GitHub Deposu",
     "restApiReference": "REST API Referansı"
   },
+  "download": {
+    "download": "İndir",
+    "hotkey": "d",
+    "tooltip": "{{hotkey}} tuşuna basarak indir"
+  },
   "duration": "Süre",
+  "edit": "Güncelle",
   "endDate": "Bitiş Tarihi",
   "error": {
     "back": "Geri",
     "defaultMessage": "Beklenmeyen bir hata oluştu",
     "home": "Ana Sayfa",
+    "invalidUrl": "Sayfa Bulunamadı. Lütfen URL'yi kontrol edin ve tekrar deneyin.",
     "notFound": "Sayfa Bulunamadı",
     "title": "Hata"
   },
@@ -85,34 +107,38 @@
     "hotkey": "e",
     "tooltip": "{{hotkey}} tuşuna basarak genişletmeyi değiştir"
   },
+  "expandAllExtra": "Tüm ek JSON'ları genişlet",
   "expression": {
     "all": "Tümü",
     "and": "VE",
     "any": "Herhangi",
     "or": "VEYA"
   },
+  "filter": "Filtre",
   "filters": {
-    "dagDisplayNamePlaceholder": "Dag adına göre filtrele",
-    "keyPlaceholder": "XCom anahtarına göre filtrele",
-    "logicalDateFromPlaceholder": "Mantıksal tarih başlangıcı",
-    "logicalDateToPlaceholder": "Mantıksal tarih bitişi",
-    "mapIndexPlaceholder": "Harita indeksine göre filtrele",
-    "runAfterFromPlaceholder": "Şu tarihten sonra çalıştır (başlangıç)",
-    "runAfterToPlaceholder": "Şu tarihten sonra çalıştır (bitiş)",
-    "runIdPlaceholder": "Çalıştırma kimliğine göre filtrele",
-    "taskIdPlaceholder": "Görev kimliğine göre filtrele"
+    "durationFrom": "Süre Başlangıcı",
+    "durationTo": "Süre Bitişi",
+    "endTime": "Bitiş Zamanı",
+    "logicalDateFrom": "Mantıksal tarih başlangıcı",
+    "logicalDateTo": "Mantıksal tarih bitişi",
+    "runAfterFrom": "Şu tarihten sonra çalıştır (başlangıç)",
+    "runAfterTo": "Şu tarihten sonra çalıştır (bitiş)",
+    "selectDateRange": "Lütfen bir tarih aralığı seçin",
+    "startTime": "Başlangıç Zamanı"
   },
   "logicalDate": "Mantıksal Tarih",
   "logout": "Çıkış",
   "logoutConfirmation": "Uygulamadan çıkış yapmak üzeresiniz.",
   "mapIndex": "Harita İndeksi",
   "modal": {
+    "add": "Ekle",
     "cancel": "İptal",
     "confirm": "Onayla",
     "delete": {
       "button": "Sil",
       "confirmation": "{{resourceName}} öğesini silmek istediğinizden emin misiniz? Bu işlem geri alınamaz."
-    }
+    },
+    "save": "Kaydet"
   },
   "nav": {
     "admin": "Yönetici",
@@ -142,6 +168,7 @@
     "running": "Çalışıyor",
     "scheduled": "Planlanmış"
   },
+  "reset": "Sıfırla",
   "runId": "Çalıştırma Kimliği",
   "runTypes": {
     "asset_triggered": "Varlık Tetiklemeli",
@@ -156,7 +183,6 @@
     },
     "tooltip": "{{direction}} kaydırmak için {{hotkey}} tuşuna basın"
   },
-  "seconds": "{{count}}sn",
   "security": {
     "actions": "Eylemler",
     "permissions": "İzinler",
@@ -166,6 +192,7 @@
   },
   "selectLanguage": "Dil Seçin",
   "showDetailsPanel": "Detay Panelini Göster",
+  "signedInAs": "olarak giriş yapıldı",
   "source": {
     "hide": "Kaynağı Gizle",
     "hotkey": "s",
@@ -180,6 +207,7 @@
     "failed": "Başarısız",
     "no_status": "Durum Yok",
     "none": "Durum Yok",
+    "planned": "Planlanmış",
     "queued": "Kuyrukta",
     "removed": "Kaldırılmış",
     "restarting": "Yeniden Başlatılıyor",
@@ -191,8 +219,6 @@
     "up_for_retry": "Yeniden Denenecek",
     "upstream_failed": "Yukarı Akış Başarısız"
   },
-  "switchToDarkMode": "Karanlık Moda Geç",
-  "switchToLightMode": "Aydınlık Moda Geç",
   "table": {
     "completedAt": "Tamamlanma Tarihi",
     "createdAt": "Oluşturulma Tarihi",

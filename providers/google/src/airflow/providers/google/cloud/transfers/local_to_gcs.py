@@ -28,7 +28,7 @@ from airflow.providers.google.cloud.hooks.gcs import GCSHook
 from airflow.providers.google.version_compat import BaseOperator
 
 if TYPE_CHECKING:
-    from airflow.utils.context import Context
+    from airflow.providers.common.compat.sdk import Context
 
 
 class LocalFilesystemToGCSOperator(BaseOperator):

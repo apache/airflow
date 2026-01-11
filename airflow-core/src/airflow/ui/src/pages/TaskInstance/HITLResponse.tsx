@@ -19,7 +19,7 @@
 import { Box } from "@chakra-ui/react";
 import { useParams } from "react-router-dom";
 
-import { useHumanInTheLoopServiceGetHitlDetail } from "openapi/queries";
+import { useTaskInstanceServiceGetHitlDetail } from "openapi/queries";
 import { ProgressBar } from "src/components/ui";
 
 import { HITLResponseForm } from "../HITLTaskInstances/HITLResponseForm";
@@ -27,12 +27,15 @@ import { HITLResponseForm } from "../HITLTaskInstances/HITLResponseForm";
 export const HITLResponse = () => {
   const { dagId, mapIndex, runId, taskId } = useParams();
 
-  const { data: hitlDetail } = useHumanInTheLoopServiceGetHitlDetail({
-    dagId: dagId ?? "~",
-    dagRunId: runId ?? "~",
-    mapIndex: Number(mapIndex ?? -1),
-    taskId: taskId ?? "~",
-  });
+  const { data: hitlDetail } = useTaskInstanceServiceGetHitlDetail(
+    {
+      dagId: dagId ?? "",
+      dagRunId: runId ?? "",
+      mapIndex: Number(mapIndex ?? -1),
+      taskId: taskId ?? "",
+    },
+    undefined,
+  );
 
   if (!hitlDetail?.task_instance) {
     return (

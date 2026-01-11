@@ -102,7 +102,6 @@ with DAG(
     dag_id=DAG_ID,
     schedule="@once",
     start_date=datetime(2021, 1, 1),
-    tags=["example"],
     catchup=False,
 ) as dag:
     test_context = sys_test_context_task()
@@ -140,6 +139,8 @@ with DAG(
 
     # EcsRunTaskOperator waits by default, setting as False to test the Sensor below.
     hello_world.wait_for_completion = False
+    # The default is 6 seconds between checks, which is very aggressive, setting to 60s to reduce throttling errors.
+    hello_world.waiter_delay = 60
 
     # [START howto_sensor_ecs_task_state]
     # By default, EcsTaskStateSensor waits until the task has started, but the

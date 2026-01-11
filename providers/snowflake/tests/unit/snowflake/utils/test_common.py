@@ -22,7 +22,7 @@ from airflow.providers.snowflake.utils.common import enclose_param
 
 
 @pytest.mark.parametrize(
-    "param,expected",
+    ("param", "expected"),
     [
         ("without quotes", "'without quotes'"),
         ("'with quotes'", "'''with quotes'''"),

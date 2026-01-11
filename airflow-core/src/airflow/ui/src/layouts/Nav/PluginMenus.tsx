@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box } from "@chakra-ui/react";
+import { Box, Icon } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 import { FiChevronRight } from "react-icons/fi";
 import { LuPlug } from "react-icons/lu";
@@ -49,11 +49,11 @@ export const PluginMenus = ({ navItems }: { readonly navItems: Array<NavItemResp
     return undefined;
   }
 
-  // Show plugins in menu if there are more than 2
-  return navItems.length > 2 ? (
+  // Show plugins in menu if there are more than or equal to 2
+  return navItems.length >= 2 ? (
     <Menu.Root positioning={{ placement: "right" }}>
       <Menu.Trigger>
-        <NavButton as={Box} icon={<LuPlug />} title={translate("nav.plugins")} />
+        <NavButton as={Box} icon={LuPlug} title={translate("nav.plugins")} />
       </Menu.Trigger>
       <Menu.Content>
         {buttons.map((navItem) => (
@@ -63,7 +63,7 @@ export const PluginMenus = ({ navItems }: { readonly navItems: Array<NavItemResp
           <Menu.Root key={key} positioning={{ placement: "right" }}>
             <Menu.TriggerItem display="flex" justifyContent="space-between">
               {key}
-              <FiChevronRight />
+              <Icon as={FiChevronRight} boxSize={4} color="fg.muted" />
             </Menu.TriggerItem>
             <Menu.Content>
               {menuButtons.map((navItem) => (

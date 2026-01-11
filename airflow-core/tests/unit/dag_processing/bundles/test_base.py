@@ -51,7 +51,7 @@ def bundle_temp_dir(tmp_path):
 
 
 @pytest.mark.parametrize(
-    "val, expected",
+    ("val", "expected"),
     [
         ("/blah", Path("/blah")),
         ("", Path(tempfile.gettempdir(), "airflow", "dag_bundles")),
@@ -215,7 +215,7 @@ class FakeBundle(BaseDagBundle):
 
 class TestBundleUsageTrackingManager:
     @pytest.mark.parametrize(
-        "threshold_hours, min_versions, when_hours, expected_remaining",
+        ("threshold_hours", "min_versions", "when_hours", "expected_remaining"),
         [
             (3, 0, 3, 5),
             (3, 0, 6, 2),

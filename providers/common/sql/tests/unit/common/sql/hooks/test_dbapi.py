@@ -19,18 +19,16 @@ from __future__ import annotations
 
 import json
 import logging
-import logging.config
 from unittest import mock
 
 import pytest
 from pyodbc import Cursor
 
-from airflow.config_templates.airflow_local_settings import DEFAULT_LOGGING_CONFIG
 from airflow.models import Connection
+from airflow.providers.common.compat.sdk import BaseHook
 from airflow.providers.common.sql.dialects.dialect import Dialect
 from airflow.providers.common.sql.hooks.handlers import fetch_all_handler, fetch_one_handler
 from airflow.providers.common.sql.hooks.sql import DbApiHook
-from airflow.providers.common.sql.version_compat import BaseHook
 
 
 class DbApiHookInProvider(DbApiHook):
@@ -71,14 +69,13 @@ class TestDbApiHook:
             def get_db_log_messages(self, conn) -> None:
                 return conn.get_messages()
 
-        logging.config.dictConfig(DEFAULT_LOGGING_CONFIG)
         logging.root.disabled = True
 
         self.db_hook = DbApiHookMock(**kwargs)
         self.db_hook_no_log_sql = DbApiHookMock(log_sql=False)
         self.db_hook_schema_override = DbApiHookMock(schema="schema-override")
         self.db_hook.supports_executemany = False
-        self.db_hook.log.setLevel(logging.DEBUG)
+        # self.db_hook.log.setLevel(logging.DEBUG)
 
     def test_get_records(self):
         statement = "SQL"
@@ -228,7 +225,7 @@ class TestDbApiHook:
         table = "table"
         rows = [("What's",), ("up",), ("world",)]
 
-        with caplog.at_level(logging.DEBUG):
+        with caplog.at_level(logging.DEBUG, logger="airflow.task"):
             self.db_hook.insert_rows(table, iter(rows))
 
         assert self.conn.close.call_count == 1
@@ -249,7 +246,7 @@ class TestDbApiHook:
         table = "table"
         rows = [("What's",), ("up",), ("world",)]
 
-        with caplog.at_level(logging.DEBUG):
+        with caplog.at_level(logging.DEBUG, "airflow.task"):
             self.db_hook.supports_executemany = True
             self.db_hook.insert_rows(table, iter(rows))
 
@@ -579,9 +576,8 @@ class TestDbApiHook:
         assert result == [obj, obj]
 
     def test_run_no_queries(self):
-        with pytest.raises(ValueError) as err:
+        with pytest.raises(ValueError, match="List of SQL statements is empty"):
             self.db_hook.run(sql=[])
-        assert err.value.args[0] == "List of SQL statements is empty"
 
     def test_run_and_log_db_messages(self):
         statement = "SQL"

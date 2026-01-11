@@ -22,15 +22,16 @@ import { FiCode, FiDatabase, FiUser } from "react-icons/fi";
 import { MdDetails, MdOutlineEventNote, MdOutlineTask } from "react-icons/md";
 import { useParams } from "react-router-dom";
 
-import { useDagRunServiceGetDagRun, useHumanInTheLoopServiceGetHitlDetails } from "openapi/queries";
+import { useDagRunServiceGetDagRun } from "openapi/queries";
 import { usePluginTabs } from "src/hooks/usePluginTabs";
+import { useRequiredActionTabs } from "src/hooks/useRequiredActionTabs";
 import { DetailsLayout } from "src/layouts/Details/DetailsLayout";
 import { isStatePending, useAutoRefresh } from "src/utils";
 
 import { Header } from "./Header";
 
 export const Run = () => {
-  const { t: translate } = useTranslation("dag");
+  const { t: translate } = useTranslation(["dag", "hitl"]);
   const { dagId = "", runId = "" } = useParams();
 
   // Get external views with dag_run destination
@@ -63,36 +64,14 @@ export const Run = () => {
     },
   );
 
-  const { data: hitlData } = useHumanInTheLoopServiceGetHitlDetails(
-    {
-      dagId,
-      dagRunId: runId,
-    },
-    undefined,
-    {
-      enabled: Boolean(dagId && runId),
-    },
-  );
-
-  const hasHitlTasksForRun = Boolean(hitlData?.hitl_details.length);
-
-  const displayTabs = tabs.filter((tab) => {
-    if (tab.value === "required_actions" && !hasHitlTasksForRun) {
-      return false;
-    }
-
-    return true;
+  const { tabs: displayTabs } = useRequiredActionTabs({ dagId, dagRunId: runId }, tabs, {
+    refetchInterval: isStatePending(dagRun?.state) ? refetchInterval : false,
   });
 
   return (
     <ReactFlowProvider>
       <DetailsLayout error={error} isLoading={isLoading} tabs={displayTabs}>
-        {dagRun === undefined ? undefined : (
-          <Header
-            dagRun={dagRun}
-            isRefreshing={Boolean(isStatePending(dagRun.state) && Boolean(refetchInterval))}
-          />
-        )}
+        {dagRun === undefined ? undefined : <Header dagRun={dagRun} />}
       </DetailsLayout>
     </ReactFlowProvider>
   );

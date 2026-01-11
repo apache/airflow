@@ -45,7 +45,7 @@ from google.cloud.dataproc_v1 import (
     WorkflowTemplateServiceClient,
 )
 
-from airflow.exceptions import AirflowException
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.google.common.consts import CLIENT_INFO
 from airflow.providers.google.common.hooks.base_google import GoogleBaseAsyncHook, GoogleBaseHook
 from airflow.version import version as airflow_version
@@ -298,7 +298,7 @@ class DataprocHook(GoogleBaseHook):
         success_code = 0
 
         with self.provide_authorized_gcloud():
-            proc = subprocess.run(cmd, capture_output=True)
+            proc = subprocess.run(cmd, check=False, capture_output=True)
 
         if proc.returncode != success_code:
             stderr_last_20_lines = "\n".join(proc.stderr.decode().strip().splitlines()[-20:])
@@ -912,12 +912,15 @@ class DataprocHook(GoogleBaseHook):
         state = None
         start = time.monotonic()
         while state not in (JobStatus.State.ERROR, JobStatus.State.DONE, JobStatus.State.CANCELLED):
+            self.log.debug("Waiting for job %s to complete", job_id)
             if timeout and start + timeout < time.monotonic():
                 raise AirflowException(f"Timeout: dataproc job {job_id} is not ready after {timeout}s")
+            self.log.debug("Sleeping for %s seconds", wait_time)
             time.sleep(wait_time)
             try:
                 job = self.get_job(project_id=project_id, region=region, job_id=job_id)
                 state = job.status.state
+                self.log.debug("Job %s is in state %s", job_id, state)
             except ServerError as err:
                 self.log.info("Retrying. Dataproc API returned server error when waiting for job: %s", err)
 

@@ -47,7 +47,8 @@ export DOCKER_BUILDKIT=1
 
 docker build . \
     --pull \
-    --build-arg PYTHON_BASE_IMAGE="python:3.10-slim-bookworm" \
+    --build-arg BASE_IMAGE="debian:bookworm-slim" \
+    --build-arg AIRFLOW_PYTHON_VERSION="3.12.12" \
     --build-arg AIRFLOW_INSTALLATION_METHOD="apache-airflow" \
     --build-arg AIRFLOW_VERSION="${AIRFLOW_VERSION}" \
     --build-arg INSTALL_MYSQL_CLIENT="false" \

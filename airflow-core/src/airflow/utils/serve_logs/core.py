@@ -18,15 +18,15 @@
 
 from __future__ import annotations
 
-import logging
 import socket
 import sys
 
+import structlog
 import uvicorn
 
 from airflow.configuration import conf
 
-logger = logging.getLogger(__name__)
+logger = structlog.get_logger(__name__)
 
 
 def serve_logs(port=None):
@@ -42,23 +42,21 @@ def serve_logs(port=None):
 
     port = port or conf.getint("logging", "WORKER_LOG_SERVER_PORT")
 
-    # If dual stack is available and IPV6_V6ONLY is not enabled on the socket
-    # then when IPV6 is bound to it will also bind to IPV4 automatically
-    if getattr(socket, "has_dualstack_ipv6", lambda: False)():
-        host = "::"  # ASGI uses `::` syntax for IPv6 binding instead of the `[::]` notation used in WSGI, while preserving the `[::]` format in logs
+    if socket.has_dualstack_ipv6():
         serve_log_uri = f"http://[::]:{port}"
     else:
-        host = "0.0.0.0"
-        serve_log_uri = f"http://{host}:{port}"
+        serve_log_uri = f"http://0.0.0.0:{port}"
 
     logger.info("Starting log server on %s", serve_log_uri)
 
+    # Get uvicorn logging configuration from Airflow settings
+    uvicorn_log_level = conf.get("logging", "uvicorn_logging_level", fallback="info").lower()
+
     # Use uvicorn directly for ASGI applications
-    uvicorn.run("airflow.utils.serve_logs.log_server:app", host=host, port=port, workers=2, log_level="info")
-    # Note: if we want to use more than 1 workers, we **can't** use the instance of FastAPI directly
-    # This is way we split the instantiation of log server to a separate module
-    #
-    # https://github.com/encode/uvicorn/blob/374bb6764e8d7f34abab0746857db5e3d68ecfdd/docs/deployment/index.md?plain=1#L50-L63
+    uvicorn.run(
+        "airflow.utils.serve_logs.log_server:get_app", host="", port=port, log_level=uvicorn_log_level
+    )
+    # Log serving is I/O bound and has low concurrency, so single process is sufficient
 
 
 if __name__ == "__main__":

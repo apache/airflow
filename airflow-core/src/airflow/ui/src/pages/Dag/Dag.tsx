@@ -25,13 +25,10 @@ import { MdDetails, MdOutlineEventNote } from "react-icons/md";
 import { RiArrowGoBackFill } from "react-icons/ri";
 import { useParams } from "react-router-dom";
 
-import {
-  useDagServiceGetDagDetails,
-  useDagServiceGetLatestRunInfo,
-  useHumanInTheLoopServiceGetHitlDetails,
-} from "openapi/queries";
+import { useDagServiceGetDagDetails, useDagServiceGetLatestRunInfo } from "openapi/queries";
 import { TaskIcon } from "src/assets/TaskIcon";
 import { usePluginTabs } from "src/hooks/usePluginTabs";
+import { useRequiredActionTabs } from "src/hooks/useRequiredActionTabs";
 import { DetailsLayout } from "src/layouts/Details/DetailsLayout";
 import { useRefreshOnNewDagRuns } from "src/queries/useRefreshOnNewDagRuns";
 import { isStatePending, useAutoRefresh } from "src/utils";
@@ -39,7 +36,7 @@ import { isStatePending, useAutoRefresh } from "src/utils";
 import { Header } from "./Header";
 
 export const Dag = () => {
-  const { t: translate } = useTranslation("dag");
+  const { t: translate } = useTranslation(["dag", "hitl"]);
   const { dagId = "" } = useParams();
 
   // Get external views with dag destination
@@ -58,44 +55,33 @@ export const Dag = () => {
     ...externalTabs,
   ];
 
+  const refetchInterval = useAutoRefresh({ dagId });
+  const [hasPendingRuns, setHasPendingRuns] = useState<boolean | undefined>(false);
+
   const {
     data: dag,
     error,
     isLoading,
-  } = useDagServiceGetDagDetails({
-    dagId,
-  });
-
-  const refetchInterval = useAutoRefresh({ dagId });
-  const [hasPendingRuns, setHasPendingRuns] = useState<boolean | undefined>(false);
-
-  // Ensures continuous refresh to detect new runs when there's no
-  // pending state and new runs are initiated from other page
-  useRefreshOnNewDagRuns(dagId, hasPendingRuns);
-
-  const { data: hitlData } = useHumanInTheLoopServiceGetHitlDetails(
+  } = useDagServiceGetDagDetails(
     {
       dagId,
     },
     undefined,
     {
-      enabled: Boolean(dagId),
+      refetchInterval: (query) => {
+        // Auto-refresh when there are active runs or pending runs
+        if (hasPendingRuns ?? (query.state.data && (query.state.data.active_runs_count ?? 0) > 0)) {
+          return refetchInterval;
+        }
+
+        return false;
+      },
     },
   );
 
-  const hasHitlTaskInstances = (hitlData?.total_entries ?? 0) > 0;
-
-  const displayTabs = tabs.filter((tab) => {
-    if (dag?.timetable_summary === null && tab.value === "backfills") {
-      return false;
-    }
-
-    if (tab.value === "required_actions" && !hasHitlTaskInstances) {
-      return false;
-    }
-
-    return true;
-  });
+  // Ensures continuous refresh to detect new runs when there's no
+  // pending state and new runs are initiated from other page
+  useRefreshOnNewDagRuns(dagId, hasPendingRuns);
 
   const {
     data: latestRun,
@@ -118,14 +104,25 @@ export const Dag = () => {
     },
   );
 
+  const { tabs: processedTabs } = useRequiredActionTabs({ dagId }, tabs, {
+    refetchInterval:
+      (dag?.active_runs_count ?? 0) > 0 || (latestRun && isStatePending(latestRun.state))
+        ? refetchInterval
+        : false,
+  });
+
+  const displayTabs = processedTabs.filter((tab) => {
+    if (dag?.timetable_summary === null && tab.value === "backfills") {
+      return false;
+    }
+
+    return true;
+  });
+
   return (
     <ReactFlowProvider>
       <DetailsLayout error={error ?? runsError} isLoading={isLoading || isLoadingRuns} tabs={displayTabs}>
-        <Header
-          dag={dag}
-          isRefreshing={Boolean(isStatePending(latestRun?.state) && Boolean(refetchInterval))}
-          latestRunInfo={latestRun ?? undefined}
-        />
+        <Header dag={dag} latestRunInfo={latestRun ?? undefined} />
       </DetailsLayout>
     </ReactFlowProvider>
   );

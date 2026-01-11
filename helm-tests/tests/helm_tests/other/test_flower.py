@@ -25,7 +25,7 @@ class TestFlowerDeployment:
     """Tests flower deployment."""
 
     @pytest.mark.parametrize(
-        "executor,flower_enabled,created",
+        ("executor", "flower_enabled", "created"),
         [
             ("CeleryExecutor", False, False),
             ("CeleryKubernetesExecutor", False, False),
@@ -49,7 +49,7 @@ class TestFlowerDeployment:
             assert jmespath.search("spec.template.spec.containers[0].name", docs[0]) == "flower"
 
     @pytest.mark.parametrize(
-        "revision_history_limit, global_revision_history_limit",
+        ("revision_history_limit", "global_revision_history_limit"),
         [(8, 10), (10, 8), (8, None), (None, 10), (None, None)],
     )
     def test_revision_history_limit(self, revision_history_limit, global_revision_history_limit):
@@ -70,7 +70,26 @@ class TestFlowerDeployment:
         assert jmespath.search("spec.revisionHistoryLimit", docs[0]) == expected_result
 
     @pytest.mark.parametrize(
-        "airflow_version, expected_arg",
+        ("revision_history_limit", "global_revision_history_limit", "expected"),
+        [(0, None, 0), (None, 0, 0), (0, 10, 0)],
+    )
+    def test_revision_history_limit_zero(
+        self, revision_history_limit, global_revision_history_limit, expected
+    ):
+        """Test that revisionHistoryLimit can be set to 0."""
+        values = {"flower": {"enabled": True}}
+        if revision_history_limit is not None:
+            values["flower"]["revisionHistoryLimit"] = revision_history_limit
+        if global_revision_history_limit is not None:
+            values["revisionHistoryLimit"] = global_revision_history_limit
+        docs = render_chart(
+            values=values,
+            show_only=["templates/flower/flower-deployment.yaml"],
+        )
+        assert jmespath.search("spec.revisionHistoryLimit", docs[0]) == expected
+
+    @pytest.mark.parametrize(
+        ("airflow_version", "expected_arg"),
         [
             ("2.0.2", "airflow celery flower"),
             ("1.10.14", "airflow flower"),
@@ -95,7 +114,7 @@ class TestFlowerDeployment:
         ]
 
     @pytest.mark.parametrize(
-        "command, args",
+        ("command", "args"),
         [
             (None, None),
             (None, ["custom", "args"]),
@@ -464,7 +483,7 @@ class TestFlowerService:
     """Tests flower service."""
 
     @pytest.mark.parametrize(
-        "executor,flower_enabled,created",
+        ("executor", "flower_enabled", "created"),
         [
             ("CeleryExecutor", False, False),
             ("CeleryKubernetesExecutor", False, False),
@@ -524,7 +543,7 @@ class TestFlowerService:
         assert jmespath.search("spec.loadBalancerSourceRanges", docs[0]) == ["10.123.0.0/16"]
 
     @pytest.mark.parametrize(
-        "ports, expected_ports",
+        ("ports", "expected_ports"),
         [
             ([{"port": 8888}], [{"port": 8888}]),  # name is optional with a single port
             (
@@ -602,7 +621,7 @@ class TestFlowerNetworkPolicy:
         assert jmespath.search("spec.ingress[0].ports", docs[0]) == [{"port": 5555}]
 
     @pytest.mark.parametrize(
-        "ports, expected_ports",
+        ("ports", "expected_ports"),
         [
             ([{"port": "sidecar"}], [{"port": "sidecar"}]),
             (

@@ -20,9 +20,9 @@ from __future__ import annotations
 from collections.abc import Generator, Sequence
 from typing import TYPE_CHECKING
 
+from airflow.sdk.definitions._internal.logging_mixin import LoggingMixin
 from airflow.sdk.definitions._internal.templater import Templater
 from airflow.sdk.definitions.context import context_merge
-from airflow.utils.log.logging_mixin import LoggingMixin
 
 if TYPE_CHECKING:
     import jinja2
@@ -38,7 +38,7 @@ class BaseNotifier(LoggingMixin, Templater):
     It can be used asynchronously (preferred) if `async_notify`is implemented and/or
     synchronously if `notify` is implemented.
 
-    Currently, the DAG/Task state change callbacks run on the DAG Processor and only support sync usage.
+    Currently, the Dag/Task state change callbacks run on the Dag Processor and only support sync usage.
 
     Usage::
         # Asynchronous usage
@@ -109,7 +109,7 @@ class BaseNotifier(LoggingMixin, Templater):
         """
         Send a notification (sync).
 
-        Implementing this is a requirement for running this notifier in the DAG processor, which is where the
+        Implementing this is a requirement for running this notifier in the Dag processor, which is where the
         `on_success_callback` and `on_failure_callback` run.
 
         :param context: The airflow context

@@ -49,7 +49,7 @@ if TYPE_CHECKING:
     from google.cloud.bigquery.table import Table
 
     from airflow.providers.common.compat.openlineage.facet import Dataset
-    from airflow.utils.context import Context
+    from airflow.providers.common.compat.sdk import Context
 
 
 log = logging.getLogger(__name__)
@@ -214,7 +214,20 @@ def extract_ds_name_from_gcs_path(path: str) -> str:
 
 def get_facets_from_bq_table(table: Table) -> dict[str, DatasetFacet]:
     """Get facets from BigQuery table object."""
+    return get_facets_from_bq_table_for_given_fields(table, selected_fields=None)
+
+
+def get_facets_from_bq_table_for_given_fields(
+    table: Table, selected_fields: list[str] | None
+) -> dict[str, DatasetFacet]:
+    """
+    Get facets from BigQuery table object for selected fields only.
+
+    If selected_fields is None, include all fields.
+    """
     facets: dict[str, DatasetFacet] = {}
+    selected_fields_set = set(selected_fields) if selected_fields else None
+
     if table.schema:
         facets["schema"] = SchemaDatasetFacet(
             fields=[
@@ -222,6 +235,7 @@ def get_facets_from_bq_table(table: Table) -> dict[str, DatasetFacet]:
                     name=schema_field.name, type=schema_field.field_type, description=schema_field.description
                 )
                 for schema_field in table.schema
+                if selected_fields_set is None or schema_field.name in selected_fields_set
             ]
         )
     if table.description:

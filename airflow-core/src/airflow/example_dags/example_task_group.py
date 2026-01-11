@@ -23,8 +23,7 @@ import pendulum
 
 from airflow.providers.standard.operators.bash import BashOperator
 from airflow.providers.standard.operators.empty import EmptyOperator
-from airflow.sdk import DAG
-from airflow.sdk.definitions.taskgroup import TaskGroup
+from airflow.sdk import DAG, TaskGroup
 
 # [START howto_task_group]
 with DAG(

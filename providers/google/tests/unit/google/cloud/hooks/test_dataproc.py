@@ -31,7 +31,7 @@ from google.cloud.dataproc_v1 import (
     WorkflowTemplateServiceAsyncClient,
 )
 
-from airflow.exceptions import AirflowException
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.google.cloud.hooks.dataproc import DataprocAsyncHook, DataprocHook, DataProcJobBuilder
 from airflow.providers.google.common.consts import CLIENT_INFO
 from airflow.version import version
@@ -1176,7 +1176,7 @@ class TestDataProcJobBuilder:
         assert python_file_uris == self.builder.job["job"][self.job_type]["python_file_uris"]
 
     def test_set_main_error(self):
-        with pytest.raises(ValueError):
+        with pytest.raises(ValueError, match="Set either main_jar or main_class"):
             self.builder.set_main("test", "test")
 
     def test_set_main_class(self):

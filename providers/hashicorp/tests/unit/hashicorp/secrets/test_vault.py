@@ -182,7 +182,7 @@ class TestVaultSecrets:
         assert returned_uri == "world"
 
     @pytest.mark.parametrize(
-        "mount_point, variables_path, variable_key, expected_args",
+        ("mount_point", "variables_path", "variable_key", "expected_args"),
         [
             ("airflow", "variables", "hello", {"mount_point": "airflow", "path": "variables/hello"}),
             (

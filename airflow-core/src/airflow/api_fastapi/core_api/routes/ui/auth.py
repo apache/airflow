@@ -20,6 +20,7 @@ from __future__ import annotations
 from airflow.api_fastapi.app import get_auth_manager
 from airflow.api_fastapi.common.router import AirflowRouter
 from airflow.api_fastapi.core_api.datamodels.ui.auth import (
+    AuthenticatedMeResponse,
     MenuItemCollectionResponse,
 )
 from airflow.api_fastapi.core_api.security import GetUserDep
@@ -37,4 +38,15 @@ def get_auth_menus(
     return MenuItemCollectionResponse(
         authorized_menu_items=authorized_menu_items,
         extra_menu_items=extra_menu_items,
+    )
+
+
+@auth_router.get("/auth/me")
+def get_current_user_info(
+    user: GetUserDep,
+) -> AuthenticatedMeResponse:
+    """Convienently get the current authenticated user information."""
+    return AuthenticatedMeResponse(
+        id=user.get_id(),
+        username=user.get_name(),
     )

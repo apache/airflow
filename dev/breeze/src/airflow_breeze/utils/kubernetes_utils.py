@@ -36,6 +36,7 @@ from airflow_breeze.global_constants import (
     ALLOWED_ARCHITECTURES,
     HELM_VERSION,
     KIND_VERSION,
+    SKAFFOLD_VERSION,
 )
 from airflow_breeze.utils.console import Output, get_console
 from airflow_breeze.utils.host_info_utils import Architecture, get_host_architecture, get_host_os
@@ -49,6 +50,7 @@ K8S_BIN_BASE_PATH = K8S_ENV_PATH / "bin"
 KIND_BIN_PATH = K8S_BIN_BASE_PATH / "kind"
 KUBECTL_BIN_PATH = K8S_BIN_BASE_PATH / "kubectl"
 HELM_BIN_PATH = K8S_BIN_BASE_PATH / "helm"
+SKAFFOLD_BIN_PATH = K8S_BIN_BASE_PATH / "skaffold"
 PYTHON_BIN_PATH = K8S_BIN_BASE_PATH / "python"
 SCRIPTS_CI_KUBERNETES_PATH = AIRFLOW_ROOT_PATH / "scripts" / "ci" / "kubernetes"
 PYPROJECT_TOML_AIRFLOW_CORE_PATH = AIRFLOW_ROOT_PATH / "airflow-core" / "pyproject.toml"
@@ -228,6 +230,18 @@ def _download_helm_if_needed():
     )
 
 
+def _download_skaffold_if_needed():
+    _download_tool_if_needed(
+        tool="skaffold",
+        version=SKAFFOLD_VERSION,
+        version_pattern=r".*v?(\d+\.\d+\.\d+).*",
+        version_flag=["version"],
+        url=f"https://storage.googleapis.com/skaffold/releases/"
+        f"{SKAFFOLD_VERSION}/skaffold-{get_host_os()}-{get_architecture_string_for_urls()}",
+        path=SKAFFOLD_BIN_PATH,
+    )
+
+
 def _check_architecture_supported():
     architecture, machine = get_host_architecture()
     if architecture not in ALLOWED_ARCHITECTURES:
@@ -242,6 +256,12 @@ def make_sure_helm_installed():
     K8S_CLUSTERS_PATH.mkdir(parents=True, exist_ok=True)
     _check_architecture_supported()
     _download_helm_if_needed()
+
+
+def make_sure_skaffold_installed():
+    K8S_CLUSTERS_PATH.mkdir(parents=True, exist_ok=True)
+    _check_architecture_supported()
+    _download_skaffold_if_needed()
 
 
 def make_sure_kubernetes_tools_are_installed():

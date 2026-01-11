@@ -1,0 +1,10 @@
+{
+  "mapped": "Χαρτογραφημένο",
+  "notMapped": "Μη χαρτογραφημένο",
+  "retries": "Επαναλήψεις",
+  "searchTasks": "Αναζήτηση εργασιών",
+  "selectMapped": "Επιλογή χαρτογραφημένων",
+  "selectOperator": "Επιλογή τελεστή",
+  "selectRetryValues": "Επιλογή τιμών επανάληψης",
+  "selectTriggerRules": "Επιλογή κανόνων ενεργοποίησης"
+}

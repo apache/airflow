@@ -22,12 +22,15 @@ description: |
     `Apache Impala <https://impala.apache.org/>`__.
 
 state: ready
-source-date-epoch: 1753688847
+source-date-epoch: 1764109517
 # Note that those versions are maintained by release manager - do not update them manually
 # with the exception of case where other provider in sources has >= new provider version.
 # In such case adding >= NEW_VERSION and bumping to NEW_VERSION in a provider have
 # to be done in the same PR
 versions:
+  - 1.8.0
+  - 1.7.4
+  - 1.7.3
   - 1.7.2
   - 1.7.1
   - 1.7.0
@@ -51,6 +54,8 @@ versions:
 integrations:
   - integration-name: Apache Impala
     external-doc-url: https://impala.apache.org
+    how-to-guide:
+      - /docs/apache-airflow-providers-apache-impala/operators.rst
     tags: [apache]
 
 hooks:

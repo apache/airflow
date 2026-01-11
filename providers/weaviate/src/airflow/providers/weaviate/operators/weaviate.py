@@ -21,14 +21,14 @@ from collections.abc import Sequence
 from functools import cached_property
 from typing import TYPE_CHECKING, Any
 
+from airflow.providers.common.compat.sdk import BaseOperator
 from airflow.providers.weaviate.hooks.weaviate import WeaviateHook
-from airflow.providers.weaviate.version_compat import BaseOperator
 
 if TYPE_CHECKING:
     import pandas as pd
     from weaviate.types import UUID
 
-    from airflow.providers.weaviate.version_compat import Context
+    from airflow.providers.common.compat.sdk import Context
 
 
 class WeaviateIngestOperator(BaseOperator):

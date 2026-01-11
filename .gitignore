@@ -40,6 +40,7 @@ build/
 develop-eggs/
 dist/
 !providers/fab/**/www/static/dist
+!providers/edge3/**/www/dist
 downloads/
 eggs/
 .eggs/
@@ -234,8 +235,8 @@ pip-wheel-metadata
 .pypirc
 
 # Dev files
-/dev/packages.txt
-/dev/Dockerfile.pmc
+packages.txt
+Dockerfile.pmc
 
 # Generated UI licenses
 3rd-party-licenses/LICENSES-ui.txt
@@ -274,3 +275,12 @@ _api/
 
 #while running go tests inside the go-sdk, it can generate log files for dags, ignore all logs
 go-sdk/**/*.log
+
+# E2e tests
+_e2e_test_report.json
+
+# UV cache
+.uv-cache/
+
+# Allow logs folder in task-sdk-integration-tests (they logs folders are ignored above in general)
+!/task-sdk-integration-tests/logs/

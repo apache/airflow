@@ -21,6 +21,8 @@ import json
 import logging
 import re
 import sys
+from collections.abc import Callable
+from typing import TYPE_CHECKING
 
 PY313 = sys.version_info >= (3, 13)
 import warnings
@@ -41,6 +43,11 @@ from airflow.providers_manager import (
 from tests_common.test_utils.markers import skip_if_force_lowest_dependencies_marker, skip_if_not_on_main
 from tests_common.test_utils.paths import AIRFLOW_ROOT_PATH
 
+if TYPE_CHECKING:
+    from unittest.mock import MagicMock
+
+    from airflow.cli.cli_config import CLICommand
+
 
 def test_cleanup_providers_manager(cleanup_providers_manager):
     """Check the cleanup provider manager functionality."""
@@ -60,14 +67,17 @@ class TestProviderManager:
 
     def test_providers_are_loaded(self):
         with self._caplog.at_level(logging.WARNING):
+            self._caplog.clear()
             provider_manager = ProvidersManager()
             provider_list = list(provider_manager.providers.keys())
             # No need to sort the list - it should be sorted alphabetically !
             for provider in provider_list:
                 package_name = provider_manager.providers[provider].data["package-name"]
                 version = provider_manager.providers[provider].version
+                documentation_url = provider_manager.providers[provider].data["documentation-url"]
                 assert re.search(r"[0-9]*\.[0-9]*\.[0-9]*.*", version)
                 assert package_name == provider
+                assert isinstance(documentation_url, str)
             # just a coherence check - no exact number as otherwise we would have to update
             # several tests if we add new connections/provider which is not ideal
             assert len(provider_list) > 65
@@ -119,8 +129,8 @@ class TestProviderManager:
             )
             providers_manager._discover_hooks()
             _ = providers_manager._hooks_lazy_dict["wrong-connection-type"]
-        assert len(self._caplog.records) == 1
-        assert "Inconsistency!" in self._caplog.records[0].message
+        assert len(self._caplog.entries) == 1
+        assert "Inconsistency!" in self._caplog[0]["event"]
         assert "sftp" not in providers_manager.hooks
 
     def test_warning_logs_not_generated(self):
@@ -164,11 +174,12 @@ class TestProviderManager:
             providers_manager._discover_hooks()
             _ = providers_manager._hooks_lazy_dict["dummy"]
         assert len(self._caplog.records) == 1
-        assert "The connection type 'dummy' is already registered" in self._caplog.records[0].message
+        msg = self._caplog.messages[0]
+        assert msg.startswith("The connection type 'dummy' is already registered")
         assert (
             "different class names: 'airflow.providers.dummy.hooks.dummy.DummyHook'"
             " and 'airflow.providers.dummy.hooks.dummy.DummyHook2'."
-        ) in self._caplog.records[0].message
+        ) in msg
 
     def test_providers_manager_register_plugins(self):
         providers_manager = ProvidersManager()
@@ -248,12 +259,12 @@ class TestProviderManager:
                 assert len(connections_list) > 60
         if len(self._caplog.records) != 0:
             real_warning_count = 0
-            for record in self._caplog.records:
+            for record in self._caplog.entries:
                 # When there is error importing provider that is excluded the provider name is in the message
-                if any(excluded_provider in record.message for excluded_provider in excluded_providers):
+                if any(excluded_provider in record["event"] for excluded_provider in excluded_providers):
                     continue
-                print(record.message, file=sys.stderr)
-                print(record.exc_info, file=sys.stderr)
+                print(record["event"], file=sys.stderr)
+                print(record.get("exc_info"), file=sys.stderr)
                 real_warning_count += 1
             if real_warning_count:
                 if PY313:
@@ -273,18 +284,26 @@ class TestProviderManager:
         assert [w.message for w in warning_records if "hook-class-names" in str(w.message)] == []
 
     def test_connection_form_widgets(self):
-        pytest.importorskip("flask_appbuilder")  # Remove after upgrading to FAB5
-
         provider_manager = ProvidersManager()
         connections_form_widgets = list(provider_manager.connection_form_widgets.keys())
-        assert len(connections_form_widgets) > 29
+        # Connection form widgets use flask_appbuilder widgets, so they're only available when it's installed
+        try:
+            import flask_appbuilder  # noqa: F401
+
+            assert len(connections_form_widgets) > 29
+        except ImportError:
+            assert len(connections_form_widgets) == 0
 
     def test_field_behaviours(self):
-        pytest.importorskip("flask_appbuilder")  # Remove after upgrading to FAB5
-
         provider_manager = ProvidersManager()
         connections_with_field_behaviours = list(provider_manager.field_behaviours.keys())
-        assert len(connections_with_field_behaviours) > 16
+        # Field behaviours are often related to connection forms, only available when flask_appbuilder is installed
+        try:
+            import flask_appbuilder  # noqa: F401
+
+            assert len(connections_with_field_behaviours) > 16
+        except ImportError:
+            assert len(connections_with_field_behaviours) == 0
 
     def test_extra_links(self):
         provider_manager = ProvidersManager()
@@ -315,6 +334,40 @@ class TestProviderManager:
         provider_manager = ProvidersManager()
         auth_manager_class_names = list(provider_manager.auth_managers)
         assert len(auth_manager_class_names) > 0
+
+    def test_cli(self):
+        provider_manager = ProvidersManager()
+
+        # assert cli_command_functions is set of Callable[[], list[CLICommand]]
+        assert isinstance(provider_manager.cli_command_functions, set)
+        assert all(callable(func) for func in provider_manager.cli_command_functions)
+        # assert cli_command_providers is set of str
+        assert isinstance(provider_manager.cli_command_providers, set)
+        assert all(isinstance(provider, str) for provider in provider_manager.cli_command_providers)
+
+        sorted_cli_command_functions: list[Callable[[], list[CLICommand]]] = sorted(
+            provider_manager.cli_command_functions, key=lambda x: x.__module__
+        )
+        sorted_cli_command_providers: list[str] = sorted(provider_manager.cli_command_providers)
+
+        expected_functions_modules = [
+            "airflow.providers.amazon.aws.cli.definition",
+            "airflow.providers.celery.cli.definition",
+            "airflow.providers.cncf.kubernetes.cli.definition",
+            "airflow.providers.edge3.cli.definition",
+            "airflow.providers.fab.cli.definition",
+            "airflow.providers.keycloak.cli.definition",
+        ]
+        expected_providers = [
+            "apache-airflow-providers-amazon",
+            "apache-airflow-providers-celery",
+            "apache-airflow-providers-cncf-kubernetes",
+            "apache-airflow-providers-edge3",
+            "apache-airflow-providers-fab",
+            "apache-airflow-providers-keycloak",
+        ]
+        assert [func.__module__ for func in sorted_cli_command_functions] == expected_functions_modules
+        assert sorted_cli_command_providers == expected_providers
 
     def test_dialects(self):
         provider_manager = ProvidersManager()
@@ -351,8 +404,47 @@ class TestProviderManager:
             ]
 
 
+class TestWithoutCheckProviderManager:
+    @patch("airflow.providers_manager.import_string")
+    @patch("airflow.providers_manager._correctness_check")
+    @patch("airflow.providers_manager.ProvidersManager._discover_auth_managers")
+    def test_auth_manager_without_check_property_should_not_called_import_string(
+        self,
+        mock_discover_auth_managers: MagicMock,
+        mock_correctness_check: MagicMock,
+        mock_importlib_import_string: MagicMock,
+    ):
+        providers_manager = ProvidersManager()
+        result = providers_manager.auth_manager_without_check
+
+        mock_discover_auth_managers.assert_called_once_with(check=False)
+        mock_importlib_import_string.assert_not_called()
+        mock_correctness_check.assert_not_called()
+
+        assert providers_manager._auth_manager_without_check_set == result
+
+    @patch("airflow.providers_manager.import_string")
+    @patch("airflow.providers_manager._correctness_check")
+    @patch("airflow.providers_manager.ProvidersManager._discover_executors")
+    def test_executors_without_check_property_should_not_called_import_string(
+        self,
+        mock_discover_executors: MagicMock,
+        mock_correctness_check: MagicMock,
+        mock_importlib_import_string: MagicMock,
+    ):
+        providers_manager = ProvidersManager()
+        providers_manager.executor_without_check
+        result = providers_manager.auth_manager_without_check
+
+        mock_discover_executors.assert_called_once_with(check=False)
+        mock_importlib_import_string.assert_not_called()
+        mock_correctness_check.assert_not_called()
+
+        assert providers_manager._executor_without_check_set == result
+
+
 @pytest.mark.parametrize(
-    "value, expected_outputs,",
+    ("value", "expected_outputs"),
     [
         ("a", "a"),
         (1, 1),

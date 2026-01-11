@@ -28,13 +28,13 @@ import pytest
 # Do not run the tests when FAB / Flask is not installed
 pytest.importorskip("flask_session")
 
-from airflow.exceptions import AirflowException, TaskDeferred
 from airflow.models import DAG
 from airflow.providers.common.compat.openlineage.facet import (
     Dataset,
     ExternalQueryRunFacet,
     SQLJobFacet,
 )
+from airflow.providers.common.compat.sdk import AirflowException, TaskDeferred
 from airflow.providers.databricks.hooks.databricks import RunState, SQLStatementState
 from airflow.providers.databricks.operators.databricks import (
     DatabricksCreateJobsOperator,
@@ -2404,10 +2404,10 @@ class TestDatabricksNotebookOperator:
             existing_cluster_id="existing_cluster_id",
             databricks_conn_id="test_conn_id",
         )
-        with pytest.raises(ValueError) as exc_info:
+        with pytest.raises(
+            ValueError, match="Both new_cluster and existing_cluster_id are set. Only one should be set."
+        ):
             operator._get_run_json()
-        exception_message = "Both new_cluster and existing_cluster_id are set. Only one should be set."
-        assert str(exc_info.value) == exception_message
 
     def test_both_new_and_existing_cluster_unset(self):
         operator = DatabricksNotebookOperator(
@@ -2416,10 +2416,8 @@ class TestDatabricksNotebookOperator:
             source="test_source",
             databricks_conn_id="test_conn_id",
         )
-        with pytest.raises(ValueError) as exc_info:
+        with pytest.raises(ValueError, match="Must specify either existing_cluster_id or new_cluster."):
             operator._get_run_json()
-        exception_message = "Must specify either existing_cluster_id or new_cluster."
-        assert str(exc_info.value) == exception_message
 
     def test_job_runs_forever_by_default(self):
         operator = DatabricksNotebookOperator(
@@ -2442,13 +2440,12 @@ class TestDatabricksNotebookOperator:
             existing_cluster_id="existing_cluster_id",
             execution_timeout=timedelta(seconds=0),
         )
-        with pytest.raises(ValueError) as exc_info:
+        with pytest.raises(
+            ValueError,
+            match="If you've set an `execution_timeout` for the task, ensure it's not `0`. "
+            "Set it instead to `None` if you desire the task to run indefinitely.",
+        ):
             operator._get_run_json()
-        exception_message = (
-            "If you've set an `execution_timeout` for the task, ensure it's not `0`. "
-            "Set it instead to `None` if you desire the task to run indefinitely."
-        )
-        assert str(exc_info.value) == exception_message
 
     def test_extend_workflow_notebook_packages(self):
         """Test that the operator can extend the notebook packages of a Databricks workflow task group."""

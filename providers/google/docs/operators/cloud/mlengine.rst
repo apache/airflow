@@ -45,22 +45,8 @@ the Vertex AI platform.
 
 Creating a model
 ^^^^^^^^^^^^^^^^
-A model is a container that can hold multiple model versions. A new model can be created through the
-:class:`~airflow.providers.google.cloud.operators.mlengine.MLEngineCreateModelOperator`.
-The ``model`` field should be defined with a dictionary containing the information about the model.
-``name`` is a required field in this dictionary.
-
-.. warning::
-    This operator is deprecated. The model is created as a result of running Vertex AI operators that create training jobs
-    of any types. For example, you can use
-    :class:`~airflow.providers.google.cloud.operators.vertex_ai.custom_job.CreateCustomPythonPackageTrainingJobOperator`.
-    The result of running this operator will be ready-to-use model saved in Model Registry.
-
-.. exampleinclude:: /../../google/tests/system/google/cloud/ml_engine/example_mlengine.py
-    :language: python
-    :dedent: 4
-    :start-after: [START howto_operator_create_custom_python_training_job_v1]
-    :end-before: [END howto_operator_create_custom_python_training_job_v1]
+This function is deprecated. All the functionality of legacy MLEngine and new features are available on
+the Vertex AI platform.
 
 Getting a model
 ^^^^^^^^^^^^^^^
@@ -72,18 +58,13 @@ Creating model versions
 
 This function is deprecated. All the functionality of legacy MLEngine and new features are available on
 the Vertex AI platform.
-For model versioning please check:
-`Model versioning with Vertex AI
-<https://cloud.google.com/vertex-ai/docs/model-registry/versioning>`__
 
 Managing model versions
 ^^^^^^^^^^^^^^^^^^^^^^^
 
 This function is deprecated. All the functionality of legacy MLEngine and new features are available on
 the Vertex AI platform.
-For model versioning please check:
-`Model versioning with Vertex AI
-<https://cloud.google.com/vertex-ai/docs/model-registry/versioning>`__
+
 
 Making predictions
 ^^^^^^^^^^^^^^^^^^
@@ -103,14 +84,3 @@ Evaluating a model
 
 This function is deprecated. All the functionality of legacy MLEngine and new features are available on
 the Vertex AI platform.
-To create and view Model Evaluation, please check the documentation:
-`Evaluate models using Vertex AI
-<https://cloud.google.com/vertex-ai/docs/evaluation/using-model-evaluation#create_an_evaluation>`__
-
-Reference
-^^^^^^^^^
-
-For further information, look at:
-
-* `Client Library Documentation <https://cloud.google.com/ai-platform/prediction/docs/reference/rest>`__
-* `Product Documentation <https://cloud.google.com/ai-platform/docs/>`__

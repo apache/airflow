@@ -109,7 +109,7 @@ class TestPgbouncer:
         assert jmespath.search("spec.clusterIP", docs[0]) == "10.10.10.10"
 
     @pytest.mark.parametrize(
-        "revision_history_limit, global_revision_history_limit",
+        ("revision_history_limit", "global_revision_history_limit"),
         [(8, 10), (10, 8), (8, None), (None, 10), (None, None)],
     )
     def test_revision_history_limit(self, revision_history_limit, global_revision_history_limit):
@@ -128,6 +128,25 @@ class TestPgbouncer:
         )
         expected_result = revision_history_limit or global_revision_history_limit
         assert jmespath.search("spec.revisionHistoryLimit", docs[0]) == expected_result
+
+    @pytest.mark.parametrize(
+        ("revision_history_limit", "global_revision_history_limit", "expected"),
+        [(0, None, 0), (None, 0, 0), (0, 10, 0)],
+    )
+    def test_revision_history_limit_zero(
+        self, revision_history_limit, global_revision_history_limit, expected
+    ):
+        """Test that revisionHistoryLimit can be set to 0."""
+        values = {"pgbouncer": {"enabled": True}}
+        if revision_history_limit is not None:
+            values["pgbouncer"]["revisionHistoryLimit"] = revision_history_limit
+        if global_revision_history_limit is not None:
+            values["revisionHistoryLimit"] = global_revision_history_limit
+        docs = render_chart(
+            values=values,
+            show_only=["templates/pgbouncer/pgbouncer-deployment.yaml"],
+        )
+        assert jmespath.search("spec.revisionHistoryLimit", docs[0]) == expected
 
     def test_scheduler_name(self):
         docs = render_chart(
@@ -850,7 +869,7 @@ class TestPgbouncerNetworkPolicy:
         assert jmespath.search("metadata.name", docs[0]) == "release-name-pgbouncer-policy"
 
     @pytest.mark.parametrize(
-        "conf, expected_selector",
+        ("conf", "expected_selector"),
         [
             # test with workers.keda enabled without namespace labels
             (

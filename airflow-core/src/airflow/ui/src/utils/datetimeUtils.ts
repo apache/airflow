@@ -18,25 +18,30 @@
  */
 import dayjs from "dayjs";
 import dayjsDuration from "dayjs/plugin/duration";
+import relativeTime from "dayjs/plugin/relativeTime";
 import tz from "dayjs/plugin/timezone";
 
 dayjs.extend(dayjsDuration);
+dayjs.extend(relativeTime);
 dayjs.extend(tz);
 
-export const renderDuration = (durationSeconds: number | null | undefined): string => {
-  if (
-    durationSeconds === null ||
-    durationSeconds === undefined ||
-    isNaN(durationSeconds) ||
-    durationSeconds <= 0
-  ) {
-    return "00:00:00";
+export const DEFAULT_DATETIME_FORMAT = "YYYY-MM-DD HH:mm:ss";
+export const DEFAULT_DATETIME_FORMAT_WITH_TZ = `${DEFAULT_DATETIME_FORMAT} z`;
+
+export const renderDuration = (
+  durationSeconds: number | null | undefined,
+  withMilliseconds: boolean = true,
+): string | undefined => {
+  if (durationSeconds === null || durationSeconds === undefined || durationSeconds <= 0.01) {
+    return undefined;
   }
 
-  if (durationSeconds < 10) {
-    return `${durationSeconds.toFixed(2)}s`;
+  // If under 60 seconds, render milliseconds
+  if (durationSeconds < 60 && withMilliseconds) {
+    return dayjs.duration(Number(durationSeconds.toFixed(3)), "seconds").format("HH:mm:ss.SSS");
   }
 
+  // If under 1 day, render as HH:mm:ss otherwise include the number of days
   return durationSeconds < 86_400
     ? dayjs.duration(durationSeconds, "seconds").format("HH:mm:ss")
     : dayjs.duration(durationSeconds, "seconds").format("D[d]HH:mm:ss");
@@ -51,11 +56,19 @@ export const getDuration = (startDate?: string | null, endDate?: string | null) 
 export const formatDate = (
   date: number | string | null | undefined,
   timezone: string,
-  format: string = "YYYY-MM-DD HH:mm:ss",
+  format: string = DEFAULT_DATETIME_FORMAT,
 ) => {
   if (date === null || date === undefined || !dayjs(date).isValid()) {
     return dayjs().tz(timezone).format(format);
   }
 
   return dayjs(date).tz(timezone).format(format);
+};
+
+export const getRelativeTime = (date: string | null | undefined): string => {
+  if (date === null || date === "" || date === undefined) {
+    return "";
+  }
+
+  return dayjs(date).fromNow();
 };

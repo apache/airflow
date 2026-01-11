@@ -20,16 +20,11 @@ from __future__ import annotations
 from collections.abc import Iterable
 from typing import TYPE_CHECKING
 
+from airflow.providers.common.compat.sdk import BaseSensorOperator, timezone
 from airflow.providers.standard.utils.weekday import WeekDay
-from airflow.providers.standard.version_compat import BaseSensorOperator
-from airflow.utils import timezone
 
 if TYPE_CHECKING:
-    try:
-        from airflow.sdk.definitions.context import Context
-    except ImportError:
-        # TODO: Remove once provider drops support for Airflow 2
-        from airflow.utils.context import Context
+    from airflow.providers.common.compat.sdk import Context
 
 
 class DayOfWeekSensor(BaseSensorOperator):

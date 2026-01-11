@@ -28,6 +28,7 @@ from airflow.utils.session import provide_session
 from airflow.utils.state import DagRunState
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
+from tests_common.test_utils.asserts import assert_queries_count
 from tests_common.test_utils.db import (
     clear_db_dag_bundles,
     clear_db_dags,
@@ -148,7 +149,7 @@ class TestDagTags(TestDagEndpoint):
     """Unit tests for Get DAG Tags."""
 
     @pytest.mark.parametrize(
-        "query_params, expected_status_code, expected_dag_tags, expected_total_entries",
+        ("query_params", "expected_status_code", "expected_dag_tags", "expected_total_entries"),
         [
             # test with offset, limit, and without any tag_name_pattern
             (
@@ -245,7 +246,8 @@ class TestDagTags(TestDagEndpoint):
     def test_get_dag_tags(
         self, test_client, query_params, expected_status_code, expected_dag_tags, expected_total_entries
     ):
-        response = test_client.get("/dagTags", params=query_params)
+        with assert_queries_count(3 if expected_status_code == 200 else 2):
+            response = test_client.get("/dagTags", params=query_params)
         assert response.status_code == expected_status_code
         if expected_status_code != 200:
             return

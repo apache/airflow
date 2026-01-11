@@ -17,9 +17,7 @@
 
 from __future__ import annotations
 
-import copy
 import json
-import logging.config
 import sys
 from unittest import mock
 from unittest.mock import PropertyMock
@@ -30,13 +28,12 @@ from uuid6 import uuid7
 
 from airflow._shared.timezones import timezone
 from airflow.api_fastapi.common.dagbag import create_dag_bag, dag_bag_from_app
-from airflow.config_templates.airflow_local_settings import DEFAULT_LOGGING_CONFIG
 from airflow.models.dag import DAG
-from airflow.models.serialized_dag import SerializedDagModel
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.sdk import task
 from airflow.utils.types import DagRunType
 
+from tests_common.test_utils.dag import sync_dag_to_db
 from tests_common.test_utils.db import clear_db_runs
 from tests_common.test_utils.file_task_handler import convert_list_to_stream
 
@@ -151,15 +148,13 @@ class TestTaskInstancesLog:
             log = dir_path / "attempt=2.log"
             log.write_text("Log for testing 2.")
 
-        # Create a custom logging configuration
-        logging_config = copy.deepcopy(DEFAULT_LOGGING_CONFIG)
-        logging_config["handlers"]["task"]["base_log_folder"] = self.log_dir
-
-        logging.config.dictConfig(logging_config)
-
-        yield
-
-        logging.config.dictConfig(DEFAULT_LOGGING_CONFIG)
+        with mock.patch(
+            "airflow.utils.log.file_task_handler.FileTaskHandler.local_base",
+            new_callable=mock.PropertyMock,
+            create=True,
+        ) as local_base:
+            local_base.return_value = self.log_dir
+            yield
 
     def teardown_method(self):
         clear_db_runs()
@@ -185,7 +180,7 @@ class TestTaskInstancesLog:
         assert response.status_code == 200
 
     @pytest.mark.parametrize(
-        "request_url, expected_filename, extra_query_string, try_number",
+        ("request_url", "expected_filename", "extra_query_string", "try_number"),
         [
             (
                 f"/dags/{DAG_ID}/dagRuns/{RUN_ID}/taskInstances/{TASK_ID}/logs/1",
@@ -241,7 +236,7 @@ class TestTaskInstancesLog:
             assert "timestamp" in log
 
     @pytest.mark.parametrize(
-        "request_url, expected_filename, extra_query_string, try_number",
+        ("request_url", "expected_filename", "extra_query_string", "try_number"),
         [
             (
                 f"/dags/{DAG_ID}/dagRuns/{RUN_ID}/taskInstances/{TASK_ID}/logs/1",
@@ -275,8 +270,7 @@ class TestTaskInstancesLog:
         # Recreate DAG without tasks
         dagbag = create_dag_bag()
         dag = DAG(self.DAG_ID, schedule=None, start_date=timezone.parse(self.default_time))
-        dag.sync_to_db()
-        SerializedDagModel.write_dag(dag, bundle_name="testing")
+        sync_dag_to_db(dag)
 
         self.app.dependency_overrides[dag_bag_from_app] = lambda: dagbag
 
@@ -420,7 +414,7 @@ class TestTaskInstancesLog:
         assert response.json()["detail"] == "TaskInstance not found"
 
     @pytest.mark.parametrize(
-        "supports_external_link, task_id, expected_status, expected_response, mock_external_url",
+        ("supports_external_link", "task_id", "expected_status", "expected_response", "mock_external_url"),
         [
             (
                 True,

@@ -23,12 +23,12 @@ Airflow has feature that allows to add listener for monitoring and tracking
 the task state using Plugins.
 
 This is a simple example listener plugin of Airflow that helps to track the task
-state and collect useful metadata information about the task, dag run and dag.
+state and collect useful metadata information about the task, Dag run and dag.
 
 This is an example plugin for Airflow that allows to create listener plugin of Airflow.
 This plugin works by using SQLAlchemy's event mechanism. It watches
 the task instance state change in the table level and triggers event.
-This will be notified for all the tasks across all the dags.
+This will be notified for all the tasks across all the Dags.
 
 In this plugin, an object reference is derived from the base class
 ``airflow.plugins_manager.AirflowPlugin``.
@@ -41,9 +41,9 @@ Using this plugin, following events can be listened:
     * task instance is in running state.
     * task instance is in success state.
     * task instance is in failure state.
-    * dag run is in running state.
-    * dag run is in success state.
-    * dag run is in failure state.
+    * Dag run is in running state.
+    * Dag run is in success state.
+    * Dag run is in failure state.
     * on start before event like Airflow job, scheduler
     * before stop for event like Airflow job, scheduler
 
@@ -69,7 +69,7 @@ skeleton for us to implement a new listener:
 
 Next, we can check code added into ``listener`` and see implementation
 methods for each of those listeners. After the implementation, the listener part
-gets executed during all the task execution across all the dags
+gets executed during all the task execution across all the Dags
 
 For reference, here's the plugin code within ``listener.py`` class that shows list of tables in the database:
 
@@ -82,7 +82,7 @@ This example listens when the task instance is in running state
 
 Similarly, code to listen after task_instance success and failure can be implemented.
 
-This example listens when the dag run is change to failed state
+This example listens when the Dag run is change to failed state
 
 .. exampleinclude:: /../src/airflow/example_dags/plugins/event_listener.py
     :language: python

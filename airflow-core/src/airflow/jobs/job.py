@@ -18,14 +18,15 @@
 from __future__ import annotations
 
 from collections.abc import Callable
+from datetime import datetime
 from enum import Enum
 from functools import cached_property, lru_cache
 from time import sleep
 from typing import TYPE_CHECKING, NoReturn
 
-from sqlalchemy import Column, Index, Integer, String, case, select
+from sqlalchemy import Index, Integer, String, case, select
 from sqlalchemy.exc import OperationalError
-from sqlalchemy.orm import backref, foreign, relationship
+from sqlalchemy.orm import Mapped, backref, foreign, relationship
 from sqlalchemy.orm.session import make_transient
 
 from airflow._shared.timezones import timezone
@@ -34,14 +35,14 @@ from airflow.exceptions import AirflowException
 from airflow.executors.executor_loader import ExecutorLoader
 from airflow.listeners.listener import get_listener_manager
 from airflow.models.base import ID_LEN, Base
-from airflow.stats import Stats
-from airflow.traces.tracer import DebugTrace, add_debug_span
+from airflow.observability.stats import Stats
+from airflow.observability.trace import DebugTrace, add_debug_span
 from airflow.utils.helpers import convert_camel_to_snake
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.net import get_hostname
 from airflow.utils.platform import getuser
 from airflow.utils.session import NEW_SESSION, create_session, provide_session
-from airflow.utils.sqlalchemy import UtcDateTime
+from airflow.utils.sqlalchemy import UtcDateTime, mapped_column
 
 
 class JobState(str, Enum):
@@ -57,8 +58,6 @@ class JobState(str, Enum):
 
 
 if TYPE_CHECKING:
-    import datetime
-
     from sqlalchemy.orm.session import Session
 
     from airflow.executors.base_executor import BaseExecutor
@@ -78,6 +77,8 @@ def health_check_threshold(job_type: str, heartrate: int) -> int | float:
         health_check_threshold_value = conf.getint("scheduler", "scheduler_health_check_threshold")
     elif job_type == "TriggererJob":
         health_check_threshold_value = conf.getfloat("triggerer", "triggerer_health_check_threshold")
+    elif job_type == "DagProcessorJob":
+        health_check_threshold_value = conf.getint("dag_processor", "health_check_threshold")
     else:
         health_check_threshold_value = heartrate * grace_multiplier
     return health_check_threshold_value
@@ -92,18 +93,18 @@ class Job(Base, LoggingMixin):
 
     __tablename__ = "job"
 
-    id = Column(Integer, primary_key=True)
-    dag_id = Column(
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    dag_id: Mapped[str | None] = mapped_column(
         String(ID_LEN),
     )
-    state = Column(String(20))
-    job_type = Column(String(30))
-    start_date = Column(UtcDateTime())
-    end_date = Column(UtcDateTime())
-    latest_heartbeat = Column(UtcDateTime())
-    executor_class = Column(String(500))
-    hostname = Column(String(500))
-    unixname = Column(String(1000))
+    state: Mapped[str | None] = mapped_column(String(20))
+    job_type: Mapped[str | None] = mapped_column(String(30))
+    start_date: Mapped[datetime | None] = mapped_column(UtcDateTime())
+    end_date: Mapped[datetime | None] = mapped_column(UtcDateTime())
+    latest_heartbeat: Mapped[datetime | None] = mapped_column(UtcDateTime())
+    executor_class: Mapped[str | None] = mapped_column(String(500))
+    hostname: Mapped[str | None] = mapped_column(String(500))
+    unixname: Mapped[str | None] = mapped_column(String(1000))
 
     __table_args__ = (
         Index("job_type_heart", job_type, latest_heartbeat),
@@ -165,7 +166,7 @@ class Job(Base, LoggingMixin):
 
     @cached_property
     def heartrate(self) -> float:
-        return Job._heartrate(self.job_type)
+        return Job._heartrate(str(self.job_type))
 
     def is_alive(self) -> bool:
         """
@@ -189,10 +190,11 @@ class Job(Base, LoggingMixin):
         except Exception as e:
             self.log.error("on_kill() method failed: %s", e)
 
-        job = session.scalar(select(Job).where(Job.id == self.id, session=session).limit(1))
-        job.end_date = timezone.utcnow()
-        session.merge(job)
-        session.commit()
+        job = session.scalar(select(Job).where(Job.id == self.id).limit(1))
+        if job is not None:
+            job.end_date = timezone.utcnow()
+            session.merge(job)
+            session.commit()
         raise AirflowException("Job shut down externally.")
 
     def on_kill(self):
@@ -232,7 +234,7 @@ class Job(Base, LoggingMixin):
                     self.kill()
 
                 # Figure out how long to sleep for
-                sleep_for = 0
+                sleep_for: float = 0
                 if self.latest_heartbeat:
                     seconds_remaining = (
                         self.heartrate - (timezone.utcnow() - self.latest_heartbeat).total_seconds()
@@ -247,7 +249,11 @@ class Job(Base, LoggingMixin):
                     session.merge(self)
                     self.latest_heartbeat = timezone.utcnow()
                     session.commit()
-                    time_since_last_heartbeat = (timezone.utcnow() - previous_heartbeat).total_seconds()
+                    time_since_last_heartbeat: float = (
+                        0
+                        if previous_heartbeat is None
+                        else (timezone.utcnow() - previous_heartbeat).total_seconds()
+                    )
                     health_check_threshold_value = health_check_threshold(self.job_type, self.heartrate)
                     if time_since_last_heartbeat > health_check_threshold_value:
                         self.log.info("Heartbeat recovered after %.2f seconds", time_since_last_heartbeat)
@@ -304,7 +310,7 @@ class Job(Base, LoggingMixin):
     @provide_session
     def most_recent_job(self, session: Session = NEW_SESSION) -> Job | None:
         """Return the most recent job of this type, if any, based on last heartbeat received."""
-        return most_recent_job(self.job_type, session=session)
+        return most_recent_job(str(self.job_type), session=session)
 
     @staticmethod
     def _heartrate(job_type: str) -> float:
@@ -320,8 +326,10 @@ class Job(Base, LoggingMixin):
     def _is_alive(
         state: JobState | str | None,
         health_check_threshold_value: float | int,
-        latest_heartbeat: datetime.datetime,
+        latest_heartbeat: datetime | None,
     ) -> bool:
+        if latest_heartbeat is None:
+            return False
         return (
             state == JobState.RUNNING
             and (timezone.utcnow() - latest_heartbeat).total_seconds() < health_check_threshold_value

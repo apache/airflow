@@ -17,6 +17,7 @@
 # under the License.
 from __future__ import annotations
 
+from collections import defaultdict
 from typing import TYPE_CHECKING
 
 import airflow.executors.executor_loader as executor_loader
@@ -27,8 +28,14 @@ if TYPE_CHECKING:
 
 def clean_executor_loader_module():
     """Clean the executor_loader state, as it stores global variables in the module, causing side effects for some tests."""
-    executor_loader._alias_to_executors: dict[str, ExecutorName] = {}
-    executor_loader._module_to_executors: dict[str, ExecutorName] = {}
-    executor_loader._team_id_to_executors: dict[str | None, ExecutorName] = {}
-    executor_loader._classname_to_executors: dict[str, ExecutorName] = {}
+    executor_loader._alias_to_executors_per_team: dict[str | None, dict[str, ExecutorName]] = defaultdict(
+        dict
+    )
+    executor_loader._module_to_executors_per_team: dict[str | None, dict[str, ExecutorName]] = defaultdict(
+        dict
+    )
+    executor_loader._classname_to_executors_per_team: dict[str | None, dict[str, ExecutorName]] = defaultdict(
+        dict
+    )
+    executor_loader._team_name_to_executors: dict[str | None, list[ExecutorName]] = defaultdict(list)
     executor_loader._executor_names: list[ExecutorName] = []

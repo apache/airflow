@@ -35,8 +35,8 @@ from typing import Any
 
 from airflow import DAG
 from airflow.models import Variable
-from airflow.models.baseoperator import BaseOperator
 from airflow.providers.common.compat.assets import Asset
+from airflow.providers.common.compat.sdk import BaseOperator
 from airflow.providers.standard.operators.bash import BashOperator
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.providers.standard.operators.python import PythonOperator
@@ -106,7 +106,7 @@ with DAG(
     task_2 = PythonOperator(
         task_id="task_2",
         python_callable=do_nothing,
-        inlets=[Asset(uri="s3://bucket2/dir2/file2.txt")],
+        inlets=[Asset(uri="s3://bucket2/dir2/file2.txt"), Asset(uri="s3://bucket2/dir2/file3.txt")],
         max_retry_delay=42,
         doc="text doc",
         doc_md="should be skipped",

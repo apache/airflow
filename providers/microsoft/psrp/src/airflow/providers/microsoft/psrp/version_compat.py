@@ -30,19 +30,7 @@ def get_base_airflow_version_tuple() -> tuple[int, int, int]:
 AIRFLOW_V_3_0_PLUS = get_base_airflow_version_tuple() >= (3, 0, 0)
 AIRFLOW_V_3_1_PLUS: bool = get_base_airflow_version_tuple() >= (3, 1, 0)
 
-if AIRFLOW_V_3_0_PLUS:
-    from airflow.sdk import BaseOperator
-else:
-    from airflow.models import BaseOperator
-
-if AIRFLOW_V_3_1_PLUS:
-    from airflow.sdk import BaseHook
-else:
-    from airflow.hooks.base import BaseHook  # type: ignore[attr-defined,no-redef]
-
 __all__ = [
     "AIRFLOW_V_3_0_PLUS",
     "AIRFLOW_V_3_1_PLUS",
-    "BaseOperator",
-    "BaseHook",
 ]

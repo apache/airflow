@@ -20,13 +20,12 @@ import contextlib
 import json
 import uuid
 from functools import cache
-from pathlib import Path
 from typing import TYPE_CHECKING, Any, TypeVar
 from urllib.parse import urlsplit
 
 import fsspec.utils
 
-from airflow.configuration import conf
+from airflow.providers.common.compat.sdk import conf
 from airflow.providers.common.io.version_compat import AIRFLOW_V_3_0_PLUS
 from airflow.utils.json import XComDecoder, XComEncoder
 
@@ -102,7 +101,7 @@ class XComObjectStorageBackend(BaseXCom):
             raise TypeError(f"Not a valid url: {data}") from None
 
         if url.scheme:
-            if not Path.is_relative_to(ObjectStoragePath(data), p):
+            if not ObjectStoragePath(data).is_relative_to(p):
                 raise ValueError(f"Invalid key: {data}")
             return p / data.replace(str(p), "", 1).lstrip("/")
 

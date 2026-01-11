@@ -57,6 +57,6 @@ You can also use them from :ref:`templates <concepts:jinja-templating>`::
 
 Variables are **global**, and should only be used for overall configuration that covers the entire installation; to pass data from one Task/Operator to another, you should use :doc:`xcoms` instead.
 
-We also recommend that you try to keep most of your settings and configuration in your DAG files, so it can be versioned using source control; Variables are really only for values that are truly runtime-dependent.
+We also recommend that you try to keep most of your settings and configuration in your Dag files, so it can be versioned using source control; Variables are really only for values that are truly runtime-dependent.
 
 For more information on setting and managing variables, see :doc:`/howto/variable`.

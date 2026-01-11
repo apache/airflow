@@ -22,14 +22,15 @@ Example Airflow DAG for testing Google Dataflow Beam Pipeline Operator with Asyn
 
 from __future__ import annotations
 
+import logging
 import os
 from collections.abc import Callable
 from datetime import datetime
 
-from airflow.exceptions import AirflowException
 from airflow.models.dag import DAG
 from airflow.providers.apache.beam.hooks.beam import BeamRunnerType
 from airflow.providers.apache.beam.operators.beam import BeamRunPythonPipelineOperator
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.google.cloud.hooks.dataflow import DataflowJobStatus
 from airflow.providers.google.cloud.operators.gcs import GCSCreateBucketOperator, GCSDeleteBucketOperator
 from airflow.providers.google.cloud.sensors.dataflow import (
@@ -63,6 +64,7 @@ default_args = {
         "stagingLocation": GCS_STAGING,
     }
 }
+log = logging.getLogger(__name__)
 
 with DAG(
     DAG_ID,
@@ -83,13 +85,14 @@ with DAG(
         pipeline_options={
             "output": GCS_OUTPUT,
         },
-        py_requirements=["apache-beam[gcp]==2.59.0"],
+        py_requirements=["apache-beam[gcp]==2.67.0"],
         py_interpreter="python3",
         py_system_site_packages=False,
         dataflow_config={
             "job_name": "start_python_job_async",
             "location": LOCATION,
             "wait_until_finished": False,
+            "max_num_workers": 1,
         },
     )
     # [END howto_operator_start_python_job_async]
@@ -108,7 +111,7 @@ with DAG(
         """Check is metric greater than equals to given value."""
 
         def callback(metrics: list[dict]) -> bool:
-            dag.log.info("Looking for '%s' >= %d", metric_name, value)
+            log.info("Looking for '%s' >= %d", metric_name, value)
             for metric in metrics:
                 context = metric.get("name", {}).get("context", {})
                 original_name = context.get("original_name", "")

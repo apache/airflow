@@ -18,11 +18,42 @@
 from __future__ import annotations
 
 import datetime
+import importlib.util
 import inspect
 from unittest import mock
 from unittest.mock import MagicMock
 
 import pytest
+
+from airflow import DAG
+from airflow.exceptions import AirflowProviderDeprecationWarning
+from airflow.models import Connection
+from airflow.providers.common.compat.sdk import AirflowException
+from airflow.providers.common.sql.hooks.handlers import fetch_all_handler
+from airflow.providers.common.sql.operators.sql import (
+    BaseSQLOperator,
+    BranchSQLOperator,
+    SQLCheckOperator,
+    SQLColumnCheckOperator,
+    SQLExecuteQueryOperator,
+    SQLInsertRowsOperator,
+    SQLIntervalCheckOperator,
+    SQLTableCheckOperator,
+    SQLThresholdCheckOperator,
+    SQLValueCheckOperator,
+)
+from airflow.providers.postgres.hooks.postgres import PostgresHook
+from airflow.providers.standard.operators.empty import EmptyOperator
+from airflow.utils import timezone  # type: ignore[attr-defined]
+from airflow.utils.state import State
+from airflow.utils.types import DagRunType
+
+from tests_common.test_utils.dag import sync_dag_to_db
+from tests_common.test_utils.db import clear_db_dag_bundles, clear_db_dags, clear_db_runs, clear_db_xcom
+from tests_common.test_utils.markers import skip_if_force_lowest_dependencies_marker
+from tests_common.test_utils.providers import get_provider_min_airflow_version
+from tests_common.test_utils.taskinstance import TaskInstanceWrapper
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_1, AIRFLOW_V_3_0_PLUS
 
 try:
     import importlib.util
@@ -33,33 +64,6 @@ try:
     BASEHOOK_PATCH_PATH = "airflow.sdk.bases.hook.BaseHook"
 except ImportError:
     BASEHOOK_PATCH_PATH = "airflow.hooks.base.BaseHook"
-from airflow import DAG
-from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
-from airflow.models import Connection
-from airflow.models.serialized_dag import SerializedDagModel
-from airflow.providers.common.sql.hooks.handlers import fetch_all_handler
-from airflow.providers.common.sql.operators.sql import (
-    BaseSQLOperator,
-    BranchSQLOperator,
-    SQLCheckOperator,
-    SQLColumnCheckOperator,
-    SQLExecuteQueryOperator,
-    SQLIntervalCheckOperator,
-    SQLTableCheckOperator,
-    SQLThresholdCheckOperator,
-    SQLValueCheckOperator,
-)
-from airflow.providers.postgres.hooks.postgres import PostgresHook
-from airflow.providers.standard.operators.empty import EmptyOperator
-from airflow.utils import timezone  # type: ignore[attr-defined]
-from airflow.utils.session import create_session
-from airflow.utils.state import State
-from airflow.utils.types import DagRunType
-
-from tests_common.test_utils.db import clear_db_dag_bundles, clear_db_dags, clear_db_runs, clear_db_xcom
-from tests_common.test_utils.markers import skip_if_force_lowest_dependencies_marker
-from tests_common.test_utils.providers import get_provider_min_airflow_version
-from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_1, AIRFLOW_V_3_0_PLUS
 
 if AIRFLOW_V_3_0_PLUS:
     from airflow.utils.types import DagRunTriggeredByType
@@ -362,7 +366,7 @@ class TestColumnCheckOperator:
             ("X", "min", -1),
             ("X", "max", 20),
         ]
-        operator = operator = self._construct_operator(monkeypatch, self.valid_column_mapping, records)
+        operator = self._construct_operator(monkeypatch, self.valid_column_mapping, records)
         with pytest.raises(AirflowException):
             operator.execute(context=MagicMock())
 
@@ -522,7 +526,7 @@ class TestTableCheckOperator:
         return operator
 
     @pytest.mark.parametrize(
-        ["conn_id"],
+        "conn_id",
         [
             pytest.param("postgres_default", marks=[pytest.mark.backend("postgres")]),
             pytest.param("mysql_default", marks=[pytest.mark.backend("mysql")]),
@@ -559,7 +563,7 @@ class TestTableCheckOperator:
             hook.run(["DROP TABLE employees"])
 
     @pytest.mark.parametrize(
-        ["conn_id"],
+        "conn_id",
         [
             pytest.param("postgres_default", marks=[pytest.mark.backend("postgres")]),
             pytest.param("mysql_default", marks=[pytest.mark.backend("mysql")]),
@@ -939,7 +943,16 @@ class TestIntervalCheckOperator:
             ignore_zero=True,
         )
 
-        with pytest.raises(AirflowException, match="f0, f1, f2"):
+        expected_err_message = (
+            "The following tests have failed:\n "
+            "f0: {'metric': 'f0', 'current_metric': 1, 'past_metric': 2, 'threshold': 1.0,"
+            " 'ignore_zero': True, 'ratio': 2.0, 'success': False}; "
+            "f1: {'metric': 'f1', 'current_metric': 1, 'past_metric': 2, 'threshold': 1.5,"
+            " 'ignore_zero': True, 'ratio': 2.0, 'success': False}; "
+            "f2: {'metric': 'f2', 'current_metric': 1, 'past_metric': 2, 'threshold': 2.0,"
+            " 'ignore_zero': True, 'ratio': 2.0, 'success': False}"
+        )
+        with pytest.raises(AirflowException, match=expected_err_message):
             operator.execute(context=MagicMock())
 
     @mock.patch.object(SQLIntervalCheckOperator, "get_db_hook")
@@ -969,7 +982,14 @@ class TestIntervalCheckOperator:
             ignore_zero=True,
         )
 
-        with pytest.raises(AirflowException, match="f0, f1"):
+        expected_err_message = (
+            "The following tests have failed:\n "
+            "f0: {'metric': 'f0', 'current_metric': 1, 'past_metric': 3, 'threshold': 0.5, "
+            "'ignore_zero': True, 'ratio': 0.6666666666666666, 'success': False}; "
+            "f1: {'metric': 'f1', 'current_metric': 1, 'past_metric': 3, 'threshold': 0.6, "
+            "'ignore_zero': True, 'ratio': 0.6666666666666666, 'success': False}"
+        )
+        with pytest.raises(AirflowException, match=expected_err_message):
             operator.execute(context=MagicMock())
 
 
@@ -1110,15 +1130,9 @@ class TestSqlBranch:
         self.branch_2 = EmptyOperator(task_id="branch_2", dag=self.dag)
         self.branch_3 = None
         if AIRFLOW_V_3_0_PLUS:
-            from airflow.models.dagbundle import DagBundleModel
-
-            with create_session() as session:
-                bundle_name = "testing"
-                orm_dag_bundle = DagBundleModel(name=bundle_name)
-                session.add(orm_dag_bundle)
-                session.commit()
-            DAG.bulk_write_to_db(bundle_name, None, [self.dag])
-            SerializedDagModel.write_dag(self.dag, bundle_name=bundle_name)
+            self.scheduler_dag = sync_dag_to_db(self.dag)
+        else:
+            self.scheduler_dag = self.dag
 
     def get_ti(self, task_id, dr=None):
         if dr is None:
@@ -1130,7 +1144,7 @@ class TestSqlBranch:
                 }
             else:
                 dagrun_kwargs = {"execution_date": DEFAULT_DATE}
-            dr = self.dag.create_dagrun(
+            dr = self.scheduler_dag.create_dagrun(
                 run_id=f"manual__{timezone.utcnow().isoformat()}",
                 run_type=DagRunType.MANUAL,
                 start_date=timezone.utcnow(),
@@ -1140,7 +1154,13 @@ class TestSqlBranch:
             )
 
         ti = dr.get_task_instance(task_id)
-        ti.task = self.dag.get_task(ti.task_id)
+        task = self.dag.get_task(ti.task_id)
+
+        if AIRFLOW_V_3_0_PLUS:
+            ti.task = self.scheduler_dag.get_task(ti.task_id)
+            ti = TaskInstanceWrapper(ti, task)
+        else:
+            ti.task = task
 
         return ti
 
@@ -1158,8 +1178,7 @@ class TestSqlBranch:
             dag=self.dag,
         )
         if AIRFLOW_V_3_0_PLUS:
-            self.dag.sync_to_db()
-            SerializedDagModel.write_dag(self.dag, bundle_name="testing")
+            self.scheduler_dag = sync_dag_to_db(self.dag)
         return branch_op
 
     def test_unsupported_conn_type(self):
@@ -1172,7 +1191,6 @@ class TestSqlBranch:
             follow_task_ids_if_false=["branch_2"],
             dag=self.dag,
         )
-
         with pytest.raises(AirflowException):
             op.execute({})
 
@@ -1232,6 +1250,8 @@ class TestSqlBranch:
             follow_task_ids_if_false=["branch_2"],
             dag=self.dag,
         )
+        if AIRFLOW_V_3_0_PLUS:
+            self.scheduler_dag = sync_dag_to_db(self.dag)
         self.get_ti(branch_op.task_id).run()
 
     @mock.patch("airflow.providers.common.sql.operators.sql.BaseSQLOperator.get_db_hook")
@@ -1239,7 +1259,7 @@ class TestSqlBranch:
         """Check BranchSQLOperator branch operation"""
         self.branch_1.set_upstream(branch_op)
         self.branch_2.set_upstream(branch_op)
-        self.dag.clear()
+        self.scheduler_dag.clear()
 
         if AIRFLOW_V_3_0_PLUS:
             dagrun_kwargs = {
@@ -1249,8 +1269,7 @@ class TestSqlBranch:
             }
         else:
             dagrun_kwargs = {"execution_date": DEFAULT_DATE}
-
-        dr = self.dag.create_dagrun(
+        dr = self.scheduler_dag.create_dagrun(
             run_id="manual__",
             run_type=DagRunType.MANUAL,
             start_date=timezone.utcnow(),
@@ -1260,11 +1279,10 @@ class TestSqlBranch:
         )
 
         mock_get_records = mock_get_db_hook.return_value.get_first
-
         mock_get_records.return_value = 1
 
         if AIRFLOW_V_3_0_1:
-            from airflow.exceptions import DownstreamTasksSkipped
+            from airflow.providers.common.compat.sdk import DownstreamTasksSkipped
 
             with pytest.raises(DownstreamTasksSkipped) as exc_info:
                 branch_op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
@@ -1290,7 +1308,7 @@ class TestSqlBranch:
         """Check BranchSQLOperator branch operation"""
         self.branch_1.set_upstream(branch_op)
         self.branch_2.set_upstream(branch_op)
-        self.dag.clear()
+        self.scheduler_dag.clear()
 
         if AIRFLOW_V_3_0_PLUS:
             dagrun_kwargs = {
@@ -1300,7 +1318,7 @@ class TestSqlBranch:
             }
         else:
             dagrun_kwargs = {"execution_date": DEFAULT_DATE}
-        dr = self.dag.create_dagrun(
+        dr = self.scheduler_dag.create_dagrun(
             run_id="manual__",
             run_type=DagRunType.MANUAL,
             start_date=timezone.utcnow(),
@@ -1313,7 +1331,7 @@ class TestSqlBranch:
         mock_get_records.return_value = true_value
 
         if AIRFLOW_V_3_0_1:
-            from airflow.exceptions import DownstreamTasksSkipped
+            from airflow.providers.common.compat.sdk import DownstreamTasksSkipped
 
             with pytest.raises(DownstreamTasksSkipped) as exc_info:
                 branch_op.execute({})
@@ -1338,7 +1356,7 @@ class TestSqlBranch:
         """Check BranchSQLOperator branch operation"""
         self.branch_1.set_upstream(branch_op)
         self.branch_2.set_upstream(branch_op)
-        self.dag.clear()
+        self.scheduler_dag.clear()
 
         if AIRFLOW_V_3_0_PLUS:
             dagrun_kwargs = {
@@ -1348,7 +1366,7 @@ class TestSqlBranch:
             }
         else:
             dagrun_kwargs = {"execution_date": DEFAULT_DATE}
-        dr = self.dag.create_dagrun(
+        dr = self.scheduler_dag.create_dagrun(
             run_id="manual__",
             run_type=DagRunType.MANUAL,
             start_date=timezone.utcnow(),
@@ -1358,10 +1376,10 @@ class TestSqlBranch:
         )
 
         mock_get_records = mock_get_db_hook.return_value.get_first
-
         mock_get_records.return_value = false_value
+
         if AIRFLOW_V_3_0_1:
-            from airflow.exceptions import DownstreamTasksSkipped
+            from airflow.providers.common.compat.sdk import DownstreamTasksSkipped
 
             with pytest.raises(DownstreamTasksSkipped) as exc_info:
                 branch_op.execute({})
@@ -1396,11 +1414,10 @@ class TestSqlBranch:
         self.branch_2.set_upstream(branch_op)
         self.branch_3 = EmptyOperator(task_id="branch_3", dag=self.dag)
         self.branch_3.set_upstream(branch_op)
-        self.dag.clear()
+        self.scheduler_dag.clear()
 
         if AIRFLOW_V_3_0_PLUS:
-            self.dag.sync_to_db()
-            SerializedDagModel.write_dag(self.dag, bundle_name="testing")
+            self.scheduler_dag = sync_dag_to_db(self.dag)
             dagrun_kwargs = {
                 "logical_date": DEFAULT_DATE,
                 "run_after": DEFAULT_DATE,
@@ -1408,7 +1425,7 @@ class TestSqlBranch:
             }
         else:
             dagrun_kwargs = {"execution_date": DEFAULT_DATE}
-        dr = self.dag.create_dagrun(
+        dr = self.scheduler_dag.create_dagrun(
             run_id="manual__",
             run_type=DagRunType.MANUAL,
             start_date=timezone.utcnow(),
@@ -1421,7 +1438,7 @@ class TestSqlBranch:
         mock_get_records.return_value = [["1"]]
 
         if AIRFLOW_V_3_0_1:
-            from airflow.exceptions import DownstreamTasksSkipped
+            from airflow.providers.common.compat.sdk import DownstreamTasksSkipped
 
             with pytest.raises(DownstreamTasksSkipped) as exc_info:
                 branch_op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
@@ -1444,7 +1461,7 @@ class TestSqlBranch:
         """Check BranchSQLOperator branch operation"""
         self.branch_1.set_upstream(branch_op)
         self.branch_2.set_upstream(branch_op)
-        self.dag.clear()
+        self.scheduler_dag.clear()
 
         if AIRFLOW_V_3_0_PLUS:
             dagrun_kwargs = {
@@ -1454,7 +1471,7 @@ class TestSqlBranch:
             }
         else:
             dagrun_kwargs = {"execution_date": DEFAULT_DATE}
-        self.dag.create_dagrun(
+        self.scheduler_dag.create_dagrun(
             run_id="manual__",
             run_type=DagRunType.MANUAL,
             start_date=timezone.utcnow(),
@@ -1475,7 +1492,7 @@ class TestSqlBranch:
         """Test SQL Branch with skipping all downstream dependencies"""
         branch_op >> self.branch_1 >> self.branch_2
         branch_op >> self.branch_2
-        self.dag.clear()
+        self.scheduler_dag.clear()
 
         if AIRFLOW_V_3_0_PLUS:
             dagrun_kwargs = {
@@ -1485,7 +1502,7 @@ class TestSqlBranch:
             }
         else:
             dagrun_kwargs = {"execution_date": DEFAULT_DATE}
-        dr = self.dag.create_dagrun(
+        dr = self.scheduler_dag.create_dagrun(
             run_id="manual__",
             run_type=DagRunType.MANUAL,
             start_date=timezone.utcnow(),
@@ -1516,7 +1533,7 @@ class TestSqlBranch:
         """Test skipping downstream dependency for false condition"""
         branch_op >> self.branch_1 >> self.branch_2
         branch_op >> self.branch_2
-        self.dag.clear()
+        self.scheduler_dag.clear()
 
         if AIRFLOW_V_3_0_PLUS:
             dagrun_kwargs = {
@@ -1526,7 +1543,7 @@ class TestSqlBranch:
             }
         else:
             dagrun_kwargs = {"execution_date": DEFAULT_DATE}
-        dr = self.dag.create_dagrun(
+        dr = self.scheduler_dag.create_dagrun(
             run_id="manual__",
             run_type=DagRunType.MANUAL,
             start_date=timezone.utcnow(),
@@ -1539,7 +1556,7 @@ class TestSqlBranch:
         mock_get_records.return_value = [false_value]
 
         if AIRFLOW_V_3_0_1:
-            from airflow.exceptions import DownstreamTasksSkipped
+            from airflow.providers.common.compat.sdk import DownstreamTasksSkipped
 
             with pytest.raises(DownstreamTasksSkipped) as exc_info:
                 branch_op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
@@ -1587,3 +1604,32 @@ class TestBaseSQLOperatorSubClass:
         mock_get_connection.return_value.get_hook.return_value = MagicMock(spec=DbApiHook)
         op.get_db_hook()
         mock_get_connection.assert_called_once_with("test_conn")
+
+
+class TestSQLInsertRowsOperator:
+    @mock.patch.object(SQLInsertRowsOperator, "get_db_hook")
+    def test_rows_processor(self, mock_get_db_hook):
+        operator = SQLInsertRowsOperator(
+            task_id="test_task",
+            conn_id="default_conn",
+            schema="hollywood",
+            table_name="actors",
+            rows=[
+                {"index": 1, "name": "Stallone", "firstname": "Sylvester", "age": 78},
+                {"index": 2, "name": "Statham", "firstname": "Jason", "age": 57},
+                {"index": 3, "name": "Li", "firstname": "Jet", "age": 61},
+                {"index": 4, "name": "Lundgren", "firstname": "Dolph", "age": 66},
+                {"index": 5, "name": "Norris", "firstname": "Chuck", "age": 84},
+            ],
+            rows_processor=lambda rows, **context: map(lambda row: tuple(row.values()), rows),
+        )
+
+        processed_rows = list(operator._process_rows({}))
+
+        assert processed_rows == [
+            (1, "Stallone", "Sylvester", 78),
+            (2, "Statham", "Jason", 57),
+            (3, "Li", "Jet", 61),
+            (4, "Lundgren", "Dolph", 66),
+            (5, "Norris", "Chuck", 84),
+        ]

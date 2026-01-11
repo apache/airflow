@@ -57,7 +57,7 @@
     :maxdepth: 1
     :caption: Resources
 
-    Example DAGs <https://github.com/apache/airflow/tree/providers-jdbc/|version|/providers/jdbc/tests/system/jdbc>
+    Example Dags <https://github.com/apache/airflow/tree/providers-jdbc/|version|/providers/jdbc/tests/system/jdbc>
     PyPI Repository <https://pypi.org/project/apache-airflow-providers-jdbc/>
     Installing from sources <installing-providers-from-sources>
 
@@ -78,9 +78,7 @@ apache-airflow-providers-jdbc package
 `Java Database Connectivity (JDBC) <https://docs.oracle.com/javase/8/docs/technotes/guides/jdbc/>`__
 
 
-Release: 5.2.2
-
-Release Date: ``|PypiReleaseDate|``
+Release: 5.3.1
 
 Provider package
 ----------------
@@ -91,22 +89,23 @@ All classes for this package are included in the ``airflow.providers.jdbc`` pyth
 Installation
 ------------
 
-You can install this package on top of an existing Airflow 2 installation via
+You can install this package on top of an existing Airflow installation via
 ``pip install apache-airflow-providers-jdbc``.
 For the minimum Airflow version supported, see ``Requirements`` below.
 
 Requirements
 ------------
 
-The minimum Apache Airflow version supported by this provider distribution is ``2.10.0``.
+The minimum Apache Airflow version supported by this provider distribution is ``2.11.0``.
 
-=======================================  ==================
-PIP package                              Version required
-=======================================  ==================
-``apache-airflow``                       ``>=2.10.0``
-``apache-airflow-providers-common-sql``  ``>=1.20.0``
-``jaydebeapi``                           ``>=1.1.1``
-=======================================  ==================
+==========================================  ==================
+PIP package                                 Version required
+==========================================  ==================
+``apache-airflow``                          ``>=2.11.0``
+``apache-airflow-providers-common-compat``  ``>=1.10.1``
+``apache-airflow-providers-common-sql``     ``>=1.20.0``
+``jaydebeapi``                              ``>=1.1.1``
+==========================================  ==================
 
 Cross provider package dependencies
 -----------------------------------
@@ -118,14 +117,15 @@ You can install such cross-provider dependencies when installing from PyPI. For 
 
 .. code-block:: bash
 
-    pip install apache-airflow-providers-jdbc[common.sql]
+    pip install apache-airflow-providers-jdbc[common.compat]
 
 
-============================================================================================================  ==============
-Dependent package                                                                                             Extra
-============================================================================================================  ==============
-`apache-airflow-providers-common-sql <https://airflow.apache.org/docs/apache-airflow-providers-common-sql>`_  ``common.sql``
-============================================================================================================  ==============
+==================================================================================================================  =================
+Dependent package                                                                                                   Extra
+==================================================================================================================  =================
+`apache-airflow-providers-common-compat <https://airflow.apache.org/docs/apache-airflow-providers-common-compat>`_  ``common.compat``
+`apache-airflow-providers-common-sql <https://airflow.apache.org/docs/apache-airflow-providers-common-sql>`_        ``common.sql``
+==================================================================================================================  =================
 
 Downloading official packages
 -----------------------------
@@ -133,5 +133,5 @@ Downloading official packages
 You can download officially released packages and verify their checksums and signatures from the
 `Official Apache Download site <https://downloads.apache.org/airflow/providers/>`_
 
-* `The apache-airflow-providers-jdbc 5.2.2 sdist package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_jdbc-5.2.2.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_jdbc-5.2.2.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_jdbc-5.2.2.tar.gz.sha512>`__)
-* `The apache-airflow-providers-jdbc 5.2.2 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_jdbc-5.2.2-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_jdbc-5.2.2-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_jdbc-5.2.2-py3-none-any.whl.sha512>`__)
+* `The apache-airflow-providers-jdbc 5.3.1 sdist package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_jdbc-5.3.1.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_jdbc-5.3.1.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_jdbc-5.3.1.tar.gz.sha512>`__)
+* `The apache-airflow-providers-jdbc 5.3.1 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_jdbc-5.3.1-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_jdbc-5.3.1-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_jdbc-5.3.1-py3-none-any.whl.sha512>`__)

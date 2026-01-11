@@ -23,11 +23,11 @@ from unittest import mock
 
 import pytest
 
-from airflow.exceptions import AirflowException
 from airflow.models import Connection
 
 # Import Operator
 from airflow.providers.apache.kafka.operators.consume import VALID_COMMIT_CADENCE, ConsumeFromTopicOperator
+from airflow.providers.common.compat.sdk import AirflowException
 
 log = logging.getLogger(__name__)
 
@@ -126,7 +126,7 @@ class TestConsumeFromTopic:
         operator.execute(context={})
 
     @pytest.mark.parametrize(
-        ["max_messages", "expected_consumed_messages"],
+        ("max_messages", "expected_consumed_messages"),
         [
             [None, 1001],  # Consume all messages
             [100, 1000],  # max_messages < max_batch_size -> max_messages is set to default max_batch_size
@@ -183,7 +183,7 @@ class TestConsumeFromTopic:
         ConsumeFromTopicOperator(**operator_kwargs)
 
     @pytest.mark.parametrize(
-        "commit_cadence, enable_auto_commit, expected_warning",
+        ("commit_cadence", "enable_auto_commit", "expected_warning"),
         [
             # will not log warning if set 'enable.auto.commit' to false
             ("end_of_operator", "false", False),
@@ -242,7 +242,7 @@ class TestConsumeFromTopic:
                 mock_log.warning.assert_not_called()
 
     @pytest.mark.parametrize(
-        "commit_cadence, max_messages, expected_commit_calls",
+        ("commit_cadence", "max_messages", "expected_commit_calls"),
         [
             # end_of_operator: should call commit once at the end
             ("end_of_operator", 1500, 1),

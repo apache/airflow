@@ -17,36 +17,37 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, TypeVar
+
+if TYPE_CHECKING:
+    from typing_extensions import TypeIs
+
+    from airflow.sdk.definitions._internal.node import DAGNode
+
+    T = TypeVar("T")
+
+__all__ = [
+    "NOTSET",
+    "SET_DURING_EXECUTION",
+    "ArgNotSet",
+    "SetDuringExecution",
+    "is_arg_set",
+    "validate_instance_args",
+]
+
+try:
+    # If core and SDK exist together, use core to avoid identity issues.
+    from airflow.serialization.definitions.notset import NOTSET, ArgNotSet
+except ModuleNotFoundError:
+
+    class ArgNotSet:  # type: ignore[no-redef]
+        """Sentinel type for annotations, useful when None is not viable."""
+
+    NOTSET = ArgNotSet()  # type: ignore[no-redef]
 
 
-class ArgNotSet:
-    """
-    Sentinel type for annotations, useful when None is not viable.
-
-    Use like this::
-
-        def is_arg_passed(arg: Union[ArgNotSet, None] = NOTSET) -> bool:
-            if arg is NOTSET:
-                return False
-            return True
-
-
-        is_arg_passed()  # False.
-        is_arg_passed(None)  # True.
-    """
-
-    @staticmethod
-    def serialize():
-        return "NOTSET"
-
-    @classmethod
-    def deserialize(cls):
-        return cls
-
-
-NOTSET = ArgNotSet()
-"""Sentinel value for argument default. See ``ArgNotSet``."""
+def is_arg_set(value: T | ArgNotSet) -> TypeIs[T]:
+    return not isinstance(value, ArgNotSet)
 
 
 class SetDuringExecution(ArgNotSet):
@@ -59,10 +60,6 @@ class SetDuringExecution(ArgNotSet):
 
 SET_DURING_EXECUTION = SetDuringExecution()
 """Sentinel value for argument default. See ``SetDuringExecution``."""
-
-
-if TYPE_CHECKING:
-    from airflow.sdk.definitions._internal.node import DAGNode
 
 
 def validate_instance_args(instance: DAGNode, expected_arg_types: dict[str, Any]) -> None:

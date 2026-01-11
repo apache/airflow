@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import os
+import platform
 import re
 import shlex
 import shutil
@@ -58,6 +59,7 @@ from airflow_breeze.commands.common_options import (
     option_keep_env_variables,
     option_max_time,
     option_mount_sources,
+    option_mount_ui_dist,
     option_mysql_version,
     option_no_db_cleanup,
     option_platform_single,
@@ -71,6 +73,7 @@ from airflow_breeze.commands.common_options import (
     option_upgrade_boto,
     option_upgrade_sqlalchemy,
     option_use_airflow_version,
+    option_use_mprocs,
     option_use_uv,
     option_uv_http_timeout,
     option_verbose,
@@ -127,6 +130,18 @@ from airflow_breeze.utils.run_utils import (
 from airflow_breeze.utils.shared_options import get_dry_run, get_verbose, set_forced_answer
 
 CELERY_INTEGRATION = "celery"
+
+
+def is_wsl() -> bool:
+    """Detect if we are running inside WSL."""
+    if platform.system().lower() != "linux":
+        return False
+    try:
+        with open("/proc/version") as f:
+            version_info = f.read().lower()
+            return "microsoft" in version_info or "wsl" in version_info
+    except FileNotFoundError:
+        return False
 
 
 def _determine_constraint_branch_used(airflow_constraints_reference: str, use_airflow_version: str | None):
@@ -314,6 +329,7 @@ option_load_default_connections = click.option(
 @option_keep_env_variables
 @option_max_time
 @option_mount_sources
+@option_mount_ui_dist
 @option_mysql_version
 @option_no_db_cleanup
 @option_platform_single
@@ -372,6 +388,7 @@ def shell(
     load_default_connections: bool,
     max_time: int | None,
     mount_sources: str,
+    mount_ui_dist: bool,
     mysql_version: str,
     no_db_cleanup: bool,
     distribution_format: str,
@@ -446,6 +463,7 @@ def shell(
         load_example_dags=load_example_dags,
         load_default_connections=load_default_connections,
         mount_sources=mount_sources,
+        mount_ui_dist=mount_ui_dist,
         mysql_version=mysql_version,
         no_db_cleanup=no_db_cleanup,
         distribution_format=distribution_format,
@@ -476,6 +494,7 @@ def shell(
         verbose_commands=verbose_commands,
         warn_image_upgrade_needed=warn_image_upgrade_needed,
     )
+    perform_environment_checks(quiet=shell_params.quiet)
     rebuild_or_pull_ci_image_if_needed(command_params=shell_params)
     result = enter_shell(shell_params=shell_params)
     fix_ownership_using_docker()
@@ -500,7 +519,13 @@ option_executor_start_airflow = click.option(
 @click.option(
     "--dev-mode",
     help="Starts api-server in dev mode (assets are always recompiled in this case when starting) "
-    "(mutually exclusive with --skip-assets-compilation).",
+    "(mutually exclusive with --skip-assets-compilation and --use-airflow-version).",
+    is_flag=True,
+)
+@click.option(
+    "--create-all-roles",
+    help="Creates all user roles for testing with FabAuthManager (viewer, user, op, admin). "
+    "SimpleAuthManager always has all roles available.",
     is_flag=True,
 )
 @click.argument("extra-args", nargs=-1, type=click.UNPROCESSED)
@@ -531,6 +556,7 @@ option_executor_start_airflow = click.option(
 @option_load_default_connections
 @option_load_example_dags
 @option_mount_sources
+@option_mount_ui_dist
 @option_mysql_version
 @option_platform_single
 @option_postgres_version
@@ -542,6 +568,7 @@ option_executor_start_airflow = click.option(
 @option_python
 @option_restart
 @option_standalone_dag_processor
+@option_use_mprocs
 @option_use_uv
 @option_uv_http_timeout
 @option_use_airflow_version
@@ -565,6 +592,7 @@ def start_airflow(
     debug_components: tuple[str, ...],
     debugger: str,
     dev_mode: bool,
+    create_all_roles: bool,
     docker_host: str | None,
     executor: str | None,
     extra_args: tuple,
@@ -576,6 +604,7 @@ def start_airflow(
     load_default_connections: bool,
     load_example_dags: bool,
     mount_sources: str,
+    mount_ui_dist: bool,
     mysql_version: str,
     distribution_format: str,
     platform: str | None,
@@ -589,13 +618,14 @@ def start_airflow(
     restart: bool,
     skip_assets_compilation: bool,
     standalone_dag_processor: bool,
+    use_mprocs: bool,
     use_airflow_version: str | None,
     use_distributions_from_dist: bool,
     use_uv: bool,
     uv_http_timeout: int,
 ):
     """
-    Enter breeze environment and starts all Airflow components in the tmux session.
+    Enter breeze environment and starts all Airflow components in the tmux or mprocs session.
     Compile assets if contents of www directory changed.
     """
     if dev_mode and skip_assets_compilation:
@@ -603,7 +633,25 @@ def start_airflow(
             "[warning]You cannot skip asset compilation in dev mode! Assets will be compiled!"
         )
         skip_assets_compilation = True
+
+    if dev_mode and use_airflow_version:
+        get_console().print(
+            "[error]You cannot set Airflow version in dev mode! Consider switching to the respective "
+            "version branch if you need to use --dev-mode on a different Airflow version! \nExiting!!"
+        )
+
+        sys.exit(1)
+
+    # Automatically enable file polling for hot reloading under WSL
+    if dev_mode and is_wsl():
+        os.environ["CHOKIDAR_USEPOLLING"] = "true"
+        get_console().print(
+            "[info]Detected WSL environment. Automatically enabled CHOKIDAR_USEPOLLING for hot reloading."
+        )
+
+    perform_environment_checks(quiet=False)
     if use_airflow_version is None and not skip_assets_compilation:
+        assert_prek_installed()
         # Now with the /ui project, lets only do a static build of /www and focus on the /ui
         run_compile_ui_assets(dev=dev_mode, run_in_background=True, force_clean=False)
     airflow_constraints_reference = _determine_constraint_branch_used(
@@ -637,6 +685,7 @@ def start_airflow(
         debugger=debugger,
         db_reset=db_reset,
         dev_mode=dev_mode,
+        create_all_roles=create_all_roles,
         docker_host=docker_host,
         executor=executor,
         extra_args=extra_args,
@@ -649,6 +698,7 @@ def start_airflow(
         load_default_connections=load_default_connections,
         load_example_dags=load_example_dags,
         mount_sources=mount_sources,
+        mount_ui_dist=mount_ui_dist,
         mysql_version=mysql_version,
         distribution_format=distribution_format,
         platform=platform,
@@ -664,6 +714,7 @@ def start_airflow(
         start_airflow=True,
         use_airflow_version=use_airflow_version,
         use_distributions_from_dist=use_distributions_from_dist,
+        use_mprocs=use_mprocs,
         use_uv=use_uv,
         uv_http_timeout=uv_http_timeout,
     )
@@ -718,7 +769,7 @@ def start_airflow(
     "--distributions-list",
     envvar="DISTRIBUTIONS_LIST",
     type=str,
-    help="Optional, contains comma-separated list of package ids that are processed for documentation "
+    help="Optional, contains space separated list of package ids that are processed for documentation "
     "building, and document publishing. It is an easier alternative to adding individual packages as"
     " arguments to every command. This overrides the packages passed as arguments.",
 )
@@ -777,7 +828,7 @@ def build_docs(
             f"\n[info]Populating provider list from DISTRIBUTIONS_LIST env as {distributions_list}"
         )
         # Override doc_packages with values from DISTRIBUTIONS_LIST
-        docs_list_as_tuple = tuple(distributions_list.split(","))
+        docs_list_as_tuple = tuple(distributions_list.split(" "))
     if doc_packages and docs_list_as_tuple:
         get_console().print(
             f"[warning]Both package arguments and --distributions-list / DISTRIBUTIONS_LIST passed. "
@@ -812,34 +863,6 @@ def build_docs(
             "the built docs at http://localhost:8000"
         )
     sys.exit(result.returncode)
-
-
-@main.command(
-    name="compile-ui-assets",
-    help="Compiles ui assets.",
-)
-@click.option(
-    "--dev",
-    help="Run development version of assets compilation - it will not quit and automatically "
-    "recompile assets on-the-fly when they are changed.",
-    is_flag=True,
-)
-@click.option(
-    "--force-clean",
-    help="Force cleanup of compile assets before building them.",
-    is_flag=True,
-)
-@option_verbose
-@option_dry_run
-def compile_ui_assets(dev: bool, force_clean: bool):
-    perform_environment_checks()
-    assert_prek_installed()
-    compile_ui_assets_result = run_compile_ui_assets(
-        dev=dev, run_in_background=False, force_clean=force_clean
-    )
-    if compile_ui_assets_result.returncode != 0:
-        get_console().print("[warn]New assets were generated[/]")
-    sys.exit(0)
 
 
 @main.command(name="down", help="Stop running breeze environment.")
@@ -1035,6 +1058,7 @@ def doctor(ctx):
 )
 @click.argument("command", required=True)
 @click.argument("command_args", nargs=-1, type=click.UNPROCESSED)
+@option_answer
 @option_backend
 @option_builder
 @option_docker_host
@@ -1153,6 +1177,8 @@ def run(
             shell_params=shell_params,
             project_name=unique_project_name,
             command=full_command,
+            # Always preserve the backend specified by user (or resolved from default)
+            preserve_backend=True,
         )
 
     # Clean up ownership

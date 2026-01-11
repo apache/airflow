@@ -18,11 +18,11 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+from airflow.providers.common.compat.sdk import BaseOperator
 from airflow.providers.salesforce.hooks.salesforce import SalesforceHook
-from airflow.providers.salesforce.version_compat import BaseOperator
 
 if TYPE_CHECKING:
-    from airflow.providers.salesforce.version_compat import Context
+    from airflow.providers.common.compat.sdk import Context
 
 
 class SalesforceApexRestOperator(BaseOperator):

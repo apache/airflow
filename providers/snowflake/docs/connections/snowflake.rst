@@ -60,7 +60,9 @@ Extra (optional)
     * ``authenticator``: To connect using OAuth set this parameter ``oauth``.
     * ``token_endpoint``: Specify token endpoint for external OAuth provider.
     * ``grant_type``: Specify grant type for OAuth authentication. Currently supported: ``refresh_token`` (default), ``client_credentials``.
+    * ``scope``: Specify OAuth scope to include in the access token request for any OAuth grant type.
     * ``refresh_token``: Specify refresh_token for OAuth connection.
+    * ``azure_conn_id``: Azure Connection ID to be used for retrieving the OAuth token using Azure Entra authentication. Login and Password fields aren't required when using this method. Scope for the Azure OAuth token can be set in the config option ``azure_oauth_scope`` under the section ``[snowflake]``. Requires `apache-airflow-providers-microsoft-azure>=12.8.0`.
     * ``private_key_file``: Specify the path to the private key file.
     * ``private_key_content``: Specify the content of the private key file in base64 encoded format. You can use the following Python code to encode the private key:
 

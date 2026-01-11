@@ -104,10 +104,10 @@ We can then create a TeradataOperator task that drops the ``Users`` table.
     :start-after: [START teradata_operator_howto_guide_drop_users_table]
     :end-before: [END teradata_operator_howto_guide_drop_users_table]
 
-The complete Teradata Operator DAG
+The complete Teradata Operator Dag
 ----------------------------------
 
-When we put everything together, our DAG should look like this:
+When we put everything together, our Dag should look like this:
 
 .. exampleinclude:: /../../teradata/tests/system/teradata/example_teradata.py
     :language: python
@@ -218,10 +218,10 @@ with parameters passed positionally as a list:
     :start-after: [START howto_teradata_stored_procedure_operator_with_in_out_dynamic_result]
     :end-before: [END howto_teradata_stored_procedure_operator_with_in_out_dynamic_result]
 
-The complete TeradataStoredProcedureOperator DAG
+The complete TeradataStoredProcedureOperator Dag
 ------------------------------------------------
 
-When we put everything together, our DAG should look like this:
+When we put everything together, our Dag should look like this:
 
 .. exampleinclude:: /../../teradata/tests/system/teradata/example_teradata_call_sp.py
     :language: python

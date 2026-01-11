@@ -23,12 +23,12 @@ from collections.abc import Sequence
 from tempfile import TemporaryDirectory
 from typing import TYPE_CHECKING, Any, Literal
 
+from airflow.providers.common.compat.sdk import BaseOperator
 from airflow.providers.microsoft.azure.hooks.data_lake import AzureDataLakeHook
-from airflow.providers.microsoft.azure.version_compat import BaseOperator
 from airflow.providers.oracle.hooks.oracle import OracleHook
 
 if TYPE_CHECKING:
-    from airflow.utils.context import Context
+    from airflow.sdk import Context
 
 
 class OracleToAzureDataLakeOperator(BaseOperator):

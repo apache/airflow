@@ -17,7 +17,7 @@
 # specific language governing permissions and limitations
 # under the License.
 # /// script
-# requires-python = ">=3.10"
+# requires-python = ">=3.10,<3.11"
 # dependencies = [
 #   "packaging>=25",
 #   "rich>=13.6.0",
@@ -44,6 +44,9 @@ from common_prek_utils import AIRFLOW_ROOT_PATH, console, get_all_provider_ids, 
 AIRFLOW_PYPROJECT_TOML_FILE = AIRFLOW_ROOT_PATH / "pyproject.toml"
 AIRFLOW_CORE_ROOT_PATH = AIRFLOW_ROOT_PATH / "airflow-core"
 AIRFLOW_CORE_PYPROJECT_TOML_FILE = AIRFLOW_CORE_ROOT_PATH / "pyproject.toml"
+
+AIRFLOW_TASK_SDK_ROOT_PATH = AIRFLOW_ROOT_PATH / "task-sdk"
+AIRFLOW_TASK_SDK_PYPROJECT_TOML_FILE = AIRFLOW_TASK_SDK_ROOT_PATH / "pyproject.toml"
 
 PROVIDERS_DIR = AIRFLOW_ROOT_PATH / "providers"
 
@@ -74,7 +77,7 @@ MIN_VERSION_OVERRIDE: dict[str, Version] = {
     "fab": parse_version("2.2.0"),
     "openlineage": parse_version("2.3.0"),
     "git": parse_version("0.0.2"),
-    "common.messaging": parse_version("1.0.3"),
+    "common.messaging": parse_version("2.0.0"),
 }
 
 
@@ -178,6 +181,8 @@ if __name__ == "__main__":
             all_optional_dependencies.append('"all-core" = [\n    "apache-airflow-core[all]"\n]\n')
         else:
             all_optional_dependencies.append(f'"{optional}" = [\n    "apache-airflow-core[{optional}]"\n]\n')
+    optional_airflow_task_sdk_dependencies = get_optional_dependencies(AIRFLOW_TASK_SDK_PYPROJECT_TOML_FILE)
+    all_optional_dependencies.append('"all-task-sdk" = [\n    "apache-airflow-task-sdk[all]"\n]\n')
     all_providers = sorted(get_all_provider_ids())
     all_provider_lines = []
     for provider_id in all_providers:

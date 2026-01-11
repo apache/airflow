@@ -24,21 +24,18 @@ from unittest.mock import MagicMock, patch
 import pytest
 from botocore.exceptions import ClientError
 
-from airflow.exceptions import AirflowException
 from airflow.models import DAG, DagRun, TaskInstance
-from airflow.models.serialized_dag import SerializedDagModel
 from airflow.providers.amazon.aws.operators.sagemaker import (
     SageMakerBaseOperator,
     SageMakerCreateExperimentOperator,
 )
-
-try:
-    from airflow.sdk import timezone
-except ImportError:
-    from airflow.utils import timezone  # type: ignore[attr-defined,no-redef]
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.utils.state import DagRunState
 from airflow.utils.types import DagRunType
 
+from tests_common.test_utils.compat import timezone
+from tests_common.test_utils.dag import sync_dag_to_db
+from tests_common.test_utils.taskinstance import create_task_instance, render_template_fields
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 from unit.amazon.aws.utils.test_template_fields import validate_template_fields
 
@@ -188,7 +185,7 @@ class TestSageMakerBaseOperator:
     def test_check_if_resource_exists_raises_when_it_is_not_validation_exception(self):
         describe_func = MagicMock(side_effect=ValueError("different exception"))
 
-        with pytest.raises(ValueError) as context:
+        with pytest.raises(ValueError, match="different exception") as context:
             self.sagemaker._check_if_resource_exists("job_123", "job", describe_func)
 
         assert str(context.value) == "different exception"
@@ -218,18 +215,17 @@ class TestSageMakerExperimentOperator:
         if AIRFLOW_V_3_0_PLUS:
             from airflow.models.dag_version import DagVersion
 
-            bundle_name = "testing"
-            DAG.bulk_write_to_db(bundle_name, None, [dag])
-            SerializedDagModel.write_dag(dag, bundle_name=bundle_name)
+            sync_dag_to_db(dag)
             dag_version = DagVersion.get_latest_version(dag.dag_id)
-            ti = TaskInstance(task=op, dag_version_id=dag_version.id)
             dag_run = DagRun(
                 dag_id=dag.dag_id,
                 logical_date=logical_date,
                 run_id="test",
                 run_type=DagRunType.MANUAL,
                 state=DagRunState.RUNNING,
+                run_after=timezone.utcnow(),
             )
+            ti = create_task_instance(task=op, run_id="test", dag_version_id=dag_version.id)
         else:
             dag_run = DagRun(
                 dag_id=dag.dag_id,
@@ -240,12 +236,9 @@ class TestSageMakerExperimentOperator:
             )
             ti = TaskInstance(task=op)
         ti.dag_run = dag_run
-        session.add(ti)
-        session.commit()
-        context = ti.get_template_context()
-        ti.render_templates(context)
+        rendered = render_template_fields(ti, op)
 
-        ret = op.execute(None)
+        ret = rendered.execute(None)
 
         assert ret == "abcdef"
         conn_mock().create_experiment.assert_called_once_with(

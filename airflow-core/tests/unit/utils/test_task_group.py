@@ -21,20 +21,21 @@ import pendulum
 import pytest
 
 from airflow.api_fastapi.core_api.services.ui.task_group import task_group_to_dict
-from airflow.models.baseoperator import BaseOperator
-from airflow.models.dag import DAG
+from airflow.providers.standard.operators.bash import BashOperator
 from airflow.providers.standard.operators.empty import EmptyOperator
+from airflow.providers.standard.operators.python import PythonOperator
 from airflow.sdk import (
+    DAG,
+    BaseOperator,
+    TaskGroup,
     setup,
     task as task_decorator,
     task_group as task_group_decorator,
     teardown,
 )
-from airflow.sdk.definitions.taskgroup import TaskGroup
-from airflow.serialization.serialized_objects import SerializedDAG
 from airflow.utils.dag_edges import dag_edges
 
-from tests_common.test_utils.compat import BashOperator, PythonOperator
+from tests_common.test_utils.dag import create_scheduler_dag
 from unit.models import DEFAULT_DATE
 
 pytestmark = [pytest.mark.db_test, pytest.mark.need_serialized_dag]
@@ -199,7 +200,7 @@ EXPECTED_JSON = {
     ],
     "id": None,
     "is_mapped": False,
-    "label": None,
+    "label": "",
     "tooltip": "",
     "type": "task",
 }
@@ -237,7 +238,7 @@ def test_task_group_to_dict_alternative_syntax():
     task1 >> group234
     group34 >> task5
 
-    serialized_dag = SerializedDAG.from_dict(SerializedDAG.to_dict(dag))
+    serialized_dag = create_scheduler_dag(dag)
 
     assert task_group_to_dict(serialized_dag.task_group) == EXPECTED_JSON
 
@@ -277,6 +278,8 @@ def test_task_group_to_dict_with_prefix(dag_maker):
         "children": [
             {"id": "task1", "label": "task1"},
             {
+                "id": "group234",
+                "label": "group234",
                 "children": [
                     {
                         "children": [
@@ -294,13 +297,11 @@ def test_task_group_to_dict_with_prefix(dag_maker):
                     {"id": "task2", "label": "task2"},
                     {"id": "group234.upstream_join_id", "label": ""},
                 ],
-                "id": "group234",
-                "label": "group234",
             },
             {"id": "task5", "label": "task5"},
         ],
         "id": None,
-        "label": None,
+        "label": "",
     }
 
     assert extract_node_id(task_group_to_dict(dag.task_group), include_label=True) == expected_node_id
@@ -1154,7 +1155,7 @@ def test_task_group_arrow_with_setup_group():
     assert set(t2.operator.downstream_task_ids) == set()
 
     def get_nodes(group):
-        serialized_dag = SerializedDAG.from_dict(SerializedDAG.to_dict(dag))
+        serialized_dag = create_scheduler_dag(dag)
         group = serialized_dag.task_group_dict[g1.group_id]
         d = task_group_to_dict(group)
         new_d = {}
@@ -1184,7 +1185,7 @@ def test_task_group_display_name_used_as_label(dag_maker):
     assert tg.label == "my_custom_name"
     expected_node_id = {
         "id": None,
-        "label": None,
+        "label": "",
         "children": [
             {
                 "id": "tg",

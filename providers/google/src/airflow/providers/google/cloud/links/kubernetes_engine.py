@@ -24,7 +24,7 @@ from google.cloud.container_v1.types import Cluster
 from airflow.providers.google.cloud.links.base import BaseGoogleLink
 
 if TYPE_CHECKING:
-    from airflow.utils.context import Context
+    from airflow.providers.common.compat.sdk import Context
 
 KUBERNETES_BASE_LINK = "/kubernetes"
 KUBERNETES_CLUSTER_LINK = (

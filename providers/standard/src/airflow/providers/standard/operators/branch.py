@@ -30,7 +30,7 @@ else:
     from airflow.models.skipmixin import SkipMixin
 
 if TYPE_CHECKING:
-    from airflow.sdk.definitions.context import Context
+    from airflow.providers.common.compat.sdk import Context
     from airflow.sdk.types import RuntimeTaskInstanceProtocol
 
 

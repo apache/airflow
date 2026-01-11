@@ -19,16 +19,16 @@ from __future__ import annotations
 
 import logging
 
-from fastapi import HTTPException
-from keycloak import KeycloakAuthenticationError
 from starlette import status
 
-from airflow.api_fastapi.app import get_auth_manager
 from airflow.api_fastapi.common.router import AirflowRouter
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
-from airflow.providers.keycloak.auth_manager.datamodels.token import TokenBody, TokenResponse
-from airflow.providers.keycloak.auth_manager.keycloak_auth_manager import KeycloakAuthManager
-from airflow.providers.keycloak.auth_manager.user import KeycloakAuthManagerUser
+from airflow.providers.common.compat.sdk import conf
+from airflow.providers.keycloak.auth_manager.datamodels.token import (
+    TokenBody,
+    TokenPasswordBody,
+    TokenResponse,
+)
 
 log = logging.getLogger(__name__)
 token_router = AirflowRouter(tags=["KeycloakAuthManagerToken"])
@@ -40,23 +40,19 @@ token_router = AirflowRouter(tags=["KeycloakAuthManagerToken"])
     responses=create_openapi_http_exception_doc([status.HTTP_400_BAD_REQUEST, status.HTTP_401_UNAUTHORIZED]),
 )
 def create_token(body: TokenBody) -> TokenResponse:
-    client = KeycloakAuthManager.get_keycloak_client()
-
-    try:
-        tokens = client.token(body.username, body.password)
-    except KeycloakAuthenticationError:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid credentials",
-        )
-
-    userinfo = client.userinfo(tokens["access_token"])
-    user = KeycloakAuthManagerUser(
-        user_id=userinfo["sub"],
-        name=userinfo["preferred_username"],
-        access_token=tokens["access_token"],
-        refresh_token=tokens["refresh_token"],
+    token = body.root.create_token(
+        expiration_time_in_seconds=int(conf.getint("api_auth", "jwt_expiration_time"))
     )
-    token = get_auth_manager().generate_jwt(user)
+    return TokenResponse(access_token=token)
 
+
+@token_router.post(
+    "/token/cli",
+    status_code=status.HTTP_201_CREATED,
+    responses=create_openapi_http_exception_doc([status.HTTP_400_BAD_REQUEST, status.HTTP_401_UNAUTHORIZED]),
+)
+def create_token_cli(body: TokenPasswordBody) -> TokenResponse:
+    token = body.create_token(
+        expiration_time_in_seconds=int(conf.getint("api_auth", "jwt_cli_expiration_time"))
+    )
     return TokenResponse(access_token=token)

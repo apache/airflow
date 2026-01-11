@@ -19,8 +19,10 @@ from __future__ import annotations
 
 import json
 import math
+import sys
 from collections.abc import Iterator
 from datetime import datetime, timedelta
+from typing import TYPE_CHECKING
 
 import pendulum
 import pytest
@@ -52,11 +54,9 @@ from airflow.sdk.definitions.asset import (
     Asset,
     AssetAlias,
     AssetAliasEvent,
-    AssetAll,
-    AssetAny,
-    AssetRef,
     AssetUniqueKey,
     AssetWatcher,
+    BaseAsset,
 )
 from airflow.sdk.definitions.deadline import (
     AsyncCallback,
@@ -69,20 +69,32 @@ from airflow.sdk.definitions.operator_resources import Resources
 from airflow.sdk.definitions.param import Param
 from airflow.sdk.definitions.taskgroup import TaskGroup
 from airflow.sdk.execution_time.context import OutletEventAccessor, OutletEventAccessors
+from airflow.serialization.definitions.assets import (
+    SerializedAsset,
+    SerializedAssetAlias,
+    SerializedAssetAll,
+    SerializedAssetAny,
+    SerializedAssetBase,
+    SerializedAssetRef,
+)
+from airflow.serialization.encoders import ensure_serialized_asset
 from airflow.serialization.enums import DagAttributeTypes as DAT, Encoding
 from airflow.serialization.serialized_objects import (
     BaseSerialization,
+    DagSerialization,
     LazyDeserializedDAG,
-    SerializedDAG,
+    _has_kubernetes,
     create_scheduler_operator,
 )
-from airflow.timetables.base import DataInterval
 from airflow.triggers.base import BaseTrigger
 from airflow.utils.db import LazySelectSequence
 from airflow.utils.state import DagRunState, State
 from airflow.utils.types import DagRunType
 
 from unit.models import DEFAULT_DATE
+
+if TYPE_CHECKING:
+    from pydantic.types import JsonValue
 
 DAG_ID = "dag_id_1"
 
@@ -159,6 +171,16 @@ def test_strict_mode():
         BaseSerialization.serialize(obj, strict=True)  # now raises
 
 
+def test_prevent_re_serialization_of_serialized_operators():
+    """SerializedBaseOperator should not be re-serializable."""
+    from airflow.serialization.definitions.baseoperator import SerializedBaseOperator
+
+    serialized_op = SerializedBaseOperator(task_id="test_task")
+
+    with pytest.raises(SerializationError, match="Encountered unexpected type"):
+        BaseSerialization.serialize(serialized_op, strict=True)
+
+
 def test_validate_schema():
     from airflow.serialization.serialized_objects import BaseSerialization
 
@@ -196,7 +218,7 @@ TI_WITH_START_DAY = TaskInstance(
     state=State.RUNNING,
     dag_version_id=uuid7(),
 )
-TI_WITH_START_DAY.start_date = timezone.utcnow()
+TI_WITH_START_DAY.start_date = timezone.datetime(2020, 1, 1, 0, 0, 0)
 
 DAG_RUN = DagRun(
     dag_id="test_dag_id",
@@ -216,7 +238,7 @@ EmptyOperator(task_id="task1", dag=DAG_WITH_TASKS)
 
 
 def create_outlet_event_accessors(
-    key: Asset | AssetAlias, extra: dict, asset_alias_events: list[AssetAliasEvent]
+    key: Asset | AssetAlias, extra: dict[str, JsonValue], asset_alias_events: list[AssetAliasEvent]
 ) -> OutletEventAccessors:
     o = OutletEventAccessors()
     o[key].extra = extra
@@ -247,6 +269,10 @@ def equal_outlet_event_accessor(a: OutletEventAccessor, b: OutletEventAccessor) 
     return a.key == b.key and a.extra == b.extra and a.asset_alias_events == b.asset_alias_events
 
 
+def equal_serialized_asset(a: SerializedAssetBase | BaseAsset, b: SerializedAssetBase | BaseAsset) -> bool:
+    return ensure_serialized_asset(a) == ensure_serialized_asset(b)
+
+
 class MockLazySelectSequence(LazySelectSequence):
     _data = ["a", "b", "c"]
 
@@ -261,7 +287,7 @@ class MockLazySelectSequence(LazySelectSequence):
 
 
 @pytest.mark.parametrize(
-    "input, encoded_type, cmp_func",
+    ("input", "encoded_type", "cmp_func"),
     [
         ("test_str", None, equals),
         (1, None, equals),
@@ -333,7 +359,7 @@ class MockLazySelectSequence(LazySelectSequence):
             None,
             lambda a, b: len(a) == len(b) and isinstance(b, list),
         ),
-        (Asset(uri="test://asset1", name="test"), DAT.ASSET, equals),
+        (Asset(uri="test://asset1", name="test"), DAT.ASSET, equal_serialized_asset),
         (
             Asset(
                 uri="test://asset1",
@@ -341,7 +367,7 @@ class MockLazySelectSequence(LazySelectSequence):
                 watchers=[AssetWatcher(name="test", trigger=FileDeleteTrigger(filepath="/tmp"))],
             ),
             DAT.ASSET,
-            equals,
+            equal_serialized_asset,
         ),
         (
             Connection(conn_id="TEST_ID", uri="mysql://"),
@@ -394,7 +420,8 @@ class MockLazySelectSequence(LazySelectSequence):
                     AssetAliasEvent(
                         source_alias_name="test_alias",
                         dest_asset_key=AssetUniqueKey(name="test_name", uri="test://asset-uri"),
-                        extra={},
+                        dest_asset_extra={"extra": "from asset itself"},
+                        extra={"extra": "from event"},
                     )
                 ],
             ),
@@ -557,7 +584,7 @@ def test_serialized_dag_has_task_concurrency_limits(dag_maker, concurrency_param
     with dag_maker() as dag:
         BashOperator(task_id="task1", bash_command="echo 1", **{concurrency_parameter: 1})
 
-    ser_dict = SerializedDAG.to_dict(dag)
+    ser_dict = DagSerialization.to_dict(dag)
     lazy_serialized_dag = LazyDeserializedDAG(data=ser_dict)
 
     assert lazy_serialized_dag.has_task_concurrency_limits
@@ -584,94 +611,10 @@ def test_serialized_dag_mapped_task_has_task_concurrency_limits(dag_maker, concu
 
         map_me_but_slowly.expand(a=my_task())
 
-    ser_dict = SerializedDAG.to_dict(dag)
+    ser_dict = DagSerialization.to_dict(dag)
     lazy_serialized_dag = LazyDeserializedDAG(data=ser_dict)
 
     assert lazy_serialized_dag.has_task_concurrency_limits
-
-
-@pytest.mark.db_test
-@pytest.mark.parametrize(
-    "create_dag_run_kwargs",
-    (
-        {},
-        {
-            "data_interval": None,
-            "logical_date": pendulum.DateTime(2016, 1, 1, 0, 0, 0, tzinfo=Timezone("UTC")),
-        },
-        {"data_interval": None, "logical_date": None},
-    ),
-    ids=["post-AIP-39", "pre-AIP-39-should-infer", "pre-AIP-39"],
-)
-def test_serialized_dag_get_run_data_interval(create_dag_run_kwargs, dag_maker, session):
-    """Test whether LazyDeserializedDAG can correctly get dag run data_interval
-
-    post-AIP-39: the dag run itself contains both data_interval start and data_interval end, and thus can
-        be retrieved directly
-    pre-AIP-39-should-infer: the dag run itself has neither data_interval_start nor data_interval_end,
-        and thus needs to infer the data_interval from its timetable
-    pre-AIP-39: the dag run itself has neither data_interval_start nor data_interval_end, and its logical_date
-        is none. it should return data_interval as none
-    """
-    with dag_maker(dag_id="test_dag", session=session, serialized=False) as dag:
-        BaseOperator(task_id="test_task")
-    session.commit()
-
-    dr = dag_maker.create_dagrun(**create_dag_run_kwargs)
-    ser_dict = SerializedDAG.to_dict(dag)
-    deser_dag = LazyDeserializedDAG(data=ser_dict)
-    if "logical_date" in create_dag_run_kwargs and create_dag_run_kwargs["logical_date"] is None:
-        data_interval = deser_dag.get_run_data_interval(dr)
-        assert data_interval is None
-    else:
-        data_interval = deser_dag.get_run_data_interval(dr)
-        assert data_interval == DataInterval(
-            start=pendulum.DateTime(2015, 12, 31, 0, 0, 0, tzinfo=Timezone("UTC")),
-            end=pendulum.DateTime(2016, 1, 1, 0, 0, 0, tzinfo=Timezone("UTC")),
-        )
-
-
-def test_get_task_assets():
-    asset1 = Asset("1")
-    with DAG("testdag") as source_dag:
-        a = BashOperator(task_id="a", outlets=[asset1], bash_command="echo u")
-        b = BashOperator(task_id="b", inlets=[asset1], bash_command="echo v")
-        c = BashOperator.partial(task_id="c", inlets=[asset1]).expand(bash_command=["echo w", "echo x"])
-        d = BashOperator.partial(task_id="d", outlets=[asset1]).expand(bash_command=["echo y", "echo z"])
-        a >> b >> c >> d
-
-    deser_dag = LazyDeserializedDAG(data=SerializedDAG.to_dict(source_dag))
-    assert sorted(deser_dag.get_task_assets()) == [
-        ("a", asset1),
-        ("b", asset1),
-        ("c", asset1),
-        ("d", asset1),
-    ]
-
-
-def test_lazy_dag_run_interval_wrong_dag():
-    lazy = LazyDeserializedDAG(data={"dag": {"dag_id": "dag1"}})
-
-    with pytest.raises(ValueError, match="different DAGs"):
-        lazy.get_run_data_interval(DAG_RUN)
-
-
-def test_lazy_dag_run_interval_missing_interval():
-    lazy = LazyDeserializedDAG(data={"dag": {"dag_id": "test_dag_id"}})
-
-    with pytest.raises(ValueError, match="Unsure how to deserialize version '<not present>'"):
-        lazy.get_run_data_interval(DAG_RUN)
-
-
-def test_lazy_dag_run_interval_success():
-    run = DAG_RUN
-    run.data_interval_start = datetime(2025, 1, 1)
-    run.data_interval_end = datetime(2025, 1, 2)
-
-    lazy = LazyDeserializedDAG(data={"dag": {"dag_id": "test_dag_id"}})
-    interval = lazy.get_run_data_interval(run)
-
-    assert isinstance(interval, DataInterval)
 
 
 def test_hash_property():
@@ -683,7 +626,7 @@ def test_hash_property():
 
 
 @pytest.mark.parametrize(
-    "payload, expected_cls",
+    ("payload", "expected_cls"),
     [
         pytest.param(
             {
@@ -693,7 +636,7 @@ def test_hash_property():
                 "group": "test-group",
                 "extra": {},
             },
-            Asset,
+            SerializedAsset,
             id="asset",
         ),
         pytest.param(
@@ -716,7 +659,7 @@ def test_hash_property():
                     },
                 ],
             },
-            AssetAll,
+            SerializedAssetAll,
             id="asset_all",
         ),
         pytest.param(
@@ -732,42 +675,42 @@ def test_hash_property():
                     }
                 ],
             },
-            AssetAny,
+            SerializedAssetAny,
             id="asset_any",
         ),
         pytest.param(
             {"__type": DAT.ASSET_ALIAS, "name": "alias", "group": "g"},
-            AssetAlias,
+            SerializedAssetAlias,
             id="asset_alias",
         ),
         pytest.param(
             {"__type": DAT.ASSET_REF, "name": "ref"},
-            AssetRef,
+            SerializedAssetRef,
             id="asset_ref",
         ),
     ],
 )
 def test_serde_decode_asset_condition_success(payload, expected_cls):
-    from airflow.serialization.serialized_objects import decode_asset_condition
+    from airflow.serialization.serialized_objects import decode_asset_like
 
-    assert isinstance(decode_asset_condition(payload), expected_cls)
+    assert isinstance(decode_asset_like(payload), expected_cls)
 
 
 def test_serde_decode_asset_condition_unknown_type():
-    from airflow.serialization.serialized_objects import decode_asset_condition
+    from airflow.serialization.serialized_objects import decode_asset_like
 
     with pytest.raises(
         ValueError,
         match="deserialization not implemented for DAT 'UNKNOWN_TYPE'",
     ):
-        decode_asset_condition({"__type": "UNKNOWN_TYPE"})
+        decode_asset_like({"__type": "UNKNOWN_TYPE"})
 
 
 def test_encode_timezone():
     from airflow.serialization.serialized_objects import encode_timezone
 
     assert encode_timezone(FixedTimezone(0)) == "UTC"
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match="DAG timezone should be a pendulum.tz.Timezone"):
         encode_timezone(object())
 
 
@@ -783,8 +726,8 @@ class TestSerializedBaseOperator:
         assert caplog.messages == ["test"]
 
     def test_resume_execution(self):
-        from airflow.exceptions import TaskDeferralTimeout
         from airflow.models.trigger import TriggerFailureReason
+        from airflow.sdk.exceptions import TaskDeferralTimeout
 
         op = BaseOperator(task_id="hi")
         with pytest.raises(TaskDeferralTimeout):
@@ -793,3 +736,31 @@ class TestSerializedBaseOperator:
                 next_kwargs={"error": TriggerFailureReason.TRIGGER_TIMEOUT},
                 context={},
             )
+
+
+class TestKubernetesImportAvoidance:
+    """Test that serialization doesn't import kubernetes unnecessarily."""
+
+    def test_has_kubernetes_no_import_when_not_needed(self):
+        """Ensure _has_kubernetes() doesn't import k8s when not already loaded."""
+        # Remove kubernetes from sys.modules if present
+        k8s_modules = [m for m in list(sys.modules.keys()) if m.startswith("kubernetes")]
+        if k8s_modules:
+            pytest.skip("Kubernetes already imported, cannot test import avoidance")
+
+        # Call _has_kubernetes() - should check sys.modules and return False without importing
+        _has_kubernetes.cache_clear()
+        result = _has_kubernetes()
+
+        assert result is False
+        assert "kubernetes.client" not in sys.modules
+
+    def test_has_kubernetes_uses_existing_import(self):
+        """Ensure _has_kubernetes() uses k8s when it's already imported."""
+        pytest.importorskip("kubernetes")
+
+        # Now k8s is imported, should return True
+        _has_kubernetes.cache_clear()
+        result = _has_kubernetes()
+
+        assert result is True

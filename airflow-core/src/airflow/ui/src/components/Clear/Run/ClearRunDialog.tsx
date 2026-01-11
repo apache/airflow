@@ -16,19 +16,20 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Flex, Heading, VStack } from "@chakra-ui/react";
+import { Button, Flex, Heading, VStack } from "@chakra-ui/react";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { CgRedo } from "react-icons/cg";
 
 import { useDagServiceGetDagDetails } from "openapi/queries";
-import type { DAGRunResponse } from "openapi/requests/types.gen";
+import type { DAGRunResponse, TaskInstanceResponse } from "openapi/requests/types.gen";
 import { ActionAccordion } from "src/components/ActionAccordion";
-import { Button, Dialog, Checkbox } from "src/components/ui";
+import { Checkbox, Dialog } from "src/components/ui";
 import SegmentedControl from "src/components/ui/SegmentedControl";
 import { useClearDagRunDryRun } from "src/queries/useClearDagRunDryRun";
 import { useClearDagRun } from "src/queries/useClearRun";
 import { usePatchDagRun } from "src/queries/usePatchDagRun";
+import { isStatePending, useAutoRefresh } from "src/utils";
 
 type Props = {
   readonly dagRun: DAGRunResponse;
@@ -51,9 +52,17 @@ const ClearRunDialog = ({ dagRun, onClose, open }: Props) => {
     dagId,
   });
 
+  const refetchInterval = useAutoRefresh({ dagId });
+
   const { data: affectedTasks = { task_instances: [], total_entries: 0 } } = useClearDagRunDryRun({
     dagId,
     dagRunId,
+    options: {
+      refetchInterval: (query) =>
+        query.state.data?.task_instances.some((ti: TaskInstanceResponse) => isStatePending(ti.state))
+          ? refetchInterval
+          : false,
+    },
     requestBody: { only_failed: onlyFailed, run_on_latest_version: runOnLatestVersion },
   });
 
@@ -129,7 +138,7 @@ const ClearRunDialog = ({ dagRun, onClose, open }: Props) => {
               </Checkbox>
             ) : undefined}
             <Button
-              colorPalette="blue"
+              colorPalette="brand"
               disabled={affectedTasks.total_entries === 0}
               loading={isPending || isPendingPatchDagRun}
               onClick={() => {

@@ -23,7 +23,7 @@ How-to Guide for Amazon Simple Queue Service (Amazon SQS) notifications
 Introduction
 ------------
 `Amazon SQS <https://aws.amazon.com/sqs/>`__ notifier :class:`~airflow.providers.amazon.aws.notifications.sqs.SqsNotifier`
-allows users to push messages to an Amazon SQS Queue using the various ``on_*_callbacks`` at both the DAG level and Task level.
+allows users to push messages to an Amazon SQS Queue using the various ``on_*_callbacks`` at both the Dag level and Task level.
 
 
 Example Code:
@@ -39,7 +39,7 @@ Example Code:
     dag_failure_sqs_notification = send_sqs_notification(
         aws_conn_id="aws_default",
         queue_url="https://sqs.eu-west-1.amazonaws.com/123456789098/MyQueue",
-        message_body="The DAG {{ dag.dag_id }} failed",
+        message_body="The Dag {{ dag.dag_id }} failed",
     )
     task_failure_sqs_notification = send_sqs_notification(
         aws_conn_id="aws_default",

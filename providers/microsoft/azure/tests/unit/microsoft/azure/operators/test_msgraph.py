@@ -25,35 +25,33 @@ from typing import Any
 
 import pytest
 
-from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
+from airflow.exceptions import AirflowProviderDeprecationWarning
+from airflow.providers.common.compat.sdk import AirflowException, Context
 from airflow.providers.microsoft.azure.operators.msgraph import MSGraphAsyncOperator, execute_callable
 from airflow.triggers.base import TriggerEvent
 
 from tests_common.test_utils.file_loading import load_file_from_resources, load_json_from_resources
 from tests_common.test_utils.mock_context import mock_context
 from tests_common.test_utils.operators.run_deferrable import execute_operator
-from unit.microsoft.azure.base import Base
-from unit.microsoft.azure.test_utils import mock_json_response, mock_response
+from unit.microsoft.azure.test_utils import (
+    mock_json_response,
+    mock_response,
+    patch_hook_and_request_adapter,
+)
 
 try:
     from airflow.sdk import timezone
 except ImportError:
     from airflow.utils import timezone  # type: ignore[no-redef]
 
-try:
-    from airflow.sdk.definitions.context import Context
-except ImportError:
-    # TODO: Remove once provider drops support for Airflow 2
-    from airflow.utils.context import Context
 
-
-class TestMSGraphAsyncOperator(Base):
+class TestMSGraphAsyncOperator:
     def test_execute_with_old_result_processor_signature(self):
         users = load_json_from_resources(dirname(__file__), "..", "resources", "users.json")
         next_users = load_json_from_resources(dirname(__file__), "..", "resources", "next_users.json")
         response = mock_json_response(200, users, next_users)
 
-        with self.patch_hook_and_request_adapter(response):
+        with patch_hook_and_request_adapter(response):
             operator = MSGraphAsyncOperator(
                 task_id="users_delta",
                 conn_id="msgraph_api",
@@ -84,7 +82,7 @@ class TestMSGraphAsyncOperator(Base):
         next_users = load_json_from_resources(dirname(__file__), "..", "resources", "next_users.json")
         response = mock_json_response(200, users, next_users)
 
-        with self.patch_hook_and_request_adapter(response):
+        with patch_hook_and_request_adapter(response):
             operator = MSGraphAsyncOperator(
                 task_id="users_delta",
                 conn_id="msgraph_api",
@@ -111,7 +109,7 @@ class TestMSGraphAsyncOperator(Base):
         next_users = load_json_from_resources(dirname(__file__), "..", "resources", "next_users.json")
         response = mock_json_response(200, users, next_users)
 
-        with self.patch_hook_and_request_adapter(response):
+        with patch_hook_and_request_adapter(response):
             operator = MSGraphAsyncOperator(
                 task_id="users_delta",
                 conn_id="msgraph_api",
@@ -145,7 +143,7 @@ class TestMSGraphAsyncOperator(Base):
         users.pop("@odata.nextLink")
         response = mock_json_response(200, users)
 
-        with self.patch_hook_and_request_adapter(response):
+        with patch_hook_and_request_adapter(response):
             operator = MSGraphAsyncOperator(
                 task_id="users_delta",
                 conn_id="msgraph_api",
@@ -163,7 +161,7 @@ class TestMSGraphAsyncOperator(Base):
             assert events[0].payload["response"] == json.dumps(users)
 
     def test_execute_when_an_exception_occurs(self):
-        with self.patch_hook_and_request_adapter(AirflowException()):
+        with patch_hook_and_request_adapter(AirflowException()):
             operator = MSGraphAsyncOperator(
                 task_id="users_delta",
                 conn_id="msgraph_api",
@@ -175,7 +173,7 @@ class TestMSGraphAsyncOperator(Base):
                 execute_operator(operator)
 
     def test_execute_when_an_exception_occurs_on_custom_event_handler_with_old_signature(self):
-        with self.patch_hook_and_request_adapter(AirflowException("An error occurred")):
+        with patch_hook_and_request_adapter(AirflowException("An error occurred")):
 
             def custom_event_handler(context: Context, event: dict[Any, Any] | None = None):
                 if event:
@@ -204,7 +202,7 @@ class TestMSGraphAsyncOperator(Base):
             assert events[0].payload["message"] == "An error occurred"
 
     def test_execute_when_an_exception_occurs_on_custom_event_handler_with_new_signature(self):
-        with self.patch_hook_and_request_adapter(AirflowException("An error occurred")):
+        with patch_hook_and_request_adapter(AirflowException("An error occurred")):
 
             def custom_event_handler(event: dict[Any, Any] | None = None, **context):
                 if event:
@@ -236,7 +234,7 @@ class TestMSGraphAsyncOperator(Base):
         drive_id = "82f9d24d-6891-4790-8b6d-f1b2a1d0ca22"
         response = mock_response(200, content)
 
-        with self.patch_hook_and_request_adapter(response):
+        with patch_hook_and_request_adapter(response):
             operator = MSGraphAsyncOperator(
                 task_id="drive_item_content",
                 conn_id="msgraph_api",
@@ -263,7 +261,7 @@ class TestMSGraphAsyncOperator(Base):
         drive_id = "82f9d24d-6891-4790-8b6d-f1b2a1d0ca22"
         response = mock_response(200, content)
 
-        with self.patch_hook_and_request_adapter(response):
+        with patch_hook_and_request_adapter(response):
             operator = MSGraphAsyncOperator(
                 task_id="drive_item_content",
                 conn_id="msgraph_api",

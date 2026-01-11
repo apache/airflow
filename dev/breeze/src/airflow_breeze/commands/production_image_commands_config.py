@@ -57,6 +57,7 @@ PRODUCTION_IMAGE_TOOLS_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] =
                 "--commit-sha",
                 "--debian-version",
                 "--python-image",
+                "--skip-asset-compiled-check",
                 "--use-uv",
                 "--uv-http-timeout",
             ],

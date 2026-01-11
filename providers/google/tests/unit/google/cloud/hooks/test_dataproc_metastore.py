@@ -309,7 +309,7 @@ class TestDataprocMetastoreWithDefaultProjectIdHook:
         )
 
     @pytest.mark.parametrize(
-        "partitions_input, partitions",
+        ("partitions_input", "partitions"),
         [
             ([TEST_PARTITION_NAME], f"'{TEST_PARTITION_NAME}'"),
             ([TEST_SUBPARTITION_NAME], f"'{TEST_SUBPARTITION_NAME}'"),
@@ -576,7 +576,7 @@ class TestDataprocMetastoreWithoutDefaultProjectIdHook:
         )
 
     @pytest.mark.parametrize(
-        "partitions_input, partitions",
+        ("partitions_input", "partitions"),
         [
             ([TEST_PARTITION_NAME], f"'{TEST_PARTITION_NAME}'"),
             ([TEST_SUBPARTITION_NAME], f"'{TEST_SUBPARTITION_NAME}'"),

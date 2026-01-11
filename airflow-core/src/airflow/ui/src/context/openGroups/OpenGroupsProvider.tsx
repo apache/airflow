@@ -16,7 +16,8 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { useCallback, useMemo, useEffect, type PropsWithChildren } from "react";
+import { useEffect, useRef, type PropsWithChildren } from "react";
+import { useDebouncedCallback } from "use-debounce";
 import { useLocalStorage } from "usehooks-ts";
 
 import { useStructureServiceStructureData } from "openapi/queries";
@@ -34,6 +35,13 @@ export const OpenGroupsProvider = ({ children, dagId }: Props) => {
   const allGroupsKey = `${dagId}/all-groups`;
   const [openGroupIds, setOpenGroupIds] = useLocalStorage<Array<string>>(openGroupsKey, []);
   const [allGroupIds, setAllGroupIds] = useLocalStorage<Array<string>>(allGroupsKey, []);
+
+  // use a ref to track the current allGroupIds without causing re-renders
+  const allGroupIdsRef = useRef(allGroupIds);
+
+  useEffect(() => {
+    allGroupIdsRef.current = allGroupIds;
+  }, [allGroupIds]);
 
   // For Graph view support: dependencies + selected version
   const selectedVersion = useSelectedVersion();
@@ -54,26 +62,38 @@ export const OpenGroupsProvider = ({ children, dagId }: Props) => {
   useEffect(() => {
     const observedGroupIds = flattenGraphNodes(structure.nodes).allGroupIds;
 
-    if (JSON.stringify(observedGroupIds) !== JSON.stringify(allGroupIds)) {
+    if (JSON.stringify(observedGroupIds) !== JSON.stringify(allGroupIdsRef.current)) {
       setAllGroupIds(observedGroupIds);
     }
-  }, [structure.nodes, allGroupIds, setAllGroupIds]);
+  }, [structure.nodes, setAllGroupIds]);
 
-  const toggleGroupId = useCallback(
-    (groupId: string) => {
-      if (openGroupIds.includes(groupId)) {
-        setOpenGroupIds(openGroupIds.filter((id) => id !== groupId));
-      } else {
-        setOpenGroupIds([...openGroupIds, groupId]);
-      }
+  const debouncedSetOpenGroupIds = useDebouncedCallback(
+    (newGroupIds: Array<string>) => {
+      setOpenGroupIds(newGroupIds);
     },
-    [openGroupIds, setOpenGroupIds],
+    100, // 100ms debounce for batch operations
   );
 
-  const value = useMemo<OpenGroupsContextType>(
-    () => ({ allGroupIds, openGroupIds, setAllGroupIds, setOpenGroupIds, toggleGroupId }),
-    [allGroupIds, openGroupIds, setAllGroupIds, setOpenGroupIds, toggleGroupId],
-  );
+  const toggleGroupId = (groupId: string) => {
+    if (openGroupIds.includes(groupId)) {
+      debouncedSetOpenGroupIds(openGroupIds.filter((id) => id !== groupId));
+    } else {
+      debouncedSetOpenGroupIds([...openGroupIds, groupId]);
+    }
+  };
+
+  const setOpenGroupIdsImmediate = (newGroupIds: Array<string>) => {
+    debouncedSetOpenGroupIds.cancel();
+    setOpenGroupIds(newGroupIds);
+  };
+
+  const value: OpenGroupsContextType = {
+    allGroupIds,
+    openGroupIds,
+    setAllGroupIds,
+    setOpenGroupIds: setOpenGroupIdsImmediate,
+    toggleGroupId,
+  };
 
   return <OpenGroupsContext.Provider value={value}>{children}</OpenGroupsContext.Provider>;
 };

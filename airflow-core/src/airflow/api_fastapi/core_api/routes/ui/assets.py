@@ -18,7 +18,7 @@
 from __future__ import annotations
 
 from fastapi import Depends, HTTPException, status
-from sqlalchemy import and_, func, select
+from sqlalchemy import and_, case, func, select, true
 
 from airflow.api_fastapi.common.dagbag import DagBagDep
 from airflow.api_fastapi.common.db.common import SessionDep
@@ -45,41 +45,50 @@ def next_run_assets(
 
     latest_run = dag_model.get_last_dagrun(session=session)
 
-    events = [
-        dict(info._mapping)
-        for info in session.execute(
-            select(
-                AssetModel.id,
-                AssetModel.uri,
-                AssetModel.name,
-                func.max(AssetEvent.timestamp).label("lastUpdate"),
-            )
-            .join(DagScheduleAssetReference, DagScheduleAssetReference.asset_id == AssetModel.id)
-            .join(
-                AssetDagRunQueue,
-                and_(
-                    AssetDagRunQueue.asset_id == AssetModel.id,
-                    AssetDagRunQueue.target_dag_id == DagScheduleAssetReference.dag_id,
-                ),
-                isouter=True,
-            )
-            .join(
-                AssetEvent,
-                and_(
-                    AssetEvent.asset_id == AssetModel.id,
-                    (
-                        AssetEvent.timestamp >= latest_run.logical_date
-                        if latest_run and latest_run.logical_date
-                        else True
-                    ),
-                ),
-                isouter=True,
-            )
-            .where(DagScheduleAssetReference.dag_id == dag_id, AssetModel.active.has())
-            .group_by(AssetModel.id, AssetModel.uri, AssetModel.name)
-            .order_by(AssetModel.uri)
+    if latest_run and latest_run.logical_date:
+        on_clause = AssetEvent.timestamp >= latest_run.logical_date
+    else:
+        on_clause = true()
+
+    query_result = session.execute(
+        select(
+            AssetModel.id,
+            AssetModel.uri,
+            AssetModel.name,
+            func.max(AssetEvent.timestamp).label("lastUpdate"),
+            func.max(
+                case(
+                    (AssetDagRunQueue.asset_id.is_not(None), 1),
+                    else_=0,
+                )
+            ).label("queued"),
         )
-    ]
+        .join(DagScheduleAssetReference, DagScheduleAssetReference.asset_id == AssetModel.id)
+        .join(
+            AssetDagRunQueue,
+            and_(
+                AssetDagRunQueue.asset_id == AssetModel.id,
+                AssetDagRunQueue.target_dag_id == DagScheduleAssetReference.dag_id,
+            ),
+            isouter=True,
+        )
+        .join(
+            AssetEvent,
+            and_(
+                AssetEvent.asset_id == AssetModel.id,
+                on_clause,
+            ),
+            isouter=True,
+        )
+        .where(DagScheduleAssetReference.dag_id == dag_id, AssetModel.active.has())
+        .group_by(AssetModel.id, AssetModel.uri, AssetModel.name)
+        .order_by(AssetModel.uri)
+    )
+    events = [dict(info._mapping) for info in query_result]
+
+    for event in events:
+        if not event.pop("queued", None):
+            event["lastUpdate"] = None
 
     data = {"asset_expression": dag_model.asset_expression, "events": events}
     return data

@@ -15,10 +15,11 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+
 from __future__ import annotations
 
 from collections.abc import Iterator
-from typing import TYPE_CHECKING, TypeAlias, cast
+from typing import TYPE_CHECKING
 
 from sqlalchemy import select
 
@@ -28,13 +29,9 @@ from airflow.utils.state import State, TaskInstanceState
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
 
-    from airflow.models.mappedoperator import MappedOperator
     from airflow.models.taskinstance import TaskInstance
-    from airflow.serialization.serialized_objects import SerializedBaseOperator
     from airflow.ti_deps.dep_context import DepContext
     from airflow.ti_deps.deps.base_ti_dep import TIDepStatus
-
-    Operator: TypeAlias = MappedOperator | SerializedBaseOperator
 
 
 class MappedTaskUpstreamDep(BaseTIDep):
@@ -55,17 +52,15 @@ class MappedTaskUpstreamDep(BaseTIDep):
         session: Session,
         dep_context: DepContext,
     ) -> Iterator[TIDepStatus]:
-        from airflow.models.mappedoperator import is_mapped
         from airflow.models.taskinstance import TaskInstance
+        from airflow.serialization.definitions.mappedoperator import is_mapped
 
         if ti.task is None:
             return
         elif is_mapped(ti.task):
             mapped_dependencies = ti.task.iter_mapped_dependencies()
         elif (task_group := ti.task.get_closest_mapped_task_group()) is not None:
-            # TODO (GH-52141): Task group in scheduler needs to return scheduler
-            # types instead, but currently the scheduler uses SDK's TaskGroup.
-            mapped_dependencies = cast("Iterator[Operator]", task_group.iter_mapped_dependencies())
+            mapped_dependencies = task_group.iter_mapped_dependencies()
         else:
             return
 

@@ -23,9 +23,9 @@ from unittest import mock
 
 import pytest
 
-from airflow.exceptions import AirflowSensorTimeout
 from airflow.models.dag import DAG
 from airflow.providers.apache.hive.sensors.named_hive_partition import NamedHivePartitionSensor
+from airflow.providers.common.compat.sdk import AirflowSensorTimeout
 from airflow.utils.timezone import datetime
 
 from unit.apache.hive import MockHiveMetastoreHook, TestHiveEnvironment
@@ -72,7 +72,7 @@ class TestNamedHivePartitionSensor:
 
     def test_parse_partition_name_incorrect(self):
         name = "incorrect.name"
-        with pytest.raises(ValueError):
+        with pytest.raises(ValueError, match="Could not parse incorrect.nameinto table, partition"):
             NamedHivePartitionSensor.parse_partition_name(name)
 
     def test_parse_partition_name_default(self):

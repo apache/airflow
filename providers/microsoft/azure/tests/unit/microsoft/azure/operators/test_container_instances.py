@@ -32,14 +32,10 @@ from azure.mgmt.containerinstance.models import (
     Event,
 )
 
-from airflow.exceptions import AirflowException
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.microsoft.azure.operators.container_instances import AzureContainerInstancesOperator
 
-try:
-    from airflow.sdk.definitions.context import Context
-except ImportError:
-    # TODO: Remove once provider drops support for Airflow 2
-    from airflow.utils.context import Context
+from tests_common.test_utils.compat import Context
 
 
 def make_mock_cg(container_state, events=None):
@@ -585,6 +581,66 @@ class TestACIOperator:
         assert called_cg_container.image == "container-image"
 
         assert aci_mock.return_value.delete.call_count == 1
+
+    @mock.patch("airflow.providers.microsoft.azure.operators.container_instances.AzureContainerInstanceHook")
+    def test_execute_with_identity(self, aci_mock):
+        identity = MagicMock()
+
+        aci_mock.return_value.get_state.return_value = make_mock_container(
+            state="Terminated", exit_code=0, detail_status="test"
+        )
+        aci_mock.return_value.exists.return_value = False
+
+        aci = AzureContainerInstancesOperator(
+            ci_conn_id=None,
+            registry_conn_id=None,
+            resource_group="resource-group",
+            name="container-name",
+            image="container-image",
+            region="region",
+            task_id="task",
+            identity=identity,
+        )
+        aci.execute(None)
+        assert aci_mock.return_value.create_or_update.call_count == 1
+        (_, _, called_cg), _ = aci_mock.return_value.create_or_update.call_args
+
+        assert called_cg.identity == identity
+
+    @mock.patch("airflow.providers.microsoft.azure.operators.container_instances.AzureContainerInstanceHook")
+    def test_execute_with_identity_dict(self, aci_mock):
+        # New test: pass a dict and verify operator converts it to ContainerGroupIdentity
+        resource_id = "/subscriptions/00000000-0000-0000-0000-00000000000/resourceGroups/my_rg/providers/Microsoft.ManagedIdentity/userAssignedIdentities/my_identity"
+        identity_dict = {
+            "type": "UserAssigned",
+            "resource_ids": [resource_id],
+        }
+
+        aci_mock.return_value.get_state.return_value = make_mock_container(
+            state="Terminated", exit_code=0, detail_status="test"
+        )
+
+        aci_mock.return_value.exists.return_value = False
+
+        aci = AzureContainerInstancesOperator(
+            ci_conn_id=None,
+            registry_conn_id=None,
+            resource_group="resource-group",
+            name="container-name",
+            image="container-image",
+            region="region",
+            task_id="task",
+            identity=identity_dict,
+        )
+        aci.execute(None)
+        assert aci_mock.return_value.create_or_update.call_count == 1
+        (_, _, called_cg), _ = aci_mock.return_value.create_or_update.call_args
+
+        # verify the operator converted dict -> ContainerGroupIdentity with proper mapping
+        assert hasattr(called_cg, "identity")
+        assert called_cg.identity is not None
+        # user_assigned_identities should contain the resource id as a key
+        assert resource_id in (called_cg.identity.user_assigned_identities or {})
 
 
 class XcomMock:

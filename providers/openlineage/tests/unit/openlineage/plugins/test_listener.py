@@ -34,6 +34,7 @@ from openlineage.client.transport.console import ConsoleConfig
 from uuid6 import uuid7
 
 from airflow.models import DAG, DagRun, TaskInstance
+from airflow.providers.common.compat.sdk import BaseOperator
 from airflow.providers.openlineage.extractors.base import OperatorLineage
 from airflow.providers.openlineage.plugins.adapter import OpenLineageAdapter
 from airflow.providers.openlineage.plugins.listener import OpenLineageListener
@@ -43,18 +44,15 @@ from airflow.utils.state import DagRunState, State
 
 from tests_common.test_utils.compat import EmptyOperator, PythonOperator
 from tests_common.test_utils.config import conf_vars
+from tests_common.test_utils.dag import create_scheduler_dag
 from tests_common.test_utils.db import clear_db_runs
-from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V_3_1_PLUS
+from tests_common.test_utils.taskinstance import create_task_instance
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V_3_1_PLUS, AIRFLOW_V_3_2_PLUS
 
 if AIRFLOW_V_3_1_PLUS:
     from airflow._shared.timezones import timezone
 else:
     from airflow.utils import timezone  # type: ignore[attr-defined,no-redef]
-
-if AIRFLOW_V_3_0_PLUS:
-    from airflow.sdk import BaseOperator
-else:
-    from airflow.models.baseoperator import BaseOperator  # type: ignore[no-redef]
 
 EXPECTED_TRY_NUMBER_1 = 1
 
@@ -199,26 +197,18 @@ class TestOpenLineageListenerAirflow2:
         )
         t = PythonOperator(task_id=f"test_task_{scenario_name}", dag=dag, python_callable=python_callable)
         run_id = str(uuid.uuid1())
-        dagrun = dag.create_dagrun(
+        dagrun = create_scheduler_dag(dag).create_dagrun(
             run_id=run_id,
             data_interval=(date, date),
             run_type=types.DagRunType.MANUAL,
             state=DagRunState.RUNNING,
             execution_date=date,  # type: ignore
         )
-        if AIRFLOW_V_3_1_PLUS:
-            from airflow.serialization.serialized_objects import create_scheduler_operator
-
-            task_instance = TaskInstance(
-                create_scheduler_operator(t),
+        if AIRFLOW_V_3_0_PLUS:
+            task_instance = create_task_instance(
+                t,
                 run_id=run_id,
-                dag_version_id=dagrun.created_dag_version_id,
-            )
-        elif AIRFLOW_V_3_0_PLUS:
-            task_instance = TaskInstance(
-                t,  # type: ignore[arg-type]
-                run_id=run_id,
-                dag_version_id=dagrun.created_dag_version_id,
+                dag_version_id=uuid.UUID(dagrun.created_dag_version_id),
             )
         else:
             task_instance = TaskInstance(t, run_id=run_id)  # type: ignore
@@ -259,7 +249,14 @@ class TestOpenLineageListenerAirflow2:
         adapter.fail_task = mock.Mock()
         adapter.complete_task = mock.Mock()
         listener.adapter = adapter
-        if AIRFLOW_V_3_0_PLUS:
+        if AIRFLOW_V_3_2_PLUS:
+            from airflow.serialization.definitions.baseoperator import SerializedBaseOperator
+
+            task_instance = TaskInstance(
+                task=SerializedBaseOperator(task_id="task_id_from_task_and_not_ti"),
+                dag_version_id=mock.MagicMock(),
+            )
+        elif AIRFLOW_V_3_0_PLUS:
             task_instance = TaskInstance(task=mock.Mock(), dag_version_id=mock.MagicMock())
         else:
             task_instance = TaskInstance(task=mock.Mock())  # type: ignore
@@ -313,8 +310,8 @@ class TestOpenLineageListenerAirflow2:
     )
     def test_adapter_start_task_is_called_with_proper_arguments(
         self,
-        mock_get_airflow_mapped_task_facet,
         mock_get_user_provided_run_facets,
+        mock_get_airflow_mapped_task_facet,
         mock_get_airflow_run_facet,
         mock_get_task_parent_run_facet,
         mock_disabled,
@@ -331,7 +328,7 @@ class TestOpenLineageListenerAirflow2:
 
         listener, task_instance = self._create_listener_and_task_instance()
         mock_get_airflow_mapped_task_facet.return_value = {"mapped_facet": 1}
-        mock_get_user_provided_run_facets.return_value = {"custom_user_facet": 2}
+        mock_get_user_provided_run_facets.return_value = {"custom_user_facet": 2, "parent": 99}
         mock_get_airflow_run_facet.return_value = {"airflow_run_facet": 3}
         mock_get_task_parent_run_facet.return_value = {"parent": 4}
         mock_debug_facet.return_value = {"debug": "packages"}
@@ -370,8 +367,8 @@ class TestOpenLineageListenerAirflow2:
     )
     def test_adapter_start_task_is_called_with_dag_owners_when_task_owner_is_default(
         self,
-        mock_get_airflow_mapped_task_facet,
         mock_get_user_provided_run_facets,
+        mock_get_airflow_mapped_task_facet,
         mock_get_airflow_run_facet,
         mock_get_task_parent_run_facet,
         mock_disabled,
@@ -380,7 +377,7 @@ class TestOpenLineageListenerAirflow2:
     ):
         listener, task_instance = self._create_listener_and_task_instance()
         mock_get_airflow_mapped_task_facet.return_value = {"mapped_facet": 1}
-        mock_get_user_provided_run_facets.return_value = {"custom_user_facet": 2}
+        mock_get_user_provided_run_facets.return_value = {"custom_user_facet": 2, "parent": 99}
         mock_get_airflow_run_facet.return_value = {"airflow_run_facet": 3}
         mock_get_task_parent_run_facet.return_value = {"parent": 4}
         mock_debug_facet.return_value = {"debug": "packages"}
@@ -404,8 +401,8 @@ class TestOpenLineageListenerAirflow2:
     def test_adapter_start_task_is_called_with_dag_description_when_task_doc_is_empty(
         self,
         mock_get_job_name,
-        mock_get_airflow_mapped_task_facet,
         mock_get_user_provided_run_facets,
+        mock_get_airflow_mapped_task_facet,
         mock_get_airflow_run_facet,
         mock_get_task_parent_run_facet,
         mock_disabled,
@@ -415,7 +412,7 @@ class TestOpenLineageListenerAirflow2:
         listener, task_instance = self._create_listener_and_task_instance()
         mock_get_job_name.return_value = "job_name"
         mock_get_airflow_mapped_task_facet.return_value = {"mapped_facet": 1}
-        mock_get_user_provided_run_facets.return_value = {"custom_user_facet": 2}
+        mock_get_user_provided_run_facets.return_value = {"custom_user_facet": 2, "parent": 99}
         mock_get_airflow_run_facet.return_value = {"airflow_run_facet": 3}
         mock_get_task_parent_run_facet.return_value = {"parent": 4}
         mock_debug_facet.return_value = {"debug": "packages"}
@@ -456,7 +453,7 @@ class TestOpenLineageListenerAirflow2:
 
         listener, task_instance = self._create_listener_and_task_instance()
         task_instance.logical_date = timezone.datetime(2020, 1, 1, 1, 1, 1)
-        mock_get_user_provided_run_facets.return_value = {"custom_user_facet": 2}
+        mock_get_user_provided_run_facets.return_value = {"custom_user_facet": 2, "parent": 99}
         mock_get_airflow_run_facet.return_value = {"airflow": {"task": "..."}}
         mock_get_task_parent_run_facet.return_value = {"parent": 4}
         mock_debug_facet.return_value = {"debug": "packages"}
@@ -498,8 +495,8 @@ class TestOpenLineageListenerAirflow2:
     )
     def test_adapter_fail_task_is_called_with_dag_owners_when_task_owner_is_default(
         self,
-        mock_get_airflow_mapped_task_facet,
         mock_get_user_provided_run_facets,
+        mock_get_airflow_mapped_task_facet,
         mock_get_airflow_run_facet,
         mock_get_task_parent_run_facet,
         mock_disabled,
@@ -508,7 +505,7 @@ class TestOpenLineageListenerAirflow2:
     ):
         listener, task_instance = self._create_listener_and_task_instance()
         mock_get_airflow_mapped_task_facet.return_value = {"mapped_facet": 1}
-        mock_get_user_provided_run_facets.return_value = {"custom_user_facet": 2}
+        mock_get_user_provided_run_facets.return_value = {"custom_user_facet": 2, "parent": 99}
         mock_get_airflow_run_facet.return_value = {"airflow_run_facet": 3}
         mock_get_task_parent_run_facet.return_value = {"parent": 4}
         mock_debug_facet.return_value = {"debug": "packages"}
@@ -533,8 +530,8 @@ class TestOpenLineageListenerAirflow2:
     )
     def test_adapter_fail_task_is_called_with_dag_description_when_task_doc_is_empty(
         self,
-        mock_get_airflow_mapped_task_facet,
         mock_get_user_provided_run_facets,
+        mock_get_airflow_mapped_task_facet,
         mock_get_airflow_run_facet,
         mock_get_task_parent_run_facet,
         mock_disabled,
@@ -543,7 +540,7 @@ class TestOpenLineageListenerAirflow2:
     ):
         listener, task_instance = self._create_listener_and_task_instance()
         mock_get_airflow_mapped_task_facet.return_value = {"mapped_facet": 1}
-        mock_get_user_provided_run_facets.return_value = {"custom_user_facet": 2}
+        mock_get_user_provided_run_facets.return_value = {"custom_user_facet": 2, "parent": 99}
         mock_get_airflow_run_facet.return_value = {"airflow_run_facet": 3}
         mock_get_task_parent_run_facet.return_value = {"parent": 4}
         mock_debug_facet.return_value = {"debug": "packages"}
@@ -587,7 +584,7 @@ class TestOpenLineageListenerAirflow2:
         time_machine.move_to(timezone.datetime(2023, 1, 3, 13, 1, 1))
 
         listener, task_instance = self._create_listener_and_task_instance()
-        mock_get_user_provided_run_facets.return_value = {"custom_user_facet": 2}
+        mock_get_user_provided_run_facets.return_value = {"custom_user_facet": 2, "parent": 99}
         mock_get_airflow_run_facet.return_value = {"airflow": {"task": "..."}}
         mock_get_task_parent_run_facet.return_value = {"parent": 4}
         mock_debug_facet.return_value = {"debug": "packages"}
@@ -629,8 +626,8 @@ class TestOpenLineageListenerAirflow2:
     )
     def test_adapter_complete_task_is_called_with_dag_owners_when_task_owner_is_default(
         self,
-        mock_get_airflow_mapped_task_facet,
         mock_get_user_provided_run_facets,
+        mock_get_airflow_mapped_task_facet,
         mock_get_airflow_run_facet,
         mock_get_task_parent_run_facet,
         mock_disabled,
@@ -639,7 +636,7 @@ class TestOpenLineageListenerAirflow2:
     ):
         listener, task_instance = self._create_listener_and_task_instance()
         mock_get_airflow_mapped_task_facet.return_value = {"mapped_facet": 1}
-        mock_get_user_provided_run_facets.return_value = {"custom_user_facet": 2}
+        mock_get_user_provided_run_facets.return_value = {"custom_user_facet": 2, "parent": 99}
         mock_get_airflow_run_facet.return_value = {"airflow_run_facet": 3}
         mock_get_task_parent_run_facet.return_value = {"parent": 4}
         mock_debug_facet.return_value = {"debug": "packages"}
@@ -661,8 +658,8 @@ class TestOpenLineageListenerAirflow2:
     )
     def test_adapter_complete_task_is_called_with_dag_description_when_task_doc_is_empty(
         self,
-        mock_get_airflow_mapped_task_facet,
         mock_get_user_provided_run_facets,
+        mock_get_airflow_mapped_task_facet,
         mock_get_airflow_run_facet,
         mock_get_task_parent_run_facet,
         mock_disabled,
@@ -671,7 +668,7 @@ class TestOpenLineageListenerAirflow2:
     ):
         listener, task_instance = self._create_listener_and_task_instance()
         mock_get_airflow_mapped_task_facet.return_value = {"mapped_facet": 1}
-        mock_get_user_provided_run_facets.return_value = {"custom_user_facet": 2}
+        mock_get_user_provided_run_facets.return_value = {"custom_user_facet": 2, "parent": 99}
         mock_get_airflow_run_facet.return_value = {"airflow_run_facet": 3}
         mock_get_task_parent_run_facet.return_value = {"parent": 4}
         mock_debug_facet.return_value = {"debug": "packages"}
@@ -860,7 +857,7 @@ class TestOpenLineageListenerAirflow2:
         listener.adapter.complete_task.assert_not_called()
 
     @pytest.mark.parametrize(
-        "max_workers,expected",
+        ("max_workers", "expected"),
         [
             (None, 1),
             ("8", 8),
@@ -1059,7 +1056,7 @@ class TestOpenLineageListenerAirflow3:
             "triggered_by": types.DagRunTriggeredByType.TEST,
         }
 
-        dagrun = dag.create_dagrun(
+        dagrun = create_scheduler_dag(dag).create_dagrun(
             run_id=run_id,
             data_interval=(date, date),
             start_date=date,
@@ -1091,7 +1088,15 @@ class TestOpenLineageListenerAirflow3:
 
         if not runtime_ti:
             # TaskInstance is used when on API server (when listener gets called about manual state change)
-            task_instance = TaskInstance(task=MagicMock(), dag_version_id=uuid7())
+            if AIRFLOW_V_3_2_PLUS:
+                from airflow.serialization.definitions.baseoperator import SerializedBaseOperator
+
+                task_instance = TaskInstance(
+                    task=SerializedBaseOperator(task_id="task_id"),
+                    dag_version_id=uuid7(),
+                )
+            else:
+                task_instance = TaskInstance(task=MagicMock(), dag_version_id=uuid7())
             task_instance.dag_run = DagRun()
             task_instance.dag_run.dag_id = "dag_id_from_dagrun_and_not_ti"
             task_instance.dag_run.run_id = "dag_run_run_id"
@@ -1197,8 +1202,8 @@ class TestOpenLineageListenerAirflow3:
     )
     def test_adapter_start_task_is_called_with_proper_arguments(
         self,
-        mock_get_airflow_mapped_task_facet,
         mock_get_user_provided_run_facets,
+        mock_get_airflow_mapped_task_facet,
         mock_get_airflow_run_facet,
         mock_get_task_parent_run_facet,
         mock_disabled,
@@ -1216,7 +1221,7 @@ class TestOpenLineageListenerAirflow3:
         listener, task_instance = self._create_listener_and_task_instance()
 
         mock_get_airflow_mapped_task_facet.return_value = {"mapped_facet": 1}
-        mock_get_user_provided_run_facets.return_value = {"custom_user_facet": 2}
+        mock_get_user_provided_run_facets.return_value = {"custom_user_facet": 2, "parent": 99}
         mock_get_airflow_run_facet.return_value = {"airflow_run_facet": 3}
         mock_get_task_parent_run_facet.return_value = {"parent": 4}
         mock_debug_facet.return_value = {"debug": "packages"}
@@ -1255,8 +1260,8 @@ class TestOpenLineageListenerAirflow3:
     )
     def test_adapter_start_task_is_called_with_dag_owners_when_task_owner_is_default(
         self,
-        mock_get_airflow_mapped_task_facet,
         mock_get_user_provided_run_facets,
+        mock_get_airflow_mapped_task_facet,
         mock_get_airflow_run_facet,
         mock_get_task_parent_run_facet,
         mock_disabled,
@@ -1265,7 +1270,7 @@ class TestOpenLineageListenerAirflow3:
     ):
         listener, task_instance = self._create_listener_and_task_instance()
         mock_get_airflow_mapped_task_facet.return_value = {"mapped_facet": 1}
-        mock_get_user_provided_run_facets.return_value = {"custom_user_facet": 2}
+        mock_get_user_provided_run_facets.return_value = {"custom_user_facet": 2, "parent": 99}
         mock_get_airflow_run_facet.return_value = {"airflow_run_facet": 3}
         mock_get_task_parent_run_facet.return_value = {"parent": 4}
         mock_debug_facet.return_value = {"debug": "packages"}
@@ -1290,8 +1295,8 @@ class TestOpenLineageListenerAirflow3:
     def test_adapter_start_task_is_called_with_dag_description_when_task_doc_is_empty(
         self,
         mock_get_job_name,
-        mock_get_airflow_mapped_task_facet,
         mock_get_user_provided_run_facets,
+        mock_get_airflow_mapped_task_facet,
         mock_get_airflow_run_facet,
         mock_get_task_parent_run_facet,
         mock_disabled,
@@ -1301,7 +1306,7 @@ class TestOpenLineageListenerAirflow3:
         listener, task_instance = self._create_listener_and_task_instance()
         mock_get_job_name.return_value = "job_name"
         mock_get_airflow_mapped_task_facet.return_value = {"mapped_facet": 1}
-        mock_get_user_provided_run_facets.return_value = {"custom_user_facet": 2}
+        mock_get_user_provided_run_facets.return_value = {"custom_user_facet": 2, "parent": 99}
         mock_get_airflow_run_facet.return_value = {"airflow_run_facet": 3}
         mock_get_task_parent_run_facet.return_value = {"parent": 4}
         mock_debug_facet.return_value = {"debug": "packages"}
@@ -1342,7 +1347,7 @@ class TestOpenLineageListenerAirflow3:
 
         listener, task_instance = self._create_listener_and_task_instance()
         task_instance.get_template_context()["dag_run"].logical_date = timezone.datetime(2020, 1, 1, 1, 1, 1)
-        mock_get_user_provided_run_facets.return_value = {"custom_user_facet": 2}
+        mock_get_user_provided_run_facets.return_value = {"custom_user_facet": 2, "parent": 99}
         mock_get_airflow_run_facet.return_value = {"airflow": {"task": "..."}}
         mock_get_task_parent_run_facet.return_value = {"parent": 4}
         mock_debug_facet.return_value = {"debug": "packages"}
@@ -1382,8 +1387,8 @@ class TestOpenLineageListenerAirflow3:
     )
     def test_adapter_fail_task_is_called_with_dag_owners_when_task_owner_is_default(
         self,
-        mock_get_airflow_mapped_task_facet,
         mock_get_user_provided_run_facets,
+        mock_get_airflow_mapped_task_facet,
         mock_get_airflow_run_facet,
         mock_get_task_parent_run_facet,
         mock_disabled,
@@ -1392,7 +1397,7 @@ class TestOpenLineageListenerAirflow3:
     ):
         listener, task_instance = self._create_listener_and_task_instance()
         mock_get_airflow_mapped_task_facet.return_value = {"mapped_facet": 1}
-        mock_get_user_provided_run_facets.return_value = {"custom_user_facet": 2}
+        mock_get_user_provided_run_facets.return_value = {"custom_user_facet": 2, "parent": 99}
         mock_get_airflow_run_facet.return_value = {"airflow_run_facet": 3}
         mock_get_task_parent_run_facet.return_value = {"parent": 4}
         mock_debug_facet.return_value = {"debug": "packages"}
@@ -1417,8 +1422,8 @@ class TestOpenLineageListenerAirflow3:
     )
     def test_adapter_fail_task_is_called_with_dag_description_when_task_doc_is_empty(
         self,
-        mock_get_airflow_mapped_task_facet,
         mock_get_user_provided_run_facets,
+        mock_get_airflow_mapped_task_facet,
         mock_get_airflow_run_facet,
         mock_get_task_parent_run_facet,
         mock_disabled,
@@ -1427,7 +1432,7 @@ class TestOpenLineageListenerAirflow3:
     ):
         listener, task_instance = self._create_listener_and_task_instance()
         mock_get_airflow_mapped_task_facet.return_value = {"mapped_facet": 1}
-        mock_get_user_provided_run_facets.return_value = {"custom_user_facet": 2}
+        mock_get_user_provided_run_facets.return_value = {"custom_user_facet": 2, "parent": 99}
         mock_get_airflow_run_facet.return_value = {"airflow_run_facet": 3}
         mock_get_task_parent_run_facet.return_value = {"parent": 4}
         mock_debug_facet.return_value = {"debug": "packages"}
@@ -1469,7 +1474,9 @@ class TestOpenLineageListenerAirflow3:
 
         listener.on_task_instance_failed(previous_state=None, task_instance=task_instance, error=err)
         mock_get_task_parent_run_facet.assert_called_once_with(
-            parent_run_id="2020-01-01T01:01:01+00:00.dag_id.0", parent_job_name=task_instance.dag_id
+            parent_run_id="2020-01-01T01:01:01+00:00.dag_id.0",
+            parent_job_name=task_instance.dag_id,
+            dr_conf={},
         )
         expected_args = dict(
             end_time="2023-01-03T13:01:01+00:00",
@@ -1525,7 +1532,7 @@ class TestOpenLineageListenerAirflow3:
         time_machine.move_to(timezone.datetime(2023, 1, 3, 13, 1, 1), tick=False)
 
         listener, task_instance = self._create_listener_and_task_instance()
-        mock_get_user_provided_run_facets.return_value = {"custom_user_facet": 2}
+        mock_get_user_provided_run_facets.return_value = {"custom_user_facet": 2, "parent": 99}
         mock_get_airflow_run_facet.return_value = {"airflow": {"task": "..."}}
         mock_get_task_parent_run_facet.return_value = {"parent": 4}
         mock_debug_facet.return_value = {"debug": "packages"}
@@ -1565,8 +1572,8 @@ class TestOpenLineageListenerAirflow3:
     )
     def test_adapter_complete_task_is_called_with_dag_owners_when_task_owner_is_default(
         self,
-        mock_get_airflow_mapped_task_facet,
         mock_get_user_provided_run_facets,
+        mock_get_airflow_mapped_task_facet,
         mock_get_airflow_run_facet,
         mock_get_task_parent_run_facet,
         mock_disabled,
@@ -1575,7 +1582,7 @@ class TestOpenLineageListenerAirflow3:
     ):
         listener, task_instance = self._create_listener_and_task_instance()
         mock_get_airflow_mapped_task_facet.return_value = {"mapped_facet": 1}
-        mock_get_user_provided_run_facets.return_value = {"custom_user_facet": 2}
+        mock_get_user_provided_run_facets.return_value = {"custom_user_facet": 2, "parent": 99}
         mock_get_airflow_run_facet.return_value = {"airflow_run_facet": 3}
         mock_get_task_parent_run_facet.return_value = {"parent": 4}
         mock_debug_facet.return_value = {"debug": "packages"}
@@ -1599,8 +1606,8 @@ class TestOpenLineageListenerAirflow3:
     )
     def test_adapter_complete_task_is_called_with_dag_description_when_task_doc_is_empty(
         self,
-        mock_get_airflow_mapped_task_facet,
         mock_get_user_provided_run_facets,
+        mock_get_airflow_mapped_task_facet,
         mock_get_airflow_run_facet,
         mock_get_task_parent_run_facet,
         mock_disabled,
@@ -1609,7 +1616,7 @@ class TestOpenLineageListenerAirflow3:
     ):
         listener, task_instance = self._create_listener_and_task_instance()
         mock_get_airflow_mapped_task_facet.return_value = {"mapped_facet": 1}
-        mock_get_user_provided_run_facets.return_value = {"custom_user_facet": 2}
+        mock_get_user_provided_run_facets.return_value = {"custom_user_facet": 2, "parent": 99}
         mock_get_airflow_run_facet.return_value = {"airflow_run_facet": 3}
         mock_get_task_parent_run_facet.return_value = {"parent": 4}
         mock_debug_facet.return_value = {"debug": "packages"}
@@ -1645,7 +1652,9 @@ class TestOpenLineageListenerAirflow3:
         calls = listener.adapter.complete_task.call_args_list
         assert len(calls) == 1
         mock_get_task_parent_run_facet.assert_called_once_with(
-            parent_run_id="2020-01-01T01:01:01+00:00.dag_id.0", parent_job_name=task_instance.dag_id
+            parent_run_id="2020-01-01T01:01:01+00:00.dag_id.0",
+            parent_job_name=task_instance.dag_id,
+            dr_conf={},
         )
         expected_args = dict(
             end_time="2023-01-03T13:01:01+00:00",
@@ -1789,7 +1798,7 @@ class TestOpenLineageListenerAirflow3:
         listener.adapter.complete_task.assert_not_called()
 
     @pytest.mark.parametrize(
-        "max_workers,expected",
+        ("max_workers", "expected"),
         [
             (None, 1),
             ("8", 8),
@@ -1899,7 +1908,7 @@ class TestOpenLineageSelectiveEnableAirflow2:
         clear_db_runs()
 
     @pytest.mark.parametrize(
-        "selective_enable, enable_dag, expected_call_count",
+        ("selective_enable", "enable_dag", "expected_call_count"),
         [
             ("True", True, 3),
             ("False", True, 3),
@@ -1923,7 +1932,7 @@ class TestOpenLineageSelectiveEnableAirflow2:
             listener.on_dag_run_success(self.dagrun, msg="test success")
 
     @pytest.mark.parametrize(
-        "selective_enable, enable_task, expected_dag_call_count, expected_task_call_count",
+        ("selective_enable", "enable_task", "expected_dag_call_count", "expected_task_call_count"),
         [
             ("True", True, 3, 3),
             ("False", True, 3, 3),
@@ -1980,7 +1989,7 @@ class TestOpenLineageSelectiveEnableAirflow2:
             assert expected_task_call_count == listener.extractor_manager.extract_metadata.call_count
 
     @pytest.mark.parametrize(
-        "selective_enable, enable_task, expected_call_count, expected_task_call_count",
+        ("selective_enable", "enable_task", "expected_call_count", "expected_task_call_count"),
         [
             ("True", True, 3, 3),
             ("False", True, 3, 3),

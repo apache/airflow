@@ -103,7 +103,7 @@ the value and make it available in the remote session as a
 type. This ensures for example that the value is not accidentally
 logged.
 
-Using the template filter requires the DAG to be configured to
+Using the template filter requires the Dag to be configured to
 :ref:`render fields as native objects
 <concepts:templating-native-objects>` (the default is to coerce all
 values into strings which won't work here because we need a value

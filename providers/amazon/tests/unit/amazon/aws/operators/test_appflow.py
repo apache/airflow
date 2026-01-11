@@ -32,10 +32,7 @@ from airflow.providers.amazon.aws.operators.appflow import (
     AppflowRunOperator,
 )
 
-try:
-    from airflow.sdk import timezone
-except ImportError:
-    from airflow.utils import timezone  # type: ignore[attr-defined,no-redef]
+from tests_common.test_utils.compat import timezone
 
 CONN_ID = "aws_default"
 DAG_ID = "dag_id"
@@ -56,7 +53,6 @@ DUMP_COMMON_ARGS = {
 AppflowBaseOperator.UPDATE_PROPAGATION_TIME = 0  # avoid wait
 
 
-@pytest.mark.db_test
 @pytest.fixture
 def ctx(create_task_instance, session):
     ti = create_task_instance(
@@ -214,7 +210,7 @@ def test_short_circuit(appflow_conn, ctx):
 
 
 @pytest.mark.parametrize(
-    "op_class, op_base_args",
+    ("op_class", "op_base_args"),
     [
         pytest.param(
             AppflowRunAfterOperator,

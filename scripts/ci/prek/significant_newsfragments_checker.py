@@ -16,7 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 # /// script
-# requires-python = ">=3.10"
+# requires-python = ">=3.10,<3.11"
 # dependencies = [
 #   "docutils>=0.21.2",
 #   "jinja2>=3.1.5",
@@ -32,7 +32,6 @@ import glob
 import re
 
 import docutils.nodes
-import docutils.parsers.rst
 from docutils.core import publish_doctree
 from jinja2 import BaseLoader, Environment
 

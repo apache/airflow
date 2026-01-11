@@ -20,9 +20,9 @@ TaskFlow
 
 .. versionadded:: 2.0
 
-If you write most of your dags using plain Python code rather than Operators, then the TaskFlow API will make it much easier to author clean dags without extra boilerplate, all using the ``@task`` decorator.
+If you write most of your Dags using plain Python code rather than Operators, then the TaskFlow API will make it much easier to author clean Dags without extra boilerplate, all using the ``@task`` decorator.
 
-TaskFlow takes care of moving inputs and outputs between your Tasks using XComs for you, as well as automatically calculating dependencies - when you call a TaskFlow function in your DAG file, rather than executing it, you will get an object representing the XCom for the result (an ``XComArg``), that you can then use as inputs to downstream tasks or operators. For example::
+TaskFlow takes care of moving inputs and outputs between your Tasks using XComs for you, as well as automatically calculating dependencies - when you call a TaskFlow function in your Dag file, rather than executing it, you will get an object representing the XCom for the result (an ``XComArg``), that you can then use as inputs to downstream tasks or operators. For example::
 
     from airflow.sdk import task
     from airflow.providers.smtp.operators.smtp import EmailOperator
@@ -53,7 +53,7 @@ The first two are declared using TaskFlow, and automatically pass the return val
 
 ``send_email_notification`` is a more traditional Operator, but even it can use the return value of ``compose_email`` to set its parameters, and again, automatically work out that it must be *downstream* of ``compose_email``.
 
-You can also use a plain value or variable to call a TaskFlow function - for example, this will work as you expect (but, of course, won't run the code inside the task until the DAG is executed - the ``name`` value is persisted as a task parameter until that time)::
+You can also use a plain value or variable to call a TaskFlow function - for example, this will work as you expect (but, of course, won't run the code inside the task until the Dag is executed - the ``name`` value is persisted as a task parameter until that time)::
 
     @task
     def hello_name(name: str):
@@ -204,7 +204,7 @@ For an example of writing a Sensor using the TaskFlow API, see
 History
 -------
 
-The TaskFlow API is new as of Airflow 2.0, and you are likely to encounter dags written for previous versions of Airflow that instead use ``PythonOperator`` to achieve similar goals, albeit with a lot more code.
+The TaskFlow API is new as of Airflow 2.0, and you are likely to encounter Dags written for previous versions of Airflow that instead use ``PythonOperator`` to achieve similar goals, albeit with a lot more code.
 
 More context around the addition and design of the TaskFlow API can be found as part of its Airflow Improvement Proposal
-`AIP-31: "TaskFlow API" for clearer/simpler DAG definition <https://cwiki.apache.org/confluence/pages/viewpage.action?pageId=148638736>`_
+`AIP-31: "TaskFlow API" for clearer/simpler Dag definition <https://cwiki.apache.org/confluence/pages/viewpage.action?pageId=148638736>`_

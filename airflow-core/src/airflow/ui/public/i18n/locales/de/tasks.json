@@ -1,0 +1,10 @@
+{
+  "mapped": "Gemappte",
+  "notMapped": "Nicht gemappte",
+  "retries": "Wiederholungen",
+  "searchTasks": "Tasks suchen",
+  "selectMapped": "Gemappte auswählen",
+  "selectOperator": "Operator auswählen",
+  "selectRetryValues": "Wiederholungen auswählen",
+  "selectTriggerRules": "Auslöse-Regeln auswählen"
+}

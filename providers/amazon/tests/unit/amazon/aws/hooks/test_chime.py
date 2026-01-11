@@ -21,9 +21,9 @@ import json
 
 import pytest
 
-from airflow.exceptions import AirflowException
 from airflow.models import Connection
 from airflow.providers.amazon.aws.hooks.chime import ChimeWebhookHook
+from airflow.providers.common.compat.sdk import AirflowException
 
 
 class TestChimeWebhookHook:

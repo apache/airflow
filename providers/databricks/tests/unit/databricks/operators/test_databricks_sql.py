@@ -39,7 +39,7 @@ SerializableRow2 = namedtuple("Row2", ["id2", "value2"])  # type: ignore[name-ma
 
 
 @pytest.mark.parametrize(
-    "sql, return_last, split_statement, hook_results, hook_descriptions, expected_results",
+    ("sql", "return_last", "split_statement", "hook_results", "hook_descriptions", "expected_results"),
     [
         pytest.param(
             "select * from dummy",
@@ -158,7 +158,7 @@ def test_exec_success(sql, return_last, split_statement, hook_results, hook_desc
 
 
 @pytest.mark.parametrize(
-    "return_last, split_statements, sql, descriptions, hook_results, do_xcom_push",
+    ("return_last", "split_statements", "sql", "descriptions", "hook_results", "do_xcom_push"),
     [
         pytest.param(
             True,

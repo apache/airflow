@@ -79,7 +79,7 @@ EXAMPLE_BUCKET = "airflow-system-tests-resources"
 EXAMPLE_FILE = "storage-transfer/big_file.dat"
 BUCKET_SOURCE_AWS = f"bucket-aws-{DAG_ID}-{ENV_ID}".replace("_", "-")
 BUCKET_TARGET_GCS = f"bucket-gcs-{DAG_ID}-{ENV_ID}".replace("_", "-")
-WAIT_FOR_OPERATION_POKE_INTERVAL = int(os.environ.get("WAIT_FOR_OPERATION_POKE_INTERVAL", 5))
+WAIT_FOR_OPERATION_POKE_INTERVAL = int(os.environ.get("WAIT_FOR_OPERATION_POKE_INTERVAL", str(5)))
 
 GCP_DESCRIPTION = "description"
 GCP_TRANSFER_JOB_NAME = f"transferJobs/sampleJob-{DAG_ID}-{ENV_ID}".replace("-", "_")

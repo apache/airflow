@@ -52,9 +52,4 @@ class TestRedisPubSubMessageQueueProviderIntegration:
         pubsub.unsubscribe(self.channel)
 
     def test_queue_matches(self):
-        assert self.provider.queue_matches(f"redis+pubsub://localhost:6379/{self.channel}")
-
-    def test_trigger_kwargs(self):
-        uri = f"redis+pubsub://localhost:6379/{self.channel}"
-        kwargs = self.provider.trigger_kwargs(uri)
-        assert kwargs == {"channels": [self.channel]}
+        assert self.provider.scheme_matches("redis+pubsub")

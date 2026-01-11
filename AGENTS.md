@@ -29,12 +29,12 @@ how to set up the environment, run checks, build docs and follow the PR workflow
 
 ## Prek hooks
 
-- Installation and usage of `prek` are described in [`03_contributors_quick_start.rst`](contributing-docs/03_contributors_quick_start.rst). Install with `uv tool install prek` and run checks via `prek --all-files`.
+- Installation and usage of `prek` are described in [`03a_contributors_quick_start_beginners.rst`](contributing-docs/03a_contributors_quick_start_beginners.rst). Install with `uv tool install prek` and run checks via `prek --all-files`.
 - [`08_static_code_checks.rst`](contributing-docs/08_static_code_checks.rst) provides more details on the available hooks and prerequisites. Enable the hooks with `prek install` so they run automatically on each commit.
 
 ## Running tests
 
-- [`03_contributors_quick_start.rst`](contributing-docs/03_contributors_quick_start.rst) shows running tests inside Breeze. Use `pytest` inside the container for individual files or invoke `breeze testing` commands to run full suites, e.g. `breeze --backend postgres --python 3.10 testing tests --test-type All`.
+- [`03a_contributors_quick_start_beginners.rst`](contributing-docs/03a_contributors_quick_start_beginners.rst) shows running tests inside Breeze. Use `pytest` inside the container for individual files or invoke `breeze testing` commands to run full suites, e.g. `breeze --backend postgres --python 3.10 testing tests --test-type All`.
 
 ## Building documentation
 

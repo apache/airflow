@@ -21,9 +21,17 @@ from unittest import mock
 import pytest
 
 from airflow.providers.amazon.aws.notifications.sqs import SqsNotifier, send_sqs_notification
-from airflow.utils.types import NOTSET
+from airflow.providers.amazon.version_compat import NOTSET
 
 PARAM_DEFAULT_VALUE = pytest.param(NOTSET, id="default-value")
+
+SEND_MSG_KWARGS = {
+    "queue_url": "https://sqs.eu-west-1.amazonaws.com/123456789098/MyQueue",
+    "message_body": "foo-bar",
+    "delay_seconds": 42,
+    "message_attributes": {},
+    "message_group_id": "foo-bar",
+}
 
 
 class TestSqsNotifier:
@@ -34,20 +42,14 @@ class TestSqsNotifier:
     @pytest.mark.parametrize("region_name", ["eu-west-2", None, PARAM_DEFAULT_VALUE])
     def test_parameters_propagate_to_hook(self, aws_conn_id, region_name):
         """Test notifier attributes propagate to SqsHook."""
-        send_message_kwargs = {
-            "queue_url": "https://sqs.eu-west-1.amazonaws.com/123456789098/MyQueue",
-            "message_body": "foo-bar",
-            "delay_seconds": 42,
-            "message_attributes": {},
-            "message_group_id": "foo-bar",
-        }
+
         notifier_kwargs = {}
         if aws_conn_id is not NOTSET:
             notifier_kwargs["aws_conn_id"] = aws_conn_id
         if region_name is not NOTSET:
             notifier_kwargs["region_name"] = region_name
 
-        notifier = SqsNotifier(**notifier_kwargs, **send_message_kwargs)
+        notifier = SqsNotifier(**notifier_kwargs, **SEND_MSG_KWARGS)
         with mock.patch("airflow.providers.amazon.aws.notifications.sqs.SqsHook") as mock_hook:
             hook = notifier.hook
             assert hook is notifier.hook, "Hook property not cached"
@@ -58,7 +60,7 @@ class TestSqsNotifier:
 
             # Basic check for notifier
             notifier.notify({})
-            mock_hook.return_value.send_message.assert_called_once_with(**send_message_kwargs)
+            mock_hook.return_value.send_message.assert_called_once_with(**SEND_MSG_KWARGS)
 
     def test_sqs_notifier_templated(self, create_dag_without_db):
         notifier = SqsNotifier(
@@ -90,3 +92,13 @@ class TestSqsNotifier:
                 message_attributes={"bar": "test_sqs_notifier_templated"},
                 delay_seconds=0,
             )
+
+    @pytest.mark.asyncio
+    async def test_async_notify(self):
+        notifier = SqsNotifier(**SEND_MSG_KWARGS)
+        with mock.patch("airflow.providers.amazon.aws.notifications.sqs.SqsHook") as mock_hook:
+            mock_hook.return_value.asend_message = mock.AsyncMock()
+
+            await notifier.async_notify({})
+
+            mock_hook.return_value.asend_message.assert_called_once_with(**SEND_MSG_KWARGS)

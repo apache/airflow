@@ -47,7 +47,8 @@ def upgrade():
     # 1. Create an archived table (`_xcom_archive`) to store the current "pickled" data in the xcom table
     # 2. Extract and archive the pickled data using the condition
     # 3. Delete the pickled data from the xcom table so that we can update the column type
-    # 4. Update the XCom.value column type to JSON from LargeBinary/LongBlob
+    # 4. Sanitize NaN values in JSON (convert to string)
+    # 5. Update the XCom.value column type to JSON from LargeBinary/LongBlob
 
     conn = op.get_bind()
     dialect = conn.dialect.name
@@ -111,8 +112,26 @@ def upgrade():
     # Delete the pickled data from the xcom table so that we can update the column type
     conn.execute(text(f"DELETE FROM xcom WHERE value IS NOT NULL AND {condition}"))
 
-    # Update the value column type to JSON
+    # Update the values from nan to nan string
     if dialect == "postgresql":
+        # Replace NaN in JSON value positions (after :, , or [)
+        # This explicitly matches JSON structure, not relying on word boundaries
+        conn.execute(
+            text(r"""
+                UPDATE xcom
+                SET value = convert_to(
+                    regexp_replace(
+                        convert_from(value, 'UTF8'),
+                        '([:,\[]\s*)NaN(\s*[,}\]])',
+                        '\1"nan"\2',
+                        'g'
+                    ),
+                    'UTF8'
+                )
+                WHERE value IS NOT NULL AND get_byte(value, 0) != 128
+            """)
+        )
+
         op.execute(
             """
             ALTER TABLE xcom
@@ -124,11 +143,38 @@ def upgrade():
             """
         )
     elif dialect == "mysql":
+        # Replace NaN in JSON value positions (after :, , or [)
+        # Use alternation with proper grouping for MySQL compatibility
+        conn.execute(
+            text("""
+                UPDATE xcom
+                SET value = CONVERT(
+                    REGEXP_REPLACE(
+                        CONVERT(value USING utf8mb4),
+                        '(:|,|\\\\[)[ ]*NaN[ ]*([,}\\]])',
+                        '\\\\1"nan"\\\\2',
+                        1,
+                        0,
+                        'c'
+                    ) USING BINARY
+                )
+                WHERE value IS NOT NULL AND HEX(SUBSTRING(value, 1, 1)) != '80'
+            """)
+        )
+
         op.add_column("xcom", sa.Column("value_json", sa.JSON(), nullable=True))
         op.execute("UPDATE xcom SET value_json = CAST(value AS CHAR CHARACTER SET utf8mb4)")
         op.drop_column("xcom", "value")
         op.alter_column("xcom", "value_json", existing_type=sa.JSON(), new_column_name="value")
+
     elif dialect == "sqlite":
+        conn.execute(
+            text("""
+                UPDATE xcom
+                SET value = CAST(REPLACE(CAST(value AS TEXT), 'NaN', '"nan"') AS BLOB)
+                WHERE value IS NOT NULL AND hex(substr(value, 1, 1)) != '80'
+            """)
+        )
         # Rename the existing `value` column to `value_old`
         with op.batch_alter_table("xcom", schema=None) as batch_op:
             batch_op.alter_column("value", new_column_name="value_old")

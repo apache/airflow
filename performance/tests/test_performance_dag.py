@@ -124,14 +124,14 @@ def get_import_errors():
     return [(None, None)] + [(strip_path_prefix(k), v.strip()) for k, v in dag_bag.import_errors.items()]
 
 
-@pytest.mark.parametrize("rel_path,rv", get_import_errors(), ids=[x[0] for x in get_import_errors()])
+@pytest.mark.parametrize(("rel_path", "rv"), get_import_errors(), ids=[x[0] for x in get_import_errors()])
 def test_file_imports(rel_path, rv):
     """Test for import errors on a file."""
     if rel_path and rv:
         pytest.fail(f"{rel_path} failed to import with message \n {rv}")
 
 
-@pytest.mark.parametrize("dag_count,task_count", [(1, 1), (1, 10), (10, 10), (10, 100)])
+@pytest.mark.parametrize(("dag_count", "task_count"), [(1, 1), (1, 10), (10, 10), (10, 100)])
 def test_performance_dag(dag_count, task_count):
     dags = get_dags(dag_count=dag_count, task_count=task_count)
     assert len(dags) == dag_count

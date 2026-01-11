@@ -56,8 +56,7 @@ class TestLogin:
             }
         ):
             auth_manager.init()
-            users = auth_manager.get_users()
-            passwords = auth_manager.get_passwords(users=users)
+            passwords = auth_manager.get_passwords()
             result = SimpleAuthManagerLogin.create_token(
                 body=LoginBody(username=test_user, password=passwords.get(test_user, "invalid_password")),
                 expiration_time_in_seconds=1,

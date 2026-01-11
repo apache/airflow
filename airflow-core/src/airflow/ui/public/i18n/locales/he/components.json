@@ -1,13 +1,12 @@
 {
   "backfill": {
     "affected_one": "ריצה אחת תופעל.",
-    "affected_other": "{{count}} ריצות תופעלנה.",
+    "affected_other": "{{count}} ריצות יופעלו.",
+    "affected_two": "שתי ריצות יופעלו.",
     "affectedNone": "לא נמצאו ריצות התואמות לקריטריונים שנבחרו.",
     "allRuns": "כל ההרצות",
     "backwards": "הרץ לאחור",
     "dateRange": "טווח תאריכים",
-    "dateRangeFrom": "מתאריך",
-    "dateRangeTo": "עד תאריך",
     "errorStartDateBeforeEndDate": "תאריך ההתחלה חייב להיות לפני תאריך הסיום",
     "maxRuns": "מספר ריצות מקבילות מירבי",
     "missingAndErroredRuns": "הרצות חסרות ושגויות",
@@ -24,7 +23,7 @@
       }
     },
     "tooltip": "Backfill דורש לוח זמנים",
-    "unpause": "הפעל את {{dag_display_name}} בעת ההרצה",
+    "unpause": "הפעל את {{dag_display_name}} בעת הריצה",
     "validation": {
       "datesRequired": "יש להזין גם תאריך התחלה וגם תאריך סיום של מרווח הנתונים.",
       "startBeforeEnd": "תאריך התחלת מרווח הנתונים חייב להיות קטן או שווה לתאריך סיום מרווח הנתונים."
@@ -46,25 +45,37 @@
     "invalidJson": "מבנה ה-JSON אינו תקין: {{errorMessage}}"
   },
   "dagWarnings": {
-    "error_one": "שגיאה אחת",
-    "error_other": "שגיאה אחת",
+    "error_one": "שגיאה",
+    "error_other": "שגיאות",
+    "error_two": "שגיאות",
     "errorAndWarning": "שגיאה אחת ו-{{warningText}}",
     "warning_one": "אזהרה אחת",
-    "warning_other": "{{count}} אזהרות"
+    "warning_other": "{{count}} אזהרות",
+    "warning_two": "שתי אזהרות"
+  },
+  "dateRangeFilter": {
+    "validation": {
+      "invalidDateFormat": "פורמט התאריך אינו תקין.",
+      "invalidTimeFormat": "פורמט הזמן אינו תקין.",
+      "startBeforeEnd": "תאריך/זמן התחלה חייב להיות לפני תאריך/זמן סיום"
+    }
   },
   "durationChart": {
     "duration": "משך זמן (שניות)",
     "lastDagRun_one": "ריצת Dag אחרונה",
     "lastDagRun_other": "{{count}} ריצות Dag אחרונות",
-    "lastTaskInstance_one": "משימה אחרונה",
-    "lastTaskInstance_other": "{{count}} משימות אחרונות",
+    "lastDagRun_two": "שתי ריצות Dag אחרונות",
+    "lastTaskInstance_one": "מופע משימה אחרונה",
+    "lastTaskInstance_other": "{{count}} מופעי משימות אחרונות",
+    "lastTaskInstance_two": "שני מופעי משימות אחרונות",
     "queuedDuration": "זמן המתנה בתור",
     "runAfter": "הרץ אחרי",
     "runDuration": "משך זמן ריצה"
   },
   "fileUpload": {
-    "files_one": "{{count}} קבצים",
-    "files_other": "{{count}} קבצים"
+    "files_one": "קובץ אחד",
+    "files_other": "{{count}} קבצים",
+    "files_two": "שני קבצים"
   },
   "flexibleForm": {
     "placeholder": "בחר ערך",
@@ -87,9 +98,20 @@
     "otherDagRuns": "+ ריצות Dag נוספות",
     "taskCount_one": "משימה אחת",
     "taskCount_other": "{{count}} משימות",
+    "taskCount_two": "שתי משימות",
     "taskGroup": "קבוצת משימות"
   },
   "limitedList": "+ {{count}} נוספים",
+  "limitedList.allItems": "כל {{count}} הפריטים:",
+  "limitedList.allTags_one": "כל התגיות (1)",
+  "limitedList.allTags_other": "כל התגיות ({{count}})",
+  "limitedList.allTags_two": "כל התגיות (2)",
+  "limitedList.clickToInteract": "לחץ על תגית כדי לסנן Dags",
+  "limitedList.clickToOpenFull": "לחץ על \"+{{count}} נוספים\" כדי לפתוח את התצוגה המלאה",
+  "limitedList.copyPasteText": "ניתן להעתיק ולהדביק את הטקסט שמעל",
+  "limitedList.showingItems_one": "מציג פריט אחד",
+  "limitedList.showingItems_other": "מציג {{count}} פריטים",
+  "limitedList.showingItems_two": "מציג שני פריטים",
   "logs": {
     "file": "קובץ",
     "location": "שורה {{line}} ב{{name}}"
@@ -110,6 +132,9 @@
     "selectLabel": "ריצה בודדת",
     "title": "הפעל Dag",
     "toaster": {
+      "error": {
+        "title": "הפעלת Dag נכשלה"
+      },
       "success": {
         "description": "ריצת ה-Dag הופעלה בהצלחה.",
         "title": "ריצת Dag הופעלה"

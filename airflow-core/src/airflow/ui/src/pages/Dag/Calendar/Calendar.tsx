@@ -19,7 +19,7 @@
 import { Box, HStack, Text, IconButton, Button, ButtonGroup } from "@chakra-ui/react";
 import { keyframes } from "@emotion/react";
 import dayjs from "dayjs";
-import { useState, useMemo } from "react";
+import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { FiChevronLeft, FiChevronRight } from "react-icons/fi";
 import { useParams } from "react-router-dom";
@@ -31,6 +31,7 @@ import { ErrorAlert } from "src/components/ErrorAlert";
 import { CalendarLegend } from "./CalendarLegend";
 import { DailyCalendarView } from "./DailyCalendarView";
 import { HourlyCalendarView } from "./HourlyCalendarView";
+import { createCalendarScale } from "./calendarUtils";
 
 const spin = keyframes`
   from { transform: rotate(0deg); }
@@ -46,25 +47,25 @@ export const Calendar = () => {
 
   const currentDate = dayjs();
 
-  const dateRange = useMemo(() => {
-    if (granularity === "daily") {
-      const yearStart = selectedDate.startOf("year");
-      const yearEnd = selectedDate.endOf("year");
+  let dateRange: { logicalDateGte: string; logicalDateLte: string };
 
-      return {
-        logicalDateGte: yearStart.format("YYYY-MM-DD[T]HH:mm:ss[Z]"),
-        logicalDateLte: yearEnd.format("YYYY-MM-DD[T]HH:mm:ss[Z]"),
-      };
-    } else {
-      const monthStart = selectedDate.startOf("month");
-      const monthEnd = selectedDate.endOf("month");
+  if (granularity === "daily") {
+    const yearStart = selectedDate.startOf("year");
+    const yearEnd = selectedDate.endOf("year");
 
-      return {
-        logicalDateGte: monthStart.format("YYYY-MM-DD[T]HH:mm:ss[Z]"),
-        logicalDateLte: monthEnd.format("YYYY-MM-DD[T]HH:mm:ss[Z]"),
-      };
-    }
-  }, [granularity, selectedDate]);
+    dateRange = {
+      logicalDateGte: yearStart.format("YYYY-MM-DD[T]HH:mm:ss[Z]"),
+      logicalDateLte: yearEnd.format("YYYY-MM-DD[T]HH:mm:ss[Z]"),
+    };
+  } else {
+    const monthStart = selectedDate.startOf("month");
+    const monthEnd = selectedDate.endOf("month");
+
+    dateRange = {
+      logicalDateGte: monthStart.format("YYYY-MM-DD[T]HH:mm:ss[Z]"),
+      logicalDateLte: monthEnd.format("YYYY-MM-DD[T]HH:mm:ss[Z]"),
+    };
+  }
 
   const { data, error, isLoading } = useCalendarServiceGetCalendar(
     {
@@ -75,6 +76,8 @@ export const Calendar = () => {
     undefined,
     { enabled: Boolean(dagId) },
   );
+
+  const scale = createCalendarScale(data?.dag_runs ?? [], viewMode, granularity);
 
   if (!data && !isLoading) {
     return (
@@ -177,14 +180,14 @@ export const Calendar = () => {
 
           <ButtonGroup attached size="sm" variant="outline">
             <Button
-              colorPalette="blue"
+              colorPalette="brand"
               onClick={() => setGranularity("daily")}
               variant={granularity === "daily" ? "solid" : "outline"}
             >
               {translate("calendar.daily")}
             </Button>
             <Button
-              colorPalette="blue"
+              colorPalette="brand"
               onClick={() => setGranularity("hourly")}
               variant={granularity === "hourly" ? "solid" : "outline"}
             >
@@ -194,14 +197,14 @@ export const Calendar = () => {
 
           <ButtonGroup attached size="sm" variant="outline">
             <Button
-              colorPalette="blue"
+              colorPalette="brand"
               onClick={() => setViewMode("total")}
               variant={viewMode === "total" ? "solid" : "outline"}
             >
               {translate("calendar.totalRuns")}
             </Button>
             <Button
-              colorPalette="blue"
+              colorPalette="brand"
               onClick={() => setViewMode("failed")}
               variant={viewMode === "failed" ? "solid" : "outline"}
             >
@@ -231,9 +234,9 @@ export const Calendar = () => {
               <Box
                 animation={`${spin} 1s linear infinite`}
                 border="3px solid"
-                borderColor={{ _dark: "gray.600", _light: "blue.100" }}
+                borderColor={{ _dark: "none.600", _light: "brand.100" }}
                 borderRadius="50%"
-                borderTopColor="blue.500"
+                borderTopColor="brand.500"
                 height="24px"
                 width="24px"
               />
@@ -243,24 +246,26 @@ export const Calendar = () => {
         {granularity === "daily" ? (
           <>
             <DailyCalendarView
-              colorMode={viewMode}
               data={data?.dag_runs ?? []}
+              scale={scale}
               selectedYear={selectedDate.year()}
+              viewMode={viewMode}
             />
-            <CalendarLegend colorMode={viewMode} />
+            <CalendarLegend scale={scale} viewMode={viewMode} />
           </>
         ) : (
           <HStack align="start" gap={2}>
             <Box>
               <HourlyCalendarView
-                colorMode={viewMode}
                 data={data?.dag_runs ?? []}
+                scale={scale}
                 selectedMonth={selectedDate.month()}
                 selectedYear={selectedDate.year()}
+                viewMode={viewMode}
               />
             </Box>
             <Box display="flex" flex="1" justifyContent="center" pt={16}>
-              <CalendarLegend colorMode={viewMode} vertical />
+              <CalendarLegend scale={scale} vertical viewMode={viewMode} />
             </Box>
           </HStack>
         )}

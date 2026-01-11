@@ -23,13 +23,19 @@ from typing import Any
 
 from asgiref.sync import sync_to_async
 
-from airflow.exceptions import AirflowException
 from airflow.providers.apache.kafka.hooks.consume import KafkaConsumerHook
-from airflow.triggers.base import BaseTrigger, TriggerEvent
-from airflow.utils.module_loading import import_string
+from airflow.providers.apache.kafka.version_compat import AIRFLOW_V_3_0_PLUS
+from airflow.providers.common.compat.module_loading import import_string
+from airflow.providers.common.compat.sdk import AirflowException
+from airflow.triggers.base import TriggerEvent
+
+if AIRFLOW_V_3_0_PLUS:
+    from airflow.triggers.base import BaseEventTrigger
+else:
+    from airflow.triggers.base import BaseTrigger as BaseEventTrigger  # type: ignore
 
 
-class AwaitMessageTrigger(BaseTrigger):
+class AwaitMessageTrigger(BaseEventTrigger):
     """
     A trigger that waits for a message matching specific criteria to arrive in Kafka.
 
@@ -37,10 +43,8 @@ class AwaitMessageTrigger(BaseTrigger):
     - poll the Kafka topics for a message, if no message returned, sleep
     - process the message with provided callable and commit the message offset:
 
-        - if callable returns any data, raise a TriggerEvent with the return data
-
-        - else continue to next message
-
+        - if callable is provided and returns any data, raise a TriggerEvent with the return data
+        - else raise a TriggerEvent with the original message
 
     :param kafka_config_id: The connection object to use, defaults to "kafka_default"
     :param topics: The topic (or topic regex) that should be searched for messages
@@ -59,7 +63,7 @@ class AwaitMessageTrigger(BaseTrigger):
     def __init__(
         self,
         topics: Sequence[str],
-        apply_function: str,
+        apply_function: str | None = None,
         kafka_config_id: str = "kafka_default",
         apply_function_args: Sequence[Any] | None = None,
         apply_function_kwargs: dict[Any, Any] | None = None,
@@ -97,9 +101,13 @@ class AwaitMessageTrigger(BaseTrigger):
         async_poll = sync_to_async(consumer.poll)
         async_commit = sync_to_async(consumer.commit)
 
-        processing_call = import_string(self.apply_function)
-        processing_call = partial(processing_call, *self.apply_function_args, **self.apply_function_kwargs)
-        async_message_process = sync_to_async(processing_call)
+        async_message_process = None
+        if self.apply_function:
+            processing_call = import_string(self.apply_function)
+            processing_call = partial(
+                processing_call, *self.apply_function_args, **self.apply_function_kwargs
+            )
+            async_message_process = sync_to_async(processing_call)
         while True:
             message = await async_poll(self.poll_timeout)
 
@@ -108,10 +116,14 @@ class AwaitMessageTrigger(BaseTrigger):
             elif message.error():
                 raise AirflowException(f"Error: {message.error()}")
             else:
-                rv = await async_message_process(message)
-                if rv:
+                event = (
+                    await async_message_process(message)
+                    if async_message_process
+                    else message.value().decode("utf-8")
+                )
+                if event:
                     await async_commit(message=message, asynchronous=False)
-                    yield TriggerEvent(rv)
+                    yield TriggerEvent(event)
                     break
                 else:
                     await async_commit(message=message, asynchronous=False)

@@ -19,13 +19,13 @@ from __future__ import annotations
 from collections.abc import Sequence
 from typing import TYPE_CHECKING
 
-from airflow.exceptions import AirflowException
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID
 from airflow.providers.google.firebase.hooks.firestore import CloudFirestoreHook
 from airflow.providers.google.version_compat import BaseOperator
 
 if TYPE_CHECKING:
-    from airflow.utils.context import Context
+    from airflow.providers.common.compat.sdk import Context
 
 
 class CloudFirestoreExportDatabaseOperator(BaseOperator):

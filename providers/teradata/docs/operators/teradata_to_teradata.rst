@@ -37,10 +37,10 @@ An example usage of the TeradataToTeradataOperator is as follows:
     :start-after: [START teradata_to_teradata_transfer_operator_howto_guide_transfer_data]
     :end-before: [END teradata_to_teradata_transfer_operator_howto_guide_transfer_data]
 
-The complete TeradataToTeradata Transfer Operator DAG
+The complete TeradataToTeradata Transfer Operator Dag
 -----------------------------------------------------
 
-When we put everything together, our DAG should look like this:
+When we put everything together, our Dag should look like this:
 
 .. exampleinclude:: /../../teradata/tests/system/teradata/example_teradata.py
     :language: python

@@ -22,7 +22,7 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from airflow.exceptions import AirflowException
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.databricks.hooks.databricks import RunState
 from airflow.providers.databricks.utils.databricks import (
     extract_failed_task_errors,

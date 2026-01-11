@@ -21,10 +21,9 @@ from datetime import datetime, timedelta
 import pytest
 
 from airflow.models.dag import DAG
-from airflow.models.xcom_arg import XComArg
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.providers.standard.operators.python import PythonOperator
-from airflow.sdk import Label
+from airflow.sdk import Label, XComArg
 from airflow.sdk.definitions.taskgroup import TaskGroup
 from airflow.utils.dag_edges import dag_edges
 

@@ -34,6 +34,7 @@ type Props = {
   accept?: "*/*" | "application/json" | "application/x-ndjson";
   dagId: string;
   expanded?: boolean;
+  limit?: number;
   logLevelFilters?: Array<string>;
   showSource?: boolean;
   showTimestamp?: boolean;
@@ -88,6 +89,7 @@ const parseLogs = ({
           logLevelFilters,
           logLink,
           logMessage: datum,
+          renderingMode: "jsx",
           showSource,
           showTimestamp,
           sourceFilters,
@@ -179,11 +181,29 @@ const parseLogs = ({
   };
 };
 
+// Log truncation is performed in the frontend because the backend
+// does not support yet pagination / limits on logs reading endpoint
+const truncateData = (data: TaskInstancesLogResponse | undefined, limit?: number) => {
+  if (!data?.content || limit === undefined || limit <= 0) {
+    return data;
+  }
+
+  const streamingContent = parseStreamingLogContent(data);
+  const truncatedContent =
+    streamingContent.length > limit ? streamingContent.slice(-limit) : streamingContent;
+
+  return {
+    ...data,
+    content: truncatedContent,
+  };
+};
+
 export const useLogs = (
   {
     accept = "application/x-ndjson",
     dagId,
     expanded,
+    limit,
     logLevelFilters,
     showSource,
     showTimestamp,
@@ -218,7 +238,7 @@ export const useLogs = (
   );
 
   const parsedData = parseLogs({
-    data: parseStreamingLogContent(data),
+    data: parseStreamingLogContent(truncateData(data, limit)),
     expanded,
     logLevelFilters,
     showSource,
@@ -229,5 +249,5 @@ export const useLogs = (
     tryNumber,
   });
 
-  return { data: parsedData, ...rest };
+  return { parsedData, ...rest, fetchedData: data };
 };

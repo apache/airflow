@@ -24,7 +24,7 @@ Using OpenLineage integration
 OpenLineage is an open framework for data lineage collection and analysis. At its core is an extensible specification that systems can use to interoperate with lineage metadata.
 `Check out OpenLineage docs <https://openlineage.io/docs/>`_.
 
-**No change to user DAG files is required to use OpenLineage**. Basic configuration is needed so that OpenLineage knows where to send events.
+**No change to user Dag files is required to use OpenLineage**. Basic configuration is needed so that OpenLineage knows where to send events.
 
 Quickstart
 ==========
@@ -57,7 +57,7 @@ This example is a basic demonstration of OpenLineage setup.
 
       AIRFLOW__OPENLINEAGE__TRANSPORT='{"type": "http", "url": "http://example.com:5000", "endpoint": "api/v1/lineage"}'
 
-3. **That's it !**  OpenLineage events should be sent to the configured backend when DAGs are run.
+3. **That's it !**  OpenLineage events should be sent to the configured backend when Dags are run.
 
 Usage
 =====
@@ -352,10 +352,10 @@ reproducing your environment setup by setting ``debug_mode`` option to ``true`` 
   By setting this variable to true, OpenLineage integration may log and emit extensive details. It should only be enabled temporary for debugging purposes.
 
 
-Enabling OpenLineage on DAG/task level
+Enabling OpenLineage on Dag/task level
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-One can selectively enable OpenLineage for specific DAGs and tasks by using the ``selective_enable`` policy.
+One can selectively enable OpenLineage for specific Dags and tasks by using the ``selective_enable`` policy.
 To enable this policy, set the ``selective_enable`` option to True in the [openlineage] section of your Airflow configuration file:
 
 .. code-block:: ini
@@ -371,26 +371,26 @@ To enable this policy, set the ``selective_enable`` option to True in the [openl
 
 
 While ``selective_enable`` enables selective control, the ``disabled`` :ref:`option <options:disable>` still has precedence.
-If you set ``disabled`` to True in the configuration, OpenLineage will be disabled for all DAGs and tasks regardless of the ``selective_enable`` setting.
+If you set ``disabled`` to True in the configuration, OpenLineage will be disabled for all Dags and tasks regardless of the ``selective_enable`` setting.
 
 Once the ``selective_enable`` policy is enabled, you can choose to enable OpenLineage
-for individual DAGs and tasks using the ``enable_lineage`` and ``disable_lineage`` functions.
+for individual Dags and tasks using the ``enable_lineage`` and ``disable_lineage`` functions.
 
-1. Enabling Lineage on a DAG:
+1. Enabling Lineage on a Dag:
 
 .. code-block:: python
 
     from airflow.providers.openlineage.utils.selective_enable import disable_lineage, enable_lineage
 
-    with enable_lineage(DAG(...)):
-        # Tasks within this DAG will have lineage tracking enabled
+    with enable_lineage(Dag(...)):
+        # Tasks within this Dag will have lineage tracking enabled
         MyOperator(...)
 
         AnotherOperator(...)
 
 2. Enabling Lineage on a Task:
 
-While enabling lineage on a DAG implicitly enables it for all tasks within that DAG, you can still selectively disable it for specific tasks:
+While enabling lineage on a Dag implicitly enables it for all tasks within that Dag, you can still selectively disable it for specific tasks:
 
 .. code-block:: python
 
@@ -400,18 +400,18 @@ While enabling lineage on a DAG implicitly enables it for all tasks within that 
         t1 = MyOperator(...)
         t2 = AnotherOperator(...)
 
-    # Enable lineage for the entire DAG
+    # Enable lineage for the entire Dag
     enable_lineage(dag)
 
     # Disable lineage for task t1
     disable_lineage(t1)
 
-Enabling lineage on the DAG level automatically enables it for all tasks within that DAG unless explicitly disabled per task.
+Enabling lineage on the Dag level automatically enables it for all tasks within that Dag unless explicitly disabled per task.
 
-Enabling lineage on the task level implicitly enables lineage on its DAG.
+Enabling lineage on the task level implicitly enables lineage on its Dag.
 This is because each emitting task sends a `ParentRunFacet <https://openlineage.io/docs/spec/facets/run-facets/parent_run>`_,
-which requires the DAG-level lineage to be enabled in some OpenLineage backend systems.
-Disabling DAG-level lineage while enabling task-level lineage might cause errors or inconsistencies.
+which requires the Dag-level lineage to be enabled in some OpenLineage backend systems.
+Disabling Dag-level lineage while enabling task-level lineage might cause errors or inconsistencies.
 
 .. _options:spark_inject_parent_job_info:
 
@@ -476,6 +476,56 @@ You can enable this automation by setting ``spark_inject_transport_info`` option
 .. code-block:: ini
 
   AIRFLOW__OPENLINEAGE__SPARK_INJECT_TRANSPORT_INFO=true
+
+
+Passing parent information to Airflow DAG
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+To enable full OpenLineage lineage tracking across dependent DAGs, you can pass parent and root job information
+through the DAG's ``dag_run.conf``. When a DAG run configuration includes an ``openlineage`` section with valid metadata,
+this information is automatically parsed and converted into DAG run's ``parentRunFacet``, from which the root information
+is also propagated to all tasks. If no DAG run ``openlineage`` configuration is provided, the DAG run will not contain
+``parentRunFacet`` and root of all tasks will default to Dag run.
+
+The ``openlineage`` dict in conf should contain the following keys:
+
+
+*(all three values must be included to create a parent reference)*
+
+- **parentRunId** — the unique run ID (uuid) of the direct parent job
+- **parentJobName** — the name of the parent job
+- **parentJobNamespace** — the namespace of the parent job
+
+*(all three values must be included to create a root reference, otherwise parent will be used as root)*
+
+- **rootParentRunId** — the run ID (uuid) of the top-level (root) job
+- **rootParentJobName** — the name of the top-level (root) job
+- **rootParentJobNamespace** — the namespace of the top-level (root) job
+
+.. note::
+
+  We highly recommend providing all six OpenLineage identifiers (parent and root) to ensure complete lineage tracking. If the root information is missing, the parent set will be used as the root; if any of the three parent fields are missing, no parent facet will be created. Partial or mixed configurations are not supported - either all three parent or all three root values must be provided together.
+
+
+Example:
+
+.. code-block:: shell
+
+    curl -X POST "http://<AIRFLOW_HOST>/api/v2/dags/my_dag_name/dagRuns" \
+    -H "Content-Type: application/json" \
+    -d '{
+      "logical_date": "2019-08-24T14:15:22Z",
+      "conf": {
+        "openlineage": {
+          "parentRunId": "3bb703d1-09c1-4a42-8da5-35a0b3216072",
+          "parentJobNamespace": "prod_biz",
+          "parentJobName": "get_files",
+          "rootParentRunId": "9d3b14f7-de91-40b6-aeef-e887e2c7673e",
+          "rootParentJobNamespace": "prod_analytics",
+          "rootParentJobName": "generate_report_sales_e2e"
+        }
+      }
+    }'
 
 
 Troubleshooting

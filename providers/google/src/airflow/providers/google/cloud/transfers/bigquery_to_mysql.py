@@ -21,6 +21,7 @@ from __future__ import annotations
 
 import warnings
 from collections.abc import Sequence
+from functools import cached_property
 
 from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.google.cloud.transfers.bigquery_to_sql import BigQueryToSqlBaseOperator
@@ -76,5 +77,15 @@ class BigQueryToMySqlOperator(BigQueryToSqlBaseOperator):
         )
         self.mysql_conn_id = mysql_conn_id
 
-    def get_sql_hook(self) -> MySqlHook:
+    @cached_property
+    def mysql_hook(self) -> MySqlHook:
         return MySqlHook(schema=self.database, mysql_conn_id=self.mysql_conn_id)
+
+    def get_sql_hook(self) -> MySqlHook:
+        return self.mysql_hook
+
+    def execute(self, context):
+        # Set source_project_dataset_table here, after hooks are initialized and project_id is available
+        project_id = self.bigquery_hook.project_id
+        self.source_project_dataset_table = f"{project_id}.{self.dataset_id}.{self.table_id}"
+        return super().execute(context)

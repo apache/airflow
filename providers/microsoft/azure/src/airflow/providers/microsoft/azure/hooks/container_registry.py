@@ -25,12 +25,12 @@ from typing import Any, cast
 from azure.mgmt.containerinstance.models import ImageRegistryCredential
 from azure.mgmt.containerregistry import ContainerRegistryManagementClient
 
+from airflow.providers.common.compat.sdk import BaseHook
 from airflow.providers.microsoft.azure.utils import (
     add_managed_identity_connection_widgets,
     get_field,
     get_sync_default_azure_credential,
 )
-from airflow.providers.microsoft.azure.version_compat import BaseHook
 
 
 class AzureContainerRegistryHook(BaseHook):

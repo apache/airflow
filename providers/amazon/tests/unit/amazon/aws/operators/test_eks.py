@@ -23,7 +23,7 @@ from unittest import mock
 import pytest
 from botocore.waiter import Waiter
 
-from airflow.exceptions import AirflowProviderDeprecationWarning, TaskDeferred
+from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.amazon.aws.hooks.eks import ClusterStates, EksHook
 from airflow.providers.amazon.aws.operators.eks import (
     EksCreateClusterOperator,
@@ -40,6 +40,7 @@ from airflow.providers.amazon.aws.triggers.eks import (
     EksDeleteFargateProfileTrigger,
 )
 from airflow.providers.cncf.kubernetes.utils.pod_manager import OnFinishAction
+from airflow.providers.common.compat.sdk import TaskDeferred
 
 from unit.amazon.aws.utils.eks_test_constants import (
     NODEROLE_ARN,
@@ -66,7 +67,7 @@ CREATE_CLUSTER_KWARGS = {"version": "1.22"}
 CREATE_FARGATE_PROFILE_KWARGS = {"tags": {"hello": "world"}}
 CREATE_NODEGROUP_KWARGS = {
     "capacityType": "ON_DEMAND",
-    "instanceTypes": "t3.large",
+    "instanceTypes": "t4g.large",
 }
 
 
@@ -745,11 +746,38 @@ class TestEksDeleteFargateProfileOperator:
 class TestEksPodOperator:
     @mock.patch("airflow.providers.cncf.kubernetes.operators.pod.KubernetesPodOperator.execute")
     @mock.patch("airflow.providers.amazon.aws.hooks.eks.EksHook.generate_config_file")
+    @mock.patch("airflow.providers.amazon.aws.hooks.eks.EksHook._secure_credential_context")
+    @mock.patch("airflow.providers.amazon.aws.hooks.eks.EksHook.get_session")
     @mock.patch("airflow.providers.amazon.aws.hooks.eks.EksHook.__init__", return_value=None)
     def test_existing_nodegroup(
-        self, mock_eks_hook, mock_generate_config_file, mock_k8s_pod_operator_execute
+        self,
+        mock_eks_hook,
+        mock_get_session,
+        mock_secure_credential_context,
+        mock_generate_config_file,
+        mock_k8s_pod_operator_execute,
     ):
         ti_context = mock.MagicMock(name="ti_context")
+
+        # Mock the credential chain
+        mock_session = mock.MagicMock()
+        mock_credentials = mock.MagicMock()
+        mock_frozen_credentials = mock.MagicMock()
+        mock_frozen_credentials.access_key = "test_access_key"
+        mock_frozen_credentials.secret_key = "test_secret_key"
+        mock_frozen_credentials.token = "test_token"
+
+        mock_get_session.return_value = mock_session
+        mock_session.get_credentials.return_value = mock_credentials
+        mock_credentials.get_frozen_credentials.return_value = mock_frozen_credentials
+
+        # Mock the credential context manager
+        mock_credentials_file = "/tmp/test_creds.aws_creds"
+        mock_secure_credential_context.return_value.__enter__.return_value = mock_credentials_file
+
+        # Mock the config file context manager
+        mock_config_file = "/tmp/test_kubeconfig"
+        mock_generate_config_file.return_value.__enter__.return_value = mock_config_file
 
         op = EksPodOperator(
             task_id="run_pod",
@@ -763,16 +791,25 @@ class TestEksPodOperator:
             on_finish_action="delete_pod",
         )
         op_return_value = op.execute(ti_context)
+
+        # Verify all the expected calls were made
         mock_k8s_pod_operator_execute.assert_called_once_with(ti_context)
         mock_eks_hook.assert_called_once_with(aws_conn_id="aws_default", region_name=None)
-        mock_generate_config_file.assert_called_once_with(
-            eks_cluster_name=CLUSTER_NAME, pod_namespace="default"
+        mock_get_session.assert_called_once()
+        mock_session.get_credentials.assert_called_once()
+        mock_credentials.get_frozen_credentials.assert_called_once()
+        mock_secure_credential_context.assert_called_once_with(
+            "test_access_key", "test_secret_key", "test_token"
         )
+        mock_generate_config_file.assert_called_once_with(
+            eks_cluster_name=CLUSTER_NAME, pod_namespace="default", credentials_file=mock_credentials_file
+        )
+
         assert mock_k8s_pod_operator_execute.return_value == op_return_value
-        assert mock_generate_config_file.return_value.__enter__.return_value == op.config_file
+        assert op.config_file == mock_config_file
 
     @pytest.mark.parametrize(
-        "compatible_kpo, kwargs, expected_attributes",
+        ("compatible_kpo", "kwargs", "expected_attributes"),
         [
             (
                 True,
@@ -826,9 +863,39 @@ class TestEksPodOperator:
 
     @mock.patch("airflow.providers.cncf.kubernetes.operators.pod.KubernetesPodOperator.trigger_reentry")
     @mock.patch("airflow.providers.amazon.aws.hooks.eks.EksHook.generate_config_file")
-    def test_trigger_reentry(self, mock_generate_config_file, mock_k8s_pod_operator_trigger_reentry):
+    @mock.patch("airflow.providers.amazon.aws.hooks.eks.EksHook._secure_credential_context")
+    @mock.patch("airflow.providers.amazon.aws.hooks.eks.EksHook.get_session")
+    @mock.patch("airflow.providers.amazon.aws.hooks.eks.EksHook.__init__", return_value=None)
+    def test_trigger_reentry(
+        self,
+        mock_eks_hook,
+        mock_get_session,
+        mock_secure_credential_context,
+        mock_generate_config_file,
+        mock_k8s_pod_operator_trigger_reentry,
+    ):
         ti_context = mock.MagicMock(name="ti_context")
         event = {"eks_cluster_name": "eks_cluster_name", "namespace": "namespace"}
+
+        # Mock the credential chain
+        mock_session = mock.MagicMock()
+        mock_credentials = mock.MagicMock()
+        mock_frozen_credentials = mock.MagicMock()
+        mock_frozen_credentials.access_key = "test_access_key"
+        mock_frozen_credentials.secret_key = "test_secret_key"
+        mock_frozen_credentials.token = "test_token"
+
+        mock_get_session.return_value = mock_session
+        mock_session.get_credentials.return_value = mock_credentials
+        mock_credentials.get_frozen_credentials.return_value = mock_frozen_credentials
+
+        # Mock the credential context manager
+        mock_credentials_file = "/tmp/test_creds.aws_creds"
+        mock_secure_credential_context.return_value.__enter__.return_value = mock_credentials_file
+
+        # Mock the config file context manager
+        mock_config_file = "/tmp/test_kubeconfig"
+        mock_generate_config_file.return_value.__enter__.return_value = mock_config_file
 
         op = EksPodOperator(
             task_id="run_pod",
@@ -842,8 +909,18 @@ class TestEksPodOperator:
             on_finish_action="delete_pod",
         )
         op.trigger_reentry(ti_context, event)
+
+        # Verify all the expected calls were made
         mock_k8s_pod_operator_trigger_reentry.assert_called_once_with(ti_context, event)
-        mock_generate_config_file.assert_called_once_with(
-            eks_cluster_name="eks_cluster_name", pod_namespace="namespace"
+        mock_get_session.assert_called_once()
+        mock_session.get_credentials.assert_called_once()
+        mock_credentials.get_frozen_credentials.assert_called_once()
+        mock_secure_credential_context.assert_called_once_with(
+            "test_access_key", "test_secret_key", "test_token"
         )
-        assert mock_generate_config_file.return_value.__enter__.return_value == op.config_file
+        mock_generate_config_file.assert_called_once_with(
+            eks_cluster_name="eks_cluster_name",
+            pod_namespace="namespace",
+            credentials_file=mock_credentials_file,
+        )
+        assert op.config_file == mock_config_file

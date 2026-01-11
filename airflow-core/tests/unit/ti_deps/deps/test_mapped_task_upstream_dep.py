@@ -21,9 +21,9 @@ from typing import TYPE_CHECKING
 
 import pytest
 
-from airflow.exceptions import AirflowFailException, AirflowSkipException
 from airflow.models.xcom import XCOM_RETURN_KEY
 from airflow.providers.standard.operators.empty import EmptyOperator
+from airflow.sdk.exceptions import AirflowFailException, AirflowSkipException
 from airflow.ti_deps.dep_context import DepContext
 from airflow.ti_deps.deps.base_ti_dep import TIDepStatus
 from airflow.ti_deps.deps.mapped_task_upstream_dep import MappedTaskUpstreamDep
@@ -45,7 +45,7 @@ UPSTREAM_FAILED = TaskInstanceState.UPSTREAM_FAILED
 
 
 @pytest.mark.parametrize(
-    ["task_state", "upstream_states", "expected_state", "expect_failed_dep"],
+    ("task_state", "upstream_states", "expected_state", "expect_failed_dep"),
     [
         # finished mapped dependencies with state != success result in failed dep and a modified state
         (None, [None, None], None, False),
@@ -462,7 +462,7 @@ def _one_scheduling_decision_iteration(
     decision = dr.task_instance_scheduling_decisions(session=session)
     return (
         {_key(ti): ti for ti in decision.schedulable_tis},
-        {_key(ti): ti.state for ti in decision.finished_tis},
+        {_key(ti): ti.state for ti in decision.finished_tis if ti.state is not None},
     )
 
 

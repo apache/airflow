@@ -2,6 +2,9 @@
   "name": "{{PROJECT_NAME}}",
   "private": true,
   "version": "0.0.0",
+  "engines": {
+    "node": ">=22"
+  },
   "type": "module",
   "main": "./dist/main.js",
   "module": "./dist/main.js",
@@ -31,9 +34,9 @@
     "@chakra-ui/anatomy": "^2.3.4",
     "@chakra-ui/react": "^3.20.0",
     "@emotion/react": "^11.14.0",
-    "next-themes": "^0.3.0",
-    "react": "^18.3.1",
-    "react-dom": "^18.3.1"
+    "next-themes": "^0.4.6",
+    "react": "^19.1.1",
+    "react-dom": "^19.1.1"
   },
   "devDependencies": {
     "@eslint/compat": "^1.2.9",
@@ -45,26 +48,29 @@
     "@types/node": "^22.15.3",
     "@types/react": "^18.3.19",
     "@types/react-dom": "^18.3.5",
-    "@vitejs/plugin-react-swc": "^3.9.0",
-    "@vitest/coverage-v8": "^2.1.9",
+    "@vitejs/plugin-react-swc": "^4.0.1",
+    "@vitest/coverage-v8": "^3.2.4",
     "eslint": "^9.25.1",
     "eslint-config-prettier": "^10.1.2",
     "eslint-plugin-jsx-a11y": "^6.10.2",
+    "eslint-plugin-perfectionist": "^4.12.3",
     "eslint-plugin-prettier": "^5.2.6",
     "eslint-plugin-react": "^7.37.5",
-    "eslint-plugin-react-hooks": "^4.6.2",
-    "eslint-plugin-perfectionist": "^4.12.3",
+    "eslint-plugin-react-hooks": "^5.2.0",
     "eslint-plugin-react-refresh": "^0.4.20",
     "eslint-plugin-unicorn": "^55.0.0",
     "globals": "^15.15.0",
-    "happy-dom": "^17.4.6",
+    "happy-dom": "^20.0.8",
     "prettier": "^3.5.3",
     "typescript": "~5.8.3",
     "typescript-eslint": "^8.31.1",
-    "vite": "^5.4.19",
+    "vite": "^7.1.11",
     "vite-plugin-css-injected-by-js": "^3.5.2",
     "vite-plugin-dts": "^4.3.0",
-    "vitest": "^2.1.9"
+    "vitest": "^3.2.4",
+    "@typescript-eslint/eslint-plugin": "8.50.0",
+    "@typescript-eslint/utils": "^8.50.0",
+    "@typescript-eslint/parser": "8.50.0"
   },
   "pnpm": {
     "onlyBuiltDependencies": [

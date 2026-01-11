@@ -17,7 +17,6 @@
  * under the License.
  */
 import { useDisclosure } from "@chakra-ui/react";
-import { useCallback } from "react";
 
 import { useConfig } from "src/queries/useConfig";
 import { useTogglePause } from "src/queries/useTogglePause";
@@ -38,28 +37,21 @@ export const TogglePause = ({ dagDisplayName, dagId, isPaused, skipConfirm, ...r
   const { mutate: togglePause } = useTogglePause({ dagId });
   const showConfirmation = Boolean(useConfig("require_confirmation_dag_change"));
 
-  const onToggle = useCallback(() => {
+  const onToggle = () =>
     togglePause({
       dagId,
       requestBody: {
         is_paused: !isPaused,
       },
     });
-  }, [dagId, isPaused, togglePause]);
 
-  const onChange = () => {
-    if (showConfirmation && skipConfirm !== true) {
-      onOpen();
-    } else {
-      onToggle();
-    }
-  };
+  const onChange = () => (showConfirmation && skipConfirm !== true ? onOpen() : onToggle());
 
   return (
     <>
       <Switch
         checked={isPaused === undefined ? undefined : !isPaused}
-        colorPalette="blue"
+        colorPalette="brand"
         onCheckedChange={onChange}
         size="sm"
         {...rest}

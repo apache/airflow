@@ -23,7 +23,7 @@ import httplib2
 import pytest
 from googleapiclient.errors import HttpError
 
-from airflow.exceptions import AirflowException
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.google.cloud.hooks.dataflow import (
     DEFAULT_DATAFLOW_LOCATION,
     DataflowJobStatus,
@@ -124,6 +124,7 @@ TEST_PIPELINE_BODY = {
         }
     },
 }
+CONFLICTING_DEFERABLE_WAIT_UNTIL_FINISHED = "Conflict between deferrable and wait_until_finished parameters because it makes operator as blocking when it requires to be deferred. It should be True as deferrable parameter or True as wait_until_finished."
 
 
 class TestDataflowTemplatedJobStartOperator:
@@ -227,7 +228,7 @@ class TestDataflowTemplatedJobStartOperator:
             "impersonation_chain": IMPERSONATION_CHAIN,
             "cancel_timeout": CANCEL_TIMEOUT,
         }
-        with pytest.raises(ValueError):
+        with pytest.raises(ValueError, match=CONFLICTING_DEFERABLE_WAIT_UNTIL_FINISHED):
             DataflowTemplatedJobStartOperator(**init_kwargs)
 
     @pytest.mark.db_test
@@ -304,6 +305,7 @@ class TestDataflowStartFlexTemplateOperator:
             cancel_timeout=600,
             wait_until_finished=None,
             impersonation_chain=None,
+            poll_sleep=10,
         )
         mock_dataflow.return_value.start_flex_template.assert_called_once_with(
             body={"launchParameter": TEST_FLEX_PARAMETERS},
@@ -330,7 +332,7 @@ class TestDataflowStartFlexTemplateOperator:
             "wait_until_finished": True,
             "deferrable": True,
         }
-        with pytest.raises(ValueError):
+        with pytest.raises(ValueError, match=CONFLICTING_DEFERABLE_WAIT_UNTIL_FINISHED):
             DataflowStartFlexTemplateOperator(**init_kwargs)
 
     @mock.patch(f"{DATAFLOW_PATH}.DataflowStartFlexTemplateOperator.defer")

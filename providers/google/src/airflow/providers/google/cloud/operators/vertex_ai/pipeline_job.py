@@ -27,8 +27,7 @@ from google.api_core.exceptions import NotFound
 from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
 from google.cloud.aiplatform_v1 import types
 
-from airflow.configuration import conf
-from airflow.exceptions import AirflowException
+from airflow.providers.common.compat.sdk import AirflowException, conf
 from airflow.providers.google.cloud.hooks.vertex_ai.pipeline_job import PipelineJobHook
 from airflow.providers.google.cloud.links.vertex_ai import (
     VertexAIPipelineJobLink,
@@ -42,7 +41,7 @@ if TYPE_CHECKING:
     from google.cloud.aiplatform import PipelineJob
     from google.cloud.aiplatform.metadata import experiment_resources
 
-    from airflow.utils.context import Context
+    from airflow.providers.common.compat.sdk import Context
 
 
 class RunPipelineJobOperator(GoogleCloudBaseOperator):

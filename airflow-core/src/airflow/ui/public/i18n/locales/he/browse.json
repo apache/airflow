@@ -1,14 +1,13 @@
 {
   "auditLog": {
-    "actions": {
-      "collapseAllExtra": "כווץ את כל ה-JSON הנוסף",
-      "expandAllExtra": "הרחב את כל ה-JSON הנוסף"
-    },
     "columns": {
       "event": "אירוע",
       "extra": "תוכן",
       "user": "משתמש",
       "when": "מתי"
+    },
+    "filters": {
+      "eventType": "סוג אירוע"
     },
     "title": "יומן מערכת"
   },

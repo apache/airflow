@@ -26,17 +26,15 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.resolve()))
 from in_container_utils import console, get_provider_base_dir_from_path, get_provider_id_from_path
 
-errors_found = False
 
-
-def check_imports():
-    global errors_found
+def check_imports() -> bool:
+    errors_found = False
     cmd = [
         "ruff",
         "analyze",
         "graph",
         "--python",
-        "/usr/local/bin/python",
+        sys.executable,
     ]
     console.print("Cmd", cmd)
     import_tree_str = subprocess.check_output(cmd)
@@ -80,11 +78,10 @@ def check_imports():
                         f"\n"
                     )
                     errors_found = True
+    return errors_found
 
 
-check_imports()
-
-if errors_found:
+if check_imports():
     console.print("\n[red]Errors found in imports![/]\n")
     sys.exit(1)
 else:

@@ -21,6 +21,7 @@ from functools import cached_property
 from typing import TYPE_CHECKING
 
 from airflow.providers.common.compat.notifier import BaseNotifier
+from airflow.providers.common.compat.version_compat import AIRFLOW_V_3_1_PLUS
 from airflow.providers.slack.hooks.slack_webhook import SlackWebhookHook
 
 if TYPE_CHECKING:
@@ -64,7 +65,11 @@ class SlackWebhookNotifier(BaseNotifier):
         retry_handlers: list[RetryHandler] | None = None,
         **kwargs,
     ):
-        super().__init__(**kwargs)
+        if AIRFLOW_V_3_1_PLUS:
+            #  Support for passing context was added in 3.1.0
+            super().__init__(**kwargs)
+        else:
+            super().__init__()
         self.slack_webhook_conn_id = slack_webhook_conn_id
         self.text = text
         self.attachments = attachments

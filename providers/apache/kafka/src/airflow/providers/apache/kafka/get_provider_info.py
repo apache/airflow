@@ -30,6 +30,7 @@ def get_provider_info():
             {
                 "integration-name": "Apache Kafka",
                 "external-doc-url": "https://kafka.apache.org/",
+                "how-to-guide": ["/docs/apache-airflow-providers-apache-kafka/sensors.rst"],
                 "logo": "/docs/integration-logos/kafka.svg",
                 "tags": ["apache"],
             }
