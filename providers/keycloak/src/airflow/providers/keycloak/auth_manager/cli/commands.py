@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import json
 import logging
+from pathlib import Path
 from typing import get_args
 
 from keycloak import KeycloakAdmin, KeycloakError
@@ -88,6 +89,7 @@ def create_all_command(args):
     _create_scopes(client, client_uuid, _dry_run=args.dry_run)
     _create_resources(client, client_uuid, _dry_run=args.dry_run)
     _create_permissions(client, client_uuid, _dry_run=args.dry_run)
+    _create_policies(client, client_uuid, _dry_run=args.dry_run)
 
 
 def _get_client(args):
@@ -339,3 +341,42 @@ def _create_resource_based_permission(
         payload=payload,
         skip_exists=True,
     )
+
+
+@cli_utils.action_cli
+@providers_configuration_loaded
+def create_policies_command(args):
+    """Create Keycloak auth manager policies in Keycloak."""
+    client = _get_client(args)
+    client_uuid = _get_client_uuid(args)
+
+    _create_policies(client, client_uuid)
+
+
+def _create_policies(client: KeycloakAdmin, client_uuid: str):
+    policies = [
+        {
+            "name": "DagVisibilityPolicy",
+            "type": "js",
+            "logic": "POSITIVE",
+            "decisionStrategy": "UNANIMOUS",
+            "code": _load_policy_source("dag_visibility.js"),
+        }
+    ]
+
+    for policy in policies:
+        client.create_client_authz_policy(
+            client_id=client_uuid,
+            payload=policy,
+            skip_exists=True,
+        )
+
+    print("Policies created successfully.")
+
+
+def _load_policy_source(filename: str) -> str:
+    policy_path = Path(__file__).resolve().parents[2] / "policies" / filename
+    if not policy_path.exists():
+        raise FileNotFoundError(f"Policy file '{policy_path}' not found.")
+
+    return policy_path.read_text(encoding="utf-8")
