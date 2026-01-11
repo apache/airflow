@@ -51,7 +51,7 @@ else:
         from airflow.models import BaseOperator
 
     def is_async_callable(func) -> bool:
-        """Detect async callables. """
+        """Detect if a callable is an async function."""
         import inspect
         from functools import partial
 
@@ -81,8 +81,7 @@ else:
 
         def execute(self, context):
             raise RuntimeError(
-                "Async operators require Airflow 3.2+. "
-                "Upgrade Airflow or use a synchronous callable."
+                "Async operators require Airflow 3.2+. Upgrade Airflow or use a synchronous callable."
             )
 
 
