@@ -338,6 +338,7 @@ def _build_query(
     dag_id_column=None,
     dag_ids: list[str] | None = None,
     exclude_dag_ids: list[str] | None = None,
+    table_name: str | None = None,
     **kwargs,
 ) -> Select:
     base_table_alias = "base"
@@ -371,6 +372,39 @@ def _build_query(
             ),
         )
         conditions.append(column(max_date_col_name).is_(None))
+
+    # Special handling for dag_version: exclude rows referenced by task_instance rows that are NOT being deleted
+    if table_name == "dag_version":
+        try:
+            from airflow.utils.db import reflect_tables
+
+            # Reflect the task_instance table to get proper column access
+            metadata = reflect_tables(["task_instance", "dag_version"], session)
+            ti_table_reflected = metadata.tables["task_instance"]
+            dv_table_reflected = metadata.tables["dag_version"]
+            ti_dag_version_id_col = ti_table_reflected.c.dag_version_id
+            ti_start_date_col = ti_table_reflected.c.start_date
+            dv_id_col = dv_table_reflected.c.id
+
+            # Find dag_version_ids that are referenced by task_instance rows that are kept (not deleted)
+            # These are task_instance rows with start_date >= clean_before_timestamp
+            kept_ti_subquery = (
+                select(ti_dag_version_id_col)
+                .select_from(ti_table_reflected)
+                .where(ti_start_date_col >= clean_before_timestamp)
+                .where(ti_dag_version_id_col.isnot(None))
+                .distinct()
+            )
+
+            # Exclude dag_version rows that are referenced by kept task_instance rows
+            # Use the reflected table's id column and join it with base_table
+            base_table_id_col = base_table.c[dv_id_col.name]
+            conditions.append(base_table_id_col.not_in(kept_ti_subquery))
+        except Exception:
+            # If we can't add the FK constraint filter, continue without it
+            # This prevents the cleanup from failing, though it may still hit FK violations
+            pass
+
     query = query.where(and_(*conditions))
     return query
 
@@ -407,6 +441,7 @@ def _cleanup_table(
         keep_last_group_by=keep_last_group_by,
         clean_before_timestamp=clean_before_timestamp,
         session=session,
+        table_name=orm_model.name,
     )
     logger.debug("old rows query:\n%s", query.selectable.compile())
     print(f"Checking table {orm_model.name}")
