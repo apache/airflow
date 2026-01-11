@@ -67,16 +67,21 @@ class CloudRunHook(GoogleBaseHook):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account.
+    :param transport: Optional. The transport to use for API requests. Can be 'rest' or 'grpc'.
+        Defaults to 'grpc'. Use 'rest' if gRPC is not available or fails in your environment
+        (e.g., Docker containers with certain network configurations).
     """
 
     def __init__(
         self,
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
+        transport: str | None = None,
         **kwargs,
     ) -> None:
         super().__init__(gcp_conn_id=gcp_conn_id, impersonation_chain=impersonation_chain, **kwargs)
         self._client: JobsClient | None = None
+        self.transport = transport
 
     def get_conn(self):
         """
@@ -85,7 +90,10 @@ class CloudRunHook(GoogleBaseHook):
         :return: Cloud Run Jobs client object.
         """
         if self._client is None:
-            self._client = JobsClient(credentials=self.get_credentials(), client_info=CLIENT_INFO)
+            client_kwargs = {"credentials": self.get_credentials(), "client_info": CLIENT_INFO}
+            if self.transport is not None:
+                client_kwargs["transport"] = self.transport
+            self._client = JobsClient(**client_kwargs)
         return self._client
 
     @GoogleBaseHook.fallback_to_default_project_id
@@ -176,6 +184,9 @@ class CloudRunAsyncHook(GoogleBaseAsyncHook):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account.
+    :param transport: Optional. The transport to use for API requests. Can be 'rest' or 'grpc'.
+        Defaults to 'grpc'. Use 'rest' if gRPC is not available or fails in your environment
+        (e.g., Docker containers with certain network configurations).
     """
 
     sync_hook_class = CloudRunHook
@@ -184,15 +195,22 @@ class CloudRunAsyncHook(GoogleBaseAsyncHook):
         self,
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
+        transport: str | None = None,
         **kwargs,
     ):
         self._client: JobsAsyncClient | None = None
-        super().__init__(gcp_conn_id=gcp_conn_id, impersonation_chain=impersonation_chain, **kwargs)
+        self.transport = transport
+        super().__init__(
+            gcp_conn_id=gcp_conn_id, impersonation_chain=impersonation_chain, transport=transport, **kwargs
+        )
 
     async def get_conn(self):
         if self._client is None:
             sync_hook = await self.get_sync_hook()
-            self._client = JobsAsyncClient(credentials=sync_hook.get_credentials(), client_info=CLIENT_INFO)
+            client_kwargs = {"credentials": sync_hook.get_credentials(), "client_info": CLIENT_INFO}
+            if self.transport is not None:
+                client_kwargs["transport"] = self.transport
+            self._client = JobsAsyncClient(**client_kwargs)
 
         return self._client
 
