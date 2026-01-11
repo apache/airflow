@@ -76,8 +76,8 @@ spec:
       tier: airflow
       component: worker
       release: {{ .Release.Name }}
-  {{- if and $persistence .Values.workers.podManagementPolicy }}
-  podManagementPolicy: {{ .Values.workers.podManagementPolicy }}
+  {{- if and $persistence (or .Values.workers.celery.podManagementPolicy .Values.workers.podManagementPolicy) }}
+  podManagementPolicy: {{ .Values.workers.celery.podManagementPolicy | default .Values.workers.podManagementPolicy }}
   {{- end }}
   {{- if and $persistence (or .Values.workers.celery.updateStrategy .Values.workers.updateStrategy) }}
   updateStrategy: {{- toYaml (.Values.workers.celery.updateStrategy | default .Values.workers.updateStrategy) | nindent 4 }}

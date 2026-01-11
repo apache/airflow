@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Field, HStack, Text } from "@chakra-ui/react";
+import { Box, Field, HStack, Text } from "@chakra-ui/react";
 import { Select as ReactSelect, type MultiValue } from "chakra-react-select";
 import { useTranslation } from "react-i18next";
 
@@ -46,7 +46,7 @@ export const TagFilter = ({
   const { t: translate } = useTranslation("common");
 
   return (
-    <>
+    <Box maxWidth="300px" minWidth="64px">
       <Field.Root>
         <ReactSelect
           aria-label={translate("table.filterByTag")}
@@ -106,6 +106,6 @@ export const TagFilter = ({
           </Text>
         </HStack>
       )}
-    </>
+    </Box>
   );
 };

@@ -1725,7 +1725,7 @@
                     "default": null
                 },
                 "podManagementPolicy": {
-                    "description": "Specifies the policy for managing pods within the Airflow Celery worker. Only applicable to StatefulSet.",
+                    "description": "Specifies the policy for managing pods within the Airflow Celery worker (deprecated, use `workers.celery.podManagementPolicy` instead). Only applicable to StatefulSet.",
                     "type": [
                         "null",
                         "string"
@@ -2681,6 +2681,18 @@
                                     "maxUnavailable": "50%"
                                 }
                             }
+                        },
+                        "podManagementPolicy": {
+                            "description": "Specifies the policy for managing pods within the Airflow Celery worker. Only applicable to StatefulSet.",
+                            "type": [
+                                "null",
+                                "string"
+                            ],
+                            "default": null,
+                            "enum": [
+                                "OrderedReady",
+                                "Parallel"
+                            ]
                         },
                         "serviceAccount": {
                             "description": "Create ServiceAccount.",
