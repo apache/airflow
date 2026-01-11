@@ -17,7 +17,6 @@
  * under the License.
  */
 import { VStack } from "@chakra-ui/react";
-import { useMemo } from "react";
 import { useParams } from "react-router-dom";
 
 import { FilterBar } from "src/components/FilterBar";
@@ -27,31 +26,27 @@ import { useFiltersHandler, type FilterableSearchParamsKeys } from "src/utils";
 export const XComFilters = () => {
   const { dagId = "~", mapIndex = "-1", runId = "~", taskId = "~" } = useParams();
 
-  const searchParamKeys = useMemo((): Array<FilterableSearchParamsKeys> => {
-    const keys: Array<FilterableSearchParamsKeys> = [
-      SearchParamsKeys.KEY_PATTERN,
-      SearchParamsKeys.LOGICAL_DATE_RANGE,
-      SearchParamsKeys.RUN_AFTER_RANGE,
-    ];
+  const searchParamKeys: Array<FilterableSearchParamsKeys> = [
+    SearchParamsKeys.KEY_PATTERN,
+    SearchParamsKeys.LOGICAL_DATE_RANGE,
+    SearchParamsKeys.RUN_AFTER_RANGE,
+  ];
 
-    if (dagId === "~") {
-      keys.push(SearchParamsKeys.DAG_DISPLAY_NAME_PATTERN);
-    }
+  if (dagId === "~") {
+    searchParamKeys.push(SearchParamsKeys.DAG_DISPLAY_NAME_PATTERN);
+  }
 
-    if (runId === "~") {
-      keys.push(SearchParamsKeys.RUN_ID_PATTERN);
-    }
+  if (runId === "~") {
+    searchParamKeys.push(SearchParamsKeys.RUN_ID_PATTERN);
+  }
 
-    if (taskId === "~") {
-      keys.push(SearchParamsKeys.TASK_ID_PATTERN);
-    }
+  if (taskId === "~") {
+    searchParamKeys.push(SearchParamsKeys.TASK_ID_PATTERN);
+  }
 
-    if (mapIndex === "-1") {
-      keys.push(SearchParamsKeys.MAP_INDEX);
-    }
-
-    return keys;
-  }, [dagId, mapIndex, runId, taskId]);
+  if (mapIndex === "-1") {
+    searchParamKeys.push(SearchParamsKeys.MAP_INDEX);
+  }
 
   const { filterConfigs, handleFiltersChange, initialValues } = useFiltersHandler(searchParamKeys);
 

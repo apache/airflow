@@ -17,36 +17,30 @@
  * under the License.
  */
 import { Box, Heading, HStack } from "@chakra-ui/react";
-import type { ColumnDef } from "@tanstack/react-table";
-import type { TFunction } from "i18next";
-import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 
 import { usePluginServiceGetPlugins } from "openapi/queries";
-import type { PluginResponse } from "openapi/requests/types.gen";
 import { DataTable } from "src/components/DataTable";
 import { ErrorAlert } from "src/components/ErrorAlert";
 
 import { PluginImportErrors } from "./Dashboard/Stats/PluginImportErrors";
 
-const createColumns = (translate: TFunction): Array<ColumnDef<PluginResponse>> => [
-  {
-    accessorKey: "name",
-    enableSorting: false,
-    header: translate("columns.name"),
-  },
-  {
-    accessorKey: "source",
-    enableSorting: false,
-    header: translate("plugins.columns.source"),
-  },
-];
-
 export const Plugins = () => {
   const { t: translate } = useTranslation(["admin", "common"]);
   const { data, error } = usePluginServiceGetPlugins();
 
-  const columns = useMemo(() => createColumns(translate), [translate]);
+  const columns = [
+    {
+      accessorKey: "name",
+      enableSorting: false,
+      header: translate("columns.name"),
+    },
+    {
+      accessorKey: "source",
+      enableSorting: false,
+      header: translate("plugins.columns.source"),
+    },
+  ];
 
   return (
     <Box p={2}>
