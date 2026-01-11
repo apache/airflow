@@ -191,31 +191,20 @@ class TestContextDetection:
         assert "ExecutionAPISecretsBackend" in backend_classes
         assert "MetastoreBackend" not in backend_classes
 
-    def test_server_context_with_env_var(self, monkeypatch):
+    def test_server_context_with_env_var(self, monkeypatch, mock_unset_supervisor_comms):
         """Server context: env var set → uses server chain."""
-        import sys
-
         from airflow.sdk.execution_time.supervisor import ensure_secrets_backend_loaded
 
         monkeypatch.setenv("_AIRFLOW_PROCESS_CONTEXT", "server")
-        # Ensure supervisor-comms is not available
-        if "airflow.sdk.execution_time.task_runner" in sys.modules:
-            monkeypatch.delitem(sys.modules, "airflow.sdk.execution_time.task_runner")
 
         backends = ensure_secrets_backend_loaded()
         backend_classes = [type(b).__name__ for b in backends]
         assert "MetastoreBackend" in backend_classes
         assert "ExecutionAPISecretsBackend" not in backend_classes
 
-    def test_fallback_context_no_markers(self, monkeypatch):
+    def test_fallback_context_no_markers(self, monkeypatch, mock_unset_supervisor_comms):
         """Fallback context: no supervisor-comms, no env var → only env vars + external."""
-        import sys
-
         from airflow.sdk.execution_time.supervisor import ensure_secrets_backend_loaded
-
-        # Ensure no supervisor-comms
-        if "airflow.sdk.execution_time.task_runner" in sys.modules:
-            monkeypatch.delitem(sys.modules, "airflow.sdk.execution_time.task_runner")
 
         # Ensure no env var
         monkeypatch.delenv("_AIRFLOW_PROCESS_CONTEXT", raising=False)
