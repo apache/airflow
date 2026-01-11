@@ -129,7 +129,35 @@ class ConnectionHookMetaData(BaseModel):
         if v is None:
             return None
 
-        return redact(v)
+        # Store original schema.type values before redaction for param spec structures
+        # so we can restore them after redaction to keep fields optional
+        original_schema_types = {}
+        for field_name, field_spec in v.items():
+            schema = isinstance(field_spec, dict) and field_spec.get("schema")
+            if isinstance(schema, dict):
+                original_schema_types[field_name] = schema.get("type")
+
+        # Apply redaction (which will mask everything including schema.type)
+        redacted = redact(v)
+
+        # Restore schema.type for param spec structures to keep fields optional
+        if not original_schema_types or not isinstance(redacted, dict):
+            return redacted
+
+        redacted = dict(redacted)
+        for field_name, original_schema_type in original_schema_types.items():
+            if (
+                original_schema_type is not None
+                and field_name in redacted
+                and isinstance(redacted[field_name], dict)
+                and isinstance(redacted[field_name].get("schema"), dict)
+            ):
+                field_spec = dict(redacted[field_name])
+                field_spec["schema"] = dict(field_spec["schema"])
+                field_spec["schema"]["type"] = original_schema_type
+                redacted[field_name] = field_spec
+
+        return redacted
 
 
 # Request Models
