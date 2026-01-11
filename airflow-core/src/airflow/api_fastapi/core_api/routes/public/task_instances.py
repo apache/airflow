@@ -21,8 +21,6 @@ from typing import Annotated, Literal, cast
 
 import structlog
 from fastapi import Depends, HTTPException, Query, status
-from fastapi.exceptions import RequestValidationError
-from pydantic import ValidationError
 from sqlalchemy import or_, select, tuple_
 from sqlalchemy.orm import joinedload
 from sqlalchemy.sql.selectable import Select
@@ -88,6 +86,7 @@ from airflow.api_fastapi.core_api.services.public.task_instances import (
     _patch_task_instance_note,
     _patch_task_instance_state,
     _patch_ti_validate_request,
+    _validate_patch_request_body,
 )
 from airflow.api_fastapi.logging.decorators import action_logging
 from airflow.exceptions import AirflowClearRunningTaskException, TaskNotFound
@@ -1043,20 +1042,11 @@ def patch_task_group_dry_run(
     )
 
     # Validate request body
-    fields_to_update = body.model_fields_set
-    if update_mask:
-        fields_to_update = fields_to_update.intersection(update_mask)
-    else:
-        try:
-            PatchTaskInstanceBody.model_validate(body)
-        except ValidationError as e:
-            raise RequestValidationError(errors=e.errors())
-
-    data = body.model_dump(include=fields_to_update, by_alias=True)
+    data = _validate_patch_request_body(body, update_mask)
 
     # Collect all affected task instances (including upstream/downstream/future/past)
-    all_affected_tis: list[TI] = []
-    seen_ti_keys: set[tuple[str, str, str, int]] = set()
+    # Use dict to track unique task instances by key
+    affected_tis_dict: dict[tuple[str, str, str, int], TI] = {}
 
     if data.get("new_state"):
         # For each task in the group, simulate state change
@@ -1085,16 +1075,21 @@ def patch_task_group_dry_run(
                     affected_ti.task_id,
                     affected_ti.map_index if affected_ti.map_index is not None else -1,
                 )
-                if ti_key not in seen_ti_keys:
-                    seen_ti_keys.add(ti_key)
-                    all_affected_tis.append(affected_ti)
+                affected_tis_dict[ti_key] = affected_ti
     else:
         # If no state change, just return the group task instances
-        all_affected_tis = group_tis
+        for ti in group_tis:
+            ti_key = (
+                ti.dag_id,
+                ti.run_id,
+                ti.task_id,
+                ti.map_index if ti.map_index is not None else -1,
+            )
+            affected_tis_dict[ti_key] = ti
 
     return TaskInstanceCollectionResponse(
-        task_instances=[TaskInstanceResponse.model_validate(ti) for ti in all_affected_tis],
-        total_entries=len(all_affected_tis),
+        task_instances=[TaskInstanceResponse.model_validate(ti) for ti in affected_tis_dict.values()],
+        total_entries=len(affected_tis_dict),
     )
 
 
@@ -1132,25 +1127,16 @@ def patch_task_group(
     )
 
     # Validate request body
-    fields_to_update = body.model_fields_set
-    if update_mask:
-        fields_to_update = fields_to_update.intersection(update_mask)
-    else:
-        try:
-            PatchTaskInstanceBody.model_validate(body)
-        except ValidationError as e:
-            raise RequestValidationError(errors=e.errors())
-
-    data = body.model_dump(include=fields_to_update, by_alias=True)
+    data = _validate_patch_request_body(body, update_mask)
 
     # Collect all affected task instances (including upstream/downstream/future/past)
-    all_affected_tis: list[TI] = []
-    seen_ti_keys: set[tuple[str, str, str, int]] = set()
+    # Use dict to track unique task instances by key
+    affected_tis_dict: dict[tuple[str, str, str, int], TI] = {}
 
-    # Process each task in the group
-    for ti in group_tis:
-        # Update state if requested
-        if data.get("new_state"):
+    # Update state if requested
+    if data.get("new_state"):
+        # For each task in the group, update state
+        for ti in group_tis:
             # Create BulkTaskInstanceBody object with map_index field
             bulk_ti_body = BulkTaskInstanceBody(
                 task_id=ti.task_id,
@@ -1181,50 +1167,60 @@ def patch_task_group(
                     updated_ti.task_id,
                     updated_ti.map_index if updated_ti.map_index is not None else -1,
                 )
-                if ti_key not in seen_ti_keys:
-                    seen_ti_keys.add(ti_key)
-                    all_affected_tis.append(updated_ti)
+                affected_tis_dict[ti_key] = updated_ti
 
-        # Update note if requested
-        if data.get("note") is not None:
+        # Refresh the affected TIs from the database to get the latest state and notes
+        if affected_tis_dict:
+            ti_keys_list = list(affected_tis_dict.keys())
+            refreshed_tis = session.scalars(
+                select(TI)
+                .where(tuple_(TI.dag_id, TI.run_id, TI.task_id, TI.map_index).in_(ti_keys_list))
+                .options(joinedload(TI.rendered_task_instance_fields))
+            ).all()
+            # Update dict with refreshed TIs
+            for refreshed_ti in refreshed_tis:
+                ti_key = (
+                    refreshed_ti.dag_id,
+                    refreshed_ti.run_id,
+                    refreshed_ti.task_id,
+                    refreshed_ti.map_index if refreshed_ti.map_index is not None else -1,
+                )
+                affected_tis_dict[ti_key] = refreshed_ti
+
+    # Update note if requested
+    if data.get("note") is not None:
+        for ti in group_tis:
             _patch_task_instance_note(
                 task_instance_body=body,
                 tis=[ti],
                 user=user,
                 update_mask=update_mask,
             )
+            # Add group TIs that had notes updated but weren't in the state change list
+            ti_key = (
+                ti.dag_id,
+                ti.run_id,
+                ti.task_id,
+                ti.map_index if ti.map_index is not None else -1,
+            )
+            if ti_key not in affected_tis_dict:
+                affected_tis_dict[ti_key] = ti
 
     # If we didn't collect affected TIs from state changes, use the group TIs
     # (which may have had notes updated)
-    if not all_affected_tis:
-        all_affected_tis = group_tis
-    else:
-        # Refresh the affected TIs from the database to get the latest state and notes
-        ti_keys_list = list(seen_ti_keys)
-        refreshed_tis = session.scalars(
-            select(TI)
-            .where(tuple_(TI.dag_id, TI.run_id, TI.task_id, TI.map_index).in_(ti_keys_list))
-            .options(joinedload(TI.rendered_task_instance_fields))
-        ).all()
-        all_affected_tis = list(refreshed_tis)
-
-        # Also include group TIs that had notes updated but weren't in the state change list
-        # (to avoid duplicates, only add TIs not already in seen_ti_keys)
-        if data.get("note") is not None:
-            for ti in group_tis:
-                ti_key = (
-                    ti.dag_id,
-                    ti.run_id,
-                    ti.task_id,
-                    ti.map_index if ti.map_index is not None else -1,
-                )
-                if ti_key not in seen_ti_keys:
-                    seen_ti_keys.add(ti_key)
-                    all_affected_tis.append(ti)
+    if not affected_tis_dict:
+        for ti in group_tis:
+            ti_key = (
+                ti.dag_id,
+                ti.run_id,
+                ti.task_id,
+                ti.map_index if ti.map_index is not None else -1,
+            )
+            affected_tis_dict[ti_key] = ti
 
     return TaskInstanceCollectionResponse(
-        task_instances=[TaskInstanceResponse.model_validate(ti) for ti in all_affected_tis],
-        total_entries=len(all_affected_tis),
+        task_instances=[TaskInstanceResponse.model_validate(ti) for ti in affected_tis_dict.values()],
+        total_entries=len(affected_tis_dict),
     )
 
 
