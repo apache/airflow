@@ -17,7 +17,7 @@
 # under the License.
 from __future__ import annotations
 
-import sys
+import os
 from typing import TYPE_CHECKING, Any
 
 from sqlalchemy import Integer, MetaData, String, text
@@ -101,16 +101,7 @@ class TaskInstanceDependencies(Base):
     map_index: Mapped[int] = mapped_column(Integer, nullable=False, server_default=text("-1"))
 
 
-def has_execution_context() -> bool:
-    """Check if we are in an execution context (Task, Dag Parse or Triggerer perhaps)."""
-    # TODO: This is not the best way of having compat, but it's "better than erroring" for now. This still
-    # means SQLA etc is loaded, but we can't avoid that unless/until we add import shims as a big
-    # back-compat layer
-
-    # If this is set it means are in some kind of execution context (Task, Dag Parse or Triggerer perhaps)
-    # and should use the Task SDK API server path
-    return (
-        hasattr(sys.modules.get("airflow.sdk.execution_time.task_runner"), "SupervisorComms")
-        and sys.modules["airflow.sdk.execution_time.task_runner"].SupervisorComms._comms
-        is not sys.modules["airflow.sdk.execution_time.task_runner"]._UnsetComms
-    )
+def is_client_process_context() -> bool:
+    """Check if we are in an execution context (Task, Dag Parser or Triggerer perhaps)."""
+    process_context = os.environ.get("_AIRFLOW_PROCESS_CONTEXT", "").lower()
+    return process_context == "client"
