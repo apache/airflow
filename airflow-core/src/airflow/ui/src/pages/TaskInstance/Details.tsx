@@ -95,11 +95,14 @@ export const Details = () => {
           taskInstance={taskInstance}
         />
       )}
-      <ExtraLinks />
+      <ExtraLinks refetchInterval={isStatePending(tryInstance?.state) ? refetchInterval : false} />
       {taskInstance === undefined ||
       // eslint-disable-next-line unicorn/no-null
       ![null, "queued", "scheduled"].includes(taskInstance.state) ? undefined : (
-        <BlockingDeps taskInstance={taskInstance} />
+        <BlockingDeps
+          refetchInterval={isStatePending(tryInstance?.state) ? refetchInterval : false}
+          taskInstance={taskInstance}
+        />
       )}
       {taskInstance !== undefined && (taskInstance.trigger ?? taskInstance.triggerer_job) ? (
         <TriggererInfo taskInstance={taskInstance} />

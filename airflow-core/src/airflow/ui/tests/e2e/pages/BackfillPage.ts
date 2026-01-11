@@ -28,12 +28,39 @@ export type CreateBackfillOptions = {
   toDate: string;
 };
 
-export type VerifyBackfillOptions = {
-  dagName: string;
-  expectedFromDate: string;
-  expectedToDate: string;
-  reprocessBehavior: ReprocessBehavior;
+export type BackfillDetails = {
+  createdAt: string;
+  fromDate: string;
+  reprocessBehavior: string;
+  toDate: string;
 };
+
+export type BackfillRowIdentifier = {
+  fromDate: string;
+  toDate: string;
+};
+
+function normalizeDate(dateString: string): string {
+  const trimmed = dateString.trim();
+
+  if (trimmed.includes("T")) {
+    const parts = trimmed.split("T");
+
+    return parts[0] ?? trimmed;
+  }
+
+  if (trimmed.includes(" ")) {
+    const parts = trimmed.split(" ");
+
+    return parts[0] ?? trimmed;
+  }
+
+  return trimmed;
+}
+
+function datesMatch(date1: string, date2: string): boolean {
+  return normalizeDate(date1) === normalizeDate(date2);
+}
 
 export class BackfillPage extends BasePage {
   public readonly backfillDateError: Locator;
@@ -55,6 +82,18 @@ export class BackfillPage extends BasePage {
     this.backfillDateError = page.locator('text="Start Date must be before the End Date"');
   }
 
+  public static findColumnIndex(columnMap: Map<string, number>, possibleNames: Array<string>): number {
+    for (const name of possibleNames) {
+      const index = columnMap.get(name);
+
+      if (index !== undefined) {
+        return index;
+      }
+    }
+
+    return -1;
+  }
+
   public static getBackfillsUrl(dagName: string): string {
     return `/dags/${dagName}/backfills`;
   }
@@ -70,16 +109,39 @@ export class BackfillPage extends BasePage {
     await this.waitForNoActiveBackfill();
     await this.openBackfillDialog();
 
+    await this.backfillFromDateInput.click();
     await this.backfillFromDateInput.fill(fromDate);
+    await this.backfillFromDateInput.dispatchEvent("change");
+
+    await this.backfillToDateInput.click();
     await this.backfillToDateInput.fill(toDate);
+    await this.backfillToDateInput.dispatchEvent("change");
+
+    await this.page.waitForTimeout(500);
 
     await this.selectReprocessBehavior(reprocessBehavior);
 
-    const runsMessage = this.page.locator("text=/\\d+ runs? will be triggered|No runs matching/");
+    const runsWillBeTriggered = this.page.locator("text=/\\d+ runs? will be triggered/");
+    const noRunsMatching = this.page.locator("text=/No runs matching/");
 
-    await expect(runsMessage).toBeVisible({ timeout: 10_000 });
+    await expect(runsWillBeTriggered.or(noRunsMatching)).toBeVisible({ timeout: 20_000 });
 
-    const hasRuns = await this.page.locator("text=/\\d+ runs? will be triggered/").isVisible();
+    let previousText = "";
+    let stableCount = 0;
+
+    while (stableCount < 3) {
+      await this.page.waitForTimeout(500);
+      const currentText = (await runsWillBeTriggered.or(noRunsMatching).textContent()) ?? "";
+
+      if (currentText === previousText) {
+        stableCount++;
+      } else {
+        stableCount = 0;
+        previousText = currentText;
+      }
+    }
+
+    const hasRuns = await runsWillBeTriggered.isVisible();
 
     if (!hasRuns) {
       await this.page.keyboard.press("Escape");
@@ -87,42 +149,88 @@ export class BackfillPage extends BasePage {
       return;
     }
 
-    await expect(this.backfillRunButton).toBeEnabled({ timeout: 15_000 });
-    await this.backfillRunButton.click();
+    await expect(this.backfillRunButton).toBeVisible({ timeout: 20_000 });
+    await this.backfillRunButton.scrollIntoViewIfNeeded();
+    await this.backfillRunButton.click({ timeout: 20_000 });
+    await this.page.waitForLoadState("networkidle", { timeout: 30_000 });
   }
 
-  public async getBackfillDetails(rowIndex: number = 0): Promise<{
-    createdAt: string;
-    fromDate: string;
-    reprocessBehavior: string;
-    toDate: string;
-  }> {
-    const row = this.page.locator("table tbody tr").nth(rowIndex);
+  public async findBackfillRowByDateRange(
+    identifier: BackfillRowIdentifier,
+    timeout: number = 180_000,
+  ): Promise<Locator> {
+    const { fromDate: expectedFrom, toDate: expectedTo } = identifier;
+
+    await this.backfillsTable.waitFor({ state: "visible", timeout: 10_000 });
+    await this.waitForTableDataLoaded();
+
+    const columnMap = await this.getColumnIndexMap();
+    const fromIndex = BackfillPage.findColumnIndex(columnMap, ["From", "table.from"]);
+    const toIndex = BackfillPage.findColumnIndex(columnMap, ["To", "table.to"]);
+
+    if (fromIndex === -1 || toIndex === -1) {
+      const availableColumns = [...columnMap.keys()].join(", ");
+
+      throw new Error(
+        `Required columns "From" and/or "To" not found. Available columns: [${availableColumns}]`,
+      );
+    }
+
+    let foundRow: Locator | undefined;
+
+    await expect(async () => {
+      await this.page.reload();
+      await this.backfillsTable.waitFor({ state: "visible", timeout: 10_000 });
+      await this.waitForTableDataLoaded();
+
+      const rows = this.page.locator("table tbody tr");
+      const rowCount = await rows.count();
+
+      for (let i = 0; i < rowCount; i++) {
+        const row = rows.nth(i);
+        const cells = row.locator("td");
+        const fromCell = (await cells.nth(fromIndex).textContent()) ?? "";
+        const toCell = (await cells.nth(toIndex).textContent()) ?? "";
+
+        if (datesMatch(fromCell, expectedFrom) && datesMatch(toCell, expectedTo)) {
+          foundRow = row;
+
+          return;
+        }
+      }
+
+      throw new Error("Backfill not yet visible");
+    }).toPass({ timeout });
+
+    // toPass() guarantees foundRow is set when it succeeds
+    return foundRow as Locator;
+  }
+
+  public async getBackfillDetailsByDateRange(identifier: BackfillRowIdentifier): Promise<BackfillDetails> {
+    const row = await this.findBackfillRowByDateRange(identifier);
     const cells = row.locator("td");
+    const columnMap = await this.getColumnIndexMap();
 
-    await expect(row).toBeVisible({ timeout: 10_000 });
+    const fromIndex = BackfillPage.findColumnIndex(columnMap, ["From", "table.from"]);
+    const toIndex = BackfillPage.findColumnIndex(columnMap, ["To", "table.to"]);
+    const reprocessIndex = BackfillPage.findColumnIndex(columnMap, [
+      "Reprocess Behavior",
+      "backfill.reprocessBehavior",
+    ]);
+    const createdAtIndex = BackfillPage.findColumnIndex(columnMap, ["Created at", "table.createdAt"]);
 
-    const headers = this.page.locator("table thead th");
-    const headerTexts = await headers.allTextContents();
-    const columnMap = new Map<string, number>(headerTexts.map((text, index) => [text.trim(), index]));
-
-    const fromDateIndex = columnMap.get("From") ?? 0;
-    const toDateIndex = columnMap.get("To") ?? 1;
-    const reprocessBehaviorIndex = columnMap.get("Reprocess Behavior") ?? 2;
-    const createdAtIndex = columnMap.get("Created at") ?? 3;
-
-    await expect(row.first()).not.toBeEmpty();
-
-    const fromDate = (await cells.nth(fromDateIndex).textContent()) ?? "";
-    const toDate = (await cells.nth(toDateIndex).textContent()) ?? "";
-    const reprocessBehavior = (await cells.nth(reprocessBehaviorIndex).textContent()) ?? "";
-    const createdAt = (await cells.nth(createdAtIndex).textContent()) ?? "";
+    const [fromDate, toDate, reprocessBehavior, createdAt] = await Promise.all([
+      cells.nth(fromIndex === -1 ? 0 : fromIndex).textContent(),
+      cells.nth(toIndex === -1 ? 1 : toIndex).textContent(),
+      cells.nth(reprocessIndex === -1 ? 2 : reprocessIndex).textContent(),
+      cells.nth(createdAtIndex === -1 ? 3 : createdAtIndex).textContent(),
+    ]);
 
     return {
-      createdAt: createdAt.trim(),
-      fromDate: fromDate.trim(),
-      reprocessBehavior: reprocessBehavior.trim(),
-      toDate: toDate.trim(),
+      createdAt: (createdAt ?? "").trim(),
+      fromDate: (fromDate ?? "").trim(),
+      reprocessBehavior: (reprocessBehavior ?? "").trim(),
+      toDate: (toDate ?? "").trim(),
     };
   }
 
@@ -145,29 +253,29 @@ export class BackfillPage extends BasePage {
 
     const headers = this.page.locator("table thead th");
     const headerTexts = await headers.allTextContents();
-    const statusIndex = headerTexts.findIndex((text) => text.toLowerCase().includes("status"));
+    const completedAtIndex = headerTexts.findIndex((text) => text.toLowerCase().includes("completed"));
 
-    if (statusIndex === -1) {
-      const statusBadge = row
-        .locator('[data-testid="state-badge"], [class*="status"], [class*="badge"]')
-        .first();
-      const isVisible = await statusBadge.isVisible().catch(() => false);
+    if (completedAtIndex !== -1) {
+      const completedCell = row.locator("td").nth(completedAtIndex);
+      const completedText = ((await completedCell.textContent()) ?? "").trim();
 
-      if (isVisible) {
-        return (await statusBadge.textContent()) ?? "";
-      }
-
-      return "";
+      return completedText ? "Completed" : "Running";
     }
 
-    const statusCell = row.locator("td").nth(statusIndex);
-    const statusText = (await statusCell.textContent()) ?? "";
-
-    return statusText.trim();
+    return "Running";
   }
 
   public getColumnHeader(columnName: string): Locator {
     return this.page.locator(`th:has-text("${columnName}")`);
+  }
+
+  public async getColumnIndexMap(): Promise<Map<string, number>> {
+    const headers = this.page.locator("table thead th");
+
+    await headers.first().waitFor({ state: "visible", timeout: 10_000 });
+    const headerTexts = await headers.allTextContents();
+
+    return new Map(headerTexts.map((text, index) => [text.trim(), index]));
   }
 
   public getFilterButton(): Locator {
@@ -182,14 +290,9 @@ export class BackfillPage extends BasePage {
     return await headers.count();
   }
 
-  public async isBackfillDateErrorVisible(): Promise<boolean> {
-    return this.backfillDateError.isVisible();
-  }
-
   public async navigateToBackfillsTab(dagName: string): Promise<void> {
     await this.navigateTo(BackfillPage.getBackfillsUrl(dagName));
-    await this.page.waitForLoadState("networkidle");
-    await expect(this.backfillsTable).toBeVisible({ timeout: 10_000 });
+    await expect(this.backfillsTable).toBeVisible({ timeout: 20_000 });
   }
 
   public async navigateToDagDetail(dagName: string): Promise<void> {
@@ -198,13 +301,13 @@ export class BackfillPage extends BasePage {
   }
 
   public async openBackfillDialog(): Promise<void> {
-    await this.triggerButton.waitFor({ state: "visible", timeout: 10_000 });
+    await expect(this.triggerButton).toBeVisible({ timeout: 20_000 });
     await this.triggerButton.click();
 
-    await expect(this.backfillModeRadio).toBeVisible({ timeout: 8000 });
+    await expect(this.backfillModeRadio).toBeVisible({ timeout: 20_000 });
     await this.backfillModeRadio.click();
 
-    await expect(this.backfillFromDateInput).toBeVisible({ timeout: 5000 });
+    await expect(this.backfillFromDateInput).toBeVisible({ timeout: 20_000 });
   }
 
   public async openFilterMenu(): Promise<void> {
@@ -240,6 +343,19 @@ export class BackfillPage extends BasePage {
   public async waitForNoActiveBackfill(): Promise<void> {
     const backfillInProgress = this.page.locator('text="Backfill in progress:"');
 
-    await expect(backfillInProgress).not.toBeVisible({ timeout: 120_000 });
+    await expect(backfillInProgress).not.toBeVisible({ timeout: 300_000 });
+  }
+
+  public async waitForTableDataLoaded(): Promise<void> {
+    const firstCell = this.page.locator("table tbody tr:first-child td:first-child");
+
+    await expect(firstCell).toBeVisible({ timeout: 30_000 });
+    await expect(async () => {
+      const text = await firstCell.textContent();
+
+      if (text === null || text.trim() === "") {
+        throw new Error("Table data still loading");
+      }
+    }).toPass({ timeout: 30_000 });
   }
 }

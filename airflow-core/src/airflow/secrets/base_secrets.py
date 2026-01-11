@@ -18,3 +18,9 @@ from __future__ import annotations
 
 # Re export for compat
 from airflow._shared.secrets_backend.base import BaseSecretsBackend as BaseSecretsBackend
+
+# Server side default secrets backend search path used by server components (scheduler, API server)
+DEFAULT_SECRETS_SEARCH_PATH = [
+    "airflow.secrets.environment_variables.EnvironmentVariablesBackend",
+    "airflow.secrets.metastore.MetastoreBackend",
+]
