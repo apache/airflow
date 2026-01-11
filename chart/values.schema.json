@@ -2713,6 +2713,41 @@
                                 "additionalProperties": {}
                             }
                         },
+                        "securityContexts": {
+                            "description": "Security context definition for the Airflow Celery workers. If not set, the values from global `securityContexts` will be used.",
+                            "type": "object",
+                            "properties": {
+                                "pod": {
+                                    "description": "Pod security context definition.",
+                                    "type": "object",
+                                    "$ref": "#/definitions/io.k8s.api.core.v1.PodSecurityContext",
+                                    "default": {},
+                                    "examples": [
+                                        {
+                                            "runAsUser": 50000,
+                                            "runAsGroup": 0,
+                                            "fsGroup": 0
+                                        }
+                                    ]
+                                },
+                                "container": {
+                                    "description": "Container security context definition.",
+                                    "type": "object",
+                                    "$ref": "#/definitions/io.k8s.api.core.v1.SecurityContext",
+                                    "default": {},
+                                    "examples": [
+                                        {
+                                            "allowPrivilegeEscalation": false,
+                                            "capabilities": {
+                                                "drop": [
+                                                    "ALL"
+                                                ]
+                                            }
+                                        }
+                                    ]
+                                }
+                            }
+                        },
                         "serviceAccount": {
                             "description": "Create ServiceAccount.",
                             "type": "object",
@@ -2828,6 +2863,41 @@
                                 "type": "string"
                             },
                             "default": null
+                        },
+                        "securityContexts": {
+                            "description": "Security context definition for the pod-template-file. If not set, the values from global `securityContexts` will be used.",
+                            "type": "object",
+                            "properties": {
+                                "pod": {
+                                    "description": "Pod security context definition.",
+                                    "type": "object",
+                                    "$ref": "#/definitions/io.k8s.api.core.v1.PodSecurityContext",
+                                    "default": {},
+                                    "examples": [
+                                        {
+                                            "runAsUser": 50000,
+                                            "runAsGroup": 0,
+                                            "fsGroup": 0
+                                        }
+                                    ]
+                                },
+                                "container": {
+                                    "description": "Container security context definition.",
+                                    "type": "object",
+                                    "$ref": "#/definitions/io.k8s.api.core.v1.SecurityContext",
+                                    "default": {},
+                                    "examples": [
+                                        {
+                                            "allowPrivilegeEscalation": false,
+                                            "capabilities": {
+                                                "drop": [
+                                                    "ALL"
+                                                ]
+                                            }
+                                        }
+                                    ]
+                                }
+                            }
                         },
                         "serviceAccount": {
                             "description": "Create ServiceAccount.",

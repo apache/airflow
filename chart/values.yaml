@@ -1074,6 +1074,7 @@ workers:
       failureThreshold: 5
       periodSeconds: 60
       command: ~
+
     # List of worker sets. Each item can override values from the parent 'workers' section.
     sets: []
     # sets:
@@ -1109,6 +1110,11 @@ workers:
     # Allow relaxing ordering guarantees for Airflow Celery worker
     # while preserving its uniqueness and identity
     # podManagementPolicy: Parallel
+
+    # Detailed default security context for Airflow Celery workers for container and pod level
+    securityContexts:
+      pod: {}
+      container: {}
 
     # Create ServiceAccount for Airflow Celery workers
     serviceAccount:
@@ -1155,6 +1161,11 @@ workers:
   kubernetes:
     # Command to use in pod-template-file (templated)
     command: ~
+
+    # Detailed default security context for pod-template-file for container and pod level
+    securityContexts:
+      pod: {}
+      container: {}
 
     # Create ServiceAccount for pods created with pod-template-file
     serviceAccount:

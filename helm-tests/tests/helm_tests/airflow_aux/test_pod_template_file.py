@@ -637,6 +637,7 @@ class TestPodTemplateFile:
             {"securityContexts": {"pod": {"runAsUser": 10}}},
             {"workers": {"securityContext": {"runAsUser": 10}}},
             {"workers": {"securityContexts": {"pod": {"runAsUser": 10}}}},
+            {"workers": {"kubernetes": {"securityContexts": {"pod": {"runAsUser": 10}}}}},
         ],
     )
     def test_pod_security_context_set(self, values):
@@ -653,6 +654,11 @@ class TestPodTemplateFile:
         [
             {"securityContexts": {"containers": {"allowPrivilegeEscalation": False}}},
             {"workers": {"securityContexts": {"container": {"allowPrivilegeEscalation": False}}}},
+            {
+                "workers": {
+                    "kubernetes": {"securityContexts": {"container": {"allowPrivilegeEscalation": False}}}
+                }
+            },
         ],
     )
     def test_container_security_context_set(self, values):
@@ -674,11 +680,27 @@ class TestPodTemplateFile:
                 "securityContexts": {"pod": {"runAsUser": 5}},
                 "workers": {"securityContexts": {"pod": {"runAsUser": 10}}},
             },
+            {
+                "securityContexts": {"pod": {"runAsUser": 5}},
+                "workers": {"kubernetes": {"securityContexts": {"pod": {"runAsUser": 10}}}},
+            },
+            {
+                "workers": {
+                    "securityContexts": {"pod": {"runAsUser": 5}},
+                    "kubernetes": {"securityContexts": {"pod": {"runAsUser": 10}}},
+                },
+            },
             {"securityContext": {"runAsUser": 5}, "securityContexts": {"pod": {"runAsUser": 10}}},
             {
                 "workers": {
                     "securityContext": {"runAsUser": 5},
                     "securityContexts": {"pod": {"runAsUser": 10}},
+                }
+            },
+            {
+                "workers": {
+                    "securityContext": {"runAsUser": 5},
+                    "kubernetes": {"securityContexts": {"pod": {"runAsUser": 10}}},
                 }
             },
         ],
@@ -692,12 +714,30 @@ class TestPodTemplateFile:
 
         assert jmespath.search("spec.securityContext", docs[0]) == {"runAsUser": 10}
 
-    def test_container_security_context_overwrite(self):
-        docs = render_chart(
-            values={
+    @pytest.mark.parametrize(
+        "values",
+        [
+            {
                 "securityContexts": {"containers": {"allowPrivilegeEscalation": True}},
                 "workers": {"securityContexts": {"container": {"allowPrivilegeEscalation": False}}},
             },
+            {
+                "securityContexts": {"containers": {"allowPrivilegeEscalation": True}},
+                "workers": {
+                    "kubernetes": {"securityContexts": {"container": {"allowPrivilegeEscalation": False}}}
+                },
+            },
+            {
+                "workers": {
+                    "securityContexts": {"container": {"allowPrivilegeEscalation": True}},
+                    "kubernetes": {"securityContexts": {"container": {"allowPrivilegeEscalation": False}}},
+                },
+            },
+        ],
+    )
+    def test_container_security_context_overwrite(self, values):
+        docs = render_chart(
+            values=values,
             show_only=["templates/pod-template-file.yaml"],
             chart_dir=self.temp_chart_dir,
         )

@@ -333,7 +333,14 @@ class TestSecurityContext:
 
     # Test priority:
     # <local>.securityContexts > securityContexts > uid + gid
-    def test_check_local_setting_default_version(self):
+    @pytest.mark.parametrize(
+        "workers_values",
+        [
+            {"securityContexts": {"pod": {"runAsUser": 9000, "fsGroup": 90}}},
+            {"celery": {"securityContexts": {"pod": {"runAsUser": 9000, "fsGroup": 90}}}},
+        ],
+    )
+    def test_check_local_setting_default_version(self, workers_values):
         component_contexts = {"securityContexts": {"pod": {"runAsUser": 9000, "fsGroup": 90}}}
         docs = render_chart(
             values={
@@ -341,7 +348,7 @@ class TestSecurityContext:
                 "gid": 30,
                 "securityContexts": {"pod": {"runAsUser": 6000, "fsGroup": 60}},
                 "apiServer": component_contexts,
-                "workers": component_contexts,
+                "workers": workers_values,
                 "dagProcessor": component_contexts,
                 "flower": {"enabled": True, **component_contexts},
                 "scheduler": component_contexts,
@@ -446,7 +453,14 @@ class TestSecurityContext:
         assert default_ctx_value_pod_redis == jmespath.search("spec.template.spec.securityContext", docs[-1])
 
     # Test securityContexts for main containers
-    def test_main_container_setting_airflow_2(self):
+    @pytest.mark.parametrize(
+        "workers_values",
+        [
+            {"securityContexts": {"container": {"allowPrivilegeEscalation": False}}},
+            {"celery": {"securityContexts": {"container": {"allowPrivilegeEscalation": False}}}},
+        ],
+    )
+    def test_main_container_setting_airflow_2(self, workers_values):
         ctx_value = {"allowPrivilegeEscalation": False}
         security_context = {"securityContexts": {"container": ctx_value}}
         docs = render_chart(
@@ -455,7 +469,7 @@ class TestSecurityContext:
                 "cleanup": {"enabled": True, **security_context},
                 "scheduler": {**security_context},
                 "webserver": {**security_context},
-                "workers": {**security_context},
+                "workers": workers_values,
                 "flower": {"enabled": True, **security_context},
                 "statsd": {**security_context},
                 "createUserJob": {**security_context},
@@ -488,7 +502,14 @@ class TestSecurityContext:
             assert ctx_value == jmespath.search("spec.template.spec.containers[0].securityContext", doc)
 
     # Test securityContexts for main containers
-    def test_main_container_setting(self):
+    @pytest.mark.parametrize(
+        "workers_values",
+        [
+            {"securityContexts": {"container": {"allowPrivilegeEscalation": False}}},
+            {"celery": {"securityContexts": {"container": {"allowPrivilegeEscalation": False}}}},
+        ],
+    )
+    def test_main_container_setting(self, workers_values):
         ctx_value = {"allowPrivilegeEscalation": False}
         security_context = {"securityContexts": {"container": ctx_value}}
         docs = render_chart(
@@ -498,7 +519,7 @@ class TestSecurityContext:
                 "scheduler": {**security_context},
                 "dagProcessor": {**security_context},
                 "apiServer": {**security_context},
-                "workers": {**security_context},
+                "workers": workers_values,
                 "flower": {"enabled": True, **security_context},
                 "statsd": {**security_context},
                 "createUserJob": {**security_context},
@@ -677,7 +698,14 @@ class TestSecurityContext:
         }
 
     # Test securityContexts for main pods
-    def test_main_pod_setting_airflow_2(self):
+    @pytest.mark.parametrize(
+        "workers_values",
+        [
+            {"securityContexts": {"pod": {"runAsUser": 7000}}},
+            {"celery": {"securityContexts": {"pod": {"runAsUser": 7000}}}},
+        ],
+    )
+    def test_main_pod_setting_airflow_2(self, workers_values):
         ctx_value = {"runAsUser": 7000}
         security_context = {"securityContexts": {"pod": ctx_value}}
         docs = render_chart(
@@ -686,7 +714,7 @@ class TestSecurityContext:
                 "cleanup": {"enabled": True, **security_context},
                 "scheduler": {**security_context},
                 "webserver": {**security_context},
-                "workers": {**security_context},
+                "workers": workers_values,
                 "flower": {"enabled": True, **security_context},
                 "statsd": {**security_context},
                 "createUserJob": {**security_context},
@@ -716,7 +744,14 @@ class TestSecurityContext:
         for doc in docs[1:]:
             assert ctx_value == jmespath.search("spec.template.spec.securityContext", doc)
 
-    def test_main_pod_setting(self):
+    @pytest.mark.parametrize(
+        "workers_values",
+        [
+            {"securityContexts": {"pod": {"runAsUser": 7000}}},
+            {"celery": {"securityContexts": {"pod": {"runAsUser": 7000}}}},
+        ],
+    )
+    def test_main_pod_setting(self, workers_values):
         ctx_value = {"runAsUser": 7000}
         security_context = {"securityContexts": {"pod": ctx_value}}
         docs = render_chart(
@@ -725,7 +760,7 @@ class TestSecurityContext:
                 "cleanup": {"enabled": True, **security_context},
                 "scheduler": {**security_context},
                 "apiServer": {**security_context},
-                "workers": {**security_context},
+                "workers": workers_values,
                 "flower": {"enabled": True, **security_context},
                 "statsd": {**security_context},
                 "createUserJob": {**security_context},
@@ -852,7 +887,20 @@ class TestSecurityContext:
             assert jmespath.search("spec.template.spec.securityContext.runAsUser", doc) == 9000
             assert jmespath.search("spec.template.spec.securityContext.fsGroup", doc) == 90
 
-    def test_deprecated_overwrite_local(self):
+    @pytest.mark.parametrize(
+        "workers_values",
+        [
+            {
+                "securityContext": {"runAsUser": 6000, "fsGroup": 60},
+                "securityContexts": {"pod": {"runAsUser": 9000, "fsGroup": 90}},
+            },
+            {
+                "securityContext": {"runAsUser": 6000, "fsGroup": 60},
+                "celery": {"securityContexts": {"pod": {"runAsUser": 9000, "fsGroup": 90}}},
+            },
+        ],
+    )
+    def test_deprecated_overwrite_local(self, workers_values):
         context = {
             "securityContext": {"runAsUser": 6000, "fsGroup": 60},
             "securityContexts": {"pod": {"runAsUser": 9000, "fsGroup": 90}},
@@ -863,7 +911,7 @@ class TestSecurityContext:
                 "flower": context,
                 "scheduler": context,
                 "triggerer": context,
-                "workers": context,
+                "workers": workers_values,
                 "dagProcessor": context,
             },
             show_only=[
@@ -878,3 +926,17 @@ class TestSecurityContext:
         for doc in docs:
             assert jmespath.search("spec.template.spec.securityContext.runAsUser", doc) == 9000
             assert jmespath.search("spec.template.spec.securityContext.fsGroup", doc) == 90
+
+    def test_workers_overwrite_local(self):
+        docs = render_chart(
+            values={
+                "workers": {
+                    "securityContexts": {"pod": {"runAsUser": 6000, "fsGroup": 60}},
+                    "celery": {"securityContexts": {"pod": {"runAsUser": 9000, "fsGroup": 90}}},
+                },
+            },
+            show_only=["templates/workers/worker-deployment.yaml"],
+        )
+
+        assert jmespath.search("spec.template.spec.securityContext.runAsUser", docs[0]) == 9000
+        assert jmespath.search("spec.template.spec.securityContext.fsGroup", docs[0]) == 90
