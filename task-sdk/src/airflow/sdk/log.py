@@ -122,6 +122,13 @@ def configure_logging(
         callsite_params=conf.getlist("logging", "callsite_parameters", fallback=[]),
     )
 
+    stdlib_config: dict[str, Any] | None = None
+    logging_config_class = conf.get("logging", "logging_config_class", fallback="")
+    if logging_config_class:
+        from airflow.logging_config import load_logging_config
+
+        stdlib_config, _ = load_logging_config()
+
     mask_secrets = not sending_to_supervisor
     extra_processors: tuple[Processor, ...] = ()
 
@@ -136,6 +143,7 @@ def configure_logging(
         log_level=log_level,
         namespace_log_levels=namespace_log_levels,
         log_format=log_fmt,
+        stdlib_config=stdlib_config,
         output=output,
         cache_logger_on_first_use=cache_logger_on_first_use,
         colors=colored_console_log,
