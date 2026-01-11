@@ -71,7 +71,6 @@ these guidelines:
 
 -   Make sure your code fulfills all the
     `static code checks <08_static_code_checks.rst#static-code-checks>`__ we have in our code. The easiest way
-    to make sure of that is - again - to install `prek hooks <08_static_code_checks.rst#prek-hooks>`__
 
 -   Make sure your PR is small and focused on one change only - avoid adding unrelated changes, mixing
     adding features and refactoring. Keeping to that rule will make it easier to review your PR and will make
@@ -82,6 +81,8 @@ these guidelines:
     merge and cherry-pick. It takes a long time (and a lot of attention and focus of a reviewer to review
     big PRs so by splitting it to smaller PRs you actually speed up the review process and make it easier
     for your change to be eventually merged.
+
+-   To learn more about ``cherry-pick`` of PRs, refer `here <../blob/main/dev/README_AIRFLOW3_DEV.md>`__.
 
 -   Run relevant tests locally before opening PR. Often tests are placed in the files that are corresponding
     to the changed code (for example for ``airflow/cli/cli_parser.py`` changes you have tests in
