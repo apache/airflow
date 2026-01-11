@@ -71,6 +71,7 @@ these guidelines:
 
 -   Make sure your code fulfills all the
     `static code checks <08_static_code_checks.rst#static-code-checks>`__ we have in our code. The easiest way
+    to make sure of that is - again - to install `prek hooks <08_static_code_checks.rst#prek-hooks>`__
 
 -   Make sure your PR is small and focused on one change only - avoid adding unrelated changes, mixing
     adding features and refactoring. Keeping to that rule will make it easier to review your PR and will make
