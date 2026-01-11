@@ -65,7 +65,6 @@ def example_python_decorator():
 
     # [START howto_operator_python_kwargs]
     # Generate 5 sleeping tasks, sleeping from 0.0 to 0.4 seconds respectively
-    # Asynchronous callables are natively supported since Airflow 3.2+
     @task
     def my_sleeping_function(random_base):
         """This is a function that will run within the DAG execution"""
