@@ -18,8 +18,11 @@ from __future__ import annotations
 
 from fastapi import status
 
-# HTTP_422_UNPROCESSABLE_CONTENT was added in Starlette 0.29.0 (renamed from HTTP_422_UNPROCESSABLE_ENTITY)
-# We need to support older versions that only have HTTP_422_UNPROCESSABLE_ENTITY
+# HTTP_422_UNPROCESSABLE_CONTENT was added in Starlette 0.48.0, replacing HTTP_422_UNPROCESSABLE_ENTITY
+# to align with RFC 9110 (HTTP Semantics). We need to support older versions for "Low dep tests".
+# Refs:
+#   - https://www.starlette.io/release-notes/
+#   - https://www.rfc-editor.org/rfc/rfc9110#status.422
 try:
     HTTP_422_UNPROCESSABLE_CONTENT = status.HTTP_422_UNPROCESSABLE_CONTENT
 except AttributeError:
