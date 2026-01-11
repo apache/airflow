@@ -687,6 +687,7 @@ workers:
       maxUnavailable: "50%"
 
   # Allow relaxing ordering guarantees for Airflow Celery worker while preserving its uniqueness and identity
+  # (deprecated, use `workers.celery.podManagementPolicy` instead)
   # podManagementPolicy: Parallel
 
   # When not set, the values defined in the global securityContext will
@@ -1064,6 +1065,10 @@ workers:
       rollingUpdate:
         maxSurge: "100%"
         maxUnavailable: "50%"
+
+    # Allow relaxing ordering guarantees for Airflow Celery worker
+    # while preserving its uniqueness and identity
+    # podManagementPolicy: Parallel
 
     # Create ServiceAccount for Airflow Celery workers
     serviceAccount:
