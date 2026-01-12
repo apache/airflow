@@ -27,8 +27,8 @@ from collections.abc import Callable, MutableMapping
 from typing import TYPE_CHECKING, Any
 from urllib.parse import SplitResult
 
-from airflow._shared.module_loading import import_string
-from airflow._shared.providers_discovery import (
+from airflow.sdk._shared.module_loading import import_string
+from airflow.sdk._shared.providers_discovery import (
     KNOWN_UNHANDLED_OPTIONAL_FEATURE_ERRORS,
     HookClassProvider,
     HookInfo,
