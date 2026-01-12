@@ -35,6 +35,7 @@ from typing import TYPE_CHECKING, Any, NamedTuple, ParamSpec, TypeVar, cast
 
 from packaging.utils import canonicalize_name
 
+from airflow import DeprecatedImportWarning
 from airflow._shared.module_loading import entry_points_with_dist, import_string
 from airflow.exceptions import AirflowOptionalProviderFeatureException
 from airflow.utils.log.logging_mixin import LoggingMixin
@@ -445,7 +446,7 @@ class ProvidersManager(LoggingMixin, metaclass=Singleton):
         if name in runtime_properties:
             warnings.warn(
                 f"ProvidersManager.{name} is deprecated. Use ProvidersManagerRuntime.{name} from task-sdk instead.",
-                DeprecationWarning,
+                DeprecatedImportWarning,
                 stacklevel=2,
             )
             if object.__getattribute__(self, "_runtime_manager") is None:

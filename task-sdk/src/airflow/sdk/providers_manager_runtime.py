@@ -38,7 +38,9 @@ from airflow._shared.providers_discovery import (
     discover_all_providers_from_packages,
     provider_info_cache,
 )
-from airflow.utils.log.logging_mixin import LoggingMixin
+from airflow.sdk.definitions._internal.logging_mixin import LoggingMixin
+
+# TODO: rebase after https://github.com/apache/airflow/pull/60327 is merged
 from airflow.utils.singleton import Singleton
 
 if TYPE_CHECKING:
