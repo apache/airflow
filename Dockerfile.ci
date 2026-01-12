@@ -1476,7 +1476,11 @@ function start_api_server_with_examples(){
     echo
     echo "${COLOR_BLUE}Starting airflow api server${COLOR_RESET}"
     echo
-    airflow api-server --port 8080 --daemon
+    if [[ ${START_API_SERVER_DAEMON:-"true"} == "false" ]]; then
+        airflow api-server --port 8080 &
+    else
+        airflow api-server --port 8080 --daemon
+    fi
     echo
     echo "${COLOR_BLUE}Waiting for api-server to start${COLOR_RESET}"
     echo
