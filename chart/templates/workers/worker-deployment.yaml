@@ -20,10 +20,33 @@
 ################################
 ## Airflow Worker Deployment
 #################################
-{{- $persistence := or .Values.workers.celery.persistence.enabled (and (not (has .Values.workers.celery.persistence.enabled (list true false))) .Values.workers.persistence.enabled) }}
+{{- $workerSets := .Values.workers.celery.sets | default list -}}
+{{- if .Values.workers.enableDefault -}}
+  {{- $workerSets = concat (list (dict "name" "default")) $workerSets -}}
+{{- end -}}
+{{- range $workerSet := $workerSets -}}
+  {{- /* Calculate correct replicas: use workerSet's value only if explicitly set (different from deprecated workers.replicas) */ -}}
+  {{- $workerReplicas := $.Values.workers.celery.replicas | default 1 -}}
+  {{- if and $workerSet.replicas (ne (int $workerSet.replicas) (int $.Values.workers.replicas)) -}}
+    {{- $workerReplicas = $workerSet.replicas -}}
+  {{- end -}}
+  {{- $celeryCopy := deepCopy $.Values.workers.celery -}}
+  {{- $currentWorkers := mustMerge (deepCopy $workerSet) $celeryCopy -}}
+  {{- $_ := set $currentWorkers "replicas" $workerReplicas -}}
+  {{- /* Save the persistence.enabled value before mustMerge, as mustMerge doesn't preserve false values */ -}}
+  {{- $persistenceEnabled := $currentWorkers.persistence.enabled -}}
+  {{- $newValues := mustMerge (dict "workers" (deepCopy $currentWorkers)) (deepCopy $.Values) -}}
+  {{- /* Restore the persistence.enabled value after mustMerge */ -}}
+  {{- $_ := set $newValues.workers.persistence "enabled" $persistenceEnabled -}}
+  {{- $ctx := merge (dict "Values" $newValues) $ -}}
+  {{- /* Restore again after merge, as merge also doesn't preserve false values */ -}}
+  {{- $_ := set $ctx.Values.workers.persistence "enabled" $persistenceEnabled -}}
+  {{- with $ctx -}}
+{{- $persistence := or .Values.workers.persistence.enabled (and (not (has .Values.workers.persistence.enabled (list true false))) $.Values.workers.persistence.enabled) }}
 {{- $keda := .Values.workers.keda.enabled }}
 {{- $hpa := and .Values.workers.hpa.enabled (not .Values.workers.keda.enabled) }}
 {{- if or (contains "CeleryExecutor" .Values.executor) (contains "CeleryKubernetesExecutor" .Values.executor) }}
+---
 {{- $nodeSelector := or .Values.workers.nodeSelector .Values.nodeSelector }}
 {{- $affinity := or .Values.workers.affinity .Values.affinity }}
 {{- $tolerations := or .Values.workers.tolerations .Values.tolerations }}
@@ -45,7 +68,7 @@
 apiVersion: apps/v1
 kind: {{ if $persistence }}StatefulSet{{ else }}Deployment{{ end }}
 metadata:
-  name: {{ include "airflow.fullname" . }}-worker
+  name: {{ include "airflow.fullname" . }}-worker{{ if ne .Values.workers.name "default" }}-{{ .Values.workers.name }}{{ end }}
   labels:
     tier: airflow
     component: worker
@@ -60,10 +83,10 @@ metadata:
   {{- end }}
 spec:
   {{- if $persistence }}
-  serviceName: {{ include "airflow.fullname" . }}-worker
+  serviceName: {{ include "airflow.fullname" . }}-worker{{ if ne .Values.workers.name "default" }}-{{ .Values.workers.name }}{{ end }}
   {{- end }}
   {{- if and (not $keda) (not $hpa) }}
-  replicas: {{ .Values.workers.celery.replicas | default .Values.workers.replicas }}
+  replicas: {{ .Values.workers.replicas }}
   {{- end }}
   {{- if ne $revisionHistoryLimit "" }}
   revisionHistoryLimit: {{ $revisionHistoryLimit }}
@@ -76,6 +99,9 @@ spec:
       tier: airflow
       component: worker
       release: {{ .Release.Name }}
+      {{- if ne .Values.workers.name "default" }}
+      worker-set: {{ .Values.workers.name }}
+      {{- end }}
   {{- if and $persistence (or .Values.workers.celery.podManagementPolicy .Values.workers.podManagementPolicy) }}
   podManagementPolicy: {{ .Values.workers.celery.podManagementPolicy | default .Values.workers.podManagementPolicy }}
   {{- end }}
@@ -91,6 +117,9 @@ spec:
         tier: airflow
         component: worker
         release: {{ .Release.Name }}
+        {{- if ne .Values.workers.name "default" }}
+        worker-set: {{ .Values.workers.name }}
+        {{- end }}
         {{- if or (.Values.labels) (.Values.workers.labels) }}
           {{- mustMerge .Values.workers.labels .Values.labels | toYaml | nindent 8 }}
         {{- end }}
@@ -490,4 +519,6 @@ spec:
       {{- toYaml . | nindent 4 }}
     {{- end }}
   {{- end }}
+{{- end }}
+{{- end }}
 {{- end }}
