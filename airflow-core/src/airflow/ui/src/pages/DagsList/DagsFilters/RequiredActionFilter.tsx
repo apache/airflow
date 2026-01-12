@@ -16,25 +16,32 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+import { Button } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
+import { LuUserRoundPen } from "react-icons/lu";
 
-import { ButtonGroupToggle } from "src/components/ui";
-
-type PausedValue = "all" | "false" | "true";
+import { StateBadge } from "src/components/StateBadge";
 
 type Props = {
-  readonly onChange: (value: PausedValue) => void;
-  readonly value: PausedValue;
+  readonly needsReview: boolean;
+  readonly onToggle: () => void;
 };
 
-export const PausedFilter = ({ onChange, value }: Props) => {
-  const { t: translate } = useTranslation("dags");
+export const RequiredActionFilter = ({ needsReview, onToggle }: Props) => {
+  const { t: translate } = useTranslation("hitl");
 
-  const options = [
-    { label: translate("filters.paused.all"), value: "all" as const },
-    { label: translate("filters.paused.active"), value: "false" as const },
-    { label: translate("filters.paused.paused"), value: "true" as const },
-  ];
-
-  return <ButtonGroupToggle<PausedValue> onChange={onChange} options={options} value={value} />;
+  return (
+    <Button
+      colorPalette="brand"
+      data-testid="dags-needs-review-filter"
+      onClick={onToggle}
+      size="sm"
+      variant={needsReview ? "solid" : "outline"}
+    >
+      <StateBadge colorPalette="deferred">
+        <LuUserRoundPen />
+      </StateBadge>
+      {translate("requiredAction_other")}
+    </Button>
+  );
 };

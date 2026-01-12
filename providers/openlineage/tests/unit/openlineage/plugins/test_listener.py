@@ -1797,6 +1797,94 @@ class TestOpenLineageListenerAirflow3:
         listener.extractor_manager.extract_metadata.assert_not_called()
         listener.adapter.complete_task.assert_not_called()
 
+    @mock.patch(
+        "airflow.providers.openlineage.plugins.listener.OpenLineageListener._execute", new=regular_call
+    )
+    def test_on_task_instance_skipped_correctly_calls_openlineage_adapter_run_id_method(self):
+        """Tests the OpenLineageListener's response when a task instance is skipped.
+
+        This test ensures that when an Airflow task instance is skipped via AirflowSkipException,
+        the OpenLineageAdapter's `build_task_instance_run_id` method is called exactly once with the correct
+        parameters derived from the task instance.
+        """
+        listener, task_instance = self._create_listener_and_task_instance()
+        listener.on_task_instance_skipped(previous_state=None, task_instance=task_instance)
+        listener.adapter.build_task_instance_run_id.assert_called_once_with(
+            dag_id="dag_id",
+            task_id="task_id",
+            logical_date=timezone.datetime(2020, 1, 1, 1, 1, 1),
+            try_number=1,
+            map_index=-1,
+        )
+
+    @mock.patch("airflow.providers.openlineage.plugins.listener.is_operator_disabled")
+    @mock.patch("airflow.providers.openlineage.plugins.listener.get_user_provided_run_facets")
+    def test_listener_on_task_instance_skipped_do_not_call_adapter_when_disabled_operator(
+        self, mock_get_user_provided_run_facets, mock_disabled
+    ):
+        listener, task_instance = self._create_listener_and_task_instance()
+        mock_get_user_provided_run_facets.return_value = {"custom_facet": 2}
+        mock_disabled.return_value = True
+
+        listener.on_task_instance_skipped(previous_state=None, task_instance=task_instance)
+        mock_disabled.assert_called_once_with(task_instance.task)
+        listener.adapter.build_dag_run_id.assert_not_called()
+        listener.adapter.build_task_instance_run_id.assert_not_called()
+        listener.extractor_manager.extract_metadata.assert_not_called()
+        listener.adapter.complete_task.assert_not_called()
+
+    @mock.patch("airflow.providers.openlineage.plugins.adapter.OpenLineageAdapter.emit")
+    @mock.patch("airflow.providers.openlineage.conf.debug_mode", return_value=True)
+    @mock.patch("airflow.providers.openlineage.plugins.listener.get_airflow_debug_facet")
+    @mock.patch("airflow.providers.openlineage.plugins.listener.get_task_parent_run_facet")
+    @mock.patch(
+        "airflow.providers.openlineage.plugins.listener.OpenLineageListener._execute", new=regular_call
+    )
+    def test_adapter_complete_task_is_called_with_proper_arguments_for_db_task_instance_model_on_skip(
+        self, mock_get_task_parent_run_facet, mock_debug_facet, mock_debug_mode, mock_emit, time_machine
+    ):
+        """Tests that the 'complete_task' method of the OpenLineageAdapter is called with the correct arguments.
+
+        This particular test is using TaskInstance model available on API Server and not on worker,
+        to simulate the listener being called after task's state has been manually set to SKIPPED via API.
+        """
+        time_machine.move_to(timezone.datetime(2023, 1, 3, 13, 1, 1), tick=False)
+
+        listener, task_instance = self._create_listener_and_task_instance(runtime_ti=False)
+        mock_get_task_parent_run_facet.return_value = {"parent": 4}
+        mock_debug_facet.return_value = {"debug": "packages"}
+
+        listener.on_task_instance_skipped(previous_state=None, task_instance=task_instance)
+        calls = listener.adapter.complete_task.call_args_list
+        assert len(calls) == 1
+        mock_get_task_parent_run_facet.assert_called_once_with(
+            parent_run_id="2020-01-01T01:01:01+00:00.dag_id.0",
+            parent_job_name=task_instance.dag_id,
+            dr_conf={},
+        )
+        expected_args = dict(
+            end_time="2023-01-03T13:01:01+00:00",
+            job_name="dag_id.task_id",
+            run_id="2020-01-01T01:01:01+00:00.dag_id.task_id.1.-1",
+            task=OperatorLineage(),
+            nominal_start_time=None,
+            nominal_end_time=None,
+            tags=None,
+            owners=None,
+            job_description=None,
+            job_description_type=None,
+            run_facets={
+                "parent": 4,
+                "debug": "packages",
+            },
+        )
+        assert calls[0][1] == expected_args
+
+        expected_args["run_id"] = "9d3b14f7-de91-40b6-aeef-e887e2c7673e"
+        adapter = OpenLineageAdapter()
+        adapter.complete_task(**expected_args)
+        assert mock_emit.assert_called_once
+
     @pytest.mark.parametrize(
         ("max_workers", "expected"),
         [
