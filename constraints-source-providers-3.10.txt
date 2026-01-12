@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2026-01-12T02:25:06.703781
+# This constraints file was automatically generated on 2026-01-12T19:49:14.215600
 # via `uv sync --resolution highest for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider distributions.
@@ -98,8 +98,8 @@ aws-sam-translator==1.106.0
 aws-xray-sdk==2.15.0
 azure-batch==14.2.0
 azure-common==1.1.28
-azure-core==1.37.0
-azure-cosmos==4.14.3
+azure-core==1.38.0
+azure-cosmos==4.14.4
 azure-datalake-store==0.0.53
 azure-identity==1.25.1
 azure-keyvault-secrets==4.10.0
@@ -315,7 +315,7 @@ ibmcloudant==0.11.2
 icalendar==6.3.2
 icdiff==2.0.7
 id==1.5.0
-identify==2.6.15
+identify==2.6.16
 idna==3.11
 ijson==3.4.0.post0
 imagesize==1.4.1
@@ -414,7 +414,7 @@ natsort==8.4.0
 nbclient==0.10.4
 nbconvert==7.16.6
 nbformat==5.10.4
-neo4j==6.0.3
+neo4j==6.1.0
 nest-asyncio==1.6.0
 networkx==3.4.2
 nh3==0.3.2
@@ -614,8 +614,8 @@ sphinx-autoapi==3.6.0
 sphinx-autobuild==2024.10.3
 sphinx-copybutton==0.5.2
 sphinx-jinja==2.0.2
-sphinx-rtd-theme==3.0.2
 sphinx_design==0.6.1
+sphinx_rtd_theme==3.1.0
 sphinxcontrib-applehelp==2.0.0
 sphinxcontrib-devhelp==2.0.0
 sphinxcontrib-htmlhelp==2.1.0
@@ -664,7 +664,7 @@ towncrier==25.8.0
 tqdm==4.67.1
 traitlets==5.14.3
 trino==0.336.0
-trove-classifiers==2025.12.1.14
+trove-classifiers==2026.1.12.15
 twine==6.2.0
 typer-slim==0.21.1
 typer==0.21.1
@@ -722,7 +722,7 @@ yandex-query-client==0.1.4
 yandexcloud==0.328.0
 yarl==1.22.0
 ydb-dbapi==0.1.16
-ydb==3.23.0
+ydb==3.23.1
 zeep==4.3.2
 zenpy==2.0.56
 zipp==3.23.0

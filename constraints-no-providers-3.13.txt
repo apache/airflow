@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2026-01-12T02:25:36.878892
+# This constraints file was automatically generated on 2026-01-12T19:48:48.225640
 # via `uv sync --resolution highest` for the "main" branch of Airflow.
 # This variant of constraints install just the 'bare' 'apache-airflow' package build from the HEAD of
 # the branch, without installing any of the providers.
@@ -81,7 +81,7 @@ packaging==25.0
 pathspec==1.0.3
 pendulum==3.1.0
 pluggy==1.6.0
-protobuf==6.33.3
+protobuf==6.33.4
 psutil==7.2.1
 pycparser==2.23
 pydantic-extra-types==2.11.0
