@@ -44,9 +44,6 @@ from airflow._shared.providers_discovery import (
 from airflow.sdk.definitions._internal.logging_mixin import LoggingMixin
 from airflow.sdk.exceptions import AirflowOptionalProviderFeatureException
 
-# TODO: rebase after https://github.com/apache/airflow/pull/60327 is merged
-from airflow.utils.singleton import Singleton
-
 if TYPE_CHECKING:
     from airflow.sdk import BaseHook
     from airflow.sdk.bases.decorator import TaskDecorator
@@ -101,7 +98,7 @@ def _correctness_check(provider_package: str, class_name: str, provider_info: Pr
     return imported_class
 
 
-class ProvidersManagerRuntime(LoggingMixin, metaclass=Singleton):
+class ProvidersManagerRuntime(LoggingMixin):
     """
     Manages runtime provider resources for task execution.
 
@@ -112,6 +109,12 @@ class ProvidersManagerRuntime(LoggingMixin, metaclass=Singleton):
     resource_version = "0"
     _initialized: bool = False
     _initialization_stack_trace = None
+    _instance: ProvidersManagerRuntime | None = None
+
+    def __new__(cls):
+        if cls._instance is None:
+            cls._instance = super().__new__(cls)
+        return cls._instance
 
     @staticmethod
     def initialized() -> bool:
@@ -123,6 +126,9 @@ class ProvidersManagerRuntime(LoggingMixin, metaclass=Singleton):
 
     def __init__(self):
         """Initialize the runtime manager."""
+        # skip initialization if already initialized
+        if self.initialized():
+            return
         super().__init__()
         ProvidersManagerRuntime._initialized = True
         ProvidersManagerRuntime._initialization_stack_trace = "".join(
