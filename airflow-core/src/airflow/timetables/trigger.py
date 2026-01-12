@@ -411,7 +411,7 @@ class CronPartitionTimetable(CronMixin, _TriggerTimetable):
         timezone: str | Timezone | FixedTimezone,
         run_offset: int | datetime.timedelta | relativedelta | None = None,
         run_immediately: bool | datetime.timedelta = False,
-        key_format: str = "%Y-%m-%dT%H:%M:%S.%f%z",  # todo: AIP-76 we can't infer partition date from this, so we need to store it separately
+        key_format: str = "%Y-%m-%dT%H:%M:%S",  # todo: AIP-76 we can't infer partition date from this, so we need to store it separately
     ) -> None:
         super().__init__(cron, timezone)
         self._run_immediately = run_immediately
