@@ -29,16 +29,20 @@ from urllib.parse import SplitResult
 
 from airflow._shared.module_loading import import_string
 from airflow._shared.providers_discovery import (
+    KNOWN_UNHANDLED_OPTIONAL_FEATURE_ERRORS,
     HookClassProvider,
     HookInfo,
     LazyDictWithCache,
     ProviderInfo,
-    _correctness_check,
+    _check_builtin_provider_prefix,
     _create_provider_info_schema_validator,
     discover_all_providers_from_packages,
+    log_import_warning,
+    log_optional_feature_disabled,
     provider_info_cache,
 )
 from airflow.sdk.definitions._internal.logging_mixin import LoggingMixin
+from airflow.sdk.exceptions import AirflowOptionalProviderFeatureException
 
 # TODO: rebase after https://github.com/apache/airflow/pull/60327 is merged
 from airflow.utils.singleton import Singleton
@@ -49,6 +53,52 @@ if TYPE_CHECKING:
     from airflow.sdk.definitions.asset import Asset
 
 log = logging.getLogger(__name__)
+
+
+def _correctness_check(provider_package: str, class_name: str, provider_info: ProviderInfo) -> Any:
+    """
+    Perform coherence check on provider classes.
+
+    For apache-airflow providers - it checks if it starts with appropriate package. For all providers
+    it tries to import the provider - checking that there are no exceptions during importing.
+    It logs appropriate warning in case it detects any problems.
+
+    :param provider_package: name of the provider package
+    :param class_name: name of the class to import
+
+    :return the class if the class is OK, None otherwise.
+    """
+    if not _check_builtin_provider_prefix(provider_package, class_name):
+        return None
+    try:
+        imported_class = import_string(class_name)
+    except AirflowOptionalProviderFeatureException as e:
+        # When the provider class raises AirflowOptionalProviderFeatureException
+        # this is an expected case when only some classes in provider are
+        # available. We just log debug level here and print info message in logs so that
+        # the user is aware of it
+        log_optional_feature_disabled(class_name, e, provider_package)
+        return None
+    except ImportError as e:
+        if "No module named 'airflow.providers." in e.msg:
+            # handle cases where another provider is missing. This can only happen if
+            # there is an optional feature, so we log debug and print information about it
+            log_optional_feature_disabled(class_name, e, provider_package)
+            return None
+        for known_error in KNOWN_UNHANDLED_OPTIONAL_FEATURE_ERRORS:
+            # Until we convert all providers to use AirflowOptionalProviderFeatureException
+            # we assume any problem with importing another "provider" is because this is an
+            # optional feature, so we log debug and print information about it
+            if known_error[0] == provider_package and known_error[1] in e.msg:
+                log_optional_feature_disabled(class_name, e, provider_package)
+                return None
+        # But when we have no idea - we print warning to logs
+        log_import_warning(class_name, e, provider_package)
+        return None
+    except Exception as e:
+        log_import_warning(class_name, e, provider_package)
+        return None
+    return imported_class
 
 
 class ProvidersManagerRuntime(LoggingMixin, metaclass=Singleton):

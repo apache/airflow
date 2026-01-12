@@ -19,13 +19,15 @@
 from __future__ import annotations
 
 from airflow_shared.providers_discovery.providers_discovery import (
+    KNOWN_UNHANDLED_OPTIONAL_FEATURE_ERRORS as KNOWN_UNHANDLED_OPTIONAL_FEATURE_ERRORS,
     HookClassProvider as HookClassProvider,
     HookInfo as HookInfo,
     LazyDictWithCache as LazyDictWithCache,
     ProviderInfo as ProviderInfo,
     _check_builtin_provider_prefix as _check_builtin_provider_prefix,
-    _correctness_check as _correctness_check,
     _create_provider_info_schema_validator as _create_provider_info_schema_validator,
     discover_all_providers_from_packages as discover_all_providers_from_packages,
+    log_import_warning as log_import_warning,
+    log_optional_feature_disabled as log_optional_feature_disabled,
     provider_info_cache as provider_info_cache,
 )
