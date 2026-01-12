@@ -1,0 +1,3 @@
+``workers.persistence`` section is now deprecated in favor of ``workers.celery.persistence``.
+
+Along the upgrade of Helm Chart version, change the configuration of values in section ``workers.persistence`` to ``workers.celery.persistence`` section or unset all values under ``workers.celery.persistence`` to preserve previous behaviour of the Helm Chart.

@@ -47,6 +47,10 @@ class AirflowException(Exception):
         return f"{cls.__module__}.{cls.__name__}", (str(self),), {}
 
 
+class AirflowOptionalProviderFeatureException(AirflowException):
+    """Raise by providers when imports are missing for optional provider features."""
+
+
 class AirflowNotFoundException(AirflowException):
     """Raise when the requested object/resource is not available in the system."""
 

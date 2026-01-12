@@ -637,6 +637,12 @@ kerberos:
 
 # Airflow Worker Config
 workers:
+  # Enable the default workers defined by the root 'workers' configuration to be created.
+  # If false, only dedicated workers defined in 'sets' will be created.
+  enableDefault: true
+
+  # Queue name for the default workers
+  queue: "default"
   # Number of Airflow Celery workers (deprecated, use `workers.celery.replicas` instead)
   replicas: 1
 
@@ -658,6 +664,9 @@ workers:
     - |-
       exec \
       airflow {{ semverCompare ">=2.0.0" .Values.airflowVersion | ternary "celery worker" "worker" }}
+      {{- if and .Values.workers.queue (ne .Values.workers.queue "default") }}
+      {{- " -q " }}{{ .Values.workers.queue }}
+      {{- end }}
 
   # If the Airflow Celery worker stops responding for 5 minutes (5*60s)
   # kill the worker and let Kubernetes restart it
@@ -677,14 +686,17 @@ workers:
     command: ~
 
   # Update Strategy when Airflow Celery worker is deployed as a StatefulSet
+  # (deprecated, use `workers.celery.updateStrategy` instead)
   updateStrategy: ~
   # Update Strategy when Airflow Celery worker is deployed as a Deployment
+  # (deprecated, use `workers.celery.strategy` instead)
   strategy:
     rollingUpdate:
       maxSurge: "100%"
       maxUnavailable: "50%"
 
   # Allow relaxing ordering guarantees for Airflow Celery worker while preserving its uniqueness and identity
+  # (deprecated, use `workers.celery.podManagementPolicy` instead)
   # podManagementPolicy: Parallel
 
   # When not set, the values defined in the global securityContext will
@@ -762,6 +774,11 @@ workers:
       SELECT ceil(COUNT(*)::decimal / {{ .Values.config.celery.worker_concurrency }})
       FROM task_instance
       WHERE (state='running' OR state='queued')
+      AND queue IN (
+      {{- range $i, $q := splitList "," .Values.workers.queue -}}
+      {{- if $i }},{{ end }}'{{ $q | trim }}'
+      {{- end -}}
+      )
       {{- if contains "CeleryKubernetesExecutor" .Values.executor }}
       AND queue != '{{ .Values.config.celery_kubernetes_executor.kubernetes_queue }}'
       {{- else if contains "KubernetesExecutor" .Values.executor }}
@@ -797,32 +814,40 @@ workers:
     behavior: {}
 
   # Persistence volume configuration for Airflow Celery workers
+  # (deprecated, use `workers.celery.persistence` instead)
   persistence:
-    # Enable persistent volumes
+    # Enable persistent volumes (deprecated, use `workers.celery.persistence.enabled` instead)
     enabled: true
 
     # This policy determines whether PVCs should be deleted when StatefulSet is scaled down or removed
+    # (deprecated, use `workers.celery.persistence.persistentVolumeClaimRetentionPolicy` instead)
     persistentVolumeClaimRetentionPolicy: ~
     # persistentVolumeClaimRetentionPolicy:
     #   whenDeleted: Delete
     #   whenScaled: Delete
 
     # Volume size for Airflow Celery worker StatefulSet
+    # (deprecated, use `workers.celery.persistence.size` instead)
     size: 100Gi
 
     # If using a custom storageClass, pass name ref to all StatefulSets here
+    # (deprecated, use `workers.celery.persistence.storageClassName` instead)
     storageClassName:
 
     # Execute init container to chown log directory.
     # This is currently only needed in kind, due to usage
     # of local-path provisioner.
+    # (deprecated, use `workers.celery.persistence.fixPermissions` instead)
     fixPermissions: false
 
     # Annotations to add to Airflow Celery worker volumes
+    # (deprecated, use `workers.celery.persistence.annotations` instead)
     annotations: {}
 
     # Detailed default security context for persistence on container level
+    # (deprecated, use `workers.celery.persistence.securityContexts` instead)
     securityContexts:
+      # (deprecated, use `workers.celery.persistence.securityContexts.container` instead)
       container: {}
 
   # Kerberos sidecar configuration for Airflow Celery workers and pods created with pod-template-file
@@ -1036,6 +1061,9 @@ workers:
       - |-
         exec \
         airflow {{ semverCompare ">=2.0.0" .Values.airflowVersion | ternary "celery worker" "worker" }}
+        {{- if and .Values.workers.queue (ne .Values.workers.queue "default") }}
+        {{- " -q " }}{{ .Values.workers.queue }}
+        {{- end }}
 
     # If the Airflow Celery worker stops responding for 5 minutes (5*60s)
     # kill the worker and let Kubernetes restart it
@@ -1046,6 +1074,41 @@ workers:
       failureThreshold: 5
       periodSeconds: 60
       command: ~
+    # List of worker sets. Each item can override values from the parent 'workers' section.
+    sets: []
+    # sets:
+    #   - name: highcpu
+    #     replicas: 2
+    #     queue: "highcpu"
+    #     resources:
+    #       requests:
+    #         memory: "2Gi"
+    #         cpu: "4000m"
+    #       limits:
+    #         memory: "4Gi"
+    #         cpu: "8000m"
+    #   - name: highmem
+    #     replicas: 2
+    #     queue: "highmem"
+    #     resources:
+    #       requests:
+    #         memory: "4Gi"
+    #         cpu: "2000m"
+    #       limits:
+    #         memory: "8Gi"
+    #         cpu: "4000m"
+
+    # Update Strategy when Airflow Celery worker is deployed as a StatefulSet
+    updateStrategy: ~
+    # Update Strategy when Airflow Celery worker is deployed as a Deployment
+    strategy:
+      rollingUpdate:
+        maxSurge: "100%"
+        maxUnavailable: "50%"
+
+    # Allow relaxing ordering guarantees for Airflow Celery worker
+    # while preserving its uniqueness and identity
+    # podManagementPolicy: Parallel
 
     # Create ServiceAccount for Airflow Celery workers
     serviceAccount:
@@ -1059,6 +1122,35 @@ workers:
       name: ~
       # Annotations to add to worker kubernetes service account.
       annotations: {}
+
+    # Persistence volume configuration for Airflow Celery workers
+    persistence:
+      # Enable persistent volumes
+      enabled: true
+
+      # This policy determines whether PVCs should be deleted when StatefulSet is scaled down or removed
+      persistentVolumeClaimRetentionPolicy: ~
+      # persistentVolumeClaimRetentionPolicy:
+      #   whenDeleted: Delete
+      #   whenScaled: Delete
+
+      # Volume size for Airflow Celery worker StatefulSet
+      size: 100Gi
+
+      # If using a custom storageClass, pass name ref to all StatefulSets here
+      storageClassName:
+
+      # Execute init container to chown log directory.
+      # This is currently only needed in kind, due to usage
+      # of local-path provisioner.
+      fixPermissions: false
+
+      # Annotations to add to Airflow Celery worker volumes
+      annotations: {}
+
+      # Detailed default security context for persistence on container level
+      securityContexts:
+        container: {}
 
   kubernetes:
     # Command to use in pod-template-file (templated)
