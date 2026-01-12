@@ -72,7 +72,7 @@ SKIP_LONG_TASKS = environ.get("SKIP_LONG_SYSTEM_TEST_TASKS", str(True))
 # on the AWS System Test stack.
 SKIP_PROVISION_THROUGHPUT = environ.get("SKIP_RESTRICTED_SYSTEM_TEST_TASKS", str(True))
 
-TITAN_MODEL_ID = "amazon.titan-text-express-v1:0:8k"
+TITAN_MODEL_ID = "amazon.titan-embed-text-v2:0"
 TITAN_SHORT_MODEL_ID = TITAN_MODEL_ID.split(":")[0]
 
 PROMPT = "What color is an orange?"
@@ -219,7 +219,7 @@ with DAG(
     # [START howto_operator_invoke_titan_model]
     invoke_titan_model = BedrockInvokeModelOperator(
         task_id="invoke_titan",
-        model_id=TITAN_SHORT_MODEL_ID,
+        model_id=TITAN_MODEL_ID,
         input_data={"inputText": PROMPT},
     )
     # [END howto_operator_invoke_titan_model]
