@@ -18,10 +18,14 @@
  */
 import { Box } from "@chakra-ui/react";
 import type { VirtualItem } from "@tanstack/react-virtual";
+import { useMemo } from "react";
 import { useParams } from "react-router-dom";
 
 import type { GridRunsResponse } from "openapi/requests";
 import type { LightGridTaskInstanceSummary } from "openapi/requests/types.gen";
+import { DagVersionIndicator } from "src/components/ui/VersionIndicator";
+import type { VersionIndicatorDisplayOption } from "src/constants/showVersionIndicatorOptions";
+import { VersionIndicatorDisplayOptions } from "src/constants/showVersionIndicatorOptions";
 import { useHover } from "src/context/hover";
 import { useGridTiSummaries } from "src/queries/useGridTISummaries.ts";
 
@@ -32,12 +36,19 @@ type Props = {
   readonly nodes: Array<GridTask>;
   readonly onCellClick?: () => void;
   readonly run: GridRunsResponse;
+  readonly showVersionIndicatorMode?: VersionIndicatorDisplayOption;
   readonly virtualItems?: Array<VirtualItem>;
 };
 
 const ROW_HEIGHT = 20;
 
-export const TaskInstancesColumn = ({ nodes, onCellClick, run, virtualItems }: Props) => {
+export const TaskInstancesColumn = ({
+  nodes,
+  onCellClick,
+  run,
+  showVersionIndicatorMode,
+  virtualItems,
+}: Props) => {
   const { dagId = "", runId } = useParams();
   const { data: gridTISummaries } = useGridTiSummaries({ dagId, runId: run.run_id, state: run.state });
   const { hoveredRunId, setHoveredRunId } = useHover();
@@ -45,12 +56,27 @@ export const TaskInstancesColumn = ({ nodes, onCellClick, run, virtualItems }: P
   const itemsToRender =
     virtualItems ?? nodes.map((_, index) => ({ index, size: ROW_HEIGHT, start: index * ROW_HEIGHT }));
 
-  const taskInstances = gridTISummaries?.task_instances ?? [];
-  const taskInstanceMap = new Map<string, LightGridTaskInstanceSummary>();
+  const taskInstances = useMemo(
+    () => gridTISummaries?.task_instances ?? [],
+    [gridTISummaries?.task_instances],
+  );
+  const taskInstanceMap = useMemo(() => {
+    const map = new Map<string, LightGridTaskInstanceSummary>();
 
-  for (const ti of taskInstances) {
-    taskInstanceMap.set(ti.task_id, ti);
-  }
+    for (const ti of taskInstances) {
+      map.set(ti.task_id, ti);
+    }
+
+    return map;
+  }, [taskInstances]);
+
+  const hasMixedVersions = useMemo(() => {
+    const versionNumbers = new Set(
+      taskInstances.map((ti) => ti.dag_version_number).filter((vn) => vn !== null && vn !== undefined),
+    );
+
+    return versionNumbers.size > 1;
+  }, [taskInstances]);
 
   const isSelected = runId === run.run_id;
   const isHovered = hoveredRunId === run.run_id;
@@ -67,7 +93,7 @@ export const TaskInstancesColumn = ({ nodes, onCellClick, run, virtualItems }: P
       transition="background-color 0.2s"
       width="18px"
     >
-      {itemsToRender.map((virtualItem) => {
+      {itemsToRender.map((virtualItem, idx) => {
         const node = nodes[virtualItem.index];
 
         if (!node) {
@@ -90,6 +116,23 @@ export const TaskInstancesColumn = ({ nodes, onCellClick, run, virtualItems }: P
           );
         }
 
+        let hasVersionChangeFlag = false;
+
+        if (
+          hasMixedVersions &&
+          (showVersionIndicatorMode === VersionIndicatorDisplayOptions.DAG ||
+            showVersionIndicatorMode === VersionIndicatorDisplayOptions.ALL) &&
+          idx > 0
+        ) {
+          const prevVirtualItem = itemsToRender[idx - 1];
+          const prevNode = prevVirtualItem ? nodes[prevVirtualItem.index] : undefined;
+          const prevTaskInstance = prevNode ? taskInstanceMap.get(prevNode.id) : undefined;
+
+          hasVersionChangeFlag = Boolean(
+            prevTaskInstance && prevTaskInstance.dag_version_number !== taskInstance.dag_version_number,
+          );
+        }
+
         return (
           <Box
             key={node.id}
@@ -98,6 +141,12 @@ export const TaskInstancesColumn = ({ nodes, onCellClick, run, virtualItems }: P
             top={0}
             transform={`translateY(${virtualItem.start}px)`}
           >
+            {hasVersionChangeFlag && (
+              <DagVersionIndicator
+                dagVersionNumber={taskInstance.dag_version_number ?? undefined}
+                orientation="horizontal"
+              />
+            )}
             <GridTI
               dagId={dagId}
               instance={taskInstance}
