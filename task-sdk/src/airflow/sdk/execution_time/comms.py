@@ -828,10 +828,19 @@ class SetXCom(BaseModel):
 class DeleteXCom(BaseModel):
     dag_id: str
     run_id: str
+    task_id: str
+    key: str
+    map_index: int | None = None
+    type: Literal["DeleteXCom"] = "DeleteXCom"
+
+
+class BulkDeleteXCom(BaseModel):
+    dag_id: str
+    run_id: str
     task_id: str | None = None
     key: str | None = None
     map_index: int | None = None
-    type: Literal["DeleteXCom"] = "DeleteXCom"
+    type: Literal["BulkDeleteXCom"] = "BulkDeleteXCom"
 
 
 class GetConnection(BaseModel):
@@ -1021,6 +1030,7 @@ class MaskSecret(BaseModel):
 ToSupervisor = Annotated[
     DeferTask
     | DeleteXCom
+    | BulkDeleteXCom
     | GetAssetByName
     | GetAssetByUri
     | GetAssetEventByAsset

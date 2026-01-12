@@ -19,7 +19,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from cadwyn import ResponseInfo, VersionChange, convert_response_to_previous_version_for, schema
+from cadwyn import ResponseInfo, VersionChange, convert_response_to_previous_version_for, schema, endpoint
 
 from airflow.api_fastapi.common.types import UtcDateTime
 from airflow.api_fastapi.execution_api.datamodels.taskinstance import (
