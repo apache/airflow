@@ -39,7 +39,7 @@ from __future__ import annotations
 from alembic import op
 
 revision = "62fb1d0a1252"
-down_revision = "0b112f49112d"
+down_revision = "e79fc784f145"
 branch_labels = None
 depends_on = None
 airflow_version = "3.2.0"
