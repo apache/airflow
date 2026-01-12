@@ -440,10 +440,10 @@ OPENLINEAGE_HTTP_TRANSPORT_EXAMPLE_SPARK_PROPERTIES = {
 OPENLINEAGE_PARENT_JOB_EXAMPLE_SPARK_PROPERTIES = {
     "spark.openlineage.parentJobName": "dag_id.task_id",
     "spark.openlineage.parentJobNamespace": "default",
-    "spark.openlineage.parentRunId": "01931885-2800-7be7-aa8d-aaa15c337267",
+    "spark.openlineage.parentRunId": "11111111-1111-1111-1111-111111111111",
     "spark.openlineage.rootParentJobName": "dag_id",
     "spark.openlineage.rootParentJobNamespace": "default",
-    "spark.openlineage.rootParentRunId": "01931885-2800-7be7-aa8d-aaa15c337267",
+    "spark.openlineage.rootParentRunId": "22222222-2222-2222-2222-222222222222",
 }
 
 
@@ -1430,13 +1430,15 @@ class TestDataprocSubmitJobOperator(DataprocJobTestBase):
         op.execute(context=self.mock_context)
         assert not mock_defer.called
 
-    @mock.patch("airflow.providers.openlineage.plugins.adapter.generate_static_uuid")
+    @mock.patch("airflow.providers.openlineage.plugins.adapter.build_dag_run_ol_run_id")
+    @mock.patch("airflow.providers.openlineage.plugins.adapter.build_task_instance_ol_run_id")
     @mock.patch("airflow.providers.google.cloud.openlineage.utils._is_openlineage_provider_accessible")
     @mock.patch(DATAPROC_PATH.format("DataprocHook"))
     def test_execute_openlineage_parent_job_info_injection(
-        self, mock_hook, mock_ol_accessible, mock_static_uuid
+        self, mock_hook, mock_ol_accessible, task_ol_run_id, dag_ol_run_id
     ):
-        mock_static_uuid.return_value = "01931885-2800-7be7-aa8d-aaa15c337267"
+        task_ol_run_id.return_value = "11111111-1111-1111-1111-111111111111"
+        dag_ol_run_id.return_value = "22222222-2222-2222-2222-222222222222"
         job_config = {
             "placement": {"cluster_name": CLUSTER_NAME},
             "pyspark_job": {
@@ -1456,10 +1458,10 @@ class TestDataprocSubmitJobOperator(DataprocJobTestBase):
                     "spark.openlineage.transport.type": "console",
                     "spark.openlineage.parentJobName": "dag_id.task_id",
                     "spark.openlineage.parentJobNamespace": "default",
-                    "spark.openlineage.parentRunId": "01931885-2800-7be7-aa8d-aaa15c337267",
+                    "spark.openlineage.parentRunId": "11111111-1111-1111-1111-111111111111",
                     "spark.openlineage.rootParentJobName": "dag_id",
                     "spark.openlineage.rootParentJobNamespace": "default",
-                    "spark.openlineage.rootParentRunId": "01931885-2800-7be7-aa8d-aaa15c337267",
+                    "spark.openlineage.rootParentRunId": "22222222-2222-2222-2222-222222222222",
                 },
             },
         }
@@ -1499,15 +1501,17 @@ class TestDataprocSubmitJobOperator(DataprocJobTestBase):
             metadata=METADATA,
         )
 
-    @mock.patch("airflow.providers.openlineage.plugins.adapter.generate_static_uuid")
+    @mock.patch("airflow.providers.openlineage.plugins.adapter.build_dag_run_ol_run_id")
+    @mock.patch("airflow.providers.openlineage.plugins.adapter.build_task_instance_ol_run_id")
     @mock.patch("airflow.providers.openlineage.utils.spark.get_openlineage_listener")
     @mock.patch("airflow.providers.google.cloud.openlineage.utils._is_openlineage_provider_accessible")
     @mock.patch(DATAPROC_PATH.format("DataprocHook"))
     def test_execute_openlineage_http_transport_info_injection(
-        self, mock_hook, mock_ol_accessible, mock_ol_listener, mock_static_uuid
+        self, mock_hook, mock_ol_accessible, mock_ol_listener, task_ol_run_id, dag_ol_run_id
     ):
         mock_ol_accessible.return_value = True
-        mock_static_uuid.return_value = "01931885-2800-7be7-aa8d-aaa15c337267"
+        task_ol_run_id.return_value = "11111111-1111-1111-1111-111111111111"
+        dag_ol_run_id.return_value = "22222222-2222-2222-2222-222222222222"
         fake_listener = mock.MagicMock()
         mock_ol_listener.return_value = fake_listener
         fake_listener.adapter.get_or_create_openlineage_client.return_value.transport = HttpTransport(
@@ -1556,15 +1560,17 @@ class TestDataprocSubmitJobOperator(DataprocJobTestBase):
             metadata=METADATA,
         )
 
-    @mock.patch("airflow.providers.openlineage.plugins.adapter.generate_static_uuid")
+    @mock.patch("airflow.providers.openlineage.plugins.adapter.build_dag_run_ol_run_id")
+    @mock.patch("airflow.providers.openlineage.plugins.adapter.build_task_instance_ol_run_id")
     @mock.patch("airflow.providers.openlineage.utils.spark.get_openlineage_listener")
     @mock.patch("airflow.providers.google.cloud.openlineage.utils._is_openlineage_provider_accessible")
     @mock.patch(DATAPROC_PATH.format("DataprocHook"))
     def test_execute_openlineage_all_info_injection(
-        self, mock_hook, mock_ol_accessible, mock_ol_listener, mock_static_uuid
+        self, mock_hook, mock_ol_accessible, mock_ol_listener, task_ol_run_id, dag_ol_run_id
     ):
         mock_ol_accessible.return_value = True
-        mock_static_uuid.return_value = "01931885-2800-7be7-aa8d-aaa15c337267"
+        task_ol_run_id.return_value = "11111111-1111-1111-1111-111111111111"
+        dag_ol_run_id.return_value = "22222222-2222-2222-2222-222222222222"
         fake_listener = mock.MagicMock()
         mock_ol_listener.return_value = fake_listener
         fake_listener.adapter.get_or_create_openlineage_client.return_value.transport = HttpTransport(
@@ -2591,14 +2597,16 @@ class TestDataprocWorkflowTemplateInstantiateInlineOperator:
         )
         mock_op.return_value.result.assert_not_called()
 
-    @mock.patch("airflow.providers.openlineage.plugins.adapter.generate_static_uuid")
+    @mock.patch("airflow.providers.openlineage.plugins.adapter.build_dag_run_ol_run_id")
+    @mock.patch("airflow.providers.openlineage.plugins.adapter.build_task_instance_ol_run_id")
     @mock.patch("airflow.providers.google.cloud.openlineage.utils._is_openlineage_provider_accessible")
     @mock.patch(DATAPROC_PATH.format("DataprocHook"))
     def test_execute_openlineage_parent_job_info_injection(
-        self, mock_hook, mock_ol_accessible, mock_static_uuid
+        self, mock_hook, mock_ol_accessible, task_ol_run_id, dag_ol_run_id
     ):
         mock_ol_accessible.return_value = True
-        mock_static_uuid.return_value = "01931885-2800-7be7-aa8d-aaa15c337267"
+        task_ol_run_id.return_value = "11111111-1111-1111-1111-111111111111"
+        dag_ol_run_id.return_value = "22222222-2222-2222-2222-222222222222"
         template = {
             **WORKFLOW_TEMPLATE,
             "jobs": [
@@ -2643,10 +2651,10 @@ class TestDataprocWorkflowTemplateInstantiateInlineOperator:
                             "spark.sql.shuffle.partitions": "1",
                             "spark.openlineage.parentJobName": "dag_id.task_id",
                             "spark.openlineage.parentJobNamespace": "default",
-                            "spark.openlineage.parentRunId": "01931885-2800-7be7-aa8d-aaa15c337267",
+                            "spark.openlineage.parentRunId": "11111111-1111-1111-1111-111111111111",
                             "spark.openlineage.rootParentJobName": "dag_id",
                             "spark.openlineage.rootParentJobNamespace": "default",
-                            "spark.openlineage.rootParentRunId": "01931885-2800-7be7-aa8d-aaa15c337267",
+                            "spark.openlineage.rootParentRunId": "22222222-2222-2222-2222-222222222222",
                         },
                     },
                 },
@@ -2784,15 +2792,17 @@ class TestDataprocWorkflowTemplateInstantiateInlineOperator:
             metadata=METADATA,
         )
 
-    @mock.patch("airflow.providers.openlineage.plugins.adapter.generate_static_uuid")
+    @mock.patch("airflow.providers.openlineage.plugins.adapter.build_dag_run_ol_run_id")
+    @mock.patch("airflow.providers.openlineage.plugins.adapter.build_task_instance_ol_run_id")
     @mock.patch("airflow.providers.openlineage.utils.spark.get_openlineage_listener")
     @mock.patch("airflow.providers.google.cloud.openlineage.utils._is_openlineage_provider_accessible")
     @mock.patch(DATAPROC_PATH.format("DataprocHook"))
     def test_execute_openlineage_transport_info_injection(
-        self, mock_hook, mock_ol_accessible, mock_ol_listener, mock_static_uuid
+        self, mock_hook, mock_ol_accessible, mock_ol_listener, task_ol_run_id, dag_ol_run_id
     ):
         mock_ol_accessible.return_value = True
-        mock_static_uuid.return_value = "01931885-2800-7be7-aa8d-aaa15c337267"
+        task_ol_run_id.return_value = "11111111-1111-1111-1111-111111111111"
+        dag_ol_run_id.return_value = "22222222-2222-2222-2222-222222222222"
         fake_listener = mock.MagicMock()
         mock_ol_listener.return_value = fake_listener
         fake_listener.adapter.get_or_create_openlineage_client.return_value.transport = HttpTransport(
@@ -2892,15 +2902,17 @@ class TestDataprocWorkflowTemplateInstantiateInlineOperator:
             metadata=METADATA,
         )
 
-    @mock.patch("airflow.providers.openlineage.plugins.adapter.generate_static_uuid")
+    @mock.patch("airflow.providers.openlineage.plugins.adapter.build_dag_run_ol_run_id")
+    @mock.patch("airflow.providers.openlineage.plugins.adapter.build_task_instance_ol_run_id")
     @mock.patch("airflow.providers.openlineage.utils.spark.get_openlineage_listener")
     @mock.patch("airflow.providers.google.cloud.openlineage.utils._is_openlineage_provider_accessible")
     @mock.patch(DATAPROC_PATH.format("DataprocHook"))
     def test_execute_openlineage_all_info_injection(
-        self, mock_hook, mock_ol_accessible, mock_ol_listener, mock_static_uuid
+        self, mock_hook, mock_ol_accessible, mock_ol_listener, task_ol_run_id, dag_ol_run_id
     ):
         mock_ol_accessible.return_value = True
-        mock_static_uuid.return_value = "01931885-2800-7be7-aa8d-aaa15c337267"
+        task_ol_run_id.return_value = "11111111-1111-1111-1111-111111111111"
+        dag_ol_run_id.return_value = "22222222-2222-2222-2222-222222222222"
         fake_listener = mock.MagicMock()
         mock_ol_listener.return_value = fake_listener
         fake_listener.adapter.get_or_create_openlineage_client.return_value.transport = HttpTransport(
@@ -3419,7 +3431,8 @@ class TestDataprocCreateBatchOperator:
         mock_log.info.assert_any_call("Batch with given id already exists.")
 
     @mock.patch.object(DataprocCreateBatchOperator, "log", new_callable=mock.MagicMock)
-    @mock.patch("airflow.providers.openlineage.plugins.adapter.generate_static_uuid")
+    @mock.patch("airflow.providers.openlineage.plugins.adapter.build_dag_run_ol_run_id")
+    @mock.patch("airflow.providers.openlineage.plugins.adapter.build_task_instance_ol_run_id")
     @mock.patch("airflow.providers.google.cloud.openlineage.utils._is_openlineage_provider_accessible")
     @mock.patch(DATAPROC_PATH.format("Batch.to_dict"))
     @mock.patch(DATAPROC_PATH.format("DataprocHook"))
@@ -3428,11 +3441,13 @@ class TestDataprocCreateBatchOperator:
         mock_hook,
         to_dict_mock,
         mock_ol_accessible,
-        mock_static_uuid,
+        task_ol_run_id,
+        dag_ol_run_id,
         mock_log,
     ):
         mock_ol_accessible.return_value = True
-        mock_static_uuid.return_value = "01931885-2800-7be7-aa8d-aaa15c337267"
+        task_ol_run_id.return_value = "11111111-1111-1111-1111-111111111111"
+        dag_ol_run_id.return_value = "22222222-2222-2222-2222-222222222222"
         expected_batch = {
             **BATCH,
             "labels": EXPECTED_LABELS,
@@ -3474,16 +3489,25 @@ class TestDataprocCreateBatchOperator:
         mock_log.info.assert_any_call("Batch job %s completed.\nDriver logs: %s", BATCH_ID, logs_link)
 
     @mock.patch.object(DataprocCreateBatchOperator, "log", new_callable=mock.MagicMock)
-    @mock.patch("airflow.providers.openlineage.plugins.adapter.generate_static_uuid")
+    @mock.patch("airflow.providers.openlineage.plugins.adapter.build_dag_run_ol_run_id")
+    @mock.patch("airflow.providers.openlineage.plugins.adapter.build_task_instance_ol_run_id")
     @mock.patch("airflow.providers.openlineage.utils.spark.get_openlineage_listener")
     @mock.patch("airflow.providers.google.cloud.openlineage.utils._is_openlineage_provider_accessible")
     @mock.patch(DATAPROC_PATH.format("Batch.to_dict"))
     @mock.patch(DATAPROC_PATH.format("DataprocHook"))
     def test_execute_openlineage_transport_info_injection(
-        self, mock_hook, to_dict_mock, mock_ol_accessible, mock_ol_listener, mock_static_uuid, mock_log
+        self,
+        mock_hook,
+        to_dict_mock,
+        mock_ol_accessible,
+        mock_ol_listener,
+        task_ol_run_id,
+        dag_ol_run_id,
+        mock_log,
     ):
         mock_ol_accessible.return_value = True
-        mock_static_uuid.return_value = "01931885-2800-7be7-aa8d-aaa15c337267"
+        task_ol_run_id.return_value = "11111111-1111-1111-1111-111111111111"
+        dag_ol_run_id.return_value = "22222222-2222-2222-2222-222222222222"
         fake_listener = mock.MagicMock()
         mock_ol_listener.return_value = fake_listener
         fake_listener.adapter.get_or_create_openlineage_client.return_value.transport = HttpTransport(
@@ -3533,16 +3557,18 @@ class TestDataprocCreateBatchOperator:
             logs_link,
         )
 
-    @mock.patch("airflow.providers.openlineage.plugins.adapter.generate_static_uuid")
+    @mock.patch("airflow.providers.openlineage.plugins.adapter.build_dag_run_ol_run_id")
+    @mock.patch("airflow.providers.openlineage.plugins.adapter.build_task_instance_ol_run_id")
     @mock.patch("airflow.providers.openlineage.utils.spark.get_openlineage_listener")
     @mock.patch("airflow.providers.google.cloud.openlineage.utils._is_openlineage_provider_accessible")
     @mock.patch(DATAPROC_PATH.format("Batch.to_dict"))
     @mock.patch(DATAPROC_PATH.format("DataprocHook"))
     def test_execute_openlineage_all_info_injection(
-        self, mock_hook, to_dict_mock, mock_ol_accessible, mock_ol_listener, mock_static_uuid
+        self, mock_hook, to_dict_mock, mock_ol_accessible, mock_ol_listener, task_ol_run_id, dag_ol_run_id
     ):
         mock_ol_accessible.return_value = True
-        mock_static_uuid.return_value = "01931885-2800-7be7-aa8d-aaa15c337267"
+        task_ol_run_id.return_value = "11111111-1111-1111-1111-111111111111"
+        dag_ol_run_id.return_value = "22222222-2222-2222-2222-222222222222"
         fake_listener = mock.MagicMock()
         mock_ol_listener.return_value = fake_listener
         fake_listener.adapter.get_or_create_openlineage_client.return_value.transport = HttpTransport(
