@@ -58,6 +58,7 @@ expected_config_response = {
     "show_external_log_redirect": False,
     "external_log_name": None,
     "theme": THEME,
+    "multi_team": False,
 }
 
 

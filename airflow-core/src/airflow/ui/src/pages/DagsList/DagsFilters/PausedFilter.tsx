@@ -16,49 +16,25 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Button, ButtonGroup } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 
+import { ButtonGroupToggle } from "src/components/ui";
+
+type PausedValue = "all" | "false" | "true";
+
 type Props = {
-  readonly defaultShowPaused: string;
-  readonly onPausedChange: React.MouseEventHandler<HTMLButtonElement>;
-  readonly showPaused: string | null;
+  readonly onChange: (value: PausedValue) => void;
+  readonly value: PausedValue;
 };
 
-export const PausedFilter = ({ defaultShowPaused, onPausedChange, showPaused }: Props) => {
+export const PausedFilter = ({ onChange, value }: Props) => {
   const { t: translate } = useTranslation("dags");
 
-  const currentValue = showPaused ?? defaultShowPaused;
+  const options = [
+    { label: translate("filters.paused.all"), value: "all" as const },
+    { label: translate("filters.paused.active"), value: "false" as const },
+    { label: translate("filters.paused.paused"), value: "true" as const },
+  ];
 
-  return (
-    <ButtonGroup attached size="sm" variant="outline">
-      <Button
-        bg={currentValue === "all" ? "colorPalette.muted" : undefined}
-        colorPalette="brand"
-        onClick={onPausedChange}
-        value="all"
-        variant={currentValue === "all" ? "solid" : "outline"}
-      >
-        {translate("filters.paused.all")}
-      </Button>
-      <Button
-        bg={currentValue === "false" ? "colorPalette.muted" : undefined}
-        colorPalette="brand"
-        onClick={onPausedChange}
-        value="false"
-        variant={currentValue === "false" ? "solid" : "outline"}
-      >
-        {translate("filters.paused.active")}
-      </Button>
-      <Button
-        bg={currentValue === "true" ? "colorPalette.muted" : undefined}
-        colorPalette="brand"
-        onClick={onPausedChange}
-        value="true"
-        variant={currentValue === "true" ? "solid" : "outline"}
-      >
-        {translate("filters.paused.paused")}
-      </Button>
-    </ButtonGroup>
-  );
+  return <ButtonGroupToggle<PausedValue> onChange={onChange} options={options} value={value} />;
 };
