@@ -19,7 +19,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from cadwyn import VersionChange, schema
+from cadwyn import VersionChange, endpoint, schema
 
 from airflow.api_fastapi.execution_api.datamodels.taskinstance import TIDeferredStatePayload
 
@@ -32,4 +32,14 @@ class ModifyDeferredTaskKwargsToJsonValue(VersionChange):
     instructions_to_migrate_to_previous_version = (
         schema(TIDeferredStatePayload).field("trigger_kwargs").had(type=dict[str, Any] | str),
         schema(TIDeferredStatePayload).field("next_kwargs").had(type=dict[str, Any]),
+    )
+
+
+class AddXcomBulkDeleteEndpoint(VersionChange):
+    """Add XCom bulk delete endpoint allowing deletion of all XComs for a run, optionally filtered by task_id, key, or map_index."""
+
+    description = __doc__
+
+    instructions_to_migrate_to_previous_version = (
+        endpoint("xcoms/{dag_id}/{run_id}", ["DELETE"]).didnt_exist,
     )

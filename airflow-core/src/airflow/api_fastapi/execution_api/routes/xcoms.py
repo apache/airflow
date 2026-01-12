@@ -417,22 +417,47 @@ def set_xcom(
 
 
 @router.delete(
-    "/{dag_id}/{run_id}",
+    "/{dag_id}/{run_id}/{task_id}/{key:path}",
     responses={status.HTTP_404_NOT_FOUND: {"description": "XCom not found"}},
-    description="Delete XCom Value(s).",
+    description="Delete a single XCom Value",
+    dependencies=[Depends(has_xcom_access)],
 )
 def delete_xcom(
     session: SessionDep,
     dag_id: str,
     run_id: str,
-    task_id: Annotated[str | None, Query()] = None,
-    key: Annotated[str | None, Query()] = None,
+    task_id: str,
+    key: Annotated[str, Path(min_length=1)],
     map_index: Annotated[int, Query()] = -1,
 ):
-    """
-    Delete XCom entry(ies).
+    """Delete a single XCom Value."""
+    query = delete(XComModel).where(
+        XComModel.key == key,
+        XComModel.run_id == run_id,
+        XComModel.task_id == task_id,
+        XComModel.dag_id == dag_id,
+        XComModel.map_index == map_index,
+    )
+    session.execute(query)
+    session.commit()
+    return {"message": f"XCom with key: {key} successfully deleted."}
 
-    Supports bulk deletion when task_id and/or key are not provided.
+
+@router.delete(
+    "/{dag_id}/{run_id}",
+    responses={status.HTTP_404_NOT_FOUND: {"description": "XComs not found"}},
+    description="Bulk delete Xcom values.",
+)
+def bulk_delete_xcoms(
+    session: SessionDep,
+    dag_id: str,
+    run_id: str,
+    task_id: Annotated[str | None, Query()] = None,
+    key: Annotated[str | None, Query()] = None,
+    map_index: Annotated[int | None, Query()] = None,
+):
+    """
+    Bulk delete Xcom values.
     """
     query = delete(XComModel).where(
         XComModel.dag_id == dag_id,
@@ -445,12 +470,10 @@ def delete_xcom(
     if key is not None:
         query = query.where(XComModel.key == key)
 
-    if map_index != -1:
+    if map_index is not None:
         query = query.where(XComModel.map_index == map_index)
 
     session.execute(query)
     session.commit()
 
-    if key is not None:
-        return {"message": f"XCom with key: {key} successfully deleted."}
     return {"message": "XCom entries successfully deleted."}

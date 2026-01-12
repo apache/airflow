@@ -575,9 +575,7 @@ class TestXComsDeleteEndpoint:
         assert xcoms is not None
         assert len(xcoms) == 2
 
-        response = client.delete(
-            f"/execution/xcoms/{ti.dag_id}/{ti.run_id}", params={"task_id": ti.task_id, "key": "xcom_1"}
-        )
+        response = client.delete(f"/execution/xcoms/{ti.dag_id}/{ti.run_id}/{ti.task_id}/xcom_1")
 
         assert response.status_code == 200
         assert response.json() == {"message": "XCom with key: xcom_1 successfully deleted."}
@@ -600,63 +598,15 @@ class TestXComsDeleteEndpoint:
         ).first()
         assert xcom_ti is not None
 
-    def test_xcom_delete_endpoint_map_index(self, client, dag_maker, session):
-        class MyOperator(EmptyOperator):
-            def __init__(self, *, x, **kwargs):
-                super().__init__(**kwargs)
-                self.x = x
-
-        xcom_values = ["a", "b", "c"]
-        with dag_maker(dag_id="dag"):
-            MyOperator.partial(task_id="task").expand(x=xcom_values)
-        dag_run = dag_maker.create_dagrun(run_id="runid")
-        tis = {ti.map_index: ti for ti in dag_run.task_instances}
-        for map_index, db_value in enumerate(xcom_values):
-            ti = tis[map_index]
-            x = XComModel(
-                key="xcom_1",
-                value=db_value,
-                dag_run_id=ti.dag_run.id,
-                run_id=ti.run_id,
-                task_id=ti.task_id,
-                dag_id=ti.dag_id,
-                map_index=map_index,
-            )
-            session.add(x)
-        session.commit()
-
-        params = {"task_id": "task", "key": "xcom_1", "map_index": 1}
-        response = client.delete("/execution/xcoms/dag/runid", params=params)
-        assert response.status_code == 200
-        assert response.json() == {"message": "XCom with key: xcom_1 successfully deleted."}
-        xcoms = session.scalars(
-            select(XComModel).where(XComModel.dag_id == ti.dag_id, XComModel.run_id == ti.run_id)
-        ).all()
-        assert len(xcoms) == 2
-        assert not any(xcom.map_index == 1 for xcom in xcoms)
-        assert not any(xcom.value == "b" for xcom in xcoms)
-        assert {xcom.map_index for xcom in xcoms} == {0, 2}
-
     @pytest.mark.parametrize(
-        ("task_id", "key", "expected_remaining", "expected_message"),
+        ("task_id", "key", "expected_remaining"),
         [
-            pytest.param(None, None, 0, "XCom entries successfully deleted.", id="all_xcoms_for_run"),
-            pytest.param("t1", None, 2, "XCom entries successfully deleted.", id="all_keys_for_task"),
-            pytest.param(
-                None, "xcom_3", 3, "XCom with key: xcom_3 successfully deleted.", id="specific_key_all_tasks"
-            ),
+            pytest.param(None, None, 0, id="all_xcoms_for_run"),
+            pytest.param("t1", None, 2, id="all_keys_for_task"),
+            pytest.param(None, "xcom_3", 3, id="specific_key_all_tasks"),
         ],
     )
-    def test_xcom_delete_endpoint_bulk_patterns(
-        self,
-        client,
-        dag_maker,
-        session,
-        task_id,
-        key,
-        expected_remaining,
-        expected_message,
-    ):
+    def test_xcom_bulk_delete_endpoint(self, client, dag_maker, session, task_id, key, expected_remaining):
         """Test XCom bulk deletions."""
 
         with dag_maker(dag_id="dag"):
@@ -683,7 +633,7 @@ class TestXComsDeleteEndpoint:
         response = client.delete(f"/execution/xcoms/{ti.dag_id}/{ti.run_id}", params=params)
 
         assert response.status_code == 200
-        assert response.json() == {"message": f"{expected_message}"}
+        assert response.json() == {"message": "XCom entries successfully deleted."}
 
         xcoms = session.scalars(
             select(XComModel).where(XComModel.dag_id == ti.dag_id, XComModel.run_id == ti.run_id)
