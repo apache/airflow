@@ -42,7 +42,7 @@ from dateutil import relativedelta
 from pendulum.tz.timezone import FixedTimezone, Timezone
 
 from airflow._shared.module_loading import import_string, qualname
-from airflow._shared.timezones.timezone import from_timestamp, parse_timezone, utcnow
+from airflow._shared.timezones.timezone import from_timestamp, parse, parse_timezone, utcnow
 from airflow.callbacks.callback_requests import DagCallbackRequest, TaskCallbackRequest
 from airflow.exceptions import AirflowException, DeserializationError, SerializationError
 from airflow.models.connection import Connection
@@ -755,7 +755,12 @@ class BaseSerialization:
         else:
             raise TypeError(f"Invalid type {type_!s} in deserialization.")
 
-    _deserialize_datetime = from_timestamp
+    @classmethod
+    def _deserialize_datetime(cls, arg):
+        if isinstance(arg, str):
+            return parse(arg)
+        return from_timestamp(arg)
+
     _deserialize_timezone = parse_timezone
 
     @classmethod
