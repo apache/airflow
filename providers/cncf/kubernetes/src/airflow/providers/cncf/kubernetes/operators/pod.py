@@ -956,7 +956,7 @@ class KubernetesPodOperator(BaseOperator):
                         container_name_log_prefix_enabled=self.container_name_log_prefix_enabled,
                         log_formatter=self.log_formatter,
                         since_time=last_log_time,
-                        post_termination_timeout=800,
+                        post_termination_timeout=900,
                     )
 
                 for callback in self.callbacks:

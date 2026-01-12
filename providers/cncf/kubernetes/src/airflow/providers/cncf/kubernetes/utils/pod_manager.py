@@ -668,7 +668,6 @@ class PodManager(LoggingMixin):
             actual=all_containers,
             pod_name=pod.metadata.name,
         )
-        self.log.info("Fetching logs for containers: %s", containers_to_log)
         for c in containers_to_log:
             status = self.fetch_container_logs(
                 pod=pod,
