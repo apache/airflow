@@ -393,6 +393,10 @@ class ProvidersManager(LoggingMixin):
 
     def __init__(self):
         """Initialize the manager."""
+        # skip initialization if already initialized
+        if self.initialized():
+            return
+
         super().__init__()
         ProvidersManager._initialized = True
         ProvidersManager._initialization_stack_trace = "".join(traceback.format_stack(inspect.currentframe()))
