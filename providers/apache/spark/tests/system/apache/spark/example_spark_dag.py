@@ -77,7 +77,7 @@ with DAG(
     # [END howto_operator_spark_sql]
 
     # [START howto_operator_spark_pyspark]
-    def my_pyspark_job(spark, sc):
+    def my_pyspark_job(spark):
         df = spark.range(100).filter("id % 2 = 0")
         print(df.count())
 

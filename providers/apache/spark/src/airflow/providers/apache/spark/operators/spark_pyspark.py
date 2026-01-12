@@ -90,11 +90,8 @@ class PySparkOperator(PythonOperator):
 
         spark_session = SparkSession.builder.config(conf=conf).getOrCreate()
 
-        # spark context is not available when using spark connect
-        spark_context = spark_session.sparkContext if not conf.get("spark.remote") else None
-
         try:
-            self.op_kwargs = {**self.op_kwargs, "spark": spark_session, "sc": spark_context}
+            self.op_kwargs = {**self.op_kwargs, "spark": spark_session}
             return super().execute_callable()
         finally:
             spark_session.stop()
