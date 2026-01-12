@@ -25,7 +25,10 @@ classifiers = [
 
 dependencies = [
     "packaging",
+    "pendulum>=3.1.0",
     "jsonschema",
+    "structlog>=25.4.0",
+    "pygtrie>=2.5.0",
     "methodtools>=0.4.7",
     'importlib_metadata>=6.5;python_version<"3.12"',
     'importlib_metadata>=7.0;python_version>="3.12"',
@@ -34,6 +37,7 @@ dependencies = [
 [dependency-groups]
 dev = [
     "apache-airflow-devel-common",
+    "apache-airflow-shared-module-loading",
 ]
 
 [build-system]

@@ -32,8 +32,9 @@ from typing import Any, NamedTuple, ParamSpec
 
 from packaging.utils import canonicalize_name
 
-from airflow._shared.module_loading import entry_points_with_dist, import_string
 from airflow.exceptions import AirflowOptionalProviderFeatureException
+
+from ..module_loading import entry_points_with_dist, import_string
 
 log = logging.getLogger(__name__)
 
