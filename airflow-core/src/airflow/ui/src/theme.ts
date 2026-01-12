@@ -399,6 +399,9 @@ export const customConfig = defineConfig({
 
 export const system = createSystem(defaultConfig, customConfig);
 
+// Once the system is created, make it globally available to dynamically imported React plugins.
+Reflect.set(globalThis, "ChakraUISystem", system);
+
 // Utility function to resolve CSS variables to their computed values
 // See: https://github.com/chakra-ui/panda/discussions/2200
 export const getComputedCSSVariableValue = (variable: string): string =>
