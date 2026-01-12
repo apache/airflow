@@ -941,25 +941,29 @@ Values are not accumulated meaning that if runAsUser is set to 10 in <node>.secu
 any extra values set to securityContext or uid+gid will be ignored.
 
 The template can be called like so:
-   include "airflowPodSecurityContext" (list . .Values.webserver)
+   include "airflowPodSecurityContext" (list .Values.webserver .Values)
 
-Where `.` is the global variables scope and `.Values.webserver` the local variables scope for the webserver template.
+Where `.Values` is the global variables scope and `.Values.webserver` the local variables scope for the webserver template.
+Priority of values are from left to right, meaning if first value is not empty, the rest will not be evaluated.
 */}}
-{{- define "airflowPodSecurityContext" -}}
-  {{- $ := index . 0 -}}
-  {{- with index . 1 }}
-    {{- if .securityContexts.pod -}}
-      {{ toYaml .securityContexts.pod | print }}
-    {{- else if .securityContext -}}
-      {{ toYaml .securityContext | print }}
-    {{- else if $.Values.securityContexts.pod -}}
-      {{ toYaml $.Values.securityContexts.pod | print }}
-    {{- else if $.Values.securityContext -}}
-      {{ toYaml $.Values.securityContext | print }}
-    {{- else -}}
-runAsUser: {{ $.Values.uid }}
-fsGroup: {{ $.Values.gid }}
+{{- define "airflowPodSecurityContext" }}
+  {{- $ := last . }}
+  {{- $result := dict }}
+  {{- range . }}
+    {{- if and (hasKey . "securityContexts") (hasKey .securityContexts "pod") .securityContexts.pod }}
+      {{- $result = .securityContexts.pod }}
+      {{- break }}
     {{- end }}
+    {{- if and (hasKey . "securityContext") .securityContext }}
+      {{- $result = .securityContext }}
+      {{- break }}
+    {{- end }}
+  {{- end }}
+  {{- if $result }}
+    {{- toYaml $result | print }}
+  {{- else }}
+runAsUser: {{ $.uid }}
+fsGroup: {{ $.gid }}
   {{- end }}
 {{- end }}
 
@@ -1052,24 +1056,30 @@ If no value is passed for securityContexts.container or <node>.securityContexts.
     +-----------------------------------+      +----------------------------+      +-----------------------------------------------------------+
 
 The template can be called like so:
-   include "containerSecurityContext" (list . .Values.webserver)
+   include "containerSecurityContext" (list .Values.webserver .Values)
 
-Where `.` is the global variables scope and `.Values.webserver` the local variables scope for the webserver template.
+Where `.Values` is the global variables scope and `.Values.webserver` the local variables scope for the webserver template.
+Priority of values are from left to right, meaning if first value is not empty, the rest will not be evaluated.
 */}}
 {{- define "containerSecurityContext" -}}
-  {{- $ := index . 0 -}}
-  {{- with index . 1 }}
-    {{- if .securityContexts.container -}}
-      {{ toYaml .securityContexts.container | print }}
-    {{- else if $.Values.securityContexts.containers -}}
-      {{ toYaml $.Values.securityContexts.containers | print }}
-    {{- else -}}
+  {{- $ := last . }}
+  {{- $result := dict }}
+  {{- range . }}
+    {{- if and (hasKey . "securityContexts") (hasKey .securityContexts "container") .securityContexts.container }}
+      {{- $result = .securityContexts.container }}
+      {{- break }}
+    {{- end }}
+  {{- end }}
+  {{- if $result }}
+    {{- toYaml $result | print }}
+  {{- else if and (hasKey $ "securityContexts") (hasKey $.securityContexts "containers") $.securityContexts.containers }}
+    {{- toYaml $.securityContexts.containers | print }}
+  {{- else -}}
 allowPrivilegeEscalation: false
 capabilities:
   drop:
     - ALL
-    {{- end -}}
-  {{- end -}}
+  {{- end }}
 {{- end -}}
 
 {{/*

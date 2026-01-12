@@ -94,6 +94,7 @@ operators:
       - airflow.providers.apache.spark.operators.spark_jdbc
       - airflow.providers.apache.spark.operators.spark_sql
       - airflow.providers.apache.spark.operators.spark_submit
+      - airflow.providers.apache.spark.operators.spark_pyspark
 
 hooks:
   - integration-name: Apache Spark
