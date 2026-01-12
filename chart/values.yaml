@@ -149,7 +149,7 @@ ingress:
   # (deprecated - use ingress.web.enabled, ingress.apiServer.enabled and ingress.flower.enabled)
   enabled: ~
 
-  # Configs for the Ingress of the API Server
+  # Configs for the Ingress of the API Server (Airflow 3+)
   apiServer:
     # Enable API Server ingress resource
     enabled: false
@@ -193,7 +193,7 @@ ingress:
     # Http paths to add to the API Server Ingress after the default path
     succeedingPaths: []
 
-  # Configs for the Ingress of the web Service
+  # Configs for the Ingress of the web Service (Airflow 2.x)
   web:
     # Enable web ingress resource
     enabled: false
