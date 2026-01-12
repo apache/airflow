@@ -20,6 +20,7 @@ import asyncio
 import contextlib
 import json
 import tempfile
+from collections.abc import AsyncGenerator
 from functools import cached_property
 from time import sleep
 from typing import TYPE_CHECKING, Any, Protocol
@@ -874,7 +875,7 @@ class AsyncKubernetesHook(KubernetesHook):
         return extras.get(prefixed_name)
 
     @contextlib.asynccontextmanager
-    async def get_conn(self) -> async_client.ApiClient:
+    async def get_conn(self) -> AsyncGenerator[async_client.ApiClient, None]:
         kube_client = None
         try:
             kube_client = await self._load_config() or async_client.ApiClient()
@@ -951,8 +952,8 @@ class AsyncKubernetesHook(KubernetesHook):
                     timestamps=True,
                     since_seconds=since_seconds,
                 )
-                logs = logs.splitlines()
-                return logs
+                logs_list: list[str] = logs.splitlines()
+                return logs_list
             except HTTPError as e:
                 raise KubernetesApiError from e
 

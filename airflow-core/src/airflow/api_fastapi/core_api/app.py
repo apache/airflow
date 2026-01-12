@@ -22,13 +22,12 @@ import sys
 import warnings
 from pathlib import Path
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
-from starlette.requests import Request
-from starlette.responses import HTMLResponse, JSONResponse
-from starlette.staticfiles import StaticFiles
-from starlette.templating import Jinja2Templates
+from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi.staticfiles import StaticFiles
+from fastapi.templating import Jinja2Templates
 
 from airflow.api_fastapi.auth.tokens import get_signing_key
 from airflow.configuration import conf

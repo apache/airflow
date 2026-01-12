@@ -16,11 +16,21 @@
 # under the License.
 from __future__ import annotations
 
+from fastapi import status
+
+# HTTP_422_UNPROCESSABLE_CONTENT was added in Starlette 0.48.0, replacing HTTP_422_UNPROCESSABLE_ENTITY
+# to align with RFC 9110 (HTTP Semantics).
+#
+# FastAPI 0.128.0 (our minimum version) requires starlette>=0.40.0. With "Low dep tests"
+# (uv sync --resolution lowest-direct), starlette 0.40.0 is installed, which only has
+# HTTP_422_UNPROCESSABLE_ENTITY. So we need this fallback for backward compatibility.
+#
+# Refs:
+#   - https://www.starlette.io/release-notes/
+#   - https://www.rfc-editor.org/rfc/rfc9110#status.422
 try:
-    from starlette.status import HTTP_422_UNPROCESSABLE_CONTENT
-except ImportError:
-    from starlette.status import (  # type: ignore[no-redef]
-        HTTP_422_UNPROCESSABLE_ENTITY as HTTP_422_UNPROCESSABLE_CONTENT,
-    )
+    HTTP_422_UNPROCESSABLE_CONTENT = status.HTTP_422_UNPROCESSABLE_CONTENT
+except AttributeError:
+    HTTP_422_UNPROCESSABLE_CONTENT = status.HTTP_422_UNPROCESSABLE_ENTITY  # type: ignore[attr-defined]
 
 __all__ = ["HTTP_422_UNPROCESSABLE_CONTENT"]

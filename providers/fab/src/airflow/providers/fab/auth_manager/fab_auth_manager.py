@@ -24,11 +24,11 @@ from urllib.parse import urljoin
 
 from connexion import FlaskApi
 from fastapi import FastAPI
+from fastapi.middleware.wsgi import WSGIMiddleware
 from flask import Blueprint, current_app, g
 from flask_appbuilder.const import AUTH_LDAP
 from sqlalchemy import select
 from sqlalchemy.orm import Session, joinedload
-from starlette.middleware.wsgi import WSGIMiddleware
 
 from airflow.api_fastapi.app import AUTH_MANAGER_FASTAPI_APP_PREFIX
 from airflow.api_fastapi.auth.managers.base_auth_manager import BaseAuthManager

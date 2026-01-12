@@ -28,11 +28,10 @@ from json import JSONDecodeError
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, TextIO
 
-from fastapi import FastAPI
-from starlette.requests import Request
-from starlette.responses import HTMLResponse
-from starlette.staticfiles import StaticFiles
-from starlette.templating import Jinja2Templates
+from fastapi import FastAPI, Request
+from fastapi.responses import HTMLResponse
+from fastapi.staticfiles import StaticFiles
+from fastapi.templating import Jinja2Templates
 from termcolor import colored
 
 from airflow.api_fastapi.app import AUTH_MANAGER_FASTAPI_APP_PREFIX
@@ -274,7 +273,7 @@ class SimpleAuthManager(BaseAuthManager[SimpleAuthManagerUser]):
         return self._is_authorized(method="GET", allow_role=SimpleAuthManagerRole.VIEWER, user=user)
 
     def is_authorized_custom_view(
-        self, *, method: ResourceMethod | str, resource_name: str, user: SimpleAuthManagerUser
+        self, *, method: ResourceMethod, resource_name: str, user: SimpleAuthManagerUser
     ):
         return self._is_authorized(method="GET", allow_role=SimpleAuthManagerRole.VIEWER, user=user)
 

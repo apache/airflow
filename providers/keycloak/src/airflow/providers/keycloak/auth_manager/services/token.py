@@ -17,9 +17,8 @@
 
 from __future__ import annotations
 
-from fastapi import HTTPException
+from fastapi import HTTPException, status
 from keycloak import KeycloakAuthenticationError
-from starlette import status
 
 from airflow.api_fastapi.app import get_auth_manager
 from airflow.providers.common.compat.sdk import conf

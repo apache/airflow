@@ -95,14 +95,20 @@ class TestKeda:
         assert jmespath.search("spec.advanced", docs[0]) == expected_advanced
 
     @staticmethod
-    def build_query(executor, concurrency=16, queue=None):
+    def build_query(executor, concurrency=16, kubernetes_queue=None, worker_queues="default"):
         """Build the query used by KEDA autoscaler to determine how many workers there should be."""
         query = (
             f"SELECT ceil(COUNT(*)::decimal / {concurrency}) "
             "FROM task_instance WHERE (state='running' OR state='queued')"
         )
+
+        # Handle worker queues (comma separated string)
+        queues = [q.strip() for q in worker_queues.split(",")]
+        queues_str = ",".join(f"'{q}'" for q in queues)
+        query += f" AND queue IN ({queues_str})"
+
         if "CeleryKubernetesExecutor" in executor:
-            queue_value = queue or "kubernetes"
+            queue_value = kubernetes_queue or "kubernetes"
             query += f" AND queue != '{queue_value}'"
         elif "KubernetesExecutor" in executor:
             query += " AND executor IS DISTINCT FROM 'KubernetesExecutor'"
@@ -165,8 +171,7 @@ class TestKeda:
             values=values,
             show_only=["templates/workers/worker-kedaautoscaler.yaml"],
         )
-
-        expected_query = self.build_query(executor=executor, queue=queue)
+        expected_query = self.build_query(executor=executor, kubernetes_queue=queue)
         assert jmespath.search("spec.triggers[0].metadata.query", docs[0]) == expected_query
 
     @pytest.mark.parametrize(
@@ -345,3 +350,35 @@ class TestKeda:
             "spec.triggers[0].metadata.connectionStringFromEnv", keda_autoscaler
         )
         assert autoscaler_connection_env_var == "KEDA_DB_CONN"
+
+    @pytest.mark.parametrize(
+        "queue",
+        [
+            # Case 1: Single queue
+            "default",
+            # Case 2: Multiple queues
+            "highcpu,highmem",
+            # Case 3: Queues with spaces (testing trim)
+            " a , b ",
+            # Case 4: Multiple queues with mixed spacing
+            "queue1, queue2, queue3",
+        ],
+    )
+    def test_keda_query_queue_list(self, queue):
+        """Test that the KEDA query correctly formats the queue list using IN clause."""
+        docs = render_chart(
+            values={
+                "workers": {
+                    "keda": {"enabled": True},
+                    "queue": queue,
+                },
+            },
+            show_only=["templates/workers/worker-kedaautoscaler.yaml"],
+        )
+
+        # Extract the query from the ScaledObject
+        # Path: spec.triggers[0].metadata.query
+        query = jmespath.search("spec.triggers[0].metadata.query", docs[0])
+
+        expected_query = self.build_query(executor="CeleryExecutor", worker_queues=queue)
+        assert query == expected_query
