@@ -16,7 +16,6 @@
 # under the License.
 from __future__ import annotations
 
-import argparse
 import json
 import logging
 import time
@@ -39,9 +38,8 @@ except ImportError:
     from airflow.api_fastapi.auth.managers.base_auth_manager import ResourceMethod as ExtendedResourceMethod
 
 from airflow.api_fastapi.common.types import MenuItem
-from airflow.cli.cli_config import CLICommand, DefaultHelpParser, GroupCommand
+from airflow.cli.cli_config import CLICommand
 from airflow.providers.common.compat.sdk import AirflowException, conf
-from airflow.providers.keycloak.auth_manager.cli.definition import KEYCLOAK_AUTH_MANAGER_COMMANDS
 from airflow.providers.keycloak.auth_manager.constants import (
     CONF_CLIENT_ID_KEY,
     CONF_CLIENT_SECRET_KEY,
@@ -69,21 +67,11 @@ if TYPE_CHECKING:
         PoolDetails,
         VariableDetails,
     )
+    from airflow.cli.cli_config import CLICommand
 
 log = logging.getLogger(__name__)
 
 RESOURCE_ID_ATTRIBUTE_NAME = "resource_id"
-
-
-def get_parser() -> argparse.ArgumentParser:
-    """Generate documentation; used by Sphinx argparse."""
-    from airflow.cli.cli_parser import AirflowHelpFormatter, _add_command
-
-    parser = DefaultHelpParser(prog="airflow", formatter_class=AirflowHelpFormatter)
-    subparsers = parser.add_subparsers(dest="subcommand", metavar="GROUP_OR_COMMAND")
-    for group_command in KeycloakAuthManager.get_cli_commands():
-        _add_command(subparsers, group_command)
-    return parser
 
 
 class KeycloakAuthManager(BaseAuthManager[KeycloakAuthManagerUser]):
@@ -147,6 +135,13 @@ class KeycloakAuthManager(BaseAuthManager[KeycloakAuthManagerUser]):
         return urljoin(base_url, f"{AUTH_MANAGER_FASTAPI_APP_PREFIX}/logout")
 
     def refresh_user(self, *, user: KeycloakAuthManagerUser) -> KeycloakAuthManagerUser | None:
+        # According to RFC6749 section 4.4.3, a refresh token should not be included when using
+        # the Service accounts/client_credentials flow.
+        # We check whether the user has a refresh token; if not, we assume it's a service account
+        # and return None.
+        if not user.refresh_token:
+            return None
+
         if self._token_expired(user.access_token):
             tokens = self.refresh_tokens(user=user)
 
@@ -158,6 +153,10 @@ class KeycloakAuthManager(BaseAuthManager[KeycloakAuthManagerUser]):
         return None
 
     def refresh_tokens(self, *, user: KeycloakAuthManagerUser) -> dict[str, str]:
+        if not user.refresh_token:
+            # It is a service account. It used the client credentials flow and no refresh token is issued.
+            return {}
+
         try:
             log.debug("Refreshing the token")
             client = self.get_keycloak_client()
@@ -307,18 +306,27 @@ class KeycloakAuthManager(BaseAuthManager[KeycloakAuthManagerUser]):
     @staticmethod
     def get_cli_commands() -> list[CLICommand]:
         """Vends CLI commands to be included in Airflow CLI."""
-        return [
-            GroupCommand(
-                name="keycloak-auth-manager",
-                help="Manage resources used by Keycloak auth manager",
-                subcommands=KEYCLOAK_AUTH_MANAGER_COMMANDS,
-            ),
-        ]
+        from airflow.providers.keycloak.cli.definition import get_keycloak_cli_commands
+
+        return get_keycloak_cli_commands()
 
     @staticmethod
-    def get_keycloak_client() -> KeycloakOpenID:
-        client_id = conf.get(CONF_SECTION_NAME, CONF_CLIENT_ID_KEY)
-        client_secret = conf.get(CONF_SECTION_NAME, CONF_CLIENT_SECRET_KEY)
+    def get_keycloak_client(client_id: str | None = None, client_secret: str | None = None) -> KeycloakOpenID:
+        """
+        Get a KeycloakOpenID client instance.
+
+        :param client_id: Optional client ID to override config. If provided, client_secret must also be provided.
+        :param client_secret: Optional client secret to override config. If provided, client_id must also be provided.
+        """
+        if (client_id is None) != (client_secret is None):
+            raise ValueError(
+                "Both `client_id` and `client_secret` must be provided together, or both must be None"
+            )
+
+        if client_id is None:
+            client_id = conf.get(CONF_SECTION_NAME, CONF_CLIENT_ID_KEY)
+            client_secret = conf.get(CONF_SECTION_NAME, CONF_CLIENT_SECRET_KEY)
+
         realm = conf.get(CONF_SECTION_NAME, CONF_REALM_KEY)
         server_url = conf.get(CONF_SECTION_NAME, CONF_SERVER_URL_KEY)
 
