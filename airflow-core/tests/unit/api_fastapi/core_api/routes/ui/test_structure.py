@@ -768,111 +768,74 @@ class TestStructureDataEndpoint:
         assert mapped_in_group["is_mapped"] is True
         assert mapped_in_group["operator"] == "PythonOperator"
 
-    def test_structure_with_depth_downstream(self, make_dags, test_client):
-        """Test that depth parameter limits the number of downstream levels returned."""
-        # Using DAG_ID_LINEAR_DEPTH with structure: task_a >> task_b >> task_c >> task_d >> task_e
-
-        # Test depth=1 downstream from task_a
-        response = test_client.get(
-            "/structure/structure_data",
-            params={"dag_id": DAG_ID_LINEAR_DEPTH, "root": "task_a", "include_downstream": True, "depth": 1},
-        )
+    @pytest.mark.parametrize(
+        ("params", "expected_task_ids", "description"),
+        [
+            pytest.param(
+                {"dag_id": DAG_ID_LINEAR_DEPTH, "root": "task_a", "include_downstream": True, "depth": 1},
+                ["task_a", "task_b"],
+                "depth=1 downstream from task_a should return task_a and task_b only",
+                id="downstream_depth_1",
+            ),
+            pytest.param(
+                {"dag_id": DAG_ID_LINEAR_DEPTH, "root": "task_a", "include_downstream": True, "depth": 2},
+                ["task_a", "task_b", "task_c"],
+                "depth=2 downstream from task_a should return task_a, task_b, and task_c",
+                id="downstream_depth_2",
+            ),
+            pytest.param(
+                {"dag_id": DAG_ID_LINEAR_DEPTH, "root": "task_e", "include_upstream": True, "depth": 1},
+                ["task_d", "task_e"],
+                "depth=1 upstream from task_e should return task_e and task_d only",
+                id="upstream_depth_1",
+            ),
+            pytest.param(
+                {"dag_id": DAG_ID_LINEAR_DEPTH, "root": "task_e", "include_upstream": True, "depth": 2},
+                ["task_c", "task_d", "task_e"],
+                "depth=2 upstream from task_e should return task_e, task_d, and task_c",
+                id="upstream_depth_2",
+            ),
+            pytest.param(
+                {
+                    "dag_id": DAG_ID_LINEAR_DEPTH,
+                    "root": "task_c",
+                    "include_upstream": True,
+                    "include_downstream": True,
+                    "depth": 1,
+                },
+                ["task_b", "task_c", "task_d"],
+                "depth=1 both directions from task_c should return task_b, task_c, and task_d",
+                id="both_directions_depth_1",
+            ),
+            pytest.param(
+                {
+                    "dag_id": DAG_ID_NONLINEAR_DEPTH,
+                    "root": "start",
+                    "include_downstream": True,
+                    "depth": 1,
+                },
+                ["branch_a", "branch_b", "start"],
+                "depth=1 downstream from start in nonlinear DAG should return start and both branches",
+                id="nonlinear_downstream_depth_1",
+            ),
+            pytest.param(
+                {
+                    "dag_id": DAG_ID_NONLINEAR_DEPTH,
+                    "root": "merge",
+                    "include_upstream": True,
+                    "depth": 1,
+                },
+                ["branch_b", "intermediate", "merge"],
+                "depth=1 upstream from merge in nonlinear DAG should return merge, branch_b, and intermediate",
+                id="nonlinear_upstream_depth_1",
+            ),
+        ],
+    )
+    @pytest.mark.usefixtures("make_dags")
+    def test_structure_with_depth(self, test_client, params, expected_task_ids, description):
+        """Test that depth parameter limits the number of levels returned in various scenarios."""
+        response = test_client.get("/structure/structure_data", params=params)
         assert response.status_code == 200
         data = response.json()
         task_ids = sorted([node["id"] for node in data["nodes"]])
-        # Should return task_a and task_b only (1 level downstream)
-        assert task_ids == ["task_a", "task_b"]
-
-        # Test depth=2 downstream from task_a
-        response = test_client.get(
-            "/structure/structure_data",
-            params={"dag_id": DAG_ID_LINEAR_DEPTH, "root": "task_a", "include_downstream": True, "depth": 2},
-        )
-        assert response.status_code == 200
-        data = response.json()
-        task_ids = sorted([node["id"] for node in data["nodes"]])
-        # Should return task_a, task_b, and task_c (2 levels downstream)
-        assert task_ids == ["task_a", "task_b", "task_c"]
-
-    def test_structure_with_depth_upstream(self, make_dags, test_client):
-        """Test that depth parameter limits the number of upstream levels returned."""
-        # Using DAG_ID_LINEAR_DEPTH with structure: task_a >> task_b >> task_c >> task_d >> task_e
-
-        # Test depth=1 upstream from task_e
-        response = test_client.get(
-            "/structure/structure_data",
-            params={"dag_id": DAG_ID_LINEAR_DEPTH, "root": "task_e", "include_upstream": True, "depth": 1},
-        )
-        assert response.status_code == 200
-        data = response.json()
-        task_ids = sorted([node["id"] for node in data["nodes"]])
-        # Should return task_e and task_d only (1 level upstream)
-        assert task_ids == ["task_d", "task_e"]
-
-        # Test depth=2 upstream from task_e
-        response = test_client.get(
-            "/structure/structure_data",
-            params={"dag_id": DAG_ID_LINEAR_DEPTH, "root": "task_e", "include_upstream": True, "depth": 2},
-        )
-        assert response.status_code == 200
-        data = response.json()
-        task_ids = sorted([node["id"] for node in data["nodes"]])
-        # Should return task_e, task_d, and task_c (2 levels upstream)
-        assert task_ids == ["task_c", "task_d", "task_e"]
-
-    def test_structure_with_depth_both_directions(self, make_dags, test_client):
-        """Test that depth parameter works with both upstream and downstream."""
-        # Using DAG_ID_LINEAR_DEPTH with structure: task_a >> task_b >> task_c >> task_d >> task_e
-
-        # Test depth=1 both upstream and downstream from task_c (middle task)
-        response = test_client.get(
-            "/structure/structure_data",
-            params={
-                "dag_id": DAG_ID_LINEAR_DEPTH,
-                "root": "task_c",
-                "include_upstream": True,
-                "include_downstream": True,
-                "depth": 1,
-            },
-        )
-        assert response.status_code == 200
-        data = response.json()
-        task_ids = sorted([node["id"] for node in data["nodes"]])
-        # Should return task_b, task_c, and task_d (1 level in each direction)
-        assert task_ids == ["task_b", "task_c", "task_d"]
-
-    def test_structure_with_depth_nonlinear(self, make_dags, test_client):
-        """Test that depth parameter works correctly with non-linear DAG structures."""
-        # Using DAG_ID_NONLINEAR_DEPTH with branching and merging structure
-
-        # Test depth=1 downstream from start (should get both branches)
-        response = test_client.get(
-            "/structure/structure_data",
-            params={
-                "dag_id": DAG_ID_NONLINEAR_DEPTH,
-                "root": "start",
-                "include_downstream": True,
-                "depth": 1,
-            },
-        )
-        assert response.status_code == 200
-        data = response.json()
-        task_ids = sorted([node["id"] for node in data["nodes"]])
-        # Should return start, branch_a, and branch_b (1 level downstream)
-        assert task_ids == ["branch_a", "branch_b", "start"]
-
-        # Test depth=1 upstream from merge (should get both direct upstreams)
-        response = test_client.get(
-            "/structure/structure_data",
-            params={
-                "dag_id": DAG_ID_NONLINEAR_DEPTH,
-                "root": "merge",
-                "include_upstream": True,
-                "depth": 1,
-            },
-        )
-        assert response.status_code == 200
-        data = response.json()
-        task_ids = sorted([node["id"] for node in data["nodes"]])
-        # Should return merge, branch_b, and intermediate (1 level upstream)
-        assert task_ids == ["branch_b", "intermediate", "merge"]
+        assert task_ids == expected_task_ids, description
