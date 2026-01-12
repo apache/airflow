@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2026-01-07T22:54:33.664648
+# This constraints file was automatically generated on 2026-01-12T12:15:09.583238
 # via `uv sync --resolution highest for the "v3-1-test" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider distributions.
@@ -36,7 +36,7 @@ SQLAlchemy-Utils==0.42.1
 SQLAlchemy==2.0.45
 SecretStorage==3.5.0
 Sphinx==8.2.3
-Werkzeug==3.1.4
+Werkzeug==3.1.5
 a2wsgi==1.10.10
 adal==1.2.7
 adlfs==2025.8.0
@@ -52,7 +52,7 @@ aiosignal==1.4.0
 aiosqlite==0.21.0
 airbyte-api==0.53.0
 alabaster==1.0.0
-alembic==1.17.2
+alembic==1.18.0
 alibabacloud-adb20211201==3.7.1
 alibabacloud-credentials-api==1.0.0
 alibabacloud-credentials==1.0.4
@@ -119,7 +119,7 @@ bleach==6.3.0
 blinker==1.9.0
 boto3==1.41.5
 botocore==1.41.5
-build==1.3.0
+build==1.4.0
 cachetools==6.2.4
 cadwyn==5.4.6
 cassandra-driver==3.29.3
@@ -150,7 +150,7 @@ croniter==6.0.0
 cryptography==44.0.3
 curlify==3.0.0
 darabonba-core==1.0.5
-databricks-sql-connector==4.2.3
+databricks-sql-connector==4.2.4
 databricks-sqlalchemy==2.0.8
 dataclasses-json==0.6.7
 datadog==0.52.1
@@ -187,7 +187,7 @@ fastapi==0.117.1
 fastavro==1.12.1
 fastjsonschema==2.21.2
 fastuuid==0.14.0
-filelock==3.20.2
+filelock==3.20.3
 flit==3.12.0
 flit_core==3.12.0
 flower==2.0.1
@@ -202,24 +202,24 @@ geomet==1.1.0
 gevent==25.9.1
 gitdb==4.0.12
 google-ads==28.4.1
-google-analytics-admin==0.26.0
-google-api-core==2.28.1
+google-analytics-admin==0.27.0
+google-api-core==2.29.0
 google-api-python-client==2.187.0
 google-auth-httplib2==0.2.1
 google-auth-oauthlib==1.2.2
 google-auth==2.47.0
-google-cloud-aiplatform==1.132.0
-google-cloud-alloydb==0.6.0
-google-cloud-appengine-logging==1.7.0
+google-cloud-aiplatform==1.133.0
+google-cloud-alloydb==0.7.0
+google-cloud-appengine-logging==1.8.0
 google-cloud-audit-log==0.4.0
-google-cloud-automl==2.17.0
-google-cloud-batch==0.19.0
-google-cloud-bigquery-datatransfer==3.20.0
-google-cloud-bigquery==3.39.0
+google-cloud-automl==2.18.0
+google-cloud-batch==0.20.0
+google-cloud-bigquery-datatransfer==3.21.0
+google-cloud-bigquery==3.40.0
 google-cloud-bigtable==2.35.0
-google-cloud-build==3.34.0
-google-cloud-compute==1.40.0
-google-cloud-container==2.61.0
+google-cloud-build==3.35.0
+google-cloud-compute==1.41.0
+google-cloud-container==2.62.0
 google-cloud-core==2.5.0
 google-cloud-datacatalog==3.28.0
 google-cloud-dataflow-client==0.10.0
@@ -279,7 +279,7 @@ httpcore==1.0.9
 httplib2==0.22.0
 httptools==0.7.1
 httpx==0.28.1
-huggingface_hub==1.2.4
+huggingface_hub==1.3.1
 humanize==4.15.0
 hvac==2.4.0
 hyperframe==6.1.0
@@ -322,7 +322,7 @@ jsonpointer==3.0.0
 jsonschema-path==0.3.4
 jsonschema-specifications==2025.9.1
 jsonschema==4.26.0
-jupyter_client==8.7.0
+jupyter_client==8.8.0
 jupyter_core==5.9.1
 jupyterlab_pygments==0.3.0
 jwcrypto==1.5.6
@@ -340,7 +340,7 @@ libcst==1.8.6
 librt==0.7.7
 limits==5.6.0
 linkify-it-py==2.0.3
-litellm==1.80.12
+litellm==1.80.15
 lockfile==0.12.2
 looker_sdk==25.20.0
 lxml==6.0.2
@@ -381,19 +381,19 @@ natsort==8.4.0
 nbclient==0.10.4
 nbconvert==7.16.6
 nbformat==5.10.4
-neo4j==6.0.3
+neo4j==6.1.0
 nest-asyncio==1.6.0
 networkx==3.6.1
 nh3==0.3.2
 nodeenv==1.10.0
 numpy==2.2.6
 oauthlib==3.3.1
-openai==2.14.0
+openai==2.15.0
 openapi-schema-validator==0.6.3
 openapi-spec-validator==0.7.2
-openlineage-integration-common==1.41.0
-openlineage-python==1.41.0
-openlineage_sql==1.41.0
+openlineage-integration-common==1.42.1
+openlineage-python==1.42.1
+openlineage_sql==1.42.1
 openpyxl==3.1.5
 opensearch-protobufs==0.19.0
 opensearch-py==3.1.0
@@ -414,8 +414,8 @@ orjson==3.11.5
 oss2==2.19.1
 outcome==1.3.0.post0
 packaging==25.0
-pagefind==1.5.0a3
-pagefind_bin==1.5.0a3
+pagefind==1.5.0b1
+pagefind_bin==1.5.0b1
 pagerduty==6.1.0
 pandas-gbq==0.33.0
 pandas-stubs==2.3.3.251219
@@ -425,7 +425,7 @@ papermill==2.6.0
 paramiko==3.5.1
 parso==0.8.5
 pathable==0.4.4
-pathspec==1.0.1
+pathspec==1.0.3
 pbr==7.0.3
 pdbr==0.9.7
 pendulum==3.1.0
@@ -439,8 +439,8 @@ platformdirs==4.5.1
 pluggy==1.6.0
 ply==3.11
 plyvel==1.5.1
-polars-runtime-32==1.36.1
-polars==1.36.1
+polars-runtime-32==1.37.0
+polars==1.37.0
 portalocker==3.2.0
 pprintpp==0.4.0
 pre_commit==4.5.1
@@ -450,7 +450,7 @@ prometheus_client==0.23.1
 prompt_toolkit==3.0.52
 propcache==0.4.1
 proto-plus==1.27.0
-protobuf==6.33.2
+protobuf==6.33.3
 psutil==7.2.1
 psycopg-binary==3.3.2
 psycopg2-binary==2.9.11
@@ -485,7 +485,7 @@ pyparsing==3.3.1
 pyproject_hooks==1.2.0
 pypsrp==0.8.1
 pyroaring==1.0.3
-pyspark==4.1.0
+pyspark==4.1.1
 pyspnego==0.12.0
 pytest-asyncio==1.3.0
 pytest-cov==7.0.0
@@ -504,10 +504,10 @@ python-dateutil==2.9.0.post0
 python-dotenv==1.2.1
 python-http-client==3.3.7
 python-jenkins==1.8.3
-python-keycloak==7.0.1
+python-keycloak==7.0.2
 python-ldap==3.4.5
 python-multipart==0.0.21
-python-on-whales==0.79.0
+python-on-whales==0.80.0
 python-slugify==8.0.4
 python-telegram-bot==22.5
 pytokens==0.3.0
@@ -542,21 +542,20 @@ roman-numerals==4.1.0
 rpds-py==0.30.0
 rsa==4.9.1
 ruamel.yaml==0.19.1
-ruff==0.14.10
+ruff==0.14.11
 s3fs==2025.12.0
 s3transfer==0.15.0
 sagemaker_studio==1.0.23
 scikit-learn==1.8.0
-scipy==1.16.3
+scipy==1.17.0
 scramp==1.4.8
 scrapbook==0.5.0
 segment-analytics-python==2.3.5
 semver==3.0.4
 sendgrid==6.12.2
-sentry-sdk==2.48.0
+sentry-sdk==2.49.0
 setproctitle==1.3.7
 setuptools==80.9.0
-shapely==2.1.2
 shellingham==1.5.4
 simple-salesforce==1.12.9
 six==1.17.0
@@ -607,7 +606,7 @@ tenacity==9.1.2
 teradatasql==20.0.0.48
 teradatasqlalchemy==20.0.0.9
 termcolor==3.3.0
-testcontainers==4.13.3
+testcontainers==4.14.0
 text-unidecode==1.3
 threadpoolctl==3.6.0
 thrift-sasl==0.4.3
@@ -658,13 +657,13 @@ uritemplate==4.2.0
 urllib3==2.6.3
 userpath==1.9.2
 uuid6==2025.0.1
-uv==0.9.22
+uv==0.9.24
 uvicorn==0.40.0
 uvloop==0.22.1
 validators==0.35.0
 vertica-python==1.4.0
 vine==5.1.0
-virtualenv==20.36.0
+virtualenv==20.36.1
 watchfiles==1.1.1
 watchtower==3.4.0
 wcwidth==0.2.14
@@ -682,5 +681,5 @@ zeep==4.3.2
 zenpy==2.0.56
 zipp==3.23.0
 zope.event==6.1
-zope.interface==8.1.1
+zope.interface==8.2
 zstandard==0.25.0
