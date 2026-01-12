@@ -498,8 +498,10 @@ class SerializedDagModel(Base):
                 select(cls).where(cls.dag_id == dag.dag_id).order_by(cls.created_at.desc()).limit(1)
             )
 
-            if existing_serialized_dag and (
-                existing_deadline_uuids := existing_serialized_dag.data.get("dag", {}).get("deadline")
+            if (
+                existing_serialized_dag
+                and existing_serialized_dag.data
+                and (existing_deadline_uuids := existing_serialized_dag.data.get("dag", {}).get("deadline"))
             ):
                 dag.data["dag"]["deadline"] = existing_deadline_uuids
                 deadline_uuid_mapping = {}
