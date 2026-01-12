@@ -29,9 +29,8 @@ try:
 except ImportError:
     URL = create_engine = None  # type: ignore[assignment,misc]
 
-from airflow.exceptions import AirflowOptionalProviderFeatureException
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
-from airflow.providers.common.compat.sdk import AirflowException
+from airflow.providers.common.compat.sdk import AirflowException, AirflowOptionalProviderFeatureException
 from airflow.providers.common.sql.hooks.sql import DbApiHook
 
 if TYPE_CHECKING:
