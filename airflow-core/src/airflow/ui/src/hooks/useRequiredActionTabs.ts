@@ -109,7 +109,7 @@ export const useRequiredActionTabs = (
 
   useEffect(() => {
     if (autoRedirect && !hasHitlData && !isLoadingHitl && location.pathname.includes("required_actions")) {
-      navigate(redirectPath);
+      void Promise.resolve(navigate(redirectPath));
     }
   }, [autoRedirect, hasHitlData, isLoadingHitl, location.pathname, navigate, redirectPath]);
 

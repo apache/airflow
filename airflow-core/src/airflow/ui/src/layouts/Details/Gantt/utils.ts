@@ -75,12 +75,14 @@ export const createHandleBarClick =
           taskId,
         });
 
-        navigate(
-          {
-            pathname: taskUrl,
-            search: location.search,
-          },
-          { replace: true },
+        void Promise.resolve(
+          navigate(
+            {
+              pathname: taskUrl,
+              search: location.search,
+            },
+            { replace: true },
+          ),
         );
       }
     }
