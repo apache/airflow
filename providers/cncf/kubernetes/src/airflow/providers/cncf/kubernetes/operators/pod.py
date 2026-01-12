@@ -984,8 +984,6 @@ class KubernetesPodOperator(BaseOperator):
                     )
                     message = event.get("stack_trace", event["message"])
                     raise AirflowException(message)
-        except TaskDeferred:
-            raise
         finally:
             self._clean(event=event, context=context, result=xcom_sidecar_output)
 
