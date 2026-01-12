@@ -438,7 +438,7 @@ class SnowflakeHook(DbApiHook):
         ocsp_fail_open = extra_dict.get("ocsp_fail_open")
         if ocsp_fail_open is not None:
             conn_config["ocsp_fail_open"] = _try_to_boolean(ocsp_fail_open)
-        
+   
         # Add proxy configuration if specified
         proxy_host = self._get_field(extra_dict, "proxy_host")
         proxy_port = self._get_field(extra_dict, "proxy_port")

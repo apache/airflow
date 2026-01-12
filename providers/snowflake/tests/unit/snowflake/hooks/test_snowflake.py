@@ -1310,7 +1310,6 @@ class TestPytestSnowflakeHook:
         # Ensure refresh actually happened
         assert mock_requests_post.call_count == 2
 
-    
     def test_get_conn_params_with_proxy_host_only(self):
         """Test proxy configuration with only host specified."""
         connection_kwargs = deepcopy(BASE_CONNECTION_KWARGS)
@@ -1318,7 +1317,7 @@ class TestPytestSnowflakeHook:
 
         with mock.patch.dict("os.environ", AIRFLOW_CONN_TEST_CONN=Connection(**connection_kwargs).get_uri()):
             hook = SnowflakeHook(snowflake_conn_id="test_conn")
-            conn_params = hook._get_conn_params
+            conn_params = hook._get_conn_params()
 
             assert conn_params["proxy_host"] == "proxy.example.com"
             assert "proxy_port" not in conn_params
@@ -1333,7 +1332,7 @@ class TestPytestSnowflakeHook:
 
         with mock.patch.dict("os.environ", AIRFLOW_CONN_TEST_CONN=Connection(**connection_kwargs).get_uri()):
             hook = SnowflakeHook(snowflake_conn_id="test_conn")
-            conn_params = hook._get_conn_params
+            conn_params = hook._get_conn_params()
 
             assert conn_params["proxy_host"] == "proxy.example.com"
             assert conn_params["proxy_port"] == 8080
@@ -1348,7 +1347,7 @@ class TestPytestSnowflakeHook:
 
         with mock.patch.dict("os.environ", AIRFLOW_CONN_TEST_CONN=Connection(**connection_kwargs).get_uri()):
             hook = SnowflakeHook(snowflake_conn_id="test_conn")
-            conn_params = hook._get_conn_params
+            conn_params = hook._get_conn_params()
 
             assert conn_params["proxy_host"] == "proxy.example.com"
             assert conn_params["proxy_port"] == 8080
@@ -1364,7 +1363,7 @@ class TestPytestSnowflakeHook:
 
         with mock.patch.dict("os.environ", AIRFLOW_CONN_TEST_CONN=Connection(**connection_kwargs).get_uri()):
             hook = SnowflakeHook(snowflake_conn_id="test_conn")
-            conn_params = hook._get_conn_params
+            conn_params = hook._get_conn_params()
 
             assert conn_params["proxy_host"] == "proxy.example.com"
             assert conn_params["proxy_port"] == 8080
@@ -1381,7 +1380,7 @@ class TestPytestSnowflakeHook:
 
         with mock.patch.dict("os.environ", AIRFLOW_CONN_TEST_CONN=Connection(**connection_kwargs).get_uri()):
             hook = SnowflakeHook(snowflake_conn_id="test_conn")
-            conn_params = hook._get_conn_params
+            conn_params = hook._get_conn_params()
 
             assert conn_params["proxy_host"] == "proxy.example.com"
             assert conn_params["proxy_port"] == 8080
@@ -1402,7 +1401,7 @@ class TestPytestSnowflakeHook:
         ):
             hook = SnowflakeHook(snowflake_conn_id="test_conn")
             hook.get_conn()
-            
+
             call_args = mock_connector.connect.call_args[1]
             assert call_args["proxy_host"] == "proxy.example.com"
             assert call_args["proxy_port"] == 8080
