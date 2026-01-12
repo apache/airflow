@@ -21,9 +21,8 @@ import logging
 from typing import Any
 
 import anyio
-from fastapi import HTTPException, Request
-from starlette import status
-from starlette.responses import RedirectResponse
+from fastapi import HTTPException, Request, status
+from fastapi.responses import RedirectResponse
 
 from airflow.api_fastapi.app import (
     AUTH_MANAGER_FASTAPI_APP_PREFIX,
