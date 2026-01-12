@@ -74,7 +74,7 @@ class CloudRunJobFinishedTrigger(BaseTrigger):
         impersonation_chain: str | Sequence[str] | None = None,
         polling_period_seconds: float = 10,
         timeout: float | None = None,
-        transport: Literal["rest", "grpc"] = "grpc",
+        transport: Literal["rest", "grpc"] | None = "grpc",
     ):
         super().__init__()
         self.project_id = project_id
@@ -146,8 +146,10 @@ class CloudRunJobFinishedTrigger(BaseTrigger):
         )
 
     def _get_async_hook(self) -> CloudRunAsyncHook:
+        # Convert None to "grpc" for backward compatibility with old serialized triggers
+        transport = self.transport if self.transport is not None else "grpc"
         return CloudRunAsyncHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
-            transport=self.transport,
+            transport=transport,
         )
