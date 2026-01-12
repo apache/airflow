@@ -78,6 +78,8 @@ class VaultBackend(BaseSecretsBackend, LoggingMixin):
     :param kubernetes_role: Role for Authentication (for ``kubernetes`` auth_type).
     :param kubernetes_jwt_path: Path for kubernetes jwt token (for ``kubernetes`` auth_type, default:
         ``/var/run/secrets/kubernetes.io/serviceaccount/token``).
+    :param kubernetes_audience: Optional audience claim to verify in the JWT token (for ``kubernetes`` auth_type).
+        Required for Vault 1.21+ to suppress deprecation warnings.
     :param gcp_key_path: Path to Google Cloud Service Account key file (JSON) (for ``gcp`` auth_type).
            Mutually exclusive with gcp_keyfile_dict.
     :param gcp_keyfile_dict: Dictionary of keyfile parameters. (for ``gcp`` auth_type).
@@ -112,6 +114,7 @@ class VaultBackend(BaseSecretsBackend, LoggingMixin):
         region: str | None = None,
         kubernetes_role: str | None = None,
         kubernetes_jwt_path: str = "/var/run/secrets/kubernetes.io/serviceaccount/token",
+        kubernetes_audience: str | None = None,
         gcp_key_path: str | None = None,
         gcp_keyfile_dict: dict | None = None,
         gcp_scopes: str | None = None,
@@ -145,6 +148,7 @@ class VaultBackend(BaseSecretsBackend, LoggingMixin):
             region=region,
             kubernetes_role=kubernetes_role,
             kubernetes_jwt_path=kubernetes_jwt_path,
+            kubernetes_audience=kubernetes_audience,
             gcp_key_path=gcp_key_path,
             gcp_keyfile_dict=gcp_keyfile_dict,
             gcp_scopes=gcp_scopes,
