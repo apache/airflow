@@ -24,10 +24,7 @@ import pytest
 from airflow.models import Connection
 from airflow.providers.slack.transfers.sql_to_slack_webhook import SqlToSlackWebhookOperator
 
-try:
-    from airflow.sdk import timezone
-except ImportError:
-    from airflow.utils import timezone  # type: ignore[attr-defined,no-redef]
+from tests_common.test_utils.compat import timezone
 
 TEST_DAG_ID = "sql_to_slack_unit_test"
 TEST_TASK_ID = "sql_to_slack_unit_test_task"
@@ -60,7 +57,7 @@ class TestSqlToSlackWebhookOperator:
         return operator
 
     @pytest.mark.parametrize(
-        "slack_op_kwargs, hook_extra_kwargs",
+        ("slack_op_kwargs", "hook_extra_kwargs"),
         [
             pytest.param(
                 {}, {"timeout": None, "proxy": None, "retry_handlers": None}, id="default-hook-parameters"
@@ -137,7 +134,7 @@ class TestSqlToSlackWebhookOperator:
         )
 
     @pytest.mark.parametrize(
-        "slack_webhook_conn_id, warning_expected, expected_conn_id",
+        ("slack_webhook_conn_id", "warning_expected", "expected_conn_id"),
         [
             pytest.param("foo", False, "foo", id="slack-webhook-conn-id"),
             pytest.param("spam", True, "spam", id="mixin-conn-ids"),

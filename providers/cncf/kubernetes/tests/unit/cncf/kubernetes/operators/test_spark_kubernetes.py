@@ -33,14 +33,15 @@ import yaml
 from kubernetes.client import models as k8s
 
 from airflow import DAG
-from airflow.exceptions import TaskDeferred
 from airflow.models import Connection, DagRun, TaskInstance
 from airflow.providers.cncf.kubernetes.operators.spark_kubernetes import SparkKubernetesOperator
 from airflow.providers.cncf.kubernetes.pod_generator import MAX_LABEL_LEN
 from airflow.providers.cncf.kubernetes.triggers.pod import KubernetesPodTrigger
+from airflow.providers.common.compat.sdk import TaskDeferred
 from airflow.utils import timezone
 from airflow.utils.types import DagRunType
 
+from tests_common.test_utils.taskinstance import create_task_instance
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
 POD_MANAGER_CLASS = "airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager"
@@ -273,7 +274,7 @@ def create_context(task):
     if AIRFLOW_V_3_0_PLUS:
         from uuid6 import uuid7
 
-        task_instance = TaskInstance(task=task, dag_version_id=uuid7())
+        task_instance = create_task_instance(task=task, dag_version_id=uuid7())
     else:
         task_instance = TaskInstance(task=task)
     task_instance.dag_run = dag_run
@@ -344,7 +345,7 @@ class TestSparkKubernetesOperatorCreateApplication:
 
     @pytest.mark.asyncio
     @pytest.mark.parametrize(
-        "task_name, application_file_path",
+        ("task_name", "application_file_path"),
         [
             ("default_yaml", "spark/application_test.yaml"),
             ("default_json", "spark/application_test.json"),
@@ -385,7 +386,7 @@ class TestSparkKubernetesOperatorCreateApplication:
 
     @pytest.mark.asyncio
     @pytest.mark.parametrize(
-        "task_name, application_file_path",
+        ("task_name", "application_file_path"),
         [
             ("default_yaml", "spark/application_test.yaml"),
             ("default_json", "spark/application_test.json"),
@@ -431,7 +432,7 @@ class TestSparkKubernetesOperatorCreateApplication:
 
     @pytest.mark.asyncio
     @pytest.mark.parametrize(
-        "task_name, application_file_path",
+        ("task_name", "application_file_path"),
         [
             ("task_id_yml", "spark/application_test_with_no_name_from_config.yaml"),
             ("task_id_json", "spark/application_test_with_no_name_from_config.json"),
@@ -993,32 +994,26 @@ def test_template_body_templating(create_task_instance_of_operator, session):
     )
     session.add(ti)
     session.commit()
-    ti.render_templates()
-    task: SparkKubernetesOperator = ti.task
+    task = ti.render_templates()
     assert task.template_body == {"spark": {"foo": "2016-01-01", "bar": "test_template_body_templating_dag"}}
 
 
 @pytest.mark.db_test
-def test_resolve_application_file_template_file(dag_maker, tmp_path, session):
-    logical_date = timezone.datetime(2024, 2, 1, tzinfo=timezone.utc)
+def test_resolve_application_file_template_file(create_task_instance_of_operator, tmp_path, session):
     filename = "test-application-file.yml"
     (tmp_path / filename).write_text("foo: {{ ds }}\nbar: {{ dag_run.dag_id }}\nspam: egg")
 
-    with dag_maker(
+    ti = create_task_instance_of_operator(
+        SparkKubernetesOperator,
         dag_id="test_resolve_application_file_template_file",
         template_searchpath=tmp_path.as_posix(),
+        task_id="test_template_body_templating_task",
+        application_file=filename,
+        kubernetes_conn_id="kubernetes_default_kube_config",
+        logical_date=timezone.datetime(2024, 2, 1, tzinfo=timezone.utc),
         session=session,
-    ):
-        SparkKubernetesOperator(
-            application_file=filename,
-            kubernetes_conn_id="kubernetes_default_kube_config",
-            task_id="test_template_body_templating_task",
-        )
-    ti = dag_maker.create_dagrun(logical_date=logical_date).task_instances[0]
-    session.add(ti)
-    session.commit()
-    ti.render_templates()
-    task: SparkKubernetesOperator = ti.task
+    )
+    task = ti.render_templates()
     assert task.template_body == {
         "spark": {
             "foo": date(2024, 2, 1),
@@ -1038,27 +1033,28 @@ def test_resolve_application_file_template_file(dag_maker, tmp_path, session):
         pytest.param(None, id="none"),
     ],
 )
-def test_resolve_application_file_template_non_dictionary(dag_maker, tmp_path, body, session):
+def test_resolve_application_file_template_non_dictionary(
+    create_task_instance_of_operator,
+    tmp_path,
+    body,
+    session,
+):
     logical_date = timezone.datetime(2024, 2, 1, tzinfo=timezone.utc)
     filename = "test-application-file.yml"
     with open((tmp_path / filename), "w") as fp:
         yaml.safe_dump(body, fp)
 
-    with dag_maker(
+    ti = create_task_instance_of_operator(
+        SparkKubernetesOperator,
         dag_id="test_resolve_application_file_template_nondictionary",
         template_searchpath=tmp_path.as_posix(),
+        task_id="test_template_body_templating_task",
+        application_file=filename,
+        kubernetes_conn_id="kubernetes_default_kube_config",
+        logical_date=logical_date,
         session=session,
-    ):
-        SparkKubernetesOperator(
-            application_file=filename,
-            kubernetes_conn_id="kubernetes_default_kube_config",
-            task_id="test_template_body_templating_task",
-        )
-    ti = dag_maker.create_dagrun(logical_date=logical_date).task_instances[0]
-    session.add(ti)
-    session.commit()
-    ti.render_templates()
-    task: SparkKubernetesOperator = ti.task
+    )
+    task = ti.render_templates()
     with pytest.raises(TypeError, match="application_file body can't transformed into the dictionary"):
         _ = task.template_body
 
@@ -1094,11 +1090,7 @@ def test_resolve_application_file_real_file(
         task_id="test_template_body_templating_task",
         session=session,
     )
-    session.add(ti)
-    session.commit()
-    ti.render_templates()
-    task: SparkKubernetesOperator = ti.task
-
+    task = ti.render_templates()
     assert task.template_body == {"spark": {"foo": "bar", "spam": "egg"}}
 
 
@@ -1119,10 +1111,7 @@ def test_resolve_application_file_real_file_not_exists(create_task_instance_of_o
         task_id="test_template_body_templating_task",
         session=session,
     )
-    session.add(ti)
-    session.commit()
-    ti.render_templates()
-    task: SparkKubernetesOperator = ti.task
+    task = ti.render_templates()
     with pytest.raises(TypeError, match="application_file body can't transformed into the dictionary"):
         _ = task.template_body
 
@@ -1149,3 +1138,102 @@ def test_create_job_name_should_truncate_long_names():
     pod_name = op.create_job_name()
 
     assert pod_name == long_name[:MAX_LABEL_LEN]
+
+
+class TestSparkKubernetesLifecycle:
+    @mock.patch("airflow.providers.cncf.kubernetes.operators.spark_kubernetes.CustomObjectLauncher")
+    @mock.patch("airflow.providers.cncf.kubernetes.operators.spark_kubernetes.KubernetesHook")
+    def test_launcher_access_without_execute(self, mock_hook, mock_launcher_cls):
+        """Test that launcher is accessible even if execute is not called (e.g. after deferral)."""
+        op = SparkKubernetesOperator(
+            task_id="test_task",
+            namespace="default",
+            application_file="example.yaml",
+            kubernetes_conn_id="kubernetes_default",
+        )
+
+        # Mock the template body loading since we don't have a real file
+        with mock.patch.object(SparkKubernetesOperator, "manage_template_specs") as mock_manage:
+            mock_manage.return_value = {"spark": {"spec": {}}}
+
+            # Access launcher
+            launcher = op.launcher
+
+            assert launcher is not None
+            assert mock_launcher_cls.called
+
+    @mock.patch("airflow.providers.cncf.kubernetes.operators.spark_kubernetes.CustomObjectLauncher")
+    @mock.patch("airflow.providers.cncf.kubernetes.operators.spark_kubernetes.KubernetesHook")
+    def test_on_kill_works_without_execute(self, mock_hook, mock_launcher_cls):
+        """Test that on_kill works without execute being called."""
+        op = SparkKubernetesOperator(
+            task_id="test_task",
+            namespace="default",
+            application_file="example.yaml",
+            name="test-job",
+        )
+
+        mock_launcher_instance = mock_launcher_cls.return_value
+
+        with mock.patch.object(SparkKubernetesOperator, "manage_template_specs") as mock_manage:
+            mock_manage.return_value = {"spark": {"spec": {}}}
+
+            op.on_kill()
+
+            # Should call delete_spark_job on the launcher
+            mock_launcher_instance.delete_spark_job.assert_called_once()
+
+            # Check arguments
+            call_args = mock_launcher_instance.delete_spark_job.call_args
+            # We expect spark_job_name="test-job"
+            assert call_args.kwargs.get("spark_job_name") == "test-job"
+
+    @mock.patch("airflow.providers.cncf.kubernetes.operators.spark_kubernetes.CustomObjectLauncher")
+    @mock.patch("airflow.providers.cncf.kubernetes.operators.spark_kubernetes.KubernetesHook")
+    @mock.patch("airflow.providers.cncf.kubernetes.operators.spark_kubernetes.KubernetesPodOperator.execute")
+    def test_reattach_skips_launcher_creation_in_execute(
+        self, mock_super_execute, mock_hook, mock_launcher_cls
+    ):
+        """Test that reattach logic skips explicit launcher creation but property still works."""
+        op = SparkKubernetesOperator(
+            task_id="test_task",
+            namespace="default",
+            application_file="example.yaml",
+            reattach_on_restart=True,
+        )
+
+        # Mock finding an existing pod
+        mock_pod = k8s.V1Pod(metadata=k8s.V1ObjectMeta(name="existing-pod"))
+
+        with (
+            mock.patch.object(SparkKubernetesOperator, "find_spark_job", return_value=mock_pod),
+            mock.patch.object(
+                SparkKubernetesOperator, "manage_template_specs", return_value={"spark": {"spec": {}}}
+            ),
+            mock.patch.object(SparkKubernetesOperator, "_get_ti_pod_labels", return_value={}),
+        ):
+            context = {"ti": mock.MagicMock(), "run_id": "test_run"}
+
+            # Run execute
+            op.execute(context)
+
+            # Verify super().execute was called
+            mock_super_execute.assert_called_once()
+
+            # Verify launcher was NOT instantiated during execute (because we returned early)
+            # We can check if the mock_launcher_cls was instantiated.
+            # It should NOT be instantiated during execute because _setup_spark_configuration returns early.
+            # However, accessing op.launcher later WILL instantiate it.
+
+            # Reset mock to clear any previous calls (though there shouldn't be any)
+            mock_launcher_cls.reset_mock()
+
+            # Access launcher now
+            assert op.launcher is not None
+
+            # Now it should have been instantiated
+            mock_launcher_cls.assert_called_once()
+
+            # And verify delete works
+            op.on_kill()
+            mock_launcher_cls.return_value.delete_spark_job.assert_called()

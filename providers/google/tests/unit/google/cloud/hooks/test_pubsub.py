@@ -86,10 +86,58 @@ class TestPubSubHook:
         mock_client.assert_called_once_with(
             credentials=mock_get_creds.return_value,
             client_info=CLIENT_INFO,
-            publisher_options=PublisherOptions(enable_message_ordering=False),
+            publisher_options=PublisherOptions(
+                enable_message_ordering=False,
+                enable_open_telemetry_tracing=False,
+            ),
         )
         assert mock_client.return_value == result
         assert self.pubsub_hook._client == result
+
+    @mock.patch("airflow.providers.google.cloud.hooks.pubsub.PubSubHook.get_credentials")
+    @mock.patch("airflow.providers.google.cloud.hooks.pubsub.PublisherClient")
+    def test_publisher_client_creation_with_open_telemetry_tracing(self, mock_client, mock_get_creds):
+        with mock.patch(BASE_STRING.format("GoogleBaseHook.__init__"), new=mock_init):
+            pubsub_hook_with_tracing = PubSubHook(
+                gcp_conn_id="test",
+                enable_open_telemetry_tracing=True,
+            )
+        assert pubsub_hook_with_tracing._client is None
+        result = pubsub_hook_with_tracing.get_conn()
+
+        mock_client.assert_called_once_with(
+            credentials=mock_get_creds.return_value,
+            client_info=CLIENT_INFO,
+            publisher_options=PublisherOptions(
+                enable_message_ordering=False,
+                enable_open_telemetry_tracing=True,
+            ),
+        )
+        assert mock_client.return_value == result
+        assert pubsub_hook_with_tracing._client == result
+
+    @mock.patch("airflow.providers.google.cloud.hooks.pubsub.PubSubHook.get_credentials")
+    @mock.patch("airflow.providers.google.cloud.hooks.pubsub.PublisherClient")
+    def test_publisher_client_creation_with_message_ordering_and_tracing(self, mock_client, mock_get_creds):
+        with mock.patch(BASE_STRING.format("GoogleBaseHook.__init__"), new=mock_init):
+            pubsub_hook_with_both = PubSubHook(
+                gcp_conn_id="test",
+                enable_message_ordering=True,
+                enable_open_telemetry_tracing=True,
+            )
+        assert pubsub_hook_with_both._client is None
+        result = pubsub_hook_with_both.get_conn()
+
+        mock_client.assert_called_once_with(
+            credentials=mock_get_creds.return_value,
+            client_info=CLIENT_INFO,
+            publisher_options=PublisherOptions(
+                enable_message_ordering=True,
+                enable_open_telemetry_tracing=True,
+            ),
+        )
+        assert mock_client.return_value == result
+        assert pubsub_hook_with_both._client == result
 
     @mock.patch("airflow.providers.google.cloud.hooks.pubsub.PubSubHook.get_credentials")
     @mock.patch("airflow.providers.google.cloud.hooks.pubsub.SubscriberClient")
@@ -502,7 +550,7 @@ class TestPubSubHook:
         )
 
     @pytest.mark.parametrize(
-        "ack_ids, messages",
+        ("ack_ids", "messages"),
         [
             pytest.param(None, None, id="both-empty"),
             pytest.param([1, 2, 3], _generate_messages(3), id="both-provided"),
@@ -564,7 +612,7 @@ class TestPubSubHook:
         PubSubHook._validate_messages(messages)
 
     @pytest.mark.parametrize(
-        "messages, error_message",
+        ("messages", "error_message"),
         [
             ([("wrong type",)], "Wrong message type. Must be a dictionary."),
             ([{"wrong_key": b"test"}], "Wrong message. Dictionary must contain 'data' or 'attributes'."),

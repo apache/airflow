@@ -25,9 +25,9 @@ import pytest
 from kubernetes.client.rest import ApiException
 
 from airflow import DAG
-from airflow.exceptions import AirflowException
 from airflow.models import Connection
 from airflow.providers.cncf.kubernetes.sensors.spark_kubernetes import SparkKubernetesSensor
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.utils import timezone
 
 pytestmark = pytest.mark.db_test

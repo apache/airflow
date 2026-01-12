@@ -94,6 +94,20 @@ Once called, the DataflowRunPipelineOperator will return the Google Cloud
 `Dataflow Job <https://cloud.google.com/dataflow/docs/reference/data-pipelines/rest/v1/Job>`__
 created by running the given pipeline.
 
+Here is an streaming example of Dataflow Pipeline by running DataflowCreatePipelineOperator:
+
+.. exampleinclude:: /../../google/tests/system/google/cloud/dataflow/example_dataflow_pipeline_streaming.py
+   :language: python
+   :dedent: 4
+   :start-after: [START howto_operator_create_dataflow_pipeline_streaming]
+   :end-before: [END howto_operator_create_dataflow_pipeline_streaming]
+
+Once pipeline created, the streaming job
+the Google Cloud
+`Dataflow Job <https://cloud.google.com/dataflow/docs/reference/data-pipelines/rest/v1/Job>`__
+will start automatically.
+
+
 For further information regarding the API usage, see
 `Data Pipelines API REST Resource <https://cloud.google.com/dataflow/docs/reference/data-pipelines/rest/v1/projects.locations.pipelines#Pipeline>`__
 in the Google Cloud documentation.
@@ -129,14 +143,6 @@ Here is an example of creating and running a pipeline in Java with jar stored on
     :dedent: 4
     :start-after: [START howto_operator_start_java_job_jar_on_gcs_deferrable]
     :end-before: [END howto_operator_start_java_job_jar_on_gcs_deferrable]
-
-Here is an example of creating and running a pipeline in Java with jar stored on local file system:
-
-.. exampleinclude:: /../../google/tests/system/google/cloud/dataflow/example_dataflow_native_java.py
-    :language: python
-    :dedent: 4
-    :start-after: [START howto_operator_start_java_job_local_jar]
-    :end-before: [END howto_operator_start_java_job_local_jar]
 
 Here is an example of creating and running a streaming pipeline in Java with jar stored on GCS:
 

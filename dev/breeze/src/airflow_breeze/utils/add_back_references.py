@@ -51,8 +51,8 @@ def download_file(url):
 def construct_old_to_new_tuple_mapping(file_name: Path) -> list[tuple[str, str]]:
     old_to_new_tuples: list[tuple[str, str]] = []
     with file_name.open() as f:
-        for line in f:
-            line = line.strip()
+        for line_raw in f:
+            line = line_raw.strip()
             if line and not line.startswith("#"):
                 old_path, new_path = line.split(" ")
                 old_path = old_path.replace(".rst", ".html")

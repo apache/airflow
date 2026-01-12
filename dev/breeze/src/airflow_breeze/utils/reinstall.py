@@ -99,11 +99,8 @@ def warn_non_editable():
     )
 
 
-def warn_dependencies_changed():
+def inform_about_self_upgrade():
     get_console().print(
-        f"\n[warning]Breeze dependencies changed since the installation![/]\n\n"
-        f"[warning]This might cause various problems!![/]\n\n"
-        f"If you experience problems - reinstall Breeze with:\n\n"
-        f"    {NAME} setup self-upgrade\n"
-        "\nThis should usually take couple of seconds.\n"
+        "\n[info]Breeze dependencies changed since the installation. Reinstalling them!\n\n[/]"
+        "You might need to rerun the command in case it fails\n\n"
     )

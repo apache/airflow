@@ -122,7 +122,7 @@ breeze and I'll run unit tests for my Hook.
 
   .. code-block:: bash
 
-      root@fafd8d630e46:/opt/airflow# python -m pytest providers/<PROVIDER>/tests/<PROVIDER>/hook/test_*.py
+      [Breeze:3.10.19] root@fafd8d630e46:/opt/airflow# python -m pytest providers/<PROVIDER>/tests/<PROVIDER>/hook/test_*.py
 
 Integration tests
 -----------------

@@ -41,14 +41,13 @@ from airflow.exceptions import (
     AirflowClusterPolicyError,
     AirflowClusterPolicySkipDag,
     AirflowClusterPolicyViolation,
-    AirflowDagCycleException,
     AirflowDagDuplicatedIdException,
     AirflowException,
-    AirflowTaskTimeout,
     UnknownExecutorException,
 )
 from airflow.executors.executor_loader import ExecutorLoader
 from airflow.listeners.listener import get_listener_manager
+from airflow.serialization.definitions.notset import NOTSET, ArgNotSet, is_arg_set
 from airflow.serialization.serialized_objects import LazyDeserializedDAG
 from airflow.utils.docs import get_docs_url
 from airflow.utils.file import (
@@ -59,7 +58,6 @@ from airflow.utils.file import (
 )
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.session import NEW_SESSION, provide_session
-from airflow.utils.types import NOTSET
 
 if TYPE_CHECKING:
     from collections.abc import Generator
@@ -68,7 +66,6 @@ if TYPE_CHECKING:
 
     from airflow import DAG
     from airflow.models.dagwarning import DagWarning
-    from airflow.utils.types import ArgNotSet
 
 
 @contextlib.contextmanager
@@ -100,6 +97,8 @@ class FileLoadStat(NamedTuple):
     :param task_num: Total number of Tasks loaded in this file.
     :param dags: DAGs names loaded in this file.
     :param warning_num: Total number of warnings captured from processing this file.
+    :param bundle_path: The bundle path from DagBag, if any.
+    :param bundle_name: The bundle name from DagBag, if any.
     """
 
     file: str
@@ -108,6 +107,8 @@ class FileLoadStat(NamedTuple):
     task_num: int
     dags: str
     warning_num: int
+    bundle_path: Path | None
+    bundle_name: str | None
 
 
 @contextlib.contextmanager
@@ -120,6 +121,8 @@ def timeout(seconds=1, error_message="Timeout"):
     def handle_timeout(signum, frame):
         """Log information and raises AirflowTaskTimeout."""
         log.error("Process timed out, PID: %s", str(os.getpid()))
+        from airflow.sdk.exceptions import AirflowTaskTimeout
+
         raise AirflowTaskTimeout(error_message)
 
     try:
@@ -134,13 +137,59 @@ def timeout(seconds=1, error_message="Timeout"):
             signal.setitimer(signal.ITIMER_REAL, 0)
 
 
-def _validate_executor_fields(dag: DAG) -> None:
+def _executor_exists(executor_name: str, team_name: str | None) -> bool:
+    """Check if executor exists, with global fallback for teams."""
+    try:
+        # First pass check for team-specific executor or a global executor (i.e. team_name=None)
+        ExecutorLoader.lookup_executor_name_by_str(executor_name, team_name=team_name)
+        return True
+    except UnknownExecutorException:
+        if team_name:
+            # If we had a team_name but didn't find an executor, check if there is a global executor that
+            # satisfies the request.
+            try:
+                ExecutorLoader.lookup_executor_name_by_str(executor_name, team_name=None)
+                return True
+            except UnknownExecutorException:
+                pass
+    return False
+
+
+def _validate_executor_fields(dag: DAG, bundle_name: str | None = None) -> None:
+    """Validate that executors specified in tasks are available and owned by the same team as the dag bundle."""
+    import logging
+
+    log = logging.getLogger(__name__)
+    dag_team_name = None
+
+    # Check if multi team is available by reading the multi_team configuration (which is boolean)
+    if conf.getboolean("core", "multi_team"):
+        # Get team name from bundle configuration if available
+        if bundle_name:
+            from airflow.dag_processing.bundles.manager import DagBundlesManager
+
+            bundle_manager = DagBundlesManager()
+            bundle_config = bundle_manager._bundle_config[bundle_name]
+
+            dag_team_name = bundle_config.team_name
+            if dag_team_name:
+                log.debug(
+                    "Found team '%s' for DAG '%s' via bundle '%s'", dag_team_name, dag.dag_id, bundle_name
+                )
+
     for task in dag.tasks:
         if not task.executor:
             continue
-        try:
-            ExecutorLoader.lookup_executor_name_by_str(task.executor)
-        except UnknownExecutorException:
+
+        if not _executor_exists(task.executor, dag_team_name):
+            if dag_team_name:
+                raise UnknownExecutorException(
+                    f"Task '{task.task_id}' specifies executor '{task.executor}', which is not available "
+                    f"for team '{dag_team_name}' (the team associated with DAG '{dag.dag_id}') or as a global executor. "
+                    f"Make sure '{task.executor}' is configured for team '{dag_team_name}' or globally in your "
+                    "[core] executors configuration, or update the task's executor to use one of the "
+                    f"configured executors for team '{dag_team_name}' or available global executors."
+                )
             raise UnknownExecutorException(
                 f"Task '{task.task_id}' specifies executor '{task.executor}', which is not available. "
                 "Make sure it is listed in your [core] executors configuration, or update the task's "
@@ -180,17 +229,11 @@ class DagBag(LoggingMixin):
         collect_dags: bool = True,
         known_pools: set[str] | None = None,
         bundle_path: Path | None = None,
+        bundle_name: str | None = None,
     ):
         super().__init__()
         self.bundle_path = bundle_path
-        include_examples = (
-            include_examples
-            if isinstance(include_examples, bool)
-            else conf.getboolean("core", "LOAD_EXAMPLES")
-        )
-        safe_mode = (
-            safe_mode if isinstance(safe_mode, bool) else conf.getboolean("core", "DAG_DISCOVERY_SAFE_MODE")
-        )
+        self.bundle_name = bundle_name
 
         dag_folder = dag_folder or settings.DAGS_FOLDER
         self.dag_folder = dag_folder
@@ -211,8 +254,14 @@ class DagBag(LoggingMixin):
         if collect_dags:
             self.collect_dags(
                 dag_folder=dag_folder,
-                include_examples=include_examples,
-                safe_mode=safe_mode,
+                include_examples=(
+                    include_examples
+                    if is_arg_set(include_examples)
+                    else conf.getboolean("core", "LOAD_EXAMPLES")
+                ),
+                safe_mode=(
+                    safe_mode if is_arg_set(safe_mode) else conf.getboolean("core", "DAG_DISCOVERY_SAFE_MODE")
+                ),
             )
         # Should the extra operator link be loaded via plugins?
         # This flag is set to False in Scheduler so that Extra Operator links are not loaded
@@ -232,7 +281,7 @@ class DagBag(LoggingMixin):
         return list(self.dags)
 
     @provide_session
-    def get_dag(self, dag_id, session: Session = None):
+    def get_dag(self, dag_id, session: Session = NEW_SESSION):
         """
         Get the DAG out of the dictionary, and refreshes it if expired.
 
@@ -498,7 +547,7 @@ class DagBag(LoggingMixin):
             dag.relative_fileloc = relative_fileloc
             try:
                 dag.validate()
-                _validate_executor_fields(dag)
+                _validate_executor_fields(dag, self.bundle_name)
                 self.bag_dag(dag=dag)
             except AirflowClusterPolicySkipDag:
                 pass
@@ -543,6 +592,7 @@ class DagBag(LoggingMixin):
         except Exception as e:
             self.log.exception(e)
             raise AirflowClusterPolicyError(e)
+        from airflow.sdk.exceptions import AirflowDagCycleException
 
         try:
             prev_dag = self.dags.get(dag.dag_id)
@@ -601,14 +651,21 @@ class DagBag(LoggingMixin):
                 found_dags = self.process_file(filepath, only_if_updated=only_if_updated, safe_mode=safe_mode)
 
                 file_parse_end_dttm = timezone.utcnow()
+                try:
+                    relative_file = Path(filepath).relative_to(Path(self.dag_folder)).as_posix()
+                except ValueError:
+                    # filepath is not under dag_folder (e.g., example DAGs from a different location)
+                    relative_file = Path(filepath).as_posix()
                 stats.append(
                     FileLoadStat(
-                        file=filepath.replace(settings.DAGS_FOLDER, ""),
+                        file=relative_file,
                         duration=file_parse_end_dttm - file_parse_start_dttm,
                         dag_num=len(found_dags),
                         task_num=sum(len(dag.tasks) for dag in found_dags),
                         dags=str([dag.dag_id for dag in found_dags]),
                         warning_num=len(self.captured_warnings.get(filepath, [])),
+                        bundle_path=self.bundle_path,
+                        bundle_name=self.bundle_name,
                     )
                 )
             except Exception as e:
@@ -638,6 +695,40 @@ class DagBag(LoggingMixin):
         return report
 
 
+class BundleDagBag(DagBag):
+    """
+    Bundle-aware DagBag that permanently modifies sys.path.
+
+    This class adds the bundle_path to sys.path permanently to allow DAG files
+    to import modules from their bundle directory. No cleanup is performed.
+
+    WARNING: Only use for one-off usages like CLI commands. Using this in long-running
+    processes will cause sys.path to accumulate entries.
+
+    Same parameters as DagBag, but bundle_path is required and examples are not loaded.
+    """
+
+    def __init__(self, *args, bundle_path: Path | None = None, **kwargs):
+        if not bundle_path:
+            raise ValueError("bundle_path is required for BundleDagBag")
+
+        if str(bundle_path) not in sys.path:
+            sys.path.append(str(bundle_path))
+
+        # Warn if user explicitly set include_examples=True, since bundles never contain examples
+        if kwargs.get("include_examples") is True:
+            warnings.warn(
+                "include_examples=True is ignored for BundleDagBag. "
+                "Bundles do not contain example DAGs, so include_examples is always False.",
+                UserWarning,
+                stacklevel=2,
+            )
+
+        kwargs["bundle_path"] = bundle_path
+        kwargs["include_examples"] = False
+        super().__init__(*args, **kwargs)
+
+
 @provide_session
 def sync_bag_to_db(
     dagbag: DagBag,
@@ -650,6 +741,16 @@ def sync_bag_to_db(
     from airflow.dag_processing.collection import update_dag_parsing_results_in_db
 
     import_errors = {(bundle_name, rel_path): error for rel_path, error in dagbag.import_errors.items()}
+
+    # Build the set of all files that were parsed and include files with import errors
+    # in case they are not in file_last_changed
+    files_parsed = set(import_errors)
+    if dagbag.bundle_path:
+        files_parsed.update(
+            (bundle_name, dagbag._get_relative_fileloc(abs_filepath))
+            for abs_filepath in dagbag.file_last_changed
+        )
+
     update_dag_parsing_results_in_db(
         bundle_name,
         bundle_version,
@@ -658,4 +759,5 @@ def sync_bag_to_db(
         None,  # file parsing duration is not well defined when parsing multiple files / multiple DAGs.
         dagbag.dag_warnings,
         session=session,
+        files_parsed=files_parsed,
     )

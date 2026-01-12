@@ -21,7 +21,7 @@ import pytest
 from airflow.models.xcom_arg import XComArg
 from airflow.providers.standard.operators.bash import BashOperator
 from airflow.providers.standard.operators.python import PythonOperator
-from airflow.utils.types import NOTSET
+from airflow.serialization.definitions.notset import NOTSET
 
 from tests_common.test_utils.db import clear_db_dags, clear_db_runs
 
@@ -123,9 +123,8 @@ class TestXComArgBuild:
     def test_xcom_key_getitem_not_str(self, dag_maker):
         python_op = build_python_op(dag_maker)
         actual = XComArg(python_op)
-        with pytest.raises(ValueError) as ctx:
+        with pytest.raises(ValueError, match="XComArg only supports str lookup, received int"):
             actual[1]
-        assert str(ctx.value) == "XComArg only supports str lookup, received int"
 
     def test_xcom_key_getitem(self, dag_maker):
         python_op = build_python_op(dag_maker)
@@ -182,7 +181,7 @@ class TestXComArgRuntime:
 
 
 @pytest.mark.parametrize(
-    "fillvalue, expected_results",
+    ("fillvalue", "expected_results"),
     [
         (NOTSET, {("a", 1), ("b", 2), ("c", 3)}),
         (None, {("a", 1), ("b", 2), ("c", 3), (None, 4)}),

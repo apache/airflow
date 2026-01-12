@@ -19,9 +19,9 @@ from __future__ import annotations
 
 import json
 import os
-from collections.abc import Iterable, Mapping
+from collections.abc import Callable, Iterable, Mapping
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, TypeVar
+from typing import TYPE_CHECKING, Any, TypeVar, overload
 from urllib.parse import quote_plus, urlencode
 
 import trino
@@ -29,12 +29,8 @@ from deprecated import deprecated
 from trino.exceptions import DatabaseError
 from trino.transaction import IsolationLevel
 
-from airflow.configuration import conf
-from airflow.exceptions import (
-    AirflowException,
-    AirflowOptionalProviderFeatureException,
-    AirflowProviderDeprecationWarning,
-)
+from airflow.exceptions import AirflowOptionalProviderFeatureException, AirflowProviderDeprecationWarning
+from airflow.providers.common.compat.sdk import AirflowException, conf
 from airflow.providers.common.sql.hooks.sql import DbApiHook
 from airflow.providers.trino.version_compat import AIRFLOW_V_3_0_PLUS
 from airflow.utils.helpers import exactly_one
@@ -276,6 +272,50 @@ class TrinoHook(DbApiHook):
         else:
             df = pd.DataFrame(**kwargs)
         return df
+
+    @overload
+    def run(
+        self,
+        sql: str | Iterable[str],
+        autocommit: bool = ...,
+        parameters: Iterable | Mapping[str, Any] | None = ...,
+        handler: None = ...,
+        split_statements: bool = ...,
+        return_last: bool = ...,
+    ) -> None: ...
+
+    @overload
+    def run(
+        self,
+        sql: str | Iterable[str],
+        autocommit: bool = ...,
+        parameters: Iterable | Mapping[str, Any] | None = ...,
+        handler: Callable[[Any], T] = ...,
+        split_statements: bool = ...,
+        return_last: bool = ...,
+    ) -> tuple | list[tuple] | list[list[tuple] | tuple] | None: ...
+
+    def run(
+        self,
+        sql: str | Iterable[str],
+        autocommit: bool = False,
+        parameters: Iterable | Mapping[str, Any] | None = None,
+        handler: Callable[[Any], T] | None = None,
+        split_statements: bool = True,
+        return_last: bool = True,
+    ) -> tuple | list[tuple] | list[list[tuple] | tuple] | None:
+        """
+        Override common run to set split_statements=True by default.
+
+        :param sql: SQL statement or list of statements to execute.
+        :param autocommit: Set autocommit mode before query execution.
+        :param parameters: Parameters to render the SQL query with.
+        :param handler: Optional callable to process each statement result.
+        :param split_statements: Split single SQL string into statements if True.
+        :param return_last: Return only last statement result if True.
+        :return: Query result or list of results.
+        """
+        return super().run(sql, autocommit, parameters, handler, split_statements, return_last)
 
     def _get_polars_df(self, sql: str = "", parameters=None, **kwargs):
         try:

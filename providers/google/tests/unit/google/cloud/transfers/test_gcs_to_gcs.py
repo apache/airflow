@@ -22,8 +22,9 @@ from unittest import mock
 
 import pytest
 
-from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
+from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.common.compat.openlineage.facet import Dataset
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.google.cloud.transfers.gcs_to_gcs import WILDCARD, GCSToGCSOperator
 
 TASK_ID = "test-gcs-to-gcs-operator"
@@ -677,8 +678,14 @@ class TestGoogleCloudStorageToCloudStorageOperator:
             operator.execute(None)
 
     @pytest.mark.parametrize(
-        "existing_objects, source_object, match_glob, exact_match, expected_source_objects, "
-        "expected_destination_objects",
+        (
+            "existing_objects",
+            "source_object",
+            "match_glob",
+            "exact_match",
+            "expected_source_objects",
+            "expected_destination_objects",
+        ),
         [
             (["source/foo.txt"], "source/foo.txt", None, True, ["source/foo.txt"], ["{prefix}/foo.txt"]),
             (["source/foo.txt"], "source/foo.txt", None, False, ["source/foo.txt"], ["{prefix}/foo.txt"]),

@@ -28,6 +28,12 @@ Defining Dags
 .. autoapiclass:: airflow.sdk.DAG
 
 
+Configuration
+-------------
+
+The ``conf`` object is available as part of the Task SDK. It provides an interface to the
+configurations, allowing you to read and interact with Airflow configuration values.
+
 Decorators
 ----------
 .. autoapifunction:: airflow.sdk.dag
@@ -66,8 +72,6 @@ Bases
 
 .. autoapiclass:: airflow.sdk.BaseXCom
 
-.. autoapiclass:: airflow.sdk.XComArg
-
 .. autoapiclass:: airflow.sdk.PokeReturnValue
 
 .. autoapiclass:: airflow.sdk.BaseHook
@@ -82,13 +86,19 @@ Tasks & Operators
 -----------------
 .. autoapiclass:: airflow.sdk.TaskGroup
 
-.. autoapifunction:: airflow.sdk.get_current_context
+.. autoapiclass:: airflow.sdk.XComArg
 
-.. autoapifunction:: airflow.sdk.get_parsing_context
+.. autoapifunction:: airflow.sdk.literal
 
 .. autoapiclass:: airflow.sdk.Param
 
+.. autoclass:: airflow.sdk.ParamsDict
+
 .. autoclass:: airflow.sdk.TriggerRule
+
+.. autoapifunction:: airflow.sdk.get_current_context
+
+.. autoapifunction:: airflow.sdk.get_parsing_context
 
 State Enums
 -----------
@@ -105,8 +115,6 @@ Setting Dependencies
 .. autoapifunction:: airflow.sdk.chain_linear
 
 .. autoapifunction:: airflow.sdk.cross_downstream
-
-.. autoapifunction:: airflow.sdk.literal
 
 Edges & Labels
 ~~~~~~~~~~~~~~
@@ -128,6 +136,22 @@ Assets
 
 .. autoapiclass:: airflow.sdk.Metadata
 
+Timetables
+----------
+.. autoapiclass:: airflow.sdk.AssetOrTimeSchedule
+
+.. autoapiclass:: airflow.sdk.CronDataIntervalTimetable
+
+.. autoapiclass:: airflow.sdk.CronTriggerTimetable
+
+.. autoapiclass:: airflow.sdk.DeltaDataIntervalTimetable
+
+.. autoapiclass:: airflow.sdk.DeltaTriggerTimetable
+
+.. autoapiclass:: airflow.sdk.EventsTimetable
+
+.. autoapiclass:: airflow.sdk.MultipleCronTriggerTimetable
+
 I/O Helpers
 -----------
 .. autoapiclass:: airflow.sdk.ObjectStoragePath
@@ -141,6 +165,10 @@ Execution Time Components
 .. rubric:: Logging
 
 .. autofunction:: airflow.sdk.log.mask_secret
+
+Observability
+-------------
+.. autoclass:: airflow.sdk.Trace
 
 Everything else
 ---------------

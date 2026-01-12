@@ -37,7 +37,7 @@ def mock_client():
     client.version.get.return_value.model_dump.return_value = {
         "version": "3.1.0",
         "git_version": None,
-        "airflowctl_version": "1.0.0",
+        "airflowctl_version": "0.1.0",
     }
 
     return client

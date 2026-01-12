@@ -146,7 +146,7 @@ class TestIngressWeb:
         assert not jmespath.search("spec.rules[*].host", docs[0])
 
     @pytest.mark.parametrize(
-        "global_value, web_value, expected",
+        ("global_value", "web_value", "expected"),
         [
             (None, None, False),
             (None, False, False),

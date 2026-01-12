@@ -28,7 +28,6 @@ import {
   Box,
 } from "@chakra-ui/react";
 import type { ColumnDef } from "@tanstack/react-table";
-import { useCallback, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { Link as RouterLink, useSearchParams } from "react-router-dom";
 import { useLocalStorage } from "usehooks-ts";
@@ -119,7 +118,7 @@ const createColumns = (
     cell: ({ row: { original } }) =>
       original.latest_dag_runs[0] ? (
         <Link asChild color="fg.info" fontWeight="bold">
-          <RouterLink to={`/dags/${original.dag_id}/runs/${original.latest_dag_runs[0].dag_run_id}`}>
+          <RouterLink to={`/dags/${original.dag_id}/runs/${original.latest_dag_runs[0].run_id}`}>
             <DagRunInfo
               endDate={original.latest_dag_runs[0].end_date}
               logicalDate={original.latest_dag_runs[0].logical_date}
@@ -164,8 +163,10 @@ const createColumns = (
     header: "",
   },
   {
-    accessorKey: "favorite",
-    cell: ({ row: { original } }) => <FavoriteDagButton dagId={original.dag_id} withText={false} />,
+    accessorKey: "favourite",
+    cell: ({ row: { original } }) => (
+      <FavoriteDagButton dagId={original.dag_id} isFavorite={original.is_favorite} withText={false} />
+    ),
     enableHiding: false,
     enableSorting: false,
     header: "",
@@ -218,7 +219,7 @@ export const DagsList = () => {
   const [sort] = sorting;
   const orderBy = sort ? `${sort.desc ? "-" : ""}${sort.id}` : "dag_display_name";
 
-  const columns = useMemo(() => createColumns(translate), [translate]);
+  const columns = createColumns(translate);
 
   const handleSearchChange = (value: string) => {
     setTableURLState({
@@ -230,6 +231,7 @@ export const DagsList = () => {
     } else {
       searchParams.delete(NAME_PATTERN);
     }
+    searchParams.delete("offset");
     setSearchParams(searchParams);
   };
 
@@ -272,27 +274,23 @@ export const DagsList = () => {
     tagsMatchMode: selectedMatchMode,
   });
 
-  const handleSortChange = useCallback(
-    ({ value }: SelectValueChangeDetails<Array<string>>) => {
-      setTableURLState({
-        pagination,
-        sorting: value.map((val) => ({
-          desc: val.startsWith("-"),
-          id: val.replace("-", ""),
-        })),
-      });
-    },
-    [pagination, setTableURLState],
-  );
+  const handleSortChange = ({ value }: SelectValueChangeDetails<Array<string>>) => {
+    setTableURLState({
+      pagination,
+      sorting: value.map((val) => ({
+        desc: val.startsWith("-"),
+        id: val.replace("-", ""),
+      })),
+    });
+  };
 
   return (
     <DagsLayout>
       <VStack alignItems="none">
         <SearchBar
-          buttonProps={{ disabled: true }}
           defaultValue={dagDisplayNamePattern}
           onChange={handleSearchChange}
-          placeHolder={translate("dags:search.dags")}
+          placeholder={translate("dags:search.dags")}
         />
         <DagsFilters />
         <HStack justifyContent="space-between">

@@ -25,6 +25,7 @@
     "requiredActions": "Erforderliche Interaktionen",
     "xcoms": "Task Kommunikation (XComs)"
   },
+  "collapseAllExtra": "Alle JSON Details ausblenden",
   "collapseDetailsPanel": "Detailansicht ausblenden",
   "createdAssetEvent_one": "Erstelltes Ereignis zu Datenset (Asset)",
   "createdAssetEvent_other": "Erstellte Ereignisse zu Datensets (Assets)",
@@ -59,6 +60,7 @@
     "dataIntervalEnd": "Datenintervall Ende",
     "dataIntervalStart": "Datenintervall Start",
     "lastSchedulingDecision": "Letzte Planungsentscheidung",
+    "partitionKey": "Partitionsschlüssel",
     "queuedAt": "Wartend seit",
     "runAfter": "Gelaufen ab",
     "runType": "Typ des Laufs",
@@ -72,18 +74,30 @@
   "dagWarnings": "Dag Warnungen und Fehler",
   "defaultToGraphView": "Graph-Ansicht als Standard",
   "defaultToGridView": "Gitter-Ansicht als Standard",
-  "direction": "Richtung",
+  "delete": "Löschen",
+  "diff": "Differenzansicht",
+  "diffCompareWith": "Vergleichen mit",
+  "diffExit": "Differenzansicht verlassen",
+  "diffSelectVersionToCompare": "Version zum Vergleichen auswählen",
+  "direction": "Schreibrichtung",
   "docs": {
     "documentation": "Dokumentation",
     "githubRepo": "GitHub Ablage",
     "restApiReference": "REST API Referenz"
   },
+  "download": {
+    "download": "Herunterladen",
+    "hotkey": "d",
+    "tooltip": "Drücken Sie {{hotkey}}, um Protokolle herunterzuladen"
+  },
   "duration": "Laufzeit",
+  "edit": "Bearbeiten",
   "endDate": "Enddatum",
   "error": {
     "back": "Zurück",
     "defaultMessage": "Ein unerwarteter Fehler ist aufgetreten",
     "home": "Start",
+    "invalidUrl": "Seite nicht gefunden. Bitte überprüfen Sie die URL und versuchen Sie es erneut.",
     "notFound": "Seite nicht gefunden",
     "title": "Fehler"
   },
@@ -93,6 +107,7 @@
     "hotkey": "e",
     "tooltip": "Tastenkombination {{hotkey}} zum Ein-/Ausklappen drücken"
   },
+  "expandAllExtra": "Alle JSON Details anzeigen",
   "expression": {
     "all": "Alle",
     "and": "UND",
@@ -101,26 +116,33 @@
   },
   "filter": "Filter",
   "filters": {
+    "durationFrom": "Laufzeit Von",
+    "durationTo": "Laufzeit Bis",
+    "endTime": "Endzeitpunkt",
     "logicalDateFrom": "Logisches Datum Von",
     "logicalDateTo": "Logisches Datum Bis",
     "runAfterFrom": "Gelaufen-nach von filtern",
-    "runAfterTo": "Gelaufen-nach bis filtern"
+    "runAfterTo": "Gelaufen-nach bis filtern",
+    "selectDateRange": "Zeitraum auswählen",
+    "startTime": "Startzeitpunkt"
   },
   "logicalDate": "Logisches Datum",
   "logout": "Abmelden",
   "logoutConfirmation": "Sie sind dabei sich von dem System abzumelden.",
   "mapIndex": "Planungs-Index",
   "modal": {
+    "add": "Hinzufügen",
     "cancel": "Abbrechen",
     "confirm": "Bestätigen",
     "delete": {
       "button": "Löschen",
       "confirmation": "Sind Sie sicher, dass Sie {{resourceName}} löschen wollen? Diese Aktion kann nicht rückgängig gemacht werden."
-    }
+    },
+    "save": "Speichern"
   },
   "nav": {
     "admin": "Verwaltung",
-    "assets": "Datensets (Assets)",
+    "assets": "Datensets",
     "browse": "Browsen",
     "dags": "Dags",
     "docs": "Doku",
@@ -161,7 +183,6 @@
     },
     "tooltip": "Tastenkombination {{hotkey}} zum scrollen nach {{direction}}"
   },
-  "seconds": "{{count}}s",
   "security": {
     "actions": "Aktionen",
     "permissions": "Berechtigungen",
@@ -171,6 +192,7 @@
   },
   "selectLanguage": "Sprache wählen",
   "showDetailsPanel": "Detailansicht einblenden",
+  "signedInAs": "Angemeldet als",
   "source": {
     "hide": "Log-Quelle ausblenden",
     "hotkey": "s",

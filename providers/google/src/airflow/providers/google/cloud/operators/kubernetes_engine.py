@@ -28,8 +28,7 @@ from google.api_core.exceptions import AlreadyExists
 from kubernetes.client import V1JobList, models as k8s
 from packaging.version import parse as parse_version
 
-from airflow.configuration import conf
-from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
+from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.cncf.kubernetes.operators.job import KubernetesJobOperator
 from airflow.providers.cncf.kubernetes.operators.kueue import (
     KubernetesInstallKueueOperator,
@@ -41,6 +40,7 @@ from airflow.providers.cncf.kubernetes.operators.resource import (
     KubernetesDeleteResourceOperator,
 )
 from airflow.providers.cncf.kubernetes.utils.pod_manager import OnFinishAction
+from airflow.providers.common.compat.sdk import AirflowException, conf, timezone
 from airflow.providers.google.cloud.hooks.kubernetes_engine import (
     GKEHook,
     GKEKubernetesHook,
@@ -59,7 +59,6 @@ from airflow.providers.google.cloud.triggers.kubernetes_engine import (
 )
 from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID
 from airflow.providers_manager import ProvidersManager
-from airflow.utils.timezone import utcnow
 
 try:
     from airflow.providers.cncf.kubernetes.operators.job import KubernetesDeleteJobOperator
@@ -76,7 +75,7 @@ if TYPE_CHECKING:
     from kubernetes.client.models import V1Job
     from pendulum import DateTime
 
-    from airflow.utils.context import Context
+    from airflow.providers.common.compat.sdk import Context
 
 KUBE_CONFIG_ENV_VAR = "KUBECONFIG"
 
@@ -617,7 +616,7 @@ class GKEStartPodOperator(GKEOperatorMixin, KubernetesPodOperator):
     :param on_finish_action: What to do when the pod reaches its final state, or the execution is interrupted.
         If "delete_pod", the pod will be deleted regardless its state; if "delete_succeeded_pod",
         only succeeded pod will be deleted. You can set to "keep_pod" to keep the pod.
-        Current default is `keep_pod`, but this will be changed in the next major release of this provider.
+        Current default is `delete_pod`, but this will be changed in the next major release of this provider.
     :param deferrable: Run operator in the deferrable mode.
     """
 
@@ -663,7 +662,7 @@ class GKEStartPodOperator(GKEOperatorMixin, KubernetesPodOperator):
 
     def invoke_defer_method(self, last_log_time: DateTime | None = None):
         """Redefine triggers which are being used in child classes."""
-        trigger_start_time = utcnow()
+        trigger_start_time = timezone.utcnow()
         on_finish_action = self.on_finish_action
         if type(on_finish_action) is str and self.on_finish_action not in [i.value for i in OnFinishAction]:
             on_finish_action = self.on_finish_action.split(".")[-1].lower()  # type: ignore[assignment]

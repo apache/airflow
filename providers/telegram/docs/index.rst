@@ -77,7 +77,7 @@ apache-airflow-providers-telegram package
 `Telegram <https://telegram.org/>`__
 
 
-Release: 4.8.2
+Release: 4.9.1
 
 Provider package
 ----------------
@@ -95,11 +95,40 @@ For the minimum Airflow version supported, see ``Requirements`` below.
 Requirements
 ------------
 
-The minimum Apache Airflow version supported by this provider distribution is ``2.10.0``.
+The minimum Apache Airflow version supported by this provider distribution is ``2.11.0``.
 
-=======================  ==================
-PIP package              Version required
-=======================  ==================
-``apache-airflow``       ``>=2.10.0``
-``python-telegram-bot``  ``>=20.2``
-=======================  ==================
+==========================================  ==================
+PIP package                                 Version required
+==========================================  ==================
+``apache-airflow``                          ``>=2.11.0``
+``apache-airflow-providers-common-compat``  ``>=1.10.1``
+``python-telegram-bot``                     ``>=20.2``
+==========================================  ==================
+
+Cross provider package dependencies
+-----------------------------------
+
+Those are dependencies that might be needed in order to use all the features of the package.
+You need to install the specified provider distributions in order to use them.
+
+You can install such cross-provider dependencies when installing from PyPI. For example:
+
+.. code-block:: bash
+
+    pip install apache-airflow-providers-telegram[common.compat]
+
+
+==================================================================================================================  =================
+Dependent package                                                                                                   Extra
+==================================================================================================================  =================
+`apache-airflow-providers-common-compat <https://airflow.apache.org/docs/apache-airflow-providers-common-compat>`_  ``common.compat``
+==================================================================================================================  =================
+
+Downloading official packages
+-----------------------------
+
+You can download officially released packages and verify their checksums and signatures from the
+`Official Apache Download site <https://downloads.apache.org/airflow/providers/>`_
+
+* `The apache-airflow-providers-telegram 4.9.1 sdist package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_telegram-4.9.1.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_telegram-4.9.1.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_telegram-4.9.1.tar.gz.sha512>`__)
+* `The apache-airflow-providers-telegram 4.9.1 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_telegram-4.9.1-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_telegram-4.9.1-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_telegram-4.9.1-py3-none-any.whl.sha512>`__)

@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+from collections.abc import Iterable
 from datetime import datetime
 
 from pydantic import AliasPath, Field
@@ -44,5 +45,5 @@ class JobResponse(BaseModel):
 class JobCollectionResponse(BaseModel):
     """Job Collection Response."""
 
-    jobs: list[JobResponse]
+    jobs: Iterable[JobResponse]
     total_entries: int

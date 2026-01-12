@@ -25,18 +25,15 @@ from collections.abc import Callable, Sequence
 from datetime import datetime, timedelta
 from typing import TYPE_CHECKING, Any, cast
 
-from airflow.configuration import conf
-from airflow.providers.amazon.aws.utils import validate_execute_complete_event
-
-if TYPE_CHECKING:
-    from airflow.utils.context import Context
-
-from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
 from airflow.providers.amazon.aws.sensors.base_aws import AwsBaseSensor
 from airflow.providers.amazon.aws.triggers.s3 import S3KeysUnchangedTrigger, S3KeyTrigger
+from airflow.providers.amazon.aws.utils import validate_execute_complete_event
 from airflow.providers.amazon.aws.utils.mixins import aws_template_fields
-from airflow.sensors.base import poke_mode_only
+from airflow.providers.common.compat.sdk import AirflowException, conf, poke_mode_only
+
+if TYPE_CHECKING:
+    from airflow.sdk import Context
 
 
 class S3KeySensor(AwsBaseSensor[S3Hook]):
@@ -215,6 +212,7 @@ class S3KeySensor(AwsBaseSensor[S3Hook]):
                 poke_interval=self.poke_interval,
                 should_check_fn=bool(self.check_fn),
                 use_regex=self.use_regex,
+                metadata_keys=self.metadata_keys,
             ),
             method_name="execute_complete",
         )
@@ -226,7 +224,7 @@ class S3KeySensor(AwsBaseSensor[S3Hook]):
         Relies on trigger to throw an exception, otherwise it assumes execution was successful.
         """
         if event["status"] == "running":
-            found_keys = self.check_fn(event["files"])  # type: ignore[misc]
+            found_keys = self.check_fn(event["files"], **context)  # type: ignore[misc]
             if not found_keys:
                 self._defer()
         elif event["status"] == "error":

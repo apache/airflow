@@ -23,13 +23,13 @@ from itsdangerous import URLSafeSerializer
 from pydantic import BaseModel, ValidationError
 from sqlalchemy import delete, select
 
+from airflow._shared.module_loading import import_string
 from airflow.configuration import conf
 from airflow.dag_processing.bundles.base import BaseDagBundle  # noqa: TC001
 from airflow.exceptions import AirflowConfigException
 from airflow.models.dagbundle import DagBundleModel
 from airflow.models.team import Team
 from airflow.utils.log.logging_mixin import LoggingMixin
-from airflow.utils.module_loading import import_string
 from airflow.utils.session import NEW_SESSION, provide_session
 
 if TYPE_CHECKING:
@@ -243,9 +243,14 @@ class DagBundlesManager(LoggingMixin):
                 if not team:
                     raise _bundle_item_exc(f"Team '{config.team_name}' does not exist")
 
+            try:
+                new_template, new_params = _extract_and_sign_template(name)
+            except Exception as e:
+                self.log.exception("Error creating bundle '%s': %s", name, e)
+                continue
+
             if bundle := stored.pop(name, None):
                 bundle.active = True
-                new_template, new_params = _extract_and_sign_template(name)
                 if new_template != bundle.signed_url_template:
                     bundle.signed_url_template = new_template
                     self.log.debug("Updated URL template for bundle %s", name)
@@ -253,7 +258,6 @@ class DagBundlesManager(LoggingMixin):
                     bundle.template_params = new_params
                     self.log.debug("Updated template parameters for bundle %s", name)
             else:
-                new_template, new_params = _extract_and_sign_template(name)
                 bundle = DagBundleModel(name=name)
                 bundle.signed_url_template = new_template
                 bundle.template_params = new_params
@@ -279,12 +283,13 @@ class DagBundlesManager(LoggingMixin):
                 )
                 bundle.teams = []
 
+        # Import here to avoid circular import
+        from airflow.models.errors import ParseImportError
+
         for name, bundle in stored.items():
             bundle.active = False
             bundle.teams = []
             self.log.warning("DAG bundle %s is no longer found in config and has been disabled", name)
-            from airflow.models.errors import ParseImportError
-
             session.execute(delete(ParseImportError).where(ParseImportError.bundle_name == name))
             self.log.info("Deleted import errors for bundle %s which is no longer configured", name)
 
@@ -338,7 +343,20 @@ class DagBundlesManager(LoggingMixin):
         :return: list of DAG bundles.
         """
         for name, cfg in self._bundle_config.items():
-            yield cfg.bundle_class(name=name, version=None, **cfg.kwargs)
+            try:
+                yield cfg.bundle_class(name=name, version=None, **cfg.kwargs)
+            except Exception as e:
+                self.log.exception("Error creating bundle '%s': %s", name, e)
+                # Skip this bundle and continue with others
+                continue
+
+    def get_all_bundle_names(self) -> Iterable[str]:
+        """
+        Get all bundle names.
+
+        :return: sorted list of bundle names.
+        """
+        return sorted(self._bundle_config.keys())
 
     def view_url(self, name: str, version: str | None = None) -> str | None:
         warnings.warn(

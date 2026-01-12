@@ -166,7 +166,7 @@ def update_docs(revisions: Iterable[Script], app="airflow"):
 
 
 def ensure_mod_prefix(mod_name, idx, version):
-    parts = [f"{idx + 1:04}", *version]
+    parts = [f"{idx:04}", *version]
     match = re.match(r"([0-9]+)_([0-9]+)_([0-9]+)_([0-9]+)_(.+)", mod_name)
     if match:
         # previously standardized file, rebuild the name

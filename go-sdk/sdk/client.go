@@ -52,7 +52,6 @@ func (*client) GetVariable(ctx context.Context, key string) (string, error) {
 	resp, err := httpClient.Variables().Get(ctx, key)
 	if err != nil {
 		var httpError *api.GeneralHTTPError
-		errors.As(err, &httpError)
 		if errors.As(err, &httpError) && httpError.Response.StatusCode() == 404 {
 			err = fmt.Errorf("%w: %q", VariableNotFound, key)
 		}
@@ -79,7 +78,6 @@ func (*client) GetConnection(ctx context.Context, connID string) (Connection, er
 	resp, err := httpClient.Connections().Get(ctx, connID)
 	if err != nil {
 		var httpError *api.GeneralHTTPError
-		errors.As(err, &httpError)
 		if errors.As(err, &httpError) && httpError.Response.StatusCode() == 404 {
 			err = fmt.Errorf("%w: %q", ConnectionNotFound, connID)
 		}
@@ -87,4 +85,49 @@ func (*client) GetConnection(ctx context.Context, connID string) (Connection, er
 	}
 
 	return connFromAPIResponse(resp)
+}
+
+func (c *client) PushXCom(
+	ctx context.Context,
+	ti api.TaskInstance,
+	key string,
+	value any,
+) error {
+	params := api.SetXcomParams{}
+
+	if ti.MapIndex != nil && *ti.MapIndex != -1 {
+		params.MapIndex = ti.MapIndex
+	}
+
+	httpClient := ctx.Value(sdkcontext.ApiClientContextKey).(api.ClientInterface)
+	_, err := httpClient.Xcoms().
+		SetResponse(ctx, ti.DagId, ti.RunId, ti.TaskId, key, &params, &value)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (*client) GetXCom(
+	ctx context.Context,
+	dagId, runId, taskId string,
+	mapIndex *int,
+	key string,
+	value any,
+) (any, error) {
+	params := api.GetXcomParams{
+		MapIndex: mapIndex,
+	}
+
+	httpClient := ctx.Value(sdkcontext.ApiClientContextKey).(api.ClientInterface)
+	res, err := httpClient.Xcoms().Get(ctx, dagId, runId, taskId, key, &params)
+	if err != nil {
+		var httpError *api.GeneralHTTPError
+		if errors.As(err, &httpError) && httpError.Response.StatusCode() == 404 {
+			err = fmt.Errorf("%w: %q", XComNotFound, key)
+		}
+		return nil, err
+	}
+	// TODO: We probably  want to do some level of xcom deser here
+	return res.Value, nil
 }

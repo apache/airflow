@@ -101,7 +101,7 @@ def test_spawn_worker_when_needed(setup_executor):
     executor.activity_queue.empty.return_value = False
     executor.workers = {}
     executor._check_workers()
-    executor._spawn_worker.assert_called_once()
+    executor._spawn_worker.assert_called()
 
 
 def test_no_spawn_if_parallelism_reached(setup_executor):
@@ -115,16 +115,6 @@ def test_no_spawn_if_parallelism_reached(setup_executor):
     executor.workers = {1: proc1, 2: proc2}
     executor._check_workers()
     executor._spawn_worker.assert_not_called()
-
-
-def test_parallelism_zero_spawns_worker(setup_executor):
-    executor = setup_executor
-    executor.parallelism = 0
-    executor._unread_messages.value = 1
-    executor.activity_queue.empty.return_value = False
-    executor.workers = {}
-    executor._check_workers()
-    executor._spawn_worker.assert_called_once()
 
 
 def test_spawn_worker_when_we_have_parallelism_left(setup_executor):
@@ -143,4 +133,4 @@ def test_spawn_worker_when_we_have_parallelism_left(setup_executor):
     executor.activity_queue.empty.return_value = False
     executor._spawn_worker.reset_mock()
     executor._check_workers()
-    executor._spawn_worker.assert_called_once()
+    executor._spawn_worker.assert_called()

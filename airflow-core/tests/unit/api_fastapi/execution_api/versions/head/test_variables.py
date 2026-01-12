@@ -23,6 +23,7 @@ from unittest import mock
 import pytest
 from fastapi import FastAPI, HTTPException, Request, status
 from fastapi.routing import Mount
+from sqlalchemy import select
 
 from airflow.models.variable import Variable
 
@@ -66,7 +67,7 @@ def access_denied(client):
 
 class TestGetVariable:
     @pytest.mark.parametrize(
-        "key, value",
+        ("key", "value"),
         [
             ("var1", "value"),
             ("var2/with_slash", "slash_value"),
@@ -131,7 +132,7 @@ class TestGetVariable:
 
 class TestPutVariable:
     @pytest.mark.parametrize(
-        "key, payload",
+        ("key", "payload"),
         [
             pytest.param("var_create", {"value": "{}", "description": "description"}, id="valid-payload"),
             pytest.param("var_create", {"value": "{}"}, id="missing-description"),
@@ -150,7 +151,7 @@ class TestPutVariable:
         assert response.status_code == 201, response.json()
         assert response.json()["message"] == "Variable successfully set"
 
-        var_from_db = session.query(Variable).where(Variable.key == key).first()
+        var_from_db = session.scalars(select(Variable).where(Variable.key == key)).first()
         assert var_from_db is not None
         assert var_from_db.key == key
         assert var_from_db.val == payload["value"]
@@ -158,7 +159,7 @@ class TestPutVariable:
             assert var_from_db.description == payload["description"]
 
     @pytest.mark.parametrize(
-        "key, status_code, payload",
+        ("key", "status_code", "payload"),
         [
             pytest.param("", 404, {"value": "{}", "description": "description"}, id="missing-key"),
             pytest.param("var_create", 422, {"description": "description"}, id="missing-value"),
@@ -175,7 +176,7 @@ class TestPutVariable:
             assert response.json()["detail"][0]["msg"] == "Field required"
 
     @pytest.mark.parametrize(
-        "key, payload",
+        ("key", "payload"),
         [
             pytest.param("key", {"key": "key", "value": "{}", "description": "description"}, id="adding-key"),
             pytest.param(
@@ -216,7 +217,7 @@ class TestPutVariable:
         assert response.status_code == 201
         assert response.json()["message"] == "Variable successfully set"
         # variable should have been updated to the new value
-        var_from_db = session.query(Variable).where(Variable.key == key).first()
+        var_from_db = session.scalars(select(Variable).where(Variable.key == key)).first()
         assert var_from_db is not None
         assert var_from_db.key == key
         assert var_from_db.val == payload["value"]
@@ -243,7 +244,7 @@ class TestPutVariable:
 
 class TestDeleteVariable:
     @pytest.mark.parametrize(
-        "keys_to_create, key_to_delete",
+        ("keys_to_create", "key_to_delete"),
         [
             (["key1", "key2"], "key1"),
             (["key3/with_slash", "key4"], "key3/with_slash"),
@@ -253,25 +254,25 @@ class TestDeleteVariable:
         for i, key in enumerate(keys_to_create, 1):
             Variable.set(key=key, value=str(i))
 
-        vars = session.query(Variable).all()
+        vars = session.scalars(select(Variable)).all()
         assert len(vars) == len(keys_to_create)
 
         response = client.delete(f"/execution/variables/{key_to_delete}")
 
         assert response.status_code == 204
 
-        vars = session.query(Variable).all()
+        vars = session.scalars(select(Variable)).all()
         assert len(vars) == len(keys_to_create) - 1
 
     def test_should_not_delete_variable(self, client, session):
         Variable.set(key="key", value="value")
 
-        vars = session.query(Variable).all()
+        vars = session.scalars(select(Variable)).all()
         assert len(vars) == 1
 
         response = client.delete("/execution/variables/non_existent_key")
 
         assert response.status_code == 204
 
-        vars = session.query(Variable).all()
+        vars = session.scalars(select(Variable)).all()
         assert len(vars) == 1

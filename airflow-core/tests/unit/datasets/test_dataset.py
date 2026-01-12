@@ -22,7 +22,7 @@ import pytest
 
 
 @pytest.mark.parametrize(
-    "module_path, attr_name, expected_value, warning_message",
+    ("module_path", "attr_name", "expected_value", "warning_message"),
     (
         pytest.param(
             "airflow",
@@ -84,7 +84,9 @@ def test_backward_compat_import_before_airflow_3_2(module_path, attr_name, expec
         mod = importlib.import_module(module_path, __name__)
         attr = getattr(mod, attr_name)
     assert f"{attr.__module__}.{attr.__name__}" == expected_value
-    assert record[0].category is DeprecationWarning
+    from airflow.utils.deprecation_tools import DeprecatedImportWarning
+
+    assert record[0].category is DeprecatedImportWarning
     assert str(record[0].message) == warning_message
 
 

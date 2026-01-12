@@ -34,8 +34,8 @@ from requests.adapters import HTTPAdapter, Response
 from requests.auth import AuthBase, HTTPBasicAuth
 from requests.models import DEFAULT_REDIRECT_LIMIT
 
-from airflow.exceptions import AirflowException
 from airflow.models import Connection
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.http.hooks.http import HttpAsyncHook, HttpHook, _process_extra_options_from_connection
 
 
@@ -603,7 +603,7 @@ class TestHttpHook:
             http_send.assert_called()
 
     @pytest.mark.parametrize(
-        "base_url, endpoint, expected_url",
+        ("base_url", "endpoint", "expected_url"),
         [
             pytest.param("https://example.org", "/v1/test", "https://example.org/v1/test", id="both-set"),
             pytest.param("", "http://foo/bar/v1/test", "http://foo/bar/v1/test", id="only-endpoint"),

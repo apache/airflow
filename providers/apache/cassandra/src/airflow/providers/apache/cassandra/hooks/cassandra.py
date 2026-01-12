@@ -31,7 +31,7 @@ from cassandra.policies import (
     WhiteListRoundRobinPolicy,
 )
 
-from airflow.providers.apache.cassandra.version_compat import BaseHook
+from airflow.providers.common.compat.sdk import BaseHook
 from airflow.utils.log.logging_mixin import LoggingMixin
 
 Policy: TypeAlias = DCAwareRoundRobinPolicy | RoundRobinPolicy | TokenAwarePolicy | WhiteListRoundRobinPolicy

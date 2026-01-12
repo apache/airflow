@@ -32,7 +32,7 @@ from typing import TYPE_CHECKING, Any, cast
 
 from simple_salesforce import Salesforce, api
 
-from airflow.providers.salesforce.version_compat import BaseHook
+from airflow.providers.common.compat.sdk import BaseHook
 
 if TYPE_CHECKING:
     import pandas as pd

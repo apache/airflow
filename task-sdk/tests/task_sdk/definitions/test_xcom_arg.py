@@ -23,10 +23,10 @@ from unittest import mock
 import pytest
 import structlog
 
-from airflow.exceptions import AirflowSkipException
 from airflow.sdk import TaskInstanceState
 from airflow.sdk.bases.xcom import BaseXCom
 from airflow.sdk.definitions.dag import DAG
+from airflow.sdk.exceptions import AirflowSkipException
 from airflow.sdk.execution_time.comms import GetXCom, XComResult
 
 log = structlog.get_logger(__name__)

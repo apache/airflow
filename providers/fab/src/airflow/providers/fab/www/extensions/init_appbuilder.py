@@ -42,13 +42,14 @@ from airflow import settings
 from airflow.api_fastapi.app import create_auth_manager, get_auth_manager
 from airflow.configuration import conf
 from airflow.providers.fab.www.security_manager import AirflowSecurityManagerV2
-from airflow.providers.fab.www.views import FabIndexView
+from airflow.providers.fab.www.views import FabIndexView, redirect
 
 if TYPE_CHECKING:
     from flask import Flask
     from flask_appbuilder import BaseView
     from flask_appbuilder.security.manager import BaseSecurityManager
     from sqlalchemy.orm import Session
+    from sqlalchemy.orm.scoping import scoped_session
 
 
 # This product contains a modified portion of 'Flask App Builder' developed by Daniel Vaz Gaspar.
@@ -102,7 +103,7 @@ class AirflowAppBuilder:
     def __init__(
         self,
         app=None,
-        session: Session | None = None,
+        session: scoped_session | None = None,
         menu=None,
         indexview=None,
         base_template="airflow/main.html",
@@ -216,6 +217,7 @@ class AirflowAppBuilder:
         from airflow.providers.fab.www.views import get_safe_url
 
         fab_sec_views.get_safe_redirect = get_safe_url
+        fab_sec_views.redirect = redirect
 
     def _init_extension(self, app):
         app.appbuilder = self
@@ -473,7 +475,7 @@ class AirflowAppBuilder:
             baseview=baseview,
             cond=cond,
         )
-        if self.app:
+        if current_app:
             self._add_permissions_menu(name)
             if category:
                 self._add_permissions_menu(category)
@@ -592,9 +594,11 @@ class AirflowAppBuilder:
 
 def init_appbuilder(app: Flask, enable_plugins: bool) -> AirflowAppBuilder:
     """Init `Flask App Builder <https://flask-appbuilder.readthedocs.io/en/latest/>`__."""
+    if settings.Session is None:
+        raise RuntimeError("Session not configured. Call configure_orm() first.")
     return AirflowAppBuilder(
         app=app,
-        session=settings.Session(),
+        session=settings.Session,
         base_template="airflow/main.html",
         enable_plugins=enable_plugins,
     )

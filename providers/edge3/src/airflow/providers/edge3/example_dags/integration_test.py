@@ -26,7 +26,7 @@ from __future__ import annotations
 from datetime import datetime
 from time import sleep
 
-from airflow.exceptions import AirflowNotFoundException
+from airflow.providers.common.compat.sdk import AirflowNotFoundException
 
 try:
     from airflow.sdk import BaseHook

@@ -80,7 +80,7 @@ class TestAirbyteSyncTrigger:
 
     @pytest.mark.asyncio
     @pytest.mark.parametrize(
-        "mock_value, mock_status, mock_message",
+        ("mock_value", "mock_status", "mock_message"),
         [
             (JobStatusEnum.SUCCEEDED, "success", "Job run 1234 has completed successfully."),
         ],
@@ -111,7 +111,7 @@ class TestAirbyteSyncTrigger:
 
     @pytest.mark.asyncio
     @pytest.mark.parametrize(
-        "mock_value, mock_status, mock_message",
+        ("mock_value", "mock_status", "mock_message"),
         [
             (JobStatusEnum.CANCELLED, "cancelled", "Job run 1234 has been cancelled."),
         ],
@@ -142,7 +142,7 @@ class TestAirbyteSyncTrigger:
 
     @pytest.mark.asyncio
     @pytest.mark.parametrize(
-        "mock_value, mock_status, mock_message",
+        ("mock_value", "mock_status", "mock_message"),
         [
             (JobStatusEnum.FAILED, "error", "Job run 1234 has failed."),
         ],
@@ -223,7 +223,7 @@ class TestAirbyteSyncTrigger:
 
     @pytest.mark.asyncio
     @pytest.mark.parametrize(
-        "mock_response, expected_status",
+        ("mock_response", "expected_status"),
         [
             (JobStatusEnum.SUCCEEDED, False),
         ],
@@ -247,7 +247,7 @@ class TestAirbyteSyncTrigger:
 
     @pytest.mark.asyncio
     @pytest.mark.parametrize(
-        "mock_response, expected_status",
+        ("mock_response", "expected_status"),
         [
             (JobStatusEnum.RUNNING, True),
         ],

@@ -16,11 +16,11 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Heading, useDisclosure } from "@chakra-ui/react";
+import { Button, Heading, useDisclosure } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 import { FiPlusCircle } from "react-icons/fi";
 
-import { Button, Dialog, Toaster } from "src/components/ui";
+import { Dialog, Toaster } from "src/components/ui";
 import { useAddPool } from "src/queries/useAddPool";
 
 import PoolForm, { type PoolBody } from "./PoolForm";

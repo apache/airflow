@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, Flex, GridItem, Heading, HStack, Spinner } from "@chakra-ui/react";
+import { Box, Flex, GridItem, Heading, HStack } from "@chakra-ui/react";
 import type { ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 
@@ -27,14 +27,13 @@ import { StateBadge } from "src/components/StateBadge";
 type Props = {
   readonly actions?: ReactNode;
   readonly icon: ReactNode;
-  readonly isRefreshing?: boolean;
   readonly state?: TaskInstanceState | null;
   readonly stats: Array<{ label: string; value: ReactNode | string }>;
   readonly subTitle?: ReactNode | string;
   readonly title: ReactNode | string;
 };
 
-export const HeaderCard = ({ actions, icon, isRefreshing, state, stats, subTitle, title }: Props) => {
+export const HeaderCard = ({ actions, icon, state, stats, subTitle, title }: Props) => {
   const { t: translate } = useTranslation();
 
   return (
@@ -47,7 +46,6 @@ export const HeaderCard = ({ actions, icon, isRefreshing, state, stats, subTitle
           {state === undefined ? undefined : (
             <StateBadge state={state}>{state ? translate(`common:states.${state}`) : undefined}</StateBadge>
           )}
-          {isRefreshing ? <Spinner /> : <div />}
         </Flex>
         <HStack gap={1}>{actions}</HStack>
       </Flex>

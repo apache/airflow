@@ -25,7 +25,7 @@ from airflow.providers.mysql.assets.mysql import sanitize_uri
 
 
 @pytest.mark.parametrize(
-    "original, normalized",
+    ("original", "normalized"),
     [
         pytest.param(
             "mysql://example.com:1234/database/table",

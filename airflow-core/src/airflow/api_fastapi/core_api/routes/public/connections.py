@@ -195,7 +195,7 @@ def patch_connection(
             "The connection_id in the request body does not match the URL parameter",
         )
 
-    connection: Connection = session.scalar(select(Connection).filter_by(conn_id=connection_id).limit(1))
+    connection = session.scalar(select(Connection).filter_by(conn_id=connection_id).limit(1))
 
     if connection is None:
         raise HTTPException(

@@ -98,3 +98,26 @@ class TestAppriseNotifier:
             "config": None,
         }
         mock_apprise_hook.return_value.notify.assert_called_once()
+
+    @pytest.mark.asyncio
+    @mock.patch("airflow.providers.apprise.notifications.apprise.AppriseHook")
+    async def test_async_apprise_notifier(self, mock_apprise_hook, create_dag_without_db):
+        mock_apprise_hook.return_value.async_notify = mock.AsyncMock()
+
+        notifier = send_apprise_notification(body="DISK at 99%", notify_type=NotifyType.FAILURE)
+
+        await notifier.async_notify({"dag": create_dag_without_db("test_notifier")})
+
+        call_args = mock_apprise_hook.return_value.async_notify.call_args.kwargs
+
+        assert call_args == {
+            "body": "DISK at 99%",
+            "notify_type": NotifyType.FAILURE,
+            "title": None,
+            "body_format": NotifyFormat.TEXT,
+            "tag": "all",
+            "attach": None,
+            "interpret_escapes": None,
+            "config": None,
+        }
+        mock_apprise_hook.return_value.async_notify.assert_called_once()

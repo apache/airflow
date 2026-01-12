@@ -1,5 +1,7 @@
 {
   "filters": {
+    "body": "內文",
+    "createdAt": "建立於",
     "response": {
       "all": "全部",
       "pending": "待回應",
@@ -12,11 +14,13 @@
   "requiredActionCount_other": "待回應的任務實例數 ({{count}})",
   "requiredActionState": "待回應的任務實例狀態",
   "response": {
+    "created": "建立時間：",
     "error": "回應失敗",
     "optionsDescription": "請為此任務實例選擇一個選項",
     "optionsLabel": "選項",
     "received": "收到回應的時間：",
     "respond": "送出回應",
+    "responded_by_user_name": "回應者名稱",
     "success": "任務 {{taskId}} 回應成功",
     "title": "人類參與流程任務實例 - {{taskId}}"
   },

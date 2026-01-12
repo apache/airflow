@@ -44,14 +44,13 @@ from azure.storage.blob.aio import (
     ContainerClient as AsyncContainerClient,
 )
 
-from airflow.exceptions import AirflowException
+from airflow.providers.common.compat.sdk import AirflowException, BaseHook
 from airflow.providers.microsoft.azure.utils import (
     add_managed_identity_connection_widgets,
     get_async_default_azure_credential,
     get_sync_default_azure_credential,
     parse_blob_account_url,
 )
-from airflow.providers.microsoft.azure.version_compat import BaseHook
 
 if TYPE_CHECKING:
     from azure.core.credentials import TokenCredential

@@ -84,7 +84,8 @@ export const buildTaskInstanceUrl = (params: {
 }): string => {
   const { currentPathname, dagId, isGroup = false, isMapped = false, mapIndex, runId, taskId } = params;
   const groupPath = isGroup ? "group/" : "";
-  const additionalPath = getTaskInstanceAdditionalPath(currentPathname);
+  // Task groups only have "Task Instances" tab, so never preserve tabs for groups
+  const additionalPath = isGroup ? "" : getTaskInstanceAdditionalPath(currentPathname);
 
   let basePath = `/dags/${dagId}/runs/${runId}/tasks/${groupPath}${taskId}`;
 

@@ -25,10 +25,7 @@ import pytest
 from google.api_core.exceptions import AlreadyExists
 from google.cloud.container_v1.types import Cluster, NodePool
 
-from airflow.exceptions import (
-    AirflowException,
-    AirflowProviderDeprecationWarning,
-)
+from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.cncf.kubernetes.operators.job import (
     KubernetesDeleteJobOperator,
     KubernetesJobOperator,
@@ -43,6 +40,7 @@ from airflow.providers.cncf.kubernetes.operators.resource import (
     KubernetesDeleteResourceOperator,
 )
 from airflow.providers.cncf.kubernetes.utils.pod_manager import OnFinishAction
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.google.cloud.operators.kubernetes_engine import (
     GKEClusterAuthDetails,
     GKECreateClusterOperator,
@@ -104,7 +102,14 @@ GKE_OPERATORS_PATH = "airflow.providers.google.cloud.operators.kubernetes_engine
 
 class TestGKEClusterAuthDetails:
     @pytest.mark.parametrize(
-        "use_dns_endpoint, use_internal_ip, endpoint, private_endpoint, dns_endpoint, expected_cluster_url",
+        (
+            "use_dns_endpoint",
+            "use_internal_ip",
+            "endpoint",
+            "private_endpoint",
+            "dns_endpoint",
+            "expected_cluster_url",
+        ),
         [
             (
                 False,
@@ -457,7 +462,7 @@ class TestGKECreateClusterOperator:
                 )
 
     @pytest.mark.parametrize(
-        "deprecated_field_name, deprecated_field_value",
+        ("deprecated_field_name", "deprecated_field_value"),
         [
             ("initial_node_count", 1),
             ("node_config", mock.MagicMock()),
@@ -687,7 +692,7 @@ class TestGKEStartPodOperator:
             )
 
     @pytest.mark.parametrize(
-        "kwargs, expected_attributes",
+        ("kwargs", "expected_attributes"),
         [
             (
                 {"on_finish_action": "delete_succeeded_pod"},
@@ -727,7 +732,7 @@ class TestGKEStartPodOperator:
     @mock.patch(GKE_OPERATORS_PATH.format("GKEClusterAuthDetails.fetch_cluster_info"))
     @mock.patch(GKE_OPERATORS_PATH.format("GKEHook"))
     @mock.patch(GKE_OPERATORS_PATH.format("GKEStartPodTrigger"))
-    @mock.patch(GKE_OPERATORS_PATH.format("utcnow"))
+    @mock.patch(GKE_OPERATORS_PATH.format("timezone.utcnow"))
     def test_invoke_defer_method(
         self, mock_utcnow, mock_trigger, mock_cluster_hook, mock_fetch_cluster_info, mock_defer
     ):

@@ -86,4 +86,9 @@ subjects:
   {{- end }}
   {{- end }}
   {{- end }}
+  {{- if .Values.triggerer.enabled }}
+  - kind: ServiceAccount
+    name: {{ include "triggerer.serviceAccountName" . }}
+    namespace: "{{ .Release.Namespace }}"
+  {{- end }}
 {{- end }}

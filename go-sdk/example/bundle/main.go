@@ -21,6 +21,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"runtime"
 	"time"
 
 	v1 "github.com/apache/airflow/go-sdk/bundle/bundlev1"
@@ -56,7 +57,7 @@ func main() {
 	bundlev1server.Serve(&myBundle{})
 }
 
-func extract(ctx context.Context, client sdk.Client, log *slog.Logger) error {
+func extract(ctx context.Context, client sdk.Client, log *slog.Logger) (any, error) {
 	log.Info("Hello from task")
 	conn, err := client.GetConnection(ctx, "test_http")
 	if err != nil {
@@ -69,7 +70,7 @@ func extract(ctx context.Context, client sdk.Client, log *slog.Logger) error {
 		// Once per loop,.check if we've been asked to cancel!
 		select {
 		case <-ctx.Done():
-			return ctx.Err()
+			return nil, ctx.Err()
 		default:
 		}
 		log.Info("After the beep the time will be", "time", time.Now())
@@ -77,7 +78,11 @@ func extract(ctx context.Context, client sdk.Client, log *slog.Logger) error {
 	}
 	log.Info("Goodbye from task")
 
-	return nil
+	ret := map[string]any{
+		"go_version": runtime.Version(),
+	}
+
+	return ret, nil
 }
 
 func transform(ctx context.Context, client sdk.VariableClient, log *slog.Logger) error {

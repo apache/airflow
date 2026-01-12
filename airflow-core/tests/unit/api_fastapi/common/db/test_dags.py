@@ -273,3 +273,72 @@ class TestGenerateDagWithLatestRunQuery:
             "This suggests the WHERE start_date IS NOT NULL condition is excluding it."
         )
         assert running_dagrun_state is not None, "Running DAG should have DagRun state joined"
+
+    @pytest.mark.usefixtures("testing_dag_bundle")
+    def test_filters_by_dag_ids_when_provided(self, session):
+        """
+        Verify that when dag_ids is provided, only those DAGs and their runs are queried.
+
+        This is a performance optimization: both the main DAG query and the DagRun subquery
+        should only process accessible DAGs when the user has limited access.
+        """
+        dag_ids = ["dag_accessible_1", "dag_accessible_2", "dag_inaccessible_3"]
+
+        for dag_id in dag_ids:
+            dag_model = DagModel(
+                dag_id=dag_id,
+                bundle_name="testing",
+                is_stale=False,
+                is_paused=False,
+                fileloc=f"/tmp/{dag_id}.py",
+            )
+            session.add(dag_model)
+            session.flush()
+
+            # Create 2 runs for each DAG
+            for run_idx in range(2):
+                dagrun = DagRun(
+                    dag_id=dag_id,
+                    run_id=f"manual__{run_idx}",
+                    run_type="manual",
+                    logical_date=datetime(2024, 1, 1 + run_idx, tzinfo=timezone.utc),
+                    state=DagRunState.SUCCESS,
+                    start_date=datetime(2024, 1, 1 + run_idx, 1, tzinfo=timezone.utc),
+                )
+                session.add(dagrun)
+        session.commit()
+
+        # User has access to only 2 DAGs
+        accessible_dag_ids = {"dag_accessible_1", "dag_accessible_2"}
+
+        # Query with dag_ids filter
+        query_filtered = generate_dag_with_latest_run_query(
+            max_run_filters=[],
+            order_by=SortParam(allowed_attrs=["last_run_state"], model=DagModel).set_value(
+                ["last_run_state"]
+            ),
+            dag_ids=accessible_dag_ids,
+        )
+
+        # Query without dag_ids filter
+        query_unfiltered = generate_dag_with_latest_run_query(
+            max_run_filters=[],
+            order_by=SortParam(allowed_attrs=["last_run_state"], model=DagModel).set_value(
+                ["last_run_state"]
+            ),
+        )
+
+        result_filtered = session.execute(query_filtered.add_columns(DagRun.state)).fetchall()
+        result_unfiltered = session.execute(query_unfiltered.add_columns(DagRun.state)).fetchall()
+
+        # Filtered query should only return accessible DAGs
+        filtered_dag_ids = {row[0].dag_id for row in result_filtered}
+        assert filtered_dag_ids == accessible_dag_ids
+
+        # Unfiltered query returns all DAGs
+        unfiltered_dag_ids = {row[0].dag_id for row in result_unfiltered}
+        assert unfiltered_dag_ids == set(dag_ids)
+
+        # All accessible DAGs should have DagRun info
+        filtered_dags_with_runs = {row[0].dag_id for row in result_filtered if row[1] is not None}
+        assert filtered_dags_with_runs == accessible_dag_ids

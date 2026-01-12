@@ -27,16 +27,19 @@ from google.api_core.exceptions import AlreadyExists, GoogleAPICallError
 from google.cloud.spanner_v1.client import Client
 from sqlalchemy import create_engine
 
-from airflow.exceptions import AirflowException
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.common.sql.hooks.sql import DbApiHook
 from airflow.providers.google.common.consts import CLIENT_INFO
 from airflow.providers.google.common.hooks.base_google import GoogleBaseHook, get_field
+from airflow.providers.openlineage.sqlparser import DatabaseInfo
 
 if TYPE_CHECKING:
     from google.cloud.spanner_v1.database import Database
     from google.cloud.spanner_v1.instance import Instance
     from google.cloud.spanner_v1.transaction import Transaction
     from google.longrunning.operations_grpc_pb2 import Operation
+
+    from airflow.models.connection import Connection
 
 
 class SpannerConnectionParams(NamedTuple):
@@ -427,3 +430,45 @@ class SpannerHook(GoogleBaseHook, DbApiHook):
             rc = transaction.execute_update(sql)
             counts[sql] = rc
         return counts
+
+    def _get_openlineage_authority_part(self, connection: Connection) -> str | None:
+        """Build Spanner-specific authority part for OpenLineage. Returns {project}/{instance}."""
+        extras = connection.extra_dejson
+        project_id = extras.get("project_id")
+        instance_id = extras.get("instance_id")
+
+        if not project_id or not instance_id:
+            return None
+
+        return f"{project_id}/{instance_id}"
+
+    def get_openlineage_database_dialect(self, connection: Connection) -> str:
+        """Return database dialect for OpenLineage."""
+        return "spanner"
+
+    def get_openlineage_database_info(self, connection: Connection) -> DatabaseInfo:
+        """Return Spanner specific information for OpenLineage."""
+        extras = connection.extra_dejson
+        database_id = extras.get("database_id")
+
+        return DatabaseInfo(
+            scheme=self.get_openlineage_database_dialect(connection),
+            authority=self._get_openlineage_authority_part(connection),
+            database=database_id,
+            information_schema_columns=[
+                "table_schema",
+                "table_name",
+                "column_name",
+                "ordinal_position",
+                "spanner_type",
+            ],
+        )
+
+    def get_openlineage_default_schema(self) -> str | None:
+        """
+        Spanner expose 'public' or '' schema depending on dialect(Postgres vs GoogleSQL).
+
+        SQLAlchemy dialect for Spanner does not expose default schema, so we return None
+        to follow the same approach.
+        """
+        return None

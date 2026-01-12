@@ -23,7 +23,7 @@ from airflow.providers.google.cloud.utils.datafusion import DataFusionPipelineTy
 
 class TestDataFusionPipelineType:
     @pytest.mark.parametrize(
-        "str_value, expected_item",
+        ("str_value", "expected_item"),
         [
             ("batch", DataFusionPipelineType.BATCH),
             ("stream", DataFusionPipelineType.STREAM),

@@ -17,7 +17,8 @@
  * under the License.
  */
 import { Box } from "@chakra-ui/react";
-import { useCallback, useState } from "react";
+import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { useParams, useSearchParams } from "react-router-dom";
 
 import { useAssetServiceGetAssetEvents, useTaskInstanceServiceGetMappedTaskInstance } from "openapi/queries";
@@ -30,6 +31,7 @@ import { isStatePending, useAutoRefresh } from "src/utils";
 export const AssetEvents = () => {
   const { dagId = "", mapIndex = "-1", runId = "", taskId = "" } = useParams();
   const [searchParams, setSearchParams] = useSearchParams();
+  const { t: translate } = useTranslation(["assets"]);
 
   const [assetNameSearch, setAssetNameSearch] = useState(
     searchParams.get(SearchParamsKeys.NAME_PATTERN) ?? "",
@@ -55,33 +57,27 @@ export const AssetEvents = () => {
   const { setTableURLState, tableURLState } = useTableURLState();
   const { pagination, sorting } = tableURLState;
 
-  const handleSearchChange = useCallback(
-    (value: string) => {
-      setAssetNameSearch(value);
-      // Reset pagination when searching
-      setTableURLState({
-        ...tableURLState,
-        pagination: { ...pagination, pageIndex: 0 },
-      });
-      if (value) {
-        searchParams.set(SearchParamsKeys.NAME_PATTERN, value);
-      } else {
-        searchParams.delete(SearchParamsKeys.NAME_PATTERN);
-      }
-      setSearchParams(searchParams);
-    },
-    [pagination, searchParams, setSearchParams, setTableURLState, tableURLState],
-  );
+  const handleSearchChange = (value: string) => {
+    setAssetNameSearch(value);
+    // Reset pagination when searching
+    setTableURLState({
+      ...tableURLState,
+      pagination: { ...pagination, pageIndex: 0 },
+    });
+    if (value) {
+      searchParams.set(SearchParamsKeys.NAME_PATTERN, value);
+    } else {
+      searchParams.delete(SearchParamsKeys.NAME_PATTERN);
+    }
+    setSearchParams(searchParams);
+  };
 
-  const handleOrderByChange = useCallback(
-    (order: string) => {
-      setTableURLState({
-        ...tableURLState,
-        sorting: [{ desc: order.startsWith("-"), id: order.startsWith("-") ? order.slice(1) : order }],
-      });
-    },
-    [setTableURLState, tableURLState],
-  );
+  const handleOrderByChange = (order: string) => {
+    setTableURLState({
+      ...tableURLState,
+      sorting: [{ desc: order.startsWith("-"), id: order.startsWith("-") ? order.slice(1) : order }],
+    });
+  };
 
   const orderBy =
     sorting.length > 0 && sorting[0] ? [`${sorting[0].desc ? "-" : ""}${sorting[0].id}`] : ["-timestamp"];
@@ -107,12 +103,10 @@ export const AssetEvents = () => {
     <Box>
       <Box maxWidth="500px" mb={4}>
         <SearchBar
-          buttonProps={{ disabled: true }}
           defaultValue={assetNameSearch}
-          hideAdvanced
           hotkeyDisabled
           onChange={handleSearchChange}
-          placeHolder="Search assets by name..."
+          placeholder={translate("searchPlaceholder")}
         />
       </Box>
       <AssetEventsTable

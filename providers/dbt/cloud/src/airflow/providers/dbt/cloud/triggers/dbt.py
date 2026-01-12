@@ -36,6 +36,7 @@ class DbtCloudRunJobTrigger(BaseTrigger):
     :param end_time: Time in seconds to wait for a job run to reach a terminal status. Defaults to 7 days.
     :param account_id: The ID of a dbt Cloud account.
     :param poll_interval:  polling period in seconds to check for the status.
+    :param hook_params: Extra arguments passed to the DbtCloudHook constructor.
     """
 
     def __init__(
@@ -45,6 +46,7 @@ class DbtCloudRunJobTrigger(BaseTrigger):
         end_time: float,
         poll_interval: float,
         account_id: int | None,
+        hook_params: dict[str, Any] | None = None,
     ):
         super().__init__()
         self.run_id = run_id
@@ -52,6 +54,7 @@ class DbtCloudRunJobTrigger(BaseTrigger):
         self.conn_id = conn_id
         self.end_time = end_time
         self.poll_interval = poll_interval
+        self.hook_params = hook_params or {}
 
     def serialize(self) -> tuple[str, dict[str, Any]]:
         """Serialize DbtCloudRunJobTrigger arguments and classpath."""
@@ -63,12 +66,13 @@ class DbtCloudRunJobTrigger(BaseTrigger):
                 "conn_id": self.conn_id,
                 "end_time": self.end_time,
                 "poll_interval": self.poll_interval,
+                "hook_params": self.hook_params,
             },
         )
 
     async def run(self) -> AsyncIterator[TriggerEvent]:
         """Make async connection to Dbt, polls for the pipeline run status."""
-        hook = DbtCloudHook(self.conn_id)
+        hook = DbtCloudHook(self.conn_id, **self.hook_params)
         try:
             while await self.is_still_running(hook):
                 if self.end_time < time.time():

@@ -25,7 +25,7 @@ from typing import TYPE_CHECKING, cast
 from google.api_core.exceptions import GoogleAPICallError
 from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
 
-from airflow.exceptions import AirflowException
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.google.cloud.hooks.translate import CloudTranslateHook, TranslateHook
 from airflow.providers.google.cloud.links.translate import (
     TranslateResultByOutputConfigLink,
@@ -56,7 +56,7 @@ if TYPE_CHECKING:
     )
     from google.cloud.translate_v3.types.translation_service import Glossary, GlossaryInputConfig
 
-    from airflow.utils.context import Context
+    from airflow.providers.common.compat.sdk import Context
 
 
 class CloudTranslateTextOperator(GoogleCloudBaseOperator):
@@ -1654,8 +1654,8 @@ class TranslateListGlossariesOperator(GoogleCloudBaseOperator):
             raise AirflowException(e)
 
         result_ids = []
-        for glossary_item in results_pager:
-            glossary_item = type(glossary_item).to_dict(glossary_item)
+        for glossary_item_raw in results_pager:
+            glossary_item = type(glossary_item_raw).to_dict(glossary_item_raw)
             glossary_id = hook.extract_object_id(glossary_item)
             result_ids.append(glossary_id)
         self.log.info("Fetching the glossaries list complete. Glossary id-s: %s", result_ids)

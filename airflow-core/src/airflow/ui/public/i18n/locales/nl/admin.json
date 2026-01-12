@@ -128,8 +128,6 @@
       "tooltip": "Verwijder geselecteerde variabelen"
     },
     "edit": "Wijzig variabele",
-    "export": "Exporteer",
-    "exportTooltip": "Exporteer geselecteerde variabelen",
     "form": {
       "invalidJson": "Ongeldige JSON",
       "keyMaxLength": "Sleutel mag maximaal 250 karakters bevatten",

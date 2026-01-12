@@ -18,7 +18,7 @@
 from __future__ import annotations
 
 from fastapi import Depends, Request, status
-from starlette.responses import RedirectResponse
+from fastapi.responses import RedirectResponse
 
 from airflow.api_fastapi.auth.managers.base_auth_manager import COOKIE_NAME_JWT_TOKEN
 from airflow.api_fastapi.auth.managers.simple.datamodels.login import LoginBody, LoginResponse
@@ -94,6 +94,7 @@ def login_all_admins(request: Request) -> RedirectResponse:
         COOKIE_NAME_JWT_TOKEN,
         SimpleAuthManagerLogin.create_token_all_admins(),
         secure=secure,
+        httponly=True,
     )
     return response
 

@@ -24,7 +24,7 @@ import pytest
 from google.api_core.gapic_v1.method import DEFAULT
 from google.cloud.pubsub_v1.types import ReceivedMessage
 
-from airflow.exceptions import TaskDeferred
+from airflow.providers.common.compat.sdk import TaskDeferred
 from airflow.providers.google.cloud.operators.pubsub import (
     PubSubCreateSubscriptionOperator,
     PubSubCreateTopicOperator,
@@ -207,7 +207,7 @@ class TestPubSubSubscriptionCreateOperator:
         assert response == TEST_SUBSCRIPTION
 
     @pytest.mark.parametrize(
-        "project_id, subscription, subscription_project_id, expected_input, expected_output",
+        ("project_id", "subscription", "subscription_project_id", "expected_input", "expected_output"),
         [
             (
                 TEST_PROJECT,
@@ -352,8 +352,51 @@ class TestPubSubPublishOperator:
             project_id=TEST_PROJECT, topic=TEST_TOPIC, messages=TEST_MESSAGES_ORDERING_KEY
         )
 
+    @mock.patch("airflow.providers.google.cloud.operators.pubsub.PubSubHook")
+    def test_publish_with_open_telemetry_tracing(self, mock_hook):
+        operator = PubSubPublishMessageOperator(
+            task_id=TASK_ID,
+            project_id=TEST_PROJECT,
+            topic=TEST_TOPIC,
+            messages=TEST_MESSAGES,
+            enable_open_telemetry_tracing=True,
+        )
+
+        operator.execute(None)
+        mock_hook.assert_called_once_with(
+            gcp_conn_id="google_cloud_default",
+            impersonation_chain=None,
+            enable_message_ordering=False,
+            enable_open_telemetry_tracing=True,
+        )
+        mock_hook.return_value.publish.assert_called_once_with(
+            project_id=TEST_PROJECT, topic=TEST_TOPIC, messages=TEST_MESSAGES
+        )
+
+    @mock.patch("airflow.providers.google.cloud.operators.pubsub.PubSubHook")
+    def test_publish_with_ordering_and_tracing(self, mock_hook):
+        operator = PubSubPublishMessageOperator(
+            task_id=TASK_ID,
+            project_id=TEST_PROJECT,
+            topic=TEST_TOPIC,
+            messages=TEST_MESSAGES_ORDERING_KEY,
+            enable_message_ordering=True,
+            enable_open_telemetry_tracing=True,
+        )
+
+        operator.execute(None)
+        mock_hook.assert_called_once_with(
+            gcp_conn_id="google_cloud_default",
+            impersonation_chain=None,
+            enable_message_ordering=True,
+            enable_open_telemetry_tracing=True,
+        )
+        mock_hook.return_value.publish.assert_called_once_with(
+            project_id=TEST_PROJECT, topic=TEST_TOPIC, messages=TEST_MESSAGES_ORDERING_KEY
+        )
+
     @pytest.mark.parametrize(
-        "project_id, expected_dataset",
+        ("project_id", "expected_dataset"),
         [
             # 1. project_id provided
             (TEST_PROJECT, f"topic:{TEST_PROJECT}:{TEST_TOPIC}"),
@@ -471,21 +514,19 @@ class TestPubSubPullOperator:
 
     @pytest.mark.db_test
     @mock.patch("airflow.providers.google.cloud.operators.pubsub.PubSubHook")
-    def test_execute_deferred(self, mock_hook, create_task_instance_of_operator):
+    def test_execute_deferred(self, mock_hook):
         """
         Asserts that a task is deferred and a PubSubPullOperator will be fired
         when the PubSubPullOperator is executed with deferrable=True.
         """
-        ti = create_task_instance_of_operator(
-            PubSubPullOperator,
-            dag_id="dag_id",
+        task = PubSubPullOperator(
             task_id=TASK_ID,
             project_id=TEST_PROJECT,
             subscription=TEST_SUBSCRIPTION,
             deferrable=True,
         )
         with pytest.raises(TaskDeferred) as _:
-            ti.task.execute(mock.MagicMock())
+            task.execute(mock.MagicMock())
 
     @mock.patch("airflow.providers.google.cloud.operators.pubsub.PubSubHook")
     def test_get_openlineage_facets(self, mock_hook):

@@ -24,23 +24,18 @@ from collections.abc import Callable, Container, Sequence
 from functools import cached_property
 from typing import TYPE_CHECKING, Any, cast
 
-from airflow.exceptions import AirflowException, AirflowSkipException
+from airflow.providers.common.compat.sdk import (
+    AirflowException,
+    AirflowSkipException,
+    context_to_airflow_vars,
+)
 from airflow.providers.standard.hooks.subprocess import SubprocessHook, SubprocessResult, working_directory
-from airflow.providers.standard.version_compat import AIRFLOW_V_3_0_PLUS, BaseOperator
-
-if AIRFLOW_V_3_0_PLUS:
-    from airflow.sdk.execution_time.context import context_to_airflow_vars
-else:
-    from airflow.utils.operator_helpers import context_to_airflow_vars  # type: ignore[no-redef, attr-defined]
+from airflow.providers.standard.version_compat import BaseOperator
 
 if TYPE_CHECKING:
-    from airflow.utils.types import ArgNotSet
+    from airflow.providers.common.compat.sdk import Context
 
-    try:
-        from airflow.sdk.definitions.context import Context
-    except ImportError:
-        # TODO: Remove once provider drops support for Airflow 2
-        from airflow.utils.context import Context
+    from tests_common.test_utils.version_compat import ArgNotSet
 
 
 class BashOperator(BaseOperator):

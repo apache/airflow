@@ -53,6 +53,9 @@ class StringContainingId(str):
     def __eq__(self, other):
         return self in other.strip() or self in other
 
+    def __hash__(self):
+        return hash(self)
+
 
 class BaseK8STest:
     """Base class for K8S Tests."""

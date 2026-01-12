@@ -93,10 +93,9 @@ export const TaskFilters = ({ tasksData }: { readonly tasksData: TaskCollectionR
       <HStack justifyContent="space-between" style={{ marginBottom: "5px" }}>
         <SearchBar
           defaultValue={taskNamePattern}
-          hideAdvanced
           hotkeyDisabled
           onChange={handleSearchChange}
-          placeHolder={translate("searchTasks")}
+          placeholder={translate("searchTasks")}
         />
         <Box>
           <ResetButton filterCount={searchParams.size} onClearFilters={onClearFilters} />

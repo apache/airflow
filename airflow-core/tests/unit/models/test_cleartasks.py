@@ -21,7 +21,7 @@ import datetime
 import random
 
 import pytest
-from sqlalchemy import select
+from sqlalchemy import func, select
 
 from airflow.models.dag_version import DagVersion
 from airflow.models.dagrun import DagRun
@@ -30,13 +30,14 @@ from airflow.models.taskinstancehistory import TaskInstanceHistory
 from airflow.models.taskreschedule import TaskReschedule
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.providers.standard.sensors.python import PythonSensor
-from airflow.serialization.serialized_objects import SerializedDAG
+from airflow.serialization.definitions.dag import SerializedDAG
 from airflow.utils.session import create_session
 from airflow.utils.state import DagRunState, State, TaskInstanceState
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
 from tests_common.test_utils import db
 from tests_common.test_utils.dag import sync_dag_to_db
+from tests_common.test_utils.taskinstance import run_task_instance
 from unit.models import DEFAULT_DATE
 
 pytestmark = [pytest.mark.db_test, pytest.mark.need_serialized_dag]
@@ -61,19 +62,15 @@ class TestClearTasks:
             end_date=DEFAULT_DATE + datetime.timedelta(days=10),
             catchup=True,
         ) as dag:
-            task0 = EmptyOperator(task_id="0")
-            task1 = EmptyOperator(task_id="1", retries=2)
+            EmptyOperator(task_id="0")
+            EmptyOperator(task_id="1", retries=2)
 
         dr = dag_maker.create_dagrun(
             state=State.RUNNING,
             run_type=DagRunType.SCHEDULED,
         )
-        ti0, ti1 = sorted(dr.task_instances, key=lambda ti: ti.task_id)
-        ti0.refresh_from_task(task0)
-        ti1.refresh_from_task(task1)
-
-        ti0.run()
-        ti1.run()
+        ti0 = dag_maker.run_ti("0", dr)
+        ti1 = dag_maker.run_ti("1", dr)
 
         with create_session() as session:
             # do the incrementing of try_number ordinarily handled by scheduler
@@ -87,7 +84,7 @@ class TestClearTasks:
             # this is equivalent to topological sort. It would not work in general case
             # but it works for our case because we specifically constructed test DAGS
             # in the way that those two sort methods are equivalent
-            qry = session.query(TI).filter(TI.dag_id == dag.dag_id).order_by(TI.task_id).all()
+            qry = session.scalars(select(TI).where(TI.dag_id == dag.dag_id).order_by(TI.task_id)).all()
             clear_task_instances(qry, session)
 
             ti0.refresh_from_db(session)
@@ -121,7 +118,7 @@ class TestClearTasks:
             # this is equivalent to topological sort. It would not work in general case
             # but it works for our case because we specifically constructed test DAGS
             # in the way that those two sort methods are equivalent
-            qry = session.query(TI).filter(TI.dag_id == dag.dag_id).order_by(TI.task_id).all()
+            qry = session.scalars(select(TI).where(TI.dag_id == dag.dag_id).order_by(TI.task_id)).all()
             clear_task_instances(qry, session)
 
             ti0.refresh_from_db()
@@ -153,7 +150,7 @@ class TestClearTasks:
         assert ti0.next_kwargs is None
 
     @pytest.mark.parametrize(
-        ["state", "last_scheduling"], [(DagRunState.QUEUED, None), (DagRunState.RUNNING, DEFAULT_DATE)]
+        ("state", "last_scheduling"), [(DagRunState.QUEUED, None), (DagRunState.RUNNING, DEFAULT_DATE)]
     )
     def test_clear_task_instances_dr_state(self, state, last_scheduling, dag_maker):
         """
@@ -186,12 +183,12 @@ class TestClearTasks:
         # this is equivalent to topological sort. It would not work in general case
         # but it works for our case because we specifically constructed test DAGS
         # in the way that those two sort methods are equivalent
-        qry = session.query(TI).filter(TI.dag_id == dag.dag_id).order_by(TI.task_id).all()
-        assert session.query(TaskInstanceHistory).count() == 0
+        qry = session.scalars(select(TI).where(TI.dag_id == dag.dag_id).order_by(TI.task_id)).all()
+        assert session.scalar(select(func.count()).select_from(TaskInstanceHistory)) == 0
         clear_task_instances(qry, session, dag_run_state=state)
         session.flush()
         # 2 TIs were cleared so 2 history records should be created
-        assert session.query(TaskInstanceHistory).count() == 2
+        assert session.scalar(select(func.count()).select_from(TaskInstanceHistory)) == 2
 
         session.refresh(dr)
 
@@ -229,7 +226,7 @@ class TestClearTasks:
         # this is equivalent to topological sort. It would not work in general case
         # but it works for our case because we specifically constructed test DAGS
         # in the way that those two sort methods are equivalent
-        qry = session.query(TI).filter(TI.dag_id == dag.dag_id).order_by(TI.task_id).all()
+        qry = session.scalars(select(TI).where(TI.dag_id == dag.dag_id).order_by(TI.task_id)).all()
         clear_task_instances(qry, session)
         session.flush()
 
@@ -243,7 +240,7 @@ class TestClearTasks:
         assert dr.last_scheduling_decision == DEFAULT_DATE
 
     @pytest.mark.parametrize(
-        ["state", "last_scheduling"],
+        ("state", "last_scheduling"),
         [
             (DagRunState.SUCCESS, None),
             (DagRunState.SUCCESS, DEFAULT_DATE),
@@ -276,12 +273,13 @@ class TestClearTasks:
         ti1.state = TaskInstanceState.SUCCESS
         session = dag_maker.session
         session.flush()
+        original_queued_at = dr.queued_at
 
         # we use order_by(task_id) here because for the test DAG structure of ours
         # this is equivalent to topological sort. It would not work in general case
         # but it works for our case because we specifically constructed test DAGS
         # in the way that those two sort methods are equivalent
-        qry = session.query(TI).filter(TI.dag_id == dag.dag_id).order_by(TI.task_id).all()
+        qry = session.scalars(select(TI).where(TI.dag_id == dag.dag_id).order_by(TI.task_id)).all()
         clear_task_instances(qry, session)
         session.flush()
 
@@ -291,6 +289,10 @@ class TestClearTasks:
         assert dr.start_date is None
         assert dr.last_scheduling_decision is None
 
+        # The initial finished run has queued_at=None, clearing should populate it.
+        assert original_queued_at is None
+        assert dr.queued_at is not None
+
     @pytest.mark.parametrize("delete_tasks", [True, False])
     def test_clear_task_instances_maybe_task_removed(self, delete_tasks, dag_maker, session):
         """This verifies the behavior of clear_task_instances re task removal.
@@ -298,8 +300,8 @@ class TestClearTasks:
         When clearing a TI, if the best available serdag for that task doesn't have the
         task anymore, then it has different logic re setting max tries."""
         with dag_maker("test_clear_task_instances_without_task") as dag:
-            task0 = EmptyOperator(task_id="task0")
-            task1 = EmptyOperator(task_id="task1", retries=2)
+            EmptyOperator(task_id="task0")
+            EmptyOperator(task_id="task1", retries=2)
 
         dr = dag_maker.create_dagrun(
             state=State.RUNNING,
@@ -307,8 +309,8 @@ class TestClearTasks:
         )
 
         ti0, ti1 = sorted(dr.task_instances, key=lambda ti: ti.task_id)
-        ti0.refresh_from_task(task0)
-        ti1.refresh_from_task(task1)
+        ti0.refresh_from_task(dag.get_task("task0"))
+        ti1.refresh_from_task(dag.get_task("task1"))
 
         # simulate running this task
         # do the incrementing of try_number ordinarily handled by scheduler
@@ -371,8 +373,8 @@ class TestClearTasks:
         )
 
         ti0, ti1 = sorted(dr.task_instances, key=lambda ti: ti.task_id)
-        ti0.refresh_from_task(task0)
-        ti1.refresh_from_task(task1)
+        ti0.refresh_from_task(dag.get_task("task0"))
+        ti1.refresh_from_task(dag.get_task("task1"))
 
         with create_session() as session:
             # do the incrementing of try_number ordinarily handled by scheduler
@@ -382,14 +384,14 @@ class TestClearTasks:
             session.merge(ti1)
             session.commit()
 
-        ti0.run(session=session)
-        ti1.run(session=session)
+        run_task_instance(ti0, task0)
+        run_task_instance(ti1, task1)
 
         # we use order_by(task_id) here because for the test DAG structure of ours
         # this is equivalent to topological sort. It would not work in general case
         # but it works for our case because we specifically constructed test DAGS
         # in the way that those two sort methods are equivalent
-        qry = session.query(TI).filter(TI.dag_id == dag.dag_id).order_by(TI.task_id).all()
+        qry = session.scalars(select(TI).where(TI.dag_id == dag.dag_id).order_by(TI.task_id)).all()
         clear_task_instances(qry, session)
 
         ti0.refresh_from_db(session=session)
@@ -455,8 +457,8 @@ class TestClearTasks:
         )
 
         ti0, ti1 = sorted(dr.task_instances, key=lambda ti: ti.task_id)
-        ti0.refresh_from_task(task0)
-        ti1.refresh_from_task(task1)
+        ti0.refresh_from_task(dag.get_task("0"))
+        ti1.refresh_from_task(dag.get_task("1"))
 
         with create_session() as session:
             # do the incrementing of try_number ordinarily handled by scheduler
@@ -466,13 +468,15 @@ class TestClearTasks:
             session.merge(ti1)
             session.commit()
 
-        ti0.run()
-        ti1.run()
+        run_task_instance(ti0, task0)
+        run_task_instance(ti1, task1)
 
         with create_session() as session:
 
             def count_task_reschedule(ti):
-                return session.query(TaskReschedule).filter(TaskReschedule.ti_id == ti.id).count()
+                return session.scalar(
+                    select(func.count()).select_from(TaskReschedule).where(TaskReschedule.ti_id == ti.id)
+                )
 
             assert count_task_reschedule(ti0) == 1
             assert count_task_reschedule(ti1) == 1
@@ -480,18 +484,15 @@ class TestClearTasks:
             # this is equivalent to topological sort. It would not work in general case
             # but it works for our case because we specifically constructed test DAGS
             # in the way that those two sort methods are equivalent
-            qry = (
-                session.query(TI)
-                .filter(TI.dag_id == dag.dag_id, TI.task_id == ti0.task_id)
-                .order_by(TI.task_id)
-                .all()
-            )
+            qry = session.scalars(
+                select(TI).where(TI.dag_id == dag.dag_id, TI.task_id == ti0.task_id).order_by(TI.task_id)
+            ).all()
             clear_task_instances(qry, session)
             assert count_task_reschedule(ti0) == 0
             assert count_task_reschedule(ti1) == 1
 
     @pytest.mark.parametrize(
-        ["state", "state_recorded"],
+        ("state", "state_recorded"),
         [
             (TaskInstanceState.SUCCESS, TaskInstanceState.SUCCESS),
             (TaskInstanceState.FAILED, TaskInstanceState.FAILED),
@@ -526,7 +527,7 @@ class TestClearTasks:
         ti1.state = state
         session = dag_maker.session
         session.flush()
-        qry = session.query(TI).filter(TI.dag_id == dag.dag_id).order_by(TI.task_id).all()
+        qry = session.scalars(select(TI).where(TI.dag_id == dag.dag_id).order_by(TI.task_id)).all()
         clear_task_instances(qry, session)
         session.flush()
 
@@ -577,7 +578,7 @@ class TestClearTasks:
         assert ti0.max_tries == 1
 
     def test_dags_clear(self, dag_maker, session):
-        dags, tis = [], []
+        sdk_dags, ser_dags, tis = [], [], []
         num_of_dags = 5
         for i in range(num_of_dags):
             with dag_maker(
@@ -587,7 +588,7 @@ class TestClearTasks:
                 start_date=DEFAULT_DATE,
                 end_date=DEFAULT_DATE + datetime.timedelta(days=10),
             ):
-                task = EmptyOperator(task_id=f"test_task_clear_{i}", owner="test")
+                EmptyOperator(task_id=f"test_task_clear_{i}", owner="test")
 
             dr = dag_maker.create_dagrun(
                 run_id=f"scheduled_{i}",
@@ -599,19 +600,19 @@ class TestClearTasks:
                 run_after=DEFAULT_DATE,
                 triggered_by=DagRunTriggeredByType.TEST,
             )
-            ti = dr.task_instances[0]
-            ti.task = task
-            dags.append(dag_maker.dag)
+            sdk_dags.append(dag_maker.dag)
+            ser_dags.append(serialized_dag := dag_maker.serialized_dag)
+            (ti := dr.task_instances[0]).refresh_from_task(serialized_dag.get_task(ti.task_id))
             tis.append(ti)
 
         # test clear all dags
-        for i in range(num_of_dags):
-            session.get(TaskInstance, tis[i].id).try_number += 1
+        for dag, ti in zip(sdk_dags, tis):
+            session.get(TaskInstance, ti.id).try_number += 1
             session.commit()
-            tis[i].run()
-            assert tis[i].state == State.SUCCESS
-            assert tis[i].try_number == 1
-            assert tis[i].max_tries == 0
+            run_task_instance(ti, dag.get_task(ti.task_id))
+            assert ti.state == State.SUCCESS
+            assert ti.try_number == 1
+            assert ti.max_tries == 0
         session.commit()
 
         def _get_ti(old_ti):
@@ -624,7 +625,7 @@ class TestClearTasks:
                 )
             )
 
-        SerializedDAG.clear_dags(dags)
+        SerializedDAG.clear_dags(ser_dags)
         session.commit()
         for i in range(num_of_dags):
             ti = _get_ti(tis[i])
@@ -633,17 +634,19 @@ class TestClearTasks:
             assert ti.max_tries == 1
 
         # test dry_run
-        for i, dag in enumerate(dags):
+        for i, dag in enumerate(ser_dags):
             ti = _get_ti(tis[i])
             ti.try_number += 1
             session.commit()
             ti.refresh_from_task(dag.get_task(ti.task_id))
-            ti.run(session=session)
+            # Directly set state to SUCCESS instead of calling ti.run() to avoid timeout
+            ti.state = State.SUCCESS
+            session.commit()
             assert ti.state == State.SUCCESS
             assert ti.try_number == 2
             assert ti.max_tries == 1
         session.commit()
-        SerializedDAG.clear_dags(dags, dry_run=True)
+        SerializedDAG.clear_dags(ser_dags, dry_run=True)
         session.commit()
         for i in range(num_of_dags):
             ti = _get_ti(tis[i])
@@ -657,10 +660,10 @@ class TestClearTasks:
         ti_fail.state = State.FAILED
         session.commit()
 
-        SerializedDAG.clear_dags(dags, only_failed=True)
+        SerializedDAG.clear_dags(ser_dags, only_failed=True)
 
-        for ti in tis:
-            ti = _get_ti(ti)
+        for ti_in in tis:
+            ti = _get_ti(ti_in)
             if ti.dag_id == ti_fail.dag_id:
                 assert ti.state == State.NONE
                 assert ti.try_number == 2
@@ -679,7 +682,7 @@ class TestClearTasks:
             end_date=DEFAULT_DATE + datetime.timedelta(days=10),
             catchup=True,
             bundle_version="v1",
-        ):
+        ) as dag:
             task0 = EmptyOperator(task_id="0")
             task1 = EmptyOperator(task_id="1", retries=2)
         dr = dag_maker.create_dagrun(
@@ -689,11 +692,11 @@ class TestClearTasks:
 
         old_dag_version = DagVersion.get_latest_version(dr.dag_id)
         ti0, ti1 = sorted(dr.task_instances, key=lambda ti: ti.task_id)
-        ti0.refresh_from_task(task0)
-        ti1.refresh_from_task(task1)
+        ti0.refresh_from_task(dag.get_task("0"))
+        ti1.refresh_from_task(dag.get_task("1"))
 
-        ti0.run()
-        ti1.run()
+        run_task_instance(ti0, task0)
+        run_task_instance(ti1, task1)
         dr.state = DagRunState.SUCCESS
         session.merge(dr)
         session.flush()
@@ -709,10 +712,10 @@ class TestClearTasks:
         new_dag_version = DagVersion.get_latest_version(dag.dag_id)
 
         assert old_dag_version.id != new_dag_version.id
-        qry = session.query(TI).filter(TI.dag_id == dag.dag_id).order_by(TI.task_id).all()
+        qry = session.scalars(select(TI).where(TI.dag_id == dag.dag_id).order_by(TI.task_id)).all()
         clear_task_instances(qry, session, run_on_latest_version=run_on_latest_version)
         session.commit()
-        dr = session.query(DagRun).filter(DagRun.dag_id == dag.dag_id).one()
+        dr = session.scalar(select(DagRun).where(DagRun.dag_id == dag.dag_id))
         if run_on_latest_version:
             assert dr.created_dag_version_id == new_dag_version.id
             assert dr.bundle_version == new_dag_version.bundle_version

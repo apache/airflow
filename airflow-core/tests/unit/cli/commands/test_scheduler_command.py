@@ -39,7 +39,7 @@ class TestSchedulerCommand:
         cls.parser = cli_parser.get_parser()
 
     @pytest.mark.parametrize(
-        "executor, expect_serve_logs",
+        ("executor", "expect_serve_logs"),
         [
             ("CeleryExecutor", False),
             ("LocalExecutor", True),
@@ -163,3 +163,13 @@ class TestSchedulerCommand:
         )
         mock_process.assert_called_once_with(target=serve_logs)
         mock_process().terminate.assert_called_once_with()
+
+    @mock.patch("airflow.cli.hot_reload.run_with_reloader")
+    def test_scheduler_with_dev_flag(self, mock_reloader):
+        args = self.parser.parse_args(["scheduler", "--dev"])
+        scheduler_command.scheduler(args)
+
+        # Verify that run_with_reloader was called
+        mock_reloader.assert_called_once()
+        # The callback function should be callable
+        assert callable(mock_reloader.call_args[0][0])

@@ -18,17 +18,18 @@
 from __future__ import annotations
 
 from airflow.api_fastapi.core_api.base import BaseModel
-from airflow.api_fastapi.core_api.datamodels.dag_run import DAGRunResponse
 from airflow.api_fastapi.core_api.datamodels.dags import DAGResponse
 from airflow.api_fastapi.core_api.datamodels.hitl import HITLDetail
+from airflow.api_fastapi.core_api.datamodels.ui.dag_runs import DAGRunLightResponse
 
 
 class DAGWithLatestDagRunsResponse(DAGResponse):
     """DAG with latest dag runs response serializer."""
 
     asset_expression: dict | None
-    latest_dag_runs: list[DAGRunResponse]
+    latest_dag_runs: list[DAGRunLightResponse]
     pending_actions: list[HITLDetail]
+    is_favorite: bool
 
 
 class DAGWithLatestDagRunsCollectionResponse(BaseModel):

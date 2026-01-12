@@ -53,6 +53,9 @@ Airflow supports multiple types of Dag Bundles, each catering to specific use ca
 **airflow.providers.amazon.aws.bundles.s3.S3DagBundle**
     These bundles reference an S3 bucket containing Dag files. They do not support versioning of the bundle, meaning tasks always run using the latest code.
 
+**airflow.providers.google.cloud.bundles.gcs.GCSDagBundle**
+    These bundles reference a GCS bucket containing Dag files. They do not support versioning of the bundle, meaning tasks always run using the latest code.
+
 Configuring Dag bundles
 -----------------------
 
@@ -92,7 +95,7 @@ For example, if you want to use a custom URL for the git Dag bundle:
     dag_bundle_config_list = [
         {
           "name": "my_git_repo",
-          "classpath": "airflow.dag_processing.bundles.git.GitDagBundle",
+          "classpath": "airflow.providers.git.bundles.git.GitDagBundle",
           "kwargs": {
             "tracking_ref": "main",
             "git_conn_id": "my_git_conn",

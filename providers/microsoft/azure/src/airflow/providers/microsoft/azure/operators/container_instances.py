@@ -21,32 +21,34 @@ import re
 import time
 from collections import namedtuple
 from collections.abc import Sequence
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 
 from azure.mgmt.containerinstance.models import (
     Container,
     ContainerGroup,
     ContainerGroupDiagnostics,
+    ContainerGroupIdentity,
     ContainerGroupSubnetId,
     ContainerPort,
     DnsConfiguration,
     EnvironmentVariable,
     IpAddress,
+    ResourceIdentityType,
     ResourceRequests,
     ResourceRequirements,
+    UserAssignedIdentities,
     Volume as _AzureVolume,
     VolumeMount,
 )
 from msrestazure.azure_exceptions import CloudError
 
-from airflow.exceptions import AirflowException, AirflowTaskTimeout
+from airflow.providers.common.compat.sdk import AirflowException, AirflowTaskTimeout, BaseOperator
 from airflow.providers.microsoft.azure.hooks.container_instance import AzureContainerInstanceHook
 from airflow.providers.microsoft.azure.hooks.container_registry import AzureContainerRegistryHook
 from airflow.providers.microsoft.azure.hooks.container_volume import AzureContainerVolumeHook
-from airflow.providers.microsoft.azure.version_compat import BaseOperator
 
 if TYPE_CHECKING:
-    from airflow.utils.context import Context
+    from airflow.sdk import Context
 
 Volume = namedtuple(
     "Volume",
@@ -102,6 +104,7 @@ class AzureContainerInstancesOperator(BaseOperator):
     :param dns_config: The DNS configuration for a container group.
     :param diagnostics: Container group diagnostic information (Log Analytics).
     :param priority: Container group priority, Possible values include: 'Regular', 'Spot'
+    :param identity: List of User/System assigned identities for the container group.
 
     **Example**::
 
@@ -144,6 +147,15 @@ class AzureContainerInstancesOperator(BaseOperator):
                 }
             },
             priority="Regular",
+            identity = {
+                "type": "UserAssigned" | "SystemAssigned" | "SystemAssigned,UserAssigned",
+                "resource_ids": [
+                  "/subscriptions/<sub>/resourceGroups/<rg>/providers/Microsoft.ManagedIdentity/userAssignedIdentities/<id>"
+                ]
+                "user_assigned_identities": {
+                  "/subscriptions/.../userAssignedIdentities/<id>": {}
+                }
+            }
             command=["/bin/echo", "world"],
             task_id="start_container",
         )
@@ -180,6 +192,7 @@ class AzureContainerInstancesOperator(BaseOperator):
         dns_config: DnsConfiguration | None = None,
         diagnostics: ContainerGroupDiagnostics | None = None,
         priority: str | None = "Regular",
+        identity: ContainerGroupIdentity | dict | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -222,12 +235,73 @@ class AzureContainerInstancesOperator(BaseOperator):
         self.dns_config = dns_config
         self.diagnostics = diagnostics
         self.priority = priority
+        self.identity = self._ensure_identity(identity)
         if self.priority not in ["Regular", "Spot"]:
             raise AirflowException(
                 "Invalid value for the priority argument. "
                 "Please set 'Regular' or 'Spot' as the priority. "
                 f"Found `{self.priority}`."
             )
+
+    # helper to accept dict (user-friendly) or ContainerGroupIdentity (SDK object)
+    @staticmethod
+    def _ensure_identity(identity: ContainerGroupIdentity | dict | None) -> ContainerGroupIdentity | None:
+        """
+        Normalize identity input into a ContainerGroupIdentity instance.
+
+        Accepts:
+         - None -> returns None
+         - ContainerGroupIdentity -> returned as-is
+         - dict -> converted to ContainerGroupIdentity
+         - any other object -> returned as-is (pass-through) to preserve backwards compatibility
+
+        Expected dict shapes:
+          {"type": "UserAssigned", "resource_ids": ["/.../userAssignedIdentities/id1", ...]}
+        or
+          {"type": "SystemAssigned"}
+        or
+          {"type": "SystemAssigned,UserAssigned", "resource_ids": [...]}
+        """
+        if identity is None:
+            return None
+
+        if isinstance(identity, ContainerGroupIdentity):
+            return identity
+
+        if isinstance(identity, dict):
+            # require type
+            id_type = identity.get("type")
+            if not id_type:
+                raise AirflowException(
+                    "identity dict must include 'type' key with value 'UserAssigned' or 'SystemAssigned'"
+                )
+
+            # map common string type names to ResourceIdentityType enum values if available
+            type_map = {
+                "SystemAssigned": ResourceIdentityType.system_assigned,
+                "UserAssigned": ResourceIdentityType.user_assigned,
+                "SystemAssigned,UserAssigned": ResourceIdentityType.system_assigned_user_assigned,
+                "SystemAssigned, UserAssigned": ResourceIdentityType.system_assigned_user_assigned,
+            }
+            cg_type = type_map.get(id_type, id_type)
+
+            # build user_assigned_identities mapping if resource_ids provided
+            resource_ids = identity.get("resource_ids")
+            if resource_ids:
+                if not isinstance(resource_ids, (list, tuple)):
+                    raise AirflowException("identity['resource_ids'] must be a list of resource id strings")
+                user_assigned_identities: dict[str, Any] = {rid: {} for rid in resource_ids}
+            else:
+                # accept a pre-built mapping if given
+                user_assigned_identities = identity.get("user_assigned_identities") or {}
+
+            return ContainerGroupIdentity(
+                type=cg_type,
+                user_assigned_identities=cast(
+                    "dict[str, UserAssignedIdentities] | None", user_assigned_identities
+                ),
+            )
+        return identity
 
     def execute(self, context: Context) -> int:
         # Check name again in case it was templated.
@@ -304,6 +378,7 @@ class AzureContainerInstancesOperator(BaseOperator):
                 dns_config=self.dns_config,
                 diagnostics=self.diagnostics,
                 priority=self.priority,
+                identity=self.identity,
             )
 
             self._ci_hook.create_or_update(self.resource_group, self.name, container_group)

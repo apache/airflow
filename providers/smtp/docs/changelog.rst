@@ -28,6 +28,55 @@ Changelog
 ---------
 
 
+2.4.1
+.....
+
+Misc
+~~~~
+
+* ``Add backcompat for exceptions in providers (#58727)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+2.4.0
+.....
+
+.. note::
+    This release of provider is only available for Airflow 2.11+ as explained in the
+    Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/PROVIDERS.rst#minimum-supported-version-of-airflow-for-community-managed-providers>_.
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Include all __init__ params in template_fields for consistency with other operators (#58278)``
+
+Misc
+~~~~
+
+* ``Bump minimum Airflow version in providers to Airflow 2.11.0 (#58612)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Updates to release process of providers (#58316)``
+
+2.3.2
+.....
+
+Misc
+~~~~
+
+* ``Convert all airflow distributions to be compliant with ASF requirements (#58138)``
+* ``Migrate smtp provider to 'common.compat' (#57105)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Delete all unnecessary LICENSE Files (#58191)``
+   * ``Enable PT006 rule to 9 files in providers (snowflake,smtp/tests) (#57845)``
+   * ``Prepare release for Oct 2025 wave of providers (#57029)``
+   * ``Correct 'Dag' to 'DAG' for code snippets in provider docs (#56727)``
+   * ``Remove placeholder Release Date in changelog and index files (#56056)``
+
 2.3.1
 .....
 
@@ -70,8 +119,6 @@ Doc-only
    * ``Make smtp provider tests db independent (#54674)``
    * ``Replace API server's direct Connection access workaround in BaseHook (#54083)``
    * ``Switch pre-commit to prek (#54258)``
-
-.. Review and move the new changes to one of the sections above:
    * ``Fix Airflow 2 reference in README/index of providers (#55240)``
 
 2.2.0

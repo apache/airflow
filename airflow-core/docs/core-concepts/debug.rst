@@ -78,7 +78,7 @@ Run ``python -m pdb <path to Dag file>.py`` for an interactive debugging experie
 
 .. code-block:: bash
 
-  root@ef2c84ad4856:/opt/airflow# python -m pdb providers/standard/src/airflow/providers/standard/example_dags/example_bash_operator.py
+  [Breeze:3.10.19] root@ef2c84ad4856:/opt/airflow# python -m pdb providers/standard/src/airflow/providers/standard/example_dags/example_bash_operator.py
   > /opt/airflow/providers/standard/src/airflow/providers/standard/example_dags/example_bash_operator.py(18)<module>()
   -> """Example Dag demonstrating the usage of the BashOperator."""
   (Pdb) b 45

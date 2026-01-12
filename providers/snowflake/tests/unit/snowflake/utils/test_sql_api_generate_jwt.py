@@ -36,7 +36,7 @@ private_key = key.private_bytes(
 
 class TestJWTGenerator:
     @pytest.mark.parametrize(
-        "account_name, expected_account_name",
+        ("account_name", "expected_account_name"),
         [("test.us-east-1", "TEST"), ("test.global", "TEST.GLOBAL"), ("test", "TEST")],
     )
     def test_prepare_account_name_for_jwt(self, account_name, expected_account_name):

@@ -61,7 +61,8 @@ Für die Deutsche Übersetzung wurden die folgenden Terme wie folgt übersetzt
   Da der Begriff in Airflow 3 neu eingeführt wurde steht er derzeit nicht fest.
   Daher eignet er sich zu der inhaltlich passenden Übersetzung. Um neue
   Benutzer nicht zu verwirren wird der durch Airflow definierte Originalterm in
-  Klammern wenn möglich mitgeführt.
+  Klammern wenn möglich mitgeführt. Einzig in der Navigationsleiste ist der Begriff
+  ohne die englische Referenz um den Text kurz zu halten.
 - `Asset Event` --> `Ereignis zu Datenset (Asset)`: Logische Konsequenz der
   Übersetzung von -->"Asset" ohne einen sperrigen Begriff wie
   "Datenssatz-Ereignis" zu erzeugen.

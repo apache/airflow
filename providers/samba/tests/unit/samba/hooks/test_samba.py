@@ -22,8 +22,8 @@ from unittest import mock
 
 import pytest
 
-from airflow.exceptions import AirflowNotFoundException
 from airflow.models import Connection
+from airflow.providers.common.compat.sdk import AirflowNotFoundException
 from airflow.providers.samba.hooks.samba import SambaHook
 
 try:
@@ -148,7 +148,7 @@ class TestSambaHook:
             assert dict(kwargs, **connection_settings) == p_kwargs
 
     @pytest.mark.parametrize(
-        "path, path_type, full_path",
+        ("path", "path_type", "full_path"),
         [
             # Linux path -> Linux path, no path_type (default)
             ("/start/path/with/slash", None, "//ip/share/start/path/with/slash"),

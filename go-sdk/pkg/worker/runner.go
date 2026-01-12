@@ -37,6 +37,10 @@ import (
 )
 
 type (
+	// task is an interface of an task implementation.
+	Task interface {
+		Execute(ctx context.Context, logger *slog.Logger) error
+	}
 	// Bundle interface defines a type that is used "at execution time" to lookup a Task to execute
 	Bundle interface {
 		LookupTask(dagId, taskId string) (Task, bool)

@@ -20,13 +20,10 @@ from unittest import mock
 
 import pytest
 
-from airflow.exceptions import AirflowSkipException
+from airflow.providers.common.compat.sdk import AirflowSkipException
 from airflow.providers.slack.transfers.sql_to_slack import SqlToSlackApiFileOperator
 
-try:
-    from airflow.sdk import timezone
-except ImportError:
-    from airflow.utils import timezone  # type: ignore[attr-defined,no-redef]
+from tests_common.test_utils.compat import timezone
 
 TEST_DAG_ID = "sql_to_slack_unit_test"
 TEST_TASK_ID = "sql_to_slack_unit_test_task"
@@ -46,7 +43,7 @@ class TestSqlToSlackApiFileOperator:
     @mock.patch("airflow.providers.slack.transfers.sql_to_slack.BaseSqlToSlackOperator._get_query_results")
     @mock.patch("airflow.providers.slack.transfers.sql_to_slack.SlackHook")
     @pytest.mark.parametrize(
-        "filename,df_method",
+        ("filename", "df_method"),
         [
             ("awesome.json", "to_json"),
             ("awesome.json.zip", "to_json"),
@@ -60,7 +57,7 @@ class TestSqlToSlackApiFileOperator:
     @pytest.mark.parametrize("initial_comment", [None, "Test Comment"])
     @pytest.mark.parametrize("title", [None, "Test File Title"])
     @pytest.mark.parametrize(
-        "slack_op_kwargs, hook_extra_kwargs",
+        ("slack_op_kwargs", "hook_extra_kwargs"),
         [
             pytest.param(
                 {},

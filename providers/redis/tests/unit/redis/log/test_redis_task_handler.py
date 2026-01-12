@@ -23,6 +23,7 @@ from unittest.mock import patch
 import pytest
 
 from airflow.models import DagRun, TaskInstance
+from airflow.providers.common.compat.sdk import timezone
 from airflow.providers.redis.log.redis_task_handler import RedisTaskHandler
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.utils.session import create_session
@@ -32,6 +33,7 @@ from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.dag import sync_dag_to_db
 from tests_common.test_utils.db import clear_db_dag_bundles, clear_db_dags, clear_db_runs
 from tests_common.test_utils.file_task_handler import extract_events
+from tests_common.test_utils.taskinstance import create_task_instance
 from tests_common.test_utils.version_compat import (
     AIRFLOW_V_3_0_PLUS,
     AIRFLOW_V_3_1_PLUS,
@@ -40,10 +42,8 @@ from tests_common.test_utils.version_compat import (
 
 if AIRFLOW_V_3_1_PLUS:
     from airflow.sdk import DAG
-    from airflow.sdk.timezone import datetime
 else:
     from airflow.models import DAG
-    from airflow.utils.timezone import datetime  # type: ignore[no-redef]
 
 
 class TestRedisTaskHandler:
@@ -56,7 +56,7 @@ class TestRedisTaskHandler:
 
     @pytest.fixture
     def ti(self):
-        date = datetime(2020, 1, 1)
+        date = timezone.datetime(2020, 1, 1)
         dag = DAG(dag_id="dag_for_testing_redis_task_handler", schedule=None, start_date=date)
         task = EmptyOperator(task_id="task_for_testing_redis_log_handler", dag=dag)
         if AIRFLOW_V_3_0_PLUS:
@@ -99,7 +99,7 @@ class TestRedisTaskHandler:
             from airflow.models.dag_version import DagVersion
 
             dag_version = DagVersion.get_latest_version(dag.dag_id)
-            ti = TaskInstance(task=task, run_id=dag_run.run_id, dag_version_id=dag_version.id)
+            ti = create_task_instance(task=task, run_id=dag_run.run_id, dag_version_id=dag_version.id)
         else:
             ti = TaskInstance(task=task, run_id=dag_run.run_id)
         ti.dag_run = dag_run

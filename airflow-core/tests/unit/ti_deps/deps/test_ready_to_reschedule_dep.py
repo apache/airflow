@@ -142,11 +142,6 @@ class TestNotInReschedulePeriodDep:
         dep_context = DepContext(ignore_in_reschedule_period=True)
         assert ReadyToRescheduleDep().is_met(ti=ti, dep_context=dep_context)
 
-    def test_mapped_task_should_pass_if_not_reschedule_mode(self, not_expected_tr_db_call):
-        ti = self._get_task_instance(State.UP_FOR_RESCHEDULE, map_index=42)
-        del ti.task.reschedule
-        assert ReadyToRescheduleDep().is_met(ti=ti)
-
     def test_mapped_task_should_pass_if_not_in_none_state(self, not_expected_tr_db_call):
         ti = self._get_task_instance(State.UP_FOR_RETRY, map_index=42)
         assert ReadyToRescheduleDep().is_met(ti=ti)

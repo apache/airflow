@@ -30,18 +30,16 @@ from contextlib import ExitStack
 from functools import partial
 from typing import TYPE_CHECKING, Any
 
-from airflow.configuration import conf
-from airflow.exceptions import AirflowException, AirflowOptionalProviderFeatureException
+from airflow.exceptions import AirflowOptionalProviderFeatureException
 from airflow.providers.apache.beam.hooks.beam import BeamHook, BeamRunnerType
 from airflow.providers.apache.beam.triggers.beam import BeamJavaPipelineTrigger, BeamPythonPipelineTrigger
-from airflow.providers.apache.beam.version_compat import BaseOperator
+from airflow.providers.common.compat.sdk import AirflowException, BaseOperator, conf
 from airflow.providers_manager import ProvidersManager
 from airflow.utils.helpers import convert_camel_to_snake, exactly_one
 from airflow.version import version
 
 if TYPE_CHECKING:
-    from airflow.utils.context import Context
-
+    from airflow.providers.common.compat.sdk import Context
 GOOGLE_PROVIDER = ProvidersManager().providers.get("apache-airflow-providers-google")
 
 
@@ -161,7 +159,7 @@ class BeamBasePipelineOperator(BaseOperator, BeamDataflowMixin, ABC):
     """
     Abstract base class for Beam Pipeline Operators.
 
-    :param runner: Runner on which pipeline will be run. By default "DirectRunner" is being used.
+    :param runner: Runner on which pipeline will be run. By default, "DirectRunner" is being used.
         Other possible options: DataflowRunner, SparkRunner, FlinkRunner, PortableRunner.
         See: :class:`~providers.apache.beam.hooks.beam.BeamRunnerType`
         See: https://beam.apache.org/documentation/runners/capability-matrix/

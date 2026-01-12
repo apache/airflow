@@ -18,9 +18,11 @@
  */
 import { chakra, Code, Link } from "@chakra-ui/react";
 import type { TFunction } from "i18next";
+import * as React from "react";
 import { Link as RouterLink } from "react-router-dom";
 
 import type { StructuredLogMessage } from "openapi/requests/types.gen";
+import AnsiRenderer from "src/components/AnsiRenderer";
 import Time from "src/components/Time";
 import { urlRegex } from "src/constants/urlRegex";
 import { LogLevel, logLevelColorMapping } from "src/utils/logs";
@@ -45,34 +47,41 @@ type RenderStructuredLogProps = {
   logLevelFilters?: Array<string>;
   logLink: string;
   logMessage: string | StructuredLogMessage;
+  renderingMode?: "jsx" | "text";
   showSource?: boolean;
   showTimestamp?: boolean;
   sourceFilters?: Array<string>;
   translate: TFunction;
 };
 
-const addLinks = (line: string) => {
-  const matches = [...line.matchAll(urlRegex)];
-  let currentIndex = 0;
-  const elements: Array<JSX.Element | string> = [];
+const addAnsiWithLinks = (line: string) => {
+  const urlMatches = [...line.matchAll(urlRegex)];
 
-  if (!matches.length) {
-    return line;
+  if (!urlMatches.length) {
+    return <AnsiRenderer linkify={false}>{line}</AnsiRenderer>;
   }
 
-  matches.forEach((match) => {
-    const startIndex = match.index;
+  let currentIndex = 0;
+  const elements: Array<React.ReactNode> = [];
 
-    // Add text before the URL
+  urlMatches.forEach((match) => {
+    const { index: startIndex } = match;
+
     if (startIndex > currentIndex) {
-      elements.push(line.slice(currentIndex, startIndex));
+      const textBeforeUrl = line.slice(currentIndex, startIndex);
+
+      elements.push(
+        <AnsiRenderer key={`ansi-before-${textBeforeUrl}`} linkify={false}>
+          {textBeforeUrl}
+        </AnsiRenderer>,
+      );
     }
 
     elements.push(
       <Link
         color="fg.info"
         href={match[0]}
-        key={match[0]}
+        key={`link-${match[0]}-${startIndex}`}
         rel="noopener noreferrer"
         target="_blank"
         textDecoration="underline"
@@ -84,9 +93,14 @@ const addLinks = (line: string) => {
     currentIndex = startIndex + match[0].length;
   });
 
-  // Add remaining text after the last URL
   if (currentIndex < line.length) {
-    elements.push(line.slice(currentIndex));
+    const textAfterUrl = line.slice(currentIndex);
+
+    elements.push(
+      <AnsiRenderer key="ansi-after" linkify={false}>
+        {textAfterUrl}
+      </AnsiRenderer>,
+    );
   }
 
   return elements;
@@ -94,20 +108,25 @@ const addLinks = (line: string) => {
 
 const sourceFields = ["logger", "chan", "lineno", "filename", "loc"];
 
-export const renderStructuredLog = ({
+const renderStructuredLogImpl = ({
   index,
   logLevelFilters,
   logLink,
   logMessage,
+  renderingMode = "jsx",
   showSource = true,
   showTimestamp = true,
   sourceFilters,
   translate,
-}: RenderStructuredLogProps) => {
+}: RenderStructuredLogProps): JSX.Element | string => {
   if (typeof logMessage === "string") {
+    if (renderingMode === "text") {
+      return logMessage;
+    }
+
     return (
       <chakra.span key={index} lineHeight={1.5}>
-        {addLinks(logMessage)}
+        {addAnsiWithLinks(logMessage)}
       </chakra.span>
     );
   }
@@ -134,22 +153,32 @@ export const renderStructuredLog = ({
   }
 
   if (Boolean(timestamp) && showTimestamp) {
-    elements.push("[", <Time datetime={timestamp} key={0} />, "] ");
+    if (renderingMode === "text") {
+      elements.push(`[${timestamp}] `);
+    } else {
+      elements.push("[", <Time datetime={timestamp} key={0} />, "] ");
+    }
   }
 
   if (typeof level === "string") {
-    elements.push(
-      <Code
-        colorPalette={level.toUpperCase() in LogLevel ? logLevelColorMapping[level as LogLevel] : undefined}
-        key={1}
-        lineHeight={1.5}
-        minH={0}
-        px={0}
-      >
-        {level.toUpperCase()}
-      </Code>,
-      " - ",
-    );
+    const formattedLevel = level.toUpperCase();
+
+    if (renderingMode === "text") {
+      elements.push(`${formattedLevel} - `);
+    } else {
+      elements.push(
+        <Code
+          colorPalette={level.toUpperCase() in LogLevel ? logLevelColorMapping[level as LogLevel] : undefined}
+          key={1}
+          lineHeight={1.5}
+          minH={0}
+          px={0}
+        >
+          {formattedLevel}
+        </Code>,
+        " - ",
+      );
+    }
   }
 
   const { error_detail: errorDetail, ...reStructured } = structured;
@@ -157,13 +186,23 @@ export const renderStructuredLog = ({
 
   if (errorDetail !== undefined) {
     details = (errorDetail as Array<ErrorDetail>).map((error) => {
-      const errorLines = error.frames.map((frame) => (
-        <chakra.p key={`frame-${frame.name}-${frame.filename}-${frame.lineno}`}>
-          {translate("components:logs.file")}{" "}
-          <chakra.span color="fg.info">{JSON.stringify(frame.filename)}</chakra.span>,{" "}
-          {translate("components:logs.location", { line: frame.lineno, name: frame.name })}
-        </chakra.p>
-      ));
+      const errorLines = error.frames.map((frame) => {
+        if (renderingMode === "text") {
+          return `    ${translate("components:logs.file")} ${frame.filename}, ${translate("components:logs.location", { line: frame.lineno, name: frame.name })}\n`;
+        }
+
+        return (
+          <chakra.p key={`frame-${frame.name}-${frame.filename}-${frame.lineno}`}>
+            {translate("components:logs.file")}{" "}
+            <chakra.span color="fg.info">{JSON.stringify(frame.filename)}</chakra.span>,{" "}
+            {translate("components:logs.location", { line: frame.lineno, name: frame.name })}
+          </chakra.p>
+        );
+      });
+
+      if (renderingMode === "text") {
+        return `${error.exc_type}: ${error.exc_value}\n${(errorLines as Array<string>).join("")}`;
+      }
 
       return (
         <chakra.details key={error.exc_type} ms="20em" open={true}>
@@ -179,9 +218,13 @@ export const renderStructuredLog = ({
   }
 
   elements.push(
-    <chakra.span className="event" key={2} whiteSpace="pre-wrap">
-      {addLinks(event)}
-    </chakra.span>,
+    renderingMode === "text" ? (
+      event
+    ) : (
+      <chakra.span className="event" key={2} whiteSpace="pre-wrap">
+        {addAnsiWithLinks(event)}
+      </chakra.span>
+    ),
   );
 
   if (Object.hasOwn(reStructured, "filename") && Object.hasOwn(reStructured, "lineno")) {
@@ -198,29 +241,36 @@ export const renderStructuredLog = ({
       }
       const val = reStructured[key] as boolean | number | object | string | null;
 
-      elements.push(
-        " ",
-        <span data-key={key}>
-          <chakra.span color="fg.info" key={`prop_${key}`}>
-            {key === "logger" ? "source" : key}
-          </chakra.span>
-          =
-          <span data-value>
-            {
-              // Let strings, ints, etc through as is, but JSON stringify anything more complex
-              val instanceof Object ? JSON.stringify(val) : val
-            }
-          </span>
-        </span>,
-      );
+      // Let strings, ints, etc through as is, but JSON stringify anything more complex
+      const stringifiedValue = val instanceof Object ? JSON.stringify(val) : val;
+
+      if (renderingMode === "text") {
+        elements.push(`${key === "logger" ? "source" : key}=${stringifiedValue} `);
+      } else {
+        elements.push(
+          <React.Fragment key={`space_${key}`}> </React.Fragment>,
+          <span data-key={key} key={`struct_${key}`}>
+            <chakra.span color="fg.info">{key === "logger" ? "source" : key}</chakra.span>=
+            <span data-value>{stringifiedValue}</span>
+          </span>,
+        );
+      }
     }
   }
 
   elements.push(
-    <chakra.span className="event" key={3} whiteSpace="pre-wrap">
-      {details}
-    </chakra.span>,
+    renderingMode === "text" ? (
+      details
+    ) : (
+      <chakra.span className="event" key={3} whiteSpace="pre-wrap">
+        {details}
+      </chakra.span>
+    ),
   );
+
+  if (renderingMode === "text") {
+    return (elements as Array<string>).join("");
+  }
 
   return (
     <chakra.div display="flex" key={index} lineHeight={1.5}>
@@ -247,3 +297,12 @@ export const renderStructuredLog = ({
     </chakra.div>
   );
 };
+
+// Overloads for renderStructuredLog function for stick type safety
+type RenderStructuredLogOverloads = {
+  (props: { renderingMode: "jsx" } & Omit<RenderStructuredLogProps, "renderingMode">): JSX.Element | "";
+  (props: { renderingMode: "text" } & Omit<RenderStructuredLogProps, "renderingMode">): string;
+};
+
+export const renderStructuredLog: RenderStructuredLogOverloads =
+  renderStructuredLogImpl as unknown as RenderStructuredLogOverloads;

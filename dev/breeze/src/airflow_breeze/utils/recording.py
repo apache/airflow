@@ -27,8 +27,6 @@ from airflow_breeze.utils.path_utils import in_autocomplete
 if TYPE_CHECKING:
     from rich.console import Console
 
-help_console: Console | None = None
-
 DEFAULT_COLUMNS = 129
 
 
@@ -39,6 +37,8 @@ def generating_command_images() -> bool:
 def enable_recording_of_help_output(path: str, title: str | None, width: str | None, unique_id: str | None):
     import rich_click as click
 
+    help_consoles: list[Console] = []
+
     if not title:
         title = "Breeze screenshot"
     if not width:
@@ -47,8 +47,8 @@ def enable_recording_of_help_output(path: str, title: str | None, width: str | N
         width_int = int(width)
 
     def save_output_as_svg():
-        if help_console:
-            help_console.save_svg(path=path, title=title, unique_id=unique_id)
+        for console in help_consoles:
+            console.save_svg(path=path, title=title, unique_id=unique_id)
 
     atexit.register(save_output_as_svg)
     click.rich_click.MAX_WIDTH = width_int
@@ -67,8 +67,7 @@ def enable_recording_of_help_output(path: str, title: str | None, width: str | N
         recording_config.force_terminal = True
         recording_console = original_create_console(recording_config, file)
         recording_console.record = True
-        global help_console
-        help_console = recording_console
+        help_consoles.append(recording_console)
         return recording_console
 
     rich_click.rich_help_formatter.create_console = create_recording_console

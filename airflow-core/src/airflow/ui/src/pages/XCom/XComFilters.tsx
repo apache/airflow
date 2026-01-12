@@ -17,65 +17,38 @@
  * under the License.
  */
 import { VStack } from "@chakra-ui/react";
-import { useMemo } from "react";
 import { useParams } from "react-router-dom";
 
-import { FilterBar, type FilterValue } from "src/components/FilterBar";
+import { FilterBar } from "src/components/FilterBar";
 import { SearchParamsKeys } from "src/constants/searchParams";
 import { useFiltersHandler, type FilterableSearchParamsKeys } from "src/utils";
 
 export const XComFilters = () => {
   const { dagId = "~", mapIndex = "-1", runId = "~", taskId = "~" } = useParams();
 
-  const searchParamKeys = useMemo((): Array<FilterableSearchParamsKeys> => {
-    const keys: Array<FilterableSearchParamsKeys> = [
-      SearchParamsKeys.KEY_PATTERN,
-      SearchParamsKeys.LOGICAL_DATE_GTE,
-      SearchParamsKeys.LOGICAL_DATE_LTE,
-      SearchParamsKeys.RUN_AFTER_GTE,
-      SearchParamsKeys.RUN_AFTER_LTE,
-    ];
+  const searchParamKeys: Array<FilterableSearchParamsKeys> = [
+    SearchParamsKeys.KEY_PATTERN,
+    SearchParamsKeys.LOGICAL_DATE_RANGE,
+    SearchParamsKeys.RUN_AFTER_RANGE,
+  ];
 
-    if (dagId === "~") {
-      keys.push(SearchParamsKeys.DAG_DISPLAY_NAME_PATTERN);
-    }
+  if (dagId === "~") {
+    searchParamKeys.push(SearchParamsKeys.DAG_DISPLAY_NAME_PATTERN);
+  }
 
-    if (runId === "~") {
-      keys.push(SearchParamsKeys.RUN_ID_PATTERN);
-    }
+  if (runId === "~") {
+    searchParamKeys.push(SearchParamsKeys.RUN_ID_PATTERN);
+  }
 
-    if (taskId === "~") {
-      keys.push(SearchParamsKeys.TASK_ID_PATTERN);
-    }
+  if (taskId === "~") {
+    searchParamKeys.push(SearchParamsKeys.TASK_ID_PATTERN);
+  }
 
-    if (mapIndex === "-1") {
-      keys.push(SearchParamsKeys.MAP_INDEX);
-    }
+  if (mapIndex === "-1") {
+    searchParamKeys.push(SearchParamsKeys.MAP_INDEX);
+  }
 
-    return keys;
-  }, [dagId, mapIndex, runId, taskId]);
-
-  const { filterConfigs, handleFiltersChange, searchParams } = useFiltersHandler(searchParamKeys);
-
-  const initialValues = useMemo(() => {
-    const values: Record<string, FilterValue> = {};
-
-    filterConfigs.forEach((config) => {
-      const value = searchParams.get(config.key);
-
-      if (value !== null && value !== "") {
-        if (config.type === "number") {
-          const parsedValue = Number(value);
-
-          values[config.key] = isNaN(parsedValue) ? value : parsedValue;
-        } else {
-          values[config.key] = value;
-        }
-      }
-    });
-
-    return values;
-  }, [searchParams, filterConfigs]);
+  const { filterConfigs, handleFiltersChange, initialValues } = useFiltersHandler(searchParamKeys);
 
   return (
     <VStack align="start" gap={4} paddingY="4px">

@@ -92,10 +92,10 @@ def _trigger_dag(
     else:
         data_interval = None
 
-    run_id = run_id or DagRun.generate_run_id(
+    run_id = run_id or dag.timetable.generate_run_id(
         run_type=DagRunType.MANUAL,
-        logical_date=coerced_logical_date,
         run_after=timezone.coerce_datetime(run_after),
+        data_interval=data_interval,
     )
 
     # This intentionally does not use 'session' in the current scope because it

@@ -34,36 +34,19 @@ def get_base_airflow_version_tuple() -> tuple[int, int, int]:
 
 AIRFLOW_V_3_0_PLUS: bool = get_base_airflow_version_tuple() >= (3, 0, 0)
 AIRFLOW_V_3_1_PLUS: bool = get_base_airflow_version_tuple() >= (3, 1, 0)
+AIRFLOW_V_3_1_3_PLUS: bool = get_base_airflow_version_tuple() >= (3, 1, 3)
 AIRFLOW_V_3_2_PLUS: bool = get_base_airflow_version_tuple() >= (3, 2, 0)
 
-# BaseOperator is not imported from SDK from 3.0 (and only done from 3.1) due to a bug with
-# DecoratedOperator -- where `DecoratedOperator._handle_output` needed `xcom_push` to exist on `BaseOperator`
-# even though it wasn't used.
+# BaseOperator: Use 3.1+ due to xcom_push method missing in SDK BaseOperator 3.0.x
+# This is needed for DecoratedOperator compatibility
 if AIRFLOW_V_3_1_PLUS:
-    from airflow.sdk import BaseHook, BaseOperator, timezone
-    from airflow.sdk.definitions.context import context_merge
+    from airflow.sdk import BaseOperator
 else:
-    from airflow.hooks.base import BaseHook  # type: ignore[attr-defined,no-redef]
     from airflow.models.baseoperator import BaseOperator  # type: ignore[no-redef]
-    from airflow.utils import timezone  # type: ignore[attr-defined,no-redef]
-    from airflow.utils.context import context_merge  # type: ignore[no-redef, attr-defined]
-
-if AIRFLOW_V_3_0_PLUS:
-    from airflow.sdk import BaseOperatorLink
-    from airflow.sdk.bases.sensor import BaseSensorOperator, PokeReturnValue
-else:
-    from airflow.models.baseoperatorlink import BaseOperatorLink  # type: ignore[no-redef]
-    from airflow.sensors.base import BaseSensorOperator, PokeReturnValue  # type: ignore[no-redef]
 
 __all__ = [
     "AIRFLOW_V_3_0_PLUS",
     "AIRFLOW_V_3_1_PLUS",
     "AIRFLOW_V_3_2_PLUS",
     "BaseOperator",
-    "BaseOperatorLink",
-    "BaseHook",
-    "BaseSensorOperator",
-    "PokeReturnValue",
-    "context_merge",
-    "timezone",
 ]

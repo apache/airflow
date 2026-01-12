@@ -24,21 +24,18 @@ import pytest
 import time_machine
 from moto import mock_aws
 
-from airflow.exceptions import AirflowException
 from airflow.models import DAG, DagRun, TaskInstance
 from airflow.models.variable import Variable
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
 from airflow.providers.amazon.aws.sensors.s3 import S3KeySensor, S3KeysUnchangedSensor
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.utils.state import DagRunState
 from airflow.utils.types import DagRunType
 
+from tests_common.test_utils.compat import timezone
 from tests_common.test_utils.dag import sync_dag_to_db
+from tests_common.test_utils.taskinstance import create_task_instance, render_template_fields
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
-
-try:
-    from airflow.sdk import timezone
-except ImportError:
-    from airflow.utils import timezone  # type: ignore[attr-defined,no-redef]
 
 DEFAULT_DATE = datetime(2015, 1, 1)
 
@@ -95,7 +92,7 @@ class TestS3KeySensor:
             op.poke(None)
 
     @pytest.mark.parametrize(
-        "key, bucket, parsed_key, parsed_bucket",
+        ("key", "bucket", "parsed_key", "parsed_bucket"),
         [
             pytest.param("s3://bucket/key", None, "key", "bucket", id="key as s3url"),
             pytest.param("key", "bucket", "key", "bucket", id="separate bucket and key"),
@@ -146,8 +143,9 @@ class TestS3KeySensor:
                 run_id="test",
                 run_type=DagRunType.MANUAL,
                 state=DagRunState.RUNNING,
+                run_after=timezone.utcnow(),
             )
-            ti = TaskInstance(task=op, dag_version_id=dag_version.id)
+            ti = create_task_instance(task=op, run_id="test", dag_version_id=dag_version.id)
         else:
             dag_run = DagRun(
                 dag_id=dag.dag_id,
@@ -158,11 +156,8 @@ class TestS3KeySensor:
             )
             ti = TaskInstance(task=op)
         ti.dag_run = dag_run
-        session.add(ti)
-        session.commit()
-        context = ti.get_template_context(session)
-        ti.render_templates(context)
-        op.poke(None)
+        rendered = render_template_fields(ti, op)
+        rendered.poke(None)
 
         mock_head_object.assert_called_once_with("key", "bucket")
 
@@ -205,14 +200,12 @@ class TestS3KeySensor:
                 run_id="test",
                 run_type=DagRunType.MANUAL,
                 state=DagRunState.RUNNING,
+                run_after=timezone.utcnow(),
             )
-            ti = TaskInstance(task=op, dag_version_id=dag_version.id)
+            ti = create_task_instance(task=op, run_id="test", dag_version_id=dag_version.id)
         ti.dag_run = dag_run
-        session.add(ti)
-        session.commit()
-        context = ti.get_template_context(session)
-        ti.render_templates(context)
-        op.poke(None)
+        rendered = render_template_fields(ti, op)
+        rendered.poke(None)
 
         mock_head_object.assert_any_call("file1", "bucket")
         mock_head_object.assert_any_call("file2", "bucket")
@@ -294,7 +287,7 @@ class TestS3KeySensor:
         assert op.poke(None) is True
 
     @pytest.mark.parametrize(
-        "key, pattern, expected",
+        ("key", "pattern", "expected"),
         [
             ("test.csv", r"[a-z]+\.csv", True),
             ("test.txt", r"test/[a-z]+\.csv", False),
@@ -343,7 +336,7 @@ class TestS3KeySensor:
             op.execute_complete(context={}, event={"status": "error", "message": message})
 
     @pytest.mark.parametrize(
-        "metadata_keys, expected",
+        ("metadata_keys", "expected"),
         [
             (["Size", "Key"], True),
             (["Content"], False),
@@ -491,7 +484,7 @@ class TestS3KeysUnchangedSensor:
         )
 
     def test_reschedule_mode_not_allowed(self):
-        with pytest.raises(ValueError):
+        with pytest.raises(ValueError, match="Cannot set mode to 'reschedule'. Only 'poke' is acceptable"):
             S3KeysUnchangedSensor(
                 task_id="sensor_2",
                 bucket_name="test-bucket",
@@ -522,7 +515,7 @@ class TestS3KeysUnchangedSensor:
             self.sensor.is_keys_unchanged({"a"})
 
     @pytest.mark.parametrize(
-        "current_objects, expected_returns, inactivity_periods",
+        ("current_objects", "expected_returns", "inactivity_periods"),
         [
             pytest.param(
                 ({"a"}, {"a", "b"}, {"a", "b", "c"}),

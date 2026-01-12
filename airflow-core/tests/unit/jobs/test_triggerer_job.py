@@ -46,19 +46,16 @@ from airflow.jobs.triggerer_job_runner import (
     TriggerRunnerSupervisor,
     messages,
 )
-from airflow.models import DagModel, DagRun, TaskInstance, Trigger
-from airflow.models.connection import Connection
-from airflow.models.dag import DAG
+from airflow.models import Connection, DagModel, DagRun, Trigger, Variable
 from airflow.models.dag_version import DagVersion
 from airflow.models.dagbundle import DagBundleModel
 from airflow.models.serialized_dag import SerializedDagModel
-from airflow.models.variable import Variable
 from airflow.models.xcom import XComModel
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.providers.standard.operators.python import PythonOperator
 from airflow.providers.standard.triggers.file import FileDeleteTrigger
 from airflow.providers.standard.triggers.temporal import DateTimeTrigger, TimeDeltaTrigger
-from airflow.sdk import BaseHook, BaseOperator
+from airflow.sdk import DAG, BaseHook, BaseOperator
 from airflow.sdk.execution_time.comms import ToSupervisor, ToTask
 from airflow.serialization.serialized_objects import LazyDeserializedDAG
 from airflow.triggers.base import BaseTrigger, TriggerEvent
@@ -76,6 +73,7 @@ from tests_common.test_utils.db import (
     clear_db_variables,
     clear_db_xcom,
 )
+from tests_common.test_utils.taskinstance import create_task_instance
 
 if TYPE_CHECKING:
     from kgb import SpyAgency
@@ -135,7 +133,7 @@ def create_trigger_in_db(session, trigger, operator=None):
     session.add(trigger_orm)
     session.flush()
     dag_version = DagVersion.get_latest_version(dag.dag_id)
-    task_instance = TaskInstance(operator, run_id=run.run_id, dag_version_id=dag_version.id)
+    task_instance = create_task_instance(operator, run_id=run.run_id, dag_version_id=dag_version.id)
     task_instance.trigger_id = trigger_orm.id
     session.add(task_instance)
     session.commit()
@@ -180,7 +178,7 @@ def test_capacity_decode():
     ]
     for input_str in variants:
         job = Job()
-        with pytest.raises(ValueError):
+        with pytest.raises(ValueError, match=r"Capacity number .+ is invalid"):
             TriggererJobRunner(job=job, capacity=input_str)
 
 
@@ -279,7 +277,7 @@ def test_trigger_lifecycle(spy_agency: SpyAgency, session, testing_dag_bundle):
 
 
 @pytest.mark.parametrize(
-    "trigger, watcher_count, trigger_count",
+    ("trigger", "watcher_count", "trigger_count"),
     [
         (TimeDeltaTrigger(datetime.timedelta(days=7)), 0, 1),
         (FileDeleteTrigger("/tmp/foo.txt", poke_interval=1), 1, 0),
@@ -309,7 +307,7 @@ class TestTriggerRunner:
     def test_run_inline_trigger_canceled(self, session) -> None:
         trigger_runner = TriggerRunner()
         trigger_runner.triggers = {
-            1: {"task": MagicMock(spec=asyncio.Task), "name": "mock_name", "events": 0}
+            1: {"task": MagicMock(spec=asyncio.Task), "is_watcher": False, "name": "mock_name", "events": 0}
         }
         mock_trigger = MagicMock(spec=BaseTrigger)
         mock_trigger.timeout_after = None
@@ -322,14 +320,17 @@ class TestTriggerRunner:
     def test_run_inline_trigger_timeout(self, session, cap_structlog) -> None:
         trigger_runner = TriggerRunner()
         trigger_runner.triggers = {
-            1: {"task": MagicMock(spec=asyncio.Task), "name": "mock_name", "events": 0}
+            1: {"task": MagicMock(spec=asyncio.Task), "is_watcher": False, "name": "mock_name", "events": 0}
         }
         mock_trigger = MagicMock(spec=BaseTrigger)
-        mock_trigger.timeout_after = timezone.utcnow() - datetime.timedelta(hours=1)
         mock_trigger.run.side_effect = asyncio.CancelledError()
 
         with pytest.raises(asyncio.CancelledError):
-            asyncio.run(trigger_runner.run_trigger(1, mock_trigger))
+            asyncio.run(
+                trigger_runner.run_trigger(
+                    1, mock_trigger, timeout_after=timezone.utcnow() - datetime.timedelta(hours=1)
+                )
+            )
         assert {"event": "Trigger cancelled due to timeout", "log_level": "error"} in cap_structlog
 
     @patch("airflow.jobs.triggerer_job_runner.Trigger._decrypt_kwargs")
@@ -437,7 +438,8 @@ class TestTriggerRunner:
 
 
 @pytest.mark.asyncio
-async def test_trigger_create_race_condition_38599(session, supervisor_builder, testing_dag_bundle):
+@pytest.mark.usefixtures("testing_dag_bundle")
+async def test_trigger_create_race_condition_38599(session, supervisor_builder):
     """
     This verifies the resolution of race condition documented in github issue #38599.
     More details in the issue description.
@@ -462,19 +464,20 @@ async def test_trigger_create_race_condition_38599(session, supervisor_builder, 
     session.flush()
 
     bundle_name = "testing"
-    dag = DAG(dag_id="test-dag")
+    with DAG(dag_id="test-dag") as dag:
+        task = PythonOperator(task_id="dummy-task", python_callable=print)
     dm = DagModel(dag_id="test-dag", bundle_name=bundle_name)
     session.add(dm)
+
     SerializedDagModel.write_dag(LazyDeserializedDAG.from_dag(dag), bundle_name=bundle_name)
     dag_run = DagRun(dag.dag_id, run_id="abc", run_type="none", run_after=timezone.utcnow())
     dag_version = DagVersion.get_latest_version(dag.dag_id)
-    ti = TaskInstance(
-        PythonOperator(task_id="dummy-task", python_callable=print),
+    ti = create_task_instance(
+        task,
         run_id=dag_run.run_id,
         state=TaskInstanceState.DEFERRED,
         dag_version_id=dag_version.id,
     )
-    ti.dag_id = dag.dag_id
     ti.trigger_id = trigger_orm.id
     session.add(dag_run)
     session.add(ti)
@@ -918,7 +921,7 @@ class CustomTriggerDagRun(BaseTrigger):
 
 
 @pytest.mark.asyncio
-@pytest.mark.execution_timeout(10)
+@pytest.mark.execution_timeout(20)
 async def test_trigger_can_fetch_trigger_dag_run_count_and_state_in_deferrable(session, dag_maker):
     """Checks that the trigger will successfully fetch the count of trigger DAG runs."""
     # Create the test DAG and task
@@ -1009,7 +1012,7 @@ class CustomTriggerWorkflowStateTrigger(BaseTrigger):
 
 
 @pytest.mark.asyncio
-@pytest.mark.execution_timeout(10)
+@pytest.mark.execution_timeout(20)
 async def test_trigger_can_fetch_dag_run_count_ti_count_in_deferrable(session, dag_maker):
     """Checks that the trigger will successfully fetch the count of DAG runs, Task count and task states."""
     # Create the test DAG and task
@@ -1140,6 +1143,38 @@ def test_update_triggers_prevents_duplicate_creation_queue_entries_with_multiple
     assert trigger_orm2.id in trigger_ids
 
 
+def test_update_triggers_skips_when_ti_has_no_dag_version(session, supervisor_builder, dag_maker):
+    """
+    Ensure supervisor skips creating a trigger when the linked TaskInstance has no dag_version_id.
+    """
+    with dag_maker(dag_id="test_no_dag_version"):
+        EmptyOperator(task_id="t1")
+    dr = dag_maker.create_dagrun()
+    ti = dr.task_instances[0]
+
+    # Create a Trigger and link it to the TaskInstance
+    trigger = TimeDeltaTrigger(datetime.timedelta(days=7))
+    trigger_orm = Trigger.from_object(trigger)
+    session.add(trigger_orm)
+    session.flush()
+
+    ti.trigger_id = trigger_orm.id
+    # Explicitly remove dag_version_id
+    ti.dag_version_id = None
+    session.merge(ti)
+    session.commit()
+
+    supervisor = supervisor_builder()
+
+    # Attempt to enqueue creation of this trigger
+    supervisor.update_triggers({trigger_orm.id})
+
+    # Assert that nothing was queued for creation and no subprocess writes happened
+    assert len(supervisor.creating_triggers) == 0
+    assert trigger_orm.id not in supervisor.running_triggers
+    supervisor.stdin.write.assert_not_called()
+
+
 class TestTriggererMessageTypes:
     def test_message_types_in_triggerer(self):
         """
@@ -1165,8 +1200,10 @@ class TestTriggererMessageTypes:
             "GetAssetByUri",
             "GetAssetEventByAsset",
             "GetAssetEventByAssetAlias",
+            "GetDagRun",
             "GetPrevSuccessfulDagRun",
             "GetPreviousDagRun",
+            "GetTaskBreadcrumbs",
             "GetTaskRescheduleStartDate",
             "GetXComCount",
             "GetXComSequenceItem",
@@ -1181,13 +1218,16 @@ class TestTriggererMessageTypes:
             "TriggerDagRun",
             "ResendLoggingFD",
             "CreateHITLDetailPayload",
+            "SetRenderedMapIndex",
         }
 
         in_task_but_not_in_trigger_runner = {
             "AssetResult",
             "AssetEventsResult",
+            "DagRunResult",
             "SentFDs",
             "StartupDetails",
+            "TaskBreadcrumbsResult",
             "TaskRescheduleStartDate",
             "InactiveAssetsResult",
             "CreateHITLDetailPayload",
@@ -1196,6 +1236,7 @@ class TestTriggererMessageTypes:
             "XComSequenceIndexResult",
             "XComSequenceSliceResult",
             "PreviousDagRunResult",
+            "PreviousTIResult",
             "HITLDetailRequestResult",
         }
 

@@ -110,7 +110,7 @@ def test_private_access(env):
 
 
 @pytest.mark.parametrize(
-    ["name", "expected"],
+    ("name", "expected"),
     (
         ("ds", "2012-07-24"),
         ("ds_nodash", "20120724"),

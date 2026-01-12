@@ -30,8 +30,9 @@ import polars as pl
 import pytest
 from databricks.sql.types import Row
 
-from airflow.exceptions import AirflowException, AirflowOptionalProviderFeatureException
+from airflow.exceptions import AirflowOptionalProviderFeatureException
 from airflow.models import Connection
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.common.sql.hooks.handlers import fetch_all_handler
 from airflow.providers.databricks.hooks.databricks_sql import DatabricksSqlHook, create_timeout_thread
 
@@ -155,8 +156,17 @@ SerializableRow = namedtuple("Row", ["id", "value"])  # type: ignore[name-match]
 
 
 @pytest.mark.parametrize(
-    "return_last, split_statements, sql, execution_timeout, cursor_calls,"
-    "cursor_descriptions, cursor_results, hook_descriptions, hook_results, ",
+    (
+        "return_last",
+        "split_statements",
+        "sql",
+        "execution_timeout",
+        "cursor_calls",
+        "cursor_descriptions",
+        "cursor_results",
+        "hook_descriptions",
+        "hook_results",
+    ),
     [
         pytest.param(
             True,
@@ -378,7 +388,7 @@ def test_no_query(databricks_hook, empty_statement):
 
 
 @pytest.mark.parametrize(
-    "row_objects, fields_names",
+    ("row_objects", "fields_names"),
     [
         pytest.param(Row("count(1)")(9714), ("_0",)),
         pytest.param(Row("1//@:()")("data"), ("_0",)),
@@ -397,7 +407,7 @@ def test_incorrect_column_names(row_objects, fields_names):
 
 
 @pytest.mark.parametrize(
-    "sql, execution_timeout, cursor_descriptions, cursor_results",
+    ("sql", "execution_timeout", "cursor_descriptions", "cursor_results"),
     [
         (
             "select * from test.test",
@@ -560,7 +570,7 @@ def test_get_openlineage_database_specific_lineage_with_old_openlineage_provider
     hook.get_openlineage_database_info = lambda x: mock.MagicMock(authority="auth", scheme="scheme")
 
     expected_err = (
-        "OpenLineage provider version `1.99.0` is lower than required `2.3.0`, "
+        "OpenLineage provider version `1.99.0` is lower than required `2.5.0`, "
         "skipping function `emit_openlineage_events_for_databricks_queries` execution"
     )
     with pytest.raises(AirflowOptionalProviderFeatureException, match=expected_err):
@@ -568,7 +578,7 @@ def test_get_openlineage_database_specific_lineage_with_old_openlineage_provider
 
 
 @pytest.mark.parametrize(
-    "df_type, df_class, description",
+    ("df_type", "df_class", "description"),
     [
         pytest.param("pandas", pd.DataFrame, [(("col",))], id="pandas-dataframe"),
         pytest.param(

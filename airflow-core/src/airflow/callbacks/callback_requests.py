@@ -77,7 +77,7 @@ class TaskCallbackRequest(BaseCallbackRequest):
         }
 
 
-class EmailNotificationRequest(BaseCallbackRequest):
+class EmailRequest(BaseCallbackRequest):
     """Email notification request for task failures/retries."""
 
     ti: ti_datamodel.TaskInstance
@@ -86,7 +86,7 @@ class EmailNotificationRequest(BaseCallbackRequest):
     """Whether this is for a failure or retry email"""
     context_from_server: ti_datamodel.TIRunContext
     """Task execution context from the Server"""
-    type: Literal["EmailNotificationRequest"] = "EmailNotificationRequest"
+    type: Literal["EmailRequest"] = "EmailRequest"
 
 
 class DagRunContext(BaseModel):
@@ -108,6 +108,9 @@ class DagCallbackRequest(BaseCallbackRequest):
 
 
 CallbackRequest = Annotated[
-    DagCallbackRequest | TaskCallbackRequest | EmailNotificationRequest,
+    DagCallbackRequest | TaskCallbackRequest | EmailRequest,
     Field(discriminator="type"),
 ]
+
+# Backwards compatibility alias
+EmailNotificationRequest = EmailRequest

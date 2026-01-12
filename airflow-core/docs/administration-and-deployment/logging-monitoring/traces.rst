@@ -43,6 +43,15 @@ Add the following lines to your configuration file e.g. ``airflow.cfg``
     otel_ssl_active = False
     otel_task_log_event = True
 
+.. note::
+
+    To support the OpenTelemetry exporter standard, the ``traces`` configurations are transparently superseded by use of standard OpenTelemetry SDK environment variables.
+
+    - ``OTEL_EXPORTER_OTLP_ENDPOINT`` and ``OTEL_EXPORTER_OTLP_TRACES_ENDPOINT`` overridden ``otel_host``, ``otel_port`` and ``otel_ssl_active``
+
+    See the OpenTelemetry `exporter protocol specification <https://opentelemetry.io/docs/specs/otel/protocol/exporter/#configuration-options>`_  and
+    `SDK environment variable documentation <https://opentelemetry.io/docs/specs/otel/configuration/sdk-environment-variables/#periodic-exporting-metricreader>`_ for more information.
+
 Enable Https
 -----------------
 

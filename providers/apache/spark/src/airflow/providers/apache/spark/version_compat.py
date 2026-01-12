@@ -22,6 +22,15 @@
 #
 from __future__ import annotations
 
+# Re-export from common.compat for backward compatibility
+from airflow.providers.common.compat.sdk import (
+    BaseHook,
+    BaseOperator,
+    DecoratedOperator,
+    TaskDecorator,
+    task_decorator_factory,
+)
+
 
 def get_base_airflow_version_tuple() -> tuple[int, int, int]:
     from packaging.version import Version
@@ -34,22 +43,6 @@ def get_base_airflow_version_tuple() -> tuple[int, int, int]:
 
 AIRFLOW_V_3_0_PLUS = get_base_airflow_version_tuple() >= (3, 0, 0)
 AIRFLOW_V_3_1_PLUS: bool = get_base_airflow_version_tuple() >= (3, 1, 0)
-
-if AIRFLOW_V_3_1_PLUS:
-    from airflow.sdk import BaseHook
-else:
-    from airflow.hooks.base import BaseHook  # type: ignore[attr-defined,no-redef]
-
-if AIRFLOW_V_3_0_PLUS:
-    from airflow.sdk import BaseOperator
-    from airflow.sdk.bases.decorator import DecoratedOperator, TaskDecorator, task_decorator_factory
-else:
-    from airflow.decorators.base import (  # type: ignore[no-redef]
-        DecoratedOperator,
-        TaskDecorator,
-        task_decorator_factory,
-    )
-    from airflow.models import BaseOperator
 
 __all__ = [
     "AIRFLOW_V_3_0_PLUS",

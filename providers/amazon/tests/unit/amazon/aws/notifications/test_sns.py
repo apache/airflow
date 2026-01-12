@@ -21,7 +21,7 @@ from unittest import mock
 import pytest
 
 from airflow.providers.amazon.aws.notifications.sns import SnsNotifier, send_sns_notification
-from airflow.utils.types import NOTSET
+from airflow.providers.amazon.version_compat import NOTSET
 
 PUBLISH_KWARGS = {
     "target_arn": "arn:aws:sns:us-west-2:123456789098:TopicName",

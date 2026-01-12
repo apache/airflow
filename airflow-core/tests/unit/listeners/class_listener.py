@@ -34,8 +34,7 @@ class ClassBasedListener:
 
     @hookimpl
     def before_stopping(self, component):
-        global stopped_component
-        stopped_component = component
+        self.stopped_component = component
         self.state.append(DagRunState.SUCCESS)
 
     @hookimpl

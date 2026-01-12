@@ -21,9 +21,8 @@ import logging
 from typing import Any
 
 import anyio
-from fastapi import HTTPException, Request
-from starlette import status
-from starlette.responses import RedirectResponse
+from fastapi import HTTPException, Request, status
+from fastapi.responses import RedirectResponse
 
 from airflow.api_fastapi.app import (
     AUTH_MANAGER_FASTAPI_APP_PREFIX,
@@ -31,10 +30,11 @@ from airflow.api_fastapi.app import (
 )
 from airflow.api_fastapi.auth.managers.base_auth_manager import COOKIE_NAME_JWT_TOKEN
 from airflow.api_fastapi.common.router import AirflowRouter
-from airflow.configuration import conf
 from airflow.providers.amazon.aws.auth_manager.constants import CONF_SAML_METADATA_URL_KEY, CONF_SECTION_NAME
 from airflow.providers.amazon.aws.auth_manager.datamodels.login import LoginResponse
 from airflow.providers.amazon.aws.auth_manager.user import AwsAuthManagerUser
+from airflow.providers.amazon.version_compat import AIRFLOW_V_3_1_1_PLUS
+from airflow.providers.common.compat.sdk import conf
 
 try:
     from onelogin.saml2.auth import OneLogin_Saml2_Auth
@@ -101,7 +101,12 @@ def login_callback(request: Request):
     if relay_state == "login-redirect":
         response = RedirectResponse(url=url, status_code=303)
         secure = bool(conf.get("api", "ssl_cert", fallback=""))
-        response.set_cookie(COOKIE_NAME_JWT_TOKEN, token, secure=secure)
+        # In Airflow 3.1.1 authentication changes, front-end no longer handle the token
+        # See https://github.com/apache/airflow/pull/55506
+        if AIRFLOW_V_3_1_1_PLUS:
+            response.set_cookie(COOKIE_NAME_JWT_TOKEN, token, secure=secure, httponly=True)
+        else:
+            response.set_cookie(COOKIE_NAME_JWT_TOKEN, token, secure=secure)
         return response
     if relay_state == "login-token":
         return LoginResponse(access_token=token)

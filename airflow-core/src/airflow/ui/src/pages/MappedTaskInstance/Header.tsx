@@ -26,13 +26,7 @@ import { HeaderCard } from "src/components/HeaderCard";
 import Time from "src/components/Time";
 import { getDuration } from "src/utils";
 
-export const Header = ({
-  isRefreshing,
-  taskInstance,
-}: {
-  readonly isRefreshing?: boolean;
-  readonly taskInstance: LightGridTaskInstanceSummary;
-}) => {
+export const Header = ({ taskInstance }: { readonly taskInstance: LightGridTaskInstanceSummary }) => {
   const { t: translate } = useTranslation();
   const entries: Array<{ label: string; value: number | ReactNode | string }> = [];
   let taskCount: number = 0;
@@ -62,7 +56,6 @@ export const Header = ({
     <Box>
       <HeaderCard
         icon={<MdOutlineTask />}
-        isRefreshing={isRefreshing}
         state={taskInstance.state}
         stats={stats}
         subTitle={<Time datetime={taskInstance.min_start_date} />}

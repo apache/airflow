@@ -32,7 +32,7 @@ AIRFLOW_SOURCES = Path(__file__).parents[3].resolve()
 
 
 @pytest.mark.parametrize(
-    "parameter, value, result, exception",
+    ("parameter", "value", "result", "exception"),
     [
         ("backend", "mysql", (True, ["sqlite", "mysql", "postgres", "none"]), None),
         ("backend", "xxx", (False, ["sqlite", "mysql", "postgres", "none"]), None),

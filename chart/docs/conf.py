@@ -204,9 +204,8 @@ def _format_examples(param_name: str, schema: dict) -> str | None:
 
     # Nicer to have the parameter name shown as well
     out = ""
-    for ex in schema["examples"]:
-        if schema["type"] == "array":
-            ex = [ex]
+    for ex_data in schema["examples"]:
+        ex = [ex_data] if schema["type"] == "array" else ex_data
         out += yaml.dump({param_name: ex})
     return out
 
@@ -218,16 +217,18 @@ def _get_params(root_schema: dict, prefix: str = "", default_section: str = "") 
     Given an jsonschema objects properties dict, return a flattened list of all parameters
     from that object and any nested objects
     """
-    # TODO: handle arrays? probably missing more cases too
     out = []
     for param_name, schema in root_schema.items():
         prefixed_name = f"{prefix}.{param_name}" if prefix else param_name
         section_name = schema["x-docsSection"] if "x-docsSection" in schema else default_section
-        if section_name and schema["description"] and "default" in schema:
+        common_out = {
+            "section": section_name,
+            "name": prefixed_name,
+        }
+        if section_name and "description" in schema and schema["description"] and "default" in schema:
             out.append(
                 {
-                    "section": section_name,
-                    "name": prefixed_name,
+                    **common_out,
                     "description": schema["description"],
                     "default": _format_default(schema["default"]),
                     "examples": _format_examples(param_name, schema),
@@ -235,7 +236,32 @@ def _get_params(root_schema: dict, prefix: str = "", default_section: str = "") 
             )
         if schema.get("properties"):
             out += _get_params(schema["properties"], prefixed_name, section_name)
+        items = schema.get("items")
+        if items:
+            out.extend(_process_array_items(items, prefixed_name, param_name, section_name))
     return out
+
+
+def _process_array_items(items: dict, parent_name: str, param_name: str, default_section: str) -> list[dict]:
+    """Extract parameters from array item schemas."""
+    item_prefix = f"{parent_name}[]"
+    section_name = items.get("x-docsSection", default_section)
+
+    if items.get("properties"):
+        return _get_params(items["properties"], item_prefix, section_name)
+
+    if section_name and items.get("description") and "default" in items:
+        return [
+            {
+                "section": section_name,
+                "name": item_prefix,
+                "description": items["description"],
+                "default": _format_default(items["default"]),
+                "examples": _format_examples(param_name, items),
+            }
+        ]
+
+    return []
 
 
 schema_file = CHART_ROOT_PATH / "values.schema.json"

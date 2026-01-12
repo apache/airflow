@@ -26,12 +26,23 @@ and efficiency.
 Serialization is a surprisingly hard job. Python out of the box only has support for serialization of primitives,
 like ``str`` and ``int`` and it loops over iterables. When things become more complex, custom serialization is required.
 
-Airflow out of the box supports three ways of custom serialization. Primitives are returned as is, without
-additional encoding, e.g. a ``str`` remains a ``str``. When it is not a primitive (or iterable thereof) Airflow
-looks for a registered serializer and deserializer in the namespace of ``airflow.serialization.serializers``.
-If not found it will look in the class for a ``serialize()`` method or in case of deserialization a
-``deserialize(data, version: int)`` method. Finally, if the class is either decorated with ``@dataclass``
-or ``@attr.define`` it will use the public methods for those decorators.
+Serialization resolution order
+------------------------------
+
+Airflow resolves custom serialization in the following order:
+
+1. Primitive values (such as ``str`` or ``int``) and iterables of primitives
+   are returned as-is, without additional encoding.
+
+2. If the object is not a primitive, Airflow looks for a registered serializer
+   and deserializer in the ``airflow.sdk.serde.serializers`` namespace.
+
+3. If no registered serializer is found, Airflow checks whether the object
+   defines a ``serialize()`` method (and, for deserialization, a corresponding
+   ``deserialize(data, version: int)`` method).
+
+4. Finally, if the object is decorated with ``@dataclass`` or ``@attr.define``,
+   Airflow serializes the object using the public fields provided by those decorators.
 
 If you are looking to extend Airflow with a new serializer, it is good to know when to choose what way of serialization.
 Objects that are under the control of Airflow, i.e. residing under the namespace of ``airflow.*`` like
@@ -74,8 +85,7 @@ Airflow Object
 
         @staticmethod
         def deserialize(data: dict[str, Any], version: int):
-            f = Foo(a=data["a"])
-            f.b = data["b"]
+            f = Foo(a=data["a"], v=data["b"])
             return f
 
 
@@ -86,17 +96,18 @@ Registered
 
     from __future__ import annotations
 
-    from decimal import Decimal
     from typing import TYPE_CHECKING
 
-    from airflow.utils.module_loading import qualname
+    from airflow.sdk.module_loading import qualname
 
     if TYPE_CHECKING:
-        from airflow.serialization.serde import U
+        import decimal
+
+        from airflow.sdk.serde import U
 
 
     serializers = [
-        Decimal
+        "decimal.Decimal"
     ]  # this can be a type or a fully qualified str. Str can be used to prevent circular imports
     deserializers = serializers  # in some cases you might not have a deserializer (e.g. k8s pod)
 
@@ -105,25 +116,28 @@ Registered
 
     # the serializer expects output, classname, version, is_serialized?
     def serialize(o: object) -> tuple[U, str, int, bool]:
-        if isinstance(o, Decimal):
-            name = qualname(o)
-            _, _, exponent = o.as_tuple()
-            if exponent >= 0:  # No digits after the decimal point.
-                return int(o), name, __version__, True
-                # Technically lossy due to floating point errors, but the best we
-                # can do without implementing a custom encode function.
-            return float(o), name, __version__, True
+        from decimal import Decimal
 
-        return "", "", 0, False
+        if not isinstance(o, Decimal):
+            return "", "", 0, False
+        name = qualname(o)
+        _, _, exponent = o.as_tuple()
+        if isinstance(exponent, int) and exponent >= 0:  # No digits after the decimal point.
+            return int(o), name, __version__, True
+        # Technically lossy due to floating point errors, but the best we
+        # can do without implementing a custom encode function.
+        return float(o), name, __version__, True
 
 
     # the deserializer sanitizes the data for you, so you do not need to deserialize values yourself
-    def deserialize(classname: str, version: int, data: object) -> Decimal:
+    def deserialize(cls: type, version: int, data: object) -> Decimal:
+        from decimal import Decimal
+
         # always check version compatibility
         if version > __version__:
-            raise TypeError(f"serialized {version} of {classname} > {__version__}")
+            raise TypeError(f"serialized {version} of {qualname(cls)} > {__version__}")
 
-        if classname != qualname(Decimal):
-            raise TypeError(f"{classname} != {qualname(Decimal)}")
+        if cls is not Decimal:
+            raise TypeError(f"do not know how to deserialize {qualname(cls)}")
 
         return Decimal(str(data))

@@ -26,12 +26,12 @@ from typing import TYPE_CHECKING, Any, overload
 
 import attrs
 
-from airflow.exceptions import AirflowException, XComNotFound
 from airflow.sdk import TriggerRule
 from airflow.sdk.definitions._internal.abstractoperator import AbstractOperator
 from airflow.sdk.definitions._internal.mixins import DependencyMixin, ResolveMixin
 from airflow.sdk.definitions._internal.setup_teardown import SetupTeardownContext
-from airflow.sdk.definitions._internal.types import NOTSET, ArgNotSet
+from airflow.sdk.definitions._internal.types import NOTSET, is_arg_set
+from airflow.sdk.exceptions import AirflowException, XComNotFound
 from airflow.sdk.execution_time.lazy_sequence import LazyXComSequence
 from airflow.sdk.execution_time.xcom import BaseXCom
 
@@ -347,7 +347,7 @@ class PlainXComArg(XComArg):
             default=NOTSET,
             map_indexes=map_indexes,
         )
-        if not isinstance(result, ArgNotSet):
+        if is_arg_set(result):
             return result
         if self.key == BaseXCom.XCOM_RETURN_KEY:
             return None
@@ -452,9 +452,9 @@ class _ZipResult(Sequence):
 
     def __len__(self) -> int:
         lengths = (len(v) for v in self.values)
-        if isinstance(self.fillvalue, ArgNotSet):
-            return min(lengths)
-        return max(lengths)
+        if is_arg_set(self.fillvalue):
+            return max(lengths)
+        return min(lengths)
 
 
 @attrs.define
@@ -474,15 +474,15 @@ class ZipXComArg(XComArg):
         args_iter = iter(self.args)
         first = repr(next(args_iter))
         rest = ", ".join(repr(arg) for arg in args_iter)
-        if isinstance(self.fillvalue, ArgNotSet):
-            return f"{first}.zip({rest})"
-        return f"{first}.zip({rest}, fillvalue={self.fillvalue!r})"
+        if is_arg_set(self.fillvalue):
+            return f"{first}.zip({rest}, fillvalue={self.fillvalue!r})"
+        return f"{first}.zip({rest})"
 
     def _serialize(self) -> dict[str, Any]:
         args = [serialize_xcom_arg(arg) for arg in self.args]
-        if isinstance(self.fillvalue, ArgNotSet):
-            return {"args": args}
-        return {"args": args, "fillvalue": self.fillvalue}
+        if is_arg_set(self.fillvalue):
+            return {"args": args, "fillvalue": self.fillvalue}
+        return {"args": args}
 
     def iter_references(self) -> Iterator[tuple[Operator, str]]:
         for arg in self.args:
@@ -602,9 +602,9 @@ def _(xcom_arg: ZipXComArg, resolved_val: Sized, upstream_map_indexes: dict[str,
     ready_lengths = [length for length in all_lengths if length is not None]
     if len(ready_lengths) != len(xcom_arg.args):
         return None  # If any of the referenced XComs is not ready, we are not ready either.
-    if isinstance(xcom_arg.fillvalue, ArgNotSet):
-        return min(ready_lengths)
-    return max(ready_lengths)
+    if is_arg_set(xcom_arg.fillvalue):
+        return max(ready_lengths)
+    return min(ready_lengths)
 
 
 @get_task_map_length.register

@@ -40,16 +40,13 @@ AIRFLOW_V_3_1_PLUS: bool = get_base_airflow_version_tuple() >= (3, 1, 0)
 # This is needed for DecoratedOperator compatibility
 if AIRFLOW_V_3_1_PLUS:
     from airflow.sdk import (
-        BaseHook,
         BaseOperator,
     )
 else:
-    from airflow.hooks.base import BaseHook  # type: ignore[attr-defined,no-redef]
     from airflow.models import BaseOperator
 
 __all__ = [
     "AIRFLOW_V_3_0_PLUS",
     "AIRFLOW_V_3_1_PLUS",
-    "BaseHook",
     "BaseOperator",
 ]

@@ -24,6 +24,9 @@ Airflow has a simple plugin manager built-in that can integrate external
 features to its core by simply dropping files in your
 ``$AIRFLOW_HOME/plugins`` folder.
 
+Since Airflow 3.1, the plugin system supports new features such as React apps, FastAPI endpoints,
+and middleware, making it easier to extend Airflow and build rich custom integrations.
+
 The python modules in the ``plugins`` folder get imported, and **macros** and web **views**
 get integrated to Airflow's main collections and become available for use.
 
@@ -48,7 +51,7 @@ Examples:
 
 * A set of tools to parse Hive logs and expose Hive metadata (CPU /IO / phases/ skew /...)
 * An anomaly detection framework, allowing people to collect metrics, set thresholds and alerts
-* An auditing tool, helping understand who accesses what
+* An auditing tool, helping to understand who accesses what
 * A config-driven SLA monitoring tool, allowing you to set monitored tables and at what time
   they should land, alert people, and expose visualizations of outages
 
@@ -61,10 +64,23 @@ Airflow has many components that can be reused when building an application:
 * A metadata database to store your models
 * Access to your databases, and knowledge of how to connect to them
 * An array of workers that your application can push workload to
-* Airflow is deployed, you can just piggy back on its deployment logistics
+* Airflow is deployed, you can just piggyback on its deployment logistics
 * Basic charting capabilities, underlying libraries and abstractions
 
 .. _plugins:loading:
+
+Available Building Blocks
+-------------------------
+
+Airflow plugins can register the following components:
+
+* *External Views* – Add buttons/tabs linking to new pages in the UI.
+* *React Apps* – Embed custom React apps inside the Airflow UI (new in Airflow 3.1).
+* *FastAPI Apps* – Add custom API endpoints.
+* *FastAPI Middlewares* – Intercept and modify API requests/responses.
+* *Macros* – Define reusable Python functions available in DAG templates.
+* *Operator Extra Links* – Add custom buttons in the task details view.
+* *Timetables & Listeners* – Implement custom scheduling logic and event hooks.
 
 When are plugins (re)loaded?
 ----------------------------
@@ -73,7 +89,7 @@ Plugins are by default lazily loaded and once loaded, they are never reloaded (e
 automatically loaded in Webserver). To load them at the
 start of each Airflow process, set ``[core] lazy_load_plugins = False`` in ``airflow.cfg``.
 
-This means that if you make any changes to plugins and you want the webserver or scheduler to use that new
+This means that if you make any changes to plugins, and you want the webserver or scheduler to use that new
 code you will need to restart those processes. However, it will not be reflected in new running tasks until after the scheduler boots.
 
 By default, task execution uses forking. This avoids the slowdown associated with creating a new Python interpreter
@@ -151,6 +167,19 @@ additional initialization. Please note ``name`` inside this class must be specif
 
 Make sure you restart the webserver and scheduler after making changes to plugins so that they take effect.
 
+Plugin Management Interface
+---------------------------
+
+Airflow 3.1 introduces a Plugin Management Interface, available under *Admin → Plugins* in the Airflow UI.
+This page allows you to view installed plugins.
+
+...
+
+External Views
+--------------
+
+External views can also be embedded directly into the Airflow UI using iframes by providing a ``url_route`` value.
+This allows you to render the view inline instead of opening it in a new browser tab.
 
 .. _plugin-example:
 
@@ -212,7 +241,7 @@ definitions in Airflow.
         "icon": "https://example.com/icon.svg",
         # Optional dark icon for the dark theme, url to an svg file. If not provided, "icon" will be used for both light and dark themes.
         "icon_dark_mode": "https://example.com/dark_icon.svg",
-        # Optional parameters, relative URL location for the External View rendering. If not provided, external view will be rendeded as an external link. If provided
+        # Optional parameters, relative URL location for the External View rendering. If not provided, external view will be rendered as an external link. If provided
         # will be rendered inside an Iframe in the UI. Should not contain a leading slash.
         "url_route": "my_external_view",
         # Optional category, only relevant for destination "nav". This is used to group the external links in the navigation bar.  We will match the existing

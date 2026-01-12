@@ -26,19 +26,25 @@ from typing import TYPE_CHECKING
 import pendulum
 
 from airflow.providers.standard.operators.branch import BaseBranchOperator
-from airflow.providers.standard.version_compat import AIRFLOW_V_3_0_PLUS
+from airflow.providers.standard.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V_3_2_PLUS
 from airflow.utils.types import DagRunType
 
 if TYPE_CHECKING:
     from pendulum.datetime import DateTime
 
     from airflow.models import DagRun
+    from airflow.providers.common.compat.sdk import Context
 
-    try:
-        from airflow.sdk.definitions.context import Context
-    except ImportError:
-        # TODO: Remove once provider drops support for Airflow 2
-        from airflow.utils.context import Context
+if AIRFLOW_V_3_2_PLUS:
+
+    def _get_dag_timetable(dag):
+        from airflow.serialization.encoders import coerce_to_core_timetable
+
+        return coerce_to_core_timetable(dag.timetable)
+else:
+
+    def _get_dag_timetable(dag):
+        return dag.timetable
 
 
 class LatestOnlyOperator(BaseBranchOperator):
@@ -93,9 +99,9 @@ class LatestOnlyOperator(BaseBranchOperator):
     def _get_compare_dates(self, dag_run: DagRun) -> tuple[DateTime, DateTime] | None:
         dagrun_date: DateTime
         if AIRFLOW_V_3_0_PLUS:
-            dagrun_date = dag_run.logical_date or dag_run.run_after
+            dagrun_date = dag_run.logical_date or dag_run.run_after  # type: ignore[assignment]
         else:
-            dagrun_date = dag_run.logical_date
+            dagrun_date = dag_run.logical_date  # type: ignore[assignment]
 
         from airflow.timetables.base import DataInterval, TimeRestriction
 
@@ -109,15 +115,13 @@ class LatestOnlyOperator(BaseBranchOperator):
         else:
             end = dagrun_date
 
-        current_interval = DataInterval(
-            start=start,
-            end=end,
-        )
-
+        timetable = _get_dag_timetable(self.dag)
+        current_interval = DataInterval(start=start, end=end)
         time_restriction = TimeRestriction(
             earliest=None, latest=current_interval.end - timedelta(microseconds=1), catchup=True
         )
-        if prev_info := self.dag.timetable.next_dagrun_info(
+
+        if prev_info := timetable.next_dagrun_info(
             last_automated_data_interval=current_interval,
             restriction=time_restriction,
         ):
@@ -126,7 +130,7 @@ class LatestOnlyOperator(BaseBranchOperator):
             left = current_interval.start
 
         time_restriction = TimeRestriction(earliest=current_interval.end, latest=None, catchup=True)
-        next_info = self.dag.timetable.next_dagrun_info(
+        next_info = timetable.next_dagrun_info(
             last_automated_data_interval=current_interval,
             restriction=time_restriction,
         )

@@ -21,7 +21,7 @@ from collections.abc import AsyncIterator, Sequence
 from enum import Enum
 from typing import TYPE_CHECKING, Any
 
-from airflow.exceptions import AirflowException
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.google.cloud.hooks.cloud_run import CloudRunAsyncHook
 from airflow.triggers.base import BaseTrigger, TriggerEvent
 
@@ -134,7 +134,7 @@ class CloudRunJobFinishedTrigger(BaseTrigger):
 
         yield TriggerEvent(
             {
-                "status": RunJobStatus.TIMEOUT,
+                "status": RunJobStatus.TIMEOUT.value,
                 "job_name": self.job_name,
             }
         )

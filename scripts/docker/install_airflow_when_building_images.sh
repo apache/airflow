@@ -80,7 +80,8 @@ function install_from_sources() {
         installation_command_flags=" --editable .[${AIRFLOW_EXTRAS}] \
               --editable ./airflow-core --editable ./task-sdk --editable ./airflow-ctl \
               --editable ./kubernetes-tests --editable ./docker-tests --editable ./helm-tests \
-              --editable ./task-sdk-tests \
+              --editable ./task-sdk-integration-tests \
+              --editable ./airflow-ctl-tests \
               --editable ./airflow-e2e-tests \
               --editable ./devel-common[all] --editable ./dev \
               --group dev --group docs --group docs-gen --group leveldb"
@@ -202,6 +203,7 @@ function install_airflow_when_building_images() {
     echo
     echo "${COLOR_BLUE}Running 'pip check'${COLOR_RESET}"
     echo
+    # We use pip check here to make sure that whatever `uv` installs, is also "correct" according to `pip`
     pip check
 }
 

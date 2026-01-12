@@ -19,6 +19,7 @@ from __future__ import annotations
 from unittest import mock
 
 import pytest
+from sqlalchemy import func, select
 
 from airflow.models.pool import Pool
 from airflow.utils.session import provide_session
@@ -73,11 +74,11 @@ class TestPoolsEndpoint:
 class TestDeletePool(TestPoolsEndpoint):
     def test_delete_should_respond_204(self, test_client, session):
         self.create_pools()
-        pools = session.query(Pool).all()
+        pools = session.scalars(select(Pool)).all()
         assert len(pools) == 4
         response = test_client.delete(f"/pools/{POOL1_NAME}")
         assert response.status_code == 204
-        pools = session.query(Pool).all()
+        pools = session.scalars(select(Pool)).all()
         assert len(pools) == 3
         check_last_log(session, dag_id=None, event="delete_pool", logical_date=None)
 
@@ -104,11 +105,11 @@ class TestDeletePool(TestPoolsEndpoint):
     def test_delete_pool3_should_respond_204(self, test_client, session):
         """Test deleting POOL3 with forward slash in name"""
         self.create_pools()
-        pools = session.query(Pool).all()
+        pools = session.scalars(select(Pool)).all()
         assert len(pools) == 4
         response = test_client.delete(f"/pools/{POOL3_NAME}")
         assert response.status_code == 204
-        pools = session.query(Pool).all()
+        pools = session.scalars(select(Pool)).all()
         assert len(pools) == 3
         check_last_log(session, dag_id=None, event="delete_pool", logical_date=None)
 
@@ -166,7 +167,7 @@ class TestGetPool(TestPoolsEndpoint):
 
 class TestGetPools(TestPoolsEndpoint):
     @pytest.mark.parametrize(
-        "query_params, expected_total_entries, expected_ids",
+        ("query_params", "expected_total_entries", "expected_ids"),
         [
             # Filters
             ({}, 4, [Pool.DEFAULT_POOL_NAME, POOL1_NAME, POOL2_NAME, POOL3_NAME]),
@@ -219,7 +220,7 @@ class TestGetPools(TestPoolsEndpoint):
 
 class TestPatchPool(TestPoolsEndpoint):
     @pytest.mark.parametrize(
-        "pool_name, query_params, body, expected_status_code, expected_response",
+        ("pool_name", "query_params", "body", "expected_status_code", "expected_response"),
         [
             # Error
             (
@@ -261,12 +262,6 @@ class TestPatchPool(TestPoolsEndpoint):
                         {
                             "input": {"pool": POOL1_NAME},
                             "loc": ["slots"],
-                            "msg": "Field required",
-                            "type": "missing",
-                        },
-                        {
-                            "input": {"pool": POOL1_NAME},
-                            "loc": ["description"],
                             "msg": "Field required",
                             "type": "missing",
                         },
@@ -398,7 +393,7 @@ class TestPatchPool(TestPoolsEndpoint):
 
 class TestPostPool(TestPoolsEndpoint):
     @pytest.mark.parametrize(
-        "body, expected_status_code, expected_response",
+        ("body", "expected_status_code", "expected_response"),
         [
             (
                 {"name": "my_pool", "slots": 11},
@@ -436,12 +431,12 @@ class TestPostPool(TestPoolsEndpoint):
     )
     def test_should_respond_200(self, test_client, session, body, expected_status_code, expected_response):
         self.create_pools()
-        n_pools = session.query(Pool).count()
+        n_pools = session.scalar(select(func.count()).select_from(Pool))
         response = test_client.post("/pools", json=body)
         assert response.status_code == expected_status_code
 
         assert response.json() == expected_response
-        assert session.query(Pool).count() == n_pools + 1
+        assert session.scalar(select(func.count()).select_from(Pool)) == n_pools + 1
         check_last_log(session, dag_id=None, event="post_pool", logical_date=None)
 
     def test_should_respond_401(self, unauthenticated_test_client):
@@ -453,7 +448,13 @@ class TestPostPool(TestPoolsEndpoint):
         assert response.status_code == 403
 
     @pytest.mark.parametrize(
-        "body,first_expected_status_code, first_expected_response, second_expected_status_code, second_expected_response",
+        (
+            "body",
+            "first_expected_status_code",
+            "first_expected_response",
+            "second_expected_status_code",
+            "second_expected_response",
+        ),
         [
             (
                 {"name": "my_pool", "slots": 11},
@@ -486,11 +487,11 @@ class TestPostPool(TestPoolsEndpoint):
         second_expected_response,
     ):
         self.create_pools()
-        n_pools = session.query(Pool).count()
+        n_pools = session.scalar(select(func.count()).select_from(Pool))
         response = test_client.post("/pools", json=body)
         assert response.status_code == first_expected_status_code
         assert response.json() == first_expected_response
-        assert session.query(Pool).count() == n_pools + 1
+        assert session.scalar(select(func.count()).select_from(Pool)) == n_pools + 1
         response = test_client.post("/pools", json=body)
         assert response.status_code == second_expected_status_code
         if second_expected_status_code == 201:
@@ -500,13 +501,13 @@ class TestPostPool(TestPoolsEndpoint):
             assert "detail" in response_json
             assert list(response_json["detail"].keys()) == ["reason", "statement", "orig_error", "message"]
 
-        assert session.query(Pool).count() == n_pools + 1
+        assert session.scalar(select(func.count()).select_from(Pool)) == n_pools + 1
 
 
 class TestBulkPools(TestPoolsEndpoint):
     @pytest.mark.enable_redact
     @pytest.mark.parametrize(
-        "actions, expected_results",
+        ("actions", "expected_results"),
         [
             pytest.param(
                 {
@@ -990,10 +991,10 @@ class TestBulkPools(TestPoolsEndpoint):
         assert response_data["update"]["success"] == ["pool1"]
 
         # Assert: fetch from DB and check only masked field changed
-        updated_pool = session.query(Pool).filter_by(pool="pool1").one()
-        assert updated_pool.slots == 50  #  updated
-        assert updated_pool.description is None  #  unchanged
-        assert updated_pool.include_deferred is True  #  unchanged
+        updated_pool = session.execute(select(Pool).where(Pool.pool == "pool1")).scalar_one()
+        assert updated_pool.slots == 50  # updated
+        assert updated_pool.description is None  # unchanged
+        assert updated_pool.include_deferred is True  # unchanged
 
     def test_should_respond_401(self, unauthenticated_test_client):
         response = unauthenticated_test_client.patch("/pools", json={})

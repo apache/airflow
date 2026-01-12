@@ -154,7 +154,7 @@ installing packages, managing workspaces and running development tools.).
 
 Installing ``uv`` is described in the `uv documentation <https://docs.astral.sh/uv/getting-started/installation/>`_.
 We highly recommend using ``uv`` to manage your Python environments, as it is very comprehensive,
-easy to use, it is faster than any of the other tools availables (way faster!) and has a lot of features
+easy to use, it is faster than any of the other tools available (way faster!) and has a lot of features
 that make it easier to work with Python.
 
 The ``gh`` cli needed for release managers
@@ -430,7 +430,7 @@ also force reinstalling the autocomplete via:
 
    breeze setup autocomplete --force
 
-These are all available flags of ``setup-autocomplete`` command:
+These are all available flags of ``setup autocomplete`` command:
 
 .. image:: ./images/output_setup_autocomplete.svg
   :target: https://raw.githubusercontent.com/apache/airflow/main/dev/breeze/images/output_setup_autocomplete.svg

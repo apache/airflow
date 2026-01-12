@@ -284,7 +284,7 @@
         "pool_slots": { "type": "number", "default": 1 },
         "execution_timeout": { "$ref": "#/definitions/timedelta" },
         "retry_delay": { "$ref": "#/definitions/timedelta", "default": 300.0 },
-        "retry_exponential_backoff": { "type": "boolean", "default": false },
+        "retry_exponential_backoff": { "type": "number", "default": 0 },
         "max_retry_delay": { "$ref": "#/definitions/timedelta" },
         "params": { "$ref": "#/definitions/params" },
         "priority_weight": { "type": "number", "default": 1 },

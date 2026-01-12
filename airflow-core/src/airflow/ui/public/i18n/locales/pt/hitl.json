@@ -1,5 +1,8 @@
 {
   "filters": {
+    "body": "Corpo",
+    "createdAtFrom": "Criado De",
+    "createdAtTo": "Criado Até",
     "response": {
       "all": "Todas",
       "pending": "Pendente",
@@ -16,11 +19,13 @@
   "requiredActionCount_zero": "Nenhuma ação necessária",
   "requiredActionState": "Estado da Ação Necessária",
   "response": {
+    "created": "Resposta criada em ",
     "error": "Falha na resposta",
     "optionsDescription": "Escolha suas opções para esta instância de tarefa",
     "optionsLabel": "Opções",
     "received": "Resposta recebida em ",
     "respond": "Responder",
+    "responded_by_user_name": "Respondido por (Nome de usuário)",
     "success": "Resposta de {{taskId}} bem-sucedida",
     "title": "Instância de Tarefa Humana - {{taskId}}"
   },

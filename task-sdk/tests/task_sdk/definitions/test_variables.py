@@ -23,17 +23,17 @@ from unittest.mock import patch
 
 import pytest
 
-from airflow.configuration import initialize_secrets_backends
 from airflow.sdk import Variable
+from airflow.sdk.configuration import initialize_secrets_backends
 from airflow.sdk.execution_time.comms import PutVariable, VariableResult
-from airflow.secrets import DEFAULT_SECRETS_SEARCH_PATH_WORKERS
+from airflow.sdk.execution_time.secrets import DEFAULT_SECRETS_SEARCH_PATH_WORKERS
 
 from tests_common.test_utils.config import conf_vars
 
 
 class TestVariables:
     @pytest.mark.parametrize(
-        "deserialize_json, value, expected_value",
+        ("deserialize_json", "value", "expected_value"),
         [
             pytest.param(
                 False,
@@ -58,7 +58,7 @@ class TestVariables:
         assert var == expected_value
 
     @pytest.mark.parametrize(
-        "key, value, description, serialize_json",
+        ("key", "value", "description", "serialize_json"),
         [
             pytest.param(
                 "key",
@@ -176,9 +176,11 @@ class TestVariableFromSecrets:
         mock_env_get.return_value = "fake_value"
 
         backends = initialize_secrets_backends(DEFAULT_SECRETS_SEARCH_PATH_WORKERS)
-        assert len(backends) == 2
+        # LocalFilesystemBackend (custom), EnvironmentVariablesBackend, ExecutionAPISecretsBackend
+        assert len(backends) == 3
         backend_classes = [backend.__class__.__name__ for backend in backends]
         assert "LocalFilesystemBackend" in backend_classes
+        assert "ExecutionAPISecretsBackend" in backend_classes
 
         var = Variable.get(key="fake_var_key")
         # mock_env is only called when LocalFilesystemBackend doesn't have it

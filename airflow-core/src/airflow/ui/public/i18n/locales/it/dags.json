@@ -20,8 +20,7 @@
       "all": "Tutti",
       "paused": "In Pausa"
     },
-    "runIdPatternFilter": "Cercare Dag Runs",
-    "triggeringUserNameFilter": "Cercare per Utente che ha Attivato"
+    "runIdPatternFilter": "Cercare Dag Runs"
   },
   "ownerLink": "Link dell'Owner per {{owner}}",
   "runAndTaskActions": {

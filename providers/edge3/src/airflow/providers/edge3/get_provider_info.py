@@ -32,6 +32,7 @@ def get_provider_info():
                 "plugin-class": "airflow.providers.edge3.plugins.edge_executor_plugin.EdgeExecutorPlugin",
             }
         ],
+        "cli": ["airflow.providers.edge3.cli.definition.get_edge_cli_commands"],
         "executors": ["airflow.providers.edge3.executors.EdgeExecutor"],
         "config": {
             "edge": {
@@ -92,6 +93,13 @@ def get_provider_info():
                         "type": "integer",
                         "example": None,
                         "default": "524288",
+                    },
+                    "push_logs": {
+                        "description": "Flag to enable or disable pushing of log files from edge worker to the central site.\nWhen enabled, edge workers will upload task log files in chunks to the central Airflow site.\nWhen disabled, logs will only be available locally on the edge worker.\n",
+                        "version_added": "1.5.0",
+                        "type": "boolean",
+                        "example": "True",
+                        "default": "True",
                     },
                     "worker_umask": {
                         "description": "The default umask to use for edge worker when run in daemon mode\n\nThis controls the file-creation mode mask which determines the initial value of file permission bits\nfor newly created files.\n\nThis value is treated as an octal-integer.\n",

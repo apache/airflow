@@ -20,11 +20,11 @@ from __future__ import annotations
 from collections.abc import Sequence
 from typing import TYPE_CHECKING
 
+from airflow.providers.common.compat.sdk import BaseOperator
 from airflow.providers.oracle.hooks.oracle import OracleHook
-from airflow.providers.oracle.version_compat import BaseOperator
 
 if TYPE_CHECKING:
-    from airflow.providers.oracle.version_compat import Context
+    from airflow.providers.common.compat.sdk import Context
 
 
 class OracleToOracleOperator(BaseOperator):

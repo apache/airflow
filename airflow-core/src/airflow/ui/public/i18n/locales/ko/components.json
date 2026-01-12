@@ -49,6 +49,13 @@
     "warning_one": "경고 1개",
     "warning_other": "경고 {{count}}개"
   },
+  "dateRangeFilter": {
+    "validation": {
+      "invalidDateFormat": "잘못된 날짜 형식입니다.",
+      "invalidTimeFormat": "잘못된 시간 형식입니다.",
+      "startBeforeEnd": "시작 일시는 종료 일시보다 이전이어야 합니다."
+    }
+  },
   "durationChart": {
     "duration": "기간 (초)",
     "lastDagRun_one": "마지막 Dag 실행",
@@ -86,6 +93,14 @@
     "taskGroup": "작업 그룹"
   },
   "limitedList": "+{{count}}개 더 보기",
+  "limitedList.allItems": "모든 {{count}}개 항목:",
+  "limitedList.allTags_one": "모든 태그 (1)",
+  "limitedList.allTags_other": "모든 태그 ({{count}})",
+  "limitedList.clickToInteract": "태그를 클릭하여 Dag를 필터링하세요",
+  "limitedList.clickToOpenFull": "\"+{{count}}개 더 보기\"를 클릭하여 전체 보기 열기",
+  "limitedList.copyPasteText": "위의 텍스트를 복사하여 붙여넣을 수 있습니다",
+  "limitedList.showingItems_one": "1개 항목 표시 중",
+  "limitedList.showingItems_other": "{{count}}개 항목 표시 중",
   "logs": {
     "file": "파일",
     "location": "{{name}}의 {{line}}번째 줄"
@@ -95,10 +110,16 @@
   "sortedDescending": "내림차순 정렬됨",
   "sortedUnsorted": "정렬되지 않음",
   "taskTries": "작업 시도 횟수",
+  "taskTryPlaceholder": "작업 시도 선택",
   "toggleCardView": "카드 보기 표시",
   "toggleTableView": "테이블 보기 표시",
   "triggerDag": {
     "button": "트리거",
+    "dataInterval": "데이터 구간",
+    "dataIntervalAuto": "논리적 날짜와 시간표에서 자동 추론",
+    "dataIntervalManual": "수동 지정",
+    "intervalEnd": "종료",
+    "intervalStart": "시작",
     "loading": "Dag 정보 로드 중...",
     "loadingFailed": "Dag 정보를 로드하지 못했습니다. 다시 시도해주세요.",
     "runIdHelp": "선택 사항 - 제공되지 않으면 생성됩니다.",
@@ -106,9 +127,12 @@
     "selectLabel": "단일 실행",
     "title": "Dag 트리거",
     "toaster": {
+      "error": {
+        "title": "Dag 트리거에 실패했습니다."
+      },
       "success": {
         "description": "Dag 실행이 성공적으로 트리거되었습니다.",
-        "title": "Dag 실행 트리거됨"
+        "title": "Dag 트리거에 성공했습니다."
       }
     },
     "unpause": "트리거 시 {{dagDisplayName}} 일시 중지 해제"
@@ -126,6 +150,7 @@
     "versionId": "버전 ID"
   },
   "versionSelect": {
+    "allVersions": "전체 버전",
     "dagVersion": "Dag 버전",
     "versionCode": "v{{versionCode}}"
   }

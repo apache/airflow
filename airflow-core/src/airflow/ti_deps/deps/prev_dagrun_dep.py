@@ -17,7 +17,7 @@
 # under the License.
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, TypeAlias
+from typing import TYPE_CHECKING
 
 from sqlalchemy import func, or_, select
 
@@ -32,11 +32,7 @@ from airflow.utils.state import TaskInstanceState
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
 
-    from airflow.models.mappedoperator import MappedOperator
-    from airflow.sdk.types import Operator as SdkOperator
-    from airflow.serialization.serialized_objects import SerializedBaseOperator
-
-    SchedulerOperator: TypeAlias = MappedOperator | SerializedBaseOperator
+    from airflow.serialization.definitions.mappedoperator import Operator
 
 _SUCCESSFUL_STATES = (TaskInstanceState.SKIPPED, TaskInstanceState.SUCCESS)
 
@@ -98,7 +94,7 @@ class PrevDagrunDep(BaseTIDep):
 
         This function exists for easy mocking in tests.
         """
-        return session.scalar(
+        unsuccessful_tis_count = session.scalar(
             select(func.count()).where(
                 TI.dag_id == dagrun.dag_id,
                 TI.task_id == task_id,
@@ -106,14 +102,10 @@ class PrevDagrunDep(BaseTIDep):
                 or_(TI.state.is_(None), TI.state.not_in(_SUCCESSFUL_STATES)),
             )
         )
+        return 0 if unsuccessful_tis_count is None else unsuccessful_tis_count
 
     @staticmethod
-    def _has_unsuccessful_dependants(
-        dagrun: DagRun,
-        task: SdkOperator | SchedulerOperator,
-        *,
-        session: Session,
-    ) -> bool:
+    def _has_unsuccessful_dependants(dagrun: DagRun, task: Operator, *, session: Session) -> bool:
         """
         Check if any of the task's dependants are unsuccessful in a given run.
 
@@ -178,7 +170,12 @@ class PrevDagrunDep(BaseTIDep):
             return
 
         # There was a DAG run, but the task wasn't active back then.
-        if catchup and last_dagrun.logical_date < ti.task.start_date:
+        if (
+            catchup
+            and ti.task.start_date is not None
+            and last_dagrun.logical_date is not None
+            and last_dagrun.logical_date < ti.task.start_date
+        ):
             self._push_past_deps_met_xcom_if_needed(ti, dep_context)
             yield self._passing_status(reason="This task instance was the first task instance for its task.")
             return

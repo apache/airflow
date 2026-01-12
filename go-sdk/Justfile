@@ -16,21 +16,18 @@
 # under the License.
 
 # Main Justfile for Airflow Go SDK
-set shell := ["bash", "-uc", "-O", "globstar"]
+set shell := ["bash", "-uc"]
 
 # Default recipe to show help
 default:
   @just --list
 
 # Build all components
-build: build-celery build-edge build-examples
+build: build-edge build-examples
 
 # Build the worker binary
-build-celery:
-  go build -o bin/airflow-go-celery ./celery/cmd
-
 build-edge:
-  go build -o bin/airflow-go-edge ./edge/cmd
+  go build -o bin/airflow-go-edge-worker ./cmd/airflow-go-edge-worker
 
 # Build all example bundles
 build-examples:

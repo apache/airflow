@@ -54,7 +54,7 @@ REGULAR_IMAGE_PROVIDERS = [
     if not provider_id.startswith("#")
 ]
 
-testing_slim_image = os.environ.get("TEST_SLIM_IMAGE", False)
+testing_slim_image = os.environ.get("TEST_SLIM_IMAGE", str(False)).lower() in ("true", "1", "yes")
 
 
 class TestCommands:
@@ -197,7 +197,7 @@ class TestPythonPackages:
     }
 
     @pytest.mark.parametrize(
-        "package_name,import_names",
+        ("package_name", "import_names"),
         SLIM_PACKAGE_IMPORTS.items() if testing_slim_image else REGULAR_PACKAGE_IMPORTS.items(),
     )
     def test_check_dependencies_imports(

@@ -21,14 +21,15 @@ import json
 import sys
 from pathlib import Path
 
+from common_prek_utils import AIRFLOW_ROOT_PATH
+
 if __name__ not in ("__main__", "__mp_main__"):
     raise SystemExit(
         "This file is intended to be executed as an executable program. You cannot use it as a module."
         f"To run this script, run the ./{__file__} command"
     )
 
-PROJECT_SOURCE_ROOT_DIR = Path(__file__).resolve().parents[3]
-CHART_DIR = PROJECT_SOURCE_ROOT_DIR / "chart"
+CHART_DIR = AIRFLOW_ROOT_PATH / "chart"
 KNOWN_INVALID_TYPES = {
     # I don't know the data structure for this type with 100 certainty. We have no tests.
     "$['properties']['ingress']['properties']['web']['properties']['precedingPaths']",

@@ -16,7 +16,7 @@
 # under the License.
 from __future__ import annotations
 
-from airflow.plugins_manager import AirflowPlugin
+from airflow.providers.common.compat.sdk import AirflowPlugin
 from airflow.providers.openlineage import conf
 
 # Conditional imports - only load expensive dependencies when plugin is enabled
@@ -28,6 +28,7 @@ if not conf.is_disabled():
         lineage_job_namespace,
         lineage_parent_id,
         lineage_root_job_name,
+        lineage_root_job_namespace,
         lineage_root_parent_id,
         lineage_root_run_id,
         lineage_run_id,
@@ -51,6 +52,7 @@ class OpenLineageProviderPlugin(AirflowPlugin):
             lineage_parent_id,
             lineage_root_run_id,
             lineage_root_job_name,
+            lineage_root_job_namespace,
             lineage_root_parent_id,
         ]
         listeners = [get_openlineage_listener()]

@@ -26,6 +26,7 @@ from airflow.models import Connection
 from airflow.providers.google.cloud.triggers.cloud_composer import (
     CloudComposerAirflowCLICommandTrigger,
     CloudComposerDAGRunTrigger,
+    CloudComposerExternalTaskTrigger,
 )
 from airflow.triggers.base import TriggerEvent
 
@@ -40,12 +41,17 @@ TEST_EXEC_CMD_INFO = {
 }
 TEST_COMPOSER_DAG_ID = "test_dag_id"
 TEST_COMPOSER_DAG_RUN_ID = "scheduled__2024-05-22T11:10:00+00:00"
+TEST_COMPOSER_EXTERNAL_TASK_IDS = ["test_external_task_id"]
+TEST_COMPOSER_EXTERNAL_TASK_GROUP_ID = "test_external_task_group_id"
 TEST_START_DATE = datetime(2024, 3, 22, 11, 0, 0)
 TEST_END_DATE = datetime(2024, 3, 22, 12, 0, 0)
-TEST_STATES = ["success"]
+TEST_ALLOWED_STATES = ["success"]
+TEST_SKIPPED_STATES = ["skipped"]
+TEST_FAILED_STATES = ["failed"]
 TEST_GCP_CONN_ID = "test_gcp_conn_id"
 TEST_POLL_INTERVAL = 10
 TEST_COMPOSER_AIRFLOW_VERSION = 3
+TEST_USE_REST_API = True
 TEST_IMPERSONATION_CHAIN = "test_impersonation_chain"
 TEST_EXEC_RESULT = {
     "output": [{"line_number": 1, "content": "test_content"}],
@@ -85,7 +91,33 @@ def dag_run_trigger(mock_conn):
         composer_dag_run_id=TEST_COMPOSER_DAG_RUN_ID,
         start_date=TEST_START_DATE,
         end_date=TEST_END_DATE,
-        allowed_states=TEST_STATES,
+        allowed_states=TEST_ALLOWED_STATES,
+        gcp_conn_id=TEST_GCP_CONN_ID,
+        impersonation_chain=TEST_IMPERSONATION_CHAIN,
+        poll_interval=TEST_POLL_INTERVAL,
+        composer_airflow_version=TEST_COMPOSER_AIRFLOW_VERSION,
+        use_rest_api=TEST_USE_REST_API,
+    )
+
+
+@pytest.fixture
+@mock.patch(
+    "airflow.providers.google.common.hooks.base_google.GoogleBaseHook.get_connection",
+    return_value=Connection(conn_id="test_conn"),
+)
+def external_task_trigger(mock_conn):
+    return CloudComposerExternalTaskTrigger(
+        project_id=TEST_PROJECT_ID,
+        region=TEST_LOCATION,
+        environment_id=TEST_ENVIRONMENT_ID,
+        start_date=TEST_START_DATE,
+        end_date=TEST_END_DATE,
+        allowed_states=TEST_ALLOWED_STATES,
+        skipped_states=TEST_SKIPPED_STATES,
+        failed_states=TEST_FAILED_STATES,
+        composer_external_dag_id=TEST_COMPOSER_DAG_ID,
+        composer_external_task_ids=TEST_COMPOSER_EXTERNAL_TASK_IDS,
+        composer_external_task_group_id=TEST_COMPOSER_EXTERNAL_TASK_GROUP_ID,
         gcp_conn_id=TEST_GCP_CONN_ID,
         impersonation_chain=TEST_IMPERSONATION_CHAIN,
         poll_interval=TEST_POLL_INTERVAL,
@@ -141,7 +173,34 @@ class TestCloudComposerDAGRunTrigger:
                 "composer_dag_run_id": TEST_COMPOSER_DAG_RUN_ID,
                 "start_date": TEST_START_DATE,
                 "end_date": TEST_END_DATE,
-                "allowed_states": TEST_STATES,
+                "allowed_states": TEST_ALLOWED_STATES,
+                "gcp_conn_id": TEST_GCP_CONN_ID,
+                "impersonation_chain": TEST_IMPERSONATION_CHAIN,
+                "poll_interval": TEST_POLL_INTERVAL,
+                "composer_airflow_version": TEST_COMPOSER_AIRFLOW_VERSION,
+                "use_rest_api": TEST_USE_REST_API,
+            },
+        )
+        assert actual_data == expected_data
+
+
+class TestCloudComposerExternalTaskTrigger:
+    def test_serialize(self, external_task_trigger):
+        actual_data = external_task_trigger.serialize()
+        expected_data = (
+            "airflow.providers.google.cloud.triggers.cloud_composer.CloudComposerExternalTaskTrigger",
+            {
+                "project_id": TEST_PROJECT_ID,
+                "region": TEST_LOCATION,
+                "environment_id": TEST_ENVIRONMENT_ID,
+                "start_date": TEST_START_DATE,
+                "end_date": TEST_END_DATE,
+                "allowed_states": TEST_ALLOWED_STATES,
+                "skipped_states": TEST_SKIPPED_STATES,
+                "failed_states": TEST_FAILED_STATES,
+                "composer_external_dag_id": TEST_COMPOSER_DAG_ID,
+                "composer_external_task_ids": TEST_COMPOSER_EXTERNAL_TASK_IDS,
+                "composer_external_task_group_id": TEST_COMPOSER_EXTERNAL_TASK_GROUP_ID,
                 "gcp_conn_id": TEST_GCP_CONN_ID,
                 "impersonation_chain": TEST_IMPERSONATION_CHAIN,
                 "poll_interval": TEST_POLL_INTERVAL,

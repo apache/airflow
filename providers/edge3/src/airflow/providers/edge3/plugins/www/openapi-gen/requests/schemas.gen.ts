@@ -81,9 +81,6 @@ export const $ExecuteTask = {
             type: 'string',
             title: 'Token'
         },
-        ti: {
-            '$ref': '#/components/schemas/TaskInstance'
-        },
         dag_rel_path: {
             type: 'string',
             format: 'path',
@@ -103,6 +100,14 @@ export const $ExecuteTask = {
             ],
             title: 'Log Path'
         },
+        ti: {
+            '$ref': '#/components/schemas/TaskInstance'
+        },
+        sentry_integration: {
+            type: 'string',
+            title: 'Sentry Integration',
+            default: ''
+        },
         type: {
             type: 'string',
             const: 'ExecuteTask',
@@ -111,7 +116,7 @@ export const $ExecuteTask = {
         }
     },
     type: 'object',
-    required: ['token', 'ti', 'dag_rel_path', 'bundle_info', 'log_path'],
+    required: ['token', 'dag_rel_path', 'bundle_info', 'log_path', 'ti'],
     title: 'ExecuteTask',
     description: 'Execute the given Task.'
 } as const;

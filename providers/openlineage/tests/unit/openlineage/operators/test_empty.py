@@ -32,7 +32,7 @@ def test_execute_returns_none_and_does_not_raise():
 
 
 @pytest.mark.parametrize(
-    "method_name,use_task_instance",
+    ("method_name", "use_task_instance"),
     [
         ("get_openlineage_facets_on_start", False),
         ("get_openlineage_facets_on_complete", True),

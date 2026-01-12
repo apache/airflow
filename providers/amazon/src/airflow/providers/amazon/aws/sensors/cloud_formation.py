@@ -22,13 +22,12 @@ from __future__ import annotations
 from collections.abc import Sequence
 from typing import TYPE_CHECKING
 
+from airflow.providers.amazon.aws.hooks.cloud_formation import CloudFormationHook
 from airflow.providers.amazon.aws.sensors.base_aws import AwsBaseSensor
 from airflow.providers.amazon.aws.utils.mixins import aws_template_fields
 
 if TYPE_CHECKING:
-    from airflow.utils.context import Context
-
-from airflow.providers.amazon.aws.hooks.cloud_formation import CloudFormationHook
+    from airflow.sdk import Context
 
 
 class CloudFormationCreateStackSensor(AwsBaseSensor[CloudFormationHook]):

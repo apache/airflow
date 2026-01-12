@@ -26,6 +26,7 @@ from airflow.providers.common.sql.hooks.sql import DbApiHook
 
 if TYPE_CHECKING:
     from sqlalchemy.engine import Connection
+    from sqlalchemy.pool import PoolProxiedConnection
 
 
 class DrillHook(DbApiHook):
@@ -48,7 +49,7 @@ class DrillHook(DbApiHook):
     hook_name = "Drill"
     supports_autocommit = False
 
-    def get_conn(self) -> Connection:
+    def get_conn(self) -> PoolProxiedConnection:
         """Establish a connection to Drillbit."""
         conn_md = self.get_connection(self.get_conn_id())
         creds = f"{conn_md.login}:{conn_md.password}@" if conn_md.login else ""

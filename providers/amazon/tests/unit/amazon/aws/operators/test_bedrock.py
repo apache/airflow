@@ -121,7 +121,7 @@ class TestBedrockCustomizeModelOperator:
         self.operator.defer = mock.MagicMock()
 
     @pytest.mark.parametrize(
-        "wait_for_completion, deferrable",
+        ("wait_for_completion", "deferrable"),
         [
             pytest.param(False, False, id="no_wait"),
             pytest.param(True, False, id="wait"),
@@ -149,7 +149,7 @@ class TestBedrockCustomizeModelOperator:
     success = {"ResponseMetadata": {"HTTPStatusCode": 201}, "jobArn": CUSTOMIZE_JOB_ARN}
 
     @pytest.mark.parametrize(
-        "side_effect, ensure_unique_name",
+        ("side_effect", "ensure_unique_name"),
         [
             pytest.param([conflict_exception, success], True, id="conflict_and_ensure_unique"),
             pytest.param([conflict_exception, success], False, id="conflict_and_not_ensure_unique"),
@@ -209,7 +209,7 @@ class TestBedrockCreateProvisionedModelThroughputOperator:
         self.operator.defer = mock.MagicMock()
 
     @pytest.mark.parametrize(
-        "wait_for_completion, deferrable",
+        ("wait_for_completion", "deferrable"),
         [
             pytest.param(False, False, id="no_wait"),
             pytest.param(True, False, id="wait"),
@@ -272,7 +272,7 @@ class TestBedrockCreateKnowledgeBaseOperator:
         self.operator.defer = mock.MagicMock()
 
     @pytest.mark.parametrize(
-        "wait_for_completion, deferrable",
+        ("wait_for_completion", "deferrable"),
         [
             pytest.param(False, False, id="no_wait"),
             pytest.param(True, False, id="wait"),
@@ -300,6 +300,64 @@ class TestBedrockCreateKnowledgeBaseOperator:
 
     def test_template_fields(self):
         validate_template_fields(self.operator)
+
+    def _create_validation_error(self, message: str) -> ClientError:
+        """Helper to create ValidationException with specific message."""
+        return ClientError(
+            error_response={"Error": {"Message": message, "Code": "ValidationException"}},
+            operation_name="CreateKnowledgeBase",
+        )
+
+    @pytest.mark.parametrize(
+        ("error_message", "should_retry"),
+        [
+            ("no such index [bedrock-kb-index]", True),
+            ("server returned 401", True),
+            ("user does not have permissions", True),
+            ("status code: 403", True),
+            ("Bad Authorization", True),
+            ("Some other validation error", False),
+        ],
+    )
+    def test_retry_condition_validation(self, error_message, should_retry, mock_conn):
+        """Test which error messages trigger retries."""
+        self.operator.wait_for_completion = False
+
+        validation_error = self._create_validation_error(error_message)
+        mock_conn.create_knowledge_base.side_effect = [validation_error]
+
+        if should_retry:
+            # For retryable errors, provide a success response for the retry
+            success_response = {"knowledgeBase": {"knowledgeBaseId": self.KNOWLEDGE_BASE_ID}}
+            mock_conn.create_knowledge_base.side_effect = [validation_error, success_response]
+
+            with mock.patch("airflow.providers.amazon.aws.operators.bedrock.sleep"):
+                result = self.operator.execute({})
+            assert result == self.KNOWLEDGE_BASE_ID
+            assert mock_conn.create_knowledge_base.call_count == 2
+        else:
+            # For non-retryable errors, the original error should be raised immediately
+            with pytest.raises(ClientError):
+                self.operator.execute({})
+            assert mock_conn.create_knowledge_base.call_count == 1
+
+    @mock.patch("airflow.providers.amazon.aws.operators.bedrock.sleep")
+    def test_retry_exhaustion_raises_original_error(self, mock_sleep, mock_conn):
+        """Test that original error is raised when retries are exhausted."""
+        error_403 = self._create_validation_error(
+            "Dependency error document status code: 403, error message: Bad Authorization"
+        )
+
+        # Default number of waiter attempts is 20
+        mock_conn.create_knowledge_base.side_effect = [error_403] * 21
+
+        with pytest.raises(ClientError) as exc_info:
+            self.operator.execute({})
+
+        assert exc_info.value.response["Error"]["Code"] == "ValidationException"
+        assert "status code: 403" in exc_info.value.response["Error"]["Message"]
+        assert mock_conn.create_knowledge_base.call_count == 21
+        assert mock_sleep.call_count == 20
 
 
 class TestBedrockCreateDataSourceOperator:
@@ -423,7 +481,7 @@ class TestBedrockIngestDataOperator:
         assert mock_sleep.call_count == 5
 
     @pytest.mark.parametrize(
-        "error_message, should_retry",
+        ("error_message", "should_retry"),
         [
             ("Dependency error document status code: 404", True),
             ("request failed: [http_exception] server returned 401", True),
@@ -473,7 +531,7 @@ class TestBedrockRaGOperator:
     MODEL_ARN = "model arn"
 
     @pytest.mark.parametrize(
-        "source_type, vector_search_config, knowledge_base_id, sources, expect_success",
+        ("source_type", "vector_search_config", "knowledge_base_id", "sources", "expect_success"),
         [
             pytest.param(
                 "invalid_source_type",
@@ -685,7 +743,7 @@ class TestBedrockBatchInferenceOperator:
         self.operator.defer = mock.MagicMock()
 
     @pytest.mark.parametrize(
-        "wait_for_completion, deferrable",
+        ("wait_for_completion", "deferrable"),
         [
             pytest.param(False, False, id="no_wait"),
             pytest.param(True, False, id="wait"),

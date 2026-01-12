@@ -175,7 +175,7 @@ class TestStreamLogWriter:
         assert isinstance(log.name, str)
 
 
-@pytest.mark.parametrize(["maintain_propagate"], [[SetContextPropagate.MAINTAIN_PROPAGATE], [None]])
+@pytest.mark.parametrize("maintain_propagate", [SetContextPropagate.MAINTAIN_PROPAGATE, None])
 def test_set_context_propagation(parent_child_handlers, child_logger, maintain_propagate):
     # Test the behaviour of set_context and logger propagation and the MAINTAIN_PROPAGATE return
 

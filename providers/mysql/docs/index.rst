@@ -77,7 +77,7 @@ apache-airflow-providers-mysql package
 `MySQL <https://www.mysql.com/>`__
 
 
-Release: 6.3.4
+Release: 6.4.0
 
 Provider package
 ----------------
@@ -95,17 +95,18 @@ For the minimum Airflow version supported, see ``Requirements`` below.
 Requirements
 ------------
 
-The minimum Apache Airflow version supported by this provider distribution is ``2.10.0``.
+The minimum Apache Airflow version supported by this provider distribution is ``2.11.0``.
 
-=======================================  =====================================
-PIP package                              Version required
-=======================================  =====================================
-``apache-airflow``                       ``>=2.10.0``
-``apache-airflow-providers-common-sql``  ``>=1.20.0``
-``mysqlclient``                          ``>=2.2.5; sys_platform != "darwin"``
-``mysql-connector-python``               ``>=9.1.0``
-``aiomysql``                             ``>=0.2.0``
-=======================================  =====================================
+==========================================  =====================================
+PIP package                                 Version required
+==========================================  =====================================
+``apache-airflow``                          ``>=2.11.0``
+``apache-airflow-providers-common-compat``  ``>=1.8.0``
+``apache-airflow-providers-common-sql``     ``>=1.20.0``
+``mysqlclient``                             ``>=2.2.5; sys_platform != "darwin"``
+``mysql-connector-python``                  ``>=9.1.0``
+``aiomysql``                                ``>=0.2.0``
+==========================================  =====================================
 
 Cross provider package dependencies
 -----------------------------------
@@ -120,16 +121,17 @@ You can install such cross-provider dependencies when installing from PyPI. For 
     pip install apache-airflow-providers-mysql[amazon]
 
 
-==============================================================================================================  ===============
-Dependent package                                                                                               Extra
-==============================================================================================================  ===============
-`apache-airflow-providers-amazon <https://airflow.apache.org/docs/apache-airflow-providers-amazon>`_            ``amazon``
-`apache-airflow-providers-common-sql <https://airflow.apache.org/docs/apache-airflow-providers-common-sql>`_    ``common.sql``
-`apache-airflow-providers-openlineage <https://airflow.apache.org/docs/apache-airflow-providers-openlineage>`_  ``openlineage``
-`apache-airflow-providers-presto <https://airflow.apache.org/docs/apache-airflow-providers-presto>`_            ``presto``
-`apache-airflow-providers-trino <https://airflow.apache.org/docs/apache-airflow-providers-trino>`_              ``trino``
-`apache-airflow-providers-vertica <https://airflow.apache.org/docs/apache-airflow-providers-vertica>`_          ``vertica``
-==============================================================================================================  ===============
+==================================================================================================================  =================
+Dependent package                                                                                                   Extra
+==================================================================================================================  =================
+`apache-airflow-providers-amazon <https://airflow.apache.org/docs/apache-airflow-providers-amazon>`_                ``amazon``
+`apache-airflow-providers-common-compat <https://airflow.apache.org/docs/apache-airflow-providers-common-compat>`_  ``common.compat``
+`apache-airflow-providers-common-sql <https://airflow.apache.org/docs/apache-airflow-providers-common-sql>`_        ``common.sql``
+`apache-airflow-providers-openlineage <https://airflow.apache.org/docs/apache-airflow-providers-openlineage>`_      ``openlineage``
+`apache-airflow-providers-presto <https://airflow.apache.org/docs/apache-airflow-providers-presto>`_                ``presto``
+`apache-airflow-providers-trino <https://airflow.apache.org/docs/apache-airflow-providers-trino>`_                  ``trino``
+`apache-airflow-providers-vertica <https://airflow.apache.org/docs/apache-airflow-providers-vertica>`_              ``vertica``
+==================================================================================================================  =================
 
 Downloading official packages
 -----------------------------
@@ -137,5 +139,5 @@ Downloading official packages
 You can download officially released packages and verify their checksums and signatures from the
 `Official Apache Download site <https://downloads.apache.org/airflow/providers/>`_
 
-* `The apache-airflow-providers-mysql 6.3.4 sdist package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_mysql-6.3.4.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_mysql-6.3.4.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_mysql-6.3.4.tar.gz.sha512>`__)
-* `The apache-airflow-providers-mysql 6.3.4 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_mysql-6.3.4-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_mysql-6.3.4-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_mysql-6.3.4-py3-none-any.whl.sha512>`__)
+* `The apache-airflow-providers-mysql 6.4.0 sdist package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_mysql-6.4.0.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_mysql-6.4.0.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_mysql-6.4.0.tar.gz.sha512>`__)
+* `The apache-airflow-providers-mysql 6.4.0 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_mysql-6.4.0-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_mysql-6.4.0-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_mysql-6.4.0-py3-none-any.whl.sha512>`__)

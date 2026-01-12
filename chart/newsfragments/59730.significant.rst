@@ -1,0 +1,3 @@
+``workers.replicas`` command is now deprecated in favor of ``workers.celery.replicas``.
+
+Along the upgrade of Helm Chart version, change the configuration of ``workers.replicas`` to ``workers.celery.replicas`` or unset ``workers.celery.replicas`` to preserve previous behaviour of the Helm Chart.

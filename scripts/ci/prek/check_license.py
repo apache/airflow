@@ -37,13 +37,10 @@ cmd = [
     "--user",
     f"{os.getuid()}:{os.getgid()}",
     "--rm",
-    "--platform",
-    "linux/amd64",
-    "ghcr.io/apache/airflow-apache-rat:0.16.1-2024.03.23@sha256:83c4d2610ec4a439d1809a67fadbdc9a1df089ab130b32209351bdd4527a3f02",
-    "-d",
-    "/opt/airflow",
-    "--exclude-file",
+    "ghcr.io/apache/airflow-apache-rat:0.17-2025.10.24@sha256:63e965ecfa195d38cf0525b16ad801dff75833ee97d88cd763020537c36981c9",
+    "--input-exclude-file",
     "/opt/airflow/.rat-excludes",
+    "/opt/airflow",
 ]
 
 print("Running command:")
@@ -58,7 +55,10 @@ result = subprocess.run(
 output = result.stdout
 if result.returncode != 0:
     print(f"\033[0;31mERROR: {result.returncode} when running rat\033[0m\n")
-    print(output)
+    lines = output.splitlines()
+    for line in lines:
+        if "! " in line:
+            print(line)
     sys.exit(result.returncode)
 unknown_licences = [line for line in output.splitlines() if "??" in line]
 if unknown_licences:

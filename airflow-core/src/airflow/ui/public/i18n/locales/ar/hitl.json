@@ -1,5 +1,8 @@
 {
   "filters": {
+    "body": "المحتوى",
+    "createdAtFrom": "أُنشئت في من",
+    "createdAtTo": "أُنشئت في إلى",
     "response": {
       "all": "الكل",
       "pending": "قيد الانتظار",
@@ -20,11 +23,13 @@
   "requiredActionCount_zero": "لا توجد إجراءات مطلوبة",
   "requiredActionState": "حالة الإجراء المطلوب",
   "response": {
+    "created": "تم إنشاء الاستجابة في ",
     "error": "فشل في الاستجابة",
     "optionsDescription": "اختر الخيارات لهذا مثيل المهمة",
     "optionsLabel": "الخيارات",
     "received": "تم استلام الاستجابة في ",
     "respond": "الرد",
+    "responded_by_user_name": "أجاب بواسطة (اسم المستخدم)",
     "success": "تمت الاستجابة بنجاح ل{{taskId}}",
     "title": "مثيل مهمة يدوي - {{taskId}}"
   },

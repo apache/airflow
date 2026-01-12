@@ -49,6 +49,13 @@
     "warning_one": "1 個警告",
     "warning_other": "{{count}} 個警告"
   },
+  "dateRangeFilter": {
+    "validation": {
+      "invalidDateFormat": "無效的日期格式",
+      "invalidTimeFormat": "無效的時間格式",
+      "startBeforeEnd": "開始時間必須在結束時間之前"
+    }
+  },
   "durationChart": {
     "duration": "持續時間 (秒)",
     "lastDagRun_one": "最近 1 次 Dag 執行",
@@ -86,6 +93,14 @@
     "taskGroup": "任務群組"
   },
   "limitedList": "+ 其他 {{count}} 項",
+  "limitedList.allItems": "所有 {{count}} 個項目：",
+  "limitedList.allTags_one": " 所有標籤 (1)",
+  "limitedList.allTags_other": "所有標籤 ({{count}})",
+  "limitedList.clickToInteract": "點擊標籤以篩選 Dags",
+  "limitedList.clickToOpenFull": "點擊 \"+{{count}} 更多\" 以開啟完整檢視",
+  "limitedList.copyPasteText": "你可以複製並貼上上方文字",
+  "limitedList.showingItems_one": "顯示 1 個項目",
+  "limitedList.showingItems_other": "顯示 {{count}} 個項目",
   "logs": {
     "file": "檔案",
     "location": "第 {{line}} 行，位於 {{name}}"
@@ -95,10 +110,16 @@
   "sortedDescending": "遞減排序",
   "sortedUnsorted": "未排序",
   "taskTries": "任務嘗試次數",
+  "taskTryPlaceholder": "任務嘗試數",
   "toggleCardView": "顯示卡片視圖",
   "toggleTableView": "顯示表格視圖",
   "triggerDag": {
     "button": "觸發",
+    "dataInterval": "資料區間",
+    "dataIntervalAuto": "依邏輯日期與時間表推斷",
+    "dataIntervalManual": "手動指定",
+    "intervalEnd": "結束",
+    "intervalStart": "開始",
     "loading": "正在載入 Dag 資訊...",
     "loadingFailed": "載入 Dag 資訊失敗，請重試。",
     "runIdHelp": "選填 - 若未提供將會自動產生",
@@ -106,6 +127,9 @@
     "selectLabel": "單次執行",
     "title": "觸發 Dag",
     "toaster": {
+      "error": {
+        "title": "觸發 Dag 執行失敗"
+      },
       "success": {
         "description": "已成功觸發 Dag 執行。",
         "title": "已觸發 Dag 執行"
@@ -126,6 +150,7 @@
     "versionId": "版本 ID"
   },
   "versionSelect": {
+    "allVersions": "所有版本",
     "dagVersion": "Dag 版本",
     "versionCode": "v{{versionCode}}"
   }

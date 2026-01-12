@@ -25,7 +25,7 @@
 {{- $affinity := or .Values.webserver.affinity .Values.affinity }}
 {{- $tolerations := or .Values.webserver.tolerations .Values.tolerations }}
 {{- $topologySpreadConstraints := or .Values.webserver.topologySpreadConstraints .Values.topologySpreadConstraints }}
-{{- $revisionHistoryLimit := or .Values.webserver.revisionHistoryLimit .Values.revisionHistoryLimit }}
+{{- $revisionHistoryLimit := include "airflow.revisionHistoryLimit" (list .Values.webserver.revisionHistoryLimit .Values.revisionHistoryLimit) }}
 {{- $securityContext := include "airflowPodSecurityContext" (list . .Values.webserver) }}
 {{- $containerSecurityContext := include "containerSecurityContext" (list . .Values.webserver) }}
 {{- $containerSecurityContextWaitForMigrations := include "containerSecurityContext" (list . .Values.webserver.waitForMigrations) }}
@@ -50,7 +50,7 @@ spec:
   {{- if not .Values.webserver.hpa.enabled }}
   replicas: {{ .Values.webserver.replicas }}
   {{- end}}
-  {{- if $revisionHistoryLimit }}
+  {{- if ne $revisionHistoryLimit "" }}
   revisionHistoryLimit: {{ $revisionHistoryLimit }}
   {{- end }}
   strategy:
@@ -131,10 +131,7 @@ spec:
       restartPolicy: Always
       terminationGracePeriodSeconds: {{ .Values.webserver.terminationGracePeriodSeconds }}
       securityContext: {{ $securityContext | nindent 8 }}
-      {{- if or .Values.registry.secretName .Values.registry.connection }}
-      imagePullSecrets:
-        - name: {{ template "registry_secret" . }}
-      {{- end }}
+      imagePullSecrets: {{- include "image_pull_secrets" . | nindent 8 }}
       initContainers:
         {{- if .Values.webserver.waitForMigrations.enabled }}
         - name: wait-for-airflow-migrations

@@ -1,5 +1,11 @@
 {
+  "additional_data": "נתונים נוספים",
+  "asset_many": "נכסים",
+  "asset_one": "נכס",
+  "asset_other": "נכסים",
+  "asset_two": "שני נכסים",
   "consumingDags": "צורכים Dags",
+  "consumingTasks": "משימות צורכות",
   "createEvent": {
     "button": "יצירת אירוע",
     "manual": {
@@ -21,6 +27,7 @@
     },
     "title": "יצירת אירוע בנכס עבור {{name}}"
   },
+  "extra": "תוכן",
   "group": "קבוצה",
   "lastAssetEvent": "אירוע אחרון בנכס",
   "name": "שם",

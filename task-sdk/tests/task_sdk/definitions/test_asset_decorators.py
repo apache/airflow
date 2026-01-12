@@ -179,7 +179,7 @@ class TestAssetDecorator:
         assert err.value.args[0] == "@task decorator with 'outlets' argument is not supported in @asset"
 
     @pytest.mark.parametrize(
-        "provided_uri, expected_uri",
+        ("provided_uri", "expected_uri"),
         [
             pytest.param(None, "custom", id="default-uri"),
             pytest.param("s3://bucket/object", "s3://bucket/object", id="custom-uri"),
@@ -436,4 +436,27 @@ class Test_AssetMainOperator:
 
         assert mock_supervisor_comms.mock_calls == [
             mock.call.send(GetAssetByName(name="inlet_asset_1")),
+        ]
+
+    def test_from_definition_custom_name(self, mock_supervisor_comms, func_fixer):
+        @func_fixer
+        def example_asset_func(self):
+            pass
+
+        definition = asset(schedule=None, name="custom_name")(example_asset_func)
+        op = _AssetMainOperator.from_definition(definition)
+        assert op.task_id == "example_asset_func"
+        assert op.python_callable == example_asset_func
+        assert op._definition_name == "custom_name"
+
+        mock_supervisor_comms.send.side_effect = [
+            AssetResult(name="custom_name", uri="s3://bucket/object1", group="Asset")
+        ]
+
+        assert op.determine_kwargs(context={}) == {
+            "self": Asset(name="custom_name", uri="s3://bucket/object1", group="Asset")
+        }
+
+        assert mock_supervisor_comms.mock_calls == [
+            mock.call.send(GetAssetByName(name="custom_name", uri="s3://bucket/object1", group="Asset"))
         ]

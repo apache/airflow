@@ -28,7 +28,6 @@ import (
 )
 
 type (
-	// task is an interface of an task implementation.
 	Task   = worker.Task
 	Bundle = worker.Bundle
 

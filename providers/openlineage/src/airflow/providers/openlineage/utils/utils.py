@@ -27,14 +27,16 @@ from importlib import metadata
 from typing import TYPE_CHECKING, Any
 
 import attrs
-from openlineage.client.facet_v2 import parent_run
+from openlineage.client.facet_v2 import job_dependencies_run, parent_run
 from openlineage.client.utils import RedactMixin
+from openlineage.client.uuid import generate_static_uuid
 
 from airflow import __version__ as AIRFLOW_VERSION
-
-# TODO: move this maybe to Airflow's logic?
-from airflow.models import DagRun, TaskReschedule
-from airflow.models.mappedoperator import MappedOperator as SerializedMappedOperator
+from airflow.exceptions import AirflowOptionalProviderFeatureException
+from airflow.models import DagRun, TaskInstance, TaskReschedule
+from airflow.providers.common.compat.assets import Asset
+from airflow.providers.common.compat.module_loading import import_string
+from airflow.providers.common.compat.sdk import DAG, BaseOperator, BaseSensorOperator, MappedOperator
 from airflow.providers.openlineage import (
     __version__ as OPENLINEAGE_PROVIDER_VERSION,
     conf,
@@ -55,12 +57,13 @@ from airflow.providers.openlineage.utils.selective_enable import (
 )
 from airflow.providers.openlineage.version_compat import AIRFLOW_V_3_0_PLUS, get_base_airflow_version_tuple
 from airflow.serialization.serialized_objects import SerializedBaseOperator, SerializedDAG
-from airflow.utils.module_loading import import_string
 
-if AIRFLOW_V_3_0_PLUS:
-    from airflow.sdk import BaseSensorOperator
-else:
-    from airflow.sensors.base import BaseSensorOperator  # type: ignore[no-redef]
+try:
+    from airflow.serialization.definitions.mappedoperator import SerializedMappedOperator
+except ImportError:
+    from airflow.models.mappedoperator import (  # type: ignore[attr-defined,no-redef]
+        MappedOperator as SerializedMappedOperator,
+    )
 
 if not AIRFLOW_V_3_0_PLUS:
     from airflow.utils.session import NEW_SESSION, provide_session
@@ -71,10 +74,7 @@ if TYPE_CHECKING:
     from openlineage.client.event_v2 import Dataset as OpenLineageDataset
     from openlineage.client.facet_v2 import RunFacet, processing_engine_run
 
-    from airflow.models import TaskInstance
-    from airflow.providers.common.compat.assets import Asset
-    from airflow.sdk import DAG, BaseOperator
-    from airflow.sdk.definitions.mappedoperator import MappedOperator
+    from airflow.models.asset import AssetEvent
     from airflow.sdk.execution_time.secrets_masker import (
         Redactable,
         Redacted,
@@ -85,21 +85,6 @@ if TYPE_CHECKING:
 
     AnyOperator: TypeAlias = BaseOperator | MappedOperator | SerializedBaseOperator | SerializedMappedOperator
 else:
-    try:
-        from airflow.sdk import DAG, BaseOperator
-        from airflow.sdk.definitions.mappedoperator import MappedOperator
-    except ImportError:
-        from airflow.models import DAG, BaseOperator, MappedOperator
-
-    try:
-        from airflow.providers.common.compat.assets import Asset
-    except ImportError:
-        if AIRFLOW_V_3_0_PLUS:
-            from airflow.sdk import Asset
-        else:
-            # dataset is renamed to asset since Airflow 3.0
-            from airflow.datasets import Dataset as Asset
-
     try:
         from airflow.sdk._shared.secrets_masker import (
             Redactable,
@@ -169,25 +154,234 @@ def get_job_name(task: TaskInstance | RuntimeTaskInstance) -> str:
     return f"{task.dag_id}.{task.task_id}"
 
 
-def get_task_parent_run_facet(
-    parent_run_id: str, parent_job_name: str, parent_job_namespace: str = conf.namespace()
+def _get_parent_run_facet(
+    parent_run_id: str,
+    parent_job_name: str,
+    parent_job_namespace: str = conf.namespace(),
+    root_parent_run_id: str | None = None,
+    root_parent_job_name: str | None = None,
+    root_parent_job_namespace: str | None = None,
 ) -> dict[str, Any]:
-    """
-    Retrieve the parent run facet for task-level events.
-
-    This facet currently always points to the DAG-level run ID and name,
-    as external events for DAG runs are not yet handled.
-    """
+    """Create the parent run facet from identifiers."""
+    root_parent_run_id = root_parent_run_id or parent_run_id
+    root_parent_job_name = root_parent_job_name or parent_job_name
+    root_parent_job_namespace = root_parent_job_namespace or parent_job_namespace
     return {
         "parent": parent_run.ParentRunFacet(
             run=parent_run.Run(runId=parent_run_id),
             job=parent_run.Job(namespace=parent_job_namespace, name=parent_job_name),
             root=parent_run.Root(
-                run=parent_run.RootRun(runId=parent_run_id),
-                job=parent_run.RootJob(namespace=parent_job_namespace, name=parent_job_name),
+                run=parent_run.RootRun(runId=root_parent_run_id),
+                job=parent_run.RootJob(namespace=root_parent_job_namespace, name=root_parent_job_name),
             ),
         )
     }
+
+
+def get_task_parent_run_facet(
+    parent_run_id: str,
+    parent_job_name: str,
+    parent_job_namespace: str = conf.namespace(),
+    root_parent_run_id: str | None = None,
+    root_parent_job_name: str | None = None,
+    root_parent_job_namespace: str | None = None,
+    dr_conf: dict | None = None,
+) -> dict[str, Any]:
+    """Retrieve the parent run facet."""
+    all_root_info = (root_parent_run_id, root_parent_job_namespace, root_parent_job_name)
+    # If not all root identifiers are provided explicitly, try to get them from dagrun conf.
+    if not all(all_root_info):
+        # If some but not all root identifiers are provided warn and do not use any of them, we need all.
+        if any(all_root_info):
+            log.warning(
+                "Incomplete root OpenLineage information provided. "
+                "No root information will be used. Found values: "
+                "root_parent_run_id='%s', root_parent_job_namespace='%s', root_parent_job_name='%s'.",
+                root_parent_run_id,
+                root_parent_job_namespace,
+                root_parent_job_name,
+            )
+            root_parent_run_id, root_parent_job_namespace, root_parent_job_name = None, None, None
+        elif dr_conf:
+            # Check for root identifiers in dagrun conf
+            if root_info := get_root_information_from_dagrun_conf(dr_conf):
+                root_parent_run_id = root_info["root_parent_run_id"]
+                root_parent_job_namespace = root_info["root_parent_job_namespace"]
+                root_parent_job_name = root_info["root_parent_job_name"]
+            # If not present, check for parent identifiers in dagrun conf and use them as root
+            elif parent_info := get_parent_information_from_dagrun_conf(dr_conf):
+                root_parent_run_id = parent_info["parent_run_id"]
+                root_parent_job_namespace = parent_info["parent_job_namespace"]
+                root_parent_job_name = parent_info["parent_job_name"]
+
+    return _get_parent_run_facet(
+        parent_run_id=parent_run_id,
+        parent_job_namespace=parent_job_namespace,
+        parent_job_name=parent_job_name,
+        root_parent_run_id=root_parent_run_id,
+        root_parent_job_namespace=root_parent_job_namespace,
+        root_parent_job_name=root_parent_job_name,
+    )
+
+
+def _get_openlineage_data_from_dagrun_conf(dr_conf: dict | None) -> dict:
+    """Return the 'openlineage' section from a DAG run config if valid, otherwise an empty dict."""
+    if not dr_conf or not isinstance(dr_conf, dict):
+        return {}
+    ol_data = dr_conf.get("openlineage")
+    return ol_data if isinstance(ol_data, dict) else {}
+
+
+def get_root_information_from_dagrun_conf(dr_conf: dict | None) -> dict[str, str]:
+    """Extract root parent run and job information from a DAG run config."""
+    ol_data = _get_openlineage_data_from_dagrun_conf(dr_conf)
+    if not ol_data:
+        log.debug("No 'openlineage' data found in DAG run config.")
+        return {}
+
+    root_parent_run_id = ol_data.get("rootParentRunId", "")
+    root_parent_job_namespace = ol_data.get("rootParentJobNamespace", "")
+    root_parent_job_name = ol_data.get("rootParentJobName", "")
+
+    all_root_info = (root_parent_run_id, root_parent_job_namespace, root_parent_job_name)
+    if not all(all_root_info):
+        if any(all_root_info):
+            log.warning(
+                "Incomplete root OpenLineage information in DAG run config. "
+                "No root information will be used. Found values: "
+                "rootParentRunId='%s', rootParentJobNamespace='%s', rootParentJobName='%s'.",
+                root_parent_run_id,
+                root_parent_job_namespace,
+                root_parent_job_name,
+            )
+        else:
+            log.debug("No 'openlineage' root information found in DAG run config.")
+        return {}
+
+    try:  # Validate that runId is correct UUID
+        parent_run.RootRun(runId=root_parent_run_id)
+    except ValueError:
+        log.warning(
+            "Invalid OpenLineage rootParentRunId '%s' in DAG run config - expected a valid UUID.",
+            root_parent_run_id,
+        )
+        return {}
+
+    log.debug(
+        "Extracted valid root OpenLineage identifiers from DAG run config: "
+        "rootParentRunId='%s', rootParentJobNamespace='%s', rootParentJobName='%s'.",
+        root_parent_run_id,
+        root_parent_job_namespace,
+        root_parent_job_name,
+    )
+    return {
+        "root_parent_run_id": root_parent_run_id,
+        "root_parent_job_namespace": root_parent_job_namespace,
+        "root_parent_job_name": root_parent_job_name,
+    }
+
+
+def get_parent_information_from_dagrun_conf(dr_conf: dict | None) -> dict[str, str]:
+    """Extract parent run and job information from a DAG run config."""
+    ol_data = _get_openlineage_data_from_dagrun_conf(dr_conf)
+    if not ol_data:
+        log.debug("No 'openlineage' data found in DAG run config.")
+        return {}
+
+    parent_run_id = ol_data.get("parentRunId", "")
+    parent_job_namespace = ol_data.get("parentJobNamespace", "")
+    parent_job_name = ol_data.get("parentJobName", "")
+
+    all_parent_info = (parent_run_id, parent_job_namespace, parent_job_name)
+    if not all(all_parent_info):
+        if any(all_parent_info):
+            log.warning(
+                "Incomplete parent OpenLineage information in DAG run config. "
+                "ParentRunFacet will NOT be created. Found values: "
+                "parentRunId='%s', parentJobNamespace='%s', parentJobName='%s'.",
+                parent_run_id,
+                parent_job_namespace,
+                parent_job_name,
+            )
+        else:
+            log.debug("No 'openlineage' parent information found in DAG run config.")
+        return {}
+
+    try:  # Validate that runId is correct UUID
+        parent_run.RootRun(runId=parent_run_id)
+    except ValueError:
+        log.warning(
+            "Invalid OpenLineage parentRunId '%s' in DAG run config - expected a valid UUID.",
+            parent_run_id,
+        )
+        return {}
+
+    log.debug(
+        "Extracted valid parent OpenLineage identifiers from DAG run config: "
+        "parentRunId='%s', parentJobNamespace='%s', parentJobName='%s'.",
+        parent_run_id,
+        parent_job_namespace,
+        parent_job_name,
+    )
+
+    return {
+        "parent_run_id": parent_run_id,
+        "parent_job_namespace": parent_job_namespace,
+        "parent_job_name": parent_job_name,
+    }
+
+
+def get_dag_parent_run_facet(dr_conf: dict | None) -> dict[str, parent_run.ParentRunFacet]:
+    """
+    Build the OpenLineage parent run facet from a DAG run configuration.
+
+    This function extracts parent run identifiers - run ID, job namespace, and job name -
+    from the DAG run configuration to construct an OpenLineage `ParentRunFacet`. It requires
+    a complete set of parent identifiers to proceed; if some but not all are present, or if
+    the run ID is invalid, the function returns an empty dictionary.
+
+    When valid parent identifiers are found, it also attempts to retrieve corresponding
+    root identifiers using `get_root_information_from_dagrun_conf`, which may fall back
+    to the parent identifiers if no explicit root data is available. The resulting facet
+    links both the immediate parent and root lineage information for the run.
+
+    Args:
+        dr_conf: The DAG run configuration dictionary.
+
+    Returns:
+        A dictionary containing a single entry mapping the facet name to the constructed
+        `ParentRunFacet`. Returns an empty dictionary if the configuration does not contain
+        a complete or valid set of parent identifiers.
+    """
+    ol_data = _get_openlineage_data_from_dagrun_conf(dr_conf)
+    if not ol_data:
+        log.debug("No 'openlineage' data found in DAG run config.")
+        return {}
+
+    parent_info = get_parent_information_from_dagrun_conf(dr_conf)
+    if not parent_info:  # Validation and logging is done in the above function
+        return {}
+
+    root_parent_run_id, root_parent_job_namespace, root_parent_job_name = None, None, None
+    if root_info := get_root_information_from_dagrun_conf(dr_conf):
+        root_parent_run_id = root_info["root_parent_run_id"]
+        root_parent_job_namespace = root_info["root_parent_job_namespace"]
+        root_parent_job_name = root_info["root_parent_job_name"]
+    else:
+        log.debug(
+            "Missing OpenLineage root identifiers in DAG run config, "
+            "parent identifiers will be used as root instead."
+        )
+
+    # Function already uses parent as root if root is missing, no need to explicitly pass it
+    return _get_parent_run_facet(
+        parent_run_id=parent_info["parent_run_id"],
+        parent_job_namespace=parent_info["parent_job_namespace"],
+        parent_job_name=parent_info["parent_job_name"],
+        root_parent_run_id=root_parent_run_id,
+        root_parent_job_namespace=root_parent_job_namespace,
+        root_parent_job_name=root_parent_job_name,
+    )
 
 
 def _truncate_string_to_byte_size(s: str, max_size: int = _MAX_DOC_BYTES) -> str:
@@ -344,30 +538,31 @@ if not AIRFLOW_V_3_0_PLUS:
 
     @provide_session
     def is_ti_rescheduled_already(ti: TaskInstance, session=NEW_SESSION):
-        from sqlalchemy import exists
+        try:
+            from sqlalchemy import exists, select
+        except ImportError:
+            raise AirflowOptionalProviderFeatureException(
+                "sqlalchemy is required for checking task instance reschedule status. "
+                "Install it with: pip install 'apache-airflow-providers-openlineage[sqlalchemy]'"
+            )
 
         if not isinstance(ti.task, BaseSensorOperator):
             return False
 
         if not ti.task.reschedule:
             return False
-        if AIRFLOW_V_3_0_PLUS:
-            return (
-                session.query(
-                    exists().where(TaskReschedule.ti_id == ti.id, TaskReschedule.try_number == ti.try_number)
-                ).scalar()
-                is True
-            )
         return (
-            session.query(
-                exists().where(
-                    TaskReschedule.dag_id == ti.dag_id,
-                    TaskReschedule.task_id == ti.task_id,
-                    TaskReschedule.run_id == ti.run_id,
-                    TaskReschedule.map_index == ti.map_index,
-                    TaskReschedule.try_number == ti.try_number,
+            session.scalar(
+                select(
+                    exists().where(
+                        TaskReschedule.dag_id == ti.dag_id,
+                        TaskReschedule.task_id == ti.task_id,
+                        TaskReschedule.run_id == ti.run_id,
+                        TaskReschedule.map_index == ti.map_index,
+                        TaskReschedule.try_number == ti.try_number,
+                    )
                 )
-            ).scalar()
+            )
             is True
         )
 
@@ -475,18 +670,29 @@ class DagInfo(InfoJsonEncodable):
     renames = {"_dag_id": "dag_id"}
 
     @classmethod
-    def timetable_summary(cls, dag: DAG) -> str | None:
+    def timetable_summary(cls, dag: DAG | SerializedDAG) -> str | None:
         """Extract summary from timetable if missing a ``timetable_summary`` property."""
-        if getattr(dag, "timetable_summary", None):
-            return dag.timetable_summary
-        if getattr(dag, "timetable", None):
-            return dag.timetable.summary
+        if summary := getattr(dag, "timetable_summary", None):
+            return summary
+        if (timetable := getattr(dag, "timetable", None)) is None:
+            return None
+        if summary := getattr(timetable, "summary", None):
+            return summary
+        with suppress(ImportError):
+            from airflow.serialization.encoders import coerce_to_core_timetable
+
+            return coerce_to_core_timetable(timetable).summary
         return None
 
     @classmethod
-    def serialize_timetable(cls, dag: DAG) -> dict[str, Any]:
+    def serialize_timetable(cls, dag: DAG | SerializedDAG) -> dict[str, Any]:
         # This is enough for Airflow 2.10+ and has all the information needed
-        serialized = dag.timetable.serialize() or {}
+        try:
+            serialized = dag.timetable.serialize() or {}  # type: ignore[union-attr]
+        except AttributeError:
+            from airflow.serialization.encoders import encode_timetable
+
+            serialized = encode_timetable(dag.timetable)["__var"]
 
         # In Airflow 2.9 when using Dataset scheduling we do not receive datasets in serialized timetable
         # Also for DatasetOrTimeSchedule, we only receive timetable without dataset_condition
@@ -520,17 +726,21 @@ class DagRunInfo(InfoJsonEncodable):
     """Defines encoding DagRun object to JSON."""
 
     includes = [
+        "clear_number",
         "conf",
         "dag_id",
-        "data_interval_start",
         "data_interval_end",
+        "data_interval_start",
+        "end_date",
+        "execution_date",  # Airflow 2
         "external_trigger",  # Removed in Airflow 3, use run_type instead
         "logical_date",  # Airflow 3
         "run_after",  # Airflow 3
         "run_id",
         "run_type",
         "start_date",
-        "end_date",
+        "triggered_by",
+        "triggering_user_name",  # Airflow 3
     ]
 
     casts = {
@@ -615,13 +825,37 @@ class TaskInfo(InfoJsonEncodable):
         "run_as_user",
         "sla",
         "task_id",
-        "trigger_dag_id",
-        "external_dag_id",
-        "external_task_id",
         "trigger_rule",
         "upstream_task_ids",
         "wait_for_downstream",
         "wait_for_past_depends_before_skipping",
+        # Operator-specific useful attributes
+        "trigger_dag_id",  # TriggerDagRunOperator
+        "trigger_run_id",  # TriggerDagRunOperator
+        "external_dag_id",  # ExternalTaskSensor and ExternalTaskMarker (if run, as it's EmptyOperator)
+        "external_task_id",  # ExternalTaskSensor and ExternalTaskMarker (if run, as it's EmptyOperator)
+        "external_task_ids",  # ExternalTaskSensor
+        "external_task_group_id",  # ExternalTaskSensor
+        "external_dates_filter",  # ExternalTaskSensor
+        "logical_date",  # AF 3 ExternalTaskMarker (if run, as it's EmptyOperator)
+        "execution_date",  # AF 2 ExternalTaskMarker (if run, as it's EmptyOperator)
+        "database",  # BaseSQlOperator
+        "parameters",  # SQLCheckOperator, SQLValueCheckOperator and BranchSQLOperator
+        "column_mapping",  # SQLColumnCheckOperator
+        "pass_value",  # SQLValueCheckOperator
+        "tol",  # SQLValueCheckOperator
+        "metrics_thresholds",  # SQLIntervalCheckOperator
+        "ratio_formula",  # SQLIntervalCheckOperator
+        "ignore_zero",  # SQLIntervalCheckOperator
+        "min_threshold",  # SQLThresholdCheckOperator
+        "max_threshold",  # SQLThresholdCheckOperator
+        "follow_task_ids_if_true",  # BranchSQLOperator
+        "follow_task_ids_if_false",  # BranchSQLOperator
+        "follow_branch",  # BranchSQLOperator
+        "preoperator",  # SQLInsertRowsOperator
+        "postoperator",  # SQLInsertRowsOperator
+        "table_name_with_schema",  # SQLInsertRowsOperator
+        "column_names",  # SQLInsertRowsOperator
     ]
     casts = {
         "operator_class": lambda task: task.task_type,
@@ -719,7 +953,7 @@ def get_airflow_debug_facet() -> dict[str, AirflowDebugRunFacet]:
 
 def get_airflow_run_facet(
     dag_run: DagRun,
-    dag: DAG,
+    dag: DAG | SerializedDAG,
     task_instance: TaskInstance,
     task: BaseOperator,
     task_uuid: str,
@@ -751,18 +985,374 @@ def get_airflow_state_run_facet(
     dag_id: str, run_id: str, task_ids: list[str], dag_run_state: DagRunState
 ) -> dict[str, AirflowStateRunFacet]:
     tis = DagRun.fetch_task_instances(dag_id=dag_id, run_id=run_id, task_ids=task_ids)
+
+    def get_task_duration(ti):
+        if ti.duration is not None:
+            return ti.duration
+        if ti.end_date is not None and ti.start_date is not None:
+            return (ti.end_date - ti.start_date).total_seconds()
+        # Fallback to 0.0 for tasks with missing timestamps (e.g., skipped/terminated tasks)
+        return 0.0
+
     return {
         "airflowState": AirflowStateRunFacet(
             dagRunState=dag_run_state,
             tasksState={ti.task_id: ti.state for ti in tis},
-            tasksDuration={
-                ti.task_id: ti.duration
-                if ti.duration is not None
-                else (ti.end_date - ti.start_date).total_seconds()
-                for ti in tis
-            },
+            tasksDuration={ti.task_id: get_task_duration(ti) for ti in tis},
         )
     }
+
+
+def is_dag_run_asset_triggered(
+    dag_run: DagRun,
+):
+    """Return whether the given DAG run was triggered by an asset."""
+    if AIRFLOW_V_3_0_PLUS:
+        from airflow.utils.types import DagRunTriggeredByType
+
+        return dag_run.triggered_by == DagRunTriggeredByType.ASSET
+
+    # AF 2 Path
+    from airflow.models.dagrun import DagRunType
+
+    return dag_run.run_type == DagRunType.DATASET_TRIGGERED  # type: ignore[attr-defined]  # This attr is available on AF2, but mypy can't see it
+
+
+def build_task_instance_ol_run_id(
+    dag_id: str,
+    task_id: str,
+    try_number: int,
+    logical_date: datetime.datetime,
+    map_index: int,
+):
+    """
+    Generate a deterministic OpenLineage run ID for a task instance.
+
+    Args:
+        dag_id: The DAG identifier.
+        task_id: The task identifier.
+        try_number: The task try number.
+        logical_date: The logical execution date from dagrun.
+        map_index: The task map index.
+
+    Returns:
+        A deterministic OpenLineage run ID for the task instance.
+    """
+    return str(
+        generate_static_uuid(
+            instant=logical_date,
+            data=f"{conf.namespace()}.{dag_id}.{task_id}.{try_number}.{map_index}".encode(),
+        )
+    )
+
+
+def is_valid_uuid(uuid_string: str | None) -> bool:
+    """Validate that a string is a valid UUID format."""
+    if uuid_string is None:
+        return False
+    try:
+        from uuid import UUID
+
+        UUID(uuid_string)
+        return True
+    except (ValueError, TypeError):
+        return False
+
+
+def build_dag_run_ol_run_id(dag_id: str, logical_date: datetime.datetime, clear_number: int) -> str:
+    """
+    Generate a deterministic OpenLineage run ID for a DAG run.
+
+    Args:
+        dag_id: The DAG identifier.
+        logical_date: The logical execution date.
+        clear_number: The DAG run clear number.
+
+    Returns:
+        A deterministic OpenLineage run ID for the DAG run.
+    """
+    return str(
+        generate_static_uuid(
+            instant=logical_date,
+            data=f"{conf.namespace()}.{dag_id}.{clear_number}".encode(),
+        )
+    )
+
+
+def _get_eagerly_loaded_dagrun_consumed_asset_events(dag_id: str, dag_run_id: str) -> list[AssetEvent]:
+    """
+    Retrieve consumed asset events for a DagRun with relationships eagerly loaded.
+
+    Downstream code accesses source_task_instance, source_dag_run, and asset on each AssetEvent.
+    These relationships are lazy-loaded by default, which could cause N+1 query problem
+    (2 + 3*N queries for N events). Using `joinedload` fetches everything in a single query.
+    The returned AssetEvent objects have all needed relationships pre-populated in memory,
+    so they can be safely used after the session is closed.
+
+    Returns:
+        AssetEvent objects with populated relationships, or empty list if DagRun not found.
+    """
+    # This should only be used on scheduler, so DB access is allowed
+    from sqlalchemy import select
+    from sqlalchemy.orm import joinedload
+
+    from airflow.utils.session import create_session
+
+    if AIRFLOW_V_3_0_PLUS:
+        from airflow.models.asset import AssetEvent
+
+        options = (
+            joinedload(DagRun.consumed_asset_events).joinedload(AssetEvent.source_dag_run),
+            joinedload(DagRun.consumed_asset_events).joinedload(AssetEvent.source_task_instance),
+            joinedload(DagRun.consumed_asset_events).joinedload(AssetEvent.asset),
+        )
+
+    else:  # AF2 path
+        from airflow.models.dataset import DatasetEvent
+
+        options = (
+            joinedload(DagRun.consumed_dataset_events).joinedload(DatasetEvent.source_dag_run),
+            joinedload(DagRun.consumed_dataset_events).joinedload(DatasetEvent.source_task_instance),
+            joinedload(DagRun.consumed_dataset_events).joinedload(DatasetEvent.dataset),
+        )
+
+    with create_session() as session:
+        dag_run_with_events = session.scalar(
+            select(DagRun).where(DagRun.dag_id == dag_id).where(DagRun.run_id == dag_run_id).options(*options)
+        )
+
+    if not dag_run_with_events:
+        return []
+
+    if AIRFLOW_V_3_0_PLUS:
+        events = dag_run_with_events.consumed_asset_events
+    else:  # AF2 path
+        events = dag_run_with_events.consumed_dataset_events
+
+    return events
+
+
+def _extract_ol_info_from_asset_event(asset_event: AssetEvent) -> dict[str, str] | None:
+    """
+    Extract OpenLineage job information from an AssetEvent.
+
+    Information is gathered from multiple potential sources, checked in priority
+    order:
+    1. TaskInstance (primary): Provides the most complete and reliable context.
+    2. AssetEvent source fields (fallback): Offers basic `dag_id.task_id` metadata.
+    3. `asset_event.extra["openlineage"]` (last resort): May include user provided OpenLineage details.
+
+    Args:
+        asset_event: The AssetEvent from which to extract job information.
+
+    Returns:
+        A dictionary containing `job_name`, `job_namespace`, and optionally
+        `run_id`, or `None` if insufficient information is available.
+    """
+    # First check for TaskInstance
+    if ti := asset_event.source_task_instance:
+        result = {
+            "job_name": get_job_name(ti),
+            "job_namespace": conf.namespace(),
+        }
+        source_dr = asset_event.source_dag_run
+        if source_dr:
+            logical_date = source_dr.logical_date  # Get logical date from DagRun for OL run_id generation
+            if AIRFLOW_V_3_0_PLUS and logical_date is None:
+                logical_date = source_dr.run_after
+            if logical_date is not None:
+                result["run_id"] = build_task_instance_ol_run_id(
+                    dag_id=ti.dag_id,
+                    task_id=ti.task_id,
+                    try_number=ti.try_number,
+                    logical_date=logical_date,
+                    map_index=ti.map_index,
+                )
+        return result
+
+    # Then, check AssetEvent source_* fields
+    if asset_event.source_dag_id and asset_event.source_task_id:
+        return {
+            "job_name": f"{asset_event.source_dag_id}.{asset_event.source_task_id}",
+            "job_namespace": conf.namespace(),
+            # run_id cannot be constructed from these fields alone
+        }
+
+    # Lastly, check asset_event.extra["openlineage"]
+    if asset_event.extra:
+        ol_info_from_extra = asset_event.extra.get("openlineage")
+        if isinstance(ol_info_from_extra, dict):
+            job_name = ol_info_from_extra.get("parentJobName")
+            job_namespace = ol_info_from_extra.get("parentJobNamespace")
+            run_id = ol_info_from_extra.get("parentRunId")
+
+            if job_name and job_namespace:
+                result = {
+                    "job_name": str(job_name),
+                    "job_namespace": str(job_namespace),
+                }
+                if run_id:
+                    if not is_valid_uuid(str(run_id)):
+                        log.warning(
+                            "Invalid runId in AssetEvent.extra; ignoring value. event_id=%s, run_id=%s",
+                            asset_event.id,
+                            run_id,
+                        )
+                    else:
+                        result["run_id"] = str(run_id)
+                return result
+    return None
+
+
+def _get_ol_job_dependencies_from_asset_events(events: list[AssetEvent]) -> list[dict[str, Any]]:
+    """
+    Extract and deduplicate OpenLineage job dependencies from asset events.
+
+    This function processes a list of asset events, extracts OpenLineage dependency information
+    from all relevant sources, and deduplicates the results based on the tuple (job_namespace, job_name, run_id)
+    to prevent emitting duplicate dependencies. Multiple asset events from the same job but different
+    source runs/assets are aggregated into a single dependency entry with all source information preserved.
+
+    Args:
+        events: List of AssetEvent objects to process.
+
+    Returns:
+        A list of deduplicated dictionaries containing OpenLineage job dependency information.
+        Each dictionary includes job_name, job_namespace, optional run_id, and an asset_events
+        list containing source information from all aggregated events.
+    """
+    # Use a dictionary keyed by (namespace, job_name, run_id) to deduplicate
+    # Multiple asset events from the same task instance should only create one dependency
+    deduplicated_jobs: dict[tuple[str, str, str | None], dict[str, Any]] = {}
+
+    for asset_event in events:
+        # Extract OpenLineage information
+        ol_info = _extract_ol_info_from_asset_event(asset_event)
+
+        # Skip if we don't have minimum required info (job_name and namespace)
+        if not ol_info:
+            log.debug(
+                "Insufficient OpenLineage information, skipping asset event: %s",
+                str(asset_event),
+            )
+            continue
+
+        # Create deduplication key: (namespace, job_name, run_id)
+        # We deduplicate on job identity (namespace + name + run_id), not on source dag_run_id
+        # Multiple asset events from the same job but different source runs/assets are aggregated
+        dedup_key = (
+            ol_info["job_namespace"],
+            ol_info["job_name"],
+            ol_info.get("run_id"),
+        )
+
+        # Collect source information for this asset event
+        source_info = {
+            "dag_run_id": asset_event.source_run_id,
+            "asset_event_id": asset_event.id,
+            "asset_event_extra": asset_event.extra or None,
+            "asset_id": asset_event.asset_id if AIRFLOW_V_3_0_PLUS else asset_event.dataset_id,
+            "asset_uri": asset_event.uri,
+            "partition_key": getattr(asset_event, "partition_key", None),
+        }
+
+        if dedup_key not in deduplicated_jobs:
+            # First occurrence: create the job entry with initial source info
+            deduplicated_jobs[dedup_key] = {**ol_info, "asset_events": [source_info]}
+        else:
+            # Already seen: append source info to existing entry
+            deduplicated_jobs[dedup_key]["asset_events"].append(source_info)
+
+    result = list(deduplicated_jobs.values())
+    return result
+
+
+def _build_job_dependency_facet(
+    dag_id: str, dag_run_id: str
+) -> dict[str, job_dependencies_run.JobDependenciesRunFacet]:
+    """
+    Build the JobDependenciesRunFacet for a DagRun.
+
+    Args:
+        dag_id: The DAG identifier.
+        dag_run_id: The DagRun identifier.
+
+    Returns:
+        A dictionary containing the JobDependenciesRunFacet, or an empty dictionary.
+    """
+    log.info(
+        "Building OpenLineage JobDependenciesRunFacet for DagRun(dag_id=%s, run_id=%s).",
+        dag_id,
+        dag_run_id,
+    )
+    events = _get_eagerly_loaded_dagrun_consumed_asset_events(dag_id, dag_run_id)
+
+    if not events:
+        log.info("DagRun %s/%s has no consumed asset events", dag_id, dag_run_id)
+        return {}
+
+    ol_dependencies = _get_ol_job_dependencies_from_asset_events(events=events)
+
+    if not ol_dependencies:
+        log.info(
+            "No OpenLineage job dependencies generated from asset events consumed by DagRun %s/%s.",
+            dag_id,
+            dag_run_id,
+        )
+        return {}
+
+    upstream_dependencies = []
+    for job in ol_dependencies:
+        job_identifier = job_dependencies_run.JobIdentifier(
+            namespace=job["job_namespace"],
+            name=job["job_name"],
+        )
+
+        run_identifier = None
+        if job.get("run_id"):
+            run_identifier = job_dependencies_run.RunIdentifier(runId=job["run_id"])
+
+        job_dependency = job_dependencies_run.JobDependency(
+            job=job_identifier,
+            run=run_identifier,
+            dependency_type="IMPLICIT_ASSET_DEPENDENCY",
+        ).with_additional_properties(airflow={"asset_events": job.get("asset_events")})  # type: ignore[arg-type]  # Fixed in OL client 1.42, waiting for release
+
+        upstream_dependencies.append(job_dependency)
+
+    return {
+        "jobDependencies": job_dependencies_run.JobDependenciesRunFacet(
+            upstream=upstream_dependencies,
+        )
+    }
+
+
+def get_dag_job_dependency_facet(
+    dag_id: str, dag_run_id: str
+) -> dict[str, job_dependencies_run.JobDependenciesRunFacet]:
+    """
+    Safely retrieve the asset-triggered job dependency facet for a DagRun.
+
+    This function collects information about the asset events that triggered the specified DagRun,
+    including details about the originating DAG runs and task instances. If the DagRun was not triggered
+    by assets, or if any error occurs during lookup or processing, the function logs the error and returns
+    an empty dictionary. This guarantees that facet generation never raises exceptions and does not
+    interfere with event emission processes.
+
+    Args:
+        dag_id: The DAG identifier.
+        dag_run_id: The DagRun identifier.
+
+    Returns:
+        A dictionary with JobDependenciesRunFacet, or an empty dictionary
+        if the DagRun was not asset-triggered or if an error occurs.
+    """
+    try:
+        return _build_job_dependency_facet(dag_id=dag_id, dag_run_id=dag_run_id)
+    except Exception as e:
+        log.warning("Failed to build JobDependenciesRunFacet for DagRun %s/%s: %s.", dag_id, dag_run_id, e)
+        log.debug("Exception details:", exc_info=True)
+        return {}
 
 
 def _get_tasks_details(dag: DAG | SerializedDAG) -> dict:
@@ -799,25 +1389,32 @@ def _get_task_groups_details(dag: DAG | SerializedDAG) -> dict:
 def _emits_ol_events(task: AnyOperator) -> bool:
     config_selective_enabled = is_selective_lineage_enabled(task)
     config_disabled_for_operators = is_operator_disabled(task)
-    # empty operators without callbacks/outlets are skipped for optimization by Airflow
-    # in airflow.models.taskinstance.TaskInstance._schedule_downstream_tasks
-    is_skipped_as_empty_operator = all(
-        (
-            task.inherits_from_empty_operator,
-            not getattr(task, "on_execute_callback", None),
-            not getattr(task, "on_success_callback", None),
-            not task.outlets,
-            not (task.inlets and get_base_airflow_version_tuple() >= (3, 0, 2)),  # Added in 3.0.2 #50773
-            not (
-                getattr(task, "has_on_execute_callback", None)  # Added in 3.1.0 #54569
-                and get_base_airflow_version_tuple() >= (3, 1, 0)
-            ),
-            not (
-                getattr(task, "has_on_success_callback", None)  # Added in 3.1.0 #54569
-                and get_base_airflow_version_tuple() >= (3, 1, 0)
-            ),
+
+    is_task_schedulable_method = getattr(TaskInstance, "is_task_schedulable", None)  # Added in 3.2.0 #56039
+    if is_task_schedulable_method and callable(is_task_schedulable_method):
+        is_skipped_as_empty_operator = not is_task_schedulable_method(task)
+    else:
+        # For older Airflow versions, re-create Airflow core internal logic as
+        # empty operators without callbacks/outlets are skipped for optimization by Airflow
+        # in airflow.models.taskinstance.TaskInstance._schedule_downstream_tasks or
+        # airflow.models.dagrun.DagRun.schedule_tis, depending on Airflow version
+        is_skipped_as_empty_operator = all(
+            (
+                task.inherits_from_empty_operator,
+                not getattr(task, "on_execute_callback", None),
+                not getattr(task, "on_success_callback", None),
+                not task.outlets,
+                not (task.inlets and get_base_airflow_version_tuple() >= (3, 0, 2)),  # Added in 3.0.2 #50773
+                not (
+                    getattr(task, "has_on_execute_callback", None)  # Added in 3.1.0 #54569
+                    and get_base_airflow_version_tuple() >= (3, 1, 0)
+                ),
+                not (
+                    getattr(task, "has_on_success_callback", None)  # Added in 3.1.0 #54569
+                    and get_base_airflow_version_tuple() >= (3, 1, 0)
+                ),
+            )
         )
-    )
 
     emits_ol_events = all(
         (

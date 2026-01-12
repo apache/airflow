@@ -16,11 +16,10 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import type { ButtonProps } from "@chakra-ui/react";
+import { Button, type ButtonProps } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 import { AiOutlineFileSync } from "react-icons/ai";
 
-import { Button } from "src/components/ui";
 import { useDagParsing } from "src/queries/useDagParsing.ts";
 
 type Props = {

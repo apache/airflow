@@ -21,20 +21,17 @@ from functools import cache
 from pathlib import Path
 from typing import TYPE_CHECKING, Annotated
 
+from fastapi import Body, Depends, status
+
+from airflow.api_fastapi.common.db.common import SessionDep  # noqa: TC001
+from airflow.api_fastapi.common.router import AirflowRouter
+from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
 from airflow.configuration import conf
 from airflow.models.taskinstance import TaskInstance
 from airflow.models.taskinstancekey import TaskInstanceKey
 from airflow.providers.edge3.models.edge_logs import EdgeLogsModel
 from airflow.providers.edge3.worker_api.auth import jwt_token_authorization_rest
 from airflow.providers.edge3.worker_api.datamodels import PushLogsBody, WorkerApiDocs
-from airflow.providers.edge3.worker_api.routes._v2_compat import (
-    AirflowRouter,
-    Body,
-    Depends,
-    SessionDep,
-    create_openapi_http_exception_doc,
-    status,
-)
 from airflow.utils.log.file_task_handler import FileTaskHandler
 from airflow.utils.session import NEW_SESSION, provide_session
 

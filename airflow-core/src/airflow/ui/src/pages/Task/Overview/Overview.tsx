@@ -50,7 +50,7 @@ export const Overview = () => {
       runAfterGte: startDate,
       runAfterLte: endDate,
       state: ["failed"],
-      taskDisplayNamePattern: groupId ?? undefined,
+      taskGroupId: groupId ?? undefined,
       taskId: Boolean(groupId) ? undefined : taskId,
     });
 
@@ -60,7 +60,7 @@ export const Overview = () => {
       dagRunId: "~",
       limit: 14,
       orderBy: ["-run_after"],
-      taskDisplayNamePattern: groupId ?? undefined,
+      taskGroupId: groupId ?? undefined,
       taskId: Boolean(groupId) ? undefined : taskId,
     },
     undefined,
@@ -96,7 +96,7 @@ export const Overview = () => {
           })}
           route={{
             pathname: "task_instances",
-            search: `${SearchParamsKeys.STATE}=failed`,
+            search: `${SearchParamsKeys.TASK_STATE}=failed`,
           }}
           startDate={startDate}
         />

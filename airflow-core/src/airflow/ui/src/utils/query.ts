@@ -50,6 +50,7 @@ export const useAutoRefresh = ({
   const { data: dagRunData } = useDagRunServiceGetDagRuns(
     {
       dagId: dagId ?? "~",
+      limit: 1,
       state: ["running", "queued"],
     },
     undefined,
@@ -64,7 +65,8 @@ export const useAutoRefresh = ({
     },
   );
 
-  const pendingRuns = checkPendingRuns ? (dagRunData?.dag_runs ?? []).length > 1 : true;
+  const pendingRuns = checkPendingRuns ? (dagRunData?.dag_runs ?? []).length >= 1 : true;
+
   const paused = Boolean(dagId) ? dag?.is_paused : false;
 
   const canRefresh = autoRefreshInterval !== undefined && !paused && pendingRuns;

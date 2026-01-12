@@ -27,7 +27,7 @@ from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 
 if TYPE_CHECKING:
-    from airflow.logging_config import RemoteLogIO
+    from airflow.logging.remote import RemoteLogIO, RemoteLogStreamIO
 
 LOG_LEVEL: str = conf.get_mandatory_value("logging", "LOGGING_LEVEL").upper()
 
@@ -119,7 +119,7 @@ if EXTRA_LOGGER_NAMES:
 ##################
 
 REMOTE_LOGGING: bool = conf.getboolean("logging", "remote_logging")
-REMOTE_TASK_LOG: RemoteLogIO | None = None
+REMOTE_TASK_LOG: RemoteLogIO | RemoteLogStreamIO | None = None
 DEFAULT_REMOTE_CONN_ID: str | None = None
 
 

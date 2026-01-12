@@ -28,6 +28,7 @@
     "requiredActions": "Acciones Requeridas",
     "xcoms": "XComs"
   },
+  "collapseAllExtra": "Colapsar todos los extra json",
   "collapseDetailsPanel": "Colapsar Detalles del Panel",
   "createdAssetEvent_many": "Eventos de Asset Creados",
   "createdAssetEvent_one": "Evento de Asset Creado",
@@ -84,6 +85,11 @@
     "githubRepo": "Repositorio de GitHub",
     "restApiReference": "Referencia de REST API"
   },
+  "download": {
+    "download": "Descargar",
+    "hotkey": "d",
+    "tooltip": "Presiona {{hotkey}} para descargar los registros"
+  },
   "duration": "Duración",
   "endDate": "Fecha Final",
   "error": {
@@ -99,6 +105,7 @@
     "hotkey": "e",
     "tooltip": "Presiona {{hotkey}} para alternar expandir"
   },
+  "expandAllExtra": "Expandir todos los extra json",
   "expression": {
     "all": "Todos",
     "and": "Y",
@@ -107,6 +114,8 @@
   },
   "filter": "Filtro",
   "filters": {
+    "durationFrom": "Duración Desde",
+    "durationTo": "Duración Hasta",
     "logicalDateFrom": "Fecha Lógica Desde",
     "logicalDateTo": "Fecha Lógica Hasta",
     "runAfterFrom": "Ejecutar Después Desde",
@@ -168,7 +177,6 @@
     },
     "tooltip": "Presiona {{hotkey}} para desplazarte a {{direction}}"
   },
-  "seconds": "{{count}}s",
   "security": {
     "actions": "Acciones",
     "permissions": "Permisos",

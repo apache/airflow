@@ -22,7 +22,7 @@ from airflow.providers.google.leveldb.hooks.leveldb import LevelDBHook
 from airflow.providers.google.version_compat import BaseOperator
 
 if TYPE_CHECKING:
-    from airflow.utils.context import Context
+    from airflow.providers.common.compat.sdk import Context
 
 
 class LevelDBOperator(BaseOperator):

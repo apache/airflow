@@ -22,8 +22,8 @@ from unittest.mock import MagicMock, patch
 import pytest
 import requests
 
-from airflow.exceptions import AirflowException
 from airflow.providers.apache.druid.hooks.druid import DruidDbApiHook, DruidHook, IngestionType
+from airflow.providers.common.compat.sdk import AirflowException
 
 
 @pytest.mark.db_test
@@ -359,7 +359,7 @@ class TestDruidHook:
         assert self.db_hook.get_auth() is None
 
     @pytest.mark.parametrize(
-        "verify_ssl_arg, ca_bundle_path, expected_return_value",
+        ("verify_ssl_arg", "ca_bundle_path", "expected_return_value"),
         [
             (False, None, False),
             (True, None, True),

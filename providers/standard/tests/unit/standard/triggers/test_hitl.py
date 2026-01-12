@@ -17,9 +17,11 @@
 
 from __future__ import annotations
 
+from typing import Any
+
 import pytest
 
-from tests_common.test_utils.version_compat import AIRFLOW_V_3_1_PLUS
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_1_PLUS, AIRFLOW_V_3_2_PLUS
 
 if not AIRFLOW_V_3_1_PLUS:
     pytest.skip("Human in the loop public API compatible with Airflow >= 3.1.0", allow_module_level=True)
@@ -40,16 +42,27 @@ from airflow.providers.standard.triggers.hitl import (
 from airflow.triggers.base import TriggerEvent
 
 TI_ID = uuid7()
-default_trigger_args = {
-    "ti_id": TI_ID,
-    "options": ["1", "2", "3", "4", "5"],
-    "params": {"input": 1},
-    "multiple": False,
-}
+
+
+@pytest.fixture
+def default_trigger_args() -> dict[str, Any]:
+    return {
+        "ti_id": TI_ID,
+        "options": ["1", "2", "3", "4", "5"],
+        "params": {
+            "input": {
+                "value": 1,
+                "schema": {},
+                "description": None,
+                "source": "task",
+            },
+        },
+        "multiple": False,
+    }
 
 
 class TestHITLTrigger:
-    def test_serialization(self):
+    def test_serialization(self, default_trigger_args):
         trigger = HITLTrigger(
             defaults=["1"],
             timeout_datetime=None,
@@ -57,11 +70,20 @@ class TestHITLTrigger:
             **default_trigger_args,
         )
         classpath, kwargs = trigger.serialize()
+
+        expected_params_in_trigger_kwargs: dict[str, dict[str, Any]]
+        if AIRFLOW_V_3_2_PLUS:
+            expected_params_in_trigger_kwargs = {
+                "input": {"value": 1, "description": None, "schema": {}, "source": "task"}
+            }
+        else:
+            expected_params_in_trigger_kwargs = {"input": {"value": 1, "description": None, "schema": {}}}
+
         assert classpath == "airflow.providers.standard.triggers.hitl.HITLTrigger"
         assert kwargs == {
             "ti_id": TI_ID,
             "options": ["1", "2", "3", "4", "5"],
-            "params": {"input": 1},
+            "params": expected_params_in_trigger_kwargs,
             "defaults": ["1"],
             "multiple": False,
             "timeout_datetime": None,
@@ -71,7 +93,7 @@ class TestHITLTrigger:
     @pytest.mark.db_test
     @pytest.mark.asyncio
     @mock.patch("airflow.sdk.execution_time.hitl.update_hitl_detail_response")
-    async def test_run_failed_due_to_timeout(self, mock_update, mock_supervisor_comms):
+    async def test_run_failed_due_to_timeout(self, mock_update, mock_supervisor_comms, default_trigger_args):
         trigger = HITLTrigger(
             timeout_datetime=utcnow() + timedelta(seconds=0.1),
             poke_interval=5,
@@ -100,7 +122,9 @@ class TestHITLTrigger:
     @pytest.mark.asyncio
     @mock.patch.object(HITLTrigger, "log")
     @mock.patch("airflow.sdk.execution_time.hitl.update_hitl_detail_response")
-    async def test_run_fallback_to_default_due_to_timeout(self, mock_update, mock_log, mock_supervisor_comms):
+    async def test_run_fallback_to_default_due_to_timeout(
+        self, mock_update, mock_log, mock_supervisor_comms, default_trigger_args
+    ):
         trigger = HITLTrigger(
             defaults=["1"],
             timeout_datetime=utcnow() + timedelta(seconds=0.1),
@@ -139,7 +163,7 @@ class TestHITLTrigger:
     @mock.patch.object(HITLTrigger, "log")
     @mock.patch("airflow.sdk.execution_time.hitl.update_hitl_detail_response")
     async def test_run_should_check_response_in_timeout_handler(
-        self, mock_update, mock_log, mock_supervisor_comms
+        self, mock_update, mock_log, mock_supervisor_comms, default_trigger_args
     ):
         # action time only slightly before timeout
         action_datetime = utcnow() + timedelta(seconds=0.1)
@@ -186,7 +210,9 @@ class TestHITLTrigger:
     @pytest.mark.asyncio
     @mock.patch.object(HITLTrigger, "log")
     @mock.patch("airflow.sdk.execution_time.hitl.update_hitl_detail_response")
-    async def test_run(self, mock_update, mock_log, mock_supervisor_comms, time_machine):
+    async def test_run(
+        self, mock_update, mock_log, mock_supervisor_comms, time_machine, default_trigger_args
+    ):
         time_machine.move_to(datetime(2025, 7, 29, 2, 0, 0))
 
         trigger = HITLTrigger(

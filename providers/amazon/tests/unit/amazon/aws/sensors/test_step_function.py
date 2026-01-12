@@ -22,8 +22,8 @@ from unittest import mock
 
 import pytest
 
-from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.sensors.step_function import StepFunctionExecutionSensor
+from airflow.providers.common.compat.sdk import AirflowException
 
 TASK_ID = "step_function_execution_sensor"
 EXECUTION_ARN = (

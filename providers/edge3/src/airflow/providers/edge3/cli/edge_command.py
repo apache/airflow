@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
 import os
@@ -30,7 +31,6 @@ from time import sleep, time
 import psutil
 
 from airflow import settings
-from airflow.cli.cli_config import ARG_PID, ARG_VERBOSE, ActionCommand, Arg
 from airflow.cli.commands.daemon_utils import run_command_with_daemon_option
 from airflow.cli.simple_table import AirflowConsole
 from airflow.configuration import conf
@@ -42,7 +42,6 @@ from airflow.providers.edge3.cli.signalling import (
     pid_file_path,
     status_file_path,
 )
-from airflow.providers.edge3.cli.worker import SIG_STATUS, EdgeWorker
 from airflow.providers.edge3.models.edge_worker import EdgeWorkerState
 from airflow.utils import cli as cli_utils
 from airflow.utils.net import getfqdn
@@ -89,6 +88,8 @@ def _launch_worker(args):
     print(settings.HEADER)
     print(EDGE_WORKER_HEADER)
 
+    from airflow.providers.edge3.cli.worker import EdgeWorker
+
     edge_worker = EdgeWorker(
         pid_file_path=pid_file_path(args.pid),
         hostname=args.edge_hostname or getfqdn(),
@@ -98,7 +99,7 @@ def _launch_worker(args):
         heartbeat_interval=conf.getint("edge", "heartbeat_interval"),
         daemon=args.daemon,
     )
-    edge_worker.start()
+    asyncio.run(edge_worker.start())
 
 
 @cli_utils.action_cli(check_db=False)
@@ -121,6 +122,8 @@ def worker(args):
 @providers_configuration_loaded
 def status(args):
     """Check for Airflow Local Edge Worker status."""
+    from airflow.providers.edge3.cli.worker import SIG_STATUS
+
     pid = get_pid(args.pid)
 
     # Send Signal as notification to drop status JSON
@@ -147,6 +150,8 @@ def status(args):
 @providers_configuration_loaded
 def maintenance(args):
     """Set or Unset maintenance mode of local edge worker."""
+    from airflow.providers.edge3.cli.worker import SIG_STATUS
+
     if args.maintenance == "on" and not args.comments:
         logger.error("Comments are required when setting maintenance mode.")
         sys.exit(4)
@@ -422,206 +427,3 @@ def remove_worker_queues(args) -> None:
     except TypeError as e:
         logger.error(str(e))
         raise SystemExit
-
-
-ARG_CONCURRENCY = Arg(
-    ("-c", "--concurrency"),
-    type=int,
-    help="The number of worker processes",
-    default=conf.getint("edge", "worker_concurrency", fallback=8),
-)
-ARG_QUEUES = Arg(
-    ("-q", "--queues"),
-    help="Comma delimited list of queues to serve, serve all queues if not provided.",
-)
-ARG_EDGE_HOSTNAME = Arg(
-    ("-H", "--edge-hostname"),
-    help="Set the hostname of worker if you have multiple workers on a single machine",
-)
-ARG_REQUIRED_EDGE_HOSTNAME = Arg(
-    ("-H", "--edge-hostname"),
-    help="Set the hostname of worker if you have multiple workers on a single machine",
-    required=True,
-)
-ARG_MAINTENANCE = Arg(("maintenance",), help="Desired maintenance state", choices=("on", "off"))
-ARG_MAINTENANCE_COMMENT = Arg(
-    ("-c", "--comments"),
-    help="Maintenance comments to report reason. Required if maintenance is turned on.",
-)
-ARG_REQUIRED_MAINTENANCE_COMMENT = Arg(
-    ("-c", "--comments"),
-    help="Maintenance comments to report reason. Required if enabling maintenance",
-    required=True,
-)
-ARG_QUEUES_MANAGE = Arg(
-    ("-q", "--queues"),
-    help="Comma delimited list of queues to add or remove.",
-    required=True,
-)
-ARG_WAIT_MAINT = Arg(
-    ("-w", "--wait"),
-    default=False,
-    help="Wait until edge worker has reached desired state.",
-    action="store_true",
-)
-ARG_WAIT_STOP = Arg(
-    ("-w", "--wait"),
-    default=False,
-    help="Wait until edge worker is shut down.",
-    action="store_true",
-)
-ARG_OUTPUT = Arg(
-    (
-        "-o",
-        "--output",
-    ),
-    help="Output format. Allowed values: json, yaml, plain, table (default: table)",
-    metavar="(table, json, yaml, plain)",
-    choices=("table", "json", "yaml", "plain"),
-    default="table",
-)
-ARG_STATE = Arg(
-    (
-        "-s",
-        "--state",
-    ),
-    nargs="+",
-    help="State of the edge worker",
-)
-
-ARG_DAEMON = Arg(
-    ("-D", "--daemon"), help="Daemonize instead of running in the foreground", action="store_true"
-)
-ARG_UMASK = Arg(
-    ("-u", "--umask"),
-    help="Set the umask of edge worker in daemon mode",
-)
-ARG_STDERR = Arg(("--stderr",), help="Redirect stderr to this file if run in daemon mode")
-ARG_STDOUT = Arg(("--stdout",), help="Redirect stdout to this file if run in daemon mode")
-ARG_LOG_FILE = Arg(("-l", "--log-file"), help="Location of the log file if run in daemon mode")
-ARG_YES = Arg(
-    ("-y", "--yes"),
-    help="Skip confirmation prompt and proceed with shutdown",
-    action="store_true",
-    default=False,
-)
-
-EDGE_COMMANDS: list[ActionCommand] = [
-    ActionCommand(
-        name=worker.__name__,
-        help=worker.__doc__,
-        func=worker,
-        args=(
-            ARG_CONCURRENCY,
-            ARG_QUEUES,
-            ARG_EDGE_HOSTNAME,
-            ARG_PID,
-            ARG_VERBOSE,
-            ARG_DAEMON,
-            ARG_STDOUT,
-            ARG_STDERR,
-            ARG_LOG_FILE,
-            ARG_UMASK,
-        ),
-    ),
-    ActionCommand(
-        name=status.__name__,
-        help=status.__doc__,
-        func=status,
-        args=(
-            ARG_PID,
-            ARG_VERBOSE,
-        ),
-    ),
-    ActionCommand(
-        name=maintenance.__name__,
-        help=maintenance.__doc__,
-        func=maintenance,
-        args=(
-            ARG_MAINTENANCE,
-            ARG_MAINTENANCE_COMMENT,
-            ARG_WAIT_MAINT,
-            ARG_PID,
-            ARG_VERBOSE,
-        ),
-    ),
-    ActionCommand(
-        name=stop.__name__,
-        help=stop.__doc__,
-        func=stop,
-        args=(
-            ARG_WAIT_STOP,
-            ARG_PID,
-            ARG_VERBOSE,
-        ),
-    ),
-    ActionCommand(
-        name="list-workers",
-        help=list_edge_workers.__doc__,
-        func=list_edge_workers,
-        args=(
-            ARG_OUTPUT,
-            ARG_STATE,
-        ),
-    ),
-    ActionCommand(
-        name="remote-edge-worker-request-maintenance",
-        help=put_remote_worker_on_maintenance.__doc__,
-        func=put_remote_worker_on_maintenance,
-        args=(
-            ARG_REQUIRED_EDGE_HOSTNAME,
-            ARG_REQUIRED_MAINTENANCE_COMMENT,
-        ),
-    ),
-    ActionCommand(
-        name="remote-edge-worker-exit-maintenance",
-        help=remove_remote_worker_from_maintenance.__doc__,
-        func=remove_remote_worker_from_maintenance,
-        args=(ARG_REQUIRED_EDGE_HOSTNAME,),
-    ),
-    ActionCommand(
-        name="remote-edge-worker-update-maintenance-comment",
-        help=remote_worker_update_maintenance_comment.__doc__,
-        func=remote_worker_update_maintenance_comment,
-        args=(
-            ARG_REQUIRED_EDGE_HOSTNAME,
-            ARG_REQUIRED_MAINTENANCE_COMMENT,
-        ),
-    ),
-    ActionCommand(
-        name="remove-remote-edge-worker",
-        help=remove_remote_worker.__doc__,
-        func=remove_remote_worker,
-        args=(ARG_REQUIRED_EDGE_HOSTNAME,),
-    ),
-    ActionCommand(
-        name="shutdown-remote-edge-worker",
-        help=remote_worker_request_shutdown.__doc__,
-        func=remote_worker_request_shutdown,
-        args=(ARG_REQUIRED_EDGE_HOSTNAME,),
-    ),
-    ActionCommand(
-        name="add-worker-queues",
-        help=add_worker_queues.__doc__,
-        func=add_worker_queues,
-        args=(
-            ARG_REQUIRED_EDGE_HOSTNAME,
-            ARG_QUEUES_MANAGE,
-        ),
-    ),
-    ActionCommand(
-        name="remove-worker-queues",
-        help=remove_worker_queues.__doc__,
-        func=remove_worker_queues,
-        args=(
-            ARG_REQUIRED_EDGE_HOSTNAME,
-            ARG_QUEUES_MANAGE,
-        ),
-    ),
-    ActionCommand(
-        name="shutdown-all-workers",
-        help=shutdown_all_workers.__doc__,
-        func=shutdown_all_workers,
-        args=(ARG_YES,),
-    ),
-]

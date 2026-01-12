@@ -20,10 +20,10 @@ import asyncio
 from collections.abc import AsyncIterator, Collection
 from typing import TYPE_CHECKING, Any
 
-from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.sqs import SqsHook
 from airflow.providers.amazon.aws.utils.sqs import process_response
 from airflow.providers.amazon.version_compat import AIRFLOW_V_3_0_PLUS
+from airflow.providers.common.compat.sdk import AirflowException
 
 if AIRFLOW_V_3_0_PLUS:
     from airflow.triggers.base import BaseEventTrigger, TriggerEvent

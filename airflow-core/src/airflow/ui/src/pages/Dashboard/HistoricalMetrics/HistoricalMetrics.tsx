@@ -85,8 +85,8 @@ export const HistoricalMetrics = () => {
           setStartDate={setStartDate}
           startDate={startDate}
         />
-        <SimpleGrid columns={{ base: 10 }} gap={2}>
-          <GridItem colSpan={{ base: 7 }}>
+        <SimpleGrid columns={{ base: 1, lg: 10 }} gap={2}>
+          <GridItem colSpan={{ base: 1, lg: 7 }}>
             {isLoading ? <MetricSectionSkeleton /> : undefined}
             {!isLoading && data !== undefined && (
               <Box>
@@ -99,7 +99,7 @@ export const HistoricalMetrics = () => {
               </Box>
             )}
           </GridItem>
-          <GridItem colSpan={{ base: 3 }}>
+          <GridItem colSpan={{ base: 1, lg: 3 }}>
             <AssetEvents
               data={assetEventsData}
               isLoading={isLoadingAssetEvents}

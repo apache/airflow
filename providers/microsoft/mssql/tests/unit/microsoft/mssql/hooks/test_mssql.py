@@ -23,8 +23,8 @@ from unittest import mock
 import pytest
 import sqlalchemy
 
-from airflow.configuration import conf
 from airflow.models import Connection
+from airflow.providers.common.compat.sdk import conf
 from airflow.providers.microsoft.mssql.dialects.mssql import MsSqlDialect
 
 from tests_common.test_utils.file_loading import load_file_from_resources
@@ -173,7 +173,7 @@ class TestMsSqlHook:
         mssql_get_conn.assert_called_once()
         assert hook.get_autocommit(conn) == "autocommit_state"
 
-    @pytest.mark.parametrize("conn_id,exp_uri", URI_TEST_CASES)
+    @pytest.mark.parametrize(("conn_id", "exp_uri"), URI_TEST_CASES)
     @mock.patch("airflow.providers.microsoft.mssql.hooks.mssql.MsSqlHook.get_connection")
     def test_get_uri_driver_rewrite(self, get_connection, mssql_connections, conn_id, exp_uri):
         get_connection.return_value = mssql_connections[conn_id]

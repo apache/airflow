@@ -19,6 +19,10 @@ from __future__ import annotations
 
 import os
 
+# Mark this as a server context before any airflow imports
+# This ensures plugins loaded at import time get the correct secrets backend chain
+os.environ["_AIRFLOW_PROCESS_CONTEXT"] = "server"
+
 from airflow.api_fastapi.app import cached_app
 
 # There is no way to pass the apps to this file from Airflow CLI

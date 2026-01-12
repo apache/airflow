@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import hashlib
 import os
+import pty
 import subprocess
 import sys
 from pathlib import Path
@@ -28,12 +29,12 @@ from airflowctl import __file__ as AIRFLOW_CTL_SRC_PATH
 from rich.console import Console
 
 sys.path.insert(0, str(Path(__file__).parent.resolve()))
-AIRFLOW_ROOT_PATH = Path(AIRFLOW_CTL_SRC_PATH).parents[2]
-AIRFLOW_CTL_SOURCES_PATH = AIRFLOW_ROOT_PATH / "src"
+AIRFLOW_CTL_ROOT_PATH = Path(AIRFLOW_CTL_SRC_PATH).parents[2]
+AIRFLOW_CTL_SOURCES_PATH = AIRFLOW_CTL_ROOT_PATH / "src"
 
 sys.path.insert(0, str(Path(__file__).parent.resolve()))  # make sure common_prek_utils is imported
-AIRFLOWCTL_IMAGES_PATH = AIRFLOW_ROOT_PATH / "docs/images/"
-HASH_FILE = AIRFLOW_ROOT_PATH / "docs/images/" / "command_hashes.txt"
+AIRFLOWCTL_IMAGES_PATH = AIRFLOW_CTL_ROOT_PATH / "docs" / "images"
+HASH_FILE = AIRFLOW_CTL_ROOT_PATH / "docs" / "images" / "command_hashes.txt"
 COMMANDS = [
     "",  # for `airflowctl -h`, main help
     "assets",
@@ -55,7 +56,7 @@ SUBCOMMANDS = [
 ]
 
 
-console = Console(color_system="standard")
+console = Console(color_system="standard", force_terminal=True, width=200, force_interactive=False)
 
 
 # Get new hashes
@@ -83,7 +84,7 @@ def regenerate_help_images_for_all_airflowctl_commands(commands: list[str], skip
     os.makedirs(AIRFLOWCTL_IMAGES_PATH, exist_ok=True)
     env = os.environ.copy()
     env["TERM"] = "xterm-256color"
-    env["COLUMNS"] = "65"
+    env["COLUMNS"] = "75"
     old_hash_dict = {}
     new_hash_dict = {}
 
@@ -99,8 +100,8 @@ def regenerate_help_images_for_all_airflowctl_commands(commands: list[str], skip
 
     # Check for changes
     changed_commands = []
-    for command in commands:
-        command = command or "main"
+    for command_raw in commands:
+        command = command_raw or "main"
         console.print(f"[bright_blue]Checking command: {command}[/]", end="")
 
         if skip_hash_check:
@@ -120,8 +121,20 @@ def regenerate_help_images_for_all_airflowctl_commands(commands: list[str], skip
     for command in changed_commands:
         path = (AIRFLOWCTL_IMAGES_PATH / f"output_{command.replace(' ', '_')}.svg").as_posix()
         run_command = command if command != "main" else ""
-        subprocess.run(f"airflowctl {run_command} --preview {path}", shell=True, env=env, check=True)
-        console.print(f"[bright_blue]Generated SVG for command: {command}")
+
+        # Update environment and use pty.spawn to allocate a pseudo-TTY for proper terminal rendering
+        original_env = os.environ.copy()
+        os.environ.update(env)
+        try:
+            cmd_args = ["airflowctl"] + (run_command.split() if run_command else []) + ["--preview", path]
+            exit_code = pty.spawn(cmd_args)
+            if exit_code != 0:
+                raise subprocess.CalledProcessError(exit_code, f"airflowctl {run_command} --preview {path}")
+            console.print(f"[bright_blue]Generated SVG for command: {command}")
+        finally:
+            # Restore original environment
+            os.environ.clear()
+            os.environ.update(original_env)
 
     # Write new hashes
     with open(hash_file, "w") as f:

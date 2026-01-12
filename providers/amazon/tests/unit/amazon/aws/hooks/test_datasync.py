@@ -23,8 +23,8 @@ import boto3
 import pytest
 from moto import mock_aws
 
-from airflow.exceptions import AirflowException, AirflowTaskTimeout
 from airflow.providers.amazon.aws.hooks.datasync import DataSyncHook
+from airflow.providers.common.compat.sdk import AirflowException, AirflowTaskTimeout
 
 
 @mock_aws
@@ -98,7 +98,7 @@ class TestDataSyncHookMocked:
         assert self.hook.wait_interval_seconds == 0
 
     @pytest.mark.parametrize(
-        "location_uri, expected_method",
+        ("location_uri", "expected_method"),
         [
             pytest.param("smb://spam/egg/", "create_location_smb", id="smb"),
             pytest.param("s3://foo/bar", "create_location_s3", id="s3"),

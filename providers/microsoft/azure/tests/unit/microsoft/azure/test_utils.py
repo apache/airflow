@@ -29,6 +29,7 @@ from httpx import Headers, Response
 from kiota_http.httpx_request_adapter import HttpxRequestAdapter
 from msgraph_core import APIVersion
 
+from airflow.providers.common.compat.sdk import BaseHook
 from airflow.providers.microsoft.azure.utils import (
     AzureIdentityCredentialAdapter,
     add_managed_identity_connection_widgets,
@@ -38,7 +39,6 @@ from airflow.providers.microsoft.azure.utils import (
     get_sync_default_azure_credential,
     parse_blob_account_url,
 )
-from airflow.providers.microsoft.azure.version_compat import BaseHook
 
 MODULE = "airflow.providers.microsoft.azure.utils"
 
@@ -55,7 +55,7 @@ def test_get_field_warns_on_dupe():
 
 
 @pytest.mark.parametrize(
-    "input, expected",
+    ("input", "expected"),
     [
         (dict(this_param="non-prefixed"), "non-prefixed"),
         (dict(this_param=None), None),
@@ -81,7 +81,8 @@ def test_get_field_non_prefixed(input, expected):
 
 def test_add_managed_identity_connection_widgets():
     pytest.importorskip("airflow.providers.fab")
-    pytest.importorskip("flask_appbuilder")  # Remove after upgrading to FAB5
+    # TODO: remove this because fab5 is available now, but it requires recursively fixing tests
+    pytest.importorskip("flask_appbuilder")
 
     class FakeHook:
         @classmethod
@@ -146,7 +147,7 @@ class TestAzureIdentityCredentialAdapter:
 
 
 @pytest.mark.parametrize(
-    "host, login, expected_url",
+    ("host", "login", "expected_url"),
     [
         (None, None, "https://None.blob.core.windows.net/"),  # to maintain existing behaviour
         (None, "storage_account", "https://storage_account.blob.core.windows.net/"),

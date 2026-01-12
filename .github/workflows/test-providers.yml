@@ -92,6 +92,9 @@ jobs:
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
         with:
           persist-credentials: false
+      - name: "Free up disk space"
+        shell: bash
+        run: ./scripts/tools/free_up_disk_space.sh
       - name: "Prepare breeze & CI image: ${{ inputs.default-python-version }}"
         uses: ./.github/actions/prepare_breeze_and_image
         with:
@@ -101,6 +104,9 @@ jobs:
           make-mnt-writeable-and-cleanup: true
       - name: "Cleanup dist files"
         run: rm -fv ./dist/*
+      - name: "Set current date as RELEASE_DATE variable"
+        id: date
+        run: echo "RELEASE_DATE=$(date +'%Y-%m-%d')" >> $GITHUB_ENV
       - name: "Prepare provider documentation"
         run: >
           breeze release-management prepare-provider-documentation --include-not-ready-providers
@@ -188,6 +194,9 @@ jobs:
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
         with:
           persist-credentials: false
+      - name: "Free up disk space"
+        shell: bash
+        run: ./scripts/tools/free_up_disk_space.sh
       - name: "Prepare breeze & CI image: ${{ matrix.compat.python-version }}"
         uses: ./.github/actions/prepare_breeze_and_image
         with:

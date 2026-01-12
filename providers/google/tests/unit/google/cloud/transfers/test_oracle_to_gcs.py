@@ -151,7 +151,7 @@ class TestOracleToGoogleCloudStorageOperator:
         assert gcs_hook_mock.upload.call_count == 2
 
     @pytest.mark.parametrize(
-        "input_service_name, input_sid, connection_port, default_port, expected_port",
+        ("input_service_name", "input_sid", "connection_port", "default_port", "expected_port"),
         [
             ("ServiceName", None, None, 1521, 1521),
             (None, "SID", None, 1521, 1521),

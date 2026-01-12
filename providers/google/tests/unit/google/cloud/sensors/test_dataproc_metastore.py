@@ -22,7 +22,7 @@ from unittest import mock
 
 import pytest
 
-from airflow.exceptions import AirflowException
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.google.cloud.sensors.dataproc_metastore import MetastoreHivePartitionSensor
 
 DATAPROC_METASTORE_SENSOR_PATH = "airflow.providers.google.cloud.sensors.dataproc_metastore.{}"
@@ -53,7 +53,7 @@ TEST_URI = "test-uri"
 
 class TestMetastoreHivePartitionSensor:
     @pytest.mark.parametrize(
-        "requested_partitions, result_files_with_rows, expected_result",
+        ("requested_partitions", "result_files_with_rows", "expected_result"),
         [
             (None, [(RESULT_FILE_NAME_1, [])], False),
             ([None], [(RESULT_FILE_NAME_1, [])], False),
@@ -145,7 +145,7 @@ class TestMetastoreHivePartitionSensor:
             sensor.poke(context={})
 
     @pytest.mark.parametrize(
-        "requested_partitions, result_files_with_rows, expected_result",
+        ("requested_partitions", "result_files_with_rows", "expected_result"),
         [
             ([PARTITION_1, PARTITION_1], [(RESULT_FILE_NAME_1, [ROW_1])], True),
         ],

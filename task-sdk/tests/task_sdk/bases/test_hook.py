@@ -19,8 +19,8 @@ from __future__ import annotations
 
 import pytest
 
-from airflow.exceptions import AirflowNotFoundException
 from airflow.sdk import BaseHook
+from airflow.sdk.exceptions import AirflowNotFoundException
 from airflow.sdk.execution_time.comms import ConnectionResult, GetConnection
 
 from tests_common.test_utils.config import conf_vars
@@ -84,7 +84,6 @@ class TestBaseHook:
     def test_get_connection_not_found(self, sdk_connection_not_found):
         conn_id = "test_conn"
         hook = BaseHook()
-        sdk_connection_not_found
 
         with pytest.raises(AirflowNotFoundException, match="The conn_id `test_conn` isn't defined"):
             hook.get_connection(conn_id=conn_id)
@@ -94,7 +93,6 @@ class TestBaseHook:
         """Test async connection not found error."""
         conn_id = "test_conn"
         hook = BaseHook()
-        sdk_connection_not_found
 
         with pytest.raises(AirflowNotFoundException, match="The conn_id `test_conn` isn't defined"):
             await hook.aget_connection(conn_id=conn_id)

@@ -1,5 +1,7 @@
 {
   "filters": {
+    "body": "Gövde",
+    "createdAt": "Zamanınında oluşturuldu",
     "response": {
       "all": "Hepsi",
       "pending": "Beklemede",
@@ -12,11 +14,13 @@
   "requiredActionCount_other": "Gerekli işlemler ({{count}})",
   "requiredActionState": "Gerekli işlemin durumu",
   "response": {
+    "created": "Yanıt oluşturulma zamanı ",
     "error": "Yanıt alınamadı",
     "optionsDescription": "Bu görev örneği için seçenekleri seçin",
     "optionsLabel": "Seçenekler",
     "received": "Yanıt alındı: ",
     "respond": "Yanıtla",
+    "responded_by_user_name": "Yanıtlayan (Kullanıcı Adı)",
     "success": "{{taskId}} için yanıt başarıyla gönderildi",
     "title": "İnsan müdahalesi gerektiren görev örneği - {{taskId}}"
   },

@@ -21,6 +21,7 @@ from unittest.mock import Mock
 
 import pytest
 import time_machine
+from sqlalchemy import delete
 
 from airflow._shared.timezones.timezone import datetime
 from airflow.models import DagRun, TaskInstance
@@ -33,13 +34,13 @@ pytestmark = pytest.mark.db_test
 @pytest.fixture(autouse=True)
 def clean_db(session):
     yield
-    session.query(DagRun).delete()
-    session.query(TaskInstance).delete()
+    session.execute(delete(DagRun))
+    session.execute(delete(TaskInstance))
 
 
 @time_machine.travel("2016-11-01")
 @pytest.mark.parametrize(
-    "logical_date, is_met",
+    ("logical_date", "is_met"),
     [
         (datetime(2016, 11, 3), False),
         (datetime(2016, 11, 1), True),

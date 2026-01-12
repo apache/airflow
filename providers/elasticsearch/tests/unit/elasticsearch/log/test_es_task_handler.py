@@ -32,7 +32,7 @@ import elasticsearch
 import pendulum
 import pytest
 
-from airflow.configuration import conf
+from airflow.providers.common.compat.sdk import conf
 from airflow.providers.elasticsearch.log.es_response import ElasticSearchResponse
 from airflow.providers.elasticsearch.log.es_task_handler import (
     VALID_ES_CONFIG_KEYS,
@@ -148,7 +148,7 @@ class TestElasticsearchTaskHandler:
         )
 
     @pytest.mark.parametrize(
-        "host, expected",
+        ("host", "expected"),
         [
             ("http://localhost:9200", "http://localhost:9200"),
             ("https://localhost:9200", "https://localhost:9200"),
@@ -764,7 +764,7 @@ class TestElasticsearchTaskHandler:
 
     @pytest.mark.db_test
     @pytest.mark.parametrize(
-        "json_format, es_frontend, expected_url",
+        ("json_format", "es_frontend", "expected_url"),
         [
             # Common cases
             (
@@ -812,7 +812,7 @@ class TestElasticsearchTaskHandler:
         assert expected_url == url
 
     @pytest.mark.parametrize(
-        "frontend, expected",
+        ("frontend", "expected"),
         [
             ("localhost:5601/{log_id}", True),
             (None, False),
