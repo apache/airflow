@@ -44,12 +44,7 @@ from airflow.providers.standard.triggers.external_task import DagStateTrigger
 from airflow.providers.standard.utils.openlineage import safe_inject_openlineage_properties_into_dagrun_conf
 from airflow.providers.standard.version_compat import AIRFLOW_V_3_0_PLUS, BaseOperator
 from airflow.utils.state import DagRunState
-from airflow.utils.types import DagRunType
-
-try:
-    from airflow.sdk.definitions._internal.types import NOTSET, ArgNotSet
-except ImportError:
-    from airflow.utils.types import NOTSET, ArgNotSet  # type: ignore[attr-defined,no-redef]
+from airflow.utils.types import ArgNotSet, DagRunType, NOTSET
 
 XCOM_LOGICAL_DATE_ISO = "trigger_logical_date_iso"
 XCOM_RUN_ID = "trigger_run_id"
