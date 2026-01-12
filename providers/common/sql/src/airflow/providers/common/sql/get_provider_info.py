@@ -68,4 +68,7 @@ def get_provider_info():
         "sensors": [
             {"integration-name": "Common SQL", "python-modules": ["airflow.providers.common.sql.sensors.sql"]}
         ],
+        "task-decorators": [
+            {"class-name": "airflow.providers.common.sql.decorators.sql.sql_task", "name": "sql"}
+        ],
     }
