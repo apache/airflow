@@ -38,13 +38,14 @@ from airflow.models.dag import DagModel
 from airflow.models.dag_version import DagVersion
 from airflow.models.dagrun import DagRun
 from airflow.models.deadline import Deadline
+from airflow.models.deadline_alert import DeadlineAlert as DeadlineAlertModel
 from airflow.models.taskinstancekey import TaskInstanceKey
 from airflow.models.tasklog import LogTemplate
 from airflow.observability.stats import Stats
-from airflow.sdk.definitions.deadline import DeadlineReference
+from airflow.sdk.definitions.deadline import DeadlineAlert, DeadlineReference
 from airflow.serialization.definitions.deadline import DeadlineAlertFields
-from airflow.serialization.enums import DagAttributeTypes as DAT, Encoding
 from airflow.serialization.definitions.param import SerializedParamsDict
+from airflow.serialization.enums import DagAttributeTypes as DAT, Encoding
 from airflow.timetables.base import DagRunInfo, DataInterval, TimeRestriction
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.state import DagRunState, TaskInstanceState
@@ -60,10 +61,8 @@ if TYPE_CHECKING:
     from sqlalchemy.orm import Session
     from typing_extensions import TypeIs
 
-    from airflow.models.deadline_alert import DeadlineAlert as DeadlineAlertModel
     from airflow.models.taskinstance import TaskInstance
     from airflow.sdk import DAG
-    from airflow.sdk.definitions.deadline import DeadlineAlert
     from airflow.serialization.definitions.taskgroup import SerializedTaskGroup
     from airflow.serialization.serialized_objects import LazyDeserializedDAG, SerializedOperator
     from airflow.timetables.base import Timetable
