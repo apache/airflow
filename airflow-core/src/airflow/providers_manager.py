@@ -498,6 +498,7 @@ class ProvidersManager(LoggingMixin):
         self._init_airflow_core_hooks()
         self.initialize_providers_list()
         self._discover_hooks()
+        self._load_ui_metadata_from_yaml()
         self._hook_provider_dict = dict(sorted(self._hook_provider_dict.items()))
 
     @provider_info_cache("filesystems")
@@ -925,6 +926,136 @@ class ProvidersManager(LoggingMixin):
             log.warning("The object '%s' is missing %s attribute and cannot be registered", obj, attr_name)
             return None
         return getattr(obj, attr_name)
+
+    def _get_connection_type_config_from_yaml(
+        self, provider_info: ProviderInfo, connection_type: str
+    ) -> dict | None:
+        """Get connection type config from provider.yaml if it exists."""
+        connection_types = provider_info.data.get("connection-types", [])
+        for conn_config in connection_types:
+            if conn_config.get("connection-type") == connection_type:
+                return conn_config
+        return None
+
+    @staticmethod
+    def _get_mock_field_for_field_type(field_type, field_format):
+        from airflow.api_fastapi.core_api.services.ui.connections import HookMetaService
+
+        field_type_to_mock_field_map = {
+            ("string", "password"): HookMetaService.MockPasswordField,
+            ("string", None): HookMetaService.MockStringField,
+            ("integer", None): HookMetaService.MockIntegerField,
+            ("boolean", None): HookMetaService.MockBooleanField,
+            ("number", None): HookMetaService.MockIntegerField,
+        }
+
+        field_class = field_type_to_mock_field_map.get((field_type, field_format))
+
+        return field_class
+
+    def _create_field_from_yaml(self, field_name: str, field_def: dict) -> Any:
+        """Build mock field from yaml conn-fields definition."""
+        from airflow.api_fastapi.core_api.services.ui.connections import HookMetaService
+
+        label = field_def.get("label")
+        description = field_def.get("description")
+        schema = field_def.get("schema", {})
+        field_type = schema.get("type")
+        if isinstance(field_type, list):
+            field_type = next((t for t in field_type if t != "null"), "string")
+
+        field_class = ProvidersManager._get_mock_field_for_field_type(field_type, schema.get("format"))
+        if not field_class:
+            log.warning("Unknown field type '%s' for field '%s' in conn-fields", field_type, field_name)
+            return None
+
+        validators = []
+        if "enum" in schema:
+            validators.append(HookMetaService.MockEnum(schema["enum"]))
+        if (
+            isinstance(schema.get("type"), list)
+            and "null" in schema["type"]
+            or not field_def.get("required", True)
+        ):
+            validators.append(HookMetaService.MockOptional())
+
+        return field_class(
+            label=label,
+            description=description,
+            default=schema.get("default"),
+            validators=validators if validators else None,
+        )
+
+    def _add_widgets_from_yaml(
+        self, package_name: str, hook_class_name: str, connection_type: str, conn_fields_yaml: dict
+    ) -> None:
+        """Parse conn-fields from yaml and add to connection_form_widgets."""
+        for field_name, field_def in conn_fields_yaml.items():
+            field = self._create_field_from_yaml(field_name, field_def)
+            if field is None:
+                continue
+
+            prefixed_name = f"extra__{connection_type}__{field_name}"
+            if prefixed_name in self._connection_form_widgets:
+                log.warning(
+                    "Field %s for connection type %s already added, skipping",
+                    field_name,
+                    connection_type,
+                )
+                continue
+
+            self._connection_form_widgets[prefixed_name] = ConnectionFormWidgetInfo(
+                hook_class_name=hook_class_name,
+                package_name=package_name,
+                field=field,
+                field_name=field_name,
+                is_sensitive=field_def.get("sensitive", False),
+            )
+
+    def _add_customized_fields_from_yaml(
+        self, package_name: str, connection_type: str, behaviour_yaml: dict
+    ) -> None:
+        """Process ui-field-behaviour from yaml and add to field_behaviours."""
+        if connection_type in self._field_behaviours:
+            log.warning(
+                "Field behaviour for connection type %s already exists, skipping yaml",
+                connection_type,
+            )
+            return
+
+        # convert yaml keys to python style
+        customized_fields = {
+            "hidden_fields": behaviour_yaml.get("hidden-fields", []),
+            "relabeling": behaviour_yaml.get("relabeling", {}),
+            "placeholders": behaviour_yaml.get("placeholders", {}),
+        }
+
+        try:
+            self._customized_form_fields_schema_validator.validate(customized_fields)
+            customized_fields = _ensure_prefix_for_placeholders(customized_fields, connection_type)
+            self._field_behaviours[connection_type] = customized_fields
+        except Exception as e:
+            log.warning(
+                "Failed to add field behaviour from yaml for %s in package %s: %s",
+                connection_type,
+                package_name,
+                e,
+            )
+
+    def _load_ui_metadata_from_yaml(self) -> None:
+        """Load connection form UI metadata from provider yaml files without importing hooks."""
+        for package_name, provider in self._provider_dict.items():
+            for conn_config in provider.data.get("connection-types", []):
+                connection_type = conn_config.get("connection-type")
+                hook_class_name = conn_config.get("hook-class-name")
+                if not connection_type or not hook_class_name:
+                    continue
+
+                if conn_fields := conn_config.get("conn-fields"):
+                    self._add_widgets_from_yaml(package_name, hook_class_name, connection_type, conn_fields)
+
+                if behaviour := conn_config.get("ui-field-behaviour"):
+                    self._add_customized_fields_from_yaml(package_name, connection_type, behaviour)
 
     def _import_hook(
         self,
