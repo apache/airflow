@@ -24,7 +24,7 @@ and migrates existing Deadline Alert data from the serialized_dag JSON structure
 into the new normalized table structure.
 
 Revision ID: 55297ae24532
-Revises: 0b112f49112d
+Revises: e79fc784f145
 Create Date: 2025-10-17 16:04:55.016272
 """
 
@@ -53,7 +53,7 @@ if TYPE_CHECKING:
     ErrorDict = dict[str, list[str]]
 
 revision = "55297ae24532"
-down_revision = "0b112f49112d"
+down_revision = "e79fc784f145"
 branch_labels = None
 depends_on = None
 airflow_version = "3.2.0"
