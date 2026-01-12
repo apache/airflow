@@ -273,7 +273,7 @@ class SimpleAuthManager(BaseAuthManager[SimpleAuthManagerUser]):
         return self._is_authorized(method="GET", allow_role=SimpleAuthManagerRole.VIEWER, user=user)
 
     def is_authorized_custom_view(
-        self, *, method: ResourceMethod | str, resource_name: str, user: SimpleAuthManagerUser
+        self, *, method: ResourceMethod, resource_name: str, user: SimpleAuthManagerUser
     ):
         return self._is_authorized(method="GET", allow_role=SimpleAuthManagerRole.VIEWER, user=user)
 
