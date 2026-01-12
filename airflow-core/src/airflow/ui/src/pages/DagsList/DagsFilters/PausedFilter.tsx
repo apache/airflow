@@ -16,44 +16,25 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { createListCollection, type SelectValueChangeDetails } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 
-import { Select } from "src/components/ui";
+import { ButtonGroupToggle } from "src/components/ui";
+
+type PausedValue = "all" | "false" | "true";
 
 type Props = {
-  readonly defaultShowPaused: string;
-  readonly onPausedChange: (details: SelectValueChangeDetails<string>) => void;
-  readonly showPaused: string | null;
+  readonly onChange: (value: PausedValue) => void;
+  readonly value: PausedValue;
 };
 
-export const PausedFilter = ({ defaultShowPaused, onPausedChange, showPaused }: Props) => {
+export const PausedFilter = ({ onChange, value }: Props) => {
   const { t: translate } = useTranslation("dags");
 
-  const enabledOptions = createListCollection({
-    items: [
-      { label: translate("filters.paused.all"), value: "all" },
-      { label: translate("filters.paused.active"), value: "false" },
-      { label: translate("filters.paused.paused"), value: "true" },
-    ],
-  });
+  const options = [
+    { label: translate("filters.paused.all"), value: "all" as const },
+    { label: translate("filters.paused.active"), value: "false" as const },
+    { label: translate("filters.paused.paused"), value: "true" as const },
+  ];
 
-  return (
-    <Select.Root
-      collection={enabledOptions}
-      onValueChange={onPausedChange}
-      value={[showPaused ?? defaultShowPaused]}
-    >
-      <Select.Trigger colorPalette="brand" isActive={Boolean(showPaused)}>
-        <Select.ValueText width={20} />
-      </Select.Trigger>
-      <Select.Content>
-        {enabledOptions.items.map((option) => (
-          <Select.Item item={option} key={option.label}>
-            {option.label}
-          </Select.Item>
-        ))}
-      </Select.Content>
-    </Select.Root>
-  );
+  return <ButtonGroupToggle<PausedValue> onChange={onChange} options={options} value={value} />;
 };

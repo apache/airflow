@@ -114,7 +114,6 @@ from tests_common.test_utils.mock_executor import MockExecutor
 from tests_common.test_utils.mock_operators import CustomOperator
 from tests_common.test_utils.taskinstance import create_task_instance, run_task_instance
 from unit.listeners import dag_listener
-from unit.listeners.test_listeners import get_listener_manager
 from unit.models import TEST_DAGS_FOLDER
 
 if TYPE_CHECKING:
@@ -3190,7 +3189,9 @@ class TestSchedulerJob:
         ("state", "expected_callback_msg"), [(State.SUCCESS, "success"), (State.FAILED, "task_failure")]
     )
     @conf_vars({("scheduler", "use_job_schedule"): "False"})
-    def test_dagrun_plugins_are_notified(self, state, expected_callback_msg, dag_maker, session):
+    def test_dagrun_plugins_are_notified(
+        self, state, expected_callback_msg, dag_maker, session, listener_manager
+    ):
         """
         Test if DagRun is successful, and if Success callbacks is defined, it is sent to DagFileProcessor.
         """
@@ -3203,7 +3204,7 @@ class TestSchedulerJob:
             EmptyOperator(task_id="dummy")
 
         dag_listener.clear()
-        get_listener_manager().add_listener(dag_listener)
+        listener_manager(dag_listener)
 
         scheduler_job = Job(executor=self.null_exec)
         self.job_runner = SchedulerJobRunner(job=scheduler_job)
@@ -3374,7 +3375,7 @@ class TestSchedulerJob:
         session.close()
 
     @conf_vars({("scheduler", "use_job_schedule"): "False"})
-    def test_dagrun_notify_called_success(self, dag_maker):
+    def test_dagrun_notify_called_success(self, dag_maker, listener_manager):
         with dag_maker(
             dag_id="test_dagrun_notify_called",
             on_success_callback=lambda x: print("success"),
@@ -3383,7 +3384,7 @@ class TestSchedulerJob:
             EmptyOperator(task_id="dummy")
 
         dag_listener.clear()
-        get_listener_manager().add_listener(dag_listener)
+        listener_manager(dag_listener)
 
         executor = MockExecutor(do_update=False)
 

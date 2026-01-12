@@ -20,7 +20,7 @@
   "dependencies": {
     "@chakra-ui/react": "^3.30.0",
     "@hey-api/client-axios": "^0.9.1",
-    "@hey-api/openapi-ts": "^0.90.0",
+    "@hey-api/openapi-ts": "^0.90.1",
     "@tanstack/react-query": "^5.90.16",
     "axios": "^1.13.2",
     "next-themes": "^0.4.6",
@@ -28,7 +28,7 @@
     "react-cookie": "^8.0.1",
     "react-dom": "^19.2.3",
     "react-hook-form": "^7.69.0",
-    "react-router-dom": "^7.11.0"
+    "react-router-dom": "^7.12.0"
   },
   "devDependencies": {
     "@7nohe/openapi-react-query-codegen": "^2.0.0",

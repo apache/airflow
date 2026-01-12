@@ -17,13 +17,16 @@
 from __future__ import annotations
 
 from collections.abc import Callable, Iterable, Mapping
-from typing import Any, overload
+from typing import TYPE_CHECKING, Any, overload
 
-from sqlalchemy.engine import URL
 from vertica_python import connect
 
+from airflow.exceptions import AirflowOptionalProviderFeatureException
 from airflow.providers.common.sql.hooks.handlers import fetch_all_handler
 from airflow.providers.common.sql.hooks.sql import DbApiHook
+
+if TYPE_CHECKING:
+    from sqlalchemy.engine import URL
 
 
 def vertica_fetch_all_handler(cursor) -> list[tuple] | None:
@@ -137,6 +140,13 @@ class VerticaHook(DbApiHook):
     @property
     def sqlalchemy_url(self) -> URL:
         """Return a SQLAlchemy URL object with properly formatted query parameters."""
+        try:
+            from sqlalchemy.engine import URL
+        except (ImportError, ModuleNotFoundError) as err:
+            raise AirflowOptionalProviderFeatureException(
+                "The 'sqlalchemy' library is required to use this feature. "
+                "Please install it with: pip install 'apache-airflow-providers-vertica[sqlalchemy]'"
+            ) from err
         conn = self.get_connection(self.get_conn_id())
         extra = conn.extra_dejson or {}
 

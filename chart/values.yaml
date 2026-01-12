@@ -677,14 +677,17 @@ workers:
     command: ~
 
   # Update Strategy when Airflow Celery worker is deployed as a StatefulSet
+  # (deprecated, use `workers.celery.updateStrategy` instead)
   updateStrategy: ~
   # Update Strategy when Airflow Celery worker is deployed as a Deployment
+  # (deprecated, use `workers.celery.strategy` instead)
   strategy:
     rollingUpdate:
       maxSurge: "100%"
       maxUnavailable: "50%"
 
   # Allow relaxing ordering guarantees for Airflow Celery worker while preserving its uniqueness and identity
+  # (deprecated, use `workers.celery.podManagementPolicy` instead)
   # podManagementPolicy: Parallel
 
   # When not set, the values defined in the global securityContext will
@@ -797,32 +800,40 @@ workers:
     behavior: {}
 
   # Persistence volume configuration for Airflow Celery workers
+  # (deprecated, use `workers.celery.persistence` instead)
   persistence:
-    # Enable persistent volumes
+    # Enable persistent volumes (deprecated, use `workers.celery.persistence.enabled` instead)
     enabled: true
 
     # This policy determines whether PVCs should be deleted when StatefulSet is scaled down or removed
+    # (deprecated, use `workers.celery.persistence.persistentVolumeClaimRetentionPolicy` instead)
     persistentVolumeClaimRetentionPolicy: ~
     # persistentVolumeClaimRetentionPolicy:
     #   whenDeleted: Delete
     #   whenScaled: Delete
 
     # Volume size for Airflow Celery worker StatefulSet
+    # (deprecated, use `workers.celery.persistence.size` instead)
     size: 100Gi
 
     # If using a custom storageClass, pass name ref to all StatefulSets here
+    # (deprecated, use `workers.celery.persistence.storageClassName` instead)
     storageClassName:
 
     # Execute init container to chown log directory.
     # This is currently only needed in kind, due to usage
     # of local-path provisioner.
+    # (deprecated, use `workers.celery.persistence.fixPermissions` instead)
     fixPermissions: false
 
     # Annotations to add to Airflow Celery worker volumes
+    # (deprecated, use `workers.celery.persistence.annotations` instead)
     annotations: {}
 
     # Detailed default security context for persistence on container level
+    # (deprecated, use `workers.celery.persistence.securityContexts` instead)
     securityContexts:
+      # (deprecated, use `workers.celery.persistence.securityContexts.container` instead)
       container: {}
 
   # Kerberos sidecar configuration for Airflow Celery workers and pods created with pod-template-file
@@ -1047,6 +1058,18 @@ workers:
       periodSeconds: 60
       command: ~
 
+    # Update Strategy when Airflow Celery worker is deployed as a StatefulSet
+    updateStrategy: ~
+    # Update Strategy when Airflow Celery worker is deployed as a Deployment
+    strategy:
+      rollingUpdate:
+        maxSurge: "100%"
+        maxUnavailable: "50%"
+
+    # Allow relaxing ordering guarantees for Airflow Celery worker
+    # while preserving its uniqueness and identity
+    # podManagementPolicy: Parallel
+
     # Create ServiceAccount for Airflow Celery workers
     serviceAccount:
       # default value is true
@@ -1059,6 +1082,35 @@ workers:
       name: ~
       # Annotations to add to worker kubernetes service account.
       annotations: {}
+
+    # Persistence volume configuration for Airflow Celery workers
+    persistence:
+      # Enable persistent volumes
+      enabled: true
+
+      # This policy determines whether PVCs should be deleted when StatefulSet is scaled down or removed
+      persistentVolumeClaimRetentionPolicy: ~
+      # persistentVolumeClaimRetentionPolicy:
+      #   whenDeleted: Delete
+      #   whenScaled: Delete
+
+      # Volume size for Airflow Celery worker StatefulSet
+      size: 100Gi
+
+      # If using a custom storageClass, pass name ref to all StatefulSets here
+      storageClassName:
+
+      # Execute init container to chown log directory.
+      # This is currently only needed in kind, due to usage
+      # of local-path provisioner.
+      fixPermissions: false
+
+      # Annotations to add to Airflow Celery worker volumes
+      annotations: {}
+
+      # Detailed default security context for persistence on container level
+      securityContexts:
+        container: {}
 
   kubernetes:
     # Command to use in pod-template-file (templated)

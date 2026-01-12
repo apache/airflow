@@ -18,7 +18,7 @@
  */
 import { Box, Code, VStack, IconButton } from "@chakra-ui/react";
 import { useVirtualizer } from "@tanstack/react-virtual";
-import { useLayoutEffect, useMemo, useRef } from "react";
+import { useLayoutEffect, useRef } from "react";
 import { useHotkeys } from "react-hotkeys-hook";
 import { useTranslation } from "react-i18next";
 import { FiChevronDown, FiChevronUp } from "react-icons/fi";
@@ -87,12 +87,9 @@ export const TaskLogContent = ({ error, isLoading, logError, parsedLogs, wrap }:
     overscan: 10,
   });
 
-  const showScrollButtons = useMemo(() => {
-    const contentHeight = rowVirtualizer.getTotalSize();
-    const containerHeight = rowVirtualizer.scrollElement?.clientHeight ?? 0;
-
-    return parsedLogs.length > 1 && contentHeight > containerHeight;
-  }, [rowVirtualizer, parsedLogs]);
+  const contentHeight = rowVirtualizer.getTotalSize();
+  const containerHeight = rowVirtualizer.scrollElement?.clientHeight ?? 0;
+  const showScrollButtons = parsedLogs.length > 1 && contentHeight > containerHeight;
 
   useLayoutEffect(() => {
     if (location.hash && !isLoading) {
