@@ -15,14 +15,8 @@
 # specific language governing permissions and limitations
 # under the License.
 ---
-# {{/*
-# WARNING: Be aware that most changes to these mappings will break backwards compatibility!
-# E.g. moving to labels will break existing dashboards.
-# instead utilize `statsd.extraMappings` or `statsd.overrideMappings` in your environment,
-# until we have version 2 of the helm chart.
-# */}}
 mappings:
-  # Map dot separated stats to labels
+  # --- CORE AIRFLOW MAPPINGS (PRE-EXISTING) ---
   - match: airflow.dagrun.dependency-check.*.*
     name: "airflow_dagrun_dependency_check"
     labels:
@@ -119,3 +113,71 @@ mappings:
       queue: "$1"
       dag_id: "$2"
       task_id: "$3"
+
+  - match: airflow.dag_processing.bundle.*.refresh_duration
+    name: "airflow_bundle_refresh_duration"
+    labels:
+      bundle_name: "$1"
+
+  - match: airflow.dag_processing.bundle.*.failed_refreshes
+    name: "airflow_bundle_refresh_failures"
+    labels:
+      bundle_name: "$1"
+
+  - match: airflow.api_server.request_duration
+    name: "airflow_api_request_duration"
+    timer_type: histogram
+
+  - match: airflow.api_server.queries_count
+    name: "airflow_api_queries_total"
+    labels:
+      endpoint: "$1"
+
+  - match: airflow.task_sdk.communication_duration
+    name: "airflow_task_sdk_latency"
+    timer_type: histogram
+
+  - match: airflow.task_sdk.dependency_check_duration
+    name: "airflow_task_sdk_dep_check"
+    timer_type: histogram
+
+  - match: airflow.triggerer_heartbeat
+    name: "airflow_triggerer_heartbeat"
+
+  - match: airflow.triggers.running.*
+    name: "airflow_triggers_running"
+    labels:
+      hostname: "$1"
+
+  - match: airflow.triggerer.capacity_left.*
+    name: "airflow_triggerer_capacity_left"
+    labels:
+      hostname: "$1"
+
+  - match: airflow.dag.*.*.queued_duration
+    name: "airflow_task_queued_duration"
+    labels:
+      dag_id: "$1"
+      task_id: "$2"
+
+  - match: airflow.dag.*.*.scheduled_duration
+    name: "airflow_task_scheduled_duration"
+    labels:
+      dag_id: "$1"
+      task_id: "$2"
+
+  - match: airflow.ti_failures
+    name: "airflow_ti_failures"
+
+  - match: airflow.ti_successes
+    name: "airflow_ti_successes"
+
+  - match: airflow.asset.updates
+    name: "airflow_asset_updates"
+
+  - match: airflow.scheduler.scheduler_loop_duration
+    name: "airflow_scheduler_loop_duration"
+    timer_type: histogram
+
+  - match: airflow.dag_processing.import_errors
+    name: "airflow_dag_processing_import_errors"
