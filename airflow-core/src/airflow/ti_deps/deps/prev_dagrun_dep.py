@@ -180,6 +180,33 @@ class PrevDagrunDep(BaseTIDep):
             yield self._passing_status(reason="This task instance was the first task instance for its task.")
             return
 
+        depends_on_previous_task_ids: list[str] = ti.task.depends_on_previous_task_ids or []
+        if depends_on_previous_task_ids:
+            task_instances: list[TI] = last_dagrun.fetch_task_instances(
+                last_dagrun.dag_id,
+                last_dagrun.run_id,
+                depends_on_previous_task_ids,
+                [TaskInstanceState.SUCCESS],
+                session=session,
+            )
+            if ti.task.ignore_first_depends_on_past and not last_dagrun.fetch_task_instances(
+                last_dagrun.dag_id,
+                last_dagrun.run_id,
+                depends_on_previous_task_ids,
+                [*TaskInstanceState],
+                session=session,
+            ):
+                self._push_past_deps_met_xcom_if_needed(ti, dep_context)
+                yield self._passing_status(
+                    reason="ignore_first_depends_on_past is true for previous task ids, and they are the first task instances for given task ids"
+                )
+
+            if len(task_instances) == 0 or len(task_instances) != len(depends_on_previous_task_ids):
+                yield self._failing_status(
+                    reason=f"depends_on_previous_task_ids is set to {depends_on_previous_task_ids}, and {len(depends_on_previous_task_ids) - len(task_instances)} of the task instance(s) have not succeeded"
+                )
+                return
+
         if not self._has_tis(last_dagrun, ti.task_id, session=session):
             if ti.task.ignore_first_depends_on_past:
                 if not self._has_any_prior_tis(ti, session=session):
@@ -195,22 +222,6 @@ class PrevDagrunDep(BaseTIDep):
                 "task instance has not run yet."
             )
             return
-
-        depends_on_previous_task_ids: list[str] = ti.task.depends_on_previous_task_ids or []
-        if depends_on_previous_task_ids:
-            task_instances: list[TI] = last_dagrun.fetch_task_instances(
-                last_dagrun.dag_id,
-                last_dagrun.run_id,
-                depends_on_previous_task_ids,
-                [TaskInstanceState.SUCCESS],
-                session=session,
-            )
-
-            if len(task_instances) == 0 or len(task_instances) != len(depends_on_previous_task_ids):
-                yield self._failing_status(
-                    reason=f"depends_on_previous_task_ids is set to {depends_on_previous_task_ids}, and {len(depends_on_previous_task_ids) - len(task_instances)} of the task instance(s) have not succeeded"
-                )
-                return
 
         unsuccessful_tis_count = self._count_unsuccessful_tis(last_dagrun, ti.task_id, session=session)
         if unsuccessful_tis_count > 0:
