@@ -4044,6 +4044,16 @@ class TestTriggerDagRunOperator:
 
         expected_calls = [
             mock.call.send(
+                msg=SetXCom(
+                    key="trigger_dag_id",
+                    value="test_dag",
+                    dag_id="test_handle_trigger_dag_run",
+                    task_id="test_task",
+                    run_id="test_run",
+                    map_index=-1,
+                ),
+            ),
+            mock.call.send(
                 msg=TriggerDagRun(
                     dag_id="test_dag",
                     run_id="test_run_id",
@@ -4167,6 +4177,16 @@ class TestTriggerDagRunOperator:
         assert msg.state == expected_task_state
 
         expected_calls = [
+            mock.call.send(
+                msg=SetXCom(
+                    key="trigger_dag_id",
+                    value="test_dag",
+                    dag_id="test_handle_trigger_dag_run_wait_for_completion",
+                    task_id="test_task",
+                    run_id="test_run",
+                    map_index=-1,
+                ),
+            ),
             mock.call.send(
                 msg=TriggerDagRun(
                     dag_id="test_dag",
