@@ -52,7 +52,7 @@ def access_denied(client):
 
 
 class TestGetConnection:
-    def test_connection_get_from_db(self, client, session):
+    def test_connection_get_from_db(self, client, session, create_task_instance, auth_headers):
         connection = Connection(
             conn_id="test_conn",
             conn_type="http",
@@ -66,7 +66,9 @@ class TestGetConnection:
         )
 
         session.add(connection)
+        ti = create_task_instance()
         session.commit()
+        client.headers.update(auth_headers(ti))
 
         response = client.get("/execution/connections/test_conn")
 
@@ -90,7 +92,10 @@ class TestGetConnection:
         "os.environ",
         {"AIRFLOW_CONN_TEST_CONN2": '{"uri": "http://root:admin@localhost:8080/https?headers=header"}'},
     )
-    def test_connection_get_from_env_var(self, client, session):
+    def test_connection_get_from_env_var(self, client, session, create_task_instance, auth_headers):
+        ti = create_task_instance()
+        session.commit()
+        client.headers.update(auth_headers(ti))
         response = client.get("/execution/connections/test_conn2")
 
         assert response.status_code == 200
@@ -105,7 +110,10 @@ class TestGetConnection:
             "extra": '{"headers": "header"}',
         }
 
-    def test_connection_get_not_found(self, client):
+    def test_connection_get_not_found(self, client, session, create_task_instance, auth_headers):
+        ti = create_task_instance()
+        session.commit()
+        client.headers.update(auth_headers(ti))
         response = client.get("/execution/connections/non_existent_test_conn")
 
         assert response.status_code == 404
@@ -116,8 +124,25 @@ class TestGetConnection:
             }
         }
 
+    def test_connection_requires_task_instance(self, client, auth_headers):
+        response = client.get(
+            "/execution/connections/test_conn",
+            headers=auth_headers("11111111-1111-1111-1111-111111111111"),
+        )
+
+        assert response.status_code == 403
+        assert response.json() == {
+            "detail": {
+                "reason": "access_denied",
+                "message": "Task instance 11111111-1111-1111-1111-111111111111 not found",
+            }
+        }
+
     @pytest.mark.usefixtures("access_denied")
-    def test_connection_get_access_denied(self, client):
+    def test_connection_get_access_denied(self, client, session, create_task_instance, auth_headers):
+        ti = create_task_instance()
+        session.commit()
+        client.headers.update(auth_headers(ti))
         response = client.get("/execution/connections/test_conn")
 
         # Assert response status code and detail for access denied

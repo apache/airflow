@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import uuid
 from unittest.mock import AsyncMock
 
 import pytest
@@ -50,10 +51,18 @@ def client(request: pytest.FixtureRequest):
                     "aud": "test-audience",
                 }
 
-            # For other cases (like JWTBearerDep) where no specific validators are provided
-            # Return a default UUID with all required claims
+            token_sub = None
+            if isinstance(cred, str):
+                token = cred.removeprefix("ti:")
+                try:
+                    token_sub = str(uuid.UUID(token))
+                except ValueError:
+                    token_sub = None
+
+            # For other cases (like JWTBearerDep) where no specific validators are provided,
+            # return the token UUID if it was provided, else a default UUID.
             return {
-                "sub": "00000000-0000-0000-0000-000000000000",
+                "sub": token_sub or "00000000-0000-0000-0000-000000000000",
                 "exp": 9999999999,  # Far future expiration
                 "iat": 1000000000,  # Past issuance time
                 "aud": "test-audience",
@@ -64,3 +73,12 @@ def client(request: pytest.FixtureRequest):
         lifespan.registry.register_value(JWTValidator, auth)
 
         yield client
+
+
+@pytest.fixture
+def auth_headers():
+    def _headers(ti_or_id):
+        ti_id = getattr(ti_or_id, "id", ti_or_id)
+        return {"Authorization": f"Bearer {ti_id}"}
+
+    return _headers

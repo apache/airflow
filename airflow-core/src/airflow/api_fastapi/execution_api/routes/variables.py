@@ -22,26 +22,32 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Path, Request, status
 
+from airflow.api_fastapi.common.db.common import SessionDep
 from airflow.api_fastapi.execution_api.datamodels.variable import (
     VariablePostBody,
     VariableResponse,
 )
-from airflow.api_fastapi.execution_api.deps import JWTBearerDep, get_team_name_dep
+from airflow.api_fastapi.execution_api.deps import (
+    JWTBearerDep,
+    get_task_instance_from_token,
+    get_team_name_dep,
+)
 from airflow.models.variable import Variable
 
 
-async def has_variable_access(
+def has_variable_access(
     request: Request,
+    session: SessionDep,
     variable_key: str = Path(),
     token=JWTBearerDep,
 ):
     """Check if the task has access to the variable."""
+    ti = get_task_instance_from_token(session=session, token=token)
     write = request.method not in {"GET", "HEAD", "OPTIONS"}
-    # TODO: Placeholder for actual implementation
     log.debug(
         "Checking %s access for task instance with key '%s' to variable '%s'",
         "write" if write else "read",
-        token.id,
+        ti.id,
         variable_key,
     )
     return True

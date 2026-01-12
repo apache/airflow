@@ -27,7 +27,7 @@ from fastapi.security import HTTPBearer
 from sqlalchemy import select
 
 from airflow.api_fastapi.auth.tokens import JWTValidator
-from airflow.api_fastapi.common.db.common import AsyncSessionDep
+from airflow.api_fastapi.common.db.common import AsyncSessionDep, SessionDep
 from airflow.api_fastapi.execution_api.datamodels.token import TIToken
 from airflow.configuration import conf
 from airflow.models import DagModel, TaskInstance
@@ -101,6 +101,20 @@ JWTBearerDep: TIToken = Depends(JWTBearer())
 
 # This checks that the UUID in the url matches the one in the token for us.
 JWTBearerTIPathDep = Depends(JWTBearer(path_param_name="task_instance_id"))
+
+
+def get_task_instance_from_token(session: SessionDep, token=JWTBearerDep) -> TaskInstance:
+    """Return the TaskInstance for the token or raise if it does not exist."""
+    ti_id = str(token.id)
+    if (ti := session.get(TaskInstance, ti_id)) is None:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail={
+                "reason": "access_denied",
+                "message": f"Task instance {ti_id} not found",
+            },
+        )
+    return ti
 
 
 async def get_team_name_dep(session: AsyncSessionDep, token=JWTBearerDep) -> str | None:

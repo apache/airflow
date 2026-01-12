@@ -25,6 +25,7 @@ from fastapi import FastAPI, HTTPException, Request, status
 from fastapi.routing import Mount
 from sqlalchemy import select
 
+from airflow.api_fastapi.common.db.common import SessionDep
 from airflow.models.variable import Variable
 
 from tests_common.test_utils.db import clear_db_variables
@@ -49,8 +50,8 @@ def access_denied(client):
     assert isinstance(last_route.app, FastAPI)
     exec_app = last_route.app
 
-    async def _(request: Request, variable_key: str, token=JWTBearerDep):
-        await has_variable_access(request, variable_key, token)
+    async def _(request: Request, variable_key: str, session: SessionDep, token=JWTBearerDep):
+        has_variable_access(request=request, session=session, variable_key=variable_key, token=token)
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail={
@@ -73,9 +74,11 @@ class TestGetVariable:
             ("var2/with_slash", "slash_value"),
         ],
     )
-    def test_variable_get_from_db(self, client, session, key, value):
+    def test_variable_get_from_db(self, client, session, key, value, create_task_instance, auth_headers):
+        ti = create_task_instance()
         Variable.set(key=key, value=value, session=session)
         session.commit()
+        client.headers.update(auth_headers(ti))
 
         response = client.get(f"/execution/variables/{key}")
 
@@ -90,7 +93,10 @@ class TestGetVariable:
         "os.environ",
         {"AIRFLOW_VAR_KEY1": "VALUE"},
     )
-    def test_variable_get_from_env_var(self, client, session):
+    def test_variable_get_from_env_var(self, client, session, create_task_instance, auth_headers):
+        ti = create_task_instance()
+        session.commit()
+        client.headers.update(auth_headers(ti))
         response = client.get("/execution/variables/key1")
 
         assert response.status_code == 200
@@ -103,7 +109,10 @@ class TestGetVariable:
             "non/existent/slash/var",
         ],
     )
-    def test_variable_get_not_found(self, client, key):
+    def test_variable_get_not_found(self, client, session, key, create_task_instance, auth_headers):
+        ti = create_task_instance()
+        session.commit()
+        client.headers.update(auth_headers(ti))
         response = client.get(f"/execution/variables/{key}")
 
         assert response.status_code == 404
@@ -114,8 +123,25 @@ class TestGetVariable:
             }
         }
 
+    def test_variable_requires_task_instance(self, client, auth_headers):
+        response = client.get(
+            "/execution/variables/key1",
+            headers=auth_headers("22222222-2222-2222-2222-222222222222"),
+        )
+
+        assert response.status_code == 403
+        assert response.json() == {
+            "detail": {
+                "reason": "access_denied",
+                "message": "Task instance 22222222-2222-2222-2222-222222222222 not found",
+            }
+        }
+
     @pytest.mark.usefixtures("access_denied")
-    def test_variable_get_access_denied(self, client, caplog):
+    def test_variable_get_access_denied(self, client, session, caplog, create_task_instance, auth_headers):
+        ti = create_task_instance()
+        session.commit()
+        client.headers.update(auth_headers(ti))
         with caplog.at_level(logging.DEBUG):
             response = client.get("/execution/variables/key1")
 
@@ -143,7 +169,10 @@ class TestPutVariable:
             ),
         ],
     )
-    def test_should_create_variable(self, client, key, payload, session):
+    def test_should_create_variable(self, client, key, payload, session, create_task_instance, auth_headers):
+        ti = create_task_instance()
+        session.commit()
+        client.headers.update(auth_headers(ti))
         response = client.put(
             f"/execution/variables/{key}",
             json=payload,
@@ -165,7 +194,12 @@ class TestPutVariable:
             pytest.param("var_create", 422, {"description": "description"}, id="missing-value"),
         ],
     )
-    def test_variable_missing_mandatory_fields(self, client, key, status_code, payload, session):
+    def test_variable_missing_mandatory_fields(
+        self, client, key, status_code, payload, session, create_task_instance, auth_headers
+    ):
+        ti = create_task_instance()
+        session.commit()
+        client.headers.update(auth_headers(ti))
         response = client.put(
             f"/execution/variables/{key}",
             json=payload,
@@ -189,7 +223,10 @@ class TestPutVariable:
             ),
         ],
     )
-    def test_variable_adding_extra_fields(self, client, key, payload, session):
+    def test_variable_adding_extra_fields(self, client, key, payload, session, create_task_instance, auth_headers):
+        ti = create_task_instance()
+        session.commit()
+        client.headers.update(auth_headers(ti))
         response = client.put(
             f"/execution/variables/{key}",
             json=payload,
@@ -205,9 +242,11 @@ class TestPutVariable:
             "var_create/with_slash",
         ],
     )
-    def test_overwriting_existing_variable(self, client, session, key):
+    def test_overwriting_existing_variable(self, client, session, key, create_task_instance, auth_headers):
+        ti = create_task_instance()
         Variable.set(key=key, value="value", session=session)
         session.commit()
+        client.headers.update(auth_headers(ti))
 
         payload = {"value": "new_value"}
         response = client.put(
@@ -223,7 +262,10 @@ class TestPutVariable:
         assert var_from_db.val == payload["value"]
 
     @pytest.mark.usefixtures("access_denied")
-    def test_post_variable_access_denied(self, client, caplog):
+    def test_post_variable_access_denied(self, client, session, caplog, create_task_instance, auth_headers):
+        ti = create_task_instance()
+        session.commit()
+        client.headers.update(auth_headers(ti))
         with caplog.at_level(logging.DEBUG):
             key = "var_create"
             payload = {"value": "{}"}
@@ -250,9 +292,14 @@ class TestDeleteVariable:
             (["key3/with_slash", "key4"], "key3/with_slash"),
         ],
     )
-    def test_should_delete_variable(self, client, session, keys_to_create, key_to_delete):
+    def test_should_delete_variable(
+        self, client, session, keys_to_create, key_to_delete, create_task_instance, auth_headers
+    ):
+        ti = create_task_instance()
         for i, key in enumerate(keys_to_create, 1):
             Variable.set(key=key, value=str(i))
+        session.commit()
+        client.headers.update(auth_headers(ti))
 
         vars = session.scalars(select(Variable)).all()
         assert len(vars) == len(keys_to_create)
@@ -264,8 +311,11 @@ class TestDeleteVariable:
         vars = session.scalars(select(Variable)).all()
         assert len(vars) == len(keys_to_create) - 1
 
-    def test_should_not_delete_variable(self, client, session):
+    def test_should_not_delete_variable(self, client, session, create_task_instance, auth_headers):
+        ti = create_task_instance()
         Variable.set(key="key", value="value")
+        session.commit()
+        client.headers.update(auth_headers(ti))
 
         vars = session.scalars(select(Variable)).all()
         assert len(vars) == 1
