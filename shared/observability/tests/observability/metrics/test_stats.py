@@ -589,7 +589,7 @@ class TestCustomStatsName:
             (
                 "metrics",
                 "stat_name_handler",
-            ): "shared.observability.tests.observability.metrics.test_stats.always_invalid",
+            ): "observability.metrics.test_stats.always_invalid",
         }
     )
     @mock.patch("datadog.DogStatsd")
@@ -604,7 +604,7 @@ class TestCustomStatsName:
             (
                 "metrics",
                 "stat_name_handler",
-            ): "shared.observability.tests.observability.metrics.test_stats.always_valid",
+            ): "observability.metrics.test_stats.always_valid",
         }
     )
     @mock.patch("statsd.StatsClient")
@@ -625,7 +625,7 @@ class TestCustomStatsName:
             (
                 "metrics",
                 "stat_name_handler",
-            ): "shared.observability.tests.observability.metrics.test_stats.always_valid",
+            ): "observability.metrics.test_stats.always_valid",
         }
     )
     @mock.patch("datadog.DogStatsd")
