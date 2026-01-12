@@ -150,9 +150,8 @@ class ConnectionHookMetaData(BaseModel):
                     # Not a param spec structure, keep as is
                     redacted_extra_fields[field_name] = field_spec
             return redacted_extra_fields
-        else:
-            # For simple dictionary structures, use the standard redact function
-            return redact(v)
+        # For simple dictionary structures, use the standard redact function
+        return redact(v)
 
 
 # Request Models
