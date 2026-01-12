@@ -19,7 +19,7 @@ from __future__ import annotations
 
 import itertools
 from collections.abc import Iterable, Sequence
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Literal
 
 from google.cloud.run_v2 import (
     CreateJobRequest,
@@ -76,7 +76,7 @@ class CloudRunHook(GoogleBaseHook):
         self,
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
-        transport: str | None = None,
+        transport: Literal["rest", "grpc"] = "grpc",
         **kwargs,
     ) -> None:
         super().__init__(gcp_conn_id=gcp_conn_id, impersonation_chain=impersonation_chain, **kwargs)
@@ -90,9 +90,11 @@ class CloudRunHook(GoogleBaseHook):
         :return: Cloud Run Jobs client object.
         """
         if self._client is None:
-            client_kwargs = {"credentials": self.get_credentials(), "client_info": CLIENT_INFO}
-            if self.transport is not None:
-                client_kwargs["transport"] = self.transport
+            client_kwargs = {
+                "credentials": self.get_credentials(),
+                "client_info": CLIENT_INFO,
+                "transport": self.transport,
+            }
             self._client = JobsClient(**client_kwargs)
         return self._client
 
@@ -195,7 +197,7 @@ class CloudRunAsyncHook(GoogleBaseAsyncHook):
         self,
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
-        transport: str | None = None,
+        transport: Literal["rest", "grpc"] = "grpc",
         **kwargs,
     ):
         self._client: JobsAsyncClient | None = None
@@ -207,9 +209,11 @@ class CloudRunAsyncHook(GoogleBaseAsyncHook):
     async def get_conn(self):
         if self._client is None:
             sync_hook = await self.get_sync_hook()
-            client_kwargs = {"credentials": sync_hook.get_credentials(), "client_info": CLIENT_INFO}
-            if self.transport is not None:
-                client_kwargs["transport"] = self.transport
+            client_kwargs = {
+                "credentials": sync_hook.get_credentials(),
+                "client_info": CLIENT_INFO,
+                "transport": self.transport,
+            }
             self._client = JobsAsyncClient(**client_kwargs)
 
         return self._client

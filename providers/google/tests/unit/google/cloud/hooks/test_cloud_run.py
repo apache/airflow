@@ -280,14 +280,14 @@ class TestCloudRunHook:
     )
     @mock.patch("airflow.providers.google.cloud.hooks.cloud_run.JobsClient")
     def test_get_conn_without_transport(self, mock_jobs_client):
-        """Test that JobsClient is created without transport when not specified."""
+        """Test that JobsClient is created with default 'grpc' transport when not specified."""
         hook = CloudRunHook()
         hook.get_credentials = self.dummy_get_credentials
         hook.get_conn()
 
         mock_jobs_client.assert_called_once()
         call_kwargs = mock_jobs_client.call_args[1]
-        assert "transport" not in call_kwargs
+        assert call_kwargs["transport"] == "grpc"
 
     def _mock_pager(self, number_of_jobs):
         mock_pager = []

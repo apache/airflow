@@ -18,7 +18,7 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Literal
 
 import google.cloud.exceptions
 from google.api_core.exceptions import AlreadyExists
@@ -292,7 +292,7 @@ class CloudRunExecuteJobOperator(GoogleCloudBaseOperator):
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
         deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
-        transport: str | None = None,
+        transport: Literal["rest", "grpc"] = "grpc",
         **kwargs,
     ):
         super().__init__(**kwargs)

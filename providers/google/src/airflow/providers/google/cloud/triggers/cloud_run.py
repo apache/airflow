@@ -19,7 +19,7 @@ from __future__ import annotations
 import asyncio
 from collections.abc import AsyncIterator, Sequence
 from enum import Enum
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Literal
 
 from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.google.cloud.hooks.cloud_run import CloudRunAsyncHook
@@ -74,7 +74,7 @@ class CloudRunJobFinishedTrigger(BaseTrigger):
         impersonation_chain: str | Sequence[str] | None = None,
         polling_period_seconds: float = 10,
         timeout: float | None = None,
-        transport: str | None = None,
+        transport: Literal["rest", "grpc"] = "grpc",
     ):
         super().__init__()
         self.project_id = project_id
