@@ -1591,6 +1591,7 @@ class OperatorSerialization(DAGNode, BaseSerialization):
             # Check if value is ARG_NOT_SET before trying to deserialize as datetime
             if isinstance(value, dict) and value.get(Encoding.TYPE) == DAT.ARG_NOT_SET:
                 from airflow.serialization.definitions.notset import NOTSET
+
                 return NOTSET
             return cls._deserialize_datetime(value) if value is not None else None
         else:
