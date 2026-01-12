@@ -143,6 +143,7 @@ class TestDagRunOperator:
     @mock.patch("airflow.providers.standard.operators.trigger_dagrun.XCom.get_value")
     def test_extra_operator_link(self, mock_xcom_get_value, dag_maker):
         from airflow.providers.standard.operators.trigger_dagrun import XCOM_RUN_ID
+
         with dag_maker(TEST_DAG_ID, default_args={"start_date": DEFAULT_DATE}, serialized=True):
             task = TriggerDagRunOperator(
                 task_id="test_task",
@@ -159,7 +160,7 @@ class TestDagRunOperator:
             if key == XCOM_RUN_ID:
                 return "test_run_id"
             return None
-        
+
         mock_xcom_get_value.side_effect = mock_get_value
 
         link = task.operator_extra_links[0].get_link(operator=task, ti_key=ti.key)
@@ -189,10 +190,10 @@ class TestDagRunOperator:
         def mock_get_value(ti_key, key):
             if key == XCOM_DAG_ID:
                 return "dynamic_dag_id"
-            elif key == XCOM_RUN_ID:
+            if key == XCOM_RUN_ID:
                 return "dynamic_run_id"
             return None
-        
+
         mock_xcom_get_value.side_effect = mock_get_value
 
         link = task.operator_extra_links[0].get_link(operator=task, ti_key=ti.key)
@@ -677,7 +678,7 @@ class TestDagRunOperatorAF2:
     def test_extra_operator_link(self, mock_xcom_get_value, dag_maker, session):
         """Asserts whether the correct extra links url will be created."""
         from airflow.providers.standard.operators.trigger_dagrun import XCOM_RUN_ID
-        
+
         with dag_maker(TEST_DAG_ID, default_args={"start_date": DEFAULT_DATE}, serialized=True):
             task = TriggerDagRunOperator(
                 task_id="test_task", trigger_dag_id=TRIGGERED_DAG_ID, trigger_run_id="test_run_id"
@@ -696,7 +697,7 @@ class TestDagRunOperatorAF2:
             if key == XCOM_RUN_ID:
                 return "test_run_id"
             return None
-        
+
         mock_xcom_get_value.side_effect = mock_get_value
 
         with mock.patch("airflow.utils.helpers.build_airflow_url_with_query") as mock_build_url:
@@ -731,10 +732,10 @@ class TestDagRunOperatorAF2:
         def mock_get_value(ti_key, key):
             if key == XCOM_DAG_ID:
                 return "dynamic_dag_id"
-            elif key == XCOM_RUN_ID:
+            if key == XCOM_RUN_ID:
                 return "test_run_id"
             return None
-        
+
         mock_xcom_get_value.side_effect = mock_get_value
 
         with mock.patch("airflow.utils.helpers.build_airflow_url_with_query") as mock_build_url:

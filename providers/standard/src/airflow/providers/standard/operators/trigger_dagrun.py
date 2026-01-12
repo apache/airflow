@@ -44,7 +44,12 @@ from airflow.providers.standard.triggers.external_task import DagStateTrigger
 from airflow.providers.standard.utils.openlineage import safe_inject_openlineage_properties_into_dagrun_conf
 from airflow.providers.standard.version_compat import AIRFLOW_V_3_0_PLUS, BaseOperator
 from airflow.utils.state import DagRunState
-from airflow.utils.types import ArgNotSet, DagRunType, NOTSET
+from airflow.utils.types import DagRunType
+
+try:
+    from airflow.sdk.definitions._internal.types import NOTSET, ArgNotSet
+except ImportError:
+    from airflow.utils.types import NOTSET, ArgNotSet  # type: ignore[attr-defined,no-redef]
 
 XCOM_LOGICAL_DATE_ISO = "trigger_logical_date_iso"
 XCOM_RUN_ID = "trigger_run_id"
@@ -84,7 +89,7 @@ class TriggerDagRunLink(BaseOperatorLink):
 
         # Try to get the resolved dag_id from XCom first (for dynamic dag_ids)
         trigger_dag_id = XCom.get_value(ti_key=ti_key, key=XCOM_DAG_ID)
-        
+
         # Fallback to operator attribute and rendered fields if not in XCom
         if not trigger_dag_id:
             trigger_dag_id = operator.trigger_dag_id
@@ -196,7 +201,7 @@ class TriggerDagRunOperator(BaseOperator):
         self.openlineage_inject_parent_info = openlineage_inject_parent_info
         self.deferrable = deferrable
         self.logical_date = logical_date
-        if logical_date is NOTSET:
+        if isinstance(logical_date, ArgNotSet) or logical_date is NOTSET:
             self.logical_date = NOTSET
         elif logical_date is None or isinstance(logical_date, (str, datetime.datetime)):
             self.logical_date = logical_date
@@ -209,7 +214,7 @@ class TriggerDagRunOperator(BaseOperator):
             raise NotImplementedError("Setting `fail_when_dag_is_paused` not yet supported for Airflow 3.x")
 
     def execute(self, context: Context):
-        if self.logical_date is NOTSET:
+        if isinstance(self.logical_date, ArgNotSet) or self.logical_date is NOTSET:
             # If no logical_date is provided we will set utcnow()
             parsed_logical_date = timezone.utcnow()
         elif self.logical_date is None or isinstance(self.logical_date, datetime.datetime):
@@ -269,9 +274,11 @@ class TriggerDagRunOperator(BaseOperator):
 
         # Store the resolved dag_id to XCom for use in the link generation
         # This is important for dynamic dag_ids (from XCom or complex templates)
+        # In Airflow 3.x, context has both "task_instance" and "ti" keys
         if "task_instance" in context:
-            ti = context["task_instance"]
-            ti.xcom_push(key=XCOM_DAG_ID, value=self.trigger_dag_id)
+            context["task_instance"].xcom_push(key=XCOM_DAG_ID, value=self.trigger_dag_id)
+        elif "ti" in context:
+            context["ti"].xcom_push(key=XCOM_DAG_ID, value=self.trigger_dag_id)
 
         raise DagRunTriggerException(
             trigger_dag_id=self.trigger_dag_id,
