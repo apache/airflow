@@ -17,9 +17,8 @@
  * under the License.
  */
 
-/* eslint-disable perfectionist/sort-objects */
+export interface global {}
 
-/* eslint-disable max-lines */
-import { createSystem, defaultConfig } from "@chakra-ui/react";
-
-export const localSystem = createSystem(defaultConfig);
+declare global {
+  var ChakraUISystem: SystemContext | undefined
+}
