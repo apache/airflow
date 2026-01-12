@@ -22,7 +22,7 @@
 # until we have version 2 of the helm chart.
 # */}}
 mappings:
-  # --- CORE AIRFLOW MAPPINGS (PRE-EXISTING) ---
+  # Map dot separated stats to labels
   - match: airflow.dagrun.dependency-check.*.*
     name: "airflow_dagrun_dependency_check"
     labels:
