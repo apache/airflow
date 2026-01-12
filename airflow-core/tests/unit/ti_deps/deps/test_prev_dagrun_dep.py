@@ -284,7 +284,7 @@ class TestPrevDagrunDep:
                 expected_dep_met=True,
                 past_depends_met_xcom_sent=False,
             ),
-            id="all_met",
+            id="all_met_multi",
         ),
         # All but one task has succeeded
         pytest.param(
@@ -309,7 +309,7 @@ class TestPrevDagrunDep:
                 expected_dep_met=False,
                 past_depends_met_xcom_sent=False,
             ),
-            id="prev_ti_bad_state",
+            id="prev_ti_bad_state_multi",
         ),
     ],
 )
