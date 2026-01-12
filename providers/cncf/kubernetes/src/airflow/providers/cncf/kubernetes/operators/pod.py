@@ -947,8 +947,6 @@ class KubernetesPodOperator(BaseOperator):
                 raise PodNotFoundException("Could not find pod after resuming from deferral")
 
             last_log_time = event.get("last_log_time")
-            self.log.info("Last log time received from trigger: %s, typ: %s, status: %s", last_log_time, type(last_log_time), event["status"])
-
             if event["status"] in ("error", "failed", "timeout", "success"):
                 if self.get_logs:
                     self.pod_manager.fetch_requested_container_logs(
@@ -958,8 +956,8 @@ class KubernetesPodOperator(BaseOperator):
                         container_name_log_prefix_enabled=self.container_name_log_prefix_enabled,
                         log_formatter=self.log_formatter,
                         since_time=last_log_time,
+                        post_termination_timeout=800,
                     )
-                    self.log.info("Fetched logs")
 
                 for callback in self.callbacks:
                     callback.on_pod_completion(
