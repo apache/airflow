@@ -56,12 +56,8 @@ test.describe("Backfill creation and validation", () => {
         toDate: config.toDate,
       });
 
-      await setupBackfillPage.navigateToBackfillsTab(testDagId);
-      await setupBackfillPage.findBackfillRowByDateRange({
-        fromDate: config.fromDate,
-        toDate: config.toDate,
-      });
-
+      // Wait for backfill to complete on DAG detail page (where the banner is visible)
+      await setupBackfillPage.navigateToDagDetail(testDagId);
       await setupBackfillPage.waitForNoActiveBackfill();
     }
 
@@ -205,14 +201,14 @@ test.describe("Backfill pause, resume, and cancel controls", () => {
 
   let backfillPage: BackfillPage;
 
-test.beforeEach(async ({ page }) => {
-  backfillPage = new BackfillPage(page);
-  await backfillPage.navigateToDagDetail(testDagId);
-  
-  // Cancel any existing backfill if visible
-  if (await backfillPage.cancelButton.isVisible()) {
-    await backfillPage.clickCancelButton();
-  }
+  test.beforeEach(async ({ page }) => {
+    backfillPage = new BackfillPage(page);
+    await backfillPage.navigateToDagDetail(testDagId);
+
+    // Cancel any existing backfill if visible
+    if (await backfillPage.cancelButton.isVisible()) {
+      await backfillPage.clickCancelButton();
+    }
 
     await backfillPage.createBackfill(testDagId, {
       fromDate: controlFromDate,
@@ -223,12 +219,12 @@ test.beforeEach(async ({ page }) => {
     await backfillPage.navigateToBackfillsTab(testDagId);
   });
 
-test.afterEach(async () => {
-  // Cleanup: cancel backfill if still active
-  if (await backfillPage.cancelButton.isVisible()) {
-    await backfillPage.clickCancelButton();
-  }
-});
+  test.afterEach(async () => {
+    // Cleanup: cancel backfill if still active
+    if (await backfillPage.cancelButton.isVisible()) {
+      await backfillPage.clickCancelButton();
+    }
+  });
 
   test("verify pause and resume backfill", async () => {
     await backfillPage.clickPauseButton();
