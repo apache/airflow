@@ -1795,9 +1795,9 @@ class TestExecuteEmailCallbacks:
             _execute_email_callbacks(dagbag, request, log)
 
     def test_parse_file_passes_bundle_name_to_dagbag(self):
-        """Test that _parse_file() creates DagBag with correct bundle_name parameter"""
-        # Mock the DagBag constructor to capture its arguments
-        with patch("airflow.dag_processing.processor.DagBag") as mock_dagbag_class:
+        """Test that _parse_file() creates BundleDagBag with correct bundle_name parameter"""
+        # Mock the BundleDagBag constructor to capture its arguments
+        with patch("airflow.dag_processing.processor.BundleDagBag") as mock_dagbag_class:
             # Create a mock instance with proper attributes for Pydantic validation
             mock_dagbag_instance = MagicMock()
             mock_dagbag_instance.dags = {}
@@ -1813,7 +1813,7 @@ class TestExecuteEmailCallbacks:
 
             _parse_file(request, log=structlog.get_logger())
 
-            # Verify DagBag was called with correct bundle_name
+            # Verify BundleDagBag was called with correct bundle_name
             mock_dagbag_class.assert_called_once()
             call_kwargs = mock_dagbag_class.call_args.kwargs
             assert call_kwargs["bundle_name"] == "test_bundle"

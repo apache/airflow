@@ -34,6 +34,7 @@ try:
     from airflow.sdk.exceptions import (
         AirflowException,
         AirflowNotFoundException,
+        AirflowOptionalProviderFeatureException as AirflowOptionalProviderFeatureException,
         AirflowRescheduleException as AirflowRescheduleException,
         AirflowTimetableInvalid as AirflowTimetableInvalid,
         TaskNotFound as TaskNotFound,
@@ -68,6 +69,9 @@ except ModuleNotFoundError:
             cls = self.__class__
             return f"{cls.__module__}.{cls.__name__}", (), {"reschedule_date": self.reschedule_date}
 
+    class AirflowOptionalProviderFeatureException(AirflowException):  # type: ignore[no-redef]
+        """Raise by providers when imports are missing for optional provider features."""
+
 
 class AirflowBadRequest(AirflowException):
     """Raise when the application or server cannot handle the request."""
@@ -77,10 +81,6 @@ class AirflowBadRequest(AirflowException):
 
 class InvalidStatsNameException(AirflowException):
     """Raise when name of the stats is invalid."""
-
-
-class AirflowOptionalProviderFeatureException(AirflowException):
-    """Raise by providers when imports are missing for optional provider features."""
 
 
 class AirflowInternalRuntimeError(BaseException):
