@@ -28,8 +28,12 @@ import psycopg2.extras
 from more_itertools import chunked
 from psycopg2.extras import DictCursor, NamedTupleCursor, RealDictCursor, execute_batch
 
-from airflow.exceptions import AirflowOptionalProviderFeatureException
-from airflow.providers.common.compat.sdk import AirflowException, Connection, conf
+from airflow.providers.common.compat.sdk import (
+    AirflowException,
+    AirflowOptionalProviderFeatureException,
+    Connection,
+    conf,
+)
 from airflow.providers.common.sql.hooks.sql import DbApiHook
 from airflow.providers.postgres.dialects.postgres import PostgresDialect
 
@@ -460,7 +464,7 @@ class PostgresHook(DbApiHook):
         try:
             from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
         except ImportError:
-            from airflow.exceptions import AirflowOptionalProviderFeatureException
+            from airflow.providers.common.compat.sdk import AirflowOptionalProviderFeatureException
 
             raise AirflowOptionalProviderFeatureException(
                 "apache-airflow-providers-amazon not installed, run: "
@@ -568,7 +572,7 @@ class PostgresHook(DbApiHook):
         try:
             from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
         except ImportError:
-            from airflow.exceptions import AirflowOptionalProviderFeatureException
+            from airflow.providers.common.compat.sdk import AirflowOptionalProviderFeatureException
 
             raise AirflowOptionalProviderFeatureException(
                 "apache-airflow-providers-amazon not installed, run: "
