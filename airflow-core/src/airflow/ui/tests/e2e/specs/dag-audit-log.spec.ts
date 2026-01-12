@@ -87,7 +87,7 @@ test.describe("DAG Audit Log", () => {
     await expect(dagIdColumn).not.toBeVisible();
   });
 
-  test("should display audit log entries with valid data", async () => {
+  test("verify audit log entries display valid data", async () => {
     await eventsPage.navigateToAuditLog(testDagId);
 
     const rows = await eventsPage.getEventLogRows();
@@ -100,11 +100,9 @@ test.describe("DAG Audit Log", () => {
       throw new Error("No rows found");
     }
 
-    const cells = firstRow.locator("td");
-
-    const whenCell = cells.nth(0);
-    const eventCell = cells.nth(1);
-    const userCell = cells.nth(2);
+    const whenCell = await eventsPage.getCellByColumnName(firstRow, "When");
+    const eventCell = await eventsPage.getCellByColumnName(firstRow, "Event");
+    const userCell = await eventsPage.getCellByColumnName(firstRow, "User");
 
     const whenText = await whenCell.textContent();
     const eventText = await eventCell.textContent();
@@ -120,7 +118,7 @@ test.describe("DAG Audit Log", () => {
     expect(userText?.trim()).not.toBe("");
   });
 
-  test("should paginate through audit log entries", async () => {
+  test("verify pagination through audit log entries", async () => {
     await eventsPage.navigateToAuditLog(testDagId, 3);
 
     const hasNext = await eventsPage.hasNextPage();
@@ -147,7 +145,7 @@ test.describe("DAG Audit Log", () => {
     expect(urlBackToPage1).toContain("limit=3");
   });
 
-  test("should sort audit log entries when clicking column header", async () => {
+  test("verify sorting when clicking column header", async () => {
     await eventsPage.navigateToAuditLog(testDagId);
 
     const initialEvents = await eventsPage.getEventTypes(true);

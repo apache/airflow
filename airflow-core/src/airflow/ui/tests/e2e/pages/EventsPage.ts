@@ -19,11 +19,7 @@
 import type { Locator, Page } from "@playwright/test";
 import { BasePage } from "tests/e2e/pages/BasePage";
 
-/**
- * Events/Audit Log Page Object
- */
 export class EventsPage extends BasePage {
-  // Locators
   public readonly eventColumn: Locator;
   public readonly eventsTable: Locator;
   public readonly extraColumn: Locator;
@@ -73,6 +69,17 @@ export class EventsPage extends BasePage {
     await this.ensureUrlParams();
   }
 
+  public async getCellByColumnName(row: Locator, columnName: string): Promise<Locator> {
+    const headers = await this.eventsTable.locator("thead th").allTextContents();
+    const index = headers.findIndex((h) => h.toLowerCase().includes(columnName.toLowerCase()));
+
+    if (index === -1) {
+      throw new Error(`Column "${columnName}" not found`);
+    }
+
+    return row.locator("td").nth(index);
+  }
+
   public async getEventLogRows(): Promise<Array<Locator>> {
     const count = await this.tableRows.count();
 
@@ -83,9 +90,6 @@ export class EventsPage extends BasePage {
     return this.tableRows.all();
   }
 
-  /**
-   * Get event types from the current page or all pages
-   */
   public async getEventTypes(allPages: boolean = false): Promise<Array<string>> {
     const rows = await this.getEventLogRows();
 
@@ -96,8 +100,7 @@ export class EventsPage extends BasePage {
     const eventTypes: Array<string> = [];
 
     for (const row of rows) {
-      const cells = row.locator("td");
-      const eventCell = cells.nth(1);
+      const eventCell = await this.getCellByColumnName(row, "Event");
       const text = await eventCell.textContent();
 
       if (text !== null) {
