@@ -24,7 +24,7 @@ from typing import Annotated
 from pydantic import Field, field_validator
 from pydantic_core.core_schema import ValidationInfo
 
-from airflow._shared.secrets_masker import redact
+from airflow._shared.secrets_masker import redact, should_hide_value_for_key
 from airflow.api_fastapi.core_api.base import BaseModel, StrictBaseModel
 
 
@@ -129,35 +129,30 @@ class ConnectionHookMetaData(BaseModel):
         if v is None:
             return None
 
-        # Store original schema.type values before redaction for param spec structures
-        # so we can restore them after redaction to keep fields optional
-        original_schema_types = {}
-        for field_name, field_spec in v.items():
-            schema = isinstance(field_spec, dict) and field_spec.get("schema")
-            if isinstance(schema, dict):
-                original_schema_types[field_name] = schema.get("type")
+        # Check if extra_fields contains param spec structures (result of SerializedParam.dump())
+        # which have "value" and "schema" keys, or simple dictionary structures
+        has_param_spec_structure = any(
+            isinstance(field_spec, dict) and "value" in field_spec and "schema" in field_spec
+            for field_spec in v.values()
+        )
 
-        # Apply redaction (which will mask everything including schema.type)
-        redacted = redact(v)
-
-        # Restore schema.type for param spec structures to keep fields optional
-        if not original_schema_types or not isinstance(redacted, dict):
-            return redacted
-
-        redacted = dict(redacted)
-        for field_name, original_schema_type in original_schema_types.items():
-            if (
-                original_schema_type is not None
-                and field_name in redacted
-                and isinstance(redacted[field_name], dict)
-                and isinstance(redacted[field_name].get("schema"), dict)
-            ):
-                field_spec = dict(redacted[field_name])
-                field_spec["schema"] = dict(field_spec["schema"])
-                field_spec["schema"]["type"] = original_schema_type
-                redacted[field_name] = field_spec
-
-        return redacted
+        if has_param_spec_structure:
+            redacted_extra_fields = {}
+            for field_name, field_spec in v.items():
+                if isinstance(field_spec, dict) and "value" in field_spec and "schema" in field_spec:
+                    if should_hide_value_for_key(field_name) and field_spec.get("value") is not None:
+                        # Mask only the value, preserve everything else including schema.type
+                        redacted_extra_fields[field_name] = {**field_spec, "value": "***"}
+                    else:
+                        # Not sensitive or no value, keep as is
+                        redacted_extra_fields[field_name] = field_spec
+                else:
+                    # Not a param spec structure, keep as is
+                    redacted_extra_fields[field_name] = field_spec
+            return redacted_extra_fields
+        else:
+            # For simple dictionary structures, use the standard redact function
+            return redact(v)
 
 
 # Request Models

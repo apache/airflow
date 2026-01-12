@@ -89,13 +89,13 @@ class TestHookMetaData:
                         "description": "Authentication type: 'basic' (default) | 'oauth2'",
                         "source": None,
                     },
-                    "access_token": {  # sensitive field - masked but schema.type preserved
+                    "access_token": {  # sensitive field - only value masked, schema.type preserved
                         "value": "***",
                         "schema": {
                             "type": ["string", "null"],  # Should be preserved
-                            "title": "***",
+                            "title": "Access Token",  # Preserved
                         },
-                        "description": "***",
+                        "description": "OAuth 2 bearer (one-hour).",  # Preserved
                         "source": None,
                     },
                 },
