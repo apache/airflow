@@ -38,6 +38,8 @@ export class DagsPage extends BasePage {
   public readonly paginationPrevButton: Locator;
   public readonly stateElement: Locator;
   public readonly triggerButton: Locator;
+  public readonly calendarTab: Locator;
+  public readonly calendarGrid: Locator;
 
   public constructor(page: Page) {
     super(page);
@@ -47,6 +49,8 @@ export class DagsPage extends BasePage {
     this.stateElement = page.locator('*:has-text("State") + *').first();
     this.paginationNextButton = page.locator('[data-testid="next"]');
     this.paginationPrevButton = page.locator('[data-testid="prev"]');
+    this.calendarTab = page.locator('a[href*="/calendar"]');
+    this.calendarGrid = page.locator('.react-calendar-heatmap');
   }
 
   // URL builders for dynamic paths
@@ -146,6 +150,21 @@ export class DagsPage extends BasePage {
     await expect(this.page.locator('[data-testid="catchup-row"]')).toBeVisible();
     await expect(this.page.locator('[data-testid="default-args-row"]')).toBeVisible();
     await expect(this.page.locator('[data-testid="params-row"]')).toBeVisible();
+  }
+
+  /**
+   * Navigate to calendar tab and verify it renders
+   */
+  public async verifyCalendarTab(dagName: string): Promise<void> {
+    await this.navigateToDagDetail(dagName);
+    
+    await expect(this.calendarTab).toBeVisible();
+    await this.calendarTab.click();
+    
+    // Verify calendar grid is visible
+    // Note: 'react-calendar-heatmap' is a common class for the heatmap component used in Airflow
+    // If not, we might need to adjust selector based on inspection
+    await expect(this.calendarGrid).toBeVisible();
   }
 
   public async verifyDagRunStatus(dagName: string, dagRunId: string | null): Promise<void> {
