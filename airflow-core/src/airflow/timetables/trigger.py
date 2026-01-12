@@ -21,10 +21,13 @@ import functools
 import math
 import operator
 import time
+from types import NoneType
 from typing import TYPE_CHECKING, Any
 
+import pendulum
 import structlog
 
+from airflow._shared.timezones import timezone
 from airflow._shared.timezones.timezone import coerce_datetime, parse_timezone, utcnow
 from airflow.timetables._cron import CronMixin
 from airflow.timetables._delta import DeltaMixin
@@ -408,14 +411,14 @@ class CronPartitionTimetable(CronMixin, _TriggerTimetable):
         timezone: str | Timezone | FixedTimezone,
         run_offset: int | datetime.timedelta | relativedelta | None = None,
         run_immediately: bool | datetime.timedelta = False,
-        key_format: str = "%Y-%m-%d",
+        key_format: str = "%Y-%m-%dT%H:%M:%S.%f%z",  # todo: AIP-76 we can't infer partition date from this, so we need to store it separately
     ) -> None:
         super().__init__(cron, timezone)
         self._run_immediately = run_immediately
-        if not isinstance(run_offset, (int, None)):
+        if not isinstance(run_offset, (int, NoneType)):
             # todo: AIP-76 implement timedelta / relative delta
             raise ValueError("Run offset other than integer not supported yet.")
-        self._run_offset = run_offset
+        self._run_offset = run_offset or 0
         self._key_format = key_format
 
     @classmethod
@@ -423,7 +426,7 @@ class CronPartitionTimetable(CronMixin, _TriggerTimetable):
         from airflow.serialization.decoders import decode_run_immediately
 
         offset = data["run_offset"]
-        if not isinstance(offset, int):
+        if not isinstance(offset, (int, NoneType)):
             offset = None
             log.warning(
                 "Unexpected offset type on deserialization. Only int supported in this version.",
@@ -515,7 +518,6 @@ class CronPartitionTimetable(CronMixin, _TriggerTimetable):
     ) -> DagRunInfo | None:
         # todo: AIP-76 add test for this logic
         last_partition_date = self._partition_date_from_dagrun_info(last_dagrun_info)
-
         if restriction.catchup:
             if last_partition_date is not None:
                 partition_date = self._get_next(last_partition_date)
@@ -549,12 +551,19 @@ class CronPartitionTimetable(CronMixin, _TriggerTimetable):
     def _format_key(self, partition_date: DateTime):
         return partition_date.strftime(self._key_format)
 
+    def _parse_key(self, partition_key: str | None):
+        if partition_key is None:
+            return partition_key
+        return pendulum.parse(partition_key)
+
     def get_partition_dagrun_info(self, *, partition_date: DateTime) -> DagRunInfo:
         """
         Get dagrun info for date.
 
         :param partition_date: The partition date for this run.
         """
+        log.info("get partition date", pd=partition_date)
+        partition_date = timezone.coerce_datetime(partition_date)
         partition_date, run_after = self._get_run_date(partition_date)
         partition_key = self._format_key(partition_date)
         return DagRunInfo(

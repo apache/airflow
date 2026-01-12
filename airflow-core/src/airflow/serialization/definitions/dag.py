@@ -384,21 +384,20 @@ class SerializedDAG:
 
     def next_dagrun_info(
         self,
-        last_automated_dagrun: DagRunInfo | None,  # TODO: AIP-76 just change this since internal
+        last_automated_run_info: DagRunInfo | None,  # TODO: AIP-76 just change this since internal
         *,
         restricted: bool = True,
     ) -> DagRunInfo | None:
         """
-        Get information about the next DagRun of this dag after ``date_last_automated_dagrun``.
+        Get the DagRunInfo object for the next run of this dag.
 
-        This calculates what time interval the next DagRun should operate on
-        (its logical date) and when it can be scheduled, according to the
+        This calculates the interval or partition and when it can be scheduled, according to the
         dag's timetable, start_date, end_date, etc. This doesn't check max
         active run or any other "max_active_tasks" type limits, but only
         performs calculations based on the various date and interval fields of
         this dag and its tasks.
 
-        :param last_automated_dagrun: The ``max(logical_date)`` of
+        :param last_automated_run_info: The latest run info of
             existing "automated" DagRuns for this dag (scheduled or backfill,
             but not manual).
         :param restricted: If set to *False* (default is *True*), ignore
@@ -412,18 +411,32 @@ class SerializedDAG:
         else:
             restriction = TimeRestriction(earliest=None, latest=None, catchup=True)
         try:
+            if hasattr(self.timetable, "next_dagrun_info_v2"):
+                info = self.timetable.next_dagrun_info_v2(
+                    last_dagrun_info=last_automated_run_info,
+                    restriction=restriction,
+                )
+                log.info(
+                    "get next_dagrun_info_v2",
+                    last_automated_run_info=last_automated_run_info,
+                    next_info=info,
+                )
+                return info
+            interval = None
+            if last_automated_run_info:
+                interval = last_automated_run_info.data_interval
+            log.info("calling next_run_info")
             info = self.timetable.next_dagrun_info(
-                last_automated_data_interval=last_automated_dagrun,
+                last_automated_data_interval=interval,
                 restriction=restriction,
             )
+            return info
         except Exception:
             log.exception(
-                "Failed to fetch run info after data interval %s for DAG %r",
-                last_automated_dagrun,
-                self.dag_id,
+                "Failed to fetch run info",
+                last_run_info=last_automated_run_info,
+                dag_id=self.dag_id,
             )
-            info = None
-        return info
 
     def iter_dagrun_infos_between(
         self,
@@ -447,6 +460,8 @@ class SerializedDAG:
         ``earliest`` is ``2021-06-03 23:00:00``, the first DagRunInfo would be
         ``2021-06-03 23:00:00`` if ``align=False``, and ``2021-06-04 00:00:00``
         if ``align=True``.
+
+        # todo: AIP-76 need to update this
         """
         if earliest is None:
             earliest = self._time_restriction.earliest

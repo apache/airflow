@@ -57,7 +57,7 @@ from airflow.models.dagrun import DagRun
 from airflow.models.team import Team
 from airflow.serialization.definitions.assets import SerializedAssetUniqueKey
 from airflow.settings import json
-from airflow.timetables.base import DataInterval, Timetable
+from airflow.timetables.base import DagRunInfo, DataInterval, Timetable
 from airflow.timetables.interval import CronDataIntervalTimetable, DeltaDataIntervalTimetable
 from airflow.timetables.simple import AssetTriggeredTimetable, NullTimetable, OnceTimetable
 from airflow.utils.context import Context
@@ -710,41 +710,26 @@ class DagModel(Base):
             triggered_date_by_dag,
         )
 
-    def _calculate_next_dagrun_partitioned(self, dag: SerializedDAG | LazyDeserializedDAG, last_run: DagRun):
-        # todo: AIP-76 improve this detection with subclass
-        # todo: AIP-76 also! why is this not tz-aware????!?!?!?!
-        #  oh perhaps it wasn't roundtripped through orm-db yet.
-        last_run_after = last_run and timezone.coerce_datetime(last_run.run_after)
-
-        # TODO: AIP-76 we should generalize `next_dagrun_info` to not pretend it's an "interval"
-        #  this is basically a hack to avoid dealing with next_dagrun_info
-        #  we sorta need to change the next_dagrun_info interface
-        #  perhaps add a DagModel.next_dagrun_info_v2
-        last_interval = DataInterval.exact(last_run_after) if last_run_after else None
-        next_dagrun_info = dag.next_dagrun_info(last_interval)
-
-        self.next_dagrun_data_interval = None
-        if next_dagrun_info:
-            # TODO: AIP-76 "next dagrun" should be the next partition date
-            #  but next_dagrun_create_after should be the next run after
-            #  to accomplish this, we will need a way to map from partition key to partition date
-            self.next_dagrun = self.next_dagrun_create_after = next_dagrun_info.run_after
-        else:
-            self.next_dagrun = self.next_dagrun_create_after = None
-
-    def _calculate_next_dagrun_nonpartitioned(
-        self, dag: SerializedDAG | LazyDeserializedDAG, last_run: DagRun
-    ):
-        last_data_interval: DataInterval | None = get_run_data_interval(dag.timetable, last_run)
-        next_dagrun_info = dag.next_dagrun_info(last_automated_dagrun=last_data_interval)
-
-        if next_dagrun_info is None:
-            # there is no next dag run, based on the last dag run; set to None
-            self.next_dagrun_data_interval = self.next_dagrun = self.next_dagrun_create_after = None
-        else:
-            self.next_dagrun_data_interval = next_dagrun_info.data_interval
-            self.next_dagrun = next_dagrun_info.logical_date
-            self.next_dagrun_create_after = next_dagrun_info.run_after
+    def _get_run_info(self, run: DagRun | None, timetable: Timetable) -> DagRunInfo | None:
+        run_info = None
+        if run:
+            # todo: AIP-76 why is this sometimes not tz-aware?
+            #  perhaps it wasn't roundtripped through orm-db yet?
+            run_after = timezone.coerce_datetime(run.run_after)
+            interval = None
+            if not run.partition_key:
+                interval = get_run_data_interval(timetable, run)
+            partition_date = run_after
+            if hasattr(timetable, "_parse_key"):  # todo: AIP-76 check class instead?
+                partition_date = timetable._parse_key(run.partition_key)
+                # todo: AIP-76 store this on DagRun so we don't need to parse
+            run_info = DagRunInfo(
+                run_after=run_after,
+                data_interval=interval,
+                partition_date=partition_date,
+                partition_key=run.partition_key,
+            )
+        return run_info
 
     def calculate_dagrun_date_fields(
         self,
@@ -769,16 +754,15 @@ class DagModel(Base):
                 "Provide a data interval instead."
             )
 
-        if hasattr(dag.timetable, "partitions"):
-            self._calculate_next_dagrun_partitioned(
-                dag=dag,
-                last_run=last_automated_run,
-            )
+        last_run_info = self._get_run_info(run=last_automated_run, timetable=dag.timetable)
+        next_dagrun_info = dag.next_dagrun_info(last_automated_run_info=last_run_info)
+        if next_dagrun_info is None:
+            # there is no next dag run after the last dag run; set to None
+            self.next_dagrun_data_interval = self.next_dagrun = self.next_dagrun_create_after = None
         else:
-            self._calculate_next_dagrun_nonpartitioned(
-                dag=dag,
-                last_run=last_automated_run,
-            )
+            self.next_dagrun_data_interval = next_dagrun_info.data_interval
+            self.next_dagrun = next_dagrun_info.partition_date or next_dagrun_info.logical_date
+            self.next_dagrun_create_after = next_dagrun_info.run_after
         log.info(
             "setting next dagrun info",
             next_dagrun=str(self.next_dagrun),

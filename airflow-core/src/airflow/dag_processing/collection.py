@@ -49,7 +49,7 @@ from airflow.models.asset import (
     TaskInletAssetReference,
     TaskOutletAssetReference,
 )
-from airflow.models.dag import DagModel, DagOwnerAttributes, DagTag, get_run_data_interval
+from airflow.models.dag import DagModel, DagOwnerAttributes, DagTag
 from airflow.models.dagrun import DagRun
 from airflow.models.dagwarning import DagWarningType
 from airflow.models.errors import ParseImportError
@@ -180,8 +180,10 @@ class _RunInfo(NamedTuple):
 
         if hasattr(dag.timetable, "partitions"):
             # todo: AIP-76 improve this detection with subclass
+            log.info("getting latest run for partitioned dag", dag_id=dag.dag_id)
             latest_run = session.scalar(_get_latest_runs_stmt_partitioned(dag_id=dag.dag_id))
         else:
+            log.info("getting latest run for non-partitioned dag", dag_id=dag.dag_id)
             latest_run = session.scalar(_get_latest_runs_stmt(dag_id=dag.dag_id))
         if latest_run:
             log.info(

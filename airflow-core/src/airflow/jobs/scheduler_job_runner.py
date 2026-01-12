@@ -87,7 +87,6 @@ from airflow.observability.trace import DebugTrace, Trace, add_debug_span
 from airflow.serialization.definitions.assets import SerializedAssetUniqueKey
 from airflow.serialization.definitions.notset import NOTSET
 from airflow.ti_deps.dependencies_states import EXECUTION_STATES
-from airflow.timetables.base import DataInterval
 from airflow.timetables.simple import AssetTriggeredTimetable
 from airflow.timetables.trigger import CronPartitionTimetable
 from airflow.utils.dates import datetime_to_nano
@@ -118,6 +117,7 @@ if TYPE_CHECKING:
     from airflow.executors.executor_utils import ExecutorName
     from airflow.models.taskinstance import TaskInstanceKey
     from airflow.serialization.definitions.dag import SerializedDAG
+    from airflow.timetables.base import DataInterval
     from airflow.utils.sqlalchemy import CommitProhibitorGuard
 
 TI = TaskInstance
@@ -1859,7 +1859,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         # as DagModel.dag_id and DagModel.next_dagrun
         # This list is used to verify if the DagRun already exist so that we don't attempt to create
         # duplicate DagRuns
-        expect_to_create = {(dm.dag_id, dm.next_dagrun) for dm in non_partitioned_dags}
+        expect_to_create = {(dm.dag_id, dm.next_dagrun) for dm in dags}
         existing_dagrun_objects = (
             session.scalars(
                 select(DagRun)
@@ -1881,7 +1881,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
     def _create_dag_runs(self, dag_models: Collection[DagModel], session: Session) -> None:
         """Create a DAG run and update the dag_model to control if/when the next DAGRun should be created."""
         partitioned_dags = set()
-        non_partitioned_dags = []
+        non_partitioned_dags: list[DagModel] = []
         missing_dags = set()
         serdags: dict[str, SerializedDAG] = {}
         for dag in dag_models:
@@ -1893,10 +1893,10 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     #  should we use an attribute on BaseTimetable instead?
                     partitioned_dags.add(serdag.dag_id)
                 else:
-                    non_partitioned_dags.append(serdag)
+                    non_partitioned_dags.append(dag)
             else:
                 missing_dags.add(serdag.dag_id)
-        del serdag
+
         global dag_run_create_num
         dag_run_create_num += 1
         self.log.info("starting dag_run create", dag_run_create_num=dag_run_create_num, dag_models=dag_models)
