@@ -68,6 +68,7 @@ from airflow.sdk.execution_time import task_runner
 from airflow.sdk.execution_time.comms import (
     AssetEventsResult,
     AssetResult,
+    BulkDeleteXCom,
     CommsDecoder,
     ConnectionResult,
     CreateHITLDetailPayload,
@@ -1643,6 +1644,27 @@ REQUEST_TEST_CASES = [
             response=OKResponse(ok=True),
         ),
         test_id="delete_xcom",
+    ),
+    RequestTestCase(
+        message=BulkDeleteXCom(
+            dag_id="test_dag",
+            run_id="test_run",
+        ),
+        client_mock=ClientMock(
+            method_path="xcoms.delete_all",
+            args=("test_dag", "test_run", None, None, None),
+            response=OKResponse(ok=True),
+        ),
+        test_id="bulk_delete_xcoms",
+    ),
+    RequestTestCase(
+        message=BulkDeleteXCom(dag_id="test_dag", run_id="test_run", task_id="t1"),
+        client_mock=ClientMock(
+            method_path="xcoms.delete_all",
+            args=("test_dag", "test_run", "t1", None, None),
+            response=OKResponse(ok=True),
+        ),
+        test_id="bulk_delete_xcoms",
     ),
     RequestTestCase(
         message=RetryTask(

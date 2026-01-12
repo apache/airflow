@@ -64,6 +64,7 @@ from airflow.sdk.execution_time import comms
 from airflow.sdk.execution_time.comms import (
     AssetEventsResult,
     AssetResult,
+    BulkDeleteXCom,
     ConnectionResult,
     CreateHITLDetailPayload,
     DagRunResult,
@@ -1319,6 +1320,8 @@ class ActivitySubprocess(WatchedSubprocess):
             )
         elif isinstance(msg, DeleteXCom):
             self.client.xcoms.delete(msg.dag_id, msg.run_id, msg.task_id, msg.key, msg.map_index)
+        elif isinstance(msg, BulkDeleteXCom):
+            self.client.xcoms.delete_all(msg.dag_id, msg.run_id, msg.task_id, msg.key, msg.map_index)
         elif isinstance(msg, PutVariable):
             self.client.variables.set(msg.key, msg.value, msg.description)
         elif isinstance(msg, SetRenderedFields):
