@@ -1429,7 +1429,7 @@ class KubernetesPodOperator(BaseOperator):
         ]
         if not all(pod_start_times):
             self.log.info(
-                "Some of the start_time values are None, switch to creation_timestamp to choose most recent pod"
+                "Unable to determine most recent pod using start_time (some pods have not started yet). Falling back to creation_timestamp from pod metadata."
             )
             pod_start_times: list[datetime.datetime] = [  # type: ignore[no-redef]
                 pod.to_dict()
