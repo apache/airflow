@@ -41,7 +41,10 @@ from airflow.providers.cncf.kubernetes.hooks.kubernetes import (
     _TimeoutAsyncK8sApiClient,
     _TimeoutK8sApiClient,
 )
-from airflow.providers.cncf.kubernetes.kubernetes_helper_functions import API_TIMEOUT
+from airflow.providers.cncf.kubernetes.kubernetes_helper_functions import (
+    API_TIMEOUT,
+    API_TIMEOUT_OFFSET_SERVER_SIDE,
+)
 from airflow.providers.common.compat.sdk import AirflowException, AirflowNotFoundException
 
 from tests_common.test_utils.db import clear_test_connections
@@ -89,7 +92,17 @@ class TestTimeoutK8sApiClient:
         ("kwargs", "expected_timeout"),
         [
             pytest.param({}, API_TIMEOUT, id="default-timeout"),
-            pytest.param({"_request_timeout": 1234}, 1234, id="explicit-timeout"),
+            pytest.param({"timeout_seconds": 5678, "_request_timeout": 1234}, 1234, id="explicit-timeout"),
+            pytest.param(
+                {"timeout_seconds": API_TIMEOUT - API_TIMEOUT_OFFSET_SERVER_SIDE},
+                API_TIMEOUT,
+                id="server-side-timeout-limit",
+            ),
+            pytest.param(
+                {"timeout_seconds": API_TIMEOUT - API_TIMEOUT_OFFSET_SERVER_SIDE + 1},
+                API_TIMEOUT + 1,
+                id="server-side-timeout-above-limit",
+            ),
         ],
     )
     def test_call_api_timeout_inject(self, kwargs, expected_timeout):
@@ -113,7 +126,17 @@ class TestTimeoutAsyncK8sApiClient:
         ("kwargs", "expected_timeout"),
         [
             pytest.param({}, API_TIMEOUT, id="default-timeout"),
-            pytest.param({"_request_timeout": 1234}, 1234, id="explicit-timeout"),
+            pytest.param({"timeout_seconds": 5678, "_request_timeout": 1234}, 1234, id="explicit-timeout"),
+            pytest.param(
+                {"timeout_seconds": API_TIMEOUT - API_TIMEOUT_OFFSET_SERVER_SIDE},
+                API_TIMEOUT,
+                id="server-side-timeout-limit",
+            ),
+            pytest.param(
+                {"timeout_seconds": API_TIMEOUT - API_TIMEOUT_OFFSET_SERVER_SIDE + 1},
+                API_TIMEOUT + 1,
+                id="server-side-timeout-above-limit",
+            ),
         ],
     )
     async def test_call_api_timeout_inject(self, kwargs, expected_timeout):

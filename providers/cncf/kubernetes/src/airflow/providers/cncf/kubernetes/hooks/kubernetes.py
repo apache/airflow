@@ -38,6 +38,7 @@ from airflow.providers.cncf.kubernetes.exceptions import KubernetesApiError, Kub
 from airflow.providers.cncf.kubernetes.kube_client import _disable_verify_ssl, _enable_tcp_keepalive
 from airflow.providers.cncf.kubernetes.kubernetes_helper_functions import (
     API_TIMEOUT,
+    API_TIMEOUT_OFFSET_SERVER_SIDE,
     generic_api_retry,
 )
 from airflow.providers.cncf.kubernetes.utils.container import (
@@ -48,7 +49,7 @@ from airflow.providers.common.compat.sdk import AirflowException, AirflowNotFoun
 from airflow.utils import yaml
 
 if TYPE_CHECKING:
-    from collections.abc import AsyncGenerator, AsyncIterator, Generator
+    from collections.abc import AsyncGenerator, Generator
 
     from kubernetes.client import V1JobList
     from kubernetes.client.models import CoreV1Event, CoreV1EventList, V1Job, V1Pod
@@ -71,11 +72,19 @@ def _load_body_to_dict(body: str) -> dict:
     return body_dict
 
 
+def _get_request_timeout(timeout_seconds: int | None) -> float:
+    """Get the client-side request timeout."""
+    if timeout_seconds is not None and timeout_seconds > API_TIMEOUT - API_TIMEOUT_OFFSET_SERVER_SIDE:
+        return timeout_seconds + API_TIMEOUT_OFFSET_SERVER_SIDE
+    return API_TIMEOUT
+
+
 class _TimeoutK8sApiClient(client.ApiClient):
     """Wrapper around kubernetes sync ApiClient to set default timeout."""
 
     def call_api(self, *args, **kwargs):
-        kwargs.setdefault("_request_timeout", API_TIMEOUT)
+        timeout_seconds = kwargs.get("timeout_seconds")  # get server-side timeout
+        kwargs.setdefault("_request_timeout", _get_request_timeout(timeout_seconds))  # client-side timeout
         return super().call_api(*args, **kwargs)
 
 
@@ -83,7 +92,8 @@ class _TimeoutAsyncK8sApiClient(async_client.ApiClient):
     """Wrapper around kubernetes async ApiClient to set default timeout."""
 
     async def call_api(self, *args, **kwargs):
-        kwargs.setdefault("_request_timeout", API_TIMEOUT)
+        timeout_seconds = kwargs.get("timeout_seconds")  # server-side timeout
+        kwargs.setdefault("_request_timeout", _get_request_timeout(timeout_seconds))  # client-side timeout
         return await super().call_api(*args, **kwargs)
 
 
@@ -258,7 +268,7 @@ class KubernetesHook(BaseHook, PodOperatorHookProtocol):
         prefixed_name = f"extra__kubernetes__{field_name}"
         return self.conn_extras.get(prefixed_name) or None
 
-    def get_conn(self) -> _TimeoutK8sApiClient:
+    def get_conn(self) -> client.ApiClient:
         """Return kubernetes api session for use with requests."""
         in_cluster = self._coalesce_param(self.in_cluster, self._get_field("in_cluster"))
         cluster_context = self._coalesce_param(self.cluster_context, self._get_field("cluster_context"))
@@ -330,7 +340,7 @@ class KubernetesHook(BaseHook, PodOperatorHookProtocol):
 
         return self._get_default_client(cluster_context=cluster_context)
 
-    def _get_default_client(self, *, cluster_context: str | None = None) -> _TimeoutK8sApiClient:
+    def _get_default_client(self, *, cluster_context: str | None = None) -> client.ApiClient:
         # if we get here, then no configuration has been supplied
         # we should try in_cluster since that's most likely
         # but failing that just load assuming a kubeconfig file
@@ -893,7 +903,7 @@ class AsyncKubernetesHook(KubernetesHook):
         return extras.get(prefixed_name)
 
     @contextlib.asynccontextmanager
-    async def get_conn(self) -> AsyncIterator[_TimeoutAsyncK8sApiClient]:  # type: ignore[override]
+    async def get_conn(self) -> async_client.ApiClient:
         kube_client = None
         try:
             kube_client = await self._load_config() or _TimeoutAsyncK8sApiClient()
