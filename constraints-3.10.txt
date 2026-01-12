@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2026-01-11T02:30:00.327852
+# This constraints file was automatically generated on 2026-01-12T02:28:50.165151
 # via `uv pip install --resolution highest` for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -433,13 +433,13 @@ keyring==25.7.0
 kombu==5.6.2
 krb5==0.9.0
 kubernetes==33.1.0
-kubernetes_asyncio==33.3.0
+kubernetes_asyncio==34.3.2
 kylinpy==2.8.4
 lazy-object-proxy==1.12.0
 libcst==1.8.6
 limits==5.6.0
 linkify-it-py==2.0.3
-litellm==1.80.13
+litellm==1.80.15
 lockfile==0.12.2
 looker_sdk==25.20.0
 lxml==6.0.2
@@ -652,7 +652,7 @@ thrift==0.16.0
 tiktoken==0.12.0
 tinycss2==1.4.0
 tokenizers==0.22.2
-tomli==2.3.0
+tomli==2.4.0
 tomlkit==0.13.3
 tornado==6.5.4
 tqdm==4.67.1
