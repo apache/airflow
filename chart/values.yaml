@@ -149,7 +149,7 @@ ingress:
   # (deprecated - use ingress.web.enabled, ingress.apiServer.enabled and ingress.flower.enabled)
   enabled: ~
 
-  # Configs for the Ingress of the API Server
+  # Configs for the Ingress of the API Server (Airflow 3+)
   apiServer:
     # Enable API Server ingress resource
     enabled: false
@@ -193,7 +193,7 @@ ingress:
     # Http paths to add to the API Server Ingress after the default path
     succeedingPaths: []
 
-  # Configs for the Ingress of the web Service
+  # Configs for the Ingress of the web Service (Airflow 2.x)
   web:
     # Enable web ingress resource
     enabled: false
@@ -708,6 +708,8 @@ workers:
 
   # Detailed default security context for the
   # Airflow Celery workers and pod-template-file on container and pod level
+  # Use workers.celery.securityContexts and/or workers.kubernetes.securityContexts to separate value between
+  # Celery workers and pod-template-file
   securityContexts:
     pod: {}
     container: {}
@@ -1074,6 +1076,7 @@ workers:
       failureThreshold: 5
       periodSeconds: 60
       command: ~
+
     # List of worker sets. Each item can override values from the parent 'workers' section.
     sets: []
     # sets:
@@ -1109,6 +1112,12 @@ workers:
     # Allow relaxing ordering guarantees for Airflow Celery worker
     # while preserving its uniqueness and identity
     # podManagementPolicy: Parallel
+
+    # Detailed default security context for Airflow Celery workers for container and pod level
+    # If not set, the values from `workers.securityContexts` section will be used.
+    securityContexts:
+      pod: {}
+      container: {}
 
     # Create ServiceAccount for Airflow Celery workers
     serviceAccount:
@@ -1155,6 +1164,12 @@ workers:
   kubernetes:
     # Command to use in pod-template-file (templated)
     command: ~
+
+    # Detailed default security context for pod-template-file for container and pod level
+    # If not set, the values from `workers.securityContexts` section will be used.
+    securityContexts:
+      pod: {}
+      container: {}
 
     # Create ServiceAccount for pods created with pod-template-file
     serviceAccount:
