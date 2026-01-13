@@ -86,6 +86,7 @@ Tasks & Operators
 -----------------
 .. autoapiclass:: airflow.sdk.TaskGroup
 
+.. autoapiclass:: airflow.sdk.api.datamodels._generated.TaskInstance
 .. autoapiclass:: airflow.sdk.XComArg
 
 .. autoapifunction:: airflow.sdk.literal

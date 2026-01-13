@@ -49,6 +49,7 @@ __all__ = [
     "ParamsDict",
     "PokeReturnValue",
     "TaskGroup",
+    "TaskInstance",
     "TaskInstanceState",
     "Trace",
     "TriggerRule",
@@ -91,6 +92,7 @@ if TYPE_CHECKING:
     from airflow.sdk.definitions.edges import EdgeModifier, Label
     from airflow.sdk.definitions.param import Param, ParamsDict
     from airflow.sdk.definitions.taskgroup import TaskGroup
+    from airflow.sdk.api.datamodels._generated import TaskInstance    
     from airflow.sdk.definitions.template import literal
     from airflow.sdk.definitions.timetables.assets import AssetOrTimeSchedule
     from airflow.sdk.definitions.timetables.events import EventsTimetable
@@ -158,6 +160,7 @@ __lazy_imports: dict[str, str] = {
     "literal": ".definitions.template",
     "setup": ".definitions.decorators",
     "task": ".definitions.decorators",
+    "TaskInstance": ".api.datamodels._generated",   
     "task_group": ".definitions.decorators",
     "teardown": ".definitions.decorators",
 }
