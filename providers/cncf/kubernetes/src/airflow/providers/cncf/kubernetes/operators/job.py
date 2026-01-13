@@ -207,8 +207,9 @@ class KubernetesJobOperator(KubernetesPodOperator):
                 stacklevel=2,
             )
             self.parallelism = 1
-        elif self.parallelism < 1:
-            raise AirflowException("parallelism cannot be less than 1.")
+        elif self.wait_until_job_complete and self.parallelism < 1:
+            # get_pods() will raise an error if parallelism = 0
+            raise AirflowException("parallelism cannot be less than 1 with `wait_until_job_complete=True`.")
         self.job_request_obj = self.build_job_request_obj(context)
         self.job = self.create_job(  # must set `self.job` for `on_kill`
             job_request_obj=self.job_request_obj
@@ -218,13 +219,15 @@ class KubernetesJobOperator(KubernetesPodOperator):
         ti.xcom_push(key="job_name", value=self.job.metadata.name)
         ti.xcom_push(key="job_namespace", value=self.job.metadata.namespace)
 
-        self.pods: Sequence[k8s.V1Pod] = self.get_pods(pod_request_obj=self.pod_request_obj, context=context)
-
-        if self.wait_until_job_complete and self.deferrable:
-            self.execute_deferrable()
-            return
-
         if self.wait_until_job_complete:
+            self.pods: Sequence[k8s.V1Pod] = self.get_pods(
+                pod_request_obj=self.pod_request_obj, context=context
+            )
+
+            if self.deferrable:
+                self.execute_deferrable()
+                return
+
             if self.do_xcom_push:
                 xcom_result = []
                 for pod in self.pods:
