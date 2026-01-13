@@ -277,7 +277,7 @@ class MultipleCronTriggerTimetable(Timetable):
     def serialize(self) -> dict[str, Any]:
         from airflow.serialization.encoders import encode_interval, encode_run_immediately, encode_timezone
 
-        # All cron timetables share the same timezone, interval, and run_immediately
+        # All timetables share the same timezone, interval, and run_immediately
         # values, so we can just use the first to represent them.
         timetable = self._timetables[0]
         return {
@@ -291,18 +291,11 @@ class MultipleCronTriggerTimetable(Timetable):
     def summary(self) -> str:
         return ", ".join(t.summary for t in self._timetables)
 
-    def infer_manual_data_interval(self, *, run_after: DateTime) -> DataInterval | None:
-        try:
-            return min(
-                (
-                    t.infer_manual_data_interval(run_after=run_after)
-                    for t in self._timetables
-                    if t is not None
-                ),
-                key=operator.attrgetter("start"),
-            )
-        except ValueError:
-            return None
+    def infer_manual_data_interval(self, *, run_after: DateTime) -> DataInterval:
+        return min(
+            (t.infer_manual_data_interval(run_after=run_after) for t in self._timetables),
+            key=operator.attrgetter("start"),
+        )
 
     def next_dagrun_info(
         self,
