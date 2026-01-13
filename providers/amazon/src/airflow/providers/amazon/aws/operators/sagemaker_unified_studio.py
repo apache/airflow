@@ -70,7 +70,7 @@ class SageMakerNotebookOperator(BaseOperator):
             "volume_size_in_gb": 30,
             "volume_kms_key_id": "",
             "image_details": {
-                "ecr_uri": "123456789012.dkr.ecr.us-west-2.amazonaws.com/my-image:latest"
+                "ecr_uri": "string"
             },
             "container_entrypoint": ["string"]
         }
