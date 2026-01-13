@@ -1059,7 +1059,7 @@ class TriggerRunner:
             await asyncio.sleep(0)
         return finished_ids
 
-    def validate_state_changes(self, finished_ids: list[int]) -> messages.TriggerStateChanges:
+    def process_trigger_events(self, finished_ids: list[int]) -> messages.TriggerStateChanges:
         # Copy out of our dequeues in threadsafe manner to sync state with parent
 
         req_encoder = _new_encoder()
@@ -1093,17 +1093,17 @@ class TriggerRunner:
             failures=failures_to_send if failures_to_send else None,
         )
 
-    async def sync_state_to_supervisor(self, finished_ids: list[int]):
-        msg = self.validate_state_changes(finished_ids=finished_ids)
+    async def sync_state_to_supervisor(self, finished_ids: list[int]) -> None:
+        msg = self.process_trigger_events(finished_ids=finished_ids)
 
         # Tell the monitor that we've finished triggers so it can update things
-        resp = await self.send_state_changes(msg)
+        resp = await self.send_trigger_state_changes(msg)
 
         if resp:
             self.to_create.extend(resp.to_create)
             self.to_cancel.extend(resp.to_cancel)
 
-    async def send_state_changes(self, msg: messages.TriggerStateChanges) -> messages.TriggerStateSync | None:
+    async def send_trigger_state_changes(self, msg: messages.TriggerStateChanges) -> messages.TriggerStateSync | None:
         try:
             response = await self.comms_decoder.asend(msg)
 
