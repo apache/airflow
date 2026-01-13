@@ -43,6 +43,7 @@ from airflow.providers.common.compat.sdk import (
 from airflow.providers.standard.triggers.external_task import DagStateTrigger
 from airflow.providers.standard.utils.openlineage import safe_inject_openlineage_properties_into_dagrun_conf
 from airflow.providers.standard.version_compat import AIRFLOW_V_3_0_PLUS, BaseOperator
+from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.state import DagRunState
 from airflow.utils.types import DagRunType
 
@@ -171,6 +172,7 @@ class TriggerDagRunOperator(BaseOperator):
         failed_states: list[str | DagRunState] | None = None,
         skip_when_already_exists: bool = False,
         fail_when_dag_is_paused: bool = False,
+        note: str | None = None,
         deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         openlineage_inject_parent_info: bool = True,
         **kwargs,
@@ -192,6 +194,7 @@ class TriggerDagRunOperator(BaseOperator):
             self.failed_states = [DagRunState.FAILED]
         self.skip_when_already_exists = skip_when_already_exists
         self.fail_when_dag_is_paused = fail_when_dag_is_paused
+        self.note = note
         self.openlineage_inject_parent_info = openlineage_inject_parent_info
         self.deferrable = deferrable
         self.logical_date = logical_date
@@ -278,9 +281,11 @@ class TriggerDagRunOperator(BaseOperator):
             failed_states=self.failed_states,
             poke_interval=self.poke_interval,
             deferrable=self.deferrable,
+            note=self.note,
         )
 
-    def _trigger_dag_af_2(self, context, run_id, parsed_logical_date):
+    @provide_session
+    def _trigger_dag_af_2(self, context, run_id, parsed_logical_date, session: Session = NEW_SESSION):
         try:
             dag_run = trigger_dag(
                 dag_id=self.trigger_dag_id,
@@ -313,6 +318,10 @@ class TriggerDagRunOperator(BaseOperator):
             raise RuntimeError("The dag_run should be set here!")
         # Store the run id from the dag run (either created or found above) to
         # be used when creating the extra link on the webserver.
+        if self.note:
+            dag_run = session.merge(dag_run)
+            dag_run.note = self.note
+            session.flush()
         ti = context["task_instance"]
         ti.xcom_push(key=XCOM_RUN_ID, value=dag_run.run_id)
 
