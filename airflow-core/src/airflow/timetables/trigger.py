@@ -448,29 +448,6 @@ class CronPartitionTimetable(CronMixin, _TriggerTimetable):
         log.info("new partition date", partition_date=partition_date)
         return partition_date
 
-    def _get_run_date(self, partition_date: DateTime) -> tuple[DateTime, DateTime]:
-        # todo: AIP-76 this may not need to return tuple
-        curr_partition_date = self._align_to_prev(partition_date)
-        if curr_partition_date != partition_date:
-            self.log.warning(
-                "Given partition_date does not align with scheme. Aligning to previous partition date.",
-                partition_date=partition_date,
-                curr_partition_date=curr_partition_date,
-                cron_expression=self._expression,
-            )
-
-        # todo: AIP-76 possible shorthand syntax for cron partitions... "P:0 0 * * *"
-        #  perhaps we could provide a way to register such keys
-
-        if self._run_offset == 0:
-            run_date = curr_partition_date
-            return curr_partition_date, run_date
-        run_date = curr_partition_date  # we will need to apply offset to determine run date
-        iter_func = self._get_next if self._run_offset > 0 else self._get_prev
-        for _ in range(self._run_offset):
-            run_date = iter_func(run_date)
-        return curr_partition_date, run_date
-
     def _calc_first_run(self) -> DateTime:
         """
         If no start_time is set, determine the start.
