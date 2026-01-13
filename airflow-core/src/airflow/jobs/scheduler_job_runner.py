@@ -127,9 +127,6 @@ DM = DagModel
 TASK_STUCK_IN_QUEUED_RESCHEDULE_EVENT = "stuck in queued reschedule"
 """:meta private:"""
 
-dag_run_create_num = 0
-sched_loop = 0
-
 
 def _eager_load_dag_run_for_validation() -> tuple[LoaderOption, LoaderOption]:
     """
@@ -239,7 +236,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
     ):
         super().__init__(job)
         self.num_runs = num_runs
-        self._scheduler_idle_sleep_time = 10  # scheduler_idle_sleep_time
+        self._scheduler_idle_sleep_time = scheduler_idle_sleep_time
         # How many seconds do we wait for tasks to heartbeat before timeout.
         self._task_instance_heartbeat_timeout_secs = conf.getint(
             "scheduler", "task_instance_heartbeat_timeout"
@@ -1514,11 +1511,6 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 )
 
         for loop_count in itertools.count(start=1):
-            self.log.info("starting new scheduler loop", loop_num=loop_count)
-            with create_session() as session:
-                dm = session.scalar(select(DagModel).where(DagModel.dag_id == "run_a_lot_trigger"))
-                if dm:
-                    self.log.info("run_a_lot_trigger", next_dagrun=str(dm.next_dagrun))
             with (
                 DebugTrace.start_span(span_name="scheduler_job_loop", component="SchedulerJobRunner") as span,
                 Stats.timer("scheduler.scheduler_loop_duration") as timer,
@@ -1896,10 +1888,6 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     non_partitioned_dags.append(dag)
             else:
                 missing_dags.add(serdag.dag_id)
-
-        global dag_run_create_num
-        dag_run_create_num += 1
-        self.log.info("starting dag_run create", dag_run_create_num=dag_run_create_num, dag_models=dag_models)
 
         # backfill runs are not created by scheduler and their concurrency is separate
         # so we exclude them here
