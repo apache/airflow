@@ -23,6 +23,7 @@ from airflow_shared.providers_discovery.providers_discovery import (
     HookClassProvider as HookClassProvider,
     HookInfo as HookInfo,
     LazyDictWithCache as LazyDictWithCache,
+    PluginInfo as PluginInfo,
     ProviderInfo as ProviderInfo,
     _check_builtin_provider_prefix as _check_builtin_provider_prefix,
     _create_provider_info_schema_validator as _create_provider_info_schema_validator,

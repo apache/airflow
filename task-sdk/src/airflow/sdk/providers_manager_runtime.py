@@ -33,6 +33,7 @@ from airflow.sdk._shared.providers_discovery import (
     HookClassProvider,
     HookInfo,
     LazyDictWithCache,
+    PluginInfo,
     ProviderInfo,
     _check_builtin_provider_prefix,
     _create_provider_info_schema_validator,
@@ -146,6 +147,7 @@ class ProvidersManagerRuntime(LoggingMixin):
         self._hook_provider_dict: dict[str, HookClassProvider] = {}
         # Keeps dict of hooks keyed by connection type. They are lazy evaluated at access time
         self._hooks_lazy_dict: LazyDictWithCache[str, HookInfo | Callable] = LazyDictWithCache()
+        self._plugins_set: set[PluginInfo] = set()
         self._provider_schema_validator = _create_provider_info_schema_validator()
         self._init_airflow_core_hooks()
 
@@ -201,6 +203,12 @@ class ProvidersManagerRuntime(LoggingMixin):
         """Lazy initialization of provider asset URI handlers, factories, converters etc."""
         self.initialize_providers_list()
         self._discover_asset_uri_resources()
+
+    @provider_info_cache("plugins")
+    def initialize_providers_plugins(self):
+        """Lazy initialization of providers plugins."""
+        self.initialize_providers_list()
+        self._discover_plugins()
 
     @provider_info_cache("taskflow_decorators")
     def initialize_providers_taskflow_decorator(self):
@@ -411,6 +419,21 @@ class ProvidersManagerRuntime(LoggingMixin):
                     **common_args,
                 )
 
+    def _discover_plugins(self) -> None:
+        """Retrieve all plugins defined in the providers."""
+        for provider_package, provider in self._provider_dict.items():
+            for plugin_dict in provider.data.get("plugins", ()):
+                if not _correctness_check(provider_package, plugin_dict["plugin-class"], provider):
+                    log.warning("Plugin not loaded due to above correctness check problem.")
+                    continue
+                self._plugins_set.add(
+                    PluginInfo(
+                        name=plugin_dict["name"],
+                        plugin_class=plugin_dict["plugin-class"],
+                        provider_name=provider_package,
+                    )
+                )
+
     def _discover_taskflow_decorators(self) -> None:
         for name, info in self._provider_dict.items():
             for taskflow_decorator in info.data.get("task-decorators", []):
@@ -484,6 +507,12 @@ class ProvidersManagerRuntime(LoggingMixin):
         self.initialize_providers_asset_uri_resources()
         return self._asset_to_openlineage_converters
 
+    @property
+    def plugins(self) -> list[PluginInfo]:
+        """Returns information about plugins available in providers."""
+        self.initialize_providers_plugins()
+        return sorted(self._plugins_set, key=lambda x: x.plugin_class)
+
     def _cleanup(self):
         self._initialized_cache.clear()
         self._provider_dict.clear()
@@ -491,6 +520,7 @@ class ProvidersManagerRuntime(LoggingMixin):
         self._taskflow_decorators.clear()
         self._hook_provider_dict.clear()
         self._hooks_lazy_dict.clear()
+        self._plugins_set.clear()
         self._asset_uri_handlers.clear()
         self._asset_factories.clear()
         self._asset_to_openlineage_converters.clear()
