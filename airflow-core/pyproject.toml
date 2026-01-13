@@ -148,7 +148,7 @@ dependencies = [
     "uuid6>=2024.7.10",
     "apache-airflow-task-sdk<1.3.0,>=1.2.0",
     # pre-installed providers
-    "apache-airflow-providers-common-compat>=1.12.0",
+    "apache-airflow-providers-common-compat>=1.7.4",
     "apache-airflow-providers-common-io>=1.6.3",
     "apache-airflow-providers-common-sql>=1.28.1",
     "apache-airflow-providers-smtp>=2.3.1",
