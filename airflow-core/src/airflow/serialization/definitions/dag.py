@@ -411,7 +411,7 @@ class SerializedDAG:
         else:
             restriction = TimeRestriction(earliest=None, latest=None, catchup=True)
         try:
-            if hasattr(self.timetable, "next_dagrun_info_v2"):
+            try:
                 info = self.timetable.next_dagrun_info_v2(
                     last_dagrun_info=last_automated_run_info,
                     restriction=restriction,
@@ -422,15 +422,16 @@ class SerializedDAG:
                     next_info=info,
                 )
                 return info
-            interval = None
-            if last_automated_run_info:
-                interval = last_automated_run_info.data_interval
-            log.info("calling next_run_info")
-            info = self.timetable.next_dagrun_info(
-                last_automated_data_interval=interval,
-                restriction=restriction,
-            )
-            return info
+            except NotImplementedError:
+                interval = None
+                if last_automated_run_info:
+                    interval = last_automated_run_info.data_interval
+                log.info("calling next_run_info")
+                info = self.timetable.next_dagrun_info(
+                    last_automated_data_interval=interval,
+                    restriction=restriction,
+                )
+                return info
         except Exception:
             log.exception(
                 "Failed to fetch run info",
