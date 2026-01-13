@@ -27,7 +27,6 @@ from typing import TYPE_CHECKING, Any
 import pendulum
 import structlog
 
-from airflow._shared.timezones import timezone
 from airflow._shared.timezones.timezone import coerce_datetime, parse_timezone, utcnow
 from airflow.timetables._cron import CronMixin
 from airflow.timetables._delta import DeltaMixin
@@ -452,6 +451,19 @@ class CronPartitionTimetable(CronMixin, _TriggerTimetable):
             "key_format": self._key_format,
         }
 
+    def _get_partition_date(self, run_date):
+        if self._run_offset == 0:
+            return run_date
+        partition_date = run_date  # we will need to apply offset to determine run date
+        log.info(
+            "applying offset to partition date", partition_date=partition_date, run_offset=self._run_offset
+        )
+        iter_func = self._get_next if self._run_offset > 0 else self._get_prev
+        for _ in range(abs(self._run_offset)):
+            partition_date = iter_func(partition_date)
+        log.info("new partition date", partition_date=partition_date)
+        return partition_date
+
     def _get_run_date(self, partition_date: DateTime) -> tuple[DateTime, DateTime]:
         # todo: AIP-76 this may not need to return tuple
         curr_partition_date = self._align_to_prev(partition_date)
@@ -475,7 +487,7 @@ class CronPartitionTimetable(CronMixin, _TriggerTimetable):
             run_date = iter_func(run_date)
         return curr_partition_date, run_date
 
-    def _calc_first_run(self) -> tuple[DateTime, DateTime]:
+    def _calc_first_run(self) -> DateTime:
         """
         If no start_time is set, determine the start.
 
@@ -483,32 +495,20 @@ class CronPartitionTimetable(CronMixin, _TriggerTimetable):
         if timedelta, if within that timedelta from past run.
         """
         now = coerce_datetime(utcnow())
-        past_partition_date = self._align_to_prev(now)
-        past_partition_date, past_run_date = self._get_run_date(past_partition_date)
-        next_partition_date = self._align_to_next(now)
-        next_partition_date, next_run_date = self._get_run_date(next_partition_date)
+        past_run_time = self._align_to_prev(now)
+        next_run_time = self._align_to_next(now)
         if self._run_immediately is True:  # Check for 'True' exactly because deltas also evaluate to true.
-            partition_date, run_date = self._get_run_date(past_partition_date)
-            return partition_date, run_date
+            return past_run_time
 
-        gap_between_runs = next_run_date - past_run_date
-        gap_to_past = now - past_run_date
+        gap_between_runs = next_run_time - past_run_time
+        gap_to_past = now - past_run_time
         if isinstance(self._run_immediately, datetime.timedelta):
             buffer_between_runs = self._run_immediately
         else:
             buffer_between_runs = max(gap_between_runs / 10, datetime.timedelta(minutes=5))
         if gap_to_past <= buffer_between_runs:
-            return past_partition_date, past_run_date
-        return next_partition_date, next_run_date
-
-    def _partition_date_from_dagrun_info(self, info: DagRunInfo | None) -> DateTime | None:
-        if not info:
-            return None
-        if info.partition_date:
-            return info.partition_date
-        if info.logical_date:
-            return info.logical_date
-        return info.run_after
+            return past_run_time
+        return next_run_time
 
     def next_dagrun_info_v2(
         self,
@@ -517,36 +517,45 @@ class CronPartitionTimetable(CronMixin, _TriggerTimetable):
         restriction: TimeRestriction,
     ) -> DagRunInfo | None:
         # todo: AIP-76 add test for this logic
-        last_partition_date = self._partition_date_from_dagrun_info(last_dagrun_info)
+        # todo: AIP-76 we will have to ensure that the start / end times apply to the partition date ideally,
+        #  rather than just the run after
+
         if restriction.catchup:
-            if last_partition_date is not None:
-                partition_date = self._get_next(last_partition_date)
-                partition_date, run_date = self._get_run_date(partition_date)
+            if last_dagrun_info is not None:
+                next_start_time = self._get_next(last_dagrun_info.run_after)
             elif restriction.earliest is None:
-                partition_date, run_date = self._calc_first_run()
+                next_start_time = self._calc_first_run()
             else:
-                partition_date = self._align_to_next(restriction.earliest)
-                partition_date, run_date = self._get_run_date(partition_date)
+                next_start_time = self._align_to_next(restriction.earliest)
         else:
-            partition_date_candidates = [self._align_to_prev(coerce_datetime(utcnow()))]
-            if last_partition_date is not None:
-                partition_date_candidates.append(self._get_next(last_partition_date))
+            prev_candidate = self._align_to_prev(coerce_datetime(utcnow()))
+            start_time_candidates = [prev_candidate]
+            if last_dagrun_info is not None:
+                next_candidate = self._get_next(last_dagrun_info.run_after)
+                start_time_candidates.append(next_candidate)
             elif restriction.earliest is None:
                 # Run immediately has no effect if there is restriction on earliest
-                partition_date, run_date = self._calc_first_run()
-                partition_date_candidates.append(partition_date)
+                first_run = self._calc_first_run()
+                start_time_candidates.append(first_run)
             if restriction.earliest is not None:
-                partition_date_candidates.append(self._align_to_next(restriction.earliest))
-            partition_date = max(partition_date_candidates)
-            partition_date, run_date = self._get_run_date(partition_date)
-        if restriction.latest is not None and restriction.latest < partition_date:
+                earliest = self._align_to_next(restriction.earliest)
+                start_time_candidates.append(earliest)
+            next_start_time = max(start_time_candidates)
+        if restriction.latest is not None and restriction.latest < next_start_time:
             return None
+
+        partition_date, partition_key = self.get_partition_info(run_date=next_start_time)
         return DagRunInfo(
-            run_after=run_date,
+            run_after=next_start_time,
             partition_date=partition_date,
-            partition_key=self._format_key(partition_date),
+            partition_key=partition_key,
             data_interval=None,
         )
+
+    def get_partition_info(self, run_date):
+        partition_date = self._get_partition_date(run_date)
+        partition_key = self._format_key(partition_date)
+        return partition_date, partition_key
 
     def _format_key(self, partition_date: DateTime):
         return partition_date.strftime(self._key_format)
@@ -555,23 +564,6 @@ class CronPartitionTimetable(CronMixin, _TriggerTimetable):
         if partition_key is None:
             return partition_key
         return pendulum.parse(partition_key)
-
-    def get_partition_dagrun_info(self, *, partition_date: DateTime) -> DagRunInfo:
-        """
-        Get dagrun info for date.
-
-        :param partition_date: The partition date for this run.
-        """
-        log.info("get partition date", pd=partition_date)
-        partition_date = timezone.coerce_datetime(partition_date)
-        partition_date, run_after = self._get_run_date(partition_date)
-        partition_key = self._format_key(partition_date)
-        return DagRunInfo(
-            run_after=run_after,
-            data_interval=None,
-            partition_date=partition_date,
-            partition_key=partition_key,
-        )
 
     def generate_run_id(
         self,

@@ -761,7 +761,7 @@ class DagModel(Base):
             self.next_dagrun_data_interval = self.next_dagrun = self.next_dagrun_create_after = None
         else:
             self.next_dagrun_data_interval = next_dagrun_info.data_interval
-            self.next_dagrun = next_dagrun_info.partition_date or next_dagrun_info.logical_date
+            self.next_dagrun = next_dagrun_info.logical_date or next_dagrun_info.partition_date
             self.next_dagrun_create_after = next_dagrun_info.run_after
         log.info(
             "setting next dagrun info",

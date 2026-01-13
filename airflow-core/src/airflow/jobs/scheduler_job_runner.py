@@ -1929,11 +1929,12 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 ):
                     continue
 
-                data_interval, partition_key, logical_date = self._next_run_info(
+                data_interval, logical_date, partition_key, partition_date = self._next_run_info(
                     dag_model=dag_model,
                     partitioned_dags=partitioned_dags,
                     serdag=serdag,
                 )
+                # todo: AIP-76 partition date is not passed to dag run
                 if TYPE_CHECKING:
                     assert isinstance(dag_model.next_dagrun_create_after, DateTime)
                 created_run = serdag.create_dagrun(
@@ -1980,20 +1981,21 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         dag_model: DagModel,
         partitioned_dags: set[Any],
         serdag: SerializedDAG,
-    ) -> tuple[DataInterval | None, str | None, DateTime | None]:
+    ) -> tuple[DataInterval | None, str | None, DateTime | None, DateTime | None]:
         partition_key = None
+        partition_date = None
+        data_interval = None
+        logical_date = None
+        run_after = timezone.coerce_datetime(dag_model.next_dagrun_create_after)
         if serdag.dag_id in partitioned_dags:
             # todo: AIP-76 how will this work with segment-driven partition schemes?
             #  will we still use next_dagrun?
             #  maybe we will need `next_partition_key` instead?
-            info = serdag.timetable.get_partition_dagrun_info(partition_date=dag_model.next_dagrun)
-            partition_key = info.partition_key
-            data_interval = info.data_interval
-            logical_date = info.logical_date
+            partition_date, partition_key = serdag.timetable.get_partition_info(run_date=run_after)
         else:
             data_interval = get_next_data_interval(serdag.timetable, dag_model)
             logical_date = dag_model.next_dagrun
-        return data_interval, partition_key, logical_date
+        return data_interval, logical_date, partition_key, partition_date
 
     def _create_dag_runs_asset_triggered(
         self,
