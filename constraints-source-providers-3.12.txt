@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2026-01-13T02:46:23.003730
+# This constraints file was automatically generated on 2026-01-13T07:51:08.222020
 # via `uv sync --resolution highest for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider distributions.
@@ -329,7 +329,7 @@ ipython_pygments_lexers==1.1.1
 isodate==0.7.2
 itsdangerous==2.2.0
 jaraco.classes==3.4.0
-jaraco.context==6.0.2
+jaraco.context==6.1.0
 jaraco.functools==4.4.0
 jedi==0.19.2
 jeepney==0.9.0
