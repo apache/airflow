@@ -153,7 +153,7 @@ class PowerBIDatasetRefreshOperator(BaseOperator):
 
     def execute_complete(self, context: Context, event: dict[str, str]) -> None:
         """
-        Callback for when the trigger fires - returns value or raises an exception.
+        Handle trigger completion and push results to XCom or raise an exception.
 
         :param context: Airflow context dictionary
         :param event: Event dict from trigger with status and dataset_refresh_id
