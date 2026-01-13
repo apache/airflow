@@ -33,7 +33,7 @@ from __future__ import annotations
 import json
 import zlib
 from collections import defaultdict
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Iterable
 
 import sqlalchemy as sa
 import uuid6
@@ -43,6 +43,7 @@ from sqlalchemy_utils import UUIDType
 from airflow._shared.timezones import timezone
 from airflow.configuration import conf
 from airflow.serialization.enums import Encoding
+from airflow.utils.hashlib_wrapper import md5
 from airflow.utils.sqlalchemy import UtcDateTime
 
 if TYPE_CHECKING:
@@ -310,6 +311,47 @@ def report_errors(errors: ErrorDict, operation: str = "migration") -> None:
         print(f"No Dags encountered errors during {operation}.")
 
 
+def hash_dag(dag_data):
+    """
+    Hash the data to get the dag_hash.
+
+    Copied from airflow.models.serialized_dag.SerializedDagModel since we can't import it anymore.
+    """
+    dag_data = _sort_serialized_dag_dict(dag_data)
+    data_ = dag_data.copy()
+    # Remove fileloc from the hash so changes to fileloc
+    # does not affect the hash. In 3.0+, a combination of
+    # bundle_path and relative fileloc more correctly determines the
+    # dag file location.
+    data_["dag"].pop("fileloc", None)
+    data_json = json.dumps(data_, sort_keys=True).encode("utf-8")
+    return md5(data_json).hexdigest()
+
+
+def _sort_serialized_dag_dict(serialized_dag: Any):
+    """
+    Recursively sort json_dict and its nested dictionaries and lists.
+
+    Copied from airflow.models.serialized_dag.SerializedDagModel since we can't import it anymore.
+    """
+    if isinstance(serialized_dag, dict):
+        return {k: _sort_serialized_dag_dict(v) for k, v in sorted(serialized_dag.items())}
+    if isinstance(serialized_dag, list):
+        if all(isinstance(i, dict) for i in serialized_dag):
+            if all(
+                isinstance(i.get("__var", {}), Iterable) and "task_id" in i.get("__var", {})
+                for i in serialized_dag
+            ):
+                return sorted(
+                    [_sort_serialized_dag_dict(i) for i in serialized_dag],
+                    key=lambda x: x["__var"]["task_id"],
+                )
+        elif all(isinstance(item, str) for item in serialized_dag):
+            return sorted(serialized_dag)
+        return [_sort_serialized_dag_dict(i) for i in serialized_dag]
+    return serialized_dag
+
+
 def migrate_existing_deadline_alert_data_from_serialized_dag() -> None:
     """Extract DeadlineAlert data from serialized Dag data and populate deadline_alert table."""
     if context.is_offline_mode():
@@ -476,9 +518,7 @@ def migrate_existing_deadline_alert_data_from_serialized_dag() -> None:
                                 updated_result.data, updated_result.data_compressed
                             )
                             # Import here to avoid a circular dependency issue
-                            from airflow.models.serialized_dag import SerializedDagModel
-
-                            new_hash = SerializedDagModel.hash(updated_dag_data)
+                            new_hash = hash_dag(updated_dag_data)
 
                             conn.execute(
                                 sa.text(
