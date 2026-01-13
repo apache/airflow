@@ -104,20 +104,18 @@ const TriggerDAGForm = ({
   });
 
   // Pre-fill form when prefillConfig is provided (priority over conf)
+  // Only restore 'conf' (parameters), not logicalDate, runId, or partitionKey to avoid 409 conflicts
   useEffect(() => {
     if (prefillConfig && open) {
       const confString = prefillConfig.conf ? JSON.stringify(prefillConfig.conf, undefined, 2) : "";
 
       reset({
         conf: confString,
-        dagRunId: prefillConfig.runId,
+        dagRunId: "",
         dataIntervalEnd: "",
         dataIntervalMode: "auto",
         dataIntervalStart: "",
-        logicalDate:
-          prefillConfig.logicalDate === undefined
-            ? dayjs().format(DEFAULT_DATETIME_FORMAT)
-            : dayjs(prefillConfig.logicalDate).format(DEFAULT_DATETIME_FORMAT),
+        logicalDate: dayjs().format(DEFAULT_DATETIME_FORMAT),
         note: "",
         partitionKey: undefined,
       });
