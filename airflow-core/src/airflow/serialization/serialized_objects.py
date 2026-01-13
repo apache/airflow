@@ -1632,7 +1632,11 @@ class OperatorSerialization(DAGNode, BaseSerialization):
         elif field_name == "resources":
             return Resources.from_dict(value) if value is not None else None
         elif field_name.endswith("_date"):
-            return cls._deserialize_datetime(value) if value is not None else None
+            if value is None:
+                return None
+            if isinstance(value, str):
+                return value
+            return cls._deserialize_datetime(value)
         else:
             # For all other fields, return as-is (strings, ints, bools, etc.)
             return value

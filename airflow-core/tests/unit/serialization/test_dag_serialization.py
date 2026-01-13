@@ -4544,3 +4544,26 @@ class TestWeightRule:
         op = BaseOperator(task_id="empty_task", weight_rule=NotRegisteredPriorityWeightStrategy())
         with pytest.raises(ValueError, match="Unknown priority strategy"):
             OperatorSerialization.serialize(op)
+
+def test_deserialization_of_templated_date_in_mapped_operator():
+    """
+    Verify that a templated string in a date field doesn't crash deserialization.
+    """
+    from airflow.providers.standard.operators.trigger_dagrun import TriggerDagRunOperator
+    from airflow.serialization.serialized_objects import OperatorSerialization
+
+    # Create a mapped operator where logical_date is a Jinja string
+    op = TriggerDagRunOperator.partial(
+        task_id="test_task",
+        trigger_dag_id="target_dag",
+        logical_date="{{ ts_nodash_with_tz }}"
+    ).expand(trigger_dag_id=["dag_1", "dag_2"])
+
+    # 1. Serialize the operator
+    serialized_op = OperatorSerialization.serialize_mapped_operator(op)
+
+    # 2. Deserialize (this is where the TypeError occurred)
+    deserialized_op = OperatorSerialization.deserialize_operator(serialized_op)
+
+    # 3. Assert the value remained a string and didn't crash
+    assert deserialized_op.partial_kwargs["logical_date"] == "{{ ts_nodash_with_tz }}"
