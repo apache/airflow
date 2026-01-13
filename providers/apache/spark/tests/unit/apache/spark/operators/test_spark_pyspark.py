@@ -1,3 +1,4 @@
+#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -16,17 +17,28 @@
 # under the License.
 from __future__ import annotations
 
-import packaging.version
+from airflow.models.dag import DAG
+from airflow.providers.apache.spark.operators.spark_pyspark import PySparkOperator
+from airflow.utils import timezone
 
-from airflow import __version__ as airflow_version
-from airflow.providers.common.compat.sdk import AirflowOptionalProviderFeatureException
+DEFAULT_DATE = timezone.datetime(2024, 2, 1, tzinfo=timezone.utc)
 
-base_version = packaging.version.parse(airflow_version).base_version
 
-if packaging.version.parse(base_version) < packaging.version.parse("2.7.0"):
-    raise AirflowOptionalProviderFeatureException(
-        "Celery Executor from Celery Provider should only be used with Airflow 2.7.0+.\n"
-        f"This is Airflow {airflow_version} and Celery and CeleryKubernetesExecutor are "
-        f"available in the 'airflow.executors' package. You should not use "
-        f"the provider's executors in this version of Airflow."
-    )
+class TestSparkPySparkOperator:
+    _config = {
+        "conn_id": "spark_special_conn_id",
+    }
+
+    def setup_method(self):
+        args = {"owner": "airflow", "start_date": DEFAULT_DATE}
+        self.dag = DAG("test_dag_id", schedule=None, default_args=args)
+
+    def test_execute(self):
+        def my_spark_fn(spark):
+            pass
+
+        operator = PySparkOperator(
+            task_id="spark_pyspark_job", python_callable=my_spark_fn, dag=self.dag, **self._config
+        )
+
+        assert self._config["conn_id"] == operator.conn_id

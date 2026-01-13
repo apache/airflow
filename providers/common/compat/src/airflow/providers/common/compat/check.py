@@ -23,7 +23,7 @@ from importlib import metadata
 
 from packaging.version import Version
 
-from airflow.exceptions import AirflowOptionalProviderFeatureException
+from airflow.providers.common.compat.sdk import AirflowOptionalProviderFeatureException
 
 
 def require_provider_version(provider_name: str, provider_min_version: str):

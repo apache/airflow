@@ -20,11 +20,12 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any
 from urllib.parse import unquote
 
-from airflow.exceptions import AirflowOptionalProviderFeatureException, TaskInstanceNotFound
+from airflow.exceptions import TaskInstanceNotFound
 from airflow.models.dagrun import DagRun
 from airflow.models.taskinstance import TaskInstance, TaskInstanceKey, clear_task_instances
 from airflow.providers.common.compat.sdk import (
     AirflowException,
+    AirflowOptionalProviderFeatureException,
     AirflowPlugin,
     BaseOperatorLink,
     TaskGroup,
