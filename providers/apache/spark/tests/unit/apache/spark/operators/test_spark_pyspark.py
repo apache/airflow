@@ -17,17 +17,28 @@
 # under the License.
 from __future__ import annotations
 
-from typing import Generic, TypeVar
+from airflow.models.dag import DAG
+from airflow.providers.apache.spark.operators.spark_pyspark import PySparkOperator
+from airflow.utils import timezone
 
-T = TypeVar("T")
+DEFAULT_DATE = timezone.datetime(2024, 2, 1, tzinfo=timezone.utc)
 
 
-class Singleton(type, Generic[T]):
-    """Metaclass that allows to implement singleton pattern."""
+class TestSparkPySparkOperator:
+    _config = {
+        "conn_id": "spark_special_conn_id",
+    }
 
-    _instances: dict[Singleton[T], T] = {}
+    def setup_method(self):
+        args = {"owner": "airflow", "start_date": DEFAULT_DATE}
+        self.dag = DAG("test_dag_id", schedule=None, default_args=args)
 
-    def __call__(cls: Singleton[T], *args, **kwargs) -> T:
-        if cls not in cls._instances:
-            cls._instances[cls] = super().__call__(*args, **kwargs)
-        return cls._instances[cls]
+    def test_execute(self):
+        def my_spark_fn(spark):
+            pass
+
+        operator = PySparkOperator(
+            task_id="spark_pyspark_job", python_callable=my_spark_fn, dag=self.dag, **self._config
+        )
+
+        assert self._config["conn_id"] == operator.conn_id
