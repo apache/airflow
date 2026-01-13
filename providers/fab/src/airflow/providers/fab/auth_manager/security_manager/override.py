@@ -1458,6 +1458,7 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
 
     def update_user(self, user: User) -> bool:
         try:
+            user.changed_on=func.now()
             self.session.merge(user)
             self.session.commit()
             log.info(const.LOGMSG_INF_SEC_UPD_USER, user)

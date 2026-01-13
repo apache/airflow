@@ -257,7 +257,10 @@ class User(Model, BaseUser):
         DateTime, default=lambda: datetime.datetime.now(), nullable=True
     )
     changed_on: Mapped[datetime.datetime | None] = mapped_column(
-        DateTime, default=lambda: datetime.datetime.now(), nullable=True
+        DateTime,
+        default=func.now(),
+        onupdate=func.now(),
+        nullable=True,
     )
 
     @declared_attr
