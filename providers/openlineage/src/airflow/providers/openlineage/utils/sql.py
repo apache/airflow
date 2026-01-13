@@ -26,7 +26,7 @@ from attrs import define
 from openlineage.client.event_v2 import Dataset
 from openlineage.client.facet_v2 import schema_dataset
 
-from airflow.exceptions import AirflowOptionalProviderFeatureException
+from airflow.providers.common.compat.sdk import AirflowOptionalProviderFeatureException
 
 if TYPE_CHECKING:
     from sqlalchemy import Table

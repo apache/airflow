@@ -24,8 +24,8 @@ from unittest.mock import patch
 
 import pytest
 
-from airflow.exceptions import AirflowOptionalProviderFeatureException
 from airflow.providers.common.compat.openlineage.check import require_openlineage_version
+from airflow.providers.common.compat.sdk import AirflowOptionalProviderFeatureException
 
 REQUIRE_OPENLINEAGE_VERSION = r"`require_openlineage_version` decorator must be used with at least one argument.*@require_openlineage_version\(provider_min_version=\"1\.0\.0\"\)"
 

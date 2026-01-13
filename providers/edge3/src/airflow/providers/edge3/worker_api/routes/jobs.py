@@ -80,7 +80,7 @@ def fetch(
     job: EdgeJobModel | None = session.scalar(query)
     if not job:
         return None
-    job.state = TaskInstanceState.RUNNING
+    job.state = TaskInstanceState.RESTARTING  # keep this intermediate state until worker sets to running
     job.edge_worker = worker_name
     job.last_update = timezone.utcnow()
     session.commit()
