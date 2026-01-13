@@ -33,9 +33,9 @@ from requests.exceptions import ConnectionError, HTTPError
 from requests.models import DEFAULT_REDIRECT_LIMIT
 from requests_toolbelt.adapters.socket_options import TCPKeepAliveAdapter
 
-from airflow.sdk.definitions._internal.logging_mixin import LoggingMixin
 from airflow.providers.common.compat.sdk import AirflowException, BaseHook
 from airflow.providers.http.exceptions import HttpErrorException, HttpMethodException
+from airflow.utils.log.logging_mixin import LoggingMixin
 
 if TYPE_CHECKING:
     from aiohttp.client_reqrep import ClientResponse
