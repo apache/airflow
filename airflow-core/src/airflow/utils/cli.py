@@ -229,18 +229,21 @@ def process_subdir(subdir: str | None):
 def get_dag_by_file_location(dag_id: str):
     """Return DAG of a given dag_id by looking up file location."""
     # TODO: AIP-66 - investigate more, can we use serdag?
-    from airflow.dag_processing.dagbag import DagBag
-    from airflow.models import DagModel
+    from airflow.models.serialized_dag import SerializedDagModel
 
-    # Benefit is that logging from other dags in dagbag will not appear
-    dag_model = DagModel.get_current(dag_id)
-    if dag_model is None:
+    # The earlier `DagModel` object has been substituted with `SerializedDagModel` object to ensure
+    # consistency in how this function returns the dags. And because it is being called from
+    # `task_clear()` function inside `airflow/airflow-core/src/airflow/cli/commands/task_command.py`,
+    # that abstraction is taking care of calling this function where `bundle_name` is not present.
+    # Additionally, this makes the return type of this function consistent to the `get_dags` function
+    # i.e. when `task_clear()` calls either of these functions as part of its `if...else` block, both
+    # return a SerializedDAG object.
+    dags = SerializedDagModel.get_dag(dag_id)
+    if dags is None:
         raise AirflowException(
             f"Dag {dag_id!r} could not be found; either it does not exist or it failed to parse."
         )
-    # This method is called only when we explicitly do not have a bundle name
-    dagbag = DagBag(dag_folder=dag_model.fileloc)
-    return dagbag.dags[dag_id]
+    return dags
 
 
 def _search_for_dag_file(val: str | None) -> str | None:
