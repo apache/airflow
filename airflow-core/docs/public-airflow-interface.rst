@@ -195,6 +195,13 @@ Task Instances
 
 Task instances are the individual runs of a single task in a Dag (in a Dag Run). Task instances are accessed through
 the Task Context via :func:`~airflow.sdk.get_current_context`. Direct database access is not possible.
+The supported public interface for task instance data is provided by the Task SDK.
+Specifically, the Task Context implements
+:class:`airflow.sdk.types.RuntimeTaskInstanceProtocol`, which defines the stable,
+supported API for accessing runtime task instance metadata and helpers.
+
+Direct use of :class:`airflow.models.taskinstance.TaskInstance` is not part of the
+public API and is not guaranteed to remain stable.
 
 .. note::
    Task Context is part of the airflow.sdk namespace.
