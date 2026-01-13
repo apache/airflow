@@ -24,7 +24,6 @@ import time
 from types import NoneType
 from typing import TYPE_CHECKING, Any
 
-import pendulum
 import structlog
 
 from airflow._shared.timezones.timezone import coerce_datetime, parse_timezone, utcnow
@@ -443,7 +442,7 @@ class CronPartitionTimetable(CronMixin, _TriggerTimetable):
             "key_format": self._key_format,
         }
 
-    def _get_partition_date(self, run_date):
+    def get_partition_date(self, *, run_date):
         if self._run_offset == 0:
             return run_date
         partition_date = run_date  # we will need to apply offset to determine run date
@@ -536,7 +535,7 @@ class CronPartitionTimetable(CronMixin, _TriggerTimetable):
         if restriction.latest is not None and restriction.latest < next_start_time:
             return None
 
-        partition_date, partition_key = self.get_partition_info(run_date=next_start_time)
+        partition_date, partition_key = self._get_partition_info(run_date=next_start_time)
         return DagRunInfo(
             run_after=next_start_time,
             partition_date=partition_date,
@@ -544,18 +543,13 @@ class CronPartitionTimetable(CronMixin, _TriggerTimetable):
             data_interval=None,
         )
 
-    def get_partition_info(self, run_date):
-        partition_date = self._get_partition_date(run_date)
+    def _get_partition_info(self, run_date):
+        partition_date = self.get_partition_date(run_date=run_date)
         partition_key = self._format_key(partition_date)
         return partition_date, partition_key
 
     def _format_key(self, partition_date: DateTime):
         return partition_date.strftime(self._key_format)
-
-    def _parse_key(self, partition_key: str | None):
-        if partition_key is None:
-            return partition_key
-        return pendulum.parse(partition_key)
 
     def generate_run_id(
         self,
