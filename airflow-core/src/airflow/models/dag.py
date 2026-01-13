@@ -712,12 +712,12 @@ class DagModel(Base):
 
     def _get_run_info(self, run: DagRun | None, timetable: Timetable) -> DagRunInfo | None:
         run_info = None
+        interval = None
+        partition_date = None
         if run:
             run_after = timezone.coerce_datetime(run.run_after)
-            interval = None
             if not run.partition_key:
                 interval = get_run_data_interval(timetable, run)
-            partition_date = run_after
             if isinstance(timetable, CronPartitionTimetable):
                 # todo: AIP-76 store this on DagRun so we don't need to recalculate?
                 # todo: AIP-76 this needs to be public
