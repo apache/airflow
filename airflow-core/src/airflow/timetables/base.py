@@ -136,11 +136,7 @@ class DagRunInfo(NamedTuple):
         )
 
     @classmethod
-    def interval(
-        cls,
-        start: DateTime,
-        end: DateTime,
-    ) -> DagRunInfo:
+    def interval(cls, start: DateTime, end: DateTime) -> DagRunInfo:
         """
         Represent a run on a continuous schedule.
 
