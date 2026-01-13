@@ -60,6 +60,7 @@ from airflow.settings import json
 from airflow.timetables.base import DagRunInfo, DataInterval, Timetable
 from airflow.timetables.interval import CronDataIntervalTimetable, DeltaDataIntervalTimetable
 from airflow.timetables.simple import AssetTriggeredTimetable, NullTimetable, OnceTimetable
+from airflow.timetables.trigger import CronPartitionTimetable
 from airflow.utils.context import Context
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.sqlalchemy import UtcDateTime, mapped_column, with_row_locks
@@ -712,16 +713,15 @@ class DagModel(Base):
     def _get_run_info(self, run: DagRun | None, timetable: Timetable) -> DagRunInfo | None:
         run_info = None
         if run:
-            # todo: AIP-76 why is this sometimes not tz-aware?
-            #  perhaps it wasn't roundtripped through orm-db yet?
             run_after = timezone.coerce_datetime(run.run_after)
             interval = None
             if not run.partition_key:
                 interval = get_run_data_interval(timetable, run)
             partition_date = run_after
-            if hasattr(timetable, "_parse_key"):  # todo: AIP-76 check class instead?
-                partition_date = timetable._parse_key(run.partition_key)
-                # todo: AIP-76 store this on DagRun so we don't need to parse
+            if isinstance(timetable, CronPartitionTimetable):
+                # todo: AIP-76 store this on DagRun so we don't need to recalculate?
+                # todo: AIP-76 this needs to be public
+                partition_date = timetable.get_partition_date(run_date=run.run_after)
             run_info = DagRunInfo(
                 run_after=run_after,
                 data_interval=interval,
