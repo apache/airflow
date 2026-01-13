@@ -142,7 +142,6 @@ def get_run_data_interval(timetable: Timetable, run: DagRun | None) -> DataInter
     :meta private:
     """
     if run.partition_key is not None:
-        # todo: AIP-76 need to examine blast radius of returning None here
         return None
 
     if (
