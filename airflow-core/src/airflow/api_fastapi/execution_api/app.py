@@ -325,20 +325,8 @@ class InProcessExecutionAPI:
             # Set up dag_bag in app state for dependency injection
             self._app.state.dag_bag = create_dag_bag()
 
-            self._app.state.jwt_generator = _jwt_generator()
-            self._app.state.jwt_validator = _jwt_validator()
-
-            self._app.state.svcs_registry = svcs.Registry()
-            self._app.state.svcs_registry.register_value(JWTGenerator, self._app.state.jwt_generator)
-            self._app.state.svcs_registry.register_value(JWTValidator, self._app.state.jwt_validator)
-
-            from airflow.api_fastapi.execution_api.deps import _container
-
-            async def _inprocess_container():
-                async with svcs.Container(self._app.state.svcs_registry) as container:
-                    yield container
-
-            self._app.dependency_overrides[_container] = _inprocess_container
+            lifespan.registry.register_value(JWTGenerator, _jwt_generator())
+            lifespan.registry.register_value(JWTValidator, _jwt_validator())
 
             async def always_allow(): ...
 
