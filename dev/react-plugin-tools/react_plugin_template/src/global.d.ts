@@ -17,8 +17,8 @@
  * under the License.
  */
 
-export interface global {}
+export type global = object;
 
 declare global {
-  var ChakraUISystem: SystemContext | undefined
+  var ChakraUISystem: SystemContext | undefined;
 }
