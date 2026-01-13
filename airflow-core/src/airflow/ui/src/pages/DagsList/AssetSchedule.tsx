@@ -25,7 +25,7 @@ import { Link as RouterLink } from "react-router-dom";
 import { useAssetServiceNextRunAssets } from "openapi/queries";
 import { AssetExpression, type ExpressionType } from "src/components/AssetExpression";
 import type { NextRunEvent } from "src/components/AssetExpression/types";
-import { TruncatedText } from "src/components/TruncatedText";
+import { WrappedText } from "src/components/WrappedText";
 import { Popover } from "src/components/ui";
 
 type Props = {
@@ -66,7 +66,7 @@ export const AssetSchedule = ({ assetExpression, dagId, latestRunAfter, timetabl
         <FiDatabase style={{ display: "inline", flexShrink: 0 }} />
         <Link asChild color="fg.info" display="block" fontSize="sm">
           <RouterLink to={`/assets/${asset.id}`}>
-            <TruncatedText minWidth={0} text={asset.name ?? asset.uri} />
+            <WrappedText minWidth={0} text={asset.name ?? asset.uri} />
           </RouterLink>
         </Link>
       </HStack>
