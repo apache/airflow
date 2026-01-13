@@ -352,22 +352,26 @@ class MultipleCronTriggerTimetable(Timetable):
         return ts
 
 
-class CronPartitionTimetable(CronMixin, _TriggerTimetable):
+class CronPartitionTimetable(CronTriggerTimetable):
     """
     Timetable that triggers DAG runs according to a cron expression.
 
     Creates runs for partition keys.
 
-    The cron expression determines the sequence of partition dates.
-    The user can control when those partitions are run by supplying a
-    run_offset.  Positive values will run after the partition date.
-    Negative values will run before the partition date.
+    The cron expression determines the sequence of run dates. And
+    the partition dates are derived from those according to the ``run_offset``.
+    The partition key is then formatted using the partition date.
+
+    A ``run_offset`` of 1 means the partition_date will be one cron interval
+    after the run date; negative means the partition date will be one cron
+    interval prior to the run date.
 
     :param cron: cron string that defines when to run
-
     :param timezone: Which timezone to use to interpret the cron string
-    :param run_offset: Integer offset that determines when the partition
-        run should be created.  Time-based offsets are not yet supported.
+    :param run_offset: Integer offset that determines which partition date to run for.
+        The partition key will be derived from the partition date.
+    :param key_format: How to translate the partition date into a string partition key.
+
     *run_immediately* controls, if no *start_time* is given to the DAG, when
     the first run of the DAG should be scheduled. It has no effect if there
     already exist runs for this DAG.
@@ -399,7 +403,7 @@ class CronPartitionTimetable(CronMixin, _TriggerTimetable):
         super().__init__(cron, timezone)
         self._run_immediately = run_immediately
         if not isinstance(run_offset, (int, NoneType)):
-            # todo: AIP-76 implement timedelta / relative delta
+            # todo: AIP-76 implement timedelta / relative delta?
             raise ValueError("Run offset other than integer not supported yet.")
         self._run_offset = run_offset or 0
         self._key_format = key_format
@@ -447,29 +451,6 @@ class CronPartitionTimetable(CronMixin, _TriggerTimetable):
             partition_date = iter_func(partition_date)
         log.info("new partition date", partition_date=partition_date)
         return partition_date
-
-    def _calc_first_run(self) -> DateTime:
-        """
-        If no start_time is set, determine the start.
-
-        If True, always prefer past run, if False, never. If None, if within 10% of next run,
-        if timedelta, if within that timedelta from past run.
-        """
-        now = coerce_datetime(utcnow())
-        past_run_time = self._align_to_prev(now)
-        next_run_time = self._align_to_next(now)
-        if self._run_immediately is True:  # Check for 'True' exactly because deltas also evaluate to true.
-            return past_run_time
-
-        gap_between_runs = next_run_time - past_run_time
-        gap_to_past = now - past_run_time
-        if isinstance(self._run_immediately, datetime.timedelta):
-            buffer_between_runs = self._run_immediately
-        else:
-            buffer_between_runs = max(gap_between_runs / 10, datetime.timedelta(minutes=5))
-        if gap_to_past <= buffer_between_runs:
-            return past_run_time
-        return next_run_time
 
     def next_dagrun_info_v2(
         self,
