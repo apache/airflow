@@ -664,7 +664,7 @@ class TestDagRunOperatorAF2:
         dag_maker.create_dagrun()
         task.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
 
-        triggering_ti = session.query(TaskInstance).filter_by(task_id=task.task_id, dag_id=task.dag_id).one()
+        triggering_ti = session.scalar_one(select(TaskInstance).filter_by(task_id=task.task_id, dag_id=task.dag_id))
 
         # Verify that the dag_id was pushed to XCom
         dag_id_xcom = triggering_ti.xcom_pull(key=XCOM_DAG_ID)
@@ -726,7 +726,7 @@ class TestDagRunOperatorAF2:
         dag_maker.create_dagrun()
         task.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
 
-        triggering_ti = session.query(TaskInstance).filter_by(task_id=task.task_id, dag_id=task.dag_id).one()
+        triggering_ti = session.scalar_one(select(TaskInstance).filter_by(task_id=task.task_id, dag_id=task.dag_id))
 
         # Mock XCom.get_value to return our test values
         def mock_get_value(ti_key, key):
