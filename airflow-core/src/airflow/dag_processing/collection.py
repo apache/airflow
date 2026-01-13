@@ -63,6 +63,7 @@ from airflow.serialization.definitions.assets import (
 from airflow.serialization.definitions.dag import SerializedDAG
 from airflow.serialization.enums import Encoding
 from airflow.serialization.serialized_objects import BaseSerialization, LazyDeserializedDAG
+from airflow.timetables.trigger import CronPartitionTimetable
 from airflow.triggers.base import BaseEventTrigger
 from airflow.utils.retries import MAX_DB_RETRIES, run_with_db_retries
 from airflow.utils.sqlalchemy import get_dialect_name, with_row_locks
@@ -178,8 +179,9 @@ class _RunInfo(NamedTuple):
         if not timetable.can_be_scheduled:
             return cls(None, 0)
 
-        if hasattr(dag.timetable, "partitions"):
-            # todo: AIP-76 improve this detection with subclass
+        if isinstance(  # todo: AIP-76 what's a more general way to detect?
+            dag.timetable, CronPartitionTimetable
+        ):
             log.info("getting latest run for partitioned dag", dag_id=dag.dag_id)
             latest_run = session.scalar(_get_latest_runs_stmt_partitioned(dag_id=dag.dag_id))
         else:
