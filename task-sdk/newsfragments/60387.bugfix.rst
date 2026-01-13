@@ -1,0 +1,1 @@
+Fix bundle resource permission issues with user impersonation by deferring bundle initialization until after system-level impersonation check.

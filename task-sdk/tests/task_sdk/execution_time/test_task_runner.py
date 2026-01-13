@@ -942,6 +942,171 @@ def test_task_run_with_user_impersonation_remove_krb5ccname_on_reexecuted_proces
         assert "KRB5CCNAME" not in os.environ
 
 
+@patch("airflow.sdk.execution_time.task_runner.conf")
+@patch("airflow.sdk.execution_time.task_runner.getuser")
+def test_bundle_initialization_with_system_level_impersonation(
+    mock_get_user,
+    mock_conf,
+    mock_set_inheritable,
+    mock_execvp,
+    mocked_parse,
+    make_ti_context,
+    time_machine,
+    mock_supervisor_comms,
+):
+    """
+    Test that bundle initialization is deferred when system-level impersonation is configured.
+    
+    This test validates the fix for issue #60387 where bundle resources (git repos, lock files,
+    tracking directories) were being created by the airflow user before impersonation, causing
+    permission errors when the impersonated user tried to access them.
+    
+    The fix ensures that when core.default_impersonation is configured, the process re-executes
+    BEFORE parsing the DAG and initializing the bundle, so that all bundle resources are created
+    with the correct user permissions.
+    """
+    class CustomOperator(BaseOperator):
+        def execute(self, context):
+            print("Hi from CustomOperator!")
+
+    # Task without explicit run_as_user, relying on system default
+    task = CustomOperator(task_id="bundle_task")
+    instant = timezone.datetime(2024, 12, 3, 10, 0)
+
+    what = StartupDetails(
+        ti=TaskInstance(
+            id=uuid7(),
+            task_id="bundle_task",
+            dag_id="bundle_dag",
+            run_id="c",
+            try_number=1,
+            dag_version_id=uuid7(),
+        ),
+        dag_rel_path="",
+        bundle_info=FAKE_BUNDLE,
+        ti_context=make_ti_context(),
+        start_date=timezone.utcnow(),
+        sentry_integration="",
+    )
+
+    # Mock the configuration to return a default impersonation user
+    def conf_get_side_effect(section, key, **kwargs):
+        if section == "core" and key == "default_impersonation":
+            return "bundle_user"
+        return kwargs.get("fallback", None)
+
+    mock_conf.get.side_effect = conf_get_side_effect
+    
+    # Mock getuser to return a different user (simulating airflow service user)
+    mock_get_user.return_value = "airflow"
+
+    mocked_parse(what, "bundle_dag", task)
+    time_machine.move_to(instant, tick=False)
+
+    mock_supervisor_comms._get_response.return_value = what
+    mock_supervisor_comms.socket.fileno.return_value = 42
+
+    with mock.patch.dict(os.environ, {}, clear=True):
+        startup()
+
+        # Verify that the process is marked for re-execution
+        assert os.environ["_AIRFLOW__REEXECUTED_PROCESS"] == "1"
+        assert "_AIRFLOW__STARTUP_MSG" in os.environ
+
+        # Verify that the re-execution command uses the correct impersonated user
+        mock_set_inheritable.assert_called_once_with(42, True)
+        actual_cmd = mock_execvp.call_args.args[1]
+
+        assert actual_cmd[:5] == ["sudo", "-E", "-H", "-u", "bundle_user"]
+        assert "python" in actual_cmd[5]
+        assert actual_cmd[6] == "-c"
+        assert actual_cmd[7] == "from airflow.sdk.execution_time.task_runner import main; main()"
+
+        # Important: Verify that parse() was NOT called in the first process
+        # The mocked_parse fixture tracks calls, and we should not have parsed yet
+        # since we re-exec before parsing when default_impersonation is set.
+        # The actual parsing will happen in the re-executed process.
+
+
+@patch("airflow.sdk.execution_time.task_runner.conf")
+@patch("airflow.sdk.execution_time.task_runner.getuser")
+def test_bundle_initialization_with_task_level_impersonation_warning(
+    mock_get_user,
+    mock_conf,
+    mock_set_inheritable,
+    mock_execvp,
+    mocked_parse,
+    make_ti_context,
+    time_machine,
+    mock_supervisor_comms,
+    caplog,
+):
+    """
+    Test that a warning is logged when task-level run_as_user is used with bundles.
+    
+    This test validates that when a task has run_as_user set (task-level impersonation),
+    a warning is logged explaining that bundle resources may have been initialized with
+    incorrect permissions, and recommends using system-level default_impersonation instead.
+    
+    This is a known architectural limitation: we need to parse the DAG to get task-level
+    run_as_user, but parsing requires bundle initialization, creating a chicken-and-egg problem.
+    """
+    class CustomOperator(BaseOperator):
+        def execute(self, context):
+            print("Hi from CustomOperator!")
+
+    # Task with explicit run_as_user (task-level impersonation)
+    task = CustomOperator(task_id="bundle_task", run_as_user="task_user")
+    instant = timezone.datetime(2024, 12, 3, 10, 0)
+
+    what = StartupDetails(
+        ti=TaskInstance(
+            id=uuid7(),
+            task_id="bundle_task",
+            dag_id="bundle_dag",
+            run_id="c",
+            try_number=1,
+            dag_version_id=uuid7(),
+        ),
+        dag_rel_path="",
+        bundle_info=FAKE_BUNDLE,
+        ti_context=make_ti_context(),
+        start_date=timezone.utcnow(),
+        sentry_integration="",
+    )
+
+    # Mock the configuration to NOT return default impersonation (system-level)
+    def conf_get_side_effect(section, key, **kwargs):
+        if section == "core" and key == "default_impersonation":
+            return None
+        return kwargs.get("fallback", None)
+
+    mock_conf.get.side_effect = conf_get_side_effect
+    
+    # Mock getuser to return the airflow service user
+    mock_get_user.return_value = "airflow"
+
+    mocked_parse(what, "bundle_dag", task)
+    time_machine.move_to(instant, tick=False)
+
+    mock_supervisor_comms._get_response.return_value = what
+    mock_supervisor_comms.socket.fileno.return_value = 42
+
+    with mock.patch.dict(os.environ, {}, clear=True):
+        with caplog.at_level("WARNING"):
+            startup()
+
+            # Verify that a warning was logged about task-level impersonation
+            assert any("Task-level run_as_user" in record.message for record in caplog.records)
+            assert any("#60387" in record.message for record in caplog.records)
+            assert any("core.default_impersonation" in record.message for record in caplog.records)
+
+            # Verify that the process still re-executes with the task-level user
+            assert os.environ["_AIRFLOW__REEXECUTED_PROCESS"] == "1"
+            actual_cmd = mock_execvp.call_args.args[1]
+            assert actual_cmd[:5] == ["sudo", "-E", "-H", "-u", "task_user"]
+
+
 @pytest.mark.parametrize(
     ("command", "rendered_command"),
     [

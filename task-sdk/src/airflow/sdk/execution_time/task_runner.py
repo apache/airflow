@@ -789,36 +789,73 @@ def startup() -> tuple[RuntimeTaskInstance, Context, Logger]:
     except Exception:
         log.exception("error calling listener")
 
+    # Before parsing and initializing the bundle, check if we need to impersonate a different user.
+    # This prevents permission issues when bundle resources (git repos, lock files, tracking dirs)
+    # are created by the airflow user but need to be accessed by the impersonated user.
+    # Issue: #60387
+    
+    # Check if this is the first execution (not yet impersonated) and if impersonation is configured
+    is_first_execution = os.environ.get("_AIRFLOW__REEXECUTED_PROCESS") != "1"
+    default_impersonation = conf.get("core", "default_impersonation", fallback=None)
+    
+    if is_first_execution and default_impersonation and default_impersonation != getuser():
+        # System-level user impersonation is configured.
+        # Re-execute immediately without parsing/initializing bundle to ensure bundle resources
+        # are created with the correct user permissions in the impersonated process.
+        run_as_user = default_impersonation
+        os.environ["_AIRFLOW__REEXECUTED_PROCESS"] = "1"
+        os.environ["_AIRFLOW__STARTUP_MSG"] = msg.model_dump_json()
+        os.set_inheritable(SUPERVISOR_COMMS.socket.fileno(), True)
+
+        rexec_python_code = "from airflow.sdk.execution_time.task_runner import main; main()"
+        cmd = ["sudo", "-E", "-H", "-u", run_as_user, sys.executable, "-c", rexec_python_code]
+        log.info(
+            "Re-executing process for system-level impersonation before bundle initialization",
+            user=run_as_user,
+        )
+        os.execvp("sudo", cmd)
+
+        return None, None, None
+
+    # Parse DAG and initialize bundle in the correct user context
     with _airflow_parsing_context_manager(dag_id=msg.ti.dag_id, task_id=msg.ti.task_id):
         ti = parse(msg, log)
     log.debug("Dag file parsed", file=msg.dag_rel_path)
 
-    run_as_user = getattr(ti.task, "run_as_user", None) or conf.get(
-        "core", "default_impersonation", fallback=None
-    )
+    # Check for task-specific impersonation
+    task_run_as_user = getattr(ti.task, "run_as_user", None)
 
-    if os.environ.get("_AIRFLOW__REEXECUTED_PROCESS") != "1" and run_as_user and run_as_user != getuser():
-        # enters here for re-exec process
+    if is_first_execution and task_run_as_user and task_run_as_user != getuser():
+        # Task-specific impersonation is needed, but bundle has already been initialized.
+        # This is a known architectural limitation: we need to parse the DAG to get task-level
+        # run_as_user, but parsing requires bundle initialization.
+        # 
+        # Users should prefer system-level default_impersonation for better compatibility with bundles.
+        log.warning(
+            "Task-level run_as_user='%s' detected after bundle initialization by user '%s'. "
+            "Bundle resources (git repos, lock files, tracking directories) were created with "
+            "permissions for user '%s' and may not be accessible by the impersonated user '%s'. "
+            "This can cause permission denied errors during task execution. "
+            "For better compatibility with DAG bundles, use the 'core.default_impersonation' "
+            "configuration setting instead of task-level run_as_user parameter. "
+            "See GitHub issue #60387 for details.",
+            task_run_as_user,
+            getuser(),
+            getuser(),
+            task_run_as_user,
+        )
         os.environ["_AIRFLOW__REEXECUTED_PROCESS"] = "1"
-        # store startup message in environment for re-exec process
         os.environ["_AIRFLOW__STARTUP_MSG"] = msg.model_dump_json()
         os.set_inheritable(SUPERVISOR_COMMS.socket.fileno(), True)
 
-        # Import main directly from the module instead of re-executing the file.
-        # This ensures that when other parts modules import
-        # airflow.sdk.execution_time.task_runner, they get the same module instance
-        # with the properly initialized SUPERVISOR_COMMS global variable.
-        # If we re-executed the module with `python -m`, it would load as __main__ and future
-        # imports would get a fresh copy without the initialized globals.
         rexec_python_code = "from airflow.sdk.execution_time.task_runner import main; main()"
-        cmd = ["sudo", "-E", "-H", "-u", run_as_user, sys.executable, "-c", rexec_python_code]
+        cmd = ["sudo", "-E", "-H", "-u", task_run_as_user, sys.executable, "-c", rexec_python_code]
         log.info(
-            "Running command",
-            command=cmd,
+            "Re-executing process for task-level impersonation after bundle initialization",
+            user=task_run_as_user,
         )
         os.execvp("sudo", cmd)
 
-        # ideally, we should never reach here, but if we do, we should return None, None, None
         return None, None, None
 
     return ti, ti.get_template_context(), log
