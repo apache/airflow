@@ -487,7 +487,7 @@ class CronPartitionTimetable(CronTriggerTimetable):
         if restriction.latest is not None and restriction.latest < next_start_time:
             return None
 
-        partition_date, partition_key = self._get_partition_info(run_date=next_start_time)
+        partition_date, partition_key = self.get_partition_info(run_date=next_start_time)
         return DagRunInfo(
             run_after=next_start_time,
             partition_date=partition_date,
@@ -495,7 +495,7 @@ class CronPartitionTimetable(CronTriggerTimetable):
             data_interval=None,
         )
 
-    def _get_partition_info(self, run_date):
+    def get_partition_info(self, run_date):
         partition_date = self.get_partition_date(run_date=run_date)
         partition_key = self._format_key(partition_date)
         return partition_date, partition_key
