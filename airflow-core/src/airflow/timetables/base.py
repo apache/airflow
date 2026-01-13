@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import datetime
 from typing import TYPE_CHECKING, Any, NamedTuple, Protocol, runtime_checkable
 
 from airflow._shared.module_loading import qualname
@@ -125,9 +126,14 @@ class DagRunInfo(NamedTuple):
     partition_key: str | None
 
     @classmethod
-    def exact(cls, at: DateTime, partition_key: str | None = None) -> DagRunInfo:
+    def exact(cls, at: DateTime) -> DagRunInfo:
         """Represent a run on an exact time."""
-        return cls(run_after=at, data_interval=DataInterval.exact(at), partition_key=partition_key)
+        return cls(
+            run_after=at,
+            data_interval=DataInterval.exact(at),
+            partition_key=None,
+            partition_date=None,
+        )
 
     @classmethod
     def interval(
@@ -345,3 +351,6 @@ class Timetable(Protocol):
             a DagRunInfo object when asked at another time.
         """
         raise NotImplementedError()
+
+
+DagRunInfo.exact(datetime.datetime.now())
