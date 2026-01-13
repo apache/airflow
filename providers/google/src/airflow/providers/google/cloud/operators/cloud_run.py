@@ -264,8 +264,8 @@ class CloudRunExecuteJobOperator(GoogleCloudBaseOperator):
         account from the list granting this role to the originating account (templated).
     :param deferrable: Run the operator in deferrable mode.
     :param transport: Optional. The transport to use for API requests. Can be 'rest' or 'grpc'.
-        Defaults to 'grpc'. Use 'rest' if gRPC is not available or fails in your environment
-        (e.g., Docker containers with certain network configurations).
+        If set to None, a transport is chosen automatically. Use 'rest' if gRPC is not available
+        or fails in your environment (e.g., Docker containers with certain network configurations).
     """
 
     operator_extra_links = (CloudRunJobLoggingLink(),)
@@ -292,7 +292,7 @@ class CloudRunExecuteJobOperator(GoogleCloudBaseOperator):
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
         deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
-        transport: Literal["rest", "grpc"] = "grpc",
+        transport: Literal["rest", "grpc"] | None = None,
         **kwargs,
     ):
         super().__init__(**kwargs)

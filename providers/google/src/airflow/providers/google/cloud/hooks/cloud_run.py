@@ -68,15 +68,15 @@ class CloudRunHook(GoogleBaseHook):
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account.
     :param transport: Optional. The transport to use for API requests. Can be 'rest' or 'grpc'.
-        Defaults to 'grpc'. Use 'rest' if gRPC is not available or fails in your environment
-        (e.g., Docker containers with certain network configurations).
+        If set to None, a transport is chosen automatically. Use 'rest' if gRPC is not available
+        or fails in your environment (e.g., Docker containers with certain network configurations).
     """
 
     def __init__(
         self,
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
-        transport: Literal["rest", "grpc"] = "grpc",
+        transport: Literal["rest", "grpc"] | None = None,
         **kwargs,
     ) -> None:
         super().__init__(gcp_conn_id=gcp_conn_id, impersonation_chain=impersonation_chain, **kwargs)
@@ -187,8 +187,8 @@ class CloudRunAsyncHook(GoogleBaseAsyncHook):
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account.
     :param transport: Optional. The transport to use for API requests. Can be 'rest' or 'grpc'.
-        Defaults to 'grpc'. Use 'rest' if gRPC is not available or fails in your environment
-        (e.g., Docker containers with certain network configurations).
+        If set to None, a transport is chosen automatically. Use 'rest' if gRPC is not available
+        or fails in your environment (e.g., Docker containers with certain network configurations).
     """
 
     sync_hook_class = CloudRunHook
@@ -197,7 +197,7 @@ class CloudRunAsyncHook(GoogleBaseAsyncHook):
         self,
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
-        transport: Literal["rest", "grpc"] = "grpc",
+        transport: Literal["rest", "grpc"] | None = None,
         **kwargs,
     ):
         self._client: JobsAsyncClient | None = None

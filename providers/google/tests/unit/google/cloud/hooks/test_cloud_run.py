@@ -264,30 +264,16 @@ class TestCloudRunHook:
         new=mock_base_gcp_hook_default_project_id,
     )
     @mock.patch("airflow.providers.google.cloud.hooks.cloud_run.JobsClient")
-    def test_get_conn_with_transport(self, mock_jobs_client):
+    @pytest.mark.parametrize(("transport", "expected_transport"), [("rest", "rest"), (None, None)])
+    def test_get_conn_with_transport(self, mock_jobs_client, transport, expected_transport):
         """Test that transport parameter is passed to JobsClient."""
-        hook = CloudRunHook(transport="rest")
+        hook = CloudRunHook(transport=transport)
         hook.get_credentials = self.dummy_get_credentials
         hook.get_conn()
 
         mock_jobs_client.assert_called_once()
         call_kwargs = mock_jobs_client.call_args[1]
-        assert call_kwargs["transport"] == "rest"
-
-    @mock.patch(
-        "airflow.providers.google.common.hooks.base_google.GoogleBaseHook.__init__",
-        new=mock_base_gcp_hook_default_project_id,
-    )
-    @mock.patch("airflow.providers.google.cloud.hooks.cloud_run.JobsClient")
-    def test_get_conn_without_transport(self, mock_jobs_client):
-        """Test that JobsClient is created with default 'grpc' transport when not specified."""
-        hook = CloudRunHook()
-        hook.get_credentials = self.dummy_get_credentials
-        hook.get_conn()
-
-        mock_jobs_client.assert_called_once()
-        call_kwargs = mock_jobs_client.call_args[1]
-        assert call_kwargs["transport"] == "grpc"
+        assert call_kwargs["transport"] == expected_transport
 
     def _mock_pager(self, number_of_jobs):
         mock_pager = []
