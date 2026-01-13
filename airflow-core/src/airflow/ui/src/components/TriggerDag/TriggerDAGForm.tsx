@@ -231,12 +231,7 @@ const TriggerDAGForm = ({
           <Button
             colorPalette="brand"
             disabled={
-              Boolean(errors.conf) ||
-              Boolean(errors.date) ||
-              formError ||
-              isPending ||
-              Boolean(errorTrigger) ||
-              dataIntervalInvalid
+              Boolean(errors.conf) || Boolean(errors.date) || formError || isPending || dataIntervalInvalid
             }
             onClick={() => void handleSubmit(onSubmit)()}
           >
