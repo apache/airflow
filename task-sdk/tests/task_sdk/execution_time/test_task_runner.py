@@ -4177,6 +4177,7 @@ class TestTriggerDagRunOperator:
         assert msg.state == expected_task_state
 
         expected_calls = [
+            mock.call.send(mock.ANY),  # SetRenderedFields call (we don't check its content)
             mock.call.send(
                 SetXCom(
                     key="trigger_dag_id",
