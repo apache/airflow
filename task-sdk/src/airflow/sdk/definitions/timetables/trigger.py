@@ -83,7 +83,6 @@ class CronTriggerTimetable(CronMixin, BaseTimetable):
 
     interval: datetime.timedelta | relativedelta = attrs.field(kw_only=True, default=datetime.timedelta())
     run_immediately: bool | datetime.timedelta = attrs.field(kw_only=True, default=False)
-    partitions: bool = attrs.field(kw_only=True, default=False)
 
 
 @attrs.define(init=False)
