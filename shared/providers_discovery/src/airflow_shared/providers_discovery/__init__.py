@@ -18,7 +18,7 @@
 
 from __future__ import annotations
 
-from airflow_shared.providers_discovery.providers_discovery import (
+from .providers_discovery import (
     KNOWN_UNHANDLED_OPTIONAL_FEATURE_ERRORS as KNOWN_UNHANDLED_OPTIONAL_FEATURE_ERRORS,
     HookClassProvider as HookClassProvider,
     HookInfo as HookInfo,
