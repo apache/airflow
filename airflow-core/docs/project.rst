@@ -111,6 +111,7 @@ Committers
 - Wei Lee (@Lee-W)
 - Xiaodong Deng (@XD-DENG)
 - Xinbin Huang (@xinbinhuang)
+- Yeonguk Choo (@choo121600)
 - Zhe You Liu (@jason810496)
 
 For the full list of contributors, take a look at `Airflow's GitHub

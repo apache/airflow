@@ -23,9 +23,9 @@ import re
 from typing import TYPE_CHECKING, Any
 
 import teradatasql
-from sqlalchemy.engine import URL
 from teradatasql import TeradataConnection
 
+from airflow.exceptions import AirflowOptionalProviderFeatureException
 from airflow.providers.common.sql.hooks.sql import DbApiHook
 
 if TYPE_CHECKING:
@@ -36,6 +36,18 @@ if TYPE_CHECKING:
 
 DEFAULT_DB_PORT = 1025
 PARAM_TYPES = {bool, float, int, str}
+
+
+def _get_sqlalchemy_url():
+    try:
+        from sqlalchemy.engine import URL
+
+        return URL
+    except ImportError:
+        raise AirflowOptionalProviderFeatureException(
+            "SQLAlchemy is required for this Teradata feature."
+            "Install it with: pip install 'apache-airflow-providers-teradata[sqlalchemy]'"
+        )
 
 
 def _map_param(value):
@@ -197,12 +209,13 @@ class TeradataHook(DbApiHook):
         return conn_config
 
     @property
-    def sqlalchemy_url(self) -> URL:
+    def sqlalchemy_url(self):
         """
          Override to return a Sqlalchemy.engine.URL object from the Teradata connection.
 
         :return: the extracted sqlalchemy.engine.URL object.
         """
+        URL = _get_sqlalchemy_url()
         connection = self.get_connection(self.get_conn_id())
         # Adding only teradatasqlalchemy supported connection parameters.
         # https://pypi.org/project/teradatasqlalchemy/#ConnectionParameters
