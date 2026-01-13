@@ -175,8 +175,7 @@ class _RunInfo(NamedTuple):
         :param dags: dict of dags to query
         """
         # Skip these queries entirely if no DAGs can be scheduled to save time.
-        timetable = dag.timetable
-        if not timetable.can_be_scheduled:
+        if not dag.timetable.can_be_scheduled:
             return cls(None, 0)
 
         if isinstance(  # todo: AIP-76 what's a more general way to detect?
