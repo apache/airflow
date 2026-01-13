@@ -936,6 +936,19 @@ repos:
           - "B101,B301,B324,B403,B404,B603"
           - "--severity-level"
           - "high"  # TODO: remove this line when we fix all the issues
+      - id: check-delete-operators-idempotency
+        name: Check for existence of idempotency flags in Delete operators
+        entry: ./scripts/ci/prek/check_delete_operator_idempotency.py
+        language: python
+        files: ^providers/.*\.py$
+        exclude: > # TODO: Deprecate idempotency flags in delete operators and remove from list
+          (?x)
+          ^providers/google/src/airflow/providers/google/cloud/operators/bigquery\.py$|
+          ^providers/google/src/airflow/providers/google/cloud/operators/pubsub\.py$|
+          ^providers/google/src/airflow/providers/google/cloud/operators/dataproc\.py$|
+          ^providers/microsoft/azure/src/airflow/providers/microsoft/azure/operators/adls\.py$|
+          ^providers/microsoft/azure/src/airflow/providers/microsoft/azure/operators/wasb_delete_blob\.py$
+        pass_filenames: true
         ## ADD MOST PREK HOOK ABOVE THAT LINE
         # The below prek hooks are those requiring CI image to be built
       - id: mypy-dev
