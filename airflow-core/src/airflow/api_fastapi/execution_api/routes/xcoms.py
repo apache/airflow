@@ -456,9 +456,7 @@ def bulk_delete_xcoms(
     key: Annotated[str | None, Query()] = None,
     map_index: Annotated[int | None, Query()] = None,
 ):
-    """
-    Bulk delete Xcom values.
-    """
+    """Bulk delete Xcom values."""
     query = delete(XComModel).where(
         XComModel.dag_id == dag_id,
         XComModel.run_id == run_id,
