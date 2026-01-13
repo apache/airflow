@@ -1871,16 +1871,6 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 self.log.error("Dag not found in serialized_dag table", dag_id=dag_model.dag_id)
                 continue
 
-            # todo: AIP-76 given that there is not constraint on partition date,
-            #   how do we ensure that two schedulers don't create more than one
-            #   run for the same partition at the same time?
-            #   it will have to be governed by dag_next.dagrun; if this value
-            #   gets updated in the same commit as the dagrun creation, then,
-            #   given that dagrun creation always locks the dag model, then it
-            #   should not be possible.
-            # TODO: AIP-76 May need to simply update the existing dagruns logic!
-            #  but why is it trying to create these?
-
             # Explicitly check if the DagRun already exists. This is an edge case
             # where a Dag Run is created but `DagModel.next_dagrun` and `DagModel.next_dagrun_create_after`
             # are not updated.
