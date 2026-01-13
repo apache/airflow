@@ -134,11 +134,9 @@ export class BackfillPage extends BasePage {
     await responsePromise;
 
     // Wait for aria-label to change
-    if (wasPaused) {
-      await expect(this.page.locator('button[aria-label="Pause backfill"]')).toBeVisible({ timeout: 10_000 });
-    } else {
-      await expect(this.page.locator('button[aria-label="Unpause backfill"]')).toBeVisible({ timeout: 10_000 });
-    }
+    const expectedLabel = wasPaused ? "Pause backfill" : "Unpause backfill";
+
+    await expect(this.page.locator(`button[aria-label="${expectedLabel}"]`)).toBeVisible({ timeout: 10_000 });
   }
 
   public async createBackfill(dagName: string, options: CreateBackfillOptions): Promise<void> {
@@ -386,10 +384,20 @@ export class BackfillPage extends BasePage {
     await menuItem.click();
   }
 
-  public async waitForNoActiveBackfill(): Promise<void> {
-    const backfillInProgress = this.page.locator('text="Backfill in progress:"');
+  public async waitForNoActiveBackfill(timeout: number = 300_000): Promise<void> {
+    const { page } = this;
+    const backfillInProgress = page.locator('text="Backfill in progress:"');
 
-    await expect(backfillInProgress).not.toBeVisible({ timeout: 300_000 });
+    await expect(async () => {
+      await page.reload();
+      await page.waitForLoadState("networkidle", { timeout: 30_000 });
+
+      const isVisible = await backfillInProgress.isVisible();
+
+      if (isVisible) {
+        throw new Error("Backfill still in progress");
+      }
+    }).toPass({ intervals: [5000, 10_000, 15_000], timeout });
   }
 
   public async waitForTableDataLoaded(): Promise<void> {
