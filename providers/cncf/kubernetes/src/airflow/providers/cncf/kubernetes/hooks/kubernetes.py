@@ -1025,7 +1025,7 @@ class AsyncKubernetesHook(KubernetesHook):
         :param name: Pod name to watch events for
         :param namespace: Kubernetes namespace
         :param resource_version: Only return events not older than this resource version
-        :param timeout_seconds: Timeout in seconds for the watch stream
+        :param timeout_seconds: Timeout in seconds for the watch stream. A small additional buffer may be applied internally.
         """
         if self._event_polling_fallback:
             async for event_polled in self.watch_pod_events_polling_fallback(
