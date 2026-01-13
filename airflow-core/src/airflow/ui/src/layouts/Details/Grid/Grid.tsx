@@ -37,11 +37,15 @@ import { DurationAxis } from "./DurationAxis";
 import { DurationTick } from "./DurationTick";
 import { TaskInstancesColumn } from "./TaskInstancesColumn";
 import { TaskNames } from "./TaskNames";
+import {
+  GRID_HEADER_HEIGHT_PX,
+  GRID_HEADER_PADDING_PX,
+  GRID_OUTER_PADDING_PX,
+  ROW_HEIGHT,
+} from "./constants";
 import { flattenNodes } from "./utils";
 
 dayjs.extend(dayjsDuration);
-
-const ROW_HEIGHT = 20;
 
 type Props = {
   readonly limit: number;
@@ -116,7 +120,7 @@ export const Grid = ({ limit, runType, showGantt, triggeringUser }: Props) => {
       flexDirection="column"
       justifyContent="flex-start"
       position="relative"
-      pt={16}
+      pt={`${GRID_OUTER_PADDING_PX}px`}
       ref={gridRef}
       tabIndex={0}
       width={showGantt ? "1/2" : "full"}
@@ -124,20 +128,20 @@ export const Grid = ({ limit, runType, showGantt, triggeringUser }: Props) => {
       {/* Grid scroll container */}
       <Box
         height="calc(100vh - 140px)"
-        marginRight={1}
+        marginRight={showGantt ? 0 : 1}
         overflow="auto"
-        paddingRight={4}
+        paddingRight={showGantt ? 0 : 4}
         position="relative"
         ref={scrollContainerRef}
       >
         {/* Grid header, both bgs are needed to hide elements during horizontal and vertical scroll */}
-        <Flex bg="bg" display="flex" position="sticky" pt={2} top={0} zIndex={2}>
+        <Flex bg="bg" display="flex" position="sticky" pt={`${GRID_HEADER_PADDING_PX}px`} top={0} zIndex={2}>
           <Box bg="bg" flexGrow={1} left={0} minWidth="200px" position="sticky" zIndex={1}>
-            <Flex flexDirection="column-reverse" height="100px" position="relative">
+            <Flex flexDirection="column-reverse" height={`${GRID_HEADER_HEIGHT_PX}px`} position="relative">
               {Boolean(gridRuns?.length) && (
                 <>
-                  <DurationTick bottom="92px" duration={max} />
-                  <DurationTick bottom="46px" duration={max / 2} />
+                  <DurationTick bottom={`${GRID_HEADER_HEIGHT_PX - 8}px`} duration={max} />
+                  <DurationTick bottom={`${GRID_HEADER_HEIGHT_PX / 2 - 4}px`} duration={max / 2} />
                 </>
               )}
             </Flex>
@@ -145,8 +149,8 @@ export const Grid = ({ limit, runType, showGantt, triggeringUser }: Props) => {
           {/* Duration bars */}
           <Flex flexDirection="row-reverse" flexShrink={0}>
             <Flex flexShrink={0} position="relative">
-              <DurationAxis top="100px" />
-              <DurationAxis top="50px" />
+              <DurationAxis top={`${GRID_HEADER_HEIGHT_PX}px`} />
+              <DurationAxis top={`${GRID_HEADER_HEIGHT_PX / 2}px`} />
               <DurationAxis top="4px" />
               <Flex flexDirection="row-reverse">
                 {gridRuns?.map((dr: GridRunsResponse) => (
@@ -157,7 +161,7 @@ export const Grid = ({ limit, runType, showGantt, triggeringUser }: Props) => {
                 <Link to={`/dags/${dagId}`}>
                   <IconButton
                     aria-label={translate("grid.buttons.resetToLatest")}
-                    height="98px"
+                    height={`${GRID_HEADER_HEIGHT_PX - 2}px`}
                     loading={isLoading}
                     minW={0}
                     ml={1}
