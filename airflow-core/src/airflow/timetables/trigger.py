@@ -26,6 +26,7 @@ from typing import TYPE_CHECKING, Any
 
 import structlog
 
+from airflow._shared.timezones import timezone
 from airflow._shared.timezones.timezone import coerce_datetime, parse_timezone, utcnow
 from airflow.timetables._cron import CronMixin
 from airflow.timetables._delta import DeltaMixin
@@ -441,7 +442,8 @@ class CronPartitionTimetable(CronTriggerTimetable):
     def get_partition_date(self, *, run_date):
         if self._run_offset == 0:
             return run_date
-        partition_date = run_date  # we will need to apply offset to determine run date
+        # we will need to apply offset to determine run date
+        partition_date = timezone.coerce_datetime(run_date)
         log.info(
             "applying offset to partition date", partition_date=partition_date, run_offset=self._run_offset
         )
