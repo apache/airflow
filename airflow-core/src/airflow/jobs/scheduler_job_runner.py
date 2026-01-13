@@ -1798,6 +1798,26 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
     @add_debug_span
     def _create_dag_runs(self, dag_models: Collection[DagModel], session: Session) -> None:
         """Create a DAG run and update the dag_model to control if/when the next DAGRun should be created."""
+        # Bulk Fetch DagRuns with dag_id and logical_date same
+        # as DagModel.dag_id and DagModel.next_dagrun
+        # This list is used to verify if the DagRun already exist so that we don't attempt to create
+        # duplicate DagRuns
+        existing_dagruns = (
+            session.execute(
+                select(DagRun.dag_id, DagRun.logical_date).where(
+                    tuple_(DagRun.dag_id, DagRun.logical_date).in_(
+                        (dm.dag_id, dm.next_dagrun) for dm in dag_models
+                    ),
+                )
+            )
+            .unique()
+            .all()
+        )
+        # todo: AIP-76 we may want to update this to handle partitions
+        #  but the thing is, there is not actually a restriction that
+        #  we don't create new runs with the same partition key
+        #  so it's unclear whether we should / need to.
+
         partitioned_dags = set()
         non_partitioned_dags: list[DagModel] = []
         missing_dags = set()
@@ -1824,7 +1844,6 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 session=session,
             )
         )
-        existing_dagruns = self._get_existing_dagruns(session=session, dags=non_partitioned_dags)
 
         for dag_model in dag_models:
             if dag_model.exceeds_max_non_backfill:
@@ -1832,6 +1851,19 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     "Dag run cannot be created; max active runs exceeded.",
                     dag_id=dag_model.dag_id,
                     max_active_runs=dag_model.max_active_runs,
+                    active_runs=active_runs_of_dags.get(dag_model.dag_id),
+                )
+                continue
+            if dag_model.next_dagrun is None:
+                self.log.error(
+                    "dag_model.next_dagrun is None; expected datetime",
+                    dag_id=dag_model.dag_id,
+                )
+                continue
+            if dag_model.next_dagrun_create_after is None:
+                self.log.error(
+                    "dag_model.next_dagrun_create_after is None; expected datetime",
+                    dag_id=dag_model.dag_id,
                 )
                 continue
 
@@ -1842,24 +1874,6 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             try:
                 if not (serdag := serdags.get(dag_id)):
                     self.log.error("Dag not found in serialized_dag table", dag_id=dag_model.dag_id)
-                    continue
-
-                self.log.info(
-                    "evaluating dag for dagrun creation",
-                    dag_id=dag_model.dag_id,
-                    next_dagrun=str(dag_model.next_dagrun),
-                )
-                if dag_model.next_dagrun is None:
-                    self.log.error(
-                        "dag_model.next_dagrun is None; expected datetime",
-                        dag_id=dag_model.dag_id,
-                    )
-                    continue
-                if dag_model.next_dagrun_create_after is None:
-                    self.log.error(
-                        "dag_model.next_dagrun_create_after is None; expected datetime",
-                        dag_id=dag_model.dag_id,
-                    )
                     continue
 
                 # Explicitly check if the DagRun already exists. This is an edge case
@@ -1952,29 +1966,6 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             data_interval = get_next_data_interval(serdag.timetable, dag_model)
             logical_date = dag_model.next_dagrun
         return data_interval, logical_date, partition_key, partition_date
-
-    def _get_existing_dagruns(self, session: Session, dags):
-        # Bulk Fetch DagRuns with dag_id and logical_date same
-        # as DagModel.dag_id and DagModel.next_dagrun
-        # This list is used to verify if the DagRun already exist so that we don't attempt to create
-        # duplicate DagRuns
-        expect_to_create = {(dm.dag_id, dm.next_dagrun) for dm in dags}
-        existing_dagrun_objects = (
-            session.scalars(
-                select(DagRun)
-                .where(tuple_(DagRun.dag_id, DagRun.logical_date).in_(expect_to_create))
-                .options(load_only(DagRun.dag_id, DagRun.logical_date))
-            )
-            .unique()
-            .all()
-        )
-        existing_dagruns = {(x.dag_id, x.logical_date): x for x in existing_dagrun_objects}
-        self.log.info("existing_dagruns", existing_dagruns=existing_dagruns.keys())
-        # todo: AIP-76 we may want to update this to handle partitions
-        #  but the thing is, there is not actually a restriction that
-        #  we don't create new runs with the same partition key
-        #  so it's unclear whether we should / need to.
-        return existing_dagruns
 
     def _create_dag_runs_asset_triggered(
         self,
