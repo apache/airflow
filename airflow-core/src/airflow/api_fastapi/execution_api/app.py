@@ -325,8 +325,39 @@ class InProcessExecutionAPI:
             # Set up dag_bag in app state for dependency injection
             self._app.state.dag_bag = create_dag_bag()
 
-            lifespan.registry.register_value(JWTGenerator, _jwt_generator())
-            lifespan.registry.register_value(JWTValidator, _jwt_validator())
+            self._app.state.jwt_generator = _jwt_generator()
+            self._app.state.jwt_validator = _jwt_validator()
+
+            # Why InProcessContainer instead of lifespan.registry or svcs.Container?
+            #
+            # The normal app uses @svcs.fastapi.lifespan which manages the registry lifecycle.
+            # In tests (conftest.py), lifespan.registry.register_value() works because the
+            # TestClient initializes the lifespan before requests. However, in InProcessExecutionAPI,
+            # the lifespan runs later (when transport is accessed), but services may be needed
+            # before that. Using lifespan.registry fails in CI with ServiceNotFoundError.
+            #
+            # This minimal container bypasses the svcs lifecycle and directly returns pre-created
+            # service instances from app.state. If you add new services, update this class.
+            from airflow.api_fastapi.execution_api.deps import _container
+
+            class InProcessContainer:
+                """Minimal container for in-process execution, bypassing svcs lifecycle."""
+
+                def __init__(self, app_state):
+                    self._services = {
+                        JWTGenerator: app_state.jwt_generator,
+                        JWTValidator: app_state.jwt_validator,
+                    }
+
+                async def aget(self, svc_type):
+                    if svc_type not in self._services:
+                        raise KeyError(f"{svc_type} not registered in InProcessContainer")
+                    return self._services[svc_type]
+
+            async def _inprocess_container():
+                yield InProcessContainer(self._app.state)
+
+            self._app.dependency_overrides[_container] = _inprocess_container
 
             async def always_allow(): ...
 
