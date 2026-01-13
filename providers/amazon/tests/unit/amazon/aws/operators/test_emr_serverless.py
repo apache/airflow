@@ -539,22 +539,18 @@ class TestEmrServerlessStartJobOperator:
     @mock.patch("time.sleep", return_value=None)
     @mock.patch.object(EmrServerlessHook, "get_waiter")
     @mock.patch.object(EmrServerlessHook, "conn")
-    def test_execute_max_attempts_cancel_job_cancel_fails(
-        self, mock_conn, mock_get_waiter, sleep_mock
-    ):
+    def test_execute_max_attempts_cancel_job_cancel_fails(self, mock_conn, mock_get_waiter, sleep_mock):
         application_id = "test-app-id"
         job_run_id = "test-job-id"
-        mock_conn.get_application.return_value = {
-            "application": {"state": "STARTED"}
-        }
+        mock_conn.get_application.return_value = {"application": {"state": "STARTED"}}
         mock_conn.start_job_run.return_value = {
             "jobRunId": job_run_id,
             "ResponseMetadata": {"HTTPStatusCode": 200},
         }
-        mock_get_waiter.return_value.wait.side_effect = AirflowException(
-            "Waiter error: max attempts reached"
+        mock_get_waiter.return_value.wait.side_effect = AirflowException("Waiter error: max attempts reached")
+        mock_conn.cancel_job_run.side_effect = Exception(
+            "Failed to cancel EMR Serverless job after waiter timeout"
         )
-        mock_conn.cancel_job_run.side_effect = Exception("Failed to cancel EMR Serverless job after waiter timeout")
         operator = EmrServerlessStartJobOperator(
             task_id="test_task",
             application_id=application_id,
@@ -568,8 +564,10 @@ class TestEmrServerlessStartJobOperator:
         )
         mock_context = mock.MagicMock()
 
-        with mock.patch.object(operator.log, "exception") as mock_log_exception, \
-            mock.patch.object(operator.log, "info") as mock_log_info:
+        with (
+            mock.patch.object(operator.log, "exception") as mock_log_exception,
+            mock.patch.object(operator.log, "info") as mock_log_info,
+        ):
             with pytest.raises(AirflowException, match="Waiter error: max attempts reached"):
                 operator.execute(mock_context)
             mock_conn.cancel_job_run.assert_called_once_with(
