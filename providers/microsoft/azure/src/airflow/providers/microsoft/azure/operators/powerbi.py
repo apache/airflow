@@ -65,6 +65,7 @@ class PowerBIDatasetRefreshOperator(BaseOperator):
     :param check_interval: Number of seconds to wait before rechecking the
         refresh status.
     :param request_body: Additional arguments to pass to the request body, as described in https://learn.microsoft.com/en-us/rest/api/power-bi/datasets/refresh-dataset-in-group#request-body.
+    :param wait_for_termination: If True, wait for the dataset refresh to complete. If False, trigger the refresh and return immediately without waiting.
     """
 
     template_fields: Sequence[str] = (
