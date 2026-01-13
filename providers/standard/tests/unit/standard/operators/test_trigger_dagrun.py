@@ -175,6 +175,19 @@ class TestDagRunOperator:
         assert exc_info.value.dag_run_id == "custom_run_id"
 
     @pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="Implementation is different for Airflow 2 & 3")
+    def test_trigger_dagrun_with_note(self):
+        task = TriggerDagRunOperator(
+            task_id="test_task",
+            trigger_dag_id=TRIGGERED_DAG_ID,
+            note="Test note",
+        )
+
+        with pytest.raises(DagRunTriggerException) as exc_info:
+            task.execute(context={})
+
+        assert exc_info.value.note == "Test note"
+
+    @pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="Implementation is different for Airflow 2 & 3")
     def test_trigger_dagrun_with_logical_date(self):
         """Test TriggerDagRunOperator with custom logical_date."""
         task = TriggerDagRunOperator(
