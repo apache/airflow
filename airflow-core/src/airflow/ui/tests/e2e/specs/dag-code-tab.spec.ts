@@ -28,41 +28,39 @@ test.describe("Dag Code Tab", () => {
     dagsPage = new DagsPage(page);
   });
 
-  test("verify DAG code displays", async () => {
+  test("verify Dag code displays", async () => {
     await dagsPage.openCodeTab(testDagId);
 
     const codeText = await dagsPage.getDagCodeText();
-    expect(codeText).toBeTruthy();
-    expect(codeText!.trim().length).toBeGreaterThan(0);
+    expect(codeText.trim().length).toBeGreaterThan(0);
   });
 
   test("verify syntax highlighting is applied", async ({ page }) => {
     await dagsPage.openCodeTab(testDagId);
 
-    const highlightedSpan = page
-      .getByTestId("dag-code-content")
-      .locator(".view-lines span")
+    const highlightedToken = page
+      .locator(".monaco-editor .mtk")
       .first();
 
-    await expect(highlightedSpan).toBeVisible();
+    await expect(highlightedToken).toBeVisible();
   });
 
   test("verify line numbers are displayed", async ({ page }) => {
     await dagsPage.openCodeTab(testDagId);
 
     const lineNumbers = page
-      .getByTestId("dag-code-content")
-      .locator(".line-numbers");
+      .locator(".monaco-editor .line-numbers")
+      .first();
 
-    await expect(lineNumbers.first()).toBeVisible();
+    await expect(lineNumbers).toBeVisible();
   });
 
   test("verify code is scrollable for long files", async ({ page }) => {
     await dagsPage.openCodeTab(testDagId);
 
     const isScrollable = await page
-      .getByTestId("dag-code-content")
-      .evaluate((el) => el.scrollHeight > el.clientHeight);
+      .locator(".monaco-editor")
+      .evaluate(el => el.scrollHeight > el.clientHeight);
 
     expect(isScrollable).toBe(true);
   });
@@ -70,12 +68,10 @@ test.describe("Dag Code Tab", () => {
   test("verify code wrapping works", async ({ page }) => {
     await dagsPage.openCodeTab(testDagId);
 
-    const wraps = await page
-      .getByTestId("dag-code-content")
-      .evaluate((el) => {
-        return getComputedStyle(el).whiteSpace !== "pre";
-      });
+    const whiteSpace = await page
+      .locator(".monaco-editor")
+      .evaluate(el => getComputedStyle(el).whiteSpace);
 
-    expect(wraps).toBe(true);
+    expect(whiteSpace).not.toBe("pre");
   });
 });
