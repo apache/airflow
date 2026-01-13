@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import contextlib
 import os
+import sys
 import textwrap
 import warnings
 import zipfile
