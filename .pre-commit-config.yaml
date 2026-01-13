@@ -31,8 +31,7 @@ repos:
       - id: check-hooks-apply
         name: Check if all hooks apply to the repository
   - repo: https://github.com/eclipse-csi/octopin
-    # We need this commit because if supports two spaces before comments (yamllint compatibility)
-    rev: 74fd075c7b326c771cd95ca86c59cbe65f0dda37
+    rev: 67eac129b3e1d8ddb47e657bb2fda28c33d948ca  # frozen: v0.1.4
     hooks:
       - id: pin-versions
         name: Pin versions of dependencies in CI workflows (manual)
@@ -268,7 +267,7 @@ repos:
       - id: python-no-log-warn
         name: Check if there are no deprecate log warn
   - repo: https://github.com/adrienverge/yamllint
-    rev: 79a6b2b1392eaf49cdd32ac4f14be1a809bbd8f7  # frozen: v1.37.1
+    rev: cba56bcde1fdd01c1deb3f945e69764c291a6530  # frozen: v1.38.0
     hooks:
       - id: yamllint
         name: Check YAML files with yamllint
