@@ -181,3 +181,16 @@ Everything else
   :undoc-members:
   :imported-members:
   :no-index:
+
+Data Models
+-----------
+
+.. autoclass:: airflow.sdk.api.datamodels._generated.TaskInstance
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+.. autoclass:: airflow.sdk.api.datamodels._generated.ExecutionConfig
+   :members:
+   :undoc-members:
+   :show-inheritance:
