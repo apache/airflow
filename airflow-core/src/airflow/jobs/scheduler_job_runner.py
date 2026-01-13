@@ -1795,80 +1795,6 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         for b in backfills:
             b.completed_at = now
 
-    def _should_create(self, dag_model: DagModel, serdag: SerializedDAG, existing_dagruns):
-        self.log.info(
-            "evaluating dag for dagrun creation",
-            dag_id=dag_model.dag_id,
-            next_dagrun=str(dag_model.next_dagrun),
-        )
-        if dag_model.exceeds_max_non_backfill:
-            self.log.warning(
-                "Dag run cannot be created; max active runs exceeded.",
-                dag_id=dag_model.dag_id,
-                max_active_runs=dag_model.max_active_runs,
-            )
-            return False
-        if dag_model.next_dagrun is None:
-            self.log.error(
-                "dag_model.next_dagrun is None; expected datetime",
-                dag_id=dag_model.dag_id,
-            )
-            return False
-        if dag_model.next_dagrun_create_after is None:
-            self.log.error(
-                "dag_model.next_dagrun_create_after is None; expected datetime",
-                dag_id=dag_model.dag_id,
-            )
-            return False
-
-        # Explicitly check if the DagRun already exists. This is an edge case
-        # where a Dag Run is created but `DagModel.next_dagrun` and `DagModel.next_dagrun_create_after`
-        # are not updated.
-        # We opted to check DagRun existence instead
-        # of catching an Integrity error and rolling back the session i.e
-        # todo: AIP-76 given that there is not constraint on partition date,
-        #   how do we ensure that two schedulers don't create more than one
-        #   run for the same partition at the same time?
-        #   it will have to be governed by dag_next.dagrun; if this value
-        #   gets updated in the same commit as the dagrun creation, then,
-        #   given that dagrun creation always locks the dag model, then it
-        #   should not be possible.
-        # TODO: AIP-76 May need to simply update the existing dagruns logic!
-        #  but why is it trying to create these?
-        if dr := existing_dagruns.get((dag_model.dag_id, dag_model.next_dagrun)):
-            self.log.warning(
-                "run already exists; skipping dagrun creation",
-                dag_id=dag_model.dag_id,
-                logical_date=dag_model.next_dagrun,
-            )
-            dag_model.calculate_dagrun_date_fields(dag=serdag, last_automated_run=dr)
-            return False
-
-        return True
-
-    def _get_existing_dagruns(self, session: Session, dags):
-        # Bulk Fetch DagRuns with dag_id and logical_date same
-        # as DagModel.dag_id and DagModel.next_dagrun
-        # This list is used to verify if the DagRun already exist so that we don't attempt to create
-        # duplicate DagRuns
-        expect_to_create = {(dm.dag_id, dm.next_dagrun) for dm in dags}
-        existing_dagrun_objects = (
-            session.scalars(
-                select(DagRun)
-                .where(tuple_(DagRun.dag_id, DagRun.logical_date).in_(expect_to_create))
-                .options(load_only(DagRun.dag_id, DagRun.logical_date))
-            )
-            .unique()
-            .all()
-        )
-        existing_dagruns = {(x.dag_id, x.logical_date): x for x in existing_dagrun_objects}
-        self.log.info("existing_dagruns", existing_dagruns=existing_dagruns.keys())
-        # todo: AIP-76 we may want to update this to handle partitions
-        #  but the thing is, there is not actually a restriction that
-        #  we don't create new runs with the same partition key
-        #  so it's unclear whether we should / need to.
-        return existing_dagruns
-
     @add_debug_span
     def _create_dag_runs(self, dag_models: Collection[DagModel], session: Session) -> None:
         """Create a DAG run and update the dag_model to control if/when the next DAGRun should be created."""
@@ -1963,6 +1889,80 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
             # TODO[HA]: Should we do a session.flush() so we don't have to keep lots of state/object in
             #  memory for larger dags? or expunge_all()
+
+    def _should_create(self, dag_model: DagModel, serdag: SerializedDAG, existing_dagruns):
+        self.log.info(
+            "evaluating dag for dagrun creation",
+            dag_id=dag_model.dag_id,
+            next_dagrun=str(dag_model.next_dagrun),
+        )
+        if dag_model.exceeds_max_non_backfill:
+            self.log.warning(
+                "Dag run cannot be created; max active runs exceeded.",
+                dag_id=dag_model.dag_id,
+                max_active_runs=dag_model.max_active_runs,
+            )
+            return False
+        if dag_model.next_dagrun is None:
+            self.log.error(
+                "dag_model.next_dagrun is None; expected datetime",
+                dag_id=dag_model.dag_id,
+            )
+            return False
+        if dag_model.next_dagrun_create_after is None:
+            self.log.error(
+                "dag_model.next_dagrun_create_after is None; expected datetime",
+                dag_id=dag_model.dag_id,
+            )
+            return False
+
+        # Explicitly check if the DagRun already exists. This is an edge case
+        # where a Dag Run is created but `DagModel.next_dagrun` and `DagModel.next_dagrun_create_after`
+        # are not updated.
+        # We opted to check DagRun existence instead
+        # of catching an Integrity error and rolling back the session i.e
+        # todo: AIP-76 given that there is not constraint on partition date,
+        #   how do we ensure that two schedulers don't create more than one
+        #   run for the same partition at the same time?
+        #   it will have to be governed by dag_next.dagrun; if this value
+        #   gets updated in the same commit as the dagrun creation, then,
+        #   given that dagrun creation always locks the dag model, then it
+        #   should not be possible.
+        # TODO: AIP-76 May need to simply update the existing dagruns logic!
+        #  but why is it trying to create these?
+        if dr := existing_dagruns.get((dag_model.dag_id, dag_model.next_dagrun)):
+            self.log.warning(
+                "run already exists; skipping dagrun creation",
+                dag_id=dag_model.dag_id,
+                logical_date=dag_model.next_dagrun,
+            )
+            dag_model.calculate_dagrun_date_fields(dag=serdag, last_automated_run=dr)
+            return False
+
+        return True
+
+    def _get_existing_dagruns(self, session: Session, dags):
+        # Bulk Fetch DagRuns with dag_id and logical_date same
+        # as DagModel.dag_id and DagModel.next_dagrun
+        # This list is used to verify if the DagRun already exist so that we don't attempt to create
+        # duplicate DagRuns
+        expect_to_create = {(dm.dag_id, dm.next_dagrun) for dm in dags}
+        existing_dagrun_objects = (
+            session.scalars(
+                select(DagRun)
+                .where(tuple_(DagRun.dag_id, DagRun.logical_date).in_(expect_to_create))
+                .options(load_only(DagRun.dag_id, DagRun.logical_date))
+            )
+            .unique()
+            .all()
+        )
+        existing_dagruns = {(x.dag_id, x.logical_date): x for x in existing_dagrun_objects}
+        self.log.info("existing_dagruns", existing_dagruns=existing_dagruns.keys())
+        # todo: AIP-76 we may want to update this to handle partitions
+        #  but the thing is, there is not actually a restriction that
+        #  we don't create new runs with the same partition key
+        #  so it's unclear whether we should / need to.
+        return existing_dagruns
 
     def _next_run_info(
         self,
