@@ -1827,6 +1827,14 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         existing_dagruns = self._get_existing_dagruns(session=session, dags=non_partitioned_dags)
 
         for dag_model in dag_models:
+            if dag_model.exceeds_max_non_backfill:
+                self.log.warning(
+                    "Dag run cannot be created; max active runs exceeded.",
+                    dag_id=dag_model.dag_id,
+                    max_active_runs=dag_model.max_active_runs,
+                )
+                continue
+
             if TYPE_CHECKING:
                 assert isinstance(dag_model.dag_id, str)
             dag_id = dag_model.dag_id
@@ -1841,13 +1849,6 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     dag_id=dag_model.dag_id,
                     next_dagrun=str(dag_model.next_dagrun),
                 )
-                if dag_model.exceeds_max_non_backfill:
-                    self.log.warning(
-                        "Dag run cannot be created; max active runs exceeded.",
-                        dag_id=dag_model.dag_id,
-                        max_active_runs=dag_model.max_active_runs,
-                    )
-                    continue
                 if dag_model.next_dagrun is None:
                     self.log.error(
                         "dag_model.next_dagrun is None; expected datetime",
