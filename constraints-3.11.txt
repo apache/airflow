@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2026-01-12T19:53:08.414898
+# This constraints file was automatically generated on 2026-01-13T02:49:24.028590
 # via `uv pip install --resolution highest` for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -432,7 +432,7 @@ keyring==25.7.0
 kombu==5.6.2
 krb5==0.9.0
 kubernetes==33.1.0
-kubernetes_asyncio==34.3.2
+kubernetes_asyncio==34.3.3
 kylinpy==2.8.4
 lazy-object-proxy==1.12.0
 libcst==1.8.6
@@ -524,12 +524,12 @@ pinotdb==5.7.0
 platformdirs==4.5.1
 pluggy==1.6.0
 ply==3.11
-polars-runtime-32==1.37.0
-polars==1.37.0
+polars-runtime-32==1.37.1
+polars==1.37.1
 portalocker==3.2.0
 presto-python-client==0.8.4
 prison==0.2.1
-prometheus_client==0.23.1
+prometheus_client==0.24.0
 prompt_toolkit==3.0.52
 propcache==0.4.1
 proto-plus==1.27.0
@@ -651,7 +651,7 @@ thrift==0.16.0
 tiktoken==0.12.0
 tinycss2==1.4.0
 tokenizers==0.22.2
-tomlkit==0.13.3
+tomlkit==0.14.0
 tornado==6.5.4
 tqdm==4.67.1
 traitlets==5.14.3
