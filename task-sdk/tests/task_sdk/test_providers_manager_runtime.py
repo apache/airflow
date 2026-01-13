@@ -53,7 +53,7 @@ def test_cleanup_providers_manager_runtime(cleanup_providers_manager):
 @skip_if_force_lowest_dependencies_marker
 class TestProvidersManagerRuntime:
     @pytest.fixture(autouse=True)
-    def inject_fixtures(self, caplog, cleanup_providers_manager):
+    def inject_fixtures(self, caplog, cleanup_providers_manager_runtime):
         self._caplog = caplog
 
     def test_hooks_deprecation_warnings_generated(self):
