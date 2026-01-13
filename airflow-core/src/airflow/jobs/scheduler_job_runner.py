@@ -1813,7 +1813,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             .unique()
             .all()
         )
-        # todo: AIP-76 we may want to update this to handle partitions
+        # todo: AIP-76 we may want to update check existing to also check partitioned dag runs,
         #  but the thing is, there is not actually a restriction that
         #  we don't create new runs with the same partition key
         #  so it's unclear whether we should / need to.
