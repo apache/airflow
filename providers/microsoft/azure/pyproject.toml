@@ -101,9 +101,6 @@ dependencies = [
 "amazon" = [
     "apache-airflow-providers-amazon"
 ]
-"common.compat" = [
-    "apache-airflow-providers-common-compat"
-]
 "oracle" = [
     "apache-airflow-providers-oracle"
 ]

@@ -94,9 +94,6 @@ dependencies = [
     'winkerberos>=0.7.0; sys_platform == "win32"',
     'kerberos>=1.3.0; sys_platform != "win32"'
 ]
-"common.compat" = [
-    "apache-airflow-providers-common-compat"
-]
 
 [dependency-groups]
 dev = [

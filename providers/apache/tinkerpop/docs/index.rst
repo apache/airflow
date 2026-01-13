@@ -98,12 +98,13 @@ Requirements
 
 The minimum Apache Airflow version supported by this provider distribution is ``2.11.0``.
 
-==================  ==================
-PIP package         Version required
-==================  ==================
-``apache-airflow``  ``>=2.11.0``
-``gremlinpython``   ``>=3.7.3``
-==================  ==================
+==========================================  ==================
+PIP package                                 Version required
+==========================================  ==================
+``apache-airflow``                          ``>=2.11.0``
+``apache-airflow-providers-common-compat``  ``>=1.8.0``
+``gremlinpython``                           ``>=3.7.3``
+==========================================  ==================
 
 Cross provider package dependencies
 -----------------------------------

@@ -70,9 +70,6 @@ dependencies = [
 "apache.hive" = [
     "apache-airflow-providers-apache-hive"
 ]
-"common.compat" = [
-    "apache-airflow-providers-common-compat"
-]
 
 [dependency-groups]
 dev = [

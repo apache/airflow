@@ -65,9 +65,6 @@ dependencies = [
 # The optional dependencies should be modified in place in the generated file
 # Any change in the dependencies is preserved when the file is regenerated
 [project.optional-dependencies]
-"common.compat" = [
-    "apache-airflow-providers-common-compat"
-]
 "openlineage" = [
     "apache-airflow-providers-openlineage"
 ]
