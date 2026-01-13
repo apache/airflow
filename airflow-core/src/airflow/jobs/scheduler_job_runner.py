@@ -1836,11 +1836,52 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     self.log.error("Dag not found in serialized_dag table", dag_id=dag_model.dag_id)
                     continue
 
-                if not self._should_create(
-                    dag_model=dag_model,
-                    serdag=serdag,
-                    existing_dagruns=existing_dagruns,
-                ):
+                self.log.info(
+                    "evaluating dag for dagrun creation",
+                    dag_id=dag_model.dag_id,
+                    next_dagrun=str(dag_model.next_dagrun),
+                )
+                if dag_model.exceeds_max_non_backfill:
+                    self.log.warning(
+                        "Dag run cannot be created; max active runs exceeded.",
+                        dag_id=dag_model.dag_id,
+                        max_active_runs=dag_model.max_active_runs,
+                    )
+                    continue
+                if dag_model.next_dagrun is None:
+                    self.log.error(
+                        "dag_model.next_dagrun is None; expected datetime",
+                        dag_id=dag_model.dag_id,
+                    )
+                    continue
+                if dag_model.next_dagrun_create_after is None:
+                    self.log.error(
+                        "dag_model.next_dagrun_create_after is None; expected datetime",
+                        dag_id=dag_model.dag_id,
+                    )
+                    continue
+
+                # Explicitly check if the DagRun already exists. This is an edge case
+                # where a Dag Run is created but `DagModel.next_dagrun` and `DagModel.next_dagrun_create_after`
+                # are not updated.
+                # We opted to check DagRun existence instead
+                # of catching an Integrity error and rolling back the session i.e
+                # todo: AIP-76 given that there is not constraint on partition date,
+                #   how do we ensure that two schedulers don't create more than one
+                #   run for the same partition at the same time?
+                #   it will have to be governed by dag_next.dagrun; if this value
+                #   gets updated in the same commit as the dagrun creation, then,
+                #   given that dagrun creation always locks the dag model, then it
+                #   should not be possible.
+                # TODO: AIP-76 May need to simply update the existing dagruns logic!
+                #  but why is it trying to create these?
+                if dr := existing_dagruns.get((dag_model.dag_id, dag_model.next_dagrun)):
+                    self.log.warning(
+                        "run already exists; skipping dagrun creation",
+                        dag_id=dag_model.dag_id,
+                        logical_date=dag_model.next_dagrun,
+                    )
+                    dag_model.calculate_dagrun_date_fields(dag=serdag, last_automated_run=dr)
                     continue
 
                 data_interval, logical_date, partition_key, partition_date = self._next_run_info(
@@ -1910,57 +1951,6 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             data_interval = get_next_data_interval(serdag.timetable, dag_model)
             logical_date = dag_model.next_dagrun
         return data_interval, logical_date, partition_key, partition_date
-
-    def _should_create(self, dag_model: DagModel, serdag: SerializedDAG, existing_dagruns):
-        self.log.info(
-            "evaluating dag for dagrun creation",
-            dag_id=dag_model.dag_id,
-            next_dagrun=str(dag_model.next_dagrun),
-        )
-        if dag_model.exceeds_max_non_backfill:
-            self.log.warning(
-                "Dag run cannot be created; max active runs exceeded.",
-                dag_id=dag_model.dag_id,
-                max_active_runs=dag_model.max_active_runs,
-            )
-            return False
-        if dag_model.next_dagrun is None:
-            self.log.error(
-                "dag_model.next_dagrun is None; expected datetime",
-                dag_id=dag_model.dag_id,
-            )
-            return False
-        if dag_model.next_dagrun_create_after is None:
-            self.log.error(
-                "dag_model.next_dagrun_create_after is None; expected datetime",
-                dag_id=dag_model.dag_id,
-            )
-            return False
-
-        # Explicitly check if the DagRun already exists. This is an edge case
-        # where a Dag Run is created but `DagModel.next_dagrun` and `DagModel.next_dagrun_create_after`
-        # are not updated.
-        # We opted to check DagRun existence instead
-        # of catching an Integrity error and rolling back the session i.e
-        # todo: AIP-76 given that there is not constraint on partition date,
-        #   how do we ensure that two schedulers don't create more than one
-        #   run for the same partition at the same time?
-        #   it will have to be governed by dag_next.dagrun; if this value
-        #   gets updated in the same commit as the dagrun creation, then,
-        #   given that dagrun creation always locks the dag model, then it
-        #   should not be possible.
-        # TODO: AIP-76 May need to simply update the existing dagruns logic!
-        #  but why is it trying to create these?
-        if dr := existing_dagruns.get((dag_model.dag_id, dag_model.next_dagrun)):
-            self.log.warning(
-                "run already exists; skipping dagrun creation",
-                dag_id=dag_model.dag_id,
-                logical_date=dag_model.next_dagrun,
-            )
-            dag_model.calculate_dagrun_date_fields(dag=serdag, last_automated_run=dr)
-            return False
-
-        return True
 
     def _get_existing_dagruns(self, session: Session, dags):
         # Bulk Fetch DagRuns with dag_id and logical_date same
