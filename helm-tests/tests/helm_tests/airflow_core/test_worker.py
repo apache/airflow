@@ -937,8 +937,6 @@ class TestWorker:
     @pytest.mark.parametrize(
         ("airflow_version", "init_container_enabled", "expected_init_containers"),
         [
-            ("1.9.0", True, 2),
-            ("1.9.0", False, 2),
             ("1.10.14", True, 2),
             ("1.10.14", False, 2),
             ("2.0.2", True, 2),
@@ -973,7 +971,6 @@ class TestWorker:
     @pytest.mark.parametrize(
         ("airflow_version", "expected_arg"),
         [
-            ("1.9.0", "airflow worker"),
             ("1.10.14", "airflow worker"),
             ("2.0.2", "airflow celery worker"),
             ("2.1.0", "airflow celery worker"),

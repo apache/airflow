@@ -58,7 +58,7 @@ export const useTrigger = ({ dagId, onSuccessConfirm }: { dagId: string; onSucce
 
     // Only redirect if we're already on the dag page
     if (selectedDagId === dagRun.dag_id) {
-      navigate(`/dags/${dagRun.dag_id}/runs/${dagRun.dag_run_id}`);
+      void Promise.resolve(navigate(`/dags/${dagRun.dag_id}/runs/${dagRun.dag_run_id}`));
     }
   };
 

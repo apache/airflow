@@ -52,9 +52,11 @@ export const DagRunSelect = forwardRef<HTMLDivElement, DagRunSelectProps>(({ lim
   const selectDagRun = ({ items }: SelectValueChangeDetails<DagRunSelected>) => {
     const runPartialPath = items.length > 0 ? `/runs/${items[0]?.run.run_id}` : "";
 
-    navigate({
-      pathname: `/dags/${dagId}${runPartialPath}/${taskId === undefined ? "" : `tasks/${taskId}`}`,
-    });
+    void Promise.resolve(
+      navigate({
+        pathname: `/dags/${dagId}${runPartialPath}/${taskId === undefined ? "" : `tasks/${taskId}`}`,
+      }),
+    );
   };
 
   const selectedRun = (gridRuns ?? []).find((dr) => dr.run_id === runId);

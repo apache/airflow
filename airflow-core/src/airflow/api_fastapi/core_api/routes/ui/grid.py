@@ -137,6 +137,7 @@ def get_dag_structure(
     triggering_user: QueryDagRunTriggeringUserSearch,
     include_upstream: QueryIncludeUpstream = False,
     include_downstream: QueryIncludeDownstream = False,
+    depth: int | None = None,
     root: str | None = None,
 ) -> list[GridNodeResponse]:
     """Return dag structure for grid view."""
@@ -146,7 +147,10 @@ def get_dag_structure(
     # Apply filtering if root task is specified
     if root:
         latest_dag = latest_dag.partial_subset(
-            task_ids=root, include_upstream=include_upstream, include_downstream=include_downstream
+            task_ids=root,
+            include_upstream=include_upstream,
+            include_downstream=include_downstream,
+            depth=depth,
         )
 
     # Retrieve, sort the previous DAG Runs
@@ -196,7 +200,10 @@ def get_dag_structure(
             # Apply the same filtering to historical DAG versions
             if root:
                 filtered_dag = filtered_dag.partial_subset(
-                    task_ids=root, include_upstream=include_upstream, include_downstream=include_downstream
+                    task_ids=root,
+                    include_upstream=include_upstream,
+                    include_downstream=include_downstream,
+                    depth=depth,
                 )
             dags.append(filtered_dag)
     for dag in dags:
