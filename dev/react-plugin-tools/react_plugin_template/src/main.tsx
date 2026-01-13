@@ -37,7 +37,7 @@ const PluginComponent: FC<PluginComponentProps> = (props) => {
   // Use the globalChakraUISystem provided by the Airflow Core UI,
   // so the plugin has a consistent theming with the host Airflow UI,
   // fallback to localSystem for local development.
-  const system = (globalThis.ChakraUISystem)  ?? localSystem;
+  const system = (globalThis.ChakraUISystem) ?? localSystem;
 
   return (
     <ChakraProvider value={system}>
