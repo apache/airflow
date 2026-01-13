@@ -16,7 +16,6 @@
 # under the License.
 from __future__ import annotations
 
-import datetime
 from typing import TYPE_CHECKING, Any, NamedTuple, Protocol, runtime_checkable
 
 from airflow._shared.module_loading import qualname
@@ -347,6 +346,3 @@ class Timetable(Protocol):
             a DagRunInfo object when asked at another time.
         """
         raise NotImplementedError()
-
-
-DagRunInfo.exact(datetime.datetime.now())
