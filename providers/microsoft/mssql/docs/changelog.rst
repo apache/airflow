@@ -27,6 +27,18 @@
 Changelog
 ---------
 
+4.4.1
+.....
+
+Misc
+~~~~
+
+* ``New year means updated Copyright notices (#60344)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Updated conf import for std,es,os,ms providers (#60030)``
+
 4.4.0
 .....
 

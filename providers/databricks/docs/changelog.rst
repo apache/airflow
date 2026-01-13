@@ -26,6 +26,25 @@
 Changelog
 ---------
 
+7.8.3
+.....
+
+Misc
+~~~~
+
+* ``Consume ''AirflowOptionalProviderFeatureException'' from compat sdk in providers (#60335)``
+* ``Limit deltalake again to 1.3.1 due to missing ARM .whl files (#60376)``
+* ``New year means updated Copyright notices (#60344)``
+* ``Made sqlalchemy dependency optional for Databricks provider (#60110)``
+* ``Move over plugins_manager to a shared library (#59956)``
+* ``Limit deltalake again to 1.3.0 due to missing ARM .whl files (#60098)``
+* ``Source databricks provider to use airflow.sdk.configuration.conf (#60021)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Revert "Limit deltalake to not include 1.3.0 version (#59977)" (#60005)``
+   * ``Limit deltalake to not include 1.3.0 version (#59977)``
+
 7.8.2
 .....
 
