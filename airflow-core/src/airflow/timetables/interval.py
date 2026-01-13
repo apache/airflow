@@ -113,7 +113,7 @@ class _DataIntervalTimetable(Timetable):
         if restriction.latest is not None and start > restriction.latest:
             return None
         end = self._get_next(start)
-        return DagRunInfo.interval(start=start, end=end)  # todo: missing arg
+        return DagRunInfo.interval(start=start, end=end)
 
 
 class CronDataIntervalTimetable(CronMixin, _DataIntervalTimetable):
