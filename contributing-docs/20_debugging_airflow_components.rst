@@ -106,9 +106,18 @@ Setting up VSCode for Remote Debugging
 
    .. code-block:: bash
 
+       # Create only debug configurations
        python setup_vscode.py
 
-   This will create debug configurations for all Airflow components. Here's an example configuration for the scheduler:
+       # Create debug configurations and MCP configuration for Chakra UI support
+       python setup_vscode.py --with-chakra-mcp
+
+   **Options:**
+
+   * **Default behavior**: Creates debug configurations for all Airflow components in ``.vscode/launch.json``
+   * **With --with-chakra-mcp flag**: Additionally creates MCP configuration for enhanced Chakra UI development support in ``.vscode/mcp.json``
+
+   Here's an example configuration for the scheduler:
 
    .. code-block:: json
 
@@ -144,6 +153,40 @@ Setting up VSCode for Remote Debugging
 
    These ports are exposed from the Breeze container to your host machine, allowing your IDE
    to connect to the debugger running inside the container.
+
+4. **Model Context Protocol (MCP) Support**
+
+   The ``setup_vscode.py`` script can optionally create an MCP configuration file (``.vscode/mcp.json``)
+   that enhances development support for Chakra UI components used in the Airflow UI.
+
+   **To enable MCP support:**
+
+   .. code-block:: bash
+
+       python setup_vscode.py --with-chakra-mcp
+
+   This creates the following MCP configuration:
+
+   .. code-block:: json
+
+    {
+        "servers": {
+            "chakra-ui": {
+                "command": "npx",
+                "args": [
+                    "-y",
+                    "@chakra-ui/react-mcp"
+                ]
+            }
+        }
+    }
+
+   **Benefits of MCP Integration:**
+
+   * Enhanced autocomplete and IntelliSense for Chakra UI components
+   * Access to component documentation and usage patterns
+   * Real-time component prop suggestions and validation
+   * Improved development experience for Airflow UI components
 
 
 Debugging Workflow
