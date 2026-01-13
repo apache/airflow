@@ -1890,6 +1890,27 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             # TODO[HA]: Should we do a session.flush() so we don't have to keep lots of state/object in
             #  memory for larger dags? or expunge_all()
 
+    def _next_run_info(
+        self,
+        dag_model: DagModel,
+        partitioned_dags: set[Any],
+        serdag: SerializedDAG,
+    ) -> tuple[DataInterval | None, str | None, DateTime | None, DateTime | None]:
+        partition_key = None
+        partition_date = None
+        data_interval = None
+        logical_date = None
+        run_after = timezone.coerce_datetime(dag_model.next_dagrun_create_after)
+        if serdag.dag_id in partitioned_dags:
+            # todo: AIP-76 how will this work with segment-driven partition schemes?
+            #  will we still use next_dagrun?
+            #  maybe we will need `next_partition_key` instead?
+            partition_date, partition_key = serdag.timetable.get_partition_info(run_date=run_after)
+        else:
+            data_interval = get_next_data_interval(serdag.timetable, dag_model)
+            logical_date = dag_model.next_dagrun
+        return data_interval, logical_date, partition_key, partition_date
+
     def _should_create(self, dag_model: DagModel, serdag: SerializedDAG, existing_dagruns):
         self.log.info(
             "evaluating dag for dagrun creation",
@@ -1963,27 +1984,6 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         #  we don't create new runs with the same partition key
         #  so it's unclear whether we should / need to.
         return existing_dagruns
-
-    def _next_run_info(
-        self,
-        dag_model: DagModel,
-        partitioned_dags: set[Any],
-        serdag: SerializedDAG,
-    ) -> tuple[DataInterval | None, str | None, DateTime | None, DateTime | None]:
-        partition_key = None
-        partition_date = None
-        data_interval = None
-        logical_date = None
-        run_after = timezone.coerce_datetime(dag_model.next_dagrun_create_after)
-        if serdag.dag_id in partitioned_dags:
-            # todo: AIP-76 how will this work with segment-driven partition schemes?
-            #  will we still use next_dagrun?
-            #  maybe we will need `next_partition_key` instead?
-            partition_date, partition_key = serdag.timetable.get_partition_info(run_date=run_after)
-        else:
-            data_interval = get_next_data_interval(serdag.timetable, dag_model)
-            logical_date = dag_model.next_dagrun
-        return data_interval, logical_date, partition_key, partition_date
 
     def _create_dag_runs_asset_triggered(
         self,
