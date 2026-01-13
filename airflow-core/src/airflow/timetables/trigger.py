@@ -47,12 +47,7 @@ log = structlog.get_logger()
 class _TriggerTimetable(Timetable):
     _interval: datetime.timedelta | relativedelta
 
-    def __init__(self, *args, partitions: bool | None = None, **kwargs):
-        self.partitions: bool | None = partitions
-
     def infer_manual_data_interval(self, *, run_after: DateTime) -> DataInterval | None:
-        if self.partitions:
-            return None
         return DataInterval(
             coerce_datetime(run_after - self._interval),
             run_after,
@@ -193,9 +188,8 @@ class CronTriggerTimetable(CronMixin, _TriggerTimetable):
         timezone: str | Timezone | FixedTimezone,
         interval: datetime.timedelta | relativedelta = datetime.timedelta(),
         run_immediately: bool | datetime.timedelta = False,
-        partitions: bool = False,
     ) -> None:
-        super().__init__(cron, timezone, partitions=partitions)
+        super().__init__(cron, timezone)
         self._interval = interval
         self._run_immediately = run_immediately
 
@@ -208,7 +202,6 @@ class CronTriggerTimetable(CronMixin, _TriggerTimetable):
             timezone=parse_timezone(data["timezone"]),
             interval=decode_interval(data["interval"]),
             run_immediately=decode_run_immediately(data.get("run_immediately", False)),
-            partitions=data["partitions"],  # todo: AIP-76 not this
         )
 
     def serialize(self) -> dict[str, Any]:
@@ -219,7 +212,6 @@ class CronTriggerTimetable(CronMixin, _TriggerTimetable):
             "timezone": encode_timezone(self._timezone),
             "interval": encode_interval(self._interval),
             "run_immediately": encode_run_immediately(self._run_immediately),
-            "partitions": self.partitions,
         }
 
     def _calc_first_run(self) -> DateTime:
