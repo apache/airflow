@@ -32,7 +32,7 @@ from sqlalchemy.orm import Mapped, declared_attr, reconstructor, synonym
 
 from airflow._shared.module_loading import import_string
 from airflow._shared.secrets_masker import mask_secret
-from airflow.configuration import ensure_secrets_loaded
+from airflow.configuration import conf, ensure_secrets_loaded
 from airflow.exceptions import AirflowException, AirflowNotFoundException
 from airflow.models.base import ID_LEN, Base
 from airflow.models.crypto import get_fernet
@@ -490,13 +490,14 @@ class Connection(Base, LoggingMixin):
         return self.get_extra_dejson()
 
     @classmethod
-    def get_connection_from_secrets(cls, conn_id: str) -> Connection:
+    def get_connection_from_secrets(cls, conn_id: str, team_name: str | None = None) -> Connection:
         """
         Get connection by conn_id.
 
         If `MetastoreBackend` is getting used in the execution context, use Task SDK API.
 
         :param conn_id: connection id
+        :param team_name: Team name associated to the task trying to access the connection (if any)
         :return: connection
         """
         # TODO: This is not the best way of having compat, but it's "better than erroring" for now. This still
@@ -528,20 +529,27 @@ class Connection(Base, LoggingMixin):
                     raise AirflowNotFoundException(f"The conn_id `{conn_id}` isn't defined") from None
                 raise
 
-        # check cache first
-        # enabled only if SecretCache.init() has been called first
+        if team_name and not conf.getboolean("core", "multi_team"):
+            raise ValueError(
+                "Multi-team mode is not configured in the Airflow environment but the task trying to access the connection belongs to a team"
+            )
+
         from airflow.sdk import SecretCache
 
-        try:
-            uri = SecretCache.get_connection_uri(conn_id)
-            return Connection(conn_id=conn_id, uri=uri)
-        except SecretCache.NotPresentException:
-            pass  # continue business
+        # Disable cache if the variable belongs to a team. We might enable it later
+        if not team_name:
+            # check cache first
+            # enabled only if SecretCache.init() has been called first
+            try:
+                uri = SecretCache.get_connection_uri(conn_id)
+                return Connection(conn_id=conn_id, uri=uri)
+            except SecretCache.NotPresentException:
+                pass  # continue business
 
         # iterate over backends if not in cache (or expired)
         for secrets_backend in ensure_secrets_loaded():
             try:
-                conn = secrets_backend.get_connection(conn_id=conn_id)
+                conn = secrets_backend.get_connection(conn_id=conn_id, team_name=team_name)
                 if conn:
                     SecretCache.save_connection_uri(conn_id, conn.get_uri())
                     return conn

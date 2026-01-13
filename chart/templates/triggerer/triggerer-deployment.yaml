@@ -29,11 +29,11 @@
 {{- $affinity := or .Values.triggerer.affinity .Values.affinity }}
 {{- $tolerations := or .Values.triggerer.tolerations .Values.tolerations }}
 {{- $topologySpreadConstraints := or .Values.triggerer.topologySpreadConstraints .Values.topologySpreadConstraints }}
-{{- $revisionHistoryLimit := or .Values.triggerer.revisionHistoryLimit .Values.revisionHistoryLimit }}
-{{- $securityContext := include "airflowPodSecurityContext" (list . .Values.triggerer) }}
-{{- $containerSecurityContext := include "containerSecurityContext" (list . .Values.triggerer) }}
-{{- $containerSecurityContextWaitForMigrations := include "containerSecurityContext" (list . .Values.triggerer.waitForMigrations) }}
-{{- $containerSecurityContextLogGroomer := include "containerSecurityContext" (list . .Values.triggerer.logGroomerSidecar) }}
+{{- $revisionHistoryLimit := include "airflow.revisionHistoryLimit" (list .Values.triggerer.revisionHistoryLimit .Values.revisionHistoryLimit) }}
+{{- $securityContext := include "airflowPodSecurityContext" (list .Values.triggerer .Values) }}
+{{- $containerSecurityContext := include "containerSecurityContext" (list .Values.triggerer .Values) }}
+{{- $containerSecurityContextWaitForMigrations := include "containerSecurityContext" (list .Values.triggerer.waitForMigrations .Values) }}
+{{- $containerSecurityContextLogGroomer := include "containerSecurityContext" (list .Values.triggerer.logGroomerSidecar .Values) }}
 {{- $containerLifecycleHooks := or .Values.triggerer.containerLifecycleHooks .Values.containerLifecycleHooks }}
 {{- $containerLifecycleHooksLogGroomerSidecar := or .Values.triggerer.logGroomerSidecar.containerLifecycleHooks .Values.containerLifecycleHooks }}
 apiVersion: apps/v1
@@ -59,7 +59,7 @@ spec:
   {{- if not $keda }}
   replicas: {{ .Values.triggerer.replicas }}
   {{- end }}
-  {{- if $revisionHistoryLimit }}
+  {{- if ne $revisionHistoryLimit "" }}
   revisionHistoryLimit: {{ $revisionHistoryLimit }}
   {{- end }}
   selector:

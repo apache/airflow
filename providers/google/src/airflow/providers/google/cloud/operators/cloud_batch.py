@@ -22,8 +22,7 @@ from typing import TYPE_CHECKING
 
 from google.cloud.batch_v1 import Job, Task
 
-from airflow.configuration import conf
-from airflow.providers.common.compat.sdk import AirflowException
+from airflow.providers.common.compat.sdk import AirflowException, conf
 from airflow.providers.google.cloud.hooks.cloud_batch import CloudBatchHook
 from airflow.providers.google.cloud.operators.cloud_base import GoogleCloudBaseOperator
 from airflow.providers.google.cloud.triggers.cloud_batch import CloudBatchJobFinishedTrigger

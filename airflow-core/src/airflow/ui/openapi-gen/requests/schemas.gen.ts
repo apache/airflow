@@ -6499,6 +6499,17 @@ export const $TriggerResponse = {
             format: 'date-time',
             title: 'Created Date'
         },
+        queue: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Queue'
+        },
         triggerer_id: {
             anyOf: [
                 {
@@ -6512,7 +6523,7 @@ export const $TriggerResponse = {
         }
     },
     type: 'object',
-    required: ['id', 'classpath', 'kwargs', 'created_date', 'triggerer_id'],
+    required: ['id', 'classpath', 'kwargs', 'created_date', 'queue', 'triggerer_id'],
     title: 'TriggerResponse',
     description: 'Trigger serializer for responses.'
 } as const;
@@ -7143,11 +7154,22 @@ export const $ConfigResponse = {
             title: 'External Log Name'
         },
         theme: {
-            '$ref': '#/components/schemas/Theme'
+            anyOf: [
+                {
+                    '$ref': '#/components/schemas/Theme'
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
+        multi_team: {
+            type: 'boolean',
+            title: 'Multi Team'
         }
     },
     type: 'object',
-    required: ['page_size', 'auto_refresh_interval', 'hide_paused_dags_by_default', 'instance_name', 'enable_swagger_ui', 'require_confirmation_dag_change', 'default_wrap', 'test_connection', 'dashboard_alert', 'show_external_log_redirect', 'theme'],
+    required: ['page_size', 'auto_refresh_interval', 'hide_paused_dags_by_default', 'instance_name', 'enable_swagger_ui', 'require_confirmation_dag_change', 'default_wrap', 'test_connection', 'dashboard_alert', 'show_external_log_redirect', 'theme', 'multi_team'],
     title: 'ConfigResponse',
     description: 'configuration serializer.'
 } as const;

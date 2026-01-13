@@ -27,16 +27,23 @@ from google import genai
 from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID, GoogleBaseHook
 
 if TYPE_CHECKING:
+    from google.genai.pagers import Pager
     from google.genai.types import (
+        BatchJob,
         ContentListUnion,
         ContentListUnionDict,
         CountTokensConfigOrDict,
         CountTokensResponse,
+        CreateBatchJobConfig,
         CreateCachedContentConfigOrDict,
         CreateTuningJobConfigOrDict,
+        DeleteFileResponse,
+        DeleteResourceJob,
         EmbedContentConfigOrDict,
         EmbedContentResponse,
+        File,
         GenerateContentConfig,
+        ListBatchJobsConfig,
         TuningDatasetOrDict,
         TuningJob,
     )
@@ -194,3 +201,184 @@ class GenAIGenerativeModelHook(GoogleBaseHook):
         )
 
         return resp.name
+
+
+class GenAIGeminiAPIHook(GoogleBaseHook):
+    """Class for Google Cloud Generative AI Gemini Developer API hook."""
+
+    def __init__(self, gemini_api_key: str, **kwargs) -> None:
+        super().__init__(**kwargs)
+        self.gemini_api_key = gemini_api_key
+
+    def get_genai_client(self):
+        return genai.Client(
+            api_key=self.gemini_api_key,
+            vertexai=False,
+        )
+
+    def get_batch_job(
+        self,
+        job_name: str,
+    ) -> BatchJob:
+        """
+        Get batch job using Gemini Batch API.
+
+        :param job_name: Required. Batch job name.
+        """
+        client = self.get_genai_client()
+        resp = client.batches.get(name=job_name)
+        return resp
+
+    def list_batch_jobs(
+        self,
+        list_batch_jobs_config: ListBatchJobsConfig | dict | None = None,
+    ) -> Pager[BatchJob]:
+        """
+        Get list of batch jobs using Gemini Batch API.
+
+        :param list_batch_jobs_config: Optional. Configuration of returned iterator.
+        """
+        client = self.get_genai_client()
+        resp = client.batches.list(
+            config=list_batch_jobs_config,
+        )
+        return resp
+
+    def create_batch_job(
+        self,
+        model: str,
+        source: list | str,
+        create_batch_job_config: CreateBatchJobConfig | dict | None = None,
+    ) -> BatchJob:
+        """
+        Create batch job using Gemini Batch API to process large-scale, non-urgent tasks.
+
+        :param model: Required. Gemini model name to process requests.
+        :param source: Required. Requests that will be sent to chosen model.
+            Can be in format of Inline requests or file name.
+        :param create_batch_job_config: Optional. Configuration parameters for batch job.
+        """
+        client = self.get_genai_client()
+        resp = client.batches.create(
+            model=model,
+            src=source,
+            config=create_batch_job_config,
+        )
+        return resp
+
+    def delete_batch_job(
+        self,
+        job_name: str,
+    ) -> DeleteResourceJob:
+        """
+        Delete batch job using Gemini Batch API.
+
+        :param job_name: Required. Batch job name.
+        """
+        client = self.get_genai_client()
+        resp = client.batches.delete(name=job_name)
+        return resp
+
+    def cancel_batch_job(
+        self,
+        job_name: str,
+    ) -> None:
+        """
+        Cancel batch job using Gemini Batch API.
+
+        :param job_name: Required. Batch job name.
+        """
+        client = self.get_genai_client()
+        client.batches.cancel(
+            name=job_name,
+        )
+
+    def create_embeddings(
+        self,
+        model: str,
+        source: dict | str,
+        create_embeddings_config: CreateBatchJobConfig | dict | None = None,
+    ) -> BatchJob:
+        """
+        Create batch job for embeddings using Gemini Batch API to process large-scale, non-urgent tasks.
+
+        :param model: Required. Gemini model name to process requests.
+        :param source: Required. Requests that will be sent to chosen model.
+            Can be in format of Inline requests or file name.
+        :param create_embeddings_config: Optional. Configuration parameters for embeddings batch job.
+        """
+        client = self.get_genai_client()
+        input_type = "inlined_requests"
+
+        if isinstance(source, str):
+            input_type = "file_name"
+
+        self.log.info("Using %s to create embeddings", input_type)
+
+        resp = client.batches.create_embeddings(
+            model=model,
+            src={input_type: source},
+            config=create_embeddings_config,
+        )
+        return resp
+
+    def upload_file(self, path_to_file: str, upload_file_config: dict | None = None) -> File:
+        """
+        Upload file for batch job or embeddings batch job using Gemini Files API.
+
+        :param path_to_file: Required. Path to file on local filesystem.
+        :param upload_file_config: Optional. Configuration for file upload.
+        """
+        client = self.get_genai_client()
+
+        if upload_file_config is None:
+            self.log.info("Default configuration will be used to upload file")
+            try:
+                file_name, file_type = path_to_file.split("/")[-1].split(".")
+                upload_file_config = {"display_name": file_name, "mime_type": file_type}
+            except ValueError as exc:
+                raise ValueError(
+                    "Error during unpacking file name or mime type. Please check file path"
+                ) from exc
+
+        resp = client.files.upload(
+            file=path_to_file,
+            config=upload_file_config,
+        )
+        return resp
+
+    def get_file(self, file_name: str) -> File:
+        """
+        Get file's metadata for batch job or embeddings batch job using Gemini Files API.
+
+        :param file_name: Required. Name of the file in Gemini Files API.
+        """
+        client = self.get_genai_client()
+        resp = client.files.get(name=file_name)
+        return resp
+
+    def download_file(self, file_name: str) -> bytes:
+        """
+        Download file for batch job or embeddings batch job using Gemini Files API.
+
+        :param file_name: Required. Name of the file in Gemini Files API.
+        """
+        client = self.get_genai_client()
+        resp = client.files.download(file=file_name)
+        return resp
+
+    def list_files(self) -> Pager[File]:
+        """List files for stored in Gemini Files API."""
+        client = self.get_genai_client()
+        resp = client.files.list()
+        return resp
+
+    def delete_file(self, file_name: str) -> DeleteFileResponse:
+        """
+        Delete file from Gemini Files API storage.
+
+        :param file_name: Required. Name of the file in Gemini Files API.
+        """
+        client = self.get_genai_client()
+        resp = client.files.delete(name=file_name)
+        return resp

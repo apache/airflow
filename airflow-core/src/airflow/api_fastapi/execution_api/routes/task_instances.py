@@ -497,6 +497,7 @@ def _create_ti_state_update_query_and_update_state(
         trigger_row = Trigger(
             classpath=ti_patch_payload.classpath,
             kwargs={},
+            queue=ti_patch_payload.queue,
         )
         trigger_row.encrypted_kwargs = trigger_kwargs
         session.add(trigger_row)

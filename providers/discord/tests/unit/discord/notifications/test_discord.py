@@ -24,6 +24,53 @@ import pytest
 from airflow.models import Connection
 from airflow.providers.discord.notifications.discord import DiscordNotifier
 
+long_embed_fixture = {
+    "title": "Dag {{ dag.dag_id }}",
+    "type": "rich",
+    "description": "🚨 Dag description for Dag: {{ dag.dag_id }}",
+    "url": "https://example.com",
+    "timestamp": "2024-01-15T10:30:00Z",
+    "color": 0x3498DB,
+    "footer": {"text": "Dag {{ dag.dag_id }}", "icon_url": "https://example.com/footer-icon.png"},
+    "provider": {"name": "Dag {{ dag.dag_id }}", "url": "https://example.com/blog"},
+    "author": {
+        "name": "Foo",
+        "url": "https://example.com/author/foo",
+        "icon_url": "https://example.com/foo-avatar.png",
+    },
+    "fields": [
+        {"name": "Field 1", "value": "Value for {{ dag.dag_id }}", "inline": True},
+        {"name": "Field 2", "value": "Value for {{ dag.dag_id }}", "inline": True},
+    ],
+}
+
+
+exp_long_embed_fixture = {
+    "title": "Dag test_discord_webhook_notification_templated",
+    "type": "rich",
+    "description": "🚨 Dag description for Dag: test_discord_webhook_notification_templated",
+    "url": "https://example.com",
+    "timestamp": "2024-01-15T10:30:00Z",
+    "color": 0x3498DB,
+    "footer": {
+        "text": "Dag test_discord_webhook_notification_templated",
+        "icon_url": "https://example.com/footer-icon.png",
+    },
+    "provider": {
+        "name": "Dag test_discord_webhook_notification_templated",
+        "url": "https://example.com/blog",
+    },
+    "author": {
+        "name": "Foo",
+        "url": "https://example.com/author/foo",
+        "icon_url": "https://example.com/foo-avatar.png",
+    },
+    "fields": [
+        {"name": "Field 1", "value": "Value for test_discord_webhook_notification_templated", "inline": True},
+        {"name": "Field 2", "value": "Value for test_discord_webhook_notification_templated", "inline": True},
+    ],
+}
+
 
 @pytest.fixture(autouse=True)
 def setup_connections(create_connection_without_db):
@@ -72,3 +119,15 @@ async def test_async_notifier(mock_async_hook):
     )
     await notifier.async_notify({})
     assert mock_async_hook.mock_calls == [call()]
+
+
+@patch("airflow.providers.discord.notifications.discord.DiscordWebhookHook")
+def test_discord_hook_templated(mock_hook, create_dag_without_db):
+    notifier = DiscordNotifier(embed=long_embed_fixture)
+    notifier(
+        {
+            "dag": create_dag_without_db("test_discord_webhook_notification_templated"),
+        }
+    )
+    mock_hook.return_value.execute.assert_called_once()
+    assert notifier.embed == exp_long_embed_fixture

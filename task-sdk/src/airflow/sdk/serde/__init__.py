@@ -25,7 +25,7 @@ import sys
 from fnmatch import fnmatch
 from importlib import import_module
 from re import Pattern
-from typing import TYPE_CHECKING, Any, TypeVar, cast
+from typing import TYPE_CHECKING, Any, TypeVar, cast, overload
 
 import attr
 
@@ -83,6 +83,14 @@ def decode(d: dict[str, Any]) -> tuple[str, int, Any]:
     data = d.get(DATA)
 
     return classname, version, data
+
+
+@overload
+def serialize(o: dict, depth: int = 0) -> dict: ...
+@overload
+def serialize(o: None, depth: int = 0) -> None: ...
+@overload
+def serialize(o: object, depth: int = 0) -> U | None: ...
 
 
 def serialize(o: object, depth: int = 0) -> U | None:

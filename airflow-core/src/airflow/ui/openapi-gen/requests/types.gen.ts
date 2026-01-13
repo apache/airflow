@@ -1566,6 +1566,7 @@ export type TriggerResponse = {
     classpath: string;
     kwargs: string;
     created_date: string;
+    queue: string | null;
     triggerer_id: number | null;
 };
 
@@ -1771,7 +1772,8 @@ export type ConfigResponse = {
     dashboard_alert: Array<UIAlert>;
     show_external_log_redirect: boolean;
     external_log_name?: string | null;
-    theme: Theme;
+    theme: Theme | null;
+    multi_team: boolean;
 };
 
 /**
@@ -2547,6 +2549,7 @@ export type GetDagsData = {
     paused?: boolean | null;
     tags?: Array<(string)>;
     tagsMatchMode?: 'any' | 'all' | null;
+    timetableType?: Array<(string)>;
 };
 
 export type GetDagsResponse = DAGCollectionResponse;

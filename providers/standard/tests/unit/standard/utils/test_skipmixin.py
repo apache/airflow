@@ -21,6 +21,7 @@ import datetime
 from unittest.mock import MagicMock, Mock
 
 import pytest
+from sqlalchemy import select
 
 from airflow.models.taskinstance import TaskInstance as TI
 from airflow.providers.common.compat.sdk import AirflowException
@@ -89,13 +90,15 @@ class TestSkipMixin:
             session = settings.Session()
             SkipMixin().skip(dag_run=dag_run, execution_date=now, tasks=tasks)
 
-            session.query(TI).filter(
-                TI.dag_id == "dag",
-                TI.task_id == "task",
-                TI.state == State.SKIPPED,
-                TI.start_date == now,
-                TI.end_date == now,
-            ).one()
+            session.scalar(
+                select(TI).where(
+                    TI.dag_id == "dag",
+                    TI.task_id == "task",
+                    TI.state == State.SKIPPED,
+                    TI.start_date == now,
+                    TI.end_date == now,
+                )
+            )
 
     def test_skip_none_tasks(self):
         if AIRFLOW_V_3_0_PLUS:
