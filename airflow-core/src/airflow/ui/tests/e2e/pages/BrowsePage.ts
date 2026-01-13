@@ -130,7 +130,7 @@ export class BrowsePage extends BasePage {
       await this.navigateToRequiredActionsPage();
       await this.page.getByTestId("filter-bar-add-button").click();
       await this.page.getByLabel("Filter", { exact: true }).getByText("Required Action State").click();
-      await this.page.locator('[id="select:_r_c_:trigger"]').click();
+      await this.page.getByTestId("select-response_received").click();
       await this.page.getByText("Pending").click();
       await this.page.getByText("No Required Actions found").click();
     }
