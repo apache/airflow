@@ -461,7 +461,8 @@ class SerializedDAG:
         ``2021-06-03 23:00:00`` if ``align=False``, and ``2021-06-04 00:00:00``
         if ``align=True``.
 
-        # todo: AIP-76 need to update this
+        # todo: AIP-76 need to update this so that it handles partitions
+        #  see issue https://github.com/apache/airflow/issues/60455
         """
         if earliest is None:
             earliest = self._time_restriction.earliest
