@@ -283,14 +283,6 @@ repos:
           (?x)
           ^src/airflow/migrations/versions/.*\.py$|
           ^docs/migrations-ref\.rst$
-      - id: check-no-orm-refs-in-migration-scripts
-        name: No ORM references in migration scripts
-        entry: bash -c '
-          uv run -p 3.12 --no-progress --active --project apache-airflow-core
-          ../scripts/ci/prek/check_no_orm_refs_in_migration_scripts.py' --
-        language: python
-        pass_filenames: true
-        files: ^src/airflow/migrations/versions/.*\.py$
       - id: check-default-configuration
         name: Check the default configuration
         entry: ../scripts/ci/prek/check_default_configuration.py
