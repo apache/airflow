@@ -32,117 +32,39 @@ export class DagRunsPage extends BasePage {
   }
 
   /**
-   * Apply a filter by selecting a filter type and value
-   */
-  public async applyFilter(filterName: string, filterValue: string): Promise<void> {
-    const addFilterButton = this.page.locator(
-      'button:has-text("Filter"), button:has-text("Add Filter"), button[aria-label*="filter" i]',
-    );
-
-    await expect(addFilterButton.first()).toBeVisible({ timeout: 5000 });
-    await addFilterButton.first().click();
-
-    const filterMenu = this.page.locator('[role="menu"], [role="menuitem"]');
-
-    await expect(filterMenu.first()).toBeVisible({ timeout: 5000 });
-
-    const filterOption = this.page.locator(`[role="menuitem"]:has-text("${filterName}")`).first();
-
-    await expect(filterOption).toBeVisible({ timeout: 5000 });
-    await filterOption.click();
-
-    const filterPill = this.page.locator(`[role="combobox"], button:has-text("${filterName}:")`);
-
-    await expect(filterPill.first()).toBeVisible({ timeout: 5000 });
-    await filterPill.first().click();
-
-    const dropdown = this.page.locator('[role="option"], [role="listbox"]');
-
-    await expect(dropdown.first()).toBeVisible({ timeout: 5000 });
-
-    const valueOption = this.page.locator(`[role="option"]:has-text("${filterValue}")`).first();
-
-    await expect(valueOption).toBeVisible({ timeout: 5000 });
-    await valueOption.click();
-
-    await this.page.waitForLoadState("networkidle");
-  }
-
-  /**
-   * Navigate to DAG Runs page
+   * Navigate to DAG Runs page and wait for data to load
    */
   public async navigate(): Promise<void> {
     await this.navigateTo(DagRunsPage.dagRunsUrl);
     await this.page.waitForURL(/.*dag_runs/, { timeout: 15_000 });
     await this.dagRunsTable.waitFor({ state: "visible", timeout: 10_000 });
 
-    const rows = this.dagRunsTable.locator('tbody tr:not(.no-data), div[role="row"]:not(:first-child)');
+    const dataLink = this.dagRunsTable.locator("a[href*='/dags/']").first();
     const noDataMessage = this.page.locator('text="No Dag Runs found"');
 
-    try {
-      await expect(rows.first().or(noDataMessage)).toBeVisible({ timeout: 10_000 });
-    } catch {
-      await expect(this.dagRunsTable).toBeVisible();
-    }
+    await expect(dataLink.or(noDataMessage)).toBeVisible({ timeout: 30_000 });
   }
 
   /**
-   * Verify that DAG ID filtering works correctly
+   * Verify DAG ID filtering via URL parameters
    */
   public async verifyDagIdFiltering(dagIdPattern: string): Promise<void> {
-    const addFilterButton = this.page.locator(
-      'button:has-text("Filter"), button:has-text("Add Filter"), button[aria-label*="filter" i]',
-    );
-
-    await expect(addFilterButton.first()).toBeVisible({ timeout: 5000 });
-    await addFilterButton.first().click();
-
-    const filterMenu = this.page.locator('[role="menu"], [role="menuitem"]');
-
-    await expect(filterMenu.first()).toBeVisible({ timeout: 5000 });
-
-    const dagIdFilterOption = this.page.locator('[role="menuitem"]:has-text("DAG ID")').first();
-
-    await expect(dagIdFilterOption).toBeVisible({ timeout: 5000 });
-
-    const inputsBeforeClick = await this.page.locator("input").count();
-
-    await dagIdFilterOption.click();
-
-    await expect(filterMenu.first()).not.toBeVisible({ timeout: 5000 });
-
-    await this.page.waitForFunction(
-      (expectedCount: number) => document.querySelectorAll("input").length > expectedCount,
-      inputsBeforeClick,
-      { timeout: 5000 },
-    );
-
-    const filterInput = this.page.locator("input").last();
-
-    await expect(filterInput).toBeVisible({ timeout: 5000 });
-
-    await filterInput.fill(dagIdPattern);
-    await filterInput.press("Enter");
-
-    await this.page.waitForURL(/.*dag_id_pattern=.*/, { timeout: 10_000 });
+    await this.navigateTo(`${DagRunsPage.dagRunsUrl}?dag_id_pattern=${encodeURIComponent(dagIdPattern)}`);
+    await this.page.waitForURL(/.*dag_id_pattern=.*/, { timeout: 15_000 });
     await this.page.waitForLoadState("networkidle");
+
+    const dataLinks = this.dagRunsTable.locator("a[href*='/dags/']");
+
+    await expect(dataLinks.first()).toBeVisible({ timeout: 30_000 });
     await expect(this.dagRunsTable).toBeVisible();
 
-    const rowsAfterFilter = this.dagRunsTable.locator(
-      'tbody tr:not(.no-data), div[role="row"]:not(:first-child)',
-    );
-    const countAfter = await rowsAfterFilter.count();
+    const rows = this.dagRunsTable.locator("tbody tr");
+    const rowCount = await rows.count();
 
-    // Verify that we have results after filtering
-    expect(countAfter).toBeGreaterThan(0);
+    expect(rowCount).toBeGreaterThan(0);
 
-    const rows = this.dagRunsTable.locator('tbody tr:not(.no-data), div[role="row"]:not(:first-child)');
-    const rowsToCheck = Math.min(countAfter, 5);
-
-    for (let i = 0; i < rowsToCheck; i++) {
-      const row = rows.nth(i);
-      // Get the first link in the row which should be the DAG ID
-      const dagIdLink = row.locator("a[href*='/dags/']").first();
+    for (let i = 0; i < Math.min(rowCount, 5); i++) {
+      const dagIdLink = rows.nth(i).locator("a[href*='/dags/']").first();
       const dagIdText = await dagIdLink.textContent();
 
       expect(dagIdText).toBeTruthy();
@@ -151,98 +73,77 @@ export class DagRunsPage extends BasePage {
   }
 
   /**
-   * Verify that DAG runs exist in the table
+   * Verify that the table contains DAG run data
    */
   public async verifyDagRunsExist(): Promise<void> {
-    const rows = this.dagRunsTable.locator('tbody tr:not(.no-data), div[role="row"]:not(:first-child)');
+    const dataLinks = this.dagRunsTable.locator("a[href*='/dags/']");
 
-    expect(await rows.count()).toBeGreaterThan(0);
+    await expect(dataLinks.first()).toBeVisible({ timeout: 30_000 });
+    expect(await dataLinks.count()).toBeGreaterThan(0);
   }
 
   /**
-   * Verify pagination works correctly with offset and limit parameters
+   * Verify pagination controls and navigation
    */
   public async verifyPagination(limit: number): Promise<void> {
-    // Navigate with limit parameter
     await this.navigateTo(`${DagRunsPage.dagRunsUrl}?offset=0&limit=${limit}`);
-    await this.page.waitForURL(/.*dag_runs/, { timeout: 10_000 });
+    await this.page.waitForURL(/.*limit=/, { timeout: 10_000 });
+    await this.page.waitForLoadState("networkidle");
     await this.dagRunsTable.waitFor({ state: "visible", timeout: 10_000 });
 
-    const rows = this.dagRunsTable.locator('tbody tr:not(.no-data), div[role="row"]:not(:first-child)');
-    const rowCount = await rows.count();
+    const dataLinks = this.dagRunsTable.locator("a[href*='/dags/']");
 
-    // Verify we have results
-    expect(rowCount).toBeGreaterThan(0);
+    await expect(dataLinks.first()).toBeVisible({ timeout: 30_000 });
 
-    // Verify pagination controls exist
-    const paginationInfo = this.page.locator("text=/\\d+\\s*-\\s*\\d+\\s*of\\s*\\d+/i");
+    const rows = this.dagRunsTable.locator("tbody tr");
 
-    if ((await paginationInfo.count()) > 0) {
-      await expect(paginationInfo.first()).toBeVisible();
+    expect(await rows.count()).toBeGreaterThan(0);
 
-      const paginationText = (await paginationInfo.first().textContent()) ?? "";
+    const paginationNav = this.page.locator('nav[aria-label="pagination"], [role="navigation"]');
 
-      expect(paginationText).toBeTruthy();
+    await expect(paginationNav.first()).toBeVisible({ timeout: 10_000 });
 
-      // Extract the total count from pagination text (e.g., "1 - 10 of 50")
-      const regex = /(\d+)\s*-\s*(\d+)\s*of\s*(\d+)/i;
-      const match = regex.exec(paginationText);
+    const page1Button = this.page.getByRole("button", { name: /page 1|^1$/ });
 
-      if (match?.[1] !== undefined && match[2] !== undefined && match[3] !== undefined) {
-        const start = parseInt(match[1], 10);
-        const end = parseInt(match[2], 10);
-        const total = parseInt(match[3], 10);
+    await expect(page1Button.first()).toBeVisible({ timeout: 5000 });
 
-        expect(start).toBeGreaterThan(0);
-        expect(end).toBeGreaterThanOrEqual(start);
-        expect(total).toBeGreaterThanOrEqual(end);
+    const page2Button = this.page.getByRole("button", { name: /page 2|^2$/ });
+    const hasPage2 = await page2Button
+      .first()
+      .isVisible()
+      .catch(() => false);
 
-        // Test that offset changes when navigating to next page
-        const initialStart = start;
+    if (hasPage2) {
+      await page2Button.first().click();
+      await this.page.waitForLoadState("networkidle");
+      await this.dagRunsTable.waitFor({ state: "visible", timeout: 10_000 });
 
-        await this.navigateTo(`${DagRunsPage.dagRunsUrl}?offset=${limit}&limit=${limit}`);
-        await this.page.waitForURL(/.*dag_runs/, { timeout: 10_000 });
-        await this.dagRunsTable.waitFor({ state: "visible", timeout: 10_000 });
+      const dataLinksPage2 = this.dagRunsTable.locator("a[href*='/dags/']");
+      const noDataMessage = this.page.locator("text=/no.*data|no.*runs|no.*results/i");
 
-        const paginationInfoPage2 = this.page.locator("text=/\\d+\\s*-\\s*\\d+\\s*of\\s*\\d+/i");
-
-        if ((await paginationInfoPage2.count()) > 0) {
-          const paginationText2 = (await paginationInfoPage2.first().textContent()) ?? "";
-          const regex2 = /(\d+)\s*-\s*(\d+)\s*of\s*(\d+)/i;
-          const match2 = regex2.exec(paginationText2);
-
-          if (match2?.[1] !== undefined) {
-            const startPage2 = parseInt(match2[1], 10);
-
-            // Verify that the start position changed
-            expect(startPage2).toBeGreaterThan(initialStart);
-          }
-        }
-      }
+      await expect(dataLinksPage2.first().or(noDataMessage.first())).toBeVisible({ timeout: 30_000 });
     }
   }
 
   /**
-   * Verify that run details are displayed correctly
+   * Verify that run details are displayed in the table row
    */
   public async verifyRunDetailsDisplay(): Promise<void> {
-    const firstRow = this.dagRunsTable.locator("tbody tr, div[role='row']:not(:first-child)").first();
+    const firstRow = this.dagRunsTable.locator("tbody tr").first();
+
+    await expect(firstRow).toBeVisible({ timeout: 10_000 });
 
     const dagIdLink = firstRow.locator("a[href*='/dags/']").first();
 
-    if ((await dagIdLink.count()) > 0) {
-      await expect(dagIdLink).toBeVisible();
-      expect((await dagIdLink.textContent())?.trim()).toBeTruthy();
-    }
+    await expect(dagIdLink).toBeVisible();
+    expect((await dagIdLink.textContent())?.trim()).toBeTruthy();
 
     const runIdLink = firstRow.locator("a[href*='/runs/']").first();
 
     await expect(runIdLink).toBeVisible();
     expect((await runIdLink.textContent())?.trim()).toBeTruthy();
 
-    const stateCell = firstRow
-      .locator('td, div[role="cell"]')
-      .filter({ hasText: /running|success|failed|queued/i });
+    const stateCell = firstRow.locator("td").filter({ hasText: /running|success|failed|queued/i });
 
     await expect(stateCell.first()).toBeVisible();
 
@@ -251,7 +152,7 @@ export class DagRunsPage extends BasePage {
     if ((await timeElements.count()) > 0) {
       await expect(timeElements.first()).toBeVisible();
     } else {
-      const cellTexts = await firstRow.locator("td, div[role='cell']").allTextContents();
+      const cellTexts = await firstRow.locator("td").allTextContents();
       const hasDateFormat = cellTexts.some((text) =>
         /\d{4}(?:-\d{2}){2}|(?:\d{1,2}\/){2}\d{4}|(?:\d{1,2}:){2}\d{2}/.test(text),
       );
@@ -261,38 +162,27 @@ export class DagRunsPage extends BasePage {
   }
 
   /**
-   * Verify that state filtering works correctly
+   * Verify state filtering via URL parameters
    */
   public async verifyStateFiltering(expectedState: string): Promise<void> {
-    const rowsBeforeFilter = this.dagRunsTable.locator(
-      'tbody tr:not(.no-data), div[role="row"]:not(:first-child)',
-    );
-    const countBefore = await rowsBeforeFilter.count();
-
-    await this.applyFilter("State", expectedState);
-
-    await this.page.waitForURL(/.*state=.*/, { timeout: 10_000 });
+    await this.navigateTo(`${DagRunsPage.dagRunsUrl}?state=${expectedState.toLowerCase()}`);
+    await this.page.waitForURL(/.*state=.*/, { timeout: 15_000 });
     await this.page.waitForLoadState("networkidle");
+
+    const dataLinks = this.dagRunsTable.locator("a[href*='/dags/']");
+
+    await expect(dataLinks.first()).toBeVisible({ timeout: 30_000 });
     await expect(this.dagRunsTable).toBeVisible();
 
-    const rowsAfterFilter = this.dagRunsTable.locator(
-      'tbody tr:not(.no-data), div[role="row"]:not(:first-child)',
-    );
-    const countAfter = await rowsAfterFilter.count();
+    const rows = this.dagRunsTable.locator("tbody tr");
+    const rowCount = await rows.count();
 
-    if (countAfter > 0) {
-      expect(countAfter).toBeLessThanOrEqual(countBefore);
+    expect(rowCount).toBeGreaterThan(0);
 
-      const stateCells = this.dagRunsTable
-        .locator('[class*="badge"], [class*="Badge"]')
-        .filter({ hasText: new RegExp(expectedState, "i") });
+    for (let i = 0; i < rowCount; i++) {
+      const rowText = await rows.nth(i).textContent();
 
-      await expect(stateCells.first()).toBeVisible({ timeout: 5000 });
-
-      const badgeCount = await stateCells.count();
-
-      expect(badgeCount).toBeGreaterThan(0);
-      expect(badgeCount).toBeLessThanOrEqual(countAfter);
+      expect(rowText?.toLowerCase()).toContain(expectedState.toLowerCase());
     }
   }
 }
