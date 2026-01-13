@@ -400,8 +400,7 @@ class CronPartitionTimetable(CronTriggerTimetable):
         run_immediately: bool | datetime.timedelta = False,
         key_format: str = "%Y-%m-%dT%H:%M:%S",  # todo: AIP-76 we can't infer partition date from this, so we need to store it separately
     ) -> None:
-        super().__init__(cron, timezone)
-        self._run_immediately = run_immediately
+        super().__init__(cron, timezone=timezone, run_immediately=run_immediately)
         if not isinstance(run_offset, (int, NoneType)):
             # todo: AIP-76 implement timedelta / relative delta?
             raise ValueError("Run offset other than integer not supported yet.")
