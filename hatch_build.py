@@ -181,7 +181,7 @@ DOC_EXTRAS: dict[str, list[str]] = {
         "sphinxcontrib-jsmath>=1.0.1",
         "sphinxcontrib-qthelp>=1.0.3",
         "sphinxcontrib-redoc>=1.6.0",
-        "sphinxcontrib-serializinghtml==1.1.5",
+        "sphinxcontrib-serializinghtml>=1.1.5",
         "sphinxcontrib-spelling>=8.0.0",
     ],
     "doc-gen": [
