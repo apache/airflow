@@ -188,6 +188,27 @@ class TestDagRunOperator:
 
         assert exc_info.value.logical_date == timezone.datetime(2021, 1, 2, 3, 4, 5)
 
+    @pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="Implementation is different for Airflow 2 & 3")
+    def test_trigger_dagrun_operator_logs_note_af3(self, mocker):
+        """
+        Ensure that for Airflow 3.x the operator logs the note
+        before raising DagRunTriggerException.
+        """
+        mock_log = mocker.patch(
+            "airflow.providers.standard.operators.trigger_dagrun.TriggerDagRunOperator.log"
+        )
+
+        operator = TriggerDagRunOperator(
+            task_id="test_trigger",
+            trigger_dag_id="target_dag",
+            note="Test note",
+        )
+
+        with pytest.raises(DagRunTriggerException):
+            operator.execute(context={"ti": mocker.Mock()})
+
+        mock_log.info.assert_called_once_with("Triggered DAG with note: %s", "Test note")
+
     def test_trigger_dagrun_operator_templated_invalid_conf(self, dag_maker):
         """Test passing a conf that is not JSON Serializable raise error."""
         with dag_maker(
@@ -565,6 +586,27 @@ class TestDagRunOperatorAF2:
             dagrun = dag_maker.session.scalar(select(DagRun).where(DagRun.dag_id == TRIGGERED_DAG_ID))
             assert dagrun.run_type == DagRunType.MANUAL
             assert dagrun.run_id == DagRun.generate_run_id(DagRunType.MANUAL, dagrun.logical_date)
+
+    def test_trigger_dagrun_operator_logs_note(self, dag_maker, mocker):
+        """
+        Ensure that for Airflow 2.x the operator logs the note when provided.
+        This test can be removed once providers drop support for Airflow 2.
+        """
+        mock_log = mocker.patch(
+            "airflow.providers.standard.operators.trigger_dagrun.TriggerDagRunOperator.log"
+        )
+
+        with dag_maker(TEST_DAG_ID, default_args={"start_date": DEFAULT_DATE}, serialized=True):
+            task = TriggerDagRunOperator(
+                task_id="test_task",
+                trigger_dag_id=TRIGGERED_DAG_ID,
+                note="Test note for AF2",
+            )
+
+        dag_maker.create_dagrun()
+        task.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
+
+        mock_log.info.assert_called_once_with("Triggered DAG with note: %s", "Test note for AF2")
 
     def test_explicitly_provided_trigger_run_id_is_saved_as_attr(self, dag_maker, session):
         with dag_maker(TEST_DAG_ID, default_args={"start_date": DEFAULT_DATE}, serialized=True):

@@ -173,6 +173,7 @@ class TriggerDagRunOperator(BaseOperator):
         fail_when_dag_is_paused: bool = False,
         deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         openlineage_inject_parent_info: bool = True,
+        note: str | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -190,6 +191,7 @@ class TriggerDagRunOperator(BaseOperator):
             self.failed_states = [DagRunState(s) for s in failed_states]
         else:
             self.failed_states = [DagRunState.FAILED]
+        self.note = note
         self.skip_when_already_exists = skip_when_already_exists
         self.fail_when_dag_is_paused = fail_when_dag_is_paused
         self.openlineage_inject_parent_info = openlineage_inject_parent_info
@@ -264,6 +266,9 @@ class TriggerDagRunOperator(BaseOperator):
             )
 
     def _trigger_dag_af_3(self, context, run_id, parsed_logical_date):
+        if self.note:
+            self.log.info("Triggered DAG with note: %s", self.note)
+
         from airflow.providers.common.compat.sdk import DagRunTriggerException
 
         raise DagRunTriggerException(
@@ -281,6 +286,9 @@ class TriggerDagRunOperator(BaseOperator):
         )
 
     def _trigger_dag_af_2(self, context, run_id, parsed_logical_date):
+        if self.note:
+            self.log.info("Triggered DAG with note: %s", self.note)
+
         try:
             dag_run = trigger_dag(
                 dag_id=self.trigger_dag_id,
