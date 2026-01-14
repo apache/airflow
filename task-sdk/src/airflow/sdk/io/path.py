@@ -372,6 +372,7 @@ class ObjectStoragePath(ProxyUPath):
 
         :param target_dir: Destination directory
         :param recursive: If True, copy directories recursively.
+
         kwargs: Additional keyword arguments to be passed to the underlying implementation.
         """
         if isinstance(target_dir, str):
@@ -410,7 +411,9 @@ class ObjectStoragePath(ProxyUPath):
         Move file(s) from this path into another directory.
 
         :param target_dir: Destination directory
-        :param recursive: If True, move directories recursively.
+        :param recursive: bool
+                         If True, move directories recursively.
+
         kwargs: Additional keyword arguments to be passed to the underlying implementation.
         """
         if isinstance(target_dir, str):
