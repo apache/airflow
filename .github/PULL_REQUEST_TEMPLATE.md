@@ -16,7 +16,9 @@ In case of an existing issue, reference it using one of the following:
 * related: #ISSUE
 -->
 
-## Was generative AI tooling used to co-author this PR?
+---
+
+##### Was generative AI tooling used to co-author this PR?
 
 <!--
 If generative AI tooling has been used in the process of authoring this PR, please
