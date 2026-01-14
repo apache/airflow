@@ -4545,6 +4545,7 @@ class TestWeightRule:
         with pytest.raises(ValueError, match="Unknown priority strategy"):
             OperatorSerialization.serialize(op)
 
+
 def test_deserialization_of_templated_date_in_mapped_operator():
     """
     Verify that a templated string in a date field doesn't crash deserialization.
@@ -4554,9 +4555,7 @@ def test_deserialization_of_templated_date_in_mapped_operator():
 
     # Create a mapped operator where logical_date is a Jinja string
     op = TriggerDagRunOperator.partial(
-        task_id="test_task",
-        trigger_dag_id="target_dag",
-        logical_date="{{ ts_nodash_with_tz }}"
+        task_id="test_task", trigger_dag_id="target_dag", logical_date="{{ ts_nodash_with_tz }}"
     ).expand(trigger_dag_id=["dag_1", "dag_2"])
 
     # 1. Serialize the operator
