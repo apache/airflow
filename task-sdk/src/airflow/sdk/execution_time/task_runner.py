@@ -40,7 +40,6 @@ from pydantic import AwareDatetime, ConfigDict, Field, JsonValue, TypeAdapter
 
 from airflow.dag_processing.bundles.base import BaseDagBundle, BundleVersionLock
 from airflow.dag_processing.bundles.manager import DagBundlesManager
-from airflow.listeners.listener import get_listener_manager
 from airflow.sdk.api.client import get_hostname, getuser
 from airflow.sdk.api.datamodels._generated import (
     AssetProfile,
@@ -118,6 +117,7 @@ from airflow.sdk.execution_time.context import (
 )
 from airflow.sdk.execution_time.sentry import Sentry
 from airflow.sdk.execution_time.xcom import XCom
+from airflow.sdk.listener import get_listener_manager
 from airflow.sdk.observability.stats import Stats
 from airflow.sdk.timezone import coerce_datetime
 from airflow.triggers.base import BaseEventTrigger
@@ -671,8 +671,8 @@ def _xcom_push_to_db(ti: RuntimeTaskInstance, key: str, value: Any) -> None:
 
 def parse(what: StartupDetails, log: Logger) -> RuntimeTaskInstance:
     # TODO: Task-SDK:
-    # Using DagBag here is about 98% wrong, but it'll do for now
-    from airflow.dag_processing.dagbag import DagBag
+    # Using BundleDagBag here is about 98% wrong, but it'll do for now
+    from airflow.dag_processing.dagbag import BundleDagBag
 
     bundle_info = what.bundle_info
     bundle_instance = DagBundlesManager().get_bundle(
@@ -681,17 +681,12 @@ def parse(what: StartupDetails, log: Logger) -> RuntimeTaskInstance:
     )
     bundle_instance.initialize()
 
-    # Put bundle root on sys.path if needed. This allows the dag bundle to add
-    # code in util modules to be shared between files within the same bundle.
-    if (bundle_root := os.fspath(bundle_instance.path)) not in sys.path:
-        sys.path.append(bundle_root)
-
     dag_absolute_path = os.fspath(Path(bundle_instance.path, what.dag_rel_path))
-    bag = DagBag(
+    bag = BundleDagBag(
         dag_folder=dag_absolute_path,
-        include_examples=False,
         safe_mode=False,
         load_op_links=False,
+        bundle_path=bundle_instance.path,
         bundle_name=bundle_info.name,
     )
     if TYPE_CHECKING:

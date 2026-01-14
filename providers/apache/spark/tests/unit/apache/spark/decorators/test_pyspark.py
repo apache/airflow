@@ -100,11 +100,10 @@ class TestPysparkDecorator:
         conf_mock.return_value = config
 
         @task.pyspark(conn_id="pyspark_local", config_kwargs={"spark.executor.memory": "2g"})
-        def f(spark, sc):
+        def f(spark):
             import random
 
             assert spark is not None
-            assert sc is not None
             return [random.random() for _ in range(100)]
 
         with dag_maker():
@@ -129,7 +128,7 @@ class TestPysparkDecorator:
         e = 2
 
         @task.pyspark
-        def f():
+        def f(spark):
             return e
 
         with dag_maker():
@@ -148,9 +147,8 @@ class TestPysparkDecorator:
         conf_mock.return_value = config
 
         @task.pyspark(conn_id="spark-connect")
-        def f(spark, sc):
+        def f(spark):
             assert spark is not None
-            assert sc is None
 
             return True
 
@@ -172,9 +170,8 @@ class TestPysparkDecorator:
         conf_mock.return_value = config
 
         @task.pyspark(conn_id="spark-connect-auth")
-        def f(spark, sc):
+        def f(spark):
             assert spark is not None
-            assert sc is None
 
             return True
 

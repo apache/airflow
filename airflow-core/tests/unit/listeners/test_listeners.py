@@ -25,7 +25,6 @@ import pytest
 from airflow._shared.timezones import timezone
 from airflow.exceptions import AirflowException
 from airflow.jobs.job import Job, run_job
-from airflow.listeners.listener import get_listener_manager
 from airflow.providers.standard.operators.bash import BashOperator
 from airflow.utils.session import provide_session
 from airflow.utils.state import DagRunState, TaskInstanceState
@@ -58,20 +57,16 @@ TEST_DAG_FOLDER = os.environ["AIRFLOW__CORE__DAGS_FOLDER"]
 
 
 @pytest.fixture(autouse=True)
-def clean_listener_manager():
-    lm = get_listener_manager()
-    lm.clear()
+def clean_listener_state():
+    """Clear listener state after each test."""
     yield
-    lm = get_listener_manager()
-    lm.clear()
     for listener in LISTENERS:
         listener.clear()
 
 
 @provide_session
-def test_listener_gets_calls(create_task_instance, session):
-    lm = get_listener_manager()
-    lm.add_listener(full_listener)
+def test_listener_gets_calls(create_task_instance, session, listener_manager):
+    listener_manager(full_listener)
 
     ti = create_task_instance(session=session, state=TaskInstanceState.QUEUED)
     # Using ti.run() instead of ti._run_raw_task() to capture state change to RUNNING
@@ -84,12 +79,11 @@ def test_listener_gets_calls(create_task_instance, session):
 
 
 @provide_session
-def test_multiple_listeners(create_task_instance, session):
-    lm = get_listener_manager()
-    lm.add_listener(full_listener)
-    lm.add_listener(lifecycle_listener)
+def test_multiple_listeners(create_task_instance, session, listener_manager):
+    listener_manager(full_listener)
+    listener_manager(lifecycle_listener)
     class_based_listener = class_listener.ClassBasedListener()
-    lm.add_listener(class_based_listener)
+    listener_manager(class_based_listener)
 
     job = Job()
     job_runner = MockJobRunner(job=job)
@@ -105,9 +99,8 @@ def test_multiple_listeners(create_task_instance, session):
 
 
 @provide_session
-def test_listener_gets_only_subscribed_calls(create_task_instance, session):
-    lm = get_listener_manager()
-    lm.add_listener(partial_listener)
+def test_listener_gets_only_subscribed_calls(create_task_instance, session, listener_manager):
+    listener_manager(partial_listener)
 
     ti = create_task_instance(session=session, state=TaskInstanceState.QUEUED)
     # Using ti.run() instead of ti._run_raw_task() to capture state change to RUNNING
@@ -120,9 +113,8 @@ def test_listener_gets_only_subscribed_calls(create_task_instance, session):
 
 
 @provide_session
-def test_listener_suppresses_exceptions(create_task_instance, session, cap_structlog):
-    lm = get_listener_manager()
-    lm.add_listener(throwing_listener)
+def test_listener_suppresses_exceptions(create_task_instance, session, cap_structlog, listener_manager):
+    listener_manager(throwing_listener)
 
     ti = create_task_instance(session=session, state=TaskInstanceState.QUEUED)
     ti.run()
@@ -130,9 +122,8 @@ def test_listener_suppresses_exceptions(create_task_instance, session, cap_struc
 
 
 @provide_session
-def test_listener_captures_failed_taskinstances(create_task_instance_of_operator, session):
-    lm = get_listener_manager()
-    lm.add_listener(full_listener)
+def test_listener_captures_failed_taskinstances(create_task_instance_of_operator, session, listener_manager):
+    listener_manager(full_listener)
 
     ti = create_task_instance_of_operator(
         BashOperator, dag_id=DAG_ID, logical_date=LOGICAL_DATE, task_id=TASK_ID, bash_command="exit 1"
@@ -145,9 +136,10 @@ def test_listener_captures_failed_taskinstances(create_task_instance_of_operator
 
 
 @provide_session
-def test_listener_captures_longrunning_taskinstances(create_task_instance_of_operator, session):
-    lm = get_listener_manager()
-    lm.add_listener(full_listener)
+def test_listener_captures_longrunning_taskinstances(
+    create_task_instance_of_operator, session, listener_manager
+):
+    listener_manager(full_listener)
 
     ti = create_task_instance_of_operator(
         BashOperator, dag_id=DAG_ID, logical_date=LOGICAL_DATE, task_id=TASK_ID, bash_command="sleep 5"
@@ -159,10 +151,9 @@ def test_listener_captures_longrunning_taskinstances(create_task_instance_of_ope
 
 
 @provide_session
-def test_class_based_listener(create_task_instance, session):
-    lm = get_listener_manager()
+def test_class_based_listener(create_task_instance, session, listener_manager):
     listener = class_listener.ClassBasedListener()
-    lm.add_listener(listener)
+    listener_manager(listener)
 
     ti = create_task_instance(session=session, state=TaskInstanceState.QUEUED)
     ti.run()
@@ -170,16 +161,15 @@ def test_class_based_listener(create_task_instance, session):
     assert listener.state == [TaskInstanceState.RUNNING, TaskInstanceState.SUCCESS, DagRunState.SUCCESS]
 
 
-def test_listener_logs_call(caplog, create_task_instance, session):
-    caplog.set_level(logging.DEBUG, logger="airflow.listeners.listener")
-    lm = get_listener_manager()
-    lm.add_listener(full_listener)
+def test_listener_logs_call(caplog, create_task_instance, session, listener_manager):
+    caplog.set_level(logging.DEBUG, logger="airflow.sdk._shared.listeners.listener")
+    listener_manager(full_listener)
 
     ti = create_task_instance(session=session, state=TaskInstanceState.QUEUED)
     ti.run()
 
-    listener_logs = [r for r in caplog.record_tuples if r[0] == "airflow.listeners.listener"]
-    assert all(r[:-1] == ("airflow.listeners.listener", logging.DEBUG) for r in listener_logs)
+    listener_logs = [r for r in caplog.record_tuples if r[0] == "airflow.sdk._shared.listeners.listener"]
+    assert all(r[:-1] == ("airflow.sdk._shared.listeners.listener", logging.DEBUG) for r in listener_logs)
     assert listener_logs[0][-1].startswith("Calling 'on_task_instance_running' with {'")
     assert listener_logs[1][-1].startswith("Hook impls: [<HookImpl plugin")
     assert listener_logs[2][-1] == "Result from 'on_task_instance_running': []"

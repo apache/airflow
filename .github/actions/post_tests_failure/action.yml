@@ -22,21 +22,21 @@ runs:
   using: "composite"
   steps:
     - name: "Upload airflow logs"
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4.6.2
       with:
         name: airflow-logs-${{env.JOB_ID}}
         path: './files/airflow_logs*'
         retention-days: 7
         if-no-files-found: ignore
     - name: "Upload container logs"
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4.6.2
       with:
         name: container-logs-${{env.JOB_ID}}
         path: "./files/container_logs*"
         retention-days: 7
         if-no-files-found: ignore
     - name: "Upload other logs"
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4.6.2
       with:
         name: container-logs-${{env.JOB_ID}}
         path: "./files/other_logs*"

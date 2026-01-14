@@ -27,7 +27,6 @@ from fastapi import FastAPI
 from airflow.api_fastapi.app import AUTH_MANAGER_FASTAPI_APP_PREFIX
 from airflow.api_fastapi.auth.managers.base_auth_manager import BaseAuthManager
 from airflow.cli.cli_config import CLICommand
-from airflow.exceptions import AirflowOptionalProviderFeatureException
 from airflow.providers.amazon.aws.auth_manager.avp.entities import AvpEntities
 from airflow.providers.amazon.aws.auth_manager.avp.facade import (
     AwsAuthManagerAmazonVerifiedPermissionsFacade,
@@ -35,7 +34,7 @@ from airflow.providers.amazon.aws.auth_manager.avp.facade import (
 )
 from airflow.providers.amazon.aws.auth_manager.user import AwsAuthManagerUser
 from airflow.providers.amazon.version_compat import AIRFLOW_V_3_0_PLUS
-from airflow.providers.common.compat.sdk import conf
+from airflow.providers.common.compat.sdk import AirflowOptionalProviderFeatureException, conf
 
 if TYPE_CHECKING:
     from airflow.api_fastapi.auth.managers.base_auth_manager import ResourceMethod
