@@ -28,11 +28,10 @@ import { useDeleteDagRun } from "src/queries/useDeleteDagRun";
 
 type DeleteRunButtonProps = {
   readonly dagRun: DAGRunResponse;
-  readonly variant?: string;
   readonly withText?: boolean;
 } & Omit<ButtonProps, "colorPalette" | "onClick" | "variant">;
 
-const DeleteRunButton = ({ dagRun, variant, withText = true, ...rest }: DeleteRunButtonProps) => {
+const DeleteRunButton = ({ dagRun, withText, ...rest }: DeleteRunButtonProps) => {
   const { onClose, onOpen, open } = useDisclosure();
   const navigate = useNavigate();
   const location = useLocation();
@@ -58,8 +57,6 @@ const DeleteRunButton = ({ dagRun, variant, withText = true, ...rest }: DeleteRu
         colorPalette="danger"
         icon={<FiTrash2 />}
         onClick={onOpen}
-        text={translate("dags:runAndTaskActions.delete.button", { type: translate("dagRun_one") })}
-        variant={variant}
         withText={withText}
         {...rest}
       />

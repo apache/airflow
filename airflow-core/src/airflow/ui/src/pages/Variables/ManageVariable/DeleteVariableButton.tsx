@@ -46,8 +46,6 @@ const DeleteVariableButton = ({ deleteKey: variableKey, disabled }: Props) => {
         onClick={() => {
           onOpen();
         }}
-        text={translate("variables.delete.title")}
-        withText={false}
       />
 
       <Dialog.Root onOpenChange={onClose} open={open} size="xl">

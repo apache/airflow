@@ -28,10 +28,17 @@ import { useDeleteDag } from "src/queries/useDeleteDag";
 type DeleteDagButtonProps = {
   readonly dagDisplayName: string;
   readonly dagId: string;
+  readonly variant?: "ghost" | "outline";
   readonly withText?: boolean;
 } & ButtonProps;
 
-const DeleteDagButton = ({ dagDisplayName, dagId, width, withText = true }: DeleteDagButtonProps) => {
+export const DeleteDagButton = ({
+  dagDisplayName,
+  dagId,
+  variant = "ghost",
+  width,
+  withText,
+}: DeleteDagButtonProps) => {
   const { onClose, onOpen, open } = useDisclosure();
   const navigate = useNavigate();
   const location = useLocation();
@@ -56,7 +63,7 @@ const DeleteDagButton = ({ dagDisplayName, dagId, width, withText = true }: Dele
         colorPalette="danger"
         icon={<FiTrash2 />}
         onClick={onOpen}
-        text={translate("dagActions.delete.button")}
+        variant={variant}
         width={width}
         withText={withText}
       />
@@ -73,5 +80,3 @@ const DeleteDagButton = ({ dagDisplayName, dagId, width, withText = true }: Dele
     </Box>
   );
 };
-
-export default DeleteDagButton;

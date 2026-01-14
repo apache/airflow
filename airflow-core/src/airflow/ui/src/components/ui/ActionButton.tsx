@@ -26,8 +26,6 @@ type Props = {
   readonly colorPalette?: string;
   readonly icon: ReactElement;
   readonly onClick?: () => void;
-  readonly text: string;
-  readonly variant?: string;
   readonly withText?: boolean;
 } & ButtonProps;
 
@@ -37,28 +35,28 @@ const ActionButton = ({
   disabled = false,
   icon,
   onClick,
-  text,
   variant = "outline",
-  withText = true,
+  withText = false,
   ...rest
 }: Props) => {
   const ButtonComponent: FC<ButtonProps> = withText ? Button : IconButton;
 
   return (
-    <Tooltip content={actionName} disabled={Boolean(withText)}>
+    <Tooltip content={actionName} disabled={withText}>
       {/* Extra div required for the Tooltip to be properly positioned if the ActionButton is used inside a Menu component*/}
       <div>
         <ButtonComponent
           aria-label={actionName}
-          colorPalette={withText ? colorPalette : "brand"}
+          colorPalette={colorPalette}
           disabled={disabled}
           onClick={onClick}
-          size={withText ? "md" : "sm"}
-          variant={withText ? variant : "ghost"}
+          size="sm"
+          title={actionName}
+          variant={variant}
           {...rest}
         >
           {icon}
-          {withText ? text : ""}
+          {withText ? actionName : undefined}
         </ButtonComponent>
       </div>
     </Tooltip>

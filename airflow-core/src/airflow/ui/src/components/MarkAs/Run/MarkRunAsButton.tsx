@@ -16,11 +16,12 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, useDisclosure } from "@chakra-ui/react";
+import { Box, HStack, useDisclosure } from "@chakra-ui/react";
 import { useState } from "react";
 import { useHotkeys } from "react-hotkeys-hook";
 import { useTranslation } from "react-i18next";
-import { MdArrowDropDown } from "react-icons/md";
+import { FiX } from "react-icons/fi";
+import { LuCheck } from "react-icons/lu";
 
 import type { DAGRunPatchStates, DAGRunResponse } from "openapi/requests/types.gen";
 import { StateBadge } from "src/components/StateBadge";
@@ -33,10 +34,9 @@ import MarkRunAsDialog from "./MarkRunAsDialog";
 type Props = {
   readonly dagRun: DAGRunResponse;
   readonly isHotkeyEnabled?: boolean;
-  readonly withText?: boolean;
 };
 
-const MarkRunAsButton = ({ dagRun, isHotkeyEnabled = false, withText = true }: Props) => {
+const MarkRunAsButton = ({ dagRun, isHotkeyEnabled = false }: Props) => {
   const { onClose, onOpen, open } = useDisclosure();
   const [state, setState] = useState<DAGRunPatchStates>("success");
   const { t: translate } = useTranslation();
@@ -65,10 +65,13 @@ const MarkRunAsButton = ({ dagRun, isHotkeyEnabled = false, withText = true }: P
         <Menu.Trigger asChild>
           <ActionButton
             actionName={translate("dags:runAndTaskActions.markAs.button", { type: translate("dagRun_one") })}
-            flexDirection="row-reverse"
-            icon={<MdArrowDropDown />}
-            text={translate("dags:runAndTaskActions.markAs.button", { type: translate("dagRun_one") })}
-            withText={withText}
+            icon={
+              <HStack gap={1} mx={1}>
+                <LuCheck />
+                <span>/</span>
+                <FiX />
+              </HStack>
+            }
           />
         </Menu.Trigger>
         <Menu.Content>

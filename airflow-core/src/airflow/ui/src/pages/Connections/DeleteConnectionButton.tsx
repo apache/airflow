@@ -46,8 +46,6 @@ const DeleteConnectionButton = ({ connectionId, disabled }: Props) => {
         onClick={() => {
           onOpen();
         }}
-        text={translate("connections.delete.title")}
-        withText={false}
       />
 
       <Dialog.Root onOpenChange={onClose} open={open} size="xl">

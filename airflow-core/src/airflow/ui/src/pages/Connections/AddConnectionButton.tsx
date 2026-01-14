@@ -47,14 +47,7 @@ const AddConnectionButton = () => {
 
   return (
     <Box>
-      <ActionButton
-        actionName={translate("connections.add")}
-        colorPalette="brand"
-        icon={<FiPlusCircle />}
-        onClick={onOpen}
-        text={translate("connections.add")}
-        variant="solid"
-      />
+      <ActionButton actionName={translate("connections.add")} icon={<FiPlusCircle />} onClick={onOpen} />
 
       <Dialog.Root lazyMount onOpenChange={onClose} open={open} size="xl" unmountOnExit>
         <Dialog.Content backdrop>

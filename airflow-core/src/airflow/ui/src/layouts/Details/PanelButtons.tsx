@@ -20,7 +20,6 @@
  */
 import {
   Box,
-  Button,
   ButtonGroup,
   createListCollection,
   Flex,
@@ -36,7 +35,7 @@ import { useReactFlow } from "@xyflow/react";
 import { useEffect, useRef } from "react";
 import { useHotkeys } from "react-hotkeys-hook";
 import { useTranslation } from "react-i18next";
-import { FiChevronDown, FiGrid } from "react-icons/fi";
+import { FiGrid, FiMenu } from "react-icons/fi";
 import { LuKeyboard } from "react-icons/lu";
 import { MdOutlineAccountTree } from "react-icons/md";
 import type { ImperativePanelGroupHandle } from "react-resizable-panels";
@@ -227,7 +226,7 @@ export const PanelButtons = ({
         <ButtonGroup attached size="sm" variant="outline">
           <IconButton
             aria-label={translate("dag:panel.buttons.showGridShortcut")}
-            bg={dagView === "grid" ? "brand.500" : "bg.subtle"}
+            bg={dagView === "grid" ? "brand.500" : "bg"}
             color={dagView === "grid" ? "white" : "fg.default"}
             colorPalette="brand"
             onClick={() => {
@@ -242,7 +241,7 @@ export const PanelButtons = ({
           </IconButton>
           <IconButton
             aria-label={translate("dag:panel.buttons.showGraphShortcut")}
-            bg={dagView === "graph" ? "brand.500" : "bg.subtle"}
+            bg={dagView === "graph" ? "brand.500" : "bg"}
             color={dagView === "graph" ? "white" : "fg.default"}
             colorPalette="brand"
             onClick={() => {
@@ -262,10 +261,15 @@ export const PanelButtons = ({
           {/* eslint-disable-next-line jsx-a11y/no-autofocus */}
           <Popover.Root autoFocus={false} positioning={{ placement: "bottom-end" }}>
             <Popover.Trigger asChild>
-              <Button bg="bg.subtle" color="fg.default" size="sm" variant="outline">
-                {translate("dag:panel.buttons.options")}
-                <FiChevronDown size={8} />
-              </Button>
+              <IconButton
+                aria-label={translate("dag:panel.buttons.options")}
+                bg="bg"
+                size="sm"
+                title={translate("dag:panel.buttons.options")}
+                variant="outline"
+              >
+                <FiMenu />
+              </IconButton>
             </Popover.Trigger>
             <Portal>
               <Popover.Positioner>

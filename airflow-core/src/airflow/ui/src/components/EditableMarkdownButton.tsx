@@ -35,8 +35,6 @@ const EditableMarkdownButton = ({
   onOpen,
   placeholder,
   setMdContent,
-  text,
-  withText = true,
 }: {
   readonly header: string;
   readonly isPending: boolean;
@@ -45,19 +43,19 @@ const EditableMarkdownButton = ({
   readonly onOpen: () => void;
   readonly placeholder: string;
   readonly setMdContent: (value: string) => void;
-  readonly text: string;
-  readonly withText?: boolean;
 }) => {
   const { t: translate } = useTranslation("common");
   const [isOpen, setIsOpen] = useState(false);
 
-  const noteIcon = Boolean(mdContent?.trim()) ? <PiNoteLight /> : <PiNoteBlankLight />;
+  const hasContent = Boolean(mdContent?.trim());
+  const noteIcon = hasContent ? <PiNoteLight /> : <PiNoteBlankLight />;
+  const actionName = hasContent ? translate("note.label") : translate("note.add");
 
   return (
     <Box>
       <Box display="inline-block" position="relative">
         <ActionButton
-          actionName={placeholder}
+          actionName={actionName}
           icon={noteIcon}
           onClick={() => {
             if (!isOpen) {
@@ -65,21 +63,7 @@ const EditableMarkdownButton = ({
             }
             setIsOpen(true);
           }}
-          text={text}
-          variant="outline"
-          withText={withText}
         />
-        {Boolean(mdContent?.trim()) && (
-          <Box
-            bg="brand.500"
-            borderRadius="full"
-            height={2.5}
-            position="absolute"
-            right={-0.5}
-            top={-0.5}
-            width={2.5}
-          />
-        )}
       </Box>
       <Dialog.Root
         data-testid="markdown-modal"

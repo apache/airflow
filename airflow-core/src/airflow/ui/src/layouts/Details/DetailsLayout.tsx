@@ -37,7 +37,7 @@ import type { DagRunState, DagRunType } from "openapi/requests/types.gen";
 import BackfillBanner from "src/components/Banner/BackfillBanner";
 import { DAGWarningsModal } from "src/components/DAGWarningsModal";
 import { SearchDagsButton } from "src/components/SearchDags";
-import TriggerDAGButton from "src/components/TriggerDag/TriggerDAGButton";
+import { TriggerDAGButton } from "src/components/TriggerDag/TriggerDAGButton";
 import { ProgressBar } from "src/components/ui";
 import { Toaster } from "src/components/ui";
 import ActionButton from "src/components/ui/ActionButton";
@@ -99,6 +99,8 @@ export const DetailsLayout = ({ children, error, isLoading, tabs }: Props) => {
                 dagDisplayName={dag.dag_display_name}
                 dagId={dag.dag_id}
                 isPaused={dag.is_paused}
+                variant="outline"
+                withText
               />
             )}
           </Flex>
@@ -227,14 +229,13 @@ export const DetailsLayout = ({ children, error, isLoading, tabs }: Props) => {
                     {Boolean(error) || (warningData?.dag_warnings.length ?? 0) > 0 ? (
                       <>
                         <ActionButton
-                          actionName={translate("common:dagWarnings")}
+                          actionName={`${translate("common:dagWarnings")} (${warningData?.total_entries ?? 0 + Number(error)})`}
                           colorPalette={Boolean(error) ? "red" : "orange"}
                           icon={<LuFileWarning />}
                           margin="2"
                           marginBottom="-1"
                           onClick={onOpen}
                           rounded="full"
-                          text={String(warningData?.total_entries ?? 0 + Number(error))}
                           variant="solid"
                         />
 

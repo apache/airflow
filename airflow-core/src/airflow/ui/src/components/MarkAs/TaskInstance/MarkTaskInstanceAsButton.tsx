@@ -16,11 +16,12 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, useDisclosure } from "@chakra-ui/react";
+import { Box, HStack, useDisclosure } from "@chakra-ui/react";
 import { useState } from "react";
 import { useHotkeys } from "react-hotkeys-hook";
 import { useTranslation } from "react-i18next";
-import { MdArrowDropDown } from "react-icons/md";
+import { FiX } from "react-icons/fi";
+import { LuCheck } from "react-icons/lu";
 
 import type { TaskInstanceResponse, TaskInstanceState } from "openapi/requests/types.gen";
 import { StateBadge } from "src/components/StateBadge";
@@ -33,10 +34,9 @@ import MarkTaskInstanceAsDialog from "./MarkTaskInstanceAsDialog";
 type Props = {
   readonly isHotkeyEnabled?: boolean;
   readonly taskInstance: TaskInstanceResponse;
-  readonly withText?: boolean;
 };
 
-const MarkTaskInstanceAsButton = ({ isHotkeyEnabled = false, taskInstance, withText = true }: Props) => {
+const MarkTaskInstanceAsButton = ({ isHotkeyEnabled = false, taskInstance }: Props) => {
   const { onClose, onOpen, open } = useDisclosure();
   const { t: translate } = useTranslation();
 
@@ -68,10 +68,13 @@ const MarkTaskInstanceAsButton = ({ isHotkeyEnabled = false, taskInstance, withT
             actionName={translate("dags:runAndTaskActions.markAs.button", {
               type: translate("taskInstance_one"),
             })}
-            flexDirection="row-reverse"
-            icon={<MdArrowDropDown />}
-            text={translate("dags:runAndTaskActions.markAs.button", { type: translate("taskInstance_one") })}
-            withText={withText}
+            icon={
+              <HStack gap={1} mx={1}>
+                <LuCheck />
+                <span>/</span>
+                <FiX />
+              </HStack>
+            }
           />
         </Menu.Trigger>
         <Menu.Content>

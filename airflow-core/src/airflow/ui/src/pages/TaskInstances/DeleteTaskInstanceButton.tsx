@@ -27,10 +27,9 @@ import { useDeleteTaskInstance } from "src/queries/useDeleteTaskInstance";
 
 type DeleteTaskInstanceButtonProps = {
   readonly taskInstance: TaskInstanceResponse;
-  readonly withText?: boolean;
 };
 
-const DeleteTaskInstanceButton = ({ taskInstance, withText = true }: DeleteTaskInstanceButtonProps) => {
+const DeleteTaskInstanceButton = ({ taskInstance }: DeleteTaskInstanceButtonProps) => {
   const { onClose, onOpen, open } = useDisclosure();
   const { t: translate } = useTranslation();
 
@@ -53,9 +52,6 @@ const DeleteTaskInstanceButton = ({ taskInstance, withText = true }: DeleteTaskI
         colorPalette="danger"
         icon={<FiTrash2 />}
         onClick={onOpen}
-        text={translate("dags:runAndTaskActions.delete.button", { type: translate("taskInstance_one") })}
-        variant="solid"
-        withText={withText}
       />
 
       <DeleteDialog

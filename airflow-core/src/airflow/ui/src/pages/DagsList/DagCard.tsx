@@ -21,13 +21,13 @@ import { useTranslation } from "react-i18next";
 import { Link as RouterLink } from "react-router-dom";
 
 import type { DAGWithLatestDagRunsResponse } from "openapi/requests/types.gen";
-import DeleteDagButton from "src/components/DagActions/DeleteDagButton";
+import { DeleteDagButton } from "src/components/DagActions/DeleteDagButton";
 import { FavoriteDagButton } from "src/components/DagActions/FavoriteDagButton";
 import DagRunInfo from "src/components/DagRunInfo";
 import { NeedsReviewBadge } from "src/components/NeedsReviewBadge";
 import { Stat } from "src/components/Stat";
 import { TogglePause } from "src/components/TogglePause";
-import TriggerDAGButton from "src/components/TriggerDag/TriggerDAGButton";
+import { TriggerDAGButton } from "src/components/TriggerDag/TriggerDAGButton";
 import { Tooltip } from "src/components/ui";
 import { isStatePending, useAutoRefresh } from "src/utils";
 
@@ -70,10 +70,9 @@ export const DagCard = ({ dag }: Props) => {
             dagDisplayName={dag.dag_display_name}
             dagId={dag.dag_id}
             isPaused={dag.is_paused}
-            withText={false}
           />
-          <FavoriteDagButton dagId={dag.dag_id} isFavorite={dag.is_favorite} withText={false} />
-          <DeleteDagButton dagDisplayName={dag.dag_display_name} dagId={dag.dag_id} withText={false} />
+          <FavoriteDagButton dagId={dag.dag_id} isFavorite={dag.is_favorite} />
+          <DeleteDagButton dagDisplayName={dag.dag_display_name} dagId={dag.dag_id} />
         </HStack>
       </Flex>
       <SimpleGrid columns={4} gap={1} height={20} px={3} py={1}>

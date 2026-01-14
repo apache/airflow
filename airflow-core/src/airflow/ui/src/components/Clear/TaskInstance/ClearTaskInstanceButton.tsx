@@ -34,7 +34,6 @@ type Props = {
   // Optional: allow parent to handle opening a stable, page-level dialog
   readonly onOpen?: (ti: LightGridTaskInstanceSummary | TaskInstanceResponse) => void;
   readonly taskInstance?: TaskInstanceResponse;
-  readonly withText?: boolean;
 };
 
 const ClearTaskInstanceButton = ({
@@ -42,7 +41,6 @@ const ClearTaskInstanceButton = ({
   isHotkeyEnabled = false,
   onOpen,
   taskInstance,
-  withText = true,
 }: Props) => {
   const { onClose, onOpen: onOpenInternal, open } = useDisclosure();
   const { t: translate } = useTranslation();
@@ -77,10 +75,6 @@ const ClearTaskInstanceButton = ({
           })}
           icon={<CgRedo />}
           onClick={() => (onOpen && selectedInstance ? onOpen(selectedInstance) : onOpenInternal())}
-          text={translate("dags:runAndTaskActions.clear.button", {
-            type: translate(isGroup ? "taskGroup" : "taskInstance_one"),
-          })}
-          withText={withText}
         />
 
         {useInternalDialog && open && isGroup ? (

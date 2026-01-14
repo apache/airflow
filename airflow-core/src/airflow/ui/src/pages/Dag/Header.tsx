@@ -16,8 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Link } from "@chakra-ui/react";
-import { Button, Menu, Portal } from "@chakra-ui/react";
+import { IconButton, Link, Menu, Portal } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 import { FiBookOpen } from "react-icons/fi";
 import { LuMenu } from "react-icons/lu";
@@ -25,7 +24,7 @@ import { useParams, Link as RouterLink } from "react-router-dom";
 
 import type { DAGDetailsResponse, DagRunState } from "openapi/requests/types.gen";
 import { DagIcon } from "src/assets/DagIcon";
-import DeleteDagButton from "src/components/DagActions/DeleteDagButton";
+import { DeleteDagButton } from "src/components/DagActions/DeleteDagButton";
 import { FavoriteDagButton } from "src/components/DagActions/FavoriteDagButton";
 import ParseDag from "src/components/DagActions/ParseDag";
 import DagRunInfo from "src/components/DagRunInfo";
@@ -133,12 +132,17 @@ export const Header = ({
                 text={translate("dag:header.buttons.dagDocs")}
               />
             )}
-            <FavoriteDagButton dagId={dag.dag_id} isFavorite={dag.is_favorite} withText />
+            <FavoriteDagButton dagId={dag.dag_id} isFavorite={dag.is_favorite} variant="outline" />
             <Menu.Root>
               <Menu.Trigger asChild>
-                <Button aria-label={translate("dag:header.buttons.advanced")} variant="outline">
+                <IconButton
+                  aria-label={translate("dag:header.buttons.advanced")}
+                  size="sm"
+                  title={translate("dag:header.buttons.advanced")}
+                  variant="outline"
+                >
                   <LuMenu />
-                </Button>
+                </IconButton>
               </Menu.Trigger>
               <Portal>
                 <Menu.Positioner>
@@ -151,6 +155,7 @@ export const Header = ({
                         dagDisplayName={dag.dag_display_name}
                         dagId={dag.dag_id}
                         width="100%"
+                        withText
                       />
                     </Menu.Item>
                   </Menu.Content>

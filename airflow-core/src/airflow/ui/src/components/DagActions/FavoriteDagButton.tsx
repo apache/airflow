@@ -27,10 +27,14 @@ import ActionButton from "../ui/ActionButton";
 type FavoriteDagButtonProps = {
   readonly dagId: string;
   readonly isFavorite?: boolean;
-  readonly withText?: boolean;
+  readonly variant?: "ghost" | "outline";
 };
 
-export const FavoriteDagButton = ({ dagId, isFavorite = false, withText = true }: FavoriteDagButtonProps) => {
+export const FavoriteDagButton = ({
+  dagId,
+  isFavorite = false,
+  variant = "ghost",
+}: FavoriteDagButtonProps) => {
   const { t: translate } = useTranslation("dags");
 
   const { isLoading, toggleFavorite } = useToggleFavoriteDag(dagId);
@@ -51,8 +55,7 @@ export const FavoriteDagButton = ({ dagId, isFavorite = false, withText = true }
         }
         loading={isLoading}
         onClick={onToggle}
-        text={isFavorite ? translate("unfavoriteDag") : translate("favoriteDag")}
-        withText={withText}
+        variant={variant}
       />
     </Box>
   );

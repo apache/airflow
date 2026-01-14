@@ -28,10 +28,9 @@ import { CreateAssetEventModal } from "./CreateAssetEventModal";
 
 type Props = {
   readonly asset?: AssetResponse;
-  readonly withText?: boolean;
 };
 
-export const CreateAssetEvent = ({ asset, withText = true }: Props) => {
+export const CreateAssetEvent = ({ asset }: Props) => {
   const { onClose, onOpen, open } = useDisclosure();
   const { t: translate } = useTranslation("assets");
 
@@ -39,13 +38,9 @@ export const CreateAssetEvent = ({ asset, withText = true }: Props) => {
     <Box>
       <ActionButton
         actionName={translate("createEvent.button")}
-        colorPalette="brand"
         disabled={asset === undefined}
         icon={<FiPlay />}
         onClick={onOpen}
-        text={translate("createEvent.button")}
-        variant="solid"
-        withText={withText}
       />
 
       {asset === undefined || !open ? undefined : (

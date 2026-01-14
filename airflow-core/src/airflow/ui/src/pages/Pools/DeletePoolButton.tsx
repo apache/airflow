@@ -26,10 +26,9 @@ import { useDeletePool } from "src/queries/useDeletePool";
 
 type Props = {
   readonly poolName: string;
-  readonly withText?: boolean;
 };
 
-const DeletePoolButton = ({ poolName, withText = false }: Props) => {
+const DeletePoolButton = ({ poolName }: Props) => {
   const { t: translate } = useTranslation("admin");
   const { onClose, onOpen, open } = useDisclosure();
   const { isPending, mutate } = useDeletePool({
@@ -43,9 +42,6 @@ const DeletePoolButton = ({ poolName, withText = false }: Props) => {
         colorPalette="danger"
         icon={<FiTrash2 />}
         onClick={onOpen}
-        text={translate("pools.delete.warning")}
-        variant="solid"
-        withText={withText}
       />
 
       <DeleteDialog

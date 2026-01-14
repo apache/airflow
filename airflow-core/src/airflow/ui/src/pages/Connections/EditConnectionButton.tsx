@@ -66,8 +66,6 @@ const EditConnectionButton = ({ connection, disabled }: Props) => {
         onClick={() => {
           onOpen();
         }}
-        text={translate("connections.edit")}
-        withText={false}
       />
 
       <Dialog.Root onOpenChange={handleClose} open={open} size="xl">

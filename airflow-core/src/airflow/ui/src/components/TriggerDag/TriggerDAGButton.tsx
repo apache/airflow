@@ -33,10 +33,17 @@ type Props = {
   readonly dagDisplayName: string;
   readonly dagId: string;
   readonly isPaused: boolean;
+  readonly variant?: "ghost" | "outline";
   readonly withText?: boolean;
 };
 
-const TriggerDAGButton: React.FC<Props> = ({ dagDisplayName, dagId, isPaused, withText = true }) => {
+export const TriggerDAGButton: React.FC<Props> = ({
+  dagDisplayName,
+  dagId,
+  isPaused,
+  variant = "ghost",
+  withText = false,
+}) => {
   const { onClose, onOpen, open } = useDisclosure();
   const { t: translate } = useTranslation("components");
   const { runId } = useParams();
@@ -141,5 +148,3 @@ const TriggerDAGButton: React.FC<Props> = ({ dagDisplayName, dagId, isPaused, wi
     </Box>
   );
 };
-
-export default TriggerDAGButton;

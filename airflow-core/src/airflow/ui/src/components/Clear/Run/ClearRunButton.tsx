@@ -30,10 +30,9 @@ import ClearRunDialog from "./ClearRunDialog";
 type Props = {
   readonly dagRun: DAGRunResponse;
   readonly isHotkeyEnabled?: boolean;
-  readonly withText?: boolean;
 };
 
-const ClearRunButton = ({ dagRun, isHotkeyEnabled = false, withText = true }: Props) => {
+const ClearRunButton = ({ dagRun, isHotkeyEnabled = false }: Props) => {
   const { onClose, onOpen, open } = useDisclosure();
   const { t: translate } = useTranslation();
 
@@ -57,8 +56,6 @@ const ClearRunButton = ({ dagRun, isHotkeyEnabled = false, withText = true }: Pr
           actionName={translate("dags:runAndTaskActions.clear.button", { type: translate("dagRun_one") })}
           icon={<CgRedo />}
           onClick={onOpen}
-          text={translate("dags:runAndTaskActions.clear.button", { type: translate("dagRun_one") })}
-          withText={withText}
         />
 
         {open ? <ClearRunDialog dagRun={dagRun} onClose={onClose} open={open} /> : undefined}

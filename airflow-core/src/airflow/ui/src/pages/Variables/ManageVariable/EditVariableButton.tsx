@@ -71,8 +71,6 @@ const EditVariableButton = ({ disabled, variable }: Props) => {
         onClick={() => {
           onOpen();
         }}
-        text={translate("variables.edit")}
-        withText={false}
       />
 
       <Dialog.Root onOpenChange={handleClose} open={open} size="xl">

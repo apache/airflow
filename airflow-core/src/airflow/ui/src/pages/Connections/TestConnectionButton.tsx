@@ -82,8 +82,6 @@ const TestConnectionButton = ({ connection }: Props) => {
       onClick={() => {
         mutate({ requestBody: connectionBody });
       }}
-      text={translate("connections.test")}
-      withText={false}
     />
   );
 };

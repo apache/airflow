@@ -57,8 +57,6 @@ const EditPoolButton = ({ pool }: Props) => {
         onClick={() => {
           onOpen();
         }}
-        text={translate("pools.edit")}
-        withText={false}
       />
 
       <Dialog.Root onOpenChange={handleClose} open={open} size="xl">
