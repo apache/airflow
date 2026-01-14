@@ -329,14 +329,14 @@ class Timetable(Protocol):
         """
         return run_type.generate_run_id(suffix=run_after.isoformat())
 
-    def next_dagrun_info_v2(self, last_dagrun_info: DagRunInfo, restriction: TimeRestriction):
+    def next_dagrun_info_v2(self, last_dagrun_info: DagRunInfo | None, restriction: TimeRestriction):
         """
         Provide information to schedule the next DagRun.
 
         The default implementation raises ``NotImplementedError``.
 
-        :param last_automated_run_info: The DagRunInfo object of the
-            Dag's last scheduled or backfilled run (manual runs not considered).
+        :param last_dagrun_info: The DagRunInfo object of the
+            Dag's last scheduled or backfilled run.
         :param restriction: Restriction to apply when scheduling the DAG run.
             See documentation of :class:`TimeRestriction` for details.
 
