@@ -3887,6 +3887,7 @@ export class StructureService {
      * @param data.dagId
      * @param data.includeUpstream
      * @param data.includeDownstream
+     * @param data.depth
      * @param data.root
      * @param data.externalDependencies
      * @param data.versionNumber
@@ -3901,6 +3902,7 @@ export class StructureService {
                 dag_id: data.dagId,
                 include_upstream: data.includeUpstream,
                 include_downstream: data.includeDownstream,
+                depth: data.depth,
                 root: data.root,
                 external_dependencies: data.externalDependencies,
                 version_number: data.versionNumber
@@ -3922,6 +3924,7 @@ export class GridService {
      * @param data.dagId
      * @param data.includeUpstream
      * @param data.includeDownstream
+     * @param data.depth
      * @param data.root
      * @param data.offset
      * @param data.limit
@@ -3946,6 +3949,7 @@ export class GridService {
             query: {
                 include_upstream: data.includeUpstream,
                 include_downstream: data.includeDownstream,
+                depth: data.depth,
                 root: data.root,
                 offset: data.offset,
                 limit: data.limit,
