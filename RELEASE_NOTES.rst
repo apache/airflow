@@ -24,6 +24,89 @@
 
 .. towncrier release notes start
 
+Airflow 3.1.6 (2026-01-13)
+--------------------------
+
+Significant Changes
+^^^^^^^^^^^^^^^^^^^
+
+``is_authorized_hitl_task()`` method now available in auth managers(#59399).
+""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+This method is now available in auth managers to check whether a user is authorized to approve a HITL task
+
+``proxy`` and ``proxies`` added to ``DEFAULT_SENSITIVE_FIELDS`` (#59688)
+""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+``proxy`` and ``proxies`` have been added to ``DEFAULT_SENSITIVE_FIELDS`` in secrets_masker to treat proxy configurations as sensitive by default
+
+Bug Fixes
+^^^^^^^^^
+- Protect against hanging thread in aiosqlite 0.22+ (#60217) (#60245)
+- Fix log task instance sqlalchemy join query (#59973) (#60222)
+- Fix invalid uri created when extras contains non string elements (#59339) (#60219)
+- Fix operator template fields via callable serialization that causes unstable DAG serialization (#60065) (#60221)
+- Fix real-time extra links updates for TriggerDagRunOperator (#59507) (#60225)
+- Fix signal handling in triggerer job runner (#60190) (#60214)
+- Added state validation to delete dag run endpoint (#60195) (#60207)
+- Fix text overflow issue (#60080)
+- UI: Add toggle functionality to Dags state filters (#59089)
+- Fix ``deprecated_options`` entry for ``dag_file_processor_timeout`` (#59181) (#60162)
+- Fix ``ApprovalOperator`` with ``SimpleAuthManager`` when ``all_admins=True`` (#59399) (#60116)
+- Record missing ``ti_failure`` metrics for tasks (#59731) (#59964)
+- Fix missing ``TaskInstanceHistory`` on scheduler ``TI`` resets (#59639) (#59752)
+- Add ``proxy`` and ``proxies`` as sensitive fields in ``DEFAULT_SENSITIVE_FIELDS`` (#59688) (#59792)
+- Fix compat deprecation handling for ``[webserver] base_url`` (#59659) (#59781)
+- Fix Execution API refresh token (#58782) (#59713)
+- Fix eager-loading DagRun asset relationships before creating ``DagRunContext`` (#59714) (#59732)
+- Redact secrets in rendered templates properly when truncating it (#59566) (#59704)
+- Add ``Content-Type`` to request headers in Task SDK calls when missing (#59676) (#59687)
+- UI: Fix Expand+Collapse Translation Key (#59672) (#59674)
+- Fix server context for connections (#59624) (#59652)
+- Fix clear task instance dialog tasks states (#59363) (#59580)
+- Add log record when listening dag is partitioned but run has no key (#59375) (#59582)
+- Fix Dag Processor logging crash (#59317) (#59581)
+- Flush session before processing Event Buffer in dag test (#59314) (#59559)
+- Add task group ID filtering support to task instance query (#58092) (#59511)
+- Fix message of ``_read_from_logs_server`` when status_code is 403 (#59489) (#59504)
+- Fix import errors not cleared for files without Dags (#58242) (#59500)
+- Fix backfill ``run_on_latest_version`` defaulting to False instead of True (#59304) (#59328)
+- Add toaster notifications for Connection Test (#59354) (#59368)
+- Fix ``.airflowignore`` negation not working in subfolders (#58740) (#59305)
+- Fix XCom key handling when keys contain special characters like slash (#58344) (#59311)
+- Fix an odd import of pendulum from sqlalchemy_utils instead of elsewhere. (#59258) (#59265)
+- Fix links for DurationChart (#59095) (#59237)
+- Fix misleading error message when GitHook creation fails (#59236)
+- Show asset extra in asset list (#59195) (#59201)
+- Prevent dag processor crash on encountering excel files in the Dag directory (#59069) (#59170)
+- Fix ``DagRun.queued_at`` not updating when clearing (#59066) (#59177)
+- Fix Rendered Templates not showing dictionary items (#58071) (#59176)
+- UI: Change task log source display to hidden by default (#58749) (#59045)
+- Fix button to go back from FAB iframe (#58997) (#59007)
+- Fix task instance and run tooltips in Grid view (#58359) (#59013)
+
+Miscellaneous
+^^^^^^^^^^^^^
+- Don't depend upon FastAPI inside Task-SDK client (#59250) (#59257)
+- Align the term Dag in all translations (#59155)
+
+Doc Only Changes
+^^^^^^^^^^^^^^^^
+- Bump Sphinx Airflow theme to ``0.3.0`` (#59538)
+- Translations updates [French: (#60157) (#60167),  German: (#59673), PL: (#59675) (#59251) (#59256), Japanese: (#59557),(#59313),
+  Taiwanese Mandarin (#59513) (#59515), Hebrew: (#59133) (#59255), Ca: (#59216) (#60199), TR: (#59169) (#60191)]
+- Update webserver probe health check doc (#59942) (#59982)
+- Update API auth. instructions in Docker running docs (#59830) (#59832)
+- Improve CLI date argument help text documentation (#59797) (#59810)
+- Add fast client-side search to Airflow documentation (#59658)
+- Fix broken ``permalink`` icon (#58763)
+- Add Refresh Token logic to auth manager docs (#54196) (#59482)
+- Update json to JSON for consistency in translations (#59323) (#59333)
+- Fix outdated dependency documentation (#58970) (#59219)
+- Add UI/API performance tips (#59004) (#59052)
+- Provide a clear naming and description for the attribute caching ``get_template_context`` (#59023) (#59036)
+- Update the documentation for the LocalExecutor (#58990) (#59022)
+
+
+
 Airflow 3.1.5 (2025-12-12)
 --------------------------
 

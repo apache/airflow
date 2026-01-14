@@ -75,6 +75,10 @@ Sentinel for no xcom result.
 """
 
 
+class XComRetrievalError(AirflowException):
+    """When not possible to get xcom."""
+
+
 class PodPhase:
     """
     Possible pod phases.
@@ -845,6 +849,12 @@ class PodManager(LoggingMixin):
 
     def extract_xcom(self, pod: V1Pod) -> str:
         """Retrieve XCom value and kill xcom sidecar container."""
+        # make sure that xcom sidecar container is still running
+        if not self.container_is_running(pod, PodDefaults.SIDECAR_CONTAINER_NAME):
+            raise XComRetrievalError(
+                f"{PodDefaults.SIDECAR_CONTAINER_NAME} container is not running! Not possible to read xcom from pod: {pod.metadata.name}"
+            )
+
         try:
             result = self.extract_xcom_json(pod)
             return result
@@ -889,7 +899,7 @@ class PodManager(LoggingMixin):
                 json.loads(result)
 
         if result is None:
-            raise AirflowException(f"Failed to extract xcom from pod: {pod.metadata.name}")
+            raise XComRetrievalError(f"Failed to extract xcom from pod: {pod.metadata.name}")
         return result
 
     @generic_api_retry

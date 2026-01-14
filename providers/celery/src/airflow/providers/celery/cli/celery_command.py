@@ -51,7 +51,7 @@ def _run_command_with_daemon_option(*args, **kwargs):
 
         run_command_with_daemon_option(*args, **kwargs)
     except ImportError:
-        from airflow.exceptions import AirflowOptionalProviderFeatureException
+        from airflow.providers.common.compat.sdk import AirflowOptionalProviderFeatureException
 
         raise AirflowOptionalProviderFeatureException(
             "Failed to import run_command_with_daemon_option. This feature is only available in Airflow versions >= 2.8.0"
@@ -65,7 +65,7 @@ def _providers_configuration_loaded(func):
 
             providers_configuration_loaded(func)(*args, **kwargs)
         except ImportError as e:
-            from airflow.exceptions import AirflowOptionalProviderFeatureException
+            from airflow.providers.common.compat.sdk import AirflowOptionalProviderFeatureException
 
             raise AirflowOptionalProviderFeatureException(
                 "Failed to import providers_configuration_loaded. This feature is only available in Airflow versions >= 2.8.0"
