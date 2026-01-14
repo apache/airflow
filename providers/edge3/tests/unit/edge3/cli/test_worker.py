@@ -396,12 +396,21 @@ class TestEdgeWorker:
         await worker_with_job.heartbeat()
         assert worker_with_job.drain
 
+    @pytest.mark.parametrize(
+        "http_error",
+        [
+            pytest.param(404, id="HTTP 404 Not Found"),
+            pytest.param(405, id="HTTP 405 Method Not Allowed"),
+        ],
+    )
     @patch("airflow.providers.edge3.cli.worker.worker_register")
-    async def test_start_missing_apiserver(self, mock_register_worker, worker_with_job: EdgeWorker):
+    async def test_start_missing_apiserver(
+        self, mock_register_worker, http_error, worker_with_job: EdgeWorker
+    ):
         mock_register_worker.side_effect = ClientResponseError(
             request_info=RequestInfo(url=URL("mock.com"), method="GET", headers=None),  # type:ignore[arg-type]
-            message="Something with 404:NOT FOUND means API is not active",
-            status=404,
+            message=f"Something with {http_error}: Means API is not active",
+            status=http_error,
             history=(),
         )
         with pytest.raises(SystemExit, match=r"API endpoint is not ready"):
