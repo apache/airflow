@@ -56,7 +56,7 @@ test.describe("Backfill creation and validation", () => {
         toDate: config.toDate,
       });
 
-      // Wait for backfill to complete on DAG detail page (where the banner is visible)
+      // Wait for backfill to complete on Dag detail page (where the banner is visible)
       await setupBackfillPage.navigateToDagDetail(testDagId);
       await setupBackfillPage.waitForNoActiveBackfill();
     }
