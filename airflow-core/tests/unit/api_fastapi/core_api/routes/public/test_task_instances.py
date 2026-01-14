@@ -5133,6 +5133,86 @@ class TestPatchTaskInstanceDryRun(TestTaskInstanceEndpoint):
         assert response.json() == {"task_instances": [], "total_entries": 0}
 
 
+class TestPatchTaskInstanceByTaskGroupId(TestTaskInstanceEndpoint):
+    """Tests for patch_task_instance with task_group_id query parameter."""
+
+    DAG_ID = "example_task_group"
+    RUN_ID = "TEST_DAG_RUN_ID"
+    TASK_GROUP_ID = "section_1"
+    # We need a task_id as path parameter, using start task from example_task_group DAG
+    TASK_ID = "start"
+    NEW_STATE = "failed"
+
+    def test_should_update_task_group_instances_state(self, test_client, session):
+        """Test updating all task instances in a task group using task_group_id query param."""
+        self.create_task_instances(session, dag_id=self.DAG_ID)
+
+        response = test_client.patch(
+            f"/dags/{self.DAG_ID}/dagRuns/{self.RUN_ID}/taskInstances/{self.TASK_ID}",
+            params={"task_group_id": self.TASK_GROUP_ID},
+            json={"new_state": self.NEW_STATE},
+        )
+        assert response.status_code == 200, response.text
+        response_data = response.json()
+        # section_1 has 3 tasks: task_1, task_2, task_3
+        assert response_data["total_entries"] == 3
+        for ti in response_data["task_instances"]:
+            assert ti["state"] == self.NEW_STATE
+
+    def test_should_raise_404_for_non_existent_task_group(self, test_client, session):
+        """Test that non-existent task group returns 404."""
+        self.create_task_instances(session, dag_id=self.DAG_ID)
+
+        response = test_client.patch(
+            f"/dags/{self.DAG_ID}/dagRuns/{self.RUN_ID}/taskInstances/{self.TASK_ID}",
+            params={"task_group_id": "non_existent_group"},
+            json={"new_state": self.NEW_STATE},
+        )
+        assert response.status_code == 404
+        assert "not found in DAG" in response.text
+
+    def test_should_update_nested_task_group_instances_state(self, test_client, session):
+        """Test updating task instances in a nested task group."""
+        self.create_task_instances(session, dag_id=self.DAG_ID)
+
+        # section_2 has task_1 + inner_section_2 (task_2, task_3, task_4) = 4 tasks
+        response = test_client.patch(
+            f"/dags/{self.DAG_ID}/dagRuns/{self.RUN_ID}/taskInstances/{self.TASK_ID}",
+            params={"task_group_id": "section_2"},
+            json={"new_state": self.NEW_STATE},
+        )
+        assert response.status_code == 200, response.text
+        response_data = response.json()
+        assert response_data["total_entries"] == 4
+
+    def test_dry_run_should_return_affected_task_instances(self, test_client, session):
+        """Test dry run returns affected task instances without making changes."""
+        self.create_task_instances(session, dag_id=self.DAG_ID)
+
+        response = test_client.patch(
+            f"/dags/{self.DAG_ID}/dagRuns/{self.RUN_ID}/taskInstances/{self.TASK_ID}/dry_run",
+            params={"task_group_id": self.TASK_GROUP_ID},
+            json={"new_state": self.NEW_STATE},
+        )
+        assert response.status_code == 200, response.text
+        response_data = response.json()
+        # section_1 has 3 tasks
+        assert response_data["total_entries"] == 3
+
+        # Verify task_ids belong to section_1
+        for ti in response_data["task_instances"]:
+            assert ti["task_id"].startswith("section_1.")
+
+    def test_should_raise_404_for_non_existent_dag(self, test_client, session):
+        """Test that non-existent DAG returns 404."""
+        response = test_client.patch(
+            f"/dags/non_existent_dag/dagRuns/{self.RUN_ID}/taskInstances/{self.TASK_ID}",
+            params={"task_group_id": self.TASK_GROUP_ID},
+            json={"new_state": self.NEW_STATE},
+        )
+        assert response.status_code == 404
+
+
 class TestDeleteTaskInstance(TestTaskInstanceEndpoint):
     DAG_ID = "example_python_operator"
     TASK_ID = "print_the_context"

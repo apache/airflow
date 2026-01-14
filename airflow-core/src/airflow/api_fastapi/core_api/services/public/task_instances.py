@@ -63,29 +63,42 @@ def _patch_ti_validate_request(
     session: SessionDep,
     map_index: int | None = -1,
     update_mask: list[str] | None = Query(None),
+    task_group_id: str | None = None,
 ) -> tuple[SerializedDAG, list[TI], dict]:
     dag = get_latest_version_of_dag(dag_bag, dag_id, session)
-    if not dag.has_task(task_id):
-        raise HTTPException(status.HTTP_404_NOT_FOUND, f"Task '{task_id}' not found in DAG '{dag_id}'")
 
-    query = (
-        select(TI)
-        .where(TI.dag_id == dag_id, TI.run_id == dag_run_id, TI.task_id == task_id)
-        .join(TI.dag_run)
-        .options(joinedload(TI.rendered_task_instance_fields))
-    )
-    if map_index is not None:
-        query = query.where(TI.map_index == map_index)
+    # If task_group_id is provided, fetch task instances by task group
+    if task_group_id is not None:
+        tis = _get_task_group_task_instances(
+            dag_id=dag_id,
+            dag_run_id=dag_run_id,
+            task_group_id=task_group_id,
+            dag=dag,
+            session=session,
+        )
     else:
-        query = query.order_by(TI.map_index)
+        # Original logic for fetching task instances by task_id
+        if not dag.has_task(task_id):
+            raise HTTPException(status.HTTP_404_NOT_FOUND, f"Task '{task_id}' not found in DAG '{dag_id}'")
 
-    tis = session.scalars(query).all()
+        query = (
+            select(TI)
+            .where(TI.dag_id == dag_id, TI.run_id == dag_run_id, TI.task_id == task_id)
+            .join(TI.dag_run)
+            .options(joinedload(TI.rendered_task_instance_fields))
+        )
+        if map_index is not None:
+            query = query.where(TI.map_index == map_index)
+        else:
+            query = query.order_by(TI.map_index)
 
-    err_msg_404 = (
-        f"The Task Instance with dag_id: `{dag_id}`, run_id: `{dag_run_id}`, task_id: `{task_id}` and map_index: `{map_index}` was not found",
-    )
-    if len(tis) == 0:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, err_msg_404)
+        tis = list(session.scalars(query).all())
+
+        err_msg_404 = (
+            f"The Task Instance with dag_id: `{dag_id}`, run_id: `{dag_run_id}`, task_id: `{task_id}` and map_index: `{map_index}` was not found",
+        )
+        if len(tis) == 0:
+            raise HTTPException(status.HTTP_404_NOT_FOUND, err_msg_404)
 
     fields_to_update = body.model_fields_set
     if update_mask:
@@ -96,7 +109,7 @@ def _patch_ti_validate_request(
         except ValidationError as e:
             raise RequestValidationError(errors=e.errors())
 
-    return dag, list(tis), body.model_dump(include=fields_to_update, by_alias=True)
+    return dag, tis, body.model_dump(include=fields_to_update, by_alias=True)
 
 
 def _patch_task_instance_state(

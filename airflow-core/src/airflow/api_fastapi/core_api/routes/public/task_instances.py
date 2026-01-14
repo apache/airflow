@@ -82,11 +82,9 @@ from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_
 from airflow.api_fastapi.core_api.security import GetUserDep, ReadableTIFilterDep, requires_access_dag
 from airflow.api_fastapi.core_api.services.public.task_instances import (
     BulkTaskInstanceService,
-    _get_task_group_task_instances,
     _patch_task_instance_note,
     _patch_task_instance_state,
     _patch_ti_validate_request,
-    _validate_patch_request_body,
 )
 from airflow.api_fastapi.logging.decorators import action_logging
 from airflow.exceptions import AirflowClearRunningTaskException, TaskNotFound
@@ -873,14 +871,50 @@ def patch_task_instance_dry_run(
     body: PatchTaskInstanceBody,
     session: SessionDep,
     map_index: int | None = None,
+    task_group_id: str | None = Query(None),
     update_mask: list[str] | None = Query(None),
 ) -> TaskInstanceCollectionResponse:
     """Update a task instance dry_run mode."""
     dag, tis, data = _patch_ti_validate_request(
-        dag_id, dag_run_id, task_id, dag_bag, body, session, map_index, update_mask
+        dag_id, dag_run_id, task_id, dag_bag, body, session, map_index, update_mask, task_group_id
     )
 
     if data.get("new_state"):
+        if task_group_id is not None:
+            # For task group: iterate over each task instance and collect affected TIs
+            affected_tis_dict: dict[tuple[str, str, str, int], TI] = {}
+            for ti in tis:
+                affected_tis = (
+                    dag.set_task_instance_state(
+                        task_id=ti.task_id,
+                        run_id=dag_run_id,
+                        map_indexes=[ti.map_index] if ti.map_index is not None else None,
+                        state=data["new_state"],
+                        upstream=body.include_upstream or False,
+                        downstream=body.include_downstream or False,
+                        future=body.include_future or False,
+                        past=body.include_past or False,
+                        commit=False,
+                        session=session,
+                    )
+                    or []
+                )
+
+                # Add unique task instances
+                for affected_ti in affected_tis:
+                    ti_key = (
+                        affected_ti.dag_id,
+                        affected_ti.run_id,
+                        affected_ti.task_id,
+                        affected_ti.map_index if affected_ti.map_index is not None else -1,
+                    )
+                    affected_tis_dict[ti_key] = affected_ti
+
+            return TaskInstanceCollectionResponse(
+                task_instances=[TaskInstanceResponse.model_validate(ti) for ti in affected_tis_dict.values()],
+                total_entries=len(affected_tis_dict),
+            )
+        # For regular task instance: use original behavior
         tis = (
             dag.set_task_instance_state(
                 task_id=task_id,
@@ -963,35 +997,75 @@ def patch_task_instance(
     user: GetUserDep,
     session: SessionDep,
     map_index: int | None = None,
+    task_group_id: str | None = Query(None),
     update_mask: list[str] | None = Query(None),
 ) -> TaskInstanceCollectionResponse:
     """Update a task instance."""
     dag, tis, data = _patch_ti_validate_request(
-        dag_id, dag_run_id, task_id, dag_bag, body, session, map_index, update_mask
+        dag_id, dag_run_id, task_id, dag_bag, body, session, map_index, update_mask, task_group_id
     )
+
+    # Collect all affected task instances (including upstream/downstream/future/past)
+    # Use dict to track unique task instances by key
+    affected_tis_dict: dict[tuple[str, str, str, int], TI] = {}
 
     for key, _ in data.items():
         if key == "new_state":
-            # Create BulkTaskInstanceBody object with map_index field
-            bulk_ti_body = BulkTaskInstanceBody(
-                task_id=task_id,
-                map_index=map_index,
-                new_state=body.new_state,
-                note=body.note,
-                include_upstream=body.include_upstream,
-                include_downstream=body.include_downstream,
-                include_future=body.include_future,
-                include_past=body.include_past,
-            )
+            if task_group_id is not None:
+                # For task group: iterate over each task instance in the group
+                for ti in tis:
+                    # Create BulkTaskInstanceBody object with map_index field
+                    bulk_ti_body = BulkTaskInstanceBody(
+                        task_id=ti.task_id,
+                        map_index=ti.map_index,
+                        new_state=body.new_state,
+                        note=body.note,
+                        include_upstream=body.include_upstream,
+                        include_downstream=body.include_downstream,
+                        include_future=body.include_future,
+                        include_past=body.include_past,
+                    )
 
-            _patch_task_instance_state(
-                task_id=task_id,
-                dag_run_id=dag_run_id,
-                dag=dag,
-                task_instance_body=bulk_ti_body,
-                data=data,
-                session=session,
-            )
+                    # Update state and get all affected TIs (including upstream/downstream/future/past)
+                    updated_tis = _patch_task_instance_state(
+                        task_id=ti.task_id,
+                        dag_run_id=dag_run_id,
+                        dag=dag,
+                        task_instance_body=bulk_ti_body,
+                        data=data,
+                        session=session,
+                    )
+
+                    # Track unique affected TIs
+                    for updated_ti in updated_tis:
+                        ti_key = (
+                            updated_ti.dag_id,
+                            updated_ti.run_id,
+                            updated_ti.task_id,
+                            updated_ti.map_index if updated_ti.map_index is not None else -1,
+                        )
+                        affected_tis_dict[ti_key] = updated_ti
+            else:
+                # For regular task instance: use original behavior
+                bulk_ti_body = BulkTaskInstanceBody(
+                    task_id=task_id,
+                    map_index=map_index,
+                    new_state=body.new_state,
+                    note=body.note,
+                    include_upstream=body.include_upstream,
+                    include_downstream=body.include_downstream,
+                    include_future=body.include_future,
+                    include_past=body.include_past,
+                )
+
+                _patch_task_instance_state(
+                    task_id=task_id,
+                    dag_run_id=dag_run_id,
+                    dag=dag,
+                    task_instance_body=bulk_ti_body,
+                    data=data,
+                    session=session,
+                )
 
         elif key == "note":
             _patch_task_instance_note(
@@ -1001,6 +1075,28 @@ def patch_task_instance(
                 update_mask=update_mask,
             )
 
+    # For task groups, refresh affected TIs from the database
+    if task_group_id is not None and affected_tis_dict:
+        ti_keys_list = list(affected_tis_dict.keys())
+        refreshed_tis = session.scalars(
+            select(TI)
+            .where(tuple_(TI.dag_id, TI.run_id, TI.task_id, TI.map_index).in_(ti_keys_list))
+            .options(joinedload(TI.rendered_task_instance_fields))
+        ).all()
+        # Update dict with refreshed TIs
+        for refreshed_ti in refreshed_tis:
+            ti_key = (
+                refreshed_ti.dag_id,
+                refreshed_ti.run_id,
+                refreshed_ti.task_id,
+                refreshed_ti.map_index if refreshed_ti.map_index is not None else -1,
+            )
+            affected_tis_dict[ti_key] = refreshed_ti
+        return TaskInstanceCollectionResponse(
+            task_instances=[TaskInstanceResponse.model_validate(ti) for ti in affected_tis_dict.values()],
+            total_entries=len(affected_tis_dict),
+        )
+
     return TaskInstanceCollectionResponse(
         task_instances=[
             TaskInstanceResponse.model_validate(
@@ -1009,218 +1105,6 @@ def patch_task_instance(
             for ti in tis
         ],
         total_entries=len(tis),
-    )
-
-
-@task_instances_router.patch(
-    task_instances_prefix + "/groups/{task_group_id}/dry_run",
-    responses=create_openapi_http_exception_doc(
-        [status.HTTP_404_NOT_FOUND, status.HTTP_400_BAD_REQUEST],
-    ),
-    dependencies=[Depends(requires_access_dag(method="PUT", access_entity=DagAccessEntity.TASK_INSTANCE))],
-    operation_id="patch_task_group_dry_run",
-)
-def patch_task_group_dry_run(
-    dag_id: str,
-    dag_run_id: str,
-    task_group_id: str,
-    dag_bag: DagBagDep,
-    body: PatchTaskInstanceBody,
-    session: SessionDep,
-    update_mask: list[str] | None = Query(None),
-) -> TaskInstanceCollectionResponse:
-    """Update task instances in a task group (dry_run mode)."""
-    dag = get_latest_version_of_dag(dag_bag, dag_id, session)
-
-    # Get all task instances in the task group
-    group_tis = _get_task_group_task_instances(
-        dag_id=dag_id,
-        dag_run_id=dag_run_id,
-        task_group_id=task_group_id,
-        dag=dag,
-        session=session,
-    )
-
-    # Validate request body
-    data = _validate_patch_request_body(body, update_mask)
-
-    # Collect all affected task instances (including upstream/downstream/future/past)
-    # Use dict to track unique task instances by key
-    affected_tis_dict: dict[tuple[str, str, str, int], TI] = {}
-
-    if data.get("new_state"):
-        # For each task in the group, simulate state change
-        for ti in group_tis:
-            affected_tis = (
-                dag.set_task_instance_state(
-                    task_id=ti.task_id,
-                    run_id=dag_run_id,
-                    map_indexes=[ti.map_index] if ti.map_index is not None else None,
-                    state=data["new_state"],
-                    upstream=body.include_upstream or False,
-                    downstream=body.include_downstream or False,
-                    future=body.include_future or False,
-                    past=body.include_past or False,
-                    commit=False,
-                    session=session,
-                )
-                or []
-            )
-
-            # Add unique task instances
-            for affected_ti in affected_tis:
-                ti_key = (
-                    affected_ti.dag_id,
-                    affected_ti.run_id,
-                    affected_ti.task_id,
-                    affected_ti.map_index if affected_ti.map_index is not None else -1,
-                )
-                affected_tis_dict[ti_key] = affected_ti
-    else:
-        # If no state change, just return the group task instances
-        for ti in group_tis:
-            ti_key = (
-                ti.dag_id,
-                ti.run_id,
-                ti.task_id,
-                ti.map_index if ti.map_index is not None else -1,
-            )
-            affected_tis_dict[ti_key] = ti
-
-    return TaskInstanceCollectionResponse(
-        task_instances=[TaskInstanceResponse.model_validate(ti) for ti in affected_tis_dict.values()],
-        total_entries=len(affected_tis_dict),
-    )
-
-
-@task_instances_router.patch(
-    task_instances_prefix + "/groups/{task_group_id}",
-    responses=create_openapi_http_exception_doc(
-        [status.HTTP_404_NOT_FOUND, status.HTTP_400_BAD_REQUEST, status.HTTP_409_CONFLICT],
-    ),
-    dependencies=[
-        Depends(action_logging()),
-        Depends(requires_access_dag(method="PUT", access_entity=DagAccessEntity.TASK_INSTANCE)),
-    ],
-    operation_id="patch_task_group",
-)
-def patch_task_group(
-    dag_id: str,
-    dag_run_id: str,
-    task_group_id: str,
-    dag_bag: DagBagDep,
-    body: PatchTaskInstanceBody,
-    user: GetUserDep,
-    session: SessionDep,
-    update_mask: list[str] | None = Query(None),
-) -> TaskInstanceCollectionResponse:
-    """Update task instances in a task group."""
-    dag = get_latest_version_of_dag(dag_bag, dag_id, session)
-
-    # Get all task instances in the task group
-    group_tis = _get_task_group_task_instances(
-        dag_id=dag_id,
-        dag_run_id=dag_run_id,
-        task_group_id=task_group_id,
-        dag=dag,
-        session=session,
-    )
-
-    # Validate request body
-    data = _validate_patch_request_body(body, update_mask)
-
-    # Collect all affected task instances (including upstream/downstream/future/past)
-    # Use dict to track unique task instances by key
-    affected_tis_dict: dict[tuple[str, str, str, int], TI] = {}
-
-    # Update state if requested
-    if data.get("new_state"):
-        # For each task in the group, update state
-        for ti in group_tis:
-            # Create BulkTaskInstanceBody object with map_index field
-            bulk_ti_body = BulkTaskInstanceBody(
-                task_id=ti.task_id,
-                map_index=ti.map_index,
-                new_state=body.new_state,
-                note=body.note,
-                include_upstream=body.include_upstream,
-                include_downstream=body.include_downstream,
-                include_future=body.include_future,
-                include_past=body.include_past,
-            )
-
-            # Update state and get all affected TIs (including upstream/downstream/future/past)
-            updated_tis = _patch_task_instance_state(
-                task_id=ti.task_id,
-                dag_run_id=dag_run_id,
-                dag=dag,
-                task_instance_body=bulk_ti_body,
-                data=data,
-                session=session,
-            )
-
-            # Track unique affected TIs
-            for updated_ti in updated_tis:
-                ti_key = (
-                    updated_ti.dag_id,
-                    updated_ti.run_id,
-                    updated_ti.task_id,
-                    updated_ti.map_index if updated_ti.map_index is not None else -1,
-                )
-                affected_tis_dict[ti_key] = updated_ti
-
-        # Refresh the affected TIs from the database to get the latest state and notes
-        if affected_tis_dict:
-            ti_keys_list = list(affected_tis_dict.keys())
-            refreshed_tis = session.scalars(
-                select(TI)
-                .where(tuple_(TI.dag_id, TI.run_id, TI.task_id, TI.map_index).in_(ti_keys_list))
-                .options(joinedload(TI.rendered_task_instance_fields))
-            ).all()
-            # Update dict with refreshed TIs
-            for refreshed_ti in refreshed_tis:
-                ti_key = (
-                    refreshed_ti.dag_id,
-                    refreshed_ti.run_id,
-                    refreshed_ti.task_id,
-                    refreshed_ti.map_index if refreshed_ti.map_index is not None else -1,
-                )
-                affected_tis_dict[ti_key] = refreshed_ti
-
-    # Update note if requested
-    if data.get("note") is not None:
-        for ti in group_tis:
-            _patch_task_instance_note(
-                task_instance_body=body,
-                tis=[ti],
-                user=user,
-                update_mask=update_mask,
-            )
-            # Add group TIs that had notes updated but weren't in the state change list
-            ti_key = (
-                ti.dag_id,
-                ti.run_id,
-                ti.task_id,
-                ti.map_index if ti.map_index is not None else -1,
-            )
-            if ti_key not in affected_tis_dict:
-                affected_tis_dict[ti_key] = ti
-
-    # If we didn't collect affected TIs from state changes, use the group TIs
-    # (which may have had notes updated)
-    if not affected_tis_dict:
-        for ti in group_tis:
-            ti_key = (
-                ti.dag_id,
-                ti.run_id,
-                ti.task_id,
-                ti.map_index if ti.map_index is not None else -1,
-            )
-            affected_tis_dict[ti_key] = ti
-
-    return TaskInstanceCollectionResponse(
-        task_instances=[TaskInstanceResponse.model_validate(ti) for ti in affected_tis_dict.values()],
-        total_entries=len(affected_tis_dict),
     )
 
 
