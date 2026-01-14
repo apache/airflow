@@ -206,9 +206,8 @@ class RuntimeVaryingValueAnalyzer:
     def get_varying_fstring(self, node: ast.JoinedStr) -> str | None:
         """Check for runtime-varying values inside f-strings."""
         for value in node.values:
-            if isinstance(value, ast.FormattedValue):
-                if source := self.get_varying_source(value.value):
-                    return source
+            if isinstance(value, ast.FormattedValue) and (source := self.get_varying_source(value.value)):
+                return source
         return None
 
     def get_varying_collection(self, elements: list) -> str | None:
@@ -221,12 +220,10 @@ class RuntimeVaryingValueAnalyzer:
     def get_varying_dict(self, node: ast.Dict) -> str | None:
         """Check for runtime-varying values in dictionary keys/values."""
         for key, value in zip(node.keys, node.values):
-            if key:
-                if source := self.get_varying_source(key):
-                    return source
-            if value:
-                if source := self.get_varying_source(value):
-                    return source
+            if key and (source := self.get_varying_source(key)):
+                return source
+            if value and (source := self.get_varying_source(value)):
+                return source
         return None
 
     def is_runtime_varying_call(self, node: ast.Call) -> bool:
@@ -491,8 +488,7 @@ class AirflowRuntimeVaryingValueChecker(ast.NodeVisitor):
 
     def _check_and_warn(self, call: ast.Call, context: WarningContext):
         """Check function call arguments and generate warnings."""
-        varying_source = self.value_analyzer.get_varying_source(call)
-        if varying_source:
+        if self.value_analyzer.get_varying_source(call):
             self.static_check_result.warnings.append(
                 RuntimeVaryingValueWarning(
                     line=call.lineno,
