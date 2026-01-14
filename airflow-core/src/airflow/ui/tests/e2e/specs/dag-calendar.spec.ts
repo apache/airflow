@@ -43,31 +43,16 @@ test.describe("Dag Calendar Tab", () => {
         await dagsPage.verifyCalendarTab(testDagId);
 
         // 3. Verify that we have at least one filled square (representing the run we just triggered/verified)
-        // .react-calendar-heatmap .color-filled is a common class for filled cells in this library
-        // If exact selectors are different, this might need adjustment, but this is a reasonable starting point
-        // based on standard usage of react-calendar-heatmap.
-        const filledCells = dagsPage.calendarGrid.locator('rect:not(.color-empty)');
+        const filledCells = dagsPage.calendarGrid.locator('[data-testid="calendar-cell"][data-count]:not([data-count="0"])');
 
         // We expect at least one cell to be filled because we just ran a DAG
         await expect(filledCells.first()).toBeVisible();
 
         // 4. Verify clicking a run shows details (simple check that something happens)
         // We click the first filled cell
-        await filledCells.first().click();
+        await filledCells.first().hover();
 
-        // 5. Verify a tooltip or popover appears
-        // Often these are standard role="tooltip" or have a specific class. 
-        // We'll check for a generic tooltip or checking if url changes if it's a link
-        // For now, let's assume it might trigger a visual change or tooltip.
-        // If the requirement is "Verify run details display", often there is a drawer or modal.
-        // Let's generic check for a 'tooltip' or 'popover' or 'dialog'
-        const overrides = [
-            dagsPage.page.locator('[role="tooltip"]'),
-            dagsPage.page.locator('.chakra-popover__content'), // Common in Airflow UI
-            dagsPage.page.locator('.popover'),
-        ];
-
-        // Wait for one of them to theoretically appear (this is a bit speculative without seeing the DOM)
-        // But failing fast on the grid is the main goal.
+        // 5. Verify a tooltip appears
+        await expect(dagsPage.page.locator('[role="tooltip"]')).toBeVisible();
     });
 });

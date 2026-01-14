@@ -214,7 +214,7 @@ export const Calendar = () => {
         </HStack>
       </HStack>
 
-      <Box position="relative">
+      <Box data-testid="dag-calendar" position="relative">
         {isLoading ? (
           <Box
             alignItems="center"

@@ -25,12 +25,12 @@ import type { CalendarCellData, CalendarColorMode } from "./types";
 
 type Props = {
   readonly backgroundColor:
-    | Record<string, string>
-    | string
-    | {
-        actual: string | { _dark: string; _light: string };
-        planned: string | { _dark: string; _light: string };
-      };
+  | Record<string, string>
+  | string
+  | {
+    actual: string | { _dark: string; _light: string };
+    planned: string | { _dark: string; _light: string };
+  };
   readonly cellData: CalendarCellData | undefined;
   readonly index?: number;
   readonly marginRight?: string;
@@ -59,6 +59,9 @@ export const CalendarCell = ({
       _hover={hasData ? { transform: "scale(1.1)" } : {}}
       borderRadius="2px"
       cursor={hasData ? "pointer" : "default"}
+      data-count={relevantCount}
+      data-date={cellData?.date}
+      data-testid="calendar-cell"
       height="14px"
       marginRight={computedMarginRight}
       overflow="hidden"
@@ -83,9 +86,12 @@ export const CalendarCell = ({
   ) : (
     <Box
       _hover={hasData ? { transform: "scale(1.1)" } : {}}
-      bg={backgroundColor}
+      bg={backgroundColor as string}
       borderRadius="2px"
       cursor={hasData ? "pointer" : "default"}
+      data-count={relevantCount}
+      data-date={cellData?.date}
+      data-testid="calendar-cell"
       height="14px"
       marginRight={computedMarginRight}
       width="14px"
