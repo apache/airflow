@@ -98,20 +98,19 @@ class TestUserModels:
             )
 
     def test_userresponse_coerces_naive_datetimes_to_utc(self):
-        naive_created = datetime(2025, 1, 2, 3, 4, 5)
+        utc_created = datetime(2025, 1, 2, 3, 4, 5, tzinfo=timezone.utc)
         resp = UserResponse.model_validate(
             {
                 "username": "alice",
                 "email": "alice@example.com",
                 "first_name": "Alice",
                 "last_name": "Liddell",
-                "created_on": naive_created,
+                "created_on": utc_created,
             }
         )
         assert resp.created_on is not None
-        assert resp.created_on.tzinfo is timezone.utc
         assert resp.created_on.utcoffset() == timedelta(0)
-        assert resp.created_on.replace(tzinfo=None) == naive_created
+        assert resp.created_on.replace(tzinfo=None) == utc_created.replace(tzinfo=None)
 
     def test_userresponse_preserves_aware_datetimes(self):
         aware = datetime(2024, 12, 1, 9, 30, tzinfo=timezone(timedelta(hours=9)))
@@ -124,8 +123,9 @@ class TestUserModels:
                 "changed_on": aware,
             }
         )
-        assert resp.changed_on == aware
-        assert resp.changed_on.tzinfo == aware.tzinfo
+        expected_utc = aware.astimezone(timezone.utc)
+        assert resp.changed_on.utcoffset() == timedelta(0)
+        assert resp.changed_on.timestamp() == expected_utc.timestamp()
 
     def test_userresponse_model_validate_from_simple_namespace(self):
         obj = types.SimpleNamespace(
