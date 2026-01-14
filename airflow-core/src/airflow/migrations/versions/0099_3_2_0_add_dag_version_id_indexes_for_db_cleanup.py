@@ -29,7 +29,7 @@ This migration adds the missing indexes to speed up the cleanup operation.
 See: https://github.com/apache/airflow/issues/60145
 
 Revision ID: 62fb1d0a1252
-Revises: 0b112f49112d
+Revises: e79fc784f145
 Create Date: 2025-01-09 12:00:00.000000
 
 """
