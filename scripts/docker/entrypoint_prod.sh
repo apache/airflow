@@ -283,9 +283,16 @@ readonly CONNECTION_CHECK_SLEEP_TIME
 
 create_system_user_if_missing
 set_pythonpath_for_root_user
+
 if [[ "${CONNECTION_CHECK_MAX_COUNT}" -gt "0" ]]; then
-    wait_for_airflow_db
+    case "$1" in
+        scheduler|dag-processor|api-server|triggerer)
+            wait_for_airflow_db
+            ;;
+    esac
 fi
+
+
 
 if [[ -n "${_AIRFLOW_DB_UPGRADE=}" ]] || [[ -n "${_AIRFLOW_DB_MIGRATE=}" ]] ; then
     migrate_db
