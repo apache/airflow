@@ -239,4 +239,29 @@ test.describe("Backfill pause, resume, and cancel controls", () => {
     await expect(backfillPage.pauseButton).not.toBeVisible();
     await expect(backfillPage.cancelButton).not.toBeVisible();
   });
+
+  test("verify cancelled backfill cannot be resumed", async () => {
+    await backfillPage.clickCancelButton();
+    await expect(backfillPage.pauseButton).not.toBeVisible();
+
+    await backfillPage.page.reload();
+    await expect(backfillPage.triggerButton).toBeVisible({ timeout: 30_000 });
+    await expect(backfillPage.pauseButton).not.toBeVisible();
+
+    await backfillPage.navigateToBackfillsTab(testDagId);
+
+    const row = await backfillPage.findBackfillRowByDateRange({
+      fromDate: controlFromDate,
+      toDate: controlToDate,
+    });
+
+    await expect(row).toBeVisible();
+
+    const columnMap = await backfillPage.getColumnIndexMap();
+    const completedAtIndex = BackfillPage.findColumnIndex(columnMap, ["Completed at", "table.completedAt"]);
+    const completedAtCell = row.locator("td").nth(completedAtIndex);
+    const completedAtText = await completedAtCell.textContent();
+
+    expect(completedAtText?.trim()).not.toBe("");
+  });
 });
