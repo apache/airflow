@@ -37,57 +37,48 @@ if TYPE_CHECKING:
     from airflow.sdk import Context
 
 
-class SageMakerNotebookOperator(BaseOperator):
+class SageMakerNotebookHook(BaseHook):
     """
-    Provides Artifact execution functionality for Sagemaker Unified Studio Workflows.
+    Interact with Sagemaker Unified Studio Workflows.
+
+    This hook provides a wrapper around the Sagemaker Workflows Notebook Execution API.
 
     Examples:
-     .. code-block:: python
+    .. code-block:: python
 
-        from airflow.providers.amazon.aws.operators.sagemaker_unified_studio import SageMakerNotebookOperator
+        from airflow.providers.amazon.aws.hooks.sagemaker_unified_studio import SageMakerNotebookHook
 
-        notebook_operator = SageMakerNotebookOperator(
-            task_id="notebook_task",
-            input_config={"input_path": "path/to/notebook.ipynb", "input_params": ""},
-            output_config={"output_format": "ipynb"},
-            wait_for_completion=True,
+        notebook_hook = SageMakerNotebookHook(
+            input_config={"input_path": "path/to/notebook.ipynb", "input_params": {"param1": "value1"}},
+            output_config={"output_uri": "folder/output/location/prefix", "output_formats": "NOTEBOOK"},
+            execution_name="notebook_execution",
             waiter_delay=10,
             waiter_max_attempts=1440,
         )
 
-    :param task_id: A unique, meaningful id for the task.
-    :param input_config: Configuration for the input file. Input path should be specified as a relative path.
-        The provided relative path will be automatically resolved to an absolute path within
-        the context of the user's home directory in the IDE. Input params should be a dict.
-        Example: {'input_path': 'folder/input/notebook.ipynb', 'input_params':{'key': 'value'}}
-    :param output_config:  Configuration for the output format. It should include an output_format parameter to control
-        the format of the notebook execution output.
-        Example: {"output_formats": ["NOTEBOOK"]}
-    :param compute: compute configuration to use for the notebook execution. This is a required attribute
-        if the execution is on a remote compute.
-        Example: {
-            "instance_type": "ml.m5.large",
-            "volume_size_in_gb": 30,
-            "volume_kms_key_id": "",
-            "image_details": {
-                "ecr_uri": "string"
-            },
-            "container_entrypoint": ["string"]
-        }
-    :param termination_condition: conditions to match to terminate the remote execution.
-        Example: { "MaxRuntimeInSeconds": 3600 }
-    :param tags: tags to be associated with the remote execution runs.
-        Example: { "md_analytics": "logs" }
-    :param wait_for_completion: Indicates whether to wait for the notebook execution to complete. If True, wait for completion; if False, don't wait.
-    :param waiter_delay: Interval in seconds to check the notebook execution status.
-    :param waiter_max_attempts: Number of attempts to wait before returning FAILED.
-    :param deferrable: If True, the operator will wait asynchronously for the job to complete.
-        This implies waiting for completion. This mode requires aiobotocore module to be installed.
-        (default: False)
+    :param execution_name: The name of the notebook job to be executed, this is same as task_id.
+    :param input_config: Configuration for the input file.
+        Example: ``{'input_path': 'folder/input/notebook.ipynb', 'input_params': {'param1': 'value1'}}``
+    :param output_config: Configuration for the output format.
+        Example: ``{'output_formats': ['NOTEBOOK']}``
+    :param compute: Compute configuration to use for the notebook execution.
+        This is a required attribute if the execution is on a remote compute.
+        Example::
 
-    .. seealso::
-        For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:SageMakerNotebookOperator`
+            {
+                "instance_type": "ml.m5.large",
+                "volume_size_in_gb": 30,
+                "volume_kms_key_id": "",
+                "image_details": {"ecr_uri": "string"},
+                "container_entrypoint": ["string"]
+            }
+
+    :param termination_condition: Conditions to match to terminate the remote execution.
+        Example: ``{"MaxRuntimeInSeconds": 3600}``
+    :param tags: Tags to be associated with the remote execution runs.
+        Example: ``{"md_analytics": "logs"}``
+    :param waiter_delay: Interval in seconds to check the task execution status.
+    :param waiter_max_attempts: Number of attempts to wait before returning FAILED.
     """
 
     operator_extra_links = (SageMakerUnifiedStudioLink(),)
