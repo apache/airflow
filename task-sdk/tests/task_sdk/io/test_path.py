@@ -262,7 +262,11 @@ class TestLocalPath:
         o1 = ObjectStoragePath(f"file://{target}")
         o2 = ObjectStoragePath(f"file://{tmp_path.as_posix()}")
         o3 = ObjectStoragePath(f"file:///{uuid.uuid4()}")
-        assert o1.relative_to(o2) == o1
+        # relative_to returns the relative path from o2 to o1
+        relative = o1.relative_to(o2)
+        # The relative path should be the basename (uuid) of the target
+        expected_relative = target.split("/")[-1]
+        assert str(relative) == expected_relative
         with pytest.raises(ValueError, match="is not in the subpath of"):
             o1.relative_to(o3)
 
