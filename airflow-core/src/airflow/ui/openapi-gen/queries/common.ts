@@ -231,6 +231,12 @@ export type ConfigServiceGetConfigsDefaultResponse = Awaited<ReturnType<typeof C
 export type ConfigServiceGetConfigsQueryResult<TData = ConfigServiceGetConfigsDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
 export const useConfigServiceGetConfigsKey = "ConfigServiceGetConfigs";
 export const UseConfigServiceGetConfigsKeyFn = (queryKey?: Array<unknown>) => [useConfigServiceGetConfigsKey, ...(queryKey ?? [])];
+export type ConfigServiceGetBackendsOrderValueDefaultResponse = Awaited<ReturnType<typeof ConfigService.getBackendsOrderValue>>;
+export type ConfigServiceGetBackendsOrderValueQueryResult<TData = ConfigServiceGetBackendsOrderValueDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
+export const useConfigServiceGetBackendsOrderValueKey = "ConfigServiceGetBackendsOrderValue";
+export const UseConfigServiceGetBackendsOrderValueKeyFn = ({ accept }: {
+  accept?: "application/json" | "text/plain" | "*/*";
+} = {}, queryKey?: Array<unknown>) => [useConfigServiceGetBackendsOrderValueKey, ...(queryKey ?? [{ accept }])];
 export type DagWarningServiceListDagWarningsDefaultResponse = Awaited<ReturnType<typeof DagWarningService.listDagWarnings>>;
 export type DagWarningServiceListDagWarningsQueryResult<TData = DagWarningServiceListDagWarningsDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
 export const useDagWarningServiceListDagWarningsKey = "DagWarningServiceListDagWarnings";
