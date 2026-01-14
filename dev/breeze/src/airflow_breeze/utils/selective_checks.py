@@ -712,8 +712,12 @@ class SelectiveChecks:
         if self.all_versions:
             return CURRENT_MYSQL_VERSIONS
         if self.latest_versions_only:
-            return [CURRENT_MYSQL_VERSIONS[-1]]
-        return [DEFAULT_MYSQL_VERSION]
+            # Return latest MySQL and latest MariaDB
+            mysql_versions = [v for v in CURRENT_MYSQL_VERSIONS if not v.startswith("mariadb:")]
+            mariadb_versions = [v for v in CURRENT_MYSQL_VERSIONS if v.startswith("mariadb:")]
+            return [mysql_versions[-1], mariadb_versions[-1]]
+        # Test both MySQL and MariaDB LTS by default
+        return [DEFAULT_MYSQL_VERSION, "mariadb:11.8"]
 
     @cached_property
     def kind_version(self) -> str:

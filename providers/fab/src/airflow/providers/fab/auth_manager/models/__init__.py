@@ -53,7 +53,7 @@ assoc_group_role = Table(
     Column(
         "id",
         Integer,
-        Sequence("ab_group_role_id_seq", start=1, increment=1, minvalue=1, cycle=False),
+        Sequence("ab_group_role_id_seq", start=1, increment=1, minvalue=1),
         primary_key=True,
     ),
     Column("group_id", Integer, ForeignKey("ab_group.id", ondelete="CASCADE")),
@@ -74,7 +74,6 @@ assoc_permission_role = Table(
             start=1,
             increment=1,
             minvalue=1,
-            cycle=False,
         ),
         primary_key=True,
     ),
@@ -95,7 +94,7 @@ assoc_user_role = Table(
     Column(
         "id",
         Integer,
-        Sequence("ab_user_role_id_seq", start=1, increment=1, minvalue=1, cycle=False),
+        Sequence("ab_user_role_id_seq", start=1, increment=1, minvalue=1),
         primary_key=True,
     ),
     Column("user_id", Integer, ForeignKey("ab_user.id", ondelete="CASCADE")),
@@ -109,7 +108,7 @@ assoc_user_group = Table(
     Column(
         "id",
         Integer,
-        Sequence("ab_user_group_id_seq", start=1, increment=1, minvalue=1, cycle=False),
+        Sequence("ab_user_group_id_seq", start=1, increment=1, minvalue=1),
         primary_key=True,
     ),
     Column("user_id", Integer, ForeignKey("ab_user.id", ondelete="CASCADE")),
@@ -125,7 +124,7 @@ class Action(Model):
 
     id: Mapped[int] = mapped_column(
         Integer,
-        Sequence("ab_permission_id_seq", start=1, increment=1, minvalue=1, cycle=False),
+        Sequence("ab_permission_id_seq", start=1, increment=1, minvalue=1),
         primary_key=True,
     )
     name: Mapped[str] = mapped_column(String(100), unique=True, nullable=False)
@@ -141,7 +140,7 @@ class Resource(Model):
 
     id: Mapped[int] = mapped_column(
         Integer,
-        Sequence("ab_view_menu_id_seq", start=1, increment=1, minvalue=1, cycle=False),
+        Sequence("ab_view_menu_id_seq", start=1, increment=1, minvalue=1),
         primary_key=True,
     )
     name: Mapped[str] = mapped_column(String(250), unique=True, nullable=False)
@@ -166,7 +165,7 @@ class Role(Model):
 
     id: Mapped[int] = mapped_column(
         Integer,
-        Sequence("ab_role_id_seq", start=1, increment=1, minvalue=1, cycle=False),
+        Sequence("ab_role_id_seq", start=1, increment=1, minvalue=1),
         primary_key=True,
     )
     name: Mapped[str] = mapped_column(String(64), unique=True, nullable=False)
@@ -189,7 +188,7 @@ class Permission(Model):
     __table_args__ = (UniqueConstraint("permission_id", "view_menu_id"),)
     id: Mapped[int] = mapped_column(
         Integer,
-        Sequence("ab_permission_view_id_seq", start=1, increment=1, minvalue=1, cycle=False),
+        Sequence("ab_permission_view_id_seq", start=1, increment=1, minvalue=1),
         primary_key=True,
     )
     action_id: Mapped[int] = mapped_column("permission_id", Integer, ForeignKey("ab_permission.id"))
@@ -208,7 +207,7 @@ class Group(Model):
 
     id: Mapped[int] = mapped_column(
         Integer,
-        Sequence("ab_group_id_seq", start=1, increment=1, minvalue=1, cycle=False),
+        Sequence("ab_group_id_seq", start=1, increment=1, minvalue=1),
         primary_key=True,
     )
     name: Mapped[str] = mapped_column(String(100), unique=True, nullable=False)
@@ -232,7 +231,7 @@ class User(Model, BaseUser):
 
     id: Mapped[int] = mapped_column(
         Integer,
-        Sequence("ab_user_id_seq", start=1, increment=1, minvalue=1, cycle=False),
+        Sequence("ab_user_id_seq", start=1, increment=1, minvalue=1),
         primary_key=True,
     )
     first_name: Mapped[str] = mapped_column(String(64), nullable=False)
@@ -346,7 +345,7 @@ class RegisterUser(Model):
 
     id = mapped_column(
         Integer,
-        Sequence("ab_register_user_id_seq", start=1, increment=1, minvalue=1, cycle=False),
+        Sequence("ab_register_user_id_seq", start=1, increment=1, minvalue=1),
         primary_key=True,
     )
     first_name: Mapped[str] = mapped_column(String(64), nullable=False)
