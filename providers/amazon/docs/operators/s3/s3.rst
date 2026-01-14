@@ -129,6 +129,21 @@ The Amazon S3 connection used here needs to have access to both source and desti
     :start-after: [START howto_operator_s3_copy_object]
     :end-before: [END howto_operator_s3_copy_object]
 
+.. _howto/operator:S3CopyPrefixOperator:
+
+Copy Amazon S3 objects by prefix
+================================
+
+To copy all Amazon S3 objects under a prefix from one bucket to another you can use
+:class:`~airflow.providers.amazon.aws.operators.s3.S3CopyPrefixOperator`.
+The Amazon S3 connection used here needs to have access to both source and destination bucket/prefix.
+
+.. exampleinclude:: /../../amazon/tests/system/amazon/aws/example_s3.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_s3_copy_prefix]
+    :end-before: [END howto_operator_s3_copy_prefix]
+
 .. _howto/operator:S3DeleteObjectsOperator:
 
 Delete Amazon S3 objects
