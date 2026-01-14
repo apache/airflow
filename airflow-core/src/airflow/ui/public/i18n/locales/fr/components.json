@@ -11,6 +11,7 @@
     "maxRuns": "Nombre maximum d'exécutions actives",
     "missingAndErroredRuns": "Exécutions manquantes et en erreur",
     "missingRuns": "Exécutions manquantes",
+    "permissionDenied": "Échec du test : L'utilisateur n'a pas la permission de créer des rattrapages.",
     "reprocessBehavior": "Comportement de réexécution",
     "run": "Lancer le rattrapage",
     "selectDescription": "Exécuter ce Dag pour une plage de dates",
