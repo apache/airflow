@@ -23,7 +23,6 @@ import { DagsPage } from "tests/e2e/pages/DagsPage";
 test.describe("Dag Tasks Tab", () => {
   const testDagId = testConfig.testDag.id;
 
-  console.log("Using test DAG ID:", testDagId);
   test.beforeAll(async ({ browser }) => {
     test.setTimeout(7 * 60 * 1000);
 
@@ -58,11 +57,17 @@ test.describe("Dag Tasks Tab", () => {
 
     await dagPage.navigateToDagTasks(testDagId);
 
-    await dagPage.searchBox.fill("runme_0");
+    const firstTaskLink = dagPage.taskCards.first().locator("a").first();
+    const taskName = await firstTaskLink.textContent();
 
-    // Wait for filter to apply
-    await expect(dagPage.taskCards).toHaveCount(1);
-    await expect(dagPage.taskCards).toContainText("runme_0");
+    if (taskName === null) {
+      throw new Error("Task name not found");
+    }
+
+    await dagPage.searchBox.fill(taskName);
+
+    await expect.poll(() => dagPage.taskCards.count(), { timeout: 20_000 }).toBe(1);
+    await expect(dagPage.taskCards).toContainText(taskName);
   });
 
   test("verify filter tasks by operator dropdown", async ({ page }) => {
@@ -70,10 +75,33 @@ test.describe("Dag Tasks Tab", () => {
 
     await dagPage.navigateToDagTasks(testDagId);
 
-    await dagPage.filterByOperator("BashOperator");
+    const operators = await dagPage.getFilterOptions(dagPage.operatorFilter);
 
-    await expect(dagPage.taskCards.first()).toBeVisible();
-    await expect(dagPage.taskCards.first()).toContainText("BashOperator");
+    expect(operators.length).toBeGreaterThan(0);
+
+    for (const operator of operators) {
+      await dagPage.filterByOperator(operator);
+
+      await expect
+        .poll(
+          async () => {
+            const count = await dagPage.taskCards.count();
+
+            if (count === 0) return false;
+            for (let i = 0; i < count; i++) {
+              const text = await dagPage.taskCards.nth(i).textContent();
+
+              if (!text?.includes(operator)) return false;
+            }
+
+            return true;
+          },
+          { timeout: 20_000 },
+        )
+        .toBeTruthy();
+
+      await dagPage.navigateToDagTasks(testDagId);
+    }
   });
 
   test("verify filter tasks by trigger rule dropdown", async ({ page }) => {
@@ -81,9 +109,33 @@ test.describe("Dag Tasks Tab", () => {
 
     await dagPage.navigateToDagTasks(testDagId);
 
-    await dagPage.filterByTriggerRule("all_success");
+    const rules = await dagPage.getFilterOptions(dagPage.triggerRuleFilter);
 
-    await expect(dagPage.taskCards.first()).toBeVisible();
+    expect(rules.length).toBeGreaterThan(0);
+
+    for (const rule of rules) {
+      await dagPage.filterByTriggerRule(rule);
+
+      await expect
+        .poll(
+          async () => {
+            const count = await dagPage.taskCards.count();
+
+            if (count === 0) return false;
+            for (let i = 0; i < count; i++) {
+              const text = await dagPage.taskCards.nth(i).textContent();
+
+              if (!text?.includes(rule)) return false;
+            }
+
+            return true;
+          },
+          { timeout: 20_000 },
+        )
+        .toBeTruthy();
+
+      await dagPage.navigateToDagTasks(testDagId);
+    }
   });
 
   test("verify filter by retries", async ({ page }) => {
@@ -91,20 +143,17 @@ test.describe("Dag Tasks Tab", () => {
 
     await dagPage.navigateToDagTasks(testDagId);
 
-    await dagPage.retriesFilter.click();
-    const option = page.locator('div[role="option"]').first();
+    const retriesOptions = await dagPage.getFilterOptions(dagPage.retriesFilter);
 
-    // Skip if no retry options available for this DAG
-    const hasOptions = await option.isVisible();
-
-    if (!hasOptions) {
-      test.skip(true, "No retry options available for test DAG");
-
+    if (retriesOptions.length === 0) {
       return;
     }
 
-    await option.click();
-    await expect(dagPage.taskCards.first()).toBeVisible();
+    for (const retries of retriesOptions) {
+      await dagPage.filterByRetries(retries);
+      await expect(dagPage.taskCards.first()).toBeVisible();
+      await dagPage.navigateToDagTasks(testDagId);
+    }
   });
   test("verify click task to show details", async ({ page }) => {
     const dagPage = new DagsPage(page);

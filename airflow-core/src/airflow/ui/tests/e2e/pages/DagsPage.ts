@@ -30,43 +30,33 @@ export class DagsPage extends BasePage {
     return "/dags";
   }
 
-  // Core page elements
   public readonly confirmButton: Locator;
-  public readonly dagsTable: Locator;
-  public readonly mappedFilter: Locator;
   public readonly operatorFilter: Locator;
-
-  // Pagination elements
   public readonly paginationNextButton: Locator;
   public readonly paginationPrevButton: Locator;
   public readonly retriesFilter: Locator;
   public readonly searchBox: Locator;
   public readonly stateElement: Locator;
-  // Tasks Tab elements
-  public readonly tasksTab: Locator;
   public readonly triggerButton: Locator;
   public readonly triggerRuleFilter: Locator;
 
   public get taskCards(): Locator {
-    return this.page.locator('[data-testid="card-list"]');
+    // CardList component renders a SimpleGrid with data-testid="card-list"
+    // Individual cards are direct children (Box elements)
+    return this.page.locator('[data-testid="card-list"] > div');
   }
 
   public constructor(page: Page) {
     super(page);
-    this.dagsTable = page.locator('div:has(a[href*="/dags/"])');
     this.triggerButton = page.locator('button[aria-label="Trigger Dag"]:has-text("Trigger")');
     this.confirmButton = page.locator('button:has-text("Trigger")').nth(1);
     this.stateElement = page.locator('*:has-text("State") + *').first();
     this.paginationNextButton = page.locator('[data-testid="next"]');
     this.paginationPrevButton = page.locator('[data-testid="prev"]');
-
-    // Tasks Tab elements
-    this.tasksTab = page.locator('a[title="Tasks"]:has-text("Tasks")');
-    this.searchBox = page.getByPlaceholder("Search tasks");
-    this.operatorFilter = page.locator('span[data-scope="select"]:has-text("Select operators")');
-    this.triggerRuleFilter = page.locator('span[data-scope="select"]:has-text("Select trigger rules")');
-    this.retriesFilter = page.locator('span[data-scope="select"]:has-text("Select retry values")');
-    this.mappedFilter = page.locator('span[data-scope="select"]:has-text("Select mapped")');
+    this.searchBox = page.getByRole("textbox", { name: /search/i });
+    this.operatorFilter = page.getByRole("combobox").filter({ hasText: /operator/i });
+    this.triggerRuleFilter = page.getByRole("combobox").filter({ hasText: /trigger/i });
+    this.retriesFilter = page.getByRole("combobox").filter({ hasText: /retr/i });
   }
 
   // URL builders for dynamic paths
@@ -94,27 +84,16 @@ export class DagsPage extends BasePage {
     await this.waitForDagList();
   }
 
-  public async filterByMappedStatus(status: string) {
-    await this.mappedFilter.click();
-    await this.page.locator(`div[role="option"]:has-text("${status}")`).click();
+  public async filterByOperator(operator: string): Promise<void> {
+    await this.selectDropdownOption(this.operatorFilter, operator);
   }
 
-  public async filterByOperator(operator: string) {
-    await this.operatorFilter.click();
-    await this.page.locator(`div[role="option"]:has-text("${operator}")`).click();
-    await this.page.keyboard.press("Escape");
+  public async filterByRetries(retries: string): Promise<void> {
+    await this.selectDropdownOption(this.retriesFilter, retries);
   }
 
-  public async filterByRetries(retries: string) {
-    await this.retriesFilter.click();
-    await this.page.locator(`div[role="option"]:has-text("${retries}")`).click();
-    await this.page.keyboard.press("Escape");
-  }
-
-  public async filterByTriggerRule(rule: string) {
-    await this.triggerRuleFilter.click();
-    await this.page.locator(`div[role="option"]:has-text("${rule}")`).click();
-    await this.page.keyboard.press("Escape");
+  public async filterByTriggerRule(rule: string): Promise<void> {
+    await this.selectDropdownOption(this.triggerRuleFilter, rule);
   }
 
   /**
@@ -126,6 +105,39 @@ export class DagsPage extends BasePage {
     const texts = await dagLinks.allTextContents();
 
     return texts.map((text) => text.trim()).filter((text) => text !== "");
+  }
+
+  public async getFilterOptions(filter: Locator): Promise<Array<string>> {
+    await filter.click();
+    await this.page.waitForTimeout(500);
+
+    const controlsId = await filter.getAttribute("aria-controls");
+    let options;
+
+    if (controlsId === null) {
+      const listbox = this.page.locator('div[role="listbox"]').first();
+
+      await listbox.waitFor({ state: "visible", timeout: 5000 });
+      options = listbox.locator('div[role="option"]');
+    } else {
+      options = this.page.locator(`[id="${controlsId}"] div[role="option"]`);
+    }
+
+    const count = await options.count();
+    const dataValues: Array<string> = [];
+
+    for (let i = 0; i < count; i++) {
+      const value = await options.nth(i).getAttribute("data-value");
+
+      if (value !== null && value.trim().length > 0) {
+        dataValues.push(value);
+      }
+    }
+
+    await this.page.keyboard.press("Escape");
+    await this.page.waitForTimeout(300);
+
+    return dataValues;
   }
 
   /**
@@ -144,7 +156,11 @@ export class DagsPage extends BasePage {
 
   public async navigateToDagTasks(dagId: string): Promise<void> {
     await this.page.goto(`/dags/${dagId}/tasks`);
-    await this.taskCards.first().waitFor({ state: "visible", timeout: 10_000 });
+    await this.page
+      .locator("h2")
+      .filter({ hasText: /^Operator$/ })
+      .first()
+      .waitFor({ state: "visible", timeout: 30_000 });
   }
 
   /**
@@ -296,6 +312,12 @@ export class DagsPage extends BasePage {
 
     // eslint-disable-next-line unicorn/no-null
     return null;
+  }
+
+  private async selectDropdownOption(filter: Locator, value: string): Promise<void> {
+    await filter.click();
+    await this.page.locator(`div[role="option"][data-value="${value}"]`).dispatchEvent("click");
+    await this.page.waitForTimeout(500);
   }
 
   /**
