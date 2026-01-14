@@ -314,3 +314,165 @@ def test_hook_is_cached():
     hook = op.get_db_hook()
     hook2 = op.get_db_hook()
     assert hook is hook2
+
+
+@patch("os.unlink")
+@patch("airflow.providers.databricks.operators.databricks_sql.tempfile")
+@patch("airflow.providers.google.cloud.hooks.gcs.GCSHook")
+@patch("pyarrow.parquet.write_table")
+@patch("pyarrow.Table")
+@patch("airflow.providers.databricks.operators.databricks_sql.DatabricksSqlHook")
+def test_parquet_export_to_gcs(
+    db_mock_class, mock_pa_table, mock_pq_write, mock_gcs_hook_class, mock_tempfile, mock_os_unlink
+):
+    """Test Parquet export to GCS."""
+    mock_db = db_mock_class.return_value
+    mock_db.run.return_value = [SerializableRow(1, "value1"), SerializableRow(2, "value2")]
+    mock_db.descriptions = [[("id", "int"), ("value", "string")]]
+
+    mock_gcs_hook = mock_gcs_hook_class.return_value
+
+    # Mock tempfile
+    mock_tmp = mock_tempfile.NamedTemporaryFile.return_value.__enter__.return_value
+    mock_tmp.name = "/tmp/test.parquet"
+
+    op = DatabricksSqlOperator(
+        task_id=TASK_ID,
+        sql="SELECT * FROM dummy",
+        output_path="gs://test-bucket/output.parquet",
+        output_format="parquet",
+        gcp_conn_id="google_cloud_default",
+    )
+
+    op.execute(None)
+
+    # Verify GCSHook was created with correct connection ID
+    mock_gcs_hook_class.assert_called_once_with(gcp_conn_id="google_cloud_default")
+
+    # Verify upload was called
+    assert mock_gcs_hook.upload.called
+    upload_call = mock_gcs_hook.upload.call_args
+    assert upload_call.kwargs["bucket_name"] == "test-bucket"
+    assert upload_call.kwargs["object_name"] == "output.parquet"
+
+    # Verify temp file cleanup was called
+    mock_os_unlink.assert_called_once_with("/tmp/test.parquet")
+
+
+@patch("os.unlink")
+@patch("airflow.providers.databricks.operators.databricks_sql.tempfile")
+@patch("airflow.providers.google.cloud.hooks.gcs.GCSHook")
+@patch("fastavro.writer")
+@patch("airflow.providers.databricks.operators.databricks_sql.DatabricksSqlHook")
+def test_avro_export_to_gcs(
+    db_mock_class, mock_fastavro_writer, mock_gcs_hook_class, mock_tempfile, mock_os_unlink
+):
+    """Test Avro export to GCS."""
+    mock_db = db_mock_class.return_value
+    mock_db.run.return_value = [SerializableRow(1, "value1"), SerializableRow(2, "value2")]
+    mock_db.descriptions = [[("id", "int"), ("value", "string")]]
+
+    mock_gcs_hook = mock_gcs_hook_class.return_value
+
+    # Mock tempfile
+    mock_tmp = mock_tempfile.NamedTemporaryFile.return_value.__enter__.return_value
+    mock_tmp.name = "/tmp/test.avro"
+
+    op = DatabricksSqlOperator(
+        task_id=TASK_ID,
+        sql="SELECT * FROM dummy",
+        output_path="gs://test-bucket/output.avro",
+        output_format="avro",
+        gcp_conn_id="google_cloud_default",
+    )
+
+    op.execute(None)
+
+    # Verify GCSHook was created with correct connection ID
+    mock_gcs_hook_class.assert_called_once_with(gcp_conn_id="google_cloud_default")
+
+    # Verify upload was called
+    assert mock_gcs_hook.upload.called
+    upload_call = mock_gcs_hook.upload.call_args
+    assert upload_call.kwargs["bucket_name"] == "test-bucket"
+    assert upload_call.kwargs["object_name"] == "output.avro"
+
+    # Verify fastavro.writer was called
+    assert mock_fastavro_writer.called
+
+    # Verify temp file cleanup was called
+    mock_os_unlink.assert_called_once_with("/tmp/test.avro")
+
+
+@patch("airflow.providers.databricks.operators.databricks_sql.DatabricksSqlHook")
+def test_parquet_requires_gcs_path(db_mock_class):
+    """Test that Parquet format requires GCS path."""
+    mock_db = db_mock_class.return_value
+    mock_db.run.return_value = [SerializableRow(1, "value1")]
+    mock_db.descriptions = [[("id", "int")]]
+
+    op = DatabricksSqlOperator(
+        task_id=TASK_ID,
+        sql="SELECT * FROM dummy",
+        output_path="/tmp/output.parquet",
+        output_format="parquet",
+    )
+
+    with pytest.raises(ValueError, match="Parquet format is only supported for GCS exports"):
+        op.execute(None)
+
+
+@patch("airflow.providers.databricks.operators.databricks_sql.DatabricksSqlHook")
+def test_avro_requires_gcs_path(db_mock_class):
+    """Test that Avro format requires GCS path."""
+    mock_db = db_mock_class.return_value
+    mock_db.run.return_value = [SerializableRow(1, "value1")]
+    mock_db.descriptions = [[("id", "int")]]
+
+    op = DatabricksSqlOperator(
+        task_id=TASK_ID,
+        sql="SELECT * FROM dummy",
+        output_path="/tmp/output.avro",
+        output_format="avro",
+    )
+
+    with pytest.raises(ValueError, match="Avro format is only supported for GCS exports"):
+        op.execute(None)
+
+
+@patch("airflow.providers.databricks.operators.databricks_sql.DatabricksSqlHook")
+def test_gcs_requires_gcp_conn_id(db_mock_class):
+    """Test that GCS export requires gcp_conn_id."""
+    mock_db = db_mock_class.return_value
+    mock_db.run.return_value = [SerializableRow(1, "value1")]
+    mock_db.descriptions = [[("id", "int")]]
+
+    op = DatabricksSqlOperator(
+        task_id=TASK_ID,
+        sql="SELECT * FROM dummy",
+        output_path="gs://test-bucket/output.parquet",
+        output_format="parquet",
+        # Note: gcp_conn_id not specified
+    )
+
+    with pytest.raises(ValueError, match="gcp_conn_id must be specified for GCS exports"):
+        op.execute(None)
+
+
+@patch("airflow.providers.databricks.operators.databricks_sql.DatabricksSqlHook")
+def test_csv_not_supported_for_gcs(db_mock_class):
+    """Test that CSV format with GCS path is not yet supported."""
+    mock_db = db_mock_class.return_value
+    mock_db.run.return_value = [SerializableRow(1, "value1")]
+    mock_db.descriptions = [[("id", "int")]]
+
+    op = DatabricksSqlOperator(
+        task_id=TASK_ID,
+        sql="SELECT * FROM dummy",
+        output_path="gs://test-bucket/output.csv",
+        output_format="csv",
+        gcp_conn_id="google_cloud_default",
+    )
+
+    with pytest.raises(ValueError, match="Format 'csv' with GCS path is not yet supported"):
+        op.execute(None)
