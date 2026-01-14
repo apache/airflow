@@ -345,4 +345,7 @@ class Timetable(Protocol):
             will be scheduled ever again for this DAG; the timetable can return
             a DagRunInfo object when asked at another time.
         """
-        raise NotImplementedError()
+        return self.next_dagrun_info(
+            last_automated_data_interval=last_dagrun_info.data_interval,
+            restriction=restriction,
+        )
