@@ -160,20 +160,21 @@ export const DataTable = <TData,>({
     showRowCountHeading && hasModelName && !Boolean(isLoading) && !Boolean(isFetching) && total > 0,
   );
   const noRowsModelName = translateModelName(0);
+  const rowCountHeading = showRowCount ? (
+    <Heading py={3} size="md">
+      {`${total} ${translateModelName(total)}`}
+    </Heading>
+  ) : undefined;
 
   return (
     <>
       <ProgressBar size="xs" visibility={Boolean(isFetching) && !Boolean(isLoading) ? "visible" : "hidden"} />
-      <Toaster />
-      {errorMessage}
-      {showRowCount ? (
-        <Heading py={3} size="md">
-          {`${total} ${translateModelName(total)}`}
-        </Heading>
-      ) : undefined}
       {showDisplayToggle && onDisplayToggleChange ? (
         <ToggleTableDisplay display={display} setDisplay={onDisplayToggleChange} />
       ) : undefined}
+      <Toaster />
+      {errorMessage}
+      {rowCountHeading}
       {hasRows && display === "table" ? (
         <TableList allowFiltering={showColumnsFilter} table={table} />
       ) : undefined}
