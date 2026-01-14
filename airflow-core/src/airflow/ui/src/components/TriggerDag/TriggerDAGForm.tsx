@@ -35,6 +35,8 @@ import { ErrorAlert } from "../ErrorAlert";
 import { Checkbox } from "../ui/Checkbox";
 import { RadioCardItem, RadioCardRoot } from "../ui/RadioCard";
 import TriggerDAGAdvancedOptions from "./TriggerDAGAdvancedOptions";
+import type { DagRunTriggerParams } from "./types";
+import { dataIntervalModeOptions } from "./types";
 
 type TriggerDAGFormProps = {
   readonly dagDisplayName: string;
@@ -52,24 +54,6 @@ type TriggerDAGFormProps = {
     | undefined;
 };
 
-type DataIntervalMode = "auto" | "manual";
-
-export type DagRunTriggerParams = {
-  conf: string;
-  dagRunId: string;
-  dataIntervalEnd: string;
-  dataIntervalMode: DataIntervalMode;
-  dataIntervalStart: string;
-  logicalDate: string;
-  note: string;
-  partitionKey: string | undefined;
-};
-
-const dataIntervalModeOptions: Array<{ label: string; value: DataIntervalMode }> = [
-  { label: "components:triggerDag.dataIntervalAuto", value: "auto" },
-  { label: "components:triggerDag.dataIntervalManual", value: "manual" },
-];
-
 const TriggerDAGForm = ({
   dagDisplayName,
   dagId,
@@ -84,7 +68,7 @@ const TriggerDAGForm = ({
   const [formError, setFormError] = useState(false);
   const initialParamsDict = useDagParams(dagId, open);
   const { error: errorTrigger, isPending, triggerDagRun } = useTrigger({ dagId, onSuccessConfirm: onClose });
-  const { conf, setConf } = useParamStore();
+  const { conf, initialParamDict, setConf, setInitialParamDict } = useParamStore();
   const [unpause, setUnpause] = useState(true);
 
   const { mutate: togglePause } = useTogglePause({ dagId });
@@ -119,12 +103,25 @@ const TriggerDAGForm = ({
         note: "",
         partitionKey: undefined,
       });
-      // Also update the param store to keep it in sync
-      if (confString) {
+
+      // Also update the param store to keep it in sync.
+      // Wait until we have the initial params so section ordering stays consistent.
+      if (confString && Object.keys(initialParamsDict.paramsDict).length > 0) {
+        if (Object.keys(initialParamDict).length === 0) {
+          setInitialParamDict(initialParamsDict.paramsDict);
+        }
         setConf(confString);
       }
     }
-  }, [prefillConfig, open, reset, setConf]);
+  }, [
+    prefillConfig,
+    open,
+    reset,
+    setConf,
+    initialParamsDict.paramsDict,
+    initialParamDict,
+    setInitialParamDict,
+  ]);
 
   // Automatically reset form when conf is fetched (only if no prefillConfig)
   useEffect(() => {
