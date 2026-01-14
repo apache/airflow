@@ -1206,6 +1206,7 @@ def test_users_can_be_found(app, security_manager, session, caplog):
     create_user(app, "TeSt")
     assert security_manager.find_user("Test")
     users = security_manager.get_all_users()
+    session.expire_all()
     assert len(users) == 1
     delete_user(app, "Test")
     assert "Error adding new user to database" in caplog.text

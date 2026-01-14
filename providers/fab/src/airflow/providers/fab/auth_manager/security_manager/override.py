@@ -1433,32 +1433,38 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
 
     def find_user(self, username=None, email=None):
         """Find user by username or email."""
-        if username:
-            try:
-                if self.auth_username_ci:
-                    return self.session.scalars(
+        try:
+            if username:
+                return (
+                    self.session.scalars(
                         select(self.user_model).where(
-                            func.lower(self.user_model.username) == func.lower(username)
+                            func.lower(self.user_model.username) == username.lower()
                         )
-                    ).one_or_none()
-                return self.session.scalars(
-                    select(self.user_model).where(
-                        func.lower(self.user_model.username) == func.lower(username)
                     )
-                ).one_or_none()
-            except MultipleResultsFound:
-                log.error("Multiple results found for user %s", username)
-                return None
-        elif email:
-            try:
-                return self.session.scalars(select(self.user_model).filter_by(email=email)).one_or_none()
-            except MultipleResultsFound:
-                log.error("Multiple results found for user with email %s", email)
-                return None
+                    .unique()
+                    .one_or_none()
+                )
+
+            if email:
+                return (
+                    self.session.scalars(
+                        select(self.user_model).where(
+                            func.lower(self.user_model.email) == email.lower()
+                        )
+                    )
+                    .unique()
+                    .one_or_none()
+                )
+        except MultipleResultsFound:
+            log.error("Multiple results found for user: username=%s email=%s", username, email)
+            return None
 
     def update_user(self, user: User) -> bool:
         try:
-            user.changed_on=func.now()
+            state = inspect(user)
+            if state.attrs.roles.history.has_changes():
+                user.changed_on = datetime.datetime.utcnow()
+
             self.session.merge(user)
             self.session.commit()
             log.info(const.LOGMSG_INF_SEC_UPD_USER, user)
