@@ -27,6 +27,24 @@
 Changelog
 ---------
 
+4.3.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add ''SSHRemoteJobOperator'' for resilient remote job execution (#60297)``
+
+Misc
+~~~~
+
+* ``New year means updated Copyright notices (#60344)``
+* ``Migrate ssh provider to use airflow.sdk.configuration.conf (#59981)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``TaskInstance unused method cleanup (#59835)``
+
 4.2.1
 .....
 
