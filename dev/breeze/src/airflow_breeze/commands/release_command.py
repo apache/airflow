@@ -30,7 +30,7 @@ from airflow_breeze.utils.console import console_print
 from airflow_breeze.utils.path_utils import AIRFLOW_ROOT_PATH
 from airflow_breeze.utils.run_utils import run_command
 
-# Pattern to match Airflow release versions starting with 3 (e.g., "3.0.5")
+# Pattern to match Airflow release versions (e.g., "3.0.5")
 RELEASE_PATTERN = re.compile(r"^(?P<major>\d+)\.(?P<minor>\d+)\.(?P<patch>\d+)$")
 
 
