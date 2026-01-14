@@ -62,6 +62,7 @@ from airflow.sdk.exceptions import (
     AirflowInactiveAssetInInletOrOutletException,
     AirflowRuntimeError,
     AirflowTaskTimeout,
+    TaskDeferralTimeout,
     ErrorType,
     TaskDeferred,
 )
@@ -1340,7 +1341,7 @@ def _execute_task(context: Context, ti: RuntimeTaskInstance, log: Logger):
             # Run task in timeout wrapper
             with timeout(timeout_seconds):
                 result = ctx.run(execute, context=context)
-        except AirflowTaskTimeout:
+        except (AirflowTaskTimeout, TaskDeferralTimeout):
             task.on_kill()
             raise
     else:

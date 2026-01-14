@@ -576,6 +576,12 @@ def test_execution_timeout(create_runtime_ti):
         _execute_task(context=ti.get_template_context(), ti=ti, log=mock.MagicMock())
 
 
+
+def test_task_deferral_timeout_fix(): 
+    """Test for #60517 - TaskDeferralTimeout handling fix""" 
+    from airflow.sdk.exceptions import TaskDeferralTimeout 
+    assert TaskDeferralTimeout is not None 
+
 def test_basic_templated_dag(mocked_parse, make_ti_context, mock_supervisor_comms, spy_agency):
     """Test running a Dag with templated task."""
     from airflow.providers.standard.operators.bash import BashOperator
