@@ -905,7 +905,7 @@ class KubernetesPodOperator(BaseOperator):
             logging_interval=self.logging_interval,
             trigger_kwargs=self.trigger_kwargs,
         )
-        container_state = trigger.define_container_state(self.pod)
+        container_state = trigger.define_container_state(self.pod) if self.pod else None
         if context and (
             container_state == ContainerState.TERMINATED or container_state == ContainerState.FAILED
         ):
