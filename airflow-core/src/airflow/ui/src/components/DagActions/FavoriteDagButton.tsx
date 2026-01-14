@@ -16,36 +16,41 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+import { IconButton } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 import { FiStar } from "react-icons/fi";
 
+import { Tooltip } from "src/components/ui";
 import { useToggleFavoriteDag } from "src/queries/useToggleFavoriteDag";
-
-import ActionButton, { type ActionButtonProps } from "../ui/ActionButton";
 
 type FavoriteDagButtonProps = {
   readonly dagId: string;
   readonly isFavorite?: boolean;
-} & Omit<ActionButtonProps, "actionName" | "icon" | "onClick">;
+};
 
-export const FavoriteDagButton = ({ dagId, isFavorite = false, ...rest }: FavoriteDagButtonProps) => {
+export const FavoriteDagButton = ({ dagId, isFavorite = false }: FavoriteDagButtonProps) => {
   const { t: translate } = useTranslation("dags");
   const { isLoading, toggleFavorite } = useToggleFavoriteDag(dagId);
 
+  const label = isFavorite ? translate("unfavoriteDag") : translate("favoriteDag");
+
   return (
-    <ActionButton
-      {...rest}
-      actionName={isFavorite ? translate("unfavoriteDag") : translate("favoriteDag")}
-      icon={
+    <Tooltip content={label}>
+      <IconButton
+        aria-label={label}
+        colorPalette="brand"
+        loading={isLoading}
+        onClick={() => toggleFavorite(isFavorite)}
+        size="md"
+        variant="ghost"
+      >
         <FiStar
           style={{
             fill: isFavorite ? "var(--chakra-colors-brand-solid)" : "none",
             stroke: "var(--chakra-colors-brand-solid)",
           }}
         />
-      }
-      loading={isLoading}
-      onClick={() => toggleFavorite(isFavorite)}
-    />
+      </IconButton>
+    </Tooltip>
   );
 };

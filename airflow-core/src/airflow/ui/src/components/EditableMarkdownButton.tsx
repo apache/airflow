@@ -16,16 +16,15 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, Button, Flex, Heading, VStack } from "@chakra-ui/react";
+import { Box, Button, Flex, Heading, IconButton, VStack } from "@chakra-ui/react";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { PiNoteBold, PiNoteBlankBold } from "react-icons/pi";
 
-import { Dialog } from "src/components/ui";
+import { Dialog, Tooltip } from "src/components/ui";
 import { ResizableWrapper, MARKDOWN_DIALOG_STORAGE_KEY } from "src/components/ui/ResizableWrapper";
 
 import EditableMarkdownArea from "./EditableMarkdownArea";
-import ActionButton from "./ui/ActionButton";
 
 const EditableMarkdownButton = ({
   header,
@@ -49,7 +48,7 @@ const EditableMarkdownButton = ({
 
   const hasContent = Boolean(mdContent?.trim());
   const noteIcon = hasContent ? <PiNoteBold /> : <PiNoteBlankBold />;
-  const actionName = hasContent ? translate("note.label") : translate("note.add");
+  const label = hasContent ? translate("note.label") : translate("note.add");
 
   const handleOpen = () => {
     if (!isOpen) {
@@ -60,7 +59,11 @@ const EditableMarkdownButton = ({
 
   return (
     <>
-      <ActionButton actionName={actionName} icon={noteIcon} onClick={handleOpen} />
+      <Tooltip content={label}>
+        <IconButton aria-label={label} colorPalette="brand" onClick={handleOpen} size="md" variant="ghost">
+          {noteIcon}
+        </IconButton>
+      </Tooltip>
       <Dialog.Root
         data-testid="markdown-modal"
         lazyMount

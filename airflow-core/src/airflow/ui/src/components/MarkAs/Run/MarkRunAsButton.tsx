@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, HStack, useDisclosure } from "@chakra-ui/react";
+import { Box, HStack, IconButton, useDisclosure } from "@chakra-ui/react";
 import { useState } from "react";
 import { useHotkeys } from "react-hotkeys-hook";
 import { useTranslation } from "react-i18next";
@@ -26,7 +26,6 @@ import { LuCheck } from "react-icons/lu";
 import type { DAGRunPatchStates, DAGRunResponse } from "openapi/requests/types.gen";
 import { StateBadge } from "src/components/StateBadge";
 import { Menu, Tooltip } from "src/components/ui";
-import ActionButton from "src/components/ui/ActionButton";
 
 import { allowedStates } from "../utils";
 import MarkRunAsDialog from "./MarkRunAsDialog";
@@ -63,16 +62,26 @@ const MarkRunAsButton = ({ dagRun, isHotkeyEnabled = false }: Props) => {
     <Box>
       <Menu.Root positioning={{ gutter: 0, placement: "bottom" }}>
         <Menu.Trigger asChild>
-          <ActionButton
-            actionName={translate("dags:runAndTaskActions.markAs.button", { type: translate("dagRun_one") })}
-            icon={
-              <HStack gap={1} mx={1}>
-                <LuCheck />
-                <span>/</span>
-                <FiX />
-              </HStack>
-            }
-          />
+          <div>
+            <Tooltip
+              content={translate("dags:runAndTaskActions.markAs.button", { type: translate("dagRun_one") })}
+            >
+              <IconButton
+                aria-label={translate("dags:runAndTaskActions.markAs.button", {
+                  type: translate("dagRun_one"),
+                })}
+                colorPalette="brand"
+                size="md"
+                variant="ghost"
+              >
+                <HStack gap={1} mx={1}>
+                  <LuCheck />
+                  <span>/</span>
+                  <FiX />
+                </HStack>
+              </IconButton>
+            </Tooltip>
+          </div>
         </Menu.Trigger>
         <Menu.Content>
           {allowedStates.map((menuState) => {

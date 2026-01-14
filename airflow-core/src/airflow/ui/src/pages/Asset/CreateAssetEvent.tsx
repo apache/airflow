@@ -16,12 +16,12 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { useDisclosure } from "@chakra-ui/react";
+import { IconButton, useDisclosure } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 import { FiPlay } from "react-icons/fi";
 
 import type { AssetResponse } from "openapi/requests/types.gen";
-import ActionButton from "src/components/ui/ActionButton";
+import { Tooltip } from "src/components/ui";
 
 import { CreateAssetEventModal } from "./CreateAssetEventModal";
 
@@ -35,12 +35,18 @@ export const CreateAssetEvent = ({ asset }: Props) => {
 
   return (
     <>
-      <ActionButton
-        actionName={translate("createEvent.button")}
-        disabled={asset === undefined}
-        icon={<FiPlay />}
-        onClick={onOpen}
-      />
+      <Tooltip content={translate("createEvent.button")}>
+        <IconButton
+          aria-label={translate("createEvent.button")}
+          colorPalette="brand"
+          disabled={asset === undefined}
+          onClick={onOpen}
+          size="md"
+          variant="ghost"
+        >
+          <FiPlay />
+        </IconButton>
+      </Tooltip>
 
       {asset === undefined || !open ? undefined : (
         <CreateAssetEventModal asset={asset} onClose={onClose} open={open} />

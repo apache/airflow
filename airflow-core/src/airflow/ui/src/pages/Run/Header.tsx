@@ -16,11 +16,10 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { HStack, Text, Box, Link, Menu, Portal, IconButton } from "@chakra-ui/react";
+import { HStack, Text, Box, Link } from "@chakra-ui/react";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { FiBarChart } from "react-icons/fi";
-import { LuMenu } from "react-icons/lu";
 import { Link as RouterLink } from "react-router-dom";
 
 import type { DAGRunResponse } from "openapi/requests/types.gen";
@@ -79,30 +78,7 @@ export const Header = ({ dagRun }: { readonly dagRun: DAGRunResponse }) => {
             />
             <ClearRunButton dagRun={dagRun} isHotkeyEnabled />
             <MarkRunAsButton dagRun={dagRun} isHotkeyEnabled />
-            <Menu.Root>
-              <Menu.Trigger asChild>
-                <IconButton
-                  aria-label={translate("dag:header.buttons.advanced")}
-                  colorPalette="brand"
-                  size="md"
-                  title={translate("dag:header.buttons.advanced")}
-                  variant="ghost"
-                >
-                  <LuMenu />
-                </IconButton>
-              </Menu.Trigger>
-              <Portal>
-                <Menu.Positioner>
-                  <Menu.Content>
-                    <Menu.Item closeOnSelect={false} value="delete">
-                      <Box width="100%">
-                        <DeleteRunButton dagRun={dagRun} width="100%" withText />
-                      </Box>
-                    </Menu.Item>
-                  </Menu.Content>
-                </Menu.Positioner>
-              </Portal>
-            </Menu.Root>
+            <DeleteRunButton dagRun={dagRun} />
           </>
         }
         icon={<FiBarChart />}

@@ -40,7 +40,6 @@ import { SearchDagsButton } from "src/components/SearchDags";
 import { TriggerDAGButton } from "src/components/TriggerDag/TriggerDAGButton";
 import { ProgressBar } from "src/components/ui";
 import { Toaster } from "src/components/ui";
-import ActionButton from "src/components/ui/ActionButton";
 import { Tooltip } from "src/components/ui/Tooltip";
 import { HoverProvider } from "src/context/hover";
 import { OpenGroupsProvider } from "src/context/openGroups";
@@ -228,16 +227,22 @@ export const DetailsLayout = ({ children, error, isLoading, tabs }: Props) => {
                     {children}
                     {Boolean(error) || (warningData?.dag_warnings.length ?? 0) > 0 ? (
                       <>
-                        <ActionButton
-                          actionName={`${translate("common:dagWarnings")} (${warningData?.total_entries ?? 0 + Number(error)})`}
-                          colorPalette={Boolean(error) ? "red" : "orange"}
-                          icon={<LuFileWarning />}
-                          margin="2"
-                          marginBottom="-1"
-                          onClick={onOpen}
-                          rounded="full"
-                          variant="solid"
-                        />
+                        <Tooltip
+                          content={`${translate("common:dagWarnings")} (${warningData?.total_entries ?? 0 + Number(error)})`}
+                        >
+                          <IconButton
+                            aria-label={`${translate("common:dagWarnings")} (${warningData?.total_entries ?? 0 + Number(error)})`}
+                            colorPalette={Boolean(error) ? "red" : "orange"}
+                            margin="2"
+                            marginBottom="-1"
+                            onClick={onOpen}
+                            rounded="full"
+                            size="md"
+                            variant="solid"
+                          >
+                            <LuFileWarning />
+                          </IconButton>
+                        </Tooltip>
 
                         <DAGWarningsModal
                           error={error}

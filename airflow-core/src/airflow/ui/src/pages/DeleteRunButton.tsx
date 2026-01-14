@@ -16,21 +16,21 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { useDisclosure } from "@chakra-ui/react";
+import { IconButton, useDisclosure } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 import { FiTrash2 } from "react-icons/fi";
 import { useLocation, useNavigate } from "react-router-dom";
 
 import type { DAGRunResponse } from "openapi/requests/types.gen";
 import DeleteDialog from "src/components/DeleteDialog";
-import ActionButton, { type ActionButtonProps } from "src/components/ui/ActionButton";
+import { Tooltip } from "src/components/ui";
 import { useDeleteDagRun } from "src/queries/useDeleteDagRun";
 
 type DeleteRunButtonProps = {
   readonly dagRun: DAGRunResponse;
-} & Omit<ActionButtonProps, "actionName" | "icon" | "onClick">;
+};
 
-const DeleteRunButton = ({ dagRun, ...rest }: DeleteRunButtonProps) => {
+const DeleteRunButton = ({ dagRun }: DeleteRunButtonProps) => {
   const { onClose, onOpen, open } = useDisclosure();
   const navigate = useNavigate();
   const location = useLocation();
@@ -51,13 +51,17 @@ const DeleteRunButton = ({ dagRun, ...rest }: DeleteRunButtonProps) => {
 
   return (
     <>
-      <ActionButton
-        {...rest}
-        actionName={translate("dags:runAndTaskActions.delete.button", { type: translate("dagRun_one") })}
-        colorPalette="danger"
-        icon={<FiTrash2 />}
-        onClick={onOpen}
-      />
+      <Tooltip content={translate("dags:runAndTaskActions.delete.button", { type: translate("dagRun_one") })}>
+        <IconButton
+          aria-label={translate("dags:runAndTaskActions.delete.button", { type: translate("dagRun_one") })}
+          colorPalette="danger"
+          onClick={onOpen}
+          size="md"
+          variant="ghost"
+        >
+          <FiTrash2 />
+        </IconButton>
+      </Tooltip>
 
       <DeleteDialog
         isDeleting={isPending}

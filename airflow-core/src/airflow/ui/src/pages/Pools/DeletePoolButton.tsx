@@ -16,12 +16,12 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { useDisclosure } from "@chakra-ui/react";
+import { IconButton, useDisclosure } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 import { FiTrash2 } from "react-icons/fi";
 
 import DeleteDialog from "src/components/DeleteDialog";
-import ActionButton from "src/components/ui/ActionButton";
+import { Tooltip } from "src/components/ui";
 import { useDeletePool } from "src/queries/useDeletePool";
 
 type Props = {
@@ -37,12 +37,17 @@ const DeletePoolButton = ({ poolName }: Props) => {
 
   return (
     <>
-      <ActionButton
-        actionName={translate("pools.delete.title")}
-        colorPalette="danger"
-        icon={<FiTrash2 />}
-        onClick={onOpen}
-      />
+      <Tooltip content={translate("pools.delete.title")}>
+        <IconButton
+          aria-label={translate("pools.delete.title")}
+          colorPalette="danger"
+          onClick={onOpen}
+          size="md"
+          variant="ghost"
+        >
+          <FiTrash2 />
+        </IconButton>
+      </Tooltip>
 
       <DeleteDialog
         isDeleting={isPending}

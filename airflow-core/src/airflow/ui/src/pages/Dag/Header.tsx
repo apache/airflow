@@ -16,17 +16,16 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { IconButton, Link, Menu, Portal } from "@chakra-ui/react";
+import { Link } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 import { FiBookOpen } from "react-icons/fi";
-import { LuMenu } from "react-icons/lu";
 import { useParams, Link as RouterLink } from "react-router-dom";
 
 import type { DAGDetailsResponse, DagRunState } from "openapi/requests/types.gen";
 import { DagIcon } from "src/assets/DagIcon";
 import { DeleteDagButton } from "src/components/DagActions/DeleteDagButton";
 import { FavoriteDagButton } from "src/components/DagActions/FavoriteDagButton";
-import ParseDag from "src/components/DagActions/ParseDag";
+import { ParseDagButton } from "src/components/DagActions/ParseDagButton";
 import DagRunInfo from "src/components/DagRunInfo";
 import { DagVersion } from "src/components/DagVersion";
 import DisplayMarkdownButton from "src/components/DisplayMarkdownButton";
@@ -133,36 +132,8 @@ export const Header = ({
               />
             )}
             <FavoriteDagButton dagId={dag.dag_id} isFavorite={dag.is_favorite} />
-            <Menu.Root>
-              <Menu.Trigger asChild>
-                <IconButton
-                  aria-label={translate("dag:header.buttons.advanced")}
-                  colorPalette="brand"
-                  size="md"
-                  title={translate("dag:header.buttons.advanced")}
-                  variant="ghost"
-                >
-                  <LuMenu />
-                </IconButton>
-              </Menu.Trigger>
-              <Portal>
-                <Menu.Positioner>
-                  <Menu.Content>
-                    <Menu.Item p={0} value="reparse">
-                      <ParseDag dagId={dag.dag_id} fileToken={dag.file_token} />
-                    </Menu.Item>
-                    <Menu.Item closeOnSelect={false} p={0} value="delete">
-                      <DeleteDagButton
-                        dagDisplayName={dag.dag_display_name}
-                        dagId={dag.dag_id}
-                        pr={7}
-                        withText
-                      />
-                    </Menu.Item>
-                  </Menu.Content>
-                </Menu.Positioner>
-              </Portal>
-            </Menu.Root>
+            <ParseDagButton dagId={dag.dag_id} fileToken={dag.file_token} />
+            <DeleteDagButton dagDisplayName={dag.dag_display_name} dagId={dag.dag_id} />
           </>
         )
       }

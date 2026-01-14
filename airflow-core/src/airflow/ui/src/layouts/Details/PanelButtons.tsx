@@ -34,9 +34,9 @@ import { useReactFlow } from "@xyflow/react";
 import { useEffect, useMemo, useRef } from "react";
 import { useHotkeys } from "react-hotkeys-hook";
 import { useTranslation } from "react-i18next";
-import { FiGrid, FiMenu } from "react-icons/fi";
+import { FiGrid } from "react-icons/fi";
 import { LuKeyboard } from "react-icons/lu";
-import { MdOutlineAccountTree } from "react-icons/md";
+import { MdOutlineAccountTree, MdSettings } from "react-icons/md";
 import type { ImperativePanelGroupHandle } from "react-resizable-panels";
 import { useParams } from "react-router-dom";
 import { useLocalStorage } from "usehooks-ts";
@@ -254,7 +254,7 @@ export const PanelButtons = ({
                 title={translate("dag:panel.buttons.options")}
                 variant="ghost"
               >
-                <FiMenu />
+                <MdSettings />
               </IconButton>
             </Popover.Trigger>
             <Portal>
