@@ -129,17 +129,12 @@ const RunBackfillForm = ({ dag, onClose }: RunBackfillFormProps) => {
     onClose();
   };
 
-  const resetDateError = () => {
-    setErrors((prev) => ({ ...prev, date: undefined }));
-  };
-
-  const affectedTasks = data ?? {
-    backfills: [],
-    total_entries: 0,
-  };
+  const resetDateError = () => setErrors((prev) => ({ ...prev, date: undefined }));
+  const affectedTasks = data ?? { backfills: [], total_entries: 0 };
 
   // Check if the dry run error is a permission error (403)
-  const isPermissionError = (dryRunError as ExpandedApiError)?.status === 403;
+  const isPermissionError =
+    dryRunError !== undefined && dryRunError !== null && (dryRunError as ExpandedApiError).status === 403;
 
   const inlineMessage = getInlineMessage(isPendingDryRun, affectedTasks.total_entries, translate);
 
