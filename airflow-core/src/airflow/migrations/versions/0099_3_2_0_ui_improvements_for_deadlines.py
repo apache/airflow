@@ -33,7 +33,8 @@ from __future__ import annotations
 import json
 import zlib
 from collections import defaultdict
-from typing import TYPE_CHECKING, Iterable
+from collections.abc import Iterable
+from typing import TYPE_CHECKING
 
 import sqlalchemy as sa
 import uuid6
