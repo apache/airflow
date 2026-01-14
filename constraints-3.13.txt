@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2026-01-13T07:54:18.044596
+# This constraints file was automatically generated on 2026-01-14T02:31:30.961297
 # via `uv pip install --resolution highest` for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -83,98 +83,6 @@ annotated-doc==0.0.4
 annotated-types==0.7.0
 ansicolors==1.1.8
 anyio==4.12.1
-apache-airflow-providers-airbyte==5.3.1
-apache-airflow-providers-alibaba==3.3.2
-apache-airflow-providers-amazon==9.19.0
-apache-airflow-providers-apache-cassandra==3.9.0
-apache-airflow-providers-apache-drill==3.2.0
-apache-airflow-providers-apache-druid==4.4.1
-apache-airflow-providers-apache-flink==1.8.1
-apache-airflow-providers-apache-hdfs==4.11.1
-apache-airflow-providers-apache-hive==9.2.2
-apache-airflow-providers-apache-iceberg==1.4.0
-apache-airflow-providers-apache-impala==1.8.0
-apache-airflow-providers-apache-kylin==3.10.1
-apache-airflow-providers-apache-livy==4.5.1
-apache-airflow-providers-apache-pig==4.8.1
-apache-airflow-providers-apache-pinot==4.9.1
-apache-airflow-providers-apache-spark==5.4.2
-apache-airflow-providers-apache-tinkerpop==1.1.0
-apache-airflow-providers-apprise==2.3.0
-apache-airflow-providers-arangodb==2.9.1
-apache-airflow-providers-asana==2.11.0
-apache-airflow-providers-atlassian-jira==3.3.0
-apache-airflow-providers-celery==3.15.0
-apache-airflow-providers-cloudant==4.3.1
-apache-airflow-providers-cncf-kubernetes==10.12.0
-apache-airflow-providers-cohere==1.6.0
-apache-airflow-providers-common-compat==1.11.0
-apache-airflow-providers-common-io==1.7.0
-apache-airflow-providers-common-messaging==2.0.1
-apache-airflow-providers-common-sql==1.30.2
-apache-airflow-providers-databricks==7.8.2
-apache-airflow-providers-datadog==3.10.1
-apache-airflow-providers-dbt-cloud==4.6.2
-apache-airflow-providers-dingding==3.9.1
-apache-airflow-providers-discord==3.11.1
-apache-airflow-providers-docker==4.5.1
-apache-airflow-providers-edge3==2.0.1
-apache-airflow-providers-elasticsearch==6.4.2
-apache-airflow-providers-exasol==4.9.0
-apache-airflow-providers-facebook==3.9.1
-apache-airflow-providers-ftp==3.14.0
-apache-airflow-providers-git==0.2.0
-apache-airflow-providers-github==2.10.1
-apache-airflow-providers-google==19.3.0
-apache-airflow-providers-grpc==3.9.1
-apache-airflow-providers-hashicorp==4.4.1
-apache-airflow-providers-http==5.6.2
-apache-airflow-providers-imap==3.10.2
-apache-airflow-providers-influxdb==2.10.1
-apache-airflow-providers-jdbc==5.3.1
-apache-airflow-providers-jenkins==4.2.1
-apache-airflow-providers-keycloak==0.4.1
-apache-airflow-providers-microsoft-azure==12.10.1
-apache-airflow-providers-microsoft-mssql==4.4.0
-apache-airflow-providers-microsoft-psrp==3.2.2
-apache-airflow-providers-microsoft-winrm==3.13.2
-apache-airflow-providers-mongo==5.3.1
-apache-airflow-providers-mysql==6.4.0
-apache-airflow-providers-neo4j==3.11.2
-apache-airflow-providers-odbc==4.11.0
-apache-airflow-providers-openai==1.7.1
-apache-airflow-providers-openfaas==3.9.1
-apache-airflow-providers-openlineage==2.9.2
-apache-airflow-providers-opensearch==1.8.2
-apache-airflow-providers-opsgenie==5.10.0
-apache-airflow-providers-oracle==4.3.0
-apache-airflow-providers-pagerduty==5.2.1
-apache-airflow-providers-papermill==3.12.0
-apache-airflow-providers-pgvector==1.6.0
-apache-airflow-providers-pinecone==2.4.1
-apache-airflow-providers-postgres==6.5.1
-apache-airflow-providers-presto==5.10.2
-apache-airflow-providers-qdrant==1.5.1
-apache-airflow-providers-redis==4.4.1
-apache-airflow-providers-salesforce==5.12.1
-apache-airflow-providers-samba==4.12.1
-apache-airflow-providers-segment==3.9.1
-apache-airflow-providers-sendgrid==4.2.0
-apache-airflow-providers-sftp==5.5.1
-apache-airflow-providers-singularity==3.9.1
-apache-airflow-providers-slack==9.6.1
-apache-airflow-providers-smtp==2.4.1
-apache-airflow-providers-snowflake==6.5.4
-apache-airflow-providers-sqlite==4.2.0
-apache-airflow-providers-ssh==4.2.1
-apache-airflow-providers-standard==1.10.2
-apache-airflow-providers-tableau==5.3.1
-apache-airflow-providers-telegram==4.9.1
-apache-airflow-providers-teradata==3.4.0
-apache-airflow-providers-trino==6.4.1
-apache-airflow-providers-vertica==4.2.0
-apache-airflow-providers-weaviate==3.3.0
-apache-airflow-providers-zendesk==4.11.0
 apprise==1.9.6
 argcomplete==3.6.3
 asana==5.2.2
@@ -187,6 +95,8 @@ asyncssh==2.22.0
 atlasclient==1.0.0
 atlassian-python-api==4.0.7
 attrs==25.4.0
+aws-embedded-metrics==3.3.1
+awswrangler==3.15.0
 azure-batch==14.2.0
 azure-common==1.1.28
 azure-core==1.38.0
@@ -237,7 +147,7 @@ click-didyoumean==0.3.1
 click-plugins==1.1.1.2
 click-repl==0.3.0
 click==8.3.1
-cloudpickle==3.1.2
+cloudpickle==3.1.1
 cohere==5.20.1
 colorlog==6.10.1
 comm==0.2.3
@@ -248,7 +158,6 @@ cryptography==44.0.3
 curlify==3.0.0
 darabonba-core==1.0.5
 databricks-sql-connector==4.2.4
-databricks-sqlalchemy==2.0.8
 dataclasses-json==0.6.7
 datadog==0.52.1
 db-dtypes==1.5.0
@@ -262,6 +171,7 @@ dnspython==2.8.0
 docker==7.1.0
 docopt==0.6.2
 docstring_parser==0.17.0
+duckdb==1.4.3
 durationpy==0.10
 ecdsa==0.19.1
 elastic-transport==8.17.1
@@ -292,7 +202,7 @@ gitdb==4.0.12
 google-ads==28.4.1
 google-analytics-admin==0.27.0
 google-api-core==2.29.0
-google-api-python-client==2.187.0
+google-api-python-client==2.188.0
 google-auth-httplib2==0.3.0
 google-auth-oauthlib==1.2.2
 google-auth==2.47.0
@@ -333,7 +243,7 @@ google-cloud-spanner==3.61.0
 google-cloud-speech==2.35.0
 google-cloud-storage-control==1.8.0
 google-cloud-storage-transfer==1.18.0
-google-cloud-storage==3.7.0
+google-cloud-storage==3.8.0
 google-cloud-tasks==2.20.0
 google-cloud-texttospeech==2.33.0
 google-cloud-translate==3.23.0
@@ -361,7 +271,7 @@ hf-xet==1.2.0
 hmsclient==0.1.1
 hpack==4.1.0
 httpcore==1.0.9
-httplib2==0.31.0
+httplib2==0.31.1
 httptools==0.7.1
 httpx==0.28.1
 huggingface_hub==1.3.1
@@ -408,7 +318,7 @@ kylinpy==2.8.4
 lazy-object-proxy==1.12.0
 libcst==1.8.6
 linkify-it-py==2.0.3
-litellm==1.80.15
+litellm==1.80.16
 lockfile==0.12.2
 looker_sdk==25.20.0
 lxml==5.4.0
@@ -447,7 +357,7 @@ nbconvert==7.16.6
 nbformat==5.10.4
 neo4j==6.1.0
 nest-asyncio==1.6.0
-numpy==2.4.1
+numpy==2.2.6
 oauthlib==3.3.1
 openai==2.15.0
 openlineage-integration-common==1.42.1
@@ -474,7 +384,7 @@ outcome==1.3.0.post0
 packaging==25.0
 pagerduty==6.1.0
 pandas-gbq==0.33.0
-pandas-stubs==2.3.3.251201
+pandas-stubs==2.3.3.260113
 pandas==2.3.3
 pandocfilters==1.5.1
 papermill==2.6.0
@@ -523,6 +433,7 @@ pydruid==0.6.9
 pydynamodb==0.8.0
 pyexasol==1.1.0
 pygtrie==2.5.0
+pyiceberg==0.10.0
 pykerberos==1.2.4
 pymongo==4.16.0
 pymssql==2.3.11
@@ -531,6 +442,7 @@ pyodps==0.12.5.1
 pyparsing==3.3.1
 pyproject_hooks==1.2.0
 pypsrp==0.8.1
+pyroaring==1.0.3
 pyspark==4.1.1
 pyspnego==0.12.0
 python-arango==8.2.5
@@ -569,7 +481,7 @@ rsa==4.9.1
 ruamel.yaml==0.19.1
 s3fs==2026.1.0
 s3transfer==0.16.0
-sagemaker_studio==1.0.23
+sagemaker_studio==1.1.5
 scikit-learn==1.8.0
 scipy==1.17.0
 scramp==1.4.8
@@ -587,6 +499,7 @@ smbprotocol==1.15.0
 smmap==5.0.2
 sniffio==1.3.1
 snowflake-connector-python==4.2.0
+snowflake-snowpark-python==1.44.0
 snowflake-sqlalchemy==1.8.2
 sortedcontainers==2.4.0
 soupsieve==2.8.1
@@ -601,6 +514,7 @@ stack-data==0.6.3
 starlette==0.50.0
 statsd==4.0.1
 std-uritemplate==2.0.8
+strictyaml==1.7.3
 structlog==25.5.0
 svcs==25.1.0
 tableauserverclient==0.38
@@ -637,7 +551,7 @@ universal_pathlib==0.2.6
 uritemplate==4.2.0
 urllib3==2.6.3
 uuid6==2025.0.1
-uv==0.9.24
+uv==0.9.25
 uvicorn==0.40.0
 uvloop==0.22.1
 validators==0.35.0
@@ -650,6 +564,7 @@ weaviate-client==4.19.2
 webencodings==0.5.1
 websocket-client==1.9.0
 websockets==15.0.1
+wheel==0.45.1
 wirerope==1.0.0
 wrapt==2.0.1
 xmltodict==1.0.2
