@@ -191,7 +191,7 @@ export class BackfillPage extends BasePage {
     await expect(this.backfillRunButton).toBeVisible({ timeout: 20_000 });
     await this.backfillRunButton.scrollIntoViewIfNeeded();
     await this.backfillRunButton.click({ timeout: 20_000 });
-    await this.page.waitForLoadState("networkidle", { timeout: 30_000 });
+    await expect(this.backfillRunButton).not.toBeVisible({ timeout: 30_000 });
   }
 
   public async findBackfillRowByDateRange(
@@ -343,7 +343,7 @@ export class BackfillPage extends BasePage {
 
   public async navigateToDagDetail(dagName: string): Promise<void> {
     await this.navigateTo(BackfillPage.getDagDetailUrl(dagName));
-    await this.page.waitForLoadState("networkidle");
+    await expect(this.triggerButton).toBeVisible({ timeout: 30_000 });
   }
 
   public async openBackfillDialog(): Promise<void> {
@@ -387,12 +387,13 @@ export class BackfillPage extends BasePage {
   }
 
   public async waitForNoActiveBackfill(timeout: number = 300_000): Promise<void> {
-    const { page } = this;
+    const { page, triggerButton } = this;
     const backfillInProgress = page.locator('text="Backfill in progress:"');
 
     await expect(async () => {
       await page.reload();
-      await page.waitForLoadState("networkidle", { timeout: 30_000 });
+      await page.waitForLoadState("domcontentloaded", { timeout: 30_000 });
+      await triggerButton.waitFor({ state: "visible", timeout: 30_000 });
 
       const isVisible = await backfillInProgress.isVisible();
 
