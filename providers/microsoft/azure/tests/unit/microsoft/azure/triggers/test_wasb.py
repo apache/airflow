@@ -92,17 +92,32 @@ class TestWasbBlobSensorTrigger:
         asyncio.get_event_loop().stop()
 
     @pytest.mark.asyncio
+    @mock.patch("airflow.providers.microsoft.azure.hooks.wasb.WasbAsyncHook.get_async_conn")
     @mock.patch("airflow.providers.microsoft.azure.hooks.wasb.WasbAsyncHook.check_for_blob_async")
-    async def test_success(self, mock_check_for_blob):
+    async def test_success(self, mock_check_for_blob, mock_get_async_conn):
         """Tests the success state for that the WasbBlobSensorTrigger."""
+        # Mock get_async_conn to return an async context manager that doesn't block
+        mock_conn = mock.AsyncMock()
+        mock_get_async_conn.return_value = mock_conn
         mock_check_for_blob.return_value = True
 
         task = asyncio.create_task(self.TRIGGER.run().__anext__())
-        await asyncio.sleep(0.5)
+        # Wait for the task to complete with a timeout
+        try:
+            await asyncio.wait_for(task, timeout=2.0)
+        except asyncio.TimeoutError:
+            # If task didn't complete, check if it's done
+            if not task.done():
+                pytest.fail("Task did not complete within timeout")
+        finally:
+            try:
+                asyncio.get_event_loop().stop()
+            except RuntimeError:
+                # Event loop may already be stopped
+                pass
 
         # TriggerEvent was returned
         assert task.done() is True
-        asyncio.get_event_loop().stop()
 
         message = f"Blob {TEST_DATA_STORAGE_BLOB_NAME} found in container {TEST_DATA_STORAGE_CONTAINER_NAME}."
         assert task.result() == TriggerEvent({"status": "success", "message": message})
@@ -182,17 +197,32 @@ class TestWasbPrefixSensorTrigger:
         asyncio.get_event_loop().stop()
 
     @pytest.mark.asyncio
+    @mock.patch("airflow.providers.microsoft.azure.hooks.wasb.WasbAsyncHook.get_async_conn")
     @mock.patch("airflow.providers.microsoft.azure.hooks.wasb.WasbAsyncHook.check_for_prefix_async")
-    async def test_success(self, mock_check_for_prefix):
+    async def test_success(self, mock_check_for_prefix, mock_get_async_conn):
         """Tests the success state for that the WasbPrefixSensorTrigger."""
+        # Mock get_async_conn to return an async context manager that doesn't block
+        mock_conn = mock.AsyncMock()
+        mock_get_async_conn.return_value = mock_conn
         mock_check_for_prefix.return_value = True
 
         task = asyncio.create_task(self.TRIGGER.run().__anext__())
-        await asyncio.sleep(0.5)
+        # Wait for the task to complete with a timeout
+        try:
+            await asyncio.wait_for(task, timeout=2.0)
+        except asyncio.TimeoutError:
+            # If task didn't complete, check if it's done
+            if not task.done():
+                pytest.fail("Task did not complete within timeout")
+        finally:
+            try:
+                asyncio.get_event_loop().stop()
+            except RuntimeError:
+                # Event loop may already be stopped
+                pass
 
         # TriggerEvent was returned
         assert task.done() is True
-        asyncio.get_event_loop().stop()
 
         message = (
             f"Prefix {TEST_DATA_STORAGE_BLOB_PREFIX} found in container {TEST_DATA_STORAGE_CONTAINER_NAME}."
