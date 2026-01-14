@@ -190,7 +190,14 @@ export class BackfillPage extends BasePage {
 
     await expect(this.backfillRunButton).toBeVisible({ timeout: 20_000 });
     await this.backfillRunButton.scrollIntoViewIfNeeded();
+
+    const responsePromise = this.page.waitForResponse(
+      (response) => response.url().includes("/backfills") && response.request().method() === "POST",
+      { timeout: 30_000 },
+    );
+
     await this.backfillRunButton.click({ timeout: 20_000 });
+    await responsePromise;
     await expect(this.backfillRunButton).not.toBeVisible({ timeout: 30_000 });
   }
 
