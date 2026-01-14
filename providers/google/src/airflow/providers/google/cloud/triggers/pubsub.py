@@ -26,7 +26,13 @@ from typing import Any
 from google.cloud.pubsub_v1.types import ReceivedMessage
 
 from airflow.providers.google.cloud.hooks.pubsub import PubSubAsyncHook
-from airflow.triggers.base import BaseEventTrigger, TriggerEvent
+from airflow.providers.google.version_compat import AIRFLOW_V_3_0_PLUS
+from airflow.triggers.base import TriggerEvent
+
+if AIRFLOW_V_3_0_PLUS:
+    from airflow.triggers.base import BaseEventTrigger
+else:
+    from airflow.triggers.base import BaseTrigger as BaseEventTrigger  # type: ignore
 
 
 class PubsubPullTrigger(BaseEventTrigger):
