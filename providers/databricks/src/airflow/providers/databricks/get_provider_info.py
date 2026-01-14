@@ -94,6 +94,10 @@ def get_provider_info():
                 ],
             },
             {
+                "integration-name": "Databricks Google",
+                "python-modules": ["airflow.providers.databricks.hooks.databricks_google"],
+            },
+            {
                 "integration-name": "Databricks SQL",
                 "python-modules": ["airflow.providers.databricks.hooks.databricks_sql"],
             },
