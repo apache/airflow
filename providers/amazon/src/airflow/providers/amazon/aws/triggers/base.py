@@ -84,6 +84,7 @@ class AwsBaseWaiterTrigger(BaseTrigger):
         region_name: str | None = None,
         verify: bool | str | None = None,
         botocore_config: dict | None = None,
+        cancel_waiter_names: list[str] | None = None,
     ):
         super().__init__()
         # parameters that should be hardcoded in the child's implem
@@ -105,6 +106,7 @@ class AwsBaseWaiterTrigger(BaseTrigger):
         self.region_name = region_name
         self.verify = verify
         self.botocore_config = botocore_config
+        self.cancel_waiter_names = cancel_waiter_names
 
     def serialize(self) -> tuple[str, dict[str, Any]]:
         # here we put together the "common" params,
@@ -159,3 +161,25 @@ class AwsBaseWaiterTrigger(BaseTrigger):
                 self.status_queries,
             )
             yield TriggerEvent({"status": "success", self.return_key: self.return_value})
+
+    async def cancel(self):
+        hook = self.hook()
+        async with await hook.get_async_conn() as client:
+            if not self.cancel_waiter_names:
+                return
+            for waiter_name in self.cancel_waiter_names:
+                waiter = hook.get_waiter(
+                    waiter_name,
+                    deferrable=True,
+                    client=client,
+                    config_overrides=self.waiter_config_overrides,
+                )
+                await async_wait(
+                    waiter,
+                    self.waiter_delay,
+                    self.attempts,
+                    self.waiter_args,
+                    self.failure_message,
+                    self.status_message,
+                    self.status_queries,
+                )
