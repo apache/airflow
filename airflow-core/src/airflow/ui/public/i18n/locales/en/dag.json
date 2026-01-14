@@ -119,6 +119,7 @@
       "activeFilter": "Active filter",
       "clearFilter": "Clear Filter",
       "clickTask": "Click a task to select it as the filter root",
+      "depth": "Depth",
       "label": "Filter",
       "options": {
         "both": "Both upstream & downstream",

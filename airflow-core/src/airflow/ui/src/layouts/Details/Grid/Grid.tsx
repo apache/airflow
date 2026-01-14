@@ -68,6 +68,8 @@ export const Grid = ({ dagRunState, limit, runType, showGantt, triggeringUser }:
   const filterRoot = searchParams.get("root") ?? undefined;
   const includeUpstream = searchParams.get("upstream") === "true";
   const includeDownstream = searchParams.get("downstream") === "true";
+  const depth = searchParams.get("depth") ?? undefined;
+
 
   const { data: gridRuns, isLoading } = useGridRuns({ dagRunState, limit, runType, triggeringUser });
 
@@ -85,6 +87,7 @@ export const Grid = ({ dagRunState, limit, runType, showGantt, triggeringUser }:
 
   const { data: dagStructure } = useGridStructure({
     dagRunState,
+    depth,
     hasActiveRun: gridRuns?.some((dr) => isStatePending(dr.state)),
     includeDownstream,
     includeUpstream,

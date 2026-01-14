@@ -16,21 +16,22 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Button, Portal, Text, VStack } from "@chakra-ui/react";
+import { Button, Input, Portal, Separator, Text, VStack } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 import { FiChevronDown, FiFilter } from "react-icons/fi";
-import { Link, useParams, useSearchParams } from "react-router-dom";
+import { useParams, useSearchParams } from "react-router-dom";
 
 import { Menu } from "src/components/ui/Menu";
 
 export const TaskStreamFilter = () => {
   const { t: translate } = useTranslation(["components", "dag"]);
   const { taskId: currentTaskId } = useParams();
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
 
   const filterRoot = searchParams.get("root") ?? undefined;
   const includeUpstream = searchParams.get("upstream") === "true";
   const includeDownstream = searchParams.get("downstream") === "true";
+  const depth = searchParams.get("depth") ?? undefined;
 
   const isCurrentTaskTheRoot = currentTaskId === filterRoot;
   const bothActive = isCurrentTaskTheRoot && includeUpstream && includeDownstream;
@@ -38,28 +39,32 @@ export const TaskStreamFilter = () => {
   const activeDownstream = isCurrentTaskTheRoot && includeDownstream && !includeUpstream;
   const hasActiveFilter = includeUpstream || includeDownstream;
 
-  const buildFilterSearch = (upstream: boolean, downstream: boolean, root?: string) => {
-    const newParams = new URLSearchParams(searchParams);
-
+  const buildFilterSearch = (upstream: boolean, downstream: boolean, root?: string, newDepth?: string) => {
     if (upstream) {
-      newParams.set("upstream", "true");
+      searchParams.set("upstream", "true");
     } else {
-      newParams.delete("upstream");
+      searchParams.delete("upstream");
     }
 
     if (downstream) {
-      newParams.set("downstream", "true");
+      searchParams.set("downstream", "true");
     } else {
-      newParams.delete("downstream");
+      searchParams.delete("downstream");
     }
 
     if (root !== undefined && root !== "" && (upstream || downstream)) {
-      newParams.set("root", root);
+      searchParams.set("root", root);
     } else {
-      newParams.delete("root");
+      searchParams.delete("root");
     }
 
-    return newParams.toString();
+    if (newDepth !== undefined && newDepth !== "" && (upstream || downstream)) {
+      searchParams.set("depth", newDepth);
+    } else {
+      searchParams.delete("depth");
+    }
+
+    setSearchParams(searchParams);
   };
 
   return (
@@ -107,87 +112,114 @@ export const TaskStreamFilter = () => {
               </Text>
             )}
 
-            <VStack align="stretch" gap={1} width="100%">
-              <Menu.Item asChild value="upstream">
-                <Button
-                  asChild
-                  color={activeUpstream ? "white" : undefined}
-                  colorPalette={activeUpstream ? "blue" : "gray"}
-                  disabled={currentTaskId === undefined}
-                  size="sm"
-                  variant={activeUpstream ? "solid" : "ghost"}
-                  width="100%"
-                >
-                  <Link
-                    replace
-                    style={{
-                      justifyContent: "flex-start",
-                      pointerEvents: currentTaskId === undefined ? "none" : "auto",
+            <Separator my={2} />
+
+            {/* Direction Section */}
+            <VStack align="stretch" gap={2} width="100%">
+              <Text fontSize="xs" fontWeight="semibold">
+                {translate("dag:panel.taskStreamFilter.direction")}
+              </Text>
+              <VStack align="stretch" gap={1} width="100%">
+                <Menu.Item asChild value="upstream">
+                  <Button
+                    color={activeUpstream ? "white" : undefined}
+                    colorPalette={activeUpstream ? "blue" : "gray"}
+                    disabled={currentTaskId === undefined}
+                    justifyContent="flex-start"
+                    onClick={() => buildFilterSearch(true, false, currentTaskId, depth)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" || e.key === " ") {
+                        e.preventDefault();
+                        buildFilterSearch(true, false, currentTaskId, depth);
+                      }
                     }}
-                    to={{ search: buildFilterSearch(true, false, currentTaskId) }}
+                    size="sm"
+                    variant={activeUpstream ? "solid" : "ghost"}
+                    width="100%"
                   >
                     {translate("dag:panel.taskStreamFilter.options.upstream")}
-                  </Link>
-                </Button>
-              </Menu.Item>
+                  </Button>
+                </Menu.Item>
 
-              <Menu.Item asChild value="downstream">
-                <Button
-                  asChild
-                  color={activeDownstream ? "white" : undefined}
-                  colorPalette={activeDownstream ? "blue" : "gray"}
-                  disabled={currentTaskId === undefined}
-                  size="sm"
-                  variant={activeDownstream ? "solid" : "ghost"}
-                  width="100%"
-                >
-                  <Link
-                    replace
-                    style={{
-                      justifyContent: "flex-start",
-                      pointerEvents: currentTaskId === undefined ? "none" : "auto",
+                <Menu.Item asChild value="downstream">
+                  <Button
+                    color={activeDownstream ? "white" : undefined}
+                    colorPalette={activeDownstream ? "blue" : "gray"}
+                    disabled={currentTaskId === undefined}
+                    justifyContent="flex-start"
+                    onClick={() => buildFilterSearch(false, true, currentTaskId, depth)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" || e.key === " ") {
+                        e.preventDefault();
+                        buildFilterSearch(false, true, currentTaskId, depth);
+                      }
                     }}
-                    to={{ search: buildFilterSearch(false, true, currentTaskId) }}
+                    size="sm"
+                    variant={activeDownstream ? "solid" : "ghost"}
+                    width="100%"
                   >
                     {translate("dag:panel.taskStreamFilter.options.downstream")}
-                  </Link>
-                </Button>
-              </Menu.Item>
+                  </Button>
+                </Menu.Item>
 
-              <Menu.Item asChild value="both">
-                <Button
-                  asChild
-                  color={bothActive ? "white" : undefined}
-                  colorPalette={bothActive ? "blue" : "gray"}
-                  disabled={currentTaskId === undefined}
-                  size="sm"
-                  variant={bothActive ? "solid" : "ghost"}
-                  width="100%"
-                >
-                  <Link
-                    replace
-                    style={{
-                      justifyContent: "flex-start",
-                      pointerEvents: currentTaskId === undefined ? "none" : "auto",
+                <Menu.Item asChild value="both">
+                  <Button
+                    color={bothActive ? "white" : undefined}
+                    colorPalette={bothActive ? "blue" : "gray"}
+                    disabled={currentTaskId === undefined}
+                    justifyContent="flex-start"
+                    onClick={() => buildFilterSearch(true, true, currentTaskId, depth)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" || e.key === " ") {
+                        e.preventDefault();
+                        buildFilterSearch(true, true, currentTaskId, depth);
+                      }
                     }}
-                    to={{ search: buildFilterSearch(true, true, currentTaskId) }}
+                    size="sm"
+                    variant={bothActive ? "solid" : "ghost"}
+                    width="100%"
                   >
                     {translate("dag:panel.taskStreamFilter.options.both")}
-                  </Link>
-                </Button>
-              </Menu.Item>
+                  </Button>
+                </Menu.Item>
+              </VStack>
             </VStack>
+
+            <Separator my={2} />
+
+            {/* Depth Section */}
+            <VStack align="stretch" gap={2} width="100%">
+              <Text fontSize="xs" fontWeight="semibold">
+                {translate("dag:panel.taskStreamFilter.depth")}
+              </Text>
+              <Input
+                disabled={currentTaskId === undefined}
+                min={0}
+                onChange={(e) => {
+                  const value = e.target.value;
+                  buildFilterSearch(includeUpstream, includeDownstream, filterRoot, value);
+                }}
+                onKeyDown={(e) => {
+                  e.stopPropagation();
+                }}
+                placeholder="All"
+                size="sm"
+                type="number"
+                value={depth ?? ""}
+              />
+            </VStack>
+
+            <Separator my={2} />
 
             {hasActiveFilter && filterRoot !== undefined ? (
               <Menu.Item asChild value="clear">
-                <Button asChild size="sm" variant="outline" width="100%">
-                  <Link
-                    replace
-                    style={{ justifyContent: "center" }}
-                    to={{ search: buildFilterSearch(false, false) }}
-                  >
-                    {translate("dag:panel.taskStreamFilter.clearFilter")}
-                  </Link>
+                <Button
+                  onClick={() => buildFilterSearch(false, false)}
+                  size="sm"
+                  variant="outline"
+                  width="100%"
+                >
+                  {translate("dag:panel.taskStreamFilter.clearFilter")}
                 </Button>
               </Menu.Item>
             ) : undefined}
