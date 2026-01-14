@@ -70,10 +70,13 @@ def test_home():
 def test_lazy_load():
     o = ObjectStoragePath("file:///tmp/foo")
     with pytest.raises(AttributeError):
-        assert o._fs_cached
+        assert o.__wrapped__._fs_cached
 
+    # ObjectStoragePath overrides .fs and provides cached filesystems via the STORE_CACHE
     assert o.fs is not None
-    assert o._fs_cached
+
+    with pytest.raises(AttributeError):
+        assert o.__wrapped__._fs_cached
     # Clear the cache to avoid side effects in other tests below
     _STORE_CACHE.clear()
 
