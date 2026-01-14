@@ -95,7 +95,7 @@ from airflow.providers.fab.www.utils import (
     get_fab_action_from_method_map,
     get_method_from_fab_action_map,
 )
-from airflow.utils.session import NEW_SESSION, create_session, provide_session
+from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.yaml import safe_load
 
 if TYPE_CHECKING:
@@ -256,12 +256,13 @@ class FabAuthManager(BaseAuthManager[User]):
 
         return current_user
 
+    @property
+    def session(self):
+        return self.appbuilder.session
+
     @cachedmethod(lambda self: self.cache, key=lambda _, token: int(token["sub"]))
     def deserialize_user(self, token: dict[str, Any]) -> User:
-        id = int(token["sub"])
-
-        with create_session() as session:
-            return session.scalars(select(User).where(User.id == id)).one()
+        return self.session.scalars(select(User).where(User.id == int(token["sub"]))).one()
 
     def serialize_user(self, user: User) -> dict[str, Any]:
         return {"sub": str(user.id)}
