@@ -4214,7 +4214,9 @@ class TestTriggerDagRunOperator:
             and call_args.args[0].dag_id == "test_dag"
             and call_args.args[0].run_id == "test_run_id"
         ]
-        assert len(get_dag_run_state_calls) >= 1, f"Expected at least 1 GetDagRunState call, got {len(get_dag_run_state_calls)}"
+        assert len(get_dag_run_state_calls) >= 1, (
+            f"Expected at least 1 GetDagRunState call, got {len(get_dag_run_state_calls)}"
+        )
 
     @pytest.mark.parametrize(
         ("allowed_states", "failed_states", "intermediate_state"),
