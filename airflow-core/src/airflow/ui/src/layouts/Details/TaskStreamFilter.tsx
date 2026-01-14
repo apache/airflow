@@ -201,7 +201,8 @@ export const TaskStreamFilter = () => {
                 disabled={currentTaskId === undefined || !hasActiveFilter}
                 min={0}
                 onChange={(e) => {
-                  const value = e.target.value;
+                  const {value} = e.target;
+
                   buildFilterSearch(includeUpstream, includeDownstream, filterRoot, value);
                 }}
                 onKeyDown={(e) => {
