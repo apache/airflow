@@ -17,22 +17,21 @@
 
 from __future__ import annotations
 
-import contextlib
-import os
 import shutil
-from collections.abc import Mapping
 from typing import TYPE_CHECKING, Any, ClassVar
 from urllib.parse import urlsplit
 
 from fsspec.utils import stringify_path
-from upath.implementations.cloud import CloudPath
-from upath.registry import get_upath_class
+from upath import UPath
+from upath.extensions import ProxyUPath
 
 from airflow.sdk.io.stat import stat_result
 from airflow.sdk.io.store import attach
 
 if TYPE_CHECKING:
     from fsspec import AbstractFileSystem
+    from typing_extensions import Self
+    from upath.types import JoinablePathLike
 
 
 class _TrackingFileWrapper:
@@ -77,42 +76,48 @@ class _TrackingFileWrapper:
         self._obj.__exit__(exc_type, exc_val, exc_tb)
 
 
-class ObjectStoragePath(CloudPath):
+class ObjectStoragePath(ProxyUPath):
     """A path-like object for object storage."""
 
     __version__: ClassVar[int] = 1
-
-    _protocol_dispatch = False
 
     sep: ClassVar[str] = "/"
     root_marker: ClassVar[str] = "/"
 
     __slots__ = ("_hash_cached",)
 
-    @classmethod
-    def _transform_init_args(
-        cls,
-        args: tuple[str | os.PathLike, ...],
-        protocol: str,
-        storage_options: dict[str, Any],
-    ) -> tuple[tuple[str | os.PathLike, ...], str, dict[str, Any]]:
-        """Extract conn_id from the URL and set it as a storage option."""
+    def __init__(
+        self,
+        *args: JoinablePathLike,
+        protocol: str | None = None,
+        conn_id: str | None = None,
+        **storage_options: Any,
+    ) -> None:
+        # ensure conn_id is always set in storage_options
+        storage_options.setdefault("conn_id", None)
+        # parse conn_id from args if provided
         if args:
             arg0 = args[0]
-            parsed_url = urlsplit(stringify_path(arg0))
-            userinfo, have_info, hostinfo = parsed_url.netloc.rpartition("@")
-            if have_info:
-                storage_options.setdefault("conn_id", userinfo or None)
-                parsed_url = parsed_url._replace(netloc=hostinfo)
-            args = (parsed_url.geturl(),) + args[1:]
-            protocol = protocol or parsed_url.scheme
-        return args, protocol, storage_options
+            if isinstance(arg0, type(self)):
+                storage_options["conn_id"] = arg0.storage_options.get("conn_id")
+            else:
+                parsed_url = urlsplit(stringify_path(arg0))
+                userinfo, have_info, hostinfo = parsed_url.netloc.rpartition("@")
+                if have_info:
+                    conn_id = storage_options["conn_id"] = userinfo or None
+                    parsed_url = parsed_url._replace(netloc=hostinfo)
+                args = (parsed_url.geturl(),) + args[1:]
+                protocol = protocol or parsed_url.scheme
+        # override conn_id if explicitly provided
+        if conn_id is not None:
+            storage_options["conn_id"] = conn_id
+        super().__init__(*args, protocol=protocol, **storage_options)
 
-    @classmethod
-    def _fs_factory(
-        cls, urlpath: str, protocol: str, storage_options: Mapping[str, Any]
-    ) -> AbstractFileSystem:
-        return attach(protocol or "file", storage_options.get("conn_id")).fs
+    @property
+    def fs(self) -> AbstractFileSystem:
+        """Return the filesystem for this path, using airflow's attach mechanism."""
+        conn_id = self.storage_options.get("conn_id")
+        return attach(self.protocol or "file", conn_id).fs
 
     def __hash__(self) -> int:
         self._hash_cached: int
@@ -181,12 +186,7 @@ class ObjectStoragePath(CloudPath):
             and st["ino"] == other_st["ino"]
         )
 
-    def _scandir(self):
-        # Emulate os.scandir(), which returns an object that can be used as a
-        # context manager.
-        return contextlib.nullcontext(self.iterdir())
-
-    def replace(self, target) -> ObjectStoragePath:
+    def replace(self, target) -> Self:
         """
         Rename this path to the target path, overwriting if that path exists.
 
@@ -199,16 +199,12 @@ class ObjectStoragePath(CloudPath):
         return self.rename(target)
 
     @classmethod
-    def cwd(cls):
-        if cls is ObjectStoragePath:
-            return get_upath_class("").cwd()
-        raise NotImplementedError
+    def cwd(cls) -> Self:  # type: ignore[override]
+        return cls._from_upath(UPath.cwd())
 
     @classmethod
-    def home(cls):
-        if cls is ObjectStoragePath:
-            return get_upath_class("").home()
-        raise NotImplementedError
+    def home(cls) -> Self:  # type: ignore[override]
+        return cls._from_upath(UPath.home())
 
     # EXTENDED OPERATIONS
 
