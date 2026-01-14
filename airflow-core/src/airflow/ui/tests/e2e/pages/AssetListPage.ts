@@ -55,6 +55,12 @@ export class AssetListPage extends BasePage {
   }
 
   public async openFirstAsset(): Promise<string> {
+    const count = await this.rows.count();
+
+    if (count === 0) {
+      throw new Error("No assets found to click");
+    }
+
     const link = this.rows.nth(0).locator("a").first();
     const name = await link.textContent();
 
@@ -65,9 +71,31 @@ export class AssetListPage extends BasePage {
 
   public async search(value: string): Promise<void> {
     await this.searchInput.fill(value);
+    await this.waitForTableData();
   }
 
   public async waitForLoad(): Promise<void> {
-    await this.heading.waitFor({ state: "visible", timeout: 30_000 });
+    await this.table.waitFor({ state: "visible", timeout: 30_000 });
+    await this.waitForTableData();
+  }
+
+  private async waitForTableData(): Promise<void> {
+    // Wait for actual data links to appear (not skeleton loaders)
+    await this.page.waitForFunction(
+      () => {
+        const table = document.querySelector('[data-testid="table-list"]');
+
+        if (!table) {
+          return false;
+        }
+
+        // Check for actual links in tbody (real data, not skeleton)
+        const links = table.querySelectorAll("tbody tr td a");
+
+        return links.length > 0;
+      },
+      undefined,
+      { timeout: 30_000 },
+    );
   }
 }

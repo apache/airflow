@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { test, expect } from "@playwright/test";
+import { expect, test } from "@playwright/test";
 import { AUTH_FILE } from "playwright.config";
 
 import { AssetListPage } from "../pages/AssetListPage";
@@ -48,17 +48,6 @@ test.describe("Assets Page", () => {
     await context.close();
   });
 
-  test("verify clicking an asset navigates to detail page", async ({ page }) => {
-    await assets.navigate();
-    await assets.waitForLoad();
-
-    const name = await assets.openFirstAsset();
-
-    await expect(page).toHaveURL(/\/assets\/.+/);
-
-    await expect(page.getByRole("heading", { name: new RegExp(name, "i") })).toBeVisible();
-  });
-
   test.beforeEach(async ({ page }) => {
     assets = new AssetListPage(page);
     await assets.navigate();
@@ -87,19 +76,43 @@ test.describe("Assets Page", () => {
     }
   });
 
+  test("verify clicking an asset navigates to detail page", async ({ page }) => {
+    const name = await assets.openFirstAsset();
+
+    await expect(page).toHaveURL(/\/assets\/.+/);
+    await expect(page.getByRole("heading", { name: new RegExp(name, "i") })).toBeVisible();
+  });
+
   test("verify assets using search", async () => {
     const initialCount = await assets.assetCount();
 
     expect(initialCount).toBeGreaterThan(0);
 
-    await assets.search("s3://dag1/output_1.txt");
+    const searchTerm = "s3://dag1/output_1.txt";
 
-    await expect.poll(() => assets.assetCount(), { timeout: 20_000 }).toBeLessThan(initialCount);
+    await assets.searchInput.fill(searchTerm);
+
+    // Wait for filtered results - count should decrease OR stay same if search matches all
+    await expect
+      .poll(
+        async () => {
+          const links = await assets.rows.locator("td a").allTextContents();
+
+          // Return true when we have results that match the search
+          return (
+            links.length > 0 && links.every((name) => name.toLowerCase().includes(searchTerm.toLowerCase()))
+          );
+        },
+        { intervals: [500], timeout: 30_000 },
+      )
+      .toBe(true);
+
     const names = await assets.assetNames();
 
     expect(names.length).toBeGreaterThan(0);
+
     for (const name of names) {
-      expect(name.toLowerCase()).toContain("s3://dag1/output_1.txt");
+      expect(name.toLowerCase()).toContain(searchTerm.toLowerCase());
     }
   });
 
