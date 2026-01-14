@@ -254,7 +254,7 @@ config:
         description: |
           Number of seconds after which the user cache will expire to refetch updated user and
           permissions.
-        version_added: 3.1.2
+        version_added: 3.2.0
         type: integer
         example: ~
         default: "30"
