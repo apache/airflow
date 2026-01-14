@@ -66,6 +66,7 @@ export const TaskStreamFilter = () => {
       searchParams.set("root", root);
     } else {
       searchParams.delete("root");
+      searchParams.delete("mode");
     }
 
     if (newDepth !== undefined && newDepth !== "" && (upstream || downstream)) {
