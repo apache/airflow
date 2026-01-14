@@ -1837,7 +1837,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 else:
                     non_partitioned_dags.append(dag)
             else:
-                missing_dags.add(serdag.dag_id)
+                missing_dags.add(dag.dag_id)
 
         # backfill runs are not created by scheduler and their concurrency is separate
         # so we exclude them here
@@ -1942,7 +1942,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         dag_model: DagModel,
         partitioned_dags: set[Any],
         serdag: SerializedDAG,
-    ) -> tuple[DataInterval | None, str | None, DateTime | None, DateTime | None]:
+    ) -> tuple[DataInterval | None, datetime | None, str | None, DateTime | None]:
         partition_key = None
         partition_date = None
         data_interval = None
@@ -1952,6 +1952,10 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             # todo: AIP-76 how will this work with segment-driven partition schemes?
             #  will we still use next_dagrun?
             #  maybe we will need `next_partition_key` instead?
+            if TYPE_CHECKING:
+                # todo: AIP-76 maybe add get_partition_info to base timetable?
+                assert isinstance(serdag.timetable, CronPartitionTimetable)
+
             partition_date, partition_key = serdag.timetable.get_partition_info(run_date=run_after)
         else:
             data_interval = get_next_data_interval(serdag.timetable, dag_model)

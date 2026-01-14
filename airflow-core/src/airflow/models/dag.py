@@ -142,6 +142,9 @@ def get_run_data_interval(timetable: Timetable, run: DagRun | None) -> DataInter
 
     :meta private:
     """
+    if not run:
+        return run
+
     if run.partition_key is not None:
         return None
 

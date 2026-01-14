@@ -46,6 +46,7 @@ from airflow.serialization.definitions.deadline import DeadlineAlertFields
 from airflow.serialization.definitions.param import SerializedParamsDict
 from airflow.serialization.enums import DagAttributeTypes as DAT, Encoding
 from airflow.timetables.base import DagRunInfo, DataInterval, TimeRestriction
+from airflow.timetables.trigger import CronPartitionTimetable
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.state import DagRunState, TaskInstanceState
 from airflow.utils.types import DagRunType
@@ -438,6 +439,7 @@ class SerializedDAG:
                 last_run_info=last_automated_run_info,
                 dag_id=self.dag_id,
             )
+        return None
 
     def iter_dagrun_infos_between(
         self,
@@ -462,9 +464,11 @@ class SerializedDAG:
         ``2021-06-03 23:00:00`` if ``align=False``, and ``2021-06-04 00:00:00``
         if ``align=True``.
 
-        # todo: AIP-76 need to update this so that it handles partitions
         #  see issue https://github.com/apache/airflow/issues/60455
         """
+        if isinstance(self.timetable, CronPartitionTimetable):
+            # todo: AIP-76 need to update this so that it handles partitions
+            raise ValueError("CronPartitionTimetable not supported yet")
         if earliest is None:
             earliest = self._time_restriction.earliest
         if earliest is None:
@@ -493,6 +497,10 @@ class SerializedDAG:
             if not align:
                 yield DagRunInfo.interval(earliest, latest)
             return
+
+        if TYPE_CHECKING:
+            # todo: AIP-76 after updating this function for partitions, this may not be true
+            assert info.data_interval is not None
 
         # If align=False and earliest does not fall on the timetable's logical
         # schedule, "invent" a data interval for it.
