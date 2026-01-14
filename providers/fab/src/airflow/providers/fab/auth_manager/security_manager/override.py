@@ -55,8 +55,7 @@ from flask_appbuilder.security.views import (
     RegisterUserModelView,
     UserGroupModelView,
 )
-from sqlalchemy.orm.attributes import get_history
-from sqlalchemy.sql import func
+
 from flask_babel import lazy_gettext
 from flask_jwt_extended import JWTManager
 from flask_login import LoginManager
@@ -66,6 +65,9 @@ from packaging.version import Version
 from sqlalchemy import delete, func, inspect, or_, select
 from sqlalchemy.exc import MultipleResultsFound
 from sqlalchemy.orm import joinedload
+from sqlalchemy.orm.attributes import get_history
+from sqlalchemy.sql import func
+from providers.amazon.tests.unit.amazon.aws.auth_manager.test_user import user
 from werkzeug.security import check_password_hash, generate_password_hash
 
 from airflow.configuration import conf
@@ -1376,8 +1378,8 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
             user = self.user_model()
             user.first_name = first_name
             user.last_name = last_name
-            user.username = username
-            user.email = email
+            user.username = username.lower()
+            user.email = email.lower()
             user.active = True
             self.session.add(user)
             user.roles = roles
@@ -1437,21 +1439,20 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
         """Find user by username or email."""
         try:
             if username:
-                return (
-                    self.session.scalars(
-                        select(self.user_model)
-                        .where(func.lower(self.user_model.username) == username.lower())
-                        .order_by(self.user_model.id)
-                        .limit(1)
-                    )
-                    .one_or_none()
-                )
+                username = username.lower()
+                return self.session.scalars(
+                    select(self.user_model)
+                    .where(self.user_model.username == username)
+                    .order_by(self.user_model.id)
+                    .limit(1)
+                ).one_or_none()
 
             if email:
+                email = email.lower()
                 return (
                     self.session.scalars(
                         select(self.user_model)
-                        .where(func.lower(self.user_model.email) == email.lower())
+                        .where(self.user_model.email == email)
                         .order_by(self.user_model.id)
                         .limit(1)
                     )
@@ -1464,7 +1465,8 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
     def update_user(self, user: User) -> bool:
         try:
             if get_history(user, "roles").has_changes():
-                user.changed_on = func.now()
+                user.changed_on = datetime.datetime.utcnow() + datetime.timedelta(seconds=1)
+
             self.session.merge(user)
             self.session.commit()
             log.info(const.LOGMSG_INF_SEC_UPD_USER, user)
@@ -1490,11 +1492,18 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
             return False
 
     def get_all_users(self):
+        subq = (
+            select(func.min(self.user_model.id).label("id"))
+            .group_by(func.lower(self.user_model.username))
+            .subquery()
+        )
+
         stmt = (
             select(self.user_model)
-            .group_by(func.lower(self.user_model.username))
+            .join(subq, self.user_model.id == subq.c.id)
             .order_by(self.user_model.id.asc())
         )
+
         return self.session.execute(stmt).scalars().all()
 
 
