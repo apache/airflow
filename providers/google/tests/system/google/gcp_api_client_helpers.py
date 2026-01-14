@@ -93,14 +93,15 @@ def create_airflow_connection(
             connection_id=connection_id, connection=connection_conf, is_composer=is_composer
         )
     else:
+        from sqlalchemy import delete
+
         from airflow.models import Connection
         from airflow.settings import Session
 
         if Session is None:
             raise RuntimeError("Session not configured. Call configure_orm() first.")
         session = Session()
-        query = session.query(Connection).filter(Connection.conn_id == connection_id)
-        query.delete()
+        session.execute(delete(Connection).where(Connection.conn_id == connection_id))
         connection = Connection(conn_id=connection_id, **connection_conf)
         session.add(connection)
         session.commit()
@@ -114,12 +115,13 @@ def delete_airflow_connection(connection_id: str, is_composer: bool = False) -> 
     if AIRFLOW_V_3_0_PLUS:
         delete_connection_request(connection_id=connection_id, is_composer=is_composer)
     else:
+        from sqlalchemy import delete
+
         from airflow.models import Connection
         from airflow.settings import Session
 
         if Session is None:
             raise RuntimeError("Session not configured. Call configure_orm() first.")
         session = Session()
-        query = session.query(Connection).filter(Connection.conn_id == connection_id)
-        query.delete()
+        session.execute(delete(Connection).where(Connection.conn_id == connection_id))
         session.commit()

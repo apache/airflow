@@ -858,78 +858,147 @@ class TestGetGridDataEndpoint:
         assert "children" not in t4
 
     # Tests for root, include_upstream, and include_downstream parameters
-    def test_structure_with_root_only(self, test_client):
-        """Test that specifying only root parameter returns just that task."""
-        response = test_client.get(f"/grid/structure/{DAG_ID_5}?root=task_c")
-        assert response.status_code == 200
-        nodes = response.json()
-        task_ids = [node["id"] for node in nodes]
-        # Only task_c should be returned when root is specified without upstream/downstream
-        assert task_ids == ["task_c"]
-
-    def test_structure_with_root_and_include_upstream(self, test_client):
-        """Test that root + include_upstream returns the root task and all upstream tasks."""
-        response = test_client.get(f"/grid/structure/{DAG_ID_5}?root=task_c&include_upstream=true")
+    @pytest.mark.parametrize(
+        ("params", "expected_task_ids", "description"),
+        [
+            pytest.param(
+                "root=task_c",
+                ["task_c"],
+                "root only returns just that task",
+                id="root_only",
+            ),
+            pytest.param(
+                "root=task_c&include_upstream=true",
+                ["task_a", "task_b", "task_c"],
+                "root + include_upstream returns the root task and all upstream tasks",
+                id="root_upstream",
+            ),
+            pytest.param(
+                "root=task_c&include_downstream=true",
+                ["task_c", "task_d", "task_e", "task_f"],
+                "root + include_downstream returns the root task and all downstream tasks including historical",
+                id="root_downstream_with_historical",
+            ),
+        ],
+    )
+    def test_structure_with_root_linear_dag(self, test_client, params, expected_task_ids, description):
+        """Test root, include_upstream, and include_downstream parameters on linear DAG."""
+        response = test_client.get(f"/grid/structure/{DAG_ID_5}?{params}")
         assert response.status_code == 200
         nodes = response.json()
         task_ids = sorted([node["id"] for node in nodes])
-        # Should return task_c and all upstream tasks (task_a, task_b)
-        assert task_ids == ["task_a", "task_b", "task_c"]
-
-    def test_structure_with_root_and_include_downstream_and_historical(self, test_client):
-        """Test that root + include_downstream returns the root task and all downstream tasks."""
-        response = test_client.get(f"/grid/structure/{DAG_ID_5}?root=task_c&include_downstream=true")
-        assert response.status_code == 200
-        nodes = response.json()
-        task_ids = sorted([node["id"] for node in nodes])
-        # Should return task_c and all downstream tasks, including the historical (task_d, task_e, task_f (HISTORICAL))
-        assert task_ids == ["task_c", "task_d", "task_e", "task_f"]
+        assert task_ids == expected_task_ids, description
 
     # Tests for non-linear DAG structure
-    def test_nonlinear_structure_with_root_downstream_from_branch(self, test_client):
-        """Test filtering downstream from branch point includes both branches."""
-        response = test_client.get(f"/grid/structure/{DAG_ID_6}?root=start&include_downstream=true")
+    @pytest.mark.parametrize(
+        ("params", "expected_task_ids", "description"),
+        [
+            pytest.param(
+                "root=start&include_downstream=true",
+                ["branch_a", "branch_b", "end", "intermediate", "merge", "start"],
+                "downstream from branch point includes both branches and all paths",
+                id="nonlinear_downstream_from_start",
+            ),
+            pytest.param(
+                "root=merge&include_upstream=true",
+                ["branch_a", "branch_b", "intermediate", "merge", "start"],
+                "upstream from merge point includes all upstream branches",
+                id="nonlinear_upstream_to_merge",
+            ),
+            pytest.param(
+                "root=branch_a&include_downstream=true",
+                ["branch_a", "end", "intermediate", "merge"],
+                "downstream from one branch follows that branch's path",
+                id="nonlinear_downstream_from_branch",
+            ),
+            pytest.param(
+                "root=branch_a&include_upstream=true",
+                ["branch_a", "start"],
+                "upstream from one branch returns its upstream only",
+                id="nonlinear_upstream_from_branch",
+            ),
+            pytest.param(
+                "root=intermediate&include_upstream=true&include_downstream=true",
+                ["branch_a", "end", "intermediate", "merge", "start"],
+                "both directions from intermediate node includes its upstream and downstream paths",
+                id="nonlinear_both_directions_from_intermediate",
+            ),
+        ],
+    )
+    def test_structure_with_root_nonlinear_dag(self, test_client, params, expected_task_ids, description):
+        """Test root, include_upstream, and include_downstream parameters on non-linear DAG."""
+        response = test_client.get(f"/grid/structure/{DAG_ID_6}?{params}")
         assert response.status_code == 200
         nodes = response.json()
         task_ids = sorted([node["id"] for node in nodes])
-        # Should return all tasks since start is the root of the DAG
-        assert task_ids == ["branch_a", "branch_b", "end", "intermediate", "merge", "start"]
+        assert task_ids == expected_task_ids, description
 
-    def test_nonlinear_structure_with_root_upstream_from_merge(self, test_client):
-        """Test filtering upstream from merge point includes all upstream branches."""
-        response = test_client.get(f"/grid/structure/{DAG_ID_6}?root=merge&include_upstream=true")
+    # Tests for depth parameter
+    @pytest.mark.parametrize(
+        ("dag_id", "params", "expected_task_ids", "description"),
+        [
+            pytest.param(
+                DAG_ID_5,
+                "root=task_a&include_downstream=true&depth=1",
+                ["task_a", "task_b"],
+                "depth=1 downstream returns only immediate downstream tasks",
+                id="linear_downstream_depth_1",
+            ),
+            pytest.param(
+                DAG_ID_5,
+                "root=task_a&include_downstream=true&depth=2",
+                ["task_a", "task_b", "task_c"],
+                "depth=2 downstream returns tasks within 2 levels downstream",
+                id="linear_downstream_depth_2",
+            ),
+            pytest.param(
+                DAG_ID_5,
+                "root=task_d&include_upstream=true&depth=1",
+                ["task_c", "task_d"],
+                "depth=1 upstream returns only immediate upstream tasks",
+                id="linear_upstream_depth_1",
+            ),
+            pytest.param(
+                DAG_ID_5,
+                "root=task_d&include_upstream=true&depth=2",
+                ["task_b", "task_c", "task_d"],
+                "depth=2 upstream returns tasks within 2 levels upstream",
+                id="linear_upstream_depth_2",
+            ),
+            pytest.param(
+                DAG_ID_5,
+                "root=task_c&include_upstream=true&include_downstream=true&depth=1",
+                ["task_b", "task_c", "task_d"],
+                "depth=1 in both directions returns adjacent tasks",
+                id="linear_both_directions_depth_1",
+            ),
+            pytest.param(
+                DAG_ID_6,
+                "root=start&include_downstream=true&depth=1",
+                ["branch_a", "branch_b", "start"],
+                "depth=1 downstream in nonlinear DAG includes both branches",
+                id="nonlinear_downstream_depth_1",
+            ),
+            pytest.param(
+                DAG_ID_6,
+                "root=merge&include_upstream=true&depth=1",
+                ["branch_b", "intermediate", "merge"],
+                "depth=1 upstream in nonlinear DAG includes immediate upstream tasks",
+                id="nonlinear_upstream_depth_1",
+            ),
+            pytest.param(
+                DAG_ID_5,
+                "root=task_c&include_downstream=true&depth=0",
+                ["task_c"],
+                "depth=0 returns only the root task",
+                id="depth_zero",
+            ),
+        ],
+    )
+    def test_structure_with_depth(self, test_client, dag_id, params, expected_task_ids, description):
+        """Test depth parameter limits the number of levels returned in various scenarios."""
+        response = test_client.get(f"/grid/structure/{dag_id}?{params}")
         assert response.status_code == 200
         nodes = response.json()
         task_ids = sorted([node["id"] for node in nodes])
-        # Should return merge and all upstream tasks (both branches and their parents)
-        assert task_ids == ["branch_a", "branch_b", "intermediate", "merge", "start"]
-
-    def test_nonlinear_structure_with_root_on_branch_include_downstream(self, test_client):
-        """Test filtering downstream from one branch."""
-        response = test_client.get(f"/grid/structure/{DAG_ID_6}?root=branch_a&include_downstream=true")
-        assert response.status_code == 200
-        nodes = response.json()
-        task_ids = sorted([node["id"] for node in nodes])
-        # Should return branch_a and its downstream path (intermediate, merge, end)
-        assert task_ids == ["branch_a", "end", "intermediate", "merge"]
-
-    def test_nonlinear_structure_with_root_on_branch_include_upstream(self, test_client):
-        """Test filtering upstream from one branch."""
-        response = test_client.get(f"/grid/structure/{DAG_ID_6}?root=branch_a&include_upstream=true")
-        assert response.status_code == 200
-        nodes = response.json()
-        task_ids = sorted([node["id"] for node in nodes])
-        # Should return branch_a and its upstream (start)
-        assert task_ids == ["branch_a", "start"]
-
-    def test_nonlinear_structure_intermediate_with_both_directions(self, test_client):
-        """Test filtering from intermediate node with both upstream and downstream."""
-        response = test_client.get(
-            f"/grid/structure/{DAG_ID_6}?root=intermediate&include_upstream=true&include_downstream=true"
-        )
-        assert response.status_code == 200
-        nodes = response.json()
-        task_ids = sorted([node["id"] for node in nodes])
-        # Should return intermediate, its upstream path, and downstream path
-        # upstream: branch_a, start; downstream: merge, end
-        assert task_ids == ["branch_a", "end", "intermediate", "merge", "start"]
+        assert task_ids == expected_task_ids, description

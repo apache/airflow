@@ -102,6 +102,7 @@ TEST_COMMANDS = [
     "pools get --pool-name=test_pool -o yaml",
     "pools update --pool=test_pool --slots=10",
     "pools import tests/airflowctl_tests/fixtures/test_pools.json",
+    "pools export tests/airflowctl_tests/fixtures/pools_export.json --output=json",
     "pools delete --pool=test_pool",
     "pools delete --pool=test_import_pool",
     # Providers commands
@@ -121,8 +122,9 @@ TEST_COMMANDS = [
 ]
 
 
+@pytest.mark.flaky(reruns=3, reruns_delay=1)
 @pytest.mark.parametrize(
-    "command", TEST_COMMANDS, ids=[" ".join(id.split(" ", 2)[:2]) for id in TEST_COMMANDS]
+    "command", TEST_COMMANDS, ids=[" ".join(command.split(" ", 2)[:2]) for command in TEST_COMMANDS]
 )
 def test_airflowctl_commands(command: str):
     """Test airflowctl commands using docker-compose environment."""

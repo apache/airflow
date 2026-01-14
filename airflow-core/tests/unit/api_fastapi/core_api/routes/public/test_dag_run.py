@@ -27,7 +27,6 @@ from sqlalchemy import func, select
 
 from airflow._shared.timezones import timezone
 from airflow.api_fastapi.core_api.datamodels.dag_versions import DagVersionResponse
-from airflow.listeners.listener import get_listener_manager
 from airflow.models import DagModel, DagRun, Log
 from airflow.models.asset import AssetEvent, AssetModel
 from airflow.providers.standard.operators.empty import EmptyOperator
@@ -1285,12 +1284,6 @@ class TestPatchDagRun:
         body = response.json()
         assert body["detail"][0]["msg"] == "Input should be 'queued', 'success' or 'failed'"
 
-    @pytest.fixture(autouse=True)
-    def clean_listener_manager(self):
-        get_listener_manager().clear()
-        yield
-        get_listener_manager().clear()
-
     @pytest.mark.parametrize(
         ("state", "listener_state"),
         [
@@ -1300,11 +1293,11 @@ class TestPatchDagRun:
         ],
     )
     @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
-    def test_patch_dag_run_notifies_listeners(self, test_client, state, listener_state):
+    def test_patch_dag_run_notifies_listeners(self, test_client, state, listener_state, listener_manager):
         from unit.listeners.class_listener import ClassBasedListener
 
         listener = ClassBasedListener()
-        get_listener_manager().add_listener(listener)
+        listener_manager(listener)
         response = test_client.patch(f"/dags/{DAG1_ID}/dagRuns/{DAG1_RUN1_ID}", json={"state": state})
         assert response.status_code == 200
         assert listener.state == listener_state
@@ -1321,6 +1314,23 @@ class TestDeleteDagRun:
         assert response.status_code == 404
         body = response.json()
         assert body["detail"] == "The DagRun with dag_id: `test_dag1` and run_id: `invalid` was not found"
+
+    def test_delete_dag_run_in_running_state(self, test_client, dag_maker, session):
+        with dag_maker(dag_id="test_running_dag"):
+            EmptyOperator(task_id="t1")
+
+        dag_maker.create_dagrun(
+            run_id="test_running",
+            state=DagRunState.RUNNING,
+        )
+        session.commit()
+        response = test_client.delete("/dags/test_running_dag/dagRuns/test_running")
+        assert response.status_code == 409
+        body = response.json()
+        assert body["detail"] == (
+            "The DagRun with dag_id: `test_running_dag` and run_id: `test_running` "
+            "cannot be deleted in running state"
+        )
 
     def test_should_respond_401(self, unauthenticated_test_client):
         response = unauthenticated_test_client.delete(f"/dags/{DAG1_ID}/dagRuns/invalid")
@@ -1881,6 +1891,41 @@ class TestTriggerDagRun:
             "note": None,
             "partition_key": None,
         }
+
+    @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
+    def test_should_generate_unique_run_id_for_scheduled_dag(self, dag_maker, test_client, session):
+        "Ensure manual triggers on scheduled DAGs don't conflict on run_id"
+        scheduled_dag_id = "test_scheduled_dag"
+        with dag_maker(
+            dag_id=scheduled_dag_id,
+            schedule="@daily",
+            start_date=START_DATE1,
+            session=session,
+            serialized=True,
+        ):
+            EmptyOperator(task_id="test_task")
+
+        session.commit()
+
+        response_1 = test_client.post(
+            f"/dags/{scheduled_dag_id}/dagRuns",
+            json={
+                "logical_date": "2025-12-11T16:00:00+00:00",
+                "run_after": "2025-12-11T16:00:00+00:00",
+            },
+        )
+        assert response_1.status_code == 200
+
+        response_2 = test_client.post(
+            f"/dags/{scheduled_dag_id}/dagRuns",
+            json={
+                "logical_date": "2025-12-11T16:01:00+00:00",
+                "run_after": "2025-12-11T16:01:00+00:00",
+            },
+        )
+        assert response_2.status_code == 200
+
+        assert response_1.json()["dag_run_id"] != response_2.json()["dag_run_id"]
 
     @time_machine.travel("2025-10-02 12:00:00", tick=False)
     @pytest.mark.usefixtures("custom_timetable_plugin")

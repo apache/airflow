@@ -46,7 +46,7 @@ const DeleteRunButton = ({ dagRun, variant, withText = true, ...rest }: DeleteRu
     onSuccessConfirm: () => {
       onClose();
       if (isOnRunDetailPage) {
-        navigate(`/dags/${dagRun.dag_id}/runs`);
+        void Promise.resolve(navigate(`/dags/${dagRun.dag_id}/runs`));
       }
     },
   });

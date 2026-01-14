@@ -27,6 +27,22 @@
 Changelog
 ---------
 
+3.3.1
+.....
+
+Misc
+~~~~
+
+* ``New year means updated Copyright notices (#60344)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Prepare providers release 2025-12-09 (#59249)``
+   * ``Add backcompat for exceptions in providers (#58727)``
+   * ``Providers wave 2025-12-30 (#59947)``
+   * ``Fix release process issues after going through 2025-12-09 release (#59261)``
+
+
 3.3.0
 .....
 

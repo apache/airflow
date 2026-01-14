@@ -18,7 +18,6 @@
  */
 import { Box, Flex, Heading, Link, useDisclosure, VStack } from "@chakra-ui/react";
 import type { ColumnDef } from "@tanstack/react-table";
-import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { useSearchParams, Link as RouterLink } from "react-router-dom";
 
@@ -134,7 +133,7 @@ export const AssetsList = () => {
     orderBy,
   });
 
-  const columns = useMemo(() => createColumns(translate, open), [translate, open]);
+  const columns = createColumns(translate, open);
 
   const handleSearchChange = (value: string) => {
     setTableURLState({

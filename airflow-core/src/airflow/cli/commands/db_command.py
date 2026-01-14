@@ -137,7 +137,7 @@ def run_db_migrate_command(args, command, revision_heads_map: dict[str, str]):
         show_sql_only=args.show_sql_only,
     )
     if not args.show_sql_only:
-        print("Database migrating done!")
+        print("Database migration done!")
 
 
 def run_db_downgrade_command(args, command, revision_heads_map: dict[str, str]):

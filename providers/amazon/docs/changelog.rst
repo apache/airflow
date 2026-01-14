@@ -26,6 +26,39 @@
 Changelog
 ---------
 
+9.20.0
+......
+
+Features
+~~~~~~~~
+
+* ``Add fail_on_nonzero_exit parameter to SSM operators for exit code routing (#57753)``
+* ``Check team boundaries in connections (#59476)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Remove the compatibility shim for log_task_event AwsEcsExecutor and AwsBatchExecutor (#60301)``
+* ``Fixed timestamp comparision bug in s3hook _sync_to_local_dir_if_changed method (#60299)``
+
+Misc
+~~~~
+
+* ``Consume ''AirflowOptionalProviderFeatureException'' from compat sdk in providers (#60335)``
+* ``Change starlette import to fastapi (#60382)``
+* ``New year means updated Copyright notices (#60344)``
+* ``Introduce a "cli" section in provider metadata (#59805)``
+* ``Remove TaskInstance and TaskLogReader unused methods (#59922)``
+* ``Assorted SQLA2/Mypy fixes (#60094)``
+* ``Made sqlalchemy dependency optional for amazon provider (#59941)``
+* ``Source amazon provider to use airflow.sdk.configuration.conf (#59979)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Update 'example_bedrock' to use a non expired model (#60413)``
+   * ``Fix AWS auth manager system test (#60329)``
+   * ``Set default config value in unit test for AWS auth manager (#60290)``
+
 9.19.0
 ......
 

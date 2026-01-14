@@ -27,6 +27,40 @@
 Changelog
 ---------
 
+3.0.0
+.....
+
+Breaking changes
+~~~~~~~~~~~~~~~~
+
+* ``Make Edge Worker using async loop (#56457)``
+
+.. note::
+    This release of provider is marked as a breaking change as a major improvement in scaling
+    is implemented via python asyncio. There are no user-facing breaking changes
+    in the provider API or functionality. With the re-implementation of the Edge Worker
+    using asyncio, the worker can now handle a much larger number of concurrent tasks
+    efficiently. This change is internal to the worker's architecture and does not affect
+    how users interact with the Edge3 provider or its features.
+
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Improve error handling in edge worker on 405 (#60425)``
+
+Misc
+~~~~
+
+* ``Upgrade react-router in Edge3 to 7.12.0 (#60353)``
+* ``New year means updated Copyright notices (#60344)``
+* ``Bump the edge-ui-package-updates group across 1 directory with 8 updates (#60170)``
+* ``Introduce a "cli" section in provider metadata (#59805)``
+* ``Move over plugins_manager to a shared library (#59956)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 2.0.1
 .....
 

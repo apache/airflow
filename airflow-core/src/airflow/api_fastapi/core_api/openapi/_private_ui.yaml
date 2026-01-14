@@ -495,6 +495,14 @@ paths:
           type: boolean
           default: false
           title: Include Downstream
+      - name: depth
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Depth
       - name: root
         in: query
         required: false
@@ -643,6 +651,14 @@ paths:
           type: boolean
           default: false
           title: Include Downstream
+      - name: depth
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Depth
       - name: root
         in: query
         required: false
@@ -1352,7 +1368,12 @@ components:
           - type: 'null'
           title: External Log Name
         theme:
-          $ref: '#/components/schemas/Theme'
+          anyOf:
+          - $ref: '#/components/schemas/Theme'
+          - type: 'null'
+        multi_team:
+          type: boolean
+          title: Multi Team
       type: object
       required:
       - page_size
@@ -1366,6 +1387,7 @@ components:
       - dashboard_alert
       - show_external_log_redirect
       - theme
+      - multi_team
       title: ConfigResponse
       description: configuration serializer.
     ConnectionHookFieldBehavior:

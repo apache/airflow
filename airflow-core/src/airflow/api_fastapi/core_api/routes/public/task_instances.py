@@ -669,28 +669,24 @@ def get_task_instance_try_details(
     """Get task instance details by try number."""
 
     def _query(orm_object: Base) -> TI | TIH | None:
-        query = (
-            select(orm_object)
-            .where(
-                orm_object.dag_id == dag_id,
-                orm_object.run_id == dag_run_id,
-                orm_object.task_id == task_id,
-                orm_object.try_number == task_try_number,
-                orm_object.map_index == map_index,
-            )
-            .options(joinedload(orm_object.hitl_detail))
+        query = select(orm_object).where(
+            orm_object.dag_id == dag_id,
+            orm_object.run_id == dag_run_id,
+            orm_object.task_id == task_id,
+            orm_object.try_number == task_try_number,
+            orm_object.map_index == map_index,
         )
 
-        task_instance = session.scalar(query)
-        return task_instance
+        ti_or_tih = session.scalar(query)
+        return ti_or_tih
 
-    result = _query(TI) or _query(TIH)
-    if result is None:
+    ti_or_tih = _query(TI) or _query(TIH)
+    if ti_or_tih is None:
         raise HTTPException(
             status.HTTP_404_NOT_FOUND,
             f"The Task Instance with dag_id: `{dag_id}`, run_id: `{dag_run_id}`, task_id: `{task_id}`, try_number: `{task_try_number}` and map_index: `{map_index}` was not found",
         )
-    return result
+    return ti_or_tih
 
 
 @task_instances_router.get(

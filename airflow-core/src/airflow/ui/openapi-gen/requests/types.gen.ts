@@ -1026,6 +1026,7 @@ export type HITLDetailHistory = {
         [key: string]: unknown;
     };
     response_received?: boolean;
+    task_instance: TaskInstanceHistoryResponse;
 };
 
 /**
@@ -1386,7 +1387,6 @@ export type TaskInstanceHistoryResponse = {
     executor: string | null;
     executor_config: string;
     dag_version: DagVersionResponse | null;
-    hitl_detail: HITLDetailHistory | null;
 };
 
 /**
@@ -1772,7 +1772,8 @@ export type ConfigResponse = {
     dashboard_alert: Array<UIAlert>;
     show_external_log_redirect: boolean;
     external_log_name?: string | null;
-    theme: Theme;
+    theme: Theme | null;
+    multi_team: boolean;
 };
 
 /**
@@ -2548,6 +2549,7 @@ export type GetDagsData = {
     paused?: boolean | null;
     tags?: Array<(string)>;
     tagsMatchMode?: 'any' | 'all' | null;
+    timetableType?: Array<(string)>;
 };
 
 export type GetDagsResponse = DAGCollectionResponse;
@@ -3052,6 +3054,16 @@ export type GetHitlDetailData = {
 
 export type GetHitlDetailResponse = HITLDetail;
 
+export type GetHitlDetailTryDetailData = {
+    dagId: string;
+    dagRunId: string;
+    mapIndex: number;
+    taskId: string;
+    tryNumber: number | null;
+};
+
+export type GetHitlDetailTryDetailResponse = HITLDetailHistory;
+
 export type GetHitlDetailsData = {
     /**
      * SQL LIKE expression — use `%` / `_` wildcards (e.g. `%customer_%`). Regular expressions are **not** supported.
@@ -3399,6 +3411,7 @@ export type DagStatsResponse2 = DashboardDagStatsResponse;
 
 export type StructureDataData = {
     dagId: string;
+    depth?: number | null;
     externalDependencies?: boolean;
     includeDownstream?: boolean;
     includeUpstream?: boolean;
@@ -3410,6 +3423,7 @@ export type StructureDataResponse2 = StructureDataResponse;
 
 export type GetDagStructureData = {
     dagId: string;
+    depth?: number | null;
     includeDownstream?: boolean;
     includeUpstream?: boolean;
     limit?: number;
@@ -5663,6 +5677,33 @@ export type $OpenApiTs = {
                  * Successful Response
                  */
                 200: HITLDetail;
+                /**
+                 * Unauthorized
+                 */
+                401: HTTPExceptionResponse;
+                /**
+                 * Forbidden
+                 */
+                403: HTTPExceptionResponse;
+                /**
+                 * Not Found
+                 */
+                404: HTTPExceptionResponse;
+                /**
+                 * Validation Error
+                 */
+                422: HTTPValidationError;
+            };
+        };
+    };
+    '/api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/{map_index}/hitlDetails/tries/{try_number}': {
+        get: {
+            req: GetHitlDetailTryDetailData;
+            res: {
+                /**
+                 * Successful Response
+                 */
+                200: HITLDetailHistory;
                 /**
                  * Unauthorized
                  */

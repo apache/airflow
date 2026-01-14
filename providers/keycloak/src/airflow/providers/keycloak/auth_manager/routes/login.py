@@ -21,7 +21,7 @@ import logging
 from typing import Annotated, cast
 
 from fastapi import Depends, Request
-from starlette.responses import HTMLResponse, RedirectResponse
+from fastapi.responses import HTMLResponse, RedirectResponse
 
 from airflow.api_fastapi.app import get_auth_manager
 from airflow.api_fastapi.auth.managers.base_auth_manager import COOKIE_NAME_JWT_TOKEN

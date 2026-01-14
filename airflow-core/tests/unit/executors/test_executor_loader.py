@@ -657,3 +657,30 @@ class TestExecutorLoader:
                 mock_get_team_names.return_value = {"team_a"}
                 executor_loader.ExecutorLoader.get_executor_names()
                 mock_get_team_names.assert_called_once()
+
+    @pytest.mark.parametrize(
+        "executor_config",
+        [
+            "team_a=CeleryExecutor;LocalExecutor",
+            "team_a=CeleryExecutor;team_b=LocalExecutor;CeleryExecutor",
+            "team_a=CeleryExecutor;=LocalExecutor",
+            "team_a=CeleryExecutor;team_b=LocalExecutor;=CeleryExecutor,KubernetesExecutor",
+            "CeleryExecutor,team_a=CeleryExecutor;=LocalExecutor",
+        ],
+    )
+    def test_team_executors_before_global_executors_should_fail(self, executor_config):
+        """Test that configurations with team executors before global executors fail validation.
+
+        Global executors must always be specified before any team-based executors.
+        This ensures the default executor (first in config) is always global.
+        """
+        with (
+            mock.patch.object(executor_loader.ExecutorLoader, "block_use_of_multi_team"),
+            mock.patch.object(executor_loader.ExecutorLoader, "_validate_teams_exist_in_database"),
+        ):
+            with conf_vars({("core", "executor"): executor_config, ("core", "multi_team"): "True"}):
+                with pytest.raises(
+                    AirflowConfigException,
+                    match=r"Global executors must be specified before team-based executors",
+                ):
+                    executor_loader.ExecutorLoader._get_team_executor_configs()

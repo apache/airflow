@@ -29,6 +29,8 @@ type Props<TData> = {
 };
 
 const FilterMenuButton = <TData,>({ table }: Props<TData>) => {
+  "use no memo"; // remove if https://github.com/TanStack/table/issues/5567 is resolved
+
   const { t: translate } = useTranslation("common");
   const filterLabel = translate("table.filterColumns");
 

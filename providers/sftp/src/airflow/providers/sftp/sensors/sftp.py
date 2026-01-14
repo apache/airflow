@@ -43,6 +43,15 @@ class SFTPSensor(BaseSensorOperator):
     :param file_pattern: The pattern that will be used to match the file (fnmatch format)
     :param sftp_conn_id: The connection to run the sensor against
     :param newer_than: DateTime for which the file or file path should be newer than, comparison is inclusive
+    :param python_callable: Optional callable that will be called after files are found. The callable
+        will receive the found files list in ``op_kwargs['files_found']`` if ``op_kwargs`` is provided
+        and not empty. The return value of the callable will be stored in XCom along with the
+        files_found list.
+    :param op_args: A list of positional arguments that will get unpacked when calling your callable
+        (templated). Only used when ``python_callable`` is provided.
+    :param op_kwargs: A dictionary of keyword arguments that will get unpacked in your callable
+        (templated). If provided and not empty, the ``files_found`` list will be automatically added
+        to this dictionary. Only used when ``python_callable`` is provided.
     :param deferrable: If waiting for completion, whether to defer the task until done, default is ``False``.
     """
 

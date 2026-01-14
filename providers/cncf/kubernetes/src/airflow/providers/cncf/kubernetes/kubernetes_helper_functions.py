@@ -52,6 +52,8 @@ class KubernetesApiException(AirflowException):
     """When communication with kubernetes API fails."""
 
 
+API_TIMEOUT = 60  # allow 1 min of timeout for kubernetes api calls
+API_TIMEOUT_OFFSET_SERVER_SIDE = 5  # offset to the server side timeout for the client side timeout
 API_RETRIES = conf.getint("workers", "api_retries", fallback=5)
 API_RETRY_WAIT_MIN = conf.getfloat("workers", "api_retry_wait_min", fallback=1)
 API_RETRY_WAIT_MAX = conf.getfloat("workers", "api_retry_wait_max", fallback=15)

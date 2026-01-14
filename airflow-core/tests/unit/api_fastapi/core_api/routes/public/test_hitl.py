@@ -647,7 +647,7 @@ class TestGetHITLDetailsEndpoint:
             ("rendered_map_index", lambda x: x["task_instance"]["rendered_map_index"]),
             ("task_instance_operator", lambda x: x["task_instance"]["operator_name"]),
             ("task_instance_state", lambda x: x["task_instance"]["state"]),
-            # htil key
+            # hitl key
             ("subject", itemgetter("subject")),
             ("responded_at", itemgetter("responded_at")),
             ("created_at", itemgetter("created_at")),
@@ -661,7 +661,7 @@ class TestGetHITLDetailsEndpoint:
             "rendered_map_index",
             "task_instance_operator",
             "task_instance_state",
-            # htil key
+            # hitl key
             "subject",
             "responded_at",
             "created_at",

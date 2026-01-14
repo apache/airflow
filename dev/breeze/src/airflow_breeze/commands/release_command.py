@@ -18,6 +18,8 @@ from __future__ import annotations
 
 import os
 import re
+import time
+from subprocess import CalledProcessError
 
 import click
 
@@ -32,14 +34,36 @@ from airflow_breeze.utils.run_utils import run_command
 RELEASE_PATTERN = re.compile(r"^(?P<major>\d+)\.(?P<minor>\d+)\.(?P<patch>\d+)$")
 
 
+SVN_NUM_TRIES = 3
+
+
 def clone_asf_repo(working_dir):
     if confirm_action("Clone ASF repo?"):
         run_command(["rm", "-rf", f"{working_dir}/asf-dist"], check=True)
-        run_command(
-            ["svn", "checkout", "--depth=immediates", "https://dist.apache.org/repos/dist", "asf-dist"],
-            check=True,
-            dry_run_override=False,
-        )
+
+        # SVN checkout with retries
+        for attempt in range(SVN_NUM_TRIES):
+            try:
+                run_command(
+                    [
+                        "svn",
+                        "checkout",
+                        "--depth=immediates",
+                        "https://dist.apache.org/repos/dist",
+                        "asf-dist",
+                    ],
+                    check=True,
+                    dry_run_override=False,
+                )
+                break
+            except CalledProcessError:
+                if attempt == SVN_NUM_TRIES - 1:
+                    raise
+                console_print(
+                    f"[warning]SVN checkout failed. Retrying! {SVN_NUM_TRIES - attempt - 1} tries left."
+                )
+                time.sleep(5)
+
         dev_dir = f"{working_dir}/asf-dist/dev/airflow"
         release_dir = f"{working_dir}/asf-dist/release/airflow"
         run_command(["svn", "update", "--set-depth", "infinity", dev_dir], dry_run_override=False, check=True)

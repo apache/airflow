@@ -74,6 +74,11 @@
   "dagWarnings": "Advertències/errors del Dag",
   "defaultToGraphView": "Visualització de gràfic per defecte",
   "defaultToGridView": "Visualització de graella per defecte",
+  "delete": "Eliminar",
+  "diff": "Diferència",
+  "diffCompareWith": "Comparar amb",
+  "diffExit": "Sortir de diferències",
+  "diffSelectVersionToCompare": "Selecciona la versió a comparar",
   "direction": "Direcció",
   "docs": {
     "documentation": "Documentació",
@@ -86,6 +91,7 @@
     "tooltip": "Prem {{hotkey}} per a descarregar els registres"
   },
   "duration": "Duració",
+  "edit": "Editar",
   "endDate": "Data de finalització",
   "error": {
     "back": "Tornar",
@@ -125,12 +131,14 @@
   "logoutConfirmation": "Està a punt de tancar sessió de l'aplicació.",
   "mapIndex": "Índex del mapa",
   "modal": {
+    "add": "Afegir",
     "cancel": "Cancel·lar",
     "confirm": "Confirmar",
     "delete": {
       "button": "Eliminar",
       "confirmation": "Està segur que vol eliminar {{resourceName}}? Aquesta acció no es pot desfer."
-    }
+    },
+    "save": "Desar"
   },
   "nav": {
     "admin": "Configuració",
@@ -184,6 +192,7 @@
   },
   "selectLanguage": "Seleccionar idioma",
   "showDetailsPanel": "Mostrar panell de detalls",
+  "signedInAs": "Sessió iniciada com a",
   "source": {
     "hide": "Amagar origen",
     "hotkey": "s",

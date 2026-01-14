@@ -24,7 +24,6 @@ from functools import cache
 from typing import TYPE_CHECKING
 
 from airflow import settings
-from airflow.observability.stats import Stats
 from airflow.providers_manager import ProvidersManager
 from airflow.sdk._shared.module_loading import import_string
 from airflow.sdk._shared.plugins_manager import (
@@ -36,6 +35,7 @@ from airflow.sdk._shared.plugins_manager import (
     is_valid_plugin,
 )
 from airflow.sdk.configuration import conf
+from airflow.sdk.observability.stats import Stats
 
 if TYPE_CHECKING:
     from airflow.listeners.listener import ListenerManager

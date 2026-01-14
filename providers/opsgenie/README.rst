@@ -23,7 +23,7 @@
 
 Package ``apache-airflow-providers-opsgenie``
 
-Release: ``5.10.0``
+Release: ``5.10.1``
 
 
 `Opsgenie <https://www.atlassian.com/software/opsgenie>`__
@@ -36,7 +36,7 @@ This is a provider package for ``opsgenie`` provider. All classes for this provi
 are in ``airflow.providers.opsgenie`` python package.
 
 You can find package information and changelog for the provider
-in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-opsgenie/5.10.0/>`_.
+in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-opsgenie/5.10.1/>`_.
 
 Installation
 ------------
@@ -78,4 +78,4 @@ Dependent package                                                               
 ==================================================================================================================  =================
 
 The changelog for the provider package can be found in the
-`changelog <https://airflow.apache.org/docs/apache-airflow-providers-opsgenie/5.10.0/changelog.html>`_.
+`changelog <https://airflow.apache.org/docs/apache-airflow-providers-opsgenie/5.10.1/changelog.html>`_.

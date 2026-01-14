@@ -882,6 +882,7 @@ def _build_skaffold_config(
         "config.api_auth.jwt_secret": "foo",
         "config.core.auth_manager": auth_manager,
         "config.api.base_url": f"http://localhost:{api_server_port}",
+        "apiServer.args": ["bash", "-c", "exec airflow api-server --dev"],
     }
 
     if multi_namespace_mode:
@@ -966,8 +967,40 @@ def _build_skaffold_config(
                         },
                         "setValues": set_values,
                     }
-                ]
-            }
+                ],
+                # include test sources (the `breeze k8s configure-cluster` command ) like nodeport for apiServer, volume for Dag, etc
+                # https://skaffold.dev/docs/references/yaml/?version=v4beta13#deploy-kubectl
+                "hooks": {
+                    "after": [
+                        {
+                            "host": {
+                                "command": [
+                                    "kubectl",
+                                    "apply",
+                                    "-f",
+                                    "volumes.yaml",
+                                    "--namespace",
+                                    HELM_DEFAULT_NAMESPACE,
+                                ],
+                                "dir": (AIRFLOW_ROOT_PATH / "scripts" / "ci" / "kubernetes").as_posix(),
+                            }
+                        },
+                        {
+                            "host": {
+                                "command": [
+                                    "kubectl",
+                                    "apply",
+                                    "-f",
+                                    "nodeport.yaml",
+                                    "--namespace",
+                                    HELM_AIRFLOW_NAMESPACE,
+                                ],
+                                "dir": (AIRFLOW_ROOT_PATH / "scripts" / "ci" / "kubernetes").as_posix(),
+                            }
+                        },
+                    ]
+                },
+            },
         },
     }
 
@@ -1478,7 +1511,7 @@ def deploy_airflow(
     name="dev",
     help=(
         "Run skaffold dev loop to sync dags and airflow-core sources to running pods "
-        "(scheduler/triggerer/dag-processor hot-reload; API server/webserver UI not by default)."
+        "(scheduler/triggerer/dag-processor/API Server hot-reload; UI auto-refresh not supported yet). "
     ),
     context_settings=dict(
         ignore_unknown_options=True,
