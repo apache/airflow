@@ -1172,9 +1172,7 @@ def test_update_user_auth_stat_subsequent_unsuccessful_auth(mock_security_manage
     assert old_user.last_login == datetime.datetime(1984, 12, 1, 0, 0, 0)
     mock_security_manager.update_user.assert_called_once_with(old_user)
 
-def test_update_user_updates_changed_on_when_roles_change(
-    app_builder, security_manager, session
-):
+def test_update_user_updates_changed_on_when_roles_change(app_builder, security_manager, session):
     # Create a user
     user = security_manager.add_user(
         username="changed_on_test",

@@ -55,6 +55,8 @@ from flask_appbuilder.security.views import (
     RegisterUserModelView,
     UserGroupModelView,
 )
+from sqlalchemy.orm.attributes import get_history
+from sqlalchemy.sql import func
 from flask_babel import lazy_gettext
 from flask_jwt_extended import JWTManager
 from flask_login import LoginManager
@@ -1437,22 +1439,22 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
             if username:
                 return (
                     self.session.scalars(
-                        select(self.user_model).where(
-                            func.lower(self.user_model.username) == username.lower()
-                        )
+                        select(self.user_model)
+                        .where(func.lower(self.user_model.username) == username.lower())
+                        .order_by(self.user_model.id)
+                        .limit(1)
                     )
-                    .unique()
                     .one_or_none()
                 )
 
             if email:
                 return (
                     self.session.scalars(
-                        select(self.user_model).where(
-                            func.lower(self.user_model.email) == email.lower()
-                        )
+                        select(self.user_model)
+                        .where(func.lower(self.user_model.email) == email.lower())
+                        .order_by(self.user_model.id)
+                        .limit(1)
                     )
-                    .unique()
                     .one_or_none()
                 )
         except MultipleResultsFound:
@@ -1461,10 +1463,8 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
 
     def update_user(self, user: User) -> bool:
         try:
-            state = inspect(user)
-            if state.attrs.roles.history.has_changes():
-                user.changed_on = datetime.datetime.utcnow()
-
+            if get_history(user, "roles").has_changes():
+                user.changed_on = func.now()
             self.session.merge(user)
             self.session.commit()
             log.info(const.LOGMSG_INF_SEC_UPD_USER, user)
@@ -1490,7 +1490,13 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
             return False
 
     def get_all_users(self):
-        return self.session.scalars(select(self.user_model)).all()
+        stmt = (
+            select(self.user_model)
+            .group_by(func.lower(self.user_model.username))
+            .order_by(self.user_model.id.asc())
+        )
+        return self.session.execute(stmt).scalars().all()
+
 
     def update_user_auth_stat(self, user, success=True):
         """
