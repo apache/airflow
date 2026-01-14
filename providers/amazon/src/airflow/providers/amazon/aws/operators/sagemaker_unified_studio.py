@@ -37,7 +37,7 @@ if TYPE_CHECKING:
     from airflow.sdk import Context
 
 
-class SageMakerNotebookHook(BaseHook):
+class  SageMakerNotebookOperator(BaseOperator):
     """
     Interact with Sagemaker Unified Studio Workflows.
 
@@ -46,12 +46,13 @@ class SageMakerNotebookHook(BaseHook):
     Examples:
      .. code-block:: python
 
-        from airflow.providers.amazon.aws.hooks.sagemaker_unified_studio import SageMakerNotebookHook
+        from airflow.providers.amazon.aws.operators.sagemaker_unified_studio import SageMakerNotebookOperator
 
-        notebook_hook = SageMakerNotebookHook(
-            input_config={"input_path": "path/to/notebook.ipynb", "input_params": {"param1": "value1"}},
-            output_config={"output_uri": "folder/output/location/prefix", "output_formats": "NOTEBOOK"},
-            execution_name="notebook_execution",
+        notebook_operator = SageMakerNotebookOperator(
+            task_id="notebook_task",
+            input_config={"input_path": "path/to/notebook.ipynb", "input_params": ""},
+            output_config={"output_format": "ipynb"},
+            wait_for_completion=True,
             waiter_delay=10,
             waiter_max_attempts=1440,
         )
