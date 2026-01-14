@@ -27,6 +27,18 @@
 Changelog
 ---------
 
+4.11.1
+......
+
+Misc
+~~~~
+
+* ``New year means updated Copyright notices (#60344)``
+* ``Source odbc provider to use airflow.sdk.configuration.conf (#59995)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 4.11.0
 ......
 
