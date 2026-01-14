@@ -50,7 +50,7 @@ class SageMakerNotebookHook(BaseHook):
     :param execution_name: The name of the notebook job to be executed, this is same as task_id.
     :param input_config: Configuration for the input file.
         Example: {'input_path': 'folder/input/notebook.ipynb', 'input_params': {'param1': 'value1'}}
-    :param output_config: Configuration for the output format.
+    :param output_config: Configuration for the output format. It should include an output_formats parameter to specify the output format.
         Example: {'output_formats': ['NOTEBOOK']}
     :param compute: compute configuration to use for the notebook execution. This is a required attribute if the execution is on a remote compute.
         Example: {"instance_type": "ml.m5.large", "volume_size_in_gb": 30, "volume_kms_key_id": "", "image_details": {"ecr_uri": "string"}, "container_entrypoint": ["string"]}
