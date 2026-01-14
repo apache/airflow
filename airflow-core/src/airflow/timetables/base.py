@@ -346,6 +346,6 @@ class Timetable(Protocol):
             a DagRunInfo object when asked at another time.
         """
         return self.next_dagrun_info(
-            last_automated_data_interval=last_dagrun_info.data_interval,
+            last_automated_data_interval=last_dagrun_info and last_dagrun_info.data_interval,
             restriction=restriction,
         )
