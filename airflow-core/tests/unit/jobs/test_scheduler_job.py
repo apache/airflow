@@ -3781,7 +3781,7 @@ class TestSchedulerJob:
                     triggered_by=DagRunTriggeredByType.TEST,
                     session=session,
                 )
-                next_info = dag.next_dagrun_info(next_info.data_interval)
+                next_info = dag.next_dagrun_info(next_info)
                 if next_info is None:
                     break
 

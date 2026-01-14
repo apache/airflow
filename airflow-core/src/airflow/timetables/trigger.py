@@ -293,8 +293,9 @@ class MultipleCronTriggerTimetable(Timetable):
         return ", ".join(t.summary for t in self._timetables)
 
     def infer_manual_data_interval(self, *, run_after: DateTime) -> DataInterval:
+        intervals = (t.infer_manual_data_interval(run_after=run_after) for t in self._timetables)
         return min(
-            (t.infer_manual_data_interval(run_after=run_after) for t in self._timetables),
+            (x for x in intervals if x),
             key=operator.attrgetter("start"),
         )
 

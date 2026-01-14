@@ -279,6 +279,7 @@ class Timetable(Protocol):
         # Custom timetables use full import path
         return qualname(self.__class__)
 
+    # TODO: NEXT!!! why did i change this to possibly return None?
     def infer_manual_data_interval(self, *, run_after: DateTime) -> DataInterval | None:
         """
         When a DAG run is manually triggered, infer a data interval for it.
@@ -329,7 +330,7 @@ class Timetable(Protocol):
         """
         return run_type.generate_run_id(suffix=run_after.isoformat())
 
-    def next_dagrun_info_v2(self, last_dagrun_info: DagRunInfo | None, restriction: TimeRestriction):
+    def next_dagrun_info_v2(self, *, last_dagrun_info: DagRunInfo | None, restriction: TimeRestriction):
         """
         Provide information to schedule the next DagRun.
 
