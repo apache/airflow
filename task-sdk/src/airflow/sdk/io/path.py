@@ -295,7 +295,7 @@ class ObjectStoragePath(ProxyUPath):
             # make use of system dependent buffer size
             shutil.copyfileobj(f1, f2, **kwargs)
 
-    def copy(self, dst: str | ObjectStoragePath, recursive: bool = False, **kwargs) -> None:
+    def copy(self, dst: str | ObjectStoragePath, recursive: bool = False, **kwargs) -> None:  # type: ignore[override]
         """
         Copy file(s) from this path to another location.
 
@@ -366,7 +366,22 @@ class ObjectStoragePath(ProxyUPath):
         # remote file -> remote dir
         self._cp_file(dst, **kwargs)
 
-    def move(self, path: str | ObjectStoragePath, recursive: bool = False, **kwargs) -> None:
+    def copy_into(self, target_dir: str | ObjectStoragePath, recursive: bool = False, **kwargs) -> None:  # type: ignore[override]
+        """
+        Copy file(s) from this path into another directory.
+
+        :param target_dir: Destination directory
+        :param recursive: If True, copy directories recursively.
+        kwargs: Additional keyword arguments to be passed to the underlying implementation.
+        """
+        if isinstance(target_dir, str):
+            target_dir = ObjectStoragePath(target_dir)
+        if not target_dir.is_dir():
+            raise NotADirectoryError(f"Destination {target_dir} is not a directory.")
+        dst_path = target_dir / self.name
+        self.copy(dst_path, recursive=recursive, **kwargs)
+
+    def move(self, path: str | ObjectStoragePath, recursive: bool = False, **kwargs) -> None:  # type: ignore[override]
         """
         Move file(s) from this path to another location.
 
@@ -389,6 +404,21 @@ class ObjectStoragePath(ProxyUPath):
         # non-local copy
         self.copy(path, recursive=recursive, **kwargs)
         self.unlink()
+
+    def move_into(self, target_dir: str | ObjectStoragePath, recursive: bool = False, **kwargs) -> None:  # type: ignore[override]
+        """
+        Move file(s) from this path into another directory.
+
+        :param target_dir: Destination directory
+        :param recursive: If True, move directories recursively.
+        kwargs: Additional keyword arguments to be passed to the underlying implementation.
+        """
+        if isinstance(target_dir, str):
+            target_dir = ObjectStoragePath(target_dir)
+        if not target_dir.is_dir():
+            raise NotADirectoryError(f"Destination {target_dir} is not a directory.")
+        dst_path = target_dir / self.name
+        self.move(dst_path, recursive=recursive, **kwargs)
 
     def serialize(self) -> dict[str, Any]:
         _kwargs = {**self.storage_options}
