@@ -16,13 +16,12 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Button, Input, Portal, Separator, Text, VStack } from "@chakra-ui/react";
+import { Button, ButtonGroup, Input, Portal, Separator, Text, VStack } from "@chakra-ui/react";
 import { useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { FiChevronDown, FiFilter } from "react-icons/fi";
 import { useParams, useSearchParams } from "react-router-dom";
 
-import { ButtonGroupToggle } from "src/components/ui/ButtonGroupToggle";
 import { Menu } from "src/components/ui/Menu";
 
 export const TaskStreamFilter = () => {
@@ -125,26 +124,6 @@ export const TaskStreamFilter = () => {
 
             <Separator my={2} />
 
-            {/* Mode Section */}
-            <VStack align="stretch" gap={2} width="100%">
-              <Text fontSize="xs" fontWeight="semibold">
-                {translate("dag:panel.taskStreamFilter.mode")}
-              </Text>
-              <ButtonGroupToggle<"static" | "traverse">
-                onChange={(value) => {
-                  searchParams.set("mode", value);
-                  setSearchParams(searchParams);
-                }}
-                options={[
-                  { disabled: !hasActiveFilter, label: translate("dag:panel.taskStreamFilter.modes.static"), value: "static" },
-                  { disabled: !hasActiveFilter, label: translate("dag:panel.taskStreamFilter.modes.traverse"), value: "traverse" },
-                ]}
-                value={mode as "static" | "traverse"}
-              />
-            </VStack>
-
-            <Separator my={2} />
-
             {/* Direction Section */}
             <VStack align="stretch" gap={2} width="100%">
               <Text fontSize="xs" fontWeight="semibold">
@@ -153,7 +132,7 @@ export const TaskStreamFilter = () => {
               <VStack align="stretch" gap={1} width="100%">
                 <Button
                   color={activeUpstream ? "white" : undefined}
-                  colorPalette={activeUpstream ? "blue" : "gray"}
+                  colorPalette={activeUpstream ? "brand" : "gray"}
                   disabled={currentTaskId === undefined}
                   justifyContent="flex-start"
                   onClick={() => buildFilterSearch(true, false, currentTaskId, depth)}
@@ -172,7 +151,7 @@ export const TaskStreamFilter = () => {
 
                 <Button
                   color={activeDownstream ? "white" : undefined}
-                  colorPalette={activeDownstream ? "blue" : "gray"}
+                  colorPalette={activeDownstream ? "brand" : "gray"}
                   disabled={currentTaskId === undefined}
                   justifyContent="flex-start"
                   onClick={() => buildFilterSearch(false, true, currentTaskId, depth)}
@@ -191,7 +170,7 @@ export const TaskStreamFilter = () => {
 
                 <Button
                   color={bothActive ? "white" : undefined}
-                  colorPalette={bothActive ? "blue" : "gray"}
+                  colorPalette={bothActive ? "brand" : "gray"}
                   disabled={currentTaskId === undefined}
                   justifyContent="flex-start"
                   onClick={() => buildFilterSearch(true, true, currentTaskId, depth)}
@@ -232,6 +211,39 @@ export const TaskStreamFilter = () => {
                 type="number"
                 value={depth ?? ""}
               />
+            </VStack>
+
+            <Separator my={2} />
+
+            {/* Mode Section */}
+            <VStack align="stretch" gap={2} width="100%">
+              <Text fontSize="xs" fontWeight="semibold">
+                {translate("dag:panel.taskStreamFilter.mode")}
+              </Text>
+              <ButtonGroup attached colorPalette="brand" size="sm" variant="outline" width="100%">
+                <Button
+                  disabled={!hasActiveFilter}
+                  flex="1"
+                  onClick={() => {
+                    searchParams.set("mode", "static");
+                    setSearchParams(searchParams);
+                  }}
+                  variant={mode === "static" ? "solid" : "outline"}
+                >
+                  {translate("dag:panel.taskStreamFilter.modes.static")}
+                </Button>
+                <Button
+                  disabled={!hasActiveFilter}
+                  flex="1"
+                  onClick={() => {
+                    searchParams.set("mode", "traverse");
+                    setSearchParams(searchParams);
+                  }}
+                  variant={mode === "traverse" ? "solid" : "outline"}
+                >
+                  {translate("dag:panel.taskStreamFilter.modes.traverse")}
+                </Button>
+              </ButtonGroup>
             </VStack>
 
             <Separator my={2} />
