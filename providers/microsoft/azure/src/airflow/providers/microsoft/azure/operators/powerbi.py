@@ -113,10 +113,7 @@ class PowerBIDatasetRefreshOperator(BaseOperator):
         if not self.wait_for_termination:
             # Fire and forget - synchronous execution, no deferral
             hook = PowerBIHook(
-                conn_id=self.conn_id,
-                proxies=self.proxies,
-                api_version=self.api_version,
-                timeout=self.timeout
+                conn_id=self.conn_id, proxies=self.proxies, api_version=self.api_version, timeout=self.timeout
             )
 
             dataset_refresh_id = hook.trigger_dataset_refresh(
@@ -180,8 +177,9 @@ class PowerBIDatasetRefreshOperator(BaseOperator):
         if event["status"] == "error":
             raise AirflowException(event["message"])
 
-        self.log.info("Dataset refresh %s completed with status: %s",
-                      dataset_refresh_id, dataset_refresh_status)
+        self.log.info(
+            "Dataset refresh %s completed with status: %s", dataset_refresh_id, dataset_refresh_status
+        )
 
 
 class PowerBIWorkspaceListOperator(BaseOperator):
