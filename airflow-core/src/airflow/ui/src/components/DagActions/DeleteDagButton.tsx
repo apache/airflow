@@ -44,7 +44,7 @@ const DeleteDagButton = ({ dagDisplayName, dagId, width, withText = true }: Dele
     onSuccessConfirm: () => {
       onClose();
       if (isOnDagDetailPage) {
-        navigate("/dags");
+        void Promise.resolve(navigate("/dags"));
       }
     },
   });
