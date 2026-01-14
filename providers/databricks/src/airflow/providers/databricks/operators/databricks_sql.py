@@ -21,6 +21,7 @@ from __future__ import annotations
 
 import csv
 import json
+import tempfile
 from collections.abc import Sequence
 from functools import cached_property
 from typing import TYPE_CHECKING, Any, ClassVar
@@ -62,13 +63,16 @@ class DatabricksSqlOperator(SQLExecuteQueryOperator):
     :param catalog: An optional initial catalog to use. Requires DBR version 9.0+ (templated)
     :param schema: An optional initial schema to use. Requires DBR version 9.0+ (templated)
     :param output_path: optional string specifying the file to which write selected data. (templated)
+        Supports local file paths and GCS URIs (gs://bucket/path/file.ext).
     :param output_format: format of output data if ``output_path` is specified.
-        Possible values are ``csv``, ``json``, ``jsonl``. Default is ``csv``.
+        Possible values are ``csv``, ``json``, ``jsonl``, ``parquet``, ``avro``. Default is ``csv``.
     :param csv_params: parameters that will be passed to the ``csv.DictWriter`` class used to write CSV data.
+    :param gcp_conn_id: The connection ID to use when connecting to Google Cloud Storage.
+        Required when output_path is a GCS URI. (templated)
     """
 
     template_fields: Sequence[str] = tuple(
-        {"_output_path", "schema", "catalog", "http_headers", "databricks_conn_id"}
+        {"_output_path", "schema", "catalog", "http_headers", "databricks_conn_id", "gcp_conn_id"}
         | set(SQLExecuteQueryOperator.template_fields)
     )
 
@@ -90,6 +94,7 @@ class DatabricksSqlOperator(SQLExecuteQueryOperator):
         output_format: str = "csv",
         csv_params: dict[str, Any] | None = None,
         client_parameters: dict[str, Any] | None = None,
+        gcp_conn_id: str | None = None,
         **kwargs,
     ) -> None:
         super().__init__(conn_id=databricks_conn_id, **kwargs)
@@ -97,6 +102,7 @@ class DatabricksSqlOperator(SQLExecuteQueryOperator):
         self._output_path = output_path
         self._output_format = output_format
         self._csv_params = csv_params
+        self.gcp_conn_id = gcp_conn_id
         self.http_path = http_path
         self.sql_endpoint_name = sql_endpoint_name
         self.session_configuration = session_configuration
@@ -124,6 +130,194 @@ class DatabricksSqlOperator(SQLExecuteQueryOperator):
     def get_db_hook(self) -> DatabricksSqlHook:
         return self._hook
 
+    def _is_gcs_path(self, path: str) -> bool:
+        """Check if the path is a GCS URI."""
+        return path.startswith("gs://")
+
+    def _parse_gcs_path(self, path: str) -> tuple[str, str]:
+        """Parse GCS URI into bucket and object path."""
+        if not path.startswith("gs://"):
+            raise ValueError(f"Invalid GCS path: {path}")
+        path_without_scheme = path[5:]  # Remove 'gs://'
+        parts = path_without_scheme.split("/", 1)
+        if len(parts) < 2:
+            raise ValueError(f"Invalid GCS path format: {path}")
+        bucket = parts[0]
+        object_name = parts[1]
+        return bucket, object_name
+
+    def _get_gcs_hook(self):
+        """Get GCS hook with lazy import."""
+        try:
+            from airflow.providers.google.cloud.hooks.gcs import GCSHook
+        except ImportError as e:
+            raise ImportError(
+                "GCS export requires apache-airflow-providers-google. "
+                "Install it with: pip install 'apache-airflow-providers-databricks[gcs]'"
+            ) from e
+
+        if not self.gcp_conn_id:
+            raise ValueError("gcp_conn_id must be specified for GCS exports")
+
+        return GCSHook(gcp_conn_id=self.gcp_conn_id)
+
+    def _write_parquet_to_gcs(self, results: list[Any], description: Sequence[Sequence]) -> None:
+        """Write query results to GCS in Parquet format."""
+        try:
+            import pyarrow as pa
+            import pyarrow.parquet as pq
+        except ImportError as e:
+            raise ImportError("Parquet export requires pyarrow. This should be installed by default.") from e
+
+        # Build PyArrow schema from cursor description
+        field_names = [field[0] for field in description]
+        field_types = []
+
+        # Type mapping from Databricks SQL types to PyArrow types
+        type_map = {
+            "bigint": pa.int64(),
+            "int": pa.int32(),
+            "smallint": pa.int16(),
+            "tinyint": pa.int8(),
+            "boolean": pa.bool_(),
+            "bool": pa.bool_(),
+            "float": pa.float32(),
+            "double": pa.float64(),
+            "decimal": pa.string(),  # Serialize as string to avoid precision issues
+            "string": pa.string(),
+            "varchar": pa.string(),
+            "char": pa.string(),
+            "binary": pa.binary(),
+            "date": pa.date32(),
+            "timestamp": pa.timestamp("us"),
+            "array": pa.string(),  # Serialize complex types as JSON
+            "map": pa.string(),
+            "struct": pa.string(),
+            "void": pa.null(),
+        }
+
+        # Extract types from description (type_code is at index 1)
+        for field in description:
+            field_type_str = str(field[1]).lower() if len(field) > 1 and field[1] else "string"
+            base_type = field_type_str.split("(")[0]
+            pa_type = type_map.get(base_type, pa.string())
+            field_types.append(pa_type)
+
+        schema = pa.schema(zip(field_names, field_types))
+
+        # Convert results to PyArrow table
+        rows_dict: dict[str, list[Any]] = {col: [] for col in field_names}
+        for row in results:
+            row_dict = row._asdict()
+            for col in field_names:
+                value = row_dict.get(col)
+                # Handle complex types by converting to JSON strings
+                if value is not None and isinstance(value, (dict, list)):
+                    value = json.dumps(value)
+                rows_dict[col].append(value)
+
+        table = pa.Table.from_pydict(rows_dict, schema=schema)
+
+        # Write to temporary file then upload to GCS
+        with tempfile.NamedTemporaryFile(mode="wb", suffix=".parquet", delete=False) as tmp_file:
+            tmp_path = tmp_file.name
+            pq.write_table(table, tmp_file)
+
+        try:
+            output_path: str = self._output_path  # type: ignore[assignment]
+            bucket, object_name = self._parse_gcs_path(output_path)
+            gcs_hook = self._get_gcs_hook()
+            gcs_hook.upload(
+                bucket_name=bucket,
+                object_name=object_name,
+                filename=tmp_path,
+            )
+            self.log.info("Successfully uploaded Parquet file to %s", output_path)
+        finally:
+            import os
+
+            os.unlink(tmp_path)
+
+    def _write_avro_to_gcs(self, results: list[Any], description: Sequence[Sequence]) -> None:
+        """Write query results to GCS in Avro format."""
+        try:
+            import fastavro
+        except ImportError as e:
+            raise ImportError(
+                "Avro export requires fastavro. "
+                "Install it with: pip install 'apache-airflow-providers-databricks[avro]'"
+            ) from e
+
+        # Build Avro schema from cursor description
+        # Type mapping from Databricks SQL types to Avro types
+        type_map = {
+            "bigint": "long",
+            "int": "int",
+            "smallint": "int",
+            "tinyint": "int",
+            "boolean": "boolean",
+            "bool": "boolean",
+            "float": "float",
+            "double": "double",
+            "decimal": "string",  # Serialize as string
+            "string": "string",
+            "varchar": "string",
+            "char": "string",
+            "binary": "bytes",
+            "date": {"type": "int", "logicalType": "date"},
+            "timestamp": {"type": "long", "logicalType": "timestamp-micros"},
+            "array": "string",  # Serialize complex types as JSON
+            "map": "string",
+            "struct": "string",
+            "void": "null",
+        }
+
+        # Build Avro fields with nullable support
+        avro_fields = []
+        for field in description:
+            field_name = field[0]
+            field_type_str = str(field[1]).lower() if len(field) > 1 and field[1] else "string"
+            base_type = field_type_str.split("(")[0]
+            avro_type = type_map.get(base_type, "string")
+
+            # Make fields nullable using union types
+            avro_fields.append({"name": field_name, "type": ["null", avro_type]})
+
+        avro_schema = {"type": "record", "name": "DatabricksQueryResult", "fields": avro_fields}
+
+        # Convert results to list of dicts
+        records: list[dict[str, Any]] = []
+        for row in results:
+            row_dict = row._asdict()
+            # Handle complex types by converting to JSON strings
+            converted_row: dict[str, Any] = {}
+            for col, value in row_dict.items():
+                if value is not None and isinstance(value, (dict, list)):
+                    converted_row[col] = json.dumps(value)
+                else:
+                    converted_row[col] = value
+            records.append(converted_row)
+
+        # Write to temporary file then upload to GCS
+        with tempfile.NamedTemporaryFile(mode="wb", suffix=".avro", delete=False) as tmp_file:
+            tmp_path = tmp_file.name
+            fastavro.writer(tmp_file, avro_schema, records)
+
+        try:
+            output_path: str = self._output_path  # type: ignore[assignment]
+            bucket, object_name = self._parse_gcs_path(output_path)
+            gcs_hook = self._get_gcs_hook()
+            gcs_hook.upload(
+                bucket_name=bucket,
+                object_name=object_name,
+                filename=tmp_path,
+            )
+            self.log.info("Successfully uploaded Avro file to %s", output_path)
+        finally:
+            import os
+
+            os.unlink(tmp_path)
+
     def _should_run_output_processing(self) -> bool:
         return self.do_xcom_push or bool(self._output_path)
 
@@ -131,37 +325,61 @@ class DatabricksSqlOperator(SQLExecuteQueryOperator):
         if not self._output_path:
             return list(zip(descriptions, results))
         if not self._output_format:
-            raise AirflowException("Output format should be specified!")
+            raise ValueError("Output format should be specified!")
+
         # Output to a file only the result of last query
         last_description = descriptions[-1]
         last_results = results[-1]
         if last_description is None:
-            raise AirflowException("There is missing description present for the output file. .")
-        field_names = [field[0] for field in last_description]
-        if self._output_format.lower() == "csv":
-            with open(self._output_path, "w", newline="") as file:
-                if self._csv_params:
-                    csv_params = self._csv_params
-                else:
-                    csv_params = {}
-                write_header = csv_params.get("header", True)
-                if "header" in csv_params:
-                    del csv_params["header"]
-                writer = csv.DictWriter(file, fieldnames=field_names, **csv_params)
-                if write_header:
-                    writer.writeheader()
-                for row in last_results:
-                    writer.writerow(row._asdict())
-        elif self._output_format.lower() == "json":
-            with open(self._output_path, "w") as file:
-                file.write(json.dumps([row._asdict() for row in last_results]))
-        elif self._output_format.lower() == "jsonl":
-            with open(self._output_path, "w") as file:
-                for row in last_results:
-                    file.write(json.dumps(row._asdict()))
-                    file.write("\n")
+            raise ValueError("There is missing description present for the output file.")
+
+        output_format_lower = self._output_format.lower()
+
+        # Check if output is to GCS
+        is_gcs = self._is_gcs_path(self._output_path)
+
+        # Handle Parquet and Avro formats (only supported for GCS)
+        if output_format_lower == "parquet":
+            if not is_gcs:
+                raise ValueError("Parquet format is only supported for GCS exports (gs:// paths)")
+            self._write_parquet_to_gcs(last_results, last_description)
+        elif output_format_lower == "avro":
+            if not is_gcs:
+                raise ValueError("Avro format is only supported for GCS exports (gs:// paths)")
+            self._write_avro_to_gcs(last_results, last_description)
         else:
-            raise AirflowException(f"Unsupported output format: '{self._output_format}'")
+            if is_gcs:
+                raise ValueError(
+                    f"Format '{self._output_format}' with GCS path is not yet supported. "
+                    f"Use 'parquet' or 'avro' for GCS exports."
+                )
+
+            field_names = [field[0] for field in last_description]
+            if output_format_lower == "csv":
+                with open(self._output_path, "w", newline="") as file:
+                    if self._csv_params:
+                        csv_params = self._csv_params
+                    else:
+                        csv_params = {}
+                    write_header = csv_params.get("header", True)
+                    if "header" in csv_params:
+                        del csv_params["header"]
+                    writer = csv.DictWriter(file, fieldnames=field_names, **csv_params)
+                    if write_header:
+                        writer.writeheader()
+                    for row in last_results:
+                        writer.writerow(row._asdict())
+            elif output_format_lower == "json":
+                with open(self._output_path, "w") as file:
+                    file.write(json.dumps([row._asdict() for row in last_results]))
+            elif output_format_lower == "jsonl":
+                with open(self._output_path, "w") as file:
+                    for row in last_results:
+                        file.write(json.dumps(row._asdict()))
+                        file.write("\n")
+            else:
+                raise ValueError(f"Unsupported output format: '{self._output_format}'")
+
         return list(zip(descriptions, results))
 
 

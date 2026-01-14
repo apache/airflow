@@ -86,6 +86,32 @@ with DAG(
     )
     # [END howto_operator_databricks_sql_select_file]
 
+    # [START howto_operator_databricks_sql_gcs_parquet]
+    # Example of using the Databricks SQL Operator to export data to GCS in Parquet format.
+    select_to_gcs_parquet = DatabricksSqlOperator(
+        databricks_conn_id=connection_id,
+        sql_endpoint_name=sql_endpoint_name,
+        task_id="select_to_gcs_parquet",
+        sql="select * from default.my_airflow_table",
+        output_path="gs://{{ var.value.gcs_bucket }}/databricks_export.parquet",
+        output_format="parquet",
+        gcp_conn_id="google_cloud_default",
+    )
+    # [END howto_operator_databricks_sql_gcs_parquet]
+
+    # [START howto_operator_databricks_sql_gcs_avro]
+    # Example of using the Databricks SQL Operator to export data to GCS in Avro format.
+    select_to_gcs_avro = DatabricksSqlOperator(
+        databricks_conn_id=connection_id,
+        sql_endpoint_name=sql_endpoint_name,
+        task_id="select_to_gcs_avro",
+        sql="select * from default.my_airflow_table",
+        output_path="gs://{{ var.value.gcs_bucket }}/databricks_export.avro",
+        output_format="avro",
+        gcp_conn_id="google_cloud_default",
+    )
+    # [END howto_operator_databricks_sql_gcs_avro]
+
     # [START howto_operator_databricks_sql_multiple_file]
     # Example of using the Databricks SQL Operator to select data.
     # SQL statements should be in the file with name test.sql
