@@ -30,7 +30,7 @@ from google.cloud.metastore_v1 import MetadataExport, MetadataManagementActivity
 from google.cloud.metastore_v1.types import Backup, MetadataImport, Service
 from google.cloud.metastore_v1.types.metastore import DatabaseDumpSpec, Restore
 
-from airflow.exceptions import AirflowException
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.google.cloud.hooks.dataproc_metastore import DataprocMetastoreHook
 from airflow.providers.google.cloud.links.base import BaseGoogleLink
 from airflow.providers.google.cloud.operators.cloud_base import GoogleCloudBaseOperator

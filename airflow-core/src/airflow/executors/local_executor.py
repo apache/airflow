@@ -26,13 +26,14 @@ LocalExecutor.
 from __future__ import annotations
 
 import ctypes
-import logging
 import multiprocessing
 import multiprocessing.sharedctypes
 import os
 import sys
 from multiprocessing import Queue, SimpleQueue
 from typing import TYPE_CHECKING
+
+import structlog
 
 from airflow.executors import workloads
 from airflow.executors.base_executor import BaseExecutor
@@ -47,6 +48,8 @@ else:
     setproctitle = lambda title, logger: real_setproctitle(title)
 
 if TYPE_CHECKING:
+    from structlog.typing import FilteringBoundLogger as Logger
+
     TaskInstanceStateType = tuple[workloads.TaskInstance, TaskInstanceState, Exception | None]
 
 
@@ -55,17 +58,21 @@ def _run_worker(
     input: SimpleQueue[workloads.All | None],
     output: Queue[TaskInstanceStateType],
     unread_messages: multiprocessing.sharedctypes.Synchronized[int],
+    team_conf,
 ):
     import signal
 
     # Ignore ctrl-c in this process -- we don't want to kill _this_ one. we let tasks run to completion
     signal.signal(signal.SIGINT, signal.SIG_IGN)
 
-    log = logging.getLogger(logger_name)
+    log = structlog.get_logger(logger_name)
     log.info("Worker starting up pid=%d", os.getpid())
 
+    # Create team suffix for process title
+    team_suffix = f" [{team_conf.team_name}]" if team_conf.team_name else ""
+
     while True:
-        setproctitle("airflow worker -- LocalExecutor: <idle>", log)
+        setproctitle(f"airflow worker -- LocalExecutor{team_suffix}: <idle>", log)
         try:
             workload = input.get()
         except EOFError:
@@ -93,7 +100,7 @@ def _run_worker(
             raise TypeError(f"Don't know how to get ti key from {type(workload).__name__}")
 
         try:
-            _execute_work(log, workload)
+            _execute_work(log, workload, team_conf)
 
             output.put((key, TaskInstanceState.SUCCESS, None))
         except Exception as e:
@@ -101,19 +108,21 @@ def _run_worker(
             output.put((key, TaskInstanceState.FAILED, e))
 
 
-def _execute_work(log: logging.Logger, workload: workloads.ExecuteTask) -> None:
+def _execute_work(log: Logger, workload: workloads.ExecuteTask, team_conf) -> None:
     """
     Execute command received and stores result state in queue.
 
-    :param key: the key to identify the task instance
-    :param command: the command to execute
+    :param log: Logger instance
+    :param workload: The workload to execute
+    :param team_conf: Team-specific executor configuration
     """
-    from airflow.configuration import conf
     from airflow.sdk.execution_time.supervisor import supervise
 
-    setproctitle(f"airflow worker -- LocalExecutor: {workload.ti.id}", log)
+    # Create team suffix for process title
+    team_suffix = f" [{team_conf.team_name}]" if team_conf.team_name else ""
+    setproctitle(f"airflow worker -- LocalExecutor{team_suffix}: {workload.ti.id}", log)
 
-    base_url = conf.get("api", "base_url", fallback="/")
+    base_url = team_conf.get("api", "base_url", fallback="/")
     # If it's a relative URL, use localhost:8080 as the default
     if base_url.startswith("/"):
         base_url = f"http://localhost:8080{base_url}"
@@ -127,7 +136,7 @@ def _execute_work(log: logging.Logger, workload: workloads.ExecuteTask) -> None:
         dag_rel_path=workload.dag_rel_path,
         bundle_info=workload.bundle_info,
         token=workload.token,
-        server=conf.get("core", "execution_api_server_url", fallback=default_execution_api_server),
+        server=team_conf.get("core", "execution_api_server_url", fallback=default_execution_api_server),
         log_path=workload.log_path,
     )
 
@@ -142,6 +151,7 @@ class LocalExecutor(BaseExecutor):
     """
 
     is_local: bool = True
+    is_mp_using_fork: bool = multiprocessing.get_start_method() == "fork"
 
     serve_logs: bool = True
 
@@ -149,6 +159,19 @@ class LocalExecutor(BaseExecutor):
     result_queue: SimpleQueue[TaskInstanceStateType]
     workers: dict[int, multiprocessing.Process]
     _unread_messages: multiprocessing.sharedctypes.Synchronized[int]
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        # Check if self has the ExecutorConf set on the self.conf attribute, and if not, set it to the global
+        # configuration object. This allows the changes to be backwards compatible with older versions of
+        # Airflow.
+        # Can be removed when minimum supported provider version is equal to the version of core airflow
+        # which introduces multi-team configuration.
+        if not hasattr(self, "conf"):
+            from airflow.configuration import conf
+
+            self.conf = conf
 
     def start(self) -> None:
         """Start the executor."""
@@ -162,6 +185,11 @@ class LocalExecutor(BaseExecutor):
         # Mypy sees this value as `SynchronizedBase[c_uint]`, but that isn't the right runtime type behaviour
         # (it looks like an int to python)
         self._unread_messages = multiprocessing.Value(ctypes.c_uint)
+
+        if self.is_mp_using_fork:
+            # This creates the maximum number of worker processes (parallelism) at once
+            # to minimize gc freeze/unfreeze cycles when using fork in multiprocessing
+            self._spawn_workers_with_gc_freeze(self.parallelism)
 
     def _check_workers(self):
         # Reap any dead workers
@@ -186,9 +214,14 @@ class LocalExecutor(BaseExecutor):
         # via `sync()` a few times before the spawned process actually starts picking up messages. Try not to
         # create too much
         if num_outstanding and len(self.workers) < self.parallelism:
-            # This only creates one worker, which is fine as we call this directly after putting a message on
-            # activity_queue in execute_async
-            self._spawn_worker()
+            if self.is_mp_using_fork:
+                # This creates the maximum number of worker processes at once
+                # to minimize gc freeze/unfreeze cycles when using fork in multiprocessing
+                self._spawn_workers_with_gc_freeze(self.parallelism - len(self.workers))
+            else:
+                # This only creates one worker, which is fine as we call this directly after putting a message on
+                # activity_queue in execute_async when using spawn in multiprocessing
+                self._spawn_worker()
 
     def _spawn_worker(self):
         p = multiprocessing.Process(
@@ -198,12 +231,33 @@ class LocalExecutor(BaseExecutor):
                 "input": self.activity_queue,
                 "output": self.result_queue,
                 "unread_messages": self._unread_messages,
+                "team_conf": self.conf,
             },
         )
         p.start()
         if TYPE_CHECKING:
             assert p.pid  # Since we've called start
         self.workers[p.pid] = p
+
+    def _spawn_workers_with_gc_freeze(self, spawn_number):
+        """
+        Freeze the GC before forking worker process and unfreeze it after forking.
+
+        This is done to prevent memory increase due to COW (Copy-on-Write) by moving all
+        existing objects to the permanent generation before forking the process. After forking,
+        unfreeze is called to ensure there is no impact on gc operations
+        in the original running process.
+
+        Ref: https://docs.python.org/3/library/gc.html#gc.freeze
+        """
+        import gc
+
+        gc.freeze()
+        try:
+            for _ in range(spawn_number):
+                self._spawn_worker()
+        finally:
+            gc.unfreeze()
 
     def sync(self) -> None:
         """Sync will get called periodically by the heartbeat method."""

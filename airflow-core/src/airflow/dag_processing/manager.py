@@ -58,10 +58,10 @@ from airflow.models.dagbundle import DagBundleModel
 from airflow.models.dagwarning import DagWarning
 from airflow.models.db_callback_request import DbCallbackRequest
 from airflow.models.errors import ParseImportError
+from airflow.observability.stats import Stats
+from airflow.observability.trace import DebugTrace
 from airflow.sdk import SecretCache
 from airflow.sdk.log import init_log_file, logging_processors
-from airflow.stats import Stats
-from airflow.traces.tracer import DebugTrace
 from airflow.utils.file import list_py_file_paths, might_contain_dag
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.net import get_hostname
@@ -225,6 +225,10 @@ class DagFileProcessorManager(LoggingMixin):
     _force_refresh_bundles: set[str] = attrs.field(factory=set, init=False)
     """List of bundles that need to be force refreshed in the next loop"""
 
+    _file_parsing_sort_mode: str = attrs.field(
+        factory=_config_get_factory("dag_processor", "file_parsing_sort_mode")
+    )
+
     _api_server: InProcessExecutionAPI = attrs.field(init=False, factory=InProcessExecutionAPI)
     """API server to interact with Metadata DB"""
 
@@ -314,10 +318,9 @@ class DagFileProcessorManager(LoggingMixin):
         dags_parsed = session.execute(query)
 
         for dag in dags_parsed:
-            # The largest valid difference between a DagFileStat's last_finished_time and a DAG's
-            # last_parsed_time is the processor_timeout. Longer than that indicates that the DAG is
-            # no longer present in the file. We have a stale_dag_threshold configured to prevent a
-            # significant delay in deactivation of stale dags when a large timeout is configured
+            # When the Dag's last_parsed_time is more than the stale_dag_threshold older than the
+            # Dag file's last_finish_time, the Dag is considered stale as has apparently been removed from the file,
+            # This is especially relevant for Dag files that generate Dags in a dynamic manner.
             file_info = DagFileInfo(rel_path=Path(dag.relative_fileloc), bundle_name=dag.bundle_name)
             if last_finish_time := last_parsed.get(file_info, None):
                 if dag.last_parsed_time + timedelta(seconds=self.stale_dag_threshold) < last_finish_time:
@@ -361,9 +364,6 @@ class DagFileProcessorManager(LoggingMixin):
                 # cleared all files added as a result of callbacks
                 self.prepare_file_queue(known_files=known_files)
                 self.emit_metrics()
-            else:
-                # if new files found in dag dir, add them
-                self.add_files_to_queue(known_files=known_files)
 
             self._start_new_processes()
 
@@ -518,12 +518,14 @@ class DagFileProcessorManager(LoggingMixin):
 
         self._bundles_last_refreshed = now_seconds
 
+        any_refreshed = False
         for bundle in self._dag_bundles:
             # TODO: AIP-66 handle errors in the case of incomplete cloning? And test this.
             #  What if the cloning/refreshing took too long(longer than the dag processor timeout)
             if not bundle.is_initialized:
                 try:
                     bundle.initialize()
+                    any_refreshed = True
                 except AirflowException as e:
                     self.log.exception("Error initializing bundle %s: %s", bundle.name, e)
                     continue
@@ -561,6 +563,7 @@ class DagFileProcessorManager(LoggingMixin):
 
                 try:
                     bundle.refresh()
+                    any_refreshed = True
                 except Exception:
                     self.log.exception("Error refreshing bundle %s", bundle.name)
                     continue
@@ -597,13 +600,17 @@ class DagFileProcessorManager(LoggingMixin):
             }
 
             known_files[bundle.name] = found_files
-            self.handle_removed_files(known_files=known_files)
 
             self.deactivate_deleted_dags(bundle_name=bundle.name, present=found_files)
             self.clear_orphaned_import_errors(
                 bundle_name=bundle.name,
                 observed_filelocs={str(x.rel_path) for x in found_files},  # todo: make relative
             )
+
+        if any_refreshed:
+            self.handle_removed_files(known_files=known_files)
+            self._resort_file_queue()
+            self._add_new_files_to_queue(known_files=known_files)
 
     def _find_files_in_bundle(self, bundle: BaseDagBundle) -> list[Path]:
         """Get relative paths for dag files from bundle dir."""
@@ -631,7 +638,7 @@ class DagFileProcessorManager(LoggingMixin):
                         if might_contain_dag(info.filename, True, z):
                             yield os.path.join(abs_path, info.filename)
             except zipfile.BadZipFile:
-                self.log.exception("There was an error accessing ZIP file %s %s", abs_path)
+                self.log.exception("There was an error accessing ZIP file %s", abs_path)
 
         rel_filelocs: list[str] = []
         for info in present:
@@ -858,6 +865,7 @@ class DagFileProcessorManager(LoggingMixin):
                 parsing_result=proc.parsing_result,
                 session=session,
                 is_callback_only=is_callback_only,
+                relative_fileloc=str(file.rel_path),
             )
 
         for file in finished:
@@ -953,13 +961,27 @@ class DagFileProcessorManager(LoggingMixin):
             self._processors[file] = processor
             Stats.gauge("dag_processing.file_path_queue_size", len(self._file_queue))
 
-    def add_files_to_queue(self, known_files: dict[str, set[DagFileInfo]]):
+    def _add_new_files_to_queue(self, known_files: dict[str, set[DagFileInfo]]):
+        """
+        Add new files to the front of the queue.
+
+        A "new" file is a file that has not been processed yet and is not currently being processed.
+        """
+        new_files = []
         for files in known_files.values():
             for file in files:
-                if file not in self._file_stats:  # todo: store stats by bundle also?
-                    # We found new file after refreshing dir. add to parsing queue at start
-                    self.log.info("Adding new file %s to parsing queue", file)
-                    self._file_queue.appendleft(file)
+                # todo: store stats by bundle also?
+                if file not in self._file_stats and file not in self._processors:
+                    new_files.append(file)
+
+        if new_files:
+            self.log.info("Adding %d new files to the front of the queue", len(new_files))
+            self._add_files_to_queue(new_files, True)
+
+    def _resort_file_queue(self):
+        if self._file_parsing_sort_mode == "modified_time" and self._file_queue:
+            files, _ = self._sort_by_mtime(self._file_queue)
+            self._file_queue = deque(files)
 
     def _sort_by_mtime(self, files: Iterable[DagFileInfo]):
         files_with_mtime: dict[DagFileInfo, float] = {}
@@ -1003,7 +1025,6 @@ class DagFileProcessorManager(LoggingMixin):
         now = timezone.utcnow()
 
         # Sort the file paths by the parsing order mode
-        list_mode = conf.get("dag_processor", "file_parsing_sort_mode")
         recently_processed = set()
         files = []
 
@@ -1014,11 +1035,11 @@ class DagFileProcessorManager(LoggingMixin):
                     recently_processed.add(file)
 
         changed_recently: set[DagFileInfo] = set()
-        if list_mode == "modified_time":
+        if self._file_parsing_sort_mode == "modified_time":
             files, changed_recently = self._sort_by_mtime(files=files)
-        elif list_mode == "alphabetical":
+        elif self._file_parsing_sort_mode == "alphabetical":
             files.sort(key=attrgetter("rel_path"))
-        elif list_mode == "random_seeded_by_host":
+        elif self._file_parsing_sort_mode == "random_seeded_by_host":
             # Shuffle the list seeded by hostname so multiple DAG processors can work on different
             # set of files. Since we set the seed, the sort order will remain same per host
             random.Random(get_hostname()).shuffle(files)
@@ -1147,6 +1168,7 @@ def process_parse_results(
     session: Session,
     *,
     is_callback_only: bool = False,
+    relative_fileloc: str | None = None,
 ) -> DagFileStat:
     """Take the parsing result and stats about the parser process and convert it into a DagFileStat."""
     if is_callback_only:
@@ -1181,6 +1203,14 @@ def process_parse_results(
             import_errors = {
                 (bundle_name, rel_path): error for rel_path, error in parsing_result.import_errors.items()
             }
+
+        # Build the set of files that were parsed. This includes the file that was parsed,
+        # even if it no longer contains DAGs, so we can clear old import errors.
+        files_parsed: set[tuple[str, str]] | None = None
+        if relative_fileloc is not None:
+            files_parsed = {(bundle_name, relative_fileloc)}
+            files_parsed.update(import_errors.keys())
+
         update_dag_parsing_results_in_db(
             bundle_name=bundle_name,
             bundle_version=bundle_version,
@@ -1189,6 +1219,7 @@ def process_parse_results(
             parse_duration=run_duration,
             warnings=set(parsing_result.warnings or []),
             session=session,
+            files_parsed=files_parsed,
         )
         stat.num_dags = len(parsing_result.serialized_dags)
         if parsing_result.import_errors:

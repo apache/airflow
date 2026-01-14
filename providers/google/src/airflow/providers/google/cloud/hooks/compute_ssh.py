@@ -26,7 +26,7 @@ from typing import Any
 from googleapiclient.errors import HttpError
 from paramiko.ssh_exception import SSHException
 
-from airflow.exceptions import AirflowException
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.google.cloud.hooks.compute import ComputeEngineHook
 from airflow.providers.google.cloud.hooks.os_login import OSLoginHook
 from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID

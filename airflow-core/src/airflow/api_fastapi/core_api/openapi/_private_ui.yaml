@@ -23,6 +23,23 @@ paths:
       security:
       - OAuth2PasswordBearer: []
       - HTTPBearer: []
+  /ui/auth/me:
+    get:
+      tags:
+      - Auth Links
+      summary: Get Current User Info
+      description: Convienently get the current authenticated user information.
+      operationId: get_current_user_info
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthenticatedMeResponse'
+      security:
+      - OAuth2PasswordBearer: []
+      - HTTPBearer: []
   /ui/next_run_assets/{dag_id}:
     get:
       tags:
@@ -478,6 +495,14 @@ paths:
           type: boolean
           default: false
           title: Include Downstream
+      - name: depth
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Depth
       - name: root
         in: query
         required: false
@@ -612,6 +637,36 @@ paths:
         schema:
           type: string
           title: Dag Id
+      - name: include_upstream
+        in: query
+        required: false
+        schema:
+          type: boolean
+          default: false
+          title: Include Upstream
+      - name: include_downstream
+        in: query
+        required: false
+        schema:
+          type: boolean
+          default: false
+          title: Include Downstream
+      - name: depth
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Depth
+      - name: root
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Root
       - name: offset
         in: query
         required: false
@@ -1058,12 +1113,12 @@ paths:
           items:
             type: string
           description: 'Attributes to order by, multi criteria sort is supported.
-            Prefix with `-` for descending order. Supported attributes: `id`'
+            Prefix with `-` for descending order. Supported attributes: `name`'
           default:
-          - id
+          - name
           title: Order By
         description: 'Attributes to order by, multi criteria sort is supported. Prefix
-          with `-` for descending order. Supported attributes: `id`'
+          with `-` for descending order. Supported attributes: `name`'
       responses:
         '200':
           description: Successful Response
@@ -1079,6 +1134,20 @@ paths:
                 $ref: '#/components/schemas/HTTPValidationError'
 components:
   schemas:
+    AuthenticatedMeResponse:
+      properties:
+        id:
+          type: string
+          title: Id
+        username:
+          type: string
+          title: Username
+      type: object
+      required:
+      - id
+      - username
+      title: AuthenticatedMeResponse
+      description: Authenticated user information serializer for responses.
     BackfillCollectionResponse:
       properties:
         backfills:
@@ -1298,6 +1367,13 @@ components:
           - type: string
           - type: 'null'
           title: External Log Name
+        theme:
+          anyOf:
+          - $ref: '#/components/schemas/Theme'
+          - type: 'null'
+        multi_team:
+          type: boolean
+          title: Multi Team
       type: object
       required:
       - page_size
@@ -1310,6 +1386,8 @@ components:
       - test_connection
       - dashboard_alert
       - show_external_log_redirect
+      - theme
+      - multi_team
       title: ConfigResponse
       description: configuration serializer.
     ConnectionHookFieldBehavior:
@@ -1893,7 +1971,7 @@ components:
         run_type:
           $ref: '#/components/schemas/DagRunType'
         duration:
-          type: integer
+          type: number
           title: Duration
           readOnly: true
       type: object
@@ -2266,6 +2344,8 @@ components:
       - type
       title: NodeResponse
       description: Node serializer for responses.
+    OklchColor:
+      type: string
     ReprocessBehavior:
       type: string
       enum:
@@ -2611,19 +2691,51 @@ components:
       description: Team collection serializer for responses.
     TeamResponse:
       properties:
-        id:
-          type: string
-          format: uuid
-          title: Id
         name:
           type: string
           title: Name
       type: object
       required:
-      - id
       - name
       title: TeamResponse
       description: Base serializer for Team.
+    Theme:
+      properties:
+        tokens:
+          additionalProperties:
+            additionalProperties:
+              additionalProperties:
+                additionalProperties:
+                  $ref: '#/components/schemas/OklchColor'
+                propertyNames:
+                  const: value
+                type: object
+              propertyNames:
+                enum:
+                - '50'
+                - '100'
+                - '200'
+                - '300'
+                - '400'
+                - '500'
+                - '600'
+                - '700'
+                - '800'
+                - '900'
+                - '950'
+              type: object
+            propertyNames:
+              const: brand
+            type: object
+          propertyNames:
+            const: colors
+          type: object
+          title: Tokens
+      type: object
+      required:
+      - tokens
+      title: Theme
+      description: JSON to modify Chakra's theme.
     TriggerResponse:
       properties:
         id:
@@ -2639,6 +2751,11 @@ components:
           type: string
           format: date-time
           title: Created Date
+        queue:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Queue
         triggerer_id:
           anyOf:
           - type: integer
@@ -2650,6 +2767,7 @@ components:
       - classpath
       - kwargs
       - created_date
+      - queue
       - triggerer_id
       title: TriggerResponse
       description: Trigger serializer for responses.

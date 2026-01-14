@@ -882,8 +882,8 @@ class FileTaskHandler(logging.Handler):
             if response.status_code == 403:
                 sources.append(
                     "!!!! Please make sure that all your Airflow components (e.g. "
-                    "schedulers, webservers, workers and triggerer) have "
-                    "the same 'secret_key' configured in 'webserver' section and "
+                    "schedulers, api-servers, dag-processors, workers and triggerer) have "
+                    "the same 'secret_key' configured in '[api]' section and "
                     "time is synchronized on all your machines (for example with ntpd)\n"
                     "See more at https://airflow.apache.org/docs/apache-airflow/"
                     "stable/configurations-ref.html#secret-key"
@@ -922,9 +922,9 @@ class FileTaskHandler(logging.Handler):
         """
         remote_io = None
         try:
-            from airflow.logging_config import REMOTE_TASK_LOG
+            from airflow.logging_config import get_remote_task_log
 
-            remote_io = REMOTE_TASK_LOG
+            remote_io = get_remote_task_log()
         except Exception:
             pass
 

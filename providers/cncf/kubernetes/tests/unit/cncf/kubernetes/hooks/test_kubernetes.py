@@ -32,10 +32,20 @@ import yaml
 from kubernetes.client import V1Deployment, V1DeploymentStatus
 from kubernetes.client.rest import ApiException
 from kubernetes.config import ConfigException
+from kubernetes_asyncio import client as async_client
 
-from airflow.exceptions import AirflowException, AirflowNotFoundException
 from airflow.models import Connection
-from airflow.providers.cncf.kubernetes.hooks.kubernetes import AsyncKubernetesHook, KubernetesHook
+from airflow.providers.cncf.kubernetes.hooks.kubernetes import (
+    AsyncKubernetesHook,
+    KubernetesHook,
+    _TimeoutAsyncK8sApiClient,
+    _TimeoutK8sApiClient,
+)
+from airflow.providers.cncf.kubernetes.kubernetes_helper_functions import (
+    API_TIMEOUT,
+    API_TIMEOUT_OFFSET_SERVER_SIDE,
+)
+from airflow.providers.common.compat.sdk import AirflowException, AirflowNotFoundException
 
 from tests_common.test_utils.db import clear_test_connections
 from tests_common.test_utils.providers import get_provider_min_airflow_version
@@ -75,6 +85,75 @@ class DeprecationRemovalRequired(AirflowException): ...
 
 
 DEFAULT_CONN_ID = "kubernetes_default"
+
+
+class TestTimeoutK8sApiClient:
+    @pytest.mark.parametrize(
+        ("kwargs", "expected_timeout"),
+        [
+            pytest.param({}, API_TIMEOUT, id="default-timeout"),
+            pytest.param({"timeout_seconds": 5678, "_request_timeout": 1234}, 1234, id="explicit-timeout"),
+            pytest.param(
+                {"timeout_seconds": API_TIMEOUT - API_TIMEOUT_OFFSET_SERVER_SIDE},
+                API_TIMEOUT,
+                id="server-side-timeout-limit",
+            ),
+            pytest.param(
+                {"timeout_seconds": API_TIMEOUT - API_TIMEOUT_OFFSET_SERVER_SIDE + 1},
+                API_TIMEOUT + 1,
+                id="server-side-timeout-above-limit",
+            ),
+        ],
+    )
+    def test_call_api_timeout_inject(self, kwargs, expected_timeout):
+        with mock.patch("kubernetes.client.ApiClient.call_api") as mocked_call_api:
+            mocked_call_api.return_value = "ok"
+            cli = _TimeoutK8sApiClient()
+
+            out = cli.call_api("arg1", kwargs_arg1="fake", **kwargs)
+
+            mocked_call_api.assert_called_once()
+            call_args, call_kwargs = mocked_call_api.call_args
+            assert call_args[0] == "arg1"
+            assert call_kwargs["kwargs_arg1"] == "fake"
+            assert call_kwargs["_request_timeout"] == expected_timeout
+            assert out == "ok"
+
+
+class TestTimeoutAsyncK8sApiClient:
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        ("kwargs", "expected_timeout"),
+        [
+            pytest.param({}, API_TIMEOUT, id="default-timeout"),
+            pytest.param({"timeout_seconds": 5678, "_request_timeout": 1234}, 1234, id="explicit-timeout"),
+            pytest.param(
+                {"timeout_seconds": API_TIMEOUT - API_TIMEOUT_OFFSET_SERVER_SIDE},
+                API_TIMEOUT,
+                id="server-side-timeout-limit",
+            ),
+            pytest.param(
+                {"timeout_seconds": API_TIMEOUT - API_TIMEOUT_OFFSET_SERVER_SIDE + 1},
+                API_TIMEOUT + 1,
+                id="server-side-timeout-above-limit",
+            ),
+        ],
+    )
+    async def test_call_api_timeout_inject(self, kwargs, expected_timeout):
+        with mock.patch(
+            "kubernetes_asyncio.client.ApiClient.call_api", new_callable=mock.AsyncMock
+        ) as mocked_call_api:
+            mocked_call_api.return_value = "ok"
+            cli = _TimeoutAsyncK8sApiClient()
+
+            out = await cli.call_api("arg1", kwargs_arg1="fake", **kwargs)
+
+            mocked_call_api.assert_called_once()
+            call_args, call_kwargs = mocked_call_api.call_args
+            assert call_args[0] == "arg1"
+            assert call_kwargs["kwargs_arg1"] == "fake"
+            assert call_kwargs["_request_timeout"] == expected_timeout
+            assert out == "ok"
 
 
 @pytest.fixture
@@ -677,8 +756,9 @@ class TestKubernetesHook:
 
     @patch(f"{HOOK_MODULE}.json.dumps")
     @patch(f"{HOOK_MODULE}.KubernetesHook.batch_v1_client")
-    def test_create_job_retries_three_times(self, mock_client, mock_json_dumps):
+    def test_create_job_retries_five_times(self, mock_client, mock_json_dumps):
         mock_client.create_namespaced_job.side_effect = [
+            ApiException(status=500),
             ApiException(status=500),
             ApiException(status=500),
             ApiException(status=500),
@@ -689,7 +769,7 @@ class TestKubernetesHook:
         with pytest.raises(ApiException):
             hook.create_job(job=mock.MagicMock())
 
-        assert mock_client.create_namespaced_job.call_count == 3
+        assert mock_client.create_namespaced_job.call_count == 5
 
     @pytest.mark.parametrize(
         ("given_namespace", "expected_namespace"),
@@ -1011,6 +1091,216 @@ class TestAsyncKubernetesHook:
             await hook._load_config()
 
     @pytest.mark.asyncio
+    @mock.patch(KUBE_API.format("list_namespaced_event"))
+    async def test_async_get_pod_events_with_resource_version(
+        self, mock_list_namespaced_event, kube_config_loader
+    ):
+        """Test getting pod events with resource_version parameter."""
+        mock_event = mock.Mock()
+        mock_event.metadata.name = "test-event"
+        mock_events = mock.Mock()
+        mock_events.items = [mock_event]
+        mock_list_namespaced_event.return_value = self.mock_await_result(mock_events)
+
+        hook = AsyncKubernetesHook(
+            conn_id=None,
+            in_cluster=False,
+            config_file=None,
+            cluster_context=None,
+        )
+
+        result = await hook.get_pod_events(name=POD_NAME, namespace=NAMESPACE, resource_version="12345")
+
+        mock_list_namespaced_event.assert_called_once_with(
+            field_selector=f"involvedObject.name={POD_NAME}",
+            namespace=NAMESPACE,
+            resource_version="12345",
+            resource_version_match="NotOlderThan",
+        )
+        assert result == mock_events
+
+    @pytest.mark.asyncio
+    @mock.patch(KUBE_API.format("list_namespaced_event"))
+    async def test_async_get_pod_events_without_resource_version(
+        self, mock_list_namespaced_event, kube_config_loader
+    ):
+        """Test getting pod events without resource_version parameter."""
+        mock_event = mock.Mock()
+        mock_event.metadata.name = "test-event"
+        mock_events = mock.Mock()
+        mock_events.items = [mock_event]
+        mock_list_namespaced_event.return_value = self.mock_await_result(mock_events)
+
+        hook = AsyncKubernetesHook(
+            conn_id=None,
+            in_cluster=False,
+            config_file=None,
+            cluster_context=None,
+        )
+
+        result = await hook.get_pod_events(name=POD_NAME, namespace=NAMESPACE)
+
+        mock_list_namespaced_event.assert_called_once_with(
+            field_selector=f"involvedObject.name={POD_NAME}",
+            namespace=NAMESPACE,
+            resource_version=None,
+            resource_version_match=None,
+        )
+        assert result == mock_events
+
+    @pytest.mark.asyncio
+    @mock.patch("kubernetes_asyncio.watch.Watch")
+    @mock.patch(KUBE_API.format("list_namespaced_event"))
+    async def test_async_watch_pod_events(
+        self, mock_list_namespaced_event, mock_watch_class, kube_config_loader
+    ):
+        """Test watching pod events using Watch API."""
+        mock_event1 = mock.Mock()
+        mock_event1.metadata.uid = "event-1"
+        mock_event2 = mock.Mock()
+        mock_event2.metadata.uid = "event-2"
+
+        async def async_generator(*_, **__):
+            yield {"object": mock_event1}
+            yield {"object": mock_event2}
+
+        mock_watch = mock.Mock()
+        mock_watch_class.return_value = mock_watch
+        mock_watch.stream = mock.Mock(side_effect=async_generator)
+
+        hook = AsyncKubernetesHook(
+            conn_id=None,
+            in_cluster=False,
+            config_file=None,
+            cluster_context=None,
+        )
+
+        events = []
+        async for event in hook.watch_pod_events(
+            name=POD_NAME, namespace=NAMESPACE, resource_version="12345", timeout_seconds=30
+        ):
+            events.append(event)
+
+        assert len(events) == 2
+        assert events[0] == mock_event1
+        assert events[1] == mock_event2
+        mock_watch.stop.assert_called_once()
+
+    @pytest.mark.asyncio
+    @mock.patch("kubernetes_asyncio.watch.Watch")
+    @mock.patch(KUBE_API.format("list_namespaced_event"))
+    async def test_async_watch_pod_events_permission_error_fallback(
+        self, mock_list_namespaced_event, mock_watch_class, kube_config_loader
+    ):
+        """Test fallback to polling when watch permission is denied."""
+
+        # Simulate permission error on watch
+        async def async_generator_with_error(*_, **__):
+            raise async_client.exceptions.ApiException(status=403)
+            yield
+
+        mock_watch = mock.Mock()
+        mock_watch_class.return_value = mock_watch
+        mock_watch.stream = mock.Mock(side_effect=async_generator_with_error)
+
+        # Setup fallback polling
+        mock_event = mock.Mock()
+        mock_event.metadata.uid = "event-1"
+        mock_events = mock.Mock()
+        mock_events.items = [mock_event]
+        mock_list_namespaced_event.return_value = self.mock_await_result(mock_events)
+
+        hook = AsyncKubernetesHook(
+            conn_id=None,
+            in_cluster=False,
+            config_file=None,
+            cluster_context=None,
+        )
+
+        events = []
+        async for event in hook.watch_pod_events(
+            name=POD_NAME, namespace=NAMESPACE, resource_version="12345", timeout_seconds=30
+        ):
+            events.append(event)
+            break
+
+        assert len(events) == 1
+        assert events[0] == mock_event
+        assert hook._event_polling_fallback is True
+
+    @pytest.mark.asyncio
+    @mock.patch(KUBE_API.format("list_namespaced_event"))
+    @mock.patch("asyncio.sleep", new_callable=mock.AsyncMock)
+    async def test_async_watch_pod_events_polling_fallback(
+        self, mock_sleep, mock_list_namespaced_event, kube_config_loader
+    ):
+        """Test polling fallback method."""
+        mock_event1 = mock.Mock()
+        mock_event1.metadata.uid = "event-1"
+        mock_event2 = mock.Mock()
+        mock_event2.metadata.uid = "event-2"
+        mock_events = mock.Mock()
+        mock_events.items = [mock_event1, mock_event2]
+        mock_list_namespaced_event.return_value = self.mock_await_result(mock_events)
+
+        hook = AsyncKubernetesHook(
+            conn_id=None,
+            in_cluster=False,
+            config_file=None,
+            cluster_context=None,
+        )
+
+        events = []
+        async for event in hook.watch_pod_events_polling_fallback(
+            name=POD_NAME, namespace=NAMESPACE, resource_version="12345", interval=10
+        ):
+            events.append(event)
+
+        assert len(events) == 2
+        assert events[0] == mock_event1
+        assert events[1] == mock_event2
+        mock_list_namespaced_event.assert_called_once_with(
+            field_selector=f"involvedObject.name={POD_NAME}",
+            namespace=NAMESPACE,
+            resource_version="12345",
+            resource_version_match="NotOlderThan",
+        )
+        mock_sleep.assert_called_once_with(10)
+
+    @pytest.mark.asyncio
+    @mock.patch("kubernetes_asyncio.watch.Watch")
+    @mock.patch(KUBE_API.format("list_namespaced_event"))
+    async def test_async_watch_pod_events_uses_fallback_if_already_set(
+        self, mock_list_namespaced_event, mock_watch_class, kube_config_loader
+    ):
+        """Test that watch uses polling fallback if flag is already set."""
+        hook = AsyncKubernetesHook(
+            conn_id=None,
+            in_cluster=False,
+            config_file=None,
+            cluster_context=None,
+        )
+
+        hook._event_polling_fallback = True
+
+        mock_event = mock.Mock()
+        mock_event.metadata.uid = "event-1"
+        mock_events = mock.Mock()
+        mock_events.items = [mock_event]
+        mock_list_namespaced_event.return_value = self.mock_await_result(mock_events)
+
+        events = []
+        async for event in hook.watch_pod_events(name=POD_NAME, namespace=NAMESPACE, timeout_seconds=30):
+            events.append(event)
+            break
+
+        # Watch API should not be called
+        mock_watch_class.assert_not_called()
+        # Polling should be used
+        assert len(events) == 1
+        assert events[0] == mock_event
+
+    @pytest.mark.asyncio
     @mock.patch(KUBE_API.format("read_namespaced_pod"))
     async def test_get_pod(self, lib_method, kube_config_loader):
         lib_method.return_value = self.mock_await_result(None)
@@ -1072,7 +1362,7 @@ class TestAsyncKubernetesHook:
         lib_method.assert_called_with(
             name=POD_NAME,
             namespace=NAMESPACE,
-            container_name=CONTAINER_NAME,
+            container=CONTAINER_NAME,
             follow=False,
             timestamps=True,
             since_seconds=10,

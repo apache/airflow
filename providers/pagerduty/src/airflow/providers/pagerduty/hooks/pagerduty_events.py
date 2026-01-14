@@ -25,8 +25,7 @@ import aiohttp
 import pagerduty
 from asgiref.sync import sync_to_async
 
-from airflow.exceptions import AirflowException
-from airflow.providers.common.compat.sdk import BaseHook
+from airflow.providers.common.compat.sdk import AirflowException, BaseHook
 from airflow.providers.http.hooks.http import HttpAsyncHook
 
 if TYPE_CHECKING:

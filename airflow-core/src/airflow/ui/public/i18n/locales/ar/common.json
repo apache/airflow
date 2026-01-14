@@ -37,6 +37,7 @@
     "requiredActions": "إجراءات مطلوبة",
     "xcoms": "(XComs) إكس كوم"
   },
+  "collapseAllExtra": "طي جميع الJSON الإضافية",
   "collapseDetailsPanel": "طي لوحة التفاصيل",
   "createdAssetEvent_few": "تم إنشاء واقعات أصل",
   "createdAssetEvent_many": "تم إنشاء واقعات أصل",
@@ -122,6 +123,7 @@
     "hotkey": "e",
     "tooltip": "اضغط {{hotkey}} للتوسيع"
   },
+  "expandAllExtra": "توسيع جميع الJSON الإضافية",
   "expression": {
     "all": "الكل",
     "and": "و",

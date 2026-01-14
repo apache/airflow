@@ -25,6 +25,84 @@
 Changelog
 ---------
 
+1.12.0
+......
+
+Features
+~~~~~~~~
+
+* ``Allow providers to consume AirflowConfigException from compat sdk (#60044)``
+* ``Source conf from 'airflow.sdk.configuration.conf' for apache providers (#59966)``
+* ``Consume ''AirflowOptionalProviderFeatureException'' from compat sdk in providers (#60335)``
+
+Misc
+~~~~
+
+* ``New year means updated Copyright notices (#60344)``
+* ``Move listeners module to shared library for client server separation (#59883)``
+* ``Move over plugins_manager to a shared library (#59956)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Add support for async callables in PythonOperator (#59087)``
+   * ``Revert "Add support for async callables in PythonOperator (#59087)" (#60266)``
+
+1.11.0
+......
+
+Features
+~~~~~~~~
+
+* ``Extract shared "module_loading" distribution (#59139)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix circular import errors when CeleryExecutor is used with sentry (#59745)``
+
+Misc
+~~~~
+
+* ``Prevent client secrets and proxy credentials from being logged in Microsoft Graph hook logs (#59688)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+1.10.1
+......
+
+Misc
+~~~~
+
+* ``Add backcompat for exceptions in providers (#58727)``
+* ``Move the traces and metrics code under a common observability package (#56187)``
+* ``Bump minimum prek version to 0.2.0 (#58952)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+1.10.0
+......
+
+.. note::
+    This release of provider is only available for Airflow 2.11+ as explained in the
+    Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/PROVIDERS.rst#minimum-supported-version-of-airflow-for-community-managed-providers>_.
+
+Features
+~~~~~~~~
+
+* ``Adjust compat HookLevelLineage for new add_extra method (#58057)``
+
+Misc
+~~~~
+
+* ``Move out some exceptions to TaskSDK (#54505)``
+* ``Bump minimum Airflow version in providers to Airflow 2.11.0 (#58612)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Updates to release process of providers (#58316)``
+
 1.9.0
 .....
 

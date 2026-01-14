@@ -27,10 +27,13 @@ from __future__ import annotations
 
 import warnings
 
+# Note: This import from airflow-core is ok, as this is a compatibility module which we will remove in 3.2 anyways
+from airflow.utils.deprecation_tools import DeprecatedImportWarning
+
 warnings.warn(
     "Importing from 'airflow.sdk.execution_time.secrets_masker' is deprecated and will be removed in a future version. "
     "Please use 'airflow.sdk._shared.secrets_masker' instead.",
-    DeprecationWarning,
+    DeprecatedImportWarning,
     stacklevel=2,
 )
 
@@ -38,6 +41,11 @@ warnings.warn(
 def __getattr__(name: str):
     """Dynamically import attributes from the shared secrets_masker location."""
     try:
+        if name == "mask_secret":
+            from airflow.sdk.log import mask_secret
+
+            return mask_secret
+
         import airflow.sdk._shared.secrets_masker as new_module
 
         return getattr(new_module, name)

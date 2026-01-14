@@ -34,6 +34,7 @@ from airflow.sdk.bases.sensor import (
     BaseSensorOperator as BaseSensorOperator,
     PokeReturnValue as PokeReturnValue,
 )
+from airflow.sdk.configuration import AirflowSDKConfigParser
 from airflow.sdk.definitions.asset import (
     Asset as Asset,
     AssetAlias as AssetAlias,
@@ -56,10 +57,23 @@ from airflow.sdk.definitions.edges import EdgeModifier as EdgeModifier, Label as
 from airflow.sdk.definitions.param import Param as Param
 from airflow.sdk.definitions.taskgroup import TaskGroup as TaskGroup
 from airflow.sdk.definitions.template import literal as literal
+from airflow.sdk.definitions.timetables.assets import AssetOrTimeSchedule
+from airflow.sdk.definitions.timetables.events import EventsTimetable
+from airflow.sdk.definitions.timetables.interval import (
+    CronDataIntervalTimetable,
+    DeltaDataIntervalTimetable,
+)
+from airflow.sdk.definitions.timetables.trigger import (
+    CronTriggerTimetable,
+    DeltaTriggerTimetable,
+    MultipleCronTriggerTimetable,
+)
 from airflow.sdk.definitions.variable import Variable as Variable
 from airflow.sdk.definitions.xcom_arg import XComArg as XComArg
 from airflow.sdk.execution_time.cache import SecretCache as SecretCache
 from airflow.sdk.io.path import ObjectStoragePath as ObjectStoragePath
+
+conf: AirflowSDKConfigParser
 
 __all__ = [
     "__version__",
@@ -67,6 +81,7 @@ __all__ = [
     "AssetAlias",
     "AssetAll",
     "AssetAny",
+    "AssetOrTimeSchedule",
     "AssetWatcher",
     "BaseHook",
     "BaseNotifier",
@@ -75,11 +90,17 @@ __all__ = [
     "BaseSensorOperator",
     "Connection",
     "Context",
+    "CronDataIntervalTimetable",
+    "CronTriggerTimetable",
     "DAG",
     "DagRunState",
+    "DeltaDataIntervalTimetable",
+    "DeltaTriggerTimetable",
     "EdgeModifier",
+    "EventsTimetable",
     "Label",
     "Metadata",
+    "MultipleCronTriggerTimetable",
     "ObjectStoragePath",
     "Param",
     "PokeReturnValue",
@@ -88,8 +109,8 @@ __all__ = [
     "TaskInstanceState",
     "TriggerRule",
     "Variable",
-    "XComArg",
     "WeightRule",
+    "XComArg",
     "asset",
     "chain",
     "chain_linear",
@@ -102,6 +123,7 @@ __all__ = [
     "task",
     "task_group",
     "teardown",
+    "conf",
 ]
 
 __version__: str

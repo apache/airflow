@@ -49,7 +49,7 @@ def login(request: Request, auth_manager: AuthManagerDep, next: None | str = Non
     "/logout",
     responses=create_openapi_http_exception_doc([status.HTTP_307_TEMPORARY_REDIRECT]),
 )
-def logout(request: Request, auth_manager: AuthManagerDep, next: None | str = None) -> RedirectResponse:
+def logout(request: Request, auth_manager: AuthManagerDep) -> RedirectResponse:
     """Logout the user."""
     logout_url = auth_manager.get_url_logout()
     if logout_url:

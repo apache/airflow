@@ -25,7 +25,7 @@ from unittest.mock import AsyncMock
 import pytest
 from google.cloud.storage_transfer_v1.types.transfer_types import TransferOperation
 
-from airflow.exceptions import AirflowException
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.google.cloud.hooks.cloud_storage_transfer_service import (
     CloudDataTransferServiceAsyncHook,
     GcpTransferOperationStatus,

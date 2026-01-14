@@ -25,7 +25,7 @@ import pytest
 from paramiko.sftp import SFTP_FAILURE
 from pendulum import datetime as pendulum_datetime, timezone
 
-from airflow.exceptions import AirflowException
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.sftp.sensors.sftp import SFTPSensor
 from airflow.sensors.base import PokeReturnValue
 

@@ -29,7 +29,7 @@ from airflow.models.base import Base, StringID
 from airflow.models.dag import DagModel
 from airflow.utils.retries import retry_db_transaction
 from airflow.utils.session import NEW_SESSION, provide_session
-from airflow.utils.sqlalchemy import UtcDateTime, mapped_column
+from airflow.utils.sqlalchemy import UtcDateTime, get_dialect_name, mapped_column
 
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
@@ -83,7 +83,7 @@ class DagWarning(Base):
 
         :return: None
         """
-        if session.get_bind().dialect.name == "sqlite":
+        if get_dialect_name(session) == "sqlite":
             dag_ids_stmt = select(DagModel.dag_id).where(DagModel.is_stale == true())
             query = delete(cls).where(cls.dag_id.in_(dag_ids_stmt.scalar_subquery()))
         else:

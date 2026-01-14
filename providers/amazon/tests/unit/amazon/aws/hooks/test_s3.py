@@ -33,7 +33,6 @@ import pytest
 from botocore.exceptions import ClientError
 from moto import mock_aws
 
-from airflow.exceptions import AirflowException
 from airflow.models import Connection
 from airflow.providers.amazon.aws.assets.s3 import Asset
 from airflow.providers.amazon.aws.exceptions import S3HookUriParseFailure
@@ -43,6 +42,7 @@ from airflow.providers.amazon.aws.hooks.s3 import (
     provide_bucket_name,
     unify_bucket_name_and_key,
 )
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.utils.timezone import datetime
 
 try:
@@ -75,19 +75,6 @@ def s3_bucket(mocked_s3_res):
     bucket = "airflow-test-s3-bucket"
     mocked_s3_res.create_bucket(Bucket=bucket)
     return bucket
-
-
-@pytest.fixture
-def hook_lineage_collector():
-    from airflow.lineage import hook
-    from airflow.providers.common.compat.lineage.hook import get_hook_lineage_collector
-
-    hook._hook_lineage_collector = None
-    hook._hook_lineage_collector = hook.HookLineageCollector()
-
-    yield get_hook_lineage_collector()
-
-    hook._hook_lineage_collector = None
 
 
 class TestAwsS3Hook:
@@ -1852,6 +1839,23 @@ class TestAwsS3Hook:
         logs_string = get_logs_string(hook.log.debug.call_args_list)
         assert "S3 object size" in logs_string
         assert "differ. Downloaded dag_03.py to" in logs_string
+
+        local_file_same_size = Path(sync_local_dir).joinpath("dag_04.py")
+        local_file_same_size.write_text("same size")
+
+        s3_client.put_object(Bucket=s3_bucket, Key="dag_04.py", Body=b"same size")
+
+        prev_ts = local_file_same_size.stat().st_mtime - 5
+        os.utime(local_file_same_size, (prev_ts, prev_ts))
+
+        hook.log.debug = MagicMock()
+        hook.sync_to_local_dir(
+            bucket_name=s3_bucket, local_dir=sync_local_dir, s3_prefix="", delete_stale=True
+        )
+        logs_string = get_logs_string(hook.log.debug.call_args_list)
+        assert "S3 object last modified" in logs_string
+        assert "local file last modified" in logs_string
+        assert "differ. Downloaded dag_04.py to" in logs_string
 
 
 @pytest.mark.parametrize(

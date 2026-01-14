@@ -713,6 +713,108 @@ class TestDagStateTrigger:
         # Prevents error when task is destroyed while in "pending" state
         asyncio.get_event_loop().stop()
 
+    @pytest.mark.db_test
+    @pytest.mark.asyncio
+    @pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="Airflow 2 had a different implementation")
+    @mock.patch("airflow.sdk.execution_time.task_runner.RuntimeTaskInstance.get_dr_count")
+    @mock.patch("airflow.sdk.execution_time.task_runner.RuntimeTaskInstance.get_dagrun_state")
+    async def test_dag_state_trigger_af_3_return_type(
+        self, mock_get_dagrun_state, mock_get_dag_run_count, session
+    ):
+        """
+        Assert that the DagStateTrigger returns a tuple with classpath and event_data.
+        """
+        mock_get_dag_run_count.return_value = 1
+        mock_get_dagrun_state.return_value = DagRunState.SUCCESS
+        dag = DAG(f"{self.DAG_ID}_return_type", schedule=None, start_date=timezone.datetime(2022, 1, 1))
+
+        dag_run = DagRun(
+            dag_id=dag.dag_id,
+            run_type="manual",
+            run_id="external_task_run_id",
+            logical_date=timezone.datetime(2022, 1, 1),
+        )
+        dag_run.state = DagRunState.SUCCESS
+        session.add(dag_run)
+        session.commit()
+
+        trigger = DagStateTrigger(
+            dag_id=dag.dag_id,
+            states=self.STATES,
+            run_ids=["external_task_run_id"],
+            poll_interval=0.2,
+            execution_dates=[timezone.datetime(2022, 1, 1)],
+        )
+
+        task = asyncio.create_task(trigger.run().__anext__())
+        await asyncio.sleep(0.5)
+        assert task.done() is True
+
+        result = task.result()
+        assert isinstance(result, TriggerEvent)
+        assert result.payload == (
+            "airflow.providers.standard.triggers.external_task.DagStateTrigger",
+            {
+                "dag_id": "test_dag_state_trigger_return_type",
+                "execution_dates": [
+                    timezone.datetime(2022, 1, 1, 0, 0, tzinfo=timezone.utc),
+                ],
+                "external_task_run_id": DagRunState.SUCCESS,
+                "poll_interval": 0.2,
+                "run_ids": ["external_task_run_id"],
+                "states": ["success", "fail"],
+            },
+        )
+        asyncio.get_event_loop().stop()
+
+    @pytest.mark.db_test
+    @pytest.mark.asyncio
+    @pytest.mark.skipif(AIRFLOW_V_3_0_PLUS, reason="Test only AF2 implementation.")
+    async def test_dag_state_trigger_af_2_return_type(self, session):
+        """
+        Assert that the DagStateTrigger returns a tuple with classpath and event_data.
+        """
+        dag = DAG(f"{self.DAG_ID}_return_type", schedule=None, start_date=timezone.datetime(2022, 1, 1))
+
+        dag_run = DagRun(
+            dag_id=dag.dag_id,
+            run_type="manual",
+            run_id="external_task_run_id",
+            execution_date=timezone.datetime(2022, 1, 1),
+        )
+        dag_run.state = DagRunState.SUCCESS
+        session.add(dag_run)
+        session.commit()
+
+        trigger = DagStateTrigger(
+            dag_id=dag.dag_id,
+            states=self.STATES,
+            run_ids=["external_task_run_id"],
+            poll_interval=0.2,
+            execution_dates=[timezone.datetime(2022, 1, 1)],
+        )
+
+        task = asyncio.create_task(trigger.run().__anext__())
+        await asyncio.sleep(0.5)
+        assert task.done() is True
+
+        result = task.result()
+        assert isinstance(result, TriggerEvent)
+        assert result.payload == (
+            "airflow.providers.standard.triggers.external_task.DagStateTrigger",
+            {
+                "dag_id": "test_dag_state_trigger_return_type",
+                "execution_dates": [
+                    timezone.datetime(2022, 1, 1, 0, 0, tzinfo=timezone.utc),
+                ],
+                # 'external_task_run_id': DagRunState.SUCCESS,  # This is only appended in AF3
+                "poll_interval": 0.2,
+                "run_ids": ["external_task_run_id"],
+                "states": ["success", "fail"],
+            },
+        )
+        asyncio.get_event_loop().stop()
+
     def test_serialization(self):
         """Asserts that the DagStateTrigger correctly serializes its arguments and classpath."""
         trigger = DagStateTrigger(

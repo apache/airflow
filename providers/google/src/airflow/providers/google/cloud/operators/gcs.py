@@ -38,7 +38,8 @@ if TYPE_CHECKING:
 from google.api_core.exceptions import Conflict
 from google.cloud.exceptions import GoogleCloudError
 
-from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
+from airflow.exceptions import AirflowProviderDeprecationWarning
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.google.cloud.hooks.gcs import GCSHook
 from airflow.providers.google.cloud.operators.cloud_base import GoogleCloudBaseOperator
 from airflow.providers.google.common.links.storage import FileDetailsLink, StorageLink
@@ -110,6 +111,7 @@ class GCSCreateBucketOperator(GoogleCloudBaseOperator):
         "storage_class",
         "location",
         "project_id",
+        "gcp_conn_id",
         "impersonation_chain",
     )
     ui_color = "#f0eee4"
@@ -204,6 +206,7 @@ class GCSListObjectsOperator(GoogleCloudBaseOperator):
         "prefix",
         "delimiter",
         "match_glob",
+        "gcp_conn_id",
         "impersonation_chain",
     )
 
@@ -291,6 +294,7 @@ class GCSDeleteObjectsOperator(GoogleCloudBaseOperator):
         "bucket_name",
         "prefix",
         "objects",
+        "gcp_conn_id",
         "impersonation_chain",
     )
 
@@ -406,6 +410,7 @@ class GCSBucketCreateAclEntryOperator(GoogleCloudBaseOperator):
         "entity",
         "role",
         "user_project",
+        "gcp_conn_id",
         "impersonation_chain",
     )
     # [END gcs_bucket_create_acl_template_fields]
@@ -484,6 +489,7 @@ class GCSObjectCreateAclEntryOperator(GoogleCloudBaseOperator):
         "generation",
         "role",
         "user_project",
+        "gcp_conn_id",
         "impersonation_chain",
     )
     # [END gcs_object_create_acl_template_fields]
@@ -571,6 +577,7 @@ class GCSFileTransformOperator(GoogleCloudBaseOperator):
         "destination_bucket",
         "destination_object",
         "transform_script",
+        "gcp_conn_id",
         "impersonation_chain",
     )
     operator_extra_links = (FileDetailsLink(),)
@@ -723,7 +730,9 @@ class GCSTimeSpanFileTransformOperator(GoogleCloudBaseOperator):
         "destination_bucket",
         "destination_prefix",
         "transform_script",
+        "source_gcp_conn_id",
         "source_impersonation_chain",
+        "destination_gcp_conn_id",
         "destination_impersonation_chain",
     )
     operator_extra_links = (StorageLink(),)

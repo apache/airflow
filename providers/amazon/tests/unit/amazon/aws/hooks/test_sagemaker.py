@@ -27,7 +27,6 @@ from botocore.exceptions import ClientError
 from dateutil.tz import tzlocal
 from moto import mock_aws
 
-from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.logs import AwsLogsHook
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
 from airflow.providers.amazon.aws.hooks.sagemaker import (
@@ -36,6 +35,7 @@ from airflow.providers.amazon.aws.hooks.sagemaker import (
     secondary_training_status_changed,
     secondary_training_status_message,
 )
+from airflow.providers.common.compat.sdk import AirflowException
 
 role = "arn:aws:iam:role/test-role"
 

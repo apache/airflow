@@ -28,10 +28,8 @@ from collections.abc import (
 )
 from typing import TYPE_CHECKING, Any, ClassVar, TypeAlias
 
-import methodtools
-
-from airflow.configuration import conf
 from airflow.sdk import TriggerRule, WeightRule
+from airflow.sdk.configuration import conf
 from airflow.sdk.definitions._internal.mixins import DependencyMixin
 from airflow.sdk.definitions._internal.node import DAGNode
 from airflow.sdk.definitions._internal.setup_teardown import SetupTeardownContext
@@ -78,12 +76,9 @@ DEFAULT_WEIGHT_RULE: WeightRule = WeightRule(
 DEFAULT_TASK_EXECUTION_TIMEOUT: datetime.timedelta | None = conf.gettimedelta(
     "core", "default_task_execution_timeout"
 )
-
+DEFAULT_EMAIL_ON_FAILURE: bool = conf.getboolean("email", "default_email_on_failure", fallback=True)
+DEFAULT_EMAIL_ON_RETRY: bool = conf.getboolean("email", "default_email_on_retry", fallback=True)
 log = logging.getLogger(__name__)
-
-
-class NotMapped(Exception):
-    """Raise if a task is neither mapped nor has any parent mapped groups."""
 
 
 class AbstractOperator(Templater, DAGNode):
@@ -407,21 +402,3 @@ class AbstractOperator(Templater, DAGNode):
             else:
                 self._needs_expansion = False
         return self._needs_expansion
-
-    @methodtools.lru_cache(maxsize=None)
-    def get_parse_time_mapped_ti_count(self) -> int:
-        """
-        Return the number of mapped task instances that can be created on Dag run creation.
-
-        This only considers literal mapped arguments, and would return *None*
-        when any non-literal values are used for mapping.
-
-        :raise NotFullyPopulated: If non-literal mapped arguments are encountered.
-        :raise NotMapped: If the operator is neither mapped, nor has any parent
-            mapped task groups.
-        :return: Total number of mapped TIs this task should have.
-        """
-        group = self.get_closest_mapped_task_group()
-        if group is None:
-            raise NotMapped()
-        return group.get_parse_time_mapped_ti_count()

@@ -25,7 +25,7 @@ from unittest import mock
 
 import pytest
 import time_machine
-from sqlalchemy import select
+from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
 
 from airflow._shared.timezones.timezone import utc, utcnow
@@ -275,7 +275,7 @@ def expected_sample_hitl_detail_dict(sample_ti: TaskInstance) -> dict[str, Any]:
 
 @pytest.fixture(autouse=True)
 def cleanup_audit_log(session: Session) -> None:
-    session.query(Log).delete()
+    session.execute(delete(Log))
     session.commit()
 
 
@@ -696,6 +696,10 @@ class TestGetHITLDetailsEndpoint:
             ),
             reverse=reverse,
         )
+
+        # Remove entries with None, because None orders depends on the DB implementation
+        hitl_details = [d for d in hitl_details if get_key_lambda(d) is not None]
+        sorted_hitl_details = [d for d in sorted_hitl_details if get_key_lambda(d) is not None]
 
         assert hitl_details == sorted_hitl_details
 

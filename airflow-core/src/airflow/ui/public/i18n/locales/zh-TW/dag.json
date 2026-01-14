@@ -114,6 +114,18 @@
     },
     "graphDirection": {
       "label": "圖表方向"
+    },
+    "taskStreamFilter": {
+      "activeFilter": "啟用過濾器",
+      "clearFilter": "清除過濾器",
+      "clickTask": "點擊一個任務以將其選為過濾根",
+      "label": "過濾器",
+      "options": {
+        "both": "上游和下游",
+        "downstream": "下游",
+        "upstream": "上游"
+      },
+      "selectedTask": "選定任務"
     }
   },
   "paramsFailed": "載入參數失敗",

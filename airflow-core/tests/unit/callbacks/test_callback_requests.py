@@ -17,7 +17,6 @@
 from __future__ import annotations
 
 import uuid
-from datetime import datetime
 
 import pytest
 from pydantic import TypeAdapter
@@ -35,9 +34,8 @@ from airflow.callbacks.callback_requests import (
     EmailRequest,
     TaskCallbackRequest,
 )
-from airflow.models.dag import DAG
 from airflow.models.taskinstance import TaskInstance
-from airflow.providers.standard.operators.bash import BashOperator
+from airflow.serialization.definitions.baseoperator import SerializedBaseOperator
 from airflow.utils.state import State, TaskInstanceState
 
 pytestmark = pytest.mark.db_test
@@ -67,12 +65,7 @@ class TestCallbackRequest:
     def test_from_json(self, input, request_class):
         if input is None:
             ti = TaskInstance(
-                task=BashOperator(
-                    task_id="test",
-                    bash_command="true",
-                    start_date=datetime.now(),
-                    dag=DAG(dag_id="id", schedule=None),
-                ),
+                task=SerializedBaseOperator(task_id="test"),
                 run_id="fake_run",
                 state=State.RUNNING,
                 dag_version_id=uuid.uuid4(),

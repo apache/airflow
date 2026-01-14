@@ -191,7 +191,7 @@ def get_dags(
             DagRun.run_after,
             DagRun.start_date,
             DagRun.state,
-            DagRun.duration,
+            DagRun.duration.expression,  # type: ignore[attr-defined]
         )
         .join(
             DagRun,

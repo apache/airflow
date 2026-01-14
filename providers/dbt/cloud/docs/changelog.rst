@@ -28,6 +28,66 @@
 Changelog
 ---------
 
+4.6.3
+.....
+
+Misc
+~~~~
+
+* ``New year means updated Copyright notices (#60344)``
+* ``Source dbt provider to use airflow.sdk.configuration.conf (#59988)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Consume ''AirflowOptionalProviderFeatureException'' from compat sdk in providers (#60335)``
+   * ``Remove TaskInstance and TaskLogReader unused methods (#59922)``
+
+4.6.2
+.....
+
+Misc
+~~~~
+
+* ``Remove top-level SDK reference in Core (#59817)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``TaskInstance unused method cleanup (#59835)``
+
+4.6.1
+.....
+
+Misc
+~~~~
+
+* ``chore: use OL macros instead of building OL ids from scratch (#59197)``
+* ``Add backcompat for exceptions in providers (#58727)``
+
+Doc-only
+~~~~~~~~
+
+* ``CHG: fix address (#59193)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+4.6.0
+.....
+
+.. note::
+    This release of provider is only available for Airflow 2.11+ as explained in the
+    Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/PROVIDERS.rst#minimum-supported-version-of-airflow-for-community-managed-providers>_.
+
+Misc
+~~~~
+
+* ``Bump minimum Airflow version in providers to Airflow 2.11.0 (#58612)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Updates to release process of providers (#58316)``
+   * ``Bump min version of openlineage libraries to 1.40.0 to fix compat issues (#58302)``
+
 4.5.0
 .....
 

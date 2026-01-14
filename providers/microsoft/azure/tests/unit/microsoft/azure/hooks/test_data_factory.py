@@ -24,8 +24,8 @@ import pytest
 from azure.mgmt.datafactory.aio import DataFactoryManagementClient
 from azure.mgmt.datafactory.models import FactoryListResponse
 
-from airflow.exceptions import AirflowException
 from airflow.models.connection import Connection
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.microsoft.azure.hooks.data_factory import (
     AzureDataFactoryAsyncHook,
     AzureDataFactoryHook,

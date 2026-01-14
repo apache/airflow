@@ -17,12 +17,9 @@
 
 from __future__ import annotations
 
-from typing import cast
-
 from sqlalchemy import func, select
 from sqlalchemy.orm import joinedload, selectinload
 from sqlalchemy.orm.interfaces import LoaderOption
-from sqlalchemy.sql import ColumnElement
 
 from airflow.models.dag import DagModel
 from airflow.models.dag_version import DagVersion
@@ -32,14 +29,14 @@ from airflow.models.taskinstancehistory import TaskInstanceHistory
 
 dagruns_select_with_state_count = (
     select(
-        DagRun.dag_id,
-        DagRun.state,
-        DagModel.dag_display_name,
-        cast("ColumnElement[int]", func.count(DagRun.state).label("count")),
+        DagRun.__table__.c.dag_id,
+        DagRun.__table__.c.state,
+        DagModel.__table__.c.dag_display_name,
+        func.count(DagRun.__table__.c.state).label("count"),
     )
-    .join(DagModel, DagRun.dag_id == DagModel.dag_id)
-    .group_by(DagRun.dag_id, DagRun.state, DagModel.dag_display_name)
-    .order_by(DagRun.dag_id)
+    .join(DagModel, DagRun.__table__.c.dag_id == DagModel.__table__.c.dag_id)
+    .group_by(DagRun.__table__.c.dag_id, DagRun.__table__.c.state, DagModel.__table__.c.dag_display_name)
+    .order_by(DagRun.__table__.c.dag_id)
 )
 
 

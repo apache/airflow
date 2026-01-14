@@ -19,8 +19,7 @@ from __future__ import annotations
 
 from collections.abc import Iterable
 
-from airflow.exceptions import AirflowException
-from airflow.providers.common.compat.sdk import BaseSensorOperator, Context
+from airflow.providers.common.compat.sdk import AirflowException, BaseSensorOperator, Context
 from airflow.providers.jenkins.hooks.jenkins import JenkinsHook
 
 

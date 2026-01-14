@@ -24,7 +24,8 @@ from typing import TYPE_CHECKING, Any, Literal
 
 from google.api_core import exceptions
 
-from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
+from airflow.exceptions import AirflowProviderDeprecationWarning
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.google.cloud.hooks.vertex_ai.generative_model import (
     ExperimentRunHook,
     GenerativeModelHook,

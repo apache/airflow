@@ -131,6 +131,7 @@ Currently, **officially** using Airflow:
 1. [Cinimex DataLab](http://cinimex.ru) [[@kdubovikov](https://github.com/kdubovikov)]
 1. [City of Ann Arbor](https://www.a2gov.org) [[@a2gov](https://github.com/a2gov), [@sfirke](https://github.com/sfirke)]
 1. [City of Detroit](https://detroitmi.gov) [[@CityOfDetroit](https://github.com/CityOfDetroit), [@jmcbroom](https://github.com/jmcbroom)]
+1. [City of Reykjavík](https://reykjavik.is) [[@pallih]](https://github.com/pallih)
 1. [City of San Diego](http://sandiego.gov) [[@MrMaksimize](https://github.com/mrmaksimize), [@andrell81](https://github.com/andrell81) & [@arnaudvedy](https://github.com/arnaudvedy)]
 1. [City of Toronto](https://www.toronto.ca/) [[@CityofToronto](https://github.com/CityofToronto), [@radumas](https://github.com/radumas)]
 1. [ciValue](https://civalue.com/) [[@chencivalue](https://github.com/chencivalue), [@YoavGaudin](https://github.com/YoavGaudin), [@saleem-boshnak](https://github.com/saleem-boshnak)]
@@ -203,6 +204,7 @@ Currently, **officially** using Airflow:
 1. [e-MPS](https://e-mps.co.uk/)[[@IanDanielM](https://github.com/IanDanielM)]
 1. [Easy Taxi](http://www.easytaxi.com/) [[@caique-lima](https://github.com/caique-lima) & [@diraol](https://github.com/diraol)]
 1. [EBANX](https://www.ebanx.com/) [[@diogodilcl](https://github.com/diogodilcl) & [@estevammr](https://github.com/estevammr) & [@filipe-banzoli](https://github.com/filipe-banzoli) & [@lara-clink](https://github.com/lara-clink) & [@Lucasdsvenancio](https://github.com/Lucasdsvenancio) & [@mariotaddeucci](https://github.com/mariotaddeucci) & [@nadiapetramont](https://github.com/nadiapetramont) & [@nathangngencissk](https://github.com/nathangngencissk) & [@patrickjuan](https://github.com/patrickjuan) & [@raafaadg](https://github.com/raafaadg) & [@samebanx](https://github.com/samebanx) & [@thiagoschonrock](https://github.com/thiagoschonrock) & [@whrocha](https://github.com/whrocha)]
+1. [Echoenergia](https://echoenergia.com.br) [[@brunocmacedo](https://github.com/brunocmacedo)]
 1. [Elai Data](https://www.elaidata.com/) [[@lgov](https://github.com/lgov)]
 1. [Electronic Arts](https://www.ea.com/) [[@yuan-glu](https://github.com/yuan-glu)]
 1. [EllisDon](http://www.ellisdon.com/) [[@d2kalra](https://github.com/d2kalra) & [@zbasama](https://github.com/zbasama)]
@@ -330,7 +332,6 @@ Currently, **officially** using Airflow:
 1. [LetsBonus](http://www.letsbonus.com) [[@jesusfcr](https://github.com/jesusfcr) & [@OpringaoDoTurno](https://github.com/OpringaoDoTurno)]
 1. [Liberty Global](https://www.libertyglobal.com/) [[@LibertyGlobal](https://github.com/LibertyGlobal/)]
 1. [liligo](http://liligo.com/) [[@tromika](https://github.com/tromika)]
-1. [LINE](https://www.line.me/) [[@uplsh580](https://github.com/uplsh580)]
 1. [Lineas](https://lineas.net/) [[@lineashub](https://github.com/lineashub), [@kobethuwis](https://github.com/kobethuwis)]
 1. [LingoChamp](http://www.liulishuo.com/) [[@haitaoyao](https://github.com/haitaoyao)]
 1. [LinkedIn](http://linkedin.com/) [[@csm10495](https://github.com/csm10495)]
@@ -378,6 +379,7 @@ Currently, **officially** using Airflow:
 1. [Nine](https://nine.com.au) [[@TheZepto](https://github.com/TheZepto)]
 1. [Notino](https://www.notino.com/) [[@marekhanus](https://github.com/marekhanus)]
 1. [Novelis](https://www.novelis.com/)[[@Rushabh-Garambha](https://github.com/Rushabh-Garambha)]
+1. [Numberly](https://www.numberly.com/)
 1. [Nutanix](https://www.nutanix.com/)
 1. [OdysseyPrime](https://www.goprime.io/) [[@davideberdin](https://github.com/davideberdin)]
 1. [OfferUp](https://offerupnow.com)
@@ -523,6 +525,7 @@ Currently, **officially** using Airflow:
 1. [Tokopedia](https://www.tokopedia.com/) [[@tokopedia](https://github.com/tokopedia)]
 1. [Topgolf](https://topgolf.com/)[[@BhaveshSK](https://github.com/BhaveshSK)]
 1. [Toplyne](https://toplyne.io)[[@Toplyne](https://github.com/Toplyne/)]
+1. [Toss Bank](https://www.tossbank.com/) [[@uplsh580](https://github.com/uplsh580)]
 1. [Trade Republic](https://traderepublic.com/)
 1. [Trakken](https://www.trkkn.com/) [[@itroulli](https://github.com/itroulli), [@gthar](https://github.com/gthar), [@qulo](https://github.com/qulo), [@Oscar-Rod](https://github.com/Oscar-Rod), [@kondla](https://github.com/kondla), [@semuar](https://github.com/semuar), [@ManuelFreytag](https://github.com/ManuelFreytag)]
 1. [Travix](https://www.travix.com/)

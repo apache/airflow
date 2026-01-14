@@ -135,8 +135,6 @@
       "tooltip": "מחר משתנים נבחרים"
     },
     "edit": "ערוך משתנה",
-    "export": "ייצא",
-    "exportTooltip": "ייצא משתנים נבחרים",
     "form": {
       "invalidJson": "JSON לא תקין",
       "keyMaxLength": "מפתח יכול להכיל מקסימום 250 תווים",

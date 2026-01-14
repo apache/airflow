@@ -20,7 +20,6 @@ import os
 import subprocess
 import sys
 
-import pytest
 from python_on_whales import DockerClient, docker
 
 from airflowctl_tests import console
@@ -30,13 +29,17 @@ from airflowctl_tests.constants import (
     DOCKER_IMAGE,
 )
 
-docker_client = None
+from tests_common.test_utils.fernet import generate_fernet_key_string
+
+
+class _CtlTestState:
+    docker_client: DockerClient | None = None
 
 
 # Pytest hook to run at the start of the session
 def pytest_sessionstart(session):
     """Install airflowctl at the very start of the pytest session."""
-    airflow_ctl_version = os.environ.get("AIRFLOW_CTL_VERSION", "1.0.0")
+    airflow_ctl_version = os.environ.get("AIRFLOW_CTL_VERSION", "0.1.0")
     console.print(f"[yellow]Installing apache-airflow-ctl=={airflow_ctl_version} via pytest_sessionstart...")
 
     airflow_ctl_path = AIRFLOW_ROOT_PATH / "airflow-ctl"
@@ -143,8 +146,6 @@ def docker_compose_up(tmp_path_factory):
     """Fixture to spin up Docker Compose environment for the test session."""
     from shutil import copyfile
 
-    global docker_client
-
     tmp_dir = tmp_path_factory.mktemp("airflow-ctl-test")
     console.print(f"[yellow]Tests are run in {tmp_dir}")
 
@@ -165,16 +166,25 @@ def docker_compose_up(tmp_path_factory):
     os.environ["AIRFLOW_IMAGE_NAME"] = DOCKER_IMAGE
     os.environ["AIRFLOW_CTL_VERSION"] = os.environ.get("AIRFLOW_CTL_VERSION", "1.0.0")
     os.environ["ENV_FILE_PATH"] = str(tmp_dir / ".env")
+    #
+    # Please Do not use this Fernet key in any deployments! Please generate your own key.
+    # This is specifically generated for integration tests and not as default.
+    #
+    os.environ["FERNET_KEY"] = generate_fernet_key_string()
 
     # Initialize Docker client
-    docker_client = DockerClient(compose_files=[str(tmp_docker_compose_file)])
+    _CtlTestState.docker_client = DockerClient(compose_files=[str(tmp_docker_compose_file)])
 
     try:
         console.print(f"[blue]Spinning up airflow environment using {DOCKER_IMAGE}")
-        docker_client.compose.up(detach=True, wait=True)
+        _CtlTestState.docker_client.compose.up(detach=True, wait=True)
         console.print("[green]Docker compose started for airflowctl test\n")
     except Exception:
-        print_diagnostics(docker_client.compose, docker_client.compose.version(), docker.version())
+        print_diagnostics(
+            _CtlTestState.docker_client.compose,
+            _CtlTestState.docker_client.compose.version(),
+            docker.version(),
+        )
         debug_environment()
         docker_compose_down()
         raise
@@ -182,71 +192,11 @@ def docker_compose_up(tmp_path_factory):
 
 def docker_compose_down():
     """Tear down Docker Compose environment."""
-    if docker_client:
-        docker_client.compose.down(remove_orphans=True, volumes=True, quiet=True)
+    if _CtlTestState.docker_client:
+        _CtlTestState.docker_client.compose.down(remove_orphans=True, volumes=True, quiet=True)
 
 
 def pytest_sessionfinish(session, exitstatus):
     """Tear down test environment at the end of the pytest session."""
     if not os.environ.get("SKIP_DOCKER_COMPOSE_DELETION"):
         docker_compose_down()
-
-
-# Fixtures for tests
-@pytest.fixture
-def login_command():
-    # Passing password via command line is insecure but acceptable for testing purposes
-    # Please do not do this in production, it enables possibility of exposing your credentials
-    return "auth login --username airflow --password airflow"
-
-
-@pytest.fixture
-def login_output():
-    return "Login successful! Welcome to airflowctl!"
-
-
-@pytest.fixture
-def date_param():
-    import random
-    from datetime import datetime, timedelta
-
-    from dateutil.relativedelta import relativedelta
-
-    # original datetime string
-    dt_str = "2025-10-25T00:02:00+00:00"
-
-    # parse to datetime object
-    dt = datetime.fromisoformat(dt_str)
-
-    # boundaries
-    start = dt - relativedelta(months=1)
-    end = dt + relativedelta(months=1)
-
-    # pick random time between start and end
-    delta = end - start
-    random_seconds = random.randint(0, int(delta.total_seconds()))
-    random_dt = start + timedelta(seconds=random_seconds)
-    return random_dt.isoformat()
-
-
-@pytest.fixture
-def test_commands(login_command, date_param):
-    # Define test commands to run with actual running API server
-    return [
-        login_command,
-        "backfill list",
-        "config get --section core --option executor",
-        "connections create --connection-id=test_con --conn-type=mysql --password=TEST_PASS -o json",
-        "connections list",
-        "connections list -o yaml",
-        "connections list -o tabledags list",
-        f"dagrun trigger --dag-id=example_bash_operator --logical-date={date_param} --run-after={date_param}",
-        "dagrun list --dag-id example_bash_operator --state success --limit=1",
-        "jobs list",
-        "pools create --name=test_pool --slots=5",
-        "pools list",
-        "providers list",
-        "variables create --key=test_key --value=test_value",
-        "variables list",
-        "version --remote",
-    ]

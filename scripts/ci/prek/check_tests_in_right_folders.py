@@ -17,7 +17,7 @@
 # specific language governing permissions and limitations
 # under the License.
 # /// script
-# requires-python = ">=3.10"
+# requires-python = ">=3.10,<3.11"
 # dependencies = [
 #   "rich>=13.6.0",
 # ]
@@ -61,8 +61,10 @@ POSSIBLE_TEST_FOLDERS = [
     "listeners",
     "logging",
     "macros",
+    "migrations",
     "models",
     "notifications",
+    "observability",
     "operators",
     "otel",
     "plugins",

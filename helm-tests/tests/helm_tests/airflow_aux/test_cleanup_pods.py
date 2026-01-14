@@ -24,9 +24,23 @@ from chart_utils.helm_template_generator import render_chart
 class TestCleanupDeployment:
     """Tests cleanup pods deployments."""
 
-    def test_should_have_a_schedule_with_defaults(self):
+    def test_should_not_create_cronjob_when_no_executor(self):
         doc = render_chart(
             values={
+                "cleanup": {"enabled": True},
+            },
+            show_only=["templates/cleanup/cleanup-cronjob.yaml"],
+        )
+
+        assert not doc, (
+            "Expected no CronJob to be created when cleanup is enabled without kubernetes executor set."
+        )
+
+    @pytest.mark.parametrize("executor", ["KubernetesExecutor", "CeleryExecutor,KubernetesExecutor"])
+    def test_should_have_a_schedule_with_defaults_and_executor_set(self, executor):
+        doc = render_chart(
+            values={
+                "executor": executor,
                 "cleanup": {"enabled": True},
             },
             show_only=["templates/cleanup/cleanup-cronjob.yaml"],
@@ -58,6 +72,7 @@ class TestCleanupDeployment:
         doc = render_chart(
             name=release_name,
             values={
+                "executor": "KubernetesExecutor",
                 "cleanup": {
                     "enabled": True,
                     "schedule": schedule_value,
@@ -72,9 +87,22 @@ class TestCleanupDeployment:
 class TestCleanupPods:
     """Tests cleanup of pods."""
 
-    def test_should_create_cronjob_for_enabled_cleanup(self):
+    def test_should_not_create_cronjob_when_not_kubernetes(self):
         docs = render_chart(
             values={
+                "executor": "CeleryExecutor",
+                "cleanup": {"enabled": True},
+            },
+            show_only=["templates/cleanup/cleanup-cronjob.yaml"],
+        )
+
+        assert not docs, "Expected no CronJob to be created when executor is not KubernetesExecutor."
+
+    @pytest.mark.parametrize("executor", ["KubernetesExecutor", "CeleryExecutor,KubernetesExecutor"])
+    def test_should_create_cronjob_for_enabled_cleanup_and_proper_executor(self, executor):
+        docs = render_chart(
+            values={
+                "executor": executor,
                 "cleanup": {"enabled": True},
             },
             show_only=["templates/cleanup/cleanup-cronjob.yaml"],
@@ -99,16 +127,10 @@ class TestCleanupPods:
         assert "successfulJobsHistoryLimit" not in docs[0]["spec"]
         assert "failedJobsHistoryLimit" not in docs[0]["spec"]
 
-    def test_should_pass_validation_with_v1beta1_api(self):
-        render_chart(
-            values={"cleanup": {"enabled": True}},
-            show_only=["templates/cleanup/cleanup-cronjob.yaml"],
-            kubernetes_version="1.16.0",
-        )  # checks that no validation exception is raised
-
     def test_should_change_image_when_set_airflow_image(self):
         docs = render_chart(
             values={
+                "executor": "KubernetesExecutor",
                 "cleanup": {"enabled": True},
                 "images": {"airflow": {"repository": "airflow", "tag": "test"}},
             },
@@ -123,6 +145,7 @@ class TestCleanupPods:
     def test_should_create_valid_affinity_tolerations_and_node_selector(self):
         docs = render_chart(
             values={
+                "executor": "KubernetesExecutor",
                 "cleanup": {
                     "enabled": True,
                     "affinity": {
@@ -142,7 +165,7 @@ class TestCleanupPods:
                         {"key": "dynamic-pods", "operator": "Equal", "value": "true", "effect": "NoSchedule"}
                     ],
                     "nodeSelector": {"diskType": "ssd"},
-                }
+                },
             },
             show_only=["templates/cleanup/cleanup-cronjob.yaml"],
         )
@@ -176,7 +199,11 @@ class TestCleanupPods:
 
     def test_scheduler_name(self):
         docs = render_chart(
-            values={"cleanup": {"enabled": True}, "schedulerName": "airflow-scheduler"},
+            values={
+                "executor": "KubernetesExecutor",
+                "cleanup": {"enabled": True},
+                "schedulerName": "airflow-scheduler",
+            },
             show_only=["templates/cleanup/cleanup-cronjob.yaml"],
         )
 
@@ -190,7 +217,8 @@ class TestCleanupPods:
 
     def test_default_command_and_args(self):
         docs = render_chart(
-            values={"cleanup": {"enabled": True}}, show_only=["templates/cleanup/cleanup-cronjob.yaml"]
+            values={"executor": "KubernetesExecutor", "cleanup": {"enabled": True}},
+            show_only=["templates/cleanup/cleanup-cronjob.yaml"],
         )
 
         assert jmespath.search("spec.jobTemplate.spec.template.spec.containers[0].command", docs[0]) is None
@@ -203,6 +231,7 @@ class TestCleanupPods:
     def test_should_add_extraEnvs(self):
         docs = render_chart(
             values={
+                "executor": "KubernetesExecutor",
                 "cleanup": {
                     "enabled": True,
                     "env": [{"name": "TEST_ENV_1", "value": "test_env_1"}],
@@ -219,7 +248,10 @@ class TestCleanupPods:
     @pytest.mark.parametrize("args", [None, ["custom", "args"]])
     def test_command_and_args_overrides(self, command, args):
         docs = render_chart(
-            values={"cleanup": {"enabled": True, "command": command, "args": args}},
+            values={
+                "executor": "KubernetesExecutor",
+                "cleanup": {"enabled": True, "command": command, "args": args},
+            },
             show_only=["templates/cleanup/cleanup-cronjob.yaml"],
         )
 
@@ -231,11 +263,12 @@ class TestCleanupPods:
     def test_command_and_args_overrides_are_templated(self):
         docs = render_chart(
             values={
+                "executor": "KubernetesExecutor",
                 "cleanup": {
                     "enabled": True,
                     "command": ["{{ .Release.Name }}"],
                     "args": ["{{ .Release.Service }}"],
-                }
+                },
             },
             show_only=["templates/cleanup/cleanup-cronjob.yaml"],
         )
@@ -248,6 +281,7 @@ class TestCleanupPods:
     def test_should_set_labels_to_jobs_from_cronjob(self):
         docs = render_chart(
             values={
+                "executor": "KubernetesExecutor",
                 "cleanup": {"enabled": True},
                 "labels": {"project": "airflow"},
             },
@@ -264,6 +298,7 @@ class TestCleanupPods:
     def test_should_add_component_specific_labels(self):
         docs = render_chart(
             values={
+                "executor": "KubernetesExecutor",
                 "cleanup": {
                     "enabled": True,
                     "labels": {"test_label": "test_label_value"},
@@ -281,6 +316,7 @@ class TestCleanupPods:
     def test_should_add_component_specific_annotations(self):
         docs = render_chart(
             values={
+                "executor": "KubernetesExecutor",
                 "cleanup": {
                     "enabled": True,
                     "jobAnnotations": {"test_cronjob_annotation": "test_cronjob_annotation_value"},
@@ -318,6 +354,7 @@ class TestCleanupPods:
         }
         docs = render_chart(
             values={
+                "executor": "KubernetesExecutor",
                 "cleanup": {
                     "enabled": True,
                     "resources": resources,
@@ -333,6 +370,7 @@ class TestCleanupPods:
     def test_should_set_job_history_limits(self):
         docs = render_chart(
             values={
+                "executor": "KubernetesExecutor",
                 "cleanup": {
                     "enabled": True,
                     "failedJobsHistoryLimit": 2,
@@ -347,6 +385,7 @@ class TestCleanupPods:
     def test_should_set_zero_job_history_limits(self):
         docs = render_chart(
             values={
+                "executor": "KubernetesExecutor",
                 "cleanup": {
                     "enabled": True,
                     "failedJobsHistoryLimit": 0,
@@ -361,6 +400,7 @@ class TestCleanupPods:
     def test_no_airflow_local_settings(self):
         docs = render_chart(
             values={
+                "executor": "KubernetesExecutor",
                 "cleanup": {"enabled": True},
                 "airflowLocalSettings": None,
             },
@@ -374,6 +414,7 @@ class TestCleanupPods:
     def test_airflow_local_settings(self):
         docs = render_chart(
             values={
+                "executor": "KubernetesExecutor",
                 "cleanup": {"enabled": True},
                 "airflowLocalSettings": "# Well hello!",
             },
@@ -389,6 +430,7 @@ class TestCleanupPods:
     def test_global_volumes_and_volume_mounts(self):
         docs = render_chart(
             values={
+                "executor": "KubernetesExecutor",
                 "cleanup": {"enabled": True},
                 "volumes": [{"name": "test-volume", "emptyDir": {}}],
                 "volumeMounts": [{"name": "test-volume", "mountPath": "/test"}],
@@ -408,9 +450,24 @@ class TestCleanupPods:
 class TestCleanupServiceAccount:
     """Tests cleanup of service accounts."""
 
-    def test_should_add_component_specific_labels(self):
+    def test_should_not_add_service_account_when_not_kubernetes(self):
         docs = render_chart(
             values={
+                "executor": "CeleryExecutor",
+                "cleanup": {
+                    "enabled": True,
+                    "labels": {"test_label": "test_label_value"},
+                },
+            },
+            show_only=["templates/cleanup/cleanup-serviceaccount.yaml"],
+        )
+        assert not docs, "Expected no ServiceAccount to be created when executor is not KubernetesExecutor."
+
+    @pytest.mark.parametrize("executor", ["KubernetesExecutor", "CeleryExecutor,KubernetesExecutor"])
+    def test_should_add_component_specific_labels(self, executor):
+        docs = render_chart(
+            values={
+                "executor": executor,
                 "cleanup": {
                     "enabled": True,
                     "labels": {"test_label": "test_label_value"},
@@ -425,6 +482,7 @@ class TestCleanupServiceAccount:
     def test_default_automount_service_account_token(self):
         docs = render_chart(
             values={
+                "executor": "KubernetesExecutor",
                 "cleanup": {
                     "enabled": True,
                 },
@@ -436,6 +494,7 @@ class TestCleanupServiceAccount:
     def test_overridden_automount_service_account_token(self):
         docs = render_chart(
             values={
+                "executor": "KubernetesExecutor",
                 "cleanup": {"enabled": True, "serviceAccount": {"automountServiceAccountToken": False}},
             },
             show_only=["templates/cleanup/cleanup-serviceaccount.yaml"],

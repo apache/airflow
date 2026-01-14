@@ -25,7 +25,7 @@ from typing import TYPE_CHECKING, cast
 from google.api_core.exceptions import GoogleAPICallError
 from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
 
-from airflow.exceptions import AirflowException
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.google.cloud.hooks.translate import CloudTranslateHook, TranslateHook
 from airflow.providers.google.cloud.links.translate import (
     TranslateResultByOutputConfigLink,

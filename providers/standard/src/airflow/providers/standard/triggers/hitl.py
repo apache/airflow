@@ -16,7 +16,7 @@
 # under the License.
 from __future__ import annotations
 
-from airflow.exceptions import AirflowOptionalProviderFeatureException
+from airflow.providers.common.compat.sdk import AirflowOptionalProviderFeatureException
 from airflow.providers.standard.version_compat import AIRFLOW_V_3_1_PLUS
 
 if not AIRFLOW_V_3_1_PLUS:
@@ -30,7 +30,7 @@ from uuid import UUID
 
 from asgiref.sync import sync_to_async
 
-from airflow.exceptions import ParamValidationError
+from airflow.providers.common.compat.sdk import ParamValidationError
 from airflow.sdk import Param
 from airflow.sdk.definitions.param import ParamsDict
 from airflow.sdk.execution_time.hitl import (

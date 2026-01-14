@@ -20,21 +20,105 @@ from __future__ import annotations
 import json
 import re
 import shutil
+import subprocess
 import sys
-from functools import partial
+from collections.abc import Generator
+from functools import cache, partial
 from multiprocessing import Pool
+from pathlib import Path
+from threading import Lock
 from typing import NamedTuple
 
-from airflow_breeze.global_constants import ALL_HISTORICAL_PYTHON_VERSIONS, PYTHON_TO_MIN_AIRFLOW_MAPPING
+from airflow_breeze.global_constants import (
+    ALL_HISTORICAL_PYTHON_VERSIONS,
+    ALL_PYPROJECT_TOML_FILES,
+    PYTHON_TO_MIN_AIRFLOW_MAPPING,
+    UPDATE_PROVIDER_DEPENDENCIES_SCRIPT,
+)
 from airflow_breeze.utils.ci_group import ci_group
 from airflow_breeze.utils.console import get_console
 from airflow_breeze.utils.github import download_constraints_file, get_active_airflow_versions, get_tag_date
 from airflow_breeze.utils.packages import get_provider_distributions_metadata
-from airflow_breeze.utils.path_utils import CONSTRAINTS_CACHE_PATH, PROVIDER_DEPENDENCIES_JSON_PATH
+from airflow_breeze.utils.path_utils import (
+    AIRFLOW_PYPROJECT_TOML_FILE_PATH,
+    AIRFLOW_ROOT_PATH,
+    CONSTRAINTS_CACHE_PATH,
+    PROVIDER_DEPENDENCIES_JSON_HASH_PATH,
+    PROVIDER_DEPENDENCIES_JSON_PATH,
+)
 from airflow_breeze.utils.run_utils import run_command
 from airflow_breeze.utils.shared_options import get_verbose
 
-DEPENDENCIES = json.loads(PROVIDER_DEPENDENCIES_JSON_PATH.read_text())
+_regenerate_provider_deps_lock = Lock()
+
+
+def get_all_provider_pyproject_toml_provider_yaml_files() -> Generator[Path, None, None]:
+    pyproject_toml_content = AIRFLOW_PYPROJECT_TOML_FILE_PATH.read_text().splitlines()
+    in_workspace = False
+    for line in pyproject_toml_content:
+        trimmed_line = line.strip()
+        if not in_workspace and trimmed_line.startswith("[tool.uv.workspace]"):
+            in_workspace = True
+        elif in_workspace:
+            if trimmed_line.startswith("#"):
+                continue
+            if trimmed_line.startswith('"'):
+                path = trimmed_line.split('"')[1]
+                ALL_PYPROJECT_TOML_FILES.append(AIRFLOW_ROOT_PATH / path / "pyproject.toml")
+                if trimmed_line.startswith('"providers/'):
+                    yield AIRFLOW_ROOT_PATH / path / "pyproject.toml"
+                    yield AIRFLOW_ROOT_PATH / path / "provider.yaml"
+            elif trimmed_line.startswith("]"):
+                break
+
+
+@cache  # Note: using functools.cache to avoid multiple dumps in the same run
+def regenerate_provider_dependencies_once() -> None:
+    """Run provider dependencies regeneration once per interpreter execution.
+
+    This function is safe to call multiple times from different modules; the
+    underlying command will only run once. If the underlying command fails the
+    CalledProcessError is propagated to the caller.
+    """
+    with _regenerate_provider_deps_lock:
+        # Run the regeneration command from the repository root to ensure correct
+        # relative paths if the script expects to be run from AIRFLOW_ROOT_PATH.
+        subprocess.check_call(
+            ["uv", "run", UPDATE_PROVIDER_DEPENDENCIES_SCRIPT.as_posix()], cwd=AIRFLOW_ROOT_PATH
+        )
+
+
+def _calculate_provider_deps_hash():
+    import hashlib
+
+    hasher = hashlib.sha256()
+    for file in sorted(get_all_provider_pyproject_toml_provider_yaml_files()):
+        hasher.update(file.read_bytes())
+    return hasher.hexdigest()
+
+
+@cache
+def get_provider_dependencies() -> dict:
+    if not PROVIDER_DEPENDENCIES_JSON_PATH.exists():
+        calculated_hash = _calculate_provider_deps_hash()
+        PROVIDER_DEPENDENCIES_JSON_HASH_PATH.write_text(calculated_hash)
+        # We use regular print there as rich console might not be initialized yet here
+        print("Regenerating provider dependencies file")
+        regenerate_provider_dependencies_once()
+    return json.loads(PROVIDER_DEPENDENCIES_JSON_PATH.read_text())
+
+
+def generate_provider_dependencies_if_needed():
+    if not PROVIDER_DEPENDENCIES_JSON_PATH.exists() or not PROVIDER_DEPENDENCIES_JSON_HASH_PATH.exists():
+        get_provider_dependencies.cache_clear()
+        get_provider_dependencies()
+    else:
+        calculated_hash = _calculate_provider_deps_hash()
+        if calculated_hash.strip() != PROVIDER_DEPENDENCIES_JSON_HASH_PATH.read_text().strip():
+            # Force re-generation
+            PROVIDER_DEPENDENCIES_JSON_PATH.unlink(missing_ok=True)
+            get_provider_dependencies.cache_clear()
+            get_provider_dependencies()
 
 
 def get_related_providers(
@@ -55,12 +139,12 @@ def get_related_providers(
     related_providers = set()
     if upstream_dependencies:
         # Providers that use this provider
-        for provider, provider_info in DEPENDENCIES.items():
+        for provider, provider_info in get_provider_dependencies().items():
             if provider_to_check in provider_info["cross-providers-deps"]:
                 related_providers.add(provider)
     # and providers we use directly
     if downstream_dependencies:
-        for dep_name in DEPENDENCIES[provider_to_check]["cross-providers-deps"]:
+        for dep_name in get_provider_dependencies()[provider_to_check]["cross-providers-deps"]:
             related_providers.add(dep_name)
     return related_providers
 
@@ -212,7 +296,7 @@ def generate_providers_metadata_for_provider(
     current_metadata: dict[str, dict[str, dict[str, str]]],
 ) -> dict[str, dict[str, str]]:
     get_console().print(f"[info]Generating metadata for {provider_id}")
-    provider_yaml_dict = get_provider_distributions_metadata().get(provider_id)
+    provider_yaml_dict = get_provider_distributions_metadata()[provider_id]
     provider_metadata: dict[str, dict[str, str]] = {}
     package_name = "apache-airflow-providers-" + provider_id.replace(".", "-")
     provider_versions = list(reversed(provider_yaml_dict["versions"]))

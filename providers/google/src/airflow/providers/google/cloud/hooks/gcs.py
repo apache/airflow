@@ -43,9 +43,9 @@ from google.api_core.exceptions import GoogleAPICallError, NotFound
 from google.cloud.exceptions import GoogleCloudError
 from google.cloud.storage.retry import DEFAULT_RETRY
 
-from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
+from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.common.compat.lineage.hook import get_hook_lineage_collector
-from airflow.providers.common.compat.sdk import timezone
+from airflow.providers.common.compat.sdk import AirflowException, timezone
 from airflow.providers.google.cloud.utils.helpers import normalize_directory_path
 from airflow.providers.google.common.consts import CLIENT_INFO
 from airflow.providers.google.common.hooks.base_google import (

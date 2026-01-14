@@ -19,7 +19,6 @@ from __future__ import annotations
 import contextlib
 import importlib
 import os
-import sys
 import traceback
 from collections.abc import Callable, Sequence
 from pathlib import Path
@@ -35,14 +34,16 @@ from airflow.callbacks.callback_requests import (
     TaskCallbackRequest,
 )
 from airflow.configuration import conf
-from airflow.dag_processing.dagbag import DagBag
-from airflow.exceptions import TaskNotFound
+from airflow.dag_processing.dagbag import BundleDagBag, DagBag
+from airflow.observability.stats import Stats
+from airflow.sdk.exceptions import TaskNotFound
 from airflow.sdk.execution_time.comms import (
     ConnectionResult,
     DeleteVariable,
     ErrorResponse,
     GetConnection,
     GetPreviousDagRun,
+    GetPreviousTI,
     GetPrevSuccessfulDagRun,
     GetTaskStates,
     GetTICount,
@@ -54,6 +55,7 @@ from airflow.sdk.execution_time.comms import (
     MaskSecret,
     OKResponse,
     PreviousDagRunResult,
+    PreviousTIResult,
     PrevSuccessfulDagRunResult,
     PutVariable,
     TaskStatesResult,
@@ -65,8 +67,7 @@ from airflow.sdk.execution_time.comms import (
 )
 from airflow.sdk.execution_time.supervisor import WatchedSubprocess
 from airflow.sdk.execution_time.task_runner import RuntimeTaskInstance, _send_error_email_notification
-from airflow.serialization.serialized_objects import LazyDeserializedDAG, SerializedDAG
-from airflow.stats import Stats
+from airflow.serialization.serialized_objects import DagSerialization, LazyDeserializedDAG
 from airflow.utils.file import iter_airflow_imports
 from airflow.utils.state import TaskInstanceState
 
@@ -127,6 +128,7 @@ ToManager = Annotated[
     | DeleteVariable
     | GetPrevSuccessfulDagRun
     | GetPreviousDagRun
+    | GetPreviousTI
     | GetXCom
     | GetXComCount
     | GetXComSequenceItem
@@ -141,6 +143,7 @@ ToDagProcessor = Annotated[
     | VariableResult
     | TaskStatesResult
     | PreviousDagRunResult
+    | PreviousTIResult
     | PrevSuccessfulDagRunResult
     | ErrorResponse
     | OKResponse
@@ -194,11 +197,6 @@ def _parse_file_entrypoint():
     task_runner.SUPERVISOR_COMMS = comms_decoder
     log = structlog.get_logger(logger_name="task")
 
-    # Put bundle root on sys.path if needed. This allows the dag bundle to add
-    # code in util modules to be shared between files within the same bundle.
-    if (bundle_root := os.fspath(msg.bundle_path)) not in sys.path:
-        sys.path.append(bundle_root)
-
     result = _parse_file(msg, log)
     if result is not None:
         comms_decoder.send(result)
@@ -207,11 +205,10 @@ def _parse_file_entrypoint():
 def _parse_file(msg: DagFileParseRequest, log: FilteringBoundLogger) -> DagFileParsingResult | None:
     # TODO: Set known_pool names on DagBag!
 
-    bag = DagBag(
+    bag = BundleDagBag(
         dag_folder=msg.file,
         bundle_path=msg.bundle_path,
         bundle_name=msg.bundle_name,
-        include_examples=False,
         load_op_links=False,
     )
     if msg.callback_requests:
@@ -239,7 +236,7 @@ def _serialize_dags(
     serialized_dags = []
     for dag in bag.dags.values():
         try:
-            data = SerializedDAG.to_dict(dag)
+            data = DagSerialization.to_dict(dag)
             serialized_dags.append(LazyDeserializedDAG(data=data, last_loaded=dag.last_loaded))
         except Exception:
             log.exception("Failed to serialize DAG: %s", dag.fileloc)
@@ -632,6 +629,14 @@ class DagFileProcessorProcess(WatchedSubprocess):
                 resp = TaskStatesResult.from_api_response(task_states_map)
             else:
                 resp = task_states_map
+        elif isinstance(msg, GetPreviousTI):
+            resp = self.client.task_instances.get_previous(
+                dag_id=msg.dag_id,
+                task_id=msg.task_id,
+                logical_date=msg.logical_date,
+                map_index=msg.map_index,
+                state=msg.state,
+            )
         else:
             log.error("Unhandled request", msg=msg)
             self.send_msg(

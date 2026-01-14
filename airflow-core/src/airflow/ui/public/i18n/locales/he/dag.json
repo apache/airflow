@@ -118,6 +118,18 @@
     },
     "graphDirection": {
       "label": "כיוון התרשים"
+    },
+    "taskStreamFilter": {
+      "activeFilter": "מסנן פעיל",
+      "clearFilter": "נקה מסנן",
+      "clickTask": "לחץ על משימה כדי לבחור אותה כבסיס המסנן",
+      "label": "מסנן",
+      "options": {
+        "both": "גם במעלה וגם במורד הזרם",
+        "downstream": "במורד הזרם",
+        "upstream": "במעלה הזרם"
+      },
+      "selectedTask": "משימה נבחרת"
     }
   },
   "paramsFailed": "טעינת הפרמטרים נכשלה",

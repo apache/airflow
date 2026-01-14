@@ -158,7 +158,7 @@ const {
 }: SearchParamsKeysType = SearchParamsKeys;
 
 export const Events = () => {
-  const { t: translate } = useTranslation("browse");
+  const { t: translate } = useTranslation(["browse", "common"]);
   const { dagId, runId, taskId } = useParams();
   const [searchParams] = useSearchParams();
   const { setTableURLState, tableURLState } = useTableURLState();
@@ -207,6 +207,8 @@ export const Events = () => {
     undefined,
   );
 
+  const columns = eventsColumn({ dagId, open, runId, taskId }, translate);
+
   return (
     <VStack alignItems="stretch">
       {dagId === undefined && runId === undefined && taskId === undefined ? (
@@ -215,8 +217,8 @@ export const Events = () => {
       <Flex alignItems="center" justifyContent="space-between">
         <EventsFilters urlDagId={dagId} urlRunId={runId} urlTaskId={taskId} />
         <ExpandCollapseButtons
-          collapseLabel={translate("auditLog.actions.collapseAllExtra")}
-          expandLabel={translate("auditLog.actions.expandAllExtra")}
+          collapseLabel={translate("common:collapseAllExtra")}
+          expandLabel={translate("common:expandAllExtra")}
           onCollapse={onClose}
           onExpand={onOpen}
         />
@@ -224,7 +226,7 @@ export const Events = () => {
 
       <ErrorAlert error={error} />
       <DataTable
-        columns={eventsColumn({ dagId, open, runId, taskId }, translate)}
+        columns={columns}
         data={data?.event_logs ?? []}
         displayMode="table"
         initialState={tableURLState}

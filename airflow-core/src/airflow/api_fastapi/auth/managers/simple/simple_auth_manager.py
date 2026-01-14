@@ -28,11 +28,10 @@ from json import JSONDecodeError
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, TextIO
 
-from fastapi import FastAPI
-from starlette.requests import Request
-from starlette.responses import HTMLResponse
-from starlette.staticfiles import StaticFiles
-from starlette.templating import Jinja2Templates
+from fastapi import FastAPI, Request
+from fastapi.responses import HTMLResponse
+from fastapi.staticfiles import StaticFiles
+from fastapi.templating import Jinja2Templates
 from termcolor import colored
 
 from airflow.api_fastapi.app import AUTH_MANAGER_FASTAPI_APP_PREFIX
@@ -102,10 +101,10 @@ class SimpleAuthManager(BaseAuthManager[SimpleAuthManagerUser]):
         return [{"username": username, "role": role} for username, role in users]
 
     @staticmethod
-    def get_passwords(users: list[dict[str, str]]) -> dict[str, str]:
+    def get_passwords() -> dict[str, str]:
         password_file = SimpleAuthManager.get_generated_password_file()
         with open(password_file, "r+") as file:
-            return SimpleAuthManager._get_passwords(users=users, stream=file)[0]
+            return SimpleAuthManager._get_passwords(file)
 
     def init(self) -> None:
         is_simple_auth_manager_all_admins = conf.getboolean("core", "simple_auth_manager_all_admins")
@@ -121,7 +120,8 @@ class SimpleAuthManager(BaseAuthManager[SimpleAuthManagerUser]):
                     # Fastapi spins up N workers, so this method is called N times in N different processes
                     # This needs to be called only once so we use the file ``password_file`` as locking mechanism
                     fcntl.flock(file, fcntl.LOCK_EX | fcntl.LOCK_NB)
-                    passwords, changed = self._get_passwords(users=users, stream=file)
+                    passwords = self._get_passwords(stream=file)
+                    changed = False
                     for user in users:
                         if user["username"] not in passwords:
                             # User does not exist in the file, adding it
@@ -273,7 +273,7 @@ class SimpleAuthManager(BaseAuthManager[SimpleAuthManagerUser]):
         return self._is_authorized(method="GET", allow_role=SimpleAuthManagerRole.VIEWER, user=user)
 
     def is_authorized_custom_view(
-        self, *, method: ResourceMethod | str, resource_name: str, user: SimpleAuthManagerUser
+        self, *, method: ResourceMethod, resource_name: str, user: SimpleAuthManagerUser
     ):
         return self._is_authorized(method="GET", allow_role=SimpleAuthManagerRole.VIEWER, user=user)
 
@@ -281,6 +281,26 @@ class SimpleAuthManager(BaseAuthManager[SimpleAuthManagerUser]):
         self, menu_items: list[MenuItem], *, user: SimpleAuthManagerUser
     ) -> list[MenuItem]:
         return menu_items
+
+    def is_authorized_hitl_task(self, *, assigned_users: set[str], user: SimpleAuthManagerUser) -> bool:
+        """
+        Check if a user is allowed to approve/reject a HITL task.
+
+        When simple_auth_manager_all_admins=True, all authenticated users are allowed
+        to approve/reject any task. Otherwise, the user must be in the assigned_users set.
+        """
+        is_simple_auth_manager_all_admins = conf.getboolean("core", "simple_auth_manager_all_admins")
+
+        if is_simple_auth_manager_all_admins:
+            # In all-admin mode, everyone is allowed
+            return True
+
+        # If no assigned_users specified, allow access
+        if not assigned_users:
+            return True
+
+        # Delegate to parent class for the actual authorization check
+        return super().is_authorized_hitl_task(assigned_users=assigned_users, user=user)
 
     def get_fastapi_app(self) -> FastAPI | None:
         """
@@ -359,7 +379,7 @@ class SimpleAuthManager(BaseAuthManager[SimpleAuthManagerUser]):
         return role.order >= allow_role.order
 
     @staticmethod
-    def _get_passwords(users: list[dict[str, str]], stream: TextIO) -> tuple[dict[str, str], bool]:
+    def _get_passwords(stream: TextIO) -> dict[str, str]:
         try:
             # Read passwords from file
             stream.seek(0)
@@ -369,15 +389,7 @@ class SimpleAuthManager(BaseAuthManager[SimpleAuthManagerUser]):
             log.error("Error decoding JSON from file %s", stream.name)
             raise
 
-        usernames = {user["username"] for user in users}
-        changed = bool(user_passwords_from_file.keys() - usernames)
-        user_passwords_from_file = {
-            username: password
-            for username, password in user_passwords_from_file.items()
-            if username in usernames
-        }
-
-        return user_passwords_from_file, changed
+        return user_passwords_from_file
 
     @staticmethod
     def _generate_password() -> str:

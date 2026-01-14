@@ -25,6 +25,66 @@
 Changelog
 ---------
 
+3.4.1
+.....
+
+Misc
+~~~~
+
+* ``Consume ''AirflowOptionalProviderFeatureException'' from compat sdk in providers (#60335)``
+* ``New year means updated Copyright notices (#60344)``
+* ``Dependencies for sqlalchemy - teradata (#59927)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+3.4.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add TdLoadOperator to execute data transfers using Teradata Parallel Transporter (TPT) tdload utility (#58918)``
+
+Misc
+~~~~
+
+* ``Remove top-level SDK reference in Core (#59817)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+3.3.1
+.....
+
+Misc
+~~~~
+
+* ``Add backcompat for exceptions in providers (#58727)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+3.3.0
+.....
+
+.. note::
+    This release of provider is only available for Airflow 2.11+ as explained in the
+    Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/PROVIDERS.rst#minimum-supported-version-of-airflow-for-community-managed-providers>_.
+
+Features
+~~~~~~~~
+
+* ``Add DdlOperator to execute Data Definition Language (DDL) statements on Teradata databases using TTU tbuild utility (#56675)``
+
+Misc
+~~~~
+
+* ``Bump minimum Airflow version in providers to Airflow 2.11.0 (#58612)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 3.2.3
 .....
 

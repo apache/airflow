@@ -117,6 +117,8 @@ export const Backfills = () => {
     offset: pagination.pageIndex * pagination.pageSize,
   });
 
+  const columns = getColumns(translate);
+
   return (
     <Box>
       <ErrorAlert error={error} />
@@ -124,7 +126,7 @@ export const Backfills = () => {
         {translate("backfill", { count: data ? data.total_entries : 0 })}
       </Heading>
       <DataTable
-        columns={getColumns(translate)}
+        columns={columns}
         data={data ? data.backfills : []}
         isFetching={isFetching}
         isLoading={isLoading}

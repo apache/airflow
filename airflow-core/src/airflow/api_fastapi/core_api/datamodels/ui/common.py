@@ -81,10 +81,10 @@ class GridRunsResponse(BaseModel):
     run_type: DagRunType
 
     @computed_field
-    def duration(self) -> int:
+    def duration(self) -> float:
         if self.start_date:
             end_date = self.end_date or timezone.utcnow()
-            return (end_date - self.start_date).seconds
+            return (end_date - self.start_date).total_seconds()
         return 0
 
 

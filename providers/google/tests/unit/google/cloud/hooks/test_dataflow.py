@@ -37,8 +37,8 @@ from google.cloud.dataflow_v1beta3 import (
 )
 from google.cloud.dataflow_v1beta3.types import JobMessageImportance
 
-from airflow.exceptions import AirflowException
 from airflow.providers.apache.beam.hooks.beam import run_beam_command
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.google.cloud.hooks.dataflow import (
     DEFAULT_DATAFLOW_LOCATION,
     AsyncDataflowHook,

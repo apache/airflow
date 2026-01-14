@@ -16,7 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 # /// script
-# requires-python = ">=3.10"
+# requires-python = ">=3.10,<3.11"
 # dependencies = [
 #   "requests>=2.31.0",
 #   "rich>=13.6.0",
@@ -27,6 +27,8 @@ from __future__ import annotations
 import subprocess
 import sys
 from pathlib import Path
+
+AIRFLOW_ROOT_PATH = Path(__file__).parents[3].resolve()
 
 sys.path.insert(0, str(Path(__file__).parent.resolve()))
 from common_prek_utils import console, initialize_breeze_prek
@@ -74,6 +76,9 @@ if not providers:
     console.print("[red]\nThe found providers list cannot be empty[/]")
     sys.exit(1)
 
+LAST_PROVIDERS_RELEASE_DATE_PATH = AIRFLOW_ROOT_PATH / "providers" / ".last_release_date.txt"
+LAST_PROVIDERS_RELEASE_DATE = LAST_PROVIDERS_RELEASE_DATE_PATH.read_text().strip()
+
 cmd = [
     "breeze",
     "release-management",
@@ -83,6 +88,8 @@ cmd = [
     "--only-min-version-update",
     "--skip-changelog",
     "--skip-readme",
+    "--release-date",
+    LAST_PROVIDERS_RELEASE_DATE,
 ]
 
 cmd.extend(providers)

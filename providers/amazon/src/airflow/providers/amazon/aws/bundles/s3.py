@@ -22,9 +22,9 @@ from pathlib import Path
 import structlog
 
 from airflow.dag_processing.bundles.base import BaseDagBundle
-from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
+from airflow.providers.common.compat.sdk import AirflowException
 
 
 class S3DagBundle(BaseDagBundle):

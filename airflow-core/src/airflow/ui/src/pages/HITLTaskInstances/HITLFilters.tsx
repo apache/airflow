@@ -17,70 +17,37 @@
  * under the License.
  */
 import { VStack } from "@chakra-ui/react";
-import { useMemo } from "react";
-import { useParams, useSearchParams } from "react-router-dom";
+import { useParams } from "react-router-dom";
 
-import { FilterBar, type FilterValue } from "src/components/FilterBar";
+import { FilterBar } from "src/components/FilterBar";
 import { SearchParamsKeys } from "src/constants/searchParams";
 import { useFiltersHandler, type FilterableSearchParamsKeys } from "src/utils";
 
 export const HITLFilters = ({ onResponseChange }: { readonly onResponseChange: () => void }) => {
   const { dagId = "~", taskId = "~" } = useParams();
-  const [urlSearchParams] = useSearchParams();
 
-  const searchParamKeys = useMemo((): Array<FilterableSearchParamsKeys> => {
-    const fixedKeys: Array<FilterableSearchParamsKeys> = [
-      SearchParamsKeys.RESPONSE_RECEIVED,
-      SearchParamsKeys.RESPONDED_BY_USER_NAME,
-      SearchParamsKeys.MAP_INDEX,
-      SearchParamsKeys.SUBJECT_SEARCH,
-      SearchParamsKeys.BODY_SEARCH,
-      SearchParamsKeys.CREATED_AT_GTE,
-      SearchParamsKeys.CREATED_AT_LTE,
-    ];
+  const fixedKeys: Array<FilterableSearchParamsKeys> = [
+    SearchParamsKeys.RESPONSE_RECEIVED,
+    SearchParamsKeys.RESPONDED_BY_USER_NAME,
+    SearchParamsKeys.MAP_INDEX,
+    SearchParamsKeys.SUBJECT_SEARCH,
+    SearchParamsKeys.BODY_SEARCH,
+    SearchParamsKeys.CREATED_AT_RANGE,
+  ];
 
-    const keys: Array<FilterableSearchParamsKeys> = [];
+  const dynamicKeys: Array<FilterableSearchParamsKeys> = [];
 
-    if (dagId === "~") {
-      keys.push(SearchParamsKeys.DAG_DISPLAY_NAME_PATTERN);
-    }
+  if (dagId === "~") {
+    dynamicKeys.push(SearchParamsKeys.DAG_DISPLAY_NAME_PATTERN);
+  }
 
-    if (taskId === "~") {
-      keys.push(SearchParamsKeys.TASK_ID_PATTERN);
-    }
+  if (taskId === "~") {
+    dynamicKeys.push(SearchParamsKeys.TASK_ID_PATTERN);
+  }
 
-    return [...keys, ...fixedKeys];
-  }, [dagId, taskId]);
+  const searchParamKeys = [...dynamicKeys, ...fixedKeys];
 
-  const { filterConfigs, handleFiltersChange, searchParams } = useFiltersHandler(searchParamKeys);
-
-  const initialValues = useMemo(() => {
-    const values: Record<string, FilterValue> = {};
-
-    filterConfigs.forEach((config) => {
-      const value = searchParams.get(config.key);
-
-      if (value !== null && value !== "") {
-        if (config.type === "number") {
-          const parsedValue = Number(value);
-
-          values[config.key] = isNaN(parsedValue) ? value : parsedValue;
-        } else {
-          values[config.key] = value;
-        }
-      }
-    });
-
-    searchParamKeys.forEach((key) => {
-      const value = urlSearchParams.get(key);
-
-      if (value !== null && value.trim() !== "") {
-        values[key] = value;
-      }
-    });
-
-    return values;
-  }, [filterConfigs, searchParamKeys, searchParams, urlSearchParams]);
+  const { filterConfigs, handleFiltersChange, initialValues } = useFiltersHandler(searchParamKeys);
 
   return (
     <VStack align="start" pt={2}>

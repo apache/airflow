@@ -122,6 +122,18 @@
     },
     "graphDirection": {
       "label": "Kierunek grafu"
+    },
+    "taskStreamFilter": {
+      "activeFilter": "Aktywny filtr",
+      "clearFilter": "Wyczyść filtr",
+      "clickTask": "Kliknij zadanie, aby wybrać je jako źródło filtra",
+      "label": "Filtr",
+      "options": {
+        "both": "Wcześniejsze i późniejsze",
+        "downstream": "Późniejsze",
+        "upstream": "Wcześniejsze"
+      },
+      "selectedTask": "Wybrane zadanie"
     }
   },
   "paramsFailed": "Nie udało się załadować parametrów",

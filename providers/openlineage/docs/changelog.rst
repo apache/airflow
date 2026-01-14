@@ -26,6 +26,104 @@
 Changelog
 ---------
 
+2.10.0
+......
+
+Features
+~~~~~~~~
+
+* ``Add on_task_instance_skipped support to OpenLineage listener (#60409)``
+* ``Add JobDependenciesRunFacet to asset-triggered OL DAG events (#59521)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fixing static checks in OL adapter on main (#60042)``
+
+Misc
+~~~~
+
+* ``Consume ''AirflowOptionalProviderFeatureException'' from compat sdk in providers (#60335)``
+* ``New year means updated Copyright notices (#60344)``
+* ``Move listeners module to shared library for client server separation (#59883)``
+* ``Move over plugins_manager to a shared library (#59956)``
+* ``Allow providers to consume AirflowConfigException from compat sdk (#60044)``
+* ``Source openlineage provider to use airflow.sdk.configuration.conf (#60026)``
+* ``Make sqlalchemy optional dependency for openlineage provider (#59921)``
+
+Doc-only
+~~~~~~~~
+
+* ``Improve changelog descriptions in PR #59947 (latest versions only) (#60036)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Assorted SQLA2/Mypy fixes (#60094)``
+   * ``Do not dynamically add dag_doc.md when parsing the test (#59933)``
+
+2.9.2
+.....
+
+Misc
+~~~~
+
+* ``Move MappedOperator to serialization (#59628)``
+* ``Split SerializedBaseOperator from serde logic (#59627)``
+* ``Minor cleanups removing SDK references from Core (#59491)``
+* ``Refactor deprecated SQLA query openlineage provider (#59448)``
+* ``Bump OpenLineage client dependency to 1.41 (#59321)``
+* ``Extract shared "module_loading" distribution (#59139)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``TaskInstance unused method cleanup (#59835)``
+   * ``Split SDK and serialized asset classes (#58993)``
+
+2.9.1
+.....
+
+Misc
+~~~~
+
+* ``chore: Adjust AirflowRunFacet and docs after moving OL methods to BaseSQLOperator (#58903)``
+* ``Move the traces and metrics code under a common observability package (#56187)``
+* ``Implement timetables in SDK (#58669)``
+* ``Remove global from openlineage provider (#58868)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``tests: Add OL system tests for deferrable TriggerDagRunOperator (#58933)``
+
+2.9.0
+.....
+
+.. note::
+    This release of provider is only available for Airflow 2.11+ as explained in the
+    Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/PROVIDERS.rst#minimum-supported-version-of-airflow-for-community-managed-providers>_.
+
+Features
+~~~~~~~~
+
+* ``Add few attrs from external_task sensor to OpenLineage events (#58719)``
+* ``Auto-inject OpenLineage parent info into TriggerDagRunOperator conf (#58672)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix OL root macros should reflect root from dagrun conf parent (#58428)``
+* ``Fix root in parentRunFacet is not always sourced from dag run (#58407)``
+
+Misc
+~~~~
+
+* ``Bump minimum Airflow version in providers to Airflow 2.11.0 (#58612)``
+* ``Bump min version of openlineage libraries to 1.40.0 to fix compat issues (#58302)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Updates to release process of providers (#58316)``
+   * ``Remove global from lineage.hook (#58285)``
+
 2.8.0
 .....
 

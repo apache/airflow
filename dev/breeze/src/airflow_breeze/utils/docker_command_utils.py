@@ -230,6 +230,38 @@ You can find installation instructions here: https://docs.docker.com/engine/inst
                 sys.exit(1)
 
 
+def check_container_engine_is_docker(quiet: bool = False) -> bool:
+    """Checks if the container engine is Docker or podman."""
+    response = run_command(
+        ["docker", "version"],
+        no_output_dump_on_exception=True,
+        capture_output=True,
+        text=True,
+        check=False,
+        dry_run_override=False,
+    )
+    if response.returncode != 0:
+        get_console().print(
+            "[error]Could not determine the container engine.[/]\n"
+            "[warning]Please ensure that Docker is installed and running.[/]"
+        )
+        sys.exit(1)
+    run_command_output = "\n".join(
+        " ".join(line.split()) for line in response.stdout.strip().lower().splitlines()
+    )
+    podman_engine_enabled = any(
+        "client: podman engine" in line or "podman" in line for line in run_command_output.splitlines()
+    )
+    if podman_engine_enabled:
+        get_console().print(
+            "[warning]Podman container engine detected.[/]\n"
+            "[warning]Podman container engine has not become fully supported in breeze yet.[/]"
+        )
+        return False
+    get_console().print("[success]Docker container engine detected.[/]")
+    return True
+
+
 def check_remote_ghcr_io_commands():
     """Checks if you have permissions to pull an empty image from ghcr.io.
 
@@ -501,16 +533,24 @@ def check_executable_entrypoint_permissions(quiet: bool = False):
                 f"repository should only be checked out on a filesystem that is POSIX compliant."
             )
             sys.exit(1)
-    if not quiet:
+    if get_verbose() and not quiet:
         get_console().print("[success]Executable permissions on entrypoints are OK[/]")
 
 
 @lru_cache
 def perform_environment_checks(quiet: bool = False):
     check_docker_is_running()
-    check_docker_version(quiet)
-    check_docker_compose_version(quiet)
-    check_executable_entrypoint_permissions(quiet)
+    container_engine_is_docker = check_container_engine_is_docker(quiet)
+    if not container_engine_is_docker:
+        get_console().print("[error]Unsupported container engine detected.[/]")
+        get_console().print("[error]Install and enable Docker to continue.[/]")
+        sys.exit(1)
+    else:
+        check_docker_version(quiet)
+        check_docker_compose_version(quiet)
+        check_executable_entrypoint_permissions(quiet)
+    if not quiet:
+        get_console().print(f"[success]Host python version is {sys.version}[/]")
 
 
 def get_docker_syntax_version() -> str:
@@ -779,6 +819,7 @@ def execute_command_in_shell(
         shell_params.extra_args = (command,)
         if get_verbose():
             get_console().print(f"[info]Command to execute: '{command}'[/]")
+    perform_environment_checks(quiet=shell_params.quiet)
     return enter_shell(shell_params, output=output, signal_error=signal_error)
 
 
@@ -796,7 +837,6 @@ def enter_shell(
     * shuts down existing project
     * executes the command to drop the user to Breeze shell
     """
-    perform_environment_checks(quiet=shell_params.quiet)
     fix_ownership_using_docker(quiet=shell_params.quiet)
     cleanup_python_generated_files()
     if read_from_cache_file("suppress_asciiart") is None and not shell_params.quiet:
@@ -826,8 +866,6 @@ def enter_shell(
     cmd.extend(["run", "--service-ports", "--rm"])
     if shell_params.tty == "disabled":
         cmd.append("--no-TTY")
-    elif shell_params.tty == "enabled":
-        cmd.append("--tty")
     cmd.append("airflow")
     cmd_added = shell_params.command_passed
     if cmd_added is not None:

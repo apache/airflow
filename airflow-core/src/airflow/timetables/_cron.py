@@ -124,7 +124,9 @@ class CronMixin:
 
         This is only for testing purposes and should not be relied on otherwise.
         """
-        if not isinstance(other, type(self)):
+        from airflow.serialization.encoders import coerce_to_core_timetable
+
+        if not isinstance(other := coerce_to_core_timetable(other), type(self)):
             return NotImplemented
         return self._expression == other._expression and self._timezone == other._timezone
 

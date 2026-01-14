@@ -20,24 +20,20 @@
 from __future__ import annotations
 
 import copy
-import functools
-import operator
 import re
 import weakref
 from collections.abc import Generator, Iterator, Sequence
 from typing import TYPE_CHECKING, Any
 
 import attrs
-import methodtools
 
-from airflow.exceptions import (
-    AirflowException,
+from airflow.sdk import TriggerRule
+from airflow.sdk.definitions._internal.node import DAGNode, validate_group_key
+from airflow.sdk.exceptions import (
+    AirflowDagCycleException,
     DuplicateTaskIdFound,
     TaskAlreadyInTaskGroup,
 )
-from airflow.sdk import TriggerRule
-from airflow.sdk.definitions._internal.node import DAGNode, validate_group_key
-from airflow.sdk.exceptions import AirflowDagCycleException
 
 if TYPE_CHECKING:
     from airflow.sdk.bases.operator import BaseOperator
@@ -247,14 +243,14 @@ class TaskGroup(DAGNode):
         if isinstance(task, TaskGroup):
             if self.dag:
                 if task.dag is not None and self.dag is not task.dag:
-                    raise RuntimeError(
+                    raise ValueError(
                         "Cannot mix TaskGroups from different Dags: %s and %s",
                         self.dag,
                         task.dag,
                     )
                 task.dag = self.dag
             if task.children:
-                raise AirflowException("Cannot add a non-empty TaskGroup")
+                raise ValueError("Cannot add a non-empty TaskGroup")
 
         self.children[key] = task
         return task
@@ -315,7 +311,7 @@ class TaskGroup(DAGNode):
             # Handles setting relationship between a TaskGroup and a task
             for task in other.roots:
                 if not isinstance(task, DAGNode):
-                    raise AirflowException(
+                    raise RuntimeError(
                         "Relationships can only be set between TaskGroup "
                         f"or operators; received {task.__class__.__name__}"
                     )
@@ -629,27 +625,6 @@ class MappedTaskGroup(TaskGroup):
                     "allowed with trigger rule 'always'"
                 )
             yield from self._iter_child(child)
-
-    @methodtools.lru_cache(maxsize=None)
-    def get_parse_time_mapped_ti_count(self) -> int:
-        """
-        Return the Number of instances a task in this group should be mapped to, when a Dag run is created.
-
-        This only considers literal mapped arguments, and would return *None*
-        when any non-literal values are used for mapping.
-
-        If this group is inside mapped task groups, all the nested counts are
-        multiplied and accounted.
-
-        :meta private:
-
-        :raise NotFullyPopulated: If any non-literal mapped arguments are encountered.
-        :return: The total number of mapped instances each task should have.
-        """
-        return functools.reduce(
-            operator.mul,
-            (g._expand_input.get_parse_time_mapped_ti_count() for g in self.iter_mapped_task_groups()),
-        )
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         for op, _ in self._expand_input.iter_references():

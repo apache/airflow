@@ -22,9 +22,9 @@ import pytest
 from pydantic import ValidationError
 
 from airflow.providers.fab.auth_manager.api_fastapi.datamodels.roles import (
-    ActionResourceResponse,
-    ActionResponse,
-    ResourceResponse,
+    Action,
+    ActionResource,
+    Resource,
     RoleBody,
     RoleCollectionResponse,
     RoleResponse,
@@ -57,9 +57,9 @@ class TestRoleModels:
             RoleBody.model_validate({"name": "", "actions": []})
 
     def test_roleresponse_serializes_permissions_under_actions_alias(self):
-        ar = ActionResourceResponse(
-            action=ActionResponse(name="can_read"),
-            resource=ResourceResponse(name="DAG"),
+        ar = ActionResource(
+            action=Action(name="can_read"),
+            resource=Resource(name="DAG"),
         )
         rr = RoleResponse(name="viewer", permissions=[ar])
 
@@ -89,9 +89,9 @@ class TestRoleModels:
         assert first.action.name == "can_read"
 
     def test_rolecollection_response_dump_and_counts(self):
-        ar = ActionResourceResponse(
-            action=ActionResponse(name="can_read"),
-            resource=ResourceResponse(name="DAG"),
+        ar = ActionResource(
+            action=Action(name="can_read"),
+            resource=Resource(name="DAG"),
         )
         rc = RoleCollectionResponse(
             roles=[RoleResponse(name="viewer", permissions=[ar])],

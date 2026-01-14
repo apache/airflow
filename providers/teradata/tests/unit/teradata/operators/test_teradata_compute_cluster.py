@@ -21,7 +21,7 @@ from unittest.mock import call, patch
 
 import pytest
 
-from airflow.exceptions import AirflowException
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.teradata.operators.teradata_compute_cluster import (
     TeradataComputeClusterDecommissionOperator,
     TeradataComputeClusterProvisionOperator,

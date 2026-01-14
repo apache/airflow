@@ -20,7 +20,7 @@ from __future__ import annotations
 
 import collections.abc
 import copy
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Literal
 
 from airflow.serialization.definitions.notset import NOTSET, is_arg_set
 
@@ -31,11 +31,18 @@ if TYPE_CHECKING:
 class SerializedParam:
     """Server-side param class for deserialization."""
 
-    def __init__(self, default: Any = NOTSET, description: str | None = None, **schema):
+    def __init__(
+        self,
+        default: Any = NOTSET,
+        description: str | None = None,
+        source: Literal["dag", "task"] | None = None,
+        **schema,
+    ):
         # No validation needed - the SDK already validated the default.
         self.value = default
         self.description = description
         self.schema = schema
+        self.source = source
 
     def resolve(self, *, raises: bool = False) -> Any:
         """
@@ -66,6 +73,7 @@ class SerializedParam:
             "value": self.resolve(),
             "schema": self.schema,
             "description": self.description,
+            "source": self.source,
         }
 
 

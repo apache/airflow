@@ -27,10 +27,10 @@ import os
 from collections.abc import Callable
 from datetime import datetime
 
-from airflow.exceptions import AirflowException
 from airflow.models.dag import DAG
 from airflow.providers.apache.beam.hooks.beam import BeamRunnerType
 from airflow.providers.apache.beam.operators.beam import BeamRunPythonPipelineOperator
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.google.cloud.hooks.dataflow import DataflowJobStatus
 from airflow.providers.google.cloud.operators.gcs import GCSCreateBucketOperator, GCSDeleteBucketOperator
 from airflow.providers.google.cloud.sensors.dataflow import (
@@ -92,6 +92,7 @@ with DAG(
             "job_name": "start_python_job_async",
             "location": LOCATION,
             "wait_until_finished": False,
+            "max_num_workers": 1,
         },
     )
     # [END howto_operator_start_python_job_async]

@@ -15,8 +15,8 @@
     specific language governing permissions and limitations
     under the License.
 
-Your First Airflow Pull Request — 5-Minute Guide
-===============================================
+Your First Airflow Pull Request — 15-Minute Guide
+=================================================
 
 .. contents:: On this page
    :local:
@@ -37,6 +37,7 @@ Prerequisites
 * `Basic Git <https://docs.github.com/en/get-started/git-basics/set-up-git>`__ (**only** required for the Breeze path below)
 
 For Breeze (local development):
+
 * `Docker Desktop <https://www.docker.com/products/docker-desktop/>`__
 * `Podman <https://podman.io/>`__, a drop-in, license-friendly replacement for Docker Desktop
 * `Docker Compose <https://docs.docker.com/compose/install/>`__
@@ -56,7 +57,7 @@ For Breeze (local development):
 * 4GB RAM, 40GB disk space, and at least 2 CPU cores
 
 .. note::
-   Docker **or Podman** installation varies by OS. See the `full guide <03b_contributors_quick_start_seasoned_developers.html#local-machine-development>`_ for Ubuntu, macOS, and Windows instructions.
+   Docker **or Podman** installation varies by OS. See the `full guide <03_contributors_quick_start.rst#local-machine-development>`_ for Ubuntu, macOS, and Windows instructions.
 
 Option A – Breeze on Your Laptop
 --------------------------------
@@ -86,8 +87,8 @@ Option A – Breeze on Your Laptop
 
 The command starts a shell and launches multiple terminals using tmux
 and launches all Airflow necessary components in those terminals. To know more about tmux commands,
-check out this cheat sheet: https://tmuxcheatsheet.com/. To exit breeze, type ``stop_airflow`` in any
-of the tmux panes and hit Enter.
+check out this cheat sheet: https://tmuxcheatsheet.com/. Now You can also access Airflow UI on your local machine at |http://localhost:28080| with user name ``admin`` and password ``admin``. To exit breeze, type ``stop_airflow`` in any
+of the tmux panes and hit Enter
 
 **Working with DAGs in Breeze:**
 

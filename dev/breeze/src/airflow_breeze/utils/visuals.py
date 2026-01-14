@@ -24,6 +24,7 @@ from airflow_breeze.global_constants import (
     FLOWER_HOST_PORT,
     MYSQL_HOST_PORT,
     POSTGRES_HOST_PORT,
+    RABBITMQ_HOST_PORT,
     REDIS_HOST_PORT,
     SSH_PORT,
     WEB_HOST_PORT,
@@ -86,6 +87,7 @@ CHEATSHEET = f"""
           * {POSTGRES_HOST_PORT} -> forwarded to Postgres database -> postgres:5432
           * {MYSQL_HOST_PORT} -> forwarded to MySQL database  -> mysql:3306
           * {REDIS_HOST_PORT} -> forwarded to Redis broker -> redis:6379
+          * {RABBITMQ_HOST_PORT} -> forwarded to Rabbitmq -> rabbitmq:5672
 
         Direct links to those services that you can use from the host:
 
@@ -124,7 +126,7 @@ CHEATSHEET = f"""
     integration or starting complete Airflow using `start-airflow` command as well as ways
     of cleaning up the installation.
 
-    Make sure to run `setup-autocomplete` to get the commands and options auto-completable
+    Make sure to run `breeze setup autocomplete` to get the commands and options auto-completable
     in your shell.
 
     You can disable this cheatsheet by running:

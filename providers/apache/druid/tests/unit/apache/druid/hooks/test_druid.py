@@ -22,8 +22,8 @@ from unittest.mock import MagicMock, patch
 import pytest
 import requests
 
-from airflow.exceptions import AirflowException
 from airflow.providers.apache.druid.hooks.druid import DruidDbApiHook, DruidHook, IngestionType
+from airflow.providers.common.compat.sdk import AirflowException
 
 
 @pytest.mark.db_test

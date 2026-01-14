@@ -16,6 +16,8 @@
 # under the License.
 from __future__ import annotations
 
+import json
+
 import pytest
 
 from tests_common.test_utils.asserts import assert_queries_count
@@ -23,7 +25,27 @@ from tests_common.test_utils.config import conf_vars
 
 pytestmark = pytest.mark.db_test
 
-mock_config_response = {
+THEME = {
+    "tokens": {
+        "colors": {
+            "brand": {
+                "50": {"value": "oklch(0.98 0.006 248.717)"},
+                "100": {"value": "oklch(0.962 0.012 249.46)"},
+                "200": {"value": "oklch(0.923 0.023 255.082)"},
+                "300": {"value": "oklch(0.865 0.039 252.42)"},
+                "400": {"value": "oklch(0.705 0.066 256.378)"},
+                "500": {"value": "oklch(0.575 0.08 257.759)"},
+                "600": {"value": "oklch(0.469 0.084 257.657)"},
+                "700": {"value": "oklch(0.399 0.084 257.85)"},
+                "800": {"value": "oklch(0.324 0.072 260.329)"},
+                "900": {"value": "oklch(0.259 0.062 265.566)"},
+                "950": {"value": "oklch(0.179 0.05 265.487)"},
+            }
+        }
+    }
+}
+
+expected_config_response = {
     "page_size": 100,
     "auto_refresh_interval": 3,
     "hide_paused_dags_by_default": True,
@@ -35,6 +57,8 @@ mock_config_response = {
     "dashboard_alert": [],
     "show_external_log_redirect": False,
     "external_log_name": None,
+    "theme": THEME,
+    "multi_team": False,
 }
 
 
@@ -52,6 +76,7 @@ def mock_config_data():
             ("api", "default_wrap"): "false",
             ("api", "auto_refresh_interval"): "3",
             ("api", "require_confirmation_dag_change"): "false",
+            ("api", "theme"): json.dumps(THEME),
         }
     ):
         yield
@@ -60,13 +85,13 @@ def mock_config_data():
 class TestGetConfig:
     def test_should_response_200(self, mock_config_data, test_client):
         """
-        Test the /config endpoint to verify response matches mock data.
+        Test the /config endpoint to verify response matches the expected data.
         """
         with assert_queries_count(0):
             response = test_client.get("/config")
 
         assert response.status_code == 200
-        assert response.json() == mock_config_response
+        assert response.json() == expected_config_response
 
     def test_get_config_should_response_401(self, unauthenticated_test_client):
         response = unauthenticated_test_client.get("/config")
@@ -76,4 +101,4 @@ class TestGetConfig:
         """Just being authenticated is enough to access the endpoint."""
         response = unauthorized_test_client.get("/config")
         assert response.status_code == 200
-        assert response.json() == mock_config_response
+        assert response.json() == expected_config_response

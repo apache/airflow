@@ -1,9 +1,5 @@
 {
   "auditLog": {
-    "actions": {
-      "collapseAllExtra": "सभी अतिरिक्त JSON को संकुचित करें",
-      "expandAllExtra": "सभी अतिरिक्त JSON को विस्तृत करें"
-    },
     "columns": {
       "event": "इवेंट",
       "extra": "अतिरिक्त",

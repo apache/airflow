@@ -23,7 +23,7 @@ import operator
 import time
 from typing import TYPE_CHECKING, Any
 
-from airflow._shared.timezones.timezone import coerce_datetime, utcnow
+from airflow._shared.timezones.timezone import coerce_datetime, parse_timezone, utcnow
 from airflow.timetables._cron import CronMixin
 from airflow.timetables._delta import DeltaMixin
 from airflow.timetables.base import DagRunInfo, DataInterval, Timetable
@@ -34,34 +34,6 @@ if TYPE_CHECKING:
     from pendulum.tz.timezone import FixedTimezone, Timezone
 
     from airflow.timetables.base import TimeRestriction
-
-
-def _serialize_interval(interval: datetime.timedelta | relativedelta) -> float | dict:
-    from airflow.serialization.serialized_objects import encode_relativedelta
-
-    if isinstance(interval, datetime.timedelta):
-        return interval.total_seconds()
-    return encode_relativedelta(interval)
-
-
-def _deserialize_interval(value: int | dict) -> datetime.timedelta | relativedelta:
-    from airflow.serialization.serialized_objects import decode_relativedelta
-
-    if isinstance(value, dict):
-        return decode_relativedelta(value)
-    return datetime.timedelta(seconds=value)
-
-
-def _serialize_run_immediately(value: bool | datetime.timedelta) -> bool | float:
-    if isinstance(value, datetime.timedelta):
-        return value.total_seconds()
-    return value
-
-
-def _deserialize_run_immediately(value: bool | float) -> bool | datetime.timedelta:
-    if isinstance(value, float):
-        return datetime.timedelta(seconds=value)
-    return value
 
 
 class _TriggerTimetable(Timetable):
@@ -150,15 +122,19 @@ class DeltaTriggerTimetable(DeltaMixin, _TriggerTimetable):
 
     @classmethod
     def deserialize(cls, data: dict[str, Any]) -> Timetable:
+        from airflow.serialization.decoders import decode_interval
+
         return cls(
-            _deserialize_interval(data["delta"]),
-            interval=_deserialize_interval(data["interval"]),
+            decode_interval(data["delta"]),
+            interval=decode_interval(data["interval"]),
         )
 
     def serialize(self) -> dict[str, Any]:
+        from airflow.serialization.encoders import encode_interval
+
         return {
-            "delta": _serialize_interval(self._delta),
-            "interval": _serialize_interval(self._interval),
+            "delta": encode_interval(self._delta),
+            "interval": encode_interval(self._interval),
         }
 
     def _calc_first_run(self) -> DateTime:
@@ -211,23 +187,23 @@ class CronTriggerTimetable(CronMixin, _TriggerTimetable):
 
     @classmethod
     def deserialize(cls, data: dict[str, Any]) -> Timetable:
-        from airflow.serialization.serialized_objects import decode_timezone
+        from airflow.serialization.decoders import decode_interval, decode_run_immediately
 
         return cls(
             data["expression"],
-            timezone=decode_timezone(data["timezone"]),
-            interval=_deserialize_interval(data["interval"]),
-            run_immediately=_deserialize_run_immediately(data.get("run_immediately", False)),
+            timezone=parse_timezone(data["timezone"]),
+            interval=decode_interval(data["interval"]),
+            run_immediately=decode_run_immediately(data.get("run_immediately", False)),
         )
 
     def serialize(self) -> dict[str, Any]:
-        from airflow.serialization.serialized_objects import encode_timezone
+        from airflow.serialization.encoders import encode_interval, encode_run_immediately, encode_timezone
 
         return {
             "expression": self._expression,
             "timezone": encode_timezone(self._timezone),
-            "interval": _serialize_interval(self._interval),
-            "run_immediately": _serialize_run_immediately(self._run_immediately),
+            "interval": encode_interval(self._interval),
+            "run_immediately": encode_run_immediately(self._run_immediately),
         }
 
     def _calc_first_run(self) -> DateTime:
@@ -282,17 +258,17 @@ class MultipleCronTriggerTimetable(Timetable):
 
     @classmethod
     def deserialize(cls, data: dict[str, Any]) -> Timetable:
-        from airflow.serialization.serialized_objects import decode_timezone
+        from airflow.serialization.decoders import decode_interval, decode_run_immediately
 
         return cls(
             *data["expressions"],
-            timezone=decode_timezone(data["timezone"]),
-            interval=_deserialize_interval(data["interval"]),
-            run_immediately=_deserialize_run_immediately(data["run_immediately"]),
+            timezone=parse_timezone(data["timezone"]),
+            interval=decode_interval(data["interval"]),
+            run_immediately=decode_run_immediately(data["run_immediately"]),
         )
 
     def serialize(self) -> dict[str, Any]:
-        from airflow.serialization.serialized_objects import encode_timezone
+        from airflow.serialization.encoders import encode_interval, encode_run_immediately, encode_timezone
 
         # All timetables share the same timezone, interval, and run_immediately
         # values, so we can just use the first to represent them.
@@ -300,8 +276,8 @@ class MultipleCronTriggerTimetable(Timetable):
         return {
             "expressions": [t._expression for t in self._timetables],
             "timezone": encode_timezone(timetable._timezone),
-            "interval": _serialize_interval(timetable._interval),
-            "run_immediately": _serialize_run_immediately(timetable._run_immediately),
+            "interval": encode_interval(timetable._interval),
+            "run_immediately": encode_run_immediately(timetable._run_immediately),
         }
 
     @property

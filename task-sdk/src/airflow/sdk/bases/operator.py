@@ -35,10 +35,11 @@ from typing import TYPE_CHECKING, Any, ClassVar, Final, NoReturn, TypeVar, cast
 
 import attrs
 
-from airflow.exceptions import RemovedInAirflow4Warning
 from airflow.sdk import TriggerRule, timezone
 from airflow.sdk._shared.secrets_masker import redact
 from airflow.sdk.definitions._internal.abstractoperator import (
+    DEFAULT_EMAIL_ON_FAILURE,
+    DEFAULT_EMAIL_ON_RETRY,
     DEFAULT_IGNORE_FIRST_DEPENDS_ON_PAST,
     DEFAULT_OWNER,
     DEFAULT_POOL_NAME,
@@ -62,11 +63,7 @@ from airflow.sdk.definitions._internal.types import NOTSET, validate_instance_ar
 from airflow.sdk.definitions.edges import EdgeModifier
 from airflow.sdk.definitions.mappedoperator import OperatorPartial, validate_mapping_kwargs
 from airflow.sdk.definitions.param import ParamsDict
-from airflow.task.priority_strategy import (
-    PriorityWeightStrategy,
-    airflow_priority_weight_strategies,
-    validate_and_load_priority_weight_strategy,
-)
+from airflow.sdk.exceptions import RemovedInAirflow4Warning
 
 # Databases do not support arbitrary precision integers, so we need to limit the range of priority weights.
 # postgres: -2147483648 to +2147483647 (see https://www.postgresql.org/docs/current/datatype-numeric.html)
@@ -88,6 +85,7 @@ if TYPE_CHECKING:
     from types import ClassMethodDescriptorType
 
     import jinja2
+    from typing_extensions import Self
 
     from airflow.sdk.bases.operatorlink import BaseOperatorLink
     from airflow.sdk.definitions.context import Context
@@ -98,7 +96,6 @@ if TYPE_CHECKING:
     from airflow.serialization.enums import DagAttributeTypes
     from airflow.task.priority_strategy import PriorityWeightStrategy
     from airflow.triggers.base import BaseTrigger, StartTriggerArgs
-    from airflow.typing_compat import Self
 
     TaskPreExecuteHook = Callable[[Context], None]
     TaskPostExecuteHook = Callable[[Context, Any], None]
@@ -109,9 +106,6 @@ __all__ = [
     "chain_linear",
     "cross_downstream",
 ]
-
-# TODO: Task-SDK
-AirflowException = RuntimeError
 
 
 class TriggerFailureReason(str, Enum):
@@ -141,6 +135,7 @@ def _get_parent_defaults(dag: DAG | None, task_group: TaskGroup | None) -> tuple
         return {}, ParamsDict()
     dag_args = copy.copy(dag.default_args)
     dag_params = copy.deepcopy(dag.params)
+    dag_params._fill_missing_param_source("dag")
     if task_group:
         if task_group.default_args and not isinstance(task_group.default_args, collections.abc.Mapping):
             raise TypeError("default_args must be a mapping")
@@ -158,13 +153,20 @@ def get_merged_defaults(
     if task_params:
         if not isinstance(task_params, collections.abc.Mapping):
             raise TypeError(f"params must be a mapping, got {type(task_params)}")
+
+        task_params = ParamsDict(task_params)
+        task_params._fill_missing_param_source("task")
         params.update(task_params)
+
     if task_default_args:
         if not isinstance(task_default_args, collections.abc.Mapping):
             raise TypeError(f"default_args must be a mapping, got {type(task_params)}")
         args.update(task_default_args)
         with contextlib.suppress(KeyError):
-            params.update(task_default_args["params"] or {})
+            if params_from_default_args := ParamsDict(task_default_args["params"] or {}):
+                params_from_default_args._fill_missing_param_source("task")
+                params.update(params_from_default_args)
+
     return args, params
 
 
@@ -176,7 +178,7 @@ def parse_retries(retries: Any) -> int | None:
     try:
         parsed_retries = int(retries)
     except (TypeError, ValueError):
-        raise AirflowException(f"'retries' type must be int, not {type(retries).__name__}")
+        raise RuntimeError(f"'retries' type must be int, not {type(retries).__name__}")
     return parsed_retries
 
 
@@ -214,8 +216,8 @@ class _PartialDescriptor:
 OPERATOR_DEFAULTS: dict[str, Any] = {
     "allow_nested_operators": True,
     "depends_on_past": False,
-    "email_on_failure": True,
-    "email_on_retry": True,
+    "email_on_failure": DEFAULT_EMAIL_ON_FAILURE,
+    "email_on_retry": DEFAULT_EMAIL_ON_RETRY,
     "execution_timeout": DEFAULT_TASK_EXECUTION_TIMEOUT,
     # "executor": DEFAULT_EXECUTOR,
     "executor_config": {},
@@ -234,7 +236,7 @@ OPERATOR_DEFAULTS: dict[str, Any] = {
     "queue": DEFAULT_QUEUE,
     "retries": DEFAULT_RETRIES,
     "retry_delay": DEFAULT_RETRY_DELAY,
-    "retry_exponential_backoff": False,
+    "retry_exponential_backoff": 0,
     "trigger_rule": DEFAULT_TRIGGER_RULE,
     "wait_for_past_depends_before_skipping": DEFAULT_WAIT_FOR_PAST_DEPENDS_BEFORE_SKIPPING,
     "wait_for_downstream": False,
@@ -270,7 +272,7 @@ if TYPE_CHECKING:
         execution_timeout: timedelta | None = ...,
         max_retry_delay: None | timedelta | float = ...,
         retry_delay: timedelta | float = ...,
-        retry_exponential_backoff: bool = ...,
+        retry_exponential_backoff: float = ...,
         priority_weight: int = ...,
         weight_rule: str | PriorityWeightStrategy = ...,
         sla: timedelta | None = ...,
@@ -407,7 +409,7 @@ class ExecutorSafeguard:
                 if not cls.test_mode and sentinel is not self:
                     message = f"{self.__class__.__name__}.{func.__name__} cannot be called outside of the Task Runner!"
                     if not self.allow_nested_operators:
-                        raise AirflowException(message)
+                        raise RuntimeError(message)
                     self.log.warning(message)
 
                     # Now that we've logged, set sentinel so that `super()` calls don't log again
@@ -421,7 +423,7 @@ class ExecutorSafeguard:
 
 if "airflow.configuration" in sys.modules:
     # Don't try and import it if it's not already loaded
-    from airflow.configuration import conf
+    from airflow.sdk.configuration import conf
 
     ExecutorSafeguard.test_mode = conf.getboolean("core", "unit_test_mode")
 
@@ -570,7 +572,7 @@ BASEOPERATOR_ARGS_EXPECTED_TYPES = {
     "email_on_retry": bool,
     "email_on_failure": bool,
     "retries": int,
-    "retry_exponential_backoff": bool,
+    "retry_exponential_backoff": (int, float),
     "depends_on_past": bool,
     "ignore_first_depends_on_past": bool,
     "wait_for_past_depends_before_skipping": bool,
@@ -649,9 +651,10 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
     :param retry_delay: delay between retries, can be set as ``timedelta`` or
         ``float`` seconds, which will be converted into ``timedelta``,
         the default is ``timedelta(seconds=300)``.
-    :param retry_exponential_backoff: allow progressively longer waits between
-        retries by using exponential backoff algorithm on retry delay (delay
-        will be converted into seconds)
+    :param retry_exponential_backoff: multiplier for exponential backoff between retries.
+        Set to 0 to disable (constant delay). Set to 2.0 for standard exponential backoff
+        (delay doubles with each retry). For example, with retry_delay=4min and
+        retry_exponential_backoff=5, retries occur after 4min, 20min, 100min, etc.
     :param max_retry_delay: maximum delay interval between retries, can be set as
         ``timedelta`` or ``float`` seconds, which will be converted into ``timedelta``.
     :param start_date: The ``start_date`` for the task, determines
@@ -752,13 +755,9 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
     :param pre_execute: a function to be called immediately before task
         execution, receiving a context dictionary; raising an exception will
         prevent the task from being executed.
-
-        |experimental|
     :param post_execute: a function to be called immediately after task
         execution, receiving a context dictionary and task result; raising an
         exception will prevent the task from succeeding.
-
-        |experimental|
     :param trigger_rule: defines the rule by which dependencies are applied
         for the task to get triggered. Options are:
         ``{ all_success | all_failed | all_done | all_skipped | one_success | one_done |
@@ -824,11 +823,11 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
     task_id: str
     owner: str = DEFAULT_OWNER
     email: str | Sequence[str] | None = None
-    email_on_retry: bool = True
-    email_on_failure: bool = True
+    email_on_retry: bool = DEFAULT_EMAIL_ON_RETRY
+    email_on_failure: bool = DEFAULT_EMAIL_ON_FAILURE
     retries: int | None = DEFAULT_RETRIES
     retry_delay: timedelta = DEFAULT_RETRY_DELAY
-    retry_exponential_backoff: bool = False
+    retry_exponential_backoff: float = 0
     max_retry_delay: timedelta | float | None = None
     start_date: datetime | None = None
     end_date: datetime | None = None
@@ -841,9 +840,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
     params: ParamsDict | dict = field(default_factory=ParamsDict)
     default_args: dict | None = None
     priority_weight: int = DEFAULT_PRIORITY_WEIGHT
-    weight_rule: PriorityWeightStrategy = field(
-        default_factory=airflow_priority_weight_strategies[DEFAULT_WEIGHT_RULE]
-    )
+    weight_rule: PriorityWeightStrategy | str = field(default=DEFAULT_WEIGHT_RULE)
     queue: str = DEFAULT_QUEUE
     pool: str = DEFAULT_POOL_NAME
     pool_slots: int = DEFAULT_POOL_SLOTS
@@ -982,11 +979,11 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         task_id: str,
         owner: str = DEFAULT_OWNER,
         email: str | Sequence[str] | None = None,
-        email_on_retry: bool = True,
-        email_on_failure: bool = True,
+        email_on_retry: bool = DEFAULT_EMAIL_ON_RETRY,
+        email_on_failure: bool = DEFAULT_EMAIL_ON_FAILURE,
         retries: int | None = DEFAULT_RETRIES,
         retry_delay: timedelta | float = DEFAULT_RETRY_DELAY,
-        retry_exponential_backoff: bool = False,
+        retry_exponential_backoff: float = 0,
         max_retry_delay: timedelta | float | None = None,
         start_date: datetime | None = None,
         end_date: datetime | None = None,
@@ -1141,7 +1138,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         self.params = ParamsDict(params)
 
         self.priority_weight = priority_weight
-        self.weight_rule = validate_and_load_priority_weight_strategy(weight_rule)
+        self.weight_rule = weight_rule
 
         self.max_active_tis_per_dag: int | None = max_active_tis_per_dag
         self.max_active_tis_per_dagrun: int | None = max_active_tis_per_dagrun
@@ -1189,7 +1186,6 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         validate_instance_args(self, BASEOPERATOR_ARGS_EXPECTED_TYPES)
 
         # Ensure priority_weight is within the valid range
-        # Note: Cross-import from airflow.utils to be cleaned up later
         self.priority_weight = db_safe_priority(self.priority_weight)
 
     def __eq__(self, other):
@@ -1607,13 +1603,13 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         be None; otherwise, provide the name of the method that should be used when resuming execution in
         the task.
         """
-        from airflow.exceptions import TaskDeferred
+        from airflow.sdk.exceptions import TaskDeferred
 
         raise TaskDeferred(trigger=trigger, method_name=method_name, kwargs=kwargs, timeout=timeout)
 
     def resume_execution(self, next_method: str, next_kwargs: dict[str, Any] | None, context: Context):
         """Entrypoint method called by the Task Runner (instead of execute) when this task is resumed."""
-        from airflow.exceptions import TaskDeferralError, TaskDeferralTimeout
+        from airflow.sdk.exceptions import TaskDeferralError, TaskDeferralTimeout
 
         if next_kwargs is None:
             next_kwargs = {}

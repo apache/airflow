@@ -1,8 +1,7 @@
 {
   "filters": {
     "body": "Cos",
-    "createdAtFrom": "Creat a partir de",
-    "createdAtTo": "Creat fins a",
+    "createdAt": "Creat a",
     "response": {
       "all": "Totes",
       "pending": "Pendents",

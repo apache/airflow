@@ -20,7 +20,7 @@ from unittest.mock import Mock, patch
 
 import pytest
 
-from airflow.exceptions import AirflowException
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.salesforce.operators.bulk import SalesforceBulkOperator
 
 

@@ -760,6 +760,11 @@ server_tls_key_file = /etc/pgbouncer/server.key
   {{- include "_serviceAccountName" (merge (dict "key" "cleanup") .) -}}
 {{- end }}
 
+{{/* Create the name of the database cleanup service account to use */}}
+{{- define "databaseCleanup.serviceAccountName" -}}
+  {{- include "_serviceAccountName" (merge (dict "key" "databaseCleanup" "nameSuffix" "database-cleanup") .) -}}
+{{- end }}
+
 {{- define "wait-for-migrations-command" -}}
   {{- if semverCompare ">=2.0.0" .Values.airflowVersion }}
   - airflow
@@ -936,25 +941,29 @@ Values are not accumulated meaning that if runAsUser is set to 10 in <node>.secu
 any extra values set to securityContext or uid+gid will be ignored.
 
 The template can be called like so:
-   include "airflowPodSecurityContext" (list . .Values.webserver)
+   include "airflowPodSecurityContext" (list .Values.webserver .Values)
 
-Where `.` is the global variables scope and `.Values.webserver` the local variables scope for the webserver template.
+Where `.Values` is the global variables scope and `.Values.webserver` the local variables scope for the webserver template.
+Priority of values are from left to right, meaning if first value is not empty, the rest will not be evaluated.
 */}}
-{{- define "airflowPodSecurityContext" -}}
-  {{- $ := index . 0 -}}
-  {{- with index . 1 }}
-    {{- if .securityContexts.pod -}}
-      {{ toYaml .securityContexts.pod | print }}
-    {{- else if .securityContext -}}
-      {{ toYaml .securityContext | print }}
-    {{- else if $.Values.securityContexts.pod -}}
-      {{ toYaml $.Values.securityContexts.pod | print }}
-    {{- else if $.Values.securityContext -}}
-      {{ toYaml $.Values.securityContext | print }}
-    {{- else -}}
-runAsUser: {{ $.Values.uid }}
-fsGroup: {{ $.Values.gid }}
+{{- define "airflowPodSecurityContext" }}
+  {{- $ := last . }}
+  {{- $result := dict }}
+  {{- range . }}
+    {{- if and (hasKey . "securityContexts") (hasKey .securityContexts "pod") .securityContexts.pod }}
+      {{- $result = .securityContexts.pod }}
+      {{- break }}
     {{- end }}
+    {{- if and (hasKey . "securityContext") .securityContext }}
+      {{- $result = .securityContext }}
+      {{- break }}
+    {{- end }}
+  {{- end }}
+  {{- if $result }}
+    {{- toYaml $result | print }}
+  {{- else }}
+runAsUser: {{ $.uid }}
+fsGroup: {{ $.gid }}
   {{- end }}
 {{- end }}
 
@@ -1047,24 +1056,30 @@ If no value is passed for securityContexts.container or <node>.securityContexts.
     +-----------------------------------+      +----------------------------+      +-----------------------------------------------------------+
 
 The template can be called like so:
-   include "containerSecurityContext" (list . .Values.webserver)
+   include "containerSecurityContext" (list .Values.webserver .Values)
 
-Where `.` is the global variables scope and `.Values.webserver` the local variables scope for the webserver template.
+Where `.Values` is the global variables scope and `.Values.webserver` the local variables scope for the webserver template.
+Priority of values are from left to right, meaning if first value is not empty, the rest will not be evaluated.
 */}}
 {{- define "containerSecurityContext" -}}
-  {{- $ := index . 0 -}}
-  {{- with index . 1 }}
-    {{- if .securityContexts.container -}}
-      {{ toYaml .securityContexts.container | print }}
-    {{- else if $.Values.securityContexts.containers -}}
-      {{ toYaml $.Values.securityContexts.containers | print }}
-    {{- else -}}
+  {{- $ := last . }}
+  {{- $result := dict }}
+  {{- range . }}
+    {{- if and (hasKey . "securityContexts") (hasKey .securityContexts "container") .securityContexts.container }}
+      {{- $result = .securityContexts.container }}
+      {{- break }}
+    {{- end }}
+  {{- end }}
+  {{- if $result }}
+    {{- toYaml $result | print }}
+  {{- else if and (hasKey $ "securityContexts") (hasKey $.securityContexts "containers") $.securityContexts.containers }}
+    {{- toYaml $.securityContexts.containers | print }}
+  {{- else -}}
 allowPrivilegeEscalation: false
 capabilities:
   drop:
     - ALL
-    {{- end -}}
-  {{- end -}}
+  {{- end }}
 {{- end -}}
 
 {{/*
@@ -1142,3 +1157,48 @@ capabilities:
             app: keda-operator
   {{- end }}
 {{- end }}
+
+{{/*
+Convert a Kubernetes CPU limit (e.g., "500m", "1.5", "2", "750m") into an integer number of CPU cores.
+*/}}
+{{- define "cpu_count" -}}
+  {{- $v := toString . -}}
+    {{- if hasSuffix "m" $v -}}
+      {{- /* millicores path: e.g. 500m, 1500m */ -}}
+      {{- $m := float64 (trimSuffix "m" $v) -}}
+      {{- int (ceil (divf $m 1000)) -}}
+    {{- else -}}
+      {{- /* plain cores: e.g. 0.5, 1, 1.5 */ -}}
+      {{- int (ceil (float64 $v)) -}}
+    {{- end -}}
+{{- end }}
+
+{{/*
+Check if the current executor launches pods
+This helper function returns true if the executor can launch pods (Kubernetes-based executors)
+*/}}
+{{- define "airflow.podLaunchingExecutor" -}}
+  {{- if or (contains "CeleryExecutor" .Values.executor) (contains "CeleryKubernetesExecutor" .Values.executor) (contains "KubernetesExecutor" .Values.executor) (contains "LocalKubernetesExecutor" .Values.executor) -}}
+    {{- print "true" -}}
+  {{- end -}}
+{{- end -}}
+
+{{/*
+Get revisionHistoryLimit with nil-aware fallback.
+Unlike `or`, this properly handles 0 as a valid value.
+Pass a list of values to check in order of priority.
+
+Usage:
+  include "airflow.revisionHistoryLimit" (list .Values.scheduler.revisionHistoryLimit .Values.revisionHistoryLimit)
+*/}}
+{{- define "airflow.revisionHistoryLimit" -}}
+  {{- $result := "" -}}
+  {{- $found := false -}}
+  {{- range . -}}
+    {{- if and (not $found) (not (kindIs "invalid" .)) -}}
+      {{- $result = . -}}
+      {{- $found = true -}}
+    {{- end -}}
+  {{- end -}}
+  {{- $result -}}
+{{- end -}}

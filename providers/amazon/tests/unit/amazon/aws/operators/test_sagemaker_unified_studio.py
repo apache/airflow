@@ -20,13 +20,13 @@ from unittest.mock import patch
 
 import pytest
 
-from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.operators.sagemaker_unified_studio import (
     SageMakerNotebookOperator,
 )
 from airflow.providers.amazon.aws.triggers.sagemaker_unified_studio import (
     SageMakerNotebookJobTrigger,
 )
+from airflow.providers.common.compat.sdk import AirflowException
 
 
 class TestSageMakerNotebookOperator:

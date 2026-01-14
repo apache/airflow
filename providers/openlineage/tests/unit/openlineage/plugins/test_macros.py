@@ -133,8 +133,30 @@ def test_lineage_root_run_id_with_runtime_task_instance(create_runtime_ti):
         pytest.fail(f"lineage_root_run_id should not throw AttributeError with RuntimeTaskInstance: {e}")
 
 
+@pytest.mark.parametrize(
+    "conf",
+    (
+        {
+            "openlineage": {
+                "rootParentRunId": "22222222-2222-2222-2222-222222222222",
+                "rootParentJobNamespace": "rootns",
+                "rootParentJobName": "rootjob",
+            }
+        },
+        {
+            "openlineage": {
+                "rootParentRunId": "22222222-2222-2222-2222-222222222222",
+                "rootParentJobNamespace": "rootns",
+                "rootParentJobName": "rootjob",
+                "parentRunId": "33333333-3333-3333-3333-333333333333",
+                "parentJobNamespace": "parentns",
+                "parentJobName": "parentjob",
+            }
+        },
+    ),
+)
 @pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="Test only for Airflow 3.0+")
-def test_lineage_root_run_id_no_conf_af3(create_runtime_ti):
+def test_lineage_root_macros_use_root_from_conf_af3(create_runtime_ti, conf):
     from airflow.providers.common.compat.sdk import BaseOperator
 
     task = BaseOperator(task_id="test_task")
@@ -143,15 +165,19 @@ def test_lineage_root_run_id_no_conf_af3(create_runtime_ti):
         task=task,
         dag_id="test_dag",
         run_id="test_run_id",
-        conf=None,
+        conf=conf,
     )
 
-    result = lineage_root_run_id(runtime_ti)
-    assert result == "01937fbb-4680-70b3-b49b-1de6b041527a"
+    root_run_id = lineage_root_run_id(runtime_ti)
+    root_job_name = lineage_root_job_name(runtime_ti)
+    root_job_namespace = lineage_root_job_namespace(runtime_ti)
+    assert root_run_id == "22222222-2222-2222-2222-222222222222"
+    assert root_job_name == "rootjob"
+    assert root_job_namespace == "rootns"
 
 
 @pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="Test only for Airflow 3.0+")
-def test_lineage_root_run_id_with_conf_af3(create_runtime_ti):
+def test_lineage_root_macros_use_parent_from_conf_when_root_missing_af3(create_runtime_ti):
     from airflow.providers.common.compat.sdk import BaseOperator
 
     task = BaseOperator(task_id="test_task")
@@ -162,18 +188,165 @@ def test_lineage_root_run_id_with_conf_af3(create_runtime_ti):
         run_id="test_run_id",
         conf={
             "openlineage": {
+                "parentRunId": "33333333-3333-3333-3333-333333333333",
+                "parentJobNamespace": "parentns",
+                "parentJobName": "parentjob",
+            }
+        },
+    )
+
+    root_run_id = lineage_root_run_id(runtime_ti)
+    root_job_name = lineage_root_job_name(runtime_ti)
+    root_job_namespace = lineage_root_job_namespace(runtime_ti)
+    assert root_run_id == "33333333-3333-3333-3333-333333333333"
+    assert root_job_name == "parentjob"
+    assert root_job_namespace == "parentns"
+
+
+@pytest.mark.parametrize(
+    "conf",
+    (
+        {},
+        None,
+        {"some": "other"},
+        {"openlineage": {}},
+        {"openlineage": "some"},
+        {"openlineage": {"rootParentRunId": "22222222-2222-2222-2222-222222222222"}},
+        {
+            "openlineage": {
+                "rootParentRunId": "22222222-2222-2222-2222-222222222222",
+                "rootParentJobName": "rootjob",
+            }
+        },
+        {
+            "openlineage": {
+                "parentRunId": "33333333-3333-3333-3333-333333333333",
+            }
+        },
+        {
+            "openlineage": {
+                "parentRunId": "33333333-3333-3333-3333-333333333333",
+                "parentJobName": "parentjob",
+            }
+        },
+        {
+            "openlineage": {
+                "rootParentRunId": "22222222-2222-2222-2222-222222222222",
+                "parentRunId": "33333333-3333-3333-3333-333333333333",
+            }
+        },
+    ),
+)
+@pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="Test only for Airflow 3.0+")
+def test_lineage_root_macros_use_dagrun_info_when_missing_or_invalid_conf_af3(create_runtime_ti, conf):
+    from airflow.providers.common.compat.sdk import BaseOperator
+
+    task = BaseOperator(task_id="test_task")
+
+    runtime_ti = create_runtime_ti(
+        task=task,
+        dag_id="test_dag",
+        run_id="test_run_id",
+        conf=conf,
+    )
+
+    root_run_id = lineage_root_run_id(runtime_ti)
+    root_job_name = lineage_root_job_name(runtime_ti)
+    root_job_namespace = lineage_root_job_namespace(runtime_ti)
+    assert root_run_id == "01937fbb-4680-70b3-b49b-1de6b041527a"
+    assert root_job_name == "test_dag"
+    assert root_job_namespace == _DAG_NAMESPACE
+
+
+@pytest.mark.parametrize(
+    "conf",
+    (
+        {
+            "openlineage": {
                 "rootParentRunId": "22222222-2222-2222-2222-222222222222",
                 "rootParentJobNamespace": "rootns",
                 "rootParentJobName": "rootjob",
             }
         },
-    )
+        {
+            "openlineage": {
+                "rootParentRunId": "22222222-2222-2222-2222-222222222222",
+                "rootParentJobNamespace": "rootns",
+                "rootParentJobName": "rootjob",
+                "parentRunId": "33333333-3333-3333-3333-333333333333",
+                "parentJobNamespace": "parentns",
+                "parentJobName": "parentjob",
+            }
+        },
+    ),
+)
+@pytest.mark.skipif(AIRFLOW_V_3_0_PLUS, reason="Test only for Airflow 2")
+def test_lineage_root_macros_use_root_from_conf_af2(conf):
+    task_instance = mock.MagicMock(dag_run=mock.MagicMock(conf=conf))
 
-    result = lineage_root_run_id(runtime_ti)
-    assert result == "22222222-2222-2222-2222-222222222222"
+    root_run_id = lineage_root_run_id(task_instance)
+    root_job_name = lineage_root_job_name(task_instance)
+    root_job_namespace = lineage_root_job_namespace(task_instance)
+    assert root_run_id == "22222222-2222-2222-2222-222222222222"
+    assert root_job_name == "rootjob"
+    assert root_job_namespace == "rootns"
 
 
-def test_lineage_root_run_id_without_conf_af2():
+@pytest.mark.skipif(AIRFLOW_V_3_0_PLUS, reason="Test only for Airflow 2")
+def test_lineage_root_macros_use_parent_from_conf_when_root_missing_af2():
+    conf = {
+        "openlineage": {
+            "parentRunId": "33333333-3333-3333-3333-333333333333",
+            "parentJobNamespace": "parentns",
+            "parentJobName": "parentjob",
+        }
+    }
+    task_instance = mock.MagicMock(dag_run=mock.MagicMock(conf=conf))
+
+    root_run_id = lineage_root_run_id(task_instance)
+    root_job_name = lineage_root_job_name(task_instance)
+    root_job_namespace = lineage_root_job_namespace(task_instance)
+    assert root_run_id == "33333333-3333-3333-3333-333333333333"
+    assert root_job_name == "parentjob"
+    assert root_job_namespace == "parentns"
+
+
+@pytest.mark.parametrize(
+    "conf",
+    (
+        {},
+        None,
+        {"some": "other"},
+        {"openlineage": {}},
+        {"openlineage": "some"},
+        {"openlineage": {"rootParentRunId": "22222222-2222-2222-2222-222222222222"}},
+        {
+            "openlineage": {
+                "rootParentRunId": "22222222-2222-2222-2222-222222222222",
+                "rootParentJobName": "rootjob",
+            }
+        },
+        {
+            "openlineage": {
+                "parentRunId": "33333333-3333-3333-3333-333333333333",
+            }
+        },
+        {
+            "openlineage": {
+                "parentRunId": "33333333-3333-3333-3333-333333333333",
+                "parentJobName": "parentjob",
+            }
+        },
+        {
+            "openlineage": {
+                "rootParentRunId": "22222222-2222-2222-2222-222222222222",
+                "parentRunId": "33333333-3333-3333-3333-333333333333",
+            }
+        },
+    ),
+)
+@pytest.mark.skipif(AIRFLOW_V_3_0_PLUS, reason="Test only for Airflow 2")
+def test_lineage_root_macros_use_dagrun_info_when_missing_or_invalid_conf_af2(conf):
     date = datetime(2020, 1, 1, 1, 1, 1, 0, tzinfo=timezone.utc)
     conf = {}
     dag_run = mock.MagicMock(run_id="run_id", conf=conf)
@@ -187,148 +360,9 @@ def test_lineage_root_run_id_without_conf_af2():
         try_number=1,
     )
 
-    call_result1 = lineage_root_run_id(task_instance)
-    call_result2 = lineage_root_run_id(task_instance)
-
-    # random part value does not matter, it just has to be the same for the same TaskInstance
-    assert call_result1 == call_result2
-    assert call_result1 == "016f5e9e-c4c8-7c30-9eda-d9c646d633ea"
-
-
-def test_lineage_root_run_id_with_conf_af2():
-    conf = {
-        "openlineage": {
-            "rootParentRunId": "22222222-2222-2222-2222-222222222222",
-            "rootParentJobNamespace": "rootns",
-            "rootParentJobName": "rootjob",
-        }
-    }
-    task_instance = mock.MagicMock(
-        dag_run=mock.MagicMock(conf=conf),
-    )
-
-    call_result1 = lineage_root_run_id(task_instance)
-    call_result2 = lineage_root_run_id(task_instance)
-
-    assert call_result1 == call_result2
-    assert call_result1 == "22222222-2222-2222-2222-222222222222"
-
-
-@pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="Test only for Airflow 3.0+")
-def test_lineage_root_job_name_no_conf_af3(create_runtime_ti):
-    from airflow.providers.common.compat.sdk import BaseOperator
-
-    task = BaseOperator(task_id="test_task")
-
-    runtime_ti = create_runtime_ti(
-        task=task,
-        dag_id="test_dag",
-        run_id="test_run_id",
-        conf=None,
-    )
-
-    result = lineage_root_job_name(runtime_ti)
-    assert result == "test_dag"
-
-
-@pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="Test only for Airflow 3.0+")
-def test_lineage_root_job_name_with_conf_af3(create_runtime_ti):
-    from airflow.providers.common.compat.sdk import BaseOperator
-
-    task = BaseOperator(task_id="test_task")
-
-    runtime_ti = create_runtime_ti(
-        task=task,
-        dag_id="test_dag",
-        run_id="test_run_id",
-        conf={
-            "openlineage": {
-                "rootParentRunId": "22222222-2222-2222-2222-222222222222",
-                "rootParentJobNamespace": "rootns",
-                "rootParentJobName": "rootjob",
-            }
-        },
-    )
-
-    result = lineage_root_job_name(runtime_ti)
-    assert result == "rootjob"
-
-
-def test_lineage_root_job_name_without_conf_af2():
-    task_instance = mock.MagicMock(
-        dag_id="dag_id",
-        dag_run=mock.MagicMock(conf={}),
-    )
-
-    result = lineage_root_job_name(task_instance)
-    assert result == "dag_id"
-
-
-def test_lineage_root_job_name_with_conf_af2():
-    conf = {
-        "openlineage": {
-            "rootParentRunId": "22222222-2222-2222-2222-222222222222",
-            "rootParentJobNamespace": "rootns",
-            "rootParentJobName": "rootjob",
-        }
-    }
-    task_instance = mock.MagicMock(dag_run=mock.MagicMock(conf=conf))
-
-    result = lineage_root_job_name(task_instance)
-    assert result == "rootjob"
-
-
-@pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="Test only for Airflow 3.0+")
-def test_lineage_root_job_namespace_no_conf_af3(create_runtime_ti):
-    from airflow.providers.common.compat.sdk import BaseOperator
-
-    task = BaseOperator(task_id="test_task")
-
-    runtime_ti = create_runtime_ti(task=task, dag_id="test_dag", run_id="test_run_id", conf=None)
-
-    result = lineage_root_job_namespace(runtime_ti)
-    assert result == _DAG_NAMESPACE
-
-
-@pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="Test only for Airflow 3.0+")
-def test_lineage_root_job_namespace_with_conf_af3(create_runtime_ti):
-    from airflow.providers.common.compat.sdk import BaseOperator
-
-    task = BaseOperator(task_id="test_task")
-
-    runtime_ti = create_runtime_ti(
-        task=task,
-        dag_id="test_dag",
-        run_id="test_run_id",
-        conf={
-            "openlineage": {
-                "rootParentRunId": "22222222-2222-2222-2222-222222222222",
-                "rootParentJobNamespace": "rootns",
-                "rootParentJobName": "rootjob",
-            }
-        },
-    )
-
-    result = lineage_root_job_namespace(runtime_ti)
-    assert result == "rootns"
-
-
-def test_lineage_root_job_namespace_without_conf_af2():
-    task_instance = mock.MagicMock(dag_run=mock.MagicMock(conf={}))
-
-    result = lineage_root_job_namespace(task_instance)
-    assert result == _DAG_NAMESPACE
-
-
-def test_lineage_root_job_namespace_with_conf_af2():
-    conf = {
-        "openlineage": {
-            "rootParentRunId": "22222222-2222-2222-2222-222222222222",
-            "rootParentJobNamespace": "rootns",
-            "rootParentJobName": "rootjob",
-        }
-    }
-    task_instance = mock.MagicMock(dag_run=mock.MagicMock(conf=conf))
-
-    result = lineage_root_job_namespace(task_instance)
-    assert result == "rootns"
+    root_run_id = lineage_root_run_id(task_instance)
+    root_job_name = lineage_root_job_name(task_instance)
+    root_job_namespace = lineage_root_job_namespace(task_instance)
+    assert root_run_id == "016f5e9e-c4c8-7c30-9eda-d9c646d633ea"
+    assert root_job_name == "dag_id"
+    assert root_job_namespace == _DAG_NAMESPACE

@@ -51,7 +51,7 @@ def _run_command_with_daemon_option(*args, **kwargs):
 
         run_command_with_daemon_option(*args, **kwargs)
     except ImportError:
-        from airflow.exceptions import AirflowOptionalProviderFeatureException
+        from airflow.providers.common.compat.sdk import AirflowOptionalProviderFeatureException
 
         raise AirflowOptionalProviderFeatureException(
             "Failed to import run_command_with_daemon_option. This feature is only available in Airflow versions >= 2.8.0"
@@ -65,7 +65,7 @@ def _providers_configuration_loaded(func):
 
             providers_configuration_loaded(func)(*args, **kwargs)
         except ImportError as e:
-            from airflow.exceptions import AirflowOptionalProviderFeatureException
+            from airflow.providers.common.compat.sdk import AirflowOptionalProviderFeatureException
 
             raise AirflowOptionalProviderFeatureException(
                 "Failed to import providers_configuration_loaded. This feature is only available in Airflow versions >= 2.8.0"
@@ -132,10 +132,9 @@ def _run_stale_bundle_cleanup():
         )
     if not check_interval or check_interval <= 0 or not AIRFLOW_V_3_0_PLUS:
         # do not start bundle cleanup process
-        try:
+        with suppress(BaseException):
             yield
-        finally:
-            return
+        return
     from airflow.dag_processing.bundles.base import BundleUsageTrackingManager
 
     log.info("starting stale bundle cleanup process")
@@ -192,6 +191,19 @@ def worker(args):
     """Start Airflow Celery worker."""
     # This needs to be imported locally to not trigger Providers Manager initialization
     from airflow.providers.celery.executors.celery_executor import app as celery_app
+
+    # Check if a worker with the same hostname already exists
+    if args.celery_hostname:
+        inspect = celery_app.control.inspect()
+        active_workers = inspect.active_queues()
+        if active_workers:
+            active_worker_names = list(active_workers.keys())
+            # Check if any worker ends with @hostname
+            if any(name.endswith(f"@{args.celery_hostname}") for name in active_worker_names):
+                raise SystemExit(
+                    f"Error: A worker with hostname '{args.celery_hostname}' is already running. "
+                    "Please use a different hostname or stop the existing worker first."
+                )
 
     if AIRFLOW_V_3_0_PLUS:
         from airflow.sdk.log import configure_logging

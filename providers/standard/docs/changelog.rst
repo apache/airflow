@@ -35,6 +35,105 @@
 Changelog
 ---------
 
+1.10.3
+......
+
+Misc
+~~~~
+
+* ``Consume ''AirflowOptionalProviderFeatureException'' from compat sdk in providers (#60335)``
+* ``New year means updated Copyright notices (#60344)``
+* ``Remove the compatibility shim for StartTriggerArgs in standard provider (#60300)``
+* ``Updated conf import for std,es,os,ms providers (#60030)``
+
+Doc-only
+~~~~~~~~
+
+* ``Remove documentation on TimeDeltaSensorAsync (#59651)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Revert "Add support for async callables in PythonOperator (#59087)" (#60266)``
+   * ``Add support for async callables in PythonOperator (#59087)``
+   * ``Remove TaskInstance and TaskLogReader unused methods (#59922)``
+   * ``Assorted SQLA2/Mypy fixes (#60094)``
+   * ``Refactor providers to use SQLA2 (#59975)``
+
+1.10.2
+......
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix DAG bundle imports in subprocess operators (#57631)``
+
+Misc
+~~~~
+
+* ``TaskInstance unused method cleanup (#59835)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Use SDK serde for trigger and next kwargs serialization (#59711)``
+   * ``Remove top-level SDK reference in Core (#59817)``
+   * ``Clean up SDK references in airflow.models.expandinput (#59815)``
+   * ``Move MappedOperator to serialization (#59628)``
+   * ``Split SerializedBaseOperator from serde logic (#59627)``
+   * ``Minor cleanups removing SDK references from Core (#59491)``
+   * ``Split SDK and serialized asset classes (#58993)``
+
+1.10.1
+......
+
+Bug Fixes
+~~~~~~~~~
+
+* ``fix uv venv fail without direct internet access (#59046)``
+
+Misc
+~~~~
+
+* ``Add backcompat for exceptions in providers (#58727)``
+* ``Implement timetables in SDK (#58669)``
+* ``nit: rename TriggerDagRunOperator._defer to deferrable (#58925)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+1.10.0
+......
+
+.. note::
+    This release of provider is only available for Airflow 2.11+ as explained in the
+    Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/PROVIDERS.rst#minimum-supported-version-of-airflow-for-community-managed-providers>_.
+
+Features
+~~~~~~~~
+
+* ``Auto-inject OpenLineage parent info into TriggerDagRunOperator conf (#58672)``
+* ``Add few attrs from external_task sensor to OpenLineage events (#58719)``
+* ``Allow virtualenv code to access connections/variables and send logs (#58148)``
+* ``Add source to Param (#58615)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``TriggerDagRunOperator deferral mode not working for Airflow 3 (#58497)``
+
+Misc
+~~~~
+
+* ``Move out some exceptions to TaskSDK (#54505)``
+* ``Bump minimum Airflow version in providers to Airflow 2.11.0 (#58612)``
+* ``Remove SDK reference for NOTSET in Airflow Core (#58258)``
+* ``Fix lower bound dependency to common-compat provider (#58833)``
+* ``Remove global from task instance session (#58601)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Updates to release process of providers (#58316)``
+   * ``Prepare release for 2025-11-27 wave of providers (#58697)``
+
 1.9.2
 .....
 

@@ -17,7 +17,7 @@
  * under the License.
  */
 import { Button, HStack } from "@chakra-ui/react";
-import { useState, useCallback } from "react";
+import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { MdAdd, MdClear } from "react-icons/md";
 import { useDebouncedCallback } from "use-debounce";
@@ -26,14 +26,17 @@ import { Menu } from "src/components/ui";
 
 import { getDefaultFilterIcon } from "./defaultIcons";
 import { DateFilter } from "./filters/DateFilter";
+import { DateRangeFilter } from "./filters/DateRangeFilter";
 import { NumberFilter } from "./filters/NumberFilter";
 import { SelectFilter } from "./filters/SelectFilter";
 import { TextSearchFilter } from "./filters/TextSearchFilter";
 import type { FilterBarProps, FilterConfig, FilterState, FilterValue } from "./types";
+import { getDefaultFilterValue, isValidFilterValue } from "./utils";
 
 const defaultInitialValues: Record<string, FilterValue> = {};
 
-const getFilterIcon = (config: FilterConfig) => config.icon ?? getDefaultFilterIcon(config.type);
+const getFilterIcon = (config: FilterConfig): React.ReactNode =>
+  config.icon ?? getDefaultFilterIcon(config.type);
 
 export const FilterBar = ({
   configs,
@@ -44,7 +47,11 @@ export const FilterBar = ({
   const { t: translate } = useTranslation(["admin", "common"]);
   const [filters, setFilters] = useState<Array<FilterState>>(() =>
     Object.entries(initialValues)
-      .filter(([, value]) => value !== null && value !== undefined && value !== "")
+      .filter(([key, value]) => {
+        const config = configs.find((filterConfig) => filterConfig.key === key);
+
+        return config && isValidFilterValue(config.type, value);
+      })
       .map(([key, value]) => {
         const config = configs.find((con) => con.key === key);
 
@@ -64,26 +71,23 @@ export const FilterBar = ({
     onFiltersChange(filtersRecord);
   }, 100);
 
-  const updateFiltersRecord = useCallback(
-    (updatedFilters: Array<FilterState>) => {
-      const filtersRecord = updatedFilters.reduce<Record<string, FilterValue>>((accumulator, filter) => {
-        if (filter.value !== null && filter.value !== undefined && filter.value !== "") {
-          accumulator[filter.config.key] = filter.value;
-        }
+  const updateFiltersRecord = (updatedFilters: Array<FilterState>) => {
+    const filtersRecord = updatedFilters.reduce<Record<string, FilterValue>>((accumulator, filter) => {
+      if (isValidFilterValue(filter.config.type, filter.value)) {
+        accumulator[filter.config.key] = filter.value;
+      }
 
-        return accumulator;
-      }, {});
+      return accumulator;
+    }, {});
 
-      debouncedOnFiltersChange(filtersRecord);
-    },
-    [debouncedOnFiltersChange],
-  );
+    debouncedOnFiltersChange(filtersRecord);
+  };
 
   const addFilter = (config: FilterConfig) => {
     const newFilter: FilterState = {
       config,
       id: `${config.key}-${Date.now()}`,
-      value: config.defaultValue ?? "",
+      value: getDefaultFilterValue(config),
     };
 
     const updatedFilters = [...filters, newFilter];
@@ -125,6 +129,8 @@ export const FilterBar = ({
     switch (filter.config.type) {
       case "date":
         return <DateFilter key={filter.id} {...props} />;
+      case "daterange":
+        return <DateRangeFilter key={filter.id} {...props} />;
       case "number":
         return <NumberFilter key={filter.id} {...props} />;
       case "select":

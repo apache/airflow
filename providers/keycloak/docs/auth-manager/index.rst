@@ -47,3 +47,10 @@ It enables you to manage users, roles, groups, and permissions entirely within K
     :maxdepth: 2
 
     token
+
+**Setup client Access/Login Settings**
+
+.. toctree::
+    :maxdepth: 2
+
+    manage/login

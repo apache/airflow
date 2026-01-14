@@ -20,6 +20,7 @@ from __future__ import annotations
 import logging
 from abc import ABCMeta, abstractmethod
 from collections import defaultdict
+from enum import Enum
 from functools import cache
 from typing import TYPE_CHECKING, Any, Generic, Literal, TypeVar
 
@@ -70,12 +71,36 @@ if TYPE_CHECKING:
     )
     from airflow.cli.cli_config import CLICommand
 
-# This cannot be in the TYPE_CHECKING block since some providers import it globally.
-# TODO: Move this inside once all providers drop Airflow 2.x support.
-# List of methods (or actions) a user can do against a resource
-ResourceMethod = Literal["GET", "POST", "PUT", "DELETE"]
-# Extends ``ResourceMethod`` to include "MENU". The method "MENU" is only supported with specific resources (menu items)
-ExtendedResourceMethod = Literal["GET", "POST", "PUT", "DELETE", "MENU"]
+if TYPE_CHECKING:
+    # For static type checking - accepts string literals
+    ResourceMethod = Literal["GET", "POST", "PUT", "DELETE"]
+    ExtendedResourceMethod = Literal["GET", "POST", "PUT", "DELETE", "MENU"]
+else:
+    # For runtime - provides iteration and validation
+
+    class ResourceMethod(str, Enum):
+        """HTTP methods (actions) a user can perform against a resource."""
+
+        GET = "GET"
+        POST = "POST"
+        PUT = "PUT"
+        DELETE = "DELETE"
+
+        def __str__(self) -> str:
+            return self.value
+
+    class ExtendedResourceMethod(str, Enum):
+        """Extended HTTP methods including MENU for UI resource authorization."""
+
+        GET = "GET"
+        POST = "POST"
+        PUT = "PUT"
+        DELETE = "DELETE"
+        MENU = "MENU"
+
+        def __str__(self) -> str:
+            return self.value
+
 
 log = logging.getLogger(__name__)
 T = TypeVar("T", bound=BaseUser)
@@ -322,7 +347,7 @@ class BaseAuthManager(Generic[T], LoggingMixin, metaclass=ABCMeta):
         """
 
     @abstractmethod
-    def is_authorized_custom_view(self, *, method: ResourceMethod | str, resource_name: str, user: T) -> bool:
+    def is_authorized_custom_view(self, *, method: ResourceMethod, resource_name: str, user: T) -> bool:
         """
         Return whether the user is authorized to perform a given action on a custom view.
 
@@ -346,6 +371,18 @@ class BaseAuthManager(Generic[T], LoggingMixin, metaclass=ABCMeta):
         :param menu_items: list of all menu items
         :param user: the user
         """
+
+    def is_authorized_hitl_task(self, *, assigned_users: set[str], user: T) -> bool:
+        """
+        Check if a user is allowed to approve/reject a HITL task.
+
+        By default, checks if the user's ID is in the assigned_users set.
+        Auth managers can override this method to implement custom logic.
+
+        :param assigned_users: set of user IDs assigned to the task
+        :param user: the user to check authorization for
+        """
+        return user.get_id() in assigned_users
 
     def batch_is_authorized_connection(
         self,
@@ -463,7 +500,7 @@ class BaseAuthManager(Generic[T], LoggingMixin, metaclass=ABCMeta):
         :param method: the method to filter on
         :param session: the session
         """
-        stmt = select(Connection.conn_id, Team.name).join(Team, Connection.team_id == Team.id, isouter=True)
+        stmt = select(Connection.conn_id, Connection.team_name)
         rows = session.execute(stmt).all()
         connections_by_team: dict[str | None, set[str]] = defaultdict(set)
         for conn_id, team_name in rows:
@@ -524,14 +561,13 @@ class BaseAuthManager(Generic[T], LoggingMixin, metaclass=ABCMeta):
         :param session: the session
         """
         stmt = (
-            select(DagModel.dag_id, Team.name)
+            select(DagModel.dag_id, dag_bundle_team_association_table.c.team_name)
             .join(DagBundleModel, DagModel.bundle_name == DagBundleModel.name)
             .join(
                 dag_bundle_team_association_table,
                 DagBundleModel.name == dag_bundle_team_association_table.c.dag_bundle_name,
                 isouter=True,
             )
-            .join(Team, Team.id == dag_bundle_team_association_table.c.team_id, isouter=True)
         )
         rows = session.execute(stmt).all()
         dags_by_team: dict[str | None, set[str]] = defaultdict(set)
@@ -592,7 +628,7 @@ class BaseAuthManager(Generic[T], LoggingMixin, metaclass=ABCMeta):
         :param method: the method to filter on
         :param session: the session
         """
-        stmt = select(Pool.pool, Team.name).join(Team, Pool.team_id == Team.id, isouter=True)
+        stmt = select(Pool.pool, Pool.team_name)
         rows = session.execute(stmt).all()
         pools_by_team: dict[str | None, set[str]] = defaultdict(set)
         for pool_name, team_name in rows:
@@ -652,8 +688,8 @@ class BaseAuthManager(Generic[T], LoggingMixin, metaclass=ABCMeta):
         :param method: the method to filter on
         :param session: the session
         """
-        teams = Team.get_all_teams_id_to_name_mapping(session=session)
-        return self.filter_authorized_teams(teams_names=set(teams.values()), user=user, method=method)
+        team_names = Team.get_all_team_names(session=session)
+        return self.filter_authorized_teams(teams_names=team_names, user=user, method=method)
 
     def filter_authorized_teams(
         self,
@@ -694,7 +730,7 @@ class BaseAuthManager(Generic[T], LoggingMixin, metaclass=ABCMeta):
         :param method: the method to filter on
         :param session: the session
         """
-        stmt = select(Variable.key, Team.name).join(Team, Variable.team_id == Team.id, isouter=True)
+        stmt = select(Variable.key, Variable.team_name)
         rows = session.execute(stmt).all()
         variables_by_team: dict[str | None, set[str]] = defaultdict(set)
         for var_key, team_name in rows:

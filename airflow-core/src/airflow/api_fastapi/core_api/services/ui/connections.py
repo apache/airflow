@@ -20,14 +20,14 @@ from __future__ import annotations
 import logging
 from collections.abc import MutableMapping
 from functools import cache
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Literal
 
 from airflow.api_fastapi.core_api.datamodels.connections import (
     ConnectionHookFieldBehavior,
     ConnectionHookMetaData,
     StandardHookFields,
 )
-from airflow.sdk import Param
+from airflow.serialization.definitions.param import SerializedParam
 
 if TYPE_CHECKING:
     from airflow.providers_manager import ConnectionFormWidgetInfo, HookInfo
@@ -68,6 +68,7 @@ class HookMetaService:
             description: str = "",
             default: str | None = None,
             widget=None,
+            source: Literal["dag", "task"] | None = None,
         ):
             type: str | list[str] = [self.param_type, "null"]
             enum = {}
@@ -78,10 +79,11 @@ class HookMetaService:
                 for v in validators:
                     if isinstance(v, HookMetaService.MockEnum):
                         enum = {"enum": v.allowed_values}
-            self.param = Param(
+            self.param = SerializedParam(
                 default=default,
                 title=label,
                 description=description or None,
+                source=source or None,
                 type=type,
                 **format,
                 **enum,

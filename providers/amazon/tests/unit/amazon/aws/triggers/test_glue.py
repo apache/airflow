@@ -22,7 +22,6 @@ from unittest.mock import AsyncMock
 
 import pytest
 
-from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.glue import GlueDataQualityHook, GlueJobHook
 from airflow.providers.amazon.aws.hooks.glue_catalog import GlueCatalogHook
 from airflow.providers.amazon.aws.triggers.glue import (
@@ -31,6 +30,7 @@ from airflow.providers.amazon.aws.triggers.glue import (
     GlueDataQualityRuleSetEvaluationRunCompleteTrigger,
     GlueJobCompleteTrigger,
 )
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.triggers.base import TriggerEvent
 
 from unit.amazon.aws.utils.test_waiter import assert_expected_waiter_type

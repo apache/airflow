@@ -309,6 +309,27 @@ class TestOracleHookConn:
         uri = self.db_hook.get_uri()
         assert uri == expected_uri
 
+    @mock.patch("airflow.providers.oracle.hooks.oracle.oracledb.connect")
+    def test_get_conn_with_various_params(self, mock_connect):
+        """Verify wallet/SSL, connection class, and pool parameters
+        are passed to oracledb.connect."""
+        params = {
+            "wallet_location": "/tmp/wallet",
+            "wallet_password": "secret",
+            "ssl_server_cert_dn": "CN=dbserver,OU=DB,O=Oracle,L=BLR,C=IN",
+            "ssl_server_dn_match": True,
+            "cclass": "MY_APP_CLASS",
+            "pool_name": "POOL_1",
+        }
+        self.connection.extra = json.dumps(params)
+        self.db_hook.get_conn()
+
+        assert mock_connect.call_count == 1
+        _, kwargs = mock_connect.call_args
+
+        for key, value in params.items():
+            assert kwargs[key] == value
+
 
 class TestOracleHook:
     def setup_method(self):

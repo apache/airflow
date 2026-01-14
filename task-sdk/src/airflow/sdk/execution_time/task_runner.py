@@ -38,27 +38,33 @@ import lazy_object_proxy
 import structlog
 from pydantic import AwareDatetime, ConfigDict, Field, JsonValue, TypeAdapter
 
-from airflow.configuration import conf
 from airflow.dag_processing.bundles.base import BaseDagBundle, BundleVersionLock
 from airflow.dag_processing.bundles.manager import DagBundlesManager
-from airflow.exceptions import AirflowInactiveAssetInInletOrOutletException, AirflowTaskTimeout
-from airflow.listeners.listener import get_listener_manager
 from airflow.sdk.api.client import get_hostname, getuser
 from airflow.sdk.api.datamodels._generated import (
     AssetProfile,
     DagRun,
+    PreviousTIResponse,
     TaskInstance,
     TaskInstanceState,
     TIRunContext,
 )
 from airflow.sdk.bases.operator import BaseOperator, ExecutorSafeguard
 from airflow.sdk.bases.xcom import BaseXCom
+from airflow.sdk.configuration import conf
 from airflow.sdk.definitions._internal.dag_parsing_context import _airflow_parsing_context_manager
 from airflow.sdk.definitions._internal.types import NOTSET, ArgNotSet, is_arg_set
 from airflow.sdk.definitions.asset import Asset, AssetAlias, AssetNameRef, AssetUniqueKey, AssetUriRef
 from airflow.sdk.definitions.mappedoperator import MappedOperator
 from airflow.sdk.definitions.param import process_params
-from airflow.sdk.exceptions import AirflowRuntimeError, ErrorType
+from airflow.sdk.exceptions import (
+    AirflowException,
+    AirflowInactiveAssetInInletOrOutletException,
+    AirflowRuntimeError,
+    AirflowTaskTimeout,
+    ErrorType,
+    TaskDeferred,
+)
 from airflow.sdk.execution_time.callback_runner import create_executable_runner
 from airflow.sdk.execution_time.comms import (
     AssetEventDagRunReferenceResult,
@@ -70,12 +76,14 @@ from airflow.sdk.execution_time.comms import (
     GetDagRunState,
     GetDRCount,
     GetPreviousDagRun,
+    GetPreviousTI,
     GetTaskBreadcrumbs,
     GetTaskRescheduleStartDate,
     GetTaskStates,
     GetTICount,
     InactiveAssetsResult,
     PreviousDagRunResult,
+    PreviousTIResult,
     RescheduleTask,
     ResendLoggingFD,
     RetryTask,
@@ -109,17 +117,20 @@ from airflow.sdk.execution_time.context import (
 )
 from airflow.sdk.execution_time.sentry import Sentry
 from airflow.sdk.execution_time.xcom import XCom
+from airflow.sdk.listener import get_listener_manager
+from airflow.sdk.observability.stats import Stats
 from airflow.sdk.timezone import coerce_datetime
-from airflow.stats import Stats
+from airflow.triggers.base import BaseEventTrigger
+from airflow.triggers.callback import CallbackTrigger
 
 if TYPE_CHECKING:
     import jinja2
     from pendulum.datetime import DateTime
     from structlog.typing import FilteringBoundLogger as Logger
 
-    from airflow.exceptions import DagRunTriggerException, TaskDeferred
     from airflow.sdk.definitions._internal.abstractoperator import AbstractOperator
     from airflow.sdk.definitions.context import Context
+    from airflow.sdk.exceptions import DagRunTriggerException
     from airflow.sdk.types import OutletEventAccessorsProtocol
 
 
@@ -135,8 +146,8 @@ class RuntimeTaskInstance(TaskInstance):
 
     task: BaseOperator
     bundle_instance: BaseDagBundle
-    _context: Context | None = None
-    """The Task Instance context."""
+    _cached_template_context: Context | None = None
+    """The Task Instance context. This is used to cache get_template_context."""
 
     _ti_context_from_server: Annotated[TIRunContext | None, Field(repr=False)] = None
     """The Task Instance context from the API server, if any."""
@@ -156,6 +167,8 @@ class RuntimeTaskInstance(TaskInstance):
 
     rendered_map_index: str | None = None
 
+    sentry_integration: str = ""
+
     def __rich_repr__(self):
         yield "id", self.id
         yield "task_id", self.task_id
@@ -170,7 +183,7 @@ class RuntimeTaskInstance(TaskInstance):
     def get_template_context(self) -> Context:
         # TODO: Move this to `airflow.sdk.execution_time.context`
         #   once we port the entire context logic from airflow/utils/context.py ?
-        from airflow.plugins_manager import integrate_macros_plugins
+        from airflow.sdk.plugins_manager import integrate_macros_plugins
 
         integrate_macros_plugins()
 
@@ -182,7 +195,7 @@ class RuntimeTaskInstance(TaskInstance):
 
         # Cache the context object, which ensures that all calls to get_template_context
         # are operating on the same context object.
-        self._context: Context = self._context or {
+        self._cached_template_context: Context = self._cached_template_context or {
             # From the Task Execution interface
             "dag": self.task.dag,
             "inlets": self.task.inlets,
@@ -222,7 +235,7 @@ class RuntimeTaskInstance(TaskInstance):
                     lambda: coerce_datetime(get_previous_dagrun_success(self.id).end_date)
                 ),
             }
-            self._context.update(context_from_server)
+            self._cached_template_context.update(context_from_server)
 
             if logical_date := coerce_datetime(dag_run.logical_date):
                 if TYPE_CHECKING:
@@ -233,7 +246,7 @@ class RuntimeTaskInstance(TaskInstance):
                 ts_nodash = logical_date.strftime("%Y%m%dT%H%M%S")
                 ts_nodash_with_tz = ts.replace("-", "").replace(":", "")
                 # logical_date and data_interval either coexist or be None together
-                self._context.update(
+                self._cached_template_context.update(
                     {
                         # keys that depend on logical_date
                         "logical_date": logical_date,
@@ -260,7 +273,7 @@ class RuntimeTaskInstance(TaskInstance):
                 # existence. Should this be a private attribute on RuntimeTI instead perhaps?
                 setattr(self, "_upstream_map_indexes", from_server.upstream_map_indexes)
 
-        return self._context
+        return self._cached_template_context
 
     def render_templates(
         self, context: Context | None = None, jinja_env: jinja2.Environment | None = None
@@ -314,9 +327,9 @@ class RuntimeTaskInstance(TaskInstance):
             keys will be returned. The default key is ``'return_value'``, also
             available as constant ``XCOM_RETURN_KEY``. This key is automatically
             given to XComs returned by tasks (as opposed to being pushed
-            manually). To remove the filter, pass *None*.
+            manually).
         :param task_ids: Only XComs from tasks with matching ids will be
-            pulled. Pass *None* to remove the filter.
+            pulled. If *None* (default), the task_id of the calling task is used.
         :param dag_id: If provided, only pulls XComs from this Dag. If *None*
             (default), the Dag of the calling task is used.
         :param map_indexes: If provided, only pull XComs with matching indexes.
@@ -473,6 +486,46 @@ class RuntimeTaskInstance(TaskInstance):
 
         return response.dag_run
 
+    def get_previous_ti(
+        self,
+        state: TaskInstanceState | None = None,
+        logical_date: AwareDatetime | None = None,
+        map_index: int = -1,
+    ) -> PreviousTIResponse | None:
+        """
+        Return the previous task instance matching the given criteria.
+
+        :param state: Filter by TaskInstance state
+        :param logical_date: Filter by logical date (returns TI before this date)
+        :param map_index: Filter by map_index (defaults to -1 for non-mapped tasks)
+        :return: Previous task instance or None if not found
+        """
+        context = self.get_template_context()
+        dag_run = context.get("dag_run")
+
+        log = structlog.get_logger(logger_name="task")
+        log.debug("Getting previous task instance", task_id=self.task_id, state=state)
+
+        # Use current dag run's logical_date if not provided
+        effective_logical_date = logical_date
+        if effective_logical_date is None and dag_run and dag_run.logical_date:
+            effective_logical_date = dag_run.logical_date
+
+        response = SUPERVISOR_COMMS.send(
+            msg=GetPreviousTI(
+                dag_id=self.dag_id,
+                task_id=self.task_id,
+                logical_date=effective_logical_date,
+                map_index=map_index,
+                state=state,
+            )
+        )
+
+        if TYPE_CHECKING:
+            assert isinstance(response, PreviousTIResult)
+
+        return response.task_instance
+
     @staticmethod
     def get_ti_count(
         dag_id: str,
@@ -618,8 +671,8 @@ def _xcom_push_to_db(ti: RuntimeTaskInstance, key: str, value: Any) -> None:
 
 def parse(what: StartupDetails, log: Logger) -> RuntimeTaskInstance:
     # TODO: Task-SDK:
-    # Using DagBag here is about 98% wrong, but it'll do for now
-    from airflow.dag_processing.dagbag import DagBag
+    # Using BundleDagBag here is about 98% wrong, but it'll do for now
+    from airflow.dag_processing.dagbag import BundleDagBag
 
     bundle_info = what.bundle_info
     bundle_instance = DagBundlesManager().get_bundle(
@@ -628,17 +681,12 @@ def parse(what: StartupDetails, log: Logger) -> RuntimeTaskInstance:
     )
     bundle_instance.initialize()
 
-    # Put bundle root on sys.path if needed. This allows the dag bundle to add
-    # code in util modules to be shared between files within the same bundle.
-    if (bundle_root := os.fspath(bundle_instance.path)) not in sys.path:
-        sys.path.append(bundle_root)
-
     dag_absolute_path = os.fspath(Path(bundle_instance.path, what.dag_rel_path))
-    bag = DagBag(
+    bag = BundleDagBag(
         dag_folder=dag_absolute_path,
-        include_examples=False,
         safe_mode=False,
         load_op_links=False,
+        bundle_path=bundle_instance.path,
         bundle_name=bundle_info.name,
     )
     if TYPE_CHECKING:
@@ -679,6 +727,7 @@ def parse(what: StartupDetails, log: Logger) -> RuntimeTaskInstance:
         max_tries=what.ti_context.max_tries,
         start_date=what.start_date,
         state=TaskInstanceState.RUNNING,
+        sentry_integration=what.sentry_integration,
     )
 
 
@@ -775,13 +824,93 @@ def startup() -> tuple[RuntimeTaskInstance, Context, Logger]:
     return ti, ti.get_template_context(), log
 
 
-def _serialize_rendered_fields(task: AbstractOperator) -> dict[str, JsonValue]:
-    # TODO: Port one of the following to Task SDK
-    #   airflow.serialization.helpers.serialize_template_field or
-    #   airflow.models.renderedtifields.get_serialized_template_fields
-    from airflow.serialization.helpers import serialize_template_field
+def _serialize_template_field(template_field: Any, name: str) -> str | dict | list | int | float:
+    """
+    Return a serializable representation of the templated field.
 
-    return {field: serialize_template_field(getattr(task, field), field) for field in task.template_fields}
+    If ``templated_field`` contains a class or instance that requires recursive
+    templating, store them as strings. Otherwise simply return the field as-is.
+
+    Used sdk secrets masker to redact secrets in the serialized output.
+    """
+    import json
+
+    from airflow.sdk._shared.secrets_masker import redact
+
+    def is_jsonable(x):
+        try:
+            json.dumps(x)
+        except (TypeError, OverflowError):
+            return False
+        else:
+            return True
+
+    def translate_tuples_to_lists(obj: Any):
+        """Recursively convert tuples to lists."""
+        if isinstance(obj, tuple):
+            return [translate_tuples_to_lists(item) for item in obj]
+        if isinstance(obj, list):
+            return [translate_tuples_to_lists(item) for item in obj]
+        if isinstance(obj, dict):
+            return {key: translate_tuples_to_lists(value) for key, value in obj.items()}
+        return obj
+
+    def sort_dict_recursively(obj: Any) -> Any:
+        """Recursively sort dictionaries to ensure consistent ordering."""
+        if isinstance(obj, dict):
+            return {k: sort_dict_recursively(v) for k, v in sorted(obj.items())}
+        if isinstance(obj, list):
+            return [sort_dict_recursively(item) for item in obj]
+        if isinstance(obj, tuple):
+            return tuple(sort_dict_recursively(item) for item in obj)
+        return obj
+
+    max_length = conf.getint("core", "max_templated_field_length")
+
+    if not is_jsonable(template_field):
+        try:
+            serialized = template_field.serialize()
+        except AttributeError:
+            serialized = str(template_field)
+        if len(serialized) > max_length:
+            rendered = redact(serialized, name)
+            return (
+                "Truncated. You can change this behaviour in [core]max_templated_field_length. "
+                f"{rendered[: max_length - 79]!r}... "
+            )
+        return serialized
+    if not template_field and not isinstance(template_field, tuple):
+        # Avoid unnecessary serialization steps for empty fields unless they are tuples
+        # and need to be converted to lists
+        return template_field
+    template_field = translate_tuples_to_lists(template_field)
+    # Sort dictionaries recursively to ensure consistent string representation
+    # This prevents hash inconsistencies when dict ordering varies
+    if isinstance(template_field, dict):
+        template_field = sort_dict_recursively(template_field)
+    serialized = str(template_field)
+    if len(serialized) > max_length:
+        rendered = redact(serialized, name)
+        return (
+            "Truncated. You can change this behaviour in [core]max_templated_field_length. "
+            f"{rendered[: max_length - 79]!r}... "
+        )
+    return template_field
+
+
+def _serialize_rendered_fields(task: AbstractOperator) -> dict[str, JsonValue]:
+    from airflow.sdk._shared.secrets_masker import redact
+
+    rendered_fields = {}
+    for field in task.template_fields:
+        value = getattr(task, field)
+        serialized = _serialize_template_field(value, field)
+        # Redact secrets in the task process itself before sending to API server
+        # This ensures that the secrets those are registered via mask_secret() on workers / dag processor are properly masked
+        # on the UI.
+        rendered_fields[field] = redact(serialized, field)
+
+    return rendered_fields  # type: ignore[return-value] # Convince mypy that this is OK since we pass JsonValue to redact, so it will return the same
 
 
 def _build_asset_profiles(lineage_objects: list) -> Iterator[AssetProfile]:
@@ -872,13 +1001,30 @@ def _defer_task(
 
     log.info("Pausing task as DEFERRED. ", dag_id=ti.dag_id, task_id=ti.task_id, run_id=ti.run_id)
     classpath, trigger_kwargs = defer.trigger.serialize()
+    queue: str | None = None
+    # Currently, only task-associated BaseTrigger instances may have a non-None queue,
+    # and only when triggerer.queues_enabled is True.
+    if not isinstance(defer.trigger, (BaseEventTrigger, CallbackTrigger)) and conf.getboolean(
+        "triggerer", "queues_enabled", fallback=False
+    ):
+        queue = ti.task.queue
+
+    from airflow.sdk.serde import serialize as serde_serialize
+
+    trigger_kwargs = serde_serialize(trigger_kwargs)
+    next_kwargs = serde_serialize(defer.kwargs or {})
+
+    if TYPE_CHECKING:
+        assert isinstance(next_kwargs, dict)
+        assert isinstance(trigger_kwargs, dict)
 
     msg = DeferTask(
         classpath=classpath,
         trigger_kwargs=trigger_kwargs,
         trigger_timeout=defer.timeout,
+        queue=queue,
         next_method=defer.method_name,
-        next_kwargs=defer.kwargs or {},
+        next_kwargs=next_kwargs,
     )
     state = TaskInstanceState.DEFERRED
 
@@ -894,8 +1040,7 @@ def run(
     """Run the task in this process."""
     import signal
 
-    from airflow.exceptions import (
-        AirflowException,
+    from airflow.sdk.exceptions import (
         AirflowFailException,
         AirflowRescheduleException,
         AirflowSensorTimeout,
@@ -1075,6 +1220,16 @@ def _handle_current_task_failed(
 ) -> tuple[RetryTask, TaskInstanceState] | tuple[TaskState, TaskInstanceState]:
     end_date = datetime.now(tz=timezone.utc)
     ti.end_date = end_date
+
+    # Record operator and task instance failed metrics
+    operator = ti.task.__class__.__name__
+    stats_tags = {"dag_id": ti.dag_id, "task_id": ti.task_id}
+
+    Stats.incr(f"operator_failures_{operator}", tags=stats_tags)
+    # Same metric with tagging
+    Stats.incr("operator_failures", tags={**stats_tags, "operator": operator})
+    Stats.incr("ti_failures", tags=stats_tags)
+
     if ti._ti_context_from_server and ti._ti_context_from_server.should_retry:
         return RetryTask(end_date=end_date), TaskInstanceState.UP_FOR_RETRY
     return (
@@ -1129,26 +1284,25 @@ def _handle_trigger_dag_run(
     # be used when creating the extra link on the webserver.
     ti.xcom_push(key="trigger_run_id", value=drte.dag_run_id)
 
-    if drte.deferrable:
-        from airflow.exceptions import TaskDeferred
-        from airflow.providers.standard.triggers.external_task import DagStateTrigger
-
-        defer = TaskDeferred(
-            trigger=DagStateTrigger(
-                dag_id=drte.trigger_dag_id,
-                states=drte.allowed_states + drte.failed_states,  # type: ignore[arg-type]
-                # Don't filter by execution_dates when run_ids is provided.
-                # run_id uniquely identifies a DAG run, and when reset_dag_run=True,
-                # drte.logical_date might be a newly calculated value that doesn't match
-                # the persisted logical_date in the database, causing the trigger to never find the run.
-                execution_dates=None,
-                run_ids=[drte.dag_run_id],
-                poll_interval=drte.poke_interval,
-            ),
-            method_name="execute_complete",
-        )
-        return _defer_task(defer, ti, log)
     if drte.wait_for_completion:
+        if drte.deferrable:
+            from airflow.providers.standard.triggers.external_task import DagStateTrigger
+
+            defer = TaskDeferred(
+                trigger=DagStateTrigger(
+                    dag_id=drte.trigger_dag_id,
+                    states=drte.allowed_states + drte.failed_states,  # type: ignore[arg-type]
+                    # Don't filter by execution_dates when run_ids is provided.
+                    # run_id uniquely identifies a DAG run, and when reset_dag_run=True,
+                    # drte.logical_date might be a newly calculated value that doesn't match
+                    # the persisted logical_date in the database, causing the trigger to never find the run.
+                    execution_dates=None,
+                    run_ids=[drte.dag_run_id],
+                    poll_interval=drte.poke_interval,
+                ),
+                method_name="execute_complete",
+            )
+            return _defer_task(defer, ti, log)
         while True:
             log.info(
                 "Waiting for dag run to complete execution in allowed state.",
@@ -1183,6 +1337,14 @@ def _handle_trigger_dag_run(
                 "DagRun not yet in allowed or failed state.",
                 dag_id=drte.trigger_dag_id,
                 state=comms_msg.state,
+            )
+    else:
+        # Fire-and-forget mode: wait_for_completion=False
+        if drte.deferrable:
+            log.info(
+                "Ignoring deferrable=True because wait_for_completion=False. "
+                "Task will complete immediately without waiting for the triggered DAG run.",
+                trigger_dag_id=drte.trigger_dag_id,
             )
 
     return _handle_current_task_success(context, ti)
@@ -1288,10 +1450,20 @@ def _execute_task(context: Context, ti: RuntimeTaskInstance, log: Logger):
     execute = task.execute
 
     if ti._ti_context_from_server and (next_method := ti._ti_context_from_server.next_method):
-        from airflow.serialization.serialized_objects import BaseSerialization
+        from airflow.sdk.serde import deserialize
 
-        kwargs = BaseSerialization.deserialize(ti._ti_context_from_server.next_kwargs or {})
+        next_kwargs_data = ti._ti_context_from_server.next_kwargs or {}
+        try:
+            if TYPE_CHECKING:
+                assert isinstance(next_kwargs_data, dict)
+            kwargs = deserialize(next_kwargs_data)
+        except (ImportError, KeyError, AttributeError, TypeError):
+            from airflow.serialization.serialized_objects import BaseSerialization
 
+            kwargs = BaseSerialization.deserialize(next_kwargs_data)
+
+        if TYPE_CHECKING:
+            assert isinstance(kwargs, dict)
         execute = functools.partial(task.resume_execution, next_method=next_method, next_kwargs=kwargs)
 
     ctx = contextvars.copy_context()
@@ -1411,9 +1583,17 @@ def finalize(
     task = ti.task
     # Pushing xcom for each operator extra links defined on the operator only.
     for oe in task.operator_extra_links:
-        link, xcom_key = oe.get_link(operator=task, ti_key=ti), oe.xcom_key  # type: ignore[arg-type]
-        log.debug("Setting xcom for operator extra link", link=link, xcom_key=xcom_key)
-        _xcom_push_to_db(ti, key=xcom_key, value=link)
+        try:
+            link, xcom_key = oe.get_link(operator=task, ti_key=ti), oe.xcom_key  # type: ignore[arg-type]
+            log.debug("Setting xcom for operator extra link", link=link, xcom_key=xcom_key)
+            _xcom_push_to_db(ti, key=xcom_key, value=link)
+        except Exception:
+            log.exception(
+                "Failed to push an xcom for task operator extra link",
+                link_name=oe.name,
+                xcom_key=oe.xcom_key,
+                ti=ti,
+            )
 
     if getattr(ti.task, "overwrite_rtif_after_execution", False):
         log.debug("Overwriting Rendered template fields.")
@@ -1431,6 +1611,12 @@ def finalize(
             log.exception("error calling listener")
     elif state == TaskInstanceState.SKIPPED:
         _run_task_state_change_callbacks(task, "on_skipped_callback", context, log)
+        try:
+            get_listener_manager().hook.on_task_instance_skipped(
+                previous_state=TaskInstanceState.RUNNING, task_instance=ti
+            )
+        except Exception:
+            log.exception("error calling listener")
     elif state == TaskInstanceState.UP_FOR_RETRY:
         _run_task_state_change_callbacks(task, "on_retry_callback", context, log)
         try:

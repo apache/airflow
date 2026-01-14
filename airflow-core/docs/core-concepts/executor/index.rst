@@ -92,7 +92,7 @@ Airflow tasks are sent to a central queue where remote workers pull tasks to exe
 
 * :doc:`CeleryExecutor <apache-airflow-providers-celery:celery_executor>`
 * :doc:`BatchExecutor <apache-airflow-providers-amazon:executors/batch-executor>`
-* :doc:`EdgeExecutor <apache-airflow-providers-edge3:edge_executor>` (Experimental Pre-Release)
+* :doc:`EdgeExecutor <apache-airflow-providers-edge3:edge_executor>`
 
 
 *Containerized Executors*
@@ -308,16 +308,18 @@ Compatibility Attributes
 The ``BaseExecutor`` class interface contains a set of attributes that Airflow core code uses to check the features that your executor is compatible with. When writing your own Airflow executor be sure to set these correctly for your use case. Each attribute is simply a boolean to enable/disable a feature or indicate that a feature is supported/unsupported by the executor:
 
 * ``supports_pickling``: Whether or not the executor supports reading pickled Dags from the Database before execution (rather than reading the Dag definition from the file system).
-* ``supports_sentry``: Whether or not the executor supports `Sentry <https://sentry.io>`_.
-
+* ``sentry_integration``: If the executor supports `Sentry <https://sentry.io>`_, this should be a import path to a callable that creates the integration. For example, ``CeleryExecutor`` sets this to ``"sentry_sdk.integrations.celery.CeleryIntegration"``.
 * ``is_local``: Whether or not the executor is remote or local. See the `Executor Types`_ section above.
 * ``is_single_threaded``: Whether or not the executor is single threaded. This is particularly relevant to what database backends are supported. Single threaded executors can run with any backend, including SQLite.
 * ``is_production``: Whether or not the executor should be used for production purposes. A UI message is displayed to users when they are using a non-production ready executor.
-
 * ``serve_logs``: Whether or not the executor supports serving logs, see :doc:`/administration-and-deployment/logging-monitoring/logging-tasks`.
 
 CLI
 ^^^
+
+.. important::
+  Starting in Airflow ``3.2.0``, provider-level CLI commands are available to manage core extensions such as auth managers and executors. Implementing provider-level CLI commands can reduce CLI startup time by avoiding heavy imports when they are not required.
+  See :doc:`provider-level CLI <apache-airflow-providers:core-extensions/cli-commands>` for implementation guidance.
 
 Executors may vend CLI commands which will be included in the ``airflow`` command line tool by implementing the ``get_cli_commands`` method. Executors such as ``CeleryExecutor`` and ``KubernetesExecutor`` for example, make use of this mechanism. The commands can be used to setup required workers, initialize environment or set other configuration. Commands are only vended for the currently configured executor. A pseudo-code example of implementing CLI command vending from an executor can be seen below:
 

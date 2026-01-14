@@ -22,7 +22,6 @@ from unittest.mock import Mock
 import boto3
 import pytest
 
-from airflow.exceptions import AirflowException, TaskDeferred
 from airflow.providers.amazon.aws.hooks.redshift_cluster import RedshiftHook
 from airflow.providers.amazon.aws.operators.redshift_cluster import (
     RedshiftCreateClusterOperator,
@@ -38,6 +37,7 @@ from airflow.providers.amazon.aws.triggers.redshift_cluster import (
     RedshiftPauseClusterTrigger,
     RedshiftResumeClusterTrigger,
 )
+from airflow.providers.common.compat.sdk import AirflowException, TaskDeferred
 
 from unit.amazon.aws.utils.test_template_fields import validate_template_fields
 

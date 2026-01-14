@@ -81,7 +81,7 @@ export const Logs = () => {
     "log_show_timestamp",
     defaultShowTimestamp,
   );
-  const [showSource, setShowSource] = useLocalStorage<boolean>("log_show_source", true);
+  const [showSource, setShowSource] = useLocalStorage<boolean>("log_show_source", false);
   const [fullscreen, setFullscreen] = useState(false);
   const [expanded, setExpanded] = useState(false);
 

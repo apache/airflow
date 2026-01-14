@@ -21,7 +21,7 @@ import unittest
 import uuid
 from typing import TYPE_CHECKING, Any
 from unittest import mock
-from unittest.mock import AsyncMock, PropertyMock, call
+from unittest.mock import AsyncMock, call
 
 import aiohttp
 import pytest
@@ -31,8 +31,9 @@ from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import rsa
 
-from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
+from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.models import Connection
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.snowflake.hooks.snowflake_sql_api import SnowflakeSqlApiHook
 
 if TYPE_CHECKING:
@@ -224,7 +225,7 @@ class TestSnowflakeSqlApiHook:
             (SQL_MULTIPLE_STMTS, 4, {"statementHandles": ["uuid", "uuid1"]}, ["uuid", "uuid1"]),
         ],
     )
-    @mock.patch(f"{HOOK_PATH}._get_conn_params", new_callable=PropertyMock)
+    @mock.patch(f"{HOOK_PATH}._get_conn_params")
     @mock.patch(f"{HOOK_PATH}.get_headers")
     def test_execute_query(
         self,
@@ -248,7 +249,7 @@ class TestSnowflakeSqlApiHook:
         query_ids = hook.execute_query(sql, statement_count)
         assert query_ids == expected_query_ids
 
-    @mock.patch(f"{HOOK_PATH}._get_conn_params", new_callable=PropertyMock)
+    @mock.patch(f"{HOOK_PATH}._get_conn_params")
     @mock.patch(f"{HOOK_PATH}.get_headers")
     def test_execute_query_multiple_times_give_fresh_query_ids_each_time(
         self, mock_get_header, mock_conn_param, mock_requests
@@ -288,7 +289,7 @@ class TestSnowflakeSqlApiHook:
         ("sql", "statement_count", "expected_response", "expected_query_ids"),
         [(SINGLE_STMT, 1, {"statementHandle": "uuid"}, ["uuid"])],
     )
-    @mock.patch(f"{HOOK_PATH}._get_conn_params", new_callable=PropertyMock)
+    @mock.patch(f"{HOOK_PATH}._get_conn_params")
     @mock.patch(f"{HOOK_PATH}.get_headers")
     def test_execute_query_exception_without_statement_handle(
         self,
@@ -318,7 +319,7 @@ class TestSnowflakeSqlApiHook:
             (SQL_MULTIPLE_STMTS, 4, {"1": {"type": "FIXED", "value": "123"}}),
         ],
     )
-    @mock.patch(f"{HOOK_PATH}._get_conn_params", new_callable=PropertyMock)
+    @mock.patch(f"{HOOK_PATH}._get_conn_params")
     @mock.patch(f"{HOOK_PATH}.get_headers")
     def test_execute_query_bindings_warning(
         self,
@@ -384,7 +385,7 @@ class TestSnowflakeSqlApiHook:
         with pytest.raises(requests.exceptions.HTTPError):
             hook.check_query_output(query_ids)
 
-    @mock.patch(f"{HOOK_PATH}._get_conn_params", new_callable=PropertyMock)
+    @mock.patch(f"{HOOK_PATH}._get_conn_params")
     @mock.patch(f"{HOOK_PATH}.get_headers")
     def test_get_request_url_header_params(self, mock_get_header, mock_conn_param):
         """Test get_request_url_header_params by mocking _get_conn_params and get_headers"""
@@ -396,7 +397,7 @@ class TestSnowflakeSqlApiHook:
         assert url == "https://airflow.af_region.snowflakecomputing.com/api/v2/statements/uuid"
 
     @mock.patch(f"{HOOK_PATH}.get_private_key")
-    @mock.patch(f"{HOOK_PATH}._get_conn_params", new_callable=PropertyMock)
+    @mock.patch(f"{HOOK_PATH}._get_conn_params")
     @mock.patch("airflow.providers.snowflake.utils.sql_api_generate_jwt.JWTGenerator.get_token")
     def test_get_headers_should_support_private_key(self, mock_get_token, mock_conn_param, mock_private_key):
         """Test get_headers method by mocking get_private_key and _get_conn_params method"""
@@ -407,7 +408,7 @@ class TestSnowflakeSqlApiHook:
         assert result == HEADERS
 
     @mock.patch(f"{HOOK_PATH}.get_oauth_token")
-    @mock.patch(f"{HOOK_PATH}._get_conn_params", new_callable=PropertyMock)
+    @mock.patch(f"{HOOK_PATH}._get_conn_params")
     def test_get_headers_should_support_oauth(self, mock_conn_param, mock_oauth_token):
         """Test get_headers method by mocking get_oauth_token and _get_conn_params method"""
         mock_conn_param.return_value = CONN_PARAMS_OAUTH
@@ -418,7 +419,7 @@ class TestSnowflakeSqlApiHook:
 
     @mock.patch("airflow.providers.snowflake.hooks.snowflake.HTTPBasicAuth")
     @mock.patch("requests.post")
-    @mock.patch(f"{HOOK_PATH}._get_conn_params", new_callable=PropertyMock)
+    @mock.patch(f"{HOOK_PATH}._get_conn_params")
     def test_get_oauth_token(self, mock_conn_param, requests_post, mock_auth):
         """Test get_oauth_token method makes the right http request"""
         basic_auth = {"Authorization": "Basic usernamepassword"}
@@ -437,6 +438,7 @@ class TestSnowflakeSqlApiHook:
             },
             headers={"Content-Type": "application/x-www-form-urlencoded"},
             auth=basic_auth,
+            timeout=30,
         )
 
     @pytest.fixture
@@ -803,7 +805,7 @@ class TestSnowflakeSqlApiHook:
         ],
     )
     @mock.patch("uuid.uuid4")
-    @mock.patch(f"{HOOK_PATH}._get_conn_params", new_callable=PropertyMock)
+    @mock.patch(f"{HOOK_PATH}._get_conn_params")
     @mock.patch(f"{HOOK_PATH}.get_headers")
     def test_proper_parametrization_of_execute_query_api_request(
         self,
@@ -1433,3 +1435,39 @@ class TestSnowflakeSqlApiHook:
 
         failed_response.raise_for_status.assert_called_once()
         failed_response.json.assert_not_called()
+
+    @mock.patch(f"{HOOK_PATH}.get_request_url_header_params")
+    def test_cancel_sql_api_query_execution(self, mock_get_url_header_params, mock_requests):
+        """Test _cancel_sql_api_query_execution makes POST request with /cancel suffix."""
+        query_id = "test-query-id"
+        mock_get_url_header_params.return_value = (
+            HEADERS,
+            {"requestId": "uuid"},
+            f"{API_URL}/{query_id}/cancel",
+        )
+        mock_requests.request.return_value = create_successful_response_mock(
+            {"status": "success", "message": "Statement cancelled."}
+        )
+
+        hook = SnowflakeSqlApiHook(snowflake_conn_id="test_conn")
+        hook._cancel_sql_api_query_execution(query_id)
+
+        mock_get_url_header_params.assert_called_once_with(query_id, "/cancel")
+        mock_requests.request.assert_called_once_with(
+            method="post",
+            url=f"{API_URL}/{query_id}/cancel",
+            headers=HEADERS,
+            params={"requestId": "uuid"},
+            json=None,
+        )
+
+    @mock.patch(f"{HOOK_PATH}._cancel_sql_api_query_execution")
+    def test_cancel_queries(self, mock_cancel_execution):
+        """Test cancel_queries calls _cancel_sql_api_query_execution for each query id."""
+        query_ids = ["query-1", "query-2", "query-3"]
+
+        hook = SnowflakeSqlApiHook(snowflake_conn_id="test_conn")
+        hook.cancel_queries(query_ids)
+
+        assert mock_cancel_execution.call_count == 3
+        mock_cancel_execution.assert_has_calls([call("query-1"), call("query-2"), call("query-3")])

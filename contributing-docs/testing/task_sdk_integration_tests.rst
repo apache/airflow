@@ -19,7 +19,7 @@ Task SDK Integration Tests
 ==========================
 
 Task SDK Integration Tests are a specialized type of test that verify the integration between the
-`Apache Airflow Task SDK <../task-sdk/>`__ and a running Airflow instance (mainly the execution API server).
+`Apache Airflow Task SDK <../../task-sdk/>`__ and a running Airflow instance (mainly the execution API server).
 These tests ensure that the Task SDK can properly communicate with Airflow's execution API server
 and that the integration between the two works correctly in a realistic environment.
 
@@ -81,7 +81,7 @@ You also need to make sure that your assets are built first.
 .. code-block:: bash
 
    # From the Airflow repository root
-   breeze compile-ui-assets
+   breeze ui compile-assets
 
 Then, you should build the base image once before running the tests. You can do it using Breeze:
 
@@ -104,7 +104,7 @@ Python version) that will be used to run the tests. The ``breeze prod image buil
 when run from sources of airflow - will use the local sources and build the image using ``uv``
 to speed up the build process. Also, when building from sources it will check if the assets are built
 and will error if they are not. However it will not check if the assets are up to date - so make sure
-to run the ``breeze compile-ui-assets`` command above if you have changed any UI sources
+to run the ``breeze ui compile-assets`` command above if you have changed any UI sources
 and did not build your assets after that.
 
 .. tip::

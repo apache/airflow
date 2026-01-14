@@ -48,7 +48,7 @@ if TYPE_CHECKING:
     from sqlalchemy.sql import FromClause
 
     from airflow.models.taskinstance import TaskInstance, TaskInstanceKey
-    from airflow.serialization.serialized_objects import SerializedBaseOperator
+    from airflow.serialization.definitions.baseoperator import SerializedBaseOperator
 
 
 def _get_nested_value(obj: Any, path: str) -> Any:
@@ -163,7 +163,7 @@ class RenderedTaskInstanceFields(TaskInstanceDependencies):
         self.map_index = ti.map_index
         self.ti = ti
         if render_templates:
-            ti.render_templates()
+            raise ValueError("render_templates=True is no longer supported")
 
         if TYPE_CHECKING:
             assert isinstance(ti.task, SerializedBaseOperator)

@@ -39,6 +39,7 @@ from in_container_utils import (
 
 SOURCE_TARBALL = AIRFLOW_ROOT_PATH / ".build" / "airflow.tar.gz"
 EXTRACTED_SOURCE_DIR = AIRFLOW_ROOT_PATH / ".build" / "airflow_source"
+# Extracted from tarball paths (download directly from GitHub)
 CORE_UI_DIST_PREFIX = "ui/dist"
 CORE_SOURCE_UI_PREFIX = "airflow-core/src/airflow/ui"
 CORE_SOURCE_UI_DIRECTORY = AIRFLOW_CORE_SOURCES_PATH / "airflow" / "ui"
@@ -48,6 +49,7 @@ SIMPLE_AUTH_MANAGER_SOURCE_UI_DIRECTORY = (
     AIRFLOW_CORE_SOURCES_PATH / "airflow" / "api_fastapi" / "auth" / "managers" / "simple" / "ui"
 )
 INTERNAL_SERVER_ERROR = "500 Internal Server Error"
+UI_DIST_DIR_NAME = "dist"
 
 
 def get_provider_name(package_name: str) -> str:
@@ -126,9 +128,13 @@ def find_provider_distributions(extension: str, selected_providers: list[str]) -
     for candidate in candidates:
         # https://github.com/apache/airflow/pull/49339
         path_str = candidate.as_posix()
+        # Add optional extras that we test providers with
         if "apache_airflow_providers_common_sql" in path_str:
             console.print(f"[bright_blue]Adding [polars] extra to common.sql provider: {path_str}")
             path_str += "[polars]"
+        if "apache_airflow_providers_databricks" in path_str:
+            console.print(f"[bright_blue]Adding [sqlalchemy] extra to databricks provider: {path_str}")
+            path_str += "[sqlalchemy]"
         result.append(path_str)
     return result
 
@@ -253,6 +259,7 @@ class InstallationSpec(NamedTuple):
     airflow_ctl_distribution: str | None
     airflow_ctl_constraints_location: str | None
     compile_ui_assets: bool | None
+    mount_ui_dist: bool
     provider_distributions: list[str]
     provider_constraints_location: str | None
     pre_release: bool = os.environ.get("ALLOW_PRE_RELEASES", "false").lower() == "true"
@@ -342,6 +349,7 @@ def find_installation_spec(
     python_version: str,
     use_airflow_version: str,
     use_distributions_from_dist: bool,
+    mount_ui_dist: bool,
 ) -> InstallationSpec:
     console.print("[bright_blue]Finding installation specification")
     if use_distributions_from_dist:
@@ -383,6 +391,8 @@ def find_installation_spec(
             airflow_version = get_airflow_version_from_package(airflow_distribution_spec)
             if airflow_version:
                 console.print(f"[bright_blue]Using airflow version retrieved from package: {airflow_version}")
+                console.print("[yellow]Constraints mode is forced to 'constraints': installation from dist")
+                airflow_constraints_mode = "constraints"
                 airflow_constraints_location = get_airflow_constraints_location(
                     install_airflow_with_constraints=install_airflow_with_constraints,
                     airflow_constraints_mode=airflow_constraints_mode,
@@ -393,6 +403,11 @@ def find_installation_spec(
                     github_repository=github_repository,
                     python_version=python_version,
                 )
+            if airflow_version.startswith("2."):
+                # We need to make sure that pydantic is added as extra for Airflow 2.x
+                # because it's not in extras by default, and pydantic incompatible version is
+                # installed by default in the container and breaks serialization import
+                airflow_extras = _add_pydantic_to_extras(airflow_extras)
             if airflow_extras:
                 airflow_distribution_spec += airflow_extras
         # We always install latest task-sdk - it's independent from Airflow
@@ -490,12 +505,17 @@ def find_installation_spec(
         )
         sys.exit(1)
     else:
+        # Install specific airflow version
         compile_ui_assets = False
+        if use_airflow_version.startswith("2"):
+            airflow_extras = _add_pydantic_to_extras(airflow_extras)
         console.print(f"\nInstalling airflow via apache-airflow=={use_airflow_version}")
         airflow_distribution_spec = f"apache-airflow{airflow_extras}=={use_airflow_version}"
         airflow_core_distribution_spec = (
             f"apache-airflow-core=={use_airflow_version}" if not use_airflow_version.startswith("2") else None
         )
+        console.print("[yellow]Constraints mode is forced to 'constraints': installation from PyPI")
+        airflow_constraints_mode = "constraints"
         airflow_constraints_location = get_airflow_constraints_location(
             install_airflow_with_constraints=install_airflow_with_constraints,
             airflow_constraints_mode=airflow_constraints_mode,
@@ -544,6 +564,7 @@ def find_installation_spec(
         airflow_ctl_distribution=airflow_ctl_distribution,
         airflow_ctl_constraints_location=airflow_ctl_constraints_location,
         compile_ui_assets=compile_ui_assets,
+        mount_ui_dist=mount_ui_dist,
         provider_distributions=provider_distributions_list,
         provider_constraints_location=get_providers_constraints_location(
             providers_constraints_mode=providers_constraints_mode,
@@ -558,6 +579,16 @@ def find_installation_spec(
     )
     console.print("[bright_blue]Installation specification:[/]", installation_spec)
     return installation_spec
+
+
+def _add_pydantic_to_extras(airflow_extras: str) -> str:
+    console.print("[yellow]Adding pydantic to airflow extras for Airflow 2.x")
+    if airflow_extras:
+        airflow_extras = "[" + airflow_extras.strip("[]") + ",pydantic]"
+    else:
+        airflow_extras = "[pydantic]"
+    console.print(f"[yellow]New extras: {airflow_extras.strip('[]')}")
+    return airflow_extras
 
 
 def download_airflow_source_tarball(installation_spec: InstallationSpec):
@@ -754,12 +785,38 @@ def compile_ui_assets(
         cwd=os.fspath(source_ui_directory),
     )
     # copy compiled assets to installation directory
-    dist_source_directory = source_ui_directory / "dist"
+    dist_source_directory = source_ui_directory / UI_DIST_DIR_NAME
     console.print(
         f"[bright_blue]Copying compiled UI assets from '{dist_source_directory}' to '{dist_directory}'"
     )
     shutil.copytree(dist_source_directory, dist_directory)
     console.print("[bright_blue]UI assets compiled successfully")
+
+
+def check_mounted_ui_dist(dist_prefix: str, host_source_prefix: str):
+    """
+    Check if the mounted UI dist directory exists in the installed airflow package.
+
+    :param dist_prefix: The dist directory prefix inside the airflow package
+    :param host_source_prefix: The source directory prefix on the host
+    """
+
+    # Target dist directory in the installed airflow package
+    dist_directory = get_airflow_installation_path() / dist_prefix
+
+    if not dist_directory.exists():
+        console.print(
+            f"[yellow]Mounted UI dist directory not found at '{dist_directory}'. "
+            "Please build UI assets on host:\n"
+            f"  cd {host_source_prefix}\n"
+            "  pnpm install\n"
+            "  pnpm build"
+        )
+        return
+
+    if not dist_directory.is_dir():
+        console.print(f"[red]Mounted UI dist path '{dist_directory}' exists but is not a directory.")
+        return
 
 
 ALLOWED_DISTRIBUTION_FORMAT = ["wheel", "sdist", "both"]
@@ -895,6 +952,14 @@ FUTURE_CONTENT = "from __future__ import annotations"
     help="What sources are mounted .",
 )
 @click.option(
+    "--mount-ui-dist",
+    is_flag=True,
+    default=False,
+    show_default=True,
+    envvar="MOUNT_UI_DIST",
+    help="Mount pre-built UI dist directories from host to container to skip UI assets compilation.",
+)
+@click.option(
     "--install-airflow-with-constraints",
     is_flag=True,
     default=False,
@@ -912,6 +977,7 @@ def install_airflow_and_providers(
     github_repository: str,
     install_selected_providers: str,
     mount_sources: str,
+    mount_ui_dist: bool,
     distribution_format: str,
     providers_constraints_mode: str,
     providers_constraints_location: str,
@@ -951,6 +1017,7 @@ def install_airflow_and_providers(
         python_version=python_version,
         use_airflow_version=use_airflow_version,
         use_distributions_from_dist=use_distributions_from_dist,
+        mount_ui_dist=mount_ui_dist,
     )
     if install_airflow_with_constraints:
         if installation_spec.airflow_distribution:
@@ -997,11 +1064,16 @@ def install_airflow_and_providers(
                 "apache-airflow-providers-keycloak",
                 "apache-airflow-providers-common-messaging",
                 "apache-airflow-providers-git",
+                "apache-airflow-providers-edge3",
             ]
-            if version.minor < 10:
-                providers_to_uninstall_for_airflow_2.append("apache-airflow-providers-edge3")
             run_command(
                 ["uv", "pip", "uninstall", *providers_to_uninstall_for_airflow_2],
+                github_actions=github_actions,
+                check=False,
+            )
+            console.print("[bright_blue]Upgrading typing-extensions for compatibility with pydantic_core")
+            run_command(
+                ["uv", "pip", "install", "--upgrade", "--no-deps", "typing-extensions>=4.15.0"],
                 github_actions=github_actions,
                 check=False,
             )
@@ -1021,15 +1093,28 @@ def install_airflow_and_providers(
             airflow_providers_common_init_py.parent.mkdir(exist_ok=True)
             airflow_providers_common_init_py.write_text(INIT_CONTENT + "\n")
 
-    # compile ui assets
-    download_airflow_source_tarball(installation_spec)
-    compile_ui_assets(installation_spec, CORE_SOURCE_UI_PREFIX, CORE_SOURCE_UI_DIRECTORY, CORE_UI_DIST_PREFIX)
-    compile_ui_assets(
-        installation_spec,
-        SIMPLE_AUTH_MANAGER_SOURCE_UI_PREFIX,
-        SIMPLE_AUTH_MANAGER_SOURCE_UI_DIRECTORY,
-        SIMPLE_AUTH_MANAGER_UI_DIST_PREFIX,
-    )
+    if installation_spec.mount_ui_dist:
+        # Check if UI dist is mounted from host first
+        console.print(
+            "[bright_blue]Skipping downloading Airflow source tarball - using mounted UI dist from host."
+        )
+        check_mounted_ui_dist(CORE_UI_DIST_PREFIX, CORE_SOURCE_UI_PREFIX)
+        check_mounted_ui_dist(SIMPLE_AUTH_MANAGER_UI_DIST_PREFIX, SIMPLE_AUTH_MANAGER_SOURCE_UI_PREFIX)
+    elif installation_spec.compile_ui_assets:
+        # compile ui assets
+        download_airflow_source_tarball(installation_spec)
+        compile_ui_assets(
+            installation_spec,
+            CORE_SOURCE_UI_PREFIX,
+            CORE_SOURCE_UI_DIRECTORY,
+            CORE_UI_DIST_PREFIX,
+        )
+        compile_ui_assets(
+            installation_spec,
+            SIMPLE_AUTH_MANAGER_SOURCE_UI_PREFIX,
+            SIMPLE_AUTH_MANAGER_SOURCE_UI_DIRECTORY,
+            SIMPLE_AUTH_MANAGER_UI_DIST_PREFIX,
+        )
     console.print("\n[green]Done!")
 
 

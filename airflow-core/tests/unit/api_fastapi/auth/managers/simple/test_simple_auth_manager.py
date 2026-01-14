@@ -47,7 +47,6 @@ class TestSimpleAuthManager:
             ("", {}),
             ('{"test1": "test1"}', {"test1": "test1"}),
             ('{"test1": "test1", "test2": "test2"}', {"test1": "test1", "test2": "test2"}),
-            ('{"test1": "test1", "test2": "test2", "test3": "test3"}', {"test1": "test1", "test2": "test2"}),
         ],
     )
     def test_get_passwords(self, auth_manager, file_content, expected):
@@ -58,8 +57,7 @@ class TestSimpleAuthManager:
         ):
             with open(auth_manager.get_generated_password_file(), "w") as file:
                 file.write(file_content)
-            users = auth_manager.get_users()
-            passwords = auth_manager.get_passwords(users)
+            passwords = auth_manager.get_passwords()
             assert passwords == expected
 
     def test_init_with_default_user(self, auth_manager):
@@ -87,8 +85,7 @@ class TestSimpleAuthManager:
         ("file_content", "expected"),
         [
             ({"test1": "test1"}, {"test1": "test1"}),
-            ({"test1": "test1", "test2": "test2"}, {"test1": "test1"}),
-            ({"test2": "test2", "test3": "test3"}, {"test1": mock.ANY}),
+            ({"test2": "test2", "test3": "test3"}, {"test1": mock.ANY, "test2": "test2", "test3": "test3"}),
         ],
     )
     def test_init_with_users_with_password(self, auth_manager, file_content, expected):
@@ -274,3 +271,25 @@ class TestSimpleAuthManager:
             items, user=SimpleAuthManagerUser(username="test", role=None)
         )
         assert results == items
+
+    @pytest.mark.parametrize(
+        ("all_admins", "user_id", "assigned_users", "expected"),
+        [
+            # When simple_auth_manager_all_admins=True, any user should be allowed
+            (True, "user1", {"user2"}, True),
+            (True, "user2", {"user2"}, True),
+            (True, "admin", {"test_user"}, True),
+            # When simple_auth_manager_all_admins=False, user must be in assigned_users
+            (False, "user1", {"user1"}, True),
+            (False, "user2", {"user1"}, False),
+            (False, "admin", {"test_user"}, False),
+            # When no assigned_users, allow access
+            (False, "user1", set(), True),
+        ],
+    )
+    def test_is_authorized_hitl_task(self, auth_manager, all_admins, user_id, assigned_users, expected):
+        """Test is_authorized_hitl_task method with different configurations."""
+        with conf_vars({("core", "simple_auth_manager_all_admins"): str(all_admins)}):
+            user = SimpleAuthManagerUser(username=user_id, role="user")
+            result = auth_manager.is_authorized_hitl_task(assigned_users=assigned_users, user=user)
+            assert result == expected

@@ -34,8 +34,8 @@ from requests.adapters import HTTPAdapter, Response
 from requests.auth import AuthBase, HTTPBasicAuth
 from requests.models import DEFAULT_REDIRECT_LIMIT
 
-from airflow.exceptions import AirflowException
 from airflow.models import Connection
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.http.hooks.http import HttpAsyncHook, HttpHook, _process_extra_options_from_connection
 
 

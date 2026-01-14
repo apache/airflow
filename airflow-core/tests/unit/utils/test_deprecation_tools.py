@@ -472,6 +472,44 @@ class TestAddDeprecatedClasses:
                 package=nonexistent_module,
             )
 
+    def test_add_deprecated_classes_with_custom_message(self):
+        """Test add_deprecated_classes with custom message parameter."""
+        module_name = get_unique_module_name("custom_msg_module")
+        full_module_name = f"airflow.test.{module_name}"
+
+        # Create a module to modify
+        test_module = ModuleType(full_module_name)
+        sys.modules[full_module_name] = test_module
+
+        with temporary_module(full_module_name):
+            # Mock the target module and attribute
+            mock_target_module = mock.MagicMock()
+            mock_attribute = mock.MagicMock()
+            mock_target_module.deprecated_attr = mock_attribute
+
+            with mock.patch(
+                "airflow.utils.deprecation_tools.importlib.import_module", return_value=mock_target_module
+            ):
+                custom_message = "We are just going to remove {module}.{name}. Prepare yourselves!"
+                add_deprecated_classes(
+                    {full_module_name: {"deprecated_attr": "target.module.deprecated_attr"}},
+                    package=full_module_name,
+                    message=custom_message,
+                )
+
+                with warnings.catch_warnings(record=True) as w:
+                    warnings.simplefilter("always")
+                    result = getattr(test_module, "deprecated_attr")
+
+                    assert result == mock_attribute
+                    assert len(w) == 1
+                    assert issubclass(w[0].category, DeprecatedImportWarning)
+                    expected = (
+                        f"We are just going to remove {full_module_name}.deprecated_attr. Prepare yourselves!"
+                    )
+                    assert str(w[0].message) == expected
+                    assert "Please use" not in str(w[0].message)
+
     def test_add_deprecated_classes_preserves_existing_module_attributes(self):
         """Test that add_deprecated_classes preserves existing module attributes."""
         module_name = get_unique_module_name("preserve_module")

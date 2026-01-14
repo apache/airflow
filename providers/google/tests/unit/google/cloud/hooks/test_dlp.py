@@ -30,7 +30,7 @@ import pytest
 from google.api_core.gapic_v1.method import DEFAULT
 from google.cloud.dlp_v2.types import DlpJob
 
-from airflow.exceptions import AirflowException
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.google.cloud.hooks.dlp import CloudDLPHook
 from airflow.providers.google.common.consts import CLIENT_INFO
 

@@ -18,7 +18,7 @@ from __future__ import annotations
 
 import logging
 
-from airflow.exceptions import AirflowOptionalProviderFeatureException
+from airflow.providers.common.compat.sdk import AirflowOptionalProviderFeatureException
 from airflow.providers.standard.version_compat import AIRFLOW_V_3_1_3_PLUS, AIRFLOW_V_3_1_PLUS
 
 if not AIRFLOW_V_3_1_PLUS:
@@ -28,7 +28,7 @@ from collections.abc import Collection, Mapping, Sequence
 from typing import TYPE_CHECKING, Any
 from urllib.parse import ParseResult, urlencode, urlparse, urlunparse
 
-from airflow.configuration import conf
+from airflow.providers.common.compat.sdk import conf
 from airflow.providers.standard.exceptions import HITLRejectException, HITLTimeoutError, HITLTriggerEventError
 from airflow.providers.standard.operators.branch import BranchMixIn
 from airflow.providers.standard.triggers.hitl import HITLTrigger, HITLTriggerEventSuccessPayload
@@ -84,6 +84,13 @@ class HITLOperator(BaseOperator):
         self.multiple = multiple
 
         self.params: ParamsDict = params if isinstance(params, ParamsDict) else ParamsDict(params or {})
+        if hasattr(ParamsDict, "filter_params_by_source"):
+            # Params that exist only in Dag level does not make sense to appear in HITLOperator
+            self.params = ParamsDict.filter_params_by_source(self.params, source="task")
+        elif self.params:
+            self.log.debug(
+                "ParamsDict.filter_params_by_source not available; HITLOperator will also include Dag level params."
+            )
 
         self.notifiers: Sequence[BaseNotifier] = (
             [notifiers] if isinstance(notifiers, BaseNotifier) else notifiers or []

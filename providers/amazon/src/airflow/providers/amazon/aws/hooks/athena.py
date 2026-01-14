@@ -28,9 +28,9 @@ from __future__ import annotations
 from collections.abc import Collection
 from typing import TYPE_CHECKING, Any
 
-from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 from airflow.providers.amazon.aws.utils.waiter_with_logging import wait
+from airflow.providers.common.compat.sdk import AirflowException
 
 if TYPE_CHECKING:
     from botocore.paginate import PageIterator

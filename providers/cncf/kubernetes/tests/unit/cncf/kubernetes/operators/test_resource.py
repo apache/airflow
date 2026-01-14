@@ -277,8 +277,9 @@ class TestKubernetesXResourceOperator:
 
     @patch("kubernetes.config.load_kube_config")
     @patch("airflow.providers.cncf.kubernetes.operators.resource.create_from_yaml")
-    def test_create_objects_retries_three_times(self, mock_create_from_yaml, mock_load_kube_config, context):
+    def test_create_objects_retries_five_times(self, mock_create_from_yaml, mock_load_kube_config, context):
         mock_create_from_yaml.side_effect = [
+            ApiException(status=500),
             ApiException(status=500),
             ApiException(status=500),
             ApiException(status=500),
@@ -295,4 +296,4 @@ class TestKubernetesXResourceOperator:
         with pytest.raises(ApiException):
             op.execute(context)
 
-        assert mock_create_from_yaml.call_count == 3
+        assert mock_create_from_yaml.call_count == 5

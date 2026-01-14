@@ -23,7 +23,9 @@ FAB auth manager authentication
    While this documentation refers to authentication using the ``apache-airflow-providers-fab`` package, please note:
 
    - The **FAB auth provider** is actively maintained and compatible with the latest versions of Airflow.
-   - The legacy ``webserver_config.py`` file referenced in older docs is **no longer used** in recent versions of Airflow. Instead, authentication is handled via the new ``auth_manager`` framework configured in ``airflow.cfg``.
+   - It is preferred to configure supported authentication options using the new ``auth_manager`` framework configured in ``airflow.cfg``.
+   - The ``webserver_config.py`` file is still used for more advanced options,
+     such as Single Sign-On with OAuth.
 
    For more, see the :doc:`token`.
 

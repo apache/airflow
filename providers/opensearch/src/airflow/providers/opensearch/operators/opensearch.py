@@ -24,18 +24,13 @@ from typing import TYPE_CHECKING, Any
 from opensearchpy import RequestsHttpConnection
 from opensearchpy.exceptions import OpenSearchException
 
-from airflow.exceptions import AirflowException
-from airflow.providers.common.compat.sdk import BaseOperator
+from airflow.providers.common.compat.sdk import AirflowException, BaseOperator
 from airflow.providers.opensearch.hooks.opensearch import OpenSearchHook
 
 if TYPE_CHECKING:
     from opensearchpy import Connection as OpenSearchConnectionClass
 
-    try:
-        from airflow.sdk.definitions.context import Context
-    except ImportError:
-        # TODO: Remove once provider drops support for Airflow 2
-        from airflow.utils.context import Context
+    from airflow.sdk import Context
 
 
 class OpenSearchQueryOperator(BaseOperator):

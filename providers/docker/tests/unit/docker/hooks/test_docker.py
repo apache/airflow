@@ -28,7 +28,7 @@ from docker import TLSConfig
 from docker.errors import APIError
 from packaging.version import Version
 
-from airflow.exceptions import AirflowException, AirflowNotFoundException
+from airflow.providers.common.compat.sdk import AirflowException, AirflowNotFoundException
 from airflow.providers.docker.hooks.docker import DockerHook
 
 DOCKER_PY_7_PLUS = Version(Version(version("docker")).base_version) >= Version("7")
@@ -42,7 +42,6 @@ TEST_CONN = {"host": "some.docker.registry.com", "login": "some_user", "password
 MOCK_CONNECTION_NOT_EXIST_MSG = "Testing connection not exists"
 MOCK_CONNECTION_NOT_EXISTS_EX = AirflowNotFoundException(MOCK_CONNECTION_NOT_EXIST_MSG)
 HOOK_LOGGER_NAME = "airflow.task.hooks.airflow.providers.docker.hooks.docker.DockerHook"
-AIRFLOW_V_2_7_HOOK_LOGGER_NAME = "airflow.providers.docker.hooks.docker"
 
 
 @pytest.fixture
@@ -108,7 +107,6 @@ def test_create_api_client(conn_id, hook_conn, docker_api_client_patcher, caplog
         - If `docker_conn_id` not provided that hook doesn't try access to Airflow Connections.
     """
     caplog.set_level(logging.DEBUG, logger=HOOK_LOGGER_NAME)
-    caplog.set_level(logging.DEBUG, logger=AIRFLOW_V_2_7_HOOK_LOGGER_NAME)
     hook = DockerHook(
         docker_conn_id=conn_id, base_url=TEST_TLS_BASE_URL, version=TEST_VERSION, tls=True, timeout=42
     )

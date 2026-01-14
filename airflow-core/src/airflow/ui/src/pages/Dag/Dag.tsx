@@ -55,16 +55,29 @@ export const Dag = () => {
     ...externalTabs,
   ];
 
+  const refetchInterval = useAutoRefresh({ dagId });
+  const [hasPendingRuns, setHasPendingRuns] = useState<boolean | undefined>(false);
+
   const {
     data: dag,
     error,
     isLoading,
-  } = useDagServiceGetDagDetails({
-    dagId,
-  });
+  } = useDagServiceGetDagDetails(
+    {
+      dagId,
+    },
+    undefined,
+    {
+      refetchInterval: (query) => {
+        // Auto-refresh when there are active runs or pending runs
+        if (hasPendingRuns ?? (query.state.data && (query.state.data.active_runs_count ?? 0) > 0)) {
+          return refetchInterval;
+        }
 
-  const refetchInterval = useAutoRefresh({ dagId });
-  const [hasPendingRuns, setHasPendingRuns] = useState<boolean | undefined>(false);
+        return false;
+      },
+    },
+  );
 
   // Ensures continuous refresh to detect new runs when there's no
   // pending state and new runs are initiated from other page
@@ -92,7 +105,10 @@ export const Dag = () => {
   );
 
   const { tabs: processedTabs } = useRequiredActionTabs({ dagId }, tabs, {
-    refetchInterval,
+    refetchInterval:
+      (dag?.active_runs_count ?? 0) > 0 || (latestRun && isStatePending(latestRun.state))
+        ? refetchInterval
+        : false,
   });
 
   const displayTabs = processedTabs.filter((tab) => {
@@ -106,13 +122,7 @@ export const Dag = () => {
   return (
     <ReactFlowProvider>
       <DetailsLayout error={error ?? runsError} isLoading={isLoading || isLoadingRuns} tabs={displayTabs}>
-        <Header
-          dag={dag}
-          isRefreshing={
-            latestRun ? Boolean(isStatePending(latestRun.state) && Boolean(refetchInterval)) : false
-          }
-          latestRunInfo={latestRun ?? undefined}
-        />
+        <Header dag={dag} latestRunInfo={latestRun ?? undefined} />
       </DetailsLayout>
     </ReactFlowProvider>
   );

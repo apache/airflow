@@ -39,6 +39,8 @@ const ActionAccordion = ({ affectedTasks, note, setNote }: Props) => {
   const showTaskSection = affectedTasks !== undefined;
   const { t: translate } = useTranslation();
 
+  const columns = getColumns(translate);
+
   return (
     <Accordion.Root
       collapsible
@@ -58,7 +60,7 @@ const ActionAccordion = ({ affectedTasks, note, setNote }: Props) => {
           <Accordion.ItemContent>
             <Box maxH="400px" overflowY="scroll">
               <DataTable
-                columns={getColumns(translate)}
+                columns={columns}
                 data={affectedTasks.task_instances}
                 displayMode="table"
                 modelName={translate("common:taskInstance_other")}

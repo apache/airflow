@@ -35,8 +35,8 @@ from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
 from google.api_core.retry import Retry, exponential_sleep_generator
 from google.cloud.dataproc_v1 import Batch, Cluster, ClusterStatus, JobStatus
 
-from airflow.configuration import conf
-from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
+from airflow.exceptions import AirflowProviderDeprecationWarning
+from airflow.providers.common.compat.sdk import AirflowException, conf, timezone
 from airflow.providers.google.cloud.hooks.dataproc import (
     DataprocHook,
     DataProcJobBuilder,
@@ -63,7 +63,6 @@ from airflow.providers.google.cloud.triggers.dataproc import (
 )
 from airflow.providers.google.cloud.utils.dataproc import DataprocOperationType
 from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID
-from airflow.utils import timezone
 
 if TYPE_CHECKING:
     from google.api_core import operation
@@ -950,6 +949,8 @@ class DataprocDeleteClusterOperator(GoogleCloudBaseOperator):
         account from the list granting this role to the originating account (templated).
     :param deferrable: Run operator in the deferrable mode.
     :param polling_interval_seconds: Time (seconds) to wait between calls to check the cluster status.
+    :param ignore_if_missing: If True, the operator will not raise an exception if the cluster does not exist.
+        Defaults to False.
     """
 
     template_fields: Sequence[str] = (
@@ -975,6 +976,7 @@ class DataprocDeleteClusterOperator(GoogleCloudBaseOperator):
         impersonation_chain: str | Sequence[str] | None = None,
         deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         polling_interval_seconds: int = 10,
+        ignore_if_missing: bool = False,
         **kwargs,
     ):
         super().__init__(**kwargs)
@@ -992,24 +994,30 @@ class DataprocDeleteClusterOperator(GoogleCloudBaseOperator):
         self.impersonation_chain = impersonation_chain
         self.deferrable = deferrable
         self.polling_interval_seconds = polling_interval_seconds
+        self.ignore_if_missing = ignore_if_missing
 
     def execute(self, context: Context) -> None:
         hook = DataprocHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain)
-        operation = self._delete_cluster(hook)
+        try:
+            op: operation.Operation = self._delete_cluster(hook)
+
+        except NotFound:
+            if self.ignore_if_missing:
+                self.log.info(
+                    "Cluster %s not found in region %s. Ignoring.",
+                    self.cluster_name,
+                    self.region,
+                )
+                return
+            raise
+
+        except Exception as e:
+            raise AirflowException(str(e))
+
         if not self.deferrable:
-            hook.wait_for_operation(timeout=self.timeout, result_retry=self.retry, operation=operation)
+            hook.wait_for_operation(timeout=self.timeout, result_retry=self.retry, operation=op)
             self.log.info("Cluster deleted.")
         else:
-            try:
-                hook.get_cluster(
-                    project_id=self.project_id, region=self.region, cluster_name=self.cluster_name
-                )
-            except NotFound:
-                self.log.info("Cluster deleted.")
-                return
-            except Exception as e:
-                raise AirflowException(str(e))
-
             end_time: float = time.time() + self.timeout
             self.defer(
                 trigger=DataprocDeleteClusterTrigger(

@@ -126,6 +126,9 @@ API Server, etc.), providing a version-agnostic, stable interface for writing an
 * ``get_current_context``
 * ``get_parsing_context``
 
+.. seealso::
+   API reference for :class:`~airflow.sdk.TaskGroup`, :class:`~airflow.sdk.DAG`, and :class:`~airflow.sdk.task_group`
+
 **Migration from Airflow 2.x:**
 
 For detailed migration instructions from Airflow 2.x to 3.x, including import changes and other breaking changes,

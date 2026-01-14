@@ -57,8 +57,10 @@ def _masked_value_check(data, sensitive_fields):
 
 
 def check_last_log(session, dag_id, event, logical_date, expected_extra=None, check_masked=False):
-    logs = (
-        session.query(
+    from sqlalchemy import delete, select
+
+    logs = session.execute(
+        select(
             Log.dag_id,
             Log.task_id,
             Log.event,
@@ -66,15 +68,14 @@ def check_last_log(session, dag_id, event, logical_date, expected_extra=None, ch
             Log.owner,
             Log.extra,
         )
-        .filter(
+        .where(
             Log.dag_id == dag_id,
             Log.event == event,
             Log.logical_date == logical_date,
         )
         .order_by(Log.dttm.desc())
         .limit(5)
-        .all()
-    )
+    ).all()
     assert len(logs) >= 1
     assert logs[0].extra
     if expected_extra:
@@ -83,7 +84,7 @@ def check_last_log(session, dag_id, event, logical_date, expected_extra=None, ch
         extra_json = json.loads(logs[0].extra)
         _masked_value_check(extra_json, DEFAULT_SENSITIVE_FIELDS)
 
-    session.query(Log).delete()
+    session.execute(delete(Log))
 
 
 class StructlogCapture:

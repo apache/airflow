@@ -22,8 +22,8 @@ from unittest import mock
 
 import pytest
 
-from airflow.exceptions import AirflowException
 from airflow.models import Connection
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.microsoft.azure.hooks.batch import AzureBatchHook
 from airflow.providers.microsoft.azure.operators.batch import AzureBatchOperator
 

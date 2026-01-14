@@ -22,8 +22,8 @@ from unittest import mock
 import pytest
 from botocore.exceptions import ClientError
 
-from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.quicksight import QuickSightHook
+from airflow.providers.common.compat.sdk import AirflowException
 
 DEFAULT_AWS_ACCOUNT_ID = "123456789012"
 MOCK_DATA = {

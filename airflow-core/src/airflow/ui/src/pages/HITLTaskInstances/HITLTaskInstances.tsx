@@ -19,7 +19,6 @@
 import { Heading, Link, VStack } from "@chakra-ui/react";
 import type { ColumnDef } from "@tanstack/react-table";
 import type { TFunction } from "i18next";
-import { useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import { Link as RouterLink, useParams, useSearchParams } from "react-router-dom";
 
@@ -231,14 +230,21 @@ export const HITLTaskInstances = () => {
     },
   );
 
-  const handleResponseChange = useCallback(() => {
+  const handleResponseChange = () => {
     setTableURLState({
       pagination: { ...pagination, pageIndex: 0 },
       sorting,
     });
     searchParams.delete(OFFSET_PARAM);
     setSearchParams(searchParams);
-  }, [pagination, searchParams, setSearchParams, setTableURLState, sorting]);
+  };
+
+  const columns = taskInstanceColumns({
+    dagId,
+    runId,
+    taskId,
+    translate,
+  });
 
   return (
     <VStack align="start">
@@ -249,12 +255,7 @@ export const HITLTaskInstances = () => {
       ) : undefined}
       <HITLFilters onResponseChange={handleResponseChange} />
       <DataTable
-        columns={taskInstanceColumns({
-          dagId,
-          runId,
-          taskId,
-          translate,
-        })}
+        columns={columns}
         data={data?.hitl_details ?? []}
         errorMessage={<ErrorAlert error={error} />}
         initialState={tableURLState}

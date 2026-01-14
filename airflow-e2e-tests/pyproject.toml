@@ -25,7 +25,7 @@ description = "E2E tests for Apache Airflow"
 classifiers = [
     "Private :: Do Not Upload",
 ]
-requires-python = ">=3.10,!=3.13"
+requires-python = ">=3.10,!=3.14"
 authors = [
     { name = "Apache Software Foundation", email = "dev@airflow.apache.org" },
 ]

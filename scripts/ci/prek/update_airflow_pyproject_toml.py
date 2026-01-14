@@ -17,7 +17,7 @@
 # specific language governing permissions and limitations
 # under the License.
 # /// script
-# requires-python = ">=3.10"
+# requires-python = ">=3.10,<3.11"
 # dependencies = [
 #   "packaging>=25",
 #   "rich>=13.6.0",
@@ -182,13 +182,7 @@ if __name__ == "__main__":
         else:
             all_optional_dependencies.append(f'"{optional}" = [\n    "apache-airflow-core[{optional}]"\n]\n')
     optional_airflow_task_sdk_dependencies = get_optional_dependencies(AIRFLOW_TASK_SDK_PYPROJECT_TOML_FILE)
-    for optional in sorted(optional_airflow_task_sdk_dependencies):
-        if optional == "all":
-            all_optional_dependencies.append('"all-task-sdk" = [\n    "apache-airflow-task-sdk[all]"\n]\n')
-        else:
-            all_optional_dependencies.append(
-                f'"{optional}" = [\n    "apache-airflow-task-sdk[{optional}]"\n]\n'
-            )
+    all_optional_dependencies.append('"all-task-sdk" = [\n    "apache-airflow-task-sdk[all]"\n]\n')
     all_providers = sorted(get_all_provider_ids())
     all_provider_lines = []
     for provider_id in all_providers:

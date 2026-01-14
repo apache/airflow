@@ -27,6 +27,80 @@
 Changelog
 ---------
 
+3.15.1
+......
+
+Misc
+~~~~
+
+* ``Consume ''AirflowOptionalProviderFeatureException'' from compat sdk in providers (#60335)``
+* ``New year means updated Copyright notices (#60344)``
+* ``Introduce a "cli" section in provider metadata (#59805)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Re-apply PriorityWeightStrategy SDK work (#60112)``
+
+3.15.0
+......
+
+Features
+~~~~~~~~
+
+* ``Add result_backend_transport_options for Redis Sentinel support in Celery (#59498)``
+
+Misc
+~~~~
+
+* ``Cleanup of variables in settings.py (#59875)``
+* ``Remove top-level SDK reference in Core (#59817)``
+* ``Add and fix SIM107 and B012 Ruff rule (#59770)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``TaskInstance unused method cleanup (#59835)``
+   * ``Revert "Remove PriorityWeightStrategy reference in SDK" (#59828)``
+   * ``Remove PriorityWeightStrategy reference in SDK (#59780)``
+   * ``Refactor/sqla2 providers(celery, kubernetes, databricks, mysql) to remove SQLA query usage (#59537)``
+
+3.14.1
+......
+
+Misc
+~~~~
+
+* ``Add backcompat for exceptions in providers (#58727)``
+* ``Move the traces and metrics code under a common observability package (#56187)``
+* ``Remove global from celery provider (#58869)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+3.14.0
+......
+
+.. note::
+    This release of provider is only available for Airflow 2.11+ as explained in the
+    Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/PROVIDERS.rst#minimum-supported-version-of-airflow-for-community-managed-providers>_.
+
+Features
+~~~~~~~~
+
+* ``Send executor integration info in workload (#57800)``
+* ``Add duplicate hostname check for Celery workers (#58591)``
+
+Misc
+~~~~
+
+* ``Move out some exceptions to TaskSDK (#54505)``
+* ``Bump minimum Airflow version in providers to Airflow 2.11.0 (#58612)``
+* ``Fix lower bound dependency to common-compat provider (#58833)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Updates to release process of providers (#58316)``
+   * ``Prepare release for 2025-11-27 wave of providers (#58697)``
+
 3.13.1
 ......
 

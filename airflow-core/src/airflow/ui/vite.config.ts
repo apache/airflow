@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import react from "@vitejs/plugin-react-swc";
+import react from "@vitejs/plugin-react";
 import cssInjectedByJsPlugin from "vite-plugin-css-injected-by-js";
 import { defineConfig } from "vitest/config";
 
@@ -25,7 +25,11 @@ export default defineConfig({
   base: "./",
   build: { chunkSizeWarningLimit: 1600, manifest: true },
   plugins: [
-    react(),
+    react({
+      babel: {
+        plugins: ["babel-plugin-react-compiler"],
+      },
+    }),
     // Replace the directory to work with the flask plugin generation
     {
       name: "transform-url-src",
@@ -44,6 +48,7 @@ export default defineConfig({
     },
     css: true,
     environment: "happy-dom",
+    exclude: ["**/node_modules/**", "**/dist/**", "tests/e2e/**"],
     globals: true,
     mockReset: true,
     restoreMocks: true,

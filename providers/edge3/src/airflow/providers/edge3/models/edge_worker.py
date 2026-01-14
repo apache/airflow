@@ -26,11 +26,9 @@ from typing import TYPE_CHECKING
 from sqlalchemy import Integer, String, delete, select
 from sqlalchemy.orm import Mapped
 
-from airflow.exceptions import AirflowException
 from airflow.models.base import Base
-from airflow.providers.common.compat.sdk import timezone
+from airflow.providers.common.compat.sdk import AirflowException, Stats, timezone
 from airflow.providers.common.compat.sqlalchemy.orm import mapped_column
-from airflow.stats import Stats
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.providers_configuration_loader import providers_configuration_loaded
 from airflow.utils.session import NEW_SESSION, provide_session
@@ -46,6 +44,12 @@ logger = logging.getLogger(__name__)
 
 class EdgeWorkerVersionException(AirflowException):
     """Signal a version mismatch between core and Edge Site."""
+
+    pass
+
+
+class EdgeWorkerDuplicateException(AirflowException):
+    """Signal that a worker with the same name is already active."""
 
     pass
 

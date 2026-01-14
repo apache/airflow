@@ -22,8 +22,8 @@ import pytest
 from sqlalchemy import or_
 
 from airflow import models
-from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.transfers.s3_to_sql import S3ToSqlOperator
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.utils.session import create_session
 
 pytestmark = pytest.mark.db_test
