@@ -29,8 +29,7 @@ from urllib.parse import unquote, urlsplit
 from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
 from google.cloud.devtools.cloudbuild_v1.types import Build, BuildTrigger, RepoSource
 
-from airflow.configuration import conf
-from airflow.providers.common.compat.sdk import AirflowException
+from airflow.providers.common.compat.sdk import AirflowException, conf
 from airflow.providers.google.cloud.hooks.cloud_build import CloudBuildHook
 from airflow.providers.google.cloud.links.cloud_build import (
     CloudBuildLink,

@@ -186,7 +186,7 @@ class VaultBackend(BaseSecretsBackend, LoggingMixin):
     if TYPE_CHECKING:
         from airflow.models.connection import Connection
 
-    def get_connection(self, conn_id: str) -> Connection | None:
+    def get_connection(self, conn_id: str, team_name: str | None = None) -> Connection | None:
         """
         Get connection from Vault as secret.
 

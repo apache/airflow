@@ -118,6 +118,7 @@ class FileGroupForCi(Enum):
     TASK_SDK_INTEGRATION_TEST_FILES = auto()
     GO_SDK_FILES = auto()
     AIRFLOW_CTL_FILES = auto()
+    AIRFLOW_CTL_INTEGRATION_TEST_FILES = auto()
     ALL_PYPROJECT_TOML_FILES = auto()
     ALL_PYTHON_FILES = auto()
     ALL_SOURCE_FILES = auto()
@@ -306,6 +307,9 @@ CI_FILE_GROUP_MATCHES: HashableDict[FileGroupForCi] = HashableDict(
         FileGroupForCi.AIRFLOW_CTL_FILES: [
             r"^airflow-ctl/src/airflowctl/.*\.py$",
             r"^airflow-ctl/tests/.*\.py$",
+        ],
+        FileGroupForCi.AIRFLOW_CTL_INTEGRATION_TEST_FILES: [
+            r"^airflow-ctl-tests/.*\.py$",
         ],
         FileGroupForCi.DEVEL_TOML_FILES: [
             r"^devel-common/pyproject\.toml$",
@@ -900,6 +904,12 @@ class SelectiveChecks:
         return self._should_be_run(FileGroupForCi.AIRFLOW_CTL_FILES)
 
     @cached_property
+    def run_airflow_ctl_integration_tests(self) -> bool:
+        return self._should_be_run(FileGroupForCi.AIRFLOW_CTL_FILES) or self._should_be_run(
+            FileGroupForCi.AIRFLOW_CTL_INTEGRATION_TEST_FILES
+        )
+
+    @cached_property
     def run_kubernetes_tests(self) -> bool:
         return self._should_be_run(FileGroupForCi.KUBERNETES_FILES)
 
@@ -951,6 +961,7 @@ class SelectiveChecks:
             or self.docs_build
             or self.run_kubernetes_tests
             or self.run_task_sdk_integration_tests
+            or self.run_airflow_ctl_integration_tests
             or self.run_helm_tests
             or self.run_ui_tests
             or self.pyproject_toml_changed
@@ -963,6 +974,7 @@ class SelectiveChecks:
             self.run_kubernetes_tests
             or self.run_helm_tests
             or self.run_task_sdk_integration_tests
+            or self.run_airflow_ctl_integration_tests
             or self.run_ui_e2e_tests
         )
 

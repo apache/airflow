@@ -25,7 +25,7 @@
 {{- $local := contains "Local" .Values.executor }}
 # Is persistence enabled on the _workers_?
 # This is important because in $local mode, the scheduler assumes the role of the worker
-{{- $persistence := .Values.workers.persistence.enabled }}
+{{- $persistence := or .Values.workers.celery.persistence.enabled (and (not (has .Values.workers.celery.persistence.enabled (list true false))) .Values.workers.persistence.enabled) }}
 # If we're using a StatefulSet
 {{- $stateful := and $local $persistence }}
 # We can skip DAGs mounts on scheduler if dagProcessor is enabled, except with $local mode
@@ -40,11 +40,11 @@
 {{- $affinity := or .Values.scheduler.affinity .Values.affinity }}
 {{- $tolerations := or .Values.scheduler.tolerations .Values.tolerations }}
 {{- $topologySpreadConstraints := or .Values.scheduler.topologySpreadConstraints .Values.topologySpreadConstraints }}
-{{- $revisionHistoryLimit := or .Values.scheduler.revisionHistoryLimit .Values.revisionHistoryLimit }}
-{{- $securityContext := include "airflowPodSecurityContext" (list . .Values.scheduler) }}
-{{- $containerSecurityContext := include "containerSecurityContext" (list . .Values.scheduler) }}
-{{- $containerSecurityContextWaitForMigrations := include "containerSecurityContext" (list . .Values.scheduler.waitForMigrations) }}
-{{- $containerSecurityContextLogGroomerSidecar := include "containerSecurityContext" (list . .Values.scheduler.logGroomerSidecar) }}
+{{- $revisionHistoryLimit := include "airflow.revisionHistoryLimit" (list .Values.scheduler.revisionHistoryLimit .Values.revisionHistoryLimit) }}
+{{- $securityContext := include "airflowPodSecurityContext" (list .Values.scheduler .Values) }}
+{{- $containerSecurityContext := include "containerSecurityContext" (list .Values.scheduler .Values) }}
+{{- $containerSecurityContextWaitForMigrations := include "containerSecurityContext" (list .Values.scheduler.waitForMigrations .Values) }}
+{{- $containerSecurityContextLogGroomerSidecar := include "containerSecurityContext" (list .Values.scheduler.logGroomerSidecar .Values) }}
 {{- $containerLifecycleHooks := or .Values.scheduler.containerLifecycleHooks .Values.containerLifecycleHooks }}
 {{- $containerLifecycleHooksLogGroomerSidecar := or .Values.scheduler.logGroomerSidecar.containerLifecycleHooks .Values.containerLifecycleHooks }}
 apiVersion: apps/v1
@@ -69,14 +69,14 @@ spec:
   serviceName: {{ include "airflow.fullname" . }}-scheduler
   {{- end }}
   replicas: {{ .Values.scheduler.replicas }}
-  {{- if $revisionHistoryLimit }}
+  {{- if ne $revisionHistoryLimit "" }}
   revisionHistoryLimit: {{ $revisionHistoryLimit }}
   {{- end }}
   {{- if and $stateful .Values.scheduler.updateStrategy }}
   updateStrategy: {{- toYaml .Values.scheduler.updateStrategy | nindent 4 }}
   {{- end }}
-  {{- if and $stateful .Values.workers.persistence.persistentVolumeClaimRetentionPolicy }}
-  persistentVolumeClaimRetentionPolicy: {{- toYaml .Values.workers.persistence.persistentVolumeClaimRetentionPolicy  | nindent 4 }}
+  {{- if and $stateful (or .Values.workers.celery.persistence.persistentVolumeClaimRetentionPolicy .Values.workers.persistence.persistentVolumeClaimRetentionPolicy) }}
+  persistentVolumeClaimRetentionPolicy: {{- toYaml (.Values.workers.celery.persistence.persistentVolumeClaimRetentionPolicy | default .Values.workers.persistence.persistentVolumeClaimRetentionPolicy) | nindent 4 }}
   {{- end }}
   {{- if and (not $stateful) .Values.scheduler.strategy }}
   strategy: {{- toYaml .Values.scheduler.strategy | nindent 4 }}
@@ -102,6 +102,9 @@ spec:
         checksum/airflow-config: {{ include (print $.Template.BasePath "/configmaps/configmap.yaml") . | sha256sum }}
         checksum/extra-configmaps: {{ include (print $.Template.BasePath "/configmaps/extra-configmaps.yaml") . | sha256sum }}
         checksum/extra-secrets: {{ include (print $.Template.BasePath "/secrets/extra-secrets.yaml") . | sha256sum }}
+        {{- if and (semverCompare ">=3.0.0" .Values.airflowVersion) .Values.apiServer.enabled (not .Values.jwtSecretName) }}
+        checksum/jwt-secret: {{ include (print $.Template.BasePath "/secrets/jwt-secret.yaml") . | sha256sum }}
+        {{- end }}
         {{- if .Values.scheduler.safeToEvict }}
         cluster-autoscaler.kubernetes.io/safe-to-evict: "true"
         {{- end }}
@@ -379,16 +382,16 @@ spec:
       kind: PersistentVolumeClaim
       metadata:
         name: logs
-        {{- if .Values.workers.persistence.annotations }}
-        annotations: {{- toYaml .Values.workers.persistence.annotations | nindent 10 }}
+        {{- if or .Values.workers.celery.persistence.annotations .Values.workers.persistence.annotations }}
+        annotations: {{- toYaml (.Values.workers.celery.persistence.annotations | default .Values.workers.persistence.annotations) | nindent 10 }}
         {{- end }}
       spec:
-      {{- if .Values.workers.persistence.storageClassName }}
-        storageClassName: {{ tpl .Values.workers.persistence.storageClassName . | quote }}
+      {{- if or .Values.workers.celery.persistence.storageClassName .Values.workers.persistence.storageClassName }}
+        storageClassName: {{ tpl (.Values.workers.celery.persistence.storageClassName | default .Values.workers.persistence.storageClassName) . | quote }}
       {{- end }}
         accessModes: ["ReadWriteOnce"]
         resources:
           requests:
-            storage: {{ .Values.workers.persistence.size }}
+            storage: {{ .Values.workers.celery.persistence.size | default .Values.workers.persistence.size }}
   {{- end }}
   {{- end }}

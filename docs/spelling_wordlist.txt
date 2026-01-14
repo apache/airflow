@@ -230,6 +230,7 @@ callsite
 camelCase
 Cancelled
 cancelled
+Cancelling
 carbonite
 cas
 Cassanda
@@ -753,6 +754,7 @@ gdbm
 gdrive
 Gelf
 gelf
+gemini
 generateUploadUrl
 Gentner
 geq
@@ -1226,6 +1228,7 @@ Nodegroups
 nodegroups
 nodeName
 nodeSelector
+nohup
 Nones
 nonnegative
 nonterminal

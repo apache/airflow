@@ -1,5 +1,6 @@
 Methods removed from TaskInstance
 
-On class ``TaskInstance``, functions ``run()``, ``render_templates()``, and
-private members related to them have been removed. The class has been
-considered internal since 3.0, and should not be relied on in user code.
+On class ``TaskInstance``, functions ``run()``, ``render_templates()``,
+``get_template_context()``, and private members related to them have been
+removed. The class has been considered internal since 3.0, and should not be
+relied on in user code.

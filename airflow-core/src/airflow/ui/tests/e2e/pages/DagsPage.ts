@@ -36,7 +36,6 @@ export class DagsPage extends BasePage {
   // Pagination elements
   public readonly paginationNextButton: Locator;
   public readonly paginationPrevButton: Locator;
-
   public readonly stateElement: Locator;
   public readonly triggerButton: Locator;
 
@@ -63,7 +62,12 @@ export class DagsPage extends BasePage {
    * Click next page button
    */
   public async clickNextPage(): Promise<void> {
+    const initialDagNames = await this.getDagNames();
+
     await this.paginationNextButton.click();
+
+    await expect.poll(() => this.getDagNames(), { timeout: 10_000 }).not.toEqual(initialDagNames);
+
     await this.waitForDagList();
   }
 
@@ -71,7 +75,11 @@ export class DagsPage extends BasePage {
    * Click previous page button
    */
   public async clickPrevPage(): Promise<void> {
+    const initialDagNames = await this.getDagNames();
+
     await this.paginationPrevButton.click();
+
+    await expect.poll(() => this.getDagNames(), { timeout: 10_000 }).not.toEqual(initialDagNames);
     await this.waitForDagList();
   }
 

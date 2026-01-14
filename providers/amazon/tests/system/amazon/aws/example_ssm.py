@@ -223,6 +223,79 @@ with DAG(
     )
     # [END howto_operator_get_command_invocation]
 
+    # [START howto_operator_ssm_enhanced_async]
+    run_command_async = SsmRunCommandOperator(
+        task_id="run_command_async",
+        document_name="AWS-RunShellScript",
+        run_command_kwargs={
+            "InstanceIds": [instance_id],
+            "Parameters": {"commands": ["echo 'Testing async pattern'", "exit 1"]},
+        },
+        wait_for_completion=False,
+        fail_on_nonzero_exit=False,
+    )
+
+    wait_command_async = SsmRunCommandCompletedSensor(
+        task_id="wait_command_async",
+        command_id="{{ ti.xcom_pull(task_ids='run_command_async') }}",
+        fail_on_nonzero_exit=False,
+    )
+    # [END howto_operator_ssm_enhanced_async]
+
+    # [START howto_operator_ssm_enhanced_sync]
+    run_command_sync = SsmRunCommandOperator(
+        task_id="run_command_sync",
+        document_name="AWS-RunShellScript",
+        run_command_kwargs={
+            "InstanceIds": [instance_id],
+            "Parameters": {"commands": ["echo 'Testing sync pattern'", "exit 2"]},
+        },
+        wait_for_completion=True,
+        fail_on_nonzero_exit=False,
+    )
+    # [END howto_operator_ssm_enhanced_sync]
+
+    # [START howto_operator_ssm_exit_code_routing]
+    get_exit_code_output = SsmGetCommandInvocationOperator(
+        task_id="get_exit_code_output",
+        command_id="{{ ti.xcom_pull(task_ids='run_command_async') }}",
+        instance_id=instance_id,
+    )
+
+    @task
+    def route_based_on_exit_code(**context):
+        output = context["ti"].xcom_pull(task_ids="get_exit_code_output")
+        exit_code = output.get("response_code") if output else None
+        log.info("Command exit code: %s", exit_code)
+        return "handle_exit_code"
+
+    route_task = route_based_on_exit_code()
+
+    @task(task_id="handle_exit_code")
+    def handle_exit_code():
+        log.info("Handling exit code routing")
+        return "exit_code_handled"
+
+    handle_task = handle_exit_code()
+    # [END howto_operator_ssm_exit_code_routing]
+
+    # [START howto_operator_ssm_traditional]
+    run_command_traditional = SsmRunCommandOperator(
+        task_id="run_command_traditional",
+        document_name="AWS-RunShellScript",
+        run_command_kwargs={
+            "InstanceIds": [instance_id],
+            "Parameters": {"commands": ["echo 'Testing traditional pattern'", "exit 0"]},
+        },
+        wait_for_completion=False,
+    )
+
+    wait_command_traditional = SsmRunCommandCompletedSensor(
+        task_id="wait_command_traditional",
+        command_id="{{ ti.xcom_pull(task_ids='run_command_traditional') }}",
+    )
+    # [END howto_operator_ssm_traditional]
+
     delete_instance = EC2TerminateInstanceOperator(
         task_id="terminate_instance",
         trigger_rule=TriggerRule.ALL_DONE,
@@ -244,10 +317,17 @@ with DAG(
         run_command,
         await_run_command,
         get_command_output,
-        # TEST TEARDOWN
-        delete_instance,
-        delete_instance_profile(instance_profile_name, role_name),
     )
+
+    # Exit code handling examples (run in parallel)
+    wait_until_ssm_ready(instance_id) >> run_command_async >> wait_command_async >> get_exit_code_output
+    get_exit_code_output >> route_task >> handle_task
+    wait_until_ssm_ready(instance_id) >> run_command_sync
+    wait_until_ssm_ready(instance_id) >> run_command_traditional >> wait_command_traditional
+
+    # TEST TEARDOWN
+    [get_command_output, handle_task, run_command_sync, wait_command_traditional] >> delete_instance
+    delete_instance >> delete_instance_profile(instance_profile_name, role_name)
 
     from tests_common.test_utils.watcher import watcher
 
