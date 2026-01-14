@@ -151,7 +151,7 @@ class TestPowerBIDatasetRefreshOperator:
 
         # Verify the XCom keys and values
         calls = context["ti"].xcom_push.call_args_list
-        xcom_data = {call[1]['key']: call[1]['value'] for call in calls}
+        xcom_data = {call[1]["key"]: call[1]["value"] for call in calls}
 
         assert f"{TASK_ID}.powerbi_dataset_refresh_id" in xcom_data
         assert xcom_data[f"{TASK_ID}.powerbi_dataset_refresh_id"] == NEW_REFRESH_REQUEST_ID
