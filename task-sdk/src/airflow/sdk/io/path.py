@@ -199,11 +199,11 @@ class ObjectStoragePath(ProxyUPath):
         return self.rename(target)
 
     @classmethod
-    def cwd(cls) -> Self:  # type: ignore[override]
+    def cwd(cls) -> Self:
         return cls._from_upath(UPath.cwd())
 
     @classmethod
-    def home(cls) -> Self:  # type: ignore[override]
+    def home(cls) -> Self:
         return cls._from_upath(UPath.home())
 
     # EXTENDED OPERATIONS
@@ -443,6 +443,6 @@ class ObjectStoragePath(ProxyUPath):
 
     def __str__(self):
         conn_id = self.storage_options.get("conn_id")
-        if self._protocol and conn_id:
-            return f"{self._protocol}://{conn_id}@{self.path}"
+        if self.protocol and conn_id:
+            return f"{self.protocol}://{conn_id}@{self.path}"
         return super().__str__()
