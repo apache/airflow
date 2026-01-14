@@ -1516,5 +1516,7 @@ def get_provider_info():
             "airflow.providers.google.cloud.log.gcs_task_handler.GCSTaskHandler",
             "airflow.providers.google.cloud.log.stackdriver_task_handler.StackdriverTaskHandler",
         ],
-        "queues": ["airflow.providers.google.cloud.queues.pubsub.PubsubMessageQueueProvider"],
+        "queues": [
+            "airflow.providers.google.event_scheduling.events.pubsub.PubSubMessageQueueEventTriggerContainer"
+        ],
     }

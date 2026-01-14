@@ -25,14 +25,14 @@ Google Cloud Messaging Queues
 Google Cloud Pub/Sub Queue Provider
 ------------------------------------
 
-Implemented by :class:`~airflow.providers.google.cloud.queues.pubsub.PubsubMessageQueueProvider`
+Implemented by :class:`~airflow.providers.google.event_scheduling.events.pubsub.PubSubMessageQueueEventTriggerContainer`
 
 The Google Cloud Pub/Sub Queue Provider is a message queue provider that uses Google Cloud Pub/Sub as the underlying message queue system.
 
 It allows you to send and receive messages using Cloud Pub/Sub in your Airflow workflows
 with :class:`~airflow.providers.common.messaging.triggers.msg_queue.MessageQueueTrigger` common message queue interface.
 
-.. include:: /../src/airflow/providers/google/cloud/queues/pubsub.py
+.. include:: /../src/airflow/providers/google/event_scheduling/events/pubsub.py
     :start-after: [START pubsub_message_queue_provider_description]
     :end-before: [END pubsub_message_queue_provider_description]
 
@@ -49,7 +49,7 @@ Wait for a message in a queue
 
 Below is an example of how you can configure an Airflow DAG to be triggered by a message in Pub/Sub.
 
-.. exampleinclude:: /../tests/system/google/cloud/pubsub/example_pubsub_message_queue_trigger.py
+.. exampleinclude:: /../tests/system/google/event_scheduling/example_event_schedule_pubsub.py
     :language: python
     :start-after: [START howto_trigger_pubsub_message_queue]
     :end-before: [END howto_trigger_pubsub_message_queue]

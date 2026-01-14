@@ -25,21 +25,27 @@ pytest.importorskip("airflow.providers.common.messaging.providers.base_provider"
 
 def test_message_pubsub_queue_create():
     from airflow.providers.common.messaging.providers.base_provider import BaseMessageQueueProvider
-    from airflow.providers.google.cloud.queues.pubsub import PubsubMessageQueueProvider
+    from airflow.providers.google.event_scheduling.events.pubsub import (
+        PubSubMessageQueueEventTriggerContainer,
+    )
 
-    provider = PubsubMessageQueueProvider()
+    provider = PubSubMessageQueueEventTriggerContainer()
     assert isinstance(provider, BaseMessageQueueProvider)
 
 
 def test_message_pubsub_queue_trigger_class():
-    from airflow.providers.google.cloud.queues.pubsub import PubsubMessageQueueProvider
+    from airflow.providers.google.event_scheduling.events.pubsub import (
+        PubSubMessageQueueEventTriggerContainer,
+    )
 
-    provider = PubsubMessageQueueProvider()
+    provider = PubSubMessageQueueEventTriggerContainer()
     assert provider.trigger_class() == PubsubPullTrigger
 
 
 def test_scheme_matches():
-    from airflow.providers.google.cloud.queues.pubsub import PubsubMessageQueueProvider
+    from airflow.providers.google.event_scheduling.events.pubsub import (
+        PubSubMessageQueueEventTriggerContainer,
+    )
 
-    provider = PubsubMessageQueueProvider()
+    provider = PubSubMessageQueueEventTriggerContainer()
     assert provider.scheme_matches("google+pubsub")

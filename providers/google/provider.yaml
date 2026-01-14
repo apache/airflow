@@ -1261,4 +1261,4 @@ logging:
   - airflow.providers.google.cloud.log.stackdriver_task_handler.StackdriverTaskHandler
 
 queues:
-  - airflow.providers.google.cloud.queues.pubsub.PubsubMessageQueueProvider
+  - airflow.providers.google.event_scheduling.events.pubsub.PubSubMessageQueueEventTriggerContainer

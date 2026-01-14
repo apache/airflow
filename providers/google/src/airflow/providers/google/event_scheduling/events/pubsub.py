@@ -32,7 +32,7 @@ if TYPE_CHECKING:
     from airflow.triggers.base import BaseEventTrigger
 
 
-class PubsubMessageQueueProvider(BaseMessageQueueProvider):
+class PubSubMessageQueueEventTriggerContainer(BaseMessageQueueProvider):
     """
     Configuration for PubSub integration with common-messaging.
 
@@ -65,4 +65,4 @@ class PubsubMessageQueueProvider(BaseMessageQueueProvider):
     scheme = "google+pubsub"
 
     def trigger_class(self) -> type[BaseEventTrigger]:
-        return PubsubPullTrigger  # type: ignore[return-value]
+        return PubsubPullTrigger

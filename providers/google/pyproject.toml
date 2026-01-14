@@ -206,6 +206,7 @@ dependencies = [
 ]
 "standard" = [
     "apache-airflow-providers-standard"
+]
 "common.messaging" = [
     "apache-airflow-providers-common-messaging"
 ]

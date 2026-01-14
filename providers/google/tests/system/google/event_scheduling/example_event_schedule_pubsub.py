@@ -77,10 +77,13 @@ trigger = MessageQueueTrigger(
 )
 
 # Define an asset that watches for messages on the Pub/Sub subscription
-asset = Asset("pubsub_queue_asset_1", watchers=[AssetWatcher(name="pubsub_watcher_1", trigger=trigger)])
+asset = Asset(
+    "event_schedule_pubsub_asset_1",
+    watchers=[AssetWatcher(name="event_schedule_pubsub_watcher_1", trigger=trigger)],
+)
 
 with DAG(
-    dag_id="example_pubsub_message_queue_trigger",
+    dag_id="example_event_schedule_pubsub",
     schedule=[asset],
 ) as dag:
     process_message_task = EmptyOperator(task_id="process_pubsub_message")
