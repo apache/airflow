@@ -16,9 +16,7 @@
 # under the License.
 from __future__ import annotations
 
-from pathlib import Path
-
-YAML_REGISTRY_PATH = Path(__file__).parent / "metrics_template.yaml"
+YAML_REGISTRY_PATH = "shared/observability/src/airflow_shared/observability/metrics/metrics_template.yaml"
 RST_TABLE_OUTPUT_PATH = "airflow-core/docs/administration-and-deployment/logging-monitoring/metric_tables.rst"
 
 
@@ -142,7 +140,7 @@ def write_metric_tables_file(rst_tables_str: str, output_path: str, yaml_source:
         f.write(rst_tables_str)
 
 
-def generate_metrics_rst_from_registry():
+def generate_metrics_rst_from_registry(app):
     metrics_list = read_metrics_yaml(yaml_path=str(YAML_REGISTRY_PATH))
 
     tables_str = convert_to_rst_tables(metrics=metrics_list)
@@ -150,6 +148,13 @@ def generate_metrics_rst_from_registry():
     write_metric_tables_file(
         rst_tables_str=tables_str, output_path=RST_TABLE_OUTPUT_PATH, yaml_source=str(YAML_REGISTRY_PATH)
     )
+
+
+def setup(app):
+    """Set up the extension."""
+    app.connect("builder-inited", generate_metrics_rst_from_registry)
+
+    return {"version": "builtin", "parallel_read_safe": True, "parallel_write_safe": True}
 
 
 class MetricsRegistry:
