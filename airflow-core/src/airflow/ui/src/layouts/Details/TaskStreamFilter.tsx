@@ -43,13 +43,26 @@ export const TaskStreamFilter = () => {
 
   // In traverse mode, update the root when the selected task changes
   useEffect(() => {
-    if (mode === "traverse" && hasActiveFilter && currentTaskId && currentTaskId !== filterRoot) {
+    if (
+      mode === "traverse" &&
+      hasActiveFilter &&
+      currentTaskId !== undefined &&
+      currentTaskId !== "" &&
+      currentTaskId !== filterRoot
+    ) {
       searchParams.set("root", currentTaskId);
       setSearchParams(searchParams, { replace: true });
     }
   }, [currentTaskId, mode, hasActiveFilter, filterRoot, searchParams, setSearchParams]);
 
-  const buildFilterSearch = (upstream: boolean, downstream: boolean, root?: string, newDepth?: string) => {
+  const buildFilterSearch = (options: {
+    depth?: string;
+    downstream: boolean;
+    root?: string;
+    upstream: boolean;
+  }) => {
+    const { depth: newDepth, downstream, root, upstream } = options;
+
     if (upstream) {
       searchParams.set("upstream", "true");
     } else {
@@ -136,11 +149,13 @@ export const TaskStreamFilter = () => {
                   colorPalette={activeUpstream ? "brand" : "gray"}
                   disabled={currentTaskId === undefined}
                   justifyContent="flex-start"
-                  onClick={() => buildFilterSearch(true, false, currentTaskId, depth)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter" || e.key === " ") {
-                      e.preventDefault();
-                      buildFilterSearch(true, false, currentTaskId, depth);
+                  onClick={() =>
+                    buildFilterSearch({ depth, downstream: false, root: currentTaskId, upstream: true })
+                  }
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter" || event.key === " ") {
+                      event.preventDefault();
+                      buildFilterSearch({ depth, downstream: false, root: currentTaskId, upstream: true });
                     }
                   }}
                   size="sm"
@@ -155,11 +170,13 @@ export const TaskStreamFilter = () => {
                   colorPalette={activeDownstream ? "brand" : "gray"}
                   disabled={currentTaskId === undefined}
                   justifyContent="flex-start"
-                  onClick={() => buildFilterSearch(false, true, currentTaskId, depth)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter" || e.key === " ") {
-                      e.preventDefault();
-                      buildFilterSearch(false, true, currentTaskId, depth);
+                  onClick={() =>
+                    buildFilterSearch({ depth, downstream: true, root: currentTaskId, upstream: false })
+                  }
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter" || event.key === " ") {
+                      event.preventDefault();
+                      buildFilterSearch({ depth, downstream: true, root: currentTaskId, upstream: false });
                     }
                   }}
                   size="sm"
@@ -174,11 +191,13 @@ export const TaskStreamFilter = () => {
                   colorPalette={bothActive ? "brand" : "gray"}
                   disabled={currentTaskId === undefined}
                   justifyContent="flex-start"
-                  onClick={() => buildFilterSearch(true, true, currentTaskId, depth)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter" || e.key === " ") {
-                      e.preventDefault();
-                      buildFilterSearch(true, true, currentTaskId, depth);
+                  onClick={() =>
+                    buildFilterSearch({ depth, downstream: true, root: currentTaskId, upstream: true })
+                  }
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter" || event.key === " ") {
+                      event.preventDefault();
+                      buildFilterSearch({ depth, downstream: true, root: currentTaskId, upstream: true });
                     }
                   }}
                   size="sm"
@@ -200,13 +219,18 @@ export const TaskStreamFilter = () => {
               <Input
                 disabled={currentTaskId === undefined || !hasActiveFilter}
                 min={0}
-                onChange={(e) => {
-                  const {value} = e.target;
+                onChange={(event) => {
+                  const { value } = event.target;
 
-                  buildFilterSearch(includeUpstream, includeDownstream, filterRoot, value);
+                  buildFilterSearch({
+                    depth: value,
+                    downstream: includeDownstream,
+                    root: filterRoot,
+                    upstream: includeUpstream,
+                  });
                 }}
-                onKeyDown={(e) => {
-                  e.stopPropagation();
+                onKeyDown={(event) => {
+                  event.stopPropagation();
                 }}
                 placeholder="All"
                 size="sm"
@@ -253,7 +277,14 @@ export const TaskStreamFilter = () => {
             {hasActiveFilter && filterRoot !== undefined ? (
               <Menu.Item asChild value="clear">
                 <Button
-                  onClick={() => buildFilterSearch(false, false)}
+                  onClick={() =>
+                    buildFilterSearch({
+                      depth: undefined,
+                      downstream: false,
+                      root: undefined,
+                      upstream: false,
+                    })
+                  }
                   size="sm"
                   variant="outline"
                   width="100%"

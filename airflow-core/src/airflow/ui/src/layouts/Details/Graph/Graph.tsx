@@ -69,7 +69,7 @@ export const Graph = () => {
   const includeUpstream = searchParams.get("upstream") === "true";
   const includeDownstream = searchParams.get("downstream") === "true";
   const depthParam = searchParams.get("depth");
-  const depth = depthParam ? parseInt(depthParam, 10) : undefined;
+  const depth = depthParam !== null && depthParam !== "" ? parseInt(depthParam, 10) : undefined;
 
   const hasActiveFilter = includeUpstream || includeDownstream;
 

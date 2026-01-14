@@ -97,7 +97,7 @@ export const Gantt = ({ dagRunState, limit, runType, triggeringUser }: Props) =>
   const includeUpstream = searchParams.get("upstream") === "true";
   const includeDownstream = searchParams.get("downstream") === "true";
   const depthParam = searchParams.get("depth");
-  const depth = depthParam ? parseInt(depthParam, 10) : undefined;
+  const depth = depthParam !== null && depthParam !== "" ? parseInt(depthParam, 10) : undefined;
 
   // Corresponds to border, brand.emphasized, and brand.muted
   const [
