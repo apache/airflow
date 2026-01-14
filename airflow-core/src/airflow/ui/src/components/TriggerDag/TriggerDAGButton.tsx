@@ -16,7 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box } from "@chakra-ui/react";
 import { useDisclosure } from "@chakra-ui/react";
 import React from "react";
 import { useTranslation } from "react-i18next";
@@ -26,24 +25,16 @@ import { useParams } from "react-router-dom";
 import { useDagRunServiceGetDagRun } from "openapi/queries";
 import { Menu } from "src/components/ui";
 
-import ActionButton from "../ui/ActionButton";
+import ActionButton, { type ActionButtonProps } from "../ui/ActionButton";
 import TriggerDAGModal from "./TriggerDAGModal";
 
-type Props = {
+type TriggerDAGButtonProps = {
   readonly dagDisplayName: string;
   readonly dagId: string;
   readonly isPaused: boolean;
-  readonly variant?: "ghost" | "outline";
-  readonly withText?: boolean;
-};
+} & Omit<ActionButtonProps, "actionName" | "icon" | "onClick">;
 
-export const TriggerDAGButton: React.FC<Props> = ({
-  dagDisplayName,
-  dagId,
-  isPaused,
-  variant = "ghost",
-  withText = false,
-}) => {
+export const TriggerDAGButton = ({ dagDisplayName, dagId, isPaused, ...rest }: TriggerDAGButtonProps) => {
   const { onClose, onOpen, open } = useDisclosure();
   const { t: translate } = useTranslation("components");
   const { runId } = useParams();
@@ -127,14 +118,12 @@ export const TriggerDAGButton: React.FC<Props> = ({
 
   // Normal trigger button without menu
   return (
-    <Box>
+    <>
       <ActionButton
+        {...rest}
         actionName={translate("triggerDag.title")}
         icon={<FiPlay />}
         onClick={handleNormalTrigger}
-        text={translate("triggerDag.button")}
-        variant="outline"
-        withText={withText}
       />
 
       <TriggerDAGModal
@@ -145,6 +134,6 @@ export const TriggerDAGButton: React.FC<Props> = ({
         open={open}
         prefillConfig={undefined}
       />
-    </Box>
+    </>
   );
 };

@@ -19,7 +19,7 @@
 import { Box, Button, Flex, Heading, VStack } from "@chakra-ui/react";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { PiNoteBlankLight, PiNoteLight } from "react-icons/pi";
+import { PiNoteBold, PiNoteBlankBold } from "react-icons/pi";
 
 import { Dialog } from "src/components/ui";
 import { ResizableWrapper, MARKDOWN_DIALOG_STORAGE_KEY } from "src/components/ui/ResizableWrapper";
@@ -48,23 +48,19 @@ const EditableMarkdownButton = ({
   const [isOpen, setIsOpen] = useState(false);
 
   const hasContent = Boolean(mdContent?.trim());
-  const noteIcon = hasContent ? <PiNoteLight /> : <PiNoteBlankLight />;
+  const noteIcon = hasContent ? <PiNoteBold /> : <PiNoteBlankBold />;
   const actionName = hasContent ? translate("note.label") : translate("note.add");
 
+  const handleOpen = () => {
+    if (!isOpen) {
+      onOpen();
+    }
+    setIsOpen(true);
+  };
+
   return (
-    <Box>
-      <Box display="inline-block" position="relative">
-        <ActionButton
-          actionName={actionName}
-          icon={noteIcon}
-          onClick={() => {
-            if (!isOpen) {
-              onOpen();
-            }
-            setIsOpen(true);
-          }}
-        />
-      </Box>
+    <>
+      <ActionButton actionName={actionName} icon={noteIcon} onClick={handleOpen} />
       <Dialog.Root
         data-testid="markdown-modal"
         lazyMount
@@ -105,7 +101,7 @@ const EditableMarkdownButton = ({
           </ResizableWrapper>
         </Dialog.Content>
       </Dialog.Root>
-    </Box>
+    </>
   );
 };
 

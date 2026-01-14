@@ -16,47 +16,36 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 import { FiStar } from "react-icons/fi";
 
 import { useToggleFavoriteDag } from "src/queries/useToggleFavoriteDag";
 
-import ActionButton from "../ui/ActionButton";
+import ActionButton, { type ActionButtonProps } from "../ui/ActionButton";
 
 type FavoriteDagButtonProps = {
   readonly dagId: string;
   readonly isFavorite?: boolean;
-  readonly variant?: "ghost" | "outline";
-};
+} & Omit<ActionButtonProps, "actionName" | "icon" | "onClick">;
 
-export const FavoriteDagButton = ({
-  dagId,
-  isFavorite = false,
-  variant = "ghost",
-}: FavoriteDagButtonProps) => {
+export const FavoriteDagButton = ({ dagId, isFavorite = false, ...rest }: FavoriteDagButtonProps) => {
   const { t: translate } = useTranslation("dags");
-
   const { isLoading, toggleFavorite } = useToggleFavoriteDag(dagId);
 
-  const onToggle = () => toggleFavorite(isFavorite);
-
   return (
-    <Box>
-      <ActionButton
-        actionName={isFavorite ? translate("unfavoriteDag") : translate("favoriteDag")}
-        icon={
-          <FiStar
-            style={{
-              fill: isFavorite ? "var(--chakra-colors-brand-solid)" : "none",
-              stroke: "var(--chakra-colors-brand-solid)",
-            }}
-          />
-        }
-        loading={isLoading}
-        onClick={onToggle}
-        variant={variant}
-      />
-    </Box>
+    <ActionButton
+      {...rest}
+      actionName={isFavorite ? translate("unfavoriteDag") : translate("favoriteDag")}
+      icon={
+        <FiStar
+          style={{
+            fill: isFavorite ? "var(--chakra-colors-brand-solid)" : "none",
+            stroke: "var(--chakra-colors-brand-solid)",
+          }}
+        />
+      }
+      loading={isLoading}
+      onClick={() => toggleFavorite(isFavorite)}
+    />
   );
 };

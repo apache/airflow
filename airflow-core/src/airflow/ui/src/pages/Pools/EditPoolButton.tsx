@@ -51,13 +51,7 @@ const EditPoolButton = ({ pool }: Props) => {
 
   return (
     <>
-      <ActionButton
-        actionName={translate("pools.edit")}
-        icon={<FiEdit />}
-        onClick={() => {
-          onOpen();
-        }}
-      />
+      <ActionButton actionName={translate("pools.edit")} icon={<FiEdit />} onClick={onOpen} />
 
       <Dialog.Root onOpenChange={handleClose} open={open} size="xl">
         <Dialog.Content backdrop>

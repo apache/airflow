@@ -16,29 +16,21 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, type ButtonProps, useDisclosure } from "@chakra-ui/react";
+import { useDisclosure } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 import { FiTrash2 } from "react-icons/fi";
 import { useLocation, useNavigate } from "react-router-dom";
 
 import DeleteDialog from "src/components/DeleteDialog";
-import ActionButton from "src/components/ui/ActionButton";
+import ActionButton, { type ActionButtonProps } from "src/components/ui/ActionButton";
 import { useDeleteDag } from "src/queries/useDeleteDag";
 
 type DeleteDagButtonProps = {
   readonly dagDisplayName: string;
   readonly dagId: string;
-  readonly variant?: "ghost" | "outline";
-  readonly withText?: boolean;
-} & ButtonProps;
+} & Omit<ActionButtonProps, "actionName" | "icon" | "onClick">;
 
-export const DeleteDagButton = ({
-  dagDisplayName,
-  dagId,
-  variant = "ghost",
-  width,
-  withText,
-}: DeleteDagButtonProps) => {
+export const DeleteDagButton = ({ dagDisplayName, dagId, ...rest }: DeleteDagButtonProps) => {
   const { onClose, onOpen, open } = useDisclosure();
   const navigate = useNavigate();
   const location = useLocation();
@@ -57,15 +49,13 @@ export const DeleteDagButton = ({
   });
 
   return (
-    <Box width={width}>
+    <>
       <ActionButton
+        {...rest}
         actionName={translate("dagActions.delete.button")}
         colorPalette="danger"
         icon={<FiTrash2 />}
         onClick={onOpen}
-        variant={variant}
-        width={width}
-        withText={withText}
       />
 
       <DeleteDialog
@@ -77,6 +67,6 @@ export const DeleteDagButton = ({
         title={translate("dagActions.delete.button")}
         warningText={translate("dagActions.delete.warning")}
       />
-    </Box>
+    </>
   );
 };

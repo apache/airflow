@@ -58,14 +58,9 @@ export const DagCard = ({ dag }: Props) => {
           </Tooltip>
           <DagTags tags={dag.tags} />
         </HStack>
-        <HStack>
+        <HStack gap={1}>
           <NeedsReviewBadge dagId={dag.dag_id} pendingActions={dag.pending_actions} />
-          <TogglePause
-            dagDisplayName={dag.dag_display_name}
-            dagId={dag.dag_id}
-            isPaused={dag.is_paused}
-            pr={2}
-          />
+          <TogglePause dagDisplayName={dag.dag_display_name} dagId={dag.dag_id} isPaused={dag.is_paused} />
           <TriggerDAGButton
             dagDisplayName={dag.dag_display_name}
             dagId={dag.dag_id}

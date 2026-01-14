@@ -78,11 +78,10 @@ export const TaskStreamFilter = () => {
       <Menu.Trigger asChild>
         <IconButton
           aria-label={tooltipContent}
-          bg="bg"
-          colorPalette={hasActiveFilter ? "blue" : undefined}
-          size="sm"
+          colorPalette="brand"
+          size="md"
           title={tooltipContent}
-          variant="outline"
+          variant={hasActiveFilter ? "solid" : "ghost"}
         >
           <FiFilter />
         </IconButton>
@@ -120,7 +119,7 @@ export const TaskStreamFilter = () => {
                 <Button
                   asChild
                   color={activeUpstream ? "white" : undefined}
-                  colorPalette={activeUpstream ? "blue" : "gray"}
+                  colorPalette={activeUpstream ? "brand" : "gray"}
                   disabled={currentTaskId === undefined}
                   size="sm"
                   variant={activeUpstream ? "solid" : "ghost"}

@@ -42,11 +42,12 @@ const DisplayMarkdownButton = ({
       <Tooltip content={text}>
         <IconButton
           aria-label={text}
+          colorPalette="brand"
           data-testid="markdown-button"
           onClick={() => setIsDocsOpen(true)}
-          size="sm"
+          size="md"
           title={text}
-          variant="outline"
+          variant="ghost"
         >
           {icon}
         </IconButton>

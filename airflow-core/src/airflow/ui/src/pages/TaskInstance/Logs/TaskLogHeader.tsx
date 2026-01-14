@@ -151,7 +151,7 @@ export const TaskLogHeader = ({
             <Select.ValueText>
               {() =>
                 hasLogLevels ? (
-                  <HStack flexWrap="wrap" fontSize="sm" gap="4px" paddingY="8px">
+                  <HStack flexWrap="wrap" fontSize="md" gap="4px" paddingY="8px">
                     {logLevels.map((level) => (
                       <Badge colorPalette={logLevelColorMapping[level as LogLevel]} key={level}>
                         {level.toUpperCase()}
@@ -203,10 +203,9 @@ export const TaskLogHeader = ({
             <Menu.Trigger asChild>
               <IconButton
                 aria-label={translate("dag:logs.settings")}
-                bg="bg"
-                size="sm"
+                size="md"
                 title={translate("dag:logs.settings")}
-                variant="outline"
+                variant="ghost"
               >
                 <MdSettings />
               </IconButton>
@@ -241,11 +240,10 @@ export const TaskLogHeader = ({
           {!isFullscreen && (
             <IconButton
               aria-label={translate("dag:logs.fullscreen.button")}
-              bg="bg"
               onClick={toggleFullscreen}
-              size="sm"
+              size="md"
               title={translate("dag:logs.fullscreen.tooltip", { hotkey: "f" })}
-              variant="outline"
+              variant="ghost"
             >
               <MdOutlineOpenInFull />
             </IconButton>
@@ -253,11 +251,10 @@ export const TaskLogHeader = ({
 
           <IconButton
             aria-label={translate("download.download")}
-            bg="bg"
             onClick={downloadLogs}
-            size="sm"
+            size="md"
             title={translate("download.tooltip", { hotkey: "d" })}
-            variant="outline"
+            variant="ghost"
           >
             <MdOutlineFileDownload />
           </IconButton>

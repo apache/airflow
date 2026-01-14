@@ -83,9 +83,10 @@ export const Header = ({ dagRun }: { readonly dagRun: DAGRunResponse }) => {
               <Menu.Trigger asChild>
                 <IconButton
                   aria-label={translate("dag:header.buttons.advanced")}
-                  size="sm"
+                  colorPalette="brand"
+                  size="md"
                   title={translate("dag:header.buttons.advanced")}
-                  variant="outline"
+                  variant="ghost"
                 >
                   <LuMenu />
                 </IconButton>

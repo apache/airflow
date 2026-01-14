@@ -16,7 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box } from "@chakra-ui/react";
 import { useDisclosure } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 import { FiPlay } from "react-icons/fi";
@@ -35,7 +34,7 @@ export const CreateAssetEvent = ({ asset }: Props) => {
   const { t: translate } = useTranslation("assets");
 
   return (
-    <Box>
+    <>
       <ActionButton
         actionName={translate("createEvent.button")}
         disabled={asset === undefined}
@@ -46,6 +45,6 @@ export const CreateAssetEvent = ({ asset }: Props) => {
       {asset === undefined || !open ? undefined : (
         <CreateAssetEventModal asset={asset} onClose={onClose} open={open} />
       )}
-    </Box>
+    </>
   );
 };

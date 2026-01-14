@@ -16,44 +16,53 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import type { ButtonGroupProps } from "@chakra-ui/react";
-import { Button, ButtonGroup } from "@chakra-ui/react";
-import type { ReactNode } from "react";
+import type { ButtonGroupProps, ButtonProps } from "@chakra-ui/react";
+import { Button, ButtonGroup, IconButton } from "@chakra-ui/react";
+import type { FC, ReactNode } from "react";
 
 export type ButtonGroupOption<T extends string = string> = {
   readonly disabled?: boolean;
   readonly label: ((isSelected: boolean) => ReactNode) | ReactNode;
+  readonly title?: string;
   readonly value: T;
 };
 
 type ButtonGroupToggleProps<T extends string = string> = {
+  readonly isIcon?: boolean;
   readonly onChange: (value: T) => void;
   readonly options: Array<ButtonGroupOption<T>>;
   readonly value: T;
 } & Omit<ButtonGroupProps, "onChange">;
 
 export const ButtonGroupToggle = <T extends string = string>({
+  isIcon = false,
   onChange,
   options,
   value,
   ...rest
-}: ButtonGroupToggleProps<T>) => (
-  <ButtonGroup attached colorPalette="brand" size="sm" variant="outline" {...rest}>
-    {options.map((option) => {
-      const isSelected = option.value === value;
-      const label = typeof option.label === "function" ? option.label(isSelected) : option.label;
+}: ButtonGroupToggleProps<T>) => {
+  const ButtonComponent: FC<ButtonProps> = isIcon ? IconButton : Button;
 
-      return (
-        <Button
-          disabled={option.disabled}
-          key={option.value}
-          onClick={() => onChange(option.value)}
-          value={option.value}
-          variant={isSelected ? "solid" : "outline"}
-        >
-          {label}
-        </Button>
-      );
-    })}
-  </ButtonGroup>
-);
+  return (
+    <ButtonGroup attached colorPalette="brand" size="sm" variant="outline" {...rest}>
+      {options.map((option) => {
+        const isSelected = option.value === value;
+        const label = typeof option.label === "function" ? option.label(isSelected) : option.label;
+
+        return (
+          <ButtonComponent
+            aria-label={option.title}
+            disabled={option.disabled}
+            key={option.value}
+            onClick={() => onChange(option.value)}
+            title={option.title}
+            value={option.value}
+            variant={isSelected ? "solid" : "outline"}
+          >
+            {label}
+          </ButtonComponent>
+        );
+      })}
+    </ButtonGroup>
+  );
+};

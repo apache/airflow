@@ -16,8 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, Heading, VStack } from "@chakra-ui/react";
-import { useDisclosure } from "@chakra-ui/react";
+import { Heading, useDisclosure, VStack } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 import { FiPlusCircle } from "react-icons/fi";
 
@@ -46,7 +45,7 @@ const AddConnectionButton = () => {
   };
 
   return (
-    <Box>
+    <>
       <ActionButton actionName={translate("connections.add")} icon={<FiPlusCircle />} onClick={onOpen} />
 
       <Dialog.Root lazyMount onOpenChange={onClose} open={open} size="xl" unmountOnExit>
@@ -69,7 +68,7 @@ const AddConnectionButton = () => {
           </Dialog.Body>
         </Dialog.Content>
       </Dialog.Root>
-    </Box>
+    </>
   );
 };
 

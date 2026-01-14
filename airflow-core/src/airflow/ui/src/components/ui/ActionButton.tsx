@@ -21,24 +21,20 @@ import type { FC, ReactElement } from "react";
 
 import { Tooltip } from "src/components/ui";
 
-type Props = {
+export type ActionButtonProps = {
   readonly actionName: string;
-  readonly colorPalette?: string;
   readonly icon: ReactElement;
-  readonly onClick?: () => void;
   readonly withText?: boolean;
 } & ButtonProps;
 
 const ActionButton = ({
   actionName,
-  colorPalette,
-  disabled = false,
+  colorPalette = "brand",
   icon,
-  onClick,
-  variant = "outline",
+  variant = "ghost",
   withText = false,
   ...rest
-}: Props) => {
+}: ActionButtonProps) => {
   const ButtonComponent: FC<ButtonProps> = withText ? Button : IconButton;
 
   return (
@@ -46,14 +42,12 @@ const ActionButton = ({
       {/* Extra div required for the Tooltip to be properly positioned if the ActionButton is used inside a Menu component*/}
       <div>
         <ButtonComponent
+          {...rest}
           aria-label={actionName}
           colorPalette={colorPalette}
-          disabled={disabled}
-          onClick={onClick}
-          size="sm"
+          size="md"
           title={actionName}
           variant={variant}
-          {...rest}
         >
           {icon}
           {withText ? actionName : undefined}

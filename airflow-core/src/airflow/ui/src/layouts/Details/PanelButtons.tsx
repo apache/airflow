@@ -20,7 +20,6 @@
  */
 import {
   Box,
-  ButtonGroup,
   createListCollection,
   Flex,
   IconButton,
@@ -32,7 +31,7 @@ import {
   VStack,
 } from "@chakra-ui/react";
 import { useReactFlow } from "@xyflow/react";
-import { useEffect, useRef } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { useHotkeys } from "react-hotkeys-hook";
 import { useTranslation } from "react-i18next";
 import { FiGrid, FiMenu } from "react-icons/fi";
@@ -49,6 +48,7 @@ import { RunTypeIcon } from "src/components/RunTypeIcon";
 import { SearchBar } from "src/components/SearchBar";
 import { StateBadge } from "src/components/StateBadge";
 import { Tooltip } from "src/components/ui";
+import { type ButtonGroupOption, ButtonGroupToggle } from "src/components/ui/ButtonGroupToggle";
 import { Checkbox } from "src/components/ui/Checkbox";
 import { dagRunTypeOptions, dagRunStateOptions } from "src/constants/stateOptions";
 import { useContainerWidth } from "src/utils/useContainerWidth";
@@ -59,7 +59,7 @@ import { ToggleGroups } from "./ToggleGroups";
 
 type Props = {
   readonly dagRunStateFilter: DagRunState | undefined;
-  readonly dagView: string;
+  readonly dagView: "graph" | "grid";
   readonly limit: number;
   readonly panelGroupRef: React.RefObject<ImperativePanelGroupHandle | null>;
   readonly runTypeFilter: DagRunType | undefined;
@@ -205,16 +205,33 @@ export const PanelButtons = ({
     }
   };
 
+  const dagViewOptions: Array<ButtonGroupOption<"graph" | "grid">> = useMemo(
+    () => [
+      { label: <FiGrid />, title: translate("dag:panel.buttons.showGridShortcut"), value: "grid" },
+      {
+        label: <MdOutlineAccountTree />,
+        title: translate("dag:panel.buttons.showGraphShortcut"),
+        value: "graph",
+      },
+    ],
+    [translate],
+  );
+
+  const handleDagViewChange = (view: "graph" | "grid") => {
+    if (view === dagView) {
+      handleFocus(view);
+    } else {
+      setDagView(view);
+    }
+  };
+
   useHotkeys(
     "g",
     () => {
-      if (dagView === "graph") {
-        setDagView("grid");
-        handleFocus("grid");
-      } else {
-        setDagView("graph");
-        handleFocus("graph");
-      }
+      const newView = dagView === "graph" ? "grid" : "graph";
+
+      setDagView(newView);
+      handleFocus(newView);
     },
     [dagView],
     { preventDefault: true },
@@ -223,38 +240,7 @@ export const PanelButtons = ({
   return (
     <Box position="absolute" pr={4} ref={containerRef} top={1} width="100%" zIndex={1}>
       <Flex justifyContent="space-between">
-        <ButtonGroup attached size="sm" variant="outline">
-          <IconButton
-            aria-label={translate("dag:panel.buttons.showGridShortcut")}
-            bg={dagView === "grid" ? "brand.500" : "bg"}
-            color={dagView === "grid" ? "white" : "fg.default"}
-            colorPalette="brand"
-            onClick={() => {
-              setDagView("grid");
-              if (dagView === "grid") {
-                handleFocus("grid");
-              }
-            }}
-            title={translate("dag:panel.buttons.showGridShortcut")}
-          >
-            <FiGrid />
-          </IconButton>
-          <IconButton
-            aria-label={translate("dag:panel.buttons.showGraphShortcut")}
-            bg={dagView === "graph" ? "brand.500" : "bg"}
-            color={dagView === "graph" ? "white" : "fg.default"}
-            colorPalette="brand"
-            onClick={() => {
-              setDagView("graph");
-              if (dagView === "graph") {
-                handleFocus("graph");
-              }
-            }}
-            title={translate("dag:panel.buttons.showGraphShortcut")}
-          >
-            <MdOutlineAccountTree />
-          </IconButton>
-        </ButtonGroup>
+        <ButtonGroupToggle isIcon onChange={handleDagViewChange} options={dagViewOptions} value={dagView} />
         <Flex alignItems="center" gap={1} justifyContent="space-between">
           <ToggleGroups />
           <TaskStreamFilter />
@@ -263,10 +249,10 @@ export const PanelButtons = ({
             <Popover.Trigger asChild>
               <IconButton
                 aria-label={translate("dag:panel.buttons.options")}
-                bg="bg"
-                size="sm"
+                colorPalette="brand"
+                size="md"
                 title={translate("dag:panel.buttons.options")}
-                variant="outline"
+                variant="ghost"
               >
                 <FiMenu />
               </IconButton>

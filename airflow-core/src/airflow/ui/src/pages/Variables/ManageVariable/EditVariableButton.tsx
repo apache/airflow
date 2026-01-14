@@ -68,9 +68,7 @@ const EditVariableButton = ({ disabled, variable }: Props) => {
         actionName={translate("variables.edit")}
         disabled={disabled}
         icon={<FiEdit />}
-        onClick={() => {
-          onOpen();
-        }}
+        onClick={onOpen}
       />
 
       <Dialog.Root onOpenChange={handleClose} open={open} size="xl">

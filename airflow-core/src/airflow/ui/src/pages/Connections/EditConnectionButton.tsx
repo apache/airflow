@@ -63,9 +63,7 @@ const EditConnectionButton = ({ connection, disabled }: Props) => {
         actionName={translate("connections.edit")}
         disabled={disabled}
         icon={<FiEdit />}
-        onClick={() => {
-          onOpen();
-        }}
+        onClick={onOpen}
       />
 
       <Dialog.Root onOpenChange={handleClose} open={open} size="xl">

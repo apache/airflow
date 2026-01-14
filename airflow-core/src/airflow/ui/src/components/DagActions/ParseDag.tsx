@@ -36,7 +36,7 @@ const ParseDag = ({ dagId, fileToken, ...rest }: Props) => {
       aria-label={translate("reparseDag")}
       loading={isPending}
       onClick={() => mutate({ fileToken })}
-      variant="outline"
+      variant="ghost"
       {...rest}
     >
       <AiOutlineFileSync height={5} width={5} />

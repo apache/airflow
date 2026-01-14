@@ -43,9 +43,7 @@ const DeleteVariableButton = ({ deleteKey: variableKey, disabled }: Props) => {
         colorPalette="danger"
         disabled={disabled}
         icon={<FiTrash2 />}
-        onClick={() => {
-          onOpen();
-        }}
+        onClick={onOpen}
       />
 
       <Dialog.Root onOpenChange={onClose} open={open} size="xl">

@@ -132,14 +132,15 @@ export const Header = ({
                 text={translate("dag:header.buttons.dagDocs")}
               />
             )}
-            <FavoriteDagButton dagId={dag.dag_id} isFavorite={dag.is_favorite} variant="outline" />
+            <FavoriteDagButton dagId={dag.dag_id} isFavorite={dag.is_favorite} />
             <Menu.Root>
               <Menu.Trigger asChild>
                 <IconButton
                   aria-label={translate("dag:header.buttons.advanced")}
-                  size="sm"
+                  colorPalette="brand"
+                  size="md"
                   title={translate("dag:header.buttons.advanced")}
-                  variant="outline"
+                  variant="ghost"
                 >
                   <LuMenu />
                 </IconButton>
@@ -147,14 +148,14 @@ export const Header = ({
               <Portal>
                 <Menu.Positioner>
                   <Menu.Content>
-                    <Menu.Item value="reparse">
-                      <ParseDag dagId={dag.dag_id} fileToken={dag.file_token} width="100%" />
+                    <Menu.Item p={0} value="reparse">
+                      <ParseDag dagId={dag.dag_id} fileToken={dag.file_token} />
                     </Menu.Item>
-                    <Menu.Item closeOnSelect={false} value="delete">
+                    <Menu.Item closeOnSelect={false} p={0} value="delete">
                       <DeleteDagButton
                         dagDisplayName={dag.dag_display_name}
                         dagId={dag.dag_id}
-                        width="100%"
+                        pr={7}
                         withText
                       />
                     </Menu.Item>
