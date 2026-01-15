@@ -28,6 +28,7 @@ if TYPE_CHECKING:
     from collections.abc import Collection
 
     from airflow.sdk import Asset
+    from airflow.sdk.definitions.partition_mapper.base import PartitionMapper
 
 
 @attrs.define
@@ -41,18 +42,6 @@ class AssetTriggeredTimetable(BaseTimetable):
     """
 
     asset_condition: BaseAsset = attrs.field(alias="assets")
-
-
-class PartitionMapper:
-    """
-    Base partition mapper class.
-
-    Maps keys from asset events to target dag run partitions.
-    """
-
-
-class IdentityMapper(PartitionMapper):
-    """Partition mapper that does not change the key."""
 
 
 @attrs.define
