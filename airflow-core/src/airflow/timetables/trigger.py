@@ -47,7 +47,7 @@ log = structlog.get_logger()
 class _TriggerTimetable(Timetable):
     _interval: datetime.timedelta | relativedelta
 
-    def infer_manual_data_interval(self, *, run_after: DateTime) -> DataInterval | None:
+    def infer_manual_data_interval(self, *, run_after: DateTime) -> DataInterval:
         return DataInterval(
             coerce_datetime(run_after - self._interval),
             run_after,
