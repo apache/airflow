@@ -1422,12 +1422,21 @@ class KubernetesPodOperator(BaseOperator):
             self.process_pod_deletion(old_pod)
         return new_pod
 
-    @staticmethod
-    def _get_most_recent_pod_index(pod_list: list[k8s.V1Pod]) -> int:
+    def _get_most_recent_pod_index(self, pod_list: list[k8s.V1Pod]) -> int:
         """Loop through a list of V1Pod objects and get the index of the most recent one."""
         pod_start_times: list[datetime.datetime] = [
             pod.to_dict().get("status").get("start_time") for pod in pod_list
         ]
+        if not all(pod_start_times):
+            self.log.info(
+                "Unable to determine most recent pod using start_time (some pods have not started yet). Falling back to creation_timestamp from pod metadata."
+            )
+            pod_start_times: list[datetime.datetime] = [  # type: ignore[no-redef]
+                pod.to_dict()
+                .get("metadata", {})
+                .get("creation_timestamp", datetime.datetime.now(tz=datetime.timezone.utc))
+                for pod in pod_list
+            ]
         most_recent_start_time = max(pod_start_times)
         return pod_start_times.index(most_recent_start_time)
 

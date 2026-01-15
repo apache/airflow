@@ -1773,6 +1773,7 @@ export type ConfigResponse = {
     show_external_log_redirect: boolean;
     external_log_name?: string | null;
     theme: Theme | null;
+    multi_team: boolean;
 };
 
 /**
@@ -2548,6 +2549,7 @@ export type GetDagsData = {
     paused?: boolean | null;
     tags?: Array<(string)>;
     tagsMatchMode?: 'any' | 'all' | null;
+    timetableType?: Array<(string)>;
 };
 
 export type GetDagsResponse = DAGCollectionResponse;
@@ -3399,6 +3401,7 @@ export type DagStatsResponse2 = DashboardDagStatsResponse;
 
 export type StructureDataData = {
     dagId: string;
+    depth?: number | null;
     externalDependencies?: boolean;
     includeDownstream?: boolean;
     includeUpstream?: boolean;
@@ -3410,6 +3413,7 @@ export type StructureDataResponse2 = StructureDataResponse;
 
 export type GetDagStructureData = {
     dagId: string;
+    depth?: number | null;
     includeDownstream?: boolean;
     includeUpstream?: boolean;
     limit?: number;

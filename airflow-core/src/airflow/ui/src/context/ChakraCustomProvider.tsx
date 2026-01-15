@@ -17,7 +17,7 @@
  * under the License.
  */
 import { ChakraProvider } from "@chakra-ui/react";
-import { useMemo, type PropsWithChildren } from "react";
+import type { PropsWithChildren } from "react";
 
 import type { Theme } from "openapi/requests/types.gen";
 import { useConfig } from "src/queries/useConfig";
@@ -26,18 +26,14 @@ import { createTheme } from "src/theme";
 export const ChakraCustomProvider = ({ children }: PropsWithChildren) => {
   const theme = useConfig("theme");
 
-  const system = useMemo(() => {
-    if (typeof theme === "undefined") {
-      return undefined;
-    }
+  let system = undefined;
 
-    const syst = createTheme(theme as Theme);
+  if (typeof theme !== "undefined") {
+    system = createTheme(theme as Theme);
 
     // Once the system is created, make it globally available to dynamically imported React plugins.
-    Reflect.set(globalThis, "ChakraUISystem", syst);
-
-    return syst;
-  }, [theme]);
+    Reflect.set(globalThis, "ChakraUISystem", system);
+  }
 
   return system && <ChakraProvider value={system}>{children}</ChakraProvider>;
 };
