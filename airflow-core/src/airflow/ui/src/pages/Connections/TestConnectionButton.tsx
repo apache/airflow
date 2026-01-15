@@ -80,10 +80,7 @@ const TestConnectionButton = ({ connection }: Props) => {
       icon={icon}
       loading={isPending}
       onClick={() => {
-        mutate({
-          requestBody: connectionBody,
-          useExistingCredentials: true,
-        });
+        mutate({ requestBody: connectionBody });
       }}
       text={translate("connections.test")}
       withText={false}
