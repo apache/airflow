@@ -400,10 +400,14 @@ def _build_query(
             # Use the reflected table's id column and join it with base_table
             base_table_id_col = base_table.c[dv_id_col.name]
             conditions.append(base_table_id_col.not_in(kept_ti_subquery))
-        except (KeyError, AttributeError, OperationalError, ProgrammingError):
+        except (KeyError, AttributeError, OperationalError, ProgrammingError) as e:
             # If we can't add the FK constraint filter, continue without it
             # This prevents the cleanup from failing, though it may still hit FK violations
-            pass
+            logger.warning(
+                "Failed to add foreign key constraint filter for dag_version table cleanup: %s. "
+                "Continuing without the filter. Note that FK violations may still be encountered during cleanup.",
+                type(e).__name__,
+            )
 
     query = query.where(and_(*conditions))
     return query
