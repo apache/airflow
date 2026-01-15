@@ -132,9 +132,7 @@ with DAG(
 
     join >> random_choice_ext_py
 
-    join_ext_py = EmptyOperator(
-        task_id="join_ext_py", trigger_rule=TriggerRule.NONE_FAILED_MIN_ONE_SUCCESS
-    )
+    join_ext_py = EmptyOperator(task_id="join_ext_py", trigger_rule=TriggerRule.NONE_FAILED_MIN_ONE_SUCCESS)
 
     for option in options:
 
@@ -154,9 +152,7 @@ with DAG(
     # across runs, reducing setup overhead on subsequent executions.
     VENV_CACHE_PATH = tempfile.gettempdir()
 
-    @task.branch_virtualenv(
-        requirements=["numpy~=1.26.0"], venv_cache_path=VENV_CACHE_PATH
-    )
+    @task.branch_virtualenv(requirements=["numpy~=1.26.0"], venv_cache_path=VENV_CACHE_PATH)
     def branching_virtualenv(choices) -> str:
         import random
 
@@ -171,9 +167,7 @@ with DAG(
 
     join_ext_py >> random_choice_venv
 
-    join_venv = EmptyOperator(
-        task_id="join_venv", trigger_rule=TriggerRule.NONE_FAILED_MIN_ONE_SUCCESS
-    )
+    join_venv = EmptyOperator(task_id="join_venv", trigger_rule=TriggerRule.NONE_FAILED_MIN_ONE_SUCCESS)
 
     for option in options:
 

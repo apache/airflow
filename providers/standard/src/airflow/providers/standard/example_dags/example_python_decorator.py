@@ -62,7 +62,7 @@ PATH_TO_PYTHON_BINARY = sys.executable
     - Virtualenv and external_python tasks consume additional executor resources and network bandwidth for environment setup
 
     📖 [TaskFlow API Documentation](https://airflow.apache.org/docs/apache-airflow/stable/tutorial/taskflow.html)
-    """
+    """,
 )
 def example_python_decorator():
     # [START howto_operator_python]

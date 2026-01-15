@@ -50,7 +50,7 @@ from airflow.sdk import PokeReturnValue, dag, task
     - Time-based schedules are appropriate when execution timing is the primary
       driver; sensors are appropriate when data readiness is the driver
     - Combining both patterns enables data-aware scheduling
-      (for example, “run daily, but only after upstream data is ready”)
+      (for example, "run daily, but only after upstream data is ready")
 
     **Runtime behavior and resource considerations:**
     - Sensors block downstream task execution but do not block DAG scheduling;
