@@ -22,7 +22,7 @@ import { useTranslation } from "react-i18next";
 import { FiSend } from "react-icons/fi";
 import { useSearchParams } from "react-router-dom";
 
-import type { HITLDetail, TaskInstanceResponse } from "openapi/requests/types.gen";
+import type { HITLDetailHistory, TaskInstanceHistoryResponse } from "openapi/requests/types.gen";
 import { FlexibleForm } from "src/components/FlexibleForm/FlexibleForm";
 import Time from "src/components/Time";
 import { useParamStore } from "src/queries/useParamStore";
@@ -32,11 +32,15 @@ import { getHITLParamsDict, getHITLFormData, getPreloadHITLFormData } from "src/
 
 type HITLResponseFormProps = {
   readonly hitlDetail: {
-    task_instance: TaskInstanceResponse;
-  } & Omit<HITLDetail, "task_instance">;
+    task_instance: TaskInstanceHistoryResponse;
+  } & Omit<HITLDetailHistory, "task_instance">;
 };
 
-const isHighlightOption = (option: string, hitlDetail: HITLDetail, preloadedHITLOptions: Array<string>) => {
+const isHighlightOption = (
+  option: string,
+  hitlDetail: HITLDetailHistory,
+  preloadedHITLOptions: Array<string>,
+) => {
   // preload's priority is higher than default
   const defaultOptions = preloadedHITLOptions.length > 0 ? preloadedHITLOptions : hitlDetail.defaults;
 
@@ -144,7 +148,7 @@ export const HITLResponseForm = ({ hitlDetail }: HITLResponseFormProps) => {
           ) : hitlDetail.response_received ? undefined : (
             <Button
               colorPalette="brand"
-              disabled={errors || isSubmitting}
+              disabled={errors || isSubmitting || !isPending}
               loading={isSubmitting}
               onClick={() => handleSubmit()}
             >

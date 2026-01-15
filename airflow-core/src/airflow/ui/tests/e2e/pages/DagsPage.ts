@@ -30,12 +30,12 @@ export class DagsPage extends BasePage {
     return "/dags";
   }
 
-  // Core page elements
   public readonly confirmButton: Locator;
-  public readonly dagsTable: Locator;
-  // Pagination elements
+  public readonly operatorFilter: Locator;
   public readonly paginationNextButton: Locator;
   public readonly paginationPrevButton: Locator;
+  public readonly retriesFilter: Locator;
+  public readonly searchBox: Locator;
   public readonly stateElement: Locator;
   public readonly triggerButton: Locator;
   public readonly calendarTab: Locator;
@@ -43,7 +43,6 @@ export class DagsPage extends BasePage {
 
   public constructor(page: Page) {
     super(page);
-    this.dagsTable = page.locator('div:has(a[href*="/dags/"])');
     this.triggerButton = page.locator('button[aria-label="Trigger Dag"]:has-text("Trigger")');
     this.confirmButton = page.locator('button:has-text("Trigger")').nth(1);
     this.stateElement = page.locator('*:has-text("State") + *').first();
@@ -51,6 +50,10 @@ export class DagsPage extends BasePage {
     this.paginationPrevButton = page.locator('[data-testid="prev"]');
     this.calendarTab = page.locator('a[href*="/calendar"]');
     this.calendarGrid = page.locator('[data-testid="dag-calendar"]');
+    this.searchBox = page.getByRole("textbox", { name: /search/i });
+    this.operatorFilter = page.getByRole("combobox").filter({ hasText: /operator/i });
+    this.triggerRuleFilter = page.getByRole("combobox").filter({ hasText: /trigger/i });
+    this.retriesFilter = page.getByRole("combobox").filter({ hasText: /retr/i });
   }
 
   // URL builders for dynamic paths
@@ -87,6 +90,18 @@ export class DagsPage extends BasePage {
     await this.waitForDagList();
   }
 
+  public async filterByOperator(operator: string): Promise<void> {
+    await this.selectDropdownOption(this.operatorFilter, operator);
+  }
+
+  public async filterByRetries(retries: string): Promise<void> {
+    await this.selectDropdownOption(this.retriesFilter, retries);
+  }
+
+  public async filterByTriggerRule(rule: string): Promise<void> {
+    await this.selectDropdownOption(this.triggerRuleFilter, rule);
+  }
+
   /**
    * Get all Dag names from the current page
    */
@@ -96,6 +111,39 @@ export class DagsPage extends BasePage {
     const texts = await dagLinks.allTextContents();
 
     return texts.map((text) => text.trim()).filter((text) => text !== "");
+  }
+
+  public async getFilterOptions(filter: Locator): Promise<Array<string>> {
+    await filter.click();
+    await this.page.waitForTimeout(500);
+
+    const controlsId = await filter.getAttribute("aria-controls");
+    let options;
+
+    if (controlsId === null) {
+      const listbox = this.page.locator('div[role="listbox"]').first();
+
+      await listbox.waitFor({ state: "visible", timeout: 5000 });
+      options = listbox.locator('div[role="option"]');
+    } else {
+      options = this.page.locator(`[id="${controlsId}"] div[role="option"]`);
+    }
+
+    const count = await options.count();
+    const dataValues: Array<string> = [];
+
+    for (let i = 0; i < count; i++) {
+      const value = await options.nth(i).getAttribute("data-value");
+
+      if (value !== null && value.trim().length > 0) {
+        dataValues.push(value);
+      }
+    }
+
+    await this.page.keyboard.press("Escape");
+    await this.page.waitForTimeout(300);
+
+    return dataValues;
   }
 
   /**
@@ -110,6 +158,15 @@ export class DagsPage extends BasePage {
    */
   public async navigateToDagDetail(dagName: string): Promise<void> {
     await this.navigateTo(DagsPage.getDagDetailUrl(dagName));
+  }
+
+  public async navigateToDagTasks(dagId: string): Promise<void> {
+    await this.page.goto(`/dags/${dagId}/tasks`);
+    await this.page
+      .locator("h2")
+      .filter({ hasText: /^Operator$/ })
+      .first()
+      .waitFor({ state: "visible", timeout: 30_000 });
   }
 
   /**
@@ -274,6 +331,12 @@ export class DagsPage extends BasePage {
 
     // eslint-disable-next-line unicorn/no-null
     return null;
+  }
+
+  private async selectDropdownOption(filter: Locator, value: string): Promise<void> {
+    await filter.click();
+    await this.page.locator(`div[role="option"][data-value="${value}"]`).dispatchEvent("click");
+    await this.page.waitForTimeout(500);
   }
 
   /**

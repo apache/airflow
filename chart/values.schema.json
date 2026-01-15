@@ -129,7 +129,7 @@
                         }
                     ]
                 },
-                "container": {
+                "containers": {
                     "description": "Default container security context definition. The values in this parameter will be used when `securityContexts` is not defined for specific containers",
                     "type": "object",
                     "$ref": "#/definitions/io.k8s.api.core.v1.SecurityContext",
@@ -255,6 +255,118 @@
                         "null"
                     ],
                     "default": null
+                },
+                "apiServer": {
+                    "description": "Configuration for the Ingress of the  API server.",
+                    "type": "object",
+                    "additionalProperties": false,
+                    "properties": {
+                        "enabled": {
+                            "description": "Enable API server ingress resource.",
+                            "type": "boolean",
+                            "default": false
+                        },
+                        "annotations": {
+                            "description": "Annotations for the API server Ingress.",
+                            "type": "object",
+                            "default": {},
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        },
+                        "path": {
+                            "description": "The path for the API server Ingress.",
+                            "type": "string",
+                            "default": "/"
+                        },
+                        "pathType": {
+                            "description": "The pathType for the API server Ingress (required for Kubernetes 1.19 and above).",
+                            "type": "string",
+                            "default": "ImplementationSpecific"
+                        },
+                        "host": {
+                            "description": "The hostname for the API server Ingress. (Deprecated - renamed to `ingress.apiServer.hosts`)",
+                            "type": "string",
+                            "default": ""
+                        },
+                        "hosts": {
+                            "description": "The hostnames or hosts configuration for the API server Ingress.",
+                            "type": "array",
+                            "default": [],
+                            "items": {
+                                "oneOf": [
+                                    {
+                                        "type": "object",
+                                        "additionalProperties": false,
+                                        "properties": {
+                                            "name": {
+                                                "description": "The hostname for the API server Ingress.",
+                                                "type": "string",
+                                                "default": ""
+                                            },
+                                            "tls": {
+                                                "description": "Configuration for API server Ingress TLS.",
+                                                "type": "object",
+                                                "additionalProperties": false,
+                                                "properties": {
+                                                    "enabled": {
+                                                        "description": "Enable TLS termination for the API server Ingress.",
+                                                        "type": "boolean",
+                                                        "default": false
+                                                    },
+                                                    "secretName": {
+                                                        "description": "The name of a pre-created Secret containing a TLS private key and certificate.",
+                                                        "type": "string",
+                                                        "default": ""
+                                                    }
+                                                }
+                                            }
+                                        },
+                                        "required": [
+                                            "name"
+                                        ]
+                                    },
+                                    {
+                                        "type": "string",
+                                        "default": "",
+                                        "$comment": "Deprecated by object above"
+                                    }
+                                ]
+                            }
+                        },
+                        "ingressClassName": {
+                            "description": "The Ingress Class for the API server Ingress.",
+                            "type": "string",
+                            "default": ""
+                        },
+                        "tls": {
+                            "description": "Configuration for API server Ingress TLS. (Deprecated - renamed to `ingress.apiServer.hosts[*].tls`)",
+                            "type": "object",
+                            "additionalProperties": false,
+                            "properties": {
+                                "enabled": {
+                                    "description": "Enable TLS termination for the API server Ingress.",
+                                    "type": "boolean",
+                                    "default": false
+                                },
+                                "secretName": {
+                                    "description": "The name of a pre-created Secret containing a TLS private key and certificate.",
+                                    "type": "string",
+                                    "default": ""
+                                }
+                            }
+                        },
+                        "precedingPaths": {
+                            "description": "HTTP paths to add to the API server Ingress before the default path.",
+                            "type": "array",
+                            "default": []
+                        },
+                        "succeedingPaths": {
+                            "description": "HTTP paths to add to the API server Ingress after the default path.",
+                            "type": "array",
+                            "default": []
+                        }
+                    }
                 },
                 "web": {
                     "description": "Configuration for the Ingress of the web Service.",
@@ -4309,6 +4421,41 @@
                             "default": {},
                             "additionalProperties": {
                                 "type": "string"
+                            }
+                        }
+                    }
+                },
+                "podDisruptionBudget": {
+                    "description": "Dag processor pod disruption budget.",
+                    "type": "object",
+                    "additionalProperties": true,
+                    "properties": {
+                        "enabled": {
+                            "description": "Enable pod disruption budget.",
+                            "type": "boolean",
+                            "default": false
+                        },
+                        "config": {
+                            "description": "Disruption budget configuration.",
+                            "type": "object",
+                            "additionalProperties": true,
+                            "properties": {
+                                "maxUnavailable": {
+                                    "description": "Max unavailable pods for dag processor.",
+                                    "type": [
+                                        "integer",
+                                        "string"
+                                    ],
+                                    "default": 1
+                                },
+                                "minAvailable": {
+                                    "description": "Min available pods for dag processor.",
+                                    "type": [
+                                        "integer",
+                                        "string"
+                                    ],
+                                    "default": 1
+                                }
                             }
                         }
                     }
