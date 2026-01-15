@@ -24,11 +24,11 @@ from urllib.parse import urljoin
 
 from connexion import FlaskApi
 from fastapi import FastAPI
+from fastapi.middleware.wsgi import WSGIMiddleware
 from flask import Blueprint, current_app, g
 from flask_appbuilder.const import AUTH_LDAP
 from sqlalchemy import select
 from sqlalchemy.orm import Session, joinedload
-from starlette.middleware.wsgi import WSGIMiddleware
 
 from airflow.api_fastapi.app import AUTH_MANAGER_FASTAPI_APP_PREFIX
 from airflow.api_fastapi.auth.managers.base_auth_manager import BaseAuthManager
@@ -198,6 +198,7 @@ class FabAuthManager(BaseAuthManager[User]):
             login_router,
         )
         from airflow.providers.fab.auth_manager.api_fastapi.routes.roles import roles_router
+        from airflow.providers.fab.auth_manager.api_fastapi.routes.users import users_router
 
         flask_app = create_app(enable_plugins=False)
 
@@ -214,6 +215,7 @@ class FabAuthManager(BaseAuthManager[User]):
         # Add the login router to the FastAPI app
         app.include_router(login_router)
         app.include_router(roles_router)
+        app.include_router(users_router)
 
         app.mount("/", WSGIMiddleware(flask_app))
 

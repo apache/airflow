@@ -27,6 +27,18 @@
 Changelog
 ---------
 
+4.11.2
+......
+
+Misc
+~~~~
+
+* ``New year means updated Copyright notices (#60344)``
+* ``Source conf from 'airflow.sdk.configuration.conf' for apache providers (#59966)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 4.11.1
 ......
 

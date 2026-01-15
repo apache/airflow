@@ -40,7 +40,7 @@ from airflow.providers.cncf.kubernetes.operators.resource import (
     KubernetesDeleteResourceOperator,
 )
 from airflow.providers.cncf.kubernetes.utils.pod_manager import OnFinishAction
-from airflow.providers.common.compat.sdk import AirflowException, conf
+from airflow.providers.common.compat.sdk import AirflowException, conf, timezone
 from airflow.providers.google.cloud.hooks.kubernetes_engine import (
     GKEHook,
     GKEKubernetesHook,
@@ -59,12 +59,11 @@ from airflow.providers.google.cloud.triggers.kubernetes_engine import (
 )
 from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID
 from airflow.providers_manager import ProvidersManager
-from airflow.utils.timezone import utcnow
 
 try:
     from airflow.providers.cncf.kubernetes.operators.job import KubernetesDeleteJobOperator
 except ImportError:
-    from airflow.exceptions import AirflowOptionalProviderFeatureException
+    from airflow.providers.common.compat.sdk import AirflowOptionalProviderFeatureException
 
     raise AirflowOptionalProviderFeatureException(
         "Failed to import KubernetesDeleteJobOperator. This operator is only available in cncf-kubernetes "
@@ -661,9 +660,11 @@ class GKEStartPodOperator(GKEOperatorMixin, KubernetesPodOperator):
         if self.config_file:
             raise AirflowException("config_file is not an allowed parameter for the GKEStartPodOperator.")
 
-    def invoke_defer_method(self, last_log_time: DateTime | None = None):
+    def invoke_defer_method(
+        self, last_log_time: DateTime | None = None, context: Context | None = None
+    ) -> None:
         """Redefine triggers which are being used in child classes."""
-        trigger_start_time = utcnow()
+        trigger_start_time = timezone.utcnow()
         on_finish_action = self.on_finish_action
         if type(on_finish_action) is str and self.on_finish_action not in [i.value for i in OnFinishAction]:
             on_finish_action = self.on_finish_action.split(".")[-1].lower()  # type: ignore[assignment]

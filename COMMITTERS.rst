@@ -85,6 +85,8 @@ Code contribution
     of a particular part and made contributions towards a more strategic goal
 
     - Airflow Core
+    - Airflow Task SDK
+    - airflowctl
     - API
     - Docker Image
     - Helm Chart

@@ -23,7 +23,7 @@
 
 Package ``apache-airflow-providers-apache-beam``
 
-Release: ``6.2.1``
+Release: ``6.2.2``
 
 
 `Apache Beam <https://beam.apache.org/>`__.
@@ -36,7 +36,7 @@ This is a provider package for ``apache.beam`` provider. All classes for this pr
 are in ``airflow.providers.apache.beam`` python package.
 
 You can find package information and changelog for the provider
-in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-apache-beam/6.2.1/>`_.
+in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-apache-beam/6.2.2/>`_.
 
 Installation
 ------------
@@ -92,4 +92,4 @@ Extra       Dependencies
 ==========  =====================================================
 
 The changelog for the provider package can be found in the
-`changelog <https://airflow.apache.org/docs/apache-airflow-providers-apache-beam/6.2.1/changelog.html>`_.
+`changelog <https://airflow.apache.org/docs/apache-airflow-providers-apache-beam/6.2.2/changelog.html>`_.

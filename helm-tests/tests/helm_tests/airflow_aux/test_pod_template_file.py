@@ -611,14 +611,158 @@ class TestPodTemplateFile:
 
         assert jmespath.search("spec.affinity", docs[0]) == {}
 
-    def test_should_add_fsgroup_to_the_pod_template(self):
+    def test_pod_security_context_default(self):
         docs = render_chart(
-            values={"gid": 5000},
             show_only=["templates/pod-template-file.yaml"],
             chart_dir=self.temp_chart_dir,
         )
 
-        assert jmespath.search("spec.securityContext.fsGroup", docs[0]) == 5000
+        assert jmespath.search("spec.securityContext", docs[0]) == {"runAsUser": 50_000, "fsGroup": 0}
+
+    def test_container_security_context_default(self):
+        docs = render_chart(
+            show_only=["templates/pod-template-file.yaml"],
+            chart_dir=self.temp_chart_dir,
+        )
+
+        assert jmespath.search("spec.containers[0].securityContext", docs[0]) == {
+            "allowPrivilegeEscalation": False,
+            "capabilities": {"drop": ["ALL"]},
+        }
+
+    @pytest.mark.parametrize(
+        "values",
+        [
+            {"securityContext": {"runAsUser": 10}},
+            {"securityContexts": {"pod": {"runAsUser": 10}}},
+            {"workers": {"securityContext": {"runAsUser": 10}}},
+            {"workers": {"securityContexts": {"pod": {"runAsUser": 10}}}},
+            {"workers": {"kubernetes": {"securityContexts": {"pod": {"runAsUser": 10}}}}},
+        ],
+    )
+    def test_pod_security_context_set(self, values):
+        docs = render_chart(
+            values=values,
+            show_only=["templates/pod-template-file.yaml"],
+            chart_dir=self.temp_chart_dir,
+        )
+
+        assert jmespath.search("spec.securityContext", docs[0]) == {"runAsUser": 10}
+
+    @pytest.mark.parametrize(
+        "values",
+        [
+            {"securityContexts": {"containers": {"allowPrivilegeEscalation": False}}},
+            {"workers": {"securityContexts": {"container": {"allowPrivilegeEscalation": False}}}},
+            {
+                "workers": {
+                    "kubernetes": {"securityContexts": {"container": {"allowPrivilegeEscalation": False}}}
+                }
+            },
+        ],
+    )
+    def test_container_security_context_set(self, values):
+        docs = render_chart(
+            values=values,
+            show_only=["templates/pod-template-file.yaml"],
+            chart_dir=self.temp_chart_dir,
+        )
+
+        assert jmespath.search("spec.containers[0].securityContext", docs[0]) == {
+            "allowPrivilegeEscalation": False
+        }
+
+    @pytest.mark.parametrize(
+        "values",
+        [
+            {"securityContext": {"runAsUser": 5}, "workers": {"securityContext": {"runAsUser": 10}}},
+            {
+                "securityContexts": {"pod": {"runAsUser": 5}},
+                "workers": {"securityContexts": {"pod": {"runAsUser": 10}}},
+            },
+            {
+                "securityContexts": {"pod": {"runAsUser": 5}},
+                "workers": {"kubernetes": {"securityContexts": {"pod": {"runAsUser": 10}}}},
+            },
+            {
+                "workers": {
+                    "securityContexts": {"pod": {"runAsUser": 5}},
+                    "kubernetes": {"securityContexts": {"pod": {"runAsUser": 10}}},
+                },
+            },
+            {"securityContext": {"runAsUser": 5}, "securityContexts": {"pod": {"runAsUser": 10}}},
+            {
+                "workers": {
+                    "securityContext": {"runAsUser": 5},
+                    "securityContexts": {"pod": {"runAsUser": 10}},
+                }
+            },
+            {
+                "workers": {
+                    "securityContext": {"runAsUser": 5},
+                    "kubernetes": {"securityContexts": {"pod": {"runAsUser": 10}}},
+                }
+            },
+        ],
+    )
+    def test_pod_security_context_overwrite(self, values):
+        docs = render_chart(
+            values=values,
+            show_only=["templates/pod-template-file.yaml"],
+            chart_dir=self.temp_chart_dir,
+        )
+
+        assert jmespath.search("spec.securityContext", docs[0]) == {"runAsUser": 10}
+
+    @pytest.mark.parametrize(
+        "values",
+        [
+            {
+                "securityContexts": {"containers": {"allowPrivilegeEscalation": True}},
+                "workers": {"securityContexts": {"container": {"allowPrivilegeEscalation": False}}},
+            },
+            {
+                "securityContexts": {"containers": {"allowPrivilegeEscalation": True}},
+                "workers": {
+                    "kubernetes": {"securityContexts": {"container": {"allowPrivilegeEscalation": False}}}
+                },
+            },
+            {
+                "workers": {
+                    "securityContexts": {"container": {"allowPrivilegeEscalation": True}},
+                    "kubernetes": {"securityContexts": {"container": {"allowPrivilegeEscalation": False}}},
+                },
+            },
+        ],
+    )
+    def test_container_security_context_overwrite(self, values):
+        docs = render_chart(
+            values=values,
+            show_only=["templates/pod-template-file.yaml"],
+            chart_dir=self.temp_chart_dir,
+        )
+
+        assert jmespath.search("spec.containers[0].securityContext", docs[0]) == {
+            "allowPrivilegeEscalation": False
+        }
+
+    def test_should_add_gid_to_the_pod_template(self):
+        docs = render_chart(
+            values={"gid": 1},
+            show_only=["templates/pod-template-file.yaml"],
+            chart_dir=self.temp_chart_dir,
+        )
+
+        assert jmespath.search("spec.securityContext.fsGroup", docs[0]) == 1
+
+    def test_should_add_uid_to_the_pod_template(self):
+        docs = render_chart(
+            values={"uid": 1},
+            show_only=["templates/pod-template-file.yaml"],
+            chart_dir=self.temp_chart_dir,
+        )
+
+        assert jmespath.search("spec.securityContext.runAsUser", docs[0]) == 1
 
     def test_should_create_valid_volume_mount_and_volume(self):
         docs = render_chart(
@@ -1000,8 +1144,6 @@ class TestPodTemplateFile:
     @pytest.mark.parametrize(
         ("airflow_version", "init_container_enabled", "expected_init_containers"),
         [
-            ("1.9.0", True, 0),
-            ("1.9.0", False, 0),
             ("1.10.14", True, 0),
             ("1.10.14", False, 0),
             ("2.0.2", True, 0),
