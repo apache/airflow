@@ -1004,6 +1004,9 @@ exclude_also = [
 ## mypy settings ##
 [tool.mypy]
 exclude = [
+    ".*/node_modules/.*",
+    # Exclude hidden files and directories
+    ".*\\..*"
     "^providers/amazon/tests/unit/amazon/aws/auth_manager/test_user\\.py$",
 ]
 
@@ -1022,11 +1025,7 @@ disable_error_code = [
 ]
 namespace_packages = true
 explicit_package_bases = true
-exclude = [
-    ".*/node_modules/.*",
-    # Exclude hidden files and directories
-    ".*/\\..*"
-]
+
 mypy_path = [
     "$MYPY_CONFIG_FILE_DIR/airflow-core/src",
     "$MYPY_CONFIG_FILE_DIR/airflow-core/tests",
