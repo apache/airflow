@@ -1481,7 +1481,6 @@ members = [
     "shared/logging",
     "shared/module_loading",
     "shared/observability",
-    "shared/observability",
     "shared/plugins_manager",
     "shared/providers_discovery",
     "shared/secrets_backend",
