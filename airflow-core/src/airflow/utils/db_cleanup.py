@@ -30,7 +30,7 @@ from contextlib import contextmanager
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
-from sqlalchemy import and_, column, func, inspect, select, table, text
+from sqlalchemy import and_, column, exists, func, inspect, select, table, text
 from sqlalchemy.exc import OperationalError, ProgrammingError
 from sqlalchemy.ext.compiler import compiles
 from sqlalchemy.orm import aliased
@@ -388,18 +388,19 @@ def _build_query(
 
             # Find dag_version_ids that are referenced by task_instance rows that are kept (not deleted)
             # These are task_instance rows with start_date >= clean_before_timestamp
-            kept_ti_subquery = (
-                select(ti_dag_version_id_col)
+            # Use EXISTS for better performance and NULL handling
+            base_table_id_col = base_table.c[dv_id_col.name]
+            kept_tis_exists = exists(
+                select(1)
                 .select_from(ti_table_reflected)
+                .where(ti_dag_version_id_col == base_table_id_col)
                 .where(ti_start_date_col >= clean_before_timestamp)
                 .where(ti_dag_version_id_col.isnot(None))
-                .distinct()
             )
 
             # Exclude dag_version rows that are referenced by kept task_instance rows
-            # Use the reflected table's id column and join it with base_table
-            base_table_id_col = base_table.c[dv_id_col.name]
-            conditions.append(base_table_id_col.not_in(kept_ti_subquery))
+            # Negate EXISTS to get NOT EXISTS behavior
+            conditions.append(~kept_tis_exists)
         except (KeyError, AttributeError, OperationalError, ProgrammingError) as e:
             # If we can't add the FK constraint filter, continue without it
             # This prevents the cleanup from failing, though it may still hit FK violations
