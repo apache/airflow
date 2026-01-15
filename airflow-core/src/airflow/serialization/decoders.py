@@ -43,8 +43,8 @@ from airflow.serialization.helpers import (
 )
 
 if TYPE_CHECKING:
+    from airflow.partition_mapper.base import PartitionMapper
     from airflow.timetables.base import Timetable as CoreTimetable
-    from airflow.timetables.simple import PartitionMapper
 
 R = TypeVar("R")
 
