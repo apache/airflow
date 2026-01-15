@@ -59,13 +59,10 @@ export const TableList = <TData,>({ allowFiltering, renderSubComponent, table }:
                 // Custom sort toggle: unsorted -> asc -> desc -> unsorted
                 const handleSortClick = () => {
                   if (sort === false) {
-                    // Currently unsorted -> sort ascending
                     column.toggleSorting(false);
                   } else if (sort === "asc") {
-                    // Currently ascending -> sort descending
                     column.toggleSorting(true);
                   } else {
-                    // Currently descending -> clear sort
                     column.clearSorting();
                   }
                 };
