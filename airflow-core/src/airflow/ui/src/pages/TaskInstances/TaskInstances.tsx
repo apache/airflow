@@ -154,7 +154,9 @@ const taskInstanceColumns = ({
       ) : (
         <Time datetime={original.start_date} />
       ),
+    enableSorting: true,
     header: translate("startDate"),
+    id: "start_date",
   },
   {
     accessorKey: "end_date",
