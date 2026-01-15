@@ -17,6 +17,7 @@
 
 from __future__ import annotations
 
+import logging
 import sys
 from typing import TYPE_CHECKING, Any
 
@@ -31,10 +32,19 @@ if TYPE_CHECKING:
 
 from airflow.utils.db import DBLocks, create_global_lock
 
+log = logging.getLogger(__name__)
+
 
 @provide_session
-def _get_api_endpoint(session: Session = NEW_SESSION) -> dict[str, Any]:
-    # Ensure all required DB modeals are created before starting the API
+def _ensure_tables_created(session: Session = NEW_SESSION) -> None:
+    """
+    Ensure all required DB models are created.
+
+    This is called lazily on FastAPI app startup, not at plugin import time,
+    to avoid blocking all API server processes on a global database lock
+    during concurrent startup.
+    """
+    log.debug("Ensuring edge tables exist...")
     with create_global_lock(session=session, lock=DBLocks.MIGRATIONS):
         engine = session.get_bind().engine
         from airflow.providers.edge3.models.edge_job import EdgeJobModel
@@ -44,11 +54,27 @@ def _get_api_endpoint(session: Session = NEW_SESSION) -> dict[str, Any]:
         EdgeJobModel.metadata.create_all(engine)
         EdgeLogsModel.metadata.create_all(engine)
         EdgeWorkerModel.metadata.create_all(engine)
+    log.debug("Edge tables ensured.")
 
+
+def _get_api_endpoint() -> dict[str, Any]:
+    """
+    Get API endpoint configuration.
+
+    Table creation is deferred to FastAPI startup event to avoid
+    blocking plugin import on database lock acquisition.
+    """
     from airflow.providers.edge3.worker_api.app import create_edge_worker_api_app
 
+    app = create_edge_worker_api_app()
+
+    @app.on_event("startup")
+    def ensure_tables_on_startup():
+        """Create edge tables on app startup instead of at import time."""
+        _ensure_tables_created()
+
     return {
-        "app": create_edge_worker_api_app(),
+        "app": app,
         "url_prefix": "/edge_worker",
         "name": "Airflow Edge Worker",
     }
