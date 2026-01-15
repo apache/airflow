@@ -82,7 +82,8 @@ from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.providers.standard.triggers.file import FileDeleteTrigger
 from airflow.sdk import DAG, Asset, AssetAlias, AssetWatcher, task
 from airflow.sdk.definitions.callback import AsyncCallback, SyncCallback
-from airflow.sdk.definitions.timetables.assets import IdentityMapper, PartitionedAssetTimetable
+from airflow.sdk.definitions.partition_mapper.identity import IdentityMapper
+from airflow.sdk.definitions.timetables.assets import PartitionedAssetTimetable
 from airflow.serialization.definitions.dag import SerializedDAG
 from airflow.serialization.serialized_objects import LazyDeserializedDAG
 from airflow.timetables.base import DataInterval
