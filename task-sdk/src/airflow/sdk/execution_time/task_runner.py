@@ -680,6 +680,7 @@ def parse(what: StartupDetails, log: Logger) -> RuntimeTaskInstance:
         version=bundle_info.version,
     )
     bundle_instance.initialize()
+    _verify_bundle_access(bundle_instance, log)
 
     dag_absolute_path = os.fspath(Path(bundle_instance.path, what.dag_rel_path))
     bag = BundleDagBag(
@@ -748,6 +749,42 @@ SUPERVISOR_COMMS: CommsDecoder[ToTask, ToSupervisor]
 # 1. Start up (receive details from supervisor)
 # 2. Execution (run task code, possibly send requests)
 # 3. Shutdown and report status
+
+
+def _verify_bundle_access(bundle_instance: BaseDagBundle, log: Logger) -> None:
+    """
+    Verify bundle is accessible by the current user.
+
+    This is called after user impersonation (if any) to ensure the bundle
+    is actually accessible. Uses os.access() which works with any permission
+    scheme (standard Unix permissions, ACLs, SELinux, etc.).
+
+    :param bundle_instance: The bundle instance to check
+    :param log: Logger instance
+    :raises AirflowException: if bundle is not accessible
+    """
+    from getpass import getuser
+
+    from airflow.exceptions import AirflowException
+
+    bundle_path = bundle_instance.path
+
+    if not bundle_path.exists():
+        # Already handled by initialize() with a warning
+        return
+
+    # Check read permission (and execute for directories to list contents)
+    access_mode = os.R_OK
+    if bundle_path.is_dir():
+        access_mode |= os.X_OK
+
+    if not os.access(bundle_path, access_mode):
+        raise AirflowException(
+            f"Bundle '{bundle_instance.name}' path '{bundle_path}' is not accessible "
+            f"by user '{getuser()}'. When using run_as_user, ensure bundle directories "
+            f"are readable by the impersonated user. "
+            f"See: https://airflow.apache.org/docs/apache-airflow/stable/administration-and-deployment/dag-bundles.html"
+        )
 
 
 def startup() -> tuple[RuntimeTaskInstance, Context, Logger]:
