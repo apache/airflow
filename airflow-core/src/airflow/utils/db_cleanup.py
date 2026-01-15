@@ -383,8 +383,6 @@ def _build_query(
     # (the database handles it automatically by setting the FK to NULL when dag_version is deleted).
     if table_name == "dag_version":
         try:
-            from airflow.utils.db import reflect_tables
-
             # Reflect the task_instance table to get proper column access
             metadata = reflect_tables(["task_instance", "dag_version"], session)
             ti_table_reflected = metadata.tables["task_instance"]
