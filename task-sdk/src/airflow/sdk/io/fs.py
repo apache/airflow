@@ -25,7 +25,7 @@ from typing import TYPE_CHECKING
 from fsspec.implementations.local import LocalFileSystem
 
 from airflow.sdk._shared.module_loading import import_string
-from airflow.sdk.observability.stats import Stats
+from airflow.sdk._shared.observability.metrics.stats import Stats
 from airflow.sdk.providers_manager_runtime import ProvidersManagerRuntime
 
 if TYPE_CHECKING:

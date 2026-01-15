@@ -69,6 +69,7 @@ if TYPE_CHECKING:
         teardown as teardown,
     )
     from airflow.sdk._shared.listeners import hookimpl as hookimpl
+    from airflow.sdk._shared.observability.metrics.stats import Stats as Stats
     from airflow.sdk.bases.decorator import (
         DecoratedMappedOperator as DecoratedMappedOperator,
         DecoratedOperator as DecoratedOperator,
@@ -86,6 +87,7 @@ if TYPE_CHECKING:
         AirflowException as AirflowException,
         AirflowFailException as AirflowFailException,
         AirflowNotFoundException as AirflowNotFoundException,
+        AirflowOptionalProviderFeatureException as AirflowOptionalProviderFeatureException,
         AirflowSensorTimeout as AirflowSensorTimeout,
         AirflowSkipException as AirflowSkipException,
         AirflowTaskTimeout as AirflowTaskTimeout,
@@ -95,7 +97,6 @@ if TYPE_CHECKING:
     )
     from airflow.sdk.listener import get_listener_manager as get_listener_manager
     from airflow.sdk.log import redact as redact
-    from airflow.sdk.observability.stats import Stats as Stats
     from airflow.sdk.plugins_manager import AirflowPlugin as AirflowPlugin
 
     # Airflow 3-only exceptions (conditionally imported)
@@ -239,6 +240,7 @@ _IMPORT_MAP: dict[str, str | tuple[str, ...]] = {
     "AirflowException": ("airflow.sdk.exceptions", "airflow.exceptions"),
     "AirflowFailException": ("airflow.sdk.exceptions", "airflow.exceptions"),
     "AirflowNotFoundException": ("airflow.sdk.exceptions", "airflow.exceptions"),
+    "AirflowOptionalProviderFeatureException": ("airflow.sdk.exceptions", "airflow.exceptions"),
     "AirflowSkipException": ("airflow.sdk.exceptions", "airflow.exceptions"),
     "AirflowTaskTimeout": ("airflow.sdk.exceptions", "airflow.exceptions"),
     "AirflowSensorTimeout": ("airflow.sdk.exceptions", "airflow.exceptions"),
@@ -248,7 +250,7 @@ _IMPORT_MAP: dict[str, str | tuple[str, ...]] = {
     # ============================================================================
     # Observability
     # ============================================================================
-    "Stats": ("airflow.sdk.observability.stats", "airflow.stats"),
+    "Stats": ("airflow.sdk._shared.observability.metrics.stats", "airflow.stats"),
     # ============================================================================
     # Secrets Masking
     # ============================================================================

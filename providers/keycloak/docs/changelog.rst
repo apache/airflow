@@ -25,6 +25,26 @@
 Changelog
 ---------
 
+0.5.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Keycloak: implement client_credentials grant flow (#59411)``
+
+Misc
+~~~~
+
+* ``Literal to str Enum for ResourceMethod & ExtendedResourceMethod (#60244)``
+* ``Change starlette import to fastapi (#60382)``
+* ``New year means updated Copyright notices (#60344)``
+* ``Introduce a "cli" section in provider metadata (#59805)``
+* ``Update conf imports for keycloak provider (#60092)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 0.4.1
 .....
 
