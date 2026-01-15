@@ -23,7 +23,7 @@
 
 Package ``apache-airflow-providers-cohere``
 
-Release: ``1.6.0``
+Release: ``1.6.1``
 
 
 `Cohere <https://docs.cohere.com/docs>`__
@@ -36,7 +36,7 @@ This is a provider package for ``cohere`` provider. All classes for this provide
 are in ``airflow.providers.cohere`` python package.
 
 You can find package information and changelog for the provider
-in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-cohere/1.6.0/>`_.
+in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-cohere/1.6.1/>`_.
 
 Installation
 ------------
@@ -78,4 +78,4 @@ Dependent package                                                               
 ==================================================================================================================  =================
 
 The changelog for the provider package can be found in the
-`changelog <https://airflow.apache.org/docs/apache-airflow-providers-cohere/1.6.0/changelog.html>`_.
+`changelog <https://airflow.apache.org/docs/apache-airflow-providers-cohere/1.6.1/changelog.html>`_.

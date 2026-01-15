@@ -18,7 +18,7 @@ from __future__ import annotations
 
 import jmespath
 import pytest
-from chart_utils.helm_template_generator import render_chart
+from chart_utils.helm_template_generator import HelmFailedError, render_chart
 from chart_utils.log_groomer import LogGroomerTestBase
 
 
@@ -128,6 +128,29 @@ class TestWorker:
                 "revisionHistoryLimit": global_limit,
                 "workers": worker_values,
             },
+            show_only=["templates/workers/worker-deployment.yaml"],
+        )
+
+        assert jmespath.search("spec.revisionHistoryLimit", docs[0]) == expected
+
+    @pytest.mark.parametrize(
+        ("worker_values", "global_limit", "expected"),
+        [
+            ({}, 0, 0),
+            ({"revisionHistoryLimit": 0}, None, 0),
+            ({"celery": {"revisionHistoryLimit": 0}}, None, 0),
+            ({"revisionHistoryLimit": 0}, 10, 0),
+            ({"celery": {"revisionHistoryLimit": 0}}, 10, 0),
+            ({"revisionHistoryLimit": 0, "celery": {"revisionHistoryLimit": 0}}, 10, 0),
+        ],
+    )
+    def test_revision_history_limit_zero(self, worker_values, global_limit, expected):
+        """Test that revisionHistoryLimit can be set to 0."""
+        values = {"workers": worker_values}
+        if global_limit is not None:
+            values["revisionHistoryLimit"] = global_limit
+        docs = render_chart(
+            values=values,
             show_only=["templates/workers/worker-deployment.yaml"],
         )
 
@@ -391,21 +414,46 @@ class TestWorker:
         assert jmespath.search("spec.template.spec.hostAliases[0].hostnames[0]", docs[0]) == "test.hostname"
 
     @pytest.mark.parametrize(
-        ("persistence", "update_strategy", "expected_update_strategy"),
+        ("workers_values", "expected_update_strategy"),
         [
-            (False, None, None),
-            (True, {"rollingUpdate": {"partition": 0}}, {"rollingUpdate": {"partition": 0}}),
-            (True, None, None),
+            ({"celery": {"persistence": {"enabled": False}}}, None),
+            ({"updateStrategy": None, "celery": {"persistence": {"enabled": False}}}, None),
+            (
+                {
+                    "updateStrategy": {"rollingUpdate": {"partition": 0}},
+                    "celery": {"persistence": {"enabled": True}},
+                },
+                {"rollingUpdate": {"partition": 0}},
+            ),
+            ({"updateStrategy": None, "celery": {"persistence": {"enabled": True}}}, None),
+            ({"celery": {"updateStrategy": None, "persistence": {"enabled": False}}}, None),
+            (
+                {
+                    "celery": {
+                        "updateStrategy": {"rollingUpdate": {"partition": 0}},
+                        "persistence": {"enabled": True},
+                    }
+                },
+                {"rollingUpdate": {"partition": 0}},
+            ),
+            ({"celery": {"updateStrategy": None, "persistence": {"enabled": True}}}, None),
+            (
+                {
+                    "updateStrategy": {"rollingUpdate": {"partition": 1}},
+                    "celery": {
+                        "updateStrategy": {"rollingUpdate": {"partition": 0}},
+                        "persistence": {"enabled": True},
+                    },
+                },
+                {"rollingUpdate": {"partition": 0}},
+            ),
         ],
     )
-    def test_workers_update_strategy(self, persistence, update_strategy, expected_update_strategy):
+    def test_workers_update_strategy(self, workers_values, expected_update_strategy):
         docs = render_chart(
             values={
                 "executor": "CeleryExecutor",
-                "workers": {
-                    "celery": {"persistence": {"enabled": persistence}},
-                    "updateStrategy": update_strategy,
-                },
+                "workers": workers_values,
             },
             show_only=["templates/workers/worker-deployment.yaml"],
         )
@@ -413,22 +461,42 @@ class TestWorker:
         assert expected_update_strategy == jmespath.search("spec.updateStrategy", docs[0])
 
     @pytest.mark.parametrize(
-        ("persistence", "strategy", "expected_strategy"),
+        ("workers_values", "expected_strategy"),
         [
-            (True, None, None),
+            ({"celery": {"persistence": {"enabled": True}}}, None),
             (
-                False,
-                {"rollingUpdate": {"maxSurge": "100%", "maxUnavailable": "50%"}},
+                {"celery": {"persistence": {"enabled": False}}},
                 {"rollingUpdate": {"maxSurge": "100%", "maxUnavailable": "50%"}},
             ),
-            (False, None, None),
+            (
+                {"strategy": None, "celery": {"persistence": {"enabled": False}}},
+                {"rollingUpdate": {"maxSurge": "100%", "maxUnavailable": "50%"}},
+            ),
+            (
+                {
+                    "strategy": {"rollingUpdate": {"maxSurge": "50%", "maxUnavailable": "100%"}},
+                    "celery": {"persistence": {"enabled": False}},
+                },
+                {"rollingUpdate": {"maxSurge": "100%", "maxUnavailable": "50%"}},
+            ),
+            (
+                {"celery": {"strategy": None, "persistence": {"enabled": False}}},
+                {"rollingUpdate": {"maxSurge": "100%", "maxUnavailable": "50%"}},
+            ),
+            (
+                {
+                    "strategy": {"rollingUpdate": {"maxSurge": "50%", "maxUnavailable": "100%"}},
+                    "celery": {"strategy": None, "persistence": {"enabled": False}},
+                },
+                {"rollingUpdate": {"maxSurge": "50%", "maxUnavailable": "100%"}},
+            ),
         ],
     )
-    def test_workers_strategy(self, persistence, strategy, expected_strategy):
+    def test_workers_strategy(self, workers_values, expected_strategy):
         docs = render_chart(
             values={
                 "executor": "CeleryExecutor",
-                "workers": {"celery": {"persistence": {"enabled": persistence}}, "strategy": strategy},
+                "workers": workers_values,
             },
             show_only=["templates/workers/worker-deployment.yaml"],
         )
@@ -869,8 +937,6 @@ class TestWorker:
     @pytest.mark.parametrize(
         ("airflow_version", "init_container_enabled", "expected_init_containers"),
         [
-            ("1.9.0", True, 2),
-            ("1.9.0", False, 2),
             ("1.10.14", True, 2),
             ("1.10.14", False, 2),
             ("2.0.2", True, 2),
@@ -905,7 +971,6 @@ class TestWorker:
     @pytest.mark.parametrize(
         ("airflow_version", "expected_arg"),
         [
-            ("1.9.0", "airflow worker"),
             ("1.10.14", "airflow worker"),
             ("2.0.2", "airflow celery worker"),
             ("2.1.0", "airflow celery worker"),
@@ -1451,7 +1516,7 @@ class TestWorker:
             ({"celery": {"replicas": 2}}, 2),
             ({"celery": {"replicas": None}}, 1),
             ({"replicas": 2, "celery": {"replicas": 3}}, 3),
-            ({"replicas": 2, "celery": {"replicas": None}}, 2),
+            ({"replicas": 2, "celery": {"replicas": 2}}, 2),
         ],
     )
     def test_workers_replicas(self, workers_values, expected):
@@ -1525,6 +1590,43 @@ class TestWorker:
             == 0
         )
 
+    def test_pod_management_policy_default(self):
+        docs = render_chart(show_only=["templates/workers/worker-deployment.yaml"])
+        assert jmespath.search("spec.podManagementPolicy", docs[0]) is None
+
+    @pytest.mark.parametrize(
+        ("workers_values", "expected"),
+        [
+            ({"podManagementPolicy": "Parallel"}, "Parallel"),
+            ({"podManagementPolicy": "OrderedReady"}, "OrderedReady"),
+            ({"celery": {"podManagementPolicy": "Parallel"}}, "Parallel"),
+            ({"celery": {"podManagementPolicy": "OrderedReady"}}, "OrderedReady"),
+            (
+                {"podManagementPolicy": "OrderedReady", "celery": {"podManagementPolicy": "Parallel"}},
+                "Parallel",
+            ),
+            (
+                {"podManagementPolicy": "Parallel", "celery": {"podManagementPolicy": "OrderedReady"}},
+                "OrderedReady",
+            ),
+        ],
+    )
+    def test_pod_management_policy(self, workers_values, expected):
+        docs = render_chart(
+            values={"workers": workers_values}, show_only=["templates/workers/worker-deployment.yaml"]
+        )
+
+        assert jmespath.search("spec.podManagementPolicy", docs[0]) == expected
+
+    @pytest.mark.parametrize(
+        "workers_values", [{"podManagementPolicy": "Test"}, {"celery": {"podManagementPolicy": "Test"}}]
+    )
+    def test_pod_management_policy_not_valid_value(self, workers_values):
+        with pytest.raises(HelmFailedError):
+            render_chart(
+                values={"workers": workers_values}, show_only=["templates/workers/worker-deployment.yaml"]
+            )
+
 
 class TestWorkerLogGroomer(LogGroomerTestBase):
     """Worker groomer."""
@@ -1572,14 +1674,14 @@ class TestWorkerKedaAutoScaler:
                 None,
                 "CeleryExecutor",
                 "SELECT ceil(COUNT(*)::decimal / 16) FROM task_instance"
-                " WHERE (state='running' OR state='queued')",
+                " WHERE (state='running' OR state='queued') AND queue IN ('default')",
             ),
             # default query with CeleryKubernetesExecutor
             (
                 None,
                 "CeleryKubernetesExecutor",
                 "SELECT ceil(COUNT(*)::decimal / 16) FROM task_instance"
-                " WHERE (state='running' OR state='queued') AND queue != 'kubernetes'",
+                " WHERE (state='running' OR state='queued') AND queue IN ('default') AND queue != 'kubernetes'",
             ),
             # test custom static query
             (
@@ -1970,3 +2072,177 @@ class TestWorkerServiceAccount:
             show_only=[f"templates/workers/{obj}-serviceaccount.yaml"],
         )
         assert jmespath.search("automountServiceAccountToken", docs[0]) is False
+
+
+class TestWorkerSets:
+    """Tests worker sets."""
+
+    def test_should_create_multiple_worker_sets(self):
+        docs = render_chart(
+            values={
+                "executor": "CeleryExecutor",
+                "workers": {
+                    "celery": {
+                        "sets": [
+                            {"name": "set1"},
+                            {"name": "set2"},
+                        ]
+                    }
+                },
+            },
+            show_only=["templates/workers/worker-deployment.yaml"],
+        )
+
+        assert len(docs) == 3  # Default worker + 2 sets
+        names = [jmespath.search("metadata.name", doc) for doc in docs]
+        assert "release-name-worker" in names
+        assert "release-name-worker-set1" in names
+        assert "release-name-worker-set2" in names
+
+    def test_worker_set_overrides(self):
+        docs = render_chart(
+            values={
+                "executor": "CeleryExecutor",
+                "workers": {
+                    "replicas": 1,
+                    "resources": {"requests": {"cpu": "100m"}},
+                    "celery": {
+                        "replicas": 2,
+                        "sets": [
+                            {
+                                "name": "high-cpu",
+                                "replicas": 3,
+                                "resources": {"requests": {"cpu": "2"}},
+                                "queue": "high-cpu-queue",
+                            }
+                        ],
+                    },
+                },
+            },
+            show_only=["templates/workers/worker-deployment.yaml"],
+        )
+
+        # Find the high-cpu worker set
+        worker_set = next(
+            doc for doc in docs if jmespath.search("metadata.name", doc) == "release-name-worker-high-cpu"
+        )
+
+        assert jmespath.search("spec.replicas", worker_set) == 3
+        assert jmespath.search("spec.template.spec.containers[0].resources.requests.cpu", worker_set) == "2"
+        # Check queue in args
+        args = jmespath.search("spec.template.spec.containers[0].args", worker_set)
+        assert "-q high-cpu-queue" in args[-1]
+
+    def test_worker_set_defaults(self):
+        docs = render_chart(
+            values={
+                "executor": "CeleryExecutor",
+                "workers": {
+                    "resources": {"requests": {"cpu": "500m"}},
+                    "celery": {"replicas": 2, "sets": [{"name": "default-set"}]},
+                },
+            },
+            show_only=["templates/workers/worker-deployment.yaml"],
+        )
+
+        worker_set = next(
+            doc for doc in docs if jmespath.search("metadata.name", doc) == "release-name-worker-default-set"
+        )
+
+        assert jmespath.search("spec.replicas", worker_set) == 2
+        assert (
+            jmespath.search("spec.template.spec.containers[0].resources.requests.cpu", worker_set) == "500m"
+        )
+
+    def test_worker_set_persistence(self):
+        docs = render_chart(
+            values={
+                "executor": "CeleryExecutor",
+                "workers": {
+                    "celery": {
+                        "persistence": {"enabled": False},
+                        "sets": [{"name": "stateful-set", "persistence": {"enabled": True}}],
+                    },
+                },
+            },
+            show_only=["templates/workers/worker-deployment.yaml"],
+        )
+
+        worker_set = next(
+            doc for doc in docs if jmespath.search("metadata.name", doc) == "release-name-worker-stateful-set"
+        )
+        assert jmespath.search("kind", worker_set) == "StatefulSet"
+
+        default_worker = next(
+            doc for doc in docs if jmespath.search("metadata.name", doc) == "release-name-worker"
+        )
+        assert jmespath.search("kind", default_worker) == "Deployment"
+
+    def test_worker_set_keda(self):
+        docs = render_chart(
+            values={
+                "executor": "CeleryExecutor",
+                "workers": {
+                    "keda": {"enabled": True},
+                    "celery": {"sets": [{"name": "keda-set", "keda": {"enabled": True}}]},
+                },
+            },
+            show_only=["templates/workers/worker-kedaautoscaler.yaml"],
+        )
+
+        assert len(docs) == 2
+        names = [jmespath.search("metadata.name", doc) for doc in docs]
+        assert "release-name-worker" in names
+        assert "release-name-worker-keda-set" in names
+
+    def test_worker_set_hpa(self):
+        docs = render_chart(
+            values={
+                "executor": "CeleryExecutor",
+                "workers": {
+                    "hpa": {"enabled": True},
+                    "celery": {"sets": [{"name": "hpa-set", "hpa": {"enabled": True}}]},
+                },
+            },
+            show_only=["templates/workers/worker-hpa.yaml"],
+        )
+
+        assert len(docs) == 2
+        names = [jmespath.search("metadata.name", doc) for doc in docs]
+        assert "release-name-worker" in names
+        assert "release-name-worker-hpa-set" in names
+
+    def test_should_disable_default_worker(self):
+        docs = render_chart(
+            values={
+                "executor": "CeleryExecutor",
+                "workers": {
+                    "enableDefault": False,
+                    "celery": {
+                        "sets": [
+                            {"name": "set1"},
+                        ]
+                    },
+                },
+            },
+            show_only=["templates/workers/worker-deployment.yaml"],
+        )
+
+        assert len(docs) == 1
+        names = [jmespath.search("metadata.name", doc) for doc in docs]
+        assert "release-name-worker" not in names
+        assert "release-name-worker-set1" in names
+
+    def test_should_create_no_workers_if_default_disabled_and_no_sets(self):
+        docs = render_chart(
+            values={
+                "executor": "CeleryExecutor",
+                "workers": {
+                    "enableDefault": False,
+                    "celery": {"sets": []},
+                },
+            },
+            show_only=["templates/workers/worker-deployment.yaml"],
+        )
+
+        assert len(docs) == 0

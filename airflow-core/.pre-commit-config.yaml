@@ -148,16 +148,6 @@ repos:
         language: python
         pass_filenames: true
         files: ^src/airflow/.*\.py$
-      - id: check-significant-newsfragments-are-valid
-        name: Check significant newsfragments are valid
-        # Significant newsfragments follows a special format so that we can group information easily.
-        language: python
-        files: ^newsfragments/.*\.rst$
-        entry: ../scripts/ci/prek/significant_newsfragments_checker.py
-        pass_filenames: false
-        # We sometimes won't have newsfragments in the repo, so always run it so `check-hooks-apply` passes
-        # This is fast, so not too much downside
-        always_run: true
       - id: create-missing-init-py-files-tests
         name: Create missing init.py files in tests
         entry: ../scripts/ci/prek/check_init_in_tests.py
@@ -340,9 +330,10 @@ repos:
           ^src/airflow/cli/commands/triggerer_command.py$|
           ^src/airflow/configuration\.py$|
           ^src/airflow/dag_processing/collection\.py$|
+          ^src/airflow/dag_processing/dagbag\.py$|
+          ^src/airflow/dag_processing/importers/.*\.py$|
           ^src/airflow/dag_processing/manager\.py$|
           ^src/airflow/dag_processing/processor\.py$|
-          ^src/airflow/dag_processing/dagbag\.py$|
           ^src/airflow/datasets/metadata\.py$|
           ^src/airflow/exceptions\.py$|
           ^src/airflow/executors/local_executor\.py$|

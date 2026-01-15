@@ -47,10 +47,7 @@ MY_DIR = Path(__file__).parent.resolve()
 
 crd_lookup = {
     # https://raw.githubusercontent.com/kedacore/keda/v2.0.0/config/crd/bases/keda.sh_scaledobjects.yaml
-    "keda.sh/v1alpha1::ScaledObject": f"{MY_DIR.as_posix()}/keda.sh_scaledobjects.yaml",
-    # This object type was removed in k8s v1.22.0
-    # Retrieved from https://raw.githubusercontent.com/yannh/kubernetes-json-schema/master/v1.21.0/ingress-networking-v1beta1.json
-    "networking.k8s.io/v1beta1::Ingress": f"{MY_DIR.as_posix()}/ingress-networking-v1beta1.json",
+    "keda.sh/v1alpha1::ScaledObject": f"{MY_DIR.as_posix()}/keda.sh_scaledobjects.yaml"
 }
 
 
