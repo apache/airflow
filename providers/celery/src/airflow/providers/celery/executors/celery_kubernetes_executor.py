@@ -23,10 +23,16 @@ from typing import TYPE_CHECKING, Any
 
 from deprecated import deprecated
 
-from airflow.configuration import conf
-from airflow.exceptions import AirflowProviderDeprecationWarning
+from airflow.exceptions import AirflowOptionalProviderFeatureException, AirflowProviderDeprecationWarning
 from airflow.executors.base_executor import BaseExecutor
 from airflow.providers.celery.executors.celery_executor import AIRFLOW_V_3_0_PLUS, CeleryExecutor
+from airflow.providers.common.compat.sdk import conf
+
+try:
+    from airflow.providers.cncf.kubernetes.executors.kubernetes_executor import KubernetesExecutor
+except ImportError as e:
+    raise AirflowOptionalProviderFeatureException(e)
+
 from airflow.utils.providers_configuration_loader import providers_configuration_loaded
 
 if TYPE_CHECKING:
