@@ -1004,7 +1004,7 @@ class TestConnection(TestConnectionEndpoint):
         }
 
     @mock.patch.dict(os.environ, {"AIRFLOW__CORE__TEST_CONNECTION": "Enabled"})
-    def test_should_merge_password_with_existing_credentials(self, test_client, session):
+    def test_should_merge_password_with_existing_connection(self, test_client, session):
         connection = Connection(
             conn_id=TEST_CONN_ID,
             conn_type="sqlite",
@@ -1018,12 +1018,12 @@ class TestConnection(TestConnectionEndpoint):
             "conn_type": "sqlite",
             "password": "***",
         }
-        response = test_client.post("/connections/test", json=body, params={"use_existing_credentials": True})
+        response = test_client.post("/connections/test", json=body)
         assert response.status_code == 200
         assert response.json()["status"] is True
 
     @mock.patch.dict(os.environ, {"AIRFLOW__CORE__TEST_CONNECTION": "Enabled"})
-    def test_should_merge_extra_with_existing_credentials(self, test_client, session):
+    def test_should_merge_extra_with_existing_connection(self, test_client, session):
         connection = Connection(
             conn_id=TEST_CONN_ID,
             conn_type="fs",
@@ -1037,7 +1037,7 @@ class TestConnection(TestConnectionEndpoint):
             "conn_type": "fs",
             "extra": '{"path": "/", "new_key": "new_value"}',
         }
-        response = test_client.post("/connections/test", json=body, params={"use_existing_credentials": True})
+        response = test_client.post("/connections/test", json=body)
         assert response.status_code == 200
         assert response.json()["status"] is True
 
@@ -1058,17 +1058,17 @@ class TestConnection(TestConnectionEndpoint):
             "password": "***",
             "extra": '{"path": "/", "new_key": "new_value"}',
         }
-        response = test_client.post("/connections/test", json=body, params={"use_existing_credentials": True})
+        response = test_client.post("/connections/test", json=body)
         assert response.status_code == 200
         assert response.json()["status"] is True
 
     @mock.patch.dict(os.environ, {"AIRFLOW__CORE__TEST_CONNECTION": "Enabled"})
-    def test_should_handle_missing_connection_with_use_existing_credentials(self, test_client):
+    def test_should_test_new_connection_without_existing(self, test_client):
         body = {
             "connection_id": "non_existent_conn",
             "conn_type": "sqlite",
         }
-        response = test_client.post("/connections/test", json=body, params={"use_existing_credentials": True})
+        response = test_client.post("/connections/test", json=body)
         assert response.status_code == 200
         assert response.json()["status"] is True
 

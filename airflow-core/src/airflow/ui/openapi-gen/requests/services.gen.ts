@@ -775,12 +775,8 @@ export class ConnectionService {
      * This method first creates an in-memory transient conn_id & exports that to an env var,
      * as some hook classes tries to find out the `conn` from their __init__ method & errors out if not found.
      * It also deletes the conn id env connection after the test.
-     *
-     * If use_existing_credentials is True, password and extra fields from the existing connection will be merged with the provided credentials.
-     * Otherwise, only the provided credentials will be used.
      * @param data The data for the request.
      * @param data.requestBody
-     * @param data.useExistingCredentials Merge with existing connection credentials
      * @returns ConnectionTestResponse Successful Response
      * @throws ApiError
      */
@@ -788,9 +784,6 @@ export class ConnectionService {
         return __request(OpenAPI, {
             method: 'POST',
             url: '/api/v2/connections/test',
-            query: {
-                use_existing_credentials: data.useExistingCredentials
-            },
             body: data.requestBody,
             mediaType: 'application/json',
             errors: {

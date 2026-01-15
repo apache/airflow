@@ -1749,22 +1749,16 @@ export const useConnectionServicePostConnection = <TData = Common.ConnectionServ
 * This method first creates an in-memory transient conn_id & exports that to an env var,
 * as some hook classes tries to find out the `conn` from their __init__ method & errors out if not found.
 * It also deletes the conn id env connection after the test.
-*
-* If use_existing_credentials is True, password and extra fields from the existing connection will be merged with the provided credentials.
-* Otherwise, only the provided credentials will be used.
 * @param data The data for the request.
 * @param data.requestBody
-* @param data.useExistingCredentials Merge with existing connection credentials
 * @returns ConnectionTestResponse Successful Response
 * @throws ApiError
 */
 export const useConnectionServiceTestConnection = <TData = Common.ConnectionServiceTestConnectionMutationResult, TError = unknown, TContext = unknown>(options?: Omit<UseMutationOptions<TData, TError, {
   requestBody: ConnectionBody;
-  useExistingCredentials?: boolean;
 }, TContext>, "mutationFn">) => useMutation<TData, TError, {
   requestBody: ConnectionBody;
-  useExistingCredentials?: boolean;
-}, TContext>({ mutationFn: ({ requestBody, useExistingCredentials }) => ConnectionService.testConnection({ requestBody, useExistingCredentials }) as unknown as Promise<TData>, ...options });
+}, TContext>({ mutationFn: ({ requestBody }) => ConnectionService.testConnection({ requestBody }) as unknown as Promise<TData>, ...options });
 /**
 * Create Default Connections
 * Create default connections.

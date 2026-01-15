@@ -1645,33 +1645,14 @@ paths:
         as some hook classes tries to find out the `conn` from their __init__ method
         & errors out if not found.
 
-        It also deletes the conn id env connection after the test.
-
-
-        If use_existing_credentials is True, password and extra fields from the existing
-        connection will be merged with the provided credentials.
-
-        Otherwise, only the provided credentials will be used.'
+        It also deletes the conn id env connection after the test.'
       operationId: test_connection
-      security:
-      - OAuth2PasswordBearer: []
-      - HTTPBearer: []
-      parameters:
-      - name: use_existing_credentials
-        in: query
-        required: false
-        schema:
-          type: boolean
-          description: Merge with existing connection credentials
-          default: false
-          title: Use Existing Credentials
-        description: Merge with existing connection credentials
       requestBody:
-        required: true
         content:
           application/json:
             schema:
               $ref: '#/components/schemas/ConnectionBody'
+        required: true
       responses:
         '200':
           description: Successful Response
@@ -1680,23 +1661,26 @@ paths:
               schema:
                 $ref: '#/components/schemas/ConnectionTestResponse'
         '401':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPExceptionResponse'
           description: Unauthorized
-        '403':
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPExceptionResponse'
+        '403':
           description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
         '422':
           description: Validation Error
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
+      security:
+      - OAuth2PasswordBearer: []
+      - HTTPBearer: []
   /api/v2/connections/defaults:
     post:
       tags:
