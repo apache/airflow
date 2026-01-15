@@ -385,8 +385,8 @@ class SerializedDAG:
 
     def next_dagrun_info(
         self,
-        last_automated_run_info: DagRunInfo | None,
         *,
+        last_automated_run_info: DagRunInfo | None,
         restricted: bool = True,
     ) -> DagRunInfo | None:
         """
