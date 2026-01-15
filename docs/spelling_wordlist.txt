@@ -612,6 +612,7 @@ emr
 EmrAddSteps
 EmrCreateJobFlow
 enableAutoScale
+enablement
 encodable
 encryptor
 enqueue
