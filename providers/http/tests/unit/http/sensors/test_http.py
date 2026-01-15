@@ -17,20 +17,25 @@
 # under the License.
 from __future__ import annotations
 
+import base64
+import pickle
 from unittest import mock
-from unittest.mock import patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 import requests
+from aiohttp.client_reqrep import ClientResponse
 
 from airflow.models.dag import DAG
 from airflow.providers.common.compat.sdk import AirflowException, AirflowSensorTimeout, TaskDeferred
+from airflow.providers.http.hooks.http import HttpAsyncHook
 from airflow.providers.http.operators.http import HttpOperator
 from airflow.providers.http.sensors.http import HttpSensor
 from airflow.providers.http.triggers.http import HttpSensorTrigger
 from airflow.sensors.base import PokeReturnValue
 from airflow.utils.timezone import datetime
 
+from tests_common.test_utils.operators.run_deferrable import execute_operator
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
 pytestmark = pytest.mark.db_test
@@ -382,6 +387,29 @@ class TestHttpSensorAsync:
 
         assert isinstance(exc.value.trigger, HttpSensorTrigger), "Trigger is not a HttpTrigger"
 
+    @mock.patch("airflow.providers.http.sensors.http.HttpSensor.poke", return_value=False)
+    @mock.patch("airflow.providers.http.triggers.http.HttpSensorTrigger._get_async_hook")
+    def test_execute_defer_when_response_check_is_not_none(self, mock_async_hook, mock_poke):
+        def mock_response(status_code: int, text: str = ""):
+            encoding = "utf-8"
+            response = MagicMock(spec=ClientResponse)
+            response.status = status_code
+            response.cookies = {}
+            response.reason = "ok"
+            response.url = "test-endpoint"
+            response.get_encoding.side_effect = lambda: encoding
+            response.read = AsyncMock(return_value=text.encode(encoding))
+            return response
+
+        mocked_hook = MagicMock(spec=HttpAsyncHook)
+        mocked_hook.run = AsyncMock(
+            side_effect=[
+                AirflowException("404: Not Found"),
+                mock_response(200, '{"message": "httpbin success"}'),
+            ]
+        )
+        mock_async_hook.return_value = mocked_hook
+
     @mock.patch("airflow.providers.http.sensors.http.HttpSensor.defer")
     @mock.patch(
         "airflow.sdk.bases.sensor.BaseSensorOperator.execute"
@@ -393,8 +421,16 @@ class TestHttpSensorAsync:
             task_id="run_now",
             endpoint="test-endpoint",
             response_check=lambda response: "httpbin" in response.text,
+            poke_interval=1,
+            timeout=5,
             deferrable=True,
         )
-        task.execute({})
-        mock_execute.assert_called_once()
-        mock_defer.assert_not_called()
+
+        results, events = execute_operator(task)
+
+        assert not results
+        assert events
+        assert events[0].payload["status"] == "success"
+        assert isinstance(
+            pickle.loads(base64.standard_b64decode(events[0].payload["response"])), requests.Response
+        )

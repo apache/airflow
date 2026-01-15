@@ -25,11 +25,14 @@ from typing import TYPE_CHECKING, Any
 from aiohttp import BasicAuth
 from requests import Response
 
+from airflow.providers.http.hooks.http import _default_response_maker
+from airflow.providers.http.triggers.http import HttpTrigger
 from airflow.providers.common.compat.sdk import AirflowException, BaseHook, BaseOperator, conf
 from airflow.providers.http.triggers.http import HttpTrigger, serialize_auth_type
 from airflow.utils.helpers import merge_dicts
 
 if TYPE_CHECKING:
+    from requests import Response
     from requests.auth import AuthBase
 
     from airflow.providers.http.hooks.http import HttpHook
@@ -249,7 +252,7 @@ class HttpOperator(BaseOperator):
         """Process the response."""
         from airflow.utils.operator_helpers import determine_kwargs
 
-        make_default_response: Callable = self._default_response_maker(response=response)
+        make_default_response: Callable = _default_response_maker(response=response)
 
         if self.log_response:
             self.log.info(make_default_response())
@@ -261,21 +264,6 @@ class HttpOperator(BaseOperator):
             kwargs = determine_kwargs(self.response_filter, [response], context)
             return self.response_filter(response, **kwargs)
         return make_default_response()
-
-    @staticmethod
-    def _default_response_maker(response: Response | list[Response]) -> Callable:
-        """
-        Create a default response maker function based on the type of response.
-
-        :param response: The response object or list of response objects.
-        :return: A function that returns response text(s).
-        """
-        if isinstance(response, Response):
-            response_object = response  # Makes mypy happy
-            return lambda: response_object.text
-
-        response_list: list[Response] = response  # Makes mypy happy
-        return lambda: [entry.text for entry in response_list]
 
     def execute_complete(
         self, context: Context, event: dict, paginated_responses: None | list[Response] = None

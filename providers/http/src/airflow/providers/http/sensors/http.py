@@ -17,15 +17,18 @@
 # under the License.
 from __future__ import annotations
 
+import base64
+import pickle
 from collections.abc import Callable, Sequence
 from datetime import timedelta
 from typing import TYPE_CHECKING, Any
 
 from airflow.providers.common.compat.sdk import AirflowException, BaseSensorOperator, conf
-from airflow.providers.http.hooks.http import HttpHook
+from airflow.providers.http.hooks.http import HttpHook, _default_response_maker
 from airflow.providers.http.triggers.http import HttpSensorTrigger
 
 if TYPE_CHECKING:
+    from requests import Response
     from airflow.sdk import Context, PokeReturnValue
 
 
@@ -158,7 +161,7 @@ class HttpSensor(BaseSensorOperator):
         return True
 
     def execute(self, context: Context) -> Any:
-        if not self.deferrable or self.response_check:
+        if not self.deferrable:
             return super().execute(context=context)
         if not self.poke(context):
             self.defer(
@@ -175,5 +178,23 @@ class HttpSensor(BaseSensorOperator):
                 method_name="execute_complete",
             )
 
-    def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> None:
+    def process_response(self, context: Context, response: Response | list[Response]) -> Any:
+        """Process the response."""
+        from airflow.utils.operator_helpers import determine_kwargs
+
+        make_default_response: Callable = _default_response_maker(response=response)
+
+        if self.response_check:
+            kwargs = determine_kwargs(self.response_check, [response], context)
+            return self.response_check(response, **kwargs)
+        return make_default_response()
+
+    def execute_complete(self, context: Context, event: dict[str, Any]) -> None:
+        if event["status"] != "success":
+            raise AirflowException(f"Unexpected error in the operation: {event['message']}")
+        if self.response_check:
+            response = pickle.loads(base64.standard_b64decode(event["response"]))
+            if not self.process_response(context=context, response=response):
+                raise AirflowException("response_check condition is not matched for %s", self.task_id)
+            self.log.info("response_check condition is matched for %s", self.task_id)
         self.log.info("%s completed successfully.", self.task_id)
