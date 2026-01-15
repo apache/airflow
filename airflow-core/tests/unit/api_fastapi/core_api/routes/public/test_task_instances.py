@@ -3924,7 +3924,8 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
         [
             ("success", [TaskInstanceState.SUCCESS]),
             ("failed", [TaskInstanceState.FAILED]),
-            ("skipped", []),
+            ("skipped", [TaskInstanceState.SKIPPED]),
+            ("running", []),
         ],
     )
     def test_patch_task_instance_notifies_listeners(
