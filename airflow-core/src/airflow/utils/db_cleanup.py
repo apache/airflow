@@ -373,7 +373,14 @@ def _build_query(
         )
         conditions.append(column(max_date_col_name).is_(None))
 
-    # Special handling for dag_version: exclude rows referenced by task_instance rows that are NOT being deleted
+    # Special handling for dag_version: exclude rows referenced by task_instance rows that are NOT being deleted.
+    #
+    # dag_version has two dependent tables (see config_list):
+    #   - task_instance.dag_version_id: uses ondelete="RESTRICT" - will BLOCK deletion if referenced
+    #   - dag_run.created_dag_version_id: uses ondelete="SET NULL" - automatically sets to NULL on delete
+    #
+    # We only need to handle task_instance here because dag_run's FK constraint won't cause violations
+    # (the database handles it automatically by setting the FK to NULL when dag_version is deleted).
     if table_name == "dag_version":
         try:
             from airflow.utils.db import reflect_tables
