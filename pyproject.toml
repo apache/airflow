@@ -1006,7 +1006,7 @@ exclude_also = [
 exclude = [
     ".*/node_modules/.*",
     # Exclude hidden files and directories
-    ".*\\..*"
+    ".*\\..*",
     "^providers/amazon/tests/unit/amazon/aws/auth_manager/test_user\\.py$",
 ]
 
@@ -1020,9 +1020,8 @@ plugins = [
 ]
 pretty = true
 show_error_codes = true
-disable_error_code = [
-    "annotation-unchecked",
-]
+disable_error_code = ["annotation-unchecked",]
+
 namespace_packages = true
 explicit_package_bases = true
 
