@@ -39,13 +39,14 @@ from sqlalchemy import func, select
 from structlog.contextvars import bind_contextvars as bind_log_contextvars
 
 from airflow._shared.module_loading import import_string
+from airflow._shared.observability.metrics.dual_stats_manager import DualStatsManager
+from airflow._shared.observability.metrics.stats import Stats
 from airflow._shared.timezones import timezone
 from airflow.configuration import conf
 from airflow.executors import workloads
 from airflow.jobs.base_job_runner import BaseJobRunner
 from airflow.jobs.job import perform_heartbeat
 from airflow.models.trigger import Trigger
-from airflow.observability.stats import Stats
 from airflow.observability.trace import DebugTrace, Trace, add_debug_span
 from airflow.sdk.api.datamodels._generated import HITLDetailResponse
 from airflow.sdk.execution_time.comms import (
@@ -158,12 +159,13 @@ class TriggererJobRunner(BaseJobRunner, LoggingMixin):
             self.trigger_runner.stop = True
         else:
             self.log.warning("Forcing exit due to second exit signal %s", signum)
-
-            self.trigger_runner.kill(signal.SIGKILL)
+            if self.trigger_runner:
+                self.trigger_runner.kill(signal.SIGKILL)
             sys.exit(os.EX_SOFTWARE)
 
     def _execute(self) -> int | None:
         self.log.info("Starting the triggerer")
+        self.register_signals()
         try:
             # Kick off runner sub-process without DB access
             self.trigger_runner = TriggerRunnerSupervisor.start(
@@ -601,12 +603,20 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
             Stats.incr("triggers.failed")
 
     def emit_metrics(self):
-        Stats.gauge(f"triggers.running.{self.job.hostname}", len(self.running_triggers))
-        Stats.gauge("triggers.running", len(self.running_triggers), tags={"hostname": self.job.hostname})
+        DualStatsManager.gauge(
+            "triggers.running",
+            len(self.running_triggers),
+            tags={},
+            extra_tags={"hostname": self.job.hostname},
+        )
 
         capacity_left = self.capacity - len(self.running_triggers)
-        Stats.gauge(f"triggerer.capacity_left.{self.job.hostname}", capacity_left)
-        Stats.gauge("triggerer.capacity_left", capacity_left, tags={"hostname": self.job.hostname})
+        DualStatsManager.gauge(
+            "triggerer.capacity_left",
+            capacity_left,
+            tags={},
+            extra_tags={"hostname": self.job.hostname},
+        )
 
         span = Trace.get_current_span()
         span.set_attributes(
@@ -848,7 +858,6 @@ class TriggerRunner:
     failed_triggers: deque[tuple[int, BaseException | None]]
 
     # Should-we-stop flag
-    # TODO: set this in a sig-int handler
     stop: bool = False
 
     # TODO: connect this to the parent process
@@ -866,8 +875,14 @@ class TriggerRunner:
         self.failed_triggers = deque()
         self.job_id = None
 
+    def _handle_signal(self, signum, frame) -> None:
+        """Handle termination signals gracefully."""
+        self.stop = True
+
     def run(self):
-        """Sync entrypoint - just run a run in an async loop."""
+        """Sync entrypoint - just run arun in an async loop."""
+        signal.signal(signal.SIGINT, self._handle_signal)
+        signal.signal(signal.SIGTERM, self._handle_signal)
         asyncio.run(self.arun())
 
     async def arun(self):

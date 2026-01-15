@@ -30,11 +30,11 @@
 {{- $affinity := or .Values.dagProcessor.affinity .Values.affinity }}
 {{- $tolerations := or .Values.dagProcessor.tolerations .Values.tolerations }}
 {{- $topologySpreadConstraints := or .Values.dagProcessor.topologySpreadConstraints .Values.topologySpreadConstraints }}
-{{- $revisionHistoryLimit := or .Values.dagProcessor.revisionHistoryLimit .Values.revisionHistoryLimit }}
-{{- $securityContext := include "airflowPodSecurityContext" (list . .Values.dagProcessor) }}
-{{- $containerSecurityContext := include "containerSecurityContext" (list . .Values.dagProcessor) }}
-{{- $containerSecurityContextLogGroomerSidecar := include "containerSecurityContext" (list . .Values.dagProcessor.logGroomerSidecar) }}
-{{- $containerSecurityContextWaitForMigrations := include "containerSecurityContext" (list . .Values.dagProcessor.waitForMigrations) }}
+{{- $revisionHistoryLimit := include "airflow.revisionHistoryLimit" (list .Values.dagProcessor.revisionHistoryLimit .Values.revisionHistoryLimit) }}
+{{- $securityContext := include "airflowPodSecurityContext" (list .Values.dagProcessor .Values) }}
+{{- $containerSecurityContext := include "containerSecurityContext" (list .Values.dagProcessor .Values) }}
+{{- $containerSecurityContextLogGroomerSidecar := include "containerSecurityContext" (list .Values.dagProcessor.logGroomerSidecar .Values) }}
+{{- $containerSecurityContextWaitForMigrations := include "containerSecurityContext" (list .Values.dagProcessor.waitForMigrations .Values) }}
 {{- $containerLifecycleHooks := or .Values.dagProcessor.containerLifecycleHooks .Values.containerLifecycleHooks }}
 apiVersion: apps/v1
 kind: Deployment
@@ -54,7 +54,7 @@ metadata:
   {{- end }}
 spec:
   replicas: {{ .Values.dagProcessor.replicas }}
-  {{- if $revisionHistoryLimit }}
+  {{- if ne $revisionHistoryLimit "" }}
   revisionHistoryLimit: {{ $revisionHistoryLimit }}
   {{- end }}
   selector:

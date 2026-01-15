@@ -29,6 +29,8 @@ Prerequisite
   and :doc:`JDBC connection <apache-airflow-providers-jdbc:connections/jdbc>`.
 * :class:`~airflow.providers.apache.spark.operators.spark_sql.SparkSqlOperator`
   gets all the configurations from operator parameters.
+* To use :class:`~airflow.providers.apache.spark.operators.spark_pyspark.PySparkOperator`
+  you can configure :doc:`SparkConnect Connection <connections/spark-connect>`.
 
 .. _howto/operator:SparkJDBCOperator:
 
@@ -55,6 +57,29 @@ Reference
 """""""""
 
 For further information, look at `Apache Spark DataFrameWriter documentation <https://spark.apache.org/docs/2.4.5/api/scala/index.html#org.apache.spark.sql.DataFrameWriter>`_.
+
+.. _howto/operator:PySparkOperator:
+
+PySparkOperator
+----------------
+
+Launches applications on a Apache Spark Connect server or directly in a standalone mode
+
+For parameter definition take a look at :class:`~airflow.providers.apache.spark.operators.spark_pyspark.PySparkOperator`.
+
+Using the operator
+""""""""""""""""""
+
+.. exampleinclude:: /../tests/system/apache/spark/example_spark_dag.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_spark_pyspark]
+    :end-before: [END howto_operator_spark_pyspark]
+
+Reference
+"""""""""
+
+For further information, look at `Running the Spark Connect Python <https://spark.apache.org/docs/latest/api/python/getting_started/quickstart_connect.html>`_.
 
 .. _howto/operator:SparkSqlOperator:
 
