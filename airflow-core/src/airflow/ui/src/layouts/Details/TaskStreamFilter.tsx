@@ -62,32 +62,31 @@ export const TaskStreamFilter = () => {
     upstream: boolean;
   }) => {
     const { depth: newDepth, downstream, root, upstream } = options;
+    const hasDirection = upstream || downstream;
+    const hasRoot = root !== undefined && root !== "";
+    const hasDepth = newDepth !== undefined && newDepth !== "";
 
     if (upstream) {
       searchParams.set("upstream", "true");
     } else {
       searchParams.delete("upstream");
     }
-
     if (downstream) {
       searchParams.set("downstream", "true");
     } else {
       searchParams.delete("downstream");
     }
-
-    if (root !== undefined && root !== "" && (upstream || downstream)) {
+    if (hasRoot && hasDirection) {
       searchParams.set("root", root);
     } else {
       searchParams.delete("root");
       searchParams.delete("mode");
     }
-
-    if (newDepth !== undefined && newDepth !== "" && (upstream || downstream)) {
+    if (hasDepth && hasDirection) {
       searchParams.set("depth", newDepth);
     } else {
       searchParams.delete("depth");
     }
-
     setSearchParams(searchParams);
   };
 
@@ -144,68 +143,36 @@ export const TaskStreamFilter = () => {
                 {translate("dag:panel.taskStreamFilter.direction")}
               </Text>
               <VStack align="stretch" gap={1} width="100%">
-                <Button
-                  color={activeUpstream ? "white" : undefined}
-                  colorPalette={activeUpstream ? "brand" : "gray"}
-                  disabled={currentTaskId === undefined}
-                  justifyContent="flex-start"
-                  onClick={() =>
-                    buildFilterSearch({ depth, downstream: false, root: currentTaskId, upstream: true })
-                  }
-                  onKeyDown={(event) => {
-                    if (event.key === "Enter" || event.key === " ") {
-                      event.preventDefault();
-                      buildFilterSearch({ depth, downstream: false, root: currentTaskId, upstream: true });
-                    }
-                  }}
-                  size="sm"
-                  variant={activeUpstream ? "solid" : "ghost"}
-                  width="100%"
-                >
-                  {translate("dag:panel.taskStreamFilter.options.upstream")}
-                </Button>
+                {[
+                  { active: activeUpstream, down: false, key: "upstream", label: "upstream", up: true },
+                  { active: activeDownstream, down: true, key: "downstream", label: "downstream", up: false },
+                  { active: bothActive, down: true, key: "both", label: "both", up: true },
+                ].map(({ active, down, key, label, up }) => {
+                  const onClick = () =>
+                    buildFilterSearch({ depth, downstream: down, root: currentTaskId, upstream: up });
 
-                <Button
-                  color={activeDownstream ? "white" : undefined}
-                  colorPalette={activeDownstream ? "brand" : "gray"}
-                  disabled={currentTaskId === undefined}
-                  justifyContent="flex-start"
-                  onClick={() =>
-                    buildFilterSearch({ depth, downstream: true, root: currentTaskId, upstream: false })
-                  }
-                  onKeyDown={(event) => {
-                    if (event.key === "Enter" || event.key === " ") {
-                      event.preventDefault();
-                      buildFilterSearch({ depth, downstream: true, root: currentTaskId, upstream: false });
-                    }
-                  }}
-                  size="sm"
-                  variant={activeDownstream ? "solid" : "ghost"}
-                  width="100%"
-                >
-                  {translate("dag:panel.taskStreamFilter.options.downstream")}
-                </Button>
-
-                <Button
-                  color={bothActive ? "white" : undefined}
-                  colorPalette={bothActive ? "brand" : "gray"}
-                  disabled={currentTaskId === undefined}
-                  justifyContent="flex-start"
-                  onClick={() =>
-                    buildFilterSearch({ depth, downstream: true, root: currentTaskId, upstream: true })
-                  }
-                  onKeyDown={(event) => {
-                    if (event.key === "Enter" || event.key === " ") {
-                      event.preventDefault();
-                      buildFilterSearch({ depth, downstream: true, root: currentTaskId, upstream: true });
-                    }
-                  }}
-                  size="sm"
-                  variant={bothActive ? "solid" : "ghost"}
-                  width="100%"
-                >
-                  {translate("dag:panel.taskStreamFilter.options.both")}
-                </Button>
+                  return (
+                    <Button
+                      color={active ? "white" : undefined}
+                      colorPalette={active ? "brand" : "gray"}
+                      disabled={currentTaskId === undefined}
+                      justifyContent="flex-start"
+                      key={key}
+                      onClick={onClick}
+                      onKeyDown={(event) => {
+                        if (event.key === "Enter" || event.key === " ") {
+                          event.preventDefault();
+                          onClick();
+                        }
+                      }}
+                      size="sm"
+                      variant={active ? "solid" : "ghost"}
+                      width="100%"
+                    >
+                      {translate(`dag:panel.taskStreamFilter.options.${label}`)}
+                    </Button>
+                  );
+                })}
               </VStack>
             </VStack>
 
