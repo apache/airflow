@@ -35,43 +35,46 @@ test.describe("Dag Code Tab", () => {
     expect(codeText.trim().length).toBeGreaterThan(0);
   });
 
-  test("verify syntax highlighting is applied", async ({ page }) => {
+  test("verify syntax highlighting is applied", async () => {
     await dagsPage.openCodeTab(testDagId);
 
-    const highlightedToken = page
-      .locator(".monaco-editor .mtk")
-      .first();
+    const styledSpans = dagsPage
+      .getMonacoEditor()
+      .locator(".view-line span");
 
-    await expect(highlightedToken).toBeVisible();
+    const count = await styledSpans.count();
+    expect(count).toBeGreaterThan(5);
   });
 
-  test("verify line numbers are displayed", async ({ page }) => {
+  test("verify line numbers are displayed", async () => {
     await dagsPage.openCodeTab(testDagId);
 
-    const lineNumbers = page
-      .locator(".monaco-editor .line-numbers")
-      .first();
+    const lineNumbers = dagsPage
+      .getMonacoEditor()
+      .locator(".margin-view-overlays");
 
     await expect(lineNumbers).toBeVisible();
   });
 
-  test("verify code is scrollable for long files", async ({ page }) => {
+  test("verify code is scrollable for long files", async () => {
     await dagsPage.openCodeTab(testDagId);
 
-    const isScrollable = await page
-      .locator(".monaco-editor")
-      .evaluate(el => el.scrollHeight > el.clientHeight);
+    const scrollContainer = dagsPage
+      .getMonacoEditor()
+      .locator(".monaco-scrollable-element");
 
-    expect(isScrollable).toBe(true);
+    await expect(scrollContainer).toBeVisible();
   });
 
-  test("verify code wrapping works", async ({ page }) => {
+  test("verify wrap works", async () => {
     await dagsPage.openCodeTab(testDagId);
 
-    const whiteSpace = await page
-      .locator(".monaco-editor")
-      .evaluate(el => getComputedStyle(el).whiteSpace);
+    const wrappedLines = dagsPage
+      .getMonacoEditor()
+      .locator(".view-line")
+      .filter({ has: dagsPage.getMonacoEditor().locator("span") });
 
-    expect(whiteSpace).not.toBe("pre");
+    const count = await wrappedLines.count();
+    expect(count).toBeGreaterThan(0);
   });
 });

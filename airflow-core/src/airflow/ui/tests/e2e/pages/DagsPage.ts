@@ -105,23 +105,27 @@ export class DagsPage extends BasePage {
   public async openCodeTab(dagId: string): Promise<void> {
     await this.page.goto(`/dags/${dagId}/code`);
     await this.page.waitForLoadState("networkidle");
-
-    // Wait for Monaco editor to mount
     await this.page.locator(".monaco-editor").waitFor({ state: "visible" });
   }
 
   /**
-   * Get DAG code text from Monaco editor
+   * Get DAG code text from Monaco editor (cross-browser safe)
    */
   public async getDagCodeText(): Promise<string> {
-    const codeLines = this.page
-      .locator(".monaco-editor .view-lines")
-      .first();
+    const lines = this.page.locator(".monaco-editor .view-line");
+    await lines.first().waitFor({ state: "visible" });
 
-    await codeLines.waitFor({ state: "visible" });
-    return (await codeLines.textContent()) ?? "";
+    const contents = await lines.allTextContents();
+    return contents.join("\n");
   }
-  
+
+  /**
+   * Monaco editor root
+   */
+  public getMonacoEditor() {
+    return this.page.locator(".monaco-editor");
+  }
+
   /**
    * Trigger a Dag run
    */
