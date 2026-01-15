@@ -113,6 +113,7 @@ def trigger_dag_run(
         )
 
     try:
+        # todo: AIP-76 add partition key here
         trigger_dag(
             dag_id=dag_id,
             run_id=run_id,
