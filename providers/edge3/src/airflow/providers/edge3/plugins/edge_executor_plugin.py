@@ -18,8 +18,12 @@
 from __future__ import annotations
 
 import logging
+import random
 import sys
+import time
 from typing import TYPE_CHECKING, Any
+
+from sqlalchemy.exc import OperationalError
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowConfigException
@@ -34,27 +38,78 @@ from airflow.utils.db import DBLocks, create_global_lock
 
 log = logging.getLogger(__name__)
 
+# Retry configuration for lock acquisition during table creation
+MAX_LOCK_RETRIES = 5
+LOCK_RETRY_DELAY_BASE = 1.0  # Base delay in seconds for exponential backoff
+
+
+def _is_lock_not_available_error(error: OperationalError) -> bool:
+    """Check if the error is a lock acquisition failure."""
+    # PostgreSQL error code for lock_not_available
+    pg_code = getattr(error.orig, "pgcode", None)
+    if pg_code == "55P03":
+        return True
+    # Check error message as fallback
+    error_str = str(error).lower()
+    return "lock" in error_str and ("not available" in error_str or "timeout" in error_str)
+
 
 @provide_session
 def _ensure_tables_created(session: Session = NEW_SESSION) -> None:
     """
-    Ensure all required DB models are created.
+    Ensure all required DB models are created with retry logic.
 
     This is called lazily on FastAPI app startup, not at plugin import time,
     to avoid blocking all API server processes on a global database lock
     during concurrent startup.
-    """
-    log.debug("Ensuring edge tables exist...")
-    with create_global_lock(session=session, lock=DBLocks.MIGRATIONS):
-        engine = session.get_bind().engine
-        from airflow.providers.edge3.models.edge_job import EdgeJobModel
-        from airflow.providers.edge3.models.edge_logs import EdgeLogsModel
-        from airflow.providers.edge3.models.edge_worker import EdgeWorkerModel
 
-        EdgeJobModel.metadata.create_all(engine)
-        EdgeLogsModel.metadata.create_all(engine)
-        EdgeWorkerModel.metadata.create_all(engine)
-    log.debug("Edge tables ensured.")
+    Uses exponential backoff with jitter to handle lock contention when
+    multiple API server processes start simultaneously.
+    """
+    from airflow.providers.edge3.models.edge_job import EdgeJobModel
+    from airflow.providers.edge3.models.edge_logs import EdgeLogsModel
+    from airflow.providers.edge3.models.edge_worker import EdgeWorkerModel
+
+    last_error: OperationalError | None = None
+
+    for attempt in range(MAX_LOCK_RETRIES):
+        try:
+            log.debug("Ensuring edge tables exist (attempt %d/%d)...", attempt + 1, MAX_LOCK_RETRIES)
+            with create_global_lock(session=session, lock=DBLocks.MIGRATIONS):
+                engine = session.get_bind().engine
+                EdgeJobModel.metadata.create_all(engine)
+                EdgeLogsModel.metadata.create_all(engine)
+                EdgeWorkerModel.metadata.create_all(engine)
+            log.debug("Edge tables ensured successfully.")
+            return
+        except OperationalError as e:
+            if _is_lock_not_available_error(e):
+                last_error = e
+                if attempt < MAX_LOCK_RETRIES - 1:
+                    # Exponential backoff with jitter to avoid thundering herd
+                    delay = LOCK_RETRY_DELAY_BASE * (2**attempt) + random.uniform(0, 1)
+                    log.warning(
+                        "Could not acquire migration lock for edge tables (attempt %d/%d), "
+                        "retrying in %.1f seconds...",
+                        attempt + 1,
+                        MAX_LOCK_RETRIES,
+                        delay,
+                    )
+                    time.sleep(delay)
+                    # Get a fresh session for retry to avoid stale connection issues
+                    session.rollback()
+            else:
+                # Re-raise non-lock-related errors immediately
+                raise
+
+    # All retries exhausted
+    log.error(
+        "Failed to acquire migration lock for edge tables after %d attempts. "
+        "Edge worker API may not function correctly.",
+        MAX_LOCK_RETRIES,
+    )
+    if last_error:
+        raise last_error
 
 
 def _get_api_endpoint() -> dict[str, Any]:
