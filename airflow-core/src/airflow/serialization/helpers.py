@@ -27,8 +27,8 @@ from airflow.configuration import conf
 from airflow.settings import json
 
 if TYPE_CHECKING:
+    from airflow.partition_mapper.base import PartitionMapper
     from airflow.timetables.base import Timetable as CoreTimetable
-    from airflow.timetables.simple import PartitionMapper
 
 
 def serialize_template_field(template_field: Any, name: str) -> str | dict | list | int | float:
@@ -152,7 +152,7 @@ class PartitionMapperNotFound(ValueError):
 
 def is_core_partition_mapper_import_path(importable_string: str) -> bool:
     """Whether an importable string points to a core partition mapper class."""
-    return importable_string.startswith("airflow.timetables.")
+    return importable_string.startswith("airflow.partition_mapper.")
 
 
 def load_partition_mapper(importable_string: str) -> PartitionMapper | None:

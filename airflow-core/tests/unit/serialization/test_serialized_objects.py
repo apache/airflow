@@ -721,16 +721,16 @@ def test_encode_partition_mapper():
 
     partition_mapper = IdentityMapper()
     assert encode_partition_mapper(partition_mapper) == {
-        Encoding.TYPE: "airflow.timetables.simple.IdentityMapper",
+        Encoding.TYPE: "airflow.partition_mapper.identity.IdentityMapper",
         Encoding.VAR: {},
     }
 
 
 def test_decode_partition_mapper():
+    from airflow.partition_mapper.identity import IdentityMapper as CoreIdentityMapper
     from airflow.sdk import IdentityMapper
     from airflow.serialization.decoders import decode_partition_mapper
     from airflow.serialization.encoders import encode_partition_mapper
-    from airflow.timetables.simple import IdentityMapper as CoreIdentityMapper
 
     partition_mapper = IdentityMapper()
     encoded_pm = encode_partition_mapper(partition_mapper)
