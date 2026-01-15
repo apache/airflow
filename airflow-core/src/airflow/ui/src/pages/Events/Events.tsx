@@ -234,6 +234,7 @@ export const Events = () => {
         isLoading={isLoading}
         modelName="browse:auditLog.columns.event"
         onStateChange={setTableURLState}
+        showRowCountHeading={false}
         skeletonCount={undefined}
         total={data?.total_entries ?? 0}
       />

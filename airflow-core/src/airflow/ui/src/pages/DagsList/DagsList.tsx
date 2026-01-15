@@ -319,6 +319,7 @@ export const DagsList = () => {
           onDisplayToggleChange={setDisplay}
           onStateChange={setTableURLState}
           showDisplayToggle
+          showRowCountHeading={false}
           skeletonCount={display === "card" ? 5 : undefined}
           total={totalEntries}
         />

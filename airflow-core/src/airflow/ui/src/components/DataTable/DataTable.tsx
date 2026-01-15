@@ -50,7 +50,7 @@ type DataTableProps<TData> = {
   readonly initialState?: TableState;
   readonly isFetching?: boolean;
   readonly isLoading?: boolean;
-  readonly modelName?: string;
+  readonly modelName: string;
   readonly noRowsMessage?: ReactNode;
   readonly onDisplayToggleChange?: (mode: "card" | "table") => void;
   readonly onStateChange?: (state: TableState) => void;
@@ -79,7 +79,7 @@ export const DataTable = <TData,>({
   onDisplayToggleChange,
   onStateChange,
   showDisplayToggle,
-  showRowCountHeading,
+  showRowCountHeading = true,
   skeletonCount = 10,
   total = 0,
 }: DataTableProps<TData>) => {
@@ -149,17 +149,15 @@ export const DataTable = <TData,>({
   // Default to show columns filter only if there are actually many columns displayed
   const showColumnsFilter = allowFiltering ?? columns.length > 5;
 
-  const hasModelName = typeof modelName === "string" && modelName.length > 0;
-  const modelNameKey = modelName ?? "";
   const translateModelName = useCallback(
-    (count: number) =>
-      hasModelName ? translate(modelNameKey, { count }) : translate("items", { defaultValue: "items" }),
-    [hasModelName, modelNameKey, translate],
+    (count: number) => translate(modelName, { count }),
+    [modelName, translate],
   );
   const showRowCount = Boolean(
-    showRowCountHeading && hasModelName && !Boolean(isLoading) && !Boolean(isFetching) && total > 0,
+    showRowCountHeading && !Boolean(isLoading) && !Boolean(isFetching) && total > 0,
   );
   const noRowsModelName = translateModelName(0);
+
   const rowCountHeading = showRowCount ? (
     <Heading py={3} size="md">
       {`${total} ${translateModelName(total)}`}

@@ -98,6 +98,7 @@ export const Providers = () => {
         initialState={tableURLState}
         modelName="common:admin.Providers"
         onStateChange={setTableURLState}
+        showRowCountHeading={false}
         total={data?.total_entries}
       />
     </Box>

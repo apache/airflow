@@ -197,7 +197,6 @@ export const Connections = () => {
           modelName="admin:connections.connection"
           noRowsMessage={<NothingFoundInfo />}
           onStateChange={setTableURLState}
-          showRowCountHeading
           total={data?.total_entries ?? 0}
         />
       </Box>

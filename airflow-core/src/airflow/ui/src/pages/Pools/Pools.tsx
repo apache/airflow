@@ -130,7 +130,6 @@ export const Pools = () => {
           modelName="admin:pools.pool"
           noRowsMessage={translate("pools.noPoolsFound")}
           onStateChange={setTableURLState}
-          showRowCountHeading
           total={data ? data.total_entries : 0}
         />
       </Box>

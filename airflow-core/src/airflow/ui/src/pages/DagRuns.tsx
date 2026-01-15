@@ -250,7 +250,6 @@ export const DagRuns = () => {
         isLoading={isLoading}
         modelName="common:dagRun"
         onStateChange={setTableURLState}
-        showRowCountHeading
         total={data?.total_entries}
       />
     </>

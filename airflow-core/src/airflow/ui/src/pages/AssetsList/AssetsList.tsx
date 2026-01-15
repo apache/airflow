@@ -178,6 +178,7 @@ export const AssetsList = () => {
           isLoading={isLoading}
           modelName="common:asset"
           onStateChange={setTableURLState}
+          showRowCountHeading={false}
           total={data?.total_entries}
         />
       </Box>

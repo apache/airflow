@@ -183,7 +183,6 @@ export const Variables = () => {
           modelName="admin:variables.variable"
           noRowsMessage={translate("variables.noRowsMessage")}
           onStateChange={setTableURLState}
-          showRowCountHeading
           total={data?.total_entries ?? 0}
         />
       </Box>

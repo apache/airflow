@@ -53,6 +53,7 @@ export const Plugins = () => {
         data={data?.plugins ?? []}
         errorMessage={<ErrorAlert error={error} />}
         modelName="common:admin.Plugins"
+        showRowCountHeading={false}
         total={data?.total_entries}
       />
     </Box>

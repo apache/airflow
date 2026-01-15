@@ -309,7 +309,6 @@ export const TaskInstances = () => {
         isLoading={isLoading}
         modelName="common:taskInstance"
         onStateChange={setTableURLState}
-        showRowCountHeading
         total={data?.total_entries}
       />
     </>
