@@ -235,7 +235,7 @@ export const TaskInstances = () => {
   });
   const { pagination, sorting } = tableURLState;
   const [sort] = sorting;
-  const orderBy = sort ? [`${sort.desc ? "-" : ""}${sort.id}`] : ["-start_date", "-run_after"];
+  const orderBy = sort ? [`${sort.desc ? "-" : ""}${sort.id}`] : ["-run_after"];
 
   const filteredState = searchParams.getAll(STATE_PARAM);
   const filteredDagVersion = searchParams.get(DAG_VERSION_PARAM);
