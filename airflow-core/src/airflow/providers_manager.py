@@ -33,10 +33,9 @@ from importlib.resources import files as resource_files
 from time import perf_counter
 from typing import TYPE_CHECKING, Any, NamedTuple, ParamSpec, TypeVar, cast
 
-from packaging.utils import canonicalize_name
-
 from airflow import DeprecatedImportWarning
-from airflow._shared.module_loading import entry_points_with_dist, import_string
+from airflow._shared.module_loading import import_string
+from airflow._shared.providers_discovery import discover_all_providers_from_packages
 from airflow.exceptions import AirflowOptionalProviderFeatureException
 from airflow.utils.log.logging_mixin import LoggingMixin
 
@@ -500,7 +499,7 @@ class ProvidersManager(LoggingMixin):
         # Development purpose. In production provider.yaml files are not present in the 'airflow" directory
         # So there is no risk we are going to override package provider accidentally. This can only happen
         # in case of local development
-        self._discover_all_providers_from_packages()
+        discover_all_providers_from_packages(self._provider_dict, self._provider_schema_validator)
         self._verify_all_providers_all_compatible()
         self._provider_dict = dict(sorted(self._provider_dict.items()))
 
@@ -634,57 +633,6 @@ class ProvidersManager(LoggingMixin):
         """Lazy initialization of providers CLI commands."""
         self.initialize_providers_list()
         self._discover_cli_command()
-
-    def _discover_all_providers_from_packages(self) -> None:
-        """
-        Discover all providers by scanning packages installed.
-
-        The list of providers should be returned via the 'apache_airflow_provider'
-        entrypoint as a dictionary conforming to the 'airflow/provider_info.schema.json'
-        schema. Note that the schema is different at runtime than provider.yaml.schema.json.
-        The development version of provider schema is more strict and changes together with
-        the code. The runtime version is more relaxed (allows for additional properties)
-        and verifies only the subset of fields that are needed at runtime.
-        """
-        for entry_point, dist in entry_points_with_dist("apache_airflow_provider"):
-            if not dist.metadata:
-                continue
-            package_name = canonicalize_name(dist.metadata["name"])
-            if package_name in self._provider_dict:
-                continue
-            log.debug("Loading %s from package %s", entry_point, package_name)
-            version = dist.version
-            provider_info = entry_point.load()()
-            self._provider_schema_validator.validate(provider_info)
-            provider_info_package_name = provider_info["package-name"]
-            if package_name != provider_info_package_name:
-                raise ValueError(
-                    f"The package '{package_name}' from packaging information "
-                    f"{provider_info_package_name} do not match. Please make sure they are aligned"
-                )
-
-            # issue-59576: Retrieve the project.urls.documentation from dist.metadata
-            project_urls = dist.metadata.get_all("Project-URL")
-            documentation_url: str | None = None
-
-            if project_urls:
-                for entry in project_urls:
-                    if "," in entry:
-                        name, url = entry.split(",")
-                        if name.strip().lower() == "documentation":
-                            documentation_url = url
-                            break
-
-            provider_info["documentation-url"] = documentation_url
-
-            if package_name not in self._provider_dict:
-                self._provider_dict[package_name] = ProviderInfo(version, provider_info)
-            else:
-                log.warning(
-                    "The provider for package '%s' could not be registered from because providers for that "
-                    "package name have already been registered",
-                    package_name,
-                )
 
     def _discover_hooks_from_connection_types(
         self,

@@ -21,12 +21,13 @@ from __future__ import annotations
 
 import functools
 import inspect
-import logging
 import traceback
 import warnings
 from collections.abc import Callable, MutableMapping
 from typing import TYPE_CHECKING, Any
 from urllib.parse import SplitResult
+
+import structlog
 
 from airflow.sdk._shared.module_loading import import_string
 from airflow.sdk._shared.providers_discovery import (
@@ -51,7 +52,7 @@ if TYPE_CHECKING:
     from airflow.sdk.bases.decorator import TaskDecorator
     from airflow.sdk.definitions.asset import Asset
 
-log = logging.getLogger(__name__)
+log = structlog.getLogger(__name__)
 
 
 def _correctness_check(provider_package: str, class_name: str, provider_info: ProviderInfo) -> Any:
@@ -527,8 +528,6 @@ class ProvidersManagerRuntime(LoggingMixin):
                 )
 
     def _add_taskflow_decorator(self, name, decorator_class_name: str, provider_package: str) -> None:
-        from airflow._shared.providers_discovery import _check_builtin_provider_prefix
-
         if not _check_builtin_provider_prefix(provider_package, decorator_class_name):
             return
 
