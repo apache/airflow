@@ -31,7 +31,7 @@ repos:
       - id: check-hooks-apply
         name: Check if all hooks apply to the repository
   - repo: https://github.com/eclipse-csi/octopin
-    rev: 74fd075c7b326c771cd95ca86c59cbe65f0dda37
+    rev: 67eac129b3e1d8ddb47e657bb2fda28c33d948ca  # frozen: v0.1.4
     hooks:
       - id: pin-versions
         name: Pin versions of dependencies in CI workflows (manual)
@@ -60,7 +60,7 @@ repos:
           - "--maxlevel"
           - "2"
   - repo: https://github.com/Lucas-C/pre-commit-hooks
-    rev: ad1b27d73581aa16cca06fc4a0761fc563ffe8e8  # frozen: v1.5.6
+    rev: a30f0d816e5062a67d87c8de753cfe499672b959  # frozen: v1.5.5
     hooks:
       - id: insert-license
         name: Add license for all SQL files
