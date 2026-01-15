@@ -489,17 +489,13 @@ class GKEKubernetesAsyncHook(GoogleBaseAsyncHook, AsyncKubernetesHook):
         self._cluster_url = cluster_url
         self._ssl_ca_cert = ssl_ca_cert
         self.enable_tcp_keepalive = enable_tcp_keepalive
-
-        # Call both parent constructors explicitly to ensure AsyncKubernetesHook is initialized
-        GoogleBaseAsyncHook.__init__(
-            self,
+        super().__init__(
             cluster_url=cluster_url,
             ssl_ca_cert=ssl_ca_cert,
             gcp_conn_id=gcp_conn_id,
             impersonation_chain=impersonation_chain,
             **kwargs,
         )
-        AsyncKubernetesHook.__init__(self, **kwargs)
 
     @contextlib.asynccontextmanager
     async def get_conn(self) -> AsyncGenerator[async_client.ApiClient, None]:
