@@ -191,20 +191,18 @@ export class BackfillPage extends BasePage {
     await expect(this.backfillRunButton).toBeVisible({ timeout: 20_000 });
     await this.backfillRunButton.scrollIntoViewIfNeeded();
 
-    const responsePromise = this.page
-      .waitForResponse(
-        (response: { request: () => { method: () => string }; status: () => number; url: () => string }) => {
-          const url = response.url();
-          const method = response.request().method();
-          const status = response.status();
+    const responsePromise = this.page.waitForResponse(
+      (response: { request: () => { method: () => string }; status: () => number; url: () => string }) => {
+        const url = response.url();
+        const method = response.request().method();
+        const status = response.status();
 
-          return (
-            url.includes("/backfills") && !url.includes("/dry_run") && method === "POST" && status === 200
-          );
-        },
-        { timeout: 30_000 },
-      )
-      .catch(() => undefined);
+        return (
+          url.includes("/backfills") && !url.includes("/dry_run") && method === "POST" && status === 200
+        );
+      },
+      { timeout: 60_000 },
+    );
 
     await this.backfillRunButton.click({ timeout: 20_000 });
     await responsePromise;
