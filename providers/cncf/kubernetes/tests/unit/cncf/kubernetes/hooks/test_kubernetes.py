@@ -35,7 +35,16 @@ from kubernetes.config import ConfigException
 from kubernetes_asyncio import client as async_client
 
 from airflow.models import Connection
-from airflow.providers.cncf.kubernetes.hooks.kubernetes import AsyncKubernetesHook, KubernetesHook
+from airflow.providers.cncf.kubernetes.hooks.kubernetes import (
+    AsyncKubernetesHook,
+    KubernetesHook,
+    _TimeoutAsyncK8sApiClient,
+    _TimeoutK8sApiClient,
+)
+from airflow.providers.cncf.kubernetes.kubernetes_helper_functions import (
+    API_TIMEOUT,
+    API_TIMEOUT_OFFSET_SERVER_SIDE,
+)
 from airflow.providers.common.compat.sdk import AirflowException, AirflowNotFoundException
 
 from tests_common.test_utils.db import clear_test_connections
@@ -76,6 +85,75 @@ class DeprecationRemovalRequired(AirflowException): ...
 
 
 DEFAULT_CONN_ID = "kubernetes_default"
+
+
+class TestTimeoutK8sApiClient:
+    @pytest.mark.parametrize(
+        ("kwargs", "expected_timeout"),
+        [
+            pytest.param({}, API_TIMEOUT, id="default-timeout"),
+            pytest.param({"timeout_seconds": 5678, "_request_timeout": 1234}, 1234, id="explicit-timeout"),
+            pytest.param(
+                {"timeout_seconds": API_TIMEOUT - API_TIMEOUT_OFFSET_SERVER_SIDE},
+                API_TIMEOUT,
+                id="server-side-timeout-limit",
+            ),
+            pytest.param(
+                {"timeout_seconds": API_TIMEOUT - API_TIMEOUT_OFFSET_SERVER_SIDE + 1},
+                API_TIMEOUT + 1,
+                id="server-side-timeout-above-limit",
+            ),
+        ],
+    )
+    def test_call_api_timeout_inject(self, kwargs, expected_timeout):
+        with mock.patch("kubernetes.client.ApiClient.call_api") as mocked_call_api:
+            mocked_call_api.return_value = "ok"
+            cli = _TimeoutK8sApiClient()
+
+            out = cli.call_api("arg1", kwargs_arg1="fake", **kwargs)
+
+            mocked_call_api.assert_called_once()
+            call_args, call_kwargs = mocked_call_api.call_args
+            assert call_args[0] == "arg1"
+            assert call_kwargs["kwargs_arg1"] == "fake"
+            assert call_kwargs["_request_timeout"] == expected_timeout
+            assert out == "ok"
+
+
+class TestTimeoutAsyncK8sApiClient:
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        ("kwargs", "expected_timeout"),
+        [
+            pytest.param({}, API_TIMEOUT, id="default-timeout"),
+            pytest.param({"timeout_seconds": 5678, "_request_timeout": 1234}, 1234, id="explicit-timeout"),
+            pytest.param(
+                {"timeout_seconds": API_TIMEOUT - API_TIMEOUT_OFFSET_SERVER_SIDE},
+                API_TIMEOUT,
+                id="server-side-timeout-limit",
+            ),
+            pytest.param(
+                {"timeout_seconds": API_TIMEOUT - API_TIMEOUT_OFFSET_SERVER_SIDE + 1},
+                API_TIMEOUT + 1,
+                id="server-side-timeout-above-limit",
+            ),
+        ],
+    )
+    async def test_call_api_timeout_inject(self, kwargs, expected_timeout):
+        with mock.patch(
+            "kubernetes_asyncio.client.ApiClient.call_api", new_callable=mock.AsyncMock
+        ) as mocked_call_api:
+            mocked_call_api.return_value = "ok"
+            cli = _TimeoutAsyncK8sApiClient()
+
+            out = await cli.call_api("arg1", kwargs_arg1="fake", **kwargs)
+
+            mocked_call_api.assert_called_once()
+            call_args, call_kwargs = mocked_call_api.call_args
+            assert call_args[0] == "arg1"
+            assert call_kwargs["kwargs_arg1"] == "fake"
+            assert call_kwargs["_request_timeout"] == expected_timeout
+            assert out == "ok"
 
 
 @pytest.fixture

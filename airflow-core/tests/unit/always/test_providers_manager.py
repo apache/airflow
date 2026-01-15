@@ -65,6 +65,21 @@ class TestProviderManager:
     def inject_fixtures(self, caplog, cleanup_providers_manager):
         self._caplog = caplog
 
+    def test_providers_manager_singleton(self):
+        """Test that ProvidersManager returns the same instance and shares state."""
+        pm1 = ProvidersManager()
+        pm2 = ProvidersManager()
+
+        assert pm1 is pm2
+
+        # assert their states are same
+        assert pm1._provider_dict is pm2._provider_dict
+        assert pm1._hook_provider_dict is pm2._hook_provider_dict
+
+        # update property on one instance and check on another
+        pm1.resource_version = "updated_version"
+        assert pm2.resource_version == "updated_version"
+
     def test_providers_are_loaded(self):
         with self._caplog.at_level(logging.WARNING):
             self._caplog.clear()

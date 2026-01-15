@@ -37,7 +37,7 @@ pytestmark = pytest.mark.db_test
 
 DAG_ID = "my_dag"
 TASK_ID = "my_task"
-RUN_ID = "manual__2024-11-24T21:03:01+01:00"
+RUN_ID = "manual__2024-11-24"
 
 
 class TestLogsApiRoutes:
