@@ -84,7 +84,7 @@ from airflow.models.taskinstance import TaskInstance
 from airflow.models.team import Team
 from airflow.models.trigger import TRIGGER_FAIL_REPR, Trigger, TriggerFailureReason
 from airflow.observability.trace import DebugTrace, Trace, add_debug_span
-from airflow.sdk.definitions.asset import AssetUniqueKey, BaseAsset
+from airflow.serialization.definitions.assets import SerializedAssetUniqueKey
 from airflow.serialization.definitions.notset import NOTSET
 from airflow.ti_deps.dependencies_states import EXECUTION_STATES
 from airflow.timetables.simple import AssetTriggeredTimetable
@@ -115,6 +115,7 @@ if TYPE_CHECKING:
     from airflow.executors.base_executor import BaseExecutor
     from airflow.executors.executor_utils import ExecutorName
     from airflow.models.taskinstance import TaskInstanceKey
+    from airflow.serialization.definitions.assets import SerializedAssetBase
     from airflow.serialization.definitions.dag import SerializedDAG
     from airflow.utils.sqlalchemy import CommitProhibitorGuard
 
@@ -1691,14 +1692,16 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         partition_dag_ids: set[str] = set()
         evaluator = AssetEvaluator(session)
 
-        def dag_ready(dag_id: str, cond: BaseAsset, statuses: dict[AssetUniqueKey, bool]) -> bool | None:
+        def dag_ready(
+            dag_id: str, cond: SerializedAssetBase, statuses: dict[SerializedAssetUniqueKey, bool]
+        ) -> bool | None:
             try:
                 return evaluator.run(cond, statuses)
             except AttributeError:
-                # if dag was serialized before 2.9 and we *just* upgraded,
-                # we may be dealing with old version.  In that case,
-                # just wait for the dag to be reserialized.
-                self.log.warning("dag '%s' has old serialization; skipping DAG run creation.", dag_id)
+                # if Dag was serialized before 2.9 and we *just* upgraded,
+                # we may be dealing with old version. In that case,
+                # just wait for the Dag to be reserialized.
+                self.log.warning("Dag '%s' has old serialization; skipping Dag run creation.", dag_id)
                 return None
 
         apdrs: Iterable[AssetPartitionDagRun] = session.scalars(
@@ -1707,9 +1710,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         for apdr in apdrs:
             if TYPE_CHECKING:
                 assert apdr.target_dag_id
-            partition_dag_ids.add(apdr.target_dag_id)
-            dag = _get_current_dag(dag_id=apdr.target_dag_id, session=session)
-            if not dag:
+            if not (dag := _get_current_dag(dag_id=apdr.target_dag_id, session=session)):
                 self.log.error("Dag '%s' not found in serialized_dag table", apdr.target_dag_id)
                 continue
 
@@ -1718,10 +1719,12 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     PartitionedAssetKeyLog.asset_partition_dag_run_id == apdr.id
                 )
             )
-            assets = session.scalars(
+            asset_models = session.scalars(
                 select(AssetModel).where(AssetModel.id.in_(x.asset_id for x in key_logs))
             )
-            statuses = {AssetUniqueKey.from_asset(a): True for a in assets}
+            statuses: dict[SerializedAssetUniqueKey, bool] = {
+                SerializedAssetUniqueKey.from_asset(a): True for a in asset_models
+            }
             # todo: AIP-76 so, this basically works when we only require one partition from each asset to be there
             #  but, we ultimately need rollup ability
             #  that is, we need to ensure that whenever it is many -> one partitions, then we need to ensure
@@ -1730,6 +1733,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             if not dag_ready(dag.dag_id, cond=dag.timetable.asset_condition, statuses=statuses):
                 continue
 
+            partition_dag_ids.add(apdr.target_dag_id)
             run_after = timezone.utcnow()
             dag_run = dag.create_dagrun(
                 run_id=DagRun.generate_run_id(
