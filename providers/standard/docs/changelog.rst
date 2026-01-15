@@ -35,6 +35,30 @@
 Changelog
 ---------
 
+1.10.3
+......
+
+Misc
+~~~~
+
+* ``Consume ''AirflowOptionalProviderFeatureException'' from compat sdk in providers (#60335)``
+* ``New year means updated Copyright notices (#60344)``
+* ``Remove the compatibility shim for StartTriggerArgs in standard provider (#60300)``
+* ``Updated conf import for std,es,os,ms providers (#60030)``
+
+Doc-only
+~~~~~~~~
+
+* ``Remove documentation on TimeDeltaSensorAsync (#59651)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Revert "Add support for async callables in PythonOperator (#59087)" (#60266)``
+   * ``Add support for async callables in PythonOperator (#59087)``
+   * ``Remove TaskInstance and TaskLogReader unused methods (#59922)``
+   * ``Assorted SQLA2/Mypy fixes (#60094)``
+   * ``Refactor providers to use SQLA2 (#59975)``
+
 1.10.2
 ......
 

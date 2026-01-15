@@ -94,8 +94,6 @@ include = [
 [tool.hatch.build.targets.wheel]
 artifacts = [
     "/airflow_client",
-    "/docs",
-    "/test",
     "v2.yaml",
 ]
 include = [
