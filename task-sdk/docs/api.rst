@@ -162,6 +162,13 @@ Execution Time Components
 
 .. autoapiclass:: airflow.sdk.Context
 
+The ``Context`` object represents the execution-time context available to tasks.
+It corresponds to the same context that is exposed to Jinja templates during task execution.
+
+For a complete list of available context variables (such as ``dag_run``,
+``task_instance``, ``logical_date``, etc.), see the
+:ref:`Templates reference <templates-ref>`.
+
 .. rubric:: Logging
 
 .. autofunction:: airflow.sdk.log.mask_secret
