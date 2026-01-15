@@ -18,8 +18,6 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from airflow.sdk.definitions.timetables.assets import IdentityMapper
-
 __all__ = [
     "__version__",
     "Asset",
@@ -103,13 +101,13 @@ if TYPE_CHECKING:
     from airflow.sdk.definitions.decorators.task_group import task_group
     from airflow.sdk.definitions.edges import EdgeModifier, Label
     from airflow.sdk.definitions.param import Param, ParamsDict
+    from airflow.sdk.definitions.partition_mapper.base import PartitionMapper
+    from airflow.sdk.definitions.partition_mapper.identity import IdentityMapper
     from airflow.sdk.definitions.taskgroup import TaskGroup
     from airflow.sdk.definitions.template import literal
     from airflow.sdk.definitions.timetables.assets import (
         AssetOrTimeSchedule,
-        IdentityMapper,
         PartitionedAssetTimetable,
-        PartitionMapper,
     )
     from airflow.sdk.definitions.timetables.events import EventsTimetable
     from airflow.sdk.definitions.timetables.interval import (
@@ -152,7 +150,7 @@ __lazy_imports: dict[str, str] = {
     "DeltaTriggerTimetable": ".definitions.timetables.trigger",
     "EdgeModifier": ".definitions.edges",
     "EventsTimetable": ".definitions.timetables.events",
-    "IdentityMapper": ".definitions.timetables.assets",
+    "IdentityMapper": ".definitions.partition_mapper.identity",
     "Label": ".definitions.edges",
     "Metadata": ".definitions.asset.metadata",
     "MultipleCronTriggerTimetable": ".definitions.timetables.trigger",
@@ -160,7 +158,7 @@ __lazy_imports: dict[str, str] = {
     "Param": ".definitions.param",
     "ParamsDict": ".definitions.param",
     "PartitionedAssetTimetable": ".definitions.timetables.assets",
-    "PartitionMapper": ".definitions.timetables.assets",
+    "PartitionMapper": ".definitions.partition_mapper.base",
     "PokeReturnValue": ".bases.sensor",
     "SecretCache": ".execution_time.cache",
     "TaskGroup": ".definitions.taskgroup",

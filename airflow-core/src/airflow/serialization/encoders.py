@@ -39,6 +39,7 @@ from airflow.sdk import (
     EventsTimetable,
     IdentityMapper,
     MultipleCronTriggerTimetable,
+    PartitionMapper,
 )
 from airflow.sdk.bases.timetable import BaseTimetable
 from airflow.sdk.definitions.asset import AssetRef
