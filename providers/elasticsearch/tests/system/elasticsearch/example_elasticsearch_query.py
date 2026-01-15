@@ -25,7 +25,11 @@ from datetime import datetime
 
 from airflow import models
 from airflow.providers.common.compat.sdk import task
-from airflow.providers.elasticsearch.hooks.elasticsearch import ElasticsearchPythonHook, ElasticsearchSQLHook
+from airflow.providers.elasticsearch.hooks.elasticsearch import (
+    ElasticsearchHook,
+    ElasticsearchPythonHook,
+    ElasticsearchSQLHook,
+)
 from airflow.providers.standard.operators.python import PythonOperator
 
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
@@ -64,6 +68,32 @@ def use_elasticsearch_hook():
 
 # [END howto_elasticsearch_python_hook]
 
+
+# [START howto_elasticsearch_hook]
+def use_elasticsearch_modern_hook():
+    """
+    Use ElasticsearchHook to connect to Elasticsearch and perform operations
+    """
+    # Initialize the hook with connection ID
+    es_hook = ElasticsearchHook(elasticsearch_conn_id=CONN_ID)
+
+    # Test connection
+    if es_hook.test_connection():
+        print("Successfully connected to Elasticsearch")
+
+    # Search example
+    query = {"query": {"match_all": {}}, "size": 5}
+    try:
+        results = es_hook.search(query=query, index_name="_all")
+        print(f"Search results: {results}")
+    except Exception as e:
+        print(f"Search failed (this is normal in test environment): {e}")
+
+    return True
+
+
+# [END howto_elasticsearch_hook]
+
 with models.DAG(
     DAG_ID,
     schedule="@once",
@@ -72,13 +102,17 @@ with models.DAG(
     tags=["example", "elasticsearch"],
 ) as dag:
     execute_query = show_tables()
-    (
-        # TEST BODY
-        execute_query
-    )
+
     es_python_test = PythonOperator(
         task_id="print_data_from_elasticsearch", python_callable=use_elasticsearch_hook
     )
+
+    es_modern_test = PythonOperator(
+        task_id="test_elasticsearch_hook", python_callable=use_elasticsearch_modern_hook
+    )
+
+    # TEST BODY
+    execute_query >> es_python_test >> es_modern_test
 
 from tests_common.test_utils.system_tests import get_test_run  # noqa: E402
 
