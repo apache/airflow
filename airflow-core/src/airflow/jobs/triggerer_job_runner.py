@@ -39,6 +39,8 @@ from sqlalchemy import func, select
 from structlog.contextvars import bind_contextvars as bind_log_contextvars
 
 from airflow._shared.module_loading import import_string
+from airflow._shared.observability.metrics.dual_stats_manager import DualStatsManager
+from airflow._shared.observability.metrics.stats import Stats
 from airflow._shared.timezones import timezone
 from airflow.configuration import conf
 from airflow.executors import workloads
@@ -46,7 +48,6 @@ from airflow.jobs.base_job_runner import BaseJobRunner
 from airflow.jobs.job import perform_heartbeat
 from airflow.jobs.queues import KeyedHeadQueue, PartitionedQueue
 from airflow.models.trigger import Trigger
-from airflow.observability.stats import Stats
 from airflow.observability.trace import DebugTrace, Trace, add_debug_span
 from airflow.sdk.api.datamodels._generated import HITLDetailResponse
 from airflow.sdk.execution_time.comms import (
@@ -645,12 +646,20 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
                 session.flush()
 
     def emit_metrics(self):
-        Stats.gauge(f"triggers.running.{self.job.hostname}", len(self.running_triggers))
-        Stats.gauge("triggers.running", len(self.running_triggers), tags={"hostname": self.job.hostname})
+        DualStatsManager.gauge(
+            "triggers.running",
+            len(self.running_triggers),
+            tags={},
+            extra_tags={"hostname": self.job.hostname},
+        )
 
         capacity_left = self.capacity - len(self.running_triggers)
-        Stats.gauge(f"triggerer.capacity_left.{self.job.hostname}", capacity_left)
-        Stats.gauge("triggerer.capacity_left", capacity_left, tags={"hostname": self.job.hostname})
+        DualStatsManager.gauge(
+            "triggerer.capacity_left",
+            capacity_left,
+            tags={},
+            extra_tags={"hostname": self.job.hostname},
+        )
 
         span = Trace.get_current_span()
         span.set_attributes(

@@ -23,8 +23,8 @@ from pathlib import Path
 
 import pytest
 
-from airflow.exceptions import AirflowOptionalProviderFeatureException
 from airflow.providers.amazon.aws.hooks.base_aws import AwsGenericHook
+from airflow.providers.common.compat.sdk import AirflowOptionalProviderFeatureException
 
 BASE_AWS_HOOKS = ["AwsGenericHook", "AwsBaseHook"]
 ALLOWED_THICK_HOOKS_PARAMETERS: dict[str, set[str]] = {
