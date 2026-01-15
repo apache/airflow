@@ -20,6 +20,20 @@
 Changelog
 ---------
 
+3.3.1
+.....
+
+Misc
+~~~~
+
+* ``New year means updated Copyright notices (#60344)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``TaskInstance unused method cleanup (#59835)``
+   * ``Adding retries and pool to Weaviate dags to handle connection latency issues (#59198)``
+   * ``Remove global from task instance session (#58601)``
+
 3.3.0
 .....
 

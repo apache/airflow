@@ -23,7 +23,7 @@
 
 Package ``apache-airflow-providers-databricks``
 
-Release: ``7.8.2``
+Release: ``7.8.3``
 
 
 `Databricks <https://databricks.com/>`__
@@ -36,7 +36,7 @@ This is a provider package for ``databricks`` provider. All classes for this pro
 are in ``airflow.providers.databricks`` python package.
 
 You can find package information and changelog for the provider
-in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-databricks/7.8.2/>`_.
+in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-databricks/7.8.3/>`_.
 
 Installation
 ------------
@@ -58,7 +58,6 @@ PIP package                                 Version required
 ``apache-airflow-providers-common-sql``     ``>=1.27.0``
 ``requests``                                ``>=2.32.0,<3``
 ``databricks-sql-connector``                ``>=4.0.0``
-``databricks-sqlalchemy``                   ``>=1.0.2``
 ``aiohttp``                                 ``>=3.9.2,<4``
 ``mergedeep``                               ``>=1.3.4``
 ``pandas``                                  ``>=2.1.2; python_version < "3.13"``
@@ -99,7 +98,8 @@ Extra               Dependencies
 ``fab``             ``apache-airflow-providers-fab>=2.2.0; python_version < '3.13'``
 ``standard``        ``apache-airflow-providers-standard``
 ``openlineage``     ``apache-airflow-providers-openlineage>=2.3.0``
+``sqlalchemy``      ``databricks-sqlalchemy>=1.0.2``
 ==================  ================================================================
 
 The changelog for the provider package can be found in the
-`changelog <https://airflow.apache.org/docs/apache-airflow-providers-databricks/7.8.2/changelog.html>`_.
+`changelog <https://airflow.apache.org/docs/apache-airflow-providers-databricks/7.8.3/changelog.html>`_.

@@ -56,6 +56,8 @@ from sqlalchemy.sql.expression import false, select
 from sqlalchemy.sql.functions import coalesce
 from sqlalchemy_utils import UUIDType
 
+from airflow._shared.observability.metrics.dual_stats_manager import DualStatsManager
+from airflow._shared.observability.metrics.stats import Stats
 from airflow._shared.timezones import timezone
 from airflow.callbacks.callback_requests import DagCallbackRequest, DagRunContext
 from airflow.configuration import conf as airflow_conf
@@ -68,7 +70,6 @@ from airflow.models.taskinstance import TaskInstance as TI
 from airflow.models.taskinstancehistory import TaskInstanceHistory as TIH
 from airflow.models.tasklog import LogTemplate
 from airflow.models.taskmap import TaskMap
-from airflow.observability.stats import Stats
 from airflow.observability.trace import Trace
 from airflow.sdk.definitions.deadline import DeadlineReference
 from airflow.serialization.definitions.notset import NOTSET, ArgNotSet, is_arg_set
@@ -1180,9 +1181,10 @@ class DagRun(Base, LoggingMixin):
 
         start_dttm = timezone.utcnow()
         self.last_scheduling_decision = start_dttm
-        with (
-            Stats.timer(f"dagrun.dependency-check.{self.dag_id}"),
-            Stats.timer("dagrun.dependency-check", tags=self.stats_tags),
+        with DualStatsManager.timer(
+            "dagrun.dependency-check",
+            tags={},
+            extra_tags=self.stats_tags,
         ):
             dag = self.get_dag()
             info = self.task_instance_scheduling_decisions(session)
@@ -1676,9 +1678,12 @@ class DagRun(Base, LoggingMixin):
             return
 
         duration = self.end_date - self.start_date
-        timer_params = {"dt": duration, "tags": self.stats_tags}
-        Stats.timing(f"dagrun.duration.{self.state}.{self.dag_id}", **timer_params)
-        Stats.timing(f"dagrun.duration.{self.state}", **timer_params)
+        DualStatsManager.timing(
+            f"dagrun.duration.{self.state}",
+            dt=duration,
+            tags=self.stats_tags,
+            extra_tags={"dag_id": self.dag_id},
+        )
 
     @provide_session
     def verify_integrity(self, *, session: Session = NEW_SESSION, dag_version_id: UUIDType) -> None:
@@ -1754,18 +1759,22 @@ class DagRun(Base, LoggingMixin):
                 should_restore_task = (task is not None) and ti.state == TaskInstanceState.REMOVED
                 if should_restore_task:
                     self.log.info("Restoring task '%s' which was previously removed from DAG '%s'", ti, dag)
-                    Stats.incr(f"task_restored_to_dag.{dag.dag_id}", tags=self.stats_tags)
-                    # Same metric with tagging
-                    Stats.incr("task_restored_to_dag", tags={**self.stats_tags, "dag_id": dag.dag_id})
+                    DualStatsManager.incr(
+                        "task_restored_to_dag",
+                        tags=self.stats_tags,
+                        extra_tags={"dag_id": dag.dag_id},
+                    )
                     ti.state = None
             except AirflowException:
                 if ti.state == TaskInstanceState.REMOVED:
                     pass  # ti has already been removed, just ignore it
                 elif self.state != DagRunState.RUNNING and not dag.partial:
                     self.log.warning("Failed to get task '%s' for dag '%s'. Marking it as removed.", ti, dag)
-                    Stats.incr(f"task_removed_from_dag.{dag.dag_id}", tags=self.stats_tags)
-                    # Same metric with tagging
-                    Stats.incr("task_removed_from_dag", tags={**self.stats_tags, "dag_id": dag.dag_id})
+                    DualStatsManager.incr(
+                        "task_removed_from_dag",
+                        tags=self.stats_tags,
+                        extra_tags={"dag_id": dag.dag_id},
+                    )
                     ti.state = TaskInstanceState.REMOVED
                 continue
 
@@ -1928,9 +1937,12 @@ class DagRun(Base, LoggingMixin):
                 session.bulk_save_objects(tasks)
 
             for task_type, count in created_counts.items():
-                Stats.incr(f"task_instance_created_{task_type}", count, tags=self.stats_tags)
-                # Same metric with tagging
-                Stats.incr("task_instance_created", count, tags={**self.stats_tags, "task_type": task_type})
+                DualStatsManager.incr(
+                    "task_instance_created",
+                    count,
+                    tags=self.stats_tags,
+                    extra_tags={"task_type": task_type},
+                )
             session.flush()
         except IntegrityError:
             self.log.info(
