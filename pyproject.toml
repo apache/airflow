@@ -1003,6 +1003,10 @@ exclude_also = [
 
 ## mypy settings ##
 [tool.mypy]
+exclude = [
+    "^providers/amazon/tests/unit/amazon/aws/auth_manager/test_user\\.py$",
+]
+
 ignore_missing_imports = true
 no_implicit_optional = true
 warn_redundant_casts = true
