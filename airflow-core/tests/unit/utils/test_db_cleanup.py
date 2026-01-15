@@ -830,7 +830,7 @@ class TestDBCleanup:
 
             # The query should return 0 rows to delete because the dag_version
             # is referenced by a kept task_instance
-            rows_to_delete = query.count()
+            rows_to_delete = session.scalar(select(func.count()).select_from(query.subquery()))
             assert rows_to_delete == 0, (
                 f"Expected 0 dag_version rows to be marked for deletion, got {rows_to_delete}. "
                 "The dag_version should be protected because it's referenced by a kept task_instance."
@@ -889,7 +889,7 @@ class TestDBCleanup:
 
             # The old unreferenced dag_version should be marked for deletion
             # (the new one is kept by keep_last)
-            rows_to_delete = query.count()
+            rows_to_delete = session.scalar(select(func.count()).select_from(query.subquery()))
             assert rows_to_delete == 1, (
                 f"Expected 1 dag_version row to be marked for deletion, got {rows_to_delete}. "
                 "The old unreferenced dag_version should be deleted."
@@ -967,7 +967,7 @@ class TestDBCleanup:
             # 1. Its created_at is old (base_date < clean_before_date)
             # 2. The only task_instance referencing it is old (will also be deleted)
             # 3. It's not the latest dag_version (keep_last keeps the new one)
-            rows_to_delete = query.count()
+            rows_to_delete = session.scalar(select(func.count()).select_from(query.subquery()))
             assert rows_to_delete == 1, (
                 f"Expected 1 dag_version row to be marked for deletion, got {rows_to_delete}. "
                 "The dag_version referenced only by old TIs should be deleted."
