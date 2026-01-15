@@ -785,7 +785,6 @@ class GoogleBaseAsyncHook(BaseHook):
 
         self._hook_kwargs = kwargs
         self._sync_hook = None
-        super().__init__(**kwargs)
 
     async def get_sync_hook(self) -> Any:
         """Sync version of the Google Cloud Hook makes blocking calls in ``__init__``; don't inherit it."""
