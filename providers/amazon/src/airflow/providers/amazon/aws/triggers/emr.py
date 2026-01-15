@@ -429,6 +429,9 @@ class EmrServerlessStartJobTrigger(AwsBaseWaiterTrigger):
     async def safe_to_cancel(self) -> bool:
         """
         Whether it is safe to cancel the EMR Serverless job.
+
+        Returns True if task is NOT DEFERRED (user-initiated cancellation).
+        Returns False if task is DEFERRED (triggerer restart - don't cancel job).
         """
         if AIRFLOW_V_3_0_PLUS:
             task_state = await self.get_task_state()
