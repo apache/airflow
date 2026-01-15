@@ -16,6 +16,8 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+
+/* eslint-disable max-lines */
 import { Input, Box, Spacer, HStack, Field, VStack, Flex, Text } from "@chakra-ui/react";
 import dayjs from "dayjs";
 import { useEffect, useState } from "react";
