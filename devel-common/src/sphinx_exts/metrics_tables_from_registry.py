@@ -1,4 +1,3 @@
-#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -17,17 +16,15 @@
 # under the License.
 from __future__ import annotations
 
-from typing import Generic, TypeVar
-
-T = TypeVar("T")
+from airflow._shared.observability.metrics.metrics_registry import generate_metrics_rst_from_registry
 
 
-class Singleton(type, Generic[T]):
-    """Metaclass that allows to implement singleton pattern."""
+def generate_metrics(app):
+    generate_metrics_rst_from_registry()
 
-    _instances: dict[Singleton[T], T] = {}
 
-    def __call__(cls: Singleton[T], *args, **kwargs) -> T:
-        if cls not in cls._instances:
-            cls._instances[cls] = super().__call__(*args, **kwargs)
-        return cls._instances[cls]
+def setup(app):
+    """Set up the extension."""
+    app.connect("builder-inited", generate_metrics)
+
+    return {"version": "builtin", "parallel_read_safe": True, "parallel_write_safe": True}

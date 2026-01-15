@@ -31,6 +31,17 @@ class StatsLogger(Protocol):
     instance: StatsLogger | NoStatsLogger | None = None
 
     @classmethod
+    def initialize(
+        cls,
+        *,
+        is_statsd_datadog_enabled: bool,
+        is_statsd_on: bool,
+        is_otel_on: bool,
+        reset_instance: bool = True,
+    ) -> None:
+        """Initialize the StatsLogger instance."""
+
+    @classmethod
     def incr(
         cls,
         stat: str,
@@ -82,6 +93,17 @@ class StatsLogger(Protocol):
 
 class NoStatsLogger:
     """If no StatsLogger is configured, NoStatsLogger is used as a fallback."""
+
+    @classmethod
+    def initialize(
+        cls,
+        *,
+        is_statsd_datadog_enabled: bool,
+        is_statsd_on: bool,
+        is_otel_on: bool,
+        reset_instance: bool = True,
+    ) -> None:
+        """Initialize the NoStatsLogger instance."""
 
     @classmethod
     def incr(cls, stat: str, count: int = 1, rate: int = 1, *, tags: dict[str, str] | None = None) -> None:

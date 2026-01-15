@@ -128,10 +128,8 @@ export const Connections = () => {
   const { t: translate } = useTranslation(["admin", "common"]);
   const { setTableURLState, tableURLState } = useTableURLState();
   const [searchParams, setSearchParams] = useSearchParams();
-  const { NAME_PATTERN: NAME_PATTERN_PARAM }: SearchParamsKeysType = SearchParamsKeys;
-  const [connectionIdPattern, setConnectionIdPattern] = useState(
-    searchParams.get(NAME_PATTERN_PARAM) ?? undefined,
-  );
+  const { NAME_PATTERN, OFFSET }: SearchParamsKeysType = SearchParamsKeys;
+  const [connectionIdPattern, setConnectionIdPattern] = useState(searchParams.get(NAME_PATTERN) ?? undefined);
 
   useConnectionTypeMeta(); // Pre-fetch connection type metadata
   const { pagination, sorting } = tableURLState;
@@ -160,14 +158,15 @@ export const Connections = () => {
 
   const handleSearchChange = (value: string) => {
     if (value) {
-      searchParams.set(NAME_PATTERN_PARAM, value);
+      searchParams.set(NAME_PATTERN, value);
     } else {
-      searchParams.delete(NAME_PATTERN_PARAM);
+      searchParams.delete(NAME_PATTERN);
     }
     setTableURLState({
       pagination: { ...pagination, pageIndex: 0 },
       sorting,
     });
+    searchParams.delete(OFFSET);
     setSearchParams(searchParams);
     setConnectionIdPattern(value);
   };
