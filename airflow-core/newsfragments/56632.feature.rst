@@ -1,0 +1,1 @@
+Add support for loading DAG parameter options dynamically from external configuration files (INI, JSON, YAML) with filtering capabilities. Users can now use ``config_source`` parameter in ``Param`` class to populate dropdown options from config files instead of hardcoding them.
