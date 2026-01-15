@@ -19,11 +19,9 @@
 import { expect, test } from "@playwright/test";
 import { AUTH_FILE, testConfig } from "playwright.config";
 import { DagsPage } from "tests/e2e/pages/DagsPage";
-import { LoginPage } from "tests/e2e/pages/LoginPage";
 
 test.describe("Dag Run Tests", () => {
   const testDagId = testConfig.testDag.id;
-  const testCredentials = testConfig.credentials;
 
   test.beforeAll(async ({ browser }) => {
     test.setTimeout(5 * 60 * 1000);
@@ -50,18 +48,9 @@ test.describe("Dag Run Tests", () => {
     await context.close();
   });
 
-  let loginPage: LoginPage;
-  let dagsPage: DagsPage;
+  test("verify runs table displays with valid data", async ({ page }) => {
+    const dagsPage = new DagsPage(page);
 
-  test.beforeEach(async ({ page }) => {
-    loginPage = new LoginPage(page);
-    dagsPage = new DagsPage(page);
-
-    await loginPage.navigateAndLogin(testCredentials.username, testCredentials.password);
-    await loginPage.expectLoginSuccess();
-  });
-
-  test("verify runs table displays with valid data", async () => {
     await dagsPage.navigateToRunsTab(testDagId);
 
     // Verify runs table is displayed
@@ -73,7 +62,9 @@ test.describe("Dag Run Tests", () => {
     expect(runs.length).toBeGreaterThan(0);
   });
 
-  test("verify run details page navigation", async () => {
+  test("verify run details page navigation", async ({ page }) => {
+    const dagsPage = new DagsPage(page);
+
     await dagsPage.navigateToRunsTab(testDagId);
 
     const runs = await dagsPage.getRunDetails();
@@ -92,7 +83,9 @@ test.describe("Dag Run Tests", () => {
     await dagsPage.verifyRunDetailsPage(firstRun.runId);
   });
 
-  test("verify filtering", async () => {
+  test("verify filtering", async ({ page }) => {
+    const dagsPage = new DagsPage(page);
+
     await dagsPage.navigateToRunsTab(testDagId);
 
     const runs = await dagsPage.getRunDetails();
@@ -111,7 +104,9 @@ test.describe("Dag Run Tests", () => {
     expect(filteredRuns.every((run) => run.state === targetState)).toBeTruthy();
   });
 
-  test("verify pagination", async () => {
+  test("verify pagination", async ({ page }) => {
+    const dagsPage = new DagsPage(page);
+
     await dagsPage.navigateToRunsTab(testDagId);
 
     const initialRuns = await dagsPage.getRunDetails();
