@@ -23,6 +23,7 @@ import sys
 import time
 from typing import TYPE_CHECKING, Any
 
+from sqlalchemy import inspect
 from sqlalchemy.exc import OperationalError
 
 from airflow.configuration import conf
@@ -32,6 +33,7 @@ from airflow.providers.edge3.version_compat import AIRFLOW_V_3_1_PLUS
 from airflow.utils.session import NEW_SESSION, provide_session
 
 if TYPE_CHECKING:
+    from sqlalchemy.engine import Engine
     from sqlalchemy.orm import Session
 
 from airflow.utils.db import DBLocks, create_global_lock
@@ -41,6 +43,25 @@ log = logging.getLogger(__name__)
 # Retry configuration for lock acquisition during table creation
 MAX_LOCK_RETRIES = 5
 LOCK_RETRY_DELAY_BASE = 1.0  # Base delay in seconds for exponential backoff
+
+# Required edge tables
+EDGE_TABLES = ("edge_job", "edge_logs", "edge_worker")
+
+
+def _tables_exist(engine: Engine) -> bool:
+    """
+    Check if all required edge tables already exist in the database.
+
+    This is a fast path to avoid acquiring a global lock when tables
+    are already present (normal operation after initial setup).
+    """
+    try:
+        inspector = inspect(engine)
+        existing_tables = set(inspector.get_table_names())
+        return all(table in existing_tables for table in EDGE_TABLES)
+    except Exception:
+        # If we can't check, assume tables don't exist and proceed with creation
+        return False
 
 
 def _is_lock_not_available_error(error: OperationalError) -> bool:
@@ -65,10 +86,19 @@ def _ensure_tables_created(session: Session = NEW_SESSION) -> None:
 
     Uses exponential backoff with jitter to handle lock contention when
     multiple API server processes start simultaneously.
+
+    Fast path: If tables already exist, skips lock acquisition entirely.
     """
     from airflow.providers.edge3.models.edge_job import EdgeJobModel
     from airflow.providers.edge3.models.edge_logs import EdgeLogsModel
     from airflow.providers.edge3.models.edge_worker import EdgeWorkerModel
+
+    engine = session.get_bind().engine
+
+    # Fast path: skip lock acquisition if tables already exist
+    if _tables_exist(engine):
+        log.debug("Edge tables already exist, skipping creation.")
+        return
 
     last_error: OperationalError | None = None
 
@@ -76,11 +106,14 @@ def _ensure_tables_created(session: Session = NEW_SESSION) -> None:
         try:
             log.debug("Ensuring edge tables exist (attempt %d/%d)...", attempt + 1, MAX_LOCK_RETRIES)
             with create_global_lock(session=session, lock=DBLocks.MIGRATIONS):
-                engine = session.get_bind().engine
+                # Double-check after acquiring lock (another process may have created them)
+                if _tables_exist(engine):
+                    log.debug("Edge tables were created by another process.")
+                    return
                 EdgeJobModel.metadata.create_all(engine)
                 EdgeLogsModel.metadata.create_all(engine)
                 EdgeWorkerModel.metadata.create_all(engine)
-            log.debug("Edge tables ensured successfully.")
+            log.debug("Edge tables created successfully.")
             return
         except OperationalError as e:
             if _is_lock_not_available_error(e):
@@ -98,6 +131,10 @@ def _ensure_tables_created(session: Session = NEW_SESSION) -> None:
                     time.sleep(delay)
                     # Get a fresh session for retry to avoid stale connection issues
                     session.rollback()
+                    # Check if tables were created while we were waiting
+                    if _tables_exist(engine):
+                        log.debug("Edge tables were created by another process during retry wait.")
+                        return
             else:
                 # Re-raise non-lock-related errors immediately
                 raise
