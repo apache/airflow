@@ -72,3 +72,11 @@ export const getRelativeTime = (date: string | null | undefined): string => {
 
   return dayjs(date).fromNow();
 };
+
+export const getTimezoneOffsetString = (timezone: string): string => dayjs().tz(timezone).format("Z");
+
+export const getTimezoneTooltipLabel = (timezone: string): string => {
+  const now = dayjs().tz(timezone);
+
+  return `${timezone} — ${now.format(DEFAULT_DATETIME_FORMAT_WITH_TZ)}`;
+};

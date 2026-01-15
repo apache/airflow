@@ -20,6 +20,38 @@
 Changelog
 ---------
 
+3.1.2
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fab Auth Manager add xcom missing perms (#60315)``
+* ``Fix typos in CLI commands (#60227)``
+* ``Hide Groups field from User edit form in FAB Auth Manager (#60019)``
+* ``Fix user creation in FAB fails when no role specified (#60015)``
+
+Misc
+~~~~
+
+* ``Change starlette import to fastapi (#60382)``
+* ``New year means updated Copyright notices (#60344)``
+* ``rename names of data models related to roles for consistency across requests and responses (#60312)``
+* ``Introduce a "cli" section in provider metadata (#59805)``
+* ``Move over plugins_manager to a shared library (#59956)``
+* ``Bump the fab-ui-package-updates group across 1 directory with 4 updates (#59717)``
+* ``Make FAB AirflowAppBuilder use scoped_session (#59953)``
+* ``Upgrade SQLAlchemy (SQLA) to 2.0 (#59218)``
+
+Doc-only
+~~~~~~~~
+
+* ``Clarify note re: webserver_config.py deprecation (#59529)``
+* ``#59475 (docs): added few clarification docs for OAuth Authentication type (#60109)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 3.1.1
 .....
 

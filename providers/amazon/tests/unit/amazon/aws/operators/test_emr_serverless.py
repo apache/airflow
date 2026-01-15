@@ -502,39 +502,198 @@ class TestEmrServerlessStartJobOperator:
             name=default_name,
         )
 
-    @mock.patch("time.sleep", return_value=True)
+    @mock.patch("time.sleep", return_value=None)
     @mock.patch.object(EmrServerlessHook, "get_waiter")
     @mock.patch.object(EmrServerlessHook, "conn")
-    def test_job_run_app_not_started_app_failed(self, mock_conn, mock_get_waiter, mock_time):
-        error1 = WaiterError(
-            name="test_name",
-            reason="test-reason",
-            last_response={"application": {"state": "CREATING", "stateDetails": "test-details"}},
-        )
-        error2 = WaiterError(
-            name="test_name",
-            reason="Waiter encountered a terminal failure state:",
-            last_response={"application": {"state": "TERMINATED", "stateDetails": "test-details"}},
-        )
-        mock_get_waiter().wait.side_effect = [error1, error2]
+    def test_execute_max_attempts_cancel_job(self, mock_conn, mock_get_waiter, sleep_mock):
+        application_id = "test-app-id"
+        job_run_id = "test-job-id"
+        mock_conn.get_application.return_value = {"application": {"state": "STARTED"}}
         mock_conn.start_job_run.return_value = {
             "jobRunId": job_run_id,
             "ResponseMetadata": {"HTTPStatusCode": 200},
         }
+        mock_get_waiter.return_value.wait.side_effect = AirflowException("Waiter error: max attempts reached")
+        operator = EmrServerlessStartJobOperator(
+            task_id="test_task",
+            application_id=application_id,
+            execution_role_arn="arn:aws:iam::123456789012:role/test-role",
+            job_driver={"sparkSubmit": {"entryPoint": "s3://my-bucket/my-script.py"}},
+            client_request_token="token",
+            configuration_overrides={},
+            waiter_delay=1,
+            waiter_max_attempts=1,
+            wait_for_completion=True,
+        )
+
+        mock_context = mock.MagicMock()
+        with mock.patch.object(operator.log, "info") as mock_log_info:
+            with pytest.raises(AirflowException, match="Waiter error: max attempts reached"):
+                operator.execute(mock_context)
+            mock_conn.cancel_job_run.assert_called_once_with(
+                applicationId=application_id, jobRunId=job_run_id
+            )
+            log_msgs = [call.args[0] for call in mock_log_info.call_args_list]
+            assert any("Cancelling EMR Serverless job" in msg for msg in log_msgs)
+
+    @mock.patch("time.sleep", return_value=None)
+    @mock.patch.object(EmrServerlessHook, "get_waiter")
+    @mock.patch.object(EmrServerlessHook, "conn")
+    def test_execute_max_attempts_cancel_job_cancel_fails(self, mock_conn, mock_get_waiter, sleep_mock):
+        application_id = "test-app-id"
+        job_run_id = "test-job-id"
+        mock_conn.get_application.return_value = {"application": {"state": "STARTED"}}
+        mock_conn.start_job_run.return_value = {
+            "jobRunId": job_run_id,
+            "ResponseMetadata": {"HTTPStatusCode": 200},
+        }
+        mock_get_waiter.return_value.wait.side_effect = AirflowException("Waiter error: max attempts reached")
+        mock_conn.cancel_job_run.side_effect = Exception(
+            "Failed to cancel EMR Serverless job after waiter timeout"
+        )
+        operator = EmrServerlessStartJobOperator(
+            task_id="test_task",
+            application_id=application_id,
+            execution_role_arn="arn:aws:iam::123456789012:role/test-role",
+            job_driver={"sparkSubmit": {"entryPoint": "s3://my-bucket/my-script.py"}},
+            client_request_token="token",
+            configuration_overrides={},
+            waiter_delay=1,
+            waiter_max_attempts=1,
+            wait_for_completion=True,
+        )
+        mock_context = mock.MagicMock()
+
+        with (
+            mock.patch.object(operator.log, "exception") as mock_log_exception,
+            mock.patch.object(operator.log, "info") as mock_log_info,
+        ):
+            with pytest.raises(AirflowException, match="Waiter error: max attempts reached"):
+                operator.execute(mock_context)
+            mock_conn.cancel_job_run.assert_called_once_with(
+                applicationId=application_id,
+                jobRunId=job_run_id,
+            )
+            log_msgs = [call.args[0] for call in mock_log_exception.call_args_list]
+            assert any("Failed to cancel EMR Serverless job" in msg for msg in log_msgs)
+            info_msgs = [call.args[0] for call in mock_log_info.call_args_list]
+            assert any("Cancelling EMR Serverless job" in msg for msg in info_msgs)
+
+    @mock.patch("time.sleep", return_value=None)
+    @mock.patch.object(EmrServerlessHook, "get_waiter")
+    @mock.patch.object(EmrServerlessHook, "conn")
+    def test_execute_waiter_other_exception_does_not_cancel(self, mock_conn, mock_get_waiter, sleep_mock):
+        mock_conn.get_application.return_value = {"application": {"state": "STARTED"}}
+        mock_conn.start_job_run.return_value = {
+            "jobRunId": "job-id",
+            "ResponseMetadata": {"HTTPStatusCode": 200},
+        }
+        mock_get_waiter.return_value.wait.side_effect = AirflowException("Other failure")
 
         operator = EmrServerlessStartJobOperator(
-            task_id=task_id,
-            client_request_token=client_request_token,
-            application_id=application_id,
-            execution_role_arn=execution_role_arn,
-            job_driver=job_driver,
-            configuration_overrides=configuration_overrides,
+            task_id="test_task",
+            application_id="app-id",
+            execution_role_arn="arn",
+            job_driver={"sparkSubmit": {"entryPoint": "s3://x"}},
+            client_request_token="token",
+            waiter_delay=1,
+            waiter_max_attempts=1,
+            wait_for_completion=True,
         )
-        with pytest.raises(AirflowException) as ex_message:
-            operator.execute(self.mock_context)
-        assert "Serverless Application failed to start:" in str(ex_message.value)
-        assert operator.wait_for_completion is True
-        assert mock_get_waiter().wait.call_count == 2
+        with pytest.raises(AirflowException, match="Other failure"):
+            operator.execute(mock.MagicMock())
+        mock_conn.cancel_job_run.assert_not_called()
+
+    @mock.patch("time.sleep", return_value=None)
+    @mock.patch.object(EmrServerlessHook, "get_waiter")
+    @mock.patch.object(EmrServerlessHook, "conn")
+    def test_execute_no_wait_for_completion_does_not_cancel(self, mock_conn, mock_get_waiter, sleep_mock):
+        mock_conn.get_application.return_value = {"application": {"state": "STARTED"}}
+        mock_conn.start_job_run.return_value = {
+            "jobRunId": "job-id",
+            "ResponseMetadata": {"HTTPStatusCode": 200},
+        }
+
+        operator = EmrServerlessStartJobOperator(
+            task_id="test_task",
+            application_id="app-id",
+            execution_role_arn="arn",
+            job_driver={"sparkSubmit": {"entryPoint": "s3://x"}},
+            client_request_token="token",
+            wait_for_completion=False,
+        )
+
+        job_id = operator.execute(mock.MagicMock())
+        assert job_id == "job-id"
+        mock_conn.cancel_job_run.assert_not_called()
+
+    @mock.patch("time.sleep", return_value=None)
+    @mock.patch.object(EmrServerlessHook, "get_waiter")
+    @mock.patch.object(EmrServerlessHook, "conn")
+    def test_execute_deferrable_does_not_cancel(self, mock_conn, mock_get_waiter, sleep_mock):
+        mock_conn.get_application.return_value = {"application": {"state": "STARTED"}}
+        mock_conn.start_job_run.return_value = {
+            "jobRunId": "job-id",
+            "ResponseMetadata": {"HTTPStatusCode": 200},
+        }
+
+        operator = EmrServerlessStartJobOperator(
+            task_id="test_task",
+            application_id="app-id",
+            execution_role_arn="arn",
+            job_driver={"sparkSubmit": {"entryPoint": "s3://x"}},
+            client_request_token="token",
+            wait_for_completion=True,
+            deferrable=True,
+        )
+        operator.defer = mock.MagicMock()
+        operator.execute(mock.MagicMock())
+        operator.defer.assert_called_once()
+        mock_conn.cancel_job_run.assert_not_called()
+
+    @mock.patch("time.sleep", return_value=None)
+    @mock.patch.object(EmrServerlessHook, "get_waiter")
+    @mock.patch.object(EmrServerlessHook, "conn")
+    def test_execute_complete_deferrable_failure_triggers_cancel(
+        self, mock_conn, mock_get_waiter, sleep_mock
+    ):
+        application_id = "test-app-id"
+        job_run_id = "test-job-id"
+        mock_conn.get_application.return_value = {"application": {"state": "STARTED"}}
+        mock_conn.start_job_run.return_value = {
+            "jobRunId": job_run_id,
+            "ResponseMetadata": {"HTTPStatusCode": 200},
+        }
+        operator = EmrServerlessStartJobOperator(
+            task_id="test_task",
+            application_id=application_id,
+            execution_role_arn="arn:aws:iam::123456789012:role/test-role",
+            job_driver={"sparkSubmit": {"entryPoint": "s3://bucket/script.py"}},
+            client_request_token="token",
+            configuration_overrides={},
+            waiter_delay=1,
+            waiter_max_attempts=3,
+            wait_for_completion=True,
+            deferrable=True,
+        )
+        operator.job_id = job_run_id
+        failed_event = {
+            "status": "error",
+            "job_details": {"application_id": application_id, "job_id": job_run_id},
+        }
+
+        mock_context = mock.MagicMock()
+        with mock.patch.object(operator.log, "info") as mock_log:
+            with pytest.raises(
+                AirflowException, match="EMR Serverless job failed or timed out in deferrable mode"
+            ):
+                operator.execute_complete(mock_context, failed_event)
+            mock_conn.cancel_job_run.assert_called_once_with(
+                applicationId=application_id,
+                jobRunId=job_run_id,
+            )
+            log_msgs = [call.args[0] for call in mock_log.call_args_list]
+            assert any("Cancelling EMR Serverless job" in msg for msg in log_msgs)
 
     @mock.patch.object(EmrServerlessHook, "get_waiter")
     @mock.patch.object(EmrServerlessHook, "conn")

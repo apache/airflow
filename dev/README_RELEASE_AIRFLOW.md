@@ -477,7 +477,7 @@ uv tool install -e ./dev/breeze
   Preview with:
 
     ```shell script
-    towncrier build --draft --version=${VERSION} --date=2021-12-15 --dir . --config newsfragments/config.toml
+    towncrier build --draft --version=${VERSION} --date=2021-12-15 --dir airflow-core --config airflow-core/newsfragments/config.toml
     ```
 
 

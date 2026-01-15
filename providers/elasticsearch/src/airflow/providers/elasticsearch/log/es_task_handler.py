@@ -37,6 +37,7 @@ import elasticsearch
 import pendulum
 from elasticsearch import helpers
 from elasticsearch.exceptions import NotFoundError
+from sqlalchemy import select
 
 from airflow.models.dagrun import DagRun
 from airflow.providers.common.compat.module_loading import import_string
@@ -98,15 +99,13 @@ def _ensure_ti(ti: TaskInstanceKey | TaskInstance, session) -> TaskInstance:
 
     if not isinstance(ti, TaskInstanceKey):
         return ti
-    val = (
-        session.query(TaskInstance)
-        .filter(
+    val = session.scalar(
+        select(TaskInstance).where(
             TaskInstance.task_id == ti.task_id,
             TaskInstance.dag_id == ti.dag_id,
             TaskInstance.run_id == ti.run_id,
             TaskInstance.map_index == ti.map_index,
         )
-        .one_or_none()
     )
     if isinstance(val, TaskInstance):
         val.try_number = ti.try_number

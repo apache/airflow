@@ -345,7 +345,7 @@ def download_artifact_from_pr(pr: str, output_file: Path, github_repository: str
     data = workflow_runs.json()["workflow_runs"]
     sorted_data = sorted(data, key=lambda x: datetime.fromisoformat(x["created_at"]), reverse=True)
     run_id = None
-    # Filter only workflow with ci.yml, we may get multiple workflows for a PR ex: codeql-analysis.yml, news-fragment.yml
+    # Filter only workflow with ci.yml, we may get multiple workflows for a PR ex: codeql-analysis.yml
 
     for run in sorted_data:
         if run.get("path").endswith("ci.yml"):

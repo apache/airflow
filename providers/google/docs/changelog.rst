@@ -51,6 +51,41 @@ Changelog
 
   * ``Remove CloudAutoMLHook use airflow.providers.google.cloud.hooks.vertex_ai.auto_ml.AutoMLHook, airflow.providers.google.cloud.hooks.translate.TranslateHook instead``
 
+19.4.0
+......
+
+Features
+~~~~~~~~
+
+* ``Add 'ignore_if_missing' to DataprocDeleteClusterOperator (#60433)``
+* ``Add Operators for Gemini Batch API and Gemini Files API. (#59518)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Make DataprocDeleteClusterOperator idempotent (#60083)``
+* ``Fixed CloudSqlDatabaseHook error message for missing host (#60089)``
+
+Misc
+~~~~
+
+* ``Consume ''AirflowOptionalProviderFeatureException'' from compat sdk in providers (#60335)``
+* ``Replace deprecated import for utcnow() to the new one (#60317)``
+* ``fix mypy error in provider (#60395)``
+* ``Remove deprecated Query usage in Google provider (#60322)``
+* ``New year means updated Copyright notices (#60344)``
+* ``add option max_num_workers to dataflow python system tests. (#60260)``
+* ``Fix mypy type checking issues after upgrade to github-auth 2.46.0 (#60146)``
+* ``Add AirflowDeprecationWarning for deprecated project_id in BigQueryGetDataOperator (#59866)``
+* ``Check team boundaries in connections (#59476)``
+* ``Added missing comma to bq empty dataset operator docstring (#60066)``
+* ``Migrate google provider to use airflow.sdk.configuration.conf (#59986)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``feat: Add JobDependenciesRunFacet to asset-triggered OL DAG events (#59521)``
+   * ``Remove TaskInstance and TaskLogReader unused methods (#59922)``
+
 19.3.0
 ......
 

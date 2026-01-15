@@ -2211,6 +2211,9 @@ class BigQueryUpdateTableSchemaOperator(GoogleCloudBaseOperator):
         )
         from airflow.providers.openlineage.extractors import OperatorLineage
 
+        if self._table is None:
+            self.log.debug("Skipping OpenLineage emission because table metadata is unavailable.")
+            return OperatorLineage()
         table = Table.from_api_repr(self._table)
         output_dataset = Dataset(
             namespace=BIGQUERY_NAMESPACE,

@@ -32,6 +32,7 @@ from __future__ import annotations
 import os
 import re
 import sys
+from collections import Counter
 from collections.abc import Callable
 from pathlib import Path
 
@@ -80,6 +81,18 @@ def normalize_package_name_to_directory(package_name: str) -> str:
 
 def verify_shared_distributions(shared_distributions: list[str], shared_dir: Path) -> list[str]:
     errors = []
+
+    dup = Counter(shared_distributions)
+    duplicates = {dist for dist, count in dup.items() if count > 1}
+
+    if duplicates:
+        errors.append(
+            f"Duplicate shared distributions found: {', '.join(sorted(duplicates))}. "
+            "Each shared distribution should only be listed once."
+        )
+        console.print(f"  [red]Found duplicate entries: {', '.join(sorted(duplicates))}[/red]")
+
+    # Continue with existing validation
     for dist in shared_distributions:
         console.print(f"  Checking shared distribution: [magenta]{dist}[/magenta]", end="")
         if not re.match(r"^apache-airflow-shared-.+", dist):
@@ -503,6 +516,17 @@ def ensure_shared_in_workspace_and_dev(main_pyproject_path: Path, shared_dir: Pa
 
     # Check workspace members
     workspace_members = data.get("tool", {}).get("uv", {}).get("workspace", {}).get("members", [])
+    workspace_dup = Counter(workspace_members)
+    workspace_duplicates = {
+        member for member, count in workspace_dup.items() if count > 1 and member.startswith("shared/")
+    }
+    if workspace_duplicates:
+        errors.append(
+            f"Duplicate workspace members found: {', '.join(sorted(workspace_duplicates))}. "
+            "Each workspace member should only be listed once."
+        )
+        console.print(f"[red]Duplicate workspace members: {', '.join(sorted(workspace_duplicates))}[/red]")
+
     missing_in_workspace = []
     for module in shared_modules:
         # Convert package name to directory path
@@ -514,10 +538,35 @@ def ensure_shared_in_workspace_and_dev(main_pyproject_path: Path, shared_dir: Pa
 
     # Check [tool.uv.sources]
     uv_sources = data.get("tool", {}).get("uv", {}).get("sources", {})
+    uv_sources_list = list(uv_sources.keys())
+    uv_sources_dup = Counter(uv_sources_list)
+    uv_sources_duplicates = {
+        src for src, count in uv_sources_dup.items() if count > 1 and src.startswith("apache-airflow-shared-")
+    }
+    if uv_sources_duplicates:
+        errors.append(
+            f"Duplicate [tool.uv.sources] entries found: {', '.join(sorted(uv_sources_duplicates))}. "
+            "Each source should only be listed once."
+        )
+        console.print(
+            f"[red]Duplicate [tool.uv.sources] entries: {', '.join(sorted(uv_sources_duplicates))}[/red]"
+        )
+
     missing_in_sources = [module for module in shared_modules if module not in uv_sources]
 
     # Check dev dependencies
     dev_deps = data.get("dependency-groups", {}).get("dev", [])
+    dev_dup = Counter(dev_deps)
+    dev_duplicates = {
+        dep for dep, count in dev_dup.items() if count > 1 and dep.startswith("apache-airflow-shared-")
+    }
+    if dev_duplicates:
+        errors.append(
+            f"Duplicate dev dependencies found: {', '.join(sorted(dev_duplicates))}. "
+            "Each dev dependency should only be listed once."
+        )
+        console.print(f"[red]Duplicate dev dependencies: {', '.join(sorted(dev_duplicates))}[/red]")
+
     missing_in_dev = [module for module in shared_modules if module not in dev_deps]
 
     # Report and fix missing/unsorted entries

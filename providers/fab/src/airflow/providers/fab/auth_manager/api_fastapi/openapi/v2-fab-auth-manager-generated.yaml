@@ -398,6 +398,64 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
+  /auth/fab/v1/users:
+    post:
+      tags:
+      - FabAuthManager
+      summary: Create User
+      operationId: create_user
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserBody'
+        required: true
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserResponse'
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+        '409':
+          description: Conflict
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+      security:
+      - OAuth2PasswordBearer: []
+      - HTTPBearer: []
 components:
   schemas:
     Action:
@@ -464,6 +522,16 @@ components:
       - name
       title: Resource
       description: Outgoing representation of a resource.
+    Role:
+      properties:
+        name:
+          type: string
+          title: Name
+      type: object
+      required:
+      - name
+      title: Role
+      description: Lightweight role reference used by /users schemas.
     RoleBody:
       properties:
         name:
@@ -512,6 +580,108 @@ components:
       - name
       title: RoleResponse
       description: Outgoing representation of a role and its permissions.
+    UserBody:
+      properties:
+        username:
+          type: string
+          minLength: 1
+          title: Username
+        email:
+          type: string
+          minLength: 1
+          title: Email
+        first_name:
+          type: string
+          minLength: 1
+          title: First Name
+        last_name:
+          type: string
+          minLength: 1
+          title: Last Name
+        roles:
+          anyOf:
+          - items:
+              $ref: '#/components/schemas/Role'
+            type: array
+          - type: 'null'
+          title: Roles
+        password:
+          type: string
+          format: password
+          title: Password
+          writeOnly: true
+      additionalProperties: false
+      type: object
+      required:
+      - username
+      - email
+      - first_name
+      - last_name
+      - password
+      title: UserBody
+      description: Incoming payload for creating a user.
+    UserResponse:
+      properties:
+        username:
+          type: string
+          title: Username
+        email:
+          type: string
+          title: Email
+        first_name:
+          type: string
+          title: First Name
+        last_name:
+          type: string
+          title: Last Name
+        roles:
+          anyOf:
+          - items:
+              $ref: '#/components/schemas/Role'
+            type: array
+          - type: 'null'
+          title: Roles
+        active:
+          anyOf:
+          - type: boolean
+          - type: 'null'
+          title: Active
+        last_login:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Last Login
+        login_count:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Login Count
+        fail_login_count:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Fail Login Count
+        created_on:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Created On
+        changed_on:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Changed On
+      type: object
+      required:
+      - username
+      - email
+      - first_name
+      - last_name
+      title: UserResponse
+      description: Outgoing representation of a user (no password).
     ValidationError:
       properties:
         loc:

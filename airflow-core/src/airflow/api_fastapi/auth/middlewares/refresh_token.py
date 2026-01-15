@@ -44,9 +44,9 @@ class JWTRefreshMiddleware(BaseHTTPMiddleware):
         current_token = request.cookies.get(COOKIE_NAME_JWT_TOKEN)
         try:
             if current_token:
-                new_user = await self._refresh_user(current_token)
-                if new_user:
-                    request.state.user = new_user
+                new_user, current_user = await self._refresh_user(current_token)
+                if user := (new_user or current_user):
+                    request.state.user = user
 
             response = await call_next(request)
 
@@ -67,9 +67,10 @@ class JWTRefreshMiddleware(BaseHTTPMiddleware):
         return response
 
     @staticmethod
-    async def _refresh_user(current_token: str) -> BaseUser | None:
+    async def _refresh_user(current_token: str) -> tuple[BaseUser | None, BaseUser | None]:
         try:
             user = await resolve_user_from_token(current_token)
         except HTTPException:
-            return None
-        return get_auth_manager().refresh_user(user=user)
+            return None, None
+
+        return get_auth_manager().refresh_user(user=user), user

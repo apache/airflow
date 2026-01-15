@@ -23,7 +23,7 @@
 
 Package ``apache-airflow-providers-openlineage``
 
-Release: ``2.9.2``
+Release: ``2.10.0``
 
 
 `OpenLineage <https://openlineage.io/>`__
@@ -36,7 +36,7 @@ This is a provider package for ``openlineage`` provider. All classes for this pr
 are in ``airflow.providers.openlineage`` python package.
 
 You can find package information and changelog for the provider
-in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-openlineage/2.9.2/>`_.
+in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-openlineage/2.10.0/>`_.
 
 Installation
 ------------
@@ -81,5 +81,14 @@ Dependent package                                                               
 `apache-airflow-providers-common-sql <https://airflow.apache.org/docs/apache-airflow-providers-common-sql>`_        ``common.sql``
 ==================================================================================================================  =================
 
+Optional dependencies
+----------------------
+
+==============  ======================
+Extra           Dependencies
+==============  ======================
+``sqlalchemy``  ``sqlalchemy>=1.4.49``
+==============  ======================
+
 The changelog for the provider package can be found in the
-`changelog <https://airflow.apache.org/docs/apache-airflow-providers-openlineage/2.9.2/changelog.html>`_.
+`changelog <https://airflow.apache.org/docs/apache-airflow-providers-openlineage/2.10.0/changelog.html>`_.

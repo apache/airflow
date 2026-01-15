@@ -1085,6 +1085,15 @@ metrics:
       example: "\"scheduler,executor,dagrun,pool,triggerer,celery\"
         or \"^scheduler,^executor,heartbeat|timeout\""
       default: ""
+    legacy_names_on:
+      description: |
+        If true, it exports both new and legacy metric names.
+        Legacy names contain variables such as dag_id and task_id,
+        while the new names set these variables inside tags.
+      version_added: 3.2.0
+      type: string
+      example: ~
+      default: "True"
     statsd_on:
       description: |
         Enables sending metrics to StatsD.

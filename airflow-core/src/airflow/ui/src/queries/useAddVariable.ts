@@ -63,6 +63,7 @@ export const useAddVariable = ({ onSuccessConfirm }: { onSuccessConfirm: () => v
       requestBody: {
         description: parsedDescription,
         key: variableRequestBody.key,
+        team_name: variableRequestBody.team_name,
         value: variableRequestBody.value,
       },
     });

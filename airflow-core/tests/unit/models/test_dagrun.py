@@ -31,6 +31,7 @@ from sqlalchemy import exists, func, select
 from sqlalchemy.orm import joinedload
 
 from airflow import settings
+from airflow._shared.observability.metrics.stats import Stats
 from airflow._shared.timezones import timezone
 from airflow.callbacks.callback_requests import DagCallbackRequest, DagRunContext
 from airflow.models.dag import DagModel, infer_automated_data_interval
@@ -41,7 +42,6 @@ from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.taskinstance import TaskInstance, TaskInstanceNote, clear_task_instances
 from airflow.models.taskmap import TaskMap
 from airflow.models.taskreschedule import TaskReschedule
-from airflow.observability.stats import Stats
 from airflow.providers.standard.operators.bash import BashOperator
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.providers.standard.operators.python import PythonOperator, ShortCircuitOperator
@@ -1384,11 +1384,13 @@ def test_verify_integrity_task_start_and_end_date(Stats_incr, dag_maker, session
     assert len(tis) == expected_tis
 
     Stats_incr.assert_any_call(
-        "task_instance_created_EmptyOperator", expected_tis, tags={"dag_id": "test", "run_type": run_type}
+        "task_instance_created_EmptyOperator",
+        count=expected_tis,
+        tags={"dag_id": "test", "run_type": run_type},
     )
     Stats_incr.assert_any_call(
         "task_instance_created",
-        expected_tis,
+        count=expected_tis,
         tags={"dag_id": "test", "run_type": run_type, "task_type": "EmptyOperator"},
     )
 

@@ -46,6 +46,7 @@ from tests_common.test_utils.otel_utils import (
     assert_span_name_belongs_to_root_span,
     assert_span_not_in_children_spans,
     dump_airflow_metadata_db,
+    extract_metrics_from_output,
     extract_spans_from_output,
     get_parent_child_dict,
 )
@@ -150,6 +151,43 @@ def check_ti_state_and_span_status(task_id: str, run_id: str, state: str, span_s
             assert ti.span_status == span_status, (
                 f"Task instance span_status isn't {span_status}. Span_status: {ti.span_status}"
             )
+
+
+def check_legacy_metrics(output: str, dag: DAG, legacy_metrics_on: bool):
+    # Get a list of lines from the captured output.
+    output_lines = output.splitlines()
+
+    metrics_dict = extract_metrics_from_output(output_lines)
+
+    # Sample of metrics to check:
+    #   new:    airflow.dagrun.dependency-check
+    #   legacy: airflow.dagrun.dependency-check.otel_test_dag
+    #
+    #   new:    airflow.task.scheduled_duration
+    #   legacy: airflow.dag.otel_test_dag.task1.scheduled_duration
+    #   legacy: airflow.dag.otel_test_dag.task2.scheduled_duration
+    #
+    #   new:    airflow.dagrun.duration.success
+    #   legacy: airflow.dagrun.duration.success.otel_test_dag
+
+    legacy_metric_names = [
+        f"airflow.dagrun.dependency-check.{dag.dag_id}",
+        f"airflow.dagrun.duration.success.{dag.dag_id}",
+    ]
+
+    for task_id in dag.task_ids:
+        legacy_metric_names.append(f"airflow.dag.{dag.dag_id}.{task_id}.scheduled_duration")
+
+    new_metric_names = [
+        "airflow.dagrun.dependency-check",
+        "airflow.dagrun.duration.success",
+        "airflow.task.scheduled_duration",
+    ]
+
+    assert set(new_metric_names).issubset(metrics_dict.keys())
+
+    if legacy_metrics_on:
+        assert set(legacy_metric_names).issubset(metrics_dict.keys())
 
 
 def check_spans_with_continuance(output: str, dag: DAG, continuance_for_t1: bool = True):
@@ -726,6 +764,98 @@ class TestOtelIntegration:
                 os.remove(self.control_file)
         except Exception as ex:
             log.error("Could not delete leftover control file '%s', error: '%s'.", self.control_file, ex)
+
+    @pytest.mark.parametrize(
+        ("legacy_names_on_bool", "legacy_names_exported"),
+        [
+            pytest.param(True, True, id="export_legacy_names"),
+            pytest.param(False, False, id="dont_export_legacy_names"),
+        ],
+    )
+    def test_export_legacy_metric_names(
+        self, legacy_names_on_bool, legacy_names_exported, monkeypatch, celery_worker_env_vars, capfd, session
+    ):
+        # Metrics.
+        os.environ["AIRFLOW__METRICS__OTEL_ON"] = "True"
+        os.environ["AIRFLOW__METRICS__OTEL_HOST"] = "breeze-otel-collector"
+        os.environ["AIRFLOW__METRICS__OTEL_PORT"] = "4318"
+        os.environ["AIRFLOW__METRICS__OTEL_INTERVAL_MILLISECONDS"] = "5000"
+
+        assert isinstance(legacy_names_on_bool, bool)
+        os.environ["AIRFLOW__METRICS__LEGACY_NAMES_ON"] = str(legacy_names_on_bool)
+
+        if self.use_otel != "true":
+            os.environ["AIRFLOW__METRICS__OTEL_DEBUGGING_ON"] = "True"
+
+        celery_worker_process = None
+        scheduler_process = None
+        apiserver_process = None
+        try:
+            # Start the processes here and not as fixtures or in a common setup,
+            # so that the test can capture their output.
+            celery_worker_process, scheduler_process, apiserver_process = self.start_worker_and_scheduler1()
+
+            dag_id = "otel_test_dag"
+
+            assert len(self.dags) > 0
+            dag = self.dags[dag_id]
+
+            assert dag is not None
+
+            run_id = unpause_trigger_dag_and_get_run_id(dag_id=dag_id)
+
+            # Skip the span_status check.
+            wait_for_dag_run_and_check_span_status(
+                dag_id=dag_id, run_id=run_id, max_wait_time=90, span_status=None
+            )
+
+            # The ti span_status is updated while processing the executor events,
+            # which is after the dag_run state has been updated.
+            time.sleep(10)
+
+            task_dict = dag.task_dict
+            task_dict_ids = task_dict.keys()
+
+            for task_id in task_dict_ids:
+                # Skip the span_status check.
+                check_ti_state_and_span_status(
+                    task_id=task_id, run_id=run_id, state=State.SUCCESS, span_status=None
+                )
+
+        finally:
+            # Terminate the processes.
+            celery_worker_process.terminate()
+            celery_worker_process.wait()
+
+            celery_status = celery_worker_process.poll()
+            assert celery_status is not None, (
+                "The celery worker process status is None, which means that it hasn't terminated as expected."
+            )
+
+            scheduler_process.terminate()
+            scheduler_process.wait()
+
+            scheduler_status = scheduler_process.poll()
+            assert scheduler_status is not None, (
+                "The scheduler_1 process status is None, which means that it hasn't terminated as expected."
+            )
+
+            apiserver_process.terminate()
+            apiserver_process.wait()
+
+            apiserver_status = apiserver_process.poll()
+            assert apiserver_status is not None, (
+                "The apiserver process status is None, which means that it hasn't terminated as expected."
+            )
+
+        out, err = capfd.readouterr()
+        log.info("out-start --\n%s\n-- out-end", out)
+        log.info("err-start --\n%s\n-- err-end", err)
+
+        if self.use_otel != "true":
+            # Test the metrics from the output.
+            assert isinstance(legacy_names_exported, bool)
+            check_legacy_metrics(output=out, dag=dag, legacy_metrics_on=legacy_names_exported)
 
     @pytest.mark.execution_timeout(90)
     def test_dag_execution_succeeds(self, monkeypatch, celery_worker_env_vars, capfd, session):

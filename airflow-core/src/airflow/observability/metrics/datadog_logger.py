@@ -28,6 +28,7 @@ if TYPE_CHECKING:
 def get_dogstatsd_logger(cls) -> SafeDogStatsdLogger:
     return datadog_logger.get_dogstatsd_logger(
         cls,
+        tags_in_string=conf.get("metrics", "statsd_datadog_tags"),
         host=conf.get("metrics", "statsd_host"),
         port=conf.getint("metrics", "statsd_port"),
         namespace=conf.get("metrics", "statsd_prefix"),

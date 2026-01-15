@@ -39,6 +39,7 @@ const AddVariableButton = ({ disabled }: Props) => {
   const initialVariableValue: VariableBody = {
     description: "",
     key: "",
+    team_name: "",
     value: "",
   };
 

@@ -20,6 +20,18 @@
 Changelog
 ---------
 
+1.7.2
+.....
+
+Misc
+~~~~
+
+* ``New year means updated Copyright notices (#60344)``
+* ``Migrate openai provider to use airflow.sdk.configuration.conf (#59996)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 1.7.1
 .....
 
