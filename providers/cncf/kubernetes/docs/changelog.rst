@@ -32,6 +32,40 @@ Changelog
    Previously this would create a job that would never complete and always fail the task.
    Executing a task with ``parallelism = 0`` and ``wait_until_job_complete=True`` will now raise a validation error.
 
+10.12.1
+.......
+
+Bug Fixes
+~~~~~~~~~
+
+* ``KubernetesPodOperator: Fix hanging API calls  (#60254)``
+* ``KubernetesPodOperator check xcom sidecar running before trying to read xcom (#60319)``
+* ``Prevent transient error in case when Pod start_time parameter is None (#59097)``
+* ``Add support for creating jobs with parallelism=0 to KubernetesJobOperator (#60372)``
+* ``Fix duplicate pod creation in KubernetesJobOperator (#53368)``
+* ``Kubernetes Pod Operator callbacks repeating log line (#59372)``
+* ``Fix job_name normalization in KubernetesJobOperator (#60231)``
+
+Misc
+~~~~
+
+* ``Replace deprecated import for utcnow() to the new one (#60317)``
+* ``Fix mypy error in provider (#60395)``
+* ``New year means updated Copyright notices (#60344)``
+* ``Making kubernetes executor ResourceVersion a self contained singleton (#60324)``
+* ``Re-apply PriorityWeightStrategy SDK work (#60112)``
+* ``Introduce a "cli" section in provider metadata (#59805)``
+
+Doc-only
+~~~~~~~~
+
+* ``Improve changelog descriptions in PR #59947 (latest versions only) (#60036)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``revert: remove k8s namespace and worker image deprecations (#60273)``
+   * ``Remove TaskInstance and TaskLogReader unused methods (#59922)``
+
 10.12.0
 .......
 

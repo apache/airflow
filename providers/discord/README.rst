@@ -23,7 +23,7 @@
 
 Package ``apache-airflow-providers-discord``
 
-Release: ``3.11.1``
+Release: ``3.12.0``
 
 
 `Discord <https://discord.com/>`__
@@ -36,7 +36,7 @@ This is a provider package for ``discord`` provider. All classes for this provid
 are in ``airflow.providers.discord`` python package.
 
 You can find package information and changelog for the provider
-in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-discord/3.11.1/>`_.
+in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-discord/3.12.0/>`_.
 
 Installation
 ------------
@@ -79,4 +79,4 @@ Dependent package                                                               
 ==================================================================================================================  =================
 
 The changelog for the provider package can be found in the
-`changelog <https://airflow.apache.org/docs/apache-airflow-providers-discord/3.11.1/changelog.html>`_.
+`changelog <https://airflow.apache.org/docs/apache-airflow-providers-discord/3.12.0/changelog.html>`_.

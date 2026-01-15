@@ -374,7 +374,6 @@ class MetricsMap:
 
 
 def get_otel_logger(
-    cls,
     *,
     host: str | None = None,
     port: int | None = None,
@@ -399,6 +398,9 @@ def get_otel_logger(
     # https://opentelemetry.io/docs/specs/otel/configuration/sdk-environment-variables/#periodic-exporting-metricreader
     if interval := os.environ.get("OTEL_METRIC_EXPORT_INTERVAL", conf_interval):
         interval = float(interval)
+    else:
+        # If the env variable is an empty string.
+        interval = None
     log.info("[Metric Exporter] Connecting to OpenTelemetry Collector at %s", endpoint)
     readers = [
         PeriodicExportingMetricReader(
@@ -408,7 +410,10 @@ def get_otel_logger(
     ]
 
     if debug:
-        export_to_console = PeriodicExportingMetricReader(ConsoleMetricExporter())
+        export_to_console = PeriodicExportingMetricReader(
+            ConsoleMetricExporter(),
+            export_interval_millis=interval,
+        )
         readers.append(export_to_console)
 
     metrics.set_meter_provider(

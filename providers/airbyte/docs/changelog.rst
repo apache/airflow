@@ -27,6 +27,18 @@ Changelog
 ---------
 
 
+5.3.2
+.....
+
+Misc
+~~~~
+
+* ``New year means updated Copyright notices (#60344)``
+* ``Migrate airbyte provider to use airflow.sdk.configuration.conf (#59991)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 5.3.1
 .....
 
