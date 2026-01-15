@@ -16,24 +16,32 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+import { Button } from "@chakra-ui/react";
+import { useTranslation } from "react-i18next";
+import { LuUserRoundPen } from "react-icons/lu";
 
-export * from "./Dialog";
-export * from "./Pagination";
-export * from "./Select";
-export * from "./Alert";
-export * from "./CloseButton";
-export * from "./InputGroup";
-export * from "./Switch";
-export * from "./Tooltip";
-export * from "./ProgressBar";
-export * from "./Menu";
-export * from "./Accordion";
-export * from "./Button";
-export * from "./Toaster";
-export * from "./Breadcrumb";
-export * from "./Clipboard";
-export * from "./Popover";
-export * from "./Checkbox";
-export * from "./ResetButton";
-export * from "./InputWithAddon";
-export * from "./ButtonGroupToggle";
+import { StateBadge } from "src/components/StateBadge";
+
+type Props = {
+  readonly needsReview: boolean;
+  readonly onToggle: () => void;
+};
+
+export const RequiredActionFilter = ({ needsReview, onToggle }: Props) => {
+  const { t: translate } = useTranslation("hitl");
+
+  return (
+    <Button
+      colorPalette="brand"
+      data-testid="dags-needs-review-filter"
+      onClick={onToggle}
+      size="sm"
+      variant={needsReview ? "solid" : "outline"}
+    >
+      <StateBadge colorPalette="deferred">
+        <LuUserRoundPen />
+      </StateBadge>
+      {translate("requiredAction_other")}
+    </Button>
+  );
+};
