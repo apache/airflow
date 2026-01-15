@@ -497,6 +497,7 @@ class GKEKubernetesAsyncHook(GoogleBaseAsyncHook, AsyncKubernetesHook):
             ssl_ca_cert=ssl_ca_cert,
             gcp_conn_id=gcp_conn_id,
             impersonation_chain=impersonation_chain,
+            **kwargs,
         )
         AsyncKubernetesHook.__init__(self, **kwargs)
 
