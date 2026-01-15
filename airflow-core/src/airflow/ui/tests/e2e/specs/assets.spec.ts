@@ -16,26 +16,58 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { test } from "@playwright/test";
-import { AssetsPage } from "tests/e2e/pages/AssetsPage";
+import { expect, test } from "@playwright/test";
+import { AUTH_FILE } from "playwright.config";
 
-test.describe("Assets Page", () => {
-  let assetsPage: AssetsPage;
+import { AssetDetailPage } from "../pages/AssetDetailPage";
+import { DagsPage } from "../pages/DagsPage";
+
+test.describe("Asset Details Page", () => {
+  let assetDetailPage: AssetDetailPage;
   const assetName = "s3://dag1/output_1.txt";
 
-  test.beforeEach(({ page }) => {
-    assetsPage = new AssetsPage(page);
+  test.beforeAll(async ({ browser }) => {
+    test.setTimeout(3 * 60 * 1000);
+    const context = await browser.newContext({ storageState: AUTH_FILE });
+    const page = await context.newPage();
+    const dagsPage = new DagsPage(page);
+
+    // Trigger asset_produces_1 to create asset data
+    await dagsPage.triggerDag("asset_produces_1");
+    await expect
+      .poll(
+        async () => {
+          try {
+            const response = await page.request.get(
+              `/api/v2/dags/asset_produces_1/dagRuns?order_by=-start_date&limit=1`,
+              { timeout: 30_000 },
+            );
+            const data = (await response.json()) as { dag_runs: Array<{ state: string }> };
+
+            return data.dag_runs[0]?.state ?? "pending";
+          } catch {
+            return "pending";
+          }
+        },
+        { intervals: [2000], timeout: 120_000 },
+      )
+      .toBe("success");
+    await context.close();
   });
 
-  test("should verify asset details and dependencies", async () => {
-    await assetsPage.goto();
+  test.beforeEach(({ page }) => {
+    assetDetailPage = new AssetDetailPage(page);
+  });
 
-    await assetsPage.clickOnAsset(assetName);
+  test("verify asset details and dependencies", async () => {
+    await assetDetailPage.goto();
 
-    await assetsPage.verifyAssetDetails(assetName);
+    await assetDetailPage.clickOnAsset(assetName);
 
-    await assetsPage.verifyProducingTasks(1);
+    await assetDetailPage.verifyAssetDetails(assetName);
 
-    await assetsPage.verifyScheduledDags(1);
+    await assetDetailPage.verifyProducingTasks(1);
+
+    await assetDetailPage.verifyScheduledDags(1);
   });
 });
