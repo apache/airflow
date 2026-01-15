@@ -208,7 +208,7 @@ dependencies = [
     "apache-airflow-providers-standard"
 ]
 "common.messaging" = [
-    "apache-airflow-providers-common-messaging"
+    "apache-airflow-providers-common-messaging>=2.0.0"
 ]
 
 [dependency-groups]

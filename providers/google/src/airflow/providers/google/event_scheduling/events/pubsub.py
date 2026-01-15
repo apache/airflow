@@ -18,15 +18,8 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from airflow.exceptions import AirflowOptionalProviderFeatureException
+from airflow.providers.common.messaging.providers.base_provider import BaseMessageQueueProvider
 from airflow.providers.google.cloud.triggers.pubsub import PubsubPullTrigger
-
-try:
-    from airflow.providers.common.messaging.providers.base_provider import BaseMessageQueueProvider
-except ImportError:
-    raise AirflowOptionalProviderFeatureException(
-        "This feature requires the 'common.messaging' provider to be installed in version >= 1.0.1."
-    )
 
 if TYPE_CHECKING:
     from airflow.triggers.base import BaseEventTrigger
