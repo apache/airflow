@@ -283,7 +283,11 @@ will be timed and submitted automatically:
 
 .. code-block:: python
 
-    from airflow.observability.stats import Stats
+    # If importing from airflow-core
+    from airflow._shared.observability.metrics.stats import Stats
+
+    # Else if importing from task-sdk
+    from airflow.sdk._shared.observability.metrics.stats import Stats
 
     ...
 
@@ -294,7 +298,11 @@ or to time but not send a metric:
 
 .. code-block:: python
 
-    from airflow.observability.stats import Stats
+    # If importing from airflow-core
+    from airflow._shared.observability.metrics.stats import Stats
+
+    # Else if importing from task-sdk
+    from airflow.sdk._shared.observability.metrics.stats import Stats
 
     ...
 
@@ -303,7 +311,7 @@ or to time but not send a metric:
 
     log.info("Code took %.3f seconds", timer.duration)
 
-For full docs on ``timer()`` check out `airflow/stats.py`_.
+For full docs on ``timer()`` check out `shared/observability/src/airflow_shared/observability/metrics/base_stats_logger.py`_.
 
 If the start_date of a duration calculation needs to be stored in a database, then this has to be done using
 datetime objects. In all other cases, using datetime for duration calculation MUST be avoided as creating and
