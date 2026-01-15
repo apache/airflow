@@ -128,10 +128,14 @@ class KubernetesPodTrigger(BaseTrigger):
         self._since_time = None
 
         if isinstance(callbacks, str):
-            self._callbacks = [
-                (lambda m, c: getattr(importlib.import_module(m), c))(*x.rsplit(".", 1))
-                for x in callbacks.split(",")
-            ]
+            self._callbacks = []
+            for cbk in callbacks.split(","):
+                try:
+                    self._callbacks.append(
+                        (lambda m, c: getattr(importlib.import_module(m), c))(*cbk.rsplit(".", 1))
+                    )
+                except (AttributeError, ModuleNotFoundError) as e:
+                    self.log.warning("Failed to import callback %s: %s", cbk, e)
         else:
             self._callbacks = callbacks or []
 

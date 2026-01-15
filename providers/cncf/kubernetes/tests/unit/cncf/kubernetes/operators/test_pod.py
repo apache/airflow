@@ -2668,14 +2668,12 @@ class TestKubernetesPodOperatorAsync:
 
     @pytest.mark.parametrize("get_logs", [True, False])
     @patch(KUB_OP_PATH.format("post_complete_action"))
-    @patch(KUB_OP_PATH.format("_write_logs"))
-    @patch(POD_MANAGER_CLASS)
+    @patch(KUB_OP_PATH.format("pod_manager"))
     @patch(HOOK_CLASS)
     def test_async_get_logs_should_execute_successfully(
-        self, mocked_hook, mock_manager, mocked_write_logs, post_complete_action, get_logs
+        self, mocked_hook, mock_manager, post_complete_action, get_logs
     ):
         mocked_hook.return_value.get_pod.return_value = MagicMock()
-        mock_manager.return_value.await_pod_completion.return_value = MagicMock()
         k = KubernetesPodOperator(
             task_id="task",
             get_logs=get_logs,
@@ -2695,20 +2693,20 @@ class TestKubernetesPodOperatorAsync:
         )
 
         if get_logs:
-            mocked_write_logs.assert_called_once()
+            mock_manager.fetch_requested_container_logs.assert_called_once()
             post_complete_action.assert_called_once()
         else:
-            mocked_write_logs.assert_not_called()
+            mock_manager.fetch_requested_container_logs.assert_not_called()
 
     @pytest.mark.parametrize("get_logs", [True, False])
     @patch(KUB_OP_PATH.format("post_complete_action"))
     @patch(KUB_OP_PATH.format("client"))
     @patch(KUB_OP_PATH.format("extract_xcom"))
     @patch(HOOK_CLASS)
-    @patch(KUB_OP_PATH.format("pod_manager"))
+    # @patch(KUB_OP_PATH.format("pod_manager"))
     def test_async_write_logs_should_execute_successfully(
         self,
-        mock_manager,
+        # mock_manager,
         mocked_hook,
         mock_extract_xcom,
         mocked_client,
@@ -2719,9 +2717,9 @@ class TestKubernetesPodOperatorAsync:
         test_logs = "ok"
         # Mock client.read_namespaced_pod_log to return an iterable of bytes
         mocked_client.read_namespaced_pod_log.return_value = [test_logs.encode("utf-8")]
-        mock_manager.await_pod_completion.return_value = k8s.V1Pod(
-            metadata=k8s.V1ObjectMeta(name=TEST_NAME, namespace=TEST_NAMESPACE)
-        )
+        # mock_manager.await_pod_completion.return_value = k8s.V1Pod(
+        #     metadata=k8s.V1ObjectMeta(name=TEST_NAME, namespace=TEST_NAMESPACE)
+        # )
         mocked_hook.return_value.get_pod.return_value = k8s.V1Pod(
             metadata=k8s.V1ObjectMeta(name=TEST_NAME, namespace=TEST_NAMESPACE)
         )
@@ -2779,11 +2777,10 @@ class TestKubernetesPodOperatorAsync:
         with pytest.raises(AirflowException, match=expect_match):
             k.cleanup(pod, pod)
 
-    @patch(KUB_OP_PATH.format("_write_logs"))
     @patch("airflow.providers.cncf.kubernetes.operators.pod.KubernetesPodOperator.cleanup")
     @patch("airflow.providers.cncf.kubernetes.operators.pod.KubernetesPodOperator.find_pod")
     @patch("airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.fetch_container_logs")
-    def test_get_logs_not_running(self, fetch_container_logs, find_pod, cleanup, mock_write_log):
+    def test_get_logs_not_running(self, fetch_container_logs, find_pod, cleanup):
         pod = MagicMock()
         find_pod.return_value = pod
         op = KubernetesPodOperator(task_id="test_task", name="test-pod", get_logs=True)
@@ -2793,10 +2790,9 @@ class TestKubernetesPodOperatorAsync:
         )
         fetch_container_logs.is_called_with(pod, "base")
 
-    @patch(KUB_OP_PATH.format("_write_logs"))
     @patch("airflow.providers.cncf.kubernetes.operators.pod.KubernetesPodOperator.cleanup")
     @patch("airflow.providers.cncf.kubernetes.operators.pod.KubernetesPodOperator.find_pod")
-    def test_trigger_error(self, find_pod, cleanup, mock_write_log):
+    def test_trigger_error(self, find_pod, cleanup):
         """Assert that trigger_reentry raise exception in case of error"""
         find_pod.return_value = MagicMock()
         op = KubernetesPodOperator(task_id="test_task", name="test-pod", get_logs=True)

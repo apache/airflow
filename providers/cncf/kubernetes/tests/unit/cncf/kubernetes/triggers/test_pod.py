@@ -29,6 +29,7 @@ import pytest
 from kubernetes.client import models as k8s
 from pendulum import DateTime
 
+from airflow.providers.cncf.kubernetes.callbacks import KubernetesPodOperatorCallback
 from airflow.providers.cncf.kubernetes.triggers.pod import ContainerState, KubernetesPodTrigger
 from airflow.providers.cncf.kubernetes.utils.pod_manager import PodPhase
 from airflow.triggers.base import TriggerEvent
@@ -51,6 +52,9 @@ BASE_CONTAINER_NAME = "base"
 ON_FINISH_ACTION = "delete_pod"
 
 
+class CustomCallback(KubernetesPodOperatorCallback): ...
+
+
 @pytest.fixture
 def trigger():
     return KubernetesPodTrigger(
@@ -68,6 +72,7 @@ def trigger():
         schedule_timeout=STARTUP_TIMEOUT_SECS,
         trigger_start_time=TRIGGER_START_TIME,
         on_finish_action=ON_FINISH_ACTION,
+        callbacks=[CustomCallback],
     )
 
 
@@ -128,6 +133,7 @@ class TestKubernetesPodTrigger:
             "last_log_time": None,
             "logging_interval": None,
             "trigger_kwargs": {},
+            "callbacks": "unit.cncf.kubernetes.triggers.test_pod.CustomCallback",
         }
 
     def test_serialize_with_connection_extras(self):
