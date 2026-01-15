@@ -186,7 +186,9 @@ class TestSerializedDagModel:
         )
         s_dag_2 = SDM.get(example_bash_op_dag.dag_id)
 
-        assert s_dag.created_at != s_dag_2.created_at
+        # When updating in place, created_at stays the same but last_updated changes
+        assert s_dag.created_at == s_dag_2.created_at
+        assert s_dag.last_updated != s_dag_2.last_updated
         assert s_dag.dag_hash != s_dag_2.dag_hash
         assert s_dag_2.data["dag"]["tags"] == ["example", "example2", "new_tag"]
         assert dag_updated is True
@@ -221,7 +223,7 @@ class TestSerializedDagModel:
         serialized_dags2 = SDM.read_all_dags()
         sdags = session.scalars(select(SDM)).all()
         # assert only the latest SDM is returned
-        assert len(sdags) != len(serialized_dags2)
+        assert len(sdags) == len(serialized_dags2)
 
     def test_order_of_dag_params_is_stable(self):
         """
@@ -313,24 +315,20 @@ class TestSerializedDagModel:
 
     def test_get_latest_serdag_versions(self, dag_maker, session):
         # first dag
-        with dag_maker("dag1") as dag:
+        with dag_maker("dag1"):
             EmptyOperator(task_id="task1")
-        sync_dag_to_db(dag, session=session)
         dag_maker.create_dagrun()
-        with dag_maker("dag1") as dag:
+        with dag_maker("dag1"):
             EmptyOperator(task_id="task1")
             EmptyOperator(task_id="task2")
-        sync_dag_to_db(dag, session=session)
         dag_maker.create_dagrun(run_id="test2", logical_date=pendulum.datetime(2025, 1, 1))
         # second dag
-        with dag_maker("dag2") as dag:
+        with dag_maker("dag2"):
             EmptyOperator(task_id="task1")
-        sync_dag_to_db(dag, session=session)
         dag_maker.create_dagrun(run_id="test3", logical_date=pendulum.datetime(2025, 1, 2))
-        with dag_maker("dag2") as dag:
+        with dag_maker("dag2"):
             EmptyOperator(task_id="task1")
             EmptyOperator(task_id="task2")
-        sync_dag_to_db(dag, session=session)
 
         # Total serdags should be 4
         assert session.scalar(select(func.count()).select_from(SDM)) == 4
@@ -369,6 +367,26 @@ class TestSerializedDagModel:
 
         assert session.scalar(select(func.count()).select_from(DagVersion)) == 2
         assert session.scalar(select(func.count()).select_from(SDM)) == 2
+
+    def test_structure_hash_keeps_version_when_only_start_date_changes(self, dag_maker, session):
+        with dag_maker("dag1", start_date=pendulum.datetime(2025, 1, 1)) as initial_dag:
+            PythonOperator(task_id="task1", python_callable=lambda: None)
+        dag_maker.create_dagrun(run_id="test_start_date", logical_date=pendulum.datetime(2025, 1, 2))
+
+        assert session.scalar(select(func.count()).select_from(DagVersion)) == 1
+        assert session.scalar(select(func.count()).select_from(SDM)) == 1
+
+        # Build a new DAG with a different start_date but the same structure
+        updated_dag = DAG(
+            initial_dag.dag_id,
+            start_date=pendulum.datetime(2025, 1, 2),
+            schedule=None,
+        )
+        PythonOperator(task_id="task1", python_callable=lambda: None, dag=updated_dag)
+        SDM.write_dag(LazyDeserializedDAG.from_dag(updated_dag), bundle_name="dag_maker", session=session)
+
+        assert session.scalar(select(func.count()).select_from(DagVersion)) == 1
+        assert session.scalar(select(func.count()).select_from(SDM)) == 1
 
     def test_example_dag_sorting_serialised_dag(self, session):
         """
@@ -694,7 +712,13 @@ class TestSerializedDagModel:
 
         # Verify update succeeded
         assert result2 is True
-        updated_sdag = SDM.get("test_dynamic_success", session=session)
+        session.expire_all()
+        updated_sdag = session.scalar(
+            select(SDM).where(SDM.dag_id == "test_dynamic_success").order_by(SDM.created_at.desc()).limit(1)
+        )
+        assert updated_sdag is not None
+        # Clear cached data to force reload after direct UPDATE path
+        updated_sdag._SerializedDagModel__data_cache = None
         assert updated_sdag.dag_hash != initial_hash  # Hash should change
         assert len(updated_sdag.dag.task_dict) == 2  # Should have 2 tasks now
 
