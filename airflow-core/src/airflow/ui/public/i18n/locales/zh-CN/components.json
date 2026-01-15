@@ -10,7 +10,6 @@
     "maxRuns": "活跃执行数上限",
     "missingAndErroredRuns": "遗漏和错误的执行",
     "missingRuns": "遗漏的执行",
-    "permissionDenied": "试运行失败：用户没有创建回填的权限。",
     "reprocessBehavior": "重新处理行为",
     "run": "执行回填",
     "selectDescription": "为指定的日期范围补上 Dag 执行",

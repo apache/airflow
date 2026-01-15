@@ -10,7 +10,6 @@
     "maxRuns": "Maximális aktív futások",
     "missingAndErroredRuns": "Hiányzó és hibás futások",
     "missingRuns": "Hiányzó futások",
-    "permissionDenied": "Próbafuttatás sikertelen: A felhasználónak nincs jogosultsága backfill létrehozásához.",
     "reprocessBehavior": "Újrafeldolgozás viselkedése",
     "run": "Backfill futtatása",
     "selectDescription": "Futtasd ezt a Dag-et egy dátumtartományra",

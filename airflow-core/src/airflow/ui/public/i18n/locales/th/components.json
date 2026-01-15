@@ -10,7 +10,6 @@
     "maxRuns": "จำนวนการทำงานที่ทำพร้อมกันสูงสุด",
     "missingAndErroredRuns": "การทำงานที่หายไปและเกิดข้อผิดพลาด",
     "missingRuns": "การทำงานที่หายไป",
-    "permissionDenied": "การทดสอบล้มเหลว: ผู้ใช้ไม่มีสิทธิ์ในการสร้าง Backfill",
     "reprocessBehavior": "พฤติกรรมการประมวลผลซ้ำ",
     "run": "สั่ง Backfill",
     "selectDescription": "สั่งให้ Dag นี้ทำงานตามช่วงเวลาที่กำหนด",

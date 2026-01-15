@@ -10,7 +10,6 @@
     "maxRuns": "Maksimum Aktif Çalıştırma",
     "missingAndErroredRuns": "Eksik ve Hata Almış Dag Çalıştırmaları",
     "missingRuns": "Eksik Dag Çalıştırmaları",
-    "permissionDenied": "Deneme çalıştırması başarısız: Kullanıcının geriye dönük çalıştırma oluşturma izni yok.",
     "reprocessBehavior": "Yeniden İşleme Davranışı",
     "run": "Geriye Dönük Çalıştır",
     "selectDescription": "Bu Dag'ı bir tarih aralığı için çalıştır",

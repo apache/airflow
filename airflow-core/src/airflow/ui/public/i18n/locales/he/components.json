@@ -11,7 +11,6 @@
     "maxRuns": "מספר ריצות מקבילות מירבי",
     "missingAndErroredRuns": "הרצות חסרות ושגויות",
     "missingRuns": "הרצות חסרות",
-    "permissionDenied": "הרצת ניסיון נכשלה: למשתמש אין הרשאה ליצור Backfill.",
     "reprocessBehavior": "התנהגות עיבוד מחדש",
     "run": "הרץ Backfill",
     "selectDescription": "הרץ Dag זה עבור טווח תאריכים",

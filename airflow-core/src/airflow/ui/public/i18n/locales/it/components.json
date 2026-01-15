@@ -12,7 +12,6 @@
     "maxRuns": "Numero massimo di Runs attive",
     "missingAndErroredRuns": "Run Mancanti ed Errati",
     "missingRuns": "Run Mancanti",
-    "permissionDenied": "Esecuzione di prova fallita: L'utente non ha il permesso di creare backfill.",
     "reprocessBehavior": "Comportamento di Reprocesso",
     "run": "Correre Backfill",
     "selectDescription": "Esegui questo Dag per un intervallo di date",

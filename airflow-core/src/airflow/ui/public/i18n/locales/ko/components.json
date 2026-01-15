@@ -10,7 +10,6 @@
     "maxRuns": "최대 활성 실행 수",
     "missingAndErroredRuns": "누락되었거나 오류가 발생한 실행",
     "missingRuns": "누락된 실행",
-    "permissionDenied": "시험 실행 실패: 사용자에게 백필을 생성할 권한이 없습니다.",
     "reprocessBehavior": "재처리 동작",
     "run": "백필 실행",
     "selectDescription": "이 Dag을(를) 특정 날짜 범위에 대해 실행합니다.",
