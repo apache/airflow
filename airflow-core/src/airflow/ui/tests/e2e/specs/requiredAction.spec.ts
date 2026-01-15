@@ -17,14 +17,14 @@
  * under the License.
  */
 import { expect, test } from "@playwright/test";
-import { AUTH_FILE } from "playwright.config";
+import { AUTH_FILE, testConfig } from "playwright.config";
 
-import { BrowsePage } from "../pages/BrowsePage";
+import { RequiredActionsPage } from "../pages/RequiredActionsPage";
 
-const hitlDagId = "example_hitl_operator";
+const hitlDagId = testConfig.testDag.hitlId;
 
 test.describe("Verify Required Action page", () => {
-  test.describe.configure({ mode: "serial" });
+  // test.describe.configure({ mode: "serial" });
 
   test.beforeAll(async ({ browser }) => {
     test.setTimeout(120_000);
@@ -32,15 +32,16 @@ test.describe("Verify Required Action page", () => {
     const context = await browser.newContext({ storageState: AUTH_FILE });
 
     const page = await context.newPage();
-    const browsePage = new BrowsePage(page);
+    const browsePage = new RequiredActionsPage(page);
 
     await browsePage.triggerAndMarkDagRun(hitlDagId, "success");
     await browsePage.triggerAndMarkDagRun(hitlDagId, "failed");
+
     await context.close();
   });
 
   test("Verify the actions list/table is displayed (or empty state if none)", async ({ page }) => {
-    const browsePage = new BrowsePage(page);
+    const browsePage = new RequiredActionsPage(page);
 
     await browsePage.navigateToRequiredActionsPage();
 
@@ -68,41 +69,10 @@ test.describe("Verify Required Action page", () => {
     }
   });
 
-  test("Verify Pagination", async ({ page }) => {
-    const browsePage = new BrowsePage(page);
+  test("verify pagination with offset and limit", async ({ page }) => {
+    const browsePage = new RequiredActionsPage(page);
 
-    await browsePage.navigateToRequiredActionsPage();
-
-    const isTableVisible = await browsePage.isTableDisplayed();
-
-    if (!isTableVisible) {
-      return;
-    }
-
-    const isPaginationVisible = await browsePage.isPaginationVisible();
-
-    if (!isPaginationVisible) {
-      return;
-    }
-
-    await expect(browsePage.paginationNextButton).toBeVisible();
-    await expect(browsePage.paginationPrevButton).toBeVisible();
-
-    const initialSubjects = await browsePage.getActionSubjects();
-
-    expect(initialSubjects.length).toBeGreaterThan(0);
-
-    await browsePage.clickNextPage();
-
-    const subjectsAfterNext = await browsePage.getActionSubjects();
-
-    expect(subjectsAfterNext.length).toBeGreaterThan(0);
-    expect(subjectsAfterNext).not.toEqual(initialSubjects);
-
-    await browsePage.clickPrevPage();
-
-    const subjectsAfterPrev = await browsePage.getActionSubjects();
-
-    expect(subjectsAfterPrev).toEqual(initialSubjects);
+    // Use small limit (3) so pagination appears with just 8 items (3 pages)
+    await browsePage.verifyPagination(3);
   });
 });

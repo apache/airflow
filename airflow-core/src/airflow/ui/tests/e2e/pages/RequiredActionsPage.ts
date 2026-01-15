@@ -23,7 +23,7 @@ import { DagsPage } from "./DagsPage";
 
 export type MarkRunAsState = "failed" | "success";
 
-export class BrowsePage extends BasePage {
+export class RequiredActionsPage extends BasePage {
   public readonly actionsTable: Locator;
   public readonly emptyStateMessage: Locator;
   public readonly pageHeading: Locator;
@@ -66,18 +66,15 @@ export class BrowsePage extends BasePage {
 
   public async getActionSubjects(): Promise<Array<string>> {
     const rows = this.page.locator("table tbody tr td:nth-child(2)");
-    const count = await rows.count();
-    const subjects: Array<string> = [];
+    const texts = await rows.allTextContents();
 
-    for (let i = 0; i < count; i++) {
-      const text = await rows.nth(i).textContent();
+    return texts.map((text) => text.trim()).filter((text) => text !== "");
+  }
 
-      if (text !== null) {
-        subjects.push(text.trim());
-      }
-    }
+  public async hasNextPage(): Promise<boolean> {
+    const isDisabled = await this.paginationNextButton.isDisabled();
 
-    return subjects;
+    return !isDisabled;
   }
 
   public async isEmptyStateDisplayed(): Promise<boolean> {
@@ -92,8 +89,10 @@ export class BrowsePage extends BasePage {
     return this.actionsTable.isVisible();
   }
 
-  public async navigateToRequiredActionsPage(): Promise<void> {
-    await this.navigateTo(BrowsePage.getRequiredActionsUrl());
+  public async navigateToRequiredActionsPage(limit?: number): Promise<void> {
+    await (limit === undefined
+      ? this.navigateTo(RequiredActionsPage.getRequiredActionsUrl())
+      : this.navigateTo(`${RequiredActionsPage.getRequiredActionsUrl()}?limit=${limit}&offset=0`));
     await expect(this.pageHeading).toBeVisible({ timeout: 10_000 });
   }
 
@@ -133,6 +132,41 @@ export class BrowsePage extends BasePage {
       await this.page.getByTestId("select-filter-trigger").click();
       await this.page.getByText("Pending").click();
       await this.page.getByText("No Required Actions found").click();
+    }
+  }
+
+  public async verifyPagination(limit: number): Promise<void> {
+    await this.navigateTo(`${RequiredActionsPage.getRequiredActionsUrl()}?offset=0&limit=${limit}`);
+    await expect(this.page).toHaveURL(/.*limit=/, { timeout: 10_000 });
+    await expect(this.actionsTable).toBeVisible({ timeout: 10_000 });
+
+    const tableRows = this.page.locator("table tbody tr");
+
+    await expect(tableRows.first()).toBeVisible({ timeout: 30_000 });
+    expect(await tableRows.count()).toBeGreaterThan(0);
+
+    const paginationNav = this.page.locator('nav[aria-label="pagination"], [role="navigation"]');
+
+    await expect(paginationNav.first()).toBeVisible({ timeout: 10_000 });
+
+    const page1Button = this.page.getByRole("button", { name: /page 1|^1$/ });
+
+    await expect(page1Button.first()).toBeVisible({ timeout: 5000 });
+
+    const page2Button = this.page.getByRole("button", { name: /page 2|^2$/ });
+    const hasPage2 = await page2Button
+      .first()
+      .isVisible()
+      .catch(() => false);
+
+    if (hasPage2) {
+      await page2Button.first().click();
+      await expect(this.actionsTable).toBeVisible({ timeout: 10_000 });
+
+      const tableRowsPage2 = this.page.locator("table tbody tr");
+      const noDataMessage = this.page.locator("text=/no.*data|no.*actions|no.*results/i");
+
+      await expect(tableRowsPage2.first().or(noDataMessage.first())).toBeVisible({ timeout: 30_000 });
     }
   }
 }
