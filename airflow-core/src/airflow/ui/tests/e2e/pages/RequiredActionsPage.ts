@@ -126,12 +126,18 @@ export class RequiredActionsPage extends BasePage {
       await expect(stateBadge).toBeVisible({ timeout: 20_000 });
       await expect(stateBadge).toContainText(expectedState, { timeout: 20_000 });
 
+      // Verify pending Required Actions exist
       await this.navigateToRequiredActionsPage();
       await this.page.getByTestId("filter-bar-add-button").click();
       await this.page.getByLabel("Filter", { exact: true }).getByText("Required Action State").click();
       await this.page.getByTestId("select-filter-trigger").click();
       await this.page.getByText("Pending").click();
-      await this.page.getByText("No Required Actions found").click();
+
+      // Verify table has pending actions (not empty)
+      await expect(this.actionsTable).toBeVisible({ timeout: 10_000 });
+      const tableRows = this.page.locator("table tbody tr");
+
+      await expect(tableRows.first()).toBeVisible({ timeout: 30_000 });
     }
   }
 

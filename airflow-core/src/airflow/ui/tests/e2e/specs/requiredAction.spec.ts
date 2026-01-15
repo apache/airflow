@@ -24,7 +24,7 @@ import { RequiredActionsPage } from "../pages/RequiredActionsPage";
 const hitlDagId = testConfig.testDag.hitlId;
 
 test.describe("Verify Required Action page", () => {
-  // test.describe.configure({ mode: "serial" });
+  test.describe.configure({ mode: "serial" });
 
   test.beforeAll(async ({ browser }) => {
     test.setTimeout(120_000);
