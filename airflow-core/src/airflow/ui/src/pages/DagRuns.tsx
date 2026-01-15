@@ -209,7 +209,7 @@ export const DagRuns = () => {
 
   const refetchInterval = useAutoRefresh({});
 
-  const { data, error, isLoading } = useDagRunServiceGetDagRuns(
+  const { data, error, isFetching, isLoading } = useDagRunServiceGetDagRuns(
     {
       confContains: confContains !== null && confContains !== "" ? confContains : undefined,
       dagId: dagId ?? "~",
@@ -232,6 +232,7 @@ export const DagRuns = () => {
     },
     undefined,
     {
+      placeholderData: (prev) => prev,
       refetchInterval: (query) =>
         query.state.data?.dag_runs.some((run) => isStatePending(run.state)) ? refetchInterval : false,
     },
@@ -247,6 +248,7 @@ export const DagRuns = () => {
         data={data?.dag_runs ?? []}
         errorMessage={<ErrorAlert error={error} />}
         initialState={tableURLState}
+        isFetching={isFetching}
         isLoading={isLoading}
         modelName="common:dagRun"
         onStateChange={setTableURLState}
