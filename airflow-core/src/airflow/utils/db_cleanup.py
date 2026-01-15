@@ -400,7 +400,7 @@ def _build_query(
             # Use the reflected table's id column and join it with base_table
             base_table_id_col = base_table.c[dv_id_col.name]
             conditions.append(base_table_id_col.not_in(kept_ti_subquery))
-        except Exception:
+        except (KeyError, AttributeError, OperationalError, ProgrammingError):
             # If we can't add the FK constraint filter, continue without it
             # This prevents the cleanup from failing, though it may still hit FK violations
             pass
