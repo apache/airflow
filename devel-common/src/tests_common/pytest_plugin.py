@@ -53,7 +53,7 @@ if TYPE_CHECKING:
     from airflow.sdk.execution_time.task_runner import RuntimeTaskInstance
     from airflow.sdk.types import DagRunProtocol, Operator
     from airflow.serialization.definitions.dag import SerializedDAG
-    from airflow.timetables.base import DataInterval
+    from airflow.timetables.base import DagRunInfo, DataInterval
     from airflow.typing_compat import Self
     from airflow.utils.state import DagRunState, TaskInstanceState
 
@@ -1100,7 +1100,7 @@ def dag_maker(request) -> Generator[DagMaker, None, None]:
                 if run_type == DagRunType.MANUAL:
                     logical_date = self.start_date
                 else:
-                    logical_date = dag.next_dagrun_info(None).logical_date
+                    logical_date = dag.next_dagrun_info(last_automated_run_info=None).logical_date
             logical_date = timezone.coerce_datetime(logical_date)
 
             data_interval = None
@@ -1158,9 +1158,13 @@ def dag_maker(request) -> Generator[DagMaker, None, None]:
             if AIRFLOW_V_3_1_PLUS:
                 from airflow.models.dag import get_run_data_interval
 
-                next_info = sdag.next_dagrun_info(get_run_data_interval(sdag.timetable, dagrun))
+                interval = get_run_data_interval(sdag.timetable, dagrun)
+                last_run_info = self._get_run_info(dagrun, sdag, interval)
+                next_info = sdag.next_dagrun_info(last_automated_run_info=last_run_info)
             else:
-                next_info = sdag.next_dagrun_info(sdag.get_run_data_interval(dagrun))
+                interval = sdag.get_run_data_interval(dagrun)
+                last_run_info = self._get_run_info(dagrun, sdag, interval)
+                next_info = sdag.next_dagrun_info(last_automated_run_info=last_run_info)
             if next_info is None:
                 raise ValueError(f"cannot create run after {dagrun}")
             return self.create_dagrun(
@@ -1168,6 +1172,27 @@ def dag_maker(request) -> Generator[DagMaker, None, None]:
                 data_interval=next_info.data_interval,
                 **kwargs,
             )
+
+        def _get_run_info(self, dagrun: DagRun, serdag: SerializedDAG, interval: DataInterval) -> DagRunInfo:
+            from airflow.timetables.base import DagRunInfo
+
+            kwargs = dict(
+                run_after=dagrun.run_after,
+                data_interval=interval,
+            )
+            if AIRFLOW_V_3_2_PLUS:
+                partition_date = None
+                from airflow.timetables.trigger import CronPartitionTimetable
+
+                if isinstance(serdag.timetable, CronPartitionTimetable):
+                    partition_date = serdag.timetable.get_partition_date(run_date=dagrun.run_after)
+                kwargs.update(
+                    partition_date=partition_date,
+                    partition_key=dagrun.partition_key,
+                )
+
+            last_run_info = DagRunInfo(**kwargs)
+            return last_run_info
 
         def create_ti(self, task_id, dag_run=None, dag_run_kwargs=None, map_index=-1):
             """
