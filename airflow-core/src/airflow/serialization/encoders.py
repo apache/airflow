@@ -315,7 +315,7 @@ class _Serializer:
         }
 
     BUILTIN_PARTITION_MAPPERS: dict[type, str] = {
-        IdentityMapper: "airflow.timetables.simple.IdentityMapper",
+        IdentityMapper: "airflow.partition_mapper.identity.IdentityMapper",
     }
 
     @functools.singledispatchmethod
