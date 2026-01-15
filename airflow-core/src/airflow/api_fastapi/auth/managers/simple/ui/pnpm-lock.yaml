@@ -13,10 +13,10 @@ importers:
         version: 3.31.0(@emotion/react@11.14.0(@types/react@19.2.8)(react@19.2.3))(react-dom@19.2.3(react@19.2.3))(react@19.2.3)
       '@hey-api/client-axios':
         specifier: ^0.9.1
-        version: 0.9.1(@hey-api/openapi-ts@0.90.2(magicast@0.3.5)(typescript@5.9.3))(axios@1.13.2)
+        version: 0.9.1(@hey-api/openapi-ts@0.90.3(magicast@0.3.5)(typescript@5.9.3))(axios@1.13.2)
       '@hey-api/openapi-ts':
-        specifier: ^0.90.2
-        version: 0.90.2(magicast@0.3.5)(typescript@5.9.3)
+        specifier: ^0.90.3
+        version: 0.90.3(magicast@0.3.5)(typescript@5.9.3)
       '@tanstack/react-query':
         specifier: ^5.90.16
         version: 5.90.16(react@19.2.3)
@@ -36,8 +36,8 @@ importers:
         specifier: ^19.2.3
         version: 19.2.3(react@19.2.3)
       react-hook-form:
-        specifier: ^7.69.0
-        version: 7.69.0(react@19.2.3)
+        specifier: ^7.71.0
+        version: 7.71.0(react@19.2.3)
       react-router-dom:
         specifier: ^7.12.0
         version: 7.12.0(react-dom@19.2.3(react@19.2.3))(react@19.2.3)
@@ -565,8 +565,8 @@ packages:
     peerDependencies:
       typescript: ^5.x
 
-  '@hey-api/openapi-ts@0.90.2':
-    resolution: {integrity: sha512-wfqLHxlRkyowHa88X1+iD46SIgf8HEUH7v+nec00Yaya4fzzBCkOI30f7nlI+/4/EQtVmjzjnr1bthOzYHF8BQ==}
+  '@hey-api/openapi-ts@0.90.3':
+    resolution: {integrity: sha512-9UT347hVQaph/jwAJJI2l+istWDLw540PTIHUevq9xzRYnHAxC1Aprtv4CYoWkeFv9aMcMrmAbNH7ANPoxEK2A==}
     engines: {node: '>=20.19.0'}
     hasBin: true
     peerDependencies:
@@ -2641,8 +2641,8 @@ packages:
     peerDependencies:
       react: ^19.2.3
 
-  react-hook-form@7.69.0:
-    resolution: {integrity: sha512-yt6ZGME9f4F6WHwevrvpAjh42HMvocuSnSIHUGycBqXIJdhqGSPQzTpGF+1NLREk/58IdPxEMfPcFCjlMhclGw==}
+  react-hook-form@7.71.0:
+    resolution: {integrity: sha512-oFDt/iIFMV9ZfV52waONXzg4xuSlbwKUPvXVH2jumL1me5qFhBMc4knZxuXiZ2+j6h546sYe3ZKJcg/900/iHw==}
     engines: {node: '>=18.0.0'}
     peerDependencies:
       react: ^16.8.0 || ^17 || ^18 || ^19
@@ -3568,9 +3568,9 @@ snapshots:
 
   '@floating-ui/utils@0.2.10': {}
 
-  '@hey-api/client-axios@0.9.1(@hey-api/openapi-ts@0.90.2(magicast@0.3.5)(typescript@5.9.3))(axios@1.13.2)':
+  '@hey-api/client-axios@0.9.1(@hey-api/openapi-ts@0.90.3(magicast@0.3.5)(typescript@5.9.3))(axios@1.13.2)':
     dependencies:
-      '@hey-api/openapi-ts': 0.90.2(magicast@0.3.5)(typescript@5.9.3)
+      '@hey-api/openapi-ts': 0.90.3(magicast@0.3.5)(typescript@5.9.3)
       axios: 1.13.2
 
   '@hey-api/client-fetch@0.4.0': {}
@@ -3598,7 +3598,7 @@ snapshots:
     transitivePeerDependencies:
       - magicast
 
-  '@hey-api/openapi-ts@0.90.2(magicast@0.3.5)(typescript@5.9.3)':
+  '@hey-api/openapi-ts@0.90.3(magicast@0.3.5)(typescript@5.9.3)':
     dependencies:
       '@hey-api/codegen-core': 0.5.2(typescript@5.9.3)
       '@hey-api/json-schema-ref-parser': 1.2.2
@@ -6204,7 +6204,7 @@ snapshots:
       react: 19.2.3
       scheduler: 0.27.0
 
-  react-hook-form@7.69.0(react@19.2.3):
+  react-hook-form@7.71.0(react@19.2.3):
     dependencies:
       react: 19.2.3
 
