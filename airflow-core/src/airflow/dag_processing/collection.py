@@ -131,7 +131,7 @@ def _get_latest_runs_stmt(dag_id: str) -> Select:
 
 
 def _get_latest_runs_stmt_partitioned(dag_id: str) -> Select:
-    """Build a select statement to retrieve the last automated run for each dag."""
+    """Build a select statement to retrieve the last partitioned run for each Dag."""
     # todo: AIP-76 we should add a partition date field
     latest_run_id = (
         select(DagRun.id)
