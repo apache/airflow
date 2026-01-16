@@ -9,9 +9,6 @@
 # DAG Parsing
 /airflow-core/src/airflow/dag_processing @jedcunningham @ephraimbuddy
 
-# Kubernetes
-/providers/cncf/kubernetes/ @dstandish @jedcunningham
-
 # Helm Chart
 /chart/ @jedcunningham @hussein-awala @jscheffl
 
@@ -51,7 +48,7 @@ airflow-core/src/airflow/ui/public/i18n/locales/he/ @shahar1 @romsharon98 # +@De
 airflow-core/src/airflow/ui/public/i18n/locales/hi/ @vatsrahul1001
 airflow-core/src/airflow/ui/public/i18n/locales/hu/ @jscheffl @potiuk # +@majorosdonat
 airflow-core/src/airflow/ui/public/i18n/locales/it/ @bbovenzi # + @aoelvp94
-airflow-core/src/airflow/ui/public/i18n/locales/ja/  @uranusjr @sekikn # + @rsanda
+airflow-core/src/airflow/ui/public/i18n/locales/ja/ @uranusjr @sekikn # + @rsanda
 airflow-core/src/airflow/ui/public/i18n/locales/ko/ @choo121600 # + @kgw7401 @onestn @noeunkim
 airflow-core/src/airflow/ui/public/i18n/locales/nl/ @BasPH # + @DjVinnii
 airflow-core/src/airflow/ui/public/i18n/locales/pl/ @potiuk @mobuchowski # + @kacpermuda
@@ -89,7 +86,7 @@ airflow-core/src/airflow/ui/public/i18n/locales/zh-TW/ @Lee-W @jason810496 @guan
 /providers/amazon/ @o-nikolas
 /providers/apache/iceberg/ @Fokko
 /providers/celery/ @hussein-awala @dheerajturaga
-/providers/cncf/kubernetes @jedcunningham @hussein-awala
+/providers/cncf/kubernetes @jedcunningham @hussein-awala @scheffl
 /providers/common/messaging/ @vincbeck
 /providers/dbt/cloud/ @josh-fell
 /providers/edge3/ @jscheffl @dheerajturaga
@@ -116,10 +113,10 @@ Dockerfile.ci @potiuk @ashb @gopidesupavan @amoghrajesh @jscheffl @bugraoz93 @ka
 /airflow-e2e-tests/ @potiuk @ashb @gopidesupavan @amoghrajesh @jscheffl @bugraoz93 @kaxil @jason810496
 
 # Task SDK integration tests
-/task-sdk-integration-tests/ @potiuk @ashb @gopidesupavan @amoghrajesh @jscheffl @bugraoz93 @kaxil @jason810496
+/task-sdk-integration-tests/ @potiuk @ashb @gopidesupavan @amoghrajesh @bugraoz93 @kaxil @jason810496
 
 # airflowctl integration tests
-/airflow-ctl-tests/ @potiuk @ashb @gopidesupavan @amoghrajesh @jscheffl @bugraoz93 @kaxil @jason810496
+/airflow-ctl-tests/ @potiuk @ashb @gopidesupavan @amoghrajesh @bugraoz93 @kaxil @jason810496
 
 # Issue triage process
 # ISSUE_TRIAGE_PROCESS.rst
