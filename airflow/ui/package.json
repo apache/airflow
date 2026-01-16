@@ -13,7 +13,13 @@
     "preview": "vite preview",
     "codegen": "openapi-rq -i \"../api_fastapi/core_api/openapi/v1-generated.yaml\" -c axios --format prettier -o openapi-gen --operationId",
     "test": "vitest run",
-    "coverage": "vitest run --coverage"
+    "coverage": "vitest run --coverage",
+    "test:e2e": "playwright test",
+    "test:e2e:ui": "playwright test --ui",
+    "test:e2e:debug": "playwright test --debug",
+    "test:e2e:chromium": "playwright test --project=chromium",
+    "test:e2e:firefox": "playwright test --project=firefox",
+    "test:e2e:webkit": "playwright test --project=webkit"
   },
   "dependencies": {
     "@chakra-ui/anatomy": "^2.2.2",
@@ -53,6 +59,7 @@
   },
   "devDependencies": {
     "@7nohe/openapi-react-query-codegen": "^1.6.0",
+    "@playwright/test": "^1.48.2",
     "@eslint/compat": "^1.1.1",
     "@eslint/js": "^9.10.0",
     "@stylistic/eslint-plugin": "^2.8.0",
