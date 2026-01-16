@@ -28,6 +28,9 @@ export const testConfig = {
   testDag: {
     id: process.env.TEST_DAG_ID ?? "example_bash_operator",
   },
+  xcomDag: {
+    id: process.env.TEST_XCOM_DAG_ID ?? "example_xcom",
+  },
 };
 
 const currentFilename = fileURLToPath(import.meta.url);
