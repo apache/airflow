@@ -1483,11 +1483,11 @@ my_postgres_conn:
         dag = DAG("test_scheduler_dagrun_once", start_date=timezone.datetime(2015, 1, 1), schedule="@once")
         scheduler_dag = create_scheduler_dag(dag)
 
-        next_info = scheduler_dag.next_dagrun_info(None)
+        next_info = scheduler_dag.next_dagrun_info(last_automated_run_info=None)
         assert next_info
         assert next_info.logical_date == timezone.datetime(2015, 1, 1)
 
-        next_info = scheduler_dag.next_dagrun_info(next_info.data_interval)
+        next_info = scheduler_dag.next_dagrun_info(last_automated_run_info=next_info)
         assert next_info is None
 
     def test_next_dagrun_info_catchup(self):
@@ -1528,7 +1528,7 @@ my_postgres_conn:
             start_date=six_hours_ago_to_the_hour,
             catchup=False,
         )
-        next_date, _ = dag1.next_dagrun_info(None)
+        next_date, _ = dag1.next_dagrun_info(last_automated_run_info=None)
         # The DR should be scheduled in the last half an hour, not 6 hours ago
         assert next_date > half_an_hour_ago
         assert next_date < timezone.utcnow()
@@ -1540,7 +1540,7 @@ my_postgres_conn:
             catchup=False,
         )
 
-        next_date, _ = dag2.next_dagrun_info(None)
+        next_date, _ = dag2.next_dagrun_info(last_automated_run_info=None)
         # The DR should be scheduled in the last 2 hours, not 6 hours ago
         assert next_date > two_hours_ago
         # The DR should be scheduled BEFORE now
@@ -1553,7 +1553,7 @@ my_postgres_conn:
             catchup=False,
         )
 
-        next_date, _ = dag3.next_dagrun_info(None)
+        next_date, _ = dag3.next_dagrun_info(last_automated_run_info=None)
         # The DR should be scheduled in the last 2 hours, not 6 hours ago
         assert next_date == six_hours_ago_to_the_hour
 
@@ -1572,12 +1572,12 @@ my_postgres_conn:
         )
         scheduler_dag = create_scheduler_dag(dag)
 
-        next_info = scheduler_dag.next_dagrun_info(None)
+        next_info = scheduler_dag.next_dagrun_info(last_automated_run_info=None)
         assert next_info
         assert next_info.logical_date == timezone.datetime(2020, 1, 4)
 
         # The date to create is in the future, this is handled by "DagModel.dags_needing_dagruns"
-        next_info = scheduler_dag.next_dagrun_info(next_info.data_interval)
+        next_info = scheduler_dag.next_dagrun_info(last_automated_run_info=next_info)
         assert next_info
         assert next_info.logical_date == timezone.datetime(2020, 1, 5)
 
@@ -1595,20 +1595,20 @@ my_postgres_conn:
         )
         scheduler_dag = create_scheduler_dag(dag)
 
-        next_info = scheduler_dag.next_dagrun_info(None)
+        next_info = scheduler_dag.next_dagrun_info(last_automated_run_info=None)
         assert next_info
         assert next_info.logical_date == timezone.datetime(2020, 5, 1)
 
-        next_info = scheduler_dag.next_dagrun_info(next_info.data_interval)
+        next_info = scheduler_dag.next_dagrun_info(last_automated_run_info=next_info)
         assert next_info
         assert next_info.logical_date == timezone.datetime(2020, 5, 2)
 
-        next_info = scheduler_dag.next_dagrun_info(next_info.data_interval)
+        next_info = scheduler_dag.next_dagrun_info(last_automated_run_info=next_info)
         assert next_info
         assert next_info.logical_date == timezone.datetime(2020, 5, 3)
 
         # The date to create is in the future, this is handled by "DagModel.dags_needing_dagruns"
-        next_info = scheduler_dag.next_dagrun_info(next_info.data_interval)
+        next_info = scheduler_dag.next_dagrun_info(last_automated_run_info=next_info)
         assert next_info
         assert next_info.logical_date == timezone.datetime(2020, 5, 4)
 
@@ -1616,7 +1616,7 @@ my_postgres_conn:
         """Test the DAG does not crash the scheduler if the timetable raises an exception."""
 
         class FailingTimetable(Timetable):
-            def next_dagrun_info(self, last_automated_data_interval, restriction):
+            def next_dagrun_info(self, last_automated_run_info, restriction):
                 raise RuntimeError("this fails")
 
         def _find_registered_custom_timetable(s):
@@ -1652,13 +1652,13 @@ my_postgres_conn:
             )
 
         with caplog.at_level(level=logging.ERROR):
-            next_info = scheduler_dag.next_dagrun_info(None)
+            next_info = scheduler_dag.next_dagrun_info(last_automated_run_info=None)
         assert next_info is None, "failed next_dagrun_info should return None"
         _check_logs(caplog.records, data_interval=None)
         caplog.clear()
         data_interval = DataInterval(timezone.datetime(2020, 5, 1), timezone.datetime(2020, 5, 2))
         with caplog.at_level(level=logging.ERROR):
-            next_info = scheduler_dag.next_dagrun_info(data_interval)
+            next_info = scheduler_dag.next_dagrun_info(last_automated_run_info=data_interval)
         assert next_info is None, "failed next_dagrun_info should return None"
         _check_logs(caplog.records, data_interval)
 
@@ -1683,7 +1683,7 @@ my_postgres_conn:
         EmptyOperator(task_id="dummy", dag=dag, owner="airflow")
         scheduler_dag = create_scheduler_dag(dag)
 
-        next_info = scheduler_dag.next_dagrun_info(None)
+        next_info = scheduler_dag.next_dagrun_info(last_automated_run_info=None)
         assert next_info
         assert next_info.logical_date == timezone.datetime(2016, 1, 2, 5, 4)
 
@@ -1696,7 +1696,7 @@ my_postgres_conn:
         EmptyOperator(task_id="dummy", dag=dag, owner="airflow")
         scheduler_dag = create_scheduler_dag(dag)
 
-        next_info = scheduler_dag.next_dagrun_info(None)
+        next_info = scheduler_dag.next_dagrun_info(last_automated_run_info=None)
         assert next_info
         assert next_info.logical_date == timezone.datetime(2016, 1, 1, 10, 10)
 
@@ -1711,7 +1711,7 @@ my_postgres_conn:
         EmptyOperator(task_id="dummy", dag=dag, owner="airflow")
         scheduler_dag = create_scheduler_dag(dag)
 
-        next_info = scheduler_dag.next_dagrun_info(None)
+        next_info = scheduler_dag.next_dagrun_info(last_automated_run_info=None)
         assert next_info
         # With catchup=False, next_dagrun should be based on the current date
         # Verify it's not using the old start_date
@@ -1732,7 +1732,7 @@ my_postgres_conn:
         EmptyOperator(task_id="dummy", dag=dag, owner="airflow")
         scheduler_dag = create_scheduler_dag(dag)
 
-        next_info = scheduler_dag.next_dagrun_info(None)
+        next_info = scheduler_dag.next_dagrun_info(last_automated_run_info=None)
         assert next_info
         # With catchup=False, next_dagrun should be based on the current date
         # Verify it's not using the old start_date
@@ -1748,11 +1748,11 @@ my_postgres_conn:
         )
         scheduler_dag = create_scheduler_dag(dag)
 
-        next_info = scheduler_dag.next_dagrun_info(None)
+        next_info = scheduler_dag.next_dagrun_info(last_automated_run_info=None)
         assert next_info
         assert next_info.logical_date == timezone.datetime(2024, 2, 29)
 
-        next_info = scheduler_dag.next_dagrun_info(next_info.data_interval)
+        next_info = scheduler_dag.next_dagrun_info(last_automated_run_info=next_info)
         assert next_info.logical_date == timezone.datetime(2028, 2, 29)
         assert next_info.data_interval.start == timezone.datetime(2028, 2, 29)
         assert next_info.data_interval.end == timezone.datetime(2032, 2, 29)
@@ -2748,8 +2748,8 @@ def test_iter_dagrun_infos_between_error(caplog):
     end = pendulum.instance(DEFAULT_DATE)
 
     class FailingAfterOneTimetable(Timetable):
-        def next_dagrun_info(self, last_automated_data_interval, restriction):
-            if last_automated_data_interval is None:
+        def next_dagrun_info(self, last_automated_run_info, restriction):
+            if last_automated_run_info is None:
                 return DagRunInfo.interval(start, end)
             raise RuntimeError("this fails")
 

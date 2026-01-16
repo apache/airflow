@@ -4777,9 +4777,7 @@ class TestSchedulerJob:
             scheduler_messages = [
                 record.message for record in caplog.records if record.levelno >= logging.ERROR
             ]
-            assert scheduler_messages == [
-                "DAG 'test_scheduler_create_dag_runs_does_not_raise_error' not found in serialized_dag table",
-            ]
+            assert scheduler_messages == ["Dag not found in serialized_dag table"]
 
     def _clear_serdags(self, dag_id, session):
         SDM = SerializedDagModel
@@ -7013,7 +7011,7 @@ class TestSchedulerJob:
         job_runner = SchedulerJobRunner(job=scheduler_job)
         # In the dagmodel list, the first dag should fail, but the second one should succeed
         job_runner._create_dag_runs([dm1], session)
-        assert "Failed creating DagRun for testdag1" in caplog.text
+        assert "Failed creating DagRun" in caplog.text
 
     def test_activate_referenced_assets_with_no_existing_warning(self, session, testing_dag_bundle):
         dag_warnings = session.scalars(select(DagWarning)).all()
