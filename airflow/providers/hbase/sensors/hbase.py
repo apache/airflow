@@ -165,11 +165,14 @@ class HBaseColumnValueSensor(BaseSensorOperator):
             self.log.info("Row %s not found in table %s", self.row_key, self.table_name)
             return False
 
-        actual_value = row_data.get(self.column.encode('utf-8'), b'').decode('utf-8')
-        matches = actual_value == self.expected_value
+        # Compare bytes directly to avoid UnicodeDecodeError on binary data
+        # HBase can store arbitrary binary data, not just UTF-8 strings
+        actual_bytes = row_data.get(self.column.encode('utf-8'), b'')
+        expected_bytes = self.expected_value.encode('utf-8')
+        matches = actual_bytes == expected_bytes
 
         self.log.info(
-            "Column %s in row %s: expected '%s', actual '%s'",
-            self.column, self.row_key, self.expected_value, actual_value
+            "Column %s in row %s matches expected value: %s",
+            self.column, self.row_key, matches
         )
         return matches
