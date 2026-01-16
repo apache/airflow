@@ -891,7 +891,7 @@ class TestAsyncGetConnection:
             result = await _async_get_connection("test_conn")
 
             assert result == sample_connection
-            # Should not have tried SUPERVISOR_COMMS since secrets backend had the connection
+            # Should not have tried supervisor-comms since secrets backend had the connection
             mock_supervisor_comms.send.assert_not_called()
             mock_supervisor_comms.asend.assert_not_called()
 
