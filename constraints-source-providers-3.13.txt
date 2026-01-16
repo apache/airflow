@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2026-01-16T02:44:05.597865
+# This constraints file was automatically generated on 2026-01-16T07:50:15.127684
 # via `uv sync --resolution highest for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider distributions.
@@ -243,7 +243,7 @@ google-cloud-redis==2.20.0
 google-cloud-resource-manager==1.16.0
 google-cloud-run==0.14.0
 google-cloud-secret-manager==2.26.0
-google-cloud-spanner==3.61.0
+google-cloud-spanner==3.62.0
 google-cloud-speech==2.36.0
 google-cloud-storage-control==1.9.0
 google-cloud-storage-transfer==1.19.0
