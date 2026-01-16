@@ -20,14 +20,14 @@
   "dependencies": {
     "@chakra-ui/react": "^3.31.0",
     "@hey-api/client-axios": "^0.9.1",
-    "@hey-api/openapi-ts": "^0.90.2",
+    "@hey-api/openapi-ts": "^0.90.3",
     "@tanstack/react-query": "^5.90.16",
     "axios": "^1.13.2",
     "next-themes": "^0.4.6",
     "react": "^19.2.3",
     "react-cookie": "^8.0.1",
     "react-dom": "^19.2.3",
-    "react-hook-form": "^7.69.0",
+    "react-hook-form": "^7.71.0",
     "react-router-dom": "^7.12.0"
   },
   "devDependencies": {
@@ -44,7 +44,7 @@
     "@typescript-eslint/parser": "8.52.0",
     "@typescript-eslint/utils": "^8.50.0",
     "@vitejs/plugin-react-swc": "^4.2.2",
-    "@vitest/coverage-v8": "^4.0.16",
+    "@vitest/coverage-v8": "^4.0.17",
     "eslint": "^9.39.2",
     "eslint-config-prettier": "^10.1.8",
     "eslint-plugin-jsx-a11y": "^6.10.2",
