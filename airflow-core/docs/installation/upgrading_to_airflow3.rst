@@ -118,8 +118,7 @@ To trigger these fixes, run the following command:
 
 .. note::
 
-    In AIR rules, unsafe fixes involve changing import paths while keeping the name of the imported member the same. For instance, changing the import from ``from airflow.sensors.base_sensor_operator import BaseSensorOperator`` to ``from airflow.sdk.bases.sensor import BaseSensorOperator`` requires ruff to remove the original import before adding the new one. In contrast, safe fixes include changes to both the member name and the import path, such as changing ``from airflow.datasets import Dataset`` to ``from airflow.sdk import Asset``.
-    These adjustments do not require ruff to remove the old import. To remove unused legacy imports, it is necessary to enable the ``unused-import`` rule (F401) <https://docs.astral.sh/ruff/rules/unused-import/#unused-import-f401>`_
+    In AIR rules, unsafe fixes involve changing import paths while keeping the name of the imported member the same. For instance, changing the import from ``from airflow.sensors.base_sensor_operator import BaseSensorOperator`` to ``from airflow.sdk.bases.sensor import BaseSensorOperator`` requires ruff to remove the original import before adding the new one. In contrast, safe fixes include changes to both the member name and the import path, such as changing ``from airflow.datasets import Dataset`` to ``from airflow.sdk import Asset``. These adjustments do not require ruff to remove the old import. To remove unused legacy imports, it is necessary to enable the `unused-import` rule (F401) <https://docs.astral.sh/ruff/rules/unused-import/#unused-import-f401>.
 
 You can also configure these flags through configuration files. See `Configuring Ruff <https://docs.astral.sh/ruff/configuration/>`_ for details.
 
@@ -238,7 +237,7 @@ Known Workaround: Use DbApiHook (PostgresHook or MySqlHook)
    - **Breaks task isolation**: This contradicts one of Airflow 3's core features - task isolation. Tasks should not directly access the metadata database.
    - **Performance implications**: This reintroduces Airflow 2 behavior where each task opens separate database connections, dramatically changing performance characteristics and scalability.
 
-If your use case cannot be addressed using the Python Client and you understand the risks above, you may use database hooks to query your metadata database directly. Create a database
+If your use case cannot be addressed using the Python Client and you understand the risks above, you ma use database hooks to query your metadata database directly. Create a database
 connection (PostgreSQL or MySQL, matching your metadata database type) pointing to your metadata database
 and use Database Hooks in Airflow.
 
@@ -256,12 +255,14 @@ the API server) using database drivers like psycopg2 or mysqlclient.
    @task
    def get_connections_from_db():
        hook = PostgresHook(postgres_conn_id="metadata_postgres")
-       records = hook.get_records(sql="""
+       records = hook.get_records(
+           sql="""
            SELECT conn_id, conn_type, host, schema, login
            FROM connection
            WHERE conn_type = 'postgres'
            LIMIT 10;
-           """)
+           """
+       )
 
        return records
 
@@ -373,9 +374,147 @@ These include:
   - ``execution_date``
 - The ``catchup_by_default`` Dag parameter is now ``False`` by default.
 - The ``create_cron_data_intervals`` configuration is now ``False`` by default. This means that the ``CronTriggerTimetable`` will be used by default instead of the ``CronDataIntervalTimetable``
+- **Manual DAG triggering data interval calculation**: In Airflow 2.x, when manually triggering a DAG, the ``data_interval`` was calculated based on the ``logical_date`` (execution_date). In Airflow 3.x, the ``data_interval`` is now calculated based on the ``run_after`` parameter, which is typically the time when the run is queued. This change affects workflows that depend on specific data interval calculations when using manual triggering or the ``TriggerDagRunOperator``. For detailed migration guidance, see :ref:`data-interval-manual-triggering`.
 - **Simple Auth** is now default ``auth_manager``. To continue using FAB as the Auth Manager, please install the FAB provider and set ``auth_manager`` to ``FabAuthManager``:
 
   .. code-block:: ini
 
       airflow.providers.fab.auth_manager.fab_auth_manager.FabAuthManager
 - **AUTH API** api routes defined in the auth manager are prefixed with the ``/auth`` route. Urls consumed outside of the application such as oauth redirect urls will have to updated accordingly. For example an oauth redirect url that was ``https://<your-airflow-url.com>/oauth-authorized/google`` in Airflow 2.x will be ``https://<your-airflow-url.com>/auth/oauth-authorized/google`` in Airflow 3.x
+
+.. _data-interval-manual-triggering:
+
+Manual DAG Triggering and Data Interval Changes
+================================================
+
+In Airflow 3, the way data intervals are calculated for manually triggered DAG runs has changed significantly. This is an intentional breaking change designed to improve consistency and correctness in data interval handling.
+
+What Changed
+------------
+
+**Airflow 2.x Behavior:**
+When manually triggering a DAG (via UI, CLI, or ``TriggerDagRunOperator``), the ``data_interval`` was calculated based on the ``logical_date`` (execution_date) specified during triggering.
+
+**Airflow 3.x Behavior:**
+When manually triggering a DAG, the ``data_interval`` is now calculated based on the ``run_after`` parameter, which represents the time when the DAG run is actually queued/scheduled to run.
+
+Why This Changed
+-----------------
+
+The change was made because:
+
+1. **Consistency**: The ``infer_manual_data_interval`` timetable method expects a ``run_after`` parameter, and using ``logical_date`` was technically incorrect.
+2. **Correctness**: The standard logic for calculating data intervals finds an interval that ends before the ``run_after`` datetime, making ``run_after`` a more semantically correct input.
+3. **Timetable Alignment**: This change aligns manual triggering with how timetables are designed to work.
+
+Impact on Your DAGs
+-------------------
+
+This change primarily affects DAGs that:
+
+- Use ``data_interval_start`` or ``data_interval_end`` in manually triggered runs
+- Chain DAGs using ``TriggerDagRunOperator`` with specific logical dates
+- Depend on precise data interval calculations for data processing workflows
+
+Migration Strategies
+--------------------
+
+**Option 1: Use logical_date directly (Recommended)**
+
+If your DAGs need access to the specific logical date for manual triggers, use ``logical_date`` directly instead of ``data_interval_start``:
+
+.. code-block:: python
+
+   # Airflow 2.x style
+   @task
+   def process_data(context):
+       # This will give different results in Airflow 3
+       processing_date = context['data_interval_start']
+       return f"Processing data for {processing_date}"
+
+   # Airflow 3.x compatible style
+   @task
+   def process_data(context):
+       # Use logical_date for consistent behavior across versions
+       processing_date = context['logical_date']
+       return f"Processing data for {processing_date}"
+
+**Option 2: Understand the new data_interval behavior**
+
+If you want to continue using ``data_interval_start`` and ``data_interval_end``, understand that these will now reflect the actual data interval calculated from the run time, not the specified logical date.
+
+.. code-block:: python
+
+   @task
+   def process_data(context):
+       # In Airflow 3, these reflect intervals calculated from run_after
+       start = context['data_interval_start']
+       end = context['data_interval_end']
+       logical = context['logical_date']
+
+       print(f"Logical date: {logical}")
+       print(f"Data interval: {start} to {end}")
+       # Note: logical_date and data_interval_start may differ for manual runs
+
+**Option 3: Explicit data interval handling**
+
+For workflows requiring specific data intervals regardless of trigger method:
+
+.. code-block:: python
+
+   @task
+   def process_data(context):
+       # Get the logical date (consistent across trigger methods)
+       logical_date = context['logical_date']
+
+       # For daily DAGs, you might want to calculate your own interval
+       from datetime import timedelta
+       interval_start = logical_date
+       interval_end = logical_date + timedelta(days=1)
+
+       return f"Processing {interval_start} to {interval_end}"
+
+TriggerDagRunOperator Considerations
+------------------------------------
+
+When using ``TriggerDagRunOperator``, be aware that the triggered DAG's data interval will be calculated based on when the trigger runs, not the logical date you specify:
+
+.. code-block:: python
+
+   # The triggered DAG will receive data_interval calculated from run time
+   trigger_task = TriggerDagRunOperator(
+       task_id='trigger_downstream',
+       trigger_dag_id='downstream_dag',
+       logical_date='{{ ds }}',  # This sets logical_date in downstream
+       # data_interval will be calculated from when this runs
+   )
+
+Testing Your Migration
+-----------------------
+
+To test your DAG's behavior with the new data interval calculation:
+
+1. **Manual Testing**: Trigger your DAGs manually and compare ``logical_date`` vs ``data_interval_start`` values
+2. **Log Comparison**: Add logging to track both values and understand the differences
+3. **Backward Compatibility**: Ensure your logic works correctly with both old and new data interval behavior
+
+.. code-block:: python
+
+   @task
+   def debug_intervals(context):
+       logical = context['logical_date']
+       interval_start = context['data_interval_start']
+       interval_end = context['data_interval_end']
+
+       print(f"Logical date: {logical}")
+       print(f"Data interval start: {interval_start}")
+       print(f"Data interval end: {interval_end}")
+       print(f"Difference: {interval_start - logical}")
+
+Summary
+-------
+
+- **For most use cases**: Switch from ``data_interval_start`` to ``logical_date`` for manual triggers
+- **For time-based processing**: Understand that ``data_interval`` now reflects actual run timing
+- **For chained DAGs**: Verify that downstream DAGs handle the new data interval behavior correctly
+- **Test thoroughly**: Manual and automated triggering may now produce different data intervals

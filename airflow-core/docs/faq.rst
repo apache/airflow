@@ -237,169 +237,6 @@ There are several reasons why Dags might disappear from the UI. Common causes in
 * **Time synchronization issues** - Ensure all nodes (database, schedulers, workers) use NTP with <1s clock drift.
 
 
-.. _faq:dag-version-inflation:
-
-Why does my Dag version keep increasing?
------------------------------------------
-
-Every time the Dag processor parses a Dag file, it serializes the Dag and compares the result with the
-version stored in the metadata database. If anything has changed, Airflow creates a new Dag version.
-
-**Dag version inflation** occurs when the version number increases indefinitely without the Dag author
-making any intentional changes.
-
-What goes wrong
-"""""""""""""""
-
-When Dag versions increase without meaningful changes:
-
-* The metadata database accumulates unnecessary Dag version records, increasing storage and query overhead.
-* The UI shows a misleading history of Dag changes, making it harder to identify real modifications.
-* The scheduler and API server may consume more memory as they load and cache a growing number of Dag versions.
-
-Common causes
-"""""""""""""
-
-Version inflation is caused by using values that change at **parse time** — that is, every time the Dag
-processor evaluates the Dag file — as arguments to Dag or Task constructors. The most common patterns are:
-
-**1. Using ``datetime.now()`` or ``pendulum.now()`` as ``start_date``:**
-
-.. code-block:: python
-
-    from datetime import datetime
-
-    from airflow.sdk import DAG
-
-    with DAG(
-        dag_id="bad_example",
-        # BAD: datetime.now() produces a different value on every parse
-        start_date=datetime.now(),
-        schedule="@daily",
-    ):
-        ...
-
-Every parse produces a different ``start_date``, so the serialized Dag is always different from the
-stored version.
-
-**2. Using random values in Dag or Task arguments:**
-
-.. code-block:: python
-
-    import random
-
-    from airflow.sdk import DAG
-    from airflow.providers.standard.operators.python import PythonOperator
-
-    with DAG(dag_id="bad_random", start_date="2024-01-01", schedule="@daily") as dag:
-        PythonOperator(
-            # BAD: random value changes every parse
-            task_id=f"task_{random.randint(1, 1000)}",
-            python_callable=lambda: None,
-        )
-
-**3. Assigning runtime-varying values to variables used in constructors:**
-
-.. code-block:: python
-
-    from datetime import datetime
-
-    from airflow.sdk import DAG
-    from airflow.providers.standard.operators.python import PythonOperator
-
-    # BAD: the variable captures a parse-time value, then is passed to the DAG
-    default_args = {"start_date": datetime.now()}
-
-    with DAG(dag_id="bad_defaults", default_args=default_args, schedule="@daily") as dag:
-        PythonOperator(task_id="my_task", python_callable=lambda: None)
-
-Even though ``datetime.now()`` is not called directly inside the Dag constructor, it flows in through
-``default_args`` and still causes a different serialized Dag on every parse.
-
-**4. Using environment variables or file contents that change between parses:**
-
-.. code-block:: python
-
-    import os
-
-    from airflow.sdk import DAG
-    from airflow.providers.standard.operators.bash import BashOperator
-
-    with DAG(dag_id="bad_env", start_date="2024-01-01", schedule="@daily") as dag:
-        BashOperator(
-            task_id="echo_build",
-            # BAD if BUILD_NUMBER changes on every deployment or parse
-            bash_command=f"echo {os.environ.get('BUILD_NUMBER', 'unknown')}",
-        )
-
-How to avoid version inflation
-""""""""""""""""""""""""""""""
-
-* **Use fixed ``start_date`` values.** Always set ``start_date`` to a static ``datetime`` literal:
-
-  .. code-block:: python
-
-      import datetime
-
-      from airflow.sdk import DAG
-
-      with DAG(
-          dag_id="good_example",
-          start_date=datetime.datetime(2024, 1, 1),
-          schedule="@daily",
-      ):
-          ...
-
-* **Keep all Dag and Task constructor arguments deterministic.** Arguments passed to Dag and Operator
-  constructors must produce the same value on every parse. Move any dynamic computation into the
-  ``execute()`` method or use Jinja templates, which are evaluated at task execution time rather than
-  parse time.
-
-* **Use Jinja templates for dynamic values:**
-
-  .. code-block:: python
-
-      from airflow.providers.standard.operators.bash import BashOperator
-
-      BashOperator(
-          task_id="echo_date",
-          # GOOD: the template is resolved at execution time, not parse time
-          bash_command="echo {{ ds }}",
-      )
-
-* **Use Airflow Variables with templates instead of top-level lookups:**
-
-  .. code-block:: python
-
-      from airflow.providers.standard.operators.bash import BashOperator
-
-      BashOperator(
-          task_id="echo_var",
-          # GOOD: Variable is resolved at execution time via template
-          bash_command="echo {{ var.value.my_variable }}",
-      )
-
-Dag version inflation detection
-""""""""""""""""""""""""""""""""
-
-Starting from Airflow 3.2, the Dag processor performs **AST-based static analysis** on every Dag file
-before parsing to detect runtime-varying values in Dag and Task constructors. When a potential issue is
-found, it is surfaced as a **Dag warning** visible in the UI.
-
-You can control this behavior with the
-:ref:`dag_version_inflation_check_level <config:dag_processor__dag_version_inflation_check_level>`
-configuration option:
-
-* ``off`` — Disables the check entirely. No errors or warnings are generated.
-* ``warning`` (default) — Dags load normally but warnings are displayed in the UI when issues are detected.
-* ``error`` — Treats detected issues as Dag import errors, preventing the Dag from loading.
-
-Additionally, you can catch these issues earlier in your development workflow by using the
-`AIR302 <https://docs.astral.sh/ruff/rules/airflow3-dag-dynamic-value/>`_ ruff rule, which detects
-dynamic values in Dag and Task constructors as part of static linting. See
-:ref:`best_practices/code_quality_and_linting` for how to set up ruff with Airflow-specific rules.
-
-
 Dag construction
 ^^^^^^^^^^^^^^^^
 
@@ -737,3 +574,87 @@ such as the following Airflow 3 example:
           "aws_default",
       ]:
           test_connection.override(task_id="test_" + conn_id)(conn_id)
+
+Data Intervals and Manual Triggering
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Why do data_interval_start and logical_date differ when I manually trigger a DAG?
+---------------------------------------------------------------------------------
+
+This behavior changed in Airflow 3. When you manually trigger a DAG:
+
+- **logical_date**: The logical date you specify when triggering (unchanged between Airflow versions)
+- **data_interval_start/end**: Calculated from the time when the DAG run is queued (changed in Airflow 3)
+
+**Airflow 2 behavior:** Both ``logical_date`` and ``data_interval_start`` were the same for manual triggers.
+
+**Airflow 3 behavior:** ``data_interval_start`` reflects the actual trigger time, while ``logical_date`` remains what you specified.
+
+**Solution:** Use ``logical_date`` instead of ``data_interval_start`` if you need the specific date you triggered for.
+
+For detailed migration guidance, see :ref:`data-interval-manual-triggering`.
+
+How should I adapt my DAGs that use data_interval_start for manual triggering?
+------------------------------------------------------------------------------
+
+There are several approaches depending on your use case:
+
+**Option 1: Use logical_date (Recommended)**
+
+.. code-block:: python
+
+   @task
+   def process_data(context):
+       # Use logical_date for consistent behavior across trigger methods
+       processing_date = context['logical_date']
+       return f"Processing data for {processing_date}"
+
+**Option 2: Handle both scheduled and manual runs**
+
+.. code-block:: python
+
+   @task
+   def process_data(context):
+       # Check if this is a manual or scheduled run
+       if context['dag_run'].run_type == 'manual':
+           processing_date = context['logical_date']
+       else:
+           processing_date = context['data_interval_start']
+
+       return f"Processing data for {processing_date}"
+
+**Option 3: Calculate your own data interval**
+
+.. code-block:: python
+
+   @task
+   def process_data(context):
+       from datetime import timedelta
+
+       logical_date = context['logical_date']
+       # For daily DAGs, calculate the interval explicitly
+       interval_start = logical_date
+       interval_end = logical_date + timedelta(days=1)
+
+       return f"Processing {interval_start} to {interval_end}"
+
+When should I use logical_date vs data_interval_start?
+-----------------------------------------------------
+
+**Use logical_date when:**
+
+- You need consistency between manual and scheduled runs
+- You're processing data for a specific logical time period
+- You're migrating from Airflow 2 and want minimal changes
+
+**Use data_interval_start when:**
+
+- You want to process data based on when the DAG actually runs
+- You're creating new DAGs designed specifically for Airflow 3
+- You need the actual time-based intervals for scheduled runs
+
+**Key differences:**
+
+- **Scheduled runs**: ``logical_date`` and ``data_interval_start`` are typically the same
+- **Manual runs**: They may differ significantly in Airflow 3
+- **Backfills**: ``logical_date`` represents the backfill period, ``data_interval_start`` may reflect processing time
