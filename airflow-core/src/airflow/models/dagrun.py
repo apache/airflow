@@ -1342,6 +1342,15 @@ class DagRun(Base, LoggingMixin):
 
         return schedulable_tis, callback
 
+    @classmethod
+    def get_dag_run(cls, dag_id: str, run_id: str, session: Session) -> DagRun | None:
+        return session.scalars(
+            select(DagRun).where(
+                DagRun.dag_id == dag_id,
+                DagRun.run_id == run_id,
+            )
+        ).one_or_none()
+
     @provide_session
     def task_instance_scheduling_decisions(self, session: Session = NEW_SESSION) -> TISchedulingDecision:
         tis = self.get_task_instances(session=session, state=State.task_states)
@@ -1362,8 +1371,13 @@ class DagRun(Base, LoggingMixin):
 
         tis = list(_filter_tis_and_exclude_removed(self.get_dag(), tis))
 
-        unfinished_tis = [t for t in tis if t.state in State.unfinished]
         finished_tis = [t for t in tis if t.state in State.finished]
+        uncompleted_tis = [
+            t for t in finished_tis if t.next_trigger_id
+        ]  # TODO: this was added to make AIP-88 work
+        unfinished_tis = [t for t in tis if t.state in State.unfinished]
+        unfinished_tis.extend(uncompleted_tis)
+
         if unfinished_tis:
             schedulable_tis = [ut for ut in unfinished_tis if ut.state in SCHEDULEABLE_STATES]
             self.log.debug("number of scheduleable tasks for %s: %s task(s)", self, len(schedulable_tis))
@@ -1377,7 +1391,9 @@ class DagRun(Base, LoggingMixin):
             # states, so we need to re-compute.
             if expansion_happened:
                 changed_tis = True
-                new_unfinished_tis = [t for t in unfinished_tis if t.state in State.unfinished]
+                new_unfinished_tis = [
+                    t for t in unfinished_tis if t.state in State.unfinished and not t.next_trigger_id
+                ]
                 finished_tis.extend(t for t in unfinished_tis if t.state in State.finished)
                 unfinished_tis = new_unfinished_tis
         else:
@@ -1550,6 +1566,12 @@ class DagRun(Base, LoggingMixin):
                 return expanded_tis
             return ()
 
+        def is_unmapped_task(ti: TI) -> bool:
+            from airflow.sdk.definitions.mappedoperator import MappedOperator
+
+            # TODO: check why task is still MappedOperator even when not an unmapped task anymore
+            return isinstance(ti.task, MappedOperator) and ti.map_index == -1
+
         # Check dependencies.
         expansion_happened = False
         # Set of task ids for which was already done _revise_map_indexes_if_mapped
@@ -1573,7 +1595,7 @@ class DagRun(Base, LoggingMixin):
                 if new_tis is not None:
                     additional_tis.extend(new_tis)
                     expansion_happened = True
-            if new_tis is None and schedulable.state in SCHEDULEABLE_STATES:
+            if not new_tis and schedulable.state in SCHEDULEABLE_STATES:
                 # It's enough to revise map index once per task id,
                 # checking the map index for each mapped task significantly slows down scheduling
                 if schedulable.task.task_id not in revised_map_index_task_ids:
@@ -1587,7 +1609,7 @@ class DagRun(Base, LoggingMixin):
                 # _revise_map_indexes_if_mapped might mark the current task as REMOVED
                 # after calculating mapped task length, so we need to re-check
                 # the task state to ensure it's still schedulable
-                if schedulable.state in SCHEDULEABLE_STATES:
+                if not is_unmapped_task(schedulable):
                     ready_tis.append(schedulable)
 
         # Check if any ti changed state
@@ -2052,27 +2074,15 @@ class DagRun(Base, LoggingMixin):
         empty_ti_ids: list[str] = []
         schedulable_ti_ids: list[str] = []
         for ti in schedulable_tis:
-            if ti.is_schedulable:
-                schedulable_ti_ids.append(ti.id)
-            # Check "start_trigger_args" to see whether the operator supports
-            # start execution from triggerer. If so, we'll check "start_from_trigger"
+            if not ti.is_schedulable:
+                empty_ti_ids.append(ti.id)
+            # The defer_task method will check "start_trigger_args" to see whether the operator
+            # start execution from triggerer. If so, we'll also check "start_from_trigger"
             # to see whether this feature is turned on and defer this task.
             # If not, we'll add this "ti" into "schedulable_ti_ids" and later
             # execute it to run in the worker.
-            # TODO TaskSDK: This is disabled since we haven't figured out how
-            # to render start_from_trigger in the scheduler. If we need to
-            # render the value in a worker, it kind of defeats the purpose of
-            # this feature (which is to save a worker process if possible).
-            # elif task.start_trigger_args is not None:
-            #     if task.expand_start_from_trigger(context=ti.get_template_context()):
-            #         ti.start_date = timezone.utcnow()
-            #         if ti.state != TaskInstanceState.UP_FOR_RESCHEDULE:
-            #             ti.try_number += 1
-            #         ti.defer_task(exception=None, session=session)
-            #     else:
-            #         schedulable_ti_ids.append(ti.id)
-            else:
-                empty_ti_ids.append(ti.id)
+            elif not ti.defer_task(session=session):
+                schedulable_ti_ids.append(ti.id)
 
         count = 0
 
