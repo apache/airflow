@@ -490,7 +490,6 @@ class GKEKubernetesAsyncHook(GoogleBaseAsyncHook, AsyncKubernetesHook):
         self._ssl_ca_cert = ssl_ca_cert
         self.enable_tcp_keepalive = enable_tcp_keepalive
         super().__init__(
-            self,
             cluster_url=cluster_url,
             ssl_ca_cert=ssl_ca_cert,
             gcp_conn_id=gcp_conn_id,
