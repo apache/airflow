@@ -14,3 +14,17 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
+from airflow._shared.observability.metrics.metrics_registry import generate_metrics_rst_from_registry
+
+
+def generate_metrics(app):
+    generate_metrics_rst_from_registry()
+
+
+def setup(app):
+    """Set up the extension."""
+    app.connect("builder-inited", generate_metrics)
+
+    return {"version": "builtin", "parallel_read_safe": True, "parallel_write_safe": True}
