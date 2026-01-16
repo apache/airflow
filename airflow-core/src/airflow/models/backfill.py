@@ -507,7 +507,7 @@ def _create_backfill(
         if not serdag:
             raise DagNotFound(f"Could not find dag {dag_id}")
 
-        if isinstance(serdag.timetable, CronPartitionTimetable):
+        if isinstance(serdag.dag.timetable, CronPartitionTimetable):
             raise ValueError("Backfill is not yet implemented for partition timetables")
 
         no_schedule = session.scalar(
