@@ -1833,20 +1833,22 @@ my_postgres_conn:
             pytest.param(DeadlineReference.FIXED_DATETIME(DEFAULT_DATE), "NONE", id="fixed_deadline"),
         ],
     )
-    def test_dagrun_deadline(self, reference_type, reference_column, dag_maker, session):
+    def test_dagrun_deadline(self, reference_type, reference_column, testing_dag_bundle, session):
         interval = datetime.timedelta(hours=1)
-        with dag_maker(
-            dag_id="test_queued_deadline",
+        dag = DAG(
+            dag_id="test_deadline",
             schedule=datetime.timedelta(days=1),
             deadline=DeadlineAlert(
                 reference=reference_type,
                 interval=interval,
                 callback=AsyncCallback(empty_callback_for_deadline),
             ),
-        ) as dag:
-            ...
+        )
 
-        dr = dag.create_dagrun(
+        # Sync the DAG to the database to create DeadlineAlert records
+        scheduler_dag = sync_dag_to_db(dag, session=session)
+
+        dr = scheduler_dag.create_dagrun(
             run_id="test_dagrun_deadline",
             run_type=DagRunType.SCHEDULED,
             state=State.QUEUED,
@@ -1860,7 +1862,7 @@ my_postgres_conn:
         assert len(dr.deadlines) == 1
         assert dr.deadlines[0].deadline_time == getattr(dr, reference_column, DEFAULT_DATE) + interval
 
-    def test_dag_with_multiple_deadlines(self, dag_maker, session):
+    def test_dag_with_multiple_deadlines(self, testing_dag_bundle, session):
         """Test that a DAG with multiple deadlines stores all deadlines in the database."""
         deadlines = [
             DeadlineAlert(
@@ -1880,14 +1882,14 @@ my_postgres_conn:
             ),
         ]
 
-        with dag_maker(
+        dag = DAG(
             dag_id="test_multiple_deadlines",
             schedule=datetime.timedelta(days=1),
             deadline=deadlines,
-        ) as dag:
-            ...
+        )
 
-        scheduler_dag = sync_dag_to_db(dag)
+        scheduler_dag = sync_dag_to_db(dag, session=session)
+
         dr = scheduler_dag.create_dagrun(
             run_id="test_multiple_deadlines",
             run_type=DagRunType.SCHEDULED,

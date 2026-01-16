@@ -61,7 +61,6 @@ from airflow.sdk.definitions.asset import (
 from airflow.sdk.definitions.deadline import (
     AsyncCallback,
     DeadlineAlert,
-    DeadlineAlertFields,
     DeadlineReference,
 )
 from airflow.sdk.definitions.decorators import task
@@ -77,6 +76,7 @@ from airflow.serialization.definitions.assets import (
     SerializedAssetBase,
     SerializedAssetRef,
 )
+from airflow.serialization.definitions.deadline import DeadlineAlertFields
 from airflow.serialization.encoders import ensure_serialized_asset
 from airflow.serialization.enums import DagAttributeTypes as DAT, Encoding
 from airflow.serialization.serialized_objects import (
