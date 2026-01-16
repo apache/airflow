@@ -41,6 +41,7 @@ if TYPE_CHECKING:
     from uuid import UUID
 
     from itsdangerous import URLSafeSerializer
+    from pendulum import DateTime
     from sqlalchemy.orm import Session
 
     from airflow.models.dagrun import DagRun, DagRunType
@@ -1065,7 +1066,7 @@ def dag_maker(request) -> Generator[DagMaker, None, None]:
             from airflow.utils.state import DagRunState
             from airflow.utils.types import DagRunType
 
-            timezone = _import_timezone()
+            airflow_timezone = _import_timezone()
 
             if AIRFLOW_V_3_0_PLUS:
                 from airflow.utils.types import DagRunTriggeredByType
@@ -1105,7 +1106,7 @@ def dag_maker(request) -> Generator[DagMaker, None, None]:
                     else:
                         next_run_kwargs = dict(last_automated_dagrun=None)
                     logical_date = dag.next_dagrun_info(**next_run_kwargs).logical_date
-            logical_date = timezone.coerce_datetime(logical_date)
+            logical_date = airflow_timezone.coerce_datetime(logical_date)
 
             data_interval = None
             try:
@@ -1129,13 +1130,15 @@ def dag_maker(request) -> Generator[DagMaker, None, None]:
                     if AIRFLOW_V_3_0_PLUS:
                         kwargs["run_id"] = dag.timetable.generate_run_id(
                             run_type=run_type,
-                            run_after=logical_date or timezone.coerce_datetime(timezone.utcnow()),
+                            run_after=logical_date
+                            or airflow_timezone.coerce_datetime(airflow_timezone.utcnow()),
                             data_interval=data_interval,
                         )
                     else:
                         kwargs["run_id"] = dag.timetable.generate_run_id(
                             run_type=run_type,
-                            logical_date=logical_date or timezone.coerce_datetime(timezone.utcnow()),
+                            logical_date=logical_date
+                            or airflow_timezone.coerce_datetime(airflow_timezone.utcnow()),
                             data_interval=data_interval,
                         )
             kwargs["run_type"] = run_type
@@ -1143,7 +1146,9 @@ def dag_maker(request) -> Generator[DagMaker, None, None]:
             if AIRFLOW_V_3_0_PLUS:
                 kwargs.setdefault("triggered_by", DagRunTriggeredByType.TEST)
                 kwargs["logical_date"] = logical_date
-                kwargs.setdefault("run_after", data_interval[-1] if data_interval else timezone.utcnow())
+                kwargs.setdefault(
+                    "run_after", data_interval[-1] if data_interval else airflow_timezone.utcnow()
+                )
             else:
                 kwargs.pop("triggered_by", None)
                 kwargs["execution_date"] = logical_date
@@ -1180,22 +1185,24 @@ def dag_maker(request) -> Generator[DagMaker, None, None]:
         def _get_run_info(self, dagrun: DagRun, serdag: SerializedDAG, interval: DataInterval) -> DagRunInfo:
             from airflow.timetables.base import DagRunInfo
 
-            kwargs = dict(
-                run_after=dagrun.run_after,
-                data_interval=interval,
-            )
+            partition_date: DateTime | None = None
+            partition_key: str | None = None
             if AIRFLOW_V_3_2_PLUS:
                 partition_date = None
                 from airflow.timetables.trigger import CronPartitionTimetable
 
                 if isinstance(serdag.timetable, CronPartitionTimetable):
                     partition_date = serdag.timetable.get_partition_date(run_date=dagrun.run_after)
-                kwargs.update(
-                    partition_date=partition_date,
-                    partition_key=dagrun.partition_key,
-                )
+                    partition_key = dagrun.partition_key
 
-            last_run_info = DagRunInfo(**kwargs)
+            airflow_timezone = _import_timezone()
+
+            last_run_info = DagRunInfo(
+                run_after=airflow_timezone.coerce_datetime(dagrun.run_after),
+                data_interval=interval,
+                partition_date=partition_date,
+                partition_key=partition_key,
+            )
             return last_run_info
 
         def create_ti(self, task_id, dag_run=None, dag_run_kwargs=None, map_index=-1):
@@ -2548,7 +2555,8 @@ def create_runtime_ti(mocked_parse):
             )
             if drinfo:
                 data_interval = drinfo.data_interval
-                data_interval_start, data_interval_end = data_interval.start, data_interval.end
+                data_interval_start = data_interval and data_interval.start
+                data_interval_end = data_interval and data_interval.end
 
         dag_id = task.dag.dag_id
         task_retries = task.retries or 0
