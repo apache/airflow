@@ -134,7 +134,7 @@
   "toggleTableView": "הצג תצוגת טבלה",
   "triggerDag": {
     "button": "הפעל",
-    "dataInterval": "מקטע נתונים",
+    "dataInterval": "מרווח נתונים",
     "dataIntervalAuto": "מוסק מתוך התאריך הלוגי וטבלת הזמנים",
     "dataIntervalManual": "הגדר ידנית",
     "intervalEnd": "סיום",
