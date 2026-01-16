@@ -569,6 +569,24 @@ class TestBigQueryUpdateTableSchemaOperator:
             "documentation": DocumentationDatasetFacet(description="Table description."),
         }
 
+    def test_get_openlineage_facets_on_complete_when_table_is_none(self):
+        operator = BigQueryUpdateTableSchemaOperator(
+            schema_fields_updates=[],
+            include_policy_tags=False,
+            task_id=TASK_ID,
+            dataset_id=TEST_DATASET,
+            table_id=TEST_TABLE_ID,
+            project_id=TEST_GCP_PROJECT_ID,
+        )
+        # Simulate update_table_schema returning None
+        operator._table = None
+        result = operator.get_openlineage_facets_on_complete(None)
+        assert result is not None
+        assert not result.run_facets
+        assert not result.job_facets
+        assert not result.inputs
+        assert not result.outputs
+
 
 class TestBigQueryUpdateDatasetOperator:
     @mock.patch("airflow.providers.google.cloud.operators.bigquery.BigQueryHook")
