@@ -19,7 +19,7 @@ from __future__ import annotations
 
 import json
 from collections.abc import Iterable, Mapping
-from typing import Annotated
+from typing import Annotated, Any
 
 from pydantic import Field, field_validator
 from pydantic_core.core_schema import ValidationInfo
@@ -137,7 +137,7 @@ class ConnectionHookMetaData(BaseModel):
         )
 
         if has_param_spec_structure:
-            redacted_extra_fields = {}
+            redacted_extra_fields: dict[str, Any] = {}
             for field_name, field_spec in v.items():
                 if isinstance(field_spec, dict) and "value" in field_spec and "schema" in field_spec:
                     if should_hide_value_for_key(field_name) and field_spec.get("value") is not None:
@@ -149,8 +149,9 @@ class ConnectionHookMetaData(BaseModel):
                 else:
                     # Not a param spec structure, apply redact by default
                     redacted_extra_fields[field_name] = redact(field_spec)
+
             return redacted_extra_fields
-            
+
         # For simple dictionary structures, use the standard redact function
         return redact(v)
 
