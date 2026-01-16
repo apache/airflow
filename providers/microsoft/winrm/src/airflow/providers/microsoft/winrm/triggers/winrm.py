@@ -24,7 +24,6 @@ import base64
 import time
 from collections.abc import AsyncIterator
 from contextlib import suppress
-from datetime import timedelta
 from functools import cached_property
 from typing import Any
 
