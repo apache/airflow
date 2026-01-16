@@ -531,6 +531,7 @@ uv tool install -e ./dev/breeze
        --version ${VERSION_RC} \
        --previous-version ${PREVIOUS_VERSION} \
        --task-sdk-version ${TASK_SDK_VERSION_RC} \
+       --sync-branch ${SYNC_BRANCH} \
        --remote-name upstream \
        --dry-run
    ```
@@ -1155,7 +1156,6 @@ export AIRFLOW_REPO_ROOT=$(pwd)
 # start the release process by running the below command
 breeze release-management start-release \
     --version ${VERSION} \
-    --previous-release ${PREVIOUS_RELEASE} \
     --task-sdk-version ${TASK_SDK_VERSION}
 ```
 
@@ -1192,11 +1192,11 @@ the older branches, you should set the "skip" field to true.
 ```shell script
 for PYTHON in 3.10 3.11 3.12 3.13
 do
-    docker pull apache/airflow:${VERSION_RC}-python${PYTHON}
-    breeze prod-image verify --image-name apache/airflow:${VERSION_RC}-python${PYTHON}
+    docker pull apache/airflow:${VERSION}-python${PYTHON}
+    breeze prod-image verify --image-name apache/airflow:${VERSION}-python${PYTHON}
 done
-docker pull apache/airflow:${VERSION_RC}
-breeze prod-image verify --image-name apache/airflow:${VERSION_RC}
+docker pull apache/airflow:${VERSION}
+breeze prod-image verify --image-name apache/airflow:${VERSION}
 ```
 
 ## Publish final documentation
@@ -1367,17 +1367,6 @@ EOF
 ------------------------------------------------------------------------------------------------------------
 Announcement is done from official Apache-Airflow accounts.
 
-* LinkedIn: https://www.linkedin.com/company/apache-airflow/
-* Fosstodon: https://fosstodon.org/@airflow
-* Bluesky: https://bsky.app/profile/apache-airflow.bsky.social
-
-Make sure attach the release image generated with Figma to the post.
-If you don't have access to the account ask a PMC member to post.
-
-------------------------------------------------------------------------------------------------------------
-
-Tweet and post on Linkedin about the release:
-
 ```shell
 cat <<EOF
 We've just released Apache Airflow $VERSION 🎉
@@ -1390,6 +1379,17 @@ We've just released Apache Airflow $VERSION 🎉
 Thanks to all the contributors who made this possible.
 EOF
 ```
+
+Post on social media about the release:
+
+* LinkedIn: https://www.linkedin.com/company/apache-airflow/
+* Fosstodon: https://fosstodon.org/@airflow
+* Bluesky: https://bsky.app/profile/apache-airflow.bsky.social
+
+Make sure to attach the release image generated with Figma to the post.
+If you don't have access to the account ask a PMC member to post.
+
+------------------------------------------------------------------------------------------------------------
 
 ## Update `main` with the latest release details
 
