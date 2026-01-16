@@ -29,12 +29,17 @@ import time_machine
 from kubernetes.client.rest import ApiException
 from urllib3.exceptions import HTTPError as BaseHTTPError
 
-from airflow.providers.cncf.kubernetes.exceptions import KubernetesApiError
+from airflow.providers.cncf.kubernetes.exceptions import (
+    KubernetesApiError,
+    PodNotFoundException,
+    PodPreemptedException,
+)
 from airflow.providers.cncf.kubernetes.utils.pod_manager import (
     AsyncPodManager,
     PodLogsConsumer,
     PodManager,
     PodPhase,
+    PodPhaseTracker,
     XComRetrievalError,
     log_pod_event,
     parse_log_line,
@@ -1621,3 +1626,161 @@ class TestPodLogsConsumer:
         # second read
         with time_machine.travel(mock_read_pod_at_1):
             assert consumer.read_pod() == expected_read_pods[1]
+
+
+class TestPodPhaseTracker:
+    """Tests for PodPhaseTracker class."""
+
+    def test_initial_state(self):
+        """Test that tracker starts with expected initial values."""
+        tracker = PodPhaseTracker()
+        assert tracker.ever_reached_running is False
+        assert tracker.last_observed_phase is None
+        assert tracker.is_safe_to_retry_on_404() is True
+
+    def test_update_from_pending_pod(self):
+        """Test tracker update when pod is in Pending phase."""
+        tracker = PodPhaseTracker()
+        pod = mock.MagicMock()
+        pod.status.phase = PodPhase.PENDING
+
+        tracker.update_from_pod(pod)
+
+        assert tracker.ever_reached_running is False
+        assert tracker.last_observed_phase == PodPhase.PENDING
+        assert tracker.is_safe_to_retry_on_404() is True
+
+    def test_update_from_running_pod(self):
+        """Test tracker update when pod reaches Running phase."""
+        tracker = PodPhaseTracker()
+        pod = mock.MagicMock()
+        pod.status.phase = PodPhase.RUNNING
+
+        tracker.update_from_pod(pod)
+
+        assert tracker.ever_reached_running is True
+        assert tracker.last_observed_phase == PodPhase.RUNNING
+        assert tracker.is_safe_to_retry_on_404() is False
+
+    def test_ever_reached_running_persists(self):
+        """Test that ever_reached_running stays True even if pod phase changes."""
+        tracker = PodPhaseTracker()
+
+        # Pod starts pending
+        pod_pending = mock.MagicMock()
+        pod_pending.status.phase = PodPhase.PENDING
+        tracker.update_from_pod(pod_pending)
+        assert tracker.ever_reached_running is False
+
+        # Pod reaches running
+        pod_running = mock.MagicMock()
+        pod_running.status.phase = PodPhase.RUNNING
+        tracker.update_from_pod(pod_running)
+        assert tracker.ever_reached_running is True
+
+        # Pod transitions to succeeded (should still remember it was running)
+        pod_succeeded = mock.MagicMock()
+        pod_succeeded.status.phase = PodPhase.SUCCEEDED
+        tracker.update_from_pod(pod_succeeded)
+
+        assert tracker.ever_reached_running is True
+        assert tracker.last_observed_phase == PodPhase.SUCCEEDED
+        assert tracker.is_safe_to_retry_on_404() is False
+
+    def test_update_from_pod_with_no_status(self):
+        """Test that tracker handles pod with no status gracefully."""
+        tracker = PodPhaseTracker()
+        pod = mock.MagicMock()
+        pod.status = None
+
+        tracker.update_from_pod(pod)
+
+        assert tracker.ever_reached_running is False
+        assert tracker.last_observed_phase is None
+
+
+class TestPodManagerRead404Handling:
+    """Tests for 404 handling in PodManager.read_pod()."""
+
+    def setup_method(self):
+        self.mock_kube_client = mock.Mock()
+        self.pod_manager = PodManager(kube_client=self.mock_kube_client)
+
+    def test_read_pod_updates_phase_tracker(self):
+        """Test that read_pod updates the phase tracker when provided."""
+        pod = mock.MagicMock()
+        pod.metadata.name = "test-pod"
+        pod.metadata.namespace = "test-ns"
+
+        result_pod = mock.MagicMock()
+        result_pod.status.phase = PodPhase.RUNNING
+        self.mock_kube_client.read_namespaced_pod.return_value = result_pod
+
+        tracker = PodPhaseTracker()
+        self.pod_manager.read_pod(pod, phase_tracker=tracker)
+
+        assert tracker.ever_reached_running is True
+        assert tracker.last_observed_phase == PodPhase.RUNNING
+
+    def test_read_pod_404_raises_preempted_when_never_ran(self):
+        """Test that 404 raises PodPreemptedException when pod never reached Running."""
+        pod = mock.MagicMock()
+        pod.metadata.name = "test-pod"
+        pod.metadata.namespace = "test-ns"
+
+        self.mock_kube_client.read_namespaced_pod.side_effect = ApiException(status=404)
+
+        tracker = PodPhaseTracker()
+        # Simulate pod was in Pending but never Running
+        tracker.last_observed_phase = PodPhase.PENDING
+        tracker.ever_reached_running = False
+
+        with pytest.raises(PodPreemptedException) as exc_info:
+            self.pod_manager.read_pod(pod, phase_tracker=tracker)
+
+        assert "never observed in Running state" in str(exc_info.value)
+        assert "preemption" in str(exc_info.value).lower()
+
+    def test_read_pod_404_raises_not_found_when_was_running(self):
+        """Test that 404 raises PodNotFoundException when pod was previously Running."""
+        pod = mock.MagicMock()
+        pod.metadata.name = "test-pod"
+        pod.metadata.namespace = "test-ns"
+
+        self.mock_kube_client.read_namespaced_pod.side_effect = ApiException(status=404)
+
+        tracker = PodPhaseTracker()
+        # Simulate pod was Running before
+        tracker.last_observed_phase = PodPhase.RUNNING
+        tracker.ever_reached_running = True
+
+        with pytest.raises(PodNotFoundException) as exc_info:
+            self.pod_manager.read_pod(pod, phase_tracker=tracker)
+
+        assert "previously observed in Running state" in str(exc_info.value)
+        assert "non-idempotent" in str(exc_info.value).lower()
+
+    def test_read_pod_404_without_tracker_raises_preempted(self):
+        """Test that 404 without tracker raises PodPreemptedException (safe default)."""
+        pod = mock.MagicMock()
+        pod.metadata.name = "test-pod"
+        pod.metadata.namespace = "test-ns"
+
+        self.mock_kube_client.read_namespaced_pod.side_effect = ApiException(status=404)
+
+        with pytest.raises(PodPreemptedException):
+            self.pod_manager.read_pod(pod)
+
+    def test_read_pod_without_tracker_works_normally(self):
+        """Test that read_pod works without tracker (backward compatibility)."""
+        pod = mock.MagicMock()
+        pod.metadata.name = "test-pod"
+        pod.metadata.namespace = "test-ns"
+
+        result_pod = mock.MagicMock()
+        result_pod.status.phase = PodPhase.RUNNING
+        self.mock_kube_client.read_namespaced_pod.return_value = result_pod
+
+        result = self.pod_manager.read_pod(pod)
+
+        assert result == result_pod
