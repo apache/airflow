@@ -248,7 +248,7 @@ export const DagRuns = () => {
         errorMessage={<ErrorAlert error={error} />}
         initialState={tableURLState}
         isLoading={isLoading}
-        modelName={translate("common:dagRun_other")}
+        modelName="common:dagRun"
         onStateChange={setTableURLState}
         total={data?.total_entries}
       />
