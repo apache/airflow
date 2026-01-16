@@ -28,6 +28,7 @@ test.describe("Dags Pagination", () => {
   });
 
   test("should verify pagination works on the Dags list page", async () => {
+    test.setTimeout(120_000); // 2 minutes for slower browsers like Firefox
     await dagsPage.navigate();
 
     await expect(dagsPage.paginationNextButton).toBeVisible();

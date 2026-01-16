@@ -69,27 +69,64 @@ export class DagsPage extends BasePage {
   }
 
   /**
-   * Click next page button
+   * Click next page button and wait for list to change
    */
   public async clickNextPage(): Promise<void> {
     const initialDagNames = await this.getDagNames();
 
+    // Set up API listener before action
+    const responsePromise = this.page
+      .waitForResponse((resp) => resp.url().includes("/dags") && resp.status() === 200, {
+        timeout: 30_000,
+      })
+      .catch(() => {
+        /* API might be cached */
+      });
+
     await this.paginationNextButton.click();
 
-    await expect.poll(() => this.getDagNames(), { timeout: 10_000 }).not.toEqual(initialDagNames);
+    // Wait for API response
+    await responsePromise;
+
+    // Wait for UI to actually change (increased timeout for slower browsers like Firefox)
+    await expect
+      .poll(() => this.getDagNames(), {
+        message: "List did not update after clicking next page",
+        timeout: 30_000,
+      })
+      .not.toEqual(initialDagNames);
 
     await this.waitForDagList();
   }
 
   /**
-   * Click previous page button
+   * Click previous page button and wait for list to change
    */
   public async clickPrevPage(): Promise<void> {
     const initialDagNames = await this.getDagNames();
 
+    // Set up API listener before action
+    const responsePromise = this.page
+      .waitForResponse((resp) => resp.url().includes("/dags") && resp.status() === 200, {
+        timeout: 30_000,
+      })
+      .catch(() => {
+        /* API might be cached */
+      });
+
     await this.paginationPrevButton.click();
 
-    await expect.poll(() => this.getDagNames(), { timeout: 10_000 }).not.toEqual(initialDagNames);
+    // Wait for API response
+    await responsePromise;
+
+    // Wait for UI to actually change (increased timeout for slower browsers like Firefox)
+    await expect
+      .poll(() => this.getDagNames(), {
+        message: "List did not update after clicking prev page",
+        timeout: 30_000,
+      })
+      .not.toEqual(initialDagNames);
+
     await this.waitForDagList();
   }
 
@@ -334,7 +371,7 @@ export class DagsPage extends BasePage {
    */
   private async waitForDagList(): Promise<void> {
     await expect(this.page.locator('[data-testid="dag-id"]').first()).toBeVisible({
-      timeout: 10_000,
+      timeout: 30_000,
     });
   }
 }
