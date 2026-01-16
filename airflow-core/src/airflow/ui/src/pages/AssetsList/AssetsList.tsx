@@ -162,7 +162,6 @@ export const AssetsList = () => {
           <Heading py={3} size="md">
             {data?.total_entries} {translate("common:asset", { count: data?.total_entries })}
           </Heading>
-
           <ExpandCollapseButtons
             collapseLabel={translate("common:collapseAllExtra")}
             expandLabel={translate("common:expandAllExtra")}
@@ -178,8 +177,9 @@ export const AssetsList = () => {
           errorMessage={<ErrorAlert error={error} />}
           initialState={tableURLState}
           isLoading={isLoading}
-          modelName={translate("common:asset_one")}
+          modelName="common:asset"
           onStateChange={setTableURLState}
+          showRowCountHeading={false}
           total={data?.total_entries}
         />
       </Box>
