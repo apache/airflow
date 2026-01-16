@@ -27,7 +27,6 @@ from typing import TYPE_CHECKING, Any
 
 from airflow.providers.common.compat.sdk import AirflowException, BaseOperator, conf
 from airflow.providers.microsoft.winrm.hooks.winrm import WinRMHook
-
 from airflow.providers.microsoft.winrm.triggers.winrm import WinRMCommandOutputTrigger
 
 if TYPE_CHECKING:
@@ -89,7 +88,9 @@ class WinRMOperator(BaseOperator):
         self.ps_path = ps_path
         self.output_encoding = output_encoding
         self.timeout = timeout.total_seconds() if isinstance(timeout, timedelta) else timeout
-        self.poll_interval = poll_interval.total_seconds() if isinstance(poll_interval, timedelta) else poll_interval
+        self.poll_interval = (
+            poll_interval.total_seconds() if isinstance(poll_interval, timedelta) else poll_interval
+        )
         self.expected_return_code = expected_return_code
         self.working_directory = working_directory
         self.deferrable = deferrable
