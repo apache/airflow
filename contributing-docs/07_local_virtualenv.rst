@@ -180,8 +180,8 @@ will install all dependencies needed to run tests for airflow-core.
     uv sync
 
 
-TODO(potiuk): This will not work yet - until we move some remaining provider tests from airflow-core. For
-now you need to add ``--all-package`` to install all providers and their dependencies.
+Note: this is not sufficient yet because some provider tests still run under ``airflow-core``. For now,
+you need to add ``--all-packages`` to install all providers and their dependencies.
 
 .. code:: bash
 

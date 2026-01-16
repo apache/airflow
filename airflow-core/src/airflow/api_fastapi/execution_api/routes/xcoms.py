@@ -32,29 +32,47 @@ from airflow.api_fastapi.execution_api.datamodels.xcom import (
     XComSequenceIndexResponse,
     XComSequenceSliceResponse,
 )
-from airflow.api_fastapi.execution_api.deps import JWTBearerDep
+from airflow.api_fastapi.execution_api.deps import JWTBearerDep, get_task_instance_from_token
 from airflow.models.taskmap import TaskMap
 from airflow.models.xcom import XComModel
 from airflow.utils.db import get_query_count
 
 
-async def has_xcom_access(
+def has_xcom_access(
     dag_id: str,
     run_id: str,
     task_id: str,
     xcom_key: Annotated[str, Path(alias="key", min_length=1)],
     request: Request,
+    session: SessionDep,
     token=JWTBearerDep,
 ) -> bool:
     """Check if the task has access to the XCom."""
-    # TODO: Placeholder for actual implementation
+    ti = get_task_instance_from_token(session=session, token=token)
 
     write = request.method not in {"GET", "HEAD", "OPTIONS"}
+    if write:
+        if (ti.dag_id, ti.run_id, ti.task_id) != (dag_id, run_id, task_id):
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail={
+                    "reason": "access_denied",
+                    "message": "Task instance does not have access to write this XCom",
+                },
+            )
+    elif ti.dag_id != dag_id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail={
+                "reason": "access_denied",
+                "message": "Task instance does not have access to read this XCom",
+            },
+        )
 
     log.debug(
         "Checking %s XCom access for xcom from TaskInstance with key '%s' to XCom '%s'",
         "write" if write else "read",
-        token.id,
+        ti.id,
         xcom_key,
     )
     return True

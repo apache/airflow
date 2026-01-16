@@ -24,6 +24,8 @@ import urllib.parse
 import httpx
 import pytest
 from fastapi import FastAPI, HTTPException, Path, Request, status
+
+from airflow.api_fastapi.common.db.common import SessionDep
 from sqlalchemy import delete, select
 
 from airflow._shared.timezones import timezone
@@ -57,13 +59,14 @@ def access_denied(client):
 
     async def _(
         request: Request,
+        session: SessionDep,
         dag_id: str = Path(),
         run_id: str = Path(),
         task_id: str = Path(),
         xcom_key: str = Path(alias="key"),
         token=JWTBearerDep,
     ):
-        await has_xcom_access(dag_id, run_id, task_id, xcom_key, request, token)
+        has_xcom_access(dag_id, run_id, task_id, xcom_key, request, session, token)
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail={
@@ -88,7 +91,7 @@ class TestXComsGetEndpoint:
             (["value1"]),
         ],
     )
-    def test_xcom_get_from_db(self, client, create_task_instance, session, db_value):
+    def test_xcom_get_from_db(self, client, create_task_instance, session, db_value, auth_headers):
         """Test that XCom value is returned from the database in JSON-compatible format."""
         # The tests expect serialised strings because v2 serialised and stored in the DB
         ti = create_task_instance()
@@ -103,13 +106,17 @@ class TestXComsGetEndpoint:
         )
         session.add(x)
         session.commit()
+        client.headers.update(auth_headers(ti))
 
         response = client.get(f"/execution/xcoms/{ti.dag_id}/{ti.run_id}/{ti.task_id}/xcom_1")
 
         assert response.status_code == 200
         assert response.json() == {"key": "xcom_1", "value": db_value}
 
-    def test_xcom_not_found(self, client, create_task_instance):
+    def test_xcom_not_found(self, client, create_task_instance, session, auth_headers):
+        ti = create_task_instance()
+        session.commit()
+        client.headers.update(auth_headers(ti))
         response = client.get("/execution/xcoms/dag/runid/task/xcom_non_existent")
 
         assert response.status_code == 404
@@ -120,8 +127,26 @@ class TestXComsGetEndpoint:
             }
         }
 
+    def test_xcom_read_other_dag_denied(self, client, session, create_task_instance, auth_headers):
+        ti = create_task_instance(dag_id="dag_one")
+        session.commit()
+        client.headers.update(auth_headers(ti))
+
+        response = client.get("/execution/xcoms/dag_two/runid/task/xcom_key")
+
+        assert response.status_code == 403
+        assert response.json() == {
+            "detail": {
+                "reason": "access_denied",
+                "message": "Task instance does not have access to read this XCom",
+            }
+        }
+
     @pytest.mark.usefixtures("access_denied")
-    def test_xcom_access_denied(self, client, caplog):
+    def test_xcom_access_denied(self, client, session, caplog, create_task_instance, auth_headers):
+        ti = create_task_instance()
+        session.commit()
+        client.headers.update(auth_headers(ti))
         with caplog.at_level(logging.DEBUG):
             response = client.get("/execution/xcoms/dag/runid/task/xcom_perms")
 
@@ -180,6 +205,8 @@ class TestXComsGetEndpoint:
         offset,
         expected_status,
         expected_json,
+        create_task_instance,
+        auth_headers,
     ):
         xcom_values = ["f", None, "o", "b"]
 
@@ -208,6 +235,9 @@ class TestXComsGetEndpoint:
             )
             session.add(x)
         session.commit()
+        ti = create_task_instance()
+        session.commit()
+        client.headers.update(auth_headers(ti))
 
         response = client.get(f"/execution/xcoms/dag/runid/task/xcom_1/item/{offset}")
         assert response.status_code == expected_status
@@ -234,7 +264,7 @@ class TestXComsGetEndpoint:
             pytest.param(slice(-1, -3, -1), id="-1:-3:-1"),
         ],
     )
-    def test_xcom_get_with_slice(self, client, dag_maker, session, key):
+    def test_xcom_get_with_slice(self, client, dag_maker, session, key, create_task_instance, auth_headers):
         xcom_values = ["f", None, "o", "b"]
 
         class MyOperator(EmptyOperator):
@@ -262,6 +292,9 @@ class TestXComsGetEndpoint:
             )
             session.add(x)
         session.commit()
+        ti = create_task_instance()
+        session.commit()
+        client.headers.update(auth_headers(ti))
 
         qs = {}
         if key.start is not None:
@@ -280,7 +313,7 @@ class TestXComsGetEndpoint:
         [[True, ["earlier_value", "later_value"]], [False, ["later_value"]]],
     )
     def test_xcom_get_slice_accepts_include_prior_dates(
-        self, client, dag_maker, session, include_prior_dates, expected_xcoms
+        self, client, dag_maker, session, include_prior_dates, expected_xcoms, auth_headers
     ):
         """Test that the slice endpoint accepts include_prior_dates parameter and works correctly."""
 
@@ -315,6 +348,7 @@ class TestXComsGetEndpoint:
         )
         session.add_all([earlier_xcom, later_xcom])
         session.commit()
+        client.headers.update(auth_headers(later_ti))
 
         response = client.get(
             f"/execution/xcoms/dag/later_run/task/test_key/slice?include_prior_dates={include_prior_dates}"
@@ -335,7 +369,7 @@ class TestXComsSetEndpoint:
             (None, None),
         ],
     )
-    def test_xcom_set(self, client, create_task_instance, session, value, expected_value):
+    def test_xcom_set(self, client, create_task_instance, session, value, expected_value, auth_headers):
         """
         Test that XCom value is set correctly. The request body can be either:
         - a JSON string (e.g. '"value"', '{"k":"v"}', '[1]'), which is stored as-is (a string) in the DB
@@ -346,6 +380,7 @@ class TestXComsSetEndpoint:
         """
         ti = create_task_instance()
         session.commit()
+        client.headers.update(auth_headers(ti))
         value = serialize(value)
         response = client.post(
             f"/execution/xcoms/{ti.dag_id}/{ti.run_id}/{ti.task_id}/xcom_1",
@@ -368,6 +403,25 @@ class TestXComsSetEndpoint:
         ).one_or_none()
         assert task_map is None, "Should not be mapped"
 
+    def test_xcom_write_other_task_denied(self, client, session, create_task_instance, auth_headers):
+        ti = create_task_instance(dag_id="dag_a", task_id="task_a", run_id="run_a")
+        other = create_task_instance(dag_id="dag_b", task_id="task_b", run_id="run_b")
+        session.commit()
+        client.headers.update(auth_headers(ti))
+
+        response = client.post(
+            f"/execution/xcoms/{other.dag_id}/{other.run_id}/{other.task_id}/xcom_1",
+            json='"value1"',
+        )
+
+        assert response.status_code == 403
+        assert response.json() == {
+            "detail": {
+                "reason": "access_denied",
+                "message": "Task instance does not have access to write this XCom",
+            }
+        }
+
     @pytest.mark.parametrize(
         ("orig_value", "ser_value", "deser_value"),
         [
@@ -389,7 +443,9 @@ class TestXComsSetEndpoint:
             ),
         ],
     )
-    def test_xcom_round_trip(self, client, create_task_instance, session, orig_value, ser_value, deser_value):
+    def test_xcom_round_trip(
+        self, client, create_task_instance, session, orig_value, ser_value, deser_value, auth_headers
+    ):
         """
         Test that deserialization works when XCom values are stored directly in the DB with API Server.
 
@@ -403,6 +459,7 @@ class TestXComsSetEndpoint:
 
         ti = create_task_instance()
         session.commit()
+        client.headers.update(auth_headers(ti))
 
         # Serialize the value to simulate the client SDK
         value = serialize(orig_value)
@@ -432,9 +489,10 @@ class TestXComsSetEndpoint:
         # Ensure that the deserialized value on the client side is the same as the original value
         assert deserialize(deserialized_value) == orig_value
 
-    def test_xcom_set_mapped(self, client, create_task_instance, session):
+    def test_xcom_set_mapped(self, client, create_task_instance, session, auth_headers):
         ti = create_task_instance()
         session.commit()
+        client.headers.update(auth_headers(ti))
 
         value = serialize("value1")
 
@@ -481,7 +539,9 @@ class TestXComsSetEndpoint:
             ),
         ],
     )
-    def test_xcom_set_downstream_of_mapped(self, client, create_task_instance, session, length, err_context):
+    def test_xcom_set_downstream_of_mapped(
+        self, client, create_task_instance, session, length, err_context, auth_headers
+    ):
         """
         Test that XCom value is set correctly. The value is passed as a JSON string in the request body.
         XCom.set then uses json.dumps to serialize it and store the value in the database.
@@ -489,6 +549,7 @@ class TestXComsSetEndpoint:
         """
         ti = create_task_instance()
         session.commit()
+        client.headers.update(auth_headers(ti))
 
         with err_context:
             response = client.post(
@@ -504,10 +565,13 @@ class TestXComsSetEndpoint:
             assert task_map.length == length
 
     @pytest.mark.usefixtures("access_denied")
-    def test_xcom_access_denied(self, client, caplog):
+    def test_xcom_access_denied(self, client, session, caplog, create_task_instance, auth_headers):
+        ti = create_task_instance()
+        session.commit()
+        client.headers.update(auth_headers(ti))
         with caplog.at_level(logging.DEBUG):
             response = client.post(
-                "/execution/xcoms/dag/runid/task/xcom_perms",
+                f"/execution/xcoms/{ti.dag_id}/{ti.run_id}/{ti.task_id}/xcom_perms",
                 json='"value1"',
             )
 
@@ -528,7 +592,7 @@ class TestXComsSetEndpoint:
             ('["value1"]', '["value1"]'),
         ],
     )
-    def test_xcom_roundtrip(self, client, create_task_instance, session, value, expected_value):
+    def test_xcom_roundtrip(self, client, create_task_instance, session, value, expected_value, auth_headers):
         """
         Test that XCom value is set and retrieved correctly using API.
 
@@ -541,6 +605,7 @@ class TestXComsSetEndpoint:
 
         value = serialize(value)
         session.commit()
+        client.headers.update(auth_headers(ti))
         client.post(
             f"/execution/xcoms/{ti.dag_id}/{ti.run_id}/{ti.task_id}/test_xcom_roundtrip",
             json=value,
@@ -562,7 +627,7 @@ class TestXComsSetEndpoint:
 
 
 class TestXComsDeleteEndpoint:
-    def test_xcom_delete_endpoint(self, client, create_task_instance, session):
+    def test_xcom_delete_endpoint(self, client, create_task_instance, session, auth_headers):
         """Test that XCom value is deleted when Delete API is called."""
         ti = create_task_instance()
         ti.xcom_push(key="xcom_1", value='"value1"', session=session)
@@ -570,6 +635,7 @@ class TestXComsDeleteEndpoint:
         ti1 = create_task_instance(dag_id="my_dag_1", task_id="task_1")
         ti1.xcom_push(key="xcom_1", value='"value2"', session=session)
         session.commit()
+        client.headers.update(auth_headers(ti))
 
         xcoms = session.scalars(select(XComModel).where(XComModel.key == "xcom_1")).all()
         assert xcoms is not None

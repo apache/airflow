@@ -22,22 +22,28 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Path, status
 
+from airflow.api_fastapi.common.db.common import SessionDep
 from airflow.api_fastapi.execution_api.datamodels.connection import ConnectionResponse
-from airflow.api_fastapi.execution_api.deps import JWTBearerDep, get_team_name_dep
+from airflow.api_fastapi.execution_api.deps import (
+    JWTBearerDep,
+    get_task_instance_from_token,
+    get_team_name_dep,
+)
 from airflow.exceptions import AirflowNotFoundException
 from airflow.models.connection import Connection
 
 
-async def has_connection_access(
+def has_connection_access(
+    session: SessionDep,
     connection_id: str = Path(),
     token=JWTBearerDep,
 ) -> bool:
     """Check if the task has access to the connection."""
-    # TODO: Placeholder for actual implementation
+    ti = get_task_instance_from_token(session=session, token=token)
 
     log.debug(
         "Checking access for task instance with key '%s' to connection '%s'",
-        token.id,
+        ti.id,
         connection_id,
     )
     return True
