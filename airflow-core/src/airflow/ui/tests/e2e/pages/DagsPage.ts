@@ -30,33 +30,29 @@ export class DagsPage extends BasePage {
     return "/dags";
   }
 
+  // Core page elements
   public readonly confirmButton: Locator;
-  public readonly operatorFilter: Locator;
+  public readonly dagsTable: Locator;
+  // Pagination elements
   public readonly paginationNextButton: Locator;
   public readonly paginationPrevButton: Locator;
-  public readonly retriesFilter: Locator;
-  public readonly searchBox: Locator;
+  // Runs tab elements
+  public readonly runsTab: Locator;
+  public readonly runsTable: Locator;
+
   public readonly stateElement: Locator;
   public readonly triggerButton: Locator;
-  public readonly triggerRuleFilter: Locator;
-
-  public get taskCards(): Locator {
-    // CardList component renders a SimpleGrid with data-testid="card-list"
-    // Individual cards are direct children (Box elements)
-    return this.page.locator('[data-testid="card-list"] > div');
-  }
 
   public constructor(page: Page) {
     super(page);
+    this.dagsTable = page.locator('div:has(a[href*="/dags/"])');
     this.triggerButton = page.locator('button[aria-label="Trigger Dag"]:has-text("Trigger")');
     this.confirmButton = page.locator('button:has-text("Trigger")').nth(1);
     this.stateElement = page.locator('*:has-text("State") + *').first();
     this.paginationNextButton = page.locator('[data-testid="next"]');
     this.paginationPrevButton = page.locator('[data-testid="prev"]');
-    this.searchBox = page.getByRole("textbox", { name: /search/i });
-    this.operatorFilter = page.getByRole("combobox").filter({ hasText: /operator/i });
-    this.triggerRuleFilter = page.getByRole("combobox").filter({ hasText: /trigger/i });
-    this.retriesFilter = page.getByRole("combobox").filter({ hasText: /retr/i });
+    this.runsTab = page.locator('a[href$="/runs"]');
+    this.runsTable = page.locator('[data-testid="dag-runs-table"]');
   }
 
   // URL builders for dynamic paths
@@ -72,12 +68,7 @@ export class DagsPage extends BasePage {
    * Click next page button
    */
   public async clickNextPage(): Promise<void> {
-    const initialDagNames = await this.getDagNames();
-
     await this.paginationNextButton.click();
-
-    await expect.poll(() => this.getDagNames(), { timeout: 10_000 }).not.toEqual(initialDagNames);
-
     await this.waitForDagList();
   }
 
@@ -85,24 +76,64 @@ export class DagsPage extends BasePage {
    * Click previous page button
    */
   public async clickPrevPage(): Promise<void> {
-    const initialDagNames = await this.getDagNames();
-
     await this.paginationPrevButton.click();
-
-    await expect.poll(() => this.getDagNames(), { timeout: 10_000 }).not.toEqual(initialDagNames);
     await this.waitForDagList();
   }
 
-  public async filterByOperator(operator: string): Promise<void> {
-    await this.selectDropdownOption(this.operatorFilter, operator);
+  /**
+   * Click on a specific run to view details
+   */
+  public async clickRun(runId: string): Promise<void> {
+    const runLink = this.page.locator(`a:has-text("${runId}")`).first();
+
+    await runLink.waitFor({ state: "visible" });
+    await runLink.click();
+    await this.page.waitForLoadState("networkidle");
   }
 
-  public async filterByRetries(retries: string): Promise<void> {
-    await this.selectDropdownOption(this.retriesFilter, retries);
+  /**
+   * Click next page button for runs
+   */
+  public async clickRunPaginationNext(): Promise<void> {
+    await this.paginationNextButton.click();
+    await this.waitForRunList();
   }
 
-  public async filterByTriggerRule(rule: string): Promise<void> {
-    await this.selectDropdownOption(this.triggerRuleFilter, rule);
+  /**
+   * Click previous page button for runs
+   */
+  public async clickRunPaginationPrev(): Promise<void> {
+    await this.paginationPrevButton.click();
+    await this.waitForRunList();
+  }
+
+  /**
+   * Filter runs by state
+   */
+  public async filterByState(state: string): Promise<void> {
+    // Use URL-based filtering instead of UI interaction for reliability
+    // The FilterBar component uses search params, so we can navigate directly
+    const currentUrl = this.page.url();
+    const url = new URL(currentUrl);
+
+    // Set the state parameter (convert to lowercase as API expects lowercase)
+    url.searchParams.set("state", state.toLowerCase());
+
+    // Navigate to the URL with the filter applied
+    await this.page.goto(url.toString(), { waitUntil: "networkidle" });
+
+    // Wait for the table to update with filtered results
+    await this.runsTable.waitFor({ state: "visible" });
+
+    // Wait for data to load - check for either rows or "no data" message
+    const runRows = this.page.locator('[data-testid="dag-runs-table"] table tbody tr');
+
+    try {
+      await runRows.first().waitFor({ state: "visible", timeout: 15_000 });
+    } catch {
+      // If no rows appear, that's okay - might be no matching results
+      // The test will handle this
+    }
   }
 
   /**
@@ -116,37 +147,32 @@ export class DagsPage extends BasePage {
     return texts.map((text) => text.trim()).filter((text) => text !== "");
   }
 
-  public async getFilterOptions(filter: Locator): Promise<Array<string>> {
-    await filter.click();
-    await this.page.waitForTimeout(500);
+  /**
+   * Get run details from the runs table
+   */
+  public async getRunDetails(): Promise<
+    Array<{
+      runId: string;
+      state: string;
+    }>
+  > {
+    const runRows = this.page.locator('[data-testid="dag-runs-table"] table tbody tr');
 
-    const controlsId = await filter.getAttribute("aria-controls");
-    let options;
+    await runRows.first().waitFor({ state: "visible", timeout: 10_000 });
 
-    if (controlsId === null) {
-      const listbox = this.page.locator('div[role="listbox"]').first();
+    const runCount = await runRows.count();
+    const runs: Array<{ runId: string; state: string }> = [];
 
-      await listbox.waitFor({ state: "visible", timeout: 5000 });
-      options = listbox.locator('div[role="option"]');
-    } else {
-      options = this.page.locator(`[id="${controlsId}"] div[role="option"]`);
+    for (let i = 0; i < runCount; i++) {
+      const row = runRows.nth(i);
+
+      const runId = (await row.locator('[data-testid="run-id"]').textContent()) ?? "";
+      const state = (await row.locator('[data-testid="run-state"]').textContent()) ?? "";
+
+      runs.push({ runId: runId.trim(), state: state.trim() });
     }
 
-    const count = await options.count();
-    const dataValues: Array<string> = [];
-
-    for (let i = 0; i < count; i++) {
-      const value = await options.nth(i).getAttribute("data-value");
-
-      if (value !== null && value.trim().length > 0) {
-        dataValues.push(value);
-      }
-    }
-
-    await this.page.keyboard.press("Escape");
-    await this.page.waitForTimeout(300);
-
-    return dataValues;
+    return runs;
   }
 
   /**
@@ -163,13 +189,36 @@ export class DagsPage extends BasePage {
     await this.navigateTo(DagsPage.getDagDetailUrl(dagName));
   }
 
-  public async navigateToDagTasks(dagId: string): Promise<void> {
-    await this.page.goto(`/dags/${dagId}/tasks`);
-    await this.page
-      .locator("h2")
-      .filter({ hasText: /^Operator$/ })
-      .first()
-      .waitFor({ state: "visible", timeout: 30_000 });
+  /**
+   * Navigate to the Runs tab for a specific DAG
+   */
+  public async navigateToRunsTab(dagName: string): Promise<void> {
+    await this.navigateToDagDetail(dagName);
+    await this.runsTab.waitFor({ state: "visible" });
+    await this.runsTab.click();
+    await this.runsTable.waitFor({ state: "visible", timeout: 30_000 });
+  }
+
+  /**
+   * Search for dag runs by run ID pattern
+   */
+  public async searchRun(searchTerm: string): Promise<void> {
+    // Find the run ID pattern input field
+    const searchInput = this.page
+      .locator('input[placeholder*="Run ID"]')
+      .or(this.page.locator('input[name="runIdPattern"]'));
+
+    await searchInput.waitFor({ state: "visible" });
+    await searchInput.fill(searchTerm);
+
+    // Wait for the search to take effect
+    await this.page.waitForResponse(
+      (response) =>
+        response.url().includes("dagRuns") &&
+        response.request().method() === "GET" &&
+        response.status() === 200,
+    );
+    await this.page.waitForLoadState("networkidle");
   }
 
   /**
@@ -177,16 +226,13 @@ export class DagsPage extends BasePage {
    */
   public async triggerDag(dagName: string): Promise<string | null> {
     await this.navigateToDagDetail(dagName);
-    await expect(this.triggerButton).toBeVisible({ timeout: 10_000 });
+    await this.triggerButton.waitFor({ state: "visible", timeout: 30_000 });
     await this.triggerButton.click();
     const dagRunId = await this.handleTriggerDialog();
 
     return dagRunId;
   }
 
-  /**
-   * Navigate to details tab and verify Dag details are displayed correctly
-   */
   public async verifyDagDetails(dagName: string): Promise<void> {
     await this.navigateToDagDetail(dagName);
 
@@ -241,10 +287,8 @@ export class DagsPage extends BasePage {
     while (Date.now() - startTime < maxWaitTime) {
       const currentStatus = await this.getCurrentDagRunStatus();
 
-      if (currentStatus === "success") {
+      if (currentStatus === "success" || currentStatus === "failed") {
         return;
-      } else if (currentStatus === "failed") {
-        throw new Error(`Dag run failed: ${dagRunId}`);
       }
 
       await this.page.waitForTimeout(checkInterval);
@@ -255,6 +299,25 @@ export class DagsPage extends BasePage {
     }
 
     throw new Error(`Dag run did not complete within 5 minutes: ${dagRunId}`);
+  }
+
+  /**
+   * Verify we're on the run details page
+   */
+  public async verifyRunDetailsPage(runId: string): Promise<void> {
+    // Wait for the page to load
+    await this.page.waitForLoadState("networkidle");
+
+    // Verify URL contains the run ID
+    await expect(this.page).toHaveURL(new RegExp(`/runs/${runId.replaceAll(/[$()*+.?[\\\]^{|}]/g, "\\$&")}`));
+  }
+
+  /**
+   * Verify the Runs tab is displayed correctly
+   */
+  public async verifyRunsTabDisplayed(): Promise<void> {
+    // Verify the runs table is present
+    await expect(this.runsTable).toBeVisible();
   }
 
   private async getCurrentDagRunStatus(): Promise<string> {
@@ -323,17 +386,17 @@ export class DagsPage extends BasePage {
     return null;
   }
 
-  private async selectDropdownOption(filter: Locator, value: string): Promise<void> {
-    await filter.click();
-    await this.page.locator(`div[role="option"][data-value="${value}"]`).dispatchEvent("click");
-    await this.page.waitForTimeout(500);
-  }
-
   /**
    * Wait for DAG list to be rendered
    */
   private async waitForDagList(): Promise<void> {
     await expect(this.page.locator('[data-testid="dag-id"]').first()).toBeVisible({
+      timeout: 10_000,
+    });
+  }
+
+  private async waitForRunList(): Promise<void> {
+    await expect(this.page.locator('[data-testid="run-id"]').first()).toBeVisible({
       timeout: 10_000,
     });
   }

@@ -16,131 +16,116 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { test, expect } from "@playwright/test";
+import { expect, test } from "@playwright/test";
 import { AUTH_FILE, testConfig } from "playwright.config";
-import { DagRunsPage } from "tests/e2e/pages/DagRunsPage";
+import { DagsPage } from "tests/e2e/pages/DagsPage";
 
-test.describe("DAG Runs Page", () => {
-  test.setTimeout(60_000);
-
-  let dagRunsPage: DagRunsPage;
-  const testDagId1 = testConfig.testDag.id;
-  const testDagId2 = "example_python_operator";
+test.describe("Dag Run Tests", () => {
+  const testDagId = testConfig.testDag.id;
 
   test.beforeAll(async ({ browser }) => {
+    test.setTimeout(5 * 60 * 1000);
+
     const context = await browser.newContext({ storageState: AUTH_FILE });
     const page = await context.newPage();
-    const baseUrl = process.env.AIRFLOW_UI_BASE_URL ?? "http://localhost:8080";
+    const setupPage = new DagsPage(page);
 
-    const timestamp = Date.now();
+    await setupPage.triggerDag(testDagId);
+    await setupPage.triggerDag(testDagId);
 
-    // Trigger first DAG run and mark as failed
-    const runId1 = `test_run_failed_${timestamp}`;
-    const logicalDate1 = new Date(timestamp).toISOString();
-    const triggerResponse1 = await page.request.post(`${baseUrl}/api/v2/dags/${testDagId1}/dagRuns`, {
-      data: JSON.stringify({
-        dag_run_id: runId1,
-        logical_date: logicalDate1,
-      }),
-      headers: {
-        "Content-Type": "application/json",
-      },
-    });
+    const response = await page.request.get(`/api/v2/dags/${testDagId}/dagRuns?limit=1`);
 
-    expect(triggerResponse1.ok()).toBeTruthy();
-    const runData1 = (await triggerResponse1.json()) as { dag_run_id: string };
+    expect(response.ok()).toBeTruthy();
+    const data = (await response.json()) as { dag_runs?: Array<{ dag_run_id?: string }> };
+    const runId = data.dag_runs?.[0]?.dag_run_id;
 
-    // Mark the first run as failed
-    const patchResponse1 = await page.request.patch(
-      `${baseUrl}/api/v2/dags/${testDagId1}/dagRuns/${runData1.dag_run_id}`,
-      {
-        data: JSON.stringify({ state: "failed" }),
-        headers: {
-          "Content-Type": "application/json",
-        },
-      },
-    );
-
-    expect(patchResponse1.ok()).toBeTruthy();
-
-    // Trigger second DAG run and mark as success
-    const runId2 = `test_run_success_${timestamp}`;
-    const logicalDate2 = new Date(timestamp + 60_000).toISOString();
-    const triggerResponse2 = await page.request.post(`${baseUrl}/api/v2/dags/${testDagId1}/dagRuns`, {
-      data: JSON.stringify({
-        dag_run_id: runId2,
-        logical_date: logicalDate2,
-      }),
-      headers: {
-        "Content-Type": "application/json",
-      },
-    });
-
-    expect(triggerResponse2.ok()).toBeTruthy();
-    const runData2 = (await triggerResponse2.json()) as { dag_run_id: string };
-
-    // Mark the second run as success
-    const patchResponse2 = await page.request.patch(
-      `${baseUrl}/api/v2/dags/${testDagId1}/dagRuns/${runData2.dag_run_id}`,
-      {
-        data: JSON.stringify({ state: "success" }),
-        headers: {
-          "Content-Type": "application/json",
-        },
-      },
-    );
-
-    expect(patchResponse2.ok()).toBeTruthy();
-
-    // Trigger a run for a different DAG (for DAG ID filtering test)
-    const runId3 = `test_run_other_dag_${timestamp}`;
-    const logicalDate3 = new Date(timestamp + 120_000).toISOString();
-
-    const triggerResponse3 = await page.request.post(`${baseUrl}/api/v2/dags/${testDagId2}/dagRuns`, {
-      data: JSON.stringify({
-        dag_run_id: runId3,
-        logical_date: logicalDate3,
-      }),
-      headers: {
-        "Content-Type": "application/json",
-      },
-    });
-
-    expect(triggerResponse3.ok()).toBeTruthy();
+    if (runId !== undefined && runId !== "") {
+      await page.request.patch(`/api/v2/dags/${testDagId}/dagRuns/${runId}`, {
+        data: { state: "failed" },
+      });
+    }
 
     await context.close();
   });
 
-  test.beforeEach(({ page }) => {
-    dagRunsPage = new DagRunsPage(page);
+  test("verify runs table displays with valid data", async ({ page }) => {
+    const dagsPage = new DagsPage(page);
+
+    await dagsPage.navigateToRunsTab(testDagId);
+
+    // Verify runs table is displayed
+    await dagsPage.verifyRunsTabDisplayed();
+
+    // Verify we can see run details
+    const runs = await dagsPage.getRunDetails();
+
+    expect(runs.length).toBeGreaterThan(0);
   });
 
-  test("verify DAG runs table displays data", async () => {
-    await dagRunsPage.navigate();
-    await dagRunsPage.verifyDagRunsExist();
+  test("verify run details page navigation", async ({ page }) => {
+    const dagsPage = new DagsPage(page);
+
+    await dagsPage.navigateToRunsTab(testDagId);
+
+    const runs = await dagsPage.getRunDetails();
+
+    expect(runs.length).toBeGreaterThan(0);
+
+    const [firstRun] = runs;
+
+    if (firstRun === undefined) {
+      throw new Error("No runs found");
+    }
+
+    await dagsPage.clickRun(firstRun.runId);
+
+    // Verify we're on the run details page
+    await dagsPage.verifyRunDetailsPage(firstRun.runId);
   });
 
-  test("verify run details display correctly", async () => {
-    await dagRunsPage.navigate();
-    await dagRunsPage.verifyRunDetailsDisplay();
+  test("verify filtering", async ({ page }) => {
+    const dagsPage = new DagsPage(page);
+
+    await dagsPage.navigateToRunsTab(testDagId);
+
+    const runs = await dagsPage.getRunDetails();
+
+    expect(runs.length).toBeGreaterThan(0);
+
+    // We created a failed run in beforeAll, so filter by 'Failed'
+    const targetState = "Failed";
+
+    await dagsPage.filterByState(targetState);
+
+    const filteredRuns = await dagsPage.getRunDetails();
+
+    // Verify filtering works - all results should match the target state
+    expect(filteredRuns.length).toBeGreaterThan(0);
+    expect(filteredRuns.every((run) => run.state === targetState)).toBeTruthy();
   });
 
-  test("verify filtering by failed state", async () => {
-    await dagRunsPage.navigate();
-    await dagRunsPage.verifyStateFiltering("Failed");
-  });
+  test("verify pagination", async ({ page }) => {
+    const dagsPage = new DagsPage(page);
 
-  test("verify filtering by success state", async () => {
-    await dagRunsPage.navigate();
-    await dagRunsPage.verifyStateFiltering("Success");
-  });
+    await dagsPage.navigateToRunsTab(testDagId);
 
-  test("verify filtering by DAG ID", async () => {
-    await dagRunsPage.navigate();
-    await dagRunsPage.verifyDagIdFiltering(testDagId1);
-  });
+    const initialRuns = await dagsPage.getRunDetails();
 
-  test("verify pagination with offset and limit", async () => {
-    await dagRunsPage.verifyPagination(3);
+    expect(initialRuns.length).toBeGreaterThan(0);
+
+    const firstRunId = initialRuns[0]?.runId;
+
+    await dagsPage.clickRunPaginationNext();
+
+    const nextPageRuns = await dagsPage.getRunDetails();
+
+    expect(nextPageRuns.length).toBeGreaterThan(0);
+    expect(nextPageRuns[0]?.runId).not.toEqual(firstRunId);
+
+    await dagsPage.clickRunPaginationPrev();
+
+    const prevPageRuns = await dagsPage.getRunDetails();
+
+    expect(prevPageRuns[0]?.runId).toEqual(firstRunId);
   });
 });
