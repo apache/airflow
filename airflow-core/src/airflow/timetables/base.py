@@ -18,6 +18,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any, NamedTuple, Protocol, runtime_checkable
 
+from airflow._shared.module_loading import qualname
 from airflow.serialization.definitions.assets import SerializedAssetBase
 
 if TYPE_CHECKING:
@@ -237,6 +238,33 @@ class Timetable(Protocol):
         default implementation returns the timetable's type name.
         """
         return type(self).__name__
+
+    @property
+    def type_name(self) -> str:
+        """
+        This is primarily intended for filtering dags based on timetable type.
+
+        For built-in timetables (defined in airflow.timetables or
+        airflow.sdk.definitions.timetables), this returns the class name only.
+        For custom timetables (user-defined via plugins), this returns the full
+        import path to avoid confusion between multiple implementations with the
+        same class name.
+
+        For example, built-in timetables return:
+        ``"NullTimetable"`` or ``"CronDataIntervalTimetable"``
+        while custom timetables return the full path:
+        ``"my_company.timetables.CustomTimetable"``
+        """
+        module = self.__class__.__module__
+
+        # Built-in timetables from Core or SDK use class name only
+        if module.startswith("airflow.timetables.") or module.startswith(
+            "airflow.sdk.definitions.timetables."
+        ):
+            return self.__class__.__name__
+
+        # Custom timetables use full import path
+        return qualname(self.__class__)
 
     def infer_manual_data_interval(self, *, run_after: DateTime) -> DataInterval:
         """

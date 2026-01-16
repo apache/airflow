@@ -50,6 +50,10 @@ class ClassBasedListener:
         self.state.append(TaskInstanceState.FAILED)
 
     @hookimpl
+    def on_task_instance_skipped(self, previous_state, task_instance):
+        self.state.append(TaskInstanceState.SKIPPED)
+
+    @hookimpl
     def on_dag_run_running(self, dag_run, msg: str):
         self.state.append(DagRunState.RUNNING)
 

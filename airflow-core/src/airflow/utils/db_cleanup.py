@@ -47,8 +47,8 @@ from airflow.utils.types import DagRunType
 
 if TYPE_CHECKING:
     from pendulum import DateTime
+    from sqlalchemy import Select
     from sqlalchemy.orm import Session
-    from sqlalchemy.sql.selectable import Select
 
     from airflow.models import Base
 
@@ -291,7 +291,11 @@ def _do_delete(
 
 
 def _subquery_keep_last(
-    *, recency_column, keep_last_filters, group_by_columns, max_date_colname, session: Session
+    *,
+    recency_column,
+    keep_last_filters,
+    group_by_columns,
+    max_date_colname,
 ):
     subquery = select(*group_by_columns, func.max(recency_column).label(max_date_colname))
 
@@ -356,7 +360,6 @@ def _build_query(
             keep_last_filters=keep_last_filters,
             group_by_columns=group_by_columns,
             max_date_colname=max_date_col_name,
-            session=session,
         )
         statement = statement.outerjoin(
             subquery,

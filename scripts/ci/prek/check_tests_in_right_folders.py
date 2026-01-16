@@ -61,6 +61,7 @@ POSSIBLE_TEST_FOLDERS = [
     "listeners",
     "logging",
     "macros",
+    "migrations",
     "models",
     "notifications",
     "observability",

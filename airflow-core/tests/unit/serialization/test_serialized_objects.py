@@ -737,6 +737,41 @@ class TestSerializedBaseOperator:
                 context={},
             )
 
+    def test_deserialize_datetime_with_template_string(self):
+        """Test that _deserialize_datetime handles template strings correctly."""
+        from airflow.providers.standard.operators.trigger_dagrun import TriggerDagRunOperator
+        from airflow.serialization.serialized_objects import DagSerialization
+
+        # Create a DAG with a mapped operator that has a template string for logical_date
+        with DAG(DAG_ID, start_date=DEFAULT_DATE) as dag:
+            TriggerDagRunOperator.partial(
+                task_id="test_trigger",
+                logical_date="{{ ts_nodash_with_tz }}",  # Template string
+                pool="default_pool",
+            ).expand(trigger_dag_id=["dag1", "dag2"])
+
+        # Serialize the DAG
+        serialized_dag = DagSerialization.serialize_dag(dag)
+
+        # Deserialize the DAG
+        deserialized_dag = DagSerialization.deserialize_dag(serialized_dag)
+
+        # Verify the operator was deserialized correctly
+        task = deserialized_dag.task_dict["test_trigger"]
+        assert task.partial_kwargs["logical_date"] == "{{ ts_nodash_with_tz }}"
+
+    def test_deserialize_datetime_with_timestamp(self):
+        """Test that _deserialize_datetime handles timestamp values correctly."""
+        from airflow.serialization.serialized_objects import BaseSerialization
+
+        # Test with a numeric timestamp
+        timestamp = 1234567890.0
+        result = BaseSerialization._deserialize_datetime(timestamp)
+
+        # Should return a datetime object
+        assert isinstance(result, datetime)
+        assert result.timestamp() == timestamp
+
 
 class TestKubernetesImportAvoidance:
     """Test that serialization doesn't import kubernetes unnecessarily."""

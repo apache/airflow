@@ -62,6 +62,8 @@ Task Decorators:
 
 Bases
 -----
+.. autoapiclass:: airflow.sdk.BaseAsyncOperator
+
 .. autoapiclass:: airflow.sdk.BaseOperator
 
 .. autoapiclass:: airflow.sdk.BaseSensorOperator
@@ -162,6 +164,13 @@ Execution Time Components
 
 .. autoapiclass:: airflow.sdk.Context
 
+The ``Context`` object represents the execution-time context available to tasks.
+It corresponds to the same context that is exposed to Jinja templates during task execution.
+
+For a complete list of available context variables (such as ``dag_run``,
+``task_instance``, ``logical_date``, etc.), see the
+:ref:`Templates reference <templates-ref>`.
+
 .. rubric:: Logging
 
 .. autofunction:: airflow.sdk.log.mask_secret
@@ -176,7 +185,7 @@ Everything else
 .. autoapimodule:: airflow.sdk
   :members:
   :special-members: __version__
-  :exclude-members: BaseOperator, DAG, dag, asset, Asset, AssetAlias, AssetAll, AssetAny, AssetWatcher, TaskGroup, XComArg, get_current_context, get_parsing_context
+  :exclude-members: BaseAsyncOperator, BaseOperator, DAG, dag, asset, Asset, AssetAlias, AssetAll, AssetAny, AssetWatcher, TaskGroup, XComArg, get_current_context, get_parsing_context
   :undoc-members:
   :imported-members:
   :no-index:

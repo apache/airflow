@@ -28,7 +28,6 @@ import {
   Box,
 } from "@chakra-ui/react";
 import type { ColumnDef } from "@tanstack/react-table";
-import { useCallback, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { Link as RouterLink, useSearchParams } from "react-router-dom";
 import { useLocalStorage } from "usehooks-ts";
@@ -46,7 +45,7 @@ import { NeedsReviewBadge } from "src/components/NeedsReviewBadge";
 import { SearchBar } from "src/components/SearchBar";
 import { TogglePause } from "src/components/TogglePause";
 import TriggerDAGButton from "src/components/TriggerDag/TriggerDAGButton";
-import { SearchParamsKeys } from "src/constants/searchParams";
+import { SearchParamsKeys, type SearchParamsKeysType } from "src/constants/searchParams";
 import { DagsLayout } from "src/layouts/DagsLayout";
 import { useConfig } from "src/queries/useConfig";
 import { useDags } from "src/queries/useDags";
@@ -182,8 +181,17 @@ const createColumns = (
   },
 ];
 
-const { FAVORITE, LAST_DAG_RUN_STATE, NAME_PATTERN, NEEDS_REVIEW, OWNERS, PAUSED, TAGS, TAGS_MATCH_MODE } =
-  SearchParamsKeys;
+const {
+  FAVORITE,
+  LAST_DAG_RUN_STATE,
+  NAME_PATTERN,
+  NEEDS_REVIEW,
+  OFFSET,
+  OWNERS,
+  PAUSED,
+  TAGS,
+  TAGS_MATCH_MODE,
+}: SearchParamsKeysType = SearchParamsKeys;
 
 const cardDef: CardDef<DAGWithLatestDagRunsResponse> = {
   card: ({ row }) => <DagCard dag={row} />,
@@ -220,7 +228,7 @@ export const DagsList = () => {
   const [sort] = sorting;
   const orderBy = sort ? `${sort.desc ? "-" : ""}${sort.id}` : "dag_display_name";
 
-  const columns = useMemo(() => createColumns(translate), [translate]);
+  const columns = createColumns(translate);
 
   const handleSearchChange = (value: string) => {
     setTableURLState({
@@ -232,6 +240,7 @@ export const DagsList = () => {
     } else {
       searchParams.delete(NAME_PATTERN);
     }
+    searchParams.delete(OFFSET);
     setSearchParams(searchParams);
   };
 
@@ -274,18 +283,15 @@ export const DagsList = () => {
     tagsMatchMode: selectedMatchMode,
   });
 
-  const handleSortChange = useCallback(
-    ({ value }: SelectValueChangeDetails<Array<string>>) => {
-      setTableURLState({
-        pagination,
-        sorting: value.map((val) => ({
-          desc: val.startsWith("-"),
-          id: val.replace("-", ""),
-        })),
-      });
-    },
-    [pagination, setTableURLState],
-  );
+  const handleSortChange = ({ value }: SelectValueChangeDetails<Array<string>>) => {
+    setTableURLState({
+      pagination,
+      sorting: value.map((val) => ({
+        desc: val.startsWith("-"),
+        id: val.replace("-", ""),
+      })),
+    });
+  };
 
   return (
     <DagsLayout>
