@@ -873,6 +873,7 @@ workers:
     containerLifecycleHooks: {}
 
   # Kerberos init container configuration for Airflow Celery workers and pods created with pod-template-file
+  # (deprecated, use `workers.celery.kerberosInitContainer` instead)
   kerberosInitContainer:
     # Enable kerberos init container
     enabled: false
@@ -1160,6 +1161,25 @@ workers:
       # Detailed default security context for persistence on container level
       securityContexts:
         container: {}
+
+    # Kerberos init container configuration for Airflow Celery workers
+    kerberosInitContainer:
+      # Enable kerberos init container
+      enabled: false
+      resources: {}
+      #  limits:
+      #   cpu: 100m
+      #   memory: 128Mi
+      #  requests:
+      #   cpu: 100m
+      #   memory: 128Mi
+
+      # Detailed default security context for kerberos init container on container level
+      securityContexts:
+        container: {}
+
+      # Container level lifecycle hooks
+      containerLifecycleHooks: {}
 
   kubernetes:
     # Command to use in pod-template-file (templated)
