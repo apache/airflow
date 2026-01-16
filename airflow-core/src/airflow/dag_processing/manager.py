@@ -21,6 +21,7 @@ from __future__ import annotations
 
 import contextlib
 import functools
+import gc
 import inspect
 import logging
 import os
@@ -283,6 +284,9 @@ class DagFileProcessorManager(LoggingMixin):
             )
 
         self._symlink_latest_log_directory()
+
+        # To prevent COW in forked process parsing dag file
+        gc.freeze()
 
         return self._run_parsing_loop()
 
