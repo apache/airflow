@@ -125,7 +125,7 @@ class WinRMOperator(BaseOperator):
             shell_id, command_id = result
             return self.defer(
                 trigger=WinRMCommandOutputTrigger(
-                    ssh_conn_id=self.ssh_conn_id,
+                    ssh_conn_id=self.hook.ssh_conn_id,
                     shell_id=shell_id,
                     command_id=command_id,
                     output_encoding=self.output_encoding,
