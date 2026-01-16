@@ -123,7 +123,7 @@ class WinRMCommandOutputTrigger(BaseTrigger):
             try:
                 if self.is_expired:
                     raise TimeoutError(
-                        f"Command {self.command_id} did not finish within {self.timeout.total_seconds()} seconds!"
+                        f"Command {self.command_id} did not finish within {self.timeout} seconds!"
                     )
 
                 with suppress(WinRMOperationTimeoutError):
