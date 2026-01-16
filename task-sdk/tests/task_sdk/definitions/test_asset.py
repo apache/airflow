@@ -192,6 +192,19 @@ def test_not_equal_when_different_uri():
     assert asset1 != asset2
 
 
+def test_hash_for_same_uri():
+    asset1 = Asset(uri="s3://example/asset")
+    asset2 = Asset(uri="s3://example/asset")
+
+    assert hash(asset1) == hash(asset2)
+
+
+def test_hash_for_different_uri():
+    asset1 = Asset(uri="s3://bucket1/data1")
+    asset2 = Asset(uri="s3://bucket2/data2")
+    assert hash(asset1) != hash(asset2)
+
+
 asset1 = Asset(uri="s3://bucket1/data1", name="asset-1")
 asset2 = Asset(uri="s3://bucket2/data2", name="asset-2")
 asset3 = Asset(uri="s3://bucket3/data3", name="asset-3")
