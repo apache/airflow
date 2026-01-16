@@ -28,9 +28,7 @@ from typing import TYPE_CHECKING, Any
 from airflow.providers.common.compat.sdk import AirflowException, BaseOperator, conf
 from airflow.providers.microsoft.winrm.hooks.winrm import WinRMHook
 
-from providers.microsoft.winrm.src.airflow.providers.microsoft.winrm.triggers.winrm import (
-    WinRMCommandOutputTrigger,
-)
+from airflow.providers.microsoft.winrm.triggers.winrm import WinRMCommandOutputTrigger
 
 if TYPE_CHECKING:
     from airflow.sdk import Context
