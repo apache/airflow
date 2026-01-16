@@ -23,7 +23,7 @@ from unittest import mock
 import pytest
 from botocore.waiter import Waiter
 
-from airflow.exceptions import AirflowProviderDeprecationWarning
+from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.providers.amazon.aws.hooks.eks import ClusterStates, EksHook
 from airflow.providers.amazon.aws.operators.eks import (
     EksCreateClusterOperator,
@@ -924,3 +924,103 @@ class TestEksPodOperator:
             credentials_file=mock_credentials_file,
         )
         assert op.config_file == mock_config_file
+
+    @mock.patch("airflow.providers.amazon.aws.hooks.eks.EksHook.get_session")
+    @mock.patch("airflow.providers.amazon.aws.hooks.eks.EksHook.__init__", return_value=None)
+    @mock.patch(
+        "airflow.providers.cncf.kubernetes.operators.pod.KubernetesPodOperator._refresh_cached_properties"
+    )
+    def test_refresh_cached_properties_refreshes_credentials(
+        self,
+        mock_super_refresh,
+        mock_eks_hook,
+        mock_get_session,
+        tmp_path,
+    ):
+        """Test that _refresh_cached_properties refreshes AWS credentials file."""
+        # Create a temporary credentials file
+        credentials_file = tmp_path / "test_creds.aws_creds"
+        credentials_file.write_text(
+            "export AWS_ACCESS_KEY_ID='old_key'\n"
+            "export AWS_SECRET_ACCESS_KEY='old_secret'\n"
+            "export AWS_SESSION_TOKEN='old_token'\n"
+        )
+
+        # Mock the credential chain for refresh
+        mock_session = mock.MagicMock()
+        mock_credentials = mock.MagicMock()
+        mock_frozen_credentials = mock.MagicMock()
+        mock_frozen_credentials.access_key = "new_access_key"
+        mock_frozen_credentials.secret_key = "new_secret_key"
+        mock_frozen_credentials.token = "new_token"
+
+        mock_get_session.return_value = mock_session
+        mock_session.get_credentials.return_value = mock_credentials
+        mock_credentials.get_frozen_credentials.return_value = mock_frozen_credentials
+
+        op = EksPodOperator(
+            task_id="run_pod",
+            pod_name="run_pod",
+            cluster_name=CLUSTER_NAME,
+            image="amazon/aws-cli:latest",
+            cmds=["sh", "-c", "ls"],
+            labels={"demo": "hello_world"},
+            get_logs=True,
+            on_finish_action="delete_pod",
+        )
+        # Set the credentials file path as it would be during execute()
+        op._credentials_file_path = str(credentials_file)
+
+        # Call the refresh method
+        op._refresh_cached_properties()
+
+        # Verify the credentials file was updated with new credentials
+        updated_content = credentials_file.read_text()
+        assert "new_access_key" in updated_content
+        assert "new_secret_key" in updated_content
+        assert "new_token" in updated_content
+        assert "old_key" not in updated_content
+
+        # Verify super()._refresh_cached_properties() was called
+        mock_super_refresh.assert_called_once()
+
+    @mock.patch("airflow.providers.amazon.aws.hooks.eks.EksHook.get_session")
+    @mock.patch("airflow.providers.amazon.aws.hooks.eks.EksHook.__init__", return_value=None)
+    @mock.patch(
+        "airflow.providers.cncf.kubernetes.operators.pod.KubernetesPodOperator._refresh_cached_properties"
+    )
+    def test_refresh_cached_properties_raises_when_no_credentials(
+        self,
+        mock_super_refresh,
+        mock_eks_hook,
+        mock_get_session,
+        tmp_path,
+    ):
+        """Test that _refresh_cached_properties raises when credentials cannot be retrieved."""
+        # Create a temporary credentials file
+        credentials_file = tmp_path / "test_creds.aws_creds"
+        credentials_file.write_text("export AWS_ACCESS_KEY_ID='old_key'\n")
+
+        # Mock the credential chain to return None (simulating expired/missing credentials)
+        mock_session = mock.MagicMock()
+        mock_get_session.return_value = mock_session
+        mock_session.get_credentials.return_value = None
+
+        op = EksPodOperator(
+            task_id="run_pod",
+            pod_name="run_pod",
+            cluster_name=CLUSTER_NAME,
+            image="amazon/aws-cli:latest",
+            cmds=["sh", "-c", "ls"],
+            labels={"demo": "hello_world"},
+            get_logs=True,
+            on_finish_action="delete_pod",
+        )
+        op._credentials_file_path = str(credentials_file)
+
+        # Call the refresh method and expect it to raise
+        with pytest.raises(AirflowException, match="Unable to retrieve fresh AWS credentials"):
+            op._refresh_cached_properties()
+
+        # Verify super()._refresh_cached_properties() was NOT called since we raised
+        mock_super_refresh.assert_not_called()
