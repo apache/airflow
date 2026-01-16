@@ -213,6 +213,7 @@ class SerializedBaseOperator(DAGNode):
                 "pool_slots",
                 "priority_weight",
                 "queue",
+                "render_template_as_native_obj",
                 "resources",
                 "retries",
                 "retry_delay",
