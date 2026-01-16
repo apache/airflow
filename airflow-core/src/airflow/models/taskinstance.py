@@ -85,6 +85,7 @@ from airflow.models.xcom import XCOM_RETURN_KEY, LazyXComSelectSequence, XComMod
 from airflow.settings import task_instance_mutation_hook
 from airflow.ti_deps.dep_context import DepContext
 from airflow.ti_deps.dependencies_deps import REQUEUEABLE_DEPS, RUNNING_DEPS
+from airflow.ti_deps.deps.ready_to_reschedule import ReadyToRescheduleDep
 from airflow.utils.helpers import prune_dict
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.net import get_hostname
@@ -888,6 +889,17 @@ class TaskInstance(Base, LoggingMixin):
         :param verbose: whether log details on failed dependencies on info or debug log level
         """
         dep_context = dep_context or DepContext()
+        if self.state == TaskInstanceState.UP_FOR_RESCHEDULE:
+            # This DepContext is used when a task instance is in UP_FOR_RESCHEDULE state.
+            #
+            # Tasks can be put into UP_FOR_RESCHEDULE by the task runner itself (e.g. when
+            # the worker cannot load the Dag or task). In this case, the scheduler must respect
+            # the task instance's reschedule_date before scheduling it again.
+            #
+            # ReadyToRescheduleDep is the only dependency that enforces this time-based gating.
+            # We therefore extend the normal scheduling dependency set with it, instead of
+            # modifying the global scheduler dependencies.
+            dep_context.deps.add(ReadyToRescheduleDep())
         failed = False
         verbose_aware_logger = self.log.info if verbose else self.log.debug
         for dep_status in self.get_failed_dep_statuses(dep_context=dep_context, session=session):
