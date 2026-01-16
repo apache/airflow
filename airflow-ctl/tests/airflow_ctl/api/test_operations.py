@@ -54,7 +54,7 @@ from airflowctl.api.datamodels.generated import (
     ConnectionBody,
     ConnectionCollectionResponse,
     ConnectionResponse,
-    ConnectionTestResponse,
+    ConnectionTestQueuedResponse,
     CreateAssetEventsBody,
     DAGCollectionResponse,
     DAGDetailsResponse,
@@ -626,9 +626,10 @@ class TestConnectionsOperations:
         assert response == self.connection_response
 
     def test_test(self):
-        connection_test_response = ConnectionTestResponse(
-            status=True,
-            message="message",
+        connection_test_response = ConnectionTestQueuedResponse(
+            request_id="test-request-id",
+            state="pending",
+            message="Connection test request queued for execution on a worker.",
         )
 
         def handle_request(request: httpx.Request) -> httpx.Response:

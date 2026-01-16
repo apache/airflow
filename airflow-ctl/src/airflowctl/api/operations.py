@@ -42,7 +42,7 @@ from airflowctl.api.datamodels.generated import (
     ConnectionBody,
     ConnectionCollectionResponse,
     ConnectionResponse,
-    ConnectionTestResponse,
+    ConnectionTestQueuedResponse,
     CreateAssetEventsBody,
     DAGCollectionResponse,
     DAGDetailsResponse,
@@ -439,11 +439,11 @@ class ConnectionsOperations(BaseOperations):
     def test(
         self,
         connection: ConnectionBody,
-    ) -> ConnectionTestResponse | ServerResponseError:
-        """Test a connection."""
+    ) -> ConnectionTestQueuedResponse | ServerResponseError:
+        """Queue a connection test for async execution on a worker."""
         try:
             self.response = self.client.post("connections/test", json=connection.model_dump(mode="json"))
-            return ConnectionTestResponse.model_validate_json(self.response.content)
+            return ConnectionTestQueuedResponse.model_validate_json(self.response.content)
         except ServerResponseError as e:
             raise e
 
