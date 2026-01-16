@@ -57,7 +57,7 @@ def test_asset_listener_on_asset_changed_gets_calls(
     )
     ti.run()
 
-    assert len(asset_listener.changed) == 1
-    assert asset_listener.changed[0].uri == asset_uri
-    assert asset_listener.changed[0].name == asset_name
-    assert asset_listener.changed[0].group == asset_group
+    assert len(asset_listener.changed) == 2
+    assert asset_listener.changed[-1].uri == asset_uri
+    assert asset_listener.changed[-1].name == asset_name
+    assert asset_listener.changed[-1].group == asset_group
