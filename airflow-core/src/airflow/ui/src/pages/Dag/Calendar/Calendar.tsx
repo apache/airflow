@@ -153,6 +153,7 @@ export const Calendar = () => {
                     ? "default"
                     : "pointer"
                 }
+                data-testid="calendar-header-date"
                 fontSize="xl"
                 fontWeight="bold"
                 minWidth="120px"
@@ -164,7 +165,6 @@ export const Calendar = () => {
                   }
                 }}
                 textAlign="center"
-                data-testid="calendar-header-date"
               >
                 {selectedDate.format("MMM YYYY")}
               </Text>

@@ -31,6 +31,12 @@ export class DagCalendarPage extends BasePage {
         this.monthYearHeader = page.getByTestId("calendar-header-date");
     }
 
+    public async clickDay(date: string): Promise<void> {
+        const cell = this.page.locator(`[data-testid="calendar-cell"][data-date="${date}"]`);
+
+        await cell.click();
+    }
+
     public async navigateToCalendar(dagId: string): Promise<void> {
         await this.page.goto(`/dags/${dagId}/calendar`);
         await this.page.waitForLoadState("networkidle");
@@ -45,20 +51,18 @@ export class DagCalendarPage extends BasePage {
 
     public async verifyDayRun(date: string, status: "failed" | "running" | "success"): Promise<void> {
         const cell = this.page.locator(`[data-testid="calendar-cell"][data-date="${date}"]`);
+
         await expect(cell).toBeVisible();
 
         await cell.hover();
         const tooltip = this.page.getByRole("tooltip");
+
         await expect(tooltip).toBeVisible();
 
         await expect(tooltip).toContainText(date);
 
         const statusText = status.charAt(0).toUpperCase() + status.slice(1);
-        await expect(tooltip).toContainText(statusText);
-    }
 
-    public async clickDay(date: string): Promise<void> {
-        const cell = this.page.locator(`[data-testid="calendar-cell"][data-date="${date}"]`);
-        await cell.click();
+        await expect(tooltip).toContainText(statusText);
     }
 }
