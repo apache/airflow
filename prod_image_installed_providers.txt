@@ -12,6 +12,7 @@ ftp
 google
 grpc
 hashicorp
+hbase
 http
 imap
 microsoft.azure
