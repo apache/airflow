@@ -1528,7 +1528,8 @@ my_postgres_conn:
             start_date=six_hours_ago_to_the_hour,
             catchup=False,
         )
-        next_date, _ = dag1.next_dagrun_info(last_automated_run_info=None)
+        info = dag1.next_dagrun_info(last_automated_run_info=None)
+        next_date = info.run_after
         # The DR should be scheduled in the last half an hour, not 6 hours ago
         assert next_date > half_an_hour_ago
         assert next_date < timezone.utcnow()
@@ -1554,7 +1555,8 @@ my_postgres_conn:
             catchup=False,
         )
 
-        next_date, _ = dag3.next_dagrun_info(last_automated_run_info=None)
+        info = dag3.next_dagrun_info(last_automated_run_info=None)
+        next_date = info.run_after
         # The DR should be scheduled in the last 2 hours, not 6 hours ago
         assert next_date == six_hours_ago_to_the_hour
 
@@ -2746,8 +2748,8 @@ def test_iter_dagrun_infos_between_error(caplog):
     end = pendulum.instance(DEFAULT_DATE)
 
     class FailingAfterOneTimetable(Timetable):
-        def next_dagrun_info(self, last_automated_run_info, restriction):
-            if last_automated_run_info is None:
+        def next_dagrun_info(self, last_automated_data_interval: DataInterval | None, restriction):
+            if last_automated_data_interval is None:
                 return DagRunInfo.interval(start, end)
             raise RuntimeError("this fails")
 
