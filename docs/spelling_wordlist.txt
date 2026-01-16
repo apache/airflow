@@ -593,6 +593,7 @@ dynload
 ec
 ecb
 ECR
+ecr
 ecs
 EdDSA
 edgeexecutor
@@ -1228,6 +1229,7 @@ Nodegroups
 nodegroups
 nodeName
 nodeSelector
+nohup
 Nones
 nonnegative
 nonterminal

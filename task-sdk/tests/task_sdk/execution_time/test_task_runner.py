@@ -196,9 +196,9 @@ def test_parse(test_dags_dir: Path, make_ti_context):
     assert ti.task.dag
 
 
-@mock.patch("airflow.dag_processing.dagbag.DagBag")
+@mock.patch("airflow.dag_processing.dagbag.BundleDagBag")
 def test_parse_dag_bag(mock_dagbag, test_dags_dir: Path, make_ti_context):
-    """Test that checks that the dagbag is constructed as expected during parsing"""
+    """Test that checks that the BundleDagBag is constructed as expected during parsing"""
     mock_bag_instance = mock.Mock()
     mock_dagbag.return_value = mock_bag_instance
     mock_dag = mock.Mock(spec=DAG)
@@ -241,9 +241,9 @@ def test_parse_dag_bag(mock_dagbag, test_dags_dir: Path, make_ti_context):
 
     mock_dagbag.assert_called_once_with(
         dag_folder=mock.ANY,
-        include_examples=False,
         safe_mode=False,
         load_op_links=False,
+        bundle_path=test_dags_dir,
         bundle_name="my-bundle",
     )
 
@@ -355,6 +355,56 @@ def test_parse_module_in_bundle_root(tmp_path: Path, make_ti_context):
         ti = parse(what, mock.Mock())
 
     assert ti.task.dag.dag_id == "dag_name"
+
+
+def test_verify_bundle_access_raises_when_not_accessible(tmp_path: Path, make_ti_context):
+    """Test that _verify_bundle_access raises AirflowException when bundle path is not accessible."""
+    from airflow.sdk.execution_time.task_runner import _verify_bundle_access
+
+    # Create a directory that exists
+    bundle_path = tmp_path / "test_bundle"
+    bundle_path.mkdir()
+
+    # Create a mock bundle instance
+    mock_bundle = mock.Mock()
+    mock_bundle.path = bundle_path
+    mock_bundle.name = "test-bundle"
+
+    # Mock os.access to simulate permission denied (avoids root user issues in CI)
+    with patch("airflow.sdk.execution_time.task_runner.os.access", return_value=False):
+        with pytest.raises(AirflowException) as exc_info:
+            _verify_bundle_access(mock_bundle, mock.Mock())
+
+        assert "not accessible" in str(exc_info.value)
+        assert "test-bundle" in str(exc_info.value)
+
+
+def test_verify_bundle_access_succeeds_when_readable(tmp_path: Path, make_ti_context):
+    """Test that _verify_bundle_access succeeds when bundle path is accessible."""
+    from airflow.sdk.execution_time.task_runner import _verify_bundle_access
+
+    # Create a directory with read permissions
+    bundle_path = tmp_path / "accessible_bundle"
+    bundle_path.mkdir()
+
+    mock_bundle = mock.Mock()
+    mock_bundle.path = bundle_path
+    mock_bundle.name = "test-bundle"
+
+    # Should not raise
+    _verify_bundle_access(mock_bundle, mock.Mock())
+
+
+def test_verify_bundle_access_skips_nonexistent_path(tmp_path: Path):
+    """Test that _verify_bundle_access does nothing when bundle path doesn't exist."""
+    from airflow.sdk.execution_time.task_runner import _verify_bundle_access
+
+    mock_bundle = mock.Mock()
+    mock_bundle.path = tmp_path / "nonexistent"
+    mock_bundle.name = "test-bundle"
+
+    # Should not raise - nonexistent paths are handled by initialize()
+    _verify_bundle_access(mock_bundle, mock.Mock())
 
 
 @pytest.mark.parametrize("use_queues", [False, True])

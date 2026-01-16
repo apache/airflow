@@ -42,6 +42,7 @@ def get_provider_info():
                     "airflow.providers.apache.spark.operators.spark_jdbc",
                     "airflow.providers.apache.spark.operators.spark_sql",
                     "airflow.providers.apache.spark.operators.spark_submit",
+                    "airflow.providers.apache.spark.operators.spark_pyspark",
                 ],
             }
         ],

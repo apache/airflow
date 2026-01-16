@@ -22,10 +22,13 @@ import { useTranslation } from "react-i18next";
 import { FiSave } from "react-icons/fi";
 
 import { ErrorAlert } from "src/components/ErrorAlert";
+import { TeamSelector } from "src/components/TeamSelector.tsx";
+import { useConfig } from "src/queries/useConfig.tsx";
 
 export type VariableBody = {
   description: string | undefined;
   key: string;
+  team_name: string;
   value: string;
 };
 
@@ -58,6 +61,7 @@ const VariableForm = ({ error, initialVariable, isPending, manageMutate, setErro
     defaultValues: initialVariable,
     mode: "onChange",
   });
+  const multiTeamEnabled = Boolean(useConfig("multi_team"));
 
   const onSubmit = (data: VariableBody) => {
     manageMutate(data);
@@ -125,6 +129,8 @@ const VariableForm = ({ error, initialVariable, isPending, manageMutate, setErro
           </Field.Root>
         )}
       />
+
+      {multiTeamEnabled ? <TeamSelector control={control} /> : undefined}
 
       <ErrorAlert error={error} />
 

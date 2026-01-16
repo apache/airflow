@@ -204,6 +204,14 @@ DEPRECATION WARNING:
 
 {{- end }}
 
+{{- if not (empty .Values.workers.kerberosInitContainer) }}
+
+ DEPRECATION WARNING:
+    `workers.kerberosInitContainer` has been renamed to `workers.celery.kerberosInitContainer`.
+    Please change your values as support for the old name will be dropped in a future release.
+
+{{- end }}
+
 {{- if ne (.Values.workers.args | toJson) (list "bash" "-c" "exec \\\nairflow {{ semverCompare \">=2.0.0\" .Values.airflowVersion | ternary \"celery worker\" \"worker\" }}" | toJson) }}
 
  DEPRECATION WARNING:
@@ -312,6 +320,30 @@ DEPRECATION WARNING:
 
  DEPRECATION WARNING:
     `workers.persistence.securityContexts` has been renamed to `workers.celery.persistence.securityContexts`.
+    Please change your values as support for the old name will be dropped in a future release.
+
+{{- end }}
+
+{{- if not (empty .Values.workers.updateStrategy) }}
+
+ DEPRECATION WARNING:
+    `workers.updateStrategy` has been renamed to `workers.celery.updateStrategy`.
+    Please change your values as support for the old name will be dropped in a future release.
+
+{{- end }}
+
+{{- if ne (toJson .Values.workers.strategy | quote) (toJson "{\"rollingUpdate\":{\"maxSurge\":\"100%\",\"maxUnavailable\":\"50%\"}}") }}
+
+ DEPRECATION WARNING:
+    `workers.strategy` has been renamed to `workers.celery.strategy`.
+    Please change your values as support for the old name will be dropped in a future release.
+
+{{- end }}
+
+{{- if not (empty .Values.workers.podManagementPolicy) }}
+
+ DEPRECATION WARNING:
+    `workers.podManagementPolicy` has been renamed to `workers.celery.podManagementPolicy`.
     Please change your values as support for the old name will be dropped in a future release.
 
 {{- end }}
