@@ -1,0 +1,1 @@
+Expose ``dagProcessor.podDisruptionBudget`` settings so the DAG Processor can be protected with a configurable PodDisruptionBudget, matching the other components.

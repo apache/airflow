@@ -969,6 +969,67 @@ class TestWorker:
             assert initContainers[1]["args"] == ["kerberos", "-o"]
 
     @pytest.mark.parametrize(
+        "workers_values",
+        [
+            {"kerberosInitContainer": {"enabled": True}},
+            {"celery": {"kerberosInitContainer": {"enabled": True}}},
+            {
+                "kerberosInitContainer": {"enabled": False},
+                "celery": {"kerberosInitContainer": {"enabled": True}},
+            },
+        ],
+    )
+    def test_airflow_kerberos_init_container_celery_values(self, workers_values):
+        """Test that workers.celery.kerberosInitContainer configuration works and takes precedence."""
+        docs = render_chart(
+            values={
+                "airflowVersion": "2.8.0",
+                "workers": {
+                    **workers_values,
+                    "celery": {
+                        **workers_values.get("celery", {}),
+                        "persistence": {"fixPermissions": True},
+                    },
+                },
+            },
+            show_only=["templates/workers/worker-deployment.yaml"],
+        )
+
+        initContainers = jmespath.search("spec.template.spec.initContainers", docs[0])
+        # Should have 3 init containers: wait-for-migrations, kerberos-init, volume-permissions
+        assert len(initContainers) == 3
+        assert initContainers[1]["name"] == "kerberos-init"
+        assert initContainers[1]["args"] == ["kerberos", "-o"]
+
+    def test_airflow_kerberos_init_container_resources(self):
+        """Test that kerberos init container resources can be configured via workers.celery.kerberosInitContainer."""
+        docs = render_chart(
+            values={
+                "airflowVersion": "2.8.0",
+                "workers": {
+                    "celery": {
+                        "kerberosInitContainer": {
+                            "enabled": True,
+                            "resources": {
+                                "limits": {"cpu": "100m", "memory": "128Mi"},
+                                "requests": {"cpu": "50m", "memory": "64Mi"},
+                            },
+                        },
+                    },
+                },
+            },
+            show_only=["templates/workers/worker-deployment.yaml"],
+        )
+
+        initContainers = jmespath.search("spec.template.spec.initContainers", docs[0])
+        kerberos_init = next((c for c in initContainers if c["name"] == "kerberos-init"), None)
+        assert kerberos_init is not None
+        assert kerberos_init["resources"]["limits"]["cpu"] == "100m"
+        assert kerberos_init["resources"]["limits"]["memory"] == "128Mi"
+        assert kerberos_init["resources"]["requests"]["cpu"] == "50m"
+        assert kerberos_init["resources"]["requests"]["memory"] == "64Mi"
+
+    @pytest.mark.parametrize(
         ("airflow_version", "expected_arg"),
         [
             ("1.10.14", "airflow worker"),

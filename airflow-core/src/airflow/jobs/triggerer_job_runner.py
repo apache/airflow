@@ -789,8 +789,6 @@ class TriggerCommsDecoder(CommsDecoder[ToTriggerRunner, ToTriggerSupervisor]):
         factory=lambda: TypeAdapter(ToTriggerRunner), repr=False
     )
 
-    _lock: asyncio.Lock = attrs.field(factory=asyncio.Lock, repr=False)
-
     def _read_frame(self):
         from asgiref.sync import async_to_sync
 
@@ -825,7 +823,7 @@ class TriggerCommsDecoder(CommsDecoder[ToTriggerRunner, ToTriggerSupervisor]):
         frame = _RequestFrame(id=next(self.id_counter), body=msg.model_dump())
         bytes = frame.as_bytes()
 
-        async with self._lock:
+        async with self._async_lock:
             self._async_writer.write(bytes)
 
             return await self._aget_response(frame.id)
