@@ -729,7 +729,7 @@ class TestSerializedBaseOperator:
     def test_deserialize_datetime_with_template_string(self):
         """Test that _deserialize_datetime handles template strings correctly."""
         from airflow.providers.standard.operators.trigger_dagrun import TriggerDagRunOperator
-        from airflow.serialization.serialized_objects import DagSerialization
+        from airflow.serialization.serialized_objects import SerializedDAG
 
         # Create a DAG with a mapped operator that has a template string for logical_date
         with DAG(DAG_ID, start_date=DEFAULT_DATE) as dag:
@@ -740,10 +740,10 @@ class TestSerializedBaseOperator:
             ).expand(trigger_dag_id=["dag1", "dag2"])
 
         # Serialize the DAG
-        serialized_dag = DagSerialization.serialize_dag(dag)
+        serialized_dag = SerializedDAG.serialize_dag(dag)
 
         # Deserialize the DAG
-        deserialized_dag = DagSerialization.deserialize_dag(serialized_dag)
+        deserialized_dag = SerializedDAG.deserialize_dag(serialized_dag)
 
         # Verify the operator was deserialized correctly
         task = deserialized_dag.task_dict["test_trigger"]
