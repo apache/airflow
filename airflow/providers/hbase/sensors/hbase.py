@@ -92,6 +92,12 @@ class HBaseRowCountSensor(BaseSensorOperator):
     """
     Sensor to check if table has expected number of rows.
 
+    .. warning::
+        This sensor performs a table scan which can be slow and resource-intensive
+        for large tables. It scans up to ``expected_count + 1`` rows on each poke.
+        For tables with millions of rows, consider alternative approaches such as
+        maintaining row counts in metadata or using HBase coprocessors.
+
     :param table_name: Name of the table to check.
     :param expected_count: Expected number of rows.
     :param hbase_conn_id: The connection ID to use for HBase connection.
