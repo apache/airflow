@@ -440,7 +440,7 @@ class CronPartitionTimetable(CronTriggerTimetable):
             "key_format": self._key_format,
         }
 
-    def get_partition_date(self, *, run_date):
+    def get_partition_date(self, *, run_date) -> DateTime:
         if self._run_offset == 0:
             return run_date
         # we will need to apply offset to determine run date
@@ -496,12 +496,12 @@ class CronPartitionTimetable(CronTriggerTimetable):
             data_interval=None,
         )
 
-    def get_partition_info(self, run_date):
+    def get_partition_info(self, run_date) -> tuple[DateTime, str]:
         partition_date = self.get_partition_date(run_date=run_date)
         partition_key = self._format_key(partition_date)
         return partition_date, partition_key
 
-    def _format_key(self, partition_date: DateTime):
+    def _format_key(self, partition_date: DateTime) -> str:
         return partition_date.strftime(self._key_format)
 
     def generate_run_id(
@@ -512,10 +512,9 @@ class CronPartitionTimetable(CronTriggerTimetable):
         data_interval: DataInterval | None,
         **extra,
     ) -> str:
-        partition_key = extra.get("partition_key")
         components = [
             run_after.isoformat(),
-            partition_key,
+            extra.get("partition_key"),
             get_random_string(),
         ]
         return run_type.generate_run_id(suffix="__".join(components))
