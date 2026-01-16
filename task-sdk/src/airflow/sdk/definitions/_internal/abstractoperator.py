@@ -260,9 +260,12 @@ class AbstractOperator(Templater, DAGNode):
         if render_op_template_as_native_obj is not None:
             if dag:
                 # Use dag's template settings (searchpath, macros, filters, etc.)
+                searchpath = [dag.folder]
+                if dag.template_searchpath:
+                    searchpath += dag.template_searchpath
                 return create_template_env(
                     native=render_op_template_as_native_obj,
-                    searchpath=[dag.folder] + (dag.template_searchpath or []),
+                    searchpath=searchpath,
                     template_undefined=dag.template_undefined,
                     jinja_environment_kwargs=dag.jinja_environment_kwargs,
                     user_defined_macros=dag.user_defined_macros,
