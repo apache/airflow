@@ -135,6 +135,7 @@
         "title": "已觸發 Dag 執行"
       }
     },
+    "triggerAgainWithConfig": "使用此設定再次觸發",
     "unpause": "觸發時取消暫停 {{dagDisplayName}}"
   },
   "trimText": {
