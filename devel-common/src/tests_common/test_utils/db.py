@@ -339,6 +339,15 @@ def clear_db_callbacks():
             session.execute(delete(DbCallbackRequest))
 
 
+def clear_db_connection_tests():
+    """Clear all connection test requests from the database."""
+    with create_session() as session:
+        if AIRFLOW_V_3_2_PLUS:
+            from airflow.models.connection_test import ConnectionTestRequest
+
+            session.execute(delete(ConnectionTestRequest))
+
+
 def set_default_pool_slots(slots):
     with create_session() as session:
         default_pool = Pool.get_default_pool(session)

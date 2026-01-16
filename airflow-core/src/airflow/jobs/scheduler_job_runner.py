@@ -70,6 +70,7 @@ from airflow.models.asset import (
 )
 from airflow.models.backfill import Backfill
 from airflow.models.callback import Callback
+from airflow.models.connection_test import ConnectionTestRequest
 from airflow.models.dag import DagModel, get_next_data_interval
 from airflow.models.dag_version import DagVersion
 from airflow.models.dagbag import DBDagBag
@@ -885,6 +886,41 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         objects = (log_records.popleft() for _ in range(len(log_records)))
         session.bulk_save_objects(objects=objects, preserve_order=False)
 
+    def _dispatch_connection_tests(self, session: Session) -> int:
+        """Dispatch pending connection test requests to workers."""
+        if conf.get("core", "test_connection", fallback="Disabled").lower().strip() != "enabled":
+            return 0
+
+        pending_requests = ConnectionTestRequest.get_pending_requests(session, limit=10)
+        if not pending_requests:
+            return 0
+
+        dispatched = 0
+        for request in pending_requests:
+            try:
+                if self.job.executors:
+                    workload = workloads.TestConnection.make(
+                        request_id=request.id,
+                        encrypted_connection_uri=request.encrypted_connection_uri,
+                        conn_type=request.conn_type,
+                        timeout=request.timeout,
+                        generator=self.job.executors[0].jwt_generator,
+                    )
+                    request.mark_running(self.job.hostname or "scheduler")
+                    self.job.executors[0].queue_workload(workload, session=session)
+                    dispatched += 1
+                    self.log.info("Dispatched connection test %s to executor", request.id)
+                else:
+                    self.log.warning("No executors available to dispatch connection test %s", request.id)
+                    request.mark_failed("No executors available")
+            except Exception:
+                self.log.exception("Failed to dispatch connection test %s", request.id)
+                request.mark_failed("Failed to dispatch to executor")
+
+        session.commit()
+
+        return dispatched
+
     @staticmethod
     def _is_metrics_enabled():
         return any(
@@ -1556,6 +1592,9 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                         .options(selectinload(Deadline.callback), selectinload(Deadline.dagrun))
                     ):
                         deadline.handle_miss(session)
+
+                # Dispatch pending connection test requests to workers
+                self._dispatch_connection_tests(session)
 
                 # Heartbeat the scheduler periodically
                 perform_heartbeat(

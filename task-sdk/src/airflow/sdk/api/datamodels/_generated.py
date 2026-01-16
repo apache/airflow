@@ -78,6 +78,47 @@ class ConnectionResponse(BaseModel):
     extra: Annotated[str | None, Field(title="Extra")] = None
 
 
+class State(str, Enum):
+    SUCCESS = "success"
+    FAILED = "failed"
+
+
+class ConnectionTestResultPayload(BaseModel):
+    """
+    Payload for reporting connection test result.
+    """
+
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    state: Annotated[State, Field(title="State")]
+    result_status: Annotated[bool, Field(title="Result Status")]
+    result_message: Annotated[str, Field(title="Result Message")]
+
+
+class ConnectionTestRunningPayload(BaseModel):
+    """
+    Payload for marking a connection test as running.
+    """
+
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    state: Annotated[Literal["running"], Field(title="State")]
+    hostname: Annotated[str, Field(title="Hostname")]
+
+
+class ConnectionTestWorkload(BaseModel):
+    """
+    Workload data sent to worker for connection test execution.
+    """
+
+    request_id: Annotated[str, Field(title="Request Id")]
+    encrypted_connection_uri: Annotated[str, Field(title="Encrypted Connection Uri")]
+    conn_type: Annotated[str, Field(title="Conn Type")]
+    timeout: Annotated[int, Field(title="Timeout")]
+
+
 class DagRunAssetReference(BaseModel):
     """
     DagRun serializer for asset responses.
@@ -507,6 +548,14 @@ class AssetResponse(BaseModel):
     uri: Annotated[str, Field(title="Uri")]
     group: Annotated[str, Field(title="Group")]
     extra: Annotated[dict[str, JsonValue] | None, Field(title="Extra")] = None
+
+
+class ConnectionTestPendingResponse(BaseModel):
+    """
+    Response containing pending connection test requests for workers.
+    """
+
+    requests: Annotated[list[ConnectionTestWorkload], Field(title="Requests")]
 
 
 class HITLDetailRequest(BaseModel):

@@ -926,10 +926,11 @@ class DbtCloudHook(HttpHook):
         """
         return self._run_and_get_response(method="POST", endpoint=f"{account_id}/jobs/{job_id}/rerun/")
 
-    def test_connection(self) -> tuple[bool, str]:
+    @fallback_to_default_account
+    def test_connection(self, account_id: int | None = None) -> tuple[bool, str]:
         """Test dbt Cloud connection."""
         try:
-            self._run_and_get_response()
+            self._run_and_get_response(endpoint=f"{account_id}/")
             return True, "Successfully connected to dbt Cloud."
         except Exception as e:
             return False, str(e)

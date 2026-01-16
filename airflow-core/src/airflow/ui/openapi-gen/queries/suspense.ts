@@ -197,6 +197,19 @@ export const useBackfillServiceListBackfillsUiSuspense = <TData = Common.Backfil
   orderBy?: string[];
 } = {}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useSuspenseQuery<TData, TError>({ queryKey: Common.UseBackfillServiceListBackfillsUiKeyFn({ active, dagId, limit, offset, orderBy }, queryKey), queryFn: () => BackfillService.listBackfillsUi({ active, dagId, limit, offset, orderBy }) as TData, ...options });
 /**
+* Get Connection Test Status
+* Get the status of a connection test request.
+*
+* Poll this endpoint to check if a connection test has completed and retrieve the result.
+* @param data The data for the request.
+* @param data.requestId
+* @returns ConnectionTestStatusResponse Successful Response
+* @throws ApiError
+*/
+export const useConnectionServiceGetConnectionTestStatusSuspense = <TData = Common.ConnectionServiceGetConnectionTestStatusDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>({ requestId }: {
+  requestId: string;
+}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useSuspenseQuery<TData, TError>({ queryKey: Common.UseConnectionServiceGetConnectionTestStatusKeyFn({ requestId }, queryKey), queryFn: () => ConnectionService.getConnectionTestStatus({ requestId }) as TData, ...options });
+/**
 * Get Connection
 * Get a connection entry.
 * @param data The data for the request.

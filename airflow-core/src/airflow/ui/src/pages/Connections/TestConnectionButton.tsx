@@ -75,8 +75,7 @@ const TestConnectionButton = ({ connection }: Props) => {
       actionName={
         option === "Enabled" ? translate("connections.test") : translate("connections.testDisabled")
       }
-      disabled={option === "Disabled"}
-      display={option === "Hidden" ? "none" : "flex"}
+      display="flex"
       icon={icon}
       loading={isPending}
       onClick={() => {

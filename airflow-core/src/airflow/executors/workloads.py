@@ -34,7 +34,7 @@ if TYPE_CHECKING:
     from airflow.models.taskinstancekey import TaskInstanceKey
 
 
-__all__ = ["All", "ExecuteTask", "ExecuteCallback"]
+__all__ = ["All", "ExecuteTask", "ExecuteCallback", "RunTrigger", "TestConnection"]
 
 log = structlog.get_logger(__name__)
 
@@ -204,7 +204,48 @@ class RunTrigger(BaseModel):
     type: Literal["RunTrigger"] = Field(init=False, default="RunTrigger")
 
 
+class TestConnection(BaseWorkload):
+    """
+    Execute a connection test on a worker.
+
+    This workload tests connectivity to an external system by decrypting the
+    connection URI and calling the connection's test_connection() method.
+    The result is reported back to the API server.
+    """
+
+    request_id: str
+    """Unique identifier for this connection test request"""
+
+    encrypted_connection_uri: str
+    """Fernet-encrypted connection URI"""
+
+    conn_type: str
+    """Connection type (e.g., 'postgres', 'mysql')"""
+
+    timeout: int = 60
+    """Timeout in seconds for the connection test"""
+
+    type: Literal["TestConnection"] = Field(init=False, default="TestConnection")
+
+    @classmethod
+    def make(
+        cls,
+        request_id: str,
+        encrypted_connection_uri: str,
+        conn_type: str,
+        timeout: int = 60,
+        generator: JWTGenerator | None = None,
+    ) -> TestConnection:
+        return cls(
+            request_id=request_id,
+            encrypted_connection_uri=encrypted_connection_uri,
+            conn_type=conn_type,
+            timeout=timeout,
+            token=cls.generate_token(request_id, generator),
+        )
+
+
 All = Annotated[
-    ExecuteTask | RunTrigger,
+    ExecuteTask | ExecuteCallback | RunTrigger | TestConnection,
     Field(discriminator="type"),
 ]

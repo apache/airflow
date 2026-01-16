@@ -188,6 +188,7 @@ class BaseExecutor(LoggingMixin):
         self.parallelism: int = parallelism
         self.team_name: str | None = team_name
         self.queued_tasks: dict[TaskInstanceKey, workloads.ExecuteTask] = {}
+        self.queued_connection_tests: deque[workloads.TestConnection] = deque()
         self.running: set[TaskInstanceKey] = set()
         self.event_buffer: dict[TaskInstanceKey, EventBufferValueType] = {}
         self._task_event_logs: deque[Log] = deque()
@@ -226,10 +227,27 @@ class BaseExecutor(LoggingMixin):
         self._task_event_logs.append(Log(event=event, task_instance=ti_key, extra=extra))
 
     def queue_workload(self, workload: workloads.All, session: Session) -> None:
-        if not isinstance(workload, workloads.ExecuteTask):
+        if isinstance(workload, workloads.ExecuteTask):
+            ti = workload.ti
+            self.queued_tasks[ti.key] = workload
+        elif isinstance(workload, workloads.TestConnection):
+            # Queue connection test workloads separately
+            self._queue_connection_test(workload, session)
+        else:
             raise ValueError(f"Un-handled workload kind {type(workload).__name__!r} in {type(self).__name__}")
-        ti = workload.ti
-        self.queued_tasks[ti.key] = workload
+
+    def _queue_connection_test(self, workload: workloads.TestConnection, session: Session) -> None:
+        """
+        Queue a connection test workload for execution.
+
+        This method can be overridden by subclasses to provide executor-specific
+        handling of connection test workloads.
+
+        :param workload: The TestConnection workload to queue
+        :param session: SQLAlchemy session
+        """
+        # Add to the queue initialized in __init__
+        self.queued_connection_tests.append(workload)
 
     def _process_workloads(self, workloads: Sequence[workloads.All]) -> None:
         """
@@ -402,7 +420,10 @@ class BaseExecutor(LoggingMixin):
                     ti.context_carrier = carrier
 
                 workload_list.append(item)
-        if workload_list:
+
+        # Process workloads and connection tests
+        # Call _process_workloads if we have task workloads OR connection tests queued
+        if workload_list or self.queued_connection_tests:
             self._process_workloads(workload_list)
 
     # TODO: This should not be using `TaskInstanceState` here, this is just "did the process complete, or did

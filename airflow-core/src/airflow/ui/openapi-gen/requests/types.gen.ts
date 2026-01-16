@@ -496,11 +496,25 @@ export type ConnectionResponse = {
 };
 
 /**
- * Connection Test serializer for responses.
+ * Response when a connection test is queued for async execution.
  */
-export type ConnectionTestResponse = {
-    status: boolean;
+export type ConnectionTestQueuedResponse = {
+    request_id: string;
+    state: string;
     message: string;
+};
+
+/**
+ * Response with the full status of a connection test request.
+ */
+export type ConnectionTestStatusResponse = {
+    request_id: string;
+    state: string;
+    result_status: boolean | null;
+    result_message: string | null;
+    created_at: string;
+    started_at: string | null;
+    completed_at: string | null;
 };
 
 /**
@@ -2284,6 +2298,18 @@ export type ListBackfillsUiData = {
 
 export type ListBackfillsUiResponse = BackfillCollectionResponse;
 
+export type TestConnectionData = {
+    requestBody: ConnectionBody;
+};
+
+export type TestConnectionResponse = ConnectionTestQueuedResponse;
+
+export type GetConnectionTestStatusData = {
+    requestId: string;
+};
+
+export type GetConnectionTestStatusResponse = ConnectionTestStatusResponse;
+
 export type DeleteConnectionData = {
     connectionId: string;
 };
@@ -2330,12 +2356,6 @@ export type BulkConnectionsData = {
 };
 
 export type BulkConnectionsResponse = BulkResponse;
-
-export type TestConnectionData = {
-    requestBody: ConnectionBody;
-};
-
-export type TestConnectionResponse = ConnectionTestResponse;
 
 export type CreateDefaultConnectionsResponse = void;
 
@@ -4093,6 +4113,56 @@ export type $OpenApiTs = {
             };
         };
     };
+    '/api/v2/connections/test': {
+        post: {
+            req: TestConnectionData;
+            res: {
+                /**
+                 * Successful Response
+                 */
+                200: ConnectionTestQueuedResponse;
+                /**
+                 * Unauthorized
+                 */
+                401: HTTPExceptionResponse;
+                /**
+                 * Forbidden
+                 */
+                403: HTTPExceptionResponse;
+                /**
+                 * Validation Error
+                 */
+                422: HTTPValidationError;
+            };
+        };
+    };
+    '/api/v2/connections/test/{request_id}': {
+        get: {
+            req: GetConnectionTestStatusData;
+            res: {
+                /**
+                 * Successful Response
+                 */
+                200: ConnectionTestStatusResponse;
+                /**
+                 * Unauthorized
+                 */
+                401: HTTPExceptionResponse;
+                /**
+                 * Forbidden
+                 */
+                403: HTTPExceptionResponse;
+                /**
+                 * Not Found
+                 */
+                404: HTTPExceptionResponse;
+                /**
+                 * Validation Error
+                 */
+                422: HTTPValidationError;
+            };
+        };
+    };
     '/api/v2/connections/{connection_id}': {
         delete: {
             req: DeleteConnectionData;
@@ -4232,29 +4302,6 @@ export type $OpenApiTs = {
                  * Successful Response
                  */
                 200: BulkResponse;
-                /**
-                 * Unauthorized
-                 */
-                401: HTTPExceptionResponse;
-                /**
-                 * Forbidden
-                 */
-                403: HTTPExceptionResponse;
-                /**
-                 * Validation Error
-                 */
-                422: HTTPValidationError;
-            };
-        };
-    };
-    '/api/v2/connections/test': {
-        post: {
-            req: TestConnectionData;
-            res: {
-                /**
-                 * Successful Response
-                 */
-                200: ConnectionTestResponse;
                 /**
                  * Unauthorized
                  */

@@ -16,7 +16,7 @@
 # under the License.
 from __future__ import annotations
 
-import os
+import uuid
 from typing import Annotated
 
 from fastapi import Depends, HTTPException, Query, status
@@ -36,11 +36,14 @@ from airflow.api_fastapi.core_api.datamodels.common import (
     BulkBody,
     BulkResponse,
 )
+from airflow.api_fastapi.core_api.datamodels.connection_test import (
+    ConnectionTestQueuedResponse,
+    ConnectionTestStatusResponse,
+)
 from airflow.api_fastapi.core_api.datamodels.connections import (
     ConnectionBody,
     ConnectionCollectionResponse,
     ConnectionResponse,
-    ConnectionTestResponse,
 )
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
 from airflow.api_fastapi.core_api.security import (
@@ -55,11 +58,135 @@ from airflow.api_fastapi.core_api.services.public.connections import (
 from airflow.api_fastapi.logging.decorators import action_logging
 from airflow.configuration import conf
 from airflow.models import Connection
-from airflow.secrets.environment_variables import CONN_ENV_PREFIX
+from airflow.models.connection_test import ConnectionTestRequest
+from airflow.models.crypto import get_fernet
 from airflow.utils.db import create_default_connections as db_create_default_connections
 from airflow.utils.strings import get_random_string
 
 connections_router = AirflowRouter(tags=["Connection"], prefix="/connections")
+
+
+# NOTE: /test routes must be defined BEFORE /{connection_id} routes to avoid route conflicts
+@connections_router.post(
+    "/test",
+    dependencies=[Depends(requires_access_connection(method="POST")), Depends(action_logging())],
+    responses=create_openapi_http_exception_doc([status.HTTP_403_FORBIDDEN]),
+)
+def test_connection(
+    test_body: ConnectionBody,
+    session: SessionDep,
+) -> ConnectionTestQueuedResponse:
+    """
+    Queue a connection test for asynchronous execution on a worker.
+
+    This endpoint queues the connection test request for execution on a worker node,
+    which provides better security isolation (workers run in ephemeral environments)
+    and network accessibility (workers can reach external systems that API servers cannot).
+
+    Returns a request_id that can be used to poll for the test result via GET /connections/test/{request_id}.
+    """
+    if conf.get("core", "test_connection", fallback="Disabled").lower().strip() != "enabled":
+        raise HTTPException(
+            status.HTTP_403_FORBIDDEN,
+            "Testing connections is disabled in Airflow configuration. "
+            "Contact your deployment admin to enable it.",
+        )
+
+    # Create a transient connection to get its URI
+    transient_conn_id = get_random_string()
+
+    # Check if we're testing an existing connection (connection_id provided)
+    # In this case, we need to merge masked fields (password, extra) with stored values
+    if test_body.connection_id:
+        existing_conn = session.scalar(select(Connection).filter_by(conn_id=test_body.connection_id))
+        if existing_conn:
+            # Create a copy of the existing connection for testing
+            # This merges request data with stored credentials (handles masked passwords)
+            conn = Connection(
+                conn_id=transient_conn_id,
+                conn_type=existing_conn.conn_type,
+                description=existing_conn.description,
+                host=existing_conn.host,
+                schema=existing_conn.schema,
+                login=existing_conn.login,
+                port=existing_conn.port,
+            )
+            # Copy password and extra (these are encrypted in db)
+            conn.set_password(existing_conn.password)
+            conn.set_extra(existing_conn.extra)
+            # Now apply updates from request body, merging masked fields
+            update_orm_from_pydantic(conn, test_body)
+        else:
+            # Connection ID provided but not found - use request body as-is
+            data = test_body.model_dump(by_alias=True)
+            data["conn_id"] = transient_conn_id
+            conn = Connection(**data)
+    else:
+        # New connection test - use request body directly
+        data = test_body.model_dump(by_alias=True)
+        data["conn_id"] = transient_conn_id
+        conn = Connection(**data)
+
+    # Encrypt the connection URI for secure storage
+    fernet = get_fernet()
+    connection_uri = conn.get_uri()
+    encrypted_uri = fernet.encrypt(connection_uri.encode("utf-8")).decode("utf-8")
+
+    # Create the test request
+    test_request = ConnectionTestRequest.create_request(
+        encrypted_connection_uri=encrypted_uri,
+        conn_type=test_body.conn_type,
+        session=session,
+    )
+    session.commit()
+
+    return ConnectionTestQueuedResponse(
+        request_id=str(test_request.id),
+        state=test_request.state,
+        message="Connection test request queued for execution on a worker.",
+    )
+
+
+@connections_router.get(
+    "/test/{request_id}",
+    dependencies=[Depends(requires_access_connection(method="GET"))],
+    responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND]),
+)
+def get_connection_test_status(
+    request_id: str,
+    session: SessionDep,
+) -> ConnectionTestStatusResponse:
+    """
+    Get the status of a connection test request.
+
+    Poll this endpoint to check if a connection test has completed and retrieve the result.
+    """
+    # Validate that request_id is a valid UUID format
+    try:
+        uuid.UUID(request_id)
+    except (ValueError, TypeError):
+        raise HTTPException(
+            status.HTTP_404_NOT_FOUND,
+            f"Connection test request with id `{request_id}` was not found.",
+        )
+
+    test_request = session.scalar(select(ConnectionTestRequest).where(ConnectionTestRequest.id == request_id))
+
+    if test_request is None:
+        raise HTTPException(
+            status.HTTP_404_NOT_FOUND,
+            f"Connection test request with id `{request_id}` was not found.",
+        )
+
+    return ConnectionTestStatusResponse(
+        request_id=str(test_request.id),
+        state=test_request.state,
+        result_status=test_request.result_status,
+        result_message=test_request.result_message,
+        created_at=test_request.created_at,
+        started_at=test_request.started_at,
+        completed_at=test_request.completed_at,
+    )
 
 
 @connections_router.delete(
@@ -209,37 +336,6 @@ def patch_connection(
 
     update_orm_from_pydantic(connection, patch_body, update_mask)
     return connection
-
-
-@connections_router.post("/test", dependencies=[Depends(requires_access_connection(method="POST"))])
-def test_connection(
-    test_body: ConnectionBody,
-) -> ConnectionTestResponse:
-    """
-    Test an API connection.
-
-    This method first creates an in-memory transient conn_id & exports that to an env var,
-    as some hook classes tries to find out the `conn` from their __init__ method & errors out if not found.
-    It also deletes the conn id env connection after the test.
-    """
-    if conf.get("core", "test_connection", fallback="Disabled").lower().strip() != "enabled":
-        raise HTTPException(
-            status.HTTP_403_FORBIDDEN,
-            "Testing connections is disabled in Airflow configuration. "
-            "Contact your deployment admin to enable it.",
-        )
-
-    transient_conn_id = get_random_string()
-    conn_env_var = f"{CONN_ENV_PREFIX}{transient_conn_id.upper()}"
-    try:
-        data = test_body.model_dump(by_alias=True)
-        data["conn_id"] = transient_conn_id
-        conn = Connection(**data)
-        os.environ[conn_env_var] = conn.get_uri()
-        test_status, test_message = conn.test_connection()
-        return ConnectionTestResponse.model_validate({"status": test_status, "message": test_message})
-    finally:
-        os.environ.pop(conn_env_var, None)
 
 
 @connections_router.post(
