@@ -67,7 +67,7 @@ class WinRMCommandOutputTrigger(BaseTrigger):
         working_directory: str | None = None,
         expected_return_code: int | list[int] | range = 0,
         poll_interval: float = 1,
-        timeout: timedelta | None = None,
+        timeout: float | None = None,
         deadline: float | None = None,
     ) -> None:
         super().__init__()
@@ -83,7 +83,7 @@ class WinRMCommandOutputTrigger(BaseTrigger):
         self.deadline = (
             deadline
             if deadline is not None
-            else (time.monotonic() + self.timeout.total_seconds() if self.timeout else None)
+            else (time.monotonic() + self.timeout if self.timeout else None)
         )
 
 
