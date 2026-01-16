@@ -25,6 +25,8 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from airflow.providers.hbase.operators.hbase import (
+    BackupSetAction,
+    BackupType,
     HBaseBackupHistoryOperator,
     HBaseBackupSetOperator,
     HBaseCreateBackupOperator,
@@ -44,7 +46,7 @@ class TestHBaseBackupSetOperator:
 
         operator = HBaseBackupSetOperator(
             task_id="test_task",
-            action="add",
+            action=BackupSetAction.ADD,
             backup_set_name="test_set",
             tables=["table1", "table2"],
         )
@@ -63,7 +65,7 @@ class TestHBaseBackupSetOperator:
 
         operator = HBaseBackupSetOperator(
             task_id="test_task",
-            action="list",
+            action=BackupSetAction.LIST,
         )
 
         result = operator.execute({})
@@ -96,7 +98,7 @@ class TestHBaseCreateBackupOperator:
 
         operator = HBaseCreateBackupOperator(
             task_id="test_task",
-            backup_type="full",
+            backup_type=BackupType.FULL,
             backup_path="/tmp/backup",
             backup_set_name="test_set",
             workers=2,
@@ -120,7 +122,7 @@ class TestHBaseCreateBackupOperator:
 
         operator = HBaseCreateBackupOperator(
             task_id="test_task",
-            backup_type="incremental",
+            backup_type=BackupType.INCREMENTAL,
             backup_path="/tmp/backup",
             tables=["table1", "table2"],
         )
@@ -154,7 +156,7 @@ class TestHBaseCreateBackupOperator:
         
         operator = HBaseCreateBackupOperator(
             task_id="test_task",
-            backup_type="full",
+            backup_type=BackupType.FULL,
             backup_path="/tmp/backup",
         )
 

@@ -36,6 +36,8 @@ from datetime import datetime, timedelta
 
 from airflow import DAG
 from airflow.providers.hbase.operators.hbase import (
+    BackupSetAction,
+    BackupType,
     HBaseBackupHistoryOperator,
     HBaseBackupSetOperator,
     HBaseCreateBackupOperator,
@@ -94,7 +96,7 @@ put_data = HBasePutOperator(
 # Create backup set
 create_backup_set = HBaseBackupSetOperator(
     task_id="create_backup_set",
-    action="add",
+    action=BackupSetAction.ADD,
     backup_set_name="test_backup_set",
     tables=["test_table"],
     hbase_conn_id="hbase_kerberos",
@@ -104,7 +106,7 @@ create_backup_set = HBaseBackupSetOperator(
 # List backup sets
 list_backup_sets = HBaseBackupSetOperator(
     task_id="list_backup_sets",
-    action="list",
+    action=BackupSetAction.LIST,
     hbase_conn_id="hbase_kerberos",
     dag=dag,
 )
@@ -112,7 +114,7 @@ list_backup_sets = HBaseBackupSetOperator(
 # Create full backup
 create_full_backup = HBaseCreateBackupOperator(
     task_id="create_full_backup",
-    backup_type="full",
+    backup_type=BackupType.FULL,
     backup_path="/hbase/backup",
     backup_set_name="test_backup_set",
     workers=1,

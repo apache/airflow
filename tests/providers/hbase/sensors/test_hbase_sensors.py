@@ -116,9 +116,8 @@ class TestHBaseRowSensor:
             row_key="row1"
         )
         
-        result = sensor.poke({})
-        
-        assert result is False
+        with pytest.raises(Exception, match="Connection error"):
+            sensor.poke({})
 
 
 class TestHBaseRowCountSensor:

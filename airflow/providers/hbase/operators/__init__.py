@@ -16,3 +16,33 @@
 # specific language governing permissions and limitations
 # under the License.
 """HBase operators."""
+
+from airflow.providers.hbase.operators.hbase import (
+    BackupSetAction,
+    BackupType,
+    HBaseBackupHistoryOperator,
+    HBaseBackupSetOperator,
+    HBaseBatchGetOperator,
+    HBaseBatchPutOperator,
+    HBaseCreateBackupOperator,
+    HBaseCreateTableOperator,
+    HBaseDeleteTableOperator,
+    HBasePutOperator,
+    HBaseRestoreOperator,
+    HBaseScanOperator,
+)
+
+__all__ = [
+    "BackupSetAction",
+    "BackupType",
+    "HBaseBackupHistoryOperator",
+    "HBaseBackupSetOperator",
+    "HBaseBatchGetOperator",
+    "HBaseBatchPutOperator",
+    "HBaseCreateBackupOperator",
+    "HBaseCreateTableOperator",
+    "HBaseDeleteTableOperator",
+    "HBasePutOperator",
+    "HBaseRestoreOperator",
+    "HBaseScanOperator",
+]
