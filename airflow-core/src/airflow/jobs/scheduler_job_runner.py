@@ -84,7 +84,7 @@ from airflow.models.taskinstance import TaskInstance
 from airflow.models.team import Team
 from airflow.models.trigger import TRIGGER_FAIL_REPR, Trigger, TriggerFailureReason
 from airflow.observability.trace import DebugTrace, Trace, add_debug_span
-from airflow.sdk.definitions.asset import AssetUniqueKey
+from airflow.serialization.definitions.assets import SerializedAssetUniqueKey
 from airflow.serialization.definitions.notset import NOTSET
 from airflow.ti_deps.dependencies_states import EXECUTION_STATES
 from airflow.timetables.simple import AssetTriggeredTimetable
@@ -1693,7 +1693,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         evaluator = AssetEvaluator(session)
 
         def dag_ready(
-            dag_id: str, cond: SerializedAssetBase, statuses: dict[AssetUniqueKey, bool]
+            dag_id: str, cond: SerializedAssetBase, statuses: dict[SerializedAssetUniqueKey, bool]
         ) -> bool | None:
             try:
                 return evaluator.run(cond, statuses)
@@ -1723,7 +1723,9 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             asset_models = session.scalars(
                 select(AssetModel).where(AssetModel.id.in_(x.asset_id for x in key_logs))
             )
-            statuses: dict[AssetUniqueKey, bool] = {AssetUniqueKey.from_asset(a): True for a in asset_models}
+            statuses: dict[SerializedAssetUniqueKey, bool] = {
+                SerializedAssetUniqueKey.from_asset(a): True for a in asset_models
+            }
             # todo: AIP-76 so, this basically works when we only require one partition from each asset to be there
             #  but, we ultimately need rollup ability
             #  that is, we need to ensure that whenever it is many -> one partitions, then we need to ensure
