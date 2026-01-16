@@ -1540,7 +1540,8 @@ my_postgres_conn:
             catchup=False,
         )
 
-        next_date, _ = dag2.next_dagrun_info(last_automated_run_info=None)
+        info = dag2.next_dagrun_info(last_automated_run_info=None)
+        next_date = info.run_after
         # The DR should be scheduled in the last 2 hours, not 6 hours ago
         assert next_date > two_hours_ago
         # The DR should be scheduled BEFORE now
@@ -1646,10 +1647,7 @@ my_postgres_conn:
             assert len(records) == 1
             record = records[0]
             assert record.exc_info is not None, "Should contain exception"
-            assert record.message == (
-                f"Failed to fetch run info after data interval {data_interval} "
-                f"for DAG 'test_next_dagrun_info_timetable_exception'"
-            )
+            assert record.message == "Failed to fetch run info"
 
         with caplog.at_level(level=logging.ERROR):
             next_info = scheduler_dag.next_dagrun_info(last_automated_run_info=None)
