@@ -162,7 +162,7 @@ class AwsBaseWaiterTrigger(BaseTrigger):
             )
             yield TriggerEvent({"status": "success", self.return_key: self.return_value})
 
-    async def cancel(self):
+    async def cleanup(self):
         hook = self.hook()
         async with await hook.get_async_conn() as client:
             if not self.cancel_waiter_names:
