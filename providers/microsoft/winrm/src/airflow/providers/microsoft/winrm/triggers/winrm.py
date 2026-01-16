@@ -26,13 +26,11 @@ from collections.abc import AsyncIterator
 from contextlib import suppress
 from datetime import timedelta
 from functools import cached_property
-from typing import Any, TYPE_CHECKING
+from typing import Any
+
+from winrm.exceptions import WinRMOperationTimeoutError
 
 from airflow.providers.microsoft.winrm.hooks.winrm import WinRMHook
-from airflow.providers.microsoft.winrm.operators.winrm import WinRMOperator
-from winrm.exceptions import WinRMOperationTimeoutError
-from winrm.protocol import Protocol
-
 from airflow.triggers.base import BaseTrigger, TriggerEvent
 
 
@@ -82,8 +80,10 @@ class WinRMCommandOutputTrigger(BaseTrigger):
         self.expected_return_code = expected_return_code
         self.poll_interval = poll_interval
         self.timeout = timeout
-        self.deadline = deadline if deadline is not None else (
-            time.monotonic() + self.timeout.total_seconds() if self.timeout else None
+        self.deadline = (
+            deadline
+            if deadline is not None
+            else (time.monotonic() + self.timeout.total_seconds() if self.timeout else None)
         )
 
 
@@ -109,6 +109,10 @@ class WinRMCommandOutputTrigger(BaseTrigger):
     def hook(self) -> WinRMHook:
         return WinRMHook(ssh_conn_id=self.ssh_conn_id)
 
+    @property
+    def is_expired(self) -> bool:
+        return self.deadline is not None and time.monotonic() >= self.deadline
+
     async def run(self) -> AsyncIterator[TriggerEvent]:
         stdout: bytes = b""
         stderr: bytes = b""
@@ -117,8 +121,10 @@ class WinRMCommandOutputTrigger(BaseTrigger):
 
         while not command_done:
             try:
-                if self.deadline is not None and time.monotonic() >= self.deadline:
-                    raise TimeoutError(f"Command {self.command_id} did not finish within {self.timeout.total_seconds()} seconds!")
+                if self.is_expired:
+                    raise TimeoutError(
+                        f"Command {self.command_id} did not finish within {self.timeout.total_seconds()} seconds!"
+                    )
 
                 with suppress(WinRMOperationTimeoutError):
                     stdout, stderr, return_code, command_done = await asyncio.to_thread(
@@ -138,14 +144,10 @@ class WinRMCommandOutputTrigger(BaseTrigger):
                         "shell_id": self.shell_id,
                         "command_id": self.command_id,
                         "return_code": return_code,
-                        "stdout": base64.standard_b64encode(stdout).decode(
-                            self.output_encoding
-                        )
+                        "stdout": base64.standard_b64encode(stdout).decode(self.output_encoding)
                         if self.return_output
                         else "",
-                        "stderr": base64.standard_b64encode(stderr).decode(
-                            self.output_encoding
-                        ),
+                        "stderr": base64.standard_b64encode(stderr).decode(self.output_encoding),
                     }
                 )
                 return

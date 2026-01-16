@@ -28,8 +28,9 @@ from typing import TYPE_CHECKING, Any
 from airflow.providers.common.compat.sdk import AirflowException, BaseOperator, conf
 from airflow.providers.microsoft.winrm.hooks.winrm import WinRMHook
 
-from providers.microsoft.winrm.src.airflow.providers.microsoft.winrm.triggers.winrm import \
-    WinRMCommandOutputTrigger
+from providers.microsoft.winrm.src.airflow.providers.microsoft.winrm.triggers.winrm import (
+    WinRMCommandOutputTrigger,
+)
 
 if TYPE_CHECKING:
     from airflow.sdk import Context
@@ -145,9 +146,7 @@ class WinRMOperator(BaseOperator):
         if return_code is not None:
             if isinstance(self.expected_return_code, int):
                 return return_code == self.expected_return_code
-            elif isinstance(self.expected_return_code, list) or isinstance(
-                self.expected_return_code, range
-            ):
+            if isinstance(self.expected_return_code, list) or isinstance(self.expected_return_code, range):
                 return return_code in self.expected_return_code
         return False
 
@@ -165,9 +164,7 @@ class WinRMOperator(BaseOperator):
         if status == "success" and success:
             # returning output if do_xcom_push is set
             # TODO: Remove this after minimum Airflow version is 3.0
-            enable_pickling = conf.getboolean(
-                "core", "enable_xcom_pickling", fallback=False
-            )
+            enable_pickling = conf.getboolean("core", "enable_xcom_pickling", fallback=False)
 
             if enable_pickling:
                 return stdout_buffer
@@ -197,9 +194,7 @@ class WinRMOperator(BaseOperator):
             stderr = base64.standard_b64decode(event.get("stderr", b""))
 
             self.hook.log_output(stdout, output_encoding=self.output_encoding)
-            self.hook.log_output(
-                stderr, level=logging.WARNING, output_encoding=self.output_encoding
-            )
+            self.hook.log_output(stderr, level=logging.WARNING, output_encoding=self.output_encoding)
 
             try:
                 return self.evaluate_result(status, return_code, [stdout], [stderr])

@@ -262,9 +262,7 @@ class WinRMHook(BaseHook):
             if ps_path is not None:
                 self.log.info("Running command as powershell script: '%s'...", command)
                 encoded_ps = b64encode(command.encode("utf_16_le")).decode("ascii")
-                command_id = winrm_client.run_command(
-                    shell_id, f"{ps_path} -encodedcommand {encoded_ps}"
-                )
+                command_id = winrm_client.run_command(shell_id, f"{ps_path} -encodedcommand {encoded_ps}")
             else:
                 self.log.info("Running command: '%s'...", command)
                 command_id = winrm_client.run_command(shell_id, command)
