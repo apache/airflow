@@ -86,7 +86,7 @@ export const CalendarCell = ({
   ) : (
     <Box
       _hover={hasData ? { transform: "scale(1.1)" } : {}}
-      bg={backgroundColor as string}
+      bg={backgroundColor}
       borderRadius="2px"
       cursor={hasData ? "pointer" : "default"}
       data-count={relevantCount}

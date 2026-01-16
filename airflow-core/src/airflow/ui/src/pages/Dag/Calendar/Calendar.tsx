@@ -164,6 +164,7 @@ export const Calendar = () => {
                   }
                 }}
                 textAlign="center"
+                data-testid="calendar-header-date"
               >
                 {selectedDate.format("MMM YYYY")}
               </Text>
@@ -214,7 +215,7 @@ export const Calendar = () => {
         </HStack>
       </HStack>
 
-      <Box data-testid="dag-calendar" position="relative">
+      <Box position="relative">
         {isLoading ? (
           <Box
             alignItems="center"
