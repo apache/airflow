@@ -38,6 +38,7 @@ test.describe("Dag Code Tab", () => {
   test("verify syntax highlighting is applied", async () => {
     await dagsPage.openCodeTab(testDagId);
 
+    // Monaco applies syntax highlighting using multiple styled spans
     const styledSpans = dagsPage
       .getMonacoEditor()
       .locator(".view-line span");
@@ -59,6 +60,7 @@ test.describe("Dag Code Tab", () => {
   test("verify code is scrollable for long files", async () => {
     await dagsPage.openCodeTab(testDagId);
 
+    // Monaco always exposes a scrollable container
     const scrollContainer = dagsPage
       .getMonacoEditor()
       .locator(".monaco-scrollable-element");
@@ -69,12 +71,12 @@ test.describe("Dag Code Tab", () => {
   test("verify wrap works", async () => {
     await dagsPage.openCodeTab(testDagId);
 
-    const wrappedLines = dagsPage
+    // When wrapping is enabled, there should be NO horizontal scrolling
+    const hasHorizontalScroll = await dagsPage
       .getMonacoEditor()
-      .locator(".view-line")
-      .filter({ has: dagsPage.getMonacoEditor().locator("span") });
+      .locator(".monaco-scrollable-element")
+      .evaluate(el => el.scrollWidth > el.clientWidth);
 
-    const count = await wrappedLines.count();
-    expect(count).toBeGreaterThan(0);
+    expect(hasHorizontalScroll).toBe(false);
   });
 });
