@@ -444,6 +444,89 @@ class TestUpdateDagParsingResults:
         new_serialized_dags_count = session.scalar(select(func.count(SerializedDagModel.dag_id)))
         assert new_serialized_dags_count == 1
 
+    @pytest.mark.usefixtures("clean_db")
+    def test_bulk_write_skips_unchanged_dags(
+        self, spy_agency: SpyAgency, testing_dag_bundle, session, time_machine
+    ):
+        import airflow.serialization.definitions.dag
+
+        time_machine.move_to(tz.datetime(2026, 1, 5, 0, 0, 0), tick=False)
+
+        dag1 = DAG(dag_id="dag1")
+        dag2 = DAG(dag_id="dag2")
+
+        update_dags_spy = spy_agency.spy_on(
+            airflow.dag_processing.collection.DagModelOperation.update_dags,
+            owner=airflow.dag_processing.collection.DagModelOperation,
+            call_original=True,
+        )
+
+        update_dag_parsing_results_in_db(
+            bundle_name="testing",
+            bundle_version=None,
+            dags=[LazyDeserializedDAG.from_dag(dag1)],
+            import_errors={},
+            parse_duration=None,
+            warnings=set(),
+            session=session,
+        )
+
+        # Get initial last_parsed_time for dag1
+        initial_dag1_model = session.get(DagModel, ("dag1",))
+        initial_last_parsed_time = initial_dag1_model.last_parsed_time
+
+        # Spy on bulk_write_to_db to verify it's called with only changed dags
+        bulk_write_spy = spy_agency.spy_on(
+            airflow.serialization.definitions.dag.SerializedDAG.bulk_write_to_db,
+            call_original=True,
+        )
+        update_dags_spy.reset_calls()
+
+        # Advance time so last_parsed_time will be different
+        time_machine.shift(10)
+
+        update_dag_parsing_results_in_db(
+            bundle_name="testing",
+            bundle_version=None,
+            dags=[LazyDeserializedDAG.from_dag(dag1), LazyDeserializedDAG.from_dag(dag2)],
+            import_errors={},
+            parse_duration=None,
+            warnings=set(),
+            session=session,
+        )
+
+        # Verify bulk_write_to_db only called with the new/changed dag
+        assert bulk_write_spy.called
+        assert len(bulk_write_spy.calls) == 1
+        # The dags argument is the 3rd positional arg (after bundle_name, bundle_version)
+        called_dags = bulk_write_spy.calls[0].args[2]
+        assert {dag.dag_id for dag in called_dags} == {"dag2"}
+
+        # Verify DagModelOperation.update_dags runs for the unchanged dag
+        assert any(
+            isinstance(call.args[0], dict) and "dag1" in call.args[0] for call in update_dags_spy.calls
+        )
+
+        # Verify DagModel metadata was updated for unchanged dag
+        session.expire_all()
+        updated_dag1_model = session.get(DagModel, ("dag1",))
+        assert updated_dag1_model.last_parsed_time > initial_last_parsed_time
+
+        # Verify both dags are in the database
+        dag_count = session.scalar(select(func.count(DagModel.dag_id)))
+        assert dag_count == 2
+
+    @conf_vars({("dag_processor", "serialized_dag_hash_cache_size"): "1"})
+    def test_serialized_dag_hash_cache_eviction(self):
+        cache = airflow.dag_processing.collection._SERIALIZED_DAG_HASH_CACHE
+        cache.clear()
+
+        airflow.dag_processing.collection._cache_serialized_dag_hash("bundle", "dag1", "hash1")
+        airflow.dag_processing.collection._cache_serialized_dag_hash("bundle", "dag2", "hash2")
+
+        assert len(cache) == 1
+        assert ("bundle", "dag2") in cache
+
     def test_parse_time_written_to_db_on_sync(self, testing_dag_bundle, session):
         """Test that the parse time is correctly written to the DB after parsing"""
 

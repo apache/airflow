@@ -2550,6 +2550,14 @@ dag_processor:
       type: integer
       example: ~
       default: "2"
+    serialized_dag_hash_cache_size:
+      description: |
+        Maximum number of serialized Dag hashes cached in memory per Dag processor.
+        Set to 0 to disable caching.
+      version_added: ~
+      type: integer
+      example: ~
+      default: "10000"
     file_parsing_sort_mode:
       description: |
         One of ``modified_time``, ``random_seeded_by_host`` and ``alphabetical``.
