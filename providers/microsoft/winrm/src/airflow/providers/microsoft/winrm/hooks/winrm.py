@@ -19,6 +19,7 @@
 
 from __future__ import annotations
 
+import logging
 from base64 import b64encode
 from contextlib import suppress
 
@@ -231,7 +232,8 @@ class WinRMHook(BaseHook):
         output_encoding: str = "utf-8",
         return_output: bool = True,
         working_directory: str | None = None,
-    ) -> tuple[int, list[bytes], list[bytes]]:
+        polling: bool = True,
+    ) -> tuple[int, list[bytes], list[bytes]] | tuple[str, str]:
         """
         Run a command.
 
@@ -241,8 +243,12 @@ class WinRMHook(BaseHook):
         :param output_encoding: the encoding used to decode stout and stderr.
         :param return_output: Whether to accumulate and return the stdout or not.
         :param working_directory: specify working directory.
-        :return: returns a tuple containing return_code, stdout and stderr in order.
+        :param polling: specify if polling is done or not within the run method, default is True.
+        :return: returns a tuple containing return_code, stdout and stderr in order
+            or a tuple containing shell_id and command_id if polling is disabled as those
+            values are needed to be able to externalize the polling.
         """
+        command_id: str | None = None
         winrm_client = self.get_conn()
         self.log.info("Establishing WinRM connection to host: %s", self.remote_host)
         try:
@@ -256,42 +262,58 @@ class WinRMHook(BaseHook):
             if ps_path is not None:
                 self.log.info("Running command as powershell script: '%s'...", command)
                 encoded_ps = b64encode(command.encode("utf_16_le")).decode("ascii")
-                command_id = winrm_client.run_command(shell_id, f"{ps_path} -encodedcommand {encoded_ps}")
+                command_id = winrm_client.run_command(
+                    shell_id, f"{ps_path} -encodedcommand {encoded_ps}"
+                )
             else:
                 self.log.info("Running command: '%s'...", command)
                 command_id = winrm_client.run_command(shell_id, command)
 
+            if polling:
+                command_done = False
+                stdout_buffer = []
+                stderr_buffer = []
+                return_code = 0
+
                 # See: https://github.com/diyan/pywinrm/blob/master/winrm/protocol.py
-            stdout_buffer = []
-            stderr_buffer = []
-            command_done = False
-            while not command_done:
-                # this is an expected error when waiting for a long-running process, just silently retry
-                with suppress(WinRMOperationTimeoutError):
-                    (
-                        stdout,
-                        stderr,
-                        return_code,
-                        command_done,
-                    ) = winrm_client.get_command_output_raw(shell_id, command_id)
+                while not command_done:
+                    with suppress(WinRMOperationTimeoutError):
+                        (
+                            stdout,
+                            stderr,
+                            return_code,
+                            command_done,
+                        ) = winrm_client.get_command_output_raw(shell_id, command_id)
 
-                    # Only buffer stdout if we need to so that we minimize memory usage.
-                    if return_output:
-                        stdout_buffer.append(stdout)
-                    stderr_buffer.append(stderr)
+                        self.log.debug("return_code: %s", return_code)
+                        self.log.debug("command_done: %s", command_done)
 
-                    for line in stdout.decode(output_encoding).splitlines():
-                        self.log.info(line)
-                    for line in stderr.decode(output_encoding).splitlines():
-                        self.log.warning(line)
+                        # Only buffer stdout if we need to so that we minimize memory usage.
+                        if return_output:
+                            stdout_buffer.append(stdout)
+                        stderr_buffer.append(stderr)
 
-            winrm_client.cleanup_command(shell_id, command_id)
+                        self.log_output(stdout, output_encoding=output_encoding)
+                        self.log_output(stderr, level=logging.WARNING, output_encoding=output_encoding)
 
-            return return_code, stdout_buffer, stderr_buffer
+                return return_code, stdout_buffer, stderr_buffer
+            return shell_id, command_id
         except Exception as e:
             raise AirflowException(f"WinRM operator error: {e}")
         finally:
-            winrm_client.close_shell(shell_id)
+            if polling:
+                winrm_client.cleanup_command(shell_id, command_id)
+                winrm_client.close_shell(shell_id)
+
+    def log_output(
+        self,
+        output: bytes | None,
+        level: int = logging.INFO,
+        output_encoding: str = "utf-8",
+    ) -> None:
+        if output:
+            for line in output.decode(output_encoding).splitlines():
+                self.log.log(level, line)
 
     def test_connection(self):
         try:
