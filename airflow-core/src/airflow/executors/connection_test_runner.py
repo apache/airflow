@@ -123,26 +123,17 @@ def report_connection_test_result(
             log.info("Connection test result reported: request_id=%s", request_id)
             return True
         except httpx.HTTPStatusError as e:
+            log.warning(
+                "HTTP error reporting result: request_id=%s, status=%s, attempt=%s/%s",
+                request_id,
+                e.response.status_code,
+                attempt + 1,
+                MAX_RETRIES,
+            )
             if 400 <= e.response.status_code < 500 and e.response.status_code != 429:
-                log.error(
-                    "Failed to report result (client error): request_id=%s, status=%s",
-                    request_id,
-                    e.response.status_code,
-                )
                 return False
-            log.warning(
-                "Failed to report result, retrying: request_id=%s, attempt=%s/%s",
-                request_id,
-                attempt + 1,
-                MAX_RETRIES,
-            )
         except Exception:
-            log.warning(
-                "Failed to report result, retrying: request_id=%s, attempt=%s/%s",
-                request_id,
-                attempt + 1,
-                MAX_RETRIES,
-            )
+            log.exception("Failed to report result: request_id=%s", request_id)
 
         if attempt < MAX_RETRIES - 1:
             delay = RETRY_DELAY_BASE * (2**attempt) * (0.5 + random.random())

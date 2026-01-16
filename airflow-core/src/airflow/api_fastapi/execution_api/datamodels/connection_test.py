@@ -15,35 +15,13 @@
 # specific language governing permissions and limitations
 # under the License.
 
-"""Datamodels for worker-side connection test execution."""
+"""Datamodels for worker-side connection test result reporting."""
 
 from __future__ import annotations
 
 from typing import Literal
 
-from airflow.api_fastapi.core_api.base import BaseModel, StrictBaseModel
-
-
-class ConnectionTestWorkload(BaseModel):
-    """Workload data sent to worker for connection test execution."""
-
-    request_id: str
-    encrypted_connection_uri: str
-    conn_type: str
-    timeout: int
-
-
-class ConnectionTestPendingResponse(BaseModel):
-    """Response containing pending connection test requests for workers."""
-
-    requests: list[ConnectionTestWorkload]
-
-
-class ConnectionTestRunningPayload(StrictBaseModel):
-    """Payload for marking a connection test as running."""
-
-    state: Literal["running"]
-    hostname: str
+from airflow.api_fastapi.core_api.base import StrictBaseModel
 
 
 class ConnectionTestResultPayload(StrictBaseModel):

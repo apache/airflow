@@ -1594,7 +1594,10 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                         deadline.handle_miss(session)
 
                 # Dispatch pending connection test requests to workers
-                self._dispatch_connection_tests(session)
+                try:
+                    self._dispatch_connection_tests(session)
+                except Exception:
+                    self.log.exception("Error dispatching connection tests")
 
                 # Heartbeat the scheduler periodically
                 perform_heartbeat(

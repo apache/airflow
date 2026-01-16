@@ -15,62 +15,21 @@
 # specific language governing permissions and limitations
 # under the License.
 
-"""Execution API routes for worker-side connection test execution."""
+"""Execution API routes for worker-side connection test result reporting."""
 
 from __future__ import annotations
 
-from typing import Annotated
-
 import structlog
 from cadwyn import VersionedAPIRouter
-from fastapi import Body, HTTPException, Query, status
+from fastapi import HTTPException, status
 
 from airflow.api_fastapi.common.db.common import SessionDep
-from airflow.api_fastapi.execution_api.datamodels.connection_test import (
-    ConnectionTestPendingResponse,
-    ConnectionTestResultPayload,
-    ConnectionTestRunningPayload,
-    ConnectionTestWorkload,
-)
+from airflow.api_fastapi.execution_api.datamodels.connection_test import ConnectionTestResultPayload
 from airflow.models.connection_test import ConnectionTestRequest, ConnectionTestState
 
 router = VersionedAPIRouter()
 
 log = structlog.get_logger(__name__)
-
-
-@router.get(
-    "/pending",
-    status_code=status.HTTP_200_OK,
-)
-def get_pending_connection_tests(
-    session: SessionDep,
-    hostname: Annotated[str, Query(description="Worker hostname requesting work")],
-    limit: Annotated[int, Query(description="Maximum number of requests to return", ge=1, le=100)] = 10,
-) -> ConnectionTestPendingResponse:
-    """
-    Get pending connection test requests for worker execution.
-
-    Workers call this endpoint to fetch pending connection tests to execute.
-    """
-    log.debug("Worker requesting pending connection tests", hostname=hostname, limit=limit)
-
-    pending_requests = ConnectionTestRequest.get_pending_requests(session, limit=limit)
-
-    workloads = []
-    for request in pending_requests:
-        request.mark_running(hostname)
-        workloads.append(
-            ConnectionTestWorkload(
-                request_id=str(request.id),
-                encrypted_connection_uri=request.encrypted_connection_uri,
-                conn_type=request.conn_type,
-                timeout=request.timeout,
-            )
-        )
-
-    session.commit()
-    return ConnectionTestPendingResponse(requests=workloads)
 
 
 @router.patch(
@@ -83,7 +42,7 @@ def get_pending_connection_tests(
 )
 def update_connection_test_state(
     request_id: str,
-    payload: Annotated[ConnectionTestRunningPayload | ConnectionTestResultPayload, Body()],
+    payload: ConnectionTestResultPayload,
     session: SessionDep,
 ) -> None:
     """
@@ -91,8 +50,6 @@ def update_connection_test_state(
 
     Workers call this endpoint to report the result of a connection test.
     """
-    log.debug("Updating connection test state", request_id=request_id, payload=payload)
-
     test_request = session.get(ConnectionTestRequest, request_id)
 
     if test_request is None:
@@ -101,26 +58,19 @@ def update_connection_test_state(
             f"Connection test request with id `{request_id}` was not found.",
         )
 
-    if isinstance(payload, ConnectionTestRunningPayload):
-        if test_request.state not in (ConnectionTestState.PENDING.value, ConnectionTestState.RUNNING.value):
-            raise HTTPException(
-                status.HTTP_409_CONFLICT,
-                f"Cannot transition from state `{test_request.state}` to `running`.",
-            )
-        test_request.mark_running(payload.hostname)
-    elif isinstance(payload, ConnectionTestResultPayload):
-        if test_request.state != ConnectionTestState.RUNNING.value:
-            raise HTTPException(
-                status.HTTP_409_CONFLICT,
-                f"Cannot report result when in state `{test_request.state}`. Expected `running`.",
-            )
-        if payload.state == "success":
-            test_request.mark_success(payload.result_message)
-        else:
-            test_request.mark_failed(payload.result_message)
+    if test_request.state != ConnectionTestState.RUNNING.value:
+        raise HTTPException(
+            status.HTTP_409_CONFLICT,
+            f"Cannot report result when in state `{test_request.state}`. Expected `running`.",
+        )
+
+    if payload.state == "success":
+        test_request.mark_success(payload.result_message)
+    else:
+        test_request.mark_failed(payload.result_message)
 
     log.info(
-        "Connection test state updated",
+        "Connection test result reported",
         request_id=request_id,
-        new_state=test_request.state,
+        state=payload.state,
     )

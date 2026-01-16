@@ -57,11 +57,11 @@ from airflow.api_fastapi.core_api.services.public.connections import (
 )
 from airflow.api_fastapi.logging.decorators import action_logging
 from airflow.configuration import conf
+from airflow.exceptions import AirflowNotFoundException
 from airflow.models import Connection
 from airflow.models.connection_test import ConnectionTestRequest
 from airflow.models.crypto import get_fernet
 from airflow.utils.db import create_default_connections as db_create_default_connections
-from airflow.utils.strings import get_random_string
 
 connections_router = AirflowRouter(tags=["Connection"], prefix="/connections")
 
@@ -92,40 +92,11 @@ def test_connection(
             "Contact your deployment admin to enable it.",
         )
 
-    # Create a transient connection to get its URI
-    transient_conn_id = get_random_string()
-
-    # Check if we're testing an existing connection (connection_id provided)
-    # In this case, we need to merge masked fields (password, extra) with stored values
-    if test_body.connection_id:
-        existing_conn = session.scalar(select(Connection).filter_by(conn_id=test_body.connection_id))
-        if existing_conn:
-            # Create a copy of the existing connection for testing
-            # This merges request data with stored credentials (handles masked passwords)
-            conn = Connection(
-                conn_id=transient_conn_id,
-                conn_type=existing_conn.conn_type,
-                description=existing_conn.description,
-                host=existing_conn.host,
-                schema=existing_conn.schema,
-                login=existing_conn.login,
-                port=existing_conn.port,
-            )
-            # Copy password and extra (these are encrypted in db)
-            conn.set_password(existing_conn.password)
-            conn.set_extra(existing_conn.extra)
-            # Now apply updates from request body, merging masked fields
-            update_orm_from_pydantic(conn, test_body)
-        else:
-            # Connection ID provided but not found - use request body as-is
-            data = test_body.model_dump(by_alias=True)
-            data["conn_id"] = transient_conn_id
-            conn = Connection(**data)
-    else:
-        # New connection test - use request body directly
-        data = test_body.model_dump(by_alias=True)
-        data["conn_id"] = transient_conn_id
-        conn = Connection(**data)
+    try:
+        conn = Connection.get_connection_from_secrets(test_body.connection_id)
+        update_orm_from_pydantic(conn, test_body)
+    except AirflowNotFoundException:
+        conn = Connection(**test_body.model_dump(by_alias=True))
 
     # Encrypt the connection URI for secure storage
     fernet = get_fernet()
