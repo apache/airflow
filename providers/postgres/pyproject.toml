@@ -106,6 +106,7 @@ dev = [
     "apache-airflow-providers-common-sql[pandas]",
     "apache-airflow-providers-common-sql[polars]",
     "psycopg[binary]>=3.2.9",
+    "apache-airflow-providers-postgres[sqlalchemy]"
 ]
 
 # To build docs:
