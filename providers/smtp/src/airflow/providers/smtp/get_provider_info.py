@@ -47,7 +47,15 @@ def get_provider_info():
             }
         ],
         "connection-types": [
-            {"hook-class-name": "airflow.providers.smtp.hooks.smtp.SmtpHook", "connection-type": "smtp"}
+            {
+                "hook-class-name": "airflow.providers.smtp.hooks.smtp.SmtpHook",
+                "connection-type": "smtp",
+                "ui-field-behaviour": {
+                    "hidden-fields": ["schema", "extra"],
+                    "relabeling": {},
+                    "placeholders": {},
+                },
+            }
         ],
         "notifications": ["airflow.providers.smtp.notifications.smtp.SmtpNotifier"],
     }

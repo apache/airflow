@@ -546,3 +546,142 @@ def test_lazy_cache_dict_clear():
     assert len(lazy_cache_dict) == 0
     assert not lazy_cache_dict._raw_dict
     assert not lazy_cache_dict._resolved
+
+
+class TestProvidersMetadataLoading:
+    @pytest.mark.parametrize(
+        ("field_name", "field_def", "expected_title", "expected_checks"),
+        [
+            pytest.param(
+                "api_url",
+                {
+                    "label": "API URL",
+                    "description": "The API endpoint URL",
+                    "schema": {
+                        "type": "string",
+                        "default": "https://api.example.com",
+                    },
+                },
+                "API URL",
+                lambda field: (
+                    field.param.description == "The API endpoint URL"
+                    and field.param.value == "https://api.example.com"
+                ),
+                id="string_field",
+            ),
+            pytest.param(
+                "timeout",
+                {
+                    "label": "Timeout",
+                    "description": "Connection timeout in seconds",
+                    "schema": {
+                        "type": "integer",
+                        "minimum": 1,
+                        "maximum": 300,
+                        "default": 30,
+                    },
+                },
+                "Timeout",
+                lambda field: field.param.value == 30,
+                id="integer_field",
+            ),
+            pytest.param(
+                "use_ssl",
+                {
+                    "label": "Use SSL",
+                    "schema": {
+                        "type": "boolean",
+                        "default": True,
+                    },
+                },
+                "Use SSL",
+                lambda field: field.param.value is True,
+                id="boolean_field",
+            ),
+            pytest.param(
+                "api_key",
+                {
+                    "label": "API Key",
+                    "sensitive": True,
+                    "schema": {
+                        "type": "string",
+                        "format": "password",
+                    },
+                },
+                "API Key",
+                lambda field: field.param.schema.get("format") == "password",
+                id="password_field",
+            ),
+            pytest.param(
+                "ssl_mode",
+                {
+                    "label": "SSL Mode",
+                    "description": "SSL connection mode",
+                    "schema": {
+                        "type": "string",
+                        "enum": ["disable", "prefer", "require", "verify-full"],
+                        "default": "prefer",
+                    },
+                },
+                "SSL Mode",
+                lambda field: (
+                    field.param.value == "prefer"
+                    and "enum" in field.param.schema
+                    and field.param.schema["enum"] == ["disable", "prefer", "require", "verify-full"]
+                ),
+                id="enum_field",
+            ),
+        ],
+    )
+    def test_create_field_from_yaml(self, field_name, field_def, expected_title, expected_checks):
+        """Test creating various field types from yaml definitions."""
+        pm = ProvidersManager()
+        field = pm._create_field_from_yaml(field_name, field_def)
+
+        assert field is not None
+        assert field.param.schema["title"] == expected_title
+        assert expected_checks(field)
+
+    def test_add_customized_fields_from_yaml(self):
+        """Test adding customized field behaviour from yaml."""
+        pm = ProvidersManager()
+        pm.initialize_providers_list()
+
+        behaviour_yaml = {
+            "hidden-fields": ["schema", "extra"],
+            "relabeling": {"login": "Email Address"},
+            "placeholders": {"host": "smtp.gmail.com", "port": "587"},
+        }
+
+        pm._add_customized_fields_from_yaml(
+            package_name="test-provider", connection_type="test_conn", behaviour_yaml=behaviour_yaml
+        )
+
+        assert "test_conn" in pm._field_behaviours
+        behaviour = pm._field_behaviours["test_conn"]
+        assert behaviour["hidden_fields"] == ["schema", "extra"]
+        assert behaviour["relabeling"] == {"login": "Email Address"}
+        assert behaviour["placeholders"]["host"] == "smtp.gmail.com"
+
+    def test_load_ui_for_http_provider_from_yaml(self):
+        """Test that HTTP provider ui metadata is loaded from yaml."""
+        pm = ProvidersManager()
+        pm.initialize_providers_hooks()
+
+        assert "http" in pm._field_behaviours
+        behaviour = pm._field_behaviours["http"]
+
+        assert "hidden_fields" in behaviour
+        assert "relabeling" in behaviour
+        assert "placeholders" in behaviour
+
+    def test_yaml_loading_without_hook_import(self):
+        """Test that UI metadata loads from yaml without importing hook classes."""
+        with patch("airflow.providers_manager.import_string") as mock_import:
+            pm = ProvidersManager()
+            pm.initialize_providers_hooks()
+
+            assert "http" in pm._field_behaviours
+
+            # assert that HttpHook was not imported during initialization, which means yaml path was taken
+            assert len([call for call in mock_import.call_args_list if "HttpHook" in str(call)]) == 0

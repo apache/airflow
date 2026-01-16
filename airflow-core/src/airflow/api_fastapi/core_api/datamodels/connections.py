@@ -129,7 +129,17 @@ class ConnectionHookMetaData(BaseModel):
         if v is None:
             return None
 
-        return redact(v)
+        redacted_fields = {}
+        for field_name, field_data in v.items():
+            redacted_field = {}
+            for key, val in field_data.items():
+                if key != "value":
+                    redacted_field[key] = val
+                else:
+                    redacted_field[key] = redact(val)
+            redacted_fields[field_name] = redacted_field
+
+        return redacted_fields
 
 
 # Request Models
