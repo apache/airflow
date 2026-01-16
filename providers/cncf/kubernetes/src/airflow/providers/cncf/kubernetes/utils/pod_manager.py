@@ -117,7 +117,7 @@ def log_pod_event(
 
 
 async def await_pod_start(
-    pod_manager: PodManager | AsyncPodManager,
+    pod_manager: PodManager | "AsyncPodManager",
     pod: V1Pod,
     schedule_timeout: int = 120,
     startup_timeout: int = 120,
@@ -849,6 +849,12 @@ class PodManager(LoggingMixin):
                 field_selector=f"involvedObject.name={pod.metadata.name}",
                 resource_version=resource_version,
                 resource_version_match="NotOlderThan" if resource_version else None,
+            )
+        except TypeError:
+            return self._client.list_namespaced_event(
+                namespace=pod.metadata.namespace,
+                field_selector=f"involvedObject.name={pod.metadata.name}",
+                resource_version=resource_version,
             )
         except HTTPError as e:
             raise KubernetesApiException(f"There was an error reading the kubernetes API: {e}")

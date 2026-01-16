@@ -99,6 +99,8 @@ def _create_compute(
         # this is to satisfy mypy
         subnets = subnets or []
         create_nodegroup_kwargs = create_nodegroup_kwargs or {}
+        # This is to satisfy mypy
+        assert nodegroup_role_arn
 
         eks_hook.create_nodegroup(
             clusterName=cluster_name,
@@ -154,6 +156,8 @@ def _create_compute(
         # this is to satisfy mypy
         create_fargate_profile_kwargs = create_fargate_profile_kwargs or {}
         fargate_selectors = fargate_selectors or []
+        # This is to satisfy mypy
+        assert fargate_pod_execution_role_arn
 
         eks_hook.create_fargate_profile(
             clusterName=cluster_name,
