@@ -2715,14 +2715,33 @@ class TestKubernetesPodOperatorAsync:
         caplog,
     ):
         test_logs = "ok"
+
+        def log_generator(*_, **__):
+            yield f"{DEFAULT_DATE:%Y-%m-%dT%H:%M:%S} {test_logs}".encode()
+
         # Mock client.read_namespaced_pod_log to return an iterable of bytes
-        mocked_client.read_namespaced_pod_log.return_value = [test_logs.encode("utf-8")]
-        # mock_manager.await_pod_completion.return_value = k8s.V1Pod(
-        #     metadata=k8s.V1ObjectMeta(name=TEST_NAME, namespace=TEST_NAMESPACE)
-        # )
+        mocked_client.read_namespaced_pod_log.return_value = mock.Mock()
+        mocked_client.read_namespaced_pod_log.return_value.stream = mock.Mock(side_effect=log_generator)
+
         mocked_hook.return_value.get_pod.return_value = k8s.V1Pod(
-            metadata=k8s.V1ObjectMeta(name=TEST_NAME, namespace=TEST_NAMESPACE)
+            metadata=k8s.V1ObjectMeta(name=TEST_NAME, namespace=TEST_NAMESPACE),
+            spec=k8s.V1PodSpec(containers=[k8s.V1Container(name="base")]),
+            status=k8s.V1PodStatus(
+                container_statuses=[
+                    k8s.V1ContainerStatus(
+                        name="base",
+                        image="alpine",
+                        image_id="",
+                        ready=False,
+                        restart_count=0,
+                        state=k8s.V1ContainerState(
+                            terminated=k8s.V1ContainerStateTerminated(exit_code=0, finished_at=pendulum.now())
+                        ),
+                    )
+                ]
+            ),
         )
+        mocked_client.read_namespaced_pod.return_value = mocked_hook.return_value.get_pod.return_value
         mock_extract_xcom.return_value = "{}"
         k = KubernetesPodOperator(
             task_id="task",
@@ -2735,7 +2754,7 @@ class TestKubernetesPodOperatorAsync:
             # Verify that client.read_namespaced_pod_log was called
             mocked_client.read_namespaced_pod_log.assert_called_once()
             # Verify the log output using caplog
-            assert f"[base] logs: {test_logs}" in caplog.text
+            assert f"[base] {test_logs}" in caplog.text
             post_complete_action.assert_called_once()
         else:
             # When get_logs=False, _write_logs should not be called, so client.read_namespaced_pod_log should not be called

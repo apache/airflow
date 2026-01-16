@@ -1399,6 +1399,7 @@ class TestAsyncPodManager:
         since_time = now.subtract(minutes=1)
         mock_async_hook = mock.AsyncMock()
         mock_async_hook.read_logs.return_value = log_lines
+        mock_async_hook.get_conn = mock.MagicMock()
 
         with mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.pendulum.now", return_value=now):
             async_pod_manager = AsyncPodManager(
