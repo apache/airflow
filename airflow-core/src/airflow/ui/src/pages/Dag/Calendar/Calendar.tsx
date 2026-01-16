@@ -164,6 +164,7 @@ export const Calendar = () => {
                   }
                 }}
                 textAlign="center"
+                data-testid="calendar-header-date"
               >
                 {selectedDate.format("MMM YYYY")}
               </Text>
