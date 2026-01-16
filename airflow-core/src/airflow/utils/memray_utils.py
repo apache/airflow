@@ -69,15 +69,14 @@ def enable_memray_trace(component: MemrayTraceComponents) -> Callable[[Callable[
                     return func(*args, **kwargs)
             except ImportError as error:
                 # Silently fall back to running without tracking
-                log.warning(
-                    "ImportError memray.Tracker: %s in %s, please check the memray is installed",
-                    error.msg,
-                    component.value,
-                )
-                return func(*args, **kwargs)
-            except Exception as exception:
-                log.warning("Fail to apply memray.Tracker in %s, error: %s", component.value, exception)
-                return func(*args, **kwargs)
+                if "memray" in str(error):
+                    log.warning(
+                        "ImportError memray.Tracker: %s in %s, please check the memray is installed",
+                        error.msg,
+                        component.value,
+                    )
+                    return func(*args, **kwargs)
+                raise error
 
         return wrapper
 
