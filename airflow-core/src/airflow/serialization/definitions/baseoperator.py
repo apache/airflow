@@ -121,6 +121,7 @@ class SerializedBaseOperator(DAGNode):
     priority_weight: int = 1
     queue: str = "default"
 
+    render_template_as_native_obj: bool | None = None
     resources: dict[str, Any] | None = None
     retries: int = 0
     retry_delay: datetime.timedelta = datetime.timedelta(seconds=300)
