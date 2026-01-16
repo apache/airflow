@@ -25,7 +25,7 @@ import { useParams, useSearchParams } from "react-router-dom";
 import { Menu } from "src/components/ui/Menu";
 
 export const TaskStreamFilter = () => {
-  const { t: translate } = useTranslation(["components", "dag"]);
+  const { t: translate } = useTranslation(["common", "components", "dag"]);
   const { taskId: currentTaskId } = useParams();
   const [searchParams, setSearchParams] = useSearchParams();
 
@@ -199,7 +199,7 @@ export const TaskStreamFilter = () => {
                 onKeyDown={(event) => {
                   event.stopPropagation();
                 }}
-                placeholder="All"
+                placeholder={translate("common:expression.all")}
                 size="sm"
                 type="number"
                 value={depth ?? ""}
