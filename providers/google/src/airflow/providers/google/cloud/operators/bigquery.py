@@ -27,8 +27,9 @@ from collections.abc import Sequence
 from functools import cached_property
 from typing import TYPE_CHECKING, Any, SupportsAbs
 
-from google.api_core.exceptions import Conflict
+from google.api_core.exceptions import Conflict, NotFound
 from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
+from google.auth.exceptions import DefaultCredentialsError
 from google.cloud.bigquery import DEFAULT_RETRY, CopyJob, ExtractJob, LoadJob, QueryJob, Row
 from google.cloud.bigquery.table import RowIterator, Table, TableListItem, TableReference
 
@@ -1635,14 +1636,24 @@ class BigQueryGetDatasetOperator(GoogleCloudBaseOperator):
         )
 
         self.log.info("Start getting dataset: %s:%s", self.project_id, self.dataset_id)
+        try:
+            dataset = bq_hook.get_dataset(dataset_id=self.dataset_id, project_id=self.project_id)
+        except DefaultCredentialsError as e:
+            raise AirflowException(
+                "Could not get dataset, no valid Google Cloud credentials were found."
+            ) from e
+        except NotFound as e:
+            raise AirflowException(
+                f"Dataset {self.dataset_id} not found in project {self.project_id}."
+            ) from e
 
-        dataset = bq_hook.get_dataset(dataset_id=self.dataset_id, project_id=self.project_id)
         dataset_api_repr = dataset.to_api_repr()
         BigQueryDatasetLink.persist(
             context=context,
             dataset_id=dataset_api_repr["datasetReference"]["datasetId"],
             project_id=dataset_api_repr["datasetReference"]["projectId"],
         )
+        self.log.info("Dataset %s:%s retrieved successfully", self.project_id, self.dataset_id)
         return dataset_api_repr
 
 
