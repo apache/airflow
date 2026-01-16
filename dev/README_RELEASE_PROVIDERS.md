@@ -883,6 +883,24 @@ For example:
 ! /CODE_OF_CONDUCT.md
 ```
 
+### NOTICE files verification
+
+Verify that all NOTICE files contain the required ASF notice and current copyright year.
+
+Run the verification script from the Airflow repository root:
+
+```shell script
+python3 dev/verify_notice_files.py --sources-only --year 2026 --verbose
+```
+
+For distribution packages, after building:
+
+```shell script
+python3 dev/verify_notice_files.py --dist-only --year 2026 --verbose
+```
+
+All checks must pass before proceeding with the release.
+
 ### Signature check
 
 Make sure you have imported into your GPG the PGP key of the person signing the release. You can find the valid keys in
