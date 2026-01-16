@@ -679,7 +679,9 @@ class TestPodManager:
         mock_pod = mock.MagicMock()
         mock_pod.metadata.namespace = "test-namespace"
         mock_pod.metadata.name = "test-pod"
-        mock_pod.spec.containers = [mock.MagicMock(name="test-container")]
+        mock_container = mock.MagicMock()
+        mock_container.name = "test-container"
+        mock_pod.spec.containers = [mock_container]
         container_name = "test-container"
 
         # Pre-populate container_log_times with an earlier timestamp
@@ -687,6 +689,9 @@ class TestPodManager:
         self.pod_manager.container_log_times[("test-namespace", "test-pod", "test-container")] = (
             earlier_timestamp
         )
+
+        # Mock read_pod to return the mock_pod
+        self.pod_manager.read_pod = mock.Mock(return_value=mock_pod)
 
         # Fetch logs - this should pass the earlier timestamp as since_time
         with mock.patch.object(
