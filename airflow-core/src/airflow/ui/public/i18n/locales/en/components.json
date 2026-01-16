@@ -143,6 +143,7 @@
         "title": "Dag Run Triggered"
       }
     },
+    "triggerAgainWithConfig": "Trigger again with this config",
     "unpause": "Unpause {{dagDisplayName}} on trigger"
   },
   "trimText": {
