@@ -45,9 +45,6 @@ paths:
           content:
             application/json:
               schema: {}
-      security:
-      - OAuth2PasswordBearer: []
-      - HTTPBearer: []
   /auth/logout_callback:
     get:
       tags:
@@ -106,8 +103,8 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPExceptionResponse'
-        '401':
-          description: Unauthorized
+        '403':
+          description: Forbidden
           content:
             application/json:
               schema:
@@ -143,8 +140,8 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPExceptionResponse'
-        '401':
-          description: Unauthorized
+        '403':
+          description: Forbidden
           content:
             application/json:
               schema:
