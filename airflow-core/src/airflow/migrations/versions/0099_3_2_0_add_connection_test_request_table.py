@@ -30,6 +30,8 @@ from __future__ import annotations
 import sqlalchemy as sa
 from alembic import op
 
+from airflow.utils.sqlalchemy import UtcDateTime
+
 # revision identifiers, used by Alembic.
 revision = "9882c124ea54"
 down_revision = "e79fc784f145"
@@ -48,9 +50,9 @@ def upgrade():
         sa.Column("conn_type", sa.String(500), nullable=False),
         sa.Column("result_status", sa.Boolean(), nullable=True),
         sa.Column("result_message", sa.Text(), nullable=True),
-        sa.Column("created_at", sa.DateTime(), nullable=False),
-        sa.Column("started_at", sa.DateTime(), nullable=True),
-        sa.Column("completed_at", sa.DateTime(), nullable=True),
+        sa.Column("created_at", UtcDateTime(timezone=True), nullable=False),
+        sa.Column("started_at", UtcDateTime(timezone=True), nullable=True),
+        sa.Column("completed_at", UtcDateTime(timezone=True), nullable=True),
         sa.Column("timeout", sa.Integer(), nullable=False, default=60),
         sa.Column("worker_hostname", sa.String(500), nullable=True),
         sa.PrimaryKeyConstraint("id", name=op.f("connection_test_request_pkey")),
