@@ -66,7 +66,6 @@ router = APIRouter(
         status.HTTP_403_FORBIDDEN: {"description": "Task does not have access to the XCom"},
         status.HTTP_404_NOT_FOUND: {"description": "XCom not found"},
     },
-    dependencies=[Depends(has_xcom_access)],
 )
 
 log = logging.getLogger(__name__)
@@ -92,6 +91,7 @@ async def xcom_query(
 @router.get(
     "/{dag_id}/{run_id}/{task_id}/{key:path}/item/{offset}",
     description="Get a single XCom value from a mapped task by sequence index",
+    dependencies=[Depends(has_xcom_access)],
 )
 def get_mapped_xcom_by_index(
     dag_id: str,
@@ -136,6 +136,7 @@ class GetXComSliceFilterParams(BaseModel):
 @router.get(
     "/{dag_id}/{run_id}/{task_id}/{key:path}/slice",
     description="Get XCom values from a mapped task by sequence slice",
+    dependencies=[Depends(has_xcom_access)],
 )
 def get_mapped_xcom_by_slice(
     dag_id: str,
@@ -229,6 +230,7 @@ def get_mapped_xcom_by_slice(
         },
     },
     description="Returns the count of mapped XCom values found in the `Content-Range` response header",
+    dependencies=[Depends(has_xcom_access)],
 )
 def head_xcom(
     response: Response,
@@ -260,6 +262,7 @@ class GetXcomFilterParams(BaseModel):
 @router.get(
     "/{dag_id}/{run_id}/{task_id}/{key:path}",
     description="Get a single XCom Value",
+    dependencies=[Depends(has_xcom_access)],
 )
 def get_xcom(
     dag_id: str,
@@ -316,6 +319,7 @@ def get_xcom(
 @router.post(
     "/{dag_id}/{run_id}/{task_id}/{key:path}",
     status_code=status.HTTP_201_CREATED,
+    dependencies=[Depends(has_xcom_access)],
 )
 def set_xcom(
     dag_id: str,
@@ -416,6 +420,7 @@ def set_xcom(
     "/{dag_id}/{run_id}/{task_id}/{key:path}",
     responses={status.HTTP_404_NOT_FOUND: {"description": "XCom not found"}},
     description="Delete a single XCom Value",
+    dependencies=[Depends(has_xcom_access)],
 )
 def delete_xcom(
     session: SessionDep,
@@ -436,3 +441,37 @@ def delete_xcom(
     session.execute(query)
     session.commit()
     return {"message": f"XCom with key: {key} successfully deleted."}
+
+
+@router.delete(
+    "/{dag_id}/{run_id}",
+    responses={status.HTTP_404_NOT_FOUND: {"description": "XComs not found"}},
+    description="Bulk delete Xcom values.",
+)
+def bulk_delete_xcoms(
+    session: SessionDep,
+    dag_id: str,
+    run_id: str,
+    task_id: Annotated[str | None, Query()] = None,
+    key: Annotated[str | None, Query()] = None,
+    map_index: Annotated[int | None, Query()] = None,
+):
+    """Bulk delete Xcom values."""
+    query = delete(XComModel).where(
+        XComModel.dag_id == dag_id,
+        XComModel.run_id == run_id,
+    )
+
+    if task_id is not None:
+        query = query.where(XComModel.task_id == task_id)
+
+    if key is not None:
+        query = query.where(XComModel.key == key)
+
+    if map_index is not None:
+        query = query.where(XComModel.map_index == map_index)
+
+    session.execute(query)
+    session.commit()
+
+    return {"message": "XCom entries successfully deleted."}
