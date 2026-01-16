@@ -145,7 +145,7 @@ def _get_latest_runs_stmt_partitioned(dag_id: str) -> Select:
             ),
             DagRun.partition_key.is_not(None),
         )
-        .order_by(DagRun.id.desc())
+        .order_by(DagRun.id.desc())  # todo: AIP-76 add partition date and sort by it here
         .limit(1)
         .scalar_subquery()
     )
