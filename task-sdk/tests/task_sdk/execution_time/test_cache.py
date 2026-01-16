@@ -139,7 +139,7 @@ class TestSecretCache:
         with pytest.raises(SecretCache.NotPresentException):
             SecretCache.get_variable("conn")
 
-    def test_independence_teams(self):
+    def test_independent_teams(self):
         SecretCache.save_variable("key1", "var_value1", "team1")
         SecretCache.save_connection_uri("conn1", "conn_value1", "team1")
         SecretCache.save_variable("key2", "var_value2", "team2")
