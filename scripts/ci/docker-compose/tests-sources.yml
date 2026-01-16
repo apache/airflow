@@ -41,6 +41,7 @@ services:
       - ../../../providers/airbyte/tests:/opt/airflow/providers/airbyte/tests
       - ../../../providers/alibaba/tests:/opt/airflow/providers/alibaba/tests
       - ../../../providers/amazon/tests:/opt/airflow/providers/amazon/tests
+      - ../../../providers/apache/arrow/tests:/opt/airflow/providers/apache/arrow/tests
       - ../../../providers/apache/beam/tests:/opt/airflow/providers/apache/beam/tests
       - ../../../providers/apache/cassandra/tests:/opt/airflow/providers/apache/cassandra/tests
       - ../../../providers/apache/drill/tests:/opt/airflow/providers/apache/drill/tests
