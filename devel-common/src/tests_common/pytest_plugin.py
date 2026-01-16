@@ -1100,7 +1100,11 @@ def dag_maker(request) -> Generator[DagMaker, None, None]:
                 if run_type == DagRunType.MANUAL:
                     logical_date = self.start_date
                 else:
-                    logical_date = dag.next_dagrun_info(last_automated_run_info=None).logical_date
+                    if AIRFLOW_V_3_2_PLUS:
+                        kwargs = dict(last_automated_run_info=None)
+                    else:
+                        kwargs = dict(last_automated_dagrun=None)
+                    logical_date = dag.next_dagrun_info(**kwargs).logical_date
             logical_date = timezone.coerce_datetime(logical_date)
 
             data_interval = None
