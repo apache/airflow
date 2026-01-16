@@ -975,7 +975,7 @@ class ProvidersManager(LoggingMixin):
         if (
             isinstance(schema.get("type"), list)
             and "null" in schema["type"]
-            or not field_def.get("required", True)
+            or not field_def.get("required", False)
         ):
             validators.append(HookMetaService.MockOptional())
 
