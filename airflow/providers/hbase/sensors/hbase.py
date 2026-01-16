@@ -82,19 +82,21 @@ class HBaseRowSensor(BaseSensorOperator):
     def poke(self, context: Context) -> bool:
         """Check if row exists."""
         hook = HBaseHook(hbase_conn_id=self.hbase_conn_id)
-        try:
-            row_data = hook.get_row(self.table_name, self.row_key)
-            exists = bool(row_data)
-            self.log.info("Row %s in table %s exists: %s", self.row_key, self.table_name, exists)
-            return exists
-        except Exception as e:
-            self.log.error("Error checking row existence: %s", e)
-            return False
+        row_data = hook.get_row(self.table_name, self.row_key)
+        exists = bool(row_data)
+        self.log.info("Row %s in table %s exists: %s", self.row_key, self.table_name, exists)
+        return exists
 
 
 class HBaseRowCountSensor(BaseSensorOperator):
     """
     Sensor to check if table has expected number of rows.
+
+    .. warning::
+        This sensor performs a table scan which can be slow and resource-intensive
+        for large tables. It scans up to ``expected_count + 1`` rows on each poke.
+        For tables with millions of rows, consider alternative approaches such as
+        maintaining row counts in metadata or using HBase coprocessors.
 
     :param table_name: Name of the table to check.
     :param expected_count: Expected number of rows.
@@ -118,15 +120,11 @@ class HBaseRowCountSensor(BaseSensorOperator):
     def poke(self, context: Context) -> bool:
         """Check if table has expected number of rows."""
         hook = HBaseHook(hbase_conn_id=self.hbase_conn_id)
-        try:
-            rows = hook.scan_table(self.table_name, limit=self.expected_count + 1)
-            row_count = len(rows)
-            self.log.info("Table %s has %d rows, expected: %d", self.table_name, row_count,
-                          self.expected_count)
-            return row_count == self.expected_count
-        except Exception as e:
-            self.log.error("Error checking row count: %s", e)
-            return False
+        rows = hook.scan_table(self.table_name, limit=self.expected_count + 1)
+        row_count = len(rows)
+        self.log.info("Table %s has %d rows, expected: %d", self.table_name, row_count,
+                      self.expected_count)
+        return row_count == self.expected_count
 
 
 class HBaseColumnValueSensor(BaseSensorOperator):
@@ -161,21 +159,20 @@ class HBaseColumnValueSensor(BaseSensorOperator):
     def poke(self, context: Context) -> bool:
         """Check if column has expected value."""
         hook = HBaseHook(hbase_conn_id=self.hbase_conn_id)
-        try:
-            row_data = hook.get_row(self.table_name, self.row_key, columns=[self.column])
+        row_data = hook.get_row(self.table_name, self.row_key, columns=[self.column])
 
-            if not row_data:
-                self.log.info("Row %s not found in table %s", self.row_key, self.table_name)
-                return False
-
-            actual_value = row_data.get(self.column.encode('utf-8'), b'').decode('utf-8')
-            matches = actual_value == self.expected_value
-
-            self.log.info(
-                "Column %s in row %s: expected '%s', actual '%s'",
-                self.column, self.row_key, self.expected_value, actual_value
-            )
-            return matches
-        except Exception as e:
-            self.log.error("Error checking column value: %s", e)
+        if not row_data:
+            self.log.info("Row %s not found in table %s", self.row_key, self.table_name)
             return False
+
+        # Compare bytes directly to avoid UnicodeDecodeError on binary data
+        # HBase can store arbitrary binary data, not just UTF-8 strings
+        actual_bytes = row_data.get(self.column.encode('utf-8'), b'')
+        expected_bytes = self.expected_value.encode('utf-8')
+        matches = actual_bytes == expected_bytes
+
+        self.log.info(
+            "Column %s in row %s matches expected value: %s",
+            self.column, self.row_key, matches
+        )
+        return matches

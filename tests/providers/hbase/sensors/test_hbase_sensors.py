@@ -116,9 +116,8 @@ class TestHBaseRowSensor:
             row_key="row1"
         )
         
-        result = sensor.poke({})
-        
-        assert result is False
+        with pytest.raises(Exception, match="Connection error"):
+            sensor.poke({})
 
 
 class TestHBaseRowCountSensor:
@@ -221,6 +220,26 @@ class TestHBaseColumnValueSensor:
             row_key="user1",
             column="cf1:status",
             expected_value="active"
+        )
+        
+        result = sensor.poke({})
+        
+        assert result is False
+
+    @patch("airflow.providers.hbase.sensors.hbase.HBaseHook")
+    def test_poke_binary_data(self, mock_hook_class):
+        """Test poke method with binary data that is not valid UTF-8."""
+        mock_hook = MagicMock()
+        # Binary data that cannot be decoded as UTF-8
+        mock_hook.get_row.return_value = {b"cf1:data": b"\xff\xfe\x00\x01"}
+        mock_hook_class.return_value = mock_hook
+
+        sensor = HBaseColumnValueSensor(
+            task_id="test_column_value",
+            table_name="test_table",
+            row_key="user1",
+            column="cf1:data",
+            expected_value="test"  # Won't match binary data
         )
         
         result = sensor.poke({})

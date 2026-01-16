@@ -19,6 +19,7 @@
 
 from __future__ import annotations
 
+from enum import Enum
 from typing import TYPE_CHECKING, Any, Sequence
 
 from airflow.models import BaseOperator
@@ -26,6 +27,22 @@ from airflow.providers.hbase.hooks.hbase import HBaseHook
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
+
+
+class BackupSetAction(str, Enum):
+    """Enum for HBase backup set actions."""
+
+    ADD = "add"
+    LIST = "list"
+    DESCRIBE = "describe"
+    DELETE = "delete"
+
+
+class BackupType(str, Enum):
+    """Enum for HBase backup types."""
+
+    FULL = "full"
+    INCREMENTAL = "incremental"
 
 
 class HBasePutOperator(BaseOperator):
@@ -259,7 +276,7 @@ class HBaseBackupSetOperator(BaseOperator):
     """
     Operator to manage HBase backup sets.
     
-    :param action: Action to perform (add, list, describe, delete).
+    :param action: Action to perform.
     :param backup_set_name: Name of the backup set.
     :param tables: List of tables to add to backup set (for 'add' action).
     :param hbase_conn_id: The connection ID to use for HBase connection.
@@ -270,7 +287,7 @@ class HBaseBackupSetOperator(BaseOperator):
 
     def __init__(
         self,
-        action: str,
+        action: BackupSetAction,
         backup_set_name: str | None = None,
         tables: list[str] | None = None,
         hbase_conn_id: str = HBaseHook.default_conn_name,
@@ -288,23 +305,24 @@ class HBaseBackupSetOperator(BaseOperator):
         """Execute the operator."""
         hook = HBaseHook(hbase_conn_id=self.hbase_conn_id)
         
-        if self.action == "add":
+        if not isinstance(self.action, BackupSetAction):
+            raise ValueError(f"Unsupported action: {self.action}")
+        
+        if self.action == BackupSetAction.ADD:
             if not self.backup_set_name or not self.tables:
                 raise ValueError("backup_set_name and tables are required for 'add' action")
             tables_str = " ".join(self.tables)
             command = f"backup set add {self.backup_set_name} {tables_str}"
-        elif self.action == "list":
+        elif self.action == BackupSetAction.LIST:
             command = "backup set list"
-        elif self.action == "describe":
+        elif self.action == BackupSetAction.DESCRIBE:
             if not self.backup_set_name:
                 raise ValueError("backup_set_name is required for 'describe' action")
             command = f"backup set describe {self.backup_set_name}"
-        elif self.action == "delete":
+        elif self.action == BackupSetAction.DELETE:
             if not self.backup_set_name:
                 raise ValueError("backup_set_name is required for 'delete' action")
             command = f"backup set delete {self.backup_set_name}"
-        else:
-            raise ValueError(f"Unsupported action: {self.action}")
         
         return hook.execute_hbase_command(command, ssh_conn_id=self.ssh_conn_id)
 
@@ -313,7 +331,7 @@ class HBaseCreateBackupOperator(BaseOperator):
     """
     Operator to create HBase backup.
     
-    :param backup_type: Type of backup ('full' or 'incremental').
+    :param backup_type: Type of backup.
     :param backup_path: HDFS path where backup will be stored.
     :param backup_set_name: Name of the backup set to backup.
     :param tables: List of tables to backup (alternative to backup_set_name).
@@ -326,7 +344,7 @@ class HBaseCreateBackupOperator(BaseOperator):
 
     def __init__(
         self,
-        backup_type: str,
+        backup_type: BackupType,
         backup_path: str,
         backup_set_name: str | None = None,
         tables: list[str] | None = None,
@@ -350,14 +368,14 @@ class HBaseCreateBackupOperator(BaseOperator):
         """Execute the operator."""
         hook = HBaseHook(hbase_conn_id=self.hbase_conn_id)
         
+        if not isinstance(self.backup_type, BackupType):
+            raise ValueError("backup_type must be 'full' or 'incremental'")
+        
         if hook.is_standalone_mode():
             raise ValueError(
                 "HBase backup is not supported in standalone mode. "
                 "Please configure HDFS for distributed mode."
             )
-        
-        if self.backup_type not in ["full", "incremental"]:
-            raise ValueError("backup_type must be 'full' or 'incremental'")
         
         # Validate and adjust backup path based on HBase configuration
         validated_path = hook.validate_backup_path(self.backup_path)
