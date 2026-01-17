@@ -672,6 +672,41 @@ class TestBaseOperator:
         result = task.render_template(content, context)
         assert result == expected_output
 
+    @pytest.mark.parametrize(
+        ("dag_native", "op_native", "content", "context", "expected_result", "expected_type"),
+        [
+            # Operator overrides DAG
+            (False, True, "{{ foo }}", {"foo": ["bar1", "bar2"]}, ["bar1", "bar2"], list),
+            (True, False, "{{ foo }}", {"foo": ["bar1", "bar2"]}, "['bar1', 'bar2']", str),
+            # Operator inherits from DAG (None = inherit)
+            (True, None, "{{ foo }}", {"foo": ["bar1", "bar2"]}, ["bar1", "bar2"], list),
+            (False, None, "{{ foo }}", {"foo": ["bar1", "bar2"]}, "['bar1', 'bar2']", str),
+            # No DAG context
+            (None, None, "{{ foo }}", {"foo": ["bar1", "bar2"]}, "['bar1', 'bar2']", str),
+            (None, True, "{{ foo }}", {"foo": ["bar1", "bar2"]}, ["bar1", "bar2"], list),
+            # Native rendering preserves various types
+            (None, True, "{{ foo }}", {"foo": 42}, 42, int),
+            (None, True, "{{ foo }}", {"foo": {"key": "value"}}, {"key": "value"}, dict),
+            (None, True, "{{ foo }}", {"foo": True}, True, bool),
+            (None, True, "{{ ds }}", {"ds": date(2018, 12, 6)}, date(2018, 12, 6), date),
+        ],
+    )
+    def test_operator_render_template_as_native_obj(
+        self, dag_native, op_native, content, context, expected_result, expected_type
+    ):
+        """Test operator render_template_as_native_obj overrides DAG settings and preserves types."""
+        if dag_native is not None:
+            with DAG(
+                "test-dag", schedule=None, start_date=DEFAULT_DATE, render_template_as_native_obj=dag_native
+            ):
+                task = BaseOperator(task_id="op1", render_template_as_native_obj=op_native)
+        else:
+            task = BaseOperator(task_id="op1", render_template_as_native_obj=op_native)
+
+        result = task.render_template(content, context)
+        assert result == expected_result
+        assert isinstance(result, expected_type)
+
     def test_render_template_fields(self):
         """Verify if operator attributes are correctly templated."""
         task = MockOperator(task_id="op1", arg1="{{ foo }}", arg2="{{ bar }}")
