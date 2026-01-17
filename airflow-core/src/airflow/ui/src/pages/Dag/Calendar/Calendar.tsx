@@ -164,7 +164,6 @@ export const Calendar = () => {
                     setSelectedDate(currentDate.startOf("month"));
                   }
                 }}
-                data-testid="calendar-header-date"
                 textAlign="center"
               >
                 {selectedDate.format("MMM YYYY")}

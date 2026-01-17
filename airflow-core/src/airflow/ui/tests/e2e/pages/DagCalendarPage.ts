@@ -41,8 +41,6 @@ export class DagCalendarPage extends BasePage {
         await this.page.goto(`/dags/${dagId}/calendar`);
 
         await this.page.waitForLoadState("networkidle");
-
-        await this.calendarTab.waitFor({ state: "visible" });
     }
 
     public async verifyCalendarRender(): Promise<void> {
