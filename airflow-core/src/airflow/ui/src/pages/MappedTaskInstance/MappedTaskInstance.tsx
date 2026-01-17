@@ -45,7 +45,9 @@ export const MappedTaskInstance = () => {
   return (
     <ReactFlowProvider>
       <DetailsLayout tabs={tabs}>
-        {taskInstance === undefined ? undefined : <Header taskInstance={taskInstance} />}
+        {taskInstance === undefined ? undefined : (
+          <Header dagId={dagId} dagRunId={runId} taskInstance={taskInstance} />
+        )}
       </DetailsLayout>
     </ReactFlowProvider>
   );
