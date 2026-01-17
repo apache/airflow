@@ -197,6 +197,19 @@ export const useBackfillServiceListBackfillsUi = <TData = Common.BackfillService
   orderBy?: string[];
 } = {}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useQuery<TData, TError>({ queryKey: Common.UseBackfillServiceListBackfillsUiKeyFn({ active, dagId, limit, offset, orderBy }, queryKey), queryFn: () => BackfillService.listBackfillsUi({ active, dagId, limit, offset, orderBy }) as TData, ...options });
 /**
+* Get Connection Test Status
+* Get the status of a connection test request.
+*
+* Poll this endpoint to check if a connection test has completed and retrieve the result.
+* @param data The data for the request.
+* @param data.requestId
+* @returns ConnectionTestStatusResponse Successful Response
+* @throws ApiError
+*/
+export const useConnectionServiceGetConnectionTestStatus = <TData = Common.ConnectionServiceGetConnectionTestStatusDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>({ requestId }: {
+  requestId: string;
+}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useQuery<TData, TError>({ queryKey: Common.UseConnectionServiceGetConnectionTestStatusKeyFn({ requestId }, queryKey), queryFn: () => ConnectionService.getConnectionTestStatus({ requestId }) as TData, ...options });
+/**
 * Get Connection
 * Get a connection entry.
 * @param data The data for the request.
@@ -1730,6 +1743,25 @@ export const useBackfillServiceCreateBackfillDryRun = <TData = Common.BackfillSe
   requestBody: BackfillPostBody;
 }, TContext>({ mutationFn: ({ requestBody }) => BackfillService.createBackfillDryRun({ requestBody }) as unknown as Promise<TData>, ...options });
 /**
+* Test Connection
+* Queue a connection test for asynchronous execution on a worker.
+*
+* This endpoint queues the connection test request for execution on a worker node,
+* which provides better security isolation (workers run in ephemeral environments)
+* and network accessibility (workers can reach external systems that API servers cannot).
+*
+* Returns a request_id that can be used to poll for the test result via GET /connections/test/{request_id}.
+* @param data The data for the request.
+* @param data.requestBody
+* @returns ConnectionTestQueuedResponse Successful Response
+* @throws ApiError
+*/
+export const useConnectionServiceTestConnection = <TData = Common.ConnectionServiceTestConnectionMutationResult, TError = unknown, TContext = unknown>(options?: Omit<UseMutationOptions<TData, TError, {
+  requestBody: ConnectionBody;
+}, TContext>, "mutationFn">) => useMutation<TData, TError, {
+  requestBody: ConnectionBody;
+}, TContext>({ mutationFn: ({ requestBody }) => ConnectionService.testConnection({ requestBody }) as unknown as Promise<TData>, ...options });
+/**
 * Post Connection
 * Create connection entry.
 * @param data The data for the request.
@@ -1742,23 +1774,6 @@ export const useConnectionServicePostConnection = <TData = Common.ConnectionServ
 }, TContext>, "mutationFn">) => useMutation<TData, TError, {
   requestBody: ConnectionBody;
 }, TContext>({ mutationFn: ({ requestBody }) => ConnectionService.postConnection({ requestBody }) as unknown as Promise<TData>, ...options });
-/**
-* Test Connection
-* Test an API connection.
-*
-* This method first creates an in-memory transient conn_id & exports that to an env var,
-* as some hook classes tries to find out the `conn` from their __init__ method & errors out if not found.
-* It also deletes the conn id env connection after the test.
-* @param data The data for the request.
-* @param data.requestBody
-* @returns ConnectionTestResponse Successful Response
-* @throws ApiError
-*/
-export const useConnectionServiceTestConnection = <TData = Common.ConnectionServiceTestConnectionMutationResult, TError = unknown, TContext = unknown>(options?: Omit<UseMutationOptions<TData, TError, {
-  requestBody: ConnectionBody;
-}, TContext>, "mutationFn">) => useMutation<TData, TError, {
-  requestBody: ConnectionBody;
-}, TContext>({ mutationFn: ({ requestBody }) => ConnectionService.testConnection({ requestBody }) as unknown as Promise<TData>, ...options });
 /**
 * Create Default Connections
 * Create default connections.

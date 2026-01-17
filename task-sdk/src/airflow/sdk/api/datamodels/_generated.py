@@ -78,6 +78,24 @@ class ConnectionResponse(BaseModel):
     extra: Annotated[str | None, Field(title="Extra")] = None
 
 
+class State(str, Enum):
+    SUCCESS = "success"
+    FAILED = "failed"
+
+
+class ConnectionTestResultPayload(BaseModel):
+    """
+    Payload for reporting connection test result.
+    """
+
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    state: Annotated[State, Field(title="State")]
+    result_status: Annotated[bool, Field(title="Result Status")]
+    result_message: Annotated[str, Field(title="Result Message")]
+
+
 class DagRunAssetReference(BaseModel):
     """
     DagRun serializer for asset responses.

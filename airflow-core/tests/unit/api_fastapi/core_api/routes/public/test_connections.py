@@ -17,7 +17,6 @@
 from __future__ import annotations
 
 import os
-from importlib.metadata import PackageNotFoundError, metadata
 from unittest import mock
 
 import pytest
@@ -25,13 +24,11 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from airflow.models import Connection
-from airflow.secrets.environment_variables import CONN_ENV_PREFIX
 from airflow.utils.session import NEW_SESSION, provide_session
 
 from tests_common.test_utils.api_fastapi import _check_last_log
 from tests_common.test_utils.asserts import assert_queries_count
 from tests_common.test_utils.db import clear_db_connections, clear_db_logs, clear_test_connections
-from tests_common.test_utils.markers import skip_if_force_lowest_dependencies_marker
 
 pytestmark = pytest.mark.db_test
 
@@ -935,31 +932,63 @@ class TestPatchConnection(TestConnectionEndpoint):
         _check_last_log(session, dag_id=None, event="patch_connection", logical_date=None, check_masked=True)
 
 
-class TestConnection(TestConnectionEndpoint):
-    def setup_method(self):
-        try:
-            metadata("apache-airflow-providers-sqlite")
-        except PackageNotFoundError:
-            pytest.skip("The SQlite distribution package is not installed.")
+class TestQueueConnectionTest(TestConnectionEndpoint):
+    """Test the async connection test queue endpoint POST /connections/test."""
+
+    @pytest.fixture(autouse=True)
+    def setup_connection_test(self):
+        """Clean up connection test requests after tests."""
+        from tests_common.test_utils.db import clear_db_connection_tests
+
+        yield
+        clear_db_connection_tests()
 
     @mock.patch.dict(os.environ, {"AIRFLOW__CORE__TEST_CONNECTION": "Enabled"})
     @pytest.mark.parametrize(
-        ("body", "message"),
+        "body",
         [
-            ({"connection_id": TEST_CONN_ID, "conn_type": "sqlite"}, "Connection successfully tested"),
-            (
-                {"connection_id": TEST_CONN_ID, "conn_type": "fs", "extra": '{"path": "/"}'},
-                "Path / is existing.",
-            ),
+            {"connection_id": TEST_CONN_ID, "conn_type": "sqlite"},
+            {"connection_id": TEST_CONN_ID, "conn_type": "fs", "extra": '{"path": "/"}'},
+            {"connection_id": TEST_CONN_ID, "conn_type": "postgres", "host": "localhost", "port": 5432},
         ],
     )
-    def test_should_respond_200(self, test_client, body, message):
+    def test_should_queue_connection_test(self, test_client, body, session):
+        """Test that POST /connections/test queues a connection test request."""
+        from airflow.models.connection_test import ConnectionTestRequest
+
         response = test_client.post("/connections/test", json=body)
         assert response.status_code == 200
-        assert response.json() == {
-            "status": True,
-            "message": message,
+
+        data = response.json()
+        assert "request_id" in data
+        assert data["state"] == "pending"
+        assert "message" in data
+
+        # Verify request was persisted in database
+        request = session.get(ConnectionTestRequest, data["request_id"])
+        assert request is not None
+        assert request.conn_type == body["conn_type"]
+        assert request.state == "pending"
+        assert request.encrypted_connection_uri is not None
+
+    @mock.patch.dict(os.environ, {"AIRFLOW__CORE__TEST_CONNECTION": "Enabled"})
+    def test_connection_uri_is_encrypted(self, test_client, session):
+        """Test that connection URI is encrypted when stored."""
+        from airflow.models.connection_test import ConnectionTestRequest
+
+        body = {
+            "connection_id": TEST_CONN_ID,
+            "conn_type": "postgres",
+            "host": "myhost.example.com",
+            "password": "secret123",
         }
+        response = test_client.post("/connections/test", json=body)
+        assert response.status_code == 200
+
+        request = session.get(ConnectionTestRequest, response.json()["request_id"])
+        # Encrypted URI should not contain plaintext password
+        assert "secret123" not in request.encrypted_connection_uri
+        assert "myhost.example.com" not in request.encrypted_connection_uri
 
     def test_should_respond_401(self, unauthenticated_test_client):
         response = unauthenticated_test_client.post(
@@ -972,19 +1001,6 @@ class TestConnection(TestConnectionEndpoint):
             "/connections/test", json={"connection_id": TEST_CONN_ID, "conn_type": "sqlite"}
         )
         assert response.status_code == 403
-
-    @skip_if_force_lowest_dependencies_marker
-    @mock.patch.dict(os.environ, {"AIRFLOW__CORE__TEST_CONNECTION": "Enabled"})
-    @pytest.mark.parametrize(
-        "body",
-        [
-            {"connection_id": TEST_CONN_ID, "conn_type": "sqlite"},
-            {"connection_id": TEST_CONN_ID, "conn_type": "ftp"},
-        ],
-    )
-    def test_connection_env_is_cleaned_after_run(self, test_client, body):
-        test_client.post("/connections/test", json=body)
-        assert not any([key.startswith(CONN_ENV_PREFIX) for key in os.environ.keys()])
 
     @pytest.mark.parametrize(
         "body",
@@ -1000,6 +1016,122 @@ class TestConnection(TestConnectionEndpoint):
             "detail": "Testing connections is disabled in Airflow configuration. "
             "Contact your deployment admin to enable it."
         }
+
+
+class TestGetConnectionTestStatus(TestConnectionEndpoint):
+    """Test the connection test status endpoint GET /connections/test/{request_id}."""
+
+    @pytest.fixture(autouse=True)
+    def setup_connection_test(self):
+        """Clean up connection test requests after tests."""
+        from tests_common.test_utils.db import clear_db_connection_tests
+
+        yield
+        clear_db_connection_tests()
+
+    @mock.patch.dict(os.environ, {"AIRFLOW__CORE__TEST_CONNECTION": "Enabled"})
+    def test_get_pending_status(self, test_client, session):
+        """Test getting status of a pending connection test."""
+        from airflow.models.connection_test import ConnectionTestRequest
+
+        # Create a pending request
+        request = ConnectionTestRequest.create_request(
+            encrypted_connection_uri="gAAAAABfakedata...",
+            conn_type="postgres",
+            session=session,
+        )
+        session.commit()
+
+        response = test_client.get(f"/connections/test/{request.id}")
+        assert response.status_code == 200
+
+        data = response.json()
+        assert data["request_id"] == request.id
+        assert data["state"] == "pending"
+        assert data["result_status"] is None
+        assert data["result_message"] is None
+        assert data["created_at"] is not None
+        assert data["started_at"] is None
+        assert data["completed_at"] is None
+
+    @mock.patch.dict(os.environ, {"AIRFLOW__CORE__TEST_CONNECTION": "Enabled"})
+    def test_get_running_status(self, test_client, session):
+        """Test getting status of a running connection test."""
+        from airflow.models.connection_test import ConnectionTestRequest
+
+        request = ConnectionTestRequest.create_request(
+            encrypted_connection_uri="gAAAAABfakedata...",
+            conn_type="postgres",
+            session=session,
+        )
+        request.mark_running("worker-1.example.com")
+        session.commit()
+
+        response = test_client.get(f"/connections/test/{request.id}")
+        assert response.status_code == 200
+
+        data = response.json()
+        assert data["state"] == "running"
+        assert data["started_at"] is not None
+
+    @mock.patch.dict(os.environ, {"AIRFLOW__CORE__TEST_CONNECTION": "Enabled"})
+    def test_get_success_status(self, test_client, session):
+        """Test getting status of a successful connection test."""
+        from airflow.models.connection_test import ConnectionTestRequest
+
+        request = ConnectionTestRequest.create_request(
+            encrypted_connection_uri="gAAAAABfakedata...",
+            conn_type="postgres",
+            session=session,
+        )
+        request.mark_running("worker-1")
+        request.mark_success("Connection successfully tested")
+        session.commit()
+
+        response = test_client.get(f"/connections/test/{request.id}")
+        assert response.status_code == 200
+
+        data = response.json()
+        assert data["state"] == "success"
+        assert data["result_status"] is True
+        assert data["result_message"] == "Connection successfully tested"
+        assert data["completed_at"] is not None
+
+    @mock.patch.dict(os.environ, {"AIRFLOW__CORE__TEST_CONNECTION": "Enabled"})
+    def test_get_failed_status(self, test_client, session):
+        """Test getting status of a failed connection test."""
+        from airflow.models.connection_test import ConnectionTestRequest
+
+        request = ConnectionTestRequest.create_request(
+            encrypted_connection_uri="gAAAAABfakedata...",
+            conn_type="postgres",
+            session=session,
+        )
+        request.mark_running("worker-1")
+        request.mark_failed("Connection refused: timeout")
+        session.commit()
+
+        response = test_client.get(f"/connections/test/{request.id}")
+        assert response.status_code == 200
+
+        data = response.json()
+        assert data["state"] == "failed"
+        assert data["result_status"] is False
+        assert data["result_message"] == "Connection refused: timeout"
+
+    def test_get_status_not_found(self, test_client):
+        """Test getting status of a non-existent request."""
+        response = test_client.get("/connections/test/non-existent-id")
+        assert response.status_code == 404
+        assert "was not found" in response.json()["detail"]
+
+    def test_should_respond_401(self, unauthenticated_test_client):
+        response = unauthenticated_test_client.get("/connections/test/some-id")
+        assert response.status_code == 401
+
+    def test_should_respond_403(self, unauthorized_test_client):
+        response = unauthorized_test_client.get("/connections/test/some-id")
+        assert response.status_code == 403
 
 
 class TestCreateDefaultConnections(TestConnectionEndpoint):

@@ -100,6 +100,7 @@ __lazy_imports = {
     "BaseXCom": "airflow.sdk.bases.xcom",
     "Callback": "airflow.models.callback",
     "Connection": "airflow.models.connection",
+    "ConnectionTestRequest": "airflow.models.connection_test",
     "DagBag": "airflow.dag_processing.dagbag",
     "DagModel": "airflow.models.dag",
     "DagRun": "airflow.models.dagrun",
@@ -130,6 +131,7 @@ if TYPE_CHECKING:
     from airflow.models.base import ID_LEN, Base
     from airflow.models.callback import Callback
     from airflow.models.connection import Connection
+    from airflow.models.connection_test import ConnectionTestRequest
     from airflow.models.dag import DagModel, DagTag
     from airflow.models.dagrun import DagRun
     from airflow.models.dagwarning import DagWarning

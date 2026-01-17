@@ -197,6 +197,19 @@ export const ensureUseBackfillServiceListBackfillsUiData = (queryClient: QueryCl
   orderBy?: string[];
 } = {}) => queryClient.ensureQueryData({ queryKey: Common.UseBackfillServiceListBackfillsUiKeyFn({ active, dagId, limit, offset, orderBy }), queryFn: () => BackfillService.listBackfillsUi({ active, dagId, limit, offset, orderBy }) });
 /**
+* Get Connection Test Status
+* Get the status of a connection test request.
+*
+* Poll this endpoint to check if a connection test has completed and retrieve the result.
+* @param data The data for the request.
+* @param data.requestId
+* @returns ConnectionTestStatusResponse Successful Response
+* @throws ApiError
+*/
+export const ensureUseConnectionServiceGetConnectionTestStatusData = (queryClient: QueryClient, { requestId }: {
+  requestId: string;
+}) => queryClient.ensureQueryData({ queryKey: Common.UseConnectionServiceGetConnectionTestStatusKeyFn({ requestId }), queryFn: () => ConnectionService.getConnectionTestStatus({ requestId }) });
+/**
 * Get Connection
 * Get a connection entry.
 * @param data The data for the request.

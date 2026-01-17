@@ -244,13 +244,28 @@ class ConnectionResponse(BaseModel):
     team_name: Annotated[str | None, Field(title="Team Name")] = None
 
 
-class ConnectionTestResponse(BaseModel):
+class ConnectionTestQueuedResponse(BaseModel):
     """
-    Connection Test serializer for responses.
+    Response when a connection test is queued for async execution.
     """
 
-    status: Annotated[bool, Field(title="Status")]
+    request_id: Annotated[str, Field(title="Request Id")]
+    state: Annotated[str, Field(title="State")]
     message: Annotated[str, Field(title="Message")]
+
+
+class ConnectionTestStatusResponse(BaseModel):
+    """
+    Response with the full status of a connection test request.
+    """
+
+    request_id: Annotated[str, Field(title="Request Id")]
+    state: Annotated[str, Field(title="State")]
+    result_status: Annotated[bool | None, Field(title="Result Status")] = None
+    result_message: Annotated[str | None, Field(title="Result Message")] = None
+    created_at: Annotated[datetime, Field(title="Created At")]
+    started_at: Annotated[datetime | None, Field(title="Started At")] = None
+    completed_at: Annotated[datetime | None, Field(title="Completed At")] = None
 
 
 class CreateAssetEventsBody(BaseModel):

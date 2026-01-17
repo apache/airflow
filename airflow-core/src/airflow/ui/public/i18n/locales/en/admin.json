@@ -50,10 +50,20 @@
     "test": "Test Connection",
     "testDisabled": "Test connection feature is disabled. Please contact an administrator to enable it.",
     "testError": {
+      "description": "The connection test failed. Check the connection parameters.",
       "title": "Test Connection Failed"
     },
+    "testQueued": {
+      "description": "The connection test has been queued and will be executed on a worker.",
+      "title": "Connection Test Queued"
+    },
     "testSuccess": {
+      "description": "The connection test completed successfully.",
       "title": "Test Connection Successful"
+    },
+    "testTimeout": {
+      "description": "The connection test took too long to complete. Please try again.",
+      "title": "Connection Test Timeout"
     },
     "typeMeta": {
       "error": "Failed to retrieve Connection Type Meta",

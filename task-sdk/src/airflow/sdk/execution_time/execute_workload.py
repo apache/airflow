@@ -15,15 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-"""
-Module for executing an Airflow task using the workload json provided by a input file.
-
-Usage:
-    python execute_workload.py <input_file>
-
-Arguments:
-    input_file (str): Path to the JSON file containing the workload definition.
-"""
+"""Execute an Airflow workload from a JSON input file."""
 
 from __future__ import annotations
 
@@ -34,21 +26,24 @@ from typing import TYPE_CHECKING
 import structlog
 
 if TYPE_CHECKING:
-    from airflow.executors.workloads import ExecuteTask
+    from airflow.executors.workloads import ExecuteTask, TestConnection
 
 log = structlog.get_logger(logger_name=__name__)
 
 
-def execute_workload(workload: ExecuteTask) -> None:
+def execute_workload(workload: ExecuteTask | TestConnection) -> None:
     from airflow.executors import workloads
     from airflow.sdk.configuration import conf
-    from airflow.sdk.execution_time.supervisor import supervise
     from airflow.sdk.log import configure_logging
     from airflow.settings import dispose_orm
 
     dispose_orm(do_log=False)
 
     configure_logging(output=sys.stdout.buffer, json_output=True)
+
+    if isinstance(workload, workloads.TestConnection):
+        _execute_connection_test(workload, conf)
+        return
 
     if not isinstance(workload, workloads.ExecuteTask):
         raise ValueError(f"Executor does not know how to handle {type(workload)}")
@@ -63,6 +58,8 @@ def execute_workload(workload: ExecuteTask) -> None:
     server = conf.get("core", "execution_api_server_url", fallback=default_execution_api_server)
     log.info("Connecting to server:", server=server)
 
+    from airflow.sdk.execution_time.supervisor import supervise
+
     supervise(
         # This is the "wrong" ti type, but it duck types the same. TODO: Create a protocol for this.
         ti=workload.ti,  # type: ignore[arg-type]
@@ -75,6 +72,36 @@ def execute_workload(workload: ExecuteTask) -> None:
         # Include the output of the task to stdout too, so that in process logs can be read from via the
         # kubeapi as pod logs.
         subprocess_logs_to_stdout=True,
+    )
+
+
+def _execute_connection_test(workload: TestConnection, conf) -> None:
+    """Execute a connection test workload."""
+    from airflow.executors.connection_test_runner import (
+        execute_connection_test_workload,
+        report_connection_test_result,
+    )
+
+    log.info("Executing connection test", request_id=workload.request_id, conn_type=workload.conn_type)
+
+    base_url = conf.get("api", "base_url", fallback="/")
+    if base_url.startswith("/"):
+        base_url = f"http://localhost:8080{base_url}"
+    server = conf.get("core", "execution_api_server_url", fallback=f"{base_url.rstrip('/')}/execution/")
+
+    try:
+        success, message = execute_connection_test_workload(workload)
+    except Exception as e:
+        log.exception("Connection test execution failed")
+        success = False
+        message = f"Execution error: {e}"
+
+    report_connection_test_result(
+        request_id=workload.request_id,
+        success=success,
+        message=message,
+        server_url=server,
+        token=workload.token,
     )
 
 

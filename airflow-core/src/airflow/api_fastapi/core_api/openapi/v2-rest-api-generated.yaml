@@ -1297,6 +1297,112 @@ paths:
       security:
       - OAuth2PasswordBearer: []
       - HTTPBearer: []
+  /api/v2/connections/test:
+    post:
+      tags:
+      - Connection
+      summary: Test Connection
+      description: 'Queue a connection test for asynchronous execution on a worker.
+
+
+        This endpoint queues the connection test request for execution on a worker
+        node,
+
+        which provides better security isolation (workers run in ephemeral environments)
+
+        and network accessibility (workers can reach external systems that API servers
+        cannot).
+
+
+        Returns a request_id that can be used to poll for the test result via GET
+        /connections/test/{request_id}.'
+      operationId: test_connection
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ConnectionBody'
+        required: true
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConnectionTestQueuedResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+      security:
+      - OAuth2PasswordBearer: []
+      - HTTPBearer: []
+  /api/v2/connections/test/{request_id}:
+    get:
+      tags:
+      - Connection
+      summary: Get Connection Test Status
+      description: 'Get the status of a connection test request.
+
+
+        Poll this endpoint to check if a connection test has completed and retrieve
+        the result.'
+      operationId: get_connection_test_status
+      security:
+      - OAuth2PasswordBearer: []
+      - HTTPBearer: []
+      parameters:
+      - name: request_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Request Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConnectionTestStatusResponse'
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Unauthorized
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Forbidden
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Not Found
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
   /api/v2/connections/{connection_id}:
     delete:
       tags:
@@ -1631,56 +1737,6 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
-  /api/v2/connections/test:
-    post:
-      tags:
-      - Connection
-      summary: Test Connection
-      description: 'Test an API connection.
-
-
-        This method first creates an in-memory transient conn_id & exports that to
-        an env var,
-
-        as some hook classes tries to find out the `conn` from their __init__ method
-        & errors out if not found.
-
-        It also deletes the conn id env connection after the test.'
-      operationId: test_connection
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/ConnectionBody'
-        required: true
-      responses:
-        '200':
-          description: Successful Response
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ConnectionTestResponse'
-        '401':
-          description: Unauthorized
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPExceptionResponse'
-        '403':
-          description: Forbidden
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPExceptionResponse'
-        '422':
-          description: Validation Error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPValidationError'
-      security:
-      - OAuth2PasswordBearer: []
-      - HTTPBearer: []
   /api/v2/connections/defaults:
     post:
       tags:
@@ -10066,20 +10122,69 @@ components:
       - team_name
       title: ConnectionResponse
       description: Connection serializer for responses.
-    ConnectionTestResponse:
+    ConnectionTestQueuedResponse:
       properties:
-        status:
-          type: boolean
-          title: Status
+        request_id:
+          type: string
+          title: Request Id
+        state:
+          type: string
+          title: State
         message:
           type: string
           title: Message
       type: object
       required:
-      - status
+      - request_id
+      - state
       - message
-      title: ConnectionTestResponse
-      description: Connection Test serializer for responses.
+      title: ConnectionTestQueuedResponse
+      description: Response when a connection test is queued for async execution.
+    ConnectionTestStatusResponse:
+      properties:
+        request_id:
+          type: string
+          title: Request Id
+        state:
+          type: string
+          title: State
+        result_status:
+          anyOf:
+          - type: boolean
+          - type: 'null'
+          title: Result Status
+        result_message:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Result Message
+        created_at:
+          type: string
+          format: date-time
+          title: Created At
+        started_at:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Started At
+        completed_at:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Completed At
+      type: object
+      required:
+      - request_id
+      - state
+      - result_status
+      - result_message
+      - created_at
+      - started_at
+      - completed_at
+      title: ConnectionTestStatusResponse
+      description: Response with the full status of a connection test request.
     CreateAssetEventsBody:
       properties:
         asset_id:

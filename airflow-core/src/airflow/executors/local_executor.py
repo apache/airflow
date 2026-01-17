@@ -87,12 +87,22 @@ def _run_worker(
             # Received poison pill, no more tasks to run
             return
 
-        if not isinstance(workload, workloads.ExecuteTask):
-            raise ValueError(f"LocalExecutor does not know how to handle {type(workload)}")
-
         # Decrement this as soon as we pick up a message off the queue
         with unread_messages:
             unread_messages.value -= 1
+
+        if isinstance(workload, workloads.TestConnection):
+            # Handle connection test workloads
+            try:
+                _execute_connection_test(log, workload, team_conf)
+                # Connection tests report their own results, no need to put in output queue
+            except Exception:
+                log.exception("Connection test execution failed")
+            continue
+
+        if not isinstance(workload, workloads.ExecuteTask):
+            raise ValueError(f"LocalExecutor does not know how to handle {type(workload)}")
+
         key = None
         if ti := getattr(workload, "ti", None):
             key = ti.key
@@ -106,6 +116,39 @@ def _run_worker(
         except Exception as e:
             log.exception("uhoh")
             output.put((key, TaskInstanceState.FAILED, e))
+
+
+def _execute_connection_test(log: Logger, workload: workloads.TestConnection, team_conf) -> None:
+    """Execute a connection test workload."""
+    from airflow.executors.connection_test_runner import (
+        execute_connection_test_workload,
+        report_connection_test_result,
+    )
+
+    team_suffix = f" [{team_conf.team_name}]" if team_conf.team_name else ""
+    setproctitle(f"airflow worker -- LocalExecutor{team_suffix}: connection_test:{workload.request_id}", log)
+    log.info("Executing connection test", request_id=workload.request_id, conn_type=workload.conn_type)
+
+    try:
+        success, message = execute_connection_test_workload(workload)
+    except Exception as e:
+        log.exception("Connection test execution failed")
+        success = False
+        message = f"Execution error: {e}"
+
+    base_url = team_conf.get("api", "base_url", fallback="/")
+    if base_url.startswith("/"):
+        api_port = team_conf.get("api", "port", fallback="8080")
+        base_url = f"http://localhost:{api_port}{base_url}"
+    server = team_conf.get("core", "execution_api_server_url", fallback=f"{base_url.rstrip('/')}/execution/")
+
+    report_connection_test_result(
+        request_id=workload.request_id,
+        success=success,
+        message=message,
+        server_url=server,
+        token=workload.token,
+    )
 
 
 def _execute_work(log: Logger, workload: workloads.ExecuteTask, team_conf) -> None:
@@ -123,9 +166,10 @@ def _execute_work(log: Logger, workload: workloads.ExecuteTask, team_conf) -> No
     setproctitle(f"airflow worker -- LocalExecutor{team_suffix}: {workload.ti.id}", log)
 
     base_url = team_conf.get("api", "base_url", fallback="/")
-    # If it's a relative URL, use localhost:8080 as the default
+    # If it's a relative URL, use localhost with configured port as the default
     if base_url.startswith("/"):
-        base_url = f"http://localhost:8080{base_url}"
+        api_port = team_conf.get("api", "port", fallback="8080")
+        base_url = f"http://localhost:{api_port}{base_url}"
     default_execution_api_server = f"{base_url.rstrip('/')}/execution/"
 
     # This will return the exit code of the task process, but we don't care about that, just if the
@@ -299,10 +343,24 @@ class LocalExecutor(BaseExecutor):
     def terminate(self):
         """Terminate the executor is not doing anything."""
 
-    def _process_workloads(self, workloads):
-        for workload in workloads:
+    def _process_workloads(self, workloads_to_process):
+        from airflow.executors import workloads as workload_types
+
+        for workload in workloads_to_process:
             self.activity_queue.put(workload)
-            del self.queued_tasks[workload.ti.key]
+            if isinstance(workload, workload_types.ExecuteTask):
+                del self.queued_tasks[workload.ti.key]
+            # Connection test workloads are not tracked in queued_tasks
+
         with self._unread_messages:
-            self._unread_messages.value += len(workloads)
+            self._unread_messages.value += len(workloads_to_process)
         self._check_workers()
+
+        # Also process any queued connection tests
+        if hasattr(self, "queued_connection_tests"):
+            while self.queued_connection_tests:
+                conn_test = self.queued_connection_tests.popleft()
+                self.activity_queue.put(conn_test)
+                with self._unread_messages:
+                    self._unread_messages.value += 1
+            self._check_workers()

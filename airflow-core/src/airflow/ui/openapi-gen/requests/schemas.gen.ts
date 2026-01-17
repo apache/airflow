@@ -1691,11 +1691,15 @@ export const $ConnectionResponse = {
     description: 'Connection serializer for responses.'
 } as const;
 
-export const $ConnectionTestResponse = {
+export const $ConnectionTestQueuedResponse = {
     properties: {
-        status: {
-            type: 'boolean',
-            title: 'Status'
+        request_id: {
+            type: 'string',
+            title: 'Request Id'
+        },
+        state: {
+            type: 'string',
+            title: 'State'
         },
         message: {
             type: 'string',
@@ -1703,9 +1707,77 @@ export const $ConnectionTestResponse = {
         }
     },
     type: 'object',
-    required: ['status', 'message'],
-    title: 'ConnectionTestResponse',
-    description: 'Connection Test serializer for responses.'
+    required: ['request_id', 'state', 'message'],
+    title: 'ConnectionTestQueuedResponse',
+    description: 'Response when a connection test is queued for async execution.'
+} as const;
+
+export const $ConnectionTestStatusResponse = {
+    properties: {
+        request_id: {
+            type: 'string',
+            title: 'Request Id'
+        },
+        state: {
+            type: 'string',
+            title: 'State'
+        },
+        result_status: {
+            anyOf: [
+                {
+                    type: 'boolean'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Result Status'
+        },
+        result_message: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Result Message'
+        },
+        created_at: {
+            type: 'string',
+            format: 'date-time',
+            title: 'Created At'
+        },
+        started_at: {
+            anyOf: [
+                {
+                    type: 'string',
+                    format: 'date-time'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Started At'
+        },
+        completed_at: {
+            anyOf: [
+                {
+                    type: 'string',
+                    format: 'date-time'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Completed At'
+        }
+    },
+    type: 'object',
+    required: ['request_id', 'state', 'result_status', 'result_message', 'created_at', 'started_at', 'completed_at'],
+    title: 'ConnectionTestStatusResponse',
+    description: 'Response with the full status of a connection test request.'
 } as const;
 
 export const $CreateAssetEventsBody = {
