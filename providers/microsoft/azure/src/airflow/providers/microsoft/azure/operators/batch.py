@@ -316,9 +316,9 @@ class AzureBatchOperator(BaseOperator):
         if self.deferrable:
             # Verify pool and nodes are in terminal state before deferral
             pool = self.hook.connection.pool.get(self.batch_pool_id)
-            nodes = list(self.hook.connection.compute_node.list(self.batch_pool_id))
             if pool.resize_errors:
                 raise AirflowException(f"Pool resize errors: {pool.resize_errors}")
+            nodes = list(self.hook.connection.compute_node.list(self.batch_pool_id))
             self.log.debug("Deferral pre-check: %d nodes present in pool %s", len(nodes), self.batch_pool_id)
 
             self.defer(
@@ -366,6 +366,8 @@ class AzureBatchOperator(BaseOperator):
 
     def post_execute(self, context: Context, result: Any | None = None) -> None:  # type: ignore[override]
         """Perform cleanup after task completion in both deferrable and non-deferrable modes."""
+        # _cleanup_done may not exist after deferral or task deserialization, so we use getattr
+        # to safely check without raising AttributeError. This ensures cleanup runs exactly once.
         if getattr(self, "_cleanup_done", False):
             return
         if self.should_delete_job:
