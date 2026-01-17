@@ -145,8 +145,8 @@ class WinRMOperator(BaseOperator):
                 method_name=self.execute_complete.__name__,
                 timeout=self.timeout,
             )
-
-        return self.evaluate_result(*result)
+        else:
+            return self.evaluate_result(*result)
 
     def validate_return_code(self, return_code: int) -> bool:
         if return_code is not None:
