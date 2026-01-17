@@ -321,6 +321,25 @@ def _has_partition_mapper(dag: LazyDeserializedDAG) -> bool:
     return False
 
 
+def _has_custom_weight_rule(dag: LazyDeserializedDAG) -> bool:
+    try:
+        tasks = dag.data["dag"].get("tasks") or []
+    except Exception:
+        log.exception("Failed to read tasks for dag %s; treating as changed", dag.dag_id)
+        return True
+    for task in tasks:
+        if isinstance(task, dict) and Encoding.VAR in task:
+            task_data = task[Encoding.VAR]
+        else:
+            task_data = task
+        if not isinstance(task_data, dict):
+            continue
+        weight_rule = task_data.get("weight_rule")
+        if weight_rule not in (None, "absolute", "downstream", "upstream"):
+            return True
+    return False
+
+
 def _partition_dags_by_serialized_hash(
     dags: Collection[LazyDeserializedDAG],
     *,
@@ -361,27 +380,7 @@ def _partition_dags_by_serialized_hash(
     changed_dags: list[LazyDeserializedDAG] = []
     unchanged_dags: list[LazyDeserializedDAG] = []
     for dag in dags:
-        try:
-            weight_rule = dag.data["dag"].get("weight_rule")
-            priority_weight_strategy = dag.data["dag"].get("priority_weight_strategy")
-        except Exception:
-            log.exception("Failed to read weight rule for dag %s; treating as changed", dag.dag_id)
-            changed_dags.append(dag)
-            continue
-        if weight_rule not in (
-            None,
-            "absolute",
-            "downstream",
-            "upstream",
-        ) or priority_weight_strategy not in (
-            None,
-            "absolute",
-            "downstream",
-            "upstream",
-        ):
-            changed_dags.append(dag)
-            continue
-        if _has_custom_timetable(dag) or _has_partition_mapper(dag):
+        if _has_custom_timetable(dag) or _has_partition_mapper(dag) or _has_custom_weight_rule(dag):
             changed_dags.append(dag)
             continue
         existing = existing_hashes.get(dag.dag_id)

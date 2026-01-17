@@ -536,7 +536,12 @@ class TestUpdateDagParsingResults:
         )
 
         dag_normal = DAG(dag_id="dag_normal")
-        dag_custom_weight = DAG(dag_id="dag_custom_weight", weight_rule=DecreasingPriorityStrategy())
+        dag_custom_weight = DAG(dag_id="dag_custom_weight")
+        EmptyOperator(
+            task_id="custom_weight_task",
+            dag=dag_custom_weight,
+            weight_rule=DecreasingPriorityStrategy(),
+        )
         dag_custom_timetable = DAG(
             dag_id="dag_custom_timetable", schedule=CustomSerializationTimetable("custom")
         )
