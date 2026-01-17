@@ -24,6 +24,7 @@ import { StateBadge } from "src/components/StateBadge";
 import Time from "src/components/Time";
 import { Tooltip } from "src/components/ui";
 import { getDuration } from "src/utils";
+import { getRelativeTime } from "src/utils/datetimeUtils";
 
 type Props = {
   readonly endDate?: string | null;
@@ -40,39 +41,43 @@ const DagRunInfo = ({ endDate, logicalDate, runAfter, startDate, state }: Props)
     <Tooltip
       content={
         <VStack align="left" gap={0}>
-          {state === undefined ? undefined : (
+          {state === undefined ? (
             <Text>
-              {translate("state")}: {translate(`common:states.${state}`)}
+              {translate("dagDetails.nextRun")}: {getRelativeTime(runAfter)}
             </Text>
+          ) : (
+            <>
+              <Text>
+                {translate("state")}: {translate(`common:states.${state}`)}
+              </Text>
+              {Boolean(logicalDate) && (
+                <Text>
+                  {translate("logicalDate")}: <Time datetime={logicalDate} />
+                </Text>
+              )}
+              {Boolean(startDate) && (
+                <Text>
+                  {translate("startDate")}: <Time datetime={startDate} />
+                </Text>
+              )}
+              {Boolean(endDate) && (
+                <Text>
+                  {translate("endDate")}: <Time datetime={endDate} />
+                </Text>
+              )}
+              {Boolean(startDate) && (
+                <Text>
+                  {translate("duration")}: {getDuration(startDate, endDate)}
+                </Text>
+              )}
+            </>
           )}
-          {Boolean(logicalDate) ? (
-            <Text>
-              {translate("logicalDate")}: <Time datetime={logicalDate} />
-            </Text>
-          ) : undefined}
-          {Boolean(startDate) ? (
-            <Text>
-              {translate("startDate")}: <Time datetime={startDate} />
-            </Text>
-          ) : undefined}
-          {Boolean(endDate) ? (
-            <Text>
-              {translate("endDate")}: <Time datetime={endDate} />
-            </Text>
-          ) : undefined}
-          {Boolean(startDate) ? (
-            <Text>
-              {translate("duration")}: {getDuration(startDate, endDate)}
-            </Text>
-          ) : undefined}
         </VStack>
       }
     >
       <Box>
         <Time datetime={runAfter} mr={2} showTooltip={false} />
-        {state === undefined ? undefined : (
-          <StateBadge aria-label={state} data-testid="state-badge" state={state} />
-        )}
+        {state !== undefined && <StateBadge aria-label={state} data-testid="state-badge" state={state} />}
       </Box>
     </Tooltip>
   );
