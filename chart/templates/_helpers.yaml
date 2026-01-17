@@ -658,23 +658,13 @@ server_tls_key_file = /etc/pgbouncer/server.key
   {{- end }}
 {{- end }}
 
-{{/* Helper for service account name generation */}}
-{{- define "_serviceAccountNameGen" -}}
-  {{- if .sa.create }}
-    {{- default (printf "%s-%s" (include "airflow.serviceAccountName" .) (default .key .nameSuffix )) .sa.name | quote }}
-  {{- else }}
-    {{- default "default" .sa.name | quote }}
-  {{- end }}
-{{- end }}
-
-{{/* Helper to generate service account name respecting .Values.$section.serviceAccount or .Values.$section.$subSection.serviceAccount flags */}}
+{{/* Helper to generate service account name respecting .Values.$section.serviceAccount flags */}}
 {{- define "_serviceAccountName" -}}
-  {{- if .subKey }}
-    {{- $sa := get (get (get .Values .key) .subKey) "serviceAccount" -}}
-    {{- include "_serviceAccountNameGen" (merge (dict "sa" $sa "key" .key "nameSuffix" .nameSuffix) .) }}
+  {{- $sa := get (get .Values .key) "serviceAccount" }}
+  {{- if $sa.create }}
+    {{- default (printf "%s-%s" (include "airflow.serviceAccountName" .) (default .key .nameSuffix )) $sa.name | quote }}
   {{- else }}
-    {{- $sa := get (get .Values .key) "serviceAccount" }}
-    {{- include "_serviceAccountNameGen" (merge (dict "sa" $sa "key" .key "nameSuffix" .nameSuffix) .) }}
+    {{- default "default" $sa.name | quote }}
   {{- end }}
 {{- end }}
 
@@ -722,16 +712,6 @@ server_tls_key_file = /etc/pgbouncer/server.key
 {{/* Create the name of the worker service account to use */}}
 {{- define "worker.serviceAccountName" -}}
   {{- include "_serviceAccountName" (merge (dict "key" "workers" "nameSuffix" "worker") .) -}}
-{{- end }}
-
-{{/* Create the name of the worker celery service account to use */}}
-{{- define "worker.celery.serviceAccountName" -}}
-  {{- include "_serviceAccountName" (merge (dict "key" "workers" "subKey" "celery" "nameSuffix" "worker-celery") .) -}}
-{{- end }}
-
-{{/* Create the name of the worker kubernetes service account to use */}}
-{{- define "worker.kubernetes.serviceAccountName" -}}
-  {{- include "_serviceAccountName" (merge (dict "key" "workers" "subKey" "kubernetes" "nameSuffix" "worker-kubernetes") .) -}}
 {{- end }}
 
 {{/* Create the name of the triggerer service account to use */}}
