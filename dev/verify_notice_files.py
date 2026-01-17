@@ -16,60 +16,63 @@
 # specific language governing permissions and limitations
 # under the License.
 """
-Verify NOTICE files in Airflow packages.
+Verify NOTICE files in Airflow packages for release.
 
-This script validates NOTICE files to ensure they:
-- Include the current year in copyright statements
-- Reference the Apache Software Foundation
+Finds all NOTICE files (sources + distribution packages) and validates them
+using the pre-commit hook.
 
-Usage: 
-    # Check all source NOTICE files
-    python3 dev/verify_notice_files.py
-
-    # Check specific NOTICE files
-    python3 dev/verify_notice_files.py path/to/NOTICE [path/to/another/NOTICE ...]
+Usage: python3 dev/verify_notice_files.py
 """
 
 from __future__ import annotations
 
+import subprocess
 import sys
-from datetime import datetime
+import tarfile
+import tempfile
+import zipfile
 from pathlib import Path
 
-CURRENT_YEAR = str(datetime.now().year)
-EXPECTED_COPYRIGHT = f"Copyright 2016-{CURRENT_YEAR} The Apache Software Foundation"
+# Collect all NOTICE files to check
+notice_files: list[Path] = []
 
-errors = 0
+# Source NOTICE files
+root = Path(".")
+notice_files.extend(f for f in [
+    root / "NOTICE",
+    *root.glob("providers/**/NOTICE"),
+    *(root / c / "NOTICE" for c in ["airflow-core", "airflow-ctl", "chart", "clients/python", "go-sdk"]),
+] if f.exists())
 
-# Get NOTICE files to check
-notice_files = []
-if len(sys.argv) > 1:
-    # Check files passed as arguments
-    notice_files = [Path(f) for f in sys.argv[1:]]
-else:
-    # Find all NOTICE files in the repository
-    root = Path(".")
-    notice_files = [
-        root / "NOTICE",
-        *root.glob("providers/**/NOTICE"),
-        *(root / component / "NOTICE" for component in 
-          ["airflow-core", "airflow-ctl", "chart", "clients/python", "go-sdk"]),
-    ]
-    notice_files = [f for f in notice_files if f.exists()]
+# Extract NOTICE from distribution packages
+dist_dir = root / "dist"
+if dist_dir.exists():
+    with tempfile.TemporaryDirectory() as tmpdir:
+        tmppath = Path(tmpdir)
+        
+        for whl in dist_dir.glob("*.whl"):
+            try:
+                with zipfile.ZipFile(whl) as zf:
+                    for name in zf.namelist():
+                        if name.endswith("NOTICE"):
+                            zf.extract(name, tmppath)
+            except Exception:
+                pass
+        
+        for tgz in dist_dir.glob("*.tar.gz"):
+            try:
+                with tarfile.open(tgz) as tf:
+                    for member in tf.getmembers():
+                        if member.name.endswith("NOTICE"):
+                            tf.extract(member, tmppath)
+            except Exception:
+                pass
+        
+        notice_files.extend(tmppath.rglob("NOTICE"))
 
-# Check each NOTICE file
-for notice_file in notice_files:
-    content = notice_file.read_text()
-    
-    # Check for Apache Software Foundation reference
-    if "Apache Software Foundation" not in content:
-        print(f"❌ {notice_file}: Missing 'Apache Software Foundation' reference")
-        errors += 1
-        continue
-    
-    # Check copyright year
-    if "Copyright" in content and EXPECTED_COPYRIGHT not in content:
-        print(f"❌ {notice_file}: Missing expected string: {EXPECTED_COPYRIGHT!r}")
-        errors += 1
-
-sys.exit(1 if errors else 0)
+# Run the pre-commit hook to check all files
+if notice_files:
+    result = subprocess.run(
+        ["python3", "./scripts/ci/prek/check_notice_files.py", *map(str, notice_files)]
+    )
+    sys.exit(result.returncode)
