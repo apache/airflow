@@ -25,6 +25,7 @@
 
 Changelog
 ---------
+* ``Rename ''max_run_task_attempts'' to ''max_invoke_attempts'' in AWS Lambda Executor (#60666)``
 
 9.20.0
 ......
