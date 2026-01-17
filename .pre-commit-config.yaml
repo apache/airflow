@@ -432,62 +432,7 @@ repos:
         files: >
             (?x)
             ^airflow-ctl.*\.py$|
-            ^airflow-core/src/airflow/models/.*\.py$|
-            ^airflow-core/src/airflow/utils/db_cleanup.py$|
-            ^airflow-core/src/airflow/migrations/versions/0015_2_9_0_update_trigger_kwargs_type.py$|
-            ^airflow-core/src/airflow/api_fastapi/execution_api/routes/task_instances.py$|
-            ^airflow-core/tests/unit/api_fastapi/core_api/routes/public/test_assets.py$|
-            ^airflow-core/tests/unit/api_fastapi/core_api/routes/public/test_backfills.py$|
-            ^airflow-core/tests/unit/api_fastapi/core_api/routes/public/test_connections.py$|
-            ^airflow-core/tests/unit/api_fastapi/core_api/routes/public/test_pools.py$|
-            ^airflow-core/tests/unit/api_fastapi/core_api/routes/public/test_task_instances.py$|
-            ^airflow-core/tests/unit/models/test_serialized_dag.py$|
-            ^airflow-core/tests/unit/models/test_pool.py$|
-            ^airflow-core/tests/unit/models/test_trigger.py$|
-            ^airflow-core/tests/unit/models/test_callback.py$|
-            ^airflow-core/tests/unit/models/test_cleartasks.py$|
-            ^airflow-core/tests/unit/models/test_xcom.py$|
-            ^airflow-core/tests/unit/models/test_dagrun.py$|
-            ^airflow-core/tests/unit/models/test_dag\.py$|
-            ^airflow-core/tests/unit/models/test_dagcode\.py$|
-            ^airflow-core/tests/unit/models/test_mappedoperator\.py$|
-            ^airflow-core/tests/unit/models/test_taskinstance\.py$|
-            ^airflow-core/tests/unit/models/test_variable\.py$|
-            ^airflow-core/tests/unit/api_fastapi/core_api/routes/public/test_dag_sources.py$|
-            ^airflow-core/tests/unit/api_fastapi/core_api/routes/public/test_hitl.py$|
-            ^airflow-core/tests/unit/api_fastapi/core_api/routes/ui/test_assets.py$|
-            ^airflow-core/tests/unit/api_fastapi/core_api/routes/ui/test_structure.py$|
-            ^airflow-core/tests/unit/api_fastapi/core_api/routes/public/test_variables.py$|
-            ^airflow-core/tests/unit/cli/commands/test_task_command.py$|
-            ^airflow-core/tests/unit/cli/commands/test_team_command.py$|
-            ^airflow-core/tests/unit/cli/commands/test_pool_command.py$|
-            ^airflow-core/tests/unit/cli/commands/test_connection_command.py$|
-            ^airflow-core/tests/unit/cli/commands/test_dag_command.py$|
-            ^airflow-core/tests/unit/cli/commands/test_rotate_fernet_key_command.py$|
-            ^airflow-core/tests/unit/dag_processing/bundles/test_dag_bundle_manager.py$|
-            ^airflow-core/tests/unit/api_fastapi/execution_api/versions/head/test_dag_runs.py$|
-            ^airflow-core/tests/unit/api_fastapi/execution_api/versions/head/test_task_instances.py$|
-            ^airflow-core/tests/unit/api_fastapi/execution_api/versions/head/test_variables.py$|
-            ^airflow-core/tests/unit/api_fastapi/execution_api/versions/head/test_xcoms.py$|
-            ^airflow-core/tests/unit/models/test_deadline.py$|
-            ^airflow-core/tests/unit/models/test_renderedtifields.py$|
-            ^airflow-core/tests/unit/models/test_timestamp.py$|
-            ^airflow-core/tests/unit/utils/test_cli_util.py$|
-            ^airflow-core/tests/unit/timetables/test_assets_timetable.py$|
-            ^airflow-core/tests/unit/assets/test_manager.py$|
-            ^airflow-core/tests/unit/jobs/test_scheduler_job.py$|
-            ^airflow-core/tests/unit/api_fastapi/core_api/routes/public/test_dag_run.py$|
-            ^airflow-core/tests/unit/ti_deps/deps/test_runnable_exec_date_dep.py$|
-            ^airflow-core/tests/unit/models/test_dagwarning.py$|
-            ^airflow-core/tests/integration/otel/test_otel.py$|
-            ^airflow-core/tests/unit/utils/test_db_cleanup.py$|
-            ^airflow-core/tests/unit/utils/test_state.py$|
-            ^airflow-core/tests/unit/utils/test_log_handlers.py$|
-            ^airflow-core/tests/unit/ti_deps/deps/test_not_previously_skipped_dep.py$|
-            ^airflow-core/tests/unit/utils/test_types.py$|
-            ^airflow-core/tests/unit/dag_processing/test_manager.py$|
-            ^airflow-core/tests/unit/dag_processing/test_processor.py$|
-            ^airflow-core/tests/unit/dag_processing/test_collection\.py$|
+            ^airflow-core/.*\.py$|
             ^dev/airflow_perf/scheduler_dag_execution_timing.py$|
             ^providers/amazon/tests/system/amazon/aws/example_kinesis_analytics.py$|
             ^providers/amazon/tests/unit/amazon/aws/transfers/test_s3_to_sql.py$|
