@@ -235,7 +235,7 @@ export const TaskInstances = () => {
   });
   const { pagination, sorting } = tableURLState;
   const [sort] = sorting;
-  const orderBy = sort ? [`${sort.desc ? "-" : ""}${sort.id}`] : ["-start_date", "-run_after"];
+  const orderBy = sort ? [`${sort.desc ? "-" : ""}${sort.id}`] : ["-run_after"];
 
   const filteredState = searchParams.getAll(STATE_PARAM);
   const filteredDagVersion = searchParams.get(DAG_VERSION_PARAM);
@@ -257,7 +257,7 @@ export const TaskInstances = () => {
 
   const refetchInterval = useAutoRefresh({});
 
-  const { data, error, isLoading } = useTaskInstanceServiceGetTaskInstances(
+  const { data, error, isFetching, isLoading } = useTaskInstanceServiceGetTaskInstances(
     {
       dagId: dagId ?? "~",
       dagIdPattern: filteredDagIdPattern ?? undefined,
@@ -286,6 +286,7 @@ export const TaskInstances = () => {
     },
     undefined,
     {
+      placeholderData: (prev) => prev,
       refetchInterval: (query) =>
         query.state.data?.task_instances.some((ti) => isStatePending(ti.state)) ? refetchInterval : false,
     },
@@ -306,6 +307,7 @@ export const TaskInstances = () => {
         data={data?.task_instances ?? []}
         errorMessage={<ErrorAlert error={error} />}
         initialState={tableURLState}
+        isFetching={isFetching}
         isLoading={isLoading}
         modelName="common:taskInstance"
         onStateChange={setTableURLState}
