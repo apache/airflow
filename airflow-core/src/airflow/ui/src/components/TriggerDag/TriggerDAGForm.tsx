@@ -167,9 +167,7 @@ const TriggerDAGForm = ({ dagDisplayName, dagId, isPaused, onClose, open }: Trig
           <Spacer />
           <Button
             colorPalette="brand"
-            disabled={
-              Boolean(errors.conf) || Boolean(errors.date) || formError || isPending || Boolean(errorTrigger)
-            }
+            disabled={Boolean(errors.conf) || Boolean(errors.date) || formError || isPending}
             onClick={() => void handleSubmit(onSubmit)()}
           >
             <FiPlay /> {translate("components:triggerDag.button")}
