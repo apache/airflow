@@ -97,7 +97,7 @@ dependencies = [
     "apache-airflow-providers-google>=10.24.0"
 ]
 "avro" = [
-    "fastavro>=1.9.0"
+    'fastavro>=1.10.0;python_version>="3.12"'  # Need to pin to this version for Python 3.13 compatibility
 ]
 
 [dependency-groups]
