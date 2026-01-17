@@ -35,8 +35,9 @@ from airflow.triggers.base import BaseTrigger, TriggerEvent
 
 class WinRMCommandOutputTrigger(BaseTrigger):
     """
-    A trigger that polls the command output executed by the WinRMHook so we don't need to block the worker
-    when using the WinRMOperator in deferred mode.
+    A trigger that polls the command output executed by the WinRMHook.
+
+    This trigger avoids blocking a worker when using the WinRMOperator in deferred mode.
 
     The behavior of this trigger is as follows:
     - poll the command output from the shell launched by WinRM,
