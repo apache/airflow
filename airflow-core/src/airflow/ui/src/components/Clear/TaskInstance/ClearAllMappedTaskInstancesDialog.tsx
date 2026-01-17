@@ -56,6 +56,7 @@ const ClearAllMappedTaskInstancesDialog = ({
   });
 
   const [selectedOptions, setSelectedOptions] = useState<Array<string>>(["downstream"]);
+  const [note, setNote] = useState<string | null>(null);
 
   const onlyFailed = selectedOptions.includes("onlyFailed");
   const past = selectedOptions.includes("past");
@@ -137,7 +138,7 @@ const ClearAllMappedTaskInstancesDialog = ({
                 ]}
               />
             </Flex>
-            <ActionAccordion affectedTasks={affectedTasks} />
+            <ActionAccordion affectedTasks={affectedTasks} note={note} setNote={setNote} />
             <Flex justifyContent="space-between" mt={3}>
               <Checkbox
                 checked={preventRunningTask}
