@@ -16,7 +16,6 @@
 # under the License.
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
 from unittest import mock
 
 import pendulum
@@ -28,10 +27,13 @@ from airflow.models import DagRun
 from airflow.models.dag import DagModel, DagTag
 from airflow.models.dag_favorite import DagFavorite
 from airflow.models.hitl import HITLDetail
+from airflow.models.taskinstance import TaskInstance as TI
 from airflow.sdk.timezone import utcnow
 from airflow.utils.session import provide_session
 from airflow.utils.state import DagRunState, TaskInstanceState
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
+
+from sqlalchemy import insert
 
 from tests_common.test_utils.asserts import count_queries
 from unit.api_fastapi.core_api.routes.public.test_dags import (
@@ -42,9 +44,6 @@ from unit.api_fastapi.core_api.routes.public.test_dags import (
     DAG5_ID,
     TestDagEndpoint as TestPublicDagEndpoint,
 )
-
-if TYPE_CHECKING:
-    from tests_common.pytest_plugin import TaskInstance
 
 pytestmark = pytest.mark.db_test
 
@@ -386,7 +385,7 @@ class TestGetDagRuns(TestPublicDagEndpoint):
         assert dag1_data["is_favorite"] is False
 
     def test_task_instance_summary_returns_aggregated_counts(
-        self, test_client, create_task_instance, session
+        self, test_client, session
     ):
         """Test that task_instance_summary returns aggregated task instance counts by state."""
         dag_id = "test_dag_ti_summary"
@@ -416,7 +415,7 @@ class TestGetDagRuns(TestPublicDagEndpoint):
         session.add(dag_run)
         session.flush()
 
-        # Create task instances with different states
+        # Create task instances with different states using raw insert
         states = [
             TaskInstanceState.SUCCESS,
             TaskInstanceState.SUCCESS,
@@ -426,14 +425,16 @@ class TestGetDagRuns(TestPublicDagEndpoint):
             TaskInstanceState.RUNNING,
         ]
         for i, state in enumerate(states):
-            ti = create_task_instance(
-                dag_id=dag_id,
-                run_id="test_run_1",
-                task_id=f"task_{i}",
-                session=session,
-                state=state,
+            session.execute(
+                insert(TI).values(
+                    dag_id=dag_id,
+                    run_id="test_run_1",
+                    task_id=f"task_{i}",
+                    state=state,
+                    map_index=-1,
+                    pool="default_pool",
+                )
             )
-            session.add(ti)
 
         session.commit()
 
@@ -453,7 +454,7 @@ class TestGetDagRuns(TestPublicDagEndpoint):
         assert summary.get("running") == 1
 
     def test_task_instance_summary_only_includes_latest_run(
-        self, test_client, create_task_instance, session
+        self, test_client, session
     ):
         """Test that task_instance_summary only includes task instances from the latest DAG run."""
         dag_id = "test_dag_ti_summary_latest"
@@ -485,14 +486,16 @@ class TestGetDagRuns(TestPublicDagEndpoint):
 
         # Create task instances for older run (all failed)
         for i in range(3):
-            ti = create_task_instance(
-                dag_id=dag_id,
-                run_id="older_run",
-                task_id=f"old_task_{i}",
-                session=session,
-                state=TaskInstanceState.FAILED,
+            session.execute(
+                insert(TI).values(
+                    dag_id=dag_id,
+                    run_id="older_run",
+                    task_id=f"old_task_{i}",
+                    state=TaskInstanceState.FAILED,
+                    map_index=-1,
+                    pool="default_pool",
+                )
             )
-            session.add(ti)
 
         # Create a newer DAG run
         newer_date = pendulum.datetime(2024, 2, 1, 0, 0, 0, tz="UTC")
@@ -511,14 +514,16 @@ class TestGetDagRuns(TestPublicDagEndpoint):
 
         # Create task instances for newer run (all success)
         for i in range(2):
-            ti = create_task_instance(
-                dag_id=dag_id,
-                run_id="newer_run",
-                task_id=f"new_task_{i}",
-                session=session,
-                state=TaskInstanceState.SUCCESS,
+            session.execute(
+                insert(TI).values(
+                    dag_id=dag_id,
+                    run_id="newer_run",
+                    task_id=f"new_task_{i}",
+                    state=TaskInstanceState.SUCCESS,
+                    map_index=-1,
+                    pool="default_pool",
+                )
             )
-            session.add(ti)
 
         session.commit()
 

@@ -215,7 +215,7 @@ def get_dags(
     latest_run_per_dag_subquery = (
         select(
             DagRun.dag_id,
-            DagRun.id.label("dag_run_id"),
+            DagRun.run_id,
             func.rank()
             .over(
                 partition_by=DagRun.dag_id,
@@ -235,7 +235,10 @@ def get_dags(
         )
         .join(
             TaskInstance,
-            TaskInstance.dag_run_id == latest_run_per_dag_subquery.c.dag_run_id,
+            and_(
+                TaskInstance.dag_id == latest_run_per_dag_subquery.c.dag_id,
+                TaskInstance.run_id == latest_run_per_dag_subquery.c.run_id,
+            ),
         )
         .where(latest_run_per_dag_subquery.c.rank == 1)
         .group_by(latest_run_per_dag_subquery.c.dag_id, TaskInstance.state)
