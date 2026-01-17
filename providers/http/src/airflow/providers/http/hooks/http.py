@@ -18,14 +18,15 @@
 from __future__ import annotations
 
 import copy
-from collections.abc import Callable
-from typing import TYPE_CHECKING, Any, cast
+from collections.abc import Awaitable, Callable
+from contextlib import asynccontextmanager
+from typing import TYPE_CHECKING, Any, cast, AsyncGenerator
 from urllib.parse import urlparse
 
 import aiohttp
 import tenacity
 from aiohttp import ClientResponseError
-from asgiref.sync import sync_to_async
+from pydantic import BaseModel
 from requests import PreparedRequest, Request, Response, Session
 from requests.auth import HTTPBasicAuth
 from requests.exceptions import ConnectionError, HTTPError
@@ -34,6 +35,7 @@ from requests_toolbelt.adapters.socket_options import TCPKeepAliveAdapter
 
 from airflow.providers.common.compat.sdk import AirflowException, BaseHook
 from airflow.providers.http.exceptions import HttpErrorException, HttpMethodException
+from airflow.utils.log.logging_mixin import LoggingMixin
 
 if TYPE_CHECKING:
     from aiohttp.client_reqrep import ClientResponse
@@ -399,6 +401,121 @@ class HttpHook(BaseHook):
             return False, str(e)
 
 
+class SessionConfig(BaseModel):
+    base_url: str
+    headers: dict[str, Any] | None = None
+    auth: aiohttp.BasicAuth | None = None
+
+
+class AsyncHttpSession(LoggingMixin):
+    def __init__(
+        self,
+        hook: HttpAsyncHook,
+        request: Callable[..., Awaitable[ClientResponse]],
+        config: SessionConfig,
+    ) -> None:
+        super().__init__()
+        self._hook = hook
+        self._request = request
+        self.config = config
+
+    @property
+    def http_conn_id(self) -> str:
+        return self._hook.http_conn_id
+
+    @property
+    def base_url(self) -> str:
+        return self.config.base_url
+
+    @property
+    def method(self) -> str:
+        return self._hook.method
+
+    @property
+    def retry_limit(self) -> int:
+        return self._hook.retry_limit
+
+    @property
+    def retry_delay(self) -> float:
+        return self._hook.retry_delay
+
+    @property
+    def headers(self) -> dict[str, Any]:
+        return self.config.headers
+
+    @property
+    def auth(self) -> aiohttp.BasicAuth | None:
+        return self.config.auth
+
+    async def run(
+        self,
+        endpoint: str | None = None,
+        data: dict[str, Any] | str | None = None,
+        json: dict[str, Any] | str | None = None,
+        headers: dict[str, Any] | None = None,
+        extra_options: dict[str, Any] | None = None,
+    ) -> ClientResponse:
+        """
+        Perform an asynchronous HTTP request call.
+
+        :param endpoint: Endpoint to be called, i.e. ``resource/v1/query?``.
+        :param data: Payload to be uploaded or request parameters.
+        :param json: Payload to be uploaded as JSON.
+        :param headers: Additional headers to be passed through as a dict.
+        :param extra_options: Additional kwargs to pass when creating a request.
+            For example, ``run(json=obj)`` is passed as
+            ``aiohttp.ClientSession().get(json=obj)``.
+        """
+        from tenacity import AsyncRetrying, stop_after_attempt, wait_fixed
+
+        extra_options = extra_options or {}
+        url = _url_from_endpoint(self.base_url, endpoint)
+        merged_headers = {**self.headers, **(headers or {})}
+
+        async def request_func() -> ClientResponse:
+            response = await self._request(
+                url,
+                params=data if self.method == "GET" else None,
+                data=data if self.method in ("POST", "PUT", "PATCH") else None,
+                json=json,
+                headers=merged_headers,
+                auth=self.auth,
+                **extra_options,
+            )
+            response.raise_for_status()
+            return response
+
+        async for attempt in AsyncRetrying(
+            stop=stop_after_attempt(self.retry_limit),
+            wait=wait_fixed(self.retry_delay),
+            reraise=True,
+        ):
+            with attempt:
+                return await request_func()
+
+        raise NotImplementedError  # should not reach this, but makes mypy happy
+
+    @classmethod
+    def _retryable_error_async(cls, exception: ClientResponseError) -> bool:
+        """
+        Determine whether an exception may successful on a subsequent attempt.
+
+        It considers the following to be retryable:
+            - requests_exceptions.ConnectionError
+            - requests_exceptions.Timeout
+            - anything with a status code >= 500
+
+        Most retryable errors are covered by status code >= 500.
+        """
+        if exception.status == 429:
+            # don't retry for too Many Requests
+            return False
+        if exception.status == 413:
+            # don't retry for payload Too Large
+            return False
+        return exception.status >= 500
+
+
 class HttpAsyncHook(BaseHook):
     """
     Interact with HTTP servers asynchronously.
@@ -429,13 +546,79 @@ class HttpAsyncHook(BaseHook):
         self._retry_obj: Callable[..., Any]
         self.auth_type: Any = auth_type
         if retry_limit < 1:
-            raise ValueError("Retry limit must be greater than equal to 1")
+            raise ValueError("Retry limit must be greater or equal to 1")
         self.retry_limit = retry_limit
         self.retry_delay = retry_delay
+        self._config: SessionConfig | None = None
+
+    def _get_request_func(self, session: aiohttp.ClientSession) -> Callable[..., Any]:
+        method = self.method
+        if method == "GET":
+            return session.get
+        if method == "POST":
+            return session.post
+        if method == "PATCH":
+            return session.patch
+        if method == "HEAD":
+            return session.head
+        if method == "PUT":
+            return session.put
+        if method == "DELETE":
+            return session.delete
+        if method == "OPTIONS":
+            return session.options
+        raise HttpMethodException(f"Unexpected HTTP Method: {method}")
+
+    async def config(self) -> SessionConfig:
+        if not self._config:
+            from airflow.providers.common.compat.connection import get_async_connection
+
+            base_url: str = self.base_url
+            auth: aiohttp.BasicAuth | None = None
+            headers: dict[str, Any] = {}
+
+            if self.http_conn_id:
+                conn = await get_async_connection(conn_id=self.http_conn_id)
+
+                if conn.host and "://" in conn.host:
+                    base_url = conn.host
+                else:
+                    schema = conn.schema or "http"
+                    base_url = f"{schema}://{conn.host or ''}"
+
+                if conn.port:
+                    base_url += f":{conn.port}"
+
+                if conn.login:
+                    auth = self.auth_type(conn.login, conn.password)
+
+                if conn.extra:
+                    conn_extra_options, _ = _process_extra_options_from_connection(
+                        conn=conn, extra_options={}
+                    )
+                    headers.update(conn_extra_options)
+
+            self._config = SessionConfig(
+                base_url=base_url,
+                headers=headers,
+                auth=auth,
+            )
+        return self._config
+
+    @asynccontextmanager
+    async def session(self) -> AsyncGenerator[AsyncHttpSession, None]:
+        """
+        Create an AsyncHttpSession bound to a single aiohttp.ClientSession.
+        Airflow connection resolution happens exactly once here.
+        """
+        async with aiohttp.ClientSession() as session:
+            request = self._get_request_func(session=session)
+            config = await self.config()
+            yield AsyncHttpSession(hook=self, request=request, config=config)
 
     async def run(
         self,
-        session: aiohttp.ClientSession,
+        session: aiohttp.ClientSession | None = None,
         endpoint: str | None = None,
         data: dict[str, Any] | str | None = None,
         json: dict[str, Any] | str | None = None,
@@ -445,6 +628,7 @@ class HttpAsyncHook(BaseHook):
         """
         Perform an asynchronous HTTP request call.
 
+        :param session: aiohttp.ClientSession
         :param endpoint: Endpoint to be called, i.e. ``resource/v1/query?``.
         :param data: Payload to be uploaded or request parameters.
         :param json: Payload to be uploaded as JSON.
@@ -453,103 +637,11 @@ class HttpAsyncHook(BaseHook):
             For example, ``run(json=obj)`` is passed as
             ``aiohttp.ClientSession().get(json=obj)``.
         """
-        extra_options = extra_options or {}
 
-        # headers may be passed through directly or in the "extra" field in the connection
-        # definition
-        _headers = {}
-        auth = None
+        if session is not None:
+            request = self._get_request_func(session=session)
+            config = await self.config()
+            return await AsyncHttpSession(hook=self, request=request, config=config).run(endpoint=endpoint, data=data, json=json, headers=headers, extra_options=extra_options)
 
-        if self.http_conn_id:
-            conn = await sync_to_async(self.get_connection)(self.http_conn_id)
-
-            if conn.host and "://" in conn.host:
-                self.base_url = conn.host
-            else:
-                # schema defaults to HTTP
-                schema = conn.schema if conn.schema else "http"
-                host = conn.host if conn.host else ""
-                self.base_url = schema + "://" + host
-
-            if conn.port:
-                self.base_url += f":{conn.port}"
-            if conn.login:
-                auth = self.auth_type(conn.login, conn.password)
-            if conn.extra:
-                conn_extra_options, extra_options = _process_extra_options_from_connection(
-                    conn=conn, extra_options=extra_options
-                )
-
-                try:
-                    _headers.update(conn_extra_options)
-                except TypeError:
-                    self.log.warning("Connection to %s has invalid extra field.", conn.host)
-        if headers:
-            _headers.update(headers)
-
-        url = _url_from_endpoint(self.base_url, endpoint)
-
-        if self.method == "GET":
-            request_func = session.get
-        elif self.method == "POST":
-            request_func = session.post
-        elif self.method == "PATCH":
-            request_func = session.patch
-        elif self.method == "HEAD":
-            request_func = session.head
-        elif self.method == "PUT":
-            request_func = session.put
-        elif self.method == "DELETE":
-            request_func = session.delete
-        elif self.method == "OPTIONS":
-            request_func = session.options
-        else:
-            raise HttpMethodException(f"Unexpected HTTP Method: {self.method}")
-
-        for attempt in range(1, 1 + self.retry_limit):
-            response = await request_func(
-                url,
-                params=data if self.method == "GET" else None,
-                data=data if self.method in ("POST", "PUT", "PATCH") else None,
-                json=json,
-                headers=_headers,
-                auth=auth,
-                **extra_options,
-            )
-            try:
-                response.raise_for_status()
-            except ClientResponseError as e:
-                self.log.warning(
-                    "[Try %d of %d] Request to %s failed.",
-                    attempt,
-                    self.retry_limit,
-                    url,
-                )
-                if not self._retryable_error_async(e) or attempt == self.retry_limit:
-                    self.log.exception("HTTP error with status: %s", e.status)
-                    # In this case, the user probably made a mistake.
-                    # Don't retry.
-                    raise HttpErrorException(f"{e.status}:{e.message}")
-            else:
-                return response
-
-        raise NotImplementedError  # should not reach this, but makes mypy happy
-
-    def _retryable_error_async(self, exception: ClientResponseError) -> bool:
-        """
-        Determine whether an exception may successful on a subsequent attempt.
-
-        It considers the following to be retryable:
-            - requests_exceptions.ConnectionError
-            - requests_exceptions.Timeout
-            - anything with a status code >= 500
-
-        Most retryable errors are covered by status code >= 500.
-        """
-        if exception.status == 429:
-            # don't retry for too Many Requests
-            return False
-        if exception.status == 413:
-            # don't retry for payload Too Large
-            return False
-        return exception.status >= 500
+        async with self.session() as http:
+            return await http.run(endpoint=endpoint, data=data, json=json, headers=headers, extra_options=extra_options)
