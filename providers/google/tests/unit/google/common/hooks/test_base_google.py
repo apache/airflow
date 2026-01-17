@@ -541,6 +541,78 @@ class TestGoogleBaseHook:
         )
         assert result == ("CREDENTIALS", "SECOND_PROJECT_ID")
 
+    def test_quota_project_id_init(self):
+        """Test that quota project ID is properly initialized."""
+        hook = GoogleBaseHook(gcp_conn_id="google_cloud_default", quota_project_id="test-quota-project")
+        assert hook.quota_project_id == "test-quota-project"
+
+    @mock.patch("google.auth._default._load_credentials_from_file")
+    @mock.patch("os.environ", {CREDENTIALS: "/test/key-path"})
+    def test_quota_project_id_from_connection(self, mock_load_creds):
+        """Test that quota project ID from connection is applied to credentials."""
+        mock_creds = mock.MagicMock()
+        mock_creds.with_quota_project.return_value = mock_creds
+        mock_load_creds.return_value = (mock_creds, "test-project")
+
+        # Mock connection with quota_project_id in extras
+        uri = f"google-cloud-platform://?extras={json.dumps({'quota_project_id': 'test-quota-project'})}"
+        with mock.patch.dict("os.environ", {"AIRFLOW_CONN_GOOGLE_CLOUD_DEFAULT": uri}):
+            hook = GoogleBaseHook(gcp_conn_id="google_cloud_default")
+            creds, _ = hook.get_credentials_and_project_id()
+            mock_creds.with_quota_project.assert_called_once_with("test-quota-project")
+
+    @mock.patch("google.auth._default._load_credentials_from_file")
+    @mock.patch("os.environ", {CREDENTIALS: "/test/key-path"})
+    def test_quota_project_id_param_overrides_connection(self, mock_load_creds):
+        """Test that quota project ID from param overrides connection value."""
+        mock_creds = mock.MagicMock()
+        mock_creds.with_quota_project.return_value = mock_creds
+        mock_load_creds.return_value = (mock_creds, "test-project")
+
+        # Connection with quota_project_id in extras
+        conn_quota = "connection-quota-project"
+        uri = f"google-cloud-platform://?extras={json.dumps({'quota_project_id': conn_quota})}"
+
+        with mock.patch.dict("os.environ", {"AIRFLOW_CONN_GOOGLE_CLOUD_DEFAULT": uri}):
+            hook = GoogleBaseHook(gcp_conn_id="google_cloud_default", quota_project_id="test-quota-project")
+            creds, _ = hook.get_credentials_and_project_id()
+
+            # Should use param quota project, not connection quota project
+            mock_creds.with_quota_project.assert_called_once_with("test-quota-project")
+
+    def test_quota_project_invalid_format(self):
+        """Test validation of quota project ID format."""
+        invalid_ids = [
+            "UPPERCASE",  # Must be lowercase
+            "special@chars",  # Invalid characters
+            "a",  # Too short
+            "a" * 31,  # Too long
+            "1starts-with-number",  # Must start with letter
+            "",  # Empty string
+            None,  # None value
+        ]
+
+        for invalid_id in invalid_ids:
+            mock_creds = mock.MagicMock()
+            mock_creds.with_quota_project.return_value = mock_creds
+            with mock.patch(MODULE_NAME + ".GoogleBaseHook.get_credentials_and_project_id", return_value=(mock_creds, None)):
+                hook = GoogleBaseHook(quota_project_id=invalid_id)
+                with pytest.raises(AirflowException):
+                    hook.get_credentials()
+
+    def test_quota_project_credential_error(self):
+        """Test handling of credential errors when setting quota project."""
+        mock_creds = mock.MagicMock()
+        mock_creds.with_quota_project.side_effect = Exception("Auth error")
+
+        with mock.patch(MODULE_NAME + ".GoogleBaseHook.get_credentials_and_project_id", return_value=(mock_creds, None)):
+            hook = GoogleBaseHook(quota_project_id="test-quota-project")
+            with pytest.raises(AirflowException) as exc_info:
+                hook.get_credentials()
+
+            assert "Failed to configure quota project" in str(exc_info.value)
+            assert "Auth error" in str(exc_info.value)
+
     def test_get_credentials_and_project_id_with_mutually_exclusive_configuration(self):
         self.instance.extras = {
             "project": "PROJECT_ID",

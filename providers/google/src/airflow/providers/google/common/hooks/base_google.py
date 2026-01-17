@@ -25,6 +25,7 @@ import functools
 import json
 import logging
 import os
+import re
 import tempfile
 from collections.abc import Callable, Generator, Sequence
 from contextlib import ExitStack, contextmanager
@@ -269,17 +270,34 @@ class GoogleBaseHook(BaseHook):
         return {
             "hidden_fields": ["host", "schema", "login", "password", "port", "extra"],
             "relabeling": {},
+            "placeholders": {
+                "quota_project_id": "Project ID to use for API quota and billing (optional)",
+            },
+            "tooltips": {
+                "quota_project_id": "Specify a different project for quota/billing purposes. Useful when using shared service accounts.",
+            },
         }
 
     def __init__(
         self,
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
+        quota_project_id: str | None = None,
         **kwargs,
     ) -> None:
+        """Initialize the Google Cloud Base Hook.
+        
+        :param gcp_conn_id: The connection ID to use when fetching connection info.
+        :param impersonation_chain: Optional service account to impersonate using short-term
+            credentials.
+        :param quota_project_id: Optional project ID to use for quota/billing purposes.
+            If None, the project ID from the GCP connection is used.
+        :param kwargs: Additional arguments to pass to parent constructor.
+        """
         super().__init__(**kwargs)
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
+        self.quota_project_id = quota_project_id
         self.extras: dict = self.get_connection(self.gcp_conn_id).extra_dejson
         self._cached_credentials: Credentials | None = None
         self._cached_project_id: str | None = None
@@ -342,6 +360,18 @@ class GoogleBaseHook(BaseHook):
             idp_extra_params_dict=idp_extra_params_dict,
         )
 
+        # Support for quota project ID
+        quota_project = self.quota_project_id or self._get_field("quota_project_id")
+        if quota_project:
+            self._validate_quota_project(quota_project)
+            try:
+                credentials = credentials.with_quota_project(quota_project)
+            except Exception as e:
+                raise AirflowException(
+                    f"Failed to configure quota project '{quota_project}': {str(e)}. "
+                    "Ensure the service account has permission to use the quota project."
+                ) from e
+
         overridden_project_id = self._get_field("project")
         if overridden_project_id:
             project_id = overridden_project_id
@@ -351,9 +381,51 @@ class GoogleBaseHook(BaseHook):
 
         return credentials, project_id
 
+    def _validate_quota_project(self, quota_project: str | None) -> None:
+        """Validate the quota project ID format and existence.
+
+        :param quota_project: The quota project ID to validate
+        :raises AirflowException: If the quota project ID is invalid
+        """
+        if quota_project is not None:
+            if not isinstance(quota_project, str):
+                raise AirflowException(f"quota_project_id must be a string, got {type(quota_project)}")
+            if not quota_project.strip():
+                raise AirflowException("quota_project_id cannot be empty")
+            # Check for valid GCP project ID format
+            if not re.match(r"^[a-z][-a-z0-9]{4,28}[a-z0-9]$", quota_project):
+                raise AirflowException(
+                    f"Invalid quota_project_id '{quota_project}'. "
+                    "Project IDs must start with a lowercase letter and can contain "
+                    "only lowercase letters, digits, and hyphens."
+                )
+
     def get_credentials(self) -> Credentials:
-        """Return the Credentials object for Google API."""
+        """Return the Credentials object for Google API.
+        
+        :return: Google Cloud credentials object
+        :raises AirflowException: If credentials cannot be configured with quota project
+        """
         credentials, _ = self.get_credentials_and_project_id()
+        
+        # If credentials are anonymous, skip quota project logic
+        is_anonymous = self._get_field("is_anonymous")
+        quota_project = self.quota_project_id or self._get_field("quota_project_id")
+        if quota_project and not is_anonymous:
+            self._validate_quota_project(quota_project)
+            if not hasattr(credentials, "with_quota_project"):
+                raise AirflowException(
+                    f"Credentials of type {type(credentials).__name__} do not support "
+                    "quota project configuration. Please use a different authentication method "
+                    "or remove the quota_project_id setting."
+                )
+            try:
+                credentials = credentials.with_quota_project(quota_project)
+            except Exception as e:
+                raise AirflowException(
+                    f"Failed to configure quota project '{quota_project}': {str(e)}"
+                ) from e
+        
         return credentials
 
     def _get_access_token(self) -> str:
