@@ -295,8 +295,3 @@ class PowerBIHook(KiotaRequestAdapterHook):
             },
             method="DELETE",
         )
-
-
-
-
-
