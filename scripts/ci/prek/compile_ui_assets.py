@@ -71,6 +71,9 @@ def compile_assets(ui_directory: Path, hash_file: Path):
         shutil.rmtree(dist_directory, ignore_errors=True)
     env = os.environ.copy()
     env["FORCE_COLOR"] = "true"
+    # Allow users to override via NODE_OPTIONS, default to 4GB if not set
+    if "NODE_OPTIONS" not in env:
+        env["NODE_OPTIONS"] = "--max-old-space-size=4096"
     for try_num in range(3):
         print(f"### Trying to install yarn dependencies: attempt: {try_num + 1} ###")
         result = subprocess.run(
