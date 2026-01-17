@@ -361,6 +361,39 @@ class SerializedDagModel(Base):
         return md5(data_json).hexdigest()
 
     @classmethod
+    def _data_for_structure_hash(cls, dag_data: dict) -> dict:
+        dag_section = dag_data.get("dag")
+        if not isinstance(dag_section, dict):
+            return {}
+        tasks = []
+        for task in dag_section.get("tasks", []):
+            if not isinstance(task, dict):
+                continue
+            task_payload = task.get("__var") if isinstance(task.get("__var"), dict) else task
+            if not isinstance(task_payload, dict):
+                continue
+            tasks.append(
+                {
+                    "task_id": task_payload.get("task_id"),
+                    "task_type": task_payload.get("task_type"),
+                    "downstream_task_ids": sorted(task_payload.get("downstream_task_ids") or []),
+                }
+            )
+        return {
+            "dag_id": dag_section.get("dag_id"),
+            "tasks": tasks,
+        }
+
+    @classmethod
+    def structure_hash(cls, dag_data: dict) -> str:
+        """Hash DAG data for versioning decisions (structure only)."""
+        data_ = dag_data.copy()
+        hash_data = cls._data_for_structure_hash(data_)
+        hash_data = cls._sort_serialized_dag_dict(hash_data)
+        data_json = json.dumps(hash_data, sort_keys=True).encode("utf-8")
+        return md5(data_json).hexdigest()
+
+    @classmethod
     def _sort_serialized_dag_dict(cls, serialized_dag: Any):
         """Recursively sort json_dict and its nested dictionaries and lists."""
         if isinstance(serialized_dag, dict):
@@ -420,9 +453,9 @@ class SerializedDagModel(Base):
 
         log.debug("Checking if DAG (%s) changed", dag.dag_id)
         new_serialized_dag = cls(dag)
-        serialized_dag_hash = session.scalars(
-            select(cls.dag_hash).where(cls.dag_id == dag.dag_id).order_by(cls.created_at.desc())
-        ).first()
+        latest_serialized_dag = session.scalar(
+            select(cls).where(cls.dag_id == dag.dag_id).order_by(cls.created_at.desc()).limit(1)
+        )
         dag_version = session.scalar(
             select(DagVersion)
             .where(DagVersion.dag_id == dag.dag_id)
@@ -432,17 +465,37 @@ class SerializedDagModel(Base):
         )
 
         if (
-            serialized_dag_hash == new_serialized_dag.dag_hash
+            latest_serialized_dag
+            and latest_serialized_dag.dag_hash == new_serialized_dag.dag_hash
             and dag_version
             and dag_version.bundle_name == bundle_name
         ):
             log.debug("Serialized DAG (%s) is unchanged. Skipping writing to DB", dag.dag_id)
             return False
 
-        if dag_version and not dag_version.task_instances:
-            # This is for dynamic DAGs that the hashes changes often. We should update
-            # the serialized dag, the dag_version and the dag_code instead of a new version
-            # if the dag_version is not associated with any task instances
+        structure_hash_changed = True
+        if latest_serialized_dag:
+            structure_hash_changed = cls.structure_hash(dag.data) != cls.structure_hash(
+                latest_serialized_dag.data
+            )
+
+        should_update_existing = False
+        if (
+            dag_version
+            and dag_version.bundle_name == bundle_name
+            and dag_version.bundle_version == bundle_version
+        ):
+            if not dag_version.task_instances:
+                # This is for dynamic DAGs that the hashes changes often. We should update
+                # the serialized dag, the dag_version and the dag_code instead of a new version
+                # if the dag_version is not associated with any task instances
+                should_update_existing = True
+            elif not structure_hash_changed:
+                # If the task structure is unchanged, update in place even with task instances.
+                should_update_existing = True
+
+        if should_update_existing:
+            # Update the serialized dag, the dag_version and the dag_code instead of a new version.
 
             # Use direct UPDATE to avoid loading the full serialized DAG
             result = session.execute(
@@ -453,6 +506,7 @@ class SerializedDagModel(Base):
                         cls._data: new_serialized_dag._data,
                         cls._data_compressed: new_serialized_dag._data_compressed,
                         cls.dag_hash: new_serialized_dag.dag_hash,
+                        cls.last_updated: timezone.utcnow(),
                     }
                 )
             )
