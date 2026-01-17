@@ -66,6 +66,7 @@ Bug Fixes
 * ``Fixed CloudSqlDatabaseHook error message for missing host (#60089)``
 * ``Remove erroneous _handle_job_error call during BigQuery job reattach (#60679)``
 * ``Prevent OpenLineage failure when BigQuery table metadata is missing (#60380)``
+* ``Revert "Fix Google Cloud Data Fusion hook to handle pipeline start errors properly (#58698)" (#60701)``
 
 Misc
 ~~~~
