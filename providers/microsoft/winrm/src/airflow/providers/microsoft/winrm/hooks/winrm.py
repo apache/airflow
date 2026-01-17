@@ -248,6 +248,10 @@ class WinRMHook(BaseHook):
             or a tuple containing shell_id and command_id if polling is disabled as those
             values are needed to be able to externalize the polling.
         """
+
+        if not command:
+            raise AirflowException("No command specified so nothing to execute here.")
+
         command_id: str | None = None
         winrm_client = self.get_conn()
         self.log.info("Establishing WinRM connection to host: %s", self.remote_host)

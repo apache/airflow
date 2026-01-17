@@ -23,19 +23,20 @@ from unittest import mock
 import pytest
 
 from airflow.providers.common.compat.sdk import AirflowException
+from airflow.providers.microsoft.winrm.hooks.winrm import WinRMHook
 from airflow.providers.microsoft.winrm.operators.winrm import WinRMOperator
+from airflow.sdk.exceptions import TaskDeferred
 
 
 class TestWinRMOperator:
     def test_no_winrm_hook_no_ssh_conn_id(self):
         op = WinRMOperator(task_id="test_task_id", winrm_hook=None, ssh_conn_id=None)
-        exception_msg = "Cannot operate without winrm_hook or ssh_conn_id."
+        exception_msg = "Cannot operate without winrm_hook."
         with pytest.raises(AirflowException, match=exception_msg):
             op.execute(None)
 
-    @mock.patch("airflow.providers.microsoft.winrm.operators.winrm.WinRMHook")
     def test_no_command(self, mock_hook):
-        op = WinRMOperator(task_id="test_task_id", winrm_hook=mock_hook, command=None)
+        op = WinRMOperator(task_id="test_task_id", winrm_hook=WinRMHook(), command=None)
         exception_msg = "No command specified so nothing to execute here."
         with pytest.raises(AirflowException, match=exception_msg):
             op.execute(None)
@@ -85,11 +86,7 @@ class TestWinRMOperator:
             expected_return_code=expected_return_code,
         )
 
-        should_task_succeed = False
-        if isinstance(expected_return_code, int):
-            should_task_succeed = real_return_code == expected_return_code
-        elif isinstance(expected_return_code, list) or isinstance(expected_return_code, range):
-            should_task_succeed = real_return_code in expected_return_code
+        should_task_succeed = op.validate_return_code(real_return_code)
 
         if should_task_succeed:
             execute_result = op.execute(None)
@@ -106,3 +103,33 @@ class TestWinRMOperator:
             exception_msg = f"Error running cmd: {command}, return code: {real_return_code}, error: KO"
             with pytest.raises(AirflowException, match=exception_msg):
                 op.execute(None)
+
+    @mock.patch("airflow.providers.microsoft.winrm.operators.winrm.WinRMHook")
+    def test_execute_deferrable_success(self, mock_hook):
+        stdout = b64encode(b"OK").decode("utf-8")
+        stderr = b64encode(b"").decode("utf-8")
+        mock_hook.run.return_value = (0, [stdout], [stderr])
+
+        operator = WinRMOperator(
+            task_id="test_task",
+            winrm_hook=mock_hook,
+            command="dir",
+            deferrable=True,
+        )
+
+        with pytest.raises(TaskDeferred) as exc:
+            operator.execute({})
+
+        trigger = exc.value.trigger
+        assert trigger is not None
+
+        event = {
+            "status": "success",
+            "return_code": 0,
+            "stdout": stdout,
+            "stderr": stderr,
+        }
+
+        result = operator.execute_complete({}, event)
+
+        assert result == stdout

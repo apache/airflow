@@ -22,7 +22,6 @@ import logging
 from base64 import b64encode
 from collections.abc import Sequence
 from datetime import timedelta
-from functools import cached_property
 from typing import TYPE_CHECKING, Any
 
 from airflow.providers.common.compat.sdk import AirflowException, BaseOperator, conf
@@ -99,27 +98,25 @@ class WinRMOperator(BaseOperator):
         self.working_directory = working_directory
         self.deferrable = deferrable
 
-    @cached_property
+    @property
     def hook(self) -> WinRMHook:
-        if self.ssh_conn_id and not self.winrm_hook:
-            self.log.info("Hook not found, creating...")
-            self.winrm_hook = WinRMHook(ssh_conn_id=self.ssh_conn_id)
-
         if not self.winrm_hook:
-            raise AirflowException("Cannot operate without winrm_hook.")
+            if self.ssh_conn_id and not self.winrm_hook:
+                self.log.info("Hook not found, creating...")
+                self.winrm_hook = WinRMHook(ssh_conn_id=self.ssh_conn_id)
 
-        if not self.winrm_hook.ssh_conn_id and self.deferrable:
-            raise AirflowException("Cannot operate in deferrable mode without ssh_conn_id.")
+            if not self.winrm_hook:
+                raise AirflowException("Cannot operate without winrm_hook.")
 
-        if self.remote_host is not None:
-            self.winrm_hook.remote_host = self.remote_host
+            if not self.winrm_hook.ssh_conn_id and self.deferrable:
+                raise AirflowException("Cannot operate in deferrable mode without ssh_conn_id.")
+
+            if self.remote_host is not None:
+                self.winrm_hook.remote_host = self.remote_host
 
         return self.winrm_hook
 
     def execute(self, context: Context) -> list | str:
-        if not self.command:
-            raise AirflowException("No command specified so nothing to execute here.")
-
         result = self.hook.run(
             command=self.command,
             ps_path=self.ps_path,
