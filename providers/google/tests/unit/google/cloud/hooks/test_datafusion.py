@@ -26,7 +26,7 @@ import pytest
 from aiohttp.helpers import TimerNoop
 from yarl import URL
 
-from airflow.providers.common.compat.sdk import AirflowException
+from airflow.providers.common.compat.sdk import AirflowException, AirflowFailException
 from airflow.providers.google.cloud.hooks.datafusion import DataFusionAsyncHook, DataFusionHook
 from airflow.providers.google.cloud.utils.datafusion import DataFusionPipelineType
 
@@ -349,6 +349,23 @@ class TestDataFusionHook:
             pipeline_name=PIPELINE_NAME, instance_url=INSTANCE_URL, runtime_args=RUNTIME_ARGS
         )
         assert result == str(run_id)
+        mock_request.assert_called_once_with(
+            url=f"{INSTANCE_URL}/v3/namespaces/default/apps/{PIPELINE_NAME}/workflows/DataPipelineWorkflow/start",
+            method="POST",
+            body=RUNTIME_ARGS,
+        )
+
+    @mock.patch(HOOK_STR.format("DataFusionHook._cdap_request"))
+    def test_start_pipeline_when_no_response(self, mock_request, hook):
+        mock_request.return_value = None
+
+        with pytest.raises(
+            AirflowFailException,
+            match=r"Failed to start pipeline. No valid response found against the pipeline.",
+        ):
+            hook.start_pipeline(
+                pipeline_name=PIPELINE_NAME, instance_url=INSTANCE_URL, runtime_args=RUNTIME_ARGS
+            )
         mock_request.assert_called_once_with(
             url=f"{INSTANCE_URL}/v3/namespaces/default/apps/{PIPELINE_NAME}/workflows/DataPipelineWorkflow/start",
             method="POST",

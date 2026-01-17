@@ -32,7 +32,11 @@ from gcloud.aio.auth import AioSession, Token
 from google.api_core.retry import exponential_sleep_generator
 from googleapiclient.discovery import Resource, build
 
-from airflow.providers.common.compat.sdk import AirflowException, AirflowNotFoundException
+from airflow.providers.common.compat.sdk import (
+    AirflowException,
+    AirflowFailException,
+    AirflowNotFoundException,
+)
 from airflow.providers.google.cloud.utils.datafusion import DataFusionPipelineType
 from airflow.providers.google.common.hooks.base_google import (
     PROVIDE_PROJECT_ID,
@@ -481,21 +485,30 @@ class DataFusionHook(GoogleBaseHook):
             "start",
         )
         runtime_args = runtime_args or {}
-        response = self._cdap_request(url=url, method="POST", body=runtime_args)
-        self._check_response_status_and_data(
-            response, f"Starting a pipeline failed with code {response.status}"
+        response: google.auth.transport.Response = self._cdap_request(
+            url=url, method="POST", body=runtime_args
         )
-        response_json = json.loads(response.data)
-
-        # Extract and validate runId from response
-        if "runId" not in response_json:
-            error_message = response_json.get("error", "Unknown error")
-            raise AirflowException(
-                f"Failed to start pipeline '{pipeline_name}'. "
-                f"The response does not contain a runId. Error: {error_message}"
+        if response:
+            self._check_response_status_and_data(
+                response, f"Starting a pipeline failed with code {response.status}"
             )
+            response_json = json.loads(response.data)
 
-        return str(response_json["runId"])
+            # Extract and validate runId from response
+            if "runId" not in response_json:
+                error_message = response_json.get("error", "Unknown error")
+                raise AirflowException(
+                    f"Failed to start pipeline '{pipeline_name}'. "
+                    f"The response does not contain a runId. Error: {error_message}"
+                )
+
+            return str(response_json.get("runId"))
+        self.log.error(
+            "Failed to start pipeline %s. No valid response found against pipeline %s",
+            pipeline_name,
+            pipeline_name,
+        )
+        raise AirflowFailException("Failed to start pipeline. No valid response found against the pipeline.")
 
     def stop_pipeline(self, pipeline_name: str, instance_url: str, namespace: str = "default") -> None:
         """
