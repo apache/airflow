@@ -74,7 +74,7 @@ class WinRMOperator(BaseOperator):
         ps_path: str | None = None,
         output_encoding: str = "utf-8",
         timeout: int | timedelta = 10,
-        poll_interval: int | timedelta | None = 1,
+        poll_interval: int | timedelta | None = None,
         expected_return_code: int | list[int] | range = 0,
         working_directory: str | None = None,
         deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
@@ -89,7 +89,11 @@ class WinRMOperator(BaseOperator):
         self.output_encoding = output_encoding
         self.timeout = timeout.total_seconds() if isinstance(timeout, timedelta) else timeout
         self.poll_interval = (
-            poll_interval.total_seconds() if isinstance(poll_interval, timedelta) else poll_interval
+            poll_interval.total_seconds()
+            if isinstance(poll_interval, timedelta)
+            else poll_interval
+            if poll_interval is not None
+            else 1.0
         )
         self.expected_return_code = expected_return_code
         self.working_directory = working_directory
