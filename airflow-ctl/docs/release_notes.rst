@@ -16,16 +16,8 @@
     under the License.
 
 
-.. NOTE TO CONTRIBUTORS:
-   Please, only add notes to the Changelog just below the "Changelog" header when there are some breaking changes
-   and you want to add an explanation to the users on how they are supposed to deal with them.
-   The changelog is updated and maintained semi-automatically by release manager.
 
-``apache-airflow-ctl``
+Release Notes
+=============
 
-Changelog
----------
-
-0.1.0
-.....
-Initial version of the airflowctl.
+.. include:: ../RELEASE_NOTES.rst

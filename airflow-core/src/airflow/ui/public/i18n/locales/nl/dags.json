@@ -34,6 +34,10 @@
       "error": "Mislukt om {{type}} te wissen",
       "title": "Wis {{type}}"
     },
+    "confirmationDialog": {
+      "description": "Taak is momenteel in een {{state}} status gestart door gebruiker {{user}} op {{time}}. \nDe gebruiker kan deze taak niet wissen totdat deze klaar is met uitvoeren of een gebruiker de optie \"Voorkom opnieuw uitvoeren als task bezig is\" in het dialoogvenster voor het wissen van taken uitschakelt.",
+      "title": "Kan Task Instance niet wissen"
+    },
     "delete": {
       "button": "Verwijder {{type}}",
       "dialog": {
@@ -61,6 +65,7 @@
       "future": "Toekomst",
       "onlyFailed": "Wis enkel mislukte Tasks",
       "past": "Verleden",
+      "preventRunningTasks": "Voorkom opnieuw uitvoeren als task bezig is",
       "queueNew": "Zet nieuwe Tasks in de wachtrij",
       "runOnLatestVersion": "Voer uit met de nieuwste bundelversie",
       "upstream": "Upstream"

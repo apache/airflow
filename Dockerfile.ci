@@ -98,7 +98,6 @@ libev4 \
 libffi-dev \
 libgdbm-compat-dev \
 libgdbm-dev \
-libgdbm-dev \
 libgeos-dev \
 libkrb5-dev \
 libldap2-dev \
@@ -1568,7 +1567,7 @@ ENV DEV_APT_COMMAND=${DEV_APT_COMMAND} \
 
 ARG AIRFLOW_PYTHON_VERSION="3.12.12"
 ENV AIRFLOW_PYTHON_VERSION=${AIRFLOW_PYTHON_VERSION}
-ENV GOLANG_MAJOR_MINOR_VERSION="1.25.5"
+ENV GOLANG_MAJOR_MINOR_VERSION="1.25.6"
 
 ARG PYTHON_LTO
 
@@ -1591,7 +1590,7 @@ ARG HOME=/root
 ARG AIRFLOW_IMAGE_TYPE="ci"
 ARG AIRFLOW_HOME=/root/airflow
 ARG AIRFLOW_SOURCES=/opt/airflow
-ARG INSTALL_MYSQL_CLIENT_TYPE="mysql"
+ARG INSTALL_MYSQL_CLIENT_TYPE="mariadb"
 
 ENV HOME=${HOME} \
     AIRFLOW_IMAGE_TYPE=${AIRFLOW_IMAGE_TYPE} \
@@ -1715,8 +1714,8 @@ COPY --from=scripts common.sh install_packaging_tools.sh install_additional_depe
 # Also use `force pip` label on your PR to swap all places we use `uv` to `pip`
 ARG AIRFLOW_PIP_VERSION=25.3
 # ARG AIRFLOW_PIP_VERSION="git+https://github.com/pypa/pip.git@main"
-ARG AIRFLOW_UV_VERSION=0.9.24
-ARG AIRFLOW_PREK_VERSION="0.2.27"
+ARG AIRFLOW_UV_VERSION=0.9.26
+ARG AIRFLOW_PREK_VERSION="0.2.29"
 
 # UV_LINK_MODE=copy is needed since we are using cache mounted from the host
 ENV AIRFLOW_PIP_VERSION=${AIRFLOW_PIP_VERSION} \

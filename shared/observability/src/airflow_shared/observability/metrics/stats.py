@@ -22,51 +22,62 @@ import socket
 from collections.abc import Callable
 from typing import TYPE_CHECKING
 
-from airflow.sdk._shared.observability.metrics.base_stats_logger import NoStatsLogger
-from airflow.sdk.configuration import conf
+from .base_stats_logger import NoStatsLogger
 
 if TYPE_CHECKING:
-    from airflow.sdk._shared.observability.metrics.base_stats_logger import StatsLogger
+    from .base_stats_logger import StatsLogger
 
 log = logging.getLogger(__name__)
 
 
 class _Stats(type):
-    factory: Callable
+    factory: Callable[[], StatsLogger | NoStatsLogger] | None = None
     instance: StatsLogger | NoStatsLogger | None = None
 
     def __getattr__(cls, name: str) -> str:
-        if not cls.instance:
+        factory = type.__getattribute__(cls, "factory")
+        instance = type.__getattribute__(cls, "instance")
+
+        if instance is None:
+            if factory is None:
+                factory = NoStatsLogger
+                type.__setattr__(cls, "factory", factory)
+
             try:
-                cls.instance = cls.factory()
+                instance = factory()
             except (socket.gaierror, ImportError) as e:
                 log.error("Could not configure StatsClient: %s, using NoStatsLogger instead.", e)
-                cls.instance = NoStatsLogger()
-        return getattr(cls.instance, name)
+                instance = NoStatsLogger()
 
-    def __init__(cls, *args, **kwargs) -> None:
-        super().__init__(cls)
-        if not hasattr(cls.__class__, "factory"):
-            is_datadog_enabled_defined = conf.has_option("metrics", "statsd_datadog_enabled")
-            if is_datadog_enabled_defined and conf.getboolean("metrics", "statsd_datadog_enabled"):
-                from airflow.sdk.observability.metrics import datadog_logger
+            type.__setattr__(cls, "instance", instance)
 
-                cls.__class__.factory = datadog_logger.get_dogstatsd_logger
-            elif conf.getboolean("metrics", "statsd_on"):
-                from airflow.sdk.observability.metrics import statsd_logger
+        return getattr(instance, name)
 
-                cls.__class__.factory = statsd_logger.get_statsd_logger
-            elif conf.getboolean("metrics", "otel_on"):
-                from airflow.sdk.observability.metrics import otel_logger
+    def initialize(cls, *, is_statsd_datadog_enabled: bool, is_statsd_on: bool, is_otel_on: bool) -> None:
+        type.__setattr__(cls, "factory", None)
+        type.__setattr__(cls, "instance", None)
 
-                cls.__class__.factory = otel_logger.get_otel_logger
-            else:
-                cls.__class__.factory = NoStatsLogger
+        if is_statsd_datadog_enabled:
+            from airflow.observability.metrics import datadog_logger
+
+            # Datadog needs the cls param, so wrap it into a 0-arg factory.
+            factory = lambda: datadog_logger.get_dogstatsd_logger(cls)
+        elif is_statsd_on:
+            from airflow.observability.metrics import statsd_logger
+
+            factory = statsd_logger.get_statsd_logger
+        elif is_otel_on:
+            from airflow.observability.metrics import otel_logger
+
+            factory = otel_logger.get_otel_logger
+        else:
+            factory = NoStatsLogger
+
+        type.__setattr__(cls, "factory", factory)
 
     @classmethod
-    def get_constant_tags(cls) -> list[str]:
+    def get_constant_tags(cls, *, tags_in_string: str | None) -> list[str]:
         """Get constant DataDog tags to add to all stats."""
-        tags_in_string = conf.get("metrics", "statsd_datadog_tags", fallback=None)
         if not tags_in_string:
             return []
         return tags_in_string.split(",")

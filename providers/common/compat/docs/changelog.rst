@@ -25,6 +25,28 @@
 Changelog
 ---------
 
+1.12.0
+......
+
+Features
+~~~~~~~~
+
+* ``Allow providers to consume AirflowConfigException from compat sdk (#60044)``
+* ``Source conf from 'airflow.sdk.configuration.conf' for apache providers (#59966)``
+* ``Consume ''AirflowOptionalProviderFeatureException'' from compat sdk in providers (#60335)``
+
+Misc
+~~~~
+
+* ``New year means updated Copyright notices (#60344)``
+* ``Move listeners module to shared library for client server separation (#59883)``
+* ``Move over plugins_manager to a shared library (#59956)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Add support for async callables in PythonOperator (#59087)``
+   * ``Revert "Add support for async callables in PythonOperator (#59087)" (#60266)``
+
 1.11.0
 ......
 
