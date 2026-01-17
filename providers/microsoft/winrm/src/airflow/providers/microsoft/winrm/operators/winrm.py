@@ -102,7 +102,10 @@ class WinRMOperator(BaseOperator):
             self.winrm_hook = WinRMHook(ssh_conn_id=self.ssh_conn_id)
 
         if not self.winrm_hook:
-            raise AirflowException("Cannot operate without winrm_hook or ssh_conn_id.")
+            raise AirflowException("Cannot operate without winrm_hook.")
+
+        if not self.winrm_hook.ssh_conn_id and self.deferrable:
+            raise AirflowException("Cannot operate in deferrable mode without ssh_conn_id.")
 
         if self.remote_host is not None:
             self.winrm_hook.remote_host = self.remote_host
