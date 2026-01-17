@@ -287,7 +287,7 @@ def _do_dry_run(
         raise DagNotFound(f"Could not find dag {dag_id}")
     dag = serdag.dag
     _validate_backfill_params(dag, reverse, from_date, to_date, reprocess_behavior)
-    if isinstance(serdag.timetable, CronPartitionTimetable):
+    if isinstance(serdag.dag.timetable, CronPartitionTimetable):
         # TODO: AIP-76 implement for partition timetables
         raise ValueError("Backfill is not yet implemented for partition timetables")
     no_schedule = session.scalar(
