@@ -779,6 +779,8 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 )
                 .execution_options(synchronize_session=False)
             )
+            # add queue events to audit log
+            session.add_all([Log(event=TaskInstanceState.QUEUED, task_instance=ti) for ti in executable_tis])
 
             for ti in executable_tis:
                 ti.emit_state_change_metric(TaskInstanceState.QUEUED)

@@ -65,7 +65,9 @@ from airflow.models.asset import AssetActive
 from airflow.models.dag import DagModel
 from airflow.models.dagrun import DagRun as DR
 from airflow.models.expandinput import NotFullyPopulated
+from airflow.models.log import Log
 from airflow.models.taskinstance import TaskInstance as TI, _stop_remaining_tasks
+from airflow.models.taskinstancekey import TaskInstanceKey
 from airflow.models.taskreschedule import TaskReschedule
 from airflow.models.trigger import Trigger
 from airflow.models.xcom import XComModel
@@ -89,6 +91,30 @@ ti_id_router = VersionedAPIRouter(
 
 
 log = structlog.get_logger(__name__)
+
+
+def _add_log(
+    session: SessionDep,
+    event: TaskInstanceState,
+    dag_id: str,
+    task_id: str,
+    run_id: str,
+    map_index: int,
+    try_number: int,
+) -> None:
+    """Add task instance state change to the audit log."""
+    session.add(
+        Log(
+            event=event,
+            task_instance=TaskInstanceKey(
+                dag_id=dag_id,
+                task_id=task_id,
+                run_id=run_id,
+                map_index=map_index,
+                try_number=try_number,
+            ),
+        )
+    )
 
 
 @ti_id_router.patch(
@@ -212,6 +238,15 @@ def ti_run(
 
     try:
         result = session.execute(query)
+        _add_log(
+            session=session,
+            event=TaskInstanceState.RUNNING,
+            dag_id=ti.dag_id,
+            task_id=ti.task_id,
+            run_id=ti.run_id,
+            map_index=ti.map_index,
+            try_number=ti.try_number,
+        )
         log.info("Task instance state updated", rows_affected=getattr(result, "rowcount", 0))
 
         dr = (
@@ -354,13 +389,20 @@ def ti_update_state(
     bind_contextvars(ti_id=ti_id_str)
     log.debug("Updating task instance state", new_state=ti_patch_payload.state)
 
-    old = select(TI.state, TI.try_number, TI.max_tries, TI.dag_id).where(TI.id == ti_id_str).with_for_update()
+    old = (
+        select(TI.state, TI.try_number, TI.max_tries, TI.dag_id, TI.task_id, TI.run_id, TI.map_index)
+        .where(TI.id == ti_id_str)
+        .with_for_update()
+    )
     try:
         (
             previous_state,
             try_number,
             max_tries,
             dag_id,
+            task_id,
+            run_id,
+            map_index,
         ) = session.execute(old).one()
         log.debug(
             "Retrieved current task instance state",
@@ -422,11 +464,21 @@ def ti_update_state(
     # https://fastapi.tiangolo.com/tutorial/handling-errors/#install-custom-exception-handlers
     try:
         result = session.execute(query)
+        _add_log(
+            session=session,
+            event=updated_state,
+            dag_id=dag_id,
+            task_id=task_id,
+            run_id=run_id,
+            map_index=map_index,
+            try_number=try_number,
+        )
         log.info(
             "Task instance state updated",
             new_state=updated_state,
             rows_affected=getattr(result, "rowcount", 0),
         )
+
     except SQLAlchemyError as e:
         log.error("Error updating Task Instance state", error=str(e))
         raise HTTPException(
