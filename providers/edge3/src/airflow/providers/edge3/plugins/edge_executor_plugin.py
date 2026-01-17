@@ -17,8 +17,14 @@
 
 from __future__ import annotations
 
+import logging
+import random
 import sys
+import time
 from typing import TYPE_CHECKING, Any
+
+from sqlalchemy import inspect
+from sqlalchemy.exc import OperationalError
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowConfigException
@@ -27,28 +33,140 @@ from airflow.providers.edge3.version_compat import AIRFLOW_V_3_1_PLUS
 from airflow.utils.session import NEW_SESSION, provide_session
 
 if TYPE_CHECKING:
+    from sqlalchemy.engine import Engine
     from sqlalchemy.orm import Session
 
 from airflow.utils.db import DBLocks, create_global_lock
 
+log = logging.getLogger(__name__)
+
+# Retry configuration for lock acquisition during table creation
+MAX_LOCK_RETRIES = 5
+LOCK_RETRY_DELAY_BASE = 1.0  # Base delay in seconds for exponential backoff
+
+# Required edge tables
+EDGE_TABLES = ("edge_job", "edge_logs", "edge_worker")
+
+
+def _tables_exist(engine: Engine) -> bool:
+    """
+    Check if all required edge tables already exist in the database.
+
+    This is a fast path to avoid acquiring a global lock when tables
+    are already present (normal operation after initial setup).
+    """
+    try:
+        inspector = inspect(engine)
+        existing_tables = set(inspector.get_table_names())
+        return all(table in existing_tables for table in EDGE_TABLES)
+    except Exception:
+        # If we can't check, assume tables don't exist and proceed with creation
+        return False
+
+
+def _is_lock_not_available_error(error: OperationalError) -> bool:
+    """Check if the error is a lock acquisition failure."""
+    # PostgreSQL error code for lock_not_available
+    pg_code = getattr(error.orig, "pgcode", None)
+    if pg_code == "55P03":
+        return True
+    # Check error message as fallback
+    error_str = str(error).lower()
+    return "lock" in error_str and ("not available" in error_str or "timeout" in error_str)
+
 
 @provide_session
-def _get_api_endpoint(session: Session = NEW_SESSION) -> dict[str, Any]:
-    # Ensure all required DB modeals are created before starting the API
-    with create_global_lock(session=session, lock=DBLocks.MIGRATIONS):
-        engine = session.get_bind().engine
-        from airflow.providers.edge3.models.edge_job import EdgeJobModel
-        from airflow.providers.edge3.models.edge_logs import EdgeLogsModel
-        from airflow.providers.edge3.models.edge_worker import EdgeWorkerModel
+def _ensure_tables_created(session: Session = NEW_SESSION) -> None:
+    """
+    Ensure all required DB models are created with retry logic.
 
-        EdgeJobModel.metadata.create_all(engine)
-        EdgeLogsModel.metadata.create_all(engine)
-        EdgeWorkerModel.metadata.create_all(engine)
+    This is called lazily on FastAPI app startup, not at plugin import time,
+    to avoid blocking all API server processes on a global database lock
+    during concurrent startup.
 
+    Uses exponential backoff with jitter to handle lock contention when
+    multiple API server processes start simultaneously.
+
+    Fast path: If tables already exist, skips lock acquisition entirely.
+    """
+    from airflow.providers.edge3.models.edge_job import EdgeJobModel
+    from airflow.providers.edge3.models.edge_logs import EdgeLogsModel
+    from airflow.providers.edge3.models.edge_worker import EdgeWorkerModel
+
+    engine = session.get_bind().engine
+
+    # Fast path: skip lock acquisition if tables already exist
+    if _tables_exist(engine):
+        log.debug("Edge tables already exist, skipping creation.")
+        return
+
+    last_error: OperationalError | None = None
+
+    for attempt in range(MAX_LOCK_RETRIES):
+        try:
+            log.debug("Ensuring edge tables exist (attempt %d/%d)...", attempt + 1, MAX_LOCK_RETRIES)
+            with create_global_lock(session=session, lock=DBLocks.MIGRATIONS):
+                # Double-check after acquiring lock (another process may have created them)
+                if _tables_exist(engine):
+                    log.debug("Edge tables were created by another process.")
+                    return
+                EdgeJobModel.metadata.create_all(engine)
+                EdgeLogsModel.metadata.create_all(engine)
+                EdgeWorkerModel.metadata.create_all(engine)
+            log.debug("Edge tables created successfully.")
+            return
+        except OperationalError as e:
+            if _is_lock_not_available_error(e):
+                last_error = e
+                if attempt < MAX_LOCK_RETRIES - 1:
+                    # Exponential backoff with jitter to avoid thundering herd
+                    delay = LOCK_RETRY_DELAY_BASE * (2**attempt) + random.uniform(0, 1)
+                    log.warning(
+                        "Could not acquire migration lock for edge tables (attempt %d/%d), "
+                        "retrying in %.1f seconds...",
+                        attempt + 1,
+                        MAX_LOCK_RETRIES,
+                        delay,
+                    )
+                    time.sleep(delay)
+                    # Get a fresh session for retry to avoid stale connection issues
+                    session.rollback()
+                    # Check if tables were created while we were waiting
+                    if _tables_exist(engine):
+                        log.debug("Edge tables were created by another process during retry wait.")
+                        return
+            else:
+                # Re-raise non-lock-related errors immediately
+                raise
+
+    # All retries exhausted
+    log.error(
+        "Failed to acquire migration lock for edge tables after %d attempts. "
+        "Edge worker API may not function correctly.",
+        MAX_LOCK_RETRIES,
+    )
+    if last_error:
+        raise last_error
+
+
+def _get_api_endpoint() -> dict[str, Any]:
+    """
+    Get API endpoint configuration.
+
+    Table creation is deferred to FastAPI startup event to avoid
+    blocking plugin import on database lock acquisition.
+    """
     from airflow.providers.edge3.worker_api.app import create_edge_worker_api_app
 
+    app = create_edge_worker_api_app()
+
+    @app.on_event("startup")
+    def ensure_tables_on_startup():
+        """Create edge tables on app startup instead of at import time."""
+        _ensure_tables_created()
+
     return {
-        "app": create_edge_worker_api_app(),
+        "app": app,
         "url_prefix": "/edge_worker",
         "name": "Airflow Edge Worker",
     }
