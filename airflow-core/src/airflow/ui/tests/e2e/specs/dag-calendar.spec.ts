@@ -32,8 +32,6 @@ test.describe("DAG Calendar Page", () => {
         const baseUrl = process.env.AIRFLOW_UI_BASE_URL ?? "http://localhost:8080";
 
         const timestamp = Date.now();
-        const date = new Date(timestamp);
-        const todayDateString = date.toISOString().split("T")[0]; // YYYY-MM-DD
 
         // Trigger DAG runs to ensure data
         // Success Run
@@ -61,7 +59,7 @@ test.describe("DAG Calendar Page", () => {
 
         // Failed Run
         const runId2 = `test_run_cal_failed_${timestamp}`;
-        const logicalDate2 = new Date(timestamp + 60_000).toISOString();
+        const logicalDate2 = new Date(timestamp + 60 * 1000).toISOString();
         const triggerResponse2 = await page.request.post(`${baseUrl}/api/v2/dags/${testDagId}/dagRuns`, {
             data: JSON.stringify({
                 dag_run_id: runId2,
@@ -90,12 +88,11 @@ test.describe("DAG Calendar Page", () => {
     });
 
     test("verify calendar renders and displays runs", async () => {
-        await dagCalendarPage.navigate(); // Should go to dags list
         await dagCalendarPage.navigateToCalendar(testDagId);
 
         await dagCalendarPage.verifyCalendarRender();
 
-        const today = new Date().toISOString().split("T")[0];
+        const [today] = new Date().toISOString().split("T");
 
         // We triggered runs for today, so we should see Mixed or at least one of them
         // If multiple runs on same day, logic might be mixed.
@@ -126,14 +123,14 @@ test.describe("DAG Calendar Page", () => {
         // Click 'Failed runs' button if exists (from Calendar.tsx: setViewMode("failed"))
         await dagCalendarPage.page.getByRole("button", { name: "Failed Runs" }).click();
 
-        const today = new Date().toISOString().split("T")[0];
+        const [today] = new Date().toISOString().split("T");
         const cell = dagCalendarPage.page.locator(`[data-testid="calendar-cell"][data-date="${today}"]`);
 
         await cell.hover();
         const tooltip = dagCalendarPage.page.getByRole("tooltip");
 
         await expect(tooltip).toContainText("Failed");
-        // Should NOT contain Success count if filtered?
+        // Should NOT contain Success count if filtered? 
         // CalendarTooltip logic: viewMode === "failed" ? return key === "failed" ...
         // Yes, it filters out non-failed.
         await expect(tooltip).not.toContainText("Success");

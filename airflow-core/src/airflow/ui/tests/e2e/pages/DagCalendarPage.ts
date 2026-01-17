@@ -39,13 +39,17 @@ export class DagCalendarPage extends BasePage {
 
     public async navigateToCalendar(dagId: string): Promise<void> {
         await this.page.goto(`/dags/${dagId}/calendar`);
+
         await this.page.waitForLoadState("networkidle");
+
         await this.calendarTab.waitFor({ state: "visible" });
     }
 
     public async verifyCalendarRender(): Promise<void> {
         await expect(this.monthYearHeader).toBeVisible();
+
         await expect(this.page.getByRole("button", { name: "Daily" })).toBeVisible();
+
         await expect(this.page.getByRole("button", { name: "Hourly" })).toBeVisible();
     }
 
@@ -55,6 +59,7 @@ export class DagCalendarPage extends BasePage {
         await expect(cell).toBeVisible();
 
         await cell.hover();
+
         const tooltip = this.page.getByRole("tooltip");
 
         await expect(tooltip).toBeVisible();
