@@ -118,7 +118,6 @@ class HITLOperator(BaseOperator):
         Raises:
             ValueError: If `"_options"` key is present in `params`, which is not allowed.
         """
-        self.params.validate()
         if "_options" in self.params:
             raise ValueError('"_options" is not allowed in params')
 
