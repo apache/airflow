@@ -52,14 +52,13 @@ classifiers = [
     "Topic :: System :: Monitoring",
 ]
 requires-python = ">=3.10"
-
 # The dependencies should be modified in place in the generated file.
 # Any change in the dependencies is preserved when the file is regenerated
 # Make sure to run ``prek update-providers-dependencies --all-files``
 # After you modify the dependencies, and rebuild your Breeze CI image with ``breeze ci-image build``
 dependencies = [
     "apache-airflow>=2.11.0",
-    "apache-airflow-providers-common-compat>=1.10.1",
+    "apache-airflow-providers-common-compat>=1.10.1", # use next version
     "apache-airflow-providers-common-sql>=1.20.0",
     "jaydebeapi>=1.1.1",
 ]
