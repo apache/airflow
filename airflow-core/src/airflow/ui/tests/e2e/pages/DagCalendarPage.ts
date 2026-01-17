@@ -27,7 +27,9 @@ export class DagCalendarPage extends BasePage {
     public constructor(page: Page) {
         super(page);
         this.calendarTab = page.getByRole("tab", { name: "Calendar" });
-        this.calendarGrid = page.locator(".react-calendar-heatmap").or(page.getByTestId("calendar-cell").first().locator(".."));
+        this.calendarGrid = page
+            .locator(".react-calendar-heatmap")
+            .or(page.getByTestId("calendar-cell").first().locator(".."));
         this.monthYearHeader = page.getByTestId("calendar-header-date");
     }
 

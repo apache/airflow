@@ -49,13 +49,10 @@ test.describe("DAG Calendar Page", () => {
 
         const runData1 = (await triggerResponse1.json()) as { dag_run_id: string };
 
-        await page.request.patch(
-            `${baseUrl}/api/v2/dags/${testDagId}/dagRuns/${runData1.dag_run_id}`,
-            {
-                data: JSON.stringify({ state: "success" }),
-                headers: { "Content-Type": "application/json" },
-            }
-        );
+        await page.request.patch(`${baseUrl}/api/v2/dags/${testDagId}/dagRuns/${runData1.dag_run_id}`, {
+            data: JSON.stringify({ state: "success" }),
+            headers: { "Content-Type": "application/json" },
+        });
 
         // Failed Run
         const runId2 = `test_run_cal_failed_${timestamp}`;
@@ -72,13 +69,10 @@ test.describe("DAG Calendar Page", () => {
 
         const runData2 = (await triggerResponse2.json()) as { dag_run_id: string };
 
-        await page.request.patch(
-            `${baseUrl}/api/v2/dags/${testDagId}/dagRuns/${runData2.dag_run_id}`,
-            {
-                data: JSON.stringify({ state: "failed" }),
-                headers: { "Content-Type": "application/json" },
-            }
-        );
+        await page.request.patch(`${baseUrl}/api/v2/dags/${testDagId}/dagRuns/${runData2.dag_run_id}`, {
+            data: JSON.stringify({ state: "failed" }),
+            headers: { "Content-Type": "application/json" },
+        });
 
         await context.close();
     });
