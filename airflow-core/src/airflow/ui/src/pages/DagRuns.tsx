@@ -35,7 +35,7 @@ import RenderedJsonField from "src/components/RenderedJsonField";
 import { RunTypeIcon } from "src/components/RunTypeIcon";
 import { StateBadge } from "src/components/StateBadge";
 import Time from "src/components/Time";
-import { TruncatedText } from "src/components/TruncatedText";
+import { WrappedText } from "src/components/WrappedText";
 import { SearchParamsKeys, type SearchParamsKeysType } from "src/constants/searchParams";
 import { DagRunsFilters } from "src/pages/DagRunsFilters";
 import DeleteRunButton from "src/pages/DeleteRunButton";
@@ -67,7 +67,7 @@ const runColumns = (translate: TFunction, dagId?: string): Array<ColumnDef<DAGRu
           cell: ({ row: { original } }: DagRunRow) => (
             <Link asChild color="fg.info">
               <RouterLink to={`/dags/${original.dag_id}`}>
-                <TruncatedText text={original.dag_display_name} />
+                <WrappedText text={original.dag_display_name} />
               </RouterLink>
             </Link>
           ),
@@ -80,7 +80,7 @@ const runColumns = (translate: TFunction, dagId?: string): Array<ColumnDef<DAGRu
     cell: ({ row: { original } }: DagRunRow) => (
       <Link asChild color="fg.info" fontWeight="bold">
         <RouterLink to={`/dags/${original.dag_id}/runs/${original.dag_run_id}`}>
-          <TruncatedText text={original.dag_run_id} />
+          <WrappedText text={original.dag_run_id} />
         </RouterLink>
       </Link>
     ),

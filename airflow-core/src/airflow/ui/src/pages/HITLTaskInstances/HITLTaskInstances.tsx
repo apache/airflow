@@ -29,7 +29,7 @@ import { useTableURLState } from "src/components/DataTable/useTableUrlState";
 import { ErrorAlert } from "src/components/ErrorAlert";
 import { StateBadge } from "src/components/StateBadge";
 import Time from "src/components/Time";
-import { TruncatedText } from "src/components/TruncatedText";
+import { WrappedText } from "src/components/WrappedText";
 import { SearchParamsKeys, type SearchParamsKeysType } from "src/constants/searchParams";
 import { useAutoRefresh } from "src/utils";
 import { getHITLState } from "src/utils/hitl";
@@ -75,7 +75,7 @@ const taskInstanceColumns = ({
     cell: ({ row: { original } }: TaskInstanceRow) => (
       <Link asChild color="fg.info" fontWeight="bold">
         <RouterLink to={`${getTaskInstanceLink(original.task_instance)}/required_actions`}>
-          <TruncatedText text={original.subject} />
+          <WrappedText text={original.subject} />
         </RouterLink>
       </Link>
     ),
@@ -89,7 +89,7 @@ const taskInstanceColumns = ({
           cell: ({ row: { original } }: TaskInstanceRow) => (
             <Link asChild color="fg.info">
               <RouterLink to={`/dags/${original.task_instance.dag_id}`}>
-                <TruncatedText text={original.task_instance.dag_display_name} />
+                <WrappedText text={original.task_instance.dag_display_name} />
               </RouterLink>
             </Link>
           ),
@@ -107,7 +107,7 @@ const taskInstanceColumns = ({
               <RouterLink
                 to={`/dags/${original.task_instance.dag_id}/runs/${original.task_instance.dag_run_id}`}
               >
-                <TruncatedText text={original.task_instance.dag_run_id} />
+                <WrappedText text={original.task_instance.dag_run_id} />
               </RouterLink>
             </Link>
           ),
@@ -133,7 +133,7 @@ const taskInstanceColumns = ({
           cell: ({ row: { original } }: TaskInstanceRow) => (
             <Link asChild color="fg.info" fontWeight="bold">
               <RouterLink to={`${getTaskInstanceLink(original.task_instance)}/required_actions`}>
-                <TruncatedText text={original.task_instance.task_display_name} />
+                <WrappedText text={original.task_instance.task_display_name} />
               </RouterLink>
             </Link>
           ),
@@ -142,12 +142,12 @@ const taskInstanceColumns = ({
       ]),
   {
     accessorKey: "rendered_map_index",
-    cell: ({ row: { original } }) => <TruncatedText text={original.task_instance.rendered_map_index ?? ""} />,
+    cell: ({ row: { original } }) => <WrappedText text={original.task_instance.rendered_map_index ?? ""} />,
     header: translate("common:mapIndex"),
   },
   {
     accessorKey: "task_instance_operator",
-    cell: ({ row: { original } }) => <TruncatedText text={original.task_instance.operator ?? ""} />,
+    cell: ({ row: { original } }) => <WrappedText text={original.task_instance.operator ?? ""} />,
     header: translate("common:task.operator"),
   },
   {
@@ -157,7 +157,7 @@ const taskInstanceColumns = ({
   },
   {
     accessorKey: "responded_by_user_name",
-    cell: ({ row: { original } }) => <TruncatedText text={original.responded_by_user?.name ?? ""} />,
+    cell: ({ row: { original } }) => <WrappedText text={original.responded_by_user?.name ?? ""} />,
     header: translate("response.responded_by_user_name"),
   },
   {

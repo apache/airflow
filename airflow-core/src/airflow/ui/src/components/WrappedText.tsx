@@ -22,14 +22,12 @@ type Props = {
   readonly text: string;
 } & TextProps;
 
-export const TruncatedText = ({ text, ...rest }: Props) => (
+export const WrappedText = ({ text, ...rest }: Props) => (
   <Text
     display="-webkit-box"
     minWidth={200}
-    overflow="hidden"
     style={{
       WebkitBoxOrient: "vertical",
-      WebkitLineClamp: 2,
     }}
     title={text}
     wordBreak="break-word"

@@ -28,7 +28,7 @@ import { useTableURLState } from "src/components/DataTable/useTableUrlState";
 import { ErrorAlert } from "src/components/ErrorAlert";
 import { ExpandCollapseButtons } from "src/components/ExpandCollapseButtons";
 import Time from "src/components/Time";
-import { TruncatedText } from "src/components/TruncatedText";
+import { WrappedText } from "src/components/WrappedText";
 import { SearchParamsKeys, type SearchParamsKeysType } from "src/constants/searchParams";
 import { getTaskInstanceLink } from "src/utils/links";
 
@@ -72,7 +72,7 @@ const getColumns = ({ open, translate }: ColumnsProps): Array<ColumnDef<XComResp
     cell: ({ row: { original } }: { row: { original: XComResponse } }) => (
       <Link asChild color="fg.info" fontWeight="bold">
         <RouterLink to={`/dags/${original.dag_id}/runs/${original.run_id}`}>
-          <TruncatedText text={original.run_id} />
+          <WrappedText text={original.run_id} />
         </RouterLink>
       </Link>
     ),
@@ -91,7 +91,7 @@ const getColumns = ({ open, translate }: ColumnsProps): Array<ColumnDef<XComResp
             taskId: original.task_id,
           })}
         >
-          <TruncatedText text={original.task_display_name} />
+          <WrappedText text={original.task_display_name} />
         </RouterLink>
       </Link>
     ),

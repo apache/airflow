@@ -34,7 +34,7 @@ import { ErrorAlert } from "src/components/ErrorAlert";
 import { MarkTaskInstanceAsButton } from "src/components/MarkAs";
 import { StateBadge } from "src/components/StateBadge";
 import Time from "src/components/Time";
-import { TruncatedText } from "src/components/TruncatedText";
+import { WrappedText } from "src/components/WrappedText";
 import { SearchParamsKeys, type SearchParamsKeysType } from "src/constants/searchParams";
 import { useAutoRefresh, isStatePending, renderDuration } from "src/utils";
 import { getTaskInstanceLink } from "src/utils/links";
@@ -82,7 +82,7 @@ const taskInstanceColumns = ({
           cell: ({ row: { original } }: TaskInstanceRow) => (
             <Link asChild color="fg.info">
               <RouterLink to={`/dags/${original.dag_id}`}>
-                <TruncatedText text={original.dag_display_name} />
+                <WrappedText text={original.dag_display_name} />
               </RouterLink>
             </Link>
           ),
@@ -117,7 +117,7 @@ const taskInstanceColumns = ({
           cell: ({ row: { original } }: TaskInstanceRow) => (
             <Link asChild color="fg.info" fontWeight="bold">
               <RouterLink to={getTaskInstanceLink(original)}>
-                <TruncatedText text={original.task_display_name} />
+                <WrappedText text={original.task_display_name} />
               </RouterLink>
             </Link>
           ),
