@@ -174,6 +174,7 @@ class EmrContainerTrigger(AwsBaseWaiterTrigger):
             waiter_delay=waiter_delay,
             waiter_max_attempts=waiter_max_attempts,
             aws_conn_id=aws_conn_id,
+            cancel_waiter_names=["container_job_cancel", "container_job_complete"],
         )
 
     def hook(self) -> AwsGenericHook:
