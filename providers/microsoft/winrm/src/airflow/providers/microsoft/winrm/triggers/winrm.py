@@ -80,12 +80,8 @@ class WinRMCommandOutputTrigger(BaseTrigger):
         self.expected_return_code = expected_return_code
         self.poll_interval = poll_interval
         self.timeout = timeout
-        self.deadline = (
-            deadline
-            if deadline is not None
-            else time.monotonic() + self.timeout
-            if self.timeout is not None
-            else None
+        self.deadline = deadline or (
+            time.monotonic() + self.timeout if self.timeout is not None else None
         )
 
     def serialize(self) -> tuple[str, dict[str, Any]]:
