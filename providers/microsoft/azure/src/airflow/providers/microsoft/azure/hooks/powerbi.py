@@ -19,9 +19,11 @@ from __future__ import annotations
 
 from enum import Enum
 from typing import TYPE_CHECKING, Any
-
+from urllib.parse import urljoin
 from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.microsoft.azure.hooks.msgraph import KiotaRequestAdapterHook
+\
+
 
 if TYPE_CHECKING:
     from msgraph_core import APIVersion
@@ -76,6 +78,7 @@ class PowerBIHook(KiotaRequestAdapterHook):
     conn_name_attr: str = "conn_id"
     default_conn_name: str = "powerbi_default"
     hook_name: str = "Power BI"
+    POWERBI_API_BASE_URL = "https://api.powerbi.com/v1.0/"
 
     def __init__(
         self,
@@ -92,7 +95,18 @@ class PowerBIHook(KiotaRequestAdapterHook):
             scopes=["https://analysis.windows.net/powerbi/api/.default"],
             api_version=api_version,
         )
+        
+    async def run(self, url: str, **kwargs):
+        """
+        Execute a Power BI REST API request.
 
+        Ensures relative Power BI endpoints are expanded to full URLs.
+        """
+        if not url.startswith(("http://", "https://")):
+            url = urljoin(self.POWERBI_API_BASE_URL, url)
+
+        return await super().run(url=url, **kwargs)
+        
     @classmethod
     def get_connection_form_widgets(cls) -> dict[str, Any]:
         """Return connection widgets to add to connection form."""

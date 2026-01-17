@@ -213,3 +213,42 @@ class TestPowerBIHook:
             },
             method="DELETE",
         )
+
+    @pytest.mark.asyncio
+    async def test_run_expands_relative_powerbi_url(self, powerbi_hook):
+        """Relative Power BI URLs should be expanded to full REST API URLs."""
+
+        with mock.patch.object(
+            KiotaRequestAdapterHook,
+            "run",
+            new_callable=mock.AsyncMock,
+        ) as mock_run:
+            mock_run.return_value = {}
+
+            await powerbi_hook.run(url="myorg/groups")
+
+            mock_run.assert_awaited_once()
+            called_url = mock_run.call_args.kwargs["url"]
+
+            assert called_url == "https://api.powerbi.com/v1.0/myorg/groups"
+
+    @pytest.mark.asyncio
+    async def test_run_does_not_modify_absolute_url(self, powerbi_hook):
+        """Absolute URLs should not be modified by PowerBIHook.run."""
+
+        absolute_url = "https://api.powerbi.com/v1.0/myorg/groups"
+
+        with mock.patch.object(
+            KiotaRequestAdapterHook,
+            "run",
+            new_callable=mock.AsyncMock,
+        ) as mock_run:
+            mock_run.return_value = {}
+
+            await powerbi_hook.run(url=absolute_url)
+
+            mock_run.assert_awaited_once()
+            called_url = mock_run.call_args.kwargs["url"]
+
+            assert called_url == absolute_url
+
