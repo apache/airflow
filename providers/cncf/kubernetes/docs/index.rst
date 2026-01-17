@@ -115,7 +115,7 @@ PIP package                                 Version required
 ``apache-airflow-providers-common-compat``  ``>=1.10.1``
 ``asgiref``                                 ``>=3.5.2``
 ``cryptography``                            ``>=41.0.0,<46.0.0``
-``kubernetes``                              ``>=32.0.0,<35.0.0``
+``kubernetes``                              ``>=35.0.0,<36.0.0``
 ``urllib3``                                 ``>=2.1.0,!=2.6.0``
 ``kubernetes_asyncio``                      ``>=32.0.0,<35.0.0``
 ==========================================  ====================
