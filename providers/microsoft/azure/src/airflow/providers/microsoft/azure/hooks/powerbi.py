@@ -23,8 +23,6 @@ from urllib.parse import urljoin
 from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.microsoft.azure.hooks.msgraph import KiotaRequestAdapterHook
 
-
-
 if TYPE_CHECKING:
     from msgraph_core import APIVersion
 
@@ -284,4 +282,5 @@ class PowerBIHook(KiotaRequestAdapterHook):
             },
             method="DELETE",
         )
+
 
