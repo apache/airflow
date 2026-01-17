@@ -2673,7 +2673,6 @@ class TestWorkerSets:
             },
         ],
     )
-    # TODO: Annotations should be fully overwritten or merged? If latter, adjust test
     def test_overwrite_persistence_annotations(self, values):
         docs = render_chart(
             values={"workers": {"enableDefault": False, **values}},
