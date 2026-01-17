@@ -20,11 +20,27 @@
 ################################
 ## Airflow Worker PodDisruptionBudget
 #################################
+{{- $globals := deepCopy . -}}
+{{- $skipList := list "annotations" "podAnnotations" "persistentVolumeClaimRetentionPolicy" "pod" "container" "securityContext" -}}
+{{- $_ := unset $globals "workers" -}}
+{{- $filteredCelery := include "removeNilFields" (deepCopy .Values.workers.celery) | fromYaml -}}
+{{- $cleanedWorkers := deepCopy .Values.workers -}}
+{{- $_ := unset $cleanedWorkers "celery" -}}
+{{- $mergedWorkers := (include "mergeValues" (list $cleanedWorkers $filteredCelery $skipList) | fromYaml) -}}
+{{- $workerSets := .Values.workers.celery.sets | default list -}}
+{{- if .Values.workers.enableDefault -}}
+  {{- $workerSets = concat (list (dict "name" "default")) $workerSets -}}
+{{- end -}}
+{{- range $workerSet := $workerSets -}}
+  {{- $workers := (include "mergeValues" (list (deepCopy $mergedWorkers) (deepCopy $workerSet) $skipList) | fromYaml) -}}
+  {{- $ctx := deepCopy $globals -}}
+  {{- $_ := set $ctx.Values "workers" (deepCopy $workers) -}}
+  {{- with $ctx -}}
 {{- if .Values.workers.podDisruptionBudget.enabled }}
 apiVersion: policy/v1
 kind: PodDisruptionBudget
 metadata:
-  name: {{ include "airflow.fullname" . }}-worker-pdb
+  name: {{ include "airflow.fullname" . }}-worker-pdb{{ if ne .Values.workers.name "default" }}-{{ .Values.workers.name }}{{ end }}
   labels:
     tier: airflow
     component: worker
@@ -40,5 +56,10 @@ spec:
       tier: airflow
       component: worker
       release: {{ .Release.Name }}
+      {{- if ne .Values.workers.name "default" }}
+      worker-set: {{ .Values.workers.name }}
+      {{- end }}
   {{- toYaml .Values.workers.podDisruptionBudget.config | nindent 2 }}
+{{- end }}
+{{- end }}
 {{- end }}

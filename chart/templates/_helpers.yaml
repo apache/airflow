@@ -1182,3 +1182,56 @@ Usage:
   {{- end -}}
   {{- $result -}}
 {{- end -}}
+
+{{/*
+TODO: Add doc
+*/}}
+{{- define "mergeValues" -}}
+  {{- $first := index . 0 -}}
+  {{- $sec := index . 1 -}}
+  {{- $skip := index . 2 -}}
+  {{- $newValues := dict -}}
+
+  {{- if kindIs "map" $first -}}
+    {{- range $key, $val := $first -}}
+      {{- if and (hasKey $sec $key) (has $key $skip) -}}
+        {{- $_ := set $newValues $key (get $sec $key) -}}
+      {{- else if and (hasKey $sec $key) (kindIs "map" $val) -}}
+        {{- $nested := include "mergeValues" (list $val (get $sec $key) $skip) | fromYaml -}}
+        {{- if gt (len $nested) 0 -}}
+          {{- $_ := set $newValues $key $nested -}}
+        {{- end -}}
+      {{- else if and (hasKey $sec $key) (not (and (kindIs "slice" (get $sec $key)) (eq (len (get $sec $key)) 0))) -}}
+        {{- $_ := set $newValues $key (get $sec $key) -}}
+      {{- else -}}
+        {{- $_ := set $newValues $key $val -}}
+      {{- end -}}
+    {{- end -}}
+  {{- end -}}
+  {{- if kindIs "map" $sec -}}
+    {{- range $key, $val := $sec -}}
+      {{- if not (hasKey $first $key) -}}
+        {{- $_ := set $newValues $key $val -}}
+      {{- end -}}
+    {{- end -}}
+  {{- end -}}
+  {{- toYaml $newValues -}}
+{{- end -}}
+
+{{/*
+TODO: Add doc
+*/}}
+{{- define "removeNilFields" -}}
+  {{- $newValues := dict -}}
+  {{- range $key, $val := . -}}
+    {{- if kindIs "map" $val -}}
+      {{- $nested := include "removeNilFields" $val | fromYaml -}}
+      {{- if gt (len $nested) 0 -}}
+        {{- $_ := set $newValues $key $nested -}}
+      {{- end -}}
+    {{- else if and (not (eq $val nil)) -}}
+      {{- $_ := set $newValues $key $val -}}
+    {{- end -}}
+  {{- end -}}
+  {{- toYaml $newValues -}}
+{{- end -}}
