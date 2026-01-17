@@ -1472,7 +1472,7 @@ class TestSnowflakeSqlApiHook:
 
         assert mock_cancel_execution.call_count == 3
         mock_cancel_execution.assert_has_calls([call("query-1"), call("query-2"), call("query-3")])
-        
+
     def test_make_api_call_passes_timeout_to_requests(self, mock_requests):
         hook = SnowflakeSqlApiHook(snowflake_conn_id="test_conn", http_timeout_seconds=12)
 
