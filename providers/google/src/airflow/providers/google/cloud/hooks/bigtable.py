@@ -87,8 +87,7 @@ class BigtableHook(GoogleBaseHook):
         """
         Delete the specified Cloud Bigtable instance.
 
-        Raises google.api_core.exceptions.NotFound if the Cloud Bigtable instance does
-        not exist.
+        If the Cloud Bigtable instance does not exist, it logs a warning.
 
         :param project_id: Optional, Google Cloud project ID where the
             BigTable exists. If set to None or missing,
