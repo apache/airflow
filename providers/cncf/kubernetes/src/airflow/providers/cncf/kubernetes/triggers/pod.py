@@ -26,13 +26,14 @@ from typing import TYPE_CHECKING, Any, cast
 
 import tenacity
 
-from airflow.providers.cncf.kubernetes.exceptions import KubernetesApiPermissionError
+from airflow.providers.cncf.kubernetes.exceptions import KubernetesApiPermissionError, PodPreemptedException
 from airflow.providers.cncf.kubernetes.hooks.kubernetes import AsyncKubernetesHook
 from airflow.providers.cncf.kubernetes.utils.pod_manager import (
     AsyncPodManager,
     OnFinishAction,
     PodLaunchTimeoutException,
     PodPhase,
+    PodPhaseTracker,
 )
 from airflow.triggers.base import BaseTrigger, TriggerEvent
 
@@ -122,6 +123,8 @@ class KubernetesPodTrigger(BaseTrigger):
         self.on_finish_action = OnFinishAction(on_finish_action)
         self.trigger_kwargs = trigger_kwargs or {}
         self._since_time = None
+        # Track pod phase to enable safe retry on 404 errors (preemption handling)
+        self._phase_tracker = PodPhaseTracker()
 
     def serialize(self) -> tuple[str, dict[str, Any]]:
         """Serialize KubernetesCreatePodTrigger arguments and classpath."""
@@ -206,6 +209,25 @@ class KubernetesPodTrigger(BaseTrigger):
                     "name": self.pod_name,
                     "namespace": self.pod_namespace,
                     "status": "error",
+                    "message": message,
+                    **self.trigger_kwargs,
+                }
+            )
+            return
+        except PodPreemptedException as e:
+            # Pod was preempted and could not be recovered after retries
+            message = (
+                f"Pod preemption detected: {e}. "
+                "The pod was likely preempted by higher-priority pods (e.g., daemonsets) "
+                "during node bootstrap and could not be rescheduled after multiple retries. "
+                "Consider increasing task retries or investigating cluster capacity."
+            )
+            self.log.warning(message)
+            yield TriggerEvent(
+                {
+                    "name": self.pod_name,
+                    "namespace": self.pod_namespace,
+                    "status": "failed",
                     "message": message,
                     **self.trigger_kwargs,
                 }
@@ -314,8 +336,15 @@ class KubernetesPodTrigger(BaseTrigger):
 
     @tenacity.retry(stop=tenacity.stop_after_attempt(3), wait=tenacity.wait_exponential(), reraise=True)
     async def _get_pod(self) -> V1Pod:
-        """Get the pod from Kubernetes with retries."""
-        pod = await self.hook.get_pod(name=self.pod_name, namespace=self.pod_namespace)
+        """Get the pod from Kubernetes with retries and phase tracking."""
+        pod = await self.hook.get_pod(
+            name=self.pod_name,
+            namespace=self.pod_namespace,
+            phase_tracker=self._phase_tracker,
+        )
+        # Update phase tracker with observed pod state
+        if pod:
+            self._phase_tracker.update_from_pod(pod)
         # Due to AsyncKubernetesHook overriding get_pod, we need to cast the return
         # value to kubernetes_asyncio.V1Pod, because it's perceived as different type
         return cast("V1Pod", pod)
