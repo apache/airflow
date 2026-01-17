@@ -25,6 +25,7 @@ import json
 import os
 import pathlib
 import platform
+import subprocess
 import sys
 import textwrap
 import warnings
@@ -717,7 +718,29 @@ def check_providers_have_all_documentation_files(yaml_files: dict[str, dict]):
     return num_providers, num_errors
 
 
+def remove_dev_dependencies() -> None:
+    """Remove dev dependencies before running provider checks.
+
+    This ensures that we can detect cases where provider code has
+    optional cross-provider dependencies that aren't handled properly.
+    See: https://github.com/apache/airflow/issues/60662
+    """
+    console.print("[bright_blue]Removing dev dependencies with uv sync --no-dev[/]")
+    result = subprocess.run(
+        ["uv", "sync", "--no-dev", "--all-packages", "--no-python-downloads", "--no-managed-python"],
+        cwd=AIRFLOW_ROOT_PATH,
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    if result.returncode != 0:
+        console.print(f"[red]Failed to remove dev dependencies: {result.stderr}[/]")
+        sys.exit(1)
+    console.print("[green]Dev dependencies removed successfully[/]")
+
+
 if __name__ == "__main__":
+    remove_dev_dependencies()
     ProvidersManager().initialize_providers_configuration()
     architecture = Architecture.get_current()
     console.print(f"Verifying packages on {architecture} architecture. Platform: {platform.machine()}.")
