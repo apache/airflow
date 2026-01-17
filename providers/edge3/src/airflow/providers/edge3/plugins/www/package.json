@@ -32,7 +32,7 @@
     "coverage": "vitest run --coverage"
   },
   "dependencies": {
-    "@chakra-ui/react": "^3.30.0",
+    "@chakra-ui/react": "^3.31.0",
     "@emotion/react": "^11.14.0",
     "@tanstack/react-query": "^5.90.16",
     "axios": "^1.13.2",
@@ -53,14 +53,14 @@
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.1",
     "@trivago/prettier-plugin-sort-imports": "^6.0.2",
-    "@types/node": "^25.0.3",
-    "@types/react": "^19.2.7",
+    "@types/node": "^25.0.6",
+    "@types/react": "^19.2.8",
     "@types/react-dom": "^19.2.3",
-    "@typescript-eslint/eslint-plugin": "8.51.0",
-    "@typescript-eslint/parser": "8.51.0",
+    "@typescript-eslint/eslint-plugin": "8.52.0",
+    "@typescript-eslint/parser": "8.52.0",
     "@typescript-eslint/utils": "^8.52.0",
     "@vitejs/plugin-react-swc": "^4.2.2",
-    "@vitest/coverage-v8": "^4.0.16",
+    "@vitest/coverage-v8": "^4.0.17",
     "eslint": "^9.39.2",
     "eslint-config-prettier": "^10.1.8",
     "eslint-plugin-jsx-a11y": "^6.10.2",
@@ -78,7 +78,7 @@
     "vite": "^7.3.1",
     "vite-plugin-css-injected-by-js": "^3.5.2",
     "vite-plugin-dts": "^4.5.4",
-    "vitest": "^4.0.16"
+    "vitest": "^4.0.17"
   },
   "pnpm": {
     "onlyBuiltDependencies": [
