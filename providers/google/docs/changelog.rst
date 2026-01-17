@@ -27,6 +27,9 @@
 Changelog
 ---------
 
+20.0.0
+......
+
 .. warning::
   Deprecated classes, parameters and features have been removed from the Google provider package.
   The following breaking changes were introduced:
@@ -51,13 +54,9 @@ Changelog
 
   * ``Remove CloudAutoMLHook use airflow.providers.google.cloud.hooks.vertex_ai.auto_ml.AutoMLHook, airflow.providers.google.cloud.hooks.translate.TranslateHook instead``
 
-19.4.0
-......
-
 Features
 ~~~~~~~~
 
-* ``Add 'ignore_if_missing' to DataprocDeleteClusterOperator (#60433)``
 * ``Add Operators for Gemini Batch API and Gemini Files API. (#59518)``
 
 Bug Fixes
@@ -65,6 +64,8 @@ Bug Fixes
 
 * ``Make DataprocDeleteClusterOperator idempotent (#60083)``
 * ``Fixed CloudSqlDatabaseHook error message for missing host (#60089)``
+* ``Remove erroneous _handle_job_error call during BigQuery job reattach (#60679)``
+* ``Prevent OpenLineage failure when BigQuery table metadata is missing (#60380)``
 
 Misc
 ~~~~
@@ -80,11 +81,15 @@ Misc
 * ``Check team boundaries in connections (#59476)``
 * ``Added missing comma to bq empty dataset operator docstring (#60066)``
 * ``Migrate google provider to use airflow.sdk.configuration.conf (#59986)``
+* ``Kubernetes Pod Operator: Skip async defferal when pod already complete (#58684)``
 
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):
    * ``feat: Add JobDependenciesRunFacet to asset-triggered OL DAG events (#59521)``
    * ``Remove TaskInstance and TaskLogReader unused methods (#59922)``
+   * ``Add 'ignore_if_missing' to DataprocDeleteClusterOperator (#60433)``
+   * ``Revert "Add 'ignore_if_missing' to DataprocDeleteClusterOperator (#60433)" (#60623)``
+   * ``Prepare providers release 2026-01-13 (#60437)``
 
 19.3.0
 ......
