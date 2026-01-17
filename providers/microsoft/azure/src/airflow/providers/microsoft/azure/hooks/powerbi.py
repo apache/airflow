@@ -25,8 +25,7 @@ from airflow.providers.microsoft.azure.hooks.msgraph import KiotaRequestAdapterH
 
 if TYPE_CHECKING:
     from msgraph_core import APIVersion
-
-
+    
 class PowerBIDatasetRefreshFields(Enum):
     """Power BI refresh dataset details."""
 
@@ -282,5 +281,6 @@ class PowerBIHook(KiotaRequestAdapterHook):
             },
             method="DELETE",
         )
+
 
 
