@@ -441,7 +441,7 @@ class JWTGenerator:
         self,
         extras: dict[str, Any] | None = None,
         headers: dict[str, Any] | None = None,
-        expiry: int | None = None,
+        valid_for: int | None = None,
     ) -> str:
         """
         Generate a signed JWT.
@@ -449,16 +449,16 @@ class JWTGenerator:
         Args:
             extras: Additional claims to include in the token. These are merged with default claims.
             headers: Additional headers to include in the JWT.
-            expiry: Optional custom expiry time in seconds. If not provided, uses self.valid_for.
+            valid_for: Optional custom validity duration in seconds. If not provided, uses self.valid_for.
         """
         now = int(datetime.now(tz=timezone.utc).timestamp())
-        valid_for = expiry if expiry is not None else self.valid_for
+        token_valid_for = valid_for if valid_for is not None else self.valid_for
         claims = {
             "jti": uuid.uuid4().hex,
             "iss": self.issuer,
             "aud": self.audience,
             "nbf": now,
-            "exp": int(now + valid_for),
+            "exp": int(now + token_valid_for),
             "iat": now,
         }
 
@@ -483,10 +483,12 @@ class JWTGenerator:
         """
         from airflow.configuration import conf
 
-        workload_expiry = conf.getint("execution_api", "jwt_workload_token_expiration_time", fallback=86400)
+        workload_valid_for = conf.getint(
+            "execution_api", "jwt_workload_token_expiration_time", fallback=86400
+        )
         return self.generate(
             extras={"sub": sub, "scope": TOKEN_SCOPE_WORKLOAD},
-            expiry=workload_expiry,
+            valid_for=workload_valid_for,
         )
 
 
