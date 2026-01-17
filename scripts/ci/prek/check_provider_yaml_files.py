@@ -28,6 +28,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.resolve()))
 from common_prek_utils import (
+    console,
     initialize_breeze_prek,
     run_command_via_breeze_shell,
     validate_cmd_result,
@@ -36,6 +37,20 @@ from common_prek_utils import (
 initialize_breeze_prek(__name__, __file__)
 
 files_to_test = sys.argv[1:]
+
+# First, remove dev dependencies inside the breeze container to ensure we can detect cases
+# where provider code has optional cross-provider dependencies that aren't handled properly.
+# See: https://github.com/apache/airflow/issues/60662
+sync_result = run_command_via_breeze_shell(
+    ["uv", "sync", "--no-dev", "--all-packages", "--no-python-downloads", "--no-managed-python"],
+    backend="sqlite",
+    warn_image_upgrade_needed=True,
+)
+if sync_result.returncode != 0:
+    console.print("[red]Failed to remove dev dependencies with uv sync --no-dev[/]")
+    sys.exit(sync_result.returncode)
+console.print("[green]Dev dependencies removed successfully[/]")
+
 cmd_result = run_command_via_breeze_shell(
     ["python3", "/opt/airflow/scripts/in_container/run_provider_yaml_files_check.py", *files_to_test],
     backend="sqlite",
