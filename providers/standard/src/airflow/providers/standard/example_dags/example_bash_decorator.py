@@ -26,7 +26,21 @@ from airflow.sdk import chain, dag, task
 from airflow.sdk.exceptions import AirflowSkipException
 
 
-@dag(schedule=None, start_date=pendulum.datetime(2023, 1, 1, tz="UTC"), catchup=False)
+@dag(schedule=None, start_date=pendulum.datetime(2023, 1, 1, tz="UTC"), catchup=False, doc_md="""
+### Bash Decorator Example
+     
+     This example DAG demonstates how to use the `@task.bash` decorator
+     to define tasks that execute Bash commands in Apache Airflow.
+
+     It shows:
+        - creating Bash tasks using the TaskFlow API
+        - passing parameters to Bash commands
+        - basic task execution within a decorator-based DAG
+     
+     This DAG is intended for learning and demonstration purposes.
+     
+
+     """,)
 def example_bash_decorator():
     @task.bash
     def run_me(sleep_seconds: int, task_instance_key_str: str) -> str:
