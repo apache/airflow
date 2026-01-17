@@ -194,5 +194,8 @@ It is also highly beneficial in enterprise data pipelines, where human validatio
 See also
 --------
 
-* :doc:`Standard provider HITL operators <../../apache-airflow-providers-standard/stable/operators/hitl>`
-* :doc:`HITL operators Python API <../../apache-airflow-providers-standard/stable/_api/airflow/providers/standard/operators/hitl/index>`
+* `Standard provider HITL operators documentation
+  <https://airflow.apache.org/docs/apache-airflow-providers-standard/stable/operators/hitl.html>`_
+
+* `HITL operators Python API reference
+  <https://airflow.apache.org/docs/apache-airflow-providers-standard/stable/_api/airflow/providers/standard/operators/hitl/index.html>`_

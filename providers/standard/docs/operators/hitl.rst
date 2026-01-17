@@ -15,8 +15,8 @@
     specific language governing permissions and limitations
     under the License.
 
-Human-in-the-Loop (HITL) Operators
-=================================
+Human in the Loop (HITL) Operators
+==================================
 
 Human-in-the-Loop (HITL) operators enable workflows where task execution
 can pause and wait for human input, approval, or intervention before
@@ -29,11 +29,11 @@ points within automated pipelines.
 Available HITL operators
 ------------------------
 
-The Standard provider includes Human-in-the-Loop (HITL) operators.  
+The Standard provider includes Human-in-the-Loop (HITL) operators.
 For the complete and up-to-date list of available operators and their
 parameters, refer to the Python API documentation:
 
-* :doc:`Python API reference <../_api/airflow/providers/standard/operators/hitl/index>`
+`Python API reference <https://airflow.apache.org/docs/apache-airflow-providers-standard/stable/_api/airflow/providers/standard/operators/hitl/index.html>`_
 
 Usage guide
 -----------
@@ -41,4 +41,4 @@ Usage guide
 For an end-to-end guide on using HITL operators, including examples and
 recommended patterns, see the HITL tutorial:
 
-* :doc:`HITL tutorial <../../apache-airflow/tutorial/hitl>`
+* `HITL tutorial <https://airflow.apache.org/docs/apache-airflow/stable/tutorial/hitl.html>`_
