@@ -92,6 +92,7 @@ core:
         role. Roles are predefined in simple auth managers: viewer, user, op, admin.
       version_added: 3.0.0
       type: string
+      sensitive: true
       example: "bob:admin,peter:viewer"
       default: "admin:admin"
     simple_auth_manager_all_admins:
@@ -752,6 +753,7 @@ logging:
         be used.
       version_added: 2.0.0
       type: string
+      sensitive: true
       example: ~
       default: ""
     remote_base_log_folder:
@@ -1750,6 +1752,7 @@ api_auth:
       default: ~
       example: /path/to/private_key.pem
       type: string
+      sensitive: true
     jwt_algorithm:
       version_added: 3.0.0
       description: |
@@ -2402,6 +2405,7 @@ kerberos:
         Location of your ccache file once kinit has been performed.
       version_added: ~
       type: string
+      sensitive: true
       example: ~
       default: "/tmp/airflow_krb5_ccache"
     principal:
@@ -2430,6 +2434,7 @@ kerberos:
         Designates the path to the Kerberos keytab file for the Airflow user
       version_added: ~
       type: string
+      sensitive: true
       example: ~
       default: "airflow.keytab"
     forwardable:
