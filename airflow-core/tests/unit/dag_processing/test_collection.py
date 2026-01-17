@@ -312,13 +312,6 @@ class TestAssetModelOperationSyncAssetActive:
 class TestUpdateDagParsingResults:
     """Tests centred around the ``update_dag_parsing_results_in_db`` function."""
 
-    @pytest.fixture(autouse=True)
-    def _clear_serialized_dag_hash_cache(self):
-        cache = airflow.dag_processing.collection._SERIALIZED_DAG_HASH_CACHE
-        cache.clear()
-        yield
-        cache.clear()
-
     @pytest.fixture
     def clean_db(self, session):
         yield
@@ -522,17 +515,6 @@ class TestUpdateDagParsingResults:
         # Verify both dags are in the database
         dag_count = session.scalar(select(func.count(DagModel.dag_id)))
         assert dag_count == 2
-
-    @conf_vars({("dag_processor", "serialized_dag_hash_cache_size"): "1"})
-    def test_serialized_dag_hash_cache_eviction(self):
-        cache = airflow.dag_processing.collection._SERIALIZED_DAG_HASH_CACHE
-        cache.clear()
-
-        airflow.dag_processing.collection._cache_serialized_dag_hash("bundle", "dag1", "hash1")
-        airflow.dag_processing.collection._cache_serialized_dag_hash("bundle", "dag2", "hash2")
-
-        assert len(cache) == 1
-        assert ("bundle", "dag2") in cache
 
     def test_parse_time_written_to_db_on_sync(self, testing_dag_bundle, session):
         """Test that the parse time is correctly written to the DB after parsing"""
