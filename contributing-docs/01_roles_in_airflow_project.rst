@@ -51,10 +51,6 @@ refer to the role.
 
 The official list of committers can be found `here <https://airflow.apache.org/docs/apache-airflow/stable/project.html#committers>`__.
 
-Additionally, committers are listed in a few other places:
-
-* https://whimsy.apache.org/roster/committee/airflow
-
 Committers are responsible for:
 
 * Championing one or more items on the `Roadmap <https://cwiki.apache.org/confluence/display/AIRFLOW/Airflow+Home>`__
