@@ -420,11 +420,14 @@ class TestGetDags(TestDagEndpoint):
             ({"asset_dependency": "nonexistent"}, 0, []),
             ({"has_asset_schedule": True, "asset_dependency": "test_asset"}, 1, [ASSET_DEP_DAG_ID]),
             ({"has_asset_schedule": False, "asset_dependency": "test_asset"}, 0, []),
+            # is_scheduled filter
+            ({"is_scheduled": False}, 2, [DAG1_ID, DAG2_ID]),
+            ({"is_scheduled": True}, 3, [ASSET_DEP_DAG_ID, ASSET_DEP_DAG2_ID, ASSET_SCHEDULED_DAG_ID]),
         ],
     )
     def test_get_dags(self, test_client, query_params, expected_total_entries, expected_ids, session):
         # Only create asset test data for asset-related tests to avoid affecting other tests
-        if any(param in query_params for param in ["has_asset_schedule", "asset_dependency"]):
+        if any(param in query_params for param in ["has_asset_schedule", "asset_dependency", "is_scheduled"]):
             self._create_asset_test_data(session)
 
         with assert_queries_count(4):
