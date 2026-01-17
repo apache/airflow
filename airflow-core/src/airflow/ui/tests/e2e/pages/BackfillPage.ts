@@ -189,24 +189,30 @@ export class BackfillPage extends BasePage {
     }
 
     await expect(this.backfillRunButton).toBeVisible({ timeout: 20_000 });
+    await expect(this.backfillRunButton).toBeEnabled({ timeout: 10_000 });
     await this.backfillRunButton.scrollIntoViewIfNeeded();
 
     const responsePromise = this.page.waitForResponse(
-      (response: { request: () => { method: () => string }; status: () => number; url: () => string }) => {
-        const url = response.url();
-        const method = response.request().method();
-        const status = response.status();
-
-        return (
-          url.includes("/backfills") && !url.includes("/dry_run") && method === "POST" && status === 200
-        );
-      },
+      (res) =>
+        res.url().includes("/backfills") &&
+        !res.url().includes("/dry_run") &&
+        res.request().method() === "POST",
       { timeout: 60_000 },
     );
 
     await this.backfillRunButton.click({ timeout: 20_000 });
-    await responsePromise;
+
+    const apiResponse = await responsePromise;
+    const status = apiResponse.status();
+
+    if (status < 200 || status >= 300) {
+      const body = await apiResponse.text().catch(() => "unknown error");
+
+      throw new Error(`Backfill creation failed with status ${status}: ${body}`);
+    }
+
     await expect(this.backfillRunButton).not.toBeVisible({ timeout: 30_000 });
+    await expect(this.page.locator('[data-part="backdrop"]')).not.toBeVisible({ timeout: 10_000 });
   }
 
   public async findBackfillRowByDateRange(
