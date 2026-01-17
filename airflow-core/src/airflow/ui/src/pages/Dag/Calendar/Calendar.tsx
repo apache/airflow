@@ -153,6 +153,7 @@ export const Calendar = () => {
                     ? "default"
                     : "pointer"
                 }
+                data-testid="calendar-header-date"
                 fontSize="xl"
                 fontWeight="bold"
                 minWidth="120px"
