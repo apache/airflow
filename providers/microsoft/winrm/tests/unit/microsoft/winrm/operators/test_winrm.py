@@ -55,6 +55,7 @@ class TestWinRMOperator:
             command=command,
             ps_path=None,
             output_encoding="utf-8",
+            polling=True,
             return_output=True,
             working_directory=working_dir,
         )
@@ -97,6 +98,7 @@ class TestWinRMOperator:
                 command=command,
                 ps_path=None,
                 output_encoding="utf-8",
+                polling=True,
                 return_output=True,
                 working_directory=None,
             )
