@@ -118,9 +118,12 @@ def sync_dependencies_without_dev() -> None:
         cwd=AIRFLOW_ROOT_PATH,
     )
     if result.returncode != 0:
-        console.print(f"[yellow]Warning: uv sync --no-dev failed:[/]\n{result.stderr}")
-    else:
-        console.print("[green]Successfully synchronized without dev dependencies[/]")
+        console.print(f"[red]Failed to remove dev dependencies: {result.stderr}[/]")
+        sys.exit(1)
+
+    console.print("[green]Successfully synchronized without dev dependencies[/]")
+    if result.stdout:
+        console.print(result.stdout)
 
 
 def _filepath_to_module(filepath: pathlib.Path | str) -> str:
