@@ -337,6 +337,8 @@ class TestGetDagRuns(TestPublicDagEndpoint):
             ({"asset_dependency": "nonexistent"}, 0),
             ({"has_asset_schedule": True, "asset_dependency": "test_asset"}, 1),  # Combined filters
             ({"has_asset_schedule": False, "asset_dependency": "test_asset"}, 0),  # No match
+            ({"is_scheduled": False}, 5),
+            ({"is_scheduled": True}, 5),
         ],
     )
     def test_asset_filtering(self, test_client, query_params, expected_dag_count, session):

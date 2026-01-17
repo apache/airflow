@@ -289,6 +289,14 @@ paths:
           - type: boolean
           - type: 'null'
           title: Is Favorite
+      - name: is_scheduled
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: boolean
+          - type: 'null'
+          title: Is Scheduled
       - name: has_asset_schedule
         in: query
         required: false
