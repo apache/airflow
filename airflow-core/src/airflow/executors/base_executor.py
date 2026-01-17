@@ -208,7 +208,11 @@ class BaseExecutor(LoggingMixin):
         self.attempts: dict[TaskInstanceKey, RunningRetryAttemptType] = defaultdict(RunningRetryAttemptType)
 
     def __repr__(self):
-        return f"{self.__class__.__name__}(parallelism={self.parallelism})"
+        _repr = f"{self.__class__.__name__}(parallelism={self.parallelism}"
+        if self.team_name:
+            _repr += f", team_name={self.team_name!r}"
+        _repr += ")"
+        return _repr
 
     @classmethod
     def set_active_spans(cls, active_spans: ThreadSafeDict):
