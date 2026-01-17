@@ -270,6 +270,7 @@ def clear_db_dags():
             delete(DagRun)
         )  # todo: this should not be necessary because the fk to DagVersion should be ON DELETE SET NULL
         session.execute(delete(DagModel))
+    _clear_serialized_dag_hash_cache()
 
 
 def clear_db_deadline():
@@ -299,6 +300,15 @@ def drop_tables_with_prefix(prefix):
 def clear_db_serialized_dags():
     with create_session() as session:
         session.execute(delete(SerializedDagModel))
+    _clear_serialized_dag_hash_cache()
+
+
+def _clear_serialized_dag_hash_cache() -> None:
+    try:
+        from airflow.dag_processing.collection import _SERIALIZED_DAG_HASH_CACHE
+    except Exception:
+        return
+    _SERIALIZED_DAG_HASH_CACHE.clear()
 
 
 def clear_db_pools():

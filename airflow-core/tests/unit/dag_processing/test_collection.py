@@ -312,6 +312,13 @@ class TestAssetModelOperationSyncAssetActive:
 class TestUpdateDagParsingResults:
     """Tests centred around the ``update_dag_parsing_results_in_db`` function."""
 
+    @pytest.fixture(autouse=True)
+    def _clear_serialized_dag_hash_cache(self):
+        cache = airflow.dag_processing.collection._SERIALIZED_DAG_HASH_CACHE
+        cache.clear()
+        yield
+        cache.clear()
+
     @pytest.fixture
     def clean_db(self, session):
         yield
