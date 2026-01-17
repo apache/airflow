@@ -42,6 +42,7 @@ from airflow._shared.observability.metrics.dual_stats_manager import DualStatsMa
 from airflow._shared.observability.metrics.stats import Stats
 from airflow._shared.timezones import timezone
 from airflow.api_fastapi.execution_api.datamodels.taskinstance import DagRun as DRDataModel, TIRunContext
+from airflow.assets.evaluation import AssetEvaluator
 from airflow.callbacks.callback_requests import (
     DagCallbackRequest,
     DagRunContext,
@@ -65,6 +66,7 @@ from airflow.models.asset import (
     AssetWatcherModel,
     DagScheduleAssetAliasReference,
     DagScheduleAssetReference,
+    PartitionedAssetKeyLog,
     TaskInletAssetReference,
     TaskOutletAssetReference,
 )
@@ -82,6 +84,7 @@ from airflow.models.taskinstance import TaskInstance
 from airflow.models.team import Team
 from airflow.models.trigger import TRIGGER_FAIL_REPR, Trigger, TriggerFailureReason
 from airflow.observability.trace import DebugTrace, Trace, add_debug_span
+from airflow.serialization.definitions.assets import SerializedAssetUniqueKey
 from airflow.serialization.definitions.notset import NOTSET
 from airflow.ti_deps.dependencies_states import EXECUTION_STATES
 from airflow.timetables.simple import AssetTriggeredTimetable
@@ -112,6 +115,7 @@ if TYPE_CHECKING:
     from airflow.executors.base_executor import BaseExecutor
     from airflow.executors.executor_utils import ExecutorName
     from airflow.models.taskinstance import TaskInstanceKey
+    from airflow.serialization.definitions.assets import SerializedAssetBase
     from airflow.serialization.definitions.dag import SerializedDAG
     from airflow.utils.sqlalchemy import CommitProhibitorGuard
 
@@ -1686,6 +1690,20 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
     def _create_dagruns_for_partitioned_asset_dags(self, session: Session) -> set[str]:
         partition_dag_ids: set[str] = set()
+        evaluator = AssetEvaluator(session)
+
+        def dag_ready(
+            dag_id: str, cond: SerializedAssetBase, statuses: dict[SerializedAssetUniqueKey, bool]
+        ) -> bool | None:
+            try:
+                return evaluator.run(cond, statuses)
+            except AttributeError:
+                # if Dag was serialized before 2.9 and we *just* upgraded,
+                # we may be dealing with old version. In that case,
+                # just wait for the Dag to be reserialized.
+                self.log.warning("Dag '%s' has old serialization; skipping Dag run creation.", dag_id)
+                return None
+
         apdrs: Iterable[AssetPartitionDagRun] = session.scalars(
             select(AssetPartitionDagRun).where(AssetPartitionDagRun.created_dag_run_id.is_(None))
         )
@@ -1693,9 +1711,27 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             if TYPE_CHECKING:
                 assert apdr.target_dag_id
             partition_dag_ids.add(apdr.target_dag_id)
-            dag = _get_current_dag(dag_id=apdr.target_dag_id, session=session)
-            if not dag:
+            if not (dag := _get_current_dag(dag_id=apdr.target_dag_id, session=session)):
                 self.log.error("Dag '%s' not found in serialized_dag table", apdr.target_dag_id)
+                continue
+
+            key_logs = session.scalars(
+                select(PartitionedAssetKeyLog).where(
+                    PartitionedAssetKeyLog.asset_partition_dag_run_id == apdr.id
+                )
+            )
+            asset_models = session.scalars(
+                select(AssetModel).where(AssetModel.id.in_(x.asset_id for x in key_logs))
+            )
+            statuses: dict[SerializedAssetUniqueKey, bool] = {
+                SerializedAssetUniqueKey.from_asset(a): True for a in asset_models
+            }
+            # todo: AIP-76 so, this basically works when we only require one partition from each asset to be there
+            #  but, we ultimately need rollup ability
+            #  that is, we need to ensure that whenever it is many -> one partitions, then we need to ensure
+            #  that all the required keys are there
+            #  one way to do this would be just to figure out what the count should be
+            if not dag_ready(dag.dag_id, cond=dag.timetable.asset_condition, statuses=statuses):
                 continue
 
             run_after = timezone.utcnow()
