@@ -24,9 +24,8 @@ import pytest
 
 from airflow.models.dag import DAG
 from airflow.providers.google.cloud.operators.gcs import GCSCreateBucketOperator, GCSDeleteBucketOperator
-
-from system.google import DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
-from system.openlineage.operator import OpenLineageTestOperator
+from airflow.providers.google.tests.system.google import DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
+from airflow.providers.openlineage.tests.system.openlineage.operator import OpenLineageTestOperator
 
 try:
     from airflow.providers.google.cloud.transfers.mssql_to_gcs import MSSQLToGCSOperator

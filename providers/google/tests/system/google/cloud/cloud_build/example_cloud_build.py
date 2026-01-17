@@ -37,9 +37,9 @@ from airflow.providers.google.cloud.operators.cloud_build import (
     CloudBuildListBuildsOperator,
     CloudBuildRetryBuildOperator,
 )
+from airflow.providers.google.tests.system.google import DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
 from airflow.providers.standard.operators.bash import BashOperator
 
-from system.google import DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
 if AIRFLOW_V_3_0_PLUS:

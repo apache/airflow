@@ -55,9 +55,12 @@ else:
     # Airflow 2 path
     from airflow.decorators import task, task_group  # type: ignore[attr-defined,no-redef]
 
-from system.google import DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
-from system.google.gcp_api_client_helpers import create_airflow_connection, delete_airflow_connection
-from system.openlineage.operator import OpenLineageTestOperator
+from airflow.providers.google.tests.system.google import DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
+from airflow.providers.google.tests.system.google.gcp_api_client_helpers import (
+    create_airflow_connection,
+    delete_airflow_connection,
+)
+from airflow.providers.openlineage.tests.system.openlineage.operator import OpenLineageTestOperator
 
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID", "default")
 PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT") or DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
