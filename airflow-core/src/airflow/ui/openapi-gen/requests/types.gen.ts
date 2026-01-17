@@ -1887,6 +1887,9 @@ export type DAGWithLatestDagRunsResponse = {
     [key: string]: unknown;
 } | null;
     latest_dag_runs: Array<DAGRunLightResponse>;
+    task_instance_summary?: {
+    [key: string]: (number);
+} | null;
     pending_actions: Array<HITLDetail>;
     is_favorite: boolean;
     /**

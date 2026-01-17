@@ -7654,6 +7654,20 @@ export const $DAGWithLatestDagRunsResponse = {
             type: 'array',
             title: 'Latest Dag Runs'
         },
+        task_instance_summary: {
+            anyOf: [
+                {
+                    additionalProperties: {
+                        type: 'integer'
+                    },
+                    type: 'object'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Task Instance Summary'
+        },
         pending_actions: {
             items: {
                 '$ref': '#/components/schemas/HITLDetail'
