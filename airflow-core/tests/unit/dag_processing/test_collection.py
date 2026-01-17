@@ -30,9 +30,11 @@ import pytest
 from sqlalchemy import delete, func, select
 from sqlalchemy.exc import OperationalError, SAWarning
 
-import airflow.dag_processing.collection
+from airflow import plugins_manager
+from airflow._shared.module_loading import qualname
 from airflow._shared.timezones import timezone as tz
 from airflow.configuration import conf
+from airflow.dag_processing import collection as dag_collection
 from airflow.dag_processing.collection import (
     AssetModelOperation,
     DagModelOperation,
@@ -54,9 +56,11 @@ from airflow.models.serialized_dag import SerializedDagModel
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.providers.standard.triggers.file import FileDeleteTrigger
 from airflow.sdk import DAG, Asset, AssetAlias, AssetWatcher
+from airflow.serialization.definitions import dag as serialized_dag_def
 from airflow.serialization.definitions.assets import SerializedAsset
 from airflow.serialization.encoders import ensure_serialized_asset
 from airflow.serialization.serialized_objects import LazyDeserializedDAG
+from airflow.timetables.simple import IdentityMapper, PartitionedAssetTimetable
 
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.db import (
@@ -66,6 +70,8 @@ from tests_common.test_utils.db import (
     clear_db_serialized_dags,
     clear_db_triggers,
 )
+from tests_common.test_utils.timetables import CustomSerializationTimetable
+from unit.plugins.priority_weight_strategy import DecreasingPriorityStrategy
 
 if TYPE_CHECKING:
     from kgb import SpyAgency
@@ -342,7 +348,7 @@ class TestUpdateDagParsingResults:
         dag = DAG(dag_id="test")
 
         sync_perms_spy = spy_agency.spy_on(
-            airflow.dag_processing.collection._sync_dag_perms,
+            dag_collection._sync_dag_perms,
             call_original=False,
         )
 
@@ -448,16 +454,14 @@ class TestUpdateDagParsingResults:
     def test_bulk_write_skips_unchanged_dags(
         self, spy_agency: SpyAgency, testing_dag_bundle, session, time_machine
     ):
-        import airflow.serialization.definitions.dag
-
         time_machine.move_to(tz.datetime(2026, 1, 5, 0, 0, 0), tick=False)
 
         dag1 = DAG(dag_id="dag1")
         dag2 = DAG(dag_id="dag2")
 
         update_dags_spy = spy_agency.spy_on(
-            airflow.dag_processing.collection.DagModelOperation.update_dags,
-            owner=airflow.dag_processing.collection.DagModelOperation,
+            dag_collection.DagModelOperation.update_dags,
+            owner=dag_collection.DagModelOperation,
             call_original=True,
         )
 
@@ -477,7 +481,7 @@ class TestUpdateDagParsingResults:
 
         # Spy on bulk_write_to_db to verify it's called with only changed dags
         bulk_write_spy = spy_agency.spy_on(
-            airflow.serialization.definitions.dag.SerializedDAG.bulk_write_to_db,
+            serialized_dag_def.SerializedDAG.bulk_write_to_db,
             call_original=True,
         )
         update_dags_spy.reset_calls()
@@ -515,6 +519,70 @@ class TestUpdateDagParsingResults:
         # Verify both dags are in the database
         dag_count = session.scalar(select(func.count(DagModel.dag_id)))
         assert dag_count == 2
+
+    @pytest.mark.usefixtures("clean_db")
+    def test_custom_registry_items_force_reserialize(
+        self, spy_agency: SpyAgency, monkeypatch, testing_dag_bundle, session
+    ):
+        monkeypatch.setattr(
+            plugins_manager,
+            "get_priority_weight_strategy_plugins",
+            lambda: {qualname(DecreasingPriorityStrategy): DecreasingPriorityStrategy},
+        )
+        monkeypatch.setattr(
+            plugins_manager,
+            "get_timetables_plugins",
+            lambda: {qualname(CustomSerializationTimetable): CustomSerializationTimetable},
+        )
+
+        dag_normal = DAG(dag_id="dag_normal")
+        dag_custom_weight = DAG(dag_id="dag_custom_weight", weight_rule=DecreasingPriorityStrategy())
+        dag_custom_timetable = DAG(
+            dag_id="dag_custom_timetable", schedule=CustomSerializationTimetable("custom")
+        )
+        dag_partitioned = DAG(
+            dag_id="dag_partitioned",
+            schedule=PartitionedAssetTimetable(assets=Asset("test"), partition_mapper=IdentityMapper()),
+        )
+        dags = [
+            LazyDeserializedDAG.from_dag(dag_normal),
+            LazyDeserializedDAG.from_dag(dag_custom_weight),
+            LazyDeserializedDAG.from_dag(dag_custom_timetable),
+            LazyDeserializedDAG.from_dag(dag_partitioned),
+        ]
+
+        update_dag_parsing_results_in_db(
+            bundle_name="testing",
+            bundle_version=None,
+            dags=dags,
+            import_errors={},
+            parse_duration=None,
+            warnings=set(),
+            session=session,
+        )
+
+        bulk_write_spy = spy_agency.spy_on(
+            serialized_dag_def.SerializedDAG.bulk_write_to_db,
+            call_original=True,
+        )
+
+        update_dag_parsing_results_in_db(
+            bundle_name="testing",
+            bundle_version=None,
+            dags=dags,
+            import_errors={},
+            parse_duration=None,
+            warnings=set(),
+            session=session,
+        )
+
+        assert len(bulk_write_spy.calls) == 1
+        called_dags = bulk_write_spy.calls[0].args[2]
+        assert {dag.dag_id for dag in called_dags} == {
+            "dag_custom_weight",
+            "dag_custom_timetable",
+            "dag_partitioned",
+        }
 
     def test_parse_time_written_to_db_on_sync(self, testing_dag_bundle, session):
         """Test that the parse time is correctly written to the DB after parsing"""

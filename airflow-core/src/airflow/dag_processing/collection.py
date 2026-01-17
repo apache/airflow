@@ -64,6 +64,7 @@ from airflow.serialization.definitions.assets import (
 )
 from airflow.serialization.definitions.dag import SerializedDAG
 from airflow.serialization.enums import Encoding
+from airflow.serialization.helpers import is_core_timetable_import_path
 from airflow.serialization.serialized_objects import BaseSerialization, LazyDeserializedDAG
 from airflow.triggers.base import BaseEventTrigger
 from airflow.utils.retries import MAX_DB_RETRIES, run_with_db_retries
@@ -295,6 +296,31 @@ def _update_dag_models_for_unchanged_dags(
     dag_op.update_dags(orm_dags, parse_duration, session=session)
 
 
+def _has_custom_timetable(dag: LazyDeserializedDAG) -> bool:
+    try:
+        timetable = dag.data["dag"].get("timetable")
+    except Exception:
+        log.exception("Failed to read timetable for dag %s; treating as changed", dag.dag_id)
+        return True
+    if not timetable:
+        return False
+    importable_string = timetable.get(Encoding.TYPE) if isinstance(timetable, dict) else None
+    if not importable_string:
+        return True
+    return not is_core_timetable_import_path(importable_string)
+
+
+def _has_partition_mapper(dag: LazyDeserializedDAG) -> bool:
+    try:
+        timetable = dag.data["dag"].get("timetable")
+    except Exception:
+        log.exception("Failed to read timetable for dag %s; treating as changed", dag.dag_id)
+        return True
+    if isinstance(timetable, dict) and timetable.get(Encoding.VAR, {}).get("partition_mapper"):
+        return True
+    return False
+
+
 def _partition_dags_by_serialized_hash(
     dags: Collection[LazyDeserializedDAG],
     *,
@@ -335,6 +361,29 @@ def _partition_dags_by_serialized_hash(
     changed_dags: list[LazyDeserializedDAG] = []
     unchanged_dags: list[LazyDeserializedDAG] = []
     for dag in dags:
+        try:
+            weight_rule = dag.data["dag"].get("weight_rule")
+            priority_weight_strategy = dag.data["dag"].get("priority_weight_strategy")
+        except Exception:
+            log.exception("Failed to read weight rule for dag %s; treating as changed", dag.dag_id)
+            changed_dags.append(dag)
+            continue
+        if weight_rule not in (
+            None,
+            "absolute",
+            "downstream",
+            "upstream",
+        ) or priority_weight_strategy not in (
+            None,
+            "absolute",
+            "downstream",
+            "upstream",
+        ):
+            changed_dags.append(dag)
+            continue
+        if _has_custom_timetable(dag) or _has_partition_mapper(dag):
+            changed_dags.append(dag)
+            continue
         existing = existing_hashes.get(dag.dag_id)
         if not existing:
             changed_dags.append(dag)
