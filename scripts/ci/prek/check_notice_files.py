@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -16,30 +16,35 @@
 # specific language governing permissions and limitations
 # under the License.
 # /// script
-# requires-python = ">=3.10,<3.11"
-# dependencies = [
-#   "rich>=13.6.0",
-#   "ruff==0.14.13",
-# ]
+# requires-python = ">=3.10, <3.11"
+# dependencies = []
 # ///
+"""
+Check that NOTICE files contain the current year and Apache Software Foundation reference.
+
+This script validates NOTICE files to ensure they:
+- Include the current year in copyright statements
+- Reference the Apache Software Foundation
+
+Usage: check_notice_files.py <notice_file_paths...>
+"""
+
 from __future__ import annotations
 
 import sys
+from datetime import datetime
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).parent.resolve()))
-from common_prek_utils import (
-    initialize_breeze_prek,
-    run_command_via_breeze_shell,
-    validate_cmd_result,
-)
+CURRENT_YEAR = str(datetime.now().year)
 
-initialize_breeze_prek(__name__, __file__)
+errors = 0
 
-cmd_result = run_command_via_breeze_shell(
-    ["python3", "/opt/airflow/scripts/in_container/run_check_imports_in_providers.py"],
-    backend="postgres",
-    skip_environment_initialization=False,
-)
+for notice_file in sys.argv[1:]:
+    content = Path(notice_file).read_text()
 
-validate_cmd_result(cmd_result)
+    expected = f"Copyright 2016-{CURRENT_YEAR} The Apache Software Foundation"
+    if "Copyright" in content and expected not in content:
+        print(f"❌ {notice_file}: Missing expected string: {expected!r}")
+        errors += 1
+
+sys.exit(1 if errors else 0)
