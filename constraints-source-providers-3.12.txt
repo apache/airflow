@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2026-01-16T13:56:05.608949
+# This constraints file was automatically generated on 2026-01-17T02:45:55.738456
 # via `uv sync --resolution highest for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider distributions.
@@ -364,7 +364,7 @@ libcst==1.8.6
 librt==0.7.8
 limits==5.6.0
 linkify-it-py==2.0.3
-litellm==1.80.16
+litellm==1.80.17
 lockfile==0.12.2
 looker_sdk==25.20.0
 lxml==6.0.2
@@ -496,7 +496,7 @@ py4j==0.10.9.9
 pyOpenSSL==25.1.0
 pyarrow-hotfix==0.7
 pyarrow==18.1.0
-pyasn1==0.6.1
+pyasn1==0.6.2
 pyasn1_modules==0.4.2
 pybreaker==1.4.1
 pycountry==24.6.1
@@ -643,7 +643,7 @@ sympy==1.14.0
 tableauserverclient==0.38
 tabulate==0.9.0
 tenacity==9.1.2
-teradatasql==20.0.0.49
+teradatasql==20.0.0.50
 teradatasqlalchemy==20.0.0.9
 termcolor==3.3.0
 testcontainers==4.14.0
