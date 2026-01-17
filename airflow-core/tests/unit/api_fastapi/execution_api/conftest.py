@@ -25,10 +25,7 @@ from airflow.api_fastapi.app import cached_app
 from airflow.api_fastapi.auth.tokens import JWTGenerator, JWTValidator
 from airflow.api_fastapi.execution_api.app import lifespan
 from airflow.api_fastapi.execution_api.datamodels.token import TIToken
-from airflow.api_fastapi.execution_api.deps import (
-    JWTBearerDep,
-    JWTBearerTIPathDep,
-)
+from airflow.api_fastapi.execution_api.deps import JWTBearerDep, JWTBearerTIPathDep
 from airflow.api_fastapi.execution_api.routes.task_instances import JWTBearerWorkloadDep
 
 
@@ -79,20 +76,24 @@ def client(request: pytest.FixtureRequest):
         jwt_generator.generate.return_value = "mock-execution-token"
         lifespan.registry.register_value(JWTGenerator, jwt_generator)
 
-        # Override auth dependencies to bypass token scope validation in tests
-        # This allows tests to focus on business logic rather than auth mechanics
-        # We need to override both the specific instances AND the classes to cover all cases
         jwt_bearer_instance = JWTBearerDep.dependency
         jwt_bearer_ti_path_instance = JWTBearerTIPathDep.dependency
         jwt_bearer_workload_instance = JWTBearerWorkloadDep.dependency
 
-        app.dependency_overrides[jwt_bearer_instance] = lambda: _always_allow()
-        app.dependency_overrides[jwt_bearer_ti_path_instance] = lambda: _always_allow()
-        app.dependency_overrides[jwt_bearer_workload_instance] = lambda: _always_allow()
+        execution_app = None
+        for route in app.routes:
+            if hasattr(route, "path") and route.path == "/execution":
+                execution_app = route.app
+                break
+
+        if execution_app:
+            execution_app.dependency_overrides[jwt_bearer_instance] = lambda: _always_allow()
+            execution_app.dependency_overrides[jwt_bearer_ti_path_instance] = lambda: _always_allow()
+            execution_app.dependency_overrides[jwt_bearer_workload_instance] = lambda: _always_allow()
 
         yield client
 
-        # Clean up dependency overrides
-        app.dependency_overrides.pop(jwt_bearer_instance, None)
-        app.dependency_overrides.pop(jwt_bearer_ti_path_instance, None)
-        app.dependency_overrides.pop(jwt_bearer_workload_instance, None)
+        if execution_app:
+            execution_app.dependency_overrides.pop(jwt_bearer_instance, None)
+            execution_app.dependency_overrides.pop(jwt_bearer_ti_path_instance, None)
+            execution_app.dependency_overrides.pop(jwt_bearer_workload_instance, None)

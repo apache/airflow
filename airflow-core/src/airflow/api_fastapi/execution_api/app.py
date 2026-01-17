@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 import json
+import secrets
 import time
 from contextlib import AsyncExitStack
 from functools import cached_property
@@ -296,9 +297,6 @@ class InProcessExecutionAPI:
     @cached_property
     def app(self):
         if not self._app:
-            import os
-            from base64 import urlsafe_b64encode
-
             from airflow.api_fastapi.common.dagbag import create_dag_bag
             from airflow.api_fastapi.execution_api.app import create_task_execution_api_app
             from airflow.api_fastapi.execution_api.deps import (
@@ -318,7 +316,7 @@ class InProcessExecutionAPI:
                 logger.debug(
                     "`api_auth/jwt_secret` is not set, generating a temporary one for in-process execution"
                 )
-                conf.set("api_auth", "jwt_secret", urlsafe_b64encode(os.urandom(16)).decode())
+                conf.set("api_auth", "jwt_secret", secrets.token_urlsafe(16))
 
             self._app = create_task_execution_api_app()
 

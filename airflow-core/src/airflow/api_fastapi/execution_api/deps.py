@@ -109,10 +109,10 @@ class JWTBearer(_BaseJWTBearer):
     """
 
     def _check_scope(self, claims: dict[str, Any]) -> None:
-        if claims.get("scope") == TOKEN_SCOPE_WORKLOAD:
+        if claims.get("scope"):
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
-                detail="Workload tokens cannot access this endpoint. Use the token from /run response.",
+                detail="Scoped tokens cannot access this endpoint. Use the token from /run response.",
             )
 
 
@@ -127,8 +127,8 @@ class JWTBearerWorkloadScope(_BaseJWTBearer):
 
     def _check_scope(self, claims: dict[str, Any]) -> None:
         scope = claims.get("scope")
-        # Reject if scope is explicitly set to something other than workload scope
-        if scope is not None and scope != TOKEN_SCOPE_WORKLOAD:
+        # Reject if scope is missing or not the workload scope
+        if scope != TOKEN_SCOPE_WORKLOAD:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="This endpoint requires a workload-scoped token",
