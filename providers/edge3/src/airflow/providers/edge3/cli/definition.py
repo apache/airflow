@@ -18,7 +18,15 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from airflow.cli.cli_config import ARG_PID, ARG_VERBOSE, ActionCommand, Arg, GroupCommand, lazy_load_command
+from airflow.cli.cli_config import (
+    ARG_DB_SKIP_INIT,
+    ARG_PID,
+    ARG_VERBOSE,
+    ActionCommand,
+    Arg,
+    GroupCommand,
+    lazy_load_command,
+)
 from airflow.configuration import conf
 
 if TYPE_CHECKING:
@@ -231,6 +239,21 @@ EDGE_COMMANDS: list[ActionCommand] = [
     ),
 ]
 
+EDGE_DB_COMMANDS: tuple[ActionCommand, ...] = (
+    ActionCommand(
+        name="migrate",
+        help="Migrates the Edge metadata database to the latest version",
+        func=lazy_load_command("airflow.providers.edge3.cli.db_command.migratedb"),
+        args=(ARG_VERBOSE,),
+    ),
+    ActionCommand(
+        name="reset",
+        help="Reset the Edge metadata database",
+        func=lazy_load_command("airflow.providers.edge3.cli.db_command.resetdb"),
+        args=(ARG_YES, ARG_DB_SKIP_INIT, ARG_VERBOSE),
+    ),
+)
+
 
 def get_edge_cli_commands() -> list[GroupCommand]:
     return [
@@ -242,6 +265,11 @@ def get_edge_cli_commands() -> list[GroupCommand]:
                 "see https://airflow.apache.org/docs/apache-airflow-providers-edge3/stable/edge_executor.html"
             ),
             subcommands=EDGE_COMMANDS,
+        ),
+        GroupCommand(
+            name="edge-db",
+            help="Manage Edge database",
+            subcommands=EDGE_DB_COMMANDS,
         ),
     ]
 

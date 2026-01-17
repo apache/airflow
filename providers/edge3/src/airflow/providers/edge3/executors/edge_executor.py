@@ -61,6 +61,11 @@ class EdgeExecutor(BaseExecutor):
         super().__init__(parallelism=parallelism)
         self.last_reported_state: dict[TaskInstanceKey, TaskInstanceState] = {}
 
+    @staticmethod
+    def get_db_manager() -> str | None:
+        """Return the DB manager class path for Edge executor."""
+        return "airflow.providers.edge3.models.db.EdgeDBManager"
+
     def _check_db_schema(self, engine: Engine) -> None:
         """
         Check if already existing table matches the newest table schema.

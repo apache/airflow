@@ -167,6 +167,7 @@ class RunDBManager(LoggingMixin):
 
     def __init__(self):
         from airflow.api_fastapi.app import create_auth_manager
+        from airflow.executors.executor_loader import ExecutorLoader
 
         super().__init__()
         self._managers: list[BaseDBManager] = []
@@ -179,6 +180,20 @@ class RunDBManager(LoggingMixin):
         auth_manager_db_manager = create_auth_manager().get_db_manager()
         if auth_manager_db_manager and auth_manager_db_manager not in managers:
             managers.append(auth_manager_db_manager)
+        # Add DB managers specified by configured executors (if any)
+        try:
+            executor_names = ExecutorLoader.get_executor_names(validate_teams=False)
+            for executor_name in executor_names:
+                try:
+                    executor_cls, _ = ExecutorLoader.import_executor_cls(executor_name)
+                    if hasattr(executor_cls, "get_db_manager"):
+                        executor_db_manager = executor_cls.get_db_manager()
+                        if executor_db_manager and executor_db_manager not in managers:
+                            managers.append(executor_db_manager)
+                except Exception:
+                    self.log.debug("Could not load DB manager from executor %s", executor_name)
+        except Exception:
+            self.log.debug("Could not load executor DB managers")
         for module in managers:
             manager = import_string(module)
             self._managers.append(manager)

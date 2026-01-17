@@ -26,9 +26,9 @@ from typing import TYPE_CHECKING
 from sqlalchemy import Integer, String, delete, select
 from sqlalchemy.orm import Mapped
 
-from airflow.models.base import Base
 from airflow.providers.common.compat.sdk import AirflowException, Stats, timezone
 from airflow.providers.common.compat.sqlalchemy.orm import mapped_column
+from airflow.providers.edge3.models.base import EdgeBase
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.providers_configuration_loader import providers_configuration_loaded
 from airflow.utils.session import NEW_SESSION, provide_session
@@ -83,7 +83,7 @@ class EdgeWorkerState(str, Enum):
     """Worker was shut down in maintenance mode. It will be in maintenance mode when restarted."""
 
 
-class EdgeWorkerModel(Base, LoggingMixin):
+class EdgeWorkerModel(EdgeBase, LoggingMixin):
     """A Edge Worker instance which reports the state and health."""
 
     __tablename__ = "edge_worker"

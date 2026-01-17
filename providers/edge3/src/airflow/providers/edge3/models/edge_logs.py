@@ -26,13 +26,14 @@ from sqlalchemy import (
 from sqlalchemy.dialects.mysql import MEDIUMTEXT
 from sqlalchemy.orm import Mapped
 
-from airflow.models.base import Base, StringID
+from airflow.models.base import StringID
 from airflow.providers.common.compat.sqlalchemy.orm import mapped_column
+from airflow.providers.edge3.models.base import EdgeBase
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.sqlalchemy import UtcDateTime
 
 
-class EdgeLogsModel(Base, LoggingMixin):
+class EdgeLogsModel(EdgeBase, LoggingMixin):
     """
     Temporary collected logs from a Edge Worker while job runs on remote site.
 

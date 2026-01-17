@@ -26,15 +26,16 @@ from sqlalchemy import (
 )
 from sqlalchemy.orm import Mapped
 
-from airflow.models.base import Base, StringID
+from airflow.models.base import StringID
 from airflow.models.taskinstancekey import TaskInstanceKey
 from airflow.providers.common.compat.sdk import timezone
 from airflow.providers.common.compat.sqlalchemy.orm import mapped_column
+from airflow.providers.edge3.models.base import EdgeBase
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.sqlalchemy import UtcDateTime
 
 
-class EdgeJobModel(Base, LoggingMixin):
+class EdgeJobModel(EdgeBase, LoggingMixin):
     """
     A job which is queued, waiting or running on a Edge Worker.
 
