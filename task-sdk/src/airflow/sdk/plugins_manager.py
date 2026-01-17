@@ -38,7 +38,7 @@ from airflow.sdk._shared.plugins_manager import (
 from airflow.sdk.configuration import conf
 
 if TYPE_CHECKING:
-    from airflow.listeners.listener import ListenerManager
+    from airflow.sdk._shared.listeners.listener import ListenerManager
 
 log = logging.getLogger(__name__)
 

@@ -58,16 +58,16 @@ class _Stats(type):
         type.__setattr__(cls, "instance", None)
 
         if is_statsd_datadog_enabled:
-            from airflow.observability.metrics import datadog_logger
+            from . import datadog_logger
 
             # Datadog needs the cls param, so wrap it into a 0-arg factory.
             factory = lambda: datadog_logger.get_dogstatsd_logger(cls)
         elif is_statsd_on:
-            from airflow.observability.metrics import statsd_logger
+            from . import statsd_logger
 
             factory = statsd_logger.get_statsd_logger
         elif is_otel_on:
-            from airflow.observability.metrics import otel_logger
+            from . import otel_logger
 
             factory = otel_logger.get_otel_logger
         else:
