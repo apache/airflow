@@ -18,7 +18,7 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Literal
 
 import google.cloud.exceptions
 from google.api_core.exceptions import AlreadyExists
@@ -263,6 +263,9 @@ class CloudRunExecuteJobOperator(GoogleCloudBaseOperator):
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
     :param deferrable: Run the operator in deferrable mode.
+    :param transport: Optional. The transport to use for API requests. Can be 'rest' or 'grpc'.
+        If set to None, a transport is chosen automatically. Use 'rest' if gRPC is not available
+        or fails in your environment (e.g., Docker containers with certain network configurations).
     """
 
     operator_extra_links = (CloudRunJobLoggingLink(),)
@@ -275,6 +278,7 @@ class CloudRunExecuteJobOperator(GoogleCloudBaseOperator):
         "overrides",
         "polling_period_seconds",
         "timeout_seconds",
+        "transport",
     )
 
     def __init__(
@@ -288,6 +292,7 @@ class CloudRunExecuteJobOperator(GoogleCloudBaseOperator):
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
         deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
+        transport: Literal["rest", "grpc"] | None = None,
         **kwargs,
     ):
         super().__init__(**kwargs)
@@ -300,11 +305,14 @@ class CloudRunExecuteJobOperator(GoogleCloudBaseOperator):
         self.polling_period_seconds = polling_period_seconds
         self.timeout_seconds = timeout_seconds
         self.deferrable = deferrable
+        self.transport = transport
         self.operation: operation.Operation | None = None
 
     def execute(self, context: Context):
         hook: CloudRunHook = CloudRunHook(
-            gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain
+            gcp_conn_id=self.gcp_conn_id,
+            impersonation_chain=self.impersonation_chain,
+            transport=self.transport,
         )
         self.operation = hook.execute_job(
             region=self.region, project_id=self.project_id, job_name=self.job_name, overrides=self.overrides
@@ -333,6 +341,7 @@ class CloudRunExecuteJobOperator(GoogleCloudBaseOperator):
                 gcp_conn_id=self.gcp_conn_id,
                 impersonation_chain=self.impersonation_chain,
                 polling_period_seconds=self.polling_period_seconds,
+                transport=self.transport,
             ),
             method_name="execute_complete",
         )
@@ -350,7 +359,11 @@ class CloudRunExecuteJobOperator(GoogleCloudBaseOperator):
                 f"Operation failed with error code [{error_code}] and error message [{error_message}]"
             )
 
-        hook: CloudRunHook = CloudRunHook(self.gcp_conn_id, self.impersonation_chain)
+        hook: CloudRunHook = CloudRunHook(
+            gcp_conn_id=self.gcp_conn_id,
+            impersonation_chain=self.impersonation_chain,
+            transport=self.transport,
+        )
 
         job = hook.get_job(job_name=event["job_name"], region=self.region, project_id=self.project_id)
         return Job.to_dict(job)
