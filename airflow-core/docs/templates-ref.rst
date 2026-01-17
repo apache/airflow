@@ -48,13 +48,13 @@ Variable                                    Type                  Description
 ``{{ exception }}``                         None | str |          | Error occurred while running task instance.
                                             Exception             |
                                             KeyboardInterrupt     |
-``{{ prev_data_interval_start_success }}``  `pendulum.DateTime`_  | Start of the data interval of the prior successful :class:`~airflow.models.dagrun.DagRun`.
+``{{ prev_data_interval_start_success }}``  `pendulum.DateTime`_  | Start of the data interval of the prior successful :py:class:`airflow.models.dagrun.DagRun`.
                                             | ``None``            | Added in version 2.2.
-``{{ prev_data_interval_end_success }}``    `pendulum.DateTime`_  | End of the data interval of the prior successful :class:`~airflow.models.dagrun.DagRun`.
+``{{ prev_data_interval_end_success }}``    `pendulum.DateTime`_  | End of the data interval of the prior successful :py:class:`airflow.models.dagrun.DagRun`.
                                             | ``None``            | Added in version 2.2.
-``{{ prev_start_date_success }}``           `pendulum.DateTime`_  Start date from prior successful :class:`~airflow.models.dagrun.DagRun` (if available).
+``{{ prev_start_date_success }}``           `pendulum.DateTime`_  Start date from prior successful :py:class:`airflow.models.dagrun.DagRun` (if available).
                                             | ``None``
-``{{ prev_end_date_success }}``             `pendulum.DateTime`_  End date from prior successful :class:`~airflow.models.dagrun.DagRun` (if available).
+``{{ prev_end_date_success }}``             `pendulum.DateTime`_  End date from prior successful :py:class:`airflow.models.dagrun.DagRun` (if available).
                                             | ``None``
 ``{{ start_date }}``                        `pendulum.DateTime`_  Datetime of when current task has been started.
 ``{{ inlets }}``                            list                  List of inlets declared on the task.
@@ -62,11 +62,11 @@ Variable                                    Type                  Description
 ``{{ outlets }}``                           list                  List of outlets declared on the task.
 ``{{ outlet_events }}``                     dict[str, ...]        | Accessors to attach information to asset events that will be emitted by the current task.
                                                                   | See :doc:`Assets <authoring-and-scheduling/asset-scheduling>`. Added in version 2.10.
-``{{ dag }}``                               DAG                   The currently running :class:`~airflow.models.dag.DAG`. You can read more about Dags in :doc:`Dags <core-concepts/dags>`.
-``{{ task }}``                              BaseOperator          | The currently running :class:`~airflow.models.baseoperator.BaseOperator`. You can read more about Tasks in :doc:`core-concepts/operators`
+``{{ dag }}``                               DAG                   The currently running :py:class:`airflow.models.dag.DAG`. You can read more about Dags in :doc:`Dags <core-concepts/dags>`.
+``{{ task }}``                              BaseOperator          | The currently running :py:class:`airflow.models.baseoperator.BaseOperator`. You can read more about Tasks in :doc:`core-concepts/operators`
 ``{{ task_reschedule_count }}``             int                   How many times current task has been rescheduled. Relevant to ``mode="reschedule"`` sensors.
 ``{{ macros }}``                                                  | A reference to the macros package. See Macros_ below.
-``{{ task_instance }}``                     TaskInstance          The currently running :class:`~airflow.models.taskinstance.TaskInstance`.
+``{{ task_instance }}``                     TaskInstance          The currently running :py:class:`airflow.models.taskinstance.TaskInstance`.
 ``{{ ti }}``                                TaskInstance          Same as ``{{ task_instance }}``.
 ``{{ params }}``                            dict[str, Any]        | The user-defined params. This can be overridden by the mapping
                                                                   | passed to ``trigger_dag -c`` if ``dag_run_conf_overrides_params``
@@ -76,14 +76,14 @@ Variable                                    Type                  Description
 ``{{ conn }}``                                                    Airflow connections. See `Airflow Connections in Templates`_ below.
 ``{{ task_instance_key_str }}``             str                   | A unique, human-readable key to the task instance. The format is
                                                                   | ``{dag_id}__{task_id}__{ds_nodash}``.
-``{{ run_id }}``                            str                   The currently running :class:`~airflow.models.dagrun.DagRun` run ID.
-``{{ dag_run }}``                           DagRun                The currently running :class:`~airflow.models.dagrun.DagRun`.
+``{{ run_id }}``                            str                   The currently running :py:class:`airflow.models.dagrun.DagRun` run ID.
+``{{ dag_run }}``                           DagRun                The currently running :py:class:`airflow.models.dagrun.DagRun`.
 ``{{ test_mode }}``                         bool                  Whether the task instance was run by the ``airflow test`` CLI.
 ``{{ map_index_template }}``                None | str            Template used to render the expanded task instance of a mapped task. Setting this value will be reflected in the rendered result.
 ``{{ expanded_ti_count }}``                 int | ``None``        | Number of task instances that a mapped task was expanded into. If
                                                                   | the current task is not mapped, this should be ``None``.
                                                                   | Added in version 2.5.
-``{{ triggering_asset_events }}``           dict[str,             | If in an Asset Scheduled Dag, a map of Asset URI to a list of triggering :class:`~airflow.models.asset.AssetEvent`
+``{{ triggering_asset_events }}``           dict[str,             | If in an Asset Scheduled Dag, a map of Asset URI to a list of triggering :py:class:`airflow.models.asset.AssetEvent`
                                             list[AssetEvent]]     | (there may be more than one, if there are multiple Assets with different frequencies).
                                                                   | Read more here :doc:`Assets <authoring-and-scheduling/asset-scheduling>`.
                                                                   | Added in version 2.4.
