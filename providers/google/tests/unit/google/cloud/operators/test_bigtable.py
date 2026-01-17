@@ -596,7 +596,6 @@ class TestBigtableInstanceDelete:
             impersonation_chain=IMPERSONATION_CHAIN,
         )
 
-        # Should NOT raise
         op.execute(None)
 
         mock_hook.return_value.delete_instance.assert_called_once_with(
