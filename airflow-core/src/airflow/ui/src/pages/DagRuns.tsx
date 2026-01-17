@@ -16,9 +16,12 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Flex, HStack, Link, Text } from "@chakra-ui/react";
+
+/* eslint-disable max-lines */
+import { Flex, HStack, Link, Text, Button } from "@chakra-ui/react";
 import type { ColumnDef } from "@tanstack/react-table";
 import type { TFunction } from "i18next";
+import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Link as RouterLink, useParams, useSearchParams } from "react-router-dom";
 
@@ -36,7 +39,9 @@ import { RunTypeIcon } from "src/components/RunTypeIcon";
 import { StateBadge } from "src/components/StateBadge";
 import Time from "src/components/Time";
 import { TruncatedText } from "src/components/TruncatedText";
+import { Checkbox } from "src/components/ui/Checkbox";
 import { SearchParamsKeys, type SearchParamsKeysType } from "src/constants/searchParams";
+import BulkDeleteRunsButton from "src/pages/BulkDeleteRunsButton";
 import { DagRunsFilters } from "src/pages/DagRunsFilters";
 import DeleteRunButton from "src/pages/DeleteRunButton";
 import { renderDuration, useAutoRefresh, isStatePending } from "src/utils";
@@ -58,7 +63,42 @@ const {
   TRIGGERING_USER_NAME_PATTERN: TRIGGERING_USER_NAME_PATTERN_PARAM,
 }: SearchParamsKeysType = SearchParamsKeys;
 
-const runColumns = (translate: TFunction, dagId?: string): Array<ColumnDef<DAGRunResponse>> => [
+type SelectedRun = { dagId: string; dagRunId: string };
+const runKey = (run: SelectedRun) => `${run.dagId}__${run.dagRunId}`;
+
+type SelectionConfig = {
+  isSelecting: boolean;
+  selectedRuns: Array<SelectedRun>;
+  toggleSelection: (run: DAGRunResponse) => void;
+};
+
+const runColumns = (
+  translate: TFunction,
+  dagId?: string,
+  selection?: SelectionConfig,
+): Array<ColumnDef<DAGRunResponse>> => [
+  ...(selection
+    ? [
+        {
+          cell: ({ row: { original } }: DagRunRow) =>
+            selection.isSelecting ? (
+              <Checkbox
+                checked={selection.selectedRuns.some(
+                  (run) => run.dagId === original.dag_id && run.dagRunId === original.dag_run_id,
+                )}
+                colorPalette="brand"
+                inputProps={{
+                  onChange: () => selection.toggleSelection(original),
+                }}
+              />
+            ) : undefined,
+          enableSorting: false,
+          header: "",
+          id: "select",
+          meta: { skeletonWidth: 2 },
+        } satisfies ColumnDef<DAGRunResponse>,
+      ]
+    : []),
   ...(Boolean(dagId)
     ? []
     : [
@@ -181,6 +221,24 @@ export const DagRuns = () => {
   const { dagId } = useParams();
   const [searchParams] = useSearchParams();
 
+  const [isSelecting, setIsSelecting] = useState(false);
+  const [selectedRuns, setSelectedRuns] = useState<Array<SelectedRun>>([]);
+
+  const toggleSelection = (run: DAGRunResponse) => {
+    const item: SelectedRun = { dagId: run.dag_id, dagRunId: run.dag_run_id };
+    const key = runKey(item);
+
+    setSelectedRuns((prev) => {
+      const has = prev.some((x) => runKey(x) === key);
+
+      return has ? prev.filter((x) => runKey(x) !== key) : [...prev, item];
+    });
+  };
+
+  const clearSelection = () => {
+    setSelectedRuns([]);
+    setIsSelecting(false);
+  };
   const { setTableURLState, tableURLState } = useTableURLState({
     columnVisibility: {
       conf: false,
@@ -237,11 +295,42 @@ export const DagRuns = () => {
     },
   );
 
-  const columns = runColumns(translate, dagId);
+  const columns = useMemo(
+    () =>
+      runColumns(translate, dagId, {
+        isSelecting,
+        selectedRuns,
+        toggleSelection,
+      }),
+    [translate, dagId, isSelecting, selectedRuns],
+  );
 
   return (
     <>
       <DagRunsFilters dagId={dagId} />
+      <HStack justifyContent="space-between" py={2}>
+        {isSelecting ? (
+          <HStack>
+            <Button onClick={clearSelection} size="sm" variant="ghost">
+              {translate("common:cancel")}
+            </Button>
+
+            <Text>
+              {selectedRuns.length} {translate("common:selected")}
+            </Text>
+
+            <BulkDeleteRunsButton
+              onSuccessConfirm={clearSelection}
+              selectedRuns={selectedRuns}
+              withText={false} // or true
+            />
+          </HStack>
+        ) : (
+          <Button onClick={() => setIsSelecting(true)} size="sm" variant="outline">
+            {translate("common:select")}
+          </Button>
+        )}
+      </HStack>
       <DataTable
         columns={columns}
         data={data?.dag_runs ?? []}
