@@ -32,8 +32,6 @@ test.describe("DAG Calendar Page", () => {
         const baseUrl = process.env.AIRFLOW_UI_BASE_URL ?? "http://localhost:8080";
 
         const timestamp = Date.now();
-        const date = new Date(timestamp);
-        const todayDateString = date.toISOString().split("T")[0]; // YYYY-MM-DD
 
         // Trigger DAG runs to ensure data
         // Success Run
@@ -46,9 +44,11 @@ test.describe("DAG Calendar Page", () => {
             }),
             headers: { "Content-Type": "application/json" },
         });
+
         expect(triggerResponse1.ok()).toBeTruthy();
 
         const runData1 = (await triggerResponse1.json()) as { dag_run_id: string };
+
         await page.request.patch(
             `${baseUrl}/api/v2/dags/${testDagId}/dagRuns/${runData1.dag_run_id}`,
             {
@@ -59,7 +59,7 @@ test.describe("DAG Calendar Page", () => {
 
         // Failed Run
         const runId2 = `test_run_cal_failed_${timestamp}`;
-        const logicalDate2 = new Date(timestamp + 60000).toISOString();
+        const logicalDate2 = new Date(timestamp + 60 * 1000).toISOString();
         const triggerResponse2 = await page.request.post(`${baseUrl}/api/v2/dags/${testDagId}/dagRuns`, {
             data: JSON.stringify({
                 dag_run_id: runId2,
@@ -67,9 +67,11 @@ test.describe("DAG Calendar Page", () => {
             }),
             headers: { "Content-Type": "application/json" },
         });
+
         expect(triggerResponse2.ok()).toBeTruthy();
 
         const runData2 = (await triggerResponse2.json()) as { dag_run_id: string };
+
         await page.request.patch(
             `${baseUrl}/api/v2/dags/${testDagId}/dagRuns/${runData2.dag_run_id}`,
             {
@@ -86,12 +88,11 @@ test.describe("DAG Calendar Page", () => {
     });
 
     test("verify calendar renders and displays runs", async () => {
-        await dagCalendarPage.navigate(); // Should go to dags list
         await dagCalendarPage.navigateToCalendar(testDagId);
 
         await dagCalendarPage.verifyCalendarRender();
 
-        const today = new Date().toISOString().split("T")[0];
+        const [today] = new Date().toISOString().split("T");
 
         // We triggered runs for today, so we should see Mixed or at least one of them
         // If multiple runs on same day, logic might be mixed.
@@ -103,11 +104,13 @@ test.describe("DAG Calendar Page", () => {
 
         // Let's verify we can find the cell for today
         const cell = dagCalendarPage.page.locator(`[data-testid="calendar-cell"][data-date="${today}"]`);
+
         await expect(cell).toBeVisible();
 
         // Hover and check tooltip
         await cell.hover();
         const tooltip = dagCalendarPage.page.getByRole("tooltip");
+
         await expect(tooltip).toBeVisible();
         await expect(tooltip).toContainText(today);
         await expect(tooltip).toContainText("Success");
@@ -120,11 +123,12 @@ test.describe("DAG Calendar Page", () => {
         // Click 'Failed runs' button if exists (from Calendar.tsx: setViewMode("failed"))
         await dagCalendarPage.page.getByRole("button", { name: "Failed Runs" }).click();
 
-        const today = new Date().toISOString().split("T")[0];
+        const [today] = new Date().toISOString().split("T");
         const cell = dagCalendarPage.page.locator(`[data-testid="calendar-cell"][data-date="${today}"]`);
 
         await cell.hover();
         const tooltip = dagCalendarPage.page.getByRole("tooltip");
+
         await expect(tooltip).toContainText("Failed");
         // Should NOT contain Success count if filtered? 
         // CalendarTooltip logic: viewMode === "failed" ? return key === "failed" ...

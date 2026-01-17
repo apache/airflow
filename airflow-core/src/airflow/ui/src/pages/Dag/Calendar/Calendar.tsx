@@ -163,8 +163,8 @@ export const Calendar = () => {
                     setSelectedDate(currentDate.startOf("month"));
                   }
                 }}
-                textAlign="center"
                 data-testid="calendar-header-date"
+                textAlign="center"
               >
                 {selectedDate.format("MMM YYYY")}
               </Text>
