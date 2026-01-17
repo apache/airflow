@@ -947,13 +947,7 @@ Verify that all NOTICE files contain the required ASF notice and current copyrig
 Run the verification script from the Airflow repository root:
 
 ```shell script
-python3 dev/verify_notice_files.py --sources-only --year 2026 --verbose
-```
-
-For distribution packages, after building:
-
-```shell script
-python3 dev/verify_notice_files.py --dist-only --year 2026 --verbose
+python3 dev/verify_notice_files.py
 ```
 
 All checks must pass before proceeding with the release.
