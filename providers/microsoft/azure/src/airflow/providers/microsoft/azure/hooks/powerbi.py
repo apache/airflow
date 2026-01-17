@@ -35,7 +35,6 @@ class PowerBIDatasetRefreshFields(Enum):
     STATUS = "status"
     ERROR = "error"
 
-
 class PowerBIDatasetRefreshStatus:
     """Power BI refresh dataset statuses."""
 
@@ -47,18 +46,14 @@ class PowerBIDatasetRefreshStatus:
     TERMINAL_STATUSES = {FAILED, COMPLETED}
     FAILURE_STATUSES = {FAILED, DISABLED}
 
-
 class PowerBIDatasetRefreshException(AirflowException):
     """An exception that indicates a dataset refresh failed to complete."""
-
 
 class PowerBIWorkspaceListException(AirflowException):
     """An exception that indicates a failure in getting the list of groups (workspaces)."""
 
-
 class PowerBIDatasetListException(AirflowException):
     """An exception that indicates a failure in getting the list of datasets."""
-
 
 class PowerBIHook(KiotaRequestAdapterHook):
     """
@@ -300,6 +295,7 @@ class PowerBIHook(KiotaRequestAdapterHook):
             },
             method="DELETE",
         )
+
 
 
 
