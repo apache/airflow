@@ -152,7 +152,7 @@ class WinRMOperator(BaseOperator):
     def evaluate_result(
         self,
         status: str,
-        return_code: int | list | range,
+        return_code: int,
         stdout_buffer: list[bytes],
         stderr_buffer: list[bytes],
     ) -> Any:
