@@ -22,7 +22,7 @@ from typing import TYPE_CHECKING, Any
 from urllib.parse import urljoin
 from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.microsoft.azure.hooks.msgraph import KiotaRequestAdapterHook
-\
+
 
 
 if TYPE_CHECKING:
@@ -284,3 +284,4 @@ class PowerBIHook(KiotaRequestAdapterHook):
             },
             method="DELETE",
         )
+
