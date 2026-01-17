@@ -244,4 +244,6 @@ class AzureDataFactoryTrigger(BaseTrigger):
                     )
                 except Exception:
                     self.log.exception("Failed to cancel pipeline run %s", self.run_id)
+                finally:
+                    await hook.close()
             yield TriggerEvent({"status": "error", "message": str(e), "run_id": self.run_id})
