@@ -45,6 +45,7 @@ def check_file_for_core_imports(file_path: Path) -> list[tuple[int, str]]:
     mismatches = []
 
     for node in ast.walk(tree):
+        # for `from airflow.x import y` statements
         if isinstance(node, ast.ImportFrom):
             if (
                 node.module
@@ -54,6 +55,14 @@ def check_file_for_core_imports(file_path: Path) -> list[tuple[int, str]]:
                 import_names = ", ".join(alias.name for alias in node.names)
                 statement = f"from {node.module} import {import_names}"
                 mismatches.append((node.lineno, statement))
+        # for `import airflow.x` statements
+        elif isinstance(node, ast.Import):
+            for alias in node.names:
+                if alias.name.startswith("airflow.") and not alias.name.startswith("airflow.sdk"):
+                    statement = f"import {alias.name}"
+                    if alias.asname:
+                        statement += f" as {alias.asname}"
+                    mismatches.append((node.lineno, statement))
 
     return mismatches
 
