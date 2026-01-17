@@ -290,7 +290,7 @@ option_mount_ui_dist = click.option(
 option_mysql_version = click.option(
     "-M",
     "--mysql-version",
-    help="Version of MySQL used.",
+    help="Version of MySQL used. Use 'mariadb:VERSION' for MariaDB (e.g., 'mariadb:11.8').",
     type=MySQLBackendVersionChoice(ALLOWED_MYSQL_VERSIONS),
     default=CacheableDefault(ALLOWED_MYSQL_VERSIONS[0]),
     envvar="MYSQL_VERSION",
