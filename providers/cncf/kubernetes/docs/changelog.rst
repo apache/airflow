@@ -32,6 +32,18 @@ Changelog
    Previously this would create a job that would never complete and always fail the task.
    Executing a task with ``parallelism = 0`` and ``wait_until_job_complete=True`` will now raise a validation error.
 
+10.12.2
+.......
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Handle backwards-compatibility for older Google provider (#60730)``
+* ``Kubernetes Pod Operator: Skip async defferal when pod already complete (#58684)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 10.12.1
 .......
 

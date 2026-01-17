@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import asyncio
 import datetime
+import inspect
 import json
 import logging
 import math
@@ -852,7 +853,14 @@ class KubernetesPodOperator(BaseOperator):
         ti.xcom_push(key="pod_name", value=self.pod.metadata.name)
         ti.xcom_push(key="pod_namespace", value=self.pod.metadata.namespace)
 
-        self.invoke_defer_method(context=context)
+        # Check if invoke_defer_method accepts context parameter
+        # This might happen if the KPO is extended by for example old Google
+        # provider where invoke_defer_method does not accept context parameter
+        sig = inspect.signature(self.invoke_defer_method)
+        if "context" in sig.parameters:
+            self.invoke_defer_method(context=context)
+        else:
+            self.invoke_defer_method()
 
     def convert_config_file_to_dict(self):
         """Convert passed config_file to dict representation."""
