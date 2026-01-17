@@ -546,6 +546,7 @@ repos:
           ^airflow-core/src/airflow/utils/db\.py$|
           ^airflow-core/src/airflow/utils/trigger_rule\.py$|
           ^airflow-core/tests/|
+          ^task-sdk/tests/|
           ^.*changelog\.(rst|txt)$|
           ^.*CHANGELOG\.(rst|txt)$|
           ^chart/values.schema\.json$|
