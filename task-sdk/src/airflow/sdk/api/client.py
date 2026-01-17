@@ -928,7 +928,12 @@ class Client(httpx.Client):
         )
 
     def _update_auth(self, response: httpx.Response):
-        if new_token := response.headers.get("Refreshed-API-Token"):
+        # Check for execution token from /run endpoint (replaces queue token with short-lived execution token)
+        if new_token := response.headers.get("X-Execution-Token"):
+            log.debug("Received execution token from /run endpoint")
+            self.auth = BearerAuth(new_token)
+        # Check for refreshed token from heartbeat/other endpoints
+        elif new_token := response.headers.get("Refreshed-API-Token"):
             log.debug("Execution API issued us a refreshed Task token")
             self.auth = BearerAuth(new_token)
 
