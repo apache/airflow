@@ -205,6 +205,30 @@ class PrevDagrunDep(BaseTIDep):
             yield self._failing_status(reason=reason)
             return
 
+        # Check depends_on_previous_task_ids if specified
+        if ti.task.depends_on_previous_task_ids:
+            for task_id in ti.task.depends_on_previous_task_ids:
+                if not self._has_tis(last_dagrun, task_id, session=session):
+                    yield self._failing_status(
+                        reason=(
+                            f"depends_on_previous_task_ids includes '{task_id}', but this task "
+                            f"did not exist in the previous DAG run."
+                        )
+                    )
+                    return
+                
+                unsuccessful_prev_task_count = self._count_unsuccessful_tis(
+                    last_dagrun, task_id, session=session
+                )
+                if unsuccessful_prev_task_count > 0:
+                    reason = (
+                        f"depends_on_previous_task_ids includes '{task_id}', but "
+                        f"{unsuccessful_prev_task_count} task instance(s) of '{task_id}' "
+                        f"in the previous DAG run are not in a successful state."
+                    )
+                    yield self._failing_status(reason=reason)
+                    return
+
         if ti.task.wait_for_downstream and self._has_unsuccessful_dependants(
             last_dagrun, ti.task, session=session
         ):
