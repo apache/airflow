@@ -983,14 +983,7 @@ class TestWorker:
         """Test that workers.celery.kerberosInitContainer configuration works and takes precedence."""
         docs = render_chart(
             values={
-                "airflowVersion": "2.8.0",
-                "workers": {
-                    **workers_values,
-                    "celery": {
-                        **workers_values.get("celery", {}),
-                        "persistence": {"fixPermissions": True},
-                    },
-                },
+                "workers": workers_values,
             },
             show_only=["templates/workers/worker-deployment.yaml"],
         )
