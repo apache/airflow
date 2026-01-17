@@ -477,14 +477,10 @@ class SnowflakeSqlApiHook(SnowflakeHook):
             for attempt in Retrying(**self.retry_config):  # type: ignore
                 with attempt:
                     if method.upper() in ("GET", "POST"):
-                        response = session.request(
-                            method=method.lower(),
-                            url=url,
-                            headers=headers,
-                            params=params,
-                            json=json,
-                            timeout=self.http_timeout_seconds,
-                        )
+                        request_kwargs = dict(method=method.lower(), url=url, headers=headers, params=params, json=json)
+                        if self.http_timeout_seconds is not None:
+                            request_kwargs["timeout"] = self.http_timeout_seconds
+                        response = session.request(**request_kwargs)
                     else:
                         raise ValueError(f"Unsupported HTTP method: {method}")
                     response.raise_for_status()
