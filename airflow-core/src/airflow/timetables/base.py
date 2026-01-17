@@ -118,13 +118,21 @@ class DagRunInfo(NamedTuple):
     This **MUST** be "aware", i.e. contain timezone information.
     """
 
-    data_interval: DataInterval
+    data_interval: DataInterval | None
     """The data interval this DagRun to operate over."""
+
+    partition_date: DateTime | None
+    partition_key: str | None
 
     @classmethod
     def exact(cls, at: DateTime) -> DagRunInfo:
         """Represent a run on an exact time."""
-        return cls(run_after=at, data_interval=DataInterval.exact(at))
+        return cls(
+            run_after=at,
+            data_interval=DataInterval.exact(at),
+            partition_key=None,
+            partition_date=None,
+        )
 
     @classmethod
     def interval(cls, start: DateTime, end: DateTime) -> DagRunInfo:
@@ -135,17 +143,22 @@ class DagRunInfo(NamedTuple):
         one ends, and each run is scheduled right after the interval ends. This
         applies to all schedules prior to AIP-39 except ``@once`` and ``None``.
         """
-        return cls(run_after=end, data_interval=DataInterval(start, end))
+        return cls(
+            run_after=end,
+            data_interval=DataInterval(start, end),
+            partition_key=None,
+            partition_date=None,
+        )
 
     @property
-    def logical_date(self: DagRunInfo) -> DateTime:
+    def logical_date(self: DagRunInfo) -> DateTime | None:
         """
         Infer the logical date to represent a DagRun.
 
         This replaces ``execution_date`` in Airflow 2.1 and prior. The idea is
         essentially the same, just a different name.
         """
-        return self.data_interval.start
+        return self.data_interval.start if self.data_interval else None
 
 
 @runtime_checkable
@@ -266,6 +279,7 @@ class Timetable(Protocol):
         # Custom timetables use full import path
         return qualname(self.__class__)
 
+    # TODO: NEXT!!! why did i change this to possibly return None?
     def infer_manual_data_interval(self, *, run_after: DateTime) -> DataInterval:
         """
         When a DAG run is manually triggered, infer a data interval for it.
@@ -315,3 +329,24 @@ class Timetable(Protocol):
         :param data_interval: The data interval of the DAG run.
         """
         return run_type.generate_run_id(suffix=run_after.isoformat())
+
+    def next_dagrun_info_v2(self, *, last_dagrun_info: DagRunInfo | None, restriction: TimeRestriction):
+        """
+        Provide information to schedule the next DagRun.
+
+        The default implementation raises ``NotImplementedError``.
+
+        :param last_dagrun_info: The DagRunInfo object of the
+            Dag's last scheduled or backfilled run.
+        :param restriction: Restriction to apply when scheduling the DAG run.
+            See documentation of :class:`TimeRestriction` for details.
+
+        :return: Information on when the next DagRun can be scheduled. None
+            means a DagRun should not be created. This does not mean no more runs
+            will be scheduled ever again for this DAG; the timetable can return
+            a DagRunInfo object when asked at another time.
+        """
+        return self.next_dagrun_info(
+            last_automated_data_interval=last_dagrun_info and last_dagrun_info.data_interval,
+            restriction=restriction,
+        )

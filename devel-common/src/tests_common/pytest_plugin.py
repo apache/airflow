@@ -41,6 +41,7 @@ if TYPE_CHECKING:
     from uuid import UUID
 
     from itsdangerous import URLSafeSerializer
+    from pendulum import DateTime
     from sqlalchemy.orm import Session
 
     from airflow.models.dagrun import DagRun, DagRunType
@@ -53,7 +54,7 @@ if TYPE_CHECKING:
     from airflow.sdk.execution_time.task_runner import RuntimeTaskInstance
     from airflow.sdk.types import DagRunProtocol, Operator
     from airflow.serialization.definitions.dag import SerializedDAG
-    from airflow.timetables.base import DataInterval
+    from airflow.timetables.base import DagRunInfo, DataInterval
     from airflow.typing_compat import Self
     from airflow.utils.state import DagRunState, TaskInstanceState
 
@@ -1065,7 +1066,7 @@ def dag_maker(request) -> Generator[DagMaker, None, None]:
             from airflow.utils.state import DagRunState
             from airflow.utils.types import DagRunType
 
-            timezone = _import_timezone()
+            airflow_timezone = _import_timezone()
 
             if AIRFLOW_V_3_0_PLUS:
                 from airflow.utils.types import DagRunTriggeredByType
@@ -1100,8 +1101,12 @@ def dag_maker(request) -> Generator[DagMaker, None, None]:
                 if run_type == DagRunType.MANUAL:
                     logical_date = self.start_date
                 else:
-                    logical_date = dag.next_dagrun_info(None).logical_date
-            logical_date = timezone.coerce_datetime(logical_date)
+                    if AIRFLOW_V_3_2_PLUS:
+                        next_run_kwargs = dict(last_automated_run_info=None)
+                    else:
+                        next_run_kwargs = dict(last_automated_dagrun=None)
+                    logical_date = dag.next_dagrun_info(**next_run_kwargs).logical_date
+            logical_date = airflow_timezone.coerce_datetime(logical_date)
 
             data_interval = None
             try:
@@ -1125,13 +1130,15 @@ def dag_maker(request) -> Generator[DagMaker, None, None]:
                     if AIRFLOW_V_3_0_PLUS:
                         kwargs["run_id"] = dag.timetable.generate_run_id(
                             run_type=run_type,
-                            run_after=logical_date or timezone.coerce_datetime(timezone.utcnow()),
+                            run_after=logical_date
+                            or airflow_timezone.coerce_datetime(airflow_timezone.utcnow()),
                             data_interval=data_interval,
                         )
                     else:
                         kwargs["run_id"] = dag.timetable.generate_run_id(
                             run_type=run_type,
-                            logical_date=logical_date or timezone.coerce_datetime(timezone.utcnow()),
+                            logical_date=logical_date
+                            or airflow_timezone.coerce_datetime(airflow_timezone.utcnow()),
                             data_interval=data_interval,
                         )
             kwargs["run_type"] = run_type
@@ -1139,7 +1146,9 @@ def dag_maker(request) -> Generator[DagMaker, None, None]:
             if AIRFLOW_V_3_0_PLUS:
                 kwargs.setdefault("triggered_by", DagRunTriggeredByType.TEST)
                 kwargs["logical_date"] = logical_date
-                kwargs.setdefault("run_after", data_interval[-1] if data_interval else timezone.utcnow())
+                kwargs.setdefault(
+                    "run_after", data_interval[-1] if data_interval else airflow_timezone.utcnow()
+                )
             else:
                 kwargs.pop("triggered_by", None)
                 kwargs["execution_date"] = logical_date
@@ -1158,9 +1167,13 @@ def dag_maker(request) -> Generator[DagMaker, None, None]:
             if AIRFLOW_V_3_1_PLUS:
                 from airflow.models.dag import get_run_data_interval
 
-                next_info = sdag.next_dagrun_info(get_run_data_interval(sdag.timetable, dagrun))
+                interval = get_run_data_interval(sdag.timetable, dagrun)
+                last_run_info = self._get_run_info(dagrun, sdag, interval)
+                next_info = sdag.next_dagrun_info(last_automated_run_info=last_run_info)
             else:
-                next_info = sdag.next_dagrun_info(sdag.get_run_data_interval(dagrun))
+                interval = sdag.get_run_data_interval(dagrun)
+                last_run_info = self._get_run_info(dagrun, sdag, interval)
+                next_info = sdag.next_dagrun_info(last_automated_run_info=last_run_info)
             if next_info is None:
                 raise ValueError(f"cannot create run after {dagrun}")
             return self.create_dagrun(
@@ -1168,6 +1181,29 @@ def dag_maker(request) -> Generator[DagMaker, None, None]:
                 data_interval=next_info.data_interval,
                 **kwargs,
             )
+
+        def _get_run_info(self, dagrun: DagRun, serdag: SerializedDAG, interval: DataInterval) -> DagRunInfo:
+            from airflow.timetables.base import DagRunInfo
+
+            partition_date: DateTime | None = None
+            partition_key: str | None = None
+            if AIRFLOW_V_3_2_PLUS:
+                partition_date = None
+                from airflow.timetables.trigger import CronPartitionTimetable
+
+                if isinstance(serdag.timetable, CronPartitionTimetable):
+                    partition_date = serdag.timetable.get_partition_date(run_date=dagrun.run_after)
+                    partition_key = dagrun.partition_key
+
+            airflow_timezone = _import_timezone()
+
+            last_run_info = DagRunInfo(
+                run_after=airflow_timezone.coerce_datetime(dagrun.run_after),
+                data_interval=interval,
+                partition_date=partition_date,
+                partition_key=partition_key,
+            )
+            return last_run_info
 
         def create_ti(self, task_id, dag_run=None, dag_run_kwargs=None, map_index=-1):
             """
@@ -2496,7 +2532,8 @@ def create_runtime_ti(mocked_parse):
             )
             if drinfo:
                 data_interval = drinfo.data_interval
-                data_interval_start, data_interval_end = data_interval.start, data_interval.end
+                data_interval_start = data_interval and data_interval.start
+                data_interval_end = data_interval and data_interval.end
 
         dag_id = task.dag.dag_id
         task_retries = task.retries or 0
