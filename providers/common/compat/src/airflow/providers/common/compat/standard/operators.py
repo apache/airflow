@@ -47,7 +47,7 @@ else:
     if AIRFLOW_V_3_1_PLUS:
         from airflow.sdk import BaseOperator
     else:
-        from airflow.models.baseoperator import BaseOperator
+        from airflow.models import BaseOperator
 
     def is_async_callable(func) -> bool:
         """Detect if a callable is an async function."""
