@@ -37,8 +37,10 @@ from airflow.cli.commands import dag_command
 from airflow.dag_processing.dagbag import DagBag, sync_bag_to_db
 from airflow.exceptions import AirflowException
 from airflow.models import DagModel, DagRun
+from airflow.models.dag_version import DagVersion
 from airflow.models.dagbag import DBDagBag
 from airflow.models.serialized_dag import SerializedDagModel
+from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.providers.standard.triggers.temporal import DateTimeTrigger, TimeDeltaTrigger
 from airflow.sdk import BaseOperator, task
 from airflow.sdk.definitions.dag import _run_inline_trigger
@@ -967,6 +969,32 @@ class TestCliDags:
             # However, "test_sensor.py" should exist
             dag = get_bagged_dag(bundle_names=["testing"], dag_id="test_sensor")
             assert dag.dag_id == "test_sensor"
+
+    @conf_vars({("core", "load_examples"): "false"})
+    def test_multiple_serialized_dags_list(self, dag_maker, stdout_capture, session):
+        """Test that only one dag entry is displayed in case of dag with multiple serialized dags."""
+
+        clear_db_dags()
+
+        with dag_maker("test1") as dag:
+            EmptyOperator(task_id="task1")
+        sync_dag_to_db(dag)
+
+        with dag_maker("test1") as dag2:
+            EmptyOperator(task_id="task1")
+            EmptyOperator(task_id="task2")
+        sync_dag_to_db(dag2)
+
+        latest_version = DagVersion.get_latest_version(dag.dag_id)
+        assert latest_version.version_number == 2
+        assert session.scalar(select(func.count()).where(DagVersion.dag_id == dag.dag_id)) == 2
+
+        list_dags_args = self.parser.parse_args(["dags", "list", "--columns", "dag_id", "--output", "json"])
+
+        with stdout_capture as temp_stdout:
+            dag_command.dag_list_dags(list_dags_args)
+            out = temp_stdout.getvalue()
+            assert json.loads(out) == [{"dag_id": "test1"}]
 
 
 class TestCliDagsReserialize:
