@@ -10,6 +10,7 @@
     "maxRuns": "活躍執行數上限",
     "missingAndErroredRuns": "遺漏和錯誤的執行",
     "missingRuns": "遺漏的執行",
+    "permissionDenied": "試執行失敗：使用者沒有建立回填的權限。",
     "reprocessBehavior": "重新處理行為",
     "run": "執行回填",
     "selectDescription": "為指定的日期範圍補上 Dag 執行",
@@ -111,6 +112,13 @@
   "sortedUnsorted": "未排序",
   "taskTries": "任務嘗試次數",
   "taskTryPlaceholder": "任務嘗試數",
+  "team": {
+    "selector": {
+      "helperText": "選填，限制僅供特定團隊使用。",
+      "label": "團隊",
+      "placeHolder": "選擇團隊"
+    }
+  },
   "toggleCardView": "顯示卡片視圖",
   "toggleTableView": "顯示表格視圖",
   "triggerDag": {
@@ -135,6 +143,7 @@
         "title": "已觸發 Dag 執行"
       }
     },
+    "triggerAgainWithConfig": "使用此配置再次觸發",
     "unpause": "觸發時取消暫停 {{dagDisplayName}}"
   },
   "trimText": {

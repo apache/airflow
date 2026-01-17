@@ -19,7 +19,7 @@ from __future__ import annotations
 from unittest.mock import MagicMock, patch
 
 import pytest
-from sqlalchemy import or_
+from sqlalchemy import delete, or_
 
 from airflow import models
 from airflow.providers.amazon.aws.transfers.s3_to_sql import S3ToSqlOperator
@@ -119,8 +119,8 @@ class TestS3ToSqlTransfer:
 
     def teardown_method(self):
         with create_session() as session:
-            (
-                session.query(models.Connection)
-                .filter(or_(models.Connection.conn_id == "s3_test", models.Connection.conn_id == "sql_test"))
-                .delete()
+            session.execute(
+                delete(models.Connection).where(
+                    or_(models.Connection.conn_id == "s3_test", models.Connection.conn_id == "sql_test")
+                )
             )

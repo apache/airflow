@@ -21,7 +21,6 @@
 import { Flex, Link } from "@chakra-ui/react";
 import type { ColumnDef } from "@tanstack/react-table";
 import type { TFunction } from "i18next";
-import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { Link as RouterLink, useParams, useSearchParams } from "react-router-dom";
 
@@ -292,16 +291,12 @@ export const TaskInstances = () => {
     },
   );
 
-  const columns = useMemo(
-    () =>
-      taskInstanceColumns({
-        dagId,
-        runId,
-        taskId: Boolean(groupId) ? undefined : taskId,
-        translate,
-      }),
-    [dagId, runId, groupId, taskId, translate],
-  );
+  const columns = taskInstanceColumns({
+    dagId,
+    runId,
+    taskId: Boolean(groupId) ? undefined : taskId,
+    translate,
+  });
 
   return (
     <>
@@ -312,7 +307,7 @@ export const TaskInstances = () => {
         errorMessage={<ErrorAlert error={error} />}
         initialState={tableURLState}
         isLoading={isLoading}
-        modelName={translate("common:taskInstance_other")}
+        modelName="common:taskInstance"
         onStateChange={setTableURLState}
         total={data?.total_entries}
       />

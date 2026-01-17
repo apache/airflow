@@ -19,7 +19,6 @@
 import { Box, Heading, Link } from "@chakra-ui/react";
 import type { ColumnDef } from "@tanstack/react-table";
 import type { TFunction } from "i18next";
-import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 
 import { useProviderServiceGetProviders } from "openapi/queries";
@@ -80,7 +79,7 @@ export const Providers = () => {
   const { t: translate } = useTranslation(["admin", "common"]);
   const { setTableURLState, tableURLState } = useTableURLState();
 
-  const columns = useMemo(() => createColumns(translate), [translate]);
+  const columns = createColumns(translate);
 
   const { pagination } = tableURLState;
 
@@ -97,8 +96,9 @@ export const Providers = () => {
         data={data?.providers ?? []}
         errorMessage={<ErrorAlert error={error} />}
         initialState={tableURLState}
-        modelName={translate("common:admin.Providers")}
+        modelName="common:admin.Providers"
         onStateChange={setTableURLState}
+        showRowCountHeading={false}
         total={data?.total_entries}
       />
     </Box>

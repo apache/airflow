@@ -15,6 +15,7 @@ scripts export-ignore
 Dockerfile.ci export-ignore
 CONTRIBUTING.rst export-ignore
 ISSUE_TRIAGE_PROCESS.rst export-ignore
+.github/PULL_REQUEST_TEMPLATE.md export-ignore
 
 .asf.yaml export-ignore
 .bash_completion export-ignore

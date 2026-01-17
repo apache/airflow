@@ -23,6 +23,8 @@ import kubernetes.client as k8s
 import kubernetes_asyncio.client as async_k8s
 
 if TYPE_CHECKING:
+    from pendulum import DateTime
+
     from airflow.providers.cncf.kubernetes.operators.pod import KubernetesPodOperator
     from airflow.sdk import Context
 
@@ -189,12 +191,24 @@ class KubernetesPodOperatorCallback:
         pass
 
     @staticmethod
-    def progress_callback(*, line: str, client: client_type, mode: str, **kwargs) -> None:
+    def progress_callback(
+        *,
+        line: str,
+        client: client_type,
+        mode: str,
+        container_name: str,
+        timestamp: DateTime | None,
+        pod: k8s.V1Pod,
+        **kwargs,
+    ) -> None:
         """
         Invoke this callback to process pod container logs.
 
         :param line: the read line of log.
         :param client: the Kubernetes client that can be used in the callback.
         :param mode: the current execution mode, it's one of (`sync`, `async`).
+        :param container_name: the name of the container from which the log line was read.
+        :param timestamp: the timestamp of the log line.
+        :param pod: the pod from which the log line was read.
         """
         pass

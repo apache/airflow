@@ -50,36 +50,32 @@ export const useRequiredActionTabs = (
   const location = useLocation();
   const navigate = useNavigate();
 
-  const redirectPath = (() => {
-    const { dagId, dagRunId, taskId, taskIdPattern } = hitlParams;
+  const { dagId, dagRunId, taskId, taskIdPattern } = hitlParams;
+  let redirectPath: string;
 
-    if (Boolean(dagId) && Boolean(dagRunId) && Boolean(taskId)) {
-      return `/dags/${dagId}/runs/${dagRunId}/tasks/${taskId}`;
-    }
-    if (Boolean(dagId) && Boolean(dagRunId)) {
-      return `/dags/${dagId}/runs/${dagRunId}`;
-    }
-    if (Boolean(dagId) && Boolean(taskIdPattern)) {
-      return `/dags/${dagId}/tasks/group/${taskIdPattern}`;
-    }
-    if (Boolean(dagId)) {
-      return `/dags/${dagId}`;
-    }
-
+  if (Boolean(dagId) && Boolean(dagRunId) && Boolean(taskId)) {
+    redirectPath = `/dags/${dagId}/runs/${dagRunId}/tasks/${taskId}`;
+  } else if (Boolean(dagId) && Boolean(dagRunId)) {
+    redirectPath = `/dags/${dagId}/runs/${dagRunId}`;
+  } else if (Boolean(dagId) && Boolean(taskIdPattern)) {
+    redirectPath = `/dags/${dagId}/tasks/group/${taskIdPattern}`;
+  } else if (Boolean(dagId)) {
+    redirectPath = `/dags/${dagId}`;
+  } else {
     // Fallback: remove /required_actions from current path
-    return location.pathname.replace("/required_actions", "");
-  })();
+    redirectPath = location.pathname.replace("/required_actions", "");
+  }
 
   const { data: hitlData, isLoading: isLoadingHitl } = useTaskInstanceServiceGetHitlDetails(
     {
-      dagId: hitlParams.dagId,
-      dagRunId: hitlParams.dagRunId ?? "~",
-      taskId: hitlParams.taskId,
-      taskIdPattern: hitlParams.taskIdPattern,
+      dagId,
+      dagRunId: dagRunId ?? "~",
+      taskId,
+      taskIdPattern,
     },
     undefined,
     {
-      enabled: Boolean(hitlParams.dagId),
+      enabled: Boolean(dagId),
       refetchInterval,
     },
   );
@@ -113,7 +109,7 @@ export const useRequiredActionTabs = (
 
   useEffect(() => {
     if (autoRedirect && !hasHitlData && !isLoadingHitl && location.pathname.includes("required_actions")) {
-      navigate(redirectPath);
+      void Promise.resolve(navigate(redirectPath));
     }
   }, [autoRedirect, hasHitlData, isLoadingHitl, location.pathname, navigate, redirectPath]);
 

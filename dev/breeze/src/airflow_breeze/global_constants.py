@@ -218,7 +218,7 @@ if MYSQL_INNOVATION_RELEASE:
 ALLOWED_INSTALL_MYSQL_CLIENT_TYPES = ["mariadb"]
 
 PIP_VERSION = "25.3"
-UV_VERSION = "0.9.21"
+UV_VERSION = "0.9.26"
 
 DEFAULT_UV_HTTP_TIMEOUT = 300
 DEFAULT_WSL2_HTTP_TIMEOUT = 900
@@ -542,6 +542,8 @@ COMMITTERS = [
     "bolkedebruin",
     "bugraoz93",
     "criccomini",
+    "dabla",
+    "dheerajturaga",
     "dimberman",
     "dirrao",
     "dstandish",
@@ -596,6 +598,7 @@ COMMITTERS = [
     "xinbinhuang",
     "yuqian90",
     "zhongjiajie",
+    "choo121600",
 ]
 
 
@@ -750,7 +753,7 @@ PROVIDERS_COMPATIBILITY_TESTS_MATRIX: list[dict[str, str | list[str]]] = [
     },
     {
         "python-version": "3.10",
-        "airflow-version": "3.1.5",
+        "airflow-version": "3.1.6",
         "remove-providers": "",
         "run-unit-tests": "true",
     },
