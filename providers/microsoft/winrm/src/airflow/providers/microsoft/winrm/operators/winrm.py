@@ -123,7 +123,7 @@ class WinRMOperator(BaseOperator):
         )
 
         if self.deferrable:
-            shell_id, command_id = result
+            shell_id, command_id, _ = result
             return self.defer(
                 trigger=WinRMCommandOutputTrigger(
                     ssh_conn_id=self.hook.ssh_conn_id,

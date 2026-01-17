@@ -233,7 +233,7 @@ class WinRMHook(BaseHook):
         return_output: bool = True,
         working_directory: str | None = None,
         polling: bool = True,
-    ) -> tuple[int, list[bytes], list[bytes]] | tuple[str, str]:
+    ) -> tuple[int | str, list[bytes] | str, list[bytes] | None]:
         """
         Run a command.
 
@@ -295,7 +295,7 @@ class WinRMHook(BaseHook):
                         self.log_output(stderr, level=logging.WARNING, output_encoding=output_encoding)
 
                 return return_code, stdout_buffer, stderr_buffer
-            return shell_id, command_id
+            return shell_id, command_id, None
         except Exception as e:
             raise AirflowException(f"WinRM operator error: {e}")
         finally:
