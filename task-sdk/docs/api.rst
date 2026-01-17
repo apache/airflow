@@ -154,6 +154,13 @@ Timetables
 
 .. autoapiclass:: airflow.sdk.MultipleCronTriggerTimetable
 
+.. autoapiclass:: airflow.sdk.PartitionMapper
+
+.. autoapiclass:: airflow.sdk.IdentityMapper
+
+.. autoapiclass:: airflow.sdk.PartitionedAssetTimetable
+
+
 I/O Helpers
 -----------
 .. autoapiclass:: airflow.sdk.ObjectStoragePath
