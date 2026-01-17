@@ -190,3 +190,12 @@ Benefits and Common Use Cases
 
 HITL functionality is valuable in large language model (LLM) workflows, where human-provided guidance can be essential for achieving better results.
 It is also highly beneficial in enterprise data pipelines, where human validation can complement and enhance automated processes.
+
+See also
+--------
+
+* `Standard provider HITL operators documentation
+  <https://airflow.apache.org/docs/apache-airflow-providers-standard/stable/operators/hitl.html>`_
+
+* `HITL operators Python API reference
+  <https://airflow.apache.org/docs/apache-airflow-providers-standard/stable/_api/airflow/providers/standard/operators/hitl/index.html>`_
