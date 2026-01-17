@@ -20,14 +20,21 @@
 ################################
 ## Airflow Worker HPA
 #################################
+{{- $globals := deepCopy . -}}
+{{- $skipList := list "annotations" "podAnnotations" "persistentVolumeClaimRetentionPolicy" "pod" "container" "securityContext" -}}
+{{- $_ := unset $globals "workers" -}}
+{{- $filteredCelery := include "removeNilFields" (deepCopy .Values.workers.celery) | fromYaml -}}
+{{- $cleanedWorkers := deepCopy .Values.workers -}}
+{{- $_ := unset $cleanedWorkers "celery" -}}
+{{- $mergedWorkers := (include "mergeValues" (list $cleanedWorkers $filteredCelery $skipList) | fromYaml) -}}
 {{- $workerSets := .Values.workers.celery.sets | default list -}}
 {{- if .Values.workers.enableDefault -}}
   {{- $workerSets = concat (list (dict "name" "default")) $workerSets -}}
 {{- end -}}
 {{- range $workerSet := $workerSets -}}
-  {{- $currentWorkers := mustMerge $workerSet (deepCopy $.Values.workers) -}}
-  {{- $newValues := mustMerge (dict "workers" $currentWorkers) (deepCopy $.Values) -}}
-  {{- $ctx := merge (dict "Values" $newValues) $ -}}
+  {{- $workers := (include "mergeValues" (list (deepCopy $mergedWorkers) (deepCopy $workerSet) $skipList) | fromYaml) -}}
+  {{- $ctx := deepCopy $globals -}}
+  {{- $_ := set $ctx.Values "workers" (deepCopy $workers) -}}
   {{- with $ctx -}}
 {{- if and (and (not .Values.workers.keda.enabled) .Values.workers.hpa.enabled) (or (contains "CeleryExecutor" .Values.executor) (contains "CeleryKubernetesExecutor" .Values.executor)) }}
 ---
@@ -48,7 +55,7 @@ metadata:
 spec:
   scaleTargetRef:
     apiVersion: apps/v1
-    kind: {{ ternary "StatefulSet" "Deployment" (or .Values.workers.celery.persistence.enabled (and (not (has .Values.workers.celery.persistence.enabled (list true false))) .Values.workers.persistence.enabled)) }}
+    kind: {{ ternary "StatefulSet" "Deployment" .Values.workers.persistence.enabled }}
     name: {{ include "airflow.fullname" . }}-worker{{ if ne .Values.workers.name "default" }}-{{ .Values.workers.name }}{{ end }}
   minReplicas: {{ .Values.workers.hpa.minReplicaCount }}
   maxReplicas: {{ .Values.workers.hpa.maxReplicaCount }}
