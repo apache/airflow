@@ -184,17 +184,17 @@ if (
 config_dict: dict[str, _TableConfig] = {x.orm_model.name: x for x in sorted(config_list)}
 
 
-def _check_for_rows(*, statement: Select, print_rows: bool = False, session: Session) -> int:
-    num_entities = session.scalar(select(func.count()).select_from(statement.subquery())) or 0
+def _check_for_rows(*, session: Session, query: Select, print_rows: bool = False) -> int:
+    num_entities = session.scalars(select(func.count()).select_from(query.subquery())).one()
     print(f"Found {num_entities} rows meeting deletion criteria.")
     if not print_rows or num_entities == 0:
         return num_entities
 
     max_rows_to_print = 100
     print(f"Printing first {max_rows_to_print} rows.")
-    logger.debug("print entities statement: %s", statement)
-    for entry in session.execute(statement.limit(max_rows_to_print)):
-        print(entry._asdict())
+    logger.debug("print entities query: %s", query)
+    for entry in session.execute(query.limit(max_rows_to_print)):
+        print(entry.__dict__)
     return num_entities
 
 
@@ -214,7 +214,7 @@ def _dump_table_to_file(*, target_table: str, file_path: str, export_format: str
 
 
 def _do_delete(
-    *, statement: Select, orm_model: Base, skip_archive: bool, session: Session, batch_size: int | None
+    *, query: Select, orm_model: Base, skip_archive: bool, session: Session, batch_size: int | None
 ) -> None:
     import itertools
     import re
@@ -224,8 +224,10 @@ def _do_delete(
     batch_counter = itertools.count(1)
 
     while True:
-        limited_statement = statement.limit(batch_size) if batch_size else statement
-        if (session.scalar(select(func.count()).select_from(limited_statement.subquery())) or 0) == 0:
+        limited_query = query.limit(batch_size) if batch_size else query
+        if (
+            session.scalars(select(func.count()).select_from(limited_query.subquery())).one() == 0
+        ):  # nothing left to delete
             break
 
         batch_no = next(batch_counter)
@@ -250,12 +252,12 @@ def _do_delete(
                 session.execute(text(f"CREATE TABLE {target_table_name} LIKE {orm_model.name}"))
                 metadata = reflect_tables([target_table_name], session)
                 target_table = metadata.tables[target_table_name]
-                insert_stm = target_table.insert().from_select(target_table.c, limited_statement)
+                insert_stm = target_table.insert().from_select(target_table.c, limited_query)
                 logger.debug("insert statement:\n%s", insert_stm.compile())
                 session.execute(insert_stm)
             else:
-                stmt = CreateTableAs(target_table_name, limited_statement)
-                logger.debug("ctas statement:\n%s", stmt.compile())
+                stmt = CreateTableAs(target_table_name, limited_query.selectable)
+                logger.debug("ctas query:\n%s", stmt.compile())
                 session.execute(stmt)
             session.commit()
 
@@ -340,7 +342,7 @@ def _build_query(
 ) -> Select:
     base_table_alias = "base"
     base_table = aliased(orm_model, name=base_table_alias)
-    statement = select(text(f"{base_table_alias}.*")).select_from(base_table)
+    query = select(text(f"{base_table_alias}.*")).select_from(base_table)
     base_table_recency_col = base_table.c[recency_column.name]
     conditions = [base_table_recency_col < clean_before_timestamp]
 
@@ -361,7 +363,7 @@ def _build_query(
             group_by_columns=group_by_columns,
             max_date_colname=max_date_col_name,
         )
-        statement = statement.outerjoin(
+        query = query.outerjoin(
             subquery,
             and_(
                 *[base_table.c[x] == subquery.c[x] for x in keep_last_group_by],  # type: ignore[attr-defined]
@@ -369,8 +371,8 @@ def _build_query(
             ),
         )
         conditions.append(column(max_date_col_name).is_(None))
-    statement = statement.where(and_(*conditions))
-    return statement
+    query = query.where(and_(*conditions))
+    return query
 
 
 def _cleanup_table(
@@ -394,7 +396,7 @@ def _cleanup_table(
     print()
     if dry_run:
         print(f"Performing dry run for table {orm_model.name}")
-    statement = _build_query(
+    query = _build_query(
         orm_model=orm_model,
         recency_column=recency_column,
         dag_id_column=dag_id_column,
@@ -406,13 +408,13 @@ def _cleanup_table(
         clean_before_timestamp=clean_before_timestamp,
         session=session,
     )
-    logger.debug("old rows statement:\n%s", statement.compile())
+    logger.debug("old rows query:\n%s", query.selectable.compile())
     print(f"Checking table {orm_model.name}")
-    num_rows = _check_for_rows(statement=statement, print_rows=False, session=session)
+    num_rows = _check_for_rows(session=session, query=query, print_rows=False)
 
     if num_rows and not dry_run:
         _do_delete(
-            statement=statement,
+            query=query,
             orm_model=orm_model,
             skip_archive=skip_archive,
             session=session,
