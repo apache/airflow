@@ -22,6 +22,8 @@ from typing import TYPE_CHECKING, Any
 from urllib.parse import urljoin
 from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.microsoft.azure.hooks.msgraph import KiotaRequestAdapterHook
+from io import BytesIO
+from typing import Any
 
 if TYPE_CHECKING:
     from msgraph_core import APIVersion
@@ -91,19 +93,36 @@ class PowerBIHook(KiotaRequestAdapterHook):
             host="https://api.powerbi.com",
             scopes=["https://analysis.windows.net/powerbi/api/.default"],
             api_version=api_version,
-        )
+        )  
         
-    async def run(self, url: str, **kwargs):
+    async def run(
+        self,
+        url: str = "",
+        response_type: str | None = None,
+        path_parameters: dict[str, Any] | None = None,
+        method: str = "GET",
+        query_parameters: dict[str, Any] | None = None,
+        headers: dict[str, str] | None = None,
+        data: dict[str, Any] | str | BytesIO | None = None,
+    ):
         """
         Execute a Power BI REST API request.
-
+    
         Ensures relative Power BI endpoints are expanded to full URLs.
         """
         if not url.startswith(("http://", "https://")):
             url = urljoin(self.POWERBI_API_BASE_URL, url)
-
-        return await super().run(url=url, **kwargs)
-        
+    
+        return await super().run(
+            url=url,
+            response_type=response_type,
+            path_parameters=path_parameters,
+            method=method,
+            query_parameters=query_parameters,
+            headers=headers,
+            data=data,
+        )
+    
     @classmethod
     def get_connection_form_widgets(cls) -> dict[str, Any]:
         """Return connection widgets to add to connection form."""
@@ -281,6 +300,7 @@ class PowerBIHook(KiotaRequestAdapterHook):
             },
             method="DELETE",
         )
+
 
 
 
