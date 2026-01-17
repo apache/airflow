@@ -42,7 +42,6 @@ Bug Fixes
 * ``Fixed CloudSqlDatabaseHook error message for missing host (#60089)``
 * ``Fix BigQueryInsertJobOperator reattach to running jobs (#60679)``
 * ``Prevent OpenLineage failure when BigQuery table metadata is missing (#60380)``
-* ``Revert "Fix Google Cloud Data Fusion hook to handle pipeline start errors properly (#58698)" (#60701)``
 
 Misc
 ~~~~
@@ -58,7 +57,6 @@ Misc
 * ``Check team boundaries in connections (#59476)``
 * ``Added missing comma to bq empty dataset operator docstring (#60066)``
 * ``Migrate google provider to use airflow.sdk.configuration.conf (#59986)``
-* ``Kubernetes Pod Operator: Skip async defferal when pod already complete (#58684)``
 
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):
@@ -67,6 +65,8 @@ Misc
    * ``Add 'ignore_if_missing' to DataprocDeleteClusterOperator (#60433)``
    * ``Revert "Add 'ignore_if_missing' to DataprocDeleteClusterOperator (#60433)" (#60623)``
    * ``Prepare providers release 2026-01-13 (#60437)``
+   * ``Compatibility with Kubernetes Pod Operator only: Skip async defferal when pod already complete (#58684)``
+   * ``Revert "Fix Google Cloud Data Fusion hook to handle pipeline start errors properly (#58698)" (#60701)``
 
 19.3.0
 ......
