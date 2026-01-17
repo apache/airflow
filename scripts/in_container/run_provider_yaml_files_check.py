@@ -34,9 +34,10 @@ from enum import Enum
 from functools import cache
 from typing import Any
 
+import subprocess
+
 import jsonschema
 import yaml
-from jsonpath_ng.ext import parse
 from rich.console import Console
 from tabulate import tabulate
 
@@ -99,6 +100,27 @@ if os.environ.get("PYTHONWARNINGS") != "default":
 suspended_providers: set[str] = set()
 suspended_logos: set[str] = set()
 suspended_integrations: set[str] = set()
+
+
+def sync_dependencies_without_dev() -> None:
+    """
+    Run uv sync --no-dev to strip development dependencies.
+
+    This ensures validation runs in an environment closer to production,
+    which helps detect cases where providers have unhandled optional
+    cross-provider dependencies.
+    """
+    console.print("[magenta]Running uv sync --no-dev to strip development dependencies...[/]")
+    result = subprocess.run(
+        ["uv", "sync", "--no-dev", "--all-packages", "--no-python-downloads", "--no-managed-python"],
+        capture_output=True,
+        text=True,
+        cwd=AIRFLOW_ROOT_PATH,
+    )
+    if result.returncode != 0:
+        console.print(f"[yellow]Warning: uv sync --no-dev failed:[/]\n{result.stderr}")
+    else:
+        console.print("[green]Successfully synchronized without dev dependencies[/]")
 
 
 def _filepath_to_module(filepath: pathlib.Path | str) -> str:
@@ -662,6 +684,8 @@ def check_unique_provider_name(yaml_files: dict[str, dict]) -> tuple[int, int]:
 
 @run_check(f"Checking providers are mentioned in {PROVIDER_ISSUE_TEMPLATE_PATH}")
 def check_providers_are_mentioned_in_issue_template(yaml_files: dict[str, dict]):
+    from jsonpath_ng.ext import parse
+
     num_errors = 0
     num_providers = 0
     prefix_len = len("apache-airflow-providers-")
