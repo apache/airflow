@@ -51,7 +51,7 @@ refer to the role.
 
 The official list of committers can be found `here <https://airflow.apache.org/docs/apache-airflow/stable/project.html#committers>`__.
 
-Additionally, committers are listed in a few other places (some of these may only be visible to existing committers):
+Additionally, committers are listed in a few other places:
 
 * https://whimsy.apache.org/roster/committee/airflow
 
