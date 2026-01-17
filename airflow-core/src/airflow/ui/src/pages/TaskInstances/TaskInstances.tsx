@@ -206,9 +206,9 @@ const taskInstanceColumns = ({
     accessorKey: "actions",
     cell: ({ row }) => (
       <Flex justifyContent="end">
-        <ClearTaskInstanceButton taskInstance={row.original} withText={false} />
-        <MarkTaskInstanceAsButton taskInstance={row.original} withText={false} />
-        <DeleteTaskInstanceButton taskInstance={row.original} withText={false} />
+        <ClearTaskInstanceButton taskInstance={row.original} />
+        <MarkTaskInstanceAsButton taskInstance={row.original} />
+        <DeleteTaskInstanceButton taskInstance={row.original} />
       </Flex>
     ),
     enableSorting: false,

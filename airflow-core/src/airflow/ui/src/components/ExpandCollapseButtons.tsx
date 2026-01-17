@@ -37,9 +37,10 @@ export const ExpandCollapseButtons = ({
   onExpand,
   ...rest
 }: Props) => (
-  <ButtonGroup attached size="sm" variant="surface" {...rest}>
+  <ButtonGroup attached size="sm" variant="outline" {...rest}>
     <IconButton
       aria-label={expandLabel}
+      bg="bg"
       disabled={isExpandDisabled}
       onClick={onExpand}
       size="sm"
@@ -49,6 +50,7 @@ export const ExpandCollapseButtons = ({
     </IconButton>
     <IconButton
       aria-label={collapseLabel}
+      bg="bg"
       disabled={isCollapseDisabled}
       onClick={onCollapse}
       size="sm"
