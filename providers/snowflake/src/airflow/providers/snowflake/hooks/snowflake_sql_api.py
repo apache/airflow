@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import asyncio
 import base64
 import time
 import uuid
@@ -78,6 +79,7 @@ class SnowflakeSqlApiHook(SnowflakeHook):
     :param token_renewal_delta: Renewal time of the JWT Token in timedelta
     :param deferrable: Run operator in the deferrable mode.
     :param api_retry_args: An optional dictionary with arguments passed to ``tenacity.Retrying`` & ``tenacity.AsyncRetrying`` classes.
+    :param http_timeout_seconds: Optional timeout for http requests.
     """
 
     LIFETIME = timedelta(minutes=59)  # The tokens will have a 59 minute lifetime
@@ -89,6 +91,7 @@ class SnowflakeSqlApiHook(SnowflakeHook):
         token_life_time: timedelta = LIFETIME,
         token_renewal_delta: timedelta = RENEWAL_DELTA,
         api_retry_args: dict[Any, Any] | None = None,  # Optional retry arguments passed to tenacity.retry
+        http_timeout_seconds: float | int | None = None,
         *args: Any,
         **kwargs: Any,
     ):
@@ -108,6 +111,8 @@ class SnowflakeSqlApiHook(SnowflakeHook):
         }
         if api_retry_args:
             self.retry_config.update(api_retry_args)
+
+        self.http_timeout_seconds = None if http_timeout_seconds is None else float(http_timeout_seconds)
 
     def get_private_key(self) -> None:
         """Get the private key from snowflake connection."""
@@ -447,7 +452,7 @@ class SnowflakeSqlApiHook(SnowflakeHook):
             return exception.status in [429, 503, 504]
         if isinstance(
             exception,
-            ConnectionError | Timeout | ClientConnectionError,
+            ConnectionError | Timeout | ClientConnectionError | asyncio.TimeoutError,
         ):
             return True
         return False
@@ -473,7 +478,12 @@ class SnowflakeSqlApiHook(SnowflakeHook):
                 with attempt:
                     if method.upper() in ("GET", "POST"):
                         response = session.request(
-                            method=method.lower(), url=url, headers=headers, params=params, json=json
+                            method=method.lower(),
+                            url=url,
+                            headers=headers,
+                            params=params,
+                            json=json,
+                            timeout=self.http_timeout_seconds,
                         )
                     else:
                         raise ValueError(f"Unsupported HTTP method: {method}")
@@ -493,7 +503,17 @@ class SnowflakeSqlApiHook(SnowflakeHook):
         :param params: (Optional) The query parameters to include in the API call.
         :return: The response object from the API call.
         """
-        async with aiohttp.ClientSession(headers=headers) as session:
+        # aiohttp typically applies a default total timeout if not specified.
+        # We override it when `http_timeout_seconds` is provided.
+        # For simplicity, we only configure the total timeout (no per-phase tuning).
+        # See https://docs.aiohttp.org/en/stable/client_reference.html#aiohttp.ClientTimeout
+        http_timeout = (
+            aiohttp.ClientTimeout(total=self.http_timeout_seconds)
+            if self.http_timeout_seconds is not None
+            else None
+        )
+
+        async with aiohttp.ClientSession(headers=headers, timeout=http_timeout) as session:
             async for attempt in AsyncRetrying(**self.retry_config):
                 with attempt:
                     if method.upper() == "GET":
