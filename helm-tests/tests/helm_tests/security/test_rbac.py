@@ -152,6 +152,7 @@ class TestRBAC:
             values=self._get_values_with_version(
                 values={
                     "fullnameOverride": "test-rbac",
+                    "executor": "CeleryExecutor,KubernetesExecutor",
                     "rbac": {"create": False},
                     "cleanup": {
                         "enabled": True,
@@ -198,6 +199,7 @@ class TestRBAC:
             values=self._get_values_with_version(
                 values={
                     "fullnameOverride": "test-rbac",
+                    "executor": "CeleryExecutor,KubernetesExecutor",
                     "rbac": {"create": False},
                     "cleanup": {"enabled": True},
                     "databaseCleanup": {"enabled": True},
@@ -220,6 +222,7 @@ class TestRBAC:
             values=self._get_values_with_version(
                 values={
                     "fullnameOverride": "test-rbac",
+                    "executor": "CeleryExecutor,KubernetesExecutor",
                     "cleanup": {
                         "enabled": True,
                         "serviceAccount": {
@@ -266,6 +269,7 @@ class TestRBAC:
             values=self._get_values_with_version(
                 values={
                     "fullnameOverride": "test-rbac",
+                    "executor": "CeleryExecutor,KubernetesExecutor",
                     "cleanup": {"enabled": True},
                     "databaseCleanup": {"enabled": True},
                     "flower": {"enabled": True},
