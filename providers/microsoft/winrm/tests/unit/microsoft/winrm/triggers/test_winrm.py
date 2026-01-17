@@ -30,7 +30,7 @@ class TestWinRMCommandOutputTrigger:
             working_directory="C:\\Temp",
             expected_return_code=0,
             poll_interval=10,
-            timeout=300,
+            timeout=None,
             deadline=None,
         )
 
@@ -47,6 +47,6 @@ class TestWinRMCommandOutputTrigger:
             "working_directory": "C:\\Temp",
             "expected_return_code": 0,
             "poll_interval": 10,
-            "timeout": 300,
+            "timeout": None,
             "deadline": None,
         }
