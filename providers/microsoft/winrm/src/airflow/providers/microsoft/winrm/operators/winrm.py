@@ -17,13 +17,16 @@
 # under the License.
 from __future__ import annotations
 
+import base64
 import logging
 from base64 import b64encode
 from collections.abc import Sequence
-from typing import TYPE_CHECKING
+from datetime import timedelta
+from typing import TYPE_CHECKING, Any
 
 from airflow.providers.common.compat.sdk import AirflowException, BaseOperator, conf
 from airflow.providers.microsoft.winrm.hooks.winrm import WinRMHook
+from airflow.providers.microsoft.winrm.triggers.winrm import WinRMCommandOutputTrigger
 
 if TYPE_CHECKING:
     from airflow.sdk import Context
@@ -46,9 +49,12 @@ class WinRMOperator(BaseOperator):
     :param ps_path: path to powershell, `powershell` for v5.1- and `pwsh` for v6+.
         If specified, it will execute the command as powershell script.
     :param output_encoding: the encoding used to decode stout and stderr
-    :param timeout: timeout for executing the command.
+    :param timeout: timeout for executing the command, defaults to 10.
+    :param poll_interval: How often, in seconds, the trigger should poll the output command of the launched command,
+        defaults to 1.
     :param expected_return_code: expected return code value(s) of command.
     :param working_directory: specify working directory.
+    :param deferrable: Run operator in the deferrable mode
     """
 
     template_fields: Sequence[str] = (
@@ -66,9 +72,11 @@ class WinRMOperator(BaseOperator):
         command: str | None = None,
         ps_path: str | None = None,
         output_encoding: str = "utf-8",
-        timeout: int = 10,
+        timeout: int | timedelta = 10,
+        poll_interval: int | timedelta | None = None,
         expected_return_code: int | list[int] | range = 0,
         working_directory: str | None = None,
+        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -78,37 +86,81 @@ class WinRMOperator(BaseOperator):
         self.command = command
         self.ps_path = ps_path
         self.output_encoding = output_encoding
-        self.timeout = timeout
+        self.timeout = timeout.total_seconds() if isinstance(timeout, timedelta) else timeout
+        self.poll_interval = (
+            poll_interval.total_seconds()
+            if isinstance(poll_interval, timedelta)
+            else poll_interval
+            if poll_interval is not None
+            else 1.0
+        )
         self.expected_return_code = expected_return_code
         self.working_directory = working_directory
+        self.deferrable = deferrable
+
+    @property
+    def hook(self) -> WinRMHook:
+        if not self.winrm_hook:
+            if self.ssh_conn_id and not self.winrm_hook:
+                self.log.info("Hook not found, creating...")
+                self.winrm_hook = WinRMHook(ssh_conn_id=self.ssh_conn_id)
+
+            if not self.winrm_hook:
+                raise AirflowException("Cannot operate without winrm_hook.")
+
+            if not self.winrm_hook.ssh_conn_id and self.deferrable:
+                raise AirflowException("Cannot operate in deferrable mode without ssh_conn_id.")
+
+            if self.remote_host is not None:
+                self.winrm_hook.remote_host = self.remote_host
+
+        return self.winrm_hook
 
     def execute(self, context: Context) -> list | str:
-        if self.ssh_conn_id and not self.winrm_hook:
-            self.log.info("Hook not found, creating...")
-            self.winrm_hook = WinRMHook(ssh_conn_id=self.ssh_conn_id)
-
-        if not self.winrm_hook:
-            raise AirflowException("Cannot operate without winrm_hook or ssh_conn_id.")
-
-        if self.remote_host is not None:
-            self.winrm_hook.remote_host = self.remote_host
-
-        if not self.command:
-            raise AirflowException("No command specified so nothing to execute here.")
-
-        return_code, stdout_buffer, stderr_buffer = self.winrm_hook.run(
+        result = self.hook.run(
             command=self.command,
             ps_path=self.ps_path,
             output_encoding=self.output_encoding,
             return_output=self.do_xcom_push,
             working_directory=self.working_directory,
+            polling=not self.deferrable,
         )
 
-        success = False
-        if isinstance(self.expected_return_code, int):
-            success = return_code == self.expected_return_code
-        elif isinstance(self.expected_return_code, list) or isinstance(self.expected_return_code, range):
-            success = return_code in self.expected_return_code
+        if self.deferrable:
+            shell_id, command_id, _ = result
+            return self.defer(
+                trigger=WinRMCommandOutputTrigger(
+                    ssh_conn_id=self.hook.ssh_conn_id,
+                    shell_id=shell_id,
+                    command_id=command_id,
+                    output_encoding=self.output_encoding,
+                    return_output=self.do_xcom_push,
+                    working_directory=self.working_directory,
+                    poll_interval=self.poll_interval,
+                    timeout=self.timeout,
+                ),
+                method_name=self.execute_complete.__name__,
+                timeout=self.timeout,
+            )
+        return self.evaluate_result(*result)
+
+    def validate_return_code(self, return_code: int) -> bool:
+        if return_code is not None:
+            if isinstance(self.expected_return_code, int):
+                return return_code == self.expected_return_code
+            if isinstance(self.expected_return_code, list) or isinstance(self.expected_return_code, range):
+                return return_code in self.expected_return_code
+        return False
+
+    def evaluate_result(
+        self,
+        return_code: int,
+        stdout_buffer: list[bytes],
+        stderr_buffer: list[bytes],
+    ) -> Any:
+        success = self.validate_return_code(return_code)
+
+        self.log.debug("success: %s", success)
 
         if success:
             # returning output if do_xcom_push is set
@@ -122,3 +174,44 @@ class WinRMOperator(BaseOperator):
         stderr_output = b"".join(stderr_buffer).decode(self.output_encoding)
         error_msg = f"Error running cmd: {self.command}, return code: {return_code}, error: {stderr_output}"
         raise AirflowException(error_msg)
+
+    def execute_complete(
+        self,
+        context: Context,
+        event: dict[Any, Any] | None = None,
+    ) -> Any:
+        """
+        Execute callback when WinRMCommandOutputTrigger finishes execution.
+
+        This method gets executed automatically when WinRMCommandOutputTrigger completes its execution.
+        """
+        if event:
+            status = event.get("status")
+            return_code = event.get("return_code")
+
+            self.log.info("%s completed with %s", self.task_id, status)
+
+            stdout = base64.standard_b64decode(event.get("stdout", b""))
+            stderr = base64.standard_b64decode(event.get("stderr", b""))
+
+            self.hook.log_output(stdout, output_encoding=self.output_encoding)
+            self.hook.log_output(stderr, level=logging.WARNING, output_encoding=self.output_encoding)
+
+            try:
+                return self.evaluate_result(return_code, [stdout], [stderr])
+            finally:
+                shell_id = event.get("shell_id")
+
+                self.log.debug("shell_id: %s", shell_id)
+
+                winrm_client = self.hook.get_conn()
+
+                try:
+                    command_id = event.get("command_id")
+
+                    self.log.debug("command_id: %s", command_id)
+
+                    winrm_client.cleanup_command(shell_id, command_id)
+                finally:
+                    winrm_client.close_shell(shell_id)
+        return None
