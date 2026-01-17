@@ -503,18 +503,25 @@ def _create_backfill(
         if no_schedule:
             raise DagNoScheduleException(f"{dag_id} has no schedule")
 
-        num_active = session.scalar(
-            select(func.count()).where(
+        # Check for overlapping date ranges with active backfills
+        # Two date ranges overlap if: new_from_date <= existing_to_date
+        # AND new_to_date >= existing_from_date
+        overlapping_backfills = session.scalars(
+            select(Backfill).where(
                 Backfill.dag_id == dag_id,
                 Backfill.completed_at.is_(None),
+                Backfill.from_date <= to_date,
+                Backfill.to_date >= from_date,
             )
-        )
-        if num_active is None:
-            raise UnknownActiveBackfills(dag_id)
-        if num_active > 0:
+        ).all()
+
+        if overlapping_backfills:
+            active_ranges = [
+                f"{bf.from_date.isoformat()} to {bf.to_date.isoformat()}" for bf in overlapping_backfills
+            ]
             raise AlreadyRunningBackfill(
-                f"Another backfill is running for dag {dag_id}. "
-                f"There can be only one running backfill per dag."
+                f"Another backfill is running for Dag {dag_id} with an overlapping date range. "
+                f"Active backfills: {', '.join(active_ranges)}. "
             )
 
         dag = serdag.dag

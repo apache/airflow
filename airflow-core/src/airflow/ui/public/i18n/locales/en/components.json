@@ -33,7 +33,9 @@
     "backfillInProgress": "Backfill in progress",
     "cancel": "Cancel backfill",
     "pause": "Pause backfill",
-    "unpause": "Unpause backfill"
+    "unpause": "Unpause backfill",
+    "viewMore_one": "1 More Running Backfill",
+    "viewMore_other": "{{count}} More Running Backfills"
   },
   "clipboard": {
     "copy": "Copy"

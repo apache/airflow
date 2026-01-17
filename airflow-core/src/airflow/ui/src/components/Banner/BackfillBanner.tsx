@@ -16,11 +16,12 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, Button, HStack, Spacer, Text, type ButtonProps } from "@chakra-ui/react";
+import { Box, Button, HStack, Link, Spacer, Text, VStack, type ButtonProps } from "@chakra-ui/react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { MdPause, MdPlayArrow, MdStop } from "react-icons/md";
 import { RiArrowGoBackFill } from "react-icons/ri";
+import { Link as RouterLink } from "react-router-dom";
 
 import {
   useBackfillServiceCancelBackfill,
@@ -64,7 +65,9 @@ const BackfillBanner = ({ dagId }: Props) => {
           : false,
     },
   );
-  const [backfill] = data?.backfills.filter((bf: BackfillResponse) => bf.completed_at === null) ?? [];
+  const activeBackfills = data?.backfills.filter((bf: BackfillResponse) => bf.completed_at === null) ?? [];
+  const [backfill] = activeBackfills;
+  const additionalBackfillsCount = activeBackfills.length - 1;
 
   const queryClient = useQueryClient();
   const onSuccess = async () => {
@@ -104,35 +107,50 @@ const BackfillBanner = ({ dagId }: Props) => {
   return (
     <Box bg="info.solid" borderRadius="full" color="info.contrast" my="1" px="2" py="1">
       <HStack alignItems="center" ml={3}>
-        <RiArrowGoBackFill />
-        <Text key="backfill">{translate("banner.backfillInProgress")}:</Text>
-        <Text fontSize="sm">
-          {" "}
-          <Time datetime={data?.backfills[0]?.from_date} /> - <Time datetime={data?.backfills[0]?.to_date} />
-        </Text>
-
-        <Spacer flex="max-content" />
-        <ProgressBar size="xs" visibility="visible" />
-        <Button
-          aria-label={backfill.is_paused ? translate("banner.unpause") : translate("banner.pause")}
-          loading={isPausePending || isUnPausePending}
-          onClick={() => {
-            togglePause();
-          }}
-          {...buttonProps}
-        >
-          {backfill.is_paused ? <MdPlayArrow /> : <MdPause />}
-        </Button>
-        <Button
-          aria-label={translate("banner.cancel")}
-          loading={isStopPending}
-          onClick={() => {
-            cancel();
-          }}
-          {...buttonProps}
-        >
-          <MdStop />
-        </Button>
+        <VStack align="stretch" flex={1} gap={1}>
+          <HStack alignItems="center">
+            <RiArrowGoBackFill />
+            <Text key="backfill">{translate("banner.backfillInProgress")}:</Text>
+            <Text fontSize="sm">
+              {" "}
+              <Time datetime={data?.backfills[0]?.from_date} /> -{" "}
+              <Time datetime={data?.backfills[0]?.to_date} />
+            </Text>
+            <Spacer flex="max-content" />
+            <ProgressBar size="xs" visibility="visible" />
+          </HStack>
+          {additionalBackfillsCount > 0 && (
+            <HStack mb={1}>
+              <Link asChild color="info.contrast" fontSize="sm" textDecoration="underline">
+                <RouterLink to={`/dags/${dagId}/backfills`}>
+                  {translate("banner.viewMore", { count: additionalBackfillsCount })}
+                </RouterLink>
+              </Link>
+            </HStack>
+          )}
+        </VStack>
+        <HStack>
+          <Button
+            aria-label={backfill.is_paused ? translate("banner.unpause") : translate("banner.pause")}
+            loading={isPausePending || isUnPausePending}
+            onClick={() => {
+              togglePause();
+            }}
+            {...buttonProps}
+          >
+            {backfill.is_paused ? <MdPlayArrow /> : <MdPause />}
+          </Button>
+          <Button
+            aria-label={translate("banner.cancel")}
+            loading={isStopPending}
+            onClick={() => {
+              cancel();
+            }}
+            {...buttonProps}
+          >
+            <MdStop />
+          </Button>
+        </HStack>
       </HStack>
     </Box>
   );

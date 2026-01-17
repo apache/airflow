@@ -349,10 +349,15 @@ def test_params_stored_correctly(dag_maker, session):
     )
 
 
-def test_active_dag_run(dag_maker, session):
+def test_overlapping_backfills_cannot_be_created(dag_maker, session):
+    """
+    Verify that two overlapping backfills cannot be created for the same Dag.
+    """
     with dag_maker(schedule="@daily") as dag:
         PythonOperator(task_id="hi", python_callable=print)
     session.commit()
+
+    # Create first backfill
     b1 = _create_backfill(
         dag_id=dag.dag_id,
         from_date=pendulum.parse("2021-01-01"),
@@ -363,16 +368,52 @@ def test_active_dag_run(dag_maker, session):
         dag_run_conf={"this": "param"},
     )
     assert b1 is not None
-    with pytest.raises(AlreadyRunningBackfill, match="Another backfill is running for dag"):
+
+    # Try to create overlapping backfill - should fail
+    with pytest.raises(AlreadyRunningBackfill, match="Another backfill is running for Dag"):
         _create_backfill(
             dag_id=dag.dag_id,
-            from_date=pendulum.parse("2021-02-01"),
-            to_date=pendulum.parse("2021-02-05"),
+            from_date=pendulum.parse("2021-01-03"),  # Overlaps with first backfill
+            to_date=pendulum.parse("2021-01-07"),
             max_active_runs=10,
             reverse=False,
             triggering_user_name="pytest",
             dag_run_conf={"this": "param"},
         )
+
+
+def test_non_overlapping_backfills_can_be_created(dag_maker, session):
+    """
+    Verify that two non-overlapping backfills can be created for the same Dag.
+    """
+    with dag_maker(schedule="@daily") as dag:
+        PythonOperator(task_id="hi", python_callable=print)
+    session.commit()
+
+    # Create first backfill
+    b1 = _create_backfill(
+        dag_id=dag.dag_id,
+        from_date=pendulum.parse("2021-01-01"),
+        to_date=pendulum.parse("2021-01-05"),
+        max_active_runs=10,
+        reverse=False,
+        triggering_user_name="pytest",
+        dag_run_conf={},
+    )
+    assert b1 is not None
+
+    # Create second non-overlapping backfill - should succeed
+    b2 = _create_backfill(
+        dag_id=dag.dag_id,
+        from_date=pendulum.parse("2021-01-10"),  # No overlap with first backfill
+        to_date=pendulum.parse("2021-01-15"),
+        max_active_runs=10,
+        reverse=False,
+        triggering_user_name="pytest",
+        dag_run_conf={},
+    )
+    assert b2 is not None
+    assert b1.id != b2.id
 
 
 def create_next_run(
