@@ -19,6 +19,7 @@
 """BigQuery Hook and a very basic PEP 249 implementation for BigQuery."""
 
 from __future__ import annotations
+from google.cloud import bigquery
 
 import json
 import logging
@@ -215,7 +216,7 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
             hook=self,
         )
 
-    def get_client(self, project_id: str = PROVIDE_PROJECT_ID, location: str | None = None) -> Client:
+    def get_client(self, project_id: str = PROVIDE_PROJECT_ID, location: str | None = None) -> bigquery.Client:
         """
         Get an authenticated BigQuery Client.
 
