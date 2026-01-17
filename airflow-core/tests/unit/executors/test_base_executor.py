@@ -392,6 +392,13 @@ def test_state_running():
     assert executor.event_buffer[key] == (TaskInstanceState.RUNNING, info)
 
 
+def test_repr():
+    executor = BaseExecutor(parallelism=10)
+    assert repr(executor) == "BaseExecutor(parallelism=10)"
+    executor = BaseExecutor(parallelism=10, team_name="teamA")
+    assert repr(executor) == "BaseExecutor(parallelism=10, team_name='teamA')"
+
+
 @mock.patch.dict("os.environ", {}, clear=True)
 class TestExecutorConf:
     """Test ExecutorConf shim class that provides team-specific configuration access."""
