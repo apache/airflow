@@ -158,7 +158,6 @@ class WinRMOperator(BaseOperator):
 
     def evaluate_result(
         self,
-        status: str,
         return_code: int,
         stdout_buffer: list[bytes],
         stderr_buffer: list[bytes],
@@ -167,7 +166,7 @@ class WinRMOperator(BaseOperator):
 
         self.log.debug("success: %s", success)
 
-        if status == "success" and success:
+        if success:
             # returning output if do_xcom_push is set
             # TODO: Remove this after minimum Airflow version is 3.0
             enable_pickling = conf.getboolean("core", "enable_xcom_pickling", fallback=False)
@@ -203,7 +202,7 @@ class WinRMOperator(BaseOperator):
             self.hook.log_output(stderr, level=logging.WARNING, output_encoding=self.output_encoding)
 
             try:
-                return self.evaluate_result(status, return_code, [stdout], [stderr])
+                return self.evaluate_result(return_code, [stdout], [stderr])
             finally:
                 shell_id = event.get("shell_id")
 
