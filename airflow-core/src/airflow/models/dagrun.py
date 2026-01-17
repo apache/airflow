@@ -2075,7 +2075,18 @@ class DagRun(Base, LoggingMixin):
                 empty_ti_ids.append(ti.id)
 
         count = 0
-
+        # Don't only check if the TI.id is in id_chunk
+        # but also check if the TI.state is in the schedulable states.
+        # Plus, a scheduled empty operator should not be scheduled again.
+        non_null_schedulable_states = tuple(s for s in SCHEDULEABLE_STATES if s is not None)
+        schedulable_state_clause = or_(
+            TI.state.is_(None),
+            TI.state.in_(non_null_schedulable_states),
+        )
+        next_try_number = case(
+            (TI.state == TaskInstanceState.UP_FOR_RESCHEDULE, TI.try_number),
+            else_=TI.try_number + 1,
+        )
         if schedulable_ti_ids:
             schedulable_ti_ids_chunks = chunks(
                 schedulable_ti_ids, max_tis_per_query or len(schedulable_ti_ids)
@@ -2083,17 +2094,11 @@ class DagRun(Base, LoggingMixin):
             for id_chunk in schedulable_ti_ids_chunks:
                 result = session.execute(
                     update(TI)
-                    .where(TI.id.in_(id_chunk))
+                    .where(TI.id.in_(id_chunk), schedulable_state_clause)
                     .values(
                         state=TaskInstanceState.SCHEDULED,
                         scheduled_dttm=timezone.utcnow(),
-                        try_number=case(
-                            (
-                                or_(TI.state.is_(None), TI.state != TaskInstanceState.UP_FOR_RESCHEDULE),
-                                TI.try_number + 1,
-                            ),
-                            else_=TI.try_number,
-                        ),
+                        try_number=next_try_number,
                     )
                     .execution_options(synchronize_session=False)
                 )
@@ -2105,13 +2110,13 @@ class DagRun(Base, LoggingMixin):
             for id_chunk in dummy_ti_ids_chunks:
                 result = session.execute(
                     update(TI)
-                    .where(TI.id.in_(id_chunk))
+                    .where(TI.id.in_(id_chunk), schedulable_state_clause)
                     .values(
                         state=TaskInstanceState.SUCCESS,
                         start_date=timezone.utcnow(),
                         end_date=timezone.utcnow(),
                         duration=0,
-                        try_number=TI.try_number + 1,
+                        try_number=next_try_number,
                     )
                     .execution_options(
                         synchronize_session=False,
