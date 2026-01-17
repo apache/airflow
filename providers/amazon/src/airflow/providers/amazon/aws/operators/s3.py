@@ -337,12 +337,6 @@ class S3CopyObjectOperator(AwsBaseOperator[S3Hook]):
         self.kms_encryption_type = kms_encryption_type
 
     def execute(self, context: Context):
-        copy_args = {}
-        if self.kms_key_id:
-            copy_args["SSEKMSKeyId"] = self.kms_key_id
-        if self.kms_encryption_type:
-            copy_args["ServerSideEncryption"] = self.kms_encryption_type
-
         self.hook.copy_object(
             self.source_bucket_key,
             self.dest_bucket_key,
@@ -351,7 +345,8 @@ class S3CopyObjectOperator(AwsBaseOperator[S3Hook]):
             self.source_version_id,
             self.acl_policy,
             self.meta_data_directive,
-            **copy_args,
+            self.kms_key_id,
+            self.kms_encryption_type,
         )
 
     def get_openlineage_facets_on_start(self):
