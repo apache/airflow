@@ -765,7 +765,7 @@ def _verify_bundle_access(bundle_instance: BaseDagBundle, log: Logger) -> None:
     """
     from getpass import getuser
 
-    from airflow.exceptions import AirflowException
+    from airflow.sdk.exceptions import AirflowException
 
     bundle_path = bundle_instance.path
 

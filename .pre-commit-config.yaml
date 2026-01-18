@@ -60,7 +60,7 @@ repos:
           - "--maxlevel"
           - "2"
   - repo: https://github.com/Lucas-C/pre-commit-hooks
-    rev: a30f0d816e5062a67d87c8de753cfe499672b959  # frozen: v1.5.5
+    rev: ad1b27d73581aa16cca06fc4a0761fc563ffe8e8  # frozen: v1.5.6
     hooks:
       - id: insert-license
         name: Add license for all SQL files
@@ -183,6 +183,11 @@ repos:
         entry: ./scripts/ci/prek/check_min_python_version.py
         language: python
         require_serial: true
+      - id: check-notice-files
+        name: Check NOTICE files for current year and ASF references
+        entry: ./scripts/ci/prek/check_notice_files.py
+        language: python
+        files: ^.*NOTICE$
       - id: check-version-consistency
         name: Check version consistency
         entry: ./scripts/ci/prek/check_version_consistency.py
@@ -267,7 +272,7 @@ repos:
       - id: python-no-log-warn
         name: Check if there are no deprecate log warn
   - repo: https://github.com/adrienverge/yamllint
-    rev: 79a6b2b1392eaf49cdd32ac4f14be1a809bbd8f7  # frozen: v1.37.1
+    rev: cba56bcde1fdd01c1deb3f945e69764c291a6530  # frozen: v1.38.0
     hooks:
       - id: yamllint
         name: Check YAML files with yamllint

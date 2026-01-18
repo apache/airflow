@@ -2691,11 +2691,6 @@
                         }
                     ]
                 },
-                "useWorkerDedicatedServiceAccounts": {
-                    "description": "One common Service Account for all workers will be created if flag is set to false. If true, dedicated Service Accounts for every worker type will be created.",
-                    "type": "boolean",
-                    "default": false
-                },
                 "celery": {
                     "description": "Airflow Celery Workers configuration.",
                     "type": "object",
@@ -2858,38 +2853,6 @@
                                             }
                                         }
                                     ]
-                                }
-                            }
-                        },
-                        "serviceAccount": {
-                            "description": "Create ServiceAccount.",
-                            "type": "object",
-                            "properties": {
-                                "automountServiceAccountToken": {
-                                    "description": "Specifies if ServiceAccount's API credentials should be mounted onto Pods.",
-                                    "type": "boolean",
-                                    "default": true
-                                },
-                                "create": {
-                                    "description": "Specifies whether a ServiceAccount should be created.",
-                                    "type": "boolean",
-                                    "default": true
-                                },
-                                "name": {
-                                    "description": "The name of the ServiceAccount to use. If not set and create is true, a name is generated using the release name.",
-                                    "type": [
-                                        "string",
-                                        "null"
-                                    ],
-                                    "default": null
-                                },
-                                "annotations": {
-                                    "description": "Annotations to add to the Airflow Celery worker Kubernetes ServiceAccount.",
-                                    "type": "object",
-                                    "default": {},
-                                    "additionalProperties": {
-                                        "type": "string"
-                                    }
                                 }
                             }
                         },
@@ -3093,38 +3056,6 @@
                                             }
                                         }
                                     ]
-                                }
-                            }
-                        },
-                        "serviceAccount": {
-                            "description": "Create ServiceAccount.",
-                            "type": "object",
-                            "properties": {
-                                "automountServiceAccountToken": {
-                                    "description": "Specifies if ServiceAccount's API credentials should be mounted onto Pods.",
-                                    "type": "boolean",
-                                    "default": true
-                                },
-                                "create": {
-                                    "description": "Specifies whether a ServiceAccount should be created.",
-                                    "type": "boolean",
-                                    "default": true
-                                },
-                                "name": {
-                                    "description": "The name of the ServiceAccount to use. If not set and create is true, a name is generated using the release name.",
-                                    "type": [
-                                        "string",
-                                        "null"
-                                    ],
-                                    "default": null
-                                },
-                                "annotations": {
-                                    "description": "Annotations to add to the worker Kubernetes ServiceAccount.",
-                                    "type": "object",
-                                    "default": {},
-                                    "additionalProperties": {
-                                        "type": "string"
-                                    }
                                 }
                             }
                         }
@@ -4381,6 +4312,48 @@
                         "null"
                     ],
                     "default": null
+                },
+                "dagBundleConfigList": {
+                    "description": "Define Dag bundles in a structured YAML format. This will be automatically converted to JSON string format for config.dag_processor.dag_bundle_config_list.",
+                    "type": "array",
+                    "default": [
+                        {
+                            "name": "dags-folder",
+                            "classpath": "airflow.dag_processing.bundles.local.LocalDagBundle",
+                            "kwargs": {}
+                        }
+                    ],
+                    "items": {
+                        "type": "object",
+                        "additionalProperties": false,
+                        "required": [
+                            "name",
+                            "classpath"
+                        ],
+                        "properties": {
+                            "name": {
+                                "description": "Name of the Dag bundle.",
+                                "type": "string"
+                            },
+                            "classpath": {
+                                "description": "Class path of the Dag bundle class.",
+                                "type": "string"
+                            },
+                            "kwargs": {
+                                "description": "Keyword arguments for the Dag bundle.",
+                                "type": "object",
+                                "default": {},
+                                "additionalProperties": {
+                                    "type": [
+                                        "string",
+                                        "number",
+                                        "boolean",
+                                        "null"
+                                    ]
+                                }
+                            }
+                        }
+                    }
                 },
                 "livenessProbe": {
                     "description": "Liveness probe configuration for dag processor.",
