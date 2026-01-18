@@ -370,7 +370,7 @@ class TestDataFusionHook:
         ]
         with pytest.raises(
             AirflowException,
-            match=r"Failed to start pipeline 'shrubberyPipeline'. The response does not contain a runId. Error: Unknown error",
+            match=r"Failed to start pipeline 'shrubberyPipeline'. Error: Unknown error",
         ):
             hook.start_pipeline(
                 pipeline_name=PIPELINE_NAME, instance_url=INSTANCE_URL, runtime_args=RUNTIME_ARGS

@@ -510,10 +510,7 @@ class DataFusionHook(GoogleBaseHook):
                 return response_json.get("runId")
             error_message = response_json.get("error") if response_json else error_message
 
-        raise AirflowException(
-            f"Failed to start pipeline '{pipeline_name}'. "
-            f"The response does not contain a runId. Error: {error_message}"
-        )
+        raise AirflowException(f"Failed to start pipeline '{pipeline_name}'. Error: {error_message}")
 
     def stop_pipeline(self, pipeline_name: str, instance_url: str, namespace: str = "default") -> None:
         """
