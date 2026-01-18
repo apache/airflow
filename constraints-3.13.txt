@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2026-01-18T13:54:57.133422
+# This constraints file was automatically generated on 2026-01-18T19:49:43.968902
 # via `uv pip install --resolution highest` for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -185,8 +185,6 @@ asyncssh==2.22.0
 atlasclient==1.0.0
 atlassian-python-api==4.0.7
 attrs==25.4.0
-aws-embedded-metrics==3.3.1
-awswrangler==3.15.0
 azure-batch==14.2.0
 azure-common==1.1.28
 azure-core==1.38.0
@@ -261,7 +259,6 @@ dnspython==2.8.0
 docker==7.1.0
 docopt==0.6.2
 docstring_parser==0.17.0
-duckdb==1.4.3
 durationpy==0.10
 ecdsa==0.19.1
 elastic-transport==8.17.1
@@ -447,7 +444,7 @@ nbconvert==7.16.6
 nbformat==5.10.4
 neo4j==6.1.0
 nest-asyncio==1.6.0
-numpy==2.2.6
+numpy==2.4.1
 oauthlib==3.3.1
 openai==2.15.0
 openlineage-integration-common==1.42.1
@@ -507,7 +504,7 @@ pure-sasl==0.6.2
 pure_eval==0.2.3
 py4j==0.10.9.9
 pyOpenSSL==25.1.0
-pyarrow==22.0.0
+pyarrow==23.0.0
 pyasn1==0.6.2
 pyasn1_modules==0.4.2
 pybreaker==1.4.1
@@ -523,7 +520,6 @@ pydruid==0.6.9
 pydynamodb==0.8.0
 pyexasol==1.1.0
 pygtrie==2.5.0
-pyiceberg==0.10.0
 pykerberos==1.2.4
 pymongo==4.16.0
 pymssql==2.3.11
@@ -532,7 +528,6 @@ pyodps==0.12.5.1
 pyparsing==3.3.1
 pyproject_hooks==1.2.0
 pypsrp==0.8.1
-pyroaring==1.0.3
 pyspark==4.1.1
 pyspnego==0.12.0
 python-arango==8.2.5
@@ -571,7 +566,7 @@ rsa==4.9.1
 ruamel.yaml==0.19.1
 s3fs==2026.1.0
 s3transfer==0.16.0
-sagemaker_studio==1.1.5
+sagemaker_studio==1.0.23
 scikit-learn==1.8.0
 scipy==1.17.0
 scramp==1.4.8
@@ -592,7 +587,7 @@ snowflake-connector-python==4.2.0
 snowflake-snowpark-python==1.44.0
 snowflake-sqlalchemy==1.8.2
 sortedcontainers==2.4.0
-soupsieve==2.8.1
+soupsieve==2.8.2
 spython==0.3.14
 sqlalchemy-bigquery==1.16.0
 sqlalchemy-spanner==1.17.2
@@ -604,7 +599,6 @@ stack-data==0.6.3
 starlette==0.50.0
 statsd==4.0.1
 std-uritemplate==2.0.8
-strictyaml==1.7.3
 structlog==25.5.0
 svcs==25.1.0
 tableauserverclient==0.38

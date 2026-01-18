@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2026-01-18T13:51:04.145554
+# This constraints file was automatically generated on 2026-01-18T19:45:55.331561
 # via `uv sync --resolution highest for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider distributions.
@@ -467,7 +467,7 @@ pure_eval==0.2.3
 py-partiql-parser==0.6.3
 py4j==0.10.9.9
 pyOpenSSL==25.1.0
-pyarrow==22.0.0
+pyarrow==23.0.0
 pyasn1==0.6.2
 pyasn1_modules==0.4.2
 pybreaker==1.4.1
@@ -577,7 +577,7 @@ snowflake-connector-python==4.2.0
 snowflake-snowpark-python==1.44.0
 snowflake-sqlalchemy==1.8.2
 sortedcontainers==2.4.0
-soupsieve==2.8.1
+soupsieve==2.8.2
 sphinx-argparse==0.5.2
 sphinx-autoapi==3.6.0
 sphinx-autobuild==2025.8.25
