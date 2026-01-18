@@ -35,7 +35,7 @@ class TestWinRMOperator:
         with pytest.raises(AirflowException, match=exception_msg):
             op.execute(None)
 
-    def test_no_command(self, mock_hook):
+    def test_no_command(self):
         op = WinRMOperator(task_id="test_task_id", winrm_hook=WinRMHook(), command=None)
         exception_msg = "No command specified so nothing to execute here."
         with pytest.raises(AirflowException, match=exception_msg):
