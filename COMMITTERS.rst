@@ -77,7 +77,7 @@ General prerequisites that we look for in all candidates:
 1.  Consistent contribution over at least three months
 2.  Visibility on discussions on the dev mailing list, Slack channels or GitHub issues/discussions
     including casting non-binding votes and testing release candidates for various Airflow releases.
-3.  Helping other contributors and users - with sharing their code contributor's experience and reviewing other's code
+3.  Helping other contributors and users by engaging in their code contributor's experience like providing constructive feedback, suggestions, and reviewing their code
 4.  Contributions to community health and project's sustainability in the long-term
 5.  Understands contributor/committer guidelines: `Contributors' Guide <contributing-docs/README.rst>`__
 
