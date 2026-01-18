@@ -205,6 +205,14 @@ export class BackfillPage extends BasePage {
     const apiResponse = await responsePromise;
     const status = apiResponse.status();
 
+    if (status === 409) {
+      await this.page.keyboard.press("Escape");
+      await expect(this.page.locator('[data-part="backdrop"]')).not.toBeVisible({ timeout: 10_000 });
+      await this.waitForNoActiveBackfill();
+
+      return this.createBackfill(dagName, options);
+    }
+
     if (status < 200 || status >= 300) {
       const body = await apiResponse.text().catch(() => "unknown error");
 
@@ -213,6 +221,8 @@ export class BackfillPage extends BasePage {
 
     await expect(this.backfillRunButton).not.toBeVisible({ timeout: 30_000 });
     await expect(this.page.locator('[data-part="backdrop"]')).not.toBeVisible({ timeout: 10_000 });
+
+    return;
   }
 
   public async findBackfillRowByDateRange(
