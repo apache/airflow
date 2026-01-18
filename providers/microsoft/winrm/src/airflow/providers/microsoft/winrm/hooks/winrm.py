@@ -22,7 +22,7 @@ from __future__ import annotations
 import logging
 from base64 import b64encode
 from contextlib import suppress
-from functools import cached_property
+from functools import cache
 
 from winrm.exceptions import WinRMOperationTimeoutError
 from winrm.protocol import Protocol
@@ -126,7 +126,7 @@ class WinRMHook(BaseHook):
 
         self.winrm_protocol = None
 
-    @cached_property
+    @cache
     def get_conn(self):
         self.log.debug("Creating WinRM client for conn_id: %s", self.ssh_conn_id)
         if self.ssh_conn_id is not None:
