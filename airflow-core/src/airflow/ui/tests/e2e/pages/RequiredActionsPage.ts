@@ -155,13 +155,7 @@ export class RequiredActionsPage extends BasePage {
   }
 
   private async handleApprovalTask(dagId: string, dagRunId: string, approve: boolean): Promise<void> {
-    await this.clickOnTaskInGrid(dagRunId, "valid_input_and_options");
-
-    const detailsPanel = this.page.locator("#details-panel");
-
-    await expect(detailsPanel.getByTestId("state-badge").first()).toContainText("Deferred", {
-      timeout: 60_000,
-    });
+    await this.waitForTaskState(dagRunId, { expectedState: "Deferred", taskId: "valid_input_and_options" });
 
     const requiredActionLink = this.page.getByRole("link", { name: /required action/i });
 
@@ -180,13 +174,7 @@ export class RequiredActionsPage extends BasePage {
   }
 
   private async handleBranchTask(dagId: string, dagRunId: string): Promise<void> {
-    await this.clickOnTaskInGrid(dagRunId, "choose_a_branch_to_run");
-
-    const detailsPanel = this.page.locator("#details-panel");
-
-    await expect(detailsPanel.getByTestId("state-badge").first()).toContainText("Deferred", {
-      timeout: 60_000,
-    });
+    await this.waitForTaskState(dagRunId, { expectedState: "Deferred", taskId: "choose_a_branch_to_run" });
 
     const requiredActionLink = this.page.getByRole("link", { name: /required action/i });
 
@@ -204,13 +192,7 @@ export class RequiredActionsPage extends BasePage {
   }
 
   private async handleWaitForInputTask(dagId: string, dagRunId: string): Promise<void> {
-    await this.clickOnTaskInGrid(dagRunId, "wait_for_input");
-
-    const detailsPanel = this.page.locator("#details-panel");
-
-    await expect(detailsPanel.getByTestId("state-badge").first()).toContainText("Deferred", {
-      timeout: 60_000,
-    });
+    await this.waitForTaskState(dagRunId, { expectedState: "Deferred", taskId: "wait_for_input" });
 
     const requiredActionLink = this.page.getByRole("link", { name: /required action/i });
 
@@ -233,13 +215,7 @@ export class RequiredActionsPage extends BasePage {
   }
 
   private async handleWaitForMultipleOptionsTask(dagId: string, dagRunId: string): Promise<void> {
-    await this.clickOnTaskInGrid(dagRunId, "wait_for_multiple_options");
-
-    const detailsPanel = this.page.locator("#details-panel");
-
-    await expect(detailsPanel.getByTestId("state-badge").first()).toContainText("Deferred", {
-      timeout: 60_000,
-    });
+    await this.waitForTaskState(dagRunId, { expectedState: "Deferred", taskId: "wait_for_multiple_options" });
 
     const requiredActionLink = this.page.getByRole("link", { name: /required action/i });
 
@@ -266,13 +242,7 @@ export class RequiredActionsPage extends BasePage {
   }
 
   private async handleWaitForOptionTask(dagId: string, dagRunId: string): Promise<void> {
-    await this.clickOnTaskInGrid(dagRunId, "wait_for_option");
-
-    const detailsPanel = this.page.locator("#details-panel");
-
-    await expect(detailsPanel.getByTestId("state-badge").first()).toContainText("Deferred", {
-      timeout: 60_000,
-    });
+    await this.waitForTaskState(dagRunId, { expectedState: "Deferred", taskId: "wait_for_option" });
 
     const requiredActionLink = this.page.getByRole("link", { name: /required action/i });
 
