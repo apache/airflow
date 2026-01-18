@@ -2095,8 +2095,8 @@ export const useDagServicePatchDag = <TData = Common.DagServicePatchDagMutationR
 * @param data.dagRunId
 * @param data.taskId
 * @param data.requestBody
-* @param data.mapIndex
 * @param data.taskGroupId
+* @param data.mapIndex
 * @param data.updateMask
 * @returns TaskInstanceCollectionResponse Successful Response
 * @throws ApiError
@@ -2210,8 +2210,8 @@ export const useTaskInstanceServicePatchTaskInstanceDryRunByMapIndex = <TData = 
 * @param data.dagRunId
 * @param data.taskId
 * @param data.requestBody
-* @param data.mapIndex
 * @param data.taskGroupId
+* @param data.mapIndex
 * @param data.updateMask
 * @returns TaskInstanceCollectionResponse Successful Response
 * @throws ApiError
@@ -2233,6 +2233,68 @@ export const useTaskInstanceServicePatchTaskInstanceDryRun = <TData = Common.Tas
   taskId: string;
   updateMask?: string[];
 }, TContext>({ mutationFn: ({ dagId, dagRunId, mapIndex, requestBody, taskGroupId, taskId, updateMask }) => TaskInstanceService.patchTaskInstanceDryRun({ dagId, dagRunId, mapIndex, requestBody, taskGroupId, taskId, updateMask }) as unknown as Promise<TData>, ...options });
+/**
+* Patch Task Instance Dry Run
+* Update a task instance dry_run mode.
+* @param data The data for the request.
+* @param data.dagId
+* @param data.dagRunId
+* @param data.taskGroupId
+* @param data.requestBody
+* @param data.taskId
+* @param data.mapIndex
+* @param data.updateMask
+* @returns TaskInstanceCollectionResponse Successful Response
+* @throws ApiError
+*/
+export const useTaskInstanceServicePatchTaskGroupDryRun = <TData = Common.TaskInstanceServicePatchTaskGroupDryRunMutationResult, TError = unknown, TContext = unknown>(options?: Omit<UseMutationOptions<TData, TError, {
+  dagId: string;
+  dagRunId: string;
+  mapIndex?: number;
+  requestBody: PatchTaskInstanceBody;
+  taskGroupId: string;
+  taskId?: string;
+  updateMask?: string[];
+}, TContext>, "mutationFn">) => useMutation<TData, TError, {
+  dagId: string;
+  dagRunId: string;
+  mapIndex?: number;
+  requestBody: PatchTaskInstanceBody;
+  taskGroupId: string;
+  taskId?: string;
+  updateMask?: string[];
+}, TContext>({ mutationFn: ({ dagId, dagRunId, mapIndex, requestBody, taskGroupId, taskId, updateMask }) => TaskInstanceService.patchTaskGroupDryRun({ dagId, dagRunId, mapIndex, requestBody, taskGroupId, taskId, updateMask }) as unknown as Promise<TData>, ...options });
+/**
+* Patch Task Instance
+* Update a task instance.
+* @param data The data for the request.
+* @param data.dagId
+* @param data.dagRunId
+* @param data.taskGroupId
+* @param data.requestBody
+* @param data.taskId
+* @param data.mapIndex
+* @param data.updateMask
+* @returns TaskInstanceCollectionResponse Successful Response
+* @throws ApiError
+*/
+export const useTaskInstanceServicePatchTaskGroup = <TData = Common.TaskInstanceServicePatchTaskGroupMutationResult, TError = unknown, TContext = unknown>(options?: Omit<UseMutationOptions<TData, TError, {
+  dagId: string;
+  dagRunId: string;
+  mapIndex?: number;
+  requestBody: PatchTaskInstanceBody;
+  taskGroupId: string;
+  taskId?: string;
+  updateMask?: string[];
+}, TContext>, "mutationFn">) => useMutation<TData, TError, {
+  dagId: string;
+  dagRunId: string;
+  mapIndex?: number;
+  requestBody: PatchTaskInstanceBody;
+  taskGroupId: string;
+  taskId?: string;
+  updateMask?: string[];
+}, TContext>({ mutationFn: ({ dagId, dagRunId, mapIndex, requestBody, taskGroupId, taskId, updateMask }) => TaskInstanceService.patchTaskGroup({ dagId, dagRunId, mapIndex, requestBody, taskGroupId, taskId, updateMask }) as unknown as Promise<TData>, ...options });
 /**
 * Update Hitl Detail
 * Update a Human-in-the-loop detail.

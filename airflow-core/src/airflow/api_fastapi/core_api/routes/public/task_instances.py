@@ -848,6 +848,14 @@ def post_clear_task_instances(
 
 
 @task_instances_router.patch(
+    task_instances_prefix + "/taskGroup/{task_group_id}/dry_run",
+    responses=create_openapi_http_exception_doc(
+        [status.HTTP_404_NOT_FOUND, status.HTTP_400_BAD_REQUEST],
+    ),
+    dependencies=[Depends(requires_access_dag(method="PUT", access_entity=DagAccessEntity.TASK_INSTANCE))],
+    operation_id="patch_task_group_dry_run",
+)
+@task_instances_router.patch(
     task_instances_prefix + "/{task_id}/dry_run",
     responses=create_openapi_http_exception_doc(
         [status.HTTP_404_NOT_FOUND, status.HTTP_400_BAD_REQUEST],
@@ -866,12 +874,12 @@ def post_clear_task_instances(
 def patch_task_instance_dry_run(
     dag_id: str,
     dag_run_id: str,
-    task_id: str,
     dag_bag: DagBagDep,
     body: PatchTaskInstanceBody,
     session: SessionDep,
+    task_id: str | None = None,
+    task_group_id: str | None = None,
     map_index: int | None = None,
-    task_group_id: str | None = Query(None),
     update_mask: list[str] | None = Query(None),
 ) -> TaskInstanceCollectionResponse:
     """Update a task instance dry_run mode."""
@@ -953,6 +961,17 @@ def bulk_task_instances(
 
 
 @task_instances_router.patch(
+    task_instances_prefix + "/taskGroup/{task_group_id}",
+    responses=create_openapi_http_exception_doc(
+        [status.HTTP_404_NOT_FOUND, status.HTTP_400_BAD_REQUEST, status.HTTP_409_CONFLICT],
+    ),
+    dependencies=[
+        Depends(action_logging()),
+        Depends(requires_access_dag(method="PUT", access_entity=DagAccessEntity.TASK_INSTANCE)),
+    ],
+    operation_id="patch_task_group",
+)
+@task_instances_router.patch(
     task_instances_prefix + "/{task_id}",
     responses=create_openapi_http_exception_doc(
         [status.HTTP_404_NOT_FOUND, status.HTTP_400_BAD_REQUEST, status.HTTP_409_CONFLICT],
@@ -977,13 +996,13 @@ def bulk_task_instances(
 def patch_task_instance(
     dag_id: str,
     dag_run_id: str,
-    task_id: str,
     dag_bag: DagBagDep,
     body: PatchTaskInstanceBody,
     user: GetUserDep,
     session: SessionDep,
+    task_id: str | None = None,
+    task_group_id: str | None = None,
     map_index: int | None = None,
-    task_group_id: str | None = Query(None),
     update_mask: list[str] | None = Query(None),
 ) -> TaskInstanceCollectionResponse:
     """Update a task instance."""
