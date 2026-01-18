@@ -121,11 +121,12 @@ class WinRMHook(BaseHook):
         self.credssp_disable_tlsv1_2 = credssp_disable_tlsv1_2
         self.send_cbt = send_cbt
 
-        self.winrm_protocol = None
+        self.winrm_protocol: Protocol | None = None
 
     def get_conn(self) -> Protocol:
-        self.log.debug("Creating WinRM client for conn_id: %s", self.ssh_conn_id)
-        if self.ssh_conn_id is not None:
+        if self.winrm_protocol is None and self.ssh_conn_id is not None:
+            self.log.debug("Creating WinRM client for conn_id: %s", self.ssh_conn_id)
+
             conn = self.get_connection(self.ssh_conn_id)
 
             if self.username is None:
