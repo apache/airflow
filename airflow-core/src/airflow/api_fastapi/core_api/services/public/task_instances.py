@@ -57,7 +57,7 @@ log = structlog.get_logger(__name__)
 def _patch_ti_validate_request(
     dag_id: str,
     dag_run_id: str,
-    task_id: str,
+    task_id: str | None,
     dag_bag: DagBagDep,
     body: PatchTaskInstanceBody,
     session: SessionDep,
@@ -78,6 +78,10 @@ def _patch_ti_validate_request(
         )
     else:
         # Original logic for fetching task instances by task_id
+        if task_id is None:
+            raise HTTPException(
+                status.HTTP_400_BAD_REQUEST, "Either task_id or task_group_id must be provided"
+            )
         if not dag.has_task(task_id):
             raise HTTPException(status.HTTP_404_NOT_FOUND, f"Task '{task_id}' not found in DAG '{dag_id}'")
 
