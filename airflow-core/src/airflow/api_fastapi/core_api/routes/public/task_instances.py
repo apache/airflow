@@ -880,41 +880,6 @@ def patch_task_instance_dry_run(
     )
 
     if data.get("new_state"):
-        if task_group_id is not None:
-            # For task group: iterate over each task instance and collect affected TIs
-            affected_tis_dict: dict[tuple[str, str, str, int], TI] = {}
-            for ti in tis:
-                affected_tis = (
-                    dag.set_task_instance_state(
-                        task_id=ti.task_id,
-                        run_id=dag_run_id,
-                        map_indexes=[ti.map_index] if ti.map_index is not None else None,
-                        state=data["new_state"],
-                        upstream=body.include_upstream or False,
-                        downstream=body.include_downstream or False,
-                        future=body.include_future or False,
-                        past=body.include_past or False,
-                        commit=False,
-                        session=session,
-                    )
-                    or []
-                )
-
-                # Add unique task instances
-                for affected_ti in affected_tis:
-                    ti_key = (
-                        affected_ti.dag_id,
-                        affected_ti.run_id,
-                        affected_ti.task_id,
-                        affected_ti.map_index if affected_ti.map_index is not None else -1,
-                    )
-                    affected_tis_dict[ti_key] = affected_ti
-
-            return TaskInstanceCollectionResponse(
-                task_instances=[TaskInstanceResponse.model_validate(ti) for ti in affected_tis_dict.values()],
-                total_entries=len(affected_tis_dict),
-            )
-        # For regular task instance: use original behavior
         tis = (
             dag.set_task_instance_state(
                 task_id=task_id,
