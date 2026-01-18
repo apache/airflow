@@ -3299,7 +3299,8 @@ config:
   dag_processor:
     # DAG bundle configuration list in JSON string format.
     # This is automatically generated from .Values.dagProcessor.dag_bundles using the dag_bundles helper function.
-    # You can also provide a custom JSON string directly to override the generated value.
+    # Deprecated: Direct override via config.dag_processor.dag_bundle_config_list is deprecated.
+    # Use dagProcessor.dagBundleConfigList instead.
     dag_bundle_config_list: '{{ include "dag_bundles" . }}'
   elasticsearch:
     json_format: 'True'
