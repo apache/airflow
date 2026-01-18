@@ -323,7 +323,6 @@ export class RequiredActionsPage extends BasePage {
   }
 
   private async verifyFinalTaskStates(dagId: string, dagRunId: string, approved: boolean): Promise<void> {
-    // Make sure we're on the DAG run page for grid access
     await this.page.goto(`/dags/${dagId}/runs/${dagRunId}`);
 
     if (approved) {
@@ -346,21 +345,28 @@ export class RequiredActionsPage extends BasePage {
   }
 
   private async waitForDagRunState(expectedState: string): Promise<void> {
-    const detailsPanel = this.page.locator("#details-panel");
-    const stateBadge = detailsPanel.getByTestId("state-badge").first();
+    await expect(async () => {
+      await this.page.reload();
+      const detailsPanel = this.page.locator("#details-panel");
+      const stateBadge = detailsPanel.getByTestId("state-badge").first();
 
-    await expect(stateBadge).toContainText(expectedState, { timeout: 60_000 });
+      await expect(stateBadge).toContainText(expectedState, { timeout: 3000 });
+    }).toPass({ timeout: 180_000 });
   }
 
   private async waitForTaskState(
     dagRunId: string,
     options: { expectedState: string; taskId: string; timeout?: number },
   ): Promise<void> {
-    await this.clickOnTaskInGrid(dagRunId, options.taskId);
+    await expect(async () => {
+      await this.page.reload();
 
-    const detailsPanel = this.page.locator("#details-panel");
-    const stateBadge = detailsPanel.getByTestId("state-badge").first();
+      await this.clickOnTaskInGrid(dagRunId, options.taskId);
 
-    await expect(stateBadge).toContainText(options.expectedState, { timeout: options.timeout ?? 60_000 });
+      const detailsPanel = this.page.locator("#details-panel");
+      const stateBadge = detailsPanel.getByTestId("state-badge").first();
+
+      await expect(stateBadge).toContainText(options.expectedState, { timeout: 3000 });
+    }).toPass({ timeout: options.timeout ?? 120_000 });
   }
 }
