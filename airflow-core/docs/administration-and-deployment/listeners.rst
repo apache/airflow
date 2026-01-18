@@ -21,6 +21,14 @@ Listeners
 You can write listeners to enable Airflow to notify you when events happen.
 `Pluggy <https://pluggy.readthedocs.io/en/stable/>`__ powers these listeners.
 
+.. note::
+
+    As of Airflow 3.x, the listeners functionality has been moved to a shared library
+    to support client-server separation and improve the architecture. The core
+    functionality remains the same, but the internal implementation now resides
+    in ``airflow._shared.listeners`` while maintaining backward compatibility
+    through the existing import paths.
+
 .. warning::
 
     Listeners are an advanced feature of Airflow. They are not isolated from the Airflow components they run in, and
@@ -131,7 +139,13 @@ Usage
 To create a listener:
 
 - import ``airflow.listeners.hookimpl``
-- implement the ``hookimpls`` for events that you'd like to generate notifications
+- implement the ``hookimpls`` for events that you\'d like to generate notifications
+
+.. note::
+
+    The listeners functionality has been moved to a shared library to support client-server separation.
+    The core listener infrastructure is now available from ``airflow._shared.listeners`` but is still
+    accessible through the same import paths for backward compatibility.
 
 Airflow defines the specification as `hookspec <https://github.com/apache/airflow/tree/main/airflow-core/src/airflow/listeners/spec>`__. Your implementation must accept the same named parameters as defined in hookspec. If you don't use the same parameters as hookspec, Pluggy throws an error when you try to use your plugin. But you don't need to implement every method. Many listeners only implement one method, or a subset of methods.
 

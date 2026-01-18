@@ -41,6 +41,14 @@ organizations have different stacks and different needs. Using Airflow
 plugins can be a way for companies to customize their Airflow installation
 to reflect their ecosystem.
 
+.. note::
+
+    As of Airflow 3.x, the plugins manager has been moved to a shared library
+    to support client-server separation and improve the architecture. The core
+    functionality remains the same, but the internal implementation now resides
+    in ``airflow._shared.plugins_manager`` while maintaining backward compatibility
+    through the existing import paths.
+
 Plugins can be used as an easy way to write, share and activate new sets of
 features.
 
@@ -112,6 +120,12 @@ To create a plugin you will need to derive the
 you want to plug into Airflow. Here's what the class you need to derive
 looks like:
 
+.. note::
+
+    The plugins manager functionality has been moved to a shared library to support client-server separation.
+    The core plugin infrastructure is now available from ``airflow._shared.plugins_manager`` but is still
+    accessible through the same import paths for backward compatibility.
+
 
 .. code-block:: python
 
@@ -161,6 +175,12 @@ looks like:
         # TaskInstance state changes. Listeners are python modules.
         listeners = []
 
+        # A list of hook lineage reader classes that can be used for reading lineage information from a hook.
+        hook_lineage_readers = []
+
+        # A list of priority weight strategy classes that can be used for calculating tasks weight priority.
+        priority_weight_strategies = []
+
 You can derive it by inheritance (please refer to the example below). In the example, all options have been
 defined as class attributes, but you can also define them as properties if you need to perform
 additional initialization. Please note ``name`` inside this class must be specified.
@@ -192,6 +212,7 @@ definitions in Airflow.
 .. code-block:: python
 
     # This is the class you derive to create a plugin
+    # Note: AirflowPlugin is now available from shared library
     from airflow.plugins_manager import AirflowPlugin
 
     from fastapi import FastAPI

@@ -159,6 +159,11 @@ having to manage and install providers separately, you can easily run tests for 
 and when you run Airflow from the ``main`` sources, all community providers are
 automatically available for you.
 
+.. note::
+
+    The providers manager functionality remains in the core but has been enhanced to support shared
+    library architecture. Providers are still discovered through the same mechanisms as before.
+
 The capabilities of the community-managed providers are the same as the third-party ones. When
 the providers are installed from PyPI, they provide the entry-point containing the metadata as described
 in the previous chapter. However when they are locally developed, together with Airflow, the mechanism
