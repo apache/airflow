@@ -17,7 +17,6 @@
  * under the License.
  */
 import { defineConfig, devices } from "@playwright/test";
-import { connect } from "node:http2";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
