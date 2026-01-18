@@ -78,7 +78,7 @@
         "defaultAirflowTag": {
             "description": "Default airflow tag to deploy.",
             "type": "string",
-            "default": "3.1.5",
+            "default": "3.1.6",
             "x-docsSection": "Common"
         },
         "defaultAirflowDigest": {
@@ -93,7 +93,7 @@
         "airflowVersion": {
             "description": "Airflow version (Used to make some decisions based on Airflow Version being deployed).",
             "type": "string",
-            "default": "3.1.5",
+            "default": "3.1.6",
             "x-docsSection": "Common"
         },
         "securityContext": {
@@ -129,7 +129,7 @@
                         }
                     ]
                 },
-                "container": {
+                "containers": {
                     "description": "Default container security context definition. The values in this parameter will be used when `securityContexts` is not defined for specific containers",
                     "type": "object",
                     "$ref": "#/definitions/io.k8s.api.core.v1.SecurityContext",
@@ -255,6 +255,118 @@
                         "null"
                     ],
                     "default": null
+                },
+                "apiServer": {
+                    "description": "Configuration for the Ingress of the  API server.",
+                    "type": "object",
+                    "additionalProperties": false,
+                    "properties": {
+                        "enabled": {
+                            "description": "Enable API server ingress resource.",
+                            "type": "boolean",
+                            "default": false
+                        },
+                        "annotations": {
+                            "description": "Annotations for the API server Ingress.",
+                            "type": "object",
+                            "default": {},
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        },
+                        "path": {
+                            "description": "The path for the API server Ingress.",
+                            "type": "string",
+                            "default": "/"
+                        },
+                        "pathType": {
+                            "description": "The pathType for the API server Ingress (required for Kubernetes 1.19 and above).",
+                            "type": "string",
+                            "default": "ImplementationSpecific"
+                        },
+                        "host": {
+                            "description": "The hostname for the API server Ingress. (Deprecated - renamed to `ingress.apiServer.hosts`)",
+                            "type": "string",
+                            "default": ""
+                        },
+                        "hosts": {
+                            "description": "The hostnames or hosts configuration for the API server Ingress.",
+                            "type": "array",
+                            "default": [],
+                            "items": {
+                                "oneOf": [
+                                    {
+                                        "type": "object",
+                                        "additionalProperties": false,
+                                        "properties": {
+                                            "name": {
+                                                "description": "The hostname for the API server Ingress.",
+                                                "type": "string",
+                                                "default": ""
+                                            },
+                                            "tls": {
+                                                "description": "Configuration for API server Ingress TLS.",
+                                                "type": "object",
+                                                "additionalProperties": false,
+                                                "properties": {
+                                                    "enabled": {
+                                                        "description": "Enable TLS termination for the API server Ingress.",
+                                                        "type": "boolean",
+                                                        "default": false
+                                                    },
+                                                    "secretName": {
+                                                        "description": "The name of a pre-created Secret containing a TLS private key and certificate.",
+                                                        "type": "string",
+                                                        "default": ""
+                                                    }
+                                                }
+                                            }
+                                        },
+                                        "required": [
+                                            "name"
+                                        ]
+                                    },
+                                    {
+                                        "type": "string",
+                                        "default": "",
+                                        "$comment": "Deprecated by object above"
+                                    }
+                                ]
+                            }
+                        },
+                        "ingressClassName": {
+                            "description": "The Ingress Class for the API server Ingress.",
+                            "type": "string",
+                            "default": ""
+                        },
+                        "tls": {
+                            "description": "Configuration for API server Ingress TLS. (Deprecated - renamed to `ingress.apiServer.hosts[*].tls`)",
+                            "type": "object",
+                            "additionalProperties": false,
+                            "properties": {
+                                "enabled": {
+                                    "description": "Enable TLS termination for the API server Ingress.",
+                                    "type": "boolean",
+                                    "default": false
+                                },
+                                "secretName": {
+                                    "description": "The name of a pre-created Secret containing a TLS private key and certificate.",
+                                    "type": "string",
+                                    "default": ""
+                                }
+                            }
+                        },
+                        "precedingPaths": {
+                            "description": "HTTP paths to add to the API server Ingress before the default path.",
+                            "type": "array",
+                            "default": []
+                        },
+                        "succeedingPaths": {
+                            "description": "HTTP paths to add to the API server Ingress after the default path.",
+                            "type": "array",
+                            "default": []
+                        }
+                    }
                 },
                 "web": {
                     "description": "Configuration for the Ingress of the web Service.",
@@ -1634,6 +1746,16 @@
             "x-docsSection": "Workers",
             "additionalProperties": false,
             "properties": {
+                "enableDefault": {
+                    "description": "Enable the default worker defined by the root 'workers' configuration.",
+                    "type": "boolean",
+                    "default": true
+                },
+                "queue": {
+                    "description": "Queue name for the worker.",
+                    "type": "string",
+                    "default": "default"
+                },
                 "replicas": {
                     "description": "Number of Airflow Celery workers (deprecated, use `workers.celery.replicas` instead).",
                     "type": "integer",
@@ -1649,7 +1771,7 @@
                     "x-docsSection": null
                 },
                 "command": {
-                    "description": "Command to use when running Airflow Celery workers and using pod-template-file (templated).",
+                    "description": "Command to use when running Airflow Celery workers and using pod-template-file (templated). Use workers.celery.command and/or workers.kubernetes.command to separate value between Celery workers and pod-template-file.",
                     "type": [
                         "array",
                         "null"
@@ -1660,7 +1782,7 @@
                     "default": null
                 },
                 "args": {
-                    "description": "Args to use when running Airflow Celery workers (templated).",
+                    "description": "Args to use when running Airflow Celery workers (templated) (deprecated, use `workers.celery.args` instead).",
                     "type": [
                         "array",
                         "null"
@@ -1671,41 +1793,41 @@
                     "default": [
                         "bash",
                         "-c",
-                        "exec \\\nairflow {{ semverCompare \">=2.0.0\" .Values.airflowVersion | ternary \"celery worker\" \"worker\" }}"
+                        "exec \\\nairflow {{ semverCompare \">=2.0.0\" .Values.airflowVersion | ternary \"celery worker\" \"worker\" }}\n{{- if and .Values.workers.queue (ne .Values.workers.queue \"default\") }}\n{{- \" -q \" }}{{ .Values.workers.queue }}\n{{- end }}"
                     ]
                 },
                 "livenessProbe": {
-                    "description": "Liveness probe configuration for Airflow Celery worker containers.",
+                    "description": "Liveness probe configuration for Airflow Celery worker containers (deprecated, use `workers.celery.livenessProbe` section instead).",
                     "type": "object",
                     "additionalProperties": false,
                     "properties": {
                         "enabled": {
-                            "description": "Enable liveness probe for Airflow Celery workers.",
+                            "description": "Enable liveness probe for Airflow Celery workers (deprecated, use `workers.celery.livenessProbe.enabled` instead).",
                             "type": "boolean",
                             "default": true
                         },
                         "initialDelaySeconds": {
-                            "description": "Number of seconds after the container has started before liveness probes are initiated.",
+                            "description": "Number of seconds after the container has started before liveness probes are initiated (deprecated, use `workers.celery.livenessProbe.initialDelaySeconds` instead).",
                             "type": "integer",
                             "default": 10
                         },
                         "timeoutSeconds": {
-                            "description": "Number of seconds after which the probe times out. Minimum value is 1 seconds.",
+                            "description": "Number of seconds after which the probe times out. Minimum value is 1 seconds (deprecated, use `workers.celery.livenessProbe.timeoutSeconds` instead).",
                             "type": "integer",
                             "default": 20
                         },
                         "failureThreshold": {
-                            "description": "Minimum consecutive failures for the probe to be considered failed after having succeeded. Minimum value is 1.",
+                            "description": "Minimum consecutive failures for the probe to be considered failed after having succeeded. Minimum value is 1 (deprecated, use `workers.celery.livenessProbe.failureThreshold` instead).",
                             "type": "integer",
                             "default": 5
                         },
                         "periodSeconds": {
-                            "description": "How often (in seconds) to perform the probe. Minimum value is 1.",
+                            "description": "How often (in seconds) to perform the probe. Minimum value is 1 (deprecated, use `workers.celery.livenessProbe.periodSeconds` instead).",
                             "type": "integer",
                             "default": 60
                         },
                         "command": {
-                            "description": "Command for livenessProbe",
+                            "description": "Command for livenessProbe (deprecated, use `workers.celery.livenessProbe.command` instead)",
                             "type": [
                                 "array",
                                 "null"
@@ -1717,7 +1839,7 @@
                     }
                 },
                 "updateStrategy": {
-                    "description": "Specifies the strategy used to replace old Airflow Celery worker pods by new ones when deployed as a StatefulSet.",
+                    "description": "Specifies the strategy used to replace old Airflow Celery worker pods by new ones when deployed as a StatefulSet (deprecated, use `workers.celery.updateStrategy` instead).",
                     "type": [
                         "null",
                         "object"
@@ -1725,7 +1847,7 @@
                     "default": null
                 },
                 "podManagementPolicy": {
-                    "description": "Specifies the policy for managing pods within the Airflow Celery worker. Only applicable to StatefulSet.",
+                    "description": "Specifies the policy for managing pods within the Airflow Celery worker (deprecated, use `workers.celery.podManagementPolicy` instead). Only applicable to StatefulSet.",
                     "type": [
                         "null",
                         "string"
@@ -1737,7 +1859,7 @@
                     ]
                 },
                 "strategy": {
-                    "description": "Specifies the strategy used to replace old Airflow Celery worker pods by new ones when deployed as a Deployment.",
+                    "description": "Specifies the strategy used to replace old Airflow Celery worker pods by new ones when deployed as a Deployment (deprecated, use `workers.celery.strategy` instead).",
                     "type": [
                         "null",
                         "object"
@@ -1843,7 +1965,7 @@
                         "query": {
                             "description": "Query to use for KEDA autoscaling. Must return a single integer.",
                             "type": "string",
-                            "default": "SELECT ceil(COUNT(*)::decimal / {{ .Values.config.celery.worker_concurrency }}) FROM task_instance WHERE (state='running' OR state='queued') {{- if contains \"CeleryKubernetesExecutor\" .Values.executor }} AND queue != '{{ .Values.config.celery_kubernetes_executor.kubernetes_queue }}' {{- else if contains \"KubernetesExecutor\" .Values.executor }} AND executor IS DISTINCT FROM 'KubernetesExecutor' {{- else if contains \"airflow.providers.edge3.executors.EdgeExecutor\" .Values.executor }} AND executor IS DISTINCT FROM 'EdgeExecutor' {{- end }}"
+                            "default": "SELECT ceil(COUNT(*)::decimal / {{ .Values.config.celery.worker_concurrency }}) FROM task_instance WHERE (state='running' OR state='queued') AND queue IN ( {{- range $i, $q := splitList \",\" .Values.workers.queue -}} {{- if $i }},{{ end }}'{{ $q | trim }}' {{- end -}} ) {{- if contains \"CeleryKubernetesExecutor\" .Values.executor }} AND queue != '{{ .Values.config.celery_kubernetes_executor.kubernetes_queue }}' {{- else if contains \"KubernetesExecutor\" .Values.executor }} AND executor IS DISTINCT FROM 'KubernetesExecutor' {{- else if contains \"airflow.providers.edge3.executors.EdgeExecutor\" .Values.executor }} AND executor IS DISTINCT FROM 'EdgeExecutor' {{- end }}"
                         },
                         "usePgbouncer": {
                             "description": "Weather to use PGBouncer to connect to the database or not when it is enabled. This configuration will be ignored if PGBouncer is not enabled.",
@@ -1900,26 +2022,26 @@
                     }
                 },
                 "persistence": {
-                    "description": "Persistence configuration for Airflow Celery workers.",
+                    "description": "Persistence configuration for Airflow Celery workers (deprecated, use `workers.celery.persistence` instead).",
                     "type": "object",
                     "additionalProperties": false,
                     "properties": {
                         "enabled": {
-                            "description": "Enable persistent volumes.",
+                            "description": "Enable persistent volumes (deprecated, use `workers.celery.persistence.enabled` instead).",
                             "type": "boolean",
                             "default": true
                         },
                         "persistentVolumeClaimRetentionPolicy": {
                             "$ref": "#/definitions/persistentVolumeClaimRetentionPolicy",
-                            "description": "PersistentVolumeClaim retention policy to be used in the lifecycle of a StatefulSet."
+                            "description": "PersistentVolumeClaim retention policy to be used in the lifecycle of a StatefulSet (deprecated, use `workers.celery.persistence.persistentVolumeClaimRetentionPolicy` instead)."
                         },
                         "size": {
-                            "description": "Volume size for Airflow Celery worker StatefulSet.",
+                            "description": "Volume size for Airflow Celery worker StatefulSet (deprecated, use `workers.celery.persistence.size` instead).",
                             "type": "string",
                             "default": "100Gi"
                         },
                         "storageClassName": {
-                            "description": "If using a custom StorageClass, pass name ref to all StatefulSets here (templated).",
+                            "description": "If using a custom StorageClass, pass name ref to all StatefulSets here (templated) (deprecated, use `workers.celery.persistence.storageClassName` instead).",
                             "type": [
                                 "string",
                                 "null"
@@ -1927,49 +2049,20 @@
                             "default": null
                         },
                         "fixPermissions": {
-                            "description": "Execute init container to chown log directory. This is currently only needed in kind, due to usage of local-path provisioner.",
+                            "description": "Execute init container to chown log directory. This is currently only needed in kind, due to usage of local-path provisioner (deprecated, use `workers.celery.persistence.fixPermissions` instead).",
                             "type": "boolean",
                             "default": false
                         },
                         "annotations": {
-                            "description": "Annotations to add to Airflow Celery worker volumes.",
+                            "description": "Annotations to add to Airflow Celery worker volumes (deprecated, use `workers.celery.persistence.annotations` instead).",
                             "type": "object",
                             "default": {},
                             "additionalProperties": {
                                 "type": "string"
                             }
                         },
-                        "containerLifecycleHooks": {
-                            "description": "Container Lifecycle Hooks definition for the persistence. If not set, the values from global `containerLifecycleHooks` will be used.",
-                            "type": "object",
-                            "$ref": "#/definitions/io.k8s.api.core.v1.Lifecycle",
-                            "default": {},
-                            "x-docsSection": "Kubernetes",
-                            "examples": [
-                                {
-                                    "postStart": {
-                                        "exec": {
-                                            "command": [
-                                                "/bin/sh",
-                                                "-c",
-                                                "echo postStart handler > /usr/share/message"
-                                            ]
-                                        }
-                                    },
-                                    "preStop": {
-                                        "exec": {
-                                            "command": [
-                                                "/bin/sh",
-                                                "-c",
-                                                "echo preStop handler > /usr/share/message"
-                                            ]
-                                        }
-                                    }
-                                }
-                            ]
-                        },
                         "securityContexts": {
-                            "description": "Security context definition for the persistence. If not set, the values from global `securityContexts` will be used.",
+                            "description": "Security context definition for the persistence. If not set, the values from global `securityContexts` will be used (deprecated, use `workers.celery.persistence.securityContexts` instead).",
                             "type": "object",
                             "x-docsSection": "Kubernetes",
                             "properties": {
@@ -2078,7 +2171,7 @@
                     }
                 },
                 "kerberosInitContainer": {
-                    "description": "Kerberos init container for Airflow Celery workers and pods created with pod-template-file.",
+                    "description": "Kerberos init container for Airflow Celery workers and pods created with pod-template-file (deprecated, use `workers.celery.kerberosInitContainer` instead).",
                     "type": "object",
                     "additionalProperties": false,
                     "properties": {
@@ -2413,7 +2506,7 @@
                     ]
                 },
                 "securityContexts": {
-                    "description": "Security context definition for the Airflow Celery workers and pod-template-file. If not set, the values from global `securityContexts` will be used.",
+                    "description": "Security context definition for the Airflow Celery workers and pod-template-file. If not set, the values from global `securityContexts` will be used. Use workers.celery.securityContexts and/or workers.kubernetes.securityContexts to separate value between Celery workers and pod-template-file.",
                     "type": "object",
                     "x-docsSection": "Kubernetes",
                     "properties": {
@@ -2598,11 +2691,6 @@
                         }
                     ]
                 },
-                "useWorkerDedicatedServiceAccounts": {
-                    "description": "One common Service Account for all workers will be created if flag is set to false. If true, dedicated Service Accounts for every worker type will be created.",
-                    "type": "boolean",
-                    "default": false
-                },
                 "celery": {
                     "description": "Airflow Celery Workers configuration.",
                     "type": "object",
@@ -2622,34 +2710,297 @@
                             "default": null,
                             "x-docsSection": null
                         },
-                        "serviceAccount": {
-                            "description": "Create ServiceAccount.",
+                        "command": {
+                            "description": "Command to use when running Airflow Celery workers (templated).",
+                            "type": [
+                                "array",
+                                "null"
+                            ],
+                            "items": {
+                                "type": "string"
+                            },
+                            "default": null
+                        },
+                        "args": {
+                            "description": "Args to use when running Airflow Celery workers (templated).",
+                            "type": [
+                                "array",
+                                "null"
+                            ],
+                            "items": {
+                                "type": "string"
+                            },
+                            "default": [
+                                "bash",
+                                "-c",
+                                "exec \\\nairflow {{ semverCompare \">=2.0.0\" .Values.airflowVersion | ternary \"celery worker\" \"worker\" }}\n{{- if and .Values.workers.queue (ne .Values.workers.queue \"default\") }}\n{{- \" -q \" }}{{ .Values.workers.queue }}\n{{- end }}"
+                            ]
+                        },
+                        "livenessProbe": {
+                            "description": "Liveness probe configuration for Airflow Celery worker containers.",
                             "type": "object",
+                            "additionalProperties": false,
                             "properties": {
-                                "automountServiceAccountToken": {
-                                    "description": "Specifies if ServiceAccount's API credentials should be mounted onto Pods.",
+                                "enabled": {
+                                    "description": "Enable liveness probe for Airflow Celery workers.",
                                     "type": "boolean",
                                     "default": true
                                 },
-                                "create": {
-                                    "description": "Specifies whether a ServiceAccount should be created.",
+                                "initialDelaySeconds": {
+                                    "description": "Number of seconds after the container has started before liveness probes are initiated.",
+                                    "type": "integer",
+                                    "default": 10
+                                },
+                                "timeoutSeconds": {
+                                    "description": "Number of seconds after which the probe times out. Minimum value is 1 seconds.",
+                                    "type": "integer",
+                                    "default": 20
+                                },
+                                "failureThreshold": {
+                                    "description": "Minimum consecutive failures for the probe to be considered failed after having succeeded. Minimum value is 1.",
+                                    "type": "integer",
+                                    "default": 5
+                                },
+                                "periodSeconds": {
+                                    "description": "How often (in seconds) to perform the probe. Minimum value is 1.",
+                                    "type": "integer",
+                                    "default": 60
+                                },
+                                "command": {
+                                    "description": "Command for livenessProbe",
+                                    "type": [
+                                        "array",
+                                        "null"
+                                    ],
+                                    "items": {
+                                        "type": "string"
+                                    }
+                                }
+                            }
+                        },
+                        "updateStrategy": {
+                            "description": "Specifies the strategy used to replace old Airflow Celery worker pods by new ones when deployed as a StatefulSet.",
+                            "type": [
+                                "null",
+                                "object"
+                            ],
+                            "default": null
+                        },
+                        "strategy": {
+                            "description": "Specifies the strategy used to replace old Airflow Celery worker pods by new ones when deployed as a Deployment.",
+                            "type": [
+                                "null",
+                                "object"
+                            ],
+                            "default": {
+                                "rollingUpdate": {
+                                    "maxSurge": "100%",
+                                    "maxUnavailable": "50%"
+                                }
+                            }
+                        },
+                        "podManagementPolicy": {
+                            "description": "Specifies the policy for managing pods within the Airflow Celery worker. Only applicable to StatefulSet.",
+                            "type": [
+                                "null",
+                                "string"
+                            ],
+                            "default": null,
+                            "enum": [
+                                "OrderedReady",
+                                "Parallel"
+                            ]
+                        },
+                        "sets": {
+                            "description": "List of worker sets. Each item can override values from the parent 'workers' section.",
+                            "type": "array",
+                            "default": [],
+                            "items": {
+                                "type": "object",
+                                "additionalProperties": {}
+                            }
+                        },
+                        "securityContexts": {
+                            "description": "Security context definition for the Airflow Celery workers. If not set, the values from `workers.securityContexts` section will be used.",
+                            "type": "object",
+                            "x-docsSection": "Kubernetes",
+                            "properties": {
+                                "pod": {
+                                    "description": "Pod security context definition.",
+                                    "type": "object",
+                                    "$ref": "#/definitions/io.k8s.api.core.v1.PodSecurityContext",
+                                    "default": {},
+                                    "examples": [
+                                        {
+                                            "runAsUser": 50000,
+                                            "runAsGroup": 0,
+                                            "fsGroup": 0
+                                        }
+                                    ]
+                                },
+                                "container": {
+                                    "description": "Container security context definition.",
+                                    "type": "object",
+                                    "$ref": "#/definitions/io.k8s.api.core.v1.SecurityContext",
+                                    "default": {},
+                                    "examples": [
+                                        {
+                                            "allowPrivilegeEscalation": false,
+                                            "capabilities": {
+                                                "drop": [
+                                                    "ALL"
+                                                ]
+                                            }
+                                        }
+                                    ]
+                                }
+                            }
+                        },
+                        "persistence": {
+                            "description": "Persistence configuration for Airflow Celery workers.",
+                            "type": "object",
+                            "additionalProperties": false,
+                            "properties": {
+                                "enabled": {
+                                    "description": "Enable persistent volumes.",
                                     "type": "boolean",
                                     "default": true
                                 },
-                                "name": {
-                                    "description": "The name of the ServiceAccount to use. If not set and create is true, a name is generated using the release name.",
+                                "persistentVolumeClaimRetentionPolicy": {
+                                    "$ref": "#/definitions/persistentVolumeClaimRetentionPolicy",
+                                    "description": "PersistentVolumeClaim retention policy to be used in the lifecycle of a StatefulSet."
+                                },
+                                "size": {
+                                    "description": "Volume size for Airflow Celery worker StatefulSet.",
+                                    "type": "string",
+                                    "default": "100Gi"
+                                },
+                                "storageClassName": {
+                                    "description": "If using a custom StorageClass, pass name ref to all StatefulSets here (templated).",
                                     "type": [
                                         "string",
                                         "null"
                                     ],
                                     "default": null
                                 },
+                                "fixPermissions": {
+                                    "description": "Execute init container to chown log directory. This is currently only needed in kind, due to usage of local-path provisioner.",
+                                    "type": "boolean",
+                                    "default": false
+                                },
                                 "annotations": {
-                                    "description": "Annotations to add to the Airflow Celery worker Kubernetes ServiceAccount.",
+                                    "description": "Annotations to add to Airflow Celery worker volumes.",
                                     "type": "object",
                                     "default": {},
                                     "additionalProperties": {
                                         "type": "string"
+                                    }
+                                },
+                                "securityContexts": {
+                                    "description": "Security context definition for the persistence. If not set, the values from global `securityContexts` will be used.",
+                                    "type": "object",
+                                    "x-docsSection": "Kubernetes",
+                                    "properties": {
+                                        "container": {
+                                            "description": "Container security context definition for the persistence.",
+                                            "type": "object",
+                                            "$ref": "#/definitions/io.k8s.api.core.v1.SecurityContext",
+                                            "default": {},
+                                            "x-docsSection": "Kubernetes",
+                                            "examples": [
+                                                {
+                                                    "allowPrivilegeEscalation": false,
+                                                    "capabilities": {
+                                                        "drop": [
+                                                            "ALL"
+                                                        ]
+                                                    }
+                                                }
+                                            ]
+                                        }
+                                    }
+                                }
+                            }
+                        },
+                        "kerberosInitContainer": {
+                            "description": "Kerberos init container for Airflow Celery workers.",
+                            "type": "object",
+                            "additionalProperties": false,
+                            "properties": {
+                                "enabled": {
+                                    "description": "Enable Kerberos init container.",
+                                    "type": "boolean",
+                                    "default": false
+                                },
+                                "resources": {
+                                    "description": "Resources on kerberos init container.",
+                                    "type": "object",
+                                    "default": {},
+                                    "examples": [
+                                        {
+                                            "limits": {
+                                                "cpu": "100m",
+                                                "memory": "128Mi"
+                                            },
+                                            "requests": {
+                                                "cpu": "100m",
+                                                "memory": "128Mi"
+                                            }
+                                        }
+                                    ],
+                                    "$ref": "#/definitions/io.k8s.api.core.v1.ResourceRequirements"
+                                },
+                                "containerLifecycleHooks": {
+                                    "description": "Container Lifecycle Hooks definition for the kerberos init container. If not set, the values from global `containerLifecycleHooks` will be used.",
+                                    "type": "object",
+                                    "$ref": "#/definitions/io.k8s.api.core.v1.Lifecycle",
+                                    "default": {},
+                                    "x-docsSection": "Kubernetes",
+                                    "examples": [
+                                        {
+                                            "postStart": {
+                                                "exec": {
+                                                    "command": [
+                                                        "/bin/sh",
+                                                        "-c",
+                                                        "echo postStart handler > /usr/share/message"
+                                                    ]
+                                                }
+                                            },
+                                            "preStop": {
+                                                "exec": {
+                                                    "command": [
+                                                        "/bin/sh",
+                                                        "-c",
+                                                        "echo preStop handler > /usr/share/message"
+                                                    ]
+                                                }
+                                            }
+                                        }
+                                    ]
+                                },
+                                "securityContexts": {
+                                    "description": "Security context definition for the kerberos init container. If not set, the values from global `securityContexts` will be used.",
+                                    "type": "object",
+                                    "x-docsSection": "Kubernetes",
+                                    "properties": {
+                                        "container": {
+                                            "description": "Container security context definition for the kerberos init container.",
+                                            "type": "object",
+                                            "$ref": "#/definitions/io.k8s.api.core.v1.SecurityContext",
+                                            "default": {},
+                                            "x-docsSection": "Kubernetes",
+                                            "examples": [
+                                                {
+                                                    "allowPrivilegeEscalation": false,
+                                                    "capabilities": {
+                                                        "drop": [
+                                                            "ALL"
+                                                        ]
+                                                    }
+                                                }
+                                            ]
+                                        }
                                     }
                                 }
                             }
@@ -2661,35 +3012,50 @@
                     "type": "object",
                     "x-docsSection": "Workers",
                     "properties": {
-                        "serviceAccount": {
-                            "description": "Create ServiceAccount.",
+                        "command": {
+                            "description": "Command to use in pod-template-file (templated).",
+                            "type": [
+                                "array",
+                                "null"
+                            ],
+                            "items": {
+                                "type": "string"
+                            },
+                            "default": null
+                        },
+                        "securityContexts": {
+                            "description": "Security context definition for the pod-template-file. If not set, the values from `workers.securityContexts` section will be used.",
                             "type": "object",
+                            "x-docsSection": "Kubernetes",
                             "properties": {
-                                "automountServiceAccountToken": {
-                                    "description": "Specifies if ServiceAccount's API credentials should be mounted onto Pods.",
-                                    "type": "boolean",
-                                    "default": true
-                                },
-                                "create": {
-                                    "description": "Specifies whether a ServiceAccount should be created.",
-                                    "type": "boolean",
-                                    "default": true
-                                },
-                                "name": {
-                                    "description": "The name of the ServiceAccount to use. If not set and create is true, a name is generated using the release name.",
-                                    "type": [
-                                        "string",
-                                        "null"
-                                    ],
-                                    "default": null
-                                },
-                                "annotations": {
-                                    "description": "Annotations to add to the worker Kubernetes ServiceAccount.",
+                                "pod": {
+                                    "description": "Pod security context definition.",
                                     "type": "object",
+                                    "$ref": "#/definitions/io.k8s.api.core.v1.PodSecurityContext",
                                     "default": {},
-                                    "additionalProperties": {
-                                        "type": "string"
-                                    }
+                                    "examples": [
+                                        {
+                                            "runAsUser": 50000,
+                                            "runAsGroup": 0,
+                                            "fsGroup": 0
+                                        }
+                                    ]
+                                },
+                                "container": {
+                                    "description": "Container security context definition.",
+                                    "type": "object",
+                                    "$ref": "#/definitions/io.k8s.api.core.v1.SecurityContext",
+                                    "default": {},
+                                    "examples": [
+                                        {
+                                            "allowPrivilegeEscalation": false,
+                                            "capabilities": {
+                                                "drop": [
+                                                    "ALL"
+                                                ]
+                                            }
+                                        }
+                                    ]
                                 }
                             }
                         }
@@ -4069,6 +4435,41 @@
                             "default": {},
                             "additionalProperties": {
                                 "type": "string"
+                            }
+                        }
+                    }
+                },
+                "podDisruptionBudget": {
+                    "description": "Dag processor pod disruption budget.",
+                    "type": "object",
+                    "additionalProperties": true,
+                    "properties": {
+                        "enabled": {
+                            "description": "Enable pod disruption budget.",
+                            "type": "boolean",
+                            "default": false
+                        },
+                        "config": {
+                            "description": "Disruption budget configuration.",
+                            "type": "object",
+                            "additionalProperties": true,
+                            "properties": {
+                                "maxUnavailable": {
+                                    "description": "Max unavailable pods for dag processor.",
+                                    "type": [
+                                        "integer",
+                                        "string"
+                                    ],
+                                    "default": 1
+                                },
+                                "minAvailable": {
+                                    "description": "Min available pods for dag processor.",
+                                    "type": [
+                                        "integer",
+                                        "string"
+                                    ],
+                                    "default": 1
+                                }
                             }
                         }
                     }

@@ -19,7 +19,7 @@
 import { Box, Flex, HStack, Spacer, VStack } from "@chakra-ui/react";
 import type { ColumnDef } from "@tanstack/react-table";
 import type { TFunction } from "i18next";
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useSearchParams } from "react-router-dom";
 
@@ -53,6 +53,7 @@ export type ConnectionBody = {
   password: string;
   port: string;
   schema: string;
+  team_name: string;
 };
 
 const getColumns = ({
@@ -127,10 +128,8 @@ export const Connections = () => {
   const { t: translate } = useTranslation(["admin", "common"]);
   const { setTableURLState, tableURLState } = useTableURLState();
   const [searchParams, setSearchParams] = useSearchParams();
-  const { NAME_PATTERN: NAME_PATTERN_PARAM }: SearchParamsKeysType = SearchParamsKeys;
-  const [connectionIdPattern, setConnectionIdPattern] = useState(
-    searchParams.get(NAME_PATTERN_PARAM) ?? undefined,
-  );
+  const { NAME_PATTERN, OFFSET }: SearchParamsKeysType = SearchParamsKeys;
+  const [connectionIdPattern, setConnectionIdPattern] = useState(searchParams.get(NAME_PATTERN) ?? undefined);
 
   useConnectionTypeMeta(); // Pre-fetch connection type metadata
   const { pagination, sorting } = tableURLState;
@@ -149,28 +148,25 @@ export const Connections = () => {
       getKey: (connection) => connection.connection_id,
     });
 
-  const columns = useMemo(
-    () =>
-      getColumns({
-        allRowsSelected,
-        onRowSelect: handleRowSelect,
-        onSelectAll: handleSelectAll,
-        selectedRows,
-        translate,
-      }),
-    [allRowsSelected, handleRowSelect, handleSelectAll, selectedRows, translate],
-  );
+  const columns = getColumns({
+    allRowsSelected,
+    onRowSelect: handleRowSelect,
+    onSelectAll: handleSelectAll,
+    selectedRows,
+    translate,
+  });
 
   const handleSearchChange = (value: string) => {
     if (value) {
-      searchParams.set(NAME_PATTERN_PARAM, value);
+      searchParams.set(NAME_PATTERN, value);
     } else {
-      searchParams.delete(NAME_PATTERN_PARAM);
+      searchParams.delete(NAME_PATTERN);
     }
     setTableURLState({
       pagination: { ...pagination, pageIndex: 0 },
       sorting,
     });
+    searchParams.delete(OFFSET);
     setSearchParams(searchParams);
     setConnectionIdPattern(value);
   };
@@ -197,7 +193,7 @@ export const Connections = () => {
           initialState={tableURLState}
           isFetching={isFetching}
           isLoading={isLoading}
-          modelName={translate("common:admin.Connections")}
+          modelName="admin:connections.connection"
           noRowsMessage={<NothingFoundInfo />}
           onStateChange={setTableURLState}
           total={data?.total_entries ?? 0}

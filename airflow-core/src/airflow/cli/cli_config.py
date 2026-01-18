@@ -520,6 +520,18 @@ ARG_DB_BATCH_SIZE = Arg(
         "Lower values reduce long-running locks but increase the number of batches."
     ),
 )
+ARG_DAG_IDS = Arg(
+    ("--dag-ids",),
+    default=None,
+    help="Only cleanup data related to the given dag_id",
+    type=string_list_type,
+)
+ARG_EXCLUDE_DAG_IDS = Arg(
+    ("--exclude-dag-ids",),
+    default=None,
+    help="Avoid cleaning up data related to the given dag_ids",
+    type=string_list_type,
+)
 
 # pool
 ARG_POOL_NAME = Arg(("pool",), metavar="NAME", help="Pool name")
@@ -586,7 +598,7 @@ ARG_MAP_INDEX = Arg(("--map-index",), type=int, default=-1, help="Mapped task in
 # database
 ARG_MIGRATION_TIMEOUT = Arg(
     ("-t", "--migration-wait-timeout"),
-    help="timeout to wait for db to migrate ",
+    help="timeout to wait for db to migrate",
     type=int,
     default=60,
 )
@@ -1449,8 +1461,8 @@ TEAMS_COMMANDS = (
 DB_COMMANDS = (
     ActionCommand(
         name="check-migrations",
-        help="Check if migration have finished",
-        description="Check if migration have finished (or continually check until timeout)",
+        help="Check if migrations have finished",
+        description="Check if migrations have finished (or continually check until timeout)",
         func=lazy_load_command("airflow.cli.commands.db_command.check_migrations"),
         args=(ARG_MIGRATION_TIMEOUT, ARG_VERBOSE),
     ),
@@ -1527,6 +1539,8 @@ DB_COMMANDS = (
             ARG_YES,
             ARG_DB_SKIP_ARCHIVE,
             ARG_DB_BATCH_SIZE,
+            ARG_DAG_IDS,
+            ARG_EXCLUDE_DAG_IDS,
         ),
     ),
     ActionCommand(

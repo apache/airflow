@@ -31,11 +31,11 @@ from urllib.parse import urlparse
 import pendulum
 from opensearchpy import OpenSearch
 from opensearchpy.exceptions import NotFoundError
+from sqlalchemy import select
 
-from airflow.configuration import conf
 from airflow.models import DagRun
 from airflow.providers.common.compat.module_loading import import_string
-from airflow.providers.common.compat.sdk import AirflowException
+from airflow.providers.common.compat.sdk import AirflowException, conf
 from airflow.providers.opensearch.log.os_json_formatter import OpensearchJSONFormatter
 from airflow.providers.opensearch.log.os_response import Hit, OpensearchResponse
 from airflow.providers.opensearch.version_compat import AIRFLOW_V_3_0_PLUS
@@ -86,15 +86,13 @@ def _ensure_ti(ti: TaskInstanceKey | TaskInstance, session) -> TaskInstance:
 
     if not isinstance(ti, TaskInstanceKey):
         return ti
-    val = (
-        session.query(TaskInstance)
-        .filter(
+    val = session.scalar(
+        select(TaskInstance).where(
             TaskInstance.task_id == ti.task_id,
             TaskInstance.dag_id == ti.dag_id,
             TaskInstance.run_id == ti.run_id,
             TaskInstance.map_index == ti.map_index,
         )
-        .one_or_none()
     )
     if isinstance(val, TaskInstance):
         val.try_number = ti.try_number
@@ -105,7 +103,6 @@ def _ensure_ti(ti: TaskInstanceKey | TaskInstance, session) -> TaskInstance:
 def get_os_kwargs_from_config() -> dict[str, Any]:
     open_search_config = conf.getsection("opensearch_configs")
     kwargs_dict = {key: value for key, value in open_search_config.items()} if open_search_config else {}
-
     return kwargs_dict
 
 

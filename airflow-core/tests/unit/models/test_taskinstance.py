@@ -34,6 +34,7 @@ from sqlalchemy import delete, func, select
 from sqlalchemy.exc import IntegrityError
 
 from airflow import settings
+from airflow._shared.observability.metrics.stats import Stats
 from airflow._shared.timezones import timezone
 from airflow.exceptions import (
     AirflowException,
@@ -49,7 +50,6 @@ from airflow.models.asset import (
 )
 from airflow.models.dag_version import DagVersion
 from airflow.models.dagrun import DagRun
-from airflow.models.hitl_history import HITLDetailHistory
 from airflow.models.pool import Pool
 from airflow.models.renderedtifields import RenderedTaskInstanceFields
 from airflow.models.serialized_dag import SerializedDagModel
@@ -63,17 +63,12 @@ from airflow.models.taskinstancehistory import TaskInstanceHistory
 from airflow.models.taskmap import TaskMap
 from airflow.models.taskreschedule import TaskReschedule
 from airflow.models.xcom import XComModel
-from airflow.observability.stats import Stats
 from airflow.providers.standard.operators.bash import BashOperator
 from airflow.providers.standard.operators.empty import EmptyOperator
-from airflow.providers.standard.operators.hitl import (
-    HITLBranchOperator,
-)
 from airflow.providers.standard.operators.python import PythonOperator
 from airflow.providers.standard.sensors.python import PythonSensor
-from airflow.sdk import DAG, BaseOperator, BaseSensorOperator, Metadata, task, task_group
+from airflow.sdk import DAG, Asset, AssetAlias, BaseOperator, BaseSensorOperator, Metadata, task, task_group
 from airflow.sdk.api.datamodels._generated import AssetEventResponse, AssetResponse
-from airflow.sdk.definitions.asset import Asset, AssetAlias
 from airflow.sdk.definitions.param import process_params
 from airflow.sdk.definitions.taskgroup import TaskGroup
 from airflow.sdk.execution_time.comms import AssetEventsResult
@@ -81,7 +76,7 @@ from airflow.serialization.definitions.assets import SerializedAsset
 from airflow.serialization.definitions.baseoperator import SerializedBaseOperator
 from airflow.serialization.definitions.dag import SerializedDAG
 from airflow.serialization.encoders import ensure_serialized_asset
-from airflow.serialization.serialized_objects import OperatorSerialization
+from airflow.serialization.serialized_objects import OperatorSerialization, create_scheduler_operator
 from airflow.ti_deps.dep_context import DepContext
 from airflow.ti_deps.dependencies_deps import REQUEUEABLE_DEPS, RUNNING_DEPS
 from airflow.ti_deps.dependencies_states import RUNNABLE_STATES
@@ -444,6 +439,7 @@ class TestTaskInstance:
             start_date=timezone.datetime(2016, 2, 1, 0, 0, 0),
             dag=dag_maker.dag,
         )
+        dag_maker.sync_dag_to_db()
         ti2 = _create_task_instance(task=task2, run_id=ti.run_id, dag_version_id=ti.dag_version_id)
         session.add(ti2)
         session.flush()
@@ -552,18 +548,19 @@ class TestTaskInstance:
                 retry_delay=datetime.timedelta(seconds=0),
             )
 
-        def run_with_error(ti):
+        def run_with_error():
             with contextlib.suppress(AirflowException):
-                dag_maker.run_ti(ti.task_id, ti.dag_run)
-            ti.refresh_from_db(session)
+                dag_maker.run_ti(ti.task_id, dag_run)
+            return session.get(TaskInstance, ti.id)
 
-        ti = dag_maker.create_dagrun(logical_date=timezone.utcnow()).task_instances[0]
+        dag_run = dag_maker.create_dagrun(logical_date=timezone.utcnow())
+        ti = dag_run.task_instances[0]
         assert ti.try_number == 0
         session.get(TaskInstance, ti.id).try_number += 1
         session.commit()
 
         # first run -- up for retry
-        run_with_error(ti)
+        ti = run_with_error()
         assert ti.state == State.UP_FOR_RETRY
         assert ti.try_number == 1
 
@@ -571,7 +568,7 @@ class TestTaskInstance:
         session.commit()
 
         # second run -- fail
-        run_with_error(ti)
+        ti = run_with_error()
         assert ti.state == State.FAILED
         assert ti.try_number == 2
 
@@ -579,14 +576,13 @@ class TestTaskInstance:
         # clearing it first
         dag.clear()
 
-        ti.refresh_from_db(session)
+        ti.refresh_from_db()
         ti.try_number += 1
         session.add(ti)
         session.commit()
 
         # third run -- up for retry
-        run_with_error(ti)
-        ti.refresh_from_db()
+        ti = run_with_error()
         assert ti.state == State.UP_FOR_RETRY
         assert ti.try_number == 3
 
@@ -594,8 +590,7 @@ class TestTaskInstance:
         session.commit()
 
         # fourth run -- fail
-        run_with_error(ti)
-        ti.refresh_from_db()
+        ti = run_with_error()
         assert ti.state == State.FAILED
         assert ti.try_number == 4
         assert RenderedTaskInstanceFields.get_templated_fields(ti) == expected_rendered_ti_fields
@@ -2094,9 +2089,7 @@ class TestTaskInstance:
         Test that when a task that produces asset has ran, that changing the consumer
         dag asset will not cause primary key blank-out
         """
-        from airflow.sdk.definitions.asset import Asset
-
-        with dag_maker(schedule=None, serialized=True) as dag1:
+        with dag_maker(schedule=None, serialized=False) as dag1:
 
             @task(outlets=Asset("test/1"))
             def test_task1():
@@ -2107,7 +2100,7 @@ class TestTaskInstance:
         dr1 = dag_maker.create_dagrun()
         test_task1 = dag1.get_task("test_task1")
 
-        with dag_maker(dag_id="testdag", schedule=[Asset("test/1")], serialized=True):
+        with dag_maker(dag_id="testdag", schedule=[Asset("test/1")]):
 
             @task
             def test_task2():
@@ -2119,7 +2112,7 @@ class TestTaskInstance:
         run_task_instance(ti, dag1.get_task(ti.task_id))
 
         # Change the asset.
-        with dag_maker(dag_id="testdag", schedule=[Asset("test2/1")], serialized=True):
+        with dag_maker(dag_id="testdag", schedule=[Asset("test2/1")]):
 
             @task
             def test_task2():
@@ -2286,7 +2279,7 @@ class TestTaskInstance:
         Stats_incr.assert_any_call("ti_failures", tags=expected_stats_tags)
         Stats_incr.assert_any_call("operator_failures_EmptyOperator", tags=expected_stats_tags)
         Stats_incr.assert_any_call(
-            "operator_failures", tags={**expected_stats_tags, "operator": "EmptyOperator"}
+            "operator_failures", tags={**expected_stats_tags, "operator_name": "EmptyOperator"}
         )
 
     def test_handle_failure_task_undefined(self, create_task_instance):
@@ -2552,40 +2545,6 @@ class TestTaskInstance:
         # the new try_id should be different from what's recorded in tih
         assert str(tih[0].task_instance_id) == try_id
 
-    def test_task_instance_history_with_hitl_history_is_created_when_ti_goes_for_retry(
-        self, dag_maker: DagMaker, session: Session
-    ):
-        with dag_maker(serialized=True):
-            task = HITLBranchOperator(
-                task_id="hitl_test",
-                subject="This is subject",
-                body="This is body",
-                options=["1", "2", "3", "4", "5"],
-                params={"input": 1},
-                retries=1,
-                retry_delay=datetime.timedelta(seconds=2),
-                notifiers=[None],
-            )
-
-        dr = dag_maker.create_dagrun()
-        ti = dr.task_instances[0]
-        try_id = ti.id
-        with pytest.raises(TypeError):
-            run_task_instance(ti, task)
-        ti = session.scalar(select(TaskInstance))
-        assert ti is not None
-        # the ti.id should be different from the previous one
-        assert ti.id != try_id
-        assert ti.state == State.UP_FOR_RETRY
-        assert session.scalar(select(func.count()).select_from(TaskInstance)) == 1
-        tih = session.scalars(select(TaskInstanceHistory)).all()
-        assert len(tih) == 1
-        # the new try_id should be different from what's recorded in tih
-        assert str(tih[0].task_instance_id) == try_id
-        hitl_histories = session.scalars(select(HITLDetailHistory)).all()
-        assert len(hitl_histories) == 1
-        assert str(hitl_histories[0].task_instance.id) == try_id
-
 
 @pytest.mark.parametrize("pool_override", [None, "test_pool2"])
 @pytest.mark.parametrize("queue_by_policy", [None, "forced_queue"])
@@ -2599,7 +2558,7 @@ def test_refresh_from_task(pool_override, queue_by_policy, monkeypatch):
 
         monkeypatch.setattr("airflow.models.taskinstance.task_instance_mutation_hook", mock_policy)
 
-    task = EmptyOperator(
+    sdk_task = EmptyOperator(
         task_id="empty",
         queue=default_queue,
         pool="test_pool1",
@@ -2609,27 +2568,28 @@ def test_refresh_from_task(pool_override, queue_by_policy, monkeypatch):
         retries=30,
         executor_config={"KubernetesExecutor": {"image": "myCustomDockerImage"}},
     )
-    ti = TI(task, run_id=None, dag_version_id=mock.MagicMock())
-    ti.refresh_from_task(task, pool_override=pool_override)
+    ser_task = create_scheduler_operator(sdk_task)
+    ti = TI(ser_task, run_id=None, dag_version_id=mock.MagicMock())
+    ti.refresh_from_task(ser_task, pool_override=pool_override)
 
     assert ti.queue == expected_queue
 
     if pool_override:
         assert ti.pool == pool_override
     else:
-        assert ti.pool == task.pool
+        assert ti.pool == sdk_task.pool
 
-    assert ti.pool_slots == task.pool_slots
-    assert ti.priority_weight == task.weight_rule.get_weight(ti)
-    assert ti.run_as_user == task.run_as_user
-    assert ti.max_tries == task.retries
-    assert ti.executor_config == task.executor_config
+    assert ti.pool_slots == sdk_task.pool_slots
+    assert ti.priority_weight == ser_task.weight_rule.get_weight(ti)
+    assert ti.run_as_user == sdk_task.run_as_user
+    assert ti.max_tries == sdk_task.retries
+    assert ti.executor_config == sdk_task.executor_config
     assert ti.operator == EmptyOperator.__name__
 
     # Test that refresh_from_task does not reset ti.max_tries
-    expected_max_tries = task.retries + 10
+    expected_max_tries = sdk_task.retries + 10
     ti.max_tries = expected_max_tries
-    ti.refresh_from_task(task)
+    ti.refresh_from_task(ser_task)
     assert ti.max_tries == expected_max_tries
 
 
@@ -2644,7 +2604,7 @@ class TestTaskInstanceRecordTaskMapXComPush:
     @pytest.mark.parametrize("xcom_value", [[1, 2, 3], {"a": 1, "b": 2}, "abc"])
     def test_not_recorded_if_leaf(self, dag_maker, xcom_value):
         """Return value should not be recorded if there are no downstreams."""
-        with dag_maker(dag_id="test_not_recorded_for_unused") as dag:
+        with dag_maker(dag_id="test_not_recorded_for_unused", serialized=False) as dag:
 
             @dag.task()
             def push_something():
@@ -2660,7 +2620,7 @@ class TestTaskInstanceRecordTaskMapXComPush:
     @pytest.mark.parametrize("xcom_value", [[1, 2, 3], {"a": 1, "b": 2}, "abc"])
     def test_not_recorded_if_not_used(self, dag_maker, xcom_value):
         """Return value should not be recorded if no downstreams are mapped."""
-        with dag_maker(dag_id="test_not_recorded_for_unused") as dag:
+        with dag_maker(dag_id="test_not_recorded_for_unused", serialized=False) as dag:
 
             @dag.task()
             def push_something():

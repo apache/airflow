@@ -569,6 +569,24 @@ class TestBigQueryUpdateTableSchemaOperator:
             "documentation": DocumentationDatasetFacet(description="Table description."),
         }
 
+    def test_get_openlineage_facets_on_complete_when_table_is_none(self):
+        operator = BigQueryUpdateTableSchemaOperator(
+            schema_fields_updates=[],
+            include_policy_tags=False,
+            task_id=TASK_ID,
+            dataset_id=TEST_DATASET,
+            table_id=TEST_TABLE_ID,
+            project_id=TEST_GCP_PROJECT_ID,
+        )
+        # Simulate update_table_schema returning None
+        operator._table = None
+        result = operator.get_openlineage_facets_on_complete(None)
+        assert result is not None
+        assert not result.run_facets
+        assert not result.job_facets
+        assert not result.inputs
+        assert not result.outputs
+
 
 class TestBigQueryUpdateDatasetOperator:
     @mock.patch("airflow.providers.google.cloud.operators.bigquery.BigQueryHook")
@@ -1155,11 +1173,8 @@ class TestBigQueryInsertJobOperator:
         with pytest.raises(AirflowException):
             op.execute(context=MagicMock())
 
-    @mock.patch(
-        "airflow.providers.google.cloud.operators.bigquery.BigQueryInsertJobOperator._handle_job_error"
-    )
     @mock.patch("airflow.providers.google.cloud.operators.bigquery.BigQueryHook")
-    def test_execute_reattach(self, mock_hook, _handle_job_error):
+    def test_execute_reattach(self, mock_hook):
         job_id = "123456"
         hash_ = "hash"
         real_job_id = f"{job_id}_{hash_}"
@@ -1178,6 +1193,8 @@ class TestBigQueryInsertJobOperator:
             state="RUNNING",
             done=lambda: False,
         )
+        # Simulate job.result() completing - job transitions to DONE state
+        job.result.side_effect = lambda **_: setattr(job, "state", "DONE")
         mock_hook.return_value.get_job.return_value = job
         mock_hook.return_value.generate_job_id.return_value = real_job_id
 
@@ -1532,11 +1549,8 @@ class TestBigQueryInsertJobOperator:
         assert operator.job_id == job_id
 
     @pytest.mark.db_test
-    @mock.patch(
-        "airflow.providers.google.cloud.operators.bigquery.BigQueryInsertJobOperator._handle_job_error"
-    )
     @mock.patch("airflow.providers.google.cloud.operators.bigquery.BigQueryHook")
-    def test_bigquery_insert_job_operator_with_job_id_generate(self, mock_hook, _handle_job_error):
+    def test_bigquery_insert_job_operator_with_job_id_generate(self, mock_hook):
         job_id = "123456"
         hash_ = "hash"
         real_job_id = f"{job_id}_{hash_}"

@@ -60,6 +60,8 @@
   - [Update default Airflow version in the helm chart](#update-default-airflow-version-in-the-helm-chart)
   - [Update airflow/config_templates/config.yml file](#update-airflowconfig_templatesconfigyml-file)
   - [API clients](#api-clients)
+- [Additional processes](#additional-processes)
+  - [Fixing released documentation](#fixing-released-documentation)
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
 
@@ -475,7 +477,7 @@ uv tool install -e ./dev/breeze
   Preview with:
 
     ```shell script
-    towncrier build --draft --version=${VERSION} --date=2021-12-15 --dir . --config newsfragments/config.toml
+    towncrier build --draft --version=${VERSION} --date=2021-12-15 --dir airflow-core --config airflow-core/newsfragments/config.toml
     ```
 
 
@@ -529,6 +531,7 @@ uv tool install -e ./dev/breeze
        --version ${VERSION_RC} \
        --previous-version ${PREVIOUS_VERSION} \
        --task-sdk-version ${TASK_SDK_VERSION_RC} \
+       --sync-branch ${SYNC_BRANCH} \
        --remote-name upstream \
        --dry-run
    ```
@@ -1153,7 +1156,6 @@ export AIRFLOW_REPO_ROOT=$(pwd)
 # start the release process by running the below command
 breeze release-management start-release \
     --version ${VERSION} \
-    --previous-release ${PREVIOUS_RELEASE} \
     --task-sdk-version ${TASK_SDK_VERSION}
 ```
 
@@ -1190,11 +1192,11 @@ the older branches, you should set the "skip" field to true.
 ```shell script
 for PYTHON in 3.10 3.11 3.12 3.13
 do
-    docker pull apache/airflow:${VERSION_RC}-python${PYTHON}
-    breeze prod-image verify --image-name apache/airflow:${VERSION_RC}-python${PYTHON}
+    docker pull apache/airflow:${VERSION}-python${PYTHON}
+    breeze prod-image verify --image-name apache/airflow:${VERSION}-python${PYTHON}
 done
-docker pull apache/airflow:${VERSION_RC}
-breeze prod-image verify --image-name apache/airflow:${VERSION_RC}
+docker pull apache/airflow:${VERSION}
+breeze prod-image verify --image-name apache/airflow:${VERSION}
 ```
 
 ## Publish final documentation
@@ -1365,17 +1367,6 @@ EOF
 ------------------------------------------------------------------------------------------------------------
 Announcement is done from official Apache-Airflow accounts.
 
-* LinkedIn: https://www.linkedin.com/company/apache-airflow/
-* Fosstodon: https://fosstodon.org/@airflow
-* Bluesky: https://bsky.app/profile/apache-airflow.bsky.social
-
-Make sure attach the release image generated with Figma to the post.
-If you don't have access to the account ask a PMC member to post.
-
-------------------------------------------------------------------------------------------------------------
-
-Tweet and post on Linkedin about the release:
-
 ```shell
 cat <<EOF
 We've just released Apache Airflow $VERSION 🎉
@@ -1388,6 +1379,17 @@ We've just released Apache Airflow $VERSION 🎉
 Thanks to all the contributors who made this possible.
 EOF
 ```
+
+Post on social media about the release:
+
+* LinkedIn: https://www.linkedin.com/company/apache-airflow/
+* Fosstodon: https://fosstodon.org/@airflow
+* Bluesky: https://bsky.app/profile/apache-airflow.bsky.social
+
+Make sure to attach the release image generated with Figma to the post.
+If you don't have access to the account ask a PMC member to post.
+
+------------------------------------------------------------------------------------------------------------
 
 ## Update `main` with the latest release details
 
@@ -1458,3 +1460,35 @@ According to the policy above, if we have to release clients:
 
     - [Python client](https://github.com/apache/airflow/blob/main/dev/README_RELEASE_PYTHON_CLIENT.md)
     - [Go client](https://github.com/apache/airflow-client-go/blob/main/dev/README_RELEASE_CLIENT.md)
+
+# Additional processes
+
+Those processes are related to the release of Airflow but should be run in exceptional situations.
+
+## Fixing released documentation
+
+Sometimes we want to rebuild the documentation with some fixes that were merged in main or `v3-X-stable`
+branch, for example when there are html layout changes or typo fixes, or formatting issue fixes.
+
+In this case the process is as follows:
+
+* When you want to re-publish `3.X.Y` docs, create (or pull if already created) `3.X.Y-docs` branch
+* Cherry-pick changes you want to add and push to the main `apache/airflow` repo
+* Run the publishing workflow.
+
+In case you are releasing latest released version of Airflow (which should be most of the cases), run this:
+
+```bash
+breeze workflow-run publish-docs --site-env live --ref 3.X.Y-docs \
+   --skip-tag-validation --airflow-version 3.X.Y \
+   apache-airflow
+```
+
+In case you are releasing an older version of Airflow, you should skip writing to the stable folder
+
+```bash
+breeze workflow-run publish-docs --site-env live --ref 3.X.Y-docs \
+   --skip-tag-validation --airflow-version 3.X.Y \
+   --skip-write-to-stable-folder \
+   apache-airflow
+```

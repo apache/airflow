@@ -25,6 +25,6 @@ Celery Executor Commands
 
 
 .. argparse::
-   :module: airflow.providers.celery.executors.celery_executor
-   :func: _get_parser
+   :module: airflow.providers.celery.cli.definition
+   :func: get_parser
    :prog: airflow

@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { useState, useCallback, useMemo } from "react";
+import { useState } from "react";
 
 type UseRowSelectionProps<T> = {
   data?: Array<T>;
@@ -33,7 +33,7 @@ export type GetColumnsParams = {
 export const useRowSelection = <T>({ data = [], getKey }: UseRowSelectionProps<T>) => {
   const [selectedRows, setSelectedRows] = useState<Map<string, boolean>>(new Map());
 
-  const handleRowSelect = useCallback((key: string, isChecked: boolean) => {
+  const handleRowSelect = (key: string, isChecked: boolean) => {
     setSelectedRows((prev) => {
       const isAlreadySelected = prev.has(key);
 
@@ -49,33 +49,27 @@ export const useRowSelection = <T>({ data = [], getKey }: UseRowSelectionProps<T
 
       return prev;
     });
-  }, []);
+  };
 
-  const handleSelectAll = useCallback(
-    (isChecked: boolean) => {
-      setSelectedRows((prev) => {
-        const newMap = new Map(prev);
+  const handleSelectAll = (isChecked: boolean) => {
+    setSelectedRows((prev) => {
+      const newMap = new Map(prev);
 
-        if (isChecked) {
-          data.forEach((item) => newMap.set(getKey(item), true));
-        } else {
-          data.forEach((item) => newMap.delete(getKey(item)));
-        }
+      if (isChecked) {
+        data.forEach((item) => newMap.set(getKey(item), true));
+      } else {
+        data.forEach((item) => newMap.delete(getKey(item)));
+      }
 
-        return newMap;
-      });
-    },
-    [data, getKey],
-  );
+      return newMap;
+    });
+  };
 
-  const allRowsSelected = useMemo(
-    () => data.length > 0 && data.every((item) => selectedRows.has(getKey(item))),
-    [data, selectedRows, getKey],
-  );
+  const allRowsSelected = data.length > 0 && data.every((item) => selectedRows.has(getKey(item)));
 
-  const clearSelections = useCallback(() => {
+  const clearSelections = () => {
     setSelectedRows(new Map());
-  }, []);
+  };
 
   return {
     allRowsSelected,

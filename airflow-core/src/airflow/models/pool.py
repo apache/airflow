@@ -17,6 +17,8 @@
 # under the License.
 from __future__ import annotations
 
+import logging
+import re
 from collections.abc import Sequence
 from typing import TYPE_CHECKING, Any, TypedDict
 
@@ -34,6 +36,37 @@ from airflow.utils.state import TaskInstanceState
 if TYPE_CHECKING:
     from sqlalchemy.orm.session import Session
     from sqlalchemy.sql import Select
+
+logger = logging.getLogger(__name__)
+
+
+def normalize_pool_name_for_stats(name: str) -> str:
+    """
+    Normalize pool name for stats reporting by replacing invalid characters.
+
+    Stats names must only contain ASCII alphabets, numbers, underscores, dots, and dashes.
+    Invalid characters are replaced with underscores.
+
+    :param name: The pool name to normalize
+    :return: Normalized pool name safe for stats reporting
+    """
+    # Check if normalization is needed
+    if re.match(r"^[a-zA-Z0-9_.-]+$", name):
+        return name
+
+    # Replace invalid characters with underscores
+    normalized = re.sub(r"[^a-zA-Z0-9_.-]", "_", name)
+
+    # Log warning
+    logger.warning(
+        "Pool name '%s' contains invalid characters for stats reporting. "
+        "Reporting stats with normalized name '%s'. "
+        "Consider renaming the pool to avoid this warning.",
+        name,
+        normalized,
+    )
+
+    return normalized
 
 
 class PoolStats(TypedDict):

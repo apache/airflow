@@ -17,12 +17,16 @@
  under the License.
  -->
 
-# v3.1.4
+# v3.1.6
 
 ## Bug Fixes:
 
  - Update refresh token flow ([#55506](https://github.com/apache/airflow/pull/55506))
- - Patch pools should have an optional description ([#58066](https://github.com/apache/airflow/pull/58066))
+ - Patch pools should have an optional description ([#58066](https://github.com/apache/airflow/pull/58066))(#59728)
+ - Add task group ID filtering support to task instance query [#59511](https://github.com/apache/airflow/pull/59511)
+ - Fix backfill run_on_latest_version defaulting to False instead of True [#59328](https://github.com/apache/airflow/pull/59328)
+ - Update refresh token flow [#58649](https://github.com/apache/airflow/pull/58649)
+ - Patch pools should have an optional description [#58169](https://github.com/apache/airflow/pull/58169)
 
 # v3.1.3
 

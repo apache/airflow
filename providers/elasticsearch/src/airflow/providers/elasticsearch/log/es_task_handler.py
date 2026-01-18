@@ -37,11 +37,11 @@ import elasticsearch
 import pendulum
 from elasticsearch import helpers
 from elasticsearch.exceptions import NotFoundError
+from sqlalchemy import select
 
-from airflow.configuration import conf
 from airflow.models.dagrun import DagRun
 from airflow.providers.common.compat.module_loading import import_string
-from airflow.providers.common.compat.sdk import AirflowException, timezone
+from airflow.providers.common.compat.sdk import AirflowException, conf, timezone
 from airflow.providers.elasticsearch.log.es_json_formatter import ElasticsearchJSONFormatter
 from airflow.providers.elasticsearch.log.es_response import ElasticSearchResponse, Hit
 from airflow.providers.elasticsearch.version_compat import AIRFLOW_V_3_0_PLUS
@@ -99,15 +99,13 @@ def _ensure_ti(ti: TaskInstanceKey | TaskInstance, session) -> TaskInstance:
 
     if not isinstance(ti, TaskInstanceKey):
         return ti
-    val = (
-        session.query(TaskInstance)
-        .filter(
+    val = session.scalar(
+        select(TaskInstance).where(
             TaskInstance.task_id == ti.task_id,
             TaskInstance.dag_id == ti.dag_id,
             TaskInstance.run_id == ti.run_id,
             TaskInstance.map_index == ti.map_index,
         )
-        .one_or_none()
     )
     if isinstance(val, TaskInstance):
         val.try_number = ti.try_number
@@ -158,7 +156,7 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
         offset_field: str = "offset",
         host: str = "http://localhost:9200",
         frontend: str = "localhost:5601",
-        index_patterns: str = conf.get("elasticsearch", "index_patterns"),
+        index_patterns: str = conf.get("elasticsearch", "index_patterns", fallback="_all"),
         index_patterns_callable: str = conf.get("elasticsearch", "index_patterns_callable", fallback=""),
         es_kwargs: dict | None | Literal["default_es_kwargs"] = "default_es_kwargs",
         max_bytes: int = 0,

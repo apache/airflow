@@ -25,7 +25,7 @@ build-backend = "flit_core.buildapi"
 
 [project]
 name = "apache-airflow-providers-papermill"
-version = "3.12.0"
+version = "3.12.1"
 description = "Provider package apache-airflow-providers-papermill for Apache Airflow"
 readme = "README.rst"
 license = "Apache-2.0"
@@ -68,13 +68,6 @@ dependencies = [
     "nbconvert>=7.16.1",
 ]
 
-# The optional dependencies should be modified in place in the generated file
-# Any change in the dependencies is preserved when the file is regenerated
-[project.optional-dependencies]
-"common.compat" = [
-    "apache-airflow-providers-common-compat"
-]
-
 [dependency-groups]
 dev = [
     "apache-airflow",
@@ -110,8 +103,8 @@ apache-airflow-providers-common-sql = {workspace = true}
 apache-airflow-providers-standard = {workspace = true}
 
 [project.urls]
-"Documentation" = "https://airflow.apache.org/docs/apache-airflow-providers-papermill/3.12.0"
-"Changelog" = "https://airflow.apache.org/docs/apache-airflow-providers-papermill/3.12.0/changelog.html"
+"Documentation" = "https://airflow.apache.org/docs/apache-airflow-providers-papermill/3.12.1"
+"Changelog" = "https://airflow.apache.org/docs/apache-airflow-providers-papermill/3.12.1/changelog.html"
 "Bug Tracker" = "https://github.com/apache/airflow/issues"
 "Source Code" = "https://github.com/apache/airflow"
 "Slack Chat" = "https://s.apache.org/airflow-slack"

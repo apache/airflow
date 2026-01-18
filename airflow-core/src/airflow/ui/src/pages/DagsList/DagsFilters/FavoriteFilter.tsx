@@ -16,43 +16,52 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { createListCollection, type SelectValueChangeDetails } from "@chakra-ui/react";
+import { Icon } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
+import { FiStar } from "react-icons/fi";
 
-import { Select } from "src/components/ui";
+import { ButtonGroupToggle } from "src/components/ui/ButtonGroupToggle";
+
+type FavoriteValue = "all" | "false" | "true";
 
 type Props = {
-  readonly onFavoriteChange: (details: SelectValueChangeDetails<string>) => void;
-  readonly showFavorites: string | null;
+  readonly onChange: (value: FavoriteValue) => void;
+  readonly value: FavoriteValue;
 };
 
-export const FavoriteFilter = ({ onFavoriteChange, showFavorites }: Props) => {
+const StarIcon = ({ filled, isSelected }: { readonly filled: boolean; readonly isSelected: boolean }) => (
+  <Icon asChild color={isSelected ? "brand.contrast" : "brand.solid"}>
+    <FiStar style={filled ? { fill: "currentColor" } : undefined} />
+  </Icon>
+);
+
+const renderFavoriteLabel =
+  (text: string, filled: boolean) =>
+  (isSelected: boolean): React.ReactNode => (
+    <>
+      <StarIcon filled={filled} isSelected={isSelected} />
+      {text}
+    </>
+  );
+
+export const FavoriteFilter = ({ onChange, value }: Props) => {
   const { t: translate } = useTranslation("dags");
 
-  const enabledOptions = createListCollection({
-    items: [
-      { label: translate("filters.favorite.all"), value: "all" },
-      { label: translate("filters.favorite.favorite"), value: "true" },
-      { label: translate("filters.favorite.unfavorite"), value: "false" },
-    ],
-  });
-
   return (
-    <Select.Root
-      collection={enabledOptions}
-      onValueChange={onFavoriteChange}
-      value={[showFavorites ?? "all"]}
-    >
-      <Select.Trigger colorPalette="brand" isActive={Boolean(showFavorites)}>
-        <Select.ValueText width={20} />
-      </Select.Trigger>
-      <Select.Content>
-        {enabledOptions.items.map((option) => (
-          <Select.Item item={option} key={option.label}>
-            {option.label}
-          </Select.Item>
-        ))}
-      </Select.Content>
-    </Select.Root>
+    <ButtonGroupToggle<FavoriteValue>
+      onChange={onChange}
+      options={[
+        { label: translate("filters.favorite.all"), value: "all" },
+        {
+          label: renderFavoriteLabel(translate("filters.favorite.favorite"), true),
+          value: "true",
+        },
+        {
+          label: renderFavoriteLabel(translate("filters.favorite.unfavorite"), false),
+          value: "false",
+        },
+      ]}
+      value={value}
+    />
   );
 };
