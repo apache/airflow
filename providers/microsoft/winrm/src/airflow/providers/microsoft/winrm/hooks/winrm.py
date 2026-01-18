@@ -247,13 +247,13 @@ class WinRMHook(BaseHook):
         :return: returns a tuple containing return_code, stdout and stderr in order.
         """
 
-        shell_id, command_id= self.run_command(
+        conn = self.get_conn()
+        shell_id, command_id= self._run_command(
+            conn=conn,
             command=command,
             ps_path=ps_path,
             working_directory=working_directory,
         )
-
-        conn = self.get_conn()
 
         try:
             command_done = False
@@ -283,6 +283,14 @@ class WinRMHook(BaseHook):
             conn.close_shell(shell_id)
 
     def run_command(
+        self,
+        command: str,
+        ps_path: str | None = None,
+        working_directory: str | None = None,
+    ) -> tuple[str, str]:
+        return self._run_command(self.get_conn(), command, ps_path, working_directory)
+
+    def _run_command(
         self,
         conn: Protocol,
         command: str,

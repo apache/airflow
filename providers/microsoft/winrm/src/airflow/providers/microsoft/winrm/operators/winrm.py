@@ -119,7 +119,6 @@ class WinRMOperator(BaseOperator):
     def execute(self, context: Context) -> list | str:
         if self.deferrable:
             shell_id, command_id = self.hook.run_command(
-                conn=self.hook.get_conn(),
                 command=self.command,
                 ps_path=self.ps_path,
                 working_directory=self.working_directory,
