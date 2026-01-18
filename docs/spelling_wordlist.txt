@@ -593,6 +593,7 @@ dynload
 ec
 ecb
 ECR
+ecr
 ecs
 EdDSA
 edgeexecutor
@@ -830,6 +831,8 @@ healthjump
 heartrate
 heatmap
 Highcharts
+HITL
+hitl
 hivecmd
 hiveconf
 hiveconfs

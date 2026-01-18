@@ -436,7 +436,6 @@ Regards,
 EOF
 ```
 
-
 ## Verify the release candidate by PMC members
 
 ### SVN check

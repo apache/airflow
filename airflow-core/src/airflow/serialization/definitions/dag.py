@@ -30,6 +30,7 @@ import attrs
 import structlog
 from sqlalchemy import func, or_, select, tuple_
 
+from airflow._shared.observability.metrics.stats import Stats
 from airflow._shared.timezones.timezone import coerce_datetime
 from airflow.configuration import conf as airflow_conf
 from airflow.exceptions import AirflowException, TaskNotFound
@@ -39,7 +40,6 @@ from airflow.models.dagrun import DagRun
 from airflow.models.deadline import Deadline
 from airflow.models.taskinstancekey import TaskInstanceKey
 from airflow.models.tasklog import LogTemplate
-from airflow.observability.stats import Stats
 from airflow.sdk.definitions.deadline import DeadlineReference
 from airflow.serialization.definitions.param import SerializedParamsDict
 from airflow.timetables.base import DagRunInfo, DataInterval, TimeRestriction
