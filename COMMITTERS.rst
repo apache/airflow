@@ -114,7 +114,7 @@ A potential candidate for committership typically demonstrates several of the fo
 Note: As mentioned earlier, there may be exceptions for code contributions requirements for contributors who
 provide sustained, high-impact non-code contributions (for example, community leadership, outlining AIPs, etc.).
 Such exceptions are rare and chosen selectively, so contributors with coding skills who aim to become committers
-and PMC are generally encouraged to follow the regular path.
+and PMC members are generally encouraged to follow the regular path.
 
 
 Community contributions
@@ -175,7 +175,7 @@ Community involvement
 
   * Talks at meetups, conferences, etc
   * Creating content like videos, blogs, etc
-  * Actively participates in public discussions about Airflow happening in social media or Github,
+  * Actively participates in public discussions about Airflow happening in social media or GitHub,
     promoting Airflow as a product
 
 * Growing the community:
@@ -278,12 +278,12 @@ To be able to merge PRs, committers have to integrate their GitHub ID with Apach
 8.  Ask a release manager to make Slack announcement
 
 
-New PMC Onboarding steps
+New PMC Member Onboarding steps
 ------------------------
 
-1.  Familiarise yourself with https://community.apache.org/pmc/responsibilities.html
-2.  Subscribe to the private mailing list: private@airflow.apache.org. Do this by sending an empty email to
-    private-subscribe@airflow.apache.org and following the instructions in the automated response you'll receive.
+1.  Familiarise yourself with `<PMC Responsibilities>https://community.apache.org/pmc/responsibilities.html`_
+2.  Subscribe to the private mailing list: ``private@airflow.apache.org``. Do this by sending an empty email to
+    ``private-subscribe@airflow.apache.org`` and following the instructions in the automated response you'll receive.
 3.  Ask another PMC member to add you to ``#pmc-private`` channel on slack
 4.  Make a PR in https://github.com/apache/airflow-site to move your data from the ``landing-pages/site/data/committers.json``
     to the ``landing-pages/site/data/pmc.json``. if more than one PMC member was added, coordinate with the others
