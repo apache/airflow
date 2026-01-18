@@ -873,10 +873,12 @@ workers:
     containerLifecycleHooks: {}
 
   # Kerberos init container configuration for Airflow Celery workers and pods created with pod-template-file
-  # (deprecated, use `workers.celery.kerberosInitContainer` instead)
+  # Use workers.celery.kerberosInitContainer and/or workers.kubernetes.kerberosInitContainer to separate
+  # value between Celery workers and pod-template-file
   kerberosInitContainer:
     # Enable kerberos init container
     enabled: false
+
     resources: {}
     #  limits:
     #   cpu: 100m
@@ -885,7 +887,7 @@ workers:
     #   cpu: 100m
     #   memory: 128Mi
 
-    # Detailed default security context for kerberos init container on container level
+    # Detailed default security context for kerberos init container
     securityContexts:
       container: {}
 
@@ -1146,9 +1148,12 @@ workers:
         container: {}
 
     # Kerberos init container configuration for Airflow Celery workers
+    # If not set, the values from `workers.kubernetesInitContainer` section will be used.
     kerberosInitContainer:
       # Enable kerberos init container
+      # If workers.kerberosInitContainer.enabled is set to True, this flag has no effect
       enabled: false
+
       resources: {}
       #  limits:
       #   cpu: 100m
@@ -1157,7 +1162,7 @@ workers:
       #   cpu: 100m
       #   memory: 128Mi
 
-      # Detailed default security context for kerberos init container on container level
+      # Detailed default security context for kerberos init container
       securityContexts:
         container: {}
 
@@ -1173,6 +1178,28 @@ workers:
     securityContexts:
       pod: {}
       container: {}
+
+    # Kerberos init container configuration for pods created with pod-template-file
+    # If not set, the values from `workers.kubernetesInitContainer` section will be used.
+    kerberosInitContainer:
+      # Enable kerberos init container
+      # If workers.kerberosInitContainer.enabled is set to True, this flag has no effect
+      enabled: false
+
+      resources: {}
+      #  limits:
+      #   cpu: 100m
+      #   memory: 128Mi
+      #  requests:
+      #   cpu: 100m
+      #   memory: 128Mi
+
+      # Detailed default security context for kerberos init container
+      securityContexts:
+        container: {}
+
+      # Container level lifecycle hooks
+      containerLifecycleHooks: {}
 
 # Airflow scheduler settings
 scheduler:
