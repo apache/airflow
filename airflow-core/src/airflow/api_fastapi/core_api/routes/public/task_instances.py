@@ -21,7 +21,7 @@ from typing import Annotated, Literal, cast
 
 import structlog
 from fastapi import Depends, HTTPException, Query, status
-from sqlalchemy import or_, select, tuple_
+from sqlalchemy import or_, select
 from sqlalchemy.orm import joinedload
 from sqlalchemy.sql.selectable import Select
 
@@ -1038,23 +1038,7 @@ def patch_task_instance(
                 update_mask=update_mask,
             )
 
-    # Refresh affected TIs from the database
     if affected_tis_dict:
-        ti_keys_list = list(affected_tis_dict.keys())
-        refreshed_tis = session.scalars(
-            select(TI)
-            .where(tuple_(TI.dag_id, TI.run_id, TI.task_id, TI.map_index).in_(ti_keys_list))
-            .options(joinedload(TI.rendered_task_instance_fields))
-        ).all()
-        # Update dict with refreshed TIs
-        for refreshed_ti in refreshed_tis:
-            ti_key = (
-                refreshed_ti.dag_id,
-                refreshed_ti.run_id,
-                refreshed_ti.task_id,
-                refreshed_ti.map_index if refreshed_ti.map_index is not None else -1,
-            )
-            affected_tis_dict[ti_key] = refreshed_ti
         return TaskInstanceCollectionResponse(
             task_instances=[TaskInstanceResponse.model_validate(ti) for ti in affected_tis_dict.values()],
             total_entries=len(affected_tis_dict),
