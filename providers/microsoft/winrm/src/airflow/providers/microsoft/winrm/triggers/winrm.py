@@ -123,11 +123,8 @@ class WinRMCommandOutputTrigger(BaseTrigger):
 
                 with suppress(WinRMOperationTimeoutError):
                     stdout, stderr, return_code, command_done = await asyncio.to_thread(
-                        self.hook.get_conn().get_command_output_raw, self.shell_id, self.command_id
+                        self.hook.get_command_output, self.shell_id, self.command_id
                     )
-
-                self.log.debug("return_code: ", return_code)
-                self.log.debug("command_done: ", command_done)
 
                 if not command_done:
                     await asyncio.sleep(self.poll_interval)

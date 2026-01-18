@@ -225,6 +225,7 @@ class WinRMHook(BaseHook):
             # since pywinrm>=0.5 get_command_output_raw replace _raw_get_command_output
             self.winrm_protocol.get_command_output_raw = self.winrm_protocol._raw_get_command_output
 
+        self.log.info("Establishing WinRM connection to host: %s", self.remote_host)
         return self.winrm_protocol
 
     def run(
@@ -263,24 +264,17 @@ class WinRMHook(BaseHook):
 
             # See: https://github.com/diyan/pywinrm/blob/master/winrm/protocol.py
             while not command_done:
-                with suppress(WinRMOperationTimeoutError):
-                    (
-                        stdout,
-                        stderr,
-                        return_code,
-                        command_done,
-                    ) = winrm_client.get_command_output_raw(shell_id, command_id)
+                (
+                    stdout,
+                    stderr,
+                    return_code,
+                    command_done,
+                ) = self.get_command_output(shell_id, command_id)
 
-                    self.log.debug("return_code: %s", return_code)
-                    self.log.debug("command_done: %s", command_done)
-
-                    # Only buffer stdout if we need to so that we minimize memory usage.
-                    if return_output:
-                        stdout_buffer.append(stdout)
-                    stderr_buffer.append(stderr)
-
-                    self.log_output(stdout, output_encoding=output_encoding)
-                    self.log_output(stderr, level=logging.WARNING, output_encoding=output_encoding)
+                # Only buffer stdout if we need to so that we minimize memory usage.
+                if return_output:
+                    stdout_buffer.append(stdout)
+                stderr_buffer.append(stderr)
 
             return return_code, stdout_buffer, stderr_buffer
         except Exception as e:
@@ -299,7 +293,7 @@ class WinRMHook(BaseHook):
             raise AirflowException("No command specified so nothing to execute here.")
 
         winrm_client = self.get_conn()
-        self.log.info("Establishing WinRM connection to host: %s", self.remote_host)
+
         try:
             shell_id = winrm_client.open_shell(working_directory=working_directory)
 
@@ -316,6 +310,22 @@ class WinRMHook(BaseHook):
             raise AirflowException(error_msg)
 
         return shell_id, command_id
+
+    def get_command_output(self, shell_id: str, command_id: str, output_encoding: str = "utf-8") -> tuple[int, bool , bytes, bytes]:
+        with suppress(WinRMOperationTimeoutError):
+            (
+                stdout,
+                stderr,
+                return_code,
+                command_done,
+            ) = self.get_conn().get_command_output_raw(shell_id, command_id)
+
+            self.log.debug("return_code: ", return_code)
+            self.log.debug("command_done: ", command_done)
+            self.log_output(stdout, output_encoding=output_encoding)
+            self.log_output(stderr, level=logging.WARNING, output_encoding=output_encoding)
+
+        return return_code, command_done, stdout, stderr
 
     def log_output(
         self,
