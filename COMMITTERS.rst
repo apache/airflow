@@ -105,7 +105,7 @@ A potential candidate for committership typically demonstrates several of the fo
 
 5.  Has made a significant improvement or added an integration with services/technologies important to the Airflow
     Ecosystem
-6.  Actively participated in the security process, as a member of the security team, discussing, assessing and
+6.  Actively participates in the security process, as a member of the security team, discussing, assessing and
     fixing security issues.
 7.  Demonstrates skills to maintain the complex codebase to ensure keeping maturity of product and complexity
 8.  Has been actively helping other contributors and users - in Slack, GitHub issues, GitHub discussions - by
