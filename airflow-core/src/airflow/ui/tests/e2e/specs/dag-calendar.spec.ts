@@ -21,90 +21,90 @@ import { AUTH_FILE, testConfig } from "playwright.config";
 import { DagCalendarPage } from "tests/e2e/pages/DagCalendarPage";
 
 test.describe("DAG Calendar Page", () => {
-    test.setTimeout(60_000);
+  test.setTimeout(60_000);
 
-    let dagCalendarPage: DagCalendarPage;
-    const testDagId = testConfig.testDag.id;
+  let dagCalendarPage: DagCalendarPage;
+  const testDagId = testConfig.testDag.id;
 
-    test.beforeAll(async ({ browser }) => {
-        const context = await browser.newContext({ storageState: AUTH_FILE });
-        const page = await context.newPage();
-        const baseUrl = process.env.AIRFLOW_UI_BASE_URL ?? "http://localhost:8080";
+  test.beforeAll(async ({ browser }) => {
+    const context = await browser.newContext({ storageState: AUTH_FILE });
+    const page = await context.newPage();
+    const baseUrl = process.env.AIRFLOW_UI_BASE_URL ?? "http://localhost:8080";
 
-        const timestamp = Date.now();
+    const timestamp = Date.now();
 
-        // Trigger DAG runs to ensure data
-        // Success Run
-        const runId1 = `test_run_cal_success_${timestamp}`;
-        const logicalDate1 = new Date(timestamp).toISOString();
-        const triggerResponse1 = await page.request.post(`${baseUrl}/api/v2/dags/${testDagId}/dagRuns`, {
-          data: JSON.stringify({
-            dag_run_id: runId1,
-            logical_date: logicalDate1,
-          }),
-          headers: { "Content-Type": "application/json" },
-        });
-
-        expect(triggerResponse1.ok()).toBeTruthy();
-
-        const runData1 = (await triggerResponse1.json()) as { dag_run_id: string };
-
-        await page.request.patch(`${baseUrl}/api/v2/dags/${testDagId}/dagRuns/${runData1.dag_run_id}`, {
-          data: JSON.stringify({ state: "success" }),
-          headers: { "Content-Type": "application/json" },
-        });
-
-        // Failed Run
-        const runId2 = `test_run_cal_failed_${timestamp}`;
-        const logicalDate2 = new Date(timestamp + 60 * 1000).toISOString();
-        const triggerResponse2 = await page.request.post(`${baseUrl}/api/v2/dags/${testDagId}/dagRuns`, {
-          data: JSON.stringify({
-            dag_run_id: runId2,
-            logical_date: logicalDate2,
-          }),
-          headers: { "Content-Type": "application/json" },
-        });
-
-        expect(triggerResponse2.ok()).toBeTruthy();
-
-        const runData2 = (await triggerResponse2.json()) as { dag_run_id: string };
-
-        await page.request.patch(`${baseUrl}/api/v2/dags/${testDagId}/dagRuns/${runData2.dag_run_id}`, {
-          data: JSON.stringify({ state: "failed" }),
-          headers: { "Content-Type": "application/json" },
-        });
-
-        await context.close();
-      });
-
-    test.beforeEach(({ page }) => {
-      dagCalendarPage = new DagCalendarPage(page);
+    // Trigger DAG runs to ensure data
+    // Success Run
+    const runId1 = `test_run_cal_success_${timestamp}`;
+    const logicalDate1 = new Date(timestamp).toISOString();
+    const triggerResponse1 = await page.request.post(`${baseUrl}/api/v2/dags/${testDagId}/dagRuns`, {
+      data: JSON.stringify({
+        dag_run_id: runId1,
+        logical_date: logicalDate1,
+      }),
+      headers: { "Content-Type": "application/json" },
     });
 
-    test("verify calendar renders and displays runs", async () => {
-      await dagCalendarPage.navigateToCalendar(testDagId);
+    expect(triggerResponse1.ok()).toBeTruthy();
 
-      await dagCalendarPage.verifyCalendarRender();
+    const runData1 = (await triggerResponse1.json()) as { dag_run_id: string };
 
-      // Verify that calendar cells exist (calendar grid rendered)
-      const calendarCells = dagCalendarPage.page.getByTestId("calendar-cell");
-
-      await expect(calendarCells.first()).toBeVisible();
+    await page.request.patch(`${baseUrl}/api/v2/dags/${testDagId}/dagRuns/${runData1.dag_run_id}`, {
+      data: JSON.stringify({ state: "success" }),
+      headers: { "Content-Type": "application/json" },
     });
 
-    test("verify status filtering", async () => {
-      await dagCalendarPage.navigateToCalendar(testDagId);
-
-      // Verify "Failed Runs" button exists and is clickable
-      const failedRunsButton = dagCalendarPage.page.getByRole("button", { name: "Failed Runs" });
-
-      await expect(failedRunsButton).toBeVisible();
-
-      await failedRunsButton.click();
-
-      // Verify calendar still renders after filtering
-      const calendarCells = dagCalendarPage.page.getByTestId("calendar-cell");
-
-      await expect(calendarCells.first()).toBeVisible();
+    // Failed Run
+    const runId2 = `test_run_cal_failed_${timestamp}`;
+    const logicalDate2 = new Date(timestamp + 60 * 1000).toISOString();
+    const triggerResponse2 = await page.request.post(`${baseUrl}/api/v2/dags/${testDagId}/dagRuns`, {
+      data: JSON.stringify({
+        dag_run_id: runId2,
+        logical_date: logicalDate2,
+      }),
+      headers: { "Content-Type": "application/json" },
     });
+
+    expect(triggerResponse2.ok()).toBeTruthy();
+
+    const runData2 = (await triggerResponse2.json()) as { dag_run_id: string };
+
+    await page.request.patch(`${baseUrl}/api/v2/dags/${testDagId}/dagRuns/${runData2.dag_run_id}`, {
+      data: JSON.stringify({ state: "failed" }),
+      headers: { "Content-Type": "application/json" },
+    });
+
+    await context.close();
+  });
+
+  test.beforeEach(({ page }) => {
+    dagCalendarPage = new DagCalendarPage(page);
+  });
+
+  test("verify calendar renders and displays runs", async () => {
+    await dagCalendarPage.navigateToCalendar(testDagId);
+
+    await dagCalendarPage.verifyCalendarRender();
+
+    // Verify that calendar cells exist (calendar grid rendered)
+    const calendarCells = dagCalendarPage.page.getByTestId("calendar-cell");
+
+    await expect(calendarCells.first()).toBeVisible();
+  });
+
+  test("verify status filtering", async () => {
+    await dagCalendarPage.navigateToCalendar(testDagId);
+
+    // Verify "Failed Runs" button exists and is clickable
+    const failedRunsButton = dagCalendarPage.page.getByRole("button", { name: "Failed Runs" });
+
+    await expect(failedRunsButton).toBeVisible();
+
+    await failedRunsButton.click();
+
+    // Verify calendar still renders after filtering
+    const calendarCells = dagCalendarPage.page.getByTestId("calendar-cell");
+
+    await expect(calendarCells.first()).toBeVisible();
+  });
 });
