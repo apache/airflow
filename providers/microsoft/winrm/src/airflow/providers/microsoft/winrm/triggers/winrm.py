@@ -123,7 +123,7 @@ class WinRMCommandOutputTrigger(BaseTrigger):
                         )
 
                     with suppress(WinRMOperationTimeoutError):
-                        stdout, stderr, return_code, command_done = await asyncio.to_thread(
+                        return_code, command_done, stdout, stderr = await asyncio.to_thread(
                             self.hook.get_command_output, conn, self.shell_id, self.command_id
                         )
 

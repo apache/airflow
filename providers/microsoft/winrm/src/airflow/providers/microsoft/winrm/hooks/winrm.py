@@ -263,10 +263,10 @@ class WinRMHook(BaseHook):
             # See: https://github.com/diyan/pywinrm/blob/master/winrm/protocol.py
             while not command_done:
                 (
-                    stdout,
-                    stderr,
                     return_code,
                     command_done,
+                    stdout,
+                    stderr,
                 ) = self.get_command_output(conn, shell_id, command_id, output_encoding)
 
                 # Only buffer stdout if we need to so that we minimize memory usage.
