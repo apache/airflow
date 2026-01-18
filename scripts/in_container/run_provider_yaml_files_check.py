@@ -718,6 +718,7 @@ def check_providers_have_all_documentation_files(yaml_files: dict[str, dict]):
 
 
 if __name__ == "__main__":
+    sync_dependencies_without_dev()
     ProvidersManager().initialize_providers_configuration()
     architecture = Architecture.get_current()
     console.print(f"Verifying packages on {architecture} architecture. Platform: {platform.machine()}.")
