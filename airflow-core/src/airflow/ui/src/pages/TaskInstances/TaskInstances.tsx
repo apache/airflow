@@ -307,7 +307,7 @@ export const TaskInstances = () => {
         errorMessage={<ErrorAlert error={error} />}
         initialState={tableURLState}
         isLoading={isLoading}
-        modelName={translate("common:taskInstance_other")}
+        modelName="common:taskInstance"
         onStateChange={setTableURLState}
         total={data?.total_entries}
       />

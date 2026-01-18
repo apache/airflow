@@ -232,8 +232,9 @@ export const Events = () => {
         initialState={tableURLState}
         isFetching={isFetching}
         isLoading={isLoading}
-        modelName={translate("auditLog.columns.event")}
+        modelName="browse:auditLog.columns.event"
         onStateChange={setTableURLState}
+        showRowCountHeading={false}
         skeletonCount={undefined}
         total={data?.total_entries ?? 0}
       />

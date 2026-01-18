@@ -121,6 +121,7 @@ PIP package                                 Version required
 ``jmespath``                                ``>=0.7.0; python_version < "3.13"``
 ``werkzeug``                                ``>=2.2,<4; python_version < "3.13"``
 ``wtforms``                                 ``>=3.0,<4; python_version < "3.13"``
+``cachetools``                              ``>=6.0; python_version < "3.13"``
 ``flask_limiter``                           ``>3,!=3.13,<4``
 ==========================================  ==========================================
 
