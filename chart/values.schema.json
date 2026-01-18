@@ -4383,7 +4383,7 @@
                     "default": null
                 },
                 "dagBundleConfigList": {
-                    "description": "Define DAG bundles in a structured YAML format. This will be automatically converted to JSON string format for config.dag_processor.dag_bundle_config_list.",
+                    "description": "Define Dag bundles in a structured YAML format. This will be automatically converted to JSON string format for config.dag_processor.dag_bundle_config_list.",
                     "type": "array",
                     "default": [
                         {
@@ -4401,15 +4401,15 @@
                         ],
                         "properties": {
                             "name": {
-                                "description": "Name of the DAG bundle.",
+                                "description": "Name of the Dag bundle.",
                                 "type": "string"
                             },
                             "classpath": {
-                                "description": "Class path of the DAG bundle class.",
+                                "description": "Class path of the Dag bundle class.",
                                 "type": "string"
                             },
                             "kwargs": {
-                                "description": "Keyword arguments for the DAG bundle.",
+                                "description": "Keyword arguments for the Dag bundle.",
                                 "type": "object",
                                 "default": {},
                                 "additionalProperties": {

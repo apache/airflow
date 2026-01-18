@@ -2268,8 +2268,8 @@ triggerer:
 dagProcessor:
   enabled: ~
 
-  # DAG Bundle Configuration
-  # Define DAG bundles in a structured YAML format. This will be automatically
+  # Dag Bundle Configuration
+  # Define Dag bundles in a structured YAML format. This will be automatically
   # converted to JSON string format for config.dag_processor.dag_bundle_config_list.
   dagBundleConfigList:
     - name: dags-folder
@@ -3297,7 +3297,7 @@ config:
     # `run_duration` included for Airflow 1.10 backward compatibility; removed in 2.0.
     run_duration: 41460
   dag_processor:
-    # DAG bundle configuration list in JSON string format.
+    # Dag bundle configuration list in JSON string format.
     # This is automatically generated from .Values.dagProcessor.dagBundleConfigList using the dag_bundle_config_list helper function.
     # Deprecated: Direct override via config.dag_processor.dag_bundle_config_list is deprecated.
     # Use dagProcessor.dagBundleConfigList instead.
