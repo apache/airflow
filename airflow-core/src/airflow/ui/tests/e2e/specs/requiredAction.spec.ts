@@ -27,15 +27,16 @@ test.describe("Verify Required Action page", () => {
   test.describe.configure({ mode: "serial" });
 
   test.beforeAll(async ({ browser }) => {
-    test.setTimeout(120_000);
+    test.setTimeout(260_000);
 
     const context = await browser.newContext({ storageState: AUTH_FILE });
 
     const page = await context.newPage();
-    const browsePage = new RequiredActionsPage(page);
+    const requiredActionsPage = new RequiredActionsPage(page);
 
-    await browsePage.triggerAndMarkDagRun(hitlDagId, "success");
-    await browsePage.triggerAndMarkDagRun(hitlDagId, "failed");
+    await requiredActionsPage.runHITLFlowWithApproval(hitlDagId);
+
+    await requiredActionsPage.runHITLFlowWithRejection(hitlDagId);
 
     await context.close();
   });

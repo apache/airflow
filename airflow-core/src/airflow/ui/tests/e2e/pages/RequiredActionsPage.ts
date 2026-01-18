@@ -21,8 +21,6 @@ import { expect, type Locator, type Page } from "@playwright/test";
 import { BasePage } from "./BasePage";
 import { DagsPage } from "./DagsPage";
 
-export type MarkRunAsState = "failed" | "success";
-
 export class RequiredActionsPage extends BasePage {
   public readonly actionsTable: Locator;
   public readonly emptyStateMessage: Locator;
@@ -45,12 +43,12 @@ export class RequiredActionsPage extends BasePage {
 
   public async clickNextPage(): Promise<void> {
     await this.paginationNextButton.click();
-    await this.page.waitForLoadState("networkidle");
+    await expect(this.actionsTable).toBeVisible({ timeout: 10_000 });
   }
 
   public async clickPrevPage(): Promise<void> {
     await this.paginationPrevButton.click();
-    await this.page.waitForLoadState("networkidle");
+    await expect(this.actionsTable).toBeVisible({ timeout: 10_000 });
   }
 
   public async getActionsTableRowCount(): Promise<number> {
@@ -96,49 +94,12 @@ export class RequiredActionsPage extends BasePage {
     await expect(this.pageHeading).toBeVisible({ timeout: 10_000 });
   }
 
-  public async triggerAndMarkDagRun(dagId: string, state: MarkRunAsState): Promise<void> {
-    const dagsPage = new DagsPage(this.page);
-    const dagRunId = await dagsPage.triggerDag(dagId);
+  public async runHITLFlowWithApproval(dagId: string): Promise<void> {
+    await this.runHITLFlow(dagId, true);
+  }
 
-    if (dagRunId !== null) {
-      await this.page.goto(`/dags/${dagId}/runs/${dagRunId}`);
-
-      const markDagRunButton = this.page.getByTestId("mark-run-as-button");
-
-      await expect(markDagRunButton).toBeVisible({ timeout: 20_000 });
-      await markDagRunButton.click();
-
-      const stateOption = this.page.getByTestId(`mark-run-as-${state}`);
-
-      await expect(stateOption).toBeVisible({ timeout: 20_000 });
-      await stateOption.click();
-
-      const confirmButton = this.page.getByTestId("mark-run-as-confirm");
-
-      await expect(confirmButton).toBeVisible({ timeout: 20_000 });
-      await confirmButton.click();
-
-      await expect(confirmButton).not.toBeVisible({ timeout: 20_000 });
-
-      const expectedState = state === "success" ? "Success" : "Failed";
-      const stateBadge = this.page.getByTestId("state-badge").first();
-
-      await expect(stateBadge).toBeVisible({ timeout: 20_000 });
-      await expect(stateBadge).toContainText(expectedState, { timeout: 20_000 });
-
-      // Verify pending Required Actions exist
-      await this.navigateToRequiredActionsPage();
-      await this.page.getByTestId("filter-bar-add-button").click();
-      await this.page.getByLabel("Filter", { exact: true }).getByText("Required Action State").click();
-      await this.page.getByTestId("select-filter-trigger").click();
-      await this.page.getByText("Pending").click();
-
-      // Verify table has pending actions (not empty)
-      await expect(this.actionsTable).toBeVisible({ timeout: 10_000 });
-      const tableRows = this.page.locator("table tbody tr");
-
-      await expect(tableRows.first()).toBeVisible({ timeout: 30_000 });
-    }
+  public async runHITLFlowWithRejection(dagId: string): Promise<void> {
+    await this.runHITLFlow(dagId, false);
   }
 
   public async verifyPagination(limit: number): Promise<void> {
@@ -174,5 +135,223 @@ export class RequiredActionsPage extends BasePage {
 
       await expect(tableRowsPage2.first().or(noDataMessage.first())).toBeVisible({ timeout: 30_000 });
     }
+  }
+
+  private async clickOnTaskInGrid(dagRunId: string, taskId: string): Promise<void> {
+    const taskLocator = this.page.locator(`[id="grid-${dagRunId}-${taskId}"]`);
+
+    await expect(taskLocator).toBeVisible({ timeout: 30_000 });
+    await taskLocator.click();
+  }
+
+  private async handleApprovalTask(dagId: string, dagRunId: string, approve: boolean): Promise<void> {
+    await this.clickOnTaskInGrid(dagRunId, "valid_input_and_options");
+
+    const detailsPanel = this.page.locator("#details-panel");
+
+    await expect(detailsPanel.getByTestId("state-badge").first()).toContainText("Deferred", {
+      timeout: 60_000,
+    });
+
+    const requiredActionLink = this.page.getByRole("link", { name: /required action/i });
+
+    await expect(requiredActionLink).toBeVisible({ timeout: 30_000 });
+    await requiredActionLink.click();
+
+    const buttonName = approve ? "Approve" : "Reject";
+    const actionButton = this.page.getByRole("button", { name: buttonName });
+
+    await expect(actionButton).toBeVisible({ timeout: 10_000 });
+    await actionButton.click();
+
+    // Navigate back to DAG run page to access the grid
+    await this.page.goto(`/dags/${dagId}/runs/${dagRunId}`);
+    await this.waitForTaskState(dagRunId, { expectedState: "Success", taskId: "valid_input_and_options" });
+  }
+
+  private async handleBranchTask(dagId: string, dagRunId: string): Promise<void> {
+    await this.clickOnTaskInGrid(dagRunId, "choose_a_branch_to_run");
+
+    const detailsPanel = this.page.locator("#details-panel");
+
+    await expect(detailsPanel.getByTestId("state-badge").first()).toContainText("Deferred", {
+      timeout: 60_000,
+    });
+
+    const requiredActionLink = this.page.getByRole("link", { name: /required action/i });
+
+    await expect(requiredActionLink).toBeVisible({ timeout: 30_000 });
+    await requiredActionLink.click();
+
+    const branchButton = this.page.getByRole("button", { name: "task_1" });
+
+    await expect(branchButton).toBeVisible({ timeout: 10_000 });
+    await branchButton.click();
+
+    // Navigate back to DAG run page to access the grid
+    await this.page.goto(`/dags/${dagId}/runs/${dagRunId}`);
+    await this.waitForTaskState(dagRunId, { expectedState: "Success", taskId: "choose_a_branch_to_run" });
+  }
+
+  private async handleWaitForInputTask(dagId: string, dagRunId: string): Promise<void> {
+    await this.clickOnTaskInGrid(dagRunId, "wait_for_input");
+
+    const detailsPanel = this.page.locator("#details-panel");
+
+    await expect(detailsPanel.getByTestId("state-badge").first()).toContainText("Deferred", {
+      timeout: 60_000,
+    });
+
+    const requiredActionLink = this.page.getByRole("link", { name: /required action/i });
+
+    await expect(requiredActionLink).toBeVisible({ timeout: 30_000 });
+    await requiredActionLink.click();
+
+    const informationInput = this.page.locator("#element_information");
+
+    await expect(informationInput).toBeVisible({ timeout: 30_000 });
+    await informationInput.fill("test");
+
+    const okButton = this.page.getByRole("button", { name: "OK" });
+
+    await expect(okButton).toBeVisible({ timeout: 10_000 });
+    await okButton.click();
+
+    // Navigate back to DAG run page to access the grid
+    await this.page.goto(`/dags/${dagId}/runs/${dagRunId}`);
+    await this.waitForTaskState(dagRunId, { expectedState: "Success", taskId: "wait_for_input" });
+  }
+
+  private async handleWaitForMultipleOptionsTask(dagId: string, dagRunId: string): Promise<void> {
+    await this.clickOnTaskInGrid(dagRunId, "wait_for_multiple_options");
+
+    const detailsPanel = this.page.locator("#details-panel");
+
+    await expect(detailsPanel.getByTestId("state-badge").first()).toContainText("Deferred", {
+      timeout: 60_000,
+    });
+
+    const requiredActionLink = this.page.getByRole("link", { name: /required action/i });
+
+    await expect(requiredActionLink).toBeVisible({ timeout: 30_000 });
+    await requiredActionLink.click();
+
+    // Use the multi-select's ID wrapper which remains stable after selections
+    const multiSelectContainer = this.page.locator("#element_chosen_options").locator("..");
+
+    await expect(multiSelectContainer).toBeVisible({ timeout: 30_000 });
+    await multiSelectContainer.click();
+
+    await this.page.getByRole("option", { name: "option 4" }).click();
+    await multiSelectContainer.click();
+    await this.page.getByRole("option", { name: "option 5" }).click();
+
+    const respondButton = this.page.getByRole("button", { name: "Respond" });
+
+    await expect(respondButton).toBeVisible({ timeout: 10_000 });
+    await respondButton.click();
+
+    // Navigate back to DAG run page to access the grid
+    await this.page.goto(`/dags/${dagId}/runs/${dagRunId}`);
+    await this.waitForTaskState(dagRunId, { expectedState: "Success", taskId: "wait_for_multiple_options" });
+  }
+
+  private async handleWaitForOptionTask(dagId: string, dagRunId: string): Promise<void> {
+    await this.clickOnTaskInGrid(dagRunId, "wait_for_option");
+
+    const detailsPanel = this.page.locator("#details-panel");
+
+    await expect(detailsPanel.getByTestId("state-badge").first()).toContainText("Deferred", {
+      timeout: 60_000,
+    });
+
+    const requiredActionLink = this.page.getByRole("link", { name: /required action/i });
+
+    await expect(requiredActionLink).toBeVisible({ timeout: 30_000 });
+    await requiredActionLink.click();
+
+    const optionButton = this.page.getByRole("button", { name: "option 1" });
+
+    await expect(optionButton).toBeVisible({ timeout: 10_000 });
+    await optionButton.click();
+
+    // Navigate back to DAG run page to access the grid
+    await this.page.goto(`/dags/${dagId}/runs/${dagRunId}`);
+    await this.waitForTaskState(dagRunId, { expectedState: "Success", taskId: "wait_for_option" });
+  }
+
+  private async runHITLFlow(dagId: string, approve: boolean): Promise<void> {
+    const dagsPage = new DagsPage(this.page);
+
+    const dagRunId = await dagsPage.triggerDag(dagId);
+
+    if (dagRunId === null) {
+      throw new Error("Failed to trigger DAG - dagRunId is null");
+    }
+
+    await this.page.goto(`/dags/${dagId}/runs/${dagRunId}`);
+    await this.waitForDagRunState("Running");
+
+    await this.waitForTaskState(dagRunId, {
+      expectedState: "Success",
+      taskId: "wait_for_default_option",
+      timeout: 30_000,
+    });
+
+    await this.handleWaitForInputTask(dagId, dagRunId);
+
+    await this.handleWaitForMultipleOptionsTask(dagId, dagRunId);
+
+    await this.handleWaitForOptionTask(dagId, dagRunId);
+
+    await this.handleApprovalTask(dagId, dagRunId, approve);
+
+    if (approve) {
+      await this.handleBranchTask(dagId, dagRunId);
+    }
+
+    await this.verifyFinalTaskStates(dagId, dagRunId, approve);
+  }
+
+  private async verifyFinalTaskStates(dagId: string, dagRunId: string, approved: boolean): Promise<void> {
+    // Make sure we're on the DAG run page for grid access
+    await this.page.goto(`/dags/${dagId}/runs/${dagRunId}`);
+
+    if (approved) {
+      await this.waitForTaskState(dagRunId, { expectedState: "Success", taskId: "task_1" });
+      await this.waitForTaskState(dagRunId, { expectedState: "Skipped", taskId: "task_2", timeout: 30_000 });
+      await this.waitForTaskState(dagRunId, { expectedState: "Skipped", taskId: "task_3", timeout: 30_000 });
+    } else {
+      await this.waitForTaskState(dagRunId, {
+        expectedState: "Skipped",
+        taskId: "choose_a_branch_to_run",
+        timeout: 30_000,
+      });
+      await this.waitForTaskState(dagRunId, { expectedState: "Skipped", taskId: "task_1", timeout: 30_000 });
+      await this.waitForTaskState(dagRunId, { expectedState: "Skipped", taskId: "task_2", timeout: 30_000 });
+      await this.waitForTaskState(dagRunId, { expectedState: "Skipped", taskId: "task_3", timeout: 30_000 });
+    }
+
+    await this.navigateToRequiredActionsPage();
+    await expect(this.actionsTable).toBeVisible({ timeout: 10_000 });
+  }
+
+  private async waitForDagRunState(expectedState: string): Promise<void> {
+    const detailsPanel = this.page.locator("#details-panel");
+    const stateBadge = detailsPanel.getByTestId("state-badge").first();
+
+    await expect(stateBadge).toContainText(expectedState, { timeout: 60_000 });
+  }
+
+  private async waitForTaskState(
+    dagRunId: string,
+    options: { expectedState: string; taskId: string; timeout?: number },
+  ): Promise<void> {
+    await this.clickOnTaskInGrid(dagRunId, options.taskId);
+
+    const detailsPanel = this.page.locator("#details-panel");
+    const stateBadge = detailsPanel.getByTestId("state-badge").first();
+
+    await expect(stateBadge).toContainText(options.expectedState, { timeout: options.timeout ?? 60_000 });
   }
 }
