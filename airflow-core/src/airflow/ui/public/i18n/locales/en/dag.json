@@ -36,6 +36,7 @@
   },
   "code": {
     "bundleUrl": "Bundle Url",
+    "fileLocation": "File:",
     "noCode": "No Code Found",
     "parseDuration": "Parse Duration:",
     "parsedAt": "Parsed at:"

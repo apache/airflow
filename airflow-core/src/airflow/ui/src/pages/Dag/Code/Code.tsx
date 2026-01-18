@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, Button, Heading, HStack, Link, VStack } from "@chakra-ui/react";
+import { Box, Button, Code as CodeText, Heading, HStack, Link, VStack } from "@chakra-ui/react";
 import Editor, { type EditorProps } from "@monaco-editor/react";
 import { useState } from "react";
 import { useHotkeys } from "react-hotkeys-hook";
@@ -34,7 +34,7 @@ import type { DAGSourceResponse } from "openapi/requests/types.gen";
 import { DagVersionSelect } from "src/components/DagVersionSelect";
 import { ErrorAlert } from "src/components/ErrorAlert";
 import Time from "src/components/Time";
-import { ClipboardRoot, ClipboardButton, Tooltip } from "src/components/ui";
+import { ClipboardRoot, ClipboardButton, ClipboardIconButton, Tooltip } from "src/components/ui";
 import { ProgressBar } from "src/components/ui";
 import { useColorMode } from "src/context/colorMode";
 import useSelectedVersion from "src/hooks/useSelectedVersion";
@@ -43,6 +43,16 @@ import { renderDuration } from "src/utils";
 
 import { CodeDiffViewer } from "./CodeDiffViewer";
 import { VersionCompareSelect } from "./VersionCompareSelect";
+
+const getDisplayFilename = (fileloc: string, relativeFileloc: string | null): string => {
+  if (relativeFileloc) {
+    return relativeFileloc;
+  }
+  // Fallback: extract filename from full path
+  const parts = fileloc.split('/');
+
+  return parts[parts.length - 1] || fileloc;
+};
 
 export const Code = () => {
   const { t: translate } = useTranslation(["dag", "common"]);
@@ -142,6 +152,25 @@ export const Code = () => {
     <Box h="100%" overflow="hidden">
       <HStack justifyContent="space-between" mt={2}>
         <HStack gap={5}>
+          {dag?.fileloc !== undefined && (
+            <HStack gap={1}>
+              <Heading as="h4" fontSize="14px" size="md">
+                {translate("code.fileLocation")}
+              </Heading>
+              <Tooltip
+                closeDelay={100}
+                content={dag.fileloc}
+                openDelay={100}
+              >
+                <CodeText fontSize="14px" wordBreak="break-word">
+                  {getDisplayFilename(dag.fileloc, dag.relative_fileloc)}
+                </CodeText>
+              </Tooltip>
+              <ClipboardRoot value={dag.fileloc}>
+                <ClipboardIconButton size="2xs" />
+              </ClipboardRoot>
+            </HStack>
+          )}
           {dag?.last_parsed_time !== undefined && (
             <Heading as="h4" fontSize="14px" size="md">
               {translate("code.parsedAt")} <Time datetime={dag.last_parsed_time} />
