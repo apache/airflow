@@ -676,7 +676,7 @@ class TestBaseChartTest:
                 },
             )
         assert (
-            'pullPolicy must be one of the following: "Always", "Never", "IfNotPresent"'
+            "value must be one of 'Always', 'Never', 'IfNotPresent'"
             in ex_ctx.value.stderr.decode()
         )
 
