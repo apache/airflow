@@ -1182,3 +1182,26 @@ Usage:
   {{- end -}}
   {{- $result -}}
 {{- end -}}
+
+{{/*
+Convert dagBundleConfigList YAML list to JSON string for dag_bundle_config_list.
+This helper function converts the structured YAML format to the JSON string
+format required by Airflow's dag_bundle_config_list configuration.
+
+Usage:
+  config:
+    dag_processor:
+      dag_bundle_config_list: '{{ include "dag_bundle_config_list" . }}'
+*/}}
+{{- define "dag_bundle_config_list" -}}
+  {{- if .Values.dagProcessor.dagBundleConfigList -}}
+    {{- $bundles := list -}}
+    {{- range .Values.dagProcessor.dagBundleConfigList -}}
+      {{- $bundle := dict "name" .name "classpath" .classpath "kwargs" (.kwargs | default dict) -}}
+      {{- $bundles = append $bundles $bundle -}}
+    {{- end -}}
+    {{- $bundles | toJson -}}
+  {{- else -}}
+    {{- "[]" -}}
+  {{- end -}}
+{{- end }}

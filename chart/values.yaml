@@ -2237,6 +2237,34 @@ triggerer:
 # Airflow Dag Processor Config
 dagProcessor:
   enabled: ~
+
+  # Dag Bundle Configuration
+  # Define Dag bundles in a structured YAML format. This will be automatically
+  # converted to JSON string format for config.dag_processor.dag_bundle_config_list.
+  dagBundleConfigList:
+    - name: dags-folder
+      classpath: "airflow.dag_processing.bundles.local.LocalDagBundle"
+      kwargs: {}
+  # Example:
+  # dagBundleConfigList:
+  #   - name: bundle1
+  #     classpath: "airflow.providers.git.bundles.git.GitDagBundle"
+  #     kwargs:
+  #       git_conn_id: "GITHUB__repo1"
+  #       subdir: "dags"
+  #       tracking_ref: "main"
+  #       refresh_interval: 60
+  #   - name: bundle2
+  #     classpath: "airflow.providers.git.bundles.git.GitDagBundle"
+  #     kwargs:
+  #       git_conn_id: "GITHUB__repo2"
+  #       subdir: "dags"
+  #       tracking_ref: "develop"
+  #       refresh_interval: 120
+  #   - name: dags-folder
+  #     classpath: "airflow.dag_processing.bundles.local.LocalDagBundle"
+  #     kwargs: {}
+
   # Number of airflow dag processors in the deployment
   replicas: 1
   # Max number of old replicasets to retain
@@ -3238,6 +3266,12 @@ config:
     statsd_host: '{{ printf "%s-statsd" (include "airflow.fullname" .) }}'
     # `run_duration` included for Airflow 1.10 backward compatibility; removed in 2.0.
     run_duration: 41460
+  dag_processor:
+    # Dag bundle configuration list in JSON string format.
+    # This is automatically generated from .Values.dagProcessor.dagBundleConfigList using the dag_bundle_config_list helper function.
+    # Deprecated: Direct override via config.dag_processor.dag_bundle_config_list is deprecated.
+    # Use dagProcessor.dagBundleConfigList instead.
+    dag_bundle_config_list: '{{ include "dag_bundle_config_list" . }}'
   elasticsearch:
     json_format: 'True'
     log_id_template: "{dag_id}_{task_id}_{execution_date}_{try_number}"

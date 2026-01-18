@@ -4313,6 +4313,48 @@
                     ],
                     "default": null
                 },
+                "dagBundleConfigList": {
+                    "description": "Define Dag bundles in a structured YAML format. This will be automatically converted to JSON string format for config.dag_processor.dag_bundle_config_list.",
+                    "type": "array",
+                    "default": [
+                        {
+                            "name": "dags-folder",
+                            "classpath": "airflow.dag_processing.bundles.local.LocalDagBundle",
+                            "kwargs": {}
+                        }
+                    ],
+                    "items": {
+                        "type": "object",
+                        "additionalProperties": false,
+                        "required": [
+                            "name",
+                            "classpath"
+                        ],
+                        "properties": {
+                            "name": {
+                                "description": "Name of the Dag bundle.",
+                                "type": "string"
+                            },
+                            "classpath": {
+                                "description": "Class path of the Dag bundle class.",
+                                "type": "string"
+                            },
+                            "kwargs": {
+                                "description": "Keyword arguments for the Dag bundle.",
+                                "type": "object",
+                                "default": {},
+                                "additionalProperties": {
+                                    "type": [
+                                        "string",
+                                        "number",
+                                        "boolean",
+                                        "null"
+                                    ]
+                                }
+                            }
+                        }
+                    }
+                },
                 "livenessProbe": {
                     "description": "Liveness probe configuration for dag processor.",
                     "type": "object",
