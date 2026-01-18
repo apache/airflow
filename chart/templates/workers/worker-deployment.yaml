@@ -165,11 +165,7 @@ spec:
       {{- end }}
       terminationGracePeriodSeconds: {{ .Values.workers.terminationGracePeriodSeconds }}
       restartPolicy: Always
-      {{- if .Values.workers.useWorkerDedicatedServiceAccounts }}
-      serviceAccountName: {{ include "worker.celery.serviceAccountName" . }}
-      {{- else }}
       serviceAccountName: {{ include "worker.serviceAccountName" . }}
-      {{- end }}
       securityContext: {{ $securityContext | nindent 8 }}
       imagePullSecrets: {{ include "image_pull_secrets" . | nindent 8 }}
       initContainers:

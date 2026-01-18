@@ -85,16 +85,17 @@ Requirements
 
 The minimum Apache Airflow version supported by this provider distribution is ``2.11.0``.
 
-==========================================  =====================================
+==========================================  ======================================
 PIP package                                 Version required
-==========================================  =====================================
+==========================================  ======================================
 ``apache-airflow``                          ``>=2.11.0``
 ``apache-airflow-providers-common-compat``  ``>=1.12.0``
 ``hdfs[avro,dataframe,kerberos]``           ``>=2.5.4; python_version < "3.12"``
 ``hdfs[avro,dataframe,kerberos]``           ``>=2.7.3; python_version >= "3.12"``
+``fastavro``                                ``>=1.10.0; python_version >= "3.13"``
 ``pandas``                                  ``>=2.1.2; python_version < "3.13"``
 ``pandas``                                  ``>=2.2.3; python_version >= "3.13"``
-==========================================  =====================================
+==========================================  ======================================
 
 Cross provider package dependencies
 -----------------------------------
