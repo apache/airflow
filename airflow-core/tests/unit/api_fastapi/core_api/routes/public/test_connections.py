@@ -16,12 +16,13 @@
 # under the License.
 from __future__ import annotations
 
+import json
 import os
 from importlib.metadata import PackageNotFoundError, metadata
 from unittest import mock
 
 import pytest
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from airflow.models import Connection
@@ -993,9 +994,7 @@ class TestConnection(TestConnectionEndpoint):
             {"connection_id": TEST_CONN_ID, "conn_type": "ftp"},
         ],
     )
-    @mock.patch("airflow.api_fastapi.core_api.routes.public.connections.conf.get")
-    def test_should_respond_403_by_default(self, mock_conf_get, test_client, body):
-        mock_conf_get.return_value = "Disabled"
+    def test_should_respond_403_by_default(self, test_client, body):
         response = test_client.post("/connections/test", json=body)
         assert response.status_code == 403
         assert response.json() == {
@@ -1012,15 +1011,33 @@ class TestConnection(TestConnectionEndpoint):
         )
         session.add(connection)
         session.commit()
+        initial_count = session.scalar(select(func.count()).select_from(Connection))
+
+        captured_password = {}
+
+        def mock_test_connection(self):
+            captured_password["value"] = self.password
+            return True, "mocked"
 
         body = {
             "connection_id": TEST_CONN_ID,
             "conn_type": "sqlite",
             "password": "***",
         }
-        response = test_client.post("/connections/test", json=body)
+
+        with mock.patch.object(Connection, "test_connection", mock_test_connection):
+            response = test_client.post("/connections/test", json=body)
+
         assert response.status_code == 200
         assert response.json()["status"] is True
+        # Verify that the existing password was used, not "***"
+        assert captured_password["value"] == "existing_password"
+
+        # Verify DB was not mutated
+        session.expire_all()
+        db_conn = session.scalar(select(Connection).filter_by(conn_id=TEST_CONN_ID))
+        assert db_conn.password == "existing_password"
+        assert session.scalar(select(func.count()).select_from(Connection)) == initial_count
 
     @mock.patch.dict(os.environ, {"AIRFLOW__CORE__TEST_CONNECTION": "Enabled"})
     def test_should_merge_extra_with_existing_connection(self, test_client, session):
@@ -1031,15 +1048,35 @@ class TestConnection(TestConnectionEndpoint):
         )
         session.add(connection)
         session.commit()
+        initial_count = session.scalar(select(func.count()).select_from(Connection))
+
+        captured_extra = {}
+
+        def mock_test_connection(self):
+            captured_extra["value"] = self.extra
+            return True, "mocked"
 
         body = {
             "connection_id": TEST_CONN_ID,
             "conn_type": "fs",
             "extra": '{"path": "/", "new_key": "new_value"}',
         }
-        response = test_client.post("/connections/test", json=body)
+
+        with mock.patch.object(Connection, "test_connection", mock_test_connection):
+            response = test_client.post("/connections/test", json=body)
+
         assert response.status_code == 200
         assert response.json()["status"] is True
+        # Verify that new_key is reflected in the merged extra
+        merged_extra = json.loads(captured_extra["value"])
+        assert merged_extra["new_key"] == "new_value"
+        assert merged_extra["path"] == "/"
+
+        # Verify DB was not mutated
+        session.expire_all()
+        db_conn = session.scalar(select(Connection).filter_by(conn_id=TEST_CONN_ID))
+        assert json.loads(db_conn.extra) == {"path": "/", "existing_key": "existing_value"}
+        assert session.scalar(select(func.count()).select_from(Connection)) == initial_count
 
     @mock.patch.dict(os.environ, {"AIRFLOW__CORE__TEST_CONNECTION": "Enabled"})
     def test_should_merge_both_password_and_extra(self, test_client, session):
@@ -1051,6 +1088,14 @@ class TestConnection(TestConnectionEndpoint):
         )
         session.add(connection)
         session.commit()
+        initial_count = session.scalar(select(func.count()).select_from(Connection))
+
+        captured_values = {}
+
+        def mock_test_connection(self):
+            captured_values["password"] = self.password
+            captured_values["extra"] = self.extra
+            return True, "mocked"
 
         body = {
             "connection_id": TEST_CONN_ID,
@@ -1058,9 +1103,25 @@ class TestConnection(TestConnectionEndpoint):
             "password": "***",
             "extra": '{"path": "/", "new_key": "new_value"}',
         }
-        response = test_client.post("/connections/test", json=body)
+
+        with mock.patch.object(Connection, "test_connection", mock_test_connection):
+            response = test_client.post("/connections/test", json=body)
+
         assert response.status_code == 200
         assert response.json()["status"] is True
+        # Verify that the existing password was used, not "***"
+        assert captured_values["password"] == "existing_password"
+        # Verify that new_key is reflected in the merged extra
+        merged_extra = json.loads(captured_values["extra"])
+        assert merged_extra["new_key"] == "new_value"
+        assert merged_extra["path"] == "/"
+
+        # Verify DB was not mutated
+        session.expire_all()
+        db_conn = session.scalar(select(Connection).filter_by(conn_id=TEST_CONN_ID))
+        assert db_conn.password == "existing_password"
+        assert json.loads(db_conn.extra) == {"path": "/", "existing_key": "existing_value"}
+        assert session.scalar(select(func.count()).select_from(Connection)) == initial_count
 
     @mock.patch.dict(os.environ, {"AIRFLOW__CORE__TEST_CONNECTION": "Enabled"})
     def test_should_test_new_connection_without_existing(self, test_client):
