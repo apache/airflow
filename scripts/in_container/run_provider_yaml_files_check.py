@@ -38,6 +38,7 @@ import subprocess
 
 import jsonschema
 import yaml
+from jsonpath_ng.ext import parse
 from rich.console import Console
 from tabulate import tabulate
 
@@ -687,8 +688,6 @@ def check_unique_provider_name(yaml_files: dict[str, dict]) -> tuple[int, int]:
 
 @run_check(f"Checking providers are mentioned in {PROVIDER_ISSUE_TEMPLATE_PATH}")
 def check_providers_are_mentioned_in_issue_template(yaml_files: dict[str, dict]):
-    from jsonpath_ng.ext import parse
-
     num_errors = 0
     num_providers = 0
     prefix_len = len("apache-airflow-providers-")
