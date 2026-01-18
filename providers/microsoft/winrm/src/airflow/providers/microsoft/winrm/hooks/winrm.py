@@ -269,7 +269,7 @@ class WinRMHook(BaseHook):
                     stderr,
                     return_code,
                     command_done,
-                ) = self.get_command_output(shell_id, command_id)
+                ) = self.get_command_output(shell_id, command_id, output_encoding)
 
                 # Only buffer stdout if we need to so that we minimize memory usage.
                 if return_output:
