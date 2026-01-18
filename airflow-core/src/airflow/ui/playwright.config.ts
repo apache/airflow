@@ -17,6 +17,7 @@
  * under the License.
  */
 import { defineConfig, devices } from "@playwright/test";
+import { connect } from "node:http2";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -30,6 +31,9 @@ export const testConfig = {
   },
   xcomDag: {
     id: process.env.TEST_XCOM_DAG_ID ?? "example_xcom",
+  },
+  connection: {
+    baseUrl: process.env.AIRFLOW_UI_BASE_URL ?? "http://localhost:28080",
   },
 };
 
