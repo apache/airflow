@@ -167,6 +167,9 @@ export class RequiredActionsPage extends BasePage {
 
     await expect(actionButton).toBeVisible({ timeout: 10_000 });
 
+    // Add a small safety delay for CI hydration to ensure internal form state is ready
+    await this.page.waitForTimeout(5000);
+
     const informationInput = this.page.locator("#element_information");
 
     if (await informationInput.isVisible()) {
@@ -217,9 +220,11 @@ export class RequiredActionsPage extends BasePage {
     await expect(requiredActionLink).toBeVisible({ timeout: 30_000 });
     await requiredActionLink.click();
 
+    await this.page.waitForTimeout(5000);
+
     const informationInput = this.page.locator("#element_information");
 
-    await expect(informationInput).toBeVisible({ timeout: 30_000 });
+    await expect(informationInput).toBeVisible({ timeout: 10_000 });
     await informationInput.fill("test");
 
     const okButton = this.page.getByRole("button", { name: "OK" });
