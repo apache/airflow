@@ -137,6 +137,16 @@ export class RequiredActionsPage extends BasePage {
     }
   }
 
+  private async clickButtonAndWaitForHITLResponse(button: Locator): Promise<void> {
+    const responsePromise = this.page.waitForResponse(
+      (response) => response.url().includes("hitlDetails") && response.request().method() === "PATCH",
+      { timeout: 30_000 },
+    );
+
+    await button.click();
+    await responsePromise;
+  }
+
   private async clickOnTaskInGrid(dagRunId: string, taskId: string): Promise<void> {
     const taskLocator = this.page.locator(`[id="grid-${dagRunId}-${taskId}"]`);
 
@@ -162,7 +172,7 @@ export class RequiredActionsPage extends BasePage {
     const actionButton = this.page.getByRole("button", { name: buttonName });
 
     await expect(actionButton).toBeVisible({ timeout: 10_000 });
-    await actionButton.click();
+    await this.clickButtonAndWaitForHITLResponse(actionButton);
 
     // Navigate back to DAG run page to access the grid
     await this.page.goto(`/dags/${dagId}/runs/${dagRunId}`);
@@ -186,7 +196,7 @@ export class RequiredActionsPage extends BasePage {
     const branchButton = this.page.getByRole("button", { name: "task_1" });
 
     await expect(branchButton).toBeVisible({ timeout: 10_000 });
-    await branchButton.click();
+    await this.clickButtonAndWaitForHITLResponse(branchButton);
 
     // Navigate back to DAG run page to access the grid
     await this.page.goto(`/dags/${dagId}/runs/${dagRunId}`);
@@ -215,7 +225,7 @@ export class RequiredActionsPage extends BasePage {
     const okButton = this.page.getByRole("button", { name: "OK" });
 
     await expect(okButton).toBeVisible({ timeout: 10_000 });
-    await okButton.click();
+    await this.clickButtonAndWaitForHITLResponse(okButton);
 
     // Navigate back to DAG run page to access the grid
     await this.page.goto(`/dags/${dagId}/runs/${dagRunId}`);
@@ -236,7 +246,6 @@ export class RequiredActionsPage extends BasePage {
     await expect(requiredActionLink).toBeVisible({ timeout: 30_000 });
     await requiredActionLink.click();
 
-    // Use the multi-select's ID wrapper which remains stable after selections
     const multiSelectContainer = this.page.locator("#element_chosen_options").locator("..");
 
     await expect(multiSelectContainer).toBeVisible({ timeout: 30_000 });
@@ -249,7 +258,7 @@ export class RequiredActionsPage extends BasePage {
     const respondButton = this.page.getByRole("button", { name: "Respond" });
 
     await expect(respondButton).toBeVisible({ timeout: 10_000 });
-    await respondButton.click();
+    await this.clickButtonAndWaitForHITLResponse(respondButton);
 
     // Navigate back to DAG run page to access the grid
     await this.page.goto(`/dags/${dagId}/runs/${dagRunId}`);
@@ -273,7 +282,7 @@ export class RequiredActionsPage extends BasePage {
     const optionButton = this.page.getByRole("button", { name: "option 1" });
 
     await expect(optionButton).toBeVisible({ timeout: 10_000 });
-    await optionButton.click();
+    await this.clickButtonAndWaitForHITLResponse(optionButton);
 
     // Navigate back to DAG run page to access the grid
     await this.page.goto(`/dags/${dagId}/runs/${dagRunId}`);
