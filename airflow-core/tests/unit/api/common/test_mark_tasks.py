@@ -52,7 +52,7 @@ def test_set_dag_run_state_to_failed(dag_maker: DagMaker[SerializedDAG]):
     assert len(updated_tis) == 2
     task_dict = {ti.task_id: ti for ti in updated_tis}
     assert task_dict["running"].state == TaskInstanceState.FAILED
-    assert task_dict["pending"].state == TaskInstanceState.SKIPPED
+    assert task_dict["pending"].state == TaskInstanceState.UPSTREAM_FAILED
     assert "teardown" not in task_dict
 
 

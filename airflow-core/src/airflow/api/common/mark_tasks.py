@@ -339,7 +339,7 @@ def set_dag_run_state_to_failed(
 
     if commit:
         for ti in pending_normal_tis:
-            ti.set_state(TaskInstanceState.SKIPPED)
+            ti.set_state(TaskInstanceState.UPSTREAM_FAILED)
 
         # Mark the dag run to failed if there is no pending teardown (else this would not be scheduled later).
         if not any(dag.task_dict[ti.task_id].is_teardown for ti in (running_tis + pending_tis)):
