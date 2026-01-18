@@ -32,6 +32,21 @@ Adding the ``--dev-mode`` flag will automatically run the vite dev server for ho
 
 In certain WSL environments, you will need to set ``CHOKIDAR_USEPOLLING=true`` in your environment variables for hot reloading to work.
 
+System Requirements
+-------------------
+
+Building the Airflow UI requires at least 8GB of system RAM (6GB available).
+
+By default, the build process allocates 4GB of heap memory to Node.js. If you encounter
+out-of-memory errors during the build, you can increase this by setting the ``NODE_OPTIONS``
+environment variable:
+
+.. code-block:: bash
+
+    # Increase to 8GB
+    export NODE_OPTIONS="--max-old-space-size=8192"
+    breeze start-airflow
+
 pnpm commands
 -------------
 

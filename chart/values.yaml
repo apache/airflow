@@ -1043,10 +1043,6 @@ workers:
   #         requests:
   #           storage: "20Gi"
 
-  # One common Service Account for all workers will be created if flag is set to false.
-  # If true, dedicated Service Accounts for every worker type will be created.
-  useWorkerDedicatedServiceAccounts: false
-
   celery:
     # Number of Airflow Celery workers
     replicas: 1
@@ -1120,19 +1116,6 @@ workers:
       pod: {}
       container: {}
 
-    # Create ServiceAccount for Airflow Celery workers
-    serviceAccount:
-      # default value is true
-      # ref: https://kubernetes.io/docs/tasks/configure-pod-container/configure-service-account/
-      automountServiceAccountToken: true
-      # Specifies whether a ServiceAccount should be created
-      create: true
-      # The name of the ServiceAccount to use.
-      # If not set and create is true, a name is generated using the release name
-      name: ~
-      # Annotations to add to worker kubernetes service account.
-      annotations: {}
-
     # Persistence volume configuration for Airflow Celery workers
     persistence:
       # Enable persistent volumes
@@ -1190,19 +1173,6 @@ workers:
     securityContexts:
       pod: {}
       container: {}
-
-    # Create ServiceAccount for pods created with pod-template-file
-    serviceAccount:
-      # Auto mount service account token into the pod. Default value is true.
-      # ref: https://kubernetes.io/docs/tasks/configure-pod-container/configure-service-account/
-      automountServiceAccountToken: true
-      # Specifies whether a ServiceAccount should be created
-      create: true
-      # The name of the ServiceAccount to use.
-      # If not set and create is true, a name is generated using the release name.
-      name: ~
-      # Annotations to add to worker kubernetes service account
-      annotations: {}
 
 # Airflow scheduler settings
 scheduler:
