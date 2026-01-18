@@ -2691,11 +2691,6 @@
                         }
                     ]
                 },
-                "useWorkerDedicatedServiceAccounts": {
-                    "description": "One common Service Account for all workers will be created if flag is set to false. If true, dedicated Service Accounts for every worker type will be created.",
-                    "type": "boolean",
-                    "default": false
-                },
                 "celery": {
                     "description": "Airflow Celery Workers configuration.",
                     "type": "object",
@@ -2858,38 +2853,6 @@
                                             }
                                         }
                                     ]
-                                }
-                            }
-                        },
-                        "serviceAccount": {
-                            "description": "Create ServiceAccount.",
-                            "type": "object",
-                            "properties": {
-                                "automountServiceAccountToken": {
-                                    "description": "Specifies if ServiceAccount's API credentials should be mounted onto Pods.",
-                                    "type": "boolean",
-                                    "default": true
-                                },
-                                "create": {
-                                    "description": "Specifies whether a ServiceAccount should be created.",
-                                    "type": "boolean",
-                                    "default": true
-                                },
-                                "name": {
-                                    "description": "The name of the ServiceAccount to use. If not set and create is true, a name is generated using the release name.",
-                                    "type": [
-                                        "string",
-                                        "null"
-                                    ],
-                                    "default": null
-                                },
-                                "annotations": {
-                                    "description": "Annotations to add to the Airflow Celery worker Kubernetes ServiceAccount.",
-                                    "type": "object",
-                                    "default": {},
-                                    "additionalProperties": {
-                                        "type": "string"
-                                    }
                                 }
                             }
                         },
@@ -3093,38 +3056,6 @@
                                             }
                                         }
                                     ]
-                                }
-                            }
-                        },
-                        "serviceAccount": {
-                            "description": "Create ServiceAccount.",
-                            "type": "object",
-                            "properties": {
-                                "automountServiceAccountToken": {
-                                    "description": "Specifies if ServiceAccount's API credentials should be mounted onto Pods.",
-                                    "type": "boolean",
-                                    "default": true
-                                },
-                                "create": {
-                                    "description": "Specifies whether a ServiceAccount should be created.",
-                                    "type": "boolean",
-                                    "default": true
-                                },
-                                "name": {
-                                    "description": "The name of the ServiceAccount to use. If not set and create is true, a name is generated using the release name.",
-                                    "type": [
-                                        "string",
-                                        "null"
-                                    ],
-                                    "default": null
-                                },
-                                "annotations": {
-                                    "description": "Annotations to add to the worker Kubernetes ServiceAccount.",
-                                    "type": "object",
-                                    "default": {},
-                                    "additionalProperties": {
-                                        "type": "string"
-                                    }
                                 }
                             }
                         }
