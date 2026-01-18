@@ -109,6 +109,9 @@ export class BackfillPage extends BasePage {
   }
 
   public async clickCancelButton(): Promise<void> {
+    const backdrop = this.page.locator('[data-part="backdrop"]');
+
+    await expect(backdrop).not.toBeVisible({ timeout: 10_000 });
     await expect(this.cancelButton).toBeVisible({ timeout: 10_000 });
     await this.cancelButton.click();
     await expect(this.cancelButton).not.toBeVisible({ timeout: 10_000 });
