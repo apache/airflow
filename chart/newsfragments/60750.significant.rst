@@ -1,0 +1,55 @@
+Automatic ``AIRFLOW__KUBERNETES_ENVIRONMENT_VARIABLES__`` prefix addition removed from ``container_extra_envs``
+
+The automatic prefix addition for Kubernetes Executor environment variables has been removed from the ``container_extra_envs`` helper function.
+
+**What changed:**
+
+Previously, when you added environment variables to component-specific configurations (e.g., ``.Values.scheduler.env``, ``.Values.workers.env``, ``.Values.apiServer.env``, ``.Values.dagProcessor.env``), the chart automatically created an additional environment variable with the ``AIRFLOW__KUBERNETES_ENVIRONMENT_VARIABLES__`` prefix for Kubernetes Executor worker pods.
+
+**Example - Before:**
+.. code-block:: yaml
+
+   apiServer:
+     env:
+       - name: MY_VAR
+         value: "my_value"
+
+This would automatically create both:
+* ``MY_VAR=my_value`` (for the apiServer)
+* ``AIRFLOW__KUBERNETES_ENVIRONMENT_VARIABLES__MY_VAR=my_value`` (for worker pods)
+
+**Example - After:**
+.. code-block:: yaml
+
+   apiServer:
+     env:
+       - name: MY_VAR
+         value: "my_value"
+
+Now only ``MY_VAR=my_value`` is created for the apiServer. The ``AIRFLOW__KUBERNETES_ENVIRONMENT_VARIABLES__MY_VAR`` is **no longer automatically created**.
+
+**Why this change:**
+
+* **Prevent Unintended Exposure of Sensitive Data**: Sensitive information (e.g., ``client_secret``) that should be securely handled via ``secretKeyRef`` for specific components was being automatically prefixed with ``AIRFLOW__KUBERNETES_ENVIRONMENT_VARIABLES__``. This prefixing causes these variables to be recognized as part of Airflow's internal configuration, leading to their unintended exposure in the Airflow Web UI (under Admin -> Configuration), even when ``AIRFLOW__API__EXPOSE_CONFIG`` is set to ``non-sensitive-only``.
+
+* **Avoid Unintended Environment Propagation to Workers**: Component-specific env configurations are intended strictly for specific components. However, the previous behavior caused these variables to be inadvertently passed to worker pods, which may result in unintended configuration conflicts and unexpected side effects.
+
+**Migration Required:**
+
+If you need to pass environment variables specifically to Kubernetes Executor worker pods, use one of the following approaches:
+
+**Option 1: Use ``.Values.env`` (recommended)**
+.. code-block:: yaml
+
+   env:
+     - name: my_var
+       value: "my_value"
+
+Environment variables in ``.Values.env`` still automatically get the ``AIRFLOW__KUBERNETES_ENVIRONMENT_VARIABLES__`` prefix via the ``custom_airflow_environment`` helper function.
+
+**Option 2: Use ``.Values.config.kubernetes_environment_variables``**
+.. code-block:: yaml
+
+   config:
+     kubernetes_environment_variables:
+       my_var: "my_value"
