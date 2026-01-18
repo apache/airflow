@@ -403,6 +403,29 @@ def test_repr():
     assert repr(executor) == "BaseExecutor(parallelism=10, team_name='teamA')"
 
 
+def test_get_db_manager_default_returns_none():
+    """Test that BaseExecutor.get_db_manager() returns None by default."""
+    assert BaseExecutor.get_db_manager() is None
+
+
+def test_get_db_manager_subclass_override():
+    """Test that executor subclasses can override get_db_manager()."""
+
+    class CustomExecutor(BaseExecutor):
+        @staticmethod
+        def get_db_manager():
+            return "airflow.providers.custom.db_manager.CustomDBManager"
+
+    assert CustomExecutor.get_db_manager() == "airflow.providers.custom.db_manager.CustomDBManager"
+
+
+def test_get_db_manager_callable_from_class_and_instance():
+    """Test that get_db_manager() can be called from both class and instance."""
+    executor = BaseExecutor()
+    assert BaseExecutor.get_db_manager() is None
+    assert executor.get_db_manager() is None
+
+
 @mock.patch.dict("os.environ", {}, clear=True)
 class TestExecutorConf:
     """Test ExecutorConf shim class that provides team-specific configuration access."""
