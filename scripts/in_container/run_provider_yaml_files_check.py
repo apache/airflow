@@ -117,6 +117,7 @@ def sync_dependencies_without_dev() -> None:
         capture_output=True,
         text=True,
         cwd=AIRFLOW_ROOT_PATH,
+        check = False
     )
     if result.returncode != 0:
         console.print(f"[red]Failed to remove dev dependencies: {result.stderr}[/]")
