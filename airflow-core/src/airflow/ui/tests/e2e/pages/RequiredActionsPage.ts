@@ -166,9 +166,28 @@ export class RequiredActionsPage extends BasePage {
     const actionButton = this.page.getByRole("button", { name: buttonName });
 
     await expect(actionButton).toBeVisible({ timeout: 10_000 });
+
+    const informationInput = this.page.locator("#element_information");
+
+    if (await informationInput.isVisible()) {
+      await informationInput.fill("Approved by test");
+    }
+
+    const multiSelectContainer = this.page.locator("#element_chosen_options").locator("..");
+
+    if (await multiSelectContainer.isVisible()) {
+      await multiSelectContainer.click();
+      const option = this.page.getByRole("option").first();
+
+      if (await option.isVisible()) {
+        await option.click();
+      }
+      await this.page.locator("body").click();
+    }
+
+    await expect(actionButton).toBeEnabled({ timeout: 10_000 });
     await this.clickButtonAndWaitForHITLResponse(actionButton);
 
-    // Navigate back to DAG run page to access the grid
     await this.page.goto(`/dags/${dagId}/runs/${dagRunId}`);
     await this.waitForTaskState(dagRunId, { expectedState: "Success", taskId: "valid_input_and_options" });
   }
@@ -186,7 +205,6 @@ export class RequiredActionsPage extends BasePage {
     await expect(branchButton).toBeVisible({ timeout: 10_000 });
     await this.clickButtonAndWaitForHITLResponse(branchButton);
 
-    // Navigate back to DAG run page to access the grid
     await this.page.goto(`/dags/${dagId}/runs/${dagRunId}`);
     await this.waitForTaskState(dagRunId, { expectedState: "Success", taskId: "choose_a_branch_to_run" });
   }
@@ -209,7 +227,6 @@ export class RequiredActionsPage extends BasePage {
     await expect(okButton).toBeVisible({ timeout: 10_000 });
     await this.clickButtonAndWaitForHITLResponse(okButton);
 
-    // Navigate back to DAG run page to access the grid
     await this.page.goto(`/dags/${dagId}/runs/${dagRunId}`);
     await this.waitForTaskState(dagRunId, { expectedState: "Success", taskId: "wait_for_input" });
   }
@@ -236,7 +253,6 @@ export class RequiredActionsPage extends BasePage {
     await expect(respondButton).toBeVisible({ timeout: 10_000 });
     await this.clickButtonAndWaitForHITLResponse(respondButton);
 
-    // Navigate back to DAG run page to access the grid
     await this.page.goto(`/dags/${dagId}/runs/${dagRunId}`);
     await this.waitForTaskState(dagRunId, { expectedState: "Success", taskId: "wait_for_multiple_options" });
   }
@@ -254,7 +270,6 @@ export class RequiredActionsPage extends BasePage {
     await expect(optionButton).toBeVisible({ timeout: 10_000 });
     await this.clickButtonAndWaitForHITLResponse(optionButton);
 
-    // Navigate back to DAG run page to access the grid
     await this.page.goto(`/dags/${dagId}/runs/${dagRunId}`);
     await this.waitForTaskState(dagRunId, { expectedState: "Success", taskId: "wait_for_option" });
   }
