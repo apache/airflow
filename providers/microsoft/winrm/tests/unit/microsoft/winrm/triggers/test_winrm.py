@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import asyncio
 import base64
+from contextlib import nullcontext
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -58,29 +59,31 @@ class TestWinRMCommandOutputTrigger:
             "deadline": None,
         }
 
-    def test_is_expired_is_false(self):
-        trigger = WinRMCommandOutputTrigger(
-            ssh_conn_id="ssh_conn_id",
-            shell_id="043E496C-A9E5-4284-AFCC-78A90E2BCB65",
-            command_id="E4C36903-E59F-43AB-9374-ABA87509F46D",
-        )
-
-        assert not trigger.is_expired
-
-    def test_is_expired_is_true(self):
-        with patch(
-            "airflow.providers.microsoft.winrm.triggers.winrm.time.monotonic",
-            return_value=200.0,
+    @pytest.mark.parametrize(
+        "monotonic_value, timeout, deadline, expected",
+        [
+            (None, None, None, False),
+            (200.0, None, 100.0, True),
+        ],
+    )
+    def test_is_expired(self, monotonic_value, timeout, deadline, expected):
+        with (
+            patch(
+                "airflow.providers.microsoft.winrm.triggers.winrm.time.monotonic",
+                return_value=monotonic_value,
+            )
+            if monotonic_value is not None
+            else nullcontext()
         ):
             trigger = WinRMCommandOutputTrigger(
                 ssh_conn_id="ssh_conn_id",
                 shell_id="043E496C-A9E5-4284-AFCC-78A90E2BCB65",
                 command_id="E4C36903-E59F-43AB-9374-ABA87509F46D",
-                timeout=None,
-                deadline=100.0,
+                timeout=timeout,
+                deadline=deadline,
             )
 
-            assert trigger.is_expired
+            assert trigger.is_expired is expected
 
     @pytest.mark.asyncio
     async def test_run(self):
