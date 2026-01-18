@@ -2698,7 +2698,10 @@
                     "properties": {
                         "replicas": {
                             "description": "Number of Airflow Celery workers.",
-                            "type": "integer",
+                            "type": [
+                                "integer",
+                                "null"
+                            ],
                             "default": 1
                         },
                         "revisionHistoryLimit": {
@@ -2743,27 +2746,42 @@
                             "properties": {
                                 "enabled": {
                                     "description": "Enable liveness probe for Airflow Celery workers.",
-                                    "type": "boolean",
+                                    "type": [
+                                        "boolean",
+                                        "null"
+                                    ],
                                     "default": true
                                 },
                                 "initialDelaySeconds": {
                                     "description": "Number of seconds after the container has started before liveness probes are initiated.",
-                                    "type": "integer",
+                                    "type": [
+                                        "integer",
+                                        "null"
+                                    ],
                                     "default": 10
                                 },
                                 "timeoutSeconds": {
                                     "description": "Number of seconds after which the probe times out. Minimum value is 1 seconds.",
-                                    "type": "integer",
+                                    "type": [
+                                        "integer",
+                                        "null"
+                                    ],
                                     "default": 20
                                 },
                                 "failureThreshold": {
                                     "description": "Minimum consecutive failures for the probe to be considered failed after having succeeded. Minimum value is 1.",
-                                    "type": "integer",
+                                    "type": [
+                                        "integer",
+                                        "null"
+                                    ],
                                     "default": 5
                                 },
                                 "periodSeconds": {
                                     "description": "How often (in seconds) to perform the probe. Minimum value is 1.",
-                                    "type": "integer",
+                                    "type": [
+                                        "integer",
+                                        "null"
+                                    ],
                                     "default": 60
                                 },
                                 "command": {
@@ -2863,7 +2881,10 @@
                             "properties": {
                                 "enabled": {
                                     "description": "Enable persistent volumes.",
-                                    "type": "boolean",
+                                    "type": [
+                                        "boolean",
+                                        "null"
+                                    ],
                                     "default": true
                                 },
                                 "persistentVolumeClaimRetentionPolicy": {
@@ -2872,7 +2893,10 @@
                                 },
                                 "size": {
                                     "description": "Volume size for Airflow Celery worker StatefulSet.",
-                                    "type": "string",
+                                    "type": [
+                                        "string",
+                                        "null"
+                                    ],
                                     "default": "100Gi"
                                 },
                                 "storageClassName": {
@@ -2885,7 +2909,10 @@
                                 },
                                 "fixPermissions": {
                                     "description": "Execute init container to chown log directory. This is currently only needed in kind, due to usage of local-path provisioner.",
-                                    "type": "boolean",
+                                    "type": [
+                                        "boolean",
+                                        "null"
+                                    ],
                                     "default": false
                                 },
                                 "annotations": {
