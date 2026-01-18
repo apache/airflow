@@ -311,7 +311,7 @@ class WinRMHook(BaseHook):
 
         return shell_id, command_id
 
-    def get_command_output(self, shell_id: str, command_id: str, output_encoding: str = "utf-8") -> tuple[int, bool , bytes, bytes]:
+    def get_command_output(self, shell_id: str, command_id: str, output_encoding: str = "utf-8") -> tuple[int | None, bool , bytes, bytes]:
         with suppress(WinRMOperationTimeoutError):
             (
                 stdout,
@@ -326,7 +326,7 @@ class WinRMHook(BaseHook):
             self.log_output(stderr, level=logging.WARNING, output_encoding=output_encoding)
 
             return return_code, command_done, stdout, stderr
-        return -1, False, b"", b""
+        return None, False, b"", b""
 
     def log_output(
         self,

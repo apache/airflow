@@ -147,7 +147,7 @@ class WinRMOperator(BaseOperator):
         )
         return self.evaluate_result(return_code, stdout_buffer, stderr_buffer)
 
-    def validate_return_code(self, return_code: int) -> bool:
+    def validate_return_code(self, return_code: int | None) -> bool:
         if return_code is not None:
             if isinstance(self.expected_return_code, int):
                 return return_code == self.expected_return_code
@@ -157,7 +157,7 @@ class WinRMOperator(BaseOperator):
 
     def evaluate_result(
         self,
-        return_code: int,
+        return_code: int | None,
         stdout_buffer: list[bytes],
         stderr_buffer: list[bytes],
     ) -> Any:
