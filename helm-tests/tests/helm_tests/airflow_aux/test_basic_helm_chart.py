@@ -675,10 +675,7 @@ class TestBaseChartTest:
                     "images": {image: {"pullPolicy": "InvalidPolicy"}},
                 },
             )
-        assert (
-            "value must be one of 'Always', 'Never', 'IfNotPresent'"
-            in ex_ctx.value.stderr.decode()
-        )
+        assert "value must be one of 'Always', 'Never', 'IfNotPresent'" in ex_ctx.value.stderr.decode()
 
     def test_invalid_dags_access_mode(self):
         with pytest.raises(CalledProcessError) as ex_ctx:
