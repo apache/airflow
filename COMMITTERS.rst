@@ -112,7 +112,7 @@ A prospective committer typically demonstrates several of the following:
     guiding their coding practices, reviewing their code and answering code-related questions
 
 Note: As mentioned earlier, there may be exceptions for code contributions requirements for contributors who
-provide sustained, high-impact non-code contributors (for example, community leadership, outlining AIPs, etc.).
+provide sustained, high-impact non-code contributions (for example, community leadership, outlining AIPs, etc.).
 Such exceptions are rare and chosen selectively, so contributors with coding skills who aim to become committers
 and PMC are generally encouraged to follow the regular path.
 
