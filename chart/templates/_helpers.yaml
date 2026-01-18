@@ -1123,23 +1123,6 @@ capabilities:
         key: {{ $config.valueFrom.configMapKeyRef.key }}
       {{- end }}
     {{- end }}
-    {{- if or (contains "KubernetesExecutor" $.Values.executor) (contains "LocalKubernetesExecutor" $.Values.executor) (contains "CeleryKubernetesExecutor" $.Values.executor) }}
-  - name: AIRFLOW__KUBERNETES_ENVIRONMENT_VARIABLES__{{ $config.name }}
-    {{- if $config.value }}
-    value: {{ $config.value | quote }}
-    {{- else if $config.valueFrom }}
-    valueFrom:
-      {{- if $config.valueFrom.secretKeyRef }}
-      secretKeyRef:
-        name: {{ $config.valueFrom.secretKeyRef.name }}
-        key: {{ $config.valueFrom.secretKeyRef.key }}
-      {{- else if $config.valueFrom.configMapKeyRef }}
-      configMapKeyRef:
-        name: {{ $config.valueFrom.configMapKeyRef.name }}
-        key: {{ $config.valueFrom.configMapKeyRef.key }}
-      {{- end }}
-    {{- end }}
-    {{- end }}
   {{- end }}
 {{- end }}
 
