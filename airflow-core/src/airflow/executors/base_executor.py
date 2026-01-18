@@ -155,6 +155,19 @@ class BaseExecutor(LoggingMixin):
     name: None | ExecutorName = None
     callback_sink: BaseCallbackSink | None = None
 
+    @staticmethod
+    def get_db_manager() -> str | None:
+        """
+        Return the DB manager class path for this executor, if any.
+
+        Override this method in executor subclasses that require their own
+        database tables to be managed during db operations like reset/migrate.
+
+        Returns:
+            str | None: Full module path to the DB manager class, or None if not needed.
+        """
+        return None
+
     @cached_property
     def jwt_generator(self) -> JWTGenerator:
         from airflow.api_fastapi.auth.tokens import (
