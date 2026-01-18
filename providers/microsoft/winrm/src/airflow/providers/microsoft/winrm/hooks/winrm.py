@@ -248,7 +248,7 @@ class WinRMHook(BaseHook):
         """
 
         conn = self.get_conn()
-        shell_id, command_id= self._run_command(
+        shell_id, command_id = self._run_command(
             conn=conn,
             command=command,
             ps_path=ps_path,
@@ -317,7 +317,9 @@ class WinRMHook(BaseHook):
 
         return shell_id, command_id
 
-    def get_command_output(self, conn: Protocol, shell_id: str, command_id: str, output_encoding: str = "utf-8") -> tuple[int | None, bool , bytes, bytes]:
+    def get_command_output(
+        self, conn: Protocol, shell_id: str, command_id: str, output_encoding: str = "utf-8"
+    ) -> tuple[int | None, bool , bytes, bytes]:
         with suppress(WinRMOperationTimeoutError):
             (
                 stdout,
