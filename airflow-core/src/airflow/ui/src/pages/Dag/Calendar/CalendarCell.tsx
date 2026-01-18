@@ -25,12 +25,12 @@ import type { CalendarCellData, CalendarColorMode } from "./types";
 
 type Props = {
   readonly backgroundColor:
-  | Record<string, string>
-  | string
-  | {
-    actual: string | { _dark: string; _light: string };
-    planned: string | { _dark: string; _light: string };
-  };
+    | Record<string, string>
+    | string
+    | {
+        actual: string | { _dark: string; _light: string };
+        planned: string | { _dark: string; _light: string };
+      };
   readonly cellData: CalendarCellData | undefined;
   readonly index?: number;
   readonly marginRight?: string;
