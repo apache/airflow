@@ -117,17 +117,12 @@ class WinRMOperator(BaseOperator):
         return self.winrm_hook
 
     def execute(self, context: Context) -> list | str:
-        result = self.hook.run(
-            command=self.command,
-            ps_path=self.ps_path,
-            output_encoding=self.output_encoding,
-            return_output=self.do_xcom_push,
-            working_directory=self.working_directory,
-            polling=not self.deferrable,
-        )
-
         if self.deferrable:
-            shell_id, command_id, _ = result
+            shell_id, command_id = self.hook.run_command(
+                command=self.command,
+                ps_path=self.ps_path,
+                working_directory=self.working_directory,
+            )
             return self.defer(
                 trigger=WinRMCommandOutputTrigger(
                     ssh_conn_id=self.hook.ssh_conn_id,
@@ -142,7 +137,15 @@ class WinRMOperator(BaseOperator):
                 method_name=self.execute_complete.__name__,
                 timeout=self.timeout,
             )
-        return self.evaluate_result(*result)
+
+        return_code, stdout_buffer, stderr_buffer = self.hook.run(
+            command=self.command,
+            ps_path=self.ps_path,
+            output_encoding=self.output_encoding,
+            return_output=self.do_xcom_push,
+            working_directory=self.working_directory,
+        )
+        return self.evaluate_result(return_code, stdout_buffer, stderr_buffer)
 
     def validate_return_code(self, return_code: int) -> bool:
         if return_code is not None:
