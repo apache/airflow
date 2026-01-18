@@ -2780,7 +2780,7 @@ export type PatchTaskInstanceData = {
     mapIndex?: number | null;
     requestBody: PatchTaskInstanceBody;
     taskGroupId?: string | null;
-    taskId: string;
+    taskId: string | null;
     updateMask?: Array<(string)> | null;
 };
 
@@ -2904,7 +2904,7 @@ export type PatchTaskInstanceByMapIndexData = {
     mapIndex: number | null;
     requestBody: PatchTaskInstanceBody;
     taskGroupId?: string | null;
-    taskId: string;
+    taskId: string | null;
     updateMask?: Array<(string)> | null;
 };
 
@@ -3037,7 +3037,7 @@ export type PatchTaskInstanceDryRunByMapIndexData = {
     mapIndex: number | null;
     requestBody: PatchTaskInstanceBody;
     taskGroupId?: string | null;
-    taskId: string;
+    taskId: string | null;
     updateMask?: Array<(string)> | null;
 };
 
@@ -3049,11 +3049,35 @@ export type PatchTaskInstanceDryRunData = {
     mapIndex?: number | null;
     requestBody: PatchTaskInstanceBody;
     taskGroupId?: string | null;
-    taskId: string;
+    taskId: string | null;
     updateMask?: Array<(string)> | null;
 };
 
 export type PatchTaskInstanceDryRunResponse = TaskInstanceCollectionResponse;
+
+export type PatchTaskGroupDryRunData = {
+    dagId: string;
+    dagRunId: string;
+    mapIndex?: number | null;
+    requestBody: PatchTaskInstanceBody;
+    taskGroupId: string | null;
+    taskId?: string | null;
+    updateMask?: Array<(string)> | null;
+};
+
+export type PatchTaskGroupDryRunResponse = TaskInstanceCollectionResponse;
+
+export type PatchTaskGroupData = {
+    dagId: string;
+    dagRunId: string;
+    mapIndex?: number | null;
+    requestBody: PatchTaskInstanceBody;
+    taskGroupId: string | null;
+    taskId?: string | null;
+    updateMask?: Array<(string)> | null;
+};
+
+export type PatchTaskGroupResponse = TaskInstanceCollectionResponse;
 
 export type GetLogData = {
     accept?: 'application/json' | 'application/x-ndjson' | '*/*';
@@ -5626,6 +5650,72 @@ export type $OpenApiTs = {
                  * Not Found
                  */
                 404: HTTPExceptionResponse;
+                /**
+                 * Validation Error
+                 */
+                422: HTTPValidationError;
+            };
+        };
+    };
+    '/api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/taskGroup/{task_group_id}/dry_run': {
+        patch: {
+            req: PatchTaskGroupDryRunData;
+            res: {
+                /**
+                 * Successful Response
+                 */
+                200: TaskInstanceCollectionResponse;
+                /**
+                 * Bad Request
+                 */
+                400: HTTPExceptionResponse;
+                /**
+                 * Unauthorized
+                 */
+                401: HTTPExceptionResponse;
+                /**
+                 * Forbidden
+                 */
+                403: HTTPExceptionResponse;
+                /**
+                 * Not Found
+                 */
+                404: HTTPExceptionResponse;
+                /**
+                 * Validation Error
+                 */
+                422: HTTPValidationError;
+            };
+        };
+    };
+    '/api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/taskGroup/{task_group_id}': {
+        patch: {
+            req: PatchTaskGroupData;
+            res: {
+                /**
+                 * Successful Response
+                 */
+                200: TaskInstanceCollectionResponse;
+                /**
+                 * Bad Request
+                 */
+                400: HTTPExceptionResponse;
+                /**
+                 * Unauthorized
+                 */
+                401: HTTPExceptionResponse;
+                /**
+                 * Forbidden
+                 */
+                403: HTTPExceptionResponse;
+                /**
+                 * Not Found
+                 */
+                404: HTTPExceptionResponse;
+                /**
+                 * Conflict
+                 */
+                409: HTTPExceptionResponse;
                 /**
                  * Validation Error
                  */

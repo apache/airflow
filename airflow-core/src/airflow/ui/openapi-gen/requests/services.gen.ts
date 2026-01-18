@@ -1941,8 +1941,8 @@ export class TaskInstanceService {
      * @param data.dagRunId
      * @param data.taskId
      * @param data.requestBody
-     * @param data.mapIndex
      * @param data.taskGroupId
+     * @param data.mapIndex
      * @param data.updateMask
      * @returns TaskInstanceCollectionResponse Successful Response
      * @throws ApiError
@@ -1957,8 +1957,8 @@ export class TaskInstanceService {
                 task_id: data.taskId
             },
             query: {
-                map_index: data.mapIndex,
                 task_group_id: data.taskGroupId,
+                map_index: data.mapIndex,
                 update_mask: data.updateMask
             },
             body: data.requestBody,
@@ -2625,8 +2625,8 @@ export class TaskInstanceService {
      * @param data.dagRunId
      * @param data.taskId
      * @param data.requestBody
-     * @param data.mapIndex
      * @param data.taskGroupId
+     * @param data.mapIndex
      * @param data.updateMask
      * @returns TaskInstanceCollectionResponse Successful Response
      * @throws ApiError
@@ -2641,8 +2641,8 @@ export class TaskInstanceService {
                 task_id: data.taskId
             },
             query: {
-                map_index: data.mapIndex,
                 task_group_id: data.taskGroupId,
+                map_index: data.mapIndex,
                 update_mask: data.updateMask
             },
             body: data.requestBody,
@@ -2652,6 +2652,87 @@ export class TaskInstanceService {
                 401: 'Unauthorized',
                 403: 'Forbidden',
                 404: 'Not Found',
+                422: 'Validation Error'
+            }
+        });
+    }
+    
+    /**
+     * Patch Task Instance Dry Run
+     * Update a task instance dry_run mode.
+     * @param data The data for the request.
+     * @param data.dagId
+     * @param data.dagRunId
+     * @param data.taskGroupId
+     * @param data.requestBody
+     * @param data.taskId
+     * @param data.mapIndex
+     * @param data.updateMask
+     * @returns TaskInstanceCollectionResponse Successful Response
+     * @throws ApiError
+     */
+    public static patchTaskGroupDryRun(data: PatchTaskGroupDryRunData): CancelablePromise<PatchTaskGroupDryRunResponse> {
+        return __request(OpenAPI, {
+            method: 'PATCH',
+            url: '/api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/taskGroup/{task_group_id}/dry_run',
+            path: {
+                dag_id: data.dagId,
+                dag_run_id: data.dagRunId,
+                task_group_id: data.taskGroupId
+            },
+            query: {
+                task_id: data.taskId,
+                map_index: data.mapIndex,
+                update_mask: data.updateMask
+            },
+            body: data.requestBody,
+            mediaType: 'application/json',
+            errors: {
+                400: 'Bad Request',
+                401: 'Unauthorized',
+                403: 'Forbidden',
+                404: 'Not Found',
+                422: 'Validation Error'
+            }
+        });
+    }
+    
+    /**
+     * Patch Task Instance
+     * Update a task instance.
+     * @param data The data for the request.
+     * @param data.dagId
+     * @param data.dagRunId
+     * @param data.taskGroupId
+     * @param data.requestBody
+     * @param data.taskId
+     * @param data.mapIndex
+     * @param data.updateMask
+     * @returns TaskInstanceCollectionResponse Successful Response
+     * @throws ApiError
+     */
+    public static patchTaskGroup(data: PatchTaskGroupData): CancelablePromise<PatchTaskGroupResponse> {
+        return __request(OpenAPI, {
+            method: 'PATCH',
+            url: '/api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/taskGroup/{task_group_id}',
+            path: {
+                dag_id: data.dagId,
+                dag_run_id: data.dagRunId,
+                task_group_id: data.taskGroupId
+            },
+            query: {
+                task_id: data.taskId,
+                map_index: data.mapIndex,
+                update_mask: data.updateMask
+            },
+            body: data.requestBody,
+            mediaType: 'application/json',
+            errors: {
+                400: 'Bad Request',
+                401: 'Unauthorized',
+                403: 'Forbidden',
+                404: 'Not Found',
+                409: 'Conflict',
                 422: 'Validation Error'
             }
         });
