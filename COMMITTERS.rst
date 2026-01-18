@@ -61,9 +61,9 @@ single one of those, their combined contributions in several areas all count.
 As a community, we appreciate contributions to the Airflow codebase, but we also place equal value
 on those who help Airflow by improving the community in some way. It is entirely possible to become
 a committer (and eventually a PMC member) without ever having to change a single line of code,
-though that requires visibility and presence in the regular community channels - slack, devlist, social
+but that requires visibility and presence in the regular community channels - slack, devlist, social
 media - this is important for the PMC to be aware of such activities. If PMC is not aware of those, they
-have no chance to spot and discuss such candidates.
+have no chance to spot and promote such candidates.
 
 Guidelines from ASF are listed at ASF:
 `New Candidates for Committership <http://community.apache.org/newcommitter.html#guidelines-for-assessing-new-candidates-for-committership>`_
@@ -76,21 +76,21 @@ General prerequisites that we look for in all candidates:
 
 1.  Consistent contribution over at least three months
 2.  Visibility on discussions on the dev mailing list, Slack channels or GitHub issues/discussions
-    including casting non-binding votes and testing RCs
+    including casting non-binding votes and testing release candidates for various Airflow releases.
 3.  Helping other contributors and users - with sharing their code contributor's experience and reviewing other's code
-4.  Contributions to community health and project's sustainability for the long-term
+4.  Contributions to community health and project's sustainability in the long-term
 5.  Understands contributor/committer guidelines: `Contributors' Guide <contributing-docs/README.rst>`__
 
 
 Code contribution
 ^^^^^^^^^^^^^^^^^
 
-A prospective committer typically demonstrates several of the following:
+A potential candidate for committership typically demonstrates several of the following:
 
 1.  Makes high-quality commits (including meaningful commit messages), and assess the impact of the changes, including
     upgrade paths or deprecation policies
 2.  Tests Release Candidates to help the release cycle
-3.  Proposes and leads Airflow Improvement Proposal(s) to completion
+3.  Proposes and/or leads Airflow Improvement Proposal(s) to completion
 4.  Demonstrates an understanding of several of the following areas or has displayed a holistic understanding
     of a particular part and made contributions towards a more strategic goal
 
@@ -183,7 +183,7 @@ Community involvement
   * Mentors new members/contributors
   * Answers users/contributors via GitHub issues, dev list or slack
 
-* Is aware and pays attention to Airflow public image
+* Is aware and pays attention to public image of Airflow
 
   * Watches and takes part in public discussions about Airflow
   * Flags cases which might be problematic for Airflow community
