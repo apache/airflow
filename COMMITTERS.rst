@@ -193,7 +193,7 @@ Community involvement
 Code contribution
 ^^^^^^^^^^^^^^^^^
 
-* Consistent voting on RCs for at least past 3 releases lifecycles
+* Consistent voting on release candidates for at least past 3 releases lifecycles
 * Engagement in Airflow Improvements Proposals either:
 
   * Has been actively voting on AIPs
