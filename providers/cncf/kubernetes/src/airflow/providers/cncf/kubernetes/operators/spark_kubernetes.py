@@ -17,6 +17,7 @@
 # under the License.
 from __future__ import annotations
 
+from datetime import datetime, timezone
 from functools import cached_property
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, cast
@@ -235,6 +236,14 @@ class SparkKubernetesOperator(KubernetesPodOperator):
         return self.manage_template_specs()
 
     def find_spark_job(self, context, exclude_checked: bool = True):
+        """
+        Find an existing Spark driver pod for this task instance.
+
+        The pod is identified using Airflow task context labels. If multiple
+        driver pods match the same labels (which can occur if cleanup did not
+        run after an abrupt failure), the most recently created pod is selected
+        deterministically for reattachment.
+        """
         label_selector = (
             self._build_find_pod_label_selector(context, exclude_checked=exclude_checked)
             + ",spark-role=driver"
@@ -242,8 +251,24 @@ class SparkKubernetesOperator(KubernetesPodOperator):
         pod_list = self.client.list_namespaced_pod(self.namespace, label_selector=label_selector).items
 
         pod = None
-        if len(pod_list) > 1:  # and self.reattach_on_restart:
-            raise AirflowException(f"More than one pod running with labels: {label_selector}")
+        if len(pod_list) > 1:
+            # When multiple pods match the same labels, select the most recently created one.
+            # If no creation_timestamp is available, the name is used as a tie-breaker.
+            pod = max(
+                pod_list,
+                key=lambda p: (
+                    p.metadata.creation_timestamp or datetime.min.replace(tzinfo=timezone.utc),
+                    p.metadata.name or "",
+                ),
+            )
+            self.log.warning(
+                "Found %d Spark driver pods matching labels %s; "
+                "selecting the most recently created pod %s for reattachment.",
+                len(pod_list),
+                label_selector,
+                pod.metadata.name,
+            )
+
         if len(pod_list) == 1:
             pod = pod_list[0]
             self.log.info(
