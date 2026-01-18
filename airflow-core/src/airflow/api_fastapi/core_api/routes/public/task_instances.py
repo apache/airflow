@@ -880,20 +880,41 @@ def patch_task_instance_dry_run(
     )
 
     if data.get("new_state"):
-        tis = (
-            dag.set_task_instance_state(
-                task_id=task_id,
-                run_id=dag_run_id,
-                map_indexes=[map_index] if map_index is not None else None,
-                state=data["new_state"],
-                upstream=body.include_upstream,
-                downstream=body.include_downstream,
-                future=body.include_future,
-                past=body.include_past,
-                commit=False,
-                session=session,
+        # Use dict to track unique affected task instances
+        affected_tis_dict: dict[tuple[str, str, str, int], TI] = {}
+
+        # Iterate over all task instances - works for both single TI and task groups
+        # since _patch_ti_validate_request already returns the appropriate TIs
+        for ti in tis:
+            affected_tis = (
+                dag.set_task_instance_state(
+                    task_id=ti.task_id,
+                    run_id=dag_run_id,
+                    map_indexes=[ti.map_index] if ti.map_index is not None else None,
+                    state=data["new_state"],
+                    upstream=body.include_upstream or False,
+                    downstream=body.include_downstream or False,
+                    future=body.include_future or False,
+                    past=body.include_past or False,
+                    commit=False,
+                    session=session,
+                )
+                or []
             )
-            or []
+
+            # Add unique task instances
+            for affected_ti in affected_tis:
+                ti_key = (
+                    affected_ti.dag_id,
+                    affected_ti.run_id,
+                    affected_ti.task_id,
+                    affected_ti.map_index if affected_ti.map_index is not None else -1,
+                )
+                affected_tis_dict[ti_key] = affected_ti
+
+        return TaskInstanceCollectionResponse(
+            task_instances=[TaskInstanceResponse.model_validate(ti) for ti in affected_tis_dict.values()],
+            total_entries=len(affected_tis_dict),
         )
 
     return TaskInstanceCollectionResponse(
@@ -976,45 +997,12 @@ def patch_task_instance(
 
     for key, _ in data.items():
         if key == "new_state":
-            if task_group_id is not None:
-                # For task group: iterate over each task instance in the group
-                for ti in tis:
-                    # Create BulkTaskInstanceBody object with map_index field
-                    bulk_ti_body = BulkTaskInstanceBody(
-                        task_id=ti.task_id,
-                        map_index=ti.map_index,
-                        new_state=body.new_state,
-                        note=body.note,
-                        include_upstream=body.include_upstream,
-                        include_downstream=body.include_downstream,
-                        include_future=body.include_future,
-                        include_past=body.include_past,
-                    )
-
-                    # Update state and get all affected TIs (including upstream/downstream/future/past)
-                    updated_tis = _patch_task_instance_state(
-                        task_id=ti.task_id,
-                        dag_run_id=dag_run_id,
-                        dag=dag,
-                        task_instance_body=bulk_ti_body,
-                        data=data,
-                        session=session,
-                    )
-
-                    # Track unique affected TIs
-                    for updated_ti in updated_tis:
-                        ti_key = (
-                            updated_ti.dag_id,
-                            updated_ti.run_id,
-                            updated_ti.task_id,
-                            updated_ti.map_index if updated_ti.map_index is not None else -1,
-                        )
-                        affected_tis_dict[ti_key] = updated_ti
-            else:
-                # For regular task instance: use original behavior
+            # Iterate over all task instances - works for both single TI and task groups
+            # since _patch_ti_validate_request already returns the appropriate TIs
+            for ti in tis:
                 bulk_ti_body = BulkTaskInstanceBody(
-                    task_id=task_id,
-                    map_index=map_index,
+                    task_id=ti.task_id,
+                    map_index=ti.map_index,
                     new_state=body.new_state,
                     note=body.note,
                     include_upstream=body.include_upstream,
@@ -1023,14 +1011,24 @@ def patch_task_instance(
                     include_past=body.include_past,
                 )
 
-                _patch_task_instance_state(
-                    task_id=task_id,
+                updated_tis = _patch_task_instance_state(
+                    task_id=ti.task_id,
                     dag_run_id=dag_run_id,
                     dag=dag,
                     task_instance_body=bulk_ti_body,
                     data=data,
                     session=session,
                 )
+
+                # Track unique affected TIs
+                for updated_ti in updated_tis:
+                    ti_key = (
+                        updated_ti.dag_id,
+                        updated_ti.run_id,
+                        updated_ti.task_id,
+                        updated_ti.map_index if updated_ti.map_index is not None else -1,
+                    )
+                    affected_tis_dict[ti_key] = updated_ti
 
         elif key == "note":
             _patch_task_instance_note(
@@ -1040,8 +1038,8 @@ def patch_task_instance(
                 update_mask=update_mask,
             )
 
-    # For task groups, refresh affected TIs from the database
-    if task_group_id is not None and affected_tis_dict:
+    # Refresh affected TIs from the database
+    if affected_tis_dict:
         ti_keys_list = list(affected_tis_dict.keys())
         refreshed_tis = session.scalars(
             select(TI)
