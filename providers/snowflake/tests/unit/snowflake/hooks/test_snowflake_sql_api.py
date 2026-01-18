@@ -1474,8 +1474,8 @@ class TestSnowflakeSqlApiHook:
         mock_cancel_execution.assert_has_calls([call("query-1"), call("query-2"), call("query-3")])
 
     def test_make_api_call_passes_timeout_to_requests(self, mock_requests):
-        hook = SnowflakeSqlApiHook(snowflake_conn_id="test_conn", http_timeout_seconds=12)
-
+        """Test that http_request_kwargs are forwarded to requests.request()."""
+        hook = SnowflakeSqlApiHook(snowflake_conn_id="test_conn", http_request_kwargs={"timeout": 12.0})
         resp = mock.MagicMock()
         resp.status_code = 200
         resp.raise_for_status.return_value = None
@@ -1493,10 +1493,36 @@ class TestSnowflakeSqlApiHook:
             timeout=12.0,
         )
 
+    @pytest.mark.parametrize("forbidden_key", ["method", "url", "headers", "params", "json"])
+    def test_make_api_call_with_retries_rejects_http_request_kwargs_overriding_identity_fields(
+        self,
+        forbidden_key: str,
+    ):
+        """
+        Test http_request_kwargs cannot override request identity fields.
+        The hook owns request-defining fields such as method, url, headers, params, and json.
+        Supplying any of these via http_request_kwargs must fail fast with a ValueError.
+        """
+        hook = SnowflakeSqlApiHook(
+            snowflake_conn_id="test_conn",
+            http_request_kwargs={forbidden_key: "boom"},
+        )
+
+        with pytest.raises(
+            ValueError,
+            match=r"http_request_kwargs must not override request identity fields",
+        ):
+            hook._make_api_call_with_retries("GET", API_URL, HEADERS)
 
     @pytest.mark.asyncio
     async def test_make_api_call_with_retries_async_passes_timeout_to_clientsession(self):
-        hook = SnowflakeSqlApiHook(snowflake_conn_id="test_conn", http_timeout_seconds=7)
+        """
+        Test that aiohttp_session_kwargs are forwarded to aiohttp.ClientSession.
+        """
+        hook = SnowflakeSqlApiHook(
+            snowflake_conn_id="test_conn",
+            aiohttp_session_kwargs={"timeout": aiohttp.ClientTimeout(total=7.0)},
+        )
 
         with mock.patch(f"{MODULE_PATH}.aiohttp.ClientSession") as client_session_cls:
             session_cm = mock.MagicMock()
@@ -1518,10 +1544,18 @@ class TestSnowflakeSqlApiHook:
             assert isinstance(timeout_obj, aiohttp.ClientTimeout)
             assert timeout_obj.total == 7.0
 
-
     @pytest.mark.asyncio
     async def test_make_api_call_with_retries_async_retries_on_timeout_error(self, mock_async_request):
-        hook = SnowflakeSqlApiHook(snowflake_conn_id="test_conn", http_timeout_seconds=7)
+        """
+        Test that the async API call is retried when a timeout error occurs.
+
+        The first request raises asyncio.TimeoutError, and the second attempt succeeds.
+        This ensures retry behavior is correctly applied to transient async failures.
+        """
+        hook = SnowflakeSqlApiHook(
+            snowflake_conn_id="test_conn",
+            aiohttp_session_kwargs={"timeout": aiohttp.ClientTimeout(total=7.0)},
+        )
 
         mock_async_request.__aenter__.side_effect = [
             asyncio.TimeoutError(),
@@ -1533,3 +1567,47 @@ class TestSnowflakeSqlApiHook:
         assert status == 200
         assert data == GET_RESPONSE
         assert mock_async_request.__aenter__.call_count == 2
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("forbidden_key", ["headers"])
+    async def test_make_api_call_with_retries_async_rejects_aiohttp_session_kwargs_overriding_session_owned_fields(
+        self, forbidden_key
+    ):
+        """
+        Test aiohttp_session_kwargs cannot override session-owned fields.
+        Session-owned fields such as headers are managed by the hook and
+        must not be overridden via aiohttp_session_kwargs.
+        """
+        hook = SnowflakeSqlApiHook(
+            snowflake_conn_id="test_conn",
+            aiohttp_session_kwargs={forbidden_key: {"x": "boom"}},
+        )
+
+        with pytest.raises(
+            ValueError,
+            match=r"aiohttp_session_kwargs must not override session-owned fields",
+        ):
+            await hook._make_api_call_with_retries_async("GET", API_URL, HEADERS)
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("forbidden_key", ["method", "url", "params", "headers"])
+    async def test_make_api_call_with_retries_async_rejects_aiohttp_request_kwargs_overriding_identity_fields(
+        self, forbidden_key
+    ):
+        """
+        Test aiohttp_request_kwargs cannot override request identity fields.
+
+        Request identity fields such as method, url, params, and headers
+        are owned by the hook and must not be overridden via
+        aiohttp_request_kwargs.
+        """
+        hook = SnowflakeSqlApiHook(
+            snowflake_conn_id="test_conn",
+            aiohttp_request_kwargs={forbidden_key: "boom"},
+        )
+
+        with pytest.raises(
+            ValueError,
+            match=r"aiohttp_request_kwargs must not override request identity fields",
+        ):
+            await hook._make_api_call_with_retries_async("GET", API_URL, HEADERS)
