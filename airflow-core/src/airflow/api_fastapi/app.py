@@ -23,7 +23,7 @@ from typing import TYPE_CHECKING
 from urllib.parse import urlsplit
 
 from fastapi import FastAPI
-from starlette.routing import Mount
+from fastapi.routing import Mount
 
 from airflow.api_fastapi.common.dagbag import create_dag_bag
 from airflow.api_fastapi.core_api.app import (

@@ -348,6 +348,25 @@ class TestScheduler:
         expected_result = revision_history_limit or global_revision_history_limit
         assert jmespath.search("spec.revisionHistoryLimit", docs[0]) == expected_result
 
+    @pytest.mark.parametrize(
+        ("revision_history_limit", "global_revision_history_limit", "expected"),
+        [(0, None, 0), (None, 0, 0), (0, 10, 0)],
+    )
+    def test_revision_history_limit_zero(
+        self, revision_history_limit, global_revision_history_limit, expected
+    ):
+        """Test that revisionHistoryLimit can be set to 0."""
+        values = {"scheduler": {}}
+        if revision_history_limit is not None:
+            values["scheduler"]["revisionHistoryLimit"] = revision_history_limit
+        if global_revision_history_limit is not None:
+            values["revisionHistoryLimit"] = global_revision_history_limit
+        docs = render_chart(
+            values=values,
+            show_only=["templates/scheduler/scheduler-deployment.yaml"],
+        )
+        assert jmespath.search("spec.revisionHistoryLimit", docs[0]) == expected
+
     def test_should_create_valid_affinity_tolerations_and_node_selector(self):
         docs = render_chart(
             values={
@@ -565,7 +584,7 @@ class TestScheduler:
     @pytest.mark.parametrize(
         ("airflow_version", "probe_command"),
         [
-            ("1.9.0", "from airflow.jobs.scheduler_job import SchedulerJob"),
+            ("1.10.14", "from airflow.jobs.scheduler_job import SchedulerJob"),
             ("2.1.0", "airflow jobs check --job-type SchedulerJob --hostname $(hostname)"),
             ("2.5.0", "airflow jobs check --job-type SchedulerJob --local"),
         ],
@@ -583,7 +602,7 @@ class TestScheduler:
     @pytest.mark.parametrize(
         ("airflow_version", "probe_command"),
         [
-            ("1.9.0", "from airflow.jobs.scheduler_job import SchedulerJob"),
+            ("1.10.14", "from airflow.jobs.scheduler_job import SchedulerJob"),
             ("2.1.0", "airflow jobs check --job-type SchedulerJob --hostname $(hostname)"),
             ("2.5.0", "airflow jobs check --job-type SchedulerJob --local"),
         ],
